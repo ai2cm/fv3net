@@ -407,7 +407,10 @@ def _get_nudging_config(config_yaml: str, timestamp_dir: str):
 def get_nudging_config(tendencies_path: str):
     config = _get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
     config["tendency_prescriber"] = {
-        "url": tendencies_path,
+        "mapper_config": {
+            "function": "open_zarr",
+            "kwargs": {"data_path": tendencies_path},
+        },
         "variables": {"air_temperature": "Q1"},
     }
     config["diagnostics"] = [

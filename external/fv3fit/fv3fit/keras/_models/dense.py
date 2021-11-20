@@ -19,8 +19,8 @@ from fv3fit.keras._models.shared.utils import (
 from fv3fit.keras._models.shared.clip import (
     clip_layers,
     clip_arrays,
-    zero_fill_clipped_layers,
     ClippedXyMultiArraySequence,
+    zero_fill_clipped_layers,
 )
 
 
@@ -142,7 +142,6 @@ def train_dense_model(
         names=hyperparameters.output_variables, ds=train_batches[0], unstacked_dims="z",
     )
     del train_batches
-
     hyperparameters.training_loop.fit_loop(
         model=train_model, Xy=train_data, validation_data=validation_data
     )
