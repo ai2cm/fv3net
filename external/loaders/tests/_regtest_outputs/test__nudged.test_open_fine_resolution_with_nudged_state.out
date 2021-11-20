@@ -124,7 +124,9 @@ variables:
 		vulcan_omega_coarse:time_avg_info = average_T1,average_T2,average_DT ;
 		vulcan_omega_coarse:units = Pa/s ;
 	float32 air_temperature(tile, z, y, x) ;
-		air_temperature:units = degK ;
+		air_temperature:checksum = 84E9D5116058750E ;
+		air_temperature:long_name = temperature ;
+		air_temperature:units = K ;
 	float32 clear_sky_downward_longwave_flux_at_surface(tile, y, x) ;
 		clear_sky_downward_longwave_flux_at_surface:units = W/m^2 ;
 	float32 clear_sky_downward_shortwave_flux_at_surface(tile, y, x) ;
@@ -154,7 +156,9 @@ variables:
 	float32 sensible_heat_flux(tile, y, x) ;
 		sensible_heat_flux:units = W/m^2 ;
 	float32 specific_humidity(tile, z, y, x) ;
-		specific_humidity:units = kg/kg ;
+		specific_humidity:checksum = CEC95437F1418F74 ;
+		specific_humidity:long_name = specific humidity ;
+		specific_humidity:units = kg / kg ;
 	float32 surface_geopotential(tile, y, x) ;
 		surface_geopotential:units = m^2 s^-2 ;
 	float32 surface_precipitation_rate(tile, y, x) ;

@@ -57,6 +57,10 @@ def _open_fine_resolution_dataset(
     else:
         merged = fine_shifted
 
+    # enforce that these ML inputs come from fine dataset
+    merged["air_temperature"] = fine_shifted.T
+    merged["specific_humidity"] = fine_shifted.sphum
+
     return merged
 
 

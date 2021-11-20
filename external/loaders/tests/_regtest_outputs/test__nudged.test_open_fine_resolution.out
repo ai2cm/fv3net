@@ -121,6 +121,14 @@ variables:
 		vulcan_omega_coarse:long_name = coarse-grained vulcan omega ;
 		vulcan_omega_coarse:time_avg_info = average_T1,average_T2,average_DT ;
 		vulcan_omega_coarse:units = Pa/s ;
+	float32 air_temperature(tile, z, y, x) ;
+		air_temperature:checksum = 84E9D5116058750E ;
+		air_temperature:long_name = temperature ;
+		air_temperature:units = K ;
+	float32 specific_humidity(tile, z, y, x) ;
+		specific_humidity:checksum = CEC95437F1418F74 ;
+		specific_humidity:long_name = specific humidity ;
+		specific_humidity:units = kg / kg ;
 	float32 Q1(tile, z, y, x) ;
 		Q1:units = K/s ;
 		Q1:long_name = apparent heating from high resolution data ;
