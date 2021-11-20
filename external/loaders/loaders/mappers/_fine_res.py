@@ -133,20 +133,23 @@ def _add_dynamics_differences(merged: xr.Dataset):
     return Q1, Q2
 
 
-def _extend_lower(fine_source: xr.DataArray, vertical_dim: str = "z") -> xr.Dataset:
+def _extend_lower(
+    fine_source: xr.DataArray, vertical_dim: str = "z", n_levels: int = 2
+) -> xr.Dataset:
     if fine_source.sizes[vertical_dim] < 2:
         raise ValueError("vertical_dim must be greater than 1.")
-    fine_source_new_bottom = fine_source.isel({vertical_dim: -2})
-    fine_source_without_bottom = fine_source.isel({vertical_dim: slice(None, -1)})
+    fine_source_new_lower = fine_source.isel({vertical_dim: -(n_levels + 1)})
+    fine_source_without_lower = fine_source.isel({vertical_dim: slice(None, -n_levels)})
     fine_source_extended_lower = xr.concat(
-        [fine_source_without_bottom, fine_source_new_bottom], dim=vertical_dim
+        [fine_source_without_lower, *(n_levels * [fine_source_new_lower])],
+        dim=vertical_dim,
     )
     fine_source_extended_lower.attrs.update(
         {
             "long_name": fine_source.attrs.get("long_name")
-            + " with lowest layer overriden",
+            + " with lowest layer(s) overriden",
             "description": fine_source.attrs.get("description")
-            + ", with lowest layer overriden",
+            + ", with lowest layer(s) overriden",
         }
     )
     return fine_source_extended_lower
