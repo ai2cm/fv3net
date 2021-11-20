@@ -21,14 +21,7 @@ class MLTendencies(Protocol):
 
 def open_zarr(url, consolidated=False):
     mapper = zarr.LRUStoreCache(fsspec.get_mapper(url), 128 * 2 ** 20)
-    return xr.open_zarr(mapper, consolidated=consolidated)
-
-
-def open_zarr_maybe_consolidated(url):
-    try:
-        return open_zarr(url, consolidated=True)
-    except KeyError:
-        return open_zarr(url, consolidated=False)
+    return xr.open_zarr(mapper)
 
 
 def standardize_coords(
@@ -38,17 +31,17 @@ def standardize_coords(
     return gfdl_to_standard(ds_shifted).drop("tile")
 
 
-def _open_fine_resolution_dataset(
+def _open_merged_dataset(
     fine_url: str, additional_dataset_urls: Optional[Sequence[str]]
 ) -> FineResBudget:
 
-    fine = open_zarr_maybe_consolidated(fine_url)
+    fine = open_zarr(fine_url)
     fine_shifted = standardize_coords(fine)
 
     if additional_dataset_urls is not None:
         additional_datasets = []
         for url in additional_dataset_urls:
-            additional_datasets.append(open_zarr_maybe_consolidated(url))
+            additional_datasets.append(open_zarr(url))
         merged = xr.merge([fine_shifted, *additional_datasets], join="inner")
         if "latitude" in merged:
             merged["latitude"] = merged.latitude.isel(time=0)
@@ -97,17 +90,17 @@ def _add_nudging_tendencies(merged: xr.Dataset):
     Q1.attrs.update(
         {
             "long_name": merged.Q1.attrs.get("long_name")
-            + " plus dynamics nudging tendencies",
+            + " plus dynamics nudging tendency",
             "description": merged.Q1.attrs.get("description")
-            + " + dynamics nudging tendencies",
+            + " + dynamics nudging tendency",
         }
     )
     Q2.attrs.update(
         {
             "long_name": merged.Q2.attrs.get("long_name")
-            + " plus dynamics nudging tendencies",
+            + " plus dynamics nudging tendency",
             "description": merged.Q2.attrs.get("description")
-            + " + dynamics nudging tendencies",
+            + " + dynamics nudging tendency",
         }
     )
     return Q1, Q2
@@ -125,18 +118,16 @@ def _add_dynamics_differences(merged: xr.Dataset):
         )
     Q1.attrs.update(
         {
-            "long_name": merged.Q1.attrs.get("long_name")
-            + " plus dynamics differences",
+            "long_name": merged.Q1.attrs.get("long_name") + " plus dynamics difference",
             "description": merged.Q1.attrs.get("description")
-            + " + dynamics differences",
+            + " + dynamics difference",
         }
     )
     Q2.attrs.update(
         {
-            "long_name": merged.Q2.attrs.get("long_name")
-            + " plus dynamics differences",
+            "long_name": merged.Q2.attrs.get("long_name") + " plus dynamics difference",
             "description": merged.Q2.attrs.get("description")
-            + " + dynamics differences",
+            + " + dynamics difference",
         }
     )
     return Q1, Q2
@@ -163,16 +154,9 @@ def _extend_lower(fine_source: xr.DataArray, vertical_dim: str = "z") -> xr.Data
 
 def _ml_standard_names(merged: xr.Dataset):
 
-    # since ML target is Q1/Q2, dQ1=Q1 and pQ1=0 and same for moistening
+    # since ML target is Q1/Q2, dQ1=Q1 and same for moistening
     merged["dQ1"] = merged["Q1"]
     merged["dQ2"] = merged["Q2"]
-    merged["pQ1"] = xr.zeros_like(merged.Q1)
-    merged["pQ1"].attrs = {"units": "K/s", "long_name": "coarse-res physics heating"}
-    merged["pQ2"] = xr.zeros_like(merged.Q2)
-    merged["pQ2"].attrs = {
-        "units": "kg/kg/s",
-        "long_name": "coarse-res physics moistening",
-    }
 
     return merged.astype(np.float32)
 
@@ -205,7 +189,7 @@ def open_fine_resolution(
 
     approach_enum = Approach[approach]
 
-    merged: FineResBudget = _open_fine_resolution_dataset(
+    merged: FineResBudget = _open_merged_dataset(
         fine_url=fine_url, additional_dataset_urls=additional_dataset_urls,
     )
     budget: MLTendencies = _compute_budget(
@@ -219,7 +203,7 @@ def _open_precomputed_fine_resolution_dataset(
     fine_url: str, additional_dataset_urls: Optional[Sequence[str]] = None
 ) -> MLTendencies:
 
-    merged = _open_fine_resolution_dataset(fine_url, additional_dataset_urls)
+    merged = _open_merged_dataset(fine_url, additional_dataset_urls)
     return _ml_standard_names(merged)
 
 

@@ -5,7 +5,7 @@ from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
 from loaders._config import mapper_functions
 from loaders.mappers._fine_res import (
-    open_zarr_maybe_consolidated,
+    open_zarr,
     standardize_coords,
     MLTendencies,
 )
@@ -23,7 +23,7 @@ def _open_fine_resolution_nudging_hybrid_dataset(
     include_temperature_nudging: bool = False,
 ) -> xr.Dataset:
 
-    fine = open_zarr_maybe_consolidated(fine_url)
+    fine = open_zarr(fine_url)
     fine_shifted = standardize_coords(fine)
     fine_shifted["Q1"], fine_shifted["Q2"] = compute_fine_res_sources(
         fine_shifted, include_temperature_nudging
@@ -36,7 +36,7 @@ def _open_precomputed_fine_resolution_nudging_hybrid_dataset(
     fine_url: str, nudge_url: str,
 ) -> xr.Dataset:
 
-    fine = open_zarr_maybe_consolidated(fine_url)
+    fine = open_zarr(fine_url)
 
     return _open_nudged_hybrid_portion(fine, nudge_url)
 
@@ -45,11 +45,9 @@ def _open_nudged_hybrid_portion(
     fine_shifted: xr.Dataset, nudge_url: str
 ) -> MLTendencies:
 
-    nudge_physics_tendencies = open_zarr_maybe_consolidated(
-        nudge_url + "/physics_tendencies.zarr",
-    )
-    nudge_state = open_zarr_maybe_consolidated(nudge_url + "/state_after_timestep.zarr")
-    nudge_tends = open_zarr_maybe_consolidated(nudge_url + "/nudging_tendencies.zarr")
+    nudge_physics_tendencies = open_zarr(nudge_url + "/physics_tendencies.zarr",)
+    nudge_state = open_zarr(nudge_url + "/state_after_timestep.zarr")
+    nudge_tends = open_zarr(nudge_url + "/nudging_tendencies.zarr")
 
     merged = xr.merge(
         [fine_shifted, nudge_state, nudge_physics_tendencies], join="inner",
