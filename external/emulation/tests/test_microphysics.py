@@ -5,34 +5,7 @@ import tensorflow as tf
 from emulation._emulate.microphysics import (
     MicrophysicsHook,
     RenamedOutputModel,
-    _unpack_predictions,
 )
-
-
-def test__unpack_predictions_single_out():
-    data = np.arange(20).reshape(4, 5)
-
-    out_names = ["field1"]
-
-    result = _unpack_predictions(data, out_names)
-
-    assert len(result) == 1
-    assert result["field1"].shape == (5, 4)
-
-
-def test__unpack_predictions_multi_out():
-    data = np.arange(20).reshape(4, 5)
-
-    out_names = ["field1", "field2", "field3"]
-
-    result = _unpack_predictions([data] * 3, out_names)
-
-    assert len(result) == len(out_names)
-    for name in out_names:
-        assert name in result
-
-    for name in out_names:
-        assert result[name].shape == (5, 4)
 
 
 def test_Config_integration(saved_model_path, dummy_rundir):

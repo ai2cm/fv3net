@@ -14,6 +14,7 @@ import os  # noqa: E402
 import tensorflow as tf  # noqa: E402
 
 from ..debug import print_errors  # noqa: E402
+from .adapters import convert_to_dict_output  # noqa: E402
 from .._filesystem import get_dir  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -44,11 +45,18 @@ class RenamedOutputModel:
         return [self.translation.get(key, key) for key in self.model.output_names]
 
     @property
+    def inputs(self):
+        return self.model.inputs
+
+    @property
     def input_names(self):
         return self.model.input_names
 
     def predict(self, x):
         return self.model.predict(x)
+
+    def __call__(self, x):
+        return self.model(x)
 
 
 @print_errors
@@ -66,22 +74,7 @@ def _load_tf_model(model_path: str) -> tf.keras.Model:
             },
         )
 
-    return model
-
-
-def _unpack_predictions(predictions, output_names):
-
-    if len(output_names) == 1:
-        # single output model doesn't return a list
-        # zip would start unpacking array rows
-        model_outputs = {output_names[0]: predictions.T}
-    else:
-        model_outputs = {
-            name: output.T  # transposed adjust
-            for name, output in zip(output_names, predictions)
-        }
-
-    return model_outputs
+    return convert_to_dict_output(model)
 
 
 class MicrophysicsHook:
@@ -133,7 +126,8 @@ class MicrophysicsHook:
         inputs = {name: state[name].T for name in self.model.input_names}
 
         predictions = self.model.predict(inputs)
-        model_outputs = _unpack_predictions(predictions, self.model.output_names)
+        # tranpose back to FV3 conventions
+        model_outputs = {name: tensor.T for name, tensor in predictions.items()}
 
         # fields stay in global state so check overwrites on first step
         if self.orig_outputs is None:
