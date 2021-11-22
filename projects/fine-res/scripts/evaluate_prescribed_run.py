@@ -153,7 +153,8 @@ def compute(run_url, output):
         data.append(xr.open_zarr(fsspec.get_mapper(os.path.join(run_url, name))))
     grid = catalog["grid/c48"].to_dask().load()
     data.append(grid)
-    data = xr.merge(data).assign_coords(z=range(data.sizes["z"]))
+    data = xr.merge(data)
+    data = data.assign_coords(z=range(data.sizes["z"]))
 
     # create 'process' dimension in data
     data_by_process = organize_by_process(data)
