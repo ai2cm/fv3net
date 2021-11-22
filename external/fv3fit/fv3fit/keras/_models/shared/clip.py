@@ -61,6 +61,23 @@ class ClipConfig(PackerConfig):
             )
 
 
+def _zero_slice_with_placeholder_dim(layer: tf.Tensor, n_zero_levels: int) -> tf.Tensor:
+    # Hacky way of getting zero padding tensor with same first placeholder dim as input
+    # but different feature dim size, b/c tf.placeholder is not in our version.
+    # Creates a tensor of zeroes which will be concatenated to a clipped output layer.
+    layer_copy = tf.zeros_like(layer)
+
+    # if padding needed is longer than clipped feature dim size, need to
+    # expand the copy layer to allow for this when slicing
+    n_template_levels = layer_copy.shape[-1]
+    if n_zero_levels > n_template_levels:
+        n_copies_needed = n_zero_levels // n_template_levels + 1
+        layer_copy = tf.concat([layer_copy for i in range(n_copies_needed)], axis=-1)
+    slice_start = [0 for l in layer.shape]
+    slice_size = [-1 for l in layer.shape[:-1]] + [n_zero_levels]
+    return tf.slice(layer_copy, slice_start, slice_size)
+
+
 def zero_pad_output_feature_dim(
     layer: tf.Tensor, n_removed_from_start, n_removed_from_end
 ) -> tf.Tensor:
@@ -146,23 +163,6 @@ def clip_arrays(
         else:
             outputs.append(array)
     return outputs
-
-
-def _zero_slice_with_placeholder_dim(layer: tf.Tensor, n_zero_levels: int) -> tf.Tensor:
-    # Hacky way of getting zero padding tensor with same first placeholder dim as input
-    # but different feature dim size.
-    # The slice size cannot be larger than the original layer size,
-    layer_copy = tf.zeros_like(layer)
-
-    # if padding needed is longer than clipped feature dim size, need to
-    # expand the copy layer to allow for this when slicing
-    n_template_levels = layer_copy.shape[-1]
-    if n_zero_levels > n_template_levels:
-        n_copies_needed = n_zero_levels // n_template_levels + 1
-        layer_copy = tf.concat([layer_copy for i in range(n_copies_needed)], axis=-1)
-    slice_start = [0 for l in layer.shape]
-    slice_size = [-1 for l in layer.shape[:-1]] + [n_zero_levels]
-    return tf.slice(layer_copy, slice_start, slice_size)
 
 
 class ClippedXyMultiArraySequence(tf.keras.utils.Sequence):
