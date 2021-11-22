@@ -1,5 +1,5 @@
 import sys
-from typing import List, Mapping
+from typing import Mapping
 from .._typing import FortranState
 
 # Tensorflow looks at sys args which are not initialized
@@ -14,7 +14,7 @@ import os  # noqa: E402
 import tensorflow as tf  # noqa: E402
 
 from ..debug import print_errors  # noqa: E402
-from fv3fit.keras.adapters import convert_to_dict_output  # noqa: E402
+from fv3fit.keras import adapters  # noqa: E402
 from .._filesystem import get_dir  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -35,46 +35,21 @@ def _get_timestep(namelist):
     return int(namelist["coupler_nml"]["dt_atmos"])
 
 
-class RenamedOutputModel:
-    def __init__(self, model: tf.keras.Model, translation: Mapping[str, str]):
-        self.translation = translation
-        self.model = model
-
-    @property
-    def output_names(self) -> List[str]:
-        return [self.translation.get(key, key) for key in self.model.output_names]
-
-    @property
-    def inputs(self):
-        return self.model.inputs
-
-    @property
-    def input_names(self):
-        return self.model.input_names
-
-    def predict(self, x):
-        return self.model.predict(x)
-
-    def __call__(self, x):
-        return self.model(x)
-
-
 @print_errors
 def _load_tf_model(model_path: str) -> tf.keras.Model:
     logger.info(f"Loading keras model: {model_path}")
     with get_dir(model_path) as local_model_path:
         model = tf.keras.models.load_model(local_model_path)
-        model = RenamedOutputModel(
-            model,
-            # for backwards compatibility
+        # These following two adapters are for backwards compatibility
+        dict_output_model = adapters.convert_to_dict_output(model)
+        return adapters.rename_dict_output(
+            dict_output_model,
             translation={
                 "air_temperature_output": "air_temperature_after_precpd",
                 "specific_humidity_output": "specific_humidity_after_precpd",
                 "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
             },
         )
-
-    return convert_to_dict_output(model)
 
 
 class MicrophysicsHook:

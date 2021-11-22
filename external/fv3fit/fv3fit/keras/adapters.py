@@ -1,4 +1,5 @@
 """Routines for backwards compatibility of model artifacts"""
+from typing import Mapping
 import tensorflow as tf
 
 
@@ -15,6 +16,28 @@ def _unpack_predictions(predictions, output_names):
         }
 
     return model_outputs
+
+
+def rename_dict_output(
+    model: tf.keras.Model, translation: Mapping[str, str]
+) -> tf.keras.Model:
+    """Rename the outputs of a dict-output model
+
+    Args:
+        model: a tensorflow model. must return dicts
+        transation: a mapping from old names (the keys returned by ``model``) to
+            the new output names.
+    
+    """
+
+    inputs = model.inputs
+    outputs = model(inputs)
+    renamed_outputs = {
+        translation.get(name, name): tensor for name, tensor in outputs.items()
+    }
+    model = tf.keras.Model(inputs=inputs, outputs=renamed_outputs)
+    model(inputs)
+    return model
 
 
 def convert_to_dict_output(model: tf.keras.Model) -> tf.keras.Model:
