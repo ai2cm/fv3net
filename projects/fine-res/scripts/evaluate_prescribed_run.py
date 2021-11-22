@@ -104,6 +104,7 @@ def adjust_units(ds):
 
 
 def plot_profile(ds, variable, output):
+    print(f"Generating and saving {output}")
     da = ds[variable]
     path_variable = variable.replace("tendency", "path_storage")
     fg = da.plot(col="region", y="z", yincrease=False, hue="process", col_wrap=3)
@@ -117,11 +118,13 @@ def plot_profile(ds, variable, output):
             axes[i].text(
                 0.05, 0.84 - 0.06 * j, f"{val:.2f}", **text_kwargs, color=COLORS[j]
             )
-    fg.fig.savefig(output, dpi=150)
+    with fsspec.open(output, "wb") as f:
+        fg.fig.savefig(f, dpi=150)
     plt.close(fg.fig)
 
 
 def plot_map(ds, name, output):
+    print(f"Generating and saving {output}")
     fg = fv3viz.plot_cube(ds, name, col="process", col_wrap=2)[-1]
     fg.fig.set_size_inches((7, 3.8))
     if "snapshot" in name:
@@ -131,17 +134,19 @@ def plot_map(ds, name, output):
     else:
         time = ""
     fg.fig.suptitle(time)
-    fg.fig.savefig(output, dpi=200)
+    with fsspec.open(output, "wb") as f:
+        fg.fig.savefig(f, dpi=200)
     plt.close(fg.fig)
 
 
 def time_mean(ds):
     start = ds.time.values[0]
     end = ds.time.values[-1]
-    return ds.mean("time").assign_coords(time=f"{start} to {end} mean")
+    return ds.mean("time").assign_attrs(timespan=f"{start} to {end}")
 
 
 def compute(run_url, output):
+    print(f"Computing diagnostics from {run_url} and saving to {output}")
     catalog = intake.open_catalog(catalog_path)
     data = []
     for name in [
@@ -158,6 +163,8 @@ def compute(run_url, output):
 
     # create 'process' dimension in data
     data_by_process = organize_by_process(data)
+
+    # add sum over processes
     sum_ = data_by_process.sum("process").assign_coords(process="sum")
     data_by_process = xr.concat([sum_, data_by_process], dim="process")
 
@@ -170,11 +177,13 @@ def compute(run_url, output):
         "P-E>0": grid.area.where(data[column_q2_name] < 0),
         "P-E<0": grid.area.where(data[column_q2_name] > 0),
     }
+    masks = {k: v.compute() for k, v in masks.items()}
 
     # compute means over regions
     region_mean = []
     for name, area in masks.items():
-        reduced = vcm.weighted_average(data_by_process, area)
+        print(f"Computing reduction for {name} mean")
+        reduced = vcm.weighted_average(data_by_process, area).compute()
         region_mean.append(reduced.assign_coords(region=name))
     region_mean = xr.concat(region_mean, dim="region")
     region_mean = add_suffix(region_mean, "_region_mean")
@@ -196,6 +205,9 @@ def compute(run_url, output):
 
     # merge and compute
     diagnostics = xr.merge([region_mean_time_mean, data_snapshot, data_time_mean, grid])
+    for variable in diagnostics:
+        print(f"Computing {variable}")
+        diagnostics[variable] = diagnostics[variable].compute()
     diagnostics = diagnostics.compute()
     adjust_units(diagnostics)
 
@@ -204,6 +216,7 @@ def compute(run_url, output):
 
 
 def plot(ds: xr.Dataset, output: str):
+    print(f"Generating plots and saving to {output}")
     horizontal = []
     profile = []
     for variable in ds:
@@ -225,7 +238,7 @@ def plot(ds: xr.Dataset, output: str):
 @click.argument("output", type=str, default=".")
 def evaluate(run_url, output):
     Client()
-    diag_output = os.path.normpath(os.path.join(output, "diags.nc"))
+    diag_output = os.path.join(output, "diags.nc")
     compute(run_url, diag_output)
     with fsspec.open(diag_output) as f:
         ds = xr.open_dataset(f, engine="h5netcdf").load()
