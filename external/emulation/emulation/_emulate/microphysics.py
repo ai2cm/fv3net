@@ -14,7 +14,7 @@ import os  # noqa: E402
 import tensorflow as tf  # noqa: E402
 
 from ..debug import print_errors  # noqa: E402
-from .adapters import convert_to_dict_output  # noqa: E402
+from fv3fit.keras.adapters import convert_to_dict_output  # noqa: E402
 from .._filesystem import get_dir  # noqa: E402
 
 logger = logging.getLogger(__name__)

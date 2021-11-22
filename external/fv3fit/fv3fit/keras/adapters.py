@@ -24,11 +24,23 @@ def convert_to_dict_output(model: tf.keras.Model) -> tf.keras.Model:
         model: a keras model returning either dicts or lists of named outputs.
 
     Returns:
-        dict_output_model: a keras model returning dicts.
-            If ``model`` already returns dicts, then this is identical to model.
-            Otherwise, uses ``model.output_names`` as keys of the dictionary.
+        A keras model returning dicts.
+        If ``model`` already returns dicts, then this is identical to model.
+        If ``model`` outputs lists, then the ``name`` of each output
+        layer will be used.
+    
+    Example:
 
-    """
+        >>> i = tf.keras.Input(shape=[5])
+        >>> out_1 = tf.keras.layers.Dense(5, name="a")(i)
+        >>> out_2 = tf.keras.layers.Dense(5, name="b")(i)
+        >>> model = tf.keras.Model(inputs=[i], outputs=[out_1, out_2])
+        [<KerasTensor: shape=(None, 5) dtype=float32 (created by layer 'model_1')>, <KerasTensor: shape=(None, 5) dtype=float32 (created by layer 'model_1')>]
+        >>> dict_output_model = convert_to_dict_output(model)
+        >>> dict_output_model(i)
+        {'a': <KerasTensor: shape=(None, 5) dtype=float32 (created by layer 'model_1')>, 'b': <KerasTensor: shape=(None, 5) dtype=float32 (created by layer 'model_1')>}
+
+    """  # noqa: E501
 
     inputs = model.inputs
     outputs = model(inputs)

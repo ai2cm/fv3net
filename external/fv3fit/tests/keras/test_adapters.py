@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from emulation._emulate.adapters import convert_to_dict_output
+from fv3fit.keras.adapters import convert_to_dict_output
 
 
 def test_convert_to_dict_output_multiple_out():
