@@ -123,16 +123,10 @@ variables:
 		vulcan_omega_coarse:long_name = coarse-grained vulcan omega ;
 		vulcan_omega_coarse:time_avg_info = average_T1,average_T2,average_DT ;
 		vulcan_omega_coarse:units = Pa/s ;
-	float32 Q1(tile, z, y, x) ;
-		Q1:units = K/s ;
-		Q1:long_name = apparent heating from high resolution data ;
-		Q1:description = Apparent heating due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence + temperature nudging ;
-	float32 Q2(tile, z, y, x) ;
-		Q2:units = kg/kg/s ;
-		Q2:long_name = apparent moistening from high resolution data ;
-		Q2:description = Apparent moistening due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence ;
 	float32 air_temperature(tile, z, y, x) ;
-		air_temperature:units = degK ;
+		air_temperature:checksum = 84E9D5116058750E ;
+		air_temperature:long_name = temperature ;
+		air_temperature:units = K ;
 	float32 clear_sky_downward_longwave_flux_at_surface(tile, y, x) ;
 		clear_sky_downward_longwave_flux_at_surface:units = W/m^2 ;
 	float32 clear_sky_downward_shortwave_flux_at_surface(tile, y, x) ;
@@ -162,7 +156,9 @@ variables:
 	float32 sensible_heat_flux(tile, y, x) ;
 		sensible_heat_flux:units = W/m^2 ;
 	float32 specific_humidity(tile, z, y, x) ;
-		specific_humidity:units = kg/kg ;
+		specific_humidity:checksum = CEC95437F1418F74 ;
+		specific_humidity:long_name = specific humidity ;
+		specific_humidity:units = kg / kg ;
 	float32 surface_geopotential(tile, y, x) ;
 		surface_geopotential:units = m^2 s^-2 ;
 	float32 surface_precipitation_rate(tile, y, x) ;
@@ -193,6 +189,14 @@ variables:
 		x_wind:units = m/s ;
 	float32 y_wind(tile, z, y, x_interface) ;
 		y_wind:units = m/s ;
+	float32 Q1(tile, z, y, x) ;
+		Q1:units = K/s ;
+		Q1:long_name = apparent heating from high resolution data ;
+		Q1:description = Apparent heating due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence + temperature nudging ;
+	float32 Q2(tile, z, y, x) ;
+		Q2:units = kg/kg/s ;
+		Q2:long_name = apparent moistening from high resolution data ;
+		Q2:description = Apparent moistening due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence ;
 	float32 dQ1(tile, z, y, x) ;
 		dQ1:units = K/s ;
 		dQ1:long_name = apparent heating from high resolution data ;
@@ -201,12 +205,6 @@ variables:
 		dQ2:units = kg/kg/s ;
 		dQ2:long_name = apparent moistening from high resolution data ;
 		dQ2:description = Apparent moistening due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence ;
-	float32 pQ1(tile, z, y, x) ;
-		pQ1:units = K/s ;
-		pQ1:long_name = coarse-res physics heating ;
-	float32 pQ2(tile, z, y, x) ;
-		pQ2:units = kg/kg/s ;
-		pQ2:long_name = coarse-res physics moistening ;
 	object time() ;
 
 // global attributes:
