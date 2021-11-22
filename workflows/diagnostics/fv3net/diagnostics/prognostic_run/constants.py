@@ -135,6 +135,8 @@ PRESSURE_INTERPOLATED_VARS = [
     "dQv",
     "tendency_of_air_temperature_due_to_machine_learning",
     "tendency_of_specific_humidity_due_to_machine_learning",
+    "air_temperature_tendency_due_to_nudging",
+    "specific_humidity_tendency_due_to_nudging",
 ]
 
 PRECIP_RATE = "total_precip_to_surface"
