@@ -84,7 +84,8 @@ def test_keras_functional_dict_outputs_singleton():
     assert set(out) == {"b"}
 
 
-def test_train_keras_with_dict_output():
+@pytest.mark.parametrize("unused_input_variable", [True, False])
+def test_train_keras_with_dict_output(unused_input_variable):
     a = tf.keras.Input(name="a", shape=[5])
     # make sure that `name`` is ignored
     b = tf.keras.layers.Dense(5, name="b")(a)
@@ -93,4 +94,8 @@ def test_train_keras_with_dict_output():
 
     one = tf.ones((1, 5))
     # need to split input variables and outputs into separate dicts
-    model.fit({"a": one}, {"b": one}, epochs=1)
+    in_ = {"a": one}
+    if unused_input_variable:
+        in_["b_unused"] = one
+
+    model.fit(in_, {"b": one}, epochs=1)
