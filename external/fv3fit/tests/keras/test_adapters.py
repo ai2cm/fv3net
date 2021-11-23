@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from fv3fit.keras.adapters import convert_to_dict_output, rename_dict_output
+from fv3fit.keras.adapters import convert_to_dict_output, rename_dict_output, assoc
 
 
 def test_convert_to_dict_output_multiple_out():
@@ -60,3 +60,23 @@ def test_rename_dict_outputs():
 
     np.testing.assert_array_equal(new_out["new_a"], old_out["a"])
     np.testing.assert_array_equal(new_out["b"], old_out["b"])
+
+
+def test_assoc_model():
+    x = tf.keras.Input(shape=[5], name="x")
+    y = tf.keras.layers.Dense(5)(x)
+    model = tf.keras.Model(inputs=[x], outputs={"y": y})
+
+    def fun(input, output):
+        return input["x"]
+
+    new_model = assoc(model, "my_out", fun)
+
+    inputs = tf.ones((1, 5))
+    orig_out = model(inputs)
+    expected = fun({"x": inputs}, orig_out).numpy()
+    new_out = new_model(inputs)
+
+    np.testing.assert_array_equal(new_out["my_out"], expected)
+    for key in orig_out:
+        np.testing.assert_array_equal(orig_out[key], new_out[key], err_msg=key)
