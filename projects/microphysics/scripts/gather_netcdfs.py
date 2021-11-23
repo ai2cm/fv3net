@@ -35,7 +35,7 @@ if __name__ == "__main__":
             "This script gathers netcdfs from a set of training runs"
             " and uploads them to train/test groups on GCS. Runs are"
             " assumed to be in "
-            "gs://<BUCKET>/<PROJECT>/<RUN_DATE>/<TAG>/artifacts/<TIMESTAMP>/netcdf_output"
+            "gs://<BUCKET>/<PROJECT>/<RUN_DATE>/<TAG>/artifacts/<TIMESTAMP>/netcdf_output"  # noqa E501
             " format to be gathered.  The <RUN_DATE> is the date the job"
             " was performed and <TAG> the unique project name."
         )
