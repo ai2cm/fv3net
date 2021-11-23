@@ -32,30 +32,6 @@ from fv3fit.wandb import (
 )
 
 
-def _get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
-    """
-    Grab samples from a list separated into the direct output
-    variables and residual output variables.  Used because the
-    output normalization samples might need to be the field
-    or the field tendencies
-    """
-
-    direct_sample = []
-    residual_sample = []
-
-    for name in model_config.direct_out_variables:
-        sample = samples[sample_names.index(name)]
-        direct_sample.append(sample)
-
-    for name in model_config.residual_out_variables:
-        if name in model_config.tendency_outputs:
-            tend_name = model_config.tendency_outputs[name]
-            sample = samples[sample_names.index(tend_name)]
-            residual_sample.append(sample)
-
-    return direct_sample, residual_sample
-
-
 def load_config_yaml(path: str) -> Dict[str, Any]:
     """
     Load yaml from local/remote location
@@ -185,21 +161,10 @@ class TrainConfig:
         return config
 
     def __post_init__(self):
-
-        if self.transform.input_variables != self.model.input_variables:
-            raise ValueError(
-                "Invalid training configuration state encountered. The"
-                " data transform input variables ("
-                f"{self.transform.input_variables}) are inconsistent with "
-                f"the model input variables ({self.model.input_variables})."
-            )
-        elif self.transform.output_variables != self.model.output_variables:
-            raise ValueError(
-                "Invalid training configuration state encountered. The"
-                " data transform output variables ("
-                f"{self.transform.output_variables}) are inconsistent with "
-                f"the model output variables ({self.model.output_variables})."
-            )
+        required_variables = set(self.model.input_variables) | set(
+            self.model.output_variables
+        )
+        self.transform.variables = list(required_variables)
 
 
 def main(config: TrainConfig, seed: int = 0):
@@ -217,21 +182,24 @@ def main(config: TrainConfig, seed: int = 0):
         config.test_url, config.transform, nfiles=config.nfiles_valid
     )
 
-    X_train, train_target = next(iter(train_ds.shuffle(100_000).batch(50_000)))
-    X_test, test_target = next(iter(test_ds.shuffle(160_000).batch(80_000)))
-    direct_sample, resid_sample = _get_out_samples(
-        config.model, train_target, config.transform.output_variables
-    )
+    train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
+    test_set = next(iter(test_ds.shuffle(160_000).batch(80_000)))
 
-    model = config.model.build(
-        X_train, sample_direct_out=direct_sample, sample_residual_out=resid_sample
-    )
-
-    config.loss.prepare(output_names=model.output_names, output_samples=train_target)
+    model = config.model.build(train_set)
+    config.loss.prepare(output_samples=train_set,)
     config.loss.compile(model)
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
+
+    def split_in_out(m):
+        return (
+            {key: m[key] for key in model.input_names if key in m},
+            {key: m[key] for key in model.output_names if key in m},
+        )
+
+    train_ds = train_ds.map(split_in_out)
+    test_ds = test_ds.map(split_in_out)
 
     history = model.fit(
         train_ds.batch(config.batch_size),
@@ -242,12 +210,12 @@ def main(config: TrainConfig, seed: int = 0):
         callbacks=callbacks,
     )
 
-    train_scores, train_profiles = score_model(model, X_train, train_target,)
-    test_scores, test_profiles = score_model(model, X_test, test_target)
+    train_scores, train_profiles = score_model(model, train_set)
+    test_scores, test_profiles = score_model(model, test_set)
 
     if config.use_wandb:
-        pred_sample = model.predict(X_test)
-        log_profile_plots(test_target, pred_sample, model.output_names)
+        pred_sample = model.predict(test_set)
+        log_profile_plots(test_set, pred_sample, model.output_names)
 
         # add level for dataframe index, assumes equivalent feature dims
         sample_profile = next(iter(train_profiles.values()))
@@ -308,9 +276,7 @@ def get_default_config():
         ),
     )
 
-    transform = TransformConfig(
-        input_variables=input_vars, output_variables=model_config.output_variables,
-    )
+    transform = TransformConfig()
 
     loss = CustomLoss(
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),

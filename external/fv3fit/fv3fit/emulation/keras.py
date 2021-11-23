@@ -2,11 +2,13 @@ import dataclasses
 import logging
 import os
 import tensorflow as tf
-from typing import Optional, Mapping, List, Sequence, Tuple, Union
+from typing import Optional, Mapping, List, Union
 
 from fv3fit.emulation.layers.normalization import NormalizeConfig
-from .scoring import score_multi_output, score_single_output
+import fv3fit.keras.adapters
+from .scoring import score_multi_output, ScoringOutput
 from .._shared.config import OptimizerConfig
+from toolz import get
 
 logger = logging.getLogger(__name__)
 
@@ -25,21 +27,14 @@ def save_model(model: tf.keras.Model, destination: str):
         model: tensorflow model
         destination: path to store "model.tf" under
     """
-
-    model.compiled_loss = None
-    model.compiled_metrics = None
-    model.optimizer = None
+    # clear all the weights and optimizers settings
+    model.compile()
     model_path = os.path.join(destination, "model.tf")
     model.save(model_path, save_format="tf")
-
     return model_path
 
 
-def score_model(
-    model: tf.keras.Model,
-    inputs: Union[tf.Tensor, Tuple[tf.Tensor]],
-    targets: Union[tf.Tensor, Sequence[tf.Tensor]],
-):
+def score_model(model: tf.keras.Model, data: Mapping[str, tf.Tensor],) -> ScoringOutput:
     """
     Score an emulation model with single or multiple
     output tensors.  Created to handle difference between
@@ -48,23 +43,13 @@ def score_model(
 
     Args:
         model: tensorflow emulation model
-        inputs: model inputs
-        targets: corresponding target tensor(s) for inputs
+        data: data to score with, must contain inputs and outputs of
+        ``model``.
     """
-
-    prediction = model.predict(inputs)
-
-    if len(model.output_names) > 1:
-        scores, profiles = score_multi_output(targets, prediction, model.output_names)
-    elif len(model.output_names) == 1:
-        scores, profiles = score_single_output(
-            targets, prediction, model.output_names[0]
-        )
-    else:
-        logger.error("Tried to call score on a model with no outputs.")
-        raise ValueError("Cannot score model with no outputs.")
-
-    return scores, profiles
+    model = fv3fit.keras.adapters.convert_to_dict_output(model)
+    prediction = model.predict(data)
+    names = sorted(set(prediction) & set(data))
+    return score_multi_output(get(names, data), get(names, prediction), names)
 
 
 class NormalizedMSE(tf.keras.losses.MeanSquaredError):
@@ -107,7 +92,7 @@ class CustomLoss:
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
     _fitted: bool = dataclasses.field(init=False, default=False)
 
-    def prepare(self, output_names: List[str], output_samples: List[tf.Tensor]):
+    def prepare(self, output_samples: Mapping[str, tf.Tensor]):
         """
         Prepare the normalized losses for each variable by creating a
         fitted NormalizedMSE object and place them into the respective
@@ -122,7 +107,7 @@ class CustomLoss:
         losses = {}
         metrics = {}
         weights = {}
-        for out_varname, sample in zip(output_names, output_samples):
+        for out_varname, sample in output_samples.items():
             loss_func = NormalizedMSE(self.normalization, sample)
 
             if out_varname in self.loss_variables:

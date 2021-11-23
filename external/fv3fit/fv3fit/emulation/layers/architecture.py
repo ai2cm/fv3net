@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Mapping, Optional, Sequence, Union
 import tensorflow as tf
 
 
@@ -20,7 +20,7 @@ class CombineInputs(tf.keras.layers.Layer):
         self._combine_axis = combine_axis
         self._expand_axis = expand_axis
 
-    def call(self, inputs):
+    def _call_with_tensors(self, inputs: Sequence[tf.Tensor]) -> tf.Tensor:
 
         if self._expand_axis is not None:
             inputs = [
@@ -28,6 +28,12 @@ class CombineInputs(tf.keras.layers.Layer):
             ]
 
         return tf.concat(inputs, axis=self._combine_axis)
+
+    def call(self, inputs: Union[Sequence[tf.Tensor], Mapping[str, tf.Tensor]]):
+        if isinstance(inputs, Mapping):
+            return self._call_with_tensors([inputs[key] for key in sorted(inputs)])
+        else:
+            return self._call_with_tensors(inputs)
 
     def get_config(self):
 
