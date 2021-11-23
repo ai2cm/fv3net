@@ -67,10 +67,8 @@ class Approach(Enum):
 def _compute_budget(
     merged: xr.Dataset, approach: Approach, include_temperature_nudging: bool
 ) -> MLTendencies:
-
-    merged["Q1"], merged["Q2"] = compute_fine_res_sources(
-        merged, include_temperature_nudging
-    )
+    sources = compute_fine_res_sources(merged, include_temperature_nudging)
+    merged = xr.merge([merged] + list(sources))
 
     if approach == Approach.apparent_sources_plus_nudging_tendencies:
         merged["Q1"], merged["Q2"] = _add_nudging_tendencies(merged)
