@@ -1,11 +1,14 @@
-import dacite
 import dataclasses
 from typing import List, Mapping
-import tensorflow as tf
 
-from ._core import ArchitectureConfig, get_combine_from_arch_key
-from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
+import dacite
+import tensorflow as tf
 from fv3fit._shared import SliceConfig
+
+from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
+from ._core import ArchitectureConfig, get_combine_from_arch_key
+
+from fv3fit.emulation import thermo
 
 
 @dataclasses.dataclass
@@ -37,6 +40,7 @@ class MicrophysicsConfig:
         timestep_increment_sec: Time increment multiplier for the state-tendency
             update
         enforce_positive: Enforce model outputs are zero or positive
+
     """
 
     input_variables: List[str] = dataclasses.field(default_factory=list)
@@ -67,11 +71,7 @@ class MicrophysicsConfig:
 
     @property
     def output_variables(self):
-        return (
-            self.direct_out_variables
-            + list(self.residual_out_variables.keys())
-            + list(self.tendency_outputs.values())
-        )
+        return self.direct_out_variables + list(self.residual_out_variables.keys())
 
     def _get_processed_inputs(self, sample_in, inputs):
         return {
@@ -155,3 +155,143 @@ class MicrophysicsConfig:
                 **self._get_residual_outputs(inputs, data, hidden),
             },
         )
+
+
+@dataclasses.dataclass(frozen=True)
+class Field:
+    output_name: str = ""
+    input_name: str = ""
+    residual: bool = True
+    # only used if residual is True
+    tendency_name: str = ""
+    selection: SliceConfig = dataclasses.field(default_factory=SliceConfig)
+
+
+@dataclasses.dataclass(frozen=True)
+class ZhaoCarrFields:
+    cloud_water: Field = Field(
+        "cloud_water_mixing_ratio_output",
+        "cloud_water_mixing_ratio_input",
+        residual=False,
+    )
+
+    specific_humidity: Field = Field(
+        "specific_humidity_output", "specific_humidity_input", residual=True,
+    )
+
+    air_temperature: Field = Field(
+        "air_temperature_output", "air_temperature_input", residual=True,
+    )
+    surface_precipitation: Field = Field(output_name="surface_precipitation")
+    pressure_thickness = Field(input_name="pressure_thickness")
+
+
+@dataclasses.dataclass
+class ConservativeWaterConfig:
+    fields: ZhaoCarrFields = ZhaoCarrFields()
+    architecture: ArchitectureConfig = dataclasses.field(
+        default_factory=lambda: ArchitectureConfig(name="linear")
+    )
+    extra_input_variables: List[Field] = dataclasses.field(default_factory=list)
+    normalize_key: str = "mean_std"
+    timestep_increment_sec: int = 900
+    enforce_positive: bool = True
+
+    @property
+    def _prognostic_fields(self) -> List[Field]:
+        return [
+            self.fields.cloud_water,
+            self.fields.air_temperature,
+            self.fields.specific_humidity,
+        ]
+
+    def _build_base_model(self, data) -> tf.keras.Model:
+
+        prognostic_variables = self._prognostic_fields
+
+        return MicrophysicsConfig(
+            input_variables=[
+                v.input_name for v in prognostic_variables + self.extra_input_variables
+            ],
+            direct_out_variables=[
+                var.output_name for var in prognostic_variables if not var.residual
+            ],
+            residual_out_variables={
+                var.output_name: var.input_name
+                for var in prognostic_variables
+                if var.residual
+            },
+            tendency_outputs={
+                var.output_name: var.tendency_name
+                for var in prognostic_variables
+                if var.residual and var.tendency_name
+            },
+            architecture=self.architecture,
+            normalize_key=self.normalize_key,
+            timestep_increment_sec=self.timestep_increment_sec,
+            enforce_positive=self.enforce_positive,
+            selection_map={v.input_name: v.selection for v in self._input_variables},
+        ).build(data)
+
+    @property
+    def _input_variables(self) -> List[Field]:
+        return (
+            [v for v in self._prognostic_fields]
+            + [self.fields.pressure_thickness]
+            + self.extra_input_variables
+        )
+
+    @property
+    def input_variables(self) -> List[str]:
+        return [v.input_name for v in self._input_variables]
+
+    @property
+    def output_variables(self) -> List[str]:
+        return [v.output_name for v in self._prognostic_fields] + [
+            self.fields.surface_precipitation.output_name
+        ]
+
+    @property
+    def name(self):
+        return f"conservative-microphysics-emulator-{self.architecture.name}"
+
+    def build(self, data) -> tf.keras.Model:
+        model = self._build_base_model(data)
+        return _assoc_conservative_precipitation(model, self.fields)
+
+
+def _assoc_conservative_precipitation(
+    model: tf.keras.Model, fields: ZhaoCarrFields
+) -> tf.keras.Model:
+    """add conservative precipitation output to a model
+    
+    Args:
+        model: a ML model
+        fields: a description of how physics variables map onto the names of
+            ``model`` and the data.
+
+    Returns:
+        a model with surface precipitation stored at
+        ``fields.surface_precipitation.output_name``.
+    
+    """
+
+    inputs = dict(zip(model.input_names, model.inputs))
+    nz = inputs[fields.cloud_water.input_name].shape[-1]
+    inputs[fields.pressure_thickness.input_name] = tf.keras.Input(
+        shape=[nz], name=fields.pressure_thickness.input_name
+    )
+
+    out = model(inputs)
+    out[
+        fields.surface_precipitation.output_name
+    ] = thermo.conservative_precipitation_zhao_carr(
+        specific_humidity_before=inputs[fields.specific_humidity.input_name],
+        specific_humidity_after=out[fields.specific_humidity.output_name],
+        cloud_before=inputs[fields.cloud_water.input_name],
+        cloud_after=out[fields.cloud_water.output_name],
+        mass=thermo.layer_mass(inputs[fields.pressure_thickness.input_name]),
+    )
+    new_model = tf.keras.Model(inputs=inputs, outputs=out)
+    new_model(inputs)
+    return new_model

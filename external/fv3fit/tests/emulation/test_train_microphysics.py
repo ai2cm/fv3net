@@ -8,10 +8,11 @@ from fv3fit.emulation.data.config import TransformConfig
 
 from fv3fit.train_microphysics import (
     TrainConfig,
-    MicrophysicsConfig,
     get_default_config,
     main,
 )
+
+from fv3fit.emulation.models import MicrophysicsConfig
 
 
 def test_TrainConfig_defaults():
@@ -36,7 +37,10 @@ def test_get_default_config():
 def test_TrainConfig_asdict():
 
     config = TrainConfig(
-        train_url="train_path", test_url="test_path", out_url="save_path",
+        train_url="train_path",
+        test_url="test_path",
+        out_url="save_path",
+        model=MicrophysicsConfig(),
     )
 
     d = asdict(config)

@@ -1,7 +1,11 @@
-import tensorflow as tf
-from fv3fit.emulation.thermo import relative_humidity, specific_humidity_from_rh
-from vcm.calc.thermo import _RDGAS, _RVGAS
 import pytest
+import tensorflow as tf
+from fv3fit.emulation.thermo import (
+    conservative_precipitation_zhao_carr,
+    relative_humidity,
+    specific_humidity_from_rh,
+)
+from vcm.calc.thermo import _RDGAS, _RVGAS
 
 
 @pytest.mark.parametrize("celsius, rh", [(26, 0.5), (14.77, 1.0)])
@@ -34,3 +38,16 @@ def test_specific_humidity(t, rh, rho):
     rh_round_trip = relative_humidity(t, q, rho)
 
     assert pytest.approx(rh) == rh_round_trip
+
+
+def test_conservative_precipitation():
+
+    nz = 5
+    expected_precip = 1.2
+
+    one = tf.ones((1, nz))
+
+    precip = conservative_precipitation_zhao_carr(
+        one, one, one, one - expected_precip / nz, mass=1
+    )
+    assert precip.numpy() == pytest.approx(expected_precip)
