@@ -49,13 +49,13 @@ if __name__ == "__main__":
 
     for timestamp in train_timestamps:
         tag = f"{args.tag_prefix}-{timestamp}"
-        nc_src = f"{base_url}/{tag}/artifacts/{timestamp}/netcdf_output/*"
+        nc_src = f"{base_url}/{tag}/artifacts/{timestamp}/netcdf_output/*.nc"
         dir_args = [nc_src, train_out]
         subprocess.check_call(command + dir_args)
 
     for timestamp in valid_timestamps:
         tag = f"{args.tag_prefix}-{timestamp}"
-        nc_src = f"{base_url}/{tag}/artifacts/{timestamp}/netcdf_output/*"
+        nc_src = f"{base_url}/{tag}/artifacts/{timestamp}/netcdf_output/*.nc"
         dir_args = [nc_src, valid_out]
         subprocess.check_call(command + dir_args)
 
