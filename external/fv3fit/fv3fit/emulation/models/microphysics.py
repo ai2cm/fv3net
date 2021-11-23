@@ -171,8 +171,8 @@ class Field:
     selection: SliceConfig = dataclasses.field(default_factory=SliceConfig)
 
 
-@dataclasses.dataclass
-class ConservativeWaterConfig:
+@dataclasses.dataclass(frozen=True)
+class ZhaoCarrFields:
     cloud_water: Field = Field(
         "cloud_water_mixing_ratio_output",
         "cloud_water_mixing_ratio_input",
@@ -189,6 +189,10 @@ class ConservativeWaterConfig:
     surface_precipitation: Field = Field(output_name="surface_precipitation")
     pressure_thickness = Field(input_name="pressure_thickness")
 
+
+@dataclasses.dataclass
+class ConservativeWaterConfig:
+    fields: ZhaoCarrFields = ZhaoCarrFields()
     architecture: ArchitectureConfig = dataclasses.field(
         default_factory=lambda: ArchitectureConfig(name="linear")
     )
@@ -200,9 +204,9 @@ class ConservativeWaterConfig:
     @property
     def _prognostic_fields(self) -> List[Field]:
         return [
-            self.cloud_water,
-            self.air_temperature,
-            self.specific_humidity,
+            self.fields.cloud_water,
+            self.fields.air_temperature,
+            self.fields.specific_humidity,
         ]
 
     def _build_base_model(self, data) -> tf.keras.Model:
@@ -237,7 +241,7 @@ class ConservativeWaterConfig:
     def _input_variables(self) -> List[Field]:
         return (
             [v for v in self._prognostic_fields]
-            + [self.pressure_thickness]
+            + [self.fields.pressure_thickness]
             + self.extra_input_variables
         )
 
@@ -248,27 +252,44 @@ class ConservativeWaterConfig:
     @property
     def output_variables(self) -> List[str]:
         return [v.output_name for v in self._prognostic_fields] + [
-            self.surface_precipitation.output_name
+            self.fields.surface_precipitation.output_name
         ]
 
     def build(self, data) -> tf.keras.Model:
-        nz = data[self.pressure_thickness.input_name].shape[-1]
         model = self._build_base_model(data)
+        return _assoc_conservative_precipitation(model, self.fields)
 
-        inputs = model.inputs + [
-            tf.keras.Input(shape=[nz], name=self.pressure_thickness.input_name)
-        ]
-        inputs = {tensor.name: tensor for tensor in inputs}
-        out = model(inputs)
-        out[
-            self.surface_precipitation.output_name
-        ] = thermo.conservative_precipitation_zhao_carr(
-            specific_humidity_before=inputs[self.specific_humidity.input_name],
-            specific_humidity_after=out[self.specific_humidity.output_name],
-            cloud_before=inputs[self.cloud_water.input_name],
-            cloud_after=out[self.cloud_water.output_name],
-            mass=thermo.layer_mass(inputs[self.pressure_thickness.input_name]),
-        )
-        new_model = tf.keras.Model(inputs=inputs, outputs=out)
-        new_model(inputs)
-        return new_model
+
+def _assoc_conservative_precipitation(model: tf.keras.Model, fields: ZhaoCarrFields):
+    """add conservative precipitation output to a model
+    
+    Args:
+        model: a ML model
+        fields: a description of how physics variables map onto the names of
+            ``model`` and the data.
+
+    Returns:
+        a model with surface precipitation stored at
+        ``fields.surface_precipitation.output_name``.
+    
+    """
+
+    inputs = dict(zip(model.input_names, model.inputs))
+    nz = inputs[fields.cloud_water.input_name].shape[-1]
+    inputs[fields.pressure_thickness.input_name] = tf.keras.Input(
+        shape=[nz], name=fields.pressure_thickness.input_name
+    )
+
+    out = model(inputs)
+    out[
+        fields.surface_precipitation.output_name
+    ] = thermo.conservative_precipitation_zhao_carr(
+        specific_humidity_before=inputs[fields.specific_humidity.input_name],
+        specific_humidity_after=out[fields.specific_humidity.output_name],
+        cloud_before=inputs[fields.cloud_water.input_name],
+        cloud_after=out[fields.cloud_water.output_name],
+        mass=thermo.layer_mass(inputs[fields.pressure_thickness.input_name]),
+    )
+    new_model = tf.keras.Model(inputs=inputs, outputs=out)
+    new_model(inputs)
+    return new_model
