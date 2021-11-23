@@ -40,7 +40,7 @@ class NoModel:
 
     @staticmethod
     def predict(x):
-        return []
+        return {}
 
 
 @print_errors
@@ -62,7 +62,7 @@ def _load_tf_model(model_path: str) -> tf.keras.Model:
     logger.info(f"Loading keras model: {model_path}")
 
     if model_path == "NO_MODEL":
-        model = NoModel()
+        return NoModel()
     else:
         with get_dir(model_path) as local_model_path:
             model = tf.keras.models.load_model(local_model_path)
