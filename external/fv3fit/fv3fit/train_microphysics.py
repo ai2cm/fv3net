@@ -1,33 +1,29 @@
 import argparse
-import dacite
-import fsspec
 import json
 import os
-import yaml
-import numpy as np
-from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, Optional, Sequence, Union
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, Mapping, Optional, Sequence, Union
 
+import dacite
+import fsspec
+import numpy as np
+import tensorflow as tf
+import yaml
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import (
     OptimizerConfig,
-    to_nested_dict,
     get_arg_updated_config_dict,
+    to_nested_dict,
 )
-from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
+from fv3fit.emulation import models
+from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
-from fv3fit.emulation.keras import (
-    CustomLoss,
-    StandardLoss,
-    save_model,
-    score_model,
-)
-from fv3fit.emulation.models import MicrophysicsConfig, ArchitectureConfig
+from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, score_model
 from fv3fit.wandb import (
     WandBConfig,
-    log_to_table,
     log_profile_plots,
+    log_to_table,
     store_model_artifact,
 )
 
@@ -72,7 +68,8 @@ class TrainConfig:
     test_url: str
     out_url: str
     transform: TransformConfig = field(default_factory=TransformConfig)
-    model: MicrophysicsConfig = field(default_factory=MicrophysicsConfig)
+    model: Optional[models.MicrophysicsConfig] = None
+    conservative_model: Optional[models.ConservativeWaterConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     use_wandb: bool = True
@@ -83,6 +80,20 @@ class TrainConfig:
     valid_freq: int = 5
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 100_000
+
+    @property
+    def _model(
+        self,
+    ) -> Union[models.MicrophysicsConfig, models.ConservativeWaterConfig]:
+        if self.model:
+            return self.model
+        elif self.conservative_model:
+            return self.conservative_model
+        else:
+            raise ValueError("Neither .model or .conservative_model provided.")
+
+    def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
+        return self._model.build(data)
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -185,12 +196,9 @@ def main(config: TrainConfig, seed: int = 0):
     train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
     test_set = next(iter(test_ds.shuffle(160_000).batch(80_000)))
 
-    model = config.model.build(train_set)
+    model = config.build(train_set)
     config.loss.prepare(
-        output_names=list(
-            set(config.model.direct_out_variables)
-            | set(config.model.residual_out_variables)
-        ),
+        output_names=list(set(config._model.output_variables)),
         output_samples=train_set,
     )
     config.loss.compile(model)
@@ -247,7 +255,7 @@ def main(config: TrainConfig, seed: int = 0):
         local_model_path = save_model(model, tmpdir)
 
         if config.use_wandb:
-            store_model_artifact(local_model_path, name=config.model.name)
+            store_model_artifact(local_model_path, name=config._model.name)
 
 
 def get_default_config():
@@ -259,7 +267,7 @@ def get_default_config():
         "pressure_thickness_of_atmospheric_layer",
     ]
 
-    model_config = MicrophysicsConfig(
+    model_config = models.MicrophysicsConfig(
         input_variables=input_vars,
         direct_out_variables=[
             "cloud_water_mixing_ratio_output",
@@ -269,7 +277,7 @@ def get_default_config():
             air_temperature_output="air_temperature_input",
             specific_humidity_output="specific_humidity_input",
         ),
-        architecture=ArchitectureConfig("linear"),
+        architecture=models.ArchitectureConfig("linear"),
         selection_map=dict(
             air_temperature_input=SliceConfig(stop=-10),
             specific_humidity_input=SliceConfig(stop=-10),

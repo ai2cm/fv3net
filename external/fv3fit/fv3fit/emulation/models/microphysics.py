@@ -71,11 +71,7 @@ class MicrophysicsConfig:
 
     @property
     def output_variables(self):
-        return (
-            self.direct_out_variables
-            + list(self.residual_out_variables.keys())
-            + list(self.tendency_outputs.values())
-        )
+        return self.direct_out_variables + list(self.residual_out_variables.keys())
 
     def _get_processed_inputs(self, sample_in, inputs):
         return {
@@ -254,6 +250,10 @@ class ConservativeWaterConfig:
         return [v.output_name for v in self._prognostic_fields] + [
             self.fields.surface_precipitation.output_name
         ]
+
+    @property
+    def name(self):
+        return f"conservative-microphysics-emulator-{self.architecture.name}"
 
     def build(self, data) -> tf.keras.Model:
         model = self._build_base_model(data)
