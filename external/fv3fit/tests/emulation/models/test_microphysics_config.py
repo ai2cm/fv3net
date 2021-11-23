@@ -2,6 +2,7 @@ from fv3fit._shared import SliceConfig
 import numpy as np
 import tensorflow as tf
 
+import fv3fit.emulation.models
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.models._core import ArchitectureConfig
 
@@ -88,3 +89,35 @@ def test_Config_build_residual_w_extra_tends_out():
     model = config.build(m)
     output = model(data)
     assert set(output) == {"dummy_out1", "dummy_out1_tendency"}
+
+
+def test_precip_conserving_config():
+    factory = fv3fit.emulation.models.ConservativeWaterConfig()
+
+    one = tf.ones((4, 5))
+
+    data = {v: one for v in factory.input_variables + factory.output_variables}
+    model = factory.build(data)
+    out = model(data)
+    assert factory.surface_precipitation in out
+
+
+def test_precip_conserving_output_variables():
+    factory = fv3fit.emulation.models.ConservativeWaterConfig(
+        cloud_water=fv3fit.emulation.models.Field(input_name="a0", output_name="a"),
+        specific_humidity=fv3fit.emulation.models.Field(
+            input_name="a1", output_name="b"
+        ),
+        air_temperature=fv3fit.emulation.models.Field(input_name="a2", output_name="c"),
+        surface_precipitation="d",
+    )
+
+    assert set(factory.output_variables) == set("abcd")
+
+
+def test_precip_conserving_extra_inputs():
+    extras = list("abcdef")
+    factory = fv3fit.emulation.models.ConservativeWaterConfig(
+        extra_input_variables=extras
+    )
+    assert set(extras) < set(factory.input_variables)

@@ -1,3 +1,2 @@
-from .microphysics import MicrophysicsConfig
-from .conservative import ConservativeWaterModel, Names
+from .microphysics import MicrophysicsConfig, ConservativeWaterConfig, Field
 from ._core import ArchitectureConfig
