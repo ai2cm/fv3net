@@ -1,0 +1,102 @@
+base_version: v0.5
+duration: "12d"
+fortran_diagnostics: []
+initial_conditions: $IC_URL
+diagnostics:
+- chunks:
+    time: 1
+  name: state_after_timestep.zarr
+  tensorboard: false
+  times:
+    frequency: 18000
+    kind: interval
+    times: null
+  variables:
+  - longitude
+  - latitude
+  - vertical_thickness_of_atmospheric_layer
+  - pressure_thickness_of_atmospheric_layer
+  - surface_pressure
+  - eastward_wind
+  - northward_wind
+  - vertical_wind
+  - air_temperature
+  - specific_humidity
+  - cloud_water_mixing_ratio
+  - total_precipitation
+  - ozone_mixing_ratio
+  - land_sea_mask
+  - total_soil_moisture
+  - liquid_soil_moisture
+  - soil_temperature
+  - surface_temperature
+  - canopy_water
+  - sea_ice_thickness
+  - snow_depth_water_equivalent
+- chunks:
+    time: 1
+  name: physics_tendencies.zarr
+  tensorboard: false
+  times:
+    frequency: 18000
+    includes_lower: false
+    kind: interval
+    times: null
+  variables:
+  - tendency_of_air_temperature_due_to_fv3_physics
+  - tendency_of_specific_humidity_due_to_fv3_physics
+  - tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics
+  - tendency_of_eastward_wind_due_to_fv3_physics
+  - tendency_of_northward_wind_due_to_fv3_physics
+  - tendency_of_ozone_mixing_ratio_due_to_fv3_physics
+  - tendency_of_pressure_thickness_of_atmospheric_layer_due_to_fv3_physics
+- chunks:
+    time: 1
+  name: physics_component_tendencies.zarr
+  times:
+    frequency: 18000
+    includes_lower: false
+    kind: interval
+    times: null
+  variables:
+  - tendency_of_specific_humidity_due_to_microphysics_after_fv3_physics
+  - tendency_of_air_temperature_due_to_microphysics_after_fv3_physics
+namelist:
+  atmos_model_nml:  
+    blocksize: -1
+  coupler_nml:
+    current_date:
+    - 2016
+    - $MONTH_INT
+    - 1
+    - 0
+    - 0
+    - 0
+    days: 12
+    hours: 0
+    minutes: 0
+    seconds: 0
+  diag_manager_nml:
+    flush_nc_files: true
+  fv_core_nml:
+    do_sat_adj: false
+    nudge: false
+    nudge_qv: false
+    warm_start: false
+    external_ic: true
+    external_eta: false
+    make_nh: true
+    nggps_ic: true
+    mountain: false
+    na_init: 1
+    nwat: 2
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
+  gfs_physics_nml:
+    satmedmf: false
+    hybedmf: true
+    imp_physics: 99
+    ncld: 1
+    ldiag3d: true
+    save_zc_microphysics: true
+    emulate_zc_microphysics: false
