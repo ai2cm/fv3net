@@ -260,7 +260,9 @@ class ConservativeWaterConfig:
         return _assoc_conservative_precipitation(model, self.fields)
 
 
-def _assoc_conservative_precipitation(model: tf.keras.Model, fields: ZhaoCarrFields):
+def _assoc_conservative_precipitation(
+    model: tf.keras.Model, fields: ZhaoCarrFields
+) -> tf.keras.Model:
     """add conservative precipitation output to a model
     
     Args:
