@@ -3,6 +3,7 @@ import subprocess
 import wandb
 
 
+# Initial condition timesteps to gather for training data
 train_timestamps = [
     "20160101.000000",
     "20160301.000000",
@@ -16,6 +17,7 @@ train_timestamps = [
 ]
 
 
+# Initial condition timesteps to gather for testing data
 valid_timestamps = [
     "20160201.000000",
     "20160601.000000",
@@ -28,7 +30,16 @@ DATE = "2021-11-18"
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description=(
+            "This script gathers netcdfs from a set of training runs"
+            " and uploads them to train/test groups on GCS. Runs are"
+            " assumed to be in "
+            "gs://<BUCKET>/<PROJECT>/<RUN_DATE>/<TAG>/artifacts/<TIMESTAMP>/netcdf_output"
+            " format to be gathered.  The <RUN_DATE> is the date the job"
+            " was performed and <TAG> the unique project name."
+        )
+    )
     parser.add_argument(
         "run_date", help="date string when training was run, e.g., 2021-11-18"
     )
