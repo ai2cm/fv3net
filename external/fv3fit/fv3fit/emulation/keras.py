@@ -92,7 +92,7 @@ class CustomLoss:
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
     _fitted: bool = dataclasses.field(init=False, default=False)
 
-    def prepare(self, output_names: List[str], output_samples: Mapping[str, tf.Tensor]):
+    def prepare(self, output_samples: Mapping[str, tf.Tensor]):
         """
         Prepare the normalized losses for each variable by creating a
         fitted NormalizedMSE object and place them into the respective
@@ -107,8 +107,7 @@ class CustomLoss:
         losses = {}
         metrics = {}
         weights = {}
-        for out_varname in output_names:
-            sample = output_samples[out_varname]
+        for out_varname, sample in output_samples.items():
             loss_func = NormalizedMSE(self.normalization, sample)
 
             if out_varname in self.loss_variables:

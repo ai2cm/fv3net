@@ -186,13 +186,7 @@ def main(config: TrainConfig, seed: int = 0):
     test_set = next(iter(test_ds.shuffle(160_000).batch(80_000)))
 
     model = config.model.build(train_set)
-    config.loss.prepare(
-        output_names=list(
-            set(config.model.direct_out_variables)
-            | set(config.model.residual_out_variables)
-        ),
-        output_samples=train_set,
-    )
+    config.loss.prepare(output_samples=train_set,)
     config.loss.compile(model)
 
     if config.shuffle_buffer_size is not None:
