@@ -1,6 +1,5 @@
 import pytest
 import numpy as np
-import tensorflow as tf
 from typing import Iterable
 
 from emulation._emulate.microphysics import (
