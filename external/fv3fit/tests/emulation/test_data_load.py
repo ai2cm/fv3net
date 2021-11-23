@@ -23,9 +23,7 @@ def _get_dataset() -> xr.Dataset:
 @pytest.fixture
 def config():
     return TransformConfig(
-        input_variables=["air_temperature"],
-        output_variables=["specific_humidity"],
-        use_tensors=True,
+        variables=["air_temperature", "specific_humidity"], use_tensors=True,
     )
 
 
@@ -64,16 +62,21 @@ def test__seq_to_tf_dataset():
     np.testing.assert_equal(result, batches[0] * 2)
 
 
+def _assert_batch_valid(batch, expected_size):
+
+    assert batch
+    for key in batch:
+        assert tf.is_tensor(batch[key]), key
+        assert len(batch[key]) == expected_size, key  # nfiles * sample size
+
+
 def test_netcdf_directory_to_tf_dataset(config, nc_dir):
 
     tf_ds = load.nc_dir_to_tf_dataset(str(nc_dir), config)
 
     assert isinstance(tf_ds, tf.data.Dataset)
-    tensor_ins, tensor_outs = next(iter(tf_ds.batch(150)))  # larger than total samples
-    assert len(tensor_ins[0]) == 100  # nfiles * sample size
-    assert len(tensor_outs[0]) == 100
-    assert isinstance(tensor_ins[0], tf.Tensor)
-    assert isinstance(tensor_outs[0], tf.Tensor)
+    batch = next(iter(tf_ds.batch(150)))  # larger than total samples
+    _assert_batch_valid(batch, 100)
 
 
 def test_netcdf_files_to_tf_dataset(config, nc_dir_files):
@@ -81,16 +84,14 @@ def test_netcdf_files_to_tf_dataset(config, nc_dir_files):
     tf_ds = load.nc_files_to_tf_dataset(nc_dir_files, config)
 
     assert isinstance(tf_ds, tf.data.Dataset)
-    tensor_ins, tensor_outs = next(iter(tf_ds.batch(150)))  # larger than total samples
-    assert len(tensor_ins[0]) == 100  # nfiles * sample size
-    assert len(tensor_outs[0]) == 100
-    assert isinstance(tensor_ins[0], tf.Tensor)
-    assert isinstance(tensor_outs[0], tf.Tensor)
+    batch = next(iter(tf_ds.batch(150)))  # larger than total samples
+    _assert_batch_valid(batch, 100)
 
 
 def test_netcdf_dir_to_tf_dataset_with_nfiles(config, nc_dir):
     ds = load.nc_dir_to_tf_dataset(str(nc_dir), config, nfiles=1)
-    (tensor_in,), _ = next(iter(ds.batch(30)))
+    batch = next(iter(ds.batch(30)))
+    tensor_in = next(iter(batch.values()))
 
     assert len(tensor_in) == 10  # only a single file
 
@@ -107,11 +108,13 @@ def test_netcdf_dir_to_tf_dataset_with_shuffle(config, nc_dir):
     ds2 = load.nc_dir_to_tf_dataset(
         str(nc_dir), config, shuffle=True, random_state=random2
     )
-    (tensor_in1,), _ = next(iter(ds1.batch(10)))
-    (tensor_in2,), _ = next(iter(ds2.batch(10)))
+
+    def get_first_tensor(ds):
+        batch = next(iter(ds.batch(10)))
+        return next(iter(batch.values()))
 
     with pytest.raises(AssertionError):
-        np.testing.assert_array_equal(tensor_in1, tensor_in2)
+        np.testing.assert_array_equal(get_first_tensor(ds1), get_first_tensor(ds2))
 
 
 def test_batches_to_tf_dataset(config):

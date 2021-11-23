@@ -9,27 +9,9 @@ from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.train_microphysics import (
     TrainConfig,
     MicrophysicsConfig,
-    _get_out_samples,
     get_default_config,
     main,
 )
-
-
-def test__get_out_samples():
-
-    samples = [1, 2, 3, 4]
-    names = ["B", "dC", "dD", "A"]
-
-    config = MicrophysicsConfig(
-        direct_out_variables=["A", "B"],
-        residual_out_variables={"C": "C_in", "D": "D_in"},
-        tendency_outputs={"C": "dC", "D": "dD"},
-    )
-
-    direct, residual = _get_out_samples(config, samples, names)
-
-    assert direct == [4, 1]
-    assert residual == [2, 3]
 
 
 def test_TrainConfig_defaults():
@@ -144,37 +126,6 @@ def test_TrainConfig_from_args_sysargv(monkeypatch):
 
     assert config.epochs == 4
     assert config.model.architecture.name == "rnn"
-
-
-def test_TrainConfig_invalid_input_vars():
-
-    args = [
-        "--config-path",
-        "default",
-        "--model.input_variables",
-        "A",
-        "B",
-        "--transform.input_variables",
-        "A",
-        "C",
-    ]
-
-    with pytest.raises(ValueError):
-        TrainConfig.from_args(args)
-
-    args = [
-        "--config-path",
-        "default",
-        "--model.direct_out_variables",
-        "A",
-        "B",
-        "--transform.output_variables",
-        "A",
-        "C",
-    ]
-
-    with pytest.raises(ValueError):
-        TrainConfig.from_args(args)
 
 
 @pytest.mark.regression
