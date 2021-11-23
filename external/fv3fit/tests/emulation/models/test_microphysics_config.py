@@ -99,7 +99,7 @@ def test_precip_conserving_config():
     data = {v: one for v in factory.input_variables + factory.output_variables}
     model = factory.build(data)
     out = model(data)
-    assert factory.surface_precipitation in out
+    assert factory.surface_precipitation.output_name in out
 
 
 def test_precip_conserving_output_variables():
@@ -109,15 +109,17 @@ def test_precip_conserving_output_variables():
             input_name="a1", output_name="b"
         ),
         air_temperature=fv3fit.emulation.models.Field(input_name="a2", output_name="c"),
-        surface_precipitation="d",
+        surface_precipitation=fv3fit.emulation.models.Field(output_name="d"),
     )
 
     assert set(factory.output_variables) == set("abcd")
 
 
 def test_precip_conserving_extra_inputs():
-    extras = list("abcdef")
+    extra_names = "abcdef"
+    extras = [fv3fit.emulation.models.Field(input_name=ch) for ch in extra_names]
+
     factory = fv3fit.emulation.models.ConservativeWaterConfig(
         extra_input_variables=extras
     )
-    assert set(extras) < set(factory.input_variables)
+    assert set(extra_names) < set(factory.input_variables)

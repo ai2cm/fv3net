@@ -163,8 +163,8 @@ class MicrophysicsConfig:
 
 @dataclasses.dataclass(frozen=True)
 class Field:
-    output_name: str
-    input_name: str
+    output_name: str = ""
+    input_name: str = ""
     residual: bool = True
     # only used if residual is True
     tendency_name: str = ""
@@ -186,13 +186,13 @@ class ConservativeWaterConfig:
     air_temperature: Field = Field(
         "air_temperature_output", "air_temperature_input", residual=True,
     )
-    surface_precipitation: str = "surface_precipitation"
-    pressure_thickness = "pressure_thickness"
+    surface_precipitation: Field = Field(output_name="surface_precipitation")
+    pressure_thickness = Field(input_name="pressure_thickness")
 
     architecture: ArchitectureConfig = dataclasses.field(
         default_factory=lambda: ArchitectureConfig(name="linear")
     )
-    extra_input_variables: List[str] = dataclasses.field(default_factory=list)
+    extra_input_variables: List[Field] = dataclasses.field(default_factory=list)
     normalize_key: str = "mean_std"
     timestep_increment_sec: int = 900
     enforce_positive: bool = True
@@ -210,8 +210,9 @@ class ConservativeWaterConfig:
         prognostic_variables = self._prognostic_fields
 
         return MicrophysicsConfig(
-            input_variables=[v.input_name for v in prognostic_variables]
-            + self.extra_input_variables,
+            input_variables=[
+                v.input_name for v in prognostic_variables + self.extra_input_variables
+            ],
             direct_out_variables=[
                 var.output_name for var in prognostic_variables if not var.residual
             ],
@@ -229,37 +230,44 @@ class ConservativeWaterConfig:
             normalize_key=self.normalize_key,
             timestep_increment_sec=self.timestep_increment_sec,
             enforce_positive=self.enforce_positive,
+            selection_map={v.input_name: v.selection for v in self._input_variables},
         ).build(data)
 
     @property
-    def input_variables(self) -> List[str]:
+    def _input_variables(self) -> List[Field]:
         return (
-            [v.input_name for v in self._prognostic_fields]
+            [v for v in self._prognostic_fields]
             + [self.pressure_thickness]
             + self.extra_input_variables
         )
 
     @property
+    def input_variables(self) -> List[str]:
+        return [v.input_name for v in self._input_variables]
+
+    @property
     def output_variables(self) -> List[str]:
         return [v.output_name for v in self._prognostic_fields] + [
-            self.surface_precipitation
+            self.surface_precipitation.output_name
         ]
 
     def build(self, data) -> tf.keras.Model:
-        nz = data[self.pressure_thickness].shape[-1]
+        nz = data[self.pressure_thickness.input_name].shape[-1]
         model = self._build_base_model(data)
 
         inputs = model.inputs + [
-            tf.keras.Input(shape=[nz], name=self.pressure_thickness)
+            tf.keras.Input(shape=[nz], name=self.pressure_thickness.input_name)
         ]
         inputs = {tensor.name: tensor for tensor in inputs}
         out = model(inputs)
-        out[self.surface_precipitation] = thermo.conservative_precipitation_zhao_carr(
+        out[
+            self.surface_precipitation.output_name
+        ] = thermo.conservative_precipitation_zhao_carr(
             specific_humidity_before=inputs[self.specific_humidity.input_name],
             specific_humidity_after=out[self.specific_humidity.output_name],
             cloud_before=inputs[self.cloud_water.input_name],
             cloud_after=out[self.cloud_water.output_name],
-            mass=thermo.layer_mass(inputs[self.pressure_thickness]),
+            mass=thermo.layer_mass(inputs[self.pressure_thickness.input_name]),
         )
         new_model = tf.keras.Model(inputs=inputs, outputs=out)
         new_model(inputs)
