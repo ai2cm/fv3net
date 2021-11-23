@@ -31,7 +31,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model",
     type=str,
-    default="gs://vcm-ml-experiments/2021-10-14-microphsyics-emulation-paper/models/all-tends-limited/all-tends-limited-dense/model.tf",  # noqa
+    default="NO_MODEL",
     help="path to microphysics emulation model...should probably end with .tf",
 )
 parser.add_argument(
