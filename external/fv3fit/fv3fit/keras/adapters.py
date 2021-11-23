@@ -1,37 +1,6 @@
 """Routines for backwards compatibility of model artifacts"""
-from typing import Callable, Mapping, Optional, Sequence
-
+from typing import Mapping
 import tensorflow as tf
-
-TensorDict = Mapping[str, tf.Tensor]
-
-
-def assoc(
-    model: tf.keras.Model,
-    key: str,
-    func: Callable[[TensorDict, TensorDict], tf.Tensor],
-    inputs: Optional[Sequence[tf.Tensor]] = None,
-) -> tf.keras.Model:
-    """Associate the ``key``  with the output of ``func``
-    
-    Args:
-        model: a tensorflow model, must return a dictionary
-        key: the output key
-        func: the function use to compute the output
-        inputs: alternative tf.keras.Input objects if ``func`` requires
-            more inputs than ``model``.
-
-    Returns:
-        A new model with an output named ``key`` computed by ``func``.
-
-    """
-    inputs = inputs or model.inputs
-    in_ = {key: input for key, input in zip(model.input_names, inputs)}
-    out_dict = model(in_)
-    out_dict[key] = func(in_, out_dict)
-    model = tf.keras.Model(inputs=in_, outputs=out_dict)
-    model(in_)
-    return model
 
 
 def _unpack_predictions(predictions, output_names):
