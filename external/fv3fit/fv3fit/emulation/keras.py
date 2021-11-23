@@ -2,10 +2,11 @@ import dataclasses
 import logging
 import os
 import tensorflow as tf
-from typing import Optional, Mapping, List, Tuple, Union
+from typing import Optional, Mapping, List, Union
 
 from fv3fit.emulation.layers.normalization import NormalizeConfig
-from .scoring import score_multi_output
+import fv3fit.keras.adapters
+from .scoring import score_multi_output, ScoringOutput
 from .._shared.config import OptimizerConfig
 from toolz import get
 
@@ -33,9 +34,7 @@ def save_model(model: tf.keras.Model, destination: str):
     return model_path
 
 
-def score_model(
-    model: tf.keras.Model, data: Union[tf.Tensor, Tuple[tf.Tensor]],
-):
+def score_model(model: tf.keras.Model, data: Mapping[str, tf.Tensor],) -> ScoringOutput:
     """
     Score an emulation model with single or multiple
     output tensors.  Created to handle difference between
@@ -44,10 +43,10 @@ def score_model(
 
     Args:
         model: tensorflow emulation model
-        inputs: model inputs
-        targets: corresponding target tensor(s) for inputs
+        data: data to score with, must contain inputs and outputs of
+        ``model``.
     """
-
+    model = fv3fit.keras.adapters.convert_to_dict_output(model)
     prediction = model.predict(data)
     names = sorted(set(prediction) & set(data))
     return score_multi_output(get(names, data), get(names, prediction), names)
