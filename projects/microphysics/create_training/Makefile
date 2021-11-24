@@ -1,10 +1,8 @@
 
 CONFIG ?= ./training_fv3config_template.yaml
 OUTPUT_FREQUENCY ?= 18000
-TAG_PREFIX ?= create-training-3
+TAG_PREFIX ?= microphysics-training-data-v1
 RUN_DATE ?= 2021-11-18
-
-GCS_BASE = gs://vcm-ml-scratch/2021-10-24-microphysics-emulation-paper
 
 create:
 	argo submit argo.yaml \
