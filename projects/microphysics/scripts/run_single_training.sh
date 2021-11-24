@@ -29,7 +29,7 @@ echo "Running the following configuration"
 cat fv3config.yaml
 
 prognostic_run.py \
-    --tag "$TAG" \
+    --tag "$TAG-$MONTH" \
     --model NO_MODEL \
     --config-path fv3config.yaml \
     --output-frequency "$OUTPUT_FREQUENCY" \
