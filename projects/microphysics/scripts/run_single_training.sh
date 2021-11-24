@@ -27,6 +27,7 @@ envsubst < template.yaml > fv3config.yaml
 
 echo "Running the following configuration"
 cat fv3config.yaml
+export WANDB_JOB_TYPE=training-run
 
 prognostic_run.py \
     --tag "$TAG-$MONTH" \
