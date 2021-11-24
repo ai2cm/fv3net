@@ -86,13 +86,13 @@ class DynamicsDifferenceApparentSource:
 
     def temperature_source(self, merged: MergedData):
         if self.include_temperature_nudging:
+            return merged.T_storage - merged.tendency_of_air_temperature_due_to_dynamics
+        else:
             return (
                 merged.T_storage
                 - merged.t_dt_nudge_coarse
                 - merged.tendency_of_air_temperature_due_to_dynamics
             )
-        else:
-            return merged.T_storage - merged.tendency_of_air_temperature_due_to_dynamics
 
     def moisture_source(self, merged: MergedData):
         return (
