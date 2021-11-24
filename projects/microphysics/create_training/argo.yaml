@@ -47,7 +47,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/prognostic_run@sha256:71f5e5507ab3baf3158f3947ddffcd9d707f6ef1e3757cf4d6b0b6d7b9503214"
+      image: "us.gcr.io/vcm-ml/prognostic_run@sha256:2934952e45170ad24b98dde46c67c55b1fe87f8c7553a1bade7035fc7a2e8093"
       imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
@@ -64,7 +64,7 @@ spec:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
-        value: "{{workflows.parameters.tag}}"
+        value: "{{workflow.parameters.tag}}"
       - name: WANDB_JOB_TYPE
         value: training-run
       volumeMounts:

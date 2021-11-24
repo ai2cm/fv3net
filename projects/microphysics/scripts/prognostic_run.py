@@ -61,7 +61,9 @@ parser.set_defaults(online=True)
 args = parser.parse_args()
 
 job = wandb.init(
-    job_type="prognostic_run", project="microphysics-emulation", entity="ai2cm",
+    job_type=os.getenv("WANDB_JOB_TYPE", "prognostic_run"),
+    project=os.getenv("WANDB_PROJECT", "microphysics-emulation"),
+    entity="ai2cm",
 )
 
 if args.tag:
