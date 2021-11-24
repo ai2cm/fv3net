@@ -47,9 +47,9 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/prognostic_run@sha256:5cd2c1e69920e061702dff121f06395c1c65885e8a67fc943e10ef89b190c7e4"
+      image: "us.gcr.io/vcm-ml/prognostic_run@sha256:5267f108101e55f94f31420ae336f49f6a1fb9f8f8a711bd886913579da42258"
       imagePullPolicy: Always
-      workingDir: "/fv3net/projects/microphysics/create_training"
+      workingDir: "/fv3net/projects/microphysics"
       resources:
         requests:
           memory: "6Gi"
@@ -71,7 +71,7 @@ spec:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
       command:
-        - ./run_single.sh
+        - run_single_training.sh
         - "{{workflow.parameters.config}}"
         - "{{inputs.parameters.month}}"
         - "{{workflow.parameters.tag}}"

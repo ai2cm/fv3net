@@ -2,6 +2,12 @@
 
 set -e
 
+# change to temporary directory
+tmpdir="$(mktemp -d)"
+trap "rm -r $tmpdir" EXIT
+cd $tmpdir
+
+# process arguments
 echo "$1" | base64 --decode > template.yaml
 shift
 MONTH=$1
@@ -10,6 +16,7 @@ TAG=$1
 shift
 OUTPUT_FREQUENCY=$1
 
+## Code here
 # add initial condition to template
 TIMESTAMP=$(printf "2016%02d0100" $MONTH)
 
@@ -21,7 +28,7 @@ envsubst < template.yaml > fv3config.yaml
 echo "Running the following configuration"
 cat fv3config.yaml
 
-python3 ../scripts/prognostic_run.py \
+prognostic_run.py \
     --tag "$TAG" \
     --model NO_MODEL \
     --config-path fv3config.yaml \
