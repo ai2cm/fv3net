@@ -41,8 +41,6 @@ parser.add_argument(
     help="A unique tag. Can be used to look-up these outputs in subsequent timesteps.",
 )
 parser.add_argument("--segments", "-n", type=int, default=1, help="number of segments")
-parser.add_argument("--wandb-project", default="microphysics-emulation")
-parser.add_argument("--wandb-job-type", default="prognostic_run")
 parser.add_argument("--config-path", type=Path, default=CONFIG_PATH)
 parser.add_argument("--output-frequency", type=str, default="10800")
 
@@ -61,9 +59,8 @@ parser.set_defaults(online=True)
 
 args = parser.parse_args()
 
-
 job = wandb.init(
-    job_type=args.job_type, project="microphysics-emulation", entity="ai2cm",
+    job_type="prognostic_run", project="microphysics-emulation", entity="ai2cm",
 )
 
 if args.tag:
