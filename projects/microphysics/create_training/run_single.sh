@@ -2,27 +2,28 @@
 
 set -e
 
-# to replace current_date in template
+echo "$1" | base64 --decode > template.yaml
+shift
 MONTH=$1
-PROG_YAML=$2
-OUTPUT_FREQUENCY=$3
-TAG_PREFIX=$4
+shift
+TAG=$1
+shift
+OUTPUT_FREQUENCY=$1
 
-# YAML interprets single leading 0 as an octal, 08 09 get read as string
-# so remove leading zeros
-# https://stackoverflow.com/questions/32965846/cant-parse-yaml-correctly
-export MONTH_INT=$(echo ${MONTH} | sed 's/^0*//')
+# add initial condition to template
+TIMESTAMP=$(printf "2016%02d0100" $MONTH)
 
-IC_TIMESTAMP="2016${MONTH}01.000000"
 # to replace initial_conditions in template
-export IC_URL="gs://vcm-ml-raw/2020-11-05-GFS-month-start-initial-conditions-year-2016/2016${MONTH}0100"
+export IC_URL="gs://vcm-ml-raw/2020-11-05-GFS-month-start-initial-conditions-year-2016/$TIMESTAMP"
+export MONTH_INT=$(printf '%d' $MONTH)
+envsubst < template.yaml > fv3config.yaml
 
-envsubst < $PROG_YAML > "prognostic-run-with-IC.yaml"
+echo "Running the following configuration"
+cat fv3config.yaml
 
-# submit prognostic run forecasts
-argo submit argo.yaml \
-    -p config="$(< prognostic-run-with-IC.yaml)" \
-    -p tag="${TAG_PREFIX}-${IC_TIMESTAMP}" \
-    -p output_frequency=${OUTPUT_FREQUENCY}
-
-rm prognostic-run-with-IC.yaml
+python3 ../scripts/prognostic_run.py \
+    --tag "$TAG" \
+    --model NO_MODEL \
+    --config-path fv3config.yaml \
+    --output-frequency "$OUTPUT_FREQUENCY" \
+    --offline
