@@ -47,7 +47,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/prognostic_run@sha256:5267f108101e55f94f31420ae336f49f6a1fb9f8f8a711bd886913579da42258"
+      image: "us.gcr.io/vcm-ml/prognostic_run@sha256:71f5e5507ab3baf3158f3947ddffcd9d707f6ef1e3757cf4d6b0b6d7b9503214"
       imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
