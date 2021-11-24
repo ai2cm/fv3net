@@ -86,18 +86,20 @@ class DynamicsDifferenceApparentSource:
 
     def temperature_source(self, merged: MergedData):
         if self.include_temperature_nudging:
-            return merged.T_storage - merged.tendency_of_air_temperature_due_to_dynamics
+            return (
+                merged.T_storage - merged.tendency_of_air_temperature_due_to_dynamics
+            ).assign_attrs(units="K/s")
         else:
             return (
                 merged.T_storage
                 - merged.t_dt_nudge_coarse
                 - merged.tendency_of_air_temperature_due_to_dynamics
-            )
+            ).assign_attrs(units="K/s")
 
     def moisture_source(self, merged: MergedData):
         return (
             merged.sphum_storage - merged.tendency_of_specific_humidity_due_to_dynamics
-        )
+        ).assign_attrs(units="kg/kg/s")
 
 
 def compute_budget(
