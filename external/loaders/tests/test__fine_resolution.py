@@ -38,10 +38,6 @@ def test__extend_lower(nz, nx, vertical_dim, n_levels, error):
 @pytest.mark.parametrize("include_temperature_nudging", [True, False])
 @pytest.mark.parametrize("approach", list(Approach))
 def test_compute_budget(approach, include_temperature_nudging):
-
-    if approach == Approach.apparent_sources_plus_dynamics_differences:
-        pytest.skip()
-
     one = xr.DataArray(np.ones((5, 1, 1)), dims=["z", "y", "x"])
     ds = xr.Dataset()
     for name in [

@@ -70,7 +70,6 @@ def _open_merged_dataset(
 class Approach(Enum):
     apparent_sources_only = 1
     apparent_sources_plus_nudging_tendencies = 2
-    apparent_sources_plus_dynamics_differences = 3
     apparent_sources_extend_lower = 4
     dynamics_difference = 5
 
@@ -109,8 +108,6 @@ def compute_budget(
 
     if approach == Approach.apparent_sources_plus_nudging_tendencies:
         merged["Q1"], merged["Q2"] = _add_nudging_tendencies(merged)
-    elif approach == Approach.apparent_sources_plus_dynamics_differences:
-        merged["Q1"], merged["Q2"] = _add_dynamics_differences(merged)
     elif approach == Approach.apparent_sources_extend_lower:
         merged["Q1"] = _extend_lower(merged["Q1"])
         merged["Q2"] = _extend_lower(merged["Q2"])
@@ -144,33 +141,6 @@ def _add_nudging_tendencies(merged: xr.Dataset):
             + " plus dynamics nudging tendency",
             "description": merged.Q2.attrs.get("description")
             + " + dynamics nudging tendency",
-        }
-    )
-    return Q1, Q2
-
-
-def _add_dynamics_differences(merged: xr.Dataset):
-    with xr.set_options(keep_attrs=True):
-        Q1 = (
-            merged.Q1
-            + merged.fine_minus_coarse_tendency_of_air_temperature_due_to_dynamics
-        )
-        Q2 = (
-            merged.Q2
-            + merged.fine_minus_coarse_tendency_of_specific_humidity_due_to_dynamics
-        )
-    Q1.attrs.update(
-        {
-            "long_name": merged.Q1.attrs.get("long_name") + " plus dynamics difference",
-            "description": merged.Q1.attrs.get("description")
-            + " + dynamics difference",
-        }
-    )
-    Q2.attrs.update(
-        {
-            "long_name": merged.Q2.attrs.get("long_name") + " plus dynamics difference",
-            "description": merged.Q2.attrs.get("description")
-            + " + dynamics difference",
         }
     )
     return Q1, Q2
