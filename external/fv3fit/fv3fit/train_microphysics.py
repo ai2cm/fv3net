@@ -9,6 +9,7 @@ import fsspec
 import numpy as np
 import tensorflow as tf
 import yaml
+import warnings
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import (
@@ -86,6 +87,14 @@ class TrainConfig:
         self,
     ) -> Union[models.MicrophysicsConfig, models.ConservativeWaterConfig]:
         if self.model:
+            if self.conservative_model:
+                warnings.warn(
+                    UserWarning(
+                        ".conservative_model included in the configuration, "
+                        "but will not be used."
+                    )
+                )
+
             return self.model
         elif self.conservative_model:
             return self.conservative_model
