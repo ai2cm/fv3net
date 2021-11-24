@@ -21,8 +21,8 @@ class MLTendencies(Protocol):
 
 
 class NudgedRun(Protocol):
-    tendency_of_air_temperature_due_to_dynamics: xr.Dataset
-    tendency_of_specific_humidity_due_to_dynamics: xr.Dataset
+    tendency_of_air_temperature_due_to_dynamics: xr.DataArray
+    tendency_of_specific_humidity_due_to_dynamics: xr.DataArray
 
 
 class MergedData(NudgedRun, FineResBudget):
