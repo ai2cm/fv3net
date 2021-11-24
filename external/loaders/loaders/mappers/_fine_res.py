@@ -1,3 +1,4 @@
+import dataclasses
 from datetime import timedelta
 from enum import Enum
 from typing_extensions import Protocol
@@ -17,6 +18,15 @@ from loaders.mappers._fine_res_budget import compute_fine_res_sources, FineResBu
 class MLTendencies(Protocol):
     dQ1: xr.DataArray
     dQ2: xr.DataArray
+
+
+class NudgedRun(Protocol):
+    tendency_of_air_temperature_due_to_dynamics: xr.Dataset
+    tendency_of_specific_humidity_due_to_dynamics: xr.Dataset
+
+
+class MergedData(NudgedRun, FineResBudget):
+    pass
 
 
 def open_zarr(url, consolidated=False):
@@ -62,9 +72,36 @@ class Approach(Enum):
     apparent_sources_plus_nudging_tendencies = 2
     apparent_sources_plus_dynamics_differences = 3
     apparent_sources_extend_lower = 4
+    dynamics_difference = 5
 
 
-def _compute_budget(
+@dataclasses.dataclass
+class DynamicsDifferenceApparentSource:
+    """
+    Q  = (high_res dyn - coarse dyn) + high_res physics
+       = high res (storage - nudge - physics) + high_res physics - coarse dyn
+       = high-res storage - high res nudging - coarse dyn tendency
+    """
+
+    include_temperature_nudging: bool
+
+    def temperature_source(self, merged: MergedData):
+        if self.include_temperature_nudging:
+            return (
+                merged.T_storage
+                - merged.t_dt_nudge_coarse
+                - merged.tendency_of_air_temperature_due_to_dynamics
+            )
+        else:
+            return merged.T_storage - merged.tendency_of_air_temperature_due_to_dynamics
+
+    def moisture_source(self, merged: MergedData):
+        return (
+            merged.sphum_storage - merged.tendency_of_specific_humidity_due_to_dynamics
+        )
+
+
+def compute_budget(
     merged: xr.Dataset, approach: Approach, include_temperature_nudging: bool
 ) -> MLTendencies:
     sources = compute_fine_res_sources(merged, include_temperature_nudging)
@@ -77,6 +114,14 @@ def _compute_budget(
     elif approach == Approach.apparent_sources_extend_lower:
         merged["Q1"] = _extend_lower(merged["Q1"])
         merged["Q2"] = _extend_lower(merged["Q2"])
+    elif approach == Approach.dynamics_difference:
+        budget = DynamicsDifferenceApparentSource(include_temperature_nudging)
+        merged["Q1"] = budget.temperature_source(merged)
+        merged["Q2"] = budget.moisture_source(merged)
+    elif approach == Approach.apparent_sources_only:
+        pass
+    else:
+        raise ValueError(f"{approach} not implemented.")
 
     return _ml_standard_names(merged)
 
@@ -193,7 +238,7 @@ def open_fine_resolution(
     merged: FineResBudget = _open_merged_dataset(
         fine_url=fine_url, additional_dataset_urls=additional_dataset_urls,
     )
-    budget: MLTendencies = _compute_budget(
+    budget: MLTendencies = compute_budget(
         merged, approach_enum, include_temperature_nudging=include_temperature_nudging
     )
 
