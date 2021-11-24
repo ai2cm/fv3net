@@ -14,8 +14,7 @@ from fv3net.artifacts.resolve_url import resolve_url
 
 logging.basicConfig(level=logging.INFO)
 
-PROJECT = "2021-10-14-microphysics-emulation-paper"
-BUCKET = "vcm-ml-scratch"
+BUCKET = "vcm-ml-experiments"
 
 
 def get_env(args):
@@ -78,7 +77,7 @@ config = dacite.from_dict(HighLevelConfig, config)
 config.namelist["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
 config = config.to_fv3config()
 
-url = resolve_url(BUCKET, PROJECT, tag)
+url = resolve_url(BUCKET, job.project, tag)
 env = get_env(args)
 
 wandb.config.update({"config": config, "env": env})
