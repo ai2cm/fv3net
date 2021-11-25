@@ -2,34 +2,52 @@ apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
   generateName: create-training-microphysics-
+  labels:
+    app: microphysics-training-data
 spec:
-  entrypoint: run-model
+  entrypoint: main
   arguments:
     parameters:
       - name: tag
-      - name: config
       - name: output_frequency
         value: "18000"
-      - name: image_tag
-        value: 66a97197224d1cb62570713c07d72e71d97f39bb
   volumes:
   - name: gcp-key-secret
     secret:
       secretName: gcp-key
   templates:
+  - name: main
+    steps:
+      - - name: run-model
+          template: run-model
+          arguments:
+            parameters:
+              - name: month
+                value: "{{item}}"
+          withItems:
+            - "1"
+            - "2"
+            - "3"
+            - "4"
+            - "5"
+            - "6"
+            - "7"
+            - "8"
+            - "9"
+            - "10"
+            - "11"
+            - "12"
   - name: run-model
     inputs:
       parameters:
-      - name: tag
-      - name: config
-      - name: output_frequency
+      - name: month
     tolerations:
     - key: "dedicated"
       operator: "Equal"
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.image_tag}}"
+      image: "us.gcr.io/vcm-ml/prognostic_run@sha256:90a35ccebaf28ca93d524577c558f2a466ef2d9d50b78e925a5f10e44d950427"
       imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
@@ -46,18 +64,13 @@ spec:
       - name: GOOGLE_APPLICATION_CREDENTIALS 
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
-        value: "{{inputs.parameters.tag}}"
+        value: "{{workflow.parameters.tag}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
-      command: ["bash", "-c", "-x", "-e"]
-      args: 
-      - |
-        echo "{{inputs.parameters.config}}" > fv3config.yaml
-        python3 scripts/prognostic_run.py \
-          --tag "{{inputs.parameters.tag}}" \
-          --config-path fv3config.yaml \
-          --model NO_MODEL \
-          --job-type training-run \
-          --output-frequency "{{inputs.parameters.output_frequency}}" \
-          --offline
+      command:
+        - run_single_training.sh
+        - "{{workflow.parameters.config}}"
+        - "{{inputs.parameters.month}}"
+        - "{{workflow.parameters.tag}}"
+        - "{{workflow.parameters.output_frequency}}"

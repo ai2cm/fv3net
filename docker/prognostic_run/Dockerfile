@@ -144,7 +144,9 @@ ENV VAR_META_PATH=/fv3net/external/emulation/microphysics_parameter_metadata.yam
 ENV OUTPUT_FREQ_SEC=18000
 
 # Add emulation project scripts
-COPY projects/microphysics /fv3net/projects/microphysics
+COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
+RUN chmod +x /fv3net/projects/microphysics/scripts/*
+ENV PATH=/fv3net/projects/microphysics/scripts:${PATH}
 
 ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run

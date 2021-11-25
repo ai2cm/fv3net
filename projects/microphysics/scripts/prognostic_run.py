@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import logging
 import os
@@ -13,8 +14,7 @@ from fv3net.artifacts.resolve_url import resolve_url
 
 logging.basicConfig(level=logging.INFO)
 
-PROJECT = "2021-10-14-microphysics-emulation-paper"
-BUCKET = "vcm-ml-scratch"
+BUCKET = "vcm-ml-experiments"
 
 
 def get_env(args):
@@ -41,8 +41,6 @@ parser.add_argument(
     help="A unique tag. Can be used to look-up these outputs in subsequent timesteps.",
 )
 parser.add_argument("--segments", "-n", type=int, default=1, help="number of segments")
-parser.add_argument("--wandb-project", default="microphysics-emulation")
-parser.add_argument("--wandb-job-type", default="prognostic_run")
 parser.add_argument("--config-path", type=Path, default=CONFIG_PATH)
 parser.add_argument("--output-frequency", type=str, default="10800")
 
@@ -61,9 +59,10 @@ parser.set_defaults(online=True)
 
 args = parser.parse_args()
 
-
 job = wandb.init(
-    job_type=args.job_type, project="microphysics-emulation", entity="ai2cm",
+    job_type=os.getenv("WANDB_JOB_TYPE", "prognostic_run"),
+    project=os.getenv("WANDB_PROJECT", "microphysics-emulation"),
+    entity="ai2cm",
 )
 
 if args.tag:
@@ -78,7 +77,7 @@ config = dacite.from_dict(HighLevelConfig, config)
 config.namelist["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
 config = config.to_fv3config()
 
-url = resolve_url(BUCKET, PROJECT, tag)
+url = resolve_url(BUCKET, job.project, tag)
 env = get_env(args)
 
 wandb.config.update({"config": config, "env": env})

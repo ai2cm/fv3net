@@ -50,17 +50,6 @@ diagnostics:
   - tendency_of_northward_wind_due_to_fv3_physics
   - tendency_of_ozone_mixing_ratio_due_to_fv3_physics
   - tendency_of_pressure_thickness_of_atmospheric_layer_due_to_fv3_physics
-- chunks:
-    time: 1
-  name: physics_component_tendencies.zarr
-  times:
-    frequency: 18000
-    includes_lower: false
-    kind: interval
-    times: null
-  variables:
-  - tendency_of_specific_humidity_due_to_microphysics_after_fv3_physics
-  - tendency_of_air_temperature_due_to_microphysics_after_fv3_physics
 namelist:
   atmos_model_nml:  
     blocksize: -1
