@@ -1,5 +1,12 @@
 [GLOBAL]
-pants_version = "2.8.0.dev1"
+pants_version = "2.8.1rc0"
 backend_packages.add = [
   "pants.backend.python",
+]
+
+
+[setuptools]
+lockfile="setuptools.lock"
+extra_requirements.add = [
+    "numpy==1.19.5"
 ]
