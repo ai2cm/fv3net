@@ -180,9 +180,9 @@ class TrainConfig:
 
         return config
 
-    def __post_init__(self):
-        required_variables = set(self.model.input_variables) | set(
-            self.model.output_variables
+    def __post_init__(self) -> None:
+        required_variables = set(self._model.input_variables) | set(
+            self._model.output_variables
         )
         self.transform.variables = list(required_variables)
 
@@ -206,6 +206,7 @@ def main(config: TrainConfig, seed: int = 0):
     test_set = next(iter(test_ds.shuffle(160_000).batch(80_000)))
 
     model = config.build(train_set)
+    output_names = set(model(train_set))
     config.loss.prepare(output_samples=train_set)
     config.loss.compile(model)
 
@@ -215,7 +216,7 @@ def main(config: TrainConfig, seed: int = 0):
     def split_in_out(m):
         return (
             {key: m[key] for key in model.input_names if key in m},
-            {key: m[key] for key in model.output_names if key in m},
+            {key: m[key] for key in output_names if key in m},
         )
 
     train_ds = train_ds.map(split_in_out)

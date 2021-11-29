@@ -66,11 +66,11 @@ class MicrophysicsConfig:
         self.selection_map_slices = {k: v.slice for k, v in self.selection_map.items()}
 
     @property
-    def name(self):
+    def name(self) -> str:
         return f"microphysics-emulator-{self.architecture.name}"
 
     @property
-    def output_variables(self):
+    def output_variables(self) -> List[str]:
         return self.direct_out_variables + list(self.residual_out_variables.keys())
 
     def _get_processed_inputs(self, sample_in, inputs):
@@ -170,20 +170,20 @@ class Field:
 @dataclasses.dataclass(frozen=True)
 class ZhaoCarrFields:
     cloud_water: Field = Field(
-        "cloud_water_mixing_ratio_output",
+        "cloud_water_mixing_ratio_after_precpd",
         "cloud_water_mixing_ratio_input",
         residual=False,
     )
 
     specific_humidity: Field = Field(
-        "specific_humidity_output", "specific_humidity_input", residual=True,
+        "specific_humidity_after_precpd", "specific_humidity_input", residual=True,
     )
 
     air_temperature: Field = Field(
-        "air_temperature_output", "air_temperature_input", residual=True,
+        "air_temperature_after_precpd", "air_temperature_input", residual=True,
     )
-    surface_precipitation: Field = Field(output_name="surface_precipitation")
-    pressure_thickness = Field(input_name="pressure_thickness")
+    surface_precipitation: Field = Field(output_name="total_precipitation")
+    pressure_thickness = Field(input_name="pressure_thickness_of_atmospheric_layer")
 
 
 @dataclasses.dataclass
