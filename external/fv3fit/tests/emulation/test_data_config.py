@@ -1,5 +1,6 @@
 import pytest
 from fv3fit._shared import SliceConfig
+import dataclasses
 from fv3fit.emulation.data.config import TransformConfig
 
 
@@ -12,30 +13,21 @@ def test_SliceConfig(start, stop, step):
     assert config.slice == expected
 
 
-def test_TransformConfig():
-
-    transform = TransformConfig(
-        input_variables=["a", "b"],
-        output_variables=["c", "d"],
+def _get_config() -> TransformConfig:
+    return TransformConfig(
+        variables=["a", "b", "c", "d"],
         antarctic_only=False,
         vertical_subselections={"a": SliceConfig(start=5)},
     )
 
+
+def test_TransformConfig():
+    transform = _get_config()
     assert transform.vert_sel_as_slices["a"] == slice(5, None)
     assert callable(transform)
 
 
 def test_TransformConfig_from_dict():
-
-    transform = TransformConfig.from_dict(
-        dict(
-            input_variables=["a", "b"],
-            output_variables=["c", "d"],
-            antarctic_only=False,
-            vertical_subselections={"a": dict(start=5)},
-        )
-    )
-
-    assert transform.vert_sel_as_slices["a"] == slice(5, None)
-    assert isinstance(transform, TransformConfig)
-    assert callable(transform)
+    transform_in = _get_config()
+    transform_from_dict = TransformConfig.from_dict(dataclasses.asdict(transform_in))
+    assert transform_from_dict == transform_in

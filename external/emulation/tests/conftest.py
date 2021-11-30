@@ -49,7 +49,7 @@ def dummy_rundir(tmp_path):
         yield rundir
 
 
-def create_model():
+def _create_model():
     in_ = tf.keras.layers.Input(shape=(63,), name="air_temperature_input")
     out_ = tf.keras.layers.Lambda(lambda x: x + 1, name="air_temperature_dummy")(in_)
     model = tf.keras.Model(inputs=in_, outputs=out_)
@@ -57,10 +57,16 @@ def create_model():
     return model
 
 
-@pytest.fixture(scope="session")
-def saved_model_path(tmp_path_factory):
-    model = create_model()
+def _create_model_dict():
+    in_ = tf.keras.layers.Input(shape=(63,), name="air_temperature_input")
+    out_ = tf.keras.layers.Lambda(lambda x: x + 1)(in_)
+    model = tf.keras.Model(inputs=in_, outputs={"air_temperature_dummy": out_})
+    return model
+
+
+@pytest.fixture(scope="session", params=[_create_model, _create_model_dict])
+def saved_model_path(tmp_path_factory, request):
+    model = request.param()
     path = tmp_path_factory.mktemp("tf_models") / "dummy_model.tf"
     model.save(path.as_posix(), save_format="tf")
-
     return str(path)

@@ -59,18 +59,18 @@ model:
     specific_humidity_input: {stop: -10}
   timestep_increment_sec: 900
 transform:
-  input_variables:
-  - air_temperature_input
-  - specific_humidity_input
-  - cloud_water_mixing_ratio_input
-  - pressure_thickness_of_atmospheric_layer
-  output_variables:
-  - cloud_water_mixing_ratio_output
-  - total_precipitation
-  - air_temperature_output
-  - specific_humidity_output
-  - tendency_of_air_temperature_due_to_microphysics
-  - tendency_of_specific_humidity_due_to_microphysics
+  # input_variables:
+  # - air_temperature_input
+  # - specific_humidity_input
+  # - cloud_water_mixing_ratio_input
+  # - pressure_thickness_of_atmospheric_layer
+  # output_variables:
+  # - cloud_water_mixing_ratio_output
+  # - total_precipitation
+  # - air_temperature_output
+  # - specific_humidity_output
+  # - tendency_of_air_temperature_due_to_microphysics
+  # - tendency_of_specific_humidity_due_to_microphysics
   antarctic_only: false
   derived_microphys_timestep: 900
   use_tensors: true
