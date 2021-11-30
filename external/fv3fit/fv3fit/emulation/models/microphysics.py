@@ -110,7 +110,8 @@ class MicrophysicsConfig:
             res_out = IncrementedFieldOutput(
                 sample.shape[-1],
                 self.timestep_increment_sec,
-                sample_out=sample,
+                sample_out=data[name],
+                sample_in=data[self.residual_out_variables[name]],
                 denormalize=self.normalize_key,
                 name=name,
                 enforce_positive=self.enforce_positive,
