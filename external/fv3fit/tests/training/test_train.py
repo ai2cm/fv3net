@@ -349,7 +349,7 @@ def test_train_dense_model_clipped_inputs_outputs():
         data_vars={"var_in_0": da, "var_in_1": da, "var_out_0": da, "var_out_1": da}
     )
     train_batches = [train_dataset for _ in range(2)]
-    val_batches = []
+    val_batches = train_batches
     train = fv3fit.get_training_function("dense")
 
     input_variables = ["var_in_0", "var_in_1"]

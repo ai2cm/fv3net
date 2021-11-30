@@ -16,12 +16,7 @@ from fv3fit.keras._models.shared.utils import (
     get_stacked_metadata,
     full_standard_normalized_input,
 )
-from fv3fit.keras._models.shared.clip import (
-    clip_layers,
-    clip_arrays,
-    ClippedXyMultiArraySequence,
-    zero_fill_clipped_layers,
-)
+from fv3fit.keras._models.shared.clip import clip_sequence
 
 
 @dataclasses.dataclass
@@ -74,74 +69,54 @@ class DenseHyperparameters(Hyperparameters):
         return set(self.input_variables).union(self.output_variables)
 
 
-def _clip_config_outputs_only(clip_config: ClipConfig, output_variables: Sequence[str]):
-    output_only_config = {}
-    for var, var_clipping in clip_config.clip.items():
-        if var in output_variables:
-            output_only_config[var] = var_clipping
-    return ClipConfig(output_only_config)
-
-
-def _clip_data_outputs(
-    hyperparameters: DenseHyperparameters,
-    train_data: XyMultiArraySequence,
-    validation_data: Optional[XyMultiArraySequence] = None,
-):
-    # fit loop needs to clip the y target feature dim if train_model outputs are clipped
-    y_only_clip_config = _clip_config_outputs_only(
-        hyperparameters.clip_config, hyperparameters.output_variables
-    )
-    y_clipped_train_data = ClippedXyMultiArraySequence(train_data, y_only_clip_config)
-    y_clipped_validation_data = (
-        ClippedXyMultiArraySequence(validation_data, y_only_clip_config)[0]
-        if validation_data is not None
-        else validation_data
-    )
-    return y_clipped_train_data, y_clipped_validation_data
-
-
 @register_training_function("dense", DenseHyperparameters)
 def train_dense_model(
     hyperparameters: DenseHyperparameters,
     train_batches: Sequence[xr.Dataset],
-    validation_batches: Optional[Sequence[xr.Dataset]] = None,
+    validation_batches: Sequence[xr.Dataset],
 ):
-    if validation_batches is not None and len(validation_batches) > 0:
+    if len(validation_batches) > 0:
         validation_data: Optional[Tuple[np.ndarray, np.ndarray]] = XyMultiArraySequence(
             X_names=hyperparameters.input_variables,
             y_names=hyperparameters.output_variables,
-            dataset_sequence=[validation_batches[0]],
             unstacked_dims=["z"],
             n_halo=0,
-        )
-
+            dataset_sequence=[validation_batches[0]],
+            output_clip_config=hyperparameters.clip_config,
+        )[0]
         del validation_batches
     else:
         validation_data = None
+
+    # training data has outputs clipped to correspond to the train model output clipping
     train_data: Sequence[Tuple[np.ndarray, np.ndarray]] = XyMultiArraySequence(
         X_names=hyperparameters.input_variables,
         y_names=hyperparameters.output_variables,
-        dataset_sequence=train_batches,
         unstacked_dims=["z"],
         n_halo=0,
+        dataset_sequence=train_batches,
+        output_clip_config=hyperparameters.clip_config,
     )
-    # arrays used in build_model should be the full inputs and outputs before clipping
-    X, y = train_data[0]
 
-    # y train data should be clipped when used as target to fit train_model
-    train_data, validation_data = _clip_data_outputs(
-        hyperparameters, train_data, validation_data  # type: ignore
+    # data sample with full dimensions is needed when building the model
+    sample_data_unclipped = XyMultiArraySequence(
+        X_names=hyperparameters.input_variables,
+        y_names=hyperparameters.output_variables,
+        unstacked_dims=["z"],
+        n_halo=0,
+        dataset_sequence=train_batches,
     )
+    X, y = sample_data_unclipped[0]
 
     if isinstance(train_batches, tuple):
         train_data = tuple(train_data)
 
     train_model, predict_model = build_model(hyperparameters, X=X, y=y)
-
     output_metadata = get_stacked_metadata(
         names=hyperparameters.output_variables, ds=train_batches[0], unstacked_dims="z",
     )
     del train_batches
+
     hyperparameters.training_loop.fit_loop(
         model=train_model, Xy=train_data, validation_data=validation_data
     )
@@ -180,12 +155,12 @@ def build_model(
     y_2d = [_ensure_2d(array) for array in y]
 
     input_layers = [tf.keras.layers.Input(shape=arr.shape[1:]) for arr in X_2d]
-    clipped_input_layers = clip_layers(
+    clipped_input_layers = clip_sequence(
         config.clip_config, input_layers, config.input_variables
     )
     full_input = full_standard_normalized_input(
         clipped_input_layers,
-        clip_arrays(config.clip_config, X_2d, config.input_variables),
+        clip_sequence(config.clip_config, X_2d, config.input_variables),
         config.input_variables,
     )
 
@@ -209,37 +184,34 @@ def build_model(
             tf.keras.layers.Activation(tf.keras.activations.relu)(output_layer)
             for output_layer in denorm_output_layers
         ]
-    clipped_denorm_output_layers = clip_layers(
+
+    # Model used in training has output levels clipped off, so std also must
+    # be calculated over the same set of levels after clipping.
+    clipped_denorm_output_layers = clip_sequence(
         config.clip_config, denorm_output_layers, config.output_variables
+    )
+    clipped_output_arrays = clip_sequence(
+        config.clip_config, list(y_2d), config.output_variables
+    )
+    clipped_output_stds = (
+        np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)
+        for array in clipped_output_arrays
     )
 
     train_model = tf.keras.Model(
         inputs=input_layers, outputs=clipped_denorm_output_layers
-    )
-    output_stds = (
-        np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)
-        for array in y_2d
-    )
-    clipped_output_stds = clip_arrays(
-        config.clip_config, list(output_stds), config.output_variables
     )
     train_model.compile(
         optimizer=config.optimizer_config.instance,
         loss=[config.loss.loss(std) for std in clipped_output_stds],
     )
 
-    # need a separate model for this so i) we don't have to
-    # serialize the custom loss functions and ii) clipped outputs can be
-    # restored to original size with zero padding
-
-    # replace levels with zero that were clipped out in train_model
-    original_output_feature_sizes = [array.shape[-1] for array in y_2d]
-    zero_filled_denorm_output_layers = zero_fill_clipped_layers(
-        config.clip_config,
-        clipped_denorm_output_layers,
-        config.output_variables,
-        original_output_feature_sizes,
-    )
+    # Returns a separate prediction model where outputs layers have
+    # original length along last dimension, but with clipped levels masked to zero
+    zero_filled_denorm_output_layers = [
+        config.clip_config.zero_mask_clipped_layer(denorm_layer, name)
+        for denorm_layer, name in zip(denorm_output_layers, config.output_variables)
+    ]
     predict_model = tf.keras.Model(
         inputs=input_layers, outputs=zero_filled_denorm_output_layers
     )
