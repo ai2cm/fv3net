@@ -130,19 +130,6 @@ def get_FieldOutput():
     return output_layer
 
 
-def get_IncrementedStateOutput():
-
-    tensor = get_test_tensor()
-    layer = IncrementedFieldOutput(
-        tensor.shape[-1],
-        900,
-        sample_out=tensor,
-        denormalize="mean_std",
-        enforce_positive=True,
-    )
-    return layer
-
-
 @pytest.mark.parametrize("get_layer_func", [get_FieldInput, get_FieldOutput])
 def test_layer_model_saving(tmpdir, get_layer_func):
 
@@ -165,7 +152,16 @@ def test_layer_IncrementedStateOutput_model_saving(tmpdir):
 
     in_ = tf.keras.layers.Input(tensor.shape[-1])
     dense = tf.keras.layers.Dense(64)(in_)
-    out = get_IncrementedStateOutput()(in_, dense)
+    tensor = get_test_tensor()
+    layer = IncrementedFieldOutput(
+        tensor.shape[-1],
+        900,
+        sample_in=tensor - 1,
+        sample_out=tensor,
+        denormalize="mean_std",
+        enforce_positive=True,
+    )
+    out = layer(in_, dense)
     model = tf.keras.models.Model(inputs=in_, outputs=out)
 
     expected = model(tensor)
