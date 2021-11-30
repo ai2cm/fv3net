@@ -26,7 +26,7 @@ from fv3fit._shared.config import SliceConfig
         ),
         pytest.param(
             ClipConfig({"var_": {"z": SliceConfig(8, None)}}),
-            KeyError,
+            np.arange(10),
             id="clip_var_not_in_config",
         ),
         pytest.param(
