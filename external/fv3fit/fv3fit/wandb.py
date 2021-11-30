@@ -1,3 +1,4 @@
+from collections import defaultdict
 import dataclasses
 import wandb
 import matplotlib.pyplot as plt
@@ -6,17 +7,6 @@ import pandas as pd
 from typing import Any, Dict, List, Mapping, Optional
 
 from .tensorboard import plot_to_image
-
-
-UNITS = {
-    "total_precipitation": "mm / day",
-    "specific_humidity_output": "g/kg",
-    "tendency_of_specific_humidity_due_to_microphysics": "g/kg/day",
-    "cloud_water_mixing_ratio_output": "g/kg",
-    "tendency_of_cloud_water_mixing_ratio_due_to_microphysics": "g/kg/day",
-    "air_temperature_output": "K",
-    "tendency_of_air_temperature_due_to_microphysics": "K/day",
-}
 
 
 @dataclasses.dataclass
@@ -70,6 +60,19 @@ def log_to_table(log_key: str, data: Dict[str, Any], index: Optional[List[Any]] 
 def _plot_profiles(target, prediction, name):
     """Plot vertical profile comparisons"""
 
+    units = defaultdict(lambda: "unknown")
+    units.update(
+        {
+            "total_precipitation": "mm / day",
+            "specific_humidity_output": "g/kg",
+            "tendency_of_specific_humidity_due_to_microphysics": "g/kg/day",
+            "cloud_water_mixing_ratio_output": "g/kg",
+            "tendency_of_cloud_water_mixing_ratio_due_to_microphysics": "g/kg/day",
+            "air_temperature_output": "K",
+            "tendency_of_air_temperature_due_to_microphysics": "K/day",
+        }
+    )
+
     nsamples = target.shape[0]
 
     for i in range(nsamples):
@@ -80,7 +83,7 @@ def _plot_profiles(target, prediction, name):
         plt.plot(target[i], levs, label="target")
         plt.plot(prediction[i], levs, label="prediction")
         plt.title(f"Sample {i+1}: {name}")
-        plt.xlabel(f"{UNITS[name]}")
+        plt.xlabel(f"{units[name]}")
         plt.ylabel("Level")
         wandb.log({f"{name}_sample_{i}": wandb.Image(plot_to_image(fig))})
         plt.close()
