@@ -1,0 +1,76 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: create-training-microphysics-
+  labels:
+    app: microphysics-training-data
+spec:
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: tag
+      - name: output_frequency
+        value: "18000"
+  volumes:
+  - name: gcp-key-secret
+    secret:
+      secretName: gcp-key
+  templates:
+  - name: main
+    steps:
+      - - name: run-model
+          template: run-model
+          arguments:
+            parameters:
+              - name: month
+                value: "{{item}}"
+          withItems:
+            - "1"
+            - "2"
+            - "3"
+            - "4"
+            - "5"
+            - "6"
+            - "7"
+            - "8"
+            - "9"
+            - "10"
+            - "11"
+            - "12"
+  - name: run-model
+    inputs:
+      parameters:
+      - name: month
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: "us.gcr.io/vcm-ml/prognostic_run@sha256:90a35ccebaf28ca93d524577c558f2a466ef2d9d50b78e925a5f10e44d950427"
+      imagePullPolicy: Always
+      workingDir: "/fv3net/projects/microphysics"
+      resources:
+        requests:
+          memory: "6Gi"
+          cpu: "7500m"
+        limits:
+          memory: "8Gi"
+          cpu: "7500m"
+      envFrom:
+      - secretRef:
+          name: wandb-andrep
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS 
+        value: /secret/gcp-credentials/key.json
+      - name: WANDB_RUN_GROUP
+        value: "{{workflow.parameters.tag}}"
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-key-secret
+      command:
+        - run_single_training.sh
+        - "{{workflow.parameters.config}}"
+        - "{{inputs.parameters.month}}"
+        - "{{workflow.parameters.tag}}"
+        - "{{workflow.parameters.output_frequency}}"

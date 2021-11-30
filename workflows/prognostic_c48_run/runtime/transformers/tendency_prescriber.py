@@ -3,11 +3,11 @@ import logging
 from typing import Hashable, Mapping, MutableMapping, Set
 
 import cftime
-import fsspec
 import xarray as xr
-import zarr
 
 import fv3gfs.util
+import loaders
+import vcm
 from runtime.monitor import Monitor
 from runtime.types import Diagnostics, Step
 from runtime.derived_state import DerivedFV3State
@@ -23,12 +23,12 @@ class TendencyPrescriberConfig:
     """Configuration for overriding tendencies from a step.
     
     Attributes:
-        url: path to dataset containing tendencies.
+        mapper_config: configuration of mapper used to load tendency data.
         variables: mapping from state name to name of corresponding tendency in
-            provided dataset. For example: {"air_temperature": "fine_res_Q1"}.
+            provided mapper. For example: {"air_temperature": "fine_res_Q1"}.
     """
 
-    url: str
+    mapper_config: loaders.MapperConfig
     variables: Mapping[str, str]
 
 
@@ -44,16 +44,17 @@ class TendencyPrescriber:
 
     def __post_init__(self: "TendencyPrescriber"):
         if self.communicator.rank == 0:
-            logger.debug(f"Opening tendency overriding dataset from: {self.config.url}")
-        tile = self.communicator.partitioner.tile_index(self.communicator.rank)
-        mapper = zarr.LRUStoreCache(fsspec.get_mapper(self.config.url), 128 * 2 ** 20)
-        ds = xr.open_zarr(mapper, consolidated=True)
-        self._tendency_ds = ds[list(self.config.variables.values())].isel(tile=tile)
+            logger.debug(f"Opening tendency override from: {self.config.mapper_config}")
+        self._mapper = self.config.mapper_config.load_mapper()
+        self._tendency_names = list(self.config.variables.values())
+        self._tile = self.communicator.partitioner.tile_index(self.communicator.rank)
 
     def _open_tendencies_dataset(self, time: cftime.DatetimeJulian) -> xr.Dataset:
+        timestamp = vcm.encode_time(time)
+        tile = self.communicator.partitioner.tile_index(self.communicator.rank)
         ds = xr.Dataset()
         if self.communicator.tile.rank == 0:
-            ds = self._tendency_ds.sel(time=time).drop_vars("time").load()
+            ds = self._mapper[timestamp].isel(tile=tile)[self._tendency_names].load()
         tendencies = self.communicator.tile.scatter_state(dataset_to_quantity_state(ds))
         return quantity_state_to_dataset(tendencies)
 

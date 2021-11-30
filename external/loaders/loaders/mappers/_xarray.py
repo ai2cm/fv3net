@@ -1,5 +1,6 @@
 import xarray as xr
 import fsspec
+import zarr
 import vcm
 from ._base import GeoMapper
 from loaders._config import mapper_functions
@@ -55,5 +56,6 @@ class XarrayMapper(GeoMapper):
 def open_zarr(
     data_path: str, consolidated: bool = True, dim: str = "time"
 ) -> XarrayMapper:
-    ds = xr.open_zarr(fsspec.get_mapper(data_path), consolidated=consolidated)
+    mapper = zarr.LRUStoreCache(fsspec.get_mapper(data_path), 128 * 2 ** 20)
+    ds = xr.open_zarr(mapper, consolidated=consolidated)
     return XarrayMapper(ds, time=dim)

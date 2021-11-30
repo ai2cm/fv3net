@@ -19,8 +19,7 @@ class TransformConfig:
     X, y tuples of arrays/tensors per variable
 
     Args:
-        input_variables: Variables to include as inputs for training
-        output_variables: Variables to include as targets for training
+        variables: the variables required for training. Both inputs and outputs.
         antarctic_only: Limit data to < 60 S.  Requires latitude exists
             as a field in the dataset
         use_tensors: Converts data to float32 tensors instead of numpy arrays
@@ -31,8 +30,7 @@ class TransformConfig:
     Example:
         Yaml file example::
 
-            input_variables: ["a", "b"]
-            output_variables: ["c", "d"]
+            variables: ["a", "b"]
             antarctic_only: true
             use_tensors: true
             vertical_subselections:
@@ -46,8 +44,7 @@ class TransformConfig:
                 step: 2
     """
 
-    input_variables: Sequence[str] = dataclasses.field(default_factory=list)
-    output_variables: Sequence[str] = dataclasses.field(default_factory=list)
+    variables: Sequence[str] = dataclasses.field(default_factory=list)
     antarctic_only: bool = False
     use_tensors: bool = True
     vertical_subselections: Optional[Mapping[str, SliceConfig]] = None
@@ -80,8 +77,7 @@ class TransformConfig:
 
         transform_funcs.append(
             transforms.derived_dataset(
-                list(self.input_variables) + list(self.output_variables),
-                tendency_timestep_sec=self.derived_microphys_timestep,
+                self.variables, tendency_timestep_sec=self.derived_microphys_timestep,
             )
         )
 
@@ -97,10 +93,4 @@ class TransformConfig:
             transform_funcs.append(
                 transforms.maybe_subselect_feature_dim(self.vert_sel_as_slices)
             )
-
-        # final transform to grouped X, y tuples
-        transform_funcs.append(
-            transforms.group_inputs_outputs(self.input_variables, self.output_variables)
-        )
-
         return compose_left(*transform_funcs)

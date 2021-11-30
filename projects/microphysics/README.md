@@ -30,11 +30,25 @@ Run the prognostic run
     python3 scripts/prognostic_run.py --duration 1h
 
 Pass `--help` to this script for more information
-
-
 ## All in one prognostic run script
 
 
 See [this script](scripts/run_all_prognostic.sh) for an example of how to run a
 prognostic run and the diagnostics at the same time.
+
+
+## ARGO
+
+If not running locally, the `argo/` subdirectory provides a cloud workflow
+and make targets for running offline or online prognostic experiments.  The
+workflow includes both online and piggy-backed result evaluations.  See
+the README for more details.
+
+## Training data creation
+
+The `create_training/` subdirectory provides make targets for performing the
+monthly-initialized training data generation runs as well as gathering 
+of netcdfs into training/testing GCS buckets after all runs have finished.
+
+
 

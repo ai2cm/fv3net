@@ -1,5 +1,5 @@
 import numpy as np
-from loaders.mappers._hybrid import _convergence
+from loaders.mappers._fine_res_budget import _convergence
 
 
 def test__convergence_constant():

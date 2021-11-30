@@ -1,8 +1,28 @@
 from fv3fit._shared.packer import ArrayPacker
 import tensorflow as tf
-from typing import List, Optional, Sequence, Type
+from typing import List, Optional, Sequence, Type, Tuple, Dict, Any
+import xarray as xr
 from fv3fit.emulation.layers import StandardNormLayer, StandardDenormLayer, NormLayer
+from fv3fit._shared.stacking import stack
+
 import numpy as np
+
+
+def get_stacked_metadata(
+    names, ds: xr.Dataset, unstacked_dims: Sequence[str]
+) -> Tuple[Dict[str, Any], ...]:
+    """
+    Retrieve xarray metadata for dataset after stacking.
+
+    Returns a dict containing "dims" and "units" for each name.
+    """
+    ds = stack(ds, unstacked_dims=unstacked_dims)
+    metadata = []
+    for name in names:
+        metadata.append(
+            {"dims": ds[name].dims, "units": ds[name].attrs.get("units", "unknown")}
+        )
+    return tuple(metadata)
 
 
 def get_input_vector(
@@ -90,3 +110,27 @@ def standard_denormalize(
         layers=layers,
         arrays=arrays,
     )
+
+
+def full_standard_normalized_input(
+    input_layers: Sequence[tf.Tensor],
+    X: Sequence[np.ndarray],
+    input_variables: Sequence[str],
+) -> tf.Tensor:
+    # Takes in input arrays and returns a single input layer to standard
+    # normalize and concatenate inputs together along the feature dimension.
+    # All input arrays in X must have same rank, i.e. 2D quantities without
+    # a feature dimension must have a last dim of size 1.
+    input_ranks = [len(arr.shape) for arr in X]
+    if len(np.unique(input_ranks)) > 1:
+        raise ValueError(
+            "All input arrays provided must have the same number of dimensions."
+        )
+    norm_input_layers = standard_normalize(
+        names=input_variables, layers=input_layers, arrays=X,
+    )
+    if len(norm_input_layers) > 1:
+        full_input = tf.keras.layers.Concatenate()(norm_input_layers)
+    else:
+        full_input = norm_input_layers[0]
+    return full_input

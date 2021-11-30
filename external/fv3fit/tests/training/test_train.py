@@ -15,9 +15,9 @@ from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
 # training functions that work on arbitrary datasets, can be used in generic tests below
 GENERAL_TRAINING_TYPES = [
     "convolutional",
-    "DenseModel",
     "sklearn_random_forest",
     "precipitative",
+    "dense",
 ]
 # training functions that have restrictions on the datasets they support,
 # cannot be used in generic tests below
@@ -44,9 +44,9 @@ def test_all_training_functions_are_tested_or_exempted():
 
 SYSTEM_DEPENDENT_TYPES = [
     "convolutional",
-    "DenseModel",
     "sklearn_random_forest",
     "precipitative",
+    "dense",
 ]
 """model types which produce different results on different systems"""
 
@@ -321,7 +321,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
     xr.testing.assert_equal(loaded_result, original_result)
 
 
-@pytest.mark.parametrize("model_type", ["DenseModel", "sklearn_random_forest"])
+@pytest.mark.parametrize("model_type", ["sklearn_random_forest"])
 def test_train_predict_multiple_stacked_dims(model_type):
     da = xr.DataArray(np.full(fill_value=1.0, shape=(5, 10, 15)), dims=["x", "y", "z"],)
     train_dataset = xr.Dataset(

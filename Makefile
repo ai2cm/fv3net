@@ -141,6 +141,7 @@ lock_pip:
 	pip-requirements.txt \
 	external/fv3kube/setup.py \
 	external/fv3fit/setup.py \
+	external/*.requirements.in \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
 	docker/prognostic_run/requirements/*.txt \

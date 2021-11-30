@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from fv3fit.keras._models.shared.sequences import ThreadedSequencePreLoader
-from fv3fit.keras._models.models import DenseModel, _fill_default
+from fv3fit.keras._models.models import DenseModel
 from fv3fit._shared import PackerConfig, SliceConfig
 import fv3fit
 import tensorflow.keras
@@ -45,22 +45,6 @@ def test_DenseModel_jacobian(base_state):
 
     assert jacobian[("a", "b")].dims == ("b", "a")
     np.testing.assert_allclose(np.asarray(jacobian[("a", "b")]), np.eye(5))
-
-
-@pytest.mark.parametrize(
-    "kwargs, arg, key, default, expected",
-    [
-        ({}, None, "kwarg0", 0, {"kwarg0": 0}),
-        ({"kwarg0": 0}, 0, "kwarg0", 0, {"kwarg0": 0}),
-        ({"kwarg0": 1}, 0, "kwarg0", 0, None),
-    ],
-)
-def test_fill_default(kwargs, arg, key, default, expected):
-    if expected is None:
-        with pytest.raises(ValueError):
-            _fill_default(kwargs, arg, key, default)
-    else:
-        assert _fill_default(kwargs, arg, key, default) == expected
 
 
 def test_nonnegative_model_outputs():

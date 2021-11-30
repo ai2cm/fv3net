@@ -31,7 +31,6 @@ class MapperConfig:
     """Configuration for the use of mapper loading functions.
 
     Attributes:
-        data_path: location of training data to be loaded by mapper function
         function: name of function to use for loading batched data,
             can take any value in the keys of `loaders.mapper_functions`
         kwargs: keyword arguments to pass to mapper function

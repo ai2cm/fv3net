@@ -13,6 +13,9 @@ API
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: fv3fit.keras.adapters
+   :members:
+
 .. automodule:: fv3fit.sklearn
    :members:
    :imported-members:
