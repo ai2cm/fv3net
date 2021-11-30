@@ -9,6 +9,9 @@ from fv3fit.emulation.layers.fields import (
     IncrementStateLayer,
 )
 
+from hypothesis.strategies import floats
+from hypothesis import given
+
 
 def _get_data(shape):
 
@@ -76,22 +79,28 @@ def test_increment_layer():
     np.testing.assert_array_equal(incremented, expected)
 
 
-def test_IncrementedFieldOutput():
+@given(floats(1, 1000))
+def test_IncrementedFieldOutput(dt_sec: float):
+    tf.random.set_seed(0)
 
-    net_tensor = _get_tensor((20, 64))
-    sample = _get_tensor((20, 3))
-
-    dt_sec = 2
+    net_tensor = tf.random.uniform((20, 3))
+    sample = tf.random.uniform((20, 3))
 
     field_out = IncrementedFieldOutput(
-        sample.shape[-1], dt_sec, sample_out=sample, denormalize="mean_std"
+        sample.shape[-1],
+        dt_sec,
+        sample_in=sample,
+        sample_out=sample + dt_sec,
+        denormalize="mean_std",
     )
     result = field_out(sample, net_tensor)
     tendency = field_out.get_tendency_output(net_tensor)
 
     assert result.shape == (20, 3)
     assert tendency.shape == (20, 3)
-    assert field_out.tendency.denorm.fitted
+
+    magnitude = np.sqrt(np.mean((result - sample) ** 2)) / np.sqrt(np.mean(sample ** 2))
+    assert magnitude == pytest.approx(dt_sec, rel=1.0)
 
 
 def get_test_tensor():
