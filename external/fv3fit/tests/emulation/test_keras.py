@@ -27,48 +27,53 @@ def _get_model(feature_dim, num_outputs):
 
 
 def test_model_save(tmp_path):
-    """keras models with custom loss cannot be easily saved
-    after fitting"""
 
-    in_ = tf.keras.Input(shape=[10])
-    out = tf.keras.layers.Dense(10)(in_)
-    model = tf.keras.Model(inputs={"a": in_}, outputs={"b": out})
-    one = tf.ones((5, 10))
-    data = {"a": one, "b": one}
-    model.compile(optimizer="adam", metrics=["mae"], loss={"a": tf.keras.losses.MSE})
-    model.fit({"a": data["a"]}, {"b": data["b"]})
+    model = _get_model(10, 1)
 
-    output_before_save = model(data)["b"]
+    model.compile(optimizer="adam", loss="mse", metrics=["mae"])
 
     save_model(model, str(tmp_path))
+
     loaded = tf.keras.models.load_model(str(tmp_path / "model.tf"))
+    assert loaded.compiled_loss is None
+    assert loaded.compiled_metrics is None
 
-    np.testing.assert_array_equal(output_before_save, loaded(data)["b"])
+
+@pytest.fixture(params=[1, 2])
+def model_and_target(request):
+
+    model = _get_model(5, request.param)
+    tensor = tf.ones((10, 5)) + 10
+    if request.param > 1:
+        target = [tensor for i in range(request.param)]
+    else:
+        target = tensor
+
+    return model, target
 
 
-def test_model_score():
-    in_ = tf.keras.Input(shape=[10])
-    out = tf.keras.layers.Lambda(lambda x: x)(in_)
-    model = tf.keras.Model(inputs={"a": in_}, outputs={"b": out})
+def test_model_score(model_and_target):
 
-    one = tf.ones((5, 10))
-    data = {"a": one, "b": one}
+    model, target = model_and_target
 
-    scores, profiles = score_model(model, data)
-    assert scores["mse/b"] == 0
-    assert scores["bias/b"] == 0
+    in_tensor = tf.ones((10, 5))
+
+    scores, profiles = score_model(model, in_tensor, target)
+
+    _, score = scores.popitem()
+    assert score == 0
 
 
 def test_model_score_no_outputs():
 
-    in_ = tf.keras.Input(shape=[10])
-    model = tf.keras.Model(inputs={"a": in_}, outputs=[])
-
-    one = tf.ones((10, 5))
-    data = {"a": one}
+    in_ = tf.keras.Input(5)
+    model = tf.keras.Model(inputs=in_, outputs=[])
+    model.compile()
+    in_tensor = tf.ones((10, 5))
+    target = tf.ones((10, 5))
 
     with pytest.raises(ValueError):
-        score_model(model, data)
+        score_model(model, in_tensor, target)
 
 
 def test_NormalizeMSE():
@@ -93,9 +98,8 @@ def test_CustomLoss():
 
     names = ["fieldA", "fieldB", "fieldC", "fieldD"]
     samples = [tensor] * 4
-    m = dict(zip(names, samples))
 
-    config.prepare(m)
+    config.prepare(names, samples)
 
     model = _get_model(2, 4)
 

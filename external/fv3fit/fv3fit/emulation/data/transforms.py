@@ -9,7 +9,7 @@ import tensorflow as tf
 from vcm.derived_mapping import DerivedMapping
 import xarray as xr
 from toolz.functoolz import curry
-from typing import Hashable, Mapping, Sequence, Union
+from typing import Hashable, Mapping, Sequence, Tuple, Union
 
 from vcm import get_fs, open_remote_nc
 
@@ -69,6 +69,25 @@ def select_antarctic(dataset: xr.Dataset, sample_dim_name="sample") -> xr.Datase
     dataset = dataset.isel({sample_dim_name: mask})
 
     return dataset
+
+
+@curry
+def group_inputs_outputs(
+    input_variables: Sequence[str], output_variables: Sequence[str], dataset: AnyDataset
+) -> Tuple[Sequence[NumericContainer], Sequence[NumericContainer]]:
+    """
+    Group input and output variables into separate tuples where each item
+    is a value associated with a variable in the order of the mapping
+    keys.
+    """
+
+    logger.debug("Grouping input and output tuples")
+    logger.debug(f"input vars: {input_variables}")
+    logger.debug(f"output vars: {output_variables}")
+    inputs_ = tuple([dataset[key] for key in input_variables])
+    outputs_ = tuple([dataset[key] for key in output_variables])
+
+    return inputs_, outputs_
 
 
 @curry

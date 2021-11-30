@@ -1,6 +1,6 @@
 import dacite
 import dataclasses
-from typing import List, Mapping
+from typing import List, Mapping, Sequence
 import tensorflow as tf
 
 from ._core import ArchitectureConfig, get_combine_from_arch_key
@@ -74,22 +74,24 @@ class MicrophysicsConfig:
         )
 
     def _get_processed_inputs(self, sample_in, inputs):
-        return {
-            name: FieldInput(
-                sample_in=sample_in[name],
+
+        inputs = [
+            FieldInput(
+                sample_in=sample,
                 normalize=self.normalize_key,
                 selection=self.selection_map_slices.get(name, None),
                 name=f"processed_{name}",
             )(tensor)
-            for name, tensor in inputs.items()
-        }
+            for name, sample, tensor in zip(self.input_variables, sample_in, inputs)
+        ]
 
-    def _get_direct_outputs(self, data, net_output):
+        return inputs
 
-        outputs = {}
+    def _get_direct_outputs(self, sample_out, net_output):
 
-        for name in self.direct_out_variables:
-            sample = data[name]
+        outputs = []
+
+        for name, sample in zip(self.direct_out_variables, sample_out):
             out_ = FieldOutput(
                 sample.shape[-1],
                 sample_out=sample,
@@ -97,16 +99,17 @@ class MicrophysicsConfig:
                 name=name,
                 enforce_positive=self.enforce_positive,
             )(net_output)
-            outputs[name] = out_
+            outputs.append(out_)
+
         return outputs
 
-    def _get_residual_outputs(self, inputs, data, net_output):
+    def _get_residual_outputs(self, sample_out, net_output, residual_to_input_map):
 
-        outputs = {}
-        for name in self.residual_out_variables:
+        outputs = []
+        tendencies = []
+
+        for (name, in_state), sample in zip(residual_to_input_map.items(), sample_out):
             # incremented state field output
-            in_state = inputs[self.residual_out_variables[name]]
-            sample = data[name]
             res_out = IncrementedFieldOutput(
                 sample.shape[-1],
                 self.timestep_increment_sec,
@@ -115,43 +118,61 @@ class MicrophysicsConfig:
                 name=name,
                 enforce_positive=self.enforce_positive,
             )
+
             out_ = res_out(in_state, net_output)
-            outputs[name] = out_
+            outputs.append(out_)
 
             if name in self.tendency_outputs:
                 tend_name = self.tendency_outputs[name]
                 tendency = res_out.get_tendency_output(net_output)
-                outputs[tend_name] = tendency
+                renamed = tf.keras.layers.Lambda(lambda x: x, name=tend_name)(tendency)
+                tendencies.append(renamed)
 
-        return outputs
+        return outputs + tendencies
 
-    def _compute_hidden(self, inputs, data):
-        processed = self._get_processed_inputs(data, inputs)
-        combine_layer = get_combine_from_arch_key(self.architecture.name)
-        combined = combine_layer(processed)
-        arch_layer = self.architecture.build()
-        return arch_layer(combined)
-
-    def _get_inputs(self, data):
-        return {
-            name: tf.keras.layers.Input(data[name].shape[-1], name=name)
-            for name in self.input_variables
-        }
-
-    def build(self, data: Mapping[str, tf.Tensor],) -> tf.keras.Model:
+    def build(
+        self,
+        sample_in: Sequence[tf.Tensor],
+        sample_direct_out: Sequence[tf.Tensor] = None,
+        sample_residual_out: Sequence[tf.Tensor] = None,
+    ):
         """
         Build model described by the configuration
 
         Args:
-            data: Sample input tensors for determining layer shapes and
+            sample_in: Sample input tensors for determining layer shapes and
                 fitting normalization layers if specifies
+            sample_direct_out: Sample of direct output field tensors used to
+                fit denormalization layers (if specified) and shape
+            sample_residual_out: Sample of residual output field tensors used to
+                fit denormalization layers (if specified) and shape.  Note: the
+                samples should be in tendency form to produce proper denormalization
         """
-        inputs = self._get_inputs(data)
-        hidden = self._compute_hidden(inputs, data)
-        return tf.keras.models.Model(
-            inputs=inputs,
-            outputs={
-                **self._get_direct_outputs(data, hidden),
-                **self._get_residual_outputs(inputs, data, hidden),
-            },
+
+        if sample_direct_out is None:
+            sample_direct_out = []
+
+        if sample_residual_out is None:
+            sample_residual_out = []
+
+        inputs = [
+            tf.keras.layers.Input(sample.shape[-1], name=name)
+            for name, sample in zip(self.input_variables, sample_in)
+        ]
+        residual_map = {
+            resid_name: inputs[self.input_variables.index(input_name)]
+            for resid_name, input_name in self.residual_out_variables.items()
+        }
+        processed = self._get_processed_inputs(sample_in, inputs)
+        combine_layer = get_combine_from_arch_key(self.architecture.name)
+        combined = combine_layer(processed)
+        arch_layer = self.architecture.build()
+        arch_out = arch_layer(combined)
+        outputs = self._get_direct_outputs(sample_direct_out, arch_out)
+        outputs += self._get_residual_outputs(
+            sample_residual_out, arch_out, residual_map
         )
+
+        model = tf.keras.models.Model(inputs=inputs, outputs=outputs)
+
+        return model

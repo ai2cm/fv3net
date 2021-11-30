@@ -1,12 +1,41 @@
-import pytest
-import numpy as np
 from typing import Iterable
 
+import numpy as np
+import pytest
+import tensorflow as tf
 from emulation._emulate.microphysics import (
     MicrophysicsHook,
     NoModel,
+    RenamedOutputModel,
     _load_tf_model,
+    _unpack_predictions,
 )
+
+
+def test__unpack_predictions_single_out():
+    data = np.arange(20).reshape(4, 5)
+
+    out_names = ["field1"]
+
+    result = _unpack_predictions(data, out_names)
+
+    assert len(result) == 1
+    assert result["field1"].shape == (5, 4)
+
+
+def test__unpack_predictions_multi_out():
+    data = np.arange(20).reshape(4, 5)
+
+    out_names = ["field1", "field2", "field3"]
+
+    result = _unpack_predictions([data] * 3, out_names)
+
+    assert len(result) == len(out_names)
+    for name in out_names:
+        assert name in result
+
+    for name in out_names:
+        assert result[name].shape == (5, 4)
 
 
 def test_Config_integration(saved_model_path, dummy_rundir):
@@ -67,3 +96,14 @@ def test_microphysics_NoModel(dummy_rundir):
     hook.microphysics(state)
 
     assert state == {"empty_state": 1}
+
+
+def test_RenamedOutputModel():
+    in_ = tf.keras.layers.Input(shape=(63,), name="air_temperature_input")
+    old_names = ["a", "b"]
+    new_names = ["c", "d"]
+    out_ = [tf.keras.layers.Lambda(lambda x: x, name=name)(in_) for name in old_names]
+    model = tf.keras.Model(inputs=in_, outputs=out_)
+    renamed_model = RenamedOutputModel(model, dict(zip(old_names, new_names)))
+
+    assert renamed_model.output_names == new_names

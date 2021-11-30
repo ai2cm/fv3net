@@ -74,6 +74,29 @@ def test_select_antarctic(lats, data, expected):
     xr.testing.assert_equal(expected_da, result["field"])
 
 
+def test_group_input_output_input():
+
+    dataset = {"a": np.array([0, 1]), "b": np.array([2, 3]), "c": np.array([4, 5])}
+
+    inputs_, outputs_ = transforms.group_inputs_outputs(["a"], ["c", "b"], dataset)
+    assert isinstance(inputs_, tuple)
+    assert isinstance(outputs_, tuple)
+    assert len(inputs_) == 1
+    np.testing.assert_array_equal(inputs_[0], dataset["a"])
+    assert len(outputs_) == 2
+    np.testing.assert_array_equal(outputs_[0], dataset["c"])
+    np.testing.assert_array_equal(outputs_[1], dataset["b"])
+
+
+def test_group_input_output_empty_var_list():
+
+    dataset = {"a": np.array([0, 1]), "b": np.array([2, 3]), "c": np.array([4, 5])}
+
+    inputs_, outputs_ = transforms.group_inputs_outputs([], [], dataset)
+    assert inputs_ == tuple()
+    assert outputs_ == tuple()
+
+
 @pytest.mark.parametrize(
     "dataset",
     [
