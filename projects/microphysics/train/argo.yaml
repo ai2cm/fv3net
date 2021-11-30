@@ -41,9 +41,7 @@ spec:
           # The use of the API key here is a security problem
           # It's logged by argo...
           - |
-            cat <<EOF >training_config.yaml
-            {{inputs.parameters.training-config}}
-            EOF
+            base64 --decode {{inputs.parameters.training-config}} > training_config.yaml
 
             python3 -m fv3fit.train_microphysics \
               --config-path training_config.yaml \
