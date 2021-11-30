@@ -12,9 +12,9 @@ from runtime.segmented_run.prepare_config import HighLevelConfig
 
 from fv3net.artifacts.resolve_url import resolve_url
 
-logging.basicConfig(level=logging.INFO)
+from config import BUCKET
 
-BUCKET = "vcm-ml-experiments"
+logging.basicConfig(level=logging.INFO)
 
 
 def get_env(args):
