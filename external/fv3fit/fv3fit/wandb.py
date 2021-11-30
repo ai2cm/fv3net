@@ -3,7 +3,7 @@ import wandb
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional
 
 from .tensorboard import plot_to_image
 
@@ -87,20 +87,17 @@ def _plot_profiles(target, prediction, name):
 
 
 def log_profile_plots(
-    targets: Sequence[np.ndarray],
-    predictions: Sequence[np.ndarray],
-    names: Sequence[str],
+    targets: Mapping[str, np.ndarray],
+    predictions: Mapping[str, np.ndarray],
     nsamples: int = 4,
 ):
     """
     Handle profile plots for single- or multi-output models.
     """
-
-    if len(names) == 1:
-        _plot_profiles(targets[:nsamples], predictions[:nsamples], names[0])
-    else:
-        for t, p, name in zip(targets, predictions, names):
-            _plot_profiles(t[:nsamples], p[:nsamples], name)
+    for name in set(targets) & set(predictions):
+        t = targets[name]
+        p = predictions[name]
+        _plot_profiles(t[:nsamples], p[:nsamples], name)
 
 
 def store_model_artifact(path: str, name: str):
