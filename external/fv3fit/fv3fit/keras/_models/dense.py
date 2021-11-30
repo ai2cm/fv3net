@@ -62,7 +62,7 @@ class DenseHyperparameters(Hyperparameters):
     loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
     save_model_checkpoints: bool = False
     nonnegative_outputs: bool = False
-    clip_config: ClipConfig = dataclasses.field(default_factory=lambda: ClipConfig({}))
+    clip_config: ClipConfig = dataclasses.field(default_factory=lambda: ClipConfig())
 
     @property
     def variables(self) -> Set[str]:
