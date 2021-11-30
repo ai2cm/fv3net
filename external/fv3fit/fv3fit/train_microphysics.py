@@ -107,7 +107,6 @@ class TrainConfig:
     valid_freq: int = 5
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 100_000
-    version: str = "v1"
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":

@@ -32,7 +32,6 @@ class WandBConfig:
 
     entity: str = "ai2cm"
     job_type: str = "test"
-    # TODO remove redundant "wandb"
     wandb_project: str = "scratch-project"
 
     @staticmethod
