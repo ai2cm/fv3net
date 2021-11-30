@@ -38,8 +38,6 @@ spec:
             cpu: "4"
             memory: "8Gi"
         args:
-          # The use of the API key here is a security problem
-          # It's logged by argo...
           - |
             base64 --decode {{inputs.parameters.training-config}} > training_config.yaml
 
