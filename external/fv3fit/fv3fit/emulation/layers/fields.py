@@ -54,7 +54,6 @@ class FieldOutput(tf.keras.layers.Layer):
 
     def __init__(
         self,
-        nfeatures: int,
         *args,
         sample_out: Optional[tf.Tensor] = None,
         denormalize: Optional[str] = None,
@@ -73,11 +72,6 @@ class FieldOutput(tf.keras.layers.Layer):
         super().__init__(*args, **kwargs)
 
         self._enforce_positive = enforce_positive
-        self._nfeatures = nfeatures
-
-        self.unscaled = tf.keras.layers.Dense(
-            nfeatures, activation="linear", name=f"unscaled_{self.name}"
-        )
 
         if denormalize is not None:
             self.denorm = DenormalizeConfig(
@@ -95,7 +89,6 @@ class FieldOutput(tf.keras.layers.Layer):
 
     def call(self, tensor):
 
-        tensor = self.unscaled(tensor)
         tensor = self.denorm(tensor)
 
         if self.use_relu:
