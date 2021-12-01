@@ -44,26 +44,26 @@ def test_FieldInput():
 
 
 def test_FieldOutput():
-
-    net_tensor = _get_tensor((20, 64))
     sample = _get_tensor((20, 3))
+   
+    centered = tf.reduce_mean(sample, axis=0)
 
-    field_out = FieldOutput(sample.shape[-1], sample_out=sample, denormalize="mean_std")
-    result = field_out(net_tensor)
+    field_out = FieldOutput(sample_out=sample, denormalize="mean_std")
+    result = field_out(sample)
 
     assert result.shape == (20, 3)
-    assert field_out.denorm.fitted
+    assert tf.math.reduce_std(sample) < tf.math.reduce_std(result)
 
 
 def test_FieldOutput_no_norm():
 
-    net_tensor = _get_tensor((20, 64))
     sample = _get_tensor((20, 3))
 
-    field_out = FieldOutput(sample.shape[-1], sample_out=sample, denormalize=None)
-    result = field_out(net_tensor)
+    field_out = FieldOutput(sample_out=sample, denormalize=None)
+    result = field_out(sample)
 
     assert result.shape == (20, 3)
+    np.testing.assert_array_equal(sample, result)
 
 
 def test_increment_layer():
@@ -87,7 +87,6 @@ def test_IncrementedFieldOutput(dt_sec: float):
     sample = tf.random.uniform((20, 3))
 
     field_out = IncrementedFieldOutput(
-        sample.shape[-1],
         dt_sec,
         sample_in=sample,
         sample_out=sample + dt_sec,
@@ -121,7 +120,6 @@ def get_FieldOutput():
 
     tensor = get_test_tensor()
     output_layer = FieldOutput(
-        tensor.shape[-1],
         sample_out=tensor,
         denormalize="mean_std",
         enforce_positive=True,
@@ -151,17 +149,16 @@ def test_layer_IncrementedStateOutput_model_saving(tmpdir):
     tensor = get_test_tensor()
 
     in_ = tf.keras.layers.Input(tensor.shape[-1])
-    dense = tf.keras.layers.Dense(64)(in_)
+    net_out = tf.keras.layers.Lambda(lambda x: x)(in_)
     tensor = get_test_tensor()
     layer = IncrementedFieldOutput(
-        tensor.shape[-1],
         900,
         sample_in=tensor - 1,
         sample_out=tensor,
         denormalize="mean_std",
         enforce_positive=True,
     )
-    out = layer(in_, dense)
+    out = layer(in_, net_out)
     model = tf.keras.models.Model(inputs=in_, outputs=out)
 
     expected = model(tensor)

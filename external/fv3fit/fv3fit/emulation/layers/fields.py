@@ -130,7 +130,6 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
 
     def __init__(
         self,
-        nfeatures: int,
         dt_sec: int,
         *args,
         sample_in: Optional[tf.Tensor] = None,
@@ -155,7 +154,6 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
 
         self._enforce_positive = enforce_positive
         self._dt_sec = dt_sec
-        self._nfeatures = nfeatures
 
         if sample_out is None or sample_in is None:
             tendency_sample = None
@@ -163,7 +161,6 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
             tendency_sample = (sample_out - sample_in) / dt_sec
 
         self.tendency = FieldOutput(
-            nfeatures,
             denormalize=denormalize,
             sample_out=tendency_sample,
             enforce_positive=False,
