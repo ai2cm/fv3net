@@ -3,15 +3,22 @@
 set -e
 set -o pipefail
 
+if [[ "$1" == "--test" ]]; then
+    extra_flags="--nfiles 2 --nfiles_valid 2"
+    bucket="vcm-ml-scratch"
+else
+    bucket="vcm-ml-experiments"
+fi
+
 for config in all-tendency-limited direct-cloud-limited; do
     for model_type in rnn linear dense; do
         model_name="${config}-${model_type}"
         config_file="${config}.yaml"
-        out_url=$(artifacts resolve-url vcm-ml-experiments microphysics-emulation "${model_name}")
+        out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}")
 
         argo submit argo.yaml \
             -p training-config="$(base64 --wrap 0 $config_file)"\
-            -p flags="--model.architecture.name ${model_type} --wandb_model_name ${model_name} --out_url ${out_url}"
+            -p flags="--model.architecture.name ${model_type} --out_url ${out_url} ${extra_flags}"
 
     done
 done
