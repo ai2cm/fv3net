@@ -60,3 +60,21 @@ def get_combine_from_arch_key(key: str):
         return CombineInputs(-1, expand_axis=-1)
     else:
         return CombineInputs(-1, expand_axis=None)
+
+
+def get_outputs_from_arch_key(key: str):
+    """
+    Grab a hidden layer to output translation layer for
+    specific architectures.
+
+    RNN handles outputs special to retain downward dependence
+    enforcement.
+
+    Args:
+        key: key of core architecture block being used
+    """
+
+    if key == "rnn":
+        return RNNOutputs()
+    else:
+        return DenseOutputs()
