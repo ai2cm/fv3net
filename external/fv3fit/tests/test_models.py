@@ -7,6 +7,7 @@ import pytest
 from fv3fit.keras._models.shared.sequences import ThreadedSequencePreLoader
 from fv3fit.keras._models.models import DenseModel
 from fv3fit._shared import PackerConfig, SliceConfig
+from fv3fit.keras._models.shared import ClipConfig
 import fv3fit
 import tensorflow.keras
 
@@ -112,7 +113,7 @@ def test_loaded_DenseModel_predicts_with_clipped_inputs(tmpdir):
 
 def test_DenseModel_raises_not_implemented_error_with_clipped_output_data():
     hyperparameters = DenseHyperparameters(
-        ["a", "b"], ["c"], clip_config=PackerConfig({"c": {"z": SliceConfig(None, 3)}}),
+        ["a", "b"], ["c"], clip_config=ClipConfig({"c": {"z": SliceConfig(None, 3)}}),
     )
 
     with pytest.raises(NotImplementedError):

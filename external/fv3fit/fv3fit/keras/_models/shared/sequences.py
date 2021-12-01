@@ -79,7 +79,7 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
                 arrays apart from the "sample" (stacked) dimension
             n_halo: number of halo points to append to input variables, if given
                 then the data must contain "x" and "y" dimensions
-            output_clip_config: If provided, will zero mask out levels of output
+            output_clip_config: If provided, will clip levels of output
                 variables that are clipped in the clip config when returning arrays.
                 Note that this will not affect input variables, even if they are in
                 the clip config, as we want to input them in their full length when

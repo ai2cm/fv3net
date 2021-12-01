@@ -6,6 +6,11 @@ from fv3fit.keras._models.shared.clip import ClipConfig
 from fv3fit._shared.config import SliceConfig
 
 
+def test_ClipConfig_only_single_clip_dims_allowed():
+    with pytest.raises(ValueError):
+        ClipConfig({"var": {"z": SliceConfig(8, None), "y": SliceConfig(None, 2)}})
+
+
 @pytest.mark.parametrize(
     "clip_config, expected",
     [
@@ -28,11 +33,6 @@ from fv3fit._shared.config import SliceConfig
             ClipConfig({"var_": {"z": SliceConfig(8, None)}}),
             np.arange(10),
             id="clip_var_not_in_config",
-        ),
-        pytest.param(
-            ClipConfig({"var": {"z": SliceConfig(8, None), "y": SliceConfig(None, 2)}}),
-            ValueError,
-            id="too_many_clip_dims",
         ),
     ],
 )
