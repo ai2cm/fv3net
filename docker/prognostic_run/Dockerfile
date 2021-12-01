@@ -85,12 +85,6 @@ RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gn
 #
 # Python Stuff Here
 #
-
-# Python components here
-COPY constraints.txt /tmp/constraints.txt
-
-# Enforce constraints are used for all pip installs
-ENV PIP_CONSTRAINT=/tmp/constraints.txt
 # Equivalent to passing --no-cache-dir to every pip install
 ENV PIP_NO_CACHE_DIR=off
 
