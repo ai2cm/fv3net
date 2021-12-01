@@ -112,6 +112,73 @@ class RNNBlock(tf.keras.layers.Layer):
         return config
 
 
+class CorrectRNN(tf.keras.layers.Layer):
+    """
+    RNN connected to an MLP for prediction
+
+    Layer call expects a 3-D input tensor (sample, z, variable),
+    which recurses backwards (top-to-bottom for the physics-param data)
+    by default over the z dimension.
+    """
+
+    def __init__(
+        self,
+        *args,
+        channels: int = 256,
+        depth: int = 2,
+        activation: str = "relu",
+        go_backwards: bool = True,
+        **kwargs,
+    ):
+        """
+        Args:
+            channels: width of RNN layer
+            activation: activation function to use for RNN and MLP
+            go_backwards: whether to recurse in the reverse direction
+                over the dim 1.  If using wrapper outputs, TOA starts
+                at 0, should be false
+        """
+        super().__init__(*args, **kwargs)
+        self._channels = channels
+        self._activation = activation
+        self._go_backwards = go_backwards
+        self._depth = depth
+
+        self.rnn = [
+            tf.keras.layers.SimpleRNN(
+                channels, activation=activation,
+                go_backwards=go_backwards,
+                return_sequences=True
+            )
+            for i in range(self._depth)
+        ]
+
+    def call(self, input):
+        """
+        Args:
+            input: a 3-d tensor with dims (sample, per_var_features, variables)
+        """
+        output = None
+
+        for recurrent_layer in self.rnn:
+            output = recurrent_layer(input)
+            input = output
+
+        return output
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "channels": self._channels,
+                "activation": self._activation,
+                "go_backwards": self._go_backwards,
+                "recurrent_layers": self._depth,
+            }
+        )
+        return config
+
+
 class MLPBlock(tf.keras.layers.Layer):
     """MLP layer for basic NN predictions"""
 
