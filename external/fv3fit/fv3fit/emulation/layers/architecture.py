@@ -147,7 +147,6 @@ class CorrectRNN(tf.keras.layers.Layer):
         self.rnn = [
             tf.keras.layers.SimpleRNN(
                 channels, activation=activation,
-                go_backwards=go_backwards,
                 return_sequences=True
             )
             for i in range(self._depth)
@@ -157,12 +156,22 @@ class CorrectRNN(tf.keras.layers.Layer):
         """
         Args:
             input: a 3-d tensor with dims (sample, per_var_features, variables)
+
+        Returns:
+            tensor (sample, features, channels)
         """
         output = None
+
+        # switch recurrent operation to go from TOA to bottom for data in physics space
+        if self._go_backwards:
+            input = tf.reverse(input, 1)
 
         for recurrent_layer in self.rnn:
             output = recurrent_layer(input)
             input = output
+
+        if self._go_backwards:
+            output = tf.reverse(output, 1)
 
         return output
 
