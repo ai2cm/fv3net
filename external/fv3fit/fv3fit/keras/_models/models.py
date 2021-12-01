@@ -97,7 +97,7 @@ class DenseModel(Predictor):
         self.X_packer = ArrayPacker(
             sample_dim_name=SAMPLE_DIM_NAME,
             pack_names=input_variables,
-            config=hyperparameters.packer_config,
+            config=hyperparameters.clip_config,
         )
         self.y_packer = ArrayPacker(
             sample_dim_name=SAMPLE_DIM_NAME, pack_names=output_variables
@@ -126,7 +126,7 @@ class DenseModel(Predictor):
         else:
             self._checkpoint_path = None
         self.training_loop = hyperparameters.training_loop
-        for name in self._hyperparameters.packer_config.clip:
+        for name in self._hyperparameters.clip_config.clip:
             if str(name) in output_variables:
                 raise NotImplementedError("Clipping for ML outputs is not implemented.")
 
@@ -313,7 +313,7 @@ class DenseModel(Predictor):
 
             # maintain backwards compatibility with older versions
             # that do not use LossConfig
-            options = _backwards_compatible_loss_config(options)
+            options = _backwards_compatible_config(options)
 
             hyperparameters = dacite.from_dict(
                 data_class=DenseHyperparameters,
@@ -366,9 +366,11 @@ class DenseModel(Predictor):
         return unpack_matrix(self.X_packer, self.y_packer, J)
 
 
-def _backwards_compatible_loss_config(hyperparameters: dict) -> dict:
+def _backwards_compatible_config(hyperparameters: dict) -> dict:
     loss = hyperparameters.get("loss")
     # old config only took a string "mse" or "mae"
     if isinstance(loss, str):
         hyperparameters["loss"] = {"loss_type": loss, "scaling": "standard"}
+    if "packer_config" in hyperparameters:
+        hyperparameters["clip_config"] = hyperparameters.pop("packer_config")
     return hyperparameters
