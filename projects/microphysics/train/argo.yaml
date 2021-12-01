@@ -17,7 +17,7 @@ spec:
           - {name: flags, value: " "}
           # - {name: memory, value: "8Gi"}
       container:
-        image: us.gcr.io/vcm-ml/prognostic_run:16d91037aea2a26a048545a06432a0bfa1418ccb
+        image: us.gcr.io/vcm-ml/prognostic_run@sha256:a6d32927b4844d2863ba7916f7d3d33749f4448e20534a66a9d4cb4bb6269887
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -39,7 +39,7 @@ spec:
             memory: "8Gi"
         args:
           - |
-            base64 --decode {{inputs.parameters.training-config}} > training_config.yaml
+            base64 --decode "{{inputs.parameters.training-config}}" > training_config.yaml
 
             python3 -m fv3fit.train_microphysics \
               --config-path training_config.yaml \
