@@ -85,6 +85,7 @@ pandas==1.0.1
 partd==1.1.0
 pathtools==0.1.2
 pint==0.15
+pkgconfig==1.5.1
 pluggy==0.13.1
 pooch==1.1.1
 promise==2.3

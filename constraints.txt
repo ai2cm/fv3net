@@ -176,6 +176,7 @@ pickleshare==0.7.5
 pillow==7.2.0
 pint==0.15
 pip-tools==5.3.1
+pkgconfig==1.5.1
 pkginfo==1.5.0.1
 plotly==4.14.3
 pluggy==0.13.1
