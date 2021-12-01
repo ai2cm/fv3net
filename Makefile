@@ -133,8 +133,7 @@ lock_deps: lock_pip
 	conda-lock -f environment.yml
 	# external directories must be explicitly listed to avoid model requirements files which use locked versions
 
-.PHONY: lock_pip
-lock_pip:
+constraints.txt:
 	pip-compile  \
 	--no-annotate \
 	external/vcm/setup.py \
@@ -144,11 +143,29 @@ lock_pip:
 	external/*.requirements.in \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
-	docker/prognostic_run/requirements/*.txt \
 	--output-file constraints.txt
 	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
 	sed -i.bak  's/\[.*\]//g' constraints.txt
 	rm -f constraints.txt.bak
+
+docker/prognostic_run/requirements.txt: constraints.txt
+	cp constraints.txt docker/prognostic_run/requirements.txt
+	# this will subset the needed dependencies from constraints.txt
+	# while preserving the versions
+	pip-compile --no-annotate \
+		--output-file docker/prognostic_run/requirements.txt \
+		external/artifacts/setup.py \
+		external/fv3fit/setup.py \
+		external/fv3gfs-util.requirements.in \
+		external/fv3gfs-wrapper.requirements.in \
+		external/fv3kube/setup.py \
+		external/vcm/setup.py \
+		workflows/post_process_run/requirements.txt \
+		workflows/prognostic_c48_run/requirements.in
+
+
+.PHONY: lock_pip constraints.txt docker/prognostic_run/requirements.txt
+lock_pip: constraints.txt docker/prognostic_run/requirements.txt
 
 ## Install External Dependencies
 install_deps:

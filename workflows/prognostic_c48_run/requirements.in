@@ -1,2 +1,4 @@
 jsonschema
 dacite
+sphinx
+sphinx_rtd_theme
