@@ -91,7 +91,6 @@ class MicrophysicsConfig:
         for name in self.direct_out_variables:
             sample = data[name]
             out_ = FieldOutput(
-                sample.shape[-1],
                 sample_out=sample,
                 denormalize=self.normalize_key,
                 name=name,
@@ -106,9 +105,7 @@ class MicrophysicsConfig:
         for name in self.residual_out_variables:
             # incremented state field output
             in_state = inputs[self.residual_out_variables[name]]
-            sample = data[name]
             res_out = IncrementedFieldOutput(
-                sample.shape[-1],
                 self.timestep_increment_sec,
                 sample_out=data[name],
                 sample_in=data[self.residual_out_variables[name]],
