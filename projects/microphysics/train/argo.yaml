@@ -2,6 +2,9 @@ apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
   generateName: train-microphysics-
+  labels:
+    project: microphysics-emulation
+    job_type: train
 spec:
   entrypoint: training
   volumes:
@@ -39,10 +42,11 @@ spec:
             memory: "8Gi"
         args:
           - |
-            base64 --decode "{{inputs.parameters.training-config}}" > training_config.yaml
+            echo "{{inputs.parameters.training-config}}" | base64 --decode > training_config.yaml
 
             python3 -m fv3fit.train_microphysics \
               --config-path training_config.yaml \
+              --wandb.job_type train \
               {{inputs.parameters.flags}}
       tolerations:
       - key: "dedicated"
