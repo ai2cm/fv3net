@@ -254,3 +254,52 @@ def NoWeightSharingSLP(
             tf.keras.layers.Flatten(),
         ]
     )
+
+
+class StandardOutputs(tf.keras.layers.Layer):
+    """Uses densely-connected layers w/ linear activation"""
+
+    def __init__(self, feature_lengths: Mapping[str, int]):
+        self._feature_lengths = feature_lengths
+
+        self.output_layers = {
+            name: tf.keras.layers.Dense(
+                feature_length,
+                name=f"standard_output_{name}"
+            )
+            for name, feature_length in self._feature_lengths.items()
+        }
+
+    def call(self, hidden_output):
+
+        return {
+            name: layer(hidden_output)
+            for name, layer in self.output_layers.items()
+        }
+
+
+class RNNOutputs(tf.keras.layers.Layer):
+    """Uses locally-connected layers to retain"""
+
+    def __init__(self, feature_lengths: Mapping[str, int]):
+        self._feature_lengths = feature_lengths
+
+        self.output_layers = {
+            tf.keras.layers.LocallyConnected1D(1, 1, name=f"rnn_output_{name}")
+            for name in self._feature_lengths.keys()
+        }
+
+    def call(self, rnn_outputs):
+
+        fields = {}
+        for name, feature_length in self._feature_lengths.items():
+            if feature_length == 1:
+                rnn_out = rnn_outputs[:, 0:1]
+            else:
+                rnn_out = rnn_outputs
+
+            field_out = self.output_layers[name](rnn_out)
+            field_out = tf.squeeze(field_out)
+            fields[name] = field_out
+
+        return fields

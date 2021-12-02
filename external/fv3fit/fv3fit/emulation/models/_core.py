@@ -5,6 +5,8 @@ from ..layers import (
     CombineInputs,
     RNNBlock,
     MLPBlock,
+    RNNOutputs,
+    StandardOutputs,
 )
 
 
@@ -62,7 +64,7 @@ def get_combine_from_arch_key(key: str):
         return CombineInputs(-1, expand_axis=None)
 
 
-def get_outputs_from_arch_key(key: str):
+def get_outputs_from_arch_key(key: str, output_features: Mapping[str, int]):
     """
     Grab a hidden layer to output translation layer for
     specific architectures.
@@ -75,6 +77,6 @@ def get_outputs_from_arch_key(key: str):
     """
 
     if key == "rnn":
-        return RNNOutputs()
+        return RNNOutputs(output_features)
     else:
-        return DenseOutputs()
+        return StandardOutputs(output_features)

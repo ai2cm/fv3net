@@ -3,7 +3,7 @@ import dataclasses
 from typing import List, Mapping
 import tensorflow as tf
 
-from ._core import ArchitectureConfig, get_combine_from_arch_key
+from ._core import ArchitectureConfig, get_combine_from_arch_key, get_outputs_from_arch_key
 from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
 from fv3fit._shared import SliceConfig
 
@@ -95,7 +95,7 @@ class MicrophysicsConfig:
                 denormalize=self.normalize_key,
                 name=name,
                 enforce_positive=self.enforce_positive,
-            )(net_output)
+            )(net_output[name])
             outputs[name] = out_
         return outputs
 
@@ -113,12 +113,12 @@ class MicrophysicsConfig:
                 name=name,
                 enforce_positive=self.enforce_positive,
             )
-            out_ = res_out(in_state, net_output)
+            out_ = res_out(in_state, net_output[name])
             outputs[name] = out_
 
             if name in self.tendency_outputs:
                 tend_name = self.tendency_outputs[name]
-                tendency = res_out.get_tendency_output(net_output)
+                tendency = res_out.get_tendency_output(net_output[name])
                 outputs[tend_name] = tendency
 
         return outputs
@@ -128,7 +128,11 @@ class MicrophysicsConfig:
         combine_layer = get_combine_from_arch_key(self.architecture.name)
         combined = combine_layer(processed)
         arch_layer = self.architecture.build()
-        return arch_layer(combined)
+        arch_out = arch_layer(combined)
+
+        output_features = {key: data[key].shape[-1] for key in self.output_variables}
+        output_connector = get_outputs_from_arch_key(self.architecture.name, output_features)
+        return output_connector(arch_out)
 
     def _get_inputs(self, data):
         return {
