@@ -4,6 +4,7 @@ from typing import Any, Mapping
 from ..layers import (
     CombineInputs,
     RNNBlock,
+    CorrectRNN,
     MLPBlock,
     RNNOutputs,
     StandardOutputs,
@@ -20,7 +21,7 @@ def get_architecture_cls(key: str, kwargs: Mapping[str, Any]):
     """
 
     if key == "rnn":
-        return RNNBlock(**kwargs)
+        return CorrectRNN(**kwargs)
     elif key == "dense":
         return MLPBlock(**kwargs)
     elif key == "linear":
