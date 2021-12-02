@@ -124,11 +124,11 @@ def test_expand_single_dim_data(dataset):
 )
 def test_derived(varname: str):
 
-    output_name = f"{varname}_after_precpd"
-
     ds = {
         f"{varname}_input": xr.DataArray(np.ones((10, 4)), dims=["sample", "feature"]),
-        output_name: xr.DataArray(np.ones((10, 4)) * 3, dims=["sample", "feature"]),
+        f"{varname}_output": xr.DataArray(
+            np.ones((10, 4)) * 3, dims=["sample", "feature"]
+        ),
     }
 
     dT_name = f"tendency_of_{varname}_due_to_microphysics"
@@ -136,6 +136,6 @@ def test_derived(varname: str):
 
     derived = transforms.derived_dataset(all_vars, ds, tendency_timestep_sec=2)
     assert f"{varname}_input" in derived
-    assert output_name in derived
+    assert f"{varname}_output" in derived
     assert dT_name in derived
     np.testing.assert_array_equal(derived[dT_name], np.ones((10, 4)))

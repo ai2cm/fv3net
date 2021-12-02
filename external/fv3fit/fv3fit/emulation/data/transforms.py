@@ -27,19 +27,19 @@ def _register_derived_variables(mapping: DerivedMapping, timestep):
     # the data or configuration.
     @mapping.register(
         "tendency_of_air_temperature_due_to_microphysics",
-        required_inputs=["air_temperature_input", f"air_temperature_after_precpd"],
+        required_inputs=["air_temperature_input", "air_temperature_output"],
     )
     def _(self):
-        end = self._mapper["air_temperature_after_precpd"]
+        end = self._mapper["air_temperature_output"]
         begin = self._mapper["air_temperature_input"]
         return (end - begin) / timestep
 
     @mapping.register(
         "tendency_of_specific_humidity_due_to_microphysics",
-        required_inputs=["specific_humidity_input", "specific_humidity_after_precpd"],
+        required_inputs=["specific_humidity_input", "specific_humidity_output"],
     )
     def tendency_of_specific_humidity_due_to_microphysics(self):
-        end = self._mapper["specific_humidity_after_precpd"]
+        end = self._mapper["specific_humidity_output"]
         begin = self._mapper["specific_humidity_input"]
         return (end - begin) / timestep
 
@@ -47,11 +47,11 @@ def _register_derived_variables(mapping: DerivedMapping, timestep):
         "tendency_of_cloud_water_mixing_ratio_due_to_microphysics",
         required_inputs=[
             "cloud_water_mixing_ratio_input",
-            "cloud_water_mixing_ratio_after_precpd",
+            "cloud_water_mixing_ratio_output",
         ],
     )
     def tendency_of_cloud_water_mixing_ratio_due_to_microphysics(self):
-        end = self._mapper["cloud_water_mixing_ratio_after_precpd"]
+        end = self._mapper["cloud_water_mixing_ratio_output"]
         begin = self._mapper["cloud_water_mixing_ratio_input"]
         return (end - begin) / timestep
 
