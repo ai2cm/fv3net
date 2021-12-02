@@ -44,7 +44,7 @@ class CombineInputs(tf.keras.layers.Layer):
         return config
 
 
-class RNNBlock(tf.keras.layers.Layer):
+class HybridRNN(tf.keras.layers.Layer):
     """
     RNN connected to an MLP for prediction
 
@@ -112,7 +112,7 @@ class RNNBlock(tf.keras.layers.Layer):
         return config
 
 
-class CorrectRNN(tf.keras.layers.Layer):
+class RNN(tf.keras.layers.Layer):
     """
     RNN connected to an MLP for prediction
 
