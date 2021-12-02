@@ -215,7 +215,7 @@ def main(config: TrainConfig, seed: int = 0):
 
     if config.use_wandb:
         pred_sample = model.predict(test_set)
-        log_profile_plots(test_set, pred_sample, model.output_names)
+        log_profile_plots(test_set, pred_sample)
 
         # add level for dataframe index, assumes equivalent feature dims
         sample_profile = next(iter(train_profiles.values()))
