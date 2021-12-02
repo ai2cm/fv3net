@@ -3,10 +3,13 @@ import numpy as np
 import tensorflow as tf
 
 from fv3fit.emulation.layers.architecture import (
+    RNN,
     MLPBlock,
-    RNNBlock,
+    HybridRNN,
     CombineInputs,
     NoWeightSharingSLP,
+    RNNOutputConnector,
+    StandardOutputConnector,
 )
 
 
@@ -41,13 +44,21 @@ def test_MLPBlock_no_dense_layers():
 
 
 @pytest.mark.parametrize("depth,expected_shp", [(1, (20, 64)), (0, (20, 128))])
-def test_RNNBlock(depth, expected_shp):
+def test_HybridRNN(depth, expected_shp):
 
-    rnn = RNNBlock(channels=128, dense_width=64, dense_depth=depth)
+    rnn = HybridRNN(channels=128, dense_width=64, dense_depth=depth)
 
     tensor = _get_tensor((20, 10, 2))
     result = rnn(tensor)
     assert result.shape == expected_shp
+
+
+def test_RNN():
+
+    rnn = RNN(channels=64, depth=2)
+    tensor = _get_tensor((20, 10, 2))
+    result = rnn(tensor)
+    assert result.shape == (20, 10, 64)
 
 
 def test_CombineInputs_no_expand():
@@ -91,7 +102,7 @@ def test_no_weight_sharing_num_weights():
     assert num_weights_expected == total
 
 
-@pytest.mark.parametrize("layer_cls", [CombineInputs, MLPBlock, RNNBlock])
+@pytest.mark.parametrize("layer_cls", [CombineInputs, MLPBlock, HybridRNN, RNN])
 def test_from_config(layer_cls):
 
     layer = layer_cls()
@@ -99,3 +110,25 @@ def test_from_config(layer_cls):
     rebuilt = layer_cls.from_config(config)
 
     assert isinstance(rebuilt, layer_cls)
+
+
+@pytest.mark.parametrize(
+    "connector_cls, hidden_out",
+    [
+        (StandardOutputConnector, _get_tensor((10, 64))),
+        (RNNOutputConnector, _get_tensor((10, 79, 64))), 
+    ]
+)
+def test_OutputConnectors(connector_cls, hidden_out):
+
+    feature_lens = {
+        "field1": 79,
+        "surface": 1,
+    }
+
+    connector = connector_cls(feature_lens)
+    connected = connector(hidden_out)
+
+    assert len(connected) == 2
+    for key, output in connected.items():
+        assert output.shape == (10, feature_lens[key])

@@ -20,8 +20,10 @@ def get_architecture_cls(key: str, kwargs: Mapping[str, Any]):
         kwargs: any keyword arguments for block construction
     """
 
-    if key == "rnn":
+    if key == "rnn-v1":
         return RNN(**kwargs)
+    elif key == "rnn":
+        return HybridRNN(**kwargs)
     elif key == "dense":
         return MLPBlock(**kwargs)
     elif key == "linear":
@@ -59,7 +61,7 @@ def get_combine_from_arch_key(key: str):
         key: key of core architecture block being used
     """
 
-    if key == "rnn":
+    if key == "rnn" or key == "rnn-v1":
         return CombineInputs(-1, expand_axis=-1)
     else:
         return CombineInputs(-1, expand_axis=None)
@@ -67,7 +69,7 @@ def get_combine_from_arch_key(key: str):
 
 def get_outputs_from_arch_key(key: str, output_features: Mapping[str, int]):
     """
-    Grab a hidden layer to output translation layer for
+    Grab a hidden layer to output connection layer for
     specific architectures.
 
     RNN handles outputs special to retain downward dependence
@@ -77,7 +79,7 @@ def get_outputs_from_arch_key(key: str, output_features: Mapping[str, int]):
         key: key of core architecture block being used
     """
 
-    if key == "rnn":
+    if key == "rnn-v1":
         return RNNOutputConnector(output_features)
     else:
         return StandardOutputConnector(output_features)

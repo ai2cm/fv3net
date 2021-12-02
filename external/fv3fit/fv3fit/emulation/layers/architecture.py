@@ -187,7 +187,7 @@ class RNN(tf.keras.layers.Layer):
                 "channels": self._channels,
                 "activation": self._activation,
                 "go_backwards": self._go_backwards,
-                "recurrent_layers": self._depth,
+                "depth": self._depth,
             }
         )
         return config
