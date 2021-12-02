@@ -64,11 +64,11 @@ def _plot_profiles(target, prediction, name):
     units.update(
         {
             "total_precipitation": "mm / day",
-            "specific_humidity_after_precpd": "g/kg",
+            "specific_humidity_output": "g/kg",
             "tendency_of_specific_humidity_due_to_microphysics": "g/kg/day",
-            "cloud_water_mixing_ratio_after_precpd": "g/kg",
+            "cloud_water_mixing_ratio_output": "g/kg",
             "tendency_of_cloud_water_mixing_ratio_due_to_microphysics": "g/kg/day",
-            "air_temperature_after_precpd": "K",
+            "air_temperature_output": "K",
             "tendency_of_air_temperature_due_to_microphysics": "K/day",
         }
     )
