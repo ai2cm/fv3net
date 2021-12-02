@@ -164,14 +164,14 @@ class CorrectRNN(tf.keras.layers.Layer):
 
         # switch recurrent operation to go from TOA to bottom for data in physics space
         if self._go_backwards:
-            input = tf.reverse(input, 1)
+            input = tf.reverse(input, tf.convert_to_tensor([-2]))
 
         for recurrent_layer in self.rnn:
             output = recurrent_layer(input)
             input = output
 
         if self._go_backwards:
-            output = tf.reverse(output, 1)
+            output = tf.reverse(output, tf.convert_to_tensor([-2]))
 
         return output
 
@@ -256,10 +256,11 @@ def NoWeightSharingSLP(
     )
 
 
-class StandardOutputs(tf.keras.layers.Layer):
+class StandardOutputConnector(tf.keras.layers.Layer):
     """Uses densely-connected layers w/ linear activation"""
 
-    def __init__(self, feature_lengths: Mapping[str, int]):
+    def __init__(self, feature_lengths: Mapping[str, int], *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._feature_lengths = feature_lengths
 
         self.output_layers = {
@@ -278,14 +279,15 @@ class StandardOutputs(tf.keras.layers.Layer):
         }
 
 
-class RNNOutputs(tf.keras.layers.Layer):
-    """Uses locally-connected layers to retain"""
+class RNNOutputConnector(tf.keras.layers.Layer):
+    """Uses locally-connected layers to retain vertical dependence"""
 
-    def __init__(self, feature_lengths: Mapping[str, int]):
+    def __init__(self, feature_lengths: Mapping[str, int], *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._feature_lengths = feature_lengths
 
         self.output_layers = {
-            tf.keras.layers.LocallyConnected1D(1, 1, name=f"rnn_output_{name}")
+            name: tf.keras.layers.LocallyConnected1D(1, 1, name=f"rnn_output_{name}")
             for name in self._feature_lengths.keys()
         }
 
@@ -294,12 +296,12 @@ class RNNOutputs(tf.keras.layers.Layer):
         fields = {}
         for name, feature_length in self._feature_lengths.items():
             if feature_length == 1:
-                rnn_out = rnn_outputs[:, 0:1]
+                rnn_out = rnn_outputs[..., 0:1, :]
             else:
                 rnn_out = rnn_outputs
 
             field_out = self.output_layers[name](rnn_out)
-            field_out = tf.squeeze(field_out)
+            field_out = tf.squeeze(field_out, axis=-1)
             fields[name] = field_out
 
         return fields

@@ -6,8 +6,8 @@ from ..layers import (
     RNNBlock,
     CorrectRNN,
     MLPBlock,
-    RNNOutputs,
-    StandardOutputs,
+    RNNOutputConnector,
+    StandardOutputConnector,
 )
 
 
@@ -78,6 +78,6 @@ def get_outputs_from_arch_key(key: str, output_features: Mapping[str, int]):
     """
 
     if key == "rnn":
-        return RNNOutputs(output_features)
+        return RNNOutputConnector(output_features)
     else:
-        return StandardOutputs(output_features)
+        return StandardOutputConnector(output_features)
