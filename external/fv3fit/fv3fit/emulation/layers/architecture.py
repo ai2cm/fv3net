@@ -51,6 +51,9 @@ class HybridRNN(tf.keras.layers.Layer):
     Layer call expects a 3-D input tensor (sample, z, variable),
     which recurses backwards (top-to-bottom for the physics-param data)
     by default over the z dimension.
+
+    Note: while internal RNN has some vertical directionality,
+    this architecture does NOT enforce a strictly downward dependence
     """
 
     def __init__(
@@ -114,7 +117,8 @@ class HybridRNN(tf.keras.layers.Layer):
 
 class RNN(tf.keras.layers.Layer):
     """
-    RNN connected to an MLP for prediction
+    RNN for prediction that preserves vertical information so
+    directional dependence is possible
 
     Layer call expects a 3-D input tensor (sample, z, variable),
     which recurses backwards (top-to-bottom for the physics-param data)
@@ -133,7 +137,8 @@ class RNN(tf.keras.layers.Layer):
         """
         Args:
             channels: width of RNN layer
-            activation: activation function to use for RNN and MLP
+            depth: depth of connected RNNs
+            activation: activation function to use for RNN
             go_backwards: whether to recurse in the reverse direction
                 over the dim 1.  If using wrapper outputs, TOA starts
                 at 0, should be false
@@ -260,6 +265,11 @@ class StandardOutputConnector(tf.keras.layers.Layer):
     """Uses densely-connected layers w/ linear activation"""
 
     def __init__(self, feature_lengths: Mapping[str, int], *args, **kwargs):
+        """
+        Args:
+            feature_lengths: Map of output variable names to expected
+                feature dimension length
+        """
         super().__init__(*args, **kwargs)
         self._feature_lengths = feature_lengths
 
@@ -271,7 +281,14 @@ class StandardOutputConnector(tf.keras.layers.Layer):
             for name, feature_length in self._feature_lengths.items()
         }
 
-    def call(self, hidden_output):
+    def call(self, hidden_output) -> Mapping[str, tf.Tensor]:
+        """
+        Args:
+            hidden_output: Network output from hidden layers
+
+        Returns:
+            Connected model outputs by variable
+        """
 
         return {
             name: layer(hidden_output)
@@ -280,9 +297,26 @@ class StandardOutputConnector(tf.keras.layers.Layer):
 
 
 class RNNOutputConnector(tf.keras.layers.Layer):
-    """Uses locally-connected layers to retain vertical dependence"""
+    """
+    Uses locally-connected layers w/ linear activation to
+    retain vertical dependence.
+
+    The output feature dimension is determined by the RNN output recursion dimension length.  So to produce full output, the model inputs must contain the full
+    vertical dimension.
+
+    E.g., Combined inputs [nsamples, 17, 4] -> RNN network out [nsamples, 17, channels] ->
+        connected output [nsamples, 17]
+
+    If an output is a single-level (i.e., feature length of 1)
+    then it is connected to the lowest layer containing the full vertical information.
+    """
 
     def __init__(self, feature_lengths: Mapping[str, int], *args, **kwargs):
+        """
+        Args:
+            feature_lengths: Map of output variable names to expected
+                feature dimension length
+        """
         super().__init__(*args, **kwargs)
         self._feature_lengths = feature_lengths
 
@@ -291,7 +325,15 @@ class RNNOutputConnector(tf.keras.layers.Layer):
             for name in self._feature_lengths.keys()
         }
 
-    def call(self, rnn_outputs):
+    def call(self, rnn_outputs) -> Mapping[str, tf.Tensor]:
+        """
+        Args:
+            hidden_output: Network output from hidden layers of RNN with dim
+                [nsamples, nlev, channels]
+
+        Returns:
+            Connected model outputs by variable
+        """
 
         fields = {}
         for name, feature_length in self._feature_lengths.items():
