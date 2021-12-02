@@ -1,8 +1,0 @@
-yq
-pkgconfig
-sphinx
-yq
-sphinx-rtd-theme
-
-# need to specify this requirement of fv3gfs-wrapper, so that it gets locked
-mpi4py

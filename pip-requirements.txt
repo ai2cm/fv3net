@@ -46,6 +46,7 @@ poetry
 tox
 pre-commit
 ipython>=7.29.0
+jupyterlab
 
 # fv3fit testing tools
 hypothesis
