@@ -98,9 +98,8 @@ def test_RNN_downward_dependence():
         input_variables=["field_input"],
         direct_out_variables=["field_output"],
         architecture=ArchitectureConfig(
-            name="rnn",
-            kwargs=dict(channels=16, dense_width=16, dense_depth=1)
-        )
+            name="rnn", kwargs=dict(channels=16, dense_width=16, dense_depth=1)
+        ),
     )
 
     nlev = 15
