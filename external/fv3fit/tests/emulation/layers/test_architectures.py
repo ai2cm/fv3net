@@ -139,9 +139,10 @@ def test_get_architecture_unrecognized():
         _HiddenArchitecture("not_an_arch", {}, {})
 
 
-def test_ArchParams_bad_kwargs():
+@pytest.mark.parametrize("key", ["rnn-v1", "rnn", "dense", "linear"])
+def test_ArchParams_bad_kwargs(key):
     with pytest.raises(TypeError):
-        _HiddenArchitecture("dense", dict(not_a_kwarg="hi"), {})
+        _HiddenArchitecture(key, dict(not_a_kwarg="hi"), {})
 
 
 @pytest.mark.parametrize(

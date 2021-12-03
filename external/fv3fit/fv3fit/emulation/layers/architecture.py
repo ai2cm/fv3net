@@ -371,6 +371,8 @@ def _get_arch_layer(key, kwargs):
     elif key == "dense":
         return MLPBlock(**kwargs)
     elif key == "linear":
+        if kwargs:
+            raise TypeError("No keyword arguments accepted for linear model")
         return MLPBlock(depth=0)
     else:
         raise KeyError(f"Unrecognized architecture provided: {key}")
