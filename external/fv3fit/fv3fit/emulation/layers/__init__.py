@@ -15,12 +15,4 @@ from .fields import (
     FieldInput,
     FieldOutput,
 )
-from .architecture import (
-    MLPBlock,
-    HybridRNN,
-    RNN,
-    RNNOutputConnector,
-    StandardOutputConnector,
-    CombineInputs,
-    NoWeightSharingSLP,
-)
+from .architecture import ArchitectureConfig

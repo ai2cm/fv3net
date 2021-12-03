@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from fv3fit._shared import SliceConfig
 from fv3fit.emulation.models import MicrophysicsConfig
-from fv3fit.emulation.models._core import ArchitectureConfig
+from fv3fit.emulation.layers import ArchitectureConfig
 
 
 def _get_data(shape):

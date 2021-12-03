@@ -23,7 +23,8 @@ from fv3fit.emulation.keras import (
     save_model,
     score_model,
 )
-from fv3fit.emulation.models import MicrophysicsConfig, ArchitectureConfig
+from fv3fit.emulation.models import MicrophysicsConfig
+from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.wandb import (
     WandBConfig,
     log_to_table,

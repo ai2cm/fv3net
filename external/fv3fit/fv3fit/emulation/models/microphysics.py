@@ -3,12 +3,7 @@ import dataclasses
 from typing import List, Mapping
 import tensorflow as tf
 
-from ._core import (
-    ArchitectureConfig,
-    get_combine_from_arch_key,
-    get_outputs_from_arch_key,
-)
-from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
+from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput, ArchitectureConfig
 from fv3fit._shared import SliceConfig
 
 
@@ -129,16 +124,9 @@ class MicrophysicsConfig:
 
     def _compute_hidden(self, inputs, data):
         processed = self._get_processed_inputs(data, inputs)
-        combine_layer = get_combine_from_arch_key(self.architecture.name)
-        combined = combine_layer(processed)
-        arch_layer = self.architecture.build()
-        arch_out = arch_layer(combined)
-
         output_features = {key: data[key].shape[-1] for key in self.output_variables}
-        output_connector = get_outputs_from_arch_key(
-            self.architecture.name, output_features
-        )
-        return output_connector(arch_out)
+        arch_layer = self.architecture.build(output_features)
+        return arch_layer(processed)
 
     def _get_inputs(self, data):
         return {

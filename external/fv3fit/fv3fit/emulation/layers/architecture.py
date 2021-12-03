@@ -1,5 +1,6 @@
-from typing import Mapping, Optional, Sequence, Union
+import dataclasses
 import tensorflow as tf
+from typing import Mapping, Optional, Sequence, Union, Any
 
 
 class CombineInputs(tf.keras.layers.Layer):
@@ -29,7 +30,9 @@ class CombineInputs(tf.keras.layers.Layer):
 
         return tf.concat(inputs, axis=self._combine_axis)
 
-    def call(self, inputs: Union[Sequence[tf.Tensor], Mapping[str, tf.Tensor]]) -> tf.Tensor:
+    def call(
+        self, inputs: Union[Sequence[tf.Tensor], Mapping[str, tf.Tensor]]
+    ) -> tf.Tensor:
         if isinstance(inputs, Mapping):
             return self._call_with_tensors([inputs[key] for key in sorted(inputs)])
         else:
@@ -260,7 +263,7 @@ def NoWeightSharingSLP(
     )
 
 
-class StandardOutputConnector(tf.keras.layers.Layer):
+class StandardOutput(tf.keras.layers.Layer):
     """Uses densely-connected layers w/ linear activation"""
 
     def __init__(self, feature_lengths: Mapping[str, int], *args, **kwargs):
@@ -291,7 +294,7 @@ class StandardOutputConnector(tf.keras.layers.Layer):
         }
 
 
-class RNNOutputConnector(tf.keras.layers.Layer):
+class RNNOutput(tf.keras.layers.Layer):
     """
     Uses locally-connected layers w/ linear activation to
     retain vertical dependence.
@@ -343,3 +346,80 @@ class RNNOutputConnector(tf.keras.layers.Layer):
             fields[name] = field_out
 
         return fields
+
+
+def _get_output_layer(key, feature_lengths):
+    if key == "rnn-v1":
+        return RNNOutput(feature_lengths)
+    else:
+        return StandardOutput(feature_lengths)
+
+
+def _get_combine_layer(key):
+    if key == "rnn-v1" or key == "rnn":
+        return CombineInputs(combine_axis=-1, expand_axis=-1)
+    else:
+        return CombineInputs(combine_axis=-1, expand_axis=None)
+
+
+def _get_arch_layer(key, kwargs):
+
+    if key == "rnn-v1":
+        return RNN(**kwargs)
+    elif key == "rnn":
+        return HybridRNN(**kwargs)
+    elif key == "dense":
+        return MLPBlock(**kwargs)
+    elif key == "linear":
+        return MLPBlock(depth=0)
+    else:
+        raise KeyError(f"Unrecognized architecture provided: {key}")
+
+
+class _HiddenArchitecture(tf.keras.layers.Layer):
+    def __init__(
+        self,
+        key: str,
+        net_kwargs: Mapping[str, Any],
+        feature_lengths: Mapping[str, int],
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+
+        self.arch = _get_arch_layer(key, net_kwargs)
+        self.input_combiner = _get_combine_layer(key)
+        self.outputs = _get_output_layer(key, feature_lengths)
+
+    def call(self, tensors: Sequence[tf.Tensor]):
+
+        combined = self.input_combiner(tensors)
+        net_output = self.arch(combined)
+        return self.outputs(net_output)
+
+
+@dataclasses.dataclass
+class ArchitectureConfig:
+    """
+    Model architecture configuration to produce a model architecture layer that
+    takes in a list of tensors and outputs a dict of un-adjusted outputs by
+    name.
+
+
+        name: Name of underlying model architecture to use for the emulator.
+            See `get_architecture_cls` for a list of supported layers.
+        kwargs: keyword arguments to pass to the initialization
+            of the architecture layer
+    """
+
+    name: str
+    kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
+
+    def build(self, feature_lengths: Mapping[str, int]) -> tf.keras.layers.Layer:
+        """
+        Build the model architecture layer from key
+
+        Args:
+            feature_lengths: Map of output variable names to expected
+                feature dimension length. used to partition layer outputs
+        """
+        return _HiddenArchitecture(self.name, self.kwargs, feature_lengths)

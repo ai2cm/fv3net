@@ -4,12 +4,14 @@ import tensorflow as tf
 
 from fv3fit.emulation.layers.architecture import (
     RNN,
+    _HiddenArchitecture,
     MLPBlock,
     HybridRNN,
     CombineInputs,
     NoWeightSharingSLP,
-    RNNOutputConnector,
-    StandardOutputConnector,
+    RNNOutput,
+    StandardOutput,
+    ArchitectureConfig,
 )
 
 
@@ -114,10 +116,7 @@ def test_from_config(layer_cls):
 
 @pytest.mark.parametrize(
     "connector_cls, hidden_out",
-    [
-        (StandardOutputConnector, _get_tensor((10, 64))),
-        (RNNOutputConnector, _get_tensor((10, 79, 64))),
-    ],
+    [(StandardOutput, _get_tensor((10, 64))), (RNNOutput, _get_tensor((10, 79, 64)))],
 )
 def test_OutputConnectors(connector_cls, hidden_out):
 
@@ -132,3 +131,45 @@ def test_OutputConnectors(connector_cls, hidden_out):
     assert len(connected) == 2
     for key, output in connected.items():
         assert output.shape == (10, feature_lens[key])
+
+
+def test_get_architecture_unrecognized():
+
+    with pytest.raises(KeyError):
+        _HiddenArchitecture("not_an_arch", {}, {})
+
+
+def test_ArchParams_bad_kwargs():
+    with pytest.raises(TypeError):
+        _HiddenArchitecture("dense", dict(not_a_kwarg="hi"), {})
+
+
+@pytest.mark.parametrize(
+    "arch_key", ["rnn-v1", "rnn", "dense", "linear"],
+)
+def test_ArchitectureConfig(arch_key):
+
+    tensor = _get_tensor((10, 20))
+
+    config = ArchitectureConfig(arch_key, {})
+    output_features = {"out_field1": 20, "out_field2": 1}
+    arch_layer = config.build(output_features)
+
+    outputs = arch_layer([tensor, tensor])
+    assert len(outputs) == 2
+    for key, feature_len in output_features.items():
+        assert key in outputs
+        assert outputs[key].shape == (10, feature_len)
+
+
+@pytest.mark.parametrize("rnn_key", ["rnn", "rnn-v1"])
+def test_rnn_fails_with_inconsistent_vertical_dimensions(rnn_key):
+
+    tensor1 = _get_tensor((10, 20))
+    tensor2 = _get_tensor((10, 1))
+
+    config = ArchitectureConfig(rnn_key)
+    layer = config.build({})
+
+    with pytest.raises(tf.errors.InvalidArgumentError):
+        layer([tensor1, tensor2])
