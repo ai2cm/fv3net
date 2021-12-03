@@ -9,6 +9,7 @@ from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
 from ._core import ArchitectureConfig, get_combine_from_arch_key
 
 from fv3fit.emulation import thermo
+from fv3fit.keras.adapters import ensure_dict_output
 
 
 @dataclasses.dataclass
@@ -314,7 +315,7 @@ def _assoc_conservative_precipitation(
         ``fields.surface_precipitation.output_name``.
     
     """
-
+    model = ensure_dict_output(model)
     inputs = dict(zip(model.input_names, model.inputs))
     nz = inputs[fields.cloud_water.input_name].shape[-1]
     inputs[fields.pressure_thickness.input_name] = tf.keras.Input(
@@ -331,6 +332,8 @@ def _assoc_conservative_precipitation(
         cloud_after=out[fields.cloud_water.output_name],
         mass=thermo.layer_mass(inputs[fields.pressure_thickness.input_name]),
     )
-    new_model = tf.keras.Model(inputs=inputs, outputs=out)
+
+    # convert_to_dict_output ensures that output names are consistent
+    new_model = ensure_dict_output(tf.keras.Model(inputs=inputs, outputs=out))
     new_model(inputs)
     return new_model
