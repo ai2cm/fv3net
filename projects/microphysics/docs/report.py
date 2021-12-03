@@ -26,6 +26,8 @@ import wandb
 from collections import defaultdict
 import toolz
 import plotly.express as px
+import datapane as dp
+import slack
 
 
 def is_online(group):
@@ -87,6 +89,7 @@ for run in runs:
         group[run.group][run.job_type] = run
 group = dict(group)
 
+
 # %%
 merged = pd.concat([get_data(group, online=b) for b in [True, False]])
 merged["time"] = pd.to_datetime(merged.time)
@@ -114,8 +117,8 @@ fig = px.line(
     y="surface_precipitation",
     color="model_tag",
     facet_col="online",
-)
-fig.update_yaxes(matches=None)
+).update_yaxes(matches=None)
+fig
 
 # %%
 ds = xr.Dataset(merged.groupby(["time", "model_tag", "online"]).mean()).unstack("dim_0")
@@ -129,12 +132,26 @@ plotme = xr.concat(
 )
 
 # %%
-px.bar(
+bar = px.bar(
     plotme.to_dataframe().reset_index(),
-    x="online",
+    color="online",
     y="surface_precipitation",
-    color="model_tag",
+    x="model_tag",
     facet_row="avg",
     barmode="group",
-    width=600,
+    width=400,
 )
+bar
+
+# %%
+report = dp.Report(dp.Plot(fig), dp.Plot(bar.update_layout(width=400)))
+report.save(path="report.html")
+res = report.upload(name="microphysics-online-report")
+
+
+def get_url(report, name):
+    return f"https://datapane.com/u/{report.username}/reports/{report.id}/{name}"
+
+
+report_url = get_url(report, "microphysics-online-report")
+slack.post_message("new microphysics report at {}".format(report_url))
