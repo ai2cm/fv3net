@@ -19,8 +19,8 @@
 # %%
 import fv3config
 import pandas as pd
+import xarray as xr
 import json
-import datetime
 
 import wandb
 from collections import defaultdict
@@ -59,10 +59,7 @@ def get_data(group, online=True):
     groups = [
         val
         for group, val in group.items()
-        if "7166bd" in group
-        and online == is_online(val)
-        and "piggy-back" in val
-        and run_duration(val) == datetime.timedelta(days=10)
+        if "7166bd" in group and online == is_online(val) and "piggy-back" in val
     ]
     return pd.concat(
         [
@@ -92,6 +89,7 @@ group = dict(group)
 
 # %%
 merged = pd.concat([get_data(group, online=b) for b in [True, False]])
+merged["time"] = pd.to_datetime(merged.time)
 
 # %%
 
@@ -110,23 +108,33 @@ wong_palette = [
 px.defaults.color_discrete_sequence = wong_palette
 
 # %%
-px.line(
+fig = px.line(
     merged.sort_values(["model_tag", "time"]),
     x="time",
     y="surface_precipitation",
     color="model_tag",
     facet_col="online",
 )
+fig.update_yaxes(matches=None)
+
+# %%
+ds = xr.Dataset(merged.groupby(["time", "model_tag", "online"]).mean()).unstack("dim_0")
+resampled = ds.resample(time="6h").mean()
+plotme = xr.concat(
+    [
+        resampled.isel(time=0).assign_coords(avg="6h"),
+        resampled.mean("time", skipna=False).assign_coords(avg="10d"),
+    ],
+    dim="avg",
+)
 
 # %%
 px.bar(
-    merged.groupby(["model_tag", "online"])
-    .mean()
-    .reset_index()
-    .sort_values("model_tag"),
+    plotme.to_dataframe().reset_index(),
     x="online",
     y="surface_precipitation",
     color="model_tag",
+    facet_row="avg",
     barmode="group",
     width=600,
 )
