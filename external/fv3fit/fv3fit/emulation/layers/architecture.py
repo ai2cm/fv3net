@@ -404,7 +404,7 @@ class ArchitectureConfig:
     takes in a list of tensors and outputs a dict of un-adjusted outputs by
     name.
 
-
+    Args:
         name: Name of underlying model architecture to use for the emulator.
             See `get_architecture_cls` for a list of supported layers.
         kwargs: keyword arguments to pass to the initialization
