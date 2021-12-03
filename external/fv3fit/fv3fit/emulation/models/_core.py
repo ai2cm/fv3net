@@ -67,7 +67,7 @@ def get_combine_from_arch_key(key: str):
         return CombineInputs(-1, expand_axis=None)
 
 
-def get_outputs_from_arch_key(key: str, output_features: Mapping[str, int]):
+def get_outputs_from_arch_key(key: str, output_features: Mapping[str, int]) -> tf.keras.Layer:
     """
     Grab a hidden layer to output connection layer for
     specific architectures.
