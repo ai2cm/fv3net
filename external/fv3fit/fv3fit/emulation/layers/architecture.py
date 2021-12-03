@@ -29,7 +29,7 @@ class CombineInputs(tf.keras.layers.Layer):
 
         return tf.concat(inputs, axis=self._combine_axis)
 
-    def call(self, inputs: Union[Sequence[tf.Tensor], Mapping[str, tf.Tensor]]):
+    def call(self, inputs: Union[Sequence[tf.Tensor], Mapping[str, tf.Tensor]]) -> tf.Tensor:
         if isinstance(inputs, Mapping):
             return self._call_with_tensors([inputs[key] for key in sorted(inputs)])
         else:
@@ -89,7 +89,7 @@ class HybridRNN(tf.keras.layers.Layer):
         )
         self.dense = MLPBlock(width=dense_width, depth=dense_depth)
 
-    def call(self, input):
+    def call(self, input: tf.Tensor) -> tf.Tensor:
         """
         Args:
             input: a 3-d tensor with dims (sample, per_var_features, variables)
@@ -156,7 +156,7 @@ class RNN(tf.keras.layers.Layer):
             for i in range(self._depth)
         ]
 
-    def call(self, input):
+    def call(self, input: tf.Tensor) -> tf.Tensor:
         """
         Args:
             input: a 3-d tensor with dims (sample, per_var_features, variables)
@@ -219,7 +219,7 @@ class MLPBlock(tf.keras.layers.Layer):
             tf.keras.layers.Dense(width, activation=activation) for i in range(depth)
         ]
 
-    def call(self, input):
+    def call(self, input: tf.Tensor) -> tf.Tensor:
 
         outputs = input
 
@@ -277,7 +277,7 @@ class StandardOutputConnector(tf.keras.layers.Layer):
             for name, feature_length in self._feature_lengths.items()
         }
 
-    def call(self, hidden_output) -> Mapping[str, tf.Tensor]:
+    def call(self, hidden_output: tf.Tensor) -> Mapping[str, tf.Tensor]:
         """
         Args:
             hidden_output: Network output from hidden layers
@@ -321,7 +321,7 @@ class RNNOutputConnector(tf.keras.layers.Layer):
             for name in self._feature_lengths.keys()
         }
 
-    def call(self, rnn_outputs) -> Mapping[str, tf.Tensor]:
+    def call(self, rnn_outputs: tf.Tensor) -> Mapping[str, tf.Tensor]:
         """
         Args:
             hidden_output: Network output from hidden layers of RNN with dim
