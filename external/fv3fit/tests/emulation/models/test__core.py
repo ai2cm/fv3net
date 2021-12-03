@@ -28,7 +28,7 @@ def test_get_architecture_unrecognized():
 
 @pytest.mark.parametrize(
     "arch_key, expected",
-    [("rnn", (20, 4, 3)), ("dense", (20, 12)), ("linear", (20, 12))],
+    [("rnn-v1", (20, 4, 3)), ("rnn", (20, 4, 3)), ("dense", (20, 12)), ("linear", (20, 12))],
 )
 def test_get_combine_from_arch_key(arch_key, expected):
 

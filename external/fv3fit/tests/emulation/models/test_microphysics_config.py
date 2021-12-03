@@ -85,20 +85,19 @@ def test_Config_build_residual_w_extra_tends_out():
     )
 
     data = _get_data((20, 5))
-    m = {"dummy_out1": data, "dummy_in": data}
+    m = {"dummy_out1": data, "dummy_in": data, "dummy_out1_tendency": data}
     model = config.build(m)
     output = model(data)
     assert set(output) == {"dummy_out1", "dummy_out1_tendency"}
 
 
-@pytest.mark.xfail
 def test_RNN_downward_dependence():
 
     config = MicrophysicsConfig(
         input_variables=["field_input"],
         direct_out_variables=["field_output"],
         architecture=ArchitectureConfig(
-            name="rnn", kwargs=dict(channels=16, dense_width=16, dense_depth=1)
+            name="rnn-v1", kwargs=dict(channels=16)
         ),
     )
 
