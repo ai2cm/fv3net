@@ -146,7 +146,7 @@ def test_ArchParams_bad_kwargs(key):
 
 
 @pytest.mark.parametrize(
-    "arch_key", ["rnn-v1", "rnn", "dense", "linear"],
+    "arch_key", ["rnn-v1-shared-weights", "rnn-v1", "rnn", "dense", "linear"],
 )
 def test_ArchitectureConfig(arch_key):
 

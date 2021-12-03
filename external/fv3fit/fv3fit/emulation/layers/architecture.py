@@ -294,6 +294,18 @@ class StandardOutput(tf.keras.layers.Layer):
         }
 
 
+def _single_dense(rnn_out, dense_layer):
+    """Passes a single dense layer across each vertical layer"""
+
+    nlevs = rnn_out.shape[-2]
+
+    connected = []
+    for i in range(nlevs):
+        connected.append(dense_layer(rnn_out[..., i, :]))
+
+    return tf.concat(connected, -2)
+
+
 class RNNOutput(tf.keras.layers.Layer):
     """
     Uses locally-connected layers w/ linear activation to
@@ -310,7 +322,13 @@ class RNNOutput(tf.keras.layers.Layer):
     then it is connected to the lowest layer containing the full vertical information.
     """
 
-    def __init__(self, feature_lengths: Mapping[str, int], *args, **kwargs):
+    def __init__(
+        self,
+        feature_lengths: Mapping[str, int],
+        share_conv_weights=False,
+        *args,
+        **kwargs,
+    ):
         """
         Args:
             feature_lengths: Map of output variable names to expected
@@ -318,9 +336,15 @@ class RNNOutput(tf.keras.layers.Layer):
         """
         super().__init__(*args, **kwargs)
         self._feature_lengths = feature_lengths
+        self._single_dense = share_conv_weights
+
+        if share_conv_weights:
+            layer_cls = tf.keras.layers.Conv1D
+        else:
+            layer_cls = tf.keras.layers.LocallyConnected1D
 
         self.output_layers = {
-            name: tf.keras.layers.LocallyConnected1D(1, 1, name=f"rnn_output_{name}")
+            name: layer_cls(1, 1, name=f"rnn_output_{name}")
             for name in self._feature_lengths.keys()
         }
 
@@ -351,12 +375,14 @@ class RNNOutput(tf.keras.layers.Layer):
 def _get_output_layer(key, feature_lengths):
     if key == "rnn-v1":
         return RNNOutput(feature_lengths)
+    elif key == "rnn-v1-shared-weights":
+        return RNNOutput(feature_lengths, share_conv_weights=True)
     else:
         return StandardOutput(feature_lengths)
 
 
 def _get_combine_layer(key):
-    if key == "rnn-v1" or key == "rnn":
+    if "rnn" in key:
         return CombineInputs(combine_axis=-1, expand_axis=-1)
     else:
         return CombineInputs(combine_axis=-1, expand_axis=None)
@@ -364,7 +390,7 @@ def _get_combine_layer(key):
 
 def _get_arch_layer(key, kwargs):
 
-    if key == "rnn-v1":
+    if key == "rnn-v1" or key == "rnn-v1-shared-weights":
         return RNN(**kwargs)
     elif key == "rnn":
         return HybridRNN(**kwargs)
