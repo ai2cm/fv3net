@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 import tensorflow as tf
 
 from fv3fit._shared import SliceConfig
@@ -96,9 +95,7 @@ def test_RNN_downward_dependence():
     config = MicrophysicsConfig(
         input_variables=["field_input"],
         direct_out_variables=["field_output"],
-        architecture=ArchitectureConfig(
-            name="rnn-v1", kwargs=dict(channels=16)
-        ),
+        architecture=ArchitectureConfig(name="rnn-v1", kwargs=dict(channels=16)),
     )
 
     nlev = 15

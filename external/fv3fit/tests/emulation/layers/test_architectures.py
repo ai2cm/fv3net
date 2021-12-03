@@ -116,8 +116,8 @@ def test_from_config(layer_cls):
     "connector_cls, hidden_out",
     [
         (StandardOutputConnector, _get_tensor((10, 64))),
-        (RNNOutputConnector, _get_tensor((10, 79, 64))), 
-    ]
+        (RNNOutputConnector, _get_tensor((10, 79, 64))),
+    ],
 )
 def test_OutputConnectors(connector_cls, hidden_out):
 

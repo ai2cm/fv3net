@@ -151,8 +151,7 @@ class RNN(tf.keras.layers.Layer):
 
         self.rnn = [
             tf.keras.layers.SimpleRNN(
-                channels, activation=activation,
-                return_sequences=True
+                channels, activation=activation, return_sequences=True
             )
             for i in range(self._depth)
         ]
@@ -274,10 +273,7 @@ class StandardOutputConnector(tf.keras.layers.Layer):
         self._feature_lengths = feature_lengths
 
         self.output_layers = {
-            name: tf.keras.layers.Dense(
-                feature_length,
-                name=f"standard_output_{name}"
-            )
+            name: tf.keras.layers.Dense(feature_length, name=f"standard_output_{name}")
             for name, feature_length in self._feature_lengths.items()
         }
 
@@ -291,8 +287,7 @@ class StandardOutputConnector(tf.keras.layers.Layer):
         """
 
         return {
-            name: layer(hidden_output)
-            for name, layer in self.output_layers.items()
+            name: layer(hidden_output) for name, layer in self.output_layers.items()
         }
 
 
@@ -301,11 +296,12 @@ class RNNOutputConnector(tf.keras.layers.Layer):
     Uses locally-connected layers w/ linear activation to
     retain vertical dependence.
 
-    The output feature dimension is determined by the RNN output recursion dimension length.  So to produce full output, the model inputs must contain the full
+    The output feature dimension is determined by the RNN output recursion dimension
+    length.  So to produce full output, the model inputs must contain the full
     vertical dimension.
 
-    E.g., Combined inputs [nsamples, 17, 4] -> RNN network out [nsamples, 17, channels] ->
-        connected output [nsamples, 17]
+    E.g., Combined inputs [nsamples, 17, 4] -> RNN network out [nsamples, 17, channels]
+        -> connected output [nsamples, 17]
 
     If an output is a single-level (i.e., feature length of 1)
     then it is connected to the lowest layer containing the full vertical information.

@@ -45,8 +45,6 @@ def test_FieldInput():
 
 def test_FieldOutput():
     sample = _get_tensor((20, 3))
-   
-    centered = tf.reduce_mean(sample, axis=0)
 
     field_out = FieldOutput(sample_out=sample, denormalize="mean_std")
     result = field_out(sample)
@@ -87,10 +85,7 @@ def test_IncrementedFieldOutput(dt_sec: float):
     sample = tf.random.uniform((20, 3))
 
     field_out = IncrementedFieldOutput(
-        dt_sec,
-        sample_in=sample,
-        sample_out=sample + dt_sec,
-        denormalize="mean_std",
+        dt_sec, sample_in=sample, sample_out=sample + dt_sec, denormalize="mean_std",
     )
     result = field_out(sample, net_tensor)
     tendency = field_out.get_tendency_output(net_tensor)
@@ -120,9 +115,7 @@ def get_FieldOutput():
 
     tensor = get_test_tensor()
     output_layer = FieldOutput(
-        sample_out=tensor,
-        denormalize="mean_std",
-        enforce_positive=True,
+        sample_out=tensor, denormalize="mean_std", enforce_positive=True,
     )
 
     return output_layer

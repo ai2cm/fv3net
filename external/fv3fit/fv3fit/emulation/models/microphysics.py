@@ -3,7 +3,11 @@ import dataclasses
 from typing import List, Mapping
 import tensorflow as tf
 
-from ._core import ArchitectureConfig, get_combine_from_arch_key, get_outputs_from_arch_key
+from ._core import (
+    ArchitectureConfig,
+    get_combine_from_arch_key,
+    get_outputs_from_arch_key,
+)
 from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
 from fv3fit._shared import SliceConfig
 
@@ -131,7 +135,9 @@ class MicrophysicsConfig:
         arch_out = arch_layer(combined)
 
         output_features = {key: data[key].shape[-1] for key in self.output_variables}
-        output_connector = get_outputs_from_arch_key(self.architecture.name, output_features)
+        output_connector = get_outputs_from_arch_key(
+            self.architecture.name, output_features
+        )
         return output_connector(arch_out)
 
     def _get_inputs(self, data):
