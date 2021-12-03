@@ -140,6 +140,7 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
         nfeatures: int,
         dt_sec: int,
         *args,
+        sample_in: Optional[tf.Tensor] = None,
         sample_out: Optional[tf.Tensor] = None,
         denormalize: Optional[str] = None,
         enforce_positive: bool = False,
@@ -147,6 +148,7 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
     ):
         """
         Args:
+            sample_in: Input sample for setting denorm layer
             sample_out: Output sample for variable to set shape
                 and fit denormalization layer.
             dt_sec: Timestep length in seconds to use for incrementing
@@ -162,10 +164,15 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
         self._dt_sec = dt_sec
         self._nfeatures = nfeatures
 
+        if sample_out is None or sample_in is None:
+            tendency_sample = None
+        else:
+            tendency_sample = (sample_out - sample_in) / dt_sec
+
         self.tendency = FieldOutput(
             nfeatures,
             denormalize=denormalize,
-            sample_out=sample_out,
+            sample_out=tendency_sample,
             enforce_positive=False,
             name=f"tendency_of_{self.name}",
         )

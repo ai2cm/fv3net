@@ -76,6 +76,7 @@ class FineResBudget(Protocol):
     t_dt_phys_coarse: xarray.DataArray
     vulcan_omega_coarse: xarray.DataArray
     T_vulcan_omega_coarse: xarray.DataArray
+    T_storage: xarray.DataArray
 
 
 def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = False):

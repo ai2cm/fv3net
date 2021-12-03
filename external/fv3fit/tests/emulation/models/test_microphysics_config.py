@@ -1,8 +1,9 @@
-from fv3fit._shared import SliceConfig
 import numpy as np
+import pytest
 import tensorflow as tf
 
 import fv3fit.emulation.models
+from fv3fit._shared import SliceConfig
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.models._core import ArchitectureConfig
 
@@ -124,3 +125,35 @@ def test_precip_conserving_extra_inputs():
         extra_input_variables=extras
     )
     assert set(extra_names) < set(factory.input_variables)
+
+
+@pytest.mark.xfail
+def test_RNN_downward_dependence():
+
+    config = MicrophysicsConfig(
+        input_variables=["field_input"],
+        direct_out_variables=["field_output"],
+        architecture=ArchitectureConfig(
+            name="rnn", kwargs=dict(channels=16, dense_width=16, dense_depth=1)
+        ),
+    )
+
+    nlev = 15
+    data = tf.random.normal((10, nlev))
+    sample = {"field_input": data, "field_output": data}
+    profile = data[0:1]
+
+    model = config.build(sample)
+
+    with tf.GradientTape() as g:
+        g.watch(profile)
+        output = model(profile)
+
+    jacobian = g.jacobian(output["field_output"], profile)[0, :, 0]
+
+    assert jacobian.shape == (nlev, nlev)
+    for output_level in range(nlev):
+        for input_level in range(nlev):
+            sensitivity = jacobian[output_level, input_level]
+            if output_level > input_level and sensitivity != 0:
+                raise ValueError("Downwards dependence violated")

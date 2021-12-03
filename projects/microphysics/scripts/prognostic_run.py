@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import logging
 import os
@@ -11,10 +12,9 @@ from runtime.segmented_run.prepare_config import HighLevelConfig
 
 from fv3net.artifacts.resolve_url import resolve_url
 
-logging.basicConfig(level=logging.INFO)
+from config import BUCKET
 
-PROJECT = "2021-10-14-microphsyics-emulation-paper"
-BUCKET = "vcm-ml-scratch"
+logging.basicConfig(level=logging.INFO)
 
 
 def get_env(args):
@@ -31,14 +31,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model",
     type=str,
-    default="gs://vcm-ml-experiments/2021-10-14-microphsyics-emulation-paper/models/all-tends-limited/all-tends-limited-dense/model.tf",  # noqa
+    default="NO_MODEL",
     help="path to microphysics emulation model...should probably end with .tf",
-)
-parser.add_argument(
-    "--initial-condition",
-    type=str,
-    default="gs://vcm-ml-experiments/online-emulator/2021-08-09/gfs-initialized-baseline-06/fv3gfs_run/artifacts/20160601.000000/RESTART",  # noqa
-    help="URL to initial conditions (e.g. a restart directory)",
 )
 parser.add_argument(
     "--tag",
@@ -47,7 +41,6 @@ parser.add_argument(
     help="A unique tag. Can be used to look-up these outputs in subsequent timesteps.",
 )
 parser.add_argument("--segments", "-n", type=int, default=1, help="number of segments")
-parser.add_argument("--wandb-project", default="microphysics-emulation")
 parser.add_argument("--config-path", type=Path, default=CONFIG_PATH)
 parser.add_argument("--output-frequency", type=str, default="10800")
 
@@ -66,21 +59,25 @@ parser.set_defaults(online=True)
 
 args = parser.parse_args()
 
-
 job = wandb.init(
-    job_type="prognostic_run", project="microphysics-emulation", entity="ai2cm",
+    job_type=os.getenv("WANDB_JOB_TYPE", "prognostic_run"),
+    project=os.getenv("WANDB_PROJECT", "microphysics-emulation"),
+    entity="ai2cm",
 )
+
+if args.tag:
+    job.tags = job.tags + (args.tag,)
+
 tag = args.tag or job.id
 
 with args.config_path.open() as f:
     config = yaml.safe_load(f)
 
 config = dacite.from_dict(HighLevelConfig, config)
-config.initial_conditions = args.initial_condition
 config.namelist["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
 config = config.to_fv3config()
 
-url = resolve_url(BUCKET, PROJECT, tag)
+url = resolve_url(BUCKET, job.project, tag)
 env = get_env(args)
 
 wandb.config.update({"config": config, "env": env})

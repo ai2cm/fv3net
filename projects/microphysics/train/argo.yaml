@@ -2,6 +2,9 @@ apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
   generateName: train-microphysics-
+  labels:
+    project: microphysics-emulation
+    job_type: train
 spec:
   entrypoint: training
   volumes:
@@ -17,7 +20,7 @@ spec:
           - {name: flags, value: " "}
           # - {name: memory, value: "8Gi"}
       container:
-        image: us.gcr.io/vcm-ml/prognostic_run:94fe4d44f231d0a91e90008a4916cfa342d50339
+        image: us.gcr.io/vcm-ml/prognostic_run@sha256:a6d32927b4844d2863ba7916f7d3d33749f4448e20534a66a9d4cb4bb6269887
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -27,6 +30,8 @@ spec:
             value: /secret/gcp-credentials/key.json
           - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
             value: /secret/gcp-credentials/key.json
+          - name: WANDB_NAME
+            value: "{{workflow.name}}"
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
@@ -39,12 +44,11 @@ spec:
             memory: "8Gi"
         args:
           - |
-            cat <<EOF >training_config.yaml
-            {{inputs.parameters.training-config}}
-            EOF
+            echo "{{inputs.parameters.training-config}}" | base64 --decode > training_config.yaml
 
             python3 -m fv3fit.train_microphysics \
               --config-path training_config.yaml \
+              --wandb.job_type train \
               {{inputs.parameters.flags}}
       tolerations:
       - key: "dedicated"

@@ -194,29 +194,3 @@ def test_find_all_required_inputs(dependency_map, derived_vars, reqs):
     required_inputs = DerivedMapping.find_all_required_inputs(derived_vars)
     assert set(required_inputs) == set(reqs)
     assert len(required_inputs) == len(reqs)
-
-
-def get_microphys_data(varname, diff):
-
-    ds = xr.Dataset(
-        {
-            f"{varname}_input": xr.DataArray(np.ones((10, 79)), dims=["sample", "z"]),
-            f"{varname}_output": xr.DataArray(np.ones((10, 79)), dims=["sample", "z"])
-            + diff,
-        }
-    )
-
-    return ds
-
-
-@pytest.mark.parametrize(
-    "varname", ["air_temperature", "specific_humidity", "cloud_water_mixing_ratio"]
-)
-def test_microphysics_tendencies(varname):
-
-    timestep_sec = 2
-    ds = get_microphys_data(varname, timestep_sec)
-    derived = DerivedMapping(ds, microphys_timestep_sec=timestep_sec)
-
-    tend = derived[f"tendency_of_{varname}_due_to_microphysics"]
-    np.testing.assert_array_equal(np.array(tend), np.ones_like(tend))

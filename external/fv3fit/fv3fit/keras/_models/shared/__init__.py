@@ -12,3 +12,4 @@ from .loss import LossConfig
 from .utils import get_input_vector, standard_denormalize, standard_normalize
 from .sequences import XyArraySequence, XyMultiArraySequence, ThreadedSequencePreLoader
 from .halos import append_halos
+from .clip import ClipConfig

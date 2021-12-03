@@ -73,23 +73,30 @@ RUN cd /tmp/fortran-build/FV3 && \
     make -j 8 && \
     PREFIX=/usr/local make install
 
+# gcloud
+
+#Install gcloud
+RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext && \
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
+    apt-get update && apt-get install -y google-cloud-sdk jq python3-dev python3-pip kubectl gfortran graphviz
+
+
 #
 # Python Stuff Here
 #
-
-# Python components here
-COPY docker/prognostic_run/requirements/base.txt /tmp/requirements.txt
-COPY constraints.txt /tmp/constraints.txt
-
-# Enforce constraints are used for all pip installs
-ENV PIP_CONSTRAINT=/tmp/constraints.txt
 # Equivalent to passing --no-cache-dir to every pip install
 ENV PIP_NO_CACHE_DIR=off
+
+# Install dependencies
+COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt
+
 
 # copy dependency packages
 # fv3gfs-util
 COPY /external/fv3gfs-util /external/fv3gfs-util
-RUN pip3 install /external/fv3gfs-util 
+RUN pip3 install --no-dependencies /external/fv3gfs-util 
 
 COPY /external/fv3gfs-wrapper /fv3gfs-wrapper
 RUN pip3 install jinja2 && make -C /fv3gfs-wrapper/lib
@@ -99,52 +106,48 @@ RUN mkdir -p /fv3net/external /fv3net/workflows && \
     mv /external/* /fv3net/external/ && \
     mv /fv3gfs-wrapper /fv3net/external/fv3gfs-wrapper
 ENV MPI=mpich
-RUN pip3 install /fv3net/external/fv3gfs-wrapper
+RUN pip3 install --no-dependencies /fv3net/external/fv3gfs-wrapper
 
 COPY external/vcm /fv3net/external/vcm
-RUN pip3 install /fv3net/external/vcm
+RUN pip3 install --no-dependencies /fv3net/external/vcm
 
 COPY external/artifacts /fv3net/external/artifacts
-RUN pip3 install /fv3net/external/artifacts
+RUN pip3 install --no-dependencies /fv3net/external/artifacts
 
 COPY external/loaders /fv3net/external/loaders
-RUN pip3 install /fv3net/external/loaders
+RUN pip3 install --no-dependencies /fv3net/external/loaders
 
 COPY external/fv3fit /fv3net/external/fv3fit
-RUN pip3 install /fv3net/external/fv3fit
+RUN pip3 install --no-dependencies /fv3net/external/fv3fit
 
 COPY external/fv3kube /fv3net/external/fv3kube
-RUN pip3 install /fv3net/external/fv3kube
+RUN pip3 install --no-dependencies /fv3net/external/fv3kube
+
+COPY workflows/post_process_run /fv3net/workflows/post_process_run
+RUN pip3 install --no-dependencies -e /fv3net/workflows/post_process_run
 
 RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
     chmod -R 777 /outdir
 
-#Install gcloud
-RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext && \
-    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
-    apt-get update && apt-get install -y google-cloud-sdk jq python3-dev python3-pip kubectl gfortran
-
-# Install post_process
-COPY workflows/post_process_run /fv3net/workflows/post_process_run
-RUN pip3 install -c /tmp/constraints.txt -e /fv3net/workflows/post_process_run
 
 # these are needed for "click" to work
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
-RUN pip install /fv3net/workflows/prognostic_c48_run
+RUN pip install --no-dependencies /fv3net/workflows/prognostic_c48_run
 
 # Override microphysics emulation
 COPY external/emulation /fv3net/external/emulation
-RUN pip install /fv3net/external/emulation
+RUN pip install --no-dependencies /fv3net/external/emulation
 ENV VAR_META_PATH=/fv3net/external/emulation/microphysics_parameter_metadata.yaml
 ENV OUTPUT_FREQ_SEC=18000
 
 # Add emulation project scripts
-COPY projects/microphysics /fv3net/projects/microphysics
+COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
+RUN chmod +x /fv3net/projects/microphysics/scripts/*
+ENV PATH=/fv3net/projects/microphysics/scripts:${PATH}
 
 ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run
@@ -156,8 +159,6 @@ CMD ["bash"]
 FROM bld AS prognostic-run
 # Copy results from test stage to ensure docker buildkit executes it
 
-# build the docs
-RUN apt-get update && apt-get install -y graphviz && pip3 install sphinx sphinx_rtd_theme
 RUN make -C docs html
 
 ARG COMMIT_SHA_ARG
