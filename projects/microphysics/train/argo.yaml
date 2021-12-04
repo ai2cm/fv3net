@@ -18,7 +18,6 @@ spec:
         parameters:
           - name: training-config
           - {name: flags, value: " "}
-          # - {name: memory, value: "8Gi"}
       container:
         image: us.gcr.io/vcm-ml/prognostic_run@sha256:c7cc83df7f9a673dda22df480a705531830451ca0ae02a8832dc7c42e266b2ac 
         command: ["bash", "-c", "-x"]
@@ -37,11 +36,11 @@ spec:
             name: gcp-key-secret
         resources:
           limits:
-            cpu: "7"
-            memory: "8Gi"
+            cpu: "2"
+            memory: "32Gi"
           requests:
-            cpu: "4"
-            memory: "8Gi"
+            cpu: "2"
+            memory: "16Gi"
         args:
           - |
             echo "{{inputs.parameters.training-config}}" | base64 --decode > training_config.yaml
