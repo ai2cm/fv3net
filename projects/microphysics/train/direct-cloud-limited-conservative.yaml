@@ -32,17 +32,17 @@ conservative_model:
       input_name: cloud_water_mixing_ratio_input
       output_name: cloud_water_mixing_ratio_after_precpd
       residual: false
-      selection: {step: -10}
+      selection: {stop: -10}
     specific_humidity:
       input_name: specific_humidity_input
       output_name: specific_humidity_after_precpd
       residual: true
-      selection: {step: -10}
+      selection: {stop: -10}
     air_temperature:
       input_name: air_temperature_input
       output_name: air_temperature_after_precpd
       residual: true
-      selection: {step: -10}
+      selection: {stop: -10}
   extra_input_variables:
   - input_name: pressure_thickness_of_atmospheric_layer
     selection: {stop: -10}
