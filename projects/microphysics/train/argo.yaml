@@ -20,7 +20,7 @@ spec:
           - {name: flags, value: " "}
           # - {name: memory, value: "8Gi"}
       container:
-        image: us.gcr.io/vcm-ml/prognostic_run@sha256:a6d32927b4844d2863ba7916f7d3d33749f4448e20534a66a9d4cb4bb6269887
+        image: us.gcr.io/vcm-ml/prognostic_run@sha256:c7cc83df7f9a673dda22df480a705531830451ca0ae02a8832dc7c42e266b2ac 
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
