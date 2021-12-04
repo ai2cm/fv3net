@@ -38,17 +38,15 @@ def standardize_coords(
     ds: xr.Dataset, time_shift=-timedelta(minutes=7, seconds=30)
 ) -> xr.Dataset:
     ds_shifted = ds.assign(time=ds.time + time_shift)
-    return gfdl_to_standard(ds_shifted).drop_vars("tile", errors="ignore")
+    return gfdl_to_standard(ds_shifted).drop("tile")
 
 
 def _open_merged_dataset(
-    fine_url: str,
-    additional_dataset_urls: Optional[Sequence[str]],
-    time_shift: timedelta = -timedelta(minutes=7, seconds=30),
+    fine_url: str, additional_dataset_urls: Optional[Sequence[str]]
 ) -> FineResBudget:
 
     fine = open_zarr(fine_url)
-    fine_shifted = standardize_coords(fine, time_shift=time_shift)
+    fine_shifted = standardize_coords(fine)
 
     if additional_dataset_urls is not None:
         additional_datasets = []
@@ -223,9 +221,20 @@ def _open_precomputed_fine_resolution_dataset(
     fine_url: str, additional_dataset_urls: Optional[Sequence[str]] = None
 ) -> MLTendencies:
 
-    merged = _open_merged_dataset(
-        fine_url, additional_dataset_urls, time_shift=timedelta(0)
-    )
+    fine = open_zarr(fine_url)
+
+    if additional_dataset_urls is not None:
+        additional_datasets = []
+        for url in additional_dataset_urls:
+            additional_datasets.append(open_zarr(url))
+        merged = xr.merge([fine, *additional_datasets], join="inner")
+        if "latitude" in merged:
+            merged["latitude"] = merged.latitude.isel(time=0)
+        if "longitude" in merged:
+            merged["longitude"] = merged.longitude.isel(time=0)
+    else:
+        merged = fine
+
     return _ml_standard_names(merged)
 
 
