@@ -42,11 +42,13 @@ def standardize_coords(
 
 
 def _open_merged_dataset(
-    fine_url: str, additional_dataset_urls: Optional[Sequence[str]]
+    fine_url: str,
+    additional_dataset_urls: Optional[Sequence[str]],
+    time_shift: timedelta = -timedelta(minutes=7, seconds=30),
 ) -> FineResBudget:
 
     fine = open_zarr(fine_url)
-    fine_shifted = standardize_coords(fine)
+    fine_shifted = standardize_coords(fine, time_shift=time_shift)
 
     if additional_dataset_urls is not None:
         additional_datasets = []
@@ -221,7 +223,9 @@ def _open_precomputed_fine_resolution_dataset(
     fine_url: str, additional_dataset_urls: Optional[Sequence[str]] = None
 ) -> MLTendencies:
 
-    merged = _open_merged_dataset(fine_url, additional_dataset_urls)
+    merged = _open_merged_dataset(
+        fine_url, additional_dataset_urls, time_shift=timedelta(0)
+    )
     return _ml_standard_names(merged)
 
 
