@@ -1,15 +1,15 @@
 import numpy as np
 import tensorflow as tf
-from fv3fit.keras.adapters import convert_to_dict_output, rename_dict_output
+from fv3fit.keras.adapters import ensure_dict_output, rename_dict_output
 
 
-def test_convert_to_dict_output_multiple_out():
+def test_ensure_dict_output_multiple_out():
     i = tf.keras.Input(shape=[5])
     out_1 = tf.keras.layers.Dense(5, name="a")(i)
     out_2 = tf.keras.layers.Dense(5, name="b")(i)
     model = tf.keras.Model(inputs=[i], outputs=[out_1, out_2])
 
-    model_dict_output = convert_to_dict_output(model)
+    model_dict_output = ensure_dict_output(model)
 
     i = tf.ones((4, 5))
     dict_out = model_dict_output(i)
@@ -19,12 +19,12 @@ def test_convert_to_dict_output_multiple_out():
     np.testing.assert_array_equal(dict_out["b"], list_out[1])
 
 
-def test_convert_to_dict_output_single_out():
+def test_ensure_dict_output_single_out():
     i = tf.keras.Input(shape=[5])
     out_1 = tf.keras.layers.Dense(5, name="a")(i)
     model = tf.keras.Model(inputs=[i], outputs=[out_1])
 
-    model_dict_output = convert_to_dict_output(model)
+    model_dict_output = ensure_dict_output(model)
     i = tf.ones((4, 5))
     dict_out = model_dict_output(i)
     output_tensor = model(i)
@@ -32,12 +32,12 @@ def test_convert_to_dict_output_single_out():
     np.testing.assert_array_equal(dict_out["a"], output_tensor)
 
 
-def test_convert_to_dict_output_already_dict_output():
+def test_ensure_dict_output_already_dict_output():
     i = tf.keras.Input(shape=[5])
     out_1 = tf.keras.layers.Dense(5)(i)
     model = tf.keras.Model(inputs=[i], outputs={"a": out_1})
 
-    model_dict_output = convert_to_dict_output(model)
+    model_dict_output = ensure_dict_output(model)
     i = tf.ones((4, 5))
     dict_out = model_dict_output(i)
     output_tensor = model(i)
@@ -60,3 +60,13 @@ def test_rename_dict_outputs():
 
     np.testing.assert_array_equal(new_out["new_a"], old_out["a"])
     np.testing.assert_array_equal(new_out["b"], old_out["b"])
+
+
+def test_ensure_dict_output_has_correct_output_names():
+    in_ = tf.keras.layers.Input(shape=(5,))
+    a = tf.keras.layers.Dense(5, name="not_a")(in_)
+    b = tf.keras.layers.Dense(5, name="not_b")(in_)
+    out_ = {"a": a, "b": b}
+    model = tf.keras.Model(inputs=in_, outputs=out_)
+    fixed_model = ensure_dict_output(model)
+    assert set(fixed_model.output_names) == set(out_)
