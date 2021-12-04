@@ -38,7 +38,7 @@ def standardize_coords(
     ds: xr.Dataset, time_shift=-timedelta(minutes=7, seconds=30)
 ) -> xr.Dataset:
     ds_shifted = ds.assign(time=ds.time + time_shift)
-    return gfdl_to_standard(ds_shifted).drop("tile")
+    return gfdl_to_standard(ds_shifted).drop_vars("tile", errors="ignore")
 
 
 def _open_merged_dataset(
