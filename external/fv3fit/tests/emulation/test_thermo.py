@@ -50,4 +50,4 @@ def test_conservative_precipitation():
     precip = conservative_precipitation_zhao_carr(
         one, one, one, one - expected_precip / nz, mass=1
     )
-    assert precip.numpy() == pytest.approx(expected_precip)
+    assert precip.numpy() == pytest.approx(expected_precip / 1000)
