@@ -1,34 +1,31 @@
 import argparse
-import dacite
-import fsspec
 import json
 import os
-import yaml
-import numpy as np
-from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, Optional, Sequence, Union
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, Mapping, Optional, Sequence, Union
 
+import dacite
+import fsspec
+import numpy as np
+import tensorflow as tf
+import yaml
+import warnings
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import (
     OptimizerConfig,
-    to_nested_dict,
     get_arg_updated_config_dict,
+    to_nested_dict,
 )
-from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
+from fv3fit.emulation import models
+from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
-from fv3fit.emulation.keras import (
-    CustomLoss,
-    StandardLoss,
-    save_model,
-    score_model,
-)
-from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.layers import ArchitectureConfig
+from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, score_model
 from fv3fit.wandb import (
     WandBConfig,
-    log_to_table,
     log_profile_plots,
+    log_to_table,
     store_model_artifact,
 )
 
@@ -73,7 +70,8 @@ class TrainConfig:
     test_url: str
     out_url: str
     transform: TransformConfig = field(default_factory=TransformConfig)
-    model: MicrophysicsConfig = field(default_factory=MicrophysicsConfig)
+    model: Optional[models.MicrophysicsConfig] = None
+    conservative_model: Optional[models.ConservativeWaterConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     use_wandb: bool = True
@@ -84,6 +82,28 @@ class TrainConfig:
     valid_freq: int = 5
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 100_000
+
+    @property
+    def _model(
+        self,
+    ) -> Union[models.MicrophysicsConfig, models.ConservativeWaterConfig]:
+        if self.model:
+            if self.conservative_model:
+                warnings.warn(
+                    UserWarning(
+                        ".conservative_model included in the configuration, "
+                        "but will not be used."
+                    )
+                )
+
+            return self.model
+        elif self.conservative_model:
+            return self.conservative_model
+        else:
+            raise ValueError("Neither .model or .conservative_model provided.")
+
+    def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
+        return self._model.build(data)
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -161,9 +181,9 @@ class TrainConfig:
 
         return config
 
-    def __post_init__(self):
-        required_variables = set(self.model.input_variables) | set(
-            self.model.output_variables
+    def __post_init__(self) -> None:
+        required_variables = set(self._model.input_variables) | set(
+            self._model.output_variables
         )
         self.transform.variables = list(required_variables)
 
@@ -186,8 +206,9 @@ def main(config: TrainConfig, seed: int = 0):
     train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
     test_set = next(iter(test_ds.shuffle(160_000).batch(80_000)))
 
-    model = config.model.build(train_set)
-    config.loss.prepare(output_samples=train_set,)
+    model = config.build(train_set)
+    output_names = set(model(train_set))
+    config.loss.prepare(output_samples=train_set)
     config.loss.compile(model)
 
     if config.shuffle_buffer_size is not None:
@@ -196,7 +217,7 @@ def main(config: TrainConfig, seed: int = 0):
     def split_in_out(m):
         return (
             {key: m[key] for key in model.input_names if key in m},
-            {key: m[key] for key in model.output_names if key in m},
+            {key: m[key] for key in output_names if key in m},
         )
 
     train_ds = train_ds.map(split_in_out)
@@ -242,7 +263,7 @@ def main(config: TrainConfig, seed: int = 0):
         local_model_path = save_model(model, tmpdir)
 
         if config.use_wandb:
-            store_model_artifact(local_model_path, name=config.model.name)
+            store_model_artifact(local_model_path, name=config._model.name)
 
 
 def get_default_config():
@@ -254,7 +275,7 @@ def get_default_config():
         "pressure_thickness_of_atmospheric_layer",
     ]
 
-    model_config = MicrophysicsConfig(
+    model_config = models.MicrophysicsConfig(
         input_variables=input_vars,
         direct_out_variables=[
             "cloud_water_mixing_ratio_output",

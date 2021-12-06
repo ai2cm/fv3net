@@ -46,8 +46,8 @@ def score_model(model: tf.keras.Model, data: Mapping[str, tf.Tensor],) -> Scorin
         data: data to score with, must contain inputs and outputs of
         ``model``.
     """
-    model = fv3fit.keras.adapters.convert_to_dict_output(model)
-    prediction = model.predict(data)
+    model = fv3fit.keras.adapters.ensure_dict_output(model)
+    prediction = model(data)
     names = sorted(set(prediction) & set(data))
     return score_multi_output(get(names, data), get(names, prediction), names)
 

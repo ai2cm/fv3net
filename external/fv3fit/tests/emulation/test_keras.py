@@ -47,7 +47,7 @@ def test_model_save(tmp_path):
 
 
 def test_model_score():
-    in_ = tf.keras.Input(shape=[10])
+    in_ = tf.keras.Input(shape=[10], name="a")
     out = tf.keras.layers.Lambda(lambda x: x)(in_)
     model = tf.keras.Model(inputs={"a": in_}, outputs={"b": out})
 

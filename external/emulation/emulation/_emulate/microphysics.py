@@ -67,7 +67,7 @@ def _load_tf_model(model_path: str) -> tf.keras.Model:
         with get_dir(model_path) as local_model_path:
             model = tf.keras.models.load_model(local_model_path)
             # These following two adapters are for backwards compatibility
-            dict_output_model = adapters.convert_to_dict_output(model)
+            dict_output_model = adapters.ensure_dict_output(model)
             return adapters.rename_dict_output(
                 dict_output_model,
                 translation={

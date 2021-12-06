@@ -84,18 +84,35 @@ def test_keras_functional_dict_outputs_singleton():
     assert set(out) == {"b"}
 
 
+@pytest.mark.parametrize("graph_name_is_output_name", [True, False])
 @pytest.mark.parametrize("unused_input_variable", [True, False])
-def test_train_keras_with_dict_output(unused_input_variable):
+def test_train_keras_with_dict_output(
+    unused_input_variable: bool, graph_name_is_output_name: bool
+):
     a = tf.keras.Input(name="a", shape=[5])
     # make sure that `name`` is ignored
-    b = tf.keras.layers.Dense(5, name="b")(a)
-    model = tf.keras.models.Model(inputs={"a": a}, outputs={"b": b})
-    model.compile(loss={"b": tf.keras.losses.MSE})
 
+    b_name = "b"
+    c_name = "c"
+
+    b_graph_name = b_name if graph_name_is_output_name else "not" + b_name
+    c_graph_name = "c"
+
+    b = tf.keras.layers.Dense(5, name=b_graph_name)(a)
+    c = tf.keras.layers.Dense(5, name=c_graph_name)(a)
+
+    losses = {b_name: tf.keras.losses.MSE, c_name: tf.keras.losses.MSE}
+    model = tf.keras.models.Model(inputs={"a": a}, outputs={b_name: b, c_name: c})
+    model.compile(loss=losses)
+
+    # make the data
     one = tf.ones((1, 5))
-    # need to split input variables and outputs into separate dicts
     in_ = {"a": one}
     if unused_input_variable:
         in_["b_unused"] = one
 
-    model.fit(in_, {"b": one}, epochs=1)
+    history = model.fit(in_, {b_name: one, c_name: one}, epochs=1)
+    loss_names = set(history.history)
+
+    assert b_graph_name + "_loss" in loss_names
+    assert c_graph_name + "_loss" in loss_names

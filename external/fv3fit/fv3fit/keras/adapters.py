@@ -40,8 +40,9 @@ def rename_dict_output(
     return model
 
 
-def convert_to_dict_output(model: tf.keras.Model) -> tf.keras.Model:
-    """Convert a multiple-output keras model to return dicts
+def ensure_dict_output(model: tf.keras.Model) -> tf.keras.Model:
+    """Convert a multiple-output keras model to return dicts and have consistent
+    output names
 
     Args:
         model: a keras model returning either dicts or lists of named outputs.
@@ -59,13 +60,27 @@ def convert_to_dict_output(model: tf.keras.Model) -> tf.keras.Model:
         >>> out_2 = tf.keras.layers.Dense(5, name="b")(i)
         >>> model = tf.keras.Model(inputs=[i], outputs=[out_1, out_2])
         [<KerasTensor: shape=(None, 5) dtype=float32 (created by layer 'model_1')>, <KerasTensor: shape=(None, 5) dtype=float32 (created by layer 'model_1')>]
-        >>> dict_output_model = convert_to_dict_output(model)
+        >>> dict_output_model = ensure_dict_output(model)
         >>> dict_output_model(i)
         {'a': <KerasTensor: shape=(None, 5) dtype=float32 (created by layer 'model_1')>, 'b': <KerasTensor: shape=(None, 5) dtype=float32 (created by layer 'model_1')>}
 
     """  # noqa: E501
+    return _rename_graph_outputs_to_match_output_keys(_convert_to_dict_output(model))
 
-    inputs = model.inputs
+
+def _ensure_inputs_are_dict(inputs):
+    if isinstance(inputs, Mapping):
+        return inputs
+    else:
+        return {input.name: input for input in inputs}
+
+
+def get_inputs(model: tf.keras.Model) -> Mapping[str, tf.Tensor]:
+    return _ensure_inputs_are_dict(model.inputs)
+
+
+def _convert_to_dict_output(model: tf.keras.Model) -> tf.keras.Model:
+    inputs = get_inputs(model)
     outputs = model(inputs)
 
     if isinstance(outputs, dict):
@@ -76,5 +91,20 @@ def convert_to_dict_output(model: tf.keras.Model) -> tf.keras.Model:
 
     model_dict_out = tf.keras.Model(inputs=inputs, outputs=dict_out)
     # need to run once to build
+    model_dict_out(inputs)
+    return model_dict_out
+
+
+def _rename_graph_outputs_to_match_output_keys(model: tf.keras.Model) -> tf.keras.Model:
+    inputs = get_inputs(model)
+    outputs = model(inputs)
+    if set(model.output_names) == set(outputs):
+        return model
+
+    renamed = {
+        key: tf.keras.layers.Lambda(lambda x: x, name=key)(val)
+        for key, val in outputs.items()
+    }
+    model_dict_out = tf.keras.Model(inputs=inputs, outputs=renamed)
     model_dict_out(inputs)
     return model_dict_out
