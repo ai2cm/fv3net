@@ -1,11 +1,10 @@
 import numpy as np
-import pytest
 import tensorflow as tf
 
 import fv3fit.emulation.models
 from fv3fit._shared import SliceConfig
 from fv3fit.emulation.models import MicrophysicsConfig
-from fv3fit.emulation.models._core import ArchitectureConfig
+from fv3fit.emulation.layers import ArchitectureConfig
 
 
 def _get_data(shape):
@@ -86,7 +85,7 @@ def test_Config_build_residual_w_extra_tends_out():
     )
 
     data = _get_data((20, 5))
-    m = {"dummy_out1": data, "dummy_in": data}
+    m = {"dummy_out1": data, "dummy_in": data, "dummy_out1_tendency": data}
     model = config.build(m)
     output = model(data)
     assert set(output) == {"dummy_out1", "dummy_out1_tendency"}
@@ -127,15 +126,12 @@ def test_precip_conserving_extra_inputs():
     assert set(extra_names) < set(factory.input_variables)
 
 
-@pytest.mark.xfail
 def test_RNN_downward_dependence():
 
     config = MicrophysicsConfig(
         input_variables=["field_input"],
         direct_out_variables=["field_output"],
-        architecture=ArchitectureConfig(
-            name="rnn", kwargs=dict(channels=16, dense_width=16, dense_depth=1)
-        ),
+        architecture=ArchitectureConfig(name="rnn-v1", kwargs=dict(channels=16)),
     )
 
     nlev = 15

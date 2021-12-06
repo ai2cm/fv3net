@@ -20,6 +20,7 @@ from fv3fit._shared.config import (
 from fv3fit.emulation import models
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
+from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, score_model
 from fv3fit.wandb import (
     WandBConfig,
@@ -284,7 +285,7 @@ def get_default_config():
             air_temperature_output="air_temperature_input",
             specific_humidity_output="specific_humidity_input",
         ),
-        architecture=models.ArchitectureConfig("linear"),
+        architecture=ArchitectureConfig("linear"),
         selection_map=dict(
             air_temperature_input=SliceConfig(stop=-10),
             specific_humidity_input=SliceConfig(stop=-10),

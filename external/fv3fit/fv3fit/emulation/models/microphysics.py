@@ -1,13 +1,10 @@
 import dataclasses
-from typing import List, Mapping
-
 import dacite
 import tensorflow as tf
+from typing import List, Mapping
+
+from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput, ArchitectureConfig
 from fv3fit._shared import SliceConfig
-
-from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput
-from ._core import ArchitectureConfig, get_combine_from_arch_key
-
 from fv3fit.emulation import thermo
 from fv3fit.keras.adapters import ensure_dict_output
 
@@ -92,12 +89,11 @@ class MicrophysicsConfig:
         for name in self.direct_out_variables:
             sample = data[name]
             out_ = FieldOutput(
-                sample.shape[-1],
                 sample_out=sample,
                 denormalize=self.normalize_key,
                 name=name,
                 enforce_positive=self.enforce_positive,
-            )(net_output)
+            )(net_output[name])
             outputs[name] = out_
         return outputs
 
@@ -107,9 +103,7 @@ class MicrophysicsConfig:
         for name in self.residual_out_variables:
             # incremented state field output
             in_state = inputs[self.residual_out_variables[name]]
-            sample = data[name]
             res_out = IncrementedFieldOutput(
-                sample.shape[-1],
                 self.timestep_increment_sec,
                 sample_out=data[name],
                 sample_in=data[self.residual_out_variables[name]],
@@ -117,22 +111,21 @@ class MicrophysicsConfig:
                 name=name,
                 enforce_positive=self.enforce_positive,
             )
-            out_ = res_out(in_state, net_output)
+            out_ = res_out(in_state, net_output[name])
             outputs[name] = out_
 
             if name in self.tendency_outputs:
                 tend_name = self.tendency_outputs[name]
-                tendency = res_out.get_tendency_output(net_output)
+                tendency = res_out.get_tendency_output(net_output[name])
                 outputs[tend_name] = tendency
 
         return outputs
 
     def _compute_hidden(self, inputs, data):
         processed = self._get_processed_inputs(data, inputs)
-        combine_layer = get_combine_from_arch_key(self.architecture.name)
-        combined = combine_layer(processed)
-        arch_layer = self.architecture.build()
-        return arch_layer(combined)
+        output_features = {key: data[key].shape[-1] for key in self.output_variables}
+        arch_layer = self.architecture.build(output_features)
+        return arch_layer(processed)
 
     def _get_inputs(self, data):
         return {
