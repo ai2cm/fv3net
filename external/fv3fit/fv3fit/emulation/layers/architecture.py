@@ -325,7 +325,7 @@ class RNNOutput(tf.keras.layers.Layer):
     def __init__(
         self,
         feature_lengths: Mapping[str, int],
-        share_conv_weights=False,
+        share_conv_weights: bool =False,
         *args,
         **kwargs,
     ):
@@ -418,7 +418,7 @@ class _HiddenArchitecture(tf.keras.layers.Layer):
         self.input_combiner = _get_combine_layer(key)
         self.outputs = _get_output_layer(key, feature_lengths)
 
-    def call(self, tensors: Sequence[tf.Tensor]):
+    def call(self, tensors: Sequence[tf.Tensor]) -> Mapping[str, tf.Tensor]:
 
         combined = self.input_combiner(tensors)
         net_output = self.arch(combined)
