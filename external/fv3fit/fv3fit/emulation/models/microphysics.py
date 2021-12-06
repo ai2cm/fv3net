@@ -1,13 +1,10 @@
 import dataclasses
-from typing import List, Mapping
-
 import dacite
 import tensorflow as tf
-from fv3fit._shared import SliceConfig
+from typing import List, Mapping
 
 from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput, ArchitectureConfig
 from fv3fit._shared import SliceConfig
-
 from fv3fit.emulation import thermo
 from fv3fit.keras.adapters import ensure_dict_output
 
