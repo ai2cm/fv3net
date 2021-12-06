@@ -325,7 +325,7 @@ class RNNOutput(tf.keras.layers.Layer):
     def __init__(
         self,
         feature_lengths: Mapping[str, int],
-        share_conv_weights=False,
+        share_conv_weights: bool =False,
         *args,
         **kwargs,
     ):
