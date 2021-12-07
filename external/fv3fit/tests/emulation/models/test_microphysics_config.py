@@ -1,4 +1,5 @@
 import numpy as np
+from os.path import join
 import pytest
 import tempfile
 import tensorflow as tf
@@ -147,9 +148,9 @@ def test_MicrophysicConfig_saveable(arch):
     expected = model(sample)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        model_path = tmpdir.join("model.tf")
+        model_path = join(tmpdir, "model.tf")
         model.save(model_path, save_format="tf")
-        reloaded = tf.keras.models.load_model(model_path)
+        reloaded = tf.keras.models.load_model(model_path, compile=False)
 
     result = reloaded(sample)
     np.testing.assert_array_equal(expected["field_output"], result["field_output"])

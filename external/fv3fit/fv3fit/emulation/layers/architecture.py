@@ -118,7 +118,7 @@ class HybridRNN(tf.keras.layers.Layer):
         return config
 
 
-class RNN(tf.keras.layers.Layer):
+class RNNBlock(tf.keras.layers.Layer):
     """
     RNN for prediction that preserves vertical information so
     directional dependence is possible
@@ -400,7 +400,7 @@ def _get_combine_layer(key):
 def _get_arch_layer(key, kwargs):
 
     if key == "rnn-v1" or key == "rnn-v1-shared-weights":
-        return RNN(**kwargs)
+        return RNNBlock(**kwargs)
     elif key == "rnn":
         return HybridRNN(**kwargs)
     elif key == "dense":
