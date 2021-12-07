@@ -137,7 +137,7 @@ def test_OutputConnectors(connector_cls, hidden_out):
 def test_get_architecture_unrecognized():
 
     with pytest.raises(KeyError):
-        _HiddenArchitecture("not_an_arch", {}, {})
+        ArchitectureConfig(name="not_an_arch")
 
 
 @pytest.mark.parametrize("key", ["rnn-v1", "rnn", "dense", "linear"])
