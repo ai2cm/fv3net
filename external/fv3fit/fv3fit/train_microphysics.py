@@ -1,6 +1,8 @@
 import argparse
 import json
 import os
+import tempfile
+import warnings
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Mapping, Optional, Sequence, Union
 
@@ -9,7 +11,6 @@ import fsspec
 import numpy as np
 import tensorflow as tf
 import yaml
-import warnings
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import (
@@ -222,14 +223,20 @@ def main(config: TrainConfig, seed: int = 0):
     train_ds = train_ds.map(split_in_out)
     test_ds = test_ds.map(split_in_out)
 
-    history = model.fit(
-        train_ds.batch(config.batch_size),
-        epochs=config.epochs,
-        validation_data=test_ds.batch(config.batch_size),
-        validation_freq=config.valid_freq,
-        verbose=config.verbose,
-        callbacks=callbacks,
-    )
+    with tempfile.TemporaryDirectory() as train_temp:
+        with tempfile.TemporaryDirectory() as test_temp:
+
+            train_ds_cached = train_ds.batch(config.batch_size).cache(train_temp)
+            test_ds_cached = test_ds.batch(config.batch_size).cache(test_temp)
+
+            history = model.fit(
+                train_ds_cached,
+                epochs=config.epochs,
+                validation_data=test_ds_cached,
+                validation_freq=config.valid_freq,
+                verbose=config.verbose,
+                callbacks=callbacks,
+            )
 
     train_scores, train_profiles = score_model(model, train_set)
     test_scores, test_profiles = score_model(model, test_set)
