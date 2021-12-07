@@ -12,7 +12,7 @@ from fv3fit.emulation.layers.architecture import (
     RNNOutput,
     StandardOutput,
     ArchitectureConfig,
-    _ARCHITECTURE_KEYS
+    _ARCHITECTURE_KEYS,
 )
 
 
