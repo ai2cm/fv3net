@@ -27,7 +27,10 @@ class WandBConfig:
     @staticmethod
     def get_callback():
         """Grab a callback for logging during keras training"""
-        return wandb.keras.WandbCallback(save_weights_only=False)
+        # disable model saving since wandb doesn't support saving models in
+        # SavedModel format and our models only support that format
+        # see https://github.com/wandb/client/issues/2987
+        return wandb.keras.WandbCallback(save_model=False)
 
     def init(self, config: Optional[Dict[str, Any]] = None):
         """Start logging specified by this config"""
