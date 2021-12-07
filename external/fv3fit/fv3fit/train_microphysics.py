@@ -18,7 +18,7 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
-from fv3fit.emulation import models
+from fv3fit.emulation import models, Trainer, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
@@ -65,6 +65,7 @@ class TrainConfig:
         verbose: Verbosity of keras fit output
         shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
             during training
+        checkpoint_model: if true, save a checkpoint after each epoch
     """
 
     train_url: str
@@ -83,6 +84,7 @@ class TrainConfig:
     valid_freq: int = 5
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 100_000
+    checkpoint_model: bool = True
 
     @property
     def _model(
@@ -209,8 +211,6 @@ def main(config: TrainConfig, seed: int = 0):
 
     model = config.build(train_set)
     output_names = set(model(train_set))
-    config.loss.prepare(output_samples=train_set)
-    config.loss.compile(model)
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
@@ -221,6 +221,18 @@ def main(config: TrainConfig, seed: int = 0):
             {key: m[key] for key in output_names if key in m},
         )
 
+    trainer = Trainer(model)
+    config.loss.prepare(output_samples=train_set)
+    config.loss.compile(trainer)
+
+    if config.checkpoint_model:
+        callbacks.append(
+            ModelCheckpointCallback(
+                filepath=os.path.join(
+                    config.out_url, "checkpoints", "epoch.{epoch:03d}.tf"
+                )
+            )
+        )
     train_ds = train_ds.map(split_in_out)
     test_ds = test_ds.map(split_in_out)
 
@@ -230,7 +242,7 @@ def main(config: TrainConfig, seed: int = 0):
             train_ds_cached = train_ds.batch(config.batch_size).cache(train_temp)
             test_ds_cached = test_ds.batch(config.batch_size).cache(test_temp)
 
-            history = model.fit(
+            history = trainer.fit(
                 train_ds_cached,
                 epochs=config.epochs,
                 validation_data=test_ds_cached,

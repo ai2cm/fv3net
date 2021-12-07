@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 
+import fv3fit.emulation
 from fv3fit.emulation.keras import (
     CustomLoss,
     NormalizedMSE,
@@ -26,17 +27,35 @@ def _get_model(feature_dim, num_outputs):
     return model
 
 
-def test_model_save(tmp_path):
-    """keras models with custom loss cannot be easily saved
-    after fitting"""
-
+def _get_model_and_data():
     in_ = tf.keras.Input(shape=[10])
     out = tf.keras.layers.Dense(10)(in_)
     model = tf.keras.Model(inputs={"a": in_}, outputs={"b": out})
     one = tf.ones((5, 10))
     data = {"a": one, "b": one}
-    model.compile(optimizer="adam", metrics=["mae"], loss={"a": tf.keras.losses.MSE})
-    model.fit({"a": data["a"]}, {"b": data["b"]})
+    return model, data
+
+
+def test_checkpoint_callback(tmpdir):
+    model, _ = _get_model_and_data()
+    trainer = fv3fit.emulation.Trainer(model)
+    callback = fv3fit.emulation.ModelCheckpointCallback(
+        filepath=str(tmpdir.join("{epoch:03d}.tf"))
+    )
+    callback.set_model(trainer)
+    epoch = 0
+    callback.on_epoch_end(epoch)
+    tf.keras.models.load_model(callback.filepath.format(epoch=epoch))
+
+
+def test_model_save(tmp_path):
+    """keras models with custom loss cannot be easily saved
+    after fitting"""
+
+    model, data = _get_model_and_data()
+    trainer = fv3fit.emulation.Trainer(model)
+    trainer.compile(optimizer="adam", metrics=["mae"], loss={"a": tf.keras.losses.MSE})
+    trainer.fit({"a": data["a"]}, {"b": data["b"]})
 
     output_before_save = model(data)["b"]
 
