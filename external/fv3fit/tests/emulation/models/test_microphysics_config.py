@@ -131,7 +131,7 @@ def test_precip_conserving_extra_inputs():
 
 
 @pytest.mark.parametrize("arch", _ARCHITECTURE_KEYS)
-def test_MicrophysicConfig_saveable(arch):
+def test_MicrophysicConfig_model_save_reload(arch):
 
     config = MicrophysicsConfig(
         input_variables=["field_input"],
