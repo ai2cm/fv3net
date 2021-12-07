@@ -294,18 +294,6 @@ class StandardOutput(tf.keras.layers.Layer):
         }
 
 
-def _single_dense(rnn_out, dense_layer):
-    """Passes a single dense layer across each vertical layer"""
-
-    nlevs = rnn_out.shape[-2]
-
-    connected = []
-    for i in range(nlevs):
-        connected.append(dense_layer(rnn_out[..., i, :]))
-
-    return tf.concat(connected, -2)
-
-
 class RNNOutput(tf.keras.layers.Layer):
     """
     Uses locally-connected layers w/ linear activation to
