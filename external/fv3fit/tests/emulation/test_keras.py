@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 
 import fv3fit.emulation
+from fv3fit.emulation.trainer import _ModelWrapper
 from fv3fit.emulation.keras import (
     CustomLoss,
     NormalizedMSE,
@@ -38,7 +39,7 @@ def _get_model_and_data():
 
 def test_checkpoint_callback(tmpdir):
     model, _ = _get_model_and_data()
-    trainer = fv3fit.emulation.Trainer(model)
+    trainer = _ModelWrapper(model)
     callback = fv3fit.emulation.ModelCheckpointCallback(
         filepath=str(tmpdir.join("{epoch:03d}.tf"))
     )
@@ -53,15 +54,9 @@ def test_model_save(tmp_path):
     after fitting"""
 
     model, data = _get_model_and_data()
-    trainer = fv3fit.emulation.Trainer(model)
-    trainer.compile(optimizer="adam", metrics=["mae"], loss={"a": tf.keras.losses.MSE})
-    trainer.fit({"a": data["a"]}, {"b": data["b"]})
-
     output_before_save = model(data)["b"]
-
     save_model(model, str(tmp_path))
     loaded = tf.keras.models.load_model(str(tmp_path / "model.tf"))
-
     np.testing.assert_array_equal(output_before_save, loaded(data)["b"])
 
 
