@@ -30,6 +30,7 @@ def save_model(model: tf.keras.Model, destination: str):
     # clear all the weights and optimizers settings
     model.compile()
     model_path = os.path.join(destination, "model.tf")
+    logging.getLogger(__name__).debug(f"saving model to {model_path}")
     model.save(model_path, save_format="tf")
     return model_path
 
