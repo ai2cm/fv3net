@@ -18,9 +18,10 @@ spec:
         parameters:
           - name: training-config
           - {name: flags, value: " "}
+          - name: wandb-run-group
           # - {name: memory, value: "8Gi"}
       container:
-        image: us.gcr.io/vcm-ml/prognostic_run@sha256:a6d32927b4844d2863ba7916f7d3d33749f4448e20534a66a9d4cb4bb6269887
+        image: us.gcr.io/vcm-ml/prognostic_run:98583039417a51c4605437ea48909384f1f990aa
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -32,6 +33,8 @@ spec:
             value: /secret/gcp-credentials/key.json
           - name: WANDB_NAME
             value: "{{workflow.name}}"
+          - name: WANDB_RUN_GROUP
+            value: "{{inputs.parameters.wandb-run-group}}"
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret

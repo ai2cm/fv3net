@@ -40,11 +40,7 @@ model:
     cloud_water_mixing_ratio_after_precpd: cloud_water_mixing_ratio_input
   normalize_key: mean_std
   enforce_positive: true
-  selection_map:
-    air_temperature_input: {stop: -10}
-    cloud_water_mixing_ratio_input: {stop: -10}
-    pressure_thickness_of_atmospheric_layer: {stop: -10}
-    specific_humidity_input: {stop: -10}
+  selection_map: {}
   timestep_increment_sec: 900
 transform:
   antarctic_only: false
