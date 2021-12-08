@@ -323,16 +323,14 @@ def _assoc_conservative_precipitation(
     )
 
     out = model(inputs)
-    out[
-        fields.surface_precipitation.output_name
-    ] = thermo.conservative_precipitation_zhao_carr(
+    precip_scalar = thermo.conservative_precipitation_zhao_carr(
         specific_humidity_before=inputs[fields.specific_humidity.input_name],
         specific_humidity_after=out[fields.specific_humidity.output_name],
         cloud_before=inputs[fields.cloud_water.input_name],
         cloud_after=out[fields.cloud_water.output_name],
         mass=thermo.layer_mass(inputs[fields.pressure_thickness.input_name]),
     )
-
+    out[fields.surface_precipitation.output_name] = precip_scalar[:, None]
     # convert_to_dict_output ensures that output names are consistent
     new_model = ensure_dict_output(tf.keras.Model(inputs=inputs, outputs=out))
     new_model(inputs)
