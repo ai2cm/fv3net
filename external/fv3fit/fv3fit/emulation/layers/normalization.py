@@ -229,6 +229,7 @@ class DenormalizeConfig:
 
 MAX_STD = "max_std"
 MEAN_STD = "mean_std"
+PER_LEVEL_STD = "per_level_std"
 
 
 def get_norm_class(key):
@@ -237,6 +238,8 @@ def get_norm_class(key):
         return MaxFeatureStdNormLayer
     elif key == MEAN_STD:
         return MeanFeatureStdNormLayer
+    elif key == PER_LEVEL_STD:
+        return StandardNormLayer
     else:
         raise KeyError(f"Unrecognized normalization layer key provided: {key}")
 
@@ -247,5 +250,7 @@ def get_denorm_class(key):
         return MaxFeatureStdDenormLayer
     elif key == MEAN_STD:
         return MeanFeatureStdDenormLayer
+    elif key == PER_LEVEL_STD:
+        return StandardDenormLayer
     else:
         raise KeyError(f"Unrecognized de-normalization layer key provided: {key}")
