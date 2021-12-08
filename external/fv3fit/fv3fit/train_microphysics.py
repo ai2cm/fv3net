@@ -19,7 +19,7 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
-from fv3fit.emulation import models, Trainer, ModelCheckpointCallback
+from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
@@ -227,10 +227,6 @@ def main(config: TrainConfig, seed: int = 0):
             {key: m[key] for key in output_names if key in m},
         )
 
-    trainer = Trainer(model)
-    config.loss.prepare(output_samples=train_set)
-    config.loss.compile(trainer)
-
     if config.checkpoint_model:
         callbacks.append(
             ModelCheckpointCallback(
@@ -239,6 +235,9 @@ def main(config: TrainConfig, seed: int = 0):
                 )
             )
         )
+
+    config.loss.prepare(output_samples=train_set)
+
     train_ds = train_ds.map(split_in_out)
     test_ds = test_ds.map(split_in_out)
 
@@ -248,14 +247,17 @@ def main(config: TrainConfig, seed: int = 0):
             train_ds_cached = train_ds.batch(config.batch_size).cache(train_temp)
             test_ds_cached = test_ds.batch(config.batch_size).cache(test_temp)
 
-            history = trainer.fit(
+            history = train(
+                model,
                 train_ds_cached,
+                config.loss,
                 epochs=config.epochs,
                 validation_data=test_ds_cached,
                 validation_freq=config.valid_freq,
                 verbose=config.verbose,
                 callbacks=callbacks,
             )
+
     logger.debug("Training complete")
     train_scores, train_profiles = score_model(model, train_set)
     test_scores, test_profiles = score_model(model, test_set)

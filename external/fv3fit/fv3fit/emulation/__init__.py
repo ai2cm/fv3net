@@ -1,1 +1,1 @@
-from .trainer import Trainer, ModelCheckpointCallback
+from .trainer import train, ModelCheckpointCallback
