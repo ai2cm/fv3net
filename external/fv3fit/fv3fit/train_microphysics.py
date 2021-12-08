@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 import tempfile
 import warnings
@@ -29,6 +30,8 @@ from fv3fit.wandb import (
     log_to_table,
     store_model_artifact,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def load_config_yaml(path: str) -> Dict[str, Any]:
@@ -66,6 +69,7 @@ class TrainConfig:
         shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
             during training
         checkpoint_model: if true, save a checkpoint after each epoch
+        log_level: what logging level to use
     """
 
     train_url: str
@@ -85,6 +89,7 @@ class TrainConfig:
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 100_000
     checkpoint_model: bool = True
+    log_level: str = "INFO"
 
     @property
     def _model(
@@ -192,6 +197,7 @@ class TrainConfig:
 
 
 def main(config: TrainConfig, seed: int = 0):
+    logging.basicConfig(level=getattr(logging, config.log_level))
     set_random_seed(seed)
 
     callbacks = []
@@ -250,9 +256,10 @@ def main(config: TrainConfig, seed: int = 0):
                 verbose=config.verbose,
                 callbacks=callbacks,
             )
-
+    logger.debug("Training complete")
     train_scores, train_profiles = score_model(model, train_set)
     test_scores, test_profiles = score_model(model, test_set)
+    logger.debug("Scoring Complete")
 
     if config.use_wandb:
         pred_sample = model.predict(test_set)
