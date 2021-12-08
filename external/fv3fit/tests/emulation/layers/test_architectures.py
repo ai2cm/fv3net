@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 
 from fv3fit.emulation.layers.architecture import (
-    RNN,
+    RNNBlock,
     _HiddenArchitecture,
     MLPBlock,
     HybridRNN,
@@ -12,6 +12,7 @@ from fv3fit.emulation.layers.architecture import (
     RNNOutput,
     StandardOutput,
     ArchitectureConfig,
+    _ARCHITECTURE_KEYS,
 )
 
 
@@ -57,7 +58,7 @@ def test_HybridRNN(depth, expected_shp):
 
 def test_RNN():
 
-    rnn = RNN(channels=64, depth=2)
+    rnn = RNNBlock(channels=64, depth=2)
     tensor = _get_tensor((20, 10, 2))
     result = rnn(tensor)
     assert result.shape == (20, 10, 64)
@@ -104,7 +105,7 @@ def test_no_weight_sharing_num_weights():
     assert num_weights_expected == total
 
 
-@pytest.mark.parametrize("layer_cls", [CombineInputs, MLPBlock, HybridRNN, RNN])
+@pytest.mark.parametrize("layer_cls", [CombineInputs, MLPBlock, HybridRNN, RNNBlock])
 def test_from_config(layer_cls):
 
     layer = layer_cls()
@@ -136,7 +137,7 @@ def test_OutputConnectors(connector_cls, hidden_out):
 def test_get_architecture_unrecognized():
 
     with pytest.raises(KeyError):
-        _HiddenArchitecture("not_an_arch", {}, {})
+        ArchitectureConfig(name="not_an_arch")
 
 
 @pytest.mark.parametrize("key", ["rnn-v1", "rnn", "dense", "linear"])
@@ -146,7 +147,7 @@ def test_ArchParams_bad_kwargs(key):
 
 
 @pytest.mark.parametrize(
-    "arch_key", ["rnn-v1-shared-weights", "rnn-v1", "rnn", "dense", "linear"],
+    "arch_key", _ARCHITECTURE_KEYS,
 )
 def test_ArchitectureConfig(arch_key):
 

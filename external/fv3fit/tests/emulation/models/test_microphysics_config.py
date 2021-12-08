@@ -1,10 +1,14 @@
 import numpy as np
+from os.path import join
+import pytest
+import tempfile
 import tensorflow as tf
 
 import fv3fit.emulation.models
 from fv3fit._shared import SliceConfig
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.layers import ArchitectureConfig
+from fv3fit.emulation.layers.architecture import _ARCHITECTURE_KEYS
 
 
 def _get_data(shape):
@@ -124,6 +128,32 @@ def test_precip_conserving_extra_inputs():
         extra_input_variables=extras
     )
     assert set(extra_names) < set(factory.input_variables)
+
+
+@pytest.mark.parametrize("arch", _ARCHITECTURE_KEYS)
+def test_MicrophysicConfig_model_save_reload(arch):
+
+    config = MicrophysicsConfig(
+        input_variables=["field_input"],
+        direct_out_variables=["field_output"],
+        architecture=ArchitectureConfig(name=arch),
+    )
+
+    nlev = 15
+    data = tf.random.normal((10, nlev))
+    sample = {"field_input": data, "field_output": data}
+
+    model = config.build(sample)
+
+    expected = model(sample)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model_path = join(tmpdir, "model.tf")
+        model.save(model_path, save_format="tf")
+        reloaded = tf.keras.models.load_model(model_path, compile=False)
+
+    result = reloaded(sample)
+    np.testing.assert_array_equal(expected["field_output"], result["field_output"])
 
 
 def test_RNN_downward_dependence():

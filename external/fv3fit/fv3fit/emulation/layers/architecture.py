@@ -118,7 +118,7 @@ class HybridRNN(tf.keras.layers.Layer):
         return config
 
 
-class RNN(tf.keras.layers.Layer):
+class RNNBlock(tf.keras.layers.Layer):
     """
     RNN for prediction that preserves vertical information so
     directional dependence is possible
@@ -372,6 +372,15 @@ class RNNOutput(tf.keras.layers.Layer):
         return fields
 
 
+_ARCHITECTURE_KEYS = (
+    "rnn-v1-shared-weights",
+    "rnn-v1",
+    "rnn",
+    "dense",
+    "linear",
+)
+
+
 def _get_output_layer(key, feature_lengths):
     if key == "rnn-v1":
         return RNNOutput(feature_lengths)
@@ -391,7 +400,7 @@ def _get_combine_layer(key):
 def _get_arch_layer(key, kwargs):
 
     if key == "rnn-v1" or key == "rnn-v1-shared-weights":
-        return RNN(**kwargs)
+        return RNNBlock(**kwargs)
     elif key == "rnn":
         return HybridRNN(**kwargs)
     elif key == "dense":
@@ -400,8 +409,6 @@ def _get_arch_layer(key, kwargs):
         if kwargs:
             raise TypeError("No keyword arguments accepted for linear model")
         return MLPBlock(depth=0)
-    else:
-        raise KeyError(f"Unrecognized architecture provided: {key}")
 
 
 class _HiddenArchitecture(tf.keras.layers.Layer):
@@ -441,6 +448,10 @@ class ArchitectureConfig:
 
     name: str
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
+
+    def __post_init__(self):
+        if self.name not in _ARCHITECTURE_KEYS:
+            raise KeyError(f"Unrecognized architecture key: {self.name}")
 
     def build(self, feature_lengths: Mapping[str, int]) -> tf.keras.layers.Layer:
         """
