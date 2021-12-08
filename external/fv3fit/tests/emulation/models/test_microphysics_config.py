@@ -103,7 +103,9 @@ def test_precip_conserving_config():
     data = {v: one for v in factory.input_variables + factory.output_variables}
     model = factory.build(data)
     out = model(data)
-    assert factory.fields.surface_precipitation.output_name in out
+    precip = out[factory.fields.surface_precipitation.output_name]
+    # scalar outputs need a singleton dimension to avoid broadcasting mayhem
+    assert tuple(precip.shape) == (one.shape[0], 1)
 
 
 def test_precip_conserving_output_variables():
