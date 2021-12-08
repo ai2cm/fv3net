@@ -49,6 +49,10 @@ class TrainConfig:
     """
     Configuration for training a microphysics emulator
 
+    Note:
+        set ``score_model`` to false if you run out of memory near the end of
+        training.
+
     Args:
         train_url: Path to training netcdfs (already in [sample x feature] format)
         test_url: Path to validation netcdfs (already in [sample x feature] format)
@@ -68,7 +72,11 @@ class TrainConfig:
         shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
             during training
         checkpoint_model: if true, save a checkpoint after each epoch
-        log_level: what logging level to use
+        log_level: what python logging level to use
+        score_model: run the scoring and evaluation routines if true. These can
+            be memory intensive.
+
+
     """
 
     train_url: str
@@ -89,6 +97,7 @@ class TrainConfig:
     shuffle_buffer_size: Optional[int] = 100_000
     checkpoint_model: bool = True
     log_level: str = "INFO"
+    score_model: bool = True
 
     @property
     def _model(
@@ -256,29 +265,32 @@ def main(config: TrainConfig, seed: int = 0):
                 callbacks=callbacks,
             )
     logger.debug("Training complete")
-    train_scores, train_profiles = score_model(model, train_set)
-    test_scores, test_profiles = score_model(model, test_set)
-    logger.debug("Scoring Complete")
 
-    if config.use_wandb:
-        pred_sample = model.predict(test_set)
-        log_profile_plots(test_set, pred_sample)
+    if config.score_model:
+        logger.info("Begin Scoring")
+        train_scores, train_profiles = score_model(model, train_set)
+        test_scores, test_profiles = score_model(model, test_set)
+        logger.info("Scoring Complete")
+        if config.use_wandb:
+            pred_sample = model.predict(test_set)
+            log_profile_plots(test_set, pred_sample)
 
-        # add level for dataframe index, assumes equivalent feature dims
-        sample_profile = next(iter(train_profiles.values()))
-        train_profiles["level"] = np.arange(len(sample_profile))
-        test_profiles["level"] = np.arange(len(sample_profile))
+            # add level for dataframe index, assumes equivalent feature dims
+            sample_profile = next(iter(train_profiles.values()))
+            train_profiles["level"] = np.arange(len(sample_profile))
+            test_profiles["level"] = np.arange(len(sample_profile))
 
-        log_to_table("score/train", train_scores, index=[config.wandb.job.name])
-        log_to_table("score/test", test_scores, index=[config.wandb.job.name])
-        log_to_table("profiles/train", train_profiles)
-        log_to_table("profiles/test", test_profiles)
+            log_to_table("score/train", train_scores, index=[config.wandb.job.name])
+            log_to_table("score/test", test_scores, index=[config.wandb.job.name])
+            log_to_table("profiles/train", train_profiles)
+            log_to_table("profiles/test", test_profiles)
+
+        with put_dir(config.out_url) as tmpdir:
+            # TODO: need to convert ot np.float to serialize
+            with open(os.path.join(tmpdir, "scores.json"), "w") as f:
+                json.dump({"train": train_scores, "test": test_scores}, f)
 
     with put_dir(config.out_url) as tmpdir:
-        # TODO: need to convert ot np.float to serialize
-        with open(os.path.join(tmpdir, "scores.json"), "w") as f:
-            json.dump({"train": train_scores, "test": test_scores}, f)
-
         with open(os.path.join(tmpdir, "history.json"), "w") as f:
             json.dump(history.params, f)
 
