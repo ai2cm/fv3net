@@ -35,6 +35,18 @@ def test_train():
     assert not hasattr(train, "loss")
 
 
+def test_train_wrong_shape_error():
+    data = {"x": tf.ones((1, 10)), "y": tf.ones((1, 2, 3))}
+    loss = CustomLoss(loss_variables=["y"], weights={"y": 1.0})
+
+    def model(x):
+        return {"y": tf.ones((2, 3))}
+
+    ds = tf.data.Dataset.from_tensors(data)
+    with pytest.raises(ValueError):
+        train(model, ds, loss)
+
+
 def _get_model_data_loss():
     in_ = tf.keras.Input(shape=[10], name="a")
     out = tf.keras.layers.Dense(10)(in_)
