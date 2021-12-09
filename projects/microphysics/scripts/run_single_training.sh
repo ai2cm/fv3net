@@ -15,6 +15,8 @@ shift
 TAG=$1
 shift
 OUTPUT_FREQUENCY=$1
+shift
+OUTPUT_FLAG=$1
 
 ## Code here
 # add initial condition to template
@@ -34,4 +36,5 @@ prognostic_run.py \
     --model NO_MODEL \
     --config-path fv3config.yaml \
     --output-frequency "$OUTPUT_FREQUENCY" \
+    "$OUTPUT_FLAG" \
     --offline
