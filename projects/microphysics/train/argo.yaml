@@ -20,7 +20,7 @@ spec:
           - {name: flags, value: " "}
           # - {name: memory, value: "8Gi"}
       container:
-        image: us.gcr.io/vcm-ml/prognostic_run:eeb79d7d38efd440fdaa9b7af0543a21987b4a72
+        image: us.gcr.io/vcm-ml/prognostic_run@sha256:a6d32927b4844d2863ba7916f7d3d33749f4448e20534a66a9d4cb4bb6269887
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -49,7 +49,6 @@ spec:
             python3 -m fv3fit.train_microphysics \
               --config-path training_config.yaml \
               --wandb.job_type train \
-              --log_level DEBUG \
               {{inputs.parameters.flags}}
       tolerations:
       - key: "dedicated"
