@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 
 import fv3fit.emulation
-from fv3fit.emulation.trainer import _ModelWrapper
+from fv3fit.emulation.trainer import _ModelWrapper, train
 from fv3fit.emulation.keras import (
     CustomLoss,
     NormalizedMSE,
@@ -28,17 +28,26 @@ def _get_model(feature_dim, num_outputs):
     return model
 
 
-def _get_model_and_data():
-    in_ = tf.keras.Input(shape=[10])
+def test_train():
+    model, data, loss = _get_model_data_loss()
+    ds = tf.data.Dataset.from_tensors(data)
+    train(model, ds, loss)
+    assert not hasattr(train, "loss")
+
+
+def _get_model_data_loss():
+    in_ = tf.keras.Input(shape=[10], name="a")
     out = tf.keras.layers.Dense(10)(in_)
     model = tf.keras.Model(inputs={"a": in_}, outputs={"b": out})
     one = tf.ones((5, 10))
     data = {"a": one, "b": one}
-    return model, data
+    loss = CustomLoss(loss_variables=["b"], weights={"b": 1.0})
+    loss.prepare(data)
+    return model, data, loss
 
 
 def test_checkpoint_callback(tmpdir):
-    model, _ = _get_model_and_data()
+    model, _, _ = _get_model_data_loss()
     trainer = _ModelWrapper(model)
     callback = fv3fit.emulation.ModelCheckpointCallback(
         filepath=str(tmpdir.join("{epoch:03d}.tf"))
@@ -53,7 +62,7 @@ def test_model_save(tmp_path):
     """keras models with custom loss cannot be easily saved
     after fitting"""
 
-    model, data = _get_model_and_data()
+    model, data, _ = _get_model_data_loss()
     output_before_save = model(data)["b"]
     save_model(model, str(tmp_path))
     loaded = tf.keras.models.load_model(str(tmp_path / "model.tf"))

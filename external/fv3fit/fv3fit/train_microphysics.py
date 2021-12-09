@@ -216,16 +216,9 @@ def main(config: TrainConfig, seed: int = 0):
     test_set = next(iter(test_ds.shuffle(160_000).batch(80_000)))
 
     model = config.build(train_set)
-    output_names = set(model(train_set))
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
-
-    def split_in_out(m):
-        return (
-            {key: m[key] for key in model.input_names if key in m},
-            {key: m[key] for key in output_names if key in m},
-        )
 
     if config.checkpoint_model:
         callbacks.append(
@@ -237,9 +230,6 @@ def main(config: TrainConfig, seed: int = 0):
         )
 
     config.loss.prepare(output_samples=train_set)
-
-    train_ds = train_ds.map(split_in_out)
-    test_ds = test_ds.map(split_in_out)
 
     with tempfile.TemporaryDirectory() as train_temp:
         with tempfile.TemporaryDirectory() as test_temp:
