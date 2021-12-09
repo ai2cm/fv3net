@@ -41,10 +41,10 @@ spec:
         resources:
           limits:
             cpu: "7"
-            memory: "8Gi"
+            memory: "24Gi"
           requests:
             cpu: "4"
-            memory: "8Gi"
+            memory: "16Gi"
         args:
           - |
             echo "{{inputs.parameters.training-config}}" | base64 --decode > training_config.yaml
