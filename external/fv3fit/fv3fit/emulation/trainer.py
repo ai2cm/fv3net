@@ -44,7 +44,7 @@ def train(
  
     Returns:
         The keras training history
-    
+
     Note:
         all other arguments have the same interpretation as ``tf.keras.Model.fit
 
@@ -52,7 +52,18 @@ def train(
     wrapped_model = _ModelWrapper(model)
 
     train_set = next(iter(dataset))
-    output_names = set(wrapped_model(train_set))
+    outputs = wrapped_model(train_set)
+    for name in outputs:
+        if name in train_set:
+            shape_in_data = tuple(train_set[name].shape)
+            shape_in_output = tuple(outputs[name].shape)
+            if shape_in_data != shape_in_output:
+                raise ValueError(
+                    f"{model} produced unexpected shape for {name}. "
+                    f"Expected {shape_in_data} got {shape_in_output}."
+                )
+
+    output_names = set(outputs)
 
     def split_in_out(m):
         return (
