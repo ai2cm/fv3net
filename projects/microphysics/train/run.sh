@@ -14,7 +14,7 @@ group="$(openssl rand -hex 3)"
 
 for config in all-tendency-limited direct-cloud-limited; do
     for model_type in rnn-v1 rnn-v1-shared-weights; do
-        model_name="${config}-${model_type}"
+        model_name="${config}-${model_type}-per-lev-std"
         config_file="${config}.yaml"
         out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}-${group}")
 

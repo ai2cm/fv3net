@@ -21,7 +21,7 @@ spec:
           - name: wandb-run-group
           # - {name: memory, value: "8Gi"}
       container:
-        image: us.gcr.io/vcm-ml/prognostic_run:98583039417a51c4605437ea48909384f1f990aa
+        image: us.gcr.io/vcm-ml/prognostic_run:827307b52044d027e8d6252200a69b57b7407af9
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
