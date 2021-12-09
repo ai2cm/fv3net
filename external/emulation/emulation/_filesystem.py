@@ -10,6 +10,5 @@ import fsspec
 def get_dir(path: str):
     with tempfile.TemporaryDirectory() as tmpdir:
         fs, _, _ = fsspec.get_fs_token_paths(path)
-        # fsspec places the directory inside the tmpdir, as a subdirectory
         fs.get(path, tmpdir, recursive=True)
         yield tmpdir

@@ -1,14 +1,16 @@
 import logging
 import os
 import json
-from typing import Mapping
+from typing import Mapping, Tuple
 import cftime
 import f90nml
 import yaml
 import numpy as np
 import xarray as xr
-from datetime import timedelta
+from datetime import datetime, timedelta
 from mpi4py import MPI
+import tensorflow as tf
+import emulation.serialize
 
 from fv3gfs.util import ZarrMonitor, CubedSpherePartitioner, Quantity
 from ..debug import print_errors
@@ -131,7 +133,7 @@ def _convert_to_xr_dataset(state, metadata):
     return xr.Dataset(dataset)
 
 
-def _translate_time(time):
+def _translate_time(time: Tuple[int, int, int, int, int, int]) -> cftime.DatetimeJulian:
 
     # list order is set by fortran from variable Model%jdat
     year = time[0]
@@ -176,6 +178,47 @@ def _store_zarr(state, time, monitor, metadata):
     monitor.store(state)
 
 
+class _TFRecordStore:
+
+    PARSER_FILE: str = "parser.tf"
+    TIME: str = "time"
+
+    def __init__(self, root: str, rank: int):
+        self.rank = rank
+        self.root = root
+        tf.io.gfile.makedirs(self.root)
+        self._tf_writer = tf.io.TFRecordWriter(
+            path=os.path.join(self.root, f"rank{self.rank}.tfrecord")
+        )
+        self._called = False
+
+    def _save_parser_if_needed(self, state_tf: Mapping[str, tf.Tensor]):
+        # needs the state to get the parser so cannot be run in __init__
+        if not self._called and self.rank == 0:
+            parser = emulation.serialize.get_parser(state_tf)
+            tf.saved_model.save(parser, os.path.join(self.root, self.PARSER_FILE))
+            self._called = True
+
+    def _convert_to_tensor(
+        self, time: cftime.DatetimeJulian, state: Mapping[str, np.ndarray],
+    ) -> Mapping[str, tf.Tensor]:
+        state_tf = {key: tf.convert_to_tensor(state[key].T) for key in state}
+        time = datetime(
+            time.year, time.month, time.day, time.hour, time.minute, time.second
+        )
+        n = max([state[key].shape[0] for key in state])
+        state_tf[self.TIME] = tf.convert_to_tensor([time.isoformat()] * n)
+        return state_tf
+
+    def __call__(self, state: Mapping[str, np.ndarray], time: cftime.DatetimeJulian):
+        state_tf = self._convert_to_tensor(time, state)
+        self._save_parser_if_needed(state_tf)
+        self._tf_writer.write(emulation.serialize.serialize_tensor_dict(state_tf))
+        # need to flush after every call since there are no finalization hooks
+        # in the model
+        self._tf_writer.flush()
+
+
 class StorageHook:
     """
     Singleton class for configuring from the environment for
@@ -190,12 +233,14 @@ class StorageHook:
         output_freq_sec: int,
         save_nc: bool = True,
         save_zarr: bool = True,
+        save_tfrecord: bool = False,
     ):
         self.name = "emulation storage monitor"
         self.var_meta_path = var_meta_path
         self.output_freq_sec = output_freq_sec
         self.save_nc = save_nc
         self.save_zarr = save_zarr
+        self.save_tfrecord = save_tfrecord
 
         self.namelist = _load_nml()
 
@@ -211,8 +256,12 @@ class StorageHook:
         if self.save_nc:
             self.nc_dump_path = _create_nc_path()
 
+        if self.save_tfrecord:
+            rank = MPI.COMM_WORLD.Get_rank()
+            self._store_tfrecord = _TFRecordStore("tfrecords", rank)
+
     @classmethod
-    def from_environ(cls, d: Mapping):
+    def from_environ(cls, d: Mapping) -> "StorageHook":
         """
         Initialize this hook by loading configuration from environment
         variables
@@ -228,6 +277,7 @@ class StorageHook:
                     is true
                 SAVE_ZARR (optional) - save all statefields to zarr, default
                     is true
+                SAVE_TFRECORD (optional) - save all statefields to tfrecord
                 
         """
 
@@ -239,7 +289,13 @@ class StorageHook:
         save_nc = _bool_from_str(d.get("SAVE_NC", "True"))
         save_zarr = _bool_from_str(d.get("SAVE_ZARR", "True"))
 
-        return cls(var_meta_path, output_freq_sec, save_nc=save_nc, save_zarr=save_zarr)
+        return cls(
+            var_meta_path,
+            output_freq_sec,
+            save_nc=save_nc,
+            save_zarr=save_zarr,
+            save_tfrecord=_bool_from_str(d.get("SAVE_TFRECORD", "True")),
+        )
 
     def _store_interval_check(self, time):
 
@@ -284,3 +340,6 @@ class StorageHook:
 
             if self.save_nc:
                 _store_netcdf(state, time, self.nc_dump_path, self.metadata)
+
+            if self.save_tfrecord:
+                self._store_tfrecord(state, time)

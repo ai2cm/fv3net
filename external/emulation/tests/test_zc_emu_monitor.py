@@ -1,23 +1,23 @@
 import os
-import pytest
-import numpy as np
-from xarray import DataArray
 from typing import Mapping
 
-from fv3gfs.util import Quantity
-
+import numpy as np
+import pytest
+import tensorflow as tf
 from emulation._monitor.monitor import (
     StorageHook,
     _bool_from_str,
-    _load_nml,
-    _get_timestep,
-    _remove_io_suffix,
-    _get_attrs,
     _convert_to_quantities,
     _convert_to_xr_dataset,
-    _translate_time,
     _create_nc_path,
+    _get_attrs,
+    _get_timestep,
+    _load_nml,
+    _remove_io_suffix,
+    _translate_time,
 )
+from fv3gfs.util import Quantity
+from xarray import DataArray
 
 
 def save_var_metadata(path):
@@ -147,25 +147,71 @@ def test__create_nc_path(dummy_rundir):
     assert os.path.exists(dummy_rundir / "netcdf_output")
 
 
-@pytest.mark.parametrize("save_nc", [True, False])
-@pytest.mark.parametrize("save_zarr", [True, False])
-def test_Config_integration(dummy_rundir, save_nc, save_zarr):
+def _get_data(dummy_rundir, save_nc, save_zarr, save_tfrecord=False):
 
     meta_path = dummy_rundir / "var_metadata.yaml"
     save_var_metadata(meta_path)
-    config = StorageHook(meta_path, 900, save_nc=save_nc, save_zarr=save_zarr)
+    config = StorageHook(
+        meta_path,
+        900,
+        save_nc=save_nc,
+        save_zarr=save_zarr,
+        save_tfrecord=save_tfrecord,
+    )
+    n = 7
+    batch = 10
 
-    state = {
-        "model_time": [2016, 10, 8, None, 0, 0],
-        "air_temperature": np.arange(790).reshape(10, 79),
-        "specific_humidity": np.arange(790).reshape(10, 79),
-    }
+    states = []
 
-    config.store(state)
+    for i in range(1, n + 1):
+        state = {
+            "model_time": [2016, 10, i, 0, 0, 0],
+            # model returns data in fortran (row-major) order (z, sample)
+            "air_temperature": np.arange(790).reshape(79, batch),
+            "specific_humidity": np.arange(790).reshape(79, batch),
+        }
+        config.store(state)
+        states.append(state)
 
-    assert (dummy_rundir / "state_output.zarr").exists() == save_zarr
+    return dummy_rundir, states
+
+
+def test_StorageHook_save_zarr(dummy_rundir):
+    _get_data(dummy_rundir, save_nc=False, save_zarr=True)
+    assert (dummy_rundir / "state_output.zarr").exists()
+
+
+def test_StorageHook_save_nc(dummy_rundir):
+
+    dummy_rundir, expected_states = _get_data(
+        dummy_rundir, save_nc=True, save_zarr=False
+    )
     nc_files = list((dummy_rundir / "netcdf_output").glob("*.nc"))
-    assert len(nc_files) == save_nc
+    assert len(nc_files) == len(expected_states)
+
+
+def test_StorageHook_save_tf(dummy_rundir):
+    dummy_rundir, expected_states = _get_data(dummy_rundir, False, False, True)
+    tf_records_path = dummy_rundir / "tfrecords"
+
+    # load tf records
+    # a little boiler plate
+    parser = tf.saved_model.load(str(tf_records_path / "parser.tf"))
+    tf_ds = tf.data.TFRecordDataset(
+        tf.data.Dataset.list_files(str(tf_records_path / "*.tfrecord"))
+    ).map(parser.parse_single_example)
+
+    # assertions
+    state = expected_states[0]
+    n = len(expected_states)
+    state["time"] = np.array(["time"] * n)
+    for key in tf_ds.element_spec:
+        if len(state[key].shape):
+            assert (
+                tuple(tf_ds.element_spec[key].shape[1:]) == state[key].T.shape[1:]
+            ), key
+            assert tf_ds.element_spec[key].shape[0] is None
+    assert len(list(tf_ds)) == n
 
 
 def test_error_on_call():

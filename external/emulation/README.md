@@ -54,3 +54,21 @@ The microphysics emulation loads a keras model specified by the `TF_MODEL_PATH` 
 The model input/output names are used to update the state, so they should match the variables pushed into global state by call_py_fort.  See `GFS_physics_driver.F90` to see the list of available state variables.  Any state field that intersects with a field produced by the emulator will be adjusted to {state_name}_physics_diag so that piggy-backed information is present.
 
 Running with `save_zc_microphysics = True` will save the emulator outputs and diagnostic physics info to file.
+
+
+## Loading TFRecord data
+
+TFRecord is a binary file format that it native to tensorflow. This means that
+loading it requires no pure-python code and should be portable and performant.
+If `SAVE_TFRECORD` is set, then the model will save each rank to a separate
+`.tfrecord` file. Because tfrecords contain raw serialized data, we also save a
+tf module to `parser.tf` to parse it. To open the data, use the
+following boilerplate:
+
+```python
+url = "gs://vcm-ml-experiments/microphysics-emulation/2021-12-13/pzp6alfw/artifacts/20160611.000000/tfrecords"
+parser = tf.saved_model.load(f"{url}/parser.tf")
+tf_ds = tf.data.TFRecordDataset(
+    tf.data.Dataset.list_files(f"{url}/*.tfrecord")
+).map(parser.parse_single_example)
+```
