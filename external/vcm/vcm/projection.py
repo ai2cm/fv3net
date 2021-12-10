@@ -2,9 +2,6 @@ import xarray as xr
 import numpy as np
 
 
-# TODO: move convergence from _fine_res_budget in loaders/mappers to here
-
-
 def _center_to_interface(f: np.ndarray) -> np.ndarray:
     """Interpolate vertically cell centered data to the interface
     with linearly extrapolated inputs"""
