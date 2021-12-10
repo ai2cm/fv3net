@@ -8,13 +8,14 @@ if [[ "$1" == "--test" ]]; then
     bucket="vcm-ml-scratch"
 else
     bucket="vcm-ml-experiments"
+    extra_flags="--model.architecture.kwargs.depth 1"
 fi
 
 group="$(openssl rand -hex 3)"
 
 for config in all-tendency-limited direct-cloud-limited; do
-    for model_type in rnn-v1 rnn-v1-shared-weights; do
-        model_name="${config}-${model_type}-per-lev-std"
+    for model_type in rnn-v1-shared-weights; do
+        model_name="${config}-${model_type}-depth1"
         config_file="${config}.yaml"
         out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}-${group}")
 
@@ -23,6 +24,5 @@ for config in all-tendency-limited direct-cloud-limited; do
             -p wandb-run-group="rnn-fix-experiments" \
             -p training-config="$(base64 --wrap 0 $config_file)"\
             -p flags="--model.architecture.name ${model_type} --out_url ${out_url} ${extra_flags}"
-
     done
 done

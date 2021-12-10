@@ -19,8 +19,8 @@ loss:
   - cloud_water_mixing_ratio_after_precpd
   - total_precipitation
   weights:
-    air_temperature_after_precpd: 100000.0
-    specific_humidity_after_precpd: 150
+    air_temperature_after_precpd: 500000.0
+    specific_humidity_after_precpd: 500000.0
     cloud_water_mixing_ratio_after_precpd: 1.0
     total_precipitation: .04
 model:
