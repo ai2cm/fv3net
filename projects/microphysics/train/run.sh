@@ -12,7 +12,7 @@ fi
 
 group="$(openssl rand -hex 3)"
 
-for config in direct-cloud-limited-conservative; do
+for config in direct-cloud-all-levs-conservative; do
     for model_type in rnn-v1-shared-weights rnn-v1; do
         model_name="${config}-${model_type}"
         config_file="${config}.yaml"
