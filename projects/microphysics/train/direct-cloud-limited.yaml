@@ -25,8 +25,9 @@ loss:
     total_precipitation: .04
 model:
   architecture:
-    kwargs: {}
-    name: dense
+    kwargs:
+      depth: 2
+    name: rnn-v1-shared-weights
   input_variables:
   - air_temperature_input
   - specific_humidity_input
