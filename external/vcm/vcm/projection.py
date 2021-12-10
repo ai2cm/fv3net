@@ -48,11 +48,9 @@ def project_vertical_flux(
     """
     Produce a flux field that best represents the provided field using least squares.
 
-    Eagerly loads the input data.
-
     Args:
-        field: field to be represented by fluxes, should have mass-normalized units
-            such as kg/kg or energy/kg
+        field: field to be represented by vertical flux, should have mass-normalized
+            units such as kg/kg or energy/kg
         pressure_thickness: thickness of each layer in Pascals
         first_level_flux: flux of the level at z=0, in the positive index direction
         last_level_flux: flux of the level at z=-1, in the positive index direction
@@ -68,36 +66,44 @@ def project_vertical_flux(
     # g is folded into the flux for convenient computation, since we otherwise
     # divide by g when converting to flux and multiply by g when converting back
     # to tendency fields
-    # TODO: xr.apply_ufunc
-    nz = field.sizes[vertical_dim]
-    field = field * pressure_thickness
-    first_field = field.isel({vertical_dim: slice(0, 1)}) - first_level_flux
-    last_field = field.isel({vertical_dim: slice(nz - 1, nz)}) + last_level_flux
-    middle_field = field.isel({vertical_dim: slice(1, nz - 1)})
-    adjusted_field = xr.concat(
-        [first_field, middle_field, last_field], dim=vertical_dim
+    return xr.apply_ufunc(
+        _project_vertical_flux,
+        field,
+        pressure_thickness,
+        first_level_flux,
+        last_level_flux,
+        input_core_dims=[[vertical_dim], [vertical_dim], [], []],
+        output_core_dims=[["z_interface"]],
+        dask="parallelized",
+        output_dtypes=field.dtype,
     )
+
+
+def _project_vertical_flux(
+    field: xr.DataArray,
+    pressure_thickness: xr.DataArray,
+    first_level_flux: xr.DataArray,
+    last_level_flux: xr.DataArray,
+) -> xr.DataArray:
+    nz = field.shape[-1]
+    field = field * pressure_thickness
+    field[..., 0] -= first_level_flux
+    field[..., -1] += last_level_flux
     M = np.zeros((nz, nz - 1))
     M[0, 0] = -1
     M[-1, -1] = 1
     for i in range(1, nz - 1):
         M[i, i] = -1
         M[i, i - 1] = 1
-    nonvertical_axes = [dim for dim in field.dims if dim != vertical_dim]
-    reordered = adjusted_field.transpose(vertical_dim, *nonvertical_axes)
-    columns = int(np.product(reordered.shape) / nz)
-    b = reordered.values.reshape(nz, columns)
+    columns = int(np.product(field.shape) / nz)
+    b = field.T.reshape(nz, columns)
     lstsq_result = np.linalg.lstsq(M, b)
-    middle_flux_data = lstsq_result[0].reshape((nz - 1,) + tuple(reordered.shape[1:]))
-    first_flux_data = first_level_flux.transpose(*nonvertical_axes).values[None, :]
-    last_flux_data = last_level_flux.transpose(*nonvertical_axes).values[None, :]
+    middle_flux_data = lstsq_result[0].reshape((nz - 1,) + tuple(field.T.shape[1:])).T
     flux_data = np.concatenate(
-        [first_flux_data, middle_flux_data, last_flux_data], axis=0
+        [first_level_flux[..., None], middle_flux_data, last_level_flux[..., None]],
+        axis=-1,
     )
-    flux = xr.DataArray(
-        flux_data, dims=["z_interface"] + list(reordered.dims[1:])
-    ).transpose(*nonvertical_axes, "z_interface")
-    return flux
+    return flux_data
 
 
 def flux_convergence(
@@ -108,8 +114,6 @@ def flux_convergence(
 ) -> xr.DataArray:
     """
     Reconstruct a field from a flux.
-
-    Eagerly loads the input data.
 
     Args:
         flux: Flux of field * mass * g in units of (<field units> * kg * g)/m^2/s,
@@ -123,15 +127,20 @@ def flux_convergence(
         vertical_interface_dim: name of the cell-interface vertical dimension
     
     Returns:
-        field: field reconstructed from the given fluxes
+        field: field reconstructed from the given vertical flux
     """
-    nz = pressure_thickness.sizes[vertical_dim]
-    difference_term = (
-        flux.isel({vertical_interface_dim: slice(0, nz)}).values
-        - flux.isel({vertical_interface_dim: slice(1, nz + 1)}).values
+    return xr.apply_ufunc(
+        _flux_convergence,
+        flux,
+        pressure_thickness,
+        input_core_dims=[[vertical_interface_dim], [vertical_dim]],
+        output_core_dims=[[vertical_dim]],
+        dask="parallelized",
+        output_dtypes=flux.dtype,
     )
-    difference_dims = [
-        dim if dim != vertical_interface_dim else vertical_dim for dim in flux.dims
-    ]
-    difference = xr.DataArray(difference_term, dims=difference_dims)
-    return difference / pressure_thickness
+
+
+def _flux_convergence(
+    flux: xr.DataArray, pressure_thickness: xr.DataArray,
+) -> xr.DataArray:
+    return (flux[..., :-1] - flux[..., 1:]) / pressure_thickness

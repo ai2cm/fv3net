@@ -88,7 +88,7 @@ def test_project_nonconservative_tendency(vertical_dim: str):
 
 @pytest.mark.parametrize("vertical_dim", ["z", "another_vertical_dim"])
 @pytest.mark.parametrize(
-    "vertical_interface_dim", ["z", "another_vertical_interface_dim"]
+    "vertical_interface_dim", ["z_interface", "another_vertical_interface_dim"]
 )
 def test_construct_from_flux(vertical_dim: str, vertical_interface_dim: str):
     # this mostly tests the DataArray containerization of the results,
