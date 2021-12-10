@@ -1,8 +1,28 @@
 import vcm
-from vcm.calc.thermo import _GRAVITY
 import numpy as np
 import xarray as xr
 import pytest
+
+
+def test_cell_center_convergence_constant():
+    nz = 5
+    delp = np.ones(nz).reshape((1, 1, nz))
+
+    expected = np.array([0, 0, 0, 0, 0]).reshape((1, 1, nz))
+
+    ans = vcm.cell_center_convergence(delp, delp)
+    np.testing.assert_almost_equal(ans, expected)
+
+
+def test_cell_center_convergence_linear():
+    nz = 5
+    f = np.arange(nz).reshape((1, 1, nz))
+    delp = np.ones(nz).reshape((1, 1, nz))
+
+    expected = np.array([-1, -1, -1, -1, -1]).reshape((1, 1, nz))
+
+    ans = vcm.cell_center_convergence(f, delp)
+    np.testing.assert_almost_equal(ans, expected)
 
 
 @pytest.mark.parametrize("vertical_dim", ["z", "another_vertical_dim"])
@@ -13,7 +33,7 @@ def test_project_conservative_tendency(vertical_dim: str):
     delp = np.random.uniform(low=10.0, high=12.0, size=tuple(base_shape) + (nz,))
     dims_base = ["dim0", "dim1"]
     dims_center = ["dim0", "dim1", vertical_dim]
-    q = _GRAVITY / delp * (flux_array[:, :, :-1] - flux_array[:, :, 1:])
+    q = (flux_array[:, :, :-1] - flux_array[:, :, 1:]) / delp
     result = vcm.project_vertical_flux(
         field=xr.DataArray(q, dims=dims_center,),
         pressure_thickness=xr.DataArray(delp, dims=dims_center),
@@ -53,7 +73,7 @@ def test_project_nonconservative_tendency(vertical_dim: str):
     delp = np.random.uniform(low=10.0, high=12.0, size=tuple(base_shape) + (nz,))
     dims_base = ["dim0", "dim1"]
     dims_center = ["dim0", "dim1", vertical_dim]
-    q_base = _GRAVITY / delp * (flux_array[:, :, :-1] - flux_array[:, :, 1:])
+    q_base = (flux_array[:, :, :-1] - flux_array[:, :, 1:]) / delp
     q_source = np.random.uniform(low=0, high=0.1, size=q_base.shape)
     result = vcm.project_vertical_flux(
         field=xr.DataArray(q_base + q_source, dims=dims_center),
@@ -81,7 +101,7 @@ def test_construct_from_flux(vertical_dim: str, vertical_interface_dim: str):
     dims_base = ["dim0", "dim1"]
     dims_center = dims_base + [vertical_dim]
     dims_interface = dims_base + [vertical_interface_dim]
-    q = _GRAVITY / delp * (flux_array[:, :, :-1] - flux_array[:, :, 1:])
+    q = (flux_array[:, :, :-1] - flux_array[:, :, 1:]) / delp
     result = vcm.flux_convergence(
         flux=xr.DataArray(flux_array, dims=dims_interface),
         pressure_thickness=xr.DataArray(delp, dims=dims_center),
@@ -100,9 +120,7 @@ def test_project_and_reconstruct_nonconservative_tendency(vertical_dim: str):
     dims_base = ["dim0", "dim1"]
     dims_center = ["dim0", "dim1", vertical_dim]
     pressure_thickness = xr.DataArray(delp, dims=dims_center)
-    q_base = (
-        _GRAVITY / delp * (nominal_flux_array[:, :, :-1] - nominal_flux_array[:, :, 1:])
-    )
+    q_base = (nominal_flux_array[:, :, :-1] - nominal_flux_array[:, :, 1:]) / delp
     q_source = np.random.uniform(low=0, high=0.1, size=q_base.shape)
     q_target = q_base + q_source
     flux_field = vcm.project_vertical_flux(

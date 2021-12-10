@@ -1,46 +1,13 @@
 import xarray
-import numpy as np
 from typing import Tuple
 from typing_extensions import Protocol
+import vcm
 
 
 def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
     """Compute re-coarsened eddy flux divergence from re-coarsed data
     """
     return unresolved_flux + (total_resolved_flux - omega * field)
-
-
-def _center_to_interface(f: np.ndarray) -> np.ndarray:
-    """Interpolate vertically cell centered data to the interface
-    with linearly extrapolated inputs"""
-    f_low = 2 * f[..., 0] - f[..., 1]
-    f_high = 2 * f[..., -1] - f[..., -2]
-    pad = np.concatenate([f_low[..., np.newaxis], f, f_high[..., np.newaxis]], axis=-1)
-    return (pad[..., :-1] + pad[..., 1:]) / 2
-
-
-def _convergence(eddy: np.ndarray, delp: np.ndarray) -> np.ndarray:
-    """Compute vertical convergence of a cell-centered flux.
-
-    This flux is assumed to vanish at the vertical boundaries
-    """
-    padded = _center_to_interface(eddy)
-    # pad interfaces assuming eddy = 0 at edges
-    return -np.diff(padded, axis=-1) / delp
-
-
-def convergence(
-    eddy: xarray.DataArray, delp: xarray.DataArray, dim: str = "p"
-) -> xarray.DataArray:
-    return xarray.apply_ufunc(
-        _convergence,
-        eddy,
-        delp,
-        input_core_dims=[[dim], [dim]],
-        output_core_dims=[[dim]],
-        dask="parallelized",
-        output_dtypes=[eddy.dtype],
-    )
 
 
 class FineResBudget(Protocol):
@@ -86,7 +53,7 @@ def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = Fa
         data.vulcan_omega_coarse,
         data.T,
     )
-    eddy_flux_convergence = convergence(eddy_flux, data.delp, dim="z")
+    eddy_flux_convergence = vcm.cell_center_convergence(eddy_flux, data.delp, dim="z")
     result = data.t_dt_fv_sat_adj_coarse + data.t_dt_phys_coarse + eddy_flux_convergence
     description = (
         "Apparent heating due to physics and sub-grid-scale advection. Given "
@@ -109,7 +76,7 @@ def apparent_moistening(data: FineResBudget):
         data.vulcan_omega_coarse,
         data.sphum,
     )
-    eddy_flux_convergence = convergence(eddy_flux, data.delp, dim="z")
+    eddy_flux_convergence = vcm.cell_center_convergence(eddy_flux, data.delp, dim="z")
     return (
         (data.qv_dt_fv_sat_adj_coarse + data.qv_dt_phys_coarse + eddy_flux_convergence)
         .assign_attrs(

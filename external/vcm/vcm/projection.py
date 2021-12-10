@@ -1,9 +1,41 @@
 import xarray as xr
-from vcm.calc.thermo import _GRAVITY
 import numpy as np
 
 
 # TODO: move convergence from _fine_res_budget in loaders/mappers to here
+
+
+def _center_to_interface(f: np.ndarray) -> np.ndarray:
+    """Interpolate vertically cell centered data to the interface
+    with linearly extrapolated inputs"""
+    f_low = 2 * f[..., 0] - f[..., 1]
+    f_high = 2 * f[..., -1] - f[..., -2]
+    pad = np.concatenate([f_low[..., np.newaxis], f, f_high[..., np.newaxis]], axis=-1)
+    return (pad[..., :-1] + pad[..., 1:]) / 2
+
+
+def _convergence(eddy: np.ndarray, delp: np.ndarray) -> np.ndarray:
+    padded = _center_to_interface(eddy)
+    # pad interfaces assuming eddy = 0 at edges
+    return -np.diff(padded, axis=-1) / delp
+
+
+def cell_center_convergence(
+    eddy: xr.DataArray, delp: xr.DataArray, dim: str = "p"
+) -> xr.DataArray:
+    """Compute vertical convergence of a cell-centered flux.
+
+    This flux is assumed to vanish at the vertical boundaries
+    """
+    return xr.apply_ufunc(
+        _convergence,
+        eddy,
+        delp,
+        input_core_dims=[[dim], [dim]],
+        output_core_dims=[[dim]],
+        dask="parallelized",
+        output_dtypes=[eddy.dtype],
+    )
 
 
 def project_vertical_flux(
@@ -27,15 +59,18 @@ def project_vertical_flux(
         vertical_dim: name of vertical dimension
     
     Returns:
-        flux_field: Flux in units of <field units> * kg/m^2/s, with its vertical
+        flux_field: Flux of field * mass * g in units of
+            (<field units> * kg * g)/m^2/s,
+            where g is gravitational acceleration, with its vertical
             dimension labelled as "z_interface", and its first and last values
-            along that axis equal to first_level_flux and last_level_flux
+            along that axis equal to first_level_flux and last_level_flux.
     """
-    # TODO: xarray.apply_ufunc
-    # TODO: remove _GRAVITY from flux and reconstruction, they should cancel out
-    #       and just change the unit
+    # g is folded into the flux for convenient computation, since we otherwise
+    # divide by g when converting to flux and multiply by g when converting back
+    # to tendency fields
+    # TODO: xr.apply_ufunc
     nz = field.sizes[vertical_dim]
-    field = field * pressure_thickness / _GRAVITY
+    field = field * pressure_thickness
     first_field = field.isel({vertical_dim: slice(0, 1)}) - first_level_flux
     last_field = field.isel({vertical_dim: slice(nz - 1, nz)}) + last_level_flux
     middle_field = field.isel({vertical_dim: slice(1, nz - 1)})
@@ -77,7 +112,8 @@ def flux_convergence(
     Eagerly loads the input data.
 
     Args:
-        flux: Flux in units of <field units> * kg/m^2/s, with its vertical
+        flux: Flux of field * mass * g in units of (<field units> * kg * g)/m^2/s,
+            where g is gravitational acceleration, with its vertical
             dimension labelled as "z_interface", and its first and last values
             along that axis equal to first_level_flux and last_level_flux,
             defined on cell interfaces
@@ -98,4 +134,4 @@ def flux_convergence(
         dim if dim != vertical_interface_dim else vertical_dim for dim in flux.dims
     ]
     difference = xr.DataArray(difference_term, dims=difference_dims)
-    return difference * _GRAVITY / pressure_thickness
+    return difference / pressure_thickness
