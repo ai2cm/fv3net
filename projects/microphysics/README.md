@@ -1,5 +1,12 @@
 # Microphysics Emulation
 
+## Train Models
+
+To train models
+
+    bash -c 'cd projects/microphysics/train && ./run.sh'
+
+from the fv3net root directory.
 
 ## Prognostic Evaluation
 
@@ -49,6 +56,8 @@ the README for more details.
 The `create_training/` subdirectory provides make targets for performing the
 monthly-initialized training data generation runs as well as gathering 
 of netcdfs into training/testing GCS buckets after all runs have finished.
+
+
 
 
 

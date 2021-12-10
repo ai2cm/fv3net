@@ -19,7 +19,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: us.gcr.io/vcm-ml/prognostic_run@sha256:c7cc83df7f9a673dda22df480a705531830451ca0ae02a8832dc7c42e266b2ac 
+        image: us.gcr.io/vcm-ml/prognostic_run:f16742bb5842760504da896bf84cf3de696653fe
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
