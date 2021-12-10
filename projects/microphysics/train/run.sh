@@ -8,12 +8,13 @@ if [[ "$1" == "--test" ]]; then
     bucket="vcm-ml-scratch"
 else
     bucket="vcm-ml-experiments"
+    extra_flags="--log_level DEBUG"
 fi
 
 group="$(openssl rand -hex 3)"
 
 for config in direct-cloud-all-levs-conservative; do
-    for model_type in rnn-v1-shared-weights rnn-v1; do
+    for model_type in rnn-v1-shared-weights; do
         model_name="${config}-${model_type}"
         config_file="${config}.yaml"
         out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}-${group}")
