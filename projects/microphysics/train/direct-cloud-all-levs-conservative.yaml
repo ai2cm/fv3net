@@ -25,9 +25,7 @@ loss:
     total_precipitation: .04
 conservative_model:
   architecture:
-    kwargs:
-      depth: 1
-      channels: 256
+    kwargs: {}
     name: rnn-v1-shared-weights
   fields:
     cloud_water:
