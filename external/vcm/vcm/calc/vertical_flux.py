@@ -35,7 +35,7 @@ def convergence_cell_center(
     )
 
 
-def project_vertical_flux(
+def fit_field_as_flux(
     field: xr.DataArray,
     pressure_thickness: xr.DataArray,
     first_level_flux: xr.DataArray,
@@ -69,7 +69,7 @@ Solves the least squares problem::
     # divide by g when converting to flux and multiply by g when converting back
     # to tendency fields
     return xr.apply_ufunc(
-        _project_vertical_flux,
+        _fit_field_as_flux,
         field,
         pressure_thickness,
         first_level_flux,
@@ -81,7 +81,7 @@ Solves the least squares problem::
     )
 
 
-def _project_vertical_flux(
+def _fit_field_as_flux(
     field: np.ndarray,
     pressure_thickness: np.ndarray,
     first_level_flux: np.ndarray,
