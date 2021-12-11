@@ -77,11 +77,11 @@ def project_vertical_flux(
 
 
 def _project_vertical_flux(
-    field: xr.DataArray,
-    pressure_thickness: xr.DataArray,
-    first_level_flux: xr.DataArray,
-    last_level_flux: xr.DataArray,
-) -> xr.DataArray:
+    field: np.ndarray,
+    pressure_thickness: np.ndarray,
+    first_level_flux: np.ndarray,
+    last_level_flux: np.ndarray,
+) -> np.ndarray:
     nz = field.shape[-1]
     field = field * pressure_thickness
     field[..., 0] -= first_level_flux
@@ -137,7 +137,5 @@ def flux_convergence(
     )
 
 
-def _flux_convergence(
-    flux: xr.DataArray, pressure_thickness: xr.DataArray,
-) -> xr.DataArray:
+def _flux_convergence(flux: np.ndarray, pressure_thickness: np.ndarray,) -> np.ndarray:
     return (flux[..., :-1] - flux[..., 1:]) / pressure_thickness
