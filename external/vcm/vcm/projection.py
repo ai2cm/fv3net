@@ -17,7 +17,7 @@ def _convergence(eddy: np.ndarray, delp: np.ndarray) -> np.ndarray:
     return -np.diff(padded, axis=-1) / delp
 
 
-def cell_center_convergence(
+def convergence_cell_center(
     eddy: xr.DataArray, delp: xr.DataArray, dim: str = "p"
 ) -> xr.DataArray:
     """Compute vertical convergence of a cell-centered flux.
@@ -44,6 +44,11 @@ def project_vertical_flux(
 ) -> xr.DataArray:
     """
     Produce a flux field that best represents the provided field using least squares.
+
+
+Solves the least squares problem::
+
+    | -dF/dp - field |^2 such that  F[0] = first_level_flux and F[-1] = last_level_flux
 
     Args:
         field: field to be represented by vertical flux, should have mass-normalized
@@ -103,14 +108,18 @@ def _project_vertical_flux(
     return flux_data
 
 
-def flux_convergence(
+def convergence_cell_interface(
     flux: xr.DataArray,
     pressure_thickness: xr.DataArray,
     vertical_dim: str = "z",
     vertical_interface_dim: str = "z_interface",
 ) -> xr.DataArray:
     """
-    Reconstruct a field from a flux.
+Compute the convergence of an interface-valued flux
+
+Equivalent to::
+
+    - dF/dp
 
     Args:
         flux: Flux of field * mass * g in units of (<field units> * kg * g)/m^2/s,
