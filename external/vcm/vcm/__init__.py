@@ -47,7 +47,11 @@ from .sampling import train_test_split_sample
 from .derived_mapping import DerivedMapping
 from .cloud import get_fs
 from .cloud.fsspec import to_url
-from .projection import project_vertical_flux, flux_convergence, cell_center_convergence
+from .calc.flux import (
+    convergence_cell_center,
+    convergence_cell_interface,
+    project_vertical_flux,
+)
 
 __all__ = [item for item in dir() if not item.startswith("_")]
 __version__ = "0.1.0"
