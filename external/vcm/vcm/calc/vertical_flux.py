@@ -45,10 +45,9 @@ def fit_field_as_flux(
     """
     Produce a flux field that best represents the provided field using least squares.
 
+    Solves the least squares problem::
 
-Solves the least squares problem::
-
-    | -dF/dp - field |^2 such that  F[0] = first_level_flux and F[-1] = last_level_flux
+        | -dF/dp - field |^2 s.t. F[0] = first_level_flux and F[-1] = last_level_flux
 
     Args:
         field: field to be represented by vertical flux, should have mass-normalized
@@ -115,11 +114,11 @@ def convergence_cell_interface(
     vertical_interface_dim: str = "z_interface",
 ) -> xr.DataArray:
     """
-Compute the convergence of an interface-valued flux
+    Compute the convergence of a flux defined on vertical cell interfaces.
 
-Equivalent to::
+    Equivalent to::
 
-    - dF/dp
+        - dF/dp
 
     Args:
         flux: Flux of field * mass * g in units of (<field units> * kg * g)/m^2/s,
