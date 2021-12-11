@@ -13,16 +13,20 @@ fi
 
 group="$(openssl rand -hex 3)"
 
+
+for commit in f16742bb f431c694 bb142584 bfd688ee ff03c914; do
 for config in direct-cloud-all-levs-conservative; do
     for model_type in rnn-v1-shared-weights; do
-        model_name="${config}-${model_type}"
+        model_name="${config}-${model_type}-${commit}"
         config_file="${config}.yaml"
         out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}-${group}")
 
         argo submit argo.yaml \
             --name "${model_name}-${group}" \
             -p training-config="$(base64 --wrap 0 $config_file)"\
-            -p flags="--conservative_model.architecture.name ${model_type} --out_url ${out_url} ${extra_flags}"
+            -p flags="--conservative_model.architecture.name ${model_type} --out_url ${out_url} ${extra_flags}" \
+            -p image-tag=$(git rev-parse $commit)
 
     done
+done
 done
