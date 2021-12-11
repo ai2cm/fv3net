@@ -61,7 +61,10 @@ def get_data(group, online=True):
     groups = [
         val
         for group, val in group.items()
-        if "7166bd" in group and online == is_online(val) and "piggy-back" in val
+        # TODO parameterize this query
+        if (("7166bd" in group) or ("v4" in group))
+        and online == is_online(val)
+        and "piggy-back" in val
     ]
     return pd.concat(
         [
