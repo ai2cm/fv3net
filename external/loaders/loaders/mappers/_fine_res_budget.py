@@ -53,7 +53,7 @@ def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = Fa
         data.vulcan_omega_coarse,
         data.T,
     )
-    eddy_flux_convergence = vcm.cell_center_convergence(eddy_flux, data.delp, dim="z")
+    eddy_flux_convergence = vcm.convergence_cell_center(eddy_flux, data.delp, dim="z")
     result = data.t_dt_fv_sat_adj_coarse + data.t_dt_phys_coarse + eddy_flux_convergence
     description = (
         "Apparent heating due to physics and sub-grid-scale advection. Given "
@@ -76,7 +76,7 @@ def apparent_moistening(data: FineResBudget):
         data.vulcan_omega_coarse,
         data.sphum,
     )
-    eddy_flux_convergence = vcm.cell_center_convergence(eddy_flux, data.delp, dim="z")
+    eddy_flux_convergence = vcm.convergence_cell_center(eddy_flux, data.delp, dim="z")
     return (
         (data.qv_dt_fv_sat_adj_coarse + data.qv_dt_phys_coarse + eddy_flux_convergence)
         .assign_attrs(

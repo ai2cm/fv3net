@@ -4,7 +4,7 @@ import xarray as xr
 import pytest
 
 
-def test_cell_center_convergence_constant():
+def test_convergence_cell_center_constant():
     nz = 5
     delp = np.ones(nz).reshape((1, 1, nz))
 
@@ -14,7 +14,7 @@ def test_cell_center_convergence_constant():
     np.testing.assert_almost_equal(ans, expected)
 
 
-def test_cell_center_convergence_linear():
+def test_convergence_cell_center_linear():
     nz = 5
     f = np.arange(nz).reshape((1, 1, nz))
     delp = np.ones(nz).reshape((1, 1, nz))
