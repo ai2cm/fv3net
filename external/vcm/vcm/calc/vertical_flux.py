@@ -22,7 +22,9 @@ def convergence_cell_center(
 ) -> xr.DataArray:
     """Compute vertical convergence of a cell-centered flux.
 
-    This flux is assumed to vanish at the vertical boundaries
+    This flux is linearly extrapolated from the last two points at the boundaries,
+    assuming constant index spacing, and then linearly interpolated to interfaces,
+    again assuming constant index spacing.
     """
     return xr.apply_ufunc(
         _convergence,
