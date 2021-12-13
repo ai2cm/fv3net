@@ -45,6 +45,9 @@ push_image_%: build_image_%
 pull_image_%:
 	docker pull $(REGISTRY)/$*:$(VERSION)
 
+enter_emulation:
+	cd projects/microphysics && docker-compose run --rm -w /fv3net/external/emulation fv3 bash
+
 ############################################################
 # Documentation (rules match "deploy_docs_%")
 ############################################################
