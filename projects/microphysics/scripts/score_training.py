@@ -90,7 +90,14 @@ def main(config: TrainConfig, seed: int = 0, model_url: str = None):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_url", help="Specify model path to run scoring for. Overrides use of models at the config.out_url", default=None)
+    parser.add_argument(
+        "--model_url",
+        help=(
+            "Specify model path to run scoring for. Overrides use of models "
+            "at the config.out_url"
+        ),
+        default=None,
+    )
 
     known, unknown = parser.parse_known_args()
     config = TrainConfig.from_args(unknown)

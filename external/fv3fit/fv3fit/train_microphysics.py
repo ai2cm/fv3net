@@ -9,7 +9,6 @@ from typing import Any, Dict, Mapping, Optional, Sequence, Union
 
 import dacite
 import fsspec
-import numpy as np
 import tensorflow as tf
 import yaml
 from fv3fit import set_random_seed
@@ -23,11 +22,9 @@ from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
-from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, score_model
+from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model
 from fv3fit.wandb import (
     WandBConfig,
-    log_profile_plots,
-    log_to_table,
     store_model_artifact,
 )
 
@@ -213,7 +210,6 @@ def main(config: TrainConfig, seed: int = 0):
     )
 
     train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
-    test_set = next(iter(test_ds.shuffle(160_000).batch(80_000)))
 
     model = config.build(train_set)
 
@@ -248,9 +244,8 @@ def main(config: TrainConfig, seed: int = 0):
                 callbacks=callbacks,
             )
 
-    
     logger.debug("Training complete")
-    
+
     with put_dir(config.out_url) as tmpdir:
 
         with open(os.path.join(tmpdir, "history.json"), "w") as f:
