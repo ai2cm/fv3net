@@ -23,7 +23,54 @@ def serialize_tensor_dict(data: Mapping[str, Tensor]) -> bytes:
     return example.SerializeToString()
 
 
-def get_parser(data: Mapping[str, Tensor]):
+def get_parser(data: Mapping[str, Tensor]) -> tf.Module:
+    """Returns a ``tensorflow`` module object for parsing byte records saved by
+    ``serialize_tensor_dict``.
+
+
+    Args:
+        data: a dataset object to use as a template
+
+    Returns:
+        a parser object with the following methods:
+
+        - ``parse_single_example``: parser a single bytes record into a
+                dictionary of tensors. Analogous to ``tf.io.parse_single_example``_.
+        - ``parse_example``: goes from a vector of bytes records to a dictionary
+                of tensors stacked along their first dimension. The length of
+                this dimension is the length of the input vector. Analogous to
+                ``tf.io.parse_example``_. Often more performance than
+                ``parse_single_example`` for small record sizes.
+
+        This module object can be serialized and loaded by
+        ``tf.saved_model.{save/load}`` in any environment with tensorflow
+        installed.
+
+    Examples:
+
+        >>> data = {"a": tf.ones((4,)), "b": tf.constant(1)}
+        >>> serialized = serialize_tensor_dict(data)
+        >>> parser = get_parser(data)
+        >>> single_record = tf.constant(serialized)
+        >>> single_record.shape, single_record.dtype
+        (TensorShape([]), tf.string)
+        >>> example = parser.parse_single_example(single_record)
+        >>> example["a"]
+        <tf.Tensor: shape=(4,), dtype=float32, numpy=array([1., 1., 1., 1.], \
+dtype=float32)>
+        >>> example["b"]
+        <tf.Tensor: shape=(), dtype=int32, numpy=1>
+        >>> records = tf.repeat(tf.constant(serialized), (10,))
+        >>> records.shape, records.dtype
+        (TensorShape([10]), tf.string)
+        >>> vectorized_parse = parser.parse_example(records)
+        >>> vectorized_parse["a"].shape
+        TensorShape([10, 4])
+
+    .. _``tf.io.parse_single_example``:: https://www.tensorflow.org/api_docs/python/tf/io/parse_single_example # noqa
+    .. _``tf.io.parse_example``:: https://www.tensorflow.org/api_docs/python/tf/io/parse_example # noqa
+
+    """
     features = {
         key: tf.io.FixedLenFeature([], tf.string, default_value=b"") for key in data
     }
@@ -66,3 +113,14 @@ def get_parser(data: Mapping[str, Tensor]):
             return self._parse_dict_of_bytes(parsed)
 
     return Parser()
+
+
+if __name__ == "__main__":
+    # Got error when trying to invoke the doctests from pytest::
+    # $ pytest --doctest-modules
+    # INTERNALERROR>     if "regtest" not in item.fixturenames:
+    # INTERNALERROR> AttributeError: 'DoctestItem' object has no attribute 'fixturenames' # noqa
+
+    import doctest  # noqa
+
+    doctest.testmod()
