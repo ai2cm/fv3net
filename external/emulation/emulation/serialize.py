@@ -105,8 +105,6 @@ dtype=float32)>
                     key: tf.TensorSpec(sizes[key], dtypes[key]) for key in sizes
                 },
             )
-            ds = tf.data.Dataset.from_tensor_slices(parsed)
-            return ds.map(self._parse_dict_of_bytes)
 
         @tf.function(input_signature=[tf.TensorSpec(shape=[], dtype=tf.string)])
         def parse_single_example(self, serialized: tf.Tensor):
