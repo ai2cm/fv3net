@@ -17,7 +17,7 @@ from fv3fit.emulation.thermobasis.loss import (
 )
 from utils import _get_argsin
 import pytest
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis.strategies import lists, integers
 
 
@@ -152,6 +152,7 @@ def test_Config_register_parser(args, loss_cls):
 
 
 @given(lists(integers(min_value=0, max_value=100)))
+@settings(deadline=None)
 def test_Config_multi_output_levels(levels):
     str_levels = ",".join(str(s) for s in levels)
     parser = argparse.ArgumentParser()
