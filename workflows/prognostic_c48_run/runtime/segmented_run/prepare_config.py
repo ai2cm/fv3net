@@ -72,14 +72,18 @@ class InitialCondition:
     Attributes:
         base_url: a location in GCS or local
         timestep: a YYYYMMDD.HHMMSS timestamp
+        restart_categories: an optional sequence of category names
     """
 
     base_url: str
     timestep: str
+    restart_categories: Optional[Sequence[str]] = None
 
     @property
     def overlay(self):
-        return fv3kube.c48_initial_conditions_overlay(self.base_url, self.timestep)
+        return fv3kube.c48_initial_conditions_overlay(
+            self.base_url, self.timestep, self.restart_categories
+        )
 
 
 @dataclasses.dataclass
