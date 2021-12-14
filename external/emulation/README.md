@@ -72,3 +72,6 @@ tf_ds = tf.data.TFRecordDataset(
     tf.data.Dataset.list_files(f"{url}/*.tfrecord")
 ).map(parser.parse_single_example)
 ```
+
+Note that tensorflow I/O routines support `GCS` links beginning with
+`gs://some-bucket/some-path`.
