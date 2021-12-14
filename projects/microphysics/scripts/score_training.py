@@ -60,10 +60,10 @@ def main(config: TrainConfig, seed: int = 0, model_url: str = None):
     test_ds = nc_dir_to_tf_dataset(
         config.test_url, config.transform, nfiles=config.nfiles_valid
     )
-    
+
     train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
     test_set = next(iter(test_ds.shuffle(160_000).batch(80_000)))
-    
+
     train_scores, train_profiles = score_model(model, train_set)
     test_scores, test_profiles = score_model(model, test_set)
     logger.debug("Scoring Complete")

@@ -7,6 +7,12 @@ metadata:
     job_type: train
 spec:
   entrypoint: training
+  arguments:
+    parameters:
+    - name: tag
+      value: "@sha256:a6d32927b4844d2863ba7916f7d3d33749f4448e20534a66a9d4cb4bb6269887"
+    - name: wandb-run-group
+      value: ""
   volumes:
     - name: gcp-key-secret
       secret:
@@ -14,13 +20,20 @@ spec:
         secretName: gcp-key
   templates:
     - name: training
+      steps:
+      - - name: train_model
+          template: train_model
+          continueOn:
+            failed: true
+      - - name: score_model
+          template: score_model
+    - name: train_model
       inputs:
         parameters:
           - name: training-config
           - {name: flags, value: " "}
-          # - {name: memory, value: "8Gi"}
       container:
-        image: us.gcr.io/vcm-ml/prognostic_run@sha256:a6d32927b4844d2863ba7916f7d3d33749f4448e20534a66a9d4cb4bb6269887
+        image: "us.gcr.io/vcm-ml/prognostic_run{{workflow.parameters.tag}}"
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -32,16 +45,18 @@ spec:
             value: /secret/gcp-credentials/key.json
           - name: WANDB_NAME
             value: "{{workflow.name}}"
+          - name: WANDB_RUN_GROUP
+            value: "{{workflow.parameters.wandb-run-group}}"
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
         resources:
           limits:
             cpu: "7"
-            memory: "8Gi"
+            memory: "20Gi"
           requests:
             cpu: "4"
-            memory: "8Gi"
+            memory: "15Gi"
         args:
           - |
             echo "{{inputs.parameters.training-config}}" | base64 --decode > training_config.yaml
@@ -54,4 +69,49 @@ spec:
       - key: "dedicated"
         operator: "Equal"
         value: "med-sim-pool"
-        effect: "NoSchedule"  
+        effect: "NoSchedule"
+    - name: score_model
+      inputs:
+        parameters:
+          - name: training-config
+          - {name: flags, value: " "}
+      container:
+        image: "us.gcr.io/vcm-ml/prognostic_run{{workflows.parameters.tag}}"
+        command: ["bash", "-c", "-x"]
+        workingDir: "/fv3net/projects/microphysics"
+        envFrom:
+        - secretRef:
+            name: wandb-andrep
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+          - name: WANDB_NAME
+            value: "{{workflow.name}}"
+          - name: WANDB_RUN_GROUP
+            value: "{{workflow.parameters.wandb-run-group}}"
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+        resources:
+          limits:
+            cpu: "7"
+            memory: "30Gi"
+          requests:
+            cpu: "7"
+            memory: "30Gi"
+        args:
+          - |
+            echo "{{inputs.parameters.training-config}}" | base64 --decode > training_config.yaml
+
+            python3 scripts/score_training.py \
+              --config-path training_config.yaml \
+              --wandb.job_type train_score \
+              {{inputs.parameters.flags}}
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "med-sim-pool"
+        effect: "NoSchedule"
+
