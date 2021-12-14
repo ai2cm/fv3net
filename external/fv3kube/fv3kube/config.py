@@ -81,6 +81,7 @@ def update_tiled_asset_names(
     source_filename: str,
     target_url: str,
     target_filename: str,
+    restart_categories: Sequence[str],
     **kwargs,
 ) -> Sequence[Mapping[str, str]]:
 
@@ -99,7 +100,7 @@ def update_tiled_asset_names(
             target_location=target_url,
             target_name=target_filename.format(category=category, tile=tile, **kwargs),
         )
-        for category in RESTART_CATEGORIES
+        for category in restart_categories
         for tile in TILE_COORDS_FILENAMES
     ]
 
@@ -130,12 +131,16 @@ def get_full_config(
     )
 
 
-def c48_initial_conditions_overlay(url: str, timestep: str) -> Mapping:
+def c48_initial_conditions_overlay(
+    url: str, timestep: str, restart_categories: Optional[Sequence[str]]
+) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
     TIME_FMT = "%Y%m%d.%H%M%S"
     time = datetime.datetime.strptime(timestep, TIME_FMT)
     time_list = [time.year, time.month, time.day, time.hour, time.minute, time.second]
+    if restart_categories is None:
+        restart_categories = RESTART_CATEGORIES
 
     overlay = {}
     overlay["initial_conditions"] = update_tiled_asset_names(
@@ -143,6 +148,7 @@ def c48_initial_conditions_overlay(url: str, timestep: str) -> Mapping:
         source_filename="{timestep}.{category}.tile{tile}.nc",
         target_url="INPUT",
         target_filename="{category}.tile{tile}.nc",
+        restart_categories=restart_categories,
         timestep=timestep,
     )
     overlay["initial_conditions"].append(FV_CORE_ASSET)
