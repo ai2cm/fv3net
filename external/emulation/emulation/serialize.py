@@ -34,12 +34,13 @@ def get_parser(data: Mapping[str, Tensor]) -> tf.Module:
     Returns:
         a parser object with the following methods:
 
-        - ``parse_single_example``: parser a single bytes record into a
-                dictionary of tensors. Analogous to ``tf.io.parse_single_example``_.
-        - ``parse_example``: goes from a vector of bytes records to a dictionary
-                of tensors stacked along their first dimension. The length of
-                this dimension is the length of the input vector. Analogous to
-                ``tf.io.parse_example``_. Often more performance than
+        - ``parse_single_example``: parser a single tf.train.Example
+                protocol buffer into a dictionary of tensors. Analogous to
+                ``tf.io.parse_single_example``_.
+        - ``parse_example``: goes from a vector of tf.train.Example protocol
+                buffers to a dictionary of tensors stacked along their first dimension.
+                The length of this dimension is the length of the input vector.
+                Analogous to ``tf.io.parse_example``_. Often more performance than
                 ``parse_single_example`` for small record sizes.
 
         This module object can be serialized and loaded by
@@ -108,8 +109,8 @@ dtype=float32)>
             return ds.map(self._parse_dict_of_bytes)
 
         @tf.function(input_signature=[tf.TensorSpec(shape=[], dtype=tf.string)])
-        def parse_single_example(self, record: tf.Tensor):
-            parsed = tf.io.parse_single_example(record, features)
+        def parse_single_example(self, serialized: tf.Tensor):
+            parsed = tf.io.parse_single_example(serialized, features)
             return self._parse_dict_of_bytes(parsed)
 
     return Parser()
