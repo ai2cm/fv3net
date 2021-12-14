@@ -154,12 +154,13 @@ def test_Config_register_parser(args, loss_cls):
 @given(lists(integers(min_value=0, max_value=100)))
 @settings(deadline=None)
 def test_Config_multi_output_levels(levels):
-    str_levels = ",".join(str(s) for s in levels)
+    levels_set = list(set(levels))
+    str_levels = ",".join(str(s) for s in levels_set)
     parser = argparse.ArgumentParser()
     Config.register_parser(parser)
     args = parser.parse_args(["--multi-output", "--levels", str_levels])
     config = Config.from_args(args)
-    assert config.target.levels == levels
+    assert config.target.levels == levels_set
 
 
 @pytest.mark.network
