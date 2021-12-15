@@ -10,8 +10,11 @@ spec:
   arguments:
     parameters:
     - name: tag
-      value: "@sha256:a6d32927b4844d2863ba7916f7d3d33749f4448e20534a66a9d4cb4bb6269887"
+      value: "@sha256:81479b95e3c920951859258b6b9adab570ea63b6ed3dd4985abd852ae250f2fd"
     - name: wandb-run-group
+      value: ""
+    - name: training-config
+    - name: flags
       value: ""
   volumes:
     - name: gcp-key-secret
@@ -21,13 +24,25 @@ spec:
   templates:
     - name: training
       steps:
-      - - name: train_model
-          template: train_model
+      - - name: train-model
+          template: train-model
           continueOn:
             failed: true
-      - - name: score_model
-          template: score_model
-    - name: train_model
+          arguments:
+            parameters:
+            - name: training-config
+              value: "{{workflow.parameters.training-config}}"
+            - name: flags
+              value: "{{workflow.parameters.flags}}"
+      - - name: score-model
+          template: score-model
+          arguments:
+            parameters:
+            - name: training-config
+              value: "{{workflow.parameters.training-config}}"
+            - name: flags
+              value: "{{workflow.parameters.flags}}"
+    - name: train-model
       inputs:
         parameters:
           - name: training-config
@@ -70,7 +85,7 @@ spec:
         operator: "Equal"
         value: "med-sim-pool"
         effect: "NoSchedule"
-    - name: score_model
+    - name: score-model
       inputs:
         parameters:
           - name: training-config
