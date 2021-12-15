@@ -19,7 +19,12 @@ BASE_FV3CONFIG_BY_VERSION = {
 }
 
 TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
-RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer.res", "fv_srf_wnd.res"]
+REQUIRED_RESTART_CATEGORIES = [
+    "fv_core.res",
+    "sfc_data",
+    "fv_tracer.res",
+    "fv_srf_wnd.res",
+]
 FV_CORE_ASSET = fv3config.get_asset_dict(
     "gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0/",
     "fv_core.res.nc",
@@ -81,7 +86,7 @@ def update_tiled_asset_names(
     source_filename: str,
     target_url: str,
     target_filename: str,
-    restart_categories: Sequence[str],
+    restart_categories: Mapping[str, str],
     **kwargs,
 ) -> Sequence[Mapping[str, str]]:
 
@@ -96,11 +101,13 @@ def update_tiled_asset_names(
     assets = [
         fv3config.get_asset_dict(
             source_url,
-            source_filename.format(category=category, tile=tile, **kwargs),
+            source_filename.format(category=disk_category, tile=tile, **kwargs),
             target_location=target_url,
-            target_name=target_filename.format(category=category, tile=tile, **kwargs),
+            target_name=target_filename.format(
+                category=required_category, tile=tile, **kwargs
+            ),
         )
-        for category in restart_categories
+        for required_category, disk_category in restart_categories.items()
         for tile in TILE_COORDS_FILENAMES
     ]
 
@@ -132,7 +139,7 @@ def get_full_config(
 
 
 def c48_initial_conditions_overlay(
-    url: str, timestep: str, restart_categories: Optional[Sequence[str]] = None
+    url: str, timestep: str, restart_categories: Optional[Mapping[str, str]] = None
 ) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
@@ -140,7 +147,9 @@ def c48_initial_conditions_overlay(
     time = datetime.datetime.strptime(timestep, TIME_FMT)
     time_list = [time.year, time.month, time.day, time.hour, time.minute, time.second]
     if restart_categories is None:
-        restart_categories = RESTART_CATEGORIES
+        restart_categories = {
+            category: category for category in REQUIRED_RESTART_CATEGORIES
+        }
 
     overlay = {}
     overlay["initial_conditions"] = update_tiled_asset_names(

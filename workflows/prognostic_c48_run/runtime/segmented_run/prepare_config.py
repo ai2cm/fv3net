@@ -71,12 +71,13 @@ class InitialCondition:
     Attributes:
         base_url: a location in GCS or local
         timestep: a YYYYMMDD.HHMMSS timestamp
-        restart_categories: an optional sequence of category names
+        restart_categories: an optional mapping from the required FV3GFS
+            category names to restart category names as stored on disk
     """
 
     base_url: str
     timestep: str
-    restart_categories: Optional[Sequence[str]] = None
+    restart_categories: Optional[Mapping[str, str]] = None
 
     @property
     def overlay(self):
