@@ -6,6 +6,7 @@ import vcm.catalog
 import vcm.fv3.metadata
 import wandb
 import fv3viz
+import plotly.express as px
 
 import matplotlib.pyplot as plt
 
@@ -82,60 +83,82 @@ def plot_r2(r2):
     r2.drop("z").plot(yincrease=False, y="z", vmax=1)
 
 
-skills = xr.Dataset(
-    dict(
-        cloud_water=skill_improvement(
-            ds.tendency_of_cloud_water_due_to_zhao_carr_physics,
-            ds.tendency_of_cloud_water_due_to_zhao_carr_emulator,
-            ds.area,
-        ),
-        specific_humidity=skill_improvement(
-            ds.tendency_of_specific_humidity_due_to_zhao_carr_physics,
-            ds.tendency_of_specific_humidity_due_to_zhao_carr_emulator,
-            ds.area,
-        ),
-        air_temperature=skill_improvement(
-            ds.tendency_of_air_temperature_due_to_zhao_carr_physics,
-            ds.tendency_of_air_temperature_due_to_zhao_carr_emulator,
-            ds.area,
-        ),
-    )
-)
-
-skills_time = xr.Dataset(
-    dict(
-        surface_precipitation=skill_improvement(
-            ds.surface_precipitation_due_to_zhao_carr_physics,
-            ds.surface_precipitation_due_to_zhao_carr_emulator,
-            ds.area,
+def skills_3d(ds):
+    return xr.Dataset(
+        dict(
+            cloud_water=skill_improvement(
+                ds.tendency_of_cloud_water_due_to_zhao_carr_physics,
+                ds.tendency_of_cloud_water_due_to_zhao_carr_emulator,
+                ds.area,
+            ),
+            specific_humidity=skill_improvement(
+                ds.tendency_of_specific_humidity_due_to_zhao_carr_physics,
+                ds.tendency_of_specific_humidity_due_to_zhao_carr_emulator,
+                ds.area,
+            ),
+            air_temperature=skill_improvement(
+                ds.tendency_of_air_temperature_due_to_zhao_carr_physics,
+                ds.tendency_of_air_temperature_due_to_zhao_carr_emulator,
+                ds.area,
+            ),
         )
     )
-)
 
-skills_all = xr.Dataset(
-    dict(
-        cloud_water=skill_improvement_column(
-            ds.tendency_of_cloud_water_due_to_zhao_carr_physics,
-            ds.tendency_of_cloud_water_due_to_zhao_carr_emulator,
-            ds.area,
-        ),
-        specific_humidity=skill_improvement_column(
-            ds.tendency_of_specific_humidity_due_to_zhao_carr_physics,
-            ds.tendency_of_specific_humidity_due_to_zhao_carr_emulator,
-            ds.area,
-        ),
-        air_temperature=skill_improvement_column(
-            ds.tendency_of_air_temperature_due_to_zhao_carr_physics,
-            ds.tendency_of_air_temperature_due_to_zhao_carr_emulator,
-            ds.area,
-        ),
-        surface_precipitation=skill_improvement_column(
-            ds.surface_precipitation_due_to_zhao_carr_physics,
-            ds.surface_precipitation_due_to_zhao_carr_emulator,
-            ds.area,
-        ),
+
+def skills_1d(ds):
+    return xr.Dataset(
+        dict(
+            surface_precipitation=skill_improvement(
+                ds.surface_precipitation_due_to_zhao_carr_physics,
+                ds.surface_precipitation_due_to_zhao_carr_emulator,
+                ds.area,
+            )
+        )
     )
-)
+
+
+def column_integrated_skills(ds):
+    return xr.Dataset(
+        dict(
+            cloud_water=skill_improvement_column(
+                ds.tendency_of_cloud_water_due_to_zhao_carr_physics,
+                ds.tendency_of_cloud_water_due_to_zhao_carr_emulator,
+                ds.area,
+            ),
+            specific_humidity=skill_improvement_column(
+                ds.tendency_of_specific_humidity_due_to_zhao_carr_physics,
+                ds.tendency_of_specific_humidity_due_to_zhao_carr_emulator,
+                ds.area,
+            ),
+            air_temperature=skill_improvement_column(
+                ds.tendency_of_air_temperature_due_to_zhao_carr_physics,
+                ds.tendency_of_air_temperature_due_to_zhao_carr_emulator,
+                ds.area,
+            ),
+            surface_precipitation=skill_improvement_column(
+                ds.surface_precipitation_due_to_zhao_carr_physics,
+                ds.surface_precipitation_due_to_zhao_carr_emulator,
+                ds.area,
+            ),
+        )
+    )
+
+
+def plot_cloud_skill_zonal(ds, field, time):
+    emu = ds[f"tendency_of_{field}_due_to_zhao_carr_emulator"]
+    phys = ds[f"tendency_of_{field}_due_to_zhao_carr_physics"]
+
+    num = vcm.zonal_average_approximate(ds.lat, (emu - phys) ** 2)
+    denom = vcm.zonal_average_approximate(ds.lat, phys ** 2)
+
+    score = 1 - num / denom
+    if isinstance(time, int):
+        plotme = score.isel(time=time)
+        time = plotme.time.item().isoformat()
+    else:
+        plotme = score.mean("time")
+
+    return px.imshow(plotme, zmin=-1, zmax=1, color_continuous_scale="RdBu_r")
 
 
 def time_dependent_dataset(skills):
@@ -144,9 +167,39 @@ def time_dependent_dataset(skills):
     return wandb.Table(dataframe=df)
 
 
-metrics["skill"] = time_dependent_dataset(skills)
-metrics["skill_time"] = time_dependent_dataset(skills_time)
-wandb.log(metrics)
+def log_lat_vs_p_skill(field):
+    """Returns a function that will compute the lat vs pressure skill of a field"""
 
-for v in skills_all:
-    wandb.summary["column_skill/" + v] = float(skills_all[v])
+    def func(ds):
+        return {
+            f"lat_p_skill/{field}": wandb.Plotly(
+                plot_cloud_skill_zonal(ds, field, "mean")
+            )
+        }
+
+    return func
+
+
+log_functions = [
+    (lambda ds: {"skill": time_dependent_dataset(skills_3d(ds))}),
+    (lambda ds: {"skill_time": time_dependent_dataset(skills_1d(ds))}),
+]
+
+for field in ["cloud_water", "specific_humidity", "air_temperature"]:
+    log_functions.append(log_lat_vs_p_skill(field))
+
+
+summary_functions = [
+    lambda ds: {
+        f"column_skill/{key}": float(val)
+        for key, val in column_integrated_skills(ds).items()
+    }
+]
+
+for func in log_functions:
+    print(f"Running {func}")
+    wandb.log(func(ds))
+
+for func in summary_functions:
+    for key, val in func(ds).items():
+        wandb.summary[key] = val
