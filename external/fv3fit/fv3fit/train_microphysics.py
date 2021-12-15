@@ -67,6 +67,8 @@ class TrainConfig:
             during training
         checkpoint_model: if true, save a checkpoint after each epoch
         log_level: what logging level to use
+        cache: Use a cache for training/testing batches. Speeds up training for
+            I/O bound architectures.  Always disabled for rnn-v1 architectures.
     """
 
     train_url: str
@@ -87,6 +89,7 @@ class TrainConfig:
     shuffle_buffer_size: Optional[int] = 100_000
     checkpoint_model: bool = True
     log_level: str = "INFO"
+    cache: bool = True
 
     @property
     def _model(
@@ -192,6 +195,10 @@ class TrainConfig:
         )
         self.transform.variables = list(required_variables)
 
+        if self.model is not None and "rnn-v1" in self.model.architecture.name and self.cache:
+            logger.warn("Caching disabled for rnn-v1 architectures due to memory leak")
+            self.cache = False
+
 
 def main(config: TrainConfig, seed: int = 0):
     logging.basicConfig(level=getattr(logging, config.log_level))
@@ -230,15 +237,19 @@ def main(config: TrainConfig, seed: int = 0):
     with tempfile.TemporaryDirectory() as train_temp:
         with tempfile.TemporaryDirectory() as test_temp:
 
-            train_ds_cached = train_ds.batch(config.batch_size).cache(train_temp)
-            test_ds_cached = test_ds.batch(config.batch_size).cache(test_temp)
+            train_ds_batched = train_ds.batch(config.batch_size)
+            test_ds_batched = test_ds.batch(config.batch_size)
+
+            if config.cache:
+                train_ds_batched = train_ds_batched.cache(train_temp)
+                test_ds_batched = test_ds_batched.cache(test_temp)
 
             history = train(
                 model,
-                train_ds_cached,
+                train_ds_batched,
                 config.loss,
                 epochs=config.epochs,
-                validation_data=test_ds_cached,
+                validation_data=test_ds_batched,
                 validation_freq=config.valid_freq,
                 verbose=config.verbose,
                 callbacks=callbacks,
