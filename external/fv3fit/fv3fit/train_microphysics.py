@@ -195,7 +195,11 @@ class TrainConfig:
         )
         self.transform.variables = list(required_variables)
 
-        if self.model is not None and "rnn-v1" in self.model.architecture.name and self.cache:
+        if (
+            self.model is not None
+            and "rnn-v1" in self.model.architecture.name
+            and self.cache
+        ):
             logger.warn("Caching disabled for rnn-v1 architectures due to memory leak")
             self.cache = False
 
