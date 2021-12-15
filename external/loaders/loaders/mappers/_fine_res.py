@@ -41,7 +41,15 @@ def standardize_coords(
     return gfdl_to_standard(ds_shifted).drop("tile")
 
 
-def _merge(fine, additional_dataset_urls):
+def _open_merged_dataset(
+    fine_url: str,
+    additional_dataset_urls: Optional[Sequence[str]],
+    standardize_fine_coords: bool = True,
+) -> FineResBudget:
+
+    fine = open_zarr(fine_url)
+    if standardize_fine_coords:
+        fine = standardize_coords(fine)
 
     if additional_dataset_urls is not None:
         additional_datasets = []
@@ -55,21 +63,11 @@ def _merge(fine, additional_dataset_urls):
     else:
         merged = fine
 
-    return merged
-
-
-def _open_merged_dataset(
-    fine_url: str, additional_dataset_urls: Optional[Sequence[str]]
-) -> FineResBudget:
-
-    fine = open_zarr(fine_url)
-    fine_shifted = standardize_coords(fine)
-
-    merged = _merge(fine_shifted, additional_dataset_urls)
-
-    # enforce that these ML inputs come from fine dataset
-    merged["air_temperature"] = fine_shifted.T
-    merged["specific_humidity"] = fine_shifted.sphum
+    # enforce that these ML inputs come from fine dataset if they exist there
+    if "T" in fine:
+        merged["air_temperature"] = fine.T
+    if "sphum" in fine:
+        merged["specific_humidity"] = fine.sphum
 
     return merged
 
@@ -228,8 +226,11 @@ def _open_precomputed_fine_resolution_dataset(
     fine_url: str, additional_dataset_urls: Optional[Sequence[str]] = None
 ) -> MLTendencies:
 
-    fine = open_zarr(fine_url)
-    merged = _merge(fine, additional_dataset_urls)
+    merged = _open_merged_dataset(
+        fine_url=fine_url,
+        additional_dataset_urls=additional_dataset_urls,
+        standardize_fine_coords=False,
+    )
 
     return _ml_standard_names(merged)
 
