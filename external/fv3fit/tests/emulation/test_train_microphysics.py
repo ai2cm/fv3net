@@ -132,6 +132,21 @@ def test_TrainConfig_from_args_sysargv(monkeypatch):
     assert config.model.architecture.name == "rnn"
 
 
+@pytest.mark.parametrize(
+    "arch_key, expected_cache",
+    [("dense", True), ("rnn-v1", False), ("rnn-v1", False)]
+)
+def test_rnn_v1_cache_disable(arch_key, expected_cache):
+
+    default = get_default_config()
+    d = asdict(default)
+    d["cache"] = True
+    d["model"]["architecture"]["name"] = arch_key
+    config = TrainConfig.from_dict(d)
+
+    assert config.cache == expected_cache
+
+
 @pytest.mark.regression
 def test_training_entry_integration(tmp_path):
 
