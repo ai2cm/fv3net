@@ -35,6 +35,16 @@ GFSPHYSICS_VARIABLES = [
     "dt3dt_pbl_coarse",
     "dt3dt_shal_conv_coarse",
     "dt3dt_sw_coarse",
+    "DLWRFsfc_coarse",
+    "DSWRFsfc_coarse",
+    "DSWRFtoa_coarse",
+    "ULWRFsfc_coarse",
+    "ULWRFtoa_coarse",
+    "USWRFsfc_coarse",
+    "USWRFtoa_coarse",
+    "LHTFLsfc_coarse",
+    "SHTFLsfc_coarse",
+    "PRATEsrf_coarse",
 ]
 
 # Output configurations
