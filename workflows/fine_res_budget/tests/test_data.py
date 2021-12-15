@@ -15,4 +15,9 @@ def test_open_merged(data_dirs):
     ):
         assert name in dataset
 
+    # 2d variable should stay 2d
+    assert set(dataset["PRATEsfc_coarse"].dims) == set(
+        ["step", "tile", "time", "grid_yt", "grid_xt"]
+    )
+
     assert len(dataset["time"]) > 0

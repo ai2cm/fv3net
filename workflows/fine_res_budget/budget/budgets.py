@@ -50,8 +50,10 @@ class Grid:
         pi = self.pressure_at_interface(delp_fine)
         pi_c = self.pressure_at_interface(delp_coarse)
         pi_c_up = self.block_upsample(pi_c, factor=factor)
-
-        fg = self.regrid_vertical(pi, field, pi_c_up)
+        if self.z in field.dims:
+            fg = self.regrid_vertical(pi, field, pi_c_up)
+        else:
+            fg = field
         avg = self.weighted_block_average(fg, area, factor)
         return avg.drop_vars([self.x, self.y, self.z], errors="ignore").rename(
             field.name

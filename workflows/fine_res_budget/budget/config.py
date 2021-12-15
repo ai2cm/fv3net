@@ -44,7 +44,7 @@ GFSPHYSICS_VARIABLES = [
     "USWRFtoa_coarse",
     "LHTFLsfc_coarse",
     "SHTFLsfc_coarse",
-    "PRATEsrf_coarse",
+    "PRATEsfc_coarse",
 ]
 
 # Output configurations
