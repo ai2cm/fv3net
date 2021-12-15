@@ -43,3 +43,4 @@ VARIABLES_TO_AVERAGE = set(
 ) - {"area_coarse", "delp"}
 # coarsening factor. C384 to C48 is a factor of 8
 factor = 8
+dt = 15 * 60  # timestep in seconds

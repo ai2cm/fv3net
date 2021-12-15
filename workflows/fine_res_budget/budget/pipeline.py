@@ -35,7 +35,10 @@ def as_one_chunk(ds):
 def func(iData):
     dims = ["time", "tile", "pfull", "grid_yt", "grid_xt"]
     ds = budgets.compute_recoarsened_budget_inputs(
-        iData, config.factor, first_moments=config.VARIABLES_TO_AVERAGE
+        iData,
+        dt=config.dt,
+        factor=config.factor,
+        first_moments=config.VARIABLES_TO_AVERAGE,
     )
     return ds.drop(["step"]).transpose(*dims).pipe(as_one_chunk)
 

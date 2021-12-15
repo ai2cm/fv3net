@@ -3,10 +3,16 @@ import numpy as np
 import tensorflow as tf
 
 from fv3fit.emulation.layers.architecture import (
-    MLPBlock,
     RNNBlock,
+    _HiddenArchitecture,
+    MLPBlock,
+    HybridRNN,
     CombineInputs,
     NoWeightSharingSLP,
+    RNNOutput,
+    StandardOutput,
+    ArchitectureConfig,
+    _ARCHITECTURE_KEYS,
 )
 
 
@@ -41,13 +47,21 @@ def test_MLPBlock_no_dense_layers():
 
 
 @pytest.mark.parametrize("depth,expected_shp", [(1, (20, 64)), (0, (20, 128))])
-def test_RNNBlock(depth, expected_shp):
+def test_HybridRNN(depth, expected_shp):
 
-    rnn = RNNBlock(channels=128, dense_width=64, dense_depth=depth)
+    rnn = HybridRNN(channels=128, dense_width=64, dense_depth=depth)
 
     tensor = _get_tensor((20, 10, 2))
     result = rnn(tensor)
     assert result.shape == expected_shp
+
+
+def test_RNN():
+
+    rnn = RNNBlock(channels=64, depth=2)
+    tensor = _get_tensor((20, 10, 2))
+    result = rnn(tensor)
+    assert result.shape == (20, 10, 64)
 
 
 def test_CombineInputs_no_expand():
@@ -91,7 +105,7 @@ def test_no_weight_sharing_num_weights():
     assert num_weights_expected == total
 
 
-@pytest.mark.parametrize("layer_cls", [CombineInputs, MLPBlock, RNNBlock])
+@pytest.mark.parametrize("layer_cls", [CombineInputs, MLPBlock, HybridRNN, RNNBlock])
 def test_from_config(layer_cls):
 
     layer = layer_cls()
@@ -99,3 +113,65 @@ def test_from_config(layer_cls):
     rebuilt = layer_cls.from_config(config)
 
     assert isinstance(rebuilt, layer_cls)
+
+
+@pytest.mark.parametrize(
+    "connector_cls, hidden_out",
+    [(StandardOutput, _get_tensor((10, 64))), (RNNOutput, _get_tensor((10, 79, 64)))],
+)
+def test_OutputConnectors(connector_cls, hidden_out):
+
+    feature_lens = {
+        "field1": 79,
+        "surface": 1,
+    }
+
+    connector = connector_cls(feature_lens)
+    connected = connector(hidden_out)
+
+    assert len(connected) == 2
+    for key, output in connected.items():
+        assert output.shape == (10, feature_lens[key])
+
+
+def test_get_architecture_unrecognized():
+
+    with pytest.raises(KeyError):
+        ArchitectureConfig(name="not_an_arch")
+
+
+@pytest.mark.parametrize("key", ["rnn-v1", "rnn", "dense", "linear"])
+def test_ArchParams_bad_kwargs(key):
+    with pytest.raises(TypeError):
+        _HiddenArchitecture(key, dict(not_a_kwarg="hi"), {})
+
+
+@pytest.mark.parametrize(
+    "arch_key", _ARCHITECTURE_KEYS,
+)
+def test_ArchitectureConfig(arch_key):
+
+    tensor = _get_tensor((10, 20))
+
+    config = ArchitectureConfig(arch_key, {})
+    output_features = {"out_field1": 20, "out_field2": 1}
+    arch_layer = config.build(output_features)
+
+    outputs = arch_layer([tensor, tensor])
+    assert len(outputs) == 2
+    for key, feature_len in output_features.items():
+        assert key in outputs
+        assert outputs[key].shape == (10, feature_len)
+
+
+@pytest.mark.parametrize("rnn_key", ["rnn", "rnn-v1"])
+def test_rnn_fails_with_inconsistent_vertical_dimensions(rnn_key):
+
+    tensor1 = _get_tensor((10, 20))
+    tensor2 = _get_tensor((10, 1))
+
+    config = ArchitectureConfig(rnn_key)
+    layer = config.build({})
+
+    with pytest.raises(tf.errors.InvalidArgumentError):
+        layer([tensor1, tensor2])

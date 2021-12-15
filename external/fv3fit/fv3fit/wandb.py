@@ -1,5 +1,6 @@
 from collections import defaultdict
 import dataclasses
+import logging
 import wandb
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,7 +28,10 @@ class WandBConfig:
     @staticmethod
     def get_callback():
         """Grab a callback for logging during keras training"""
-        return wandb.keras.WandbCallback(save_weights_only=False)
+        # disable model saving since wandb doesn't support saving models in
+        # SavedModel format and our models only support that format
+        # see https://github.com/wandb/client/issues/2987
+        return wandb.keras.WandbCallback(save_model=False)
 
     def init(self, config: Optional[Dict[str, Any]] = None):
         """Start logging specified by this config"""
@@ -50,6 +54,7 @@ def log_to_table(log_key: str, data: Dict[str, Any], index: Optional[List[Any]] 
         index: Provide an index for the column values, useful when
             the data are single values, e.g., the scoring metrics
     """
+    logging.getLogger("log_to_table").debug(f"logging {log_key} to weights and biases")
 
     df = pd.DataFrame(data, index=index)
     table = wandb.Table(dataframe=df)
@@ -97,6 +102,9 @@ def log_profile_plots(
     """
     Handle profile plots for single- or multi-output models.
     """
+    logging.getLogger("log_profile_plots").debug(
+        f"logging {list(targets)} to weights and biases"
+    )
     for name in set(targets) & set(predictions):
         t = targets[name]
         p = predictions[name]

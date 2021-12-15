@@ -1,11 +1,14 @@
 import numpy as np
+from os.path import join
 import pytest
+import tempfile
 import tensorflow as tf
 
 import fv3fit.emulation.models
 from fv3fit._shared import SliceConfig
 from fv3fit.emulation.models import MicrophysicsConfig
-from fv3fit.emulation.models._core import ArchitectureConfig
+from fv3fit.emulation.layers import ArchitectureConfig
+from fv3fit.emulation.layers.architecture import _ARCHITECTURE_KEYS
 
 
 def _get_data(shape):
@@ -86,7 +89,7 @@ def test_Config_build_residual_w_extra_tends_out():
     )
 
     data = _get_data((20, 5))
-    m = {"dummy_out1": data, "dummy_in": data}
+    m = {"dummy_out1": data, "dummy_in": data, "dummy_out1_tendency": data}
     model = config.build(m)
     output = model(data)
     assert set(output) == {"dummy_out1", "dummy_out1_tendency"}
@@ -100,7 +103,9 @@ def test_precip_conserving_config():
     data = {v: one for v in factory.input_variables + factory.output_variables}
     model = factory.build(data)
     out = model(data)
-    assert factory.fields.surface_precipitation.output_name in out
+    precip = out[factory.fields.surface_precipitation.output_name]
+    # scalar outputs need a singleton dimension to avoid broadcasting mayhem
+    assert tuple(precip.shape) == (one.shape[0], 1)
 
 
 def test_precip_conserving_output_variables():
@@ -127,15 +132,38 @@ def test_precip_conserving_extra_inputs():
     assert set(extra_names) < set(factory.input_variables)
 
 
-@pytest.mark.xfail
+@pytest.mark.parametrize("arch", _ARCHITECTURE_KEYS)
+def test_MicrophysicConfig_model_save_reload(arch):
+
+    config = MicrophysicsConfig(
+        input_variables=["field_input"],
+        direct_out_variables=["field_output"],
+        architecture=ArchitectureConfig(name=arch),
+    )
+
+    nlev = 15
+    data = tf.random.normal((10, nlev))
+    sample = {"field_input": data, "field_output": data}
+
+    model = config.build(sample)
+
+    expected = model(sample)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model_path = join(tmpdir, "model.tf")
+        model.save(model_path, save_format="tf")
+        reloaded = tf.keras.models.load_model(model_path, compile=False)
+
+    result = reloaded(sample)
+    np.testing.assert_array_equal(expected["field_output"], result["field_output"])
+
+
 def test_RNN_downward_dependence():
 
     config = MicrophysicsConfig(
         input_variables=["field_input"],
         direct_out_variables=["field_output"],
-        architecture=ArchitectureConfig(
-            name="rnn", kwargs=dict(channels=16, dense_width=16, dense_depth=1)
-        ),
+        architecture=ArchitectureConfig(name="rnn-v1", kwargs=dict(channels=16)),
     )
 
     nlev = 15

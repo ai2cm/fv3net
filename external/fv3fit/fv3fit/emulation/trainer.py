@@ -1,0 +1,103 @@
+from typing import Any, Sequence, Union, Optional
+import tensorflow as tf
+from fv3fit.emulation.keras import StandardLoss, CustomLoss
+
+
+class _ModelWrapper(tf.keras.Model):
+    def __init__(self, model: tf.keras.Model):
+        super().__init__()
+        self.model = model
+
+    def call(self, x):
+        return self.model(x)
+
+
+def train(
+    model: tf.keras.layers.Layer,
+    dataset: tf.data.Dataset,
+    loss: Union[StandardLoss, CustomLoss],
+    callbacks: Sequence[tf.keras.callbacks.Callback] = (),
+    epochs: int = 1,
+    validation_data: Optional[tf.data.Dataset] = None,
+    validation_freq: Any = None,
+    verbose: int = 0,
+) -> Any:
+    """Train a keras model with a specified loss function from dictionary data
+
+    This works-around several awkward aspects of the keras APIs:
+    - ``model.compile`` adds attributes to models that may not be
+        serializeable
+    - need to split the dictionary data into separate input/output dicts
+
+    This function more cleanly separates the training related concerns and data
+    (e.g. loss functions, optimizers) from parameters needed for inference (e.g.
+    weights and biases).
+
+    Args:
+        model: is the keras layer to train
+        dataset: a tensorflow dataset iterating over data dictionaries of type
+            ``Mapping[str, tf.Tensor]``. This dictionary includes both inputs
+            and target variables.
+        validation_data: same as ``dataset`` but used for computing validation
+            scores
+        loss: the configuration of the loss function
+ 
+    Returns:
+        The keras training history
+
+    Note:
+        all other arguments have the same interpretation as ``tf.keras.Model.fit
+
+    """
+    wrapped_model = _ModelWrapper(model)
+
+    train_set = next(iter(dataset))
+    outputs = wrapped_model(train_set)
+    for name in outputs:
+        if name in train_set:
+            shape_in_data = tuple(train_set[name].shape)
+            shape_in_output = tuple(outputs[name].shape)
+            if shape_in_data != shape_in_output:
+                raise ValueError(
+                    f"{model} produced unexpected shape for {name}. "
+                    f"Expected {shape_in_data} got {shape_in_output}."
+                )
+
+    output_names = set(outputs)
+
+    def split_in_out(m):
+        return (
+            {key: m[key] for key in model.input_names if key in m},
+            {key: m[key] for key in output_names if key in m},
+        )
+
+    loss.compile(wrapped_model)
+    # explicitly handling all arguments makes it difficult to further expand
+    # the surface area of this function
+    # This minimizes our contact points to keras APIs...which are often
+    # poorly documented
+    return wrapped_model.fit(
+        dataset.map(split_in_out),
+        epochs=epochs,
+        validation_data=validation_data.map(split_in_out)
+        if validation_data is not None
+        else None,
+        validation_freq=validation_freq,
+        verbose=verbose,
+        callbacks=callbacks,
+    )
+
+
+class ModelCheckpointCallback(tf.keras.callbacks.Callback):
+    """the built in one doesn't work with ``Trainer`` since it saves the full
+    trainer object rather than the inner model"""
+
+    def __init__(self, filepath: str):
+        super().__init__()
+        self.filepath = filepath
+
+    def set_model(self, model: _ModelWrapper):
+        self.model = model.model
+
+    def on_epoch_end(self, epoch, logs=None):
+        self.model.save(self.filepath.format(epoch=epoch), save_format="tf")

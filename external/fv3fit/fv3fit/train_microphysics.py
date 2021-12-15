@@ -1,6 +1,9 @@
 import argparse
 import json
+import logging
 import os
+import tempfile
+import warnings
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Mapping, Optional, Sequence, Union
 
@@ -9,7 +12,6 @@ import fsspec
 import numpy as np
 import tensorflow as tf
 import yaml
-import warnings
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import (
@@ -17,9 +19,10 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
-from fv3fit.emulation import models
+from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
+from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, score_model
 from fv3fit.wandb import (
     WandBConfig,
@@ -27,6 +30,8 @@ from fv3fit.wandb import (
     log_to_table,
     store_model_artifact,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def load_config_yaml(path: str) -> Dict[str, Any]:
@@ -63,6 +68,8 @@ class TrainConfig:
         verbose: Verbosity of keras fit output
         shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
             during training
+        checkpoint_model: if true, save a checkpoint after each epoch
+        log_level: what logging level to use
     """
 
     train_url: str
@@ -81,6 +88,8 @@ class TrainConfig:
     valid_freq: int = 5
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 100_000
+    checkpoint_model: bool = True
+    log_level: str = "INFO"
 
     @property
     def _model(
@@ -188,6 +197,7 @@ class TrainConfig:
 
 
 def main(config: TrainConfig, seed: int = 0):
+    logging.basicConfig(level=getattr(logging, config.log_level))
     set_random_seed(seed)
 
     callbacks = []
@@ -206,33 +216,42 @@ def main(config: TrainConfig, seed: int = 0):
     test_set = next(iter(test_ds.shuffle(160_000).batch(80_000)))
 
     model = config.build(train_set)
-    output_names = set(model(train_set))
-    config.loss.prepare(output_samples=train_set)
-    config.loss.compile(model)
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
 
-    def split_in_out(m):
-        return (
-            {key: m[key] for key in model.input_names if key in m},
-            {key: m[key] for key in output_names if key in m},
+    if config.checkpoint_model:
+        callbacks.append(
+            ModelCheckpointCallback(
+                filepath=os.path.join(
+                    config.out_url, "checkpoints", "epoch.{epoch:03d}.tf"
+                )
+            )
         )
 
-    train_ds = train_ds.map(split_in_out)
-    test_ds = test_ds.map(split_in_out)
+    config.loss.prepare(output_samples=train_set)
 
-    history = model.fit(
-        train_ds.batch(config.batch_size),
-        epochs=config.epochs,
-        validation_data=test_ds.batch(config.batch_size),
-        validation_freq=config.valid_freq,
-        verbose=config.verbose,
-        callbacks=callbacks,
-    )
+    with tempfile.TemporaryDirectory() as train_temp:
+        with tempfile.TemporaryDirectory() as test_temp:
 
+            train_ds_cached = train_ds.batch(config.batch_size).cache(train_temp)
+            test_ds_cached = test_ds.batch(config.batch_size).cache(test_temp)
+
+            history = train(
+                model,
+                train_ds_cached,
+                config.loss,
+                epochs=config.epochs,
+                validation_data=test_ds_cached,
+                validation_freq=config.valid_freq,
+                verbose=config.verbose,
+                callbacks=callbacks,
+            )
+
+    logger.debug("Training complete")
     train_scores, train_profiles = score_model(model, train_set)
     test_scores, test_profiles = score_model(model, test_set)
+    logger.debug("Scoring Complete")
 
     if config.use_wandb:
         pred_sample = model.predict(test_set)
@@ -284,7 +303,7 @@ def get_default_config():
             air_temperature_output="air_temperature_input",
             specific_humidity_output="specific_humidity_input",
         ),
-        architecture=models.ArchitectureConfig("linear"),
+        architecture=ArchitectureConfig("linear"),
         selection_map=dict(
             air_temperature_input=SliceConfig(stop=-10),
             specific_humidity_input=SliceConfig(stop=-10),

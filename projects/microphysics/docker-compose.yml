@@ -14,6 +14,7 @@ services:
       - $HOME/.config/gcloud:/root/.config/gcloud
     environment:
       - HISTFILE=/root/.bash_history/history
+      - PYTHONPATH=/fv3net/external/fv3fit:/fv3net/external/emulation
     env_file:
       - .env
 volumes:
