@@ -21,7 +21,9 @@ def get_env(args):
     env = {}
     env["TF_MODEL_PATH"] = args.model
     env["OUTPUT_FREQ_SEC"] = args.output_frequency
-    env["SAVE_ZARR"] = "True"
+    env["SAVE_ZARR"] = args.save_zarr
+    env["SAVE_TFRECORD"] = args.save_tfrecord
+    env["SAVE_NC"] = args.save_nc
     return env
 
 
@@ -40,6 +42,9 @@ parser.add_argument(
     default="",
     help="A unique tag. Can be used to look-up these outputs in subsequent timesteps.",
 )
+parser.add_argument("--save-zarr", action="store_true", default=False)
+parser.add_argument("--save-tfrecord", action="store_true", default=False)
+parser.add_argument("--save-nc", action="store_true", default=False)
 parser.add_argument("--segments", "-n", type=int, default=1, help="number of segments")
 parser.add_argument("--config-path", type=Path, default=CONFIG_PATH)
 parser.add_argument("--output-frequency", type=str, default="10800")

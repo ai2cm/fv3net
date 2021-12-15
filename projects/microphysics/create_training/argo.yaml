@@ -11,6 +11,10 @@ spec:
       - name: tag
       - name: output_frequency
         value: "18000"
+      # one of
+      # --save-nc, --save-zarr, --save-tfrecord
+      - name: output_flag
+        value: --save-nc
   volumes:
   - name: gcp-key-secret
     secret:
@@ -74,3 +78,4 @@ spec:
         - "{{inputs.parameters.month}}"
         - "{{workflow.parameters.tag}}"
         - "{{workflow.parameters.output_frequency}}"
+        - "{{workflow.parameters.output_flag}}"
