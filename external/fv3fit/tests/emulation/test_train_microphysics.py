@@ -133,8 +133,7 @@ def test_TrainConfig_from_args_sysargv(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "arch_key, expected_cache",
-    [("dense", True), ("rnn-v1", False), ("rnn-v1", False)]
+    "arch_key, expected_cache", [("dense", True), ("rnn-v1", False), ("rnn-v1", False)]
 )
 def test_rnn_v1_cache_disable(arch_key, expected_cache):
 
