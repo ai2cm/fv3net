@@ -122,14 +122,26 @@ sse.plot(label="sum of squares errors", ax=ax)
 T = ss["TMPlowest_bins"]
 T = np.vectorize(lambda T: T.mid)(T)
 
+scale_factor = np.where(T < 260, (T - 260) / 5 - 16 * np.log(10), -16 * np.log(10))
+scale_factor = np.exp(scale_factor)
+ax.plot(T, scale_factor, label="scale_factor")
+
 theory = np.exp(17 * T / 243) / 1e23
 ax.plot(T, theory, label="slope of saturation vapor pressure 17/243")
 
+
 stacked.TMPlowest.plot.hist(ax=ax_histx)
 ax.legend()
+ax.grid()
+ax_histx.grid()
 
 # %% [markdown]
 # This plot shows that the sum of square errors (MSE) exceeds the target sum of squares when the surface temperature is below 250 K. this is very cold indeed...very few points have this cold of a surface. The magnitude of the sum of squares predictions and targets starts to diverge around T=260. These points are mostly on or next to Antarctica.
+#
+# We should also be able to use the simple temperature "scale_factor" to scale
+# the loss value in a given column. This formula is given by
+# $$ S(T) = \min(T-260, 0) / 5 - 16 / \log(10) $$
+#
 
 # %%
 plotme = ds.isel(time=0)
