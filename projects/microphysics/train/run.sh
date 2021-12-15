@@ -4,7 +4,7 @@ set -e
 set -o pipefail
 
 if [[ "$1" == "--test" ]]; then
-    extra_flags="--nfiles 2 --nfiles_valid 2"
+    extra_flags="--nfiles 2 --nfiles_valid 2 --epochs 5"
     bucket="vcm-ml-scratch"
 else
     bucket="vcm-ml-experiments"
@@ -12,8 +12,8 @@ fi
 
 group="$(openssl rand -hex 3)"
 
-for config in all-tendency-limited direct-cloud-limited; do
-    for model_type in rnn linear dense; do
+for config in all-tendency-limited; do
+    for model_type in dense; do
         model_name="${config}-${model_type}"
         config_file="${config}.yaml"
         out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}-${group}")

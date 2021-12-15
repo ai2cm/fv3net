@@ -46,7 +46,7 @@ def main(config: TrainConfig, seed: int = 0, model_url: str = None):
     if config.use_wandb:
         d = asdict(config)
         d["model_url_override"] = model_url
-        config.wandb.init(config=d, job_type="train_scoring")
+        config.wandb.init(config=d)
 
     if model_url is None:
         model = load_final_model_or_checkpoint(config.out_url)

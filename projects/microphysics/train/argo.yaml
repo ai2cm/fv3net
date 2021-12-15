@@ -91,7 +91,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: "us.gcr.io/vcm-ml/prognostic_run{{workflows.parameters.tag}}"
+        image: "us.gcr.io/vcm-ml/prognostic_run{{workflow.parameters.tag}}"
         command: ["bash", "-c", "-x"]
         workingDir: "/fv3net/projects/microphysics"
         envFrom:
@@ -112,10 +112,10 @@ spec:
         resources:
           limits:
             cpu: "7"
-            memory: "28Gi"
+            memory: "28G"
           requests:
             cpu: "7"
-            memory: "28Gi"
+            memory: "28G"
         args:
           - |
             echo "{{inputs.parameters.training-config}}" | base64 --decode > training_config.yaml
