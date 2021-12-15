@@ -10,7 +10,7 @@ spec:
   arguments:
     parameters:
     - name: tag
-      value: "@sha256:81479b95e3c920951859258b6b9adab570ea63b6ed3dd4985abd852ae250f2fd"
+      value: ":9cd6272386a410889de0f7bb814aa4bf2ce56e00"
     - name: wandb-run-group
       value: ""
     - name: training-config
@@ -112,10 +112,10 @@ spec:
         resources:
           limits:
             cpu: "7"
-            memory: "30Gi"
+            memory: "28Gi"
           requests:
             cpu: "7"
-            memory: "30Gi"
+            memory: "28Gi"
         args:
           - |
             echo "{{inputs.parameters.training-config}}" | base64 --decode > training_config.yaml
