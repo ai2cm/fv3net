@@ -41,6 +41,23 @@ def standardize_coords(
     return gfdl_to_standard(ds_shifted).drop("tile")
 
 
+def _merge(fine, additional_dataset_urls):
+
+    if additional_dataset_urls is not None:
+        additional_datasets = []
+        for url in additional_dataset_urls:
+            additional_datasets.append(open_zarr(url))
+        merged = xr.merge([fine, *additional_datasets], join="inner")
+        if "latitude" in merged:
+            merged["latitude"] = merged.latitude.isel(time=0)
+        if "longitude" in merged:
+            merged["longitude"] = merged.longitude.isel(time=0)
+    else:
+        merged = fine
+
+    return merged
+
+
 def _open_merged_dataset(
     fine_url: str, additional_dataset_urls: Optional[Sequence[str]]
 ) -> FineResBudget:
@@ -48,17 +65,7 @@ def _open_merged_dataset(
     fine = open_zarr(fine_url)
     fine_shifted = standardize_coords(fine)
 
-    if additional_dataset_urls is not None:
-        additional_datasets = []
-        for url in additional_dataset_urls:
-            additional_datasets.append(open_zarr(url))
-        merged = xr.merge([fine_shifted, *additional_datasets], join="inner")
-        if "latitude" in merged:
-            merged["latitude"] = merged.latitude.isel(time=0)
-        if "longitude" in merged:
-            merged["longitude"] = merged.longitude.isel(time=0)
-    else:
-        merged = fine_shifted
+    merged = _merge(fine_shifted, additional_dataset_urls)
 
     # enforce that these ML inputs come from fine dataset
     merged["air_temperature"] = fine_shifted.T
@@ -222,18 +229,7 @@ def _open_precomputed_fine_resolution_dataset(
 ) -> MLTendencies:
 
     fine = open_zarr(fine_url)
-
-    if additional_dataset_urls is not None:
-        additional_datasets = []
-        for url in additional_dataset_urls:
-            additional_datasets.append(open_zarr(url))
-        merged = xr.merge([fine, *additional_datasets], join="inner")
-        if "latitude" in merged:
-            merged["latitude"] = merged.latitude.isel(time=0)
-        if "longitude" in merged:
-            merged["longitude"] = merged.longitude.isel(time=0)
-    else:
-        merged = fine
+    merged = _merge(fine, additional_dataset_urls)
 
     return _ml_standard_names(merged)
 
