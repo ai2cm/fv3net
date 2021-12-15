@@ -132,7 +132,7 @@ def get_full_config(
 
 
 def c48_initial_conditions_overlay(
-    url: str, timestep: str, restart_categories: Optional[Sequence[str]]
+    url: str, timestep: str, restart_categories: Optional[Sequence[str]] = None
 ) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
