@@ -53,7 +53,7 @@ class FineResBudget(Protocol):
     USWRFtoa_coarse: xarray.DataArray
     LHTFLsfc_coarse: xarray.DataArray
     SHTFLsfc_coarse: xarray.DataArray
-    PRATEsrf_coarse: xarray.DataArray
+    PRATEsfc_coarse: xarray.DataArray
 
 
 def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = False):
