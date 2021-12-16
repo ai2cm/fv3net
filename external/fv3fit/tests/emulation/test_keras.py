@@ -32,7 +32,7 @@ def test_train():
     model, data, loss = _get_model_data_loss()
     ds = tf.data.Dataset.from_tensors(data)
     train(model, ds, loss)
-    assert not hasattr(train, "loss")
+    assert not hasattr(model, "loss")
 
 
 def test_train_wrong_shape_error():
