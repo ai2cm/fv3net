@@ -50,10 +50,7 @@ class Grid:
         pi = self.pressure_at_interface(delp_fine)
         pi_c = self.pressure_at_interface(delp_coarse)
         pi_c_up = self.block_upsample(pi_c, factor=factor)
-        if self.z in field.dims:
-            fg = self.regrid_vertical(pi, field, pi_c_up)
-        else:
-            fg = field
+        fg = self.regrid_vertical(pi, field, pi_c_up)
         avg = self.weighted_block_average(fg, area, factor)
         return avg.drop_vars([self.x, self.y, self.z], errors="ignore").rename(
             field.name
@@ -110,12 +107,16 @@ def coarsen_variables(
     Returns:
         xr.Dataset containing the coarsened variables.
     """
-    return xr.merge(
-        [
-            GRID.pressure_level_average(delp_fine, delp_coarse, area, field, factor)
-            for field in fields
-        ]
-    )
+    fields_2d = []
+    fields_3d = []
+    for field in fields:
+        if GRID.z in field.dims:
+            fields_3d.append(
+                GRID.pressure_level_average(delp_fine, delp_coarse, area, field, factor)
+            )
+        else:
+            fields_2d.append(GRID.weighted_block_average(field, area, factor))
+    return xr.merge(fields_2d + fields_3d)
 
 
 def _infer_second_moment_name(field_1: xr.DataArray, field_2: xr.DataArray) -> str:
