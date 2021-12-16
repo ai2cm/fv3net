@@ -14,6 +14,7 @@ from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
 from loaders.mappers._fine_res_budget import compute_fine_res_sources, FineResBudget
 import vcm
+from vcm.calc.thermo import _GRAVITY
 
 
 class MLTendencies(Protocol):
@@ -35,6 +36,11 @@ class DynamicsDifferences(Protocol):
 
 class MergedData(NudgedRun, FineResBudget):
     pass
+
+
+class ThermodynamicFluxInputs(DynamicsDifferences, FineResBudget):
+    surface_geopotential: xr.DataArray
+    delp: xr.DataArray
 
 
 class MergedDataWithDynamicsDifferences(MergedData, DynamicsDifferences):
@@ -92,25 +98,25 @@ class Approach(Enum):
     dynamics_difference_flux = 6
 
 
-@dataclasses.dataclass
-class DynamicsDifferenceFluxApparentSource:
-    """
-    Q  = flux_fit(high_res dyn - coarse dyn) + high_res physics
-       = high res (storage - nudge - physics) + high_res physics - coarse dyn
-       = high-res storage - high res nudging - coarse dyn tendency
-    """
+# @dataclasses.dataclass
+# class DynamicsDifferenceFluxApparentSource:
+#     """
+#     Q  = flux_fit(high_res dyn - coarse dyn) + high_res physics
+#        = high res (storage - nudge - physics) + high_res physics - coarse dyn
+#        = high-res storage - high res nudging - coarse dyn tendency
+#     """
 
-    include_temperature_nudging: bool
+#     include_temperature_nudging: bool
 
-    def temperature_source(self, merged: MergedDataWithDynamicsDifferences):
-        return (
-            merged.Q1 + merged.fine_minus_coarse_difference_of_t_dt_dynamics
-        ).assign_attrs(units="K/s")
+#     def temperature_source(self, merged: MergedDataWithDynamicsDifferences):
+#         return (
+#             merged.Q1 + merged.fine_minus_coarse_difference_of_t_dt_dynamics
+#         ).assign_attrs(units="K/s")
 
-    def moisture_source(self, merged: MergedDataWithDynamicsDifferences):
-        return (
-            merged.Q2 + merged.fine_minus_coarse_difference_of_qv_dt_dynamics
-        ).assign_attrs(units="kg/kg/s")
+#     def moisture_source(self, merged: MergedDataWithDynamicsDifferences):
+#         return (
+#             merged.Q2 + merged.fine_minus_coarse_difference_of_qv_dt_dynamics
+#         ).assign_attrs(units="kg/kg/s")
 
 
 @dataclasses.dataclass
@@ -153,14 +159,28 @@ def _dynamics_tendency_differences(
     return dyn_diff_T, dyn_diff_qv
 
 
-def _dynamics_tendency_differences_as_flux(merged: MergedDataWithDynamicsDifferences):
+def _dynamics_tendency_differences_as_flux(merged: ThermodynamicFluxInputs):
+    # note fluxes are fit in axis-direction, and our z-axis is reversed
+    lhf_w_per_m2 = merged.LHTFLsfc_coarse
+    lhf_kg_per_m2_s = vcm.latent_heat_flux_to_evaporation(lhf_w_per_m2)
+    precip_kg_per_m2_s = merged.PRATEsfc_coarse
+    last_level_flux = -(lhf_kg_per_m2_s - precip_kg_per_m2_s) * _GRAVITY
     qv_g_flux = vcm.fit_field_as_flux(
         merged.fine_minus_coarse_difference_of_qv_dt_dynamics,
         pressure_thickness=merged.delp,
-        first_level_flux=first_level_flux,
-        last_level_flux=0.0,
+        first_level_flux=xr.zeros_like(last_level_flux),
+        last_level_flux=last_level_flux,
         vertical_dim="pfull",
     )
+    sfc_net_radiation = (
+        merged.ULWRFsfc_coarse
+        + merged.USWRFsfc_coarse
+        - (merged.DLWRFsfc_coarse + merged.DSWRFsfc_coarse)
+    )
+    toa_net_radiation = (
+        merged.ULWRFtoa_coarse + merged.USWRFtoa_coarse - merged.DSWRFtoa_coarse
+    )
+    return qv_g_flux
 
 
 def compute_budget(
