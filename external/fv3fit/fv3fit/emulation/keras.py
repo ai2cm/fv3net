@@ -2,7 +2,7 @@ import dataclasses
 import logging
 import os
 import tensorflow as tf
-from typing import Optional, Mapping, List, Union
+from typing import Mapping, List
 
 from fv3fit.emulation.layers.normalization import NormalizeConfig
 import fv3fit.keras.adapters
@@ -91,7 +91,6 @@ class CustomLoss:
     loss_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
-    _fitted: bool = dataclasses.field(init=False, default=False)
 
     def prepare(self, output_samples: Mapping[str, tf.Tensor]):
         """
@@ -103,68 +102,27 @@ class CustomLoss:
             output_names: names of each output the model produces
             output_samples: sample tensors for each output to fit
                 the normalizing layer
-             
+
         """
-        losses = {}
-        metrics = {}
-        weights = {}
+        self.loss_funcs = {}
         for out_varname, sample in output_samples.items():
-            loss_func = NormalizedMSE(self.normalization, sample)
+            self.loss_funcs[out_varname] = NormalizedMSE(self.normalization, sample)
 
-            if out_varname in self.loss_variables:
-                losses[out_varname] = loss_func
+    def __call__(self, x, y):
+        try:
+            self.loss_funcs
+        except AttributeError:
+            raise ValueError("Cannot compute loss without first calling prepare().")
 
-                if out_varname in self.weights:
-                    weights[out_varname] = self.weights[out_varname]
-                else:
-                    weights[out_varname] = 1.0
-
-            elif out_varname in self.metric_variables:
-                metrics[out_varname] = loss_func
-
-        self._loss = losses
-        self._metrics = metrics
-        self._weights = weights
-        self._fitted = True
-
-    def compile(self, model: tf.keras.Model):
-        if not self._fitted:
-            raise ValueError(
-                "Cannot compile custom loss without first calling prepare()."
-            )
-
-        model.compile(
-            loss=self._loss,
-            metrics=self._metrics,
-            loss_weights=self._weights,
-            optimizer=self.optimizer.instance,
-        )
-
-
-KerasMetrics = List[str]
-KerasWeights = Union[Mapping[str, float], List[float]]
-
-
-@dataclasses.dataclass
-class StandardLoss:
-    """Standard loss configuration provided to a tf.keras.Model.compile"""
-
-    optimizer: OptimizerConfig = dataclasses.field(
-        default_factory=lambda: OptimizerConfig("Adam")
-    )
-    loss: Optional[str] = None
-    metrics: Optional[KerasMetrics] = None
-    weights: Optional[KerasWeights] = None
-
-    def prepare(self, **kwargs):
-        """Nothing to do here"""
-        pass
-
-    def compile(self, model: tf.keras.Model):
-
-        model.compile(
-            loss=self.loss,
-            metrics=self.metrics,
-            loss_weights=self.weights,
-            optimizer=self.optimizer.instance,
-        )
+        metrics = {}
+        loss = 0.0
+        for out_varname in x:
+            if out_varname in self.loss_variables + self.metric_variables:
+                loss_value = self.loss_funcs[out_varname](
+                    x[out_varname], y[out_varname]
+                )
+                weight = self.weights.get(out_varname, 1.0)
+                if out_varname in self.loss_variables:
+                    loss += loss_value * weight
+                metrics[out_varname] = loss_value
+        return loss, metrics

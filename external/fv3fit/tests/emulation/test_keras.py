@@ -7,7 +7,6 @@ from fv3fit.emulation.trainer import _ModelWrapper, train
 from fv3fit.emulation.keras import (
     CustomLoss,
     NormalizedMSE,
-    StandardLoss,
     save_model,
     score_model,
 )
@@ -139,8 +138,7 @@ def test_NormalizeMSE():
 
 
 def test_CustomLoss():
-
-    config = CustomLoss(
+    loss_fn = CustomLoss(
         normalization="mean_std",
         loss_variables=["fieldA", "fieldB"],
         metric_variables=["fieldC"],
@@ -152,45 +150,11 @@ def test_CustomLoss():
     names = ["fieldA", "fieldB", "fieldC", "fieldD"]
     samples = [tensor] * 4
     m = dict(zip(names, samples))
+    loss_fn.prepare(m)
 
-    config.prepare(m)
+    # make a copy with some error
+    compare = m.copy()
 
-    model = _get_model(2, 4)
-
-    assert len(config._loss) == 2
-    assert "fieldA" in config._loss
-    assert "fieldB" in config._loss
-    for k, v in config._loss.items():
-        assert isinstance(v, NormalizedMSE)
-    assert config._weights["fieldA"] == 2.0
-    assert config._weights["fieldB"] == 1.0
-
-    assert len(config._metrics) == 1
-    assert "fieldC" in config._metrics
-    assert isinstance(config._metrics["fieldC"], NormalizedMSE)
-
-    config.compile(model)
-
-
-@pytest.mark.parametrize(
-    "kwargs",
-    [{}, dict(loss="mse", metrics=["mae"], weights=[2.0, 1.0])],
-    ids=["defaults", "specified"],
-)
-def test_StandardLoss(kwargs):
-
-    config = StandardLoss(**kwargs)
-    model = _get_model(10, 2)
-    config.compile(model)
-
-
-def test_StandardLoss_prepare_arbitrary_kwargs():
-
-    config = StandardLoss()
-
-    # doen't do anything but shouldn't fail
-    config.prepare()
-    config.prepare(random_kwarg=1)
-
-    model = _get_model(10, 2)
-    config.compile(model)
+    loss, info = loss_fn(m, compare)
+    assert set(info) == set(loss_fn.loss_variables) | set(loss_fn.metric_variables)
+    assert loss.numpy() == pytest.approx(0.0)

@@ -23,7 +23,7 @@ from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
-from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, score_model
+from fv3fit.emulation.keras import CustomLoss, save_model, score_model
 from fv3fit.wandb import (
     WandBConfig,
     log_profile_plots,
@@ -82,7 +82,7 @@ class TrainConfig:
     nfiles_valid: Optional[int] = None
     use_wandb: bool = True
     wandb: WandBConfig = field(default_factory=WandBConfig)
-    loss: Union[StandardLoss, CustomLoss] = field(default_factory=StandardLoss)
+    loss: CustomLoss = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
     valid_freq: int = 5
