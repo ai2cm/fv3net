@@ -4,27 +4,11 @@ import tensorflow as tf
 
 import fv3fit.emulation
 from fv3fit.emulation.trainer import _ModelWrapper, train
+from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.keras import (
-    CustomLoss,
-    NormalizedMSE,
     save_model,
     score_model,
 )
-
-
-def _get_model(feature_dim, num_outputs):
-
-    in_ = tf.keras.Input(feature_dim)
-    out = tf.keras.layers.Lambda(lambda x: x + 10)(in_)
-
-    if num_outputs == 1:
-        outputs = out
-    else:
-        outputs = [out] * num_outputs
-
-    model = tf.keras.Model(inputs=in_, outputs=outputs)
-
-    return model
 
 
 def test_train():
@@ -126,35 +110,3 @@ def test_model_score_no_outputs():
 
     with pytest.raises(ValueError):
         score_model(model, data)
-
-
-def test_NormalizeMSE():
-    sample = np.array([[25.0], [75.0]])
-    target = np.array([[50.0], [50.0]])
-
-    mse_func = NormalizedMSE("mean_std", sample)
-    mse = mse_func(target, sample)
-    np.testing.assert_approx_equal(mse, 1.0, 6)
-
-
-def test_CustomLoss():
-    loss_fn = CustomLoss(
-        normalization="mean_std",
-        loss_variables=["fieldA", "fieldB"],
-        metric_variables=["fieldC"],
-        weights=dict(fieldA=2.0),
-    )
-
-    tensor = tf.random.normal((100, 2))
-
-    names = ["fieldA", "fieldB", "fieldC", "fieldD"]
-    samples = [tensor] * 4
-    m = dict(zip(names, samples))
-    loss_fn.prepare(m)
-
-    # make a copy with some error
-    compare = m.copy()
-
-    loss, info = loss_fn(m, compare)
-    assert set(info) == set(loss_fn.loss_variables) | set(loss_fn.metric_variables)
-    assert loss.numpy() == pytest.approx(0.0)

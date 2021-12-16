@@ -23,7 +23,8 @@ from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
-from fv3fit.emulation.keras import CustomLoss, save_model, score_model
+from fv3fit.emulation.keras import save_model, score_model
+from fv3fit.emulation.losses import CustomLoss
 from fv3fit.wandb import (
     WandBConfig,
     log_profile_plots,

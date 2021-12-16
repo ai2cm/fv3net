@@ -1,6 +1,6 @@
 from typing import Any, Sequence, Optional
 import tensorflow as tf
-from fv3fit.emulation.keras import CustomLoss
+from fv3fit.emulation.losses import CustomLoss
 
 
 class _ModelWrapper(tf.keras.Model):
