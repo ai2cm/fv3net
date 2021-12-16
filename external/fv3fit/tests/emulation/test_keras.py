@@ -35,6 +35,29 @@ def test_train():
     assert not hasattr(model, "loss")
 
 
+def test_train_loss_integration():
+    tf.random.set_seed(0)
+    in_ = tf.keras.Input(2, name="x")
+    out = tf.keras.layers.Dense(5, name="y1")(in_)
+    out2 = tf.keras.layers.Dense(5, name="y2")(in_)
+    model = tf.keras.Model(inputs=[in_], outputs={"y1": out, "y2": out2})
+    loss = CustomLoss(loss_variables=["y1", "y2"], weights={"y1": 4.0, "y2": 1.0})
+
+    batch_size = 10
+    batch = {
+        "x": tf.random.uniform((batch_size, 2)),
+        "y1": tf.random.uniform((batch_size, 5)),
+        "y2": tf.random.uniform((batch_size, 5)),
+    }
+    ds = tf.data.Dataset.from_tensor_slices(batch)
+    loss.prepare(batch)
+    history = train(model, ds.batch(2), loss=loss, epochs=3)
+
+    # this magic number is regression data
+    # update it if you expect this test to break
+    assert history.history["loss"][-1] == pytest.approx(26.47243881225586)
+
+
 def test_train_wrong_shape_error():
     data = {"x": tf.ones((1, 10)), "y": tf.ones((1, 2, 3))}
     loss = CustomLoss(loss_variables=["y"], weights={"y": 1.0})
