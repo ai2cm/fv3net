@@ -34,7 +34,9 @@ def test_train_loss_integration():
     }
     ds = tf.data.Dataset.from_tensor_slices(batch)
     loss.prepare(batch)
-    history = train(model, ds.batch(2), loss=loss, epochs=3)
+    history = train(
+        model, ds.batch(2), loss=loss, optimizer=tf.keras.optimizers.Adam(), epochs=3
+    )
 
     # this magic number is regression data
     # update it if you expect this test to break
