@@ -20,6 +20,7 @@ RMSE_VARS = [
     "PRMSL",
     "PRESsfc",
     "PWAT",
+    "water_vapor_path",
     "VIL",
     "iw",
 ]
@@ -41,6 +42,7 @@ GLOBAL_AVERAGE_DYCORE_VARS = [
     "PRMSL",
     "PRESsfc",
     "PWAT",
+    "water_vapor_path",
     "VIL",
     "iw",
 ]
@@ -115,6 +117,7 @@ TIME_MEAN_VARS = [
     "w500",
     "PRESsfc",
     "PWAT",
+    "water_vapor_path",
     "LHTFLsfc",
     "SHTFLsfc",
     "DSWRFsfc",
