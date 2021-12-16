@@ -44,6 +44,16 @@ class FineResBudget(Protocol):
     vulcan_omega_coarse: xarray.DataArray
     T_vulcan_omega_coarse: xarray.DataArray
     T_storage: xarray.DataArray
+    DLWRFsfc_coarse: xarray.DataArray
+    DSWRFsfc_coarse: xarray.DataArray
+    DSWRFtoa_coarse: xarray.DataArray
+    ULWRFsfc_coarse: xarray.DataArray
+    ULWRFtoa_coarse: xarray.DataArray
+    USWRFsfc_coarse: xarray.DataArray
+    USWRFtoa_coarse: xarray.DataArray
+    LHTFLsfc_coarse: xarray.DataArray
+    SHTFLsfc_coarse: xarray.DataArray
+    PRATEsfc_coarse: xarray.DataArray
 
 
 def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = False):
