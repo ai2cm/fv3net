@@ -2,7 +2,7 @@ import dataclasses
 from datetime import timedelta
 from enum import Enum
 from typing_extensions import Protocol
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Tuple
 import zarr
 import xarray as xr
 import numpy as np
@@ -13,6 +13,7 @@ from loaders._config import mapper_functions
 from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
 from loaders.mappers._fine_res_budget import compute_fine_res_sources, FineResBudget
+import vcm
 
 
 class MLTendencies(Protocol):
@@ -23,9 +24,20 @@ class MLTendencies(Protocol):
 class NudgedRun(Protocol):
     tendency_of_air_temperature_due_to_dynamics: xr.DataArray
     tendency_of_specific_humidity_due_to_dynamics: xr.DataArray
+    air_temperature_tendency_due_to_nudging: xr.DataArray
+    specific_humidity_tendency_due_to_nudging: xr.DataArray
+
+
+class DynamicsDifferences(Protocol):
+    fine_minus_coarse_difference_of_t_dt_dynamics: xr.DataArray
+    fine_minus_coarse_difference_of_qv_dt_dynamics: xr.DataArray
 
 
 class MergedData(NudgedRun, FineResBudget):
+    pass
+
+
+class MergedDataWithDynamicsDifferences(MergedData, DynamicsDifferences):
     pass
 
 
@@ -72,6 +84,28 @@ class Approach(Enum):
     apparent_sources_plus_nudging_tendencies = 2
     apparent_sources_extend_lower = 4
     dynamics_difference = 5
+    dynamics_difference_flux = 6
+
+
+@dataclasses.dataclass
+class DynamicsDifferenceFluxApparentSource:
+    """
+    Q  = flux_fit(high_res dyn - coarse dyn) + high_res physics
+       = high res (storage - nudge - physics) + high_res physics - coarse dyn
+       = high-res storage - high res nudging - coarse dyn tendency
+    """
+
+    include_temperature_nudging: bool
+
+    def temperature_source(self, merged: MergedDataWithDynamicsDifferences):
+        return (
+            merged.Q1 + merged.fine_minus_coarse_difference_of_t_dt_dynamics
+        ).assign_attrs(units="K/s")
+
+    def moisture_source(self, merged: MergedDataWithDynamicsDifferences):
+        return (
+            merged.Q2 + merged.fine_minus_coarse_difference_of_qv_dt_dynamics
+        ).assign_attrs(units="kg/kg/s")
 
 
 @dataclasses.dataclass
@@ -102,11 +136,38 @@ class DynamicsDifferenceApparentSource:
         ).assign_attrs(units="kg/kg/s")
 
 
+def _dynamics_tendency_differences(
+    merged: MergedData,
+) -> Tuple[xr.DataArray, xr.DataArray]:
+    T_high_res_dyn = (
+        merged.T_storage - merged.t_dt_nudge_coarse - merged.t_dt_phys_coarse
+    )
+    dyn_diff_T = T_high_res_dyn - merged.tendency_of_air_temperature_due_to_dynamics
+    qv_high_res_dyn = merged.sphum_storage - merged.qv_dt_phys_coarse
+    dyn_diff_qv = qv_high_res_dyn - merged.tendency_of_specific_humidity_due_to_dynamics
+    return dyn_diff_T, dyn_diff_qv
+
+
+def _dynamics_tendency_differences_as_flux(merged: MergedDataWithDynamicsDifferences):
+    qv_g_flux = vcm.fit_field_as_flux(
+        merged.fine_minus_coarse_difference_of_qv_dt_dynamics,
+        pressure_thickness=merged.delp,
+        first_level_flux=first_level_flux,
+        last_level_flux=0.0,
+        vertical_dim="pfull",
+    )
+
+
 def compute_budget(
     merged: xr.Dataset, approach: Approach, include_temperature_nudging: bool
 ) -> MLTendencies:
     sources = compute_fine_res_sources(merged, include_temperature_nudging)
     merged = xr.merge([merged] + list(sources))
+
+    (
+        merged["fine_minus_coarse_difference_of_t_dt_dynamics"],
+        merged["fine_minus_coarse_difference_of_qv_dt_dynamics"],
+    ) = _dynamics_tendency_differences(merged)
 
     if approach == Approach.apparent_sources_plus_nudging_tendencies:
         merged["Q1"], merged["Q2"] = _add_nudging_tendencies(merged)
@@ -125,7 +186,7 @@ def compute_budget(
     return _ml_standard_names(merged)
 
 
-def _add_nudging_tendencies(merged: xr.Dataset):
+def _add_nudging_tendencies(merged: MergedData):
     with xr.set_options(keep_attrs=True):
         Q1 = merged.Q1 + merged.air_temperature_tendency_due_to_nudging
         Q2 = merged.Q2 + merged.specific_humidity_tendency_due_to_nudging
