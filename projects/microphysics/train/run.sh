@@ -4,7 +4,7 @@ set -e
 set -o pipefail
 
 if [[ "$1" == "--test" ]]; then
-    extra_flags="--nfiles 2 --nfiles_valid 2"
+    extra_flags="--nfiles 2 --nfiles_valid 2 --epochs 5"
     bucket="vcm-ml-scratch"
 else
     bucket="vcm-ml-experiments"
