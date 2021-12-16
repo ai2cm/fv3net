@@ -1,6 +1,9 @@
-from typing import Any, Sequence, Optional
+from typing import Any, Callable, Mapping, Sequence, Optional, Tuple
 import tensorflow as tf
-from fv3fit.emulation.losses import CustomLoss
+
+
+TensorDict = Mapping[str, tf.Tensor]
+LossFunction = Callable[[TensorDict, TensorDict], Tuple[tf.Tensor, TensorDict]]
 
 
 class _ModelWrapper(tf.keras.Model):
@@ -18,7 +21,7 @@ class _LayerTrainer(tf.keras.Model):
     This uses the more explicit `add_loss` API for clarity
     """
 
-    def __init__(self, model: tf.keras.Model, loss: CustomLoss):
+    def __init__(self, model: tf.keras.Model, loss: LossFunction):
         # TODO doesn't work for "StandardLoss"...can we delete that one?
         super().__init__()
         self.model = model
@@ -35,7 +38,8 @@ class _LayerTrainer(tf.keras.Model):
 def train(
     model: tf.keras.layers.Layer,
     dataset: tf.data.Dataset,
-    loss: CustomLoss,
+    loss: LossFunction,
+    optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
     callbacks: Sequence[tf.keras.callbacks.Callback] = (),
     epochs: int = 1,
     validation_data: Optional[tf.data.Dataset] = None,
@@ -60,7 +64,9 @@ def train(
             and target variables.
         validation_data: same as ``dataset`` but used for computing validation
             scores
-        loss: the configuration of the loss function
+        loss: a loss function ...loss_fn(x,y) returns a scalar and dictionary of
+            scalar metrics when x,y are dicts of tensors
+        optimizer: the optimizer. defaults to tf.keras.layers.Adam.
  
     Returns:
         The keras training history
@@ -82,7 +88,7 @@ def train(
                     f"Expected {shape_in_data} got {shape_in_output}."
                 )
 
-    wrapped_model.compile(optimizer=loss.optimizer.instance)
+    wrapped_model.compile(optimizer=optimizer or tf.keras.optimizers.Adam())
     # explicitly handling all arguments makes it difficult to further expand
     # the surface area of this function
     # This minimizes our contact points to keras APIs...which are often

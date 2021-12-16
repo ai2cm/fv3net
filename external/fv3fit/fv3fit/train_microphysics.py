@@ -242,6 +242,7 @@ def main(config: TrainConfig, seed: int = 0):
                 model,
                 train_ds_cached,
                 config.loss,
+                optimizer=config.loss.optimizer.instance,
                 epochs=config.epochs,
                 validation_data=test_ds_cached,
                 validation_freq=config.valid_freq,
