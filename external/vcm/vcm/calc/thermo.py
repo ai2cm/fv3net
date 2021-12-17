@@ -61,7 +61,7 @@ def pressure_at_interface(
 
 
 def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER):
-    """ Compute geopotential height at layer interfaces
+    """Compute height at layer interfaces.
 
     Args:
         dz (xr.DataArray): layer height thicknesses
@@ -72,7 +72,7 @@ def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_O
             Defaults to "phalf".
 
     Returns:
-        xr.DataArray: height at layer interfaces
+        xr.DataArray: height at layer interfaces, in meters
     """
     bottom = phis.broadcast_like(dz.isel({dim_center: [0]})) / _GRAVITY
     dzv = -dz.variable  # dz is negative in model
@@ -87,6 +87,31 @@ def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_O
     )
 
 
+def dry_static_energy(
+    T: xr.DataArray,
+    q: xr.DataArray,
+    phis: xr.DataArray,
+    delp: xr.DataArray,
+    dim_center: str = COORD_Z_CENTER,
+):
+    """Compute dry static energy, Cp*T + g*z, on vertical cell centers.
+
+    Args:
+        T: air temperature in degrees Kelvin on cell centers
+        q: specific humidity in kg/kg on cell centers, for computing density
+        phis: surface geopotential height in m^2/s
+        delp: pressure thickness of layers in Pa, on cell centers
+        dim_center (str, optional): name of vertical dimension on cell centers.
+            Defaults to "pfull".
+
+    Returns:
+        xr.DataArray: dry static energy at layer midpoints, in units of J/kg
+    """
+    dz = hydrostatic_dz(T, q, delp, dim=dim_center)
+    z = height_at_midpoint(dz=dz, phis=phis, dim=dim_center)
+    return _SPECIFIC_HEAT_CONST_PRESSURE * T + _GRAVITY * z
+
+
 def _add_coords_to_interface_variable(
     dv_outer: xr.Variable, da_center: xr.DataArray, dim_center: str = COORD_Z_CENTER
 ):
@@ -98,7 +123,7 @@ def _add_coords_to_interface_variable(
 
 
 def pressure_at_midpoint(delp, toa_pressure=_TOA_PRESSURE, dim=COORD_Z_CENTER):
-    """ Compute pressure at layer midpoints by linear interpolation
+    """Compute pressure at layer midpoints by linear interpolation.
 
     Args:
         delp (xr.DataArray): pressure thicknesses
@@ -114,15 +139,15 @@ def pressure_at_midpoint(delp, toa_pressure=_TOA_PRESSURE, dim=COORD_Z_CENTER):
 
 
 def height_at_midpoint(dz, phis, dim=COORD_Z_CENTER):
-    """ Compute geopotential height at layer midpoints by linear interpolation
+    """Compute height at layer midpoints by linear interpolation.
 
     Args:
-        dz (xr.DataArray): layer height thicknesses
+        dz (xr.DataArray): layer height thicknesses on cell centers
         phis (xr.DataArray): surface geopotential
         dim (str, optional): name of vertical dimension for dz. Defaults to "pfull".
 
     Returns:
-        xr.DataArray: height at layer midpoints
+        xr.DataArray: height at layer midpoints, in meters
     """
     zi = height_at_interface(dz, phis, dim_center=dim)
     return _interface_to_midpoint(zi, dim_center=dim)
@@ -136,7 +161,7 @@ def _interface_to_midpoint(da, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTE
 
 
 def pressure_at_midpoint_log(delp, toa_pressure=_TOA_PRESSURE, dim=COORD_Z_CENTER):
-    """ Compute pressure at layer midpoints following Eq. 3.17 of Simmons
+    """Compute pressure at layer midpoints following Eq. 3.17 of Simmons
     and Burridge (1981), MWR.
 
     Args:
@@ -163,7 +188,7 @@ def pressure_at_midpoint_log(delp, toa_pressure=_TOA_PRESSURE, dim=COORD_Z_CENTE
 
 
 def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):
-    """ Compute layer thickness assuming hydrostatic balance
+    """Compute layer thickness assuming hydrostatic balance.
 
     Args:
         T (xr.DataArray): temperature
@@ -181,7 +206,7 @@ def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):
 
 
 def dz_and_top_to_phis(top_height, dz, dim=COORD_Z_CENTER):
-    """ Compute surface geopotential from model top height and layer thicknesses"""
+    """Compute surface geopotential from model top height and layer thicknesses"""
     return _GRAVITY * (top_height + dz.sum(dim=dim))
 
 
