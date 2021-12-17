@@ -392,12 +392,12 @@ def get_default_config():
     model_config = models.MicrophysicsConfig(
         input_variables=input_vars,
         direct_out_variables=[
-            "cloud_water_mixing_ratio_output",
+            "cloud_water_mixing_ratio_after_precpd",
             "total_precipitation",
         ],
         residual_out_variables=dict(
-            air_temperature_output="air_temperature_input",
-            specific_humidity_output="specific_humidity_input",
+            air_temperature_after_precpd="air_temperature_input",
+            specific_humidity_after_precpd="specific_humidity_input",
         ),
         architecture=ArchitectureConfig("linear"),
         selection_map=dict(
@@ -407,8 +407,8 @@ def get_default_config():
             pressure_thickness_of_atmospheric_layer=SliceConfig(stop=-10),
         ),
         tendency_outputs=dict(
-            air_temperature_output="tendency_of_air_temperature_due_to_microphysics",  # noqa E501
-            specific_humidity_output="tendency_of_specific_humidity_due_to_microphysics",  # noqa E501
+            air_temperature_after_precpd="tendency_of_air_temperature_due_to_microphysics",  # noqa E501
+            specific_humidity_after_precpd="tendency_of_specific_humidity_due_to_microphysics",  # noqa E501
         ),
     )
 
@@ -417,15 +417,15 @@ def get_default_config():
     loss = CustomLoss(
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=[
-            "air_temperature_output",
-            "specific_humidity_output",
-            "cloud_water_mixing_ratio_output",
+            "air_temperature_after_precpd",
+            "specific_humidity_after_precpd",
+            "cloud_water_mixing_ratio_after_precpd",
             "total_precipitation",
         ],
         weights=dict(
-            air_temperature_output=0.5e5,
-            specific_humidity_output=0.5e5,
-            cloud_water_mixing_ratio_output=1.0,
+            air_temperature_after_precpd=0.5e5,
+            specific_humidity_after_precpd=0.5e5,
+            cloud_water_mixing_ratio_after_precpd=1.0,
             total_precipitation=0.04,
         ),
         metric_variables=[
