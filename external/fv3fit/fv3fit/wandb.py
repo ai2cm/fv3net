@@ -114,7 +114,7 @@ def log_profile_plots(
 def store_model_artifact(path: str, name: str):
     """
     Store a tf model directory as a WandB artifact
-    
+
     Args:
         path: Path to tensorflow saved model (e.g., /path/to/model.tf/)
         name: name for the WandB artifact.  If it already exists a new

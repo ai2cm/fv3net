@@ -1,16 +1,20 @@
 import argparse
+import dacite
+from dataclasses import asdict, dataclass, field
+import fsspec
 import json
 import logging
+import numpy as np
 import os
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import tempfile
-import warnings
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Mapping, Optional, Sequence, Union
-
-import dacite
-import fsspec
 import tensorflow as tf
+from typing import Any, Dict, Mapping, Optional, Sequence, Union
+import wandb
+import warnings
 import yaml
+
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import (
@@ -204,6 +208,90 @@ class TrainConfig:
             self.cache = False
 
 
+def get_model_output_sensitivities(model: tf.keras.Model, sample: Mapping[str, tf.Tensor]):
+    """
+    Generate sensitivity jacabion for each output relative to a mean
+    value for each input
+    """
+
+    avg_profiles = {
+        name: tf.reduce_mean(data, axis=0, keepdims=True)
+        for name, data in sample.items()
+    }
+
+    # normalize factors so sensitivities are comparable but still
+    # preserve level-relative magnitudes
+    normalize_factors = {}
+    for name, data in sample.items():
+        centered_by_level = data - tf.reduce_mean(data, axis=0)
+        factor = tf.math.sqrt(tf.reduce_mean(centered_by_level ** 2))
+        normalize_factors[name] = factor
+
+    input_data = {name: avg_profiles[name] for name in model.input_names}
+
+    with tf.GradientTape(persistent=True) as g:
+        g.watch(input_data)
+        outputs = model(input_data)
+
+    all_jacobians = {}
+    for out_name in model.output_names:
+        per_input_jacobians = g.jacobian(outputs[out_name], input_data)
+
+        normalized = {}
+        for in_name, j in per_input_jacobians.items():
+            # multiply d_output/d_input by std_input/std_output
+            factor = normalize_factors[in_name] / normalize_factors[out_name]
+            normalized[in_name] = (j[0, :, 0] * factor).numpy()
+
+        all_jacobians[out_name] = normalized
+
+    return all_jacobians
+
+
+def plot_output_sensitivities(jacobians: Mapping[str, Mapping[str, tf.Tensor]]):
+
+    """
+    jacobians: mapping of each out variable to a sensitivity for each input
+        e.g.,
+        air_temperature_after_precpd:
+            air_temperature_input: sensitivity matrix (nlev x nlev)
+            specific_humidity_input: sensitivity matrix
+        specific_humidity_after_precpd:
+            ...
+    """
+    nrows = len(jacobians)
+    per_input_example = next(iter(jacobians.values()))
+    ncols = len(per_input_example)
+
+    fig = make_subplots(
+        rows=nrows,
+        cols=ncols,
+        shared_yaxes=True,
+        vertical_spacing=.15,
+        row_titles=list(jacobians.keys()),
+        column_titles=list(per_input_example.keys()),
+        x_title="Input Variable",
+        y_title="Output Variables",
+    )
+
+    for i, sensitivities in enumerate(jacobians.values(), 1):
+        for j, sensitivity in enumerate(sensitivities.values(), 1):
+            trace = go.Heatmap(z=sensitivity, coloraxis="coloraxis", zmin=-1, zmax=1)
+            fig.append_trace(
+                trace=trace, row=i, col=j,
+            )
+
+    fig.update_layout(
+        title_text=f"Model Output Sensitivities ({config.model.architecture.name})",
+        coloraxis={"colorscale": "RdBu_r", "cmax": 1, "cmin": -1},
+
+    )
+    fig.update_annotations(font_size=12)
+    fig.write_html("/home/andrep/repos/fv3net/scratch/jacobian.html")
+
+    return fig
+
+
 def main(config: TrainConfig, seed: int = 0):
     logging.basicConfig(level=getattr(logging, config.log_level))
     set_random_seed(seed)
@@ -261,18 +349,35 @@ def main(config: TrainConfig, seed: int = 0):
 
     logger.debug("Training complete")
 
-    with put_dir(config.out_url) as tmpdir:
+    # with put_dir(config.out_url) as tmpdir:
 
-        with open(os.path.join(tmpdir, "history.json"), "w") as f:
-            json.dump(history.params, f)
+    #     with open(os.path.join(tmpdir, "history.json"), "w") as f:
+    #         json.dump(history.params, f)
 
-        with open(os.path.join(tmpdir, "config.yaml"), "w") as f:
-            f.write(yaml.safe_dump(asdict(config)))
+    #     with open(os.path.join(tmpdir, "config.yaml"), "w") as f:
+    #         f.write(yaml.safe_dump(asdict(config)))
 
-        local_model_path = save_model(model, tmpdir)
+    #     local_model_path = save_model(model, tmpdir)
 
-        if config.use_wandb:
-            store_model_artifact(local_model_path, name=config._model.name)
+    #     if config.use_wandb:
+    #         store_model_artifact(local_model_path, name=config._model.name)
+
+    # Jacobians after model storing in case of "out of memory" errors
+    jacobians = get_model_output_sensitivities(model, train_set)
+    plot_output_sensitivities(jacobians)
+
+    # with put_dir(config.out_url) as tmpdir:
+    #     with open(os.path.join(tmpdir, "jacobians.npz"), "wb") as f:
+    #         dumpable = {
+    #             f"{out_name}/{in_name}": data
+    #             for out_name, sensitivities in jacobians.items()
+    #             for in_name, data in sensitivities.items()
+    #         }
+    #         np.savez(f, **dumpable)
+
+    if config.use_wandb:
+        sensitivity_plot = plot_output_sensitivities(jacobians)
+        wandb.log({"output_sensitivity": wandb.Plotly(sensitivity_plot)})
 
 
 def get_default_config():
