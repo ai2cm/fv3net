@@ -1,6 +1,6 @@
 C384_ATMOS="gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr"
 C384_RESTARTS="gs://vcm-ml-experiments/2020-06-02-fine-res/2020-05-27-40-day-X-SHiELD-simulation-C384-restart-files.zarr"
-OUTPUT="gs://vcm-ml-experiments/default/2021-12-07/2020-05-27-40-day-X-SHiELD-simulation-v2/fine-res-budget.zarr"
+OUTPUT="gs://vcm-ml-experiments/default/2021-12-16/2020-05-27-40-day-X-SHiELD-simulation-v2/fine-res-budget.zarr"
 
 cd ../dataflow
 
