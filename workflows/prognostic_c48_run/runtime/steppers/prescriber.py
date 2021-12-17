@@ -129,14 +129,19 @@ class Prescriber:
         diagnostics: Diagnostics = {}
         prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
         state_updates: State = {}
+
         for name in prescribed_timestep.data_vars:
-            if name == SST:
+            if name == MASK:
+                state_updates[name] = prescribed_timestep[name].round()
+
+            elif name == SST:
                 # If just the sea surface temperature is to be updated
                 # (and not land as well), the prescribed dataarray should be
                 # "ocean_surface_temperature".
                 state_updates.update(
                     sst_update_from_reference(state, prescribed_timestep, SST)
                 )
+
             else:
                 state_updates[name] = prescribed_timestep[name]
         for name in state_updates.keys():
@@ -195,12 +200,9 @@ def sst_update_from_reference(
     a reference state. Useful for maintaining consistency between a nudged run
     and reference state.
     """
+    slmsk = reference[MASK].round() if MASK in reference else state[MASK]
     state_updates: State = {
-        SST: _sst_from_reference(
-            reference[reference_sst_name], state[SST], state[MASK]
-        ),
-        TSFC: _sst_from_reference(
-            reference[reference_sst_name], state[TSFC], state[MASK]
-        ),
+        SST: _sst_from_reference(reference[reference_sst_name], state[SST], slmsk),
+        TSFC: _sst_from_reference(reference[reference_sst_name], state[TSFC], slmsk),
     }
     return state_updates
