@@ -369,13 +369,12 @@ def main(config: TrainConfig, seed: int = 0):
     jacobians = get_model_output_sensitivities(model, train_set)
 
     with put_dir(config.out_url) as tmpdir:
-        with open(os.path.join(tmpdir, "jacobians.npz"), "wb") as f:
-            dumpable = {
-                f"{out_name}/{in_name}": data
-                for out_name, sensitivities in jacobians.items()
-                for in_name, data in sensitivities.items()
-            }
-            np.savez(f, **dumpable)
+        dumpable = {
+            f"{out_name}/{in_name}": data
+            for out_name, sensitivities in jacobians.items()
+            for in_name, data in sensitivities.items()
+        }
+        np.savez(os.path.join(tmpdir, "jacobians.npz"), **dumpable)
 
     if config.use_wandb:
         plot_all_output_sensitivities(jacobians)
