@@ -95,7 +95,7 @@ def train(
     return wrapped_model.fit(
         dataset,
         epochs=epochs,
-        validation_data=validation_data if validation_data is not None else None,
+        validation_data=validation_data,
         validation_freq=validation_freq,
         verbose=verbose,
         callbacks=callbacks,
