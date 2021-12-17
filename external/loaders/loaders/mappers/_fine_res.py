@@ -23,6 +23,8 @@ class MLTendencies(Protocol):
 
 
 class NudgedRun(Protocol):
+    Q1: xr.DataArray
+    Q2: xr.DataArray
     tendency_of_air_temperature_due_to_dynamics: xr.DataArray
     tendency_of_specific_humidity_due_to_dynamics: xr.DataArray
     air_temperature_tendency_due_to_nudging: xr.DataArray
@@ -41,6 +43,13 @@ class MergedData(NudgedRun, FineResBudget):
 class ThermodynamicFluxInputs(DynamicsDifferences, FineResBudget):
     surface_geopotential: xr.DataArray
     delp: xr.DataArray
+
+
+class DynamicsDifferenceFluxInputs(FineResBudget):
+    Q1: xr.DataArray
+    Q2: xr.DataArray
+    fine_minus_coarse_dry_static_energy_g_vertical_flux: xr.DataArray
+    fine_minus_coarse_qv_g_vertical_flux: xr.DataArray
 
 
 class MergedDataWithDynamicsDifferences(MergedData, DynamicsDifferences):
@@ -98,25 +107,36 @@ class Approach(Enum):
     dynamics_difference_flux = 6
 
 
-# @dataclasses.dataclass
-# class DynamicsDifferenceFluxApparentSource:
-#     """
-#     Q  = flux_fit(high_res dyn - coarse dyn) + high_res physics
-#        = high res (storage - nudge - physics) + high_res physics - coarse dyn
-#        = high-res storage - high res nudging - coarse dyn tendency
-#     """
+@dataclasses.dataclass
+class DynamicsDifferenceFluxApparentSource:
+    """
+    Q  = flux_fit(high_res dyn - coarse dyn) + high_res physics
+       = high res (storage - nudge - physics) + high_res physics - coarse dyn
+       = high-res storage - high res nudging - coarse dyn tendency
+    """
 
-#     include_temperature_nudging: bool
+    include_temperature_nudging: bool
 
-#     def temperature_source(self, merged: MergedDataWithDynamicsDifferences):
-#         return (
-#             merged.Q1 + merged.fine_minus_coarse_difference_of_t_dt_dynamics
-#         ).assign_attrs(units="K/s")
+    def temperature_source(self, merged: DynamicsDifferenceFluxInputs):
+        dry_static_energy_tendency = vcm.convergence_cell_interface(
+            merged.fine_minus_coarse_dry_static_energy_g_vertical_flux,
+            pressure_thickness=merged.delp,
+            vertical_dim="pfull",
+            vertical_interface_dim="phalf",
+        )
+        T_tendency = (
+            dry_static_energy_tendency / vcm.calc.thermo._SPECIFIC_HEAT_CONST_PRESSURE
+        )
+        return (merged.Q1 + T_tendency).assign_attrs(units="K/s")
 
-#     def moisture_source(self, merged: MergedDataWithDynamicsDifferences):
-#         return (
-#             merged.Q2 + merged.fine_minus_coarse_difference_of_qv_dt_dynamics
-#         ).assign_attrs(units="kg/kg/s")
+    def moisture_source(self, merged: DynamicsDifferenceFluxInputs):
+        qv_tendency = vcm.convergence_cell_interface(
+            merged.fine_minus_coarse_qv_g_vertical_flux,
+            pressure_thickness=merged.delp,
+            vertical_dim="pfull",
+            vertical_interface_dim="phalf",
+        )
+        return (merged.Q2 + qv_tendency).assign_attrs(units="kg/kg/s")
 
 
 @dataclasses.dataclass
@@ -180,7 +200,23 @@ def _dynamics_tendency_differences_as_flux(merged: ThermodynamicFluxInputs):
     toa_net_radiation = (
         merged.ULWRFtoa_coarse + merged.USWRFtoa_coarse - merged.DSWRFtoa_coarse
     )
-    return qv_g_flux
+    sfc_sensible_heat_flux = merged.SHTFLsfc_coarse
+    first_level_flux = -toa_net_radiation * _GRAVITY
+    last_level_flux = -(sfc_sensible_heat_flux + sfc_net_radiation) * _GRAVITY
+    dse_tendency = vcm.dry_static_energy(
+        T=merged.fine_minus_coarse_difference_of_t_dt_dynamics,
+        q=merged.sphum,
+        phis=merged.surface_geopotential,
+        delp=merged.delp,
+    )
+    dse_g_flux = vcm.fit_field_as_flux(
+        dse_tendency,
+        pressure_thickness=merged.delp,
+        first_level_flux=first_level_flux,
+        last_level_flux=last_level_flux,
+        vertical_dim="pfull",
+    )
+    return qv_g_flux, dse_g_flux
 
 
 def compute_budget(
@@ -193,6 +229,10 @@ def compute_budget(
         merged["fine_minus_coarse_difference_of_t_dt_dynamics"],
         merged["fine_minus_coarse_difference_of_qv_dt_dynamics"],
     ) = _dynamics_tendency_differences(merged)
+    (
+        merged["fine_minus_coarse_qv_g_vertical_flux"],
+        merged["fine_minus_coarse_dry_static_energy_g_vertical_flux"],
+    ) = _dynamics_tendency_differences_as_flux(merged)
 
     if approach == Approach.apparent_sources_plus_nudging_tendencies:
         merged["Q1"], merged["Q2"] = _add_nudging_tendencies(merged)
@@ -203,6 +243,10 @@ def compute_budget(
         budget = DynamicsDifferenceApparentSource(include_temperature_nudging)
         merged["Q1"] = budget.temperature_source(merged)
         merged["Q2"] = budget.moisture_source(merged)
+    elif approach == Approach.dynamics_difference_flux:
+        flux_budget = DynamicsDifferenceFluxApparentSource(include_temperature_nudging)
+        merged["Q1"] = flux_budget.temperature_source(merged)
+        merged["Q2"] = flux_budget.moisture_source(merged)
     elif approach == Approach.apparent_sources_only:
         pass
     else:

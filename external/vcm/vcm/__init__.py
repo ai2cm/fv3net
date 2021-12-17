@@ -31,6 +31,7 @@ from .calc.thermo import (
     column_integrated_heating_from_isochoric_transition,
     mass_streamfunction,
     internal_energy,
+    dry_static_energy,
 )
 from .calc.histogram import histogram, histogram2d
 
