@@ -35,5 +35,7 @@ def test_CustomLoss():
     compare = m.copy()
 
     loss, info = loss_fn(m, compare)
-    assert set(info) == set(loss_fn.loss_variables) | set(loss_fn.metric_variables)
+    all_loss_vars = set(loss_fn.loss_variables) | set(loss_fn.metric_variables)
+    expected_variables = set(v + "_loss" for v in all_loss_vars)
+    assert set(info) == expected_variables
     assert loss.numpy() == pytest.approx(0.0)
