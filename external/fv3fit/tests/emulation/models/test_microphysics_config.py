@@ -92,6 +92,7 @@ def test_Config_build_residual_w_extra_tends_out():
     m = {"dummy_out1": data, "dummy_in": data, "dummy_out1_tendency": data}
     model = config.build(m)
     output = model(data)
+    assert set(model.output_names) == set(output)
     assert set(output) == {"dummy_out1", "dummy_out1_tendency"}
 
 
