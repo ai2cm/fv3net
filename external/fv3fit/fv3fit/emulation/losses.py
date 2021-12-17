@@ -78,5 +78,6 @@ class CustomLoss:
                 weight = self.weights.get(out_varname, 1.0)
                 if out_varname in self.loss_variables:
                     loss += loss_value * weight
-                metrics[out_varname] = loss_value
+                # append "_loss" for backwards compatibility
+                metrics[out_varname + "_loss"] = loss_value
         return loss, metrics
