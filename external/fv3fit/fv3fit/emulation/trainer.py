@@ -22,7 +22,6 @@ class _LayerTrainer(tf.keras.Model):
     """
 
     def __init__(self, model: tf.keras.Model, loss: LossFunction):
-        # TODO doesn't work for "StandardLoss"...can we delete that one?
         super().__init__()
         self.model = model
         self._loss = loss
