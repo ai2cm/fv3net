@@ -11,7 +11,7 @@ requirements = [
     "scikit-learn>=0.22",
     "fsspec>=0.6.2",
     "pyyaml>=5.1.2",
-    "tensorflow>=2.5.2",
+    "tensorflow==2.5.2",
     "tensorflow-addons>=0.11.2",
     "typing_extensions>=3.7.4.3",
     "dacite>=1.6.0",
