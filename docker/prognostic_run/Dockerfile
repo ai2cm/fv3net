@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:experimental
-FROM ubuntu:20.04 as bld
+FROM nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu20.04 as bld
 
 RUN apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
