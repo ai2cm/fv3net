@@ -35,12 +35,12 @@ submit () {
 }
 
 # LR
-submit rnn-v1-optimize-lr-001 "--loss.optimizer.kwargs.learning_rate 0.001"
+# submit rnn-v1-optimize-lr-001 "--loss.optimizer.kwargs.learning_rate 0.001"
 
 # batch_size
-submit rnn-v1-optimize-batch-256 "--loss.optimizer.kwargs.learning_rate 0.00014 --batch_size 512"
-submit rnn-v1-optimize-batch-512 "--loss.optimizer.kwargs.learning_rate 0.0002 --batch_size 512"
-submit rnn-v1-optimize-batch-1024 "--loss.optimizer.kwargs.learning_rate 0.00028 --batch_size 1024"
+# submit rnn-v1-optimize-batch-256 "--loss.optimizer.kwargs.learning_rate 0.00014 --batch_size 512"
+# submit rnn-v1-optimize-batch-512 "--loss.optimizer.kwargs.learning_rate 0.0002 --batch_size 512"
+# submit rnn-v1-optimize-batch-1024 "--loss.optimizer.kwargs.learning_rate 0.00028 --batch_size 1024"
 
 # GPU node w/ batch size
 submit rnn-v1-optimize-gpu-batch-512 "--loss.optimizer.kwargs.learning_rate 0.0002 --batch_size 512" "--gpu"
