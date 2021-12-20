@@ -47,7 +47,6 @@ class TendencyPrescriber:
             logger.debug(f"Opening tendency override from: {self.config.mapper_config}")
         self._mapper = self.config.mapper_config.load_mapper()
         self._tendency_names = list(self.config.variables.values())
-        self._tile = self.communicator.partitioner.tile_index(self.communicator.rank)
 
     def _open_tendencies_dataset(self, time: cftime.DatetimeJulian) -> xr.Dataset:
         timestamp = vcm.encode_time(time)
