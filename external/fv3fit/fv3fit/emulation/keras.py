@@ -182,7 +182,8 @@ def get_jacobians(model: ModelType, inputs: Mapping[str, tf.Tensor]) -> Mapping[
 
     Args:
         model: model to calculate sensitivity matrices with
-        inputs: inputs to calculate sensitivity against
+        inputs: inputs to calculate sensitivity against, expects
+            tensors with dimensions of [1, nfeatures]
     """
 
     with tf.GradientTape(persistent=True) as g:
@@ -198,10 +199,9 @@ def get_jacobians(model: ModelType, inputs: Mapping[str, tf.Tensor]) -> Mapping[
     return all_jacobians
 
 
-def get_model_output_sensitivities(
-    model: ModelType,
+def normalize_jacobians(
+    all_jacobians: Mapping[str, OutputSensitivity],
     sample: Mapping[str, tf.Tensor],
-    input_names: Sequence[str],
 ) -> Mapping[str, OutputSensitivity]:
     """
     Generate sensitivity jacobions for each output of a model and
@@ -213,21 +213,12 @@ def get_model_output_sensitivities(
     by [ std_input / std_output ].
     """
 
-    avg_profiles = {
-        name: tf.reduce_mean(data, axis=0, keepdims=True)
-        for name, data in sample.items()
-    }
-
     # normalize factors so sensitivities are comparable but still
     # preserve level-relative magnitudes
     normalize_factors = {
         name: float(standard_deviation_all_features(data))
         for name, data in sample.items()
     }
-
-    input_data = {name: avg_profiles[name] for name in input_names}
-
-    all_jacobians = get_jacobians(model, input_data)
 
     normalized_jacobians = {}
     for out_name, per_input_jacobians in all_jacobians.items():
@@ -236,4 +227,4 @@ def get_model_output_sensitivities(
             factor = normalize_factors[in_name] / normalize_factors[out_name]
             normalized_jacobians.setdefault(out_name, {})[in_name] = j * factor
 
-    return all_jacobians
+    return normalized_jacobians

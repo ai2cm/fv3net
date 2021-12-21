@@ -155,6 +155,9 @@ def _plot_single_output_sensitivities(
 def plot_all_output_sensitivities(jacobians: Mapping[str, OutputSensitivity]):
 
     """
+    Create a plotly heatmap for each input sensitivity matrix for each model
+    output.
+    
     jacobians: mapping of each out variable to a sensitivity for each input
         e.g.,
         air_temperature_after_precpd:

@@ -23,7 +23,7 @@ from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
-from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, get_model_output_sensitivities
+from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, get_jacobians, normalize_jacobians
 from fv3fit.wandb import (
     WandBConfig,
     store_model_artifact,
@@ -281,18 +281,23 @@ def main(config: TrainConfig, seed: int = 0):
             store_model_artifact(local_model_path, name=config._model.name)
 
     # Jacobians after model storing in case of "out of memory" errors
-    jacobians = get_model_output_sensitivities(model, train_set, config.input_variables)
+    avg_profiles = {
+        name: tf.reduce_mean(train_set[name], axis=0, keepdims=True)
+        for name in config.input_variables
+    }
+    jacobians = get_jacobians(model, avg_profiles)
+    std_jacobians = normalize_jacobians(jacobians, train_set)
 
     with put_dir(config.out_url) as tmpdir:
         dumpable = {
             f"{out_name}/{in_name}": data
-            for out_name, sensitivities in jacobians.items()
+            for out_name, sensitivities in std_jacobians.items()
             for in_name, data in sensitivities.items()
         }
         np.savez(os.path.join(tmpdir, "jacobians.npz"), **dumpable)
 
     if config.use_wandb:
-        plot_all_output_sensitivities(jacobians)
+        plot_all_output_sensitivities(std_jacobians)
 
 
 def get_default_config():
