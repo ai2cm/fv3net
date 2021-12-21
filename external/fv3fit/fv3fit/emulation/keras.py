@@ -199,15 +199,15 @@ def get_jacobians(model: ModelType, inputs: Mapping[str, tf.Tensor]) -> Mapping[
     return all_jacobians
 
 
-def normalize_jacobians(
+def standardize_jacobians(
     all_jacobians: Mapping[str, OutputSensitivity],
     sample: Mapping[str, tf.Tensor],
 ) -> Mapping[str, OutputSensitivity]:
     """
     Generate sensitivity jacobions for each output of a model and
-    normalize for easy inter-variable comparison.
+    standardize (dimensionless) for easy inter-variable comparison.
 
-    Normalization scaling uses the standard deviation across all
+    The scaling uses the standard deviation across all
     de-meaned features for both the input (std_input) and output
     (std_output) sample, scaling the associated jacobian result
     by [ std_input / std_output ].
@@ -215,16 +215,16 @@ def normalize_jacobians(
 
     # normalize factors so sensitivities are comparable but still
     # preserve level-relative magnitudes
-    normalize_factors = {
+    std_factors = {
         name: float(standard_deviation_all_features(data))
         for name, data in sample.items()
     }
 
-    normalized_jacobians = {}
+    standardized_jacobians = {}
     for out_name, per_input_jacobians in all_jacobians.items():
         for in_name, j in per_input_jacobians.items():
             # multiply d_output/d_input by std_input/std_output
-            factor = normalize_factors[in_name] / normalize_factors[out_name]
-            normalized_jacobians.setdefault(out_name, {})[in_name] = j * factor
+            factor = std_factors[in_name] / std_factors[out_name]
+            standardized_jacobians.setdefault(out_name, {})[in_name] = j * factor
 
-    return normalized_jacobians
+    return standardized_jacobians

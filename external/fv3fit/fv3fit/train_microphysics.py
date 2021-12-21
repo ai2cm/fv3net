@@ -23,7 +23,7 @@ from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
-from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, get_jacobians, normalize_jacobians
+from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, get_jacobians, standardize_jacobians
 from fv3fit.wandb import (
     WandBConfig,
     store_model_artifact,
@@ -286,7 +286,7 @@ def main(config: TrainConfig, seed: int = 0):
         for name in config.input_variables
     }
     jacobians = get_jacobians(model, avg_profiles)
-    std_jacobians = normalize_jacobians(jacobians, train_set)
+    std_jacobians = standardize_jacobians(jacobians, train_set)
 
     with put_dir(config.out_url) as tmpdir:
         dumpable = {
