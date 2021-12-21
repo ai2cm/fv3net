@@ -452,6 +452,8 @@ class TimeLoop(
         tendency = dissoc(self._tendencies, "dQu", "dQv")
         diagnostics = compute_baseline_diagnostics(self._state)
 
+        self._log_debug(f"nudging_tendency: {tendency}")
+
         if self._postphysics_stepper is not None:
             stepper_diags, net_moistening = self._postphysics_stepper.get_diagnostics(
                 self._state, tendency
