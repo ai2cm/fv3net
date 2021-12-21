@@ -259,6 +259,17 @@ class OptimizerConfig:
 
 
 @dataclasses.dataclass
+class LearningRateScheduleConfig:
+    name: str
+    kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
+
+    @property
+    def instance(self) -> tf.keras.optimizers.schedules.LearningRateSchedule
+        cls = getattr(tf.keras.optimizers.schedules, self.name)
+        return cls(**self.kwargs)
+
+
+@dataclasses.dataclass
 class RegularizerConfig:
     name: str
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
