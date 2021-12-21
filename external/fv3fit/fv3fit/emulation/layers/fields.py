@@ -136,7 +136,7 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
         sample_out: Optional[tf.Tensor] = None,
         denormalize: Optional[str] = None,
         enforce_positive: bool = False,
-        tendency_name: str = None,
+        tendency_name: Optional[str] = None,
         **kwargs,
     ):
         """
