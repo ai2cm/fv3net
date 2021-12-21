@@ -10,6 +10,7 @@ from fv3fit.emulation.keras import (
     StandardLoss,
     save_model,
     score_model,
+    get_model_output_sensitivities
 )
 
 
@@ -171,3 +172,22 @@ def test_StandardLoss_prepare_arbitrary_kwargs():
 
     model = _get_model(10, 2)
     config.compile(model)
+
+
+def test_get_model_output_sensitivities():
+    sample = {
+        "a": tf.random.normal((100, 5)),
+        "b": tf.random.normal((100, 5)),
+    }
+    sample["field"] = sample["a"] + sample["b"]
+
+    inputs = {"a": tf.keras.Input(5), "b": tf.keras.Input(5)}
+    out = tf.keras.layers.Lambda(lambda x: {"field": x["a"] + x["b"]})(inputs)
+    model = tf.keras.Model(inputs=inputs, outputs=out)
+
+    jacobians = get_model_output_sensitivities(model, sample, ["a", "b"])
+
+    assert set(jacobians) == {"field"}
+    assert set(jacobians["field"]) == {"a", "b"}
+    for j in jacobians["field"].values():
+        assert j.shape == (5, 5)
