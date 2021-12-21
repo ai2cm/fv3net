@@ -6,12 +6,9 @@ import json
 import logging
 import numpy as np
 import os
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import tempfile
 import tensorflow as tf
 from typing import Any, Dict, Mapping, Optional, Sequence, Union
-import wandb
 import warnings
 import yaml
 
@@ -30,6 +27,7 @@ from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model
 from fv3fit.wandb import (
     WandBConfig,
     store_model_artifact,
+    plot_all_output_sensitivities,
 )
 
 logger = logging.getLogger(__name__)
@@ -248,51 +246,6 @@ def get_model_output_sensitivities(
         all_jacobians[out_name] = normalized
 
     return all_jacobians
-
-
-OutputSensitivity = Mapping[str, np.ndarray]
-
-
-def plot_single_output_sensitivities(name: str, jacobians: OutputSensitivity):
-
-    ncols = len(jacobians)
-    fig = make_subplots(
-        rows=1, cols=ncols, shared_yaxes=True, column_titles=list(jacobians.keys())
-    )
-
-    for j, (in_name, sensitivity) in enumerate(jacobians.items(), 1):
-        trace = go.Heatmap(z=sensitivity, coloraxis="coloraxis", zmin=-1, zmax=1)
-        fig.append_trace(
-            trace=trace, row=1, col=j,
-        )
-    fig.update_layout(
-        title_text=f"{name} input sensitivities ({config.model.architecture.name})",
-        coloraxis={"colorscale": "RdBu_r", "cmax": 1, "cmin": -1},
-        height=400,
-    )
-
-    return fig
-
-
-def plot_all_output_sensitivities(jacobians: Mapping[str, OutputSensitivity]):
-
-    """
-    jacobians: mapping of each out variable to a sensitivity for each input
-        e.g.,
-        air_temperature_after_precpd:
-            air_temperature_input: sensitivity matrix (nlev x nlev)
-            specific_humidity_input: sensitivity matrix
-        specific_humidity_after_precpd:
-            ...
-    """
-
-    all_plots = {
-        out_name: plot_single_output_sensitivities(out_name, out_sensitivities)
-        for out_name, out_sensitivities in jacobians.items()
-    }
-
-    for out_name, fig in all_plots.items():
-        wandb.log({f"jacobian/{out_name}": wandb.Plotly(fig)})
 
 
 def main(config: TrainConfig, seed: int = 0):
