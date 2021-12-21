@@ -10,6 +10,7 @@ from plotly.subplots import make_subplots
 from typing import Any, Dict, List, Mapping, Optional
 
 from .tensorboard import plot_to_image
+from .emulation.keras import OutputSensitivity
 
 
 @dataclasses.dataclass
@@ -126,9 +127,6 @@ def store_model_artifact(path: str, name: str):
     model_artifact = wandb.Artifact(name, type="model")
     model_artifact.add_dir(path)
     wandb.log_artifact(model_artifact)
-
-
-OutputSensitivity = Mapping[str, np.ndarray]
 
 
 def _plot_single_output_sensitivities(

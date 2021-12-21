@@ -23,7 +23,7 @@ from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
-from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model
+from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, get_model_output_sensitivities
 from fv3fit.wandb import (
     WandBConfig,
     store_model_artifact,
@@ -114,6 +114,10 @@ class TrainConfig:
 
     def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
         return self._model.build(data)
+
+    @property
+    def input_variables(self) -> Sequence:
+        return self._model.input_variables
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -206,48 +210,6 @@ class TrainConfig:
             self.cache = False
 
 
-def get_model_output_sensitivities(
-    model: tf.keras.Model, sample: Mapping[str, tf.Tensor],
-):
-    """
-    Generate sensitivity jacabion for each output relative to a mean
-    value for each input
-    """
-
-    avg_profiles = {
-        name: tf.reduce_mean(data, axis=0, keepdims=True)
-        for name, data in sample.items()
-    }
-
-    # normalize factors so sensitivities are comparable but still
-    # preserve level-relative magnitudes
-    normalize_factors = {}
-    for name, data in sample.items():
-        centered_by_level = data - tf.reduce_mean(data, axis=0)
-        factor = tf.math.sqrt(tf.reduce_mean(centered_by_level ** 2))
-        normalize_factors[name] = factor
-
-    input_data = {name: avg_profiles[name] for name in model.input_names}
-
-    with tf.GradientTape(persistent=True) as g:
-        g.watch(input_data)
-        outputs = model(input_data)
-
-    all_jacobians = {}
-    for out_name in model.output_names:
-        per_input_jacobians = g.jacobian(outputs[out_name], input_data)
-
-        normalized = {}
-        for in_name, j in per_input_jacobians.items():
-            # multiply d_output/d_input by std_input/std_output
-            factor = normalize_factors[in_name] / normalize_factors[out_name]
-            normalized[in_name] = (j[0, :, 0] * factor).numpy()
-
-        all_jacobians[out_name] = normalized
-
-    return all_jacobians
-
-
 def main(config: TrainConfig, seed: int = 0):
     logging.basicConfig(level=getattr(logging, config.log_level))
     set_random_seed(seed)
@@ -319,7 +281,7 @@ def main(config: TrainConfig, seed: int = 0):
             store_model_artifact(local_model_path, name=config._model.name)
 
     # Jacobians after model storing in case of "out of memory" errors
-    jacobians = get_model_output_sensitivities(model, train_set)
+    jacobians = get_model_output_sensitivities(model, train_set, config.input_variables)
 
     with put_dir(config.out_url) as tmpdir:
         dumpable = {

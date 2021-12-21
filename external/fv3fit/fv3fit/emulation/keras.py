@@ -1,10 +1,11 @@
 import dataclasses
 import logging
+import numpy as np
 import os
 import tensorflow as tf
-from typing import Optional, Mapping, List, Union
+from typing import Callable, Optional, Mapping, List, Sequence, Union
 
-from fv3fit.emulation.layers.normalization import NormalizeConfig
+from fv3fit.emulation.layers.normalization import NormalizeConfig, standard_deviation_all_features
 import fv3fit.keras.adapters
 from .scoring import score_multi_output, ScoringOutput
 from .._shared.config import OptimizerConfig
@@ -168,3 +169,71 @@ class StandardLoss:
             loss_weights=self.weights,
             optimizer=self.optimizer.instance,
         )
+
+
+ModelType = Callable[[Mapping[str, tf.Tensor]], Mapping[str, tf.Tensor]]
+OutputSensitivity = Mapping[str, np.ndarray]
+
+
+def get_jacobians(model: ModelType, inputs: Mapping[str, tf.Tensor]) -> Mapping[str, OutputSensitivity]:
+    """
+    Calculate jacobians for each output field relative to each
+    model input:
+
+    Args:
+        model: model to calculate sensitivity matrices with
+        inputs: inputs to calculate sensitivity against
+    """
+
+    with tf.GradientTape(persistent=True) as g:
+        g.watch(inputs)
+        outputs = model(inputs)
+
+    all_jacobians = {}
+    for out_name, out_data in outputs.items():
+        jacobians = g.jacobian(out_data, inputs)
+        jacobians = {name: j[0, :, 0].numpy() for name, j in jacobians.items()}
+        all_jacobians[out_name] = jacobians
+
+    return all_jacobians
+
+
+def get_model_output_sensitivities(
+    model: ModelType,
+    sample: Mapping[str, tf.Tensor],
+    input_names: Sequence[str],
+) -> Mapping[str, OutputSensitivity]:
+    """
+    Generate sensitivity jacobions for each output of a model and
+    normalize for easy inter-variable comparison.
+
+    Normalization scaling uses the standard deviation across all
+    de-meaned features for both the input (std_input) and output
+    (std_output) sample, scaling the associated jacobian result
+    by [ std_input / std_output ].
+    """
+
+    avg_profiles = {
+        name: tf.reduce_mean(data, axis=0, keepdims=True)
+        for name, data in sample.items()
+    }
+
+    # normalize factors so sensitivities are comparable but still
+    # preserve level-relative magnitudes
+    normalize_factors = {
+        name: float(standard_deviation_all_features(data))
+        for name, data in sample.items()
+    }
+
+    input_data = {name: avg_profiles[name] for name in input_names}
+
+    all_jacobians = get_jacobians(model, input_data)
+
+    normalized_jacobians = {}
+    for out_name, per_input_jacobians in all_jacobians.items():
+        for in_name, j in per_input_jacobians.items():
+            # multiply d_output/d_input by std_input/std_output
+            factor = normalize_factors[in_name] / normalize_factors[out_name]
+            normalized_jacobians.setdefault(out_name, {})[in_name] = j * factor
+
+    return all_jacobians
