@@ -71,14 +71,19 @@ class InitialCondition:
     Attributes:
         base_url: a location in GCS or local
         timestep: a YYYYMMDD.HHMMSS timestamp
+        restart_categories: an optional mapping from the required FV3GFS
+            category names to restart category names as stored on disk
     """
 
     base_url: str
     timestep: str
+    restart_categories: Optional[Mapping[str, str]] = None
 
     @property
     def overlay(self):
-        return fv3kube.c48_initial_conditions_overlay(self.base_url, self.timestep)
+        return fv3kube.c48_initial_conditions_overlay(
+            self.base_url, self.timestep, self.restart_categories
+        )
 
 
 @dataclasses.dataclass
