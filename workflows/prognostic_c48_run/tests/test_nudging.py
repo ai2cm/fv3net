@@ -1,7 +1,6 @@
 from runtime.names import STATE_NAME_TO_TENDENCY, TENDENCY_TO_STATE_NAME
 from runtime.nudging import (
     _time_to_label,
-    _label_to_time,
     get_nudging_tendency,
 )
 import xarray as xr
@@ -16,12 +15,6 @@ def test__time_to_label():
     time, label = cftime.DatetimeJulian(2015, 1, 20, 6, 30, 0), "20150120.063000"
     result = _time_to_label(time)
     assert result == label
-
-
-def test__label_to_time():
-    time, label = cftime.DatetimeJulian(2015, 1, 20, 6, 30, 0), "20150120.063000"
-    result = _label_to_time(label)
-    assert result == time
 
 
 # tests of nudging tendency below adapted from fv3gfs.util versions

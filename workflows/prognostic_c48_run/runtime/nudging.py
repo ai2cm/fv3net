@@ -16,7 +16,7 @@ from typing import (
     Optional,
 )
 import logging
-from .interpolate import time_interpolate_func
+from .interpolate import time_interpolate_func, label_to_time
 from .names import STATE_NAME_TO_TENDENCY
 from .types import State
 
@@ -81,7 +81,7 @@ def setup_get_reference_state(
     """
     reference_dir = config.restarts_path
 
-    get_reference_state: Callable[[Any], Dict[Any, Any]] = functools.partial(
+    get_reference_state: Callable[[Any], State] = functools.partial(
         _get_reference_state,
         reference_dir=reference_dir,
         communicator=communicator,
@@ -93,7 +93,7 @@ def setup_get_reference_state(
     if initial_time_label is not None:
         get_reference_state = time_interpolate_func(
             get_reference_state,
-            initial_time=_label_to_time(initial_time_label),
+            initial_time=label_to_time(initial_time_label),
             frequency=timedelta(seconds=config.reference_frequency_seconds),
         )
 
@@ -147,17 +147,6 @@ def _time_to_label(time: cftime.DatetimeJulian) -> str:
     return (
         f"{time.year:04d}{time.month:02d}{time.day:02d}."
         f"{time.hour:02d}{time.minute:02d}{time.second:02d}"
-    )
-
-
-def _label_to_time(time: str) -> cftime.DatetimeJulian:
-    return cftime.DatetimeJulian(
-        int(time[:4]),
-        int(time[4:6]),
-        int(time[6:8]),
-        int(time[9:11]),
-        int(time[11:13]),
-        int(time[13:15]),
     )
 
 

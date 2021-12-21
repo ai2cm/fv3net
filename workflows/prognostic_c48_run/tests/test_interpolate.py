@@ -1,9 +1,15 @@
-from runtime.interpolate import time_interpolate_func
+from runtime.interpolate import time_interpolate_func, label_to_time
 import cftime
 import xarray as xr
 import numpy as np
 from datetime import timedelta
 import pytest
+
+
+def test__label_to_time():
+    time, label = cftime.DatetimeJulian(2015, 1, 20, 6, 30, 0), "20150120.063000"
+    result = label_to_time(label)
+    assert result == time
 
 
 @pytest.mark.parametrize("fraction", [0, 0.25, 0.5, 0.75, 1])

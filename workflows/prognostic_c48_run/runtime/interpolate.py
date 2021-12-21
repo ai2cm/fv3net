@@ -7,10 +7,10 @@ from typing import Callable
 
 
 def time_interpolate_func(
-    func: Callable[[cftime.DatetimeJulian], dict],
+    func: Callable[[cftime.DatetimeJulian], State],
     frequency: timedelta,
     initial_time: cftime.DatetimeJulian,
-) -> Callable[[cftime.DatetimeJulian], dict]:
+) -> Callable[[cftime.DatetimeJulian], State]:
     cached_func = functools.lru_cache(maxsize=2)(func)
 
     @functools.wraps(cached_func)
@@ -47,3 +47,14 @@ def _average_states(state_0: State, state_1: State, weight: float) -> State:
                     state_0[key] * weight + (1 - weight) * state_1[key]  # type: ignore
                 )
     return out
+
+
+def label_to_time(time: str) -> cftime.DatetimeJulian:
+    return cftime.DatetimeJulian(
+        int(time[:4]),
+        int(time[4:6]),
+        int(time[6:8]),
+        int(time[9:11]),
+        int(time[11:13]),
+        int(time[13:15]),
+    )
