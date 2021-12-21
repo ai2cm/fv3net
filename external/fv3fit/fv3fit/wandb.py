@@ -138,13 +138,16 @@ def _plot_single_output_sensitivities(
         rows=1, cols=ncols, shared_yaxes=True, column_titles=list(jacobians.keys())
     )
 
-    for j, (in_name, sensitivity) in enumerate(jacobians.items(), 1):
+    for j, sensitivity in enumerate(jacobians.values(), 1):
         trace = go.Heatmap(z=sensitivity, coloraxis="coloraxis", zmin=-1, zmax=1)
         fig.append_trace(
             trace=trace, row=1, col=j,
         )
+        fig.update_xaxes(title_text="Input Level", row=1, col=j)
+    fig.update_yaxes(title_text="Output Level", row=1, col=1)
+
     fig.update_layout(
-        title_text=f"{name} input sensitivities",
+        title_text=f"Standardized {name} input sensitivities",
         coloraxis={"colorscale": "RdBu_r", "cmax": 1, "cmin": -1},
         height=400,
     )
@@ -157,7 +160,7 @@ def plot_all_output_sensitivities(jacobians: Mapping[str, OutputSensitivity]):
     """
     Create a plotly heatmap for each input sensitivity matrix for each model
     output.
-    
+
     jacobians: mapping of each out variable to a sensitivity for each input
         e.g.,
         air_temperature_after_precpd:
