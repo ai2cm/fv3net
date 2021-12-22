@@ -22,9 +22,8 @@ def _get_dataset() -> xr.Dataset:
 
 @pytest.fixture
 def config():
-    return TransformConfig(
-        variables=["air_temperature", "specific_humidity"], use_tensors=True,
-    )
+    variables = ["air_temperature", "specific_humidity"]
+    return TransformConfig(use_tensors=True).get_pipeline(variables)
 
 
 @pytest.fixture(scope="module")
@@ -115,13 +114,6 @@ def test_netcdf_dir_to_tf_dataset_with_shuffle(config, nc_dir):
 
     with pytest.raises(AssertionError):
         np.testing.assert_array_equal(get_first_tensor(ds1), get_first_tensor(ds2))
-
-
-def test_batches_to_tf_dataset(config):
-    xr_dataset = _get_dataset()
-    batches = [xr_dataset] * 3
-    tf_ds = load.batches_to_tf_dataset(batches, config)
-    assert isinstance(tf_ds, tf.data.Dataset)
 
 
 def test_netcdf_url_to_dataset(tmpdir):

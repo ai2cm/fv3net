@@ -15,16 +15,13 @@ def test_SliceConfig(start, stop, step):
 
 def _get_config() -> TransformConfig:
     return TransformConfig(
-        variables=["a", "b", "c", "d"],
-        antarctic_only=False,
-        vertical_subselections={"a": SliceConfig(start=5)},
+        antarctic_only=False, vertical_subselections={"a": SliceConfig(start=5)},
     )
 
 
 def test_TransformConfig():
     transform = _get_config()
     assert transform.vert_sel_as_slices["a"] == slice(5, None)
-    assert callable(transform)
 
 
 def test_TransformConfig_from_dict():

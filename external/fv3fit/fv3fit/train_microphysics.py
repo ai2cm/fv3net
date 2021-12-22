@@ -5,7 +5,7 @@ import os
 import tempfile
 import warnings
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
 
 import dacite
 import fsspec
@@ -24,6 +24,7 @@ from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.keras import save_model
 from fv3fit.emulation.losses import CustomLoss
+import xarray
 from fv3fit.wandb import (
     WandBConfig,
     store_model_artifact,
@@ -190,12 +191,15 @@ class TrainConfig:
 
         return config
 
-    def __post_init__(self) -> None:
+    def get_dataset_convertor(
+        self,
+    ) -> Callable[[xarray.Dataset], Mapping[str, tf.Tensor]]:
         required_variables = set(self._model.input_variables) | set(
             self._model.output_variables
         )
-        self.transform.variables = list(required_variables)
+        return self.transform.get_pipeline(required_variables)
 
+    def __post_init__(self) -> None:
         if (
             self.model is not None
             and "rnn-v1" in self.model.architecture.name
@@ -215,10 +219,10 @@ def main(config: TrainConfig, seed: int = 0):
         callbacks.append(config.wandb.get_callback())
 
     train_ds = nc_dir_to_tf_dataset(
-        config.train_url, config.transform, nfiles=config.nfiles
+        config.train_url, config.get_dataset_convertor(), nfiles=config.nfiles
     )
     test_ds = nc_dir_to_tf_dataset(
-        config.test_url, config.transform, nfiles=config.nfiles_valid
+        config.test_url, config.get_dataset_convertor(), nfiles=config.nfiles_valid
     )
 
     train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
