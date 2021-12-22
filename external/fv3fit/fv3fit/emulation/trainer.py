@@ -63,8 +63,8 @@ def train(
             and target variables.
         validation_data: same as ``dataset`` but used for computing validation
             scores
-        loss: a loss function ...loss_fn(x,y) returns a scalar and dictionary of
-            scalar metrics when x,y are dicts of tensors
+        loss: a loss function ...loss_fn(truth,prediction) returns a scalar and
+            dictionary of scalar metrics when truth, prediction are dicts of tensors
         optimizer: the optimizer. defaults to tf.keras.layers.Adam.
  
     Returns:

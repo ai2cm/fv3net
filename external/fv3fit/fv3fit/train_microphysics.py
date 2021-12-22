@@ -241,8 +241,6 @@ def main(config: TrainConfig, seed: int = 0):
             )
         )
 
-    config.loss.prepare(output_samples=train_set)
-
     with tempfile.TemporaryDirectory() as train_temp:
         with tempfile.TemporaryDirectory() as test_temp:
 
@@ -256,7 +254,7 @@ def main(config: TrainConfig, seed: int = 0):
             history = train(
                 model,
                 train_ds_batched,
-                config.loss,
+                config.loss.build(output_samples=train_set),
                 optimizer=config.loss.optimizer.instance,
                 epochs=config.epochs,
                 validation_data=test_ds_batched,
