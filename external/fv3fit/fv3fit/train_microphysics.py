@@ -112,7 +112,7 @@ class TrainConfig:
         else:
             raise ValueError("Neither .model or .conservative_model provided.")
 
-    def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
+    def build_model(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
         return self._model.build(data)
 
     @classmethod
@@ -227,7 +227,7 @@ def main(config: TrainConfig, seed: int = 0):
 
     train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
 
-    model = config.build(train_set)
+    model = config.build_model(train_set)
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
