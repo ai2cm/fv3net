@@ -96,8 +96,8 @@ dtype=float32)>
             }
 
         @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string)])
-        def parse_example(self, records: tf.Tensor) -> tf.data.Dataset:
-            parsed = tf.io.parse_example(records, features)
+        def parse_example(self, serialized: tf.Tensor) -> tf.data.Dataset:
+            parsed = tf.io.parse_example(serialized, features)
             return tf.map_fn(
                 self._parse_dict_of_bytes,
                 parsed,

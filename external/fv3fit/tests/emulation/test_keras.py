@@ -4,10 +4,8 @@ import tensorflow as tf
 
 import fv3fit.emulation
 from fv3fit.emulation.trainer import _ModelWrapper, train
+from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.keras import (
-    CustomLoss,
-    NormalizedMSE,
-    StandardLoss,
     save_model,
     score_model,
     get_jacobians,
@@ -15,26 +13,36 @@ from fv3fit.emulation.keras import (
 )
 
 
-def _get_model(feature_dim, num_outputs):
-
-    in_ = tf.keras.Input(feature_dim)
-    out = tf.keras.layers.Lambda(lambda x: x + 10)(in_)
-
-    if num_outputs == 1:
-        outputs = out
-    else:
-        outputs = [out] * num_outputs
-
-    model = tf.keras.Model(inputs=in_, outputs=outputs)
-
-    return model
-
-
 def test_train():
     model, data, loss = _get_model_data_loss()
     ds = tf.data.Dataset.from_tensors(data)
     train(model, ds, loss)
-    assert not hasattr(train, "loss")
+    assert not hasattr(model, "loss")
+
+
+def test_train_loss_integration():
+    tf.random.set_seed(0)
+    in_ = tf.keras.Input(2, name="x")
+    out = tf.keras.layers.Dense(5, name="y1")(in_)
+    out2 = tf.keras.layers.Dense(5, name="y2")(in_)
+    model = tf.keras.Model(inputs=[in_], outputs={"y1": out, "y2": out2})
+    loss = CustomLoss(loss_variables=["y1", "y2"], weights={"y1": 4.0, "y2": 1.0})
+
+    batch_size = 10
+    batch = {
+        "x": tf.random.uniform((batch_size, 2)),
+        "y1": tf.random.uniform((batch_size, 5)),
+        "y2": tf.random.uniform((batch_size, 5)),
+    }
+    ds = tf.data.Dataset.from_tensor_slices(batch)
+    loss.prepare(batch)
+    history = train(
+        model, ds.batch(2), loss=loss, optimizer=tf.keras.optimizers.Adam(), epochs=3
+    )
+
+    # this magic number is regression data
+    # update it if you expect this test to break
+    assert history.history["loss"][-1] == pytest.approx(26.47243881225586)
 
 
 def test_train_wrong_shape_error():
@@ -106,73 +114,6 @@ def test_model_score_no_outputs():
 
     with pytest.raises(ValueError):
         score_model(model, data)
-
-
-def test_NormalizeMSE():
-    sample = np.array([[25.0], [75.0]])
-    target = np.array([[50.0], [50.0]])
-
-    mse_func = NormalizedMSE("mean_std", sample)
-    mse = mse_func(target, sample)
-    np.testing.assert_approx_equal(mse, 1.0, 6)
-
-
-def test_CustomLoss():
-
-    config = CustomLoss(
-        normalization="mean_std",
-        loss_variables=["fieldA", "fieldB"],
-        metric_variables=["fieldC"],
-        weights=dict(fieldA=2.0),
-    )
-
-    tensor = tf.random.normal((100, 2))
-
-    names = ["fieldA", "fieldB", "fieldC", "fieldD"]
-    samples = [tensor] * 4
-    m = dict(zip(names, samples))
-
-    config.prepare(m)
-
-    model = _get_model(2, 4)
-
-    assert len(config._loss) == 2
-    assert "fieldA" in config._loss
-    assert "fieldB" in config._loss
-    for k, v in config._loss.items():
-        assert isinstance(v, NormalizedMSE)
-    assert config._weights["fieldA"] == 2.0
-    assert config._weights["fieldB"] == 1.0
-
-    assert len(config._metrics) == 1
-    assert "fieldC" in config._metrics
-    assert isinstance(config._metrics["fieldC"], NormalizedMSE)
-
-    config.compile(model)
-
-
-@pytest.mark.parametrize(
-    "kwargs",
-    [{}, dict(loss="mse", metrics=["mae"], weights=[2.0, 1.0])],
-    ids=["defaults", "specified"],
-)
-def test_StandardLoss(kwargs):
-
-    config = StandardLoss(**kwargs)
-    model = _get_model(10, 2)
-    config.compile(model)
-
-
-def test_StandardLoss_prepare_arbitrary_kwargs():
-
-    config = StandardLoss()
-
-    # doen't do anything but shouldn't fail
-    config.prepare()
-    config.prepare(random_kwarg=1)
-
-    model = _get_model(10, 2)
-    config.compile(model)
 
 
 def test_jacobians():

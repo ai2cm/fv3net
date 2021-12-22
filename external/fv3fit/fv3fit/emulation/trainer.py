@@ -1,6 +1,9 @@
-from typing import Any, Sequence, Union, Optional
+from typing import Any, Callable, Mapping, Sequence, Optional, Tuple
 import tensorflow as tf
-from fv3fit.emulation.keras import StandardLoss, CustomLoss
+
+
+TensorDict = Mapping[str, tf.Tensor]
+LossFunction = Callable[[TensorDict, TensorDict], Tuple[tf.Tensor, TensorDict]]
 
 
 class _ModelWrapper(tf.keras.Model):
@@ -12,10 +15,30 @@ class _ModelWrapper(tf.keras.Model):
         return self.model(x)
 
 
+class _LayerTrainer(tf.keras.Model):
+    """A class for training multiple output layers
+    
+    This uses the more explicit `add_loss` API for clarity
+    """
+
+    def __init__(self, model: tf.keras.Model, loss: LossFunction):
+        super().__init__()
+        self.model = model
+        self._loss = loss
+
+    def call(self, x):
+        y = self.model(x)
+        loss, metrics = self._loss(x, y)
+        self.add_loss(loss)
+        for var in metrics:
+            self.add_metric(metrics[var], name=var)
+
+
 def train(
     model: tf.keras.layers.Layer,
     dataset: tf.data.Dataset,
-    loss: Union[StandardLoss, CustomLoss],
+    loss: LossFunction,
+    optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
     callbacks: Sequence[tf.keras.callbacks.Callback] = (),
     epochs: int = 1,
     validation_data: Optional[tf.data.Dataset] = None,
@@ -40,7 +63,9 @@ def train(
             and target variables.
         validation_data: same as ``dataset`` but used for computing validation
             scores
-        loss: the configuration of the loss function
+        loss: a loss function ...loss_fn(x,y) returns a scalar and dictionary of
+            scalar metrics when x,y are dicts of tensors
+        optimizer: the optimizer. defaults to tf.keras.layers.Adam.
  
     Returns:
         The keras training history
@@ -49,10 +74,9 @@ def train(
         all other arguments have the same interpretation as ``tf.keras.Model.fit
 
     """
-    wrapped_model = _ModelWrapper(model)
-
+    wrapped_model = _LayerTrainer(model, loss)
     train_set = next(iter(dataset))
-    outputs = wrapped_model(train_set)
+    outputs = model(train_set)
     for name in outputs:
         if name in train_set:
             shape_in_data = tuple(train_set[name].shape)
@@ -63,25 +87,15 @@ def train(
                     f"Expected {shape_in_data} got {shape_in_output}."
                 )
 
-    output_names = set(outputs)
-
-    def split_in_out(m):
-        return (
-            {key: m[key] for key in model.input_names if key in m},
-            {key: m[key] for key in output_names if key in m},
-        )
-
-    loss.compile(wrapped_model)
+    wrapped_model.compile(optimizer=optimizer or tf.keras.optimizers.Adam())
     # explicitly handling all arguments makes it difficult to further expand
     # the surface area of this function
     # This minimizes our contact points to keras APIs...which are often
     # poorly documented
     return wrapped_model.fit(
-        dataset.map(split_in_out),
+        dataset,
         epochs=epochs,
-        validation_data=validation_data.map(split_in_out)
-        if validation_data is not None
-        else None,
+        validation_data=validation_data,
         validation_freq=validation_freq,
         verbose=verbose,
         callbacks=callbacks,

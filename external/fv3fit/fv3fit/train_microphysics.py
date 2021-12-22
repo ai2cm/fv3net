@@ -23,7 +23,8 @@ from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
-from fv3fit.emulation.keras import CustomLoss, StandardLoss, save_model, get_jacobians, standardize_jacobians
+from fv3fit.emulation.keras import save_model, get_jacobians, standardize_jacobians
+from fv3fit.emulation.losses import CustomLoss
 from fv3fit.wandb import (
     WandBConfig,
     store_model_artifact,
@@ -83,7 +84,7 @@ class TrainConfig:
     nfiles_valid: Optional[int] = None
     use_wandb: bool = True
     wandb: WandBConfig = field(default_factory=WandBConfig)
-    loss: Union[StandardLoss, CustomLoss] = field(default_factory=StandardLoss)
+    loss: CustomLoss = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
     valid_freq: int = 5
@@ -258,6 +259,7 @@ def main(config: TrainConfig, seed: int = 0):
                 model,
                 train_ds_batched,
                 config.loss,
+                optimizer=config.loss.optimizer.instance,
                 epochs=config.epochs,
                 validation_data=test_ds_batched,
                 validation_freq=config.valid_freq,
