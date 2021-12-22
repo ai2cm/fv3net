@@ -262,27 +262,21 @@ class LearningRateScheduleConfig:
 class OptimizerConfig:
     name: str
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
-    learning_rate: Optional[Union[float, LearningRateScheduleConfig]] = None
+    learning_rate_schedule: Optional[LearningRateScheduleConfig] = None
 
     @property
     def instance(self) -> tf.keras.optimizers.Optimizer:
         cls = getattr(tf.keras.optimizers, self.name)
-        kwargs_with_lr = dict(**self.kwargs)
-        kwargs_with_lr.update(self._get_learning_rate())
-        return cls(**kwargs_with_lr)
+        kwargs = dict(**self.kwargs)
+
+        if self.learning_rate_schedule:
+            kwargs["learning_rate"] = self.learning_rate_schedule.instance
+
+        return cls(**kwargs)
 
     def __post_init__(self):
-        if "learning_rate" in self.kwargs and self.learning_rate:
-            raise ValueError("Learning rate defined in kwargs of OptimizerConfig. Please use learning rate attribute")
-
-    def _get_learning_rate(self):
-        if self.learning_rate is None:
-            # don't want to overwrite default optimizer learning rates
-            return {}
-        elif isinstance(self.learning_rate, LearningRateScheduleConfig):
-            return {"learning_rate": self.learning_rate.instance}
-        else:
-            return {"learning_rate": self.learning_rate}
+        if "learning_rate" in self.kwargs and self.learning_rate_schedule is not None:
+            raise ValueError("Learning rate ambiguity from kwargs and learning rate schedule set in OptimizerConfig.")
 
 
 @dataclasses.dataclass
