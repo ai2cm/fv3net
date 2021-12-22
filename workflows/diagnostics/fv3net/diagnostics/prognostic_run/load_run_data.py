@@ -19,6 +19,9 @@ from fv3net.diagnostics.prognostic_run import derived_variables
 
 logger = logging.getLogger(__name__)
 
+GRID_VARS = ["lat", "lon", "latb", "lonb"]
+DROP_DIMS = ["x_interface", "y_interface"]
+
 
 def load_verification(
     catalog_keys: List[str], catalog: intake.catalog.Catalog,
@@ -115,6 +118,7 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
         ds = xr.Dataset()
 
     if len(ds) > 0:
+        ds = ds.drop_vars(GRID_VARS + DROP_DIMS, errors="ignore")
         ds = _coarsen_to_target_resolution(ds, target_resolution=48, catalog=catalog)
 
     return ds
