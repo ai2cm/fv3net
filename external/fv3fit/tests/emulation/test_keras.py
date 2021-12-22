@@ -135,5 +135,7 @@ def test_jacobians():
 
     assert set(jacobians) == {"field"}
     assert set(jacobians["field"]) == {"a", "b"}
-    for j in jacobians["field"].values():
-        assert j.shape == (5, 5)
+        n = 5  # maybe move to the top of the test
+        np.testing.assert_array_almost_equal(jacobians["field"]["a"], np.eye(n))            
+        np.testing.assert_array_almost_equal(jacobians["field"]["b"], np.eye(n))
+
