@@ -93,6 +93,7 @@ jobs:
         type: enum
         enum:
           - prognostic_run
+          - prognostic_run_gpu
           - post_process_run
           - fv3net
           - artifacts
