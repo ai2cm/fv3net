@@ -186,3 +186,35 @@ def test_RNN_downward_dependence():
             sensitivity = jacobian[output_level, input_level]
             if output_level > input_level and sensitivity != 0:
                 raise ValueError("Downwards dependence violated")
+
+
+@pytest.mark.xfail
+def test_saved_model_jacobian():
+    """
+    SimpleRNN saving prevents jacobian calculation due to some internal
+    metadata missing after loading. Perhaps a tensorflow version upgrade
+    fixes?
+    """
+
+    config = MicrophysicsConfig(
+        input_variables=["field_input"],
+        direct_out_variables=["field_output"],
+        architecture=ArchitectureConfig(name="rnn-v1-shared-weights", kwargs=dict(channels=16)),
+    )
+
+    nlev = 15
+    data = tf.random.normal((10, nlev))
+    sample = {"field_input": data, "field_output": data}
+    profile = data[0:1]
+
+    model = config.build(sample)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        save_path = join(tmpdir, "model.tf")
+        model.save(save_path, save_format="tf")
+        loaded_model = tf.keras.models.load_model(save_path)
+
+    with tf.GradientTape() as g:
+        g.watch(profile)
+        output = loaded_model(profile)
+
+    assert g.jacobian(output["field_output"], profile)
