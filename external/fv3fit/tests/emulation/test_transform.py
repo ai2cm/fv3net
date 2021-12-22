@@ -3,11 +3,8 @@ import tensorflow as tf
 from fv3fit.emulation.transforms import (
     LogTransform,
     PerVariableTransform,
-    TransformedLayer,
     TransformedVariableConfig,
 )
-from hypothesis import given
-from hypothesis.strategies import floats
 
 
 def _to_float(x: tf.Tensor) -> float:
@@ -61,26 +58,3 @@ def test_per_variable_transform_round_trip():
     assert set(y) >= set(x)
     for key in x:
         _assert_scalar_approx(x[key], y[key])
-
-
-@given(floats(-100, 100), floats(-100, 100))
-def test_transformed_layer(a: float, b: float):
-    class MockTransform:
-        def forward(self, x):
-            return x + a
-
-        def backward(self, y):
-            return y - a
-
-    def increment_a(x):
-        return {"transformed": x["transformed"] + b}
-
-    x = {"a": tf.constant(1.0), "b": tf.constant(1.0)}
-    transform = PerVariableTransform(
-        [TransformedVariableConfig("a", "transformed", MockTransform())]
-    )
-    layer = TransformedLayer(increment_a, transform)
-
-    expected = x["a"] + b
-    actual = layer(x)["a"]
-    _to_float(expected) == pytest.approx(_to_float(actual), rel=1e-9)

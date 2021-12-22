@@ -1,14 +1,16 @@
-import numpy as np
-from os.path import join
-import pytest
 import tempfile
-import tensorflow as tf
+from os.path import join
 
 import fv3fit.emulation.models
+import numpy as np
+import pytest
+import tensorflow as tf
 from fv3fit._shared import SliceConfig
-from fv3fit.emulation.models import MicrophysicsConfig
+from fv3fit.emulation import transforms
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.layers.architecture import _ARCHITECTURE_KEYS
+from fv3fit.emulation.models import MicrophysicsConfig, TransformedModelConfig
+from fv3fit.emulation.zhao_carr_fields import Field
 
 
 def _get_data(shape):
@@ -185,3 +187,39 @@ def test_RNN_downward_dependence():
             sensitivity = jacobian[output_level, input_level]
             if output_level > input_level and sensitivity != 0:
                 raise ValueError("Downwards dependence violated")
+
+
+def test_transformed_model_without_transform():
+    field = Field("a_out", "a")
+    data = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
+    config = TransformedModelConfig(ArchitectureConfig("dense"), [field], 900)
+    model = config.build(data)
+    out = model(data)
+    assert set(out) == {field.output_name}
+
+
+def test_transformed_model_with_transform():
+    field = Field("a_out", "a")
+    transformed_field = Field("transform_a_out", "transform_a")
+    data = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
+    model = TransformedModelConfig(
+        ArchitectureConfig("dense"), [transformed_field], 900
+    ).build(
+        data,
+        transform=transforms.PerVariableTransform(
+            [
+                transforms.TransformedVariableConfig(
+                    field.input_name,
+                    transformed_field.input_name,
+                    transforms.LogTransform(),
+                ),
+                transforms.TransformedVariableConfig(
+                    field.output_name,
+                    transformed_field.output_name,
+                    transforms.LogTransform(),
+                ),
+            ]
+        ),
+    )
+    out = model(data)
+    assert set(out) == {transformed_field.output_name, field.output_name}

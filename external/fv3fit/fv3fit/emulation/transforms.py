@@ -15,19 +15,6 @@ class TensorTransform(Protocol):
         pass
 
 
-class TransformedLayer(tf.keras.layers.Layer):
-    """Transform variables for a model
-    """
-
-    def __init__(self, model: tf.keras.layers.Layer, transform: TensorTransform):
-        super().__init__()
-        self._model = model
-        self._transform = transform
-
-    def call(self, x: TensorDict) -> TensorDict:
-        return self._transform.backward(self._model(self._transform.forward(x)))
-
-
 @dataclasses.dataclass
 class LogTransform:
     """A univariate transformation for::
@@ -77,3 +64,6 @@ class PerVariableTransform(TensorTransform):
             except KeyError:
                 pass
         return out
+
+
+Identity = PerVariableTransform([])
