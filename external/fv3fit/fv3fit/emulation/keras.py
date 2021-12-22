@@ -3,7 +3,7 @@ import numpy as np
 import os
 import tensorflow as tf
 from toolz import get
-from typing import Callable, Mapping
+from typing import Callable, Dict, Mapping
 
 
 from .layers.normalization import standard_deviation_all_features
@@ -54,10 +54,12 @@ def score_model(model: tf.keras.Model, data: Mapping[str, tf.Tensor],) -> Scorin
 
 
 ModelType = Callable[[Mapping[str, tf.Tensor]], Mapping[str, tf.Tensor]]
-OutputSensitivity = Mapping[str, np.ndarray]
+OutputSensitivity = Dict[str, np.ndarray]
 
 
-def get_jacobians(model: ModelType, inputs: Mapping[str, tf.Tensor]) -> Mapping[str, OutputSensitivity]:
+def get_jacobians(
+    model: ModelType, inputs: Mapping[str, tf.Tensor]
+) -> Mapping[str, OutputSensitivity]:
     """
     Calculate jacobians for each output field relative to each
     model input:
@@ -82,8 +84,7 @@ def get_jacobians(model: ModelType, inputs: Mapping[str, tf.Tensor]) -> Mapping[
 
 
 def standardize_jacobians(
-    all_jacobians: Mapping[str, OutputSensitivity],
-    sample: Mapping[str, tf.Tensor],
+    all_jacobians: Mapping[str, OutputSensitivity], sample: Mapping[str, tf.Tensor],
 ) -> Mapping[str, OutputSensitivity]:
     """
     Generate sensitivity jacobions for each output of a model and
@@ -102,7 +103,7 @@ def standardize_jacobians(
         for name, data in sample.items()
     }
 
-    standardized_jacobians = {}
+    standardized_jacobians: Dict[str, OutputSensitivity] = {}
     for out_name, per_input_jacobians in all_jacobians.items():
         for in_name, j in per_input_jacobians.items():
             # multiply d_output/d_input by std_input/std_output

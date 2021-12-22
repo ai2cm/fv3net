@@ -122,20 +122,16 @@ def test_jacobians():
         "b": tf.random.normal((100, 5)),
     }
     sample["field"] = sample["a"] + sample["b"]
-    
+
     profiles = {
-        name: tf.reduce_mean(sample[name], axis=0, keepdims=True)
-        for name in ["a", "b"]    
+        name: tf.reduce_mean(sample[name], axis=0, keepdims=True) for name in ["a", "b"]
     }
 
     inputs = {"a": tf.keras.Input(5), "b": tf.keras.Input(5)}
     out = tf.keras.layers.Lambda(lambda x: {"field": x["a"] + x["b"]})(inputs)
     model = tf.keras.Model(inputs=inputs, outputs=out)
 
-    jacobians = standardize_jacobians(
-        get_jacobians(model, profiles),
-        sample,
-    )
+    jacobians = standardize_jacobians(get_jacobians(model, profiles), sample,)
 
     assert set(jacobians) == {"field"}
     assert set(jacobians["field"]) == {"a", "b"}
