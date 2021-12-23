@@ -1,5 +1,5 @@
 import dataclasses
-from typing import List
+from typing import List, Set
 
 import tensorflow as tf
 from typing_extensions import Protocol
@@ -11,6 +11,14 @@ class TensorTransform(Protocol):
         pass
 
     def backward(self, x: TensorDict) -> TensorDict:
+        pass
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        """input names needed to compute the requested transformed names
+
+        Needed for data loading purposes.
+        
+        """
         pass
 
 
@@ -63,6 +71,10 @@ class PerVariableTransform(TensorTransform):
             except KeyError:
                 pass
         return out
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        input_by_output_name = {field.to: field.source for field in self.fields}
+        return {input_by_output_name.get(name, name) for name in requested_names}
 
 
 Identity = PerVariableTransform([])

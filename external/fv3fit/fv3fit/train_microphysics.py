@@ -210,9 +210,10 @@ class TrainConfig:
     def get_dataset_convertor(
         self,
     ) -> Callable[[xarray.Dataset], Mapping[str, tf.Tensor]]:
-        required_variables = set(self._model.input_variables) | set(
+        model_variables = set(self._model.input_variables) | set(
             self._model.output_variables
         )
+        required_variables = self.get_transform().backward_names(model_variables)
         return self.transform.get_pipeline(required_variables)
 
     def __post_init__(self) -> None:
