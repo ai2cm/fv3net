@@ -42,6 +42,18 @@ class TransformedModelConfig:
     normalize: str = "mean_std"
     enforce_positive: bool = False
 
+    @property
+    def name(self) -> str:
+        return "transformed-model"
+
+    @property
+    def input_variables(self) -> List[str]:
+        return [field.input_name for field in self.fields if field.input_name]
+
+    @property
+    def output_variables(self) -> List[str]:
+        return [field.output_name for field in self.fields if field.output_name]
+
     def build(
         self,
         data: Mapping[str, tf.Tensor],

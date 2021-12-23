@@ -1,10 +1,9 @@
 import dataclasses
-from typing import List, Mapping
+from typing import List
 
 import tensorflow as tf
 from typing_extensions import Protocol
-
-TensorDict = Mapping[str, tf.Tensor]
+from fv3fit.emulation.types import TensorDict
 
 
 class TensorTransform(Protocol):

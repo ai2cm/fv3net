@@ -1,9 +1,6 @@
-from typing import Any, Callable, Mapping, Sequence, Optional, Tuple
+from fv3fit.emulation.types import LossFunction
+from typing import Any, Sequence, Optional
 import tensorflow as tf
-
-
-TensorDict = Mapping[str, tf.Tensor]
-LossFunction = Callable[[TensorDict, TensorDict], Tuple[tf.Tensor, TensorDict]]
 
 
 class _ModelWrapper(tf.keras.Model):

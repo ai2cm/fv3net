@@ -3,9 +3,8 @@ import json
 import logging
 import os
 import tempfile
-import warnings
 from dataclasses import asdict, dataclass, field
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 import dacite
 import fsspec
@@ -18,12 +17,18 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
+from fv3fit.emulation.types import LossFunction
 from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.keras import save_model
 from fv3fit.emulation.losses import CustomLoss
+from fv3fit.emulation.transforms import (
+    PerVariableTransform,
+    TensorTransform,
+    TransformedVariableConfig,
+)
 import xarray
 from fv3fit.wandb import (
     WandBConfig,
@@ -54,6 +59,9 @@ class TrainConfig:
         test_url: Path to validation netcdfs (already in [sample x feature] format)
         out_url:  Where to store the trained model, history, and configuration
         transform: Data preprocessing TransformConfig
+        tensor_transform: specification of differerentiable tensorflow
+            transformations to apply before and after data is passed to models and
+            losses.
         model: MicrophysicsConfig used to build the keras model
         nfiles: Number of files to use from train_url
         nfiles_valid: Number of files to use from test_url
@@ -77,8 +85,10 @@ class TrainConfig:
     test_url: str
     out_url: str
     transform: TransformConfig = field(default_factory=TransformConfig)
+    tensor_transform: List[TransformedVariableConfig] = field(default_factory=list)
     model: Optional[models.MicrophysicsConfig] = None
     conservative_model: Optional[models.ConservativeWaterConfig] = None
+    transformed_model: Optional[models.TransformedModelConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     use_wandb: bool = True
@@ -93,27 +103,33 @@ class TrainConfig:
     log_level: str = "INFO"
     cache: bool = True
 
+    def get_transform(self) -> TensorTransform:
+        return PerVariableTransform(self.tensor_transform)
+
     @property
     def _model(
         self,
-    ) -> Union[models.MicrophysicsConfig, models.ConservativeWaterConfig]:
+    ) -> Union[
+        models.MicrophysicsConfig,
+        models.ConservativeWaterConfig,
+        models.TransformedModelConfig,
+    ]:
         if self.model:
-            if self.conservative_model:
-                warnings.warn(
-                    UserWarning(
-                        ".conservative_model included in the configuration, "
-                        "but will not be used."
-                    )
-                )
-
             return self.model
         elif self.conservative_model:
             return self.conservative_model
+        elif self.transformed_model:
+            return self.transformed_model
         else:
-            raise ValueError("Neither .model or .conservative_model provided.")
+            raise ValueError(
+                "Neither .model, .conservative_model, nor .transformed_model provided."
+            )
 
     def build_model(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
-        return self._model.build(data)
+        return self._model.build(data, self.get_transform())
+
+    def build_loss(self, data: Mapping[str, tf.Tensor]) -> LossFunction:
+        return self.loss.build(data, self.get_transform())
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -254,7 +270,7 @@ def main(config: TrainConfig, seed: int = 0):
             history = train(
                 model,
                 train_ds_batched,
-                config.loss.build(output_samples=train_set),
+                config.build_loss(train_set),
                 optimizer=config.loss.optimizer.instance,
                 epochs=config.epochs,
                 validation_data=test_ds_batched,
