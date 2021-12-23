@@ -23,28 +23,32 @@ loss:
     specific_humidity_after_precpd: 500000.0
     cloud_water_mixing_ratio_after_precpd: 1.0
     total_precipitation: .04
-model:
+transformed_model:
   architecture:
     kwargs: {}
     name: dense
-  input_variables:
-  - air_temperature_input
-  - specific_humidity_input
-  - cloud_water_mixing_ratio_input
-  - pressure_thickness_of_atmospheric_layer
-  direct_out_variables:
-  - cloud_water_mixing_ratio_after_precpd
-  - total_precipitation
-  residual_out_variables:
-    air_temperature_after_precpd: air_temperature_input
-    specific_humidity_after_precpd: specific_humidity_input
+  fields:
+    # prognostic variables
+    - input_name: air_temperature_input
+      output_name: air_temperature_after_precpd
+      selection: {stop: -10}
+      residual: true
+    - input_name: specific_humidity_input
+      output_name: specific_humidity_after_precpd
+      selection: {stop: -10}
+      residual: true
+    - input_name: cloud_water_mixing_ratio_input
+      output_name: cloud_water_mixing_ratio_after_precpd
+      selection: {stop: -10}
+      residual: false
+    # diagnostic variables
+    - output_name: total_precipitation
+      residual: false
+    # inputs
+    - input_name: pressure_thickness_of_atmospheric_layer
+      selection: {stop: -10}
   normalize_key: mean_std
   enforce_positive: true
-  selection_map:
-    air_temperature_input: {stop: -10}
-    cloud_water_mixing_ratio_input: {stop: -10}
-    pressure_thickness_of_atmospheric_layer: {stop: -10}
-    specific_humidity_input: {stop: -10}
   timestep_increment_sec: 900
 transform:
   antarctic_only: false
