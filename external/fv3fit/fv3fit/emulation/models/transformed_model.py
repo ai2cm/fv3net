@@ -36,10 +36,10 @@ class TransformedModelConfig:
 
     """
 
-    architecture_config: ArchitectureConfig
+    architecture: ArchitectureConfig
     fields: List[Field]
-    dt_sec: int
-    normalize: str = "mean_std"
+    timestep_increment_sec: int
+    normalize_key: str = "mean_std"
     enforce_positive: bool = False
 
     @property
@@ -59,9 +59,11 @@ class TransformedModelConfig:
         data: Mapping[str, tf.Tensor],
         transform: transforms.TensorTransform = transforms.Identity,
     ) -> "TransformedModel":
-        factory = FieldFactory(self.dt_sec, self.normalize, self.enforce_positive, data)
+        factory = FieldFactory(
+            self.timestep_increment_sec, self.normalize_key, self.enforce_positive, data
+        )
         return TransformedModel(
-            self.fields, self.architecture_config, factory, transform=transform
+            self.fields, self.architecture, factory, transform=transform
         )
 
 
@@ -72,6 +74,8 @@ def build_field_output(
     normalize: str,
     enforce_positive: bool,
 ) -> Union[FieldInput, FieldOutput, IncrementedFieldOutput]:
+    # need name to avoid clashing normalization data
+    name = f"output_{field.output_name}"
     if field.residual:
         return IncrementedFieldOutput(
             dt_sec=dt_sec,
@@ -79,22 +83,27 @@ def build_field_output(
             sample_out=data[field.output_name],
             denormalize=normalize,
             enforce_positive=enforce_positive,
+            name=name,
         )
     else:
         return FieldOutput(
             sample_out=data[field.output_name],
             denormalize=normalize,
             enforce_positive=enforce_positive,
+            name=name,
         )
 
 
 def build_field_input(
     field: Field, data: Mapping[str, tf.Tensor], normalize: str,
 ) -> Union[FieldOutput, IncrementedFieldOutput]:
+    # need name to avoid clashing normalization data
+    name = f"input_{field.input_name}"
     return FieldInput(
         sample_in=data[field.input_name],
         normalize=normalize,
         selection=field.selection.slice,
+        name=name,
     )
 
 
@@ -160,11 +169,28 @@ class TransformedModel(tf.keras.Model):
             field.output_name: factory.build_output(field, transform)
             for field in outputs
         }
+        self.output_fields = {
+            field.output_name: field for field in fields if field.output_name
+        }
+
+    def _process_outputs(
+        self, data: Mapping[str, tf.Tensor], outputs: Mapping[str, tf.Tensor]
+    ) -> Mapping[str, tf.Tensor]:
+        processed_outputs = {}
+        for key in self.outputs:
+            field = self.output_fields[key]
+            if field.residual:
+                processed_outputs[key] = self.outputs[key](
+                    data[field.input_name], outputs[field.output_name]
+                )
+            else:
+                processed_outputs[key] = self.outputs[key](outputs[field.output_name])
+        return processed_outputs
 
     @tf.function
     def call(self, data: Mapping[str, tf.Tensor]):
         data = self.transform.forward(data)
         processed_inputs = {key: self.inputs[key](data[key]) for key in self.inputs}
         outputs = self.arch(processed_inputs)
-        processed_outputs = {key: outputs[key] for key in self.outputs}
+        processed_outputs = self._process_outputs(data, outputs)
         return self.transform.backward(processed_outputs)
