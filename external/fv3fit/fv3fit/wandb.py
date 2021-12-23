@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 from typing import Any, Dict, List, Mapping, Optional
 
 from .tensorboard import plot_to_image
-from .emulation.keras import OutputSensitivity
+from .emulation.jacobian import OutputSensitivity
 
 
 @dataclasses.dataclass

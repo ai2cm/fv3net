@@ -8,8 +8,6 @@ from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.keras import (
     save_model,
     score_model,
-    get_jacobians,
-    standardize_jacobians,
 )
 
 
@@ -114,27 +112,3 @@ def test_model_score_no_outputs():
 
     with pytest.raises(ValueError):
         score_model(model, data)
-
-
-def test_jacobians():
-    sample = {
-        "a": tf.random.normal((100, 5)),
-        "b": tf.random.normal((100, 5)),
-    }
-    sample["field"] = sample["a"] + sample["b"]
-
-    profiles = {
-        name: tf.reduce_mean(sample[name], axis=0, keepdims=True) for name in ["a", "b"]
-    }
-
-    def model(x):
-        return {"field": x["a"] + x["b"]}
-
-    jacobians = standardize_jacobians(get_jacobians(model, profiles), sample,)
-
-    assert set(jacobians) == {"field"}
-    assert set(jacobians["field"]) == {"a", "b"}
-
-    n = 5  # maybe move to the top of the test
-    np.testing.assert_array_almost_equal(jacobians["field"]["a"], np.eye(n))
-    np.testing.assert_array_almost_equal(jacobians["field"]["b"], np.eye(n))
