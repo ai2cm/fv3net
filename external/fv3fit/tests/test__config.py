@@ -44,7 +44,7 @@ def test_OptimizerConfig_learning_rate_error_on_dual_specify():
     with pytest.raises(ValueError):
         OptimizerConfig(
             name="Adam",
-            kwargs=dict(learning_rate=1e-5), 
+            kwargs=dict(learning_rate=1e-5),
             learning_rate_schedule=_get_exponential_decay(),
         )
 
@@ -52,8 +52,7 @@ def test_OptimizerConfig_learning_rate_error_on_dual_specify():
 def test_OptimizerConfig_learning_rate():
 
     assert OptimizerConfig(
-        name="Adam",
-        learning_rate_schedule=_get_exponential_decay(),
+        name="Adam", learning_rate_schedule=_get_exponential_decay(),
     ).instance
 
 
