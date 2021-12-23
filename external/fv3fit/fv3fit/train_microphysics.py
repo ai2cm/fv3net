@@ -1,16 +1,17 @@
 import argparse
+import dacite
+from dataclasses import asdict, dataclass, field
+import fsspec
 import json
 import logging
+import numpy as np
 import os
 import tempfile
-import warnings
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Mapping, Optional, Sequence, Union
-
-import dacite
-import fsspec
 import tensorflow as tf
+from typing import Any, Dict, Mapping, Optional, Sequence, Union
+import warnings
 import yaml
+
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import (
@@ -22,11 +23,13 @@ from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
+from fv3fit.emulation.jacobian import get_jacobians, standardize_jacobians
 from fv3fit.emulation.keras import save_model
 from fv3fit.emulation.losses import CustomLoss
 from fv3fit.wandb import (
     WandBConfig,
     store_model_artifact,
+    plot_all_output_sensitivities,
 )
 
 logger = logging.getLogger(__name__)
@@ -113,6 +116,10 @@ class TrainConfig:
 
     def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
         return self._model.build(data)
+
+    @property
+    def input_variables(self) -> Sequence:
+        return self._model.input_variables
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -276,6 +283,25 @@ def main(config: TrainConfig, seed: int = 0):
         if config.use_wandb:
             store_model_artifact(local_model_path, name=config._model.name)
 
+    # Jacobians after model storing in case of "out of memory" errors
+    avg_profiles = {
+        name: tf.reduce_mean(train_set[name], axis=0, keepdims=True)
+        for name in config.input_variables
+    }
+    jacobians = get_jacobians(model, avg_profiles)
+    std_jacobians = standardize_jacobians(jacobians, train_set)
+
+    with put_dir(config.out_url) as tmpdir:
+        dumpable = {
+            f"{out_name}/{in_name}": data
+            for out_name, sensitivities in std_jacobians.items()
+            for in_name, data in sensitivities.items()
+        }
+        np.savez(os.path.join(tmpdir, "jacobians.npz"), **dumpable)
+
+    if config.use_wandb:
+        plot_all_output_sensitivities(std_jacobians)
+
 
 def get_default_config():
 
@@ -289,12 +315,12 @@ def get_default_config():
     model_config = models.MicrophysicsConfig(
         input_variables=input_vars,
         direct_out_variables=[
-            "cloud_water_mixing_ratio_output",
+            "cloud_water_mixing_ratio_after_precpd",
             "total_precipitation",
         ],
         residual_out_variables=dict(
-            air_temperature_output="air_temperature_input",
-            specific_humidity_output="specific_humidity_input",
+            air_temperature_after_precpd="air_temperature_input",
+            specific_humidity_after_precpd="specific_humidity_input",
         ),
         architecture=ArchitectureConfig("linear"),
         selection_map=dict(
@@ -304,8 +330,8 @@ def get_default_config():
             pressure_thickness_of_atmospheric_layer=SliceConfig(stop=-10),
         ),
         tendency_outputs=dict(
-            air_temperature_output="tendency_of_air_temperature_due_to_microphysics",  # noqa E501
-            specific_humidity_output="tendency_of_specific_humidity_due_to_microphysics",  # noqa E501
+            air_temperature_after_precpd="tendency_of_air_temperature_due_to_microphysics",  # noqa E501
+            specific_humidity_after_precpd="tendency_of_specific_humidity_due_to_microphysics",  # noqa E501
         ),
     )
 
@@ -314,15 +340,15 @@ def get_default_config():
     loss = CustomLoss(
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=[
-            "air_temperature_output",
-            "specific_humidity_output",
-            "cloud_water_mixing_ratio_output",
+            "air_temperature_after_precpd",
+            "specific_humidity_after_precpd",
+            "cloud_water_mixing_ratio_after_precpd",
             "total_precipitation",
         ],
         weights=dict(
-            air_temperature_output=0.5e5,
-            specific_humidity_output=0.5e5,
-            cloud_water_mixing_ratio_output=1.0,
+            air_temperature_after_precpd=0.5e5,
+            specific_humidity_after_precpd=0.5e5,
+            cloud_water_mixing_ratio_after_precpd=1.0,
             total_precipitation=0.04,
         ),
         metric_variables=[
@@ -333,8 +359,8 @@ def get_default_config():
     )
 
     config = TrainConfig(
-        train_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/training_netcdfs",  # noqa E501
-        test_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/validation_netcdfs",  # noqa E501
+        train_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train",  # noqa E501
+        test_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",  # noqa E501
         out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
         model=model_config,
         transform=transform,

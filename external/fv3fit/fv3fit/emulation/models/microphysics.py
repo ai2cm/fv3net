@@ -69,7 +69,11 @@ class MicrophysicsConfig:
 
     @property
     def output_variables(self) -> List[str]:
-        return self.direct_out_variables + list(self.residual_out_variables.keys())
+        return (
+            self.direct_out_variables
+            + list(self.residual_out_variables.keys())
+            + list(self.tendency_outputs.values())
+        )
 
     def _get_processed_inputs(self, sample_in, inputs):
         return {
@@ -109,6 +113,7 @@ class MicrophysicsConfig:
                 sample_in=data[self.residual_out_variables[name]],
                 denormalize=self.normalize_key,
                 name=name,
+                tendency_name=self.tendency_outputs.get(name, None),
                 enforce_positive=self.enforce_positive,
             )
             out_ = res_out(in_state, net_output[name])
