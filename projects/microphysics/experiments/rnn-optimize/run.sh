@@ -48,10 +48,10 @@ submit () {
 # submit rnn-v1-optimize-gpu-batch-1024 rnn-train.yaml "--loss.optimizer.kwargs.learning_rate 0.00028 --batch_size 1024" "--gpu"
 
 # GPU channels
-submit rnn-v1-optimize-gpu-channels-128 rnn-train.yaml "--loss.optimizer.kwargs.learning_rate 0.0002 --batch_size 512 --model.architecture.kwargs.channels 128" "--gpu"
-submit rnn-v1-optimize-gpu-channels-64 rnn-train.yaml "--loss.optimizer.kwargs.learning_rate 0.0002 --batch_size 512 --model.architecture.kwargs.channels 64" "--gpu"
+# submit rnn-v1-optimize-gpu-channels-128 rnn-train.yaml "--loss.optimizer.kwargs.learning_rate 0.0002 --batch_size 512 --model.architecture.kwargs.channels 128" "--gpu"
+# submit rnn-v1-optimize-gpu-channels-64 rnn-train.yaml "--loss.optimizer.kwargs.learning_rate 0.0002 --batch_size 512 --model.architecture.kwargs.channels 64" "--gpu"
 
 # GPU node w/ learning rate schedule
 # submit rnn-v1-optimize-gpu-batch-1024-lr-sched rnn-train-lr-schedule.yaml "--batch_size 1024" "--gpu"
-# submit rnn-v1-optimize-gpu-batch-2048-lr-sched rnn-train-lr-schedule.yaml "--batch_size 2048 --loss.optimizer.learning_rate.initial_learning_rate 0.0004" "--gpu"
+submit rnn-v1-optimize-gpu-batch-2048-lr-sched rnn-train-lr-schedule.yaml "--batch_size 2048 --loss.optimizer.learning_rate_schedule.kwargs.initial_learning_rate 0.0004" "--gpu"
 
