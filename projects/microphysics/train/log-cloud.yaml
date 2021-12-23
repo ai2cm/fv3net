@@ -57,7 +57,8 @@ transformed_model:
     - input_name: pressure_thickness_of_atmospheric_layer
       selection: {stop: -10}
   normalize_key: mean_std
-  enforce_positive: true
+  # very important to turn this off for log transformed data
+  enforce_positive: false
   timestep_increment_sec: 900
 transform:
   antarctic_only: false

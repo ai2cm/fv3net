@@ -12,7 +12,7 @@ fi
 
 group="$(openssl rand -hex 3)"
 
-for config in direct-cloud-limited log-cloud; do
+for config in log-cloud; do
     for model_type in dense; do
         model_name="${config}-${model_type}"
         config_file="${config}.yaml"
