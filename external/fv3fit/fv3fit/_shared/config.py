@@ -276,7 +276,9 @@ class OptimizerConfig:
 
     def __post_init__(self):
         if "learning_rate" in self.kwargs and self.learning_rate_schedule is not None:
-            raise ValueError("Learning rate ambiguity from kwargs and learning rate schedule set in OptimizerConfig.")
+            raise ValueError(
+                "Learning rate ambiguity from kwargs and learning rate schedule set in OptimizerConfig."
+            )
 
 
 @dataclasses.dataclass

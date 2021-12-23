@@ -1,7 +1,12 @@
 import argparse
 import dacite
 import dataclasses
-from fv3fit import OptimizerConfig, LearningRateScheduleConfig, TrainingConfig, DenseHyperparameters
+from fv3fit import (
+    OptimizerConfig,
+    LearningRateScheduleConfig,
+    TrainingConfig,
+    DenseHyperparameters,
+)
 import os
 import tempfile
 import yaml
@@ -27,39 +32,29 @@ def test_dense_training_config_uses_optimizer_config(hyperparameters):
     assert isinstance(training_config.hyperparameters.optimizer_config, OptimizerConfig)
 
 
+def _get_exponential_decay():
+    return LearningRateScheduleConfig(
+        name="ExponentialDecay",
+        kwargs=dict(initial_learning_rate=1e-4, decay_steps=100, decay_rate=0.95,),
+    )
+
+
 def test_OptimizerConfig_learning_rate_error_on_dual_specify():
 
     with pytest.raises(ValueError):
         OptimizerConfig(
             name="Adam",
-            kwargs=dict(learning_rate=1e-5),
-            learning_rate=1e-4,
+            kwargs=dict(learning_rate=1e-5), 
+            learning_rate_schedule=_get_exponential_decay(),
         )
 
 
-def _get_exponential_decay():
-    return LearningRateScheduleConfig(
-        name="ExponentialDecay",
-        kwargs=dict(
-            initial_learning_rate=1e-4,
-            decay_steps=100,
-            decay_rate=0.95,
-        )
-    )
+def test_OptimizerConfig_learning_rate():
 
-
-@pytest.mark.parametrize("lr", [1e-4, _get_exponential_decay(), None])
-def test_OptimizerConfig_learning_rate(lr):
-
-    opt_config = OptimizerConfig(
+    assert OptimizerConfig(
         name="Adam",
-        learning_rate=lr,
-    )
-
-    if lr is None:
-        assert opt_config._get_learning_rate() == {}
-
-    assert opt_config.instance
+        learning_rate_schedule=_get_exponential_decay(),
+    ).instance
 
 
 def test_safe_dump_training_config():
