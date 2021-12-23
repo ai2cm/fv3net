@@ -47,10 +47,9 @@ def test_NoModel():
     model = NoModel()
 
     in_ = model.input_names
-    out_ = model.output_names
     pred = model.predict(1)
 
-    for value in [in_, out_, pred]:
+    for value in [in_, pred]:
         assert not value
         assert isinstance(value, Iterable)
 
