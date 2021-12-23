@@ -139,7 +139,9 @@ class MicrophysicsConfig:
             for name in self.input_variables
         }
 
-    def build(self, data: Mapping[str, tf.Tensor], transform: Any) -> tf.keras.Model:
+    def build(
+        self, data: Mapping[str, tf.Tensor], transform: Any = None
+    ) -> tf.keras.Model:
         """
         Build model described by the configuration
 
@@ -239,7 +241,9 @@ class ConservativeWaterConfig:
     def name(self):
         return f"conservative-microphysics-emulator-{self.architecture.name}"
 
-    def build(self, data: Mapping[str, tf.Tensor], transform: Any) -> tf.keras.Model:
+    def build(
+        self, data: Mapping[str, tf.Tensor], transform: Any = None
+    ) -> tf.keras.Model:
         model = self._build_base_model(data)
         return _assoc_conservative_precipitation(model, self.fields)
 
