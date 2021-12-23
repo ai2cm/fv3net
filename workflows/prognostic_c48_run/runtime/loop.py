@@ -502,6 +502,11 @@ class TimeLoop(
         )
         return diagnostics
 
+    def _intermediate_restarts(self) -> Diagnostics:
+        self._log_info("Saving intermediate restarts if enabled.")
+        self._fv3gfs.save_intermediate_restart_if_enabled()
+        return {}
+
     def __iter__(
         self,
     ) -> Iterator[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]]:
@@ -521,6 +526,7 @@ class TimeLoop(
                 ),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
+                self._intermediate_restarts,
             ]:
                 with self._timer.clock(substep.__name__):
                     diagnostics.update(substep())
