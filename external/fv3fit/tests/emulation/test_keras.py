@@ -127,15 +127,14 @@ def test_jacobians():
         name: tf.reduce_mean(sample[name], axis=0, keepdims=True) for name in ["a", "b"]
     }
 
-    inputs = {"a": tf.keras.Input(5), "b": tf.keras.Input(5)}
-    out = tf.keras.layers.Lambda(lambda x: {"field": x["a"] + x["b"]})(inputs)
-    model = tf.keras.Model(inputs=inputs, outputs=out)
+    def model(x):
+        return {"field": x["a"] + x["b"]}
 
     jacobians = standardize_jacobians(get_jacobians(model, profiles), sample,)
 
     assert set(jacobians) == {"field"}
     assert set(jacobians["field"]) == {"a", "b"}
-        n = 5  # maybe move to the top of the test
-        np.testing.assert_array_almost_equal(jacobians["field"]["a"], np.eye(n))            
-        np.testing.assert_array_almost_equal(jacobians["field"]["b"], np.eye(n))
 
+    n = 5  # maybe move to the top of the test
+    np.testing.assert_array_almost_equal(jacobians["field"]["a"], np.eye(n))
+    np.testing.assert_array_almost_equal(jacobians["field"]["b"], np.eye(n))
