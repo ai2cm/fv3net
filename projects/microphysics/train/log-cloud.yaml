@@ -30,8 +30,8 @@ loss:
   weights:
     air_temperature_after_precpd: 500000.0
     specific_humidity_after_precpd: 500000.0
-    log_cloud_output: 0.2
-    total_precipitation: .04
+    log_cloud_output: 2.0
+    total_precipitation: 5
 transformed_model:
   architecture:
     kwargs: {}
