@@ -26,19 +26,22 @@ class TensorTransform(Protocol):
 class LogTransform:
     """A univariate transformation for::
 
-        y := log(x  + epsilon)
+        y := log(max(x,epsilon))
+        x : = exp(x)
+
+    This is not strictly a bijection because of the quashing at epsilon.
 
     Attributes:
         epsilon: the size of the log transform
     """
 
-    epsilon: float = 1e-23
+    epsilon: float = 1e-30
 
     def forward(self, x: tf.Tensor) -> tf.Tensor:
-        return tf.math.log(x + self.epsilon)
+        return tf.math.log(tf.maximum(x, self.epsilon))
 
     def backward(self, x: tf.Tensor) -> tf.Tensor:
-        return tf.math.exp(x) - self.epsilon
+        return tf.math.exp(x)
 
 
 @dataclasses.dataclass
