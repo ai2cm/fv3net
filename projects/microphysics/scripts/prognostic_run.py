@@ -24,6 +24,8 @@ def get_env(args):
     env["SAVE_ZARR"] = args.save_zarr
     env["SAVE_TFRECORD"] = args.save_tfrecord
     env["SAVE_NC"] = args.save_nc
+
+    env = {k: str(v) for k, v in env.items()}
     return env
 
 
