@@ -62,9 +62,20 @@ class TransformedModelConfig:
         factory = FieldFactory(
             self.timestep_increment_sec, self.normalize_key, self.enforce_positive, data
         )
-        return TransformedModel(
+        model = TransformedModel(
             self.fields, self.architecture, factory, transform=transform
         )
+        # first call to model must not have output data
+        # or the serialized model will think the outputs are required inputs
+        model(
+            {
+                name: tensor
+                for name, tensor in data.items()
+                if name in self.input_variables
+            }
+        )
+
+        return model
 
 
 def build_field_output(

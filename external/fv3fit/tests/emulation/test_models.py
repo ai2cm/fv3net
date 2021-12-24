@@ -1,5 +1,6 @@
 import tempfile
 from os.path import join
+from fv3fit.emulation.keras import save_model
 
 import fv3fit.emulation.models
 import numpy as np
@@ -223,3 +224,21 @@ def test_transformed_model_with_transform():
     )
     out = model(data)
     assert set(out) == {transformed_field.output_name, field.output_name}
+
+
+def test_save_and_reload_transformed_model(tmpdir):
+    field = Field("a_out", "a")
+    input = {field.input_name: tf.ones((1, 10))}
+    output = {field.output_name: tf.ones((1, 10))}
+    data = {**input, **output}
+    config = TransformedModelConfig(ArchitectureConfig("dense"), [field], 900)
+    model = config.build(data)
+    # this will initialize model.call with a signature requiring all the keys in
+    # ``data`` even though `a` is the only "true" input
+    model(data)
+    path = str(tmpdir) + "/model.tf"
+    save_model(model, str(tmpdir))
+    loaded = tf.keras.models.load_model(path)
+    # will often complain since ``input`` is missing the "a_out" field which was
+    # passed to ``model`` above.
+    loaded.predict(input)
