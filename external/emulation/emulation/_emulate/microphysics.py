@@ -31,42 +31,16 @@ class NoModel:
     """
 
     @property
+    def output_names(self):
+        return []
+
+    @property
     def input_names(self):
         return []
 
     @staticmethod
     def predict(x):
         return {}
-
-
-class CustomModelWrapper:
-    def __init__(self, model):
-        self.model = model
-        in_kwargs = self.model.call.concrete_functions[0].structured_input_signature[0][
-            0
-        ]
-        self.input_names = list(in_kwargs)
-
-    def predict(self, x):
-        out = self.model(x)
-        return {key: tensor.numpy() for key, tensor in out.items()}
-
-
-def load_model(path):
-    model = tf.keras.models.load_model(path)
-    if model.input_names is None:
-        return CustomModelWrapper(model)
-    else:
-        # These following two adapters are for backwards compatibility
-        dict_output_model = adapters.ensure_dict_output(model)
-        return adapters.rename_dict_output(
-            dict_output_model,
-            translation={
-                "air_temperature_output": "air_temperature_after_precpd",
-                "specific_humidity_output": "specific_humidity_after_precpd",
-                "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
-            },
-        )
 
 
 @print_errors
@@ -91,7 +65,17 @@ def _load_tf_model(model_path: str) -> tf.keras.Model:
         return NoModel()
     else:
         with get_dir(model_path) as local_model_path:
-            return load_model(local_model_path)
+            model = tf.keras.models.load_model(local_model_path)
+            # These following two adapters are for backwards compatibility
+            dict_output_model = adapters.ensure_dict_output(model)
+            return adapters.rename_dict_output(
+                dict_output_model,
+                translation={
+                    "air_temperature_output": "air_temperature_after_precpd",
+                    "specific_humidity_output": "specific_humidity_after_precpd",
+                    "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
+                },
+            )
 
 
 class MicrophysicsHook:
