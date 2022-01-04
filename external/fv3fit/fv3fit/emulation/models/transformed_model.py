@@ -8,6 +8,7 @@ from fv3fit.emulation.layers import (
 )
 from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.emulation import transforms
+from fv3fit.keras.adapters import ensure_dict_output
 import tensorflow as tf
 
 __all__ = ["TransformedModelConfig"]
@@ -58,24 +59,28 @@ class TransformedModelConfig:
         self,
         data: Mapping[str, tf.Tensor],
         transform: transforms.TensorTransform = transforms.Identity,
-    ) -> "TransformedModel":
+    ) -> tf.keras.Model:
         factory = FieldFactory(
             self.timestep_increment_sec, self.normalize_key, self.enforce_positive, data
         )
         model = TransformedModel(
             self.fields, self.architecture, factory, transform=transform
         )
-        # first call to model must not have output data
-        # or the serialized model will think the outputs are required inputs
-        model(
-            {
-                name: tensor
-                for name, tensor in data.items()
-                if name in self.input_variables
-            }
-        )
 
-        return model
+        # Wrap the custom model with a keras functional model for easier
+        # serialization. Serialized models need to know their input/output
+        # signatures. The keras "Functional" API makes this explicit, but custom
+        # models subclasses "remember" their first inputs. Since ``data``
+        # contains both inputs and outputs the serialized model will think its
+        # outputs are also inputs and never be able to evaluate...even though
+        # calling `model(data)` works just fine.
+        inputs = {
+            name: tf.keras.Input(data[name].shape[1:], name=name)
+            for name in transform.backward_names(set(self.input_variables))
+        }
+        outputs = model(inputs)
+        functional_keras_model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        return ensure_dict_output(functional_keras_model)
 
 
 def build_field_output(
@@ -152,7 +157,7 @@ class FieldFactory:
         return config.build(output_features)
 
 
-class TransformedModel(tf.keras.Model):
+class TransformedModel(tf.keras.layers.Layer):
     def __init__(
         self,
         fields: List[Field],

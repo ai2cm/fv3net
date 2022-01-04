@@ -158,7 +158,9 @@ def test_MicrophysicConfig_model_save_reload(arch):
         reloaded = tf.keras.models.load_model(model_path, compile=False)
 
     result = reloaded(sample)
-    np.testing.assert_array_equal(expected["field_output"], result["field_output"])
+    np.testing.assert_allclose(
+        expected["field_output"], result["field_output"], rtol=2e-5
+    )
 
 
 def test_RNN_downward_dependence():
