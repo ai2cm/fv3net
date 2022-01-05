@@ -1,5 +1,12 @@
 # Microphysics Emulation
 
+## Train Models
+
+To train models
+
+    bash -c 'cd projects/microphysics/train && ./run.sh'
+
+from the fv3net root directory.
 
 ## Prognostic Evaluation
 

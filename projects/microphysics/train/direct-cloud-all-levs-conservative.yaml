@@ -1,0 +1,53 @@
+use_wandb: true
+wandb:
+  wandb_project: microphysics-emulation
+batch_size: 128
+epochs: 50
+nfiles_valid: 100
+valid_freq: 2
+out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
+train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
+test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
+loss:
+  optimizer:
+    kwargs:
+      learning_rate: 0.0001
+    name: Adam
+  loss_variables:
+  - air_temperature_after_precpd
+  - specific_humidity_after_precpd
+  - cloud_water_mixing_ratio_after_precpd
+  - total_precipitation
+  weights:
+    air_temperature_after_precpd: 500000.0
+    specific_humidity_after_precpd: 500000.0
+    cloud_water_mixing_ratio_after_precpd: 1.0
+    total_precipitation: .04
+conservative_model:
+  architecture:
+    kwargs:
+      depth: 1
+      channels: 256
+    name: rnn-v1-shared-weights
+  fields:
+    cloud_water:
+      input_name: cloud_water_mixing_ratio_input
+      output_name: cloud_water_mixing_ratio_after_precpd
+      residual: false
+    specific_humidity:
+      input_name: specific_humidity_input
+      output_name: specific_humidity_after_precpd
+      residual: true
+    air_temperature:
+      input_name: air_temperature_input
+      output_name: air_temperature_after_precpd
+      residual: true
+  extra_input_variables:
+  - input_name: pressure_thickness_of_atmospheric_layer
+  normalize_key: mean_std
+  enforce_positive: true
+  timestep_increment_sec: 900
+transform:
+  antarctic_only: false
+  derived_microphys_timestep: 900
+  use_tensors: true
