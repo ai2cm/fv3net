@@ -17,7 +17,7 @@ def test_NormalizeMSE():
 
 
 def test_CustomLoss():
-    loss_fn = CustomLoss(
+    loss_config = CustomLoss(
         normalization="mean_std",
         loss_variables=["fieldA", "fieldB"],
         metric_variables=["fieldC"],
@@ -29,7 +29,7 @@ def test_CustomLoss():
     names = ["fieldA", "fieldB", "fieldC", "fieldD"]
     samples = [tensor] * 4
     m = dict(zip(names, samples))
-    loss_fn.prepare(m)
+    loss_fn = loss_config.build(m)
 
     # make a copy with some error
     compare = m.copy()

@@ -26,6 +26,7 @@ def get_env(args):
     env["SAVE_NC"] = args.save_nc
 
     env = {k: str(v) for k, v in env.items()}
+
     return env
 
 

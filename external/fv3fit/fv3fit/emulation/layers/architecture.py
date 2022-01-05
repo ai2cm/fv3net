@@ -1,3 +1,21 @@
+"""The architecture of an ML model
+
+This has the following (haskell-like) pseudocode::
+
+    Input = Mapping[str, tf.Tensor]
+    Embedding = tf.Tensor
+    Hidden = tf.Tensor
+    Output = Mapping[str, tf.Tensor]
+
+    CombineInputs :: Input -> Embedding
+    ArchLayer :: Embedding -> Hidden
+    OutputLayer :: Hidden -> Output
+
+``ArchitectureConfig.build`` composes these internals into a combined  ``Input
+-> Output`` function. It is equivalent to
+
+    (get output) . (get arch) . (get combine inputs)
+"""
 import dataclasses
 import tensorflow as tf
 from typing import Mapping, Optional, Sequence, Union, Any
@@ -369,7 +387,9 @@ _ARCHITECTURE_KEYS = (
 )
 
 
-def _get_output_layer(key, feature_lengths):
+def _get_output_layer(
+    key: str, feature_lengths: Mapping[str, int]
+) -> tf.keras.layers.Layer:
     if key == "rnn-v1":
         return RNNOutput(feature_lengths)
     elif key == "rnn-v1-shared-weights":
@@ -378,15 +398,14 @@ def _get_output_layer(key, feature_lengths):
         return StandardOutput(feature_lengths)
 
 
-def _get_combine_layer(key):
+def _get_combine_layer(key: str) -> CombineInputs:
     if "rnn" in key:
         return CombineInputs(combine_axis=-1, expand_axis=-1)
     else:
         return CombineInputs(combine_axis=-1, expand_axis=None)
 
 
-def _get_arch_layer(key, kwargs):
-
+def _get_arch_layer(key: str, kwargs: Mapping) -> tf.keras.layers.Layer:
     if key == "rnn-v1" or key == "rnn-v1-shared-weights":
         return RNNBlock(**kwargs)
     elif key == "rnn":
@@ -413,8 +432,7 @@ class _HiddenArchitecture(tf.keras.layers.Layer):
         self.input_combiner = _get_combine_layer(key)
         self.outputs = _get_output_layer(key, feature_lengths)
 
-    def call(self, tensors: Sequence[tf.Tensor]) -> Mapping[str, tf.Tensor]:
-
+    def call(self, tensors: Mapping[str, tf.Tensor]) -> Mapping[str, tf.Tensor]:
         combined = self.input_combiner(tensors)
         net_output = self.arch(combined)
         return self.outputs(net_output)
