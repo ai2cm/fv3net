@@ -1,8 +1,24 @@
 # %%
 
+from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.train_microphysics import nc_dir_to_tf_dataset, TrainConfig
 import matplotlib.pyplot as plt
+from cycler import cycler
 import tensorflow as tf
+
+wong_palette = [
+    "#000000",
+    "#E69F00",
+    "#56B4E9",
+    "#009E73",
+    "#F0E442",
+    "#0072B2",
+    "#D55E00",
+    "#CC79A7",
+]
+
+
+plt.rcParams["axes.prop_cycle"] = cycler("color", wong_palette)
 
 # %%
 # open data
@@ -54,3 +70,26 @@ plt.xlabel("vertical index")
 plt.ylabel(r"$q_c$ output (kg/kg)")
 plt.annotate("Large predicted value", (40, 10e10))
 plt.legend()
+
+# %% [markdown]
+# The skill is very poor for cloud water mixing ratio despite being good for log
+# cloud
+# %% skill
+r2 = {}
+for field in config._model.fields + [
+    Field("cloud_water_mixing_ratio_after_precpd", "cloud_water_mixing_ratio_input")
+]:
+    if field.output_name and field.input_name:
+
+        pred = predictions[field.output_name].numpy()
+        truth = train_set[field.output_name].numpy()
+        input_ = train_set[field.input_name].numpy()
+
+        sse = ((pred - truth) ** 2).mean()
+        ss = ((truth - input_) ** 2).mean()
+        r2[field.output_name] = 1 - sse / ss
+
+print("Skill versus null tendency:")
+print()
+for key in r2:
+    print(f"{key}: {r2[key]:0.02f}")
