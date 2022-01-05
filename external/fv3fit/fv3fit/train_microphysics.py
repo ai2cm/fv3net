@@ -24,7 +24,7 @@ from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
-from fv3fit.emulation.jacobian import get_jacobians, standardize_jacobians
+from fv3fit.emulation.jacobian import compute_standardized_jacobians
 from fv3fit.emulation.keras import save_model
 from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.transforms import (
@@ -137,7 +137,9 @@ class TrainConfig:
 
     @property
     def input_variables(self) -> Sequence:
-        return self._model.input_variables
+        return list(
+            self.get_transform().backward_names(set(self._model.input_variables))
+        )
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -234,6 +236,16 @@ class TrainConfig:
             self.cache = False
 
 
+def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
+    with put_dir(dir_) as tmpdir:
+        dumpable = {
+            f"{out_name}/{in_name}": data
+            for out_name, sensitivities in std_jacobians.items()
+            for in_name, data in sensitivities.items()
+        }
+        np.savez(os.path.join(tmpdir, filename), **dumpable)
+
+
 def main(config: TrainConfig, seed: int = 0):
     logging.basicConfig(level=getattr(logging, config.log_level))
     set_random_seed(seed)
@@ -304,21 +316,10 @@ def main(config: TrainConfig, seed: int = 0):
             store_model_artifact(local_model_path, name=config._model.name)
 
     # Jacobians after model storing in case of "out of memory" errors
-    avg_profiles = {
-        name: tf.reduce_mean(train_set[name], axis=0, keepdims=True)
-        for name in config.input_variables
-    }
-    jacobians = get_jacobians(model, avg_profiles)
-    std_jacobians = standardize_jacobians(jacobians, train_set)
-
-    with put_dir(config.out_url) as tmpdir:
-        dumpable = {
-            f"{out_name}/{in_name}": data
-            for out_name, sensitivities in std_jacobians.items()
-            for in_name, data in sensitivities.items()
-        }
-        np.savez(os.path.join(tmpdir, "jacobians.npz"), **dumpable)
-
+    std_jacobians = compute_standardized_jacobians(
+        model, config.get_transform().forward(train_set), config.input_variables
+    )
+    save_jacobians(std_jacobians, config.out_url, "jacobians.npz")
     if config.use_wandb:
         plot_all_output_sensitivities(std_jacobians)
 
