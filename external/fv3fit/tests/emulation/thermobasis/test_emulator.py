@@ -15,7 +15,7 @@ from fv3fit.emulation.thermobasis.loss import (
     RHLossSingleLevel,
     QVLossSingleLevel,
 )
-from utils import _get_argsin
+from ..utils import _get_argsin
 import pytest
 from hypothesis import given, settings
 from hypothesis.strategies import lists, integers

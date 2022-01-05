@@ -97,6 +97,20 @@ def test_IncrementedFieldOutput(dt_sec: float):
     assert magnitude == pytest.approx(dt_sec, rel=1.0)
 
 
+def test_IncrementedFieldOutput_tendency_layer_name():
+
+    sample = tf.random.uniform((20, 3))
+    field_out = IncrementedFieldOutput(
+        900,
+        sample_in=sample,
+        sample_out=sample + 1,
+        denormalize="mean_std",
+        tendency_name="test_name",
+    )
+
+    assert field_out.tendency.name == "test_name"
+
+
 def get_test_tensor():
     return _get_tensor((20, 10))
 

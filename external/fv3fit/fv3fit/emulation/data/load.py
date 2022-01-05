@@ -5,7 +5,6 @@ import xarray as xr
 from toolz.functoolz import compose_left
 from typing import Callable, Optional, Sequence
 
-from .config import TransformConfig
 from .transforms import open_netcdf_dataset
 from .io import get_nc_files
 
@@ -40,7 +39,9 @@ def _seq_to_tf_dataset(source: Sequence, transform: Callable,) -> tf.data.Datase
     return tf_ds
 
 
-def nc_files_to_tf_dataset(files: Sequence[str], config: TransformConfig):
+def nc_files_to_tf_dataset(
+    files: Sequence[str], convert: Callable[[xr.Dataset], tf.Tensor],
+):
 
     """
     Convert a list of netCDF paths into a tensorflow dataset.
@@ -52,14 +53,13 @@ def nc_files_to_tf_dataset(files: Sequence[str], config: TransformConfig):
             X, y tensor tuples grouped by variable.
     """
 
-    transform = compose_left(*[open_netcdf_dataset, config])
-
+    transform = compose_left(*[open_netcdf_dataset, convert])
     return _seq_to_tf_dataset(files, transform)
 
 
 def nc_dir_to_tf_dataset(
     nc_dir: str,
-    config: TransformConfig,
+    convert: Callable[[xr.Dataset], tf.Tensor],
     nfiles: Optional[int] = None,
     shuffle: bool = False,
     random_state: Optional[np.random.RandomState] = None,
@@ -70,8 +70,6 @@ def nc_dir_to_tf_dataset(
     Args:
         nc_dir: Path to a directory of netCDFs to include in dataset.
             Expected to be 2D ([sample, feature]) or 1D ([sample]) dimensions.
-        config: Data preprocessing options for going from xr.Dataset to
-            X, y tensor tuples grouped by variable.
         nfiles: Limit to number of files
         shuffle: Randomly order the file ingestion into the dataset
         random_state: numpy random number generator for seeded shuffle
@@ -88,19 +86,4 @@ def nc_dir_to_tf_dataset(
     if nfiles is not None:
         files = files[:nfiles]
 
-    return nc_files_to_tf_dataset(files, config)
-
-
-def batches_to_tf_dataset(batches: Sequence[xr.Dataset], config: TransformConfig):
-
-    """
-    Convert a batched data sequence of datasets into a tensorflow dataset
-
-    Args:
-        batches: A batched data sequence (e.g., from loaders.batches) with
-            dimensions 2D ([sample, feature]) or 1D ([sample]) dimensions.
-        config: Data preprocessing options for going from xr.Dataset to
-            X, y tensor tuples grouped by variable.
-    """
-
-    return _seq_to_tf_dataset(batches, config)
+    return nc_files_to_tf_dataset(files, convert)
