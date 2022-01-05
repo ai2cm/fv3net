@@ -11,19 +11,16 @@ else
 fi
 
 group="$(openssl rand -hex 3)"
+config=log-cloud
+config_file="${config}.yaml"
 
-for config in log-cloud; do
-    for model_type in dense; do
-        model_name="${config}-${model_type}"
-        config_file="${config}.yaml"
-        out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}-${group}")
+for qcweight in 0.0 0.1 1.0 10.0 ; do
+    model_name="${config}-residual-qcweight${qcweight}-${group}"
+    out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}")
 
-        argo submit argo.yaml \
-            --name "${model_name}-${group}" \
-            -p training-config="$(base64 --wrap 0 $config_file)"\
-            -p flags="--transformed_model.architecture.name ${model_type} \
-            --out_url ${out_url} ${extra_flags}" \
-            | tee -a experiment-log.txt
-
-    done
+    argo submit argo.yaml \
+        --name "${model_name}" \
+        -p training-config="$(base64 --wrap 0 $config_file)" \
+        -p flags="--loss.weights.cloud_water_mixing_ratio_after_precpd ${qcweight} \
+        --out_url ${out_url} ${extra_flags}" | tee -a submitted-jobs.yaml
 done
