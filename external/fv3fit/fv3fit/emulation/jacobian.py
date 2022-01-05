@@ -63,3 +63,13 @@ def standardize_jacobians(
             standardized_jacobians.setdefault(out_name, {})[in_name] = j * factor
 
     return standardized_jacobians
+
+
+def compute_standardized_jacobians(model, data, input_variables):
+    avg_profiles = {
+        name: tf.reduce_mean(data[name], axis=0, keepdims=True)
+        for name in input_variables
+    }
+    jacobians = get_jacobians(model, avg_profiles)
+    std_jacobians = standardize_jacobians(jacobians, data)
+    return std_jacobians

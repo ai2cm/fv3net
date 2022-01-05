@@ -24,7 +24,9 @@ def test_train_loss_integration():
     out = tf.keras.layers.Dense(5, name="y1")(in_)
     out2 = tf.keras.layers.Dense(5, name="y2")(in_)
     model = tf.keras.Model(inputs=[in_], outputs={"y1": out, "y2": out2})
-    loss = CustomLoss(loss_variables=["y1", "y2"], weights={"y1": 4.0, "y2": 1.0})
+    loss_config = CustomLoss(
+        loss_variables=["y1", "y2"], weights={"y1": 4.0, "y2": 1.0}
+    )
 
     batch_size = 10
     batch = {
@@ -33,7 +35,7 @@ def test_train_loss_integration():
         "y2": tf.random.uniform((batch_size, 5)),
     }
     ds = tf.data.Dataset.from_tensor_slices(batch)
-    loss.prepare(batch)
+    loss = loss_config.build(batch)
     history = train(
         model, ds.batch(2), loss=loss, optimizer=tf.keras.optimizers.Adam(), epochs=3
     )
@@ -62,8 +64,7 @@ def _get_model_data_loss():
     one = tf.ones((5, 10))
     data = {"a": one, "b": one}
     loss = CustomLoss(loss_variables=["b"], weights={"b": 1.0})
-    loss.prepare(data)
-    return model, data, loss
+    return model, data, loss.build(data)
 
 
 def test_checkpoint_callback(tmpdir):

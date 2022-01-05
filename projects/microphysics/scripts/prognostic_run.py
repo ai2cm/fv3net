@@ -21,9 +21,9 @@ def get_env(args):
     env = {}
     env["TF_MODEL_PATH"] = args.model
     env["OUTPUT_FREQ_SEC"] = args.output_frequency
-    env["SAVE_ZARR"] = args.save_zarr
-    env["SAVE_TFRECORD"] = args.save_tfrecord
-    env["SAVE_NC"] = args.save_nc
+    env["SAVE_ZARR"] = str(args.save_zarr)
+    env["SAVE_TFRECORD"] = str(args.save_tfrecord)
+    env["SAVE_NC"] = str(args.save_nc)
     return env
 
 

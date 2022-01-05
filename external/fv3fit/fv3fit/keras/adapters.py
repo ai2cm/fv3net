@@ -68,15 +68,15 @@ def ensure_dict_output(model: tf.keras.Model) -> tf.keras.Model:
     return _rename_graph_outputs_to_match_output_keys(_convert_to_dict_output(model))
 
 
-def _ensure_inputs_are_dict(inputs):
-    if isinstance(inputs, Mapping):
-        return inputs
-    else:
-        return {input.name: input for input in inputs}
-
-
 def get_inputs(model: tf.keras.Model) -> Mapping[str, tf.Tensor]:
-    return _ensure_inputs_are_dict(model.inputs)
+    if isinstance(model.inputs, Mapping):
+        return model.inputs
+    elif model.inputs is None:
+        raise ValueError(
+            f"Cannot detect inputs of model {model}. " "Custom models may not work."
+        )
+    else:
+        return {input.name: input for input in model.inputs}
 
 
 def _convert_to_dict_output(model: tf.keras.Model) -> tf.keras.Model:

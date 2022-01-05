@@ -84,8 +84,10 @@ class FieldOutput(tf.keras.layers.Layer):
                 lambda x: x, name=f"passthru_{self.name}"
             )
 
-        self.relu = tf.keras.layers.ReLU()
         self.use_relu = enforce_positive
+
+        if enforce_positive:
+            self.relu = tf.keras.layers.ReLU()
 
     def call(self, tensor):
 
@@ -173,7 +175,8 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
         )
         self.increment = IncrementStateLayer(dt_sec, name=f"increment_{self.name}")
         self.use_relu = enforce_positive
-        self.relu = tf.keras.layers.ReLU()
+        if self.use_relu:
+            self.relu = tf.keras.layers.ReLU()
 
     def call(self, field_input, network_output):
 

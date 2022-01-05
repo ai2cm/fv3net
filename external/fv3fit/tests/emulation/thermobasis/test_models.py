@@ -15,7 +15,7 @@ from fv3fit.emulation.thermobasis.emulator import (
     Config as OnlineEmulatorConfig,
 )
 
-from utils import _get_argsin
+from ..utils import _get_argsin
 
 
 @pytest.mark.parametrize("with_scalars", [True, False])

@@ -1,18 +1,17 @@
-import pytest
 import sys
-import yaml
 from dataclasses import asdict
+from fv3fit.emulation.losses import CustomLoss
 
+import pytest
+import tensorflow as tf
+import yaml
 from fv3fit._shared.config import _to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
-
-from fv3fit.train_microphysics import (
-    TrainConfig,
-    get_default_config,
-    main,
-)
-
+from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.models import MicrophysicsConfig
+from fv3fit.emulation.models.transformed_model import TransformedModelConfig
+from fv3fit.emulation.zhao_carr_fields import Field
+from fv3fit.train_microphysics import TrainConfig, get_default_config, main
 
 
 def test_TrainConfig_defaults():
@@ -160,3 +159,27 @@ def test_training_entry_integration(tmp_path):
     config = TrainConfig.from_dict(config_dict)
 
     main(config)
+
+
+def test_TrainConfig_build_model():
+    field = Field("out", "in")
+    config = TrainConfig(
+        ".",
+        ".",
+        ".",
+        transformed_model=TransformedModelConfig(
+            ArchitectureConfig("dense"), [field], 900
+        ),
+    )
+    data = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
+    model = config.build_model(data)
+    assert field.output_name in model(data)
+
+
+def test_TrainConfig_build_loss():
+    config = TrainConfig(".", ".", ".", loss=CustomLoss(loss_variables=["x"]))
+    # needs to be random or the normalized loss will have nan
+    data = {"x": tf.random.uniform(shape=(4, 10))}
+    loss = config.build_loss(data)
+    loss_value, _ = loss(data, data)
+    assert 0 == pytest.approx(loss_value.numpy())

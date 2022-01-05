@@ -1,14 +1,17 @@
-import numpy as np
-from os.path import join
-import pytest
 import tempfile
-import tensorflow as tf
+from os.path import join
+from fv3fit.emulation.keras import save_model
 
 import fv3fit.emulation.models
+import numpy as np
+import pytest
+import tensorflow as tf
 from fv3fit._shared import SliceConfig
-from fv3fit.emulation.models import MicrophysicsConfig
+from fv3fit.emulation import transforms
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.layers.architecture import _ARCHITECTURE_KEYS
+from fv3fit.emulation.models import MicrophysicsConfig, TransformedModelConfig
+from fv3fit.emulation.zhao_carr_fields import Field
 
 
 def _get_data(shape):
@@ -156,7 +159,9 @@ def test_MicrophysicConfig_model_save_reload(arch):
         reloaded = tf.keras.models.load_model(model_path, compile=False)
 
     result = reloaded(sample)
-    np.testing.assert_array_equal(expected["field_output"], result["field_output"])
+    np.testing.assert_allclose(
+        expected["field_output"], result["field_output"], rtol=2e-5
+    )
 
 
 def test_RNN_downward_dependence():
@@ -186,6 +191,60 @@ def test_RNN_downward_dependence():
             sensitivity = jacobian[output_level, input_level]
             if output_level > input_level and sensitivity != 0:
                 raise ValueError("Downwards dependence violated")
+
+
+def test_transformed_model_without_transform():
+    field = Field("a_out", "a")
+    data = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
+    config = TransformedModelConfig(ArchitectureConfig("dense"), [field], 900)
+    model = config.build(data)
+    out = model(data)
+    assert set(out) == {field.output_name}
+
+
+def test_transformed_model_with_transform():
+    field = Field("a_out", "a")
+    transformed_field = Field("transform_a_out", "transform_a")
+    data = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
+    model = TransformedModelConfig(
+        ArchitectureConfig("dense"), [transformed_field], 900
+    ).build(
+        data,
+        transform=transforms.PerVariableTransform(
+            [
+                transforms.TransformedVariableConfig(
+                    field.input_name,
+                    transformed_field.input_name,
+                    transforms.LogTransform(),
+                ),
+                transforms.TransformedVariableConfig(
+                    field.output_name,
+                    transformed_field.output_name,
+                    transforms.LogTransform(),
+                ),
+            ]
+        ),
+    )
+    out = model(data)
+    assert set(out) == {transformed_field.output_name, field.output_name}
+
+
+def test_save_and_reload_transformed_model(tmpdir):
+    field = Field("a_out", "a")
+    input = {field.input_name: tf.ones((1, 10))}
+    output = {field.output_name: tf.ones((1, 10))}
+    data = {**input, **output}
+    config = TransformedModelConfig(ArchitectureConfig("dense"), [field], 900)
+    model = config.build(data)
+    # this will initialize model.call with a signature requiring all the keys in
+    # ``data`` even though `a` is the only "true" input
+    model(data)
+    path = str(tmpdir) + "/model.tf"
+    save_model(model, str(tmpdir))
+    loaded = tf.keras.models.load_model(path)
+    # will often complain since ``input`` is missing the "a_out" field which was
+    # passed to ``model`` above.
+    loaded.predict(input)
 
 
 @pytest.mark.xfail

@@ -5,7 +5,7 @@ from fv3fit.emulation.thermobasis.loss import (
     MultiVariableLoss,
 )
 import tensorflow as tf
-from utils import _get_argsin
+from ..utils import _get_argsin
 import pytest
 
 

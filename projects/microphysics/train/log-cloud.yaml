@@ -8,6 +8,15 @@ valid_freq: 2
 out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
 train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
 test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
+tensor_transform:
+  - source: cloud_water_mixing_ratio_after_precpd
+    to: log_cloud_output
+    # log by default
+    transform: {}
+  - source: cloud_water_mixing_ratio_input
+    to: log_cloud_input
+    # log by default
+    transform: {}
 loss:
   optimizer:
     kwargs:
@@ -16,13 +25,13 @@ loss:
   loss_variables:
   - air_temperature_after_precpd
   - specific_humidity_after_precpd
-  - cloud_water_mixing_ratio_after_precpd
+  - log_cloud_output
   - total_precipitation
   weights:
     air_temperature_after_precpd: 500000.0
     specific_humidity_after_precpd: 500000.0
-    cloud_water_mixing_ratio_after_precpd: 1.0
-    total_precipitation: .04
+    log_cloud_output: 2.0
+    total_precipitation: 5
 transformed_model:
   architecture:
     kwargs: {}
@@ -37,8 +46,8 @@ transformed_model:
       output_name: specific_humidity_after_precpd
       selection: {stop: -10}
       residual: true
-    - input_name: cloud_water_mixing_ratio_input
-      output_name: cloud_water_mixing_ratio_after_precpd
+    - input_name: log_cloud_input
+      output_name: log_cloud_output
       selection: {stop: -10}
       residual: false
     # diagnostic variables
@@ -48,7 +57,8 @@ transformed_model:
     - input_name: pressure_thickness_of_atmospheric_layer
       selection: {stop: -10}
   normalize_key: mean_std
-  enforce_positive: true
+  # very important to turn this off for log transformed data
+  enforce_positive: false
   timestep_increment_sec: 900
 transform:
   antarctic_only: false
