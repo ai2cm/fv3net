@@ -1,0 +1,160 @@
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.11.5
+#   kernelspec:
+#     display_name: fv3net
+#     language: python
+#     name: fv3net
+# ---
+
+# %% [markdown]
+# Markdown with math $x=y$.
+
+# %%
+import fv3config
+import pandas as pd
+import xarray as xr
+import json
+
+import wandb
+from collections import defaultdict
+import toolz
+import plotly.express as px
+import datapane as dp
+import slack
+
+
+def is_online(group):
+    return group["prognostic_run"].config["config"]["namelist"]["gfs_physics_nml"][
+        "emulate_zc_microphysics"
+    ]
+
+
+def run_duration(group):
+    return fv3config.get_run_duration(group["prognostic_run"].config["config"])
+
+
+@toolz.memoize(key=lambda args, kwargs: (args[0].id, args[1]))
+def open_table(run, key):
+    f = run.file(run.summary[key]["path"])
+    fobj = f.download(replace=True)
+    data = json.load(fobj)
+    return pd.DataFrame(data["data"], columns=data["columns"])
+
+
+def get_model_url(group):
+    return group["prognostic_run"].config["env"]["TF_MODEL_PATH"]
+
+
+def get_surface_precip_skill(group):
+    return open_table(group["piggy-back"], "skill_time")
+
+
+def get_data(group, online=True):
+
+    groups = [
+        val
+        for group, val in group.items()
+        # TODO parameterize this query
+        if (("7166bd" in group) or ("v4" in group))
+        and online == is_online(val)
+        and "piggy-back" in val
+    ]
+    return pd.concat(
+        [
+            get_surface_precip_skill(group).assign(
+                model_url=get_model_url(group),
+                model_tag=get_model_url(group).split("/")[-2],
+                online=online,
+            )
+            for group in groups
+        ]
+    )
+
+
+api = wandb.Api()
+
+# Project is specified by <entity/project-name>
+runs = api.runs("ai2cm/microphysics-emulation", filters={"state": "finished"})
+group = defaultdict(dict)
+summary_list, config_list, name_list = [], [], []
+for run in runs:
+    # .summary contains the output keys/values for metrics like accuracy.
+    #  We call ._json_dict to omit large files
+
+    if run.group is not None:
+        group[run.group][run.job_type] = run
+group = dict(group)
+
+
+# %%
+merged = pd.concat([get_data(group, online=b) for b in [True, False]])
+merged["time"] = pd.to_datetime(merged.time)
+
+# %%
+
+wong_palette = [
+    "#000000",
+    "#E69F00",
+    "#56B4E9",
+    "#009E73",
+    "#F0E442",
+    "#0072B2",
+    "#D55E00",
+    "#CC79A7",
+]
+
+# plotly express
+px.defaults.color_discrete_sequence = wong_palette
+
+# %%
+fig = px.line(
+    merged.sort_values(["model_tag", "time"]),
+    x="time",
+    y="surface_precipitation",
+    color="model_tag",
+    facet_col="online",
+).update_yaxes(matches=None)
+fig
+
+# %%
+ds = xr.Dataset(merged.groupby(["time", "model_tag", "online"]).mean()).unstack("dim_0")
+resampled = ds.resample(time="6h").mean()
+plotme = xr.concat(
+    [
+        resampled.isel(time=0).assign_coords(avg="6h"),
+        resampled.mean("time", skipna=False).assign_coords(avg="10d"),
+    ],
+    dim="avg",
+)
+
+# %%
+bar = px.bar(
+    plotme.to_dataframe().reset_index(),
+    color="online",
+    y="surface_precipitation",
+    x="model_tag",
+    facet_row="avg",
+    barmode="group",
+    width=400,
+)
+bar
+
+# %%
+report = dp.Report(dp.Plot(fig), dp.Plot(bar.update_layout(width=400)))
+report.save(path="report.html")
+res = report.upload(name="microphysics-online-report")
+
+
+def get_url(report, name):
+    return f"https://datapane.com/u/{report.username}/reports/{report.id}/{name}"
+
+
+report_url = get_url(report, "microphysics-online-report")
+slack.post_message("new microphysics report at {}".format(report_url))
