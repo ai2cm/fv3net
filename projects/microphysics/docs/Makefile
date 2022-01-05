@@ -1,7 +1,6 @@
 REPORT_PATH=vcm-ml-public/microphysics-emulation/$(shell git rev-parse HEAD)
 
-reports = introduction.html error-scale.html piggy-back-space.html
-
+reports = introduction.html error-scale.html
 
 upload: $(reports) index.html
 	gsutil cp -r $^ gs://$(REPORT_PATH)
@@ -15,10 +14,10 @@ index.html: $(reports)
 .PHONY: index.html
 
 %.ipynb: %.py
-	jupytext --to .ipynb $<
+	jupytext --execute --to .ipynb $<
 
-%.html: %.md
+%.ipynb: %.md
 	jupytext --to .ipynb $<
 
 %.html: %.ipynb
-	jupyter nbconvert --to html --execute $<
+	jupyter nbconvert --to html $<
