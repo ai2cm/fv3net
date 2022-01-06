@@ -14,7 +14,7 @@ export ESMF_NETCDF_INCLUDE=/usr/include
 export ESMF_NETCDF_LIBS="-lnetcdf -lnetcdff"
 export ESMF_BOPT=O3
 
-git clone -b ESMF_8_0_0 --depth 1 https://git.code.sf.net/p/esmf/esmf $ESMF_DIR
+git clone -b ESMF_8_0_0 --depth 1 https://github.com/esmf-org/esmf.git $ESMF_DIR
 cd $ESMF_DIR
 make lib -j24
 make install

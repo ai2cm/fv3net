@@ -5,6 +5,7 @@ from ._shared.config import (
     TrainingConfig,
     RandomForestHyperparameters,
     OptimizerConfig,
+    LearningRateScheduleConfig,
     RegularizerConfig,
     set_random_seed,
     get_training_function,

@@ -15,6 +15,7 @@ attrs==19.3.0
 babel==2.8.0
 backoff==1.10.0
 bokeh==2.2.3
+cached-property==1.5.2
 cachetools==4.2.2
 certifi==2019.11.28
 cffi==1.14.4
@@ -37,7 +38,7 @@ flatbuffers==1.12
 fsspec==2021.11.1
 future==0.18.2
 fv3config==0.8.0
-gast==0.3.3
+gast==0.4.0
 gcsfs==2021.11.1
 gitdb==4.0.7
 gitpython==3.1.17
@@ -50,9 +51,9 @@ google-crc32c==1.1.2
 google-pasta==0.2.0
 google-resumable-media==1.2.0
 googleapis-common-protos==1.51.0
-grpcio==1.32.0
-h5netcdf==0.8.1
-h5py==2.10.0
+grpcio==1.34.1
+h5netcdf==0.12.0
+h5py==3.1.0
 idna==2.9
 imageio-ffmpeg==0.4.5
 imageio==2.13.1
@@ -65,6 +66,7 @@ ipython-genutils==0.2.0
 jinja2==2.11.2
 joblib==0.16.0
 jsonschema==3.2.0
+keras-nightly==2.5.0.dev2021032900
 keras-preprocessing==1.1.2
 kiwisolver==1.2.0
 kubernetes==11.0.0
@@ -131,11 +133,12 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
 subprocess32==3.5.4
+tensorboard-data-server==0.6.1
 tensorboard-plugin-wit==1.7.0
-tensorboard==2.4.0
+tensorboard==2.7.0
 tensorflow-addons==0.11.2
-tensorflow-estimator==2.4.0
-tensorflow==2.4.0
+tensorflow-estimator==2.5.0
+tensorflow==2.5.2
 termcolor==1.1.0
 toml==0.10.1
 toolz==0.10.0
