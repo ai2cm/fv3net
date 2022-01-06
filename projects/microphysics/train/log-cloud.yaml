@@ -27,13 +27,11 @@ loss:
   - specific_humidity_after_precpd
   - log_cloud_output
   - total_precipitation
-  - cloud_water_mixing_ratio_after_precpd
   weights:
     air_temperature_after_precpd: 500000.0
     specific_humidity_after_precpd: 500000.0
     log_cloud_output: 2.0
     total_precipitation: 5
-    cloud_water_mixing_ratio_after_precpd: 0.0
 transformed_model:
   architecture:
     kwargs: {}
@@ -58,6 +56,11 @@ transformed_model:
     # inputs
     - input_name: pressure_thickness_of_atmospheric_layer
       selection: {stop: -10}
+    - input_name: specific_humidity_after_last_gscond
+      selection: {stop: -10}
+    - input_name: air_temperature_after_last_gscond
+      selection: {stop: -10}
+    - input_name: surface_air_pressure_after_last_gscond
   normalize_key: mean_std
   # very important to turn this off for log transformed data
   enforce_positive: false
