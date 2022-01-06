@@ -45,8 +45,25 @@ def combine_inputs(
 
 
 class RNNLayer(tf.keras.layers.Layer):
+    """Base class for RNN architectures
+
+    Scalar inputs (with singleton final dimensions) are passed to every element
+    of the input sequence like this::
+
+        h[i+1] = rnn(inputs[i], h[i], scalars)
+
+    """
+
     def input_layer(self, inputs: Mapping[str, tf.Tensor]) -> tf.Tensor:
-        return combine_inputs(inputs, combine_axis=-1, expand_axis=-1)
+        list_inputs = [inputs[key] for key in sorted(inputs)]
+        expanded_inputs = [tf.expand_dims(tensor, axis=-1) for tensor in list_inputs]
+        seq_lengths = set(input.shape[1] for input in expanded_inputs)
+        nz = list(seq_lengths - {1})[0]
+        broadcasted_inputs = [
+            tf.repeat(tensor, nz, 1) if tensor.shape[1] == 1 else tensor
+            for tensor in expanded_inputs
+        ]
+        return tf.concat(broadcasted_inputs, axis=-1)
 
 
 class HybridRNN(RNNLayer):

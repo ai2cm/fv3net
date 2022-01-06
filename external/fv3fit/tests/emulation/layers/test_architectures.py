@@ -64,6 +64,39 @@ def test_RNN():
     assert result.shape == (20, 10, 64)
 
 
+@pytest.mark.parametrize("keras_input", [True, False])
+@pytest.mark.parametrize(
+    "block",
+    [
+        pytest.param(RNNBlock(channels=64, depth=2), id="rnn"),
+        pytest.param(MLPBlock(), id="mlp"),
+    ],
+)
+def test_block_input_layer(block, keras_input: bool):
+
+    if keras_input:
+        input = {"2d": tf.keras.Input(10), "1d": tf.keras.Input(1)}
+    else:
+        input = {"2d": tf.ones((1, 10)), "1d": tf.ones((1, 1))}
+
+    tensor = block.input_layer(input)
+    # the output of input_layer should be passable to block.call
+    output = block(tensor)
+    assert tf.is_tensor(output)
+
+
+@pytest.mark.parametrize("scalar_input", [True, False])
+def test_rnn_input_layer(scalar_input):
+    rnn = RNNBlock(channels=64, depth=2)
+    if scalar_input:
+        inputs = {"2d": tf.ones((1, 10)), "1d": tf.ones((1, 1))}
+    else:
+        inputs = {"2d": tf.ones((1, 10)), "1d": tf.ones((1, 10))}
+
+    tensor = rnn.input_layer(inputs)
+    assert tensor.shape == (1, 10, 2)
+
+
 def test_CombineInputs_no_expand():
 
     tensor = _get_tensor((20, 4))
@@ -150,12 +183,13 @@ def test_ArchParams_bad_kwargs(key):
 def test_ArchitectureConfig(arch_key):
 
     tensor = _get_tensor((10, 20))
+    input = {"a": tensor}
 
     config = ArchitectureConfig(arch_key, {})
     output_features = {"out_field1": 20, "out_field2": 1}
     arch_layer = config.build(output_features)
 
-    outputs = arch_layer([tensor, tensor])
+    outputs = arch_layer(input)
     assert len(outputs) == 2
     for key, feature_len in output_features.items():
         assert key in outputs
@@ -166,10 +200,11 @@ def test_ArchitectureConfig(arch_key):
 def test_rnn_fails_with_inconsistent_vertical_dimensions(rnn_key):
 
     tensor1 = _get_tensor((10, 20))
-    tensor2 = _get_tensor((10, 1))
+    # singleton dimensions are broadcasted but not dimensions with lengths > 1
+    tensor2 = _get_tensor((10, 2))
 
     config = ArchitectureConfig(rnn_key)
     layer = config.build({})
 
     with pytest.raises(tf.errors.InvalidArgumentError):
-        layer([tensor1, tensor2])
+        layer({"a": tensor1, "b": tensor2})
