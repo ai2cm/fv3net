@@ -23,54 +23,30 @@ from typing import Mapping, Optional, Sequence, Union, Any
 __all__ = ["ArchitectureConfig"]
 
 
-class CombineInputs(tf.keras.layers.Layer):
-    """Input tensor stacking with option to add a dimension for RNNs"""
+def combine_inputs(
+    inputs: Union[Sequence[tf.Tensor], Mapping[str, tf.Tensor]],
+    combine_axis: int = -1,
+    expand_axis: Optional[int] = None,
+) -> tf.Tensor:
 
-    def __init__(
-        self, *args, combine_axis: int = -1, expand_axis: Optional[int] = None, **kwargs
-    ):
-        """
-        Args:
-            combine_axis: Axis to concatenate tensors along.  Note that if expand_axis
-                is specified, it is applied before concatenation.  E.g., combine_axis=1
-                and expand_axis=1 will concatenate along the newly created dimension.
-            expand_axis: New axis to add to the input tensors
-        """
-        super().__init__(*args, **kwargs)
+    if isinstance(inputs, Mapping):
+        list_inputs = [inputs[key] for key in sorted(inputs)]
+    else:
+        list_inputs = list(inputs)
 
-        self._combine_axis = combine_axis
-        self._expand_axis = expand_axis
+    if expand_axis is not None:
+        expanded_inputs = [
+            tf.expand_dims(tensor, axis=expand_axis) for tensor in list_inputs
+        ]
+    else:
+        expanded_inputs = list_inputs
 
-    def _call_with_tensors(self, inputs: Sequence[tf.Tensor]) -> tf.Tensor:
-
-        if self._expand_axis is not None:
-            inputs = [
-                tf.expand_dims(tensor, axis=self._expand_axis) for tensor in inputs
-            ]
-
-        return tf.concat(inputs, axis=self._combine_axis)
-
-    def call(
-        self, inputs: Union[Sequence[tf.Tensor], Mapping[str, tf.Tensor]]
-    ) -> tf.Tensor:
-        if isinstance(inputs, Mapping):
-            return self._call_with_tensors([inputs[key] for key in sorted(inputs)])
-        else:
-            return self._call_with_tensors(inputs)
-
-    def get_config(self):
-
-        config = super().get_config()
-        config.update(
-            {"combine_axis": self._combine_axis, "expand_axis": self._combine_axis}
-        )
-        return config
+    return tf.concat(expanded_inputs, axis=combine_axis)
 
 
 class RNNLayer(tf.keras.layers.Layer):
-    @property
-    def input_layer(self) -> CombineInputs:
-        return CombineInputs(combine_axis=-1, expand_axis=-1)
+    def input_layer(self, inputs: Mapping[str, tf.Tensor]) -> tf.Tensor:
+        return combine_inputs(inputs, combine_axis=-1, expand_axis=-1)
 
 
 class HybridRNN(RNNLayer):
@@ -269,9 +245,8 @@ class MLPBlock(tf.keras.layers.Layer):
 
         return outputs
 
-    @property
-    def input_layer(self) -> CombineInputs:
-        return CombineInputs(combine_axis=-1, expand_axis=None)
+    def input_layer(self, inputs: Mapping[str, tf.Tensor]) -> tf.Tensor:
+        return combine_inputs(inputs, combine_axis=-1, expand_axis=None)
 
     def get_output_layer(
         self, feature_lengths: Mapping[str, int]

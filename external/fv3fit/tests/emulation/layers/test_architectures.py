@@ -7,7 +7,7 @@ from fv3fit.emulation.layers.architecture import (
     _HiddenArchitecture,
     MLPBlock,
     HybridRNN,
-    CombineInputs,
+    combine_inputs,
     NoWeightSharingSLP,
     RNNOutput,
     StandardOutput,
@@ -67,8 +67,7 @@ def test_RNN():
 def test_CombineInputs_no_expand():
 
     tensor = _get_tensor((20, 4))
-    combiner = CombineInputs(-1, expand_axis=None)
-    result = combiner((tensor, tensor))
+    result = combine_inputs((tensor, tensor), -1, expand_axis=None)
 
     assert result.shape == (20, 8)
     np.testing.assert_array_equal(result[..., 4:8], tensor)
@@ -77,8 +76,7 @@ def test_CombineInputs_no_expand():
 def test_CombineInputs_expand():
 
     tensor = _get_tensor((20, 4))
-    combiner = CombineInputs(2, expand_axis=2)
-    result = combiner((tensor, tensor, tensor))
+    result = combine_inputs((tensor, tensor, tensor), 2, expand_axis=2)
 
     assert result.shape == (20, 4, 3)
     np.testing.assert_array_equal(result[..., 2], tensor)
@@ -105,7 +103,7 @@ def test_no_weight_sharing_num_weights():
     assert num_weights_expected == total
 
 
-@pytest.mark.parametrize("layer_cls", [CombineInputs, MLPBlock, HybridRNN, RNNBlock])
+@pytest.mark.parametrize("layer_cls", [MLPBlock, HybridRNN, RNNBlock])
 def test_from_config(layer_cls):
 
     layer = layer_cls()
