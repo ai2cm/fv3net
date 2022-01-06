@@ -10,14 +10,14 @@ spec:
   arguments:
     parameters:
     - name: tag
-      value: ":cf9f60d8055ce9e25e0ab574183b1510ea7b076b"
+      value: ":6ec3d47c6d6ab1388f084464eb7c9f10d248e2e6"
     - name: wandb-run-group
       value: ""
     - name: training-config
     - name: flags
       value: ""
     - name: gpu-train
-      value: "false"
+      value: "true"
   volumes:
     - name: gcp-key-secret
       secret:
