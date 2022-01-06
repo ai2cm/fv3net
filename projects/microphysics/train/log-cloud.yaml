@@ -53,8 +53,6 @@ transformed_model:
       residual: false
     # inputs
     - input_name: pressure_thickness_of_atmospheric_layer
-    - input_name: specific_humidity_after_last_gscond
-    - input_name: air_temperature_after_last_gscond
   normalize_key: mean_std
   # very important to turn this off for log transformed data
   enforce_positive: false
