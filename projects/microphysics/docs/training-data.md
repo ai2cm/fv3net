@@ -55,6 +55,7 @@ model = tf.keras.models.load_model(config.out_url + "/model.tf")
 ```
 
 The following conditional averaged plots show that a residual model works well for specific humidity and air temperature, but much less so for cloud water mixing ratio ($q_c$).
+The cloud water mixing ratio likely depends strongly on the relative humidity tendency by the non-grid-scale condensation processes.
 
 ```{code-cell} ipython3
 ---

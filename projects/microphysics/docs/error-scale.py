@@ -1,6 +1,6 @@
 # flake8: noqa
 # %% [markdown]
-# # Scaling the loss function
+# ## Scaling the loss function
 #
 # The microphysics emulator model offline skill is worst in regions with low surface temperature ([report](https://datapane.com/u/noah5/reports/aAMZD23/2021-12-14microphysics-piggy-back-spatial-skill-rnn/)). Can we weight these regions more heavily in the loss? # noqa
 #

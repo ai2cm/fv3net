@@ -1,0 +1,12 @@
+# Table of contents
+# Learn more at https://jupyterbook.org/customize/toc.html
+
+format: jb-book
+root: introduction
+chapters:
+- file: training-data.md
+- file: experiments.md
+  sections:
+  - file: debug_log_transform.py
+  - file: error-scale.py
+

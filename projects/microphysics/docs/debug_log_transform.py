@@ -1,3 +1,6 @@
+# %% [markdown]
+# ## Log transformed Output
+
 # %%
 
 from fv3fit.emulation.zhao_carr_fields import Field
@@ -5,6 +8,12 @@ from fv3fit.train_microphysics import nc_dir_to_tf_dataset, TrainConfig
 import matplotlib.pyplot as plt
 from cycler import cycler
 import tensorflow as tf
+
+# %%
+import datetime
+
+datetime.datetime.utcnow().isoformat()
+# %%
 
 wong_palette = [
     "#000000",
