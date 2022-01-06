@@ -20,6 +20,8 @@ import dataclasses
 import tensorflow as tf
 from typing import Mapping, Optional, Sequence, Union, Any
 
+__all__ = ["ArchitectureConfig"]
+
 
 class CombineInputs(tf.keras.layers.Layer):
     """Input tensor stacking with option to add a dimension for RNNs"""
@@ -65,7 +67,13 @@ class CombineInputs(tf.keras.layers.Layer):
         return config
 
 
-class HybridRNN(tf.keras.layers.Layer):
+class RNNLayer(tf.keras.layers.Layer):
+    @property
+    def input_layer(self) -> CombineInputs:
+        return CombineInputs(combine_axis=-1, expand_axis=-1)
+
+
+class HybridRNN(RNNLayer):
     """
     RNN connected to an MLP for prediction
 
@@ -122,6 +130,11 @@ class HybridRNN(tf.keras.layers.Layer):
 
         return output
 
+    def get_output_layer(
+        self, feature_lengths: Mapping[str, int]
+    ) -> tf.keras.layers.Layer:
+        return StandardOutput(feature_lengths)
+
     def get_config(self):
         config = super().get_config()
         config.update(
@@ -136,7 +149,7 @@ class HybridRNN(tf.keras.layers.Layer):
         return config
 
 
-class RNNBlock(tf.keras.layers.Layer):
+class RNNBlock(RNNLayer):
     """
     RNN for prediction that preserves vertical information so
     directional dependence is possible
@@ -153,6 +166,7 @@ class RNNBlock(tf.keras.layers.Layer):
         depth: int = 2,
         activation: str = "relu",
         go_backwards: bool = True,
+        share_conv_weights: bool = True,
         **kwargs,
     ):
         """
@@ -165,6 +179,7 @@ class RNNBlock(tf.keras.layers.Layer):
                 at 0, should be false
         """
         super().__init__(*args, **kwargs)
+        self._share_conv_weights = share_conv_weights
         self._channels = channels
         self._activation = activation
         self._go_backwards = go_backwards
@@ -199,6 +214,11 @@ class RNNBlock(tf.keras.layers.Layer):
             output = tf.reverse(output, tf.convert_to_tensor([-2]))
 
         return output
+
+    def get_output_layer(
+        self, feature_lengths: Mapping[str, int]
+    ) -> tf.keras.layers.Layer:
+        return RNNOutput(feature_lengths, share_conv_weights=self._share_conv_weights)
 
     def get_config(self):
         config = super().get_config()
@@ -248,6 +268,15 @@ class MLPBlock(tf.keras.layers.Layer):
             outputs = self.dense[i](outputs)
 
         return outputs
+
+    @property
+    def input_layer(self) -> CombineInputs:
+        return CombineInputs(combine_axis=-1, expand_axis=None)
+
+    def get_output_layer(
+        self, feature_lengths: Mapping[str, int]
+    ) -> tf.keras.layers.Layer:
+        return StandardOutput(feature_lengths)
 
     def get_config(self):
 
@@ -387,27 +416,11 @@ _ARCHITECTURE_KEYS = (
 )
 
 
-def _get_output_layer(
-    key: str, feature_lengths: Mapping[str, int]
-) -> tf.keras.layers.Layer:
-    if key == "rnn-v1":
-        return RNNOutput(feature_lengths)
-    elif key == "rnn-v1-shared-weights":
-        return RNNOutput(feature_lengths, share_conv_weights=True)
-    else:
-        return StandardOutput(feature_lengths)
-
-
-def _get_combine_layer(key: str) -> CombineInputs:
-    if "rnn" in key:
-        return CombineInputs(combine_axis=-1, expand_axis=-1)
-    else:
-        return CombineInputs(combine_axis=-1, expand_axis=None)
-
-
 def _get_arch_layer(key: str, kwargs: Mapping) -> tf.keras.layers.Layer:
     if key == "rnn-v1" or key == "rnn-v1-shared-weights":
         return RNNBlock(**kwargs)
+    elif key == "rnn-v1-shared-weights":
+        return RNNBlock(share_conv_weights=True, **kwargs)
     elif key == "rnn":
         return HybridRNN(**kwargs)
     elif key == "dense":
@@ -429,11 +442,11 @@ class _HiddenArchitecture(tf.keras.layers.Layer):
         super().__init__(**kwargs)
 
         self.arch = _get_arch_layer(key, net_kwargs)
-        self.input_combiner = _get_combine_layer(key)
-        self.outputs = _get_output_layer(key, feature_lengths)
+        self.input_layer = self.arch.input_layer
+        self.outputs = self.arch.get_output_layer(feature_lengths)
 
     def call(self, tensors: Mapping[str, tf.Tensor]) -> Mapping[str, tf.Tensor]:
-        combined = self.input_combiner(tensors)
+        combined = self.input_layer(tensors)
         net_output = self.arch(combined)
         return self.outputs(net_output)
 
