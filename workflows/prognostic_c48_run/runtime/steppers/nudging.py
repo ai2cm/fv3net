@@ -33,7 +33,7 @@ class PureNudger:
         variables_to_nudge = list(config.timescale_hours)
         self._get_reference_state = setup_get_reference_state(
             config,
-            variables_to_nudge + [SST, TSFC],
+            variables_to_nudge + [SST, TSFC, MASK],
             fv3gfs.wrapper.get_tracer_metadata(),
             communicator,
         )
