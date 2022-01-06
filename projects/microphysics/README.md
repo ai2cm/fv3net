@@ -67,3 +67,7 @@ to submit a suite of training experiments using Argo.
 
 To run scoring on a pre-trained model, `score_training.py` accepts 
 `--model_url <URL>` as an argument to directly reference a model.
+
+To train a model using a GPU node via the ARGO workflow, add the 
+flag `-p gpu-train=true`.  This will spin up a node w/ a
+GPU and available CUDA libraries.
