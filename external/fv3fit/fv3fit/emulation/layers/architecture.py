@@ -28,6 +28,14 @@ def combine_inputs(
     combine_axis: int = -1,
     expand_axis: Optional[int] = None,
 ) -> tf.Tensor:
+    """
+        Args:
+            inputs: a datastructure of tensors to combine into a single tensor
+            combine_axis: Axis to concatenate tensors along.  Note that if expand_axis
+                is specified, it is applied before concatenation.  E.g., combine_axis=1
+                and expand_axis=1 will concatenate along the newly created dimension.
+            expand_axis: New axis to add to the input tensors
+    """
 
     if isinstance(inputs, Mapping):
         list_inputs = [inputs[key] for key in sorted(inputs)]
