@@ -1,5 +1,5 @@
 import tensorflow as tf
-from vcm.calc.thermo import _GRAVITY, _RVGAS
+from vcm.calc.constants import _GRAVITY, _RVGAS
 
 
 def saturation_pressure(air_temperature_kelvin: tf.Tensor) -> tf.Tensor:
