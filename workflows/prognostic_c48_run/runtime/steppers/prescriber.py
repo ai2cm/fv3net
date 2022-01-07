@@ -166,9 +166,13 @@ def _get_prescribed_ds(
     ds = _open_ds(dataset_key, consolidated)
     ds = get_variables(ds, variables)
     if timesteps is not None:
-        ds = ds.interp(time=timesteps)
-    time_coord = ds.coords["time"]
-    return ds.drop_vars(names="time").load(), time_coord
+        ds_interp = ds.interp(time=timesteps).drop(MASK)
+        if MASK in variables:
+            interp_mask = ds[MASK].interp(time=timesteps, method="nearest")
+            ds_interp[MASK] = interp_mask
+
+    time_coord = ds_interp.coords["time"]
+    return ds_interp.drop_vars(names="time").load(), time_coord
 
 
 def _open_ds(dataset_key: str, consolidated: bool) -> xr.Dataset:

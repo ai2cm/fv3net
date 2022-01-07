@@ -19,7 +19,7 @@ from typing import (
     Optional,
 )
 import logging
-from .names import STATE_NAME_TO_TENDENCY
+from .names import STATE_NAME_TO_TENDENCY, MASK
 
 logger = logging.getLogger(__name__)
 
@@ -201,9 +201,15 @@ def _average_states(state_0: State, state_1: State, weight: float) -> State:
     for key in common_keys:
         if isinstance(state_1[key], xr.DataArray):
             with xr.set_options(keep_attrs=True):
-                out[key] = (
-                    state_0[key] * weight + (1 - weight) * state_1[key]  # type: ignore
-                )
+                if key != MASK:
+                    out[key] = (
+                        state_0[key] * weight
+                        + (1 - weight) * state_1[key]  # type: ignore
+                    )
+                else:
+                    # land_sea_mask is categorical- use nearest neighbor
+                    out[key] = state_0[key] if weight >= 0.5 else state_1[key]
+
     return out
 
 
