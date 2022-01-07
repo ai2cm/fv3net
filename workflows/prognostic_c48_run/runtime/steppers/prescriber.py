@@ -170,9 +170,9 @@ def _get_prescribed_ds(
         if MASK in variables:
             interp_mask = ds[MASK].interp(time=timesteps, method="nearest")
             ds_interp[MASK] = interp_mask
-
-    time_coord = ds_interp.coords["time"]
-    return ds_interp.drop_vars(names="time").load(), time_coord
+        ds = ds_interp
+    time_coord = ds.coords["time"]
+    return ds.drop_vars(names="time").load(), time_coord
 
 
 def _open_ds(dataset_key: str, consolidated: bool) -> xr.Dataset:
