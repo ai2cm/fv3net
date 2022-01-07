@@ -52,10 +52,11 @@ def combine_inputs(
 class RNNLayer(tf.keras.layers.Layer):
     """Base class for RNN architectures
 
-    Scalar inputs (with singleton final dimensions) are passed to every element
     of the input sequence like this::
 
         h[i+1] = rnn(inputs[i], h[i], scalars)
+    Note:
+        Scalar inputs (with singleton final dimensions) are passed to every element
 
     """
 
