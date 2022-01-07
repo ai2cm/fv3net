@@ -34,6 +34,12 @@ from .calc.thermo import (
     column_integrated_heating_from_isochoric_transition,
     mass_streamfunction,
     internal_energy,
+    saturation_pressure,
+    relative_humidity,
+    specific_humidity_from_rh,
+    density,
+    pressure_thickness,
+    layer_mass,
 )
 from .calc.histogram import histogram, histogram2d
 

@@ -19,6 +19,9 @@ Atmospheric layer thickness
 ---------------------------
 
    .. automethod:: vcm.calc.vertical_coordinate.hydrostatic_dz
+   .. automethod:: vcm.calc.thermo.density
+   .. automethod:: vcm.calc.thermo.pressure_thickness
+   .. automethod:: vcm.calc.thermo.layer_mass
 
 Surface geopotential
 --------------------
@@ -34,6 +37,7 @@ Heat
    .. automethod:: vcm.calc.thermo.liquid_ice_temperature
    .. automethod:: vcm.calc.thermo.latent_heat_vaporization
    .. automethod:: vcm.calc.thermo.potential_temperature
+   .. automethod:: vcm.calc.thermo.internal_energy
 
 Moisture
 --------
@@ -44,3 +48,6 @@ Moisture
    .. automethod:: vcm.calc.thermo.minus_column_integrated_moistening
    .. automethod:: vcm.calc.thermo.total_water
    .. automethod:: vcm.calc.thermo.column_integrated_liquid_water_equivalent
+   .. automethod:: vcm.calc.thermo.saturation_pressure
+   .. automethod:: vcm.calc.thermo.relative_humidity
+   .. automethod:: vcm.calc.thermo.specific_humidity_from_rh

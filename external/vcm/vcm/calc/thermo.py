@@ -6,6 +6,7 @@ from .constants import (
     _REFERENCE_SURFACE_PRESSURE,
     _POISSON_CONST,
     _RDGAS,
+    _RVGAS,
     _LATENT_HEAT_FUSION,
     _LATENT_HEAT_VAPORIZATION_0_C,
     _SPECIFIC_ENTHALPY_LIQUID,
@@ -327,3 +328,89 @@ def internal_energy(temperature: xr.DataArray) -> xr.DataArray:
         {"long_name": "internal energy", "units": "J/kg"}
     )
     return internal_energy
+
+
+def saturation_pressure(temperature, math=np):
+    """Saturation vapor pressure from temperature using `August Roche Magnus`_ formula.
+
+    Args:
+        temperature: temperature in units of K.
+        math (optional): module with an exponential function `exp`. Defaults to numpy.
+
+    Returns:
+        Saturation vapor pressure.
+    
+    .. _August Roche Magnus:
+        https://en.wikipedia.org/wiki/Clausius%E2%80%93Clapeyron_relation#Meteorology_and_climatology # noqa
+    """
+    temperature_celsius = temperature - 273.15
+    return 610.94 * math.exp(
+        17.625 * temperature_celsius / (temperature_celsius + 243.04)
+    )
+
+
+def relative_humidity(temperature, specific_humidity, density, math=np):
+    """Relative humidity from temperature, specific humidity and density.
+    
+    Args:
+        temperature: air temperature in units of K.
+        specific_humidity: in units of kg/kg.
+        density: air density in kg/m**3.
+        math (optional): module with an exponential function `exp`. Defaults to numpy.
+
+    Returns:
+        Relative humidity.
+    """
+    partial_pressure = _RVGAS * specific_humidity * density * temperature
+    return partial_pressure / saturation_pressure(temperature, math=math)
+
+
+def specific_humidity_from_rh(temperature, relative_humidity, density, math=np):
+    """Specific humidity from temperature, relative humidity and density.
+    
+    Args:
+        temperature: air temperature in units of K.
+        relative_humidity: unitless.
+        density: air density in kg/m**3.
+        math (optional): module with an exponential function `exp`. Defaults to numpy.
+
+    Returns:
+        Specific humidity in kg/kg.
+    """
+    es = saturation_pressure(temperature, math=math)
+    partial_pressure = relative_humidity * es
+
+    return partial_pressure / _RVGAS / density / temperature
+
+
+def density(delp, delz, math=np):
+    """Compute density from pressure and vertical thickness.
+    
+    Args:
+        delp: pressure thickness of atmospheric layer in units of Pa.
+        delz: height of atmospheric layer in units of m.
+        math (optional): module with an absolute function `abs`. Defaults to numpy.
+
+    Returns:
+        Density in units of kg/m**3.
+    """
+    return math.abs(delp / delz / _GRAVITY)
+
+
+def pressure_thickness(density, delz, math=np):
+    """Compute density from pressure and vertical thickness.
+    
+    Args:
+        density: density of atmospheric layer in units of kg/m**3.
+        delz: height of atmospheric layer in units of m.
+        math (optional): module with an absolute function `abs`. Defaults to numpy.
+
+    Returns:
+        Pressure thickness in units of Pa.
+    """
+    return math.abs(density * delz * _GRAVITY)
+
+
+def layer_mass(delp):
+    """Layer mass in kg/m^2 from ``delp`` in Pa"""
+    return delp / _GRAVITY
