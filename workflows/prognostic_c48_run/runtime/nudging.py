@@ -25,6 +25,12 @@ logger = logging.getLogger(__name__)
 
 State = MutableMapping[Hashable, xr.DataArray]
 
+# list of variables that will use nearest neighbor interpolation
+# between times instead of linear interpolation
+INTERPOLATE_NEAREST = [
+    MASK,
+]
+
 
 @dataclasses.dataclass
 class NudgingConfig:
@@ -37,6 +43,10 @@ class NudgingConfig:
     optional; if not provided the nudging data will be assumed to contain every
     time. The reference state will be linearly interpolated between the
     available time samples.
+
+    The reference state be interpolated between available time samples; by default
+    linearly or using nearest neighbor intepolation for variables specified in
+    INTERPOLATE_NEAREST.
 
     Attributes:
         timescale_hours: mapping of variable names to timescales (in hours).
@@ -201,15 +211,13 @@ def _average_states(state_0: State, state_1: State, weight: float) -> State:
     for key in common_keys:
         if isinstance(state_1[key], xr.DataArray):
             with xr.set_options(keep_attrs=True):
-                if key != MASK:
+                if key in INTERPOLATE_NEAREST:
+                    out[key] = state_0[key] if weight >= 0.5 else state_1[key]
+                else:
                     out[key] = (
                         state_0[key] * weight
                         + (1 - weight) * state_1[key]  # type: ignore
                     )
-                else:
-                    # land_sea_mask is categorical- use nearest neighbor
-                    out[key] = state_0[key] if weight >= 0.5 else state_1[key]
-
     return out
 
 

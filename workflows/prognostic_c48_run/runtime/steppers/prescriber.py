@@ -15,6 +15,12 @@ from vcm.safe import get_variables
 
 logger = logging.getLogger(__name__)
 
+# list of variables that will use nearest neighbor interpolation
+# between times instead of linear interpolation
+INTERPOLATE_NEAREST = [
+    MASK,
+]
+
 
 def get_timesteps(
     init_time: cftime.DatetimeJulian, timestep_seconds: float, n_timesteps: int
@@ -166,11 +172,15 @@ def _get_prescribed_ds(
     ds = _open_ds(dataset_key, consolidated)
     ds = get_variables(ds, variables)
     if timesteps is not None:
-        ds_interp = ds.interp(time=timesteps).drop(MASK)
-        if MASK in variables:
-            interp_mask = ds[MASK].interp(time=timesteps, method="nearest")
-            ds_interp[MASK] = interp_mask
-        ds = ds_interp
+        vars_interp_nearest = [var for var in variables if var in INTERPOLATE_NEAREST]
+        vars_interp_linear = [
+            var for var in variables if var not in INTERPOLATE_NEAREST
+        ]
+        ds_interp_nearest = ds[vars_interp_nearest].interp(
+            time=timesteps, method="nearest"
+        )
+        ds_interp_linear = ds[vars_interp_linear].interp(time=timesteps)
+        ds = xr.merge([ds_interp_nearest, ds_interp_linear])
     time_coord = ds.coords["time"]
     return ds.drop_vars(names="time").load(), time_coord
 
