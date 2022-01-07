@@ -5,7 +5,7 @@ from fv3fit.emulation.thermo import (
     relative_humidity,
     specific_humidity_from_rh,
 )
-from vcm.calc.thermo import _RDGAS, _RVGAS
+from vcm.calc.constants import _RDGAS, _RVGAS
 
 
 @pytest.mark.parametrize("celsius, rh", [(26, 0.5), (14.77, 1.0)])
