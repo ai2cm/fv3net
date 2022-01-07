@@ -31,6 +31,7 @@ def combine_inputs(
     """
         Args:
             inputs: a datastructure of tensors to combine into a single tensor
+                (sorted by key)
             combine_axis: Axis to concatenate tensors along.  Note that if expand_axis
                 is specified, it is applied before concatenation.  E.g., combine_axis=1
                 and expand_axis=1 will concatenate along the newly created dimension.
