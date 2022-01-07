@@ -2,15 +2,13 @@ import cftime
 import numpy as np
 import pytest
 import xarray as xr
-from vcm.calc.thermo import (
-    _GRAVITY,
+from vcm.calc.thermo import _GRAVITY, mass_streamfunction, internal_energy
+from vcm.calc.vertical_coordinates import (
     pressure_at_interface,
     height_at_interface,
     _interface_to_midpoint,
     dz_and_top_to_phis,
     _add_coords_to_interface_variable,
-    mass_streamfunction,
-    internal_energy,
 )
 from vcm.calc.calc import local_time
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
