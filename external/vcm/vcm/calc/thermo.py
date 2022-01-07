@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 from ..cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
+from ..types import Array
 
 
 # following are defined as in FV3GFS model (see FV3/fms/constants/constants.f90)
@@ -27,30 +28,36 @@ _KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0
 _KG_M2_TO_MM = 1000.0 / 997
 
 
-def mass_integrate(da, delp, dim=COORD_Z_CENTER):
+def mass_integrate(
+    da: xr.DataArray, delp: xr.DataArray, dim: str = COORD_Z_CENTER
+) -> xr.DataArray:
+    """Compute mass-weighted vertical integral."""
     return (da * delp / _GRAVITY).sum(dim)
 
 
-def potential_temperature(P, T):
+def potential_temperature(P: Array, T: Array) -> Array:
     return T * (_REFERENCE_SURFACE_PRESSURE / P) ** _POISSON_CONST
 
 
 def pressure_at_interface(
-    delp, toa_pressure=_TOA_PRESSURE, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER
-):
-    """ Compute pressure at layer interfaces
+    delp: xr.DataArray,
+    toa_pressure: float = _TOA_PRESSURE,
+    dim_center: str = COORD_Z_CENTER,
+    dim_outer: str = COORD_Z_OUTER,
+) -> xr.DataArray:
+    """Compute pressure at layer interfaces.
 
     Args:
-        delp (xr.DataArray): pressure thicknesses
-        toa_pressure (float, optional): pressure at the top of atmosphere.
+        delp: pressure thicknesses
+        toa_pressure (optional): pressure at the top of atmosphere.
             Defaults to 300Pa.
-        dim_center (str, optional): name of vertical dimension for delp.
+        dim_center (optional): name of vertical dimension for delp.
             Defaults to "pfull".
-        dim_outer (str, optional): name of vertical dimension for output pressure.
+        dim_outer (optional): name of vertical dimension for output pressure.
             Defaults to "phalf".
 
     Returns:
-        xr.DataArray: atmospheric pressure at layer interfaces
+        atmospheric pressure at layer interfaces
     """
     top = xr.full_like(delp.isel({dim_center: [0]}), toa_pressure).variable
     delp_with_top = top.concat([top, delp.variable], dim=dim_center)
@@ -60,19 +67,24 @@ def pressure_at_interface(
     ).rename({dim_center: dim_outer})
 
 
-def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER):
-    """ Compute geopotential height at layer interfaces
+def height_at_interface(
+    dz: xr.DataArray,
+    phis: xr.DataArray,
+    dim_center: str = COORD_Z_CENTER,
+    dim_outer: str = COORD_Z_OUTER,
+) -> xr.DataArray:
+    """Compute geopotential height at layer interfaces.
 
     Args:
-        dz (xr.DataArray): layer height thicknesses
-        phis (xr.DataArray): surface geopotential
-        dim_center (str, optional): name of vertical dimension for dz.
+        dz: layer height thicknesses
+        phis: surface geopotential
+        dim_center (optional): name of vertical dimension for dz.
             Defaults to "pfull".
-        dim_outer (str, optional): name of vertical dimension for output heights.
+        dim_outer (optional): name of vertical dimension for output heights.
             Defaults to "phalf".
 
     Returns:
-        xr.DataArray: height at layer interfaces
+        height at layer interfaces
     """
     bottom = phis.broadcast_like(dz.isel({dim_center: [0]})) / _GRAVITY
     dzv = -dz.variable  # dz is negative in model
@@ -97,32 +109,36 @@ def _add_coords_to_interface_variable(
         return xr.DataArray(dv_outer, coords=da_center.coords)
 
 
-def pressure_at_midpoint(delp, toa_pressure=_TOA_PRESSURE, dim=COORD_Z_CENTER):
-    """ Compute pressure at layer midpoints by linear interpolation
+def pressure_at_midpoint(
+    delp: xr.DataArray, toa_pressure: float = _TOA_PRESSURE, dim: str = COORD_Z_CENTER
+) -> xr.DataArray:
+    """Compute pressure at layer midpoints by linear interpolation.
 
     Args:
-        delp (xr.DataArray): pressure thicknesses
-        toa_pressure (float, optional): pressure at the top of atmosphere.
+        delp: pressure thicknesses
+        toa_pressure (optional): pressure at the top of atmosphere.
             Defaults to 300Pa.
-        dim (str, optional): name of vertical dimension for delp. Defaults to "pfull".
+        dim (optional): name of vertical dimension for delp. Defaults to "pfull".
 
     Returns:
-        xr.DataArray: atmospheric pressure at layer midpoints
+        atmospheric pressure at layer midpoints
     """
     pi = pressure_at_interface(delp, toa_pressure=toa_pressure, dim_center=dim)
     return _interface_to_midpoint(pi, dim_center=dim)
 
 
-def height_at_midpoint(dz, phis, dim=COORD_Z_CENTER):
-    """ Compute geopotential height at layer midpoints by linear interpolation
+def height_at_midpoint(
+    dz: xr.DataArray, phis: xr.DataArray, dim: str = COORD_Z_CENTER
+) -> xr.DataArray:
+    """Compute geopotential height at layer midpoints by linear interpolation.
 
     Args:
-        dz (xr.DataArray): layer height thicknesses
-        phis (xr.DataArray): surface geopotential
-        dim (str, optional): name of vertical dimension for dz. Defaults to "pfull".
+        dz: layer height thicknesses
+        phis: surface geopotential
+        dim (optional): name of vertical dimension for dz. Defaults to "pfull".
 
     Returns:
-        xr.DataArray: height at layer midpoints
+        height at layer midpoints
     """
     zi = height_at_interface(dz, phis, dim_center=dim)
     return _interface_to_midpoint(zi, dim_center=dim)
@@ -135,18 +151,20 @@ def _interface_to_midpoint(da, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTE
     return da_mid.rename({dim_outer: dim_center})
 
 
-def pressure_at_midpoint_log(delp, toa_pressure=_TOA_PRESSURE, dim=COORD_Z_CENTER):
-    """ Compute pressure at layer midpoints following Eq. 3.17 of Simmons
+def pressure_at_midpoint_log(
+    delp: xr.DataArray, toa_pressure: float = _TOA_PRESSURE, dim: str = COORD_Z_CENTER
+) -> xr.DataArray:
+    """Compute pressure at layer midpoints following Eq. 3.17 of Simmons
     and Burridge (1981), MWR.
 
     Args:
-        delp (xr.DataArray): pressure thicknesses
-        toa_pressure (float, optional): pressure at the top of atmosphere.
+        delp: pressure thicknesses
+        toa_pressure (optional): pressure at the top of atmosphere.
             Defaults to 300Pa.
-        dim (str, optional): name of vertical dimension for delp. Defaults to "pfull".
+        dim (optional): name of vertical dimension for delp. Defaults to "pfull".
 
     Returns:
-        xr.DataArray: atmospheric pressure at layer midpoints
+        atmospheric pressure at layer midpoints
     """
     pi = pressure_at_interface(
         delp, toa_pressure=toa_pressure, dim_center=dim, dim_outer=dim
@@ -162,17 +180,19 @@ def pressure_at_midpoint_log(delp, toa_pressure=_TOA_PRESSURE, dim=COORD_Z_CENTE
     return output
 
 
-def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):
-    """ Compute layer thickness assuming hydrostatic balance
+def hydrostatic_dz(
+    T: xr.DataArray, q: xr.DataArray, delp: xr.DataArray, dim: str = COORD_Z_CENTER
+) -> xr.DataArray:
+    """Compute layer thickness assuming hydrostatic balance.
 
     Args:
-        T (xr.DataArray): temperature
-        q (xr.DataArray): specific humidity
-        delp (xr.DataArray): pressure thickness
-        dim (str, optional): name of vertical dimension. Defaults to "pfull".
+        T: temperature
+        q: specific humidity
+        delp: pressure thickness
+        dim (optional): name of vertical dimension. Defaults to "pfull".
 
     Returns:
-        xr.DataArray: layer thicknesses dz
+        layer thicknesses dz
     """
     pi = pressure_at_interface(delp, dim_center=dim, dim_outer=dim)
     tv = T * (1 + (_RVGAS / _RDGAS - 1) * q)
@@ -180,29 +200,31 @@ def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):
     return -dlogp * _RDGAS * tv / _GRAVITY
 
 
-def dz_and_top_to_phis(top_height, dz, dim=COORD_Z_CENTER):
+def dz_and_top_to_phis(
+    top_height: xr.DataArray, dz: xr.DataArray, dim: str = COORD_Z_CENTER
+) -> xr.DataArray:
     """ Compute surface geopotential from model top height and layer thicknesses"""
     return _GRAVITY * (top_height + dz.sum(dim=dim))
 
 
-def latent_heat_vaporization(T):
+def latent_heat_vaporization(T: Array) -> Array:
     return _LATENT_HEAT_VAPORIZATION_0_C + (
         _SPECIFIC_ENTHALPY_LIQUID - _SPECIFIC_ENTHALPY_VAP0R
     ) * (T - _FREEZING_TEMPERATURE)
 
 
 def net_heating(
-    dlw_sfc,
-    dsw_sfc,
-    ulw_sfc,
-    ulw_toa,
-    usw_sfc,
-    usw_toa,
-    dsw_toa,
-    shf,
-    surface_rain_rate,
-    surface_temperature=_FREEZING_TEMPERATURE + 10,
-):
+    dlw_sfc: xr.DataArray,
+    dsw_sfc: xr.DataArray,
+    ulw_sfc: xr.DataArray,
+    ulw_toa: xr.DataArray,
+    usw_sfc: xr.DataArray,
+    usw_toa: xr.DataArray,
+    dsw_toa: xr.DataArray,
+    shf: xr.DataArray,
+    surface_rain_rate: xr.DataArray,
+    surface_temperature: float = _FREEZING_TEMPERATURE + 10,
+) -> xr.DataArray:
     """A dataarray implementation of ``net_heating_from_dataset``
 
     All argument except for ``cond_int`` should be in W/m2. cond_int is in units
@@ -230,8 +252,8 @@ def net_heating(
 
 
 def latent_heat_flux_to_evaporation(
-    lhf, surface_temperature=_DEFAULT_SURFACE_TEMPERATURE
-):
+    lhf: xr.DataArray, surface_temperature: float = _DEFAULT_SURFACE_TEMPERATURE
+) -> xr.DataArray:
     """Compute evaporation from latent heat flux
 
     Args:
@@ -267,7 +289,7 @@ def surface_evaporation_mm_day_from_latent_heat_flux(
     return surface_evaporation
 
 
-def net_precipitation(lhf, prate):
+def net_precipitation(lhf: xr.DataArray, prate: xr.DataArray) -> xr.DataArray:
     da = (prate - latent_heat_flux_to_evaporation(lhf)) * _SEC_PER_DAY
     da.attrs = {"long_name": "net precipitation from model physics", "units": "mm/day"}
     return da
