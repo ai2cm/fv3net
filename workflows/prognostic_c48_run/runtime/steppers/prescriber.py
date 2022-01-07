@@ -172,17 +172,17 @@ def _get_prescribed_ds(
     ds = _open_ds(dataset_key, consolidated)
     ds = get_variables(ds, variables)
     if timesteps is not None:
-        vars_interp_nearest = [var for var in variables if var in INTERPOLATE_NEAREST]
-        vars_interp_linear = [
-            var for var in variables if var not in INTERPOLATE_NEAREST
-        ]
-        ds_interp_nearest = ds[vars_interp_nearest].interp(
-            time=timesteps, method="nearest"
-        )
-        ds_interp_linear = ds[vars_interp_linear].interp(time=timesteps)
-        ds = xr.merge([ds_interp_nearest, ds_interp_linear])
+        ds = _time_interpolate_data(ds, timesteps, variables)
     time_coord = ds.coords["time"]
     return ds.drop_vars(names="time").load(), time_coord
+
+
+def _time_interpolate_data(ds, timesteps, variables):
+    vars_interp_nearest = [var for var in variables if var in INTERPOLATE_NEAREST]
+    vars_interp_linear = [var for var in variables if var not in INTERPOLATE_NEAREST]
+    ds_interp_nearest = ds[vars_interp_nearest].interp(time=timesteps, method="nearest")
+    ds_interp_linear = ds[vars_interp_linear].interp(time=timesteps)
+    return xr.merge([ds_interp_nearest, ds_interp_linear])
 
 
 def _open_ds(dataset_key: str, consolidated: bool) -> xr.Dataset:
