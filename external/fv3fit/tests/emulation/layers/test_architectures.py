@@ -100,7 +100,7 @@ def test_rnn_input_layer(scalar_input):
 def test_CombineInputs_no_expand():
 
     tensor = _get_tensor((20, 4))
-    result = combine_inputs((tensor, tensor), -1, expand_axis=None)
+    result = combine_inputs({"a": tensor, "b": tensor}, -1, expand_axis=None)
 
     assert result.shape == (20, 8)
     np.testing.assert_array_equal(result[..., 4:8], tensor)
@@ -109,7 +109,7 @@ def test_CombineInputs_no_expand():
 def test_CombineInputs_expand():
 
     tensor = _get_tensor((20, 4))
-    result = combine_inputs((tensor, tensor, tensor), 2, expand_axis=2)
+    result = combine_inputs({"a": tensor, "b": tensor, "c": tensor}, 2, expand_axis=2)
 
     assert result.shape == (20, 4, 3)
     np.testing.assert_array_equal(result[..., 2], tensor)

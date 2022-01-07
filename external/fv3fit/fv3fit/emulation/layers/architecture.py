@@ -18,13 +18,13 @@ This has the following (haskell-like) pseudocode::
 """
 import dataclasses
 import tensorflow as tf
-from typing import Mapping, Optional, Sequence, Union, Any
+from typing import Mapping, Optional, Any
 
 __all__ = ["ArchitectureConfig"]
 
 
 def combine_inputs(
-    inputs: Union[Sequence[tf.Tensor], Mapping[str, tf.Tensor]],
+    inputs: Mapping[str, tf.Tensor],
     combine_axis: int = -1,
     expand_axis: Optional[int] = None,
 ) -> tf.Tensor:
@@ -36,11 +36,7 @@ def combine_inputs(
                 and expand_axis=1 will concatenate along the newly created dimension.
             expand_axis: New axis to add to the input tensors
     """
-
-    if isinstance(inputs, Mapping):
-        list_inputs = [inputs[key] for key in sorted(inputs)]
-    else:
-        list_inputs = list(inputs)
+    list_inputs = [inputs[key] for key in sorted(inputs)]
 
     if expand_axis is not None:
         expanded_inputs = [
