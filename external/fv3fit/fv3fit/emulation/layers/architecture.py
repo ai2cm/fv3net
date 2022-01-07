@@ -18,51 +18,60 @@ This has the following (haskell-like) pseudocode::
 """
 import dataclasses
 import tensorflow as tf
-from typing import Mapping, Optional, Sequence, Union, Any
+from typing import Callable, Mapping, Optional, Any
+
+__all__ = ["ArchitectureConfig"]
 
 
-class CombineInputs(tf.keras.layers.Layer):
-    """Input tensor stacking with option to add a dimension for RNNs"""
-
-    def __init__(
-        self, *args, combine_axis: int = -1, expand_axis: Optional[int] = None, **kwargs
-    ):
-        """
+def combine_inputs(
+    inputs: Mapping[str, tf.Tensor],
+    combine_axis: int = -1,
+    expand_axis: Optional[int] = None,
+) -> tf.Tensor:
+    """
         Args:
+            inputs: a datastructure of tensors to combine into a single tensor
+                (sorted by key)
             combine_axis: Axis to concatenate tensors along.  Note that if expand_axis
                 is specified, it is applied before concatenation.  E.g., combine_axis=1
                 and expand_axis=1 will concatenate along the newly created dimension.
             expand_axis: New axis to add to the input tensors
-        """
-        super().__init__(*args, **kwargs)
+    """
+    list_inputs = [inputs[key] for key in sorted(inputs)]
 
-        self._combine_axis = combine_axis
-        self._expand_axis = expand_axis
+    if expand_axis is not None:
+        expanded_inputs = [
+            tf.expand_dims(tensor, axis=expand_axis) for tensor in list_inputs
+        ]
+    else:
+        expanded_inputs = list_inputs
 
-    def _call_with_tensors(self, inputs: Sequence[tf.Tensor]) -> tf.Tensor:
+    return tf.concat(expanded_inputs, axis=combine_axis)
 
-        if self._expand_axis is not None:
-            inputs = [
-                tf.expand_dims(tensor, axis=self._expand_axis) for tensor in inputs
-            ]
 
-        return tf.concat(inputs, axis=self._combine_axis)
+def combine_sequence_inputs(inputs: Mapping[str, tf.Tensor]) -> tf.Tensor:
+    """Combine inputs into a single (batch, sequence, channels) tensors
 
-    def call(
-        self, inputs: Union[Sequence[tf.Tensor], Mapping[str, tf.Tensor]]
-    ) -> tf.Tensor:
-        if isinstance(inputs, Mapping):
-            return self._call_with_tensors([inputs[key] for key in sorted(inputs)])
-        else:
-            return self._call_with_tensors(inputs)
-
-    def get_config(self):
-
-        config = super().get_config()
-        config.update(
-            {"combine_axis": self._combine_axis, "expand_axis": self._combine_axis}
-        )
-        return config
+    Args:
+        inputs: a dictionary of tensors of shape ``(batch, sequence)`` or
+            ``(batch, 1)``.  All non-unit values of ``sequence`` must be equal.
+    
+    Returns:
+        a tensor with shape ``(batch, sequence, len(inputs))``. inputs with
+        shape ``(batch, 1)`` are broadcasted to ``(batch, sequence)`` shape and
+        stacked along the final dimension.
+    
+        
+    """
+    list_inputs = [inputs[key] for key in sorted(inputs)]
+    expanded_inputs = [tf.expand_dims(tensor, axis=-1) for tensor in list_inputs]
+    seq_lengths = set(input.shape[1] for input in expanded_inputs)
+    nz = list(seq_lengths - {1})[0]
+    broadcasted_inputs = [
+        tf.repeat(tensor, nz, 1) if tensor.shape[1] == 1 else tensor
+        for tensor in expanded_inputs
+    ]
+    return tf.concat(broadcasted_inputs, axis=-1)
 
 
 class HybridRNN(tf.keras.layers.Layer):
@@ -153,6 +162,7 @@ class RNNBlock(tf.keras.layers.Layer):
         depth: int = 2,
         activation: str = "relu",
         go_backwards: bool = True,
+        share_conv_weights: bool = True,
         **kwargs,
     ):
         """
@@ -165,6 +175,7 @@ class RNNBlock(tf.keras.layers.Layer):
                 at 0, should be false
         """
         super().__init__(*args, **kwargs)
+        self._share_conv_weights = share_conv_weights
         self._channels = channels
         self._activation = activation
         self._go_backwards = go_backwards
@@ -387,53 +398,22 @@ _ARCHITECTURE_KEYS = (
 )
 
 
-def _get_output_layer(
-    key: str, feature_lengths: Mapping[str, int]
-) -> tf.keras.layers.Layer:
-    if key == "rnn-v1":
-        return RNNOutput(feature_lengths)
-    elif key == "rnn-v1-shared-weights":
-        return RNNOutput(feature_lengths, share_conv_weights=True)
-    else:
-        return StandardOutput(feature_lengths)
-
-
-def _get_combine_layer(key: str) -> CombineInputs:
-    if "rnn" in key:
-        return CombineInputs(combine_axis=-1, expand_axis=-1)
-    else:
-        return CombineInputs(combine_axis=-1, expand_axis=None)
-
-
-def _get_arch_layer(key: str, kwargs: Mapping) -> tf.keras.layers.Layer:
-    if key == "rnn-v1" or key == "rnn-v1-shared-weights":
-        return RNNBlock(**kwargs)
-    elif key == "rnn":
-        return HybridRNN(**kwargs)
-    elif key == "dense":
-        return MLPBlock(**kwargs)
-    elif key == "linear":
-        if kwargs:
-            raise TypeError("No keyword arguments accepted for linear model")
-        return MLPBlock(depth=0)
-
-
 class _HiddenArchitecture(tf.keras.layers.Layer):
+    """Combines an input, architecture and output layer"""
+
     def __init__(
         self,
-        key: str,
-        net_kwargs: Mapping[str, Any],
-        feature_lengths: Mapping[str, int],
-        **kwargs,
+        input_layer: Callable[[Mapping[str, tf.Tensor]], tf.Tensor],
+        arch_layer: tf.keras.layers.Layer,
+        output_layer: tf.keras.layers.Layer,
     ):
-        super().__init__(**kwargs)
-
-        self.arch = _get_arch_layer(key, net_kwargs)
-        self.input_combiner = _get_combine_layer(key)
-        self.outputs = _get_output_layer(key, feature_lengths)
+        super().__init__()
+        self.arch = arch_layer
+        self.input_layer = input_layer
+        self.outputs = output_layer
 
     def call(self, tensors: Mapping[str, tf.Tensor]) -> Mapping[str, tf.Tensor]:
-        combined = self.input_combiner(tensors)
+        combined = self.input_layer(tensors)
         net_output = self.arch(combined)
         return self.outputs(net_output)
 
@@ -467,4 +447,34 @@ class ArchitectureConfig:
             feature_lengths: Map of output variable names to expected
                 feature dimension length. used to partition layer outputs
         """
-        return _HiddenArchitecture(self.name, self.kwargs, feature_lengths)
+        key = self.name
+        kwargs = self.kwargs
+
+        if key == "rnn-v1":
+            return _HiddenArchitecture(
+                combine_sequence_inputs,
+                RNNBlock(**kwargs),
+                RNNOutput(feature_lengths, share_conv_weights=False),
+            )
+        elif key == "rnn-v1-shared-weights":
+            return _HiddenArchitecture(
+                combine_sequence_inputs,
+                RNNBlock(**kwargs),
+                RNNOutput(feature_lengths, share_conv_weights=True),
+            )
+        elif key == "rnn":
+            return _HiddenArchitecture(
+                combine_sequence_inputs,
+                HybridRNN(**kwargs),
+                StandardOutput(feature_lengths),
+            )
+        elif key == "dense":
+            return _HiddenArchitecture(
+                combine_inputs, MLPBlock(**kwargs), StandardOutput(feature_lengths)
+            )
+        elif key == "linear":
+            if kwargs:
+                raise TypeError("No keyword arguments accepted for linear model")
+            return _HiddenArchitecture(
+                combine_inputs, MLPBlock(depth=0), StandardOutput(feature_lengths)
+            )
