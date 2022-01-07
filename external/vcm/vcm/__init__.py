@@ -18,15 +18,18 @@ from .convenience import (
     round_time,
 )
 from .calc import r2_score, local_time, thermo, cos_zenith_angle, weighted_average
-from .calc.thermo import (
+from .calc.vertical_coordinate import (
+    height_at_interface,
     mass_integrate,
+    pressure_at_interface,
+    pressure_at_midpoint_log,
+    surface_pressure_from_delp,
+)
+from .calc.thermo import (
     net_heating,
     net_precipitation,
     latent_heat_flux_to_evaporation,
-    pressure_at_midpoint_log,
     potential_temperature,
-    pressure_at_interface,
-    surface_pressure_from_delp,
     column_integrated_heating_from_isobaric_transition,
     column_integrated_heating_from_isochoric_transition,
     mass_streamfunction,

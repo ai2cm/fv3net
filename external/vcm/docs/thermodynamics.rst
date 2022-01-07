@@ -4,26 +4,26 @@ Thermodynamics
 Atmospheric pressure
 --------------------
 
-   .. automethod:: vcm.calc.thermo.pressure_at_midpoint
-   .. automethod:: vcm.calc.thermo.pressure_at_midpoint_log
-   .. automethod:: vcm.calc.thermo.pressure_at_interface
-   .. automethod:: vcm.calc.thermo.surface_pressure_from_delp
+   .. automethod:: vcm.calc.vertical_coordinate.pressure_at_midpoint
+   .. automethod:: vcm.calc.vertical_coordinate.pressure_at_midpoint_log
+   .. automethod:: vcm.calc.vertical_coordinate.pressure_at_interface
+   .. automethod:: vcm.calc.vertical_coordinate.surface_pressure_from_delp
 
 Geopotential height
 -------------------
 
-   .. automethod:: vcm.calc.thermo.height_at_midpoint
-   .. automethod:: vcm.calc.thermo.height_at_interface
+   .. automethod:: vcm.calc.vertical_coordinate.height_at_midpoint
+   .. automethod:: vcm.calc.vertical_coordinate.height_at_interface
 
 Atmospheric layer thickness
 ---------------------------
 
-   .. automethod:: vcm.calc.thermo.hydrostatic_dz
+   .. automethod:: vcm.calc.vertical_coordinate.hydrostatic_dz
 
 Surface geopotential
 --------------------
 
-   .. automethod:: vcm.calc.thermo.dz_and_top_to_phis
+   .. automethod:: vcm.calc.vertical_coordinate.dz_and_top_to_phis
 
 Heat
 ----
