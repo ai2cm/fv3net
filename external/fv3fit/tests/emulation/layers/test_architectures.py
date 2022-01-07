@@ -4,10 +4,10 @@ import tensorflow as tf
 
 from fv3fit.emulation.layers.architecture import (
     RNNBlock,
-    _HiddenArchitecture,
     MLPBlock,
     HybridRNN,
     combine_inputs,
+    combine_sequence_inputs,
     NoWeightSharingSLP,
     RNNOutput,
     StandardOutput,
@@ -66,34 +66,27 @@ def test_RNN():
 
 @pytest.mark.parametrize("keras_input", [True, False])
 @pytest.mark.parametrize(
-    "block",
-    [
-        pytest.param(RNNBlock(channels=64, depth=2), id="rnn"),
-        pytest.param(MLPBlock(), id="mlp"),
-    ],
+    "func", [combine_sequence_inputs, combine_inputs],
 )
-def test_block_input_layer(block, keras_input: bool):
+def test_combine_inputs(func, keras_input: bool):
 
     if keras_input:
         input = {"2d": tf.keras.Input(10), "1d": tf.keras.Input(1)}
     else:
         input = {"2d": tf.ones((1, 10)), "1d": tf.ones((1, 1))}
 
-    tensor = block.input_layer(input)
-    # the output of input_layer should be passable to block.call
-    output = block(tensor)
-    assert tf.is_tensor(output)
+    tensor = func(input)
+    assert tf.is_tensor(tensor)
 
 
 @pytest.mark.parametrize("scalar_input", [True, False])
-def test_rnn_input_layer(scalar_input):
-    rnn = RNNBlock(channels=64, depth=2)
+def test_combine_sequence_inputs_has_correct_shape(scalar_input):
     if scalar_input:
         inputs = {"2d": tf.ones((1, 10)), "1d": tf.ones((1, 1))}
     else:
         inputs = {"2d": tf.ones((1, 10)), "1d": tf.ones((1, 10))}
 
-    tensor = rnn.input_layer(inputs)
+    tensor = combine_sequence_inputs(inputs)
     assert tensor.shape == (1, 10, 2)
 
 
@@ -174,7 +167,7 @@ def test_get_architecture_unrecognized():
 @pytest.mark.parametrize("key", ["rnn-v1", "rnn", "dense", "linear"])
 def test_ArchParams_bad_kwargs(key):
     with pytest.raises(TypeError):
-        _HiddenArchitecture(key, dict(not_a_kwarg="hi"), {})
+        ArchitectureConfig(name=key, kwargs=dict(not_a_kwarg="hi")).build({"output": 1})
 
 
 @pytest.mark.parametrize(

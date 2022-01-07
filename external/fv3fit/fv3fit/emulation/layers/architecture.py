@@ -49,30 +49,32 @@ def combine_inputs(
     return tf.concat(expanded_inputs, axis=combine_axis)
 
 
-class RNNLayer(tf.keras.layers.Layer):
-    """Base class for RNN architectures
+def combine_sequence_inputs(inputs: Mapping[str, tf.Tensor]) -> tf.Tensor:
+    """Combine inputs into a single (batch, sequence, channels) tensors
 
-    of the input sequence like this::
-
-        h[i+1] = rnn(inputs[i], h[i], scalars)
-    Note:
-        Scalar inputs (with singleton final dimensions) are passed to every element
-
+    Args:
+        inputs: a dictionary of tensors of shape ``(batch, sequence)`` or
+            ``(batch, 1)``.  All non-unit values of ``sequence`` must be equal.
+    
+    Returns:
+        a tensor with shape ``(batch, sequence, len(inputs))``. inputs with
+        shape ``(batch, 1)`` are broadcasted to ``(batch, sequence)`` shape and
+        stacked along the final dimension.
+    
+        
     """
-
-    def input_layer(self, inputs: Mapping[str, tf.Tensor]) -> tf.Tensor:
-        list_inputs = [inputs[key] for key in sorted(inputs)]
-        expanded_inputs = [tf.expand_dims(tensor, axis=-1) for tensor in list_inputs]
-        seq_lengths = set(input.shape[1] for input in expanded_inputs)
-        nz = list(seq_lengths - {1})[0]
-        broadcasted_inputs = [
-            tf.repeat(tensor, nz, 1) if tensor.shape[1] == 1 else tensor
-            for tensor in expanded_inputs
-        ]
-        return tf.concat(broadcasted_inputs, axis=-1)
+    list_inputs = [inputs[key] for key in sorted(inputs)]
+    expanded_inputs = [tf.expand_dims(tensor, axis=-1) for tensor in list_inputs]
+    seq_lengths = set(input.shape[1] for input in expanded_inputs)
+    nz = list(seq_lengths - {1})[0]
+    broadcasted_inputs = [
+        tf.repeat(tensor, nz, 1) if tensor.shape[1] == 1 else tensor
+        for tensor in expanded_inputs
+    ]
+    return tf.concat(broadcasted_inputs, axis=-1)
 
 
-class HybridRNN(RNNLayer):
+class HybridRNN(tf.keras.layers.Layer):
     """
     RNN connected to an MLP for prediction
 
@@ -129,11 +131,6 @@ class HybridRNN(RNNLayer):
 
         return output
 
-    def get_output_layer(
-        self, feature_lengths: Mapping[str, int]
-    ) -> tf.keras.layers.Layer:
-        return StandardOutput(feature_lengths)
-
     def get_config(self):
         config = super().get_config()
         config.update(
@@ -148,7 +145,7 @@ class HybridRNN(RNNLayer):
         return config
 
 
-class RNNBlock(RNNLayer):
+class RNNBlock(tf.keras.layers.Layer):
     """
     RNN for prediction that preserves vertical information so
     directional dependence is possible
@@ -214,11 +211,6 @@ class RNNBlock(RNNLayer):
 
         return output
 
-    def get_output_layer(
-        self, feature_lengths: Mapping[str, int]
-    ) -> tf.keras.layers.Layer:
-        return RNNOutput(feature_lengths, share_conv_weights=self._share_conv_weights)
-
     def get_config(self):
         config = super().get_config()
         config.update(
@@ -267,14 +259,6 @@ class MLPBlock(tf.keras.layers.Layer):
             outputs = self.dense[i](outputs)
 
         return outputs
-
-    def input_layer(self, inputs: Mapping[str, tf.Tensor]) -> tf.Tensor:
-        return combine_inputs(inputs, combine_axis=-1, expand_axis=None)
-
-    def get_output_layer(
-        self, feature_lengths: Mapping[str, int]
-    ) -> tf.keras.layers.Layer:
-        return StandardOutput(feature_lengths)
 
     def get_config(self):
 
@@ -414,34 +398,19 @@ _ARCHITECTURE_KEYS = (
 )
 
 
-def _get_arch_layer(key: str, kwargs: Mapping) -> tf.keras.layers.Layer:
-    if key == "rnn-v1" or key == "rnn-v1-shared-weights":
-        return RNNBlock(**kwargs)
-    elif key == "rnn-v1-shared-weights":
-        return RNNBlock(share_conv_weights=True, **kwargs)
-    elif key == "rnn":
-        return HybridRNN(**kwargs)
-    elif key == "dense":
-        return MLPBlock(**kwargs)
-    elif key == "linear":
-        if kwargs:
-            raise TypeError("No keyword arguments accepted for linear model")
-        return MLPBlock(depth=0)
-
-
 class _HiddenArchitecture(tf.keras.layers.Layer):
+    """Combines an input, architecture and output layer"""
+
     def __init__(
         self,
-        key: str,
-        net_kwargs: Mapping[str, Any],
-        feature_lengths: Mapping[str, int],
-        **kwargs,
+        input_layer: tf.keras.layers.Layer,
+        arch_layer: tf.keras.layers.Layer,
+        output_layer: tf.keras.layers.Layer,
     ):
-        super().__init__(**kwargs)
-
-        self.arch = _get_arch_layer(key, net_kwargs)
-        self.input_layer = self.arch.input_layer
-        self.outputs = self.arch.get_output_layer(feature_lengths)
+        super().__init__()
+        self.arch = arch_layer
+        self.input_layer = input_layer
+        self.outputs = output_layer
 
     def call(self, tensors: Mapping[str, tf.Tensor]) -> Mapping[str, tf.Tensor]:
         combined = self.input_layer(tensors)
@@ -478,4 +447,34 @@ class ArchitectureConfig:
             feature_lengths: Map of output variable names to expected
                 feature dimension length. used to partition layer outputs
         """
-        return _HiddenArchitecture(self.name, self.kwargs, feature_lengths)
+        key = self.name
+        kwargs = self.kwargs
+
+        if key == "rnn-v1":
+            return _HiddenArchitecture(
+                combine_sequence_inputs,
+                RNNBlock(**kwargs),
+                RNNOutput(feature_lengths, share_conv_weights=False),
+            )
+        elif key == "rnn-v1-shared-weights":
+            return _HiddenArchitecture(
+                combine_sequence_inputs,
+                RNNBlock(**kwargs),
+                RNNOutput(feature_lengths, share_conv_weights=True),
+            )
+        elif key == "rnn":
+            return _HiddenArchitecture(
+                combine_sequence_inputs,
+                HybridRNN(**kwargs),
+                StandardOutput(feature_lengths),
+            )
+        elif key == "dense":
+            return _HiddenArchitecture(
+                combine_inputs, MLPBlock(**kwargs), StandardOutput(feature_lengths)
+            )
+        elif key == "linear":
+            if kwargs:
+                raise TypeError("No keyword arguments accepted for linear model")
+            return _HiddenArchitecture(
+                combine_inputs, MLPBlock(depth=0), StandardOutput(feature_lengths)
+            )
