@@ -1,7 +1,15 @@
 import numpy as np
 import xarray as xr
-from ..cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
-from .constants import _GRAVITY, _RVGAS, _RDGAS
+from ...cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
+from .constants import (
+    _GRAVITY,
+    _RVGAS,
+    _RDGAS,
+    _KG_M2_TO_MM,
+    _EARTH_RADIUS,
+    _SPECIFIC_HEAT_CONST_PRESSURE,
+    _KG_M2S_TO_MM_DAY,
+)
 
 _TOA_PRESSURE = 300.0  # Pa
 _REVERSE = slice(None, None, -1)
@@ -202,3 +210,124 @@ def hydrostatic_dz(
     tv = T * (1 + (_RVGAS / _RDGAS - 1) * q)
     dlogp = np.log(pi).diff(dim)
     return -dlogp * _RDGAS * tv / _GRAVITY
+
+
+def column_integrated_liquid_water_equivalent(
+    specific_humidity: xr.DataArray, delp: xr.DataArray, vertical_dimension: str = "z"
+) -> xr.DataArray:
+    """Compute column-integrated liquid water equivalent from specific humidity
+    
+    Args:
+        specific_humidity: DataArray of specific humidity in kg/kg
+        delp: DataArray of pressure layer thicknesses in Pa
+        vertical_dim: Name of vertical dimension; defaults to 'z'
+
+    Returns:
+        ci_liquid_water_equivalent: DataArray of water equivalent in mm
+    """
+
+    ci_liquid_water_equivalent = _KG_M2_TO_MM * mass_integrate(
+        specific_humidity, delp, vertical_dimension
+    )
+    ci_liquid_water_equivalent = ci_liquid_water_equivalent.assign_attrs(
+        {"long_name": "precipitable water", "units": "mm"}
+    )
+
+    return ci_liquid_water_equivalent
+
+
+def column_integrated_heating_from_isobaric_transition(
+    dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
+) -> xr.DataArray:
+    """Compute vertically-integrated heat tendencies assuming isobaric transition.
+    
+    Args:
+        dtemperature_dt: DataArray of air temperature tendencies in K/s
+        delp: DataArray of pressure layer thicknesses in Pa (NOT tendencies)
+        vertical_dim: Name of vertical dimension; defaults to 'z'
+          
+    Returns:
+        column_integrated_heating: DataArray of column total heat tendencies in W/m**2
+    """
+
+    column_integrated_heating = _SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
+        dtemperature_dt, delp, dim=vertical_dim
+    )
+    column_integrated_heating = column_integrated_heating.assign_attrs(
+        {"long_name": "column integrated heating", "units": "W/m**2"}
+    )
+
+    return column_integrated_heating
+
+
+def column_integrated_heating_from_isochoric_transition(
+    dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
+) -> xr.DataArray:
+    """Compute vertically-integrated heat tendencies assuming isochoric transition.
+    
+    Args:
+        dtemperature_dt: DataArray of air temperature tendencies in K/s
+        delp: DataArray of pressure layer thicknesses in Pa (NOT tendencies)
+        vertical_dim: Name of vertical dimension; defaults to 'z'
+          
+    Returns:
+        column_integrated_heating: DataArray of column total heat tendencies in W/m**2
+    """
+    specific_heat = _SPECIFIC_HEAT_CONST_PRESSURE - _RDGAS
+    column_integrated_heating = specific_heat * mass_integrate(
+        dtemperature_dt, delp, dim=vertical_dim
+    )
+    column_integrated_heating = column_integrated_heating.assign_attrs(
+        {"long_name": "column integrated heating", "units": "W/m**2"}
+    )
+
+    return column_integrated_heating
+
+
+def minus_column_integrated_moistening(
+    dsphum_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
+) -> xr.DataArray:
+    """Compute negative of vertically-integrated moisture tendencies
+    
+    Args:
+        dsphum_dt: DataArray of (positive) specific humidity tendencies in kg/kg/s
+        delp: DataArray of pressure layer thicknesses in Pa (NOT tendencies)
+        vertical_dim: Name of vertical dimension; defaults to 'z'
+          
+    Returns:
+        column_integrated_heating: DataArray of negative of column total moisture
+        tendencies in mm/day
+    """
+
+    minus_col_int_moistening = _KG_M2S_TO_MM_DAY * mass_integrate(
+        dsphum_dt * -1, delp, dim=vertical_dim
+    )
+    minus_col_int_moistening = minus_col_int_moistening.assign_attrs(
+        {"long_name": "negative of column integrated moistening", "units": "mm/day"}
+    )
+
+    return minus_col_int_moistening
+
+
+def mass_streamfunction(
+    northward_wind: xr.DataArray, lat: str = "latitude", plev: str = "pressure",
+) -> xr.DataArray:
+    """Compute overturning streamfunction from northward wind on pressure grid.
+
+    Args:
+        northward_wind: the meridional wind which depends on pressure and latitude.
+            May have additional dimensions.
+        lat: name of latitude dimension. Latitude must be in degrees.
+        plev: name of pressure dimension. Pressure must be in Pa.
+
+    Returns:
+        mass streamfunction on same coordinates as northward_wind
+    """
+    pressure_thickness = northward_wind[plev].diff(plev, label="lower")
+    psi = (northward_wind * pressure_thickness).cumsum(dim=plev)
+    psi = 2 * np.pi * _EARTH_RADIUS * np.cos(np.deg2rad(psi[lat])) * psi / _GRAVITY
+    # extend psi assuming it is constant so it has same pressure coordinate as input
+    bottom_level_pressure = northward_wind[plev].isel({plev: -1})
+    bottom_level_psi = psi.isel({plev: -1}).assign_coords({plev: bottom_level_pressure})
+    psi = xr.concat([psi, bottom_level_psi], dim=plev)
+    return (psi / 1e9).assign_attrs(long_name="mass streamfunction", units="Gkg/s")

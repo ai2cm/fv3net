@@ -2,23 +2,22 @@ import cftime
 import numpy as np
 import pytest
 import xarray as xr
-from vcm.calc.thermo import (
-    _GRAVITY,
-    mass_streamfunction,
+from vcm.calc.thermo.local import (
     internal_energy,
     relative_humidity,
     specific_humidity_from_rh,
 )
-from vcm.calc.vertical_coordinate import (
+from vcm.calc.thermo.vertically_dependent import (
     pressure_at_interface,
     height_at_interface,
     _interface_to_midpoint,
     dz_and_top_to_phis,
     _add_coords_to_interface_variable,
+    mass_streamfunction,
 )
 from vcm.calc.calc import local_time
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
-from vcm.calc.constants import _RDGAS, _RVGAS
+from vcm.calc.thermo.constants import _GRAVITY, _RDGAS, _RVGAS
 
 
 @pytest.mark.parametrize("toa_pressure", [0, 5])
