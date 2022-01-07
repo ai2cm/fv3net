@@ -1,6 +1,5 @@
 import numpy as np
 import xarray as xr
-from ..types import Array
 from .vertical_coordinate import mass_integrate
 from .constants import (
     _GRAVITY,
@@ -21,11 +20,11 @@ from .constants import (
 )
 
 
-def potential_temperature(P: Array, T: Array) -> Array:
+def potential_temperature(P, T):
     return T * (_REFERENCE_SURFACE_PRESSURE / P) ** _POISSON_CONST
 
 
-def latent_heat_vaporization(T: Array) -> Array:
+def latent_heat_vaporization(T):
     return _LATENT_HEAT_VAPORIZATION_0_C + (
         _SPECIFIC_ENTHALPY_LIQUID - _SPECIFIC_ENTHALPY_VAP0R
     ) * (T - _FREEZING_TEMPERATURE)
