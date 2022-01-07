@@ -9,8 +9,11 @@ import numpy as np
 import xarray as xr
 
 from .. import xarray_utils
-from ..calc.thermo import hydrostatic_dz
-from ..calc.vertical_coordinates import dz_and_top_to_phis, height_at_interface
+from ..calc.vertical_coordinates import (
+    dz_and_top_to_phis,
+    height_at_interface,
+    hydrostatic_dz,
+)
 from .coarsen import (
     block_coarsen,
     block_edge_sum,

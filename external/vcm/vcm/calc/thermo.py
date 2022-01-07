@@ -1,13 +1,11 @@
 import numpy as np
 import xarray as xr
-from ..cubedsphere.constants import COORD_Z_CENTER
 from ..types import Array
-from .vertical_coordinates import pressure_at_interface, mass_integrate
+from .vertical_coordinates import mass_integrate
 from .constants import (
     _GRAVITY,
     _REFERENCE_SURFACE_PRESSURE,
     _POISSON_CONST,
-    _RVGAS,
     _RDGAS,
     _LATENT_HEAT_FUSION,
     _LATENT_HEAT_VAPORIZATION_0_C,
@@ -25,26 +23,6 @@ from .constants import (
 
 def potential_temperature(P: Array, T: Array) -> Array:
     return T * (_REFERENCE_SURFACE_PRESSURE / P) ** _POISSON_CONST
-
-
-def hydrostatic_dz(
-    T: xr.DataArray, q: xr.DataArray, delp: xr.DataArray, dim: str = COORD_Z_CENTER
-) -> xr.DataArray:
-    """Compute layer thickness assuming hydrostatic balance.
-
-    Args:
-        T: temperature
-        q: specific humidity
-        delp: pressure thickness
-        dim (optional): name of vertical dimension. Defaults to "pfull".
-
-    Returns:
-        layer thicknesses dz
-    """
-    pi = pressure_at_interface(delp, dim_center=dim, dim_outer=dim)
-    tv = T * (1 + (_RVGAS / _RDGAS - 1) * q)
-    dlogp = np.log(pi).diff(dim)
-    return -dlogp * _RDGAS * tv / _GRAVITY
 
 
 def latent_heat_vaporization(T: Array) -> Array:
