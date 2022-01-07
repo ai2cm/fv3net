@@ -18,7 +18,7 @@ This has the following (haskell-like) pseudocode::
 """
 import dataclasses
 import tensorflow as tf
-from typing import Mapping, Optional, Any
+from typing import Callable, Mapping, Optional, Any
 
 __all__ = ["ArchitectureConfig"]
 
@@ -403,7 +403,7 @@ class _HiddenArchitecture(tf.keras.layers.Layer):
 
     def __init__(
         self,
-        input_layer: tf.keras.layers.Layer,
+        input_layer: Callable[[Mapping[str, tf.Tensor]], tf.Tensor],
         arch_layer: tf.keras.layers.Layer,
         output_layer: tf.keras.layers.Layer,
     ):
