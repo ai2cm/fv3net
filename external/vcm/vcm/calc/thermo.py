@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 from ..types import Array
-from .vertical_coordinates import mass_integrate
+from .vertical_coordinate import mass_integrate
 from .constants import (
     _GRAVITY,
     _REFERENCE_SURFACE_PRESSURE,

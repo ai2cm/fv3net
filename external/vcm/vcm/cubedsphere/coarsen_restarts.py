@@ -9,7 +9,7 @@ import numpy as np
 import xarray as xr
 
 from .. import xarray_utils
-from ..calc.vertical_coordinates import (
+from ..calc.vertical_coordinate import (
     dz_and_top_to_phis,
     height_at_interface,
     hydrostatic_dz,

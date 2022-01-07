@@ -18,7 +18,7 @@ from .convenience import (
     round_time,
 )
 from .calc import r2_score, local_time, thermo, cos_zenith_angle, weighted_average
-from .calc.vertical_coordinates import (
+from .calc.vertical_coordinate import (
     height_at_interface,
     mass_integrate,
     pressure_at_interface,

@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import xarray as xr
 from vcm.calc.thermo import _GRAVITY, mass_streamfunction, internal_energy
-from vcm.calc.vertical_coordinates import (
+from vcm.calc.vertical_coordinate import (
     pressure_at_interface,
     height_at_interface,
     _interface_to_midpoint,
