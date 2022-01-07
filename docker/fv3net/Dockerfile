@@ -84,6 +84,6 @@ RUN cp -r $FV3NET/external/vcm/docs/_build/html fv3net_docs/vcm
 
 # add development tools
 USER root
-RUN apt-get install -y git tar
+RUN apt-get update && apt-get install -y git tar
 USER $NB_UID
 
