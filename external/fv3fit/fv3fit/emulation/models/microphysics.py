@@ -2,6 +2,7 @@ import dataclasses
 import dacite
 import tensorflow as tf
 from typing import Any, List, Mapping
+import vcm
 
 from fv3fit._shared import SliceConfig
 from fv3fit.emulation import thermo
@@ -281,7 +282,7 @@ def _assoc_conservative_precipitation(
         specific_humidity_after=out[fields.specific_humidity.output_name],
         cloud_before=inputs[fields.cloud_water.input_name],
         cloud_after=out[fields.cloud_water.output_name],
-        mass=thermo.layer_mass(inputs[fields.pressure_thickness.input_name]),
+        mass=vcm.layer_mass(inputs[fields.pressure_thickness.input_name]),
     )
     out[fields.surface_precipitation.output_name] = precip_scalar[:, None]
     # convert_to_dict_output ensures that output names are consistent
