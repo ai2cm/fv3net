@@ -7,7 +7,6 @@ chapters:
 - file: training-data.md
 - file: experiments.md
   sections:
-  - file: debug_log_transform.py
   - file: error-scale.py
   - file: training_data_figures.py
 
