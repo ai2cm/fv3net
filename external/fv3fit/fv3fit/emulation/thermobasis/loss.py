@@ -2,8 +2,8 @@ import abc
 import dataclasses
 from typing import List, Mapping, Tuple, Any
 import tensorflow as tf
+import vcm
 from fv3fit.emulation.thermobasis.thermo import ThermoBasis
-from fv3fit.emulation.thermo import relative_humidity, specific_humidity_from_rh
 
 
 Info = Mapping[str, float]
@@ -65,10 +65,11 @@ class QVLossSingleLevel:
         truth_q = select_level(truth.q, self.level)
         loss = tf.reduce_mean(tf.losses.mean_squared_error(truth_q, pred_q))
 
-        pred_rh = relative_humidity(
+        pred_rh = vcm.relative_humidity(
             select_level(truth.T, self.level),
             pred_q,
             select_level(truth.rho, self.level),
+            math=tf,
         )
         truth_rh = select_level(truth.rh, self.level)
 
@@ -100,10 +101,11 @@ class RHLossSingleLevel:
             truth: the output state (for all levels and variables).
         """
 
-        pred_q = specific_humidity_from_rh(
+        pred_q = vcm.specific_humidity_from_rh(
             select_level(truth.T, self.level),
             pred_rh,
             select_level(truth.rho, self.level),
+            math=tf,
         )
 
         truth_q = select_level(truth.q, self.level)
