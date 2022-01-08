@@ -15,6 +15,12 @@ from vcm.safe import get_variables
 
 logger = logging.getLogger(__name__)
 
+# list of variables that will use nearest neighbor interpolation
+# between times instead of linear interpolation
+INTERPOLATE_NEAREST = [
+    MASK,
+]
+
 
 def get_timesteps(
     init_time: cftime.DatetimeJulian, timestep_seconds: float, n_timesteps: int
@@ -129,14 +135,19 @@ class Prescriber:
         diagnostics: Diagnostics = {}
         prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
         state_updates: State = {}
+
         for name in prescribed_timestep.data_vars:
-            if name == SST:
+            if name == MASK:
+                state_updates[name] = prescribed_timestep[name].round()
+
+            elif name == SST:
                 # If just the sea surface temperature is to be updated
                 # (and not land as well), the prescribed dataarray should be
                 # "ocean_surface_temperature".
                 state_updates.update(
                     sst_update_from_reference(state, prescribed_timestep, SST)
                 )
+
             else:
                 state_updates[name] = prescribed_timestep[name]
         for name in state_updates.keys():
@@ -161,9 +172,17 @@ def _get_prescribed_ds(
     ds = _open_ds(dataset_key, consolidated)
     ds = get_variables(ds, variables)
     if timesteps is not None:
-        ds = ds.interp(time=timesteps)
+        ds = _time_interpolate_data(ds, timesteps, variables)
     time_coord = ds.coords["time"]
     return ds.drop_vars(names="time").load(), time_coord
+
+
+def _time_interpolate_data(ds, timesteps, variables):
+    vars_interp_nearest = [var for var in variables if var in INTERPOLATE_NEAREST]
+    vars_interp_linear = [var for var in variables if var not in INTERPOLATE_NEAREST]
+    ds_interp_nearest = ds[vars_interp_nearest].interp(time=timesteps, method="nearest")
+    ds_interp_linear = ds[vars_interp_linear].interp(time=timesteps)
+    return xr.merge([ds_interp_nearest, ds_interp_linear])
 
 
 def _open_ds(dataset_key: str, consolidated: bool) -> xr.Dataset:
@@ -195,12 +214,9 @@ def sst_update_from_reference(
     a reference state. Useful for maintaining consistency between a nudged run
     and reference state.
     """
+    slmsk = reference[MASK].round() if MASK in reference else state[MASK]
     state_updates: State = {
-        SST: _sst_from_reference(
-            reference[reference_sst_name], state[SST], state[MASK]
-        ),
-        TSFC: _sst_from_reference(
-            reference[reference_sst_name], state[TSFC], state[MASK]
-        ),
+        SST: _sst_from_reference(reference[reference_sst_name], state[SST], slmsk),
+        TSFC: _sst_from_reference(reference[reference_sst_name], state[TSFC], slmsk),
     }
     return state_updates

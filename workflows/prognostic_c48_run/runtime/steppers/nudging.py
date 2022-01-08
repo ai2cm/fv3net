@@ -9,7 +9,7 @@ from runtime.nudging import (
     setup_get_reference_state,
 )
 from runtime.diagnostics import compute_diagnostics
-from runtime.names import SST, TSFC
+from runtime.names import SST, TSFC, MASK
 from .prescriber import sst_update_from_reference
 
 
@@ -33,7 +33,7 @@ class PureNudger:
         variables_to_nudge = list(config.timescale_hours)
         self._get_reference_state = setup_get_reference_state(
             config,
-            variables_to_nudge + [SST, TSFC],
+            variables_to_nudge + [SST, TSFC, MASK],
             fv3gfs.wrapper.get_tracer_metadata(),
             communicator,
         )
@@ -47,7 +47,9 @@ class PureNudger:
     def __call__(self, time, state):
         reference = self._get_reference_state(time)
         tendencies = get_nudging_tendency(state, reference, self._nudging_timescales)
+
         state_updates = sst_update_from_reference(state, reference)
+        state_updates[MASK] = reference[MASK].round()
 
         reference = {
             f"{key}_reference": reference_state
