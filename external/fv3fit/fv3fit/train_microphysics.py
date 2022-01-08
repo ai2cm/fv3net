@@ -1,16 +1,17 @@
 import argparse
+import dacite
+from dataclasses import asdict, dataclass, field
+import fsspec
 import json
 import logging
+import numpy as np
 import os
 import tempfile
-import warnings
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
-import dacite
-import fsspec
 import tensorflow as tf
 import yaml
+
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import (
@@ -18,15 +19,24 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
+from fv3fit.emulation.types import LossFunction
 from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
+from fv3fit.emulation.jacobian import compute_standardized_jacobians
 from fv3fit.emulation.keras import save_model
 from fv3fit.emulation.losses import CustomLoss
+from fv3fit.emulation.transforms import (
+    PerVariableTransform,
+    TensorTransform,
+    TransformedVariableConfig,
+)
+import xarray
 from fv3fit.wandb import (
     WandBConfig,
     store_model_artifact,
+    plot_all_output_sensitivities,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,6 +63,9 @@ class TrainConfig:
         test_url: Path to validation netcdfs (already in [sample x feature] format)
         out_url:  Where to store the trained model, history, and configuration
         transform: Data preprocessing TransformConfig
+        tensor_transform: specification of differerentiable tensorflow
+            transformations to apply before and after data is passed to models and
+            losses.
         model: MicrophysicsConfig used to build the keras model
         nfiles: Number of files to use from train_url
         nfiles_valid: Number of files to use from test_url
@@ -76,8 +89,10 @@ class TrainConfig:
     test_url: str
     out_url: str
     transform: TransformConfig = field(default_factory=TransformConfig)
+    tensor_transform: List[TransformedVariableConfig] = field(default_factory=list)
     model: Optional[models.MicrophysicsConfig] = None
     conservative_model: Optional[models.ConservativeWaterConfig] = None
+    transformed_model: Optional[models.TransformedModelConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     use_wandb: bool = True
@@ -92,27 +107,39 @@ class TrainConfig:
     log_level: str = "INFO"
     cache: bool = True
 
+    def get_transform(self) -> TensorTransform:
+        return PerVariableTransform(self.tensor_transform)
+
     @property
     def _model(
         self,
-    ) -> Union[models.MicrophysicsConfig, models.ConservativeWaterConfig]:
+    ) -> Union[
+        models.MicrophysicsConfig,
+        models.ConservativeWaterConfig,
+        models.TransformedModelConfig,
+    ]:
         if self.model:
-            if self.conservative_model:
-                warnings.warn(
-                    UserWarning(
-                        ".conservative_model included in the configuration, "
-                        "but will not be used."
-                    )
-                )
-
             return self.model
         elif self.conservative_model:
             return self.conservative_model
+        elif self.transformed_model:
+            return self.transformed_model
         else:
-            raise ValueError("Neither .model or .conservative_model provided.")
+            raise ValueError(
+                "Neither .model, .conservative_model, nor .transformed_model provided."
+            )
 
-    def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
-        return self._model.build(data)
+    def build_model(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
+        return self._model.build(data, self.get_transform())
+
+    def build_loss(self, data: Mapping[str, tf.Tensor]) -> LossFunction:
+        return self.loss.build(data, self.get_transform())
+
+    @property
+    def input_variables(self) -> Sequence:
+        return list(
+            self.get_transform().backward_names(set(self._model.input_variables))
+        )
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -190,12 +217,16 @@ class TrainConfig:
 
         return config
 
-    def __post_init__(self) -> None:
-        required_variables = set(self._model.input_variables) | set(
+    def get_dataset_convertor(
+        self,
+    ) -> Callable[[xarray.Dataset], Mapping[str, tf.Tensor]]:
+        model_variables = set(self._model.input_variables) | set(
             self._model.output_variables
         )
-        self.transform.variables = list(required_variables)
+        required_variables = self.get_transform().backward_names(model_variables)
+        return self.transform.get_pipeline(required_variables)
 
+    def __post_init__(self) -> None:
         if (
             self.model is not None
             and "rnn-v1" in self.model.architecture.name
@@ -203,6 +234,16 @@ class TrainConfig:
         ):
             logger.warn("Caching disabled for rnn-v1 architectures due to memory leak")
             self.cache = False
+
+
+def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
+    with put_dir(dir_) as tmpdir:
+        dumpable = {
+            f"{out_name}/{in_name}": data
+            for out_name, sensitivities in std_jacobians.items()
+            for in_name, data in sensitivities.items()
+        }
+        np.savez(os.path.join(tmpdir, filename), **dumpable)
 
 
 def main(config: TrainConfig, seed: int = 0):
@@ -215,15 +256,15 @@ def main(config: TrainConfig, seed: int = 0):
         callbacks.append(config.wandb.get_callback())
 
     train_ds = nc_dir_to_tf_dataset(
-        config.train_url, config.transform, nfiles=config.nfiles
+        config.train_url, config.get_dataset_convertor(), nfiles=config.nfiles
     )
     test_ds = nc_dir_to_tf_dataset(
-        config.test_url, config.transform, nfiles=config.nfiles_valid
+        config.test_url, config.get_dataset_convertor(), nfiles=config.nfiles_valid
     )
 
     train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
 
-    model = config.build(train_set)
+    model = config.build_model(train_set)
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
@@ -236,8 +277,6 @@ def main(config: TrainConfig, seed: int = 0):
                 )
             )
         )
-
-    config.loss.prepare(output_samples=train_set)
 
     with tempfile.TemporaryDirectory() as train_temp:
         with tempfile.TemporaryDirectory() as test_temp:
@@ -252,7 +291,7 @@ def main(config: TrainConfig, seed: int = 0):
             history = train(
                 model,
                 train_ds_batched,
-                config.loss,
+                config.build_loss(train_set),
                 optimizer=config.loss.optimizer.instance,
                 epochs=config.epochs,
                 validation_data=test_ds_batched,
@@ -276,6 +315,14 @@ def main(config: TrainConfig, seed: int = 0):
         if config.use_wandb:
             store_model_artifact(local_model_path, name=config._model.name)
 
+    # Jacobians after model storing in case of "out of memory" errors
+    std_jacobians = compute_standardized_jacobians(
+        model, config.get_transform().forward(train_set), config.input_variables
+    )
+    save_jacobians(std_jacobians, config.out_url, "jacobians.npz")
+    if config.use_wandb:
+        plot_all_output_sensitivities(std_jacobians)
+
 
 def get_default_config():
 
@@ -289,12 +336,12 @@ def get_default_config():
     model_config = models.MicrophysicsConfig(
         input_variables=input_vars,
         direct_out_variables=[
-            "cloud_water_mixing_ratio_output",
+            "cloud_water_mixing_ratio_after_precpd",
             "total_precipitation",
         ],
         residual_out_variables=dict(
-            air_temperature_output="air_temperature_input",
-            specific_humidity_output="specific_humidity_input",
+            air_temperature_after_precpd="air_temperature_input",
+            specific_humidity_after_precpd="specific_humidity_input",
         ),
         architecture=ArchitectureConfig("linear"),
         selection_map=dict(
@@ -304,8 +351,8 @@ def get_default_config():
             pressure_thickness_of_atmospheric_layer=SliceConfig(stop=-10),
         ),
         tendency_outputs=dict(
-            air_temperature_output="tendency_of_air_temperature_due_to_microphysics",  # noqa E501
-            specific_humidity_output="tendency_of_specific_humidity_due_to_microphysics",  # noqa E501
+            air_temperature_after_precpd="tendency_of_air_temperature_due_to_microphysics",  # noqa E501
+            specific_humidity_after_precpd="tendency_of_specific_humidity_due_to_microphysics",  # noqa E501
         ),
     )
 
@@ -314,15 +361,15 @@ def get_default_config():
     loss = CustomLoss(
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=[
-            "air_temperature_output",
-            "specific_humidity_output",
-            "cloud_water_mixing_ratio_output",
+            "air_temperature_after_precpd",
+            "specific_humidity_after_precpd",
+            "cloud_water_mixing_ratio_after_precpd",
             "total_precipitation",
         ],
         weights=dict(
-            air_temperature_output=0.5e5,
-            specific_humidity_output=0.5e5,
-            cloud_water_mixing_ratio_output=1.0,
+            air_temperature_after_precpd=0.5e5,
+            specific_humidity_after_precpd=0.5e5,
+            cloud_water_mixing_ratio_after_precpd=1.0,
             total_precipitation=0.04,
         ),
         metric_variables=[
@@ -333,8 +380,8 @@ def get_default_config():
     )
 
     config = TrainConfig(
-        train_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/training_netcdfs",  # noqa E501
-        test_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/validation_netcdfs",  # noqa E501
+        train_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train",  # noqa E501
+        test_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",  # noqa E501
         out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
         model=model_config,
         transform=transform,

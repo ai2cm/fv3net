@@ -1,9 +1,6 @@
-from typing import Any, Callable, Mapping, Sequence, Optional, Tuple
+from fv3fit.emulation.types import LossFunction
+from typing import Any, Sequence, Optional
 import tensorflow as tf
-
-
-TensorDict = Mapping[str, tf.Tensor]
-LossFunction = Callable[[TensorDict, TensorDict], Tuple[tf.Tensor, TensorDict]]
 
 
 class _ModelWrapper(tf.keras.Model):
@@ -63,8 +60,8 @@ def train(
             and target variables.
         validation_data: same as ``dataset`` but used for computing validation
             scores
-        loss: a loss function ...loss_fn(x,y) returns a scalar and dictionary of
-            scalar metrics when x,y are dicts of tensors
+        loss: a loss function ...loss_fn(truth,prediction) returns a scalar and
+            dictionary of scalar metrics when truth, prediction are dicts of tensors
         optimizer: the optimizer. defaults to tf.keras.layers.Adam.
  
     Returns:

@@ -26,7 +26,14 @@ push_images: $(addprefix push_image_, $(IMAGES))
 build_image_prognostic_run:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
-		--target prognostic-run .
+		--target prognostic-run \
+		--build-arg BASE_IMAGE=ubuntu:20.04 .
+
+build_image_prognostic_run_gpu:
+	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run_gpu:$(CACHE_TAG) \
+		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run_gpu:$(VERSION) \
+		--target prognostic-run \
+		--build-arg BASE_IMAGE=nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu20.04 .
 
 image_test_prognostic_run:
 	docker run \

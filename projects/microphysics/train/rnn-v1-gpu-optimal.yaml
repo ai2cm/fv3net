@@ -1,8 +1,8 @@
 use_wandb: true
 wandb:
   wandb_project: microphysics-emulation
-batch_size: 128
-epochs: 50
+batch_size: 512
+epochs: 20
 nfiles_valid: 100
 valid_freq: 2
 out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
@@ -11,7 +11,7 @@ test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics
 loss:
   optimizer:
     kwargs:
-      learning_rate: 0.0001
+      learning_rate: 0.0002
     name: Adam
   loss_variables:
   - air_temperature_after_precpd
@@ -23,32 +23,25 @@ loss:
     specific_humidity_after_precpd: 500000.0
     cloud_water_mixing_ratio_after_precpd: 1.0
     total_precipitation: .04
-transformed_model:
+model:
   architecture:
-    kwargs: {}
-    name: dense
-  fields:
-    # prognostic variables
-    - input_name: air_temperature_input
-      output_name: air_temperature_after_precpd
-      selection: {stop: -10}
-      residual: true
-    - input_name: specific_humidity_input
-      output_name: specific_humidity_after_precpd
-      selection: {stop: -10}
-      residual: true
-    - input_name: cloud_water_mixing_ratio_input
-      output_name: cloud_water_mixing_ratio_after_precpd
-      selection: {stop: -10}
-      residual: false
-    # diagnostic variables
-    - output_name: total_precipitation
-      residual: false
-    # inputs
-    - input_name: pressure_thickness_of_atmospheric_layer
-      selection: {stop: -10}
+    kwargs:
+      channels: 256
+    name: rnn-v1-shared-weights
+  input_variables:
+  - air_temperature_input
+  - specific_humidity_input
+  - cloud_water_mixing_ratio_input
+  - pressure_thickness_of_atmospheric_layer
+  direct_out_variables:
+  - cloud_water_mixing_ratio_after_precpd
+  - total_precipitation
+  residual_out_variables:
+    air_temperature_after_precpd: air_temperature_input
+    specific_humidity_after_precpd: specific_humidity_input
   normalize_key: mean_std
   enforce_positive: true
+  selection_map: {}
   timestep_increment_sec: 900
 transform:
   antarctic_only: false
