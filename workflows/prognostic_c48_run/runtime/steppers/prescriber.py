@@ -180,9 +180,17 @@ def _get_prescribed_ds(
 def _time_interpolate_data(ds, timesteps, variables):
     vars_interp_nearest = [var for var in variables if var in INTERPOLATE_NEAREST]
     vars_interp_linear = [var for var in variables if var not in INTERPOLATE_NEAREST]
-    ds_interp_nearest = ds[vars_interp_nearest].interp(time=timesteps, method="nearest")
-    ds_interp_linear = ds[vars_interp_linear].interp(time=timesteps)
-    return xr.merge([ds_interp_nearest, ds_interp_linear])
+
+    ds_interp = xr.Dataset()
+    if len(vars_interp_nearest) > 0:
+        ds_interp_nearest = ds[vars_interp_nearest].interp(
+            time=timesteps, method="nearest"
+        )
+        ds_interp.update(ds_interp_nearest)
+    if len(vars_interp_linear) > 0:
+        ds_interp_linear = ds[vars_interp_linear].interp(time=timesteps)
+        ds_interp.update(ds_interp_linear)
+    return ds_interp
 
 
 def _open_ds(dataset_key: str, consolidated: bool) -> xr.Dataset:
