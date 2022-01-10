@@ -133,3 +133,19 @@ def net_shortwave_sfc_flux_derived(self):
         "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface"
     ]
     return (1 - albedo) * downward_sfc_shortwave_flux
+
+
+@DerivedMapping.register("downward_shortwave_sfc_flux_via_transmissivity")
+def downward_shortwave_sfc_flux_via_transmissivity(self):
+    toa_flux = self["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
+    transmissivity = self["shortwave_transmissivity"]
+    return transmissivity * toa_flux
+
+
+@DerivedMapping.register("net_shortwave_sfc_flux_via_transmissivity")
+def net_shortwave_sfc_flux_via_transmissivity(self):
+    toa_flux = self["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
+    transmissivity = self["shortwave_transmissivity"]
+    downward_sfc_shortwave_flux = transmissivity * toa_flux
+    albedo = self["surface_diffused_shortwave_albedo"]
+    return (1 - albedo) * downward_sfc_shortwave_flux
