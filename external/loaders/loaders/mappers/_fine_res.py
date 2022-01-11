@@ -141,17 +141,17 @@ def _add_nudging_tendencies(merged: xr.Dataset):
         Q2 = merged.Q2 + merged.specific_humidity_tendency_due_to_nudging
     Q1.attrs.update(
         {
-            "long_name": merged.Q1.attrs.get("long_name")
+            "long_name": merged.Q1.attrs.get("long_name", "")
             + " plus dynamics nudging tendency",
-            "description": merged.Q1.attrs.get("description")
+            "description": merged.Q1.attrs.get("description", "")
             + " + dynamics nudging tendency",
         }
     )
     Q2.attrs.update(
         {
-            "long_name": merged.Q2.attrs.get("long_name")
+            "long_name": merged.Q2.attrs.get("long_name", "")
             + " plus dynamics nudging tendency",
-            "description": merged.Q2.attrs.get("description")
+            "description": merged.Q2.attrs.get("description", "")
             + " + dynamics nudging tendency",
         }
     )

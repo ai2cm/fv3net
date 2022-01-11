@@ -72,6 +72,8 @@ def test_compute_budget(approach, include_temperature_nudging):
         "specific_humidity_tendency_due_to_nudging",
         "tendency_of_air_temperature_due_to_dynamics",
         "tendency_of_specific_humidity_due_to_dynamics",
+        "tendency_of_air_temperature_due_to_applied_physics",
+        "tendency_of_specific_humidity_due_to_applied_physics",
     ]:
         ds[name] = one
 
