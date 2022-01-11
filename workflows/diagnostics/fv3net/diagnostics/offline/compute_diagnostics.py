@@ -13,7 +13,8 @@ import pandas as pd
 from typing import Sequence, Tuple, Dict, Union, Mapping, Optional
 import xarray as xr
 
-from vcm import thermo, safe, weighted_average, local_time, histogram, histogram2d
+import vcm
+from vcm import safe, weighted_average, local_time, histogram, histogram2d
 
 logger = logging.getLogger(__name__)
 
@@ -508,7 +509,7 @@ for domain in ["positive_net_precipitation", "negative_net_precipitation"]:
             diag_arg.delp,
         )
         if len(predicted) > 0 and _predicts_sphum_tendency(predicted):
-            net_precip = thermo.minus_column_integrated_moistening(target["Q2"], delp)
+            net_precip = vcm.minus_column_integrated_moistening(target["Q2"], delp)
             ds = xr.concat(
                 [predicted, target],
                 dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),

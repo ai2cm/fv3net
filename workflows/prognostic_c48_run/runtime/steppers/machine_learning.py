@@ -10,7 +10,6 @@ import xarray as xr
 from runtime.diagnostics import compute_diagnostics, compute_ml_momentum_diagnostics
 from runtime.names import DELP, SPHUM, is_state_update_variable
 from runtime.types import Diagnostics, State
-from vcm import thermo
 import vcm
 
 
@@ -205,11 +204,11 @@ class PureMLStepper:
 
         if "dQ1" in tendency:
             if self.hydrostatic:
-                heating = thermo.column_integrated_heating_from_isobaric_transition(
+                heating = vcm.column_integrated_heating_from_isobaric_transition(
                     dQ1_updated - tendency["dQ1"], delp, "z"
                 )
             else:
-                heating = thermo.column_integrated_heating_from_isochoric_transition(
+                heating = vcm.column_integrated_heating_from_isochoric_transition(
                     dQ1_updated - tendency["dQ1"], delp, "z"
                 )
             heating = heating.assign_attrs(
@@ -221,7 +220,7 @@ class PureMLStepper:
             )
             tendency.update({"dQ1": dQ1_updated})
         if "dQ2" in tendency:
-            moistening = thermo.mass_integrate(
+            moistening = vcm.mass_integrate(
                 dQ2_updated - tendency["dQ2"], delp, dim="z"
             )
             moistening = moistening.assign_attrs(

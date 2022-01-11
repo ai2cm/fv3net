@@ -17,20 +17,33 @@ from .convenience import (
     shift_timestamp,
     round_time,
 )
-from .calc import r2_score, local_time, thermo, cos_zenith_angle, weighted_average
-from .calc.thermo import (
+from .calc.calc import local_time, weighted_average
+from .calc._zenith_angle import cos_zenith_angle
+from .calc.metrics import r2_score
+from .calc.thermo.vertically_dependent import (
+    height_at_interface,
+    height_at_midpoint,
     mass_integrate,
-    net_heating,
-    net_precipitation,
-    latent_heat_flux_to_evaporation,
-    pressure_at_midpoint_log,
-    potential_temperature,
     pressure_at_interface,
+    pressure_at_midpoint_log,
     surface_pressure_from_delp,
     column_integrated_heating_from_isobaric_transition,
     column_integrated_heating_from_isochoric_transition,
     mass_streamfunction,
+    minus_column_integrated_moistening,
+)
+from .calc.thermo.local import (
+    net_heating,
+    net_precipitation,
+    latent_heat_flux_to_evaporation,
+    potential_temperature,
     internal_energy,
+    saturation_pressure,
+    relative_humidity,
+    specific_humidity_from_rh,
+    density,
+    pressure_thickness,
+    layer_mass,
 )
 from .calc.histogram import histogram, histogram2d
 

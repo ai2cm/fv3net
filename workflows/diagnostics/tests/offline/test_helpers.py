@@ -1,6 +1,6 @@
 import xarray as xr
 import numpy as np
-from vcm import thermo
+import vcm
 from fv3net.diagnostics.offline._helpers import (
     get_variable_indices,
     _count_features_2d,
@@ -18,7 +18,7 @@ def test_insert_column_integrated_vars():
         }
     )
 
-    heating = thermo.column_integrated_heating_from_isochoric_transition(
+    heating = vcm.column_integrated_heating_from_isochoric_transition(
         ds["Q1"], ds["pressure_thickness_of_atmospheric_layer"]
     )
     expected = ds.assign({"column_integrated_Q1": heating})
