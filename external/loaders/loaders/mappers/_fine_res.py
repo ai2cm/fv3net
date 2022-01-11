@@ -77,6 +77,7 @@ class Approach(Enum):
     apparent_sources_plus_nudging_tendencies = 2
     apparent_sources_extend_lower = 4
     dynamics_difference = 5
+    iterative_plus_nudging_tendencies = 6
 
 
 @dataclasses.dataclass
@@ -122,6 +123,10 @@ def compute_budget(
         budget = DynamicsDifferenceApparentSource(include_temperature_nudging)
         merged["Q1"] = budget.temperature_source(merged)
         merged["Q2"] = budget.moisture_source(merged)
+    elif approach == Approach.iterative_plus_nudging_tendencies:
+        merged["Q1"] = merged.tendency_of_air_temperature_due_to_applied_physics
+        merged["Q2"] = merged.tendency_of_specific_humidity_due_to_applied_physics
+        merged["Q1"], merged["Q2"] = _add_nudging_tendencies(merged)
     elif approach == Approach.apparent_sources_only:
         pass
     else:
