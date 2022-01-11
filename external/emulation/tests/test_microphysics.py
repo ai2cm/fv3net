@@ -13,8 +13,10 @@ def test_Config_integration(saved_model_path, dummy_rundir):
 
     config = MicrophysicsHook(saved_model_path)
 
+    n = 100
     state = {
-        "air_temperature_input": np.ones((63, 100)),
+        "air_temperature_input": np.ones((63, n)),
+        "latitude": np.linspace(-60, 60, n),
     }
 
     # something that will be overwritten by call to microphysics

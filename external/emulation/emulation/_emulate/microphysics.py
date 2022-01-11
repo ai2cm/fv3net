@@ -16,6 +16,7 @@ import tensorflow as tf  # noqa: E402
 from ..debug import print_errors  # noqa: E402
 from fv3fit.keras import adapters  # noqa: E402
 from .._filesystem import get_dir  # noqa: E402
+from . import mask  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -121,12 +122,18 @@ class MicrophysicsHook:
                 'set_state' calls.  Expected to be [feature, sample]
                 dimensions or [sample]
         """
-
         # grab model-required variables and
         # switch state to model-expected [sample, feature]
         inputs = {name: state[name].T for name in self.model.input_names}
 
         predictions = self.model.predict(inputs)
+
+        lat_range = (-60, 60)
+        logging.info(f"masking emulator predictions outside latitudes: {lat_range}")
+        inputs["latitude"] = state["latitude"].reshape((-1, 1))
+        lat_mask = mask.is_outside_lat_range(inputs, lat_range=(-60, 60))
+        predictions = mask.where(lat_mask, inputs, predictions)
+
         # tranpose back to FV3 conventions
         model_outputs = {name: tensor.T for name, tensor in predictions.items()}
 
