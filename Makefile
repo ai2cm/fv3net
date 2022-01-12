@@ -55,6 +55,9 @@ pull_image_%:
 enter_emulation:
 	cd projects/microphysics && docker-compose run --rm -w /fv3net/external/emulation fv3 bash
 
+enter_microphysics:
+	cd projects/microphysics && docker-compose run --rm fv3 bash
+
 ############################################################
 # Documentation (rules match "deploy_docs_%")
 ############################################################
