@@ -128,10 +128,10 @@ class MicrophysicsHook:
 
         predictions = self.model.predict(inputs)
 
-        lat_range = (-60, 60)
+        lat_range = (-50, 50)
         logging.info(f"masking emulator predictions outside latitudes: {lat_range}")
         inputs["latitude"] = state["latitude"].reshape((-1, 1))
-        lat_mask = mask.is_outside_lat_range(inputs, lat_range=(-60, 60))
+        lat_mask = mask.is_outside_lat_range(inputs, lat_range=lat_range)
         predictions = mask.where(lat_mask, inputs, predictions)
 
         # tranpose back to FV3 conventions
