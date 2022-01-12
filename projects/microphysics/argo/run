@@ -1,0 +1,8 @@
+#!/bin/bash
+
+url=gs://vcm-ml-experiments/microphysics-emulation/2021-12-11/direct-cloud-limited-rnn-v1-shared-weights-130254/checkpoints/epoch.019.tf
+
+argo submit prog-run-and-eval.yaml \
+    -p tag=rnn-v1-shared-mask50-threshCloud-v1 \
+    -p config=$(base64 --wrap 0 ../configs/default.yaml) \
+    -p tf_model=$url
