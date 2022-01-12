@@ -1,8 +1,20 @@
 import numpy as np
 
+_qc_out = "cloud_water_mixing_ratio_after_precpd"
+
 
 def get_latitude(state):
     return state["latitude"]
+
+
+def get_cloud_output(state):
+    return state[_qc_out]
+
+
+def assoc_cloud_output(state, val):
+    out = state.copy()
+    out[_qc_out] = val
+    return out
 
 
 def is_outside_lat_range(state, lat_range=(-60, 60)):
@@ -27,3 +39,9 @@ def where(mask, left_state, right_state):
         out[key] = np.where(mask, left, right)
 
     return out
+
+
+def threshold_clouds(state, max):
+    qc = get_cloud_output(state)
+    qc_thresh = np.where(qc > max, max, qc)
+    return assoc_cloud_output(state, qc_thresh)

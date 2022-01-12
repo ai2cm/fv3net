@@ -130,11 +130,13 @@ class MicrophysicsHook:
         predictions = self.model.predict(inputs)
 
         lat_range = (-50, 50)
+        max_cloud = 0.005
         logging.info(f"masking emulator predictions outside latitudes: {lat_range}")
         inputs["latitude"] = np.rad2deg(state["latitude"].reshape((-1, 1)))
         lat_mask = mask.is_outside_lat_range(inputs, lat_range=lat_range)
         outputs = {name: np.atleast_2d(state[name]).T for name in predictions}
         predictions = mask.where(lat_mask, outputs, predictions)
+        predictions = mask.threshold_clouds(predictions, max=max_cloud)
 
         # tranpose back to FV3 conventions
         model_outputs = {name: tensor.T for name, tensor in predictions.items()}
