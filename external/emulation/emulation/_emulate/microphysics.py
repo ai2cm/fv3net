@@ -11,6 +11,7 @@ if not hasattr(sys, "argv"):
 import f90nml  # noqa: E402
 import logging  # noqa: E402
 import os  # noqa: E402
+import numpy as np  # noqa: E402
 import tensorflow as tf  # noqa: E402
 
 from ..debug import print_errors  # noqa: E402
@@ -132,7 +133,12 @@ class MicrophysicsHook:
         logging.info(f"masking emulator predictions outside latitudes: {lat_range}")
         inputs["latitude"] = state["latitude"].reshape((-1, 1))
         lat_mask = mask.is_outside_lat_range(inputs, lat_range=lat_range)
-        predictions = mask.where(lat_mask, inputs, predictions)
+        outputs = {
+            name: np.atleast_2d(state[name]).T
+            for name in predictions
+            if (name in state) and (state[name])
+        }
+        predictions = mask.where(lat_mask, outputs, predictions)
 
         # tranpose back to FV3 conventions
         model_outputs = {name: tensor.T for name, tensor in predictions.items()}

@@ -18,16 +18,12 @@ def where(mask, left_state, right_state):
     out = {}
     n, one = mask.shape
     assert one == 1, mask.shape
+    assert set(left_state) == set(right_state)
 
-    for key in set(left_state).union(right_state):
-        if key in left_state and key in right_state:
-            left, right = left_state[key], right_state[key]
-            assert n == left.shape[0], key
-            assert n == right.shape[0], key
-            out[key] = np.where(mask, left, right)
-        elif key in left_state:
-            out[key] = left_state[key]
-        elif key in right_state:
-            out[key] = right_state[key]
+    for key in left_state:
+        left, right = left_state[key], right_state[key]
+        assert n == left.shape[0], key
+        assert n == right.shape[0], key
+        out[key] = np.where(mask, left, right)
 
     return out
