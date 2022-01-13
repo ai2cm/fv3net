@@ -1,0 +1,12 @@
+#!/bin/bash
+
+url=gs://vcm-ml-experiments/microphysics-emulation/2022-01-12/rnn-v1-gpu-optimal-rnn-6a2cc6/model.tf
+tag=rnn-v1-gpu-optimal-rnn-6a2cc6
+image=d5908bd7ac3534362eac33f0b907d3af699bdf39
+
+argo submit prog-run-and-eval.yaml \
+    -p tag=$tag \
+    -p image_tag=$image \
+    -p config=$(base64 --wrap 0 ../configs/default.yaml) \
+    -p tf_model=$url
+
