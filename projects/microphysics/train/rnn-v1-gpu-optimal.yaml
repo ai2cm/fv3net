@@ -33,6 +33,8 @@ model:
   - specific_humidity_input
   - cloud_water_mixing_ratio_input
   - pressure_thickness_of_atmospheric_layer
+  - specific_humidity_after_last_gscond
+  - air_temperature_after_last_gscond
   direct_out_variables:
   - cloud_water_mixing_ratio_after_precpd
   - total_precipitation

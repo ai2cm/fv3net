@@ -11,7 +11,7 @@ else
 fi
 
 group="$(openssl rand -hex 3)"
-config=log-cloud
+config=rnn-v1-gpu-optimal
 config_file="${config}.yaml"
 
 model_name="${config}-rnn-${group}"
