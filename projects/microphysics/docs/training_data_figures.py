@@ -20,8 +20,13 @@
 # atmospheric model
 
 # %%
+
+import subprocess
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import scipy.interpolate
 from cycler import cycler
 from fv3fit.emulation.zhao_carr_fields import Field, ZhaoCarrFields
 from fv3fit.train_microphysics import TrainConfig, nc_dir_to_tf_dataset
@@ -157,3 +162,51 @@ before = np.mean(np.sum(delp * before / 9.81, -1))
 after = np.mean(np.sum(delp * after / 9.81, -1))
 total_change = after - before
 glue("qc-before-after-total-percent", 100 * total_change / before)
+
+# %%
+
+
+def plot_max_by_temperature(train_set):
+    df = pd.DataFrame(
+        dict(
+            temp=np.ravel(train_set["air_temperature_after_precpd"]),
+            qc=np.ravel(train_set["cloud_water_mixing_ratio_after_precpd"]),
+            qv=np.ravel(train_set["specific_humidity_after_precpd"]),
+        )
+    )
+    bins = np.arange(170, 320, 2.5)
+    max = (
+        df.drop("temp", axis=1)
+        .groupby(pd.cut(df.temp, bins))
+        .quantile(0.999)
+        .fillna(1e-7)
+        .reset_index()
+    )
+    max["temp"] = max.temp.apply(lambda x: x.mid)
+    return max
+
+
+df = plot_max_by_temperature(train_set)
+df.plot(
+    x="temp",
+    y="qc",
+    ylabel="99.9%-tile of cloud-water (kg/kg)",
+    xlabel="Temperature (K)",
+)
+temp = df.temp.tolist()
+qc = df.qc.tolist()
+print("# 99.9%-tile cloud conditioned on temperature")
+print(f"# computed in {__file__}")
+sha = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
+print(f"# git-rev: {sha}")
+print("temp = ", temp)
+print("qc =", qc)
+f = scipy.interpolate.interp1d(temp, qc, fill_value=1e-7, bounds_error=False)
+# %%
+df.plot(
+    x="temp",
+    y="qv",
+    ylabel="99.9%-tile of humidity (kg/kg)",
+    xlabel="Temperature (K)",
+    logy=True,
+)
