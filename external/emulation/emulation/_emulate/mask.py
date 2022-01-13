@@ -1,6 +1,17 @@
 import numpy as np
+import scipy.interpolate
+from . import mask_data
 
 _qc_out = "cloud_water_mixing_ratio_after_precpd"
+_temp_out = "air_temperature_after_precpd"
+
+max_cloud_from_temp = scipy.interpolate.interp1d(
+    mask_data.temp, mask_data.qc, fill_value=1e-7, bounds_error=False
+)
+
+
+def get_temperature(state):
+    return state[_temp_out]
 
 
 def get_latitude(state):
@@ -44,4 +55,14 @@ def where(mask, left_state, right_state):
 def threshold_clouds(state, max):
     qc = get_cloud_output(state)
     qc_thresh = np.where(qc > max, max, qc)
+    return assoc_cloud_output(state, qc_thresh)
+
+
+def threshold_clouds_temperature_dependent(state):
+    """threshold cloud outputs with temperature dependent threshold"""
+    t = get_temperature(state)
+    qc = get_cloud_output(state)
+
+    max_qc = max_cloud_from_temp(t)
+    qc_thresh = np.where(qc > max_qc, max_qc, qc)
     return assoc_cloud_output(state, qc_thresh)
