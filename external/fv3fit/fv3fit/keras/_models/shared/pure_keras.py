@@ -53,6 +53,7 @@ class PureKerasModel(Predictor):
         self.output_variables = output_variables
         self._output_metadata = output_metadata
         self.model = model
+        self.dict_compatible_model = self._renamed_dict_compatible_model()
         self._n_halo = n_halo
         if unstacked_dims is None:
             self._unstacked_dims: Sequence[str] = Z_DIM_NAMES
@@ -164,3 +165,23 @@ class PureKerasModel(Predictor):
                         }
                     )
                 )
+
+    def _renamed_dict_compatible_model(self) -> tf.keras.Model:
+        """
+        Rename keras model inputs/outputs to match input_variables and
+        output_variables, and ensure model accepts and outputs dicts.
+        """
+        renamed_inputs = [
+            # skip the first placeholder dim when specifying shape
+            tf.keras.layers.Input(shape=layer.shape[1:], name=input_name)
+            for input_name, layer in zip(self.input_variables, self.model.inputs)
+        ]
+        connect_outputs = self.model(renamed_inputs)
+
+        renamed_outputs = {
+            output_name: tf.keras.layers.Lambda(lambda x: x, name=output_name)(val)
+            for output_name, val in zip(self.output_variables, connect_outputs)
+        }
+
+        dict_inputs = {input.name: input for input in renamed_inputs}
+        return tf.keras.Model(inputs=dict_inputs, outputs=renamed_outputs)
