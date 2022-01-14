@@ -91,8 +91,6 @@ class MicrophysicsHook:
 
         self.name = "microphysics emulator"
         self.model = _load_tf_model(model_path)
-        self.namelist = _load_nml()
-        self.dt_sec = _get_timestep(self.namelist)
         self.orig_outputs = None
 
     @classmethod
@@ -107,7 +105,6 @@ class MicrophysicsHook:
         """
 
         model_path = d["TF_MODEL_PATH"]
-
         return cls(model_path)
 
     def microphysics(self, state: FortranState) -> None:
