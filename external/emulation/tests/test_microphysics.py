@@ -9,7 +9,7 @@ from emulation._emulate.microphysics import (
 )
 
 
-def test_Config_integration(saved_model_path, dummy_rundir):
+def test_Config_integration(saved_model_path):
 
     config = MicrophysicsHook(saved_model_path)
 
@@ -60,7 +60,7 @@ def test_load_tf_model_NoModel():
     assert isinstance(model, NoModel)
 
 
-def test_microphysics_NoModel(dummy_rundir):
+def test_microphysics_NoModel():
 
     state = {"empty_state": 1}
     hook = MicrophysicsHook("NO_MODEL")
