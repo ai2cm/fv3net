@@ -12,11 +12,11 @@ tensor_transform:
   - source: cloud_water_mixing_ratio_after_precpd
     to: log_cloud_output
     # log by default
-    transform: {}
+    transform: {epsilon: 1e-8}
   - source: cloud_water_mixing_ratio_input
     to: log_cloud_input
     # log by default
-    transform: {}
+    transform: {epsilon: 1e-8}
 loss:
   optimizer:
     kwargs:
