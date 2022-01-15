@@ -1,6 +1,7 @@
 from ._shared import ArrayPacker, StandardScaler, DerivedModel
 from ._shared.predictor import Predictor
 from ._shared.io import dump, load
+from ._shared.jacobian import compute_standardized_jacobians
 from ._shared.config import (
     TrainingConfig,
     RandomForestHyperparameters,
