@@ -195,7 +195,6 @@ def _plot_jacobians(jacobians):
             ax = axes[i][j]
             if input.shape[-1] == 1:
                 input = input.reshape(-1, 1)
-                print(input.shape)
                 ax.plot(input)
                 ax.set_ylim(-1, 1)
                 ax.set_xlabel("input level")

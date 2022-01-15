@@ -306,7 +306,7 @@ def main(args):
     # save model senstivity figures- these exclude derived variables
     fig_input_sensitivity = plot_input_sensitivity(model, batches[0], args.output_path)
     with fsspec.open(
-        os.path.join(args.output_dir, "model_sensitivity_figures", INPUT_SENSITIVITY),
+        os.path.join(args.output_path, "model_sensitivity_figures", INPUT_SENSITIVITY),
         "wb",
     ) as f:
         fig_input_sensitivity.savefig(f)
