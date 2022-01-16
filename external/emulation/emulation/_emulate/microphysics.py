@@ -1,3 +1,4 @@
+import gc
 import sys
 from typing import Mapping
 from .._typing import FortranState
@@ -87,13 +88,13 @@ class MicrophysicsHook:
     Instanced at the top level of `_emulate`
     """
 
-    def __init__(self, model_path: str) -> None:
+    def __init__(self, model_path: str, garbage_collection_interval: int = 10) -> None:
 
         self.name = "microphysics emulator"
         self.model = _load_tf_model(model_path)
-        self.namelist = _load_nml()
-        self.dt_sec = _get_timestep(self.namelist)
         self.orig_outputs = None
+        self.garbage_collection_interval = garbage_collection_interval
+        self._calls_since_last_collection = 0
 
     @classmethod
     def from_environ(cls, d: Mapping):
@@ -107,8 +108,14 @@ class MicrophysicsHook:
         """
 
         model_path = d["TF_MODEL_PATH"]
-
         return cls(model_path)
+
+    def _maybe_garbage_collect(self):
+        if self._calls_since_last_collection % self.garbage_collection_interval:
+            gc.collect()
+            self._calls_since_last_collection = 0
+        else:
+            self._calls_since_last_collection += 1
 
     def microphysics(self, state: FortranState) -> None:
         """
@@ -140,3 +147,4 @@ class MicrophysicsHook:
         }
         state.update(model_outputs)
         state.update(microphysics_diag)
+        self._maybe_garbage_collect()

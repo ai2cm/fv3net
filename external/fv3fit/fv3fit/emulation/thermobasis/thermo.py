@@ -1,12 +1,7 @@
 from typing import Optional, Sequence
 import dataclasses
 import tensorflow as tf
-from fv3fit.emulation.thermo import (
-    density,
-    relative_humidity,
-    specific_humidity_from_rh,
-    pressure_thickness,
-)
+import vcm
 
 
 class ThermoBasis:
@@ -67,11 +62,11 @@ class SpecificHumidityBasis(ThermoBasis):
 
     @property
     def rho(self) -> tf.Tensor:
-        return density(self.dp, self.dz)
+        return vcm.density(self.dp, self.dz, math=tf)
 
     @property
     def rh(self) -> tf.Tensor:
-        return relative_humidity(self.T, self.q, self.rho)
+        return vcm.relative_humidity(self.T, self.q, self.rho, math=tf)
 
     @property
     def args(self) -> Sequence[tf.Tensor]:
@@ -92,11 +87,11 @@ class RelativeHumidityBasis(ThermoBasis):
 
     @property
     def q(self) -> tf.Tensor:
-        return specific_humidity_from_rh(self.T, self.rh, self.rho)
+        return vcm.specific_humidity_from_rh(self.T, self.rh, self.rho, math=tf)
 
     @property
     def dp(self) -> tf.Tensor:
-        return pressure_thickness(self.rho, self.dz)
+        return vcm.pressure_thickness(self.rho, self.dz, math=tf)
 
     @property
     def args(self) -> Sequence[tf.Tensor]:

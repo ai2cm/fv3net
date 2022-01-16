@@ -35,6 +35,10 @@ class NudgingConfig:
     time. The reference state will be linearly interpolated between the
     available time samples.
 
+    The reference state be interpolated between available time samples; by default
+    linearly or using nearest neighbor intepolation for variables specified in
+    INTERPOLATE_NEAREST.
+
     Attributes:
         timescale_hours: mapping of variable names to timescales (in hours).
 
