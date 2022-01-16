@@ -195,16 +195,16 @@ def insert_column_integrated_vars(
     ds: xr.Dataset, column_integrated_vars: Sequence[str]
 ) -> xr.Dataset:
     """Insert column integrated (<*>) terms,
-    really a wrapper around vcm.thermo funcs"""
+    really a wrapper around vcm.calc.thermo funcs"""
 
     for var in column_integrated_vars:
         column_integrated_name = f"column_integrated_{var}"
         if "Q1" in var:
-            da = vcm.thermo.column_integrated_heating_from_isochoric_transition(
+            da = vcm.column_integrated_heating_from_isochoric_transition(
                 ds[var], ds[DELP]
             )
         elif "Q2" in var:
-            da = -vcm.thermo.minus_column_integrated_moistening(ds[var], ds[DELP])
+            da = -vcm.minus_column_integrated_moistening(ds[var], ds[DELP])
             da = da.assign_attrs(
                 {"long_name": "column integrated moistening", "units": "mm/day"}
             )

@@ -1,12 +1,19 @@
 import dataclasses
 import dacite
 import tensorflow as tf
-from typing import List, Mapping
+from typing import Any, List, Mapping
+import vcm
 
-from ..layers import FieldInput, FieldOutput, IncrementedFieldOutput, ArchitectureConfig
 from fv3fit._shared import SliceConfig
 from fv3fit.emulation import thermo
 from fv3fit.keras.adapters import ensure_dict_output
+from fv3fit.emulation.zhao_carr_fields import Field, ZhaoCarrFields
+from fv3fit.emulation.layers import (
+    FieldInput,
+    FieldOutput,
+    IncrementedFieldOutput,
+    ArchitectureConfig,
+)
 
 
 @dataclasses.dataclass
@@ -69,7 +76,11 @@ class MicrophysicsConfig:
 
     @property
     def output_variables(self) -> List[str]:
-        return self.direct_out_variables + list(self.residual_out_variables.keys())
+        return (
+            self.direct_out_variables
+            + list(self.residual_out_variables.keys())
+            + list(self.tendency_outputs.values())
+        )
 
     def _get_processed_inputs(self, sample_in, inputs):
         return {
@@ -109,6 +120,7 @@ class MicrophysicsConfig:
                 sample_in=data[self.residual_out_variables[name]],
                 denormalize=self.normalize_key,
                 name=name,
+                tendency_name=self.tendency_outputs.get(name, None),
                 enforce_positive=self.enforce_positive,
             )
             out_ = res_out(in_state, net_output[name])
@@ -133,7 +145,9 @@ class MicrophysicsConfig:
             for name in self.input_variables
         }
 
-    def build(self, data: Mapping[str, tf.Tensor],) -> tf.keras.Model:
+    def build(
+        self, data: Mapping[str, tf.Tensor], transform: Any = None
+    ) -> tf.keras.Model:
         """
         Build model described by the configuration
 
@@ -150,61 +164,6 @@ class MicrophysicsConfig:
                 **self._get_residual_outputs(inputs, data, hidden),
             },
         )
-
-
-@dataclasses.dataclass(frozen=True)
-class Field:
-    """Configuration describing a prognostic field
-
-    A field with no ``output_name`` can be interpreted as an ML input only.
-    A field with no ``input_name`` is a diagnostic.
-
-    Attributes:
-        output_name: the name of the variable representing a field after being
-            modified by the an emulator
-        input_name: the name of the output variable
-        tendency_name: the name to call the output-input difference by
-        selection: how to subset the feature-space of the field
-    
-    Example:
-
-        >>> air_temperature = Field(
-        ...     output_name="air_temperature_after_step",
-        ...     input_name="air_temperature_before_step",
-        ...     tendency_name="tendency_of_air_temperature_due_to_step",
-        ...)
-
-    """
-
-    output_name: str = ""
-    input_name: str = ""
-    residual: bool = True
-    # only used if residual is True
-    tendency_name: str = ""
-    selection: SliceConfig = dataclasses.field(default_factory=SliceConfig)
-
-
-@dataclasses.dataclass(frozen=True)
-class ZhaoCarrFields:
-    """Relationship between names and the physical input/outputs of the
-    Zhao-carr microphysics
-    """
-
-    cloud_water: Field = Field(
-        "cloud_water_mixing_ratio_after_precpd",
-        "cloud_water_mixing_ratio_input",
-        residual=False,
-    )
-
-    specific_humidity: Field = Field(
-        "specific_humidity_after_precpd", "specific_humidity_input", residual=True,
-    )
-
-    air_temperature: Field = Field(
-        "air_temperature_after_precpd", "air_temperature_input", residual=True,
-    )
-    surface_precipitation: Field = Field(output_name="total_precipitation")
-    pressure_thickness = Field(input_name="pressure_thickness_of_atmospheric_layer")
 
 
 @dataclasses.dataclass
@@ -264,7 +223,7 @@ class ConservativeWaterConfig:
             timestep_increment_sec=self.timestep_increment_sec,
             enforce_positive=self.enforce_positive,
             selection_map={v.input_name: v.selection for v in self._input_variables},
-        ).build(data)
+        ).build(data, None)
 
     @property
     def _input_variables(self) -> List[Field]:
@@ -288,7 +247,9 @@ class ConservativeWaterConfig:
     def name(self):
         return f"conservative-microphysics-emulator-{self.architecture.name}"
 
-    def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
+    def build(
+        self, data: Mapping[str, tf.Tensor], transform: Any = None
+    ) -> tf.keras.Model:
         model = self._build_base_model(data)
         return _assoc_conservative_precipitation(model, self.fields)
 
@@ -321,7 +282,7 @@ def _assoc_conservative_precipitation(
         specific_humidity_after=out[fields.specific_humidity.output_name],
         cloud_before=inputs[fields.cloud_water.input_name],
         cloud_after=out[fields.cloud_water.output_name],
-        mass=thermo.layer_mass(inputs[fields.pressure_thickness.input_name]),
+        mass=vcm.layer_mass(inputs[fields.pressure_thickness.input_name]),
     )
     out[fields.surface_precipitation.output_name] = precip_scalar[:, None]
     # convert_to_dict_output ensures that output names are consistent

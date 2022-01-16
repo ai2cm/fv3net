@@ -470,6 +470,10 @@ class TimeLoop(
                     self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
                 self._state.update_mass_conserving(updated_state_from_tendency)
+        self._log_info(
+            "Applying state updates to postphysics dycore state: "
+            f"{self._state_updates.keys()}"
+        )
         self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})

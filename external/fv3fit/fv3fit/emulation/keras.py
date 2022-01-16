@@ -1,11 +1,11 @@
 import logging
 import os
 import tensorflow as tf
+from toolz import get
 from typing import Mapping
 
-import fv3fit.keras.adapters
 from .scoring import score_multi_output, ScoringOutput
-from toolz import get
+import fv3fit.keras.adapters
 
 logger = logging.getLogger(__name__)
 

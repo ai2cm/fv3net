@@ -1,8 +1,9 @@
 import dataclasses
-from typing import List, Mapping
+from typing import Callable, List, Mapping
 
 import tensorflow as tf
 from fv3fit.emulation.layers.normalization import NormalizeConfig
+from fv3fit.emulation.transforms import TensorTransform, Identity
 
 from .._shared.config import OptimizerConfig
 
@@ -46,7 +47,11 @@ class CustomLoss:
     metric_variables: List[str] = dataclasses.field(default_factory=list)
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
 
-    def prepare(self, output_samples: Mapping[str, tf.Tensor]):
+    def build(
+        self,
+        output_samples: Mapping[str, tf.Tensor],
+        transform: TensorTransform = Identity,
+    ):
         """
         Prepare the normalized losses for each variable by creating a
         fitted NormalizedMSE object and place them into the respective
@@ -58,15 +63,44 @@ class CustomLoss:
                 the normalizing layer
 
         """
-        self.loss_funcs = {}
-        for out_varname, sample in output_samples.items():
-            self.loss_funcs[out_varname] = NormalizedMSE(self.normalization, sample)
+        loss_funcs = {}
+        data = transform.forward(output_samples)
+        for out_varname, sample in data.items():
+            loss_funcs[out_varname] = NormalizedMSE(self.normalization, sample)
 
-    def __call__(self, x, y):
-        try:
-            self.loss_funcs
-        except AttributeError:
-            raise ValueError("Cannot compute loss without first calling prepare().")
+        return _MultiVariableLoss(
+            loss_funcs=loss_funcs,
+            loss_variables=self.loss_variables,
+            metric_variables=self.metric_variables,
+            transform=transform,
+            weights=self.weights,
+        )
+
+
+ScalarLossFunction = Callable[[tf.Tensor, tf.Tensor], tf.Tensor]
+
+
+class _MultiVariableLoss:
+    def __init__(
+        self,
+        loss_funcs: Mapping[str, ScalarLossFunction],
+        loss_variables: List[str],
+        metric_variables: List[str],
+        transform: TensorTransform,
+        weights: Mapping[str, float],
+    ):
+        self.loss_funcs = loss_funcs
+        self.loss_variables = loss_variables
+        self.metric_variables = metric_variables
+        self.transform = transform
+        self.weights = weights
+
+    def __call__(self, truth, prediction):
+
+        # add transformed variables to truth, but not prediction (which should
+        # already have them)
+        x = self.transform.forward(truth)
+        y = prediction
 
         metrics = {}
         loss = 0.0

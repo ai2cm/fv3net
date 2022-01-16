@@ -126,7 +126,7 @@ def test_derived(varname: str):
 
     ds = {
         f"{varname}_input": xr.DataArray(np.ones((10, 4)), dims=["sample", "feature"]),
-        f"{varname}_output": xr.DataArray(
+        f"{varname}_after_precpd": xr.DataArray(
             np.ones((10, 4)) * 3, dims=["sample", "feature"]
         ),
     }
@@ -136,6 +136,6 @@ def test_derived(varname: str):
 
     derived = transforms.derived_dataset(all_vars, ds, tendency_timestep_sec=2)
     assert f"{varname}_input" in derived
-    assert f"{varname}_output" in derived
+    assert f"{varname}_after_precpd" in derived
     assert dT_name in derived
     np.testing.assert_array_equal(derived[dT_name], np.ones((10, 4)))

@@ -4,43 +4,50 @@ Thermodynamics
 Atmospheric pressure
 --------------------
 
-   .. automethod:: vcm.calc.thermo.pressure_at_midpoint
-   .. automethod:: vcm.calc.thermo.pressure_at_midpoint_log
-   .. automethod:: vcm.calc.thermo.pressure_at_interface
-   .. automethod:: vcm.calc.thermo.surface_pressure_from_delp
+   .. autofunction:: vcm.calc.thermo.vertically_dependent.pressure_at_midpoint
+   .. autofunction:: vcm.pressure_at_midpoint_log
+   .. autofunction:: vcm.pressure_at_interface
+   .. autofunction:: vcm.surface_pressure_from_delp
 
 Geopotential height
 -------------------
 
-   .. automethod:: vcm.calc.thermo.height_at_midpoint
-   .. automethod:: vcm.calc.thermo.height_at_interface
+   .. autofunction:: vcm.height_at_midpoint
+   .. autofunction:: vcm.height_at_interface
 
 Atmospheric layer thickness
 ---------------------------
 
-   .. automethod:: vcm.calc.thermo.hydrostatic_dz
+   .. autofunction:: vcm.calc.thermo.vertically_dependent.hydrostatic_dz
+   .. autofunction:: vcm.density
+   .. autofunction:: vcm.pressure_thickness
+   .. autofunction:: vcm.layer_mass
 
 Surface geopotential
 --------------------
 
-   .. automethod:: vcm.calc.thermo.dz_and_top_to_phis
+   .. autofunction:: vcm.calc.thermo.vertically_dependent.dz_and_top_to_phis
 
 Heat
 ----
 
-   .. automethod:: vcm.calc.thermo.net_heating
-   .. automethod:: vcm.calc.thermo.column_integrated_heating_from_isobaric_transition
-   .. automethod:: vcm.calc.thermo.column_integrated_heating_from_isochoric_transition
-   .. automethod:: vcm.calc.thermo.liquid_ice_temperature
-   .. automethod:: vcm.calc.thermo.latent_heat_vaporization
-   .. automethod:: vcm.calc.thermo.potential_temperature
+   .. autofunction:: vcm.net_heating
+   .. autofunction:: vcm.column_integrated_heating_from_isobaric_transition
+   .. autofunction:: vcm.column_integrated_heating_from_isochoric_transition
+   .. autofunction:: vcm.calc.thermo.local.liquid_ice_temperature
+   .. autofunction:: vcm.calc.thermo.local.latent_heat_vaporization
+   .. autofunction:: vcm.potential_temperature
+   .. autofunction:: vcm.internal_energy
 
 Moisture
 --------
 
-   .. automethod:: vcm.calc.thermo.latent_heat_flux_to_evaporation
-   .. automethod:: vcm.calc.thermo.surface_evaporation_mm_day_from_latent_heat_flux
-   .. automethod:: vcm.calc.thermo.net_precipitation
-   .. automethod:: vcm.calc.thermo.minus_column_integrated_moistening
-   .. automethod:: vcm.calc.thermo.total_water
-   .. automethod:: vcm.calc.thermo.column_integrated_liquid_water_equivalent
+   .. autofunction:: vcm.latent_heat_flux_to_evaporation
+   .. autofunction:: vcm.calc.thermo.local.surface_evaporation_mm_day_from_latent_heat_flux
+   .. autofunction:: vcm.net_precipitation
+   .. autofunction:: vcm.minus_column_integrated_moistening
+   .. autofunction:: vcm.calc.thermo.local.total_water
+   .. autofunction:: vcm.calc.thermo.vertically_dependent.column_integrated_liquid_water_equivalent
+   .. autofunction:: vcm.saturation_pressure
+   .. autofunction:: vcm.relative_humidity
+   .. autofunction:: vcm.specific_humidity_from_rh

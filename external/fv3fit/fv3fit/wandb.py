@@ -5,9 +5,12 @@ import wandb
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from typing import Any, Dict, List, Mapping, Optional
 
 from .tensorboard import plot_to_image
+from .emulation.jacobian import OutputSensitivity
 
 
 @dataclasses.dataclass
@@ -114,7 +117,7 @@ def log_profile_plots(
 def store_model_artifact(path: str, name: str):
     """
     Store a tf model directory as a WandB artifact
-    
+
     Args:
         path: Path to tensorflow saved model (e.g., /path/to/model.tf/)
         name: name for the WandB artifact.  If it already exists a new
@@ -124,3 +127,53 @@ def store_model_artifact(path: str, name: str):
     model_artifact = wandb.Artifact(name, type="model")
     model_artifact.add_dir(path)
     wandb.log_artifact(model_artifact)
+
+
+def _plot_single_output_sensitivities(
+    name: str, jacobians: OutputSensitivity
+) -> go.Figure:
+
+    ncols = len(jacobians)
+    fig = make_subplots(
+        rows=1, cols=ncols, shared_yaxes=True, column_titles=list(jacobians.keys())
+    )
+
+    for j, sensitivity in enumerate(jacobians.values(), 1):
+        trace = go.Heatmap(z=sensitivity, coloraxis="coloraxis", zmin=-1, zmax=1)
+        fig.append_trace(
+            trace=trace, row=1, col=j,
+        )
+        fig.update_xaxes(title_text="Input Level", row=1, col=j)
+    fig.update_yaxes(title_text="Output Level", row=1, col=1)
+
+    fig.update_layout(
+        title_text=f"Standardized {name} input sensitivities",
+        coloraxis={"colorscale": "RdBu_r", "cmax": 1, "cmin": -1},
+        height=400,
+    )
+
+    return fig
+
+
+def plot_all_output_sensitivities(jacobians: Mapping[str, OutputSensitivity]):
+
+    """
+    Create a plotly heatmap for each input sensitivity matrix for each model
+    output.
+
+    jacobians: mapping of each out variable to a sensitivity for each input
+        e.g.,
+        air_temperature_after_precpd:
+            air_temperature_input: sensitivity matrix (nlev x nlev)
+            specific_humidity_input: sensitivity matrix
+        specific_humidity_after_precpd:
+            ...
+    """
+
+    all_plots = {
+        out_name: _plot_single_output_sensitivities(out_name, out_sensitivities)
+        for out_name, out_sensitivities in jacobians.items()
+    }
+
+    for out_name, fig in all_plots.items():
+        wandb.log({f"jacobian/{out_name}": wandb.Plotly(fig)})

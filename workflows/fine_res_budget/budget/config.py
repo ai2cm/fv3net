@@ -21,6 +21,7 @@ RESTART_VARIABLES = [
     "delp",
     "sphum",
     "T",
+    "DZ",
 ]
 
 GFSPHYSICS_VARIABLES = [

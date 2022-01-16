@@ -95,7 +95,7 @@ def cos_zenith_angle(self):
 @DerivedMapping.register("evaporation", required_inputs=["latent_heat_flux"])
 def evaporation(self):
     lhf = self["latent_heat_flux"]
-    return vcm.thermo.latent_heat_flux_to_evaporation(lhf)
+    return vcm.latent_heat_flux_to_evaporation(lhf)
 
 
 def _rotate(self: DerivedMapping, x, y):
@@ -260,7 +260,7 @@ def internal_energy(self):
     required_inputs=["dQ1", "pressure_thickness_of_atmospheric_layer"],
 )
 def column_integrated_dQ1(self):
-    return vcm.thermo.column_integrated_heating_from_isochoric_transition(
+    return vcm.column_integrated_heating_from_isochoric_transition(
         self._mapper["dQ1"], self._mapper["pressure_thickness_of_atmospheric_layer"]
     )
 
@@ -270,7 +270,7 @@ def column_integrated_dQ1(self):
     required_inputs=["dQ2", "pressure_thickness_of_atmospheric_layer"],
 )
 def column_integrated_dQ2(self):
-    da = -vcm.thermo.minus_column_integrated_moistening(
+    da = -vcm.minus_column_integrated_moistening(
         self._mapper["dQ2"], self._mapper["pressure_thickness_of_atmospheric_layer"]
     )
     return da.assign_attrs(
@@ -283,7 +283,7 @@ def column_integrated_dQ2(self):
     required_inputs=["Q1", "pressure_thickness_of_atmospheric_layer"],
 )
 def column_integrated_Q1(self):
-    return vcm.thermo.column_integrated_heating_from_isochoric_transition(
+    return vcm.column_integrated_heating_from_isochoric_transition(
         self._mapper["Q1"], self._mapper["pressure_thickness_of_atmospheric_layer"]
     )
 
@@ -293,7 +293,7 @@ def column_integrated_Q1(self):
     required_inputs=["Q2", "pressure_thickness_of_atmospheric_layer"],
 )
 def column_integrated_Q2(self):
-    da = -vcm.thermo.minus_column_integrated_moistening(
+    da = -vcm.minus_column_integrated_moistening(
         self._mapper["Q2"], self._mapper["pressure_thickness_of_atmospheric_layer"]
     )
     return da.assign_attrs(
