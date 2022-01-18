@@ -5,6 +5,7 @@ from loaders.mappers._fine_res import (
     Approach,
     _extend_lower,
     compute_budget,
+    _limit_extremes
 )
 
 
@@ -77,3 +78,20 @@ def test_compute_budget(approach, include_temperature_nudging):
 
     out = compute_budget(ds, approach, include_temperature_nudging)
     assert {"dQ1", "dQ2"} <= set(out)
+
+    
+def get_dataset(n, vdimsize):
+    vscaling = np.arange(float(vdimsize), 1.0, -1.0)/float(vdimsize)
+    print(vscaling)
+    data = np.tile(np.arange(-n, n), (1, vdimsize))
+    print(data)
+    
+    
+    
+@pytest.parametrize(
+    ['n', 'alpha', 'vdimsize'],
+    (
+        pytest.param([10, 0.1, 1]
+)
+def test__limit_extremes(alpha, vdimsize)
+    ds = get_dataset()
