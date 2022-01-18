@@ -6,7 +6,7 @@ import fsspec
 import numpy as np
 import xarray as xr
 from dask.distributed import Client
-from vcm.calc import convergence_cell_center
+from vcm.calc.vertical_flux import convergence_cell_center
 from vcm.convenience import parse_datetime_from_str, round_time
 from vcm.fv3.metadata import gfdl_to_standard
 from vcm.safe import get_variables
