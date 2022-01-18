@@ -18,6 +18,8 @@ loss:
   - specific_humidity_after_precpd
   - cloud_water_mixing_ratio_after_precpd
   - total_precipitation
+  - air_temperature_after_gscond
+  - specific_humidity_after_gscond
   weights:
     air_temperature_after_precpd: 500000.0
     specific_humidity_after_precpd: 500000.0
