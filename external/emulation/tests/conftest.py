@@ -2,6 +2,7 @@ import contextlib
 import os
 import pytest
 import tensorflow as tf
+from fv3fit.keras.adapters import ensure_dict_output
 
 
 @contextlib.contextmanager
@@ -65,8 +66,5 @@ def _create_model_dict():
 
 
 @pytest.fixture(scope="session", params=[_create_model, _create_model_dict])
-def saved_model_path(tmp_path_factory, request):
-    model = request.param()
-    path = tmp_path_factory.mktemp("tf_models") / "dummy_model.tf"
-    model.save(path.as_posix(), save_format="tf")
-    return str(path)
+def model(request):
+    return ensure_dict_output(request.param())

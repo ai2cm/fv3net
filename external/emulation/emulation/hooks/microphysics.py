@@ -1,6 +1,5 @@
 import gc
 import sys
-from typing import Mapping
 from .._typing import FortranState
 
 # Tensorflow looks at sys args which are not initialized
@@ -88,27 +87,15 @@ class MicrophysicsHook:
     Instanced at the top level of `_emulate`
     """
 
-    def __init__(self, model_path: str, garbage_collection_interval: int = 10) -> None:
+    def __init__(
+        self, model: tf.keras.Model, garbage_collection_interval: int = 10
+    ) -> None:
 
         self.name = "microphysics emulator"
-        self.model = _load_tf_model(model_path)
+        self.model = model
         self.orig_outputs = None
         self.garbage_collection_interval = garbage_collection_interval
         self._calls_since_last_collection = 0
-
-    @classmethod
-    def from_environ(cls, d: Mapping):
-        """
-        Initialize this hook by loading configuration from environment
-        variables
-
-        Args:
-            d: Mapping with key "TF_MODEL_PATH" pointing to a loadable
-                keras model.  Can be local or remote.
-        """
-
-        model_path = d["TF_MODEL_PATH"]
-        return cls(model_path)
 
     def _maybe_garbage_collect(self):
         if self._calls_since_last_collection % self.garbage_collection_interval:
@@ -117,7 +104,7 @@ class MicrophysicsHook:
         else:
             self._calls_since_last_collection += 1
 
-    def microphysics(self, state: FortranState) -> None:
+    def __call__(self, state: FortranState) -> None:
         """
         Hook function for running the tensorflow emulator of the
         Zhao-Carr microphysics using call_py_fort.  Updates state
@@ -141,7 +128,7 @@ class MicrophysicsHook:
         if self.orig_outputs is None:
             self.orig_outputs = set(state).intersection(model_outputs)
 
-        logger.info(f"Overwritting existing state fields: {self.orig_outputs}")
+        logger.info(f"Overwriting existing state fields: {self.orig_outputs}")
         microphysics_diag = {
             f"{name}_physics_diag": state[name] for name in self.orig_outputs
         }

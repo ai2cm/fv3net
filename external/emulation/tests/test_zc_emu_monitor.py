@@ -170,7 +170,7 @@ def _get_data(dummy_rundir, save_nc, save_zarr, save_tfrecord=False):
             "air_temperature": np.arange(790).reshape(79, batch),
             "specific_humidity": np.arange(790).reshape(79, batch),
         }
-        config.store(state)
+        config(state)
         states.append(state)
 
     return dummy_rundir, states
@@ -216,7 +216,7 @@ def test_StorageHook_save_tf(dummy_rundir):
 
 def test_error_on_call():
 
-    with pytest.raises(ImportError):
+    with pytest.raises(ValueError):
         from emulation import store
 
         store({})

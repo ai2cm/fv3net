@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 import os
 import json
@@ -219,18 +220,43 @@ class _TFRecordStore:
         self._tf_writer.flush()
 
 
-class StorageHook:
-    """
-    Singleton class for configuring from the environment for
-    the store function used during fv3gfs-runtime by call-py-fort.
+@dataclasses.dataclass
+class StorageConfig:
+    """Storage configuration
 
-    Instanced at the top-level of `_monitor`
+    Attributes:
+        output_freq_sec: output frequency in seconds to save
+            nc and/or zarr files at
+        var_meta_path: path to variable metadata added to
+            saved field attributes. If not specified no metadata
+            and 'unknown' units saved with fields
+        save_nc: save all state fields to netcdf, default
+            is true
+        save_zarr: save all statefields to zarr, default
+            is true
+        save_tfrecord: save all statefields to tfrecord
+    """
+
+    var_meta_path: str = ""
+    output_freq_sec: int = 1
+    save_nc: bool = True
+    save_zarr: bool = True
+    save_tfrecord: bool = False
+
+
+@dataclasses.dataclass
+class StorageHook:
+    """Stores state to nc, zarr, or tfrecords
+
+    Notes:
+        Has same attributes as ``StorageConfig``, but contains stateful
+        operations.
     """
 
     def __init__(
         self,
-        var_meta_path: str,
-        output_freq_sec: int,
+        var_meta_path: str = "",
+        output_freq_sec: int = 1,
         save_nc: bool = True,
         save_zarr: bool = True,
         save_tfrecord: bool = False,
@@ -246,7 +272,7 @@ class StorageHook:
 
         self.initial_time = None
         self.dt_sec = _get_timestep(self.namelist)
-        self.metadata = _load_metadata(self.var_meta_path)
+        self.metadata = _load_metadata(self.var_meta_path) if self.var_meta_path else {}
 
         if self.save_zarr:
             self.monitor = _load_monitor(self.namelist)
@@ -259,43 +285,6 @@ class StorageHook:
         if self.save_tfrecord:
             rank = MPI.COMM_WORLD.Get_rank()
             self._store_tfrecord = _TFRecordStore("tfrecords", rank)
-
-    @classmethod
-    def from_environ(cls, d: Mapping) -> "StorageHook":
-        """
-        Initialize this hook by loading configuration from environment
-        variables
-
-        Args:
-            d: Mapping with the folowing keys
-                OUTPUT_FREQ_SEC - output frequency in seconds to save
-                    nc and/or zarr files at
-                VAR_META_PATH (optional) - path to variable metadata added to
-                    saved field attributes. If not specified no metadata
-                    and 'unknown' units saved with fields
-                SAVE_NC (optional) - save all state fields to netcdf, default
-                    is true
-                SAVE_ZARR (optional) - save all statefields to zarr, default
-                    is true
-                SAVE_TFRECORD (optional) - save all statefields to tfrecord
-                
-        """
-
-        cwd = os.getcwd()
-        logger.debug(f"Current working directory: {cwd}")
-
-        output_freq_sec = int(d["OUTPUT_FREQ_SEC"])
-        var_meta_path = str(d.get("VAR_META_PATH", None))
-        save_nc = _bool_from_str(d.get("SAVE_NC", "True"))
-        save_zarr = _bool_from_str(d.get("SAVE_ZARR", "True"))
-
-        return cls(
-            var_meta_path,
-            output_freq_sec,
-            save_nc=save_nc,
-            save_zarr=save_zarr,
-            save_tfrecord=_bool_from_str(d.get("SAVE_TFRECORD", "True")),
-        )
 
     def _store_interval_check(self, time):
 
@@ -310,7 +299,7 @@ class StorageHook:
 
         return elapsed.seconds % self.output_freq_sec == 0
 
-    def store(self, state: FortranState) -> None:
+    def __call__(self, state: FortranState) -> None:
         """
         Hook function for storing the fortran state used by call_py_fort.
         Stores everything that resides in the state at the time.

@@ -5,6 +5,8 @@ import f90nml
 
 import dacite
 
+from emulation import EmulationConfig
+
 from runtime.diagnostics.manager import (
     DiagnosticFileConfig,
     FortranFileConfig,
@@ -62,6 +64,7 @@ class UserConfig:
     online_emulator: Optional[
         Union[runtime.transformers.emulator.Config, runtime.transformers.fv3fit.Config]
     ] = None
+    zhao_carr_emulation: EmulationConfig = EmulationConfig()
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:

@@ -9,9 +9,9 @@ from emulation.hooks.microphysics import (
 )
 
 
-def test_Config_integration(saved_model_path):
+def test_Config_integration(model):
 
-    config = MicrophysicsHook(saved_model_path)
+    config = MicrophysicsHook(model)
 
     state = {
         "air_temperature_input": np.ones((63, 100)),
@@ -23,7 +23,7 @@ def test_Config_integration(saved_model_path):
     for i in range(3):
         input = state["air_temperature_input"]
 
-        config.microphysics(state)
+        config(state)
 
         # microphysics saves any key overwrites as a diagnostic
         updated = state["air_temperature_dummy"]
@@ -37,7 +37,7 @@ def test_Config_integration(saved_model_path):
 
 def test_error_on_call():
 
-    with pytest.raises(ImportError):
+    with pytest.raises(ValueError):
         from emulation import microphysics
 
         microphysics({})
@@ -63,7 +63,8 @@ def test_load_tf_model_NoModel():
 def test_microphysics_NoModel():
 
     state = {"empty_state": 1}
-    hook = MicrophysicsHook("NO_MODEL")
-    hook.microphysics(state)
+    model = _load_tf_model("NO_MODEL")
+    hook = MicrophysicsHook(model)
+    hook(state)
 
     assert state == {"empty_state": 1}
