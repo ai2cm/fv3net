@@ -4,7 +4,7 @@ from typing import Mapping
 import numpy as np
 import pytest
 import tensorflow as tf
-from emulation._monitor.monitor import (
+from emulation.hooks.monitor import (
     StorageHook,
     _bool_from_str,
     _convert_to_quantities,

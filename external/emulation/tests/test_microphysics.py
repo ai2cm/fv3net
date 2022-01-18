@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from typing import Iterable
 
-from emulation._emulate.microphysics import (
+from emulation.hooks.microphysics import (
     MicrophysicsHook,
     NoModel,
     _load_tf_model,
