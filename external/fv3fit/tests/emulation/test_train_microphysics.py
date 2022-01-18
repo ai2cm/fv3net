@@ -1,35 +1,17 @@
-import pytest
 import sys
-import yaml
 from dataclasses import asdict
+from fv3fit.emulation.losses import CustomLoss
 
+import pytest
+import tensorflow as tf
+import yaml
 from fv3fit._shared.config import _to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
-
-from fv3fit.train_microphysics import (
-    TrainConfig,
-    MicrophysicsConfig,
-    _get_out_samples,
-    get_default_config,
-    main,
-)
-
-
-def test__get_out_samples():
-
-    samples = [1, 2, 3, 4]
-    names = ["B", "dC", "dD", "A"]
-
-    config = MicrophysicsConfig(
-        direct_out_variables=["A", "B"],
-        residual_out_variables={"C": "C_in", "D": "D_in"},
-        tendency_outputs={"C": "dC", "D": "dD"},
-    )
-
-    direct, residual = _get_out_samples(config, samples, names)
-
-    assert direct == [4, 1]
-    assert residual == [2, 3]
+from fv3fit.emulation.layers.architecture import ArchitectureConfig
+from fv3fit.emulation.models import MicrophysicsConfig
+from fv3fit.emulation.models.transformed_model import TransformedModelConfig
+from fv3fit.emulation.zhao_carr_fields import Field
+from fv3fit.train_microphysics import TrainConfig, get_default_config, main
 
 
 def test_TrainConfig_defaults():
@@ -54,7 +36,10 @@ def test_get_default_config():
 def test_TrainConfig_asdict():
 
     config = TrainConfig(
-        train_url="train_path", test_url="test_path", out_url="save_path",
+        train_url="train_path",
+        test_url="test_path",
+        out_url="save_path",
+        model=MicrophysicsConfig(),
     )
 
     d = asdict(config)
@@ -146,35 +131,19 @@ def test_TrainConfig_from_args_sysargv(monkeypatch):
     assert config.model.architecture.name == "rnn"
 
 
-def test_TrainConfig_invalid_input_vars():
+@pytest.mark.parametrize(
+    "arch_key, expected_cache",
+    [("dense", True), ("rnn-v1", False), ("rnn-v1-shared-weights", False)],
+)
+def test_rnn_v1_cache_disable(arch_key, expected_cache):
 
-    args = [
-        "--config-path",
-        "default",
-        "--model.input_variables",
-        "A",
-        "B",
-        "--transform.input_variables",
-        "A",
-        "C",
-    ]
+    default = get_default_config()
+    d = asdict(default)
+    d["cache"] = True
+    d["model"]["architecture"]["name"] = arch_key
+    config = TrainConfig.from_dict(d)
 
-    with pytest.raises(ValueError):
-        TrainConfig.from_args(args)
-
-    args = [
-        "--config-path",
-        "default",
-        "--model.direct_out_variables",
-        "A",
-        "B",
-        "--transform.output_variables",
-        "A",
-        "C",
-    ]
-
-    with pytest.raises(ValueError):
-        TrainConfig.from_args(args)
+    assert config.cache == expected_cache
 
 
 @pytest.mark.regression
@@ -190,3 +159,27 @@ def test_training_entry_integration(tmp_path):
     config = TrainConfig.from_dict(config_dict)
 
     main(config)
+
+
+def test_TrainConfig_build_model():
+    field = Field("out", "in")
+    config = TrainConfig(
+        ".",
+        ".",
+        ".",
+        transformed_model=TransformedModelConfig(
+            ArchitectureConfig("dense"), [field], 900
+        ),
+    )
+    data = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
+    model = config.build_model(data)
+    assert field.output_name in model(data)
+
+
+def test_TrainConfig_build_loss():
+    config = TrainConfig(".", ".", ".", loss=CustomLoss(loss_variables=["x"]))
+    # needs to be random or the normalized loss will have nan
+    data = {"x": tf.random.uniform(shape=(4, 10))}
+    loss = config.build_loss(data)
+    loss_value, _ = loss(data, data)
+    assert 0 == pytest.approx(loss_value.numpy())

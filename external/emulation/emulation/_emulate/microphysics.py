@@ -1,5 +1,6 @@
+import gc
 import sys
-from typing import List, Mapping
+from typing import Mapping
 from .._typing import FortranState
 
 # Tensorflow looks at sys args which are not initialized
@@ -14,10 +15,33 @@ import os  # noqa: E402
 import tensorflow as tf  # noqa: E402
 
 from ..debug import print_errors  # noqa: E402
+from fv3fit.keras import adapters  # noqa: E402
 from .._filesystem import get_dir  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+
+class NoModel:
+    """
+    Dummy model to make no prediction
+
+    Currently fv3gfs-fortran microphysics emulations
+    of Zhao-Carr physics requires a model loadable to run.
+    Change was introduced with piggy-backed diagnostics.
+    """
+
+    @property
+    def output_names(self):
+        return []
+
+    @property
+    def input_names(self):
+        return []
+
+    @staticmethod
+    def predict(x):
+        return {}
 
 
 @print_errors
@@ -34,54 +58,25 @@ def _get_timestep(namelist):
     return int(namelist["coupler_nml"]["dt_atmos"])
 
 
-class RenamedOutputModel:
-    def __init__(self, model: tf.keras.Model, translation: Mapping[str, str]):
-        self.translation = translation
-        self.model = model
-
-    @property
-    def output_names(self) -> List[str]:
-        return [self.translation.get(key, key) for key in self.model.output_names]
-
-    @property
-    def input_names(self):
-        return self.model.input_names
-
-    def predict(self, x):
-        return self.model.predict(x)
-
-
 @print_errors
 def _load_tf_model(model_path: str) -> tf.keras.Model:
     logger.info(f"Loading keras model: {model_path}")
-    with get_dir(model_path) as local_model_path:
-        model = tf.keras.models.load_model(local_model_path)
-        model = RenamedOutputModel(
-            model,
-            # for backwards compatibility
-            translation={
-                "air_temperature_output": "air_temperature_after_precpd",
-                "specific_humidity_output": "specific_humidity_after_precpd",
-                "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
-            },
-        )
 
-    return model
-
-
-def _unpack_predictions(predictions, output_names):
-
-    if len(output_names) == 1:
-        # single output model doesn't return a list
-        # zip would start unpacking array rows
-        model_outputs = {output_names[0]: predictions.T}
+    if model_path == "NO_MODEL":
+        return NoModel()
     else:
-        model_outputs = {
-            name: output.T  # transposed adjust
-            for name, output in zip(output_names, predictions)
-        }
-
-    return model_outputs
+        with get_dir(model_path) as local_model_path:
+            model = tf.keras.models.load_model(local_model_path)
+            # These following two adapters are for backwards compatibility
+            dict_output_model = adapters.ensure_dict_output(model)
+            return adapters.rename_dict_output(
+                dict_output_model,
+                translation={
+                    "air_temperature_output": "air_temperature_after_precpd",
+                    "specific_humidity_output": "specific_humidity_after_precpd",
+                    "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
+                },
+            )
 
 
 class MicrophysicsHook:
@@ -93,13 +88,13 @@ class MicrophysicsHook:
     Instanced at the top level of `_emulate`
     """
 
-    def __init__(self, model_path: str) -> None:
+    def __init__(self, model_path: str, garbage_collection_interval: int = 10) -> None:
 
         self.name = "microphysics emulator"
         self.model = _load_tf_model(model_path)
-        self.namelist = _load_nml()
-        self.dt_sec = _get_timestep(self.namelist)
         self.orig_outputs = None
+        self.garbage_collection_interval = garbage_collection_interval
+        self._calls_since_last_collection = 0
 
     @classmethod
     def from_environ(cls, d: Mapping):
@@ -113,8 +108,14 @@ class MicrophysicsHook:
         """
 
         model_path = d["TF_MODEL_PATH"]
-
         return cls(model_path)
+
+    def _maybe_garbage_collect(self):
+        if self._calls_since_last_collection % self.garbage_collection_interval:
+            gc.collect()
+            self._calls_since_last_collection = 0
+        else:
+            self._calls_since_last_collection += 1
 
     def microphysics(self, state: FortranState) -> None:
         """
@@ -133,7 +134,8 @@ class MicrophysicsHook:
         inputs = {name: state[name].T for name in self.model.input_names}
 
         predictions = self.model.predict(inputs)
-        model_outputs = _unpack_predictions(predictions, self.model.output_names)
+        # tranpose back to FV3 conventions
+        model_outputs = {name: tensor.T for name, tensor in predictions.items()}
 
         # fields stay in global state so check overwrites on first step
         if self.orig_outputs is None:
@@ -145,3 +147,4 @@ class MicrophysicsHook:
         }
         state.update(model_outputs)
         state.update(microphysics_diag)
+        self._maybe_garbage_collect()

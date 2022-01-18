@@ -79,7 +79,7 @@ def _coarsen_to_target_resolution(
 
 def _load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     logger.info(f"Processing 3d data from run directory at {url}")
-    files_3d = ["diags_3d.zarr", "state_after_timestep.zarr"]
+    files_3d = ["diags_3d.zarr", "state_after_timestep.zarr", "nudging_tendencies.zarr"]
     ds = xr.merge(
         [
             load_coarse_data(os.path.join(url, filename), catalog)

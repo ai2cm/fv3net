@@ -1,10 +1,12 @@
 import logging
 import threading
 import queue
+
+from .clip import ClipConfig
 import xarray as xr
 import numpy as np
 import tensorflow as tf
-from typing import Sequence, Tuple, List, Any
+from typing import Sequence, Tuple, List, Any, Optional
 from .halos import append_halos
 import fv3gfs.util
 import vcm.safe
@@ -65,6 +67,7 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
         dataset_sequence: Sequence[xr.Dataset],
         unstacked_dims=fv3gfs.util.Z_DIMS,
         n_halo: int = 0,
+        output_clip_config: Optional[ClipConfig] = None,
     ):
         """
         Args:
@@ -76,6 +79,11 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
                 arrays apart from the "sample" (stacked) dimension
             n_halo: number of halo points to append to input variables, if given
                 then the data must contain "x" and "y" dimensions
+            output_clip_config: If provided, will clip levels of output
+                variables that are clipped in the clip config when returning arrays.
+                Note that this will not affect input variables, even if they are in
+                the clip config, as we want to input them in their full length when
+                training (even if they are clipped in a subsequent layer).
         """
         horizontal_unstacked_dims = set(fv3gfs.util.HORIZONTAL_DIMS).intersection(
             unstacked_dims
@@ -90,6 +98,7 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
         self.dataset_sequence = dataset_sequence
         self.n_halo = n_halo
         self.unstacked_dims = unstacked_dims
+        self.output_clip_config = output_clip_config
 
     def __len__(self) -> int:
         return len(self.dataset_sequence)
@@ -108,6 +117,11 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
         X_ds, y_ds = X_y_datasets
         X = tuple(X_ds[name].values for name in self.X_names)
         y = tuple(y_ds[name].values for name in self.y_names)
+        if self.output_clip_config is not None:
+            y = tuple(
+                self.output_clip_config.clip_along_last_dim(yarr, name)
+                for yarr, name in zip(y, self.y_names)
+            )
         if np.any([np.any(np.isnan(data)) for data in X]):
             raise ValueError("found NaN in X data")
         if np.any([np.any(np.isnan(data)) for data in y]):

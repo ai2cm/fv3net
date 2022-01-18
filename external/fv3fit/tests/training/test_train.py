@@ -1,5 +1,7 @@
 import dataclasses
 from typing import Any, Callable, Optional, Sequence, TextIO
+from fv3fit._shared.config import SliceConfig
+from fv3fit.keras._models.shared.clip import ClipConfig
 from fv3fit.keras._models.convolutional import ConvolutionalHyperparameters
 from fv3fit.keras._models.shared.convolutional_network import ConvolutionalNetworkConfig
 import pytest
@@ -15,9 +17,9 @@ from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
 # training functions that work on arbitrary datasets, can be used in generic tests below
 GENERAL_TRAINING_TYPES = [
     "convolutional",
-    "DenseModel",
     "sklearn_random_forest",
     "precipitative",
+    "dense",
 ]
 # training functions that have restrictions on the datasets they support,
 # cannot be used in generic tests below
@@ -44,9 +46,9 @@ def test_all_training_functions_are_tested_or_exempted():
 
 SYSTEM_DEPENDENT_TYPES = [
     "convolutional",
-    "DenseModel",
     "sklearn_random_forest",
     "precipitative",
+    "dense",
 ]
 """model types which produce different results on different systems"""
 
@@ -321,7 +323,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
     xr.testing.assert_equal(loaded_result, original_result)
 
 
-@pytest.mark.parametrize("model_type", ["DenseModel", "sklearn_random_forest"])
+@pytest.mark.parametrize("model_type", ["sklearn_random_forest"])
 def test_train_predict_multiple_stacked_dims(model_type):
     da = xr.DataArray(np.full(fill_value=1.0, shape=(5, 10, 15)), dims=["x", "y", "z"],)
     train_dataset = xr.Dataset(
@@ -337,3 +339,29 @@ def test_train_predict_multiple_stacked_dims(model_type):
     )
     model = train(hyperparameters, train_batches, val_batches,)
     model.predict(train_dataset)
+
+
+def test_train_dense_model_clipped_inputs_outputs():
+    da = xr.DataArray(
+        np.arange(1500).reshape(6, 5, 5, 10) * 1.0, dims=["tile", "x", "y", "z"],
+    )
+    train_dataset = xr.Dataset(
+        data_vars={"var_in_0": da, "var_in_1": da, "var_out_0": da, "var_out_1": da}
+    )
+    train_batches = [train_dataset for _ in range(2)]
+    val_batches = train_batches
+    train = fv3fit.get_training_function("dense")
+
+    input_variables = ["var_in_0", "var_in_1"]
+    output_variables = ["var_out_0", "var_out_1"]
+
+    hyperparameters = get_default_hyperparameters(
+        "dense", input_variables, output_variables
+    )
+    hyperparameters.clip_config = ClipConfig(
+        {"var_in_0": {"z": SliceConfig(2, 5)}, "var_out_0": {"z": SliceConfig(4, 8)}}
+    )
+    model = train(hyperparameters, train_batches, val_batches,)
+    prediction = model.predict(train_dataset)
+    assert np.unique(prediction["var_out_0"].isel(z=slice(None, 4)).values) == 0.0
+    assert np.unique(prediction["var_out_0"].isel(z=slice(8, None)).values) == 0.0

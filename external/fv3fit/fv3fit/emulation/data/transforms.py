@@ -9,7 +9,7 @@ import tensorflow as tf
 from vcm.derived_mapping import DerivedMapping
 import xarray as xr
 from toolz.functoolz import curry
-from typing import Hashable, Mapping, Sequence, Tuple, Union
+from typing import Hashable, Mapping, Sequence, Union
 
 from vcm import get_fs, open_remote_nc
 
@@ -20,6 +20,40 @@ NumericContainer = Union[np.ndarray, xr.DataArray, tf.Tensor]
 ArrayDataset = Mapping[Hashable, np.ndarray]
 TensorDataset = Mapping[Hashable, tf.Tensor]
 AnyDataset = Mapping[Hashable, NumericContainer]
+
+
+def _register_derived_variables(mapping: DerivedMapping, timestep):
+    # Watch out for these hardcoded names below. these should be inferred from
+    # the data or configuration.
+    @mapping.register(
+        "tendency_of_air_temperature_due_to_microphysics",
+        required_inputs=["air_temperature_input", "air_temperature_after_precpd"],
+    )
+    def _(self):
+        end = self._mapper["air_temperature_after_precpd"]
+        begin = self._mapper["air_temperature_input"]
+        return (end - begin) / timestep
+
+    @mapping.register(
+        "tendency_of_specific_humidity_due_to_microphysics",
+        required_inputs=["specific_humidity_input", "specific_humidity_after_precpd"],
+    )
+    def tendency_of_specific_humidity_due_to_microphysics(self):
+        end = self._mapper["specific_humidity_after_precpd"]
+        begin = self._mapper["specific_humidity_input"]
+        return (end - begin) / timestep
+
+    @mapping.register(
+        "tendency_of_cloud_water_mixing_ratio_due_to_microphysics",
+        required_inputs=[
+            "cloud_water_mixing_ratio_input",
+            "cloud_water_mixing_ratio_after_precpd",
+        ],
+    )
+    def tendency_of_cloud_water_mixing_ratio_due_to_microphysics(self):
+        end = self._mapper["cloud_water_mixing_ratio_after_precpd"]
+        begin = self._mapper["cloud_water_mixing_ratio_input"]
+        return (end - begin) / timestep
 
 
 def open_netcdf_dataset(path: str) -> xr.Dataset:
@@ -36,7 +70,8 @@ def derived_dataset(
     all_variables: Sequence[str], dataset: AnyDataset, tendency_timestep_sec: int = 900
 ):
 
-    derived = DerivedMapping(dataset, microphys_timestep_sec=tendency_timestep_sec)
+    derived = DerivedMapping(dataset)
+    _register_derived_variables(derived, tendency_timestep_sec)
     dataset = derived.dataset(all_variables)
 
     return dataset
@@ -69,25 +104,6 @@ def select_antarctic(dataset: xr.Dataset, sample_dim_name="sample") -> xr.Datase
     dataset = dataset.isel({sample_dim_name: mask})
 
     return dataset
-
-
-@curry
-def group_inputs_outputs(
-    input_variables: Sequence[str], output_variables: Sequence[str], dataset: AnyDataset
-) -> Tuple[Sequence[NumericContainer], Sequence[NumericContainer]]:
-    """
-    Group input and output variables into separate tuples where each item
-    is a value associated with a variable in the order of the mapping
-    keys.
-    """
-
-    logger.debug("Grouping input and output tuples")
-    logger.debug(f"input vars: {input_variables}")
-    logger.debug(f"output vars: {output_variables}")
-    inputs_ = tuple([dataset[key] for key in input_variables])
-    outputs_ = tuple([dataset[key] for key in output_variables])
-
-    return inputs_, outputs_
 
 
 @curry

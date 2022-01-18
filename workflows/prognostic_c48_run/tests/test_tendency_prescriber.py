@@ -3,6 +3,7 @@ import joblib
 import cftime
 import numpy as np
 import xarray as xr
+import dacite
 
 import fv3gfs.util
 from fv3gfs.util.testing import DummyComm
@@ -63,8 +64,12 @@ def test_tendency_prescriber(state, tmpdir, regtest):
         "tendency_of_air_temperature_due_to_override",
         "specific_humidity",
     ]
+    config = {
+        "mapper_config": {"function": "open_zarr", "kwargs": {"data_path": path}},
+        "variables": {"air_temperature": "Q1"},
+    }
     override = TendencyPrescriber(
-        TendencyPrescriberConfig(path, {"air_temperature": "Q1"}),
+        dacite.from_dict(TendencyPrescriberConfig, config),
         derived_state,
         communicator,
         timestep=2,

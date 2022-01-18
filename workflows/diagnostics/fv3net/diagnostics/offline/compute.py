@@ -154,7 +154,7 @@ def _compute_diagnostics(
         ds = ds.pipe(insert_column_integrated_vars, diagnostic_vars_3d).load()
 
         full_predicted_vars = [var for var in ds if DERIVATION_DIM_NAME in ds[var].dims]
-        if "dQ2" in full_predicted_vars:
+        if "dQ2" in full_predicted_vars or "Q2" in full_predicted_vars:
             full_predicted_vars.append("water_vapor_path")
         prediction = safe.get_variables(
             ds.sel({DERIVATION_DIM_NAME: PREDICT_COORD}), full_predicted_vars

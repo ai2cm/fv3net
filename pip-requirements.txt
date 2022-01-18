@@ -29,6 +29,10 @@ zarr>=2.5.0
 # this version has wheels = faster installs
 numcodecs>=0.7.2
 
+# tensorflow >= 2.5.2 pins h5py to a version that breaks xarray, 
+# need to also require a later version of h5netcdf
+h5netcdf>=0.12.0
+
 # include this here, because dataflow dependencies are managed separately from
 # the rest of fv3net. Google controls the dataflow runtime environment, so it
 # is too hard to ensure that local fv3net matches the installed dependencies of
@@ -46,6 +50,7 @@ poetry
 tox
 pre-commit
 ipython>=7.29.0
+jupyterlab
 
 # fv3fit testing tools
 hypothesis

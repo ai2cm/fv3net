@@ -2,18 +2,22 @@ import cftime
 import numpy as np
 import pytest
 import xarray as xr
-from vcm.calc.thermo import (
-    _GRAVITY,
+from vcm.calc.thermo.local import (
+    internal_energy,
+    relative_humidity,
+    specific_humidity_from_rh,
+)
+from vcm.calc.thermo.vertically_dependent import (
     pressure_at_interface,
     height_at_interface,
     _interface_to_midpoint,
     dz_and_top_to_phis,
     _add_coords_to_interface_variable,
     mass_streamfunction,
-    internal_energy,
 )
-from vcm.calc.calc import local_time, apparent_source
+from vcm.calc.calc import local_time
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
+from vcm.calc.thermo.constants import _GRAVITY, _RDGAS, _RVGAS
 
 
 @pytest.mark.parametrize("toa_pressure", [0, 5])
@@ -89,40 +93,6 @@ def test_solar_time():
     assert np.allclose(local_time(ds_solar_test), [0, 12, 18, 0, 6, 0])
 
 
-def test_apparent_source():
-    coords = {
-        "initial_time": [
-            cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0),
-            cftime.DatetimeJulian(2016, 8, 1, 0, 30, 0),
-        ],
-        "forecast_time": np.array([0.0, 60.0, 120.0, 180.0, 240.0]).astype(
-            np.dtype("<m8[s]")
-        ),
-    }
-    T = xr.DataArray(
-        [[1, 2, 4, 7, 11.0], [3, 5, 5, 5, 5.0]],
-        dims=["initial_time", "forecast_time"],
-        coords=coords,
-    )
-    # check Q calculated for different forecast time steps
-    Q1_forecast0 = apparent_source(
-        T,
-        coarse_tstep_idx=0,
-        highres_tstep_idx=0,
-        t_dim="initial_time",
-        s_dim="forecast_time",
-    )
-    assert Q1_forecast0 == pytest.approx((2.0 / (15 * 60)) - (1.0 / 60))
-    Q1_forecast3 = apparent_source(
-        T,
-        coarse_tstep_idx=3,
-        highres_tstep_idx=0,
-        t_dim="initial_time",
-        s_dim="forecast_time",
-    )
-    assert Q1_forecast3 == pytest.approx((2.0 / (15 * 60)) - (4.0 / 60))
-
-
 def test_mass_streamfunction():
     latitude = np.array([-75, -25, 25, 75])
     pressure = np.array([5000, 10000, 30000, 75000, 90000])
@@ -142,3 +112,34 @@ def test_internal_energy():
     )
     energy = internal_energy(temperature)
     assert energy.shape == temperature.shape
+
+
+@pytest.mark.parametrize("celsius, rh", [(26, 0.5), (14.77, 1.0)])
+def test_relative_humidity(celsius, rh):
+    """
+    Compare withh https://www.omnicalculator.com/physics/air-density
+    """
+
+    rho = 1.1781
+    p = 1018_00
+    e = 16_79.30
+
+    q = _RDGAS / _RVGAS * e / (p - e)
+
+    T = celsius + 273.15
+    ans = relative_humidity(T, q, rho)
+
+    assert pytest.approx(rh, rel=0.03) == ans
+
+
+@pytest.mark.parametrize("t", [200, 250, 300])
+@pytest.mark.parametrize("rh", [0, 0.5, 1.0])
+@pytest.mark.parametrize("rho", [1.2, 1e-4])
+def test_specific_humidity(t, rh, rho):
+    """
+    Compare withh https://www.omnicalculator.com/physics/air-density
+    """
+    q = specific_humidity_from_rh(t, rh, rho)
+    rh_round_trip = relative_humidity(t, q, rho)
+
+    assert pytest.approx(rh) == rh_round_trip

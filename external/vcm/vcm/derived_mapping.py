@@ -16,13 +16,8 @@ class DerivedMapping(Mapping):
     VARIABLES: MutableMapping[Hashable, Callable[..., xr.DataArray]] = {}
     REQUIRED_INPUTS: MutableMapping[Hashable, Iterable[Hashable]] = {}
 
-    def __init__(
-        self, mapper: Mapping[Hashable, xr.DataArray], microphys_timestep_sec: int = 900
-    ):
+    def __init__(self, mapper: Mapping[Hashable, xr.DataArray]):
         self._mapper = mapper
-        # used for derived tendency variables in the microphysics
-        # TODO: should this just be part of the post-processing?
-        self._microphys_timestep_sec = microphys_timestep_sec
 
     @classmethod
     def register(cls, name: Hashable, required_inputs: Iterable[Hashable] = None):
@@ -100,7 +95,7 @@ def cos_zenith_angle(self):
 @DerivedMapping.register("evaporation", required_inputs=["latent_heat_flux"])
 def evaporation(self):
     lhf = self["latent_heat_flux"]
-    return vcm.thermo.latent_heat_flux_to_evaporation(lhf)
+    return vcm.latent_heat_flux_to_evaporation(lhf)
 
 
 def _rotate(self: DerivedMapping, x, y):
@@ -255,39 +250,6 @@ def pQ2(self):
         return xr.zeros_like(self["pressure_thickness_of_atmospheric_layer"])
 
 
-@DerivedMapping.register(
-    "tendency_of_air_temperature_due_to_microphysics",
-    required_inputs=["air_temperature_input", "air_temperature_output"],
-)
-def tendency_of_air_temperature_due_to_microphysics(self):
-    end = self._mapper["air_temperature_output"]
-    begin = self._mapper["air_temperature_input"]
-    return (end - begin) / self._microphys_timestep_sec
-
-
-@DerivedMapping.register(
-    "tendency_of_specific_humidity_due_to_microphysics",
-    required_inputs=["specific_humidity_input", "specific_humidity_output"],
-)
-def tendency_of_specific_humidity_due_to_microphysics(self):
-    end = self._mapper["specific_humidity_output"]
-    begin = self._mapper["specific_humidity_input"]
-    return (end - begin) / self._microphys_timestep_sec
-
-
-@DerivedMapping.register(
-    "tendency_of_cloud_water_mixing_ratio_due_to_microphysics",
-    required_inputs=[
-        "cloud_water_mixing_ratio_input",
-        "cloud_water_mixing_ratio_output",
-    ],
-)
-def tendency_of_cloud_water_mixing_ratio_due_to_microphysics(self):
-    end = self._mapper["cloud_water_mixing_ratio_output"]
-    begin = self._mapper["cloud_water_mixing_ratio_input"]
-    return (end - begin) / self._microphys_timestep_sec
-
-
 @DerivedMapping.register("internal_energy", required_inputs=["air_temperature"])
 def internal_energy(self):
     return vcm.internal_energy(self._mapper["air_temperature"])
@@ -298,7 +260,7 @@ def internal_energy(self):
     required_inputs=["dQ1", "pressure_thickness_of_atmospheric_layer"],
 )
 def column_integrated_dQ1(self):
-    return vcm.thermo.column_integrated_heating_from_isochoric_transition(
+    return vcm.column_integrated_heating_from_isochoric_transition(
         self._mapper["dQ1"], self._mapper["pressure_thickness_of_atmospheric_layer"]
     )
 
@@ -308,7 +270,7 @@ def column_integrated_dQ1(self):
     required_inputs=["dQ2", "pressure_thickness_of_atmospheric_layer"],
 )
 def column_integrated_dQ2(self):
-    da = -vcm.thermo.minus_column_integrated_moistening(
+    da = -vcm.minus_column_integrated_moistening(
         self._mapper["dQ2"], self._mapper["pressure_thickness_of_atmospheric_layer"]
     )
     return da.assign_attrs(
@@ -321,7 +283,7 @@ def column_integrated_dQ2(self):
     required_inputs=["Q1", "pressure_thickness_of_atmospheric_layer"],
 )
 def column_integrated_Q1(self):
-    return vcm.thermo.column_integrated_heating_from_isochoric_transition(
+    return vcm.column_integrated_heating_from_isochoric_transition(
         self._mapper["Q1"], self._mapper["pressure_thickness_of_atmospheric_layer"]
     )
 
@@ -331,7 +293,7 @@ def column_integrated_Q1(self):
     required_inputs=["Q2", "pressure_thickness_of_atmospheric_layer"],
 )
 def column_integrated_Q2(self):
-    da = -vcm.thermo.minus_column_integrated_moistening(
+    da = -vcm.minus_column_integrated_moistening(
         self._mapper["Q2"], self._mapper["pressure_thickness_of_atmospheric_layer"]
     )
     return da.assign_attrs(

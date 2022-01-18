@@ -21,6 +21,7 @@ RESTART_VARIABLES = [
     "delp",
     "sphum",
     "T",
+    "DZ",
 ]
 
 GFSPHYSICS_VARIABLES = [
@@ -35,6 +36,16 @@ GFSPHYSICS_VARIABLES = [
     "dt3dt_pbl_coarse",
     "dt3dt_shal_conv_coarse",
     "dt3dt_sw_coarse",
+    "DLWRFsfc_coarse",
+    "DSWRFsfc_coarse",
+    "DSWRFtoa_coarse",
+    "ULWRFsfc_coarse",
+    "ULWRFtoa_coarse",
+    "USWRFsfc_coarse",
+    "USWRFtoa_coarse",
+    "LHTFLsfc_coarse",
+    "SHTFLsfc_coarse",
+    "PRATEsfc_coarse",
 ]
 
 # Output configurations
@@ -43,3 +54,4 @@ VARIABLES_TO_AVERAGE = set(
 ) - {"area_coarse", "delp"}
 # coarsening factor. C384 to C48 is a factor of 8
 factor = 8
+dt = 15 * 60  # timestep in seconds

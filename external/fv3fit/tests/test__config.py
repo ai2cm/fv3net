@@ -1,7 +1,12 @@
 import argparse
 import dacite
 import dataclasses
-from fv3fit import DenseHyperparameters, OptimizerConfig, TrainingConfig
+from fv3fit import (
+    OptimizerConfig,
+    LearningRateScheduleConfig,
+    TrainingConfig,
+    DenseHyperparameters,
+)
 import os
 import tempfile
 import yaml
@@ -18,13 +23,37 @@ import pytest
 @pytest.mark.parametrize("hyperparameters", [{}])
 def test_dense_training_config_uses_optimizer_config(hyperparameters):
     config_dict = {
-        "model_type": "DenseModel",
+        "model_type": "dense",
         "input_variables": [],
         "output_variables": [],
         "hyperparameters": hyperparameters,
     }
     training_config = TrainingConfig.from_dict(config_dict)
     assert isinstance(training_config.hyperparameters.optimizer_config, OptimizerConfig)
+
+
+def _get_exponential_decay():
+    return LearningRateScheduleConfig(
+        name="ExponentialDecay",
+        kwargs=dict(initial_learning_rate=1e-4, decay_steps=100, decay_rate=0.95,),
+    )
+
+
+def test_OptimizerConfig_learning_rate_error_on_dual_specify():
+
+    with pytest.raises(ValueError):
+        OptimizerConfig(
+            name="Adam",
+            kwargs=dict(learning_rate=1e-5),
+            learning_rate_schedule=_get_exponential_decay(),
+        )
+
+
+def test_OptimizerConfig_learning_rate():
+
+    assert OptimizerConfig(
+        name="Adam", learning_rate_schedule=_get_exponential_decay(),
+    ).instance
 
 
 def test_safe_dump_training_config():
@@ -35,7 +64,7 @@ def test_safe_dump_training_config():
     """
     # TODO: extend this test to run not just for Dense, but for all registered models
     config = TrainingConfig(
-        model_type="DenseModel",  # an arbitrary model type
+        model_type="dense",  # an arbitrary model type
         hyperparameters=DenseHyperparameters(
             input_variables=["a"], output_variables=["b"],
         ),
@@ -68,7 +97,7 @@ def test_safe_dump_training_config():
 )
 def test__load_config_catches_errors_with_strict_checking(hyperparameters, passes):
     config_dict = {
-        "model_type": "DenseModel",
+        "model_type": "dense",
         "input_variables": [],
         "output_variables": [],
         "hyperparameters": hyperparameters,

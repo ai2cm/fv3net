@@ -1,12 +1,12 @@
-import dacite
 import dataclasses
 import logging
+from typing import Dict, Mapping, Optional, Set
+
+import dacite
+from fv3fit._shared import SliceConfig
 from toolz.functoolz import compose_left
-from typing import Any, Dict, Mapping, Optional, Sequence
 
 from . import transforms
-from fv3fit._shared import SliceConfig
-
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,6 @@ class TransformConfig:
     X, y tuples of arrays/tensors per variable
 
     Args:
-        input_variables: Variables to include as inputs for training
-        output_variables: Variables to include as targets for training
         antarctic_only: Limit data to < 60 S.  Requires latitude exists
             as a field in the dataset
         use_tensors: Converts data to float32 tensors instead of numpy arrays
@@ -31,8 +29,6 @@ class TransformConfig:
     Example:
         Yaml file example::
 
-            input_variables: ["a", "b"]
-            output_variables: ["c", "d"]
             antarctic_only: true
             use_tensors: true
             vertical_subselections:
@@ -46,8 +42,6 @@ class TransformConfig:
                 step: 2
     """
 
-    input_variables: Sequence[str] = dataclasses.field(default_factory=list)
-    output_variables: Sequence[str] = dataclasses.field(default_factory=list)
     antarctic_only: bool = False
     use_tensors: bool = True
     vertical_subselections: Optional[Mapping[str, SliceConfig]] = None
@@ -65,11 +59,16 @@ class TransformConfig:
         else:
             self.vert_sel_as_slices = None
 
-    def __call__(self, item: Any) -> Any:
-        transform_pipeline = self._get_pipeline_from_config()
-        return transform_pipeline(item)
+    def get_pipeline(
+        self, variables: Set[str],
+    ):
+        """
+        Args:
+            variables: the variables required for training. Both inputs and outputs.
 
-    def _get_pipeline_from_config(self):
+        Returns:
+            conversion from dataset to dict of numpy or tensorflow tensors
+        """
 
         transform_funcs = []
 
@@ -80,8 +79,7 @@ class TransformConfig:
 
         transform_funcs.append(
             transforms.derived_dataset(
-                list(self.input_variables) + list(self.output_variables),
-                tendency_timestep_sec=self.derived_microphys_timestep,
+                list(variables), tendency_timestep_sec=self.derived_microphys_timestep,
             )
         )
 
@@ -97,10 +95,4 @@ class TransformConfig:
             transform_funcs.append(
                 transforms.maybe_subselect_feature_dim(self.vert_sel_as_slices)
             )
-
-        # final transform to grouped X, y tuples
-        transform_funcs.append(
-            transforms.group_inputs_outputs(self.input_variables, self.output_variables)
-        )
-
         return compose_left(*transform_funcs)

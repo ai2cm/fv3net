@@ -6,8 +6,6 @@ from typing import (
     Union,
     Optional,
     List,
-    Any,
-    Set,
 )
 import xarray as xr
 import logging
@@ -26,19 +24,14 @@ from ..._shared import (
     stack_non_vertical,
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
-    PackerConfig,
 )
-from ..._shared.config import (
-    Hyperparameters,
-    OptimizerConfig,
-    register_training_function,
-)
+from .dense import DenseHyperparameters
 import numpy as np
 import os
 from ..._shared import get_dir, put_dir
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae
-from .shared import DenseNetworkConfig, TrainingLoopConfig, EpochResult, XyArraySequence
+from .shared import EpochResult, XyArraySequence
 from loaders.batches import Take
 import yaml
 from vcm import safe
@@ -50,78 +43,14 @@ MODEL_DIRECTORY = "model_data"
 KERAS_CHECKPOINT_PATH = "model_checkpoints"
 
 
-@dataclasses.dataclass
-class DenseHyperparameters(Hyperparameters):
-    """
-    Configuration for training a dense neural network based model.
-
-    Args:
-        input_variables: names of variables to use as inputs
-        output_variables: names of variables to use as outputs
-        weights: loss function weights, defined as a dict whose keys are
-            variable names and values are either a scalar referring to the total
-            weight of the variable. Default is a total weight of 1
-            for each variable.
-        normalize_loss: if True (default), normalize outputs by their standard
-            deviation before computing the loss function
-        optimizer_config: selection of algorithm to be used in gradient descent
-        dense_network: configuration of dense network
-        training_loop: configuration of training loop
-        loss: loss function to use, should be 'mse' or 'mae'
-        save_model_checkpoints: if True, save one model per epoch when
-            dumping, under a 'model_checkpoints' subdirectory
-        nonnegative_outputs: if True, add a ReLU activation layer as the last layer
-            after output denormalization layer to ensure outputs are always >=0
-            Defaults to False.
-        packer_config: configuration of dataset packing.
-
-    """
-
-    input_variables: List[str]
-    output_variables: List[str]
-    weights: Optional[Mapping[str, Union[int, float]]] = None
-    normalize_loss: bool = True
-    optimizer_config: OptimizerConfig = dataclasses.field(
-        default_factory=lambda: OptimizerConfig("Adam")
-    )
-    dense_network: DenseNetworkConfig = dataclasses.field(
-        default_factory=DenseNetworkConfig
-    )
-    training_loop: TrainingLoopConfig = dataclasses.field(
-        default_factory=TrainingLoopConfig
-    )
-    loss: str = "mse"
-    save_model_checkpoints: bool = False
-    nonnegative_outputs: bool = False
-    packer_config: PackerConfig = dataclasses.field(
-        default_factory=lambda: PackerConfig({})
-    )
-
-    @property
-    def variables(self) -> Set[str]:
-        return set(self.input_variables).union(self.output_variables)
-
-
-@register_training_function("DenseModel", DenseHyperparameters)
-def train_dense_model(
-    hyperparameters: DenseHyperparameters,
-    train_batches: Sequence[xr.Dataset],
-    validation_batches: Sequence[xr.Dataset],
-):
-    model = DenseModel(
-        hyperparameters.input_variables,
-        hyperparameters.output_variables,
-        hyperparameters,
-    )
-    # TODO: make use of validation_batches, currently validation dataset is
-    # passed through hyperparameters.fit_kwargs
-    model.fit(train_batches)
-    return model
-
-
 @io.register("packed-keras-v2")
 class DenseModel(Predictor):
     """
+    DEPRECATED: the training function that uses this model class has been
+    removed. Saved models will still load and predict, but no new DenseModel
+    objects will be saved. Use the `dense` training function instead for training
+    dense models.
+    
     Abstract base class for a keras-based model which operates on xarray
     datasets containing a "sample" dimension (as defined by loaders.SAMPLE_DIM_NAME),
     where each variable has at most one non-sample dimension.
@@ -168,7 +97,7 @@ class DenseModel(Predictor):
         self.X_packer = ArrayPacker(
             sample_dim_name=SAMPLE_DIM_NAME,
             pack_names=input_variables,
-            config=hyperparameters.packer_config,
+            config=hyperparameters.clip_config,
         )
         self.y_packer = ArrayPacker(
             sample_dim_name=SAMPLE_DIM_NAME, pack_names=output_variables
@@ -182,7 +111,13 @@ class DenseModel(Predictor):
             self.weights = hyperparameters.weights
         self._normalize_loss = hyperparameters.normalize_loss
         self._optimizer = hyperparameters.optimizer_config.instance
-        self._loss = hyperparameters.loss
+
+        if hyperparameters.loss.scaling != "standard":
+            raise ValueError(
+                "Only 'standard' loss scaling is supported for DenseModel."
+            )
+        self._loss = hyperparameters.loss.loss_type
+
         self._save_model_checkpoints = hyperparameters.save_model_checkpoints
         if hyperparameters.save_model_checkpoints:
             self._checkpoint_path: Optional[
@@ -191,7 +126,7 @@ class DenseModel(Predictor):
         else:
             self._checkpoint_path = None
         self.training_loop = hyperparameters.training_loop
-        for name in self._hyperparameters.packer_config.clip:
+        for name in self._hyperparameters.clip_config.clip:
             if str(name) in output_variables:
                 raise NotImplementedError("Clipping for ML outputs is not implemented.")
 
@@ -375,6 +310,11 @@ class DenseModel(Predictor):
                 y_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
+
+            # maintain backwards compatibility with older versions
+            # that do not use LossConfig
+            options = _backwards_compatible_config(options)
+
             hyperparameters = dacite.from_dict(
                 data_class=DenseHyperparameters,
                 data=options,
@@ -426,16 +366,11 @@ class DenseModel(Predictor):
         return unpack_matrix(self.X_packer, self.y_packer, J)
 
 
-def _fill_default(kwargs: dict, arg: Optional[Any], key: str, default: Any):
-    if key not in kwargs:
-        if arg is None:
-            kwargs[key] = default
-        else:
-            kwargs[key] = arg
-    else:
-        if arg is not None and arg != kwargs[key]:
-            raise ValueError(
-                f"Different values for fit kwarg {key} were provided in both "
-                "fit args and fit_kwargs dict."
-            )
-    return kwargs
+def _backwards_compatible_config(hyperparameters: dict) -> dict:
+    loss = hyperparameters.get("loss")
+    # old config only took a string "mse" or "mae"
+    if isinstance(loss, str):
+        hyperparameters["loss"] = {"loss_type": loss, "scaling": "standard"}
+    if "packer_config" in hyperparameters:
+        hyperparameters["clip_config"] = hyperparameters.pop("packer_config")
+    return hyperparameters

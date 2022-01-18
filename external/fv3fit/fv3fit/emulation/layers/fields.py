@@ -54,7 +54,6 @@ class FieldOutput(tf.keras.layers.Layer):
 
     def __init__(
         self,
-        nfeatures: int,
         *args,
         sample_out: Optional[tf.Tensor] = None,
         denormalize: Optional[str] = None,
@@ -73,11 +72,6 @@ class FieldOutput(tf.keras.layers.Layer):
         super().__init__(*args, **kwargs)
 
         self._enforce_positive = enforce_positive
-        self._nfeatures = nfeatures
-
-        self.unscaled = tf.keras.layers.Dense(
-            nfeatures, activation="linear", name=f"unscaled_{self.name}"
-        )
 
         if denormalize is not None:
             self.denorm = DenormalizeConfig(
@@ -90,12 +84,13 @@ class FieldOutput(tf.keras.layers.Layer):
                 lambda x: x, name=f"passthru_{self.name}"
             )
 
-        self.relu = tf.keras.layers.ReLU()
         self.use_relu = enforce_positive
+
+        if enforce_positive:
+            self.relu = tf.keras.layers.ReLU()
 
     def call(self, tensor):
 
-        tensor = self.unscaled(tensor)
         tensor = self.denorm(tensor)
 
         if self.use_relu:
@@ -137,16 +132,18 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
 
     def __init__(
         self,
-        nfeatures: int,
         dt_sec: int,
         *args,
+        sample_in: Optional[tf.Tensor] = None,
         sample_out: Optional[tf.Tensor] = None,
         denormalize: Optional[str] = None,
         enforce_positive: bool = False,
+        tendency_name: Optional[str] = None,
         **kwargs,
     ):
         """
         Args:
+            sample_in: Input sample for setting denorm layer
             sample_out: Output sample for variable to set shape
                 and fit denormalization layer.
             dt_sec: Timestep length in seconds to use for incrementing
@@ -155,23 +152,31 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
                 the dense layer output
             enforce_positive: add a ReLU on the final layer output
                 call to enforce only positive values
+            tendency_name: name for the tendency layer otherwise defaults
+                to 'tendency_of_{self.name}`
         """
         super().__init__(*args, **kwargs)
 
         self._enforce_positive = enforce_positive
         self._dt_sec = dt_sec
-        self._nfeatures = nfeatures
+
+        if sample_out is None or sample_in is None:
+            tendency_sample = None
+        else:
+            tendency_sample = (sample_out - sample_in) / dt_sec
 
         self.tendency = FieldOutput(
-            nfeatures,
             denormalize=denormalize,
-            sample_out=sample_out,
+            sample_out=tendency_sample,
             enforce_positive=False,
-            name=f"tendency_of_{self.name}",
+            name=(
+                f"tendency_of_{self.name}" if tendency_name is None else tendency_name
+            ),
         )
         self.increment = IncrementStateLayer(dt_sec, name=f"increment_{self.name}")
         self.use_relu = enforce_positive
-        self.relu = tf.keras.layers.ReLU()
+        if self.use_relu:
+            self.relu = tf.keras.layers.ReLU()
 
     def call(self, field_input, network_output):
 

@@ -2,6 +2,9 @@ apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
   generateName: prognostic-microphysics-
+  labels:
+    project: microphysics-emulation
+    job_type: prognostic-evaluation
 spec:
   entrypoint: prognostic-run
   arguments:
@@ -11,47 +14,61 @@ spec:
       - name: tf_model
       - name: image_tag
         value: 811d4a88b8b8f29d727f2d61f46f96b770c8ab47
-      - name: baseline_tag
-        value: "baseline"
-      - name: on_off_flag
-        value: "--online"
-      - name: do_piggy
-        value: "true"
   volumes:
   - name: gcp-key-secret
     secret:
       secretName: gcp-key
   templates:
   - name: prognostic-run
-    steps:
-    - - name: run-model
-        template: run-model
-        arguments:
-          parameters:
-          - name: tag
-            value: "{{workflow.parameters.tag}}"
-          - name: config
-            value:  "{{workflow.parameters.config}}"
-          - name: tf_model
-            value: "{{workflow.parameters.tf_model}}"
-          - name: on_off_flag
-            value: "{{workflow.parameters.on_off_flag}}"
-    - - name: piggyback-diags
-        template: piggyback-diags
-        when: "{{workflow.parameters.do_piggy}} == true"
-        arguments:
-          parameters:
-          - name: tag
-            value: "{{workflow.parameters.tag}}"
-      - name: prognostic-diags
-        template: prognostic-diags
-        when: "'{{workflow.parameters.on_off_flag}}' == '--online'"
-        arguments:
-          parameters:
-          - name: tag
-            value: "{{workflow.parameters.tag}}"
-          - name: baseline_tag
-            value: "{{workflow.parameters.baseline_tag}}"
+    dag: 
+      tasks:
+        - name: run-offline
+          template: run-model
+          arguments:
+            parameters:
+            - name: tag
+              value: "{{workflow.parameters.tag}}-offline"
+            - name: config
+              value:  "{{workflow.parameters.config}}"
+            - name: tf_model
+              value: "{{workflow.parameters.tf_model}}"
+            - name: on_off_flag
+              value: --offline
+        - name: run-online
+          template: run-model
+          arguments:
+            parameters:
+            - name: tag
+              value: "{{workflow.parameters.tag}}-online"
+            - name: config
+              value:  "{{workflow.parameters.config}}"
+            - name: tf_model
+              value: "{{workflow.parameters.tf_model}}"
+            - name: on_off_flag
+              value: --online
+        - name: piggy-online
+          template: piggyback-diags
+          dependencies: [run-online]
+          arguments:
+            parameters:
+            - name: tag
+              value: "{{workflow.parameters.tag}}-online"
+        - name: piggy-offline
+          template: piggyback-diags
+          dependencies: [run-offline]
+          arguments:
+            parameters:
+            - name: tag
+              value: "{{workflow.parameters.tag}}-offline"
+        - name: prognostic-diags 
+          dependencies: [run-offline, run-online]
+          template: prognostic-diags
+          arguments:
+            parameters:
+            - name: tag
+              value: "{{workflow.parameters.tag}}-online"
+            - name: baseline_tag
+              value: "{{workflow.parameters.tag}}-offline"
   - name: run-model
     inputs:
       parameters:
@@ -89,7 +106,7 @@ spec:
       command: ["bash", "-c", "-x", "-e"]
       args: 
       - |
-        echo "{{inputs.parameters.config}}" > fv3config.yaml
+        echo "{{inputs.parameters.config}}" | base64 --decode > fv3config.yaml
         python3 scripts/prognostic_run.py \
           --tag "{{inputs.parameters.tag}}" \
           --config-path fv3config.yaml \

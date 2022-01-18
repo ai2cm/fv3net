@@ -1,4 +1,0 @@
-jupyterlab
-holoviews
-matplotlib
-altair

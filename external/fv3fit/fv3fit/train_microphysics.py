@@ -1,59 +1,45 @@
 import argparse
 import dacite
+from dataclasses import asdict, dataclass, field
 import fsspec
 import json
-import os
-import yaml
+import logging
 import numpy as np
-from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, Optional, Sequence, Union
+import os
+import tempfile
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
+
+import tensorflow as tf
+import yaml
 
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import (
     OptimizerConfig,
-    to_nested_dict,
     get_arg_updated_config_dict,
+    to_nested_dict,
 )
-from fv3fit.emulation.data import nc_dir_to_tf_dataset, TransformConfig
+from fv3fit.emulation.types import LossFunction
+from fv3fit.emulation import models, train, ModelCheckpointCallback
+from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
-from fv3fit.emulation.keras import (
-    CustomLoss,
-    StandardLoss,
-    save_model,
-    score_model,
+from fv3fit.emulation.layers import ArchitectureConfig
+from fv3fit.emulation.jacobian import compute_standardized_jacobians
+from fv3fit.emulation.keras import save_model
+from fv3fit.emulation.losses import CustomLoss
+from fv3fit.emulation.transforms import (
+    PerVariableTransform,
+    TensorTransform,
+    TransformedVariableConfig,
 )
-from fv3fit.emulation.models import MicrophysicsConfig, ArchitectureConfig
+import xarray
 from fv3fit.wandb import (
     WandBConfig,
-    log_to_table,
-    log_profile_plots,
     store_model_artifact,
+    plot_all_output_sensitivities,
 )
 
-
-def _get_out_samples(model_config: MicrophysicsConfig, samples, sample_names):
-    """
-    Grab samples from a list separated into the direct output
-    variables and residual output variables.  Used because the
-    output normalization samples might need to be the field
-    or the field tendencies
-    """
-
-    direct_sample = []
-    residual_sample = []
-
-    for name in model_config.direct_out_variables:
-        sample = samples[sample_names.index(name)]
-        direct_sample.append(sample)
-
-    for name in model_config.residual_out_variables:
-        if name in model_config.tendency_outputs:
-            tend_name = model_config.tendency_outputs[name]
-            sample = samples[sample_names.index(tend_name)]
-            residual_sample.append(sample)
-
-    return direct_sample, residual_sample
+logger = logging.getLogger(__name__)
 
 
 def load_config_yaml(path: str) -> Dict[str, Any]:
@@ -77,6 +63,9 @@ class TrainConfig:
         test_url: Path to validation netcdfs (already in [sample x feature] format)
         out_url:  Where to store the trained model, history, and configuration
         transform: Data preprocessing TransformConfig
+        tensor_transform: specification of differerentiable tensorflow
+            transformations to apply before and after data is passed to models and
+            losses.
         model: MicrophysicsConfig used to build the keras model
         nfiles: Number of files to use from train_url
         nfiles_valid: Number of files to use from test_url
@@ -90,23 +79,67 @@ class TrainConfig:
         verbose: Verbosity of keras fit output
         shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
             during training
+        checkpoint_model: if true, save a checkpoint after each epoch
+        log_level: what logging level to use
+        cache: Use a cache for training/testing batches. Speeds up training for
+            I/O bound architectures.  Always disabled for rnn-v1 architectures.
     """
 
     train_url: str
     test_url: str
     out_url: str
     transform: TransformConfig = field(default_factory=TransformConfig)
-    model: MicrophysicsConfig = field(default_factory=MicrophysicsConfig)
+    tensor_transform: List[TransformedVariableConfig] = field(default_factory=list)
+    model: Optional[models.MicrophysicsConfig] = None
+    conservative_model: Optional[models.ConservativeWaterConfig] = None
+    transformed_model: Optional[models.TransformedModelConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     use_wandb: bool = True
     wandb: WandBConfig = field(default_factory=WandBConfig)
-    loss: Union[StandardLoss, CustomLoss] = field(default_factory=StandardLoss)
+    loss: CustomLoss = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
     valid_freq: int = 5
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 100_000
+    checkpoint_model: bool = True
+    log_level: str = "INFO"
+    cache: bool = True
+
+    def get_transform(self) -> TensorTransform:
+        return PerVariableTransform(self.tensor_transform)
+
+    @property
+    def _model(
+        self,
+    ) -> Union[
+        models.MicrophysicsConfig,
+        models.ConservativeWaterConfig,
+        models.TransformedModelConfig,
+    ]:
+        if self.model:
+            return self.model
+        elif self.conservative_model:
+            return self.conservative_model
+        elif self.transformed_model:
+            return self.transformed_model
+        else:
+            raise ValueError(
+                "Neither .model, .conservative_model, nor .transformed_model provided."
+            )
+
+    def build_model(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
+        return self._model.build(data, self.get_transform())
+
+    def build_loss(self, data: Mapping[str, tf.Tensor]) -> LossFunction:
+        return self.loss.build(data, self.get_transform())
+
+    @property
+    def input_variables(self) -> Sequence:
+        return list(
+            self.get_transform().backward_names(set(self._model.input_variables))
+        )
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -184,25 +217,37 @@ class TrainConfig:
 
         return config
 
-    def __post_init__(self):
+    def get_dataset_convertor(
+        self,
+    ) -> Callable[[xarray.Dataset], Mapping[str, tf.Tensor]]:
+        model_variables = set(self._model.input_variables) | set(
+            self._model.output_variables
+        )
+        required_variables = self.get_transform().backward_names(model_variables)
+        return self.transform.get_pipeline(required_variables)
 
-        if self.transform.input_variables != self.model.input_variables:
-            raise ValueError(
-                "Invalid training configuration state encountered. The"
-                " data transform input variables ("
-                f"{self.transform.input_variables}) are inconsistent with "
-                f"the model input variables ({self.model.input_variables})."
-            )
-        elif self.transform.output_variables != self.model.output_variables:
-            raise ValueError(
-                "Invalid training configuration state encountered. The"
-                " data transform output variables ("
-                f"{self.transform.output_variables}) are inconsistent with "
-                f"the model output variables ({self.model.output_variables})."
-            )
+    def __post_init__(self) -> None:
+        if (
+            self.model is not None
+            and "rnn-v1" in self.model.architecture.name
+            and self.cache
+        ):
+            logger.warn("Caching disabled for rnn-v1 architectures due to memory leak")
+            self.cache = False
+
+
+def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
+    with put_dir(dir_) as tmpdir:
+        dumpable = {
+            f"{out_name}/{in_name}": data
+            for out_name, sensitivities in std_jacobians.items()
+            for in_name, data in sensitivities.items()
+        }
+        np.savez(os.path.join(tmpdir, filename), **dumpable)
 
 
 def main(config: TrainConfig, seed: int = 0):
+    logging.basicConfig(level=getattr(logging, config.log_level))
     set_random_seed(seed)
 
     callbacks = []
@@ -211,58 +256,53 @@ def main(config: TrainConfig, seed: int = 0):
         callbacks.append(config.wandb.get_callback())
 
     train_ds = nc_dir_to_tf_dataset(
-        config.train_url, config.transform, nfiles=config.nfiles
+        config.train_url, config.get_dataset_convertor(), nfiles=config.nfiles
     )
     test_ds = nc_dir_to_tf_dataset(
-        config.test_url, config.transform, nfiles=config.nfiles_valid
+        config.test_url, config.get_dataset_convertor(), nfiles=config.nfiles_valid
     )
 
-    X_train, train_target = next(iter(train_ds.shuffle(100_000).batch(50_000)))
-    X_test, test_target = next(iter(test_ds.shuffle(160_000).batch(80_000)))
-    direct_sample, resid_sample = _get_out_samples(
-        config.model, train_target, config.transform.output_variables
-    )
+    train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
 
-    model = config.model.build(
-        X_train, sample_direct_out=direct_sample, sample_residual_out=resid_sample
-    )
-
-    config.loss.prepare(output_names=model.output_names, output_samples=train_target)
-    config.loss.compile(model)
+    model = config.build_model(train_set)
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
 
-    history = model.fit(
-        train_ds.batch(config.batch_size),
-        epochs=config.epochs,
-        validation_data=test_ds.batch(config.batch_size),
-        validation_freq=config.valid_freq,
-        verbose=config.verbose,
-        callbacks=callbacks,
-    )
+    if config.checkpoint_model:
+        callbacks.append(
+            ModelCheckpointCallback(
+                filepath=os.path.join(
+                    config.out_url, "checkpoints", "epoch.{epoch:03d}.tf"
+                )
+            )
+        )
 
-    train_scores, train_profiles = score_model(model, X_train, train_target,)
-    test_scores, test_profiles = score_model(model, X_test, test_target)
+    with tempfile.TemporaryDirectory() as train_temp:
+        with tempfile.TemporaryDirectory() as test_temp:
 
-    if config.use_wandb:
-        pred_sample = model.predict(X_test)
-        log_profile_plots(test_target, pred_sample, model.output_names)
+            train_ds_batched = train_ds.batch(config.batch_size)
+            test_ds_batched = test_ds.batch(config.batch_size)
 
-        # add level for dataframe index, assumes equivalent feature dims
-        sample_profile = next(iter(train_profiles.values()))
-        train_profiles["level"] = np.arange(len(sample_profile))
-        test_profiles["level"] = np.arange(len(sample_profile))
+            if config.cache:
+                train_ds_batched = train_ds_batched.cache(train_temp)
+                test_ds_batched = test_ds_batched.cache(test_temp)
 
-        log_to_table("score/train", train_scores, index=[config.wandb.job.name])
-        log_to_table("score/test", test_scores, index=[config.wandb.job.name])
-        log_to_table("profiles/train", train_profiles)
-        log_to_table("profiles/test", test_profiles)
+            history = train(
+                model,
+                train_ds_batched,
+                config.build_loss(train_set),
+                optimizer=config.loss.optimizer.instance,
+                epochs=config.epochs,
+                validation_data=test_ds_batched,
+                validation_freq=config.valid_freq,
+                verbose=config.verbose,
+                callbacks=callbacks,
+            )
+
+    logger.debug("Training complete")
 
     with put_dir(config.out_url) as tmpdir:
-        # TODO: need to convert ot np.float to serialize
-        with open(os.path.join(tmpdir, "scores.json"), "w") as f:
-            json.dump({"train": train_scores, "test": test_scores}, f)
 
         with open(os.path.join(tmpdir, "history.json"), "w") as f:
             json.dump(history.params, f)
@@ -273,7 +313,15 @@ def main(config: TrainConfig, seed: int = 0):
         local_model_path = save_model(model, tmpdir)
 
         if config.use_wandb:
-            store_model_artifact(local_model_path, name=config.model.name)
+            store_model_artifact(local_model_path, name=config._model.name)
+
+    # Jacobians after model storing in case of "out of memory" errors
+    std_jacobians = compute_standardized_jacobians(
+        model, config.get_transform().forward(train_set), config.input_variables
+    )
+    save_jacobians(std_jacobians, config.out_url, "jacobians.npz")
+    if config.use_wandb:
+        plot_all_output_sensitivities(std_jacobians)
 
 
 def get_default_config():
@@ -285,15 +333,15 @@ def get_default_config():
         "pressure_thickness_of_atmospheric_layer",
     ]
 
-    model_config = MicrophysicsConfig(
+    model_config = models.MicrophysicsConfig(
         input_variables=input_vars,
         direct_out_variables=[
-            "cloud_water_mixing_ratio_output",
+            "cloud_water_mixing_ratio_after_precpd",
             "total_precipitation",
         ],
         residual_out_variables=dict(
-            air_temperature_output="air_temperature_input",
-            specific_humidity_output="specific_humidity_input",
+            air_temperature_after_precpd="air_temperature_input",
+            specific_humidity_after_precpd="specific_humidity_input",
         ),
         architecture=ArchitectureConfig("linear"),
         selection_map=dict(
@@ -303,27 +351,25 @@ def get_default_config():
             pressure_thickness_of_atmospheric_layer=SliceConfig(stop=-10),
         ),
         tendency_outputs=dict(
-            air_temperature_output="tendency_of_air_temperature_due_to_microphysics",  # noqa E501
-            specific_humidity_output="tendency_of_specific_humidity_due_to_microphysics",  # noqa E501
+            air_temperature_after_precpd="tendency_of_air_temperature_due_to_microphysics",  # noqa E501
+            specific_humidity_after_precpd="tendency_of_specific_humidity_due_to_microphysics",  # noqa E501
         ),
     )
 
-    transform = TransformConfig(
-        input_variables=input_vars, output_variables=model_config.output_variables,
-    )
+    transform = TransformConfig()
 
     loss = CustomLoss(
         optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
         loss_variables=[
-            "air_temperature_output",
-            "specific_humidity_output",
-            "cloud_water_mixing_ratio_output",
+            "air_temperature_after_precpd",
+            "specific_humidity_after_precpd",
+            "cloud_water_mixing_ratio_after_precpd",
             "total_precipitation",
         ],
         weights=dict(
-            air_temperature_output=0.5e5,
-            specific_humidity_output=0.5e5,
-            cloud_water_mixing_ratio_output=1.0,
+            air_temperature_after_precpd=0.5e5,
+            specific_humidity_after_precpd=0.5e5,
+            cloud_water_mixing_ratio_after_precpd=1.0,
             total_precipitation=0.04,
         ),
         metric_variables=[
@@ -334,8 +380,8 @@ def get_default_config():
     )
 
     config = TrainConfig(
-        train_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/training_netcdfs",  # noqa E501
-        test_url="gs://vcm-ml-experiments/microphysics-emu-data/2021-07-29/validation_netcdfs",  # noqa E501
+        train_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train",  # noqa E501
+        test_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",  # noqa E501
         out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
         model=model_config,
         transform=transform,

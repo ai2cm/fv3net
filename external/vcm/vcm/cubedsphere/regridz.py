@@ -5,7 +5,7 @@ import xarray as xr
 from typing import Tuple, Union
 
 import vcm.mappm
-from ..calc.thermo import pressure_at_interface
+from ..calc.thermo.vertically_dependent import pressure_at_interface
 from ..cubedsphere import edge_weighted_block_average, weighted_block_average
 from ..cubedsphere.coarsen import block_upsample_like
 from ..cubedsphere.constants import (

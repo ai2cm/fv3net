@@ -9,6 +9,9 @@ from fv3fit.emulation.layers.fields import (
     IncrementStateLayer,
 )
 
+from hypothesis.strategies import floats
+from hypothesis import given
+
 
 def _get_data(shape):
 
@@ -41,26 +44,24 @@ def test_FieldInput():
 
 
 def test_FieldOutput():
-
-    net_tensor = _get_tensor((20, 64))
     sample = _get_tensor((20, 3))
 
-    field_out = FieldOutput(sample.shape[-1], sample_out=sample, denormalize="mean_std")
-    result = field_out(net_tensor)
+    field_out = FieldOutput(sample_out=sample, denormalize="mean_std")
+    result = field_out(sample)
 
     assert result.shape == (20, 3)
-    assert field_out.denorm.fitted
+    assert tf.math.reduce_std(sample) < tf.math.reduce_std(result)
 
 
 def test_FieldOutput_no_norm():
 
-    net_tensor = _get_tensor((20, 64))
     sample = _get_tensor((20, 3))
 
-    field_out = FieldOutput(sample.shape[-1], sample_out=sample, denormalize=None)
-    result = field_out(net_tensor)
+    field_out = FieldOutput(sample_out=sample, denormalize=None)
+    result = field_out(sample)
 
     assert result.shape == (20, 3)
+    np.testing.assert_array_equal(sample, result)
 
 
 def test_increment_layer():
@@ -76,22 +77,38 @@ def test_increment_layer():
     np.testing.assert_array_equal(incremented, expected)
 
 
-def test_IncrementedFieldOutput():
+@given(floats(1, 1000))
+def test_IncrementedFieldOutput(dt_sec: float):
+    tf.random.set_seed(0)
 
-    net_tensor = _get_tensor((20, 64))
-    sample = _get_tensor((20, 3))
-
-    dt_sec = 2
+    net_tensor = tf.random.uniform((20, 3))
+    sample = tf.random.uniform((20, 3))
 
     field_out = IncrementedFieldOutput(
-        sample.shape[-1], dt_sec, sample_out=sample, denormalize="mean_std"
+        dt_sec, sample_in=sample, sample_out=sample + dt_sec, denormalize="mean_std",
     )
     result = field_out(sample, net_tensor)
     tendency = field_out.get_tendency_output(net_tensor)
 
     assert result.shape == (20, 3)
     assert tendency.shape == (20, 3)
-    assert field_out.tendency.denorm.fitted
+
+    magnitude = np.sqrt(np.mean((result - sample) ** 2)) / np.sqrt(np.mean(sample ** 2))
+    assert magnitude == pytest.approx(dt_sec, rel=1.0)
+
+
+def test_IncrementedFieldOutput_tendency_layer_name():
+
+    sample = tf.random.uniform((20, 3))
+    field_out = IncrementedFieldOutput(
+        900,
+        sample_in=sample,
+        sample_out=sample + 1,
+        denormalize="mean_std",
+        tendency_name="test_name",
+    )
+
+    assert field_out.tendency.name == "test_name"
 
 
 def get_test_tensor():
@@ -112,26 +129,10 @@ def get_FieldOutput():
 
     tensor = get_test_tensor()
     output_layer = FieldOutput(
-        tensor.shape[-1],
-        sample_out=tensor,
-        denormalize="mean_std",
-        enforce_positive=True,
+        sample_out=tensor, denormalize="mean_std", enforce_positive=True,
     )
 
     return output_layer
-
-
-def get_IncrementedStateOutput():
-
-    tensor = get_test_tensor()
-    layer = IncrementedFieldOutput(
-        tensor.shape[-1],
-        900,
-        sample_out=tensor,
-        denormalize="mean_std",
-        enforce_positive=True,
-    )
-    return layer
 
 
 @pytest.mark.parametrize("get_layer_func", [get_FieldInput, get_FieldOutput])
@@ -155,8 +156,16 @@ def test_layer_IncrementedStateOutput_model_saving(tmpdir):
     tensor = get_test_tensor()
 
     in_ = tf.keras.layers.Input(tensor.shape[-1])
-    dense = tf.keras.layers.Dense(64)(in_)
-    out = get_IncrementedStateOutput()(in_, dense)
+    net_out = tf.keras.layers.Lambda(lambda x: x)(in_)
+    tensor = get_test_tensor()
+    layer = IncrementedFieldOutput(
+        900,
+        sample_in=tensor - 1,
+        sample_out=tensor,
+        denormalize="mean_std",
+        enforce_positive=True,
+    )
+    out = layer(in_, net_out)
     model = tf.keras.models.Model(inputs=in_, outputs=out)
 
     expected = model(tensor)
