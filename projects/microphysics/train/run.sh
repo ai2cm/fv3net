@@ -11,10 +11,10 @@ else
 fi
 
 group="$(openssl rand -hex 3)"
-config=log-cloud
+config=rnn
 config_file="${config}.yaml"
 
-model_name="${config}-rnn-eps1e-8-${group}"
+model_name="${config}-predict-gscond-${group}"
 out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}")
 
 argo submit argo.yaml \
