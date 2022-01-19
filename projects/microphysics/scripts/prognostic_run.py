@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 import dacite
+import warnings
 
 import wandb
 import yaml
@@ -67,7 +68,15 @@ with args.config_path.open() as f:
 
 config = dacite.from_dict(HighLevelConfig, config)
 config.namelist["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
+
 if args.model:
+    if config.zhao_carr_emulation.model is not None:
+        warnings.warn(
+            UserWarning(
+                f"Overiding .zhao_carr_emulation.model.path configuration in yaml "
+                "with {args.model}."
+            )
+        )
     config.zhao_carr_emulation.model = emulation.ModelConfig(path=args.model)
 
 config_dict = config.to_fv3config()
