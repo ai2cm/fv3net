@@ -1,6 +1,5 @@
 import gc
 import sys
-from typing import Mapping
 from .._typing import FortranState
 
 # Tensorflow looks at sys args which are not initialized
@@ -9,9 +8,7 @@ from .._typing import FortranState
 if not hasattr(sys, "argv"):
     sys.argv = [""]
 
-import f90nml  # noqa: E402
 import logging  # noqa: E402
-import os  # noqa: E402
 import tensorflow as tf  # noqa: E402
 
 from ..debug import print_errors  # noqa: E402
@@ -42,20 +39,6 @@ class NoModel:
     @staticmethod
     def predict(x):
         return {}
-
-
-@print_errors
-def _load_nml():
-    path = os.path.join(os.getcwd(), "input.nml")
-    namelist = f90nml.read(path)
-    logger.info(f"Loaded namelist for ZarrMonitor from {path}")
-
-    return namelist
-
-
-@print_errors
-def _get_timestep(namelist):
-    return int(namelist["coupler_nml"]["dt_atmos"])
 
 
 @print_errors
@@ -95,20 +78,6 @@ class MicrophysicsHook:
         self.orig_outputs = None
         self.garbage_collection_interval = garbage_collection_interval
         self._calls_since_last_collection = 0
-
-    @classmethod
-    def from_environ(cls, d: Mapping):
-        """
-        Initialize this hook by loading configuration from environment
-        variables
-
-        Args:
-            d: Mapping with key "TF_MODEL_PATH" pointing to a loadable
-                keras model.  Can be local or remote.
-        """
-
-        model_path = d["TF_MODEL_PATH"]
-        return cls(model_path)
 
     def _maybe_garbage_collect(self):
         if self._calls_since_last_collection % self.garbage_collection_interval:

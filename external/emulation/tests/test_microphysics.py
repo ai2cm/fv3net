@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 from typing import Iterable
 
@@ -33,14 +32,6 @@ def test_Config_integration(saved_model_path):
         np.testing.assert_array_almost_equal(input + 1, updated)
 
         state["air_temperature_input"] = updated
-
-
-def test_error_on_call():
-
-    with pytest.raises(ImportError):
-        from emulation import microphysics
-
-        microphysics({})
 
 
 def test_NoModel():

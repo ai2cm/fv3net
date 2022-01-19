@@ -9,6 +9,7 @@ import wandb
 import yaml
 from runtime.segmented_run import api
 from runtime.segmented_run.prepare_config import HighLevelConfig
+import emulation
 
 from fv3net.artifacts.resolve_url import resolve_url
 
@@ -17,26 +18,13 @@ from config import BUCKET
 logging.basicConfig(level=logging.INFO)
 
 
-def get_env(args):
-    env = {}
-    env["TF_MODEL_PATH"] = args.model
-    env["OUTPUT_FREQ_SEC"] = args.output_frequency
-    env["SAVE_ZARR"] = args.save_zarr
-    env["SAVE_TFRECORD"] = args.save_tfrecord
-    env["SAVE_NC"] = args.save_nc
-
-    env = {k: str(v) for k, v in env.items()}
-
-    return env
-
-
 CONFIG_PATH = Path(__file__).parent.parent / "configs" / "default.yaml"
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model",
     type=str,
-    default="NO_MODEL",
+    default="",
     help="path to microphysics emulation model...should probably end with .tf",
 )
 parser.add_argument(
@@ -45,12 +33,8 @@ parser.add_argument(
     default="",
     help="A unique tag. Can be used to look-up these outputs in subsequent timesteps.",
 )
-parser.add_argument("--save-zarr", action="store_true", default=False)
-parser.add_argument("--save-tfrecord", action="store_true", default=False)
-parser.add_argument("--save-nc", action="store_true", default=False)
 parser.add_argument("--segments", "-n", type=int, default=1, help="number of segments")
 parser.add_argument("--config-path", type=Path, default=CONFIG_PATH)
-parser.add_argument("--output-frequency", type=str, default="10800")
 
 # online/offine flag
 group = parser.add_mutually_exclusive_group()
@@ -83,15 +67,16 @@ with args.config_path.open() as f:
 
 config = dacite.from_dict(HighLevelConfig, config)
 config.namelist["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
-config = config.to_fv3config()
+if args.model:
+    config.zhao_carr_emulation.model = emulation.ModelConfig(path=args.model)
+
+config_dict = config.to_fv3config()
 
 url = resolve_url(BUCKET, job.project, tag)
-env = get_env(args)
 
-wandb.config.update({"config": config, "env": env})
-os.environ.update(env)
+wandb.config.update({"config": config_dict, "rundir": url})
 
-api.create(url, config)
+api.create(url, config_dict)
 for i in range(args.segments):
     logging.info(f"Running segment {i+1} of {args.segments}")
     api.append(url)

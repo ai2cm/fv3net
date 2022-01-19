@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 import os
 import json
@@ -26,18 +27,28 @@ DIMS_MAP = {
 }
 
 
-def _bool_from_str(value: str):
-    affirmatives = ["y", "yes", "true"]
-    negatives = ["n", "no", "false"]
+@dataclasses.dataclass
+class StorageConfig:
+    """Storage configuration
 
-    if value.lower() in affirmatives:
-        return True
-    elif value.lower() in negatives:
-        return False
-    else:
-        raise ValueError(
-            f"Unrecognized value encountered in boolean conversion: {value}"
-        )
+    Attributes:
+        output_freq_sec: output frequency in seconds to save
+            nc and/or zarr files at
+        var_meta_path: path to variable metadata added to
+            saved field attributes. If not specified no metadata
+            and 'unknown' units saved with fields
+        save_nc: save all state fields to netcdf, default
+            is true
+        save_zarr: save all statefields to zarr, default
+            is true
+        save_tfrecord: save all statefields to tfrecord
+    """
+
+    var_meta_path: str = ""
+    output_freq_sec: int = 1
+    save_nc: bool = True
+    save_zarr: bool = True
+    save_tfrecord: bool = False
 
 
 @print_errors
@@ -259,43 +270,6 @@ class StorageHook:
         if self.save_tfrecord:
             rank = MPI.COMM_WORLD.Get_rank()
             self._store_tfrecord = _TFRecordStore("tfrecords", rank)
-
-    @classmethod
-    def from_environ(cls, d: Mapping) -> "StorageHook":
-        """
-        Initialize this hook by loading configuration from environment
-        variables
-
-        Args:
-            d: Mapping with the folowing keys
-                OUTPUT_FREQ_SEC - output frequency in seconds to save
-                    nc and/or zarr files at
-                VAR_META_PATH (optional) - path to variable metadata added to
-                    saved field attributes. If not specified no metadata
-                    and 'unknown' units saved with fields
-                SAVE_NC (optional) - save all state fields to netcdf, default
-                    is true
-                SAVE_ZARR (optional) - save all statefields to zarr, default
-                    is true
-                SAVE_TFRECORD (optional) - save all statefields to tfrecord
-                
-        """
-
-        cwd = os.getcwd()
-        logger.debug(f"Current working directory: {cwd}")
-
-        output_freq_sec = int(d["OUTPUT_FREQ_SEC"])
-        var_meta_path = str(d.get("VAR_META_PATH", None))
-        save_nc = _bool_from_str(d.get("SAVE_NC", "True"))
-        save_zarr = _bool_from_str(d.get("SAVE_ZARR", "True"))
-
-        return cls(
-            var_meta_path,
-            output_freq_sec,
-            save_nc=save_nc,
-            save_zarr=save_zarr,
-            save_tfrecord=_bool_from_str(d.get("SAVE_TFRECORD", "True")),
-        )
 
     def _store_interval_check(self, time):
 
