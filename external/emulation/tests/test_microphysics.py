@@ -1,11 +1,6 @@
 import numpy as np
-from typing import Iterable
 
-from emulation._emulate.microphysics import (
-    MicrophysicsHook,
-    NoModel,
-    _load_tf_model,
-)
+from emulation._emulate.microphysics import MicrophysicsHook
 
 
 def test_Config_integration(saved_model_path):
@@ -32,29 +27,3 @@ def test_Config_integration(saved_model_path):
         np.testing.assert_array_almost_equal(input + 1, updated)
 
         state["air_temperature_input"] = updated
-
-
-def test_NoModel():
-    model = NoModel()
-
-    in_ = model.input_names
-    out_ = model.output_names
-    pred = model.predict(1)
-
-    for value in [in_, out_, pred]:
-        assert not value
-        assert isinstance(value, Iterable)
-
-
-def test_load_tf_model_NoModel():
-    model = _load_tf_model("NO_MODEL")
-    assert isinstance(model, NoModel)
-
-
-def test_microphysics_NoModel():
-
-    state = {"empty_state": 1}
-    hook = MicrophysicsHook("NO_MODEL")
-    hook.microphysics(state)
-
-    assert state == {"empty_state": 1}
