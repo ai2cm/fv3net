@@ -46,7 +46,7 @@ class StorageConfig:
     """
 
     var_meta_path: str = ""
-    output_freq_sec: int = 1
+    output_freq_sec: int = 10_800
     save_nc: bool = True
     save_zarr: bool = True
     save_tfrecord: bool = False

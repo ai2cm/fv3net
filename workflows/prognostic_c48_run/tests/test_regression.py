@@ -519,7 +519,7 @@ def get_emulation_config(model_path: str):
     config = yaml.safe_load(default_fv3config)
 
     config["zhao_carr_emulation"] = {
-        "storage": {"save_nc": True, "save_zarr": True},
+        "storage": {"save_nc": True, "save_zarr": True, "output_freq_sec": 900},
         "model": {"path": model_path},
     }
 
