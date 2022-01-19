@@ -14,7 +14,6 @@ import tensorflow as tf  # noqa: E402
 from fv3fit.keras import adapters  # noqa: E402
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class MicrophysicsHook:
