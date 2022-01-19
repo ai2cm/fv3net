@@ -1,5 +1,6 @@
 import dataclasses
 import argparse
+import emulation
 import yaml
 import logging
 import sys
@@ -103,6 +104,7 @@ class HighLevelConfig(UserConfig, FV3Config):
     base_version: str = "v0.5"
     initial_conditions: Union[InitialCondition, Any] = ""
     duration: str = ""
+    zhao_carr_emulation: emulation.EmulationConfig = emulation.EmulationConfig()
 
     def _initial_condition_overlay(self):
         return (
@@ -155,6 +157,7 @@ class HighLevelConfig(UserConfig, FV3Config):
             file_configs_to_namelist_settings(
                 self.fortran_diagnostics, self._physics_timestep()
             ),
+            {"zhao_carr_emulation": dataclasses.asdict(self.zhao_carr_emulation)},
         )
         return (
             fv3config.set_run_duration(config, self._duration)

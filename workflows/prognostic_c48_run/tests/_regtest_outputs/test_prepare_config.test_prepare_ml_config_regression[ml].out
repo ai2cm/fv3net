@@ -437,3 +437,6 @@ scikit_learn:
   - gs://ml-model
   output_standard_names: {}
 tendency_prescriber: null
+zhao_carr_emulation:
+  model: null
+  storage: null
