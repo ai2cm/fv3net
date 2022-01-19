@@ -3,9 +3,9 @@ import logging
 from typing import Optional
 
 import dacite
+import tensorflow as tf
 import yaml
 from emulation.hooks import microphysics, monitor
-from emulation.hooks.microphysics import _load_tf_model
 
 logger = logging.getLogger("emulation")
 
@@ -37,7 +37,9 @@ class EmulationConfig:
                 ValueError("model not defined. Check the configuration.")
             )
         else:
-            return microphysics.MicrophysicsHook(_load_tf_model(self.model.path))
+            return microphysics.MicrophysicsHook(
+                tf.keras.models.load_model(self.model.path)
+            )
 
     def build_storage_hook(self):
         if self.storage is None:

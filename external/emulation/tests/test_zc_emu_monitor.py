@@ -212,11 +212,3 @@ def test_StorageHook_save_tf(dummy_rundir):
             ), key
             assert tf_ds.element_spec[key].shape[0] is None
     assert len(list(tf_ds)) == n
-
-
-def test_error_on_call():
-
-    with pytest.raises(ValueError):
-        from emulation import store
-
-        store({})
