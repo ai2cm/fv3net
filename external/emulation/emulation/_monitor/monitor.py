@@ -34,9 +34,10 @@ class StorageConfig:
     Attributes:
         output_freq_sec: output frequency in seconds to save
             nc and/or zarr files at
-        var_meta_path: path to variable metadata added to
-            saved field attributes. If not specified no metadata
-            and 'unknown' units saved with fields
+        var_meta_path: path to variable metadata added to saved field
+            attributes. if not set, then the environmental variable VAR_META_PATH
+            will be used. If THAT isn't set then no metadata other than 'unknown'
+            units will be set.
         save_nc: save all state fields to netcdf, default
             is true
         save_zarr: save all statefields to zarr, default
@@ -247,7 +248,13 @@ class StorageHook:
         save_tfrecord: bool = False,
     ):
         self.name = "emulation storage monitor"
-        self.var_meta_path = var_meta_path
+
+        if var_meta_path:
+            self.var_meta_path = var_meta_path
+        else:
+            # VAR_META_PATH is set during docker image creation
+            self.var_meta_path = os.getenv("VAR_META_PATH", "")
+
         self.output_freq_sec = output_freq_sec
         self.save_nc = save_nc
         self.save_zarr = save_zarr

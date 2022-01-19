@@ -1,23 +1,21 @@
-from pathlib import Path
+import datetime
 import json
-from typing import Mapping
-import fv3config
-import fv3fit
-import runtime.metrics
+import subprocess
 import tempfile
 from datetime import timedelta
-import cftime
-import contextlib
-import numpy as np
-import os
-import pytest
-import xarray as xr
-import datetime
-import yaml
-import vcm.testing
-from machine_learning_mocks import get_mock_predictor
+from pathlib import Path
 
-import subprocess
+import cftime
+import fv3config
+import fv3fit
+import numpy as np
+import pytest
+import runtime.metrics
+import tensorflow as tf
+import vcm.testing
+import xarray as xr
+import yaml
+from machine_learning_mocks import get_mock_predictor
 
 BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
@@ -517,8 +515,13 @@ def get_ml_config(model_path):
     return config
 
 
-def get_emulation_config():
+def get_emulation_config(model_path: str):
     config = yaml.safe_load(default_fv3config)
+
+    config["zhao_carr_emulation"] = {
+        "storage": {"save_nc": True, "save_zarr": True},
+        "model": {"path": model_path},
+    }
 
     physics = config["namelist"]["gfs_physics_nml"]
     physics["imp_physics"] = 99
@@ -584,45 +587,21 @@ def configuration(request):
     return request.param
 
 
-@contextlib.contextmanager
-def env_context(env_vars: Mapping):
-    orig = {k: os.environ[k] for k in env_vars if k in os.environ}
-    os.environ.update(env_vars)
-
-    yield
-
-    for k in env_vars:
-        del os.environ[k]
-    os.environ.update(orig)
+def create_emulation_model():
+    in_ = tf.keras.layers.Input(shape=(63,), name="air_temperature_input")
+    out_ = tf.keras.layers.Lambda(lambda x: x + 1, name="air_temperature_dummy")(in_)
+    model = tf.keras.Model(inputs=in_, outputs=out_)
+    return model
 
 
 @pytest.fixture(scope="module")
-def env_var_context(configuration, saved_model_path):
+def completed_rundir(configuration, tmpdir_factory):
 
-    if configuration == ConfigEnum.microphys_emulation:
-
-        # Note: VAR_META_PATH is set during docker image creation
-        #       since that is static
-
-        env = {
-            "TF_MODEL_PATH": saved_model_path,
-            "OUTPUT_FREQ_SEC": str(900),
-        }
-    else:
-        env = {}
-
-    with env_context(env):
-        yield
-
-
-@pytest.fixture(scope="module")
-def completed_rundir(configuration, tmpdir_factory, env_var_context):
-
-    model_path = str(tmpdir_factory.mktemp("model"))
     tendency_dataset_path = tmpdir_factory.mktemp("tendencies")
 
     if configuration == ConfigEnum.predictor:
         model = get_mock_predictor()
+        model_path = str(tmpdir_factory.mktemp("model"))
         fv3fit.dump(model, str(model_path))
         config = get_ml_config(model_path)
     elif configuration == ConfigEnum.nudging:
@@ -632,8 +611,10 @@ def completed_rundir(configuration, tmpdir_factory, env_var_context):
         )
         config = get_nudging_config(str(tendency_dataset_path.join("ds.zarr")))
     elif configuration == ConfigEnum.microphys_emulation:
-        config = get_emulation_config()
-
+        model_path = str(tmpdir_factory.mktemp("model").join("model.tf"))
+        model = create_emulation_model()
+        model.save(model_path)
+        config = get_emulation_config(model_path)
     else:
         raise NotImplementedError()
 
