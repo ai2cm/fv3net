@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 import logging
-from typing import Mapping, Tuple, Sequence, Iterable
+from typing import Tuple, Hashable, Iterable, Dict
 import xarray as xr
 
 import fv3fit
@@ -13,17 +13,17 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-JACOBIAN_NAME = "jacobians.png"
-RF_FEATURE_IMPORTANCE_NAME = "rf_feature_importances.png"
-
-
 def dataset_to_dict_input(ds):
     if "time" in ds.dims:
         ds = ds.isel(time=0).squeeze(drop=True)
     stacked = ds.stack(sample=["tile", "x", "y"]).transpose("sample", ...)
     data = {}
     for var in stacked:
-        values = stacked[var].values
+        # for predictions, drop the 'target' values
+        if "derivation" in stacked[var].dims:
+            values = stacked[var].sel({"derivation": "predict"}).values
+        else:
+            values = stacked[var].values
         if len(stacked[var].dims) == 1:
             values = values.reshape(-1, 1)
         data[var] = values
@@ -31,8 +31,8 @@ def dataset_to_dict_input(ds):
 
 
 def _count_features_2d(
-    quantity_names: Iterable[str], dataset: xr.Dataset, sample_dim_name: str
-) -> Mapping[str, int]:
+    quantity_names: Iterable[Hashable], dataset: xr.Dataset, sample_dim_name: str
+) -> Dict[Hashable, int]:
     """
     count features for (sample[, z]) arrays.
     Copied from fv3fit._shared.packer, as this logic is pretty robust.
@@ -60,8 +60,8 @@ def _count_features_2d(
 
 
 def _get_variable_indices(
-    data: xr.Dataset, variables: Sequence[str]
-) -> Mapping[str, Tuple[int, int]]:
+    data: xr.Dataset, variables: Iterable[Hashable]
+) -> Dict[Hashable, Tuple[int, int]]:
     if "time" in data.dims:
         data = data.isel(time=0).squeeze(drop=True)
     stacked = data.stack(sample=["tile", "x", "y"])
@@ -76,16 +76,14 @@ def _get_variable_indices(
     return variable_indices
 
 
-def plot_input_sensitivity(
-    model: fv3fit.Predictor, sample: xr.Dataset, output_path: str
-):
+def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
     base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
-
     try:
-        jacobians = fv3fit.compute_standardized_jacobians(
-            base_model.dict_compatible_model,
+        jacobians = fv3fit.compute_vertically_standardized_jacobians(
+            base_model.dict_compatible_model,  # type: ignore
             dataset_to_dict_input(sample),
             base_model.input_variables,
+            units="dimensionless",
         )
         fig = _plot_jacobians(jacobians)
         return fig
@@ -95,7 +93,9 @@ def plot_input_sensitivity(
             input_feature_indices = _get_variable_indices(
                 data=sample, variables=base_model.input_variables
             )
-            fig = _plot_rf_feature_importance(input_feature_indices, base_model)
+            fig = _plot_rf_feature_importance(
+                input_feature_indices, base_model  # type: ignore
+            )
             return fig
 
         except AttributeError:
@@ -104,11 +104,12 @@ def plot_input_sensitivity(
                 "which currently has no feature importance or Jacobian "
                 "calculation implemented."
             )
-            pass
+            return None
 
 
 def _plot_rf_feature_importance(
-    input_feature_indices: Mapping[str, Tuple[int, int]], wrapped_model: SklearnWrapper,
+    input_feature_indices: Dict[Hashable, Tuple[int, int]],
+    wrapped_model: SklearnWrapper,
 ):
 
     # TODO: After the planned removal of the fv3fit.sklearn.EnsembleRegressor
