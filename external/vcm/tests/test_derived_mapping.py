@@ -148,6 +148,43 @@ def test_net_downward_shortwave_sfc_flux_derived():
     np.testing.assert_array_almost_equal(derived_net_sw, [1.0, 0.5, 0.0])
 
 
+def test_downward_shortwave_sfc_flux_via_transmissivity():
+    ds = xr.Dataset(
+        {
+            "total_sky_downward_shortwave_flux_at_top_of_atmosphere": xr.DataArray(
+                [2.0, 1.0, 3.0], dims=["x"]
+            ),
+            "shortwave_transmissivity_of_atmospheric_column": (
+                xr.DataArray([0.5, 0.75, 1.0], dims=["x"])
+            ),
+        }
+    )
+    derived_state = DerivedMapping(ds)
+    derived_downward_shortwave = derived_state[
+        "downward_shortwave_sfc_flux_via_transmissivity"
+    ]
+    np.testing.assert_array_almost_equal(derived_downward_shortwave, [1.0, 0.75, 3.0])
+
+
+def test_net_downward_shortwave_sfc_flux_via_transmissivity():
+    ds = xr.Dataset(
+        {
+            "total_sky_downward_shortwave_flux_at_top_of_atmosphere": xr.DataArray(
+                [2.0, 1.0, 3.0], dims=["x"]
+            ),
+            "shortwave_transmissivity_of_atmospheric_column": (
+                xr.DataArray([0.5, 0.75, 1.0], dims=["x"])
+            ),
+            "surface_diffused_shortwave_albedo": xr.DataArray(
+                [0, 0.5, 1.0], dims=["x"]
+            ),
+        }
+    )
+    derived_state = DerivedMapping(ds)
+    derived_net_shortwave = derived_state["net_shortwave_sfc_flux_via_transmissivity"]
+    np.testing.assert_array_almost_equal(derived_net_shortwave, [1.0, 0.375, 0.0])
+
+
 def test_required_inputs():
     @DerivedMapping.register("test_derived_var", required_inputs=["required_input"])
     def test_derived_var(self):
