@@ -61,9 +61,12 @@ def test_ml_steppers_regression_checksum(state, ml_stepper, regtest):
     print(checksums, file=regtest)
 
 
-def test_ml_stepper_state_update(state):
+@pytest.mark.parametrize(
+    "mock_predictor", ["state_and_tendency", "state_tendency_and_intermediate"]
+)
+def test_ml_stepper_state_update(state, mock_predictor):
     ml_stepper = PureMLStepper(
-        get_mock_predictor("state_and_tendency"), timestep=900, hydrostatic=False
+        get_mock_predictor(mock_predictor), timestep=900, hydrostatic=False
     )
     (tendencies, diagnostics, states) = ml_stepper(None, state)
     assert set(states) == {"total_sky_downward_shortwave_flux_at_surface"}

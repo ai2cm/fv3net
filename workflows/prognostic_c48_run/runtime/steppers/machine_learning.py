@@ -8,7 +8,7 @@ from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
 import fv3fit
 import xarray as xr
 from runtime.diagnostics import compute_diagnostics, compute_ml_momentum_diagnostics
-from runtime.names import DELP, SPHUM, is_state_update_variable
+from runtime.names import DELP, SPHUM, is_state_update_variable, is_tendency_variable
 from runtime.types import Diagnostics, State
 import vcm
 
@@ -189,7 +189,7 @@ class PureMLStepper:
         for key, value in prediction.items():
             if is_state_update_variable(key, state):
                 state_updates[key] = value
-            else:
+            elif is_tendency_variable(key):
                 tendency[key] = value
 
         for name in state_updates.keys():
