@@ -191,6 +191,8 @@ class PureMLStepper:
                 state_updates[key] = value
             elif is_tendency_variable(key):
                 tendency[key] = value
+            else:
+                diagnostics[key] = value
 
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]

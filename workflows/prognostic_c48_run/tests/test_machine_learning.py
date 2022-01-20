@@ -71,3 +71,5 @@ def test_ml_stepper_state_update(state, mock_predictor):
     (tendencies, diagnostics, states) = ml_stepper(None, state)
     assert set(states) == {"total_sky_downward_shortwave_flux_at_surface"}
     assert set(tendencies) == {"dQ1"}
+    if mock_predictor == "state_tendendency_and_intermediate":
+        assert "shortwave_transmissivity_of_atmospheric_column" in diagnostics
