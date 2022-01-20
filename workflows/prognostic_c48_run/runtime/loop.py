@@ -484,8 +484,6 @@ class TimeLoop(
             "Applying state updates to postphysics dycore state: "
             f"{self._state_updates.keys()}"
         )
-        if stepper_diags:
-            self._log_info("Exposing intermediate ")
         self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
