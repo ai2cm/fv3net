@@ -389,8 +389,9 @@ class TimeLoop(
             )
             if isinstance(self._prephysics_stepper, PureMLStepper) and diagnostics:
                 self._log_debug(
-                    f"Exposing ML predictands {list(diagnostics.keys())} from prephysics "
-                    f"stepper as diagnostics because they are not state updates or tendencies"
+                    f"Exposing ML predictands {list(diagnostics.keys())} from "
+                    f"prephysics stepper as diagnostics because they are not "
+                    f"state updates or tendencies"
                 )
             if self._prephysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
@@ -450,8 +451,9 @@ class TimeLoop(
             )
             if isinstance(self._postphysics_stepper, PureMLStepper) and diagnostics:
                 self._log_debug(
-                    f"Exposing ML predictands {list(diagnostics.keys())} from postphysics "
-                    f"stepper as diagnostics because they are not state updates or tendencies"
+                    f"Exposing ML predictands {list(diagnostics.keys())} from "
+                    f"postphysics stepper as diagnostics because they are not "
+                    "state updates or tendencies"
                 )
             self._state_updates.update(state_updates)
 
