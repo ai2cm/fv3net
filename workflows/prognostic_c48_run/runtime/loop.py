@@ -453,7 +453,7 @@ class TimeLoop(
                 self._log_debug(
                     f"Exposing ML predictands {list(diagnostics.keys())} from "
                     f"postphysics stepper as diagnostics because they are not "
-                    "state updates or tendencies"
+                    f"state updates or tendencies"
                 )
             self._state_updates.update(state_updates)
 
