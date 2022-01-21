@@ -305,7 +305,7 @@ def main(args):
     ds_diagnostics = ds_diagnostics.update(grid)
 
     # save model senstivity figures- these exclude derived variables
-    fig_input_sensitivity = plot_input_sensitivity(model, batches[0], args.output_path)
+    fig_input_sensitivity = plot_input_sensitivity(model, batches[0])
     if fig_input_sensitivity is not None:
         with fsspec.open(
             os.path.join(
