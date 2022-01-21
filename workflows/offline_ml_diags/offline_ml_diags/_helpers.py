@@ -54,6 +54,8 @@ def _count_features_2d(
     count features for (sample[, z]) arrays.
     Copied from fv3fit._shared.packer, as this logic is pretty robust.
     """
+    if "dataset" in dataset.dims:
+        dataset = dataset.isel(dataset=0)
     for name in quantity_names:
         if len(dataset[name].dims) > 2:
             value = dataset[name]
