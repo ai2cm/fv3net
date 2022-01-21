@@ -80,7 +80,7 @@ def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
     base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
     try:
         jacobians = fv3fit.compute_vertically_standardized_jacobians(
-            base_model.dict_compatible_model,  # type: ignore
+            base_model.get_dict_compatible_model(),  # type: ignore
             dataset_to_dict_input(sample),
             base_model.input_variables,
             units="dimensionless",

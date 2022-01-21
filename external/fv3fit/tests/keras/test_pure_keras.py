@@ -35,11 +35,11 @@ def pure_keras_model():
     )
 
 
-def test_dict_compatible_model():
+def test_get_dict_compatible_model():
     pure_keras = pure_keras_model()
     input_positional = [input_data["input_0"], input_data["input_1"]]
     positional_prediction = pure_keras.model(input_positional)
-    dict_prediction = pure_keras.dict_compatible_model(input_data)
+    dict_prediction = pure_keras.get_dict_compatible_model()(input_data)
     assert len(dict_prediction) == len(positional_prediction)
     for i, output in enumerate(dict_prediction):
         assert np.allclose(dict_prediction[output], positional_prediction[i])
