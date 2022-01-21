@@ -75,7 +75,6 @@ def _open_merged_dataset(
 class Approach(Enum):
     apparent_sources_only = 1
     apparent_sources_plus_nudging_tendencies = 2
-    apparent_sources_limit_extremes = 3
     apparent_sources_extend_lower = 4
     dynamics_difference = 5
 
@@ -116,8 +115,6 @@ def compute_budget(
 
     if approach == Approach.apparent_sources_plus_nudging_tendencies:
         merged["Q1"], merged["Q2"] = _add_nudging_tendencies(merged)
-    elif approach == Approach.apparent_sources_limit_extremes:
-        merged["Q1"], merged["Q2"] = _limit_extremes(merged)
     elif approach == Approach.apparent_sources_extend_lower:
         merged["Q1"] = _extend_lower(merged["Q1"])
         merged["Q2"] = _extend_lower(merged["Q2"])
@@ -157,7 +154,7 @@ def _add_nudging_tendencies(merged: xr.Dataset):
 
 
 def _limit_extremes(
-    ds: xr.Dataset, alpha: float = 1.0e-5, vdim: str = "z"
+    ds: xr.Dataset, alpha: float, vdim: str = "z"
 ) -> Tuple[xr.DataArray, xr.DataArray]:
     truncated = xr.Dataset()
     for var in ds.data_vars:
@@ -244,7 +241,9 @@ def open_fine_resolution(
 
 
 def _open_precomputed_fine_resolution_dataset(
-    fine_url: str, additional_dataset_urls: Optional[Sequence[str]] = None
+    fine_url: str,
+    additional_dataset_urls: Optional[Sequence[str]] = None,
+    limit_alpha: Optional[float] = None,
 ) -> MLTendencies:
 
     merged = _open_merged_dataset(
@@ -253,12 +252,17 @@ def _open_precomputed_fine_resolution_dataset(
         standardize_fine_coords=False,
     )
 
+    if limit_alpha is not None:
+        limited: xr.Dataset = merged
+        limited["Q1"], limited["Q2"] = _limit_extremes(merged, alpha=limit_alpha)
+        merged = limited
+
     return _ml_standard_names(merged)
 
 
 @mapper_functions.register
 def open_precomputed_fine_resolution(
-    fine_url: str, additional_dataset_urls: str = None
+    fine_url: str, additional_dataset_urls: str = None, limit_alpha: float = None
 ) -> GeoMapper:
     """
     Open a fine-res mapper from precomputed data, optionally using state
@@ -269,11 +273,15 @@ def open_precomputed_fine_resolution(
             precomputed Q1 and Q2
         additional_dataset_urls: sequence of urls which to zarrs containing additional
             data to be merged into the resulting mapper dataset
+        limit_alpha: two-tailed alpha for computing extrema quantiles, values beyond
+            which will be reduced to the quantile
     Returns:
         a mapper
     """
     return XarrayMapper(
         _open_precomputed_fine_resolution_dataset(
-            fine_url=fine_url, additional_dataset_urls=additional_dataset_urls
+            fine_url=fine_url,
+            additional_dataset_urls=additional_dataset_urls,
+            limit_alpha=limit_alpha,
         )
     )
