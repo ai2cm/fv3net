@@ -2,7 +2,7 @@ import dataclasses
 from datetime import timedelta
 from enum import Enum
 from typing_extensions import Protocol
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Tuple
 import zarr
 import xarray as xr
 import numpy as np
@@ -156,14 +156,18 @@ def _add_nudging_tendencies(merged: xr.Dataset):
     return Q1, Q2
 
 
-def _limit_extremes(ds: xr.Dataset, alpha: float=1.0e-5, vdim: str='z') -> Tuple[xr.DataArray, xr.DataArray]:
+def _limit_extremes(
+    ds: xr.Dataset, alpha: float = 1.0e-5, vdim: str = "z"
+) -> Tuple[xr.DataArray, xr.DataArray]:
     truncated = xr.Dataset()
     for var in ds.data_vars:
-        if var in [Q1, Q2]:
+        if var in ["Q1", "Q2"]:
             quantile_dims = [dim for dim in ds[var].dims if dim != vdim]
-            qmax = ds[var].quantile(1.0 - alpha/2.0, dim=quantile_dims)
-            qmin = ds[var].quantile(alpha/2.0, dim=quantile_dims)
-            truncated[var] = ds[var].where(ds[var] < qmax, qmax).where(ds[var] > qmin, qmin)
+            qmax = ds[var].quantile(1.0 - alpha / 2.0, dim=quantile_dims)
+            qmin = ds[var].quantile(alpha / 2.0, dim=quantile_dims)
+            truncated[var] = (
+                ds[var].where(ds[var] < qmax, qmax).where(ds[var] > qmin, qmin)
+            )
         else:
             truncated[var] = ds[var]
     truncated.attrs = ds.attrs
