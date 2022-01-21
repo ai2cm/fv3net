@@ -94,7 +94,10 @@ def standardize_jacobians_by_vertical_level(
 
     # normalize factors so sensitivities are comparable but still
     # preserve level-relative magnitudes
-    std_factors = {name: data.std(axis=0) for name, data in sample.items()}
+    std_factors = {
+        name: tf.math.reduce_std(data, axis=0).numpy() for name, data in sample.items()
+    }
+
     standardized_jacobians: Dict[str, OutputSensitivity] = {}
     for out_name, per_input_jacobians in all_jacobians.items():
         for in_name, j in per_input_jacobians.items():
