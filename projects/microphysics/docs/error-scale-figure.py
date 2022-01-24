@@ -109,7 +109,7 @@ mean_square_df = df.groupby(membership).aggregate(mean_square)
 fig, axs = plt.subplots(
     4,
     1,
-    figsize=(6, 6),
+    figsize=(4.77, 4.77),
     gridspec_kw=dict(height_ratios=[0.7, 2, 2, 2]),
     sharex=True,
     constrained_layout=True,
