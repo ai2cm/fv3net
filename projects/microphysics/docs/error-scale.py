@@ -1,6 +1,22 @@
+# ---
+# flake8: noqa
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.11.5
+#   kernelspec:
+#     display_name: fv3net
+#     language: python
+#     name: fv3net
+# ---
+
+# %%
 # flake8: noqa
 # %% [markdown]
-# ## Scaling the loss function
+# # Scaling the loss function
 #
 # The microphysics emulator model offline skill is worst in regions with low surface temperature ([report](https://datapane.com/u/noah5/reports/aAMZD23/2021-12-14microphysics-piggy-back-spatial-skill-rnn/)). Can we weight these regions more heavily in the loss? # noqa
 #
@@ -16,6 +32,7 @@ import numpy as np
 import xarray
 from cycler import cycler
 from vcm.fv3.metadata import gfdl_to_standard
+from myst_nb import glue
 
 # colorblind friendly settings
 wong_palette = [
@@ -134,6 +151,8 @@ stacked.TMPlowest.plot.hist(ax=ax_histx)
 ax.legend()
 ax.grid()
 ax_histx.grid()
+
+glue("error-scale", plt.gcf())
 
 # %% [markdown]
 # This plot shows that the sum of square errors (MSE) exceeds the target sum of squares when the surface temperature is below 250 K. this is very cold indeed...very few points have this cold of a surface. The magnitude of the sum of squares predictions and targets starts to diverge around T=260. These points are mostly on or next to Antarctica.

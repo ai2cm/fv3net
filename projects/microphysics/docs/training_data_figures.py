@@ -276,7 +276,8 @@ for field in [
 # %% [markdown]
 # # Compare scaling method
 #
-# See overleaf. The metric is $a^{-1} / x$ where $a^{-1}$ is the typical magnitude in the transformed spaced.
+# See overleaf. The metric is $a / x$ where $a}$ is chosen so that the variance
+# of the transformed data is 1.
 
 # %% [markdown]
 # This is a very large expected multiplier on the error magnitude
