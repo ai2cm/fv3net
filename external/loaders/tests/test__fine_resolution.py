@@ -1,12 +1,7 @@
 import numpy as np
 import pytest
 import xarray as xr
-from loaders.mappers._fine_res import (
-    Approach,
-    _extend_lower,
-    compute_budget,
-    _limit_extremes,
-)
+from loaders.mappers._fine_res import Approach, _extend_lower, compute_budget
 
 
 @pytest.mark.parametrize(
@@ -78,32 +73,3 @@ def test_compute_budget(approach, include_temperature_nudging):
 
     out = compute_budget(ds, approach, include_temperature_nudging)
     assert {"dQ1", "dQ2"} <= set(out)
-
-
-def get_dataset(scale, vdimsize):
-    vscaling = (np.arange(float(vdimsize), 0.0, -1.0) / float(vdimsize))[np.newaxis, :]
-    eps = 1.0e-3
-    data = np.arange(-scale, (scale + eps))[:, np.newaxis]
-    data_scaled = data * vscaling
-    da = xr.DataArray(data_scaled, dims=["x", "z"])
-    return xr.Dataset({"Q1": da})
-
-
-@pytest.mark.parametrize(
-    ["alpha", "vdimsize"],
-    [
-        pytest.param(0.1, 1, id="default"),
-        pytest.param(0.2, 1, id="alpha=0.2"),
-        pytest.param(0.1, 2, id="vdimsize=2"),
-    ],
-)
-def test__limit_extremes(alpha, vdimsize):
-    scale = 1.0 / alpha
-    ds = get_dataset(scale, vdimsize)
-    limited = _limit_extremes(ds, alpha=alpha)
-    arr = ds.Q1.values
-    upper = (scale * (1 - alpha)) / np.arange(1.0, float(vdimsize) + 1)
-    arr[0, :] = -upper
-    arr[-1, :] = upper
-    expected = xr.Dataset({"Q1": xr.DataArray(arr, dims=ds.Q1.dims)})
-    xr.testing.assert_allclose(limited, expected)

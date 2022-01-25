@@ -2,13 +2,14 @@ import dataclasses
 from datetime import timedelta
 from enum import Enum
 from typing_extensions import Protocol
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence
 import zarr
 import xarray as xr
 import numpy as np
 import fsspec
 
 from vcm.fv3.metadata import gfdl_to_standard
+from vcm.limit import LimitedDataset
 from loaders._config import mapper_functions
 from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
@@ -153,24 +154,6 @@ def _add_nudging_tendencies(merged: xr.Dataset):
     return Q1, Q2
 
 
-def _limit_extremes(
-    ds: xr.Dataset, alpha: float, vdim: str = "z"
-) -> Tuple[xr.DataArray, xr.DataArray]:
-    truncated = xr.Dataset()
-    for var in ds.data_vars:
-        if var in ["Q1", "Q2"]:
-            quantile_dims = [dim for dim in ds[var].dims if dim != vdim]
-            qmax = ds[var].quantile(1.0 - alpha / 2.0, dim=quantile_dims)
-            qmin = ds[var].quantile(alpha / 2.0, dim=quantile_dims)
-            truncated[var] = (
-                ds[var].where(ds[var] < qmax, qmax).where(ds[var] > qmin, qmin)
-            )
-        else:
-            truncated[var] = ds[var]
-    truncated.attrs = ds.attrs
-    return truncated
-
-
 def _extend_lower(
     fine_source: xr.DataArray, vertical_dim: str = "z", n_levels: int = 2
 ) -> xr.Dataset:
@@ -253,8 +236,13 @@ def _open_precomputed_fine_resolution_dataset(
     )
 
     if limit_alpha is not None:
-        limited: xr.Dataset = merged
-        limited["Q1"], limited["Q2"] = _limit_extremes(merged, alpha=limit_alpha)
+        limited: xr.Dataset = LimitedDataset(
+            merged,
+            alpha=limit_alpha,
+            feature_dims=["z"],
+            limit_only=["Q1", "Q2"],
+            fit_indexers={"time": 0},
+        )
         merged = limited
 
     return _ml_standard_names(merged)
@@ -273,8 +261,8 @@ def open_precomputed_fine_resolution(
             precomputed Q1 and Q2
         additional_dataset_urls: sequence of urls which to zarrs containing additional
             data to be merged into the resulting mapper dataset
-        limit_alpha: two-tailed alpha for computing extrema quantiles, values beyond
-            which will be reduced to the quantile
+        limit_alpha: two-tailed alpha for computing extrema quantiles of Q1 and Q2,
+            values beyond which will be reduced to the quantile
     Returns:
         a mapper
     """
