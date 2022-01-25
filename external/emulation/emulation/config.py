@@ -1,22 +1,26 @@
 import dataclasses
 import logging
-from typing import Optional
+from typing import Callable, Optional
 
 import dacite
 import yaml
-from emulation._emulate.microphysics import MicrophysicsHook
+from emulation._emulate.microphysics import MicrophysicsHook, MaskConfig
 from emulation._monitor.monitor import StorageConfig, StorageHook
+from emulation._typing import FortranState
 
 logger = logging.getLogger("emulation")
 
+StateFunc = Callable[[FortranState], None]
 
-def do_nothing(state):
+
+def do_nothing(state: FortranState) -> None:
     pass
 
 
 @dataclasses.dataclass
 class ModelConfig:
     path: str
+    mask: MaskConfig = MaskConfig()
 
 
 @dataclasses.dataclass
@@ -24,14 +28,14 @@ class EmulationConfig:
     model: Optional[ModelConfig] = None
     storage: Optional[StorageConfig] = None
 
-    def build_model_hook(self):
+    def build_model_hook(self) -> StateFunc:
         if self.model is None:
             logger.info("No model configured.")
             return do_nothing
         else:
-            return MicrophysicsHook(self.model.path).microphysics
+            return MicrophysicsHook(self.model.path, self.model.mask).microphysics
 
-    def build_storage_hook(self):
+    def build_storage_hook(self) -> StateFunc:
         if self.storage is None:
             logger.info("No storage configured.")
             return do_nothing

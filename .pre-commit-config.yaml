@@ -40,6 +40,7 @@ repos:
         workflows/prognostic_c48_run/tests/.+ |
         external/fv3fit/fv3fit/.+ |
         external/loaders/loaders/.+ |
+        external/emulation/emulation/.+ |
         workflows/diagnostics/fv3net/diagnostics/offline/.+
         )$
       exclude: |

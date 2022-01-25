@@ -1,11 +1,11 @@
 import numpy as np
 
-from emulation._emulate.microphysics import MicrophysicsHook
+from emulation._emulate.microphysics import MicrophysicsHook, MaskConfig
 
 
 def test_Config_integration(saved_model_path):
 
-    config = MicrophysicsHook(saved_model_path)
+    config = MicrophysicsHook(saved_model_path, MaskConfig())
 
     n = 100
     state = {

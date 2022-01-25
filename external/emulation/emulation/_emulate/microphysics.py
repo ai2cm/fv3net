@@ -1,5 +1,7 @@
+from dataclasses import dataclass
 import gc
 import sys
+from typing import Optional, Set
 from .._typing import FortranState
 
 # Tensorflow looks at sys args which are not initialized
@@ -19,6 +21,14 @@ from . import mask  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+
+@dataclass
+class MaskConfig:
+    max_cloud: Optional[float] = None
+    temperature_dependent_max: bool = False
+    max_lat: Optional[float] = None
+    min_lat: Optional[float] = None
 
 
 @print_errors
@@ -47,13 +57,19 @@ class MicrophysicsHook:
     Instanced at the top level of `_emulate`
     """
 
-    def __init__(self, model_path: str, garbage_collection_interval: int = 10) -> None:
+    def __init__(
+        self,
+        model_path: str,
+        mask_config: MaskConfig,
+        garbage_collection_interval: int = 10,
+    ) -> None:
 
         self.name = "microphysics emulator"
         self.model = _load_tf_model(model_path)
-        self.orig_outputs = None
+        self.orig_outputs: Optional[Set[str]] = None
         self.garbage_collection_interval = garbage_collection_interval
         self._calls_since_last_collection = 0
+        self._mask = mask_config
 
     def _maybe_garbage_collect(self):
         if self._calls_since_last_collection % self.garbage_collection_interval:
@@ -79,15 +95,20 @@ class MicrophysicsHook:
 
         predictions = self.model.predict(inputs)
 
-        lat_range = (-50, 50)
-        max_cloud = 0.005  # noqa
-        logging.info(f"masking emulator predictions outside latitudes: {lat_range}")
-        inputs["latitude"] = np.rad2deg(state["latitude"].reshape((-1, 1)))
-        lat_mask = mask.is_outside_lat_range(inputs, lat_range=lat_range)
         outputs = {name: np.atleast_2d(state[name]).T for name in predictions}
-        predictions = mask.where(lat_mask, outputs, predictions)
-        # predictions = mask.threshold_clouds(predictions, max=max_cloud)
-        predictions = mask.threshold_clouds_temperature_dependent(predictions)
+
+        if self._mask.max_lat or self._mask.min_lat:
+            inputs["latitude"] = np.rad2deg(state["latitude"].reshape((-1, 1)))
+            lat_range = (self._mask.min_lat or -100, self._mask.max_lat or 100)
+            logging.info(f"masking emulator predictions outside latitudes: {lat_range}")
+            lat_mask = mask.is_outside_lat_range(inputs, lat_range=lat_range)
+            predictions = mask.where(lat_mask, outputs, predictions)
+
+        if self._mask.max_cloud:
+            predictions = mask.threshold_clouds(predictions, max=self._mask.max_cloud)
+
+        if self._mask.temperature_dependent_max:
+            predictions = mask.threshold_clouds_temperature_dependent(predictions)
 
         # tranpose back to FV3 conventions
         model_outputs = {name: tensor.T for name, tensor in predictions.items()}
