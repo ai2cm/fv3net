@@ -437,3 +437,6 @@ orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn: null
 tendency_prescriber: null
+zhao_carr_emulation:
+  model: null
+  storage: null
