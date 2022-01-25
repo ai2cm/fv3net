@@ -239,7 +239,7 @@ def _open_precomputed_fine_resolution_dataset(
         limited = LimitedDataset(
             merged,
             alpha=limit_alpha,
-            feature_dims=["z"],
+            feature_dims=["z", "tile"],
             limit_only=["Q1", "Q2"],
             fit_indexers={"time": 0},
         )
