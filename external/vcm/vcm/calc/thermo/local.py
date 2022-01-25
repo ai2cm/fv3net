@@ -88,10 +88,10 @@ def surface_evaporation_mm_day_from_latent_heat_flux(
     """Compute surface evaporation in mm/day from latent heat flux
     
     Args:
-        latent_heat_flux: DataArray of latent heat flux in W/m2
+        latent_heat_flux: latent heat flux in W/m2
 
     Returns:
-        evaporation: DataArray of surface evaporation in mm/day
+        evaporation: surface evaporation in mm/day
     """
 
     surface_evaporation = _KG_M2S_TO_MM_DAY * latent_heat_flux_to_evaporation(
@@ -121,15 +121,15 @@ def total_water(
     """Compute total water species mixing ratio
     
     Args:
-        specific_humidity: DataArray of specific humidity mixing ratio in kg/kg
-        ice_water: DataArray of ice water mixing ratio in kg/kg
-        liquid_water: DataArray of liquid water mixing ratio in kg/kg
-        rain_water: DataArray of rain water mixing ratio in kg/kg
-        snow_water: DataArray of snow water mixing ratio in kg/kg
-        graupel_water: DataArray of graupel water mixing ratio in kg/kg
+        specific_humidity: specific humidity mixing ratio in kg/kg
+        ice_water: ice water mixing ratio in kg/kg
+        liquid_water: liquid water mixing ratio in kg/kg
+        rain_water: rain water mixing ratio in kg/kg
+        snow_water: snow water mixing ratio in kg/kg
+        graupel_water: graupel water mixing ratio in kg/kg
           
     Returns:
-        total_water: DataArray of total water mixing ratio in kg/kg
+        total_water: total water mixing ratio in kg/kg
     """
 
     total_water = (
@@ -156,20 +156,22 @@ def liquid_ice_temperature(
     graupel_water: xr.DataArray,
 ) -> xr.DataArray:
     """Compute liquid-ice temperature given temperature and hydrometeor mixing ratios,
-    according to:
+    according to::
+
         T_LI = T - Lv ( ql + qr)  - (Lf + Lv)(qs + qg + qi),
+
     where Lv and Lf are latent heats of vaporization and fusion, respectively
     
     Args:
-        temperature (T): DataArray of specific humidity mixing ratio in kg/kg
-        ice_water (qi): DataArray of ice water mixing ratio in kg/kg
-        liquid_water (ql): DataArray of liquid water mixing ratio in kg/kg
-        rain_water (qr): DataArray of rain water mixing ratio in kg/kg
-        snow_water (qs): DataArray of snow water mixing ratio in kg/kg
-        graupel_water (qg): DataArray of graupel water mixing ratio in kg/kg
+        temperature (T): specific humidity mixing ratio in kg/kg
+        ice_water (qi): ice water mixing ratio in kg/kg
+        liquid_water (ql): liquid water mixing ratio in kg/kg
+        rain_water (qr): rain water mixing ratio in kg/kg
+        snow_water (qs): snow water mixing ratio in kg/kg
+        graupel_water (qg): graupel water mixing ratio in kg/kg
           
     Returns:
-        liquid_ice_temperature (T_LI): DataArray of liquid-ice temperature in K
+        liquid_ice_temperature (T_LI): liquid-ice temperature in K
     """
 
     liquid_adjustment = (
