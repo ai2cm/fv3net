@@ -4,9 +4,11 @@ from typing import Callable, Optional
 
 import dacite
 import yaml
-from emulation._emulate.microphysics import MicrophysicsHook, MaskConfig
+from emulation._emulate.microphysics import MicrophysicsHook
+from emulation._emulate.mask import MaskConfig
 from emulation._monitor.monitor import StorageConfig, StorageHook
 from emulation._typing import FortranState
+
 
 logger = logging.getLogger("emulation")
 
@@ -33,6 +35,7 @@ class EmulationConfig:
             logger.info("No model configured.")
             return do_nothing
         else:
+
             return MicrophysicsHook(self.model.path, self.model.mask).microphysics
 
     def build_storage_hook(self) -> StateFunc:

@@ -1,6 +1,9 @@
 import numpy as np
+from dataclasses import dataclass
 import scipy.interpolate
+from typing import Optional
 from . import mask_data
+from emulation._typing import FortranState
 
 _qc_out = "cloud_water_mixing_ratio_after_precpd"
 _temp_out = "air_temperature_after_precpd"
@@ -66,3 +69,27 @@ def threshold_clouds_temperature_dependent(state):
     max_qc = max_cloud_from_temp(t)
     qc_thresh = np.where(qc > max_qc, max_qc, qc)
     return assoc_cloud_output(state, qc_thresh)
+
+
+@dataclass
+class MaskConfig:
+    max_cloud: Optional[float] = None
+    temperature_dependent_max: bool = False
+    max_lat: Optional[float] = None
+    min_lat: Optional[float] = None
+
+    def __call__(
+        self, inputs: FortranState, outputs: FortranState, predictions: FortranState,
+    ) -> FortranState:
+        if self.max_lat or self.min_lat:
+            lat_range = (self.min_lat or -100, self.max_lat or 100)
+            lat_mask = is_outside_lat_range(inputs, lat_range=lat_range)
+            predictions = where(lat_mask, outputs, predictions)
+
+        if self.max_cloud:
+            predictions = threshold_clouds(predictions, max=self.max_cloud)
+
+        if self.temperature_dependent_max:
+            predictions = threshold_clouds_temperature_dependent(predictions)
+
+        return predictions
