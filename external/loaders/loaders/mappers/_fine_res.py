@@ -229,21 +229,21 @@ def _open_precomputed_fine_resolution_dataset(
     limit_alpha: Optional[float] = None,
 ) -> MLTendencies:
 
-    merged = _open_merged_dataset(
+    merged: xr.Dataset = _open_merged_dataset(
         fine_url=fine_url,
         additional_dataset_urls=additional_dataset_urls,
         standardize_fine_coords=False,
     )
 
     if limit_alpha is not None:
-        limited: xr.Dataset = LimitedDataset(
+        limited = LimitedDataset(
             merged,
             alpha=limit_alpha,
             feature_dims=["z"],
             limit_only=["Q1", "Q2"],
             fit_indexers={"time": 0},
         )
-        merged = limited
+        merged["Q1"], merged["Q2"] = limited["Q1"], limited["Q2"]
 
     return _ml_standard_names(merged)
 
