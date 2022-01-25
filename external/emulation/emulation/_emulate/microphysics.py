@@ -11,11 +11,13 @@ if not hasattr(sys, "argv"):
 import f90nml  # noqa: E402
 import logging  # noqa: E402
 import os  # noqa: E402
+import numpy as np  # noqa: E402
 import tensorflow as tf  # noqa: E402
 
 from ..debug import print_errors  # noqa: E402
 from fv3fit.keras import adapters  # noqa: E402
 from .._filesystem import get_dir  # noqa: E402
+from . import mask  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -121,12 +123,22 @@ class MicrophysicsHook:
                 'set_state' calls.  Expected to be [feature, sample]
                 dimensions or [sample]
         """
-
         # grab model-required variables and
         # switch state to model-expected [sample, feature]
         inputs = {name: state[name].T for name in self.model.input_names}
 
         predictions = self.model.predict(inputs)
+
+        lat_range = (-50, 50)
+        max_cloud = 0.005  # noqa
+        logging.info(f"masking emulator predictions outside latitudes: {lat_range}")
+        inputs["latitude"] = np.rad2deg(state["latitude"].reshape((-1, 1)))
+        lat_mask = mask.is_outside_lat_range(inputs, lat_range=lat_range)
+        outputs = {name: np.atleast_2d(state[name]).T for name in predictions}
+        predictions = mask.where(lat_mask, outputs, predictions)
+        # predictions = mask.threshold_clouds(predictions, max=max_cloud)
+        predictions = mask.threshold_clouds_temperature_dependent(predictions)
+
         # tranpose back to FV3 conventions
         model_outputs = {name: tensor.T for name, tensor in predictions.items()}
 

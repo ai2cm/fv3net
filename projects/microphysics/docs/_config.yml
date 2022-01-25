@@ -3,13 +3,14 @@
 
 title: Emulating the Zhao-Carr Microphysics Scheme
 author: Noah Brenowitz, Andre Perkins, et. al.
-logo: logo.png
+# logo: logo.png
 
 # Force re-execution of notebooks on each build.
 # See https://jupyterbook.org/content/execute.html
 execute:
   execute_notebooks: cache
   stderr_output: remove
+  kernel_name: fv3net
 
 # Define the name of the latex output file for PDF builds
 latex:
@@ -17,8 +18,10 @@ latex:
     targetname: book.tex
 
 # Add a bibtex file so that we can create citations
-bibtex_bibfiles:
-  - references.bib
+# bibtex_bibfiles:
+#   - references.bib
+#
+only_build_toc_files: true
 
 # Information about where the book exists on the web
 repository:
@@ -37,4 +40,4 @@ sphinx:
     nb_custom_formats:
         .py:
             - jupytext.reads
-            - fmt: py
+            - fmt: py:percent

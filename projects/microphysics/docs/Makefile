@@ -9,6 +9,10 @@ upload: build
 server:
 	cd _build/html && python -m http.server 32341
 
+
+error-scale.pdf: error-scale-figure.py
+	python3 error-scale-figure.py
+
 .PHONY: upload
 
 .PHONY: build
