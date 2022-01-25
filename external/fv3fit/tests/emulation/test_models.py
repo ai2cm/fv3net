@@ -205,26 +205,26 @@ def test_transformed_model_without_transform():
 def test_transformed_model_with_transform():
     field = Field("a_out", "a")
     transformed_field = Field("transform_a_out", "transform_a")
-    data = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
+    factory = transforms.ComposedTransformFactory(
+        [
+            transforms.TransformedVariableConfig(
+                field.input_name,
+                transformed_field.input_name,
+                transforms.LogTransform(),
+            ),
+            transforms.TransformedVariableConfig(
+                field.output_name,
+                transformed_field.output_name,
+                transforms.LogTransform(),
+            ),
+        ]
+    )
+    x = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
+    transform = factory.build(x)
+    data = transform.forward(x)
     model = TransformedModelConfig(
         ArchitectureConfig("dense"), [transformed_field], 900
-    ).build(
-        data,
-        transform=transforms.PerVariableTransform(
-            [
-                transforms.TransformedVariableConfig(
-                    field.input_name,
-                    transformed_field.input_name,
-                    transforms.LogTransform(),
-                ),
-                transforms.TransformedVariableConfig(
-                    field.output_name,
-                    transformed_field.output_name,
-                    transforms.LogTransform(),
-                ),
-            ]
-        ),
-    )
+    ).build(data, transform=transform)
     out = model(data)
     assert set(out) == {transformed_field.output_name, field.output_name}
 

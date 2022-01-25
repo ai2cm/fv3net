@@ -2,7 +2,7 @@ import pytest
 import tensorflow as tf
 from fv3fit.emulation.transforms import (
     LogTransform,
-    PerVariableTransform,
+    ComposedTransformFactory,
     TransformedVariableConfig,
 )
 
@@ -32,9 +32,10 @@ def _get_per_variable_mocks():
 
     x = {"a": tf.constant(1.0), "b": tf.constant(1.0)}
     mock_xform = MockTransform()
-    transform = PerVariableTransform(
+    factory = ComposedTransformFactory(
         [TransformedVariableConfig("a", "transformed", mock_xform)]
     )
+    transform = factory.build(x)
     expected_forward = {
         "a": tf.constant(1.0),
         "b": tf.constant(1.0),
@@ -61,7 +62,7 @@ def test_per_variable_transform_round_trip():
 
 
 def test_per_variable_transform_backward_names():
-    transform = PerVariableTransform(
+    transform = ComposedTransformFactory(
         [TransformedVariableConfig("a", "b", LogTransform())]
     )
     assert transform.backward_names({"b"}) == {"a"}

@@ -172,7 +172,7 @@ def test_TrainConfig_build_model():
         ),
     )
     data = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
-    model = config.build_model(data)
+    model = config.build_model(data, config.build_transform(data))
     assert field.output_name in model(data)
 
 

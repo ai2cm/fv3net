@@ -63,9 +63,7 @@ class TransformedModelConfig:
         factory = FieldFactory(
             self.timestep_increment_sec, self.normalize_key, self.enforce_positive, data
         )
-        model = TransformedModel(
-            self.fields, self.architecture, factory, transform=transform
-        )
+        model = TransformedModel(self.fields, self.architecture, factory)
 
         # Wrap the custom model with a keras functional model for easier
         # serialization. Serialized models need to know their input/output
@@ -74,12 +72,18 @@ class TransformedModelConfig:
         # contains both inputs and outputs the serialized model will think its
         # outputs are also inputs and never be able to evaluate...even though
         # calling `model(data)` works just fine.
+        input_names = set(
+            transform.backward({key: data[key] for key in self.input_variables})
+        )
         inputs = {
             name: tf.keras.Input(data[name].shape[1:], name=name)
-            for name in transform.backward_names(set(self.input_variables))
+            for name in input_names
         }
-        outputs = model(inputs)
-        functional_keras_model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        outputs = model(transform.forward(inputs))
+        outputs = transform.backward(outputs)
+        functional_keras_model = tf.keras.Model(
+            inputs=inputs, outputs=transform.backward(outputs)
+        )
         return ensure_dict_output(functional_keras_model)
 
 
@@ -130,30 +134,18 @@ class FieldFactory:
     _enforce_positive: bool
     _data: Mapping[str, tf.Tensor]
 
-    def build_input(
-        self, field: Field, transform: transforms.TensorTransform
-    ) -> FieldInput:
-        return build_field_input(field, transform.forward(self._data), self._normalize)
+    def build_input(self, field: Field) -> FieldInput:
+        return build_field_input(field, self._data, self._normalize)
 
-    def build_output(
-        self, field: Field, transform: transforms.TensorTransform
-    ) -> tf.keras.layers.Layer:
+    def build_output(self, field: Field,) -> tf.keras.layers.Layer:
         return build_field_output(
-            field,
-            transform.forward(self._data),
-            self._dt_sec,
-            self._normalize,
-            self._enforce_positive,
+            field, self._data, self._dt_sec, self._normalize, self._enforce_positive,
         )
 
     def build_architecture(
-        self,
-        config: ArchitectureConfig,
-        output_variables: List[str],
-        transform: transforms.TensorTransform,
+        self, config: ArchitectureConfig, output_variables: List[str],
     ) -> tf.keras.layers.Layer:
-        data = transform.forward(self._data)
-        output_features = {key: data[key].shape[-1] for key in output_variables}
+        output_features = {key: self._data[key].shape[-1] for key in output_variables}
         return config.build(output_features)
 
 
@@ -163,10 +155,8 @@ class TransformedModel(tf.keras.layers.Layer):
         fields: List[Field],
         architecture_config: ArchitectureConfig,
         factory: FieldFactory,
-        transform: transforms.TensorTransform = transforms.Identity,
     ):
         super().__init__()
-        self.transform = transform
 
         outputs = [field for field in fields if field.output_name]
         inputs = [field for field in fields if field.input_name]
@@ -174,16 +164,12 @@ class TransformedModel(tf.keras.layers.Layer):
         self.arch = factory.build_architecture(
             architecture_config,
             output_variables=[field.output_name for field in outputs],
-            transform=transform,
         )
 
-        self.inputs = {
-            field.input_name: factory.build_input(field, transform) for field in inputs
-        }
+        self.inputs = {field.input_name: factory.build_input(field) for field in inputs}
 
         self.outputs = {
-            field.output_name: factory.build_output(field, transform)
-            for field in outputs
+            field.output_name: factory.build_output(field) for field in outputs
         }
         self.output_fields = {
             field.output_name: field for field in fields if field.output_name
@@ -205,8 +191,7 @@ class TransformedModel(tf.keras.layers.Layer):
 
     @tf.function
     def call(self, data: Mapping[str, tf.Tensor]):
-        data = self.transform.forward(data)
         processed_inputs = {key: self.inputs[key](data[key]) for key in self.inputs}
         outputs = self.arch(processed_inputs)
         processed_outputs = self._process_outputs(data, outputs)
-        return self.transform.backward(processed_outputs)
+        return processed_outputs
