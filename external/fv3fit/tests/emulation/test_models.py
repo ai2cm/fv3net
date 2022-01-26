@@ -7,10 +7,11 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from fv3fit._shared import SliceConfig
-from fv3fit.emulation import transforms
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.layers.architecture import _ARCHITECTURE_KEYS
 from fv3fit.emulation.models import MicrophysicsConfig, TransformedModelConfig
+from fv3fit.emulation.models.transformed_model import transform_model
+from fv3fit.emulation.transforms.transforms import Identity
 from fv3fit.emulation.zhao_carr_fields import Field
 
 
@@ -202,49 +203,48 @@ def test_transformed_model_without_transform():
     assert set(out) == {field.output_name}
 
 
-def test_transformed_model_with_transform():
-    field = Field("a_out", "a")
-    transformed_field = Field("transform_a_out", "transform_a")
-    factory = transforms.ComposedTransformFactory(
-        [
-            transforms.TransformedVariableConfig(
-                field.input_name,
-                transformed_field.input_name,
-                transforms.LogTransform(),
-            ),
-            transforms.TransformedVariableConfig(
-                field.output_name,
-                transformed_field.output_name,
-                transforms.LogTransform(),
-            ),
-        ]
-    )
-    x = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
-    transform = factory.build(x)
-    data = transform.forward(x)
-    model = TransformedModelConfig(
-        ArchitectureConfig("dense"), [transformed_field], 900
-    ).build(data, transform=transform)
-    out = model(data)
-    assert set(out) == {transformed_field.output_name, field.output_name}
-
-
 def test_save_and_reload_transformed_model(tmpdir):
-    field = Field("a_out", "a")
-    input = {field.input_name: tf.ones((1, 10))}
-    output = {field.output_name: tf.ones((1, 10))}
+    inputs = {"a": tf.keras.Input(10, name="a")}
+    outputs = {"out": tf.keras.layers.Lambda(lambda x: x, name="out")(inputs["a"])}
+    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+    transformed_model = transform_model(model, Identity, inputs)
+
+    input = {"a": tf.ones((1, 10))}
+    output = {"out": tf.ones((1, 10))}
     data = {**input, **output}
-    config = TransformedModelConfig(ArchitectureConfig("dense"), [field], 900)
-    model = config.build(data)
-    # this will initialize model.call with a signature requiring all the keys in
-    # ``data`` even though `a` is the only "true" input
     model(data)
     path = str(tmpdir) + "/model.tf"
-    save_model(model, str(tmpdir))
+    save_model(transformed_model, str(tmpdir))
     loaded = tf.keras.models.load_model(path)
     # will often complain since ``input`` is missing the "a_out" field which was
     # passed to ``model`` above.
     loaded.predict(input)
+
+
+def test_transform_model_input_names():
+    class MockTransform:
+        def forward(self, x):
+            y = {**x}
+            y["transform"] = x["a"]
+            return y
+
+        def backward(self, x):
+            y = {**x}
+            y["out"] = x["transform_out"]
+            return y
+
+    original_inputs = {"a": tf.keras.Input(10, name="a")}
+    # make model in transformed space
+    transform_input = tf.keras.Input(10, name="transform")
+    transform_output = tf.keras.layers.Lambda(lambda x: x, name="transform_out")(
+        transform_input
+    )
+    model = tf.keras.Model(inputs=[transform_input], outputs=[transform_output])
+    transformed_model = transform_model(model, MockTransform(), original_inputs)
+    # only includes untransformed inputs
+    assert set(transformed_model.input_names) == {"a"}
+    # includes both transformed and untransformed outpus
+    assert set(transformed_model.output_names) == {"out", "transform_out"}
 
 
 @pytest.mark.xfail

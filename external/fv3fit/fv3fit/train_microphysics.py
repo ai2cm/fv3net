@@ -27,6 +27,7 @@ from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.jacobian import compute_standardized_jacobians
 from fv3fit.emulation.keras import save_model
 from fv3fit.emulation.losses import CustomLoss
+from fv3fit.emulation.models import transform_model
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
     TensorTransform,
@@ -135,10 +136,17 @@ class TrainConfig:
     def build_model(
         self, data: Mapping[str, tf.Tensor], transform: TensorTransform
     ) -> tf.keras.Model:
-        return self._model.build(data, transform)
+        inputs = {
+            name: tf.keras.Input(data[name].shape[1:], name=name)
+            for name in self.input_variables
+        }
+        inner_model = self._model.build(transform.forward(data))
+        return transform_model(inner_model, transform, inputs)
 
-    def build_loss(self, data: Mapping[str, tf.Tensor]) -> LossFunction:
-        return self.loss.build(data)
+    def build_loss(
+        self, data: Mapping[str, tf.Tensor], transform: TensorTransform
+    ) -> LossFunction:
+        return self.loss.build(transform.forward(data))
 
     @property
     def input_variables(self) -> Sequence:
@@ -303,7 +311,7 @@ def main(config: TrainConfig, seed: int = 0):
             history = train(
                 model,
                 train_ds_batched,
-                config.build_loss(train_set),
+                config.build_loss(train_set, transform),
                 optimizer=config.loss.optimizer.instance,
                 epochs=config.epochs,
                 validation_data=test_ds_batched,

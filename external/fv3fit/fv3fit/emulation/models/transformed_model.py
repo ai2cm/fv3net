@@ -7,11 +7,11 @@ from fv3fit.emulation.layers import (
     ArchitectureConfig,
 )
 from fv3fit.emulation.zhao_carr_fields import Field
-from fv3fit.emulation import transforms
 from fv3fit.keras.adapters import ensure_dict_output
+from fv3fit.emulation.transforms import TensorTransform
 import tensorflow as tf
 
-__all__ = ["TransformedModelConfig"]
+__all__ = ["TransformedModelConfig", "transform_model"]
 
 
 @dataclasses.dataclass
@@ -57,36 +57,12 @@ class TransformedModelConfig:
         """The output variables in transformed space"""
         return [field.output_name for field in self.fields if field.output_name]
 
-    def build(
-        self,
-        data: Mapping[str, tf.Tensor],
-        transform: transforms.TensorTransform = transforms.Identity,
-    ) -> tf.keras.Model:
+    def build(self, data: Mapping[str, tf.Tensor],) -> tf.keras.Model:
         factory = FieldFactory(
             self.timestep_increment_sec, self.normalize_key, self.enforce_positive, data
         )
         model = InnerModel(self.fields, self.architecture, factory)
-
-        # Wrap the custom model with a keras functional model for easier
-        # serialization. Serialized models need to know their input/output
-        # signatures. The keras "Functional" API makes this explicit, but custom
-        # models subclasses "remember" their first inputs. Since ``data``
-        # contains both inputs and outputs the serialized model will think its
-        # outputs are also inputs and never be able to evaluate...even though
-        # calling `model(data)` works just fine.
-        input_names = set(
-            transform.backward({key: data[key] for key in self.input_variables})
-        )
-        inputs = {
-            name: tf.keras.Input(data[name].shape[1:], name=name)
-            for name in input_names
-        }
-        outputs = model(transform.forward(inputs))
-        outputs = transform.backward(outputs)
-        functional_keras_model = tf.keras.Model(
-            inputs=inputs, outputs=transform.backward(outputs)
-        )
-        return ensure_dict_output(functional_keras_model)
+        return model
 
 
 def build_field_output(
@@ -170,7 +146,10 @@ class InnerModel(tf.keras.layers.Layer):
             output_variables=[field.output_name for field in outputs],
         )
 
-        self.inputs = {field.input_name: factory.build_input(field) for field in inputs}
+        self._inputs = {
+            field.input_name: factory.build_input(field) for field in inputs
+        }
+        self.inputs = None
 
         self.outputs = {
             field.output_name: factory.build_output(field) for field in outputs
@@ -195,7 +174,31 @@ class InnerModel(tf.keras.layers.Layer):
 
     @tf.function
     def call(self, data: Mapping[str, tf.Tensor]):
-        processed_inputs = {key: self.inputs[key](data[key]) for key in self.inputs}
+        processed_inputs = {key: self._inputs[key](data[key]) for key in self._inputs}
         outputs = self.arch(processed_inputs)
         processed_outputs = self._process_outputs(data, outputs)
         return processed_outputs
+
+
+def transform_model(
+    model: tf.keras.Model,
+    transform: TensorTransform,
+    inputs: Mapping[str, tf.keras.Input],
+) -> tf.keras.Model:
+    try:
+        model = ensure_dict_output(model)
+    except ValueError:
+        pass
+    # Wrap the custom model with a keras functional model for easier
+    # serialization. Serialized models need to know their input/output
+    # signatures. The keras "Functional" API makes this explicit, but custom
+    # models subclasses "remember" their first inputs. Since ``data``
+    # contains both inputs and outputs the serialized model will think its
+    # outputs are also inputs and never be able to evaluate...even though
+    # calling `model(data)` works just fine.
+    outputs = model(transform.forward(inputs))
+    outputs = transform.backward(outputs)
+    functional_keras_model = tf.keras.Model(
+        inputs=inputs, outputs=transform.backward(outputs)
+    )
+    return ensure_dict_output(functional_keras_model)
