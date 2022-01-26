@@ -63,7 +63,7 @@ class LimitedDataset(xr.Dataset):
     def _fit_limits(self, ds: xr.Dataset):
         sample_ds = (
             ds.isel(**self._fit_indexers) if self._fit_indexers is not None else ds
-        )
+        ).load()
         sample_dims = (
             set(sample_ds.dims) - set(self._feature_dims)
             if self._feature_dims is not None
