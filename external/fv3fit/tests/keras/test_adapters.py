@@ -1,6 +1,10 @@
 import numpy as np
 import tensorflow as tf
-from fv3fit.keras.adapters import ensure_dict_output, rename_dict_output
+from fv3fit.keras.adapters import (
+    ensure_dict_output,
+    rename_dict_output,
+    rename_dict_input,
+)
 
 
 def test_ensure_dict_output_multiple_out():
@@ -70,3 +74,22 @@ def test_ensure_dict_output_has_correct_output_names():
     model = tf.keras.Model(inputs=in_, outputs=out_)
     fixed_model = ensure_dict_output(model)
     assert set(fixed_model.output_names) == set(out_)
+
+
+def test_rename_dict_inputs():
+    inputs = {
+        "input_0": tf.keras.layers.Input(shape=(5,), name="input_0"),
+        "input_1": tf.keras.layers.Input(shape=(5,), name="input_1"),
+    }
+    concat_inputs = tf.keras.layers.Concatenate()([layer for layer in inputs.values()])
+    a = tf.keras.layers.Dense(5)(concat_inputs)
+    out_ = {"a": a}
+    model = tf.keras.Model(inputs=inputs, outputs=out_)
+
+    renamed_model = rename_dict_input(model, {"input_0": "input_0_renamed"})
+    one = tf.ones((1, 5))
+
+    new_out = renamed_model({"input_0_renamed": one * 5, "input_1": one})
+    old_out = model({"input_0": one * 5, "input_1": one})
+
+    np.testing.assert_array_equal(new_out["a"], old_out["a"])

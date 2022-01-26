@@ -108,3 +108,48 @@ def _rename_graph_outputs_to_match_output_keys(model: tf.keras.Model) -> tf.kera
     model_dict_out = tf.keras.Model(inputs=inputs, outputs=renamed)
     model_dict_out(inputs)
     return model_dict_out
+
+
+def _ensure_list_input(model: tf.keras.Model) -> tf.keras.Model:
+    # useful for connecting input layers with names different from the original model
+    if isinstance(model.inputs, Mapping):
+        inputs = [input for input in model.inputs]
+    elif model.inputs is None:
+        raise ValueError(
+            f"Cannot detect inputs of model {model}. " "Custom models may not work."
+        )
+    else:
+        inputs = model.inputs
+    return tf.keras.Model(inputs=inputs, outputs=model.outputs)
+
+
+def rename_dict_input(
+    model: tf.keras.Model, translation: Mapping[str, str]
+) -> tf.keras.Model:
+    """Rename the inputs of a dict-output model
+
+    Args:
+        model: a tensorflow model. must return dicts
+        transation: a mapping from old names (the keys returned by ``model``) to
+            the new output names.
+
+    """
+
+    # need to have list format inputs to connect renamed layers to rest of the model
+    list_input_model = _ensure_list_input(model)
+
+    renamed_inputs = [
+        # skip the first placeholder dim when specifying shape
+        tf.keras.layers.Input(
+            shape=input_layer.shape[1:],
+            name=translation.get(input_layer.name, input_layer.name),
+        )
+        for input_layer in list_input_model.inputs
+    ]
+    connect_outputs = model(renamed_inputs)
+    dict_inputs = {input.name: input for input in renamed_inputs}
+
+    model_renamed = tf.keras.Model(inputs=dict_inputs, outputs=connect_outputs)
+    model_renamed(renamed_inputs)
+
+    return model_renamed
