@@ -66,7 +66,7 @@ class ComposedTransform(TensorTransform):
         return x
 
     def backward(self, y: TensorDict) -> TensorDict:
-        for transform in self.transforms:
+        for transform in self.transforms[::-1]:
             try:
                 y = transform.backward(y)
             except KeyError:

@@ -3,6 +3,7 @@ import tensorflow as tf
 from fv3fit.emulation.transforms import (
     LogTransform,
     ComposedTransformFactory,
+    ComposedTransform,
     TransformedVariableConfig,
 )
 
@@ -67,3 +68,23 @@ def test_per_variable_transform_backward_names():
     )
     assert transform.backward_names({"b"}) == {"a"}
     assert transform.backward_names({"b", "random"}) == {"a", "random"}
+
+
+def test_ComposedTransform_forward_backward_on_sequential_transforms():
+    # some transforms could be mutually dependent
+
+    class Rename:
+        def __init__(self, in_name, out_name):
+            self.in_name = in_name
+            self.out_name = out_name
+
+        def forward(self, x):
+            return {self.out_name: x[self.in_name]}
+
+        def backward(self, y):
+            return {self.in_name: y[self.out_name]}
+
+    transform = ComposedTransform([Rename("a", "b"), Rename("b", "c")])
+    data = {"a": tf.ones((1,))}
+    assert set(transform.forward(data)) == {"c"}
+    assert set(transform.backward(transform.forward(data))) == set(data)
