@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import numpy as np
 import logging
 from typing import Tuple, Hashable, Iterable, Dict
 import xarray as xr
@@ -111,14 +110,8 @@ def _plot_rf_feature_importance(
     input_feature_indices: Dict[Hashable, Tuple[int, int]],
     wrapped_model: SklearnWrapper,
 ):
-
-    # TODO: After the planned removal of the fv3fit.sklearn.EnsembleRegressor
-    # is complete, this for loop is not needed.
-    importances = []
-    for member in wrapped_model.model.regressors:
-        importances.append(member.feature_importances_)
-    mean_importances = np.array(importances).mean(axis=0)
-    std_importances = np.array(importances).std(axis=0)
+    mean_importances = wrapped_model.mean_importances
+    std_importances = wrapped_model.std_importances
 
     vector_features, scalar_features = {}, {}
     for var, var_indices in input_feature_indices.items():
