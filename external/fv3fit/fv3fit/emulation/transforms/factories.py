@@ -1,14 +1,18 @@
 import dataclasses
-from typing import Sequence, Set
+from typing import Callable, Sequence, Set
 
-from typing_extensions import Protocol
-from fv3fit.emulation.types import TensorDict
+import tensorflow as tf
 from fv3fit.emulation.transforms.transforms import (
-    TensorTransform,
-    LogTransform,
-    UnivariateTransform,
     ComposedTransform,
+    ConditionallyScaledTransform,
+    LogTransform,
+    TensorTransform,
+    UnivariateTransform,
 )
+from fv3fit.emulation.types import TensorDict
+from fv3fit.emulation.zhao_carr_fields import Field
+from fv3fit.keras.math import groupby_bins, piecewise
+from typing_extensions import Protocol
 
 
 class TransformFactory(Protocol):
@@ -45,6 +49,81 @@ class TransformedVariableConfig(TransformFactory):
         return UnivariateTransform(self.source, self.to, self.transform)
 
 
+def reduce_std(x: tf.Tensor) -> tf.Tensor:
+    mean = tf.reduce_mean(x)
+    return tf.sqrt(tf.reduce_mean((x - mean) ** 2))
+
+
+def fit_conditional(
+    x: tf.Tensor, y: tf.Tensor, reduction: Callable[[tf.Tensor], tf.Tensor], bins: int,
+) -> Callable[[tf.Tensor], tf.Tensor]:
+    # TODO test
+    # should work for vals < min and > max
+    min = tf.reduce_min(x)
+    max = tf.reduce_max(x)
+    edges = tf.linspace(min, max, bins + 1)
+    values = groupby_bins(edges, x, y, reduction)
+
+    def interp(x: tf.Tensor) -> tf.Tensor:
+        return piecewise(edges[:-1], values, x)
+
+    return interp
+
+
+@dataclasses.dataclass
+class ConditionallyScaled(TransformFactory):
+    """Conditionally scaled transformation
+
+    Scales data by conditional standard deviation and mean::
+
+                  field - E[field|on]
+        to =  --------------------------------
+               max[Std[field|on], min_scale]
+
+    Attributes:
+        to: name of the transformed variable
+        condition_on: the variable to condition on
+        bins: the number of bins
+        field: the prognostic variable spec
+
+    """
+
+    to: str
+    condition_on: str
+    bins: int
+    field: Field
+    min_scale: float = 0.0
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        """List the names needed to compute ``self.to``"""
+        if self.to in requested_names:
+            return (requested_names - {self.to}) | {
+                self.field.input_name,
+                self.condition_on,
+                self.field.output_name,
+            }
+        else:
+            return requested_names
+
+    def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
+
+        residual_sample = sample[self.field.output_name] - sample[self.field.input_name]
+
+        return ConditionallyScaledTransform(
+            to=self.to,
+            on=self.condition_on,
+            input_name=self.field.input_name,
+            output_name=self.field.output_name,
+            scale=fit_conditional(
+                sample[self.condition_on], residual_sample, reduce_std, self.bins
+            ),
+            center=fit_conditional(
+                sample[self.condition_on], residual_sample, tf.reduce_mean, self.bins
+            ),
+            min_scale=self.min_scale,
+        )
+
+
 class ComposedTransformFactory(TransformFactory):
     def __init__(self, factories: Sequence[TransformFactory]):
         self.factories = factories
@@ -54,6 +133,6 @@ class ComposedTransformFactory(TransformFactory):
             requested_names = factory.backward_names(requested_names)
         return requested_names
 
-    def build(self, sample: TensorDict) -> TensorTransform:
+    def build(self, sample: TensorDict) -> ComposedTransform:
         transforms = [factory.build(sample) for factory in self.factories]
         return ComposedTransform(transforms)

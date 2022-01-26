@@ -19,6 +19,7 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
+from fv3fit.emulation.transforms.factories import ConditionallyScaled
 from fv3fit.emulation.types import LossFunction, TensorDict
 from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
@@ -89,7 +90,9 @@ class TrainConfig:
     test_url: str
     out_url: str
     transform: TransformConfig = field(default_factory=TransformConfig)
-    tensor_transform: List[TransformedVariableConfig] = field(default_factory=list)
+    tensor_transform: List[
+        Union[TransformedVariableConfig, ConditionallyScaled]
+    ] = field(default_factory=list)
     model: Optional[models.MicrophysicsConfig] = None
     conservative_model: Optional[models.ConservativeWaterConfig] = None
     transformed_model: Optional[models.TransformedModelConfig] = None

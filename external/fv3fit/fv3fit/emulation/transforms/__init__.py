@@ -1,2 +1,6 @@
-from .transforms import Identity, TensorTransform, LogTransform, ComposedTransform
-from .factories import ComposedTransformFactory, TransformedVariableConfig
+from .factories import (
+    ComposedTransformFactory,
+    ConditionallyScaled,
+    TransformedVariableConfig,
+)
+from .transforms import ComposedTransform, Identity, LogTransform, TensorTransform
