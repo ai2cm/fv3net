@@ -37,6 +37,7 @@ def test_training(
         input_variables=train_config.input_variables,
         output_variables=train_config.output_variables,
         hyperparameters=config.hyperparameters,
+        sample_weight=train_config.sample_weight,
     )
     model.fit(training_batches)
     # This is the number of random forests in the ensemble, not the

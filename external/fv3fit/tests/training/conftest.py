@@ -19,12 +19,17 @@ def validation_timesteps(request) -> Optional[Sequence[str]]:
 
 @pytest.fixture
 def input_variables() -> Iterable[str]:
-    return ["air_temperature", "specific_humidity"]
+    return ["air_temperature", "specific_humidity", "downward_shortwave"]
 
 
 @pytest.fixture
 def output_variables() -> Iterable[str]:
     return ["dQ1", "dQ2"]
+
+
+@pytest.fixture(params=[None, "dummy_sample_weight"])
+def sample_weight(request) -> Optional[str]:
+    return request.param
 
 
 @pytest.fixture
@@ -35,6 +40,7 @@ def data_info(tmpdir):
     x, y, z, tile, time = (8, 8, 79, 6, 2)
     arr = np.zeros((time, tile, z, y, x))
     arr_surf = np.zeros((time, tile, y, x))
+    non_zero_arr_surf = np.ones((time, tile, y, x))
     dims = ["time", "tile", "z", "y", "x"]
     dims_surf = ["time", "tile", "y", "x"]
 
@@ -49,6 +55,7 @@ def data_info(tmpdir):
             "dQ2": (dims, arr),
             "dQu": (dims, arr),
             "dQv": (dims, arr),
+            "dummy_sample_weight": (dims_surf, non_zero_arr_surf),
         },
         coords={
             "time": [
@@ -80,6 +87,7 @@ def train_config(
     output_variables: Iterable[str],
     data_info,
     validation_timesteps: Optional[Sequence[str]],
+    sample_weight: Optional[str],
 ) -> ModelTrainingConfig:
     return ModelTrainingConfig(
         data_path="train_data_path",
@@ -94,6 +102,7 @@ def train_config(
         additional_variables=[],
         random_seed=0,
         validation_timesteps=validation_timesteps,
+        sample_weight=sample_weight,
     )
 
 

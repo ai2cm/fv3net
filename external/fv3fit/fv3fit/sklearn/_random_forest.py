@@ -45,6 +45,7 @@ class RandomForest(Estimator):
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         hyperparameters: RandomForestHyperparameters,
+        sample_weight: Optional[str] = None,
     ):
         batch_regressor = _RegressorEnsemble(
             sklearn.ensemble.RandomForestRegressor(
@@ -64,6 +65,7 @@ class RandomForest(Estimator):
             model=batch_regressor,
             scaler_type=hyperparameters.scaler_type,
             scaler_kwargs=hyperparameters.scaler_kwargs,
+            sample_weight=sample_weight
         )
 
     def fit(self, batches: Sequence[xr.Dataset]):
@@ -100,12 +102,13 @@ class _RegressorEnsemble:
     def n_estimators(self):
         return len(self.regressors)
 
-    def fit(self, features, outputs):
+    def fit(self, features, outputs, sample_weight=None):
         """ Adds a base regressor fit on features to the ensemble
 
         Args:
             features: numpy array of features
             outputs: numpy array of targets
+            sample_weight: numpy array of sample weights (optional)
 
         Returns:
 
@@ -114,7 +117,7 @@ class _RegressorEnsemble:
         # each regressor needs different randomness
         if hasattr(new_regressor, "random_state"):
             new_regressor.random_state += len(self.regressors)
-        new_regressor.fit(features, outputs)
+        new_regressor.fit(features, outputs, sample_weight=sample_weight)
         self.regressors.append(new_regressor)
 
     def predict(self, features):
@@ -170,6 +173,7 @@ class SklearnWrapper(Estimator):
         model: _RegressorEnsemble,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
+        sample_weight: Optional[str] = None,
     ) -> None:
         """
         Initialize the wrapper
@@ -179,6 +183,7 @@ class SklearnWrapper(Estimator):
             input_variables: list of input variables
             output_variables: list of output variables
             model: a scikit learn regression model
+            sample_weight: variable to use as the sample weight (optional)
         """
         self._sample_dim_name = sample_dim_name
         self._input_variables = input_variables
@@ -188,6 +193,7 @@ class SklearnWrapper(Estimator):
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
+        self._sample_weight = sample_weight
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
@@ -198,12 +204,19 @@ class SklearnWrapper(Estimator):
         y, self.output_features_ = pack(
             data[self.output_variables], self.sample_dim_name
         )
-
+        if self._sample_weight is not None:
+            print(data)
+            _sample_weight_da = data[self._sample_weight]
+            if _sample_weight_da.dims != (self.sample_dim_name, ):
+                raise ValueError(f"sample_weight DataArray has incompatible dimensions {_sample_weight_da.dims}")
+            sample_weight = _sample_weight_da.values
+        else:
+            sample_weight = None
         if self.target_scaler is None:
             self.target_scaler = self._init_target_scaler(data)
 
         y = self.target_scaler.normalize(y)
-        self.model.fit(x, y)
+        self.model.fit(x, y, sample_weight=sample_weight)
 
     def _init_target_scaler(self, batch):
         return get_scaler(
@@ -253,6 +266,7 @@ class SklearnWrapper(Estimator):
             self.sample_dim_name,
             self.input_variables,
             self.output_variables,
+            self._sample_weight,
             _multiindex_to_tuple(self.output_features_),
         ]
 
@@ -274,12 +288,13 @@ class SklearnWrapper(Estimator):
             sample_dim_name,
             input_variables,
             output_variables,
+            sample_weight,
             output_features_dict_,
         ) = yaml.safe_load(mapper[cls._METADATA_NAME])
 
         output_features_ = _tuple_to_multiindex(output_features_dict_)
 
-        obj = cls(sample_dim_name, input_variables, output_variables, model)
+        obj = cls(sample_dim_name, input_variables, output_variables, model, sample_weight=sample_weight)
         obj.target_scaler = scaler_obj
         obj.output_features_ = output_features_
 

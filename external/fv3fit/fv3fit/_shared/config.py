@@ -223,6 +223,7 @@ class _ModelTrainingConfig:
         hyperparameters: arguments to pass to model class at initialization
             time
         input_variables: variables used as features
+        sample_weight: variable to use as sample weights (for sklearn model only)
         output_variables: variables to predict
         batch_function: name of function from `fv3fit.batches` to use for
             loading batched data
@@ -256,6 +257,7 @@ class _ModelTrainingConfig:
     save_model_checkpoints: bool = False
     model_path: str = ""
     timesteps_source: str = "timesteps_file"
+    sample_weight: Optional[str] = None
 
     def __post_init__(self):
         if self.scaler_type == "mass":
@@ -332,10 +334,15 @@ def load_configs(
     config_dict = dataclasses.asdict(legacy_config)
     training_config = legacy_config_to_new_config(legacy_config)
 
+    if config_dict.sample_weight is not None:
+        sample_weight = [config_dict.sample_weight]
+    else:
+        sample_weight = []
     variables = (
         config_dict["input_variables"]
         + config_dict["output_variables"]
         + config_dict.get("additional_variables", [])
+        + sample_weight
     )
     data_path = config_dict["data_path"]
     batch_function = config_dict["batch_function"]
@@ -398,10 +405,14 @@ def validation_timesteps_config(train_config):
 # TODO: refactor all tests and code using this to create DataConfig from the beginning
 # and delete this helper routine
 def legacy_config_to_data_config(legacy_config):
+    if legacy_config.sample_weight is not None:
+        sample_weight = [legacy_config.sample_weight]
+    else:
+        sample_weight = []  
     return DataConfig(
         variables=legacy_config.input_variables
         + legacy_config.output_variables
-        + (legacy_config.additional_variables or []),
+        + (legacy_config.additional_variables or []) + sample_weight,
         data_path=legacy_config.data_path,
         batch_function=legacy_config.batch_function,
         batch_kwargs=legacy_config.batch_kwargs,
