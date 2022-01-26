@@ -6,8 +6,13 @@ from fv3fit._shared import (
     stack,
 )
 from fv3fit._shared.stacking import Z_DIM_NAMES
+from fv3fit.keras.adapters import (
+    ensure_dict_output,
+    rename_dict_input,
+    rename_dict_output,
+)
 import tensorflow as tf
-from typing import Any, Dict, Hashable, Iterable, Optional, Sequence
+from typing import Any, Dict, Hashable, Iterable, Optional, Sequence, Mapping
 import xarray as xr
 import os
 from ...._shared import get_dir, put_dir
@@ -170,17 +175,16 @@ class PureKerasModel(Predictor):
         Rename keras model inputs/outputs to match input_variables and
         output_variables, and ensure model accepts and outputs dicts.
         """
-        renamed_inputs = [
-            # skip the first placeholder dim when specifying shape
-            tf.keras.layers.Input(shape=layer.shape[1:], name=input_name)
-            for input_name, layer in zip(self.input_variables, self.model.inputs)
-        ]
-        connect_outputs = self.model(renamed_inputs)
-
-        renamed_outputs = {
-            output_name: tf.keras.layers.Lambda(lambda x: x, name=output_name)(val)
-            for output_name, val in zip(self.output_variables, connect_outputs)
+        renamed_inputs: Mapping[str, str] = {
+            str(layer.name): str(input_var)
+            for layer, input_var in zip(self.model.inputs, self.input_variables)
         }
-
-        dict_inputs = {input.name: input for input in renamed_inputs}
-        return tf.keras.Model(inputs=dict_inputs, outputs=renamed_outputs)
+        renamed_outputs: Mapping[str, str] = {
+            str(layer.name): str(output_var)
+            for layer, output_var in zip(self.model.outputs, self.output_variables)
+        }
+        dict_compatible_model = ensure_dict_output(self.model)
+        model_renamed_outputs = rename_dict_output(
+            dict_compatible_model, renamed_outputs
+        )
+        return rename_dict_input(model_renamed_outputs, renamed_inputs)
