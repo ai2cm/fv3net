@@ -49,10 +49,12 @@ class TransformedModelConfig:
 
     @property
     def input_variables(self) -> List[str]:
+        """The input variables in transformed space"""
         return [field.input_name for field in self.fields if field.input_name]
 
     @property
     def output_variables(self) -> List[str]:
+        """The output variables in transformed space"""
         return [field.output_name for field in self.fields if field.output_name]
 
     def build(
@@ -63,7 +65,7 @@ class TransformedModelConfig:
         factory = FieldFactory(
             self.timestep_increment_sec, self.normalize_key, self.enforce_positive, data
         )
-        model = TransformedModel(self.fields, self.architecture, factory)
+        model = InnerModel(self.fields, self.architecture, factory)
 
         # Wrap the custom model with a keras functional model for easier
         # serialization. Serialized models need to know their input/output
@@ -149,7 +151,9 @@ class FieldFactory:
         return config.build(output_features)
 
 
-class TransformedModel(tf.keras.layers.Layer):
+class InnerModel(tf.keras.layers.Layer):
+    """An inner model containg ML-trainable weights"""
+
     def __init__(
         self,
         fields: List[Field],
