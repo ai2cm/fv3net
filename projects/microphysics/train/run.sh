@@ -14,7 +14,7 @@ group="$(openssl rand -hex 3)"
 config=rnn
 config_file="${config}.yaml"
 
-model_name="rnn-gscond-cloudtdep-${group}"
+model_name="rnn-gscond-alltdep-${group}"
 out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}")
 
 argo submit argo.yaml \
