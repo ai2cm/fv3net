@@ -70,8 +70,6 @@ def cos_zenith_angle(
     Returns:
         float, np.ndarray, or xr.DataArray
     """
-    vectorized_cos_zenith = np.vectorize(_star_cos_zenith)
-
     if isinstance(lon, xr.DataArray):
         lon = _ensure_units_of_degrees(lon)
         lat = _ensure_units_of_degrees(lat)
@@ -82,7 +80,7 @@ def cos_zenith_angle(
         )
     else:
         lon_rad, lat_rad = lon * RAD_PER_DEG, lat * RAD_PER_DEG
-        return vectorized_cos_zenith(time, lon_rad, lat_rad)
+        return _star_cos_zenith(time, lon_rad, lat_rad)
 
 
 def _days_from_2000(model_time):
@@ -101,9 +99,7 @@ def _total_days(time_diff):
     """
     Total time in units of days
     """
-    return time_diff.days + (
-        time_diff.seconds + time_diff.microseconds / (1000000.0)
-    ) / (24 * 3600.0)
+    return np.asarray(time_diff).astype("timedelta64[us]") / np.timedelta64(1, "D")
 
 
 def _greenwich_mean_sidereal_time(model_time):
@@ -122,10 +118,7 @@ def _greenwich_mean_sidereal_time(model_time):
 
     theta_radians = np.deg2rad(theta / 240.0) % (2 * np.pi)
 
-    if theta_radians < 0:
-        theta_radians += 2 * np.pi
-
-    return theta_radians
+    return theta_radians + 2 * np.pi * (theta_radians < 0)
 
 
 def _local_mean_sidereal_time(model_time, longitude):
