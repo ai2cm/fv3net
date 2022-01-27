@@ -151,14 +151,16 @@ def rename_dict_input(
     renamed_inputs = [
         # skip the first placeholder dim when specifying shape
         tf.keras.layers.Input(
-            shape=input_layer.shape[1:],
-            name=translation.get(input_layer.name, input_layer.name),
+            shape=input_layer.shape[1:], name=translation.get(input_name, input_name),
         )
-        for input_layer in list_input_model.inputs
+        for input_layer, input_name in zip(
+            list_input_model.inputs, list_input_model.input_names
+        )
     ]
     connect_outputs = list_input_model(renamed_inputs)
     dict_inputs = {input.name: input for input in renamed_inputs}
 
     model_renamed = tf.keras.Model(inputs=dict_inputs, outputs=connect_outputs)
     model_renamed(dict_inputs)
+
     return model_renamed

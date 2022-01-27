@@ -83,9 +83,8 @@ def test_rename_dict_inputs():
         "input_1": tf.keras.layers.Input(shape=(5,), name="input_1"),
     }
     concat_inputs = tf.keras.layers.Concatenate()([layer for layer in inputs.values()])
-    a = tf.keras.layers.Dense(5)(concat_inputs)
-    out_ = {"a": a}
-    model = tf.keras.Model(inputs=inputs, outputs=out_)
+    a = tf.keras.layers.Dense(5, name="a")(concat_inputs)
+    model = tf.keras.Model(inputs=inputs, outputs={"a": a})
 
     renamed_model = rename_dict_input(model, {"input_0": "input_0_renamed"})
     one = tf.ones((1, 5))
