@@ -137,7 +137,6 @@ def rename_dict_input(
 
     # need to have list format inputs to connect renamed layers to rest of the model
     list_input_model = _ensure_list_input(model)
-
     renamed_inputs = [
         # skip the first placeholder dim when specifying shape
         tf.keras.layers.Input(
@@ -146,10 +145,10 @@ def rename_dict_input(
         )
         for input_layer in list_input_model.inputs
     ]
-    connect_outputs = model(renamed_inputs)
+    connect_outputs = list_input_model(renamed_inputs)
     dict_inputs = {input.name: input for input in renamed_inputs}
 
     model_renamed = tf.keras.Model(inputs=dict_inputs, outputs=connect_outputs)
-    model_renamed(renamed_inputs)
+    model_renamed(dict_inputs)
 
     return model_renamed
