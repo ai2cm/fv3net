@@ -8,10 +8,9 @@ import numpy as np
 import tensorflow as tf
 from vcm.derived_mapping import DerivedMapping
 import xarray as xr
+from .io import download_cached
 from toolz.functoolz import curry
 from typing import Hashable, Mapping, Sequence, Union
-
-from vcm import get_fs, open_remote_nc
 
 
 logger = logging.getLogger(__name__)
@@ -58,11 +57,8 @@ def _register_derived_variables(mapping: DerivedMapping, timestep):
 
 def open_netcdf_dataset(path: str) -> xr.Dataset:
     """Open a netcdf from a local/remote path"""
-
-    fs = get_fs(path)
-    data = open_remote_nc(fs, path)
-
-    return data
+    local_path = download_cached(path)
+    return xr.open_dataset(local_path)
 
 
 @curry

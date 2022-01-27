@@ -237,7 +237,13 @@ class TrainConfig:
         self, url: str, nfiles: Optional[int], required_variables: Set[str],
     ) -> tf.data.Dataset:
         nc_open_fn = self.transform.get_pipeline(required_variables)
-        return nc_dir_to_tf_dataset(url, nc_open_fn, nfiles=nfiles)
+        return nc_dir_to_tf_dataset(
+            url,
+            nc_open_fn,
+            nfiles=nfiles,
+            shuffle=True,
+            random_state=np.random.RandomState(0),
+        )
 
     @property
     def model_variables(self) -> Set[str]:
