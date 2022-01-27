@@ -142,9 +142,9 @@ def test__shuffled_dask_different_chunks(a_chunk_size, b_chunk_size):
     dataset = _stacked_dataset(SAMPLE_DIM_NAME)
     dataset["a"] = dataset.a.chunk({SAMPLE_DIM_NAME: a_chunk_size})
     dataset["b"] = dataset.b.chunk({SAMPLE_DIM_NAME: b_chunk_size})
-    result, = shuffled(np.random.RandomState(1), [dataset])
+    (result,) = shuffled(np.random.RandomState(1), [dataset])
     assert result.chunks[SAMPLE_DIM_NAME] == (5, 5)
-    assert result.chunks["x"] == (2, )
+    assert result.chunks["x"] == (2,)
 
 
 def test_multiple_unstacked_dims():
