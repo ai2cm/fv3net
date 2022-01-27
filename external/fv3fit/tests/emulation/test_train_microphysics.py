@@ -1,5 +1,6 @@
 import sys
 from dataclasses import asdict
+from unittest.mock import Mock
 from fv3fit.emulation.losses import CustomLoss
 
 import pytest
@@ -171,8 +172,10 @@ def test_TrainConfig_build_model():
             ArchitectureConfig("dense"), [field], 900
         ),
     )
+
+    assert set(config.input_variables) == {"in"}
     data = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
-    model = config.build_model(data)
+    model = config.build_model(data, config.build_transform(data))
     assert field.output_name in model(data)
 
 
@@ -180,6 +183,9 @@ def test_TrainConfig_build_loss():
     config = TrainConfig(".", ".", ".", loss=CustomLoss(loss_variables=["x"]))
     # needs to be random or the normalized loss will have nan
     data = {"x": tf.random.uniform(shape=(4, 10))}
-    loss = config.build_loss(data)
+    transform = Mock()
+    transform.forward.return_value = data
+    loss = config.build_loss(data, transform)
     loss_value, _ = loss(data, data)
     assert 0 == pytest.approx(loss_value.numpy())
+    transform.forward.assert_called()
