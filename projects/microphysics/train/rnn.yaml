@@ -8,15 +8,25 @@ valid_freq: 2
 out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
 train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
 test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
+tensor_transform:
+  - to: cloud_precpd_difference
+    condition_on: air_temperature_input
+    min_scale: 1e-8
+    bins: 50
+    field:
+      input_name: cloud_water_mixing_ratio_input
+      output_name: cloud_water_mixing_ratio_after_precpd
 loss:
   optimizer:
     kwargs:
       learning_rate: 0.0002
     name: Adam
+  metric_variables:
+  - cloud_water_mixing_ratio_after_precpd
   loss_variables:
   - air_temperature_after_precpd
   - specific_humidity_after_precpd
-  - cloud_water_mixing_ratio_after_precpd
+  - cloud_precpd_difference
   - total_precipitation
   - air_temperature_after_gscond
   - specific_humidity_after_gscond
@@ -25,7 +35,7 @@ loss:
     specific_humidity_after_precpd: 500000.0
     air_temperature_after_gscond: 500000.0
     specific_humidity_after_gscond: 500000.0
-    cloud_water_mixing_ratio_after_precpd: 1.0
+    cloud_precpd_difference: 10.0
     total_precipitation: .04
 model:
   architecture:
@@ -40,7 +50,7 @@ model:
   - specific_humidity_after_last_gscond
   - air_temperature_after_last_gscond
   direct_out_variables:
-  - cloud_water_mixing_ratio_after_precpd
+  - cloud_precpd_difference
   - total_precipitation
   residual_out_variables:
     air_temperature_after_precpd: air_temperature_input
@@ -48,7 +58,7 @@ model:
     air_temperature_after_gscond: air_temperature_input
     specific_humidity_after_gscond: specific_humidity_input
   normalize_key: mean_std
-  enforce_positive: true
+  enforce_positive: false
   selection_map: {}
   timestep_increment_sec: 900
 transform:
@@ -56,3 +66,4 @@ transform:
   derived_microphys_timestep: 900
   use_tensors: true
   vertical_subselections: null
+

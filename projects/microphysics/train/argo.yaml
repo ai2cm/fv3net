@@ -10,7 +10,8 @@ spec:
   arguments:
     parameters:
     - name: tag
-      value: ":6ec3d47c6d6ab1388f084464eb7c9f10d248e2e6"
+      # branch with temperature scaled rnn
+      value: "9f57ad20b30d128fde4319dca309bf97d0f35ff6"
     - name: wandb-run-group
       value: ""
     - name: training-config
@@ -62,7 +63,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: "us.gcr.io/vcm-ml/prognostic_run{{workflow.parameters.tag}}"
+        image: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.tag}}"
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -105,7 +106,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: "us.gcr.io/vcm-ml/prognostic_run_gpu{{workflow.parameters.tag}}"
+        image: "us.gcr.io/vcm-ml/prognostic_run_gpu:{{workflow.parameters.tag}}"
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -155,7 +156,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: "us.gcr.io/vcm-ml/prognostic_run{{workflow.parameters.tag}}"
+        image: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.tag}}"
         command: ["bash", "-c", "-x"]
         workingDir: "/fv3net/projects/microphysics"
         envFrom:
