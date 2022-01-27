@@ -113,6 +113,7 @@ def shuffled(random: RandomState, datasets: Sequence[xr.Dataset]) -> xr.Dataset:
             dimensionality/coordinates if multiple datasets are given
     """
     chunks_default = (len(datasets[0][SAMPLE_DIM_NAME]),)
+    datasets = [dataset.unify_chunks() for dataset in datasets]
     chunks = datasets[0].chunks.get(SAMPLE_DIM_NAME, chunks_default)
     chunk_indices = _get_chunk_indices(chunks)
     shuffled_inds = np.concatenate(
