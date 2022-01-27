@@ -57,8 +57,6 @@ def reduce_std(x: tf.Tensor) -> tf.Tensor:
 def fit_conditional(
     x: tf.Tensor, y: tf.Tensor, reduction: Callable[[tf.Tensor], tf.Tensor], bins: int,
 ) -> Callable[[tf.Tensor], tf.Tensor]:
-    # TODO test
-    # should work for vals < min and > max
     min = tf.reduce_min(x)
     max = tf.reduce_max(x)
     edges = tf.linspace(min, max, bins + 1)
