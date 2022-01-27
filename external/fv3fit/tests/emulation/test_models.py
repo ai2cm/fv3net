@@ -231,6 +231,8 @@ def test_transform_model_input_names():
         def backward(self, x):
             y = {**x}
             y["out"] = x["transform_out"]
+            # try to grab input field
+            x["a"]
             return y
 
     original_inputs = {"a": tf.keras.Input(10, name="a")}
