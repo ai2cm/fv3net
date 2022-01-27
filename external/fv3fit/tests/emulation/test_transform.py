@@ -117,7 +117,7 @@ def test_fit_conditional_2d():
     assert out.shape == in_.shape
 
 
-def _get_mocked_transform(scale_value=2.0):
+def _get_mocked_transform(scale_value=2.0, min_scale=0.0):
     scale = Mock()
     scale.return_value = scale_value
     center = Mock()
@@ -131,7 +131,10 @@ def _get_mocked_transform(scale_value=2.0):
 
     expected = 1.0
 
-    data = {input_name: zero, output_name: zero + expected * scale.return_value}
+    data = {
+        input_name: zero,
+        output_name: zero + expected * max(scale.return_value, min_scale),
+    }
 
     transform = ConditionallyScaledTransform(
         input_name=input_name,
@@ -140,23 +143,28 @@ def _get_mocked_transform(scale_value=2.0):
         on=input_name,
         scale=scale,
         center=center,
+        min_scale=min_scale,
     )
 
     return scale, center, transform, data, expected, to
 
 
-def test_ConditionallyScaledTransform_forward():
-    scale, center, transform, data, expected, to = _get_mocked_transform()
+@pytest.mark.parametrize("min_scale", [0, 1, 2, 3])
+def test_ConditionallyScaledTransform_forward(min_scale: float):
+    scale, center, transform, data, expected, to = _get_mocked_transform(
+        min_scale=min_scale
+    )
     out = transform.forward(data)
     np.testing.assert_array_almost_equal(out[to], expected)
     scale.assert_called_once()
     center.assert_called_once()
 
 
-def test_ConditionallyScaledTransform_backward():
+@pytest.mark.parametrize("min_scale", [0, 4])
+def test_ConditionallyScaledTransform_backward(min_scale: float):
     # need a scale-value other than one to find round-tripped errors
     scale, center, transform, data, expected, to = _get_mocked_transform(
-        scale_value=2.0
+        scale_value=2.0, min_scale=min_scale
     )
     out = transform.forward(data)
     round_tripped = transform.backward(out)
