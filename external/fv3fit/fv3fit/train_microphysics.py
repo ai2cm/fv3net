@@ -19,12 +19,13 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
+from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
+
 from fv3fit.emulation.types import LossFunction
 from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
-from fv3fit._shared.jacobian import compute_standardized_jacobians
 from fv3fit.emulation.keras import save_model
 from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.transforms import (
@@ -32,6 +33,8 @@ from fv3fit.emulation.transforms import (
     TensorTransform,
     TransformedVariableConfig,
 )
+from fv3fit.emulation.layers.normalization import standard_deviation_all_features
+
 import xarray
 from fv3fit.wandb import (
     WandBConfig,
@@ -316,9 +319,14 @@ def main(config: TrainConfig, seed: int = 0):
             store_model_artifact(local_model_path, name=config._model.name)
 
     # Jacobians after model storing in case of "out of memory" errors
-    std_jacobians = compute_standardized_jacobians(
-        model, config.get_transform().forward(train_set), config.input_variables
-    )
+    sample = config.get_transform().forward(train_set)
+    jacobians = compute_jacobians(model, sample, config.input_variables)
+    std_factors = {
+        name: np.array(float(standard_deviation_all_features(data)))
+        for name, data in sample.items()
+    }
+    std_jacobians = nondimensionalize_jacobians(jacobians, std_factors)
+
     save_jacobians(std_jacobians, config.out_url, "jacobians.npz")
     if config.use_wandb:
         plot_all_output_sensitivities(std_jacobians)

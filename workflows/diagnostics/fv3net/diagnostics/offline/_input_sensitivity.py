@@ -1,15 +1,18 @@
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import logging
-from typing import Tuple, Hashable, Iterable, Dict
+import numpy as np
+from typing import Tuple, Hashable, Iterable, Dict, Mapping
 import xarray as xr
 
 import fv3fit
 from fv3fit.sklearn._random_forest import SklearnWrapper
-
+from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+OutputSensitivity = Dict[str, np.ndarray]
 
 
 def dataset_to_dict_input(ds):
@@ -77,14 +80,19 @@ def _get_variable_indices(
 
 def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
     base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
+
     try:
-        jacobians = fv3fit.compute_vertically_standardized_jacobians(
+        data_dict = dataset_to_dict_input(sample)
+        jacobians = compute_jacobians(
             base_model.get_dict_compatible_model(),  # type: ignore
-            dataset_to_dict_input(sample),
+            data_dict,
             base_model.input_variables,
-            units="dimensionless",
         )
-        fig = _plot_jacobians(jacobians)
+        # normalize factors so sensitivities are comparable but still
+        # preserve level-relative magnitudes
+        std_factors = {name: np.std(data, axis=0) for name, data in data_dict.items()}
+        jacobians_std = nondimensionalize_jacobians(jacobians, std_factors)
+        fig = _plot_jacobians(jacobians_std)
         return fig
 
     except AttributeError:
@@ -176,13 +184,12 @@ def _subplot_scalar_feature_importances(
     return axs
 
 
-def _plot_jacobians(jacobians):
+def _plot_jacobians(jacobians: Mapping[str, OutputSensitivity]):
     num_outputs = len(jacobians)
     num_inputs = max([len(output) for output in jacobians.values()])
     fig, axes = plt.subplots(
         ncols=num_inputs, nrows=num_outputs, figsize=(4 * num_inputs, 4 * num_outputs)
     )
-
     for i, (output_name, output) in enumerate(jacobians.items()):
         num_inputs = len(output)
         for j, (input_name, input) in enumerate(output.items()):
@@ -203,6 +210,5 @@ def _plot_jacobians(jacobians):
                 cax = divider.append_axes("right", size="5%", pad=0.05)
                 fig.colorbar(im, cax=cax, orientation="vertical")
                 ax.set_title(f"output: {output_name} \n input: {input_name}")
-
     fig.tight_layout()
     return fig

@@ -120,7 +120,11 @@ def _ensure_list_input(model: tf.keras.Model) -> tf.keras.Model:
         )
     else:
         inputs = model.inputs
-    return tf.keras.Model(inputs=inputs, outputs=model.outputs)
+    list_input_model = tf.keras.Model(inputs=inputs, outputs=model.outputs)
+    list_input_model(inputs)
+    # need to keep outputs dict- without calling this the model will revert
+    # to list outputs
+    return ensure_dict_output(list_input_model)
 
 
 def rename_dict_input(
@@ -150,5 +154,4 @@ def rename_dict_input(
 
     model_renamed = tf.keras.Model(inputs=dict_inputs, outputs=connect_outputs)
     model_renamed(dict_inputs)
-
     return model_renamed

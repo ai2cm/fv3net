@@ -176,15 +176,19 @@ class PureKerasModel(Predictor):
         output_variables, and ensure model accepts and outputs dicts.
         """
         renamed_inputs: Mapping[str, str] = {
-            str(layer.name): str(input_var)
-            for layer, input_var in zip(self.model.inputs, self.input_variables)
+            str(layer_name): str(input_var)
+            for layer_name, input_var in zip(
+                self.model.input_names, self.input_variables
+            )
         }
         renamed_outputs: Mapping[str, str] = {
-            str(layer.name): str(output_var)
-            for layer, output_var in zip(self.model.outputs, self.output_variables)
+            str(layer_name): str(output_var)
+            for layer_name, output_var in zip(
+                self.model.output_names, self.output_variables
+            )
         }
+
         dict_compatible_model = ensure_dict_output(self.model)
-        model_renamed_outputs = rename_dict_output(
-            dict_compatible_model, renamed_outputs
-        )
-        return rename_dict_input(model_renamed_outputs, renamed_inputs)
+
+        model_renamed_inputs = rename_dict_input(dict_compatible_model, renamed_inputs)
+        return rename_dict_output(model_renamed_inputs, renamed_outputs)
