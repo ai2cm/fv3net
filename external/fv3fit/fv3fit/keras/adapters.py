@@ -115,9 +115,6 @@ def _ensure_list_input(model: tf.keras.Model) -> tf.keras.Model:
     Takes dict input + output model and converts it to take in
     list inputs but keep original dict outputs. Useful for connecting
     input layers with names different from the original model.
-    
-    Should NOT be used outside of helping rename_dict_input
-    in this module, as there is no way of specifying list order !!!
     """
     if isinstance(model.inputs, Mapping):
         inputs = [input for input in model.inputs]
