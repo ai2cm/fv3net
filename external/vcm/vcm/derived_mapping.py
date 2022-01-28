@@ -177,7 +177,10 @@ def _net_sfc_shortwave_flux_via_albedo(downward_sfc_shortwave_flux, albedo):
 
 @DerivedMapping.register(
     "net_shortwave_sfc_flux_derived",
-    required_inputs=["surface_diffused_shortwave_albedo"],
+    required_inputs=[
+        "surface_diffused_shortwave_albedo",
+        "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
+    ],
 )
 def net_shortwave_sfc_flux_derived(self):
     # Positive = downward direction
