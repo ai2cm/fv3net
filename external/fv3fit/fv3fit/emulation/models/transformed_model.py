@@ -7,11 +7,11 @@ from fv3fit.emulation.layers import (
     ArchitectureConfig,
 )
 from fv3fit.emulation.zhao_carr_fields import Field
-from fv3fit.emulation import transforms
 from fv3fit.keras.adapters import ensure_dict_output
+from fv3fit.emulation.transforms import TensorTransform
 import tensorflow as tf
 
-__all__ = ["TransformedModelConfig"]
+__all__ = ["TransformedModelConfig", "transform_model"]
 
 
 @dataclasses.dataclass
@@ -49,38 +49,20 @@ class TransformedModelConfig:
 
     @property
     def input_variables(self) -> List[str]:
+        """The input variables in transformed space"""
         return [field.input_name for field in self.fields if field.input_name]
 
     @property
     def output_variables(self) -> List[str]:
+        """The output variables in transformed space"""
         return [field.output_name for field in self.fields if field.output_name]
 
-    def build(
-        self,
-        data: Mapping[str, tf.Tensor],
-        transform: transforms.TensorTransform = transforms.Identity,
-    ) -> tf.keras.Model:
+    def build(self, data: Mapping[str, tf.Tensor],) -> tf.keras.Model:
         factory = FieldFactory(
             self.timestep_increment_sec, self.normalize_key, self.enforce_positive, data
         )
-        model = TransformedModel(
-            self.fields, self.architecture, factory, transform=transform
-        )
-
-        # Wrap the custom model with a keras functional model for easier
-        # serialization. Serialized models need to know their input/output
-        # signatures. The keras "Functional" API makes this explicit, but custom
-        # models subclasses "remember" their first inputs. Since ``data``
-        # contains both inputs and outputs the serialized model will think its
-        # outputs are also inputs and never be able to evaluate...even though
-        # calling `model(data)` works just fine.
-        inputs = {
-            name: tf.keras.Input(data[name].shape[1:], name=name)
-            for name in transform.backward_names(set(self.input_variables))
-        }
-        outputs = model(inputs)
-        functional_keras_model = tf.keras.Model(inputs=inputs, outputs=outputs)
-        return ensure_dict_output(functional_keras_model)
+        model = InnerModel(self.fields, self.architecture, factory)
+        return model
 
 
 def build_field_output(
@@ -130,43 +112,31 @@ class FieldFactory:
     _enforce_positive: bool
     _data: Mapping[str, tf.Tensor]
 
-    def build_input(
-        self, field: Field, transform: transforms.TensorTransform
-    ) -> FieldInput:
-        return build_field_input(field, transform.forward(self._data), self._normalize)
+    def build_input(self, field: Field) -> FieldInput:
+        return build_field_input(field, self._data, self._normalize)
 
-    def build_output(
-        self, field: Field, transform: transforms.TensorTransform
-    ) -> tf.keras.layers.Layer:
+    def build_output(self, field: Field,) -> tf.keras.layers.Layer:
         return build_field_output(
-            field,
-            transform.forward(self._data),
-            self._dt_sec,
-            self._normalize,
-            self._enforce_positive,
+            field, self._data, self._dt_sec, self._normalize, self._enforce_positive,
         )
 
     def build_architecture(
-        self,
-        config: ArchitectureConfig,
-        output_variables: List[str],
-        transform: transforms.TensorTransform,
+        self, config: ArchitectureConfig, output_variables: List[str],
     ) -> tf.keras.layers.Layer:
-        data = transform.forward(self._data)
-        output_features = {key: data[key].shape[-1] for key in output_variables}
+        output_features = {key: self._data[key].shape[-1] for key in output_variables}
         return config.build(output_features)
 
 
-class TransformedModel(tf.keras.layers.Layer):
+class InnerModel(tf.keras.layers.Layer):
+    """An inner model containg ML-trainable weights"""
+
     def __init__(
         self,
         fields: List[Field],
         architecture_config: ArchitectureConfig,
         factory: FieldFactory,
-        transform: transforms.TensorTransform = transforms.Identity,
     ):
         super().__init__()
-        self.transform = transform
 
         outputs = [field for field in fields if field.output_name]
         inputs = [field for field in fields if field.input_name]
@@ -174,16 +144,15 @@ class TransformedModel(tf.keras.layers.Layer):
         self.arch = factory.build_architecture(
             architecture_config,
             output_variables=[field.output_name for field in outputs],
-            transform=transform,
         )
 
-        self.inputs = {
-            field.input_name: factory.build_input(field, transform) for field in inputs
+        self._inputs = {
+            field.input_name: factory.build_input(field) for field in inputs
         }
+        self.inputs = None
 
         self.outputs = {
-            field.output_name: factory.build_output(field, transform)
-            for field in outputs
+            field.output_name: factory.build_output(field) for field in outputs
         }
         self.output_fields = {
             field.output_name: field for field in fields if field.output_name
@@ -205,8 +174,40 @@ class TransformedModel(tf.keras.layers.Layer):
 
     @tf.function
     def call(self, data: Mapping[str, tf.Tensor]):
-        data = self.transform.forward(data)
-        processed_inputs = {key: self.inputs[key](data[key]) for key in self.inputs}
+        processed_inputs = {key: self._inputs[key](data[key]) for key in self._inputs}
         outputs = self.arch(processed_inputs)
         processed_outputs = self._process_outputs(data, outputs)
-        return self.transform.backward(processed_outputs)
+        return processed_outputs
+
+
+def transform_model(
+    model: tf.keras.Model,
+    transform: TensorTransform,
+    inputs: Mapping[str, tf.keras.Input],
+) -> tf.keras.Model:
+    try:
+        model = ensure_dict_output(model)
+    except ValueError:
+        pass
+    # Wrap the custom model with a keras functional model for easier
+    # serialization. Serialized models need to know their input/output
+    # signatures. The keras "Functional" API makes this explicit, but custom
+    # models subclasses "remember" their first inputs. Since ``data``
+    # contains both inputs and outputs the serialized model will think its
+    # outputs are also inputs and never be able to evaluate...even though
+    # calling `model(data)` works just fine.
+    outputs = model(transform.forward(inputs))
+
+    # combine inputs and outputs for the reverse transformation some
+    # transformations (e.g. residual) depend on outputs and inputs
+    out_and_in = {**inputs}
+    out_and_in.update(outputs)
+    outputs = transform.backward(out_and_in)
+
+    # filter out inputs that were unchanged by the transform
+    new_outputs = {
+        key: tensor for key, tensor in outputs.items() if (key not in inputs)
+    }
+
+    functional_keras_model = tf.keras.Model(inputs=inputs, outputs=new_outputs)
+    return ensure_dict_output(functional_keras_model)

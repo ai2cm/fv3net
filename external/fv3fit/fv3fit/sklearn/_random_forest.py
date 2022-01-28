@@ -327,3 +327,18 @@ class SklearnWrapper(Predictor):
         obj.output_features_ = output_features_
 
         return obj
+
+    @property
+    def feature_importances(self) -> Sequence[float]:
+        importances = []
+        for member in self.model.regressors:
+            importances.append(member.feature_importances_)
+        return importances
+
+    @property
+    def mean_importances(self) -> np.ndarray:
+        return np.array(self.feature_importances).mean(axis=0)
+
+    @property
+    def std_importances(self) -> np.ndarray:
+        return np.array(self.feature_importances).std(axis=0)

@@ -49,3 +49,7 @@ def is_state_update_variable(key, state: State):
         return True
     else:
         return False
+
+
+def is_tendency_variable(key):
+    return key in TENDENCY_TO_STATE_NAME
