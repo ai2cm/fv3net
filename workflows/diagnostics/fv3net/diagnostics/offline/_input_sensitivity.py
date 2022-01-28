@@ -188,7 +188,10 @@ def _plot_jacobians(jacobians: Mapping[str, OutputSensitivity]):
     num_outputs = len(jacobians)
     num_inputs = max([len(output) for output in jacobians.values()])
     fig, axes = plt.subplots(
-        ncols=num_inputs, nrows=num_outputs, figsize=(4 * num_inputs, 4 * num_outputs)
+        ncols=num_inputs,
+        nrows=num_outputs,
+        figsize=(4 * num_inputs, 4 * num_outputs),
+        squeeze=False,
     )
     for i, (output_name, output) in enumerate(jacobians.items()):
         num_inputs = len(output)
