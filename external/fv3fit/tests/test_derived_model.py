@@ -31,7 +31,6 @@ def test_wrap_another_derived_model():
         base_model, derived_output_variables=["net_shortwave_sfc_flux_derived"],
     )
     derived_model_1 = DerivedModel(derived_model_0, derived_output_variables=["Q2"])
-    print(derived_model_1.input_variables)
     assert not isinstance(derived_model_1.base_model, DerivedModel)
     assert set(derived_model_1.input_variables) == {
         "input",
