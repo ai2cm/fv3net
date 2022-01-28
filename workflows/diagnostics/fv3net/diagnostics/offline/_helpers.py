@@ -126,11 +126,16 @@ def get_metric_string(
 ):
     value = metric_statistics["mean"]
     std = metric_statistics["std"]
-    return f"{value:.{precision}f} +/- {std:.{precision}f}"
+    return " ".join(["{:.2e}".format(value), "+/-", "{:.2e}".format(std)])
 
 
 def units_from_name(var):
-    return UNITS.get(var.lower(), "[units unavailable]")
+    for key, units in UNITS.items():
+        # allow additional suffixes on variable
+        if key in var.lower():
+            return units
+        else:
+            return "[units unavailable]"
 
 
 def insert_column_integrated_vars(
