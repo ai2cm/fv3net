@@ -6,8 +6,13 @@ from fv3fit._shared import (
     stack,
 )
 from fv3fit._shared.stacking import Z_DIM_NAMES
+from fv3fit.keras.adapters import (
+    ensure_dict_output,
+    rename_dict_input,
+    rename_dict_output,
+)
 import tensorflow as tf
-from typing import Any, Dict, Hashable, Iterable, Optional, Sequence
+from typing import Any, Dict, Hashable, Iterable, Optional, Sequence, Mapping
 import xarray as xr
 import os
 from ...._shared import get_dir, put_dir
@@ -164,3 +169,26 @@ class PureKerasModel(Predictor):
                         }
                     )
                 )
+
+    def get_dict_compatible_model(self) -> tf.keras.Model:
+        """
+        Rename keras model inputs/outputs to match input_variables and
+        output_variables, and ensure model accepts and outputs dicts.
+        """
+        renamed_inputs: Mapping[str, str] = {
+            str(layer_name): str(input_var)
+            for layer_name, input_var in zip(
+                self.model.input_names, self.input_variables
+            )
+        }
+        renamed_outputs: Mapping[str, str] = {
+            str(layer_name): str(output_var)
+            for layer_name, output_var in zip(
+                self.model.output_names, self.output_variables
+            )
+        }
+
+        dict_compatible_model = ensure_dict_output(self.model)
+
+        model_renamed_inputs = rename_dict_input(dict_compatible_model, renamed_inputs)
+        return rename_dict_output(model_renamed_inputs, renamed_outputs)
