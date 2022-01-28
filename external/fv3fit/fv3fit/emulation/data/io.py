@@ -1,8 +1,27 @@
+import hashlib
 import os
-import fsspec
 from typing import List, Optional
 
+import fsspec
+import tensorflow as tf
+import logging
 from vcm import get_fs
+
+CACHE_DIR = ".data"
+
+logger = logging.getLogger(__name__)
+
+
+def download_cached(path):
+    hash = hashlib.md5(path.encode()).hexdigest()
+    filepath = os.path.join(CACHE_DIR, hash)
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    if not os.path.exists(filepath):
+        logger.info(f"Downloading {path} to {filepath}")
+        tf.io.gfile.copy(path, filepath, overwrite=True)
+    else:
+        logger.debug(f"{path} found in cache at {filepath}.")
+    return filepath
 
 
 def get_nc_files(

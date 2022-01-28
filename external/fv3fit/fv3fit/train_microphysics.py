@@ -21,6 +21,7 @@ from fv3fit._shared.config import (
 )
 from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 
+from fv3fit.emulation.transforms.factories import ConditionallyScaled
 from fv3fit.emulation.types import LossFunction, TensorDict
 from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
@@ -91,7 +92,9 @@ class TrainConfig:
     test_url: str
     out_url: str
     transform: TransformConfig = field(default_factory=TransformConfig)
-    tensor_transform: List[TransformedVariableConfig] = field(default_factory=list)
+    tensor_transform: List[
+        Union[TransformedVariableConfig, ConditionallyScaled]
+    ] = field(default_factory=list)
     model: Optional[models.MicrophysicsConfig] = None
     conservative_model: Optional[models.ConservativeWaterConfig] = None
     transformed_model: Optional[models.TransformedModelConfig] = None
@@ -236,7 +239,13 @@ class TrainConfig:
         self, url: str, nfiles: Optional[int], required_variables: Set[str],
     ) -> tf.data.Dataset:
         nc_open_fn = self.transform.get_pipeline(required_variables)
-        return nc_dir_to_tf_dataset(url, nc_open_fn, nfiles=nfiles)
+        return nc_dir_to_tf_dataset(
+            url,
+            nc_open_fn,
+            nfiles=nfiles,
+            shuffle=True,
+            random_state=np.random.RandomState(0),
+        )
 
     @property
     def model_variables(self) -> Set[str]:

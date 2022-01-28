@@ -197,8 +197,17 @@ def transform_model(
     # outputs are also inputs and never be able to evaluate...even though
     # calling `model(data)` works just fine.
     outputs = model(transform.forward(inputs))
-    outputs = transform.backward(outputs)
-    functional_keras_model = tf.keras.Model(
-        inputs=inputs, outputs=transform.backward(outputs)
-    )
+
+    # combine inputs and outputs for the reverse transformation some
+    # transformations (e.g. residual) depend on outputs and inputs
+    out_and_in = {**inputs}
+    out_and_in.update(outputs)
+    outputs = transform.backward(out_and_in)
+
+    # filter out inputs that were unchanged by the transform
+    new_outputs = {
+        key: tensor for key, tensor in outputs.items() if (key not in inputs)
+    }
+
+    functional_keras_model = tf.keras.Model(inputs=inputs, outputs=new_outputs)
     return ensure_dict_output(functional_keras_model)
