@@ -202,6 +202,8 @@ class Config:
         online: if True, the ML predictions will be applied to model state.
         bias_correction_factor: if provided, add this factor times the hard-coded bias
             for each given tendency name. For example: {"Q1": -1, "Q2": -1.5}.
+        scale_factor: if provided, multiply given tendency by this number. For example:
+            {"Q1": 1.1, "Q2": 0.95}.
     """
 
     url: str
@@ -211,6 +213,7 @@ class Config:
     bias_correction_factor: Mapping[str, float] = dataclasses.field(
         default_factory=dict
     )
+    scale_factor: Mapping[str, float] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass
@@ -226,6 +229,8 @@ class Adapter:
         for name, factor in self.config.bias_correction_factor.items():
             nz = min(tendencies.sizes["z"], len(OFFLINE_BIASES[name]))
             tendencies[name] += factor * OFFLINE_BIASES[name][:nz]
+        for name, factor in self.config.scale_factor.items():
+            tendencies[name] *= factor
         if self.config.limit_negative_humidity:
             dQ1, dQ2 = non_negative_sphum(
                 inputs[SPHUM], tendencies["dQ1"], tendencies["dQ2"], self.timestep
