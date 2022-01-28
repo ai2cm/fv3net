@@ -112,7 +112,6 @@ def shuffled(random: RandomState, datasets: Sequence[xr.Dataset]) -> xr.Dataset:
         datasets: input data to be shuffled, must contain identical
             dimensionality/coordinates if multiple datasets are given
     """
-    datasets = [dataset.unify_chunks() for dataset in datasets]
     chunks_default = (len(datasets[0][SAMPLE_DIM_NAME]),)
     chunks = datasets[0].chunks.get(SAMPLE_DIM_NAME, chunks_default)
     chunk_indices = _get_chunk_indices(chunks)

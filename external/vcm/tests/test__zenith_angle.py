@@ -1,4 +1,3 @@
-from re import M
 from cftime import DatetimeJulian, DatetimeNoLeap
 from datetime import datetime
 import dask.array
