@@ -33,6 +33,7 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 import cftime
+import dask.array
 import datetime
 import numpy as np
 from typing import Union, TypeVar
@@ -49,6 +50,20 @@ def _ensure_units_of_degrees(da):
         return np.rad2deg(da).assign_attrs(units="degrees")
     else:
         return da
+
+
+def _maybe_chunk_time(time, lon, lat):
+    """If lon and/or lat are dask arrays, ensure time is chunked as well.
+    
+    This is needed because dask does not know how to autochunk object dtype
+    arrays.  We make the simple assumption that there are no chunks along time.
+    """
+    if any(isinstance(da.data, dask.array.Array) for da in [lon, lat]) and isinstance(
+        time.data, np.ndarray
+    ):
+        return time.chunk()
+    else:
+        return time
 
 
 def cos_zenith_angle(
@@ -73,8 +88,16 @@ def cos_zenith_angle(
     if isinstance(lon, xr.DataArray):
         lon = _ensure_units_of_degrees(lon)
         lat = _ensure_units_of_degrees(lat)
+        time = _maybe_chunk_time(time, lon, lat)
         return (
-            xr.apply_ufunc(cos_zenith_angle, time, lon, lat, dask="allowed")
+            xr.apply_ufunc(
+                cos_zenith_angle,
+                time,
+                lon,
+                lat,
+                dask="parallelized",
+                output_dtypes=[lon.dtype],
+            )
             .rename("cos_zenith_angle")
             .assign_attrs(units="")
         )
