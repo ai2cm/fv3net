@@ -57,6 +57,8 @@ def _maybe_chunk_time(time, lon, lat):
     
     This is needed because dask does not know how to autochunk object dtype
     arrays.  We make the simple assumption that there are no chunks along time.
+    If time is already stored in a dask array, we do not change its chunk
+    structure.
     """
     if any(isinstance(da.data, dask.array.Array) for da in [lon, lat]) and isinstance(
         time.data, np.ndarray
