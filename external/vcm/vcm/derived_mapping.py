@@ -25,14 +25,18 @@ class DerivedMapping(Mapping):
 
         Args:
             name: the name the derived variable will be available under
-            required_inputs: Optional arg to list the potential
-                required inputs needed to derive said variable. Even if the
-                requirements are not well-defined, they should still be listed.
-                (e.g. dQu only needs dQxwind, dQywind if dQu is not in the data)
-                This is because the usage of this registry is for when
+            required_inputs:
+                List of the the required inputs needed to derive said
+                variable. Even if the requirements are not well-defined, they should
+                still be listed. (e.g. dQu only needs dQxwind, dQywind if dQu is not
+                in the data). This is because the usage of this registry is for when
                 an output is explicitly requested as a derived output variable and thus
                 it is assumed the variable does not already exist and needs to
                 be derived.
+
+                Only the direct dependencies need to be listed here. e.g. if derived
+                variable "a" requires "b", and "b" requires "c", the required_inputs
+                for "a" should just be ["b"].
         """
 
         def decorator(func):
@@ -68,9 +72,11 @@ class DerivedMapping(Mapping):
     def find_all_required_inputs(
         cls, derived_variables: Iterable[Hashable]
     ) -> Iterable[Hashable]:
-        # Helper function to find full list of required inputs for a given list
-        # of derived variables. Recurses because some required inputs have their
-        # own required inputs (e.g. pQ's)
+        # Helper function to find full list of required (non-derived) inputs for
+        # a given list of derived variables. Recurses because some required inputs
+        # have their own required inputs (e.g. pQ's). Excludes intermediate required
+        # inputs that are themselves derived.
+
         def _recurse_find_deps(vars, deps):
             vars_with_deps = [var for var in vars if var in cls.REQUIRED_INPUTS]
             if len(vars_with_deps) == 0:
@@ -84,7 +90,9 @@ class DerivedMapping(Mapping):
 
         deps: Iterable[Hashable] = []
         _recurse_find_deps(derived_variables, deps)
-        return deps
+        nonderived_deps = list(set([dep for dep in deps if dep not in cls.VARIABLES]))
+        print(derived_variables, nonderived_deps, deps)
+        return nonderived_deps
 
 
 @DerivedMapping.register("cos_zenith_angle", required_inputs=["time", "lon", "lat"])
@@ -209,7 +217,7 @@ def downward_shortwave_sfc_flux_via_transmissivity(self):
     required_inputs=[
         "surface_diffused_shortwave_albedo",
         "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
-        "shortwave_transmissivity_of_atmospheric_column",
+        "downward_shortwave_sfc_flux_via_transmissivity",
     ],
 )
 def net_shortwave_sfc_flux_via_transmissivity(self):
