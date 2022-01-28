@@ -106,9 +106,8 @@ def plot_profile_var(
     derivation_dim: str = "derivation",
     domain_dim: str = "domain",
     dataset_dim: str = "dataset",
-    derivation_plot_coords: Sequence[str] = ("target", "predict"),
+    derivation_plot_coords: Sequence[str] = ("predict", "target"),
     xlim: Sequence[float] = None,
-    xticks: Union[Sequence[float], np.ndarray] = None,
 ):
     if dataset_dim in ds[var].dims:
         ds[var] = ds[var].mean("dataset")
