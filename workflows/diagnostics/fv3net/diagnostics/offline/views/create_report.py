@@ -293,7 +293,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
         values = {
             "r2": get_metric_string(metrics[var_r2]),
             "bias": " ".join(
-                [get_metric_string(metrics[var_bias]), units_from_name(var)]
+                [get_metric_string(metrics[var_bias]), units_from_name(var_bias)]
             ),
         }
         metrics_formatted.append((var_r2.replace("_r2", ""), values))
