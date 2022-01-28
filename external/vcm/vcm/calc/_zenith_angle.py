@@ -98,7 +98,7 @@ def cos_zenith_angle(
                 lon,
                 lat,
                 dask="parallelized",
-                output_dtypes=[lon.dtype],
+                output_dtypes=[np.float64],
             )
             .rename("cos_zenith_angle")
             .assign_attrs(units="")
