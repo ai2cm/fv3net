@@ -1,6 +1,5 @@
 from cftime import DatetimeJulian, DatetimeNoLeap
 from datetime import datetime
-import dask.array
 import numpy as np
 import pytest
 import xarray as xr

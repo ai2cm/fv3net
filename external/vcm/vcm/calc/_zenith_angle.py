@@ -33,7 +33,6 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 import cftime
-import dask.array
 import datetime
 import numpy as np
 from typing import Union, TypeVar
