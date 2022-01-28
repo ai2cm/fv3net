@@ -141,7 +141,7 @@ def _greenwich_mean_sidereal_time(model_time):
 
     theta_radians = np.deg2rad(theta / 240.0) % (2 * np.pi)
 
-    return theta_radians + 2 * np.pi * (theta_radians < 0)
+    return theta_radians
 
 
 def _local_mean_sidereal_time(model_time, longitude):
