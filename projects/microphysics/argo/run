@@ -1,7 +1,7 @@
 #!/bin/bash
 
-url=gs://vcm-ml-experiments/microphysics-emulation/2022-01-18/rnn-predict-gscond-3f77ec/checkpoints/epoch.012.tf
-tag=rnn-predict-gscond-3f77ec-epoch12
+url=gs://vcm-ml-experiments/microphysics-emulation/2022-01-27/rnn-gscond-cloudtdep-cbfc4a/model.tf
+tag=rnn-gscond-cloudtdep-cbfc4a
 image=373b39524888bb784f488b6af81282de1cd3aed4
 
 argo submit prog-run-and-eval.yaml \
