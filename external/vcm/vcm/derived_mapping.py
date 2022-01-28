@@ -89,10 +89,11 @@ class DerivedMapping(Mapping):
 
 @DerivedMapping.register("cos_zenith_angle", required_inputs=["time", "lon", "lat"])
 def cos_zenith_angle(self):
-    # TODO: eagerly loading the result is required for the integration tests to pass.
-    # It would be nice to remove this requirement now that cos_zenith_angle is dask
-    # compatible.
-    return vcm.cos_zenith_angle(self["time"], self["lon"], self["lat"]).load()
+    # TODO: eagerly loading the lon and lat inputs is required for the integration
+    # tests to pass.  It would be nice to remove this requirement now that
+    # cos_zenith_angle is dask compatible, but that would require figuring out the
+    # appropriate way to chunk the time coordinate.
+    return vcm.cos_zenith_angle(self["time"], self["lon"].load(), self["lat"].load())
 
 
 @DerivedMapping.register("evaporation", required_inputs=["latent_heat_flux"])

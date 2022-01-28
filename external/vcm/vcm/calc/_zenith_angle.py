@@ -52,22 +52,6 @@ def _ensure_units_of_degrees(da):
         return da
 
 
-def _maybe_chunk_time(time, lon, lat):
-    """If lon and/or lat are dask arrays, ensure time is chunked as well.
-    
-    This is needed because dask does not know how to autochunk object dtype
-    arrays.  We make the simple assumption that there are no chunks along time.
-    If time is already stored in a dask array, we do not change its chunk
-    structure.
-    """
-    if any(isinstance(da.data, dask.array.Array) for da in [lon, lat]) and isinstance(
-        time.data, np.ndarray
-    ):
-        return time.chunk()
-    else:
-        return time
-
-
 def cos_zenith_angle(
     time: Union[T, datetime.datetime, cftime.DatetimeJulian], lon: T, lat: T,
 ) -> T:
@@ -90,7 +74,6 @@ def cos_zenith_angle(
     if isinstance(lon, xr.DataArray):
         lon = _ensure_units_of_degrees(lon)
         lat = _ensure_units_of_degrees(lat)
-        time = _maybe_chunk_time(time, lon, lat)
         return (
             xr.apply_ufunc(
                 cos_zenith_angle,
