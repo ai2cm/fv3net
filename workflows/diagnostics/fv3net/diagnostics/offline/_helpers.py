@@ -130,12 +130,12 @@ def get_metric_string(
 
 
 def units_from_name(var):
-    for key, units in UNITS.items():
+    units = "[units unavailable]"
+    for key, value in UNITS.items():
         # allow additional suffixes on variable
-        if key in var.lower():
-            return units
-        else:
-            return "[units unavailable]"
+        if var.lower().startswith(key):
+            units = value
+    return units
 
 
 def insert_column_integrated_vars(
