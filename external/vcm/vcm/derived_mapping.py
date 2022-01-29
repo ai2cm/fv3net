@@ -109,9 +109,13 @@ class DerivedMapping(Mapping):
 
         deps: Iterable[Hashable] = []
         _recurse_find_deps(derived_variables, deps)
+        # omit intermediate inputs unless they are in list of variables
+        # to use from existing data if present
         nonderived_deps = list(set([dep for dep in deps if dep not in cls.VARIABLES]))
-        print(derived_variables, nonderived_deps, deps)
-        return nonderived_deps
+        maybe_nonderived_deps = list(
+            set([dep for dep in deps if dep in cls.USE_NONDERIVED_IF_EXISTS])
+        )
+        return nonderived_deps + maybe_nonderived_deps
 
 
 @DerivedMapping.register("cos_zenith_angle", required_inputs=["time", "lon", "lat"])
