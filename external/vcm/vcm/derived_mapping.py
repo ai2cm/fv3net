@@ -33,16 +33,9 @@ class DerivedMapping(Mapping):
             name: the name the derived variable will be available under
             required_inputs:
                 List of the the required inputs needed to derive said
-                variable. Even if the requirements are not well-defined, they should
-                still be listed. (e.g. dQu only needs dQxwind, dQywind if dQu is not
-                in the data). This is because the usage of this registry is for when
-                an output is explicitly requested as a derived output variable and thus
-                it is assumed the variable does not already exist and needs to
-                be derived.
-
-                Only the direct dependencies need to be listed here. e.g. if derived
-                variable "a" requires "b", and "b" requires "c", the required_inputs
-                for "a" should just be ["b"].
+                variable. Only the direct dependencies need to be listed here.
+                e.g. if derived variable "a" requires "b", and "b" requires "c",
+                the required_inputsfor "a" should just be ["b"].
             use_nonderived_if_exists:
                 Some variables may exist in the data already. If this flag is True,
                 first check if they exist and return existing values if so. If the
@@ -231,7 +224,6 @@ def downward_shortwave_sfc_flux_via_transmissivity(self):
     "net_shortwave_sfc_flux_via_transmissivity",
     required_inputs=[
         "surface_diffused_shortwave_albedo",
-        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
         "downward_shortwave_sfc_flux_via_transmissivity",
     ],
 )
