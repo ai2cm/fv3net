@@ -217,8 +217,8 @@ def test_is_sea_ice():
         ({"c": ["d"]}, ["a"], []),
         ({"a": ["b"], "c": ["d"]}, ["a"], ["b"]),
         ({"a": ["b"], "c": ["d"]}, ["a", "c"], ["b", "d"]),
-        ({"a": ["b"], "b": ["c"], "c": ["d"]}, ["a"], ["b", "c", "d"]),
-        ({"a": ["b"], "c": ["d"], "b": ["e"]}, ["a", "c"], ["b", "d", "e"]),
+        ({"a": ["b"], "b": ["c"], "c": ["d"]}, ["a"], ["d"]),
+        ({"a": ["b"], "c": ["d"], "b": ["e"]}, ["a", "c"], ["e", "d"]),
     ],
 )
 def test_find_all_required_inputs(dependency_map, derived_vars, reqs):
@@ -231,3 +231,20 @@ def test_find_all_required_inputs(dependency_map, derived_vars, reqs):
     required_inputs = DerivedMapping.find_all_required_inputs(derived_vars)
     assert set(required_inputs) == set(reqs)
     assert len(required_inputs) == len(reqs)
+
+
+def test_find_all_required_inputs_no_intermediate_vars_required():
+    all_deps = set(
+        DerivedMapping.find_all_required_inputs(list(DerivedMapping.REQUIRED_INPUTS))
+    )
+    deps_minus_possibly_exist_in_data = all_deps - set(
+        DerivedMapping.USE_NONDERIVED_IF_EXISTS
+    )
+    assert (
+        len(
+            set(deps_minus_possibly_exist_in_data).intersection(
+                DerivedMapping.VARIABLES
+            )
+        )
+        == 0
+    )

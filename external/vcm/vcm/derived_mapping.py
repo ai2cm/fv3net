@@ -15,37 +15,53 @@ class DerivedMapping(Mapping):
 
     VARIABLES: MutableMapping[Hashable, Callable[..., xr.DataArray]] = {}
     REQUIRED_INPUTS: MutableMapping[Hashable, Iterable[Hashable]] = {}
+    USE_NONDERIVED_IF_EXISTS: Iterable[Hashable] = []
 
     def __init__(self, mapper: Mapping[Hashable, xr.DataArray]):
         self._mapper = mapper
 
     @classmethod
-    def register(cls, name: Hashable, required_inputs: Iterable[Hashable] = None):
+    def register(
+        cls,
+        name: Hashable,
+        required_inputs: Iterable[Hashable] = None,
+        use_nonderived_if_exists: bool = False,
+    ):
         """Register a function as a derived variable.
 
         Args:
             name: the name the derived variable will be available under
-            required_inputs: Optional arg to list the potential
-                required inputs needed to derive said variable. Even if the
-                requirements are not well-defined, they should still be listed.
-                (e.g. dQu only needs dQxwind, dQywind if dQu is not in the data)
-                This is because the usage of this registry is for when
-                an output is explicitly requested as a derived output variable and thus
-                it is assumed the variable does not already exist and needs to
-                be derived.
+            required_inputs:
+                List of the the required inputs needed to derive said
+                variable. Only the direct dependencies need to be listed here.
+                e.g. if derived variable "a" requires "b", and "b" requires "c",
+                the required_inputsfor "a" should just be ["b"].
+            use_nonderived_if_exists:
+                Some variables may exist in the data already. If this flag is True,
+                first check if they exist and return existing values if so. If the
+                variable in not in the underlying data, the derived mapping will
+                calculate it and return those values.
         """
 
         def decorator(func):
             cls.VARIABLES[name] = func
             if required_inputs:
                 cls.REQUIRED_INPUTS[name] = required_inputs
+            if use_nonderived_if_exists is True:
+                cls.USE_NONDERIVED_IF_EXISTS.append(name)
             return func
 
         return decorator
 
     def __getitem__(self, key: Hashable) -> xr.DataArray:
         if key in self.VARIABLES:
-            return self.VARIABLES[key](self)
+            if key in self.USE_NONDERIVED_IF_EXISTS:
+                try:
+                    return self._mapper[key]
+                except (KeyError):
+                    return self.VARIABLES[key](self)
+            else:
+                return self.VARIABLES[key](self)
         else:
             return self._mapper[key]
 
@@ -68,9 +84,11 @@ class DerivedMapping(Mapping):
     def find_all_required_inputs(
         cls, derived_variables: Iterable[Hashable]
     ) -> Iterable[Hashable]:
-        # Helper function to find full list of required inputs for a given list
-        # of derived variables. Recurses because some required inputs have their
-        # own required inputs (e.g. pQ's)
+        # Helper function to find full list of required (non-derived) inputs for
+        # a given list of derived variables. Recurses because some required inputs
+        # have their own required inputs (e.g. pQ's). Excludes intermediate required
+        # inputs that are themselves derived.
+
         def _recurse_find_deps(vars, deps):
             vars_with_deps = [var for var in vars if var in cls.REQUIRED_INPUTS]
             if len(vars_with_deps) == 0:
@@ -84,7 +102,13 @@ class DerivedMapping(Mapping):
 
         deps: Iterable[Hashable] = []
         _recurse_find_deps(derived_variables, deps)
-        return deps
+        # omit intermediate inputs unless they are in list of variables
+        # to use from existing data if present
+        nonderived_deps = list(set([dep for dep in deps if dep not in cls.VARIABLES]))
+        maybe_nonderived_deps = list(
+            set([dep for dep in deps if dep in cls.USE_NONDERIVED_IF_EXISTS])
+        )
+        return nonderived_deps + maybe_nonderived_deps
 
 
 @DerivedMapping.register("cos_zenith_angle", required_inputs=["time", "lon", "lat"])
@@ -116,36 +140,28 @@ def _rotate(self: DerivedMapping, x, y):
     )
 
 
-@DerivedMapping.register("dQu", required_inputs=["dQxwind", "dQywind"])
+@DerivedMapping.register(
+    "dQu", required_inputs=["dQxwind", "dQywind"], use_nonderived_if_exists=True
+)
 def dQu(self):
-    try:
-        return self._mapper["dQu"]
-    except (KeyError):
-        return _rotate(self, "dQxwind", "dQywind")[0]
+    return _rotate(self, "dQxwind", "dQywind")[0]
 
 
-@DerivedMapping.register("dQv", required_inputs=["dQxwind", "dQywind"])
+@DerivedMapping.register(
+    "dQv", required_inputs=["dQxwind", "dQywind"], use_nonderived_if_exists=True
+)
 def dQv(self):
-    try:
-        return self._mapper["dQv"]
-    except (KeyError):
-        return _rotate(self, "dQxwind", "dQywind")[1]
+    return _rotate(self, "dQxwind", "dQywind")[1]
 
 
-@DerivedMapping.register("eastward_wind")
+@DerivedMapping.register("eastward_wind", use_nonderived_if_exists=True)
 def eastward_wind(self):
-    try:
-        return self._mapper["eastward_wind"]
-    except (KeyError):
-        return _rotate(self, "x_wind", "y_wind")[0]
+    return _rotate(self, "x_wind", "y_wind")[0]
 
 
-@DerivedMapping.register("northward_wind")
+@DerivedMapping.register("northward_wind", use_nonderived_if_exists=True)
 def northward_wind(self):
-    try:
-        return self._mapper["northward_wind"]
-    except (KeyError):
-        return _rotate(self, "x_wind", "y_wind")[1]
+    return _rotate(self, "x_wind", "y_wind")[1]
 
 
 @DerivedMapping.register(
@@ -181,7 +197,10 @@ def _net_sfc_shortwave_flux_via_albedo(downward_sfc_shortwave_flux, albedo):
 
 @DerivedMapping.register(
     "net_shortwave_sfc_flux_derived",
-    required_inputs=["surface_diffused_shortwave_albedo"],
+    required_inputs=[
+        "surface_diffused_shortwave_albedo",
+        "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
+    ],
 )
 def net_shortwave_sfc_flux_derived(self):
     # Positive = downward direction
@@ -209,8 +228,7 @@ def downward_shortwave_sfc_flux_via_transmissivity(self):
     "net_shortwave_sfc_flux_via_transmissivity",
     required_inputs=[
         "surface_diffused_shortwave_albedo",
-        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
-        "shortwave_transmissivity_of_atmospheric_column",
+        "downward_shortwave_sfc_flux_via_transmissivity",
     ],
 )
 def net_shortwave_sfc_flux_via_transmissivity(self):
@@ -243,46 +261,38 @@ def is_sea_ice(self):
     return xr.where(vcm.xarray_utils.isclose(self["land_sea_mask"], 2), 1.0, 0.0)
 
 
-@DerivedMapping.register("Q1", required_inputs=["pQ1"])
+@DerivedMapping.register("Q1", required_inputs=["pQ1"], use_nonderived_if_exists=True)
 def Q1(self):
-    try:
-        return self._mapper["Q1"]
-    except KeyError:
-        if "dQ1" in self.keys():
-            return self["dQ1"] + self["pQ1"]
-        else:
-            return self["pQ1"]
+    if "dQ1" in self.keys():
+        return self["dQ1"] + self["pQ1"]
+    else:
+        return self["pQ1"]
 
 
-@DerivedMapping.register("Q2", required_inputs=["pQ2"])
+@DerivedMapping.register("Q2", required_inputs=["pQ2"], use_nonderived_if_exists=True)
 def Q2(self):
-    try:
-        return self._mapper["Q2"]
-    except KeyError:
-        if "dQ2" in self.keys():
-            return self["dQ2"] + self["pQ2"]
-        else:
-            return self["pQ2"]
+    if "dQ2" in self.keys():
+        return self["dQ2"] + self["pQ2"]
+    else:
+        return self["pQ2"]
 
 
 @DerivedMapping.register(
-    "pQ1", required_inputs=["pressure_thickness_of_atmospheric_layer"]
+    "pQ1",
+    required_inputs=["pressure_thickness_of_atmospheric_layer"],
+    use_nonderived_if_exists=True,
 )
 def pQ1(self):
-    try:
-        return self._mapper["pQ1"]
-    except KeyError:
-        return xr.zeros_like(self["pressure_thickness_of_atmospheric_layer"])
+    return xr.zeros_like(self["pressure_thickness_of_atmospheric_layer"])
 
 
 @DerivedMapping.register(
-    "pQ2", required_inputs=["pressure_thickness_of_atmospheric_layer"]
+    "pQ2",
+    required_inputs=["pressure_thickness_of_atmospheric_layer"],
+    use_nonderived_if_exists=True,
 )
 def pQ2(self):
-    try:
-        return self._mapper["pQ2"]
-    except KeyError:
-        return xr.zeros_like(self["pressure_thickness_of_atmospheric_layer"])
+    return xr.zeros_like(self["pressure_thickness_of_atmospheric_layer"])
 
 
 @DerivedMapping.register("internal_energy", required_inputs=["air_temperature"])
@@ -339,16 +349,14 @@ def column_integrated_Q2(self):
 @DerivedMapping.register(
     "water_vapor_path",
     required_inputs=["specific_humidity", "pressure_thickness_of_atmospheric_layer"],
+    use_nonderived_if_exists=True,
 )
 def water_vapor_path(self):
-    try:
-        return self._mapper["water_vapor_path"]
-    except KeyError:
-        da = vcm.mass_integrate(
-            self._mapper["specific_humidity"],
-            self._mapper["pressure_thickness_of_atmospheric_layer"],
-            dim="z",
-        )
-        return da.assign_attrs(
-            {"long_name": "column integrated water vapor", "units": "mm"}
-        )
+    da = vcm.mass_integrate(
+        self._mapper["specific_humidity"],
+        self._mapper["pressure_thickness_of_atmospheric_layer"],
+        dim="z",
+    )
+    return da.assign_attrs(
+        {"long_name": "column integrated water vapor", "units": "mm"}
+    )
