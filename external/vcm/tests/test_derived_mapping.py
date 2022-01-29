@@ -234,7 +234,17 @@ def test_find_all_required_inputs(dependency_map, derived_vars, reqs):
 
 
 def test_find_all_required_inputs_no_intermediate_vars_required():
-    all_deps = DerivedMapping.find_all_required_inputs(
-        list(DerivedMapping.REQUIRED_INPUTS)
+    all_deps = set(
+        DerivedMapping.find_all_required_inputs(list(DerivedMapping.REQUIRED_INPUTS))
     )
-    assert len(set(all_deps).intersection(DerivedMapping.VARIABLES)) == 0
+    deps_minus_possibly_exist_in_data = all_deps - set(
+        DerivedMapping.USE_NONDERIVED_IF_EXISTS
+    )
+    assert (
+        len(
+            set(deps_minus_possibly_exist_in_data).intersection(
+                DerivedMapping.VARIABLES
+            )
+        )
+        == 0
+    )
