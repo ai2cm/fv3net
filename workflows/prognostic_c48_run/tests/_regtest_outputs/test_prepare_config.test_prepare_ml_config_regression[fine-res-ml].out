@@ -428,8 +428,10 @@ namelist:
     ldebug: false
 nudging: null
 online_emulator:
+  bias_correction_factor: {}
   limit_negative_humidity: true
   online: true
+  scale_factor: {}
   url: some/path
   variables:
     air_temperature: dQ1
