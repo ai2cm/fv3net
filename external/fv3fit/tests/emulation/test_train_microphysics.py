@@ -10,7 +10,6 @@ from fv3fit._shared.config import _to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.models import MicrophysicsConfig
-from fv3fit.emulation.models.transformed_model import TransformedModelConfig
 from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.train_microphysics import TrainConfig, get_default_config, main
 
@@ -164,12 +163,17 @@ def test_training_entry_integration(tmp_path):
 
 def test_TrainConfig_build_model():
     field = Field("out", "in")
+    in_ = "in"
+    out = "out"
     config = TrainConfig(
         ".",
         ".",
         ".",
-        transformed_model=TransformedModelConfig(
-            ArchitectureConfig("dense"), [field], 900
+        model=MicrophysicsConfig(
+            input_variables=[in_],
+            direct_out_variables=[out],
+            architecture=ArchitectureConfig("dense"),
+            timestep_increment_sec=900,
         ),
     )
 

@@ -97,7 +97,6 @@ class TrainConfig:
     ] = field(default_factory=list)
     model: Optional[models.MicrophysicsConfig] = None
     conservative_model: Optional[models.ConservativeWaterConfig] = None
-    transformed_model: Optional[models.TransformedModelConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     use_wandb: bool = True
@@ -123,16 +122,12 @@ class TrainConfig:
     def _model(
         self,
     ) -> Union[
-        models.MicrophysicsConfig,
-        models.ConservativeWaterConfig,
-        models.TransformedModelConfig,
+        models.MicrophysicsConfig, models.ConservativeWaterConfig,
     ]:
         if self.model:
             return self.model
         elif self.conservative_model:
             return self.conservative_model
-        elif self.transformed_model:
-            return self.transformed_model
         else:
             raise ValueError(
                 "Neither .model, .conservative_model, nor .transformed_model provided."
