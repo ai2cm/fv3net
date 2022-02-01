@@ -47,7 +47,7 @@ tensor_transform:
 loss:
   optimizer:
     kwargs:
-      learning_rate: 0.0002
+      learning_rate: 0.01
     name: Adam
   metric_variables:
   - cloud_water_mixing_ratio_after_precpd
@@ -63,12 +63,12 @@ loss:
   - temperature_gscond_difference
   - humidity_gscond_difference
   weights:
-    total_precipitation: .04
-    cloud_precpd_difference: 10.0
-    temperature_precpd_difference: 10.0
-    humidity_precpd_difference: 10.0
-    temperature_gscond_difference: 10.0
-    humidity_gscond_difference: 10.0
+    total_precipitation: 1.0
+    cloud_precpd_difference: 1.0
+    temperature_precpd_difference: 1.0
+    humidity_precpd_difference: 1.0
+    temperature_gscond_difference: 1.0
+    humidity_gscond_difference: 1.0
 model:
   architecture:
     kwargs:
