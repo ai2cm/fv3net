@@ -9,10 +9,8 @@ import tensorflow as tf
 from fv3fit._shared import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.layers.architecture import _ARCHITECTURE_KEYS
-from fv3fit.emulation.models import MicrophysicsConfig, TransformedModelConfig
-from fv3fit.emulation.models.transformed_model import transform_model
+from fv3fit.emulation.models import MicrophysicsConfig, transform_model
 from fv3fit.emulation.transforms.transforms import Identity
-from fv3fit.emulation.zhao_carr_fields import Field
 
 
 def _get_data(shape):
@@ -192,15 +190,6 @@ def test_RNN_downward_dependence():
             sensitivity = jacobian[output_level, input_level]
             if output_level > input_level and sensitivity != 0:
                 raise ValueError("Downwards dependence violated")
-
-
-def test_transformed_model_without_transform():
-    field = Field("a_out", "a")
-    data = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
-    config = TransformedModelConfig(ArchitectureConfig("dense"), [field], 900)
-    model = config.build(data)
-    out = model(data)
-    assert set(out) == {field.output_name}
 
 
 def test_save_and_reload_transformed_model(tmpdir):
