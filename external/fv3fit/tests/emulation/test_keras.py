@@ -18,6 +18,19 @@ def test_train():
     assert not hasattr(model, "loss")
 
 
+def test_train_nan():
+    def nanloss(x, y):
+        return 1 / tf.constant(0), {}
+
+    model, data, _ = _get_model_data_loss()
+    ds = tf.data.Dataset.from_tensors(data)
+
+    with pytest.raises(Exception):
+        # cannot raise more specific exception, since tf.function overrides the
+        # error types raised by user code
+        train(model, ds, nanloss)
+
+
 def test_train_loss_integration():
     tf.random.set_seed(0)
     in_ = tf.keras.Input(2, name="x")
