@@ -14,7 +14,7 @@ group="$(openssl rand -hex 3)"
 config=rnn
 config_file="${config}.yaml"
 
-for lr in 0.001
+for lr in 0.0001
 do
     model_name="rnn-alltdep-${group}-lr${lr}-login"
     out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}")

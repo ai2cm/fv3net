@@ -55,7 +55,7 @@ tensor_transform:
 loss:
   optimizer:
     kwargs:
-      learning_rate: 0.01
+      learning_rate: 0.0001
     name: Adam
   metric_variables:
   - cloud_water_mixing_ratio_after_precpd
