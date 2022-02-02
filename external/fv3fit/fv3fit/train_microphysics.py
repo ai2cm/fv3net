@@ -272,7 +272,8 @@ def main(config: TrainConfig, seed: int = 0):
     logging.basicConfig(level=getattr(logging, config.log_level))
     set_random_seed(seed)
 
-    callbacks = []
+    # callbacks that are always active
+    callbacks = [tf.keras.callbacks.TerminateOnNaN()]
     if config.use_wandb:
         config.wandb.init(config=asdict(config))
         callbacks.append(config.wandb.get_callback())
