@@ -1,7 +1,7 @@
 #!/bin/bash
 
-url=ns://vcm-ml-experiments/microphysics-emulation/2022-02-01/rnn-alltdep-47ad5b-de512-lr0.0002-login/model.tf
-tag=rnn-alltdep-47ad5b-login
+url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-01/rnn-alltdep-47ad5b-de512-lr0.0002-login/model.tf
+tag=rnn-alltdep-47ad5b-login-v1
 image=373b39524888bb784f488b6af81282de1cd3aed4
 
 argo submit prog-run-and-eval.yaml \
