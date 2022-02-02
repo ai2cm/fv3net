@@ -14,12 +14,19 @@ group="$(openssl rand -hex 3)"
 config=rnn
 config_file="${config}.yaml"
 
-for lr in 0.0001
+for lr in 0.0002
 do
-    model_name="rnn-alltdep-${group}-lr${lr}-login"
+for ch in 256 512
+do
+    model_name="rnn-alltdep-${group}-de${ch}-lr${lr}-login"
     out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}")
+    flags="--out_url ${out_url} ${extra_flags} \
+    --loss.optimizer.kwargs.learning_rate $lr \
+    --model.architecture.kwargs.channels $ch\
+    "
     argo submit argo.yaml \
         --name "${model_name}" \
         -p training-config="$(base64 --wrap 0 $config_file)" \
-        -p flags="--out_url ${out_url} ${extra_flags} --loss.optimizer.kwargs.learning_rate $lr" | tee -a submitted-jobs.txt
+        -p flags="$flags" | tee -a submitted-jobs.txt
+done
 done
