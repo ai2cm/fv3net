@@ -3,6 +3,8 @@ import wandb
 import json
 import logging
 
+logging.basicConfig(level=logging.INFO)
+
 
 def insert_run(cur, job):
     summary = {
