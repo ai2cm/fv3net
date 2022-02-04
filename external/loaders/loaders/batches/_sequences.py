@@ -75,7 +75,7 @@ class Local(BaseSequence[T]):
             pass
         else:
             loaded_data = dataset
-         
+
         joblib.dump(loaded_data, path)
 
     def __len__(self):
