@@ -1,6 +1,5 @@
 import tempfile
 
-import config as settings
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,11 +14,10 @@ def mean_square(x):
 
 
 def open_model(path):
-    model_path = path + "/model.tf"
-    fs = vcm.get_fs(model_path)
+    fs = vcm.get_fs(path)
     with tempfile.TemporaryDirectory() as dir_:
         lpath = dir_ + "/model.tf"
-        fs.get(model_path, lpath, recursive=True)
+        fs.get(path, lpath, recursive=True)
         return tf.keras.models.load_model(lpath)
 
 
@@ -90,13 +88,32 @@ def plot(df, title):
 
 
 if __name__ == "__main__":
-    for model_url in settings.ERROR_SCALE_MODELS:
-        config = TrainConfig.from_yaml_path(model_url + "/config.yaml")
+    import logging
+
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger("matplotlib").setLevel(logging.INFO)
+    # ERROR SCALE
+    ERROR_SCALE_OUTPUT_DIR = "figs/error-scale"
+    ERROR_SCALE_MODELS = [
+        # "gs://vcm-ml-experiments/microphysics-emulation/2022-01-18/rnn-predict-gscond-3f77ec",
+        # "gs://vcm-ml-experiments/microphysics-emulation/2022-01-27/rnn-gscond-cloudtdep-cbfc4a",
+        # "gs://vcm-ml-experiments/microphysics-emulation/2022-01-27/rnn-gscond-alltdep-c9af46",
+        "gs://vcm-ml-experiments/microphysics-emulation/2022-02-01/rnn-alltdep-47ad5b-de512-lr0.0002-login",  # noqa
+    ]
+    for model_url in ERROR_SCALE_MODELS:
+        if "checkpoints" in model_url:
+            # model_root = re.sub(r"/checkpoints/.*$", "", model_url)
+            pass
+        else:
+            model_root = model_url
+            model_url = model_url + "/model.tf"
+
+        config = TrainConfig.from_yaml_path(model_root + "/config.yaml")
         train_ds = config.open_dataset(config.train_url, 10, config.model_variables)
         train_set = next(iter(train_ds.batch(180000)))
-        model = open_model(model_url)
+        model = tf.keras.models.load_model(model_url)
         df = get_errors(model, train_set)
-        model_id = os.path.basename(model_url)
+        model_id = os.path.basename(model_root)
         plot(df, model_id)
-        out = os.path.join(settings.ERROR_SCALE_OUTPUT_DIR, model_id + ".png")
+        out = os.path.join(ERROR_SCALE_OUTPUT_DIR, model_id + ".png")
         plt.savefig(out)
