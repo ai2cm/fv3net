@@ -52,3 +52,24 @@ def test_Config_integration(model_factory):
         np.testing.assert_array_almost_equal(input + 1, updated)
 
         state["air_temperature_input"] = updated
+
+
+def test_MicrophysicsHook_model_with_new_output_name():
+    """Test a bug that happens when the ML model predicts an output not present
+    in the input state
+    """
+    n = 3
+    c = 4
+    in_ = tf.keras.layers.Input(shape=(c,), name="in")
+    out_ = tf.keras.layers.Lambda(lambda x: x + 1, name="out")(in_)
+    model = tf.keras.Model(inputs=in_, outputs=[out_])
+
+    hook = MicrophysicsHook(model, (lambda x, y, z: z))
+
+    state = {
+        "in": np.ones((c, n)),
+        "latitude": np.linspace(-60, 60, n),
+    }
+
+    assert "out" not in state
+    hook.microphysics(state)

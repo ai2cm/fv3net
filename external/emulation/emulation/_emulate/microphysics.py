@@ -90,9 +90,10 @@ class MicrophysicsHook:
 
         predictions = self.model.predict(inputs)
 
-        outputs = {name: np.atleast_2d(state[name]).T for name in predictions}
-
-        predictions = self._mask(inputs, outputs, predictions)
+        true_output = {
+            name: np.atleast_2d(state[name]).T for name in state if name in predictions
+        }
+        predictions = self._mask(inputs, true_output, predictions)
 
         # tranpose back to FV3 conventions
         model_outputs = {name: tensor.T for name, tensor in predictions.items()}
