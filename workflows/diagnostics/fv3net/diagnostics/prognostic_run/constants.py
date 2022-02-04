@@ -154,3 +154,6 @@ TOP_LEVEL_METRICS = {
     "tropics_max_minus_min": [MASS_STREAMFUNCTION_MID_TROPOSPHERE],
     "tropical_ascent_region_mean": ["column_integrated_q1"],
 }
+
+GRID_VARS = ("lat", "latb", "lon", "lonb")
+GRID_INTERFACE_COORDS = ("x_interface", "y_interface")

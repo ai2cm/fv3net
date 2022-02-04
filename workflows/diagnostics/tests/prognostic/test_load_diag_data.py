@@ -34,18 +34,21 @@ def test_load_coarse_data(tmpdir):
     num_time = 2
     arr = np.arange((num_time * 6 * 48 * 48)).reshape((num_time, 6, 48, 48))
     dims = ("time", "tile", "grid_xt", "grid_yt")
+    bounds_arr = np.arange((num_time * 6 * 49 * 49)).reshape((num_time, 6, 49, 49))
+    bounds_dims = ("time", "tile", "grid_x", "grid_y")
+    time_coord = [cftime.DatetimeJulian(2016, 1, n + 1) for n in range(num_time)]
 
     ds = xr.Dataset(
-        {"a": (dims, arr)},
-        coords={
-            "time": [cftime.DatetimeJulian(2016, 1, n + 1) for n in range(num_time)]
-        },
+        {"a": (dims, arr), "latb": (bounds_dims, bounds_arr)},
+        coords={"time": time_coord},
     )
 
     path = str(tmpdir.join("sfc_dt_atmos.zarr"))
     ds.to_zarr(path, consolidated=True)
     loaded = load_diags.load_coarse_data(path, vcm.catalog.catalog)
     np.testing.assert_equal(loaded["a"].values, ds.a.values)
+    assert "latb" not in loaded.data_vars
+    assert sorted(loaded.dims.keys()) == sorted(("time", "tile", "x", "y"))
 
 
 def print_coord_hashes(ds):

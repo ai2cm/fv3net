@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from typing_extensions import Protocol
-from typing import List
+from typing import List, Sequence
 import warnings
 
 import fsspec
@@ -16,6 +16,7 @@ from vcm.fv3 import standardize_fv3_diagnostics
 
 from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
+from fv3net.diagnostics.prognostic_run import constants
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +66,18 @@ def _get_factor(ds: xr.Dataset, target_resolution: int) -> int:
     return int(input_res / target_resolution)
 
 
+def _drop_grid_if_present(
+    ds: xr.Dataset,
+    grid_vars: Sequence[str] = constants.GRID_VARS,
+    grid_interface_coords: Sequence[str] = constants.GRID_INTERFACE_COORDS,
+) -> xr.Dataset:
+    return ds.drop_vars(grid_vars + grid_interface_coords, errors="ignore")
+
+
 def _coarsen_to_target_resolution(
     ds: xr.Dataset, target_resolution: int, catalog: intake.catalog.Catalog,
 ) -> xr.Dataset:
+    ds = _drop_grid_if_present(ds)
     return vcm.cubedsphere.weighted_block_average(
         ds,
         weights=_get_area(ds, catalog),
