@@ -10,6 +10,7 @@ from fv3fit._shared.stacking import (
     stack,
     preserve_samples_per_batch,
     StackedBatches,
+    DATASET_DIM_NAME,
     SAMPLE_DIM_NAME,
 )
 
@@ -34,6 +35,37 @@ def test_StackedBatches_get_slice_stack():
     for ds in stacked_batch_sequence:
         assert ds["var"].dims == (SAMPLE_DIM_NAME, "z")
         assert len(ds[SAMPLE_DIM_NAME]) == 20
+
+
+def test_StackedBatches_shuffles_before_thinning():
+    # This is a regression test which checks that when a sequence
+    # of batches with a "dataset" coordinate is used that the samples
+    # are stacked, shuffled, and then thinned (in that order).  Since
+    # we are setting the random seed, we can expect the same shuffling
+    # order every time.
+    ds_unstacked_multiple_datasets = xr.Dataset(
+        {
+            "var": xr.DataArray(
+                np.arange(0, 36).reshape(2, 6, 3), dims=["z", "x", DATASET_DIM_NAME],
+            )
+        }
+    )
+    batches_unstacked_multiple_datasets = [
+        ds_unstacked_multiple_datasets,
+        ds_unstacked_multiple_datasets,
+    ]
+    stacked_batches = StackedBatches(
+        batches_unstacked_multiple_datasets, np.random.RandomState(0)
+    )
+    stacked_batch = stacked_batches[0]
+
+    # If the order of shuffling and thinning were reversed, we would
+    # only select points from dataset zero, meaning stacked_batch.dataset
+    # would be all zeros.
+    expected_x = np.array([0, 3, 0, 3, 3, 1])
+    expected_dataset = np.array([1, 1, 2, 0, 2, 2])
+    np.testing.assert_equal(stacked_batch.x, expected_x)
+    np.testing.assert_equal(stacked_batch.dataset, expected_dataset)
 
 
 @pytest.fixture

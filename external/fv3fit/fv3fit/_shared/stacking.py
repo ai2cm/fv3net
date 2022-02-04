@@ -41,8 +41,8 @@ class StackedBatches(Sequence[xr.Dataset]):
             dim=SAMPLE_DIM_NAME
         )
         ds = check_empty(ds)
-        ds = preserve_samples_per_batch(ds)
-        return shuffled(self._random_state, [ds])[0]
+        ds = shuffled(self._random_state, [ds])[0]
+        return preserve_samples_per_batch(ds)
 
 
 def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
