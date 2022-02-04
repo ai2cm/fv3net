@@ -66,18 +66,9 @@ def _get_factor(ds: xr.Dataset, target_resolution: int) -> int:
     return int(input_res / target_resolution)
 
 
-def _drop_grid_if_present(
-    ds: xr.Dataset,
-    grid_vars: Sequence[str] = constants.GRID_VARS,
-    grid_interface_coords: Sequence[str] = constants.GRID_INTERFACE_COORDS,
-) -> xr.Dataset:
-    return ds.drop_vars(grid_vars + grid_interface_coords, errors="ignore")
-
-
-def _coarsen_to_target_resolution(
+def _coarsen_cell_centered_to_target_resolution(
     ds: xr.Dataset, target_resolution: int, catalog: intake.catalog.Catalog,
 ) -> xr.Dataset:
-    ds = _drop_grid_if_present(ds)
     return vcm.cubedsphere.weighted_block_average(
         ds,
         weights=_get_area(ds, catalog),
@@ -115,6 +106,14 @@ def load_grid(catalog):
     return xr.merge([grid_c48, ls_mask])
 
 
+def _drop_grid_if_present(
+    ds: xr.Dataset,
+    grid_vars: Sequence[str] = constants.GRID_VARS,
+    grid_interface_coords: Sequence[str] = constants.GRID_INTERFACE_COORDS,
+) -> xr.Dataset:
+    return ds.drop_vars(grid_vars + grid_interface_coords, errors="ignore")
+
+
 def load_coarse_data(path, catalog) -> xr.Dataset:
     logger.info(f"Opening prognostic run data at {path}")
 
@@ -125,7 +124,11 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
         ds = xr.Dataset()
 
     if len(ds) > 0:
-        ds = _coarsen_to_target_resolution(ds, target_resolution=48, catalog=catalog)
+        # drop interface vars to avoid broadcasting by coarsen func
+        ds = _drop_grid_if_present(ds)
+        ds = _coarsen_cell_centered_to_target_resolution(
+            ds, target_resolution=48, catalog=catalog
+        )
 
     return ds
 
