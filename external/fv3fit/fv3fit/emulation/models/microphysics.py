@@ -1,7 +1,7 @@
 import dataclasses
 import dacite
 import tensorflow as tf
-from typing import Any, List, Mapping
+from typing import List, Mapping
 import vcm
 
 from fv3fit._shared import SliceConfig
@@ -145,9 +145,7 @@ class MicrophysicsConfig:
             for name in self.input_variables
         }
 
-    def build(
-        self, data: Mapping[str, tf.Tensor], transform: Any = None
-    ) -> tf.keras.Model:
+    def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
         """
         Build model described by the configuration
 
@@ -223,7 +221,7 @@ class ConservativeWaterConfig:
             timestep_increment_sec=self.timestep_increment_sec,
             enforce_positive=self.enforce_positive,
             selection_map={v.input_name: v.selection for v in self._input_variables},
-        ).build(data, None)
+        ).build(data)
 
     @property
     def _input_variables(self) -> List[Field]:
@@ -247,9 +245,7 @@ class ConservativeWaterConfig:
     def name(self):
         return f"conservative-microphysics-emulator-{self.architecture.name}"
 
-    def build(
-        self, data: Mapping[str, tf.Tensor], transform: Any = None
-    ) -> tf.keras.Model:
+    def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
         model = self._build_base_model(data)
         return _assoc_conservative_precipitation(model, self.fields)
 

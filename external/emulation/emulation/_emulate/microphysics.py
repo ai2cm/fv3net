@@ -1,6 +1,5 @@
 import gc
 import sys
-from typing import Mapping
 from .._typing import FortranState
 
 # Tensorflow looks at sys args which are not initialized
@@ -9,9 +8,7 @@ from .._typing import FortranState
 if not hasattr(sys, "argv"):
     sys.argv = [""]
 
-import f90nml  # noqa: E402
 import logging  # noqa: E402
-import os  # noqa: E402
 import tensorflow as tf  # noqa: E402
 
 from ..debug import print_errors  # noqa: E402
@@ -22,61 +19,21 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-class NoModel:
-    """
-    Dummy model to make no prediction
-
-    Currently fv3gfs-fortran microphysics emulations
-    of Zhao-Carr physics requires a model loadable to run.
-    Change was introduced with piggy-backed diagnostics.
-    """
-
-    @property
-    def output_names(self):
-        return []
-
-    @property
-    def input_names(self):
-        return []
-
-    @staticmethod
-    def predict(x):
-        return {}
-
-
-@print_errors
-def _load_nml():
-    path = os.path.join(os.getcwd(), "input.nml")
-    namelist = f90nml.read(path)
-    logger.info(f"Loaded namelist for ZarrMonitor from {path}")
-
-    return namelist
-
-
-@print_errors
-def _get_timestep(namelist):
-    return int(namelist["coupler_nml"]["dt_atmos"])
-
-
 @print_errors
 def _load_tf_model(model_path: str) -> tf.keras.Model:
     logger.info(f"Loading keras model: {model_path}")
-
-    if model_path == "NO_MODEL":
-        return NoModel()
-    else:
-        with get_dir(model_path) as local_model_path:
-            model = tf.keras.models.load_model(local_model_path)
-            # These following two adapters are for backwards compatibility
-            dict_output_model = adapters.ensure_dict_output(model)
-            return adapters.rename_dict_output(
-                dict_output_model,
-                translation={
-                    "air_temperature_output": "air_temperature_after_precpd",
-                    "specific_humidity_output": "specific_humidity_after_precpd",
-                    "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
-                },
-            )
+    with get_dir(model_path) as local_model_path:
+        model = tf.keras.models.load_model(local_model_path)
+        # These following two adapters are for backwards compatibility
+        dict_output_model = adapters.ensure_dict_output(model)
+        return adapters.rename_dict_output(
+            dict_output_model,
+            translation={
+                "air_temperature_output": "air_temperature_after_precpd",
+                "specific_humidity_output": "specific_humidity_after_precpd",
+                "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
+            },
+        )
 
 
 class MicrophysicsHook:
@@ -95,20 +52,6 @@ class MicrophysicsHook:
         self.orig_outputs = None
         self.garbage_collection_interval = garbage_collection_interval
         self._calls_since_last_collection = 0
-
-    @classmethod
-    def from_environ(cls, d: Mapping):
-        """
-        Initialize this hook by loading configuration from environment
-        variables
-
-        Args:
-            d: Mapping with key "TF_MODEL_PATH" pointing to a loadable
-                keras model.  Can be local or remote.
-        """
-
-        model_path = d["TF_MODEL_PATH"]
-        return cls(model_path)
 
     def _maybe_garbage_collect(self):
         if self._calls_since_last_collection % self.garbage_collection_interval:

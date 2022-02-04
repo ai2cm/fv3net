@@ -3,7 +3,6 @@ from typing import Callable, List, Mapping
 
 import tensorflow as tf
 from fv3fit.emulation.layers.normalization import NormalizeConfig
-from fv3fit.emulation.transforms import TensorTransform, Identity
 
 from .._shared.config import OptimizerConfig
 
@@ -47,11 +46,7 @@ class CustomLoss:
     metric_variables: List[str] = dataclasses.field(default_factory=list)
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
 
-    def build(
-        self,
-        output_samples: Mapping[str, tf.Tensor],
-        transform: TensorTransform = Identity,
-    ):
+    def build(self, output_samples: Mapping[str, tf.Tensor],) -> Callable:
         """
         Prepare the normalized losses for each variable by creating a
         fitted NormalizedMSE object and place them into the respective
@@ -64,15 +59,13 @@ class CustomLoss:
 
         """
         loss_funcs = {}
-        data = transform.forward(output_samples)
-        for out_varname, sample in data.items():
+        for out_varname, sample in output_samples.items():
             loss_funcs[out_varname] = NormalizedMSE(self.normalization, sample)
 
         return _MultiVariableLoss(
             loss_funcs=loss_funcs,
             loss_variables=self.loss_variables,
             metric_variables=self.metric_variables,
-            transform=transform,
             weights=self.weights,
         )
 
@@ -86,28 +79,25 @@ class _MultiVariableLoss:
         loss_funcs: Mapping[str, ScalarLossFunction],
         loss_variables: List[str],
         metric_variables: List[str],
-        transform: TensorTransform,
         weights: Mapping[str, float],
     ):
         self.loss_funcs = loss_funcs
         self.loss_variables = loss_variables
         self.metric_variables = metric_variables
-        self.transform = transform
         self.weights = weights
 
     def __call__(self, truth, prediction):
 
         # add transformed variables to truth, but not prediction (which should
         # already have them)
-        x = self.transform.forward(truth)
         y = prediction
 
         metrics = {}
         loss = 0.0
-        for out_varname in x:
+        for out_varname in truth:
             if out_varname in self.loss_variables + self.metric_variables:
                 loss_value = self.loss_funcs[out_varname](
-                    x[out_varname], y[out_varname]
+                    truth[out_varname], y[out_varname]
                 )
                 weight = self.weights.get(out_varname, 1.0)
                 if out_varname in self.loss_variables:
