@@ -43,20 +43,9 @@ def test_StackedBatches_shuffles_before_thinning():
     # are stacked, shuffled, and then thinned (in that order).  Since
     # we are setting the random seed, we can expect the same shuffling
     # order every time.
-    ds_unstacked_multiple_datasets = xr.Dataset(
-        {
-            "var": xr.DataArray(
-                np.arange(0, 36).reshape(2, 6, 3), dims=["z", "x", DATASET_DIM_NAME],
-            )
-        }
-    )
-    batches_unstacked_multiple_datasets = [
-        ds_unstacked_multiple_datasets,
-        ds_unstacked_multiple_datasets,
-    ]
-    stacked_batches = StackedBatches(
-        batches_unstacked_multiple_datasets, np.random.RandomState(0)
-    )
+    data = np.arange(0, 36).reshape(2, 6, 3)
+    batch = xr.Dataset({"var": xr.DataArray(data, dims=["z", "x", DATASET_DIM_NAME],)})
+    stacked_batches = StackedBatches([batch, batch], np.random.RandomState(0))
     stacked_batch = stacked_batches[0]
 
     # If the order of shuffling and thinning were reversed, we would
