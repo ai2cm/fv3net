@@ -70,9 +70,13 @@ class Local(BaseSequence[T]):
     @classmethod
     def dump(cls, dataset, path):
         try:
-            joblib.dump(dataset.load(), path)
+            loaded_data = dataset.load()
         except AttributeError:
-            joblib.dump(dataset, path)
+            pass
+        else:
+            loaded_data = dataset
+         
+        joblib.dump(loaded_data, path)
 
     def __len__(self):
         return len(self.files)
