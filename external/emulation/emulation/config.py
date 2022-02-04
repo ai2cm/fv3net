@@ -36,7 +36,9 @@ class EmulationConfig:
             return do_nothing
         else:
 
-            return MicrophysicsHook(self.model.path, self.model.mask).microphysics
+            return MicrophysicsHook.from_path(
+                self.model.path, self.model.mask
+            ).microphysics
 
     def build_storage_hook(self) -> StateFunc:
         if self.storage is None:

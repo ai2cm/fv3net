@@ -21,23 +21,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-@print_errors
-def _load_tf_model(model_path: str) -> tf.keras.Model:
-    logger.info(f"Loading keras model: {model_path}")
-    with get_dir(model_path) as local_model_path:
-        model = tf.keras.models.load_model(local_model_path)
-        # These following two adapters are for backwards compatibility
-        dict_output_model = adapters.ensure_dict_output(model)
-        return adapters.rename_dict_output(
-            dict_output_model,
-            translation={
-                "air_temperature_output": "air_temperature_after_precpd",
-                "specific_humidity_output": "specific_humidity_after_precpd",
-                "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
-            },
-        )
-
-
 MaskFn = Callable[[FortranState, FortranState, FortranState], FortranState]
 
 
@@ -51,15 +34,36 @@ class MicrophysicsHook:
     """
 
     def __init__(
-        self, model_path: str, mask: MaskFn, garbage_collection_interval: int = 10,
+        self,
+        model: tf.keras.Model,
+        mask: MaskFn,
+        garbage_collection_interval: int = 10,
     ) -> None:
 
         self.name = "microphysics emulator"
-        self.model = _load_tf_model(model_path)
+
+        # These following two adapters are for backwards compatibility
+        dict_output_model = adapters.ensure_dict_output(model)
+        self.model = adapters.rename_dict_output(
+            dict_output_model,
+            translation={
+                "air_temperature_output": "air_temperature_after_precpd",
+                "specific_humidity_output": "specific_humidity_after_precpd",
+                "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
+            },
+        )
         self.orig_outputs: Optional[Set[str]] = None
         self.garbage_collection_interval = garbage_collection_interval
         self._calls_since_last_collection = 0
         self._mask = mask
+
+    @staticmethod
+    @print_errors
+    def from_path(model_path: str, mask: MaskFn) -> tf.keras.Model:
+        logger.info(f"Loading keras model: {model_path}")
+        with get_dir(model_path) as local_model_path:
+            model = tf.keras.models.load_model(local_model_path)
+        return MicrophysicsHook(model, mask)
 
     def _maybe_garbage_collect(self):
         if self._calls_since_last_collection % self.garbage_collection_interval:
