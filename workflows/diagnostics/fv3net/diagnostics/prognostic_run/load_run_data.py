@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from typing_extensions import Protocol
-from typing import List, Sequence
+from typing import List
 import warnings
 
 import fsspec
@@ -106,14 +106,6 @@ def load_grid(catalog):
     return xr.merge([grid_c48, ls_mask])
 
 
-def _drop_grid_if_present(
-    ds: xr.Dataset,
-    grid_vars: Sequence[str] = constants.GRID_VARS,
-    grid_interface_coords: Sequence[str] = constants.GRID_INTERFACE_COORDS,
-) -> xr.Dataset:
-    return ds.drop_vars(grid_vars + grid_interface_coords, errors="ignore")
-
-
 def load_coarse_data(path, catalog) -> xr.Dataset:
     logger.info(f"Opening prognostic run data at {path}")
 
@@ -125,7 +117,9 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
 
     if len(ds) > 0:
         # drop interface vars to avoid broadcasting by coarsen func
-        ds = _drop_grid_if_present(ds)
+        ds = ds.drop_vars(
+            constants.GRID_VARS + constants.GRID_INTERFACE_COORDS, errors="ignore"
+        )
         ds = _coarsen_cell_centered_to_target_resolution(
             ds, target_resolution=48, catalog=catalog
         )
