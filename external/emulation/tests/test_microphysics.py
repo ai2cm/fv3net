@@ -1,12 +1,35 @@
 import numpy as np
+import pytest
+import tensorflow as tf
 
 from emulation._emulate.microphysics import MicrophysicsHook
 
 
-def test_Config_integration(saved_model_path):
+def _create_model():
+    in_ = tf.keras.layers.Input(shape=(63,), name="air_temperature_input")
+    out_ = tf.keras.layers.Lambda(lambda x: x + 1, name="air_temperature_dummy")(in_)
+    model = tf.keras.Model(inputs=in_, outputs=out_)
 
-    config = MicrophysicsHook.from_path(saved_model_path, (lambda x, y, z: z))
+    return model
 
+
+def _create_model_dict():
+    in_ = tf.keras.layers.Input(shape=(63,), name="air_temperature_input")
+    out_ = tf.keras.layers.Lambda(lambda x: x + 1)(in_)
+    model = tf.keras.Model(inputs=in_, outputs={"air_temperature_dummy": out_})
+    return model
+
+
+@pytest.mark.parametrize("model_factory", [_create_model, _create_model_dict])
+def test_MicrophysicsHook_from_path(model_factory, tmpdir):
+    saved_model_path = str(tmpdir.join("model.tf"))
+    model_factory().save(saved_model_path)
+    MicrophysicsHook.from_path(saved_model_path, (lambda x, y, z: z))
+
+
+@pytest.mark.parametrize("model_factory", [_create_model, _create_model_dict])
+def test_Config_integration(model_factory):
+    hook = MicrophysicsHook(model_factory(), (lambda x, y, z: z))
     n = 100
     state = {
         "air_temperature_input": np.ones((63, n)),
@@ -19,7 +42,7 @@ def test_Config_integration(saved_model_path):
     for i in range(3):
         input = state["air_temperature_input"]
 
-        config.microphysics(state)
+        hook.microphysics(state)
 
         # microphysics saves any key overwrites as a diagnostic
         updated = state["air_temperature_dummy"]
