@@ -3,6 +3,7 @@ import datetime
 from pathlib import Path
 from typing import Any, Sequence, Mapping, Optional
 from typing_extensions import Protocol
+import dataclasses
 import fsspec
 import yaml
 import fv3config
@@ -93,7 +94,7 @@ def update_tiled_asset_names(
     source_filename: str,
     target_url: str,
     target_filename: str,
-    restart_categories: RestartCategoriesConfig,
+    restart_categories: Optional[RestartCategoriesConfig],
     **kwargs,
 ) -> Sequence[Mapping[str, str]]:
 
@@ -105,19 +106,23 @@ def update_tiled_asset_names(
     Filename strings should include any specified variable name inserts to
     be updated with a format. E.g., "{timestep}.{category}.tile{tile}.nc"
     """
+    if restart_categories is None:
+        restart_categories = STANDARD_RESTART_CATEGORIES
+    else:
+        restart_categories = dataclasses.asdict(restart_categories)
 
     assets = [
         fv3config.get_asset_dict(
             source_url,
             source_filename.format(
-                category=getattr(restart_categories, category_name), tile=tile, **kwargs
+                category=restart_categories[category_name], tile=tile, **kwargs
             ),
             target_location=target_url,
             target_name=target_filename.format(
                 category=STANDARD_RESTART_CATEGORIES[category_name], tile=tile, **kwargs
             ),
         )
-        for category_name in vars(restart_categories)
+        for category_name in restart_categories.keys()
         for tile in TILE_COORDS_FILENAMES
     ]
 
@@ -149,7 +154,7 @@ def get_full_config(
 
 
 def c48_initial_conditions_overlay(
-    url: str, timestep: str, restart_categories: RestartCategoriesConfig
+    url: str, timestep: str, restart_categories: RestartCategoriesConfig = None
 ) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
