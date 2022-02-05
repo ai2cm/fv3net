@@ -305,3 +305,76 @@ def test_duplicate_times_raise_error_in_batches_from_mapper():
     }
     with pytest.raises(ValueError):
         loaders._config.BatchesFromMapperConfig.from_dict(data_config)
+
+
+@pytest.mark.parametrize(
+    "variables_config, variables_arg",
+    [
+        pytest.param([], [], id="no_variables"),
+        pytest.param(["a", "b"], [], id="config_variables"),
+        pytest.param([], ["a", "b"], id="arg_variables"),
+        pytest.param(["a", "b"], ["c"], id="different_variables"),
+        pytest.param(["a", "b"], ["b", "c"], id="overlapping_variables"),
+    ],
+)
+def test_batches_from_mapper_combines_variables(variables_config, variables_arg):
+    result = None
+    expected_return_value = unittest.mock.MagicMock()
+    with mapper_context(), batches_from_mapper_context():
+
+        @loaders._config.mapper_functions.register
+        def mock_mapper():
+            return None
+
+        @loaders._config.batches_from_mapper_functions.register
+        def mock_batches_from_mapper(
+            mapping_function, variable_names, mapping_kwargs=None,
+        ):
+            nonlocal result
+            result = variable_names
+            return expected_return_value
+
+        loader = loaders._config.BatchesLoader.from_dict(
+            {
+                "function": "mock_batches_from_mapper",
+                "mapper_config": loaders._config.MapperConfig(
+                    function="mock_mapper", kwargs={}
+                ),
+                "kwargs": {"variable_names": variables_config},
+            }
+        )
+        return_value = loader.load_batches(variables_arg)
+    assert return_value == expected_return_value
+    assert set(result) == set(variables_config).union(variables_arg)
+
+
+@pytest.mark.parametrize(
+    "variables_config, variables_arg",
+    [
+        pytest.param([], [], id="no_variables"),
+        pytest.param(["a", "b"], [], id="config_variables"),
+        pytest.param([], ["a", "b"], id="arg_variables"),
+        pytest.param(["a", "b"], ["c"], id="different_variables"),
+        pytest.param(["a", "b"], ["b", "c"], id="overlapping_variables"),
+    ],
+)
+def test_batches_combines_variables(variables_config, variables_arg):
+    result = None
+    expected_return_value = unittest.mock.MagicMock()
+    with batches_context():
+
+        @loaders._config.batches_functions.register
+        def mock_batches(variable_names,):
+            nonlocal result
+            result = variable_names
+            return expected_return_value
+
+        loader = loaders._config.BatchesLoader.from_dict(
+            {
+                "function": "mock_batches",
+                "kwargs": {"variable_names": variables_config},
+            }
+        )
+        return_value = loader.load_batches(variables_arg)
+    assert return_value == expected_return_value
+    assert set(result) == set(variables_config).union(variables_arg)
