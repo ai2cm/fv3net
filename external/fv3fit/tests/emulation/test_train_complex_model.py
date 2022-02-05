@@ -56,10 +56,6 @@ def test_compute_precpd():
     cloud_change_sample = make_sample()
 
     qv, t, qc = compute_precpd(
-        specific_humidity_in,
-        temperature_in,
-        cloud_in,
-        [],
         specific_humidity_sample,
         temperature_sample,
         cloud_sample,
@@ -67,4 +63,4 @@ def test_compute_precpd():
         cloud_change_sample,
         latent_heat_sample,
         [],
-    )
+    )(specific_humidity_in, temperature_in, cloud_in, [],)
