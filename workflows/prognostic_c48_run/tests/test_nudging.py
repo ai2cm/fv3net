@@ -6,6 +6,7 @@ from runtime.nudging import (
     get_nudging_tendency,
     _rename_local_restarts,
 )
+from runtime.nudging import RestartCategoriesConfig
 import xarray as xr
 from datetime import timedelta
 import pytest
@@ -190,10 +191,10 @@ def test_get_nudging_tendency(
 
 
 RESTART_CATEGORIES = {
-    "fv_core.res": "fv_core_coarse.res",
-    "sfc_data": "sfc_data_coarse",
-    "fv_tracer.res": "fv_tracer_coarse.res",
-    "fv_srf_wnd.res": "fv_srf_wnd_coarse.res",
+    "core": "fv_core_coarse.res",
+    "surface": "sfc_data_coarse",
+    "tracer": "fv_tracer_coarse.res",
+    "surface_wind": "fv_srf_wnd_coarse.res",
 }
 TIMESTAMP = "20160801.000000"
 
@@ -210,12 +211,19 @@ def restart_dir(tmp_path):
 
 
 def test__rename_local_restarts(restart_dir):
-    _rename_local_restarts(restart_dir.as_posix(), RESTART_CATEGORIES)
+    restarts_config = RestartCategoriesConfig(**RESTART_CATEGORIES)
+    _rename_local_restarts(restart_dir.as_posix(), restarts_config)
     renamed_files = sorted([file.name for file in restart_dir.iterdir()])
+    standard_restarts_config = RestartCategoriesConfig()
+    print(standard_restarts_config)
+    standard_categories = [
+        getattr(standard_restarts_config, category)
+        for category in vars(standard_restarts_config)
+    ]
     intended_files = sorted(
         [
             ".".join([TIMESTAMP, standard_category, "tile1.nc"])
-            for standard_category in RESTART_CATEGORIES.keys()
+            for standard_category in standard_categories
         ]
     )
     assert renamed_files == intended_files

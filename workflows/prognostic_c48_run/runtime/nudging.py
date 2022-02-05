@@ -33,6 +33,14 @@ INTERPOLATE_NEAREST = [
 
 
 @dataclasses.dataclass
+class RestartCategoriesConfig:
+    core: str = "fv_core.res"
+    surface: str = "sfc_data"
+    tracer: str = "fv_tracer.res"
+    surface_wind: str = "fv_srf_wnd.res"
+
+
+@dataclasses.dataclass
 class NudgingConfig:
     """Nudging Configurations
 
@@ -68,7 +76,7 @@ class NudgingConfig:
 
     restarts_path: str
     timescale_hours: Dict[str, float]
-    restart_categories: Optional[Mapping[str, str]] = None
+    restart_categories: Optional[RestartCategoriesConfig] = None
     # This should be required, but needs to be typed this way to preserve
     # backwards compatibility with existing yamls that don't specify it.
     # See https://github.com/ai2cm/fv3net/issues/1449
@@ -121,7 +129,7 @@ def _get_reference_state(
     communicator: fv3gfs.util.CubedSphereCommunicator,
     only_names: Iterable[str],
     tracer_metadata: Mapping,
-    restart_categories: Optional[Mapping[str, str]] = None,
+    restart_categories: Optional[RestartCategoriesConfig],
 ):
     label = _time_to_label(time)
     dirname = os.path.join(reference_dir, label)
@@ -155,16 +163,19 @@ def _get_reference_state(
 
 
 def _rename_local_restarts(
-    localdir: str, restart_categories: Mapping[str, str]
+    localdir: str, restart_categories: RestartCategoriesConfig
 ) -> None:
+    standard_restart_categories = RestartCategoriesConfig()
     files = os.listdir(localdir)
-    for required_category, disk_category in restart_categories.items():
+    for category in vars(restart_categories):
+        disk_category = getattr(restart_categories, category)
+        standard_category = getattr(standard_restart_categories, category)
         for file in [file for file in files if disk_category in file]:
             existing_filepath = os.path.join(localdir, file)
-            required_filepath = os.path.join(
-                localdir, file.replace(disk_category, required_category)
+            standard_filepath = os.path.join(
+                localdir, file.replace(disk_category, standard_category)
             )
-            os.rename(existing_filepath, required_filepath)
+            os.rename(existing_filepath, standard_filepath)
 
 
 def _to_state_dataarrays(state: Mapping[str, fv3gfs.util.Quantity]) -> State:

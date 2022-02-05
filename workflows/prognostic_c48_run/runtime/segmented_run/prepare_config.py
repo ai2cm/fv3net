@@ -17,6 +17,7 @@ import pandas as pd
 from runtime.diagnostics.manager import FortranFileConfig
 from runtime.diagnostics.fortran import file_configs_to_namelist_settings
 from runtime.config import UserConfig
+from runtime.nudging import RestartCategoriesConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 
 
@@ -72,13 +73,16 @@ class InitialCondition:
     Attributes:
         base_url: a location in GCS or local
         timestep: a YYYYMMDD.HHMMSS timestamp
-        restart_categories: an optional mapping from the required FV3GFS
-            category names to restart category names as stored on disk
+        restart_categories: an optional mapping from the FV3GFS restart
+            categories of 'core', 'surface', 'tracer' and 'surface_wind' to
+            restart category names as stored on disk
     """
 
     base_url: str
     timestep: str
-    restart_categories: Optional[Mapping[str, str]] = None
+    restart_categories: RestartCategoriesConfig = dataclasses.field(
+        default_factory=RestartCategoriesConfig
+    )
 
     @property
     def overlay(self):
