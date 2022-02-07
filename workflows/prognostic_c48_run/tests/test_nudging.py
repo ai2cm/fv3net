@@ -215,7 +215,6 @@ def test__rename_local_restarts(restart_dir):
     _rename_local_restarts(restart_dir.as_posix(), restarts_config)
     renamed_files = sorted([file.name for file in restart_dir.iterdir()])
     standard_restarts_config = RestartCategoriesConfig()
-    print(standard_restarts_config)
     standard_categories = [
         getattr(standard_restarts_config, category)
         for category in vars(standard_restarts_config)
