@@ -86,6 +86,7 @@ numcodecs==0.7.2
 numpy==1.19.4
 oauthlib==3.1.0
 opt-einsum==3.3.0
+pace-util==0.7.0
 packaging==20.4
 pandas==1.0.1
 partd==1.1.0

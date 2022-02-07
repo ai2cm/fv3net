@@ -4,8 +4,7 @@ xarray>=0.15.1
 netCDF4>=1.4.2
 numpy>=1.16
 pyyaml>=5
-# fv3gfs-util is a requirement, but we cannot include it here since pip-compile
-# needs only works with PyPi packages.
+pace-util==0.7.0
 # build requirements
 pkgconfig
 jinja2
