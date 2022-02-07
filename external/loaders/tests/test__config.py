@@ -215,7 +215,9 @@ def test_load_batches_from_mapper():
         result = config.load_batches(variables=variables)
         assert result is mock_batches_function.return_value
         mock_batches_function.assert_called_once_with(
-            mock_mapper_function.return_value, variables, **batches_kwargs
+            mock_mapper_function.return_value,
+            variable_names=variables,
+            **batches_kwargs,
         )
         mock_mapper_function.assert_called_once_with(**mapper_kwargs)
 
