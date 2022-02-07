@@ -15,6 +15,5 @@ setup(
         "pyyaml>=5.3.0",
         "kubernetes>=11",
         "fv3config",
-        "typing-extensions",
     ],
 )
