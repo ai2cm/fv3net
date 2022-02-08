@@ -13,7 +13,6 @@
 # ---
 
 import os
-import shutil
 
 import fsspec
 import fv3fit
@@ -141,12 +140,8 @@ with fv3fit._shared.filesystem.put_dir(new_model_root) as d:
     metadata = f"""
 source model: {model_url}
 masking points with no cloud tendency from first timestep of: {url}
-created by: ad-hoc-fixes-to-allt-model.ipynb"""
+created by: ad-hoc-fixes-to-allt-model.py"""
 
     new_model.save(os.path.join(d, "model.tf"))
     with open(os.path.join(d, "about.txt"), "w") as f:
         f.write(metadata)
-    shutil.copy("./ad-hoc-fixes-to-allt-model.ipynb", d)
-# -
-
-new_model_root
