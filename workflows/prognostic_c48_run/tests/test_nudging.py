@@ -64,7 +64,7 @@ def test__label_to_time():
     assert result == time
 
 
-# tests of nudging tendency below adapted from fv3gfs.util versions
+# tests of nudging tendency below adapted from pace.util versions
 
 
 @pytest.fixture(params=["empty", "one_var", "multiple_vars"])

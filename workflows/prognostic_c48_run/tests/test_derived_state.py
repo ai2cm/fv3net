@@ -1,6 +1,6 @@
 from enum import Enum
 import cftime
-import fv3gfs.util
+import pace.util
 import numpy as np
 import pytest
 import xarray as xr
@@ -15,13 +15,13 @@ class MockFV3GFS:
 
         nx, ny = 10, 10
 
-        lat = fv3gfs.util.Quantity(
+        lat = pace.util.Quantity(
             np.random.rand(ny, nx), dims=["y", "x"], units="radians"
         )
-        lon = fv3gfs.util.Quantity(
+        lon = pace.util.Quantity(
             np.random.rand(ny, nx), dims=["y", "x"], units="radians"
         )
-        lhtfl = fv3gfs.util.Quantity(
+        lhtfl = pace.util.Quantity(
             np.random.rand(ny, nx), dims=["y", "x"], units="deg"
         )
 
@@ -36,14 +36,14 @@ class MockFV3GFS:
     def get_state(self, names):
         # need this for the data to remain unchanged for equality tests
         if any(name not in self.state for name in names):
-            raise fv3gfs.util.InvalidQuantityError("blah")
+            raise pace.util.InvalidQuantityError("blah")
         return {name: self.state[name] for name in names}
 
     def set_state_mass_conserving(self, data):
 
         self.set_state_called = True
         for key, value in data.items():
-            assert isinstance(value, fv3gfs.util.Quantity)
+            assert isinstance(value, pace.util.Quantity)
             if key not in self.state:
                 raise ValueError(f"{key} not in data.")
             self.state[key] = value

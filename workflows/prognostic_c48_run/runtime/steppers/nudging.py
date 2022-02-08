@@ -1,6 +1,6 @@
 import functools
 
-import fv3gfs.util
+import pace.util
 import fv3gfs.wrapper
 from runtime.nudging import (
     NudgingConfig,
@@ -20,7 +20,7 @@ class PureNudger:
     def __init__(
         self,
         config: NudgingConfig,
-        communicator: fv3gfs.util.CubedSphereCommunicator,
+        communicator: pace.util.CubedSphereCommunicator,
         hydrostatic: bool,
     ):
         """A stepper for nudging towards a reference dataset.

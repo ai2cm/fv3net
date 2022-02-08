@@ -166,7 +166,6 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		--output-file docker/prognostic_run/requirements.txt \
 		external/artifacts/setup.py \
 		external/fv3fit/setup.py \
-		external/fv3gfs-util.requirements.in \
 		external/fv3gfs-wrapper.requirements.in \
 		external/fv3kube/setup.py \
 		external/vcm/setup.py \
