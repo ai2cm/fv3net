@@ -13,8 +13,8 @@ def insert_run(cur, job):
         if isinstance(val, (float, str, int))
     }
     cur.execute(
-        """INSERT INTO runs(wandb_id, name, config, job_type, summary, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO runs(wandb_id, name, config, job_type, summary, created_at, tags)
+    VALUES (?, ?, ?, ?, ?, ?, ?)""",
         (
             job.id,
             job.name,
@@ -22,6 +22,7 @@ def insert_run(cur, job):
             job.job_type,
             json.dumps(summary),
             job.created_at,
+            json.dumps(job.tags),
         ),
     )
 

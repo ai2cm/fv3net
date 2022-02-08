@@ -5,6 +5,7 @@ CREATE TABLE runs (
     config text,
     summary text,
     job_type text,
+    tags text,
     created_at text
 );
 
