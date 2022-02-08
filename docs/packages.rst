@@ -24,7 +24,7 @@ fv3gfs-wrapper_ is a Python wrapper for the FV3GFS Fortran model.
 
 fv3gfs-fortran_ is our fork of the FV3GFS fortran model, which we run using the wrapper.
 
-pace-util_ (`docs <https://fv3gfs-util.readthedocs.io/en/latest/>`_) is a library of general-purpose Python code to use in a model script.
+pace-util_ (`docs, which are no longer maintained <https://fv3gfs-util.readthedocs.io/en/latest/>`_) is a library of general-purpose Python code to use in a model script.
 
 fv3config_ (`docs <https://fv3config.readthedocs.io/en/latest/>`_) provides routines to configure and write a FV3GFS run directory using a yaml configuration file and data stored on the cloud.
 
