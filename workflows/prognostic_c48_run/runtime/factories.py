@@ -11,7 +11,7 @@ from runtime.transformers.tendency_prescriber import TendencyPrescriber
 from runtime.derived_state import DerivedFV3State
 import runtime.transformers.emulator
 import runtime.transformers.fv3fit
-import fv3gfs.util
+import pace.util
 
 
 __all__ = ["get_fv3_physics_transformer", "get_tendency_prescriber"]
@@ -46,7 +46,7 @@ def get_tendency_prescriber(
     config: UserConfig,
     state: DerivedFV3State,
     timestep: float,
-    communicator: fv3gfs.util.CubedSphereCommunicator,
+    communicator: pace.util.CubedSphereCommunicator,
 ) -> Optional[TendencyPrescriber]:
     if config.tendency_prescriber is None:
         return None

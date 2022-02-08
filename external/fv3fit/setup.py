@@ -15,9 +15,8 @@ requirements = [
     "tensorflow-addons>=0.11.2",
     "typing_extensions>=3.7.4.3",
     "dacite>=1.6.0",
-    "wandb[media]>=0.12.1"
-    # fv3fit also depends on fv3gfs-util>=0.6.0, but pip-compile does not work
-    # for packages not hosted on pypi.
+    "wandb[media]>=0.12.1",
+    "pace-util>=0.7.0",
 ]
 
 setup_requirements = []

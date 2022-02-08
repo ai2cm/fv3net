@@ -9,7 +9,7 @@ from runtime.types import State, Diagnostics, Tendencies
 from runtime.conversions import quantity_state_to_dataset, dataset_to_quantity_state
 from runtime.names import SST, TSFC, MASK
 
-import fv3gfs.util
+import pace.util
 from vcm.catalog import catalog as CATALOG
 from vcm.safe import get_variables
 
@@ -80,14 +80,14 @@ class Prescriber:
     def __init__(
         self,
         config: PrescriberConfig,
-        communicator: fv3gfs.util.CubedSphereCommunicator,
+        communicator: pace.util.CubedSphereCommunicator,
         timesteps: Optional[Sequence[cftime.DatetimeJulian]] = None,
     ):
         """Create a Prescriber object
         
         Args:
             config (PrescriberConfig),
-            communicator (fv3gfs.util.CubedSphereCommunicator),
+            communicator (pace.util.CubedSphereCommunicator),
             timesteps (Sequence[cftime.DatetimeJulian]): optional sequence specifying
                 all wrapper timesteps for which data is required; if not supplied,
                 defaults to downloading entire time dimension of `dataset_key`
