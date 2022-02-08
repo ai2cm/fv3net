@@ -21,9 +21,7 @@ class MockFV3GFS:
         lon = pace.util.Quantity(
             np.random.rand(ny, nx), dims=["y", "x"], units="radians"
         )
-        lhtfl = pace.util.Quantity(
-            np.random.rand(ny, nx), dims=["y", "x"], units="deg"
-        )
+        lhtfl = pace.util.Quantity(np.random.rand(ny, nx), dims=["y", "x"], units="deg")
 
         self.state = {
             "time": cftime.DatetimeJulian(2016, 1, 1),
