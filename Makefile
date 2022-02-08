@@ -149,7 +149,7 @@ constraints.txt:
 	pip-requirements.txt \
 	external/fv3kube/setup.py \
 	external/fv3fit/setup.py \
-	external/fv3gfs-wrapper.requirements.in \
+	external/*.requirements.in \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
 	--output-file constraints.txt

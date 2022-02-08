@@ -4,7 +4,7 @@ xarray>=0.15.1
 netCDF4>=1.4.2
 numpy>=1.16
 pyyaml>=5
-pace-util==0.7.0
+pace-util>=0.7.0
 # build requirements
 pkgconfig
 jinja2
