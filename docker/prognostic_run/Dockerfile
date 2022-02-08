@@ -98,7 +98,6 @@ RUN pip3 install jinja2 && make -C /fv3gfs-wrapper/lib
 
 # cache external package installation
 RUN mkdir -p /fv3net/external /fv3net/workflows && \
-    mv /external/* /fv3net/external/ && \
     mv /fv3gfs-wrapper /fv3net/external/fv3gfs-wrapper
 
 ENV MPI=mpich
