@@ -74,6 +74,28 @@ def test_select_antarctic(lats, data, expected):
     xr.testing.assert_equal(expected_da, result["field"])
 
 
+@pytest.mark.xfail
+def test_select_antarctic_xarray_netCDF():
+    """
+    xarray can't use an empty index mask (i.e., all False) along
+    a selection dimension for multi-dimensional data with an unloaded
+    netCDF backend
+    """
+    lats_da = xr.DataArray(np.deg2rad(np.linspace(40, 50, 10)), dims=["sample"])
+    data_da = xr.DataArray(np.arange(20).reshape(10, 2), dims=["sample", "z"])
+    dataset = xr.Dataset({"latitude": lats_da, "field": data_da})
+    expected = transforms.select_antarctic(dataset)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = os.path.join(tmpdir, "saved.nc")
+        dataset.to_netcdf(filename)
+
+        loaded = xr.open_dataset(filename)
+        result = transforms.select_antarctic(loaded)
+
+    xr.testing.assert_equal(expected, result)
+
+
 @pytest.mark.parametrize(
     "dataset",
     [
