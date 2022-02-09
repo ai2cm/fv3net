@@ -74,7 +74,6 @@ def test_select_antarctic(lats, data, expected):
     xr.testing.assert_equal(expected_da, result["field"])
 
 
-@pytest.mark.xfail
 def test_select_antarctic_xarray_netCDF():
     """
     xarray can't use an empty index mask (i.e., all False) along
