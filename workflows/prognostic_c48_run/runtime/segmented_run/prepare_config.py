@@ -11,13 +11,13 @@ import dacite
 
 import fv3config
 import fv3kube
+from fv3kube import RestartCategoriesConfig
 
 import pandas as pd
 
 from runtime.diagnostics.manager import FortranFileConfig
 from runtime.diagnostics.fortran import file_configs_to_namelist_settings
 from runtime.config import UserConfig
-from runtime.nudging import RestartCategoriesConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 
 
@@ -87,7 +87,7 @@ class InitialCondition:
     @property
     def overlay(self):
         return fv3kube.c48_initial_conditions_overlay(
-            self.base_url, self.timestep, self.restart_categories
+            self.base_url, self.timestep, restart_categories=self.restart_categories
         )
 
 

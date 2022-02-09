@@ -4,4 +4,3 @@ pyyaml
 kubernetes
 fv3config
 pytest-regtest
-typing-extensions

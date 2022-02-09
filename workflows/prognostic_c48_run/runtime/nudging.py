@@ -19,7 +19,8 @@ from typing import (
     Optional,
 )
 import logging
-from .names import STATE_NAME_TO_TENDENCY, MASK
+from runtime.names import STATE_NAME_TO_TENDENCY, MASK
+from fv3kube import RestartCategoriesConfig
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +31,6 @@ State = MutableMapping[Hashable, xr.DataArray]
 INTERPOLATE_NEAREST = [
     MASK,
 ]
-
-
-@dataclasses.dataclass
-class RestartCategoriesConfig:
-    core: str = "fv_core.res"
-    surface: str = "sfc_data"
-    tracer: str = "fv_tracer.res"
-    surface_wind: str = "fv_srf_wnd.res"
 
 
 @dataclasses.dataclass
@@ -167,9 +160,9 @@ def _rename_local_restarts(
 ) -> None:
     standard_restart_categories = RestartCategoriesConfig()
     files = os.listdir(localdir)
-    for category in vars(restart_categories):
-        disk_category = getattr(restart_categories, category)
-        standard_category = getattr(standard_restart_categories, category)
+    for category_name in vars(restart_categories):
+        disk_category = getattr(restart_categories, category_name)
+        standard_category = getattr(standard_restart_categories, category_name)
         for file in [file for file in files if disk_category in file]:
             existing_filepath = os.path.join(localdir, file)
             standard_filepath = os.path.join(
