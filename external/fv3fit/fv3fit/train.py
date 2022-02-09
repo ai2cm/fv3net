@@ -17,9 +17,6 @@ import tempfile
 from vcm.cloud import copy
 
 
-LOG_OUTPUT = "training.log"
-
-
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
