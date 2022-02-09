@@ -9,7 +9,12 @@ from ..._shared.config import (
     OptimizerConfig,
     register_training_function,
 )
-from .shared import TrainingLoopConfig, XyMultiArraySequence, DenseNetworkConfig
+from .shared import (
+    TrainingLoopConfig,
+    XyMultiArraySequence,
+    DenseNetworkConfig,
+    TrainingLoopLossHistory,
+)
 from fv3fit.keras._models.shared import PureKerasModel, LossConfig, ClipConfig
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
@@ -117,17 +122,22 @@ def train_dense_model(
     )
     del train_batches
 
+    loss_history = TrainingLoopLossHistory()
     hyperparameters.training_loop.fit_loop(
-        model=train_model, Xy=train_data, validation_data=validation_data
+        model=train_model,
+        Xy=train_data,
+        validation_data=validation_data,
+        callbacks=[loss_history.callback],
     )
     predictor = PureKerasModel(
         input_variables=hyperparameters.input_variables,
         output_variables=hyperparameters.output_variables,
         output_metadata=output_metadata,
         model=predict_model,
-        unstacked_dims=("z",),
+        unstacked_dims=("z"),
         n_halo=0,
     )
+    loss_history.log_summary()
     return predictor
 
 
