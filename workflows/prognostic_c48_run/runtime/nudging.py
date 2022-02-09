@@ -19,7 +19,8 @@ from typing import (
     Optional,
 )
 import logging
-from .names import STATE_NAME_TO_TENDENCY, MASK
+from runtime.names import STATE_NAME_TO_TENDENCY, MASK
+from fv3kube import RestartCategoriesConfig
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,7 @@ class NudgingConfig:
 
     restarts_path: str
     timescale_hours: Dict[str, float]
+    restart_categories: Optional[RestartCategoriesConfig] = None
     # This should be required, but needs to be typed this way to preserve
     # backwards compatibility with existing yamls that don't specify it.
     # See https://github.com/ai2cm/fv3net/issues/1449
@@ -97,6 +99,7 @@ def setup_get_reference_state(
     get_reference_state: Callable[[Any], Dict[Any, Any]] = functools.partial(
         _get_reference_state,
         reference_dir=reference_dir,
+        restart_categories=config.restart_categories,
         communicator=communicator,
         only_names=state_names,
         tracer_metadata=tracer_metadata,
@@ -119,6 +122,7 @@ def _get_reference_state(
     communicator: pace.util.CubedSphereCommunicator,
     only_names: Iterable[str],
     tracer_metadata: Mapping,
+    restart_categories: Optional[RestartCategoriesConfig],
 ):
     label = _time_to_label(time)
     dirname = os.path.join(reference_dir, label)
@@ -128,6 +132,8 @@ def _get_reference_state(
     if MPI.COMM_WORLD.rank == 0:
         fs = fsspec.get_fs_token_paths(dirname)[0]
         fs.get(dirname, localdir, recursive=True)
+        if restart_categories is not None:
+            _rename_local_restarts(localdir, restart_categories)
 
     # need this for synchronization
     MPI.COMM_WORLD.barrier()
@@ -147,6 +153,22 @@ def _get_reference_state(
         shutil.rmtree(localdir)
 
     return _to_state_dataarrays(state)
+
+
+def _rename_local_restarts(
+    localdir: str, restart_categories: RestartCategoriesConfig
+) -> None:
+    standard_restart_categories = RestartCategoriesConfig()
+    files = os.listdir(localdir)
+    for category_name in vars(restart_categories):
+        disk_category = getattr(restart_categories, category_name)
+        standard_category = getattr(standard_restart_categories, category_name)
+        for file in [file for file in files if disk_category in file]:
+            existing_filepath = os.path.join(localdir, file)
+            standard_filepath = os.path.join(
+                localdir, file.replace(disk_category, standard_category)
+            )
+            os.rename(existing_filepath, standard_filepath)
 
 
 def _to_state_dataarrays(state: Mapping[str, pace.util.Quantity]) -> State:
