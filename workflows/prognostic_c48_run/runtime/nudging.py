@@ -1,4 +1,4 @@
-import fv3gfs.util
+import pace.util
 from mpi4py import MPI
 import shutil
 import fsspec
@@ -89,7 +89,7 @@ def setup_get_reference_state(
     config: NudgingConfig,
     state_names: Iterable[str],
     tracer_metadata: Mapping,
-    communicator: fv3gfs.util.CubedSphereCommunicator,
+    communicator: pace.util.CubedSphereCommunicator,
 ):
     """
     Configure the 'get_reference_function' for use in a nudged fv3gfs run.
@@ -119,7 +119,7 @@ def setup_get_reference_state(
 def _get_reference_state(
     time: str,
     reference_dir: str,
-    communicator: fv3gfs.util.CubedSphereCommunicator,
+    communicator: pace.util.CubedSphereCommunicator,
     only_names: Iterable[str],
     tracer_metadata: Mapping,
     restart_categories: Optional[RestartCategoriesConfig],
@@ -138,7 +138,7 @@ def _get_reference_state(
     # need this for synchronization
     MPI.COMM_WORLD.barrier()
 
-    state = fv3gfs.util.open_restart(
+    state = pace.util.open_restart(
         localdir,
         communicator,
         label=label,
@@ -171,7 +171,7 @@ def _rename_local_restarts(
             os.rename(existing_filepath, standard_filepath)
 
 
-def _to_state_dataarrays(state: Mapping[str, fv3gfs.util.Quantity]) -> State:
+def _to_state_dataarrays(state: Mapping[str, pace.util.Quantity]) -> State:
     out: State = {}
     for var in state:
         out[var] = state[var].data_array
@@ -248,7 +248,7 @@ def get_nudging_tendency(
 ) -> State:
     """
     Return the nudging tendency of the given state towards the reference state
-    according to the provided nudging timescales. Adapted from fv3gfs-util.nudging
+    according to the provided nudging timescales. Adapted from pace.util.nudging
     version, but for use with derived state mappings.
     Args:
         state (dict): A derived state dictionary.
