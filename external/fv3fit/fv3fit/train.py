@@ -12,6 +12,12 @@ import fv3fit.sklearn
 import fv3fit
 import xarray as xr
 import loaders
+import tempfile
+
+from vcm.cloud import copy
+
+
+LOG_OUTPUT = "training.log"
 
 
 def get_parser():
@@ -96,6 +102,7 @@ def main(args, unknown_args=None):
         )
 
     train = fv3fit.get_training_function(training_config.model_type)
+
     model = train(
         hyperparameters=training_config.hyperparameters,
         train_batches=train_batches,
@@ -107,7 +114,15 @@ def main(args, unknown_args=None):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
-    main(args, unknown_args)
+    with tempfile.NamedTemporaryFile() as temp_log:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            handlers=[logging.FileHandler(temp_log.name), logging.StreamHandler()],
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        main(args, unknown_args)
+        copy(temp_log.name, os.path.join(args.output_path, "training.log"))
