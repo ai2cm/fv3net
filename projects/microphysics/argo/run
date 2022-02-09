@@ -1,12 +1,12 @@
 #!/bin/bash
 
 url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-07/rnn-alltdep-47ad5b-de512-lr0.0002-login-limited/model.tf
-tag=rnn-alltdep-47ad5b-login-limited-6hr-gsout
-image=688fd711c24a947c2691da7f226e525cd46871e6
+tag=rnn-alltdep-47ad5b-login-limited-10d-gsout
+image=38763c954da207088c1fbcf2681230e95c42c9f7
 
 argo submit prog-run-and-eval.yaml \
     -p tag=$tag \
     -p image_tag=$image \
-    -p config=$(base64 --wrap 0 ../configs/default_short.yaml) \
+    -p config=$(base64 --wrap 0 ../configs/default.yaml) \
     -p tf_model=$url
 
