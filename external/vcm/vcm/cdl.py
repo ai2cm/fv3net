@@ -1,4 +1,7 @@
-"""Routines for working with the UCAR Common Data Language (CDL)"""
+"""Routines for working with the UCAR Common Data Language (CDL)
+
+https://www.unidata.ucar.edu/software/netcdf/workshops/most-recent/nc3model/Cdl.html
+"""
 import os
 import subprocess
 import tempfile
