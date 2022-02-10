@@ -21,6 +21,20 @@ def _limit_extremes(data: xr.DataArray, limits: xr.DataArray) -> xr.DataArray:
 
 
 class DatasetQuantileLimiter(BaseEstimator, TransformerMixin):
+    """Transformer to reduce the extremity of outliers of a dataset to quantile limits
+    
+    Limiting is done on a variable by variable basis and along specified dimensions.
+        Limits are optionally computed on a configurable subset of the dataset to avoid
+        loading the entire dataset.
+    
+    Args:
+        alpha: two-tailed alpha for computing extrema quantiles, values beyond which
+            will be reduced to the quantile
+        limit_only: variables in the dataset to be limited; if not specified all
+            variables are limited
+
+    """
+
     def __init__(
         self, alpha: float, limit_only: Optional[Sequence[str]] = None,
     ):
@@ -33,7 +47,20 @@ class DatasetQuantileLimiter(BaseEstimator, TransformerMixin):
         ds: xr.Dataset,
         feature_dims: Optional[Sequence[str]] = None,
         fit_indexers: Optional[Mapping[str, int]] = None,
-    ):
+    ) -> "DatasetQuantileLimiter":
+        """Fit the limiter on a dataset.
+        
+        Args:
+            ds: Dataset to be used to fit the limits.
+            feature_dims: Dimensions along which quantile limits should NOT be
+                computed, i.e., the resulting limits will be computed separately
+                for each coordinate along the feature_dims.
+            fit_indexer: Integer-based indexers that select a subset of `ds` on
+                which to fit limits
+            
+        Returns: Fitted limiter
+        
+        """
         sample_ds = (ds.isel(**fit_indexers) if fit_indexers is not None else ds).load()
         sample_dims = (
             set(sample_ds.dims) - set(feature_dims)
@@ -48,7 +75,17 @@ class DatasetQuantileLimiter(BaseEstimator, TransformerMixin):
         )
         return self
 
-    def transform(self, data: Union[xr.Dataset, xr.DataArray]):
+    def transform(
+        self, data: Union[xr.Dataset, xr.DataArray]
+    ) -> Union[xr.Dataset, xr.DataArray]:
+        """Limit data.
+        
+        Args:
+            data: Dataset or dataarray to be limited
+            
+        Returns: Limited dataset or dataarray
+        
+        """
         if self._limits is None:
             raise ValueError("Limiter method .fit must be called before .transform")
         if isinstance(data, xr.Dataset):
@@ -64,5 +101,6 @@ class DatasetQuantileLimiter(BaseEstimator, TransformerMixin):
         return limited
 
     @property
-    def limits(self):
+    def limits(self) -> xr.Dataset:
+        """The fitted quantile limits which are applied by the transform method."""
         return self._limits
