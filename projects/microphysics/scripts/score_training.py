@@ -9,7 +9,6 @@ import tensorflow as tf
 from fv3fit import set_random_seed
 from fv3fit.train_microphysics import TrainConfig
 from fv3fit._shared import put_dir
-from fv3fit.emulation.data import nc_dir_to_tf_dataset
 from fv3fit.emulation.keras import score_model
 from fv3fit.wandb import (
     log_profile_plots,
