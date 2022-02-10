@@ -4,17 +4,16 @@ set -e
 set -o pipefail
 
 if [[ "$1" == "--test" ]]; then
-    extra_flags="--nfiles 2 --nfiles_valid 2 --epochs 5"
+    extra_flags="--nfiles 10 --nfiles_valid 10 --epochs 3"
     bucket="vcm-ml-scratch"
 else
     bucket="vcm-ml-experiments"
 fi
 
 group="$(openssl rand -hex 3)"
-config="rnn-cloudtdep"
 
 # for config in rnn-cloudtdep dense-cloudtdep
-for config in rnn-cloudtdep
+for config in dense-cloudtdep
 do
 # for antarctic_only in true false
 for antarctic_only in true

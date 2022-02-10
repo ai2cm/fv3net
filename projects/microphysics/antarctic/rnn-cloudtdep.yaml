@@ -9,14 +9,6 @@ out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
 train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
 test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
 tensor_transform:
-  - to: log_cloud_input
-    source: cloud_water_mixing_ratio_input
-    transform:
-      epsilon: 1e-10
-  - to: log_humidity_input
-    source: specific_humidity_input
-    transform:
-      epsilon: 1e-8
   - to: cloud_precpd_difference
     condition_on: air_temperature_input
     min_scale: 1e-8
@@ -89,8 +81,6 @@ model:
   - pressure_thickness_of_atmospheric_layer
   - specific_humidity_after_last_gscond
   - air_temperature_after_last_gscond
-  - log_humidity_input
-  - log_cloud_input
   direct_out_variables:
   - cloud_precpd_difference
   - total_precipitation

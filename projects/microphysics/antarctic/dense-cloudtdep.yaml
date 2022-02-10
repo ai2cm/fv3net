@@ -1,65 +1,13 @@
+use_wandb: true
+wandb:
+  wandb_project: microphysics-emulation
 batch_size: 512
-cache: false
-checkpoint_model: true
-conservative_model: null
 epochs: 20
-log_level: INFO
-loss:
-  loss_variables:
-  - total_precipitation
-  - cloud_precpd_difference
-  - temperature_precpd_difference
-  - humidity_precpd_difference
-  - temperature_gscond_difference
-  - humidity_gscond_difference
-  metric_variables:
-  - cloud_water_mixing_ratio_after_precpd
-  - air_temperature_after_precpd
-  - specific_humidity_after_precpd
-  - air_temperature_after_gscond
-  - specific_humidity_after_gscond
-  normalization: mean_std
-  optimizer:
-    kwargs:
-      learning_rate: 0.0001
-    learning_rate_schedule: null
-    name: Adam
-  weights:
-    cloud_precpd_difference: 10.0
-    humidity_gscond_difference: 10.0
-    humidity_precpd_difference: 10.0
-    temperature_gscond_difference: 10.0
-    temperature_precpd_difference: 10.0
-    total_precipitation: 0.04
-model:
-  architecture:
-    kwargs:
-      width: 256
-      depth: 2
-    name: dense
-  direct_out_variables:
-  - cloud_precpd_difference
-  - total_precipitation
-  - temperature_precpd_difference
-  - humidity_precpd_difference
-  - temperature_gscond_difference
-  - humidity_gscond_difference
-  enforce_positive: false
-  input_variables:
-  - air_temperature_input
-  - specific_humidity_input
-  - cloud_water_mixing_ratio_input
-  - pressure_thickness_of_atmospheric_layer
-  - specific_humidity_after_last_gscond
-  - air_temperature_after_last_gscond
-  normalize_key: mean_std
-  residual_out_variables: {}
-  selection_map: {}
-  tendency_outputs: {}
-  timestep_increment_sec: 900
-nfiles: null
 nfiles_valid: 100
-shuffle_buffer_size: 100000
+valid_freq: 2
+out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
+train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
+test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
 tensor_transform:
   - to: cloud_precpd_difference
     condition_on: air_temperature_input
@@ -96,19 +44,58 @@ tensor_transform:
     field:
       input_name: specific_humidity_input
       output_name: specific_humidity_after_gscond
-out_url: gs://vcm-ml-scratch/andrep/notused
-test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
-train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
+loss:
+  optimizer:
+    kwargs:
+      learning_rate: 0.0001
+    name: Adam
+  metric_variables:
+  - cloud_water_mixing_ratio_after_precpd
+  - air_temperature_after_precpd
+  - specific_humidity_after_precpd
+  - air_temperature_after_gscond
+  - specific_humidity_after_gscond
+  loss_variables:
+  - total_precipitation
+  - cloud_precpd_difference
+  - temperature_precpd_difference
+  - humidity_precpd_difference
+  - temperature_gscond_difference
+  - humidity_gscond_difference
+  weights:
+    total_precipitation: 1.0
+    cloud_precpd_difference: 1.0
+    temperature_precpd_difference: 1.0
+    humidity_precpd_difference: 1.0
+    temperature_gscond_difference: 1.0
+    humidity_gscond_difference: 1.0
+model:
+  architecture:
+    kwargs:
+      width: 256
+      depth: 2
+    name: dense
+  input_variables:
+  - air_temperature_input
+  - specific_humidity_input
+  - cloud_water_mixing_ratio_input
+  - pressure_thickness_of_atmospheric_layer
+  - specific_humidity_after_last_gscond
+  - air_temperature_after_last_gscond
+  direct_out_variables:
+  - cloud_precpd_difference
+  - total_precipitation
+  - temperature_precpd_difference
+  - humidity_precpd_difference
+  - temperature_gscond_difference
+  - humidity_gscond_difference
+  normalize_key: mean_std
+  enforce_positive: false
+  selection_map: {}
+  timestep_increment_sec: 900
 transform:
   antarctic_only: false
   derived_microphys_timestep: 900
   use_tensors: true
   vertical_subselections: null
-transformed_model: null
-use_wandb: true
-valid_freq: 2
-verbose: 2
-wandb:
-  entity: ai2cm
-  job_type: train
-  wandb_project: microphysics-emulation
+
