@@ -56,11 +56,18 @@ class DatasetQuantileLimiter(BaseEstimator, TransformerMixin):
                 computed, i.e., the resulting limits will be computed separately
                 for each coordinate along the feature_dims.
             fit_indexer: Integer-based indexers that select a subset of `ds` on
-                which to fit limits
+                which to fit limits. Indexed dimensions must not be in `feature_dims`.
             
         Returns: Fitted limiter
         
         """
+        if fit_indexers is not None and feature_dims is not None:
+            for index_dim in fit_indexers.keys():
+                if index_dim in feature_dims:
+                    raise ValueError(
+                        f"Indexer dim {index_dim} may not be in feature_dims."
+                    )
+
         sample_ds = (ds.isel(**fit_indexers) if fit_indexers is not None else ds).load()
         sample_dims = (
             set(sample_ds.dims) - set(feature_dims)
