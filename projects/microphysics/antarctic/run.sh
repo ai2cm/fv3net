@@ -27,6 +27,6 @@ do
         --name "${model_name}" \
         -p training-config="$(base64 --wrap 0 $config_file)" \
         -p wandb-run-group="antarctic-experiments-feb-2022" \
-        -p flags="$flags" | tee -a submitted-jobs.txt
+        -p flags="$flags"
 done
 done
