@@ -12,11 +12,9 @@ fi
 
 group="$(openssl rand -hex 3)"
 
-# for config in rnn-cloudtdep dense-cloudtdep
-for config in dense-cloudtdep
+for config in rnn-cloudtdep dense-cloudtdep
 do
-# for antarctic_only in true false
-for antarctic_only in true
+for antarctic_only in true false
 do
     config_file="${config}.yaml"
     model_name="zcemu-${config}-${group}-antarctic-${antarctic_only}"
