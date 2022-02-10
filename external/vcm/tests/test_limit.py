@@ -53,15 +53,13 @@ def test_LimitedDataset(alpha, limit_only, feature_dims, fit_indexers):
     arr = ds.Q1.values
     expected_ds = ds.copy()
     expected_arr = get_expected_arr(arr, scale, feature_dims, fit_indexers)
+    limit_only = limit_only or ds.data_vars
     for var in limit_only:
         expected_ds[var] = xr.DataArray(expected_arr, dims=ds[var].dims)
-    limiter = DatasetQuantileLimiter(alpha=alpha)
+    limiter = DatasetQuantileLimiter(alpha=alpha, limit_only=limit_only)
     limited_ds = limiter.fit_transform(
-        ds,
-        limit_only=limit_only,
-        feature_dims=feature_dims,
-        fit_indexers=fit_indexers,
+        ds, feature_dims=feature_dims, fit_indexers=fit_indexers,
     )
-    
+
     for var in limited_ds:
         xr.testing.assert_allclose(limited_ds[var], expected_ds[var])
