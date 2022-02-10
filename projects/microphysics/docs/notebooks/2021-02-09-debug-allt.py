@@ -1,8 +1,13 @@
+# %%
 # flake8: noqa
 # %%
 import sys
 
 sys.path.insert(0, "..")
+import os
+
+# needed to download appropriate shape files
+os.environ["CARTOPY_EXTERNAL_DOWNLOADER"] = "natural_earth"
 import cartopy.crs
 import config
 import fsspec
@@ -14,6 +19,7 @@ import vcm
 import vcm.catalog
 import vcm.fv3
 import xarray
+import matplotlib.ticker as mticker
 
 # url = "gs://vcm-ml-experiments/microphysics-emulation/2022-02-08/rnn-alltdep-47ad5b-login-limited-10d-online"
 url = "gs://vcm-ml-experiments/microphysics-emulation/2022-02-09/rnn-alltdep-47ad5b-login-limited-10d-gsout-online"
@@ -167,51 +173,10 @@ heatings[("L/cp dqc", "emulation")] = plotme[qc_emu] * 2.51e6 / 1004
 plot_heatings(grid, combine_dict(heatings, ["name", "source"]))
 
 # %%
-def compute_dqt(ds):
-    ds = ds.copy()
-    ds["dq_error"] = ds[q_emu] - ds[q_true]
-    ds["dqc_error"] = ds[qc_emu] - ds[qc_true]
-    ds["dqt_error"] = ds["dq_error"] + ds["dqc_error"]
-    ds["dqt"] = ds[q_true] + ds[qc_true]
-    return ds
-
-
-# %%
-ds_with_error = compute_dqt(ds)
-dims = ["x", "y", "tile"]
-mss = vcm.weighted_average(ds_with_error.dqt ** 2, grid.area, dims)
-mse = vcm.weighted_average(ds_with_error.dqt_error ** 2, grid.area, dims)
-skill = 1 - mse / mss
-skill.plot(y="z", vmin=-1, vmax=1, yincrease=False)
-
-# %%
 ds_with_gscond = assoc_precpd_tendencies(ds)
 
 
 # %%
-plotme = ds_with_gscond.sel(z=400, method="nearest").isel(time=-1)
-crs = cartopy.crs.Orthographic(central_latitude=-90)
-fv3viz.plot_cube(
-    plotme, "precpd", projection=crs,
-)
-
-fv3viz.plot_cube(
-    plotme, "gscond", projection=crs,
-)
-
-fv3viz.plot_cube(
-    plotme, "t_precpd_emu", projection=crs,
-)
-fv3viz.plot_cube(
-    plotme, "tendency_of_air_temperature_due_to_gscond_emulator", projection=crs,
-)
-
-fv3viz.plot_cube(
-    plotme, "tendency_of_specific_humidity_due_to_gscond_emulator", projection=crs,
-)
-# %%
-
-
 def global_skill(truth, pred, grid):
     dims = ["x", "y", "tile"]
     mss = vcm.weighted_average(truth ** 2, grid.area, dims)
@@ -251,34 +216,6 @@ neg_skill = ds_with_gscond.assign(
     precpd_err=ds_with_gscond["precpd"] - ds_with_gscond["t_precpd_emu"],
 )
 
-
-plotme = neg_skill.isel(time=-1).interp(z=500)
-
-
-fig = fv3viz.plot_cube(
-    plotme,
-    "gscond_err",
-    # projection=crs,
-)[0]
-
-fig.set_size_inches(10, 6)
-
-fig = fv3viz.plot_cube(
-    plotme,
-    "tendency_of_air_temperature_due_to_gscond_physics",
-    # projection=crs,
-)[0]
-
-fig.set_size_inches(10, 6)
-
-fig = fv3viz.plot_cube(
-    plotme,
-    "tendency_of_air_temperature_due_to_gscond_emulator",
-    # projection=crs,
-)[0]
-
-fig.set_size_inches(10, 6)
-# %%
 plotme = neg_skill[
     [
         "gscond_err",
@@ -330,3 +267,61 @@ heating = compute_heat_budget(ds, precpd_tendency)
 plot_heatings(
     grid, heating.isel(time=-1).interp(z=512), "Precipitation Tendency (precpd)"
 )
+
+
+# %% [markdown]
+# # Why is that region especially bad?
+
+# %%
+def plot_roi1(arr, extent=[100, 130, -75, -65]):
+    ax = plt.axes(projection=cartopy.crs.SouthPolarStereo())
+    plot_cube(arr, ax=ax)
+    ax.set_extent(extent, cartopy.crs.PlateCarree())
+    gl = ax.gridlines(draw_labels=True)
+    gl.xlocator = mticker.FixedLocator(np.arange(-180, 180, 10))
+    gl.ylocator = mticker.FixedLocator(np.arange(-90, 90, 5))
+    return ax
+
+
+plot_roi1(
+    ds.tendency_of_air_temperature_due_to_gscond_physics.isel(time=-1).interp(z=512),
+    extent=[-180, 180, -90, -60],
+)
+
+# %%
+plt.figure()
+plot_roi1(
+    ds.tendency_of_air_temperature_due_to_gscond_physics.isel(time=-1).interp(z=512)
+)
+plt.figure()
+plot_roi1(
+    ds.tendency_of_air_temperature_due_to_gscond_emulator.isel(time=-1).interp(z=512)
+)
+
+
+# %%
+def plot_gscond_precpd_profile(ds_ant, field="air_temperature"):
+    tends = {}
+    for source in ["emulator", "physics"]:
+
+        tends[("gscond", source)] = gscond_tendency(ds_ant, field, source)
+        tends[("precpd", source)] = precpd_tendency(ds_ant, field, source)
+
+    tends = combine_dict(tends, ["scheme", "source"])
+    for group, vals in tends.groupby("scheme"):
+        vals.assign_attrs(long_name=f"tendency of {field}").plot(
+            y="z", yincrease=False, col="source"
+        )
+        plt.suptitle(group)
+
+
+# %%
+roi_bad_antarctica = vcm.RegionOfInterest([-75, -65], [100, 130])
+ds_ant = roi_bad_antarctica.average(ds)
+plot_gscond_precpd_profile(ds_ant, "air_temperature")
+
+# %% [markdown]
+# The physics wants to evaporate upper level clouds starting around 6 hrs.
+
+# %% [markdown]
+# Need more outputs to undersand this drift.
