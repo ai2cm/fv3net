@@ -12,7 +12,7 @@ from typing_extensions import Protocol
 
 import cftime
 import logging
-import fv3gfs.util
+import pace.util
 import xarray as xr
 import dataclasses
 
@@ -50,19 +50,19 @@ class DiagnosticFileConfig:
         return dataclasses.asdict(self)
 
     def _get_sink(
-        self, partitioner: fv3gfs.util.CubedSpherePartitioner, comm: Any,
+        self, partitioner: pace.util.CubedSpherePartitioner, comm: Any,
     ) -> "Sink":
         if self.tensorboard:
             return TensorBoardSink()
         else:
             return ZarrSink(
-                fv3gfs.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm)
+                pace.util.ZarrMonitor(self.name, partitioner, mpi_comm=comm)
             )
 
     def diagnostic_file(
         self,
         initial_time: cftime.DatetimeJulian,
-        partitioner: fv3gfs.util.CubedSpherePartitioner,
+        partitioner: pace.util.CubedSpherePartitioner,
         comm: Any,
     ) -> "DiagnosticFile":
 
@@ -80,12 +80,12 @@ class Sink(Protocol):
 
 @dataclasses.dataclass
 class ZarrSink:
-    monitor: fv3gfs.util.ZarrMonitor
+    monitor: pace.util.ZarrMonitor
 
     def sink(self, time: cftime.DatetimeJulian, data: Mapping[str, xr.DataArray]):
         quantities = {
             # need units for from_data_array to work
-            key: fv3gfs.util.Quantity.from_data_array(data[key])
+            key: pace.util.Quantity.from_data_array(data[key])
             for key in data
         }
 
@@ -180,7 +180,7 @@ class DiagnosticFile:
 
 def get_diagnostic_files(
     configs: Sequence[DiagnosticFileConfig],
-    partitioner: fv3gfs.util.CubedSpherePartitioner,
+    partitioner: pace.util.CubedSpherePartitioner,
     comm: Any,
     initial_time: cftime.DatetimeJulian,
 ) -> List[DiagnosticFile]:

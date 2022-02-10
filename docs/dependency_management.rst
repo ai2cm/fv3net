@@ -26,7 +26,7 @@ builds. Therefore, adding or modifying a dependency involves a few steps:
     Not all ``setup.py`` files are compatible with `pip-compile`. Packages
     within fv3net can be fixed, but this is not possible or easy for external
     dependencies or submodules. To pin the transitive dependencies of external
-    submodules (e.g. external/fv3gfs-util), you can add the requirements to
+    submodules (e.g. external/fv3gfs-wrapper), you can add the requirements to
     ``external/<package>.requirements.in``.
 
 The ``make create_environment`` uses these lock files and

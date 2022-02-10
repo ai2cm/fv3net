@@ -88,3 +88,13 @@ def test_cos_zenith_angle_dataarray_converts_units(lon_units, lat_units):
     )
 
     xr.testing.assert_identical(result, expected)
+
+
+def test_cos_zenith_angle_preserves_chunks():
+    times = xr.cftime_range("2020", periods=10, calendar="julian")
+    lon = np.arange(10, 16, 2)
+    lat = np.arange(10, 16, 2)
+    ds = xr.Dataset({"time": (["t"], times), "lat": (["x"], lat), "lon": (["x"], lon)})
+    ds = ds.chunk({"t": 2, "x": 1})
+    result = cos_zenith_angle(ds.time, ds.lon, ds.lat)
+    assert result.chunks == ((2, 2, 2, 2, 2), (1, 1, 1))

@@ -106,9 +106,8 @@ def plot_profile_var(
     derivation_dim: str = "derivation",
     domain_dim: str = "domain",
     dataset_dim: str = "dataset",
-    derivation_plot_coords: Sequence[str] = ("target", "predict"),
+    derivation_plot_coords: Sequence[str] = ("predict", "target"),
     xlim: Sequence[float] = None,
-    xticks: Union[Sequence[float], np.ndarray] = None,
 ):
     if dataset_dim in ds[var].dims:
         ds[var] = ds[var].mean("dataset")
@@ -195,7 +194,7 @@ def plot_histogram(ds, varname: str, xscale="linear", yscale="linear"):
 
     units = units_from_name(varname.replace("_histogram", ""))
 
-    for source in ["target", "predict"]:
+    for source in ["predict", "target"]:
         v = ds[varname].sel({DERIVATION_DIM_NAME: source})
         ax.step(v[bin_name], v, where="post", linewidth=1, label=source)
     ax.set_xlabel(f"{getattr(v, 'long_name', v.name)} {units}")

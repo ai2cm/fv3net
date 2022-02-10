@@ -14,7 +14,7 @@ from typing import (
     Union,
 )
 import cftime
-import fv3gfs.util
+import pace.util
 import fv3gfs.wrapper
 import numpy as np
 import vcm
@@ -167,7 +167,7 @@ class TimeLoop(
         self._fv3gfs = wrapper
         self._state: DerivedFV3State = MergedState(DerivedFV3State(self._fv3gfs), {})
         self.comm = comm
-        self._timer = fv3gfs.util.Timer()
+        self._timer = pace.util.Timer()
         self.rank: int = comm.rank
 
         namelist = get_namelist()
@@ -232,8 +232,8 @@ class TimeLoop(
         return states_to_output
 
     def _get_communicator(self):
-        partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(get_namelist())
-        return fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
+        partitioner = pace.util.CubedSpherePartitioner.from_namelist(get_namelist())
+        return pace.util.CubedSphereCommunicator(self.comm, partitioner)
 
     def emulate_or_prescribe_tendency(self, func: Step) -> Step:
         if self._transform_physics is not None and self._prescribe_tendency is not None:

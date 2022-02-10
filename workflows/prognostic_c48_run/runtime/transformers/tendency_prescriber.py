@@ -5,7 +5,7 @@ from typing import Hashable, Mapping, MutableMapping, Set
 import cftime
 import xarray as xr
 
-import fv3gfs.util
+import pace.util
 import loaders
 import vcm
 from runtime.monitor import Monitor
@@ -13,7 +13,7 @@ from runtime.types import Diagnostics, Step
 from runtime.derived_state import DerivedFV3State
 from runtime.conversions import quantity_state_to_dataset, dataset_to_quantity_state
 
-QuantityState = MutableMapping[Hashable, fv3gfs.util.Quantity]
+QuantityState = MutableMapping[Hashable, pace.util.Quantity]
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class TendencyPrescriber:
 
     config: TendencyPrescriberConfig
     state: DerivedFV3State
-    communicator: fv3gfs.util.CubedSphereCommunicator
+    communicator: pace.util.CubedSphereCommunicator
     timestep: float
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
 

@@ -1,7 +1,7 @@
 from typing import Hashable, Mapping, MutableMapping, Set
 
 import cftime
-import fv3gfs.util
+import pace.util
 import fv3gfs.wrapper
 import fv3gfs.wrapper._properties
 import numpy as np
@@ -40,7 +40,7 @@ class FV3StateMapper(Mapping):
                 key = self._alternate_keys[key]
             try:
                 return self._getter.get_state([key])[key].data_array
-            except fv3gfs.util.InvalidQuantityError as e:
+            except pace.util.InvalidQuantityError as e:
                 raise KeyError(e)
 
     def __iter__(self):
@@ -209,7 +209,7 @@ def _cast_single_to_double(state: State) -> State:
     return cast_state
 
 
-def _data_arrays_to_quantities(state: State) -> Mapping[Hashable, fv3gfs.util.Quantity]:
+def _data_arrays_to_quantities(state: State) -> Mapping[Hashable, pace.util.Quantity]:
     return {
-        key: fv3gfs.util.Quantity.from_data_array(value) for key, value in state.items()
+        key: pace.util.Quantity.from_data_array(value) for key, value in state.items()
     }
