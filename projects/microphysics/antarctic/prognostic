@@ -1,0 +1,26 @@
+#!/bin/bash
+
+tags=(
+    zcemu-dense-cloudtdep-b0cc65-antarctic-false
+    zcemu-dense-cloudtdep-b0cc65-antarctic-true
+    zcemu-rnn-cloudtdep-b0cc65-antarctic-false
+    zcemu-rnn-cloudtdep-b0cc65-antarctic-true
+)
+
+
+image=6569a37ab16d14392d2dbf1869c21f15a50d13b8
+
+for tag in ${tags[@]}
+do
+
+    url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-10/${tag}/model.tf
+    run_tag=${tag}-10d
+
+    argo submit ../argo/prog-run-and-eval.yaml \
+        -p tag=$run_tag \
+        -p image_tag=$image \
+        -p config=$(base64 --wrap 0 ../configs/default.yaml) \
+        -p tf_model=$url
+
+done
+
