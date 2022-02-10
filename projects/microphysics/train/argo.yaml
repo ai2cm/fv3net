@@ -11,7 +11,7 @@ spec:
     parameters:
     - name: tag
       # branch with temperature scaled rnn + antarctic fix
-      value: "c062fd396aa5d29f2ab868bd99fedb17557b3758"
+      value: "6569a37ab16d14392d2dbf1869c21f15a50d13b8"
     - name: wandb-run-group
       value: ""
     - name: training-config
