@@ -9,11 +9,17 @@ logger = logging.getLogger(__name__)
 
 class TrainingLoopLossHistory:
     """Summarizes the history across epochs and batches
-    *_loss_end: loss at end of epoch
-    *_loss_full: loss after each iteration over batches in epochs
+
+    Attributes:
+        train_loss_end_of_epoch: training loss recorded at end of each epoch
+            (i.e. after the last batch iterated upon in the epoch)
+        val_loss_end_of_epoch: validation loss recorded at end of each epoch
+        train_loss_all: training loss after each iteration over batches in epochs
+        val_loss_all: validation loss after each iteration over batches in epochs
     """
 
     def __init__(self):
+
         self.train_loss_end_of_epoch = []
         self.val_loss_end_of_epoch = []
         self.train_loss_all = []
