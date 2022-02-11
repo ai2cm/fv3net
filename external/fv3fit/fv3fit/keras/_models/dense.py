@@ -134,7 +134,7 @@ def train_dense_model(
         output_variables=hyperparameters.output_variables,
         output_metadata=output_metadata,
         model=predict_model,
-        unstacked_dims=("z"),
+        unstacked_dims=("z",),
         n_halo=0,
     )
     loss_history.log_summary()
