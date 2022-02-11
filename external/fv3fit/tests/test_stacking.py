@@ -137,29 +137,6 @@ def test__shuffled_dask():
     shuffled(np.random.RandomState(1), [dataset])
 
 
-def test_multiple_unstacked_dims():
-    na, nb, nc, nd = 2, 3, 4, 5
-    ds = xr.Dataset(
-        data_vars={
-            "var1": xr.DataArray(
-                np.zeros([na, nb, nc, nd]), dims=["a", "b", "c", "d"],
-            ),
-            "var2": xr.DataArray(np.zeros([na, nb, nc]), dims=["a", "b", "c"],),
-        }
-    )
-    unstacked_dims = ["c", "d"]
-    expected = xr.Dataset(
-        data_vars={
-            "var1": xr.DataArray(
-                np.zeros([na * nb, nc, nd]), dims=[SAMPLE_DIM_NAME, "c", "d"],
-            ),
-            "var2": xr.DataArray(np.zeros([na * nb, nc]), dims=[SAMPLE_DIM_NAME, "c"],),
-        }
-    )
-    result = stack(ds=ds, unstacked_dims=unstacked_dims)
-    xr.testing.assert_identical(result.drop(result.coords.keys()), expected)
-
-
 @pytest.mark.parametrize("dims", [("time", "x", "y", "z"), ("time", "z", "y", "x")])
 def test_multiple_unstacked_dims_are_alphabetically_ordered(dims):
     nt, nx, ny, nz = 2, 12, 12, 15
