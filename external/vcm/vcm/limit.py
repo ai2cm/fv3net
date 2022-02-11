@@ -1,27 +1,10 @@
 import xarray as xr
 from sklearn.base import BaseEstimator, TransformerMixin
-from typing import Optional, Sequence, Mapping, Union
-
-
-def _limit_extremes(data: xr.DataArray, limits: xr.DataArray) -> xr.DataArray:
-    """Limit values beyond prescribed extremes in a data array
-    
-    Args:
-        data: Data to be limited
-        limits: variable containing limits of the data, which must include a 'bounds'
-            dimension containing 'upper' and 'lower' coordinates. Other dimensions
-            should be a subset of the data dimensions.
-            
-    Returns: a limited data array
-    
-    """
-    upper = limits.sel(bounds="upper")
-    lower = limits.sel(bounds="lower")
-    return data.where(data < upper, upper).where(data > lower, lower)
+from typing import Optional, Sequence, Mapping
 
 
 class DatasetQuantileLimiter(BaseEstimator, TransformerMixin):
-    """Transformer to reduce the extremity of outliers of a dataset to quantile limits
+    """Transformer to reduce the extremity of outliers of a dataset to quantile limits.
     
     Limiting is done on a variable by variable basis and along specified dimensions.
         Limits are optionally computed on a configurable subset of the dataset to avoid
@@ -40,7 +23,8 @@ class DatasetQuantileLimiter(BaseEstimator, TransformerMixin):
     ):
         self._alpha: float = alpha
         self._limit_only: Optional[Sequence[str]] = limit_only
-        self._limits: xr.Dataset = None
+        self._upper: xr.Dataset = None
+        self._lower: xr.Dataset = None
 
     def fit(
         self,
@@ -74,40 +58,39 @@ class DatasetQuantileLimiter(BaseEstimator, TransformerMixin):
             if feature_dims is not None
             else sample_ds.dims
         )
-        lower = sample_ds.quantile(self._alpha / 2.0, dim=sample_dims)
-        upper = sample_ds.quantile(1.0 - self._alpha / 2.0, dim=sample_dims)
-        self._limits = xr.concat(
-            [lower, upper],
-            dim=xr.DataArray(["lower", "upper"], dims=["bounds"], name="bounds"),
-        )
+        self._lower = sample_ds.quantile(self._alpha / 2.0, dim=sample_dims)
+        self._upper = sample_ds.quantile(1.0 - self._alpha / 2.0, dim=sample_dims)
         return self
 
-    def transform(
-        self, data: Union[xr.Dataset, xr.DataArray]
-    ) -> Union[xr.Dataset, xr.DataArray]:
+    def transform(self, ds: xr.Dataset, deepcopy: bool = False) -> xr.Dataset:
         """Limit data.
         
         Args:
-            data: Dataset or dataarray to be limited
+            ds: Dataset to be limited
+            deepcopy: Whether to make a new copy of ds before applying limits; if
+                false the original dataset may be modified
             
-        Returns: Limited dataset or dataarray
+        Returns: Limited dataset
         
         """
-        if self._limits is None:
+        if self._lower is None and self._upper is None:
             raise ValueError("Limiter method .fit must be called before .transform")
-        if isinstance(data, xr.Dataset):
-            limited = data.copy()
-            vars_ = self._limit_only if self._limit_only is not None else data.data_vars
-            for var in vars_:
-                limited[var] = _limit_extremes(data[var], self._limits[var])
-        elif isinstance(data, xr.DataArray):
-            if (self._limit_only is None) or (data.name in self._limit_only):
-                limited = _limit_extremes(data, self._limits[data.name])
-            else:
-                limited = data
+        limited = ds.copy(deep=deepcopy)
+        vars_ = self._limit_only if self._limit_only is not None else ds.data_vars
+        for var in vars_:
+            limited[var] = (
+                ds[var]
+                .where(ds[var] < self._upper[var], self._upper[var])
+                .where(ds[var] > self._lower[var], self._lower[var])
+            )
         return limited
 
     @property
-    def limits(self) -> xr.Dataset:
+    def limits(self) -> Mapping[str, xr.Dataset]:
         """The fitted quantile limits which are applied by the transform method."""
-        return self._limits
+        if self._lower is not None and self._upper is not None:
+            return {"lower": self._lower, "upper": self._upper}
+        else:
+            raise ValueError(
+                "Limiter method .fit must be called before accessing limits."
+            )
