@@ -93,14 +93,35 @@ def cdl_to_dataset(cdl: str) -> xarray.Dataset:
 
     Useful for generating synthetic data for testing
     
-    CDL is a human readable format with the same data model as netCDF.  CDL can
-    be translated to binary netCDF using the `ncgen` command line tool bundled
-    with netCDF. CDL is very compact.
+    The UCAR Common Data Language(`CDL`_) is a human readable format with the
+    same data model as netCDF.  CDL can be translated to binary netCDF using the
+    `ncgen` command line tool bundled with netCDF. CDL is very compact and looks
+    like this::
+
+        netcdf example {   // example of CDL notation
+        dimensions:
+            lon = 3 ;
+            lat = 8 ;
+        variables:
+            float rh(lon, lat) ;
+                rh:units = "percent" ;
+                rh:long_name = "Relative humidity" ;
+        // global attributes
+            :title = "Simple example, lacks some conventions" ;
+        data:
+        rh =
+            2, 3, 5, 7, 11, 13, 17, 19,
+            23, 29, 31, 37, 41, 43, 47, 53,
+            59, 61, 67, 71, 73, 79, 83, 89 ;
+        }
+
 
     Notes:
         Requires the command line tool ``ncgen``
+
+    .. _CDL: https://www.unidata.ucar.edu/software/netcdf/workshops/most-recent/nc3model/Cdl.html
     
-    """
+    """  # noqa
     # create the parser
     cdl_parser = lark.Lark(grammar, start="netcdf", parser="lalr")
     # parse the string into a syntax tree
