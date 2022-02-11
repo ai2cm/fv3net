@@ -20,6 +20,7 @@ log_functions = []
 
 def register_log(func):
     log_functions.append(func)
+    return func
 
 
 def _get_image(fig=None):
