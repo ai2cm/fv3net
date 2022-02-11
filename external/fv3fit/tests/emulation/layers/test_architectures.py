@@ -203,7 +203,7 @@ def test_rnn_fails_with_inconsistent_vertical_dimensions(rnn_key):
         layer({"a": tensor1, "b": tensor2})
 
 
-def _assert_is_diagonal(matrix: np.ndarray) -> bool:
+def _assert_is_diagonal(matrix: np.ndarray) -> None:
     diagonal = np.diag(np.diag(matrix))
     np.testing.assert_array_equal(matrix, diagonal)
 
