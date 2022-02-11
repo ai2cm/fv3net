@@ -25,6 +25,7 @@ def register_log(func):
 def _get_image(fig=None):
     if fig is None:
         fig = plt.gcf()
+    fig.set_size_inches(6, 4)
     im = wandb.Image(plot_to_image(fig))
     plt.close(fig)
     return im
