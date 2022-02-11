@@ -3,10 +3,10 @@ from numpy.random import RandomState
 from typing import Sequence, Union, Optional, Tuple
 import xarray as xr
 
-import loaders
-from loaders._utils import SAMPLE_DIM_NAME
+from vcm import safe
 
 
+SAMPLE_DIM_NAME = "_fv3fit_sample"
 DATASET_DIM_NAME = "dataset"
 Z_DIM_NAMES = ["z", "pfull"]
 
@@ -37,12 +37,25 @@ class StackedBatches(Sequence[xr.Dataset]):
         return len(self._batches)
 
     def _stack_batch(self, ds_unstacked: xr.Dataset) -> xr.Dataset:
-        ds = loaders.stack(unstacked_dims=self._unstacked_dims, ds=ds_unstacked).dropna(
+        ds = stack(ds_unstacked, unstacked_dims=self._unstacked_dims).dropna(
             dim=SAMPLE_DIM_NAME
         )
         ds = check_empty(ds)
         ds = preserve_samples_per_batch(ds)
         return shuffled(self._random_state, [ds])[0]
+
+
+def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
+    stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
+    unstacked_dims = [dim for dim in ds.dims if dim in unstacked_dims]
+    unstacked_dims.sort()  # needed to always get [x, y, z] dimensions
+    ds_stacked = safe.stack_once(
+        ds,
+        SAMPLE_DIM_NAME,
+        stack_dims,
+        allowed_broadcast_dims=list(unstacked_dims) + ["time", "dataset"],
+    )
+    return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 
 def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
@@ -54,7 +67,7 @@ def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
     """
     if len(set(ds.dims).intersection(Z_DIM_NAMES)) > 1:
         raise ValueError("Data cannot have >1 feature dimension in {Z_DIM_NAMES}.")
-    return loaders.stack(unstacked_dims=Z_DIM_NAMES, ds=ds)
+    return stack(ds=ds, unstacked_dims=Z_DIM_NAMES)
 
 
 def check_empty(ds: xr.Dataset) -> xr.Dataset:
