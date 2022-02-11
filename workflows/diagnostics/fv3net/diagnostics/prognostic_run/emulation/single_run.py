@@ -20,11 +20,13 @@ log_functions = []
 
 def register_log(func):
     log_functions.append(func)
+    return func
 
 
 def _get_image(fig=None):
     if fig is None:
         fig = plt.gcf()
+    fig.set_size_inches(6, 4)
     im = wandb.Image(plot_to_image(fig))
     plt.close(fig)
     return im
@@ -207,41 +209,44 @@ for field in ["cloud_water", "specific_humidity", "air_temperature"]:
     register_log(log_lat_vs_p_skill(field))
 
 
-parser = argparse.ArgumentParser(
-    "Piggy Backed metrics",
-    description="Log piggy backed metrics for prognostic run named TAG",
-)
-parser.add_argument("tag", help="The unique tag used for the prognostic run.")
+def register_parser(subparsers) -> None:
+    parser: argparse.ArgumentParser = subparsers.add_parser(
+        "piggy",
+        help="Log piggy backed metrics for prognostic run named TAG"
+        "to weights and biases.",
+    )
+    parser.add_argument("tag", help="The unique tag used for the prognostic run.")
 
-args = parser.parse_args()
-
-run_artifact_path = args.tag
-
-job = wandb.init(
-    job_type="piggy-back", project="microphysics-emulation", entity="ai2cm",
-)
+    parser.set_defaults(func=main)
 
 
-url = get_url_wandb(job, run_artifact_path)
-wandb.config["run"] = url
-grid = vcm.catalog.catalog["grid/c48"].to_dask()
-piggy = xr.open_zarr(url + "/piggy.zarr")
-state = xr.open_zarr(url + "/state_after_timestep.zarr")
+def main(args):
 
-ds = vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
+    run_artifact_path = args.tag
 
+    job = wandb.init(
+        job_type="piggy-back", project="microphysics-emulation", entity="ai2cm",
+    )
 
-summary_functions = [
-    lambda ds: {
-        f"column_skill/{key}": float(val)
-        for key, val in column_integrated_skills(ds).items()
-    }
-]
+    url = get_url_wandb(job, run_artifact_path)
+    wandb.config["run"] = url
+    grid = vcm.catalog.catalog["grid/c48"].to_dask()
+    piggy = xr.open_zarr(url + "/piggy.zarr")
+    state = xr.open_zarr(url + "/state_after_timestep.zarr")
 
-for func in log_functions:
-    print(f"Running {func}")
-    wandb.log(func(ds))
+    ds = vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
 
-for func in summary_functions:
-    for key, val in func(ds).items():
-        wandb.summary[key] = val
+    summary_functions = [
+        lambda ds: {
+            f"column_skill/{key}": float(val)
+            for key, val in column_integrated_skills(ds).items()
+        }
+    ]
+
+    for func in log_functions:
+        print(f"Running {func}")
+        wandb.log(func(ds))
+
+    for func in summary_functions:
+        for key, val in func(ds).items():
+            wandb.summary[key] = val
