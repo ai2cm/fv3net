@@ -38,45 +38,60 @@ def compute_gscond(
         qv, t, qc, latent_heat
     """
 
-    width_gscond = 256
-    width_lv = 32
+    width_nn = 256
 
-    qv_norm = build_norm_layer(specific_humidity_sample)(specific_humidity_in)
-    qc_norm = build_norm_layer(cloud_sample)(cloud_in)
-    t_norm = build_norm_layer(temperature_sample)(temperature_in)
-    args_norm = [
-        build_norm_layer(sample)(arg) for sample, arg in zip(args, args_sample)
-    ]
-
-    stacked = tf.stack([qv_norm, qc_norm, t_norm] + list(args_norm), axis=-1)
-
-    cloud_to_vapor_nondim = Dense(width_gscond, activation="relu")(stacked)
-    cloud_to_vapor_nondim = Dense(width_gscond, activation="relu")(
-        cloud_to_vapor_nondim
+    vapor_change_net = tf.keras.Sequential(
+        [
+            tf.keras.layers.Dense(width_nn, activation="relu", return_sequences=True),
+            tf.keras.layers.Dense(width_nn, activation="relu", return_sequences=True),
+            tf.keras.layers.Dense(2, return_sequences=True),
+        ]
     )
-    cloud_to_vapor_nondim = Dense(1)(cloud_to_vapor_nondim)
 
-    latent_heat_nondim = Dense(width_lv, activation="relu")(t_norm[:, :, None])
-    latent_heat_nondim = Dense(width_lv, activation="relu")(latent_heat_nondim)
-    latent_heat_nondim = Dense(1, activation="relu")(latent_heat_nondim)
-
-    # redimensionalize
-    latent_heat = build_denorm_layer(latent_heat_sample)(latent_heat_nondim)
-    cloud_to_vapor = build_denorm_layer(cloud_to_vapor_sample)(cloud_to_vapor_nondim)
-
-    # physics
-    qv_out = specific_humidity_in + cloud_to_vapor
-    qc_out = cloud_in - cloud_to_vapor
-    t_out = temperature_in - latent_heat * cloud_to_vapor
-
-    return qv_out, t_out, qc_out, latent_heat
+    return MoistPhysicsLayer(
+        specific_humidity_sample=specific_humidity_sample,
+        temperature_sample=temperature_sample,
+        cloud_sample=cloud_sample,
+        dqv_sample=cloud_to_vapor_sample,
+        dqc_sample=-cloud_to_vapor_sample,
+        latent_heat_sample=latent_heat_sample,
+        args_sample=args_sample,
+        vapor_change_net=vapor_change_net,
+    )
 
 
-# TODO de-duplicate with gscond
-# TODO make compute_precpd have the same signature as gscond
+def compute_precpd(
+    specific_humidity_sample,
+    temperature_sample,
+    cloud_sample,
+    dqv_sample,
+    dqc_sample,
+    latent_heat_sample,
+    args_sample,
+    width_nn: int = 128,
+):
+    vapor_change_net = tf.keras.Sequential(
+        [
+            tf.keras.layers.SimpleRNN(
+                width_nn, activation="relu", return_sequences=True
+            ),
+            tf.keras.layers.SimpleRNN(2, return_sequences=True),
+        ]
+    )
+
+    return MoistPhysicsLayer(
+        specific_humidity_sample,
+        temperature_sample,
+        cloud_sample,
+        dqv_sample,
+        dqc_sample,
+        latent_heat_sample,
+        args_sample,
+        vapor_change_net,
+    )
 
 
-class compute_precpd(tf.keras.layers.Layer):
+class MoistPhysicsLayer(tf.keras.layers.Layer):
     def __init__(
         self,
         specific_humidity_sample,
@@ -86,6 +101,7 @@ class compute_precpd(tf.keras.layers.Layer):
         dqc_sample,
         latent_heat_sample,
         args_sample,
+        vapor_change_net,
     ):
         """
 
@@ -97,7 +113,6 @@ class compute_precpd(tf.keras.layers.Layer):
         """
         super().__init__()
 
-        width_nn = 128
         width_lv = 32
 
         self.qv_norm_layer = build_norm_layer(specific_humidity_sample)
@@ -118,14 +133,7 @@ class compute_precpd(tf.keras.layers.Layer):
             ]
         )
 
-        self.vapor_change_net = tf.keras.Sequential(
-            [
-                tf.keras.layers.SimpleRNN(
-                    width_nn, activation="relu", return_sequences=True
-                ),
-                tf.keras.layers.SimpleRNN(2, return_sequences=True),
-            ]
-        )
+        self.vapor_change_net = vapor_change_net
 
     def call(self, specific_humidity_in, temperature_in, cloud_in, args):
 
@@ -136,19 +144,25 @@ class compute_precpd(tf.keras.layers.Layer):
 
         stacked = tf.stack([qv_norm, qc_norm, t_norm] + list(args_norm), axis=-1)
 
-        # RNN downwards dependent
-        reversed = stacked[:, ::-1, :]
-        rnn_output = self.vapor_change_net(reversed)
-        vapor_change_nondim = rnn_output[:, ::-1, 0]
-        cloud_change_nondim = rnn_output[:, ::-1, 1]
+        output = self.vapor_change_net(stacked)
 
-        # TODO uncopy this
+        vapor_change_nondim = output[..., 0]
+        # if second channel exists...assume it is cloud change
+        if output.shape[-1] == 2:
+            cloud_change_nondim = output[..., 1]
+            cloud_in_output = True
+        else:
+            cloud_in_output = False
+
         latent_heat_nondim = self.latent_heat_net(t_norm[:, :, None])
 
         # redimensionalize
         latent_heat = self.latent_heat_denorm(latent_heat_nondim)
-        cloud_change = self.cloud_change_denorm(cloud_change_nondim)
         vapor_change = self.vapor_change_denorm(vapor_change_nondim)
+        if cloud_in_output:
+            cloud_change = self.cloud_change_denorm(cloud_change_nondim)
+        else:
+            cloud_change = -vapor_change
 
         # physics
         qv_out = specific_humidity_in + vapor_change
@@ -158,6 +172,7 @@ class compute_precpd(tf.keras.layers.Layer):
         return qv_out, t_out, qc_out
 
 
+# some useful code
 @dataclass
 class Stages:
     last: str
@@ -190,54 +205,62 @@ class Inputs:
         )
 
 
-def build_complex_model(data: Mapping[str, tf.Tensor]):
-    qv = Stages.from_field("specific_humidity")
-    qc = Stages.from_field("cloud_water_mixing_ratio")
-    t = Stages.from_field("air_temperature")
-    nz = data[qv.input].shape[-1]
+qv = Stages.from_field("specific_humidity")
+qc = Stages.from_field("cloud_water_mixing_ratio")
+t = Stages.from_field("air_temperature")
 
-    # make inputs
-    qv_in = Inputs.from_stages(qv, nz)
-    qc_in = Inputs.from_stages(qc, nz)
-    t_in = Inputs.from_stages(t, nz)
-    return qv_in, qc_in, t_in
 
-    # qv_g, t_g, qc_g, lv_g = compute_gscond(
-    #     qv_in.input,
-    #     t_in.input,
-    #     qc_in.input,
-    #     args=[qv_in.last, t_in.last],
-    #     specific_humidity_sample=data[qv.input],
-    #     cloud_to_vapor_sample=data[qv.gscond] - data[qv.input],
-    #     temperature_sample=data[t.input],
-    #     latent_heat_sample=(data[t.gscond] - data[t.input])
-    #     / (data[qv.gscond] - data[t.gscond]),
-    #     cloud_sample=data[qc.input],
-    #     args_sample=[data[qv.last], data[t.last]],
-    # )
+@dataclass
+class ComplexModel:
+    @property
+    def input_variables(self):
+        pass
 
-    # outputs = compute_precpd(
-    #     qv_in.gscond,
-    #     t_in.gscond,
-    #     qc_in.gscond,
-    #     args=[],
-    #     specific_humidity_sample=data[qv.gscond],
-    #     temperature_sample=data[t.gscond],
-    #     latent_heat_sample=(data[t.precpd] - data[t.gscond])
-    #     / (data[qv.precpd] - data[qv.gscond]),
-    #     cloud_sample=data[qc.gscond],
-    #     args_sample=[],
-    # )
-    # precpd_model = tf.keras.Model(
-    #     inputs=[qv_in.gscond, t_in.gscond, qc_in.gscond], outputs=outputs
-    # )
+    def build(self, data: Mapping[str, tf.Tensor]):
+        nz = data[qv.input].shape[-1]
 
-    # inputs_from_data = [qv_in.gscond, t_in.gscond, qc_in.gscond]
-    # precpd_from_gscond = precpd_model(inputs_from_data)
+        # make inputs
+        qv_in = Inputs.from_stages(qv, nz)
+        qc_in = Inputs.from_stages(qc, nz)
+        t_in = Inputs.from_stages(t, nz)
+        return qv_in, qc_in, t_in
 
-    # inputs_from_gscond = [qv_g, t_g, qc_g]
-    # qv_p, t_p, qc_p = precpd_model(inputs_from_gscond)
-    # end_to_end_model = tf.keras.Model(
-    #     inputs=[qv_in.input, t_in.input, qc_in.input, qv_in.last, t_in.last],
-    #     outputs=[qv_p, t_p, qc_p, qv_g, t_g, lv_g],
-    # )
+        # qv_g, t_g, qc_g, lv_g = compute_gscond(
+        #     qv_in.input,
+        #     t_in.input,
+        #     qc_in.input,
+        #     args=[qv_in.last, t_in.last],
+        #     specific_humidity_sample=data[qv.input],
+        #     cloud_to_vapor_sample=data[qv.gscond] - data[qv.input],
+        #     temperature_sample=data[t.input],
+        #     latent_heat_sample=(data[t.gscond] - data[t.input])
+        #     / (data[qv.gscond] - data[t.gscond]),
+        #     cloud_sample=data[qc.input],
+        #     args_sample=[data[qv.last], data[t.last]],
+        # )
+
+        # outputs = compute_precpd(
+        #     qv_in.gscond,
+        #     t_in.gscond,
+        #     qc_in.gscond,
+        #     args=[],
+        #     specific_humidity_sample=data[qv.gscond],
+        #     temperature_sample=data[t.gscond],
+        #     latent_heat_sample=(data[t.precpd] - data[t.gscond])
+        #     / (data[qv.precpd] - data[qv.gscond]),
+        #     cloud_sample=data[qc.gscond],
+        #     args_sample=[],
+        # )
+        # precpd_model = tf.keras.Model(
+        #     inputs=[qv_in.gscond, t_in.gscond, qc_in.gscond], outputs=outputs
+        # )
+
+        # inputs_from_data = [qv_in.gscond, t_in.gscond, qc_in.gscond]
+        # precpd_from_gscond = precpd_model(inputs_from_data)
+
+        # inputs_from_gscond = [qv_g, t_g, qc_g]
+        # qv_p, t_p, qc_p = precpd_model(inputs_from_gscond)
+        # end_to_end_model = tf.keras.Model(
+        #     inputs=[qv_in.input, t_in.input, qc_in.input, qv_in.last, t_in.last],
+        #     outputs=[qv_p, t_p, qc_p, qv_g, t_g, lv_g],
+        # )
