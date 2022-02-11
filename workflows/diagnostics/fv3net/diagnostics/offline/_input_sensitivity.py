@@ -62,9 +62,7 @@ def _get_variable_indices(
     stacked: xr.Dataset, variables: Iterable[Hashable]
 ) -> Dict[Hashable, Tuple[int, int]]:
 
-    variable_dims = _count_features_2d(
-        variables, stacked.transpose("sample", ...), "sample"
-    )
+    variable_dims = _count_features_2d(variables, stacked, "sample")
     start = 0
     variable_indices = {}
     for var, var_dim in variable_dims.items():
@@ -74,6 +72,9 @@ def _get_variable_indices(
 
 
 def _stack_sample_data(ds: xr.Dataset) -> xr.Dataset:
+    # for predictions, drop the 'target' values
+    if "derivation" in ds.dims:
+        ds = ds.sel({"derivation": "predict"})
     if "time" in ds.dims:
         data = ds.isel(time=0).squeeze(drop=True)
     return data.stack(sample=["tile", "x", "y"]).transpose("sample", ...)
