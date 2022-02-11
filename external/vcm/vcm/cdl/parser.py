@@ -1,3 +1,13 @@
+"""An Extended Backus-Naur (EBNF) grammar for the CDL format
+
+This grammar can be used with the `lark`_ library to build a parser. lark is a
+small pure python library with no dependencies so it is easy to install. Using a
+pure python implementation will also allow us to generate lazily-loaded datasets
+without interacting with the filesystem.
+
+.. _lark: https://github.com/lark-parser/lark
+
+"""
 grammar = r"""
 
 // top level section
