@@ -76,8 +76,8 @@ def _stack_sample_data(ds: xr.Dataset) -> xr.Dataset:
     if "derivation" in ds.dims:
         ds = ds.sel({"derivation": "predict"})
     if "time" in ds.dims:
-        data = ds.isel(time=0).squeeze(drop=True)
-    return data.stack(sample=["tile", "x", "y"]).transpose("sample", ...)
+        ds = ds.isel(time=0).squeeze(drop=True)
+    return ds.stack(sample=["tile", "x", "y"]).transpose("sample", ...)
 
 
 def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
