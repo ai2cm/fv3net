@@ -25,7 +25,6 @@ class DatasetVisitor(lark.Visitor):
         self._variable_attrs = {}
         self._dims: Mapping[str, int] = {}
         self._variable_data = {}
-        self._current_data = []
 
     def dimension_pair(self, v):
         dim = v.children[0].value
@@ -40,7 +39,7 @@ class DatasetVisitor(lark.Visitor):
         dtype_node, name, dims_node = v.children
         name = str(name)
         dtype_str = dtype_node.data
-        dims = [str(dim) for dim in dims_node.children]
+        dims = [str(dim) for dim in dims_node.children] if dims_node else []
         self._variable_dims[name] = dims
         self._variable_dtype[name] = dtype_str
 
@@ -53,10 +52,10 @@ class DatasetVisitor(lark.Visitor):
     def datum(self, v):
         varname = v.children[0].value
         assert varname in self._variable_dims
-        self._variable_data[varname] = self._current_data
+        self._variable_data[varname] = list(v.children[1].data)
 
     def list(self, v):
-        self._current_data = [parse_value_node(node) for node in v.children]
+        v.data = [parse_value_node(node) for node in v.children]
 
     def generate_dataset(self):
         data_vars = {}
@@ -90,7 +89,7 @@ def cdl_to_dataset(cdl: str) -> xarray.Dataset:
         Requires the command line tool ``ncgen``
     
     """
-    cdl_parser = lark.Lark(grammar, start="netcdf")
+    cdl_parser = lark.Lark(grammar, start="netcdf", parser="lalr")
     tree = cdl_parser.parse(cdl)
     v = DatasetVisitor()
     v.visit(tree)

@@ -15,12 +15,14 @@ def test_get_data():
         x = 4;
     variables:
         int time(time);
+        int b;
         double a(time, x);
             a:_FillValue = 0;
             a:foo = "bar";
 
     data:
         time = 1,2,3;
+        b = 3;
     }
     """
     )
@@ -29,6 +31,7 @@ def test_get_data():
     assert np.all(np.isnan(ds["a"]))
     assert ds["time"].values.tolist() == [1, 2, 3]
     assert ds.a.foo == "bar"
+    assert ds.b.item() == 3
 
 
 def test_lark():
@@ -37,7 +40,7 @@ def test_lark():
     print(cdl_parser.parse("dimensions: a = 1; b=3;"))
 
     cdl_parser = lark.Lark(parser, start="variables")
-    print(cdl_parser.parse("variables: float a(x,y); int b(y);"))
+    print(cdl_parser.parse("variables: float a(x,y); int b(y); int c;"))
 
     cdl_parser = lark.Lark(parser, start="variables")
     print(cdl_parser.parse("variables: float a(x,y); a:someAttr = 0; int b(y);"))
