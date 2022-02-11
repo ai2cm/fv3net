@@ -9,5 +9,5 @@ JacobianInputSensitivity = Mapping[str, Mapping[str, np.ndarray]]
 
 @dataclass
 class InputSensitivity:
-    rf_feature_importances: Optional[RandomForestInputSensitivity]
-    jacobians: Optional[JacobianInputSensitivity]
+    rf_feature_importances: Optional[RandomForestInputSensitivity] = None
+    jacobians: Optional[JacobianInputSensitivity] = None

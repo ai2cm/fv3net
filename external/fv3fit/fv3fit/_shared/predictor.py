@@ -85,7 +85,7 @@ class Predictor(abc.ABC):
         )
         return self.predict(X)
 
-    def input_sensitivity(self, **kwargs) -> InputSensitivity:
+    def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
         """Calculate sensitivity to input features."""
         raise NotImplementedError(
             "input_sensitivity is not implemented for Predictor subclass "

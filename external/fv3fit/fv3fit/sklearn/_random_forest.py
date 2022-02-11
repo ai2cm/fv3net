@@ -17,7 +17,9 @@ from .._shared import (
     multiindex_to_tuple,
     tuple_to_multiindex,
     PackerConfig,
+    InputSensitivity,
 )
+
 from .._shared.config import RandomForestHyperparameters
 from .. import _shared
 from .._shared import (
@@ -49,6 +51,15 @@ def train_random_forest(
     # TODO: make use of validation_batches to report validation loss
     model.fit(train_batches)
     return model
+
+
+"""@dataclasses.dataclass
+class RandomForestFeatureImportance:
+    name: str
+    indices: Sequence[int]
+    mean_importances: Sequence[float]
+    std_importances: Sequence[float]
+    """
 
 
 @_shared.io.register("sklearn")
@@ -342,3 +353,23 @@ class SklearnWrapper(Predictor):
     @property
     def std_importances(self) -> np.ndarray:
         return np.array(self.feature_importances).std(axis=0)
+
+    def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
+        _, input_multiindex = pack(
+            stacked_sample[self.input_variables], ["sample"], self.packer_config
+        )
+        feature_importances = {}
+        for (name, feature_index), mean_importance, std_importance in zip(
+            input_multiindex, self.mean_importances, self.std_importances
+        ):
+            if name not in feature_importances:
+                feature_importances[name] = {
+                    "indices": [feature_index],
+                    "mean_importances": [mean_importance],
+                    "std_importances": [std_importance],
+                }
+            else:
+                feature_importances[name]["indices"].append(feature_index)
+                feature_importances[name]["mean_importances"].append(mean_importance)
+                feature_importances[name]["std_importances"].append(std_importance)
+        return InputSensitivity(rf_feature_importances=feature_importances)
