@@ -9,7 +9,6 @@ import numpy as np
 import fsspec
 
 from vcm.fv3.metadata import gfdl_to_standard
-from vcm.limit import DatasetQuantileLimiter
 from loaders._config import mapper_functions
 from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
@@ -224,9 +223,7 @@ def open_fine_resolution(
 
 
 def _open_precomputed_fine_resolution_dataset(
-    fine_url: str,
-    additional_dataset_urls: Optional[Sequence[str]] = None,
-    limit_alpha: Optional[float] = None,
+    fine_url: str, additional_dataset_urls: Optional[Sequence[str]] = None
 ) -> MLTendencies:
 
     merged = _open_merged_dataset(
@@ -235,19 +232,12 @@ def _open_precomputed_fine_resolution_dataset(
         standardize_fine_coords=False,
     )
 
-    if limit_alpha is not None:
-        limiter = DatasetQuantileLimiter(alpha=limit_alpha, limit_only=["Q1", "Q2"])
-        limited = limiter.fit_transform(
-            merged, feature_dims=["z", "tile"], fit_indexers={"time": 0},
-        )
-        merged = limited
-
     return _ml_standard_names(merged)
 
 
 @mapper_functions.register
 def open_precomputed_fine_resolution(
-    fine_url: str, additional_dataset_urls: str = None, limit_alpha: float = None
+    fine_url: str, additional_dataset_urls: str = None
 ) -> GeoMapper:
     """
     Open a fine-res mapper from precomputed data, optionally using state
@@ -258,15 +248,11 @@ def open_precomputed_fine_resolution(
             precomputed Q1 and Q2
         additional_dataset_urls: sequence of urls which to zarrs containing additional
             data to be merged into the resulting mapper dataset
-        limit_alpha: two-tailed alpha for computing extrema quantiles of Q1 and Q2,
-            values beyond which will be reduced to the quantile
     Returns:
         a mapper
     """
     return XarrayMapper(
         _open_precomputed_fine_resolution_dataset(
-            fine_url=fine_url,
-            additional_dataset_urls=additional_dataset_urls,
-            limit_alpha=limit_alpha,
+            fine_url=fine_url, additional_dataset_urls=additional_dataset_urls
         )
     )

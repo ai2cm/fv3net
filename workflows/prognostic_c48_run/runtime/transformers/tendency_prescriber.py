@@ -1,6 +1,6 @@
 import dataclasses
 import logging
-from typing import Hashable, Mapping, MutableMapping, Set
+from typing import Hashable, Mapping, MutableMapping, Set, Optional
 
 import cftime
 import xarray as xr
@@ -26,10 +26,13 @@ class TendencyPrescriberConfig:
         mapper_config: configuration of mapper used to load tendency data.
         variables: mapping from state name to name of corresponding tendency in
             provided mapper. For example: {"air_temperature": "fine_res_Q1"}.
+        limit_alpha: two-tailed alpha for computing extrema quantiles of tendencies,
+            values beyond which will be reduced to the quantile
     """
 
     mapper_config: loaders.MapperConfig
     variables: Mapping[str, str]
+    limit_alpha: Optional[float] = None
 
 
 @dataclasses.dataclass
@@ -48,6 +51,7 @@ class TendencyPrescriber:
         self._mapper = self.config.mapper_config.load_mapper()
         self._tendency_names = list(self.config.variables.values())
         self._tile = self.communicator.partitioner.tile_index(self.communicator.rank)
+        self._limiter: Optional[vcm.limit.DatasetQuantileLimiter] = None
 
     def _open_tendencies_dataset(self, time: cftime.DatetimeJulian) -> xr.Dataset:
         timestamp = vcm.encode_time(time)
@@ -55,8 +59,28 @@ class TendencyPrescriber:
         ds = xr.Dataset()
         if self.communicator.tile.rank == 0:
             ds = self._mapper[timestamp].isel(tile=tile)[self._tendency_names].load()
+            if self._limiter is None:
+                self._fit_limiter(ds)
+            ds = self._limit_dataset(ds)
         tendencies = self.communicator.tile.scatter_state(dataset_to_quantity_state(ds))
         return quantity_state_to_dataset(tendencies)
+
+    def _fit_limiter(self, tendencies: xr.Dataset) -> None:
+        if isinstance(self.config.limit_alpha, float):
+            self._limiter = vcm.limit.DatasetQuantileLimiter(
+                self.config.limit_alpha, limit_only=list(self.config.variables.values())
+            )
+            logger.debug(
+                f"Fitting dataset limiter with alpha={self.config.limit_alpha}"
+            )
+            self._limiter.fit(tendencies, feature_dims=["z", "tile"])
+
+    def _limit_dataset(self, tendencies: xr.Dataset) -> xr.Dataset:
+        if self._limiter is not None:
+            limited = self._limiter.transform(tendencies)
+        else:
+            limited = tendencies
+        return limited
 
     @property
     def monitor(self) -> Monitor:
