@@ -201,3 +201,20 @@ def test_rnn_fails_with_inconsistent_vertical_dimensions(rnn_key):
 
     with pytest.raises(tf.errors.InvalidArgumentError):
         layer({"a": tensor1, "b": tensor2})
+
+
+@pytest.mark.parametrize("seed", range(10))
+def test_dense_local_is_local(seed):
+    tf.random.set_seed(seed)
+    nz = 5
+    layer = ArchitectureConfig("dense-local").build({"a": nz})
+
+    in_ = tf.random.normal(shape=[nz])
+    with tf.GradientTape() as g:
+        g.watch(in_)
+        in_with_batch_dim = tf.reshape(in_, [1, nz])
+        output = layer({"x": in_with_batch_dim})["a"][0, :]
+
+    jacobian = g.jacobian(output, in_).numpy()
+    assert jacobian.shape == (nz, nz)
+    np.testing.assert_array_equal(jacobian, np.diag(np.diag(jacobian)))
