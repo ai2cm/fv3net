@@ -14,6 +14,7 @@ install_requirements = [
     "requests",
     "h5py>=2.10",
     "dask",
+    "lark>=1.1.1",
     "xarray",
     "toolz",
     "scipy",

@@ -16,7 +16,6 @@ dependencies:
   - flake8=3.7.9
   - mypy=0.770
   # testing
-  - netcdf4 # for ncgen
   - pytest-mpl
   - hypothesis
   - coverage>=5
