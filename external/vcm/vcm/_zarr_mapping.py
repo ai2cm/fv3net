@@ -83,7 +83,7 @@ class ZarrMapping:
     job.
 
     This object should be initialized from a template xarray object (see
-    :ref:`from_schema`), and a list of dimensions and corresponding coordinate
+    :py:meth:`from_schema`), and a list of dimensions and corresponding coordinate
     labels that will be managed by the ZarrMapping.
 
     Once initialized, xarray datasets with the exact same dimensions and

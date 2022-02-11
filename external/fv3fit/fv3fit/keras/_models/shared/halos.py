@@ -2,22 +2,22 @@ from typing import Any, Dict, Hashable, Iterable, List, Mapping, Sequence, Tuple
 from fv3fit._shared.stacking import match_prediction_to_input_coords
 import xarray as xr
 import numpy as np
-import fv3gfs.util
+import pace.util
 
 
-def _create_comms(total_ranks: int) -> Sequence[fv3gfs.util.testing.DummyComm]:
+def _create_comms(total_ranks: int) -> Sequence[pace.util.testing.DummyComm]:
     buffer_dict: Dict[Any, Any] = {}
-    comms: List[fv3gfs.util.testing.DummyComm] = []
+    comms: List[pace.util.testing.DummyComm] = []
     for rank in range(total_ranks):
         comms.append(
-            fv3gfs.util.testing.DummyComm(
+            pace.util.testing.DummyComm(
                 rank=rank, total_ranks=total_ranks, buffer_dict=buffer_dict
             )
         )
     return comms
 
 
-class _NoBufferPointGridSizer(fv3gfs.util.SubtileGridSizer):
+class _NoBufferPointGridSizer(pace.util.SubtileGridSizer):
     """
     The default SubtileGridSizer adds buffer points to cell-centered variables
     so that they have the same array shape as interface variables. Here we do not
@@ -28,12 +28,12 @@ class _NoBufferPointGridSizer(fv3gfs.util.SubtileGridSizer):
         shape_dict = self.extra_dim_lengths.copy()
         shape_dict.update(
             {
-                fv3gfs.util.constants.X_DIM: self.nx + 2 * self.n_halo,
-                fv3gfs.util.constants.X_INTERFACE_DIM: self.nx + 1 + 2 * self.n_halo,
-                fv3gfs.util.constants.Y_DIM: self.ny + 2 * self.n_halo,
-                fv3gfs.util.constants.Y_INTERFACE_DIM: self.ny + 1 + 2 * self.n_halo,
-                fv3gfs.util.constants.Z_DIM: self.nz,
-                fv3gfs.util.constants.Z_INTERFACE_DIM: self.nz + 1,
+                pace.util.constants.X_DIM: self.nx + 2 * self.n_halo,
+                pace.util.constants.X_INTERFACE_DIM: self.nx + 1 + 2 * self.n_halo,
+                pace.util.constants.Y_DIM: self.ny + 2 * self.n_halo,
+                pace.util.constants.Y_INTERFACE_DIM: self.ny + 1 + 2 * self.n_halo,
+                pace.util.constants.Z_DIM: self.nz,
+                pace.util.constants.Z_INTERFACE_DIM: self.nz + 1,
             }
         )
         return tuple(shape_dict[dim] for dim in dims)
@@ -41,13 +41,13 @@ class _NoBufferPointGridSizer(fv3gfs.util.SubtileGridSizer):
 
 def _quantities_from_dataset(
     ds: xr.Dataset, n_halo: int
-) -> Mapping[Hashable, fv3gfs.util.Quantity]:
+) -> Mapping[Hashable, pace.util.Quantity]:
     return_dict = {}
     nx, ny, nz = ds.dims["x"], ds.dims["y"], ds.dims["z"]
     sizer = _NoBufferPointGridSizer(
         nx=nx, ny=ny, nz=nz, n_halo=n_halo, extra_dim_lengths={**ds.sizes}
     )
-    factory = fv3gfs.util.QuantityFactory(sizer=sizer, numpy=np)
+    factory = pace.util.QuantityFactory(sizer=sizer, numpy=np)
     for name, da in ds.data_vars.items():
         quantity = factory.zeros(
             dims=da.dims, units=da.attrs.get("units", "unknown"), dtype=da.dtype
@@ -58,7 +58,7 @@ def _quantities_from_dataset(
 
 
 def _dataset_from_quantities(
-    quantities: Mapping[Hashable, fv3gfs.util.Quantity]
+    quantities: Mapping[Hashable, pace.util.Quantity]
 ) -> xr.Dataset:
     data_vars = {}
     for name, quantity in quantities.items():
@@ -69,8 +69,8 @@ def _dataset_from_quantities(
 
 
 def _halo_update(
-    communicators: Sequence[fv3gfs.util.CubedSphereCommunicator],
-    quantities: Sequence[fv3gfs.util.Quantity],
+    communicators: Sequence[pace.util.CubedSphereCommunicator],
+    quantities: Sequence[pace.util.Quantity],
     n_halo: int,
 ):
     req_list = []
@@ -98,10 +98,10 @@ def _get_cubed_sphere_communicator(comm):
     #
     # This could possibly be changed if/when we integrate with the DSL model
     layout_1d = int((comm.total_ranks / 6.0) ** 0.5)
-    return fv3gfs.util.CubedSphereCommunicator(
+    return pace.util.CubedSphereCommunicator(
         comm=comm,
-        partitioner=fv3gfs.util.CubedSpherePartitioner(
-            tile=fv3gfs.util.TilePartitioner(layout=(layout_1d, layout_1d))
+        partitioner=pace.util.CubedSpherePartitioner(
+            tile=pace.util.TilePartitioner(layout=(layout_1d, layout_1d))
         ),
     )
 

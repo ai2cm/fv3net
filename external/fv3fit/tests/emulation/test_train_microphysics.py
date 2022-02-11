@@ -1,5 +1,6 @@
 import sys
 from dataclasses import asdict
+from unittest.mock import Mock
 from fv3fit.emulation.losses import CustomLoss
 
 import pytest
@@ -9,7 +10,6 @@ from fv3fit._shared.config import _to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.models import MicrophysicsConfig
-from fv3fit.emulation.models.transformed_model import TransformedModelConfig
 from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.train_microphysics import TrainConfig, get_default_config, main
 
@@ -163,16 +163,23 @@ def test_training_entry_integration(tmp_path):
 
 def test_TrainConfig_build_model():
     field = Field("out", "in")
+    in_ = "in"
+    out = "out"
     config = TrainConfig(
         ".",
         ".",
         ".",
-        transformed_model=TransformedModelConfig(
-            ArchitectureConfig("dense"), [field], 900
+        model=MicrophysicsConfig(
+            input_variables=[in_],
+            direct_out_variables=[out],
+            architecture=ArchitectureConfig("dense"),
+            timestep_increment_sec=900,
         ),
     )
+
+    assert set(config.input_variables) == {"in"}
     data = {field.input_name: tf.ones((1, 10)), field.output_name: tf.ones((1, 10))}
-    model = config.build_model(data)
+    model = config.build_model(data, config.build_transform(data))
     assert field.output_name in model(data)
 
 
@@ -180,6 +187,9 @@ def test_TrainConfig_build_loss():
     config = TrainConfig(".", ".", ".", loss=CustomLoss(loss_variables=["x"]))
     # needs to be random or the normalized loss will have nan
     data = {"x": tf.random.uniform(shape=(4, 10))}
-    loss = config.build_loss(data)
+    transform = Mock()
+    transform.forward.return_value = data
+    loss = config.build_loss(data, transform)
     loss_value, _ = loss(data, data)
     assert 0 == pytest.approx(loss_value.numpy())
+    transform.forward.assert_called()

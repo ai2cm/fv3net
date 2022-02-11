@@ -2,13 +2,16 @@ from runtime.names import STATE_NAME_TO_TENDENCY, TENDENCY_TO_STATE_NAME
 from runtime.nudging import (
     _time_to_label,
     get_nudging_tendency,
+    _rename_local_restarts,
 )
+from runtime.nudging import RestartCategoriesConfig
 import xarray as xr
 from datetime import timedelta
 import pytest
 import numpy as np
 import cftime
 import copy
+import pathlib
 
 
 def test__time_to_label():
@@ -17,7 +20,7 @@ def test__time_to_label():
     assert result == label
 
 
-# tests of nudging tendency below adapted from fv3gfs.util versions
+# tests of nudging tendency below adapted from pace.util versions
 
 
 @pytest.fixture(params=["empty", "one_var", "multiple_vars"])
@@ -138,3 +141,41 @@ def test_get_nudging_tendency(
         np.testing.assert_array_equal(result[name].data, tendency.data)
         assert result[name].dims == tendency.dims
         assert result[name].attrs["units"] == tendency.attrs["units"]
+
+
+RESTART_CATEGORIES = {
+    "core": "fv_core_coarse.res",
+    "surface": "sfc_data_coarse",
+    "tracer": "fv_tracer_coarse.res",
+    "surface_wind": "fv_srf_wnd_coarse.res",
+}
+TIMESTAMP = "20160801.000000"
+
+
+@pytest.fixture()
+def restart_dir(tmp_path):
+    sub = tmp_path / TIMESTAMP
+    sub.mkdir()
+    for specified_category in RESTART_CATEGORIES.values():
+        pathlib.Path(
+            sub / ".".join([TIMESTAMP, specified_category, "tile1.nc"])
+        ).touch()
+    return sub
+
+
+def test__rename_local_restarts(restart_dir):
+    restarts_config = RestartCategoriesConfig(**RESTART_CATEGORIES)
+    _rename_local_restarts(restart_dir.as_posix(), restarts_config)
+    renamed_files = sorted([file.name for file in restart_dir.iterdir()])
+    standard_restarts_config = RestartCategoriesConfig()
+    standard_categories = [
+        getattr(standard_restarts_config, category)
+        for category in vars(standard_restarts_config)
+    ]
+    intended_files = sorted(
+        [
+            ".".join([TIMESTAMP, standard_category, "tile1.nc"])
+            for standard_category in standard_categories
+        ]
+    )
+    assert renamed_files == intended_files

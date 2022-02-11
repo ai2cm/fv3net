@@ -7,7 +7,7 @@ import logging
 import numpy as np
 import os
 import tempfile
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
 
 import tensorflow as tf
 import yaml
@@ -19,20 +19,23 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
-from fv3fit.emulation.types import LossFunction
+from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
+
+from fv3fit.emulation.transforms.factories import ConditionallyScaled
+from fv3fit.emulation.types import LossFunction, TensorDict
 from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
-from fv3fit.emulation.jacobian import compute_standardized_jacobians
 from fv3fit.emulation.keras import save_model
 from fv3fit.emulation.losses import CustomLoss
+from fv3fit.emulation.models import transform_model
 from fv3fit.emulation.transforms import (
-    PerVariableTransform,
+    ComposedTransformFactory,
     TensorTransform,
     TransformedVariableConfig,
 )
-import xarray
+from fv3fit.emulation.layers.normalization import standard_deviation_all_features
 from fv3fit.wandb import (
     WandBConfig,
     store_model_artifact,
@@ -89,10 +92,11 @@ class TrainConfig:
     test_url: str
     out_url: str
     transform: TransformConfig = field(default_factory=TransformConfig)
-    tensor_transform: List[TransformedVariableConfig] = field(default_factory=list)
+    tensor_transform: List[
+        Union[TransformedVariableConfig, ConditionallyScaled]
+    ] = field(default_factory=list)
     model: Optional[models.MicrophysicsConfig] = None
     conservative_model: Optional[models.ConservativeWaterConfig] = None
-    transformed_model: Optional[models.TransformedModelConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     use_wandb: bool = True
@@ -107,38 +111,47 @@ class TrainConfig:
     log_level: str = "INFO"
     cache: bool = True
 
-    def get_transform(self) -> TensorTransform:
-        return PerVariableTransform(self.tensor_transform)
+    @property
+    def transform_factory(self) -> ComposedTransformFactory:
+        return ComposedTransformFactory(self.tensor_transform)
+
+    def build_transform(self, sample: TensorDict) -> TensorTransform:
+        return self.transform_factory.build(sample)
 
     @property
     def _model(
         self,
     ) -> Union[
-        models.MicrophysicsConfig,
-        models.ConservativeWaterConfig,
-        models.TransformedModelConfig,
+        models.MicrophysicsConfig, models.ConservativeWaterConfig,
     ]:
         if self.model:
             return self.model
         elif self.conservative_model:
             return self.conservative_model
-        elif self.transformed_model:
-            return self.transformed_model
         else:
             raise ValueError(
                 "Neither .model, .conservative_model, nor .transformed_model provided."
             )
 
-    def build_model(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
-        return self._model.build(data, self.get_transform())
+    def build_model(
+        self, data: Mapping[str, tf.Tensor], transform: TensorTransform
+    ) -> tf.keras.Model:
+        inputs = {
+            name: tf.keras.Input(data[name].shape[1:], name=name)
+            for name in self.input_variables
+        }
+        inner_model = self._model.build(transform.forward(data))
+        return transform_model(inner_model, transform, inputs)
 
-    def build_loss(self, data: Mapping[str, tf.Tensor]) -> LossFunction:
-        return self.loss.build(data, self.get_transform())
+    def build_loss(
+        self, data: Mapping[str, tf.Tensor], transform: TensorTransform
+    ) -> LossFunction:
+        return self.loss.build(transform.forward(data))
 
     @property
     def input_variables(self) -> Sequence:
         return list(
-            self.get_transform().backward_names(set(self._model.input_variables))
+            self.transform_factory.backward_names(set(self._model.input_variables))
         )
 
     @classmethod
@@ -217,14 +230,23 @@ class TrainConfig:
 
         return config
 
-    def get_dataset_convertor(
-        self,
-    ) -> Callable[[xarray.Dataset], Mapping[str, tf.Tensor]]:
-        model_variables = set(self._model.input_variables) | set(
-            self._model.output_variables
+    def open_dataset(
+        self, url: str, nfiles: Optional[int], required_variables: Set[str],
+    ) -> tf.data.Dataset:
+        nc_open_fn = self.transform.get_pipeline(required_variables)
+        return nc_dir_to_tf_dataset(
+            url,
+            nc_open_fn,
+            nfiles=nfiles,
+            shuffle=True,
+            random_state=np.random.RandomState(0),
         )
-        required_variables = self.get_transform().backward_names(model_variables)
-        return self.transform.get_pipeline(required_variables)
+
+    @property
+    def model_variables(self) -> Set[str]:
+        return self.transform_factory.backward_names(
+            set(self._model.input_variables) | set(self._model.output_variables)
+        )
 
     def __post_init__(self) -> None:
         if (
@@ -250,21 +272,26 @@ def main(config: TrainConfig, seed: int = 0):
     logging.basicConfig(level=getattr(logging, config.log_level))
     set_random_seed(seed)
 
-    callbacks = []
+    # callbacks that are always active
+    callbacks = [tf.keras.callbacks.TerminateOnNaN()]
     if config.use_wandb:
         config.wandb.init(config=asdict(config))
         callbacks.append(config.wandb.get_callback())
 
-    train_ds = nc_dir_to_tf_dataset(
-        config.train_url, config.get_dataset_convertor(), nfiles=config.nfiles
+    train_ds = config.open_dataset(
+        config.train_url, config.nfiles, config.model_variables
     )
-    test_ds = nc_dir_to_tf_dataset(
-        config.test_url, config.get_dataset_convertor(), nfiles=config.nfiles_valid
+    test_ds = config.open_dataset(
+        config.test_url, config.nfiles_valid, config.model_variables
     )
 
     train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
+    transform = config.build_transform(train_set)
 
-    model = config.build_model(train_set)
+    train_ds = train_ds.map(transform.forward)
+    test_ds = test_ds.map(transform.forward)
+
+    model = config.build_model(train_set, transform)
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
@@ -291,7 +318,7 @@ def main(config: TrainConfig, seed: int = 0):
             history = train(
                 model,
                 train_ds_batched,
-                config.build_loss(train_set),
+                config.build_loss(train_set, transform),
                 optimizer=config.loss.optimizer.instance,
                 epochs=config.epochs,
                 validation_data=test_ds_batched,
@@ -316,9 +343,14 @@ def main(config: TrainConfig, seed: int = 0):
             store_model_artifact(local_model_path, name=config._model.name)
 
     # Jacobians after model storing in case of "out of memory" errors
-    std_jacobians = compute_standardized_jacobians(
-        model, config.get_transform().forward(train_set), config.input_variables
-    )
+    sample = transform.forward(train_set)
+    jacobians = compute_jacobians(model, sample, config.input_variables)
+    std_factors = {
+        name: np.array(float(standard_deviation_all_features(data)))
+        for name, data in sample.items()
+    }
+    std_jacobians = nondimensionalize_jacobians(jacobians, std_factors)
+
     save_jacobians(std_jacobians, config.out_url, "jacobians.npz")
     if config.use_wandb:
         plot_all_output_sensitivities(std_jacobians)

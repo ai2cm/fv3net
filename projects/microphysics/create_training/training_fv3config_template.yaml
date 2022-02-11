@@ -89,3 +89,7 @@ namelist:
     ldiag3d: true
     save_zc_microphysics: true
     emulate_zc_microphysics: false
+zhao_carr_emulation:
+  storage:
+    output_freq_sec: 18000
+    save_nc: true

@@ -1,4 +1,4 @@
-import fv3gfs.util
+import pace.util
 from mpi4py import MPI
 import shutil
 import fsspec
@@ -16,6 +16,8 @@ from typing import (
     Optional,
 )
 import logging
+
+from fv3kube import RestartCategoriesConfig
 from .interpolate import time_interpolate_func, label_to_time
 from .names import STATE_NAME_TO_TENDENCY
 from .types import State
@@ -59,6 +61,7 @@ class NudgingConfig:
 
     restarts_path: str
     timescale_hours: Dict[str, float]
+    restart_categories: Optional[RestartCategoriesConfig] = None
     # This should be required, but needs to be typed this way to preserve
     # backwards compatibility with existing yamls that don't specify it.
     # See https://github.com/ai2cm/fv3net/issues/1449
@@ -78,7 +81,7 @@ def setup_get_reference_state(
     config: NudgingConfig,
     state_names: Iterable[str],
     tracer_metadata: Mapping,
-    communicator: fv3gfs.util.CubedSphereCommunicator,
+    communicator: pace.util.CubedSphereCommunicator,
 ):
     """
     Configure the 'get_reference_function' for use in a nudged fv3gfs run.
@@ -88,6 +91,7 @@ def setup_get_reference_state(
     get_reference_state: Callable[[Any], State] = functools.partial(
         _get_reference_state,
         reference_dir=reference_dir,
+        restart_categories=config.restart_categories,
         communicator=communicator,
         only_names=state_names,
         tracer_metadata=tracer_metadata,
@@ -107,9 +111,10 @@ def setup_get_reference_state(
 def _get_reference_state(
     time: cftime.DatetimeJulian,
     reference_dir: str,
-    communicator: fv3gfs.util.CubedSphereCommunicator,
+    communicator: pace.util.CubedSphereCommunicator,
     only_names: Iterable[str],
     tracer_metadata: Mapping,
+    restart_categories: Optional[RestartCategoriesConfig],
 ):
     label = _time_to_label(time)
     dirname = os.path.join(reference_dir, label)
@@ -119,11 +124,13 @@ def _get_reference_state(
     if MPI.COMM_WORLD.rank == 0:
         fs = fsspec.get_fs_token_paths(dirname)[0]
         fs.get(dirname, localdir, recursive=True)
+        if restart_categories is not None:
+            _rename_local_restarts(localdir, restart_categories)
 
     # need this for synchronization
     MPI.COMM_WORLD.barrier()
 
-    state = fv3gfs.util.open_restart(
+    state = pace.util.open_restart(
         localdir,
         communicator,
         label=label,
@@ -140,7 +147,23 @@ def _get_reference_state(
     return _to_state_dataarrays(state)
 
 
-def _to_state_dataarrays(state: Mapping[str, fv3gfs.util.Quantity]) -> State:
+def _rename_local_restarts(
+    localdir: str, restart_categories: RestartCategoriesConfig
+) -> None:
+    standard_restart_categories = RestartCategoriesConfig()
+    files = os.listdir(localdir)
+    for category_name in vars(restart_categories):
+        disk_category = getattr(restart_categories, category_name)
+        standard_category = getattr(standard_restart_categories, category_name)
+        for file in [file for file in files if disk_category in file]:
+            existing_filepath = os.path.join(localdir, file)
+            standard_filepath = os.path.join(
+                localdir, file.replace(disk_category, standard_category)
+            )
+            os.rename(existing_filepath, standard_filepath)
+
+
+def _to_state_dataarrays(state: Mapping[str, pace.util.Quantity]) -> State:
     out: State = {}
     for var in state:
         out[var] = state[var].data_array
@@ -159,7 +182,7 @@ def get_nudging_tendency(
 ) -> State:
     """
     Return the nudging tendency of the given state towards the reference state
-    according to the provided nudging timescales. Adapted from fv3gfs-util.nudging
+    according to the provided nudging timescales. Adapted from pace.util.nudging
     version, but for use with derived state mappings.
     Args:
         state (dict): A derived state dictionary.

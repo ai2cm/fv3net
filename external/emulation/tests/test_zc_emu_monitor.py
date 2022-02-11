@@ -6,7 +6,6 @@ import pytest
 import tensorflow as tf
 from emulation._monitor.monitor import (
     StorageHook,
-    _bool_from_str,
     _convert_to_quantities,
     _convert_to_xr_dataset,
     _create_nc_path,
@@ -16,7 +15,7 @@ from emulation._monitor.monitor import (
     _remove_io_suffix,
     _translate_time,
 )
-from fv3gfs.util import Quantity
+from pace.util import Quantity
 from xarray import DataArray
 
 
@@ -30,30 +29,6 @@ def save_var_metadata(path):
 
     with open(path, "w") as f:
         f.write(metadata_content)
-
-
-@pytest.mark.parametrize(
-    "value, expected",
-    [
-        ("y", True),
-        ("yes", True),
-        ("true", True),
-        ("n", False),
-        ("no", False),
-        ("false", False),
-    ],
-)
-def test__bool_from_str(value, expected):
-
-    assert _bool_from_str(value) == expected
-    assert _bool_from_str(value.capitalize()) == expected
-    assert _bool_from_str(value.upper()) == expected
-
-
-def test__bool_from_str_unrecognized():
-
-    with pytest.raises(ValueError):
-        _bool_from_str("not-translatable-to-bool")
 
 
 def test__load_nml(dummy_rundir):
@@ -212,11 +187,3 @@ def test_StorageHook_save_tf(dummy_rundir):
             ), key
             assert tf_ds.element_spec[key].shape[0] is None
     assert len(list(tf_ds)) == n
-
-
-def test_error_on_call():
-
-    with pytest.raises(ImportError):
-        from emulation import store
-
-        store({})
