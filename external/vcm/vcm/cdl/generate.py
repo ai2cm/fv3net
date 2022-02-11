@@ -115,10 +115,6 @@ def cdl_to_dataset(cdl: str) -> xarray.Dataset:
             59, 61, 67, 71, 73, 79, 83, 89 ;
         }
 
-
-    Notes:
-        Requires the command line tool ``ncgen``
-
     .. _CDL: https://www.unidata.ucar.edu/software/netcdf/workshops/most-recent/nc3model/Cdl.html
     
     """  # noqa
