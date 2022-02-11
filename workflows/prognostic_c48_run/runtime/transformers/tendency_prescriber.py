@@ -15,8 +15,6 @@ from runtime.derived_state import DerivedFV3State
 from runtime.conversions import quantity_state_to_dataset, dataset_to_quantity_state
 from runtime.interpolate import time_interpolate_func, label_to_time
 
-QuantityState = MutableMapping[Hashable, pace.util.Quantity]
-
 logger = logging.getLogger(__name__)
 
 
