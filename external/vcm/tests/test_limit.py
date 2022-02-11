@@ -7,93 +7,78 @@ EPS = 1.0e-3
 
 
 def _xscaling(alpha):
+    """make data that varies along an x dim"""
     scale = 1.0 / alpha
-    return np.arange(-scale, (scale + EPS))
-
-
-def _zscaling(alpha):
-    scale = 1.0 / alpha
-    return np.flip(np.arange(0.0, scale + EPS) / scale)
+    return np.arange(0.0, (scale + EPS))
 
 
 def _get_arr(alpha):
     xscaling = _xscaling(alpha)[:, np.newaxis]
-    zscaling = _zscaling(alpha)[np.newaxis, :]
+    zscaling = np.ones((1, int(1.0 / alpha) + 1))
     return xscaling * zscaling
-
-    """        else:
-            upper = (scale - 0.5) * (np.arange(scale, 0.0 - EPS, -1.0) / scale)
-            lower = 0.5 * (np.arange(scale, 0.0 - EPS, -1.0) / scale)
-            expected_arr[-1, :] = upper
-            expected_arr[0 : (int(scale) + 1), :] = lower"""
 
 
 def get_dataset(alpha):
+    """dataset of two variables that vary in x but not z"""
     arr = _get_arr(alpha)
     da = xr.DataArray(arr, dims=["x", "z"])
     return xr.Dataset({"Q1": da, "Q2": da})
 
 
-def get_expected_arr(alpha, feature_dims, fit_indexers):
-    arr = _get_arr(alpha)
-    if fit_indexers is None:
-        if feature_dims == ["z"]:
-            upper_limit = np.quantile(_xscaling(alpha), 1.0 - alpha / 2.0)
-            upper = upper_limit * _zscaling(alpha)
-            lower = -upper
-            arr[-1, :] = upper
-            arr[0, :] = lower
-        elif feature_dims == ["x"]:
-            upper_limit = np.quantile(_zscaling(alpha), 1.0 - alpha / 2.0)
-            upper = upper_limit * _xscaling(alpha)
-            lower_limit = np.quantile(_zscaling(alpha), alpha / 2.0)
-            lower = lower_limit * _xscaling(alpha)
-            arr[:, -1] = lower
-            arr[:, 0] = upper
-        else:
-            raise ValueError("Only 'x' and 'z' are tested as feature_dims.")
-    elif "x" in fit_indexers:
-        upper_limit = np.quantile(
-            _xscaling(alpha)[fit_indexers["x"]], 1.0 - alpha / 2.0
-        )
-        upper = upper_limit * _zscaling(alpha)
-        lower_limit = np.quantile(_xscaling(alpha)[fit_indexers["x"]], alpha / 2.0)
-        lower = lower_limit * _zscaling(alpha)
-        arr[-1, :] = upper
-        midpoint = int(1.0 / alpha) + 1
-        arr[0:midpoint, :] = lower
-    return arr
+def get_limits(upper, lower, alpha, feature_dims):
+    scale = int(1.0 / alpha) + 1
+    upper_da = xr.DataArray(np.broadcast_to(upper, scale), dims=feature_dims)
+    lower_da = xr.DataArray(np.broadcast_to(lower, scale), dims=feature_dims)
+    return (
+        xr.Dataset({"Q1": upper_da, "Q2": upper_da}),
+        xr.Dataset({"Q1": lower_da, "Q2": lower_da}),
+    )
 
 
 @pytest.mark.parametrize(
-    ["alpha", "limit_only", "feature_dims", "fit_indexers", "error"],
+    ["alpha", "feature_dims", "fit_indexers", "error", "upper", "lower"],
     [
-        pytest.param(0.1, None, ["z"], None, False, id="alpha=0.1"),
-        pytest.param(0.2, None, ["z"], None, False, id="alpha=0.2"),
-        pytest.param(0.1, ["Q1"], ["z"], None, False, id="limit_only_Q1"),
-        pytest.param(0.1, None, ["x"], None, False, id="feature_dim_x"),
+        pytest.param(0.25, ["z"], None, False, 3.5, 0.5, id="alpha=0.25"),
+        pytest.param(0.2, ["z"], None, False, 4.5, 0.5, id="alpha=0.2"),
         pytest.param(
-            0.1, None, ["z"], {"x": slice(10, None)}, False, id="fit_indexer_x"
+            0.25,
+            ["x"],
+            None,
+            False,
+            [0.0, 1.0, 2.0, 3.0, 4.0],
+            [0.0, 1.0, 2.0, 3.0, 4.0],
+            id="feature_dim_x",
         ),
-        pytest.param(0.1, None, ["z"], {"z": 0}, True, id="invalid_indexer_dim"),
+        pytest.param(
+            0.25, ["z"], {"x": slice(None, 3)}, False, 1.75, 0.25, id="fit_indexer_x"
+        ),
+        pytest.param(0.2, ["z"], {"z": 0}, True, None, None, id="invalid_indexer_dim"),
     ],
 )
-def test_LimitedDataset(alpha, limit_only, feature_dims, fit_indexers, error):
+def test_limiter_fit(alpha, feature_dims, fit_indexers, error, upper, lower):
     ds = get_dataset(alpha)
-    expected_arr = get_expected_arr(alpha, feature_dims, fit_indexers)
-    limit_only = limit_only or ds.data_vars
-    expected_ds = ds.copy(deep=True)
-    for var in limit_only:
-        expected_ds[var] = xr.DataArray(expected_arr, dims=ds[var].dims)
-    limiter = DatasetQuantileLimiter(alpha=alpha, limit_only=limit_only)
-    if error:
-        with pytest.raises(ValueError):
-            limited_ds = limiter.fit_transform(
-                ds, feature_dims=feature_dims, fit_indexers=fit_indexers
-            )
+    limiter = DatasetQuantileLimiter(alpha=alpha)
+    if not error:
+        limiter.fit(ds, feature_dims=feature_dims, fit_indexers=fit_indexers)
+        upper, lower = get_limits(upper, lower, alpha, feature_dims)
+        xr.testing.assert_allclose(limiter._upper, upper)
+        xr.testing.assert_allclose(limiter._lower, lower)
     else:
-        limited_ds = limiter.fit_transform(
-            ds, feature_dims=feature_dims, fit_indexers=fit_indexers
-        )
-        for var in limited_ds:
-            xr.testing.assert_allclose(limited_ds[var], expected_ds[var])
+        with pytest.raises(ValueError):
+            limiter.fit(ds, feature_dims=feature_dims, fit_indexers=fit_indexers)
+
+
+@pytest.mark.parametrize(
+    "limit_only", [pytest.param(None, id="all"), pytest.param(["Q1"], id="Q1_only")]
+)
+def test_limiter_transform_limit_only(limit_only):
+    alpha = 0.25
+    ds = get_dataset(alpha)
+    limiter = DatasetQuantileLimiter(alpha, limit_only=limit_only)
+    limiter._upper, limiter._lower = get_limits(3.5, 0.5, alpha, ["z"])
+    limited = limiter.transform(ds, deepcopy=True)
+    expected_ds = ds.copy(deep=True)
+    for var in limit_only or ds.data_vars:
+        expected_ds[var].loc[{"x": 0}] = 0.5
+        expected_ds[var].loc[{"x": -1}] = 3.5
+    xr.testing.assert_allclose(limited, expected_ds)

@@ -58,8 +58,12 @@ class DatasetQuantileLimiter(BaseEstimator, TransformerMixin):
             if feature_dims is not None
             else sample_ds.dims
         )
-        self._lower = sample_ds.quantile(self._alpha / 2.0, dim=sample_dims)
-        self._upper = sample_ds.quantile(1.0 - self._alpha / 2.0, dim=sample_dims)
+        self._lower = sample_ds.quantile(self._alpha / 2.0, dim=sample_dims).drop_vars(
+            "quantile"
+        )
+        self._upper = sample_ds.quantile(
+            1.0 - self._alpha / 2.0, dim=sample_dims
+        ).drop_vars("quantile")
         return self
 
     def transform(self, ds: xr.Dataset, deepcopy: bool = False) -> xr.Dataset:
@@ -76,8 +80,7 @@ class DatasetQuantileLimiter(BaseEstimator, TransformerMixin):
         if self._lower is None and self._upper is None:
             raise ValueError("Limiter method .fit must be called before .transform")
         limited = ds.copy(deep=deepcopy)
-        vars_ = self._limit_only if self._limit_only is not None else ds.data_vars
-        for var in vars_:
+        for var in self._limit_only if self._limit_only is not None else ds.data_vars:
             limited[var] = (
                 ds[var]
                 .where(ds[var] < self._upper[var], self._upper[var])
