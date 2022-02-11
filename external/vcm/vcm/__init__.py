@@ -66,7 +66,7 @@ from .calc.vertical_flux import (
     fit_field_as_flux,
 )
 
-from .cdl import cdl_to_dataset
+from .cdl.generate import cdl_to_dataset
 
 __all__ = [item for item in dir() if not item.startswith("_")]
 __version__ = "0.1.0"
