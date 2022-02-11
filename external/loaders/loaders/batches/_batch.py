@@ -122,8 +122,8 @@ def batches_from_mapper(
         in_memory: if True, load data eagerly and keep it in memory
         drop_nans: if True, drop NaN values from the data, and raise an
             exception if all values in a batch are NaN
-        unstacked_dims: if given, produce stacked batches retaining these
-            dimensions as unstacked (non-sample) dimensions
+        unstacked_dims: if given, produce stacked and shuffled batches retaining
+            these dimensions as unstacked (non-sample) dimensions
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
