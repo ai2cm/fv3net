@@ -19,6 +19,16 @@ def parse_value_node(value_node):
 
 
 class DatasetVisitor(lark.Visitor):
+    """A class for traversing a parsed syntax tree
+
+    This class will iterate over the syntax tree of a CDL file and generate a
+    list of variable information that can be used to generate an xarray Dataset.
+
+    For example, the ``.variable_decl`` method will be called when the tree
+    'visits' a node of type ``variable_decl``. Note how these method names match
+    the rules in the vcm.cdl.grammar.
+    """
+
     def __init__(self):
         self._variable_dims = {}
         self._variable_dtype = {}
@@ -52,9 +62,11 @@ class DatasetVisitor(lark.Visitor):
     def datum(self, v):
         varname = v.children[0].value
         assert varname in self._variable_dims
+        # get data stored in self.list
         self._variable_data[varname] = list(v.children[1].data)
 
     def list(self, v):
+        # Store the data in the tree to be used later on in self.datum
         v.data = [parse_value_node(node) for node in v.children]
 
     def generate_dataset(self):
@@ -89,9 +101,13 @@ def cdl_to_dataset(cdl: str) -> xarray.Dataset:
         Requires the command line tool ``ncgen``
     
     """
+    # create the parser
     cdl_parser = lark.Lark(grammar, start="netcdf", parser="lalr")
+    # parse the string into a syntax tree
     tree = cdl_parser.parse(cdl)
+    # collects lists of all the variables, data, and metadata
     v = DatasetVisitor()
     v.visit(tree)
+    # finally generate the dataset
     ds = v.generate_dataset()
     return xarray.decode_cf(ds)
