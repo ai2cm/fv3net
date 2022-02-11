@@ -203,6 +203,11 @@ def test_rnn_fails_with_inconsistent_vertical_dimensions(rnn_key):
         layer({"a": tensor1, "b": tensor2})
 
 
+def _assert_is_diagonal(matrix: np.ndarray) -> bool:
+    diagonal = np.diag(np.diag(matrix))
+    np.testing.assert_array_equal(matrix, diagonal)
+
+
 @pytest.mark.parametrize("seed", range(10))
 def test_dense_local_is_local(seed):
     tf.random.set_seed(seed)
@@ -217,4 +222,4 @@ def test_dense_local_is_local(seed):
 
     jacobian = g.jacobian(output, in_).numpy()
     assert jacobian.shape == (nz, nz)
-    np.testing.assert_array_equal(jacobian, np.diag(np.diag(jacobian)))
+    _assert_is_diagonal(jacobian)
