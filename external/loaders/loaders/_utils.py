@@ -88,6 +88,17 @@ def dropna(ds: xr.Dataset) -> xr.Dataset:
 
 
 @curry
+def select_first_samples(fraction: float, ds: xr.Dataset) -> xr.Dataset:
+    """
+    Return a dataset with only the given fraction of samples from the
+    input dataset, taking the first samples.
+    """
+    n_samples = len(ds[SAMPLE_DIM_NAME])
+    n_samples_keep = int(fraction * n_samples)
+    return ds.isel({SAMPLE_DIM_NAME: slice(0, n_samples_keep)})
+
+
+@curry
 def add_derived_data(variables: Sequence[str], ds: xr.Dataset) -> xr.Dataset:
     """
     Overlay the DerivedMapping and grab a dataset of specified variables

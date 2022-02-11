@@ -1,6 +1,6 @@
 import logging
 from loaders.typing import Batches
-from numpy.random import RandomState
+import numpy as np
 import pandas as pd
 from typing import (
     Iterable,
@@ -23,6 +23,7 @@ from .._utils import (
     stack,
     shuffle,
     dropna,
+    select_first_samples,
 )
 from ..constants import TIME_NAME
 from .._config import batches_functions, batches_from_mapper_functions
@@ -99,13 +100,13 @@ def batches_from_mapper(
     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Sequence[str],
     timesteps_per_batch: int = 1,
-    random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
     needs_grid: bool = True,
     in_memory: bool = False,
     drop_nans: bool = False,
     unstacked_dims: Optional[Sequence[str]] = None,
+    subsample_ratio: float = 1.0,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -115,7 +116,6 @@ def batches_from_mapper(
             given timestep keys.
         variable_names: data variables to select
         timesteps_per_batch (int, optional): Defaults to 1.
-        random_seed: Defaults to 0.
         timesteps: List of timesteps to use in training.
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
@@ -124,6 +124,8 @@ def batches_from_mapper(
             exception if all values in a batch are NaN
         unstacked_dims: if given, produce stacked and shuffled batches retaining
             these dimensions as unstacked (non-sample) dimensions
+        subsample_ratio: the fraction of data to retain in each batch, selected
+            at random along the sample dimension.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -136,15 +138,12 @@ def batches_from_mapper(
             f"{list(set(timesteps)-set(data_mapping.keys()))}"
         )
 
-    random_state = RandomState(random_seed)
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
 
     if timesteps is None:
         timesteps = list(data_mapping.keys())
-    shuffled_times = random_state.choice(
-        timesteps, len(timesteps), replace=False
-    ).tolist()
+    shuffled_times = np.random.choice(timesteps, len(timesteps), replace=False).tolist()
     batched_timesteps = list(partition_all(timesteps_per_batch, shuffled_times))
 
     # First function goes from mapper + timesteps to xr.dataset
@@ -162,6 +161,11 @@ def batches_from_mapper(
     if unstacked_dims is not None:
         transforms.append(curry(stack)(unstacked_dims))
         transforms.append(shuffle)
+        transforms.append(select_first_samples(subsample_ratio))
+    elif subsample_ratio != 1.0:
+        raise ValueError(
+            "setting subsample_ratio != 1.0 requires providing unstacked_dims"
+        )
 
     if drop_nans:
         transforms.append(dropna)
@@ -235,10 +239,15 @@ def _get_batch(
 ) -> xr.Dataset:
     """
     Selects requested variables in the dataset that are there by default
-    (i.e., not added in derived step), converts time strings to time, and combines
-    into a single dataset.
+    (i.e., not added in derived step) and combines the given mapper keys
+    into one dataset.
+    
+    If all keys are time strings, converts them to time when creating the coordinate.
     """
-    time_coords = [parse_datetime_from_str(key) for key in keys]
+    try:
+        time_coords = [parse_datetime_from_str(key) for key in keys]
+    except ValueError:
+        time_coords = list(keys)
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
     nonderived_vars = nonderived_variables(data_vars, tuple(ds.data_vars))
     ds = safe.get_variables(ds, nonderived_vars)
