@@ -104,9 +104,9 @@ def batches_from_mapper(
     res: str = "c48",
     needs_grid: bool = True,
     in_memory: bool = False,
-    drop_nans: bool = False,
     unstacked_dims: Optional[Sequence[str]] = None,
     subsample_ratio: float = 1.0,
+    drop_nans: bool = False,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -120,12 +120,13 @@ def batches_from_mapper(
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
         in_memory: if True, load data eagerly and keep it in memory
-        drop_nans: if True, drop NaN values from the data, and raise an
-            exception if all values in a batch are NaN
         unstacked_dims: if given, produce stacked and shuffled batches retaining
             these dimensions as unstacked (non-sample) dimensions
         subsample_ratio: the fraction of data to retain in each batch, selected
             at random along the sample dimension.
+        drop_nans: if True, drop NaN values from the data, and raise an
+            exception if all values in a batch are NaN. requires unstacked_dims
+            argument is given, raises a ValueError otherwise.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -162,13 +163,14 @@ def batches_from_mapper(
         transforms.append(curry(stack)(unstacked_dims))
         transforms.append(shuffle)
         transforms.append(select_first_samples(subsample_ratio))
+        if drop_nans:
+            transforms.append(dropna)
     elif subsample_ratio != 1.0:
         raise ValueError(
             "setting subsample_ratio != 1.0 requires providing unstacked_dims"
         )
-
-    if drop_nans:
-        transforms.append(dropna)
+    elif drop_nans:
+        raise ValueError("drop_nans=True requires unstacked_dims argument is provided")
 
     batch_func = compose_left(*transforms)
 
