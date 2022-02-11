@@ -5,7 +5,10 @@ small pure python library with no dependencies so it is easy to install. Using a
 pure python implementation will also allow us to generate lazily-loaded datasets
 without interacting with the filesystem.
 
+To learn more, see this `tutorial`_  on how to build a json parser.
+
 .. _lark: https://github.com/lark-parser/lark
+.. _tutorial: https://lark-parser.readthedocs.io/en/latest/json_tutorial.html
 
 """
 grammar = r"""
