@@ -124,7 +124,7 @@ def batches_from_mapper(
             these dimensions as unstacked (non-sample) dimensions
         subsample_ratio: the fraction of data to retain in each batch, selected
             at random along the sample dimension.
-        drop_nans: if True, drop NaN values from the data, and raise an
+        drop_nans: if True, drop samples with NaN values from the data, and raise an
             exception if all values in a batch are NaN. requires unstacked_dims
             argument is given, raises a ValueError otherwise.
     Raises:
