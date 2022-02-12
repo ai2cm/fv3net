@@ -1,68 +1,62 @@
 import xarray as xr
-from sklearn.base import BaseEstimator, TransformerMixin
+from .safe import get_variables
 from typing import Optional, Sequence, Mapping
 
 
-class DatasetQuantileLimiter(BaseEstimator, TransformerMixin):
+class DatasetQuantileLimiter:
     """Transformer to reduce the extremity of outliers of a dataset to quantile limits.
     
     Limiting is done on a variable by variable basis and along specified dimensions.
-        Limits are optionally computed on a configurable subset of the dataset to avoid
-        loading the entire dataset.
     
     Args:
-        alpha: two-tailed alpha for computing extrema quantiles, values beyond which
-            will be reduced to the quantile
+        upper_quantile_limit: specifies the upper quantile, values above which will
+            be reduced to that quantile
+        lower_quantile_limit: specifies the lower quantile, values below which will
+            be raised to that quantile
         limit_only: variables in the dataset to be limited; if not specified all
             variables are limited
 
     """
 
     def __init__(
-        self, alpha: float, limit_only: Optional[Sequence[str]] = None,
+        self,
+        upper_quantile_limit: float,
+        lower_quantile_limit: float,
+        limit_only: Optional[Sequence[str]] = None,
     ):
-        self._alpha: float = alpha
+        self._upper_quantile_limit: float = upper_quantile_limit
+        self._lower_quantile_limit: float = lower_quantile_limit
         self._limit_only: Optional[Sequence[str]] = limit_only
         self._upper: xr.Dataset = None
         self._lower: xr.Dataset = None
 
     def fit(
-        self,
-        ds: xr.Dataset,
-        feature_dims: Optional[Sequence[str]] = None,
-        fit_indexers: Optional[Mapping[str, int]] = None,
+        self, ds: xr.Dataset, feature_dims: Optional[Sequence[str]] = None,
     ) -> "DatasetQuantileLimiter":
         """Fit the limiter on a dataset.
         
         Args:
             ds: Dataset to be used to fit the limits.
-            feature_dims: Dimensions along which quantile limits should NOT be
-                computed, i.e., the resulting limits will be computed separately
-                for each coordinate along the feature_dims.
-            fit_indexer: Integer-based indexers that select a subset of `ds` on
-                which to fit limits. Indexed dimensions must not be in `feature_dims`.
+            feature_dims: Dimensions along which the fitted quantile limits will
+                vary, i.e., quantiles are computed over the dimensions not specified
+                in this list. For example, set `feature_dims=['lon']` to apply a
+                different limit for each longitude.
             
         Returns: Fitted limiter
         
         """
-        if fit_indexers is not None and feature_dims is not None:
-            for index_dim in fit_indexers.keys():
-                if index_dim in feature_dims:
-                    raise ValueError(
-                        f"Indexer dim {index_dim} may not be in feature_dims."
-                    )
-
-        sample_ds = (ds.isel(**fit_indexers) if fit_indexers is not None else ds).load()
+        limit_vars = self._limit_only if self._limit_only is not None else ds.data_vars
+        limit_ds = get_variables(ds, limit_vars).load()
         sample_dims = (
-            set(sample_ds.dims) - set(feature_dims)
+            set(limit_ds.dims) - set(feature_dims)
             if feature_dims is not None
-            else sample_ds.dims
+            else limit_ds.dims
         )
-        self._lower = sample_ds.quantile(self._alpha / 2.0, dim=sample_dims).drop_vars(
-            "quantile"
-        )
-        self._upper = sample_ds.quantile(
-            1.0 - self._alpha / 2.0, dim=sample_dims
+        self._lower = limit_ds.quantile(
+            self._lower_quantile_limit, dim=sample_dims
+        ).drop_vars("quantile")
+        self._upper = limit_ds.quantile(
+            self._upper_quantile_limit, dim=sample_dims
         ).drop_vars("quantile")
         return self
 

@@ -1,6 +1,6 @@
 import dataclasses
 import logging
-from typing import Hashable, Mapping, MutableMapping, Set, Optional
+from typing import Hashable, Mapping, MutableMapping, Set, Optional, Tuple
 
 import cftime
 import xarray as xr
@@ -26,13 +26,13 @@ class TendencyPrescriberConfig:
         mapper_config: configuration of mapper used to load tendency data.
         variables: mapping from state name to name of corresponding tendency in
             provided mapper. For example: {"air_temperature": "fine_res_Q1"}.
-        limit_alpha: two-tailed alpha for computing extrema quantiles of tendencies,
-            values beyond which will be reduced to the quantile
+        limit_quantiles: upper and lower quantile specifiers for limiting extremes
+            in the Q1, Q2 dataset
     """
 
     mapper_config: loaders.MapperConfig
     variables: Mapping[str, str]
-    limit_alpha: Optional[float] = None
+    limit_quantiles: Optional[Tuple[float, float]] = None
 
 
 @dataclasses.dataclass
@@ -66,12 +66,14 @@ class TendencyPrescriber:
         return quantity_state_to_dataset(tendencies)
 
     def _fit_limiter(self, tendencies: xr.Dataset) -> None:
-        if isinstance(self.config.limit_alpha, float):
+        if isinstance(self.config.limit_quantiles, tuple):
             self._limiter = vcm.limit.DatasetQuantileLimiter(
-                self.config.limit_alpha, limit_only=list(self.config.variables.values())
+                self.config.limit_quantiles[0],
+                self.config.limit_quantiles[1],
+                limit_only=list(self.config.variables.values()),
             )
             logger.debug(
-                f"Fitting dataset limiter with alpha={self.config.limit_alpha}"
+                f"Fitting dataset limiter with limits={self.config.limit_quantiles}"
             )
             self._limiter.fit(tendencies, feature_dims=["z", "tile"])
 
