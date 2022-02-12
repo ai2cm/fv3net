@@ -122,7 +122,7 @@ def batches_from_mapper(
         in_memory: if True, load data eagerly and keep it in memory
         unstacked_dims: if given, produce stacked and shuffled batches retaining
             these dimensions as unstacked (non-sample) dimensions
-        drop_nans: if True, drop NaN values from the data, and raise an
+        drop_nans: if True, drop samples with NaN values from the data, and raise an
             exception if all values in a batch are NaN. requires unstacked_dims
             argument is given, raises a ValueError otherwise.
     Raises:
