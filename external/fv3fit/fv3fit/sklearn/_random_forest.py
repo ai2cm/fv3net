@@ -53,15 +53,6 @@ def train_random_forest(
     return model
 
 
-"""@dataclasses.dataclass
-class RandomForestFeatureImportance:
-    name: str
-    indices: Sequence[int]
-    mean_importances: Sequence[float]
-    std_importances: Sequence[float]
-    """
-
-
 @_shared.io.register("sklearn")
 class RandomForest(Predictor):
     def __init__(

@@ -2,73 +2,18 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import logging
 import numpy as np
-from typing import Tuple, Hashable, Iterable, Dict, Mapping
+from typing import Mapping
 import xarray as xr
 
 import fv3fit
-from fv3fit.sklearn._random_forest import SklearnWrapper
-from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-OutputSensitivity = Dict[str, np.ndarray]
 
-
-def dataset_to_dict_input(ds):
-    data = {}
-    for var in ds:
-        # for predictions, drop the 'target' values
-        if "derivation" in ds[var].dims:
-            values = ds[var].sel({"derivation": "predict"}).values
-        else:
-            values = ds[var].values
-        if len(ds[var].dims) == 1:
-            values = values.reshape(-1, 1)
-        data[var] = values
-    return data
-
-
-def _count_features_2d(
-    quantity_names: Iterable[Hashable], dataset: xr.Dataset, sample_dim_name: str
-) -> Dict[Hashable, int]:
-    """
-    count features for (sample[, z]) arrays.
-    Copied from fv3fit._shared.packer, as this logic is pretty robust.
-    """
-    for name in quantity_names:
-        if len(dataset[name].dims) > 2:
-            value = dataset[name]
-            raise ValueError(
-                "can only count 1D/2D (sample[, z]) "
-                f"variables, recieved values for {name} with dimensions {value.dims}"
-            )
-    return_dict = {}
-    for name in quantity_names:
-        value = dataset[name]
-        if len(value.dims) == 1 and value.dims[0] == sample_dim_name:
-            return_dict[name] = 1
-        elif value.dims[0] != sample_dim_name:
-            raise ValueError(
-                f"cannot count values for {name} whose first dimension is not the "
-                f"sample dimension ({sample_dim_name}), has dims {value.dims}"
-            )
-        else:
-            return_dict[name] = value.shape[1]
-    return return_dict
-
-
-def _get_variable_indices(
-    stacked: xr.Dataset, variables: Iterable[Hashable]
-) -> Dict[Hashable, Tuple[int, int]]:
-
-    variable_dims = _count_features_2d(variables, stacked, "sample")
-    start = 0
-    variable_indices = {}
-    for var, var_dim in variable_dims.items():
-        variable_indices[var] = (start, start + var_dim)
-        start += var_dim
-    return variable_indices
+RandomForestInputSensitivity = Mapping[str, Mapping[str, np.ndarray]]
+JacobianInputSensitivity = Mapping[str, Mapping[str, np.ndarray]]
 
 
 def _stack_sample_data(ds: xr.Dataset) -> xr.Dataset:
@@ -83,110 +28,69 @@ def _stack_sample_data(ds: xr.Dataset) -> xr.Dataset:
 def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
     base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
     stacked_sample = _stack_sample_data(sample)
+
     try:
-        data_dict = dataset_to_dict_input(stacked_sample)
-        jacobians = compute_jacobians(
-            base_model.get_dict_compatible_model(),  # type: ignore
-            data_dict,
-            base_model.input_variables,
+        input_sensitivity: fv3fit.InputSensitivity = base_model.input_sensitivity(
+            stacked_sample
         )
-        # normalize factors so sensitivities are comparable but still
-        # preserve level-relative magnitudes
-        std_factors = {name: np.std(data, axis=0) for name, data in data_dict.items()}
-        jacobians_std = nondimensionalize_jacobians(jacobians, std_factors)
-        fig = _plot_jacobians(jacobians_std)
+        if input_sensitivity.jacobians is not None:
+            fig = _plot_jacobians(input_sensitivity.jacobians)
+        elif input_sensitivity.rf_feature_importances is not None:
+            fig = _plot_rf_feature_importance(input_sensitivity.rf_feature_importances)
         return fig
 
-    except AttributeError:
-        try:
-            input_feature_indices = _get_variable_indices(
-                stacked=stacked_sample, variables=base_model.input_variables
-            )
-            fig = _plot_rf_feature_importance(
-                input_feature_indices, base_model  # type: ignore
-            )
-            return fig
-
-        except AttributeError:
-            logger.info(
-                f"Base model is {type(base_model).__name__}, "
-                "which currently has no feature importance or Jacobian "
-                "calculation implemented."
-            )
-            return None
+    except NotImplementedError:
+        logger.info(
+            f"Base model is {base_model.__class__.__name__}, "
+            "which currently has no input_sensitivity method implemented."
+        )
+        return None
 
 
-def _plot_rf_feature_importance(
-    input_feature_indices: Dict[Hashable, Tuple[int, int]],
-    wrapped_model: SklearnWrapper,
-):
-    mean_importances = wrapped_model.mean_importances
-    std_importances = wrapped_model.std_importances
-
+def _plot_rf_feature_importance(rf_input_sensitivity):
     vector_features, scalar_features = {}, {}
-    for var, var_indices in input_feature_indices.items():
-        start, stop = var_indices
-        if stop - start == 1:
-            scalar_features[var] = var_indices
+    for k, v in rf_input_sensitivity.items():
+        if len(v["indices"]) > 1:
+            vector_features[k] = v
         else:
-            vector_features[var] = var_indices
-
+            scalar_features[k] = v
     n_panels = (
         len(vector_features) + 1 if len(scalar_features) > 0 else len(vector_features)
     )
-    fig, axs = plt.subplots(1, n_panels, figsize=(6 * n_panels, 4), squeeze=False,)
-    axs = _subplot_vector_feature_importances(
-        axs, vector_features, mean_importances, std_importances
-    )
-    if len(scalar_features) > 0:
-        axs = _subplot_scalar_feature_importances(
-            axs, scalar_features, mean_importances, std_importances
-        )
 
-    for ax in axs[0]:
-        ax.set_ylim(0.0, max(mean_importances) * 1.1)
-    axs[0][0].set_ylabel("feature importance")
+    y_max = 1.1 * max(
+        sum([info["mean_importances"] for info in rf_input_sensitivity.values()], [])
+    )
+    fig = plt.figure(figsize=(6 * n_panels, 4))
+
+    for i, (name, info) in enumerate(vector_features.items()):
+        ax = fig.add_subplot(1, n_panels, i + 1)
+
+        ax.errorbar(
+            info["indices"], info["mean_importances"], yerr=info["std_importances"],
+        )
+        ax.set_xlabel(f"{name} at feature dimension coordinate")
+        ax.set_ylim(0, y_max)
+    if len(scalar_features) > 0:
+        xlabels = [k for k in scalar_features]
+        y = sum([v["mean_importances"] for v in scalar_features.values()], [])
+        yerr = sum([v["std_importances"] for v in scalar_features.values()], [])
+        ax = fig.add_subplot(1, n_panels, n_panels)
+        ax.bar(
+            np.arange(len(scalar_features)),
+            height=y,
+            yerr=yerr,
+            tick_label=xlabels,
+            align="center",
+        )
+        ax.set_ylim(0, y_max)
+    ax = fig.add_subplot(1, n_panels, 1)
+    ax.set_ylabel("feature importance")
     plt.tight_layout()
     return fig
 
 
-def _subplot_vector_feature_importances(
-    axs, vector_feature_indices, mean_importances, std_importances
-):
-    for i, (feature, indices) in enumerate(vector_feature_indices.items()):
-        start, stop = indices
-        dim_length = stop - start
-        axs[0, i].errorbar(
-            range(dim_length),
-            mean_importances[start:stop],
-            std_importances[start:stop],
-        )
-        axs[0, i].set_xlabel(f"{feature}, model level")
-    return axs
-
-
-def _subplot_scalar_feature_importances(
-    axs, scalar_feature_indices, mean_importances, std_importances
-):
-    # Plot the scalar feature importances together in the last axes object
-    scalar_features = list(scalar_feature_indices)
-
-    scalar_feature_mean_importances, scalar_feature_std_importances = [], []
-    for feature, indices in scalar_feature_indices.items():
-        feature_index = indices[0]
-        scalar_feature_mean_importances.append(mean_importances[feature_index])
-        scalar_feature_std_importances.append(std_importances[feature_index])
-
-    axs[0, -1].bar(
-        range(len(scalar_features)),
-        scalar_feature_mean_importances,
-        yerr=scalar_feature_std_importances,
-        tick_label=scalar_features,
-    )
-    return axs
-
-
-def _plot_jacobians(jacobians: Mapping[str, OutputSensitivity]):
+def _plot_jacobians(jacobians: JacobianInputSensitivity):
     num_outputs = len(jacobians)
     num_inputs = max([len(output) for output in jacobians.values()])
     fig, axes = plt.subplots(
