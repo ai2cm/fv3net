@@ -10,7 +10,7 @@ wrapper.initialize()  # noqa: E402
 
 import tensorflow as tf
 from runtime.loop import TimeLoop
-import fv3gfs.util as util
+import pace.util as util
 import runtime
 
 STATISTICS_LOG_NAME = "statistics"
@@ -18,7 +18,7 @@ PROFILES_LOG_NAME = "profiles"
 
 logging.basicConfig(level=logging.DEBUG)
 
-logging.getLogger("fv3gfs.util").setLevel(logging.WARN)
+logging.getLogger("pace.util").setLevel(logging.WARN)
 logging.getLogger("fsspec").setLevel(logging.WARN)
 logging.getLogger("urllib3").setLevel(logging.WARN)
 

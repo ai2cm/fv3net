@@ -143,9 +143,9 @@ spec:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
       workingDir: "/home/jovyan/fv3net/projects/microphysics"
-      command: ["python3"]
-      args: 
-      - scripts/piggy-back.py
+      command: 
+      - prognostic_run_diags
+      - piggy
       - "{{inputs.parameters.tag}}"
   - name: prognostic-diags
     inputs:

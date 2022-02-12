@@ -35,3 +35,4 @@ from loaders.mappers import (
     open_high_res_diags,
     open_zarr,
 )
+from ._utils import stack

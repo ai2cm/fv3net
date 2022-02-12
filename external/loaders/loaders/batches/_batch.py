@@ -20,6 +20,9 @@ from .._utils import (
     add_derived_data,
     add_wind_rotation_info,
     nonderived_variables,
+    stack,
+    shuffle,
+    dropna,
 )
 from ..constants import TIME_NAME
 from .._config import batches_functions, batches_from_mapper_functions
@@ -101,6 +104,8 @@ def batches_from_mapper(
     res: str = "c48",
     needs_grid: bool = True,
     in_memory: bool = False,
+    unstacked_dims: Optional[Sequence[str]] = None,
+    drop_nans: bool = False,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -115,6 +120,11 @@ def batches_from_mapper(
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
         in_memory: if True, load data eagerly and keep it in memory
+        unstacked_dims: if given, produce stacked and shuffled batches retaining
+            these dimensions as unstacked (non-sample) dimensions
+        drop_nans: if True, drop samples with NaN values from the data, and raise an
+            exception if all values in a batch are NaN. requires unstacked_dims
+            argument is given, raises a ValueError otherwise.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -133,9 +143,10 @@ def batches_from_mapper(
 
     if timesteps is None:
         timesteps = list(data_mapping.keys())
-    num_times = len(timesteps)
-    times = _sample(timesteps, num_times, random_state)
-    batched_timesteps = list(partition_all(timesteps_per_batch, times))
+    shuffled_times = random_state.choice(
+        timesteps, len(timesteps), replace=False
+    ).tolist()
+    batched_timesteps = list(partition_all(timesteps_per_batch, shuffled_times))
 
     # First function goes from mapper + timesteps to xr.dataset
     # Subsequent transforms are all dataset -> dataset
@@ -147,12 +158,20 @@ def batches_from_mapper(
             add_wind_rotation_info(res),
         ]
 
-    transforms += [add_derived_data(variable_names)]
+    transforms.append(add_derived_data(variable_names))
+
+    if unstacked_dims is not None:
+        transforms.append(curry(stack)(unstacked_dims))
+        transforms.append(shuffle)
+        if drop_nans:
+            transforms.append(dropna)
+    elif drop_nans:
+        raise ValueError("drop_nans=True requires unstacked_dims argument is provided")
 
     batch_func = compose_left(*transforms)
 
     seq = Map(batch_func, batched_timesteps)
-    seq.attrs["times"] = times
+    seq.attrs["times"] = shuffled_times
 
     if in_memory:
         out_seq: Batches = tuple(ds.load() for ds in seq)
@@ -210,10 +229,6 @@ def diagnostic_batches_from_geodata(
         needs_grid=needs_grid,
     )
     return sequence
-
-
-def _sample(seq: Sequence[Any], n: int, random_state: RandomState) -> Sequence[Any]:
-    return random_state.choice(list(seq), n, replace=False).tolist()
 
 
 @curry

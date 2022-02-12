@@ -36,9 +36,7 @@ class DerivedModel(Predictor):
         ) else model
 
         self._derived_output_variables = derived_output_variables
-        self._additional_input_variables = vcm.DerivedMapping.find_all_required_inputs(
-            derived_output_variables
-        )
+        self._additional_input_variables = self.get_additional_inputs()
 
         full_input_variables = sorted(
             list(
@@ -55,6 +53,16 @@ class DerivedModel(Predictor):
         # necessary state for input to .predict()) is the set of
         # base_model_input_variables arg and hyperparameters.additional_inputs.
         super().__init__(full_input_variables, full_output_variables)
+
+    def get_additional_inputs(self):
+        derived_variable_inputs = vcm.DerivedMapping.find_all_required_inputs(
+            self._derived_output_variables
+        )
+        return [
+            input
+            for input in derived_variable_inputs
+            if input not in self.base_model.output_variables
+        ]
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         self._check_additional_inputs_present(X)

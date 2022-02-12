@@ -395,6 +395,7 @@ _ARCHITECTURE_KEYS = (
     "rnn",
     "dense",
     "linear",
+    "dense-local",
 )
 
 
@@ -471,6 +472,12 @@ class ArchitectureConfig:
         elif key == "dense":
             return _HiddenArchitecture(
                 combine_inputs, MLPBlock(**kwargs), StandardOutput(feature_lengths)
+            )
+        elif key == "dense-local":
+            return _HiddenArchitecture(
+                combine_sequence_inputs,
+                MLPBlock(**kwargs),
+                RNNOutput(feature_lengths, share_conv_weights=True),
             )
         elif key == "linear":
             if kwargs:

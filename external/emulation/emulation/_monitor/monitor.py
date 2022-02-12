@@ -13,7 +13,7 @@ from mpi4py import MPI
 import tensorflow as tf
 import emulation.serialize
 
-from fv3gfs.util import ZarrMonitor, CubedSpherePartitioner, Quantity
+from pace.util import ZarrMonitor, CubedSpherePartitioner, Quantity
 from ..debug import print_errors
 from .._typing import FortranState
 
