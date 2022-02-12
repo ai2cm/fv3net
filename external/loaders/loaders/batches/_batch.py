@@ -45,16 +45,13 @@ def batches_from_geodata(
     mapping_function: str,
     mapping_kwargs: Optional[Mapping[str, Any]] = None,
     timesteps_per_batch: int = 1,
-    random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
-    subsample_size: int = None,
     needs_grid: bool = True,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
     have geospatial dimensions and is accessed through a mapper interface.
-
 
     Args:
         data_path (str): Path to data store to be loaded via mapper.
@@ -78,11 +75,10 @@ def batches_from_geodata(
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     batches = batches_from_mapper(
         data_mapping,
-        variable_names,
-        timesteps_per_batch,
-        random_seed,
-        timesteps,
-        res,
+        variable_names=variable_names,
+        timesteps_per_batch=timesteps_per_batch,
+        timesteps=timesteps,
+        res=res,
         needs_grid=needs_grid,
     )
     return batches

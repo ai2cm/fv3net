@@ -156,8 +156,9 @@ class BatchesConfig(BatchesLoader):
         Returns:
             Sequence of datasets according to configuration
         """
+
         batches_function = batches_functions[self.function]
-        return batches_function(variable_names=list(variables), **self.kwargs,)
+        return batches_function(variable_names=list(variables), **self.kwargs)
 
     def __post_init__(self):
         if self.function not in batches_functions:
