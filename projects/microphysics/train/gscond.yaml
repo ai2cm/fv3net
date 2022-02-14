@@ -4,6 +4,7 @@ wandb:
 batch_size: 512
 epochs: 20
 nfiles_valid: 100
+cache: false
 valid_freq: 2
 out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
 train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
