@@ -11,7 +11,6 @@ from fv3fit.keras.adapters import (
 )
 
 
-@pytest.mark.xfail
 def test_get_inputs_already_mapping():
 
     in_ = {"a": tf.keras.Input(shape=[2])}
