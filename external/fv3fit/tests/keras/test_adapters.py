@@ -1,3 +1,4 @@
+from typing import Mapping
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -19,8 +20,27 @@ def test_get_inputs_already_mapping():
 
     retrieved_inputs = get_inputs(model)
 
+    assert isinstance(retrieved_inputs, Mapping)
     assert "a" in retrieved_inputs
     tf.debugging.assert_equal(retrieved_inputs["a"], in_["a"])
+
+
+def test_get_inputs_no_input_raises():
+    model = tf.keras.Model()
+    with pytest.raises(ValueError):
+        get_inputs(model)
+
+
+def test_get_inputs_named_inputs():
+    in_ = [tf.keras.Input(2, name="a")]
+    out = tf.keras.layers.Lambda(lambda x: x)(in_)
+    model = tf.keras.Model(inputs=in_, outputs=out)
+
+    retrieved_inputs = get_inputs(model)
+
+    assert isinstance(retrieved_inputs, Mapping)
+    assert "a" in retrieved_inputs
+    tf.debugging.assert_equal(retrieved_inputs["a"], in_[0])
 
 
 def test_ensure_dict_output_multiple_out():
