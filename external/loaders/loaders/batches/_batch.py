@@ -48,6 +48,10 @@ def batches_from_geodata(
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
     needs_grid: bool = True,
+    in_memory: bool = False,
+    unstacked_dims: Optional[Sequence[str]] = None,
+    subsample_ratio: float = 1.0,
+    drop_nans: bool = False,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
@@ -64,6 +68,14 @@ def batches_from_geodata(
         res: grid resolution, format as f'c{number cells in tile}'
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
+        in_memory: if True, load data eagerly and keep it in memory
+        unstacked_dims: if given, produce stacked and shuffled batches retaining
+            these dimensions as unstacked (non-sample) dimensions
+        subsample_ratio: the fraction of data to retain in each batch, selected
+            at random along the sample dimension.
+        drop_nans: if True, drop samples with NaN values from the data, and raise an
+            exception if all values in a batch are NaN. requires unstacked_dims
+            argument is given, raises a ValueError otherwise.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -80,6 +92,10 @@ def batches_from_geodata(
         timesteps=timesteps,
         res=res,
         needs_grid=needs_grid,
+        in_memory=in_memory,
+        unstacked_dims=unstacked_dims,
+        subsample_ratio=subsample_ratio,
+        drop_nans=drop_nans,
     )
     return batches
 
