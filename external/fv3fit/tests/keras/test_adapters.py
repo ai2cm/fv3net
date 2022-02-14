@@ -1,11 +1,26 @@
 import numpy as np
+import pytest
 import tensorflow as tf
 from fv3fit.keras.adapters import (
+    get_inputs,
     ensure_dict_output,
     rename_dict_output,
     rename_dict_input,
     _ensure_list_input,
 )
+
+
+@pytest.mark.xfail
+def test_get_inputs_already_mapping():
+
+    in_ = {"a": tf.keras.Input(shape=[2])}
+    out = tf.keras.layers.Lambda(lambda x: x)(in_)
+    model = tf.keras.Model(inputs=in_, outputs=out)
+
+    retrieved_inputs = get_inputs(model)
+
+    assert "a" in retrieved_inputs
+    tf.debugging.assert_equal(retrieved_inputs["a"], in_["a"])
 
 
 def test_ensure_dict_output_multiple_out():
