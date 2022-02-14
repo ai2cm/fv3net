@@ -93,9 +93,13 @@ def select_first_samples(fraction: float, ds: xr.Dataset) -> xr.Dataset:
     Return a dataset with only the given fraction of samples from the
     input dataset, taking the first samples.
     """
-    n_samples = len(ds[SAMPLE_DIM_NAME])
-    n_samples_keep = int(fraction * n_samples)
-    return ds.isel({SAMPLE_DIM_NAME: slice(0, n_samples_keep)})
+    if fraction == 1.0:
+        out = ds
+    else:
+        n_samples = len(ds[SAMPLE_DIM_NAME])
+        n_samples_keep = int(fraction * n_samples)
+        out = ds.isel({SAMPLE_DIM_NAME: slice(0, n_samples_keep)})
+    return out
 
 
 @curry
