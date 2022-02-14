@@ -125,7 +125,7 @@ def skill_table(ds):
     return out
 
 
-# @register_log
+@register_log
 def skill_time_table(ds):
     return {"skill_time": time_dependent_dataset(skills_1d(ds))}
 
