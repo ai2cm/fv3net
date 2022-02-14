@@ -190,6 +190,24 @@ def test_get_nudging_tendency(
         assert result[name].attrs["units"] == tendency.attrs["units"]
 
 
+def test_nudging_tendency_fillna(
+    state, reference_state, nudging_timescales, nudging_tendencies
+):
+    reference_state_with_na = copy.deepcopy(reference_state)
+    nudging_tendencies_with_zero = copy.deepcopy(nudging_tendencies)
+    for name, reference in reference_state_with_na.items():
+        if "dim_2" in reference.dims:
+            reference_state_with_na[name].loc[{"dim_2": [2]}] = np.nan
+            nudging_tendencies_with_zero[STATE_NAME_TO_TENDENCY[name]].loc[
+                {"dim_2": [2]}
+            ] = 0.0
+    result = get_nudging_tendency(state, reference_state_with_na, nudging_timescales)
+    for name, tendency in result.items():
+        np.testing.assert_array_equal(
+            tendency.data, nudging_tendencies_with_zero[name].data
+        )
+
+
 RESTART_CATEGORIES = {
     "core": "fv_core_coarse.res",
     "surface": "sfc_data_coarse",
