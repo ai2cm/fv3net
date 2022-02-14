@@ -259,7 +259,7 @@ def test_skill_table(regtest):
         print(name, ":", output[name].columns, file=regtest)
 
 
-def test_summarize_column_skill(regtest):
+def test_compute_summaries(regtest):
     ds = vcm.cdl_to_dataset(cdl)
-    output = single_run.summarize_column_skill(ds)
+    output = single_run.compute_summaries(ds)
     print(sorted(output), file=regtest)

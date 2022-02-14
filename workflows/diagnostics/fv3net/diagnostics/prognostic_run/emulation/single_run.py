@@ -34,6 +34,15 @@ def register_summary(func):
     return func
 
 
+def compute_summaries(ds):
+    out = {}
+    for func in summary_functions:
+        for key, val in func(ds).items():
+            out[key] = val
+
+    return out
+
+
 def _get_image(fig=None):
     if fig is None:
         fig = plt.gcf()
@@ -114,15 +123,20 @@ def summarize_column_skill(ds):
     transforms = {
         key: partial(tendencies.total_tendency, field=key) for key in SKILL_FIELDS
     }
-    transforms[
-        tendencies.surface_precipitation.__name__
-    ] = tendencies.surface_precipitation
-
     out = {
         f"column_skill/{key}": float(column_integrated_skill(ds, transform))
         for key, transform in transforms.items()
     }
     return out
+
+
+@register_summary
+def summarize_precip_skill(ds):
+    return {
+        "column_skill/surface_precipitation": float(
+            column_integrated_skill(ds, tendencies.surface_precipitation)
+        )
+    }
 
 
 def mse(x: xr.DataArray, y, area, dims=None):
@@ -248,6 +262,5 @@ def main(args):
         print(f"Running {func}")
         wandb.log(func(ds))
 
-    for func in summary_functions:
-        for key, val in func(ds).items():
-            wandb.summary[key] = val
+    for key, val in compute_summaries(ds).items():
+        wandb.summary[key] = val
