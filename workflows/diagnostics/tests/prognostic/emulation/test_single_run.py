@@ -249,3 +249,10 @@ def test_log_functions(func):
     nx = len(ds.x)
     ds["lat"].values[:] = np.linspace(-45, 45, nx)
     func(ds)
+
+
+def test_skill_table(regtest):
+    ds = vcm.cdl_to_dataset(cdl)
+    output = single_run.skill_table(ds)
+    for name in sorted(output):
+        print(name, ":", output[name].columns, file=regtest)

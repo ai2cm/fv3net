@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from typing import Callable, List
 import numpy as np
 import xarray as xr
 import vcm
@@ -82,7 +83,16 @@ def plot_cloud_maps(ds):
 
 @register_log
 def skill_table(ds):
-    return {"skill": time_dependent_dataset(skills_3d(ds))}
+    fields = ["cloud_water", "specific_humidity", "air_temperature"]
+    return {
+        name: time_dependent_dataset(skills_3d(ds, fields=fields, transform=transform))
+        for name, transform in [
+            # total tendency named skill for backwards compatibility reasons
+            ("skill", tendencies.total_tendency),
+            ("gscond", tendencies.gscond_tendency),
+            ("precpd", tendencies.precpd_tendency),
+        ]
+    }
 
 
 @register_log
@@ -108,11 +118,17 @@ def plot_r2(r2):
     r2.drop("z").plot(yincrease=False, y="z", vmax=1)
 
 
-def skills_3d(ds):
+def skills_3d(
+    ds: xr.Dataset,
+    fields: List[str],
+    transform: Callable[[xr.Dataset, str, str], xr.DataArray],
+):
+    """
+    """
     out = {}
-    for field in ["cloud_water", "specific_humidity", "air_temperature"]:
-        prediction = tendencies.total_tendency(ds, field, source="emulator")
-        truth = tendencies.total_tendency(ds, field, source="physics")
+    for field in fields:
+        prediction = transform(ds, field, source="emulator")
+        truth = transform(ds, field, source="physics")
         out[field] = skill_improvement(truth, prediction, ds.area)
     return xr.Dataset(out)
 

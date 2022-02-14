@@ -1,0 +1,3 @@
+gscond : ['time', 'z', 'cloud_water', 'specific_humidity', 'air_temperature']
+precpd : ['time', 'z', 'cloud_water', 'specific_humidity', 'air_temperature']
+skill : ['time', 'z', 'cloud_water', 'specific_humidity', 'air_temperature']
