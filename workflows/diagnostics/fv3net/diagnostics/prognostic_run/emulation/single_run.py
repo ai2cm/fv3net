@@ -53,7 +53,7 @@ def _get_image(fig=None):
 
 
 def _cast_time_to_datetime(ds):
-    return ds.assign(time=np.vectorize(vcm.cast_to_datetime)(ds.time))
+    return ds.assign_coords(time=np.vectorize(vcm.cast_to_datetime)(ds.time))
 
 
 def get_url_wandb(job, artifact: str):
@@ -102,18 +102,30 @@ def plot_cloud_maps(ds):
 @register_log
 def skill_table(ds):
     fields = SKILL_FIELDS
-    return {
-        name: time_dependent_dataset(skills_3d(ds, fields=fields, transform=transform))
-        for name, transform in [
-            # total tendency named skill for backwards compatibility reasons
-            ("skill", tendencies.total_tendency),
-            ("gscond", tendencies.gscond_tendency),
-            ("precpd", tendencies.precpd_tendency),
-        ]
-    }
+    fields = ["air_temperature"]
+    out = {}
+    for name, transform in [
+        ("total", tendencies.total_tendency),
+        ("gscond", tendencies.gscond_tendency),
+        ("precpd", tendencies.precpd_tendency),
+    ]:
+        skills = skills_3d(ds, fields=fields, transform=transform)
+        # total tendency named skill for backwards compatibility reasons
+        out["total" if name == "total" else name] = time_dependent_dataset(skills)
+
+        for field in skills:
+            plotme = _cast_time_to_datetime(skills[field])
+            out[f"skill/time_vs_lev/{name}/{field}"] = px.imshow(
+                plotme.transpose("z", "time"),
+                zmin=-1,
+                zmax=1,
+                color_continuous_scale="RdBu_r",
+            )
+
+    return out
 
 
-@register_log
+# @register_log
 def skill_time_table(ds):
     return {"skill_time": time_dependent_dataset(skills_1d(ds))}
 

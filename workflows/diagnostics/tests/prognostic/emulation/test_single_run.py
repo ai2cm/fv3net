@@ -255,7 +255,14 @@ def test_skill_table(regtest):
     ds = vcm.cdl_to_dataset(cdl)
     output = single_run.skill_table(ds)
     for name in sorted(output):
-        print(name, ":", output[name].columns, file=regtest)
+
+        try:
+            signature = output[name].columns
+        except AttributeError:
+            # is not a wandb.Table
+            signature = ""
+
+        print(name, ":", signature, file=regtest)
 
 
 def test_compute_summaries(regtest):

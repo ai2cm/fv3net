@@ -1,3 +1,6 @@
-gscond : ['time', 'z', 'cloud_water', 'specific_humidity', 'air_temperature']
-precpd : ['time', 'z', 'cloud_water', 'specific_humidity', 'air_temperature']
-skill : ['time', 'z', 'cloud_water', 'specific_humidity', 'air_temperature']
+gscond : ['time', 'z', 'air_temperature']
+precpd : ['time', 'z', 'air_temperature']
+skill/time_vs_lev/gscond/air_temperature : 
+skill/time_vs_lev/precpd/air_temperature : 
+skill/time_vs_lev/total/air_temperature : 
+total : ['time', 'z', 'air_temperature']
