@@ -1,1 +1,1 @@
-['column_skill/air_temperature', 'column_skill/cloud_water', 'column_skill/specific_humidity', 'column_skill/surface_precipitation']
+['column_skill/air_temperature', 'column_skill/cloud_water', 'column_skill/gscond/air_temperature', 'column_skill/gscond/cloud_water', 'column_skill/gscond/specific_humidity', 'column_skill/precpd/air_temperature', 'column_skill/precpd/cloud_water', 'column_skill/precpd/specific_humidity', 'column_skill/specific_humidity', 'column_skill/surface_precipitation']

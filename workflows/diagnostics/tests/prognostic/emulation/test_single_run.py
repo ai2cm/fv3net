@@ -235,7 +235,6 @@ data:
         single_run.skill_table,
         single_run.skill_time_table,
         single_run.log_lat_vs_p_skill("cloud_water"),
-        single_run.summarize_column_skill,
     ],
 )
 def test_log_functions(func):

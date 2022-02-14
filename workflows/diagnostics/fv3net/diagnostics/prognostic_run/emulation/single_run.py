@@ -118,16 +118,24 @@ def skill_time_table(ds):
     return {"skill_time": time_dependent_dataset(skills_1d(ds))}
 
 
-@register_summary
-def summarize_column_skill(ds):
-    transforms = {
-        key: partial(tendencies.total_tendency, field=key) for key in SKILL_FIELDS
+def summarize_column_skill(ds, prefix, tendency_func):
+    return {
+        f"{prefix}/{field}": float(
+            column_integrated_skill(ds, partial(tendency_func, field=field))
+        )
+        for field in SKILL_FIELDS
     }
-    out = {
-        f"column_skill/{key}": float(column_integrated_skill(ds, transform))
-        for key, transform in transforms.items()
-    }
-    return out
+
+
+for name, tendency_func in [
+    # total tendency named skill for backwards compatibility reasons
+    ("column_skill", tendencies.total_tendency),
+    ("column_skill/gscond", tendencies.gscond_tendency),
+    ("column_skill/precpd", tendencies.precpd_tendency),
+]:
+    register_summary(
+        partial(summarize_column_skill, prefix=name, tendency_func=tendency_func)
+    )
 
 
 @register_summary
