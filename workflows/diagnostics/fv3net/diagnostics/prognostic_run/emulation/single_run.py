@@ -15,54 +15,78 @@ from fv3fit.tensorboard import plot_to_image
 
 import argparse
 
-metrics = {}
+log_functions = []
 
 
-def log_map(ds, key):
-    fv3viz.plot_cube(ds, key)
-    metrics[key] = wandb.Image(plot_to_image(plt.gcf()))
-    plt.close("all")
+def register_log(func):
+    log_functions.append(func)
+    return func
 
 
-parser = argparse.ArgumentParser(
-    "Piggy Backed metrics",
-    description="Log piggy backed metrics for prognostic run named TAG",
-)
-parser.add_argument("tag", help="The unique tag used for the prognostic run.")
-
-args = parser.parse_args()
-
-run_artifact_path = args.tag
-
-job = wandb.init(
-    job_type="piggy-back", project="microphysics-emulation", entity="ai2cm",
-)
+def _get_image(fig=None):
+    if fig is None:
+        fig = plt.gcf()
+    fig.set_size_inches(6, 4)
+    im = wandb.Image(plot_to_image(fig))
+    plt.close(fig)
+    return im
 
 
-def get_url_wandb(artifact: str):
+def _cast_time_to_datetime(ds):
+    return ds.assign(time=np.vectorize(vcm.cast_to_datetime)(ds.time))
+
+
+def get_url_wandb(job, artifact: str):
     art = job.use_artifact(artifact + ":latest", type="prognostic-run")
     path = "fv3config.yml"
     url = art.get_path(path).ref
     return url[: -len("/" + path)]
 
 
-url = get_url_wandb(run_artifact_path)
-wandb.config["run"] = url
-grid = vcm.catalog.catalog["grid/c48"].to_dask()
-piggy = xr.open_zarr(url + "/piggy.zarr")
+@register_log
+def plot_histogram_begin_end(ds):
+    ds = ds.dropna("time")
+    bins = 10.0 ** np.arange(-15, 0, 0.25)
+    ds.cloud_water_mixing_ratio.isel(time=0).plot.hist(bins=bins, histtype="step")
+    ds.cloud_water_mixing_ratio.isel(time=-1).plot.hist(bins=bins, histtype="step")
+    plt.legend([ds.time[0].item(), ds.time[-1].item()])
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.ylim(top=1e7)
+    return {"cloud_histogram": _get_image()}
 
-ds = vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid)
-ds["time"] = np.vectorize(vcm.cast_to_datetime)(ds.time)
+
+@register_log
+def plot_cloud_weighted_average(ds):
+    ds = ds.dropna("time")
+    vcm.weighted_average(ds.cloud_water_mixing_ratio, ds.area).plot()
+    plt.title("Global average cloud water")
+    return {"global_average_cloud": _get_image()}
 
 
-for field in ["cloud_water", "specific_humidity", "air_temperature"]:
-    emulator_var = f"tendency_of_{field}_due_to_zhao_carr_emulator"
-    physics_var = f"tendency_of_{field}_due_to_zhao_carr_physics"
-    log_map(ds.isel(time=0, z=50), emulator_var)
-    log_map(ds.isel(time=0, z=50), physics_var)
+@register_log
+def plot_cloud_maps(ds):
+    ds = ds.dropna("time")
+    ds = ds.assign(z=ds.z)
+    fig = fv3viz.plot_cube(
+        ds.isel(time=[0, -1], z=[20, 43]),
+        "cloud_water_mixing_ratio",
+        row="z",
+        col="time",
+        vmax=0.0005,
+    )[0]
+    fig.set_size_inches(10, 5)
+    return {"cloud_maps": _get_image()}
 
-log_map(ds.isel(time=0), "surface_precipitation_due_to_zhao_carr_physics")
-log_map(ds.isel(time=0), "surface_precipitation_due_to_zhao_carr_emulator")
+
+@register_log
+def skill_table(ds):
+    return {"skill": time_dependent_dataset(skills_3d(ds))}
+
+
+@register_log
+def skill_time_table(ds):
+    return {"skill_time": time_dependent_dataset(skills_1d(ds))}
 
 
 def mse(x: xr.DataArray, y, area, dims=None):
@@ -162,6 +186,7 @@ def plot_cloud_skill_zonal(ds, field, time):
 
 
 def time_dependent_dataset(skills):
+    skills = _cast_time_to_datetime(skills)
     df = skills.to_dataframe().reset_index()
     df["time"] = df.time.apply(lambda x: x.isoformat())
     return wandb.Table(dataframe=df)
@@ -180,26 +205,48 @@ def log_lat_vs_p_skill(field):
     return func
 
 
-log_functions = [
-    (lambda ds: {"skill": time_dependent_dataset(skills_3d(ds))}),
-    (lambda ds: {"skill_time": time_dependent_dataset(skills_1d(ds))}),
-]
-
 for field in ["cloud_water", "specific_humidity", "air_temperature"]:
-    log_functions.append(log_lat_vs_p_skill(field))
+    register_log(log_lat_vs_p_skill(field))
 
 
-summary_functions = [
-    lambda ds: {
-        f"column_skill/{key}": float(val)
-        for key, val in column_integrated_skills(ds).items()
-    }
-]
+def register_parser(subparsers) -> None:
+    parser: argparse.ArgumentParser = subparsers.add_parser(
+        "piggy",
+        help="Log piggy backed metrics for prognostic run named TAG"
+        "to weights and biases.",
+    )
+    parser.add_argument("tag", help="The unique tag used for the prognostic run.")
 
-for func in log_functions:
-    print(f"Running {func}")
-    wandb.log(func(ds))
+    parser.set_defaults(func=main)
 
-for func in summary_functions:
-    for key, val in func(ds).items():
-        wandb.summary[key] = val
+
+def main(args):
+
+    run_artifact_path = args.tag
+
+    job = wandb.init(
+        job_type="piggy-back", project="microphysics-emulation", entity="ai2cm",
+    )
+
+    url = get_url_wandb(job, run_artifact_path)
+    wandb.config["run"] = url
+    grid = vcm.catalog.catalog["grid/c48"].to_dask()
+    piggy = xr.open_zarr(url + "/piggy.zarr")
+    state = xr.open_zarr(url + "/state_after_timestep.zarr")
+
+    ds = vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
+
+    summary_functions = [
+        lambda ds: {
+            f"column_skill/{key}": float(val)
+            for key, val in column_integrated_skills(ds).items()
+        }
+    ]
+
+    for func in log_functions:
+        print(f"Running {func}")
+        wandb.log(func(ds))
+
+    for func in summary_functions:
+        for key, val in func(ds).items():
+            wandb.summary[key] = val

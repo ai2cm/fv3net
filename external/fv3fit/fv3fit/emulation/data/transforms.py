@@ -97,7 +97,16 @@ def select_antarctic(dataset: xr.Dataset, sample_dim_name="sample") -> xr.Datase
 
     logger.debug("Reducing samples to antarctic points (<60S) only")
     mask = dataset["latitude"] < -np.deg2rad(60)
-    dataset = dataset.isel({sample_dim_name: mask})
+
+    if not np.any(mask):
+        # https://github.com/ai2cm/fv3net/issues/1617
+        # Workaround without having to load entire dataset
+        # just to then toss that data out, while still returning an
+        # empty dataset with correct metadata
+        dataset = dataset.isel({sample_dim_name: slice(0, 1)}).load()
+        dataset = dataset.isel({sample_dim_name: [False]})
+    else:
+        dataset = dataset.isel({sample_dim_name: mask})
 
     return dataset
 

@@ -428,6 +428,7 @@ namelist:
 nudging:
   reference_frequency_seconds: 900
   reference_initial_time: null
+  restart_categories: null
   restarts_path: gs://ic-bucket
   timescale_hours:
     air_temperature: 12

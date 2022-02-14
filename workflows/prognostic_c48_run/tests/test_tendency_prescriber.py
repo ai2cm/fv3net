@@ -5,8 +5,8 @@ import numpy as np
 import xarray as xr
 import dacite
 
-import fv3gfs.util
-from fv3gfs.util.testing import DummyComm
+import pace.util
+from pace.util.testing import DummyComm
 
 from runtime.transformers.tendency_prescriber import (
     TendencyPrescriber,
@@ -46,9 +46,9 @@ def _get_derived_state(ds, time):
 
 
 def _get_dummy_comm():
-    return fv3gfs.util.CubedSphereCommunicator(
+    return pace.util.CubedSphereCommunicator(
         DummyComm(0, 6, {}),
-        fv3gfs.util.CubedSpherePartitioner(fv3gfs.util.TilePartitioner((1, 1))),
+        pace.util.CubedSpherePartitioner(pace.util.TilePartitioner((1, 1))),
     )
 
 

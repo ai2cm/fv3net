@@ -7,7 +7,8 @@ from .convolutional_network import (
     Diffusive,
 )
 from .pure_keras import PureKerasModel
-from .training_loop import TrainingLoopConfig, EpochResult, EpochLossHistory, History
+from .training_loop import TrainingLoopConfig, EpochResult
+from .callbacks import TrainingLoopLossHistory
 from .loss import LossConfig
 from .utils import get_input_vector, standard_denormalize, standard_normalize
 from .sequences import XyArraySequence, XyMultiArraySequence, ThreadedSequencePreLoader

@@ -1,5 +1,5 @@
 import abc
-from typing import Dict, TypeVar, Callable
+from typing import Dict, Optional, Sequence, TypeVar, Callable
 from loaders.typing import (
     Mapper,
     Batches,
@@ -62,10 +62,11 @@ class BatchesLoader(abc.ABC):
     """
 
     @abc.abstractmethod
-    def load_batches(self, variables) -> Batches:
+    def load_batches(self, variables: Optional[Sequence[str]] = None) -> Batches:
         """
         Args:
-            config: data configuration
+            variables: if given, these variables are guaranteed to be present in
+                the returned batches, or an exception will be raised
 
         Returns:
             Sequence of datasets according to configuration
@@ -104,17 +105,23 @@ class BatchesFromMapperConfig(BatchesLoader):
     def load_mapper(self) -> Mapper:
         return self.mapper_config.load_mapper()
 
-    def load_batches(self, variables) -> Batches:
+    def load_batches(self, variables: Optional[Sequence[str]] = None) -> Batches:
         """
         Args:
-            variables: names of variables to include in dataset
+            variables: if given, these variables are guaranteed to be present in
+                the returned batches, or an exception will be raised
 
         Returns:
             Sequence of datasets according to configuration
         """
+        if variables is None:
+            variables = []
         mapper = self.mapper_config.load_mapper()
         batches_function = batches_from_mapper_functions[self.function]
-        return batches_function(mapper, list(variables), **self.kwargs,)
+        kwargs = {**self.kwargs}
+        kwargs["variable_names"] = list(kwargs.get("variable_names", []))
+        kwargs["variable_names"].extend(variables)
+        return batches_function(mapper, **kwargs)
 
     def __post_init__(self):
         if self.function not in batches_from_mapper_functions:
@@ -148,17 +155,22 @@ class BatchesConfig(BatchesLoader):
     function: str
     kwargs: dict
 
-    def load_batches(self, variables) -> Batches:
+    def load_batches(self, variables: Optional[Sequence[str]] = None) -> Batches:
         """
         Args:
-            variables: names of variables to include in dataset
+            variables: if given, these variables are guaranteed to be present in
+                the returned batches, or an exception will be raised
 
         Returns:
             Sequence of datasets according to configuration
         """
-
+        if variables is None:
+            variables = []
         batches_function = batches_functions[self.function]
-        return batches_function(variable_names=list(variables), **self.kwargs)
+        kwargs = {**self.kwargs}
+        kwargs["variable_names"] = list(kwargs.get("variable_names", []))
+        kwargs["variable_names"].extend(variables)
+        return batches_function(**kwargs)
 
     def __post_init__(self):
         if self.function not in batches_functions:

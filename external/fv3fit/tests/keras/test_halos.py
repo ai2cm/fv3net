@@ -4,7 +4,7 @@ from fv3fit.keras._models.shared.halos import _append_halos_using_mpi
 import xarray as xr
 import numpy as np
 import pytest
-import fv3gfs.util
+import pace.util
 
 
 def get_dataset(nx: int, ny: int, nz: int, n_tile: int) -> xr.Dataset:
@@ -97,7 +97,7 @@ def test_append_halos_no_halos_is_unchanged(nx: int, ny: int, nz: int, n_tile: i
     xr.testing.assert_identical(result, ds)
 
 
-class ChainedDummyComm(fv3gfs.util.testing.DummyComm):
+class ChainedDummyComm(pace.util.testing.DummyComm):
     """
     Dummy comm that calls a callback just before recv, allowing us to call all sends
     before recvs.
