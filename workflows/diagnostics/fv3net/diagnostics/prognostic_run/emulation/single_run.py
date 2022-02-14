@@ -11,6 +11,7 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 
 from fv3fit.tensorboard import plot_to_image
+from . import tendencies
 
 
 import argparse
@@ -108,25 +109,12 @@ def plot_r2(r2):
 
 
 def skills_3d(ds):
-    return xr.Dataset(
-        dict(
-            cloud_water=skill_improvement(
-                ds.tendency_of_cloud_water_due_to_zhao_carr_physics,
-                ds.tendency_of_cloud_water_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-            specific_humidity=skill_improvement(
-                ds.tendency_of_specific_humidity_due_to_zhao_carr_physics,
-                ds.tendency_of_specific_humidity_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-            air_temperature=skill_improvement(
-                ds.tendency_of_air_temperature_due_to_zhao_carr_physics,
-                ds.tendency_of_air_temperature_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-        )
-    )
+    out = {}
+    for field in ["cloud_water", "specific_humidity", "air_temperature"]:
+        prediction = tendencies.total_tendency(ds, field, source="emulator")
+        truth = tendencies.total_tendency(ds, field, source="physics")
+        out[field] = skill_improvement(truth, prediction, ds.area)
+    return xr.Dataset(out)
 
 
 def skills_1d(ds):
