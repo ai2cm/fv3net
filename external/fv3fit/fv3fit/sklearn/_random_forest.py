@@ -17,9 +17,9 @@ from .._shared import (
     multiindex_to_tuple,
     tuple_to_multiindex,
     PackerConfig,
-    InputSensitivity,
 )
 
+from .._shared.input_sensitivity import InputSensitivity, RandomForestInputSensitivity
 from .._shared.config import RandomForestHyperparameters
 from .. import _shared
 from .._shared import (
@@ -363,4 +363,14 @@ class SklearnWrapper(Predictor):
                 feature_importances[name]["indices"].append(feature_index)
                 feature_importances[name]["mean_importances"].append(mean_importance)
                 feature_importances[name]["std_importances"].append(std_importance)
-        return InputSensitivity(rf_feature_importances=feature_importances)
+
+        formatted_feature_importances = [
+            RandomForestInputSensitivity(
+                name=name,
+                indices=info["indices"],
+                mean_importances=info["mean_importances"],
+                std_importances=info["std_importances"],
+            )
+            for name, info in feature_importances.items()
+        ]
+        return InputSensitivity(rf_feature_importances=formatted_feature_importances)
