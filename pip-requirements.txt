@@ -11,6 +11,7 @@ sphinx-gallery
 tensorflow>=2.3
 tensorflow-addons
 fv3config>=0.8.0
+pace-util>=0.7.0
 numba
 
 # prognostic run diagnostics requirements
@@ -28,6 +29,10 @@ zarr>=2.5.0
 
 # this version has wheels = faster installs
 numcodecs>=0.7.2
+
+# tensorflow >= 2.5.2 pins h5py to a version that breaks xarray, 
+# need to also require a later version of h5netcdf
+h5netcdf>=0.12.0
 
 # include this here, because dataflow dependencies are managed separately from
 # the rest of fv3net. Google controls the dataflow runtime environment, so it

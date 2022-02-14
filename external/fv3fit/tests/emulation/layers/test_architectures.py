@@ -4,10 +4,10 @@ import tensorflow as tf
 
 from fv3fit.emulation.layers.architecture import (
     RNNBlock,
-    _HiddenArchitecture,
     MLPBlock,
     HybridRNN,
-    CombineInputs,
+    combine_inputs,
+    combine_sequence_inputs,
     NoWeightSharingSLP,
     RNNOutput,
     StandardOutput,
@@ -64,11 +64,36 @@ def test_RNN():
     assert result.shape == (20, 10, 64)
 
 
+@pytest.mark.parametrize("keras_input", [True, False])
+@pytest.mark.parametrize(
+    "func", [combine_sequence_inputs, combine_inputs],
+)
+def test_combine_inputs(func, keras_input: bool):
+
+    if keras_input:
+        input = {"2d": tf.keras.Input(10), "1d": tf.keras.Input(1)}
+    else:
+        input = {"2d": tf.ones((1, 10)), "1d": tf.ones((1, 1))}
+
+    tensor = func(input)
+    assert tf.is_tensor(tensor)
+
+
+@pytest.mark.parametrize("scalar_input", [True, False])
+def test_combine_sequence_inputs_has_correct_shape(scalar_input):
+    if scalar_input:
+        inputs = {"2d": tf.ones((1, 10)), "1d": tf.ones((1, 1))}
+    else:
+        inputs = {"2d": tf.ones((1, 10)), "1d": tf.ones((1, 10))}
+
+    tensor = combine_sequence_inputs(inputs)
+    assert tensor.shape == (1, 10, 2)
+
+
 def test_CombineInputs_no_expand():
 
     tensor = _get_tensor((20, 4))
-    combiner = CombineInputs(-1, expand_axis=None)
-    result = combiner((tensor, tensor))
+    result = combine_inputs({"a": tensor, "b": tensor}, -1, expand_axis=None)
 
     assert result.shape == (20, 8)
     np.testing.assert_array_equal(result[..., 4:8], tensor)
@@ -77,8 +102,7 @@ def test_CombineInputs_no_expand():
 def test_CombineInputs_expand():
 
     tensor = _get_tensor((20, 4))
-    combiner = CombineInputs(2, expand_axis=2)
-    result = combiner((tensor, tensor, tensor))
+    result = combine_inputs({"a": tensor, "b": tensor, "c": tensor}, 2, expand_axis=2)
 
     assert result.shape == (20, 4, 3)
     np.testing.assert_array_equal(result[..., 2], tensor)
@@ -105,7 +129,7 @@ def test_no_weight_sharing_num_weights():
     assert num_weights_expected == total
 
 
-@pytest.mark.parametrize("layer_cls", [CombineInputs, MLPBlock, HybridRNN, RNNBlock])
+@pytest.mark.parametrize("layer_cls", [MLPBlock, HybridRNN, RNNBlock])
 def test_from_config(layer_cls):
 
     layer = layer_cls()
@@ -143,7 +167,7 @@ def test_get_architecture_unrecognized():
 @pytest.mark.parametrize("key", ["rnn-v1", "rnn", "dense", "linear"])
 def test_ArchParams_bad_kwargs(key):
     with pytest.raises(TypeError):
-        _HiddenArchitecture(key, dict(not_a_kwarg="hi"), {})
+        ArchitectureConfig(name=key, kwargs=dict(not_a_kwarg="hi")).build({"output": 1})
 
 
 @pytest.mark.parametrize(
@@ -152,12 +176,13 @@ def test_ArchParams_bad_kwargs(key):
 def test_ArchitectureConfig(arch_key):
 
     tensor = _get_tensor((10, 20))
+    input = {"a": tensor}
 
     config = ArchitectureConfig(arch_key, {})
     output_features = {"out_field1": 20, "out_field2": 1}
     arch_layer = config.build(output_features)
 
-    outputs = arch_layer([tensor, tensor])
+    outputs = arch_layer(input)
     assert len(outputs) == 2
     for key, feature_len in output_features.items():
         assert key in outputs
@@ -168,10 +193,11 @@ def test_ArchitectureConfig(arch_key):
 def test_rnn_fails_with_inconsistent_vertical_dimensions(rnn_key):
 
     tensor1 = _get_tensor((10, 20))
-    tensor2 = _get_tensor((10, 1))
+    # singleton dimensions are broadcasted but not dimensions with lengths > 1
+    tensor2 = _get_tensor((10, 2))
 
     config = ArchitectureConfig(rnn_key)
     layer = config.build({})
 
     with pytest.raises(tf.errors.InvalidArgumentError):
-        layer([tensor1, tensor2])
+        layer({"a": tensor1, "b": tensor2})

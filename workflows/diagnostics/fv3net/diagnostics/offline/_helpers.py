@@ -2,7 +2,7 @@ import json
 import numpy as np
 import os
 import shutil
-from typing import Mapping, Sequence, Dict, Tuple, Iterable
+from typing import Mapping, Sequence, Dict, Tuple
 import vcm
 import xarray as xr
 
@@ -50,52 +50,6 @@ GRID_INFO_VARS = [
     "area",
 ]
 ScalarMetrics = Dict[str, Mapping[str, float]]
-
-
-def _count_features_2d(
-    quantity_names: Iterable[str], dataset: xr.Dataset, sample_dim_name: str
-) -> Mapping[str, int]:
-    """
-    count features for (sample[, z]) arrays.
-    Copied from fv3fit._shared.packer, as this logic is pretty robust.
-    """
-    for name in quantity_names:
-        if len(dataset[name].dims) > 2:
-            value = dataset[name]
-            raise ValueError(
-                "can only count 1D/2D (sample[, z]) "
-                f"variables, recieved values for {name} with dimensions {value.dims}"
-            )
-    return_dict = {}
-    for name in quantity_names:
-        value = dataset[name]
-        if len(value.dims) == 1 and value.dims[0] == sample_dim_name:
-            return_dict[name] = 1
-        elif value.dims[0] != sample_dim_name:
-            raise ValueError(
-                f"cannot count values for {name} whose first dimension is not the "
-                f"sample dimension ({sample_dim_name}), has dims {value.dims}"
-            )
-        else:
-            return_dict[name] = value.shape[1]
-    return return_dict
-
-
-def get_variable_indices(
-    data: xr.Dataset, variables: Sequence[str]
-) -> Mapping[str, Tuple[int, int]]:
-    if "time" in data.dims:
-        data = data.isel(time=0).squeeze(drop=True)
-    stacked = data.stack(sample=["tile", "x", "y"])
-    variable_dims = _count_features_2d(
-        variables, stacked.transpose("sample", ...), "sample"
-    )
-    start = 0
-    variable_indices = {}
-    for var, var_dim in variable_dims.items():
-        variable_indices[var] = (start, start + var_dim)
-        start += var_dim
-    return variable_indices
 
 
 def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
@@ -172,39 +126,32 @@ def get_metric_string(
 ):
     value = metric_statistics["mean"]
     std = metric_statistics["std"]
-    return f"{value:.{precision}f} +/- {std:.{precision}f}"
+    return " ".join(["{:.2e}".format(value), "+/-", "{:.2e}".format(std)])
 
 
 def units_from_name(var):
-    return UNITS.get(var.lower(), "[units unavailable]")
-
-
-def _shorten_coordinate_label(coord: str):
-    # shortens and formats labels that get too long to display
-    # in multi panel figures
-    return (
-        coord.replace("_", " ")
-        .replace("average", "avg")
-        .replace("precipitation", "precip")
-        .replace("positive", "> 0")
-        .replace("negative", "< 0")
-    )
+    units = "[units unavailable]"
+    for key, value in UNITS.items():
+        # allow additional suffixes on variable
+        if var.lower().startswith(key):
+            units = value
+    return units
 
 
 def insert_column_integrated_vars(
     ds: xr.Dataset, column_integrated_vars: Sequence[str]
 ) -> xr.Dataset:
     """Insert column integrated (<*>) terms,
-    really a wrapper around vcm.thermo funcs"""
+    really a wrapper around vcm.calc.thermo funcs"""
 
     for var in column_integrated_vars:
         column_integrated_name = f"column_integrated_{var}"
         if "Q1" in var:
-            da = vcm.thermo.column_integrated_heating_from_isochoric_transition(
+            da = vcm.column_integrated_heating_from_isochoric_transition(
                 ds[var], ds[DELP]
             )
         elif "Q2" in var:
-            da = -vcm.thermo.minus_column_integrated_moistening(ds[var], ds[DELP])
+            da = -vcm.minus_column_integrated_moistening(ds[var], ds[DELP])
             da = da.assign_attrs(
                 {"long_name": "column integrated moistening", "units": "mm/day"}
             )

@@ -2,6 +2,7 @@ import os
 import datetime
 from pathlib import Path
 from typing import Any, Sequence, Mapping, Optional
+import dataclasses
 import fsspec
 import yaml
 import fv3config
@@ -17,15 +18,30 @@ BASE_FV3CONFIG_BY_VERSION = {
     "v0.5": os.path.join(PWD, "base_yamls/v0.5/fv3config.yml"),
     "v0.6": os.path.join(PWD, "base_yamls/v0.6/fv3config.yml"),
 }
-
 TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
-RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer.res", "fv_srf_wnd.res"]
 FV_CORE_ASSET = fv3config.get_asset_dict(
     "gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0/",
     "fv_core.res.nc",
     target_location="INPUT",
 )
 FV3Config = Mapping[str, Any]
+
+
+@dataclasses.dataclass
+class RestartCategoriesConfig:
+    """A specification of the restart file names by category
+
+    Attributes:
+        core: name of fv3 core restart files
+        surface: name of surface restart files
+        tracer: name of tracer restart files
+        surface_wind: name of surface wind restart files
+    """
+
+    core: str = "fv_core.res"
+    surface: str = "sfc_data"
+    tracer: str = "fv_tracer.res"
+    surface_wind: str = "fv_srf_wnd.res"
 
 
 def _merge_once(source, update):
@@ -81,6 +97,7 @@ def update_tiled_asset_names(
     source_filename: str,
     target_url: str,
     target_filename: str,
+    restart_categories: Optional[RestartCategoriesConfig],
     **kwargs,
 ) -> Sequence[Mapping[str, str]]:
 
@@ -92,14 +109,24 @@ def update_tiled_asset_names(
     Filename strings should include any specified variable name inserts to
     be updated with a format. E.g., "{timestep}.{category}.tile{tile}.nc"
     """
+    standard_restart_categories = RestartCategoriesConfig()
+    if restart_categories is None:
+        restart_categories = RestartCategoriesConfig()
+
     assets = [
         fv3config.get_asset_dict(
             source_url,
-            source_filename.format(category=category, tile=tile, **kwargs),
+            source_filename.format(
+                category=getattr(restart_categories, category_name), tile=tile, **kwargs
+            ),
             target_location=target_url,
-            target_name=target_filename.format(category=category, tile=tile, **kwargs),
+            target_name=target_filename.format(
+                category=getattr(standard_restart_categories, category_name),
+                tile=tile,
+                **kwargs,
+            ),
         )
-        for category in RESTART_CATEGORIES
+        for category_name in vars(restart_categories)
         for tile in TILE_COORDS_FILENAMES
     ]
 
@@ -130,19 +157,21 @@ def get_full_config(
     )
 
 
-def c48_initial_conditions_overlay(url: str, timestep: str) -> Mapping:
+def c48_initial_conditions_overlay(
+    url: str, timestep: str, restart_categories: RestartCategoriesConfig = None
+) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
     TIME_FMT = "%Y%m%d.%H%M%S"
     time = datetime.datetime.strptime(timestep, TIME_FMT)
     time_list = [time.year, time.month, time.day, time.hour, time.minute, time.second]
-
     overlay = {}
     overlay["initial_conditions"] = update_tiled_asset_names(
         source_url=os.path.join(url, timestep),
         source_filename="{timestep}.{category}.tile{tile}.nc",
         target_url="INPUT",
         target_filename="{category}.tile{tile}.nc",
+        restart_categories=restart_categories,
         timestep=timestep,
     )
     overlay["initial_conditions"].append(FV_CORE_ASSET)

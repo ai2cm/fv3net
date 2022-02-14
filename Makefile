@@ -26,7 +26,14 @@ push_images: $(addprefix push_image_, $(IMAGES))
 build_image_prognostic_run:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
-		--target prognostic-run .
+		--target prognostic-run \
+		--build-arg BASE_IMAGE=ubuntu:20.04 .
+
+build_image_prognostic_run_gpu:
+	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run_gpu:$(CACHE_TAG) \
+		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run_gpu:$(VERSION) \
+		--target prognostic-run \
+		--build-arg BASE_IMAGE=nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu20.04 .
 
 image_test_prognostic_run:
 	docker run \
@@ -97,11 +104,11 @@ test_dataflow:
 	coverage run -m pytest -vv workflows/dataflow/tests/integration -s
 
 coverage_report:
-	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-util/**.py','external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
+	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
 
 htmlcov:
 	rm -rf $@
-	coverage html -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-util/**.py''external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
+	coverage html -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
 
 test_argo:
 	make -C workflows/argo/ test
@@ -120,8 +127,7 @@ update_submodules:
 	git submodule sync --recursive
 	git submodule update --init \
 		external/fv3gfs-fortran \
-		external/fv3gfs-wrapper \
-		external/fv3gfs-util
+		external/fv3gfs-wrapper
 
 
 overwrite_baseline_images:
@@ -159,7 +165,6 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		--output-file docker/prognostic_run/requirements.txt \
 		external/artifacts/setup.py \
 		external/fv3fit/setup.py \
-		external/fv3gfs-util.requirements.in \
 		external/fv3gfs-wrapper.requirements.in \
 		external/fv3kube/setup.py \
 		external/vcm/setup.py \

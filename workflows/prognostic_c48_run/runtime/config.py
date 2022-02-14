@@ -29,6 +29,7 @@ FV3CONFIG_KEYS = {
     "orographic_forcing",
     "patch_files",
     "gfs_analysis_data",
+    "zhao_carr_emulation",
 }
 
 

@@ -1,5 +1,6 @@
 import dataclasses
 import argparse
+import emulation
 import yaml
 import logging
 import sys
@@ -10,6 +11,7 @@ import dacite
 
 import fv3config
 import fv3kube
+from fv3kube import RestartCategoriesConfig
 
 import pandas as pd
 
@@ -71,14 +73,22 @@ class InitialCondition:
     Attributes:
         base_url: a location in GCS or local
         timestep: a YYYYMMDD.HHMMSS timestamp
+        restart_categories: an optional mapping from the FV3GFS restart
+            categories of 'core', 'surface', 'tracer' and 'surface_wind' to
+            restart category names as stored on disk
     """
 
     base_url: str
     timestep: str
+    restart_categories: RestartCategoriesConfig = dataclasses.field(
+        default_factory=RestartCategoriesConfig
+    )
 
     @property
     def overlay(self):
-        return fv3kube.c48_initial_conditions_overlay(self.base_url, self.timestep)
+        return fv3kube.c48_initial_conditions_overlay(
+            self.base_url, self.timestep, restart_categories=self.restart_categories
+        )
 
 
 @dataclasses.dataclass
@@ -103,6 +113,7 @@ class HighLevelConfig(UserConfig, FV3Config):
     base_version: str = "v0.5"
     initial_conditions: Union[InitialCondition, Any] = ""
     duration: str = ""
+    zhao_carr_emulation: emulation.EmulationConfig = emulation.EmulationConfig()
 
     def _initial_condition_overlay(self):
         return (
@@ -155,6 +166,7 @@ class HighLevelConfig(UserConfig, FV3Config):
             file_configs_to_namelist_settings(
                 self.fortran_diagnostics, self._physics_timestep()
             ),
+            {"zhao_carr_emulation": dataclasses.asdict(self.zhao_carr_emulation)},
         )
         return (
             fv3config.set_run_duration(config, self._duration)

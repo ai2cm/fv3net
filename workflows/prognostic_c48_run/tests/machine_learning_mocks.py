@@ -43,6 +43,12 @@ def get_mock_predictor(
         ]
     elif model_predictands == "state_and_tendency":
         output_variables = ["dQ1", "total_sky_downward_shortwave_flux_at_surface"]
+    elif model_predictands == "state_tendency_and_intermediate":
+        output_variables = [
+            "dQ1",
+            "total_sky_downward_shortwave_flux_at_surface",
+            "shortwave_transmissivity_of_atmospheric_column",
+        ]
     outputs = {
         "dQ1": np.full(nz, dQ1_tendency),
         # include nonzero moistening to test for mass conservation
@@ -51,6 +57,7 @@ def get_mock_predictor(
         "dQv": np.full(nz, 1 / 86400),
         "total_sky_downward_shortwave_flux_at_surface": 300.0,
         "total_sky_downward_longwave_flux_at_surface": 400.0,
+        "shortwave_transmissivity_of_atmospheric_column": 0.5,
     }
     predictor = fv3fit.testing.ConstantOutputPredictor(
         input_variables=["air_temperature", "specific_humidity"],

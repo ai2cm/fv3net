@@ -4,8 +4,8 @@ from runtime.steppers.prescriber import (
     get_timesteps,
     _sst_from_reference,
 )
-from fv3gfs.util.testing import DummyComm
-import fv3gfs.util
+from pace.util.testing import DummyComm
+import pace.util
 import numpy as np
 import xarray as xr
 import cftime
@@ -101,9 +101,9 @@ def get_communicators(layout):
     shared_buffer = {}
     communicator_list = []
     for rank in range(total_ranks):
-        communicator = fv3gfs.util.CubedSphereCommunicator(
+        communicator = pace.util.CubedSphereCommunicator(
             DummyComm(rank, total_ranks, shared_buffer),
-            fv3gfs.util.CubedSpherePartitioner(fv3gfs.util.TilePartitioner(layout)),
+            pace.util.CubedSpherePartitioner(pace.util.TilePartitioner(layout)),
         )
         communicator_list.append(communicator)
     return communicator_list

@@ -14,7 +14,7 @@ from typing import (
     Union,
 )
 import cftime
-import fv3gfs.util
+import pace.util
 import fv3gfs.wrapper
 import numpy as np
 import vcm
@@ -167,7 +167,7 @@ class TimeLoop(
         self._fv3gfs = wrapper
         self._state: DerivedFV3State = MergedState(DerivedFV3State(self._fv3gfs), {})
         self.comm = comm
-        self._timer = fv3gfs.util.Timer()
+        self._timer = pace.util.Timer()
         self.rank: int = comm.rank
 
         namelist = get_namelist()
@@ -232,8 +232,8 @@ class TimeLoop(
         return states_to_output
 
     def _get_communicator(self):
-        partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(get_namelist())
-        return fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
+        partitioner = pace.util.CubedSpherePartitioner.from_namelist(get_namelist())
+        return pace.util.CubedSphereCommunicator(self.comm, partitioner)
 
     def emulate_or_prescribe_tendency(self, func: Step) -> Step:
         if self._transform_physics is not None and self._prescribe_tendency is not None:
@@ -387,6 +387,12 @@ class TimeLoop(
             _, diagnostics, state_updates = self._prephysics_stepper(
                 self._state.time, self._state
             )
+            if isinstance(self._prephysics_stepper, PureMLStepper) and diagnostics:
+                self._log_debug(
+                    f"Exposing ML predictands {list(diagnostics.keys())} from "
+                    f"prephysics stepper as diagnostics because they are not "
+                    f"state updates or tendencies"
+                )
             if self._prephysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
@@ -443,6 +449,12 @@ class TimeLoop(
                 "Postphysics stepper updates state directly for "
                 f"{state_updates.keys()}"
             )
+            if isinstance(self._postphysics_stepper, PureMLStepper) and diagnostics:
+                self._log_debug(
+                    f"Exposing ML predictands {list(diagnostics.keys())} from "
+                    f"postphysics stepper as diagnostics because they are not "
+                    f"state updates or tendencies"
+                )
             self._state_updates.update(state_updates)
 
             return diagnostics
@@ -470,6 +482,10 @@ class TimeLoop(
                     self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
                 self._state.update_mass_conserving(updated_state_from_tendency)
+        self._log_info(
+            "Applying state updates to postphysics dycore state: "
+            f"{self._state_updates.keys()}"
+        )
         self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})

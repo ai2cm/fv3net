@@ -10,8 +10,3 @@ Calculations
    :members:
    :undoc-members:
    :show-inheritance:
-
-.. automodule:: vcm.calc.q_terms
-   :members:
-   :undoc-members:
-   :show-inheritance:

@@ -1,6 +1,11 @@
 import numpy as np
 import tensorflow as tf
-from fv3fit.keras.adapters import ensure_dict_output, rename_dict_output
+from fv3fit.keras.adapters import (
+    ensure_dict_output,
+    rename_dict_output,
+    rename_dict_input,
+    _ensure_list_input,
+)
 
 
 def test_ensure_dict_output_multiple_out():
@@ -70,3 +75,45 @@ def test_ensure_dict_output_has_correct_output_names():
     model = tf.keras.Model(inputs=in_, outputs=out_)
     fixed_model = ensure_dict_output(model)
     assert set(fixed_model.output_names) == set(out_)
+
+
+def test_rename_dict_inputs():
+    inputs = {
+        "input_0": tf.keras.layers.Input(shape=(5,), name="input_0"),
+        "input_1": tf.keras.layers.Input(shape=(5,), name="input_1"),
+    }
+    concat_inputs = tf.keras.layers.Concatenate()([layer for layer in inputs.values()])
+    a = tf.keras.layers.Dense(5, name="a")(concat_inputs)
+    model = tf.keras.Model(inputs=inputs, outputs={"a": a})
+
+    renamed_model = rename_dict_input(model, {"input_0": "input_0_renamed"})
+    one = tf.ones((1, 5))
+
+    new_out = renamed_model({"input_0_renamed": one * 5, "input_1": one})
+    old_out = model({"input_0": one * 5, "input_1": one})
+    np.testing.assert_array_equal(new_out["a"], old_out["a"])
+
+
+def test_ensure_list_input_preserves_output_dicts():
+    inputs = {
+        "input_0": tf.keras.layers.Input(shape=(5,), name="input_0"),
+        "input_1": tf.keras.layers.Input(shape=(5,), name="input_1"),
+    }
+    concat_inputs = tf.keras.layers.Concatenate()([layer for layer in inputs.values()])
+    outputs = {
+        "output_0": tf.keras.layers.Dense(5, name="output_0")(concat_inputs),
+        "output_1": tf.keras.layers.Dense(5, name="output_1")(concat_inputs),
+    }
+    dict_input_model = tf.keras.Model(inputs=inputs, outputs=outputs)
+    list_input_model = _ensure_list_input(dict_input_model)
+
+    one = tf.ones((1, 5))
+
+    output_from_dict_input = dict_input_model({"input_0": one, "input_1": one})
+    output_from_list_input = list_input_model([one, one])
+
+    assert set(output_from_dict_input) == set(output_from_list_input)
+    for key in output_from_dict_input:
+        np.testing.assert_array_equal(
+            output_from_dict_input[key], output_from_list_input[key]
+        )

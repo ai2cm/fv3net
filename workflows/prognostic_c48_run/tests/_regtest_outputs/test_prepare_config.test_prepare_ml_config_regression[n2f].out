@@ -428,6 +428,7 @@ namelist:
 nudging:
   reference_frequency_seconds: 900
   reference_initial_time: null
+  restart_categories: null
   restarts_path: gs://ic-bucket
   timescale_hours:
     air_temperature: 12
@@ -440,3 +441,6 @@ orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn: null
 tendency_prescriber: null
+zhao_carr_emulation:
+  model: null
+  storage: null

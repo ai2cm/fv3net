@@ -13,10 +13,6 @@ shift
 MONTH=$1
 shift
 TAG=$1
-shift
-OUTPUT_FREQUENCY=$1
-shift
-OUTPUT_FLAG=$1
 
 ## Code here
 # add initial condition to template
@@ -33,8 +29,5 @@ export WANDB_JOB_TYPE=training-run
 
 prognostic_run.py \
     --tag "$TAG-$MONTH" \
-    --model NO_MODEL \
     --config-path fv3config.yaml \
-    --output-frequency "$OUTPUT_FREQUENCY" \
-    "$OUTPUT_FLAG" \
     --offline

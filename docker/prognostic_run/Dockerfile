@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:experimental
-FROM ubuntu:20.04 as bld
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} as bld
 
 RUN apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
@@ -92,19 +93,13 @@ ENV PIP_NO_CACHE_DIR=off
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 
-
-# copy dependency packages
-# fv3gfs-util
-COPY /external/fv3gfs-util /external/fv3gfs-util
-RUN pip3 install --no-dependencies /external/fv3gfs-util 
-
 COPY /external/fv3gfs-wrapper /fv3gfs-wrapper
 RUN pip3 install jinja2 && make -C /fv3gfs-wrapper/lib
 
 # cache external package installation
 RUN mkdir -p /fv3net/external /fv3net/workflows && \
-    mv /external/* /fv3net/external/ && \
     mv /fv3gfs-wrapper /fv3net/external/fv3gfs-wrapper
+
 ENV MPI=mpich
 RUN pip3 install --no-dependencies /fv3net/external/fv3gfs-wrapper
 

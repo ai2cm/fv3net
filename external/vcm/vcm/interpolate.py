@@ -89,7 +89,7 @@ def interpolate_to_pressure_levels(
         the atmospheric quantity defined on ``pressure_levels``.
     """
     return interpolate_1d(
-        levels, vcm.calc.thermo.pressure_at_midpoint_log(delp, dim=dim), field, dim=dim,
+        levels, vcm.pressure_at_midpoint_log(delp, dim=dim), field, dim=dim,
     )
 
 

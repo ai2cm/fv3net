@@ -4,6 +4,7 @@ from .config import (
     get_full_config,
     c48_initial_conditions_overlay,
     merge_fv3config_overlays,
+    RestartCategoriesConfig,
 )
 from .utils import (
     wait_for_complete,
