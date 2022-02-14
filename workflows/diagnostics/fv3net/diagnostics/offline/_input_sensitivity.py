@@ -49,22 +49,22 @@ def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
 
 def _plot_rf_feature_importance(rf_input_sensitivity):
     vector_features, scalar_features = {}, {}
-    for feature in rf_input_sensitivity:
+    for name, feature in rf_input_sensitivity.items():
         info = {
             "indices": feature.indices,
             "mean_importances": feature.mean_importances,
             "std_importances": feature.std_importances,
         }
         if len(feature.indices) > 1:
-            vector_features[feature.name] = info
+            vector_features[name] = info
         else:
-            scalar_features[feature.name] = info
+            scalar_features[name] = info
     n_panels = (
         len(vector_features) + 1 if len(scalar_features) > 0 else len(vector_features)
     )
 
     y_max = 1.1 * max(
-        sum([info["mean_importances"] for info in rf_input_sensitivity.values()], [])
+        sum([info.mean_importances for info in rf_input_sensitivity.values()], [])
     )
     fig = plt.figure(figsize=(6 * n_panels, 4))
 
