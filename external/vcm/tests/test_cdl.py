@@ -19,6 +19,7 @@ def test_get_data():
         double a(time, x);
             a:_FillValue = 0;
             a:foo = "bar";
+    // a comment
 
     data:
         time = 1,2,3;
