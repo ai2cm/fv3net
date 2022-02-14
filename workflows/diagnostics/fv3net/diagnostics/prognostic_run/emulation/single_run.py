@@ -102,7 +102,6 @@ def plot_cloud_maps(ds):
 @register_log
 def skill_table(ds):
     fields = SKILL_FIELDS
-    fields = ["air_temperature"]
     out = {}
     for name, transform in [
         ("total", tendencies.total_tendency),
