@@ -11,7 +11,6 @@ JacobianInputSensitivity = Mapping[str, Mapping[str, np.ndarray]]
 class RandomForestInputSensitivity:
     """
     Attributes:
-        name: input feature name
         mean_importances: average value of feature importance across ensemble
         std_importances: standard deviation of feature importance across ensemble
         indices: for input features of length >1 along feature dimension, the indices
@@ -19,13 +18,12 @@ class RandomForestInputSensitivity:
             nan index for scalar features.
     """
 
-    name: str
     mean_importances: Sequence[float]
     std_importances: Sequence[float]
     indices: Sequence[int]
 
 
-RandomForestInputSensitivities = Sequence[RandomForestInputSensitivity]
+RandomForestInputSensitivities = Mapping[str, RandomForestInputSensitivity]
 
 
 @dataclass
