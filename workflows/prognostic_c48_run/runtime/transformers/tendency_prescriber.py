@@ -1,6 +1,6 @@
 import dataclasses
 import logging
-from typing import Hashable, Mapping, MutableMapping, Set
+from typing import Hashable, Mapping, MutableMapping, Set, Optional
 
 import cftime
 import xarray as xr
@@ -8,6 +8,7 @@ import xarray as xr
 import pace.util
 import loaders
 import vcm
+from vcm.limit import DatasetQuantileLimiter
 from runtime.monitor import Monitor
 from runtime.types import Diagnostics, Step
 from runtime.derived_state import DerivedFV3State
@@ -26,10 +27,13 @@ class TendencyPrescriberConfig:
         mapper_config: configuration of mapper used to load tendency data.
         variables: mapping from state name to name of corresponding tendency in
             provided mapper. For example: {"air_temperature": "fine_res_Q1"}.
+        limit_quantiles: mapping of "upper" and "lower" keys to quantile specifiers
+            for limiting extremes in the Q1, Q2 dataset
     """
 
     mapper_config: loaders.MapperConfig
     variables: Mapping[str, str]
+    limit_quantiles: Optional[Mapping[str, float]] = None
 
 
 @dataclasses.dataclass
@@ -48,6 +52,7 @@ class TendencyPrescriber:
         self._mapper = self.config.mapper_config.load_mapper()
         self._tendency_names = list(self.config.variables.values())
         self._tile = self.communicator.partitioner.tile_index(self.communicator.rank)
+        self._limiter: Optional[DatasetQuantileLimiter] = None
 
     def _open_tendencies_dataset(self, time: cftime.DatetimeJulian) -> xr.Dataset:
         timestamp = vcm.encode_time(time)
@@ -55,8 +60,30 @@ class TendencyPrescriber:
         ds = xr.Dataset()
         if self.communicator.tile.rank == 0:
             ds = self._mapper[timestamp].isel(tile=tile)[self._tendency_names].load()
+            if self._limiter is None:
+                self._fit_limiter(ds)
+            ds = self._limit_dataset(ds)
         tendencies = self.communicator.tile.scatter_state(dataset_to_quantity_state(ds))
         return quantity_state_to_dataset(tendencies)
+
+    def _fit_limiter(self, tendencies: xr.Dataset) -> None:
+        if isinstance(self.config.limit_quantiles, dict):
+            self._limiter = DatasetQuantileLimiter(
+                self.config.limit_quantiles["upper"],
+                self.config.limit_quantiles["lower"],
+                limit_only=list(self.config.variables.values()),
+            )
+            logger.debug(
+                f"Fitting dataset limiter with limits={self.config.limit_quantiles}"
+            )
+            self._limiter.fit(tendencies, feature_dims=["z", "tile"])
+
+    def _limit_dataset(self, tendencies: xr.Dataset) -> xr.Dataset:
+        if self._limiter is not None:
+            limited = self._limiter.transform(tendencies)
+        else:
+            limited = tendencies
+        return limited
 
     @property
     def monitor(self) -> Monitor:
