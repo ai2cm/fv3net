@@ -14,3 +14,7 @@ def total_tendency(data: xarray.Dataset, field: str, source: str) -> xarray.Data
 
 def precpd_tendency(data: xarray.Dataset, field: str, source: str) -> xarray.DataArray:
     return total_tendency(data, field, source) - gscond_tendency(data, field, source)
+
+
+def surface_precipitation(data: xarray.Dataset, source: str) -> xarray.DataArray:
+    return data[f"surface_precipitation_due_to_zhao_carr_{source}"]

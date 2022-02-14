@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from functools import partial
 from typing import Callable, List
 import numpy as np
 import xarray as xr
@@ -17,6 +18,8 @@ from . import tendencies
 
 import argparse
 
+
+SKILL_FIELDS = ["cloud_water", "specific_humidity", "air_temperature"]
 log_functions = []
 summary_functions = []
 
@@ -89,7 +92,7 @@ def plot_cloud_maps(ds):
 
 @register_log
 def skill_table(ds):
-    fields = ["cloud_water", "specific_humidity", "air_temperature"]
+    fields = SKILL_FIELDS
     return {
         name: time_dependent_dataset(skills_3d(ds, fields=fields, transform=transform))
         for name, transform in [
@@ -104,6 +107,22 @@ def skill_table(ds):
 @register_log
 def skill_time_table(ds):
     return {"skill_time": time_dependent_dataset(skills_1d(ds))}
+
+
+@register_summary
+def summarize_column_skill(ds):
+    transforms = {
+        key: partial(tendencies.total_tendency, field=key) for key in SKILL_FIELDS
+    }
+    transforms[
+        tendencies.surface_precipitation.__name__
+    ] = tendencies.surface_precipitation
+
+    out = {
+        f"column_skill/{key}": float(column_integrated_skill(ds, transform))
+        for key, transform in transforms.items()
+    }
+    return out
 
 
 def mse(x: xr.DataArray, y, area, dims=None):
@@ -129,14 +148,20 @@ def skills_3d(
     fields: List[str],
     transform: Callable[[xr.Dataset, str, str], xr.DataArray],
 ):
-    """
-    """
     out = {}
     for field in fields:
         prediction = transform(ds, field, source="emulator")
         truth = transform(ds, field, source="physics")
         out[field] = skill_improvement(truth, prediction, ds.area)
     return xr.Dataset(out)
+
+
+def column_integrated_skill(
+    ds: xr.Dataset, transform: Callable[[xr.Dataset, str], xr.DataArray],
+):
+    prediction = transform(ds, source="emulator")
+    truth = transform(ds, source="physics")
+    return skill_improvement_column(truth, prediction, ds.area)
 
 
 def skills_1d(ds):
@@ -147,33 +172,6 @@ def skills_1d(ds):
                 ds.surface_precipitation_due_to_zhao_carr_emulator,
                 ds.area,
             )
-        )
-    )
-
-
-def column_integrated_skills(ds):
-    return xr.Dataset(
-        dict(
-            cloud_water=skill_improvement_column(
-                ds.tendency_of_cloud_water_due_to_zhao_carr_physics,
-                ds.tendency_of_cloud_water_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-            specific_humidity=skill_improvement_column(
-                ds.tendency_of_specific_humidity_due_to_zhao_carr_physics,
-                ds.tendency_of_specific_humidity_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-            air_temperature=skill_improvement_column(
-                ds.tendency_of_air_temperature_due_to_zhao_carr_physics,
-                ds.tendency_of_air_temperature_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-            surface_precipitation=skill_improvement_column(
-                ds.surface_precipitation_due_to_zhao_carr_physics,
-                ds.surface_precipitation_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
         )
     )
 
@@ -213,14 +211,6 @@ def log_lat_vs_p_skill(field):
         }
 
     return func
-
-
-@register_summary
-def summarize_column_skill(ds):
-    return {
-        f"column_skill/{key}": float(val)
-        for key, val in column_integrated_skills(ds).items()
-    }
 
 
 for field in ["cloud_water", "specific_humidity", "air_temperature"]:
