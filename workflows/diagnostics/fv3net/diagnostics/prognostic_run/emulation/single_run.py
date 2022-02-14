@@ -18,10 +18,16 @@ from . import tendencies
 import argparse
 
 log_functions = []
+summary_functions = []
 
 
 def register_log(func):
     log_functions.append(func)
+    return func
+
+
+def register_summary(func):
+    summary_functions.append(func)
     return func
 
 
@@ -209,6 +215,14 @@ def log_lat_vs_p_skill(field):
     return func
 
 
+@register_summary
+def summarize_column_skill(ds):
+    return {
+        f"column_skill/{key}": float(val)
+        for key, val in column_integrated_skills(ds).items()
+    }
+
+
 for field in ["cloud_water", "specific_humidity", "air_temperature"]:
     register_log(log_lat_vs_p_skill(field))
 
@@ -239,13 +253,6 @@ def main(args):
     state = xr.open_zarr(url + "/state_after_timestep.zarr")
 
     ds = vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
-
-    summary_functions = [
-        lambda ds: {
-            f"column_skill/{key}": float(val)
-            for key, val in column_integrated_skills(ds).items()
-        }
-    ]
 
     for func in log_functions:
         print(f"Running {func}")
