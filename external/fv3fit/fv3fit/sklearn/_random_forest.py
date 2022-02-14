@@ -364,13 +364,12 @@ class SklearnWrapper(Predictor):
                 feature_importances[name]["mean_importances"].append(mean_importance)
                 feature_importances[name]["std_importances"].append(std_importance)
 
-        formatted_feature_importances = [
-            RandomForestInputSensitivity(
-                name=name,
+        formatted_feature_importances = {
+            name: RandomForestInputSensitivity(
                 indices=info["indices"],
                 mean_importances=info["mean_importances"],
                 std_importances=info["std_importances"],
             )
             for name, info in feature_importances.items()
-        ]
+        }
         return InputSensitivity(rf_feature_importances=formatted_feature_importances)

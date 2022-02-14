@@ -19,13 +19,12 @@ class RandomForestInputSensitivity:
             nan index for scalar features.
     """
 
-    name: str
     mean_importances: Sequence[float]
     std_importances: Sequence[float]
     indices: Sequence[int]
 
 
-RandomForestInputSensitivities = Sequence[RandomForestInputSensitivity]
+RandomForestInputSensitivities = Mapping[str, RandomForestInputSensitivity]
 
 
 @dataclass
