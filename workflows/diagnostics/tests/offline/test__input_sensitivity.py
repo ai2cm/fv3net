@@ -3,6 +3,7 @@ import numpy as np
 from fv3net.diagnostics.offline._input_sensitivity import (
     _get_variable_indices,
     _count_features_2d,
+    _stack_sample_data,
 )
 
 
@@ -15,7 +16,7 @@ def data_array_with_feature_dim(feature_dim: int, has_time_dim=True):
         da = da.isel(time=0).squeeze(drop=True)
     if feature_dim == 1:
         da = da.isel(z=0).squeeze(drop=True)
-    return da
+    return _stack_sample_data(da)
 
 
 def test__get_variable_indices():
