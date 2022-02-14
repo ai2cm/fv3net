@@ -50,6 +50,7 @@ list: data_value("," data_value)*
     | ("NaN" | "NaNf") -> nan
     | ESCAPED_STRING  -> string
 
+COMMENT: /\/\/.*/
 
 %import common.CNAME
 %import common.SIGNED_NUMBER
@@ -57,4 +58,5 @@ list: data_value("," data_value)*
 %import common.INT
 %import common.WS
 %ignore WS
+%ignore COMMENT
 """
