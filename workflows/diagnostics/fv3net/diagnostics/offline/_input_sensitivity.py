@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import logging
 import numpy as np
-from typing import Mapping
 import xarray as xr
 
 import fv3fit
@@ -10,10 +9,6 @@ import fv3fit
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-RandomForestInputSensitivity = Mapping[str, Mapping[str, np.ndarray]]
-JacobianInputSensitivity = Mapping[str, Mapping[str, np.ndarray]]
 
 
 def _stack_sample_data(ds: xr.Dataset) -> xr.Dataset:
@@ -47,7 +42,9 @@ def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
         return None
 
 
-def _plot_rf_feature_importance(rf_input_sensitivity):
+def _plot_rf_feature_importance(
+    rf_input_sensitivity: fv3fit.RandomForestInputSensitivities,
+):
     vector_features, scalar_features = {}, {}
     for name, feature in rf_input_sensitivity.items():
         info = {
@@ -95,7 +92,7 @@ def _plot_rf_feature_importance(rf_input_sensitivity):
     return fig
 
 
-def _plot_jacobians(jacobians: JacobianInputSensitivity):
+def _plot_jacobians(jacobians: fv3fit.JacobianInputSensitivity):
     num_outputs = len(jacobians)
     num_inputs = max([len(output) for output in jacobians.values()])
     fig, axes = plt.subplots(
