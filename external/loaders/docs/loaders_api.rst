@@ -2,7 +2,6 @@
 loaders API
 ===========
 
-
 Mappers
 -------
 We use the following mappers to load data used by diagnostic and ML training routines.
@@ -30,6 +29,9 @@ The second type can be initialized using the :py:class:`loaders.BatchesFromMappe
 
 The functions themselves take a ``data_path`` argument, followed by the keyword arguments in their API documentation below.
 
+Command-line validation
+-----------------------
+
 Configuration files for batches data can be validated using a command-line tool ``validate_batches_config`` provided by this package. If the configuration is valid, it will exit without error. Note this only checks for type validation of the configuration entries, and does not test that the data referenced actually exists and is without errors.
 
 .. code-block:: bash
@@ -42,6 +44,23 @@ Configuration files for batches data can be validated using a command-line tool 
 
    optional arguments:
    -h, --help  show this help message and exit
+
+
+Command-line downloading
+------------------------
+
+This package also provides a command-line tool for downloading batches based on a BatchesLoader yaml configuration file to a local directory of netCDF files.
+
+.. argparse::
+   :module: loaders.batches.save
+   :func: get_parser
+   :prog: python3 -m loaders.batches.save
+
+
+API Reference
+-------------
+
+Loaders provides
 
 .. automodule:: loaders
    :imported-members:

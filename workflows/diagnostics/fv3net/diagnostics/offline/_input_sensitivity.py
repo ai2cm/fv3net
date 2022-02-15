@@ -16,17 +16,14 @@ OutputSensitivity = Dict[str, np.ndarray]
 
 
 def dataset_to_dict_input(ds):
-    if "time" in ds.dims:
-        ds = ds.isel(time=0).squeeze(drop=True)
-    stacked = ds.stack(sample=["tile", "x", "y"]).transpose("sample", ...)
     data = {}
-    for var in stacked:
+    for var in ds:
         # for predictions, drop the 'target' values
-        if "derivation" in stacked[var].dims:
-            values = stacked[var].sel({"derivation": "predict"}).values
+        if "derivation" in ds[var].dims:
+            values = ds[var].sel({"derivation": "predict"}).values
         else:
-            values = stacked[var].values
-        if len(stacked[var].dims) == 1:
+            values = ds[var].values
+        if len(ds[var].dims) == 1:
             values = values.reshape(-1, 1)
         data[var] = values
     return data
@@ -62,14 +59,10 @@ def _count_features_2d(
 
 
 def _get_variable_indices(
-    data: xr.Dataset, variables: Iterable[Hashable]
+    stacked: xr.Dataset, variables: Iterable[Hashable]
 ) -> Dict[Hashable, Tuple[int, int]]:
-    if "time" in data.dims:
-        data = data.isel(time=0).squeeze(drop=True)
-    stacked = data.stack(sample=["tile", "x", "y"])
-    variable_dims = _count_features_2d(
-        variables, stacked.transpose("sample", ...), "sample"
-    )
+
+    variable_dims = _count_features_2d(variables, stacked, "sample")
     start = 0
     variable_indices = {}
     for var, var_dim in variable_dims.items():
@@ -78,11 +71,20 @@ def _get_variable_indices(
     return variable_indices
 
 
+def _stack_sample_data(ds: xr.Dataset) -> xr.Dataset:
+    # for predictions, drop the 'target' values
+    if "derivation" in ds.dims:
+        ds = ds.sel({"derivation": "predict"})
+    if "time" in ds.dims:
+        ds = ds.isel(time=0).squeeze(drop=True)
+    return ds.stack(sample=["tile", "x", "y"]).transpose("sample", ...)
+
+
 def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
     base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
-
+    stacked_sample = _stack_sample_data(sample)
     try:
-        data_dict = dataset_to_dict_input(sample)
+        data_dict = dataset_to_dict_input(stacked_sample)
         jacobians = compute_jacobians(
             base_model.get_dict_compatible_model(),  # type: ignore
             data_dict,
@@ -98,7 +100,7 @@ def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
     except AttributeError:
         try:
             input_feature_indices = _get_variable_indices(
-                data=sample, variables=base_model.input_variables
+                stacked=stacked_sample, variables=base_model.input_variables
             )
             fig = _plot_rf_feature_importance(
                 input_feature_indices, base_model  # type: ignore
