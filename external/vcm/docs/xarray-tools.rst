@@ -11,3 +11,5 @@ Micelleaneous xarray tools
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. autofunction:: vcm.cdl_to_dataset

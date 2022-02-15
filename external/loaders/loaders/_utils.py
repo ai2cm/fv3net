@@ -10,6 +10,11 @@ from .constants import TIME_NAME
 from vcm.catalog import catalog
 
 
+# note this is intentionally a different value than fv3fit's SAMPLE_DIM_NAME
+# as we should avoid mixing loaders preprocessing routines with fv3fit
+# preprocessing routines - migrate the routines here instead
+
+SAMPLE_DIM_NAME = "_fv3net_sample"
 CLOUDS_OFF_TEMP_TENDENCIES = [
     "tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky",
     "tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky",
@@ -42,6 +47,59 @@ def nonderived_variables(requested: Sequence[Hashable], available: Sequence[Hash
     if any(var in derived for var in ["eastward_wind", "northward_wind"]):
         nonderived += ["x_wind", "y_wind"]
     return nonderived
+
+
+def stack(unstacked_dims: Sequence[str], ds: xr.Dataset) -> xr.Dataset:
+    """
+    Stack dimensions into a sample dimension, retaining other dimensions
+    in alphabetical order.
+
+    Args:
+        unstacked_dims: dimensions to keep, other dimensions will be
+            collapsed into the sample dimension
+        ds: dataset to stack
+    """
+    stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
+    unstacked_dims = [dim for dim in ds.dims if dim in unstacked_dims]
+    unstacked_dims.sort()  # needed to always get [x, y, z] dimensions
+    ds_stacked = safe.stack_once(
+        ds,
+        SAMPLE_DIM_NAME,
+        stack_dims,
+        allowed_broadcast_dims=list(unstacked_dims) + ["time", "dataset"],
+    )
+    return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
+
+
+def shuffle(ds: xr.Dataset) -> xr.Dataset:
+    shuffled_indices = np.arange(len(ds[SAMPLE_DIM_NAME]), dtype=int)
+    np.random.shuffle(shuffled_indices)
+    return ds.isel({SAMPLE_DIM_NAME: shuffled_indices})
+
+
+def dropna(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Check for an empty variables along a dimension in a dataset
+    """
+    ds = ds.dropna(dim=SAMPLE_DIM_NAME)
+    if len(ds[SAMPLE_DIM_NAME]) == 0:
+        raise ValueError("Check for NaN fields in the training data.")
+    return ds
+
+
+@curry
+def select_first_samples(fraction: float, ds: xr.Dataset) -> xr.Dataset:
+    """
+    Return a dataset with only the given fraction of samples from the
+    input dataset, taking the first samples.
+    """
+    if fraction == 1.0:
+        out = ds
+    else:
+        n_samples = len(ds[SAMPLE_DIM_NAME])
+        n_samples_keep = int(fraction * n_samples)
+        out = ds.isel({SAMPLE_DIM_NAME: slice(0, n_samples_keep)})
+    return out
 
 
 @curry

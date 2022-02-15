@@ -21,8 +21,6 @@ from .keras._models.shared import (
     PureKerasModel,
     TrainingLoopConfig,
     EpochResult,
-    EpochLossHistory,
-    History,
 )
 from .keras._models.precipitative import PrecipitativeHyperparameters
 from .keras._models.convolutional import ConvolutionalHyperparameters

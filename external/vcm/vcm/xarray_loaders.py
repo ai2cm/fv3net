@@ -3,6 +3,7 @@ import io
 import tempfile
 import os
 import shutil
+from typing import BinaryIO
 
 import dask.array as da
 import numpy as np
@@ -103,7 +104,7 @@ def open_delayed(delayed_dataset, schema: xr.Dataset) -> xr.Dataset:
     return xr.Dataset(data_vars, coords=schema.coords, attrs=schema.attrs)
 
 
-def dump_nc(ds: xr.Dataset, f):
+def dump_nc(ds: xr.Dataset, f: BinaryIO):
     # to_netcdf closes file, which will delete the buffer
     # need to use a buffer since seek doesn't work with GCSFS file objects
     with tempfile.TemporaryDirectory() as dirname:
