@@ -96,12 +96,23 @@ def _replace_precip_rate_with_accumulation(  # type: ignore
         state_updates.pop(TOTAL_PRECIP_RATE)
 
 
-def add_tendency(state: Any, tendency: State, dt: float) -> State:
-    """Given state and tendency prediction, return updated state.
-    Returned state only includes variables updated by ML model."""
+def fillna_tendency(tendency: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]:
+    tendency_filled = tendency.fillna(0.0)
+    tendency_filled_frac = (
+        xr.where(tendency != tendency_filled, 1, 0).sum("z") / tendency.sizes["z"]
+    )
+    return tendency_filled, tendency_filled_frac
+
+
+def add_tendency(state: Any, tendency: State, dt: float) -> Tuple[State, State]:
+    """Given state and tendency prediction, return updated state, which only includes
+    variables updated by tendencies. Also returns column-integrated fraction of
+    tendencies which are filled nans.
+    """
 
     with xr.set_options(keep_attrs=True):
         updated = {}
+        tendency_filled_frac = {}
         for name_ in tendency:
             name = str(name_)
             try:
@@ -113,8 +124,12 @@ def add_tendency(state: Any, tendency: State, dt: float) -> State:
                     "Existing tendencies with mappings to state are "
                     f"{list(TENDENCY_TO_STATE_NAME.keys())}"
                 )
-            updated[state_name] = state[state_name] + tendency[name].fillna(0.0) * dt
-    return updated  # type: ignore
+            (
+                tendency_filled,
+                tendency_filled_frac[f"{name}_filled_frac"],
+            ) = fillna_tendency(tendency[name])
+            updated[state_name] = state[state_name] + tendency_filled * dt
+    return updated, tendency_filled_frac  # type: ignore
 
 
 class LoggingMixin:
@@ -425,8 +440,11 @@ class TimeLoop(
             if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
-                updated_state = add_tendency(self._state, tendency, dt=self._timestep)
+                updated_state, tendency_filled_frac = add_tendency(
+                    self._state, tendency, dt=self._timestep
+                )
                 self._state.update_mass_conserving(updated_state)
+                diagnostics.update(tendency_filled_frac)
 
         return diagnostics
 
@@ -472,7 +490,7 @@ class TimeLoop(
             if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
-                updated_state_from_tendency = add_tendency(
+                updated_state_from_tendency, tendency_filled_frac = add_tendency(
                     self._state, tendency, dt=self._timestep
                 )
 
@@ -482,6 +500,7 @@ class TimeLoop(
                     self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
                 self._state.update_mass_conserving(updated_state_from_tendency)
+                diagnostics.update(tendency_filled_frac)
         self._log_info(
             "Applying state updates to postphysics dycore state: "
             f"{self._state_updates.keys()}"
