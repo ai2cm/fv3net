@@ -7,11 +7,11 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.11.5
+#       jupytext_version: 1.13.7
 #   kernelspec:
-#     display_name: fv3net
+#     display_name: Python 3
 #     language: python
-#     name: fv3net
+#     name: python3
 # ---
 
 # %% [markdown]
@@ -32,7 +32,7 @@ import scipy.interpolate
 from cycler import cycler
 from fv3fit.emulation.zhao_carr_fields import Field, ZhaoCarrFields
 from fv3fit.train_microphysics import TrainConfig, nc_dir_to_tf_dataset
-from myst_nb import glue
+from fv3fit.emulation.data import TransformConfig
 
 wong_palette = [
     "#000000",
@@ -49,17 +49,32 @@ wong_palette = [
 plt.rcParams["axes.prop_cycle"] = cycler("color", wong_palette)
 
 # %%
-# open data
-config = TrainConfig.from_yaml_path(
-    "gs://vcm-ml-experiments/microphysics-emulation/2022-01-04/"
-    "log-cloud-dense-9b3e1a/config.yaml"
-)
+
+required_data = [
+    "specific_humidity_input",
+    "specific_humidity_after_gscond",
+    "specific_humidity_after_precpd",
+    "cloud_water_mixing_ratio_input",
+    "cloud_water_mixing_ratio_after_precpd",
+    "pressure_thickness_of_atmospheric_layer",
+    "air_temperature_after_precpd",
+    "air_temperature_input",
+    "total_precipitation",
+    "air_temperature_after_last_gscond",
+    "air_temperature_after_gscond",
+    "cloud_water_mixing_ratio_input",
+    "pressure_thickness_of_atmospheric_layer",
+    "specific_humidity_after_last_gscond",
+    "specific_humidity_input",
+]
+
+train_url = "gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train"
 
 train_ds = nc_dir_to_tf_dataset(
-    config.train_url, config.get_dataset_convertor(), nfiles=config.nfiles
+    train_url, TransformConfig().get_pipeline(required_data), nfiles=None
 )
+
 train_set = next(iter(train_ds.batch(40000)))
-train_set = config.get_transform().forward(train_set)
 
 
 # %% [markdown]
@@ -171,7 +186,6 @@ def plot_log_cloud_before_after(train_set, log=True):
 
 
 plot_log_cloud_before_after(train_set)
-glue("qc-before-after", plt.gcf())
 
 after = train_set["cloud_water_mixing_ratio_after_precpd"].numpy()
 before = train_set["cloud_water_mixing_ratio_input"].numpy()
@@ -179,94 +193,57 @@ delp = train_set["pressure_thickness_of_atmospheric_layer"].numpy()
 before = np.mean(np.sum(delp * before / 9.81, -1))
 after = np.mean(np.sum(delp * after / 9.81, -1))
 total_change = after - before
-glue("qc-before-after-total-percent", 100 * total_change / before)
+
 
 # %%
-
-
-def plot_max_by_temperature(train_set):
-    df = pd.DataFrame(
-        dict(
-            temp=np.ravel(train_set["air_temperature_after_precpd"]),
-            qc=np.ravel(train_set["cloud_water_mixing_ratio_after_precpd"]),
-            qv=np.ravel(train_set["specific_humidity_after_precpd"]),
-        )
-    )
-    bins = np.arange(170, 320, 2.5)
-    max = (
-        df.drop("temp", axis=1)
-        .groupby(pd.cut(df.temp, bins))
-        .quantile(0.999)
-        .fillna(1e-7)
-        .reset_index()
-    )
-    max["temp"] = max.temp.apply(lambda x: x.mid)
-    return max
-
-
-df = plot_max_by_temperature(train_set)
-df.plot(
-    x="temp",
-    y="qc",
-    ylabel="99.9%-tile of cloud-water (kg/kg)",
-    xlabel="Temperature (K)",
-)
-temp = df.temp.tolist()
-qc = df.qc.tolist()
-print("# 99.9%-tile cloud conditioned on temperature")
-sha = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
-print(f"# git-rev: {sha}")
-print("temp = ", temp)
-print("qc =", qc)
-f = scipy.interpolate.interp1d(temp, qc, fill_value=1e-7, bounds_error=False)
-# %%
-df.plot(
-    x="temp",
-    y="qv",
-    ylabel="99.9%-tile of humidity (kg/kg)",
-    xlabel="Temperature (K)",
-    logy=True,
-)
-# %%
-
-
 def compare_conditional(df, x, y):
     ax, ax_hist = conditional(
-        df[y], df[T], norm=matplotlib.colors.LogNorm(), plot_1_1=False
+        df[y], df[x], norm=matplotlib.colors.LogNorm(), plot_1_1=False
     )
     ax.set_title(y)
     ax.set_ylabel(y)
     ax_hist.set_xlabel(x)
 
 
-df = pd.DataFrame(
-    {key: np.ravel(array) for key, array in train_set.items() if array.shape[1] != 1}
-)
+def plot_temperature_conditional_scatter(train_set):
 
-qc = "cloud_water_mixing_ratio_after_precpd"
-T = "air_temperature_input"
+    df = pd.DataFrame(
+        {
+            key: np.ravel(array)
+            for key, array in train_set.items()
+            if array.shape[1] != 1
+        }
+    )
 
-df["qv difference"] = (
-    df["specific_humidity_after_precpd"] - df["specific_humidity_input"]
-)
-df["temp difference"] = df["air_temperature_after_precpd"] - df["air_temperature_input"]
-df["qc difference"] = (
-    df["cloud_water_mixing_ratio_after_precpd"] - df["cloud_water_mixing_ratio_input"]
-)
+    qc = "cloud_water_mixing_ratio_after_precpd"
+    T = "air_temperature_input"
 
-df["log_10(qc+1e-45)"] = np.log10(df[qc] + 1e-45)
-df["log_10(qc+1e-10)"] = np.log10(df[qc] + 1e-10)
+    plotme = {}
+    plotme["qv difference"] = (
+        df["specific_humidity_after_precpd"] - df["specific_humidity_input"]
+    )
+    plotme["temp difference"] = (
+        df["air_temperature_after_precpd"] - df["air_temperature_input"]
+    )
+    plotme["qc difference"] = (
+        df["cloud_water_mixing_ratio_after_precpd"]
+        - df["cloud_water_mixing_ratio_input"]
+    )
+
+    plotme["log(-temp difference precpd)"] = np.log10(
+        -(df["air_temperature_after_precpd"] - df["air_temperature_after_gscond"])
+        + 1e-6
+    )
+
+    plotme["log_10(qc+1e-45)"] = np.log10(df[qc] + 1e-45)
+    plotme["log_10(qc+1e-10)"] = np.log10(df[qc] + 1e-10)
+
+    df = df.assign(**plotme)
+    for field in plotme:
+        compare_conditional(df, T, field)
 
 
-for field in [
-    "qv difference",
-    "temp difference",
-    "qc difference",
-    "cloud_water_mixing_ratio_after_precpd",
-    "log_10(qc+1e-10)",
-    "log_10(qc+1e-45)",
-]:
-    compare_conditional(df, T, field)
+plot_temperature_conditional_scatter(train_set)
 
 
 # %% [markdown]
@@ -284,7 +261,6 @@ for field in [
 
 # %%
 def boxplot_scalings(df, field, diff_field, scale=None, diff_scale=None):
-
     scale = scale or (field + "_sig")
     diff_scale = diff_scale or (diff_field + "_sig")
     output = {}
@@ -293,6 +269,19 @@ def boxplot_scalings(df, field, diff_field, scale=None, diff_scale=None):
     output["scale"] = df[field].std() / df[field]
     output["d_scale"] = df[diff_field].std() / df[field]
     plt.boxplot(output.values(), labels=output.keys())
+
+
+df = pd.DataFrame(
+    {key: np.ravel(array) for key, array in train_set.items() if array.shape[1] != 1}
+)
+
+df["temp difference"] = df["air_temperature_after_precpd"] - df["air_temperature_input"]
+df["qv difference"] = (
+    df["specific_humidity_after_precpd"] - df["specific_humidity_input"]
+)
+df["qc difference"] = (
+    df["cloud_water_mixing_ratio_after_precpd"] - df["cloud_water_mixing_ratio_input"]
+)
 
 
 bins = np.arange(170, 320, 2.5)
