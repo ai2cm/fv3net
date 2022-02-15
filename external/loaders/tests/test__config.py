@@ -127,6 +127,7 @@ def test_expected_batches_functions_exist():
         "batches_from_geodata",
         "batches_from_serialized",
         "diagnostic_batches_from_geodata",
+        "batches_from_netcdf",
     )
     for expected in expected_functions:
         assert expected in loaders._config.batches_functions

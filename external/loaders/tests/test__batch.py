@@ -267,3 +267,20 @@ def test_batches_from_mapper_subsample(subsample_ratio: float):
     for i in range(10):
         sample_counts.append(np.sum(data == i))
     assert not all(count == sample_counts[0] for count in sample_counts)
+
+
+def test_batches_from_netcdf(tmpdir):
+    saved_batches = []
+    for i in range(5):
+        ds = xr.Dataset(
+            data_vars={
+                "a": xr.DataArray(
+                    np.random.uniform(size=[2, 3, 4]), dims=["dim0", "dim1", "dim2"],
+                )
+            }
+        )
+        ds.to_netcdf(os.path.join(tmpdir, f"{i}.nc"))
+        saved_batches.append(ds)
+    loaded_batches = loaders.batches_from_netcdf(path=str(tmpdir))
+    for ds_saved, ds_loaded in zip(saved_batches, loaded_batches):
+        xr.testing.assert_equal(ds_saved, ds_loaded)

@@ -33,6 +33,8 @@ from ._serialized_phys import (
     open_serialized_physics_data,
 )
 import loaders
+import fsspec
+import vcm
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -266,6 +268,27 @@ def _get_batch(
     nonderived_vars = nonderived_variables(data_vars, tuple(ds.data_vars))
     ds = safe.get_variables(ds, nonderived_vars)
     return ds
+
+
+@curry
+def _open_dataset(fs: fsspec.AbstractFileSystem, filename):
+    return xr.open_dataset(fs.open(filename), engine="h5netcdf")
+
+
+@batches_functions.register
+def batches_from_netcdf(path: str) -> loaders.typing.Batches:
+    """
+    Loads a series of netCDF files from the given directory, in alphabetical order.
+
+    Args:
+        path: path (local or remote) of a directory of netCDF files
+    
+    Returns:
+        A sequence of batched data
+    """
+    fs = vcm.get_fs(path)
+    filenames = [fname for fname in sorted(fs.ls(path)) if fname.endswith(".nc")]
+    return Map(_open_dataset(fs), filenames)
 
 
 @batches_functions.register
