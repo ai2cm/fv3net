@@ -28,7 +28,8 @@ tensor_transform:
   # use precpd_only name for backwards compatibility
   - to: temperature_precpd_only_difference
     condition_on: air_temperature_input
-    min_scale: 1e-8
+    min_scale: 1e-5
+    filter_magnitude: 1e-5
     bins: 50
     field:
       input_name: air_temperature_after_gscond
