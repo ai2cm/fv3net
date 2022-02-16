@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, Sequence, Set
+from typing import Callable, Optional, Sequence, Set
 
 import tensorflow as tf
 from fv3fit.emulation.transforms.transforms import (
@@ -86,8 +86,9 @@ class ConditionallyScaled(TransformFactory):
             output data (``d field``) is normalized.
         min_scale: the minimium scale to normalize by. Used when the scale might
             be 0.
-        filter_magnitude: any values with |to-field| < filter_magnitude are removed
-            from the standard deviation/mean calculation.
+        filter_magnitude: if provided, any values with
+            |to-field| < filter_magnitude are removed from the standard
+            deviation/mean calculation.
 
     """
 
@@ -96,7 +97,7 @@ class ConditionallyScaled(TransformFactory):
     source: str
     bins: int
     min_scale: float = 0.0
-    filter_magnitude: float = 0.0
+    filter_magnitude: Optional[float] = None
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         """List the names needed to compute ``self.to``"""
@@ -106,7 +107,12 @@ class ConditionallyScaled(TransformFactory):
         return requested_names.union(new_names)
 
     def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
-        mask = tf.abs(sample[self.source]) > self.filter_magnitude
+
+        if self.filter_magnitude is not None:
+            mask = tf.abs(sample[self.source]) > self.filter_magnitude
+        else:
+            mask = ...
+
         return ConditionallyScaledTransform(
             to=self.to,
             on=self.condition_on,

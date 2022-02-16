@@ -11,6 +11,7 @@ from fv3fit.emulation.transforms import (
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
 from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional
+from fv3fit.emulation.transforms import factories
 
 
 def _to_float(x: tf.Tensor) -> float:
@@ -225,3 +226,43 @@ def test_Difference_backward():
     # test if after is already present
     in_ = {"diff": 1, "before": 0, "after": 1000}
     assert diff.backward(in_) == {"after": 1, "before": 0, "diff": 1}
+
+
+@pytest.mark.parametrize("filter_magnitude", [1e-5, 2e-5, None])
+def test_ConditionallyScaled_applies_mask(monkeypatch, filter_magnitude):
+    source = "x_out"
+    on = "T"
+    to = "x_scaled"
+    shape = (1, 1)
+
+    magnitude = 1e-5
+    data = {
+        source: tf.fill(shape, magnitude),
+        on: tf.random.uniform(shape),
+    }
+
+    if filter_magnitude is None:
+        expected_shape = shape
+    elif filter_magnitude >= magnitude:
+        expected_shape = (0,)
+    else:
+        expected_shape = shape
+
+    # .build calls fit_conditional, so let's mock it
+    fit_conditional = Mock()
+    fit_conditional.return_value = lambda x: 1.0
+    monkeypatch.setattr(factories, "fit_conditional", fit_conditional)
+
+    factory = ConditionallyScaled(
+        source=source,
+        to=to,
+        bins=1,
+        condition_on=on,
+        filter_magnitude=filter_magnitude,
+    )
+
+    factory.build(data)
+
+    # assert that fit_conditional was passed arrays of the expected size
+    fit_conditional_x_arg = fit_conditional.call_args[0][0]
+    assert fit_conditional_x_arg.shape == expected_shape
