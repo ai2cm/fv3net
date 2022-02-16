@@ -191,7 +191,7 @@ class TimeLoop(
             config.diagnostic_variables, state=self._state, timestep=self._timestep,
         )
         self._transform_physics = runtime.factories.get_fv3_physics_transformer(
-            config, self._state, self._timestep,
+            config, self._state, self._timestep, self._get_communicator(),
         )
         self._prescribe_tendency = runtime.factories.get_tendency_prescriber(
             config, self._state, self._timestep, self._get_communicator(),

@@ -18,7 +18,10 @@ __all__ = ["get_fv3_physics_transformer", "get_tendency_prescriber"]
 
 
 def get_fv3_physics_transformer(
-    config: UserConfig, state: State, timestep: float
+    config: UserConfig,
+    state: State,
+    timestep: float,
+    communicator: fv3gfs.util.CubedSphereCommunicator,
 ) -> Optional[StepTransformer]:
     if config.online_emulator is None:
         return None
@@ -32,7 +35,9 @@ def get_fv3_physics_transformer(
             timestep=timestep,
         )
     elif isinstance(config.online_emulator, runtime.transformers.fv3fit.Config):
-        model = runtime.transformers.fv3fit.Adapter(config.online_emulator, timestep)
+        model = runtime.transformers.fv3fit.Adapter(
+            config.online_emulator, timestep, communicator
+        )
         return StepTransformer(
             model,
             state,
