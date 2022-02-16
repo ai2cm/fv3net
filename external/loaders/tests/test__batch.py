@@ -1,4 +1,5 @@
 import os
+from loaders._utils import SAMPLE_DIM_NAME
 import pytest
 import synth
 import xarray as xr
@@ -129,7 +130,7 @@ def test_diagnostic_batches_from_mapper(mapper):
         pytest.param([0, 1, 2, 3, 4, 5], id="zero-indexed"),
     ],
 )
-def test_batches_from_mappper_different_indexing_conventions(tiles):
+def test_batches_from_mapper_different_indexing_conventions(tiles):
     n = 48
     ds = xr.Dataset(
         {"a": (["time", "tile", "y", "x"], np.zeros((1, 6, n, n)))},
@@ -139,3 +140,147 @@ def test_batches_from_mappper_different_indexing_conventions(tiles):
     seq = batches_from_mapper(mapper, ["a", "lon"], res=f"c{n}")
     assert len(seq) == 1
     assert ds.a[0].size == seq[0].a.size
+
+
+def get_dataset(fill_value: float, n_vars: int, n_dims: int):
+    data_vars = {}
+    dims = [f"dim_{i}" for i in range(n_dims)]
+    # need enough columns/data for random sample tests
+    shape = tuple(range(6, 6 + n_dims))
+    for i in range(n_vars):
+        data_vars[f"var_{i}"] = xr.DataArray(
+            np.full(shape=shape, fill_value=fill_value), dims=dims
+        )
+    return xr.Dataset(data_vars=data_vars)
+
+
+def get_mapper(n_keys: int, n_vars: int, n_dims: int):
+    mapper = {}
+    for i in range(n_keys):
+        mapper[str(i)] = get_dataset(fill_value=float(i), n_vars=n_vars, n_dims=n_dims)
+    return mapper
+
+
+@pytest.mark.parametrize(
+    "n_keys", [pytest.param(1, id="one_key"), pytest.param(3, id="multiple_keys")]
+)
+@pytest.mark.parametrize(
+    "stacked_dims, total_dims",
+    [
+        pytest.param(1, 1, id="stack_only_dim"),
+        pytest.param(3, 3, id="stack_all_dims"),
+        pytest.param(1, 3, id="stack_one_dim"),
+        pytest.param(3, 6, id="stack_multiple_dims"),
+    ],
+)
+def test_batches_from_mapper_stacking(n_keys: int, stacked_dims: int, total_dims: int):
+    mapper = get_mapper(n_keys=n_keys, n_vars=2, n_dims=total_dims)
+    variable_names = list(list(mapper.values())[0].data_vars.keys())
+    unstacked_dims = [f"dim_{i}" for i in range(stacked_dims, total_dims)]
+    result = batches_from_mapper(
+        mapper, variable_names=variable_names, unstacked_dims=unstacked_dims
+    )
+    assert len(result) == n_keys  # default is 1 key per batch
+    for batch in result:
+        for data in batch.data_vars.values():
+            assert len(set(data.dims).intersection(unstacked_dims)) == len(
+                unstacked_dims
+            )
+            assert len(data.dims) == len(unstacked_dims) + 1
+            assert data.dims[0] == SAMPLE_DIM_NAME
+
+
+def test_batches_from_mapper_stacked_data_is_shuffled():
+    # the assertions of this test have a small chance to fail for a given random seed
+    np.random.seed(0)
+    mapper = get_mapper(n_keys=10, n_vars=1, n_dims=3)
+    unstacked_dims = ["dim_2"]
+    result = batches_from_mapper(
+        mapper,
+        variable_names=["var_0"],
+        unstacked_dims=unstacked_dims,
+        timesteps_per_batch=10,
+    )
+    assert len(result) == 1
+    batch = result[0]
+    # if sufficiently large, should contain samples from every timestep
+    sufficiently_large_subset = batch["var_0"].isel({SAMPLE_DIM_NAME: slice(0, 200)})
+    for i in range(10):
+        assert np.sum(sufficiently_large_subset.values == i) > 0
+    # if sufficiently small, should *not* contain samples from every timestep
+    sufficiently_small_subset = batch["var_0"].isel({SAMPLE_DIM_NAME: slice(0, 10)})
+    for i in range(10):
+        if np.sum(sufficiently_small_subset.values == i) == 0:
+            break
+    else:
+        raise ValueError(
+            "all timesteps were present in the first 10 samples, which is suspicious"
+        )
+
+
+@pytest.mark.parametrize(
+    "n_keys", [pytest.param(1, id="one_key"), pytest.param(3, id="multiple_keys")]
+)
+def test_batches_from_mapper_unstacked(n_keys: int):
+    n_dims = 3
+    mapper = get_mapper(n_keys=n_keys, n_vars=2, n_dims=n_dims)
+    variable_names = list(list(mapper.values())[0].data_vars.keys())
+    result = batches_from_mapper(
+        mapper, variable_names=variable_names, unstacked_dims=None
+    )
+    assert len(result) == n_keys  # default is 1 key per batch
+    expected_dims = ["time"] + [f"dim_{i}" for i in range(n_dims)]
+    for batch in result:
+        for data in batch.data_vars.values():
+            assert list(data.dims) == expected_dims
+
+
+@pytest.mark.parametrize("subsample_ratio", [0.8, 0.5])  # 1.0 is covered by other tests
+def test_batches_from_mapper_subsample(subsample_ratio: float):
+    np.random.seed(0)  # results are slightly seed-dependent
+    mapper = get_mapper(n_keys=10, n_vars=1, n_dims=3)
+    unstacked_dims = ["dim_2"]
+    result = batches_from_mapper(
+        mapper,
+        variable_names=["var_0"],
+        unstacked_dims=unstacked_dims,
+        timesteps_per_batch=10,
+        subsample_ratio=subsample_ratio,
+    )
+    assert len(result) == 1
+    data: np.ndarray = result[0]["var_0"].values
+    non_subsampled_result = batches_from_mapper(
+        mapper,
+        variable_names=["var_0"],
+        unstacked_dims=unstacked_dims,
+        timesteps_per_batch=10,
+        subsample_ratio=1.0,
+    )
+    n_total_samples = non_subsampled_result[0]["var_0"].shape[0]
+    assert int(n_total_samples * subsample_ratio) == data.shape[0]
+    for i in range(10):
+        assert np.sum(data == i) > 0  # data should sample from all keys
+
+    # unlikely to get exactly the same number from each, unless there is a bug where we
+    # subsample each timestep independently
+    sample_counts = []
+    for i in range(10):
+        sample_counts.append(np.sum(data == i))
+    assert not all(count == sample_counts[0] for count in sample_counts)
+
+
+def test_batches_from_netcdf(tmpdir):
+    saved_batches = []
+    for i in range(5):
+        ds = xr.Dataset(
+            data_vars={
+                "a": xr.DataArray(
+                    np.random.uniform(size=[2, 3, 4]), dims=["dim0", "dim1", "dim2"],
+                )
+            }
+        )
+        ds.to_netcdf(os.path.join(tmpdir, f"{i}.nc"))
+        saved_batches.append(ds)
+    loaded_batches = loaders.batches_from_netcdf(path=str(tmpdir))
+    for ds_saved, ds_loaded in zip(saved_batches, loaded_batches):
+        xr.testing.assert_equal(ds_saved, ds_loaded)
