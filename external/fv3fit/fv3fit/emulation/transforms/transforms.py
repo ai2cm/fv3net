@@ -20,6 +20,11 @@ class Difference(TensorTransform):
 
         to = after - before
 
+    Notes:
+        This class is its own factory (i.e. includes the .build and
+        .backwards_names methods). This is only possible because it doesn't
+        depend on data and can be represented directly in yaml.
+
     """
 
     to: str
