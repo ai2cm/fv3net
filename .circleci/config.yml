@@ -80,7 +80,7 @@ jobs:
       - run: |
             sudo apt-get update && sudo apt-get install -y apt-transport-https gnupg2
             curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-            echo "deb https://apt.kubernetes.io/ kubernetes-focal main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+            echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
             sudo apt-get update
             sudo apt-get install -y kubectl
       - run: sudo apt-get install make
@@ -106,7 +106,7 @@ jobs:
       IMAGE: <<parameters.image>>
     steps:
       - checkout
-      - run: apt-get update && apt-get install -y make jq
+      - run: sudo apt-get update && sudo apt-get install -y make jq
       - add_ssh_keys:
           fingerprints:
             - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key
@@ -117,7 +117,7 @@ jobs:
             echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
             echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
       - gcp-gcr/gcr-auth
-      - run: sudo -E .circleci/build_and_push_image.sh
+      - run: .circleci/build_and_push_image.sh
   lint:
     docker:
       - image: circleci/python:3.7
