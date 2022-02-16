@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  gcp-gcr: circleci/gcp-gcr@0.6.1
+  gcp-gcr: circleci/gcp-gcr@0.14.1
   slack: circleci/slack@3.4.2
 jobs:
   pytest:
@@ -74,7 +74,7 @@ jobs:
           path: /tmp/coverage/
   argo:
     machine:
-      image: ubuntu-1604:201903-01
+      image: ubuntu-2004:202111-02
     steps:
       - checkout
       - run: |
@@ -98,7 +98,7 @@ jobs:
           - fv3net
           - artifacts
     machine:
-      image: ubuntu-1604:202007-01
+      image: ubuntu-2004:202111-02
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
@@ -106,6 +106,7 @@ jobs:
       IMAGE: <<parameters.image>>
     steps:
       - checkout
+      - run: sudo apt-get update && sudo apt-get install -y make jq
       - add_ssh_keys:
           fingerprints:
             - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key

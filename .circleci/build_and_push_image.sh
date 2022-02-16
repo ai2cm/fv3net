@@ -11,7 +11,6 @@ then
     CIRCLE_SHA1=$(git rev-parse HEAD)
 fi
 
-apt-get install -y make jq
 make build_image_$IMAGE
 make image_test_$IMAGE
 
