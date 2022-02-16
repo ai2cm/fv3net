@@ -17,30 +17,36 @@ tensor_transform:
     source: specific_humidity_input
     transform:
       epsilon: 1e-8
-  # outputs
+  # difference variables
   - to: cloud_precpd_difference
+    before: cloud_water_mixing_ratio_input
+    after: cloud_water_mixing_ratio_after_precpd
+  - to: temperature_precpd_only_difference
+    before: air_temperature_after_gscond
+    after: air_temperature_after_precpd
+  - to: humidity_precpd_only_difference
+    before: specific_humidity_after_gscond
+    after: specific_humidity_after_precpd
+  # outputs
+  - to: cloud_precpd_difference_scaled
+    source: cloud_precpd_difference
     condition_on: air_temperature_input
     min_scale: 1e-8
+    fit_filter_magnitude: 1e-8
     bins: 50
-    field:
-      input_name: cloud_water_mixing_ratio_input
-      output_name: cloud_water_mixing_ratio_after_precpd
-  # use precpd_only name for backwards compatibility
-  - to: temperature_precpd_only_difference
+  - to: temperature_precpd_only_difference_scaled
+    source: temperature_precpd_only_difference
     condition_on: air_temperature_input
     min_scale: 1e-5
-    filter_magnitude: 1e-5
+    fit_filter_magnitude: 1e-5
     bins: 50
-    field:
-      input_name: air_temperature_after_gscond
-      output_name: air_temperature_after_precpd
-  - to: humidity_precpd_only_difference
+  - to: humidity_precpd_only_difference_scaled
+    source: humidity_precpd_only_difference
     condition_on: air_temperature_input
     min_scale: 1e-8
+    # approx lv/cp times smaller than temperature value
+    fit_filter_magnitude: 1e-8
     bins: 50
-    field:
-      input_name: specific_humidity_after_gscond
-      output_name: specific_humidity_after_precpd
 loss:
   optimizer:
     kwargs:
@@ -54,13 +60,13 @@ loss:
   loss_variables:
   - total_precipitation
   - cloud_precpd_difference
-  - temperature_precpd_only_difference
-  - humidity_precpd_only_difference
+  - temperature_precpd_only_difference_scaled
+  - humidity_precpd_only_difference_scaled
   weights:
     total_precipitation: 1.0
-    cloud_precpd_difference: 1.0
-    temperature_precpd_only_difference: 1.0
-    humidity_precpd_only_difference: 1.0
+    cloud_precpd_difference_scaled: 1.0
+    temperature_precpd_only_difference_scaled: 1.0
+    humidity_precpd_only_difference_scaled: 1.0
 model:
   architecture:
     kwargs:
@@ -76,10 +82,10 @@ model:
   - log_humidity_input
   - log_cloud_input
   direct_out_variables:
-  - cloud_precpd_difference
+  - cloud_precpd_difference_scaled
   - total_precipitation
-  - temperature_precpd_only_difference
-  - humidity_precpd_only_difference
+  - temperature_precpd_only_difference_scaled
+  - humidity_precpd_only_difference_scaled
   normalize_key: mean_std
   enforce_positive: false
   selection_map: {}
