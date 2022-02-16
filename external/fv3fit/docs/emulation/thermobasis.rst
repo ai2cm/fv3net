@@ -5,7 +5,7 @@ Thermodynamics-aware ML
 
 
 This package contains thermodynamics aware objects that can be used for building
-machine learning models. 
+machine learning models.
 
 
 Thermodynamic Bases

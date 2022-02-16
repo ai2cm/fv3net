@@ -56,11 +56,11 @@ def download_all_bucket_files(
         out_dir_prefix: Local path to place downloaded directory contents
         include_parent_in_stem: Include the specified target directory whose contents
             are being downloaded in local output.
-            
+
             E.g., for
             gcs_url = gs://bucket/download_my/contents/
             output_dir_prefix = /tmp
-            
+
             including the parent would result in the directory structure of
             /tmp/contents/...
     """

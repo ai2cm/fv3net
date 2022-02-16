@@ -65,7 +65,7 @@ def create_fv3_grid(
         y_outer (optional): the dimension name for the y edges
 
     Returns:
-        an xgcm grid object. This object can be used to interpolate and differentiate 
+        an xgcm grid object. This object can be used to interpolate and differentiate
         cubed sphere data, please see the XGCM_ documentation for more information.
 
     Notes:

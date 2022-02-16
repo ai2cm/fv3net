@@ -10,7 +10,7 @@ import io
 
 @contextlib.contextmanager
 def no_warning(*args):
-    """Raise error if any errors occur. Takes the same arguments as 
+    """Raise error if any errors occur. Takes the same arguments as
     ``pytest.warns``.
 
     Example:
@@ -48,7 +48,7 @@ def checksum_dataarray_mapping(
     Returns:
         sorted list of (key, hash) combinations. This is sorted to simplify
         regression testing.
-    
+
     """
     sorted_keys = sorted(d.keys())
     return [(key, checksum_dataarray(d[key])) for key in sorted_keys]

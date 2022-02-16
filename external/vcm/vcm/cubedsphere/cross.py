@@ -69,7 +69,7 @@ def to_cross(
 
     Useful for quickly plotting maps or applying other 2D image processing
     techniques.
-    
+
     See Also:
 
         Weyn J, Durran D, and Caruana, 2019

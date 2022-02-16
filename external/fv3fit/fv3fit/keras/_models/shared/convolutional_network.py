@@ -150,7 +150,7 @@ class ConvolutionalNetworkConfig:
             n_features_out: dimensionality of last (feature) dimension of output
             label: inserted into layer names, if this function is used multiple times
                 to build one network you must provide a different label each time
-        
+
         Returns:
             tensors resulting from the requested convolutional network, each
             tensor has the same dimensionality as the input tensor but will have fewer

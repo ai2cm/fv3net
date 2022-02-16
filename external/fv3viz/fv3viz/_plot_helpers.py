@@ -153,7 +153,7 @@ def infer_cmap_params(
     robust: bool = False,
 ) -> Tuple[float, float, str]:
     """Determine useful colorbar limits and cmap for given data.
-    
+
     Args:
         data: The data to be plotted.
         vmin: Optional minimum for colorbar.

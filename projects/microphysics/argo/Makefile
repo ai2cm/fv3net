@@ -18,7 +18,7 @@ submit:
 		-p config="$$config_content"\
 		-p tf_model=$(TF_MODEL) \
 		-p on_off_flag="$(ON_OFF_FLAG)" \
-		-p do_piggy="$(PIGGY_DIAG)" 
+		-p do_piggy="$(PIGGY_DIAG)"
 
 baseline-short: TAG=baseline-short
 baseline-short: CONFIG=../configs/default_short.yaml

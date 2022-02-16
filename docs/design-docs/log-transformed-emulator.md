@@ -1,6 +1,6 @@
-# Goal 
+# Goal
 
-Train a microphysics emulator in log-transformed humidity/cloud water space. 
+Train a microphysics emulator in log-transformed humidity/cloud water space.
 
 # Background
 

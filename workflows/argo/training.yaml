@@ -54,7 +54,7 @@ spec:
             cat training_data.yaml
             echo "Validation Data Configuration:"
             cat validation_data.yaml
-                
+
             python3 -m fv3fit.train \
               training_config.yaml \
               training_data.yaml \
@@ -66,7 +66,7 @@ spec:
       - key: "dedicated"
         operator: "Equal"
         value: "med-sim-pool"
-        effect: "NoSchedule"      
+        effect: "NoSchedule"
       podSpecPatch: |
         containers:
           - name: main

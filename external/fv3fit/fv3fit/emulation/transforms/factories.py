@@ -87,6 +87,8 @@ class ConditionallyScaled(TransformFactory):
             output data (``d field``) is normalized.
         min_scale: the minimium scale to normalize by. Used when the scale might
             be 0.
+        filter_magnitude: any values with |to-field| < filter_magnitude are removed
+            from the standard deviation/mean calculation.
 
     """
 
@@ -95,6 +97,7 @@ class ConditionallyScaled(TransformFactory):
     bins: int
     field: Field
     min_scale: float = 0.0
+    filter_magnitude: float = 0.0
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         """List the names needed to compute ``self.to``"""
@@ -110,17 +113,23 @@ class ConditionallyScaled(TransformFactory):
     def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
 
         residual_sample = sample[self.field.output_name] - sample[self.field.input_name]
-
+        mask = tf.abs(residual_sample) > self.filter_magnitude
         return ConditionallyScaledTransform(
             to=self.to,
             on=self.condition_on,
             input_name=self.field.input_name,
             output_name=self.field.output_name,
             scale=fit_conditional(
-                sample[self.condition_on], residual_sample, reduce_std, self.bins
+                sample[self.condition_on][mask],
+                residual_sample[mask],
+                reduce_std,
+                self.bins,
             ),
             center=fit_conditional(
-                sample[self.condition_on], residual_sample, tf.reduce_mean, self.bins
+                sample[self.condition_on][mask],
+                residual_sample[mask],
+                tf.reduce_mean,
+                self.bins,
             ),
             min_scale=self.min_scale,
         )

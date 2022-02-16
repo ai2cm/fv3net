@@ -50,7 +50,7 @@ class DenseModel(Predictor):
     removed. Saved models will still load and predict, but no new DenseModel
     objects will be saved. Use the `dense` training function instead for training
     dense models.
-    
+
     Abstract base class for a keras-based model which operates on xarray
     datasets containing a "sample" dimension (as defined by loaders.SAMPLE_DIM_NAME),
     where each variable has at most one non-sample dimension.
@@ -161,7 +161,7 @@ class DenseModel(Predictor):
         """Fits a model using data in the batches sequence
 
         Makes use of configuration in DenseHyperparameters.training_loop
-        
+
         Args:
             batches: sequence of unstacked datasets of predictor variables
             validation_dataset: optional validation dataset

@@ -222,7 +222,7 @@ def _mappable_var(
 ):
     """ Converts a dataset into a format for plotting across cubed-sphere tiles by
     checking and ordering its grid variable and plotting variable dimensions
-    
+
     Args:
         ds:
             Dataset containing the variable to be plotted, along with grid variables.

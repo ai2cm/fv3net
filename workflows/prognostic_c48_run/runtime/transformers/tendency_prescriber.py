@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclasses.dataclass
 class TendencyPrescriberConfig:
     """Configuration for overriding tendencies from a step.
-    
+
     Attributes:
         mapper_config: configuration of mapper used to load tendency data.
         variables: mapping from state name to name of corresponding tendency in
@@ -107,10 +107,10 @@ class TendencyPrescriber:
 
     def __call__(self, func: Step) -> Step:
         """Override tendencies from a function that updates the State.
-        
+
         Args:
             func: a function that updates the State and return Diagnostics.
-            
+
         Returns:
             A function which calls ``func`` and prescribes a given change
             for specified variables.

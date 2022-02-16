@@ -285,7 +285,7 @@ def main(config: TrainConfig, seed: int = 0):
         config.test_url, config.nfiles_valid, config.model_variables
     )
 
-    train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
+    train_set = next(iter(train_ds.shuffle(1_000_000).batch(50_000)))
     transform = config.build_transform(train_set)
 
     train_ds = train_ds.map(transform.forward)

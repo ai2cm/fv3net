@@ -37,7 +37,7 @@ fv3config_ (`docs <https://fv3config.readthedocs.io/en/latest/>`_) provides rout
     :caption: List of packages:
     :maxdepth: 1
     :glob:
-    
+
     readme_links/fv3fit_readme
     readme_links/loaders_readme
     readme_links/fv3viz_readme
