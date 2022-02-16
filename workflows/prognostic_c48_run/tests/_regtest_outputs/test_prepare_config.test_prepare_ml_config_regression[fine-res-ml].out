@@ -435,6 +435,7 @@ online_emulator:
   url: some/path
   variables:
     air_temperature: dQ1
+  zonal_mean_bias_correction_factor: {}
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn: null

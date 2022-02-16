@@ -1,5 +1,7 @@
 import joblib
 import fv3fit
+import fv3gfs.util
+from fv3gfs.util.testing import DummyComm
 import vcm
 import xarray as xr
 from runtime.transformers.fv3fit import Config, Adapter
@@ -27,6 +29,13 @@ def regression_state(state, regtest):
         print(v, joblib.hash(state[v].values), file=regtest)
 
 
+def _get_dummy_comm():
+    return fv3gfs.util.CubedSphereCommunicator(
+        DummyComm(0, 6, {}),
+        fv3gfs.util.CubedSpherePartitioner(fv3gfs.util.TilePartitioner((1, 1))),
+    )
+
+
 def test_adapter_regression(state, regtest, tmpdir_factory):
     model_path = str(tmpdir_factory.mktemp("model"))
     mock = get_mock_predictor(dQ1_tendency=1 / 86400)
@@ -39,6 +48,7 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
             bias_correction_factor={"dQ1": -1},
         ),
         900,
+        _get_dummy_comm(),
     )
     transform = StepTransformer(
         adapted_model,
