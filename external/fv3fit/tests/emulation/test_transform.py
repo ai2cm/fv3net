@@ -258,7 +258,7 @@ def test_ConditionallyScaled_applies_mask(monkeypatch, filter_magnitude):
         to=to,
         bins=1,
         condition_on=on,
-        filter_magnitude=filter_magnitude,
+        fit_filter_magnitude=filter_magnitude,
     )
 
     factory.build(data)

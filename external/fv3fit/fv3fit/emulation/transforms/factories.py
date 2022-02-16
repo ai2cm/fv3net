@@ -84,7 +84,7 @@ class ConditionallyScaled(TransformFactory):
         source: The variable to be normalized.
         min_scale: the minimium scale to normalize by. Used when the scale might
             be 0.
-        filter_magnitude: if provided, any values with
+        fit_filter_magnitude: if provided, any values with
             |source| < filter_magnitude are removed from the standard
             deviation/mean calculation.
 
@@ -95,7 +95,7 @@ class ConditionallyScaled(TransformFactory):
     source: str
     bins: int
     min_scale: float = 0.0
-    filter_magnitude: Optional[float] = None
+    fit_filter_magnitude: Optional[float] = None
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         """List the names needed to compute ``self.to``"""
@@ -106,8 +106,8 @@ class ConditionallyScaled(TransformFactory):
 
     def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
 
-        if self.filter_magnitude is not None:
-            mask = tf.abs(sample[self.source]) > self.filter_magnitude
+        if self.fit_filter_magnitude is not None:
+            mask = tf.abs(sample[self.source]) > self.fit_filter_magnitude
         else:
             mask = ...
 
