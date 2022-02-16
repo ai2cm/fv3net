@@ -71,23 +71,22 @@ def fit_conditional(
 class ConditionallyScaled(TransformFactory):
     """Conditionally scaled transformation
 
-    Scales the output-input difference of ``field`` by conditional standard
+    Scales the output-input difference of ``source`` by conditional standard
     deviation and mean::
 
-                  d field - E[d field|on]
+                  source - E[source|on]
         to =  --------------------------------
-               max[Std[d field|on], min_scale]
+               max[Std[source|on], min_scale]
 
     Attributes:
         to: name of the transformed variable.
         condition_on: the variable to condition on
         bins: the number of bins
-        field: the prognostic variable spec. The difference between input and
-            output data (``d field``) is normalized.
+        source: The variable to be normalized.
         min_scale: the minimium scale to normalize by. Used when the scale might
             be 0.
         filter_magnitude: if provided, any values with
-            |to-field| < filter_magnitude are removed from the standard
+            |source| < filter_magnitude are removed from the standard
             deviation/mean calculation.
 
     """
