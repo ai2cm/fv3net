@@ -3,4 +3,10 @@ from .factories import (
     ConditionallyScaled,
     TransformedVariableConfig,
 )
-from .transforms import ComposedTransform, Identity, LogTransform, TensorTransform
+from .transforms import (
+    ComposedTransform,
+    Difference,
+    Identity,
+    LogTransform,
+    TensorTransform,
+)

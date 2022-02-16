@@ -3,9 +3,10 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from fv3fit.emulation.transforms import (
-    LogTransform,
     ComposedTransformFactory,
     ComposedTransform,
+    Difference,
+    LogTransform,
     TransformedVariableConfig,
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
@@ -211,3 +212,30 @@ def test_ConditionallyScaled_build():
 
     assert tf.reduce_mean(out[to]).numpy() == pytest.approx(0.0, abs=0.1)
     assert tf.reduce_mean(out[to] ** 2).numpy() == pytest.approx(1.0, abs=0.1)
+
+
+def test_Difference_backward_names():
+    diff = Difference("diff", "before", "after")
+    assert diff.backward_names({"diff"}) == {"before", "after", "diff"}
+    assert diff.backward_names({"not in a"}) == {"not in a"}
+
+
+def test_Difference_build():
+    diff = Difference("diff", "before", "after")
+    assert diff.build({}) == diff
+
+
+def test_Difference_forward():
+    diff = Difference("diff", "before", "after")
+    in_ = {"after": 1, "before": 0}
+    assert diff.forward(in_) == {"diff": 1, **in_}
+
+
+def test_Difference_backward():
+    diff = Difference("diff", "before", "after")
+    in_ = {"diff": 1, "before": 0}
+    assert diff.backward(in_) == {"after": 1, **in_}
+
+    # test if after is already present
+    in_ = {"diff": 1, "before": 0, "after": 1000}
+    assert diff.backward(in_) == {"after": 1, "before": 0, "diff": 1}

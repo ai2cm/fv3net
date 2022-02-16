@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, List
+from typing import Callable, List, Set
 
 import tensorflow as tf
 from typing_extensions import Protocol
@@ -12,6 +12,36 @@ class TensorTransform(Protocol):
 
     def backward(self, y: TensorDict) -> TensorDict:
         pass
+
+
+@dataclasses.dataclass
+class Difference(TensorTransform):
+    """A difference variable::
+
+        to = after - before
+
+    """
+
+    to: str
+    before: str
+    after: str
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        new_names = {self.before, self.after} if self.to in requested_names else set()
+        return requested_names.union(new_names)
+
+    def build(self, sample: TensorDict) -> TensorTransform:
+        return self
+
+    def forward(self, x: TensorDict) -> TensorDict:
+        x = {**x}
+        x[self.to] = x[self.after] - x[self.before]
+        return x
+
+    def backward(self, y: TensorDict) -> TensorDict:
+        y = {**y}
+        y[self.after] = y[self.before] + y[self.to]
+        return y
 
 
 @dataclasses.dataclass
