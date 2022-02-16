@@ -74,7 +74,7 @@ jobs:
           path: /tmp/coverage/
   argo:
     machine:
-      image: ubuntu-1604:201903-01
+      image: ubuntu-2004:202111-02
     steps:
       - checkout
       - run: |
@@ -98,7 +98,7 @@ jobs:
           - fv3net
           - artifacts
     machine:
-      image: ubuntu-1604:202007-01
+      image: ubuntu-2004:202111-02
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
