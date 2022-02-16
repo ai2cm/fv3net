@@ -71,8 +71,7 @@ def fit_conditional(
 class ConditionallyScaled(TransformFactory):
     """Conditionally scaled transformation
 
-    Scales the output-input difference of ``source`` by conditional standard
-    deviation and mean::
+    Scales ``source`` by conditional standard deviation and mean::
 
                   source - E[source|on]
         to =  --------------------------------
