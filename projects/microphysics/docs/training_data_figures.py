@@ -218,6 +218,11 @@ def plot_temperature_conditional_scatter(train_set):
     qc = "cloud_water_mixing_ratio_after_precpd"
     T = "air_temperature_input"
 
+    d_qv_gscond = df["specific_humidity_after_gscond"] - df["specific_humidity_input"]
+    qc_after_gscond = df["cloud_water_mixing_ratio_input"] - d_qv_gscond
+    qc_after_precpd = df["cloud_water_mixing_ratio_after_precpd"]
+    qc_in = df["cloud_water_mixing_ratio_input"]
+
     plotme = {}
     plotme["qv difference"] = (
         df["specific_humidity_after_precpd"] - df["specific_humidity_input"]
@@ -230,9 +235,12 @@ def plot_temperature_conditional_scatter(train_set):
         - df["cloud_water_mixing_ratio_input"]
     )
 
-    plotme["log(-temp difference precpd)"] = np.log10(
+    plotme["log10(-temp difference precpd)"] = np.log10(
         -(df["air_temperature_after_precpd"] - df["air_temperature_after_gscond"])
         + 1e-6
+    )
+    plotme["log10(-qc difference precpd)"] = np.log10(
+        -(qc_after_precpd - qc_after_gscond) + 1e-30
     )
 
     plotme["log_10(qc+1e-45)"] = np.log10(df[qc] + 1e-45)
