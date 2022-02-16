@@ -87,16 +87,14 @@ class ConditionallyScaledTransform(TensorTransform):
     def __init__(
         self,
         to: str,
-        input_name: str,
-        output_name: str,
+        source: str,
         on: str,
         scale: Callable[[tf.Tensor], tf.Tensor],
         center: Callable[[tf.Tensor], tf.Tensor],
         min_scale: float = 0.0,
     ) -> None:
         self.to = to
-        self.input_name = input_name
-        self.output_name = output_name
+        self.source = source
         self.on = on
         self.scale = scale
         self.center = center
@@ -107,17 +105,15 @@ class ConditionallyScaledTransform(TensorTransform):
 
     def forward(self, x: TensorDict) -> TensorDict:
         out = {**x}
-        out[self.to] = (
-            x[self.output_name] - x[self.input_name] - self.center(x[self.on])
-        ) / self._limited_scale(x[self.on])
+        out[self.to] = (x[self.source] - self.center(x[self.on])) / self._limited_scale(
+            x[self.on]
+        )
         return out
 
     def backward(self, y: TensorDict) -> TensorDict:
         out = {**y}
-        out[self.output_name] = (
-            y[self.to] * self._limited_scale(y[self.on])
-            + y[self.input_name]
-            + self.center(y[self.on])
+        out[self.source] = y[self.to] * self._limited_scale(y[self.on]) + self.center(
+            y[self.on]
         )
         return out
 

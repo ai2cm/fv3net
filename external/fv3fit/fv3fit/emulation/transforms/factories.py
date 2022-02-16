@@ -10,7 +10,6 @@ from fv3fit.emulation.transforms.transforms import (
     UnivariateTransform,
 )
 from fv3fit.emulation.types import TensorDict
-from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.keras.math import groupby_bins, piecewise
 from typing_extensions import Protocol
 
@@ -94,40 +93,33 @@ class ConditionallyScaled(TransformFactory):
 
     to: str
     condition_on: str
+    source: str
     bins: int
-    field: Field
     min_scale: float = 0.0
     filter_magnitude: float = 0.0
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         """List the names needed to compute ``self.to``"""
-        if self.to in requested_names:
-            return (requested_names - {self.to}) | {
-                self.field.input_name,
-                self.condition_on,
-                self.field.output_name,
-            }
-        else:
-            return requested_names
+        new_names = (
+            {self.condition_on, self.source} if self.to in requested_names else set()
+        )
+        return requested_names.union(new_names)
 
     def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
-
-        residual_sample = sample[self.field.output_name] - sample[self.field.input_name]
-        mask = tf.abs(residual_sample) > self.filter_magnitude
+        mask = tf.abs(sample[self.source]) > self.filter_magnitude
         return ConditionallyScaledTransform(
             to=self.to,
             on=self.condition_on,
-            input_name=self.field.input_name,
-            output_name=self.field.output_name,
+            source=self.source,
             scale=fit_conditional(
                 sample[self.condition_on][mask],
-                residual_sample[mask],
+                sample[self.source][mask],
                 reduce_std,
                 self.bins,
             ),
             center=fit_conditional(
                 sample[self.condition_on][mask],
-                residual_sample[mask],
+                sample[self.source][mask],
                 tf.reduce_mean,
                 self.bins,
             ),

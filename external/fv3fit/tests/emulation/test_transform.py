@@ -11,7 +11,6 @@ from fv3fit.emulation.transforms import (
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
 from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional
-from fv3fit.emulation.zhao_carr_fields import Field
 
 
 def _to_float(x: tf.Tensor) -> float:
@@ -125,7 +124,7 @@ def _get_mocked_transform(scale_value=2.0, min_scale=0.0):
     center.return_value = 0.0
 
     input_name = "x_in"
-    output_name = "x_out"
+    source_name = "x_out"
     to = "difference"
 
     zero = tf.zeros((3, 4), dtype=tf.float32)
@@ -134,12 +133,11 @@ def _get_mocked_transform(scale_value=2.0, min_scale=0.0):
 
     data = {
         input_name: zero,
-        output_name: zero + expected * max(scale.return_value, min_scale),
+        source_name: zero + expected * max(scale.return_value, min_scale),
     }
 
     transform = ConditionallyScaledTransform(
-        input_name=input_name,
-        output_name=output_name,
+        source=source_name,
         to=to,
         on=input_name,
         scale=scale,
@@ -175,35 +173,23 @@ def test_ConditionallyScaledTransform_backward(min_scale: float):
 
 
 def test_ConditionallyScaled_backward_names():
-    in_name = "x_in"
-    out_name = "x_out"
-    on = "T"
-    to = "diff"
-    factory = ConditionallyScaled(
-        field=Field(in_name, out_name), to=to, bins=10, condition_on=on
-    )
-    assert factory.backward_names({to}) == {in_name, on, out_name}
+    factory = ConditionallyScaled(source="in", to="z", bins=10, condition_on="T")
+    assert factory.backward_names({"z"}) == {"z", "T", "in"}
 
 
 def test_ConditionallyScaled_backward_names_output_not_in_request():
-    factory = ConditionallyScaled(
-        field=Field("x", "y"), to="z", bins=10, condition_on="T"
-    )
+    factory = ConditionallyScaled(source="in", to="z", bins=10, condition_on="T")
     assert factory.backward_names({"a", "b"}) == {"a", "b"}
 
 
 def test_ConditionallyScaled_build():
     tf.random.set_seed(0)
-    in_name = "x_in"
     out_name = "x_out"
     on = "T"
     to = "diff"
-    factory = ConditionallyScaled(
-        field=Field(in_name, out_name), to=to, bins=3, condition_on=on
-    )
+    factory = ConditionallyScaled(source=out_name, to=to, bins=3, condition_on=on)
     shape = (10, 4)
     data = {
-        in_name: tf.random.uniform(shape) * 5,
         out_name: tf.random.uniform(shape) * 3,
         on: tf.random.uniform(shape),
     }
