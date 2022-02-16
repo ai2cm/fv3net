@@ -49,7 +49,7 @@ To disable zarr or netCDF output, environment variables (`SAVE_NC`, `SAVE_ZARR`)
 
 `gfs_physics_nml.emulate_zc_microphysics = True`
 
-The microphysics emulation loads a keras model specified by the `TF_MODEL_PATH` environment variable.  Then during runtime, the model will make microphysical predictions for the ZC scheme on each rank.  
+The microphysics emulation loads a keras model specified by the `TF_MODEL_PATH` environment variable.  Then during runtime, the model will make microphysical predictions for the ZC scheme on each rank.
 
 The model input/output names are used to update the state, so they should match the variables pushed into global state by call_py_fort.  See `GFS_physics_driver.F90` to see the list of available state variables.  Any state field that intersects with a field produced by the emulator will be adjusted to {state_name}_physics_diag so that piggy-backed information is present.
 

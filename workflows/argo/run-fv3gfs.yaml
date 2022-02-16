@@ -25,7 +25,7 @@ spec:
                 from: "{{inputs.artifacts.fv3config}}"
       # loop over segments implemented through recursion so that a failed segment will
       # terminate the workflow. Argo loops by default run in parallel and do not fail fast.
-      - - name: run-first-segment  
+      - - name: run-first-segment
           template: run-all-segments
           arguments:
             parameters:
@@ -44,7 +44,7 @@ spec:
         - name: segment
     steps:
       - - template: append-segment
-          name: append-segment 
+          name: append-segment
           arguments:
             parameters:
               - {name: runURL, value: "{{inputs.parameters.output-url}}"}

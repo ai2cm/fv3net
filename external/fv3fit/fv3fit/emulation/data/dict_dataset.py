@@ -33,7 +33,7 @@ def netcdf_url_to_dataset(
         variables: a sequence of variable names to load from each netcdf file
         shuffle: if True, shuffle order the netcdf files will be loaded in. Does
             not shuffle BETWEEN files.
-    
+
     Returns:
         a  tensorflow dataset containing dictionaries of tensors. This
         dictionary contains all the variables specified in ``variables``.

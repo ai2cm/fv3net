@@ -26,7 +26,7 @@ can be viewed at its URL on a web browser.
 ### Quickstart
 
 ### 1. Generating diagnostics and metrics
-Generating the diagnostics can be done by providing a path to a model trained and dumped by 
+Generating the diagnostics can be done by providing a path to a model trained and dumped by
 `fv3fit`, an output path, and a flag specifiying how to select the test set of timesteps.
 e.g.,
 ```
@@ -51,7 +51,7 @@ positive net precipitation, and negative net precipitation domains
 - Time averaged maps of column integrated predicted variables
 - Diurnal cycle of column integrated dQ1 and dQ2, for global, land, and ocean domains
 - Single timestep snapshot of predicted vs. target varible, along a 0 deg longitude transect
-- Model's Jacobian evaluated at the input means (only for neural net models) 
+- Model's Jacobian evaluated at the input means (only for neural net models)
 
 
 ### 2. Generating an HTML report

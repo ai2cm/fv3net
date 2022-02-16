@@ -59,7 +59,7 @@ spec:
       - secretRef:
           name: wandb-andrep
       env:
-      - name: GOOGLE_APPLICATION_CREDENTIALS 
+      - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
         value: "{{workflow.parameters.tag}}"

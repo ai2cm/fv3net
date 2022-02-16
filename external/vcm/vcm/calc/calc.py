@@ -34,12 +34,12 @@ def weighted_average(
     dims: Sequence[str] = ["tile", "y", "x"],
 ) -> xr.Dataset:
     """Compute a weighted average of an array or dataset
-    
+
     Args:
         array: xr dataarray or dataset of variables to averaged
         weights: xr datarray of grid cell weights for averaging
         dims: dimensions to average over
-            
+
     Returns:
         xr dataarray or dataset of weighted averaged variables
     """

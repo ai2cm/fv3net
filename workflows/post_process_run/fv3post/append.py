@@ -91,12 +91,12 @@ def _assert_n_shift_valid(array: zarr.array, axis: str, n_shift: int):
 
 def _assert_chunks_match(source_group: zarr.Group, target_group: zarr.Group, dim: str):
     """Ensure chunks for source and target groups are valid for appending.
-    
+
     Specifically:
         1. all arrays in source_group have corresponding arrays in target_group.
         2. chunk size is same for each array in source and target group.
         3. dim length is a multiple of chunk size for target group.
-        
+
     In addition, log a warning if dim length is not a multiple of chunk size for source
     group."""
     for key, source_array in source_group.items():
@@ -145,7 +145,7 @@ def _get_dim_size(group: zarr.Group, dim: str):
 
 def _shift_store(group: zarr.Group, dim: str, n_shift: int):
     """Shift local zarr store which represents an xarray dataset by n_shift along dim
-    
+
     Args:
         group: zarr Group for an xarray dataset backed by a DirectoryStore
         dim: name of dimension of xarray dataset along which to shift zarr
@@ -217,7 +217,7 @@ def append_zarr_along_time(
     source_path: str, target_path: str, fs: fsspec.AbstractFileSystem, dim: str = "time"
 ):
     """Append local zarr store at source_path to zarr store at target_path along time.
-    
+
     Args:
         source_path: Local path to zarr store that represents an xarray dataset.
         target_path: Local or remote url for zarr store to be appended to.
@@ -251,7 +251,7 @@ def append_zarr_along_time(
 
 def append_segment(rundir: str, destination: str, segment_label: str, no_copy: bool):
     """Append local RUNDIR to possibly existing output at DESTINATION
-    
+
     Zarr's will be appended to in place, while all other files will be saved to
     DESTINATION/artifacts/SEGMENT_LABEL.
     """

@@ -84,7 +84,7 @@ class LossConfig:
 
         Args:
             std: standard deviation of the output features
-        
+
         Returns:
             loss: keras loss function
         """

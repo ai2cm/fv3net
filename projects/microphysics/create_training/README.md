@@ -6,9 +6,9 @@ the saved netcdfs.
 
 ## FV3GFS Runs
 
-It's set up to perform GFS-initialized C48 runs 
-starting on the first of each month. The duration of each run is 12 
-days with output netCDFs (and Zarrs) checkpointed every 5 hours.  
+It's set up to perform GFS-initialized C48 runs
+starting on the first of each month. The duration of each run is 12
+days with output netCDFs (and Zarrs) checkpointed every 5 hours.
 It saves the entire dictionary state in call-py-fort, so see the
 fv3gfs-fortran for details on the included fields.
 

@@ -257,7 +257,7 @@ def _get_batch(
     Selects requested variables in the dataset that are there by default
     (i.e., not added in derived step) and combines the given mapper keys
     into one dataset.
-    
+
     If all keys are time strings, converts them to time when creating the coordinate.
     """
     try:
@@ -282,7 +282,7 @@ def batches_from_netcdf(path: str) -> loaders.typing.Batches:
 
     Args:
         path: path (local or remote) of a directory of netCDF files
-    
+
     Returns:
         A sequence of batched data
     """
@@ -311,7 +311,7 @@ def batches_from_serialized(
         sample_dims: Sequence of dimensions to stack as a single sample dimension
         savepoints_per_batch: Number of serialized savepoints to include in a single
             batch
-    
+
     Returns:
         A seqence of batched serialized data ready for model testing/training
     """
