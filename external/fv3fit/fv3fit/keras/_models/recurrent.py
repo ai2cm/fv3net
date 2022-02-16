@@ -510,7 +510,7 @@ def _get_output_timestep_ds(
         reference_ds: state with reference output for current timestep, i.e. model
             state at the start of the next timestep
         sample_dim_name: name for sample dimension in output dataset
-    
+
     Returns:
         timestep_output_ds: dataset with outputs for current timestep
     """
@@ -563,7 +563,7 @@ class StepwiseModel(PureKerasModel):
     def integrate_stepwise(self, ds: xr.Dataset) -> xr.Dataset:
         """Perform an identical integration to the one used to train the
         model.
-        
+
         Args:
             ds: dataset containing time series of model inputs, as well as
                 air_temperature_tendency_due_to_model,

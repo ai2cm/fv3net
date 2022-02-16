@@ -49,10 +49,10 @@ PublicLinks = Mapping[str, Sequence[Tuple[str, str]]]
 
 def upload(html: str, url: str, content_type: str = "text/html"):
     """Upload to a local or remote path, setting the content type if remote
-    
+
     Setting the content type is necessary for viewing the uploaded object in a
     the web browser (e.g. it is a webpage or image).
-    
+
     """
     with fsspec.open(url, "w") as f:
         f.write(html)
@@ -354,11 +354,11 @@ def _get_metric_type_df(metrics: RunMetrics, metric_type: str) -> pd.DataFrame:
 
 def metric_type_table(metrics: RunMetrics, metric_type: str) -> RawHTML:
     """Return HTML table of all metrics of type metric_type.
-        
+
     Args:
         metrics: Computed metrics.
         metric_type: Label for type of metric, e.g. "rmse_5day".
-        
+
     Returns:
         HTML representation of table of metric values with rows of all variables
         available for given metric_type and columns of runs.
@@ -385,7 +385,7 @@ def metric_table(
     metrics: RunMetrics, metric_names: Mapping[str, Sequence[str]]
 ) -> RawHTML:
     """Return HTML table for all metrics specified in metric_names.
-    
+
     Args:
         metrics: Computed metrics.
         metric_names: A mapping from metric_types to sequences of variable names.
@@ -519,11 +519,11 @@ def _movie_output_path(root: str, run_name: str, movie_name: str) -> str:
 
 def _get_movie_manifest(movie_urls: MovieUrls, output: str) -> MovieManifest:
     """Return manifest of report output location for each movie in movie_urls.
-    
+
     Args:
         movie_urls: the URLs for the movies to be included in report.
         output: the location where the report will be saved.
-        
+
     Returns:
         Tuples of source URL and output path for each movie."""
     manifest = []

@@ -174,12 +174,12 @@ def surface_pressure_from_delp(
     delp: xr.DataArray, p_toa: float = 300.0, vertical_dim: str = "z"
 ) -> xr.DataArray:
     """Compute surface pressure from delp in Pa
-    
+
     Args:
         delp: DataArray of pressure layer thicknesses in Pa
         p_toa: Top of atmosphere pressure in Pa; optional, defaults to 300
         vertical_dim: Name of vertical dimension; defaults to 'z'
-        
+
     Returns:
         surface_pressure: DataArray of surface pressure in Pa
     """
@@ -216,7 +216,7 @@ def column_integrated_liquid_water_equivalent(
     specific_humidity: xr.DataArray, delp: xr.DataArray, vertical_dimension: str = "z"
 ) -> xr.DataArray:
     """Compute column-integrated liquid water equivalent from specific humidity
-    
+
     Args:
         specific_humidity: DataArray of specific humidity in kg/kg
         delp: DataArray of pressure layer thicknesses in Pa
@@ -240,12 +240,12 @@ def column_integrated_heating_from_isobaric_transition(
     dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
 ) -> xr.DataArray:
     """Compute vertically-integrated heat tendencies assuming isobaric transition.
-    
+
     Args:
         dtemperature_dt: DataArray of air temperature tendencies in K/s
         delp: DataArray of pressure layer thicknesses in Pa (NOT tendencies)
         vertical_dim: Name of vertical dimension; defaults to 'z'
-          
+
     Returns:
         column_integrated_heating: DataArray of column total heat tendencies in W/m**2
     """
@@ -264,12 +264,12 @@ def column_integrated_heating_from_isochoric_transition(
     dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
 ) -> xr.DataArray:
     """Compute vertically-integrated heat tendencies assuming isochoric transition.
-    
+
     Args:
         dtemperature_dt: DataArray of air temperature tendencies in K/s
         delp: DataArray of pressure layer thicknesses in Pa (NOT tendencies)
         vertical_dim: Name of vertical dimension; defaults to 'z'
-          
+
     Returns:
         column_integrated_heating: DataArray of column total heat tendencies in W/m**2
     """
@@ -288,12 +288,12 @@ def minus_column_integrated_moistening(
     dsphum_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
 ) -> xr.DataArray:
     """Compute negative of vertically-integrated moisture tendencies
-    
+
     Args:
         dsphum_dt: DataArray of (positive) specific humidity tendencies in kg/kg/s
         delp: DataArray of pressure layer thicknesses in Pa (NOT tendencies)
         vertical_dim: Name of vertical dimension; defaults to 'z'
-          
+
     Returns:
         column_integrated_heating: DataArray of negative of column total moisture
         tendencies in mm/day

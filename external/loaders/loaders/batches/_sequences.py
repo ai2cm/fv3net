@@ -97,7 +97,7 @@ def to_local(sequence: Sequence[T], path: str, n_jobs: int = 4) -> Local[T]:
         sequence: pickleable objects to dump locally
         path: local directory, will be created if not existing
         n_jobs: how many threads to use when dumping objects to file
-    
+
     Returns:
         local_sequence
     """

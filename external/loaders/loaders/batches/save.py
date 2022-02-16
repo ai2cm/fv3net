@@ -34,7 +34,6 @@ def main(data_config: str, output_path: str):
         config = yaml.safe_load(f)
     loader = BatchesLoader.from_dict(config)
     logger.info("configuration loaded, creating batches object")
-    print(1)
     batches = loader.load_batches()
     n_batches = len(batches)
     logger.info(f"batches object created, saving {n_batches} batches")

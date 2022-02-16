@@ -120,7 +120,7 @@ def plot_cubed_sphere_map(
     metrics_for_title: Mapping[str, str] = None,
 ) -> str:
     """Plot horizontal maps of cubed-sphere data for diagnostics which match varfilter.
-    
+
     Args:
         run_diags: the run diagnostics
         run_metrics: the run metrics, which can be used to annotate plots

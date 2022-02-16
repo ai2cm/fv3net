@@ -6,11 +6,11 @@ def get_verification_entries(
     name: str, catalog: intake.catalog.Catalog
 ) -> Mapping[str, Sequence[str]]:
     """Given simulation name, return catalog keys for c48 dycore and physics data.
-    
+
     Args:
         name: Simulation to use for verification.
         catalog: Catalog to search for verification data.
-        
+
     Returns:
         Mapping from category name ('physics', 'dycore', or '3d') to sequence
         of catalog keys representing given diagnostics for specified simulation.

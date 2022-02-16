@@ -54,7 +54,7 @@ the README for more details.
 ## Training data creation
 
 The `create_training/` subdirectory provides make targets for performing the
-monthly-initialized training data generation runs as well as gathering 
+monthly-initialized training data generation runs as well as gathering
 of netcdfs into training/testing GCS buckets after all runs have finished.
 
 
@@ -62,12 +62,12 @@ of netcdfs into training/testing GCS buckets after all runs have finished.
 The `train/` subdirectory provides an argo workflow that trains with
 `fv3fit.train_microphysics` and `scripts/score_training.py`. Scoring
 uses the final saved model from training or the last saved epoch at
-`config.out_url`.  A script, `run.sh` provides a convenience method 
-to submit a suite of training experiments using Argo.  
+`config.out_url`.  A script, `run.sh` provides a convenience method
+to submit a suite of training experiments using Argo.
 
-To run scoring on a pre-trained model, `score_training.py` accepts 
+To run scoring on a pre-trained model, `score_training.py` accepts
 `--model_url <URL>` as an argument to directly reference a model.
 
-To train a model using a GPU node via the ARGO workflow, add the 
+To train a model using a GPU node via the ARGO workflow, add the
 flag `-p gpu-train=true`.  This will spin up a node w/ a
 GPU and available CUDA libraries.

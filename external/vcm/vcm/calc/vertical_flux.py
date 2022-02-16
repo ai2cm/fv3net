@@ -58,7 +58,7 @@ def fit_field_as_flux(
         first_level_flux: flux of the level at z=0, in the positive index direction
         last_level_flux: flux of the level at z=-1, in the positive index direction
         vertical_dim: name of vertical dimension
-    
+
     Returns:
         flux_field: Flux of field * mass * g in units of
             (<field units> * kg * g)/m^2/s,
@@ -132,7 +132,7 @@ def convergence_cell_interface(
             centers
         vertical_dim: name of the cell-center vertical dimension
         vertical_interface_dim: name of the cell-interface vertical dimension
-    
+
     Returns:
         field: field reconstructed from the given vertical flux
     """

@@ -20,7 +20,7 @@ spec:
       secretName: gcp-key
   templates:
   - name: prognostic-run
-    dag: 
+    dag:
       tasks:
         - name: run-offline
           template: run-model
@@ -60,7 +60,7 @@ spec:
             parameters:
             - name: tag
               value: "{{workflow.parameters.tag}}-offline"
-        - name: prognostic-diags 
+        - name: prognostic-diags
           dependencies: [run-offline, run-online]
           template: prognostic-diags
           arguments:
@@ -96,7 +96,7 @@ spec:
       - secretRef:
           name: wandb-andrep
       env:
-      - name: GOOGLE_APPLICATION_CREDENTIALS 
+      - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
         value: "{{inputs.parameters.tag}}"
@@ -104,7 +104,7 @@ spec:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
       command: ["bash", "-c", "-x", "-e"]
-      args: 
+      args:
       - |
         echo "{{inputs.parameters.config}}" | base64 --decode > fv3config.yaml
         python3 scripts/prognostic_run.py \
@@ -135,7 +135,7 @@ spec:
       - secretRef:
           name: wandb-andrep
       env:
-      - name: GOOGLE_APPLICATION_CREDENTIALS 
+      - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
         value: "{{inputs.parameters.tag}}"
@@ -143,7 +143,7 @@ spec:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
       workingDir: "/home/jovyan/fv3net/projects/microphysics"
-      command: 
+      command:
       - prognostic_run_diags
       - piggy
       - "{{inputs.parameters.tag}}"
@@ -171,7 +171,7 @@ spec:
       - secretRef:
           name: wandb-andrep
       env:
-      - name: GOOGLE_APPLICATION_CREDENTIALS 
+      - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
         value: "{{inputs.parameters.tag}}"

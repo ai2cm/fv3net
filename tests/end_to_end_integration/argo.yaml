@@ -6,7 +6,7 @@ spec:
   arguments:
     parameters:
       - name: nudge-to-fine-config
-        value: | 
+        value: |
           base_version: v0.6
           forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
           initial_conditions:

@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Grid:
     """Convenience interface for doing grid-math
-    
+
     This class supplies the dimension name arguments to the cubedsphere methods,
     which are the same for all computations done here.
-    
+
     """
 
     x: str

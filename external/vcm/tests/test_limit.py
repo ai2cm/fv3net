@@ -17,7 +17,7 @@ def get_dataset(upper_limit, lower_limit):
     """Dataset of two variables that each vary in x but not z, scaled such that the
         first and last column in x will be outside the lower_limit and upper_limit,
         respectively
-    
+
     E.g., for upper limit of 0.875 and lower limit of 0.125, each z level will be
     [0.0, 1.0, 2.0, 3.0, 4.0]
     and its "limited" equivalent would be

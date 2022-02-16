@@ -27,7 +27,7 @@ The workflows in this project are described by the following graph.
     :caption: List of Workflows:
     :maxdepth: 1
     :glob:
-    
+
     readme_links/coarsen_c384_diagnostics_readme
     readme_links/dataflow_readme
     readme_links/fine_res_budget_readme

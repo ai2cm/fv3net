@@ -27,7 +27,7 @@ def rename_dict_output(
         model: a tensorflow model. must return dicts
         transation: a mapping from old names (the keys returned by ``model``) to
             the new output names.
-    
+
     """
 
     inputs = model.inputs
@@ -52,7 +52,7 @@ def ensure_dict_output(model: tf.keras.Model) -> tf.keras.Model:
         If ``model`` already returns dicts, then this is identical to model.
         If ``model`` outputs lists, then the ``name`` of each output
         layer will be used.
-    
+
     Example:
 
         >>> i = tf.keras.Input(shape=[5])

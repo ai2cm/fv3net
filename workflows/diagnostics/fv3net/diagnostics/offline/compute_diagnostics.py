@@ -78,7 +78,7 @@ def conditional_average_over_domain(
     uninformative_coords: Sequence[str] = ["tile", "z", "y", "x"],
 ) -> xr.Dataset:
     """Reduce a sequence of batches to a diagnostic dataset
-    
+
     Args:
         ds: xarray datasets with relevant variables batched in time
         grid: xarray dataset containing grid variables
@@ -92,7 +92,7 @@ def conditional_average_over_domain(
             composites, typically supplied by SHiELD net_precipitation; optional
         uninformative_coords: sequence of names of uninformative (i.e.,
             range(len(dim))), coordinates to be dropped
-            
+
     Returns:
         diagnostic_ds: xarray dataset of reduced diagnostic variables
     """
@@ -124,14 +124,14 @@ def _conditional_average(
     dims: Sequence[str] = ["tile", "y", "x"],
 ) -> xr.Dataset:
     """Average over a conditional type
-    
+
     Args:
         ds: xr dataarray or dataset of variables to averaged conditionally
         cell_type_array: xr datarray of cell category strings
         category: str of category over which to conditionally average
         area: xr datarray of grid cell areas for weighted averaging
         dims: dimensions to average over
-            
+
     Returns:
         xr dataarray or dataset of conditionally averaged variables
     """
@@ -155,15 +155,15 @@ def _snap_mask_to_type(
     atol: float = 1e-7,
 ) -> xr.DataArray:
     """Convert float surface type array to categorical surface type array
-    
+
     Args:
         float_mask: xr dataarray of float cell types
         enumeration: mapping of surface type str names to float values
         atol: absolute tolerance of float value matching
-            
+
     Returns:
         types: xr dataarray of str categorical cell types
-    
+
     """
 
     types = np.full(float_mask.shape, np.nan)
@@ -181,15 +181,15 @@ def _snap_net_precipitation_to_type(
     net_precipitation: xr.DataArray, type_names: Mapping[str, str] = None
 ) -> xr.DataArray:
     """Convert net_precipitation array to positive and negative categorical types
-    
+
     Args:
         net_precipitation: xr.DataArray of numerical values
         type_names: Mapping relating the "positive" and "negative" cases to their
             categorical type names
-            
+
     Returns:
         types: xr dataarray of categorical str type
-    
+
     """
 
     type_names = type_names or {
