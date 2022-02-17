@@ -26,15 +26,13 @@ def blended_model(
             function uses the model inputs and should return a mask tensor
             with [sample, feature] or [sample, 1] dimensions
         inputs: input tensors for the model, assumed to be
-            the same for model_a and model_b
+            cover all necessary inputs for model_a and model_b
     """
 
+    # avoid name conflicts in blended model
     model_a._name = "ModelA"
     model_b._name = "ModelB"
 
-    # Assumes both models have exact same inputs
-    # for now since training these all the same way
-    # should throw error if missing info
     model_a_out = ensure_dict_output(model_a)(inputs)
     model_b_out = ensure_dict_output(model_b)(inputs)
 
