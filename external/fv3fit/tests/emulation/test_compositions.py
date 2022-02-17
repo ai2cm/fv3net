@@ -1,4 +1,3 @@
-from functools import partial
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -20,9 +19,9 @@ def _get_model(tensor_dict, factor):
     "mask_field",
     [
         tf.convert_to_tensor([[True, True], [True, False], [False, False]]),
-        tf.convert_to_tensor([[True], [True], [False]])
+        tf.convert_to_tensor([[True], [True], [False]]),
     ],
-    ids=["full_sample_feature_mask", "sample_mask_broadcast"]
+    ids=["full_sample_feature_mask", "sample_mask_broadcast"],
 )
 def test_blended_model_blending(mask_field):
 
@@ -35,7 +34,7 @@ def test_blended_model_blending(mask_field):
 
     inputs = {
         "a": tf.keras.Input(2),
-        "mask_field": tf.keras.Input(mask_field.shape[-1])
+        "mask_field": tf.keras.Input(mask_field.shape[-1]),
     }
     model = blended_model(model_ones, model_zeros, mask_func, inputs)
     result = model(field)["a"]

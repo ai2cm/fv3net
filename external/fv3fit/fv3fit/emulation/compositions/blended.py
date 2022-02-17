@@ -1,9 +1,10 @@
-from typing import Callable, Dict, Mapping
+from typing import Callable, Mapping
 import tensorflow as tf
 
 from fv3fit.keras.adapters import ensure_dict_output
 
 TensorDict = Mapping[str, tf.Tensor]
+
 
 def blended_model(
     model_a: tf.keras.Model,
@@ -22,7 +23,7 @@ def blended_model(
         model_a: model to use at points where mask == True
         model_b: model to use at points where mask == False
         mask_func: masking function determining model output selection.  the
-            function uses the model inputs and should return a mask tensor 
+            function uses the model inputs and should return a mask tensor
             with [sample, feature] or [sample, 1] dimensions
         inputs: input tensors for the model, assumed to be
             the same for model_a and model_b
