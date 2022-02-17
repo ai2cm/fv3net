@@ -1,4 +1,5 @@
 import dataclasses
+from external.fv3fit.fv3fit._shared import hyperparameters
 import numpy as np
 import tensorflow as tf
 from typing import List, Optional, Sequence, Tuple, Set, Mapping, Union
@@ -15,7 +16,12 @@ from .shared import (
     DenseNetworkConfig,
     TrainingLoopLossHistory,
 )
-from fv3fit.keras._models.shared import PureKerasModel, LossConfig, ClipConfig
+from fv3fit.keras._models.shared import (
+    PureKerasModel,
+    LossConfig,
+    ClipConfig,
+    RangeConfig,
+)
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
     get_stacked_metadata,
@@ -45,10 +51,8 @@ class DenseHyperparameters(Hyperparameters):
             each output variable.
         save_model_checkpoints: if True, save one model per epoch when
             dumping, under a 'model_checkpoints' subdirectory
-        nonnegative_outputs: if True, add a ReLU activation layer as the last layer
-            after output denormalization layer to ensure outputs are always >=0
-            Defaults to False.
         clip_config: configuration of dataset packing.
+        range_config: configuration for limiting output values.
     """
 
     input_variables: List[str]
@@ -66,8 +70,8 @@ class DenseHyperparameters(Hyperparameters):
     )
     loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
     save_model_checkpoints: bool = False
-    nonnegative_outputs: bool = False
     clip_config: ClipConfig = dataclasses.field(default_factory=lambda: ClipConfig())
+    range_config: RangeConfig = dataclasses.field(default_factory=lambda: RangeConfig())
 
     @property
     def variables(self) -> Set[str]:
@@ -174,6 +178,8 @@ def build_model(
         config.input_variables,
     )
 
+    # note that n_features_out=1 is not used, as we connect subsequent layers
+    # to the last hidden output layer
     hidden_outputs = config.dense_network.build(
         full_input, n_features_out=1
     ).hidden_outputs
@@ -189,11 +195,10 @@ def build_model(
         names=config.output_variables, layers=norm_output_layers, arrays=y_2d,
     )
 
-    if config.nonnegative_outputs is True:
-        denorm_output_layers = [
-            tf.keras.layers.Activation(tf.keras.activations.relu)(output_layer)
-            for output_layer in denorm_output_layers
-        ]
+    # Apply output range limiters
+    denorm_output_layers = hyperparameters.range_config.apply_output_limiters(
+        denorm_output_layers
+    )
 
     # Model used in training has output levels clipped off, so std also must
     # be calculated over the same set of levels after clipping.
