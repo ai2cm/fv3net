@@ -27,8 +27,8 @@ class Range:
             return self._range_activation(output_layer)
 
     def _range_activation(self, output: Output) -> Output:
-        # Using this instead of ReLU because using both threshold and
-        # max_value args yields unexpected results for thresholds < 0.
+        # Using this instead of ReLU because using threshold args < 0
+        # result in a noncontinuous function
         x = output
         zeros = tf.zeros_like(x)
         if self.min is not None:
