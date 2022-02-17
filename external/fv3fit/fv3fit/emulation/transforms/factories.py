@@ -159,5 +159,10 @@ class ComposedTransformFactory(TransformFactory):
         return out
 
     def build(self, sample: TensorDict) -> ComposedTransform:
-        transforms = [factory.build(sample) for factory in self.factories]
+        transforms = []
+        sample = {**sample}
+        for factory in self.factories:
+            transform = factory.build(sample)
+            sample.update(transform.forward(sample))
+            transforms.append(transform)
         return ComposedTransform(transforms)

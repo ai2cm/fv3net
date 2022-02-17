@@ -279,3 +279,26 @@ def test_ConditionallyScaled_applies_mask(monkeypatch, filter_magnitude):
     # assert that fit_conditional was passed arrays of the expected size
     fit_conditional_x_arg = fit_conditional.call_args[0][0]
     assert fit_conditional_x_arg.shape == expected_shape
+
+
+def test_ComposedTransform_with_build():
+    """Check that composed transform works if an earlier transform produces an
+    output need by the .build of a later one"""
+
+    class MockTransform:
+        def forward(self, x):
+            return {"b": x["a"]}
+
+    factory1 = Mock()
+    factory1.build.return_value = MockTransform()
+
+    factory2 = Mock()
+    factory2.build.return_value = MockTransform()
+
+    data = {"a": 0}
+
+    ComposedTransformFactory([factory1, factory2]).build(data)
+
+    # mock2.build is called with the "b" variable outputted by mock1
+    (build_sample_for_second_mock,) = factory2.build.call_args[0]
+    assert build_sample_for_second_mock == {"b": 0, "a": 0}
