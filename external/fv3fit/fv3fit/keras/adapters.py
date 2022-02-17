@@ -167,3 +167,27 @@ def rename_dict_input(
     model_renamed(dict_inputs)
 
     return model_renamed
+
+
+def merge_models(left: tf.keras.Model, right: tf.keras.Model) -> tf.keras.Model:
+    """Merge the outputs of two models
+
+    Args:
+        left, right: the two models to merge. Both must be ``Functional`` models
+            predict different outputs, and have consistent inputs.
+    """
+    #  combine inputs
+    left = ensure_dict_output(left)
+    right = ensure_dict_output(right)
+
+    inputs = {}
+    for x in left.inputs + right.inputs:
+        inputs[x.name] = x
+
+    outputs = {**left(inputs), **right(inputs)}
+    outputs_renamed = {
+        name: tf.keras.layers.Lambda(lambda x: x, name=name)(out)
+        for name, out in outputs.items()
+    }
+    combined_model = tf.keras.Model(inputs=inputs, outputs=outputs_renamed)
+    return combined_model

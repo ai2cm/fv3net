@@ -5,6 +5,7 @@ import tensorflow as tf
 from fv3fit.keras.adapters import (
     get_inputs,
     ensure_dict_output,
+    merge_models,
     rename_dict_output,
     rename_dict_input,
     _ensure_list_input,
@@ -151,3 +152,18 @@ def test_ensure_list_input_preserves_output_dicts():
         np.testing.assert_array_equal(
             output_from_dict_input[key], output_from_list_input[key]
         )
+
+
+def test_merge_model():
+    x = tf.keras.Input(4, name="x")
+
+    def _output(name):
+        return tf.keras.layers.Lambda(lambda x: x, name=name)(x)
+
+    model_1 = tf.keras.Model(inputs=[x], outputs=_output("y1"))
+    model_2 = tf.keras.Model(inputs=[x], outputs=_output("y2"))
+
+    merged = merge_models(model_1, model_2)
+    output = merged(x)
+    assert set(output) == {"y1", "y2"}
+    assert set(output) == set(merged.output_names)
