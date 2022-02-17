@@ -1,5 +1,4 @@
 import dataclasses
-from external.fv3fit.fv3fit._shared import hyperparameters
 import numpy as np
 import tensorflow as tf
 from typing import List, Optional, Sequence, Tuple, Set, Mapping, Union
@@ -196,8 +195,8 @@ def build_model(
     )
 
     # Apply output range limiters
-    denorm_output_layers = hyperparameters.range_config.apply_output_limiters(
-        denorm_output_layers
+    denorm_output_layers = config.range_config.apply_output_limiters(
+        outputs=denorm_output_layers, names=config.output_variables
     )
 
     # Model used in training has output levels clipped off, so std also must
