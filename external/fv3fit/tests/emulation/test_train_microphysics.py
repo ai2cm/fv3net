@@ -178,26 +178,25 @@ def test_TrainConfig_from_args_sysargv(monkeypatch, default_yml):
 )
 def test_rnn_v1_cache_disable(arch_key, expected_cache):
 
-    default = _get_test_config()
-    d = asdict(default)
-    d["cache"] = True
-    d["model"]["architecture"]["name"] = arch_key
-    config = TrainConfig.from_dict(d)
-
+    config = TrainConfig(
+        ".",
+        ".",
+        ".",
+        cache=True,
+        model=MicrophysicsConfig(architecture=ArchitectureConfig(name=arch_key)),
+    )
     assert config.cache == expected_cache
 
 
 @pytest.mark.regression
 def test_training_entry_integration(tmp_path):
 
-    config_dict = asdict(_get_test_config())
-    config_dict["out_url"] = str(tmp_path)
-    config_dict["use_wandb"] = False
-    config_dict["nfiles"] = 4
-    config_dict["nfiles_valid"] = 4
-    config_dict["epochs"] = 1
-
-    config = TrainConfig.from_dict(config_dict)
+    config = _get_test_config()
+    config.out_url = str(tmp_path)
+    config.use_wandb = False
+    config.nfiles = 4
+    config.nfiles_valid = 4
+    config.epochs = 1
 
     main(config)
 
