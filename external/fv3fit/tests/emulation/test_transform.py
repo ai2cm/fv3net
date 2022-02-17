@@ -68,27 +68,6 @@ def test_per_variable_transform_round_trip():
         _assert_scalar_approx(x[key], y[key])
 
 
-def test_per_variable_transform_backward_names():
-    transform = ComposedTransformFactory(
-        [TransformedVariableConfig("a", "b", LogTransform())]
-    )
-    assert transform.backward_names({"b"}) == {"a"}
-    assert transform.backward_names({"b", "random"}) == {"a", "random"}
-
-
-def test_composed_transform_backward_names_sequence():
-    """intermediate names produced by one transform should not be listed in the
-    required_names
-    """
-    transform = ComposedTransformFactory(
-        [
-            TransformedVariableConfig("a", "b", LogTransform()),
-            TransformedVariableConfig("b", "c", LogTransform()),
-        ]
-    )
-    assert transform.backward_names({"c"}) == {"a", "c"}
-
-
 def test_ComposedTransform_forward_backward_on_sequential_transforms():
     # some transforms could be mutually dependent
 
@@ -186,16 +165,6 @@ def test_ConditionallyScaledTransform_backward(min_scale: float):
         np.testing.assert_array_almost_equal(data[key], round_tripped[key])
 
 
-def test_ConditionallyScaled_backward_names():
-    factory = ConditionallyScaled(source="in", to="z", bins=10, condition_on="T")
-    assert factory.backward_names({"z"}) == {"z", "T", "in"}
-
-
-def test_ConditionallyScaled_backward_names_output_not_in_request():
-    factory = ConditionallyScaled(source="in", to="z", bins=10, condition_on="T")
-    assert factory.backward_names({"a", "b"}) == {"a", "b"}
-
-
 def test_ConditionallyScaled_build():
     tf.random.set_seed(0)
     out_name = "x_out"
@@ -212,12 +181,6 @@ def test_ConditionallyScaled_build():
 
     assert tf.reduce_mean(out[to]).numpy() == pytest.approx(0.0, abs=0.1)
     assert tf.reduce_mean(out[to] ** 2).numpy() == pytest.approx(1.0, abs=0.1)
-
-
-def test_Difference_backward_names():
-    diff = Difference("diff", "before", "after")
-    assert diff.backward_names({"diff"}) == {"before", "after", "diff"}
-    assert diff.backward_names({"not in a"}) == {"not in a"}
 
 
 def test_Difference_build():

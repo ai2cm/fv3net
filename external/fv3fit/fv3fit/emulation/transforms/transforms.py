@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, List, Set
+from typing import Callable, List
 
 import tensorflow as tf
 from typing_extensions import Protocol
@@ -21,19 +21,15 @@ class Difference(TensorTransform):
         to = after - before
 
     Notes:
-        This class is its own factory (i.e. includes the .build and
-        .backwards_names methods). This is only possible because it doesn't
-        depend on data and can be represented directly in yaml.
+        This class is its own factory (i.e. includes the .build method). This is
+        only possible because it doesn't depend on data and can be represented
+        directly in yaml.
 
     """
 
     to: str
     before: str
     after: str
-
-    def backward_names(self, requested_names: Set[str]) -> Set[str]:
-        new_names = {self.before, self.after} if self.to in requested_names else set()
-        return requested_names.union(new_names)
 
     def build(self, sample: TensorDict) -> TensorTransform:
         return self

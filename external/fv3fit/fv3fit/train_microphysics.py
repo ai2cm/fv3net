@@ -7,7 +7,7 @@ import logging
 import numpy as np
 import os
 import tempfile
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 import tensorflow as tf
 import yaml
@@ -87,6 +87,15 @@ class TrainConfig:
         log_level: what logging level to use
         cache: Use a cache for training/testing batches. Speeds up training for
             I/O bound architectures.  Always disabled for rnn-v1 architectures.
+        data_variables: list of variables to be loaded from dataset. Must be
+            present in the data at ``train/test_url`` or registered in the
+            DerivedMapping.
+        input_variables: List of input variables encoded in the saved model.
+            This should include inputs needed for
+            ``model(transform.forward(inputs))`` to work. Note this variable could
+            be inferred from ``model`` and ``tensor_transform``, but doing so would
+            require some overengineering.
+
     """
 
     train_url: str
@@ -111,6 +120,8 @@ class TrainConfig:
     checkpoint_model: bool = True
     log_level: str = "INFO"
     cache: bool = True
+    data_variables: List[str] = field(default_factory=list)
+    input_variables: List[str] = field(default_factory=list)
 
     @property
     def transform_factory(self) -> ComposedTransformFactory:
@@ -148,12 +159,6 @@ class TrainConfig:
         self, data: Mapping[str, tf.Tensor], transform: TensorTransform
     ) -> LossFunction:
         return self.loss.build(transform.forward(data))
-
-    @property
-    def input_variables(self) -> Sequence:
-        return list(
-            self.transform_factory.backward_names(set(self._model.input_variables))
-        )
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -232,21 +237,15 @@ class TrainConfig:
         return config
 
     def open_dataset(
-        self, url: str, nfiles: Optional[int], required_variables: Set[str],
+        self, url: str, nfiles: Optional[int], required_variables: Sequence[str],
     ) -> tf.data.Dataset:
-        nc_open_fn = self.transform.get_pipeline(required_variables)
+        nc_open_fn = self.transform.get_pipeline(set(required_variables))
         return nc_dir_to_tf_dataset(
             url,
             nc_open_fn,
             nfiles=nfiles,
             shuffle=True,
             random_state=np.random.RandomState(0),
-        )
-
-    @property
-    def model_variables(self) -> Set[str]:
-        return self.transform_factory.backward_names(
-            set(self._model.input_variables) | set(self._model.output_variables)
         )
 
     def __post_init__(self) -> None:
@@ -280,10 +279,10 @@ def main(config: TrainConfig, seed: int = 0):
         callbacks.append(config.wandb.get_callback())
 
     train_ds = config.open_dataset(
-        config.train_url, config.nfiles, config.model_variables
+        config.train_url, config.nfiles, config.data_variables
     )
     test_ds = config.open_dataset(
-        config.test_url, config.nfiles_valid, config.model_variables
+        config.test_url, config.nfiles_valid, config.data_variables
     )
 
     train_set = next(iter(train_ds.shuffle(1_000_000).batch(50_000)))
