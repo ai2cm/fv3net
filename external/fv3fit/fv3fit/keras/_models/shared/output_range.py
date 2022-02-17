@@ -1,7 +1,7 @@
 import dataclasses
 import numpy as np
 import tensorflow as tf
-from typing import Optional, Union, Mapping, Hashable
+from typing import Optional, Union, Mapping, Hashable, Sequence
 
 
 Output = Union[np.ndarray, tf.Tensor]
@@ -53,8 +53,19 @@ class RangeConfig:
     Limits range by adding a ReLU activation layer after the output layer.
 
     Attributes:
-        ranges: mapping of variable names to be limited to a Range
+        ranges: mapping of output variable names to be limited by a Range
         containing min/max values.
     """
 
     ranges: Mapping[Hashable, Range] = dataclasses.field(default_factory=dict)
+
+    def apply_output_limiters(
+        self, outputs: Sequence[Output], names: Sequence[str]
+    ) -> Sequence[Output]:
+        limited_outputs = []
+        for name, output in zip(names, outputs):
+            if name in self.ranges:
+                limited_outputs.append(self.ranges[name].limit_output(output))
+            else:
+                limited_outputs.append(output)
+        return limited_outputs
