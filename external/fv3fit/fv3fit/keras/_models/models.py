@@ -1,8 +1,6 @@
 from typing import (
-    Sequence,
     Iterable,
     Mapping,
-    Tuple,
     Union,
     Optional,
     List,
@@ -20,7 +18,6 @@ from ..._shared.packer import ArrayPacker, unpack_matrix
 from ..._shared.predictor import Predictor
 from ..._shared import (
     io,
-    StackedBatches,
     stack_non_vertical,
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
@@ -31,8 +28,6 @@ import os
 from ..._shared import get_dir, put_dir
 from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse, get_weighted_mae
-from .shared import EpochResult, XyArraySequence
-from loaders.batches import Take
 import yaml
 from vcm import safe
 
@@ -90,7 +85,6 @@ class DenseModel(Predictor):
         """
         # store (duplicate) hyperparameters like this for ease of serialization
         self._hyperparameters = hyperparameters
-        self._nonnegative_outputs = hyperparameters.nonnegative_outputs
         # TODO: remove internal sample dim name once sample dim is hardcoded everywhere
         super().__init__(input_variables, output_variables)
         self._model = None
@@ -135,98 +129,6 @@ class DenseModel(Predictor):
         if self._model is None:
             raise RuntimeError("must call fit() for keras model to be available")
         return self._model
-
-    def _fit_normalization(self, X: np.ndarray, y: np.ndarray):
-        self.X_scaler.fit(X)
-        self.y_scaler.fit(y)
-
-    def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
-        inputs = tf.keras.Input(n_features_in)
-        x = self.X_scaler.normalize_layer(inputs)
-        x = self._hyperparameters.dense_network.build(x, n_features_out).output
-        outputs = self.y_scaler.denormalize_layer(x)
-        if self._nonnegative_outputs:
-            outputs = tf.keras.layers.Activation(tf.keras.activations.relu)(outputs)
-        model = tf.keras.Model(inputs=inputs, outputs=outputs)
-        model.compile(optimizer=self._optimizer, loss=self.loss)
-        return model
-
-    def fit(
-        self,
-        batches: Sequence[xr.Dataset],
-        validation_dataset: Optional[xr.Dataset] = None,
-        validation_samples: Optional[int] = None,
-        use_last_batch_to_validate: Optional[bool] = None,
-    ) -> None:
-        """Fits a model using data in the batches sequence
-
-        Makes use of configuration in DenseHyperparameters.training_loop
-        
-        Args:
-            batches: sequence of unstacked datasets of predictor variables
-            validation_dataset: optional validation dataset
-            validation_samples: Option to specify number of samples to randomly draw
-                from the validation dataset, so that we can use multiple timesteps for
-                validation without having to load all the times into memory.
-                Defaults to the equivalent of a single C48 timestep (13824).
-            use_last_batch_to_validate: if True, use the last batch as a validation
-                dataset, cannot be used with a non-None value for validation_dataset.
-                Defaults to False.
-        """
-
-        random_state = np.random.RandomState(np.random.get_state()[1][0])
-        stacked_batches = StackedBatches(batches, random_state)
-        Xy = XyArraySequence(self.X_packer, self.y_packer, stacked_batches)
-        if self._model is None:
-            X, y = Xy[0]
-            n_features_in, n_features_out = X.shape[-1], y.shape[-1]
-            self._fit_normalization(X, y)
-            self._model = self.get_model(n_features_in, n_features_out)
-
-        if use_last_batch_to_validate:
-            if validation_dataset is not None:
-                raise ValueError(
-                    "cannot provide validation_dataset when "
-                    "use_first_batch_to_validate is True"
-                )
-            X_val, y_val = Xy[-1]
-            val_sample = np.random.choice(
-                np.arange(X_val.shape[0]), validation_samples, replace=False
-            )
-            X_val = X_val[val_sample, :]
-            y_val = y_val[val_sample, :]
-            validation_data: Optional[Tuple[np.ndarray, np.ndarray]] = (X_val, y_val)
-            Xy = Take(Xy, len(Xy) - 1)  # type: ignore
-        elif validation_dataset is not None:
-            stacked_validation_dataset = stack_non_vertical(validation_dataset)
-            X_val = self.X_packer.to_array(stacked_validation_dataset)
-            y_val = self.y_packer.to_array(stacked_validation_dataset)
-            val_sample = np.random.choice(
-                np.arange(len(y_val)), validation_samples, replace=False
-            )
-            validation_data = (X_val[val_sample], y_val[val_sample])
-        else:
-            validation_data = None
-        self.training_loop.fit_loop(
-            self.model,
-            Xy=Xy,
-            validation_data=validation_data,
-            callbacks=[self._end_of_epoch_callback],
-        )
-
-    def _end_of_epoch_callback(self, result: EpochResult):
-        loss_over_batches, val_loss_over_batches = [], []
-        for history in result.history:
-            loss_over_batches += history.history["loss"]
-            val_loss_over_batches += history.history.get("val_loss", [np.nan])
-        self.train_history["loss"].append(loss_over_batches)
-        self.train_history["val_loss"].append(val_loss_over_batches)
-        if self._checkpoint_path:
-            self.dump(os.path.join(self._checkpoint_path.name, f"epoch_{result.epoch}"))
-            logger.info(
-                f"Saved model checkpoint after epoch {result.epoch} "
-                f"to {self._checkpoint_path}"
-            )
 
     def _predict_on_stacked_data(self, stacked_input: xr.Dataset) -> xr.Dataset:
         stacked_input_array = self.X_packer.to_array(stacked_input)
