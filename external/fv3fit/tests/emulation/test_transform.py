@@ -86,7 +86,7 @@ def test_composed_transform_backward_names_sequence():
             TransformedVariableConfig("b", "c", LogTransform()),
         ]
     )
-    assert transform.backward_names({"c"}) == {"a", "c"}
+    assert transform.backward_names({"c"}) == {"a"}
 
 
 def test_ComposedTransform_forward_backward_on_sequential_transforms():

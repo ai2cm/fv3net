@@ -135,10 +135,28 @@ class ComposedTransformFactory(TransformFactory):
     def __init__(self, factories: Sequence[TransformFactory]):
         self.factories = factories
 
-    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+    def _get_first_order_dependencies(self, name: str) -> Set[str]:
+        deps: Set[str] = set()
         for factory in self.factories:
-            requested_names = factory.backward_names(requested_names)
-        return requested_names
+            deps_of_name = factory.backward_names({name}) - {name}
+            deps = deps.union(deps_of_name)
+        return deps
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        out: Set[str] = set()
+        stack = requested_names.copy()
+        while stack:
+            name = stack.pop()
+            deps = self._get_first_order_dependencies(name)
+            if deps == set():
+                # name cannot be computed from transforms so we must request it
+                # from the data
+                out.add(name)
+            else:
+                # more processing needed
+                for dep in deps:
+                    stack.add(dep)
+        return out
 
     def build(self, sample: TensorDict) -> ComposedTransform:
         transforms = [factory.build(sample) for factory in self.factories]
