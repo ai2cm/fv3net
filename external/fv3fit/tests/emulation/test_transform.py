@@ -76,6 +76,19 @@ def test_per_variable_transform_backward_names():
     assert transform.backward_names({"b", "random"}) == {"a", "random"}
 
 
+def test_composed_transform_backward_names_sequence():
+    """intermediate names produced by one transform should not be listed in the
+    required_names
+    """
+    transform = ComposedTransformFactory(
+        [
+            TransformedVariableConfig("a", "b", LogTransform()),
+            TransformedVariableConfig("b", "c", LogTransform()),
+        ]
+    )
+    assert transform.backward_names({"c"}) == {"a", "c"}
+
+
 def test_ComposedTransform_forward_backward_on_sequential_transforms():
     # some transforms could be mutually dependent
 
