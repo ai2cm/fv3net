@@ -145,8 +145,14 @@ class ComposedTransformFactory(TransformFactory):
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         out: Set[str] = set()
         stack = requested_names.copy()
+        visited_names = set()
         while stack:
             name = stack.pop()
+
+            if name in visited_names:
+                raise ValueError(f"Circular dependency detected for input {name}")
+
+            visited_names.add(name)
             deps = self._get_first_order_dependencies(name)
             if deps == set():
                 # name cannot be computed from transforms so we must request it
