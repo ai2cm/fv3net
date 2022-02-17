@@ -1,5 +1,6 @@
+from collections import defaultdict
 import dataclasses
-from typing import Callable, Optional, Sequence, Set
+from typing import Callable, MutableMapping, Optional, Sequence, Set
 
 import tensorflow as tf
 from fv3fit.emulation.transforms.transforms import (
@@ -144,15 +145,17 @@ class ComposedTransformFactory(TransformFactory):
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         out: Set[str] = set()
-        stack = requested_names.copy()
-        visited_names = set()
+        stack = sorted(requested_names)
+        visit_count: MutableMapping[str, int] = defaultdict(lambda: 0)
+
         while stack:
             name = stack.pop()
+            visit_count[name] += 1
+            if visit_count[name] > len(visit_count):
+                # name should visited at most once for each distinct processed input.
+                # otherwise we not there is some circular dependency
+                raise ValueError(f"Circular dependency detected for input {name}.")
 
-            if name in visited_names:
-                raise ValueError(f"Circular dependency detected for input {name}")
-
-            visited_names.add(name)
             deps = self._get_first_order_dependencies(name)
             if deps == set():
                 # name cannot be computed from transforms so we must request it
@@ -161,7 +164,7 @@ class ComposedTransformFactory(TransformFactory):
             else:
                 # more processing needed
                 for dep in deps:
-                    stack.add(dep)
+                    stack.append(dep)
         return out
 
     def build(self, sample: TensorDict) -> ComposedTransform:

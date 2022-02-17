@@ -100,6 +100,17 @@ def test_composed_transform_errors_on_circular_dep():
         return factory.backward_names({"a"})
 
 
+def test_composed_transform_ok_with_repeated_dep():
+    factory = ComposedTransformFactory(
+        [
+            TransformedVariableConfig("a", "b", LogTransform()),
+            TransformedVariableConfig("b", "c", LogTransform()),
+            TransformedVariableConfig("b", "d", LogTransform()),
+        ]
+    )
+    return factory.backward_names({"c", "d"}) == {"a"}
+
+
 def test_ComposedTransform_forward_backward_on_sequential_transforms():
     # some transforms could be mutually dependent
 
