@@ -1,5 +1,6 @@
 import argparse
 from loaders._config import BatchesLoader
+from loaders._utils import SAMPLE_DIM_NAME
 import yaml
 import os.path
 import logging
@@ -40,7 +41,12 @@ def main(data_config: str, output_path: str):
     for i, batch in enumerate(batches):
         out_filename = os.path.join(output_path, f"{i:05}.nc")
         logger.info(f"saving batch {i}")
-        batch.to_netcdf(out_filename, engine="h5netcdf")
+        try:
+            batch.to_netcdf(out_filename, engine="h5netcdf")
+        except NotImplementedError:
+            batch.reset_index(dims_or_levels=[SAMPLE_DIM_NAME]).to_netcdf(
+                out_filename, engine="h5netcdf"
+            )
 
 
 if __name__ == "__main__":
