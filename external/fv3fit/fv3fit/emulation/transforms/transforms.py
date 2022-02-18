@@ -35,6 +35,10 @@ class Difference(TensorTransform):
         new_names = {self.before, self.after} if self.to in requested_names else set()
         return requested_names.union(new_names)
 
+    @property
+    def required_names(self) -> Set[str]:
+        return {self.before, self.after}
+
     def build(self, sample: TensorDict) -> TensorTransform:
         return self
 

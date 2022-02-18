@@ -17,13 +17,23 @@ from typing_extensions import Protocol
 class TransformFactory(Protocol):
     """The interface of a static configuration object
 
+    Attrs:
+        to: Name of transform result
+
     Methods:
         backward_names: used to infer to the required input variables
         build: builds the transform given some data
+        required_names: required inputs for successful transform
 
     """
 
+    to: str = ""
+
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        pass
+
+    @property
+    def required_names(self) -> Set[str]:
         pass
 
     def build(self, sample: TensorDict) -> TensorTransform:
@@ -46,6 +56,10 @@ class TransformedVariableConfig(TransformFactory):
 
     def build(self, sample: TensorDict) -> TensorTransform:
         return UnivariateTransform(self.source, self.to, self.transform)
+
+    @property
+    def required_names(self) -> Set[str]:
+        return {self.source}
 
 
 def reduce_std(x: tf.Tensor) -> tf.Tensor:
@@ -104,6 +118,10 @@ class ConditionallyScaled(TransformFactory):
         )
         return requested_names.union(new_names)
 
+    @property
+    def required_names(self) -> Set[str]:
+        return {self.condition_on, self.source}
+
     def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
 
         if self.fit_filter_magnitude is not None:
@@ -143,3 +161,20 @@ class ComposedTransformFactory(TransformFactory):
     def build(self, sample: TensorDict) -> ComposedTransform:
         transforms = [factory.build(sample) for factory in self.factories]
         return ComposedTransform(transforms)
+
+
+def _get_required_inputs(
+    f: ComposedTransformFactory, requested_names: Set[str]
+) -> Set[str]:
+
+    for t in f.factories:
+
+        available_from_transform: Set[str] = set()
+        required: Set[str] = set()
+
+        required |= t.required_names - available_from_transform
+        available_from_transform |= {t.to}
+
+        requested_names -= available_from_transform
+
+    return set()
