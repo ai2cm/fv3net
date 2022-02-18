@@ -8,7 +8,7 @@ Output = Union[np.ndarray, tf.Tensor]
 
 
 @dataclasses.dataclass
-class OutputRange:
+class OutputLimit:
     min: Optional[float] = None
     max: Optional[float] = None
 
@@ -24,9 +24,9 @@ class OutputRange:
         if self.min is None and self.max is None:
             return output_layer
         else:
-            return self._range_activation(output_layer)
+            return self._limit_activation(output_layer)
 
-    def _range_activation(self, output: Output) -> Output:
+    def _limit_activation(self, output: Output) -> Output:
         # Using this instead of ReLU because using threshold args < 0
         # result in a noncontinuous function
         x = output
@@ -48,24 +48,24 @@ class OutputRange:
 
 
 @dataclasses.dataclass
-class RangeConfig:
-    """Config class limiting output ranges in keras models.
-    Limits range by adding a ReLU activation layer after the output layer.
+class OutputLimitConfig:
+    """Config class limiting output limits in keras models.
+    Limits range by adding piecewise activation for the output layers.
 
     Attributes:
-        ranges: mapping of output variable names to be limited by a OutputRange
+        limits: mapping of output variable names to be limited by a OutputLimit
         containing min/max values.
     """
 
-    ranges: Mapping[Hashable, OutputRange] = dataclasses.field(default_factory=dict)
+    limits: Mapping[Hashable, OutputLimit] = dataclasses.field(default_factory=dict)
 
     def apply_output_limiters(
         self, outputs: Sequence[Output], names: Sequence[str]
     ) -> Sequence[Output]:
         limited_outputs = []
         for name, output in zip(names, outputs):
-            if name in self.ranges:
-                limited_outputs.append(self.ranges[name].limit_output(output))
+            if name in self.limits:
+                limited_outputs.append(self.limits[name].limit_output(output))
             else:
                 limited_outputs.append(output)
         return limited_outputs

@@ -19,7 +19,7 @@ from fv3fit.keras._models.shared import (
     PureKerasModel,
     LossConfig,
     ClipConfig,
-    RangeConfig,
+    OutputLimitConfig,
 )
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
@@ -51,7 +51,7 @@ class DenseHyperparameters(Hyperparameters):
         save_model_checkpoints: if True, save one model per epoch when
             dumping, under a 'model_checkpoints' subdirectory
         clip_config: configuration of dataset packing.
-        range_config: configuration for limiting output values.
+        output_limit_config: configuration for limiting output values.
     """
 
     input_variables: List[str]
@@ -70,7 +70,9 @@ class DenseHyperparameters(Hyperparameters):
     loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
     save_model_checkpoints: bool = False
     clip_config: ClipConfig = dataclasses.field(default_factory=lambda: ClipConfig())
-    range_config: RangeConfig = dataclasses.field(default_factory=lambda: RangeConfig())
+    output_limit_config: OutputLimitConfig = dataclasses.field(
+        default_factory=lambda: OutputLimitConfig()
+    )
 
     @property
     def variables(self) -> Set[str]:
@@ -195,7 +197,7 @@ def build_model(
     )
 
     # Apply output range limiters
-    denorm_output_layers = config.range_config.apply_output_limiters(
+    denorm_output_layers = config.output_limit_config.apply_output_limiters(
         outputs=denorm_output_layers, names=config.output_variables
     )
 
