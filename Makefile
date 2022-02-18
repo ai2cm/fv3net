@@ -60,7 +60,7 @@ enter_emulation:
 ############################################################
 
 ## Empty rule for deploying docs
-deploy_docs_%: 
+deploy_docs_%:
 	@echo "Nothing to do."
 
 ## Deploy documentation for fv3net to vulcanclimatemodeling.com

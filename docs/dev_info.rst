@@ -67,7 +67,7 @@ example, here is what happens when trying to check a large file into git::
 Building the fv3net docker images
 ---------------------------------
 
-The workflow depends on docker images of ``fv3net`` tools for cloud deployment. 
+The workflow depends on docker images of ``fv3net`` tools for cloud deployment.
 These images can be built and pushed to GCR using `make build_images` and
 `make push_images`, respectively.
 

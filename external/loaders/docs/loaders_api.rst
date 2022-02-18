@@ -16,7 +16,7 @@ These mappers can be retrieved using the :py:class:`loaders.MapperConfig` config
 Batches
 -------
 A "batch" in the fv3net sense is a dataset that is used in one loop iteration of either a training loop or
-an offline diagnostics calculation loop. These workflows use batches in order to utilizer a larger amount of 
+an offline diagnostics calculation loop. These workflows use batches in order to utilizer a larger amount of
 training/test data than would otherwise fit in memory.
 
 There are two types of functions which can create a sequence of batches, "batches functions" and "batches from mapper functions". The first type, "batches functions" can be initialized using the :py:class:`loaders.BatchesConfig` class, and can use the following functions:

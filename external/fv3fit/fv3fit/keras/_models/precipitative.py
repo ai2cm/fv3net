@@ -51,7 +51,7 @@ def condensational_heating(dQ2):
     Args:
         dQ2: rate of change in moisture in kg/kg/s, negative corresponds
             to condensation
-    
+
     Returns:
         heating rate in degK/s
     """
@@ -92,7 +92,7 @@ def get_losses(
             in any order (having more variables is fine)
         output_scaler: scaler which has been fit to all output variables
         loss_type: can be "mse" or "mae"
-    
+
     Returns:
         loss_list: loss functions for output variables in order
     """
@@ -166,7 +166,7 @@ class PrecipitativeHyperparameters(Hyperparameters):
           and a column moistening residual internal layer
         - dQ1 is the sum of the column precipitation internal layer converted to
           heating and a column heating residual internal layer
-    
+
     So the behavior is such that precipitation is predicted and the ML portion of the
     precipitation is also a portion of the dQ1 and dQ2 outputs.
 

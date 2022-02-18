@@ -92,7 +92,7 @@ def cdl_to_dataset(cdl: str) -> xarray.Dataset:
     """Convert a CDL string into a xarray dataset
 
     Useful for generating synthetic data for testing
-    
+
     The UCAR Common Data Language(`CDL`_) is a human readable format with the
     same data model as netCDF.  CDL can be translated to binary netCDF using the
     `ncgen` command line tool bundled with netCDF. CDL is very compact and looks
@@ -116,7 +116,7 @@ def cdl_to_dataset(cdl: str) -> xarray.Dataset:
         }
 
     .. _CDL: https://www.unidata.ucar.edu/software/netcdf/workshops/most-recent/nc3model/Cdl.html
-    
+
     """  # noqa
     # create the parser
     cdl_parser = lark.Lark(grammar, start="netcdf", parser="lalr")

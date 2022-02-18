@@ -11,7 +11,7 @@ def liquid_water_equivalent(f: tf.Tensor) -> tf.Tensor:
 
     Returns:
         f with units proportional to m
-    
+
     """
     density_liquid_water = 1000.0
     return f / density_liquid_water

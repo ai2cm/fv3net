@@ -26,7 +26,7 @@ Custom verification data can be added to the catalog. The entries should include
 the following metadata items:
 
 #. ``simulation``, a short unique tag
-#. ``category``, which should be either ``dycore``, ``physics``, or ``3d`` depending on which set of diagnostics the catalog entry 
+#. ``category``, which should be either ``dycore``, ``physics``, or ``3d`` depending on which set of diagnostics the catalog entry
    corresponds to, and
 #. ``grid`` which must be ``c48``.
 
@@ -66,7 +66,7 @@ Optional: 3D outputs and verification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 If 3D outputs are saved, the prognostic report page ``Time-mean zonal-pressure profiles`` will include figures showing the time and zonal mean values and biases.
 The 3D prognostic data should be saved by the python wrapper (in ``3d.zarr`` or ``state_after_timestep.zarr``). If it is not saved, the report will still be created but the 3D figures page will contain blank figures.
-The ``3d`` verification entry is optional: if it is not in the catalog for a verification simulation, the 3D zonal mean bias plot will be empty. 
+The ``3d`` verification entry is optional: if it is not in the catalog for a verification simulation, the 3D zonal mean bias plot will be empty.
 In order for 3D biases to be added to the report, please make sure that the verification dataset
 
 #. has an entry with category ``3d`` in the catalog

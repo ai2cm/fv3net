@@ -114,8 +114,8 @@ def loads(log: str) -> FV3Log:
 
     Returns:
         fv3log: an object with the parsed statistical information
-        
-    
+
+
     """
     lines = log.splitlines()
     min_max_regex = re.compile(r"(.*)max *= *([0-9E\-\.]+) *min = *([0-9E\-\+\.]+)")

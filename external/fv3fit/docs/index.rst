@@ -15,7 +15,7 @@ The package provides :py:func:`fv3fit.dump` and :py:func:`fv3fit.load` functions
    ensembles
    api
    emulation/index
-   
+
 Indices and tables
 ==================
 * :ref:`genindex`

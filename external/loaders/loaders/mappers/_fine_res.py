@@ -193,7 +193,7 @@ def open_fine_resolution(
 ) -> GeoMapper:
     """
     Open the fine-res mapper using several configuration options
-    
+
     Args:
         approach: one of a set of available approaches: 'apparent_sources_only',
             'apparent_sources_plus_nudging_tendencies',
@@ -205,7 +205,7 @@ def open_fine_resolution(
             data to be merged into the resulting mapper dataset, e.g., ML input
             features, the dynamics nudging tendencies, and the dynamics differences
             as required by the above approaches
-        
+
     Returns:
         a mapper
     """
@@ -242,7 +242,7 @@ def open_precomputed_fine_resolution(
     """
     Open a fine-res mapper from precomputed data, optionally using state
         from another run.
-        
+
     Args:
         fine_url: url where coarsened fine resolution data is stored, must include
             precomputed Q1 and Q2

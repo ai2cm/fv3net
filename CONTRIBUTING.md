@@ -1,7 +1,7 @@
 # Contributions Guides and Standards
 
-Please record all changes and updates in [HISTORY.rst](./HISTORY.rst) under the 
-upcoming section.  It is especially important to log changes that break backwards 
+Please record all changes and updates in [HISTORY.rst](./HISTORY.rst) under the
+upcoming section.  It is especially important to log changes that break backwards
 compatibility so we can appropriately adjust the versioning.
 
 ## fv3net
@@ -21,7 +21,7 @@ To make each workflow as modular as possible, we need to make sure that workflow
 - Any new workflow code is assumed workflow-specific unless actually used by multiple workflows.
 - Workflow specific code should be contained within the  `workflows/<workflow name>/` folder.
 
-Of course, some workflow-specific code will become useful in other workflows. In this case, the shared functionality should be moved to a relevant python "micropackage" in `external`. If the new functionality does not seem like a good fit for an existing package e.g. (`external/vcm`) then a new package should be created. This is relatively easy to do with tools like [poetry](https://github.com/python-poetry/poetry). Each of these micropackages should have a minimal set of dependencies. 
+Of course, some workflow-specific code will become useful in other workflows. In this case, the shared functionality should be moved to a relevant python "micropackage" in `external`. If the new functionality does not seem like a good fit for an existing package e.g. (`external/vcm`) then a new package should be created. This is relatively easy to do with tools like [poetry](https://github.com/python-poetry/poetry). Each of these micropackages should have a minimal set of dependencies.
 
 ##  vcm
 
@@ -29,7 +29,7 @@ Of course, some workflow-specific code will become useful in other workflows. In
   `vcm.cloud`. All routines to be used externally should be imported into one
    of these namespaces. This rule could change pending future changes to the vcm API.
 
-  
+
 ## Type checking
 
 Type checking with `mypy` can make the code more robust and can help catch
@@ -62,7 +62,7 @@ Xarray has type-hinting, but it oftentimes is incorrect and not very helpful.
 For the former, a quick `# type: ignore` will help.
 
 Some xarray functions also return Union types, which makes life difficult. For
-example, mypy will fail on this code: 
+example, mypy will fail on this code:
 ```
 
 def func(ds: xr.Dataset):
@@ -71,7 +71,7 @@ def func(ds: xr.Dataset):
 dataset: xr.Dataset = ...
 
 # error:
-# this line will give type error because mypy doesn't know 
+# this line will give type error because mypy doesn't know
 # if ds[['a', 'b]] is Dataset or a DataArray
 func(ds[['a', 'b']])
 

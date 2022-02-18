@@ -27,7 +27,7 @@ def numpy_print_precision(precision: int):
 class ConstantOutputPredictor(Predictor):
     """
     A simple predictor meant to be used for testing.
-    
+
     Supports scalar and vector outputs, where the vector outputs are all
     of the same shape and assigned a dimension name of "z".
     """
@@ -36,11 +36,11 @@ class ConstantOutputPredictor(Predictor):
         self, input_variables: Iterable[Hashable], output_variables: Iterable[Hashable],
     ):
         """Initialize the predictor
-        
+
         Args:
             input_variables: names of input variables
             output_variables: names of output variables
-        
+
         """
         super().__init__(
             input_variables=input_variables, output_variables=output_variables,
