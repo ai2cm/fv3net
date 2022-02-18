@@ -183,13 +183,18 @@ def _get_required_inputs(
 def _get_dependencies(name: str, factories: Sequence[TransformFactory]):
 
     deps = set()
+    intermediate_deps = set()
+
     for i, factory in enumerate(factories[::-1], 1):
 
         if factory.to == name:
+            intermediate_deps |= factory.required_names
             for dep_name in sorted(factory.required_names):
-                deps |= _get_dependencies(dep_name, factories[:-i])
+                new_deps, intermediate = _get_dependencies(dep_name, factories[:-i])
+                deps |= new_deps
+                intermediate_deps |= intermediate
             break
     else:
-        return {name}
+        return {name}, set()
 
-    return deps
+    return deps, intermediate_deps - deps
