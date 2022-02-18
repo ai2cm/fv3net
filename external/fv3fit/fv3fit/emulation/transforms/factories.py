@@ -27,7 +27,7 @@ class TransformFactory(Protocol):
 
     """
 
-    to: str = ""
+    to: str
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         pass
@@ -178,3 +178,18 @@ def _get_required_inputs(
         requested_names -= available_from_transform
 
     return set()
+
+
+def _get_dependencies(name: str, factories: Sequence[TransformFactory]):
+
+    deps = set()
+    for i, factory in enumerate(factories[::-1], 1):
+
+        if factory.to == name:
+            for dep_name in sorted(factory.required_names):
+                deps |= _get_dependencies(dep_name, factories[:-i])
+            break
+    else:
+        return {name}
+
+    return deps
