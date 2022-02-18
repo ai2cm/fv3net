@@ -177,8 +177,8 @@ def build_model(
         config.input_variables,
     )
 
-    # note that n_features_out=1 is not used, as we connect subsequent layers
-    # to the last hidden output layer
+    # note that n_features_out=1 is not used, as we want a separate output
+    # layer for each variable (norm_output_layers)
     hidden_outputs = config.dense_network.build(
         full_input, n_features_out=1
     ).hidden_outputs
