@@ -76,6 +76,41 @@ def test_per_variable_transform_backward_names():
     assert transform.backward_names({"b", "random"}) == {"a", "random"}
 
 
+def test_composed_transform_backward_names_sequence():
+    """intermediate names produced by one transform should not be listed in the
+    required_names
+    """
+    transform = ComposedTransformFactory(
+        [
+            TransformedVariableConfig("a", "b", LogTransform()),
+            TransformedVariableConfig("b", "c", LogTransform()),
+        ]
+    )
+    assert transform.backward_names({"c"}) == {"a"}
+
+
+def test_composed_transform_errors_on_circular_dep():
+    factory = ComposedTransformFactory(
+        [
+            TransformedVariableConfig("a", "b", LogTransform()),
+            TransformedVariableConfig("b", "a", LogTransform()),
+        ]
+    )
+    with pytest.raises(ValueError):
+        return factory.backward_names({"a"})
+
+
+def test_composed_transform_ok_with_repeated_dep():
+    factory = ComposedTransformFactory(
+        [
+            TransformedVariableConfig("a", "b", LogTransform()),
+            TransformedVariableConfig("b", "c", LogTransform()),
+            TransformedVariableConfig("b", "d", LogTransform()),
+        ]
+    )
+    return factory.backward_names({"c", "d"}) == {"a"}
+
+
 def test_ComposedTransform_forward_backward_on_sequential_transforms():
     # some transforms could be mutually dependent
 
@@ -266,3 +301,26 @@ def test_ConditionallyScaled_applies_mask(monkeypatch, filter_magnitude):
     # assert that fit_conditional was passed arrays of the expected size
     fit_conditional_x_arg = fit_conditional.call_args[0][0]
     assert fit_conditional_x_arg.shape == expected_shape
+
+
+def test_ComposedTransform_with_build():
+    """Check that composed transform works if an earlier transform produces an
+    output need by the .build of a later one"""
+
+    class MockTransform:
+        def forward(self, x):
+            return {"b": x["a"]}
+
+    factory1 = Mock()
+    factory1.build.return_value = MockTransform()
+
+    factory2 = Mock()
+    factory2.build.return_value = MockTransform()
+
+    data = {"a": 0}
+
+    ComposedTransformFactory([factory1, factory2]).build(data)
+
+    # mock2.build is called with the "b" variable outputted by mock1
+    (build_sample_for_second_mock,) = factory2.build.call_args[0]
+    assert build_sample_for_second_mock == {"b": 0, "a": 0}
