@@ -5,7 +5,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.11.5
+#       jupytext_version: 1.13.7
 #   kernelspec:
 #     display_name: fv3net
 #     language: python
@@ -20,8 +20,11 @@ import tensorflow as tf
 import vcm.catalog
 import vcm.fv3
 import xarray
+from fv3fit.emulation.compositions import apply_precpd_difference
+from fv3fit.keras.adapters import merge_models
 
 import fv3net.artifacts.resolve_url
+import wandb
 
 
 def get_in(inputs):
@@ -77,18 +80,46 @@ def mask_outputs(mask, inputs, outputs):
 def fix_model(model, mask):
     inputs = {in_.name: in_ for in_ in model.inputs}
     outputs = model(inputs)
-    masked_outputs = mask_outputs(mask, inputs, outputs)
-    positive_outputs = enforce_positive(masked_outputs)
+    outputs.update(mask_outputs(mask, inputs, outputs))
+    positive_outputs = enforce_positive(outputs)
     return tf.keras.Model(inputs=inputs, outputs=positive_outputs)
 
 
 # +
 
+run = wandb.init(project="microphysics-emulation", entity="ai2cm", tags=["crap"])
+
 url = "gs://vcm-ml-experiments/microphysics-emulation/2022-02-08/rnn-alltdep-47ad5b-login-6h-v2-online"  # noqa
-model_url = "gs://vcm-ml-experiments/microphysics-emulation/2022-02-01/rnn-alltdep-47ad5b-de512-lr0.0002-login/model.tf"  # noqa
+
+# open models
+artifact = run.use_artifact(
+    "ai2cm/microphysics-emulation/microphysics-emulator-rnn-v1-shared-weights:v57",
+    type="model",
+)
+precpd_model = tf.keras.models.load_model(artifact.download())
+
+artifact = run.use_artifact(
+    "ai2cm/microphysics-emulation/microphysics-emulator-dense-local:v0", type="model"
+)
+gscond_model = tf.keras.models.load_model(artifact.download())
+# -
+
+
+precpd_model.summary()
+
+gscond_model.summary()
 
 # +
 
+gscond_model._name = "gscond"
+precpd_model._name = "precpd"
+combined_model = merge_models(precpd_model, gscond_model)
+final_model = apply_precpd_difference(combined_model)
+# -
+
+final_model.summary()
+
+# +
 ds = xarray.open_zarr(
     fsspec.get_mapper(url + "/atmos_dt_atmos.zarr"), consolidated=True
 )
@@ -114,34 +145,34 @@ fraction_pos = (
 )
 fraction_pos.drop("z").plot()
 
-
-with fv3fit._shared.get_dir(model_url) as d:
-    model = tf.keras.models.load_model(d)
-
-
 # reverse mask since k = 0 is bottom when model is run online
 mask = tf.constant((fraction_pos.values == 0)[::-1])
-new_model = fix_model(model, mask)
+new_model = fix_model(final_model, mask)
 # -
 
 new_model.summary()
 
 
-# +
+new_model(new_model.input)
+
+#
 new_model_root = fv3net.artifacts.resolve_url.resolve_url(
-    "vcm-ml-experiments",
-    "microphysics-emulation",
-    "rnn-alltdep-47ad5b-de512-lr0.0002-login-limited",
+    "vcm-ml-experiments", "microphysics-emulation", "precpd-gscond-combined",
 )
 
 
 with fv3fit._shared.filesystem.put_dir(new_model_root) as d:
 
     metadata = f"""
-source model: {model_url}
 masking points with no cloud tendency from first timestep of: {url}
-created by: ad-hoc-fixes-to-allt-model.py"""
+created by: composes-gscond-precpd.py"""
 
     new_model.save(os.path.join(d, "model.tf"))
     with open(os.path.join(d, "about.txt"), "w") as f:
         f.write(metadata)
+
+art = wandb.Artifact("combined-gscond-precpd", type="model")
+art.add_reference(new_model_root)
+wandb.log_artifact(art)
+
+wandb.finish()
