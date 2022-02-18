@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from fv3fit.keras._models.shared.output_range import Range
+from fv3fit.keras._models.shared.output_range import OutputRange
 
 
 @pytest.mark.parametrize(
@@ -16,8 +16,8 @@ from fv3fit.keras._models.shared.output_range import Range
         ),
     ],
 )
-def test_Range(min, max, expected):
-    range = Range(min=min, max=max)
+def test_OutputRange(min, max, expected):
+    range = OutputRange(min=min, max=max)
     output = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
     limited_output = range.limit_output(output)
     assert np.array_equal(expected, limited_output)

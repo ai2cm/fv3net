@@ -8,7 +8,7 @@ Output = Union[np.ndarray, tf.Tensor]
 
 
 @dataclasses.dataclass
-class Range:
+class OutputRange:
     min: Optional[float] = None
     max: Optional[float] = None
 
@@ -53,11 +53,11 @@ class RangeConfig:
     Limits range by adding a ReLU activation layer after the output layer.
 
     Attributes:
-        ranges: mapping of output variable names to be limited by a Range
+        ranges: mapping of output variable names to be limited by a OutputRange
         containing min/max values.
     """
 
-    ranges: Mapping[Hashable, Range] = dataclasses.field(default_factory=dict)
+    ranges: Mapping[Hashable, OutputRange] = dataclasses.field(default_factory=dict)
 
     def apply_output_limiters(
         self, outputs: Sequence[Output], names: Sequence[str]
