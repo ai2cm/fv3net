@@ -105,8 +105,20 @@ def mock_load_batches():
         yield magic_load_mock
 
 
+@pytest.fixture
+def mock_batches_from_netcdf():
+    with mock.patch(
+        "loaders.batches_from_netcdf", spec=loaders.batches_from_netcdf
+    ) as magic_load_mock:
+        yield magic_load_mock
+
+
 def call_main(
-    tmpdir, mock_load_batches, derived_output_variables, use_validation_data: bool,
+    tmpdir,
+    mock_load_batches,
+    derived_output_variables,
+    use_validation_data: bool,
+    use_local_download_path: bool = False,
 ):
     model_type = "dense"
     hyperparameters_dict = {}
@@ -116,6 +128,7 @@ def call_main(
         model_type,
         hyperparameters_dict,
         use_validation_data,
+        use_local_download_path=use_local_download_path,
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
     with mock.patch("fv3fit.DerivedModel") as MockDerivedModel:
@@ -141,10 +154,10 @@ def test_main_calls_load_batches_correctly(
     Test of fv3fit.train main function only, using mocks for training function
     and data loading.
     """
-    artifacts = call_main(
+    call_main(
         tmpdir, mock_load_batches, derived_output_variables, use_validation_data,
     )
-    mock_load_batches.assert_called_with(variables=artifacts.variables)
+    mock_load_batches.assert_called_with()
     if use_validation_data:
         assert (
             mock_load_batches.call_args_list[0] == mock_load_batches.call_args_list[1]
@@ -193,23 +206,34 @@ def test_main_uses_derived_model_only_if_needed(
 
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
 @pytest.mark.parametrize("use_validation_data", [True, False])
+@pytest.mark.parametrize("use_local_download_path", [True, False])
 def test_main_calls_train_with_correct_arguments(
     tmpdir,
     mock_load_batches: mock.MagicMock,
+    mock_batches_from_netcdf: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
     derived_output_variables: Sequence[str],
     use_validation_data: bool,
+    use_local_download_path: bool,
 ):
     artifacts = call_main(
-        tmpdir, mock_load_batches, derived_output_variables, use_validation_data,
+        tmpdir,
+        mock_load_batches,
+        derived_output_variables,
+        use_validation_data,
+        use_local_download_path=use_local_download_path,
     )
+    if use_local_download_path:
+        mock_batches = mock_batches_from_netcdf.return_value
+    else:
+        mock_batches = mock_load_batches.return_value
     if use_validation_data:
-        validation_batches = mock_load_batches.return_value
+        validation_batches = mock_batches
     else:
         validation_batches = []
     mock_train_dense_model.assert_called_once_with(
         hyperparameters=artifacts.hyperparameters,
-        train_batches=mock_load_batches.return_value,
+        train_batches=mock_batches,
         validation_batches=validation_batches,
     )
 
@@ -235,10 +259,12 @@ def get_config(
     model_type,
     hyperparameter_dict,
     use_validation_data: bool,
+    use_local_download_path: bool = False,
 ):
     base_dir = str(tmpdir)
     input_variables = ["air_temperature", "specific_humidity"]
     output_variables = ["dQ1", "dQ2"]
+    all_variables = input_variables + output_variables
     hyperparameters = get_hyperparameters(
         model_type, hyperparameter_dict, input_variables, output_variables
     )
@@ -258,6 +284,7 @@ def get_config(
         function="batches_from_geodata",
         kwargs=dict(
             data_path=data_path,
+            variable_names=all_variables,
             mapping_function="open_zarr",
             timesteps=train_times,
             needs_grid=False,
@@ -270,6 +297,7 @@ def get_config(
             function="batches_from_geodata",
             kwargs=dict(
                 data_path=data_path,
+                variable_names=all_variables,
                 mapping_function="open_zarr",
                 timesteps=validation_times,
                 needs_grid=False,
@@ -290,12 +318,18 @@ def get_config(
         yaml.dump(dataclasses.asdict(training_config), f)
     output_path = os.path.join(base_dir, "output")
 
+    if use_local_download_path:
+        local_download_path = os.path.join(base_dir, "local_data")
+    else:
+        local_download_path = None
+
     args = MainArgs(
         data_path=data_path,
         training_config=training_filename,
         training_data_config=train_data_filename,
         validation_data_config=validation_data_filename,
         output_path=output_path,
+        local_download_path=local_download_path,
     )
     return TestConfig(
         args, training_config.variables, hyperparameters, output_path, mock_dataset
@@ -384,11 +418,14 @@ def test_cli(
     Test of fv3fit.train command-line interface.
     """
     config = get_config(
-        tmpdir, [], model_type, hyperparameter_dict, use_validation_data,
+        tmpdir,
+        [],
+        model_type,
+        hyperparameter_dict,
+        use_validation_data,
+        use_local_download_path=use_local_download_path,
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
-    if use_local_download_path:
-        config.args.local_download_path = os.path.join(str(tmpdir), "local_download")
     cli_main(config.args)
     fv3fit.load(config.args.output_path)
     if use_local_download_path:
