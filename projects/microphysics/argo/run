@@ -1,7 +1,7 @@
 #!/bin/bash
 
-url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-07/rnn-alltdep-47ad5b-de512-lr0.0002-login-limited/model.tf
-tag=rnn-alltdep-47ad5b-login-limited-10d-gsout
+url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-17/precpd-gscond-combined/model.tf
+tag=precpd-gscond-combined
 image=38763c954da207088c1fbcf2681230e95c42c9f7
 
 argo submit prog-run-and-eval.yaml \
