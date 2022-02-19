@@ -87,7 +87,7 @@ def fix_model(model, mask):
 
 # +
 
-run = wandb.init(project="microphysics-emulation", entity="ai2cm", tags=["crap"])
+run = wandb.init(project="microphysics-emulation", entity="ai2cm")
 
 url = "gs://vcm-ml-experiments/microphysics-emulation/2022-02-08/rnn-alltdep-47ad5b-login-6h-v2-online"  # noqa
 
