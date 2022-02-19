@@ -436,6 +436,7 @@ online_emulator:
   variables:
     air_temperature: dQ1
   zonal_mean_bias_correction_factor: {}
+  zonal_mean_correction_data_url: gs://vcm-ml-scratch/oliwm/zonal_mean_offline_biases.nc
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
 scikit_learn: null
