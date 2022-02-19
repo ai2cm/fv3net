@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from functools import partial
+from typing import Callable, List
 import numpy as np
 import xarray as xr
 import vcm
@@ -11,16 +13,34 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 
 from fv3fit.tensorboard import plot_to_image
+from . import tendencies
 
 
 import argparse
 
+
+SKILL_FIELDS = ["cloud_water", "specific_humidity", "air_temperature"]
 log_functions = []
+summary_functions = []
 
 
 def register_log(func):
     log_functions.append(func)
     return func
+
+
+def register_summary(func):
+    summary_functions.append(func)
+    return func
+
+
+def compute_summaries(ds):
+    out = {}
+    for func in summary_functions:
+        for key, val in func(ds).items():
+            out[key] = val
+
+    return out
 
 
 def _get_image(fig=None):
@@ -33,7 +53,7 @@ def _get_image(fig=None):
 
 
 def _cast_time_to_datetime(ds):
-    return ds.assign(time=np.vectorize(vcm.cast_to_datetime)(ds.time))
+    return ds.assign_coords(time=np.vectorize(vcm.cast_to_datetime)(ds.time))
 
 
 def get_url_wandb(job, artifact: str):
@@ -81,12 +101,61 @@ def plot_cloud_maps(ds):
 
 @register_log
 def skill_table(ds):
-    return {"skill": time_dependent_dataset(skills_3d(ds))}
+    fields = SKILL_FIELDS
+    out = {}
+    for name, transform in [
+        ("total", tendencies.total_tendency),
+        ("gscond", tendencies.gscond_tendency),
+        ("precpd", tendencies.precpd_tendency),
+    ]:
+        skills = skills_3d(ds, fields=fields, transform=transform)
+        # total tendency named skill for backwards compatibility reasons
+        out["total" if name == "total" else name] = time_dependent_dataset(skills)
+
+        for field in skills:
+            plotme = _cast_time_to_datetime(skills[field])
+            out[f"skill/time_vs_lev/{name}/{field}"] = px.imshow(
+                plotme.transpose("z", "time"),
+                zmin=-1,
+                zmax=1,
+                color_continuous_scale="RdBu_r",
+            )
+
+    return out
 
 
 @register_log
 def skill_time_table(ds):
     return {"skill_time": time_dependent_dataset(skills_1d(ds))}
+
+
+def summarize_column_skill(ds, prefix, tendency_func):
+    return {
+        f"{prefix}/{field}": float(
+            column_integrated_skill(ds, partial(tendency_func, field=field))
+        )
+        for field in SKILL_FIELDS
+    }
+
+
+for name, tendency_func in [
+    # total tendency named skill for backwards compatibility reasons
+    ("column_skill", tendencies.total_tendency),
+    ("column_skill/gscond", tendencies.gscond_tendency),
+    ("column_skill/precpd", tendencies.precpd_tendency),
+]:
+    register_summary(
+        partial(summarize_column_skill, prefix=name, tendency_func=tendency_func)
+    )
+
+
+@register_summary
+def summarize_precip_skill(ds):
+    return {
+        "column_skill/surface_precipitation": float(
+            column_integrated_skill(ds, tendencies.surface_precipitation)
+        )
+    }
 
 
 def mse(x: xr.DataArray, y, area, dims=None):
@@ -107,26 +176,25 @@ def plot_r2(r2):
     r2.drop("z").plot(yincrease=False, y="z", vmax=1)
 
 
-def skills_3d(ds):
-    return xr.Dataset(
-        dict(
-            cloud_water=skill_improvement(
-                ds.tendency_of_cloud_water_due_to_zhao_carr_physics,
-                ds.tendency_of_cloud_water_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-            specific_humidity=skill_improvement(
-                ds.tendency_of_specific_humidity_due_to_zhao_carr_physics,
-                ds.tendency_of_specific_humidity_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-            air_temperature=skill_improvement(
-                ds.tendency_of_air_temperature_due_to_zhao_carr_physics,
-                ds.tendency_of_air_temperature_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-        )
-    )
+def skills_3d(
+    ds: xr.Dataset,
+    fields: List[str],
+    transform: Callable[[xr.Dataset, str, str], xr.DataArray],
+):
+    out = {}
+    for field in fields:
+        prediction = transform(ds, field, source="emulator")
+        truth = transform(ds, field, source="physics")
+        out[field] = skill_improvement(truth, prediction, ds.area)
+    return xr.Dataset(out)
+
+
+def column_integrated_skill(
+    ds: xr.Dataset, transform: Callable[[xr.Dataset, str], xr.DataArray],
+):
+    prediction = transform(ds, source="emulator")
+    truth = transform(ds, source="physics")
+    return skill_improvement_column(truth, prediction, ds.area)
 
 
 def skills_1d(ds):
@@ -137,33 +205,6 @@ def skills_1d(ds):
                 ds.surface_precipitation_due_to_zhao_carr_emulator,
                 ds.area,
             )
-        )
-    )
-
-
-def column_integrated_skills(ds):
-    return xr.Dataset(
-        dict(
-            cloud_water=skill_improvement_column(
-                ds.tendency_of_cloud_water_due_to_zhao_carr_physics,
-                ds.tendency_of_cloud_water_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-            specific_humidity=skill_improvement_column(
-                ds.tendency_of_specific_humidity_due_to_zhao_carr_physics,
-                ds.tendency_of_specific_humidity_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-            air_temperature=skill_improvement_column(
-                ds.tendency_of_air_temperature_due_to_zhao_carr_physics,
-                ds.tendency_of_air_temperature_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
-            surface_precipitation=skill_improvement_column(
-                ds.surface_precipitation_due_to_zhao_carr_physics,
-                ds.surface_precipitation_due_to_zhao_carr_emulator,
-                ds.area,
-            ),
         )
     )
 
@@ -236,17 +277,9 @@ def main(args):
 
     ds = vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
 
-    summary_functions = [
-        lambda ds: {
-            f"column_skill/{key}": float(val)
-            for key, val in column_integrated_skills(ds).items()
-        }
-    ]
-
     for func in log_functions:
         print(f"Running {func}")
         wandb.log(func(ds))
 
-    for func in summary_functions:
-        for key, val in func(ds).items():
-            wandb.summary[key] = val
+    for key, val in compute_summaries(ds).items():
+        wandb.summary[key] = val

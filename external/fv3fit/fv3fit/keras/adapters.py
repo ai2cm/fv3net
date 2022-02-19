@@ -27,7 +27,7 @@ def rename_dict_output(
         model: a tensorflow model. must return dicts
         transation: a mapping from old names (the keys returned by ``model``) to
             the new output names.
-    
+
     """
 
     inputs = model.inputs
@@ -52,7 +52,7 @@ def ensure_dict_output(model: tf.keras.Model) -> tf.keras.Model:
         If ``model`` already returns dicts, then this is identical to model.
         If ``model`` outputs lists, then the ``name`` of each output
         layer will be used.
-    
+
     Example:
 
         >>> i = tf.keras.Input(shape=[5])
@@ -69,8 +69,14 @@ def ensure_dict_output(model: tf.keras.Model) -> tf.keras.Model:
 
 
 def get_inputs(model: tf.keras.Model) -> Mapping[str, tf.Tensor]:
-    if isinstance(model.inputs, Mapping):
-        return model.inputs
+
+    # As far as I can tell, the "input" property is not documented in tf,
+    # but it does retain information about the input to the model being a dict.
+    # "inputs" always seems to be a list even when a dict is used
+    # to create the model
+
+    if model.inputs and isinstance(model.input, Mapping):
+        return model.input
     elif model.inputs is None:
         raise ValueError(
             f"Cannot detect inputs of model {model}. " "Custom models may not work."

@@ -8,7 +8,7 @@ class MockPredictor:
     """A predictor that expects these inputs::
 
         ["renamed_inputs"]
-    
+
     and predicts these outputs::
 
         ["rename_output"]

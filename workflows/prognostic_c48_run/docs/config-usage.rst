@@ -109,7 +109,7 @@ It can be used multiple times to specify multiple models. For example::
         --model_url path/to/model
         --model_url path/to_another/model
         > fv3config.yaml
- 
+
 Diagnostics
 ~~~~~~~~~~~
 
@@ -118,7 +118,7 @@ Python diagnostics
 
 To save custom diagnostics from the python wrapper, provide a ``diagnostics`` section.
 To save additional tendencies and storages across physics and nudging/ML time steps,
-include variables named like ``tendency_of_{variable}_due_to_{step_name}`` or 
+include variables named like ``tendency_of_{variable}_due_to_{step_name}`` or
 ``storage_of_{variable}_path_due_to_{step_name}`` where ``variable`` is the name
 of a state variable and ``step_name`` can be either ``fv3_physics``, ``dynamics``
 or ``python`` (i.e. ML or nudging).
@@ -157,11 +157,11 @@ to the Fortran ``diag_table`` representation of diagnostics (see fv3config_ docs
 Chunking
 ^^^^^^^^
 
-The desired chunking can be specified for each diagnostic file to be output. 
+The desired chunking can be specified for each diagnostic file to be output.
 
 .. warning::
 
-    Segmented runs have specific requirements for chunks. See 
+    Segmented runs have specific requirements for chunks. See
     :ref:`segmented-run-cli` for details.
 
 

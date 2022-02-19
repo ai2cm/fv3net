@@ -129,8 +129,8 @@ sources:
 
   40day_c48_pressure_interpolated_may2020:
     description: >-
-      3D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and interpolated to pressure levels. 
-      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-06-17-save-c3072-verification-correct-winds.ipynb 
+      3D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and interpolated to pressure levels.
+      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-06-17-save-c3072-verification-correct-winds.ipynb
     driver: zarr
     metadata:
       grid: c48
@@ -148,7 +148,7 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/pressure-interpolated-correct-winds.zarr"
       consolidated: True
-      
+
   40day_c48_restarts_as_zarr_may2020:
     description: >-
       Restart files at C48 resolution every 15 minutes, consolidated as a zarr store, created by pointing
@@ -272,7 +272,7 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_add_vars_corrected_wind.zarr"
       consolidated: True
-      
+
   40day_c48_fine_res_apparent_sources_15min_may2020:
     description: >-
       Fine res apparent sources of heat and moisture, coarsened to C48 resolution, with time coordinate shifted to beginning of 15-minute
@@ -291,7 +291,7 @@ sources:
         access: read_only
       urlpath: 'gs://vcm-ml-intermediate/2021-09-09-fine-res-Q1-Q2-from-40-day-X-SHiELD-simulation-2020-05-27.zarr'
       consolidated: True
-      
+
   40day_c48_fine_res_apparent_sources_3hrly_may2020:
     description: >-
       Fine res apparent sources of heat and moisture, coarsened to C48 resolution, and time-averaged over 3-hourly intervals
@@ -357,7 +357,7 @@ sources:
       consolidated: true
 
   wind_rotation/c48:
-    description: Rotation matrix components transforming x/y components to lat/lon 
+    description: Rotation matrix components transforming x/y components to lat/lon
     driver: zarr
     metadata:
       grid: c48
@@ -648,8 +648,8 @@ sources:
 
   2020_1yr_pire_pressure_interpolated:
     description: >-
-      3D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and interpolated to pressure levels. 
-      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-06-17-save-c3072-verification-correct-winds.ipynb 
+      3D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and interpolated to pressure levels.
+      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-06-17-save-c3072-verification-correct-winds.ipynb
     driver: zarr
     metadata:
       grid: c48
@@ -667,10 +667,10 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire-1yr-postspinup-restarts-pressure-interpolated.zarr"
       consolidated: True
-      
+
 
   2020_1yr_pire_physics:
-    description: 2D physics diagnostics variables from 1 yr PIRE run post-spinup, starting on 1/18/20, coarsened to C48 resolution 
+    description: 2D physics diagnostics variables from 1 yr PIRE run post-spinup, starting on 1/18/20, coarsened to C48 resolution
     driver: zarr
     metadata:
       grid: c48
@@ -738,7 +738,7 @@ sources:
         - PRESsfc
         - PWAT
         - VIL
-        - iw    
+        - iw
     args:
       urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire_atmos_dyn_3h_coarse_inst.zarr"
       consolidated: True
@@ -763,8 +763,8 @@ sources:
       consolidated: true
 
   wind_rotation/c8_random_values:
-    description: FOR REGRESSION TESTING ONLY. 
-      Rotation matrix components transforming x/y components to lat/lon 
+    description: FOR REGRESSION TESTING ONLY.
+      Rotation matrix components transforming x/y components to lat/lon
     driver: zarr
     metadata:
       grid: c8

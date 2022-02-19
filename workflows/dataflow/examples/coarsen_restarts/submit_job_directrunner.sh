@@ -13,4 +13,4 @@ python -m fv3net.pipelines.coarsen_restarts\
     $TARGET_RESOLUTION \
     $GCS_DST \
     --type_check_strictness ALL_REQUIRED \
-    --runner DirectRunner 
+    --runner DirectRunner

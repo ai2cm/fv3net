@@ -29,20 +29,20 @@ def standardize_fv3_diagnostics(
     ds: xr.Dataset, time: str = TIME_DIM_NAME
 ) -> xr.Dataset:
     """Standardize dimensions, coordinates, and attributes of FV3 diagnostic output
-    
+
     Args:
         ds (xr.Dataset):
             Dataset of FV3GFS or SHiELD diagnostics outputs (either Fortran or
             python-derived), presumably opened from disk via zarr.
         time (str, optional):
             Name of the time coordinate dimension in the dataset
-        
+
     Returns:
         The dataset with coordinate names and tile ranges set to CF "standard" values,
         variable name suffixes (e.g., "_coarse") removed, and data variable attributes
         ("long_name" and "units") set. The time coordinate is rounded to the nearest
         second.
-    
+
     """
 
     if time in ds.coords:

@@ -11,7 +11,7 @@ fv3net/fv3viz
 .. toctree::
    :maxdepth: 3
    :caption: Contents:
-   
+
    fv3viz_api
    auto_examples/index
 

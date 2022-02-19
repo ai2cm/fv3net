@@ -181,7 +181,7 @@ class FregridLatLon:
 def fregrid_single_input(input_url: str, output_url: str):
     """Regrid cubed sphere dataset at INPUT_URL to 1-degree lat-lon and save to
     OUTPUT_URL.
-    
+
     Assumes all tiles are contained in single netCDF file and regrids all variables
     whose dimensions include "x", "y" and "tile"."""
     authenticate()

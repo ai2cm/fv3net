@@ -81,7 +81,7 @@ def standard_normalize(
         layers: input tensors to be scaled by scaling layers
         arrays: arrays whose last dimension is feature dimension
             (possibly of length 1) on which to fit statistics
-    
+
     Returns:
         normalized_layers: standard-scaled tensors
     """
@@ -100,7 +100,7 @@ def standard_denormalize(
         layers: input tensors to be scaled by de-scaling layers
         arrays: arrays whose last dimension is feature dimension
             (possibly of length 1) on which to fit statistics
-    
+
     Returns:
         denormalized_layers: de-scaled tensors
     """

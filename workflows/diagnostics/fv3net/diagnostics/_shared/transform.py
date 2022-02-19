@@ -44,7 +44,7 @@ def apply(
 
     apply -> wraps diagnostic function in save_prognostic_run_diags and
     returns a new function with an input transform prepended to the diagnostic call.
-    
+
     I.e., call to diagnostic_function becomes::
 
         input_transform(*diag_args):
@@ -56,7 +56,7 @@ def apply(
         transform_args_partial: All transform function specific arguments preceding the
             final diagnostic argument tuple, e.g., [freq_label] for resample_time
         transform_kwargs: Any transform function keyword arguments
-    
+
     Note: I tried memoizing the current transforms but am unsure
     if it will work on highly mutable datasets.
     """
@@ -151,7 +151,7 @@ def skip_if_3d_output_absent(arg: DiagArg) -> DiagArg:
 @add_to_input_transform_fns
 def daily_mean(split: timedelta, arg: DiagArg) -> DiagArg:
     """Resample time to daily mean for all times after split.
-    
+
     Args:
         split: time since start of prognostic run after which resampling occurs
         arg: input arguments to transform prior to the diagnostic calculation

@@ -104,7 +104,7 @@ class HighLevelConfig(UserConfig, FV3Config):
         duration: the duration of each segment. If provided, overrides any
             settings in ``namelist.coupler_nml``. Must be a valid input to
             ``pandas.TimeDelta``.  Examples: ``3h``.
-        
+
     See :py:class:`runtime.config.UserConfig` and :py:class:`FV3Config` for
     documentation on other allowed attributes
 

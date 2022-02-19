@@ -22,7 +22,7 @@ class LongRunMapper(GeoMapper):
     """
     Basic mapper across the time dimension for any long-form
     simulation output.
-    
+
     This mapper uses slightly different initialization from the
     base GeoMapper class (this takes a dataset instead of a url) because
     run information for all timesteps already exists within
@@ -51,7 +51,7 @@ class MultiDatasetMapper(GeoMapper):
         self, mappers: Sequence[Mapper], names: Optional[Sequence[Hashable]] = None,
     ):
         """Create a new MultiDatasetMapper.
-        
+
         Args:
             mappers: sequence of LongRunMapper objects
             names: sequence of names to assign to the dataset coordinate (optional)

@@ -1,7 +1,7 @@
 ## Coarsen C384 Diagnostics
 
 ### Usage
-Run 
+Run
 `workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.sh`
 `  {INPUT_LOCATION} {CONFIG_LOCATION} {OUTPUT_LOCATION}`
 
@@ -13,8 +13,8 @@ may be local or remote paths. An example config YAML file is provided:
 `coarsen-c384-diagnostics.yml`
 
 The output of this workflow is used later
-as an input to the training and testing data pipeline steps. In the future we 
+as an input to the training and testing data pipeline steps. In the future we
 can move this task into the SHiELD post-processing and upload workflow.
 
-An example of a short test script can be found in the explore repo in the 
+An example of a short test script can be found in the explore repo in the
 `explore/misc_scripts/coarsen_diagnostics` directory.

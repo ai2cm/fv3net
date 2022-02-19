@@ -91,14 +91,14 @@ class StepTransformer:
 
     def __call__(self, func: Step) -> Step:
         """Transform a function that updates the ``state``
-        
+
         Similar to :py:class:`runtime.monitor.Monitor` but with ML prediction
         capability.
 
         Args:
             func: a function that updates the State and returns a dictionary of
                 diagnostics (usually a method of :py:class:`runtime.loop.TimeLoop`).
-        
+
         Returns:
             A function which calls ``func`` and optionally applies/trains an ML model
             in addition.

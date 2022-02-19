@@ -1,6 +1,6 @@
 import logging
 from loaders.typing import Batches
-from numpy.random import RandomState
+import numpy as np
 import pandas as pd
 from typing import (
     Iterable,
@@ -23,6 +23,7 @@ from .._utils import (
     stack,
     shuffle,
     dropna,
+    select_first_samples,
 )
 from ..constants import TIME_NAME
 from .._config import batches_functions, batches_from_mapper_functions
@@ -32,6 +33,8 @@ from ._serialized_phys import (
     open_serialized_physics_data,
 )
 import loaders
+import fsspec
+import vcm
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -44,16 +47,17 @@ def batches_from_geodata(
     mapping_function: str,
     mapping_kwargs: Optional[Mapping[str, Any]] = None,
     timesteps_per_batch: int = 1,
-    random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
-    subsample_size: int = None,
     needs_grid: bool = True,
+    in_memory: bool = False,
+    unstacked_dims: Optional[Sequence[str]] = None,
+    subsample_ratio: float = 1.0,
+    drop_nans: bool = False,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
     have geospatial dimensions and is accessed through a mapper interface.
-
 
     Args:
         data_path (str): Path to data store to be loaded via mapper.
@@ -66,6 +70,14 @@ def batches_from_geodata(
         res: grid resolution, format as f'c{number cells in tile}'
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
+        in_memory: if True, load data eagerly and keep it in memory
+        unstacked_dims: if given, produce stacked and shuffled batches retaining
+            these dimensions as unstacked (non-sample) dimensions
+        subsample_ratio: the fraction of data to retain in each batch, selected
+            at random along the sample dimension.
+        drop_nans: if True, drop samples with NaN values from the data, and raise an
+            exception if all values in a batch are NaN. requires unstacked_dims
+            argument is given, raises a ValueError otherwise.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -77,12 +89,15 @@ def batches_from_geodata(
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     batches = batches_from_mapper(
         data_mapping,
-        variable_names,
-        timesteps_per_batch,
-        random_seed,
-        timesteps,
-        res,
+        variable_names=variable_names,
+        timesteps_per_batch=timesteps_per_batch,
+        timesteps=timesteps,
+        res=res,
         needs_grid=needs_grid,
+        in_memory=in_memory,
+        unstacked_dims=unstacked_dims,
+        subsample_ratio=subsample_ratio,
+        drop_nans=drop_nans,
     )
     return batches
 
@@ -99,12 +114,12 @@ def batches_from_mapper(
     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Sequence[str],
     timesteps_per_batch: int = 1,
-    random_seed: int = 0,
     timesteps: Optional[Sequence[str]] = None,
     res: str = "c48",
     needs_grid: bool = True,
     in_memory: bool = False,
     unstacked_dims: Optional[Sequence[str]] = None,
+    subsample_ratio: float = 1.0,
     drop_nans: bool = False,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
@@ -115,13 +130,14 @@ def batches_from_mapper(
             given timestep keys.
         variable_names: data variables to select
         timesteps_per_batch (int, optional): Defaults to 1.
-        random_seed: Defaults to 0.
         timesteps: List of timesteps to use in training.
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
         in_memory: if True, load data eagerly and keep it in memory
         unstacked_dims: if given, produce stacked and shuffled batches retaining
             these dimensions as unstacked (non-sample) dimensions
+        subsample_ratio: the fraction of data to retain in each batch, selected
+            at random along the sample dimension.
         drop_nans: if True, drop samples with NaN values from the data, and raise an
             exception if all values in a batch are NaN. requires unstacked_dims
             argument is given, raises a ValueError otherwise.
@@ -137,15 +153,12 @@ def batches_from_mapper(
             f"{list(set(timesteps)-set(data_mapping.keys()))}"
         )
 
-    random_state = RandomState(random_seed)
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
 
     if timesteps is None:
         timesteps = list(data_mapping.keys())
-    shuffled_times = random_state.choice(
-        timesteps, len(timesteps), replace=False
-    ).tolist()
+    shuffled_times = np.random.choice(timesteps, len(timesteps), replace=False).tolist()
     batched_timesteps = list(partition_all(timesteps_per_batch, shuffled_times))
 
     # First function goes from mapper + timesteps to xr.dataset
@@ -163,8 +176,13 @@ def batches_from_mapper(
     if unstacked_dims is not None:
         transforms.append(curry(stack)(unstacked_dims))
         transforms.append(shuffle)
+        transforms.append(select_first_samples(subsample_ratio))
         if drop_nans:
             transforms.append(dropna)
+    elif subsample_ratio != 1.0:
+        raise ValueError(
+            "setting subsample_ratio != 1.0 requires providing unstacked_dims"
+        )
     elif drop_nans:
         raise ValueError("drop_nans=True requires unstacked_dims argument is provided")
 
@@ -237,14 +255,40 @@ def _get_batch(
 ) -> xr.Dataset:
     """
     Selects requested variables in the dataset that are there by default
-    (i.e., not added in derived step), converts time strings to time, and combines
-    into a single dataset.
+    (i.e., not added in derived step) and combines the given mapper keys
+    into one dataset.
+
+    If all keys are time strings, converts them to time when creating the coordinate.
     """
-    time_coords = [parse_datetime_from_str(key) for key in keys]
+    try:
+        time_coords = [parse_datetime_from_str(key) for key in keys]
+    except ValueError:
+        time_coords = list(keys)
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
     nonderived_vars = nonderived_variables(data_vars, tuple(ds.data_vars))
     ds = safe.get_variables(ds, nonderived_vars)
     return ds
+
+
+@curry
+def _open_dataset(fs: fsspec.AbstractFileSystem, filename):
+    return xr.open_dataset(fs.open(filename), engine="h5netcdf")
+
+
+@batches_functions.register
+def batches_from_netcdf(path: str) -> loaders.typing.Batches:
+    """
+    Loads a series of netCDF files from the given directory, in alphabetical order.
+
+    Args:
+        path: path (local or remote) of a directory of netCDF files
+
+    Returns:
+        A sequence of batched data
+    """
+    fs = vcm.get_fs(path)
+    filenames = [fname for fname in sorted(fs.ls(path)) if fname.endswith(".nc")]
+    return Map(_open_dataset(fs), filenames)
 
 
 @batches_functions.register
@@ -267,7 +311,7 @@ def batches_from_serialized(
         sample_dims: Sequence of dimensions to stack as a single sample dimension
         savepoints_per_batch: Number of serialized savepoints to include in a single
             batch
-    
+
     Returns:
         A seqence of batched serialized data ready for model testing/training
     """

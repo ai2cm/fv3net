@@ -32,6 +32,7 @@ from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.models import transform_model
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
+    Difference,
     TensorTransform,
     TransformedVariableConfig,
 )
@@ -93,7 +94,7 @@ class TrainConfig:
     out_url: str
     transform: TransformConfig = field(default_factory=TransformConfig)
     tensor_transform: List[
-        Union[TransformedVariableConfig, ConditionallyScaled]
+        Union[TransformedVariableConfig, ConditionallyScaled, Difference]
     ] = field(default_factory=list)
     model: Optional[models.MicrophysicsConfig] = None
     conservative_model: Optional[models.ConservativeWaterConfig] = None
@@ -285,7 +286,7 @@ def main(config: TrainConfig, seed: int = 0):
         config.test_url, config.nfiles_valid, config.model_variables
     )
 
-    train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
+    train_set = next(iter(train_ds.shuffle(1_000_000).batch(50_000)))
     transform = config.build_transform(train_set)
 
     train_ds = train_ds.map(transform.forward)

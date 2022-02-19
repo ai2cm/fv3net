@@ -15,8 +15,8 @@ REPORT_SAMPLE = """<html>
     <h1>Prognostic run report</h1>
 
         Report created 2021-06-01 12:35:45 PDT
-        
-            
+
+
     <h2>Metadata</h2>
     <table>
 
@@ -101,7 +101,7 @@ NEW_REPORT_SAMPLE = """<html>
     <body>
     <h1>Prognostic run report</h1>
     Report created 2021-09-13 09:50:30 PDT
-    
+
         <h2>Metadata</h2>
 <pre id="json">
 {
@@ -112,9 +112,9 @@ NEW_REPORT_SAMPLE = """<html>
     "column_heating_moistening.mp4": "<a href='https://storage.googleapis.com/vcm-ml-public/argo/2021-09-13t094629-2733d02e6fb8/_movies/n2f-3hr-control/column_heating_moistening.mp4'>n2f-3hr-control</a> <a href='https://storage.googleapis.com/vcm-ml-public/argo/2021-09-13t094629-2733d02e6fb8/_movies/n2f-3hr-prescribe-Q1-Q2/column_heating_moistening.mp4'>n2f-3hr-prescribe-Q1-Q2</a> <a href='https://storage.googleapis.com/vcm-ml-public/argo/2021-09-13t094629-2733d02e6fb8/_movies/n2f-24hr-prescribe-Q1-Q2/column_heating_moistening.mp4'>n2f-24hr-prescribe-Q1-Q2</a>"
 }
 </pre>
-    
+
         <h2>Links</h2>
-            
+
                 <ol>
 <li><a href="index.html">Home</a></li>
 <li><a href="process_diagnostics.html">Process diagnostics</a></li>
@@ -122,8 +122,8 @@ NEW_REPORT_SAMPLE = """<html>
 <li><a href="maps.html">Time-mean maps</a></li>
 <li><a href="zonal_pressure.html">Time-mean zonal-pressure profiles</a></li>
 </ol>
-            
-    
+
+
         <h2>Top-level metrics</h2>
 """
 

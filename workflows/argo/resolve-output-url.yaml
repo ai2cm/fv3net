@@ -19,4 +19,3 @@ spec:
           - "{{inputs.parameters.bucket}}"
           - "{{inputs.parameters.project}}"
           - "{{inputs.parameters.tag}}"
-          

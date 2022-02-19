@@ -167,7 +167,7 @@ class ArrayPacker:
 
         The first time this is called, the length of the feature dimension for each
         variable is stored, and can be retrieved on `packer.feature_counts`.
-        
+
         Args:
             dataset: dataset containing variables in self.pack_names to pack
 
