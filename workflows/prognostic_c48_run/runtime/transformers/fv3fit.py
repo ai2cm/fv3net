@@ -211,6 +211,8 @@ class Config:
         zonal_mean_bias_correction_factor: if provided, add this factor times the
             hard-coded zonal mean bias for each given tendency name. For example:
             {"Q1": -1, "Q2": -1.5}.
+        zonal_mean_correction_data_url: path to netCDF of data to use for zonal mean
+            correction. Should be dataset with variables of shape (tile, z, y, x).
     """
 
     url: str
@@ -224,6 +226,7 @@ class Config:
     zonal_mean_bias_correction_factor: Mapping[str, float] = dataclasses.field(
         default_factory=dict
     )
+    zonal_mean_correction_data_url: str = ZONAL_MEAN_BIAS_DATA_PATH
 
 
 @dataclasses.dataclass
@@ -236,7 +239,7 @@ class Adapter:
         self.model = fv3fit.load(self.config.url)
         self._tile = self.communicator.partitioner.tile_index(self.communicator.rank)
         if self.config.zonal_mean_bias_correction_factor is not None:
-            with fsspec.open(ZONAL_MEAN_BIAS_DATA_PATH) as f:
+            with fsspec.open(self.config.zonal_mean_correction_data_url) as f:
                 ds = xr.open_dataset(f).load()
             self.zonal_mean_bias = ds.isel(tile=self._tile)
 
