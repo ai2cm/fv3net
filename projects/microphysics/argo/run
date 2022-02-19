@@ -1,0 +1,12 @@
+#!/bin/bash
+
+url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-17/precpd-gscond-combined/model.tf
+tag=gscond-only-$(openssl rand -hex 6)
+
+yq  --arg url "$url" '.zhao_carr_emulation.gscond.path |= $url' ../configs/default.yaml > config.yaml
+trap 'rm config.yaml' EXIT
+
+
+argo submit prog-run-and-eval.yaml \
+    -p tag=$tag \
+    -p config=$(base64 --wrap 0 config.yaml)
