@@ -9,4 +9,4 @@ trap 'rm config.yaml' EXIT
 
 argo submit prog-run-and-eval.yaml \
     -p tag=$tag \
-    -p config=$(base64 --wrap 0 config.yaml)
+    -p config=$(base64 --wrap 0 config.yaml) | tee -a submitted-jobs.txt

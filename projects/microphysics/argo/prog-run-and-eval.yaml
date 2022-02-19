@@ -11,7 +11,6 @@ spec:
     parameters:
       - name: tag
       - name: config
-      - name: tf_model
   volumes:
   - name: gcp-key-secret
     secret:
@@ -28,8 +27,6 @@ spec:
               value: "{{workflow.parameters.tag}}-offline"
             - name: config
               value:  "{{workflow.parameters.config}}"
-            - name: tf_model
-              value: "{{workflow.parameters.tf_model}}"
             - name: on_off_flag
               value: --offline
         - name: run-online
@@ -40,8 +37,6 @@ spec:
               value: "{{workflow.parameters.tag}}-online"
             - name: config
               value:  "{{workflow.parameters.config}}"
-            - name: tf_model
-              value: "{{workflow.parameters.tf_model}}"
             - name: on_off_flag
               value: --online
         - name: piggy-online
@@ -72,7 +67,6 @@ spec:
       parameters:
       - name: tag
       - name: config
-      - name: tf_model
       - name: on_off_flag
     tolerations:
     - key: "dedicated"
@@ -109,7 +103,6 @@ spec:
         python3 scripts/prognostic_run.py \
           --tag "{{inputs.parameters.tag}}" \
           --config-path fv3config.yaml \
-          --model "{{inputs.parameters.tf_model}}" \
           "{{inputs.parameters.on_off_flag}}"
   - name: piggyback-diags
     inputs:
