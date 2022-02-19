@@ -1,6 +1,6 @@
 import tensorflow as tf
 from fv3fit.emulation.compositions import (
-    apply_precpd_difference,
+    apply_difference,
     t_diff,
     qc_diff,
     qv_diff,
@@ -19,9 +19,10 @@ def test_apply_precpd_difference(regtest):
     # inputs
     # cloud water is the only "required" input
     qc_in = tf.keras.Input(n, name="cloud_water_mixing_ratio_input")
+    qv_in = tf.keras.Input(n, name="specific_humidity_input")
 
     model = tf.keras.Model(
-        inputs=[qc_in],
+        inputs=[qc_in, qv_in],
         outputs=[
             _output_layer(qv_gscond)(qc_in),
             _output_layer(t_gscond)(qc_in),
@@ -31,6 +32,6 @@ def test_apply_precpd_difference(regtest):
         ],
     )
 
-    model_with_after_precpd = apply_precpd_difference(model)
+    model_with_after_precpd = apply_difference(model)
     outputs = model_with_after_precpd(model.inputs)
     print(sorted(outputs), file=regtest)

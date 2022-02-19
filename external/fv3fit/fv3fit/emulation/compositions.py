@@ -9,13 +9,15 @@ qv_diff = "humidity_precpd_only_difference"
 qc_diff = "cloud_precpd_difference"
 t_precpd = "air_temperature_after_precpd"
 t_gscond = "air_temperature_after_gscond"
+qv_in = "specific_humidity_input"
 qv_precpd = "specific_humidity_after_precpd"
 qv_gscond = "specific_humidity_after_gscond"
 qc_precpd = "cloud_water_mixing_ratio_after_precpd"
+qc_gscond = "cloud_water_mixing_ratio_after_gscond"
 qc_in = "cloud_water_mixing_ratio_input"
 
 
-def apply_precpd_difference(model):
+def apply_difference(model):
     """Apply precpd_only and precpd differences"""
 
     model = adapters.ensure_dict_output(model)
@@ -26,6 +28,10 @@ def apply_precpd_difference(model):
     outputs[t_precpd] = outputs[t_gscond] + outputs[t_diff]
     outputs[qv_precpd] = outputs[qv_gscond] + outputs[qv_diff]
     outputs[qc_precpd] = inputs[qc_in] + outputs[qc_diff]
+
+    # fill in cloud_water_after_gscond from water conservation
+    qv_change = outputs[qv_gscond] - inputs[qv_in]
+    outputs[qc_gscond] = tf.abs(inputs[qc_in] - qv_change)
 
     renamed = {
         key: tf.keras.layers.Lambda(lambda x: x, name=key)(val)

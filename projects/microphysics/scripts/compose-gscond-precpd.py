@@ -20,7 +20,7 @@ import tensorflow as tf
 import vcm.catalog
 import vcm.fv3
 import xarray
-from fv3fit.emulation.compositions import apply_precpd_difference
+from fv3fit.emulation.compositions import apply_difference
 from fv3fit.keras.adapters import merge_models
 
 import fv3net.artifacts.resolve_url
@@ -114,7 +114,7 @@ gscond_model.summary()
 gscond_model._name = "gscond"
 precpd_model._name = "precpd"
 combined_model = merge_models(precpd_model, gscond_model)
-final_model = apply_precpd_difference(combined_model)
+final_model = apply_difference(combined_model)
 # -
 
 final_model.summary()
@@ -157,8 +157,9 @@ new_model(new_model.input)
 
 #
 new_model_root = fv3net.artifacts.resolve_url.resolve_url(
-    "vcm-ml-experiments", "microphysics-emulation", "precpd-gscond-combined",
+    "vcm-ml-experiments", "microphysics-emulation", "precpd-gscond-combined-v1",
 )
+print(new_model_root)
 
 
 with fv3fit._shared.filesystem.put_dir(new_model_root) as d:
