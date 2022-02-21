@@ -6,6 +6,7 @@ import yaml
 import os.path
 import logging
 import sys
+import os
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -48,7 +49,8 @@ def main(data_config: str, output_path: str, variable_names: Sequence[str]):
     logger.info("configuration loaded, creating batches object")
     batches = loader.load_batches(variables=variable_names)
     n_batches = len(batches)
-    logger.info(f"batches object created, saving {n_batches} batches")
+    logger.info(f"batches object created, saving {n_batches} batches to {output_path}")
+    os.makedirs(output_path, exist_ok=True)
     for i, batch in enumerate(batches):
         out_filename = os.path.join(output_path, f"{i:05}.nc")
         logger.info(f"saving batch {i}")
