@@ -28,7 +28,16 @@ def get_parser() -> argparse.ArgumentParser:
         type=str,
         help="local directory to save data as numbered netCDF files",
     )
-    parser.add_argument("-n", "--variable-names", nargs="+", default=[])
+    parser.add_argument(
+        "-n",
+        "--variable-names",
+        nargs="+",
+        default=[],
+        help=(
+            "variable names to include in saved file, "
+            "passed to BatchesLoader.load_batches"
+        ),
+    )
     return parser
 
 
