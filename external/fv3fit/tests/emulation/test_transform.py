@@ -5,9 +5,11 @@ import tensorflow as tf
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
     ComposedTransform,
-    Difference,
+    DifferenceTransform,
     LogTransform,
     TransformedVariableConfig,
+    PositiveTransform,
+    EnforcePositiveVariables,
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
 from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional
@@ -237,24 +239,24 @@ def test_ConditionallyScaled_build():
 
 
 def test_Difference_backward_names():
-    diff = Difference("diff", "before", "after")
+    diff = DifferenceTransform("diff", "before", "after")
     assert diff.backward_names({"diff"}) == {"before", "after", "diff"}
     assert diff.backward_names({"not in a"}) == {"not in a"}
 
 
 def test_Difference_build():
-    diff = Difference("diff", "before", "after")
+    diff = DifferenceTransform("diff", "before", "after")
     assert diff.build({}) == diff
 
 
 def test_Difference_forward():
-    diff = Difference("diff", "before", "after")
+    diff = DifferenceTransform("diff", "before", "after")
     in_ = {"after": 1, "before": 0}
     assert diff.forward(in_) == {"diff": 1, **in_}
 
 
 def test_Difference_backward():
-    diff = Difference("diff", "before", "after")
+    diff = DifferenceTransform("diff", "before", "after")
     in_ = {"diff": 1, "before": 0}
     assert diff.backward(in_) == {"after": 1, **in_}
 
@@ -324,3 +326,34 @@ def test_ComposedTransform_with_build():
     # mock2.build is called with the "b" variable outputted by mock1
     (build_sample_for_second_mock,) = factory2.build.call_args[0]
     assert build_sample_for_second_mock == {"b": 0, "a": 0}
+
+
+def test_PositiveTransform():
+
+    tensor = tf.convert_to_tensor([-2, -1, 0, 1, 2])
+    transform = PositiveTransform()
+
+    forward_result = transform.forward(tensor)
+    np.testing.assert_array_equal(tensor, forward_result)
+
+    positive = tf.convert_to_tensor([0, 0, 0, 1, 2])
+    backward_result = transform.backward(tensor)
+    np.testing.assert_array_equal(positive, backward_result)
+
+
+def test_EnforcePositiveVariables():
+
+    tensor = tf.convert_to_tensor([-2, -1, 0, 1, 2])
+    positive = tf.convert_to_tensor([0, 0, 0, 1, 2])
+
+    fields = {key: tensor for key in "abc"}
+
+    factory = EnforcePositiveVariables(enforce_positive_variables=["a", "b"])
+    transform = factory.build(fields)
+
+    result = transform.backward(fields)
+    expected = {"a": positive, "b": positive, "c": tensor}
+
+    assert set(result) == set(expected)
+    for k in expected:
+        np.testing.assert_array_equal(result[k], expected[k])

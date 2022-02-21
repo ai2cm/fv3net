@@ -5,8 +5,9 @@ import tensorflow as tf
 from fv3fit.emulation.transforms.transforms import (
     ComposedTransform,
     ConditionallyScaledTransform,
-    LogTransform,
+    PositiveTransform,
     TensorTransform,
+    UnivariateCompatible,
     UnivariateTransform,
 )
 from fv3fit.emulation.types import TensorDict
@@ -36,7 +37,7 @@ class TransformedVariableConfig(TransformFactory):
 
     source: str
     to: str
-    transform: LogTransform
+    transform: UnivariateCompatible
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         if self.to in requested_names:
@@ -148,3 +149,22 @@ class ComposedTransformFactory(TransformFactory):
             sample.update(transform.forward(sample))
             transforms.append(transform)
         return ComposedTransform(transforms)
+
+
+@dataclasses.dataclass
+class EnforcePositiveVariables(ComposedTransformFactory):
+    """
+    Use a ReLU to enforce positive values
+    """
+
+    enforce_positive_variables: Sequence[str]
+    to: str = ""
+
+    # Better not to inherit? This is a user-facing composition
+    def __init__(self, enforce_positive_variables: Sequence[str], to: str = ""):
+        self.factories = [
+            TransformedVariableConfig(varname, varname, PositiveTransform())
+            for varname in enforce_positive_variables
+        ]
+        self.enforce_positive_variables = enforce_positive_variables
+        self.to = to
