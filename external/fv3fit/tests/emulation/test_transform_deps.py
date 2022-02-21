@@ -20,7 +20,7 @@ def test_cycle():
     factories = [DummyFactory("b", deps={"a"}), DummyFactory("a", deps={"b"})]
 
     result = _get_dependencies("a", factories)
-    assert result == ({"a"}, {"b"})
+    assert result == {"a"}
 
 
 def test_intermediate_blend():
@@ -31,7 +31,7 @@ def test_intermediate_blend():
     ]
 
     result = _get_dependencies("d", factories)
-    assert result == ({"a", "b"}, {"c"})
+    assert result == {"a", "b"}
 
 
 def test_cycle_with_passthrough():
@@ -43,7 +43,7 @@ def test_cycle_with_passthrough():
     ]
 
     result = _get_dependencies("a", factories)
-    assert result == ({"a"}, {"b"})
+    assert result == {"a"}
 
 
 def test_only_get_requested():
@@ -54,4 +54,4 @@ def test_only_get_requested():
     ]
 
     result = _get_dependencies("d", factories)
-    assert result == ({"c"}, set())
+    assert result == {"c"}

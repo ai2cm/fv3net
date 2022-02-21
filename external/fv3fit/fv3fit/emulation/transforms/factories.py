@@ -16,29 +16,20 @@ from typing_extensions import Protocol
 
 
 def _get_dependencies(name: str, factories: Sequence["TransformFactory"]):
+    """
+    Get all non-intermediate dependencies of a specific variable name.
+    """
+    dependencies = set()
 
-    deps = set()
-    intermediate_deps = set()
-
-    # Traverse backwards through transform for requested name
     for i, factory in enumerate(factories[::-1], 1):
-
         if factory.to == name:
-
-            intermediate_deps |= factory.required_names
-
-            # retrieve dependencies for each earlier in pipeline
             for dep_name in sorted(factory.required_names):
-
-                new_deps, intermediate = _get_dependencies(dep_name, factories[:-i])
-                deps |= new_deps
-                intermediate_deps |= intermediate
-
+                dependencies |= _get_dependencies(dep_name, factories[:-i])
             break
     else:
-        return {name}, set()
+        return {name}
 
-    return deps, intermediate_deps - deps
+    return dependencies
 
 
 class TransformFactory(Protocol):
@@ -69,22 +60,9 @@ class TransformFactory(Protocol):
 
     def get_required_inputs(self, requested_names: Set[str]) -> Set[str]:
         required_names = set()
-        intermediate_names = set()
 
         for name in sorted(requested_names):
-            req, interm = _get_dependencies(name, self._factory_list)
-            required_names |= req
-            intermediate_names |= interm
-
-            overlap = required_names & intermediate_names
-
-            if overlap:
-                raise ValueError(
-                    "The following variables in the transform chain appeared in"
-                    f"the required inputs and intermediate variables: {overlap}"
-                    f"  Adjust transform order such that creation of {overlap} precedes"
-                    f" the creation of {name}"
-                )
+            required_names |= _get_dependencies(name, self._factory_list)
 
         return required_names
 
