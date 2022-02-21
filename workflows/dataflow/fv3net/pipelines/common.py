@@ -36,7 +36,7 @@ class FunctionSource(beam.PTransform):
 
         p = Pipeline()
         p | beam.Create([None]) | beam.Map(lambda _, url : load_dataset(url), url)
-    
+
     This PTransform implements this pattern, allowing the following clean syntax::
 
         p | FunctionSource(load_dataset, url)
@@ -195,7 +195,7 @@ def subsample_timesteps_at_interval(
         timesteps: A list of all available timestep strings.  Assumed to
             be in the format described by vcm.cubedsphere.constants.TIME_FMT
         sampling_interval: The interval to subsample the list in minutes
-    
+
     Returns:
         A subsampled list of the input timesteps at the desired interval.
     """

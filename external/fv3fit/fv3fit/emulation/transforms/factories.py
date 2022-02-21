@@ -1,5 +1,6 @@
+from collections import defaultdict
 import dataclasses
-from typing import Callable, Sequence, Set
+from typing import Callable, MutableMapping, Optional, Sequence, Set
 
 import tensorflow as tf
 from fv3fit.emulation.transforms.transforms import (
@@ -10,7 +11,6 @@ from fv3fit.emulation.transforms.transforms import (
     UnivariateTransform,
 )
 from fv3fit.emulation.types import TensorDict
-from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.keras.math import groupby_bins, piecewise
 from typing_extensions import Protocol
 
@@ -72,55 +72,61 @@ def fit_conditional(
 class ConditionallyScaled(TransformFactory):
     """Conditionally scaled transformation
 
-    Scales the output-input difference of ``field`` by conditional standard
-    deviation and mean::
+    Scales ``source`` by conditional standard deviation and mean::
 
-                  d field - E[d field|on]
+                  source - E[source|on]
         to =  --------------------------------
-               max[Std[d field|on], min_scale]
+               max[Std[source|on], min_scale]
 
     Attributes:
         to: name of the transformed variable.
         condition_on: the variable to condition on
         bins: the number of bins
-        field: the prognostic variable spec. The difference between input and
-            output data (``d field``) is normalized.
+        source: The variable to be normalized.
         min_scale: the minimium scale to normalize by. Used when the scale might
             be 0.
+        fit_filter_magnitude: if provided, any values with
+            |source| < filter_magnitude are removed from the standard
+            deviation/mean calculation.
 
     """
 
     to: str
     condition_on: str
+    source: str
     bins: int
-    field: Field
     min_scale: float = 0.0
+    fit_filter_magnitude: Optional[float] = None
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         """List the names needed to compute ``self.to``"""
-        if self.to in requested_names:
-            return (requested_names - {self.to}) | {
-                self.field.input_name,
-                self.condition_on,
-                self.field.output_name,
-            }
-        else:
-            return requested_names
+        new_names = (
+            {self.condition_on, self.source} if self.to in requested_names else set()
+        )
+        return requested_names.union(new_names)
 
     def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
 
-        residual_sample = sample[self.field.output_name] - sample[self.field.input_name]
+        if self.fit_filter_magnitude is not None:
+            mask = tf.abs(sample[self.source]) > self.fit_filter_magnitude
+        else:
+            mask = ...
 
         return ConditionallyScaledTransform(
             to=self.to,
             on=self.condition_on,
-            input_name=self.field.input_name,
-            output_name=self.field.output_name,
+            source=self.source,
             scale=fit_conditional(
-                sample[self.condition_on], residual_sample, reduce_std, self.bins
+                sample[self.condition_on][mask],
+                sample[self.source][mask],
+                reduce_std,
+                self.bins,
             ),
             center=fit_conditional(
-                sample[self.condition_on], residual_sample, tf.reduce_mean, self.bins
+                sample[self.condition_on][mask],
+                sample[self.source][mask],
+                tf.reduce_mean,
+                self.bins,
             ),
             min_scale=self.min_scale,
         )
@@ -130,11 +136,42 @@ class ComposedTransformFactory(TransformFactory):
     def __init__(self, factories: Sequence[TransformFactory]):
         self.factories = factories
 
-    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+    def _get_first_order_dependencies(self, name: str) -> Set[str]:
+        deps: Set[str] = set()
         for factory in self.factories:
-            requested_names = factory.backward_names(requested_names)
-        return requested_names
+            deps_of_name = factory.backward_names({name}) - {name}
+            deps = deps.union(deps_of_name)
+        return deps
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        out: Set[str] = set()
+        stack = sorted(requested_names)
+        visit_count: MutableMapping[str, int] = defaultdict(lambda: 0)
+
+        while stack:
+            name = stack.pop()
+            visit_count[name] += 1
+            if visit_count[name] > len(visit_count):
+                # name should visited at most once for each distinct processed input.
+                # otherwise we not there is some circular dependency
+                raise ValueError(f"Circular dependency detected for input {name}.")
+
+            deps = self._get_first_order_dependencies(name)
+            if deps == set():
+                # name cannot be computed from transforms so we must request it
+                # from the data
+                out.add(name)
+            else:
+                # more processing needed
+                for dep in deps:
+                    stack.append(dep)
+        return out
 
     def build(self, sample: TensorDict) -> ComposedTransform:
-        transforms = [factory.build(sample) for factory in self.factories]
+        transforms = []
+        sample = {**sample}
+        for factory in self.factories:
+            transform = factory.build(sample)
+            sample.update(transform.forward(sample))
+            transforms.append(transform)
         return ComposedTransform(transforms)

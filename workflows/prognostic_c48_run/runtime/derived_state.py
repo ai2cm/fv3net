@@ -14,7 +14,7 @@ from vcm import DerivedMapping, round_time
 
 class FV3StateMapper(Mapping):
     """ A mapping interface for the FV3GFS getter.
-        
+
     Maps variables to the common names used in shared functions.
     By default adds mapping {"lon": "longitude", "lat": "latitude"}
     """
@@ -69,12 +69,12 @@ class FV3StateMapper(Mapping):
 
 class DerivedFV3State(MutableMapping):
     """A uniform mapping-like interface to the FV3GFS model state
-    
+
     This class wraps the fv3gfs getters with the FV3StateMapper, that always returns
     DataArray and has time as an attribute (since this isn't a DataArray).
-    
+
     This encapsulates from the details of Quantity
-    
+
     """
 
     def __init__(self, getter):
@@ -111,7 +111,7 @@ class DerivedFV3State(MutableMapping):
         """Update state from another mapping
 
         This may be faster than setting each item individually. Same as dict.update.
-        
+
         All states except for pressure thicknesses are set in a mass-conserving fashion.
         """
         items_with_attrs = _cast_single_to_double(self._assign_attrs_from_mapper(items))
@@ -150,7 +150,7 @@ class MergedState(DerivedFV3State):
 
     Commonly used to e.g. blend python and fv3gfs-fortran state into a single
     object.
-    
+
     Attributes:
         left: a derived fv3 state object represetning e.g. Fortran state.
         right: a mutable mapping representing python based state.

@@ -4,6 +4,8 @@ from typing import Hashable, Iterable, Sequence
 import logging
 import warnings
 
+from .input_sensitivity import InputSensitivity
+
 DATASET_DIM_NAME = "dataset"
 logger = logging.getLogger(__file__)
 
@@ -26,7 +28,7 @@ class Predictor(abc.ABC):
         **kwargs,
     ):
         """Initialize the predictor.
-        
+
         Args:
             input_variables: names of input variables
             output_variables: names of output variables
@@ -82,3 +84,10 @@ class Predictor(abc.ABC):
             DeprecationWarning,
         )
         return self.predict(X)
+
+    def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
+        """Calculate sensitivity to input features."""
+        raise NotImplementedError(
+            "input_sensitivity is not implemented for Predictor subclass "
+            f"{self.__class__.__name__}."
+        )

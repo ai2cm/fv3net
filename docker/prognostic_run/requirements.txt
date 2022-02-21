@@ -68,6 +68,7 @@ keras-nightly==2.5.0.dev2021032900
 keras-preprocessing==1.1.2
 kiwisolver==1.2.0
 kubernetes==11.0.0
+lark==1.1.1
 locket==0.2.0
 markdown==3.1.1
 markupsafe==1.1.1

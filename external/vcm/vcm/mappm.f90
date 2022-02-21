@@ -6,15 +6,15 @@
 !     (these were defined as global variables in ``fv_mapz.F90``)
 
 !>@brief The subroutine 'mappm' is a general-purpose routine for remapping
-!! one set of vertical levels to another. 
+!! one set of vertical levels to another.
  subroutine mappm(km, pe1, q1, kn, pe2, q2, i1, i2, iv, kord, ptop)
 
 ! IV = 0: constituents
 ! IV = 1: potential temp
 ! IV =-1: winds
- 
+
 ! Mass flux preserving mapping: q1(im,km) -> q2(im,kn)
- 
+
 ! pe1: pressure at layer edges (from model top to bottom surface)
 !      in the original vertical coordinate
 ! pe2: pressure at layer edges (from model top to bottom surface)
@@ -22,8 +22,8 @@
 
  integer, intent(in):: i1, i2, km, kn, kord, iv
  real, intent(in ):: pe1(i1:i2,km+1), pe2(i1:i2,kn+1) !< pe1: pressure at layer edges from model top to bottom
-                                                      !!      surface in the ORIGINAL vertical coordinate 
-                                                      !< pe2: pressure at layer edges from model top to bottom 
+                                                      !!      surface in the ORIGINAL vertical coordinate
+                                                      !< pe2: pressure at layer edges from model top to bottom
                                                       !!      surface in the NEW vertical coordinate
 ! Mass flux preserving mapping: q1(im,km) -> q2(im,kn)
  real, intent(in )::  q1(i1:i2,km)
@@ -127,7 +127,7 @@
 
 
 !>@brief The subroutine 'cs_profile' performs the optimized vertical profile reconstruction:
-!>@date April 2008 
+!>@date April 2008
 !>@author S. J. Lin, NOAA/GFDL
  subroutine cs_profile(qs, a4, delp, km, i1, i2, iv, kord)
 ! Optimized vertical profile reconstruction:
@@ -146,7 +146,7 @@
  real  gam(i1:i2,km)
  real    q(i1:i2,km+1)
  real   d4(i1:i2)
- real   bet, a_bot, grat 
+ real   bet, a_bot, grat
  real   pmp_1, lac_1, pmp_2, lac_2, x0, x1
  integer i, k, im
 
@@ -164,7 +164,7 @@
          enddo
       enddo
       do i=i1,i2
-            grat = delp(i,km-1) / delp(i,km) 
+            grat = delp(i,km-1) / delp(i,km)
          q(i,km) = (3.*(a4(1,i,km-1)+a4(1,i,km)) - grat*qs(i) - q(i,km-1)) /  &
                    (2. + grat + grat - gam(i,km))
          q(i,km+1) = qs(i)
@@ -190,7 +190,7 @@
         gam(i,k) = d4(i) / bet
      enddo
   enddo
- 
+
   do i=i1,i2
          a_bot = 1. + d4(i)*(d4(i)+1.5)
      q(i,km+1) = (2.*d4(i)*(d4(i)+1.)*a4(1,i,km)+a4(1,i,km-1)-a_bot*q(i,km))  &
@@ -221,7 +221,7 @@
 !------------------
   im = i2 - i1 + 1
 
-! Apply *large-scale* constraints 
+! Apply *large-scale* constraints
   do i=i1,i2
      q(i,2) = min( q(i,2), max(a4(1,i,1), a4(1,i,2)) )
      q(i,2) = max( q(i,2), min(a4(1,i,1), a4(1,i,2)) )
@@ -297,7 +297,7 @@
      do i=i1,i2
         a4(2,i,1) = max(0., a4(2,i,1))
      enddo
-  elseif ( iv==-1 ) then 
+  elseif ( iv==-1 ) then
       do i=i1,i2
          if ( a4(2,i,1)*a4(1,i,1) <= 0. ) a4(2,i,1) = 0.
       enddo
@@ -515,7 +515,7 @@
      do i=i1,i2
         a4(3,i,km) = max(0., a4(3,i,km))
      enddo
-  elseif ( iv .eq. -1 ) then 
+  elseif ( iv .eq. -1 ) then
       do i=i1,i2
          if ( a4(3,i,km)*a4(1,i,km) <= 0. )  a4(3,i,km) = 0.
       enddo
@@ -619,7 +619,7 @@
  integer, intent(in):: i2      !< Finishing longitude
  integer, intent(in):: km      !< Vertical dimension
  integer, intent(in):: kord    !< Order (or more accurately method no.):
-                               ! 
+                               !
  real , intent(in):: delp(i1:i2,km)     !< Layer pressure thickness
 
 ! !INPUT/OUTPUT PARAMETERS:
@@ -628,8 +628,8 @@
 ! DESCRIPTION:
 !
 !   Perform the piecewise parabolic reconstruction
-! 
-! !REVISION HISTORY: 
+!
+! !REVISION HISTORY:
 ! S.-J. Lin   revised at GFDL 2007
 !-----------------------------------------------------------------------
 ! local arrays:
@@ -712,7 +712,7 @@
          do i=i1,i2
             a4(2,i,1) = max(0., a4(2,i,1))
             a4(2,i,2) = max(0., a4(2,i,2))
-         enddo 
+         enddo
       elseif( iv==-1 ) then
          do i=i1,i2
             if ( a4(2,i,1)*a4(1,i,1) <= 0. ) a4(2,i,1) = 0.
@@ -788,7 +788,7 @@
 ! Method#2 - better
             h2(i,k) = 2.*(dc(i,k+1)/delp(i,k+1) - dc(i,k-1)/delp(i,k-1))  &
                      / ( delp(i,k)+0.5*(delp(i,k-1)+delp(i,k+1)) )        &
-                     * delp(i,k)**2 
+                     * delp(i,k)**2
 ! Method#3
 !!!            h2(i,k) = dc(i,k+1) - dc(i,k-1)
          enddo
@@ -857,7 +857,7 @@
       real , intent(in):: dm(*)     !< Linear slope
       integer, intent(in) :: itot      !< Total Longitudes
       integer, intent(in) :: lmt       !< 0: Standard PPM constraint 1: Improved full monotonicity constraint
-                                       !< (Lin) 2: Positive definite constraint 
+                                       !< (Lin) 2: Positive definite constraint
                                        !< 3: do nothing (return immediately)
 ! INPUT/OUTPUT PARAMETERS:
       real , intent(inout) :: a4(4,*)   !< PPM array AA <-- a4(1,i) AL <-- a4(2,i) AR <-- a4(3,i) A6 <-- a4(4,i)

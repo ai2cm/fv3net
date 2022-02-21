@@ -21,6 +21,7 @@ from .scaler import (
     NormalizeTransform,
 )
 from .predictor import Predictor
+from .input_sensitivity import InputSensitivity
 from .stacking import (
     StackedBatches,
     stack_non_vertical,

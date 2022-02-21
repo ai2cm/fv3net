@@ -149,7 +149,7 @@ def insert_report_figure(
         section_name: Name of report section
         output_dir: Directory to write section directories and their figures into.
             If left as default None, will write in current working directory.
-            
+
     """
     section_dir = section_name.replace(" ", "_")
     filepath_relative_to_report = os.path.join(section_dir, filename)

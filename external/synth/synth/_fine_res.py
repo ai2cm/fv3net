@@ -7,11 +7,11 @@ from synth.schemas import load_schema
 
 def generate_fine_res(datadir: str, times: Sequence[str]):
     """Generate a directory of fine-res data
-    
+
     Args:
         datadir: output location
         times: list of YYYYMMDD.HHMMSS timestamps
-    
+
     """
     schema = load_schema("fine_res_budget.json")
     dataset = generate(schema)

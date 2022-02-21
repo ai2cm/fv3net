@@ -7,7 +7,7 @@ initial_conditions:
   timestep: "20160805.000000"
 namelist:
   coupler_nml:
-    days: 10 
+    days: 10
     hours: 0
     minutes: 0
     seconds: 0

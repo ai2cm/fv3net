@@ -7,7 +7,7 @@ This system is designed for extension without extensively modifying the
 source code. To accomplish this, it divides report generation into
 phases:
 
-#. Diagnostic computation: "diagnostic" is a multidimensional quantity 
+#. Diagnostic computation: "diagnostic" is a multidimensional quantity
    that is reasonably limited in size (e.g. can be easily downloaded).
 #. Metric computation: scalar "metrics" calculated from the output of the
    step above.
@@ -56,6 +56,6 @@ This function needs to return an object that is valid input to the ``sections`` 
 Testing
 ~~~~~~~
 
-An integration test of the various steps required to generate a prognostic run report 
-can be launched by calling ``make test_prognostic_run_report`` from the root of the 
+An integration test of the various steps required to generate a prognostic run report
+can be launched by calling ``make test_prognostic_run_report`` from the root of the
 fv3net repository.

@@ -25,6 +25,7 @@ install_requirements = [
     # found and is required by fv3net-diagnostics
     # "fv3viz",
     "vcm",
+    "wandb>=0.12.1",
     "report",
     "streamlit",
     "plotly",

@@ -51,7 +51,7 @@ function runRemote {
   --extra_package dists/fv3net*.tar.gz \
   --extra_package dists/budget*.tar.gz \
   "
-  
+
   cmd="python $* $packageArgs"
   echo "Running: $cmd"
   $cmd
@@ -66,9 +66,9 @@ function usage {
   echo "  dataflow.sh -h"
   echo ""
   echo "Commands:"
-  echo "" 
-  echo "  submit     submit a remote dataflow job" 
-  echo "  check      recreate the dataflow environment setup in a local virtualenv" 
+  echo ""
+  echo "  submit     submit a remote dataflow job"
+  echo "  check      recreate the dataflow environment setup in a local virtualenv"
   echo ""
   echo "Options:"
   echo "  -h         Show the help"
@@ -90,7 +90,7 @@ fi
 subcommand="$1"
 shift
 
-case $subcommand in 
+case $subcommand in
   submit)
     runRemote "$@"
     ;;

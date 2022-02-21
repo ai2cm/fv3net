@@ -16,6 +16,6 @@ case $(uname) in
         ;;
 esac
 
-conda create -n $CONDA_ENV --file $packages 
+conda create -n $CONDA_ENV --file $packages
 source activate $CONDA_ENV
 pip install -c constraints.txt -r pip-requirements.txt
