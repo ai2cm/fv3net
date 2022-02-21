@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, Optional, Sequence, Set
+from typing import Callable, List, Optional, Sequence, Set
 
 import tensorflow as tf
 from fv3fit.emulation.transforms.transforms import (
@@ -8,17 +8,41 @@ from fv3fit.emulation.transforms.transforms import (
     LogTransform,
     TensorTransform,
     UnivariateTransform,
+    DifferenceTransform,
 )
 from fv3fit.emulation.types import TensorDict
 from fv3fit.keras.math import groupby_bins, piecewise
 from typing_extensions import Protocol
 
 
+def _get_dependencies(name: str, factories: Sequence["TransformFactory"]):
+
+    deps = set()
+    intermediate_deps = set()
+
+    # Traverse backwards through transform for requested name
+    for i, factory in enumerate(factories[::-1], 1):
+
+        if factory.to == name:
+
+            intermediate_deps |= factory.required_names
+
+            # retrieve dependencies for each earlier in pipeline
+            for dep_name in sorted(factory.required_names):
+
+                new_deps, intermediate = _get_dependencies(dep_name, factories[:-i])
+                deps |= new_deps
+                intermediate_deps |= intermediate
+
+            break
+    else:
+        return {name}, set()
+
+    return deps, intermediate_deps - deps
+
+
 class TransformFactory(Protocol):
     """The interface of a static configuration object
-
-    Attrs:
-        to: Name of transform result
 
     Methods:
         backward_names: used to infer to the required input variables
@@ -32,12 +56,37 @@ class TransformFactory(Protocol):
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         pass
 
-    @property
-    def required_names(self) -> Set[str]:
-        pass
-
     def build(self, sample: TensorDict) -> TensorTransform:
         pass
+
+    @property
+    def required_names(self) -> Set[str]:
+        return set()
+
+    @property
+    def _factory_list(self) -> Sequence["TransformFactory"]:
+        return [self]
+
+    def get_required_inputs(self, requested_names: Set[str]) -> Set[str]:
+        required_names = set()
+        intermediate_names = set()
+
+        for name in sorted(requested_names):
+            req, interm = _get_dependencies(name, self._factory_list)
+            required_names |= req
+            intermediate_names |= interm
+
+            overlap = required_names & intermediate_names
+
+            if overlap:
+                raise ValueError(
+                    "The following variables in the transform chain appeared in"
+                    f"the required inputs and intermediate variables: {overlap}"
+                    f"  Adjust transform order such that creation of {overlap} precedes"
+                    f" the creation of {name}"
+                )
+
+        return required_names
 
 
 @dataclasses.dataclass
@@ -60,6 +109,25 @@ class TransformedVariableConfig(TransformFactory):
     @property
     def required_names(self) -> Set[str]:
         return {self.source}
+
+
+@dataclasses.dataclass
+class Difference(TransformFactory):
+
+    to: str
+    before: str
+    after: str
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        new_names = {self.before, self.after} if self.to in requested_names else set()
+        return requested_names.union(new_names)
+
+    @property
+    def required_names(self) -> Set[str]:
+        return {self.before, self.after}
+
+    def build(self, sample: TensorDict) -> TensorTransform:
+        return DifferenceTransform(self.to, self.before, self.after)
 
 
 def reduce_std(x: tf.Tensor) -> tf.Tensor:
@@ -152,6 +220,7 @@ class ConditionallyScaled(TransformFactory):
 class ComposedTransformFactory(TransformFactory):
     def __init__(self, factories: Sequence[TransformFactory]):
         self.factories = factories
+        self.to = ""
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         for factory in self.factories:
@@ -162,39 +231,10 @@ class ComposedTransformFactory(TransformFactory):
         transforms = [factory.build(sample) for factory in self.factories]
         return ComposedTransform(transforms)
 
+    @property
+    def _factory_list(self) -> List[TransformFactory]:
 
-def _get_required_inputs(
-    f: ComposedTransformFactory, requested_names: Set[str]
-) -> Set[str]:
-
-    for t in f.factories:
-
-        available_from_transform: Set[str] = set()
-        required: Set[str] = set()
-
-        required |= t.required_names - available_from_transform
-        available_from_transform |= {t.to}
-
-        requested_names -= available_from_transform
-
-    return set()
-
-
-def _get_dependencies(name: str, factories: Sequence[TransformFactory]):
-
-    deps = set()
-    intermediate_deps = set()
-
-    for i, factory in enumerate(factories[::-1], 1):
-
-        if factory.to == name:
-            intermediate_deps |= factory.required_names
-            for dep_name in sorted(factory.required_names):
-                new_deps, intermediate = _get_dependencies(dep_name, factories[:-i])
-                deps |= new_deps
-                intermediate_deps |= intermediate
-            break
-    else:
-        return {name}, set()
-
-    return deps, intermediate_deps - deps
+        expanded_list: List[TransformFactory] = []
+        for f in self.factories:
+            expanded_list += f._factory_list
+        return expanded_list
