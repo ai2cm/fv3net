@@ -272,9 +272,7 @@ def _get_batch(
 
 @curry
 def _open_dataset(fs: fsspec.AbstractFileSystem, filename):
-    return xr.open_dataset(
-        fs.open(filename), engine="h5netcdf", chunks={"sample": "auto"}
-    )
+    return xr.open_dataset(fs.open(filename), engine="h5netcdf")
 
 
 @batches_functions.register

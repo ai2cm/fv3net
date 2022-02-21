@@ -154,10 +154,10 @@ def test_main_calls_load_batches_correctly(
     Test of fv3fit.train main function only, using mocks for training function
     and data loading.
     """
-    call_main(
+    artifacts = call_main(
         tmpdir, mock_load_batches, derived_output_variables, use_validation_data,
     )
-    mock_load_batches.assert_called_with()
+    mock_load_batches.assert_called_with(variables=artifacts.variables)
     if use_validation_data:
         assert (
             mock_load_batches.call_args_list[0] == mock_load_batches.call_args_list[1]

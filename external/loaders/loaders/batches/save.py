@@ -1,4 +1,5 @@
 import argparse
+from typing import Sequence
 from loaders._config import BatchesLoader
 from loaders._utils import SAMPLE_DIM_NAME
 import yaml
@@ -27,15 +28,16 @@ def get_parser() -> argparse.ArgumentParser:
         type=str,
         help="local directory to save data as numbered netCDF files",
     )
+    parser.add_argument("-n", "--variable-names", nargs="+", default=[])
     return parser
 
 
-def main(data_config: str, output_path: str):
+def main(data_config: str, output_path: str, variable_names: Sequence[str]):
     with open(data_config, "r") as f:
         config = yaml.safe_load(f)
     loader = BatchesLoader.from_dict(config)
     logger.info("configuration loaded, creating batches object")
-    batches = loader.load_batches()
+    batches = loader.load_batches(variables=variable_names)
     n_batches = len(batches)
     logger.info(f"batches object created, saving {n_batches} batches")
     for i, batch in enumerate(batches):
@@ -59,4 +61,8 @@ if __name__ == "__main__":
 
     parser = get_parser()
     args = parser.parse_args()
-    main(data_config=args.data_config, output_path=args.output_path)
+    main(
+        data_config=args.data_config,
+        output_path=args.output_path,
+        variable_names=args.variable_names,
+    )
