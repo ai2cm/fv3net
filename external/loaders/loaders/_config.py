@@ -1,5 +1,4 @@
 import abc
-import inspect
 from typing import Dict, Optional, Sequence, TypeVar, Callable
 from loaders.typing import (
     Mapper,
@@ -169,9 +168,8 @@ class BatchesConfig(BatchesLoader):
             variables = []
         batches_function = batches_functions[self.function]
         kwargs = {**self.kwargs}
-        if "variable_names" in inspect.signature(batches_function).parameters:
-            kwargs["variable_names"] = list(kwargs.get("variable_names", []))
-            kwargs["variable_names"].extend(variables)
+        kwargs["variable_names"] = list(kwargs.get("variable_names", []))
+        kwargs["variable_names"].extend(variables)
         return batches_function(**kwargs)
 
     def __post_init__(self):
