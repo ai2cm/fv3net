@@ -89,15 +89,15 @@ def test_composed_transform_backward_names_sequence():
     assert transform.backward_names({"c"}) == {"a"}
 
 
-def test_composed_transform_errors_on_circular_dep():
+def test_composed_transform_with_circular_dep():
     factory = ComposedTransformFactory(
         [
             TransformedVariableConfig("a", "b", LogTransform()),
             TransformedVariableConfig("b", "a", LogTransform()),
         ]
     )
-    with pytest.raises(ValueError):
-        return factory.backward_names({"a"})
+
+    assert factory.backward_names({"a"}) == {"a"}
 
 
 def test_composed_transform_ok_with_repeated_dep():
