@@ -88,7 +88,7 @@ def get_uncached_data(
     logger.info("configuration loaded, creating batches object")
     train_batches = loader.load_batches(variables=variable_names)
     if validation_data_config is not None:
-        with open(training_data_config, "r") as f:
+        with open(validation_data_config, "r") as f:
             config = yaml.safe_load(f)
         loader = loaders.BatchesLoader.from_dict(config)
         logger.info("configuration loaded, creating batches object")
@@ -122,7 +122,7 @@ def get_cached_data(
             output_path=validation_data_path,
             variable_names=variable_names,
         )
-        val_batches = loaders.batches_from_netcdf(path=train_data_path)
+        val_batches = loaders.batches_from_netcdf(path=validation_data_path)
     else:
         val_batches = []
     return train_batches, val_batches
