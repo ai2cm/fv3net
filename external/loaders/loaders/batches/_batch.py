@@ -284,7 +284,6 @@ def batches_from_netcdf(
 
     Args:
         path: path (local or remote) of a directory of netCDF files
-
     Returns:
         A sequence of batched data
     """
