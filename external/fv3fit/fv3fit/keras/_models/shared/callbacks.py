@@ -26,11 +26,11 @@ class TrainingLoopLossHistory:
         self.val_loss_all = []
 
     def callback(self, epoch_result: EpochResult):
+        self.train_loss_end_of_epoch += epoch_result.history[-1].history["loss"]
+        self.val_loss_end_of_epoch += epoch_result.history[-1].history.get(
+            "val_loss", [np.nan]
+        )
         for batch in epoch_result.history:
-            self.train_loss_end_of_epoch.append(batch.history["loss"][-1])
-            self.val_loss_end_of_epoch.append(
-                batch.history.get("val_loss", [np.nan])[-1]
-            )
             self.train_loss_all += batch.history["loss"]
             self.val_loss_all += batch.history.get("val_loss", [])
 
