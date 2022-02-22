@@ -281,6 +281,8 @@ def test_batches_from_netcdf(tmpdir):
         )
         ds.to_netcdf(os.path.join(tmpdir, f"{i}.nc"))
         saved_batches.append(ds)
-    loaded_batches = loaders.batches_from_netcdf(path=str(tmpdir))
+    loaded_batches = loaders.batches_from_netcdf(
+        path=str(tmpdir), variable_names=list(ds.data_vars)
+    )
     for ds_saved, ds_loaded in zip(saved_batches, loaded_batches):
         xr.testing.assert_equal(ds_saved, ds_loaded)

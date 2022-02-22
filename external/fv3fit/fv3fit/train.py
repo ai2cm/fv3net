@@ -112,7 +112,9 @@ def get_cached_data(
         output_path=train_data_path,
         variable_names=variable_names,
     )
-    train_batches = loaders.batches_from_netcdf(path=train_data_path)
+    train_batches = loaders.batches_from_netcdf(
+        path=train_data_path, variable_names=variable_names
+    )
     if validation_data_config is not None:
         validation_data_path = os.path.join(local_download_path, "validation_data")
         logger.info("saving validation data to %s", validation_data_path)
@@ -122,7 +124,9 @@ def get_cached_data(
             output_path=validation_data_path,
             variable_names=variable_names,
         )
-        val_batches = loaders.batches_from_netcdf(path=validation_data_path)
+        val_batches = loaders.batches_from_netcdf(
+            path=validation_data_path, variable_names=variable_names
+        )
     else:
         val_batches = []
     return train_batches, val_batches
