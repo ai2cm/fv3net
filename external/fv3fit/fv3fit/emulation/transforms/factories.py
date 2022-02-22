@@ -135,13 +135,6 @@ class ComposedTransformFactory(TransformFactory):
     def __init__(self, factories: Sequence[TransformFactory]):
         self.factories = factories
 
-    def _get_first_order_dependencies(self, name: str) -> Set[str]:
-        deps: Set[str] = set()
-        for factory in self.factories:
-            deps_of_name = factory.backward_names({name}) - {name}
-            deps = deps.union(deps_of_name)
-        return deps
-
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         for factory in self.factories[::-1]:
             requested_names = factory.backward_names(requested_names)
