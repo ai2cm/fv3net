@@ -20,6 +20,7 @@ spec:
           - name: training_data_config
           - name: validation_data_config
           - name: output
+          - {name: cpu, value: 1000m}
           - {name: memory, value: 6Gi}
           - {name: flags, value: " "}
       container:
@@ -72,8 +73,8 @@ spec:
           - name: main
             resources:
               limits:
-                cpu: "1000m"
+                cpu: "{{inputs.parameters.cpu}}"
                 memory: "{{inputs.parameters.memory}}"
               requests:
-                cpu: "1000m"
+                cpu: "{{inputs.parameters.cpu}}"
                 memory: "{{inputs.parameters.memory}}"

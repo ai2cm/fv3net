@@ -188,6 +188,7 @@ This workflow trains machine learning models.
 | `times`                | JSON-encoded list of timestamps to use for test data |
 | `offline-diags-output` | Where to save offline diagnostics                    |
 | `report-output`        | Where to save report                                 |
+| `cpu`                  | (optional) # cpu for workflow. Defaults to 1.        |
 | `memory`               | (optional) memory for workflow. Defaults to 6Gi.     |
 
 #### Command line interfaces used by workflow
@@ -257,6 +258,7 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `segment-count`         | (optional) `segment-count` for `prognostic-run` workflow; default "1" |
 | `cpu-prog`              | (optional) `cpu` for `prognostic-run` workflow; default "6"           |
 | `memory-prog`           | (optional) `memory` for `prognostic-run` workflow; default 6Gi        |
+| `cpu-training`          | (optional) `cpu` for `training` workflow; default "1"                 |
 | `memory-training`       | (optional) `memory` for `training` workflow; default 6Gi              |
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
