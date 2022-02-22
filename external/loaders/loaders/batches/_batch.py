@@ -271,12 +271,14 @@ def _get_batch(
 
 
 @curry
-def _open_dataset(fs: fsspec.AbstractFileSystem, filename):
-    return xr.open_dataset(fs.open(filename), engine="h5netcdf")
+def _open_dataset(fs: fsspec.AbstractFileSystem, variable_names, filename):
+    return xr.open_dataset(fs.open(filename), engine="h5netcdf")[variable_names]
 
 
 @batches_functions.register
-def batches_from_netcdf(path: str) -> loaders.typing.Batches:
+def batches_from_netcdf(
+    path: str, variable_names: Iterable[str]
+) -> loaders.typing.Batches:
     """
     Loads a series of netCDF files from the given directory, in alphabetical order.
 
@@ -288,7 +290,7 @@ def batches_from_netcdf(path: str) -> loaders.typing.Batches:
     """
     fs = vcm.get_fs(path)
     filenames = [fname for fname in sorted(fs.ls(path)) if fname.endswith(".nc")]
-    return Map(_open_dataset(fs), filenames)
+    return Map(_open_dataset(fs, variable_names), filenames)
 
 
 @batches_functions.register

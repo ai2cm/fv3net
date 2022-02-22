@@ -1,4 +1,9 @@
 from ._shared import ArrayPacker, StandardScaler, DerivedModel
+from ._shared.input_sensitivity import (
+    RandomForestInputSensitivities,
+    JacobianInputSensitivity,
+    InputSensitivity,
+)
 from ._shared.predictor import Predictor
 from ._shared.io import dump, load
 from .keras.jacobian import compute_jacobians, nondimensionalize_jacobians
