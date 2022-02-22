@@ -39,13 +39,26 @@ class TendencyPrescriberConfig:
 
 @dataclasses.dataclass
 class TendencyPrescriber:
-    """Wrap a Step function and prescribe certain tendencies."""
+    """Wrap a Step function and prescribe certain tendencies.
+
+    Attributes:
+        state: mapping to model state
+        communicator: model cubed sphere communicator
+        timestep: model timestep in seconds
+        variables: mapping from state name to name of corresponding tendency in
+            provided time lookup function
+        time_lookup_function: a function that takes a time and returns a state dict
+            containing tendency data arrays to be prescribed
+        diagnostic_variables: diagnostics variables to be monitored during prescribed
+            tendency step
+
+    """
 
     state: DerivedFV3State
     communicator: pace.util.CubedSphereCommunicator
     timestep: float
     variables: Mapping[str, str]
-    mapper_func: Callable[[cftime.DatetimeJulian], State]
+    time_lookup_function: Callable[[cftime.DatetimeJulian], State]
     limit_quantiles: Optional[Mapping[str, float]] = None
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
 
@@ -56,7 +69,7 @@ class TendencyPrescriber:
         tile = self.communicator.partitioner.tile_index(self.communicator.rank)
         if self.communicator.tile.rank == 0:
             # https://github.com/python/mypy/issues/5485
-            state = self.mapper_func(time)  # type: ignore
+            state = self.time_lookup_function(time)  # type: ignore
             ds = xr.Dataset(state).isel(tile=tile).load()
             if self._limiter is None:
                 self._fit_limiter(ds)

@@ -64,7 +64,7 @@ def get_tendency_prescriber(
         tendency_variables = list(prescriber_config.variables.values())
         if communicator.rank == 0:
             logger.debug(f"Opening tendency override from: {mapper_config}")
-        mapper_function = _get_mapper_function(
+        mapper_function = _get_time_lookup_function(
             mapper_config,
             tendency_variables,
             prescriber_config.reference_initial_time,
@@ -81,7 +81,7 @@ def get_tendency_prescriber(
         )
 
 
-def _get_mapper_function(
+def _get_time_lookup_function(
     mapper_config: loaders.MapperConfig,
     tendency_variables: Sequence[str],
     initial_time: Optional[str] = None,
@@ -90,17 +90,15 @@ def _get_mapper_function(
 
     mapper = mapper_config.load_mapper()
 
-    def mapper_function(time: cftime.DatetimeJulian) -> State:
+    def time_lookup_function(time: cftime.DatetimeJulian) -> State:
         timestamp = vcm.encode_time(time)
         ds = mapper[timestamp]
         return {var: ds[var] for var in tendency_variables}
 
     if initial_time is not None:
         initial_time = label_to_time(initial_time)
-        return_func = time_interpolate_func(
-            mapper_function, timedelta(seconds=frequency_seconds), initial_time
+        return time_interpolate_func(
+            time_lookup_function, timedelta(seconds=frequency_seconds), initial_time
         )
     else:
-        return_func = mapper_function
-
-    return return_func
+        return time_lookup_function

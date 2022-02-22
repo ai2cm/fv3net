@@ -10,6 +10,7 @@ from typing import Callable
 # list of variables that will use nearest neighbor interpolation
 # between times instead of linear interpolation
 INTERPOLATE_NEAREST = [
+    # mask is integer-valued so interpolate using nearest time point
     MASK,
 ]
 

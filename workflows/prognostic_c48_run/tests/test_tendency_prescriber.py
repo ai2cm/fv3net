@@ -14,7 +14,7 @@ from runtime.transformers.tendency_prescriber import (
     TendencyPrescriber,
     TendencyPrescriberConfig,
 )
-from runtime.factories import _get_mapper_function
+from runtime.factories import _get_time_lookup_function
 
 
 class MockDerivedState:
@@ -73,7 +73,7 @@ def test_tendency_prescriber(state, tmpdir, regtest):
     }
     prescriber_config = dacite.from_dict(TendencyPrescriberConfig, config)
     timestep = 2
-    mapper_func = _get_mapper_function(
+    mapper_func = _get_time_lookup_function(
         prescriber_config.mapper_config,
         list(prescriber_config.variables.values()),
         initial_time=None,
@@ -120,7 +120,7 @@ def test_tendency_prescriber(state, tmpdir, regtest):
         pytest.param(None, 450, True, id="substep_without_interpolate_error"),
     ],
 )
-def test__get_mapper_function(tmpdir, initial_time, time_substep, error):
+def test__get_time_lookup_function(tmpdir, initial_time, time_substep, error):
     time = cftime.DatetimeJulian(2016, 8, 1)
     path = str(tmpdir.join("tendencies.zarr"))
     tendencies = _get_tendencies(time)
@@ -128,10 +128,12 @@ def test__get_mapper_function(tmpdir, initial_time, time_substep, error):
     mapper_config = loaders.MapperConfig(
         function="open_zarr", kwargs={"data_path": path}
     )
-    mapper_function = _get_mapper_function(mapper_config, ["Q1"], initial_time, 900)
+    time_lookup_function = _get_time_lookup_function(
+        mapper_config, ["Q1"], initial_time, 900
+    )
     if error:
         with pytest.raises(KeyError):
-            mapper_function(time + timedelta(seconds=time_substep))
+            time_lookup_function(time + timedelta(seconds=time_substep))
     else:
-        state = mapper_function(time + timedelta(seconds=time_substep))
+        state = time_lookup_function(time + timedelta(seconds=time_substep))
         assert isinstance(state["Q1"], xr.DataArray)
