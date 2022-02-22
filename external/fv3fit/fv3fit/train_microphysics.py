@@ -152,7 +152,7 @@ class TrainConfig:
     @property
     def input_variables(self) -> Sequence:
         return list(
-            self.transform_factory.backward_names(set(self._model.input_variables))
+            self.transform_factory.get_required_inputs(set(self._model.input_variables))
         )
 
     @classmethod
@@ -245,7 +245,7 @@ class TrainConfig:
 
     @property
     def model_variables(self) -> Set[str]:
-        return self.transform_factory.backward_names(
+        return self.transform_factory.get_required_inputs(
             set(self._model.input_variables) | set(self._model.output_variables)
         )
 
