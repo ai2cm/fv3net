@@ -11,8 +11,8 @@ else
 fi
 
 group="$(openssl rand -hex 3)"
-config_file="precpd.yaml"
-model_name="precpd-${group}"
+config_file="gscond.yaml"
+model_name="gscond-pressure-in-${group}"
 
 out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}")
 flags="--out_url ${out_url} ${extra_flags}"

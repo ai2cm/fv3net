@@ -60,7 +60,9 @@ model:
   - air_temperature_input
   - specific_humidity_input
   - cloud_water_mixing_ratio_input
-  - pressure_thickness_of_atmospheric_layer
+  - surface_air_pressure
+  - surface_air_pressure_after_last_gscond
+  - air_pressure
   - specific_humidity_after_last_gscond
   - air_temperature_after_last_gscond
   - log_humidity_input
