@@ -14,7 +14,7 @@ class _ModelWrapper(tf.keras.Model):
 
 class _LayerTrainer(tf.keras.Model):
     """A class for training multiple output layers
-    
+
     This uses the more explicit `add_loss` API for clarity
     """
 
@@ -63,7 +63,7 @@ def train(
         loss: a loss function ...loss_fn(truth,prediction) returns a scalar and
             dictionary of scalar metrics when truth, prediction are dicts of tensors
         optimizer: the optimizer. defaults to tf.keras.layers.Adam.
- 
+
     Returns:
         The keras training history
 

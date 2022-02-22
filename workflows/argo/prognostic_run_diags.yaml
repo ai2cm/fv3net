@@ -66,7 +66,7 @@ spec:
           gs://vcm-ml-public/argo/{{workflow.name}}
       workingDir: /home/jovyan/fv3net/workflows/diagnostics
       env:
-      - name: GOOGLE_APPLICATION_CREDENTIALS 
+      - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
       - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
         value: /secret/gcp-credentials/key.json

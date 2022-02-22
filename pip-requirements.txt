@@ -30,7 +30,7 @@ zarr>=2.5.0
 # this version has wheels = faster installs
 numcodecs>=0.7.2
 
-# tensorflow >= 2.5.2 pins h5py to a version that breaks xarray, 
+# tensorflow >= 2.5.2 pins h5py to a version that breaks xarray,
 # need to also require a later version of h5netcdf
 h5netcdf>=0.12.0
 

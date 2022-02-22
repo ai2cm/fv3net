@@ -94,7 +94,7 @@ def _movie_specs():
 
     Movie specification is a mapping with a "plotting_function" key and
     a "required_variables" key.
-    
+
     Each plotting function must have following signature:
 
         func(arg: MovieArg)

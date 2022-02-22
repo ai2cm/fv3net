@@ -6,7 +6,7 @@ import xarray as xr
 
 def histogram(da: xr.DataArray, **kwargs) -> Tuple[xr.DataArray, xr.DataArray]:
     """Compute histogram and return tuple of counts and bin widths.
-    
+
     Args:
         da: input data
         kwargs: optional parameters to pass on to np.histogram
@@ -34,7 +34,7 @@ def histogram2d(
     x: xr.DataArray, y: xr.DataArray, **kwargs
 ) -> Tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
     """Compute 2D histogram and return tuple of counts and bin widths.
-    
+
     Args:
         x: input data
         y: input data

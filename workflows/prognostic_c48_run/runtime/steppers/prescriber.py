@@ -26,15 +26,15 @@ def get_timesteps(
     init_time: cftime.DatetimeJulian, timestep_seconds: float, n_timesteps: int
 ) -> Sequence[cftime.DatetimeJulian]:
     """Get sequence of model timesteps
-    
+
     Args
         init_time (cftime.DatetimeJulian): model run start time
         timestep_seconds (float): model timestep
         n_timesteps: number of timesteps in model run
-    
+
     Returns: Sequence of cftime.DatetimeJulian objects corresponding to ends
         of model run timesteps
-    
+
     """
     return [
         init_time + timedelta(seconds=timestep_seconds * i)
@@ -60,8 +60,8 @@ class PrescriberConfig:
         PrescriberConfig(
             dataset_key="gs://vcm-ml-intermediate/2021-03-fine-res-surface-radiative-fluxes/fine-res-surface-radiative-fluxes.zarr",
             variables=[
-                "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface", 
-                "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface", 
+                "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
+                "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
                 "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface",
             ]
         )
@@ -84,7 +84,7 @@ class Prescriber:
         timesteps: Optional[Sequence[cftime.DatetimeJulian]] = None,
     ):
         """Create a Prescriber object
-        
+
         Args:
             config (PrescriberConfig),
             communicator (pace.util.CubedSphereCommunicator),

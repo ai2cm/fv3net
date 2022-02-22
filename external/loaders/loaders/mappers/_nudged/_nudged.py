@@ -28,13 +28,13 @@ def open_nudge_to_obs(
     Load nudge-to-obs data mapper for use with training. Merges
     variables saved in the physics tendencies, nudging tendencies (Fortran
     diagnostics), and model state zarrs.
-    
+
     Because the nudge-to-obs routine conducts nudging within the physics step,
     the returned physics tendency is computed as the output physics_tendency minus
     the nudging tendency. Similarly, because model states are output at the end
     of the timestep, the nudging increment is subtracted to return the
     ``before nudging`` state for training.
-    
+
     Args:
         data_path (str): path to a nudge-to-obs output directory, remote or local
         nudging_tendency_variables: (optional): mapping of variables to their renamed
@@ -43,11 +43,11 @@ def open_nudge_to_obs(
         physics_timestep_seconds (float): physics timestep, i.e., dt_atmos; defaults
             to 900.0
         consolidated (bool): whether zarrs to open have consolidated metadata
-        
+
     Returns:
         mapper to dataset containing nudging tendencies, physics tendencies,
             and model state data
-        
+
     """
 
     datasets = _get_datasets(
@@ -129,10 +129,10 @@ def open_nudge_to_fine(
     Load nudge-to-fine data mapper for use with training. Merges
     variables saved in the physics tendencies, nudging tendencies, and
     model state zarrs.
-    
+
     Because model states are output at the end of the timestep, the nudging
     increment is subtracted to return the ``before nudging`` state for training.
-    
+
     Args:
         url (str):  path to nudge-to-fine output directory, remote or local
         nudging_variables (Sequence[str]): Names of nudged variables, nudging tendency
@@ -145,7 +145,7 @@ def open_nudge_to_fine(
             state_after_timestep.zarr (which you should probably include).
             For example, you may want to include also "diags.zarr" to retrieve
             total_precipitation_rate.
-        
+
     Returns:
         mapper to dataset containing nudging tendencies, physics tendencies,
             and model state data

@@ -7,7 +7,7 @@ import vcm
 
 class DerivedMapping(Mapping):
     """A uniform mapping-like interface for both existing and derived variables.
-    
+
     Allows register and computing derived variables transparently in either
     the FV3GFS state or a saved dataset.
 

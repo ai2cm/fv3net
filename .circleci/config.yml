@@ -49,7 +49,7 @@ jobs:
           command: |
             make install_local_packages
             source activate fv3net && pip freeze
-      - run: 
+      - run:
           name: "Run test"
           no_output_timeout: 20m
           command: |
@@ -97,7 +97,7 @@ jobs:
           - post_process_run
           - fv3net
           - artifacts
-    machine: 
+    machine:
       image: ubuntu-1604:202007-01
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
@@ -227,7 +227,7 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: 
+              image:
                 - prognostic_run
                 - prognostic_run_gpu
                 - post_process_run

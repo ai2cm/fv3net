@@ -5,7 +5,7 @@ execute a single function.  This workflow type is good for pure python operation
 that are easily parallelizable.  Dataflow handles resource provision and worker
 scaling making it a somewhat straightforward option.
 
-For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g., 
+For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g.,
 
     python -m fv3net.pipelines.extract_tars test_tars test_output_dir --runner DirectRunner
 

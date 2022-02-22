@@ -18,7 +18,7 @@ It is licensed under a BSD License.
    cloud
    fv3
    combining
-   rotating-winds   
+   rotating-winds
    sampling
    derived-mapping
    grid-operations

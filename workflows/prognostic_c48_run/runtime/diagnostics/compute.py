@@ -43,7 +43,7 @@ def precipitation_accumulation(
     precipitation_rate: xr.DataArray, dt: float
 ) -> xr.DataArray:
     """Return precipitation accumulation from precipitation rate and timestep
-    
+
     Args:
         precipitation_rate: precipitation rate [kg/m^s/s]
         dt: timestep over which accumulation occurred [s]
@@ -59,7 +59,7 @@ def precipitation_rate(
     precipitation_accumulation: xr.DataArray, dt: float
 ) -> xr.DataArray:
     """Return precipitation rate from a precipitation accumulation and timestep
-    
+
     Args:
         precipitation_accumulation: precipitation accumulation [m]
         dt: timestep over which accumulation occurred [s]

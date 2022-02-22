@@ -254,7 +254,7 @@ def _assoc_conservative_precipitation(
     model: tf.keras.Model, fields: ZhaoCarrFields
 ) -> tf.keras.Model:
     """add conservative precipitation output to a model
-    
+
     Args:
         model: a ML model
         fields: a description of how physics variables map onto the names of
@@ -263,7 +263,7 @@ def _assoc_conservative_precipitation(
     Returns:
         a model with surface precipitation stored at
         ``fields.surface_precipitation.output_name``.
-    
+
     """
     model = ensure_dict_output(model)
     inputs = dict(zip(model.input_names, model.inputs))

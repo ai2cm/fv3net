@@ -162,7 +162,7 @@ class CatalogSimulation:
 
     Typically used for commonly used runs like the high resolution SHiELD
     simulation, that are specified in a catalog.
-    
+
     """
 
     tag: str

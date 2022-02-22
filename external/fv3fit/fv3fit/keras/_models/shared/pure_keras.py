@@ -25,7 +25,7 @@ from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 @io.register("all-keras")
 class PureKerasModel(Predictor):
     """Model which uses Keras for packing and normalization.
-    
+
     Assumes wrapped keras model accepts [sample, feature] arrays.
     """
 
@@ -43,7 +43,7 @@ class PureKerasModel(Predictor):
         n_halo: int = 0,
     ):
         """Initialize the predictor
-        
+
         Args:
             input_variables: names of input variables
             output_variables: names of output variables

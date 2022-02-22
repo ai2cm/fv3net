@@ -28,7 +28,7 @@ class Predictor(abc.ABC):
         **kwargs,
     ):
         """Initialize the predictor.
-        
+
         Args:
             input_variables: names of input variables
             output_variables: names of output variables
