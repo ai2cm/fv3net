@@ -57,6 +57,19 @@ def test_roundtrip(
         np.testing.assert_array_equal(unpacked[name].values, ds[name].values)
 
 
+def test_pack_2d_and_3d():
+    ds = xr.Dataset(
+        data_vars={
+            "surface": xr.DataArray(np.zeros([100]), dims=["sample"]),
+            "vertically_resolved": xr.DataArray(
+                np.zeros([100, 10]), dims=["sample", "z"]
+            ),
+        }
+    )
+    packed, _ = pack(data=ds, sample_dims=["sample"])
+    assert packed.shape == (100, 11)
+
+
 @pytest.mark.parametrize(
     "base_dims, base_shape, feature_dim, n_features",
     (
