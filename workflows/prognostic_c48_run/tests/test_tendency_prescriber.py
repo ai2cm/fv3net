@@ -73,10 +73,9 @@ def test_tendency_prescriber(state, tmpdir, regtest):
     }
     prescriber_config = dacite.from_dict(TendencyPrescriberConfig, config)
     timestep = 2
+    mapper = prescriber_config.mapper_config.load_mapper()
     mapper_func = _get_time_lookup_function(
-        prescriber_config.mapper_config,
-        list(prescriber_config.variables.values()),
-        initial_time=None,
+        mapper, list(prescriber_config.variables.values()), initial_time=None,
     )
     override = TendencyPrescriber(
         derived_state,
@@ -128,9 +127,8 @@ def test__get_time_lookup_function(tmpdir, initial_time, time_substep, error):
     mapper_config = loaders.MapperConfig(
         function="open_zarr", kwargs={"data_path": path}
     )
-    time_lookup_function = _get_time_lookup_function(
-        mapper_config, ["Q1"], initial_time, 900
-    )
+    mapper = mapper_config.load_mapper()
+    time_lookup_function = _get_time_lookup_function(mapper, ["Q1"], initial_time, 900)
     if error:
         with pytest.raises(KeyError):
             time_lookup_function(time + timedelta(seconds=time_substep))

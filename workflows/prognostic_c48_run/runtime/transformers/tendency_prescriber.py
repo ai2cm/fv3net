@@ -7,7 +7,6 @@ import xarray as xr
 
 import pace.util
 import loaders
-from vcm.limit import DatasetQuantileLimiter
 from runtime.monitor import Monitor
 from runtime.types import Diagnostics, Step, State
 from runtime.derived_state import DerivedFV3State
@@ -27,7 +26,9 @@ class TendencyPrescriberConfig:
         reference_initial_time: if time interpolating, time of first point in dataset
         reference_frequency_seconds: time frequency of dataset
         limit_quantiles: mapping of "upper" and "lower" keys to quantile specifiers
-            for limiting extremes in the Q1, Q2 dataset
+            for limiting extremes in the Q1, Q2 dataset; requires that
+            `reference_initial_time` be specified to provided sample data from
+            that time for fitting the limiter
     """
 
     mapper_config: loaders.MapperConfig
@@ -59,11 +60,7 @@ class TendencyPrescriber:
     timestep: float
     variables: Mapping[str, str]
     time_lookup_function: Callable[[cftime.DatetimeJulian], State]
-    limit_quantiles: Optional[Mapping[str, float]] = None
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
-
-    def __post_init__(self: "TendencyPrescriber"):
-        self._limiter: Optional[DatasetQuantileLimiter] = None
 
     def _open_tendencies_dataset(self, time: cftime.DatetimeJulian) -> xr.Dataset:
         tile = self.communicator.partitioner.tile_index(self.communicator.rank)
@@ -71,30 +68,10 @@ class TendencyPrescriber:
             # https://github.com/python/mypy/issues/5485
             state = self.time_lookup_function(time)  # type: ignore
             ds = xr.Dataset(state).isel(tile=tile).load()
-            if self._limiter is None:
-                self._fit_limiter(ds)
-            ds = self._limit_dataset(ds)
         else:
             ds = xr.Dataset()
         tendencies = self.communicator.tile.scatter_state(dataset_to_quantity_state(ds))
         return quantity_state_to_dataset(tendencies)
-
-    def _fit_limiter(self, tendencies: xr.Dataset) -> None:
-        if isinstance(self.limit_quantiles, dict):
-            self._limiter = DatasetQuantileLimiter(
-                self.limit_quantiles["upper"],
-                self.limit_quantiles["lower"],
-                limit_only=list(self.variables.values()),
-            )
-            logger.debug(f"Fitting dataset limiter with limits={self.limit_quantiles}")
-            self._limiter.fit(tendencies, feature_dims=["z", "tile"])
-
-    def _limit_dataset(self, tendencies: xr.Dataset) -> xr.Dataset:
-        if self._limiter is not None:
-            limited = self._limiter.transform(tendencies)
-        else:
-            limited = tendencies
-        return limited
 
     @property
     def monitor(self) -> Monitor:

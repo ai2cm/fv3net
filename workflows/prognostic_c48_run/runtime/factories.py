@@ -4,11 +4,12 @@ These construct objects like Emulators that require knowledge of static
 configuration as well as runtime-only data structures like the model state.
 """
 import logging
-from typing import Optional, Callable, Sequence
+from typing import Optional, Callable, Sequence, Mapping
 from datetime import timedelta
+import xarray as xr
 import cftime
-import loaders
 import vcm
+from vcm.limit import DatasetQuantileLimiter
 from runtime.types import State
 from runtime.config import UserConfig
 from runtime.transformers.core import StepTransformer
@@ -60,39 +61,58 @@ def get_tendency_prescriber(
         return None
     else:
         prescriber_config = config.tendency_prescriber
-        mapper_config = prescriber_config.mapper_config
         tendency_variables = list(prescriber_config.variables.values())
         if communicator.rank == 0:
-            logger.debug(f"Opening tendency override from: {mapper_config}")
-        mapper_function = _get_time_lookup_function(
-            mapper_config,
+            logger.debug(
+                f"Opening tendency override from: {prescriber_config.mapper_config}"
+            )
+        mapper = prescriber_config.mapper_config.load_mapper()
+
+        if isinstance(prescriber_config.limit_quantiles, dict):
+            if prescriber_config.reference_initial_time is None:
+                raise ValueError(
+                    "TendencyPrescriber reference_initial_time must be specified if "
+                    "limit_quantiles are specified."
+                )
+            limiter: Optional[DatasetQuantileLimiter] = _get_fitted_limiter(
+                mapper,
+                prescriber_config.reference_initial_time,
+                prescriber_config.limit_quantiles,
+                limit_only=tendency_variables,
+            )
+        else:
+            limiter = None
+
+        time_lookup_function = _get_time_lookup_function(
+            mapper,
             tendency_variables,
             prescriber_config.reference_initial_time,
             prescriber_config.reference_frequency_seconds,
+            limiter=limiter,
         )
+
         return TendencyPrescriber(
             state,
             communicator,
             timestep,
             prescriber_config.variables,
-            mapper_function,
-            limit_quantiles=prescriber_config.limit_quantiles,
+            time_lookup_function,
             diagnostic_variables=set(config.diagnostic_variables),
         )
 
 
 def _get_time_lookup_function(
-    mapper_config: loaders.MapperConfig,
+    mapper: Mapping[str, xr.Dataset],
     tendency_variables: Sequence[str],
     initial_time: Optional[str] = None,
     frequency_seconds: float = 900.0,
+    limiter: Optional[DatasetQuantileLimiter] = None,
 ) -> Callable[[cftime.DatetimeJulian], State]:
-
-    mapper = mapper_config.load_mapper()
-
     def time_lookup_function(time: cftime.DatetimeJulian) -> State:
         timestamp = vcm.encode_time(time)
         ds = mapper[timestamp]
+        if limiter is not None:
+            ds = limiter.transform(ds)
         return {var: ds[var] for var in tendency_variables}
 
     if initial_time is not None:
@@ -102,3 +122,20 @@ def _get_time_lookup_function(
         )
     else:
         return time_lookup_function
+
+
+def _get_fitted_limiter(
+    mapper: Mapping[str, xr.Dataset],
+    initial_time: str,
+    limit_quantiles: Mapping[str, float],
+    limit_only: Optional[Sequence[str]] = None,
+) -> DatasetQuantileLimiter:
+
+    sample_tendencies = mapper[initial_time]
+
+    limiter = DatasetQuantileLimiter(
+        limit_quantiles["upper"], limit_quantiles["lower"], limit_only=limit_only,
+    )
+
+    logger.debug(f"Fitting dataset limiter with limits={limit_quantiles}")
+    return limiter.fit(sample_tendencies, feature_dims=["z", "tile"])
