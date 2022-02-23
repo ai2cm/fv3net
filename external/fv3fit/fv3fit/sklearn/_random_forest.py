@@ -24,7 +24,6 @@ from .._shared.config import RandomForestHyperparameters
 from .. import _shared
 from .._shared import (
     scaler,
-    StackedBatches,
     stack_non_vertical,
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
@@ -228,29 +227,34 @@ class SklearnWrapper(Predictor):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
     def _fit_batch(self, data: xr.Dataset):
-        x, _ = pack(data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config)
-        y, self.output_features_ = pack(data[self.output_variables], [SAMPLE_DIM_NAME])
+        first_input_dims = data[next(iter(self.input_variables))].dims
+        if len(first_input_dims) > 2:
+            raise ValueError(
+                "was given input data with more than 2 dimensions, "
+                "data should all be [sample] or [sample, feature]"
+            )
+        sample_dim_name = first_input_dims[0]
+        x, _ = pack(data[self.input_variables], [sample_dim_name], self.packer_config)
+        y, self.output_features_ = pack(data[self.output_variables], [sample_dim_name])
 
         if self.target_scaler is None:
-            self.target_scaler = self._init_target_scaler(data)
+            self.target_scaler = self._init_target_scaler(data, sample_dim_name)
 
         y = self.target_scaler.normalize(y)
         self.model.fit(x, y)
 
-    def _init_target_scaler(self, batch):
+    def _init_target_scaler(self, batch, sample_dim_name):
         return get_scaler(
             self.scaler_type,
             self.scaler_kwargs,
             batch,
             self._output_variables,
-            SAMPLE_DIM_NAME,
+            sample_dim_name,
         )
 
     def fit(self, batches: Sequence[xr.Dataset]):
         logger = logging.getLogger("SklearnWrapper")
-        random_state = np.random.RandomState(np.random.get_state()[1][0])
-        stacked_batches = StackedBatches(batches, random_state)
-        for i, batch in enumerate(stacked_batches):
+        for i, batch in enumerate(batches):
             logger.info(f"Fitting batch {i+1}/{len(batches)}")
             self._fit_batch(batch)
             logger.info(f"Batch {i+1} done fitting.")
