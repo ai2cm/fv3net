@@ -10,4 +10,5 @@ from .transforms import (
     LogTransform,
     TensorTransform,
     PositiveTransform,
+    Difference,
 )

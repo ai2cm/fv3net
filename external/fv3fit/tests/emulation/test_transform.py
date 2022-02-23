@@ -5,11 +5,11 @@ import tensorflow as tf
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
     ComposedTransform,
-    DifferenceTransform,
     LogTransform,
     TransformedVariableConfig,
     PositiveTransform,
     EnforcePositiveVariables,
+    Difference,
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
 from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional
@@ -239,24 +239,24 @@ def test_ConditionallyScaled_build():
 
 
 def test_Difference_backward_names():
-    diff = DifferenceTransform("diff", "before", "after")
+    diff = Difference("diff", "before", "after")
     assert diff.backward_names({"diff"}) == {"before", "after", "diff"}
     assert diff.backward_names({"not in a"}) == {"not in a"}
 
 
 def test_Difference_build():
-    diff = DifferenceTransform("diff", "before", "after")
+    diff = Difference("diff", "before", "after")
     assert diff.build({}) == diff
 
 
 def test_Difference_forward():
-    diff = DifferenceTransform("diff", "before", "after")
+    diff = Difference("diff", "before", "after")
     in_ = {"after": 1, "before": 0}
     assert diff.forward(in_) == {"diff": 1, **in_}
 
 
 def test_Difference_backward():
-    diff = DifferenceTransform("diff", "before", "after")
+    diff = Difference("diff", "before", "after")
     in_ = {"diff": 1, "before": 0}
     assert diff.backward(in_) == {"after": 1, **in_}
 
