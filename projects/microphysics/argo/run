@@ -1,7 +1,7 @@
 #!/bin/bash
 
-url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-19/precpd-gscond-combined-v1/model.tf
-tag=gscond-only-v2
+url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-22/2ngq1xkl/model.tf
+tag=gscond-pressure-in-f88c1b-v1
 
 yq  --arg url "$url" '.zhao_carr_emulation.gscond.path |= $url' ../configs/default.yaml > config.yaml
 trap 'rm config.yaml' EXIT
