@@ -25,13 +25,27 @@ def apply_difference(model):
     outputs = model(inputs)
 
     # apply the difference
-    outputs[t_precpd] = outputs[t_gscond] + outputs[t_diff]
-    outputs[qv_precpd] = outputs[qv_gscond] + outputs[qv_diff]
-    outputs[qc_precpd] = inputs[qc_in] + outputs[qc_diff]
+    try:
+        outputs[t_precpd] = outputs[t_gscond] + outputs[t_diff]
+    except KeyError:
+        pass
+
+    try:
+        outputs[qv_precpd] = outputs[qv_gscond] + outputs[qv_diff]
+    except KeyError:
+        pass
+
+    try:
+        outputs[qc_precpd] = inputs[qc_in] + outputs[qc_diff]
+    except KeyError:
+        pass
 
     # fill in cloud_water_after_gscond from water conservation
-    qv_change = outputs[qv_gscond] - inputs[qv_in]
-    outputs[qc_gscond] = tf.abs(inputs[qc_in] - qv_change)
+    try:
+        qv_change = outputs[qv_gscond] - inputs[qv_in]
+        outputs[qc_gscond] = tf.keras.activations.relu(inputs[qc_in] - qv_change)
+    except KeyError:
+        pass
 
     renamed = {
         key: tf.keras.layers.Lambda(lambda x: x, name=key)(val)

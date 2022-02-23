@@ -80,100 +80,102 @@ def mask_outputs(mask, inputs, outputs):
 def fix_model(model, mask):
     inputs = {in_.name: in_ for in_ in model.inputs}
     outputs = model(inputs)
-    outputs.update(mask_outputs(mask, inputs, outputs))
+    # outputs.update(mask_outputs(mask, inputs, outputs))
     positive_outputs = enforce_positive(outputs)
     return tf.keras.Model(inputs=inputs, outputs=positive_outputs)
 
 
-# +
+def get_mask() -> tf.Tensor:
+    url = "gs://vcm-ml-experiments/microphysics-emulation/2022-02-08/rnn-alltdep-47ad5b-login-6h-v2-online"  # noqa
+    ds = xarray.open_zarr(
+        fsspec.get_mapper(url + "/atmos_dt_atmos.zarr"), consolidated=True
+    )
+    piggy = xarray.open_zarr(fsspec.get_mapper(url + "/piggy.zarr"), consolidated=True)
+    grid = vcm.catalog.catalog["grid/c48"].to_dask()
 
-run = wandb.init(project="microphysics-emulation", entity="ai2cm")
+    ds = vcm.fv3.gfdl_to_standard(xarray.merge([ds, piggy], compat="override")).assign(
+        **grid
+    )
 
-url = "gs://vcm-ml-experiments/microphysics-emulation/2022-02-08/rnn-alltdep-47ad5b-login-6h-v2-online"  # noqa
+    # There are unrealistic non-zero predictions in the stratosphere.
 
-# open models
-artifact = run.use_artifact(
-    "ai2cm/microphysics-emulation/microphysics-emulator-rnn-v1-shared-weights:v57",
-    type="model",
-)
-precpd_model = tf.keras.models.load_model(artifact.download())
+    # # Save a model which enforces positivity and zeros prediction in upper atmosphere
 
-artifact = run.use_artifact(
-    "ai2cm/microphysics-emulation/microphysics-emulator-dense-local:v0", type="model"
-)
-gscond_model = tf.keras.models.load_model(artifact.download())
-# -
+    fraction_pos = (
+        (ds.tendency_of_cloud_water_due_to_zhao_carr_physics > 0)
+        .isel(time=0)
+        .groupby("z")
+        .mean(xarray.ALL_DIMS)
+    )
+    fraction_pos.drop("z").plot()
 
-
-precpd_model.summary()
-
-gscond_model.summary()
-
-# +
-
-gscond_model._name = "gscond"
-precpd_model._name = "precpd"
-combined_model = merge_models(precpd_model, gscond_model)
-final_model = apply_difference(combined_model)
-# -
-
-final_model.summary()
-
-# +
-ds = xarray.open_zarr(
-    fsspec.get_mapper(url + "/atmos_dt_atmos.zarr"), consolidated=True
-)
-piggy = xarray.open_zarr(fsspec.get_mapper(url + "/piggy.zarr"), consolidated=True)
-grid = vcm.catalog.catalog["grid/c48"].to_dask()
-
-ds = vcm.fv3.gfdl_to_standard(xarray.merge([ds, piggy], compat="override")).assign(
-    **grid
-)
-
-# +
+    # reverse mask since k = 0 is bottom when model is run online
+    mask = tf.constant((fraction_pos.values == 0)[::-1])
+    return mask
 
 
-# There are unrealistic non-zero predictions in the stratosphere.
+def save_model(run, model):
+    new_model_root = fv3net.artifacts.resolve_url.resolve_url(
+        "vcm-ml-experiments", "microphysics-emulation", run.id
+    )
+    print(new_model_root)
 
-# # Save a model which enforces positivity and zeros prediction in upper atmosphere
+    with fv3fit._shared.filesystem.put_dir(new_model_root) as d:
+        model.save(os.path.join(d, "model.tf"))
 
-fraction_pos = (
-    (ds.tendency_of_cloud_water_due_to_zhao_carr_physics > 0)
-    .isel(time=0)
-    .groupby("z")
-    .mean(xarray.ALL_DIMS)
-)
-fraction_pos.drop("z").plot()
-
-# reverse mask since k = 0 is bottom when model is run online
-mask = tf.constant((fraction_pos.values == 0)[::-1])
-new_model = fix_model(final_model, mask)
-# -
-
-new_model.summary()
+    art = wandb.Artifact("post-processed-model", type="model")
+    art.add_reference(new_model_root)
+    wandb.log_artifact(art)
+    wandb.finish()
 
 
-new_model(new_model.input)
+def compose(precpd: str, gscond: str):
+    run = wandb.init(project="microphysics-emulation", entity="ai2cm")
+    # open models
+    artifact = run.use_artifact(precpd, type="model",)
+    precpd_model = tf.keras.models.load_model(artifact.download())
 
-#
-new_model_root = fv3net.artifacts.resolve_url.resolve_url(
-    "vcm-ml-experiments", "microphysics-emulation", "precpd-gscond-combined-v1",
-)
-print(new_model_root)
+    artifact = run.use_artifact(gscond, type="model")
+    gscond_model = tf.keras.models.load_model(artifact.download())
+    # -
+
+    precpd_model.summary()
+
+    gscond_model.summary()
+
+    # +
+
+    gscond_model._name = "gscond"
+    precpd_model._name = "precpd"
+    combined_model = merge_models(precpd_model, gscond_model)
+    final_model = apply_difference(combined_model)
+    # -
+
+    final_model.summary()
+
+    # +
+    mask = get_mask()
+    new_model = fix_model(final_model, mask)
+    # -
+
+    new_model.summary()
+
+    new_model(new_model.input)
+    save_model(run, new_model)
 
 
-with fv3fit._shared.filesystem.put_dir(new_model_root) as d:
+def mask(model_path: str):
+    run = wandb.init(project="microphysics-emulation", entity="ai2cm")
+    artifact = run.use_artifact(model_path, type="model")
+    model = tf.keras.models.load_model(artifact.download())
 
-    metadata = f"""
-masking points with no cloud tendency from first timestep of: {url}
-created by: composes-gscond-precpd.py"""
+    model.summary()
+    difference_model = apply_difference(model)
+    mask = get_mask()
+    new_model = fix_model(difference_model, mask)
+    new_model.summary()
+    new_model(new_model.input)
+    save_model(run, new_model)
 
-    new_model.save(os.path.join(d, "model.tf"))
-    with open(os.path.join(d, "about.txt"), "w") as f:
-        f.write(metadata)
 
-art = wandb.Artifact("combined-gscond-precpd", type="model")
-art.add_reference(new_model_root)
-wandb.log_artifact(art)
-
-wandb.finish()
+mask("ai2cm/microphysics-emulation/microphysics-emulator-dense-local:v1")
