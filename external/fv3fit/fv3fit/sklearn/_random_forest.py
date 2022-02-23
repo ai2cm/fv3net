@@ -216,24 +216,29 @@ class SklearnWrapper(Predictor):
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
-        self._input_variables = input_variables
-        self._output_variables = output_variables
         self.packer_config = packer_config
         for name in self.packer_config.clip:
-            if name in self._output_variables:
+            if name in self.output_variables:
                 raise NotImplementedError("Clipping for ML outputs is not implemented.")
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
     def _fit_batch(self, data: xr.Dataset):
-        first_input_dims = data[next(iter(self.input_variables))].dims
-        if len(first_input_dims) > 2:
-            raise ValueError(
-                "was given input data with more than 2 dimensions, "
-                "data should all be [sample] or [sample, feature]"
-            )
-        sample_dim_name = first_input_dims[0]
+        all_variables = set(self.input_variables).union(self.output_variables)
+        sample_dim_name = data[next(iter(self.input_variables))].dims[0]
+        for varname in all_variables:
+            dims = data[varname].dims
+            if dims[0] != sample_dim_name:
+                raise ValueError(
+                    f"variable {varname} does not have the same sample "
+                    f"dimension {sample_dim_name} as the first input"
+                )
+            if len(data[varname].dims) > 2:
+                raise ValueError(
+                    f"was given data with more than 2 dimensions for {varname}, "
+                    "data should all be [sample] or [sample, feature]"
+                )
         x, _ = pack(data[self.input_variables], [sample_dim_name], self.packer_config)
         y, self.output_features_ = pack(data[self.output_variables], [sample_dim_name])
 
@@ -248,7 +253,7 @@ class SklearnWrapper(Predictor):
             self.scaler_type,
             self.scaler_kwargs,
             batch,
-            self._output_variables,
+            self.output_variables,
             sample_dim_name,
         )
 
