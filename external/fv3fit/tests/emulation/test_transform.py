@@ -5,11 +5,11 @@ import tensorflow as tf
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
     ComposedTransform,
+    Difference,
     LogTransform,
     TransformedVariableConfig,
     PositiveTransform,
     EnforcePositiveVariables,
-    Difference,
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
 from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional

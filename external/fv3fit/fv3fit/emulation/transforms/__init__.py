@@ -6,9 +6,9 @@ from .factories import (
 )
 from .transforms import (
     ComposedTransform,
+    Difference,
     Identity,
     LogTransform,
     TensorTransform,
     PositiveTransform,
-    Difference,
 )
