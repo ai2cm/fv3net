@@ -42,6 +42,13 @@ def train_random_forest(
     train_batches: Sequence[xr.Dataset],
     validation_batches: Sequence[xr.Dataset],
 ):
+    """
+    Args:
+        hyperparameters: configuration for training
+        train_batches: batched data for training, must be stacked
+            with at most one non-sample dimension
+        validation_batches: ignored in this function
+    """
     model = RandomForest(
         hyperparameters.input_variables,
         hyperparameters.output_variables,
