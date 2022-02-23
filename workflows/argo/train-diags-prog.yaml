@@ -31,6 +31,7 @@ spec:
       - {name: segment-count, value: "1"}
       - {name: cpu-prog, value: "6"}
       - {name: memory-prog, value: 6Gi}
+      - {name: cpu-training, value: "1"}
       - {name: memory-training, value: 6Gi}
       - {name: memory-offline-diags, value: 10Gi}
       - {name: training-flags, value: " "}
@@ -66,6 +67,8 @@ spec:
               value: "{{inputs.parameters.validation-data-config}}"
             - name: output
               value: "{{tasks.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
+            - name: cpu
+              value: "{{inputs.parameters.cpu-training}}"
             - name: memory
               value: "{{inputs.parameters.memory-training}}"
             - name: flags
