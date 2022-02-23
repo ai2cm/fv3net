@@ -12,7 +12,11 @@ from vcm.fv3.metadata import gfdl_to_standard
 from loaders._config import mapper_functions
 from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
-from loaders.mappers._fine_res_budget import compute_fine_res_sources, FineResBudget
+from loaders.mappers._fine_res_budget import (
+    compute_fine_res_sources,
+    FineResBudget,
+    compute_mse_tendency,
+)
 
 
 class MLTendencies(Protocol):
@@ -111,7 +115,7 @@ def compute_budget(
     merged: xr.Dataset, approach: Approach, include_temperature_nudging: bool
 ) -> MLTendencies:
     sources = compute_fine_res_sources(merged, include_temperature_nudging)
-    merged = xr.merge([merged] + list(sources))
+    merged = xr.merge([merged] + list(sources) + [compute_mse_tendency(*sources)])
 
     if approach == Approach.apparent_sources_plus_nudging_tendencies:
         merged["Q1"], merged["Q2"] = _add_nudging_tendencies(merged)

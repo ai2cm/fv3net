@@ -102,6 +102,17 @@ def apparent_moistening(data: FineResBudget):
     )
 
 
+def compute_mse_tendency(
+    q1: xarray.DataArray, q2: xarray.DataArray
+) -> xarray.DataArray:
+    result = (
+        vcm.internal_energy(q1) + vcm.calc.thermo.local.latent_heat_vaporization(0) * q2
+    )
+    return result.assign_attrs(
+        units="W/kg", long_name="apparent MSE heating", description="cv * Q1 + L * Q2"
+    ).rename("Qm")
+
+
 def compute_fine_res_sources(
     data: FineResBudget, include_temperature_nudging: bool = False
 ) -> Tuple[xarray.DataArray, xarray.DataArray]:

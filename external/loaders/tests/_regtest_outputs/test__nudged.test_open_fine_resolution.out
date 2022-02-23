@@ -137,6 +137,10 @@ variables:
 		Q2:units = kg/kg/s ;
 		Q2:long_name = apparent moistening from high resolution data ;
 		Q2:description = Apparent moistening due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence ;
+	float32 Qm(tile, z, y, x) ;
+		Qm:units = W/kg ;
+		Qm:long_name = apparent MSE heating ;
+		Qm:description = cv * Q1 + L * Q2 ;
 	float32 dQ1(tile, z, y, x) ;
 		dQ1:units = K/s ;
 		dQ1:long_name = apparent heating from high resolution data ;
