@@ -348,7 +348,7 @@ def test_EnforcePositiveVariables():
 
     fields = {key: tensor for key in "abc"}
 
-    factory = EnforcePositiveVariables(enforce_positive_variables=["a", "b"])
+    factory = EnforcePositiveVariables(enforce_positive_on=["a", "b"])
     transform = factory.build(fields)
 
     result = transform.backward(fields)

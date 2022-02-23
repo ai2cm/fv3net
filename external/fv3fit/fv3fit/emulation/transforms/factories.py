@@ -154,17 +154,19 @@ class ComposedTransformFactory(TransformFactory):
 @dataclasses.dataclass
 class EnforcePositiveVariables(ComposedTransformFactory):
     """
-    Use a ReLU to enforce positive values
+    Use a ReLU to enforce positive values on multiple fields.
+    Applied on transform 'backwards' calls
+
+    Attributes:
+        enforce_positive_on: List of variable names to apply limiter to
     """
 
-    enforce_positive_variables: Sequence[str]
-    to: str = ""
+    enforce_positive_on: Sequence[str]
 
     # Better not to inherit? This is a user-facing composition
-    def __init__(self, enforce_positive_variables: Sequence[str], to: str = ""):
+    def __init__(self, enforce_positive_on: Sequence[str]):
         self.factories = [
             TransformedVariableConfig(varname, varname, PositiveTransform())
-            for varname in enforce_positive_variables
+            for varname in enforce_positive_on
         ]
-        self.enforce_positive_variables = enforce_positive_variables
-        self.to = to
+        self.enforce_positive_on = enforce_positive_on
