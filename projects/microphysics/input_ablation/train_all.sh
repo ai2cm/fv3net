@@ -10,7 +10,7 @@ else
     bucket="vcm-ml-experiments"
 fi
 
-tag="9a68fb66d235223056812cc302fe0c2fe2717a53"
+tag="1d6db454e5cd9c77f07115f121244ca5f416dfc6"
 group="$(openssl rand -hex 3)"
 
 
