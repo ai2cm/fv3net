@@ -95,45 +95,38 @@ class Prescriber:
         self._config = config
         self._communicator = communicator
         self._timesteps = timesteps
-        prescribed_ds, time_coord = self._load_prescribed_ds()
-        self._prescribed_ds: xr.Dataset = self._scatter_prescribed_ds(
-            prescribed_ds, time_coord
-        )
+        self._prescribed_ds: Optional[xr.Dataset] = self._open_prescribed_ds()
 
-    def _load_prescribed_ds(
-        self,
-    ) -> Tuple[Optional[xr.Dataset], Optional[xr.DataArray]]:
+    def _open_prescribed_ds(self,) -> Optional[xr.Dataset]:
         prescribed_ds: Optional[xr.Dataset]
-        time_coord: Optional[xr.DataArray]
         if self._communicator.rank == 0:
-            prescribed_ds, time_coord = _get_prescribed_ds(
+            prescribed_ds = _get_prescribed_ds(
                 self._config.dataset_key,
                 list(self._config.variables),
                 self._timesteps,
                 self._config.consolidated,
             )
         else:
-            prescribed_ds, time_coord = None, None
-        return prescribed_ds, time_coord
+            prescribed_ds = None
+        return prescribed_ds
 
-    def _scatter_prescribed_ds(
-        self, prescribed_ds: Optional[xr.Dataset], time_coord: Optional[xr.DataArray]
-    ) -> xr.Dataset:
-        if isinstance(prescribed_ds, xr.Dataset):
-            scattered_ds = quantity_state_to_dataset(
+    def _scatter_prescribed_timestep(self, time: cftime.DatetimeJulian) -> xr.Dataset:
+        if isinstance(self._prescribed_ds, xr.Dataset):
+            prescribed_timestep = quantity_state_to_dataset(
                 self._communicator.scatter_state(
-                    dataset_to_quantity_state(prescribed_ds)
+                    dataset_to_quantity_state(self._prescribed_ds.sel(time=time))
                 )
             )
         else:
-            scattered_ds = quantity_state_to_dataset(self._communicator.scatter_state())
-        time_coord = self._communicator.comm.bcast(time_coord, root=0)
-        scattered_ds = scattered_ds.assign_coords({"time": time_coord})
-        return scattered_ds
+            prescribed_timestep = quantity_state_to_dataset(
+                self._communicator.scatter_state()
+            )
+        return prescribed_timestep
 
     def __call__(self, time, state):
         diagnostics: Diagnostics = {}
-        prescribed_timestep: xr.Dataset = self._prescribed_ds.sel(time=time)
+
+        prescribed_timestep: xr.Dataset = self._scatter_prescribed_timestep(time)
         state_updates: State = {}
 
         for name in prescribed_timestep.data_vars:
@@ -173,8 +166,7 @@ def _get_prescribed_ds(
     ds = get_variables(ds, variables)
     if timesteps is not None:
         ds = _time_interpolate_data(ds, timesteps, variables)
-    time_coord = ds.coords["time"]
-    return ds.drop_vars(names="time").load(), time_coord
+    return ds
 
 
 def _time_interpolate_data(ds, timesteps, variables):
