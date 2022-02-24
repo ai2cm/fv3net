@@ -37,10 +37,7 @@ def test_get_timesteps(init_time, timestep_seconds, n_timesteps, expected):
 
 
 def get_dataset(vars_, sizes, time_coord):
-    coords = {
-        dim: xr.DataArray(np.arange(size), dims=[dim]) for dim, size in sizes.items()
-    }
-    coords["tile"] = xr.DataArray(range(NTILE), dims=["tile"])
+    coords = {"tile": xr.DataArray(range(NTILE), dims=["tile"])}
     coords["time"] = xr.DataArray(time_coord, dims=["time"])
     x_dim = [key for key in sizes.keys() if "x" in key][0]
     y_dim = [key for key in sizes.keys() if "y" in key][0]
@@ -140,7 +137,7 @@ def get_expected_state_updates(layout):
     }
     sizes = {"y": NXY // layout[0], "x": NXY // layout[1]}
     ds = get_dataset(vars_, sizes, TIME_COORD)
-    ds = ds.sel(time=TIME_COORD[0], tile=0).drop_vars(["tile", "y", "x"])
+    ds = ds.sel(time=TIME_COORD[0], tile=0).drop_vars(["tile", "time"])
     state_updates = {name: ds[name] for name in ds.data_vars}
     return state_updates
 
