@@ -1,6 +1,5 @@
 import logging
 import xarray as xr
-import intake
 import os
 from typing import Hashable, Sequence, Mapping, Optional, Any, MutableMapping
 import fsspec
@@ -228,10 +227,8 @@ def _get_datasets(
                 fsspec.get_mapper(os.path.join(url, f"{source}")),
                 max_size=int(cache_size_mb * 1e6),
             )
-            ds = xr.open_zarr(mapper, consolidated=consolidated)
         else:
-            ds = intake.open_zarr(
-                os.path.join(url, f"{source}"), consolidated=consolidated
-            ).to_dask()
+            mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
+        ds = xr.open_zarr(mapper, consolidated=consolidated)
         datasets[source] = ds
     return datasets
