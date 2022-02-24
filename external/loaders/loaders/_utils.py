@@ -71,6 +71,18 @@ def stack(unstacked_dims: Sequence[str], ds: xr.Dataset) -> xr.Dataset:
     return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 
+@curry
+def select_random_ordered_subset(fraction: float, ds: xr.Dataset) -> xr.Dataset:
+    if fraction == 1.0:
+        out = ds
+    else:
+        n_samples = len(ds[SAMPLE_DIM_NAME])
+        n_samples_keep = int(fraction * n_samples)
+        sample_indices = sorted(np.random.choice(n_samples, n_samples_keep))
+        out = ds.isel({SAMPLE_DIM_NAME: sample_indices})
+    return out
+
+
 def shuffle(ds: xr.Dataset) -> xr.Dataset:
     shuffled_indices = np.arange(len(ds[SAMPLE_DIM_NAME]), dtype=int)
     np.random.shuffle(shuffled_indices)

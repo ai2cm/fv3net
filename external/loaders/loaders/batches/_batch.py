@@ -21,9 +21,10 @@ from .._utils import (
     add_wind_rotation_info,
     nonderived_variables,
     stack,
-    shuffle,
+    # shuffle,
     dropna,
-    select_first_samples,
+    # select_first_samples,
+    select_random_ordered_subset,
 )
 from ..constants import TIME_NAME
 from .._config import batches_functions, batches_from_mapper_functions
@@ -175,8 +176,9 @@ def batches_from_mapper(
 
     if unstacked_dims is not None:
         transforms.append(curry(stack)(unstacked_dims))
-        transforms.append(shuffle)
-        transforms.append(select_first_samples(subsample_ratio))
+        # transforms.append(shuffle)
+        # transforms.append(select_first_samples(subsample_ratio))
+        transforms.append(select_random_ordered_subset(subsample_ratio))
         if drop_nans:
             transforms.append(dropna)
     elif subsample_ratio != 1.0:
@@ -260,6 +262,7 @@ def _get_batch(
 
     If all keys are time strings, converts them to time when creating the coordinate.
     """
+    keys = sorted(keys)
     try:
         time_coords = [parse_datetime_from_str(key) for key in keys]
     except ValueError:
