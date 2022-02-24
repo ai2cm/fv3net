@@ -3,6 +3,8 @@ import xarray as xr
 import intake
 import os
 from typing import Hashable, Sequence, Mapping, Optional, Any, MutableMapping
+import fsspec
+import zarr
 
 from .._base import MultiDatasetMapper
 from .._xarray import XarrayMapper
@@ -124,6 +126,7 @@ def open_nudge_to_fine(
         "nudging_tendencies.zarr",
         "state_after_timestep.zarr",
     ),
+    cache_size_mb: float = None,
 ) -> XarrayMapper:
     """
     Load nudge-to-fine data mapper for use with training. Merges
@@ -145,6 +148,10 @@ def open_nudge_to_fine(
             state_after_timestep.zarr (which you should probably include).
             For example, you may want to include also "diags.zarr" to retrieve
             total_precipitation_rate.
+         cache_size_mb: Cache size in MB for using zarr.storage.LRUStoreCache
+            for accessing data. A cache of this size is created for each zarr
+            dataset in the datasets arg. No LRU caches created if this arg is not
+            supplied.
 
     Returns:
         mapper to dataset containing nudging tendencies, physics tendencies,
@@ -152,7 +159,9 @@ def open_nudge_to_fine(
     """
 
     ds = xr.merge(
-        _get_datasets(data_path, datasets, consolidated=consolidated,).values(),
+        _get_datasets(
+            data_path, datasets, consolidated=consolidated, cache_size_mb=cache_size_mb
+        ).values(),
         join="inner",
     )
 
@@ -207,12 +216,22 @@ def open_nudge_to_fine_multiple_datasets(
 
 
 def _get_datasets(
-    url: str, sources: Sequence[str], consolidated: bool = True
+    url: str,
+    sources: Sequence[str],
+    consolidated: bool = True,
+    cache_size_mb: float = None,
 ) -> MutableMapping[Hashable, xr.Dataset]:
     datasets: MutableMapping[Hashable, xr.Dataset] = {}
     for source in sources:
-        ds = intake.open_zarr(
-            os.path.join(url, f"{source}"), consolidated=consolidated
-        ).to_dask()
+        if cache_size_mb is not None:
+            mapper = zarr.LRUStoreCache(
+                fsspec.get_mapper(os.path.join(url, f"{source}")),
+                max_size=int(cache_size_mb * 1e6),
+            )
+            ds = xr.open_zarr(mapper, consolidated=consolidated)
+        else:
+            ds = intake.open_zarr(
+                os.path.join(url, f"{source}"), consolidated=consolidated
+            ).to_dask()
         datasets[source] = ds
     return datasets
