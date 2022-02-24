@@ -125,7 +125,7 @@ def open_nudge_to_fine(
         "nudging_tendencies.zarr",
         "state_after_timestep.zarr",
     ),
-    cache_size_mb: float = None,
+    cache_size_mb: Optional[float] = None,
 ) -> XarrayMapper:
     """
     Load nudge-to-fine data mapper for use with training. Merges
@@ -218,17 +218,13 @@ def _get_datasets(
     url: str,
     sources: Sequence[str],
     consolidated: bool = True,
-    cache_size_mb: float = None,
+    cache_size_mb: Optional[float] = None,
 ) -> MutableMapping[Hashable, xr.Dataset]:
     datasets: MutableMapping[Hashable, xr.Dataset] = {}
     for source in sources:
+        mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
         if cache_size_mb is not None:
-            mapper = zarr.LRUStoreCache(
-                fsspec.get_mapper(os.path.join(url, f"{source}")),
-                max_size=int(cache_size_mb * 1e6),
-            )
-        else:
-            mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
+            mapper = zarr.LRUStoreCache(mapper, max_size=int(cache_size_mb * 1e6),)
         ds = xr.open_zarr(mapper, consolidated=consolidated)
         datasets[source] = ds
     return datasets
