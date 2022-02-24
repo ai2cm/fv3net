@@ -1,0 +1,26 @@
+#!/bin/bash
+
+tags=(
+    in-ablat-base-dense-924f22
+    in-ablat-base-rnn-924f22
+    in-ablat-gscond-dense-924f22
+    in-ablat-gscond-rnn-924f22
+)
+
+group="$(openssl rand -hex 3)"
+image=9a68fb66d235223056812cc302fe0c2fe2717a53
+
+for tag in ${tags[@]}
+do
+
+    url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-24/${tag}/model.tf
+    run_tag=${tag}-10d-${group}
+
+    argo submit ../argo/prog-run-and-eval.yaml \
+        -p tag=$run_tag \
+        -p image_tag=$image \
+        -p config=$(base64 --wrap 0 ../configs/default.yaml) \
+        -p tf_model=$url
+
+done
+
