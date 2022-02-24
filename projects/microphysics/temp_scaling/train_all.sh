@@ -14,9 +14,9 @@ tag="9a68fb66d235223056812cc302fe0c2fe2717a53"
 group="$(openssl rand -hex 3)"
 
 
-for exp in all
+for exp in no-scaling qc qc-q all
 do
-for arch in dense
+for arch in dense rnn
 do
     config_file="${exp}/${arch}.yaml"
     model_name="tscale-ablat-${exp}-${arch}-${group}"
