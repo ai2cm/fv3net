@@ -1,0 +1,71 @@
+use_wandb: true
+wandb:
+  wandb_project: microphysics-emulation
+batch_size: 512
+epochs: 25
+nfiles_valid: 100
+valid_freq: 2
+out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
+train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
+test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
+cache: false
+tensor_transform:
+  - to: log_cloud_input
+    source: cloud_water_mixing_ratio_input
+    epsilon: 1e-10
+  - to: log_humidity_input
+    source: cloud_water_mixing_ratio_input
+    epsilon: 1e-10
+  - to: cloud_precpd_difference
+    before: cloud_water_mixing_ratio_input
+    after: cloud_water_mixing_ratio_after_precpd
+  - to: temperature_precpd_difference
+    before: air_temperature_input
+    after: air_temperature_after_precpd
+  - to: humidity_precpd_difference
+    before: specific_humidity_input
+    after: specific_humidity_after_precpd
+loss:
+  optimizer:
+    kwargs:
+      learning_rate: 0.0001
+    name: Adam
+  metric_variables:
+    - air_temperature_after_precpd
+    - specific_humidity_after_precpd
+    - cloud_water_mixing_ratio_after_precpd
+  loss_variables:
+    - total_precipitation
+    - cloud_precpd_difference
+    - temperature_precpd_difference
+    - humidity_precpd_difference
+  weights:
+    total_precipitation: 1.0
+    cloud_precpd_difference: 1.0
+    temperature_precpd_difference: 1.0
+    humidity_precpd_difference: 1.0
+model:
+  architecture:
+    kwargs:
+      channels: 256
+    name: rnn-v1-shared-weights
+  input_variables:
+  - air_temperature_input
+  - log_cloud_input
+  - log_humidity_input
+  - pressure_thickness_of_atmospheric_layer
+  direct_out_variables:
+    - total_precipitation
+    - cloud_precpd_difference
+    - temperature_precpd_difference
+    - humidity_precpd_difference
+  normalize_key: mean_std
+  enforce_positive: false
+  selection_map: {}
+  timestep_increment_sec: 900
+transform:
+  antarctic_only: false
+  derived_microphys_timestep: 900
+  use_tensors: true
+  vertical_subselections: null
+
