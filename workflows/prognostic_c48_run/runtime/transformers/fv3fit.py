@@ -32,6 +32,8 @@ class Config:
 class Adapter:
     config: Config
     timestep: float
+    cv = 1004 - 287.05
+    L = 2.5e6
 
     def __post_init__(self: "Adapter"):
         self.model = fv3fit.load(self.config.url)
@@ -44,6 +46,10 @@ class Adapter:
             )
             tendencies.update({"dQ1": dQ1, "dQ2": dQ2})
         state_prediction: State = {}
+        if "Q1" in self.config.variables.values() and "Qm" in tendencies:
+            tendencies["Q1"] = (
+                1 / self.cv * (tendencies["Qm"] - self.L * tendencies["Q2"])
+            )
         for variable_name, tendency_name in self.config.variables.items():
             with xr.set_options(keep_attrs=True):
                 state_prediction[variable_name] = (
