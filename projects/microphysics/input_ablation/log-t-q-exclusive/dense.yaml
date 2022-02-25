@@ -12,10 +12,10 @@ cache: false
 tensor_transform:
   - to: log_cloud_input
     source: cloud_water_mixing_ratio_input
-    epsilon: 1e-10
+    transform: {epsilon: 1e-10}
   - to: log_humidity_input
-    source: cloud_water_mixing_ratio_input
-    epsilon: 1e-10
+    source: specific_humidity_input
+    transform: {epsilon: 1e-8}
   - to: cloud_precpd_difference
     before: cloud_water_mixing_ratio_input
     after: cloud_water_mixing_ratio_after_precpd

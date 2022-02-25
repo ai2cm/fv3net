@@ -12,13 +12,13 @@ cache: false
 tensor_transform:
   - to: log_cloud_input
     source: cloud_water_mixing_ratio_input
-    epsilon: 1e-10
+    transform: {epsilon: 1e-10}
   - to: log_humidity_input
-    source: cloud_water_mixing_ratio_input
-    epsilon: 1e-10
+    source: specific_humidity_input
+    transform: {epsilon: 1e-8}
   - to: log_humidity_after_last_gscond
     source: specific_humidity_after_last_gscond
-    epsilon: 1e-10
+    transform: {epsilon: 1e-8}
   - to: temperature_gscond_difference
     before: air_temperature_input
     after: air_temperature_after_gscond
