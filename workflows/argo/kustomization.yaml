@@ -8,6 +8,7 @@ resources:
 - train-diags-prog.yaml
 - cubed-to-latlon.yaml
 - resolve-output-url.yaml
+- save-netcdf-batches.yaml
 configurations:
 - image-transformerconfig.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
