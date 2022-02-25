@@ -99,14 +99,13 @@ class Prescriber:
 
     def _open_prescribed_ds(self,) -> Optional[xr.Dataset]:
         prescribed_ds: Optional[xr.Dataset]
-        tile = self._communicator.partitioner.tile_index(self._communicator.rank)
-        if self._communicator.tile.rank == 0:
+        if self._communicator.rank == 0:
             prescribed_ds = _get_prescribed_ds(
                 self._config.dataset_key,
                 list(self._config.variables),
                 self._timesteps,
                 self._config.consolidated,
-            ).isel(tile=tile)
+            )
         else:
             prescribed_ds = None
         return prescribed_ds
@@ -114,7 +113,7 @@ class Prescriber:
     def _scatter_prescribed_timestep(self, time: cftime.DatetimeJulian) -> xr.Dataset:
         if isinstance(self._prescribed_ds, xr.Dataset):
             prescribed_timestep = quantity_state_to_dataset(
-                self._communicator.tile.scatter_state(
+                self._communicator.scatter_state(
                     dataset_to_quantity_state(self._prescribed_ds.sel(time=time))
                 )
             )
@@ -161,7 +160,7 @@ def _get_prescribed_ds(
     variables: Sequence[str],
     timesteps: Optional[Sequence[cftime.DatetimeJulian]],
     consolidated: bool = True,
-) -> xr.Dataset:
+) -> Tuple[xr.Dataset, xr.DataArray]:
     logger.info(f"Setting up dataset for state setting: {dataset_key}")
     ds = _open_ds(dataset_key, consolidated)
     ds = get_variables(ds, variables)
@@ -170,7 +169,7 @@ def _get_prescribed_ds(
     return ds
 
 
-def _time_interpolate_data(ds, timesteps, variables) -> xr.Dataset:
+def _time_interpolate_data(ds, timesteps, variables):
     vars_interp_nearest = [var for var in variables if var in INTERPOLATE_NEAREST]
     vars_interp_linear = [var for var in variables if var not in INTERPOLATE_NEAREST]
 
