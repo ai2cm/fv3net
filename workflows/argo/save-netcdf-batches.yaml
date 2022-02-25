@@ -1,0 +1,65 @@
+# vim: set sts=2 ts=2 tw=2 sw=2 :
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: save-netcdf-batches
+spec:
+  entrypoint: save-netcdf-batches
+  volumes:
+    - name: workdir
+      emptyVol: {}
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+    - name: save-netcdf-batches
+      inputs:
+        parameters:
+          - name: config
+          - name: output
+          - {name: memory, value: 8Gi}
+      container:
+        image: us.gcr.io/vcm-ml/fv3net:d2f904f0872c693aa063018e0ebc57c4e74ae851
+        command: ["bash", "-c", "-x"]
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+        args:
+          - |
+
+            cat <<EOF >config.yaml
+            {{inputs.parameters.config}}
+            EOF
+
+            echo "Configuration:"
+            cat config.yaml
+
+            python -m \
+              loaders.batches.save \
+              config.yaml \
+              batch-netcdfs
+
+            gsutil cp -r batch-netcdfs \
+                {{inputs.parameters.output}}
+
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "med-sim-pool"
+        effect: "NoSchedule"
+      podSpecPatch: |
+        containers:
+          - name: main
+            resources:
+              limits:
+                cpu: "1000m"
+                memory: "{{inputs.parameters.memory}}"
+              requests:
+                cpu: "1000m"
+                memory: "{{inputs.parameters.memory}}"
