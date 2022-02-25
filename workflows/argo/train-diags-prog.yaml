@@ -21,7 +21,7 @@ spec:
       - name: tag
       - name: training-configs  # used in withParam
       - name: training-data-config
-      - {name: validation-data-config: value: " "}
+      - {name: validation-data-config, value: " "}
       - name: test-data-config
       - name: prognostic-run-config
       - name: flags
