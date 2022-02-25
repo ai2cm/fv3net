@@ -4,7 +4,7 @@ import logging
 import cftime
 import xarray as xr
 from runtime.types import State, Diagnostics, Tendencies
-from runtime.conversions import quantity_state_to_dataset, dataset_to_quantity_state
+from runtime.transformers.tendency_prescriber import scatter_within_tile
 from runtime.names import SST, TSFC, MASK
 
 import pace.util
@@ -63,24 +63,13 @@ class Prescriber:
         self._communicator = communicator
         self._time_lookup_function = time_lookup_function
 
-    def _scatter_prescribed_timestep(self, time: cftime.DatetimeJulian) -> xr.Dataset:
-        if self._communicator.rank == 0:
-            prescribed_timestep = self._time_lookup_function(time)
-            prescribed_timestep_ds = quantity_state_to_dataset(
-                self._communicator.scatter_state(
-                    dataset_to_quantity_state(xr.Dataset(prescribed_timestep))
-                )
-            )
-        else:
-            prescribed_timestep_ds = quantity_state_to_dataset(
-                self._communicator.scatter_state()
-            )
-        return prescribed_timestep_ds
+    def _open_prescribed_timestep(self, time: cftime.DatetimeJulian) -> xr.Dataset:
+        return scatter_within_tile(time, self._time_lookup_function, self._communicator)
 
     def __call__(self, time, state):
         diagnostics: Diagnostics = {}
 
-        prescribed_timestep: xr.Dataset = self._scatter_prescribed_timestep(time)
+        prescribed_timestep: xr.Dataset = self._open_prescribed_timestep(time)
         state_updates: State = {}
 
         for name in prescribed_timestep.data_vars:

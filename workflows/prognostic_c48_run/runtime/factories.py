@@ -64,11 +64,14 @@ def get_tendency_prescriber(
     else:
         prescriber_config = config.tendency_prescriber
         tendency_variables = list(prescriber_config.variables.values())
-        if communicator.rank == 0:
-            logger.debug(
-                f"Opening tendency override from: {prescriber_config.mapper_config}"
-            )
-        mapper = prescriber_config.mapper_config.load_mapper()
+        if communicator.tile.rank == 0:
+            if communicator.rank == 0:
+                logger.debug(
+                    f"Opening tendency override from: {prescriber_config.mapper_config}"
+                )
+            mapper = prescriber_config.mapper_config.load_mapper()
+        else:
+            mapper = {}
 
         if isinstance(prescriber_config.limit_quantiles, dict):
             if prescriber_config.reference_initial_time is None:
@@ -146,8 +149,9 @@ def _get_fitted_limiter(
 def get_prescriber(
     config: PrescriberConfig, communicator: pace.util.CubedSphereCommunicator
 ) -> Prescriber:
-    if communicator.rank == 0:
-        logger.info(f"Setting up dataset for state setting: {config.dataset_key}")
+    if communicator.tile.rank == 0:
+        if communicator.rank == 0:
+            logger.info(f"Setting up dataset for state setting: {config.dataset_key}")
         mapper = open_zarr(config.dataset_key, config.consolidated)
     else:
         mapper = {}

@@ -62,16 +62,11 @@ class TendencyPrescriber:
     time_lookup_function: Callable[[cftime.DatetimeJulian], State]
     diagnostic_variables: Set[str] = dataclasses.field(default_factory=set)
 
-    def _open_tendencies_dataset(self, time: cftime.DatetimeJulian) -> xr.Dataset:
-        tile = self.communicator.partitioner.tile_index(self.communicator.rank)
-        if self.communicator.tile.rank == 0:
-            # https://github.com/python/mypy/issues/5485
-            state = self.time_lookup_function(time)  # type: ignore
-            ds = xr.Dataset(state).isel(tile=tile).load()
-        else:
-            ds = xr.Dataset()
-        tendencies = self.communicator.tile.scatter_state(dataset_to_quantity_state(ds))
-        return quantity_state_to_dataset(tendencies)
+    def _open_tendencies_timestep(self, time: cftime.DatetimeJulian) -> xr.Dataset:
+        # https://github.com/python/mypy/issues/5485
+        return scatter_within_tile(
+            time, self.time_lookup_function, self.communicator  # type: ignore
+        )
 
     @property
     def monitor(self) -> Monitor:
@@ -80,7 +75,7 @@ class TendencyPrescriber:
         )
 
     def _prescribe_tendency(self, func: Step) -> Diagnostics:
-        tendencies = self._open_tendencies_dataset(self.state.time)
+        tendencies = self._open_tendencies_timestep(self.state.time)
         before = self.monitor.checkpoint()
         diags = func()
         for variable_name, tendency_name in self.variables.items():
@@ -109,3 +104,33 @@ class TendencyPrescriber:
 
         step.__name__ = func.__name__
         return step
+
+
+def scatter_within_tile(
+    time: cftime.DatetimeJulian,
+    time_lookup_function: Callable[[cftime.DatetimeJulian], State],
+    communicator: pace.util.CubedSphereCommunicator,
+) -> xr.Dataset:
+    """Scatter data for a timestamp from each tile's master rank to its subranks.
+
+    Args:
+        time: time of the data
+        time_lookup_function: a function that takes a time and returns a state dict
+            containing data arrays to be scattered
+        communicator: model cubed sphere communicator
+
+    Returns:
+        Dataset of scattered data arrays
+    """
+    if communicator.tile.rank == 0:
+        state: State = time_lookup_function(time)
+    else:
+        state = {}
+
+    tile = communicator.partitioner.tile_index(communicator.rank)
+    if communicator.tile.rank == 0:
+        ds = xr.Dataset(state).isel(tile=tile).load()
+    else:
+        ds = xr.Dataset()
+    tendencies = communicator.tile.scatter_state(dataset_to_quantity_state(ds))
+    return quantity_state_to_dataset(tendencies)
