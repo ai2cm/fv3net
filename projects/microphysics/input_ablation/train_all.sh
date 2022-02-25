@@ -14,7 +14,7 @@ tag="9a68fb66d235223056812cc302fe0c2fe2717a53"
 group="$(openssl rand -hex 3)"
 
 
-for exp in base gscond
+for exp in base gscond log-q-qc-exclusive log-q-qc gscond-log-q-qc
 do
 for arch in dense rnn
 do
@@ -27,7 +27,7 @@ do
         --name "${model_name}" \
         -p training-config="$(base64 --wrap 0 $config_file)" \
         -p flags="$flags" \
-        -p wandb-run-group="input-ablation-feb-2022" \
+        -p wandb-run-group="input-ablation-feb-2022-v2" \
         -p tag="${tag}"
 done
 done

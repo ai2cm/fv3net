@@ -1,10 +1,16 @@
 #!/bin/bash
 
 tags=(
-    in-ablat-base-dense-924f22
-    in-ablat-base-rnn-924f22
-    in-ablat-gscond-dense-924f22
-    in-ablat-gscond-rnn-924f22
+    in-ablat-gscond-log-q-qc-rnn-e2c20e
+    in-ablat-gscond-log-q-qc-dense-e2c20e
+    in-ablat-log-q-qc-rnn-e2c20e
+    in-ablat-log-q-qc-dense-e2c20e
+    in-ablat-log-q-qc-exclusive-rnn-e2c20e
+    in-ablat-log-q-qc-exclusive-dense-e2c20e
+    in-ablat-gscond-rnn-e2c20e
+    in-ablat-gscond-dense-e2c20e
+    in-ablat-base-rnn-e2c20e
+    in-ablat-base-dense-e2c20e
 )
 
 group="$(openssl rand -hex 3)"
