@@ -1,10 +1,14 @@
 #!/bin/bash
 
 tags=(
-    in-ablat-base-dense-924f22
-    in-ablat-base-rnn-924f22
-    in-ablat-gscond-dense-924f22
-    in-ablat-gscond-rnn-924f22
+    tscale-ablat-all-rnn-302ee0
+    tscale-ablat-all-dense-302ee0
+    tscale-ablat-qc-q-rnn-302ee0
+    tscale-ablat-qc-q-dense-302ee0
+    tscale-ablat-qc-rnn-302ee0
+    tscale-ablat-qc-dense-302ee0
+    tscale-ablat-no-scaling-rnn-302ee0
+    tscale-ablat-no-scaling-dense-302ee0
 )
 
 group="$(openssl rand -hex 3)"
