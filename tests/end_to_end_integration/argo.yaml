@@ -379,6 +379,8 @@ spec:
             value: "--local-download-path train-data-download-dir"
           - name: validation-data-config
             value: "{{workflow.parameters.validation-data-config}}"
+          - name: test-data-config
+            value: "{{workflow.parameters.test-data-config}}"
           - name: prognostic-run-config
             value: "{{workflow.parameters.prognostic-run-config}}"
           - name: public-report-output
