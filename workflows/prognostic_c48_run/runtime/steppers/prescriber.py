@@ -1,8 +1,6 @@
-from typing import Sequence, Tuple, Optional
+from typing import Sequence, Tuple, Optional, Callable
 import dataclasses
-from datetime import timedelta
 import logging
-import intake
 import cftime
 import xarray as xr
 from runtime.types import State, Diagnostics, Tendencies
@@ -10,36 +8,8 @@ from runtime.conversions import quantity_state_to_dataset, dataset_to_quantity_s
 from runtime.names import SST, TSFC, MASK
 
 import pace.util
-from vcm.catalog import catalog as CATALOG
-from vcm.safe import get_variables
 
 logger = logging.getLogger(__name__)
-
-# list of variables that will use nearest neighbor interpolation
-# between times instead of linear interpolation
-INTERPOLATE_NEAREST = [
-    MASK,
-]
-
-
-def get_timesteps(
-    init_time: cftime.DatetimeJulian, timestep_seconds: float, n_timesteps: int
-) -> Sequence[cftime.DatetimeJulian]:
-    """Get sequence of model timesteps
-
-    Args
-        init_time (cftime.DatetimeJulian): model run start time
-        timestep_seconds (float): model timestep
-        n_timesteps: number of timesteps in model run
-
-    Returns: Sequence of cftime.DatetimeJulian objects corresponding to ends
-        of model run timesteps
-
-    """
-    return [
-        init_time + timedelta(seconds=timestep_seconds * i)
-        for i in range(1, n_timesteps + 1)
-    ]
 
 
 @dataclasses.dataclass
@@ -47,13 +17,12 @@ class PrescriberConfig:
     """Configuration for a prescriber object to set states in the model from an external source
 
     Attributes:
-        dataset_key (str): location of the dataset that provides prescribe values;
-            the routine first will try `dataset_key` as a `vcm.catalog` key, and if
-            not present it will attempt to use it as a (local or remote) path to
-            a zarr dataset
-        variables (Sequence[str]): sequence of variable names in the dataset to prescribe
-        consolidated (bool): optional, whether desired dataset has consolidated metadata;
+        dataset_key: path of zarr dataset
+        variables: sequence of variable names in the dataset to prescribe
+        consolidated: whether desired dataset has consolidated metadata;
             defaults to True
+        reference_initial_time: if time interpolating, time of first point in dataset
+        reference_frequency_seconds: time frequency of dataset
 
     Example::
 
@@ -71,6 +40,8 @@ class PrescriberConfig:
     dataset_key: str
     variables: Sequence[str]
     consolidated: bool = True
+    reference_initial_time: Optional[str] = None
+    reference_frequency_seconds: float = 900
 
 
 class Prescriber:
@@ -79,49 +50,32 @@ class Prescriber:
 
     def __init__(
         self,
-        config: PrescriberConfig,
         communicator: pace.util.CubedSphereCommunicator,
-        timesteps: Optional[Sequence[cftime.DatetimeJulian]] = None,
+        time_lookup_function: Callable[[cftime.DatetimeJulian], State],
     ):
         """Create a Prescriber object
 
         Args:
-            config (PrescriberConfig),
             communicator (pace.util.CubedSphereCommunicator),
-            timesteps (Sequence[cftime.DatetimeJulian]): optional sequence specifying
-                all wrapper timesteps for which data is required; if not supplied,
-                defaults to downloading entire time dimension of `dataset_key`
+            time_lookup_function: a function that takes a time and returns a state dict
+                containing data arrays to be prescribed
         """
-        self._config = config
         self._communicator = communicator
-        self._timesteps = timesteps
-        self._prescribed_ds: Optional[xr.Dataset] = self._open_prescribed_ds()
-
-    def _open_prescribed_ds(self,) -> Optional[xr.Dataset]:
-        prescribed_ds: Optional[xr.Dataset]
-        if self._communicator.rank == 0:
-            prescribed_ds = _get_prescribed_ds(
-                self._config.dataset_key,
-                list(self._config.variables),
-                self._timesteps,
-                self._config.consolidated,
-            )
-        else:
-            prescribed_ds = None
-        return prescribed_ds
+        self._time_lookup_function = time_lookup_function
 
     def _scatter_prescribed_timestep(self, time: cftime.DatetimeJulian) -> xr.Dataset:
-        if isinstance(self._prescribed_ds, xr.Dataset):
-            prescribed_timestep = quantity_state_to_dataset(
+        if self._communicator.rank == 0:
+            prescribed_timestep = self._time_lookup_function(time)
+            prescribed_timestep_ds = quantity_state_to_dataset(
                 self._communicator.scatter_state(
-                    dataset_to_quantity_state(self._prescribed_ds.sel(time=time))
+                    dataset_to_quantity_state(xr.Dataset(prescribed_timestep))
                 )
             )
         else:
-            prescribed_timestep = quantity_state_to_dataset(
+            prescribed_timestep_ds = quantity_state_to_dataset(
                 self._communicator.scatter_state()
             )
-        return prescribed_timestep
+        return prescribed_timestep_ds
 
     def __call__(self, time, state):
         diagnostics: Diagnostics = {}
@@ -153,44 +107,6 @@ class Prescriber:
 
     def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
         return {}
-
-
-def _get_prescribed_ds(
-    dataset_key: str,
-    variables: Sequence[str],
-    timesteps: Optional[Sequence[cftime.DatetimeJulian]],
-    consolidated: bool = True,
-) -> Tuple[xr.Dataset, xr.DataArray]:
-    logger.info(f"Setting up dataset for state setting: {dataset_key}")
-    ds = _open_ds(dataset_key, consolidated)
-    ds = get_variables(ds, variables)
-    if timesteps is not None:
-        ds = _time_interpolate_data(ds, timesteps, variables)
-    return ds
-
-
-def _time_interpolate_data(ds, timesteps, variables):
-    vars_interp_nearest = [var for var in variables if var in INTERPOLATE_NEAREST]
-    vars_interp_linear = [var for var in variables if var not in INTERPOLATE_NEAREST]
-
-    ds_interp = xr.Dataset()
-    if len(vars_interp_nearest) > 0:
-        ds_interp_nearest = ds[vars_interp_nearest].interp(
-            time=timesteps, method="nearest"
-        )
-        ds_interp.update(ds_interp_nearest)
-    if len(vars_interp_linear) > 0:
-        ds_interp_linear = ds[vars_interp_linear].interp(time=timesteps)
-        ds_interp.update(ds_interp_linear)
-    return ds_interp
-
-
-def _open_ds(dataset_key: str, consolidated: bool) -> xr.Dataset:
-    try:
-        ds = CATALOG[dataset_key].to_dask()
-    except KeyError:
-        ds = intake.open_zarr(dataset_key, consolidated=consolidated).to_dask()
-    return ds
 
 
 def _sst_from_reference(
