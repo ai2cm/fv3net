@@ -27,7 +27,7 @@ do
         --name "${model_name}" \
         -p training-config="$(base64 --wrap 0 $config_file)" \
         -p flags="$flags" \
-        -p wandb-run-group="tscale-ablate-feb-2022" \
+        -p wandb-run-group="tscale-ablate-feb-2022-v2" \
         -p tag="${tag}"
 done
 done

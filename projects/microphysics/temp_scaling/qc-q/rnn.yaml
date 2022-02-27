@@ -10,6 +10,15 @@ train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysic
 test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
 cache: false
 tensor_transform:
+  - to: log_cloud_input
+    source: cloud_water_mixing_ratio_input
+    transform: {epsilon: 1e-10}
+  - to: log_humidity_input
+    source: specific_humidity_input
+    transform: {epsilon: 1e-8}
+  - to: log_humidity_after_last_gscond
+    source: specific_humidity_after_last_gscond
+    transform: {epsilon: 1e-8}
   - to: temperature_gscond_difference
     before: air_temperature_input
     after: air_temperature_after_gscond
@@ -45,7 +54,12 @@ loss:
     kwargs:
       learning_rate: 0.0001
     name: Adam
-  metric_variables: []
+  metric_variables:
+    - air_temperature_after_gscond
+    - specific_humidity_after_gscond
+    - air_temperature_after_precpd
+    - specific_humidity_after_precpd
+    - cloud_water_mixing_ratio_after_precpd
   loss_variables:
     - total_precipitation
     - cloud_precpd_difference_tscaled
@@ -69,9 +83,12 @@ model:
   - air_temperature_input
   - specific_humidity_input
   - cloud_water_mixing_ratio_input
+  - log_cloud_input
+  - log_humidity_input
   - pressure_thickness_of_atmospheric_layer
   - air_temperature_after_last_gscond
   - specific_humidity_after_last_gscond
+  - log_humidity_after_last_gscond
   direct_out_variables:
     - total_precipitation
     - cloud_precpd_difference_tscaled
