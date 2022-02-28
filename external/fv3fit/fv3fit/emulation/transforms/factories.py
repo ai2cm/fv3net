@@ -99,10 +99,12 @@ class ConditionallyScaled(TransformFactory):
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         """List the names needed to compute ``self.to``"""
-        new_names = (
-            {self.condition_on, self.source} if self.to in requested_names else set()
-        )
-        return requested_names.union(new_names)
+
+        if self.to in requested_names:
+            dependencies = {self.condition_on, self.source}
+            requested_names = (requested_names - {self.to}) | dependencies
+
+        return requested_names
 
     def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
 

@@ -210,7 +210,7 @@ def test_ConditionallyScaledTransform_backward(min_scale: float):
 
 def test_ConditionallyScaled_backward_names():
     factory = ConditionallyScaled(source="in", to="z", bins=10, condition_on="T")
-    assert factory.backward_names({"z"}) == {"z", "T", "in"}
+    assert factory.backward_names({"z"}) == {"T", "in"}
 
 
 def test_ConditionallyScaled_backward_names_output_not_in_request():
@@ -238,7 +238,7 @@ def test_ConditionallyScaled_build():
 
 def test_Difference_backward_names():
     diff = Difference("diff", "before", "after")
-    assert diff.backward_names({"diff"}) == {"before", "after", "diff"}
+    assert diff.backward_names({"diff"}) == {"before", "after"}
     assert diff.backward_names({"not in a"}) == {"not in a"}
 
 
