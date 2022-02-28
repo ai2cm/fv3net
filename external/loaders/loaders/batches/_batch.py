@@ -122,6 +122,7 @@ def batches_from_mapper(
     unstacked_dims: Optional[Sequence[str]] = None,
     subsample_ratio: float = 1.0,
     drop_nans: bool = False,
+    shuffle_timesteps: bool = True,
     shuffle_samples: bool = True,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
@@ -143,6 +144,7 @@ def batches_from_mapper(
         drop_nans: if True, drop samples with NaN values from the data, and raise an
             exception if all values in a batch are NaN. requires unstacked_dims
             argument is given, raises a ValueError otherwise.
+        shuffle_timesteps: if True, shuffle the timesteps list.
         shuffle_samples: if True, shuffle the samples after stacking. If False, can
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
@@ -164,8 +166,13 @@ def batches_from_mapper(
     if timesteps is None:
         timesteps = list(data_mapping.keys())
 
-    shuffled_times = np.random.choice(timesteps, len(timesteps), replace=False).tolist()
-    batched_timesteps = list(partition_all(timesteps_per_batch, shuffled_times))
+    if shuffle_timesteps:
+        final_timesteps = np.random.choice(
+            timesteps, len(timesteps), replace=False
+        ).tolist()
+    else:
+        final_timesteps = timesteps
+    batched_timesteps = list(partition_all(timesteps_per_batch, final_timesteps))
 
     # First function goes from mapper + timesteps to xr.dataset
     # Subsequent transforms are all dataset -> dataset
@@ -180,9 +187,7 @@ def batches_from_mapper(
     transforms.append(add_derived_data(variable_names))
 
     if unstacked_dims is not None:
-        if shuffle_samples is False:
-            # sorting within batches by time speeds up data loading
-            transforms.append(sort_by_time)
+        transforms.append(sort_by_time)
         transforms.append(curry(stack)(unstacked_dims))
         transforms.append(select_fraction(subsample_ratio))
         if shuffle_samples is True:
@@ -199,7 +204,7 @@ def batches_from_mapper(
     batch_func = compose_left(*transforms)
 
     seq = Map(batch_func, batched_timesteps)
-    seq.attrs["times"] = shuffled_times
+    seq.attrs["times"] = final_timesteps
 
     if in_memory:
         out_seq: Batches = tuple(ds.load() for ds in seq)

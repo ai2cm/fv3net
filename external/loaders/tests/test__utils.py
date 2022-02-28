@@ -61,4 +61,5 @@ def test_select_fraction(input_samples: int, fraction: float, expected_samples: 
     )
     result = select_fraction(fraction)(ds)
     assert len(result[SAMPLE_DIM_NAME]) == expected_samples
+    assert len(np.unique(result[SAMPLE_DIM_NAME].values)) == expected_samples
     assert np.array_equal(sorted(result[SAMPLE_DIM_NAME]), result[SAMPLE_DIM_NAME])
