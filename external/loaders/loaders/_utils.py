@@ -72,13 +72,21 @@ def stack(unstacked_dims: Sequence[str], ds: xr.Dataset) -> xr.Dataset:
 
 
 @curry
-def select_random_ordered_subset(fraction: float, ds: xr.Dataset) -> xr.Dataset:
+def sort_by_time(ds: xr.Dataset) -> xr.Dataset:
+    return ds.sortby("time")
+
+
+@curry
+def select_fraction(fraction: float, ds: xr.Dataset) -> xr.Dataset:
+    # subselects a random fraction of samples, preserving original order.
     if fraction == 1.0:
         out = ds
     else:
         n_samples = len(ds[SAMPLE_DIM_NAME])
         n_samples_keep = int(fraction * n_samples)
-        sample_indices = sorted(np.random.choice(n_samples, n_samples_keep))
+        sample_indices = sorted(
+            np.random.choice(n_samples, n_samples_keep, replace=False)
+        )
         out = ds.isel({SAMPLE_DIM_NAME: sample_indices})
     return out
 
@@ -97,21 +105,6 @@ def dropna(ds: xr.Dataset) -> xr.Dataset:
     if len(ds[SAMPLE_DIM_NAME]) == 0:
         raise ValueError("Check for NaN fields in the training data.")
     return ds
-
-
-@curry
-def select_first_samples(fraction: float, ds: xr.Dataset) -> xr.Dataset:
-    """
-    Return a dataset with only the given fraction of samples from the
-    input dataset, taking the first samples.
-    """
-    if fraction == 1.0:
-        out = ds
-    else:
-        n_samples = len(ds[SAMPLE_DIM_NAME])
-        n_samples_keep = int(fraction * n_samples)
-        out = ds.isel({SAMPLE_DIM_NAME: slice(0, n_samples_keep)})
-    return out
 
 
 @curry

@@ -296,7 +296,7 @@ def test_batches_from_mapper_stacked_data_is_not_shuffled():
         variable_names=["var_0"],
         unstacked_dims=unstacked_dims,
         timesteps_per_batch=10,
-        keep_ordered_samples=True,
+        shuffle_samples=False,
     )
     assert len(result) == 1
     batch = result[0]

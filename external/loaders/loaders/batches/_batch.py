@@ -1,5 +1,6 @@
 import logging
 from loaders.typing import Batches
+import numpy as np
 import pandas as pd
 from typing import (
     Iterable,
@@ -22,8 +23,8 @@ from .._utils import (
     stack,
     shuffle,
     dropna,
-    select_first_samples,
-    select_random_ordered_subset,
+    select_fraction,
+    sort_by_time,
 )
 from ..constants import TIME_NAME
 from .._config import batches_functions, batches_from_mapper_functions
@@ -121,7 +122,7 @@ def batches_from_mapper(
     unstacked_dims: Optional[Sequence[str]] = None,
     subsample_ratio: float = 1.0,
     drop_nans: bool = False,
-    keep_ordered_samples: bool = False,
+    shuffle_samples: bool = True,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -142,8 +143,9 @@ def batches_from_mapper(
         drop_nans: if True, drop samples with NaN values from the data, and raise an
             exception if all values in a batch are NaN. requires unstacked_dims
             argument is given, raises a ValueError otherwise.
-        keep_ordered_samples: if True, do not shuffle the samples after stacking.
-            Still subselects a random subset, but it is ordered by sample index.
+        shuffle_samples: if True, shuffle the samples after stacking. If False, can
+            still subselect a random subset, but it is ordered by stacked dims
+            multiindex.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -161,7 +163,9 @@ def batches_from_mapper(
 
     if timesteps is None:
         timesteps = list(data_mapping.keys())
-    batched_timesteps = list(partition_all(timesteps_per_batch, timesteps))
+
+    shuffled_times = np.random.choice(timesteps, len(timesteps), replace=False).tolist()
+    batched_timesteps = list(partition_all(timesteps_per_batch, shuffled_times))
 
     # First function goes from mapper + timesteps to xr.dataset
     # Subsequent transforms are all dataset -> dataset
@@ -176,12 +180,13 @@ def batches_from_mapper(
     transforms.append(add_derived_data(variable_names))
 
     if unstacked_dims is not None:
+        if shuffle_samples is False:
+            # sorting within batches by time speeds up data loading
+            transforms.append(sort_by_time)
         transforms.append(curry(stack)(unstacked_dims))
-        if keep_ordered_samples is True:
-            transforms.append(select_random_ordered_subset(subsample_ratio))
-        else:
+        transforms.append(select_fraction(subsample_ratio))
+        if shuffle_samples is True:
             transforms.append(shuffle)
-            transforms.append(select_first_samples(subsample_ratio))
         if drop_nans:
             transforms.append(dropna)
     elif subsample_ratio != 1.0:
