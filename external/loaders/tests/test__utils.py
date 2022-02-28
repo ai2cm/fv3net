@@ -3,7 +3,7 @@ from loaders._utils import (
     nonderived_variables,
     shuffle,
     SAMPLE_DIM_NAME,
-    select_first_samples,
+    select_fraction,
 )
 import xarray as xr
 import numpy as np
@@ -50,9 +50,7 @@ def test_shuffle_retains_values():
         pytest.param(20, 0.75, 15, id="discard_some"),
     ],
 )
-def test_select_first_samples(
-    input_samples: int, fraction: float, expected_samples: int
-):
+def test_select_fraction(input_samples: int, fraction: float, expected_samples: int):
     ds = xr.Dataset(
         data_vars={
             "a": xr.DataArray(
@@ -61,7 +59,6 @@ def test_select_first_samples(
             )
         }
     )
-    result = select_first_samples(fraction)(ds)
+    result = select_fraction(fraction)(ds)
     assert len(result[SAMPLE_DIM_NAME]) == expected_samples
-    assert result["a"].values.max() == expected_samples - 1
-    assert result["a"].values.min() == 0
+    assert np.array_equal(sorted(result[SAMPLE_DIM_NAME]), result[SAMPLE_DIM_NAME])
