@@ -199,7 +199,7 @@ def batches_from_mapper(
     batch_func = compose_left(*transforms)
 
     seq = Map(batch_func, batched_timesteps)
-    seq.attrs["times"] = timesteps
+    seq.attrs["times"] = shuffled_times
 
     if in_memory:
         out_seq: Batches = tuple(ds.load() for ds in seq)
