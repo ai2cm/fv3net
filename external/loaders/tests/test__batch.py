@@ -286,3 +286,22 @@ def test_batches_from_netcdf(tmpdir):
     )
     for ds_saved, ds_loaded in zip(saved_batches, loaded_batches):
         xr.testing.assert_equal(ds_saved, ds_loaded)
+
+
+def test_batches_from_mapper_stacked_data_is_not_shuffled():
+    mapper = get_mapper(n_keys=10, n_vars=1, n_dims=3)
+    unstacked_dims = ["dim_2"]
+    result = batches_from_mapper(
+        mapper,
+        variable_names=["var_0"],
+        unstacked_dims=unstacked_dims,
+        timesteps_per_batch=10,
+        keep_ordered_samples=True,
+    )
+    assert len(result) == 1
+    batch = result[0]
+    multiindex = batch._fv3net_sample.values
+    sample_times = [sample[0] for sample in multiindex]
+    sample_dim1 = [sample[2] for sample in multiindex[:5]]
+    assert sample_times == sorted(sample_times)
+    assert sample_dim1 == sorted(sample_dim1)
