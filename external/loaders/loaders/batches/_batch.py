@@ -123,7 +123,7 @@ def batches_from_mapper(
     subsample_ratio: float = 1.0,
     drop_nans: bool = False,
     shuffle_timesteps: bool = True,
-    shuffle_samples: bool = True,
+    shuffle_samples: bool = False,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
