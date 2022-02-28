@@ -129,7 +129,7 @@ def scatter_within_tile(
 
     tile = communicator.partitioner.tile_index(communicator.rank)
     if communicator.tile.rank == 0:
-        ds = xr.Dataset(state).isel(tile=tile).load()
+        ds = xr.Dataset(state).isel(tile=tile)
     else:
         ds = xr.Dataset()
     tendencies = communicator.tile.scatter_state(dataset_to_quantity_state(ds))

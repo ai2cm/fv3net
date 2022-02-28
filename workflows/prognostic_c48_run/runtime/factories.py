@@ -118,7 +118,7 @@ def _get_time_lookup_function(
         ds = mapper[timestamp]
         if limiter is not None:
             ds = limiter.transform(ds)
-        return {var: ds[var] for var in variables}
+        return {var: ds[var].load() for var in variables}
 
     if initial_time is not None:
         initial_time = label_to_time(initial_time)
