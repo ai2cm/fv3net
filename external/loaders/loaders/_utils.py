@@ -71,7 +71,6 @@ def stack(unstacked_dims: Sequence[str], ds: xr.Dataset) -> xr.Dataset:
     return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 
-@curry
 def sort_by_time(ds: xr.Dataset) -> xr.Dataset:
     return ds.sortby("time")
 
