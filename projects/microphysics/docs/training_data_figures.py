@@ -51,15 +51,13 @@ plt.rcParams["axes.prop_cycle"] = cycler("color", wong_palette)
 # %%
 # open data
 config = TrainConfig.from_yaml_path(
-    "gs://vcm-ml-experiments/microphysics-emulation/2022-01-04/"
-    "log-cloud-dense-9b3e1a/config.yaml"
+    "/home/andrep/repos/fv3net/projects/microphysics/input_ablation/gscond/rnn.yaml"
 )
 
-train_ds = nc_dir_to_tf_dataset(
-    config.train_url, config.get_dataset_convertor(), nfiles=config.nfiles
-)
+train_ds = config.open_dataset(config.train_url, None, config.model_variables)
 train_set = next(iter(train_ds.batch(40000)))
-train_set = config.get_transform().forward(train_set)
+tensor_transform = config.build_transform(train_set)
+train_set = tensor_transform.forward(train_set)
 
 
 # %% [markdown]
@@ -253,9 +251,20 @@ df["temp difference"] = df["air_temperature_after_precpd"] - df["air_temperature
 df["qc difference"] = (
     df["cloud_water_mixing_ratio_after_precpd"] - df["cloud_water_mixing_ratio_input"]
 )
+df["t gscond difference"] = (
+    df["air_temperature_after_gscond"] - df["air_temperature_input"]
+)
+df["qv gscond difference"] = (
+    df["specific_humidity_after_gscond"] - df["specific_humidity_input"]
+)
 
 df["log_10(qc+1e-45)"] = np.log10(df[qc] + 1e-45)
 df["log_10(qc+1e-10)"] = np.log10(df[qc] + 1e-10)
+df["log_10(|qv difference|)"] = np.log10(np.abs(df["qv difference"]) + 1e-15)
+df["log_10(|qc difference|)"] = np.log10(np.abs(df["qc difference"]) + 1e-45)
+df["log_10(|t difference|)"] = np.log10(np.abs(df["temp difference"]) + 1e-20)
+df["log_10(|t gc difference|)"] = np.log10(np.abs(df["t gscond difference"]) + 1e-20)
+df["log_10(|qv gc difference|)"] = np.log10(np.abs(df["qv gscond difference"]) + 1e-20)
 
 
 for field in [
@@ -265,6 +274,11 @@ for field in [
     "cloud_water_mixing_ratio_after_precpd",
     "log_10(qc+1e-10)",
     "log_10(qc+1e-45)",
+    "log_10(|qv difference|)",
+    "log_10(|qc difference|)",
+    "log_10(|t difference|)",
+    "log_10(|t gc difference|)",
+    "log_10(|qv gc difference|)",
 ]:
     compare_conditional(df, T, field)
 
