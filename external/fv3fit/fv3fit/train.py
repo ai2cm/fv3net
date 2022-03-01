@@ -61,6 +61,7 @@ def get_data(
     validation_data_config: Optional[str],
     local_download_path: Optional[str],
     variable_names: Sequence[str],
+    in_memory: bool = False,
 ) -> Tuple[loaders.typing.Batches, loaders.typing.Batches]:
     if local_download_path is None:
         return get_uncached_data(
@@ -74,6 +75,7 @@ def get_data(
             validation_data_config=validation_data_config,
             local_download_path=local_download_path,
             variable_names=variable_names,
+            in_memory=in_memory,
         )
 
 
@@ -103,6 +105,7 @@ def get_cached_data(
     validation_data_config: Optional[str],
     local_download_path: str,
     variable_names: Sequence[str],
+    in_memory: bool,
 ) -> Tuple[loaders.typing.Batches, loaders.typing.Batches]:
     train_data_path = os.path.join(local_download_path, "train_data")
     logger.info("saving training data to %s", train_data_path)
@@ -113,7 +116,7 @@ def get_cached_data(
         variable_names=variable_names,
     )
     train_batches = loaders.batches_from_netcdf(
-        path=train_data_path, variable_names=variable_names
+        path=train_data_path, variable_names=variable_names, in_memory=in_memory
     )
     if validation_data_config is not None:
         validation_data_path = os.path.join(local_download_path, "validation_data")
@@ -125,7 +128,9 @@ def get_cached_data(
             variable_names=variable_names,
         )
         val_batches = loaders.batches_from_netcdf(
-            path=validation_data_path, variable_names=variable_names
+            path=validation_data_path,
+            variable_names=variable_names,
+            in_memory=in_memory,
         )
     else:
         val_batches = []
@@ -156,6 +161,7 @@ def main(args, unknown_args=None):
         args.validation_data_config,
         args.local_download_path,
         variable_names=training_config.variables,
+        in_memory=training_data_config.kwargs.get("in_memory", False),
     )
 
     train = fv3fit.get_training_function(training_config.model_type)
