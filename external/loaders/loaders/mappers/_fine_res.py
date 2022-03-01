@@ -115,7 +115,7 @@ def compute_budget(
     merged: xr.Dataset, approach: Approach, include_temperature_nudging: bool
 ) -> MLTendencies:
     sources = compute_fine_res_sources(merged, include_temperature_nudging)
-    merged = xr.merge([merged] + list(sources) + [compute_mse_tendency(*sources)])
+    merged = xr.merge([merged] + list(sources))
 
     if approach == Approach.apparent_sources_plus_nudging_tendencies:
         merged["Q1"], merged["Q2"] = _add_nudging_tendencies(merged)
@@ -131,6 +131,7 @@ def compute_budget(
     else:
         raise ValueError(f"{approach} not implemented.")
 
+    merged["Qm"] = compute_mse_tendency(merged.Q1, merged.Q2)
     return _ml_standard_names(merged)
 
 
