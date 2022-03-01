@@ -17,13 +17,13 @@ import vcm
 from unittest import mock
 
 
-def get_mock_dataset(n_time):
-
-    n_x, n_y, n_z, n_tile = (8, 8, 10, 6)
-    arr = np.zeros((n_time, n_tile, n_z, n_y, n_x))
-    arr_surface = np.zeros((n_time, n_tile, n_y, n_x))
-    dims = ["time", "tile", "z", "y", "x"]
-    dims_surface = ["time", "tile", "y", "x"]
+def get_mock_dataset(n_time, unstacked_dims: Sequence[str]):
+    shape = tuple(range(4, 4 + len(unstacked_dims) + 1))
+    dims = tuple(["sample"] + list(unstacked_dims))
+    arr = np.zeros(shape)
+    shape_surface = shape[:-1]
+    dims_surface = dims[:-1]
+    arr_surface = np.zeros(shape_surface)
 
     data = xr.Dataset(
         {
@@ -129,6 +129,7 @@ def call_main(
         hyperparameters_dict,
         use_validation_data,
         use_local_download_path=use_local_download_path,
+        unstacked_dims=["z"],
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
     with mock.patch("fv3fit.DerivedModel") as MockDerivedModel:
@@ -259,6 +260,7 @@ def get_config(
     model_type,
     hyperparameter_dict,
     use_validation_data: bool,
+    unstacked_dims: Sequence[str],
     use_local_download_path: bool = False,
 ):
     base_dir = str(tmpdir)
@@ -273,7 +275,7 @@ def get_config(
         hyperparameters=hyperparameters,
         derived_output_variables=derived_output_variables,
     )
-    mock_dataset = get_mock_dataset(n_time=9)
+    mock_dataset = get_mock_dataset(n_time=9, unstacked_dims=unstacked_dims)
     train_times = [vcm.encode_time(dt) for dt in mock_dataset["time"][:6].values]
     validation_times = [vcm.encode_time(dt) for dt in mock_dataset["time"][6:9].values]
     # TODO: refactor to use a loaders function that generates dummy data
@@ -290,6 +292,7 @@ def get_config(
             needs_grid=False,
             res="c8_random_values",
             timesteps_per_batch=3,
+            unstacked_dims=unstacked_dims,
         ),
     )
     if use_validation_data:
@@ -303,6 +306,7 @@ def get_config(
                 needs_grid=False,
                 res="c8_random_values",
                 timesteps_per_batch=3,
+                unstacked_dims=unstacked_dims,
             ),
         )
         validation_data_filename = os.path.join(base_dir, "validation_data.yaml")
@@ -348,6 +352,7 @@ def test_train_config_override_args(tmpdir, mock_load_batches, mock_train_dense_
         model_type=model_type,
         hyperparameter_dict=hyperparameter_dict,
         use_validation_data=True,
+        unstacked_dims=["z"],
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
     assert config.hyperparameters.dense_network["width"] == 6
@@ -387,6 +392,8 @@ def cli_main(args: MainArgs):
         + validation_args
         + local_download_args
     )
+    # if you need pdb support, temporarily replace the check_call above with this:
+    # fv3fit.train.main(args)
 
 
 @pytest.mark.parametrize(
@@ -424,9 +431,18 @@ def test_cli(
         hyperparameter_dict,
         use_validation_data,
         use_local_download_path=use_local_download_path,
+        unstacked_dims=["z"],
     )
-    mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
-    cli_main(config.args)
-    fv3fit.load(config.args.output_path)
-    if use_local_download_path:
-        assert len(os.listdir(config.args.local_download_path)) > 0
+    if not use_local_download_path and model_type == "dense":
+        # dense requires caching if unstacked_dims is set as double-stacking
+        # a MultiIndex causes an error, can remove this block when dense training
+        # no longer stacks
+        with pytest.raises(
+            expected_exception=(ValueError, subprocess.CalledProcessError)
+        ):
+            cli_main(config.args)
+    else:
+        cli_main(config.args)
+        fv3fit.load(config.args.output_path)
+        if use_local_download_path:
+            assert len(os.listdir(config.args.local_download_path)) > 0
