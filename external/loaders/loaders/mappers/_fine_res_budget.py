@@ -106,7 +106,8 @@ def compute_mse_tendency(
     q1: xarray.DataArray, q2: xarray.DataArray
 ) -> xarray.DataArray:
     result = (
-        vcm.internal_energy(q1) + vcm.calc.thermo.local.latent_heat_vaporization(0) * q2
+        vcm.internal_energy(q1)
+        + vcm.calc.thermo.local.latent_heat_vaporization(273.15) * q2
     )
     return result.assign_attrs(
         units="W/kg", long_name="apparent MSE heating", description="cv * Q1 + L * Q2"
