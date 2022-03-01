@@ -42,6 +42,8 @@ variables:
 		air_temperature_input:standard_name = "air_temperature" ;
 		air_temperature_input:type = "real" ;
 		air_temperature_input:units = "K" ;
+	float32 cloud_water_mixing_ratio_after_gscond(time, tile, sample, z) ;
+		cloud_water_mixing_ratio_after_gscond:units = unknown ;
 	float32 cloud_water_mixing_ratio_after_precpd(time, tile, sample, z) ;
 		cloud_water_mixing_ratio_after_precpd:units = unknown ;
 	float32 cloud_water_mixing_ratio_input(time, tile, sample, z) ;
