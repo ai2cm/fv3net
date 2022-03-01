@@ -14,7 +14,7 @@ tag="9a68fb66d235223056812cc302fe0c2fe2717a53"
 group="$(openssl rand -hex 3)"
 
 
-for exp in no-scaling qc qc-q all
+for exp in no-scaling qc qc-q all all-correct-floors
 do
 for arch in dense rnn
 do
