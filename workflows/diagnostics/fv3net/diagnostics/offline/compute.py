@@ -84,10 +84,9 @@ def _create_arg_parser() -> argparse.Namespace:
         type=str,
         default=None,
         help=(
-            "Optional path to grid data netcdf. If not provided, defaults to loading "
-            "the grid  with the appropriate resolution (given in batch_kwargs) from "
-            "the catalog. Useful if you do not have permissions to access the GCS "
-            "data in vcm.catalog."
+            "Optional path to grid data netcdf. If not provided, see "
+            "'grid-resolution'. Useful if you do not have permissions to access the "
+            "GCS data in vcm.catalog."
         ),
     )
     parser.add_argument(
@@ -95,8 +94,9 @@ def _create_arg_parser() -> argparse.Namespace:
         type=str,
         default="c48",
         help=(
-            "Optional grid resolution used to retrieve grid from the vcm catalog "
-            '(e.g. "c48"), ignored if --grid is provided'
+            "Optional grid resolution (e.g., 'c96') used to retrieve grid from the "
+            "vcm catalog, ignored if --grid is provided, or if the grid resolution "
+            "is specified in the data configuration."
         ),
     )
     parser.add_argument(
@@ -106,6 +106,18 @@ def _create_arg_parser() -> argparse.Namespace:
         help=("Optional n_jobs parameter for joblib.parallel when computing metrics."),
     )
     return parser.parse_args()
+
+
+def _resolve_grid(
+    grid_path: str, grid_resolution: str, data_kwargs: dict
+) -> xr.Dataset:
+    logger.info("Reading grid.")
+    if not grid_path:
+        grid = load_grid_info(data_kwargs.get("res", grid_resolution))
+    else:
+        with fsspec.open(grid_path, "rb") as f:
+            grid = xr.open_dataset(f, engine="h5netcdf").load()
+    return grid
 
 
 def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
@@ -265,13 +277,7 @@ def main(args):
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
 
-    logger.info("Reading grid...")
-    if not args.grid:
-        # By default, read the appropriate resolution grid from vcm.catalog
-        grid = load_grid_info(args.grid_resolution)
-    else:
-        with fsspec.open(args.grid, "rb") as f:
-            grid = xr.open_dataset(f, engine="h5netcdf").load()
+    grid = _resolve_grid(args.grid, args.grid_resolution, config.kwargs)
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
