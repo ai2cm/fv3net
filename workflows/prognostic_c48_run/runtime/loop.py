@@ -43,7 +43,7 @@ from runtime.steppers.machine_learning import (
     open_model,
 )
 from runtime.steppers.nudging import PureNudger
-from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
+from runtime.steppers.prescriber import Prescriber, PrescriberConfig
 from runtime.steppers.combine import CombinedStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
@@ -282,12 +282,10 @@ class TimeLoop(
                         "Using Prescriber for prephysics for variables "
                         f"{prephysics_config.variables}"
                     )
-                    communicator = self._get_communicator()
-                    timesteps = get_timesteps(
-                        self.time, self._timestep, self._fv3gfs.get_step_count()
-                    )
                     prephysics_steppers.append(
-                        Prescriber(prephysics_config, communicator, timesteps=timesteps)
+                        runtime.factories.get_prescriber(
+                            prephysics_config, self._get_communicator()
+                        )
                     )
             stepper = CombinedStepper(prephysics_steppers)
         return stepper
