@@ -32,8 +32,11 @@ class Difference(TensorTransform):
     after: str
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
-        new_names = {self.before, self.after} if self.to in requested_names else set()
-        return requested_names.union(new_names)
+
+        if self.to in requested_names:
+            requested_names = (requested_names - {self.to}) | {self.before, self.after}
+
+        return requested_names
 
     def build(self, sample: TensorDict) -> TensorTransform:
         return self
