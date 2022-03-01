@@ -1,6 +1,5 @@
-from collections import defaultdict
 import dataclasses
-from typing import Callable, MutableMapping, Optional, Sequence, Set
+from typing import Callable, Optional, Sequence, Set
 
 import tensorflow as tf
 from fv3fit.emulation.transforms.transforms import (
@@ -100,10 +99,12 @@ class ConditionallyScaled(TransformFactory):
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         """List the names needed to compute ``self.to``"""
-        new_names = (
-            {self.condition_on, self.source} if self.to in requested_names else set()
-        )
-        return requested_names.union(new_names)
+
+        if self.to in requested_names:
+            dependencies = {self.condition_on, self.source}
+            requested_names = (requested_names - {self.to}) | dependencies
+
+        return requested_names
 
     def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
 
@@ -136,36 +137,10 @@ class ComposedTransformFactory(TransformFactory):
     def __init__(self, factories: Sequence[TransformFactory]):
         self.factories = factories
 
-    def _get_first_order_dependencies(self, name: str) -> Set[str]:
-        deps: Set[str] = set()
-        for factory in self.factories:
-            deps_of_name = factory.backward_names({name}) - {name}
-            deps = deps.union(deps_of_name)
-        return deps
-
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
-        out: Set[str] = set()
-        stack = sorted(requested_names)
-        visit_count: MutableMapping[str, int] = defaultdict(lambda: 0)
-
-        while stack:
-            name = stack.pop()
-            visit_count[name] += 1
-            if visit_count[name] > len(visit_count):
-                # name should visited at most once for each distinct processed input.
-                # otherwise we not there is some circular dependency
-                raise ValueError(f"Circular dependency detected for input {name}.")
-
-            deps = self._get_first_order_dependencies(name)
-            if deps == set():
-                # name cannot be computed from transforms so we must request it
-                # from the data
-                out.add(name)
-            else:
-                # more processing needed
-                for dep in deps:
-                    stack.append(dep)
-        return out
+        for factory in self.factories[::-1]:
+            requested_names = factory.backward_names(requested_names)
+        return requested_names
 
     def build(self, sample: TensorDict) -> ComposedTransform:
         transforms = []

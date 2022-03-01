@@ -23,7 +23,8 @@ from .._utils import (
     stack,
     shuffle,
     dropna,
-    select_first_samples,
+    select_fraction,
+    sort_by_time,
 )
 from ..constants import TIME_NAME
 from .._config import batches_functions, batches_from_mapper_functions
@@ -121,6 +122,8 @@ def batches_from_mapper(
     unstacked_dims: Optional[Sequence[str]] = None,
     subsample_ratio: float = 1.0,
     drop_nans: bool = False,
+    shuffle_timesteps: bool = True,
+    shuffle_samples: bool = False,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -141,6 +144,10 @@ def batches_from_mapper(
         drop_nans: if True, drop samples with NaN values from the data, and raise an
             exception if all values in a batch are NaN. requires unstacked_dims
             argument is given, raises a ValueError otherwise.
+        shuffle_timesteps: if True, shuffle the timesteps list.
+        shuffle_samples: if True, shuffle the samples after stacking. If False, can
+            still subselect a random subset, but it is ordered by stacked dims
+            multiindex.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -158,8 +165,14 @@ def batches_from_mapper(
 
     if timesteps is None:
         timesteps = list(data_mapping.keys())
-    shuffled_times = np.random.choice(timesteps, len(timesteps), replace=False).tolist()
-    batched_timesteps = list(partition_all(timesteps_per_batch, shuffled_times))
+
+    if shuffle_timesteps:
+        final_timesteps = np.random.choice(
+            timesteps, len(timesteps), replace=False
+        ).tolist()
+    else:
+        final_timesteps = timesteps
+    batched_timesteps = list(partition_all(timesteps_per_batch, final_timesteps))
 
     # First function goes from mapper + timesteps to xr.dataset
     # Subsequent transforms are all dataset -> dataset
@@ -174,9 +187,11 @@ def batches_from_mapper(
     transforms.append(add_derived_data(variable_names))
 
     if unstacked_dims is not None:
+        transforms.append(sort_by_time)
         transforms.append(curry(stack)(unstacked_dims))
-        transforms.append(shuffle)
-        transforms.append(select_first_samples(subsample_ratio))
+        transforms.append(select_fraction(subsample_ratio))
+        if shuffle_samples is True:
+            transforms.append(shuffle)
         if drop_nans:
             transforms.append(dropna)
     elif subsample_ratio != 1.0:
@@ -189,7 +204,7 @@ def batches_from_mapper(
     batch_func = compose_left(*transforms)
 
     seq = Map(batch_func, batched_timesteps)
-    seq.attrs["times"] = shuffled_times
+    seq.attrs["times"] = final_timesteps
 
     if in_memory:
         out_seq: Batches = tuple(ds.load() for ds in seq)
@@ -271,24 +286,33 @@ def _get_batch(
 
 
 @curry
-def _open_dataset(fs: fsspec.AbstractFileSystem, filename):
-    return xr.open_dataset(fs.open(filename), engine="h5netcdf")
+def _open_dataset(fs: fsspec.AbstractFileSystem, variable_names, filename):
+    return xr.open_dataset(fs.open(filename), engine="h5netcdf")[variable_names]
 
 
 @batches_functions.register
-def batches_from_netcdf(path: str) -> loaders.typing.Batches:
+def batches_from_netcdf(
+    path: str, variable_names: Iterable[str], in_memory: bool = False,
+) -> loaders.typing.Batches:
     """
     Loads a series of netCDF files from the given directory, in alphabetical order.
 
     Args:
         path: path (local or remote) of a directory of netCDF files
-
+        variable_names: variables to load from datasets
+        in_memory: if True, load data eagerly and keep it in memory
     Returns:
         A sequence of batched data
     """
     fs = vcm.get_fs(path)
     filenames = [fname for fname in sorted(fs.ls(path)) if fname.endswith(".nc")]
-    return Map(_open_dataset(fs), filenames)
+    seq = Map(_open_dataset(fs, variable_names), filenames)
+
+    if in_memory:
+        out_seq: Batches = tuple(ds.load() for ds in seq)
+    else:
+        out_seq = seq
+    return out_seq
 
 
 @batches_functions.register

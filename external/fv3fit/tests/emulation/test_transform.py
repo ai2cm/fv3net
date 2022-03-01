@@ -89,15 +89,15 @@ def test_composed_transform_backward_names_sequence():
     assert transform.backward_names({"c"}) == {"a"}
 
 
-def test_composed_transform_errors_on_circular_dep():
+def test_composed_transform_with_circular_dep():
     factory = ComposedTransformFactory(
         [
             TransformedVariableConfig("a", "b", LogTransform()),
             TransformedVariableConfig("b", "a", LogTransform()),
         ]
     )
-    with pytest.raises(ValueError):
-        return factory.backward_names({"a"})
+
+    assert factory.backward_names({"a"}) == {"a"}
 
 
 def test_composed_transform_ok_with_repeated_dep():
@@ -210,7 +210,7 @@ def test_ConditionallyScaledTransform_backward(min_scale: float):
 
 def test_ConditionallyScaled_backward_names():
     factory = ConditionallyScaled(source="in", to="z", bins=10, condition_on="T")
-    assert factory.backward_names({"z"}) == {"z", "T", "in"}
+    assert factory.backward_names({"z"}) == {"T", "in"}
 
 
 def test_ConditionallyScaled_backward_names_output_not_in_request():
@@ -238,7 +238,7 @@ def test_ConditionallyScaled_build():
 
 def test_Difference_backward_names():
     diff = Difference("diff", "before", "after")
-    assert diff.backward_names({"diff"}) == {"before", "after", "diff"}
+    assert diff.backward_names({"diff"}) == {"before", "after"}
     assert diff.backward_names({"not in a"}) == {"not in a"}
 
 
