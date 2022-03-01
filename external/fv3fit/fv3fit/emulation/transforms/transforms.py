@@ -94,7 +94,7 @@ class PositiveTransform:
         return x
 
     def backward(self, x: tf.Tensor) -> tf.Tensor:
-        return tf.keras.activations.relu((x)
+        return tf.keras.activations.relu(x)
 
 
 UnivariateCompatible = Union[LogTransform, PositiveTransform]
