@@ -90,14 +90,11 @@ class PositiveTransform:
     # TODO: Is there a better way to do config instance via dacite w/o uniqueness?
     enforce_positive: str = "yes_please"
 
-    def __post_init__(self):
-        self.relu = tf.keras.layers.ReLU()
-
     def forward(self, x: tf.Tensor) -> tf.Tensor:
         return x
 
     def backward(self, x: tf.Tensor) -> tf.Tensor:
-        return self.relu(x)
+        return tf.keras.activations.relu((x)
 
 
 UnivariateCompatible = Union[LogTransform, PositiveTransform]
