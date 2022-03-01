@@ -78,9 +78,7 @@ def test_expected_batches_functions_exist():
     # currently use in configs, if you are deleting an option we no longer use
     # you can delete it here
     expected_functions = (
-        "batches_from_geodata",
         "batches_from_serialized",
-        "diagnostic_batches_from_geodata",
         "batches_from_netcdf",
     )
     for expected in expected_functions:
@@ -212,14 +210,6 @@ def test_load_batches_from_mapper_raises_if_registered_with_wrong_decorator():
     [
         pytest.param(
             {
-                "function": "batches_from_geodata",
-                "kwargs": {"data_path": "mock/data/path"},
-            },
-            loaders._config.BatchesConfig,
-            id="batches_config",
-        ),
-        pytest.param(
-            {
                 "mapper_config": {
                     "function": "open_zarr",
                     "kwargs": {"data_path": "mock/data/path"},
@@ -242,8 +232,7 @@ def test_safe_dump_data_config():
     Test that dataclass.asdict and pyyaml can be used to save BatchesConfig.
     """
     config = loaders.BatchesConfig(
-        function="batches_from_geodata",
-        kwargs={"data_path": "/my/path", "key": "value"},
+        function="batches_from_mapper", kwargs={"timesteps": ["1", "2", "2"]},
     )
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, "config.yaml")
