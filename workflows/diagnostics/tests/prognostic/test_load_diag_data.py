@@ -1,3 +1,4 @@
+import pathlib
 import cftime
 import pytest
 import xarray as xr
@@ -97,3 +98,8 @@ def test_Simulations(regtest, simulation):
     with regtest:
         simulation.data_3d.info()
         simulation.data_2d.info()
+
+
+def test_open_segmented_logs_as_strings():
+    path = pathlib.Path(__file__).parent / "rundir"
+    assert 1 == len(load_diags.open_segmented_logs_as_strings(path.as_posix()))
