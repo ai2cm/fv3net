@@ -4,7 +4,7 @@ import logging
 import cftime
 import xarray as xr
 from runtime.types import State, Diagnostics, Tendencies
-from runtime.transformers.tendency_prescriber import scatter_within_tile
+from runtime.scatter import scatter_within_tile
 from runtime.names import SST, TSFC, MASK
 
 import pace.util
