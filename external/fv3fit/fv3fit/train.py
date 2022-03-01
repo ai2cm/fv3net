@@ -109,6 +109,7 @@ def get_cached_data(
 ) -> Tuple[loaders.typing.Batches, loaders.typing.Batches]:
     train_data_path = os.path.join(local_download_path, "train_data")
     logger.info("saving training data to %s", train_data_path)
+    logger.info(f"using in_memory={in_memory} for cached training data")
     os.makedirs(train_data_path, exist_ok=True)
     save_main(
         data_config=training_data_config,
