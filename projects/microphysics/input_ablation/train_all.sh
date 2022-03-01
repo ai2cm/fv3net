@@ -14,7 +14,7 @@ tag="9a68fb66d235223056812cc302fe0c2fe2717a53"
 group="$(openssl rand -hex 3)"
 
 
-for exp in log-q-qc-exclusive log-q-qc gscond-log-q-qc
+for exp in log-q-qc-exclusive log-q-qc gscond-log-q-qc pressure gscond-log-q-qc-pressure
 do
 for arch in dense rnn
 do
