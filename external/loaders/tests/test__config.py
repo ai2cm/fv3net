@@ -227,12 +227,30 @@ def test_batches_loader_from_dict(data, expected_class):
     assert type(result) is expected_class
 
 
-def test_safe_dump_data_config():
+def test_safe_dump_BatchesFromMapperConfig():
+    """
+    Test that dataclass.asdict and pyyaml can be used to save BatchesFromMapperConfig.
+    """
+    config = loaders.BatchesFromMapperConfig(
+        function="batches_from_mapper",
+        kwargs={"timesteps": ["1", "2", "3"]},
+        mapper_config={},
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = os.path.join(tmpdir, "config.yaml")
+        with open(filename, "w") as f:
+            as_dict = dataclasses.asdict(config)
+            yaml.safe_dump(as_dict, f)
+        from_dict = loaders.BatchesFromMapperConfig(**as_dict)
+        assert config == from_dict
+
+
+def test_safe_dump_BatchesConfig():
     """
     Test that dataclass.asdict and pyyaml can be used to save BatchesConfig.
     """
     config = loaders.BatchesConfig(
-        function="batches_from_mapper", kwargs={"timesteps": ["1", "2", "2"]},
+        function="batches_from_netcdf", kwargs={"path": "abc"},
     )
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, "config.yaml")
