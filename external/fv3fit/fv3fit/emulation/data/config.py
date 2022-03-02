@@ -1,14 +1,32 @@
 import dataclasses
 import logging
-from typing import Dict, Mapping, Optional, Set
+from typing import Any, Callable, Dict, List, Mapping, Optional, Set
 
 import dacite
+import xarray
 from fv3fit._shared import SliceConfig
-from toolz.functoolz import compose_left
+from toolz.functoolz import pipe
 
 from . import transforms
 
 logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass
+class Pipeline:
+    xarray_transforms: List[Callable[[xarray.Dataset], xarray.Dataset]]
+    array_like_transforms: List[Any]
+    use_tensors: bool = True
+
+    def __call__(self, dataset: xarray.Dataset) -> Mapping[str, Any]:
+        transformed_dataset = pipe(dataset, *self.xarray_transforms)
+
+        if self.use_tensors:
+            array_like = transforms.to_tensors(transformed_dataset)
+        else:
+            array_like = transforms.to_ndarrays(transformed_dataset)
+
+        return pipe(array_like, *self.array_like_transforms)
 
 
 @dataclasses.dataclass
@@ -59,9 +77,7 @@ class TransformConfig:
         else:
             self.vert_sel_as_slices = None
 
-    def get_pipeline(
-        self, variables: Set[str],
-    ):
+    def get_pipeline(self, variables: Set[str]) -> Pipeline:
         """
         Args:
             variables: the variables required for training. Both inputs and outputs.
@@ -69,10 +85,25 @@ class TransformConfig:
         Returns:
             conversion from dataset to dict of numpy or tensorflow tensors
         """
+        return Pipeline(
+            self._get_xarray_transforms(variables),
+            self._get_array_like_transforms(),
+            use_tensors=self.use_tensors,
+        )
 
+    def _get_array_like_transforms(self):
+        # array-like dataset transforms
+        transform_funcs = [transforms.expand_single_dim_data]
+        if self.vertical_subselections is not None:
+            transform_funcs.append(
+                transform_funcs.maybe_subselect_feature_dim(self.vert_sel_as_slices)
+            )
+        return transform_funcs
+
+    def _get_xarray_transforms(
+        self, variables: Set[str]
+    ) -> List[Callable[[xarray.Dataset], xarray.Dataset]]:
         transform_funcs = []
-
-        # xarray transforms
 
         if self.antarctic_only:
             transform_funcs.append(transforms.select_antarctic)
@@ -83,16 +114,4 @@ class TransformConfig:
             )
         )
 
-        if self.use_tensors:
-            transform_funcs.append(transforms.to_tensors)
-        else:
-            transform_funcs.append(transforms.to_ndarrays)
-
-        # array-like dataset transforms
-        transform_funcs.append(transforms.expand_single_dim_data)
-
-        if self.vertical_subselections is not None:
-            transform_funcs.append(
-                transforms.maybe_subselect_feature_dim(self.vert_sel_as_slices)
-            )
-        return compose_left(*transform_funcs)
+        return transform_funcs
