@@ -35,7 +35,6 @@ model:
   direct_out_variables:
   - cloud_precpd_difference
   - total_precipitation
-  enforce_positive: false
   input_variables:
   - air_temperature_input
   - specific_humidity_input
