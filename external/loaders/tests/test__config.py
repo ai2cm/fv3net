@@ -220,6 +220,11 @@ def test_load_batches_from_mapper_raises_if_registered_with_wrong_decorator():
             loaders._config.BatchesFromMapperConfig,
             id="batches_from_mapper_config",
         ),
+        pytest.param(
+            {"function": "batches_from_netcdf", "kwargs": {"path": "mock/data/path"}},
+            loaders._config.BatchesConfig,
+            id="batches_config",
+        ),
     ],
 )
 def test_batches_loader_from_dict(data, expected_class):
