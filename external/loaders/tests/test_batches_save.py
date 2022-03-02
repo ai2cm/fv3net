@@ -5,6 +5,9 @@ from loaders.batches import save
 import tempfile
 import yaml
 import xarray as xr
+import numpy as np
+import os
+import pytest
 
 
 def test_save(tmpdir):
@@ -34,6 +37,76 @@ def test_save(tmpdir):
         with tempfile.NamedTemporaryFile() as tmpfile:
             with open(tmpfile.name, "w") as f:
                 yaml.dump(config_dict, f)
-            save.main(data_config=tmpfile.name, output_path=tmpdir)
+            save.main(data_config=tmpfile.name, output_path=tmpdir, variable_names=[])
         for filename, batch in zip(filenames, mock_batches):
             batch.to_netcdf.assert_called_once_with(filename, engine="h5netcdf")
+
+
+def test_save_stacked_data(tmpdir):
+    with mapper_context(), batches_from_mapper_context():
+
+        @loaders._config.mapper_functions.register
+        def mock_mapper():
+            return {
+                "0": xr.Dataset(
+                    data_vars={
+                        "a": xr.DataArray(
+                            np.zeros([10, 5, 5, 7]), dims=["dim0", "dim1", "dim2", "z"]
+                        )
+                    }
+                )
+            }
+
+        loaders._config.batches_from_mapper_functions.register(
+            loaders.batches_from_mapper
+        )
+
+        config_dict = {
+            "function": "batches_from_mapper",
+            "mapper_config": {"function": "mock_mapper", "kwargs": {}},
+            "kwargs": {"unstacked_dims": ["z"], "variable_names": ["a"]},
+        }
+        with tempfile.NamedTemporaryFile() as tmpfile:
+            with open(tmpfile.name, "w") as f:
+                yaml.dump(config_dict, f)
+            # only need to test a lack of crash for stacked data,
+            # batch.to_netcdf being called is checked in another test
+            save.main(data_config=tmpfile.name, output_path=tmpdir, variable_names=[])
+            ds = xr.open_dataset(os.path.join(str(tmpdir), "00000.nc"))
+            assert "a" in ds.data_vars
+            assert ds.a.dims == ("_fv3net_sample", "z")
+
+
+def test_save_raises_on_missing_variable(tmpdir):
+    with mapper_context(), batches_from_mapper_context():
+
+        @loaders._config.mapper_functions.register
+        def mock_mapper():
+            return {
+                "0": xr.Dataset(
+                    data_vars={
+                        "a": xr.DataArray(
+                            np.zeros([10, 5, 5, 7]), dims=["dim0", "dim1", "dim2", "z"]
+                        )
+                    }
+                )
+            }
+
+        loaders._config.batches_from_mapper_functions.register(
+            loaders.batches_from_mapper
+        )
+
+        config_dict = {
+            "function": "batches_from_mapper",
+            "mapper_config": {"function": "mock_mapper", "kwargs": {}},
+            "kwargs": {"unstacked_dims": ["z"], "variable_names": ["a"]},
+        }
+        with tempfile.NamedTemporaryFile() as tmpfile:
+            with open(tmpfile.name, "w") as f:
+                yaml.dump(config_dict, f)
+            # only need to test a lack of crash for stacked data,
+            # batch.to_netcdf being called is checked in another test
+            with pytest.raises(KeyError):
+                save.main(
+                    data_config=tmpfile.name, output_path=tmpdir, variable_names=["b"]
+                )

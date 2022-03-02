@@ -2,35 +2,27 @@ import pace.util
 from mpi4py import MPI
 import shutil
 import fsspec
-import xarray as xr
 import dataclasses
 import cftime
 import functools
 from datetime import timedelta
 import os
 from typing import (
-    MutableMapping,
     Mapping,
     Iterable,
     Callable,
-    Hashable,
     Any,
     Dict,
     Optional,
 )
 import logging
-from runtime.names import STATE_NAME_TO_TENDENCY, MASK
+
 from fv3kube import RestartCategoriesConfig
+from .interpolate import time_interpolate_func, label_to_time
+from .names import STATE_NAME_TO_TENDENCY
+from .types import State
 
 logger = logging.getLogger(__name__)
-
-State = MutableMapping[Hashable, xr.DataArray]
-
-# list of variables that will use nearest neighbor interpolation
-# between times instead of linear interpolation
-INTERPOLATE_NEAREST = [
-    MASK,
-]
 
 
 @dataclasses.dataclass
@@ -96,7 +88,7 @@ def setup_get_reference_state(
     """
     reference_dir = config.restarts_path
 
-    get_reference_state: Callable[[Any], Dict[Any, Any]] = functools.partial(
+    get_reference_state: Callable[[Any], State] = functools.partial(
         _get_reference_state,
         reference_dir=reference_dir,
         restart_categories=config.restart_categories,
@@ -107,9 +99,9 @@ def setup_get_reference_state(
 
     initial_time_label = config.reference_initial_time
     if initial_time_label is not None:
-        get_reference_state = _time_interpolate_func(
+        get_reference_state = time_interpolate_func(
             get_reference_state,
-            initial_time=_label_to_time(initial_time_label),
+            initial_time=label_to_time(initial_time_label),
             frequency=timedelta(seconds=config.reference_frequency_seconds),
         )
 
@@ -117,7 +109,7 @@ def setup_get_reference_state(
 
 
 def _get_reference_state(
-    time: str,
+    time: cftime.DatetimeJulian,
     reference_dir: str,
     communicator: pace.util.CubedSphereCommunicator,
     only_names: Iterable[str],
@@ -183,64 +175,6 @@ def _time_to_label(time: cftime.DatetimeJulian) -> str:
         f"{time.year:04d}{time.month:02d}{time.day:02d}."
         f"{time.hour:02d}{time.minute:02d}{time.second:02d}"
     )
-
-
-def _label_to_time(time: str) -> cftime.DatetimeJulian:
-    return cftime.DatetimeJulian(
-        int(time[:4]),
-        int(time[4:6]),
-        int(time[6:8]),
-        int(time[9:11]),
-        int(time[11:13]),
-        int(time[13:15]),
-    )
-
-
-def _time_interpolate_func(
-    func: Callable[[cftime.DatetimeJulian], dict],
-    frequency: timedelta,
-    initial_time: cftime.DatetimeJulian,
-) -> Callable[[cftime.DatetimeJulian], dict]:
-    cached_func = functools.lru_cache(maxsize=2)(func)
-
-    @functools.wraps(cached_func)
-    def myfunc(time: cftime.DatetimeJulian) -> State:
-        quotient = (time - initial_time) // frequency
-        remainder = (time - initial_time) % frequency
-
-        state: State = {}
-        if remainder == timedelta(0):
-            state.update(cached_func(time))
-        else:
-            begin_time = quotient * frequency + initial_time
-            end_time = begin_time + frequency
-
-            state_0 = cached_func(begin_time)
-            state_1 = cached_func(end_time)
-
-            state.update(
-                _average_states(state_0, state_1, weight=(end_time - time) / frequency)
-            )
-
-        return state
-
-    return myfunc
-
-
-def _average_states(state_0: State, state_1: State, weight: float) -> State:
-    common_keys = set(state_0) & set(state_1)
-    out = {}
-    for key in common_keys:
-        if isinstance(state_1[key], xr.DataArray):
-            with xr.set_options(keep_attrs=True):
-                if key in INTERPOLATE_NEAREST:
-                    out[key] = state_0[key] if weight >= 0.5 else state_1[key]
-                else:
-                    out[key] = (
-                        state_0[key] * weight
-                        + (1 - weight) * state_1[key]  # type: ignore
-                    )
-    return out
 
 
 def get_nudging_tendency(

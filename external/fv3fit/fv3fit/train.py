@@ -1,7 +1,7 @@
 import argparse
 import logging
 import os
-from typing import Sequence
+from typing import Optional, Sequence, Tuple
 from fv3fit._shared.config import get_arg_updated_config_dict
 import yaml
 import dataclasses
@@ -10,11 +10,14 @@ import fsspec
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
-import xarray as xr
 import loaders
+import loaders.typing
 import tempfile
+from loaders.batches.save import main as save_main
 
 from vcm.cloud import copy
+
+logger = logging.getLogger(__name__)
 
 
 def get_parser():
@@ -42,10 +45,8 @@ def get_parser():
     parser.add_argument(
         "--local-download-path",
         type=str,
-        help=(
-            "optional path for downloading data before training, "
-            "can greatly increase training speed"
-        ),
+        default=None,
+        help=("path for downloading data before training"),
     )
     return parser
 
@@ -53,6 +54,82 @@ def get_parser():
 def dump_dataclass(obj, yaml_filename):
     with fsspec.open(yaml_filename, "w") as f:
         yaml.safe_dump(dataclasses.asdict(obj), f)
+
+
+def get_data(
+    training_data_config: str,
+    validation_data_config: Optional[str],
+    local_download_path: Optional[str],
+    variable_names: Sequence[str],
+) -> Tuple[loaders.typing.Batches, loaders.typing.Batches]:
+    if local_download_path is None:
+        return get_uncached_data(
+            training_data_config=training_data_config,
+            validation_data_config=validation_data_config,
+            variable_names=variable_names,
+        )
+    else:
+        return get_cached_data(
+            training_data_config=training_data_config,
+            validation_data_config=validation_data_config,
+            local_download_path=local_download_path,
+            variable_names=variable_names,
+        )
+
+
+def get_uncached_data(
+    training_data_config: str,
+    validation_data_config: Optional[str],
+    variable_names: Sequence[str],
+) -> Tuple[loaders.typing.Batches, loaders.typing.Batches]:
+    with open(training_data_config, "r") as f:
+        config = yaml.safe_load(f)
+    loader = loaders.BatchesLoader.from_dict(config)
+    logger.info("configuration loaded, creating batches object")
+    train_batches = loader.load_batches(variables=variable_names)
+    if validation_data_config is not None:
+        with open(validation_data_config, "r") as f:
+            config = yaml.safe_load(f)
+        loader = loaders.BatchesLoader.from_dict(config)
+        logger.info("configuration loaded, creating batches object")
+        val_batches = loader.load_batches(variables=variable_names)
+    else:
+        val_batches = []
+    return train_batches, val_batches
+
+
+def get_cached_data(
+    training_data_config: str,
+    validation_data_config: Optional[str],
+    local_download_path: str,
+    variable_names: Sequence[str],
+) -> Tuple[loaders.typing.Batches, loaders.typing.Batches]:
+    train_data_path = os.path.join(local_download_path, "train_data")
+    logger.info("saving training data to %s", train_data_path)
+    os.makedirs(train_data_path, exist_ok=True)
+    save_main(
+        data_config=training_data_config,
+        output_path=train_data_path,
+        variable_names=variable_names,
+    )
+    train_batches = loaders.batches_from_netcdf(
+        path=train_data_path, variable_names=variable_names
+    )
+    if validation_data_config is not None:
+        validation_data_path = os.path.join(local_download_path, "validation_data")
+        logger.info("saving validation data to %s", validation_data_path)
+        os.makedirs(validation_data_path, exist_ok=True)
+        save_main(
+            data_config=validation_data_config,
+            output_path=validation_data_path,
+            variable_names=variable_names,
+        )
+        val_batches = loaders.batches_from_netcdf(
+            path=validation_data_path, variable_names=variable_names
+        )
+    else:
+        val_batches = []
+    return train_batches, val_batches
 
 
 def main(args, unknown_args=None):
@@ -74,32 +151,16 @@ def main(args, unknown_args=None):
         training_data_config, os.path.join(args.output_path, "training_data.yaml")
     )
 
-    train_batches: loaders.typing.Batches = training_data_config.load_batches(
-        variables=training_config.variables
+    train_batches, val_batches = get_data(
+        args.training_data_config,
+        args.validation_data_config,
+        args.local_download_path,
+        variable_names=training_config.variables,
     )
-    if args.validation_data_config is not None:
-        with open(args.validation_data_config, "r") as f:
-            validation_data_config = loaders.BatchesLoader.from_dict(yaml.safe_load(f))
-        dump_dataclass(
-            validation_data_config,
-            os.path.join(args.output_path, "validation_data.yaml"),
-        )
-        val_batches = validation_data_config.load_batches(
-            variables=training_config.variables
-        )
-    else:
-        val_batches: Sequence[xr.Dataset] = []
-
-    if args.local_download_path:
-        train_batches = loaders.to_local(
-            train_batches, os.path.join(args.local_download_path, "train")
-        )
-        val_batches = loaders.to_local(
-            val_batches, os.path.join(args.local_download_path, "validation")
-        )
 
     train = fv3fit.get_training_function(training_config.model_type)
 
+    logger.info("calling train function")
     model = train(
         hyperparameters=training_config.hyperparameters,
         train_batches=train_batches,
@@ -111,7 +172,7 @@ def main(args, unknown_args=None):
 
 
 if __name__ == "__main__":
-
+    logger.setLevel(logging.INFO)
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
     with tempfile.NamedTemporaryFile() as temp_log:

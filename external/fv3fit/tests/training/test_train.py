@@ -12,6 +12,7 @@ from fv3fit._shared.config import TRAINING_FUNCTIONS, get_hyperparameter_class
 import vcm.testing
 import tempfile
 from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
+from fv3fit._shared.stacking import SAMPLE_DIM_NAME, stack_non_vertical
 
 
 # training functions that work on arbitrary datasets, can be used in generic tests below
@@ -134,6 +135,10 @@ def get_dataset(model_type, sample_func):
         {name: value for name, value in zip(output_variables, output_values)}
     )
     train_dataset = xr.Dataset(data_vars=data_vars)
+    if model_type in ["sklearn_random_forest"]:  # refactored to use stacked data
+        train_dataset = stack_non_vertical(train_dataset).rename_dims(
+            {SAMPLE_DIM_NAME: "foo_sample"}
+        )
     return input_variables, output_variables, train_dataset
 
 
@@ -321,24 +326,6 @@ def test_dump_and_load_default_maintains_prediction(model_type):
         loaded_model = fv3fit.load(tmpdir)
     loaded_result = loaded_model.predict(result.test_dataset)
     xr.testing.assert_equal(loaded_result, original_result)
-
-
-@pytest.mark.parametrize("model_type", ["sklearn_random_forest"])
-def test_train_predict_multiple_stacked_dims(model_type):
-    da = xr.DataArray(np.full(fill_value=1.0, shape=(5, 10, 15)), dims=["x", "y", "z"],)
-    train_dataset = xr.Dataset(
-        data_vars={"var_in_0": da, "var_in_1": da, "var_out_0": da, "var_out_1": da}
-    )
-    train_batches = [train_dataset for _ in range(2)]
-    val_batches = []
-    train = fv3fit.get_training_function(model_type)
-    input_variables = ["var_in_0", "var_in_1"]
-    output_variables = ["var_out_0", "var_out_1"]
-    hyperparameters = get_default_hyperparameters(
-        model_type, input_variables, output_variables
-    )
-    model = train(hyperparameters, train_batches, val_batches,)
-    model.predict(train_dataset)
 
 
 def test_train_dense_model_clipped_inputs_outputs():

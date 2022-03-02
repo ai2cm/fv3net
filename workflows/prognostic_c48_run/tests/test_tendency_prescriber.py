@@ -4,14 +4,17 @@ import cftime
 import numpy as np
 import xarray as xr
 import dacite
+import pytest
 
 import pace.util
 from pace.util.testing import DummyComm
 
+import loaders
 from runtime.transformers.tendency_prescriber import (
     TendencyPrescriber,
     TendencyPrescriberConfig,
 )
+from runtime.factories import _get_time_lookup_function
 
 
 class MockDerivedState:
@@ -68,11 +71,18 @@ def test_tendency_prescriber(state, tmpdir, regtest):
         "mapper_config": {"function": "open_zarr", "kwargs": {"data_path": path}},
         "variables": {"air_temperature": "Q1"},
     }
+    prescriber_config = dacite.from_dict(TendencyPrescriberConfig, config)
+    timestep = 2
+    mapper = prescriber_config.mapper_config.load_mapper()
+    mapper_func = _get_time_lookup_function(
+        mapper, list(prescriber_config.variables.values()), initial_time=None,
+    )
     override = TendencyPrescriber(
-        dacite.from_dict(TendencyPrescriberConfig, config),
         derived_state,
         communicator,
-        timestep=2,
+        timestep,
+        prescriber_config.variables,
+        mapper_func,
         diagnostic_variables=diagnostic_variables,
     )
 
@@ -99,3 +109,29 @@ def test_tendency_prescriber(state, tmpdir, regtest):
     )
     for variable in sorted(diags):
         print(variable, joblib.hash(diags[variable].values), file=regtest)
+
+
+@pytest.mark.parametrize(
+    ["initial_time", "time_substep", "error"],
+    [
+        pytest.param("20160801.000000", 450, False, id="interpolate"),
+        pytest.param(None, 900, False, id="no_interpolate"),
+        pytest.param(None, 450, True, id="substep_without_interpolate_error"),
+    ],
+)
+def test__get_time_lookup_function(tmpdir, initial_time, time_substep, error):
+    time = cftime.DatetimeJulian(2016, 8, 1)
+    path = str(tmpdir.join("tendencies.zarr"))
+    tendencies = _get_tendencies(time)
+    tendencies.to_zarr(path, consolidated=True)
+    mapper_config = loaders.MapperConfig(
+        function="open_zarr", kwargs={"data_path": path}
+    )
+    mapper = mapper_config.load_mapper()
+    time_lookup_function = _get_time_lookup_function(mapper, ["Q1"], initial_time, 900)
+    if error:
+        with pytest.raises(KeyError):
+            time_lookup_function(time + timedelta(seconds=time_substep))
+    else:
+        state = time_lookup_function(time + timedelta(seconds=time_substep))
+        assert isinstance(state["Q1"], xr.DataArray)
