@@ -1,0 +1,81 @@
+batch_size: 512
+cache: false
+checkpoint_model: true
+conservative_model: null
+epochs: 20
+log_level: INFO
+loss:
+  loss_variables:
+  - air_temperature_after_precpd
+  - specific_humidity_after_precpd
+  - cloud_precpd_difference
+  - total_precipitation
+  - air_temperature_after_gscond
+  - specific_humidity_after_gscond
+  metric_variables:
+  - cloud_water_mixing_ratio_after_precpd
+  normalization: mean_std
+  optimizer:
+    kwargs:
+      learning_rate: 0.0002
+    learning_rate_schedule: null
+    name: Adam
+  weights:
+    air_temperature_after_gscond: 500000.0
+    air_temperature_after_precpd: 500000.0
+    cloud_precpd_difference: 10.0
+    specific_humidity_after_gscond: 500000.0
+    specific_humidity_after_precpd: 500000.0
+    total_precipitation: 0.04
+model:
+  architecture:
+    kwargs:
+      channels: 256
+    name: rnn-v1-shared-weights
+  direct_out_variables:
+  - cloud_precpd_difference
+  - total_precipitation
+  enforce_positive: false
+  input_variables:
+  - air_temperature_input
+  - specific_humidity_input
+  - cloud_water_mixing_ratio_input
+  - pressure_thickness_of_atmospheric_layer
+  - specific_humidity_after_last_gscond
+  - air_temperature_after_last_gscond
+  normalize_key: mean_std
+  residual_out_variables:
+    air_temperature_after_gscond: air_temperature_input
+    air_temperature_after_precpd: air_temperature_input
+    specific_humidity_after_gscond: specific_humidity_input
+    specific_humidity_after_precpd: specific_humidity_input
+  selection_map: {}
+  tendency_outputs: {}
+  timestep_increment_sec: 900
+nfiles: null
+nfiles_valid: 100
+out_url: gs://vcm-ml-scratch/andrep/test-delete
+shuffle_buffer_size: 100000
+tensor_transform:
+- to: cloud_precpd_difference
+  before: cloud_water_mixing_ratio_input
+  after: cloud_water_mixing_ratio_after_precpd
+- bins: 50
+  source: cloud_precpd_difference
+  condition_on: air_temperature_input
+  min_scale: 1.0e-08
+  to: cloud_precpd_difference
+test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
+train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
+transform:
+  antarctic_only: false
+  derived_microphys_timestep: 900
+  use_tensors: true
+  vertical_subselections: null
+use_wandb: true
+valid_freq: 2
+verbose: 2
+wandb:
+  entity: ai2cm
+  job_type: train
+  wandb_project: microphysics-emulation

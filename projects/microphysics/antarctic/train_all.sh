@@ -10,18 +10,18 @@ else
     bucket="vcm-ml-experiments"
 fi
 
-tag="9a68fb66d235223056812cc302fe0c2fe2717a53"
+tag="011435e1b91e21c14d610abcc35150548e063a9b"
 group="$(openssl rand -hex 3)"
 
 
-for exp in limiter-all-loss limiter-tendency-loss no-limiter-tendency-loss
+for exp in cloud-tdep-gscond-cbfc4a alltdep-log-gscond-limited
 do
-for arch in dense rnn
+for arch in rnn
 do
 for ant in true false
 do
-    config_file="${exp}/${arch}-alltdep.yaml"
-    model_name="${exp}-${arch}-alltdep-antarc-${ant}-${group}"
+    config_file="${exp}/${arch}.yaml"
+    model_name="${exp}-${arch}-antarc-${ant}-${group}"
     out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}")
     flags="--out_url ${out_url} ${extra_flags} --transform.antarctic_only ${ant}"
     argo submit ../train/argo.yaml \
