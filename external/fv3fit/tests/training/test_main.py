@@ -379,7 +379,7 @@ def cli_main(args: MainArgs):
     if args.local_download_path is None:
         local_download_args = []
     else:
-        local_download_args = ["--cache.local_download_path, args.local_download_path"]
+        local_download_args = ["--cache.local_download_path", args.local_download_path]
     subprocess.check_call(
         [
             "python",
