@@ -57,6 +57,19 @@ def get_data(
     variable_names: Sequence[str],
     in_memory: bool = False,
 ) -> Tuple[loaders.typing.Batches, loaders.typing.Batches]:
+    """
+    Args:
+        training_data_config: configuration of training data
+        validation_data_config:  if provided, configuration of validation data. If None,
+            an empty list will be returned for validation data.
+        local_download_path: if provided, cache data locally at this path
+        variable_names: names of variables to include when loading data
+        in_memory: if True and local_download_path is also set, batches will be
+            returned as a tuple of eagerly-loaded Datasets. Has no effect if
+            local_download_path is not set.
+    Returns:
+        Training and validation data batches
+    """
     if local_download_path is None:
         return get_uncached_data(
             training_data_config=training_data_config,
