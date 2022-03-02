@@ -282,7 +282,7 @@ def get_config(
     # instead of reading from disk, for CLI tests where we can't mock
     data_path = os.path.join(base_dir, "data")
     mock_dataset.to_zarr(data_path, consolidated=True)
-    train_data_config = loaders.BatchesConfig(
+    train_data_config = loaders.BatchesFromMapperConfig(
         function="batches_from_mapper",
         kwargs=dict(
             variable_names=all_variables,
@@ -295,7 +295,7 @@ def get_config(
         mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
     )
     if use_validation_data:
-        validation_data_config = loaders.BatchesConfig(
+        validation_data_config = loaders.BatchesFromMapperConfig(
             function="batches_from_mapper",
             kwargs=dict(
                 variable_names=all_variables,
