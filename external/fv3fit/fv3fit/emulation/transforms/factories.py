@@ -5,7 +5,6 @@ import tensorflow as tf
 from fv3fit.emulation.transforms.transforms import (
     ComposedTransform,
     ConditionallyScaledTransform,
-    PositiveTransform,
     TensorTransform,
     UnivariateCompatible,
     UnivariateTransform,
@@ -151,23 +150,3 @@ class ComposedTransformFactory(TransformFactory):
             sample.update(transform.forward(sample))
             transforms.append(transform)
         return ComposedTransform(transforms)
-
-
-@dataclasses.dataclass
-class EnforcePositiveVariables(ComposedTransformFactory):
-    """
-    A convenience factory to apply PositiveTransform to
-    multiple fields with a single configuration entrypoint.
-
-    Attributes:
-        enforce_positive_on: List of variable names to apply limiter to
-    """
-
-    enforce_positive_on: Sequence[str]
-
-    def __init__(self, enforce_positive_on: Sequence[str]):
-        self.factories = [
-            TransformedVariableConfig(varname, varname, PositiveTransform())
-            for varname in enforce_positive_on
-        ]
-        self.enforce_positive_on = enforce_positive_on

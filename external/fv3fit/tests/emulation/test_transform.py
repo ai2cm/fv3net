@@ -9,7 +9,6 @@ from fv3fit.emulation.transforms import (
     LogTransform,
     TransformedVariableConfig,
     PositiveTransform,
-    EnforcePositiveVariables,
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
 from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional
@@ -339,21 +338,3 @@ def test_PositiveTransform():
     positive = tf.convert_to_tensor([0, 0, 0, 1, 2])
     backward_result = transform.backward(tensor)
     np.testing.assert_array_equal(positive, backward_result)
-
-
-def test_EnforcePositiveVariables():
-
-    tensor = tf.convert_to_tensor([-2, -1, 0, 1, 2])
-    positive = tf.convert_to_tensor([0, 0, 0, 1, 2])
-
-    fields = {key: tensor for key in "abc"}
-
-    factory = EnforcePositiveVariables(enforce_positive_on=["a", "b"])
-    transform = factory.build(fields)
-
-    result = transform.backward(fields)
-    expected = {"a": positive, "b": positive, "c": tensor}
-
-    assert set(result) == set(expected)
-    for k in expected:
-        np.testing.assert_array_equal(result[k], expected[k])
