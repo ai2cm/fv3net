@@ -93,7 +93,7 @@ model:
   architecture:
     kwargs:
       channels: 256
-    name: rnn
+    name: rnn-v1-shared-weights
   input_variables:
   - air_temperature_input
   - specific_humidity_input
@@ -115,7 +115,6 @@ model:
     - temperature_gscond_difference_tscaled
     - humidity_gscond_difference_tscaled
   normalize_key: mean_std
-  enforce_positive: false
   selection_map: {}
   timestep_increment_sec: 900
 transform:
