@@ -5,8 +5,8 @@ import tensorflow as tf
 from fv3fit.emulation.transforms.transforms import (
     ComposedTransform,
     ConditionallyScaledTransform,
-    LogTransform,
     TensorTransform,
+    UnivariateCompatible,
     UnivariateTransform,
 )
 from fv3fit.emulation.types import TensorDict
@@ -35,8 +35,8 @@ class TransformedVariableConfig(TransformFactory):
     """A user facing implementation"""
 
     source: str
-    to: str
-    transform: LogTransform
+    transform: UnivariateCompatible
+    to: Optional[str] = None
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         if self.to in requested_names:
@@ -44,8 +44,8 @@ class TransformedVariableConfig(TransformFactory):
         else:
             return requested_names
 
-    def build(self, sample: TensorDict) -> TensorTransform:
-        return UnivariateTransform(self.source, self.to, self.transform)
+    def build(self, sample: TensorDict) -> UnivariateTransform:
+        return UnivariateTransform(self.source, self.transform, to=self.to)
 
 
 def reduce_std(x: tf.Tensor) -> tf.Tensor:

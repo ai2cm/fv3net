@@ -28,17 +28,23 @@ class ModelConfig:
 @dataclasses.dataclass
 class EmulationConfig:
     model: Optional[ModelConfig] = None
+    gscond: Optional[ModelConfig] = None
     storage: Optional[StorageConfig] = None
 
-    def build_model_hook(self) -> StateFunc:
-        if self.model is None:
+    @staticmethod
+    def _build_model(model: ModelConfig):
+        if model is None:
             logger.info("No model configured.")
             return do_nothing
         else:
+            hook = MicrophysicsHook(model.path, model.mask)
+            return hook.microphysics
 
-            return MicrophysicsHook.from_path(
-                self.model.path, self.model.mask
-            ).microphysics
+    def build_model_hook(self):
+        return self._build_model(self.model)
+
+    def build_gscond_hook(self):
+        return self._build_model(self.gscond)
 
     def build_storage_hook(self) -> StateFunc:
         if self.storage is None:
@@ -59,4 +65,8 @@ def get_hooks():
         dict_ = {}
     config = dacite.from_dict(EmulationConfig, dict_.get(config_key, {}))
 
-    return config.build_model_hook(), config.build_storage_hook()
+    return (
+        config.build_gscond_hook(),
+        config.build_model_hook(),
+        config.build_storage_hook(),
+    )
