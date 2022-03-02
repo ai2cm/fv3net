@@ -39,7 +39,6 @@ model:
     specific_humidity_after_precpd: specific_humidity_input
     cloud_water_mixing_ratio_after_precpd: cloud_water_mixing_ratio_input
   normalize_key: mean_std
-  enforce_positive: true
   selection_map:
     air_temperature_input: {stop: -10}
     cloud_water_mixing_ratio_input: {stop: -10}
