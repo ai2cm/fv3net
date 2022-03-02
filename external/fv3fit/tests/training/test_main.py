@@ -137,6 +137,8 @@ def call_main(
             "--cache.local_download_path",
             config.args.local_download_path,
         ]
+    else:
+        local_download_path_arg = []
     with mock.patch("fv3fit.DerivedModel") as MockDerivedModel:
         MockDerivedModel.return_value = mock.MagicMock(
             name="derived_model_return", spec=fv3fit.Predictor
