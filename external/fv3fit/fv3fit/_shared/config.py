@@ -52,6 +52,12 @@ def get_keras_model(name):
 
 
 @dataclasses.dataclass
+class CacheConfig:
+    local_download_path: Optional[str] = None
+    in_memory: bool = False
+
+
+@dataclasses.dataclass
 class TrainingConfig:
     """Convenience wrapper for model training parameters and file info
 
@@ -71,6 +77,7 @@ class TrainingConfig:
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
     derived_output_variables: List[str] = dataclasses.field(default_factory=list)
+    cache: CacheConfig = dataclasses.field(default_factory=lambda: CacheConfig())
 
     @property
     def variables(self):

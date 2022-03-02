@@ -442,5 +442,6 @@ prephysics: null
 scikit_learn: null
 tendency_prescriber: null
 zhao_carr_emulation:
+  gscond: null
   model: null
   storage: null

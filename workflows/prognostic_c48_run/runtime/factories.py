@@ -10,10 +10,12 @@ import xarray as xr
 import cftime
 import vcm
 from vcm.limit import DatasetQuantileLimiter
+from loaders.mappers import open_zarr
 from runtime.types import State
 from runtime.config import UserConfig
 from runtime.transformers.core import StepTransformer
 from runtime.transformers.tendency_prescriber import TendencyPrescriber
+from runtime.steppers.prescriber import PrescriberConfig, Prescriber
 from runtime.interpolate import time_interpolate_func, label_to_time
 from runtime.derived_state import DerivedFV3State
 import runtime.transformers.emulator
@@ -62,11 +64,14 @@ def get_tendency_prescriber(
     else:
         prescriber_config = config.tendency_prescriber
         tendency_variables = list(prescriber_config.variables.values())
-        if communicator.rank == 0:
-            logger.debug(
-                f"Opening tendency override from: {prescriber_config.mapper_config}"
-            )
-        mapper = prescriber_config.mapper_config.load_mapper()
+        if communicator.tile.rank == 0:
+            if communicator.rank == 0:
+                logger.debug(
+                    f"Opening tendency override from: {prescriber_config.mapper_config}"
+                )
+            mapper = prescriber_config.mapper_config.load_mapper()
+        else:
+            mapper = {}
 
         if isinstance(prescriber_config.limit_quantiles, dict):
             if prescriber_config.reference_initial_time is None:
@@ -103,7 +108,7 @@ def get_tendency_prescriber(
 
 def _get_time_lookup_function(
     mapper: Mapping[str, xr.Dataset],
-    tendency_variables: Sequence[str],
+    variables: Sequence[str],
     initial_time: Optional[str] = None,
     frequency_seconds: float = 900.0,
     limiter: Optional[DatasetQuantileLimiter] = None,
@@ -113,7 +118,7 @@ def _get_time_lookup_function(
         ds = mapper[timestamp]
         if limiter is not None:
             ds = limiter.transform(ds)
-        return {var: ds[var] for var in tendency_variables}
+        return {var: ds[var].load() for var in variables}
 
     if initial_time is not None:
         initial_time = label_to_time(initial_time)
@@ -139,3 +144,21 @@ def _get_fitted_limiter(
 
     logger.debug(f"Fitting dataset limiter with limits={limit_quantiles}")
     return limiter.fit(sample_tendencies, feature_dims=["z", "tile"])
+
+
+def get_prescriber(
+    config: PrescriberConfig, communicator: pace.util.CubedSphereCommunicator
+) -> Prescriber:
+    if communicator.tile.rank == 0:
+        if communicator.rank == 0:
+            logger.info(f"Setting up dataset for state setting: {config.dataset_key}")
+        mapper = open_zarr(config.dataset_key, config.consolidated)
+    else:
+        mapper = {}
+    time_lookup_function = _get_time_lookup_function(
+        mapper,
+        config.variables,
+        config.reference_initial_time,
+        config.reference_frequency_seconds,
+    )
+    return Prescriber(communicator, time_lookup_function)

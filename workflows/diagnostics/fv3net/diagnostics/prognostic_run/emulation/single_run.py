@@ -1,23 +1,26 @@
 #!/usr/bin/env python
+import argparse
 from functools import partial
 from typing import Callable, List
+
+import fv3viz
+import matplotlib.pyplot as plt
 import numpy as np
-import xarray as xr
+import plotly.express as px
 import vcm
 import vcm.catalog
 import vcm.fv3.metadata
-import wandb
-import fv3viz
-import plotly.express as px
-
-import matplotlib.pyplot as plt
-
+import xarray as xr
 from fv3fit.tensorboard import plot_to_image
+from fv3net.diagnostics.prognostic_run.logs import parse_duration
+from fv3net.diagnostics.prognostic_run.load_run_data import (
+    open_segmented_logs_as_strings,
+)
+
+
+import wandb
+
 from . import tendencies
-
-
-import argparse
-
 
 SKILL_FIELDS = ["cloud_water", "specific_humidity", "air_temperature"]
 log_functions = []
@@ -250,6 +253,11 @@ for field in ["cloud_water", "specific_humidity", "air_temperature"]:
     register_log(log_lat_vs_p_skill(field))
 
 
+def get_duration_seconds(url) -> int:
+    logs = open_segmented_logs_as_strings(url)
+    return parse_duration(logs).total_seconds()
+
+
 def register_parser(subparsers) -> None:
     parser: argparse.ArgumentParser = subparsers.add_parser(
         "piggy",
@@ -274,6 +282,7 @@ def main(args):
     grid = vcm.catalog.catalog["grid/c48"].to_dask()
     piggy = xr.open_zarr(url + "/piggy.zarr")
     state = xr.open_zarr(url + "/state_after_timestep.zarr")
+    wandb.summary["duration_seconds"] = get_duration_seconds(url)
 
     ds = vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
 
