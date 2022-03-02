@@ -108,9 +108,11 @@ UnivariateCompatible = Union[LogTransform, LimitValueTransform]
 
 
 class UnivariateTransform(TensorTransform):
-    def __init__(self, source: str, to: str, transform: UnivariateCompatible):
+    def __init__(
+        self, source: str, transform: UnivariateCompatible, to: Optional[str] = None
+    ):
         self.source = source
-        self.to = to
+        self.to = to or source
         self.transform = transform
 
     def forward(self, x: TensorDict) -> TensorDict:

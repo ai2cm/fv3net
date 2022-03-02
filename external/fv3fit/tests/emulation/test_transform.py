@@ -41,7 +41,7 @@ def _get_per_variable_mocks():
     x = {"a": tf.constant(1.0), "b": tf.constant(1.0)}
     mock_xform = MockTransform()
     factory = ComposedTransformFactory(
-        [TransformedVariableConfig("a", "transformed", mock_xform)]
+        [TransformedVariableConfig("a", mock_xform, to="transformed")]
     )
     transform = factory.build(x)
     expected_forward = {
@@ -69,9 +69,18 @@ def test_per_variable_transform_round_trip():
         _assert_scalar_approx(x[key], y[key])
 
 
+def test_variable_transform_default_to():
+
+    transform = TransformedVariableConfig("a", LogTransform())
+    built = transform.build({})
+
+    assert built.to == "a"
+    assert transform.backward_names({"a"}) == {"a"}
+
+
 def test_per_variable_transform_backward_names():
     transform = ComposedTransformFactory(
-        [TransformedVariableConfig("a", "b", LogTransform())]
+        [TransformedVariableConfig("a", LogTransform(), to="b")]
     )
     assert transform.backward_names({"b"}) == {"a"}
     assert transform.backward_names({"b", "random"}) == {"a", "random"}
@@ -83,8 +92,8 @@ def test_composed_transform_backward_names_sequence():
     """
     transform = ComposedTransformFactory(
         [
-            TransformedVariableConfig("a", "b", LogTransform()),
-            TransformedVariableConfig("b", "c", LogTransform()),
+            TransformedVariableConfig("a", LogTransform(), to="b"),
+            TransformedVariableConfig("b", LogTransform(), to="c"),
         ]
     )
     assert transform.backward_names({"c"}) == {"a"}
@@ -93,8 +102,8 @@ def test_composed_transform_backward_names_sequence():
 def test_composed_transform_with_circular_dep():
     factory = ComposedTransformFactory(
         [
-            TransformedVariableConfig("a", "b", LogTransform()),
-            TransformedVariableConfig("b", "a", LogTransform()),
+            TransformedVariableConfig("a", LogTransform(), to="b"),
+            TransformedVariableConfig("b", LogTransform(), to="a"),
         ]
     )
 
@@ -104,9 +113,9 @@ def test_composed_transform_with_circular_dep():
 def test_composed_transform_ok_with_repeated_dep():
     factory = ComposedTransformFactory(
         [
-            TransformedVariableConfig("a", "b", LogTransform()),
-            TransformedVariableConfig("b", "c", LogTransform()),
-            TransformedVariableConfig("b", "d", LogTransform()),
+            TransformedVariableConfig("a", LogTransform(), to="b"),
+            TransformedVariableConfig("b", LogTransform(), to="c"),
+            TransformedVariableConfig("b", LogTransform(), to="d"),
         ]
     )
     return factory.backward_names({"c", "d"}) == {"a"}
