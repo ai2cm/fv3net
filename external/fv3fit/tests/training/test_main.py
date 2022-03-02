@@ -132,11 +132,16 @@ def call_main(
         unstacked_dims=["z"],
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
+    if use_local_download_path is True:
+        local_download_path_arg = [
+            "--cache.local_download_path",
+            config.args.local_download_path,
+        ]
     with mock.patch("fv3fit.DerivedModel") as MockDerivedModel:
         MockDerivedModel.return_value = mock.MagicMock(
             name="derived_model_return", spec=fv3fit.Predictor
         )
-        fv3fit.train.main(config.args)
+        fv3fit.train.main(config.args, unknown_args=local_download_path_arg)
     return CallArtifacts(
         config.output_path, config.variables, MockDerivedModel, config.hyperparameters,
     )
