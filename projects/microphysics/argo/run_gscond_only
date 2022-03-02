@@ -1,7 +1,7 @@
 #!/bin/bash
 
-url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-22/2ngq1xkl/model.tf
-tag=gscond-only-pressure-in-f88c1b-30d-v1
+url=gs://vcm-ml-experiments/microphysics-emulation/2022-01-27/rnn-gscond-cloudtdep-cbfc4a/model.tf
+tag=rnn-gscond-cloudtdep-cbfc4a-30d-gscond-only
 image=latest
 
 yq  --arg url "$url" '.zhao_carr_emulation.gscond.path |= $url' ../configs/default.yaml > config.yaml
