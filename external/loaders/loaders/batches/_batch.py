@@ -6,7 +6,6 @@ from typing import (
     Iterable,
     Sequence,
     Mapping,
-    Any,
     Optional,
     Union,
 )
@@ -38,13 +37,6 @@ import vcm
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-def _create_mapper(
-    data_path, mapping_func_name: str, mapping_kwargs: Mapping[str, Any]
-) -> Mapping[str, xr.Dataset]:
-    mapping_func = getattr(loaders.mappers, mapping_func_name)
-    return mapping_func(data_path, **mapping_kwargs)
 
 
 @batches_from_mapper_functions.register
