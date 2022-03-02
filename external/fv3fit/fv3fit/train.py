@@ -42,12 +42,6 @@ def get_parser():
             "by default an empty sequence is used"
         ),
     )
-    parser.add_argument(
-        "--local-download-path",
-        type=str,
-        default=None,
-        help=("path for downloading data before training"),
-    )
     return parser
 
 
@@ -160,9 +154,9 @@ def main(args, unknown_args=None):
     train_batches, val_batches = get_data(
         args.training_data_config,
         args.validation_data_config,
-        args.local_download_path,
+        training_config.cache.local_download_path,
         variable_names=training_config.variables,
-        in_memory=training_data_config.kwargs.get("in_memory", False),
+        in_memory=training_config.cache.in_memory,
     )
 
     train = fv3fit.get_training_function(training_config.model_type)
