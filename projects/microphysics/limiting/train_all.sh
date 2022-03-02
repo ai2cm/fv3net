@@ -14,9 +14,9 @@ tag="011435e1b91e21c14d610abcc35150548e063a9b"
 group="$(openssl rand -hex 3)"
 
 
-for exp in limiter-all-loss
+for exp in base all-loss limiter limiter-all-loss
 do
-for arch in rnn
+for arch in dense rnn
 do
     config_file="${exp}/${arch}.yaml"
     model_name="limit-tests-${exp}-${arch}-${group}"
@@ -27,7 +27,7 @@ do
         --name "${model_name}" \
         -p training-config="$(base64 --wrap 0 $config_file)" \
         -p flags="$flags" \
-        -p wandb-run-group="limiter-tests-feb-2022-v2" \
+        -p wandb-run-group="limiter-tests-feb-2022" \
         -p tag="${tag}"
 done
 done

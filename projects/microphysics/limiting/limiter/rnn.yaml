@@ -19,18 +19,18 @@ tensor_transform:
   - to: log_humidity_after_last_gscond
     source: specific_humidity_after_last_gscond
     transform: {epsilon: 1e-8}
-  - source: air_temperature_after_gscond
-    transform: {lower: 0.0}
-  - source: air_temperature_after_precpd
-    transform: {lower: 0.0}
-  - source: specific_humidity_after_gscond
-    transform: {lower: 0.0}
-  - source: specific_humidity_after_precpd
-    transform: {lower: 0.0}
-  - source: cloud_water_mixing_ratio_after_precpd
-    transform: {lower: 0.0}
-  - source: total_precipitation
-    transform: {lower: 0.0}
+  # - source: air_temperature_after_gscond
+  #   transform: {lower: 0.0}
+  # - source: air_temperature_after_precpd
+  #   transform: {lower: 0.0}
+  # - source: specific_humidity_after_gscond
+  #   transform: {lower: 0.0}
+  # - source: specific_humidity_after_precpd
+  #   transform: {lower: 0.0}
+  # - source: cloud_water_mixing_ratio_after_precpd
+  #   transform: {lower: 0.0}
+  # - source: total_precipitation
+  #   transform: {lower: 0.0}
   - to: temperature_gscond_difference
     before: air_temperature_input
     after: air_temperature_after_gscond
@@ -127,7 +127,6 @@ model:
     - temperature_gscond_difference_tscaled
     - humidity_gscond_difference_tscaled
   normalize_key: mean_std
-  enforce_positive: false
   selection_map: {}
   timestep_increment_sec: 900
 transform:

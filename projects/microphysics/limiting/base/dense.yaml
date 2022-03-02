@@ -116,7 +116,6 @@ model:
     - temperature_gscond_difference_tscaled
     - humidity_gscond_difference_tscaled
   normalize_key: mean_std
-  enforce_positive: false
   selection_map: {}
   timestep_increment_sec: 900
 transform:
