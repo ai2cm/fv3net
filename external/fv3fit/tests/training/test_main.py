@@ -101,7 +101,9 @@ def mock_train_dense_model():
 @pytest.fixture
 def mock_load_batches():
     magic_load_mock = mock.MagicMock(name="load_batches")
-    with mock.patch.object(loaders.BatchesConfig, "load_batches", magic_load_mock):
+    with mock.patch.object(
+        loaders.BatchesFromMapperConfig, "load_batches", magic_load_mock
+    ):
         yield magic_load_mock
 
 
