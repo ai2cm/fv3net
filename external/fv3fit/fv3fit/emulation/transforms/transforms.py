@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, List, Union, Set
+from typing import Callable, List, Union, Set, Optional
 
 import tensorflow as tf
 from typing_extensions import Protocol
@@ -75,29 +75,36 @@ class LogTransform:
 
 
 @dataclasses.dataclass
-class PositiveTransform:
+class LimitValueTransform:
     """
     A univariate transformation for::
 
     y := x
-    x := ReLU(y)
+    x := y where lower_limit < y < upper limit, 0 elsewhere
 
     Attributes:
-        enforce_positive: used only for identifying this transform in the
-            configuration
+        lower: lower bound for value clipping
+        upper: upper bound for value clipping
     """
 
-    # TODO: Is there a better way to do config instance via dacite w/o uniqueness?
-    enforce_positive: str = "yes_please"
+    lower: Optional[float] = 0.0
+    upper: Optional[float] = None
 
     def forward(self, x: tf.Tensor) -> tf.Tensor:
         return x
 
     def backward(self, x: tf.Tensor) -> tf.Tensor:
-        return tf.keras.activations.relu(x)
+
+        if self.lower is not None:
+            x = tf.keras.activations.relu(x, threshold=self.lower)
+
+        if self.upper is not None:
+            x = tf.cast(x < self.upper, x.dtype) * x
+
+        return x
 
 
-UnivariateCompatible = Union[LogTransform, PositiveTransform]
+UnivariateCompatible = Union[LogTransform, LimitValueTransform]
 
 
 class UnivariateTransform(TensorTransform):

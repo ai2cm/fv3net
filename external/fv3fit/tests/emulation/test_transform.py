@@ -8,7 +8,7 @@ from fv3fit.emulation.transforms import (
     Difference,
     LogTransform,
     TransformedVariableConfig,
-    PositiveTransform,
+    LimitValueTransform,
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
 from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional
@@ -327,14 +327,25 @@ def test_ComposedTransform_with_build():
     assert build_sample_for_second_mock == {"b": 0, "a": 0}
 
 
-def test_PositiveTransform():
+@pytest.mark.parametrize(
+    "lower,upper, expected",
+    [
+        (None, None, [-2, -1, 0, 1, 2, 3]),
+        (0, None, [0, 0, 0, 1, 2, 3]),
+        (None, 0, [-2, -1, 0, 0, 0, 0]),
+        (-2, 2, [0, -1, 0, 1, 0, 0]),
+        (1, 1, [0, 0, 0, 0, 0, 0]),
+    ],
+    ids=["no limits", "lower", "upper", "lower + upper", "equivalent lower + upper"],
+)
+def test_PositiveTransform(lower, upper, expected):
 
-    tensor = tf.convert_to_tensor([-2, -1, 0, 1, 2])
-    transform = PositiveTransform()
+    tensor = tf.convert_to_tensor([-2, -1, 0, 1, 2, 3])
+    transform = LimitValueTransform(lower=lower, upper=upper)
 
     forward_result = transform.forward(tensor)
     np.testing.assert_array_equal(tensor, forward_result)
 
-    positive = tf.convert_to_tensor([0, 0, 0, 1, 2])
+    positive = tf.convert_to_tensor(expected)
     backward_result = transform.backward(tensor)
     np.testing.assert_array_equal(positive, backward_result)
