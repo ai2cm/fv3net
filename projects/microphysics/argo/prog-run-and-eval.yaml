@@ -81,10 +81,10 @@ spec:
       workingDir: "/fv3net/projects/microphysics"
       resources:
         requests:
-          memory: "6Gi"
+          memory: "16Gi"
           cpu: "7500m"
         limits:
-          memory: "8Gi"
+          memory: "16Gi"
           cpu: "7500m"
       envFrom:
       - secretRef:
