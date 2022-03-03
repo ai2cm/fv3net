@@ -1,7 +1,7 @@
 from setuptools import find_namespace_packages, setup
 
 dependencies = [
-    "dask==2.13.0",
+    "dask==2021.10.0",
     "f90nml==1.1.2",
     "fsspec",
     "gcsfs==2021.6.0",
