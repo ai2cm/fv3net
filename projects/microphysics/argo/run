@@ -1,7 +1,7 @@
 #!/bin/bash
 
-url=gs://vcm-ml-experiments/microphysics-emulation/2022-01-27/rnn-gscond-cloudtdep-cbfc4a/model.tf
-tag=rnn-gscond-cloudtdep-cbfc4a-30d-v2
+url=gs://vcm-ml-experiments/microphysics-emulation/2021-12-09/direct-cloud-limited-conservative-dense-5e02cf/model.tf
+tag=direct-cloud-limited-conservative-dense-5e02cf-30d
 image=latest
 
 yq  --arg url "$url" '.zhao_carr_emulation.model.path |= $url' ../configs/default.yaml > config.yaml
