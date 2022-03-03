@@ -101,7 +101,9 @@ def mock_train_dense_model():
 @pytest.fixture
 def mock_load_batches():
     magic_load_mock = mock.MagicMock(name="load_batches")
-    with mock.patch.object(loaders.BatchesConfig, "load_batches", magic_load_mock):
+    with mock.patch.object(
+        loaders.BatchesFromMapperConfig, "load_batches", magic_load_mock
+    ):
         yield magic_load_mock
 
 
@@ -289,32 +291,30 @@ def get_config(
     # instead of reading from disk, for CLI tests where we can't mock
     data_path = os.path.join(base_dir, "data")
     mock_dataset.to_zarr(data_path, consolidated=True)
-    train_data_config = loaders.BatchesConfig(
-        function="batches_from_geodata",
+    train_data_config = loaders.BatchesFromMapperConfig(
+        function="batches_from_mapper",
         kwargs=dict(
-            data_path=data_path,
             variable_names=all_variables,
-            mapping_function="open_zarr",
             timesteps=train_times,
             needs_grid=False,
             res="c8_random_values",
             timesteps_per_batch=3,
             unstacked_dims=unstacked_dims,
         ),
+        mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
     )
     if use_validation_data:
-        validation_data_config = loaders.BatchesConfig(
-            function="batches_from_geodata",
+        validation_data_config = loaders.BatchesFromMapperConfig(
+            function="batches_from_mapper",
             kwargs=dict(
-                data_path=data_path,
                 variable_names=all_variables,
-                mapping_function="open_zarr",
                 timesteps=validation_times,
                 needs_grid=False,
                 res="c8_random_values",
                 timesteps_per_batch=3,
                 unstacked_dims=unstacked_dims,
             ),
+            mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
         )
         validation_data_filename = os.path.join(base_dir, "validation_data.yaml")
         with open(validation_data_filename, "w") as f:
