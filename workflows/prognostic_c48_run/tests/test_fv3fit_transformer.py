@@ -33,7 +33,12 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
     fv3fit.dump(mock, model_path)
 
     adapted_model = Adapter(
-        Config(model_path, {"air_temperature": "dQ1", "specific_humidity": "dQ2"}), 900
+        Config(
+            model_path,
+            {"air_temperature": "dQ1", "specific_humidity": "dQ2"},
+            limit_negative_humidity=True,
+        ),
+        900,
     )
     transform = StepTransformer(
         adapted_model,

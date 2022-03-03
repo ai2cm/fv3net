@@ -3,11 +3,17 @@ from typing import Mapping, Iterable, Hashable
 
 import xarray as xr
 import fv3fit
-from runtime.steppers.machine_learning import non_negative_sphum
+import vcm
 from runtime.types import State
-from runtime.names import SPHUM
+from runtime.names import SPHUM, TEMP
 
 __all__ = ["Config", "Adapter"]
+
+LV = vcm.calc.thermo.constants._LATENT_HEAT_VAPORIZATION_0_C
+CV = (
+    vcm.calc.thermo.constants._SPECIFIC_HEAT_CONST_PRESSURE
+    - vcm.calc.thermo.constants._RDGAS
+)
 
 
 @dataclasses.dataclass
@@ -39,10 +45,9 @@ class Adapter:
     def predict(self, inputs: State) -> State:
         tendencies = self.model.predict(xr.Dataset(inputs))
         if self.config.limit_negative_humidity:
-            dQ1, dQ2 = non_negative_sphum(
-                inputs[SPHUM], tendencies["dQ1"], tendencies["dQ2"], self.timestep
-            )
-            tendencies.update({"dQ1": dQ1, "dQ2": dQ2})
+            limited_tendencies = self.non_negative_sphum_limiter(tendencies, inputs)
+            tendencies = tendencies.update(limited_tendencies)
+
         state_prediction: State = {}
         for variable_name, tendency_name in self.config.variables.items():
             with xr.set_options(keep_attrs=True):
@@ -61,3 +66,35 @@ class Adapter:
     @property
     def input_variables(self) -> Iterable[Hashable]:
         return self.model.input_variables
+
+    def non_negative_sphum_limiter(self, tendencies, inputs):
+        limited_tendencies = {}
+        if SPHUM not in self.config.variables:
+            raise NotImplementedError(
+                "Cannot limit specific humidity tendencies if specific humidity "
+                "updates not being predicted."
+            )
+        q2_name = self.config.variables[SPHUM]
+        q2_new = update_q2_to_ensure_non_negative_humidity(
+            inputs[SPHUM], tendencies[q2_name], self.timestep
+        )
+        limited_tendencies[q2_name] = q2_new
+        if TEMP in self.config.variables:
+            q1_name = self.config.variables[TEMP]
+            q1_new = update_q1_to_conserve_mse(
+                tendencies[q1_name], tendencies[q2_name], q2_new
+            )
+            limited_tendencies[q1_name] = q1_new
+        return limited_tendencies
+
+
+def update_q2_to_ensure_non_negative_humidity(
+    sphum: xr.DataArray, q2: xr.DataArray, dt: float
+) -> xr.DataArray:
+    return xr.where(sphum + q2 * dt >= 0, q2, -sphum / dt)
+
+
+def update_q1_to_conserve_mse(
+    q1: xr.DataArray, q2_old: xr.DataArray, q2_new: xr.DataArray
+) -> xr.DataArray:
+    return q1 - LV / CV * (q2_new - q2_old)
