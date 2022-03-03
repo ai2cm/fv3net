@@ -12,4 +12,4 @@ argo submit prog-run-and-eval.yaml \
     --name "$tag" \
     -p image_tag="$image" \
     -p tag=$tag \
-    -p config=$(base64 --wrap 0 config.yaml) | tee -a submitted-jobs.txt
+    -p config=$(base64 --wrap 0 config.yaml) | grep -v 'config:' | tee -a submitted-jobs.txt
