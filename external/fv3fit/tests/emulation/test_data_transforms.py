@@ -5,6 +5,8 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 from fv3fit.emulation.data import transforms
+from fv3fit.emulation.data.config import Pipeline
+import vcm
 
 
 @pytest.fixture
@@ -160,3 +162,30 @@ def test_derived(varname: str):
     assert f"{varname}_after_precpd" in derived
     assert dT_name in derived
     np.testing.assert_array_equal(derived[dT_name], np.ones((10, 4)))
+
+
+def test_Pipeline():
+    ds = vcm.cdl_to_dataset(
+        """
+        netcdf Name {
+            dimensions:
+                sample = 1;
+            variables:
+                int a(sample);
+            data:
+                // initialize with 0
+                // should end with 2
+                a = 0;
+        }
+        """
+    )
+
+    def increment_a_ds(ds):
+        return ds.assign(a=ds.a + 1)
+
+    def increment_a_array(d):
+        return {"a": d["a"] + 1}
+
+    pipeline = Pipeline([increment_a_ds], [increment_a_array])
+    out = pipeline(ds)
+    assert out["a"][0].numpy() == np.array([2])
