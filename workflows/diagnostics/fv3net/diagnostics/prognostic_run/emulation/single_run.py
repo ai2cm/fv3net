@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import argparse
 from functools import partial
-from typing import Callable, List
+from typing import Callable, List, Any
 
 import fv3viz
 import matplotlib.pyplot as plt
@@ -23,6 +23,10 @@ import wandb
 from . import tendencies
 
 SKILL_FIELDS = ["cloud_water", "specific_humidity", "air_temperature"]
+
+WANDB_PROJECT = "microphysics-emulation"
+WANDB_ENTITY = "ai2cm"
+
 log_functions = []
 summary_functions = []
 
@@ -265,19 +269,26 @@ def register_parser(subparsers) -> None:
         "to weights and biases.",
     )
     parser.add_argument("tag", help="The unique tag used for the prognostic run.")
-
     parser.set_defaults(func=main)
 
 
-def main(args):
+def get_prognostic_run_from_tag(tag: str) -> Any:
+    api = wandb.Api()
+    runs = api.runs(filters={"group": tag}, path=f"{WANDB_ENTITY}/{WANDB_PROJECT}")
+    prognostic_runs = []
 
-    run_artifact_path = args.tag
+    for run in runs:
+        if run.job_type == "prognostic_run":
+            prognostic_runs.append(run)
+    (run,) = prognostic_runs
+    return run
 
-    job = wandb.init(
-        job_type="piggy-back", project="microphysics-emulation", entity="ai2cm",
-    )
 
-    url = get_url_wandb(job, run_artifact_path)
+def get_rundir_from_prognostic_run(run: Any) -> str:
+    return run.config["rundir"]
+
+
+def upload_diagnostics_for_rundir(url):
     wandb.config["run"] = url
     grid = vcm.catalog.catalog["grid/c48"].to_dask()
     piggy = xr.open_zarr(url + "/piggy.zarr")
@@ -292,3 +303,16 @@ def main(args):
 
     for key, val in compute_summaries(ds).items():
         wandb.summary[key] = val
+
+
+def main(args):
+
+    wandb.init(
+        job_type="piggy-back",
+        project=WANDB_PROJECT,
+        entity=WANDB_ENTITY,
+        group=args.tag,
+        tags=[args.tag],
+    )
+    url = get_rundir_from_prognostic_run(get_prognostic_run_from_tag(args.tag))
+    upload_diagnostics_for_rundir(url)

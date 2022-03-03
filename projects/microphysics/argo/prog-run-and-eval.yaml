@@ -18,6 +18,26 @@ spec:
     secret:
       secretName: gcp-key
   templates:
+  - name: diagnostics
+    inputs:
+      parameters:
+        - {name: baseline_tag}
+        - {name: tag}
+    steps:
+      - - name: piggy
+          template: piggyback-diags
+          arguments:
+            parameters:
+            - name: tag
+              value: "{{workflow.parameters.tag}}"
+        - name: prognostic-diags
+          dependencies: [run-offline, run-online]
+          arguments:
+            parameters:
+            - name: tag
+              value: "{{inputs.parameters.tag}}"
+            - name: baseline_tag
+              value: "{{inputs.parameters.baseline_tag}}"
   - name: prognostic-run
     dag:
       tasks:
