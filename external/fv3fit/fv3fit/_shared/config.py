@@ -230,6 +230,17 @@ def to_nested_dict(d: dict):
     return new_config
 
 
+# Small modification to the arg parser so that the error raised by
+# providing invalid args is clearer.
+class ArgumentError(Exception):
+    pass
+
+
+class ArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        raise ArgumentError(message)
+
+
 def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]):
     """
     Update a configuration dictionary with keyword arguments through an ArgParser.
@@ -242,15 +253,16 @@ def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]
         args: a list of argument strings to parse
         config_dict: the configuration to update
     """
-
     config = _to_flat_dict(config_dict)
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
     _add_items_to_parser_arguments(config, parser)
-    updates = parser.parse_args(args)
+    try:
+        updates = parser.parse_args(args)
+    except ArgumentError as e:
+        raise e
+
     update_dict = vars(updates)
-
     config.update(update_dict)
-
     return to_nested_dict(config)
 
 
