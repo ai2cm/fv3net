@@ -1,0 +1,26 @@
+#!/bin/bash
+
+tags=(
+    limit-tests-limiter-all-loss-rnn-7ef273
+    limit-tests-all-loss-rnn-7ef273
+    limit-tests-limiter-all-loss-dense-7ef273
+)
+dt=2022-03-02
+
+group="$(openssl rand -hex 3)"
+image=011435e1b91e21c14d610abcc35150548e063a9b
+
+for tag in ${tags[@]}
+do
+
+    url=gs://vcm-ml-experiments/microphysics-emulation/${dt}/${tag}/model.tf
+    run_tag=${tag}-10d-${group}
+
+    argo submit ../argo/prog-run-and-eval.yaml \
+        -p tag=$run_tag \
+        -p image_tag=$image \
+        -p config=$(base64 --wrap 0 ../configs/default.yaml) \
+        -p tf_model=$url
+
+done
+
