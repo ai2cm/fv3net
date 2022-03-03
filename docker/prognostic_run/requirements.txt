@@ -28,7 +28,6 @@ dacite==1.6.0
 dask[bag]==2.22.0
 decorator==4.4.2
 docker-pycreds==0.4.0
-docrep==0.2.7
 docutils==0.16
 entrypoints==0.3
 f90nml==1.1.2
@@ -154,7 +153,7 @@ werkzeug==1.0.1
 wheel==0.35.1
 wrapt==1.12.1
 xarray==0.19.0
-xgcm==0.3.0
+xgcm==0.6.1
 yarl==1.6.3
 zarr==2.7.0
 
