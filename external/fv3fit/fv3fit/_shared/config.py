@@ -231,7 +231,8 @@ def to_nested_dict(d: dict):
 
 
 # Small modification to the arg parser so that the error raised by
-# providing invalid args is clearer.
+# providing invalid args is clearer and does not print a confusing
+# system exit error.
 class ArgumentError(Exception):
     pass
 
