@@ -4,13 +4,11 @@ import logging
 import os
 from pathlib import Path
 import dacite
-import warnings
 
 import wandb
 import yaml
 from runtime.segmented_run import api
 from runtime.segmented_run.prepare_config import HighLevelConfig
-import emulation
 
 from fv3net.artifacts.resolve_url import resolve_url
 
@@ -22,12 +20,6 @@ logging.basicConfig(level=logging.INFO)
 CONFIG_PATH = Path(__file__).parent.parent / "configs" / "default.yaml"
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--model",
-    type=str,
-    default="",
-    help="path to microphysics emulation model...should probably end with .tf",
-)
 parser.add_argument(
     "--tag",
     type=str,
@@ -68,16 +60,6 @@ with args.config_path.open() as f:
 
 config = dacite.from_dict(HighLevelConfig, config)
 config.namelist["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
-
-if args.model:
-    if config.zhao_carr_emulation.model is not None:
-        warnings.warn(
-            UserWarning(
-                f"Overiding .zhao_carr_emulation.model.path configuration in yaml "
-                "with {args.model}."
-            )
-        )
-    config.zhao_carr_emulation.model = emulation.ModelConfig(path=args.model)
 
 config_dict = config.to_fv3config()
 
