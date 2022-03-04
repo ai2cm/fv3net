@@ -91,5 +91,5 @@ for i in range(args.segments):
     api.append(url)
 
 artifact = wandb.Artifact(tag, type="prognostic-run")
-artifact.add_reference(url)
+artifact.add_reference(url, checksum=False)
 wandb.log_artifact(artifact)
