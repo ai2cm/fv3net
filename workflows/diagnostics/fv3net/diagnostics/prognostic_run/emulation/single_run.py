@@ -86,9 +86,14 @@ def plot_histogram_begin_end(ds):
     return {"cloud_histogram": _get_image()}
 
 
+def _plot_cloud_time_vs_z(cloud: xr.DataArray):
+    cloud.plot(vmin=-2e-5, vmax=2e-5, cmap="RdBu_r", y="z", yincrease=True)
+
+
 @register_log
 def plot_cloud_weighted_average(ds):
-    vcm.weighted_average(ds.cloud_water_mixing_ratio, ds.area).plot()
+    global_cloud = vcm.weighted_average(ds.cloud_water_mixing_ratio, ds.area)
+    _plot_cloud_time_vs_z(global_cloud)
     plt.title("Global average cloud water")
     return {"global_average_cloud": _get_image()}
 
