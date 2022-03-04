@@ -127,10 +127,6 @@ def compute_budget(
 
     if approach == Approach.apparent_sources_plus_nudging_tendencies:
         merged["Q1"], merged["Q2"] = _add_nudging_tendencies(merged)
-        merged["mse_tendency_due_to_nudging"] = compute_mse_tendency(
-            merged.air_temperature_tendency_due_to_nudging,
-            merged.specific_humidity_tendency_due_to_nudging,
-        )
     elif approach == Approach.apparent_sources_extend_lower:
         merged["Q1"] = _extend_lower(merged["Q1"])
         merged["Q2"] = _extend_lower(merged["Q2"])
@@ -143,6 +139,14 @@ def compute_budget(
     else:
         raise ValueError(f"{approach} not implemented.")
 
+    if (
+        "air_temperature_tendency_due_to_nudging" in merged
+        and "specific_humidity_tendency_due_to_nudging" in merged
+    ):
+        merged["mse_tendency_due_to_nudging"] = compute_mse_tendency(
+            merged.air_temperature_tendency_due_to_nudging,
+            merged.specific_humidity_tendency_due_to_nudging,
+        )
     merged["Qm"] = compute_mse_tendency(merged.Q1, merged.Q2)
     return _ml_standard_names(merged)
 
