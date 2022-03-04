@@ -143,7 +143,7 @@ def compute_budget(
         "air_temperature_tendency_due_to_nudging" in merged
         and "specific_humidity_tendency_due_to_nudging" in merged
     ):
-        merged["mse_tendency_due_to_nudging"] = compute_mse_tendency(
+        merged["moist_static_energy_tendency_due_to_nudging"] = compute_mse_tendency(
             merged.air_temperature_tendency_due_to_nudging,
             merged.specific_humidity_tendency_due_to_nudging,
         )
