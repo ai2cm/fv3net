@@ -83,7 +83,9 @@ config_dict = config.to_fv3config()
 
 url = resolve_url(BUCKET, job.project, tag)
 
-wandb.config.update({"config": config_dict, "rundir": url})
+wandb.config.update(
+    {"config": config_dict, "rundir": url, "env": {os.getenv("COMMIT_SHA", "")}}
+)
 
 api.create(url, config_dict)
 for i in range(args.segments):
