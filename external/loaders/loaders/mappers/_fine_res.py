@@ -8,6 +8,7 @@ import xarray as xr
 import numpy as np
 import fsspec
 
+import vcm
 from vcm.fv3.metadata import gfdl_to_standard
 from loaders._config import mapper_functions
 from loaders.mappers._base import GeoMapper
@@ -17,6 +18,13 @@ from loaders.mappers._fine_res_budget import (
     FineResBudget,
     compute_mse_tendency,
 )
+
+
+g = 9.8065
+cp = 1004.7
+Rd = 287.05
+Rv = 461.50
+cv_air = cp - Rd
 
 
 class MLTendencies(Protocol):
@@ -139,6 +147,59 @@ def compute_budget(
     return _ml_standard_names(merged)
 
 
+def compute_flux_form_budget(merged: xr.Dataset, include_temperature_nudging: bool):
+    Q1, Q2 = compute_fine_res_sources(merged, include_temperature_nudging)
+    Qm = compute_mse_tendency(Q1, Q2)
+
+    Qm_flux = -1 / g * (Qm * merged.delp).cumsum("z")
+    Q2_flux = -1 / g * (Q2 * merged.delp).cumsum("z")
+
+    # pad at top for TOA flux
+    Qm_flux = Qm_flux.pad(z=(1, 0))
+    Q2_flux = Q2_flux.pad(z=(1, 0))
+
+    # compute some auxiliary quantities
+    toa_rad_flux = (
+        merged.DSWRFtoa_coarse - merged.USWRFtoa_coarse - merged.ULWRFtoa_coarse
+    )
+    evaporation = vcm.latent_heat_flux_to_evaporation(merged.LHTFLsfc_coarse)
+    upward_surface_mse_flux = (
+        merged.LHTFLsfc_coarse
+        + merged.SHTFLsfc_coarse
+        + merged.USWRFsfc_coarse
+        + merged.ULWRFsfc_coarse
+    )
+
+    # add TOA boundary condition for Qm flux (not necessary for Q2 since TOA flux=0)
+    Qm_flux += toa_rad_flux
+    if include_temperature_nudging:
+        column_fine_res_nudging_heating = cv_air * vcm.mass_integrate(
+            merged.t_dt_nudge_coarse, merged.delp, dim="z"
+        )
+        Qm_flux += column_fine_res_nudging_heating
+
+    # change lowermost fluxes to be downward flux instead of net
+    downward_sfc_Q2_flux = Q2_flux.isel(z=-1) + evaporation
+    downward_sfc_Qm_flux = Qm_flux.isel(z=-1) + upward_surface_mse_flux
+
+    # rectify
+    downward_sfc_Q2_flux = downward_sfc_Q2_flux.where(downward_sfc_Q2_flux >= 0, 0)
+    downward_sfc_Qm_flux = downward_sfc_Qm_flux.where(downward_sfc_Qm_flux >= 0, 0)
+
+    # remove bottom flux level from net fluxes
+    Qm_flux = Qm_flux.isel(z=slice(None, -1))
+    Q2_flux = Q2_flux.isel(z=slice(None, -1))
+
+    merged["Q1"] = Q1
+    merged["Q2"] = Q2
+    merged["Qm"] = Qm
+    merged["Qm_flux"] = Qm_flux.chunk({"z": Qm_flux.sizes["z"]})
+    merged["Q2_flux"] = Q2_flux.chunk({"z": Q2_flux.sizes["z"]})
+    merged["downward_surface_Q2_flux"] = downward_sfc_Q2_flux
+    merged["downward_surface_Qm_flux"] = downward_sfc_Qm_flux
+    return merged
+
+
 def _add_nudging_tendencies(merged: xr.Dataset):
     with xr.set_options(keep_attrs=True):
         Q1 = merged.Q1 + merged.air_temperature_tendency_due_to_nudging
@@ -229,6 +290,36 @@ def open_fine_resolution(
     )
 
     return XarrayMapper(budget)
+
+
+@mapper_functions.register
+def open_fine_resolution_flux_form(
+    fine_url: str,
+    include_temperature_nudging: bool = True,
+    additional_dataset_urls: Sequence[str] = None,
+) -> GeoMapper:
+    """
+    Open the fine-res data in flux-form.
+
+    Args:
+        ine_url: url where coarsened fine resolution data is stored
+        include_temperature_nudging: whether to include fine-res nudging in Q1
+        additional_dataset_urls: sequence of urls to zarrs containing additional
+            data to be merged into the resulting mapper dataset, e.g., ML input
+            features, the dynamics nudging tendencies, and the dynamics differences
+            as required by the above approaches
+
+    Returns:
+        a mapper
+    """
+    merged: FineResBudget = _open_merged_dataset(
+        fine_url=fine_url, additional_dataset_urls=additional_dataset_urls,
+    )
+    budget: MLTendencies = compute_flux_form_budget(
+        merged, include_temperature_nudging=include_temperature_nudging
+    )
+    return budget
+    # return XarrayMapper(budget)
 
 
 def _open_precomputed_fine_resolution_dataset(

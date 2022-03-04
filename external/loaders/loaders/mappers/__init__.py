@@ -11,7 +11,11 @@ from ._hybrid import (
     open_fine_resolution_nudging_hybrid,
     open_precomputed_fine_resolution_nudging_hybrid,
 )
-from ._fine_res import open_fine_resolution, open_precomputed_fine_resolution
+from ._fine_res import (
+    open_fine_resolution,
+    open_fine_resolution_flux_form,
+    open_precomputed_fine_resolution,
+)
 
 # additional open mapper functions
 from ._high_res_diags import open_high_res_diags

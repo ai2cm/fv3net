@@ -32,6 +32,7 @@ from loaders.mappers import (
     open_fine_resolution_nudging_hybrid,
     open_precomputed_fine_resolution_nudging_hybrid,
     open_fine_resolution,
+    open_fine_resolution_flux_form,
     open_precomputed_fine_resolution,
     open_high_res_diags,
     open_zarr,
