@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 import argparse
+import logging
 from functools import partial
-from typing import Callable, List, Any
+from typing import Any, Callable, List
 
+import dask.diagnostics
 import fv3viz
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,15 +14,16 @@ import vcm.catalog
 import vcm.fv3.metadata
 import xarray as xr
 from fv3fit.tensorboard import plot_to_image
-from fv3net.diagnostics.prognostic_run.logs import parse_duration
+
+import wandb
 from fv3net.diagnostics.prognostic_run.load_run_data import (
     open_segmented_logs_as_strings,
 )
-
-
-import wandb
+from fv3net.diagnostics.prognostic_run.logs import parse_duration
 
 from . import tendencies
+
+logger = logging.getLogger(__name__)
 
 SKILL_FIELDS = ["cloud_water", "specific_humidity", "air_temperature"]
 
@@ -72,10 +75,10 @@ def get_url_wandb(job, artifact: str):
 
 @register_log
 def plot_histogram_begin_end(ds):
-    ds = ds.dropna("time")
     bins = 10.0 ** np.arange(-15, 0, 0.25)
     ds.cloud_water_mixing_ratio.isel(time=0).plot.hist(bins=bins, histtype="step")
-    ds.cloud_water_mixing_ratio.isel(time=-1).plot.hist(bins=bins, histtype="step")
+    # include second to last timestep if is nan
+    ds.cloud_water_mixing_ratio.isel(time=-2).plot.hist(bins=bins, histtype="step")
     plt.legend([ds.time[0].item(), ds.time[-1].item()])
     plt.xscale("log")
     plt.yscale("log")
@@ -85,7 +88,6 @@ def plot_histogram_begin_end(ds):
 
 @register_log
 def plot_cloud_weighted_average(ds):
-    ds = ds.dropna("time")
     vcm.weighted_average(ds.cloud_water_mixing_ratio, ds.area).plot()
     plt.title("Global average cloud water")
     return {"global_average_cloud": _get_image()}
@@ -288,18 +290,28 @@ def get_rundir_from_prognostic_run(run: Any) -> str:
     return run.config["rundir"]
 
 
+def open_zarr(url: str):
+    cachedir = "/tmp/files"
+    logger.info(f"Opening {url} with caching at {cachedir}.")
+    return xr.open_zarr(
+        "filecache::" + url, storage_options={"filecache": {"cache_storage": cachedir}}
+    )
+
+
 def upload_diagnostics_for_rundir(url):
     wandb.config["run"] = url
-    grid = vcm.catalog.catalog["grid/c48"].to_dask()
-    piggy = xr.open_zarr(url + "/piggy.zarr")
-    state = xr.open_zarr(url + "/state_after_timestep.zarr")
     wandb.summary["duration_seconds"] = get_duration_seconds(url)
+
+    grid = vcm.catalog.catalog["grid/c48"].to_dask().load()
+    piggy = open_zarr(url + "/piggy.zarr")
+    state = open_zarr(url + "/state_after_timestep.zarr")
 
     ds = vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
 
     for func in log_functions:
         print(f"Running {func}")
-        wandb.log(func(ds))
+        with dask.diagnostics.ProgressBar():
+            wandb.log(func(ds))
 
     for key, val in compute_summaries(ds).items():
         wandb.summary[key] = val
