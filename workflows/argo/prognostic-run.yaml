@@ -26,6 +26,7 @@ spec:
           - {name: project, value: "default"}
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
+          - {name: node-pool: "climate-sim-pool"}
           - {name: memory, value: 6Gi}
           - {name: online-diags-flags, value: " "}
           - {name: online-diags, value: "true"}
@@ -59,6 +60,7 @@ spec:
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
+              - {name: node-pool, value: "{{inputs.parameters.node-pool}}"}
       - - name: online-diags
           when: "{{inputs.parameters.online-diags}} == true"
           templateRef:

@@ -14,6 +14,7 @@ spec:
         - {name: cpu, value: "6"}
         - {name: memory, value: 8Gi}
         - {name: segment-count, value: "1"}
+        - {name: node-pool, value: "climate-sim-pool"}
     steps:
       - - template: create-run
           name: create-run
@@ -105,7 +106,7 @@ spec:
     tolerations:
     - key: "dedicated"
       operator: "Equal"
-      value: "climate-sim-pool"
+      value: "{{inputs.parameters.node-pool}}"
       effect: "NoSchedule"
     podSpecPatch: |
       containers:
