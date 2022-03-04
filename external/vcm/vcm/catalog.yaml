@@ -682,7 +682,7 @@ sources:
       storage_options:
         project: 'vcm-ml'
         access: read_only
-      urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire-1yr-postspinup-restarts-pressure-interpolated.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire-1yr-postspinup-restarts-pressure-interpolated-drop-corrupt-times.zarr"
       consolidated: True
 
 
