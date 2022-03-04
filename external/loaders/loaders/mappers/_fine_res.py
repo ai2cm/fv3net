@@ -318,8 +318,8 @@ def open_fine_resolution_flux_form(
     budget: MLTendencies = compute_flux_form_budget(
         merged, include_temperature_nudging=include_temperature_nudging
     )
-    return budget
-    # return XarrayMapper(budget)
+
+    return XarrayMapper(budget)
 
 
 def _open_precomputed_fine_resolution_dataset(
