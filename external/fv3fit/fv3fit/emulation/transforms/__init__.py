@@ -9,4 +9,5 @@ from .transforms import (
     Identity,
     LogTransform,
     TensorTransform,
+    LimitValueTransform,
 )

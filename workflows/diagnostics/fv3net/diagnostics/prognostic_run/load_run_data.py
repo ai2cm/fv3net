@@ -146,6 +146,15 @@ def open_segmented_logs(url: str) -> vcm.fv3.logs.FV3Log:
     return vcm.fv3.logs.concatenate(logs)
 
 
+def open_segmented_logs_as_strings(url: str) -> List[str]:
+    """Open the logs from each segment of a segmented run as strings
+    """
+    fs = vcm.get_fs(url)
+    logfiles = sorted(fs.glob(f"{url}/**/logs.txt"))
+    logs = [fs.cat(url).decode() for url in logfiles]
+    return logs
+
+
 class Simulation(Protocol):
     @property
     def data_2d(self) -> xr.Dataset:

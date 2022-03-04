@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, List, Set
+from typing import Callable, List, Union, Set, Optional
 
 import tensorflow as tf
 from typing_extensions import Protocol
@@ -74,10 +74,45 @@ class LogTransform:
         return tf.math.exp(x)
 
 
+@dataclasses.dataclass
+class LimitValueTransform:
+    """
+    A univariate transformation for::
+
+    y := x
+    x := y where lower_limit < y < upper limit, 0 elsewhere
+
+    Attributes:
+        lower: lower bound for value clipping
+        upper: upper bound for value clipping
+    """
+
+    lower: Optional[float] = 0.0
+    upper: Optional[float] = None
+
+    def forward(self, x: tf.Tensor) -> tf.Tensor:
+        return x
+
+    def backward(self, x: tf.Tensor) -> tf.Tensor:
+
+        if self.lower is not None:
+            x = tf.keras.activations.relu(x, threshold=self.lower)
+
+        if self.upper is not None:
+            x = tf.cast(x < self.upper, x.dtype) * x
+
+        return x
+
+
+UnivariateCompatible = Union[LogTransform, LimitValueTransform]
+
+
 class UnivariateTransform(TensorTransform):
-    def __init__(self, source: str, to: str, transform: LogTransform):
+    def __init__(
+        self, source: str, transform: UnivariateCompatible, to: Optional[str] = None
+    ):
         self.source = source
-        self.to = to
+        self.to = to or source
         self.transform = transform
 
     def forward(self, x: TensorDict) -> TensorDict:

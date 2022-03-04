@@ -257,9 +257,6 @@ def _get_predict_function(predictor, variables, grid):
 def _get_data_mapper_if_exists(config):
     if isinstance(config, loaders.BatchesFromMapperConfig):
         return config.load_mapper()
-    elif isinstance(config, loaders.BatchesConfig):
-        if config.kwargs.get("mapping_function") == "open_zarr":
-            return loaders.open_zarr(config.kwargs.get("data_path"))
     else:
         return None
 

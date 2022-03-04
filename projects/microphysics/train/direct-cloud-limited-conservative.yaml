@@ -47,7 +47,6 @@ conservative_model:
   - input_name: pressure_thickness_of_atmospheric_layer
     selection: {stop: -10}
   normalize_key: mean_std
-  enforce_positive: true
   timestep_increment_sec: 900
 transform:
   antarctic_only: false
