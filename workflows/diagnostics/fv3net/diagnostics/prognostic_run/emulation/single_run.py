@@ -321,14 +321,19 @@ def upload_diagnostics_for_rundir(url):
         wandb.summary[key] = val
 
 
-def main(args):
-
-    wandb.init(
+def upload_diagnostics_for_tag(tag: str):
+    run = wandb.init(
         job_type="piggy-back",
         project=WANDB_PROJECT,
         entity=WANDB_ENTITY,
-        group=args.tag,
-        tags=[args.tag],
+        group=tag,
+        tags=[tag],
+        reinit=True,
     )
-    url = get_rundir_from_prognostic_run(get_prognostic_run_from_tag(args.tag))
-    upload_diagnostics_for_rundir(url)
+    with run:
+        url = get_rundir_from_prognostic_run(get_prognostic_run_from_tag(tag))
+        upload_diagnostics_for_rundir(url)
+
+
+def main(args):
+    return upload_diagnostics_for_tag(args.tag)
