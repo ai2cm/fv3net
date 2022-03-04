@@ -49,12 +49,18 @@ def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
     stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
     unstacked_dims = [dim for dim in ds.dims if dim in unstacked_dims]
     unstacked_dims.sort()  # needed to always get [x, y, z] dimensions
+    if SAMPLE_DIM_NAME in ds.dims:
+        intermediate_dim = "intermediate_dim"
+    else:
+        intermediate_dim = SAMPLE_DIM_NAME
     ds_stacked = safe.stack_once(
         ds,
-        SAMPLE_DIM_NAME,
+        intermediate_dim,
         stack_dims,
         allowed_broadcast_dims=list(unstacked_dims) + ["time", "dataset"],
     )
+    if intermediate_dim != SAMPLE_DIM_NAME:
+        ds_stacked = ds_stacked.rename({intermediate_dim: SAMPLE_DIM_NAME})
     return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 

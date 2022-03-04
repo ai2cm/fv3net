@@ -5,14 +5,13 @@ from fv3fit._shared import (
     SAMPLE_DIM_NAME,
     stack,
 )
-from fv3fit._shared.stacking import Z_DIM_NAMES
 from fv3fit.keras.adapters import (
     ensure_dict_output,
     rename_dict_input,
     rename_dict_output,
 )
 import tensorflow as tf
-from typing import Any, Dict, Hashable, Iterable, Optional, Sequence, Mapping
+from typing import Any, Dict, Hashable, Iterable, Sequence, Mapping
 import xarray as xr
 import os
 from ...._shared import get_dir, put_dir, InputSensitivity
@@ -37,9 +36,8 @@ class PureKerasModel(Predictor):
         self,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
-        output_metadata: Iterable[Dict[str, Any]],
         model: tf.keras.Model,
-        unstacked_dims: Optional[Sequence[str]] = None,
+        unstacked_dims: Sequence[str] = ("z",),
         n_halo: int = 0,
     ):
         """Initialize the predictor
@@ -47,23 +45,16 @@ class PureKerasModel(Predictor):
         Args:
             input_variables: names of input variables
             output_variables: names of output variables
-            output_metadata: attributes and stacked dimension order for each variable
-                in output_variables
             model: keras model to wrap
-            unstacked_dims: if given, stacking should leave these dimensions in place.
-                by default uses z-dimension names from pace.util
+            unstacked_dims: non-sample dimensions of model output
             n_halo: number of halo points required in input data
         """
         super().__init__(input_variables, output_variables)
         self.input_variables = input_variables
         self.output_variables = output_variables
-        self._output_metadata = output_metadata
         self.model = model
         self._n_halo = n_halo
-        if unstacked_dims is None:
-            self._unstacked_dims: Sequence[str] = Z_DIM_NAMES
-        else:
-            self._unstacked_dims = unstacked_dims
+        self._unstacked_dims = unstacked_dims
 
     @classmethod
     def load(cls, path: str) -> "PureKerasModel":
@@ -78,7 +69,6 @@ class PureKerasModel(Predictor):
             obj = cls(
                 config["input_variables"],
                 config["output_variables"],
-                config.get("output_metadata", None),
                 model,
                 unstacked_dims=config.get("unstacked_dims", None),
                 n_halo=config.get("n_halo", 0),
@@ -86,23 +76,21 @@ class PureKerasModel(Predictor):
             return obj
 
     def _array_prediction_to_dataset(
-        self, names, outputs, stacked_output_metadata, stacked_coords
+        self, names, outputs, stacked_coords
     ) -> xr.Dataset:
         ds = xr.Dataset()
-        for name, output, metadata in zip(names, outputs, stacked_output_metadata):
-            scalar_output_as_singleton_dim = (
-                len(metadata["dims"]) == 1
-                and len(output.shape) == 2
-                and output.shape[1] == 1
+        for name, output in zip(names, outputs):
+            dims = [SAMPLE_DIM_NAME] + list(self._unstacked_dims)
+            scalar_singleton_dim = (
+                len(output.shape) == len(dims) and output.shape[-1] == 1
             )
-            if scalar_output_as_singleton_dim:
-                output = output[:, 0]  # remove singleton dimension
+            if scalar_singleton_dim:  # remove singleton dimension
+                output = output[..., 0]
+                dims = dims[:-1]
             da = xr.DataArray(
-                data=output,
-                dims=[SAMPLE_DIM_NAME] + list(metadata["dims"][1:]),
-                coords={SAMPLE_DIM_NAME: stacked_coords},
+                data=output, dims=dims, coords={SAMPLE_DIM_NAME: stacked_coords},
             ).unstack(SAMPLE_DIM_NAME)
-            dim_order = [dim for dim in metadata["dims"] if dim in da.dims]
+            dim_order = [dim for dim in self._unstacked_dims if dim in da.dims]
             ds[name] = da.transpose(*dim_order, ...)
         return ds
 
@@ -123,34 +111,9 @@ class PureKerasModel(Predictor):
         outputs = self.model.predict(inputs)
         if isinstance(outputs, np.ndarray):
             outputs = [outputs]
-        if self._output_metadata is not None:
-            return_ds = self._array_prediction_to_dataset(
-                self.output_variables,
-                outputs,
-                self._output_metadata,
-                X_stacked.coords[SAMPLE_DIM_NAME],
-            )
-        else:
-            # workaround for saved datasets which do not have output metadata
-            # from an initial version of the BPTT code. Can be removed
-            # eventually
-            dQ1, dQ2 = outputs
-            return_ds = xr.Dataset(
-                data_vars={
-                    "dQ1": xr.DataArray(
-                        dQ1,
-                        dims=X_stacked["air_temperature"].dims,
-                        coords=X_stacked["air_temperature"].coords,
-                        attrs={"units": X_stacked["air_temperature"].units + " / s"},
-                    ),
-                    "dQ2": xr.DataArray(
-                        dQ2,
-                        dims=X_stacked["specific_humidity"].dims,
-                        coords=X_stacked["specific_humidity"].coords,
-                        attrs={"units": X_stacked["specific_humidity"].units + " / s"},
-                    ),
-                }
-            ).unstack(SAMPLE_DIM_NAME)
+        return_ds = self._array_prediction_to_dataset(
+            self.output_variables, outputs, X_stacked.coords[SAMPLE_DIM_NAME],
+        )
         return match_prediction_to_input_coords(X, return_ds)
 
     def dump(self, path: str) -> None:
@@ -164,7 +127,6 @@ class PureKerasModel(Predictor):
                         {
                             "input_variables": self.input_variables,
                             "output_variables": self.output_variables,
-                            "output_metadata": self._output_metadata,
                             "unstacked_dims": self._unstacked_dims,
                             "n_halo": self._n_halo,
                         }

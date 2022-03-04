@@ -9,6 +9,7 @@ import joblib
 from fv3fit.sklearn._random_forest import _RegressorEnsemble, pack, SklearnWrapper
 from fv3fit._shared.scaler import ManualScaler
 from fv3fit._shared import PackerConfig, SliceConfig
+from fv3fit.tfdataset import tfdataset_from_batches
 
 
 def test_flatten():
@@ -81,7 +82,7 @@ def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
     model = unittest.mock.Mock()
     model.regressors = []
     model.base_regressor = unittest.mock.Mock()
-    model.predict.return_value = np.array([[1.0]])
+    model.predict.return_value = np.ones(shape=(1,))
     model.dumps.return_value = dumps_returns
 
     if scale_factor:
@@ -100,7 +101,7 @@ def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
     wrapper = _get_sklearn_wrapper(scale)
     dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
-    wrapper.fit([data])
+    wrapper.fit(tfdataset_from_batches([data]))
     output = wrapper.predict(data)
     assert pytest.approx(1 / scale) == output["y"].item()
 
@@ -122,7 +123,7 @@ def test_fitting_SklearnWrapper_does_not_fit_scaler():
 
     dims = ["sample_", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
-    wrapper.fit([data])
+    wrapper.fit(tfdataset_from_batches([data]))
     scaler.fit.assert_not_called()
 
 
@@ -145,7 +146,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     # setup input data
     dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
-    wrapper.fit([data])
+    wrapper.fit(tfdataset_from_batches([data]))
 
     # serialize/deserialize
     path = str(tmpdir)
@@ -164,7 +165,7 @@ def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
     # setup input data
     dims = ["unstacked_dim", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
-    wrapper.fit([data])
+    wrapper.fit(tfdataset_from_batches([data]))
 
     # serialize/deserialize
     path = str(tmpdir)
@@ -172,7 +173,7 @@ def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
 
     # fit loaded model
     loaded = wrapper.load(path)
-    loaded.fit([data])
+    loaded.fit(tfdataset_from_batches([data]))
 
     assert len(loaded.model.regressors) == 2
 
@@ -191,7 +192,7 @@ def fit_wrapper_with_columnar_data():
     shape = (4, nz)
     arr = np.arange(np.prod(shape)).reshape(shape)
     input_data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1)})
-    wrapper.fit([input_data])
+    wrapper.fit(tfdataset_from_batches([input_data]))
     return input_data, wrapper
 
 
@@ -231,7 +232,7 @@ def test_SklearnWrapper_fit_predict_with_clipped_input_data():
         input_variables=["a", "b"],
         output_variables=["c"],
         model=model,
-        packer_config=PackerConfig({"a": {"z": SliceConfig(2, None)}}),
+        packer_config=PackerConfig({"a": SliceConfig(2, None)}),
     )
 
     dims = ["sample", "z"]
@@ -240,7 +241,7 @@ def test_SklearnWrapper_fit_predict_with_clipped_input_data():
     input_data = xr.Dataset(
         {"a": (dims, arr), "b": (dims[:-1], arr[:, 0]), "c": (dims, arr + 1)}
     )
-    wrapper.fit([input_data])
+    wrapper.fit(tfdataset_from_batches([input_data]))
     wrapper.predict(input_data)
 
 

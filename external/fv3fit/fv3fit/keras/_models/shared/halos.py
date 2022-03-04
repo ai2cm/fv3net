@@ -1,8 +1,10 @@
 from typing import Any, Dict, Hashable, Iterable, List, Mapping, Sequence, Tuple
+import tensorflow as tf
 from fv3fit._shared.stacking import match_prediction_to_input_coords
 import xarray as xr
 import numpy as np
 import pace.util
+from toolz.functoolz import curry
 
 
 def _create_comms(total_ranks: int) -> Sequence[pace.util.testing.DummyComm]:
@@ -153,3 +155,47 @@ def append_halos(ds: xr.Dataset, n_halo: int) -> xr.Dataset:
     ds_out = match_prediction_to_input_coords(input=ds, prediction=ds_out)
     # if you don't drop coords here, the model fails to train - no idea why
     return ds_out.drop(ds_out.coords.keys())
+
+
+@curry
+def append_halos_tensor(n_halo: int, tensor: tf.Tensor) -> tf.Tensor:
+    """
+    Given a tensor with
+    "tile", "x", "y", and "z" dimensions and no halo data,
+    return a tensor which has n_halo halo points of valid data
+    appended to the start and end of the x and y dimensions.
+    """
+    if n_halo > 0:
+        out_tensor = tf.py_function(
+            _append_halos_tensor, inp=(n_halo, tensor), Tout=tensor.dtype
+        )
+    else:
+        out_tensor = tensor
+    return out_tensor
+
+
+def _append_halos_tensor(n_halo, tensor: tf.Tensor) -> tf.Tensor:
+    comms = _create_comms(total_ranks=6)
+    communicators = [_get_cubed_sphere_communicator(comm) for comm in comms]
+    shape = list(tensor.shape[1:])
+    shape[0] += 2 * n_halo.numpy()
+    shape[1] += 2 * n_halo.numpy()
+    quantities = [
+        pace.util.Quantity(
+            data=np.zeros(shape),
+            dims=["x", "y", "z"],
+            units="unknown",
+            origin=(n_halo, n_halo, 0),
+            extent=tuple(tensor.shape[1:]),
+        )
+        for _ in range(6)
+    ]
+    for i, quantity in enumerate(quantities):
+        quantity.view[:] = tensor[i, :, :, :].numpy()
+    _halo_update(
+        communicators=communicators, quantities=quantities, n_halo=n_halo.numpy()
+    )
+    out_tensor = tf.concat(
+        [quantity.data[None, :, :, :] for quantity in quantities], axis=0
+    )
+    return out_tensor

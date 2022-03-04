@@ -13,3 +13,9 @@ def state(tmp_path_factory):
     lpath = tmp_path_factory.getbasetemp() / "input_data.nc"
     lpath.write_bytes(r.content)
     return xr.open_dataset(str(lpath))
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+    )

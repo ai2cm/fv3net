@@ -1,8 +1,17 @@
 import dataclasses
+from toolz.functoolz import curry
 import numpy as np
 import tensorflow as tf
-from typing import List, Optional, Sequence, Tuple, Set, Mapping, Union
-import xarray as xr
+from typing import (
+    List,
+    Optional,
+    Protocol,
+    Sequence,
+    Tuple,
+    Set,
+    Mapping,
+    Union,
+)
 
 from ..._shared.config import (
     Hyperparameters,
@@ -11,22 +20,20 @@ from ..._shared.config import (
 )
 from .shared import (
     TrainingLoopConfig,
-    XyMultiArraySequence,
     DenseNetworkConfig,
     TrainingLoopLossHistory,
 )
 from fv3fit.keras._models.shared import (
     PureKerasModel,
     LossConfig,
-    ClipConfig,
     OutputLimitConfig,
 )
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
-    get_stacked_metadata,
     full_standard_normalized_input,
 )
-from fv3fit.keras._models.shared.clip import clip_sequence
+from fv3fit.keras._models.shared.clip import clip_sequence, ClipConfig
+from fv3fit.tfdataset import get_Xy_dataset
 
 
 @dataclasses.dataclass
@@ -50,7 +57,7 @@ class DenseHyperparameters(Hyperparameters):
             each output variable.
         save_model_checkpoints: if True, save one model per epoch when
             dumping, under a 'model_checkpoints' subdirectory
-        clip_config: configuration of dataset packing.
+        clip_config: configuration of input and output clipping
         output_limit_config: configuration for limiting output values.
     """
 
@@ -82,62 +89,60 @@ class DenseHyperparameters(Hyperparameters):
 @register_training_function("dense", DenseHyperparameters)
 def train_dense_model(
     hyperparameters: DenseHyperparameters,
-    train_batches: Sequence[xr.Dataset],
-    validation_batches: Sequence[xr.Dataset],
+    train_batches: tf.data.Dataset,
+    validation_batches: Optional[tf.data.Dataset],
 ):
-    if len(validation_batches) > 0:
-        validation_data: Optional[Tuple[np.ndarray, np.ndarray]] = XyMultiArraySequence(
-            X_names=hyperparameters.input_variables,
-            y_names=hyperparameters.output_variables,
-            unstacked_dims=["z"],
-            n_halo=0,
-            dataset_sequence=[validation_batches[0]],
-            output_clip_config=hyperparameters.clip_config,
-        )[0]
-        del validation_batches
+    return train_column_model(
+        train_batches=train_batches,
+        validation_batches=validation_batches,
+        build_model=curry(build_model)(config=hyperparameters),
+        input_variables=hyperparameters.input_variables,
+        output_variables=hyperparameters.output_variables,
+        clip_config=hyperparameters.clip_config,
+        training_loop=hyperparameters.training_loop,
+    )
+
+
+class ModelBuilder(Protocol):
+    def __call__(
+        self, X: tf.Tensor, y: tf.Tensor
+    ) -> Tuple[tf.keras.Model, tf.keras.Model]:
+        ...
+
+
+def train_column_model(
+    train_batches: tf.data.Dataset,
+    validation_batches: Optional[tf.data.Dataset],
+    build_model: ModelBuilder,
+    input_variables: Sequence[str],
+    output_variables: Sequence[str],
+    clip_config: ClipConfig,
+    training_loop: TrainingLoopConfig,
+):
+    get_Xy = curry(get_Xy_dataset)(
+        input_variables=input_variables, output_variables=output_variables, n_dims=1,
+    )
+    if validation_batches is not None:
+        val_Xy = get_Xy(clip_config=clip_config.clip, data=validation_batches)
     else:
-        validation_data = None
+        val_Xy = None
 
-    # training data has outputs clipped to correspond to the train model output clipping
-    train_data: Sequence[Tuple[np.ndarray, np.ndarray]] = XyMultiArraySequence(
-        X_names=hyperparameters.input_variables,
-        y_names=hyperparameters.output_variables,
-        unstacked_dims=["z"],
-        n_halo=0,
-        dataset_sequence=train_batches,
-        output_clip_config=hyperparameters.clip_config,
-    )
+    train_Xy = get_Xy(data=train_batches, clip_config=clip_config.clip)
+    # need unclipped shapes for build_model
+    X, y = next(iter(get_Xy(data=train_batches, clip_config=None).batch(10_000_000)))
 
-    # data sample with full dimensions is needed when building the model
-    sample_data_unclipped = XyMultiArraySequence(
-        X_names=hyperparameters.input_variables,
-        y_names=hyperparameters.output_variables,
-        unstacked_dims=["z"],
-        n_halo=0,
-        dataset_sequence=train_batches,
-    )
-    X, y = sample_data_unclipped[0]
-
-    if isinstance(train_batches, tuple):
-        train_data = tuple(train_data)
-
-    train_model, predict_model = build_model(hyperparameters, X=X, y=y)
-    output_metadata = get_stacked_metadata(
-        names=hyperparameters.output_variables, ds=train_batches[0], unstacked_dims="z",
-    )
-    del train_batches
+    train_model, predict_model = build_model(X=X, y=y)
 
     loss_history = TrainingLoopLossHistory()
-    hyperparameters.training_loop.fit_loop(
+    training_loop.fit_loop(
         model=train_model,
-        Xy=train_data,
-        validation_data=validation_data,
+        Xy=train_Xy,
+        validation_data=val_Xy,
         callbacks=[loss_history.callback],
     )
     predictor = PureKerasModel(
-        input_variables=hyperparameters.input_variables,
-        output_variables=hyperparameters.output_variables,
-        output_metadata=output_metadata,
+        input_variables=input_variables,
+        output_variables=output_variables,
         model=predict_model,
         unstacked_dims=("z",),
         n_halo=0,
@@ -146,18 +151,8 @@ def train_dense_model(
     return predictor
 
 
-def _ensure_2d(array: np.ndarray) -> np.ndarray:
-    # ensures [sample, z] dimensionality
-    if len(array.shape) == 2:
-        return array
-    elif len(array.shape) == 1:
-        return array[:, None]
-    else:
-        raise ValueError(f"expected 1d or 2d array, got shape {array.shape}")
-
-
 def build_model(
-    config: DenseHyperparameters, X, y
+    config: DenseHyperparameters, X: Tuple[tf.Tensor, ...], y: Tuple[tf.Tensor, ...]
 ) -> Tuple[tf.keras.Model, tf.keras.Model]:
     """
     Args:
@@ -165,17 +160,13 @@ def build_model(
         X: example input for keras fitting, used to determine shape and normalization
         y: example output for keras fitting, used to determine shape and normalization
     """
-
-    X_2d = [_ensure_2d(array) for array in X]
-    y_2d = [_ensure_2d(array) for array in y]
-
-    input_layers = [tf.keras.layers.Input(shape=arr.shape[1:]) for arr in X_2d]
+    input_layers = [tf.keras.layers.Input(shape=arr.shape[1]) for arr in X]
     clipped_input_layers = clip_sequence(
         config.clip_config, input_layers, config.input_variables
     )
     full_input = full_standard_normalized_input(
         clipped_input_layers,
-        clip_sequence(config.clip_config, X_2d, config.input_variables),
+        clip_sequence(config.clip_config, X, config.input_variables),
         config.input_variables,
     )
 
@@ -189,11 +180,11 @@ def build_model(
         tf.keras.layers.Dense(
             array.shape[-1], activation="linear", name=f"dense_network_output_{i}",
         )(hidden_outputs[-1])
-        for i, array in enumerate(y_2d)
+        for i, array in enumerate(y)
     ]
 
     denorm_output_layers = standard_denormalize(
-        names=config.output_variables, layers=norm_output_layers, arrays=y_2d,
+        names=config.output_variables, layers=norm_output_layers, arrays=y,
     )
 
     # Apply output range limiters
@@ -207,7 +198,7 @@ def build_model(
         config.clip_config, denorm_output_layers, config.output_variables
     )
     clipped_output_arrays = clip_sequence(
-        config.clip_config, list(y_2d), config.output_variables
+        config.clip_config, list(y), config.output_variables
     )
     clipped_output_stds = (
         np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)

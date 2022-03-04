@@ -14,6 +14,8 @@ import loaders
 import loaders.typing
 import tempfile
 from loaders.batches.save import main as save_main
+from fv3fit.tfdataset import tfdataset_from_batches
+import tensorflow as tf
 
 from vcm.cloud import copy
 
@@ -61,20 +63,26 @@ def get_data(
     validation_data_config: Optional[str],
     local_download_path: Optional[str],
     variable_names: Sequence[str],
-) -> Tuple[loaders.typing.Batches, loaders.typing.Batches]:
+) -> Tuple[tf.data.Dataset, Optional[tf.data.Dataset]]:
     if local_download_path is None:
-        return get_uncached_data(
+        train_batches, val_batches = get_uncached_data(
             training_data_config=training_data_config,
             validation_data_config=validation_data_config,
             variable_names=variable_names,
         )
     else:
-        return get_cached_data(
+        train_batches, val_batches = get_cached_data(
             training_data_config=training_data_config,
             validation_data_config=validation_data_config,
             local_download_path=local_download_path,
             variable_names=variable_names,
         )
+    train_dataset = tfdataset_from_batches(train_batches)
+    if len(val_batches) > 0:
+        val_dataset = tfdataset_from_batches(val_batches)
+    else:
+        val_dataset = None
+    return train_dataset, val_dataset
 
 
 def get_uncached_data(

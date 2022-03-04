@@ -1,10 +1,6 @@
 import tensorflow as tf
-from typing import Iterable, Optional, Sequence, Tuple, Callable
+from typing import Any, Iterable, List, Mapping, Optional, Sequence, Callable
 import dataclasses
-import numpy as np
-
-from .sequences import ThreadedSequencePreLoader
-from loaders.batches import shuffle
 import logging
 
 
@@ -16,11 +12,13 @@ class EpochResult:
     """
     Attributes:
         epoch: count of epoch (starts at zero)
-        history: return value of `model.fit` from each batch
+        batch_logs: metrics of `model.fit` from each batch
+        epoch_logs: metrics of `model.fit` from the end of the epoch
     """
 
     epoch: int
-    history: Sequence[tf.keras.callbacks.History]
+    batch_logs: Sequence[Mapping[str, float]]
+    epoch_logs: Mapping[str, float]
 
 
 @dataclasses.dataclass
@@ -36,43 +34,52 @@ class TrainingLoopConfig:
     """
 
     epochs: int = 3
-    workers: int = 1
-    max_queue_size: int = 8
+    shuffle_buffer_size: int = 2_000_000
     batch_size: int = 16
 
     def fit_loop(
         self,
         model: tf.keras.Model,
-        Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
-        validation_data: Optional[Tuple[np.ndarray, np.ndarray]] = None,
+        Xy: tf.data.Dataset,
+        validation_data: Optional[tf.data.Dataset] = None,
         callbacks: Iterable[Callable[[EpochResult], None]] = (),
     ) -> None:
         """
         Args:
             model: keras model to train
-            Xy: sequence of data batches to be passed to `model.fit`
+            Xy: Dataset containing samples to be passed to model.fit
             validation_data: passed as `validation_data` argument to `model.fit`
             callbacks: if given, these will be called at the end of each epoch
         """
-        for i_epoch in range(self.epochs):
-            Xy = shuffle(Xy)
-            if self.workers > 1:
-                Xy = ThreadedSequencePreLoader(
-                    Xy, num_workers=self.workers, max_queue_size=self.max_queue_size
-                )
-            history = []
-            for i_batch, (X, y) in enumerate(Xy):
-                logger.info(
-                    f"Fitting on batch {i_batch + 1} of {len(Xy)}, "
-                    f"of epoch {i_epoch}..."
-                )
-                history.append(
-                    model.fit(
-                        X,
-                        y,
-                        validation_data=validation_data,
-                        batch_size=self.batch_size,
-                    )
-                )
-            for callback in callbacks:
-                callback(EpochResult(epoch=i_epoch, history=tuple(history)))
+        Xy = Xy.shuffle(buffer_size=self.shuffle_buffer_size).batch(self.batch_size)
+        if validation_data is not None:
+            validation_batched = validation_data.batch(self.batch_size)
+        else:
+            validation_batched = None
+        model.fit(
+            Xy,
+            validation_data=validation_batched,
+            callbacks=[EpochCallback(func) for func in callbacks],
+            epochs=self.epochs,
+        )
+
+
+class EpochCallback(tf.keras.callbacks.History):
+    def __init__(self, callback: Callable[[EpochResult], Any]):
+        self._callback = callback
+        self._batch_logs: List[dict] = []
+
+    def on_train_batch_end(self, epoch: int, logs=None):
+        if logs is None:
+            logs = {}
+        self._batch_logs.append(logs)
+
+    def on_epoch_end(self, epoch: int, logs=None):
+        if logs is None:
+            logs = {}
+        self._callback(
+            EpochResult(
+                epoch=epoch, batch_logs=tuple(self._batch_logs), epoch_logs=logs
+            )
+        )
+        self._batch_logs.clear()

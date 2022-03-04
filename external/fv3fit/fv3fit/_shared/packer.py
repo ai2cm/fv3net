@@ -1,4 +1,5 @@
 import collections
+from toolz.functoolz import curry
 from typing import (
     Hashable,
     Iterable,
@@ -12,13 +13,14 @@ from typing import (
     Mapping,
 )
 
-from .config import PackerConfig, ClipDims
+from .config import PackerConfig, SliceConfig
 import dacite
 import dataclasses
 import numpy as np
 import xarray as xr
 import pandas as pd
 import yaml
+import tensorflow as tf
 
 
 def _feature_dims(data: xr.Dataset, sample_dims: Sequence[str]) -> Sequence[str]:
@@ -41,6 +43,54 @@ def _unique_dim_name(
             f"non-feature dims ({sample_dims})"
         )
     return feature_dim_name
+
+
+@dataclasses.dataclass
+class PackingInfo:
+    names: Sequence[str]
+    features: Sequence[int]
+
+    @property
+    def multi_index(self) -> pd.MultiIndex:
+        entries = []
+        i = 0
+        for name, n_features in zip(self.names, self.features):
+            for j in range(i, i + n_features):
+                entries.append((name, j))
+            i += n_features
+        feature_index = pd.MultiIndex.from_tuples(
+            tuple(entries), names=("variable", "z")
+        )
+        return feature_index
+
+
+@curry
+def clip_sample(
+    config: Mapping[str, SliceConfig], data: Mapping[str, tf.Tensor],
+) -> Mapping[str, tf.Tensor]:
+    return {
+        key: value[..., config.get(key, SliceConfig()).slice]
+        for (key, value) in data.items()
+    }
+
+
+def pack_tfdataset(
+    data: tf.data.Dataset, variable_names: Sequence[str],
+) -> Tuple[tf.data.Dataset, PackingInfo]:
+    sample = next(iter(data))
+    features = []
+    for name in variable_names:
+        if len(sample[name].shape) > 0:
+            features.append(sample[name].shape[-1])
+        else:
+            features.append(1)
+    packing_info = PackingInfo(names=variable_names, features=features)
+    return (
+        data.map(
+            lambda x: tf.concat(list(x[name] for name in variable_names), axis=-1)
+        ),
+        packing_info,
+    )
 
 
 def pack(
@@ -67,9 +117,31 @@ def pack(
     )
 
 
+@curry
+def unpack_sample(packing_info: PackingInfo, sample):
+    i_feature = 0
+    return_dict = {}
+    for name, n_features in zip(packing_info.names, packing_info.features):
+        return_dict[name] = sample[..., i_feature : i_feature + n_features]
+        i_feature = i_feature + n_features
+    return return_dict
+
+
+def unpack_tfdataset(data: tf.data.Dataset, packing_info: PackingInfo):
+    return data.map(unpack_sample(packing_info))
+
+
 def unpack(
-    data: np.ndarray, sample_dims: Sequence[str], feature_index: pd.MultiIndex
+    data: np.ndarray,
+    sample_dims: Sequence[str],
+    *,
+    packing_info: Optional[PackingInfo] = None,
+    feature_index: Optional[pd.MultiIndex] = None,
 ) -> xr.Dataset:
+    if packing_info is None and feature_index is None:
+        raise ValueError("either packing_info or feature_index must be given")
+    elif feature_index is None and packing_info is not None:
+        feature_index = packing_info.multi_index
     if len(data.shape) == len(sample_dims):
         selection: List[Union[slice, None]] = [slice(None, None) for _ in sample_dims]
         selection = selection + [None]
@@ -90,15 +162,16 @@ def tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
 
 
 def clip(
-    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]], config: ClipDims,
-) -> Mapping[Hashable, xr.DataArray]:
+    data: Union[xr.Dataset, Mapping[str, xr.DataArray]],
+    config: Mapping[str, SliceConfig],
+) -> Mapping[str, xr.DataArray]:
     clipped_data = {}
     for variable in data:
         da = data[variable]
         da = _fill_empty_coords(da)
         if variable in config:
-            for dim in config[variable]:
-                da = da.isel({dim: config[variable][dim].slice})
+            dim = data[variable].dims[-1]
+            da = da.isel({dim: config[variable].slice})
         clipped_data[variable] = da
     return clipped_data
 
@@ -199,7 +272,7 @@ class ArrayPacker:
                 "must pack at least once before unpacking, "
                 "so dimension lengths are known"
             )
-        return unpack(array, [self._sample_dim_name], self._feature_index)
+        return unpack(array, [self._sample_dim_name], feature_index=self._feature_index)
 
     def dump(self, f: TextIO):
         return yaml.safe_dump(

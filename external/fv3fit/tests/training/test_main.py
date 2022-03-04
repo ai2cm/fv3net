@@ -1,5 +1,4 @@
 import dataclasses
-import subprocess
 from typing import Any, Optional, Sequence
 import fv3fit
 from fv3fit._shared.config import get_hyperparameter_class
@@ -14,12 +13,18 @@ import cftime
 import xarray as xr
 import loaders
 import vcm
+import subprocess
 from unittest import mock
 
 
 def get_mock_dataset(n_time, unstacked_dims: Sequence[str]):
-    shape = tuple(range(4, 4 + len(unstacked_dims) + 1))
-    dims = tuple(["sample"] + list(unstacked_dims))
+    shape = list(range(6, 6 + len(unstacked_dims) + 1))
+    dims = list(["sample"] + list(unstacked_dims))
+    if "x" in dims and "y" in dims:
+        # must have nx=ny if doing halo updates
+        shape[dims.index("x")] = shape[dims.index("y")]
+    if "tile" in dims:
+        shape[dims.index("tile")] = 6
     arr = np.zeros(shape)
     shape_surface = shape[:-1]
     dims_surface = dims[:-1]
@@ -29,9 +34,12 @@ def get_mock_dataset(n_time, unstacked_dims: Sequence[str]):
         {
             "specific_humidity": (dims, arr),
             "air_temperature": (dims, arr),
+            "pressure_thickness_of_atmospheric_layer": (dims, arr),
             "downward_shortwave": (dims_surface, arr_surface),
             "net_shortwave": (dims_surface, arr_surface),
             "downward_longwave": (dims_surface, arr_surface),
+            "physics_precip": (dims_surface, arr_surface),
+            "total_precipitation_rate": (dims_surface, arr_surface),
             "dQ1": (dims, arr),
             "dQ2": (dims, arr),
             "dQu": (dims, arr),
@@ -101,16 +109,27 @@ def mock_train_dense_model():
 @pytest.fixture
 def mock_load_batches():
     magic_load_mock = mock.MagicMock(name="load_batches")
+    magic_load_mock.return_value.__len__ = lambda _: 1
     with mock.patch.object(loaders.BatchesConfig, "load_batches", magic_load_mock):
         yield magic_load_mock
 
 
 @pytest.fixture
-def mock_batches_from_netcdf():
+def mock_tfdataset_from_batches():
     with mock.patch(
-        "loaders.batches_from_netcdf", spec=loaders.batches_from_netcdf
-    ) as magic_load_mock:
-        yield magic_load_mock
+        "fv3fit.train.tfdataset_from_batches"
+    ) as tfdataset_from_batches_mock:
+        yield tfdataset_from_batches_mock
+
+
+@pytest.fixture
+def mock_batches_from_netcdf():
+    batches_from_netcdf_mock = mock.MagicMock(
+        name="batches_from_netcdf", spec=loaders.batches_from_netcdf
+    )
+    batches_from_netcdf_mock.return_value.__len__ = lambda _: 1
+    with mock.patch("loaders.batches_from_netcdf", new=batches_from_netcdf_mock):
+        yield batches_from_netcdf_mock
 
 
 def call_main(
@@ -147,6 +166,7 @@ def call_main(
 def test_main_calls_load_batches_correctly(
     tmpdir,
     mock_load_batches: mock.MagicMock,
+    mock_tfdataset_from_batches: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
     derived_output_variables: Sequence[str],
     use_validation_data: bool,
@@ -172,6 +192,7 @@ def test_main_calls_load_batches_correctly(
 def test_main_dumps_correct_predictor(
     tmpdir,
     mock_load_batches: mock.MagicMock,
+    mock_tfdataset_from_batches: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
     derived_output_variables: Sequence[str],
 ):
@@ -191,6 +212,7 @@ def test_main_dumps_correct_predictor(
 def test_main_uses_derived_model_only_if_needed(
     tmpdir,
     mock_load_batches: mock.MagicMock,
+    mock_tfdataset_from_batches: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
     derived_output_variables: Sequence[str],
 ):
@@ -208,9 +230,37 @@ def test_main_uses_derived_model_only_if_needed(
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
 @pytest.mark.parametrize("use_validation_data", [True, False])
 @pytest.mark.parametrize("use_local_download_path", [True, False])
+def test_main_calls_batches_to_tfdataset_with_correct_arguments(
+    tmpdir,
+    mock_load_batches: mock.MagicMock,
+    mock_tfdataset_from_batches: mock.MagicMock,
+    mock_batches_from_netcdf: mock.MagicMock,
+    mock_train_dense_model: mock.MagicMock,
+    derived_output_variables: Sequence[str],
+    use_validation_data: bool,
+    use_local_download_path: bool,
+):
+    call_main(
+        tmpdir,
+        mock_load_batches,
+        derived_output_variables,
+        use_validation_data,
+        use_local_download_path=use_local_download_path,
+    )
+    if use_local_download_path:
+        mock_batches = mock_batches_from_netcdf.return_value
+    else:
+        mock_batches = mock_load_batches.return_value
+    mock_tfdataset_from_batches.assert_called_with(mock_batches)
+
+
+@pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
+@pytest.mark.parametrize("use_validation_data", [True, False])
+@pytest.mark.parametrize("use_local_download_path", [True, False])
 def test_main_calls_train_with_correct_arguments(
     tmpdir,
     mock_load_batches: mock.MagicMock,
+    mock_tfdataset_from_batches: mock.MagicMock,
     mock_batches_from_netcdf: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
     derived_output_variables: Sequence[str],
@@ -224,17 +274,14 @@ def test_main_calls_train_with_correct_arguments(
         use_validation_data,
         use_local_download_path=use_local_download_path,
     )
-    if use_local_download_path:
-        mock_batches = mock_batches_from_netcdf.return_value
-    else:
-        mock_batches = mock_load_batches.return_value
+    mock_tfdataset = mock_tfdataset_from_batches.return_value
     if use_validation_data:
-        validation_batches = mock_batches
+        validation_batches = mock_tfdataset
     else:
-        validation_batches = []
+        validation_batches = None
     mock_train_dense_model.assert_called_once_with(
         hyperparameters=artifacts.hyperparameters,
-        train_batches=mock_batches,
+        train_batches=mock_tfdataset,
         validation_batches=validation_batches,
     )
 
@@ -404,6 +451,8 @@ def cli_main(args: MainArgs):
             {"max_depth": 4, "n_estimators": 2},
             id="random_forest",
         ),
+        pytest.param("convolutional", {}, id="convolutional"),
+        pytest.param("precipitative", {}, id="precipitative"),
         pytest.param("dense", {"save_model_checkpoints": False}, id="dense"),
         pytest.param(
             "dense", {"save_model_checkpoints": True}, id="dense_with_checkpoints",
@@ -414,6 +463,7 @@ def cli_main(args: MainArgs):
     "use_local_download_path, use_validation_data",
     [(False, False), (False, True), (True, False)],
 )
+@pytest.mark.slow
 def test_cli(
     tmpdir,
     use_local_download_path: bool,
@@ -424,6 +474,10 @@ def test_cli(
     """
     Test of fv3fit.train command-line interface.
     """
+    if model_type == "convolutional":
+        unstacked_dims = ["tile", "x", "y", "z"]
+    else:
+        unstacked_dims = ["z"]
     config = get_config(
         tmpdir,
         [],
@@ -431,18 +485,9 @@ def test_cli(
         hyperparameter_dict,
         use_validation_data,
         use_local_download_path=use_local_download_path,
-        unstacked_dims=["z"],
+        unstacked_dims=unstacked_dims,
     )
-    if not use_local_download_path and model_type == "dense":
-        # dense requires caching if unstacked_dims is set as double-stacking
-        # a MultiIndex causes an error, can remove this block when dense training
-        # no longer stacks
-        with pytest.raises(
-            expected_exception=(ValueError, subprocess.CalledProcessError)
-        ):
-            cli_main(config.args)
-    else:
-        cli_main(config.args)
-        fv3fit.load(config.args.output_path)
-        if use_local_download_path:
-            assert len(os.listdir(config.args.local_download_path)) > 0
+    cli_main(config.args)
+    fv3fit.load(config.args.output_path)
+    if use_local_download_path:
+        assert len(os.listdir(config.args.local_download_path)) > 0
