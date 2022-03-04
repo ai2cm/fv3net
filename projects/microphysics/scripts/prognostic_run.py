@@ -24,11 +24,15 @@ def run_from_config_dict(config: dict):
     # pop orchestration related args
     config = {**config}
     tag = config.pop("tag")
-    segments = config.pop("segments")
+    segments = config.pop("segments", 1)
 
     url = resolve_url(BUCKET, job.project, tag)
     wandb.config.update(
-        {"config": config, "rundir": url, "env": {os.getenv("COMMIT_SHA", "")}}
+        {
+            "config": config,
+            "rundir": url,
+            "env": {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")},
+        }
     )
     config = dacite.from_dict(HighLevelConfig, config)
     config_dict = config.to_fv3config()
