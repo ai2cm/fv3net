@@ -19,6 +19,30 @@ logging.basicConfig(level=logging.INFO)
 
 CONFIG_PATH = Path(__file__).parent.parent / "configs" / "default.yaml"
 
+
+def run_from_config_dict(config: dict):
+    # pop orchestration related args
+    config = {**config}
+    tag = config.pop("tag")
+    segments = config.pop("segments")
+
+    url = resolve_url(BUCKET, job.project, tag)
+    wandb.config.update(
+        {"config": config, "rundir": url, "env": {os.getenv("COMMIT_SHA", "")}}
+    )
+    config = dacite.from_dict(HighLevelConfig, config)
+    config_dict = config.to_fv3config()
+
+    api.create(url, config_dict)
+    for i in range(segments):
+        logging.info(f"Running segment {i+1} of {segments}")
+        api.append(url)
+
+    artifact = wandb.Artifact(tag, type="prognostic-run")
+    artifact.add_reference(url, checksum=False)
+    wandb.log_artifact(artifact)
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--tag",
@@ -26,7 +50,6 @@ parser.add_argument(
     default="",
     help="A unique tag. Can be used to look-up these outputs in subsequent timesteps.",
 )
-parser.add_argument("--segments", "-n", type=int, default=1, help="number of segments")
 parser.add_argument("--config-path", type=Path, default=CONFIG_PATH)
 
 # online/offine flag
@@ -53,27 +76,10 @@ job = wandb.init(
 if args.tag:
     job.tags = job.tags + (args.tag,)
 
-tag = args.tag or job.id
 
 with args.config_path.open() as f:
     config = yaml.safe_load(f)
 
-config = dacite.from_dict(HighLevelConfig, config)
-config.namelist["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
-
-config_dict = config.to_fv3config()
-
-url = resolve_url(BUCKET, job.project, tag)
-
-wandb.config.update(
-    {"config": config_dict, "rundir": url, "env": {os.getenv("COMMIT_SHA", "")}}
-)
-
-api.create(url, config_dict)
-for i in range(args.segments):
-    logging.info(f"Running segment {i+1} of {args.segments}")
-    api.append(url)
-
-artifact = wandb.Artifact(tag, type="prognostic-run")
-artifact.add_reference(url, checksum=False)
-wandb.log_artifact(artifact)
+config["namelist"]["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
+config["tag"] = args.tag or job.id
+run_from_config_dict(config)
