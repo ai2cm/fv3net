@@ -100,7 +100,6 @@ def plot_cloud_weighted_average(ds):
 
 @register_log
 def plot_cloud_maps(ds):
-    ds = ds.dropna("time")
     ds = ds.assign(z=ds.z)
     fig = fv3viz.plot_cube(
         ds.isel(time=[0, -1], z=[20, 43]),
