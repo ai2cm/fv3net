@@ -665,8 +665,9 @@ sources:
 
   2020_1yr_pire_pressure_interpolated:
     description: >-
-      3D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and interpolated to pressure levels.
-      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-06-17-save-c3072-verification-correct-winds.ipynb
+      3D dynamical core diagnostics variables from 1 year PIRE simulation post-spinup, coarsened to C48 resolution and interpolated to pressure levels.
+      Saved at 3h resolution, though about 80 timesteps out of the year are dropped from the final verification dataset as the dataflow job produced
+      corrupt data at those times.
     driver: zarr
     metadata:
       grid: c48
