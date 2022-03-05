@@ -19,3 +19,7 @@ CREATE TABLE progsummary (
     FOREIGN KEY (run_id) REFERENCES runs(id)
 );
 
+CREATE TABLE history (
+    updated text
+);
+
