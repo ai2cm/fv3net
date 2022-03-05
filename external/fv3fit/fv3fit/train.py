@@ -149,6 +149,11 @@ def main(args, unknown_args=None):
     with open(args.training_config, "r") as f:
         config_dict = yaml.safe_load(f)
         if unknown_args is not None:
+            # converting to TrainingConfig and then back to dict allows command line to
+            # update fields that are not present in original configuration file
+            config_dict = dataclasses.asdict(
+                fv3fit.TrainingConfig.from_dict(config_dict)
+            )
             config_dict = get_arg_updated_config_dict(
                 args=unknown_args, config_dict=config_dict
             )

@@ -43,10 +43,7 @@ class MockPredictor(fv3fit.Predictor):
         self.output_ds = output_ds
         self.call_datasets = []
 
-    def predict(self, X: xr.Dataset):
-        raise NotImplementedError()
-
-    def predict_columnwise(self, X: xr.Dataset, *args, **kwargs) -> xr.Dataset:
+    def predict(self, X: xr.Dataset, *args, **kwargs) -> xr.Dataset:
         self.call_datasets.append(X)
         return self.output_ds
 

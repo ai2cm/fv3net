@@ -141,7 +141,7 @@ def add_wind_rotation_info(res: str, ds: xr.Dataset) -> xr.Dataset:
         res: grid resolution, format as f'c{number cells in tile}'
     """
 
-    rotation = _load_wind_rotation_matrix(res).drop("tile")
+    rotation = _load_wind_rotation_matrix(res).drop_vars("tile", errors="ignore")
     common_coords = {"x": ds["x"].values, "y": ds["y"].values}
     rotation = rotation.assign_coords(common_coords)
     return ds.merge(rotation, compat="override")
@@ -152,7 +152,9 @@ def _load_grid(res: str) -> xr.Dataset:
     land_sea_mask = catalog[f"landseamask/{res}"].to_dask()
     grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
     # drop the tiles so that this is compatible with other indexing conventions
-    return safe.get_variables(grid, ["lat", "lon", "land_sea_mask"]).drop("tile")
+    return safe.get_variables(grid, ["lat", "lon", "land_sea_mask"]).drop_vars(
+        "tile", errors="ignore"
+    )
 
 
 def _load_wind_rotation_matrix(res: str) -> xr.Dataset:
