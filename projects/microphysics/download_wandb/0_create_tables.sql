@@ -1,5 +1,6 @@
 CREATE TABLE runs (
     id text not null primary key,
+    state text,
     name text,
     config text,
     summary text,
