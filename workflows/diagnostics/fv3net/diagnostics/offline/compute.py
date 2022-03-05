@@ -234,9 +234,7 @@ def _get_predict_function(predictor, variables, grid):
         )
         derived_mapping = DerivedMapping(ds)
         ds_derived = derived_mapping.dataset(variables)
-        ds_prediction = predictor.predict_columnwise(
-            safe.get_variables(ds_derived, variables), feature_dim="z"
-        )
+        ds_prediction = predictor.predict(safe.get_variables(ds_derived, variables))
         return insert_prediction(ds_derived, ds_prediction)
 
     return transform

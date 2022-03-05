@@ -108,9 +108,9 @@ class RenamingAdapter:
         invert_rename_in = _invert_dict(self.rename_in)
         return {invert_rename_in.get(var, var) for var in self.model.input_variables}
 
-    def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
+    def predict(self, arg: xr.Dataset) -> xr.Dataset:
         input_ = self._rename_inputs(arg)
-        prediction = self.model.predict_columnwise(input_, **kwargs)
+        prediction = self.model.predict(input_)
         return self._rename_outputs(prediction)
 
 
@@ -123,10 +123,10 @@ class MultiModelAdapter:
         vars = [model.input_variables for model in self.models]
         return {var for model_vars in vars for var in model_vars}
 
-    def predict_columnwise(self, arg: xr.Dataset, **kwargs) -> xr.Dataset:
+    def predict(self, arg: xr.Dataset) -> xr.Dataset:
         predictions = []
         for model in self.models:
-            predictions.append(model.predict_columnwise(arg, **kwargs))
+            predictions.append(model.predict(arg))
         return xr.merge(predictions)
 
 
@@ -158,7 +158,7 @@ def predict(model: MultiModelAdapter, state: State) -> State:
     """Given ML model and state, return prediction"""
     state_loaded = {key: state[key] for key in model.input_variables}
     ds = xr.Dataset(state_loaded)  # type: ignore
-    output = model.predict_columnwise(ds, feature_dim="z")
+    output = model.predict(ds)
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
