@@ -17,7 +17,7 @@ def get_segmented_cmap(n):
     blues = cm.get_cmap("Blues", n)
     reds = cm.get_cmap("Reds", n)
     cb = blues(np.linspace(0, 1, n))
-    cr = reds(np.linspace(0.2, 1, n))
+    cr = reds(np.linspace(0.4, 1, n))
     concat = np.concatenate([cr[::-1, :], cb], axis=0)
     return ListedColormap(concat)
 
