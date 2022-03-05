@@ -7,6 +7,7 @@ select *
 FROM (
     SELECT group_ as "group"
         , max(json_each.value = 'experiment/longer-runs') as match
+        , max(location)
         , substr(max(model),-30,20) model
         , max(gscond_only) gscond_only
         , max(online) as online
@@ -19,6 +20,7 @@ FROM (
             json_extract(config, '$.config.value.zhao_carr_emulation.model.path')
         ,   json_extract(config, '$.config.value.zhao_carr_emulation.gscond.path')) model
         ,   IFNULL(json_extract(config, '$.config.value.namelist.gfs_physics_nml.emulate_gscond_only'), 0) gscond_only
+        ,   json_extract(config, "$.rundir.value") location
         , state as run_state
         , json_extract(config, '$.config.value.namelist.gfs_physics_nml.emulate_zc_microphysics') as online
         FROM runs
