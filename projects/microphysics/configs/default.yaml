@@ -1,6 +1,7 @@
 base_version: v0.5
 data_table: default
-duration: "30d"
+duration: "10d"
+segments: 3
 initial_conditions: "gs://vcm-ml-experiments/online-emulator/2021-08-09/gfs-initialized-baseline-06/fv3gfs_run/artifacts/20160601.000000/RESTART"
 fortran_diagnostics:
 - name: piggy.zarr

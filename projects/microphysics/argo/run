@@ -1,15 +1,46 @@
 #!/bin/bash
 
-url=gs://vcm-ml-experiments/microphysics-emulation/2021-12-09/direct-cloud-limited-conservative-dense-5e02cf/model.tf
-tag=direct-cloud-limited-conservative-dense-5e02cf-30d
-image=latest
 
-yq  --arg url "$url" '.zhao_carr_emulation.model.path |= $url' ../configs/default.yaml > config.yaml
-trap 'rm config.yaml' EXIT
+function submitGscondOnly {
+
+    tag="${tag}-gscond"
+
+    yq  --arg url "$url" '
+    .zhao_carr_emulation.gscond.path = $url
+    | .namelist.gfs_physics_nml.emulate_gscond_only = true
+    ' ../configs/default.yaml  > config.yaml
+    trap 'rm config.yaml' EXIT
+
+    argo submit prog-run-and-eval.yaml \
+        --name "$tag" \
+        -p wandb_tags="$experiment"\
+        -p image_tag="$image" \
+        -p tag=$tag \
+        -p config=$(base64 --wrap 0 config.yaml) | grep -v 'config:' | tee -a submitted-jobs.txt
+}
 
 
-argo submit prog-run-and-eval.yaml \
-    --name "$tag" \
-    -p image_tag="$image" \
-    -p tag=$tag \
-    -p config=$(base64 --wrap 0 config.yaml) | grep -v 'config:' | tee -a submitted-jobs.txt
+function submitFull {
+
+    tag="${tag}-full"
+
+
+    yq  --arg url "$url" '.zhao_carr_emulation.model.path |= $url' ../configs/default.yaml > config.yaml
+    trap 'rm config.yaml' EXIT
+
+
+    argo submit prog-run-and-eval.yaml \
+        --name "$tag" \
+        -p wandb_tags="$experiment"\
+        -p image_tag="$image" \
+        -p tag=$tag \
+        -p config=$(base64 --wrap 0 config.yaml) | grep -v 'config:' | tee -a submitted-jobs.txt
+}
+
+experiment=experiment/longer-runs
+url=gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-all-loss-rnn-7ef273/model.tf
+tag=limit-tests-all-loss-rnn-7ef273-30d-v1
+image=c6ee87cd25576f8ee05418d47b0c36b9d247ba14
+
+submitGscondOnly
+submitFull

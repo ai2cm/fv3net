@@ -11,6 +11,7 @@ spec:
     parameters:
       - name: tag
       - name: config
+      - name: wandb_tags
       - name: image_tag
         value: 811d4a88b8b8f29d727f2d61f46f96b770c8ab47
   volumes:
@@ -94,6 +95,8 @@ spec:
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
         value: "{{inputs.parameters.tag}}"
+      - name: WANDB_TAGS
+        value: "{{workflow.parameters.wandb_tags}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
@@ -130,6 +133,8 @@ spec:
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
+      - name: WANDB_TAGS
+        value: "{{workflow.parameters.wandb_tags}}"
       - name: WANDB_RUN_GROUP
         value: "{{inputs.parameters.tag}}"
       volumeMounts:
@@ -166,6 +171,8 @@ spec:
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
+      - name: WANDB_TAGS
+        value: "{{workflow.parameters.wandb_tags}}"
       - name: WANDB_RUN_GROUP
         value: "{{inputs.parameters.tag}}"
       volumeMounts:
