@@ -6,10 +6,9 @@
 select *
 FROM (
     SELECT group_ as "group"
-        -- , group_concat(job_type)
         , max(json_each.value = 'experiment/longer-runs') as match
         , substr(max(model),-30,20) model
-        , substr(max(gscond_only),-30,20) gscond_only
+        , max(gscond_only) gscond_only
         , max(online) as online
         , max(json_extract(summary, '$.duration_seconds') / 86400.0) as days
         , max(json_extract(summary, '$.column_skill/surface_precipitation')) as prec_skill
