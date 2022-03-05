@@ -13,8 +13,8 @@ def insert_run(cur, job):
         if isinstance(val, (float, str, int))
     }
     cur.execute(
-        """INSERT INTO runs(wandb_id, name, config, job_type, summary, created_at, tags)
-    VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        """REPLACE INTO runs(id, name, config, job_type, summary, created_at, tags, group_)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             job.id,
             job.name,
@@ -23,6 +23,7 @@ def insert_run(cur, job):
             json.dumps(summary),
             job.created_at,
             json.dumps(job.tags),
+            job.group,
         ),
     )
 
@@ -36,8 +37,8 @@ jobs = api.runs("ai2cm/microphysics-emulation")
 for k, job in enumerate(jobs):
     try:
         insert_run(cur, job)
-    except sqlite3.OperationalError:
-        logging.warn(f"Failed to import {job}")
+    except sqlite3.OperationalError as e:
+        logging.warn(f"Failed to import {job}. Raised {e}.")
         pass
 
 # Save (commit) the changes

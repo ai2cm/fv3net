@@ -1,33 +1,28 @@
+.open example.db
 .mode csv
-.output stats.csv
--- .mode column
 .header on
 
-SELECT DISTINCT train.name,
-    location
-    , MAX(json_each.value = 'bug') as bug
-    , duration_seconds / 86400.0 as days
-    , SQRT(json_extract(train.summary, "$.val_specific_humidity_after_precpd_loss")) * 86400 / 900 as qv_rmse_kg_kg_day
-    , json_extract(eval.summary, '$.drifts/cloud_water_mixing_ratio/5day') as cloud_drift_5d
-    , json_extract(eval.summary, '$.drifts/cloud_water_mixing_ratio/10day') as cloud_drift_10d
-    , json_extract(eval.summary, '$.drifts/air_temperature/5day') as temp_drift_5d
-    , json_extract(piggy.summary, '$.column_skill/surface_precipitation') as prec_skill
-FROM  prognostic_runs, json_each(prognostic_runs.tags)
-INNER JOIN train ON prognostic_runs.model GLOB train.model || '*'
-INNER JOIN progsummary ON progsummary.run_id = prognostic_runs.id
-INNER JOIN (
-    SELECT *
-        , json_extract(config, '$.run.value') as rundir
-    FROM runs
-    WHERE job_type='piggy-back'
-) piggy ON location = rundir || '/'
-INNER JOIN (
-    SELECT *
-        , json_extract(config, '$.run.value') as zarrinrundir
-    FROM runs
-    WHERE job_type='prognostic_evaluation'
-) eval ON zarrinrundir GLOB location || '*'
-WHERE online
-GROUP BY location
-ORDER BY duration_seconds DESC, ABS(cloud_drift_5d) ASC
+
+select *
+FROM (
+    SELECT group_ as "group"
+        -- , group_concat(job_type)
+        , max(json_each.value = 'experiment/longer-runs') as match
+        , max(model) model
+        , max(gscond_only) gscond_only
+        , max(online) as online
+        , max(json_extract(summary, '$.duration_seconds') / 86400.0) as days
+        , max(json_extract(summary, '$.column_skill/surface_precipitation')) as prec_skill
+    FROM json_each(runs.tags), (
+        SELECT *
+        , IFNULL(
+            json_extract(config, '$.config.value.zhao_carr_emulation.model.path')
+        ,   json_extract(config, '$.config.value.zhao_carr_emulation.gscond.path')) model
+        ,   IFNULL(json_extract(config, '$.config.value.namelist.gfs_physics_nml.emulate_gscond_only'), 0) gscond_only
+        , json_extract(config, '$.config.value.namelist.gfs_physics_nml.emulate_zc_microphysics') as online
+        FROM runs
+        ) runs
+    GROUP BY group_
+    )
+WHERE match AND days AND online
 ;
