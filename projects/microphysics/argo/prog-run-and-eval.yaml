@@ -9,9 +9,8 @@ spec:
   entrypoint: prognostic-run
   arguments:
     parameters:
-      - name: tag
-      - name: config
       - name: wandb_tags
+        value: ""
       - name: image_tag
         value: "c6ee87cd25576f8ee05418d47b0c36b9d247ba14"
   volumes:
@@ -20,6 +19,10 @@ spec:
       secretName: gcp-key
   templates:
   - name: prognostic-run
+    inputs:
+      parameters:
+        - name: config
+        - name: tag
     dag:
       tasks:
         - name: run-offline
@@ -27,9 +30,9 @@ spec:
           arguments:
             parameters:
             - name: tag
-              value: "{{workflow.parameters.tag}}-offline"
+              value: "{{inputs.parameters.tag}}-offline"
             - name: config
-              value:  "{{workflow.parameters.config}}"
+              value:  "{{inputs.parameters.config}}"
             - name: on_off_flag
               value: --offline
         - name: run-online
@@ -37,9 +40,9 @@ spec:
           arguments:
             parameters:
             - name: tag
-              value: "{{workflow.parameters.tag}}-online"
+              value: "{{inputs.parameters.tag}}-online"
             - name: config
-              value:  "{{workflow.parameters.config}}"
+              value:  "{{inputs.parameters.config}}"
             - name: on_off_flag
               value: --online
         - name: piggy-online
