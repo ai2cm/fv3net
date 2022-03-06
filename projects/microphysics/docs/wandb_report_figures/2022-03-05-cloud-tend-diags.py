@@ -93,6 +93,11 @@ zonal_avg.cloud_water_mixing_ratio.isel(time=time).plot(
     y="z", yincrease=False, cmap=newmp, vmax=5e-5
 )
 plt.savefig("cloud.png")
+plt.figure()
+meridional_slice.cloud_water_mixing_ratio.isel(time=time).plot(
+    y="z", yincrease=False, cmap=newmp, vmax=5e-5
+)
+plt.savefig("cloud_lon0.png")
 
 get_tends(zonal_avg.isel(time=time)).cloud_water.plot(
     row="source", col="tend", y="z", yincrease=False, vmax=1e-8
