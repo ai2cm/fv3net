@@ -27,7 +27,8 @@ spec:
           template: choose-node-pool
           arguments:
             parameters:
-            - {name: cpu:, value: "{{inputs.parameters.cpu}}"}
+            - {name: cpu-request, value: "{{inputs.parameters.cpu}}"}
+            - {name: cpu-cutoff, value: "24"}
       # loop over segments implemented through recursion so that a failed segment will
       # terminate the workflow. Argo loops by default run in parallel and do not fail fast.
       - - name: run-first-segment
@@ -108,15 +109,15 @@ spec:
   - name: choose-node-pool
     inputs:
       parameters:
-        - name: cpu_request
-        - name: cpu_cutoff
+        - name: cpu-request
+        - name: cpu-cutoff
     script:
       image: python:alpine3.6
       command: [python]
       source: |
         node_pool = (
             'climate-sim-pool'
-            if {{inputs.parameters.cpu_request}} <= {{inputs.parameters.cpu_cutoff}}
+            if {{inputs.parameters.cpu-request}} <= {{inputs.parameters.cpu-cutoff}}
             else 'ultra-sim-pool'
         )
         print(node_pool)
