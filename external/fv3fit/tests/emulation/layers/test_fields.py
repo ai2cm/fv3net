@@ -128,9 +128,7 @@ def get_FieldInput():
 def get_FieldOutput():
 
     tensor = get_test_tensor()
-    output_layer = FieldOutput(
-        sample_out=tensor, denormalize="mean_std", enforce_positive=True,
-    )
+    output_layer = FieldOutput(sample_out=tensor, denormalize="mean_std",)
 
     return output_layer
 
@@ -159,11 +157,7 @@ def test_layer_IncrementedStateOutput_model_saving(tmpdir):
     net_out = tf.keras.layers.Lambda(lambda x: x)(in_)
     tensor = get_test_tensor()
     layer = IncrementedFieldOutput(
-        900,
-        sample_in=tensor - 1,
-        sample_out=tensor,
-        denormalize="mean_std",
-        enforce_positive=True,
+        900, sample_in=tensor - 1, sample_out=tensor, denormalize="mean_std",
     )
     out = layer(in_, net_out)
     model = tf.keras.models.Model(inputs=in_, outputs=out)

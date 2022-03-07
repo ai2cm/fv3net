@@ -6,10 +6,8 @@ from typing import (
     Iterable,
     Sequence,
     Mapping,
-    Any,
     Optional,
     Union,
-    List,
 )
 import xarray as xr
 from vcm import safe, parse_datetime_from_str
@@ -23,7 +21,8 @@ from .._utils import (
     stack,
     shuffle,
     dropna,
-    select_first_samples,
+    select_fraction,
+    sort_by_time,
 )
 from ..constants import TIME_NAME
 from .._config import batches_functions, batches_from_mapper_functions
@@ -40,75 +39,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-@batches_functions.register
-def batches_from_geodata(
-    data_path: Union[str, List, tuple],
-    variable_names: Iterable[str],
-    mapping_function: str,
-    mapping_kwargs: Optional[Mapping[str, Any]] = None,
-    timesteps_per_batch: int = 1,
-    timesteps: Optional[Sequence[str]] = None,
-    res: str = "c48",
-    needs_grid: bool = True,
-    in_memory: bool = False,
-    unstacked_dims: Optional[Sequence[str]] = None,
-    subsample_ratio: float = 1.0,
-    drop_nans: bool = False,
-) -> loaders.typing.Batches:
-    """ The function returns a sequence of datasets that is later
-    iterated over in  ..sklearn.train. The data is assumed to
-    have geospatial dimensions and is accessed through a mapper interface.
-
-    Args:
-        data_path (str): Path to data store to be loaded via mapper.
-        variable_names (Iterable[str]): data variables to select
-        mapping_function (str): Name of a callable which opens a mapper to the data
-        mapping_kwargs (Mapping[str, Any]): mapping of keyword arguments to be
-            passed to the mapping function
-        timesteps_per_batch (int, optional): Defaults to 1.
-        random_seed (int, optional): Defaults to 0.
-        res: grid resolution, format as f'c{number cells in tile}'
-        needs_grid: Add grid information into batched datasets. [Warning] requires
-            remote GCS access
-        in_memory: if True, load data eagerly and keep it in memory
-        unstacked_dims: if given, produce stacked and shuffled batches retaining
-            these dimensions as unstacked (non-sample) dimensions
-        subsample_ratio: the fraction of data to retain in each batch, selected
-            at random along the sample dimension.
-        drop_nans: if True, drop samples with NaN values from the data, and raise an
-            exception if all values in a batch are NaN. requires unstacked_dims
-            argument is given, raises a ValueError otherwise.
-    Raises:
-        TypeError: If no variable_names are provided to select the final datasets
-
-    Returns:
-        Sequence of xarray datasets for use in training batches.
-    """
-    if mapping_kwargs is None:
-        mapping_kwargs = {}
-    data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
-    batches = batches_from_mapper(
-        data_mapping,
-        variable_names=variable_names,
-        timesteps_per_batch=timesteps_per_batch,
-        timesteps=timesteps,
-        res=res,
-        needs_grid=needs_grid,
-        in_memory=in_memory,
-        unstacked_dims=unstacked_dims,
-        subsample_ratio=subsample_ratio,
-        drop_nans=drop_nans,
-    )
-    return batches
-
-
-def _create_mapper(
-    data_path, mapping_func_name: str, mapping_kwargs: Mapping[str, Any]
-) -> Mapping[str, xr.Dataset]:
-    mapping_func = getattr(loaders.mappers, mapping_func_name)
-    return mapping_func(data_path, **mapping_kwargs)
-
-
 @batches_from_mapper_functions.register
 def batches_from_mapper(
     data_mapping: Mapping[str, xr.Dataset],
@@ -121,6 +51,8 @@ def batches_from_mapper(
     unstacked_dims: Optional[Sequence[str]] = None,
     subsample_ratio: float = 1.0,
     drop_nans: bool = False,
+    shuffle_timesteps: bool = True,
+    shuffle_samples: bool = False,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -141,6 +73,10 @@ def batches_from_mapper(
         drop_nans: if True, drop samples with NaN values from the data, and raise an
             exception if all values in a batch are NaN. requires unstacked_dims
             argument is given, raises a ValueError otherwise.
+        shuffle_timesteps: if True, shuffle the timesteps list.
+        shuffle_samples: if True, shuffle the samples after stacking. If False, can
+            still subselect a random subset, but it is ordered by stacked dims
+            multiindex.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -158,8 +94,14 @@ def batches_from_mapper(
 
     if timesteps is None:
         timesteps = list(data_mapping.keys())
-    shuffled_times = np.random.choice(timesteps, len(timesteps), replace=False).tolist()
-    batched_timesteps = list(partition_all(timesteps_per_batch, shuffled_times))
+
+    if shuffle_timesteps:
+        final_timesteps = np.random.choice(
+            timesteps, len(timesteps), replace=False
+        ).tolist()
+    else:
+        final_timesteps = timesteps
+    batched_timesteps = list(partition_all(timesteps_per_batch, final_timesteps))
 
     # First function goes from mapper + timesteps to xr.dataset
     # Subsequent transforms are all dataset -> dataset
@@ -174,9 +116,11 @@ def batches_from_mapper(
     transforms.append(add_derived_data(variable_names))
 
     if unstacked_dims is not None:
+        transforms.append(sort_by_time)
         transforms.append(curry(stack)(unstacked_dims))
-        transforms.append(shuffle)
-        transforms.append(select_first_samples(subsample_ratio))
+        transforms.append(select_fraction(subsample_ratio))
+        if shuffle_samples is True:
+            transforms.append(shuffle)
         if drop_nans:
             transforms.append(dropna)
     elif subsample_ratio != 1.0:
@@ -189,64 +133,13 @@ def batches_from_mapper(
     batch_func = compose_left(*transforms)
 
     seq = Map(batch_func, batched_timesteps)
-    seq.attrs["times"] = shuffled_times
+    seq.attrs["times"] = final_timesteps
 
     if in_memory:
         out_seq: Batches = tuple(ds.load() for ds in seq)
     else:
         out_seq = seq
     return out_seq
-
-
-@batches_functions.register
-def diagnostic_batches_from_geodata(
-    data_path: Union[str, List, tuple],
-    variable_names: Sequence[str],
-    mapping_function: str,
-    mapping_kwargs: Optional[Mapping[str, Any]] = None,
-    timesteps_per_batch: int = 1,
-    random_seed: int = 0,
-    timesteps: Optional[Sequence[str]] = None,
-    res: str = "c48",
-    subsample_size: int = None,
-    needs_grid: bool = True,
-) -> loaders.typing.Batches:
-    """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
-    as batches_from_mapper but without transformation and stacking
-
-    Args:
-        data_path: Path to data store to be loaded via mapper.
-        variable_names (Iterable[str]): data variables to select
-        mapping_function (str): Name of a callable which opens a mapper to the data
-        mapping_kwargs (Mapping[str, Any]): mapping of keyword arguments to be
-            passed to the mapping function
-        timesteps_per_batch (int, optional): Defaults to 1.
-        num_batches (int, optional): Defaults to None.
-        random_seed (int, optional): Defaults to 0.
-        timesteps: List of timesteps to use in training.
-        res: grid resolution, format as f'c{number cells in tile}'
-        needs_grid: Add grid information into batched datasets. [Warning] requires
-            remote GCS access
-
-    Raises:
-        TypeError: If no variable_names are provided to select the final datasets
-
-    Returns:
-        Sequence of xarray datasets for use in training batches.
-    """
-    if mapping_kwargs is None:
-        mapping_kwargs = {}
-    data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
-    sequence = batches_from_mapper(
-        data_mapping,
-        variable_names,
-        timesteps_per_batch,
-        random_seed,
-        timesteps,
-        res,
-        needs_grid=needs_grid,
-    )
-    return sequence
 
 
 @curry
@@ -277,19 +170,27 @@ def _open_dataset(fs: fsspec.AbstractFileSystem, variable_names, filename):
 
 @batches_functions.register
 def batches_from_netcdf(
-    path: str, variable_names: Iterable[str]
+    path: str, variable_names: Iterable[str], in_memory: bool = False,
 ) -> loaders.typing.Batches:
     """
     Loads a series of netCDF files from the given directory, in alphabetical order.
 
     Args:
         path: path (local or remote) of a directory of netCDF files
+        variable_names: variables to load from datasets
+        in_memory: if True, load data eagerly and keep it in memory
     Returns:
         A sequence of batched data
     """
     fs = vcm.get_fs(path)
     filenames = [fname for fname in sorted(fs.ls(path)) if fname.endswith(".nc")]
-    return Map(_open_dataset(fs, variable_names), filenames)
+    seq = Map(_open_dataset(fs, variable_names), filenames)
+
+    if in_memory:
+        out_seq: Batches = tuple(ds.load() for ds in seq)
+    else:
+        out_seq = seq
+    return out_seq
 
 
 @batches_functions.register

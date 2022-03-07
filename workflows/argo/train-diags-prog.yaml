@@ -21,7 +21,8 @@ spec:
       - name: tag
       - name: training-configs  # used in withParam
       - name: training-data-config
-      - name: validation-data-config
+      - {name: validation-data-config, value: " "}
+      - name: test-data-config
       - name: prognostic-run-config
       - name: flags
         value: " "
@@ -87,8 +88,8 @@ spec:
                 value: "{{item.config}}"
               - name: training_data_config
                 value: "{{inputs.parameters.training-data-config}}"
-              - name: validation_data_config
-                value: "{{inputs.parameters.validation-data-config}}"
+              - name: test_data_config
+                value: "{{inputs.parameters.test-data-config}}"
               - name: offline-diags-output
                 value: "{{tasks.resolve-output-url.outputs.result}}/offline_diags/{{item.name}}"
               - name: report-output

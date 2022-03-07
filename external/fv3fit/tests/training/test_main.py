@@ -110,7 +110,9 @@ def mock_train_dense_model():
 def mock_load_batches():
     magic_load_mock = mock.MagicMock(name="load_batches")
     magic_load_mock.return_value.__len__ = lambda _: 1
-    with mock.patch.object(loaders.BatchesConfig, "load_batches", magic_load_mock):
+    with mock.patch.object(
+        loaders.BatchesFromMapperConfig, "load_batches", magic_load_mock
+    ):
         yield magic_load_mock
 
 
@@ -151,11 +153,18 @@ def call_main(
         unstacked_dims=["z"],
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
+    if use_local_download_path is True:
+        local_download_path_arg = [
+            "--cache.local_download_path",
+            config.args.local_download_path,
+        ]
+    else:
+        local_download_path_arg = []
     with mock.patch("fv3fit.DerivedModel") as MockDerivedModel:
         MockDerivedModel.return_value = mock.MagicMock(
             name="derived_model_return", spec=fv3fit.Predictor
         )
-        fv3fit.train.main(config.args)
+        fv3fit.train.main(config.args, unknown_args=local_download_path_arg)
     return CallArtifacts(
         config.output_path, config.variables, MockDerivedModel, config.hyperparameters,
     )
@@ -329,32 +338,30 @@ def get_config(
     # instead of reading from disk, for CLI tests where we can't mock
     data_path = os.path.join(base_dir, "data")
     mock_dataset.to_zarr(data_path, consolidated=True)
-    train_data_config = loaders.BatchesConfig(
-        function="batches_from_geodata",
+    train_data_config = loaders.BatchesFromMapperConfig(
+        function="batches_from_mapper",
         kwargs=dict(
-            data_path=data_path,
             variable_names=all_variables,
-            mapping_function="open_zarr",
             timesteps=train_times,
             needs_grid=False,
             res="c8_random_values",
             timesteps_per_batch=3,
             unstacked_dims=unstacked_dims,
         ),
+        mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
     )
     if use_validation_data:
-        validation_data_config = loaders.BatchesConfig(
-            function="batches_from_geodata",
+        validation_data_config = loaders.BatchesFromMapperConfig(
+            function="batches_from_mapper",
             kwargs=dict(
-                data_path=data_path,
                 variable_names=all_variables,
-                mapping_function="open_zarr",
                 timesteps=validation_times,
                 needs_grid=False,
                 res="c8_random_values",
                 timesteps_per_batch=3,
                 unstacked_dims=unstacked_dims,
             ),
+            mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
         )
         validation_data_filename = os.path.join(base_dir, "validation_data.yaml")
         with open(validation_data_filename, "w") as f:
@@ -426,7 +433,7 @@ def cli_main(args: MainArgs):
     if args.local_download_path is None:
         local_download_args = []
     else:
-        local_download_args = ["--local-download-path", args.local_download_path]
+        local_download_args = ["--cache.local_download_path", args.local_download_path]
     subprocess.check_call(
         [
             "python",

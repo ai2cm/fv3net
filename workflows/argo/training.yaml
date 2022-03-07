@@ -18,7 +18,7 @@ spec:
         parameters:
           - name: training_config
           - name: training_data_config
-          - name: validation_data_config
+          - {name: validation_data_config, value: " "}
           - name: output
           - {name: cpu, value: 1000m}
           - {name: memory, value: 6Gi}
@@ -56,12 +56,18 @@ spec:
             echo "Validation Data Configuration:"
             cat validation_data.yaml
 
+            if grep -q '[^[:space:]]' "validation_data.yaml";
+            then
+                validation_arg="--validation-data-config validation_data.yaml"
+            else
+                validation_arg=" "
+            fi
+
             python3 -m fv3fit.train \
               training_config.yaml \
               training_data.yaml \
               {{inputs.parameters.output}} \
-              --validation-data-config \
-              validation_data.yaml \
+              $validation_arg \
               {{inputs.parameters.flags}}
       tolerations:
       - key: "dedicated"
