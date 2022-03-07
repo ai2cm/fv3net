@@ -23,7 +23,6 @@ from fv3fit.keras._models.shared import (
 )
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
-    get_stacked_metadata,
     full_standard_normalized_input,
 )
 from fv3fit.keras._models.shared.clip import clip_sequence
@@ -122,9 +121,6 @@ def train_dense_model(
         train_data = tuple(train_data)
 
     train_model, predict_model = build_model(hyperparameters, X=X, y=y)
-    output_metadata = get_stacked_metadata(
-        names=hyperparameters.output_variables, ds=train_batches[0], unstacked_dims="z",
-    )
     del train_batches
 
     loss_history = TrainingLoopLossHistory()
@@ -137,7 +133,6 @@ def train_dense_model(
     predictor = PureKerasModel(
         input_variables=hyperparameters.input_variables,
         output_variables=hyperparameters.output_variables,
-        output_metadata=output_metadata,
         model=predict_model,
         unstacked_dims=("z",),
         n_halo=0,
