@@ -339,6 +339,18 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     )
 
 
+def remove_key(d: dict, key: Any):
+    """
+    Removes the given key from dict and all subdicts, if present.
+    """
+    return_dict = {**d}
+    return_dict.pop(key, None)
+    for name, value in return_dict.items():
+        if isinstance(value, dict):
+            return_dict[name] = remove_key(value, key)
+    return return_dict
+
+
 @pytest.mark.slow
 def test_dump_and_load_default_maintains_prediction(model_type):
     n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
@@ -352,7 +364,8 @@ def test_dump_and_load_default_maintains_prediction(model_type):
     if isinstance(result.model, PureKerasModel):
         assert result.model.model.summary() == loaded_model.model.summary()
         for l1, l2 in zip(result.model.model.layers, loaded_model.model.layers):
-            assert l1.get_config() == l2.get_config()
+            loaded_config = remove_key(l2.get_config(), "shared_object_id")
+            assert l1.get_config() == loaded_config
         assert all(
             [
                 np.all(w1 == w2)

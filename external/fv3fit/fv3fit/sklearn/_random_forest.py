@@ -257,7 +257,7 @@ class SklearnWrapper(Predictor):
             batches_clipped, [str(item) for item in self.input_variables]
         )
         y_dataset, self.output_features_ = pack_tfdataset(
-            batches, [str(item for item in self.output_variables)]
+            batches, [str(item) for item in self.output_variables]
         )
 
         # put all data in one batch, implement batching later
