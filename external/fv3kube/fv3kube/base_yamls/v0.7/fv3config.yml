@@ -289,8 +289,8 @@ namelist:
     lon_s: 192
     ntrunc: 94
   namsfc:
-    fabsl: 0
-    fabss: 0
+    fabsl: 0  # Use maximum snow albedo from forcing files instead of initial conditions 
+    fabss: 0  # Use maximum snow albedo from forcing files instead of initial conditions 
     faisl: 99999
     faiss: 99999
     fnabsc: grb/global_mxsnoalb.uariz.t1534.3072.1536.rg.grb
