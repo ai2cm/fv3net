@@ -23,7 +23,7 @@ spec:
             artifacts:
               - name: fv3config
                 from: "{{inputs.artifacts.fv3config}}"
-      - - name: choose-node-pool
+        - name: choose-node-pool
           template: choose-node-pool
           arguments:
             parameters:
