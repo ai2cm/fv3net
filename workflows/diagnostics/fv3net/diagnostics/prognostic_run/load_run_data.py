@@ -16,6 +16,7 @@ from vcm.fv3 import standardize_fv3_diagnostics
 
 from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
+from fv3net.diagnostics.prognostic_run import constants
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,7 @@ def _get_factor(ds: xr.Dataset, target_resolution: int) -> int:
     return int(input_res / target_resolution)
 
 
-def _coarsen_to_target_resolution(
+def _coarsen_cell_centered_to_target_resolution(
     ds: xr.Dataset, target_resolution: int, catalog: intake.catalog.Catalog,
 ) -> xr.Dataset:
     return vcm.cubedsphere.weighted_block_average(
@@ -115,7 +116,13 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
         ds = xr.Dataset()
 
     if len(ds) > 0:
-        ds = _coarsen_to_target_resolution(ds, target_resolution=48, catalog=catalog)
+        # drop interface vars to avoid broadcasting by coarsen func
+        ds = ds.drop_vars(
+            constants.GRID_VARS + constants.GRID_INTERFACE_COORDS, errors="ignore"
+        )
+        ds = _coarsen_cell_centered_to_target_resolution(
+            ds, target_resolution=48, catalog=catalog
+        )
 
     return ds
 
@@ -139,6 +146,15 @@ def open_segmented_logs(url: str) -> vcm.fv3.logs.FV3Log:
     return vcm.fv3.logs.concatenate(logs)
 
 
+def open_segmented_logs_as_strings(url: str) -> List[str]:
+    """Open the logs from each segment of a segmented run as strings
+    """
+    fs = vcm.get_fs(url)
+    logfiles = sorted(fs.glob(f"{url}/**/logs.txt"))
+    logs = [fs.cat(url).decode() for url in logfiles]
+    return logs
+
+
 class Simulation(Protocol):
     @property
     def data_2d(self) -> xr.Dataset:
@@ -155,7 +171,7 @@ class CatalogSimulation:
 
     Typically used for commonly used runs like the high resolution SHiELD
     simulation, that are specified in a catalog.
-    
+
     """
 
     tag: str

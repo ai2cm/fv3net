@@ -14,7 +14,7 @@ Converting FV3 string timestamps to datetimes
    .. autofunction:: vcm.convenience.parse_datetime_from_str
    .. autofunction:: vcm.convenience.convert_timestamps
 
-Converting any kind of date to a datetime object 
+Converting any kind of date to a datetime object
 ------------------------------------------------
 
    .. autofunction:: vcm.convenience.cast_to_datetime

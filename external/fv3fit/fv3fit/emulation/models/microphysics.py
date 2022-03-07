@@ -1,7 +1,7 @@
 import dataclasses
 import dacite
 import tensorflow as tf
-from typing import Any, List, Mapping
+from typing import List, Mapping
 import vcm
 
 from fv3fit._shared import SliceConfig
@@ -44,7 +44,6 @@ class MicrophysicsConfig:
             name.
         timestep_increment_sec: Time increment multiplier for the state-tendency
             update
-        enforce_positive: Enforce model outputs are zero or positive
 
     """
 
@@ -58,7 +57,6 @@ class MicrophysicsConfig:
     selection_map: Mapping[str, SliceConfig] = dataclasses.field(default_factory=dict)
     tendency_outputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
     timestep_increment_sec: int = 900
-    enforce_positive: bool = True
 
     @classmethod
     def from_dict(cls, d) -> "MicrophysicsConfig":
@@ -100,10 +98,7 @@ class MicrophysicsConfig:
         for name in self.direct_out_variables:
             sample = data[name]
             out_ = FieldOutput(
-                sample_out=sample,
-                denormalize=self.normalize_key,
-                name=name,
-                enforce_positive=self.enforce_positive,
+                sample_out=sample, denormalize=self.normalize_key, name=name,
             )(net_output[name])
             outputs[name] = out_
         return outputs
@@ -121,7 +116,6 @@ class MicrophysicsConfig:
                 denormalize=self.normalize_key,
                 name=name,
                 tendency_name=self.tendency_outputs.get(name, None),
-                enforce_positive=self.enforce_positive,
             )
             out_ = res_out(in_state, net_output[name])
             outputs[name] = out_
@@ -145,9 +139,7 @@ class MicrophysicsConfig:
             for name in self.input_variables
         }
 
-    def build(
-        self, data: Mapping[str, tf.Tensor], transform: Any = None
-    ) -> tf.keras.Model:
+    def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
         """
         Build model described by the configuration
 
@@ -187,7 +179,6 @@ class ConservativeWaterConfig:
     extra_input_variables: List[Field] = dataclasses.field(default_factory=list)
     normalize_key: str = "mean_std"
     timestep_increment_sec: int = 900
-    enforce_positive: bool = True
 
     @property
     def _prognostic_fields(self) -> List[Field]:
@@ -221,9 +212,8 @@ class ConservativeWaterConfig:
             architecture=self.architecture,
             normalize_key=self.normalize_key,
             timestep_increment_sec=self.timestep_increment_sec,
-            enforce_positive=self.enforce_positive,
             selection_map={v.input_name: v.selection for v in self._input_variables},
-        ).build(data, None)
+        ).build(data)
 
     @property
     def _input_variables(self) -> List[Field]:
@@ -247,9 +237,7 @@ class ConservativeWaterConfig:
     def name(self):
         return f"conservative-microphysics-emulator-{self.architecture.name}"
 
-    def build(
-        self, data: Mapping[str, tf.Tensor], transform: Any = None
-    ) -> tf.keras.Model:
+    def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
         model = self._build_base_model(data)
         return _assoc_conservative_precipitation(model, self.fields)
 
@@ -258,7 +246,7 @@ def _assoc_conservative_precipitation(
     model: tf.keras.Model, fields: ZhaoCarrFields
 ) -> tf.keras.Model:
     """add conservative precipitation output to a model
-    
+
     Args:
         model: a ML model
         fields: a description of how physics variables map onto the names of
@@ -267,7 +255,7 @@ def _assoc_conservative_precipitation(
     Returns:
         a model with surface precipitation stored at
         ``fields.surface_precipitation.output_name``.
-    
+
     """
     model = ensure_dict_output(model)
     inputs = dict(zip(model.input_names, model.inputs))

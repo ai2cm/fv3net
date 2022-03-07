@@ -1,58 +1,12 @@
 import pytest
 import unittest.mock
 import loaders
-import contextlib
 import xarray as xr
 import tempfile
 import os
 import yaml
 import dataclasses
-
-
-@contextlib.contextmanager
-def registration_context(registration_dict):
-    """
-    A context manager that provides a clean slate for registering functions,
-    and restores the registration state when exiting.
-    """
-    original_functions = {}
-    original_functions.update(registration_dict)
-    registration_dict.clear()
-    try:
-        yield
-    finally:
-        registration_dict.clear()
-        registration_dict.update(original_functions)
-
-
-@contextlib.contextmanager
-def mapper_context():
-    with registration_context(loaders._config.mapper_functions):
-        mock_mapper = {"key": xr.Dataset()}
-        mock_mapper_function = unittest.mock.MagicMock(return_value=mock_mapper)
-        mock_mapper_function.__name__ = "mock_mapper_function"
-        loaders._config.mapper_functions.register(mock_mapper_function)
-        yield mock_mapper_function
-
-
-@contextlib.contextmanager
-def batches_context():
-    with registration_context(loaders._config.batches_functions):
-        mock_batches = [xr.Dataset()]
-        mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
-        mock_batches_function.__name__ = "mock_batches_function"
-        loaders._config.batches_functions.register(mock_batches_function)
-        yield mock_batches_function
-
-
-@contextlib.contextmanager
-def batches_from_mapper_context():
-    with registration_context(loaders._config.batches_from_mapper_functions):
-        mock_batches = [xr.Dataset()]
-        mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
-        mock_batches_function.__name__ = "mock_batches_function"
-        loaders._config.batches_from_mapper_functions.register(mock_batches_function)
-        yield mock_batches_function
+from loaders.testing import mapper_context, batches_context, batches_from_mapper_context
 
 
 def test_load_mapper():
@@ -124,9 +78,8 @@ def test_expected_batches_functions_exist():
     # currently use in configs, if you are deleting an option we no longer use
     # you can delete it here
     expected_functions = (
-        "batches_from_geodata",
         "batches_from_serialized",
-        "diagnostic_batches_from_geodata",
+        "batches_from_netcdf",
     )
     for expected in expected_functions:
         assert expected in loaders._config.batches_functions
@@ -215,7 +168,9 @@ def test_load_batches_from_mapper():
         result = config.load_batches(variables=variables)
         assert result is mock_batches_function.return_value
         mock_batches_function.assert_called_once_with(
-            mock_mapper_function.return_value, variables, **batches_kwargs
+            mock_mapper_function.return_value,
+            variable_names=variables,
+            **batches_kwargs,
         )
         mock_mapper_function.assert_called_once_with(**mapper_kwargs)
 
@@ -255,14 +210,6 @@ def test_load_batches_from_mapper_raises_if_registered_with_wrong_decorator():
     [
         pytest.param(
             {
-                "function": "batches_from_geodata",
-                "kwargs": {"data_path": "mock/data/path"},
-            },
-            loaders._config.BatchesConfig,
-            id="batches_config",
-        ),
-        pytest.param(
-            {
                 "mapper_config": {
                     "function": "open_zarr",
                     "kwargs": {"data_path": "mock/data/path"},
@@ -273,6 +220,11 @@ def test_load_batches_from_mapper_raises_if_registered_with_wrong_decorator():
             loaders._config.BatchesFromMapperConfig,
             id="batches_from_mapper_config",
         ),
+        pytest.param(
+            {"function": "batches_from_netcdf", "kwargs": {"path": "mock/data/path"}},
+            loaders._config.BatchesConfig,
+            id="batches_config",
+        ),
     ],
 )
 def test_batches_loader_from_dict(data, expected_class):
@@ -280,13 +232,30 @@ def test_batches_loader_from_dict(data, expected_class):
     assert type(result) is expected_class
 
 
-def test_safe_dump_data_config():
+def test_safe_dump_BatchesFromMapperConfig():
+    """
+    Test that dataclass.asdict and pyyaml can be used to save BatchesFromMapperConfig.
+    """
+    config = loaders.BatchesFromMapperConfig(
+        function="batches_from_mapper",
+        kwargs={"timesteps": ["1", "2", "3"]},
+        mapper_config={},
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = os.path.join(tmpdir, "config.yaml")
+        with open(filename, "w") as f:
+            as_dict = dataclasses.asdict(config)
+            yaml.safe_dump(as_dict, f)
+        from_dict = loaders.BatchesFromMapperConfig(**as_dict)
+        assert config == from_dict
+
+
+def test_safe_dump_BatchesConfig():
     """
     Test that dataclass.asdict and pyyaml can be used to save BatchesConfig.
     """
     config = loaders.BatchesConfig(
-        function="batches_from_geodata",
-        kwargs={"data_path": "/my/path", "key": "value"},
+        function="batches_from_netcdf", kwargs={"path": "abc"},
     )
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, "config.yaml")
@@ -305,3 +274,76 @@ def test_duplicate_times_raise_error_in_batches_from_mapper():
     }
     with pytest.raises(ValueError):
         loaders._config.BatchesFromMapperConfig.from_dict(data_config)
+
+
+@pytest.mark.parametrize(
+    "variables_config, variables_arg",
+    [
+        pytest.param([], [], id="no_variables"),
+        pytest.param(["a", "b"], [], id="config_variables"),
+        pytest.param([], ["a", "b"], id="arg_variables"),
+        pytest.param(["a", "b"], ["c"], id="different_variables"),
+        pytest.param(["a", "b"], ["b", "c"], id="overlapping_variables"),
+    ],
+)
+def test_batches_from_mapper_combines_variables(variables_config, variables_arg):
+    result = None
+    expected_return_value = unittest.mock.MagicMock()
+    with mapper_context(), batches_from_mapper_context():
+
+        @loaders._config.mapper_functions.register
+        def mock_mapper():
+            return None
+
+        @loaders._config.batches_from_mapper_functions.register
+        def mock_batches_from_mapper(
+            mapping_function, variable_names, mapping_kwargs=None,
+        ):
+            nonlocal result
+            result = variable_names
+            return expected_return_value
+
+        loader = loaders._config.BatchesLoader.from_dict(
+            {
+                "function": "mock_batches_from_mapper",
+                "mapper_config": loaders._config.MapperConfig(
+                    function="mock_mapper", kwargs={}
+                ),
+                "kwargs": {"variable_names": variables_config},
+            }
+        )
+        return_value = loader.load_batches(variables_arg)
+    assert return_value == expected_return_value
+    assert set(result) == set(variables_config).union(variables_arg)
+
+
+@pytest.mark.parametrize(
+    "variables_config, variables_arg",
+    [
+        pytest.param([], [], id="no_variables"),
+        pytest.param(["a", "b"], [], id="config_variables"),
+        pytest.param([], ["a", "b"], id="arg_variables"),
+        pytest.param(["a", "b"], ["c"], id="different_variables"),
+        pytest.param(["a", "b"], ["b", "c"], id="overlapping_variables"),
+    ],
+)
+def test_batches_combines_variables(variables_config, variables_arg):
+    result = None
+    expected_return_value = unittest.mock.MagicMock()
+    with batches_context():
+
+        @loaders._config.batches_functions.register
+        def mock_batches(variable_names,):
+            nonlocal result
+            result = variable_names
+            return expected_return_value
+
+        loader = loaders._config.BatchesLoader.from_dict(
+            {
+                "function": "mock_batches",
+                "kwargs": {"variable_names": variables_config},
+            }
+        )
+        return_value = loader.load_batches(variables_arg)
+    assert return_value == expected_return_value
+    assert set(result) == set(variables_config).union(variables_arg)

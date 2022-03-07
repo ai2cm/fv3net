@@ -75,3 +75,19 @@ def test__sequence_local(tmpdir):
 
     local = Local(str(tmpdir))
     xr.testing.assert_equal(local[0], ds)
+
+
+def test__sequence_local_getitem_slice(tmpdir):
+    ds = xr.Dataset({"a": (["x"], np.array([1]))})
+    test_seq = Map(identity, [ds, ds, ds])
+    local = test_seq.local(str(tmpdir))
+
+    assert len(local) == len(test_seq)
+    for k in range(len(local)):
+        xr.testing.assert_equal(local[k], test_seq[k])
+
+    local = Local(str(tmpdir))
+    result = local[:2]
+    assert len(result) == 2
+    xr.testing.assert_equal(result[0], ds)
+    xr.testing.assert_equal(result[1], ds)

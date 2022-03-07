@@ -1,46 +1,22 @@
 from runtime.steppers.prescriber import (
     PrescriberConfig,
-    Prescriber,
-    get_timesteps,
     _sst_from_reference,
 )
-from fv3gfs.util.testing import DummyComm
-import fv3gfs.util
+from runtime.factories import get_prescriber
+from pace.util.testing import DummyComm
+import pace.util
 import numpy as np
 import xarray as xr
 import cftime
 import pytest
-
-init_time = cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0)
-time_2 = cftime.DatetimeJulian(2016, 8, 1, 0, 30, 0)
-time_3 = cftime.DatetimeJulian(2016, 8, 1, 0, 45, 0)
-time_4 = cftime.DatetimeJulian(2016, 8, 1, 1, 0, 0)
-time_5 = cftime.DatetimeJulian(2016, 8, 1, 1, 15, 0)
 
 NXY = 8
 NTILE = 6
 TIME_COORD = [cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0)]
 
 
-@pytest.mark.parametrize(
-    ["init_time", "timestep_seconds", "n_timesteps", "expected"],
-    [
-        pytest.param(init_time, 900.0, 2, [time_2, time_3], id="base"),
-        pytest.param(time_2, 900.0, 2, [time_3, time_4], id="init_later"),
-        pytest.param(init_time, 1800.0, 2, [time_3, time_5], id="long_timestep"),
-        pytest.param(init_time, 900.0, 3, [time_2, time_3, time_4], id="3_timesteps"),
-    ],
-)
-def test_get_timesteps(init_time, timestep_seconds, n_timesteps, expected):
-    timesteps = get_timesteps(init_time, timestep_seconds, n_timesteps)
-    assert timesteps == expected
-
-
 def get_dataset(vars_, sizes, time_coord):
-    coords = {
-        dim: xr.DataArray(np.arange(size), dims=[dim]) for dim, size in sizes.items()
-    }
-    coords["tile"] = xr.DataArray(range(NTILE), dims=["tile"])
+    coords = {"tile": xr.DataArray(range(NTILE), dims=["tile"])}
     coords["time"] = xr.DataArray(time_coord, dims=["time"])
     x_dim = [key for key in sizes.keys() if "x" in key][0]
     y_dim = [key for key in sizes.keys() if "y" in key][0]
@@ -101,9 +77,9 @@ def get_communicators(layout):
     shared_buffer = {}
     communicator_list = []
     for rank in range(total_ranks):
-        communicator = fv3gfs.util.CubedSphereCommunicator(
+        communicator = pace.util.CubedSphereCommunicator(
             DummyComm(rank, total_ranks, shared_buffer),
-            fv3gfs.util.CubedSpherePartitioner(fv3gfs.util.TilePartitioner(layout)),
+            pace.util.CubedSpherePartitioner(pace.util.TilePartitioner(layout)),
         )
         communicator_list.append(communicator)
     return communicator_list
@@ -113,7 +89,7 @@ def get_prescribers(external_dataset_path, layout):
     communicator_list = get_communicators(layout)
     prescriber_list = []
     for communicator in communicator_list:
-        prescriber = Prescriber(
+        prescriber = get_prescriber(
             config=get_prescriber_config(external_dataset_path),
             communicator=communicator,
         )
@@ -140,7 +116,7 @@ def get_expected_state_updates(layout):
     }
     sizes = {"y": NXY // layout[0], "x": NXY // layout[1]}
     ds = get_dataset(vars_, sizes, TIME_COORD)
-    ds = ds.sel(time=TIME_COORD[0], tile=0).drop_vars(["tile", "y", "x"])
+    ds = ds.sel(time=TIME_COORD[0], tile=0).drop_vars(["tile", "time"])
     state_updates = {name: ds[name] for name in ds.data_vars}
     return state_updates
 

@@ -1,7 +1,7 @@
 from typing import Hashable, Mapping, MutableMapping, Set
 
 import cftime
-import fv3gfs.util
+import pace.util
 import fv3gfs.wrapper
 import fv3gfs.wrapper._properties
 import numpy as np
@@ -14,7 +14,7 @@ from vcm import DerivedMapping, round_time
 
 class FV3StateMapper(Mapping):
     """ A mapping interface for the FV3GFS getter.
-        
+
     Maps variables to the common names used in shared functions.
     By default adds mapping {"lon": "longitude", "lat": "latitude"}
     """
@@ -40,7 +40,7 @@ class FV3StateMapper(Mapping):
                 key = self._alternate_keys[key]
             try:
                 return self._getter.get_state([key])[key].data_array
-            except fv3gfs.util.InvalidQuantityError as e:
+            except pace.util.InvalidQuantityError as e:
                 raise KeyError(e)
 
     def __iter__(self):
@@ -69,12 +69,12 @@ class FV3StateMapper(Mapping):
 
 class DerivedFV3State(MutableMapping):
     """A uniform mapping-like interface to the FV3GFS model state
-    
+
     This class wraps the fv3gfs getters with the FV3StateMapper, that always returns
     DataArray and has time as an attribute (since this isn't a DataArray).
-    
+
     This encapsulates from the details of Quantity
-    
+
     """
 
     def __init__(self, getter):
@@ -111,7 +111,7 @@ class DerivedFV3State(MutableMapping):
         """Update state from another mapping
 
         This may be faster than setting each item individually. Same as dict.update.
-        
+
         All states except for pressure thicknesses are set in a mass-conserving fashion.
         """
         items_with_attrs = _cast_single_to_double(self._assign_attrs_from_mapper(items))
@@ -150,7 +150,7 @@ class MergedState(DerivedFV3State):
 
     Commonly used to e.g. blend python and fv3gfs-fortran state into a single
     object.
-    
+
     Attributes:
         left: a derived fv3 state object represetning e.g. Fortran state.
         right: a mutable mapping representing python based state.
@@ -209,7 +209,7 @@ def _cast_single_to_double(state: State) -> State:
     return cast_state
 
 
-def _data_arrays_to_quantities(state: State) -> Mapping[Hashable, fv3gfs.util.Quantity]:
+def _data_arrays_to_quantities(state: State) -> Mapping[Hashable, pace.util.Quantity]:
     return {
-        key: fv3gfs.util.Quantity.from_data_array(value) for key, value in state.items()
+        key: pace.util.Quantity.from_data_array(value) for key, value in state.items()
     }

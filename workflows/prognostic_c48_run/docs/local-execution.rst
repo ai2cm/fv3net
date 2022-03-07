@@ -3,7 +3,7 @@
 Execution
 ---------
 
-.. note:: 
+.. note::
 
     This section assumes you are within an environment with the prognostic
     run installed. See :ref:`development` for instructions on how to set this up.
@@ -19,7 +19,7 @@ The prognostic run can be run via the local command line interface: ``runfv3``.
 For robustness, the FV3 model is typically run in several short segments,
 with restart files saved after each segment. This ensures that the model
 still produces outputs if a given segment crashes. For example, assume you
-would like to run a full fv3config file (see :ref:`config usage` for instructions), 
+would like to run a full fv3config file (see :ref:`config usage` for instructions),
 and save the outputs to a google
 cloud storage bucket ``gs://bucket/prognostic_run``.
 
@@ -95,7 +95,7 @@ tool provides a command ``run-native`` which you can use like this::
 
 This writes the run directory described by the ``fv3config.yaml`` to the
 specified local path and executes the model there. The command is used for
-example by the tests. 
+example by the tests.
 
 .. warning::
 
@@ -103,7 +103,7 @@ example by the tests.
     downstream analysis. This subcommand is only intended for debugging purposes.
     Use the ``append`` and ``create`` subcommands to generate analysis-ready
     datasets.
-    
+
 
 Post Processing
 ~~~~~~~~~~~~~~~

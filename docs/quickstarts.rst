@@ -27,7 +27,7 @@ The `fv3net` project currently utilizes Google Cloud to deploy workflow items to
 Authentication obtained via ``gcloud auth login`` does not work well with secrets management and is not used by many APIs. Service account key-based authentication works much better, because the service account key is a single file that can be deployed in a variety of contexts (K8s cluter, VM, etc) (`Google docs on service accounts <https://cloud.google.com/iam/docs/service-accounts>`_). Many Python APIs can authenticate with google using the ``GOOGLE_APPLICATION_CREDENTIALS`` environmental variable `(See Google authentication details) <https://cloud.google.com/sdk/docs/authorizing>`_.
 
 * If gcloud is a fresh install, initialize and grab a keyfile::
-      
+
     > gcloud init
     > gcloud auth login
     > mkdir -p ~/.keys
@@ -54,12 +54,12 @@ Connecting to a kubernetes cluster
 
     * Clone the `long-lived-infrastructure repo <https://github.com/VulcanClimateModeling/long-lived-infrastructure>`_
     * Use terraform to connect to our cluster `(details) <https://github.com/VulcanClimateModeling/long-lived-infrastructure#vm-access-setup>`_::
-        
+
         > make tf_init
         > make tf_dev_workspace_create
         > make kubeconfig_init
-    
-  * We also have an detailed explanation of creating and connecting to a local k8s cluster in :ref:`local_k8s`. 
+
+  * We also have an detailed explanation of creating and connecting to a local k8s cluster in :ref:`local_k8s`.
 
 After authenticated you will be able to set up and utilize infrastructure with proper permissions. If you are having trouble with authentication being recognized check out the :ref:`faqs` page.
 
@@ -81,7 +81,7 @@ For more information, please see the :doc:`Argo README <readme_links/argo_readme
 Test drive
 ----------
 
-For a simple test drive of authentication and cloud-native infrastructure we'll run a test of the prognostic run used by our end-to-end testing suite.  
+For a simple test drive of authentication and cloud-native infrastructure we'll run a test of the prognostic run used by our end-to-end testing suite.
 
 This example submits a "baseline" run of our fv3gfs model run to the Kubernetes server using the Argo workflow template. First, it creates a configuration file ``test_fv3config.yaml`` needed as a parameter to the template, and then it submits the job to Kubernetes.
 
@@ -120,7 +120,7 @@ After the job submits, there will be a read out of the job::
     ServiceAccount:      default
     Status:              Pending
     Created:             Tue Feb 23 00:12:20 +0000 (now)
-    Parameters:          
+    Parameters:
       output:            gs://vcm-ml-scratch/test-prognostic-run-example
       config:            base_version: v0.5
     namelist:

@@ -52,6 +52,12 @@ def get_keras_model(name):
 
 
 @dataclasses.dataclass
+class CacheConfig:
+    local_download_path: Optional[str] = None
+    in_memory: bool = False
+
+
+@dataclasses.dataclass
 class TrainingConfig:
     """Convenience wrapper for model training parameters and file info
 
@@ -71,6 +77,7 @@ class TrainingConfig:
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
     derived_output_variables: List[str] = dataclasses.field(default_factory=list)
+    cache: CacheConfig = dataclasses.field(default_factory=lambda: CacheConfig())
 
     @property
     def variables(self):
@@ -223,6 +230,18 @@ def to_nested_dict(d: dict):
     return new_config
 
 
+# Small modification to the arg parser so that the error raised by
+# providing invalid args is clearer and does not print a confusing
+# system exit error.
+class ArgumentError(Exception):
+    pass
+
+
+class ArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        raise ArgumentError(message)
+
+
 def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]):
     """
     Update a configuration dictionary with keyword arguments through an ArgParser.
@@ -235,15 +254,16 @@ def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]
         args: a list of argument strings to parse
         config_dict: the configuration to update
     """
-
     config = _to_flat_dict(config_dict)
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
     _add_items_to_parser_arguments(config, parser)
-    updates = parser.parse_args(args)
+    try:
+        updates = parser.parse_args(args)
+    except ArgumentError as e:
+        raise e
+
     update_dict = vars(updates)
-
     config.update(update_dict)
-
     return to_nested_dict(config)
 
 

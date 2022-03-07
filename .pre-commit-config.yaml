@@ -8,6 +8,7 @@ repos:
       exclude: "\
       workflows/fine_res_budget/tests/diag.json|\
       external/vcm/tests/test_data/test_data.tar"
+    - id: trailing-whitespace
 -   repo: https://github.com/psf/black
     rev: 19.10b0
     hooks:

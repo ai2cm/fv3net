@@ -1,8 +1,9 @@
 import xarray as xr
 import abc
-from typing import Hashable, Iterable, Sequence
+from typing import Hashable, Iterable
 import logging
-import warnings
+
+from .input_sensitivity import InputSensitivity
 
 DATASET_DIM_NAME = "dataset"
 logger = logging.getLogger(__file__)
@@ -26,7 +27,7 @@ class Predictor(abc.ABC):
         **kwargs,
     ):
         """Initialize the predictor.
-        
+
         Args:
             input_variables: names of input variables
             output_variables: names of output variables
@@ -54,31 +55,9 @@ class Predictor(abc.ABC):
         """Load a serialized model from a directory."""
         pass
 
-    def predict_columnwise(
-        self,
-        X: xr.Dataset,
-        sample_dims: Sequence[Hashable] = (),
-        feature_dim: Hashable = None,
-    ) -> xr.Dataset:
-        """
-        Deprecated after models' .predict changed to take unstacked data.
-        Will be removed in a following PR.
-
-        Predict on an unstacked xarray dataset
-
-        Args:
-            X: the input data
-            sample_dims: A list of dimensions over which samples are taken
-            feature_dim: If provided, the sample_dims will be inferred from this
-                value
-
-        Returns:
-            the predictions defined on the same dimensions as X
-        """
-        warnings.warn(
-            "The predict_columnwise method is now deprecated since predictors' "
-            "predict methods now work on unstacked data. This will be removed "
-            "in the near future.",
-            DeprecationWarning,
+    def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
+        """Calculate sensitivity to input features."""
+        raise NotImplementedError(
+            "input_sensitivity is not implemented for Predictor subclass "
+            f"{self.__class__.__name__}."
         )
-        return self.predict(X)

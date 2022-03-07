@@ -18,11 +18,10 @@ import vcm
 import fv3fit
 from .compute_diagnostics import compute_diagnostics
 from .derived_diagnostics import derived_registry
-from ._plot_input_sensitivity import plot_jacobian, plot_rf_feature_importance
+from ._input_sensitivity import plot_input_sensitivity
 from ._helpers import (
     load_grid_info,
     is_3d,
-    get_variable_indices,
     insert_r2,
     insert_rmse,
     insert_column_integrated_vars,
@@ -39,14 +38,14 @@ logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
 
-# variables that are needed in addition to the model features
+INPUT_SENSITIVITY = "input_sensitivity.png"
 DIAGS_NC_NAME = "offline_diagnostics.nc"
 TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 METADATA_JSON_NAME = "metadata.json"
+
 DATASET_DIM_NAME = "dataset"
 DERIVATION_DIM_NAME = "derivation"
-
 DELP = "pressure_thickness_of_atmospheric_layer"
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
@@ -235,9 +234,7 @@ def _get_predict_function(predictor, variables, grid):
         )
         derived_mapping = DerivedMapping(ds)
         ds_derived = derived_mapping.dataset(variables)
-        ds_prediction = predictor.predict_columnwise(
-            safe.get_variables(ds_derived, variables), feature_dim="z"
-        )
+        ds_prediction = predictor.predict(safe.get_variables(ds_derived, variables))
         return insert_prediction(ds_derived, ds_prediction)
 
     return transform
@@ -246,9 +243,6 @@ def _get_predict_function(predictor, variables, grid):
 def _get_data_mapper_if_exists(config):
     if isinstance(config, loaders.BatchesFromMapperConfig):
         return config.load_mapper()
-    elif isinstance(config, loaders.BatchesConfig):
-        if config.kwargs.get("mapping_function") == "open_zarr":
-            return loaders.open_zarr(config.kwargs.get("data_path"))
     else:
         return None
 
@@ -295,6 +289,7 @@ def main(args):
     ) as f_out:
         f_out.write(f_in.read())
     batches = config.load_batches(model_variables)
+
     predict_function = _get_predict_function(model, model_variables, grid)
     batches = loaders.Map(predict_function, batches)
 
@@ -305,29 +300,15 @@ def main(args):
     ds_diagnostics = ds_diagnostics.update(grid)
 
     # save model senstivity figures- these exclude derived variables
-    base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
-    try:
-        plot_jacobian(
-            base_model,
-            os.path.join(args.output_path, "model_sensitivity_figures"),  # type: ignore
-        )
-    except AttributeError:
-        try:
-            input_feature_indices = get_variable_indices(
-                data=batches[0], variables=base_model.input_variables
-            )
-            plot_rf_feature_importance(
-                input_feature_indices,
-                base_model,
-                os.path.join(args.output_path, "model_sensitivity_figures"),
-            )
-        except AttributeError:
-            logger.info(
-                f"Base model is {type(base_model).__name__}, "
-                "which currently has no feature importance or Jacobian "
-                "calculation implemented."
-            )
-            pass
+    fig_input_sensitivity = plot_input_sensitivity(model, batches[0])
+    if fig_input_sensitivity is not None:
+        with fsspec.open(
+            os.path.join(
+                args.output_path, "model_sensitivity_figures", INPUT_SENSITIVITY
+            ),
+            "wb",
+        ) as f:
+            fig_input_sensitivity.savefig(f)
 
     mapper = _get_data_mapper_if_exists(config)
     if mapper is not None:

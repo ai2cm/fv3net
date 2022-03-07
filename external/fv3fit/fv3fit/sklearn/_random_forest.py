@@ -18,11 +18,12 @@ from .._shared import (
     tuple_to_multiindex,
     PackerConfig,
 )
+
+from .._shared.input_sensitivity import InputSensitivity, RandomForestInputSensitivity
 from .._shared.config import RandomForestHyperparameters
 from .. import _shared
 from .._shared import (
     scaler,
-    StackedBatches,
     stack_non_vertical,
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
@@ -41,6 +42,13 @@ def train_random_forest(
     train_batches: Sequence[xr.Dataset],
     validation_batches: Sequence[xr.Dataset],
 ):
+    """
+    Args:
+        hyperparameters: configuration for training
+        train_batches: batched data for training, must be stacked
+            with at most one non-sample dimension
+        validation_batches: ignored in this function
+    """
     model = RandomForest(
         hyperparameters.input_variables,
         hyperparameters.output_variables,
@@ -215,40 +223,50 @@ class SklearnWrapper(Predictor):
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
-        self._input_variables = input_variables
-        self._output_variables = output_variables
         self.packer_config = packer_config
         for name in self.packer_config.clip:
-            if name in self._output_variables:
+            if name in self.output_variables:
                 raise NotImplementedError("Clipping for ML outputs is not implemented.")
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
     def _fit_batch(self, data: xr.Dataset):
-        x, _ = pack(data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config)
-        y, self.output_features_ = pack(data[self.output_variables], [SAMPLE_DIM_NAME])
+        all_variables = set(self.input_variables).union(self.output_variables)
+        sample_dim_name = data[next(iter(self.input_variables))].dims[0]
+        for varname in all_variables:
+            dims = data[varname].dims
+            if dims[0] != sample_dim_name:
+                raise ValueError(
+                    f"variable {varname} does not have the same sample "
+                    f"dimension {sample_dim_name} as the first input"
+                )
+            if len(data[varname].dims) > 2:
+                raise ValueError(
+                    f"was given data with more than 2 dimensions for {varname}, "
+                    "data should all be [sample] or [sample, feature]"
+                )
+        x, _ = pack(data[self.input_variables], [sample_dim_name], self.packer_config)
+        y, self.output_features_ = pack(data[self.output_variables], [sample_dim_name])
 
         if self.target_scaler is None:
-            self.target_scaler = self._init_target_scaler(data)
+            self.target_scaler = self._init_target_scaler(data, sample_dim_name)
 
         y = self.target_scaler.normalize(y)
         self.model.fit(x, y)
 
-    def _init_target_scaler(self, batch):
+    def _init_target_scaler(self, batch, sample_dim_name):
         return get_scaler(
             self.scaler_type,
             self.scaler_kwargs,
             batch,
-            self._output_variables,
-            SAMPLE_DIM_NAME,
+            self.output_variables,
+            sample_dim_name,
         )
 
     def fit(self, batches: Sequence[xr.Dataset]):
         logger = logging.getLogger("SklearnWrapper")
-        random_state = np.random.RandomState(np.random.get_state()[1][0])
-        stacked_batches = StackedBatches(batches, random_state)
-        for i, batch in enumerate(stacked_batches):
+        for i, batch in enumerate(batches):
             logger.info(f"Fitting batch {i+1}/{len(batches)}")
             self._fit_batch(batch)
             logger.info(f"Batch {i+1} done fitting.")
@@ -327,3 +345,47 @@ class SklearnWrapper(Predictor):
         obj.output_features_ = output_features_
 
         return obj
+
+    @property
+    def feature_importances(self) -> Sequence[float]:
+        importances = []
+        for member in self.model.regressors:
+            importances.append(member.feature_importances_)
+        return importances
+
+    @property
+    def mean_importances(self) -> np.ndarray:
+        return np.array(self.feature_importances).mean(axis=0)
+
+    @property
+    def std_importances(self) -> np.ndarray:
+        return np.array(self.feature_importances).std(axis=0)
+
+    def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
+        _, input_multiindex = pack(
+            stacked_sample[self.input_variables], ["sample"], self.packer_config
+        )
+        feature_importances = {}
+        for (name, feature_index), mean_importance, std_importance in zip(
+            input_multiindex, self.mean_importances, self.std_importances
+        ):
+            if name not in feature_importances:
+                feature_importances[name] = {
+                    "indices": [feature_index],
+                    "mean_importances": [mean_importance],
+                    "std_importances": [std_importance],
+                }
+            else:
+                feature_importances[name]["indices"].append(feature_index)
+                feature_importances[name]["mean_importances"].append(mean_importance)
+                feature_importances[name]["std_importances"].append(std_importance)
+
+        formatted_feature_importances = {
+            name: RandomForestInputSensitivity(
+                indices=info["indices"],
+                mean_importances=info["mean_importances"],
+                std_importances=info["std_importances"],
+            )
+            for name, info in feature_importances.items()
+        }
+        return InputSensitivity(rf_feature_importances=formatted_feature_importances)

@@ -5,6 +5,8 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 from fv3fit.emulation.data import transforms
+from fv3fit.emulation.data.config import Pipeline
+import vcm
 
 
 @pytest.fixture
@@ -74,6 +76,27 @@ def test_select_antarctic(lats, data, expected):
     xr.testing.assert_equal(expected_da, result["field"])
 
 
+def test_select_antarctic_xarray_netCDF():
+    """
+    xarray can't use an empty index mask (i.e., all False) along
+    a selection dimension for multi-dimensional data with an unloaded
+    netCDF backend
+    """
+    lats_da = xr.DataArray(np.deg2rad(np.linspace(40, 50, 10)), dims=["sample"])
+    data_da = xr.DataArray(np.arange(20).reshape(10, 2), dims=["sample", "z"])
+    dataset = xr.Dataset({"latitude": lats_da, "field": data_da})
+    expected = transforms.select_antarctic(dataset)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = os.path.join(tmpdir, "saved.nc")
+        dataset.to_netcdf(filename)
+
+        loaded = xr.open_dataset(filename)
+        result = transforms.select_antarctic(loaded)
+
+    xr.testing.assert_equal(expected, result)
+
+
 @pytest.mark.parametrize(
     "dataset",
     [
@@ -139,3 +162,30 @@ def test_derived(varname: str):
     assert f"{varname}_after_precpd" in derived
     assert dT_name in derived
     np.testing.assert_array_equal(derived[dT_name], np.ones((10, 4)))
+
+
+def test_Pipeline():
+    ds = vcm.cdl_to_dataset(
+        """
+        netcdf Name {
+            dimensions:
+                sample = 1;
+            variables:
+                int a(sample);
+            data:
+                // initialize with 0
+                // should end with 2
+                a = 0;
+        }
+        """
+    )
+
+    def increment_a_ds(ds):
+        return ds.assign(a=ds.a + 1)
+
+    def increment_a_array(d):
+        return {"a": d["a"] + 1}
+
+    pipeline = Pipeline([increment_a_ds], [increment_a_array])
+    out = pipeline(ds)
+    assert out["a"][0].numpy() == np.array([2])

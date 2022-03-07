@@ -6,20 +6,26 @@ from fv3fit._shared import (
     stack,
 )
 from fv3fit._shared.stacking import Z_DIM_NAMES
+from fv3fit.keras.adapters import (
+    ensure_dict_output,
+    rename_dict_input,
+    rename_dict_output,
+)
 import tensorflow as tf
-from typing import Any, Dict, Hashable, Iterable, Optional, Sequence
+from typing import Any, Dict, Hashable, Iterable, Optional, Sequence, Mapping
 import xarray as xr
 import os
-from ...._shared import get_dir, put_dir
+from ...._shared import get_dir, put_dir, InputSensitivity
 import yaml
 import numpy as np
 from .halos import append_halos, append_halos_using_mpi
+from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 
 
 @io.register("all-keras")
 class PureKerasModel(Predictor):
     """Model which uses Keras for packing and normalization.
-    
+
     Assumes wrapped keras model accepts [sample, feature] arrays.
     """
 
@@ -37,7 +43,7 @@ class PureKerasModel(Predictor):
         n_halo: int = 0,
     ):
         """Initialize the predictor
-        
+
         Args:
             input_variables: names of input variables
             output_variables: names of output variables
@@ -45,7 +51,7 @@ class PureKerasModel(Predictor):
                 in output_variables
             model: keras model to wrap
             unstacked_dims: if given, stacking should leave these dimensions in place.
-                by default uses z-dimension names from fv3gfs.util
+                by default uses z-dimension names from pace.util
             n_halo: number of halo points required in input data
         """
         super().__init__(input_variables, output_variables)
@@ -164,3 +170,46 @@ class PureKerasModel(Predictor):
                         }
                     )
                 )
+
+    def get_dict_compatible_model(self) -> tf.keras.Model:
+        """
+        Rename keras model inputs/outputs to match input_variables and
+        output_variables, and ensure model accepts and outputs dicts.
+        """
+        renamed_inputs: Mapping[str, str] = {
+            str(layer_name): str(input_var)
+            for layer_name, input_var in zip(
+                self.model.input_names, self.input_variables
+            )
+        }
+        renamed_outputs: Mapping[str, str] = {
+            str(layer_name): str(output_var)
+            for layer_name, output_var in zip(
+                self.model.output_names, self.output_variables
+            )
+        }
+
+        dict_compatible_model = ensure_dict_output(self.model)
+
+        model_renamed_inputs = rename_dict_input(dict_compatible_model, renamed_inputs)
+        return rename_dict_output(model_renamed_inputs, renamed_outputs)
+
+    def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
+        # Jacobian functions take in dict input
+        data_dict = {}
+        for var in stacked_sample:
+            values = stacked_sample[var].values
+            if len(stacked_sample[var].dims) == 1:
+                values = values.reshape(-1, 1)
+            data_dict[var] = values
+
+        jacobians = compute_jacobians(
+            self.get_dict_compatible_model(),  # type: ignore
+            data_dict,
+            self.input_variables,
+        )
+        # normalize factors so sensitivities are comparable but still
+        # preserve level-relative magnitudes
+        std_factors = {name: np.std(data, axis=0) for name, data in data_dict.items()}
+        jacobians_std = nondimensionalize_jacobians(jacobians, std_factors)
+        return InputSensitivity(jacobians=jacobians_std)

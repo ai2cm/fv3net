@@ -1,18 +1,14 @@
 import tensorflow as tf
-from typing import Iterable, Optional, Sequence, Union, Mapping, Tuple, Callable
+from typing import Iterable, Optional, Sequence, Tuple, Callable
 import dataclasses
 import numpy as np
+
 from .sequences import ThreadedSequencePreLoader
 from loaders.batches import shuffle
 import logging
+import gc
 
-
-# Description of the training loss progression over epochs
-# Outer array indexes epoch, inner array indexes batch (if applicable)
-EpochLossHistory = Sequence[Sequence[Union[float, int]]]
-History = Mapping[str, EpochLossHistory]
-
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -78,5 +74,8 @@ class TrainingLoopConfig:
                         batch_size=self.batch_size,
                     )
                 )
+            # for some reason, garbage collection was not happening automatically, and
+            # training on large datasets would OOM after multiple epochs.
+            gc.collect()
             for callback in callbacks:
                 callback(EpochResult(epoch=i_epoch, history=tuple(history)))

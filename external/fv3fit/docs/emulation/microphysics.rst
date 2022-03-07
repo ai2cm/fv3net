@@ -1,4 +1,4 @@
-.. _microphysics
+.. _microphysics:
 
 Microphysics Emulation
 ----------------------
@@ -33,10 +33,9 @@ Important Configurations
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: TrainConfig
-.. autoclass:: MicrophysicsConfig
+.. autoclass:: fv3fit.emulation.models.MicrophysicsConfig
 .. autoclass:: TransformConfig
 .. autoclass:: CustomLoss
-.. autoclass:: StandardLoss
 
 
 Example :py:class:`TrainConfig` YAML

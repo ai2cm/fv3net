@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 from typing import Any, Dict, List, Mapping, Optional
 
 from .tensorboard import plot_to_image
-from .emulation.jacobian import OutputSensitivity
+from .keras.jacobian import OutputSensitivity
 
 
 @dataclasses.dataclass
@@ -49,7 +49,7 @@ class WandBConfig:
 def log_to_table(log_key: str, data: Dict[str, Any], index: Optional[List[Any]] = None):
     """
     Log data to wandb table using a pandas dataframe
-    
+
     Args:
         log_key: wandb key for table artifact
         data: mapping of data, each key becomes a dataframe

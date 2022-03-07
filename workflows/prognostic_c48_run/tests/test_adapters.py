@@ -8,7 +8,7 @@ class MockPredictor:
     """A predictor that expects these inputs::
 
         ["renamed_inputs"]
-    
+
     and predicts these outputs::
 
         ["rename_output"]
@@ -22,7 +22,7 @@ class MockPredictor:
         self.output_variables = output_variables or ["rename_output"]
         self.output_scaling = output_scaling
 
-    def predict_columnwise(self, x, sample_dims=None):
+    def predict(self, x):
         in_ = x[self.input_variables[0]] * self.output_scaling
         return xr.Dataset({self.output_variables[0]: in_})
 
@@ -34,7 +34,7 @@ def test_RenamingAdapter_predict_inputs_and_outputs_renamed():
     model = RenamingAdapter(
         MockPredictor(), {"x": "renamed_input"}, {"y": "rename_output"}
     )
-    out = model.predict_columnwise(ds)
+    out = model.predict(ds)
     assert "y" in out.data_vars
 
 
@@ -52,7 +52,7 @@ def test_RenamingAdapter_predict_renames_dims_correctly(
     m = MockPredictor()
     ds = xr.Dataset({m.input_variables[0]: (original_dims, np.ones((5, 10)))})
     model = RenamingAdapter(m, rename_dims)
-    out = model.predict_columnwise(ds)
+    out = model.predict(ds)
     output_array = out[m.output_variables[0]]
     assert list(output_array.dims) == expected
 
@@ -67,7 +67,7 @@ def test_MultiModelAdapter_combines_predictions():
     model0 = MockPredictor(output_variables=["y0"], input_variables=["x"])
     model1 = MockPredictor(output_variables=["y1"], input_variables=["x"])
     combined_model = MultiModelAdapter([model0, model1])
-    out = combined_model.predict_columnwise(ds)
+    out = combined_model.predict(ds)
     assert "y0" in out.data_vars and "y1" in out.data_vars
 
 
@@ -79,4 +79,4 @@ def test_MultiModelAdapter_exception_on_output_overlap():
     )
     combined_model = MultiModelAdapter([model0, model1])
     with pytest.raises(xr.MergeError):
-        combined_model.predict_columnwise(ds)
+        combined_model.predict(ds)

@@ -14,6 +14,7 @@ install_requirements = [
     "requests",
     "h5py>=2.10",
     "dask",
+    "lark>=1.1.1",
     "xarray",
     "toolz",
     "scipy",
@@ -29,7 +30,6 @@ install_requirements = [
     "google-api-core",
     "pytest-regtest",
     "h5netcdf>=0.8",
-    "docrep<0.3.0,>=0.2.0",
     "intake-xarray>=0.3.1",
 ]
 

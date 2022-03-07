@@ -12,7 +12,7 @@ To install these templates run
 
     kubectl apply -k <this directory>
 
-This can be done from an external location (e.g. vcm-workflow-control). To run an installed workflowtemplate, 
+This can be done from an external location (e.g. vcm-workflow-control). To run an installed workflowtemplate,
 use the `--from` flag. Workflow parameters can be passed via the command line with the `-p` option. For example
 ```
 argo submit --from workflowtemplate/prognostic-run-diags \
@@ -62,7 +62,7 @@ sequential segments.
 | Parameter            | Description                                                                   |
 |----------------------|-------------------------------------------------------------------------------|
 | `config`             | String representation of base config YAML file; supplied to prepare-config |
-| `tag`                | Tag which describes the run and is used in its storage location               | 
+| `tag`                | Tag which describes the run and is used in its storage location               |
 | `flags`              | (optional) Extra command line flags for prepare-config                    |
 | `bucket`             | (optional) Bucket to save run output data; default 'vcm-ml-experiments'       |
 | `project`            | (optional) Project directory to save run output data; default 'default'       |
@@ -70,14 +70,14 @@ sequential segments.
 | `cpu`                | (optional) Number of cpus to request; default "6"                             |
 | `memory`             | (optional) Amount of memory to request; default 6Gi                           |
 | `online-diags-flags` | (optional) `flags` for `prognostic-run-diags` workflow                        |
-| `online-diags`       | (optional) Run online diagostics if "true"; default "true"                     | 
+| `online-diags`       | (optional) Run online diagostics if "true"; default "true"                     |
 
 #### Command line interfaces used by workflow
 This workflow first resolves the output location for the run according to:
 ```
 output="gs://{bucket}/{project}/$(date +%F)/{tag}/fv3gfs_run"
 ```
-Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth 
+Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth
 of this directory structure.
 
 And then calls:
@@ -98,7 +98,7 @@ runfv3 append {output}
 
 #### Restarting prognostic runs
 
-Once a prognostic run has finished running, it is possible to extend the run using the 
+Once a prognostic run has finished running, it is possible to extend the run using the
 `restart-prognostic-run` workflow. Note it is not possible to change any aspects of the
 configuration when restarting runs.
 
@@ -172,7 +172,7 @@ If successful, the completed report will be available at
 `gs://vcm-ml-public/argo/<name>/index.html`, where `<name>` is the name of the created
 argo `workflow` resource. This can be accessed from a web browser using this link:
 
-    http://storage.googleapis.com/vcm-ml-public/argo/<name>/index.html 
+    http://storage.googleapis.com/vcm-ml-public/argo/<name>/index.html
 
 [1]: http://storage.googleapis.com/vcm-ml-public/experiments-2020-03/prognostic_run_diags/combined.html
 
@@ -188,6 +188,7 @@ This workflow trains machine learning models.
 | `times`                | JSON-encoded list of timestamps to use for test data |
 | `offline-diags-output` | Where to save offline diagnostics                    |
 | `report-output`        | Where to save report                                 |
+| `cpu`                  | (optional) # cpu for workflow. Defaults to 1.        |
 | `memory`               | (optional) memory for workflow. Defaults to 6Gi.     |
 
 #### Command line interfaces used by workflow
@@ -219,8 +220,8 @@ This workflow calls
 python -m fv3net.diagnostics.offline.compute \
           {{inputs.parameters.ml-model}} \
           {{inputs.parameters.offline-diags-output}} \
-          --timesteps-file {{inputs.parameters.times}} 
-          
+          --timesteps-file {{inputs.parameters.times}}
+
 python -m fv3net.diagnostics.offline.views.create_report \
           {{inputs.parameters.offline-diags-output}} \
           {{inputs.parameters.report-output}} \
@@ -244,7 +245,7 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 
 | Parameter               | Description                                                           |
 |-------------------------|-----------------------------------------------------------------------|
-| `tag`                   | Tag which describes the experiment and is used in its storage location| 
+| `tag`                   | Tag which describes the experiment and is used in its storage location|
 | `train-test-data`       | `input` for `training` workflow                                       |
 | `training-configs`      | List of dicts of type `{name: config}`, where `config` is the config used for `training` workflow |
 | `train-times`           | `times` for `training` workflow                                       |
@@ -257,6 +258,7 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `segment-count`         | (optional) `segment-count` for `prognostic-run` workflow; default "1" |
 | `cpu-prog`              | (optional) `cpu` for `prognostic-run` workflow; default "6"           |
 | `memory-prog`           | (optional) `memory` for `prognostic-run` workflow; default 6Gi        |
+| `cpu-training`          | (optional) `cpu` for `training` workflow; default "1"                 |
 | `memory-training`       | (optional) `memory` for `training` workflow; default 6Gi              |
 | `memory-offline-diags`  | (optional) `memory` for `offline-diags` workflow; default 6Gi         |
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
@@ -264,7 +266,7 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `do-prognostic-run`     | (optional) do prognostic run step; default "true"                     |
 
 Output for the various steps will be written to `gs://{bucket}/{project}/$(date +%F)/{tag}`.
-Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth 
+Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth
 of this directory structure.
 
 ### Cubed-sphere to lat-lon interpolation workflow

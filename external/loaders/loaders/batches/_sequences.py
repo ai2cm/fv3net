@@ -69,13 +69,24 @@ class Local(BaseSequence[T]):
 
     @classmethod
     def dump(cls, dataset, path):
-        joblib.dump(dataset, path)
+        try:
+            loaded_data = dataset.load()
+        except AttributeError:
+            pass
+        else:
+            loaded_data = dataset
+
+        joblib.dump(loaded_data, path)
 
     def __len__(self):
         return len(self.files)
 
     def __getitem__(self, i):
-        return joblib.load(self.files[i])
+        slice_value = self.files[i]
+        if isinstance(slice_value, str):
+            return joblib.load(slice_value)
+        else:
+            return [joblib.load(file) for file in slice_value]
 
 
 def to_local(sequence: Sequence[T], path: str, n_jobs: int = 4) -> Local[T]:
@@ -86,7 +97,7 @@ def to_local(sequence: Sequence[T], path: str, n_jobs: int = 4) -> Local[T]:
         sequence: pickleable objects to dump locally
         path: local directory, will be created if not existing
         n_jobs: how many threads to use when dumping objects to file
-    
+
     Returns:
         local_sequence
     """

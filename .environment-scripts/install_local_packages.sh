@@ -9,11 +9,10 @@ source activate $CONDA_ENV
 rm -f "external/vcm/vcm/mappm.*.so"
 rm -rf external/vcm/build
 
-local_packages_to_install=( 
+local_packages_to_install=(
   external/vcm
   external/artifacts
   external/loaders
-  external/fv3gfs-util
   external/fv3fit
 )
 set -e
@@ -23,11 +22,11 @@ do
 done
 set +e
 
-  
+
 # need to pip install these to avoid pkg_resources error
 pip install -c constraints.txt external/report
 
-poetry_packages=( 
+poetry_packages=(
   external/fv3viz
   external/synth
   external/fv3kube

@@ -32,7 +32,7 @@ def ml_stepper(model_output_type):
 @pytest.mark.parametrize("output_type", ["tendencies", "rad_fluxes"])
 def test_mock_predictor_checksum(output_type, state, regtest):
     mock_model = get_mock_predictor(output_type)
-    predicted = mock_model.predict_columnwise(state, feature_dim="z")
+    predicted = mock_model.predict(state)
     test_state_regression(predicted, regtest)
 
 

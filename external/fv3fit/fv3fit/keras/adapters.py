@@ -27,7 +27,7 @@ def rename_dict_output(
         model: a tensorflow model. must return dicts
         transation: a mapping from old names (the keys returned by ``model``) to
             the new output names.
-    
+
     """
 
     inputs = model.inputs
@@ -52,7 +52,7 @@ def ensure_dict_output(model: tf.keras.Model) -> tf.keras.Model:
         If ``model`` already returns dicts, then this is identical to model.
         If ``model`` outputs lists, then the ``name`` of each output
         layer will be used.
-    
+
     Example:
 
         >>> i = tf.keras.Input(shape=[5])
@@ -69,8 +69,14 @@ def ensure_dict_output(model: tf.keras.Model) -> tf.keras.Model:
 
 
 def get_inputs(model: tf.keras.Model) -> Mapping[str, tf.Tensor]:
-    if isinstance(model.inputs, Mapping):
-        return model.inputs
+
+    # As far as I can tell, the "input" property is not documented in tf,
+    # but it does retain information about the input to the model being a dict.
+    # "inputs" always seems to be a list even when a dict is used
+    # to create the model
+
+    if model.inputs and isinstance(model.input, Mapping):
+        return model.input
     elif model.inputs is None:
         raise ValueError(
             f"Cannot detect inputs of model {model}. " "Custom models may not work."
@@ -108,3 +114,56 @@ def _rename_graph_outputs_to_match_output_keys(model: tf.keras.Model) -> tf.kera
     model_dict_out = tf.keras.Model(inputs=inputs, outputs=renamed)
     model_dict_out(inputs)
     return model_dict_out
+
+
+def _ensure_list_input(model: tf.keras.Model) -> tf.keras.Model:
+    """
+    Takes dict input + output model and converts it to take in
+    list inputs but keep original dict outputs. Useful for connecting
+    input layers with names different from the original model.
+    """
+    if isinstance(model.inputs, Mapping):
+        inputs = [input for input in model.inputs]
+    elif model.inputs is None:
+        raise ValueError(
+            f"Cannot detect inputs of model {model}. " "Custom models may not work."
+        )
+    else:
+        inputs = model.inputs
+    list_input_model = tf.keras.Model(inputs=inputs, outputs=model.outputs)
+    list_input_model(inputs)
+    # need to keep outputs dict- without calling this the model will revert
+    # to list outputs
+    return ensure_dict_output(list_input_model)
+
+
+def rename_dict_input(
+    model: tf.keras.Model, translation: Mapping[str, str]
+) -> tf.keras.Model:
+    """Rename the inputs of a dict-output model
+
+    Args:
+        model: a tensorflow model. must return dicts
+        transation: a mapping from old names (the keys returned by ``model``) to
+            the new output names.
+
+    """
+
+    # need to have list format inputs to connect renamed layers to rest of the model
+    list_input_model = _ensure_list_input(model)
+    renamed_inputs = [
+        # skip the first placeholder dim when specifying shape
+        tf.keras.layers.Input(
+            shape=input_layer.shape[1:], name=translation.get(input_name, input_name),
+        )
+        for input_layer, input_name in zip(
+            list_input_model.inputs, list_input_model.input_names
+        )
+    ]
+    connect_outputs = list_input_model(renamed_inputs)
+    dict_inputs = {input.name: input for input in renamed_inputs}
+
+    model_renamed = tf.keras.Model(inputs=dict_inputs, outputs=connect_outputs)
+    model_renamed(dict_inputs)
+
+    return model_renamed

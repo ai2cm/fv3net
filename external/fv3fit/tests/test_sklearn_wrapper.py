@@ -107,7 +107,7 @@ def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
 
 def test_fitting_SklearnWrapper_does_not_fit_scaler():
     """SklearnWrapper should use pre-computed scaling factors when fitting data
-    
+
     In other words, calling the .fit method of wrapper should not call the
     .fit its scaler attribute.
     """
@@ -187,12 +187,20 @@ def fit_wrapper_with_columnar_data():
         input_variables=["a"], output_variables=["b"], model=model,
     )
 
-    dims = ["x", "y", "z"]
-    shape = (2, 2, nz)
+    dims = ["sample", "z"]
+    shape = (4, nz)
     arr = np.arange(np.prod(shape)).reshape(shape)
     input_data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1)})
     wrapper.fit([input_data])
     return input_data, wrapper
+
+
+def get_unstacked_data():
+    dims = ["x", "y", "z"]
+    shape = (2, 2, 2)
+    arr = np.arange(np.prod(shape)).reshape(shape)
+    input_data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1)})
+    return input_data
 
 
 def test_predict_is_deterministic(regtest):
@@ -207,8 +215,8 @@ def test_predict_is_deterministic(regtest):
 
 def test_predict_returns_unstacked_dims():
     # 2D output dims same as input dims
-    input_data, wrapper = fit_wrapper_with_columnar_data()
-    assert len(input_data.dims) > 2
+    _, wrapper = fit_wrapper_with_columnar_data()
+    input_data = get_unstacked_data()
     prediction = wrapper.predict(input_data)
     assert prediction.dims == input_data.dims
 
@@ -226,11 +234,11 @@ def test_SklearnWrapper_fit_predict_with_clipped_input_data():
         packer_config=PackerConfig({"a": {"z": SliceConfig(2, None)}}),
     )
 
-    dims = ["x", "y", "z"]
-    shape = (2, 2, nz)
+    dims = ["sample", "z"]
+    shape = (4, nz)
     arr = np.arange(np.prod(shape)).reshape(shape)
     input_data = xr.Dataset(
-        {"a": (dims, arr), "b": (dims[:-1], arr[:, :, 0]), "c": (dims, arr + 1)}
+        {"a": (dims, arr), "b": (dims[:-1], arr[:, 0]), "c": (dims, arr + 1)}
     )
     wrapper.fit([input_data])
     wrapper.predict(input_data)

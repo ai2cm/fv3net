@@ -173,6 +173,26 @@
                 0.0
             ]
         },
+        "dQ1_filled_frac": {
+            "type": "number",
+            "units": "dimensionless",
+            "default": 0.0
+        },
+        "dQ2_filled_frac": {
+            "type": "number",
+            "units": "dimensionless",
+            "default": 0.0
+        },
+        "dQu_filled_frac": {
+            "type": "number",
+            "units": "dimensionless",
+            "default": 0.0
+        },
+        "dQv_filled_frac": {
+            "type": "number",
+            "units": "dimensionless",
+            "default": 0.0
+        },
         "water_vapor_path": {
             "$id": "#/properties/water_vapor_path",
             "type": "number",

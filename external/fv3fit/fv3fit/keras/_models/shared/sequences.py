@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Sequence, Tuple, List, Any, Optional
 from .halos import append_halos
-import fv3gfs.util
+import pace.util
 import vcm.safe
 
 from fv3fit._shared.packer import ArrayPacker
@@ -65,7 +65,7 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
         X_names: Sequence[str],
         y_names: Sequence[str],
         dataset_sequence: Sequence[xr.Dataset],
-        unstacked_dims=fv3gfs.util.Z_DIMS,
+        unstacked_dims=pace.util.Z_DIMS,
         n_halo: int = 0,
         output_clip_config: Optional[ClipConfig] = None,
     ):
@@ -85,7 +85,7 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
                 the clip config, as we want to input them in their full length when
                 training (even if they are clipped in a subsequent layer).
         """
-        horizontal_unstacked_dims = set(fv3gfs.util.HORIZONTAL_DIMS).intersection(
+        horizontal_unstacked_dims = set(pace.util.HORIZONTAL_DIMS).intersection(
             unstacked_dims
         )
         if n_halo > 1 and len(horizontal_unstacked_dims) == 0:
@@ -106,7 +106,8 @@ class XyMultiArraySequence(tf.keras.utils.Sequence):
     def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
         ds = self.dataset_sequence[idx]
         X_ds = vcm.safe.get_variables(ds=ds, variables=self.X_names)
-        X_ds = append_halos(X_ds, n_halo=self.n_halo)
+        if self.n_halo > 0:
+            X_ds = append_halos(X_ds, n_halo=self.n_halo)
         y_ds = vcm.safe.get_variables(ds=ds, variables=self.y_names)
         X_y_datasets = [X_ds, y_ds]
         for i in range(2):

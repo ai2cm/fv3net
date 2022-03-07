@@ -1,8 +1,9 @@
 import logging
 import xarray as xr
-import intake
 import os
 from typing import Hashable, Sequence, Mapping, Optional, Any, MutableMapping
+import fsspec
+import zarr
 
 from .._base import MultiDatasetMapper
 from .._xarray import XarrayMapper
@@ -28,13 +29,13 @@ def open_nudge_to_obs(
     Load nudge-to-obs data mapper for use with training. Merges
     variables saved in the physics tendencies, nudging tendencies (Fortran
     diagnostics), and model state zarrs.
-    
+
     Because the nudge-to-obs routine conducts nudging within the physics step,
     the returned physics tendency is computed as the output physics_tendency minus
     the nudging tendency. Similarly, because model states are output at the end
     of the timestep, the nudging increment is subtracted to return the
     ``before nudging`` state for training.
-    
+
     Args:
         data_path (str): path to a nudge-to-obs output directory, remote or local
         nudging_tendency_variables: (optional): mapping of variables to their renamed
@@ -43,11 +44,11 @@ def open_nudge_to_obs(
         physics_timestep_seconds (float): physics timestep, i.e., dt_atmos; defaults
             to 900.0
         consolidated (bool): whether zarrs to open have consolidated metadata
-        
+
     Returns:
         mapper to dataset containing nudging tendencies, physics tendencies,
             and model state data
-        
+
     """
 
     datasets = _get_datasets(
@@ -124,15 +125,16 @@ def open_nudge_to_fine(
         "nudging_tendencies.zarr",
         "state_after_timestep.zarr",
     ),
+    cache_size_mb: Optional[float] = None,
 ) -> XarrayMapper:
     """
     Load nudge-to-fine data mapper for use with training. Merges
     variables saved in the physics tendencies, nudging tendencies, and
     model state zarrs.
-    
+
     Because model states are output at the end of the timestep, the nudging
     increment is subtracted to return the ``before nudging`` state for training.
-    
+
     Args:
         url (str):  path to nudge-to-fine output directory, remote or local
         nudging_variables (Sequence[str]): Names of nudged variables, nudging tendency
@@ -145,14 +147,20 @@ def open_nudge_to_fine(
             state_after_timestep.zarr (which you should probably include).
             For example, you may want to include also "diags.zarr" to retrieve
             total_precipitation_rate.
-        
+         cache_size_mb: Cache size in MB for using zarr.storage.LRUStoreCache
+            for accessing data. A cache of this size is created for each zarr
+            dataset in the datasets arg. No LRU caches created if this arg is not
+            supplied.
+
     Returns:
         mapper to dataset containing nudging tendencies, physics tendencies,
             and model state data
     """
 
     ds = xr.merge(
-        _get_datasets(data_path, datasets, consolidated=consolidated,).values(),
+        _get_datasets(
+            data_path, datasets, consolidated=consolidated, cache_size_mb=cache_size_mb
+        ).values(),
         join="inner",
     )
 
@@ -207,12 +215,16 @@ def open_nudge_to_fine_multiple_datasets(
 
 
 def _get_datasets(
-    url: str, sources: Sequence[str], consolidated: bool = True
+    url: str,
+    sources: Sequence[str],
+    consolidated: bool = True,
+    cache_size_mb: Optional[float] = None,
 ) -> MutableMapping[Hashable, xr.Dataset]:
     datasets: MutableMapping[Hashable, xr.Dataset] = {}
     for source in sources:
-        ds = intake.open_zarr(
-            os.path.join(url, f"{source}"), consolidated=consolidated
-        ).to_dask()
+        mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
+        if cache_size_mb is not None:
+            mapper = zarr.LRUStoreCache(mapper, max_size=int(cache_size_mb * 1e6),)
+        ds = xr.open_zarr(mapper, consolidated=consolidated)
         datasets[source] = ds
     return datasets

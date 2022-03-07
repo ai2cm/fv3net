@@ -15,7 +15,7 @@ class Field:
         input_name: the name of the output variable
         tendency_name: the name to call the output-input difference by
         selection: how to subset the feature-space of the field
-    
+
     Example:
 
         >>> air_temperature = Field(

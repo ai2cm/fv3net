@@ -51,7 +51,7 @@ diagnostics:
   - tendency_of_ozone_mixing_ratio_due_to_fv3_physics
   - tendency_of_pressure_thickness_of_atmospheric_layer_due_to_fv3_physics
 namelist:
-  atmos_model_nml:  
+  atmos_model_nml:
     blocksize: -1
   coupler_nml:
     current_date:

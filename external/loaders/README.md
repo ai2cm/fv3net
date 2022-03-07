@@ -7,7 +7,7 @@ is usually larger than will fit in memory, data is processed in batches rather
 than in its entirety.
 
 ### Mappers
-The mapper objects in this package divide datasets along the time dimension, 
+The mapper objects in this package divide datasets along the time dimension,
 with each timestep corresponding to a key. The API section describes public
 functions that return mapper objects.
 

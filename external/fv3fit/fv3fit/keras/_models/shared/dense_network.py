@@ -52,7 +52,7 @@ class DenseNetworkConfig:
             config: configuration for dense network
             label: inserted into layer names, if this function is used multiple times
                 to build one network you must provide a different label each time
-        
+
         Returns:
             tensor resulting from the requested dense network
         """

@@ -77,7 +77,7 @@ def coarsen_restarts_on_sigma(
     Returns:
         restarts_coarse: a dictionary with the same format as restarts but
             coarsening_factor times coarser.
-        
+
     """
     coarsened = {}
 

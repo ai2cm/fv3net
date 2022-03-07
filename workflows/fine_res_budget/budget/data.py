@@ -115,7 +115,7 @@ def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
 
         x-------o--------x-------o-------x
         -------r1.5------------r2.5-------
-    
+
     ``r1.5`` is an xarray dataset containing ``(r1, (r1+r2)/2, r2)``,
     the beginning, middle, and end of the time step.
 

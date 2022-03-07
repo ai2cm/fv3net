@@ -118,6 +118,8 @@ variables:
 		specific_humidity_after_gscond:units = unknown ;
 	float32 air_temperature_after_gscond(sample, z) ;
 		air_temperature_after_gscond:units = unknown ;
+	float32 cloud_water_mixing_ratio_after_gscond(sample, z) ;
+		cloud_water_mixing_ratio_after_gscond:units = unknown ;
 	float32 air_temperature_after_precpd(sample, z) ;
 		air_temperature_after_precpd:units = unknown ;
 	float32 specific_humidity_after_precpd(sample, z) ;

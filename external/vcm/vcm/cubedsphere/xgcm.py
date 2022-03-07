@@ -1,3 +1,4 @@
+import numpy as np
 import xarray as xr
 import xgcm
 from . import constants
@@ -65,7 +66,7 @@ def create_fv3_grid(
         y_outer (optional): the dimension name for the y edges
 
     Returns:
-        an xgcm grid object. This object can be used to interpolate and differentiate 
+        an xgcm grid object. This object can be used to interpolate and differentiate
         cubed sphere data, please see the XGCM_ documentation for more information.
 
     Notes:
@@ -83,4 +84,11 @@ def create_fv3_grid(
         "x": {"center": x_center, "outer": x_outer},
         "y": {"center": y_center, "outer": y_outer},
     }
+
+    if x_outer not in ds:
+        ds = ds.assign_coords({x_outer: np.arange(len(ds[x_center]) + 1)})
+
+    if y_outer not in ds:
+        ds = ds.assign_coords({y_outer: np.arange(len(ds[y_center]) + 1)})
+
     return xgcm.Grid(ds, coords=coords, face_connections=FV3_FACE_CONNECTIONS)

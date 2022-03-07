@@ -12,7 +12,7 @@ import cftime
 @contextlib.contextmanager
 def capture_stream(stream):
     """fork is not compatible with mpi so this won't work
-    
+
     The wait line below hangs indefinitely.
     """
 
@@ -107,7 +107,7 @@ def log_mapping(
     logger_name: str,
 ):
     """Serialize a mapping 'content' to logger_name using JSON.
-    
+
     Warning:
         content must be a mapping whose keys and values are serializable by JSON.
     """

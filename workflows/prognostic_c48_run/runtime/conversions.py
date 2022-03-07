@@ -1,5 +1,5 @@
 import xarray as xr
-import fv3gfs.util
+import pace.util
 
 from runtime.types import QuantityState
 
@@ -13,7 +13,7 @@ def _insert_units_if_necessary(da: xr.DataArray) -> xr.DataArray:
 
 def dataset_to_quantity_state(ds: xr.Dataset) -> QuantityState:
     quantity_state: QuantityState = {
-        variable: fv3gfs.util.Quantity.from_data_array(
+        variable: pace.util.Quantity.from_data_array(
             _insert_units_if_necessary(ds[variable])
         )
         for variable in ds.data_vars

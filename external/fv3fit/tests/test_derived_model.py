@@ -31,7 +31,6 @@ def test_wrap_another_derived_model():
         base_model, derived_output_variables=["net_shortwave_sfc_flux_derived"],
     )
     derived_model_1 = DerivedModel(derived_model_0, derived_output_variables=["Q2"])
-
     assert not isinstance(derived_model_1.base_model, DerivedModel)
     assert set(derived_model_1.input_variables) == {
         "input",
@@ -48,9 +47,10 @@ def test_get_additional_inputs():
     derived_model = DerivedModel(
         base_model, derived_output_variables=["net_shortwave_sfc_flux_derived"],
     )
-    assert (
-        "surface_diffused_shortwave_albedo" in derived_model._additional_input_variables
-    )
+    # base output for dw shortwave override should not be in the additional inputs
+    assert derived_model._additional_input_variables == [
+        "surface_diffused_shortwave_albedo"
+    ]
 
 
 def test_derived_prediction():

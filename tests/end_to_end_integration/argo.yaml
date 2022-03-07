@@ -6,7 +6,7 @@ spec:
   arguments:
     parameters:
       - name: nudge-to-fine-config
-        value: | 
+        value: |
           base_version: v0.6
           forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
           initial_conditions:
@@ -375,8 +375,12 @@ spec:
             value: "{{workflow.parameters.training-configs}}"
           - name: training-data-config
             value: "{{workflow.parameters.training-data-config}}"
+          - name: training-flags
+            value: "--cache.local_download_path train-data-download-dir"
           - name: validation-data-config
             value: "{{workflow.parameters.validation-data-config}}"
+          - name: test-data-config
+            value: "{{workflow.parameters.test-data-config}}"
           - name: prognostic-run-config
             value: "{{workflow.parameters.prognostic-run-config}}"
           - name: public-report-output

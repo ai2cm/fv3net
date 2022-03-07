@@ -55,13 +55,13 @@ def combine_sequence_inputs(inputs: Mapping[str, tf.Tensor]) -> tf.Tensor:
     Args:
         inputs: a dictionary of tensors of shape ``(batch, sequence)`` or
             ``(batch, 1)``.  All non-unit values of ``sequence`` must be equal.
-    
+
     Returns:
         a tensor with shape ``(batch, sequence, len(inputs))``. inputs with
         shape ``(batch, 1)`` are broadcasted to ``(batch, sequence)`` shape and
         stacked along the final dimension.
-    
-        
+
+
     """
     list_inputs = [inputs[key] for key in sorted(inputs)]
     expanded_inputs = [tf.expand_dims(tensor, axis=-1) for tensor in list_inputs]
@@ -395,6 +395,7 @@ _ARCHITECTURE_KEYS = (
     "rnn",
     "dense",
     "linear",
+    "dense-local",
 )
 
 
@@ -471,6 +472,12 @@ class ArchitectureConfig:
         elif key == "dense":
             return _HiddenArchitecture(
                 combine_inputs, MLPBlock(**kwargs), StandardOutput(feature_lengths)
+            )
+        elif key == "dense-local":
+            return _HiddenArchitecture(
+                combine_sequence_inputs,
+                MLPBlock(**kwargs),
+                RNNOutput(feature_lengths, share_conv_weights=True),
             )
         elif key == "linear":
             if kwargs:

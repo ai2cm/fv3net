@@ -1,6 +1,12 @@
 from ._shared import ArrayPacker, StandardScaler, DerivedModel
+from ._shared.input_sensitivity import (
+    RandomForestInputSensitivities,
+    JacobianInputSensitivity,
+    InputSensitivity,
+)
 from ._shared.predictor import Predictor
 from ._shared.io import dump, load
+from .keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 from ._shared.config import (
     TrainingConfig,
     RandomForestHyperparameters,
@@ -20,8 +26,6 @@ from .keras._models.shared import (
     PureKerasModel,
     TrainingLoopConfig,
     EpochResult,
-    EpochLossHistory,
-    History,
 )
 from .keras._models.precipitative import PrecipitativeHyperparameters
 from .keras._models.convolutional import ConvolutionalHyperparameters

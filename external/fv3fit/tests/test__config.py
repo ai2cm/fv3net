@@ -82,13 +82,13 @@ def test_safe_dump_training_config():
     "hyperparameters, passes",
     [
         pytest.param(
-            {"dense_network": {"width": 32}}, True, id="pass_has_DenseModelConfig"
+            {"dense_network": {"width": 32}}, True, id="pass_has_dense_config"
         ),
         pytest.param(
             {"training_loop": {"epochs": 2}}, True, id="pass_has_TrainingLoopConfig"
         ),
         pytest.param(
-            {"width": 32}, False, id="fail_has_DenseModelConfig_param_in_top_level"
+            {"width": 32}, False, id="fail_has_dense_config_param_in_top_level"
         ),
         pytest.param(
             {"epochs": 2}, False, id="fail_has_TrainingLoopConfig_param_in_top_level"

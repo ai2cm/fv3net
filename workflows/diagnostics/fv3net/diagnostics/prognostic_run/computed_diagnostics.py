@@ -95,7 +95,7 @@ class ComputedDiagnosticsList:
 class RunDiagnostics:
     """A collection of diagnostics from different runs, not all of which have
     the same variables
-    
+
     """
 
     diagnostics: Diagnostics

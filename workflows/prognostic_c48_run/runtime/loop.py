@@ -14,7 +14,7 @@ from typing import (
     Union,
 )
 import cftime
-import fv3gfs.util
+import pace.util
 import fv3gfs.wrapper
 import numpy as np
 import vcm
@@ -43,7 +43,7 @@ from runtime.steppers.machine_learning import (
     open_model,
 )
 from runtime.steppers.nudging import PureNudger
-from runtime.steppers.prescriber import Prescriber, PrescriberConfig, get_timesteps
+from runtime.steppers.prescriber import Prescriber, PrescriberConfig
 from runtime.steppers.combine import CombinedStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
@@ -96,12 +96,23 @@ def _replace_precip_rate_with_accumulation(  # type: ignore
         state_updates.pop(TOTAL_PRECIP_RATE)
 
 
-def add_tendency(state: Any, tendency: State, dt: float) -> State:
-    """Given state and tendency prediction, return updated state.
-    Returned state only includes variables updated by ML model."""
+def fillna_tendency(tendency: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]:
+    tendency_filled = tendency.fillna(0.0)
+    tendency_filled_frac = (
+        xr.where(tendency != tendency_filled, 1, 0).sum("z") / tendency.sizes["z"]
+    )
+    return tendency_filled, tendency_filled_frac
+
+
+def add_tendency(state: Any, tendency: State, dt: float) -> Tuple[State, State]:
+    """Given state and tendency prediction, return updated state, which only includes
+    variables updated by tendencies. Also returns column-integrated fraction of
+    tendencies which are filled nans.
+    """
 
     with xr.set_options(keep_attrs=True):
         updated = {}
+        tendency_filled_frac = {}
         for name_ in tendency:
             name = str(name_)
             try:
@@ -113,8 +124,12 @@ def add_tendency(state: Any, tendency: State, dt: float) -> State:
                     "Existing tendencies with mappings to state are "
                     f"{list(TENDENCY_TO_STATE_NAME.keys())}"
                 )
-            updated[state_name] = state[state_name] + tendency[name] * dt
-    return updated  # type: ignore
+            (
+                tendency_filled,
+                tendency_filled_frac[f"{name}_filled_frac"],
+            ) = fillna_tendency(tendency[name])
+            updated[state_name] = state[state_name] + tendency_filled * dt
+    return updated, tendency_filled_frac  # type: ignore
 
 
 class LoggingMixin:
@@ -167,7 +182,7 @@ class TimeLoop(
         self._fv3gfs = wrapper
         self._state: DerivedFV3State = MergedState(DerivedFV3State(self._fv3gfs), {})
         self.comm = comm
-        self._timer = fv3gfs.util.Timer()
+        self._timer = pace.util.Timer()
         self.rank: int = comm.rank
 
         namelist = get_namelist()
@@ -232,8 +247,8 @@ class TimeLoop(
         return states_to_output
 
     def _get_communicator(self):
-        partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(get_namelist())
-        return fv3gfs.util.CubedSphereCommunicator(self.comm, partitioner)
+        partitioner = pace.util.CubedSpherePartitioner.from_namelist(get_namelist())
+        return pace.util.CubedSphereCommunicator(self.comm, partitioner)
 
     def emulate_or_prescribe_tendency(self, func: Step) -> Step:
         if self._transform_physics is not None and self._prescribe_tendency is not None:
@@ -267,12 +282,10 @@ class TimeLoop(
                         "Using Prescriber for prephysics for variables "
                         f"{prephysics_config.variables}"
                     )
-                    communicator = self._get_communicator()
-                    timesteps = get_timesteps(
-                        self.time, self._timestep, self._fv3gfs.get_step_count()
-                    )
                     prephysics_steppers.append(
-                        Prescriber(prephysics_config, communicator, timesteps=timesteps)
+                        runtime.factories.get_prescriber(
+                            prephysics_config, self._get_communicator()
+                        )
                     )
             stepper = CombinedStepper(prephysics_steppers)
         return stepper
@@ -425,8 +438,11 @@ class TimeLoop(
             if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
-                updated_state = add_tendency(self._state, tendency, dt=self._timestep)
+                updated_state, tendency_filled_frac = add_tendency(
+                    self._state, tendency, dt=self._timestep
+                )
                 self._state.update_mass_conserving(updated_state)
+                diagnostics.update(tendency_filled_frac)
 
         return diagnostics
 
@@ -472,7 +488,7 @@ class TimeLoop(
             if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
-                updated_state_from_tendency = add_tendency(
+                updated_state_from_tendency, tendency_filled_frac = add_tendency(
                     self._state, tendency, dt=self._timestep
                 )
 
@@ -482,6 +498,7 @@ class TimeLoop(
                     self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
                 self._state.update_mass_conserving(updated_state_from_tendency)
+                diagnostics.update(tendency_filled_frac)
         self._log_info(
             "Applying state updates to postphysics dycore state: "
             f"{self._state_updates.keys()}"

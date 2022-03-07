@@ -15,7 +15,7 @@ from emulation._monitor.monitor import (
     _remove_io_suffix,
     _translate_time,
 )
-from fv3gfs.util import Quantity
+from pace.util import Quantity
 from xarray import DataArray
 
 

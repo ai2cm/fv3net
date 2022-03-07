@@ -86,7 +86,7 @@ def surface_evaporation_mm_day_from_latent_heat_flux(
     latent_heat_flux: xr.DataArray,
 ) -> xr.DataArray:
     """Compute surface evaporation in mm/day from latent heat flux
-    
+
     Args:
         latent_heat_flux: latent heat flux in W/m2
 
@@ -119,7 +119,7 @@ def total_water(
     graupel_water: xr.DataArray,
 ) -> xr.DataArray:
     """Compute total water species mixing ratio
-    
+
     Args:
         specific_humidity: specific humidity mixing ratio in kg/kg
         ice_water: ice water mixing ratio in kg/kg
@@ -127,7 +127,7 @@ def total_water(
         rain_water: rain water mixing ratio in kg/kg
         snow_water: snow water mixing ratio in kg/kg
         graupel_water: graupel water mixing ratio in kg/kg
-          
+
     Returns:
         total_water: total water mixing ratio in kg/kg
     """
@@ -161,7 +161,7 @@ def liquid_ice_temperature(
         T_LI = T - Lv ( ql + qr)  - (Lf + Lv)(qs + qg + qi),
 
     where Lv and Lf are latent heats of vaporization and fusion, respectively
-    
+
     Args:
         temperature (T): specific humidity mixing ratio in kg/kg
         ice_water (qi): ice water mixing ratio in kg/kg
@@ -169,7 +169,7 @@ def liquid_ice_temperature(
         rain_water (qr): rain water mixing ratio in kg/kg
         snow_water (qs): snow water mixing ratio in kg/kg
         graupel_water (qg): graupel water mixing ratio in kg/kg
-          
+
     Returns:
         liquid_ice_temperature (T_LI): liquid-ice temperature in K
     """
@@ -194,10 +194,10 @@ def liquid_ice_temperature(
 
 def internal_energy(temperature: xr.DataArray) -> xr.DataArray:
     """Compute internal energy from temperature.
-    
+
     Args:
         temperature: in units of K.
-          
+
     Returns:
         c_v * temperature in units of J/kg.
     """
@@ -217,7 +217,7 @@ def saturation_pressure(temperature, math=np):
 
     Returns:
         Saturation vapor pressure.
-    
+
     .. _August Roche Magnus:
         https://en.wikipedia.org/wiki/Clausius%E2%80%93Clapeyron_relation#Meteorology_and_climatology # noqa
     """
@@ -229,7 +229,7 @@ def saturation_pressure(temperature, math=np):
 
 def relative_humidity(temperature, specific_humidity, density, math=np):
     """Relative humidity from temperature, specific humidity and density.
-    
+
     Args:
         temperature: air temperature in units of K.
         specific_humidity: in units of kg/kg.
@@ -245,7 +245,7 @@ def relative_humidity(temperature, specific_humidity, density, math=np):
 
 def specific_humidity_from_rh(temperature, relative_humidity, density, math=np):
     """Specific humidity from temperature, relative humidity and density.
-    
+
     Args:
         temperature: air temperature in units of K.
         relative_humidity: unitless.
@@ -263,7 +263,7 @@ def specific_humidity_from_rh(temperature, relative_humidity, density, math=np):
 
 def density(delp, delz, math=np):
     """Compute density from pressure and vertical thickness.
-    
+
     Args:
         delp: pressure thickness of atmospheric layer in units of Pa.
         delz: height of atmospheric layer in units of m.
@@ -277,7 +277,7 @@ def density(delp, delz, math=np):
 
 def pressure_thickness(density, delz, math=np):
     """Compute density from pressure and vertical thickness.
-    
+
     Args:
         density: density of atmospheric layer in units of kg/m**3.
         delz: height of atmospheric layer in units of m.

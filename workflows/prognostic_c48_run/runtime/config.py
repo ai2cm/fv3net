@@ -73,7 +73,7 @@ class UserConfig:
 
 def get_config() -> UserConfig:
     """Open the configurations for this run
-    
+
     .. warning::
         Only valid at runtime
     """
@@ -86,7 +86,7 @@ def get_config() -> UserConfig:
 
 def get_namelist() -> f90nml.Namelist:
     """Open the fv3 namelist
-    
+
     .. warning::
         Only valid at runtime
     """

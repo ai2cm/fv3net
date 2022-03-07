@@ -8,10 +8,9 @@ import numpy as np
 import tensorflow as tf
 from vcm.derived_mapping import DerivedMapping
 import xarray as xr
+from .io import download_cached
 from toolz.functoolz import curry
 from typing import Hashable, Mapping, Sequence, Union
-
-from vcm import get_fs, open_remote_nc
 
 
 logger = logging.getLogger(__name__)
@@ -58,11 +57,8 @@ def _register_derived_variables(mapping: DerivedMapping, timestep):
 
 def open_netcdf_dataset(path: str) -> xr.Dataset:
     """Open a netcdf from a local/remote path"""
-
-    fs = get_fs(path)
-    data = open_remote_nc(fs, path)
-
-    return data
+    local_path = download_cached(path)
+    return xr.open_dataset(local_path)
 
 
 @curry
@@ -101,7 +97,16 @@ def select_antarctic(dataset: xr.Dataset, sample_dim_name="sample") -> xr.Datase
 
     logger.debug("Reducing samples to antarctic points (<60S) only")
     mask = dataset["latitude"] < -np.deg2rad(60)
-    dataset = dataset.isel({sample_dim_name: mask})
+
+    if not np.any(mask):
+        # https://github.com/ai2cm/fv3net/issues/1617
+        # Workaround without having to load entire dataset
+        # just to then toss that data out, while still returning an
+        # empty dataset with correct metadata
+        dataset = dataset.isel({sample_dim_name: slice(0, 1)}).load()
+        dataset = dataset.isel({sample_dim_name: [False]})
+    else:
+        dataset = dataset.isel({sample_dim_name: mask})
 
     return dataset
 

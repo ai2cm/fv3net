@@ -21,7 +21,8 @@ spec:
       - name: tag
       - name: training-configs  # used in withParam
       - name: training-data-config
-      - name: validation-data-config
+      - {name: validation-data-config, value: " "}
+      - name: test-data-config
       - name: prognostic-run-config
       - name: flags
         value: " "
@@ -31,6 +32,7 @@ spec:
       - {name: segment-count, value: "1"}
       - {name: cpu-prog, value: "6"}
       - {name: memory-prog, value: 6Gi}
+      - {name: cpu-training, value: "1"}
       - {name: memory-training, value: 6Gi}
       - {name: memory-offline-diags, value: 10Gi}
       - {name: training-flags, value: " "}
@@ -66,6 +68,8 @@ spec:
               value: "{{inputs.parameters.validation-data-config}}"
             - name: output
               value: "{{tasks.resolve-output-url.outputs.result}}/trained_models/{{item.name}}"
+            - name: cpu
+              value: "{{inputs.parameters.cpu-training}}"
             - name: memory
               value: "{{inputs.parameters.memory-training}}"
             - name: flags
@@ -84,8 +88,8 @@ spec:
                 value: "{{item.config}}"
               - name: training_data_config
                 value: "{{inputs.parameters.training-data-config}}"
-              - name: validation_data_config
-                value: "{{inputs.parameters.validation-data-config}}"
+              - name: test_data_config
+                value: "{{inputs.parameters.test-data-config}}"
               - name: offline-diags-output
                 value: "{{tasks.resolve-output-url.outputs.result}}/offline_diags/{{item.name}}"
               - name: report-output
@@ -155,8 +159,8 @@ spec:
 
           echo "{{inputs.parameters.flags}} " | tr '\n' ' ' > $FLAGS_OUTPUT
           echo "$configs" | jq -c '.[]' | \
-          while IFS= read -r line; 
-          do 
+          while IFS= read -r line;
+          do
               model=$( echo $line | jq -j '.name, "\n"');
               echo "--model_url {{inputs.parameters.root}}/trained_models/${model}" | tr '\n' ' ' >>  $FLAGS_OUTPUT
           done

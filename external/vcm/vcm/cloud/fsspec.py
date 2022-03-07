@@ -30,7 +30,7 @@ def to_url(fs: fsspec.AbstractFileSystem, path: str):
     Args:
         fs: a filesystem object
         path: a path without a leading "protocol", as returned by ``fs.ls`` for example.
-    
+
     Examples:
         >>> import vcm.cloud.fsspec
         >>> import fsspec
@@ -50,7 +50,7 @@ def to_url(fs: fsspec.AbstractFileSystem, path: str):
 
 def copy(source: str, destination: str, content_type: str = None):
     """Copy between any two 'filesystems'. Do not use for large files.
-    
+
     Args:
         source: Path to source file/object.
         destination: Path to destination.

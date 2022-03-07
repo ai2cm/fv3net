@@ -101,7 +101,7 @@ spec:
         command: ["bash", "-c", "-x", "-e"]
         workingDir: /fv3net/workflows/prognostic_c48_run
         volumeMounts:
-          - name: workdir 
+          - name: workdir
             mountPath: /tmp
         args:
           - |
