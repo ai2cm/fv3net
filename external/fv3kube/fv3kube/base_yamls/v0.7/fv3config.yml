@@ -321,8 +321,8 @@ namelist:
     - 99999
     - 99999
     - 99999
-    fsnol: 99999
-    fsnos: 99999
+    fsnol: 99999  # Use snow cover fraction from initial condition
+    fsnos: 99999  # Use snow cover fraction from initial condition
     fsotl: 99999
     ftsfl: 99999
     ftsfs: 90
