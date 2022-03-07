@@ -327,8 +327,8 @@ namelist:
     ftsfl: 99999
     ftsfs: 90
     fvetl: 99999
-    fvmnl: 0
-    fvmns: 0
+    fvmnl: 0  # Use minimum green vegetation fraction from forcing files instead of initial condition
+    fvmns: 0  # Use minimum green vegetation fraction from forcing files instead of initial condition
     fvmxl: 0
     fvmxs: 0
     ldebug: false
