@@ -115,11 +115,12 @@ spec:
       image: python:alpine3.6
       command: [python]
       source: |
-        node_pool = (
-            'climate-sim-pool'
-            if {{inputs.parameters.cpu-request}} <= {{inputs.parameters.cpu-cutoff}}
-            else 'ultra-sim-pool'
-        )
+        cpu_request = "{{inputs.parameters.cpu-request}}"
+        if isinstance(cpu_request, str) and cpu_request.endswith('m'):
+            cpus = float(cpu_request[:-1])/1000.0
+        else:
+            cpus = int(cpu_request)
+        node_pool = 'climate-sim-pool' if cpus <= {{inputs.parameters.cpu-cutoff}} else 'ultra-sim-pool'
         print(node_pool)
   - name: append-segment
     inputs:
