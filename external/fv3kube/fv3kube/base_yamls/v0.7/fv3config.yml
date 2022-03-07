@@ -316,7 +316,7 @@ namelist:
     fnzorc: igbp
     fsicl: 0
     fsics: 0
-    fslpl: 99999
+    fslpl: 99999  # Use slope type from initial condition
     fsmcl:
     - 99999
     - 99999
