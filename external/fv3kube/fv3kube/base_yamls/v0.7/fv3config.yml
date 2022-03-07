@@ -289,8 +289,8 @@ namelist:
     lon_s: 192
     ntrunc: 94
   namsfc:
-    fabsl: 0
-    fabss: 0
+    fabsl: 0  # Use maximum snow albedo from forcing files instead of initial conditions 
+    fabss: 0  # Use maximum snow albedo from forcing files instead of initial conditions 
     faisl: 99999
     faiss: 99999
     fnabsc: grb/global_mxsnoalb.uariz.t1534.3072.1536.rg.grb
@@ -316,19 +316,19 @@ namelist:
     fnzorc: igbp
     fsicl: 0
     fsics: 0
-    fslpl: 99999
+    fslpl: 99999  # Use slope type from initial condition
     fsmcl:
     - 99999
     - 99999
     - 99999
-    fsnol: 99999
-    fsnos: 99999
+    fsnol: 99999  # Use snow cover fraction from initial condition
+    fsnos: 99999  # Use snow cover fraction from initial condition
     fsotl: 99999
     ftsfl: 99999
     ftsfs: 90
     fvetl: 99999
-    fvmnl: 0
-    fvmns: 0
+    fvmnl: 0  # Use minimum green vegetation fraction from forcing files instead of initial condition
+    fvmns: 0  # Use minimum green vegetation fraction from forcing files instead of initial condition
     fvmxl: 0
     fvmxs: 0
     ldebug: false
