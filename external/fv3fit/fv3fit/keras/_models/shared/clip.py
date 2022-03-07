@@ -1,10 +1,9 @@
 import dataclasses
 import numpy as np
 import tensorflow as tf
-from typing import Mapping, Hashable, Sequence, Union
+from typing import Hashable, Mapping, Sequence, Union
 from fv3fit._shared.config import SliceConfig, PackerConfig
 
-ClipDims = Mapping[Hashable, Mapping[str, SliceConfig]]
 Clippable = Union[tf.Tensor, np.ndarray]
 
 
@@ -20,21 +19,12 @@ class ClipConfig(PackerConfig):
             dimension to clip.
     """
 
-    clip: ClipDims = dataclasses.field(default_factory=dict)
-
-    def __post_init__(self):
-        for name in self.clip:
-            if len(self.clip[name]) > 1:
-                raise ValueError(
-                    f"Variable {name} has >1 dimension to clip along. "
-                    "This method clip_along_last_dim assumes that only "
-                    "the feature dim is specified in the clip config."
-                )
+    clip: Mapping[Hashable, SliceConfig] = dataclasses.field(default_factory=dict)
 
     def _get_mask_array(
         self, unmasked: Union[tf.Tensor, np.ndarray], name: str
     ) -> np.ndarray:
-        slice_config = list(self.clip[name].values())[0]
+        slice_config = self.clip[name]
         total_length = unmasked.shape[-1]
 
         start = slice_config.start or 0
@@ -70,9 +60,7 @@ class ClipConfig(PackerConfig):
             Clipped array or tensorflow layer
         """
         if name in self.clip:
-            variable_slice = list(self.clip[name].values())[0].slice
-            return clip_object[..., variable_slice]
-
+            return clip_object[..., self.clip[name].slice]
         else:
             return clip_object
 
