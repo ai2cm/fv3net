@@ -37,6 +37,15 @@ Q_TENDENCY_NAME = "dQ2"
 
 class IntegratePrecipLayer(tf.keras.layers.Layer):
     def call(self, args) -> tf.Tensor:
+        """
+        Args:
+            dQ2: rate of change in moisture in kg/kg/s, negative corresponds
+                to condensation
+            delp: pressure thickness of atmospheric layer in Pa
+
+        Returns:
+            precipitation rate in kg/m^2/s
+        """
         dQ2, delp = args  # layers seem to take in a single argument
         # output should be kg/m^2/s
         return tf.math.scalar_mul(
@@ -49,6 +58,14 @@ class IntegratePrecipLayer(tf.keras.layers.Layer):
 
 class CondensationalHeatingLayer(tf.keras.layers.Layer):
     def call(self, dQ2: tf.Tensor) -> tf.Tensor:
+        """
+        Args:
+            dQ2: rate of change in moisture in kg/kg/s, negative corresponds
+                to condensation
+
+        Returns:
+            heating rate in degK/s
+        """
         return tf.math.scalar_mul(tf.constant(-LV / CPD, dtype=dQ2.dtype), dQ2)
 
 
