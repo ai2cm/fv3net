@@ -551,6 +551,7 @@ class StepwiseModel(PureKerasModel):
             input_variables=input_variables,
             output_variables=output_variables,
             model=model,
+            unstacked_dims=("z",),
         )
         self.sample_dim_name = sample_dim_name
 
