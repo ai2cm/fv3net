@@ -3,6 +3,7 @@ from typing import Mapping, Iterable, Hashable
 
 import xarray as xr
 import fv3fit
+import vcm
 from runtime.steppers.machine_learning import non_negative_sphum
 from runtime.types import State
 from runtime.names import SPHUM
@@ -38,6 +39,8 @@ class Adapter:
 
     def predict(self, inputs: State) -> State:
         tendencies = self.model.predict(xr.Dataset(inputs))
+        data_transform = vcm.detect_transform(list(tendencies))
+        tendencies = data_transform.backward(tendencies)
         if self.config.limit_negative_humidity:
             dQ1, dQ2 = non_negative_sphum(
                 inputs[SPHUM], tendencies["dQ1"], tendencies["dQ2"], self.timestep
