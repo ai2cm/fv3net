@@ -45,3 +45,9 @@ def test_qm_transform_backward():
     data["Qm"] = data.pop("Q1")
     out = vcm.QmDataTransform().backward(data)
     assert "Q1" in out
+
+
+def test_qm_transform_backward_no_transform_needed():
+    data = copy.deepcopy(SAMPLE_DATA)
+    out = vcm.QmDataTransform().backward(data)
+    assert "Q1" in out

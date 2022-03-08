@@ -28,15 +28,17 @@ class QmDataTransform(DataTransform):
         self.qm_name = qm_name
 
     def forward(self, data: State) -> State:
-        data[self.qm_name] = vcm.moist_static_energy_tendency(
-            data[self.q1_name], data[self.q2_name]
-        )
+        if self.qm_name not in data:
+            data[self.qm_name] = vcm.moist_static_energy_tendency(
+                data[self.q1_name], data[self.q2_name]
+            )
         return data
 
     def backward(self, data: State) -> State:
-        data[self.q1_name] = vcm.temperature_tendency(
-            data[self.qm_name], data[self.q2_name]
-        )
+        if self.q1_name not in data:
+            data[self.q1_name] = vcm.temperature_tendency(
+                data[self.qm_name], data[self.q2_name]
+            )
         return data
 
 
