@@ -90,6 +90,9 @@ def get_Xy_dataset(
     X = data.map(apply_to_mapping(append_halos_tensor(n_halo))).map(
         select_keys(input_variables)
     )
+    # now that we have halos, we need to collapse tile back into the sample dimension
+    X = X.unbatch()
+    y = y.unbatch()
     return tf.data.Dataset.zip((X, y))
 
 
@@ -123,7 +126,9 @@ def train_convolutional_model(
         input_variables=hyperparameters.input_variables,
         output_variables=hyperparameters.output_variables,
         model=predict_model,
-        unstacked_dims=("tile", "x", "y", "z"),
+        # we train with a tile dim, but in the prognostic run each rank
+        # only has local data and never has a tile dimension
+        unstacked_dims=("x", "y", "z"),
         n_halo=hyperparameters.convolutional_network.halos_required,
     )
     return predictor
