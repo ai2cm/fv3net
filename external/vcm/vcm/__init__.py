@@ -44,6 +44,8 @@ from .calc.thermo.local import (
     density,
     pressure_thickness,
     layer_mass,
+    temperature_tendency,
+    moist_static_energy_tendency,
 )
 from .calc.histogram import histogram, histogram2d
 
@@ -67,6 +69,8 @@ from .calc.vertical_flux import (
 )
 
 from .cdl.generate import cdl_to_dataset
+
+from .data_transform import detect_transform, QmDataTransform, IdentityDataTransform
 
 __all__ = [item for item in dir() if not item.startswith("_")]
 __version__ = "0.1.0"
