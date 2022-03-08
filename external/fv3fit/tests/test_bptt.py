@@ -401,7 +401,9 @@ da_stacked = xr.DataArray(
 def test_pure_keras_predict_works_on_format(da):
     input_vars, output_vars = ["input"], ["output"]
     dummy_predictor = DummyPredictor("sample", input_vars, output_vars)
-    model = PureKerasModel(input_vars, output_vars, model=dummy_predictor,)
+    model = PureKerasModel(
+        input_vars, output_vars, model=dummy_predictor, unstacked_dims=("z",)
+    )
     ds = xr.Dataset({"input": da, "output": da})
     prediction = model.predict(ds)
     for dim in prediction.dims:
