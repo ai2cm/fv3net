@@ -297,7 +297,7 @@ def pQ2(self):
 
 @DerivedMapping.register("internal_energy", required_inputs=["air_temperature"])
 def internal_energy(self):
-    return vcm.internal_energy(self._mapper["air_temperature"])
+    return vcm.internal_energy(self["air_temperature"])
 
 
 @DerivedMapping.register(
@@ -306,7 +306,7 @@ def internal_energy(self):
 )
 def column_integrated_dQ1(self):
     return vcm.column_integrated_heating_from_isochoric_transition(
-        self._mapper["dQ1"], self._mapper["pressure_thickness_of_atmospheric_layer"]
+        self["dQ1"], self["pressure_thickness_of_atmospheric_layer"]
     )
 
 
@@ -316,7 +316,7 @@ def column_integrated_dQ1(self):
 )
 def column_integrated_dQ2(self):
     da = -vcm.minus_column_integrated_moistening(
-        self._mapper["dQ2"], self._mapper["pressure_thickness_of_atmospheric_layer"]
+        self["dQ2"], self["pressure_thickness_of_atmospheric_layer"]
     )
     return da.assign_attrs(
         {"long_name": "column integrated moistening", "units": "mm/day"}
@@ -329,7 +329,7 @@ def column_integrated_dQ2(self):
 )
 def column_integrated_Q1(self):
     return vcm.column_integrated_heating_from_isochoric_transition(
-        self._mapper["Q1"], self._mapper["pressure_thickness_of_atmospheric_layer"]
+        self["Q1"], self["pressure_thickness_of_atmospheric_layer"]
     )
 
 
@@ -339,7 +339,7 @@ def column_integrated_Q1(self):
 )
 def column_integrated_Q2(self):
     da = -vcm.minus_column_integrated_moistening(
-        self._mapper["Q2"], self._mapper["pressure_thickness_of_atmospheric_layer"]
+        self["Q2"], self["pressure_thickness_of_atmospheric_layer"]
     )
     return da.assign_attrs(
         {"long_name": "column integrated moistening", "units": "mm/day"}
@@ -353,8 +353,8 @@ def column_integrated_Q2(self):
 )
 def water_vapor_path(self):
     da = vcm.mass_integrate(
-        self._mapper["specific_humidity"],
-        self._mapper["pressure_thickness_of_atmospheric_layer"],
+        self["specific_humidity"],
+        self["pressure_thickness_of_atmospheric_layer"],
         dim="z",
     )
     return da.assign_attrs(
