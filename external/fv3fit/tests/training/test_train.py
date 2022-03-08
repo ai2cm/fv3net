@@ -181,6 +181,7 @@ def assert_can_learn_identity(
             print(result, file=regtest)
 
 
+@pytest.mark.slow
 def test_train_default_model_on_identity(model_type, regtest):
     """
     The model with default configuration options can learn the identity function,
@@ -196,6 +197,7 @@ def test_train_default_model_on_identity(model_type, regtest):
     )
 
 
+@pytest.mark.slow
 def test_default_convolutional_model_is_transpose_invariant():
     """
     The model with default configuration options can learn the identity function,
@@ -227,6 +229,7 @@ def test_default_convolutional_model_is_transpose_invariant():
     )
 
 
+@pytest.mark.slow
 def test_diffusive_convolutional_model_gives_bounded_output():
     """
     The model with diffusive enabled should give outputs in the range of the inputs.
@@ -258,6 +261,7 @@ def test_diffusive_convolutional_model_gives_bounded_output():
         assert np.all(data_array.values <= high), name
 
 
+@pytest.mark.slow
 def test_train_with_same_seed_gives_same_result(model_type):
     n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
     fv3fit.set_random_seed(0)
@@ -273,6 +277,7 @@ def test_train_with_same_seed_gives_same_result(model_type):
     xr.testing.assert_equal(first_output, second_output)
 
 
+@pytest.mark.slow
 def test_predict_does_not_mutate_input(model_type):
     n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
@@ -298,6 +303,7 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
     return sample_func
 
 
+@pytest.mark.slow
 def test_train_default_model_on_nonstandard_identity(model_type):
     """
     The model with default configuration options can learn the identity function,
@@ -315,6 +321,7 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     )
 
 
+@pytest.mark.slow
 def test_dump_and_load_default_maintains_prediction(model_type):
     n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
@@ -328,6 +335,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
     xr.testing.assert_equal(loaded_result, original_result)
 
 
+@pytest.mark.slow
 def test_train_dense_model_clipped_inputs_outputs():
     da = xr.DataArray(
         np.arange(1500).reshape(6, 5, 5, 10) * 1.0, dims=["tile", "x", "y", "z"],
