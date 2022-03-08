@@ -346,7 +346,7 @@ def test_train_dense_model_clipped_inputs_outputs():
         "dense", input_variables, output_variables
     )
     hyperparameters.clip_config = ClipConfig(
-        {"var_in_0": {"z": SliceConfig(2, 5)}, "var_out_0": {"z": SliceConfig(4, 8)}}
+        {"var_in_0": SliceConfig(2, 5), "var_out_0": SliceConfig(4, 8)}
     )
     model = train(hyperparameters, train_batches, val_batches,)
     prediction = model.predict(train_dataset)

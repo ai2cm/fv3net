@@ -5,6 +5,7 @@ import os
 from typing import (
     Any,
     Callable,
+    Hashable,
     Mapping,
     Optional,
     Tuple,
@@ -14,7 +15,6 @@ from typing import (
     List,
     Type,
     Dict,
-    Hashable,
     MutableMapping,
 )
 from fv3fit.typing import Dataclass
@@ -328,12 +328,19 @@ class SliceConfig:
         return slice(self.start, self.stop, self.step)
 
 
-ClipDims = Mapping[Hashable, Mapping[str, SliceConfig]]
-
-
 @dataclasses.dataclass(frozen=True)
 class PackerConfig:
-    clip: ClipDims = dataclasses.field(default_factory=dict)
+    """
+    Configuration for packing.
+
+    Attributes:
+        clip: a mapping from variable name to configuration for the slice of
+            the feature (last) dimension of that variable we want to retain.
+            Used to exclude data (e.g. at start or end of dimension). User
+            must ensure the last dimension is the dimension they want to clip.
+    """
+
+    clip: Mapping[Hashable, SliceConfig] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass
