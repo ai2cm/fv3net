@@ -1,7 +1,6 @@
 import argparse
 import json
 import logging
-import numpy as np
 import os
 import tensorflow as tf
 from typing import Mapping
@@ -32,7 +31,7 @@ def get_model_inputs(model1, model2):
 
 def get_antarctic_mask(data: Mapping[str, tf.Tensor]) -> tf.Tensor:
 
-    return data["latitude"] < np.deg2rad(-60)
+    return data["latitude"] < -60
 
 
 def main():
@@ -65,7 +64,7 @@ def main():
                     "default_model": args.default_model,
                 },
                 f,
-                indent=0
+                indent=0,
             )
 
 

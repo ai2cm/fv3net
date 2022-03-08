@@ -42,6 +42,7 @@ model:
   - pressure_thickness_of_atmospheric_layer
   - specific_humidity_after_last_gscond
   - air_temperature_after_last_gscond
+  - latitude
   normalize_key: mean_std
   residual_out_variables:
     air_temperature_after_gscond: air_temperature_input

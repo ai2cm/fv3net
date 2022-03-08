@@ -9,26 +9,38 @@
 # )
 
 # blended models
-tags=(
-    rnn-alltdep-antarctic-blend
-    dense-alltdep-antarctic-blend
-)
+# tags=(
+#     rnn-alltdep-antarctic-blend
+#     dense-alltdep-antarctic-blend
+# )
+# date=2022-02-16
 
+# cloud tdep
+tags=(
+    cloud-tdep-gscond-cbfc4a-rnn-antarc-true-a5b933
+    cloud-tdep-gscond-cbfc4a-rnn-antarc-false-a5b933
+)
+date=2022-03-02
+
+# blended cloud tdep
+# tags=(
+#     rnn-cloudtdep-cbfc4a-antarctic-blend-30b7ab
+# )
+# date=2022-03-07
 
 
 group="$(openssl rand -hex 3)"
-image=da1584e7fc1304f72eef69bbef3abec89c414b55
-
+image=650deb20e482ed4b457280fadc37682edcb98f2f
 for tag in ${tags[@]}
 do
 
-    url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-16/${tag}/model.tf
-    run_tag=${tag}-${group}-short
+    url=gs://vcm-ml-experiments/microphysics-emulation/${date}/${tag}/model.tf
+    run_tag=${tag}-${group}
 
     argo submit ../argo/prog-run-and-eval.yaml \
         -p tag=$run_tag \
         -p image_tag=$image \
-        -p config=$(base64 --wrap 0 ../configs/default_short.yaml) \
+        -p config=$(base64 --wrap 0 ../configs/default.yaml) \
         -p tf_model=$url
 
 done
