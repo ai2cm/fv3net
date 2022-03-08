@@ -8,6 +8,7 @@ REGISTRY ?= us.gcr.io/vcm-ml
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_NAME ?= fv3net
 CACHE_TAG =latest
+BEAM_VERSION = 2.37.0
 
 IMAGES = fv3net post_process_run prognostic_run
 
@@ -16,8 +17,10 @@ IMAGES = fv3net post_process_run prognostic_run
 # Docker Image Management
 ############################################################
 # pattern rule for building docker images
+build_imag_%: ARGS
 build_image_%:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:$(CACHE_TAG) \
+		$(ARGS) \
 		-f docker/$*/Dockerfile -t $(REGISTRY)/$*:$(VERSION) .
 
 build_images: $(addprefix build_image_, $(IMAGES))
@@ -34,6 +37,18 @@ build_image_prognostic_run_gpu:
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run_gpu:$(VERSION) \
 		--target prognostic-run \
 		--build-arg BASE_IMAGE=nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu20.04 .
+
+
+build_image_dataflow: ARGS = --build-arg BEAM_VERSION=$(BEAM_VERSION)
+
+image_test_dataflow: push_image_dataflow
+	docker run \
+		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
+		-w /tmp/dataflow \
+		--entrypoint="pytest" \
+		$(REGISTRY)/dataflow:$(VERSION) \
+		tests/integration -s
 
 image_test_prognostic_run:
 	docker run \
@@ -143,8 +158,12 @@ lock_deps: lock_pip
 	# external directories must be explicitly listed to avoid model requirements files which use locked versions
 
 constraints.txt:
+	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
+		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/'> .dataflow-versions.txt
+
 	pip-compile  \
 	--no-annotate \
+	.dataflow-versions.txt \
 	external/vcm/setup.py \
 	pip-requirements.txt \
 	external/fv3kube/setup.py \
@@ -152,10 +171,13 @@ constraints.txt:
 	external/*.requirements.in \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
+	docker/dataflow/constraints.txt \
+	$< \
 	--output-file constraints.txt
 	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
 	sed -i.bak  's/\[.*\]//g' constraints.txt
-	rm -f constraints.txt.bak
+	rm -f constraints.txt.bak .dataflow-versions.txt
+	@echo "remember to update numpy version in external/vcm/pyproject.toml"
 
 docker/prognostic_run/requirements.txt: constraints.txt
 	cp constraints.txt docker/prognostic_run/requirements.txt
@@ -170,7 +192,6 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		external/vcm/setup.py \
 		workflows/post_process_run/requirements.txt \
 		workflows/prognostic_c48_run/requirements.in
-
 
 .PHONY: lock_pip constraints.txt docker/prognostic_run/requirements.txt
 lock_pip: constraints.txt docker/prognostic_run/requirements.txt

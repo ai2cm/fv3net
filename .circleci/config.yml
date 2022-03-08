@@ -96,6 +96,7 @@ jobs:
           - prognostic_run_gpu
           - post_process_run
           - fv3net
+          - dataflow
           - artifacts
     machine:
       image: ubuntu-2004:202111-02
@@ -206,9 +207,9 @@ workflows:
               ignore:
                 - master
       # manually trigger on PRs
-      - pytest:
+      - build_default:
           name: "Test Dataflow (held)"
-          kind: test_dataflow
+          image: dataflow
           requires:
             - hold
           filters:
@@ -217,9 +218,9 @@ workflows:
             branches:
               ignore: master
       # automatically trigger on master
-      - pytest:
+      - build_default:
           name: "Test Dataflow (not held)"
-          kind: test_dataflow
+          image: dataflow
           filters:
             tags:
               only: /^v.*/
