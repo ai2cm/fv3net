@@ -142,21 +142,6 @@ def get_losses(
     return loss_list
 
 
-def get_output_metadata(packer, sample_dim_name):
-    """
-    Retrieve xarray metadata for a packer's values, assuming arrays are [sample(, z)].
-    """
-    metadata = []
-    for name in packer.pack_names:
-        n_features = packer.feature_counts[name]
-        if n_features == 1:
-            dims = [sample_dim_name]
-        else:
-            dims = [sample_dim_name, "z"]
-        metadata.append({"dims": dims, "units": "unknown"})
-    return tuple(metadata)
-
-
 @dataclasses.dataclass
 class PrecipitativeHyperparameters(Hyperparameters):
     """
@@ -407,6 +392,6 @@ class PrecipitativeModel:
             self.input_variables,
             # predictor has additional diagnostic outputs which were indirectly trained
             list(self.output_variables),
-            get_output_metadata(self.output_packer, SAMPLE_DIM_NAME),
             self._predict_model,
+            unstacked_dims=("z",),
         )

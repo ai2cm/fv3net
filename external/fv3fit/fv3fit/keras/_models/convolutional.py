@@ -16,7 +16,6 @@ import logging
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
     full_standard_normalized_input,
-    get_stacked_metadata,
 )
 
 logger = logging.getLogger(__file__)
@@ -91,11 +90,6 @@ def train_convolutional_model(
         train_data = tuple(train_data)
     X, y = train_data[0]
     train_model, predict_model = build_model(hyperparameters, X=X, y=y)
-    output_metadata = get_stacked_metadata(
-        names=hyperparameters.output_variables,
-        ds=train_batches[0],
-        unstacked_dims=UNSTACKED_DIMS,
-    )
     del train_batches
     hyperparameters.training_loop.fit_loop(
         model=train_model, Xy=train_data, validation_data=validation_data
@@ -103,9 +97,8 @@ def train_convolutional_model(
     predictor = PureKerasModel(
         input_variables=hyperparameters.input_variables,
         output_variables=hyperparameters.output_variables,
-        output_metadata=output_metadata,
         model=predict_model,
-        unstacked_dims=("x", "y", "z", "z_interface"),
+        unstacked_dims=("x", "y", "z"),
         n_halo=n_halo,
     )
     return predictor
