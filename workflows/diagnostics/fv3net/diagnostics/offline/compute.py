@@ -227,6 +227,8 @@ def insert_prediction(ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
 
 
 def _get_predict_function(predictor, variables, grid):
+    data_transform = vcm.detect_transform(variables)
+
     def transform(ds):
         # Prioritize dataset's land_sea_mask if grid values disagree
         ds = xr.merge(
@@ -234,7 +236,9 @@ def _get_predict_function(predictor, variables, grid):
         )
         derived_mapping = DerivedMapping(ds)
         ds_derived = derived_mapping.dataset(variables)
+        ds_derived = data_transform.forward(ds_derived)
         ds_prediction = predictor.predict(safe.get_variables(ds_derived, variables))
+        ds_prediction = data_transform.backward(ds_prediction)
         return insert_prediction(ds_derived, ds_prediction)
 
     return transform
