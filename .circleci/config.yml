@@ -121,7 +121,7 @@ jobs:
       - run: sudo -E .circleci/build_and_push_image.sh
   lint:
     docker:
-      - image: circleci/python:3.7
+      - image: circleci/python:3.8
     steps:
       - checkout
       - run: sudo pip install -c constraints.txt pre-commit xarray
