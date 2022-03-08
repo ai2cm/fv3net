@@ -84,8 +84,13 @@ def get_data(
             variable_names=variable_names,
             in_memory=in_memory,
         )
+    # tensorflow training shuffles within blocks of samples,
+    # so we must pre-shuffle batches in order that contiguous blocks
+    # of samples contain temporally-distant data
+    train_batches = loaders.batches.shuffle(train_batches)
     train_dataset = tfdataset_from_batches(train_batches)
     if len(val_batches) > 0:
+        val_batches = loaders.batches.shuffle(val_batches)
         val_dataset = tfdataset_from_batches(val_batches)
     else:
         val_dataset = None
