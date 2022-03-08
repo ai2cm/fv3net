@@ -256,5 +256,5 @@ def test_SklearnWrapper_raises_not_implemented_error_with_clipped_output_data():
             input_variables=["a", "b"],
             output_variables=["c"],
             model=model,
-            packer_config=PackerConfig({"c": {"z": SliceConfig(2, None)}}),
+            packer_config=PackerConfig({"c": SliceConfig(2, None)}),
         )

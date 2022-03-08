@@ -1,24 +1,22 @@
 import dataclasses
 import numpy as np
 import tensorflow as tf
-from typing import Mapping, Sequence, Union
+from typing import Hashable, Mapping, Sequence, Union
 from fv3fit._shared.config import SliceConfig, PackerConfig
 
-ClipDims = Mapping[str, SliceConfig]
 Clippable = Union[tf.Tensor, np.ndarray]
 
 
 @dataclasses.dataclass(frozen=True)
 class ClipConfig(PackerConfig):
     """Config class for implementing input and output clipping in keras models.
-    Assumes that there is only one clipped dimension (usually vertical) which is
-    the last dim.
+    Clips the last dimension, which the user must ensure is the correct dimension.
 
     Attributes:
-        clip: mapping of variable names to be clipped to a SliceConfig.
+        clip: slice of last dimension to retain when clipping, for the given variable
     """
 
-    clip: ClipDims = dataclasses.field(default_factory=dict)
+    clip: Mapping[Hashable, SliceConfig] = dataclasses.field(default_factory=dict)
 
     def _get_mask_array(
         self, unmasked: Union[tf.Tensor, np.ndarray], name: str

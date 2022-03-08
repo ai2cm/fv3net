@@ -57,7 +57,7 @@ class DenseHyperparameters(Hyperparameters):
             each output variable.
         save_model_checkpoints: if True, save one model per epoch when
             dumping, under a 'model_checkpoints' subdirectory
-        clip_config: configuration of input and output clipping
+        clip_config: configuration of input and output clipping of last dimension
         output_limit_config: configuration for limiting output values.
     """
 

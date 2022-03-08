@@ -162,9 +162,9 @@ def tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
 
 
 def clip(
-    data: Union[xr.Dataset, Mapping[str, xr.DataArray]],
-    config: Mapping[str, SliceConfig],
-) -> Mapping[str, xr.DataArray]:
+    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]],
+    config: Mapping[Hashable, SliceConfig],
+) -> Mapping[Hashable, xr.DataArray]:
     clipped_data = {}
     for variable in data:
         da = data[variable]

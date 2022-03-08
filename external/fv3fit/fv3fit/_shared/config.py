@@ -5,6 +5,7 @@ import os
 from typing import (
     Any,
     Callable,
+    Hashable,
     Mapping,
     Optional,
     Tuple,
@@ -335,10 +336,11 @@ class PackerConfig:
     Attributes:
         clip: a mapping from variable name to configuration for the slice of
             the feature (last) dimension of that variable we want to retain.
-            Used to exclude data (e.g. at start or end of dimension).
+            Used to exclude data (e.g. at start or end of dimension). User
+            must ensure the last dimension is the dimension they want to clip.
     """
 
-    clip: Mapping[str, SliceConfig] = dataclasses.field(default_factory=dict)
+    clip: Mapping[Hashable, SliceConfig] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass
