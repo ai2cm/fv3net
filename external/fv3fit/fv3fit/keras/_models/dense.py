@@ -107,6 +107,22 @@ class ModelBuilder(Protocol):
     def __call__(
         self, X: tf.Tensor, y: tf.Tensor
     ) -> Tuple[tf.keras.Model, tf.keras.Model]:
+        """
+        Builds keras models for training and prediction based on input data.
+
+        Uses input data to train static transformations such as scaling, if present,
+        and determine shapes for input and output layers.
+
+        Args:
+            X: a sample of input data, including a leading sample dimension
+            y: a sample of output data, including a leading sample dimension
+
+        Returns:
+            train_model: model to use for training
+            predict_model: model to use for prediction, which uses the same weights
+                as the train_model such that if you train the train_model then the
+                result of this training will be used by the predict_model.
+        """
         ...
 
 
@@ -118,7 +134,21 @@ def train_column_model(
     output_variables: Sequence[str],
     clip_config: ClipConfig,
     training_loop: TrainingLoopConfig,
-):
+) -> PureKerasModel:
+    """
+    Train a columnwise PureKerasModel.
+
+    Args:
+        train_batches: training data, as a dataset of Mapping[str, tf.Tensor]
+        validation_batches: validation data, as a dataset of Mapping[str, tf.Tensor]
+        build_model: the function which produces a columnwise keras model
+            from input and output samples. The models returned must take a list of
+            tensors as input and return a list of tensors as output.
+        input_variables: names of inputs for the keras model
+        output_variables: names of outputs for the keras model
+        clip_config: configuration of input and output clipping of last dimension
+        training_loop: configuration of training loop
+    """
     get_Xy = curry(get_Xy_dataset)(
         input_variables=input_variables, output_variables=output_variables, n_dims=1,
     )
