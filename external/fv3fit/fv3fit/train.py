@@ -14,6 +14,7 @@ import loaders
 import loaders.typing
 import tempfile
 from loaders.batches.save import main as save_main
+import vcm
 
 from vcm.cloud import copy
 
@@ -71,19 +72,24 @@ def get_data(
         Training and validation data batches
     """
     if local_download_path is None:
-        return get_uncached_data(
+        train_batches, val_batches = get_uncached_data(
             training_data_config=training_data_config,
             validation_data_config=validation_data_config,
             variable_names=variable_names,
         )
     else:
-        return get_cached_data(
+        train_batches, val_batches = get_cached_data(
             training_data_config=training_data_config,
             validation_data_config=validation_data_config,
             local_download_path=local_download_path,
             variable_names=variable_names,
             in_memory=in_memory,
         )
+
+    transform = vcm.detect_transform(variable_names)
+    train_batches = [transform.forward(x) for x in train_batches]
+    val_batches = [transform.forward(x) for x in val_batches]
+    return train_batches, val_batches
 
 
 def get_uncached_data(
