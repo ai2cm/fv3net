@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 import requests
 import xarray as xr
+import unittest.mock
+import tempfile
 
 np.random.seed(0)
 
@@ -15,7 +17,8 @@ def state(tmp_path_factory):
     return xr.open_dataset(str(lpath))
 
 
-def pytest_configure(config):
-    config.addinivalue_line(
-        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
-    )
+@pytest.fixture(scope="session", autouse=True)
+def emulation_cache_tmpdir():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with unittest.mock.patch("fv3fit.emulation.data.io.CACHE_DIR", tmpdir):
+            yield
