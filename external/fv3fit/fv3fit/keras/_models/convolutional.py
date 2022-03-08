@@ -116,6 +116,7 @@ def train_convolutional_model(
 
     train_Xy = get_Xy(data=train_batches, clip_config=hyperparameters.clip_config)
     # need unclipped shapes for build_model
+    # have to batch data so we can take statistics for scaling transforms
     X, y = next(iter(get_Xy(data=train_batches, clip_config=None).batch(10_000_000)))
 
     train_model, predict_model = build_model(hyperparameters, X=X, y=y)
@@ -146,6 +147,17 @@ def build_model(
         y: example output for keras fitting, used to determine shape and normalization
     """
 
+    for item in list(X) + list(y):
+        if len(item.shape) != 4:
+            raise ValueError(
+                "convolutional building requires 4d arrays [sample, x, y, z], "
+                f"got shape {item.shape}"
+            )
+        if item.shape[1] != item.shape[2]:
+            raise ValueError(
+                "x and y dimensions should be the same length, "
+                f"got shape {item.shape}"
+            )
     input_layers = [tf.keras.layers.Input(shape=arr.shape[1:]) for arr in X]
     full_input = full_standard_normalized_input(input_layers, X, config.input_variables)
     convolution = config.convolutional_network.build(x_in=full_input, n_features_out=0)
