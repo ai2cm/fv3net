@@ -184,7 +184,7 @@ class PrecipitativeHyperparameters(Hyperparameters):
         residual_regularizer_config: selection of regularizer for unconstrainted
             (non-flux based) tendency output, by default no regularization is applied
         training_loop: configuration of training loop
-        clip_config: configuration of input clipping.
+        clip_config: configuration of input and output clipping of last dimension.
         loss: configuration of loss functions, will be applied separately to
             each output variable.
         couple_precip_to_dQ1_dQ2: if False, try to recover behavior of Dense model type
