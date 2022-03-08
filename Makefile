@@ -171,7 +171,6 @@ constraints.txt:
 	external/*.requirements.in \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
-	docker/dataflow/constraints.txt \
 	$< \
 	--output-file constraints.txt
 	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
