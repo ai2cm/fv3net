@@ -70,11 +70,22 @@ pull_image_%:
 enter_emulation:
 	cd projects/microphysics && docker-compose run --rm -w /fv3net/external/emulation fv3 bash
 
+enter_prognostic_run:
+	docker run \
+		--tty \
+		--interactive \
+		--rm \
+		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
+		-v $(shell pwd)/workflows:/fv3net/workflows \
+		-w /fv3net/workflows/prognostic_c48_run \
+		$(REGISTRY)/prognostic_run:$(VERSION) bash
+
 ############################################################
 # Documentation (rules match "deploy_docs_%")
 ############################################################
 
-## Empty rule for deploying docs
+## Deploy documentation to vulcanclimatemodeling.com
 deploy_docs_%:
 	@echo "Nothing to do."
 
@@ -101,7 +112,8 @@ run_integration_tests:
 	./tests/end_to_end_integration/run_test.sh $(REGISTRY) $(VERSION)
 
 test_prognostic_run:
-	docker run prognostic_run pytest
+	docker run us.gcr.io/vcm-ml/prognostic_run:$(VERSION) pytest $(ARGS)
+
 
 test_prognostic_run_report:
 	bash workflows/diagnostics/tests/prognostic/test_integration.sh
@@ -193,6 +205,7 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		workflows/prognostic_c48_run/requirements.in
 
 .PHONY: lock_pip constraints.txt docker/prognostic_run/requirements.txt
+## Lock the pip dependencies of this repo
 lock_pip: constraints.txt docker/prognostic_run/requirements.txt
 
 ## Install External Dependencies
