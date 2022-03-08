@@ -332,10 +332,12 @@ class SliceConfig:
 class PackerConfig:
     """
     Configuration for packing.
+
     Attributes:
         clip: a mapping from variable name to configuration for the slice of
             the feature (last) dimension of that variable we want to retain.
-            Used to exclude data (e.g. at start or end of dimension).
+            Used to exclude data (e.g. at start or end of dimension). User
+            must ensure the last dimension is the dimension they want to clip.
     """
 
     clip: Mapping[Hashable, SliceConfig] = dataclasses.field(default_factory=dict)
