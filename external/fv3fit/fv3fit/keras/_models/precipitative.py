@@ -386,4 +386,5 @@ class PrecipitativeModel:
             # predictor has additional diagnostic outputs which were indirectly trained
             list(self.output_variables),
             self._predict_model,
+            unstacked_dims=("z",),
         )

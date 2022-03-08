@@ -547,7 +547,9 @@ class StepwiseModel(PureKerasModel):
         model: tf.keras.Model,
         sample_dim_name: str,
     ):
-        super().__init__(input_variables, output_variables, model)
+        super().__init__(
+            input_variables, output_variables, model, unstacked_dims=("z",),
+        )
         self.sample_dim_name = sample_dim_name
 
     def integrate_stepwise(self, ds: xr.Dataset) -> xr.Dataset:

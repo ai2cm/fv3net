@@ -37,7 +37,7 @@ class PureKerasModel(Predictor):
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
         model: tf.keras.Model,
-        unstacked_dims: Sequence[str] = ("z",),
+        unstacked_dims: Sequence[str],
         n_halo: int = 0,
     ):
         """Initialize the predictor
