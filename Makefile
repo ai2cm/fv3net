@@ -118,17 +118,18 @@ test_prognostic_run:
 test_prognostic_run_report:
 	bash workflows/diagnostics/tests/prognostic/test_integration.sh
 
+test_%: ARGS =
 test_%:
-	cd external/$* && tox
+	cd external/$* && tox -- $(ARGS)
 
 test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
-	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images $(ARGS)
 
 test_regression:
-	coverage run -m pytest -vv -m regression -s
+	coverage run -m pytest -vv -m regression -s $(ARGS)
 
 test_dataflow:
-	coverage run -m pytest -vv workflows/dataflow/tests/integration -s
+	coverage run -m pytest -vv workflows/dataflow/tests/integration -s $(ARGS)
 
 coverage_report:
 	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
