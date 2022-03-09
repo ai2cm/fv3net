@@ -263,10 +263,10 @@ def is_sea_ice(self):
 
 @DerivedMapping.register("Q1", required_inputs=["pQ1"], use_nonderived_if_exists=True)
 def Q1(self):
-    if "dQ1" in self.keys():
-        return self["dQ1"] + self["pQ1"]
-    elif "Qm" in self.keys() and "Q2" in self.keys():
+    if "Qm" in self.keys() and "Q2" in self.keys():
         return vcm.temperature_tendency(self["Qm"], self["Q2"])
+    elif "dQ1" in self.keys():
+        return self["dQ1"] + self["pQ1"]
     else:
         return self["pQ1"]
 
@@ -283,7 +283,10 @@ def Q2(self):
     "Qm", required_inputs=["Q1", "Q2"], use_nonderived_if_exists=True
 )
 def Qm(self):
-    return vcm.moist_static_energy_tendency(self["Q1"], self["Q2"])
+    if "Q1" in self.keys() and "Q2" in self.keys():
+        return vcm.moist_static_energy_tendency(self["Q1"], self["Q2"])
+    else:
+        raise KeyError("Not possible to compute Qm given inputs.")
 
 
 @DerivedMapping.register(
