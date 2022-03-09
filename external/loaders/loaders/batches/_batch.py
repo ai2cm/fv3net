@@ -113,8 +113,8 @@ def batches_from_mapper(
             add_wind_rotation_info(res),
         ]
 
-    transforms.append(add_derived_data(variable_names))
     transforms.append(vcm.detect_transform(variable_names).forward)
+    transforms.append(add_derived_data(variable_names))
 
     if unstacked_dims is not None:
         transforms.append(sort_by_time)
