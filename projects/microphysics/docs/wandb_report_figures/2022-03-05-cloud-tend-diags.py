@@ -77,30 +77,31 @@ def get_tends(zonal_avg):
     )
 
 
-url = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-05/limit-tests-all-loss-rnn-7ef273-30d-v1-gscond-full-online"
+url = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-03/limit-tests-limiter-all-loss-rnn-7ef273-10d-88ef76-online"
+time = "2016-06-15T00:00:00"
 ds = open_rundir(url)
 
 ds["cloud_negative"] = ds.cloud_water_mixing_ratio < 0
-zonal_avg = vcm.zonal_average_approximate(ds.lat, ds.isel(time=slice(0, 8)))
+zonal_avg = vcm.zonal_average_approximate(ds.lat, ds.sel(time=time))
 meridional_slice = vcm.interpolate_unstructured(
     ds, vcm.select.meridional_ring(lon=180)
 ).swap_dims({"sample": "lat"})
 
-time = 3
 plt.figure()
 newmp = get_segmented_cmap(n=4)
-zonal_avg.cloud_water_mixing_ratio.isel(time=time).plot(
-    y="z", yincrease=False, cmap=newmp, vmax=5e-5
+zonal_avg.cloud_water_mixing_ratio.sel(time=time).plot(
+    y="z", yincrease=False, cmap=newmp, vmax=5e-5, vmin=-5e-5
 )
 plt.savefig("cloud.png")
 plt.figure()
-meridional_slice.cloud_water_mixing_ratio.isel(time=time).plot(
-    y="z", yincrease=False, cmap=newmp, vmax=5e-5
+meridional_slice.cloud_water_mixing_ratio.sel(time=time).plot(
+    y="z", yincrease=False, cmap=newmp, vmax=5e-5, vmin=-5e-5
 )
 plt.savefig("cloud_lon0.png")
 
-get_tends(zonal_avg.isel(time=time)).cloud_water.plot(
-    row="source", col="tend", y="z", yincrease=False, vmax=1e-8
+get_tends(meridional_slice.sel(time=time)).cloud_water.plot(
+    row="source", col="tend", y="z", yincrease=False, vmax=1e-8,
 )
+plt.suptitle(time)
 
 plt.savefig("tendencies.png")
