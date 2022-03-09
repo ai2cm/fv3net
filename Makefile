@@ -17,7 +17,7 @@ IMAGES = fv3net post_process_run prognostic_run
 # Docker Image Management
 ############################################################
 # pattern rule for building docker images
-build_imag_%: ARGS
+build_image_%: ARGS
 build_image_%:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:$(CACHE_TAG) \
 		$(ARGS) \
