@@ -117,6 +117,14 @@ def mock_load_batches():
 
 
 @pytest.fixture
+def mock_shuffle():
+    magic_mock = mock.MagicMock(name="shuffle")
+    magic_mock.return_value.__len__ = lambda _: 1
+    with mock.patch("loaders.batches.shuffle", new=magic_mock):
+        yield magic_mock
+
+
+@pytest.fixture
 def mock_tfdataset_from_batches():
     with mock.patch(
         "fv3fit.train.tfdataset_from_batches"
@@ -244,6 +252,7 @@ def test_main_calls_batches_to_tfdataset_with_correct_arguments(
     mock_load_batches: mock.MagicMock,
     mock_tfdataset_from_batches: mock.MagicMock,
     mock_batches_from_netcdf: mock.MagicMock,
+    mock_shuffle: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
     derived_output_variables: Sequence[str],
     use_validation_data: bool,
@@ -260,7 +269,8 @@ def test_main_calls_batches_to_tfdataset_with_correct_arguments(
         mock_batches = mock_batches_from_netcdf.return_value
     else:
         mock_batches = mock_load_batches.return_value
-    mock_tfdataset_from_batches.assert_called_with(mock_batches)
+    mock_shuffle.assert_called_with(mock_batches)
+    mock_tfdataset_from_batches.assert_called_with(mock_shuffle.return_value)
 
 
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
