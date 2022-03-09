@@ -44,6 +44,8 @@ from .calc.thermo.local import (
     density,
     pressure_thickness,
     layer_mass,
+    temperature_tendency,
+    moist_static_energy_tendency,
 )
 from .calc.histogram import histogram, histogram2d
 
