@@ -114,6 +114,7 @@ def batches_from_mapper(
         ]
 
     transforms.append(add_derived_data(variable_names))
+    transforms.append(vcm.detect_transform(variable_names).forward)
 
     if unstacked_dims is not None:
         transforms.append(sort_by_time)
