@@ -126,7 +126,7 @@ test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images $(ARGS)
 
 test_regression:
-	coverage run -m pytest -vv -m regression -s $(ARGS)
+	pytest -vv -m regression -s $(ARGS)
 
 test_dataflow:
 	coverage run -m pytest -vv workflows/dataflow/tests/integration -s $(ARGS)
