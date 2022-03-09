@@ -261,9 +261,9 @@ class SklearnWrapper(Predictor):
         )
 
         # put all data in one batch, implement batching later
-        batch_size = _get_iterator_size(iter(x_dataset))
-        X: Batch = next(iter(x_dataset.batch(batch_size)))
-        y: Batch = next(iter(y_dataset.batch(batch_size)))
+        total_samples = _get_iterator_size(iter(x_dataset))
+        X: Batch = next(iter(x_dataset.batch(total_samples)))
+        y: Batch = next(iter(y_dataset.batch(total_samples)))
         if self.target_scaler is None:
             self.target_scaler = self._init_target_scaler(y)
 

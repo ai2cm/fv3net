@@ -3,6 +3,7 @@ from toolz.functoolz import curry
 import numpy as np
 import tensorflow as tf
 from typing import (
+    Hashable,
     List,
     Optional,
     Protocol,
@@ -16,6 +17,7 @@ from typing import (
 from ..._shared.config import (
     Hyperparameters,
     OptimizerConfig,
+    SliceConfig,
     register_training_function,
 )
 from .shared import (
@@ -33,7 +35,7 @@ from fv3fit.keras._models.shared.utils import (
     full_standard_normalized_input,
 )
 from fv3fit.keras._models.shared.clip import clip_sequence, ClipConfig
-from fv3fit.tfdataset import get_Xy_dataset
+from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping, clip_sample
 
 
 @dataclasses.dataclass
@@ -124,6 +126,29 @@ class ModelBuilder(Protocol):
                 result of this training will be used by the predict_model.
         """
         ...
+
+
+def get_Xy_dataset(
+    input_variables: Sequence[str],
+    output_variables: Sequence[str],
+    clip_config: Optional[Mapping[Hashable, SliceConfig]],
+    n_dims: int,
+    data: tf.data.Dataset,
+):
+    """
+    Given a tf.data.Dataset with mappings from variable name to samples,
+    return a tf.data.Dataset whose entries are two tuples, the first containing the
+    requested input variables and the second containing
+    the requested output variables.
+    """
+    data = data.map(apply_to_mapping(ensure_nd(n_dims)))
+    if clip_config is not None:
+        y_source = data.map(clip_sample(clip_config))
+    else:
+        y_source = data
+    y = y_source.map(select_keys(output_variables))
+    X = data.map(select_keys(input_variables))
+    return tf.data.Dataset.zip((X, y))
 
 
 def train_column_model(

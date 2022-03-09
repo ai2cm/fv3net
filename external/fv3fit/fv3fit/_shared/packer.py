@@ -132,10 +132,7 @@ def unpack_tfdataset(data: tf.data.Dataset, packing_info: PackingInfo):
 
 
 def unpack(
-    data: np.ndarray,
-    sample_dims: Sequence[str],
-    *,
-    feature_index: Optional[pd.MultiIndex] = None,
+    data: np.ndarray, sample_dims: Sequence[str], feature_index: pd.MultiIndex,
 ) -> xr.Dataset:
     if len(data.shape) == len(sample_dims):
         selection: List[Union[slice, None]] = [slice(None, None) for _ in sample_dims]
