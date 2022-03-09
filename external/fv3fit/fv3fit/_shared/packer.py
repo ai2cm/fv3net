@@ -118,7 +118,7 @@ def pack(
 
 
 @curry
-def unpack_sample(packing_info: PackingInfo, sample):
+def unpack_sample(packing_info: PackingInfo, sample: tf.Tensor):
     i_feature = 0
     return_dict = {}
     for name, n_features in zip(packing_info.names, packing_info.features):
@@ -135,13 +135,8 @@ def unpack(
     data: np.ndarray,
     sample_dims: Sequence[str],
     *,
-    packing_info: Optional[PackingInfo] = None,
     feature_index: Optional[pd.MultiIndex] = None,
 ) -> xr.Dataset:
-    if packing_info is None and feature_index is None:
-        raise ValueError("either packing_info or feature_index must be given")
-    elif feature_index is None and packing_info is not None:
-        feature_index = packing_info.multi_index
     if len(data.shape) == len(sample_dims):
         selection: List[Union[slice, None]] = [slice(None, None) for _ in sample_dims]
         selection = selection + [None]

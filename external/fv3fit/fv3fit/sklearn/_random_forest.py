@@ -280,7 +280,9 @@ class SklearnWrapper(Predictor):
             y = self.target_scaler.denormalize(y)
         else:
             raise ValueError("Target scaler not present.")
-        return unpack(y, [SAMPLE_DIM_NAME], packing_info=self.output_features_)
+        return unpack(
+            y, [SAMPLE_DIM_NAME], feature_index=self.output_features_.multi_index
+        )
 
     def predict(self, data):
         stacked_data = stack_non_vertical(
