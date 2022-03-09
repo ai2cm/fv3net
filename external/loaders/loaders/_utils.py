@@ -46,7 +46,9 @@ def nonderived_variables(requested: Sequence[Hashable], available: Sequence[Hash
         nonderived += X_Y_WIND_TENDENCIES
     if any(var in derived for var in ["eastward_wind", "northward_wind"]):
         nonderived += ["x_wind", "y_wind"]
-    return nonderived
+    if "Qm" in derived:
+        nonderived += ["Q1", "Q2"]
+    return list(set(nonderived))
 
 
 def stack(unstacked_dims: Sequence[str], ds: xr.Dataset) -> xr.Dataset:
