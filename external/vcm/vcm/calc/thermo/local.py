@@ -341,4 +341,3 @@ def temperature_tendency(
     return temperature_tendency.assign_attrs(
         units="K/s", long_name="tendency of air temperature"
     )
-
