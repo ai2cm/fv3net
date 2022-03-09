@@ -72,8 +72,6 @@ class DerivedModel(Predictor):
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         self._check_additional_inputs_present(X)
         base_prediction = self.base_model.predict(X)
-        print("\n ... \n base prediction: \n ")
-        print(base_prediction, "\n ...")
         required_inputs = vcm.safe.get_variables(X, self._additional_input_variables)
         derived_mapping = vcm.DerivedMapping(
             xr.merge([required_inputs, base_prediction])
