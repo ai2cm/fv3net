@@ -20,6 +20,7 @@ requirements = [
     "matplotlib",
     "plotly",
     "tensorboard",
+    "pandas",
 ]
 
 setup_requirements = []
