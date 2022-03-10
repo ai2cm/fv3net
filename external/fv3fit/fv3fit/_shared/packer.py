@@ -12,7 +12,7 @@ from typing import (
     Mapping,
 )
 
-from .config import PackerConfig, ClipDims
+from .config import PackerConfig, SliceConfig
 import dacite
 import dataclasses
 import numpy as np
@@ -90,15 +90,16 @@ def tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
 
 
 def clip(
-    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]], config: ClipDims,
+    data: Union[xr.Dataset, Mapping[Hashable, xr.DataArray]],
+    config: Mapping[Hashable, SliceConfig],
 ) -> Mapping[Hashable, xr.DataArray]:
     clipped_data = {}
     for variable in data:
         da = data[variable]
         da = _fill_empty_coords(da)
         if variable in config:
-            for dim in config[variable]:
-                da = da.isel({dim: config[variable][dim].slice})
+            dim = data[variable].dims[-1]
+            da = da.isel({dim: config[variable].slice})
         clipped_data[variable] = da
     return clipped_data
 

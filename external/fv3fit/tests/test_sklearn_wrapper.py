@@ -231,7 +231,7 @@ def test_SklearnWrapper_fit_predict_with_clipped_input_data():
         input_variables=["a", "b"],
         output_variables=["c"],
         model=model,
-        packer_config=PackerConfig({"a": {"z": SliceConfig(2, None)}}),
+        packer_config=PackerConfig({"a": SliceConfig(2, None)}),
     )
 
     dims = ["sample", "z"]
@@ -255,5 +255,5 @@ def test_SklearnWrapper_raises_not_implemented_error_with_clipped_output_data():
             input_variables=["a", "b"],
             output_variables=["c"],
             model=model,
-            packer_config=PackerConfig({"c": {"z": SliceConfig(2, None)}}),
+            packer_config=PackerConfig({"c": SliceConfig(2, None)}),
         )

@@ -1,4 +1,4 @@
-from typing import Dict, Any, Iterable, Optional, Sequence, Tuple, List, Hashable
+from typing import Iterable, Optional, Sequence, Tuple, Hashable
 import tensorflow as tf
 import xarray as xr
 from ..._shared import (
@@ -120,7 +120,6 @@ class _BPTTTrainer:
         self.predict_keras_model: Optional[tf.keras.Model] = None
         self.use_moisture_limiter = use_moisture_limiter
         self.state_noise = state_noise
-        self._stepwise_output_metadata: List[Dict[str, Any]] = []
         self._statistics_are_fit = False
 
     def fit_statistics(self, X: xr.Dataset):
@@ -153,13 +152,6 @@ class _BPTTTrainer:
         except AttributeError:  # time is datetime64 and has no total_seconds attribute
             time = time.astype(dtype="datetime64[s]")
             self._train_timestep_seconds = time[1].values.item() - time[0].values.item()
-        self._stepwise_output_metadata.clear()
-        for name in ("air_temperature", "specific_humidity"):
-            # remove time dimension from stepwise output metadata
-            dims = X[name].dims[:1] + X[name].dims[2:]
-            self._stepwise_output_metadata.append(
-                {"dims": dims, "units": X[name].units + " / s"}
-            )
         self._statistics_are_fit = True
 
     @property
@@ -436,7 +428,6 @@ class _BPTTTrainer:
             input_variables=tuple(self.input_packer.pack_names)
             + tuple(self.prognostic_packer.pack_names),
             output_variables=self.output_variables,
-            output_metadata=self._stepwise_output_metadata,
             model=self.predict_keras_model,
             sample_dim_name=self.sample_dim_name,
         )
@@ -553,11 +544,12 @@ class StepwiseModel(PureKerasModel):
         self,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
-        output_metadata: Iterable[Dict[str, Any]],
         model: tf.keras.Model,
         sample_dim_name: str,
     ):
-        super().__init__(input_variables, output_variables, output_metadata, model)
+        super().__init__(
+            input_variables, output_variables, model, unstacked_dims=("z",),
+        )
         self.sample_dim_name = sample_dim_name
 
     def integrate_stepwise(self, ds: xr.Dataset) -> xr.Dataset:
@@ -616,7 +608,6 @@ class StepwiseModel(PureKerasModel):
             obj = cls(
                 config["input_variables"],
                 config["output_variables"],
-                config.get("output_metadata", None),
                 model,
                 config["sample_dim_name"],
             )
@@ -633,7 +624,6 @@ class StepwiseModel(PureKerasModel):
                         {
                             "input_variables": self.input_variables,
                             "output_variables": self.output_variables,
-                            "output_metadata": self._output_metadata,
                             "sample_dim_name": self.sample_dim_name,
                         }
                     )

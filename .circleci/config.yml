@@ -96,6 +96,7 @@ jobs:
           - prognostic_run_gpu
           - post_process_run
           - fv3net
+          - dataflow
           - artifacts
     machine:
       image: ubuntu-2004:202111-02
@@ -120,7 +121,7 @@ jobs:
       - run: sudo -E .circleci/build_and_push_image.sh
   lint:
     docker:
-      - image: circleci/python:3.7
+      - image: circleci/python:3.8
     steps:
       - checkout
       - run: sudo pip install -c constraints.txt pre-commit xarray
@@ -206,9 +207,9 @@ workflows:
               ignore:
                 - master
       # manually trigger on PRs
-      - pytest:
+      - build_default:
           name: "Test Dataflow (held)"
-          kind: test_dataflow
+          image: dataflow
           requires:
             - hold
           filters:
@@ -217,9 +218,9 @@ workflows:
             branches:
               ignore: master
       # automatically trigger on master
-      - pytest:
+      - build_default:
           name: "Test Dataflow (not held)"
-          kind: test_dataflow
+          image: dataflow
           filters:
             tags:
               only: /^v.*/

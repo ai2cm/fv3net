@@ -147,6 +147,7 @@ def test_rnn_v1_cache_disable(arch_key, expected_cache):
 
 
 @pytest.mark.regression
+@pytest.mark.slow
 def test_training_entry_integration(tmp_path):
 
     config_dict = asdict(get_default_config())

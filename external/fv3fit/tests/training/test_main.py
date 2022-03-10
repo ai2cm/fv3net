@@ -421,6 +421,7 @@ def cli_main(args: MainArgs):
     "use_local_download_path, use_validation_data",
     [(False, False), (False, True), (True, False)],
 )
+@pytest.mark.slow
 def test_cli(
     tmpdir,
     use_local_download_path: bool,
