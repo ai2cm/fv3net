@@ -25,7 +25,6 @@ from .scaler import (
 from .predictor import Predictor
 from .input_sensitivity import InputSensitivity
 from .stacking import (
-    StackedBatches,
     stack_non_vertical,
     stack,
     match_prediction_to_input_coords,
