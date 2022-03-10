@@ -300,7 +300,7 @@ def test_block_reduce_dataarray_coordinates(input_dataarray, coord_func):
     # coordinate transformation behavior for any function that depends on
     # _block_reduce_dataarray matches that for xarray's coarsen.
     for dim, size in input_dataarray.sizes.items():
-        input_dataarray[dim] = np.arange(size)
+        input_dataarray[dim] = np.arange(size, dtype=np.float64)
 
     block_sizes = {"x": 2, "y": 2}
     result = _xarray_block_reduce_dataarray(
@@ -824,7 +824,7 @@ def test_xgcm_grid_interp(grid_dataset):
 @pytest.mark.parametrize("y_dim", ["grid_yt", "y"])
 @pytest.mark.parametrize("tile_dim", ["tile", "randomname"])
 @pytest.mark.parametrize("transpose", [True, False])
-def test_to_cross(transpose, tile_dim, x_dim, y_dim):
+def test_to_cross(regtest, transpose, tile_dim, x_dim, y_dim):
     extra_dim = "extra"
     arr = xr.DataArray(
         np.arange(2 * 2 * 6).reshape((1, 6, 2, 2)),
@@ -840,7 +840,7 @@ def test_to_cross(transpose, tile_dim, x_dim, y_dim):
 
     # manually hardcode the hash since it is shared across all parameterize
     # statements
-    assert joblib.hash(one_tile.values) == "04eddd324d0f3150a02499c788ec675d"
+    print(joblib.hash(one_tile.values), file=regtest)
 
 
 def test_to_cross_with_scalar_coordinates():
