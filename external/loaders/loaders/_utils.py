@@ -71,6 +71,25 @@ def stack(unstacked_dims: Sequence[str], ds: xr.Dataset) -> xr.Dataset:
     return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 
+def sort_by_time(ds: xr.Dataset) -> xr.Dataset:
+    return ds.sortby("time")
+
+
+@curry
+def select_fraction(fraction: float, ds: xr.Dataset) -> xr.Dataset:
+    # subselects a random fraction of samples, preserving original order.
+    if fraction == 1.0:
+        out = ds
+    else:
+        n_samples = len(ds[SAMPLE_DIM_NAME])
+        n_samples_keep = int(fraction * n_samples)
+        sample_indices = sorted(
+            np.random.choice(n_samples, n_samples_keep, replace=False)
+        )
+        out = ds.isel({SAMPLE_DIM_NAME: sample_indices})
+    return out
+
+
 def shuffle(ds: xr.Dataset) -> xr.Dataset:
     shuffled_indices = np.arange(len(ds[SAMPLE_DIM_NAME]), dtype=int)
     np.random.shuffle(shuffled_indices)
@@ -85,21 +104,6 @@ def dropna(ds: xr.Dataset) -> xr.Dataset:
     if len(ds[SAMPLE_DIM_NAME]) == 0:
         raise ValueError("Check for NaN fields in the training data.")
     return ds
-
-
-@curry
-def select_first_samples(fraction: float, ds: xr.Dataset) -> xr.Dataset:
-    """
-    Return a dataset with only the given fraction of samples from the
-    input dataset, taking the first samples.
-    """
-    if fraction == 1.0:
-        out = ds
-    else:
-        n_samples = len(ds[SAMPLE_DIM_NAME])
-        n_samples_keep = int(fraction * n_samples)
-        out = ds.isel({SAMPLE_DIM_NAME: slice(0, n_samples_keep)})
-    return out
 
 
 @curry
@@ -137,7 +141,7 @@ def add_wind_rotation_info(res: str, ds: xr.Dataset) -> xr.Dataset:
         res: grid resolution, format as f'c{number cells in tile}'
     """
 
-    rotation = _load_wind_rotation_matrix(res).drop("tile")
+    rotation = _load_wind_rotation_matrix(res).drop_vars("tile", errors="ignore")
     common_coords = {"x": ds["x"].values, "y": ds["y"].values}
     rotation = rotation.assign_coords(common_coords)
     return ds.merge(rotation, compat="override")
@@ -148,7 +152,9 @@ def _load_grid(res: str) -> xr.Dataset:
     land_sea_mask = catalog[f"landseamask/{res}"].to_dask()
     grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
     # drop the tiles so that this is compatible with other indexing conventions
-    return safe.get_variables(grid, ["lat", "lon", "land_sea_mask"]).drop("tile")
+    return safe.get_variables(grid, ["lat", "lon", "land_sea_mask"]).drop_vars(
+        "tile", errors="ignore"
+    )
 
 
 def _load_wind_rotation_matrix(res: str) -> xr.Dataset:

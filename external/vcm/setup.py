@@ -30,7 +30,6 @@ install_requirements = [
     "google-api-core",
     "pytest-regtest",
     "h5netcdf>=0.8",
-    "docrep<0.3.0,>=0.2.0",
     "intake-xarray>=0.3.1",
 ]
 

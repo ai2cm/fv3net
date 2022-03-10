@@ -1,0 +1,15 @@
+#!/bin/bash
+
+url=gs://vcm-ml-experiments/microphysics-emulation/2022-01-27/rnn-gscond-cloudtdep-cbfc4a/model.tf
+tag=rnn-gscond-cloudtdep-cbfc4a-30d-v1
+image=latest
+
+yq  --arg url "$url" '.zhao_carr_emulation.model.path |= $url' ../configs/default.yaml > config.yaml
+trap 'rm config.yaml' EXIT
+
+
+argo submit prog-run-and-eval.yaml \
+    --name "$tag" \
+    -p image_tag="$image" \
+    -p tag=$tag \
+    -p config=$(base64 --wrap 0 config.yaml) | grep -v 'config:' | tee -a submitted-jobs.txt

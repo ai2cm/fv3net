@@ -19,11 +19,9 @@ from ._config import (
     batches_from_mapper_functions,
 )
 from loaders.batches import (
-    batches_from_geodata,
     batches_from_mapper,
     batches_from_netcdf,
     batches_from_serialized,
-    diagnostic_batches_from_geodata,
 )
 from loaders.mappers import (
     open_nudge_to_fine,

@@ -8,6 +8,7 @@ from fv3fit.emulation.transforms import (
     Difference,
     LogTransform,
     TransformedVariableConfig,
+    LimitValueTransform,
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
 from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional
@@ -40,7 +41,7 @@ def _get_per_variable_mocks():
     x = {"a": tf.constant(1.0), "b": tf.constant(1.0)}
     mock_xform = MockTransform()
     factory = ComposedTransformFactory(
-        [TransformedVariableConfig("a", "transformed", mock_xform)]
+        [TransformedVariableConfig("a", mock_xform, to="transformed")]
     )
     transform = factory.build(x)
     expected_forward = {
@@ -68,9 +69,18 @@ def test_per_variable_transform_round_trip():
         _assert_scalar_approx(x[key], y[key])
 
 
+def test_variable_transform_default_to():
+
+    transform = TransformedVariableConfig("a", LogTransform())
+    built = transform.build({})
+
+    assert built.to == "a"
+    assert transform.backward_names({"a"}) == {"a"}
+
+
 def test_per_variable_transform_backward_names():
     transform = ComposedTransformFactory(
-        [TransformedVariableConfig("a", "b", LogTransform())]
+        [TransformedVariableConfig("a", LogTransform(), to="b")]
     )
     assert transform.backward_names({"b"}) == {"a"}
     assert transform.backward_names({"b", "random"}) == {"a", "random"}
@@ -82,8 +92,8 @@ def test_composed_transform_backward_names_sequence():
     """
     transform = ComposedTransformFactory(
         [
-            TransformedVariableConfig("a", "b", LogTransform()),
-            TransformedVariableConfig("b", "c", LogTransform()),
+            TransformedVariableConfig("a", LogTransform(), to="b"),
+            TransformedVariableConfig("b", LogTransform(), to="c"),
         ]
     )
     assert transform.backward_names({"c"}) == {"a"}
@@ -92,8 +102,8 @@ def test_composed_transform_backward_names_sequence():
 def test_composed_transform_with_circular_dep():
     factory = ComposedTransformFactory(
         [
-            TransformedVariableConfig("a", "b", LogTransform()),
-            TransformedVariableConfig("b", "a", LogTransform()),
+            TransformedVariableConfig("a", LogTransform(), to="b"),
+            TransformedVariableConfig("b", LogTransform(), to="a"),
         ]
     )
 
@@ -103,9 +113,9 @@ def test_composed_transform_with_circular_dep():
 def test_composed_transform_ok_with_repeated_dep():
     factory = ComposedTransformFactory(
         [
-            TransformedVariableConfig("a", "b", LogTransform()),
-            TransformedVariableConfig("b", "c", LogTransform()),
-            TransformedVariableConfig("b", "d", LogTransform()),
+            TransformedVariableConfig("a", LogTransform(), to="b"),
+            TransformedVariableConfig("b", LogTransform(), to="c"),
+            TransformedVariableConfig("b", LogTransform(), to="d"),
         ]
     )
     return factory.backward_names({"c", "d"}) == {"a"}
@@ -210,7 +220,7 @@ def test_ConditionallyScaledTransform_backward(min_scale: float):
 
 def test_ConditionallyScaled_backward_names():
     factory = ConditionallyScaled(source="in", to="z", bins=10, condition_on="T")
-    assert factory.backward_names({"z"}) == {"z", "T", "in"}
+    assert factory.backward_names({"z"}) == {"T", "in"}
 
 
 def test_ConditionallyScaled_backward_names_output_not_in_request():
@@ -238,7 +248,7 @@ def test_ConditionallyScaled_build():
 
 def test_Difference_backward_names():
     diff = Difference("diff", "before", "after")
-    assert diff.backward_names({"diff"}) == {"before", "after", "diff"}
+    assert diff.backward_names({"diff"}) == {"before", "after"}
     assert diff.backward_names({"not in a"}) == {"not in a"}
 
 
@@ -324,3 +334,27 @@ def test_ComposedTransform_with_build():
     # mock2.build is called with the "b" variable outputted by mock1
     (build_sample_for_second_mock,) = factory2.build.call_args[0]
     assert build_sample_for_second_mock == {"b": 0, "a": 0}
+
+
+@pytest.mark.parametrize(
+    "lower,upper, expected",
+    [
+        (None, None, [-2, -1, 0, 1, 2, 3]),
+        (0, None, [0, 0, 0, 1, 2, 3]),
+        (None, 0, [-2, -1, 0, 0, 0, 0]),
+        (-2, 2, [0, -1, 0, 1, 0, 0]),
+        (1, 1, [0, 0, 0, 0, 0, 0]),
+    ],
+    ids=["no limits", "lower", "upper", "lower + upper", "equivalent lower + upper"],
+)
+def test_PositiveTransform(lower, upper, expected):
+
+    tensor = tf.convert_to_tensor([-2, -1, 0, 1, 2, 3])
+    transform = LimitValueTransform(lower=lower, upper=upper)
+
+    forward_result = transform.forward(tensor)
+    np.testing.assert_array_equal(tensor, forward_result)
+
+    positive = tf.convert_to_tensor(expected)
+    backward_result = transform.backward(tensor)
+    np.testing.assert_array_equal(positive, backward_result)

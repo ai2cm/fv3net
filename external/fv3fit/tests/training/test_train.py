@@ -12,6 +12,7 @@ from fv3fit._shared.config import TRAINING_FUNCTIONS, get_hyperparameter_class
 import vcm.testing
 import tempfile
 from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
+from fv3fit._shared.stacking import SAMPLE_DIM_NAME, stack_non_vertical
 
 
 # training functions that work on arbitrary datasets, can be used in generic tests below
@@ -134,6 +135,10 @@ def get_dataset(model_type, sample_func):
         {name: value for name, value in zip(output_variables, output_values)}
     )
     train_dataset = xr.Dataset(data_vars=data_vars)
+    if model_type in ["sklearn_random_forest"]:  # refactored to use stacked data
+        train_dataset = stack_non_vertical(train_dataset).rename_dims(
+            {SAMPLE_DIM_NAME: "foo_sample"}
+        )
     return input_variables, output_variables, train_dataset
 
 
@@ -176,6 +181,7 @@ def assert_can_learn_identity(
             print(result, file=regtest)
 
 
+@pytest.mark.slow
 def test_train_default_model_on_identity(model_type, regtest):
     """
     The model with default configuration options can learn the identity function,
@@ -191,6 +197,7 @@ def test_train_default_model_on_identity(model_type, regtest):
     )
 
 
+@pytest.mark.slow
 def test_default_convolutional_model_is_transpose_invariant():
     """
     The model with default configuration options can learn the identity function,
@@ -222,6 +229,7 @@ def test_default_convolutional_model_is_transpose_invariant():
     )
 
 
+@pytest.mark.slow
 def test_diffusive_convolutional_model_gives_bounded_output():
     """
     The model with diffusive enabled should give outputs in the range of the inputs.
@@ -253,6 +261,7 @@ def test_diffusive_convolutional_model_gives_bounded_output():
         assert np.all(data_array.values <= high), name
 
 
+@pytest.mark.slow
 def test_train_with_same_seed_gives_same_result(model_type):
     n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
     fv3fit.set_random_seed(0)
@@ -268,6 +277,7 @@ def test_train_with_same_seed_gives_same_result(model_type):
     xr.testing.assert_equal(first_output, second_output)
 
 
+@pytest.mark.slow
 def test_predict_does_not_mutate_input(model_type):
     n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
@@ -293,6 +303,7 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
     return sample_func
 
 
+@pytest.mark.slow
 def test_train_default_model_on_nonstandard_identity(model_type):
     """
     The model with default configuration options can learn the identity function,
@@ -310,6 +321,7 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     )
 
 
+@pytest.mark.slow
 def test_dump_and_load_default_maintains_prediction(model_type):
     n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
@@ -323,24 +335,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
     xr.testing.assert_equal(loaded_result, original_result)
 
 
-@pytest.mark.parametrize("model_type", ["sklearn_random_forest"])
-def test_train_predict_multiple_stacked_dims(model_type):
-    da = xr.DataArray(np.full(fill_value=1.0, shape=(5, 10, 15)), dims=["x", "y", "z"],)
-    train_dataset = xr.Dataset(
-        data_vars={"var_in_0": da, "var_in_1": da, "var_out_0": da, "var_out_1": da}
-    )
-    train_batches = [train_dataset for _ in range(2)]
-    val_batches = []
-    train = fv3fit.get_training_function(model_type)
-    input_variables = ["var_in_0", "var_in_1"]
-    output_variables = ["var_out_0", "var_out_1"]
-    hyperparameters = get_default_hyperparameters(
-        model_type, input_variables, output_variables
-    )
-    model = train(hyperparameters, train_batches, val_batches,)
-    model.predict(train_dataset)
-
-
+@pytest.mark.slow
 def test_train_dense_model_clipped_inputs_outputs():
     da = xr.DataArray(
         np.arange(1500).reshape(6, 5, 5, 10) * 1.0, dims=["tile", "x", "y", "z"],
@@ -359,7 +354,7 @@ def test_train_dense_model_clipped_inputs_outputs():
         "dense", input_variables, output_variables
     )
     hyperparameters.clip_config = ClipConfig(
-        {"var_in_0": {"z": SliceConfig(2, 5)}, "var_out_0": {"z": SliceConfig(4, 8)}}
+        {"var_in_0": SliceConfig(2, 5), "var_out_0": SliceConfig(4, 8)}
     )
     model = train(hyperparameters, train_batches, val_batches,)
     prediction = model.predict(train_dataset)

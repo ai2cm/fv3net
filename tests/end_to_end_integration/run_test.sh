@@ -92,10 +92,16 @@ yq -y --arg data_path $n2fDataPath '.mapper_config.kwargs.data_path|=$data_path'
     training-data-config.yaml > \
     training-data-config-compiled.yaml
 
+yq -y --arg data_path $n2fDataPath '.mapper_config.kwargs.data_path|=$data_path' \
+    test-data-config.yaml > \
+    test-data-config-compiled.yaml
+
+
 deployWorkflows "$registry" "$commit"
 argo submit argo.yaml -p bucket="${bucket}" -p project="${project}" \
     -p training-data-config="$(< training-data-config-compiled.yaml)" \
     -p validation-data-config="$(< training-data-config-compiled.yaml)" \
+    -p test-data-config="$(< test-data-config-compiled.yaml)" \
     -p tag="${tag}" --name "$name"
 
 trap "argo logs \"$name\" | tail -n 100" EXIT

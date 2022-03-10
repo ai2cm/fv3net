@@ -23,6 +23,12 @@ spec:
             artifacts:
               - name: fv3config
                 from: "{{inputs.artifacts.fv3config}}"
+        - name: choose-node-pool
+          template: choose-node-pool
+          arguments:
+            parameters:
+            - {name: cpu-request, value: "{{inputs.parameters.cpu}}"}
+            - {name: cpu-cutoff, value: "24"}
       # loop over segments implemented through recursion so that a failed segment will
       # terminate the workflow. Argo loops by default run in parallel and do not fail fast.
       - - name: run-first-segment
@@ -32,6 +38,7 @@ spec:
             - {name: output-url, value: "{{inputs.parameters.output-url}}"}
             - {name: cpu, value: "{{inputs.parameters.cpu}}"}
             - {name: memory, value: "{{inputs.parameters.memory}}"}
+            - {name: node-pool, value: "{{steps.choose-node-pool.outputs.result}}"}
             - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
             - {name: segment, value: 0}
   - name: run-all-segments
@@ -40,6 +47,7 @@ spec:
         - name: output-url
         - name: cpu
         - name: memory
+        - name: node-pool
         - name: segment-count
         - name: segment
     steps:
@@ -50,6 +58,7 @@ spec:
               - {name: runURL, value: "{{inputs.parameters.output-url}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
+              - {name: node-pool, value: "{{inputs.parameters.node-pool}}"}
       - - name: increment-segment
           template: increment-count
           arguments:
@@ -63,6 +72,7 @@ spec:
             - {name: output-url, value: "{{inputs.parameters.output-url}}"}
             - {name: cpu, value: "{{inputs.parameters.cpu}}"}
             - {name: memory, value: "{{inputs.parameters.memory}}"}
+            - {name: node-pool, value: "{{inputs.parameters.node-pool}}"}
             - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
             - {name: segment, value: "{{steps.increment-segment.outputs.result}}"}
   - name: create-run
@@ -96,16 +106,33 @@ spec:
         - name: gcp-key-secret
           mountPath: /secret/gcp-credentials
           readOnly: true
+  - name: choose-node-pool
+    inputs:
+      parameters:
+        - name: cpu-request
+        - name: cpu-cutoff
+    script:
+      image: python:alpine3.6
+      command: [python]
+      source: |
+        cpu_request = "{{inputs.parameters.cpu-request}}"
+        if cpu_request.endswith('m'):
+            cpus = float(cpu_request[:-1])/1000.0
+        else:
+            cpus = float(cpu_request)
+        node_pool = 'climate-sim-pool' if cpus <= {{inputs.parameters.cpu-cutoff}} else 'ultra-sim-pool'
+        print(node_pool)
   - name: append-segment
     inputs:
       parameters:
         - name: cpu
         - name: memory
         - name: runURL
+        - name: node-pool
     tolerations:
     - key: "dedicated"
       operator: "Equal"
-      value: "climate-sim-pool"
+      value: "{{inputs.parameters.node-pool}}"
       effect: "NoSchedule"
     podSpecPatch: |
       containers:

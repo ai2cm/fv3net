@@ -35,27 +35,38 @@ T_TENDENCY_NAME = "dQ1"
 Q_TENDENCY_NAME = "dQ2"
 
 
-def integrate_precip(args):
-    dQ2, delp = args  # layers seem to take in a single argument
-    # output should be kg/m^2/s
-    return tf.math.scalar_mul(
-        # dQ2 * delp = s-1 * Pa = s^-1 * kg m-1 s-2 = kg m-1 s-3
-        # dQ2 * delp / g = kg m-1 s-3 / (m s-2) = kg/m^2/s
-        tf.constant(-1.0 / GRAVITY, dtype=dQ2.dtype),
-        tf.math.reduce_sum(tf.math.multiply(dQ2, delp), axis=-1),
-    )
+class IntegratePrecipLayer(tf.keras.layers.Layer):
+    def call(self, args) -> tf.Tensor:
+        """
+        Args:
+            dQ2: rate of change in moisture in kg/kg/s, negative corresponds
+                to condensation
+            delp: pressure thickness of atmospheric layer in Pa
+
+        Returns:
+            precipitation rate in kg/m^2/s
+        """
+        dQ2, delp = args  # layers seem to take in a single argument
+        # output should be kg/m^2/s
+        return tf.math.scalar_mul(
+            # dQ2 * delp = s-1 * Pa = s^-1 * kg m-1 s-2 = kg m-1 s-3
+            # dQ2 * delp / g = kg m-1 s-3 / (m s-2) = kg/m^2/s
+            tf.constant(-1.0 / GRAVITY, dtype=dQ2.dtype),
+            tf.math.reduce_sum(tf.math.multiply(dQ2, delp), axis=-1),
+        )
 
 
-def condensational_heating(dQ2):
-    """
-    Args:
-        dQ2: rate of change in moisture in kg/kg/s, negative corresponds
-            to condensation
+class CondensationalHeatingLayer(tf.keras.layers.Layer):
+    def call(self, dQ2: tf.Tensor) -> tf.Tensor:
+        """
+        Args:
+            dQ2: rate of change in moisture in kg/kg/s, negative corresponds
+                to condensation
 
-    Returns:
-        heating rate in degK/s
-    """
-    return tf.math.scalar_mul(tf.constant(-LV / CPD, dtype=dQ2.dtype), dQ2)
+        Returns:
+            heating rate in degK/s
+        """
+        return tf.math.scalar_mul(tf.constant(-LV / CPD, dtype=dQ2.dtype), dQ2)
 
 
 def multiply_loss_by_factor(original_loss, factor):
@@ -129,21 +140,6 @@ def get_losses(
         loss_list.append(loss)
 
     return loss_list
-
-
-def get_output_metadata(packer, sample_dim_name):
-    """
-    Retrieve xarray metadata for a packer's values, assuming arrays are [sample(, z)].
-    """
-    metadata = []
-    for name in packer.pack_names:
-        n_features = packer.feature_counts[name]
-        if n_features == 1:
-            dims = [sample_dim_name]
-        else:
-            dims = [sample_dim_name, "z"]
-        metadata.append({"dims": dims, "units": "unknown"})
-    return tuple(metadata)
 
 
 @dataclasses.dataclass
@@ -328,9 +324,7 @@ class PrecipitativeModel:
             norm_column_precip_vector
         )
         if self._couple_precip_to_dQ1_dQ2:
-            column_heating = tf.keras.layers.Lambda(condensational_heating)(
-                column_precip
-            )
+            column_heating = CondensationalHeatingLayer()(column_precip)
             T_tendency = tf.keras.layers.Add(name="T_tendency")(
                 [T_tendency, column_heating]
             )
@@ -343,9 +337,7 @@ class PrecipitativeModel:
         surface_precip = tf.keras.layers.Add(name="add_physics_precip")(
             [
                 physics_precip,
-                tf.keras.layers.Lambda(integrate_precip, name="surface_precip")(
-                    [column_precip, delp]
-                ),
+                IntegratePrecipLayer(name="surface_precip")([column_precip, delp]),
             ]
         )
         # This assertion is here to remind you that if you change the output variables
@@ -400,6 +392,6 @@ class PrecipitativeModel:
             self.input_variables,
             # predictor has additional diagnostic outputs which were indirectly trained
             list(self.output_variables),
-            get_output_metadata(self.output_packer, SAMPLE_DIM_NAME),
             self._predict_model,
+            unstacked_dims=("z",),
         )

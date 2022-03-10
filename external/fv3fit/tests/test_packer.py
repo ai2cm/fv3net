@@ -192,15 +192,14 @@ def test_sklearn_unpack(dataset: xr.Dataset):
 def test_sklearn_pack_unpack_with_clipping(dataset: xr.Dataset):
     name = list(dataset.data_vars)[0]
     if FEATURE_DIM in dataset[name].dims:
-        pack_config = PackerConfig({name: {FEATURE_DIM: SliceConfig(3, None)}})
+        pack_config = PackerConfig({name: SliceConfig(3, None)})
         packed_array, feature_index = pack(dataset, [SAMPLE_DIM], pack_config)
         unpacked_dataset = unpack(packed_array, [SAMPLE_DIM], feature_index)
         expected = {}
         for k in dataset:
             da = dataset[k].copy(deep=True)
-            indices = pack_config.clip.get(k, {})
-            for dim, slice_config in indices.items():
-                da = da.isel({dim: slice_config.slice})
+            slice_config = pack_config.clip.get(k, SliceConfig())
+            da = da.isel({da.dims[-1]: slice_config.slice})
             expected[k] = da
         xr.testing.assert_allclose(unpacked_dataset, xr.Dataset(expected))
 
@@ -208,13 +207,13 @@ def test_sklearn_pack_unpack_with_clipping(dataset: xr.Dataset):
 def test_clip(dataset: xr.Dataset):
     name = list(dataset.data_vars)[0]
     if FEATURE_DIM in dataset[name].dims:
-        indices = {name: {FEATURE_DIM: SliceConfig(4, 8)}}
+        indices = {name: SliceConfig(4, 8)}
         clipped_data = clip(dataset, indices)
-        expected_da = dataset[name].assign_coords(
+        da: xr.Dataset = dataset[name].assign_coords(
             {dim: range(dataset.sizes[dim]) for dim in dataset[name].dims}
         )
-        for dim, slice_config in indices[name].items():
-            expected_da = expected_da.isel({dim: slice_config.slice})
+        slice_config = indices[name]
+        expected_da = da.isel({da.dims[-1]: slice_config.slice})
         xr.testing.assert_identical(clipped_data[name], expected_da)
 
 
@@ -223,16 +222,16 @@ def test_clip_differing_slices():
         ["var1", "var2"], [[SAMPLE_DIM, FEATURE_DIM], [SAMPLE_DIM, FEATURE_DIM]]
     )
     clip_config = {
-        "var1": {FEATURE_DIM: SliceConfig(4, 8)},
-        "var2": {FEATURE_DIM: SliceConfig(None, 6, 2)},
+        "var1": SliceConfig(4, 8),
+        "var2": SliceConfig(None, 6, 2),
     }
     clipped_data = clip(ds, clip_config)
     for name in ds:
-        expected_da = ds[name].assign_coords(
+        da = ds[name].assign_coords(
             {dim: range(ds.sizes[dim]) for dim in ds[name].dims}
         )
-        for dim, slice_config in clip_config[name].items():
-            expected_da = expected_da.isel({dim: slice_config.slice})
+        slice_config = clip_config[name]
+        expected_da = da.isel({da.dims[-1]: slice_config.slice})
         xr.testing.assert_identical(clipped_data[name], expected_da)
 
 
@@ -261,7 +260,7 @@ def test_count_features():
 
 def test_array_packer_dump_and_load(tmpdir):
     dataset = get_dataset(["var1"], [[SAMPLE_DIM, FEATURE_DIM]])
-    packer_config = PackerConfig({"var1": {"z": SliceConfig(None, 2)}})
+    packer_config = PackerConfig({"var1": SliceConfig(None, 2)})
     packer = ArrayPacker(SAMPLE_DIM, list(dataset.data_vars), packer_config)
     packer.to_array(dataset)
     with open(str(tmpdir.join("packer.yaml")), "w") as f:

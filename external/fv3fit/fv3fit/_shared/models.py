@@ -1,4 +1,4 @@
-from typing import Iterable, Set, Hashable
+from typing import Iterable, Set, Hashable, Sequence
 import fsspec
 import yaml
 import os
@@ -16,7 +16,7 @@ class DerivedModel(Predictor):
     _BASE_MODEL_SUBDIR = "base_model_data"
 
     def __init__(
-        self, model: Predictor, derived_output_variables: Iterable[Hashable],
+        self, model: Predictor, derived_output_variables: Sequence[Hashable],
     ):
         """
 
@@ -31,11 +31,16 @@ class DerivedModel(Predictor):
         """
         # if base_model is itself a DerivedModel, combine the underlying base model
         # and combine derived attributes instead of wrapping twice with DerivedModel
-        self.base_model: Predictor = model.base_model if isinstance(
-            model, DerivedModel
-        ) else model
+        if isinstance(model, DerivedModel):
+            self.base_model: Predictor = model.base_model
+            existing_derived_outputs = model._derived_output_variables  # type: ignore
+            self._derived_output_variables = (
+                existing_derived_outputs + derived_output_variables
+            )
 
-        self._derived_output_variables = derived_output_variables
+        else:
+            self.base_model = model
+            self._derived_output_variables = derived_output_variables
         self._additional_input_variables = self.get_additional_inputs()
 
         full_input_variables = sorted(

@@ -124,6 +124,9 @@ class StandardNormLayer(PerFeatureMean, PerFeatureStd):
         super().__init__(name=name)
         self.epsilon = epsilon
 
+    def get_config(self):
+        return {"epsilon": self.epsilon}
+
     def call(self, tensor):
         return (tensor - self.mean) / (self.sigma + self.epsilon)
 
