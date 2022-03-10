@@ -29,6 +29,10 @@ def fig_to_b64(fig, format="png", dpi=None):
     return f"data:image/png;base64, " + pic_hash.decode()
 
 
+def fig_to_html(fig):
+    return RawHTML('<img src="' + fig_to_b64(fig) + '" />')
+
+
 template = jinja2.Template(
     """
 <h2> {{varfilter}} </h2>
