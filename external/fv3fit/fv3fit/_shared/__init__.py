@@ -10,16 +10,10 @@ from .packer import (
     unpack,
     unpack_tfdataset,
     count_features,
-    ArrayPacker,
-    unpack_matrix,
-    multiindex_to_tuple,
-    tuple_to_multiindex,
 )
 from .scaler import (
     StandardScaler,
     ManualScaler,
-    get_mass_scaler,
-    get_scaler,
     NormalizeTransform,
 )
 from .predictor import Predictor

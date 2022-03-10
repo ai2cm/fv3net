@@ -7,11 +7,9 @@ from fv3fit._shared.config import (
     RegularizerConfig,
     register_training_function,
 )
-from fv3fit._shared.scaler import StandardScaler
 from fv3fit.keras._models.shared.clip import ClipConfig, clip_sequence
 from fv3fit.keras._models.shared.loss import LossConfig
 import tensorflow as tf
-from ..._shared import ArrayPacker
 from ..._shared.config import Hyperparameters
 from .shared import DenseNetworkConfig, TrainingLoopConfig
 import numpy as np
@@ -70,79 +68,6 @@ class CondensationalHeatingLayer(tf.keras.layers.Layer):
             heating rate in degK/s
         """
         return tf.math.scalar_mul(tf.constant(-LV / CPD, dtype=dQ2.dtype), dQ2)
-
-
-def multiply_loss_by_factor(original_loss, factor):
-    def loss(y_true, y_pred):
-        return tf.math.scalar_mul(factor, original_loss(y_true, y_pred))
-
-    return loss
-
-
-def get_losses(
-    output_variables: Sequence[str],
-    output_packer: ArrayPacker,
-    output_scaler: StandardScaler,
-    loss_type="mse",
-) -> Sequence[tf.keras.losses.Loss]:
-    """
-    Retrieve normalized losses for a sequence of output variables.
-
-    Returned losses are such that a predictor with no skill making random
-    predictions should return a loss of about 1. For MSE loss, each
-    column is normalized by the variance of the data after subtracting
-    the vertical mean profile (if relevant), while for MAE loss the
-    columns are normalized by the standard deviation of the data after
-    subtracting the vertical mean profile. This variance or standard
-    deviation is read from the given `output_scaler`.
-
-    After this scaling, each loss is also divided by the total number
-    of outputs, so that the total loss sums roughly to 1 for a model
-    with no skill.
-
-    Args:
-        output_variables: names of outputs in order
-        output_packer: packer which includes all of the output variables,
-            in any order (having more variables is fine)
-        output_scaler: scaler which has been fit to all output variables
-        loss_type: can be "mse" or "mae"
-
-    Returns:
-        loss_list: loss functions for output variables in order
-    """
-    if output_scaler.std is None:
-        raise ValueError("output_scaler must be fit before passing it to this function")
-    std = output_packer.to_dataset(output_scaler.std[None, :])
-
-    # we want each output to contribute equally, so for a
-    # mean squared error loss we need to normalize by the variance of
-    # each one
-    # here we want layers to have importance which is proportional to how much
-    # variance there is in that layer, so the variance we use should be
-    # constant across layers
-    # we need to compute the variance independently for each layer and then
-    # average them, so that we don't include variance in the mean profile
-    # we use a 1/N scale for each one, so the total expected loss is 1.0 if
-    # we have zero skill
-
-    n_outputs = len(output_variables)
-    loss_list = []
-    for name in output_variables:
-        if loss_type == "mse":
-            factor = tf.constant(
-                1.0 / n_outputs / np.mean(std[name].values ** 2), dtype=tf.float32
-            )
-            loss = multiply_loss_by_factor(tf.losses.mse, factor)
-        elif loss_type == "mae":
-            factor = tf.constant(
-                1.0 / n_outputs / np.mean(std[name].values), dtype=tf.float32
-            )
-            loss = multiply_loss_by_factor(tf.losses.mae, factor)
-        else:
-            raise NotImplementedError(f"loss_type {loss_type} is not implemented")
-        loss_list.append(loss)
-
-    return loss_list
 
 
 @dataclasses.dataclass
