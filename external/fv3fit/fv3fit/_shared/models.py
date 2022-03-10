@@ -1,4 +1,4 @@
-from typing import Iterable, Set, Hashable, List
+from typing import Iterable, Set, Hashable, Sequence
 import fsspec
 import yaml
 import os
@@ -16,7 +16,7 @@ class DerivedModel(Predictor):
     _BASE_MODEL_SUBDIR = "base_model_data"
 
     def __init__(
-        self, model: Predictor, derived_output_variables: List[Hashable],
+        self, model: Predictor, derived_output_variables: Sequence[Hashable],
     ):
         """
 
