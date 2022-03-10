@@ -17,6 +17,9 @@ requirements = [
     "dacite>=1.6.0",
     "wandb[media]>=0.12.1",
     "pace-util>=0.7.0",
+    "matplotlib",
+    "plotly",
+    "tensorboard",
 ]
 
 setup_requirements = []
