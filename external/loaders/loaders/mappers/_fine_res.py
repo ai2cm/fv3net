@@ -199,8 +199,8 @@ def compute_flux_form_budget(merged: xr.Dataset, include_temperature_nudging: bo
     merged["Qm"] = Qm
     merged["Qm_flux"] = Qm_flux.chunk({"z": Qm_flux.sizes["z"]})
     merged["Q2_flux"] = Q2_flux.chunk({"z": Q2_flux.sizes["z"]})
-    merged["downward_surface_Q2_flux"] = downward_sfc_Q2_flux
-    merged["downward_surface_Qm_flux"] = downward_sfc_Qm_flux
+    merged["implied_surface_precipitation_rate"] = downward_sfc_Q2_flux
+    merged["implied_downward_radiative_flux_at_surface"] = downward_sfc_Qm_flux
     return merged
 
 
