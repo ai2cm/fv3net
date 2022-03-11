@@ -1,5 +1,8 @@
 """Classification and regression scoring routines
 
+Unlike similar sklearn routines these can be used with multi-dimensional or
+xarray data easily.
+
 These should mostly work with any array-like data. Most functions take arguments
 
 
