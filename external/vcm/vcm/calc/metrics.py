@@ -1,3 +1,14 @@
+"""Classification and regression scoring routines
+
+These should mostly work with any array-like data. Most functions take arguments
+
+
+    truth: a boolean array of true values
+    pred: a boolean array of predicted values
+    mean: a function used to compute statics. Can be a sample average,
+        ``vcm.zonal_average``, ``lambda x: x.mean("time")``, etc.
+
+"""
 import functools
 
 
