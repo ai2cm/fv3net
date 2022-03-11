@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from cycler import cycler
 import report
 from fv3net.diagnostics.prognostic_run.views.matplotlib import fig_to_html
+from vcm.calc.metrics import *
 
 
 # https://davidmathlogic.com/colorblind/#%23000000-%23E69F00-%2356B4E9-%23009E73-%23F0E442-%230072B2-%23D55E00-%23CC79A7
@@ -25,43 +26,6 @@ wong_palette = [
     "#CC79A7",
 ]
 plt.rcParams["axes.prop_cycle"] = cycler("color", wong_palette)
-
-
-def accuracy(truth, pred, mean):
-    tp = mean(truth & pred)
-    tn = mean((~truth) & (~pred))
-    return tp + tn
-
-
-def precision(truth, pred, mean):
-    tp = mean(truth & pred)
-    fp = mean((~truth) & pred)
-    return tp / (tp + fp)
-
-
-def recall(truth, pred, mean):
-    tp = mean(truth & pred)
-    fn = mean(truth & (~pred))
-    return tp / (tp + fn)
-
-
-def false_positive_rate(truth, pred, mean):
-    fp = mean((~truth) & pred)
-    n = mean(~truth)
-    return fp / n
-
-
-def true_positive_rate(truth, pred, mean):
-    fp = mean(truth & pred)
-    p = mean(truth)
-    return fp / p
-
-
-def f1_score(truth, pred, mean):
-    p = precision(truth, pred, mean)
-    r = recall(truth, pred, mean)
-
-    return 2 * (p * r) / (p + r)
 
 
 def plot_vertical_accuracy_levels(truth, pred):
