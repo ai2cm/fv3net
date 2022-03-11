@@ -13,11 +13,15 @@ logger.setLevel(logging.INFO)
 
 def _stack_sample_data(ds: xr.Dataset) -> xr.Dataset:
     # for predictions, drop the 'target' values
+    print(ds)
     if "derivation" in ds.dims:
         ds = ds.sel({"derivation": "predict"})
     if "time" in ds.dims:
         ds = ds.isel(time=0).squeeze(drop=True)
-    return ds.stack(sample=["tile", "x", "y"]).transpose("sample", ...)
+    if "dataset" in ds.dims:
+        return ds.stack(sample=["tile", "x", "y", "dataset"]).transpose("sample", ...)
+    else:
+        return ds.stack(sample=["tile", "x", "y"]).transpose("sample", ...)
 
 
 def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
