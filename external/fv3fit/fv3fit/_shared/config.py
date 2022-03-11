@@ -5,6 +5,7 @@ import os
 from typing import (
     Any,
     Callable,
+    Hashable,
     Mapping,
     Optional,
     Tuple,
@@ -14,7 +15,6 @@ from typing import (
     List,
     Type,
     Dict,
-    Hashable,
     MutableMapping,
 )
 from fv3fit.typing import Dataclass
@@ -230,6 +230,18 @@ def to_nested_dict(d: dict):
     return new_config
 
 
+# Small modification to the arg parser so that the error raised by
+# providing invalid args is clearer and does not print a confusing
+# system exit error.
+class ArgumentError(Exception):
+    pass
+
+
+class ArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        raise ArgumentError(message)
+
+
 def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]):
     """
     Update a configuration dictionary with keyword arguments through an ArgParser.
@@ -242,15 +254,16 @@ def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]
         args: a list of argument strings to parse
         config_dict: the configuration to update
     """
-
     config = _to_flat_dict(config_dict)
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
     _add_items_to_parser_arguments(config, parser)
-    updates = parser.parse_args(args)
+    try:
+        updates = parser.parse_args(args)
+    except ArgumentError as e:
+        raise e
+
     update_dict = vars(updates)
-
     config.update(update_dict)
-
     return to_nested_dict(config)
 
 
@@ -315,12 +328,19 @@ class SliceConfig:
         return slice(self.start, self.stop, self.step)
 
 
-ClipDims = Mapping[Hashable, Mapping[str, SliceConfig]]
-
-
 @dataclasses.dataclass(frozen=True)
 class PackerConfig:
-    clip: ClipDims = dataclasses.field(default_factory=dict)
+    """
+    Configuration for packing.
+
+    Attributes:
+        clip: a mapping from variable name to configuration for the slice of
+            the feature (last) dimension of that variable we want to retain.
+            Used to exclude data (e.g. at start or end of dimension). User
+            must ensure the last dimension is the dimension they want to clip.
+    """
+
+    clip: Mapping[Hashable, SliceConfig] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass
