@@ -76,6 +76,15 @@ def sort_by_time(ds: xr.Dataset) -> xr.Dataset:
 
 
 @curry
+def mask_latitude(lat_min, lat_max, ds: xr.Dataset) -> xr.Dataset:
+    if lat_min is not None:
+        ds = ds.where(ds["lat"] >= lat_min)
+    if lat_max is not None:
+        ds = ds.where(ds["lat"] <= lat_max)
+    return ds
+
+
+@curry
 def select_fraction(fraction: float, ds: xr.Dataset) -> xr.Dataset:
     # subselects a random fraction of samples, preserving original order.
     if fraction == 1.0:

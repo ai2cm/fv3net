@@ -23,6 +23,7 @@ from .._utils import (
     dropna,
     select_fraction,
     sort_by_time,
+    mask_latitude,
 )
 from ..constants import TIME_NAME
 from .._config import batches_functions, batches_from_mapper_functions
@@ -53,6 +54,8 @@ def batches_from_mapper(
     drop_nans: bool = False,
     shuffle_timesteps: bool = True,
     shuffle_samples: bool = False,
+    lat_min: float = None,
+    lat_max: float = None,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -114,6 +117,7 @@ def batches_from_mapper(
         ]
 
     transforms.append(add_derived_data(variable_names))
+    transforms.append(mask_latitude(lat_min, lat_max))
 
     if unstacked_dims is not None:
         transforms.append(sort_by_time)
