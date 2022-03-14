@@ -10,14 +10,13 @@ from typing import (
     Union,
 )
 import xarray as xr
-from vcm import safe, parse_datetime_from_str
+from vcm import parse_datetime_from_str
 from toolz import partition_all, curry, compose_left
 from ._sequences import Map
 from .._utils import (
     add_grid_info,
     add_derived_data,
     add_wind_rotation_info,
-    nonderived_variables,
     stack,
     shuffle,
     dropna,
@@ -105,7 +104,7 @@ def batches_from_mapper(
 
     # First function goes from mapper + timesteps to xr.dataset
     # Subsequent transforms are all dataset -> dataset
-    transforms = [_get_batch(data_mapping, variable_names)]
+    transforms = [_get_batch(data_mapping)]
 
     if needs_grid:
         transforms += [
@@ -143,9 +142,7 @@ def batches_from_mapper(
 
 
 @curry
-def _get_batch(
-    mapper: Mapping[str, xr.Dataset], data_vars: Sequence[str], keys: Iterable[str],
-) -> xr.Dataset:
+def _get_batch(mapper: Mapping[str, xr.Dataset], keys: Iterable[str],) -> xr.Dataset:
     """
     Selects requested variables in the dataset that are there by default
     (i.e., not added in derived step) and combines the given mapper keys
@@ -158,8 +155,6 @@ def _get_batch(
     except ValueError:
         time_coords = list(keys)
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
-    nonderived_vars = nonderived_variables(data_vars, tuple(ds.data_vars))
-    ds = safe.get_variables(ds, nonderived_vars)
     return ds
 
 

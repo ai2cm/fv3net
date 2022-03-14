@@ -24,6 +24,14 @@ spec:
           - {name: cpu, value: "6"}
           - {name: memory, value: 6Gi}
       steps:
+      - - name: choose-node-pool
+          templateRef:
+            name: run-fv3gfs
+            template: choose-node-pool
+          arguments:
+            parameters:
+              - {name: cpu-request, value: "{{inputs.parameters.cpu}}"}
+              - {name: cpu-cutoff, value: "24"}
       - - name: restart-run
           templateRef:
             name: run-fv3gfs
@@ -34,4 +42,5 @@ spec:
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
+              - {name: node-pool, value: "{{steps.choose-node-pool.outputs.result}}"}
               - {name: segment, value: 0}
