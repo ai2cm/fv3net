@@ -56,7 +56,23 @@ def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
     return vertical_dim in da.dims
 
 
-def insert_r2(ds_metrics):
+def _insert_r2_dataset_dim(ds_metrics):
+    global_metrics = ds_metrics.mean(DATASET_DIM_NAME)
+    mse_vars = [var for var in ds_metrics if "_mse" in var]
+    global_r2 = xr.Dataset()
+    for mse_var in mse_vars:
+        variance = ds_metrics[mse_var.replace("_mse", "_variance")]
+        ds_metrics[mse_var.replace("_mse", "_r2_per_dataset")] = (
+            1.0 - ds_metrics[mse_var] / variance
+        )
+        global_variance = global_metrics[mse_var.replace("_mse", "_variance")]
+        global_r2[mse_var.replace("_mse", "_r2")] = (
+            1.0 - global_metrics[mse_var] / global_variance
+        )
+    return xr.merge([ds_metrics, global_r2])
+
+
+def _insert_r2(ds_metrics):
     mse_vars = [var for var in ds_metrics if "_mse" in var]
     for mse_var in mse_vars:
         variance = ds_metrics[mse_var.replace("_mse", "_variance")]
@@ -64,6 +80,28 @@ def insert_r2(ds_metrics):
             1.0 - ds_metrics[mse_var] / variance
         )
     return ds_metrics
+
+
+def insert_r2(ds_metrics):
+    if DATASET_DIM_NAME in ds_metrics.dims:
+        return _insert_r2_dataset_dim(ds_metrics)
+    else:
+        return _insert_r2(ds_metrics)
+
+
+def insert_global_bias_metrics(ds_metrics):
+    if DATASET_DIM_NAME in ds_metrics.dims:
+        bias_vars = [var for var in ds_metrics if "bias" in var]
+        global_bias = xr.Dataset()
+        per_dataset_bias = xr.Dataset()
+        for bias_var in bias_vars:
+            per_dataset_bias[bias_var.replace("bias", "per_dataset_bias")] = ds_metrics[
+                bias_var
+            ]
+            global_bias[bias_var] = ds_metrics[bias_var].mean(DATASET_DIM_NAME)
+        return xr.merge([ds_metrics.drop(bias_vars), per_dataset_bias, global_bias])
+    else:
+        return ds_metrics
 
 
 def insert_rmse(ds: xr.Dataset):

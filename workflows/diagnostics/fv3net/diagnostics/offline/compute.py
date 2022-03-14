@@ -24,6 +24,7 @@ from ._helpers import (
     load_grid_info,
     is_3d,
     insert_r2,
+    insert_global_bias_metrics,
     insert_rmse,
     insert_column_integrated_vars,
 )
@@ -171,10 +172,10 @@ def _compute_diagnostics(
 
     # then average over the batches for each output
     ds_summary = xr.concat(batches_summary, dim="batch")
+    ds_summary = insert_r2(ds_summary)
+    ds_summary = insert_global_bias_metrics(ds_summary)
     ds_diagnostics, ds_scalar_metrics = _consolidate_dimensioned_data(ds_summary)
-
-    ds_scalar_metrics = insert_r2(ds_scalar_metrics)
-    ds_diagnostics = ds_diagnostics.pipe(insert_r2).pipe(insert_rmse)
+    ds_diagnostics = ds_diagnostics.pipe(insert_rmse)
     ds_diagnostics, ds_scalar_metrics = _standardize_names(
         ds_diagnostics, ds_scalar_metrics
     )
@@ -184,12 +185,8 @@ def _compute_diagnostics(
 
 def _consolidate_dimensioned_data(ds):
     # moves dimensioned quantities into final diags dataset so they're saved as netcdf
-    scalar_metrics = [
-        var for var in ds if set(ds[var].dims) <= {DATASET_DIM_NAME, "batch"}
-    ]
+    scalar_metrics = [var for var in ds if ds[var].size == len(ds.batch)]
     ds_scalar_metrics = safe.get_variables(ds, scalar_metrics)
-    if DATASET_DIM_NAME in ds_scalar_metrics.dims:
-        ds_scalar_metrics = ds_scalar_metrics.mean(DATASET_DIM_NAME)
     ds_metrics_arrays = ds.drop(scalar_metrics)
     ds_diagnostics = ds.merge(ds_metrics_arrays)
     return ds_diagnostics, ds_scalar_metrics

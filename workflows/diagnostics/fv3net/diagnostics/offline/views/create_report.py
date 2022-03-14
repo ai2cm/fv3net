@@ -287,7 +287,9 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
 
     # scalar metrics for RMSE and bias
     metrics_formatted = []
-    scalar_vars_r2 = sorted([var for var in metrics if "r2" in var])
+    scalar_vars_r2 = sorted(
+        [var for var in metrics if "_r2" in var and "per_dataset" not in var]
+    )
     scalar_vars_bias = [var.replace("_r2", "_bias") for var in scalar_vars_r2]
 
     for var_r2, var_bias in zip(scalar_vars_r2, scalar_vars_bias):
