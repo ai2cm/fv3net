@@ -11,7 +11,7 @@ from vcm.cloud import gsutil
 from vcm.catalog import catalog
 
 DELP = "pressure_thickness_of_atmospheric_layer"
-
+DATASET_DIM_NAME = "dataset"
 
 UNITS = {
     "column_integrated_dq1": "[W/m2]",
