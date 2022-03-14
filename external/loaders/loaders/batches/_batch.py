@@ -104,7 +104,7 @@ def batches_from_mapper(
 
     # First function goes from mapper + timesteps to xr.dataset
     # Subsequent transforms are all dataset -> dataset
-    transforms = [_get_batch(data_mapping, variable_names)]
+    transforms = [_get_batch(data_mapping)]
 
     if needs_grid:
         transforms += [
@@ -142,9 +142,7 @@ def batches_from_mapper(
 
 
 @curry
-def _get_batch(
-    mapper: Mapping[str, xr.Dataset], data_vars: Sequence[str], keys: Iterable[str],
-) -> xr.Dataset:
+def _get_batch(mapper: Mapping[str, xr.Dataset], keys: Iterable[str],) -> xr.Dataset:
     """
     Selects requested variables in the dataset that are there by default
     (i.e., not added in derived step) and combines the given mapper keys

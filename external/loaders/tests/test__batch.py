@@ -57,11 +57,7 @@ def random_state():
 
 
 def test__get_batch(mapper):
-    ds = _get_batch(
-        mapper=mapper,
-        data_vars=["air_temperature", "specific_humidity"],
-        keys=mapper.keys(),
-    )
+    ds = _get_batch(mapper=mapper, keys=mapper.keys(),)
     assert len(ds["time"]) == 4
 
 
