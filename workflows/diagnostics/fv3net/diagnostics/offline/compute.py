@@ -20,7 +20,7 @@ from .compute_diagnostics import compute_diagnostics
 from .derived_diagnostics import derived_registry
 from ._input_sensitivity import plot_input_sensitivity
 from ._helpers import (
-    DATASET_DIM_NAME
+    DATASET_DIM_NAME,
     load_grid_info,
     is_3d,
     insert_r2,
@@ -165,8 +165,6 @@ def _compute_diagnostics(
             prediction, target, grid, ds[DELP], n_jobs=n_jobs
         )
         ds_summary["time"] = ds["time"]
-        if DATASET_DIM_NAME in ds_summary.dims:
-            ds_summary = ds_summary.mean("dataset")
 
         batches_summary.append(ds_summary.load())
         del ds
@@ -186,8 +184,12 @@ def _compute_diagnostics(
 
 def _consolidate_dimensioned_data(ds):
     # moves dimensioned quantities into final diags dataset so they're saved as netcdf
-    scalar_metrics = [var for var in ds if ds[var].size == len(ds.batch)]
+    scalar_metrics = [
+        var for var in ds if set(ds[var].dims) <= {DATASET_DIM_NAME, "batch"}
+    ]
     ds_scalar_metrics = safe.get_variables(ds, scalar_metrics)
+    if DATASET_DIM_NAME in ds_scalar_metrics.dims:
+        ds_scalar_metrics = ds_scalar_metrics.mean(DATASET_DIM_NAME)
     ds_metrics_arrays = ds.drop(scalar_metrics)
     ds_diagnostics = ds.merge(ds_metrics_arrays)
     return ds_diagnostics, ds_scalar_metrics

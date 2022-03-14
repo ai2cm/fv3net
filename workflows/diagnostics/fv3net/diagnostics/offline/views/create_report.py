@@ -23,6 +23,7 @@ from fv3net.diagnostics.offline._helpers import (
 )
 from fv3net.diagnostics.offline._select import plot_transect
 from fv3net.diagnostics.offline.compute import (
+    DATASET_DIM_NAME,
     DIAGS_NC_NAME,
     TRANSECT_NC_NAME,
     METRICS_JSON_NAME,
@@ -344,6 +345,9 @@ def create_report(args):
         metrics_json_name=METRICS_JSON_NAME,
         metadata_json_name=METADATA_JSON_NAME,
     )
+
+    if DATASET_DIM_NAME in ds_diags.dims:
+        ds_diags = ds_diags.mean(DATASET_DIM_NAME)
 
     if args.commit_sha:
         metadata["commit"] = args.commit_sha
