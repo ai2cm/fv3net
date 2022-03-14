@@ -20,6 +20,7 @@ from .compute_diagnostics import compute_diagnostics
 from .derived_diagnostics import derived_registry
 from ._input_sensitivity import plot_input_sensitivity
 from ._helpers import (
+    DATASET_DIM_NAME
     load_grid_info,
     is_3d,
     insert_r2,
@@ -44,7 +45,6 @@ TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 METADATA_JSON_NAME = "metadata.json"
 
-DATASET_DIM_NAME = "dataset"
 DERIVATION_DIM_NAME = "derivation"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PREDICT_COORD = "predict"
@@ -165,6 +165,8 @@ def _compute_diagnostics(
             prediction, target, grid, ds[DELP], n_jobs=n_jobs
         )
         ds_summary["time"] = ds["time"]
+        if DATASET_DIM_NAME in ds_summary.dims:
+            ds_summary = ds_summary.mean("dataset")
 
         batches_summary.append(ds_summary.load())
         del ds
