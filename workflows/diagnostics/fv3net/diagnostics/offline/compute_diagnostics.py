@@ -294,9 +294,10 @@ for mask_type in ["global", "sea", "land"]:
             diag_arg.verification,
             diag_arg.grid,
         )
-        return weighted_mean(
+        mse_area_weighted_avg = weighted_mean(
             (predicted - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
-        ).mean("time")
+        )
+        return mse_area_weighted_avg.mean("time")
 
 
 for mask_type in ["global", "sea", "land"]:
@@ -314,9 +315,10 @@ for mask_type in ["global", "sea", "land"]:
         logger.info(f"Preparing mean squared errors for 3D variables, {mask_type}")
         if len(predicted) == 0:
             return xr.Dataset()
-        return weighted_mean(
+        mse_area_weighted_avg = weighted_mean(
             (predicted - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
-        ).mean("time")
+        )
+        return mse_area_weighted_avg.mean("time")
 
 
 for mask_type in ["global", "sea", "land"]:
@@ -370,9 +372,10 @@ for mask_type in ["global", "sea", "land"]:
             diag_arg.verification,
             diag_arg.grid,
         )
-        return weighted_mean(
+        biases_area_weighted_avg = weighted_mean(
             predicted - target, weights=grid.area, dims=HORIZONTAL_DIMS
-        ).mean("time")
+        )
+        return biases_area_weighted_avg.mean("time")
 
 
 for mask_type in ["global", "sea", "land"]:
@@ -390,9 +393,10 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        return weighted_mean(
+        biases_area_weighted_avg = weighted_mean(
             predicted - target, weights=grid.area, dims=HORIZONTAL_DIMS
-        ).mean("time")
+        )
+        return biases_area_weighted_avg.mean("time")
 
 
 for mask_type in ["global", "sea", "land"]:
@@ -407,7 +411,8 @@ for mask_type in ["global", "sea", "land"]:
             diag_arg.verification,
             diag_arg.grid,
         )
-        return zonal_mean(predicted - target, grid.lat).mean("time")
+        zonal_avg_bias = zonal_mean(predicted - target, grid.lat)
+        return zonal_avg_bias.mean("time")
 
 
 for mask_type in ["global", "sea", "land"]:
@@ -425,7 +430,8 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        return zonal_mean(predicted - target, grid.lat).mean("time")
+        zonal_avg_bias = zonal_mean(predicted - target, grid.lat)
+        return zonal_avg_bias.mean("time")
 
 
 for mask_type in ["global", "sea", "land"]:
@@ -443,7 +449,8 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        return zonal_mean((predicted - target) ** 2, grid.lat).mean("time")
+        zonal_avg_mse = zonal_mean((predicted - target) ** 2, grid.lat)
+        return zonal_avg_mse.mean("time")
 
 
 for mask_type in ["global", "sea", "land"]:
@@ -465,7 +472,8 @@ for mask_type in ["global", "sea", "land"]:
         mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
             "time"
         )
-        return zonal_mean((mean - target) ** 2, grid.lat).mean("time")
+        zonal_avg_variance = zonal_mean((mean - target) ** 2, grid.lat)
+        return zonal_avg_variance.mean("time")
 
 
 for mask_type in ["global", "land", "sea"]:
