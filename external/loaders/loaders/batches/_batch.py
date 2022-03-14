@@ -10,14 +10,13 @@ from typing import (
     Union,
 )
 import xarray as xr
-from vcm import safe, parse_datetime_from_str
+from vcm import parse_datetime_from_str
 from toolz import partition_all, curry, compose_left
 from ._sequences import Map
 from .._utils import (
     add_grid_info,
     add_derived_data,
     add_wind_rotation_info,
-    nonderived_variables,
     stack,
     shuffle,
     dropna,
@@ -158,8 +157,6 @@ def _get_batch(
     except ValueError:
         time_coords = list(keys)
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
-    nonderived_vars = nonderived_variables(data_vars, tuple(ds.data_vars))
-    ds = safe.get_variables(ds, nonderived_vars)
     return ds
 
 
