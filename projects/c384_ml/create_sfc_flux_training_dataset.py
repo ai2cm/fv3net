@@ -100,7 +100,7 @@ def main(state_path, output_path, verification_key):
     client = Client()
     logging.info(f"See dask client dashboard: {client.dashboard_link}")
 
-    verif_ds = _verification_fluxes(VERIFICATION_KEY)
+    verif_ds = _verification_fluxes(verification_key)
 
     logging.info(
         f"Writing training data zarr using state from {state_path} "
