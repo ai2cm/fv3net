@@ -7,25 +7,14 @@ import report
 import vcm
 import xarray as xr
 import xhistogram.xarray
-from cycler import cycler
+import fv3viz
 from vcm import accuracy, f1_score, false_positive_rate, precision, true_positive_rate
 
 from fv3net.diagnostics.prognostic_run.emulation import tendencies
 from fv3net.diagnostics.prognostic_run.emulation.single_run import open_rundir
 from fv3net.diagnostics.prognostic_run.views.matplotlib import fig_to_html
 
-# https://davidmathlogic.com/colorblind/#%23000000-%23E69F00-%2356B4E9-%23009E73-%23F0E442-%230072B2-%23D55E00-%23CC79A7
-wong_palette = [
-    "#000000",
-    "#E69F00",
-    "#56B4E9",
-    "#009E73",
-    "#F0E442",
-    "#0072B2",
-    "#D55E00",
-    "#CC79A7",
-]
-plt.rcParams["axes.prop_cycle"] = cycler("color", wong_palette)
+fv3viz.use_colorblind_friendly_style()
 
 
 def temperature_average(temperature, arr):
