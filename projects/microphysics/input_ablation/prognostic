@@ -1,32 +1,31 @@
 #!/bin/bash
 
-tags=(
-    in-ablat-gscond-log-q-qc-rnn-e2c20e
-    in-ablat-gscond-log-q-qc-dense-e2c20e
-    in-ablat-log-q-qc-rnn-e2c20e
-    in-ablat-log-q-qc-dense-e2c20e
-    in-ablat-log-q-qc-exclusive-rnn-e2c20e
-    in-ablat-log-q-qc-exclusive-dense-e2c20e
-    in-ablat-gscond-rnn-e2c20e
-    in-ablat-gscond-dense-e2c20e
-    in-ablat-base-rnn-e2c20e
-    in-ablat-base-dense-e2c20e
+
+exps=(
+    "2022-03-01/in-ablat-pressure-dense-f64313"
+    "2022-03-01/in-ablat-gscond-log-q-qc-pressure-dense-f64313"
+    "2022-02-27/in-ablat-gscond-log-q-qc-dense-0a08eb"
+    "2022-02-25/in-ablat-log-q-qc-exclusive-dense-4201be"
+    "2022-02-25/in-ablat-gscond-dense-4201be"
+    "2022-02-25/in-ablat-log-q-qc-dense-4201be"
+    "2022-02-25/in-ablat-base-dense-4201be"
 )
 
-group="$(openssl rand -hex 3)"
-image=9a68fb66d235223056812cc302fe0c2fe2717a53
 
-for tag in ${tags[@]}
+image=latest
+
+for exp in ${exps[@]}
 do
+    tag=$(echo $exp | sed --expression='s/^.\{11\}//')-30d-v1
+    # url=gs://vcm-ml-experiments/microphysics-emulation/$exp/model.tf
 
-    url=gs://vcm-ml-experiments/microphysics-emulation/2022-02-24/${tag}/model.tf
-    run_tag=${tag}-10d-${group}
+    # yq  --arg url "$url" '.zhao_carr_emulation.model.path |= $url' ../configs/default.yaml > config.yaml
+    # trap 'rm config.yaml' EXIT
 
-    argo submit ../argo/prog-run-and-eval.yaml \
-        -p tag=$run_tag \
-        -p image_tag=$image \
-        -p config=$(base64 --wrap 0 ../configs/default.yaml) \
-        -p tf_model=$url
-
+    # argo submit ../argo/prog-run-and-eval.yaml \
+    #     --name "$tag" \
+    #     -p image_tag="$image" \
+    #     -p tag=$tag \
+    #     -p config=$(base64 --wrap 0 config.yaml) | grep -v 'config:' | tee -a submitted-jobs.txt
+    argo get $tag
 done
-
