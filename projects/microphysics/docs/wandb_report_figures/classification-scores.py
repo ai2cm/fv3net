@@ -11,7 +11,6 @@ from vcm import accuracy, f1_score, false_positive_rate, precision, true_positiv
 
 from fv3net.diagnostics.prognostic_run.emulation import tendencies
 from fv3net.diagnostics.prognostic_run.emulation.single_run import open_rundir
-from fv3net.diagnostics.prognostic_run.views.matplotlib import fig_to_html
 
 fv3viz.use_colorblind_friendly_style()
 
@@ -86,7 +85,7 @@ def temperature_z_binned_diags(
 
     def insert_fig(key):
         plt.title(key)
-        figures.append(fig_to_html(plt.gcf()))
+        figures.append(report.MatplotlibFigure(plt.gcf()))
         plt.close(plt.gcf())
 
     truth = tendency(ds, field, "physics")
@@ -143,7 +142,7 @@ def classification_diags(ds, tendency, field):
 
     def insert_fig(key):
         plt.title(key)
-        figures.append(fig_to_html(plt.gcf()))
+        figures.append(report.MatplotlibFigure(plt.gcf()))
         plt.close(plt.gcf())
 
     truth = tendency(ds, field, "physics")

@@ -1,5 +1,3 @@
-import base64
-import io
 import logging
 from collections import defaultdict
 from typing import Tuple, Mapping
@@ -16,21 +14,9 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 import fv3viz
-from report import RawHTML
+from report import MatplotlibFigure, RawHTML
 
 COORD_VARS = ["lon", "lat", "lonb", "latb"]
-
-
-def fig_to_b64(fig, format="png", dpi=None):
-    pic_IObytes = io.BytesIO()
-    fig.savefig(pic_IObytes, format=format, bbox_inches="tight", dpi=dpi)
-    pic_IObytes.seek(0)
-    pic_hash = base64.b64encode(pic_IObytes.read())
-    return f"data:image/png;base64, " + pic_hash.decode()
-
-
-def fig_to_html(fig):
-    return RawHTML('<img src="' + fig_to_b64(fig) + '" />')
 
 
 template = jinja2.Template(
@@ -48,7 +34,7 @@ template = jinja2.Template(
 <tr>
 {% for run in runs %}
 <td>
-<img src="{{ image_data[varname][run] }}" width="500px" />
+{{ images[varname][run] }}
 </td>
 {% endfor %}
 </tr>
@@ -105,11 +91,11 @@ def plot_2d_matplotlib(
                 ax.set_ylabel(ylabel)
             ax.set_title(long_name_and_units)
             plt.tight_layout()
-            data[varname][run] = fig_to_b64(fig)
+            data[varname][run] = MatplotlibFigure(fig, width="500px")
             plt.close(fig)
     return RawHTML(
         template.render(
-            image_data=data,
+            images=data,
             runs=sorted(run_diags.runs),
             variables_to_plot=sorted(variables_to_plot),
             varfilter=varfilter,
@@ -157,11 +143,11 @@ def plot_cubed_sphere_map(
             fv3viz.plot_cube(ds, varname, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
             ax.set_title(plot_title)
             plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
-            data[varname][run] = fig_to_b64(fig)
+            data[varname][run] = MatplotlibFigure(fig)
             plt.close(fig)
     return RawHTML(
         template.render(
-            image_data=data,
+            images=data,
             runs=sorted(run_diags.runs),
             variables_to_plot=sorted(variables_to_plot),
             varfilter=varfilter,
@@ -187,9 +173,9 @@ def plot_histogram(
     ax.set_xlim([v[bin_name].values[0], v[bin_name].values[-1]])
     ax.legend()
     fig.tight_layout()
-    data = fig_to_b64(fig, dpi=150)
+    html = MatplotlibFigure(fig, width="800px")
     plt.close(fig)
-    return RawHTML(f'<img src="{data}" width="800px" />')
+    return html
 
 
 def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHTML:
@@ -224,11 +210,11 @@ def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHT
         ax.set_xlim([xedges[0], xedges[-1]])
         ax.set_ylim([yedges[0], yedges[-1]])
         plt.tight_layout()
-        data[count_name][run] = fig_to_b64(fig)
+        data[count_name][run] = MatplotlibFigure(fig)
         plt.close(fig)
     return RawHTML(
         template.render(
-            image_data=data,
+            images=data,
             runs=sorted(run_diags.runs),
             variables_to_plot=[count_name],
             varfilter="2D Histogram",
