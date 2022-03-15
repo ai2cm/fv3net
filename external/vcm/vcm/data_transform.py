@@ -1,11 +1,10 @@
-from collections import defaultdict
 import dataclasses
 from toolz.functoolz import curry
-from typing import Callable, Union, Literal, Sequence
+from typing import Callable, Literal, Sequence, MutableMapping
 import xarray as xr
 import vcm
 
-DATA_TRANSFORM_FUNCTIONS = {}
+DATA_TRANSFORM_FUNCTIONS: MutableMapping[str, Callable[..., xr.Dataset]] = {}
 
 
 @curry
@@ -80,4 +79,3 @@ class ChainedDataTransform:
         for transform_config in self.config:
             ds = DataTransform(transform_config).apply(ds)
         return ds
-
