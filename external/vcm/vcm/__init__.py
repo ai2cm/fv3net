@@ -70,5 +70,11 @@ from .calc.vertical_flux import (
 
 from .cdl.generate import cdl_to_dataset
 
+from .data_transform import (
+    DataTransformConfig,
+    DataTransform,
+    ChainedDataTransform,
+)
+
 __all__ = [item for item in dir() if not item.startswith("_")]
 __version__ = "0.1.0"
