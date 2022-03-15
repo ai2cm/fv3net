@@ -1,4 +1,6 @@
+import dataclasses
 from typing import Iterable, Set, Hashable, Sequence
+import dacite
 import fsspec
 import yaml
 import os
@@ -177,3 +179,52 @@ class EnsembleModel(Predictor):
         models = [io.load(path) for path in config["models"]]
         reduction = config["reduction"]
         return cls(models, reduction)
+
+
+@io.register("output_transformed_model")
+class TransformedPredictor(Predictor):
+    _CONFIG_FILENAME = "output_transformed_model.yaml"
+    _BASE_MODEL_SUBDIR = "base_model_data"
+
+    def __init__(
+        self,
+        base_model: Predictor,
+        transform_configs: Sequence[vcm.DataTransformConfig],
+    ):
+        """
+        Args:
+            base_model: trained ML model whose predicted output(s) will be
+                used as inputs for the specified transforms.
+            transform: data transformation to apply to model prediction outputs.
+        """
+        self.base_model = base_model
+        self.transform_configs = transform_configs
+        self.output_transform = vcm.ChainedDataTransform(self.transform_configs)
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        base_prediction = self.base_model.predict(X)
+        return self.output_transform.apply(base_prediction)
+
+    def dump(self, path: str):
+        base_model_path = os.path.join(path, self._BASE_MODEL_SUBDIR)
+        options = {
+            "base_model": base_model_path,
+            "transform_configs": [
+                dataclasses.asdict(x) for x in self.transform_configs
+            ],
+        }
+        io.dump(self.base_model, base_model_path)
+        with fsspec.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
+            yaml.safe_dump(options, f)
+
+    @classmethod
+    def load(cls, path: str) -> "TransformedPredictor":
+        with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+            config = yaml.safe_load(f)
+        base_model = io.load(config["base_model"])
+        transform_configs = [
+            dacite.from_dict(vcm.DataTransformConfig, x)
+            for x in config["transform_configs"]
+        ]
+        transformed_model = cls(base_model, transform_configs)
+        return transformed_model

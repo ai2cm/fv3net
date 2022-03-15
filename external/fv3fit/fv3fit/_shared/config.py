@@ -25,6 +25,7 @@ import dacite
 import numpy as np
 import random
 import warnings
+import vcm
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
@@ -77,6 +78,9 @@ class TrainingConfig:
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
     derived_output_variables: List[str] = dataclasses.field(default_factory=list)
+    output_transforms: Sequence[vcm.DataTransformConfig] = dataclasses.field(
+        default_factory=list
+    )
     cache: CacheConfig = dataclasses.field(default_factory=lambda: CacheConfig())
 
     @property
