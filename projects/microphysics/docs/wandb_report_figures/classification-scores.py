@@ -1,20 +1,18 @@
-# flake8: noqa
-# %%
-from collections import defaultdict
-from fv3net.diagnostics.prognostic_run.emulation.single_run import *
-from fv3net.diagnostics.prognostic_run.emulation import tendencies
+import sys
+
+import matplotlib.pyplot as plt
 import numpy
 import numpy as np
+import report
 import vcm
 import xarray as xr
-import matplotlib.pyplot as plt
-from cycler import cycler
-import report
-from fv3net.diagnostics.prognostic_run.views.matplotlib import fig_to_html
-from vcm.calc.metrics import *
-import sys
 import xhistogram.xarray
+from cycler import cycler
+from vcm import accuracy, f1_score, false_positive_rate, precision, true_positive_rate
 
+from fv3net.diagnostics.prognostic_run.emulation import tendencies
+from fv3net.diagnostics.prognostic_run.emulation.single_run import open_rundir
+from fv3net.diagnostics.prognostic_run.views.matplotlib import fig_to_html
 
 # https://davidmathlogic.com/colorblind/#%23000000-%23E69F00-%2356B4E9-%23009E73-%23F0E442-%230072B2-%23D55E00-%23CC79A7
 wong_palette = [
@@ -207,7 +205,7 @@ TENDENCIES = [
 FIELDS = ["cloud_water"]
 TENDENCIES = [tendencies.precpd_tendency]
 
-url = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-03/limit-tests-limiter-all-loss-rnn-7ef273-10d-88ef76-offline"
+url = sys.argv[1]
 ds = open_rundir(url)
 ds = ds.isel(time=slice(0, 8))
 
