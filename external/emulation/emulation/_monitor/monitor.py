@@ -2,7 +2,7 @@ import dataclasses
 import logging
 import os
 import json
-from typing import Mapping, Tuple
+from typing import Mapping
 import cftime
 import f90nml
 import yaml
@@ -16,6 +16,7 @@ import emulation.serialize
 from pace.util import ZarrMonitor, CubedSpherePartitioner, Quantity
 from ..debug import print_errors
 from .._typing import FortranState
+from emulation._time import translate_time
 
 
 logger = logging.getLogger(__name__)
@@ -143,20 +144,6 @@ def _convert_to_xr_dataset(state, metadata):
         dataset[key] = xr.DataArray(data_t, dims=dims, attrs=attrs)
 
     return xr.Dataset(dataset)
-
-
-def _translate_time(time: Tuple[int, int, int, int, int, int]) -> cftime.DatetimeJulian:
-
-    # list order is set by fortran from variable Model%jdat
-    year = time[0]
-    month = time[1]
-    day = time[2]
-    hour = time[4]
-    min = time[5]
-    datetime = cftime.DatetimeJulian(year, month, day, hour, min)
-    logger.debug(f"Translated input time: {datetime}")
-
-    return datetime
 
 
 def _create_nc_path():
@@ -305,7 +292,7 @@ class StorageHook:
         """
 
         state = dict(**state)
-        time = _translate_time(state.pop("model_time"))
+        time = translate_time(state.pop("model_time"))
 
         if self.initial_time is None:
             self.initial_time = time

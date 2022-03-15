@@ -13,8 +13,8 @@ from emulation._monitor.monitor import (
     _get_timestep,
     _load_nml,
     _remove_io_suffix,
-    _translate_time,
 )
+from emulation._time import translate_time
 from pace.util import Quantity
 from xarray import DataArray
 
@@ -109,7 +109,7 @@ def test__translate_time():
     month = 10
     day = 29
 
-    time = _translate_time([year, month, day, None, 0, 0])
+    time = translate_time([year, month, day, None, 0, 0])
 
     assert time.year == year
     assert time.month == month
