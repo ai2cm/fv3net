@@ -1,11 +1,19 @@
+import datetime
 import numpy as np
 
-from emulation._emulate.microphysics import MicrophysicsHook
+import cftime
+import pytest
+from emulation._emulate.microphysics import (
+    MicrophysicsHook,
+    always_right,
+    IntervalSchedule,
+    TimeMask,
+)
 
 
 def test_Config_integration(saved_model_path):
 
-    config = MicrophysicsHook(saved_model_path)
+    config = MicrophysicsHook(saved_model_path, always_right)
 
     state = {
         "air_temperature_input": np.ones((63, 100)),
@@ -27,3 +35,22 @@ def test_Config_integration(saved_model_path):
         np.testing.assert_array_almost_equal(input + 1, updated)
 
         state["air_temperature_input"] = updated
+
+
+def test_IntervalSchedule():
+    scheduler = IntervalSchedule(
+        datetime.timedelta(hours=3), cftime.DatetimeJulian(2000, 1, 1)
+    )
+    assert scheduler(cftime.DatetimeJulian(2000, 1, 1)) == 1
+    assert scheduler(cftime.DatetimeJulian(2000, 1, 1, 1)) == 1
+    assert scheduler(cftime.DatetimeJulian(2000, 1, 1, 1, 30)) == 0
+    assert scheduler(cftime.DatetimeJulian(2000, 1, 1, 2)) == 0
+
+
+@pytest.mark.parametrize("weight", [0.0, 0.5, 1.0])
+def test_TimeMask(weight):
+    expected = weight
+    mask = TimeMask(schedule=lambda time: weight)
+    left = {"a": 0.0, "model_time": [2021, 1, 1, 0, 0, 0]}
+    right = {"a": 1.0}
+    assert mask(left, right) == {"a": expected}

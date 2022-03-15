@@ -187,3 +187,11 @@ def test_StorageHook_save_tf(dummy_rundir):
             ), key
             assert tf_ds.element_spec[key].shape[0] is None
     assert len(list(tf_ds)) == n
+
+
+def test_StorageHook_does_not_modify_state(dummy_rundir):
+    hook = StorageHook("", output_freq_sec=1, save_nc=False, save_zarr=False)
+    state = {"a": 0.0, "model_time": [2021, 1, 1, 0, 0, 0]}
+    state_before = state.copy()
+    hook.store(state)
+    assert state == state_before

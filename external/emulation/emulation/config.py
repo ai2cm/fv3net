@@ -1,11 +1,20 @@
 import dataclasses
+import datetime
 import logging
 from typing import Optional
 
+import cftime
 import dacite
 import yaml
-from emulation._emulate.microphysics import MicrophysicsHook
+from emulation._emulate.microphysics import (
+    MicrophysicsHook,
+    IntervalSchedule,
+    Mask,
+    TimeMask,
+    always_right,
+)
 from emulation._monitor.monitor import StorageConfig, StorageHook
+from emulation._time import from_datetime
 
 logger = logging.getLogger("emulation")
 
@@ -16,7 +25,27 @@ def do_nothing(state):
 
 @dataclasses.dataclass
 class ModelConfig:
+    """
+
+    Attributes:
+        path: path to a saved tensorflow model
+        online_schedule: an object controlling when to use the emulator instead
+            of the fortran model. Only supports scheduling by an interval.
+            The physics is used for the first half of the interval, and the ML
+            for the second half.
+    """
+
     path: str
+    online_schedule: Optional[IntervalSchedule] = None
+
+    def build(self) -> MicrophysicsHook:
+        return MicrophysicsHook(self.path, mask=self._build_mask())
+
+    def _build_mask(self) -> Mask:
+        if self.online_schedule:
+            return TimeMask(self.online_schedule)
+        else:
+            return always_right
 
 
 @dataclasses.dataclass
@@ -31,7 +60,7 @@ class EmulationConfig:
             logger.info("No model configured.")
             return do_nothing
         else:
-            return MicrophysicsHook(model.path).microphysics
+            return model.build().microphysics
 
     def build_model_hook(self):
         return self._build_model(self.model)
@@ -46,6 +75,19 @@ class EmulationConfig:
         else:
             return StorageHook(**dataclasses.asdict(self.storage)).store
 
+    @staticmethod
+    def from_dict(config: dict) -> "EmulationConfig":
+        return dacite.from_dict(
+            EmulationConfig,
+            config,
+            config=dacite.Config(
+                type_hooks={
+                    cftime.DatetimeJulian: from_datetime,
+                    datetime.timedelta: (lambda x: datetime.timedelta(seconds=x)),
+                }
+            ),
+        )
+
 
 def get_hooks():
     path = "fv3config.yml"
@@ -56,7 +98,7 @@ def get_hooks():
     except FileNotFoundError:
         logging.warn("Config not found...using defaults.")
         dict_ = {}
-    config = dacite.from_dict(EmulationConfig, dict_.get(config_key, {}))
+    config = EmulationConfig.from_dict(dict_.get(config_key, {}))
 
     return (
         config.build_gscond_hook(),

@@ -1,6 +1,12 @@
+from dataclasses import dataclass
+import datetime
+from typing import Callable
+import cftime
 import gc
 import sys
+
 from .._typing import FortranState
+from .._time import translate_time
 
 # Tensorflow looks at sys args which are not initialized
 # when this module is loaded under callpyfort, so ensure
@@ -36,6 +42,40 @@ def _load_tf_model(model_path: str) -> tf.keras.Model:
         )
 
 
+@dataclass
+class IntervalSchedule:
+    """Select left value if in first half of interval of a given ``period`` and
+    ``initial_time``.
+    """
+
+    period: datetime.timedelta
+    initial_time: cftime.DatetimeJulian
+
+    def __call__(self, time: cftime.DatetimeJulian) -> float:
+        fraction_of_interval = (time - self.initial_time) / self.period
+        return 1.0 if fraction_of_interval < 0.5 else 0.0
+
+
+@dataclass
+class TimeMask:
+    schedule: IntervalSchedule
+
+    def __call__(self, left: FortranState, right: FortranState) -> FortranState:
+        time = translate_time(left["model_time"])
+        alpha = self.schedule(time)
+        common_keys = set(left) & set(right)
+        return {
+            key: left[key] * (1 - alpha) + right[key] * alpha for key in common_keys
+        }
+
+
+def always_right(left: FortranState, right: FortranState):
+    return right
+
+
+Mask = Callable[[FortranState, FortranState], FortranState]
+
+
 class MicrophysicsHook:
     """
     Singleton class for configuring from the environment for
@@ -45,12 +85,18 @@ class MicrophysicsHook:
     Instanced at the top level of `_emulate`
     """
 
-    def __init__(self, model_path: str, garbage_collection_interval: int = 10) -> None:
+    def __init__(
+        self,
+        model_path: str,
+        mask: Mask = always_right,
+        garbage_collection_interval: int = 10,
+    ) -> None:
 
         self.name = "microphysics emulator"
         self.model = _load_tf_model(model_path)
         self.orig_outputs = None
         self.garbage_collection_interval = garbage_collection_interval
+        self.mask = mask
         self._calls_since_last_collection = 0
 
     def _maybe_garbage_collect(self):
@@ -88,6 +134,8 @@ class MicrophysicsHook:
         microphysics_diag = {
             f"{name}_physics_diag": state[name] for name in self.orig_outputs
         }
+
+        model_outputs.update(self.mask(inputs, model_outputs))
         state.update(model_outputs)
         state.update(microphysics_diag)
         self._maybe_garbage_collect()
