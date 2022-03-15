@@ -15,13 +15,16 @@ VERIFICATION_VARIABLES = ["DSWRFsfc", "DLWRFsfc", "DSWRFtoa"]
 RENAME = {
     "DLWRFsfc": (
         "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface"
-    )
+    ),
+    "DSWRFtoa": "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
 }
 STATE_VARIABLES = [
     "land_sea_mask",
     "surface_geopotential",
     "air_temperature",
     "specific_humidity",
+    "surface_diffused_shortwave_albedo",
+    "pressure_thickness_of_atmospheric_layer",
 ]
 
 
@@ -38,7 +41,7 @@ def _verification_fluxes(dataset_key: str) -> xr.Dataset:
                 ds["DSWRFsfc"], ds["DSWRFtoa"]
             )
         }
-    ).drop_vars(["DSWRFsfc", "DSWRFtoa"])
+    ).drop_vars(["DSWRFsfc"])
     return _clear_encoding(ds.rename(RENAME))
 
 
