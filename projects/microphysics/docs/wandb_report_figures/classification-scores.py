@@ -1,5 +1,4 @@
 import sys
-
 import matplotlib.pyplot as plt
 import numpy
 import numpy as np
@@ -184,15 +183,8 @@ def classification_diags(ds, tendency, field):
     return figures
 
 
-FIELDS = ["cloud_water", "air_temperature", "specific_humidity"]
-TENDENCIES = [
-    tendencies.total_tendency,
-    tendencies.gscond_tendency,
-    tendencies.precpd_tendency,
-]
-
 FIELDS = ["cloud_water"]
-TENDENCIES = [tendencies.precpd_tendency]
+TENDENCIES = [tendencies.precpd_tendency, tendencies.gscond_tendency]
 
 url = sys.argv[1]
 ds = open_rundir(url)
