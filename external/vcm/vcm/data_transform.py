@@ -53,10 +53,19 @@ def q2_from_dQ2_pQ2(ds):
     return ds
 
 
+@register("vcm_derived_mapping")
+def vcm_derived_mapping(ds, variables):
+    return vcm.DerivedMapping(ds).dataset(variables)
+
+
 @dataclasses.dataclass
 class DataTransformConfig:
     name: Literal[
-        "q1_from_qm_q2", "qm_from_q1_q2", "q1_from_dQ1_pQ1", "q2_from_dQ2_pQ2"
+        "q1_from_qm_q2",
+        "qm_from_q1_q2",
+        "q1_from_dQ1_pQ1",
+        "q2_from_dQ2_pQ2",
+        "vcm_derived_mapping",
     ]
     kwargs: dict = dataclasses.field(default_factory=dict)
 

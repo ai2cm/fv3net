@@ -1,14 +1,8 @@
 import copy
 import xarray as xr
 import dacite
-from vcm.data_transform import (
-    qm_from_q1_q2,
-    q1_from_qm_q2,
-    Transform,
-    TransformConfig,
-    ChainedTransform,
-    ChainedTransformConfig,
-)
+from vcm.data_transform import qm_from_q1_q2, q1_from_qm_q2
+import vcm
 
 SAMPLE_DATA = xr.Dataset(
     {
@@ -34,10 +28,10 @@ def test_q1_from_qm_q2_transform():
 def test_transform():
     data = copy.deepcopy(SAMPLE_DATA)
     data["air_temperature"] = data["Q1"]
-    config = TransformConfig(
+    config = vcm.DataTransformConfig(
         name="qm_from_q1_q2", kwargs=dict(temperature_dependent_latent_heat=True)
     )
-    transform = Transform(config)
+    transform = vcm.DataTransform(config)
     out = transform.apply(data)
     assert "Qm" in out
 
@@ -45,11 +39,11 @@ def test_transform():
 def test_chained_transform():
     data = copy.deepcopy(SAMPLE_DATA)
     config_dict = {
-        "transforms": [
+        "config": [
             {"name": "vcm_derived_mapping", "kwargs": {"variables": ["Q1", "Q2"]}},
             {"name": "qm_from_q1_q2"},
         ]
     }
-    transform = ChainedTransform(dacite.from_dict(ChainedTransformConfig, config_dict))
+    transform = dacite.from_dict(vcm.ChainedDataTransform, config_dict)
     out = transform.apply(data)
     assert "Qm" in out
