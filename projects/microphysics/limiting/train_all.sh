@@ -10,13 +10,13 @@ else
     bucket="vcm-ml-experiments"
 fi
 
-tag="011435e1b91e21c14d610abcc35150548e063a9b"
+tag="dc38dde43dbb8b86450701c4c3e2f38355e1e8be"
 group="$(openssl rand -hex 3)"
 
 
-for exp in base all-loss limiter limiter-all-loss
+for exp in limiter limiter-all-loss
 do
-for arch in dense rnn
+for arch in dense-no-tscale
 do
     config_file="${exp}/${arch}.yaml"
     model_name="limit-tests-${exp}-${arch}-${group}"
