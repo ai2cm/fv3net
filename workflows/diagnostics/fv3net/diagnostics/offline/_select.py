@@ -12,10 +12,8 @@ def nearest_time_batch_index(
 ):
     min_index = 0
     min_distance = min(abs(np.array(time_batches[0]) - time))
-    print(min_distance)
     for index, time_batch in enumerate(time_batches):
         distance = min(abs(np.array(time_batch) - time))
-        print(distance)
         if distance < min_distance:
             min_index = index
     return min_index
