@@ -58,7 +58,7 @@ def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
 
 def _compute_r2(ds_metrics: xr.Dataset, tag: str = "_r2") -> xr.Dataset:
     """Compute r2 values from MSE and variance metrics.
-
+    
     The names of the resulting variables use the provided tag.
     """
     mse_vars = [var for var in ds_metrics if "_mse" in var]
