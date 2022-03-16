@@ -65,7 +65,7 @@ class TimeMask:
         alpha = self.schedule(time)
         common_keys = set(left) & set(right)
         return {
-            key: left[key] * (1 - alpha) + right[key] * alpha for key in common_keys
+            key: left[key] * alpha + right[key] * (1 - alpha) for key in common_keys
         }
 
 
