@@ -1,7 +1,7 @@
 import copy
 import xarray as xr
 import dacite
-from vcm.data_transform import qm_from_q1_q2, q1_from_qm_q2, DATA_TRANSFORM_FUNCTIONS
+from vcm.data_transform import qm_from_q1_q2, q1_from_qm_q2, DATA_TRANSFORM_REGISTRY
 import vcm
 
 SAMPLE_DATA = xr.Dataset(
@@ -13,7 +13,7 @@ SAMPLE_DATA = xr.Dataset(
 
 
 def test_all_registered_transforms_are_added_to_data_transform_name_type():
-    for key in DATA_TRANSFORM_FUNCTIONS:
+    for key in DATA_TRANSFORM_REGISTRY:
         try:
             dacite.from_dict(vcm.DataTransformConfig, {"name": key})
         except dacite.exceptions.WrongTypeError as error:
