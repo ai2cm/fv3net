@@ -78,6 +78,7 @@ enter_prognostic_run:
 		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
 		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
 		-v $(shell pwd)/workflows:/fv3net/workflows \
+		-v $(shell pwd)/external:/fv3net/external \
 		-w /fv3net/workflows/prognostic_c48_run \
 		$(REGISTRY)/prognostic_run:$(VERSION) bash
 

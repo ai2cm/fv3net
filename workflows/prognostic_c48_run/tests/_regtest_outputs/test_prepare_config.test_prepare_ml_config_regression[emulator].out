@@ -439,5 +439,14 @@ scikit_learn: null
 tendency_prescriber: null
 zhao_carr_emulation:
   gscond: null
-  model: null
-  storage: null
+  model:
+    online_schedule:
+      initial_time: 2016-06-01 00:00:00
+      period: 21600
+    path: gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273/model.tf
+  storage:
+    output_freq_sec: 3600
+    save_nc: true
+    save_tfrecord: false
+    save_zarr: true
+    var_meta_path: ''

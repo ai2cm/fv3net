@@ -14,7 +14,7 @@ from emulation._emulate.microphysics import (
     always_right,
 )
 from emulation._monitor.monitor import StorageConfig, StorageHook
-from emulation._time import from_datetime
+from emulation._time import from_datetime, to_datetime
 
 logger = logging.getLogger("emulation")
 
@@ -76,17 +76,31 @@ class EmulationConfig:
             return StorageHook(**dataclasses.asdict(self.storage)).store
 
     @staticmethod
-    def from_dict(config: dict) -> "EmulationConfig":
+    def from_dict(dict_: dict) -> "EmulationConfig":
         return dacite.from_dict(
             EmulationConfig,
-            config,
+            dict_,
             config=dacite.Config(
                 type_hooks={
                     cftime.DatetimeJulian: from_datetime,
-                    datetime.timedelta: (lambda x: datetime.timedelta(seconds=x)),
+                    datetime.timedelta: lambda x: datetime.timedelta(seconds=x),
                 }
             ),
         )
+
+    def to_dict(self) -> dict:
+        def factory(keyvals):
+            out = {}
+            for key, val in keyvals:
+                if isinstance(val, cftime.DatetimeJulian):
+                    out[key] = to_datetime(val)
+                elif isinstance(val, datetime.timedelta):
+                    out[key] = int(val.total_seconds())
+                else:
+                    out[key] = val
+            return out
+
+        return dataclasses.asdict(self, dict_factory=factory)
 
 
 def get_hooks():

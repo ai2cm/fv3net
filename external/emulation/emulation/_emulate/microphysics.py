@@ -135,7 +135,7 @@ class MicrophysicsHook:
             f"{name}_physics_diag": state[name] for name in self.orig_outputs
         }
 
-        model_outputs.update(self.mask(inputs, model_outputs))
+        model_outputs.update(self.mask(state, model_outputs))
         state.update(model_outputs)
         state.update(microphysics_diag)
         self._maybe_garbage_collect()

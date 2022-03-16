@@ -16,3 +16,7 @@ def from_datetime(dt: datetime.datetime) -> cftime.DatetimeJulian:
     return cftime.DatetimeJulian(
         dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second
     )
+
+
+def to_datetime(dt: cftime.DatetimeJulian) -> datetime.datetime:
+    return datetime.datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
