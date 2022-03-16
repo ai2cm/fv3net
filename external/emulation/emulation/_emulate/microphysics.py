@@ -22,7 +22,7 @@ from fv3fit.keras import adapters  # noqa: E402
 from .._filesystem import get_dir  # noqa: E402
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 @print_errors
@@ -129,8 +129,8 @@ class MicrophysicsHook:
         # fields stay in global state so check overwrites on first step
         if self.orig_outputs is None:
             self.orig_outputs = set(state).intersection(model_outputs)
+            logger.debug(f"Overwriting existing state fields: {self.orig_outputs}")
 
-        logger.info(f"Overwritting existing state fields: {self.orig_outputs}")
         microphysics_diag = {
             f"{name}_physics_diag": state[name] for name in self.orig_outputs
         }

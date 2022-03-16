@@ -20,6 +20,7 @@ from emulation._time import translate_time
 
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 DIMS_MAP = {
