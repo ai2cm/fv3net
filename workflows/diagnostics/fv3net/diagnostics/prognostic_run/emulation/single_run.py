@@ -302,15 +302,18 @@ def open_zarr(url: str):
     )
 
 
+def open_rundir(url):
+    grid = vcm.catalog.catalog["grid/c48"].to_dask().load()
+    piggy = open_zarr(url + "/piggy.zarr")
+    state = open_zarr(url + "/state_after_timestep.zarr")
+    return vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
+
+
 def upload_diagnostics_for_rundir(url):
     wandb.config["run"] = url
     wandb.summary["duration_seconds"] = get_duration_seconds(url)
 
-    grid = vcm.catalog.catalog["grid/c48"].to_dask().load()
-    piggy = open_zarr(url + "/piggy.zarr")
-    state = open_zarr(url + "/state_after_timestep.zarr")
-
-    ds = vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
+    ds = open_rundir(url)
 
     for func in log_functions:
         print(f"Running {func}")
