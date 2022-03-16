@@ -58,7 +58,7 @@ def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
 
 def _compute_r2(ds_metrics: xr.Dataset, tag: str = "_r2") -> xr.Dataset:
     """Compute r2 values from MSE and variance metrics.
-    
+
     The names of the resulting variables use the provided tag.
     """
     mse_vars = [var for var in ds_metrics if "_mse" in var]
@@ -72,7 +72,7 @@ def _compute_r2(ds_metrics: xr.Dataset, tag: str = "_r2") -> xr.Dataset:
 
 def insert_r2(ds_metrics: xr.Dataset) -> xr.Dataset:
     """Insert r2 fields into the metrics Dataset.
-    
+
     Fields given the "_r2" tag represent r2 values over all datasets. Fields
     given the "_per_dataset_r2" tag represent the r2 computed over each
     dataset present in the testing data.
@@ -94,7 +94,7 @@ def _rename_via_replace(ds: xr.Dataset, find: str, replace: str) -> xr.Dataset:
 
 def insert_aggregate_bias(ds_metrics: xr.Dataset) -> xr.Dataset:
     """Compute the aggregate bias over all datasets from the per dataset bias.
-    
+
     Renames the per dataset bias variables using the "per_dataset_bias" tag.  Only
     meant to be called on ds_metrics Datasets with a "dataset" dimension.
     """
