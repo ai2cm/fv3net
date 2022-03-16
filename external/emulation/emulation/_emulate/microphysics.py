@@ -52,7 +52,7 @@ class IntervalSchedule:
     initial_time: cftime.DatetimeJulian
 
     def __call__(self, time: cftime.DatetimeJulian) -> float:
-        fraction_of_interval = (time - self.initial_time) / self.period
+        fraction_of_interval = ((time - self.initial_time) / self.period) % 1
         return 1.0 if fraction_of_interval < 0.5 else 0.0
 
 

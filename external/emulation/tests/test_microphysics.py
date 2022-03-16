@@ -45,6 +45,7 @@ def test_IntervalSchedule():
     assert scheduler(cftime.DatetimeJulian(2000, 1, 1, 1)) == 1
     assert scheduler(cftime.DatetimeJulian(2000, 1, 1, 1, 30)) == 0
     assert scheduler(cftime.DatetimeJulian(2000, 1, 1, 2)) == 0
+    assert scheduler(cftime.DatetimeJulian(2000, 1, 20)) == 1
 
 
 @pytest.mark.parametrize("weight", [0.0, 0.5, 1.0])
