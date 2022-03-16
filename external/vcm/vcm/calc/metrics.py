@@ -47,7 +47,7 @@ def assert_bool_args(func):
 
 @assert_bool_args
 def accuracy(truth, pred, mean=default_mean):
-    """Compute the fraction of correctly classifier points::
+    """Compute the fraction of correctly classified points::
 
         TP + TN / (P + N)
 

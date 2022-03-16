@@ -143,7 +143,7 @@ def plot_cubed_sphere_map(
             fv3viz.plot_cube(ds, varname, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
             ax.set_title(plot_title)
             plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
-            data[varname][run] = MatplotlibFigure(fig)
+            data[varname][run] = MatplotlibFigure(fig, width="500px")
             plt.close(fig)
     return RawHTML(
         template.render(
@@ -210,7 +210,7 @@ def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHT
         ax.set_xlim([xedges[0], xedges[-1]])
         ax.set_ylim([yedges[0], yedges[-1]])
         plt.tight_layout()
-        data[count_name][run] = MatplotlibFigure(fig)
+        data[count_name][run] = MatplotlibFigure(fig, width="500px")
         plt.close(fig)
     return RawHTML(
         template.render(
