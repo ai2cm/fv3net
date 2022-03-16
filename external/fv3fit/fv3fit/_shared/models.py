@@ -201,6 +201,16 @@ class TransformedPredictor(Predictor):
         self.transform_configs = transform_configs
         self.output_transform = vcm.ChainedDataTransform(self.transform_configs)
 
+        inputs_for_derived = self.output_transform.input_variables
+        derived_outputs = self.output_transform.output_variables
+        input_variables = set(base_model.input_variables) | set(inputs_for_derived)
+        output_variables = set(base_model.output_variables) | set(derived_outputs)
+
+        for name in set(base_model.output_variables):
+            input_variables.discard(name)
+
+        super().__init__(sorted(list(input_variables)), sorted(list(output_variables)))
+
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         base_prediction = self.base_model.predict(X)
         return self.output_transform.apply(base_prediction)
