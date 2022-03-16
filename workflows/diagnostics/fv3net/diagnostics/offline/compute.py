@@ -26,7 +26,7 @@ from ._helpers import (
     insert_rmse,
     insert_column_integrated_vars,
 )
-from ._select import meridional_transect, nearest_time
+from ._select import meridional_transect, nearest_time_batch_index
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -312,12 +312,15 @@ def main(args):
 
     mapper = _get_data_mapper_if_exists(config)
     if mapper is not None:
-        snapshot_time = (
+        snapshot_timestamp = (
             args.snapshot_time
             or sorted(config.kwargs.get("timesteps", list(mapper.keys())))[0]
         )
-        snapshot_key = nearest_time(snapshot_time, list(mapper.keys()))
-        ds_snapshot = predict_function(mapper[snapshot_key])
+        snapshot_time = vcm.parse_datetime_from_str(snapshot_timestamp)
+        snapshot_index = nearest_time_batch_index(
+            snapshot_time, [batch.time.values for batch in batches]
+        )
+        ds_snapshot = batches[snapshot_index].sel(time=snapshot_time, method="nearest")
 
         vertical_vars = [
             var for var in model.output_variables if is_3d(ds_snapshot[var])
