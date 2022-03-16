@@ -177,6 +177,8 @@ def main(args, unknown_args=None):
         in_memory=training_config.cache.in_memory,
     )
 
+    logger.info(f"Following variables are in train batches: {list(train_batches[0])}")
+
     train = fv3fit.get_training_function(training_config.model_type)
 
     logger.info("calling train function")
