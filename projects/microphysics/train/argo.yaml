@@ -9,8 +9,6 @@ spec:
   entrypoint: training
   arguments:
     parameters:
-    - name: tag
-      value: ":b0cbb9b7fe01f7dd62ca90312970906fc38daed1"
     - name: wandb-run-group
       value: ""
     - name: training-config
@@ -62,7 +60,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: "us.gcr.io/vcm-ml/prognostic_run{{workflow.parameters.tag}}"
+        image: us.gcr.io/vcm-ml/fv3fit:e1e8429a0a328494cace6c9a30e5eb718ad347f6
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -105,7 +103,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: "us.gcr.io/vcm-ml/prognostic_run_gpu{{workflow.parameters.tag}}"
+        image: us.gcr.io/vcm-ml/fv3fit:e1e8429a0a328494cace6c9a30e5eb718ad347f6
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -155,7 +153,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: "us.gcr.io/vcm-ml/prognostic_run{{workflow.parameters.tag}}"
+        image: "us.gcr.io/vcm-ml/prognostic_run:latest"
         command: ["bash", "-c", "-x"]
         workingDir: "/fv3net/projects/microphysics"
         envFrom:
