@@ -7,4 +7,6 @@ from .create_report import (
     RawHTML,
 )
 
+from .matplotlib import MatplotlibFigure
+
 __version__ = "0.1.0"

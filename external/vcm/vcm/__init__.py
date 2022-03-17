@@ -19,7 +19,15 @@ from .convenience import (
 )
 from .calc.calc import local_time, weighted_average
 from .calc._zenith_angle import cos_zenith_angle
-from .calc.metrics import r2_score
+from .calc.metrics import (
+    r2_score,
+    precision,
+    recall,
+    true_positive_rate,
+    false_positive_rate,
+    accuracy,
+    f1_score,
+)
 from .calc.thermo.vertically_dependent import (
     height_at_interface,
     height_at_midpoint,
