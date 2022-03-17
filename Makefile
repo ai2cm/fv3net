@@ -206,9 +206,19 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		workflows/post_process_run/requirements.txt \
 		workflows/prognostic_c48_run/requirements.in
 
+docker/fv3fit/requirements.txt: constraints.txt
+	cp constraints.txt docker/prognostic_run/requirements.txt
+	# this will subset the needed dependencies from constraints.txt
+	# while preserving the versions
+	pip-compile --no-annotate \
+		--output-file docker/fv3fit/requirements.txt \
+		external/fv3fit/setup.py \
+		external/loaders/setup.py \
+		external/vcm/setup.py
+
 .PHONY: lock_pip constraints.txt docker/prognostic_run/requirements.txt
 ## Lock the pip dependencies of this repo
-lock_pip: constraints.txt docker/prognostic_run/requirements.txt
+lock_pip: constraints.txt docker/prognostic_run/requirements.txt docker/fv3fit/requirements.txt
 
 ## Install External Dependencies
 install_deps:
