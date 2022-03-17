@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+import pytest
 
 from loaders.mappers import LocalMapper, mapper_to_local
 
@@ -23,6 +24,7 @@ def test_LocalMapper_getitem(tmpdir):
     assert isinstance(ds.a.data, np.ndarray)
 
 
+@pytest.mark.slow
 def test_mapper_to_local(tmpdir):
     mapper = {"a": xr.Dataset({"a": (["x"], [1.0])})}
 
