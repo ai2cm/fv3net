@@ -11,19 +11,12 @@ else
 fi
 
 group="$(openssl rand -hex 3)"
+model_name=cycle-trained-rnn
+config_file=rnn.yaml
+out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}-${group}")
 
-for config in log-cloud; do
-    for model_type in dense; do
-        model_name="${config}-${model_type}"
-        config_file="${config}.yaml"
-        out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}-${group}")
-
-        argo submit argo.yaml \
-            --name "${model_name}-${group}" \
-            -p training-config="$(base64 --wrap 0 $config_file)"\
-            -p flags="--transformed_model.architecture.name ${model_type} \
-            --out_url ${out_url} ${extra_flags}" \
-            | tee -a experiment-log.txt
-
-    done
-done
+argo submit argo.yaml \
+    --name "${model_name}-${group}" \
+    -p training-config="$(base64 --wrap 0 $config_file)"\
+    -p flags="--out_url ${out_url} ${extra_flags}" \
+    | tee -a experiment-log.txt
