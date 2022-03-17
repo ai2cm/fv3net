@@ -6,6 +6,7 @@ import xarray as xr
 
 import fv3fit
 
+from ._helpers import DATASET_DIM_NAME
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -17,7 +18,11 @@ def _stack_sample_data(ds: xr.Dataset) -> xr.Dataset:
         ds = ds.sel({"derivation": "predict"})
     if "time" in ds.dims:
         ds = ds.isel(time=0).squeeze(drop=True)
-    return ds.stack(sample=["tile", "x", "y"]).transpose("sample", ...)
+    if DATASET_DIM_NAME in ds.dims:
+        stack_dims = ["tile", "x", "y", DATASET_DIM_NAME]
+    else:
+        stack_dims = ["tile", "x", "y"]
+    return ds.stack(sample=stack_dims).transpose("sample", ...)
 
 
 def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
