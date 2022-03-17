@@ -119,6 +119,16 @@ def apparent_moistening(data: FineResBudget):
     )
 
 
+def column_integrated_fine_res_nudging_heating(data: FineResBudget) -> xarray.DataArray:
+    heating_in_energy_units = vcm.internal_energy(data.t_dt_nudge_coarse)
+    column_heating = vcm.mass_integrate(heating_in_energy_units, data.delp, dim="z")
+    return column_heating.assign_attrs(
+        units="W/m**2",
+        long_name="Column integrated heating tendency due to temperature "
+        "nudging of fine-res run.",
+    )
+
+
 def compute_fine_res_sources(
     data: FineResBudget, include_temperature_nudging: bool = False
 ) -> Tuple[xarray.DataArray, xarray.DataArray]:

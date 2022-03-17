@@ -14,6 +14,7 @@ from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
 from loaders.mappers._fine_res_budget import (
     compute_fine_res_sources,
+    column_integrated_fine_res_nudging_heating,
     FineResBudget,
     FINE_RES_BUDGET_NAMES,
 )
@@ -130,6 +131,10 @@ def compute_budget(
         pass
     else:
         raise ValueError(f"{approach} not implemented.")
+
+    if include_temperature_nudging:
+        name = "storage_of_internal_energy_path_due_to_fine_res_temperature_nudging"
+        merged[name] = column_integrated_fine_res_nudging_heating(merged)
 
     return _ml_standard_names(merged)
 

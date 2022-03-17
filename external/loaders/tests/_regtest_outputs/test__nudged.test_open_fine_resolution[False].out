@@ -169,6 +169,9 @@ variables:
 		Q2:units = kg/kg/s ;
 		Q2:long_name = apparent moistening from high resolution data ;
 		Q2:description = Apparent moistening due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence ;
+	float32 storage_of_internal_energy_path_due_to_fine_res_temperature_nudging(tile, y, x) ;
+		storage_of_internal_energy_path_due_to_fine_res_temperature_nudging:units = W/m**2 ;
+		storage_of_internal_energy_path_due_to_fine_res_temperature_nudging:long_name = Column integrated heating tendency due to temperature nudging of fine-res run. ;
 	float32 dQ1(tile, z, y, x) ;
 		dQ1:units = K/s ;
 		dQ1:long_name = apparent heating from high resolution data ;
