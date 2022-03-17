@@ -116,7 +116,7 @@ def batches_from_mapper(
 
     if data_transforms is not None:
         data_transform = dacite.from_dict(
-            vcm.ChainedDataTransform, {"config": data_transforms}
+            vcm.ChainedDataTransform, {"transforms": data_transforms}
         )
         transforms.append(curry(data_transform.apply))
 

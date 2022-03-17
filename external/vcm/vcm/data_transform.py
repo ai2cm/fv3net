@@ -54,50 +54,45 @@ def q2_from_dQ2_pQ2(ds):
 
 
 @dataclasses.dataclass
-class DataTransformConfig:
+class DataTransform:
     name: TransformName
     kwargs: dict = dataclasses.field(default_factory=dict)
 
-
-@dataclasses.dataclass
-class DataTransform:
-    config: DataTransformConfig
-
     def apply(self, ds: xr.Dataset) -> xr.Dataset:
-        func = DATA_TRANSFORM_REGISTRY[self.config.name]["func"]
-        ds = func(ds, **self.config.kwargs)
+        func = DATA_TRANSFORM_REGISTRY[self.name]["func"]
+        ds = func(ds, **self.kwargs)
         return ds
 
     @property
     def input_variables(self) -> Sequence[str]:
-        return DATA_TRANSFORM_REGISTRY[self.config.name]["inputs"]
+        return DATA_TRANSFORM_REGISTRY[self.name]["inputs"]
 
     @property
     def output_variables(self) -> Sequence[str]:
-        return DATA_TRANSFORM_REGISTRY[self.config.name]["outputs"]
+        return DATA_TRANSFORM_REGISTRY[self.name]["outputs"]
 
 
 @dataclasses.dataclass
 class ChainedDataTransform:
-    config: Sequence[DataTransformConfig]
+    transforms: Sequence[DataTransform]
 
     def apply(self, ds: xr.Dataset) -> xr.Dataset:
-        for transform_config in self.config:
-            ds = DataTransform(transform_config).apply(ds)
+        for transform in self.transforms:
+            ds = transform.apply(ds)
         return ds
 
     @property
     def input_variables(self) -> Sequence[str]:
         inputs: Set[str] = set()
-        for transform_config in self.config[::-1]:
-            inputs.update(DataTransform(transform_config).input_variables)
-            for output in DataTransform(transform_config).output_variables:
+        for transform in self.transforms[::-1]:
+            inputs.update(transform.input_variables)
+            for output in transform.output_variables:
                 inputs.discard(output)
         return sorted(list(inputs))
 
     @property
     def output_variables(self) -> Sequence[str]:
         outputs: Set[str] = set()
-        for transform_config in self.config:
-            outputs.update(DataTransform(transform_config).output_variables)
+        for transform in self.transforms:
+            outputs.update(transform.output_variables)
         return sorted(list(outputs))

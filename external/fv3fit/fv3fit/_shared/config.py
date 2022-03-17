@@ -78,7 +78,7 @@ class TrainingConfig:
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
     derived_output_variables: List[str] = dataclasses.field(default_factory=list)
-    output_transforms: Sequence[vcm.DataTransformConfig] = dataclasses.field(
+    output_transforms: Sequence[vcm.DataTransform] = dataclasses.field(
         default_factory=list
     )
     cache: CacheConfig = dataclasses.field(default_factory=lambda: CacheConfig())

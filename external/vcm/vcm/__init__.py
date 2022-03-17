@@ -71,7 +71,6 @@ from .calc.vertical_flux import (
 from .cdl.generate import cdl_to_dataset
 
 from .data_transform import (
-    DataTransformConfig,
     DataTransform,
     ChainedDataTransform,
 )

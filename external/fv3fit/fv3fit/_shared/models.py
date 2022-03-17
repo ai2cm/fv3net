@@ -187,19 +187,17 @@ class TransformedPredictor(Predictor):
     _BASE_MODEL_SUBDIR = "base_model_data"
 
     def __init__(
-        self,
-        base_model: Predictor,
-        transform_configs: Sequence[vcm.DataTransformConfig],
+        self, base_model: Predictor, transforms: Sequence[vcm.DataTransform],
     ):
         """
         Args:
             base_model: trained ML model whose predicted output(s) will be
                 used as inputs for the specified transforms.
-            transform: data transformation to apply to model prediction outputs.
+            transforms: data transformations to apply to model prediction outputs.
         """
         self.base_model = base_model
-        self.transform_configs = transform_configs
-        self.output_transform = vcm.ChainedDataTransform(self.transform_configs)
+        self.transforms = transforms
+        self.output_transform = vcm.ChainedDataTransform(self.transforms)
 
         inputs_for_derived = self.output_transform.input_variables
         derived_outputs = self.output_transform.output_variables
@@ -219,9 +217,7 @@ class TransformedPredictor(Predictor):
         base_model_path = os.path.join(path, self._BASE_MODEL_SUBDIR)
         options = {
             "base_model": base_model_path,
-            "transform_configs": [
-                dataclasses.asdict(x) for x in self.transform_configs
-            ],
+            "transforms": [dataclasses.asdict(x) for x in self.transforms],
         }
         io.dump(self.base_model, base_model_path)
         with fsspec.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
@@ -233,8 +229,7 @@ class TransformedPredictor(Predictor):
             config = yaml.safe_load(f)
         base_model = io.load(config["base_model"])
         transform_configs = [
-            dacite.from_dict(vcm.DataTransformConfig, x)
-            for x in config["transform_configs"]
+            dacite.from_dict(vcm.DataTransform, x) for x in config["transforms"]
         ]
         transformed_model = cls(base_model, transform_configs)
         return transformed_model
