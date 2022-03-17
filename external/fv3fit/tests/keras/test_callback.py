@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 from fv3fit.keras._models.shared.callbacks import TrainingLoopLossHistory, EpochResult
+from fv3fit.keras._models.shared.training_loop import Logs
 
 
 @dataclass
@@ -17,7 +18,7 @@ def test_TrainingLoopLossHistory_callback():
         zip(train_losses, val_losses)
     ):
         batch_logs = [
-            {"loss": train_loss, "val_loss": val_loss}
+            Logs(loss=train_loss, val_loss=val_loss)
             for train_loss, val_loss in zip(epoch_train_losses, epoch_val_losses)
         ]
         epoch_logs = batch_logs[-1]
