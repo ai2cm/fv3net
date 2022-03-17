@@ -504,5 +504,6 @@ zhao_carr_emulation:
       period: 43200
   storage:
     output_freq_sec: 3600
-    save_nc: false
+    save_nc: true
+    save_tfrecord: true
     save_zarr: false
