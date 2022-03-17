@@ -4,12 +4,7 @@ import dacite
 from vcm.data_transform import qm_from_q1_q2, q1_from_qm_q2, DATA_TRANSFORM_REGISTRY
 import vcm
 
-SAMPLE_DATA = xr.Dataset(
-    {
-        "Q1": xr.DataArray([0, 1, 2], dims=["x"]),
-        "Q2": xr.DataArray([3, 4, 5], dims=["x"]),
-    }
-)
+ARRAY = xr.DataArray([0, 1, 2], dims=["x"])
 
 
 def test_all_registered_transforms_are_added_to_data_transform_name_type():
@@ -18,26 +13,22 @@ def test_all_registered_transforms_are_added_to_data_transform_name_type():
             dacite.from_dict(vcm.DataTransformConfig, {"name": key})
         except dacite.exceptions.WrongTypeError as error:
             raise NotImplementedError(
-                "Newly registered transforms must be added to the TransformName type."
+                "Newly registered transforms must be added to the "
+                "vcm.data_transform.TransformName type."
             ) from error
 
 
-def test_qm_from_q1_q2_transform():
-    data = copy.deepcopy(SAMPLE_DATA)
-    out = qm_from_q1_q2(data)
-    assert "Qm" in out
+def test_all_transform_functions():
+    for key in DATA_TRANSFORM_REGISTRY:
+        input_variables = DATA_TRANSFORM_REGISTRY[key]["inputs"]
+        data = xr.Dataset({name: ARRAY for name in input_variables})
+        out = DATA_TRANSFORM_REGISTRY[key]["func"](data)
+        for output_name in DATA_TRANSFORM_REGISTRY[key]["outputs"]:
+            assert output_name in out
 
 
-def test_q1_from_qm_q2_transform():
-    data = copy.deepcopy(SAMPLE_DATA)
-    data = data.rename(Q1="Qm")
-    out = q1_from_qm_q2(data)
-    assert "Q1" in out
-
-
-def test_transform():
-    data = copy.deepcopy(SAMPLE_DATA)
-    data["air_temperature"] = data["Q1"]
+def test_data_transform():
+    data = xr.Dataset({"Q1": ARRAY, "Q2": ARRAY, "air_temperature": ARRAY})
     config = vcm.DataTransformConfig(
         name="qm_from_q1_q2", kwargs=dict(temperature_dependent_latent_heat=True)
     )
@@ -46,9 +37,8 @@ def test_transform():
     assert "Qm" in out
 
 
-def test_chained_transform():
-    data = copy.deepcopy(SAMPLE_DATA)
-    data = data.rename(Q1="pQ1")
+def test_chained_data_transform():
+    data = xr.Dataset({"dQ1": ARRAY, "pQ1": ARRAY, "Q2": ARRAY})
     data["dQ1"] = data.pQ1
     config_dict = {"config": [{"name": "q1_from_dQ1_pQ1"}, {"name": "qm_from_q1_q2"}]}
     transform = dacite.from_dict(vcm.ChainedDataTransform, config_dict)
