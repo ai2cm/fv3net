@@ -11,8 +11,8 @@ else
 fi
 
 group="$(openssl rand -hex 3)"
-model_name=cycle-trained-rnn
-config_file=rnn.yaml
+model_name=cycle-trained-rnn-limited
+config_file=limited.json
 out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}-${group}")
 
 argo submit argo.yaml \
