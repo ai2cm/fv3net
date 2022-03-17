@@ -116,6 +116,37 @@ def test_tfdataset_from_batches_multiple():
         )
 
 
+def test_tfdataset_from_batches_multiple_different_samples():
+    n_samples = 3
+    batches = [
+        xr.Dataset(
+            data_vars={
+                "a": xr.DataArray(np.random.uniform(size=[n_samples * 2, 3, 4])),
+                "b": xr.DataArray(np.random.uniform(size=[n_samples * 2, 3])),
+            }
+        ),
+        xr.Dataset(
+            data_vars={
+                "a": xr.DataArray(np.random.uniform(size=[n_samples, 3, 4])),
+                "b": xr.DataArray(np.random.uniform(size=[n_samples, 3])),
+            }
+        ),
+    ]
+    tfdataset = tfdataset_from_batches(batches)
+    for i, result in enumerate(iter(tfdataset)):
+        assert isinstance(result, dict)
+        if i < 2 * n_samples:
+            i_batch, i_sample = 0, i
+        else:
+            i_batch, i_sample = 1, i - 2 * n_samples
+        np.testing.assert_array_equal(
+            result["a"], batches[i_batch]["a"].values[i_sample, :]
+        )
+        np.testing.assert_array_equal(
+            result["b"], batches[i_batch]["b"].values[i_sample, :]
+        )
+
+
 @pytest.mark.parametrize("n_dims", [2, 3, 5])
 @pytest.mark.parametrize(
     "variable_names",

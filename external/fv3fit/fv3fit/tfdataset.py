@@ -61,7 +61,9 @@ def get_Xy_dataset(
 
 
 def seq_to_tfdataset(
-    source: Sequence, transform: Optional[Callable] = None
+    source: Sequence,
+    transform: Optional[Callable] = None,
+    varying_first_dim: bool = False,
 ) -> tf.data.Dataset:
     """
     A general function to convert from a sequence into a tensorflow dataset.
@@ -71,6 +73,8 @@ def seq_to_tfdataset(
             dataset.
         transform: function to process data items into a Mapping[str, tf.Tensor],
             if needed.
+        varying_first_dim: if True, the first dimension of the produced tensors
+            can be of varying length
     """
     if transform is None:
 
@@ -85,10 +89,23 @@ def seq_to_tfdataset(
         sample = next(iter(generator()))
     except StopIteration:
         raise NotImplementedError("can only make tfdataset from non-empty batches")
+
+    # if batches have different numbers of samples, we need to set the dimension size
+    # to None to indicate the size can be different across generated tensors
+    if varying_first_dim:
+
+        def process_shape(shape):
+            return (None,) + shape[1:]
+
+    else:
+
+        def process_shape(shape):
+            return shape
+
     return tf.data.Dataset.from_generator(
         generator,
         output_signature={
-            key: tf.TensorSpec(val.shape, dtype=val.dtype)
+            key: tf.TensorSpec(process_shape(val.shape), dtype=val.dtype)
             for key, val in sample.items()
         },
     ).unbatch()
@@ -99,4 +116,6 @@ def dataset_to_tensor_dict(ds):
 
 
 def tfdataset_from_batches(batches: loaders.typing.Batches) -> tf.data.Dataset:
-    return seq_to_tfdataset(batches, transform=dataset_to_tensor_dict)
+    return seq_to_tfdataset(
+        batches, transform=dataset_to_tensor_dict, varying_first_dim=True
+    )
