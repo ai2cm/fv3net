@@ -1,15 +1,30 @@
 import pytest
-from fv3net.diagnostics.offline._select import nearest_time
+import cftime
+from fv3net.diagnostics.offline._select import nearest_time_batch_index
+
+
+BATCH_ONE = [
+    cftime.DatetimeJulian(2016, 8, 1, 11),
+    cftime.DatetimeJulian(2016, 8, 1, 14),
+]
+BATCH_TWO = [
+    cftime.DatetimeJulian(2016, 8, 1, 17),
+    cftime.DatetimeJulian(2016, 8, 1, 20),
+]
+BATCH_THREE = [
+    cftime.DatetimeJulian(2016, 8, 1, 11, 30),
+    cftime.DatetimeJulian(2016, 8, 1, 20),
+]
 
 
 @pytest.mark.parametrize(
-    "select_time, closest_key",
+    "time, time_batches, expected_index",
     [
-        ("20160801.010000", "20160801.000000"),
-        ("20160801.200000", "20160801.180000"),
-        ("20190801.000000", "20170801.180000"),
+        (cftime.DatetimeJulian(2016, 8, 1, 12), [BATCH_ONE], 0,),
+        (cftime.DatetimeJulian(2016, 8, 1, 12), [BATCH_ONE, BATCH_TWO], 0,),
+        (cftime.DatetimeJulian(2016, 8, 1, 12), [BATCH_ONE, BATCH_THREE], 1,),
     ],
 )
-def test_nearest_time(select_time, closest_key):
-    times = ["20160801.000000", "20160801.180000", "20170801.180000"]
-    assert nearest_time(select_time, times) == closest_key
+def test_nearest_time(time, time_batches, expected_index):
+    index = nearest_time_batch_index(time, time_batches)
+    assert index == expected_index

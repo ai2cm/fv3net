@@ -57,6 +57,16 @@ class FunctionSource(beam.PTransform):
         )
 
 
+def _make_key_determinstic(key, val):
+    dims = sorted(key)
+    return (tuple(dims), tuple(key[dim] for dim in dims)), val
+
+
+def _deterministic_key_to_dict(key):
+    dims, values = key
+    return dict(zip(dims, values))
+
+
 class CombineSubtilesByKey(beam.PTransform):
     """Transform for combining subtiles of cubed-sphere data in a beam PCollection.
 
@@ -67,11 +77,21 @@ class CombineSubtilesByKey(beam.PTransform):
     """
 
     def expand(self, pcoll):
-        return pcoll | beam.GroupByKey() | beam.MapTuple(self._combine)
+        return (
+            pcoll
+            # the keys are usually dictionaries which can contain any type as a
+            # value e.g. str for name and int for tile Apache beam since v2.28
+            # no longer supports this so we work around it by converting the key
+            # to a tuple
+            # https://github.com/apache/beam/blob/master/CHANGES.md#breaking-changes-9
+            | beam.MapTuple(_make_key_determinstic)
+            | beam.GroupByKey()
+            | beam.MapTuple(self._combine)
+        )
 
     @staticmethod
     def _combine(key, datasets):
-        return key, xr.combine_by_coords(datasets)
+        return _deterministic_key_to_dict(key), xr.combine_by_coords(datasets)
 
 
 T = TypeVar("T")
