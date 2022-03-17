@@ -362,6 +362,9 @@ def test_dump_and_load_default_maintains_prediction(model_type):
         fv3fit.dump(result.model, tmpdir)
         loaded_model = fv3fit.load(tmpdir)
     if isinstance(result.model, PureKerasModel):
+        # we used to test for bit-identical results, but the convolutional model is
+        # somehow not bit-identical when reloaded, so we've added these checks that at
+        # least the model weights, config, and summary are bit-identical.
         assert result.model.model.summary() == loaded_model.model.summary()
         for l1, l2 in zip(result.model.model.layers, loaded_model.model.layers):
             loaded_config = remove_key(l2.get_config(), "shared_object_id")

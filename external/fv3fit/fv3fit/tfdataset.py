@@ -68,7 +68,7 @@ def tfdataset_from_batches(batches: loaders.typing.Batches) -> tf.data.Dataset:
     try:
         sample = next(iter(gen()))
     except StopIteration:
-        sample = {}
+        raise NotImplementedError("can only make tfdataset from non-empty batches")
     return tf.data.Dataset.from_generator(
         gen,
         output_signature={

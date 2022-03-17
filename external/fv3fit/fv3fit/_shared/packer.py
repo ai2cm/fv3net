@@ -113,20 +113,6 @@ def pack(
     )
 
 
-@curry
-def unpack_sample(packing_info: PackingInfo, sample: tf.Tensor):
-    i_feature = 0
-    return_dict = {}
-    for name, n_features in zip(packing_info.names, packing_info.features):
-        return_dict[name] = sample[..., i_feature : i_feature + n_features]
-        i_feature = i_feature + n_features
-    return return_dict
-
-
-def unpack_tfdataset(data: tf.data.Dataset, packing_info: PackingInfo):
-    return data.map(unpack_sample(packing_info))
-
-
 def unpack(
     data: np.ndarray, sample_dims: Sequence[str], feature_index: pd.MultiIndex,
 ) -> xr.Dataset:

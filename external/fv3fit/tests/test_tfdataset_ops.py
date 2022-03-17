@@ -1,14 +1,14 @@
 from fv3fit._shared.config import SliceConfig
 from fv3fit._shared.packer import (
     pack_tfdataset,
-    unpack_tfdataset,
     clip_sample,
-    PackingInfo,
 )
+from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
 from typing import Mapping, Sequence
 import numpy as np
 import pytest
+import xarray as xr
 
 
 def assert_datasets_equal(dataset1, dataset2, rtol=1e-6):
@@ -68,6 +68,50 @@ def test_assert_datasets_equal_raises():
     dataset_2 = get_tfdataset_from_data(tf.convert_to_tensor(np.asarray([1.0])))
     with pytest.raises(AssertionError):
         assert_datasets_equal(dataset_1, dataset_2, rtol=0.1)
+
+
+def test_tfdataset_from_batches_empty():
+    with pytest.raises(NotImplementedError):
+        tfdataset_from_batches([])
+
+
+def test_tfdataset_from_batches_single():
+    n_samples = 3
+    xr_dataset = xr.Dataset(
+        data_vars={
+            "a": xr.DataArray(np.random.uniform(size=[n_samples, 3, 4])),
+            "b": xr.DataArray(np.random.uniform(size=[n_samples, 3])),
+        }
+    )
+    tfdataset = tfdataset_from_batches([xr_dataset])
+    for i, result in enumerate(iter(tfdataset)):
+        assert isinstance(result, dict)
+        np.testing.assert_array_equal(result["a"], xr_dataset["a"].values[i, :])
+        np.testing.assert_array_equal(result["b"], xr_dataset["b"].values[i, :])
+
+
+def test_tfdataset_from_batches_multiple():
+    n_samples = 3
+    batches = [
+        xr.Dataset(
+            data_vars={
+                "a": xr.DataArray(np.random.uniform(size=[n_samples, 3, 4])),
+                "b": xr.DataArray(np.random.uniform(size=[n_samples, 3])),
+            }
+        )
+        for _ in range(3)
+    ]
+    tfdataset = tfdataset_from_batches(batches)
+    for i, result in enumerate(iter(tfdataset)):
+        assert isinstance(result, dict)
+        i_sample = i % n_samples
+        i_batch = i // n_samples
+        np.testing.assert_array_equal(
+            result["a"], batches[i_batch]["a"].values[i_sample, :]
+        )
+        np.testing.assert_array_equal(
+            result["b"], batches[i_batch]["b"].values[i_sample, :]
+        )
 
 
 @pytest.mark.parametrize("n_dims", [2, 3, 5])
@@ -144,59 +188,3 @@ def test_clip_tfdataset(
             )
         else:
             np.testing.assert_array_equal(sample_in[name], sample_out[name])
-
-
-@pytest.mark.parametrize("n_dims", [2, 3, 5])
-@pytest.mark.parametrize(
-    "variable_names",
-    [
-        pytest.param(["a", "b", "c", "d"], id="all"),
-        pytest.param(["b"], id="one"),
-        pytest.param(["a", "c"], id="half"),
-    ],
-)
-def test_unpack_tfdataset(n_dims: int, variable_names: Sequence[str]):
-    entry_features = {
-        "a": 5,
-        "b": 7,
-        "c": 1,
-        "d": 1,
-    }
-    packing_info = PackingInfo(
-        names=variable_names, features=[entry_features[name] for name in variable_names]
-    )
-    total_features = sum(packing_info.features)
-    n_samples = 10
-    shape = list(range(2, n_dims + 2))
-    shape[-1] = total_features
-    shape[0] = n_samples
-    data = tf.convert_to_tensor(np.random.uniform(size=shape).astype(np.float32))
-    dataset = get_tfdataset_from_data(data=data)
-    unpacked = unpack_tfdataset(dataset, packing_info=packing_info)
-    packed_sum = tf.reduce_sum(sum(dataset))
-    unpacked_sum = sum(
-        tf.reduce_sum(sum(unpacked.map(lambda x: x[name]))) for name in variable_names
-    )
-    np.testing.assert_allclose(unpacked_sum.numpy(), packed_sum.numpy(), rtol=1e-6)
-
-
-@pytest.mark.parametrize("n_dims", [2, 3, 5])
-@pytest.mark.parametrize(
-    "variable_names",
-    [
-        pytest.param(["a", "b", "c", "d"], id="all"),
-        pytest.param(["b"], id="one"),
-        pytest.param(["a", "c"], id="half"),
-    ],
-)
-def test_pack_unpack_roundtrip(n_dims: int, variable_names: Sequence[str]):
-    entry_features = {
-        "a": 5,
-        "b": 7,
-        "c": 1,
-        "d": 1,
-    }
-    dataset = get_tfdataset(n_dims=n_dims, n_samples=10, entry_features=entry_features)
-    packed, packing_info = pack_tfdataset(dataset, variable_names=variable_names)
-    unpacked = unpack_tfdataset(packed, packing_info)
-    assert_datasets_equal(unpacked, dataset)
