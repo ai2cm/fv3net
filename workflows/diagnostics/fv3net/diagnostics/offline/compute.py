@@ -20,12 +20,9 @@ from .compute_diagnostics import compute_diagnostics
 from .derived_diagnostics import derived_registry
 from ._input_sensitivity import plot_input_sensitivity
 from ._helpers import (
-    DATASET_DIM_NAME,
     load_grid_info,
     is_3d,
-    compute_r2,
-    insert_aggregate_bias,
-    insert_aggregate_r2,
+    insert_r2,
     insert_rmse,
     insert_column_integrated_vars,
 )
@@ -47,6 +44,7 @@ TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 METADATA_JSON_NAME = "metadata.json"
 
+DATASET_DIM_NAME = "dataset"
 DERIVATION_DIM_NAME = "derivation"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PREDICT_COORD = "predict"
@@ -173,12 +171,10 @@ def _compute_diagnostics(
 
     # then average over the batches for each output
     ds_summary = xr.concat(batches_summary, dim="batch")
-    ds_summary = ds_summary.merge(compute_r2(ds_summary))
-    if DATASET_DIM_NAME in ds_summary.dims:
-        ds_summary = insert_aggregate_r2(ds_summary)
-        ds_summary = insert_aggregate_bias(ds_summary)
     ds_diagnostics, ds_scalar_metrics = _consolidate_dimensioned_data(ds_summary)
-    ds_diagnostics = ds_diagnostics.pipe(insert_rmse)
+
+    ds_scalar_metrics = insert_r2(ds_scalar_metrics)
+    ds_diagnostics = ds_diagnostics.pipe(insert_r2).pipe(insert_rmse)
     ds_diagnostics, ds_scalar_metrics = _standardize_names(
         ds_diagnostics, ds_scalar_metrics
     )
