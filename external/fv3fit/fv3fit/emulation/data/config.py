@@ -2,6 +2,7 @@ import dataclasses
 import logging
 from typing import Any, Callable, Dict, List, Mapping, Optional, Set
 
+import tensorflow as tf
 import dacite
 import xarray
 from fv3fit._shared import SliceConfig
@@ -18,7 +19,7 @@ class Pipeline:
     array_like_transforms: List[Any]
     use_tensors: bool = True
 
-    def __call__(self, dataset: xarray.Dataset) -> Mapping[str, Any]:
+    def __call__(self, dataset: xarray.Dataset) -> Mapping[str, tf.Tensor]:
         transformed_dataset = pipe(dataset, *self.xarray_transforms)
 
         if self.use_tensors:

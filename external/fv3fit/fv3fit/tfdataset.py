@@ -60,19 +60,43 @@ def get_Xy_dataset(
     return tf.data.Dataset.zip((X, y))
 
 
-def tfdataset_from_batches(batches: loaders.typing.Batches) -> tf.data.Dataset:
-    def gen():
-        for ds in batches:
-            yield {key: tf.convert_to_tensor(val) for key, val in ds.items()}
+def seq_to_tfdataset(
+    source: Sequence, transform: Optional[Callable] = None
+) -> tf.data.Dataset:
+    """
+    A general function to convert from a sequence into a tensorflow dataset.
+
+    Args:
+        source: A sequence of data items to be included in the
+            dataset.
+        transform: function to process data items into a Mapping[str, tf.Tensor],
+            if needed.
+    """
+    if transform is None:
+
+        def transform(x):
+            return x
+
+    def generator():
+        for batch in source:
+            yield transform(batch)
 
     try:
-        sample = next(iter(gen()))
+        sample = next(iter(generator()))
     except StopIteration:
         raise NotImplementedError("can only make tfdataset from non-empty batches")
     return tf.data.Dataset.from_generator(
-        gen,
+        generator,
         output_signature={
             key: tf.TensorSpec(val.shape, dtype=val.dtype)
             for key, val in sample.items()
         },
     ).unbatch()
+
+
+def dataset_to_tensor_dict(ds):
+    return {key: tf.convert_to_tensor(val) for key, val in ds.items()}
+
+
+def tfdataset_from_batches(batches: loaders.typing.Batches) -> tf.data.Dataset:
+    return seq_to_tfdataset(batches, transform=dataset_to_tensor_dict)
