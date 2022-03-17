@@ -10,7 +10,7 @@ spec:
   arguments:
     parameters:
     - name: tag
-      value: ":8fc663ea9bf56db13196ed2a21e89737f35c4550"
+      value: ":b0cbb9b7fe01f7dd62ca90312970906fc38daed1"
     - name: wandb-run-group
       value: ""
     - name: training-config
