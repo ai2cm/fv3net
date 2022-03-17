@@ -32,10 +32,12 @@ def get_mock_dataset(n_time, unstacked_dims: Sequence[str]):
             "downward_shortwave": (dims_surface, arr_surface),
             "net_shortwave": (dims_surface, arr_surface),
             "downward_longwave": (dims_surface, arr_surface),
-            "Q1": (dims, arr),
-            "Q2": (dims, arr),
+            "dQ1": (dims, arr),
+            "dQ2": (dims, arr),
             "dQu": (dims, arr),
             "dQv": (dims, arr),
+            "Q1": (dims, arr),
+            "Q2": (dims, arr),
         },
         coords={
             "time": [
@@ -318,12 +320,13 @@ def get_config(
     use_validation_data: bool,
     unstacked_dims: Sequence[str],
     use_local_download_path: bool = False,
+    output_variables: Sequence[str] = ("dQ1", "dQ2"),
     output_transforms: Optional[Sequence[vcm.DataTransformConfig]] = None,
 ):
     output_transforms = [] if output_transforms is None else output_transforms
     base_dir = str(tmpdir)
     input_variables = ["air_temperature", "specific_humidity"]
-    output_variables = ["Qm", "Q2"]
+    output_variables = list(output_variables)
     all_variables = input_variables + output_variables
     hyperparameters = get_hyperparameters(
         model_type, hyperparameter_dict, input_variables, output_variables
@@ -456,16 +459,22 @@ def cli_main(args: MainArgs):
 
 
 @pytest.mark.parametrize(
-    "model_type, hyperparameter_dict",
+    "model_type, hyperparameter_dict, output_variables",
     [
         pytest.param(
             "sklearn_random_forest",
             {"max_depth": 4, "n_estimators": 2},
+            ["Qm", "Q2"],
             id="random_forest",
         ),
-        pytest.param("dense", {"save_model_checkpoints": False}, id="dense"),
         pytest.param(
-            "dense", {"save_model_checkpoints": True}, id="dense_with_checkpoints",
+            "dense", {"save_model_checkpoints": False}, ["dQ1", "dQ2"], id="dense"
+        ),
+        pytest.param(
+            "dense",
+            {"save_model_checkpoints": True},
+            ["dQ1", "dQ2"],
+            id="dense_with_checkpoints",
         ),
     ],
 )
@@ -480,6 +489,7 @@ def test_cli(
     use_validation_data: bool,
     model_type: str,
     hyperparameter_dict,
+    output_variables,
 ):
     """
     Test of fv3fit.train command-line interface.
@@ -492,6 +502,7 @@ def test_cli(
         use_validation_data,
         use_local_download_path=use_local_download_path,
         unstacked_dims=["z"],
+        output_variables=output_variables,
     )
     if not use_local_download_path and model_type == "dense":
         # dense requires caching if unstacked_dims is set as double-stacking
