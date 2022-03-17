@@ -28,10 +28,8 @@ def test_all_transform_functions():
 
 
 def test_data_transform():
-    data = xr.Dataset({"Q1": ARRAY, "Q2": ARRAY, "air_temperature": ARRAY})
-    config = vcm.DataTransformConfig(
-        name="qm_from_q1_q2", kwargs=dict(temperature_dependent_latent_heat=True)
-    )
+    data = xr.Dataset({"Q1": ARRAY, "Q2": ARRAY})
+    config = vcm.DataTransformConfig(name="qm_from_q1_q2")
     transform = vcm.DataTransform(config)
     out = transform.apply(data)
     assert "Qm" in out

@@ -30,26 +30,14 @@ def register(
 
 
 @register("qm_from_q1_q2", ["Q1", "Q2"], ["Qm"])
-def qm_from_q1_q2(ds, temperature_dependent_latent_heat=False):
-    if temperature_dependent_latent_heat:
-        Qm = vcm.moist_static_energy_tendency(
-            ds["Q1"], ds["Q2"], temperature=ds["air_temperature"]
-        )
-    else:
-        Qm = vcm.moist_static_energy_tendency(ds["Q1"], ds["Q2"])
-    ds["Qm"] = Qm
+def qm_from_q1_q2(ds):
+    ds["Qm"] = vcm.moist_static_energy_tendency(ds["Q1"], ds["Q2"])
     return ds
 
 
 @register("q1_from_qm_q2", ["Qm", "Q2"], ["Q1"])
-def q1_from_qm_q2(ds, temperature_dependent_latent_heat=False):
-    if temperature_dependent_latent_heat:
-        Q1 = vcm.temperature_tendency(
-            ds["Qm"], ds["Q2"], temperature=ds["air_temperature"]
-        )
-    else:
-        Q1 = vcm.temperature_tendency(ds["Qm"], ds["Q2"])
-    ds["Q1"] = Q1
+def q1_from_qm_q2(ds):
+    ds["Q1"] = vcm.temperature_tendency(ds["Qm"], ds["Q2"])
     return ds
 
 
