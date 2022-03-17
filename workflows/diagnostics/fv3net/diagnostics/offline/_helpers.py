@@ -56,40 +56,32 @@ def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
     return vertical_dim in da.dims
 
 
-def _compute_r2(ds_metrics: xr.Dataset, tag: str = "_r2") -> xr.Dataset:
-    """Compute r2 values from MSE and variance metrics.
-
-    The names of the resulting variables use the provided tag.
-    """
+def compute_r2(ds_metrics: xr.Dataset) -> xr.Dataset:
+    """Compute r2 values from MSE and variance metrics."""
     mse_vars = [var for var in ds_metrics if "_mse" in var]
     ds_r2 = xr.Dataset()
     for mse_var in mse_vars:
         variance_var = mse_var.replace("_mse", "_variance")
-        r2_var = mse_var.replace("_mse", tag)
+        r2_var = mse_var.replace("_mse", "_r2")
         ds_r2[r2_var] = 1.0 - ds_metrics[mse_var] / ds_metrics[variance_var]
     return ds_r2
 
 
-def insert_r2(ds_metrics: xr.Dataset) -> xr.Dataset:
-    """Insert r2 fields into the metrics Dataset.
-
-    Fields given the "_r2" tag represent r2 values over all datasets. Fields
-    given the "_per_dataset_r2" tag represent the r2 computed over each
-    dataset present in the testing data.
-    """
-    if DATASET_DIM_NAME in ds_metrics.dims:
-        per_dataset_r2 = _compute_r2(ds_metrics, tag="_per_dataset_r2")
-        aggregate_r2 = _compute_r2(ds_metrics.mean(DATASET_DIM_NAME))
-        return xr.merge([ds_metrics, per_dataset_r2, aggregate_r2])
-    else:
-        aggregate_r2 = _compute_r2(ds_metrics)
-        return xr.merge([ds_metrics, aggregate_r2])
-
-
-def _rename_via_replace(ds: xr.Dataset, find: str, replace: str) -> xr.Dataset:
+def rename_via_replace(ds: xr.Dataset, find: str, replace: str) -> xr.Dataset:
     """Rename variables in Dataset via a find and replace strategy."""
     rename = {v: v.replace(find, replace) for v in ds if find in v}
     return ds.rename(rename)
+
+
+def insert_aggregate_r2(ds_metrics: xr.Dataset) -> xr.Dataset:
+    """Compute the aggregate r2 over all datasets for each variable.
+
+    Renames the per dataset r2 variables using the "per_dataset_r2" tag.  Only
+    meant to be called on ds_metrics Datasets with a "dataset" dimension.
+    """
+    ds_metrics = rename_via_replace(ds_metrics, "_r2", "_per_dataset_r2")
+    aggregate_r2 = compute_r2(ds_metrics.mean(DATASET_DIM_NAME))
+    return ds_metrics.merge(aggregate_r2)
 
 
 def insert_aggregate_bias(ds_metrics: xr.Dataset) -> xr.Dataset:
@@ -101,8 +93,8 @@ def insert_aggregate_bias(ds_metrics: xr.Dataset) -> xr.Dataset:
     bias_vars = [var for var in ds_metrics if "bias" in var]
     aggregate_bias = safe.get_variables(ds_metrics, bias_vars).mean(DATASET_DIM_NAME)
     per_dataset_bias = safe.get_variables(ds_metrics, bias_vars)
-    per_dataset_bias = _rename_via_replace(per_dataset_bias, "bias", "per_dataset_bias")
-    return xr.merge([ds_metrics.drop(bias_vars), aggregate_bias, per_dataset_bias])
+    per_dataset_bias = rename_via_replace(per_dataset_bias, "bias", "per_dataset_bias")
+    return ds_metrics.drop(bias_vars).merge(aggregate_bias).merge(per_dataset_bias)
 
 
 def insert_rmse(ds: xr.Dataset):

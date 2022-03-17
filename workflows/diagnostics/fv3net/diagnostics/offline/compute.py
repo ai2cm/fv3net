@@ -23,8 +23,9 @@ from ._helpers import (
     DATASET_DIM_NAME,
     load_grid_info,
     is_3d,
-    insert_r2,
+    compute_r2,
     insert_aggregate_bias,
+    insert_aggregate_r2,
     insert_rmse,
     insert_column_integrated_vars,
 )
@@ -172,8 +173,9 @@ def _compute_diagnostics(
 
     # then average over the batches for each output
     ds_summary = xr.concat(batches_summary, dim="batch")
-    ds_summary = insert_r2(ds_summary)
+    ds_summary = ds_summary.merge(compute_r2(ds_summary))
     if DATASET_DIM_NAME in ds_summary.dims:
+        ds_summary = insert_aggregate_r2(ds_summary)
         ds_summary = insert_aggregate_bias(ds_summary)
     ds_diagnostics, ds_scalar_metrics = _consolidate_dimensioned_data(ds_summary)
     ds_diagnostics = ds_diagnostics.pipe(insert_rmse)
