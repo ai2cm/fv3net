@@ -8,7 +8,12 @@ import vcm
 DATA_TRANSFORM_REGISTRY: MutableMapping[str, Mapping[str, Any]] = {}
 
 TransformName = Literal[
-    "Q1_from_Qm_Q2", "Qm_from_Q1_Q2", "Q1_from_dQ1_pQ1", "Q2_from_dQ2_pQ2",
+    "Q1_from_Qm_Q2",
+    "Qm_from_Q1_Q2",
+    "Q1_from_Qm_Q2_temperature_dependent",
+    "Qm_from_Q1_Q2_temperature_dependent",
+    "Q1_from_dQ1_pQ1",
+    "Q2_from_dQ2_pQ2",
 ]
 
 
@@ -36,6 +41,22 @@ def Qm_from_Q1_Q2(ds):
 @register(["Qm", "Q2"], ["Q1"])
 def Q1_from_Qm_Q2(ds):
     ds["Q1"] = vcm.temperature_tendency(ds["Qm"], ds["Q2"])
+    return ds
+
+
+@register(["Q1", "Q2", "air_temperature"], ["Qm"])
+def Qm_from_Q1_Q2_temperature_dependent(ds):
+    ds["Qm"] = vcm.moist_static_energy_tendency(
+        ds["Q1"], ds["Q2"], temperature=ds["air_temperature"]
+    )
+    return ds
+
+
+@register(["Qm", "Q2", "air_temperature"], ["Q1"])
+def Q1_from_Qm_Q2_temperature_dependent(ds):
+    ds["Q1"] = vcm.temperature_tendency(
+        ds["Qm"], ds["Q2"], temperature=ds["air_temperature"]
+    )
     return ds
 
 
