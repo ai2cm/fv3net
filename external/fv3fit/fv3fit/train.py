@@ -71,19 +71,21 @@ def get_data(
         Training and validation data batches
     """
     if local_download_path is None:
-        return get_uncached_data(
+        train_batches, val_batches = get_uncached_data(
             training_data_config=training_data_config,
             validation_data_config=validation_data_config,
             variable_names=variable_names,
         )
     else:
-        return get_cached_data(
+        train_batches, val_batches = get_cached_data(
             training_data_config=training_data_config,
             validation_data_config=validation_data_config,
             local_download_path=local_download_path,
             variable_names=variable_names,
             in_memory=in_memory,
         )
+    logger.info(f"Following variables are in train batches: {list(train_batches[0])}")
+    return train_batches, val_batches
 
 
 def get_uncached_data(
@@ -176,8 +178,6 @@ def main(args, unknown_args=None):
         variable_names=training_config.variables,
         in_memory=training_config.cache.in_memory,
     )
-
-    logger.info(f"Following variables are in train batches: {list(train_batches[0])}")
 
     train = fv3fit.get_training_function(training_config.model_type)
 
