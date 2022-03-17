@@ -1,10 +1,8 @@
 #!/bin/bash
 
 url=gs://vcm-ml-experiments/microphysics-emulation/2022-01-27/rnn-gscond-cloudtdep-cbfc4a/model.tf
-tag=online-24hr-cycle-v1
-image=7f61afa0df2c9227c38b85473ac810a4cb36f367
-
-
+tag=online-12hr-cycle-v2
+image=654a829dc65db61d7be330e6d68b6a6f15086d07
 
 argo submit prog-run-and-eval.yaml \
     --name "$tag" \
