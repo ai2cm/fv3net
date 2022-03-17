@@ -11,7 +11,7 @@ output_variables = [
 ]
 base_model = fv3fit.testing.ConstantOutputPredictor(input_variables, output_variables)
 base_model.set_outputs(Q1=1.0, Q2=2.0)
-transforms = [vcm.DataTransform("qm_from_q1_q2")]
+transforms = [vcm.DataTransform("Qm_from_Q1_Q2")]
 
 
 def test_transformed_prediction():

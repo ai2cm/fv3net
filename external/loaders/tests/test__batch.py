@@ -312,9 +312,9 @@ def test_batches_from_mapper_data_transform(mapper):
         timesteps_per_batch=2,
         needs_grid=False,
         data_transforms=[
-            {"name": "q1_from_dQ1_pQ1"},
-            {"name": "q2_from_dQ2_pQ2"},
-            {"name": "qm_from_q1_q2"},
+            {"name": "Q1_from_dQ1_pQ1"},
+            {"name": "Q2_from_dQ2_pQ2"},
+            {"name": "Qm_from_Q1_Q2"},
         ],
     )
     ds = batched_data_sequence[0]

@@ -124,7 +124,7 @@ def call_main(
     derived_output_variables,
     use_validation_data: bool,
     use_local_download_path: bool = False,
-    output_transforms: Optional[Sequence[vcm.DataTransformConfig]] = None,
+    output_transforms: Optional[Sequence[vcm.DataTransform]] = None,
 ):
     model_type = "dense"
     hyperparameters_dict = {}
@@ -194,7 +194,7 @@ def test_main_calls_load_batches_correctly(
 
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
 @pytest.mark.parametrize(
-    "output_transforms", [[], [vcm.DataTransformConfig("qm_from_q1_q2")]]
+    "output_transforms", [[], [vcm.DataTransform("Qm_from_Q1_Q2")]]
 )
 def test_main_dumps_correct_predictor(
     tmpdir,
@@ -240,13 +240,13 @@ def test_main_uses_derived_model_only_if_needed(
 
 
 @pytest.mark.parametrize(
-    "output_transforms", [[], [vcm.DataTransformConfig("qm_from_q1_q2")]]
+    "output_transforms", [[], [vcm.DataTransform("Qm_from_Q1_Q2")]]
 )
 def test_main_uses_transformed_predictor_only_if_needed(
     tmpdir,
     mock_load_batches: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
-    output_transforms: Sequence[vcm.DataTransformConfig],
+    output_transforms: Sequence[vcm.DataTransform],
 ):
     artifacts = call_main(
         tmpdir,
@@ -321,7 +321,7 @@ def get_config(
     unstacked_dims: Sequence[str],
     use_local_download_path: bool = False,
     output_variables: Sequence[str] = ("dQ1", "dQ2"),
-    output_transforms: Optional[Sequence[vcm.DataTransformConfig]] = None,
+    output_transforms: Optional[Sequence[vcm.DataTransform]] = None,
 ):
     output_transforms = [] if output_transforms is None else output_transforms
     base_dir = str(tmpdir)
@@ -353,7 +353,7 @@ def get_config(
             res="c8_random_values",
             timesteps_per_batch=3,
             unstacked_dims=unstacked_dims,
-            data_transforms=[{"name": "qm_from_q1_q2"}],
+            data_transforms=[{"name": "Qm_from_Q1_Q2"}],
         ),
         mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
     )
@@ -367,7 +367,7 @@ def get_config(
                 res="c8_random_values",
                 timesteps_per_batch=3,
                 unstacked_dims=unstacked_dims,
-                data_transforms=[{"name": "qm_from_q1_q2"}],
+                data_transforms=[{"name": "Qm_from_Q1_Q2"}],
             ),
             mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
         )
