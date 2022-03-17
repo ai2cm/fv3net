@@ -167,19 +167,20 @@ def append_halos_tensor(n_halo: int, tensor: tf.Tensor) -> tf.Tensor:
     """
     if n_halo > 0:
         out_tensor = tf.py_function(
-            _append_halos_tensor, inp=(n_halo, tensor), Tout=tensor.dtype
+            _append_halos_tensor(n_halo), inp=(tensor,), Tout=tensor.dtype
         )
     else:
         out_tensor = tensor
     return out_tensor
 
 
-def _append_halos_tensor(n_halo, tensor: tf.Tensor) -> tf.Tensor:
+@curry
+def _append_halos_tensor(n_halo: int, tensor: tf.Tensor) -> tf.Tensor:
     comms = _create_comms(total_ranks=6)
     communicators = [_get_cubed_sphere_communicator(comm) for comm in comms]
     shape = list(tensor.shape[1:])
-    shape[0] += 2 * n_halo.numpy()
-    shape[1] += 2 * n_halo.numpy()
+    shape[0] += 2 * n_halo
+    shape[1] += 2 * n_halo
     quantities = [
         pace.util.Quantity(
             data=np.zeros(shape),
@@ -192,9 +193,7 @@ def _append_halos_tensor(n_halo, tensor: tf.Tensor) -> tf.Tensor:
     ]
     for i, quantity in enumerate(quantities):
         quantity.view[:] = tensor[i, :, :, :].numpy()
-    _halo_update(
-        communicators=communicators, quantities=quantities, n_halo=n_halo.numpy()
-    )
+    _halo_update(communicators=communicators, quantities=quantities, n_halo=n_halo)
     out_tensor = tf.concat(
         [quantity.data[None, :, :, :] for quantity in quantities], axis=0
     )

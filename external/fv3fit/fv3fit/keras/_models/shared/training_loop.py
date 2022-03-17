@@ -1,9 +1,17 @@
 import tensorflow as tf
-from typing import Any, Iterable, List, Mapping, Optional, Sequence, Callable
+from typing import Any, Iterable, List, Optional, Sequence, Callable
 import dataclasses
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass
+class Logs:
+    loss: float
+    val_loss: Optional[float]
+    # this could be extended in the future to contain more metrics, or
+    # a Mapping for custom metrics, if we also refactor the collection logic
 
 
 @dataclasses.dataclass
@@ -16,8 +24,8 @@ class EpochResult:
     """
 
     epoch: int
-    batch_logs: Sequence[Mapping[str, float]]
-    epoch_logs: Mapping[str, float]
+    batch_logs: Sequence[Logs]
+    epoch_logs: Logs
 
 
 @dataclasses.dataclass
@@ -66,19 +74,27 @@ class TrainingLoopConfig:
 class EpochCallback(tf.keras.callbacks.History):
     def __init__(self, callback: Callable[[EpochResult], Any]):
         self._callback = callback
-        self._batch_logs: List[dict] = []
+        self._batch_logs: List[Logs] = []
 
     def on_train_batch_end(self, epoch: int, logs=None):
-        if logs is None:
-            logs = {}
-        self._batch_logs.append(logs)
+        if logs is None or "loss" not in logs:
+            raise NotImplementedError(
+                "fv3fit epoch callbacks are hard-coded to require loss values"
+            )
+        self._batch_logs.append(
+            Logs(loss=logs["loss"], val_loss=logs.get("val_loss", None))
+        )
 
     def on_epoch_end(self, epoch: int, logs=None):
-        if logs is None:
-            logs = {}
+        if logs is None or "loss" not in logs:
+            raise NotImplementedError(
+                "fv3fit epoch callbacks are hard-coded to require loss values"
+            )
         self._callback(
             EpochResult(
-                epoch=epoch, batch_logs=tuple(self._batch_logs), epoch_logs=logs
+                epoch=epoch,
+                batch_logs=tuple(self._batch_logs),
+                epoch_logs=Logs(loss=logs["loss"], val_loss=logs.get("val_loss", None)),
             )
         )
         self._batch_logs.clear()
