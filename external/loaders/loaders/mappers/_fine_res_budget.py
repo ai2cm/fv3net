@@ -10,6 +10,23 @@ def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
     return unresolved_flux + (total_resolved_flux - omega * field)
 
 
+FINE_RES_BUDGET_NAMES = {
+    "T": "air_temperature",
+    "sphum": "specific_humidity",
+    "delp": "pressure_thickness_of_atmospheric_layer",
+    "DLWRFsfc_coarse": "total_sky_downward_longwave_flux_at_surface",
+    "DSWRFsfc_coarse": "total_sky_downward_shortwave_flux_at_surface",
+    "DSWRFtoa_coarse": "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    "ULWRFsfc_coarse": "total_sky_upward_longwave_flux_at_surface",
+    "ULWRFtoa_coarse": "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+    "USWRFsfc_coarse": "total_sky_upward_shortwave_flux_at_surface",
+    "USWRFtoa_coarse": "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+    "LHTFLsfc_coarse": "latent_heat_flux",
+    "SHTFLsfc_coarse": "sensible_heat_flux",
+    "PRATEsfc_coarse": "surface_precipitation_rate",
+}
+
+
 class FineResBudget(Protocol):
     """Protocol defining what input vaiables are required
 
