@@ -14,12 +14,9 @@ RUN apt-get update && \
 # Equivalent to passing --no-cache-dir to every pip install
 ENV PIP_NO_CACHE_DIR=off
 
-# to solve memeory leak issue with tensorflow
-# https://github.com/tensorflow/tensorflow/issues/34942#issuecomment-783766895
-ENV LD_PRELOAD=/path/to/libtcmalloc_minimal.so.4
 
 # Install dependencies
-COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
+COPY docker/fv3fit/requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 
 COPY external/vcm /fv3net/external/vcm
@@ -33,3 +30,7 @@ RUN pip3 install --no-dependencies /fv3net/external/loaders
 
 COPY external/fv3fit /fv3net/external/fv3fit
 RUN pip3 install --no-dependencies /fv3net/external/fv3fit
+
+# to solve memeory leak issue with tensorflow
+# https://github.com/tensorflow/tensorflow/issues/34942#issuecomment-783766895
+ENV LD_PRELOAD=/path/to/libtcmalloc_minimal.so.4
