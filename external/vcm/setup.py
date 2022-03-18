@@ -31,6 +31,7 @@ install_requirements = [
     "pytest-regtest",
     "h5netcdf>=0.8",
     "intake-xarray>=0.3.1",
+    "dacite",
 ]
 
 
