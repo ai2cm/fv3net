@@ -21,6 +21,17 @@ def test_transformed_prediction():
     assert "Qm" in output
 
 
+def test_transformed_prediction_additional_required_input():
+    transformed_model = fv3fit.TransformedPredictor(
+        fv3fit.testing.ConstantOutputPredictor(["input"], ["Q1"]), transforms
+    )
+    input_dataset = xr.Dataset(
+        {"input": xr.DataArray([0, 1, 2]), "Q2": xr.DataArray([0, 1, 2])}
+    )
+    output = transformed_model.predict(input_dataset)
+    assert "Qm" in output
+
+
 def test_transformed_predictor_inputs_outputs():
     transformed_model = fv3fit.TransformedPredictor(base_model, transforms)
     assert transformed_model.input_variables == ["input"]
