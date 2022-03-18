@@ -5,6 +5,7 @@ import xarray as xr
 from toolz.functoolz import compose_left
 from typing import Callable, Optional, Sequence
 
+from loaders.batches import shuffle
 from .transforms import open_netcdf_dataset
 from .io import get_nc_files
 
@@ -12,7 +13,9 @@ from .io import get_nc_files
 logger = logging.getLogger(__name__)
 
 
-def _seq_to_tf_dataset(source: Sequence, transform: Callable,) -> tf.data.Dataset:
+def _seq_to_tf_dataset(
+    source: Sequence, transform: Callable, shuffle_gen: bool = True
+) -> tf.data.Dataset:
     """
     A general function to convert from a sequence into a tensorflow dataset
     to be used for ML model training.
@@ -25,7 +28,8 @@ def _seq_to_tf_dataset(source: Sequence, transform: Callable,) -> tf.data.Datase
     """
 
     def get_generator():
-        for batch in source:
+        seq = shuffle(source) if shuffle_gen else source
+        for batch in seq:
             output = transform(batch)
             yield tf.data.Dataset.from_tensor_slices(output)
 
