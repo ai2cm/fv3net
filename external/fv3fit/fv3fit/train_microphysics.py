@@ -104,7 +104,7 @@ class TrainConfig:
     batch_size: int = 128
     valid_freq: int = 5
     verbose: int = 2
-    shuffle_buffer_size: Optional[int] = 100_000
+    shuffle_buffer_size: Optional[int] = 13840
     checkpoint_model: bool = True
     log_level: str = "INFO"
 
