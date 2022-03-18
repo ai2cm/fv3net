@@ -58,9 +58,15 @@ class TrainingLoopConfig:
             validation_data: passed as `validation_data` argument to `model.fit`
             callbacks: if given, these will be called at the end of each epoch
         """
-        Xy = Xy.shuffle(buffer_size=self.shuffle_buffer_size).batch(self.batch_size)
+        Xy = (
+            Xy.shuffle(buffer_size=self.shuffle_buffer_size)
+            .batch(self.batch_size)
+            .prefetch(tf.data.AUTOTUNE)
+        )
         if validation_data is not None:
-            validation_batched = validation_data.batch(self.batch_size)
+            validation_batched = validation_data.batch(self.batch_size).prefetch(
+                tf.data.AUTOTUNE
+            )
         else:
             validation_batched = None
         model.fit(
