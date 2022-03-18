@@ -31,6 +31,7 @@ import sklearn.base
 import sklearn.ensemble
 import tensorflow as tf
 from fv3fit.typing import Batch
+from fv3fit import tfdataset
 from fv3fit.tfdataset import apply_to_mapping, ensure_nd
 
 from typing import Optional, Iterable, Sequence
@@ -41,8 +42,8 @@ from vcm import safe
 @register_training_function("sklearn_random_forest", RandomForestHyperparameters)
 def train_random_forest(
     hyperparameters: RandomForestHyperparameters,
-    train_batches: Sequence[xr.Dataset],
-    validation_batches: Sequence[xr.Dataset],
+    train_batches: tf.data.Dataset,
+    validation_batches: tf.data.Dataset,
 ):
     """
     Args:
@@ -51,6 +52,9 @@ def train_random_forest(
             with at most one non-sample dimension
         validation_batches: ignored in this function
     """
+    train_batches = train_batches.map(
+        tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
+    )
     model = RandomForest(
         hyperparameters.input_variables,
         hyperparameters.output_variables,
@@ -96,7 +100,7 @@ class RandomForest(Predictor):
         self.input_variables = self._model_wrapper.input_variables
         self.output_variables = self._model_wrapper.output_variables
 
-    def fit(self, batches: Sequence[xr.Dataset]):
+    def fit(self, batches: tf.data.Dataset):
         return self._model_wrapper.fit(batches)
 
     def predict(self, features):

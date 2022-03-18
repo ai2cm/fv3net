@@ -37,6 +37,14 @@ def select_keys(
     return tuple(data[name] for name in variable_names)
 
 
+def float64_to_float32(tensor: tf.Tensor):
+    if tensor.dtype == tf.float64:
+        return_value = tf.cast(tensor, tf.float32)
+    else:
+        return_value = tensor
+    return return_value
+
+
 def get_Xy_dataset(
     input_variables: Sequence[str],
     output_variables: Sequence[str],

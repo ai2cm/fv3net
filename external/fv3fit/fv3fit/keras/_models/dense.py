@@ -34,6 +34,7 @@ from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
     full_standard_normalized_input,
 )
+from fv3fit import tfdataset
 from fv3fit.keras._models.shared.clip import clip_sequence, ClipConfig
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping, clip_sample
 
@@ -174,10 +175,16 @@ def train_column_model(
         clip_config: configuration of input and output clipping of last dimension
         training_loop: configuration of training loop
     """
+    train_batches = train_batches.map(
+        tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
+    )
     get_Xy = curry(get_Xy_dataset)(
         input_variables=input_variables, output_variables=output_variables, n_dims=1,
     )
     if validation_batches is not None:
+        validation_batches = validation_batches.map(
+            tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
+        )
         val_Xy = get_Xy(clip_config=clip_config.clip, data=validation_batches)
     else:
         val_Xy = None

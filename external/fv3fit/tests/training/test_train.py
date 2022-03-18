@@ -147,6 +147,7 @@ def get_dataset(
         output_values = [input_values[i_3d_input]]
 
     data_vars = {name: value for name, value in zip(input_variables, input_values)}
+    data_vars[input_variables[0]] = data_vars[input_variables[0]].astype(np.float32)
     data_vars.update(
         {name: value for name, value in zip(output_variables, output_values)}
     )

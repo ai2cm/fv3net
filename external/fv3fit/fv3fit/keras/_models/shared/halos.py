@@ -183,7 +183,7 @@ def _append_halos_tensor(n_halo: int, tensor: tf.Tensor) -> tf.Tensor:
     shape[1] += 2 * n_halo
     quantities = [
         pace.util.Quantity(
-            data=np.zeros(shape),
+            data=np.zeros(shape, dtype=_dtype_to_numpy[tensor.dtype]),
             dims=["x", "y", "z"],
             units="unknown",
             origin=(n_halo, n_halo, 0),
@@ -198,3 +198,9 @@ def _append_halos_tensor(n_halo: int, tensor: tf.Tensor) -> tf.Tensor:
         [quantity.data[None, :, :, :] for quantity in quantities], axis=0
     )
     return out_tensor
+
+
+_dtype_to_numpy = {
+    tf.float32: np.float32,
+    tf.float64: np.float64,
+}
