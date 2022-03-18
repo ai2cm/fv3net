@@ -18,6 +18,7 @@ from vcm.calc.thermo.vertically_dependent import (
 from vcm.calc.calc import local_time
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 from vcm.calc.thermo.constants import _GRAVITY, _RDGAS, _RVGAS
+import vcm
 
 
 @pytest.mark.parametrize("toa_pressure", [0, 5])
@@ -143,3 +144,25 @@ def test_specific_humidity(t, rh, rho):
     rh_round_trip = relative_humidity(t, q, rho)
 
     assert pytest.approx(rh) == rh_round_trip
+
+
+def test_moist_static_energy_tendency():
+    Q1 = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Q2 = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Qm = vcm.moist_static_energy_tendency(Q1, Q2)
+    assert Qm.shape == Q1.shape
+
+
+def test_temperature_tendency():
+    Qm = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Q2 = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Q1 = vcm.temperature_tendency(Qm, Q2)
+    assert Qm.shape == Q1.shape
+
+
+def test_round_trip_mse_temperature_tendency():
+    Q1 = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Q2 = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Qm = vcm.moist_static_energy_tendency(Q1, Q2)
+    round_tripped_Q1 = vcm.temperature_tendency(Qm, Q2)
+    xr.testing.assert_allclose(Q1, round_tripped_Q1)

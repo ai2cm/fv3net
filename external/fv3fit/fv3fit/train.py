@@ -84,6 +84,7 @@ def get_data(
             variable_names=variable_names,
             in_memory=in_memory,
         )
+    logger.info(f"Following variables are in train batches: {list(train_batches[0])}")
     # tensorflow training shuffles within blocks of samples,
     # so we must pre-shuffle batches in order that contiguous blocks
     # of samples contain temporally-distant data
@@ -202,6 +203,8 @@ def main(args, unknown_args=None):
     )
     if len(training_config.derived_output_variables) > 0:
         model = fv3fit.DerivedModel(model, training_config.derived_output_variables)
+    if len(training_config.output_transforms) > 0:
+        model = fv3fit.TransformedPredictor(model, training_config.output_transforms)
     fv3fit.dump(model, args.output_path)
 
 
