@@ -32,6 +32,8 @@ from .calc.thermo.vertically_dependent import (
     height_at_interface,
     height_at_midpoint,
     mass_integrate,
+    mass_cumsum,
+    mass_divergence,
     pressure_at_interface,
     pressure_at_midpoint_log,
     surface_pressure_from_delp,

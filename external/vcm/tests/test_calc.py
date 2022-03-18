@@ -166,3 +166,17 @@ def test_round_trip_mse_temperature_tendency():
     Qm = vcm.moist_static_energy_tendency(Q1, Q2)
     round_tripped_Q1 = vcm.temperature_tendency(Qm, Q2)
     xr.testing.assert_allclose(Q1, round_tripped_Q1)
+
+
+def test_mass_cumsum():
+    da = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "z"])
+    delp = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "z"])
+    vcm.mass_cumsum(da, delp, dim="z")
+
+
+def test_mass_divergence():
+    da = xr.DataArray(np.reshape(np.arange(0, 50, 2), (5, 5)), dims=["x", "phalf"])
+    delp = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "pfull"])
+    out = vcm.mass_divergence(da, delp, dim_center="pfull", dim_interface="phalf")
+    assert set(out.dims) == {"x", "pfull"}
+    assert out.shape == (5, 4)
