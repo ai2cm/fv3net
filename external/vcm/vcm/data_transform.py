@@ -1,11 +1,18 @@
 import dataclasses
 from toolz.functoolz import curry
-from typing import Any, Callable, Literal, Mapping, MutableMapping, Sequence, Set
+from typing import Callable, Literal, MutableMapping, Sequence, Set
 import xarray as xr
 import vcm
 
 
-DATA_TRANSFORM_REGISTRY: MutableMapping[str, Mapping[str, Any]] = {}
+@dataclasses.dataclass
+class DataTransformRegistryEntry:
+    func: Callable[..., xr.Dataset]
+    inputs: Sequence[str]
+    outputs: Sequence[str]
+
+
+DATA_TRANSFORM_REGISTRY: MutableMapping[str, DataTransformRegistryEntry] = {}
 
 TransformName = Literal[
     "Q1_from_Qm_Q2",
@@ -24,11 +31,9 @@ def register(
     name = func.__name__
     if name in DATA_TRANSFORM_REGISTRY:
         raise ValueError(f"Function {name} has already been added to registry.")
-    DATA_TRANSFORM_REGISTRY[name] = {
-        "func": func,
-        "inputs": inputs,
-        "outputs": outputs,
-    }
+    DATA_TRANSFORM_REGISTRY[name] = DataTransformRegistryEntry(
+        func=func, inputs=inputs, outputs=outputs
+    )
     return func
 
 
@@ -78,17 +83,17 @@ class DataTransform:
     kwargs: dict = dataclasses.field(default_factory=dict)
 
     def apply(self, ds: xr.Dataset) -> xr.Dataset:
-        func = DATA_TRANSFORM_REGISTRY[self.name]["func"]
+        func = DATA_TRANSFORM_REGISTRY[self.name].func
         ds = func(ds, **self.kwargs)
         return ds
 
     @property
     def input_variables(self) -> Sequence[str]:
-        return DATA_TRANSFORM_REGISTRY[self.name]["inputs"]
+        return DATA_TRANSFORM_REGISTRY[self.name].inputs
 
     @property
     def output_variables(self) -> Sequence[str]:
-        return DATA_TRANSFORM_REGISTRY[self.name]["outputs"]
+        return DATA_TRANSFORM_REGISTRY[self.name].outputs
 
 
 @dataclasses.dataclass

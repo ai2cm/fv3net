@@ -2,6 +2,7 @@ import xarray as xr
 import dacite
 from vcm.data_transform import DATA_TRANSFORM_REGISTRY
 import vcm
+import pytest
 
 ARRAY = xr.DataArray([0, 1, 2], dims=["x"])
 
@@ -19,10 +20,10 @@ def test_all_registered_transforms_are_added_to_data_transform_name_type():
 
 def test_all_transform_functions():
     for key in DATA_TRANSFORM_REGISTRY:
-        input_variables = DATA_TRANSFORM_REGISTRY[key]["inputs"]
+        input_variables = DATA_TRANSFORM_REGISTRY[key].inputs
         data = xr.Dataset({name: ARRAY for name in input_variables})
-        out = DATA_TRANSFORM_REGISTRY[key]["func"](data)
-        for output_name in DATA_TRANSFORM_REGISTRY[key]["outputs"]:
+        out = DATA_TRANSFORM_REGISTRY[key].func(data)
+        for output_name in DATA_TRANSFORM_REGISTRY[key].outputs:
             assert output_name in out
 
 
@@ -50,10 +51,26 @@ def test_transform_inputs_outputs():
     assert transform.output_variables == ["Qm"]
 
 
-def test_chained_transform_inputs_outputs():
-    config_dict = {
-        "transforms": [{"name": "Q1_from_dQ1_pQ1"}, {"name": "Qm_from_Q1_Q2"}]
-    }
+@pytest.mark.parametrize(
+    "transforms, expected_inputs, expected_outputs",
+    [
+        ([], [], [],),
+        (
+            [{"name": "Q1_from_dQ1_pQ1"}, {"name": "Qm_from_Q1_Q2"}],
+            ["Q2", "dQ1", "pQ1"],
+            ["Q1", "Qm"],
+        ),
+        (
+            [{"name": "Q1_from_dQ1_pQ1"}, {"name": "Q2_from_dQ2_pQ2"}],
+            ["dQ1", "dQ2", "pQ1", "pQ2"],
+            ["Q1", "Q2"],
+        ),
+    ],
+)
+def test_chained_transform_inputs_outputs(
+    transforms, expected_inputs, expected_outputs
+):
+    config_dict = {"transforms": transforms}
     transform = dacite.from_dict(vcm.ChainedDataTransform, config_dict)
-    assert transform.input_variables == ["Q2", "dQ1", "pQ1"]
-    assert transform.output_variables == ["Q1", "Qm"]
+    assert transform.input_variables == expected_inputs
+    assert transform.output_variables == expected_outputs
