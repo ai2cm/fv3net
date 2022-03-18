@@ -5,7 +5,6 @@ import xarray as xr
 from toolz.functoolz import compose_left
 from typing import Callable, Optional, Sequence
 
-from loaders.batches import shuffle
 from .transforms import open_netcdf_dataset
 from .io import get_nc_files
 
@@ -28,8 +27,7 @@ def _seq_to_tf_dataset(
     """
 
     def get_generator():
-        seq = shuffle(source) if shuffle_gen else source
-        for batch in seq:
+        for batch in source:
             output = transform(batch)
             yield tf.data.Dataset.from_tensor_slices(output)
 
@@ -38,7 +36,7 @@ def _seq_to_tf_dataset(
     tf_ds = tf.data.Dataset.from_generator(get_generator, output_signature=signature)
 
     # Flat map goes from generating tf_dataset -> generating tensors
-    tf_ds = tf_ds.prefetch(tf.data.AUTOTUNE).flat_map(lambda x: x)
+    tf_ds = tf_ds.flat_map(lambda x: x)
 
     return tf_ds
 

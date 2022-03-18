@@ -104,7 +104,7 @@ class TrainConfig:
     batch_size: int = 128
     valid_freq: int = 5
     verbose: int = 2
-    shuffle_buffer_size: Optional[int] = 13840
+    shuffle_buffer_size: Optional[int] = 13824
     checkpoint_model: bool = True
     log_level: str = "INFO"
 
@@ -273,7 +273,7 @@ def main(config: TrainConfig, seed: int = 0):
         config.test_url, config.nfiles_valid, config.model_variables
     )
 
-    train_set = next(iter(train_ds.batch(138_400)))
+    train_set = next(iter(train_ds.batch(150_000)))
     transform = config.build_transform(train_set)
 
     train_ds = train_ds.map(transform.forward)
@@ -293,8 +293,8 @@ def main(config: TrainConfig, seed: int = 0):
             )
         )
 
-    train_ds_batched = train_ds.batch(config.batch_size)
-    test_ds_batched = test_ds.batch(config.batch_size)
+    train_ds_batched = train_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
+    test_ds_batched = test_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
 
     history = train(
         model,
