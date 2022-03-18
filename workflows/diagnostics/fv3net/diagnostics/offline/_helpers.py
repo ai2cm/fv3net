@@ -2,7 +2,7 @@ import json
 import numpy as np
 import os
 import shutil
-from typing import Mapping, Sequence, Dict, Tuple
+from typing import Hashable, Mapping, Sequence, Dict, Tuple, Union
 import vcm
 import xarray as xr
 
@@ -67,6 +67,37 @@ def compute_r2(ds_metrics: xr.Dataset) -> xr.Dataset:
     return ds_r2
 
 
+def compute_aggregate_variance(
+    mean: xr.DataArray,
+    variance: xr.DataArray,
+    dim: Union[Hashable, Sequence[Hashable]] = DATASET_DIM_NAME,
+) -> xr.DataArray:
+    """Compute the aggregate variance from estimates of the variance
+    and mean.
+
+    Assumes that the weights used to compute the estimates of the
+    variance and mean were identical, i.e. each estimate of the
+    variance and mean have equal weighting when computing the
+    aggregate variance.
+    """
+    return variance.mean(dim) + mean.var(dim)
+
+
+def compute_aggregate_r2(ds_metrics: xr.Dataset) -> xr.Dataset:
+    mse_vars = [var for var in ds_metrics if "_mse" in var]
+    ds_r2 = xr.Dataset()
+    for mse_var in mse_vars:
+        variance_var = mse_var.replace("_mse", "_variance")
+        mean_var = mse_var.replace("_mse", "_time_domain_mean")
+        mean = ds_metrics[mean_var].sel(derivation="predict")
+        variance = ds_metrics[variance_var]
+        aggregate_variance = compute_aggregate_variance(mean, variance)
+        r2_var = mse_var.replace("_mse", "_r2")
+        mean_mse = ds_metrics[mse_var].mean(DATASET_DIM_NAME)
+        ds_r2[r2_var] = 1.0 - mean_mse / aggregate_variance
+    return ds_r2
+
+
 def rename_via_replace(ds: xr.Dataset, find: str, replace: str) -> xr.Dataset:
     """Rename variables in Dataset via a find and replace strategy."""
     rename = {v: v.replace(find, replace) for v in ds if find in v}
@@ -80,7 +111,7 @@ def insert_aggregate_r2(ds_metrics: xr.Dataset) -> xr.Dataset:
     meant to be called on ds_metrics Datasets with a "dataset" dimension.
     """
     ds_metrics = rename_via_replace(ds_metrics, "_r2", "_per_dataset_r2")
-    aggregate_r2 = compute_r2(ds_metrics.mean(DATASET_DIM_NAME))
+    aggregate_r2 = compute_aggregate_r2(ds_metrics)
     return ds_metrics.merge(aggregate_r2)
 
 
