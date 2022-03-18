@@ -1,4 +1,4 @@
-from ._shared import ArrayPacker, StandardScaler, DerivedModel
+from ._shared import ArrayPacker, StandardScaler, DerivedModel, TransformedPredictor
 from ._shared.input_sensitivity import (
     RandomForestInputSensitivities,
     JacobianInputSensitivity,

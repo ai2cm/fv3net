@@ -10,8 +10,8 @@ from typing import (
     Optional,
     Union,
 )
+import dacite
 import xarray as xr
-from vcm import parse_datetime_from_str
 from toolz import partition_all, curry, compose_left
 from ._sequences import Map
 from .._utils import (
@@ -63,6 +63,7 @@ class BatchesFromMapperConfig(BatchesLoader):
         shuffle_samples: if True, shuffle the samples after stacking. If False, can
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
+        data_transforms: list of transforms to compute derived variables in batches.
     """
 
     mapper_config: MapperConfig
@@ -77,6 +78,7 @@ class BatchesFromMapperConfig(BatchesLoader):
     drop_nans: bool = False
     shuffle_timesteps: bool = True
     shuffle_samples: bool = False
+    data_transforms: Optional[Sequence[Mapping]] = None
 
     def __post_init__(self):
         duplicate_times = [
@@ -118,6 +120,7 @@ class BatchesFromMapperConfig(BatchesLoader):
             drop_nans=self.drop_nans,
             shuffle_timesteps=self.shuffle_samples,
             shuffle_samples=self.shuffle_samples,
+            data_transforms=self.data_transforms,
         )
 
 
@@ -134,6 +137,7 @@ def batches_from_mapper(
     drop_nans: bool = False,
     shuffle_timesteps: bool = True,
     shuffle_samples: bool = False,
+    data_transforms: Optional[Sequence[Mapping]] = None,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -157,6 +161,7 @@ def batches_from_mapper(
         shuffle_samples: if True, shuffle the samples after stacking. If False, can
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
+        data_transforms: list of transforms to compute derived variables in batches.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
     Returns:
@@ -191,6 +196,12 @@ def batches_from_mapper(
             add_grid_info(res),
             add_wind_rotation_info(res),
         ]
+
+    if data_transforms is not None:
+        data_transform = dacite.from_dict(
+            vcm.ChainedDataTransform, {"transforms": data_transforms}
+        )
+        transforms.append(curry(data_transform.apply))
 
     transforms.append(add_derived_data(variable_names))
 
@@ -231,7 +242,7 @@ def _get_batch(mapper: Mapping[str, xr.Dataset], keys: Iterable[str],) -> xr.Dat
     If all keys are time strings, converts them to time when creating the coordinate.
     """
     try:
-        time_coords = [parse_datetime_from_str(key) for key in keys]
+        time_coords = [vcm.parse_datetime_from_str(key) for key in keys]
     except ValueError:
         time_coords = list(keys)
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))

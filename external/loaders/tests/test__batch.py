@@ -310,3 +310,21 @@ def test_batches_from_mapper_stacked_data_is_not_shuffled():
     sample_dim1 = [sample[2] for sample in multiindex[:5]]
     assert sample_times == sorted(sample_times)
     assert sample_dim1 == sorted(sample_dim1)
+
+
+def test_batches_from_mapper_data_transform(mapper):
+    batched_data_sequence = batches_from_mapper(
+        mapper,
+        ["Q1", "Q2", "Qm"],
+        timesteps_per_batch=2,
+        needs_grid=False,
+        data_transforms=[
+            {"name": "Q1_from_dQ1_pQ1"},
+            {"name": "Q2_from_dQ2_pQ2"},
+            {"name": "Qm_from_Q1_Q2"},
+        ],
+    )
+    ds = batched_data_sequence[0]
+    assert "Q1" in ds
+    assert "Q2" in ds
+    assert "Qm" in ds
