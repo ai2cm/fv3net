@@ -15,7 +15,7 @@ spec:
     - name: flags
       value: ""
     - name: gpu-train
-      value: "false"
+      value: "true"
   volumes:
     - name: gcp-key-secret
       secret:
@@ -60,7 +60,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: us.gcr.io/vcm-ml/fv3fit:e1e8429a0a328494cace6c9a30e5eb718ad347f6
+        image: us.gcr.io/vcm-ml/fv3fit:7439c64823e9dccc10504236aa1b0ab118b62e78
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -103,7 +103,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: us.gcr.io/vcm-ml/fv3fit:e1e8429a0a328494cace6c9a30e5eb718ad347f6
+        image: us.gcr.io/vcm-ml/fv3fit:7439c64823e9dccc10504236aa1b0ab118b62e78
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
