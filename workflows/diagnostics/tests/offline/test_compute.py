@@ -80,8 +80,7 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
     trained_model.set_outputs(dQ1=np.zeros([19]), dQ2=np.zeros([19]))
     data_config = loaders.BatchesFromMapperConfig(
         loaders.MapperConfig(function="open_zarr", kwargs={"data_path": data_path},),
-        function="batches_from_mapper",
-        kwargs=batches_kwargs,
+        **batches_kwargs,
     )
     with tempfile.TemporaryDirectory() as tmpdir:
         model_dir = os.path.join(tmpdir, "trained_model")
