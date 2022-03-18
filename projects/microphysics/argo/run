@@ -1,12 +1,14 @@
 #!/bin/bash
 
 # This model training ran out of memory
-url=gs://vcm-ml-experiments/microphysics-emulation/2022-03-17/cycle-trained-limited-eb2271/checkpoints/epoch.015.tf
-tag=online-12hr-cycle-iter2
+export MODEL=gs://vcm-ml-experiments/microphysics-emulation/2022-03-17/cycle-trained-limited-eb2271/checkpoints/epoch.015.tf
+tag=iter2-cycle-v2
 image=654a829dc65db61d7be330e6d68b6a6f15086d07
+
+envsubst < ../configs/online.yaml > config.yaml
 
 argo submit prog-run-and-eval.yaml \
     --name "$tag" \
     -p image_tag="$image" \
     -p tag=$tag \
-    -p config=$(base64 --wrap 0 ../configs/online.yaml) | grep -v 'config:' | tee -a submitted-jobs.txt
+    -p config=$(base64 --wrap 0 config.yaml) | grep -v 'config:' | tee -a submitted-jobs.txt
