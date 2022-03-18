@@ -291,16 +291,16 @@ def main(config: TrainConfig, seed: int = 0):
         config.test_url, config.nfiles_valid, config.model_variables
     )
 
-    train_set = next(iter(train_ds.shuffle(1_000_000).batch(50_000)))
+    if config.shuffle_buffer_size is not None:
+        train_ds = train_ds.shuffle(config.shuffle_buffer_size)
+
+    train_set = next(iter(train_ds.batch(50_000)))
     transform = config.build_transform(train_set)
 
     train_ds = train_ds.map(transform.forward)
     test_ds = test_ds.map(transform.forward)
 
     model = config.build_model(train_set, transform)
-
-    if config.shuffle_buffer_size is not None:
-        train_ds = train_ds.shuffle(config.shuffle_buffer_size)
 
     if config.checkpoint_model:
         callbacks.append(
