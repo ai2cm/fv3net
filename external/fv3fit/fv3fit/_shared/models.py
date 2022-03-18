@@ -211,7 +211,7 @@ class TransformedPredictor(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         base_prediction = self.base_model.predict(X)
-        return self.output_transform.apply(base_prediction)
+        return self.output_transform.apply(xr.merge([X, base_prediction]))
 
     def dump(self, path: str):
         base_model_path = os.path.join(path, self._BASE_MODEL_SUBDIR)
