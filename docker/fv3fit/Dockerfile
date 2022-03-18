@@ -8,10 +8,15 @@ RUN apt-get update && \
         python3-pip \
         libmpich-dev \
         libnetcdf-dev \
+        libtcmalloc-minimal4 \
         python3-setuptools
 
 # Equivalent to passing --no-cache-dir to every pip install
 ENV PIP_NO_CACHE_DIR=off
+
+# to solve memeory leak issue with tensorflow
+# https://github.com/tensorflow/tensorflow/issues/34942#issuecomment-783766895
+ENV LD_PRELOAD=/path/to/libtcmalloc_minimal.so.4
 
 # Install dependencies
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
