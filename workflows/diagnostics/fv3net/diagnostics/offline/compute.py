@@ -324,7 +324,11 @@ def main(args):
         snapshot_index = nearest_time_batch_index(
             snapshot_time, [batch.time.values for batch in batches]
         )
-        ds_snapshot = batches[snapshot_index].sel(time=snapshot_time, method="nearest")
+        ds_snapshot = (
+            batches[snapshot_index]
+            .sortby("time")
+            .sel(time=snapshot_time, method="nearest")
+        )
 
         vertical_vars = [
             var for var in model.output_variables if is_3d(ds_snapshot[var])
