@@ -12,7 +12,7 @@ from .io import get_nc_files
 logger = logging.getLogger(__name__)
 
 
-def _seq_to_tf_dataset(source: Sequence, transform: Callable,) -> tf.data.Dataset:
+def _seq_to_tf_dataset(source: Sequence, transform: Callable) -> tf.data.Dataset:
     """
     A general function to convert from a sequence into a tensorflow dataset
     to be used for ML model training.
@@ -34,7 +34,7 @@ def _seq_to_tf_dataset(source: Sequence, transform: Callable,) -> tf.data.Datase
     tf_ds = tf.data.Dataset.from_generator(get_generator, output_signature=signature)
 
     # Flat map goes from generating tf_dataset -> generating tensors
-    tf_ds = tf_ds.prefetch(tf.data.AUTOTUNE).flat_map(lambda x: x)
+    tf_ds = tf_ds.flat_map(lambda x: x)
 
     return tf_ds
 
