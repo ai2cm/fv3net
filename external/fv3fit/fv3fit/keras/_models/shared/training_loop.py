@@ -41,8 +41,9 @@ class TrainingLoopConfig:
     """
 
     epochs: int = 3
-    shuffle_buffer_size: int = 2_000_000
+    shuffle_buffer_size: int = 50_000
     batch_size: int = 16
+    in_memory: bool = False
 
     def fit_loop(
         self,
@@ -58,6 +59,10 @@ class TrainingLoopConfig:
             validation_data: passed as `validation_data` argument to `model.fit`
             callbacks: if given, these will be called at the end of each epoch
         """
+        if self.in_memory:
+            Xy = Xy.cache()
+            if validation_data is not None:
+                validation_data = validation_data.cache()
         Xy = (
             Xy.shuffle(buffer_size=self.shuffle_buffer_size)
             .batch(self.batch_size)
