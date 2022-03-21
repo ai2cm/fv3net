@@ -19,7 +19,7 @@ bokeh==2.2.3
 cachetools==4.2.4
 certifi==2021.10.8
 cffi==1.14.4
-cftime==1.2.1
+cftime==1.6.0
 chardet==3.0.4
 charset-normalizer==2.0.11
 click==8.0.3

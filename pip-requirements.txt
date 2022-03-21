@@ -1,5 +1,5 @@
 apache-beam[gcp]
-nc-time-axis
+nc-time-axis>=1.4.0
 bump2version
 yq
 pytest-regtest
