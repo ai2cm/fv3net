@@ -198,7 +198,9 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
     zonal_avg_pressure_level_metrics = [
         var
         for var in ds_diags.data_vars
-        if var.endswith("_pressure_level_zonal_avg_global") and ("r2" in var.lower())
+        if var.endswith("_pressure_level_zonal_avg_global")
+        and ("r2" in var.lower())
+        and ("per_dataset" not in var.lower())
     ]
     for var in sorted(zonal_avg_pressure_level_metrics):
         fig = plot_zonal_average(
@@ -218,7 +220,9 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
     pressure_level_metrics = [
         var
         for var in ds_diags.data_vars
-        if var.endswith("pressure_level_global") and ("r2" in var.lower())
+        if var.endswith("pressure_level_global")
+        and ("r2" in var.lower())
+        and ("per_dataset" not in var.lower())
     ]
     for var in sorted(pressure_level_metrics):
         ylim = (0, 1) if "r2" in var.lower() else None
