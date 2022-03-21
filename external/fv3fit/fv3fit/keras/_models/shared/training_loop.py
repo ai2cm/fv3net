@@ -28,6 +28,13 @@ class EpochResult:
     epoch_logs: Logs
 
 
+def sequence_size(seq):
+    n = 0
+    for _ in seq:
+        n += 1
+    return n
+
+
 @dataclasses.dataclass
 class TrainingLoopConfig:
     """
@@ -59,27 +66,33 @@ class TrainingLoopConfig:
             validation_data: passed as `validation_data` argument to `model.fit`
             callbacks: if given, these will be called at the end of each epoch
         """
-        if self.in_memory:
-            Xy = Xy.cache()
-            if validation_data is not None:
-                validation_data = validation_data.cache()
-        Xy = (
-            Xy.shuffle(buffer_size=self.shuffle_buffer_size)
-            .batch(self.batch_size)
-            .prefetch(tf.data.AUTOTUNE)
+        fit_kwargs = dict(
+            callbacks=[EpochCallback(func) for func in callbacks], epochs=self.epochs
         )
-        if validation_data is not None:
-            validation_batched = validation_data.batch(self.batch_size).prefetch(
-                tf.data.AUTOTUNE
+        if self.in_memory:
+            n_samples = sequence_size(Xy)
+            Xy_fit = next(iter(Xy.batch(n_samples)))
+            if validation_data is not None:
+                n_val_samples = sequence_size(validation_data)
+                validation_fit = next(iter(validation_data.batch(n_val_samples)))
+            else:
+                validation_fit = None
+            model.fit(
+                x=Xy_fit[0], y=Xy_fit[1], validation_data=validation_fit, **fit_kwargs
             )
         else:
-            validation_batched = None
-        model.fit(
-            Xy,
-            validation_data=validation_batched,
-            callbacks=[EpochCallback(func) for func in callbacks],
-            epochs=self.epochs,
-        )
+            Xy_fit = (
+                Xy.shuffle(buffer_size=self.shuffle_buffer_size)
+                .batch(self.batch_size)
+                .prefetch(tf.data.AUTOTUNE)
+            )
+            if validation_data is not None:
+                validation_fit = validation_data.batch(self.batch_size).prefetch(
+                    tf.data.AUTOTUNE
+                )
+            else:
+                validation_fit = None
+            model.fit(Xy_fit, validation_data=validation_fit, **fit_kwargs)
 
 
 class EpochCallback(tf.keras.callbacks.History):
