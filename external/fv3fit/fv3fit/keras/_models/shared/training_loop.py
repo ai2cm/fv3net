@@ -40,17 +40,25 @@ class TrainingLoopConfig:
     """
     Attributes:
         epochs: number of times to run through the batches when training
-        workers: number of workers for parallelized loading of batches fed into
-            training, if 1 uses serial loading instead
-        max_queue_size: max number of batches to hold in the parallel loading queue
+        shuffle_buffer_size: size of buffer to use when shuffling data, only
+            applies if in_memory=False
         batch_size: actual batch_size to pass to keras model.fit,
             independent of number of samples in each data batch in batches
+        in_memory: if True, cast incoming data to eagerly loaded numpy arrays
+            before calling keras fit routine (uses tf.data.Dataset if False).
     """
 
     epochs: int = 3
     shuffle_buffer_size: int = 50_000
     batch_size: int = 16
-    in_memory: bool = False
+    in_memory: bool = True
+
+    def __post_init__(self):
+        if self.in_memory:
+            logger.info(
+                "training with in_memory=True, if you run out of memory "
+                "try setting in_memory on TrainingLoopConfig to False"
+            )
 
     def fit_loop(
         self,
@@ -78,7 +86,11 @@ class TrainingLoopConfig:
             else:
                 validation_fit = None
             model.fit(
-                x=Xy_fit[0], y=Xy_fit[1], validation_data=validation_fit, **fit_kwargs
+                x=Xy_fit[0],
+                y=Xy_fit[1],
+                validation_data=validation_fit,
+                batch_size=self.batch_size,
+                **fit_kwargs,
             )
         else:
             Xy_fit = (
