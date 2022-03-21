@@ -5,7 +5,7 @@ set -o pipefail
 
 group="$(openssl rand -hex 3)"
 
-for config in limited rnn
+for config in limited
 do
     model_name=cycle-trained-${config}
     config_file=${config}.yaml
