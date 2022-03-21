@@ -3,7 +3,7 @@ import xarray as xr
 import vcm
 from fv3net.diagnostics.offline._helpers import (
     DATASET_DIM_NAME,
-    compute_aggregate_variance,
+    _compute_aggregate_variance,
     compute_r2,
     insert_aggregate_bias,
     insert_aggregate_r2,
@@ -33,12 +33,12 @@ def test_rename_via_replace():
     xr.testing.assert_identical(result, expected)
 
 
-def test_compute_aggregate_variance():
+def test__compute_aggregate_variance():
     da = xr.DataArray(np.arange(30).reshape(5, 6), dims=["x", DATASET_DIM_NAME])
     per_dataset_mean = da.mean("x")
     per_dataset_variance = da.var("x")
     expected = da.var(["x", DATASET_DIM_NAME])
-    result = compute_aggregate_variance(per_dataset_mean, per_dataset_variance)
+    result = _compute_aggregate_variance(per_dataset_mean, per_dataset_variance)
     xr.testing.assert_allclose(result, expected)
 
 

@@ -67,7 +67,7 @@ def compute_r2(ds_metrics: xr.Dataset) -> xr.Dataset:
     return ds_r2
 
 
-def compute_aggregate_variance(
+def _compute_aggregate_variance(
     mean: xr.DataArray,
     variance: xr.DataArray,
     dim: Union[Hashable, Sequence[Hashable]] = DATASET_DIM_NAME,
@@ -91,7 +91,7 @@ def compute_aggregate_r2(ds_metrics: xr.Dataset) -> xr.Dataset:
         mean_var = mse_var.replace("_mse", "_time_domain_mean")
         mean = ds_metrics[mean_var].sel(derivation="predict")
         variance = ds_metrics[variance_var]
-        aggregate_variance = compute_aggregate_variance(mean, variance)
+        aggregate_variance = _compute_aggregate_variance(mean, variance)
         r2_var = mse_var.replace("_mse", "_r2")
         mean_mse = ds_metrics[mse_var].mean(DATASET_DIM_NAME)
         ds_r2[r2_var] = 1.0 - mean_mse / aggregate_variance
