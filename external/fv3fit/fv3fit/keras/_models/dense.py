@@ -199,6 +199,8 @@ def train_column_model(
     X, y = next(iter(get_Xy(data=train_batches, clip_config=None).batch(build_samples)))
 
     train_model, predict_model = build_model(X=X, y=y)
+    del X
+    del y
 
     loss_history = TrainingLoopLossHistory()
     training_loop.fit_loop(
