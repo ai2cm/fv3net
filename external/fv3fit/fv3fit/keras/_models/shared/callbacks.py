@@ -3,6 +3,7 @@ import numpy as np
 from .training_loop import EpochResult
 
 import logging
+import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,9 @@ class TrainingLoopLossHistory:
         for batch in epoch_result.history:
             self.train_loss_all += batch.history["loss"]
             self.val_loss_all += batch.history.get("val_loss", [])
+
+        metrics = {"validation_loss": self.val_loss_end_of_epoch[-1]}
+        wandb.log(metrics)
 
     def log_summary(self):
         logger.info(f"All batches train loss history: {self.train_loss_all}")

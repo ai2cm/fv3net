@@ -2,7 +2,11 @@ import argparse
 import logging
 import os
 from typing import Optional, Sequence, Tuple
-from fv3fit._shared.config import get_arg_updated_config_dict
+from fv3fit._shared.config import (
+    get_arg_updated_config_dict,
+    to_flat_dict,
+    to_nested_dict,
+)
 import yaml
 import dataclasses
 import fsspec
@@ -16,6 +20,8 @@ import tempfile
 from loaders.batches.save import main as save_main
 
 from vcm.cloud import copy
+
+import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +165,11 @@ def main(args, unknown_args=None):
             config_dict = get_arg_updated_config_dict(
                 args=unknown_args, config_dict=config_dict
             )
+        wandb.init(config=to_flat_dict(config_dict["hyperparameters"]))
+        # hyperparameters should be accessed throughthe wandb config, I think
+        # this is how the values changed by wandb are passed to the training
+        config_dict["hyperparameters"] = to_nested_dict(wandb.config)
+
         training_config = fv3fit.TrainingConfig.from_dict(config_dict)
 
     with open(args.training_data_config, "r") as f:
@@ -198,6 +209,7 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
+
     with tempfile.NamedTemporaryFile() as temp_log:
         logging.basicConfig(
             level=logging.INFO,
