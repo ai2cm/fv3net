@@ -20,11 +20,11 @@ spec:
           - name: training_config
           - name: training_data_config
           - {name: validation_data_config, value: " "}
-          - {name: max_runs, value: 8}
+          - {name: max_runs, value: 24}
           - {name: cpu, value: 1000m}
           - {name: memory, value: 12Gi}
       container:
-        image: us.gcr.io/vcm-ml/prognostic_run:c592fc8685ad4a96b0e4e2622c1aefe4633ea06f
+        image: us.gcr.io/vcm-ml/prognostic_run:6dfdfea11c83123786e80d3a77f988cd82145c63
         command: ["bash", "-c", "-x"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -33,7 +33,7 @@ spec:
             value: /secret/gcp-credentials/key.json
         envFrom:
           - secretRef:
-              name: wandb-andrep
+              name: wandb-annak
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
