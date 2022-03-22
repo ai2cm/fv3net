@@ -150,9 +150,13 @@ def get_Xy_dataset(
         y_source = data.map(clip_sample(clip_config))
     else:
         y_source = data
-    y = y_source.map(select_keys(output_variables))
-    X = data.map(select_keys(input_variables))
-    return tf.data.Dataset.zip((X, y))
+
+    def map_fn(data):
+        x = select_keys(input_variables, data)
+        y = select_keys(output_variables, data)
+        return x, y
+
+    return y_source.map(map_fn)
 
 
 def train_column_model(
