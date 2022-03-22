@@ -6,6 +6,7 @@ from .config import (
 )
 from .packer import (
     pack,
+    pack_tfdataset,
     unpack,
     count_features,
     ArrayPacker,

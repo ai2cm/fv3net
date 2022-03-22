@@ -185,7 +185,7 @@ def test_sklearn_pack(dataset: xr.Dataset, array: np.ndarray):
 
 def test_sklearn_unpack(dataset: xr.Dataset):
     packed_array, feature_index = pack(dataset, ["sample"])
-    unpacked_dataset = unpack(packed_array, ["sample"], feature_index)
+    unpacked_dataset = unpack(packed_array, ["sample"], feature_index=feature_index)
     xr.testing.assert_allclose(unpacked_dataset, dataset)
 
 
@@ -194,7 +194,9 @@ def test_sklearn_pack_unpack_with_clipping(dataset: xr.Dataset):
     if FEATURE_DIM in dataset[name].dims:
         pack_config = PackerConfig({name: SliceConfig(3, None)})
         packed_array, feature_index = pack(dataset, [SAMPLE_DIM], pack_config)
-        unpacked_dataset = unpack(packed_array, [SAMPLE_DIM], feature_index)
+        unpacked_dataset = unpack(
+            packed_array, [SAMPLE_DIM], feature_index=feature_index
+        )
         expected = {}
         for k in dataset:
             da = dataset[k].copy(deep=True)

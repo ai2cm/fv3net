@@ -1,4 +1,5 @@
 import collections
+from toolz.functoolz import curry
 from typing import (
     Hashable,
     Iterable,
@@ -19,6 +20,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import yaml
+import tensorflow as tf
 
 
 def _feature_dims(data: xr.Dataset, sample_dims: Sequence[str]) -> Sequence[str]:
@@ -41,6 +43,54 @@ def _unique_dim_name(
             f"non-feature dims ({sample_dims})"
         )
     return feature_dim_name
+
+
+@dataclasses.dataclass
+class PackingInfo:
+    names: Sequence[str]
+    features: Sequence[int]
+
+    @property
+    def multi_index(self) -> pd.MultiIndex:
+        entries = []
+        i = 0
+        for name, n_features in zip(self.names, self.features):
+            for j in range(i, i + n_features):
+                entries.append((name, j))
+            i += n_features
+        feature_index = pd.MultiIndex.from_tuples(
+            tuple(entries), names=("variable", "z")
+        )
+        return feature_index
+
+
+@curry
+def clip_sample(
+    config: Mapping[str, SliceConfig], data: Mapping[str, tf.Tensor],
+) -> Mapping[str, tf.Tensor]:
+    return {
+        key: value[..., config.get(key, SliceConfig()).slice]
+        for (key, value) in data.items()
+    }
+
+
+def pack_tfdataset(
+    data: tf.data.Dataset, variable_names: Sequence[str],
+) -> Tuple[tf.data.Dataset, PackingInfo]:
+    sample = next(iter(data))
+    features = []
+    for name in variable_names:
+        if len(sample[name].shape) > 0:
+            features.append(sample[name].shape[-1])
+        else:
+            features.append(1)
+    packing_info = PackingInfo(names=variable_names, features=features)
+    return (
+        data.map(
+            lambda x: tf.concat(list(x[name] for name in variable_names), axis=-1)
+        ),
+        packing_info,
+    )
 
 
 def pack(
@@ -68,7 +118,7 @@ def pack(
 
 
 def unpack(
-    data: np.ndarray, sample_dims: Sequence[str], feature_index: pd.MultiIndex
+    data: np.ndarray, sample_dims: Sequence[str], feature_index: pd.MultiIndex,
 ) -> xr.Dataset:
     if len(data.shape) == len(sample_dims):
         selection: List[Union[slice, None]] = [slice(None, None) for _ in sample_dims]
@@ -200,7 +250,7 @@ class ArrayPacker:
                 "must pack at least once before unpacking, "
                 "so dimension lengths are known"
             )
-        return unpack(array, [self._sample_dim_name], self._feature_index)
+        return unpack(array, [self._sample_dim_name], feature_index=self._feature_index)
 
     def dump(self, f: TextIO):
         return yaml.safe_dump(

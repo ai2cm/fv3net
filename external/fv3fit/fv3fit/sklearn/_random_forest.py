@@ -3,6 +3,7 @@ from typing import Hashable, Mapping
 import logging
 import io
 import dacite
+from fv3fit._shared.packer import PackingInfo, clip_sample
 import numpy as np
 from copy import copy
 import xarray as xr
@@ -10,12 +11,10 @@ import fsspec
 import joblib
 from .._shared import (
     pack,
+    pack_tfdataset,
     unpack,
     Predictor,
-    get_scaler,
     register_training_function,
-    multiindex_to_tuple,
-    tuple_to_multiindex,
     PackerConfig,
 )
 
@@ -30,6 +29,10 @@ from .._shared import (
 )
 import sklearn.base
 import sklearn.ensemble
+import tensorflow as tf
+from fv3fit.typing import Batch
+from fv3fit import tfdataset
+from fv3fit.tfdataset import apply_to_mapping, ensure_nd
 
 from typing import Optional, Iterable, Sequence
 import yaml
@@ -39,8 +42,8 @@ from vcm import safe
 @register_training_function("sklearn_random_forest", RandomForestHyperparameters)
 def train_random_forest(
     hyperparameters: RandomForestHyperparameters,
-    train_batches: Sequence[xr.Dataset],
-    validation_batches: Sequence[xr.Dataset],
+    train_batches: tf.data.Dataset,
+    validation_batches: tf.data.Dataset,
 ):
     """
     Args:
@@ -49,6 +52,9 @@ def train_random_forest(
             with at most one non-sample dimension
         validation_batches: ignored in this function
     """
+    train_batches = train_batches.map(
+        tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
+    )
     model = RandomForest(
         hyperparameters.input_variables,
         hyperparameters.output_variables,
@@ -94,7 +100,7 @@ class RandomForest(Predictor):
         self.input_variables = self._model_wrapper.input_variables
         self.output_variables = self._model_wrapper.output_variables
 
-    def fit(self, batches: Sequence[xr.Dataset]):
+    def fit(self, batches: tf.data.Dataset):
         return self._model_wrapper.fit(batches)
 
     def predict(self, features):
@@ -192,6 +198,13 @@ class _RegressorEnsemble:
         return obj
 
 
+def _get_iterator_size(iterator):
+    size = 0
+    for _ in iterator:
+        size += 1
+    return size
+
+
 class SklearnWrapper(Predictor):
     """Wrap a SkLearn model for use with xarray
 
@@ -219,6 +232,8 @@ class SklearnWrapper(Predictor):
             model: a scikit learn regression model
         """
         super().__init__(input_variables, output_variables)
+        if scaler_type != "standard":
+            raise NotImplementedError("only 'standard' scaler_type is implemented")
         self.model = model
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
@@ -231,45 +246,34 @@ class SklearnWrapper(Predictor):
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
-    def _fit_batch(self, data: xr.Dataset):
-        all_variables = set(self.input_variables).union(self.output_variables)
-        sample_dim_name = data[next(iter(self.input_variables))].dims[0]
-        for varname in all_variables:
-            dims = data[varname].dims
-            if dims[0] != sample_dim_name:
-                raise ValueError(
-                    f"variable {varname} does not have the same sample "
-                    f"dimension {sample_dim_name} as the first input"
-                )
-            if len(data[varname].dims) > 2:
-                raise ValueError(
-                    f"was given data with more than 2 dimensions for {varname}, "
-                    "data should all be [sample] or [sample, feature]"
-                )
-        x, _ = pack(data[self.input_variables], [sample_dim_name], self.packer_config)
-        y, self.output_features_ = pack(data[self.output_variables], [sample_dim_name])
+    def _init_target_scaler(self, target_data: np.ndarray):
+        target_scaler = scaler.StandardScaler()
+        target_scaler.fit(target_data)
+        return target_scaler
 
-        if self.target_scaler is None:
-            self.target_scaler = self._init_target_scaler(data, sample_dim_name)
+    def fit(self, batches: tf.data.Dataset):
+        logger = logging.getLogger("SklearnWrapper")
+        logger.info(f"Fitting random forest")
+        batches = batches.map(apply_to_mapping(ensure_nd(1)))
 
-        y = self.target_scaler.normalize(y)
-        self.model.fit(x, y)
-
-    def _init_target_scaler(self, batch, sample_dim_name):
-        return get_scaler(
-            self.scaler_type,
-            self.scaler_kwargs,
-            batch,
-            self.output_variables,
-            sample_dim_name,
+        batches_clipped = batches.map(clip_sample(self.packer_config.clip))
+        x_dataset, _ = pack_tfdataset(
+            batches_clipped, [str(item) for item in self.input_variables]
+        )
+        y_dataset, self.output_features_ = pack_tfdataset(
+            batches, [str(item) for item in self.output_variables]
         )
 
-    def fit(self, batches: Sequence[xr.Dataset]):
-        logger = logging.getLogger("SklearnWrapper")
-        for i, batch in enumerate(batches):
-            logger.info(f"Fitting batch {i+1}/{len(batches)}")
-            self._fit_batch(batch)
-            logger.info(f"Batch {i+1} done fitting.")
+        # put all data in one batch, implement batching later
+        total_samples = _get_iterator_size(iter(x_dataset))
+        X: Batch = next(iter(x_dataset.batch(total_samples)))
+        y: Batch = next(iter(y_dataset.batch(total_samples)))
+        if self.target_scaler is None:
+            self.target_scaler = self._init_target_scaler(y)
+
+        y = self.target_scaler.normalize(y)
+        self.model.fit(X, y)
+        logger.info(f"Random forest done fitting.")
 
     def _predict_on_stacked_data(self, stacked_data):
         X, _ = pack(
@@ -280,7 +284,9 @@ class SklearnWrapper(Predictor):
             y = self.target_scaler.denormalize(y)
         else:
             raise ValueError("Target scaler not present.")
-        return unpack(y, [SAMPLE_DIM_NAME], self.output_features_)
+        return unpack(
+            y, [SAMPLE_DIM_NAME], feature_index=self.output_features_.multi_index
+        )
 
     def predict(self, data):
         stacked_data = stack_non_vertical(
@@ -313,7 +319,7 @@ class SklearnWrapper(Predictor):
         metadata = {
             "input_variables": self.input_variables,
             "output_variables": self.output_variables,
-            "output_features": multiindex_to_tuple(self.output_features_),
+            "output_features": dataclasses.asdict(self.output_features_),
             "packer_config": dataclasses.asdict(self.packer_config),
         }
 
@@ -335,9 +341,9 @@ class SklearnWrapper(Predictor):
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
         input_variables = metadata["input_variables"]
         output_variables = metadata["output_variables"]
-        output_features_tuple = metadata["output_features"]
+        output_features_dict = metadata["output_features"]
         packer_config_dict = metadata.get("packer_config", {})
-        output_features_ = tuple_to_multiindex(output_features_tuple)
+        output_features_ = dacite.from_dict(PackingInfo, data=output_features_dict)
         packer_config = dacite.from_dict(PackerConfig, packer_config_dict)
 
         obj = cls(input_variables, output_variables, model, packer_config=packer_config)
