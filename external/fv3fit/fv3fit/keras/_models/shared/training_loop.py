@@ -1,5 +1,5 @@
 import tensorflow as tf
-from typing import Any, Iterable, List, Optional, Sequence, Callable
+from typing import Any, Iterable, List, Optional, Sequence, Callable, Tuple
 import dataclasses
 import logging
 
@@ -33,6 +33,22 @@ def sequence_size(seq):
     for _ in seq:
         n += 1
     return n
+
+
+def _tfdataset_to_tensor_sequence(
+    Xy: tf.data.Dataset, validation_data: Optional[tf.data.Dataset]
+) -> Tuple[
+    Tuple[Sequence[tf.Tensor], Sequence[tf.Tensor]],
+    Optional[Tuple[Sequence[tf.Tensor], Sequence[tf.Tensor]]],
+]:
+    n_samples = sequence_size(Xy)
+    Xy_fit = next(iter(Xy.batch(n_samples)))
+    if validation_data is not None:
+        n_val_samples = sequence_size(validation_data)
+        validation_fit = next(iter(validation_data.batch(n_val_samples)))
+    else:
+        validation_fit = None
+    return Xy_fit, validation_fit
 
 
 @dataclasses.dataclass
@@ -78,13 +94,7 @@ class TrainingLoopConfig:
             callbacks=[EpochCallback(func) for func in callbacks], epochs=self.epochs
         )
         if self.in_memory:
-            n_samples = sequence_size(Xy)
-            Xy_fit = next(iter(Xy.batch(n_samples)))
-            if validation_data is not None:
-                n_val_samples = sequence_size(validation_data)
-                validation_fit = next(iter(validation_data.batch(n_val_samples)))
-            else:
-                validation_fit = None
+            Xy_fit, validation_fit = _tfdataset_to_tensor_sequence(Xy, validation_data)
             model.fit(
                 x=Xy_fit[0],
                 y=Xy_fit[1],
