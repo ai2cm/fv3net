@@ -50,7 +50,15 @@ image_test_dataflow: push_image_dataflow
 		$(REGISTRY)/dataflow:$(VERSION) \
 		tests/integration -s
 
-image_test_prognostic_run:
+image_test_emulation:
+	docker run \
+		--rm \
+		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
+		-w /fv3net/external/emulation \
+		$(REGISTRY)/prognostic_run:$(VERSION) pytest
+
+image_test_prognostic_run: image_test_emulation
 	docker run \
 		--rm \
 		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
