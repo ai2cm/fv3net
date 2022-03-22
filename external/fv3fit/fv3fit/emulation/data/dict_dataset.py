@@ -1,5 +1,5 @@
 import logging
-from typing import Sequence
+from typing import Optional, Sequence
 import tensorflow as tf
 
 import vcm
@@ -30,7 +30,10 @@ def read_variables_greedily_as_tuple(url, variables):
 
 
 def netcdf_url_to_dataset(
-    url: str, variables: Sequence[str], shuffle: bool = False
+    url: str,
+    variables: Sequence[str],
+    shuffle: bool = False,
+    nfiles: Optional[int] = None,
 ) -> tf.data.Dataset:
     """Open a url of netcdfs as a tf.data.Dataset of dicts
 
@@ -38,7 +41,8 @@ def netcdf_url_to_dataset(
         url: points to a directory of netcdf files.
         variables: a sequence of variable names to load from each netcdf file
         shuffle: if True, shuffle order the netcdf files will be loaded in. Does
-            not shuffle BETWEEN files.
+            not shuffle BETWEEN files. Reshuffles each epoch
+        nfiles: number of files to include in dataset
 
     Returns:
         a  tensorflow dataset containing dictionaries of tensors. This
@@ -46,9 +50,15 @@ def netcdf_url_to_dataset(
     """
     fs = vcm.get_fs(url)
     files = get_nc_files(url, fs)
+
+    if nfiles is not None:
+        files = files[:nfiles]
+
     d = tf.data.Dataset.from_tensor_slices(sorted(files))
+
     if shuffle:
-        d = d.shuffle(100_000)
+        d = d.shuffle(len(files))
+
     return d.interleave(lambda url: read_variables_as_tfdataset(url, variables))
 
 
