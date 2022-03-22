@@ -50,7 +50,7 @@ def test_IntervalSchedule():
 
 @pytest.mark.parametrize("weight", [0.0, 0.5, 1.0])
 def test_TimeMask(weight):
-    expected = weight
+    expected = 1 - weight
     mask = TimeMask(schedule=lambda time: weight)
     left = {"a": 0.0, "model_time": [2021, 1, 1, 0, 0, 0]}
     right = {"a": 1.0}
