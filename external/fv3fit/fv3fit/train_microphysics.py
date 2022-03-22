@@ -240,12 +240,13 @@ class TrainConfig:
     def open_dataset(
         self, url: str, nfiles: Optional[int], required_variables: Set[str],
     ) -> tf.data.Dataset:
+        open_fn = self.transform.get_pipeline(required_variables)
+
         if self.use_generator:
             # original tf dataset routine, uses a generator underneath
-            nc_open_fn = self.transform.get_pipeline(required_variables)
             return nc_dir_to_tfdataset(
                 url,
-                nc_open_fn,
+                open_fn,
                 nfiles=nfiles,
                 shuffle=True,
                 random_state=np.random.RandomState(0),
@@ -253,7 +254,7 @@ class TrainConfig:
         else:
             # uses map across filenames to create a dataset
             return netcdf_url_to_dataset(
-                url, list(required_variables), shuffle=True, nfiles=nfiles
+                url, list(required_variables), open_fn, shuffle=True, nfiles=nfiles
             )
 
     @property

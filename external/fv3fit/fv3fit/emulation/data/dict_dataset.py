@@ -3,6 +3,7 @@ from typing import Optional, Sequence
 import tensorflow as tf
 
 import vcm
+from fv3fit.emulation.data.config import Pipeline
 from fv3fit.emulation.data.io import get_nc_files
 from .transforms import open_netcdf_dataset
 
@@ -10,28 +11,32 @@ __all__ = ["netcdf_url_to_dataset"]
 logger = logging.getLogger(__name__)
 
 
-def read_variables_as_tfdataset(url, variables):
+def read_variables_as_tfdataset(url, variables, transform):
     sig = (tf.float32,) * len(variables)
     # tf.py_function can only wrap functions which output tuples of tensors, not
     # dicts
     outputs = tf.py_function(
-        lambda url: read_variables_greedily_as_tuple(url, variables), [url], sig
+        lambda url: read_variables_greedily_as_tuple(url, variables, transform),
+        [url],
+        sig,
     )
 
     d = dict(zip(variables, outputs))
     return tf.data.Dataset.from_tensor_slices(d, num_parallel_calls=tf.data.AUTOTUNE)
 
 
-def read_variables_greedily_as_tuple(url, variables):
+def read_variables_greedily_as_tuple(url, variables, transform):
     url = url.numpy().decode()
     logger.debug(f"opening {url}")
     ds = open_netcdf_dataset(url)
+    ds = transform(ds)
     return tuple([tf.convert_to_tensor(ds[v], dtype=tf.float32) for v in variables])
 
 
 def netcdf_url_to_dataset(
     url: str,
     variables: Sequence[str],
+    transform: Pipeline,
     shuffle: bool = False,
     nfiles: Optional[int] = None,
 ) -> tf.data.Dataset:
@@ -59,7 +64,9 @@ def netcdf_url_to_dataset(
     if shuffle:
         d = d.shuffle(len(files))
 
-    return d.interleave(lambda url: read_variables_as_tfdataset(url, variables))
+    return d.interleave(
+        lambda url: read_variables_as_tfdataset(url, variables, transform)
+    )
 
 
 def load_samples(train_dataset, n_train):
