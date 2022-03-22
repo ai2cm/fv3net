@@ -2,6 +2,7 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 import tensorflow as tf
+from fv3fit.emulation.layers.normalization2 import NormFactory, StdReduction
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
     ComposedTransform,
@@ -10,14 +11,10 @@ from fv3fit.emulation.transforms import (
     TransformedVariableConfig,
     LimitValueTransform,
 )
-from fv3fit.emulation.transforms.transforms import (
-    ConditionallyScaledTransform,
-    FunctionalUnivariateTransform,
-)
+from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
 from fv3fit.emulation.transforms.factories import (
     ConditionallyScaled,
     fit_conditional,
-    NormalizationFactory,
 )
 from fv3fit.emulation.transforms import factories
 
@@ -367,21 +364,7 @@ def test_PositiveTransform(lower, upper, expected):
     np.testing.assert_array_equal(positive, backward_result)
 
 
-def test_NormalizationFactory():
+def test_TransformedVariableConfig_build():
     data = {"x": tf.random.normal((4, 10))}
-    f = NormalizationFactory("x")
-    norm_layer = f.build(data)
-    norm_layer.forward(data)
-
-
-def test_NormalizationFactory_backward_names():
-    f = NormalizationFactory("x")
-    assert f.backward_names({"x"}) == {"x"}
-    assert f.backward_names({"not x"}) == set()
-
-
-def test_FunctionalUnivariateTransform():
-    data = tf.random.normal((4, 10))
-    transform = FunctionalUnivariateTransform(lambda x: 2 * x, lambda x: x / 2)
-    end = transform.backward(transform.forward(data))
-    np.testing.assert_array_almost_equal(data, end)
+    f = TransformedVariableConfig("x", factory=NormFactory(scale=StdReduction.all))
+    f.build(data)

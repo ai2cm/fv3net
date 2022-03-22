@@ -52,17 +52,6 @@ class Difference(TensorTransform):
         return y
 
 
-class FunctionalUnivariateTransform:
-    def __init__(
-        self,
-        backward: Callable[[tf.Tensor], tf.Tensor] = lambda x: x,
-        forward: Callable[[tf.Tensor], tf.Tensor] = lambda x: x,
-    ):
-
-        self.backward = backward
-        self.forward = forward
-
-
 @dataclasses.dataclass
 class LogTransform:
     """A univariate transformation for::
@@ -115,9 +104,7 @@ class LimitValueTransform:
         return x
 
 
-UnivariateCompatible = Union[
-    LogTransform, LimitValueTransform, FunctionalUnivariateTransform
-]
+UnivariateCompatible = Union[LogTransform, LimitValueTransform]
 
 
 class UnivariateTransform(TensorTransform):

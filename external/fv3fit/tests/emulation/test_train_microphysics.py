@@ -11,7 +11,13 @@ from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
-from fv3fit.train_microphysics import TrainConfig, get_default_config, main
+from fv3fit.train_microphysics import (
+    TrainConfig,
+    get_default_config,
+    main,
+    TransformedVariableConfig,
+)
+from fv3fit.emulation.layers.normalization2 import NormFactory, StdReduction
 
 
 def test_TrainConfig_defaults():
@@ -197,3 +203,14 @@ def test_TrainConfig(input_variables):
 
     data = {"x": tf.ones((4, 10)), "y": tf.ones((4, 10))}
     config.build_model(data, Transform)
+
+
+def test_to_yaml_with_enum():
+    config = TrainConfig(".", ".", ".")
+    config.tensor_transform = [
+        TransformedVariableConfig(
+            "air_temperature_input", factory=NormFactory(StdReduction.all)
+        )
+    ]
+    roundtripped = config.from_dict(yaml.safe_load(config.to_yaml()))
+    assert roundtripped == config
