@@ -60,37 +60,39 @@ class IntervalSchedule:
 class TimeMask:
     schedule: IntervalSchedule
 
-    def __call__(self, left: FortranState, right: FortranState) -> FortranState:
-        time = translate_time(left["model_time"])
+    def __call__(self, state: FortranState, emulator: FortranState) -> FortranState:
+        time = translate_time(state["model_time"])
         alpha = self.schedule(time)
-        common_keys = set(left) & set(right)
+        common_keys = set(state) & set(emulator)
         return {
-            key: left[key] * alpha + right[key] * (1 - alpha) for key in common_keys
+            key: state[key] * alpha + emulator[key] * (1 - alpha) for key in common_keys
         }
 
 
-def always_right(left: FortranState, right: FortranState):
-    return right
+def always_emulator(state: FortranState, emulator: FortranState):
+    return emulator
 
 
 Mask = Callable[[FortranState, FortranState], FortranState]
 
 
 class MicrophysicsHook:
-    """
-    Singleton class for configuring from the environment for
-    the microphysics function used during fv3gfs-runtime by
-    call-py-fort
-
-    Instanced at the top level of `_emulate`
-    """
+    """Object that applies a ML model to the fortran state"""
 
     def __init__(
         self,
         model_path: str,
-        mask: Mask = always_right,
+        mask: Mask = always_emulator,
         garbage_collection_interval: int = 10,
     ) -> None:
+        """
+
+        Args:
+            model_path: URL to model. gcs is ok too.
+            mask: ``mask(state, emulator_updates)`` blends the state and
+                emulator_updates into a single prediction. Used to e.g. mask
+                portions of the emulators prediction.
+        """
 
         self.name = "microphysics emulator"
         self.model = _load_tf_model(model_path)

@@ -1,4 +1,4 @@
-from emulation.config import EmulationConfig, ModelConfig, always_right
+from emulation.config import EmulationConfig, ModelConfig, always_emulator
 import datetime
 
 
@@ -22,7 +22,7 @@ def test_EmulationConfig_from_dict():
 
 def test_ModelConfig_no_interval():
     config = ModelConfig(path="")
-    assert config._build_mask() == always_right
+    assert config._build_mask() == always_emulator
 
 
 def test_ModelConfig_with_interval():

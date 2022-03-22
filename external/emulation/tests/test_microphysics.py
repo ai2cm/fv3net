@@ -5,7 +5,7 @@ import cftime
 import pytest
 from emulation._emulate.microphysics import (
     MicrophysicsHook,
-    always_right,
+    always_emulator,
     IntervalSchedule,
     TimeMask,
 )
@@ -13,7 +13,7 @@ from emulation._emulate.microphysics import (
 
 def test_Config_integration(saved_model_path):
 
-    config = MicrophysicsHook(saved_model_path, always_right)
+    config = MicrophysicsHook(saved_model_path, always_emulator)
 
     state = {
         "air_temperature_input": np.ones((63, 100)),

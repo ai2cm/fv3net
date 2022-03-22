@@ -11,7 +11,7 @@ from emulation._emulate.microphysics import (
     IntervalSchedule,
     Mask,
     TimeMask,
-    always_right,
+    always_emulator,
 )
 from emulation._monitor.monitor import StorageConfig, StorageHook
 from emulation._time import from_datetime, to_datetime
@@ -45,7 +45,7 @@ class ModelConfig:
         if self.online_schedule:
             return TimeMask(self.online_schedule)
         else:
-            return always_right
+            return always_emulator
 
 
 @dataclasses.dataclass
