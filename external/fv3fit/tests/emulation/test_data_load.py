@@ -108,7 +108,7 @@ def test_netcdf_url_to_dataset(tmpdir):
     for f in [tmpdir.join(f"file{i}.nc") for i in range(nfiles)]:
         ds.to_netcdf(str(f))
 
-    tf_ds = netcdf_url_to_dataset(str(tmpdir), variables=set(ds))
+    tf_ds = netcdf_url_to_dataset(str(tmpdir), variables=set(ds), transform=lambda x: x)
 
     assert len(tf_ds) == nfiles
     for item in tf_ds:
