@@ -1,0 +1,77 @@
+# vim: set sts=2 ts=2 tw=2 sw=2 :
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: wandb-sweep
+spec:
+  entrypoint: wandb-sweep
+  volumes:
+    - name: workdir
+      emptyVol: {}
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+    - name: wandb-sweep
+      inputs:
+        parameters:
+          - name: sweep_id
+          - name: training_config
+          - name: training_data_config
+          - {name: validation_data_config, value: " "}
+          - {name: max_runs, value: 8}
+          - {name: cpu, value: 1000m}
+          - {name: memory, value: 12Gi}
+      container:
+        image: us.gcr.io/vcm-ml/prognostic_run:c592fc8685ad4a96b0e4e2622c1aefe4633ea06f
+        command: ["bash", "-c", "-x"]
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        envFrom:
+          - secretRef:
+              name: wandb-andrep
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+        args:
+          - |
+
+            cat <<EOF >training_config.yaml
+            {{inputs.parameters.training_config}}
+            EOF
+
+            cat <<EOF >training_data.yaml
+            {{inputs.parameters.training_data_config}}
+            EOF
+
+            cat <<EOF >validation_data.yaml
+            {{inputs.parameters.validation_data_config}}
+            EOF
+
+            echo "Training Configuration:"
+            cat training_config.yaml
+            echo "Training Data Configuration:"
+            cat training_data.yaml
+            echo "Validation Data Configuration:"
+            cat validation_data.yaml
+
+            wandb agent --count {{inputs.parameters.max_runs}} {{inputs.parameters.sweep_id}}
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "med-sim-pool"
+        effect: "NoSchedule"
+      podSpecPatch: |
+        containers:
+          - name: main
+            resources:
+              limits:
+                cpu: "{{inputs.parameters.cpu}}"
+                memory: "{{inputs.parameters.memory}}"
+              requests:
+                cpu: "{{inputs.parameters.cpu}}"
+                memory: "{{inputs.parameters.memory}}"
