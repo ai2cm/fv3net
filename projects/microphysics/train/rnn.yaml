@@ -3,12 +3,11 @@ wandb:
   wandb_project: microphysics-emulation
 batch_size: 512
 epochs: 25
-nfiles_valid: 2
-nfiles: 1440
-valid_freq: 100
+nfiles_valid: 100
+valid_freq: 2
 out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
-train_url: gs://vcm-ml-experiments/microphysics-emulation/2022-03-17/online-12hr-cycle-v3-online/artifacts/20160611.000000/netcdf_output
-test_url: gs://vcm-ml-experiments/microphysics-emulation/2022-03-17/online-12hr-cycle-v3-online/artifacts/20160611.000000/netcdf_output
+train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
+test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
 cache: false
 tensor_transform:
   - to: log_cloud_input
