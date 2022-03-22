@@ -19,3 +19,14 @@ namelist:
     n_split: 6 # num dynamics steps per physics step
 online_emulator:
   emulator: "some/path"
+zhao_carr_emulation:
+  model:
+    path: gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273/model.tf
+    online_schedule:
+      # 3 hours physics active, then
+      # 3 hours ML active
+      initial_time: 2016-06-01T00:00:00
+      period: 21600
+  storage:
+    output_freq_sec: 3600
+    save_nc: true
