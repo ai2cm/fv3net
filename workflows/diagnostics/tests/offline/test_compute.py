@@ -13,19 +13,21 @@ from synth import (  # noqa: F401
 )
 
 import fv3fit
+from fv3net.diagnostics.offline._helpers import DATASET_DIM_NAME
 from fv3net.diagnostics.offline import compute
 from fv3net.diagnostics.offline.views.create_report import create_report
 
 import pathlib
 import pytest
 import numpy as np
+import xarray as xr
 import yaml
 
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture
-def data_path(tmpdir):
+@pytest.fixture(params=["single_dataset", "multiple_datasets"])
+def data_path(tmpdir, request):
     schema_path = pathlib.Path(__file__).parent / "data.zarr.json"
 
     with open(schema_path) as f:
@@ -33,6 +35,8 @@ def data_path(tmpdir):
 
     ranges = {"pressure_thickness_of_atmospheric_layer": synth.Range(0.99, 1.01)}
     ds = synth.generate(schema, ranges)
+    if request.param == "multiple_datasets":
+        ds = xr.concat([ds, ds], dim=DATASET_DIM_NAME)
 
     ds.to_zarr(str(tmpdir), consolidated=True)
     return str(tmpdir)

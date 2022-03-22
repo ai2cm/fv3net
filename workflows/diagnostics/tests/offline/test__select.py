@@ -1,15 +1,53 @@
 import pytest
-from fv3net.diagnostics.offline._select import nearest_time
+import cftime
+import xarray as xr
+from fv3net.diagnostics.offline._select import nearest_time_batch_index, select_snapshot
+
+
+BATCH_ONE = [
+    cftime.DatetimeJulian(2016, 8, 1, 11),
+    cftime.DatetimeJulian(2016, 8, 1, 14),
+]
+BATCH_TWO = [
+    cftime.DatetimeJulian(2016, 8, 1, 17),
+    cftime.DatetimeJulian(2016, 8, 1, 20),
+]
+BATCH_THREE = [
+    cftime.DatetimeJulian(2016, 8, 1, 11, 30),
+    cftime.DatetimeJulian(2016, 8, 1, 20),
+]
 
 
 @pytest.mark.parametrize(
-    "select_time, closest_key",
+    "time, time_batches, expected_index",
     [
-        ("20160801.010000", "20160801.000000"),
-        ("20160801.200000", "20160801.180000"),
-        ("20190801.000000", "20170801.180000"),
+        (cftime.DatetimeJulian(2016, 8, 1, 12), [BATCH_ONE], 0,),
+        (cftime.DatetimeJulian(2016, 8, 1, 12), [BATCH_ONE, BATCH_TWO], 0,),
+        (cftime.DatetimeJulian(2016, 8, 1, 12), [BATCH_ONE, BATCH_THREE], 1,),
     ],
 )
-def test_nearest_time(select_time, closest_key):
-    times = ["20160801.000000", "20160801.180000", "20170801.180000"]
-    assert nearest_time(select_time, times) == closest_key
+def test_nearest_time(time, time_batches, expected_index):
+    index = nearest_time_batch_index(time, time_batches)
+    assert index == expected_index
+
+
+ORDERED_TIMES = [
+    cftime.DatetimeJulian(2000, 1, 1),
+    cftime.DatetimeJulian(2000, 1, 7),
+    cftime.DatetimeJulian(2000, 1, 15),
+]
+UNORDERED_TIMES = [
+    cftime.DatetimeJulian(2000, 1, 7),
+    cftime.DatetimeJulian(2000, 1, 15),
+    cftime.DatetimeJulian(2000, 1, 1),
+]
+
+
+@pytest.mark.parametrize(
+    "times", [ORDERED_TIMES, UNORDERED_TIMES], ids=["ordered-times", "unordered-times"]
+)
+def test_select_snapshot(times):
+    batch = xr.Dataset(data_vars={"foo": (["time"], [0, 1, 2])}, coords={"time": times})
+    result = select_snapshot(batch, cftime.DatetimeJulian(2000, 1, 5))
+    expected = batch.sel(time=cftime.DatetimeJulian(2000, 1, 7))
+    xr.testing.assert_identical(result, expected)

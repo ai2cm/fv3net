@@ -6,7 +6,6 @@ import json
 import logging
 import numpy as np
 import os
-import tempfile
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
 
 import tensorflow as tf
@@ -85,8 +84,6 @@ class TrainConfig:
             during training
         checkpoint_model: if true, save a checkpoint after each epoch
         log_level: what logging level to use
-        cache: Use a cache for training/testing batches. Speeds up training for
-            I/O bound architectures.  Always disabled for rnn-v1 architectures.
     """
 
     train_url: str
@@ -107,10 +104,9 @@ class TrainConfig:
     batch_size: int = 128
     valid_freq: int = 5
     verbose: int = 2
-    shuffle_buffer_size: Optional[int] = 100_000
+    shuffle_buffer_size: Optional[int] = 13824
     checkpoint_model: bool = True
     log_level: str = "INFO"
-    cache: bool = True
 
     @property
     def transform_factory(self) -> ComposedTransformFactory:
@@ -249,15 +245,6 @@ class TrainConfig:
             set(self._model.input_variables) | set(self._model.output_variables)
         )
 
-    def __post_init__(self) -> None:
-        if (
-            self.model is not None
-            and "rnn-v1" in self.model.architecture.name
-            and self.cache
-        ):
-            logger.warn("Caching disabled for rnn-v1 architectures due to memory leak")
-            self.cache = False
-
 
 def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
     with put_dir(dir_) as tmpdir:
@@ -290,6 +277,7 @@ def main(config: TrainConfig, seed: int = 0):
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
 
     train_set = next(iter(train_ds.batch(50_000)))
+
     transform = config.build_transform(train_set)
 
     train_ds = train_ds.map(transform.forward)
@@ -306,27 +294,20 @@ def main(config: TrainConfig, seed: int = 0):
             )
         )
 
-    with tempfile.TemporaryDirectory() as train_temp:
-        with tempfile.TemporaryDirectory() as test_temp:
+    train_ds_batched = train_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
+    test_ds_batched = test_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
 
-            train_ds_batched = train_ds.batch(config.batch_size)
-            test_ds_batched = test_ds.batch(config.batch_size)
-
-            if config.cache:
-                train_ds_batched = train_ds_batched.cache(train_temp)
-                test_ds_batched = test_ds_batched.cache(test_temp)
-
-            history = train(
-                model,
-                train_ds_batched,
-                config.build_loss(train_set, transform),
-                optimizer=config.loss.optimizer.instance,
-                epochs=config.epochs,
-                validation_data=test_ds_batched,
-                validation_freq=config.valid_freq,
-                verbose=config.verbose,
-                callbacks=callbacks,
-            )
+    history = train(
+        model,
+        train_ds_batched,
+        config.build_loss(train_set, transform),
+        optimizer=config.loss.optimizer.instance,
+        epochs=config.epochs,
+        validation_data=test_ds_batched,
+        validation_freq=config.valid_freq,
+        verbose=config.verbose,
+        callbacks=callbacks,
+    )
 
     logger.debug("Training complete")
 
