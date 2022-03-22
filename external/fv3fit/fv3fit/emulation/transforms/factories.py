@@ -2,13 +2,16 @@ import dataclasses
 from typing import Callable, Optional, Sequence, Set
 
 import tensorflow as tf
+from fv3fit.emulation.layers.normalization import DenormalizeConfig
 from fv3fit.emulation.transforms.transforms import (
     ComposedTransform,
     ConditionallyScaledTransform,
+    FunctionalUnivariateTransform,
     TensorTransform,
     UnivariateCompatible,
     UnivariateTransform,
 )
+from fv3fit.emulation.layers import NormalizeConfig
 from fv3fit.emulation.types import TensorDict
 from fv3fit.keras.math import groupby_bins, piecewise
 from typing_extensions import Protocol
@@ -28,6 +31,34 @@ class TransformFactory(Protocol):
 
     def build(self, sample: TensorDict) -> TensorTransform:
         pass
+
+
+@dataclasses.dataclass
+class NormalizationFactory(TransformFactory):
+    source: str
+    to: Optional[str] = None
+    normalize_key: str = "mean_std"
+
+    def _to(self) -> str:
+        return self.to if self.to else self.source
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        to = self._to()
+        if to in requested_names:
+            return (requested_names - {self.to}) | {self.source}
+        else:
+            return set()
+
+    def build(self, sample: TensorDict) -> TensorTransform:
+        univariate_transform = FunctionalUnivariateTransform(
+            forward=NormalizeConfig(
+                class_name=self.normalize_key, sample_data=sample[self.source]
+            ).initialize_layer(),
+            backward=DenormalizeConfig(
+                class_name=self.normalize_key, sample_data=sample[self.source]
+            ).initialize_layer(),
+        )
+        return UnivariateTransform(self.source, univariate_transform, self._to())
 
 
 @dataclasses.dataclass

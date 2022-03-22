@@ -20,7 +20,10 @@ from fv3fit._shared.config import (
 )
 from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 
-from fv3fit.emulation.transforms.factories import ConditionallyScaled
+from fv3fit.emulation.transforms.factories import (
+    ConditionallyScaled,
+    NormalizationFactory,
+)
 from fv3fit.emulation.types import LossFunction, TensorDict
 from fv3fit.emulation import models, train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tfdataset
@@ -91,7 +94,12 @@ class TrainConfig:
     out_url: str
     transform: TransformConfig = field(default_factory=TransformConfig)
     tensor_transform: List[
-        Union[TransformedVariableConfig, ConditionallyScaled, Difference]
+        Union[
+            TransformedVariableConfig,
+            ConditionallyScaled,
+            Difference,
+            NormalizationFactory,
+        ]
     ] = field(default_factory=list)
     model: Optional[models.MicrophysicsConfig] = None
     conservative_model: Optional[models.ConservativeWaterConfig] = None

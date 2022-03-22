@@ -179,3 +179,21 @@ def test_TrainConfig_build_loss():
     loss_value, _ = loss(data, data)
     assert 0 == pytest.approx(loss_value.numpy())
     transform.forward.assert_called()
+
+
+@pytest.mark.parametrize("input_variables", [["x"]])
+def test_TrainConfig(input_variables):
+    config = TrainConfig(train_url="", test_url="", out_url="")
+    config.model = MicrophysicsConfig()
+    config.model.input_variables = input_variables
+    config.model.direct_out_variables = ["y"]
+
+    class Transform:
+        def forward(x):
+            return x
+
+        def backward(x):
+            return x
+
+    data = {"x": tf.ones((4, 10)), "y": tf.ones((4, 10))}
+    config.build_model(data, Transform)

@@ -10,8 +10,15 @@ from fv3fit.emulation.transforms import (
     TransformedVariableConfig,
     LimitValueTransform,
 )
-from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
-from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional
+from fv3fit.emulation.transforms.transforms import (
+    ConditionallyScaledTransform,
+    FunctionalUnivariateTransform,
+)
+from fv3fit.emulation.transforms.factories import (
+    ConditionallyScaled,
+    fit_conditional,
+    NormalizationFactory,
+)
 from fv3fit.emulation.transforms import factories
 
 
@@ -358,3 +365,23 @@ def test_PositiveTransform(lower, upper, expected):
     positive = tf.convert_to_tensor(expected)
     backward_result = transform.backward(tensor)
     np.testing.assert_array_equal(positive, backward_result)
+
+
+def test_NormalizationFactory():
+    data = {"x": tf.random.normal((4, 10))}
+    f = NormalizationFactory("x")
+    norm_layer = f.build(data)
+    norm_layer.forward(data)
+
+
+def test_NormalizationFactory_backward_names():
+    f = NormalizationFactory("x")
+    assert f.backward_names({"x"}) == {"x"}
+    assert f.backward_names({"not x"}) == set()
+
+
+def test_FunctionalUnivariateTransform():
+    data = tf.random.normal((4, 10))
+    transform = FunctionalUnivariateTransform(lambda x: 2 * x, lambda x: x / 2)
+    end = transform.backward(transform.forward(data))
+    np.testing.assert_array_almost_equal(data, end)
