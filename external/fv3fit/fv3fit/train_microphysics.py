@@ -23,7 +23,11 @@ from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 from fv3fit.emulation.transforms.factories import ConditionallyScaled
 from fv3fit.emulation.types import LossFunction, TensorDict
 from fv3fit.emulation import models, train, ModelCheckpointCallback
-from fv3fit.emulation.data import TransformConfig, nc_dir_to_tfdataset
+from fv3fit.emulation.data import (
+    TransformConfig,
+    nc_dir_to_tfdataset,
+    netcdf_url_to_dataset,
+)
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.keras import save_model
@@ -84,6 +88,11 @@ class TrainConfig:
             during training
         checkpoint_model: if true, save a checkpoint after each epoch
         log_level: what logging level to use
+        use_generator: default option to use our tfdataset.from_generator
+            to create batches of data.  When set to false, we use the map
+            operation *might* not require sample shuffling, which is useful for
+            speeding up i/o bound training. TODO: verify no shuffling improves
+            training using map versus the generator
     """
 
     train_url: str
@@ -107,6 +116,7 @@ class TrainConfig:
     shuffle_buffer_size: Optional[int] = 13824
     checkpoint_model: bool = True
     log_level: str = "INFO"
+    use_generator: bool = True
 
     @property
     def transform_factory(self) -> ComposedTransformFactory:
@@ -230,14 +240,21 @@ class TrainConfig:
     def open_dataset(
         self, url: str, nfiles: Optional[int], required_variables: Set[str],
     ) -> tf.data.Dataset:
-        nc_open_fn = self.transform.get_pipeline(required_variables)
-        return nc_dir_to_tfdataset(
-            url,
-            nc_open_fn,
-            nfiles=nfiles,
-            shuffle=True,
-            random_state=np.random.RandomState(0),
-        )
+        if self.use_generator:
+            # original tf dataset routine, uses a generator underneath
+            nc_open_fn = self.transform.get_pipeline(required_variables)
+            return nc_dir_to_tfdataset(
+                url,
+                nc_open_fn,
+                nfiles=nfiles,
+                shuffle=True,
+                random_state=np.random.RandomState(0),
+            )
+        else:
+            # uses map across filenames to create a dataset
+            return netcdf_url_to_dataset(
+                url, list(required_variables), shuffle=True, nfiles=nfiles
+            )
 
     @property
     def model_variables(self) -> Set[str]:
