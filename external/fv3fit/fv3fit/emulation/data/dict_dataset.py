@@ -22,7 +22,7 @@ def read_variables_as_tfdataset(url, variables, transform):
     )
 
     d = dict(zip(variables, outputs))
-    return tf.data.Dataset.from_tensor_slices(d, num_parallel_calls=tf.data.AUTOTUNE)
+    return tf.data.Dataset.from_tensor_slices(d)
 
 
 def read_variables_greedily_as_tuple(url, variables, transform):
@@ -65,7 +65,8 @@ def netcdf_url_to_dataset(
         d = d.shuffle(len(files))
 
     return d.interleave(
-        lambda url: read_variables_as_tfdataset(url, variables, transform)
+        lambda url: read_variables_as_tfdataset(url, variables, transform),
+        num_parallel_calls=tf.data.AUTOTUNE,
     )
 
 
