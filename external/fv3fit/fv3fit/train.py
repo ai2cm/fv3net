@@ -169,7 +169,9 @@ def main(args, unknown_args=None):
         # hyperparameters should be accessed throughthe wandb config, I think
         # this is how the values changed by wandb are passed to the training
         config_dict["hyperparameters"] = to_nested_dict(wandb.config)
-
+        logger.info(
+            f"hyperparameters from wandb config: {config_dict['hyperparameters']}"
+        )
         training_config = fv3fit.TrainingConfig.from_dict(config_dict)
 
     with open(args.training_data_config, "r") as f:
