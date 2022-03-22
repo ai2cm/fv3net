@@ -59,3 +59,32 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
 
     # sort to make the check deterministic
     regression_state(out, regtest)
+
+
+def test_multimodel_adapter(state, tmpdir_factory):
+    model_path1 = str(tmpdir_factory.mktemp("model1"))
+    model_path2 = str(tmpdir_factory.mktemp("model2"))
+    mock1 = get_mock_predictor(dQ1_tendency=1 / 86400)
+    mock2 = get_mock_predictor(model_predictands="rad_fluxes")
+    fv3fit.dump(mock1, model_path1)
+    fv3fit.dump(mock2, model_path2)
+
+    adapted_model = Adapter(
+        Config(
+            [model_path1, model_path2],
+            {
+                "air_temperature": "dQ1",
+                "surface_temperature": "total_sky_downward_shortwave_flux_at_surface",
+            },
+        ),
+        900,
+    )
+    transform = StepTransformer(
+        adapted_model, MockDerivedState(state), "machine_learning", timestep=900,
+    )
+
+    def add_one_to_temperature():
+        state["air_temperature"] += 1
+        return {"some_diag": state["specific_humidity"]}
+
+    transform(add_one_to_temperature)()

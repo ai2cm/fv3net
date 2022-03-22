@@ -64,4 +64,4 @@ class Adapter:
 
     @property
     def input_variables(self) -> Iterable[Hashable]:
-        return self.model.input_variables
+        return list(set(self.model.input_variables) | set(self.config.variables))
