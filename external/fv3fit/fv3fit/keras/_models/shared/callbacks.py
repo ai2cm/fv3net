@@ -24,6 +24,10 @@ class TrainingLoopLossHistory:
         self.val_loss_all = []
 
     def callback(self, epoch_result: EpochResult):
+        logger.info(
+            "saving end of epoch metrics for epoch "
+            f"{epoch_result.epoch}: {epoch_result.epoch_logs}"
+        )
         self.train_loss_end_of_epoch.append(epoch_result.epoch_logs.loss)
         self.val_loss_end_of_epoch.append(epoch_result.epoch_logs.val_loss)
         for batch_log in epoch_result.batch_logs:
