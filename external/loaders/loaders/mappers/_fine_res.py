@@ -12,7 +12,12 @@ from vcm.fv3.metadata import gfdl_to_standard
 from loaders._config import mapper_functions
 from loaders.mappers._base import GeoMapper
 from loaders.mappers._xarray import XarrayMapper
-from loaders.mappers._fine_res_budget import compute_fine_res_sources, FineResBudget
+from loaders.mappers._fine_res_budget import (
+    compute_fine_res_sources,
+    column_integrated_fine_res_nudging_heating,
+    FineResBudget,
+    FINE_RES_BUDGET_NAMES,
+)
 
 
 class MLTendencies(Protocol):
@@ -45,6 +50,7 @@ def _open_merged_dataset(
     fine_url: str,
     additional_dataset_urls: Optional[Sequence[str]],
     standardize_fine_coords: bool = True,
+    use_fine_res_state: bool = True,
 ) -> FineResBudget:
 
     fine = open_zarr(fine_url)
@@ -63,11 +69,10 @@ def _open_merged_dataset(
     else:
         merged = fine
 
-    # enforce that these ML inputs come from fine dataset if they exist there
-    if "T" in fine:
-        merged["air_temperature"] = fine.T
-    if "sphum" in fine:
-        merged["specific_humidity"] = fine.sphum
+    if use_fine_res_state:
+        # overwrite standard name arrays with those from fine-res budget
+        for fine_res_name, standard_name in FINE_RES_BUDGET_NAMES.items():
+            merged[standard_name] = fine[fine_res_name]
 
     return merged
 
@@ -126,6 +131,10 @@ def compute_budget(
         pass
     else:
         raise ValueError(f"{approach} not implemented.")
+
+    if include_temperature_nudging:
+        name = "storage_of_internal_energy_path_due_to_fine_res_temperature_nudging"
+        merged[name] = column_integrated_fine_res_nudging_heating(merged)
 
     return _ml_standard_names(merged)
 
@@ -190,6 +199,7 @@ def open_fine_resolution(
     fine_url: str,
     include_temperature_nudging: bool = False,
     additional_dataset_urls: Sequence[str] = None,
+    use_fine_res_state: bool = True,
 ) -> GeoMapper:
     """
     Open the fine-res mapper using several configuration options
@@ -205,6 +215,8 @@ def open_fine_resolution(
             data to be merged into the resulting mapper dataset, e.g., ML input
             features, the dynamics nudging tendencies, and the dynamics differences
             as required by the above approaches
+        use_fine_res_state: set standard name state variables to point to the fine-res
+            data. Set to True if wanting to use fine-res state as ML inputs in training.
 
     Returns:
         a mapper
@@ -213,7 +225,9 @@ def open_fine_resolution(
     approach_enum = Approach[approach]
 
     merged: FineResBudget = _open_merged_dataset(
-        fine_url=fine_url, additional_dataset_urls=additional_dataset_urls,
+        fine_url=fine_url,
+        additional_dataset_urls=additional_dataset_urls,
+        use_fine_res_state=use_fine_res_state,
     )
     budget: MLTendencies = compute_budget(
         merged, approach_enum, include_temperature_nudging=include_temperature_nudging

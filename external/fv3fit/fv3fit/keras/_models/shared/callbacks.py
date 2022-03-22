@@ -1,5 +1,3 @@
-import numpy as np
-
 from .training_loop import EpochResult
 
 import logging
@@ -26,13 +24,15 @@ class TrainingLoopLossHistory:
         self.val_loss_all = []
 
     def callback(self, epoch_result: EpochResult):
-        self.train_loss_end_of_epoch.append(epoch_result.epoch_logs["loss"])
-        self.val_loss_end_of_epoch.append(
-            epoch_result.epoch_logs.get("val_loss", [np.nan])
+        logger.info(
+            "saving end of epoch metrics for epoch "
+            f"{epoch_result.epoch}: {epoch_result.epoch_logs}"
         )
+        self.train_loss_end_of_epoch.append(epoch_result.epoch_logs.loss)
+        self.val_loss_end_of_epoch.append(epoch_result.epoch_logs.val_loss)
         for batch_log in epoch_result.batch_logs:
-            self.train_loss_all.append(batch_log["loss"])
-            self.val_loss_all.append(batch_log.get("val_loss", []))
+            self.train_loss_all.append(batch_log.loss)
+            self.val_loss_all.append(batch_log.val_loss)
 
     def log_summary(self):
         logger.info(f"All batches train loss history: {self.train_loss_all}")

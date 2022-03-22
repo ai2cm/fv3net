@@ -19,6 +19,7 @@ from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
     full_standard_normalized_input,
 )
+from fv3fit import tfdataset
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping
 
 logger = logging.getLogger(__file__)
@@ -48,7 +49,7 @@ class ConvolutionalHyperparameters(Hyperparameters):
         default_factory=lambda: ConvolutionalNetworkConfig()
     )
     training_loop: TrainingLoopConfig = dataclasses.field(
-        default_factory=lambda: TrainingLoopConfig(epochs=10, batch_size=1)
+        default_factory=lambda: TrainingLoopConfig(batch_size=1)
     )
     clip_config: Mapping[Hashable, SliceConfig] = dataclasses.field(
         default_factory=dict
@@ -95,12 +96,19 @@ def train_convolutional_model(
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset] = None,
 ):
+    train_batches = train_batches.map(
+        tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
+    )
+
     get_Xy = curry(get_Xy_dataset)(
         input_variables=hyperparameters.input_variables,
         output_variables=hyperparameters.output_variables,
         n_halo=hyperparameters.convolutional_network.halos_required,
     )
     if validation_batches is not None:
+        validation_batches = validation_batches.map(
+            tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
+        )
         val_Xy = get_Xy(
             clip_config=hyperparameters.clip_config, data=validation_batches
         )

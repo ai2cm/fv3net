@@ -23,5 +23,5 @@ from .stacking import (
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
 )
-from .models import EnsembleModel, DerivedModel
+from .models import EnsembleModel, DerivedModel, TransformedPredictor
 from .filesystem import get_dir, put_dir

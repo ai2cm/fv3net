@@ -44,6 +44,8 @@ def get_mock_dataset(n_time, unstacked_dims: Sequence[str]):
             "dQ2": (dims, arr),
             "dQu": (dims, arr),
             "dQv": (dims, arr),
+            "Q1": (dims, arr),
+            "Q2": (dims, arr),
         },
         coords={
             "time": [
@@ -83,6 +85,7 @@ class CallArtifacts:
     output_path: str
     variables: Sequence[str]
     MockDerivedModel: mock.Mock
+    MockTransformedPredictor: mock.Mock
     hyperparameters: Any
 
 
@@ -148,9 +151,11 @@ def call_main(
     derived_output_variables,
     use_validation_data: bool,
     use_local_download_path: bool = False,
+    output_transforms: Optional[Sequence[vcm.DataTransform]] = None,
 ):
     model_type = "dense"
     hyperparameters_dict = {}
+    output_transforms = [] if output_transforms is None else output_transforms
     config = get_config(
         tmpdir,
         derived_output_variables,
@@ -159,6 +164,7 @@ def call_main(
         use_validation_data,
         use_local_download_path=use_local_download_path,
         unstacked_dims=["z"],
+        output_transforms=output_transforms,
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
     if use_local_download_path is True:
@@ -168,13 +174,22 @@ def call_main(
         ]
     else:
         local_download_path_arg = []
-    with mock.patch("fv3fit.DerivedModel") as MockDerivedModel:
+    with mock.patch("fv3fit.DerivedModel") as MockDerivedModel, mock.patch(
+        "fv3fit.TransformedPredictor"
+    ) as MockTransformedPredictor:
         MockDerivedModel.return_value = mock.MagicMock(
             name="derived_model_return", spec=fv3fit.Predictor
         )
+        MockTransformedPredictor.return_value = mock.MagicMock(
+            name="transformed_predictor_return", spec=fv3fit.Predictor
+        )
         fv3fit.train.main(config.args, unknown_args=local_download_path_arg)
     return CallArtifacts(
-        config.output_path, config.variables, MockDerivedModel, config.hyperparameters,
+        config.output_path,
+        config.variables,
+        MockDerivedModel,
+        MockTransformedPredictor,
+        config.hyperparameters,
     )
 
 
@@ -206,18 +221,28 @@ def test_main_calls_load_batches_correctly(
 
 
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
+@pytest.mark.parametrize(
+    "output_transforms", [[], [vcm.DataTransform("Qm_from_Q1_Q2")]]
+)
 def test_main_dumps_correct_predictor(
     tmpdir,
     mock_load_batches: mock.MagicMock,
     mock_tfdataset_from_batches: mock.MagicMock,
     mock_train_dense_model: mock.MagicMock,
     derived_output_variables: Sequence[str],
+    output_transforms,
 ):
     artifacts = call_main(
-        tmpdir, mock_load_batches, derived_output_variables, use_validation_data=True,
+        tmpdir,
+        mock_load_batches,
+        derived_output_variables,
+        use_validation_data=True,
+        output_transforms=output_transforms,
     )
     mock_predictor = mock_train_dense_model.return_value
-    if len(derived_output_variables) > 0:
+    if len(output_transforms) > 0:
+        dump_predictor = artifacts.MockTransformedPredictor.return_value
+    elif len(derived_output_variables) > 0:
         dump_predictor = artifacts.MockDerivedModel.return_value
     else:
         dump_predictor = mock_predictor
@@ -242,6 +267,30 @@ def test_main_uses_derived_model_only_if_needed(
         )
     else:
         artifacts.MockDerivedModel.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "output_transforms", [[], [vcm.DataTransform("Qm_from_Q1_Q2")]]
+)
+def test_main_uses_transformed_predictor_only_if_needed(
+    tmpdir,
+    mock_load_batches: mock.MagicMock,
+    mock_train_dense_model: mock.MagicMock,
+    output_transforms: Sequence[vcm.DataTransform],
+):
+    artifacts = call_main(
+        tmpdir,
+        mock_load_batches,
+        [],
+        use_validation_data=True,
+        output_transforms=output_transforms,
+    )
+    if len(output_transforms) > 0:
+        artifacts.MockTransformedPredictor.assert_called_once_with(
+            mock_train_dense_model.return_value, output_transforms
+        )
+    else:
+        artifacts.MockTransformedPredictor.assert_not_called()
 
 
 @pytest.mark.parametrize("derived_output_variables", [[], ["downwelling_shortwave"]])
@@ -328,10 +377,13 @@ def get_config(
     use_validation_data: bool,
     unstacked_dims: Sequence[str],
     use_local_download_path: bool = False,
+    output_variables: Sequence[str] = ("dQ1", "dQ2"),
+    output_transforms: Optional[Sequence[vcm.DataTransform]] = None,
 ):
+    output_transforms = [] if output_transforms is None else output_transforms
     base_dir = str(tmpdir)
     input_variables = ["air_temperature", "specific_humidity"]
-    output_variables = ["dQ1", "dQ2"]
+    output_variables = list(output_variables)
     all_variables = input_variables + output_variables
     hyperparameters = get_hyperparameters(
         model_type, hyperparameter_dict, input_variables, output_variables
@@ -340,6 +392,7 @@ def get_config(
         model_type=model_type,
         hyperparameters=hyperparameters,
         derived_output_variables=derived_output_variables,
+        output_transforms=output_transforms,
     )
     mock_dataset = get_mock_dataset(n_time=9, unstacked_dims=unstacked_dims)
     train_times = [vcm.encode_time(dt) for dt in mock_dataset["time"][:6].values]
@@ -357,6 +410,7 @@ def get_config(
             res="c8_random_values",
             timesteps_per_batch=3,
             unstacked_dims=unstacked_dims,
+            data_transforms=[{"name": "Qm_from_Q1_Q2"}],
         ),
         mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
     )
@@ -370,6 +424,7 @@ def get_config(
                 res="c8_random_values",
                 timesteps_per_batch=3,
                 unstacked_dims=unstacked_dims,
+                data_transforms=[{"name": "Qm_from_Q1_Q2"}],
             ),
             mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
         )
@@ -461,18 +516,24 @@ def cli_main(args: MainArgs):
 
 
 @pytest.mark.parametrize(
-    "model_type, hyperparameter_dict",
+    "model_type, hyperparameter_dict, output_variables",
     [
         pytest.param(
             "sklearn_random_forest",
             {"max_depth": 4, "n_estimators": 2},
+            ["Qm", "Q2"],
             id="random_forest",
         ),
-        pytest.param("convolutional", {}, id="convolutional"),
-        pytest.param("precipitative", {}, id="precipitative"),
-        pytest.param("dense", {"save_model_checkpoints": False}, id="dense"),
+        pytest.param("convolutional", {}, ["dQ1", "dQ2"], id="convolutional"),
+        pytest.param("precipitative", {}, ["dQ1", "dQ2"], id="precipitative"),
         pytest.param(
-            "dense", {"save_model_checkpoints": True}, id="dense_with_checkpoints",
+            "dense", {"save_model_checkpoints": False}, ["dQ1", "dQ2"], id="dense"
+        ),
+        pytest.param(
+            "dense",
+            {"save_model_checkpoints": True},
+            ["dQ1", "dQ2"],
+            id="dense_with_checkpoints",
         ),
     ],
 )
@@ -487,6 +548,7 @@ def test_cli(
     use_validation_data: bool,
     model_type: str,
     hyperparameter_dict,
+    output_variables,
 ):
     """
     Test of fv3fit.train command-line interface.
@@ -503,6 +565,7 @@ def test_cli(
         use_validation_data,
         use_local_download_path=use_local_download_path,
         unstacked_dims=unstacked_dims,
+        output_variables=output_variables,
     )
     cli_main(config.args)
     fv3fit.load(config.args.output_path)

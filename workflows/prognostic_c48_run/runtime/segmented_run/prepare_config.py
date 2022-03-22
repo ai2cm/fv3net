@@ -115,6 +115,19 @@ class HighLevelConfig(UserConfig, FV3Config):
     duration: str = ""
     zhao_carr_emulation: emulation.EmulationConfig = emulation.EmulationConfig()
 
+    @staticmethod
+    def from_dict(dict_: dict) -> "HighLevelConfig":
+        return dacite.from_dict(
+            HighLevelConfig,
+            dict_,
+            dacite.Config(
+                strict=True,
+                type_hooks={
+                    emulation.EmulationConfig: emulation.EmulationConfig.from_dict
+                },
+            ),
+        )
+
     def _initial_condition_overlay(self):
         return (
             self.initial_conditions.overlay
@@ -166,7 +179,7 @@ class HighLevelConfig(UserConfig, FV3Config):
             file_configs_to_namelist_settings(
                 self.fortran_diagnostics, self._physics_timestep()
             ),
-            {"zhao_carr_emulation": dataclasses.asdict(self.zhao_carr_emulation)},
+            {"zhao_carr_emulation": self.zhao_carr_emulation.to_dict()},
         )
         return (
             fv3config.set_run_duration(config, self._duration)
@@ -238,7 +251,7 @@ def to_fv3config(
         an fv3config configuration dictionary that can be operated on with
         fv3config APIs.
     """
-    user_config = dacite.from_dict(HighLevelConfig, dict_, dacite.Config(strict=True))
+    user_config = HighLevelConfig.from_dict(dict_)
 
     # insert command line option overrides
     if user_config.scikit_learn is None:

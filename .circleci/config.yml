@@ -96,6 +96,7 @@ jobs:
           - prognostic_run_gpu
           - post_process_run
           - fv3net
+          - fv3fit
           - dataflow
           - artifacts
     machine:
@@ -235,6 +236,11 @@ workflows:
                 - post_process_run
                 - fv3net
                 - artifacts
+      - build_default:
+          name: "build/push fv3fit image"
+          image: fv3fit
+          requires:
+            - pytest
       # manually trigger on PRs
       - integration_tests:
           requires:

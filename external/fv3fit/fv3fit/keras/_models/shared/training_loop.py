@@ -1,5 +1,5 @@
 import tensorflow as tf
-from typing import Any, Iterable, List, Optional, Sequence, Callable
+from typing import Any, Iterable, List, Optional, Sequence, Callable, Tuple
 import dataclasses
 import logging
 
@@ -28,21 +28,53 @@ class EpochResult:
     epoch_logs: Logs
 
 
+def sequence_size(seq):
+    n = 0
+    for _ in seq:
+        n += 1
+    return n
+
+
+def _tfdataset_to_tensor_sequence(
+    Xy: tf.data.Dataset, validation_data: Optional[tf.data.Dataset]
+) -> Tuple[
+    Tuple[Sequence[tf.Tensor], Sequence[tf.Tensor]],
+    Optional[Tuple[Sequence[tf.Tensor], Sequence[tf.Tensor]]],
+]:
+    n_samples = sequence_size(Xy)
+    Xy_fit = next(iter(Xy.batch(n_samples)))
+    if validation_data is not None:
+        n_val_samples = sequence_size(validation_data)
+        validation_fit = next(iter(validation_data.batch(n_val_samples)))
+    else:
+        validation_fit = None
+    return Xy_fit, validation_fit
+
+
 @dataclasses.dataclass
 class TrainingLoopConfig:
     """
     Attributes:
         epochs: number of times to run through the batches when training
-        workers: number of workers for parallelized loading of batches fed into
-            training, if 1 uses serial loading instead
-        max_queue_size: max number of batches to hold in the parallel loading queue
+        shuffle_buffer_size: size of buffer to use when shuffling data, only
+            applies if in_memory=False
         batch_size: actual batch_size to pass to keras model.fit,
             independent of number of samples in each data batch in batches
+        in_memory: if True, cast incoming data to eagerly loaded numpy arrays
+            before calling keras fit routine (uses tf.data.Dataset if False).
     """
 
     epochs: int = 3
-    shuffle_buffer_size: int = 2_000_000
+    shuffle_buffer_size: int = 50_000
     batch_size: int = 16
+    in_memory: bool = True
+
+    def __post_init__(self):
+        if self.in_memory:
+            logger.info(
+                "training with in_memory=True, if you run out of memory "
+                "try setting in_memory on TrainingLoopConfig to False"
+            )
 
     def fit_loop(
         self,
@@ -58,17 +90,31 @@ class TrainingLoopConfig:
             validation_data: passed as `validation_data` argument to `model.fit`
             callbacks: if given, these will be called at the end of each epoch
         """
-        Xy = Xy.shuffle(buffer_size=self.shuffle_buffer_size).batch(self.batch_size)
-        if validation_data is not None:
-            validation_batched = validation_data.batch(self.batch_size)
-        else:
-            validation_batched = None
-        model.fit(
-            Xy,
-            validation_data=validation_batched,
-            callbacks=[EpochCallback(func) for func in callbacks],
-            epochs=self.epochs,
+        fit_kwargs = dict(
+            callbacks=[EpochCallback(func) for func in callbacks], epochs=self.epochs
         )
+        if self.in_memory:
+            Xy_fit, validation_fit = _tfdataset_to_tensor_sequence(Xy, validation_data)
+            model.fit(
+                x=Xy_fit[0],
+                y=Xy_fit[1],
+                validation_data=validation_fit,
+                batch_size=self.batch_size,
+                **fit_kwargs,
+            )
+        else:
+            Xy_fit = (
+                Xy.shuffle(buffer_size=self.shuffle_buffer_size)
+                .batch(self.batch_size)
+                .prefetch(tf.data.AUTOTUNE)
+            )
+            if validation_data is not None:
+                validation_fit = validation_data.batch(self.batch_size).prefetch(
+                    tf.data.AUTOTUNE
+                )
+            else:
+                validation_fit = None
+            model.fit(Xy_fit, validation_data=validation_fit, **fit_kwargs)
 
 
 class EpochCallback(tf.keras.callbacks.History):

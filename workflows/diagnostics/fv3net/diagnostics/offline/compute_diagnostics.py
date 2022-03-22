@@ -528,6 +528,86 @@ for domain in ["positive_net_precipitation", "negative_net_precipitation"]:
 
 for domain in ["global", "land", "sea"]:
 
+    @diagnostics_registry.register(f"time_domain_mean_2d_{domain}")
+    @transform.apply(transform.select_2d_variables)
+    @transform.apply(transform.mask_area, mask_type)
+    def time_domain_mean_2d(diag_arg, mask_type=mask_type):
+        logger.info(f"Preparing time means for 2D variables, {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) > 0:
+            ds = xr.concat(
+                [predicted, target],
+                dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
+            )
+            return weighted_mean(ds, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
+                "time"
+            )
+        else:
+            return xr.Dataset()
+
+
+for domain in ["global", "land", "sea"]:
+
+    @diagnostics_registry.register(f"time_domain_mean_pressure_level_{domain}")
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_area, mask_type)
+    def time_domain_mean_pressure_level(diag_arg, mask_type=mask_type):
+        logger.info(
+            f"Preparing time means for 3D variables interpolated to pressure "
+            f"levels, {mask_type}"
+        )
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) > 0:
+            ds = xr.concat(
+                [predicted, target],
+                dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
+            )
+            return weighted_mean(ds, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
+                "time"
+            )
+        else:
+            return xr.Dataset()
+
+
+for domain in ["global", "land", "sea"]:
+
+    @diagnostics_registry.register(
+        f"time_domain_mean_pressure_level_zonal_avg_{domain}"
+    )
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_area, mask_type)
+    def time_domain_mean_pressure_level_zonal_avg(diag_arg, mask_type=mask_type):
+        logger.info(
+            f"Preparing time means for zonal mean 3D variables interpolated to "
+            f"pressure levels, {mask_type}"
+        )
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) > 0:
+            ds = xr.concat(
+                [predicted, target],
+                dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
+            )
+            return zonal_mean(ds, grid.lat).mean("time")
+        else:
+            return xr.Dataset()
+
+
+for domain in ["global", "land", "sea"]:
+
     @diagnostics_registry.register(f"time_domain_mean_{domain}")
     @transform.apply(transform.select_3d_variables)
     def surface_type_domain_time_mean(diag_arg, domain=domain):

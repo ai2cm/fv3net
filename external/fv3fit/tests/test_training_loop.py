@@ -3,6 +3,7 @@ from unittest import mock
 from fv3fit.keras._models.shared.training_loop import EpochCallback
 import tensorflow as tf
 import pytest
+import contextlib
 
 
 def test_mock_in_sequence():
@@ -15,6 +16,20 @@ def test_mock_in_sequence():
     assert m not in [mock.MagicMock()]
 
 
+@contextlib.contextmanager
+def mock_tfdataset_to_tensor_sequence():
+    tfdataset_to_tensor_sequence_mock = mock.MagicMock()
+    tfdataset_to_tensor_sequence_mock.return_value = [
+        mock.MagicMock(),
+        mock.MagicMock(),
+    ]
+    with mock.patch(
+        "fv3fit.keras._models.shared.training_loop._tfdataset_to_tensor_sequence",
+        new=tfdataset_to_tensor_sequence_mock,
+    ) as m:
+        yield m
+
+
 def test_fit_loop():
     n_callbacks = 0
     config = fv3fit.TrainingLoopConfig()
@@ -22,7 +37,8 @@ def test_fit_loop():
     mock_Xy = mock.MagicMock(spec=tf.data.Dataset)
     validation_data = mock.MagicMock(spec=tf.data.Dataset)
     callbacks = tuple(mock.MagicMock for _ in range(n_callbacks))
-    config.fit_loop(mock_model, mock_Xy, validation_data, callbacks)
+    with mock_tfdataset_to_tensor_sequence():
+        config.fit_loop(mock_model, mock_Xy, validation_data, callbacks)
 
 
 @pytest.mark.parametrize("n_callbacks", [0, 1, 3])
@@ -36,7 +52,8 @@ def test_fit_loop_passes_callbacks(n_callbacks, n_epochs):
     mock_Xy = mock.MagicMock(spec=tf.data.Dataset)
     validation_data = mock.MagicMock(spec=tf.data.Dataset)
     callbacks = tuple(mock.MagicMock() for _ in range(n_callbacks))
-    config.fit_loop(mock_model, mock_Xy, validation_data, callbacks)
+    with mock_tfdataset_to_tensor_sequence():
+        config.fit_loop(mock_model, mock_Xy, validation_data, callbacks)
     assert mock_model.fit.called
     args = mock_model.fit.call_args
     for wrapper in args.kwargs["callbacks"]:
@@ -59,5 +76,6 @@ def test_fit_loop_calls_fit(n_epochs):
     mock_model = mock.MagicMock(spec=tf.keras.Model)
     mock_Xy = mock.MagicMock(spec=tf.data.Dataset)
     validation_data = mock.MagicMock(spec=tf.data.Dataset)
-    config.fit_loop(mock_model, mock_Xy, validation_data)
+    with mock_tfdataset_to_tensor_sequence():
+        config.fit_loop(mock_model, mock_Xy, validation_data)
     assert mock_model.fit.call_count == 1

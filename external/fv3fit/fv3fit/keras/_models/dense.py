@@ -34,6 +34,7 @@ from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
     full_standard_normalized_input,
 )
+from fv3fit import tfdataset
 from fv3fit.keras._models.shared.clip import clip_sequence, ClipConfig
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping, clip_sample
 
@@ -61,6 +62,7 @@ class DenseHyperparameters(Hyperparameters):
             dumping, under a 'model_checkpoints' subdirectory
         clip_config: configuration of input and output clipping of last dimension
         output_limit_config: configuration for limiting output values.
+        normalization_fit_samples: number of samples to use when fitting normalization
     """
 
     input_variables: List[str]
@@ -82,6 +84,7 @@ class DenseHyperparameters(Hyperparameters):
     output_limit_config: OutputLimitConfig = dataclasses.field(
         default_factory=lambda: OutputLimitConfig()
     )
+    normalization_fit_samples: int = 500_000
 
     @property
     def variables(self) -> Set[str]:
@@ -102,6 +105,7 @@ def train_dense_model(
         output_variables=hyperparameters.output_variables,
         clip_config=hyperparameters.clip_config,
         training_loop=hyperparameters.training_loop,
+        build_samples=hyperparameters.normalization_fit_samples,
     )
 
 
@@ -143,12 +147,21 @@ def get_Xy_dataset(
     """
     data = data.map(apply_to_mapping(ensure_nd(n_dims)))
     if clip_config is not None:
-        y_source = data.map(clip_sample(clip_config))
+        clip_function = clip_sample(clip_config)
     else:
-        y_source = data
-    y = y_source.map(select_keys(output_variables))
-    X = data.map(select_keys(input_variables))
-    return tf.data.Dataset.zip((X, y))
+
+        def clip_function(data):
+            return data
+
+    def map_fn(data):
+        # clipping of inputs happens within the keras model, we don't clip at the
+        # data layer so that the model still takes full-sized inputs when used
+        # in production
+        x = select_keys(input_variables, data)
+        y = select_keys(output_variables, clip_function(data))
+        return x, y
+
+    return data.map(map_fn)
 
 
 def train_column_model(
@@ -159,6 +172,7 @@ def train_column_model(
     output_variables: Sequence[str],
     clip_config: ClipConfig,
     training_loop: TrainingLoopConfig,
+    build_samples: int = 500_000,
 ) -> PureKerasModel:
     """
     Train a columnwise PureKerasModel.
@@ -173,20 +187,29 @@ def train_column_model(
         output_variables: names of outputs for the keras model
         clip_config: configuration of input and output clipping of last dimension
         training_loop: configuration of training loop
+        build_samples: the number of samples to pass to build_model
     """
+    train_batches = train_batches.map(
+        tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
+    )
     get_Xy = curry(get_Xy_dataset)(
         input_variables=input_variables, output_variables=output_variables, n_dims=1,
     )
     if validation_batches is not None:
+        validation_batches = validation_batches.map(
+            tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
+        )
         val_Xy = get_Xy(clip_config=clip_config.clip, data=validation_batches)
     else:
         val_Xy = None
 
     train_Xy = get_Xy(data=train_batches, clip_config=clip_config.clip)
     # need unclipped shapes for build_model
-    X, y = next(iter(get_Xy(data=train_batches, clip_config=None).batch(10_000_000)))
+    X, y = next(iter(get_Xy(data=train_batches, clip_config=None).batch(build_samples)))
 
     train_model, predict_model = build_model(X=X, y=y)
+    del X
+    del y
 
     loss_history = TrainingLoopLossHistory()
     training_loop.fit_loop(

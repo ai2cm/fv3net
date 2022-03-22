@@ -1,3 +1,4 @@
+import copy
 from fv3fit._shared.config import SliceConfig
 from fv3fit._shared.packer import (
     pack_tfdataset,
@@ -9,6 +10,7 @@ from typing import Mapping, Sequence
 import numpy as np
 import pytest
 import xarray as xr
+import fv3fit.tfdataset
 
 
 def assert_datasets_equal(dataset1, dataset2, rtol=1e-6):
@@ -114,6 +116,37 @@ def test_tfdataset_from_batches_multiple():
         )
 
 
+def test_tfdataset_from_batches_multiple_different_samples():
+    n_samples = 3
+    batches = [
+        xr.Dataset(
+            data_vars={
+                "a": xr.DataArray(np.random.uniform(size=[n_samples * 2, 3, 4])),
+                "b": xr.DataArray(np.random.uniform(size=[n_samples * 2, 3])),
+            }
+        ),
+        xr.Dataset(
+            data_vars={
+                "a": xr.DataArray(np.random.uniform(size=[n_samples, 3, 4])),
+                "b": xr.DataArray(np.random.uniform(size=[n_samples, 3])),
+            }
+        ),
+    ]
+    tfdataset = tfdataset_from_batches(batches)
+    for i, result in enumerate(iter(tfdataset)):
+        assert isinstance(result, dict)
+        if i < 2 * n_samples:
+            i_batch, i_sample = 0, i
+        else:
+            i_batch, i_sample = 1, i - 2 * n_samples
+        np.testing.assert_array_equal(
+            result["a"], batches[i_batch]["a"].values[i_sample, :]
+        )
+        np.testing.assert_array_equal(
+            result["b"], batches[i_batch]["b"].values[i_sample, :]
+        )
+
+
 @pytest.mark.parametrize("n_dims", [2, 3, 5])
 @pytest.mark.parametrize(
     "variable_names",
@@ -188,3 +221,19 @@ def test_clip_tfdataset(
             )
         else:
             np.testing.assert_array_equal(sample_in[name], sample_out[name])
+
+
+def test__seq_to_tfdataset():
+    batches = [{"a": np.arange(30).reshape(10, 3)} for _ in range(3)]
+
+    def transform(batch):
+        out = copy.deepcopy(batch)
+        out["a"] = out["a"] * 2
+        return out
+
+    tf_ds = fv3fit.tfdataset.seq_to_tfdataset(batches, transform)
+    assert isinstance(tf_ds, tf.data.Dataset)
+
+    result = next(tf_ds.batch(10).as_numpy_iterator())
+    assert isinstance(result, dict)
+    np.testing.assert_equal(result["a"], batches[0]["a"] * 2)
