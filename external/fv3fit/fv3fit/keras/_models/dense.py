@@ -147,16 +147,21 @@ def get_Xy_dataset(
     """
     data = data.map(apply_to_mapping(ensure_nd(n_dims)))
     if clip_config is not None:
-        y_source = data.map(clip_sample(clip_config))
+        clip_function = clip_sample(clip_config)
     else:
-        y_source = data
+
+        def clip_function(data):
+            return data
 
     def map_fn(data):
+        # clipping of inputs happens within the keras model, we don't clip at the
+        # data layer so that the model still takes full-sized inputs when used
+        # in production
         x = select_keys(input_variables, data)
-        y = select_keys(output_variables, data)
+        y = select_keys(output_variables, clip_function(data))
         return x, y
 
-    return y_source.map(map_fn)
+    return data.map(map_fn)
 
 
 def train_column_model(
