@@ -13,7 +13,6 @@ import tensorflow as tf
 import yaml
 
 from fv3fit import set_random_seed
-from fv3fit.keras.callbacks import GarbageCollectionCallback
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import (
     OptimizerConfig,
@@ -272,14 +271,10 @@ def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
 
 def main(config: TrainConfig, seed: int = 0):
     logging.basicConfig(level=getattr(logging, config.log_level))
-    logging.getLogger("fv3fit.keras.callbacks").setLevel(logging.DEBUG)
     set_random_seed(seed)
 
     # callbacks that are always active
-    callbacks = [
-        tf.keras.callbacks.TerminateOnNaN(),
-        GarbageCollectionCallback(batch_frequency=100),
-    ]
+    callbacks = [tf.keras.callbacks.TerminateOnNaN()]
     if config.use_wandb:
         config.wandb.init(config=asdict(config))
         callbacks.append(config.wandb.get_callback())
