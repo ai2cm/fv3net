@@ -36,6 +36,7 @@ class TrainingLoopLossHistory:
             self.val_loss_all += batch.history.get("val_loss", [])
 
         metrics = {"validation_loss": self.val_loss_end_of_epoch[-1]}
+        logger.info(f"end of epoch val loss: {self.val_loss_end_of_epoch[-1]}")
         wandb.log(metrics)
 
     def log_summary(self):
