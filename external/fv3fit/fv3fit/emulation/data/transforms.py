@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 NumericContainer = Union[np.ndarray, xr.DataArray, tf.Tensor]
 ArrayDataset = Mapping[Hashable, np.ndarray]
 TensorDataset = Mapping[Hashable, tf.Tensor]
+ArrayLikeDataset = Union[ArrayDataset, TensorDataset]
 AnyDataset = Mapping[Hashable, NumericContainer]
 
 
@@ -156,3 +157,8 @@ def expand_single_dim_data(
         new_ds[key] = data
 
     return new_ds
+
+
+@curry
+def select_variables(variables: Sequence[str], dataset: AnyDataset) -> ArrayLikeDataset:
+    return {name: dataset[name] for name in variables}

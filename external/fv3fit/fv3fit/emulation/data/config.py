@@ -112,10 +112,6 @@ class TransformConfig:
         if self.antarctic_only:
             transform_funcs.append(transforms.select_antarctic)
 
-        transform_funcs.append(
-            transforms.derived_dataset(
-                list(variables), tendency_timestep_sec=self.derived_microphys_timestep,
-            )
-        )
+        transform_funcs.append(transforms.select_variables(variables))
 
         return transform_funcs
