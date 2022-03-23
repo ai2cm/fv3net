@@ -44,7 +44,7 @@
         "channels": 256
       }
     },
-    "normalize_key": {"center": "per_feature", "scale": "all"},
+    "normalize_default": {"center": "per_feature", "scale": "all"},
     "selection_map": {},
     "input_variables": [
       "air_temperature_input",
