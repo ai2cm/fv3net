@@ -71,9 +71,7 @@ def select_fraction(fraction: float, ds: xr.Dataset) -> xr.Dataset:
     else:
         n_samples = len(ds[SAMPLE_DIM_NAME])
         n_samples_keep = int(fraction * n_samples)
-        sample_indices = sorted(
-            np.random.choice(n_samples, n_samples_keep, replace=False, p=weights)
-        )
+        sample_indices = sorted(np.random.choice(n_samples, n_samples_keep, p=weights))
         out = ds.isel({SAMPLE_DIM_NAME: sample_indices})
     return out
 

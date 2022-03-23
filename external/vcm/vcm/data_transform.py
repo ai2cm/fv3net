@@ -40,7 +40,7 @@ def register(
 
 
 @register(["latitude"], ["subsample_weights"])
-def subsample_weights_from_latitude(ds, exponent: float = 1.5):
+def subsample_weights_from_latitude(ds, exponent: float = 1.3):
     # weight by some power of inverse of pdf(latitude) to upsample columns
     # that are closer to poles
     # the default power of 1.5 increases weighting towards poles
@@ -114,6 +114,7 @@ class ChainedDataTransform:
 
     def apply(self, ds: xr.Dataset) -> xr.Dataset:
         for transform in self.transforms:
+            print(f"applying transform {transform.name}")
             ds = transform.apply(ds)
         return ds
 
