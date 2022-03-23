@@ -20,7 +20,7 @@
       },
       "learning_rate_schedule": null
     },
-    "normalization": "mean_std",
+    "normalization": {"center": "per_feature", "scale": "all"},
     "loss_variables": [
       "air_temperature_after_gscond",
       "specific_humidity_after_gscond",
@@ -44,7 +44,7 @@
         "channels": 256
       }
     },
-    "normalize_key": "mean_std",
+    "normalize_key": {"center": "per_feature", "scale": "all"},
     "selection_map": {},
     "input_variables": [
       "air_temperature_input",

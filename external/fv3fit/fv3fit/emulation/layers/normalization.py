@@ -3,6 +3,7 @@ import dataclasses
 from typing import Optional
 import tensorflow as tf
 import warnings
+from . import normalization2
 
 warnings.warn(
     DeprecationWarning(
@@ -205,11 +206,26 @@ class NormalizeConfig:
 
     def initialize_layer(self):
         """Get initialized NormLayer"""
-        cls = get_norm_class(self.class_name)
-        layer = cls(name=self.layer_name)
-        layer.fit(self.sample_data)
+        factory = norm2_factory_from_key(self.class_name)
+        norm = factory.build(self.sample_data, name=self.layer_name)
+        return norm.forward
 
-        return layer
+
+MAX_STD = "max_std"
+MEAN_STD = "mean_std"
+
+
+def norm2_factory_from_key(key):
+    if key == MAX_STD:
+        return normalization2.NormFactory(
+            normalization2.ScaleMethod.max, normalization2.CenterMethod.per_feature,
+        )
+    elif key == MEAN_STD:
+        return normalization2.NormFactory(
+            normalization2.ScaleMethod.all, normalization2.CenterMethod.per_feature,
+        )
+    else:
+        raise KeyError(f"Unrecognized normalization layer key provided: {key}")
 
 
 @dataclasses.dataclass
@@ -230,32 +246,6 @@ class DenormalizeConfig:
 
     def initialize_layer(self):
         """Get initialized NormLayer"""
-        cls = get_denorm_class(self.class_name)
-        layer = cls(name=self.layer_name)
-        layer.fit(self.sample_data)
-
-        return layer
-
-
-MAX_STD = "max_std"
-MEAN_STD = "mean_std"
-
-
-def get_norm_class(key):
-
-    if key == MAX_STD:
-        return MaxFeatureStdNormLayer
-    elif key == MEAN_STD:
-        return MeanFeatureStdNormLayer
-    else:
-        raise KeyError(f"Unrecognized normalization layer key provided: {key}")
-
-
-def get_denorm_class(key):
-
-    if key == MAX_STD:
-        return MaxFeatureStdDenormLayer
-    elif key == MEAN_STD:
-        return MeanFeatureStdDenormLayer
-    else:
-        raise KeyError(f"Unrecognized de-normalization layer key provided: {key}")
+        factory = norm2_factory_from_key(self.class_name)
+        norm = factory.build(self.sample_data, name=self.layer_name)
+        return norm.backward

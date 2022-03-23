@@ -11,19 +11,14 @@ class NormLayer(tf.Module):
     """
 
     def __init__(
-        self,
-        scale: tf.Tensor,
-        center: tf.Tensor,
-        epsilon: float = 0,
-        name: Optional[str] = None,
+        self, scale: tf.Tensor, center: tf.Tensor, name: Optional[str] = None,
     ) -> None:
         super().__init__(name=name)
-        self.scale = tf.Variable(scale, trainable=False)
-        self.center = tf.Variable(center, trainable=False)
-        self.epsilon = epsilon
+        self.scale = tf.constant(scale, name=name + "_scale" if name else None)
+        self.center = tf.constant(center, name=name + "_center" if name else None)
 
     def forward(self, tensor: tf.Tensor) -> tf.Tensor:
-        return (tensor - self.center) / (self.center + self.epsilon)
+        return (tensor - self.center) / self.scale
 
     def backward(self, tensor: tf.Tensor) -> tf.Tensor:
         return tensor * self.scale + self.center
@@ -44,12 +39,11 @@ class CenterMethod(Enum):
 class NormFactory:
     scale: ScaleMethod
     center: CenterMethod = CenterMethod.per_feature
-    epsilon: float = 1e-7
 
     def build(self, sample: tf.Tensor, name: Optional[str] = None) -> NormLayer:
         mean = _compute_center(sample, self.center)
         scale = _compute_scale(sample, self.scale)
-        return NormLayer(scale=scale, center=mean, epsilon=self.epsilon, name=name)
+        return NormLayer(scale=scale, center=mean, name=name)
 
 
 def _standard_deviation_all_features(tensor: tf.Tensor) -> tf.Tensor:

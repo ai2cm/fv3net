@@ -1,11 +1,16 @@
 import dataclasses
 import dacite
 import tensorflow as tf
-from typing import List, Mapping
+from typing import List, Mapping, Optional
 import vcm
 
 from fv3fit._shared import SliceConfig
 from fv3fit.emulation import thermo
+from fv3fit.emulation.layers.normalization2 import (
+    NormFactory,
+    ScaleMethod,
+    CenterMethod,
+)
 from fv3fit.keras.adapters import ensure_dict_output
 from fv3fit.emulation.zhao_carr_fields import Field, ZhaoCarrFields
 from fv3fit.emulation.layers import (
@@ -53,7 +58,9 @@ class MicrophysicsConfig:
     architecture: ArchitectureConfig = dataclasses.field(
         default_factory=lambda: ArchitectureConfig(name="linear")
     )
-    normalize_key: str = "mean_std"
+    normalize_key: Optional[NormFactory] = NormFactory(
+        scale=ScaleMethod.all, center=CenterMethod.per_feature
+    )
     selection_map: Mapping[str, SliceConfig] = dataclasses.field(default_factory=dict)
     tendency_outputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
     timestep_increment_sec: int = 900
@@ -177,7 +184,9 @@ class ConservativeWaterConfig:
         default_factory=lambda: ArchitectureConfig(name="linear")
     )
     extra_input_variables: List[Field] = dataclasses.field(default_factory=list)
-    normalize_key: str = "mean_std"
+    normalize_key: Optional[NormFactory] = NormFactory(
+        scale=ScaleMethod.all, center=CenterMethod.per_feature
+    )
     timestep_increment_sec: int = 900
 
     @property
