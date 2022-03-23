@@ -19,10 +19,10 @@ spec:
           - name: sweep_id
           - name: training_config
           - name: training_data_config
-          - {name: validation_data_config, value: " "}
-          - {name: max_runs, value: 24}
-          - {name: cpu, value: 1000m}
-          - {name: memory, value: 12Gi}
+          - name: validation_data_config
+          - {name: max_runs, value: 50}
+          - {name: cpu, value: 6000m}
+          - {name: memory, value: 24Gi}
       container:
         image: us.gcr.io/vcm-ml/prognostic_run:6dfdfea11c83123786e80d3a77f988cd82145c63
         command: ["bash", "-c", "-x"]
