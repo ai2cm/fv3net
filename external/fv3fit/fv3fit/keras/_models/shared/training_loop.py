@@ -7,7 +7,6 @@ from .sequences import ThreadedSequencePreLoader
 from loaders.batches import shuffle
 import logging
 import gc
-import resource
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +74,6 @@ class TrainingLoopConfig:
                         batch_size=self.batch_size,
                     )
                 )
-                rusage = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6)
-                logger.info(f" maxrss:  {rusage} Mb")
             # for some reason, garbage collection was not happening automatically, and
             # training on large datasets would OOM after multiple epochs.
             gc.collect()
