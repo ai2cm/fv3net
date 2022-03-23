@@ -1,6 +1,8 @@
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from unittest.mock import Mock
+
+from prometheus_client import Enum
 from fv3fit.emulation.losses import CustomLoss
 
 import pytest
@@ -11,7 +13,12 @@ from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
-from fv3fit.train_microphysics import TrainConfig, get_default_config, main
+from fv3fit.train_microphysics import (
+    TrainConfig,
+    get_default_config,
+    main,
+    _asdict_with_enum,
+)
 
 
 def test_TrainConfig_defaults():
@@ -179,3 +186,14 @@ def test_TrainConfig_build_loss():
     loss_value, _ = loss(data, data)
     assert 0 == pytest.approx(loss_value.numpy())
     transform.forward.assert_called()
+
+
+def test__asdict_with_enum():
+    class A(Enum):
+        a = 1
+
+    @dataclass
+    class B:
+        enum: A
+
+    assert _asdict_with_enum(B(A.a)) == {"enum": 1}

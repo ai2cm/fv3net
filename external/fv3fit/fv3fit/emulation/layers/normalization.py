@@ -2,6 +2,13 @@ import abc
 import dataclasses
 from typing import Optional
 import tensorflow as tf
+import warnings
+
+warnings.warn(
+    DeprecationWarning(
+        "This module will be replaced by fv3fit.emulation.layers.normalization2"
+    )
+)
 
 
 def standard_deviation_all_features(tensor):
