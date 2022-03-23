@@ -1,4 +1,5 @@
 import dataclasses
+import numpy as np
 from toolz.functoolz import curry
 from typing import Callable, Literal, MutableMapping, Sequence, Set
 import xarray as xr
@@ -21,6 +22,7 @@ TransformName = Literal[
     "Qm_from_Q1_Q2_temperature_dependent",
     "Q1_from_dQ1_pQ1",
     "Q2_from_dQ2_pQ2",
+    "subsample_weights_from_latitude",
 ]
 
 
@@ -35,6 +37,16 @@ def register(
         func=func, inputs=inputs, outputs=outputs
     )
     return func
+
+
+@register(["latitude"], ["subsample_weights"])
+def subsample_weights_from_latitude(ds, exponent: float = 1.5):
+    # weight by some power of inverse of pdf(latitude) to upsample columns
+    # that are closer to poles
+    # the default power of 1.5 increases weighting towards poles
+    weights = 1.0 / np.cos(ds["latitude"]) ** exponent
+    ds["subsample_weights"] = weights / weights.sum()
+    return ds
 
 
 @register(["Q1", "Q2"], ["Qm"])

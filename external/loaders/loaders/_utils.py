@@ -65,13 +65,14 @@ def sort_by_time(ds: xr.Dataset) -> xr.Dataset:
 @curry
 def select_fraction(fraction: float, ds: xr.Dataset) -> xr.Dataset:
     # subselects a random fraction of samples, preserving original order.
+    weights = ds["subsample_weights"] if "subsample_weights" in ds else None
     if fraction == 1.0:
         out = ds
     else:
         n_samples = len(ds[SAMPLE_DIM_NAME])
         n_samples_keep = int(fraction * n_samples)
         sample_indices = sorted(
-            np.random.choice(n_samples, n_samples_keep, replace=False)
+            np.random.choice(n_samples, n_samples_keep, replace=False, p=weights)
         )
         out = ds.isel({SAMPLE_DIM_NAME: sample_indices})
     return out

@@ -77,7 +77,8 @@ def batches_from_mapper(
         shuffle_samples: if True, shuffle the samples after stacking. If False, can
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
-        data_transforms: list of transforms to compute derived variables in batches.
+        data_transforms: list of transforms from vcm.data_transform to compute
+            derived variables in batches.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
