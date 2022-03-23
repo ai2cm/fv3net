@@ -194,7 +194,7 @@ def _add_items_to_parser_arguments(
             parser.add_argument(f"--{key}", default=value)
 
 
-def to_flat_dict(d: dict, join_str: str = "."):
+def to_flat_dict(d: dict):
     """
     Converts any nested dictionaries to a flat version with
     the nested keys joined with a '.', e.g., {a: {b: 1}} ->
@@ -206,14 +206,14 @@ def to_flat_dict(d: dict, join_str: str = "."):
         if isinstance(v, dict):
             sub_d = to_flat_dict(v)
             for sk, sv in sub_d.items():
-                new_flat[join_str.join([k, sk])] = sv
+                new_flat[".".join([k, sk])] = sv
         else:
             new_flat[k] = v
 
     return new_flat
 
 
-def to_nested_dict(d: dict, join_str: str = "."):
+def to_nested_dict(d: dict):
     """
     Converts a flat dictionary with '.' joined keys back into
     a nested dictionary, e.g., {a.b: 1} -> {a: {b: 1}}
@@ -222,8 +222,8 @@ def to_nested_dict(d: dict, join_str: str = "."):
     new_config: MutableMapping[str, Any] = {}
 
     for k, v in d.items():
-        if join_str in k:
-            sub_keys = k.split(join_str)
+        if "." in k:
+            sub_keys = k.split(".")
             sub_d = new_config
             for sk in sub_keys[:-1]:
                 sub_d = sub_d.setdefault(sk, {})
