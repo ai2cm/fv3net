@@ -381,10 +381,6 @@ def get_default_config():
             cloud_water_mixing_ratio_input=SliceConfig(stop=-10),
             pressure_thickness_of_atmospheric_layer=SliceConfig(stop=-10),
         ),
-        tendency_outputs=dict(
-            air_temperature_after_precpd="tendency_of_air_temperature_due_to_microphysics",  # noqa E501
-            specific_humidity_after_precpd="tendency_of_specific_humidity_due_to_microphysics",  # noqa E501
-        ),
     )
 
     transform = TransformConfig()
