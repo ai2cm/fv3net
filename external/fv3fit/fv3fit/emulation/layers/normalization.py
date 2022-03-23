@@ -218,11 +218,11 @@ MEAN_STD = "mean_std"
 def norm2_factory_from_key(key):
     if key == MAX_STD:
         return normalization2.NormFactory(
-            normalization2.ScaleMethod.max, normalization2.CenterMethod.per_feature,
+            normalization2.StdDevMethod.max, normalization2.MeanMethod.per_feature,
         )
     elif key == MEAN_STD:
         return normalization2.NormFactory(
-            normalization2.ScaleMethod.all, normalization2.CenterMethod.per_feature,
+            normalization2.StdDevMethod.all, normalization2.MeanMethod.per_feature,
         )
     else:
         raise KeyError(f"Unrecognized normalization layer key provided: {key}")

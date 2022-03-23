@@ -3,10 +3,10 @@ from typing import Callable, List, Mapping
 
 import tensorflow as tf
 from fv3fit.emulation.layers.normalization2 import (
-    CenterMethod,
+    MeanMethod,
     NormFactory,
     NormLayer,
-    ScaleMethod,
+    StdDevMethod,
 )
 
 from .._shared.config import OptimizerConfig
@@ -46,7 +46,7 @@ class CustomLoss:
     optimizer: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
-    normalization: NormFactory = NormFactory(ScaleMethod.all, CenterMethod.per_feature)
+    normalization: NormFactory = NormFactory(StdDevMethod.all, MeanMethod.per_feature)
     loss_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)

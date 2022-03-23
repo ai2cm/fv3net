@@ -7,8 +7,8 @@ from fv3fit.emulation.losses import (
 )
 from fv3fit.emulation.layers.normalization2 import (
     NormFactory,
-    ScaleMethod,
-    CenterMethod,
+    StdDevMethod,
+    MeanMethod,
     NormLayer,
 )
 
@@ -22,7 +22,7 @@ def test_NormalizeMSE():
 
 def test_CustomLoss():
     loss_config = CustomLoss(
-        normalization=NormFactory(ScaleMethod.all, CenterMethod.per_feature),
+        normalization=NormFactory(StdDevMethod.all, MeanMethod.per_feature),
         loss_variables=["fieldA", "fieldB"],
         metric_variables=["fieldC"],
         weights=dict(fieldA=2.0),

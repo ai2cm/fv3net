@@ -1,7 +1,7 @@
 from fv3fit.emulation.layers.normalization2 import (
-    CenterMethod,
+    MeanMethod,
     NormLayer,
-    ScaleMethod,
+    StdDevMethod,
     _fit_mean_per_feature,
     _compute_scale,
     _compute_center,
@@ -30,19 +30,19 @@ def test_fit_mean_per_feature():
 
 def test__compute_scale_all():
     m = tf.ones([10, 4])
-    scale = _compute_scale(m, ScaleMethod.all)
+    scale = _compute_scale(m, StdDevMethod.all)
     assert tuple(scale.shape) == ()
 
 
 def test__compute_scale_max():
     m = tf.ones([10, 4])
-    scale = _compute_scale(m, ScaleMethod.max)
+    scale = _compute_scale(m, StdDevMethod.max)
     assert tuple(scale.shape) == ()
 
 
 def test__compute_scale_per_feature():
     m = tf.ones([10, 4])
-    scale = _compute_scale(m, ScaleMethod.per_feature)
+    scale = _compute_scale(m, StdDevMethod.per_feature)
     assert tuple(scale.shape) == (4,)
 
 
@@ -50,16 +50,16 @@ def _print_approx(arr, decimals=6, file=None):
     print((arr * 10 ** decimals).numpy().astype(int).tolist(), file=file)
 
 
-@pytest.mark.parametrize("method", list(ScaleMethod))
-def test__compute_scale_max_value(method: ScaleMethod, regtest):
+@pytest.mark.parametrize("method", list(StdDevMethod))
+def test__compute_scale_max_value(method: StdDevMethod, regtest):
     x = tf.cast([[1, -1], [1, -2], [3, -3]], tf.float32)
     scale = _compute_scale(x, method)
     with regtest:
         _print_approx(scale)
 
 
-@pytest.mark.parametrize("method", list(CenterMethod))
-def test__compute_center_values(method: CenterMethod, regtest):
+@pytest.mark.parametrize("method", list(MeanMethod))
+def test__compute_center_values(method: MeanMethod, regtest):
     x = tf.cast([[1, -1], [1, -2], [3, -3]], tf.float32)
     center = _compute_center(x, method)
     with regtest:

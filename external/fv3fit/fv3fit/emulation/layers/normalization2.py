@@ -24,21 +24,21 @@ class NormLayer(tf.Module):
         return tensor * self.scale + self.center
 
 
-class ScaleMethod(Enum):
+class StdDevMethod(Enum):
     per_feature = "per_feature"
     all = "all"
     max = "max"
 
 
-class CenterMethod(Enum):
+class MeanMethod(Enum):
     per_feature = "per_feature"
     all = "all"
 
 
 @dataclass
 class NormFactory:
-    scale: ScaleMethod
-    center: CenterMethod = CenterMethod.per_feature
+    scale: StdDevMethod
+    center: MeanMethod = MeanMethod.per_feature
 
     def build(self, sample: tf.Tensor, name: Optional[str] = None) -> NormLayer:
         mean = _compute_center(sample, self.center)
@@ -80,18 +80,18 @@ def _fit_std_max(tensor: tf.Tensor) -> tf.Tensor:
     return max_std
 
 
-def _compute_center(tensor: tf.Tensor, method: CenterMethod) -> tf.Tensor:
+def _compute_center(tensor: tf.Tensor, method: MeanMethod) -> tf.Tensor:
     fit_center = {
-        CenterMethod.per_feature: _fit_mean_per_feature,
-        CenterMethod.all: _fit_mean_all,
+        MeanMethod.per_feature: _fit_mean_per_feature,
+        MeanMethod.all: _fit_mean_all,
     }[method]
     return fit_center(tensor)
 
 
-def _compute_scale(tensor: tf.Tensor, method: ScaleMethod) -> tf.Tensor:
+def _compute_scale(tensor: tf.Tensor, method: StdDevMethod) -> tf.Tensor:
     fit_scale = {
-        ScaleMethod.per_feature: _fit_std_per_feature,
-        ScaleMethod.all: _standard_deviation_all_features,
-        ScaleMethod.max: _fit_std_max,
+        StdDevMethod.per_feature: _fit_std_per_feature,
+        StdDevMethod.all: _standard_deviation_all_features,
+        StdDevMethod.max: _fit_std_max,
     }[method]
     return fit_scale(tensor)

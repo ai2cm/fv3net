@@ -8,8 +8,8 @@ from fv3fit._shared import SliceConfig
 from fv3fit.emulation import thermo
 from fv3fit.emulation.layers.normalization2 import (
     NormFactory,
-    ScaleMethod,
-    CenterMethod,
+    StdDevMethod,
+    MeanMethod,
 )
 from fv3fit.keras.adapters import ensure_dict_output
 from fv3fit.emulation.zhao_carr_fields import Field, ZhaoCarrFields
@@ -59,7 +59,7 @@ class MicrophysicsConfig:
         default_factory=lambda: ArchitectureConfig(name="linear")
     )
     normalize_default: Optional[NormFactory] = NormFactory(
-        scale=ScaleMethod.all, center=CenterMethod.per_feature
+        scale=StdDevMethod.all, center=MeanMethod.per_feature
     )
     selection_map: Mapping[str, SliceConfig] = dataclasses.field(default_factory=dict)
     normalize_map: Mapping[str, NormFactory] = dataclasses.field(default_factory=dict)
@@ -189,7 +189,7 @@ class ConservativeWaterConfig:
     )
     extra_input_variables: List[Field] = dataclasses.field(default_factory=list)
     normalize_key: Optional[NormFactory] = NormFactory(
-        scale=ScaleMethod.all, center=CenterMethod.per_feature
+        scale=StdDevMethod.all, center=MeanMethod.per_feature
     )
     timestep_increment_sec: int = 900
 

@@ -19,7 +19,7 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
-from fv3fit.emulation.layers.normalization2 import CenterMethod, ScaleMethod
+from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
 from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 
 from fv3fit.emulation.transforms.factories import ConditionallyScaled
@@ -176,7 +176,7 @@ class TrainConfig:
         # casting necessary for 'from_args' which all come in as string
         # TODO: should this be just a json parsed??
         config = dacite.Config(
-            strict=True, cast=[bool, str, int, float, ScaleMethod, CenterMethod]
+            strict=True, cast=[bool, str, int, float, StdDevMethod, MeanMethod]
         )
         return dacite.from_dict(cls, d, config=config)
 

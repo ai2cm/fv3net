@@ -56,14 +56,14 @@ class FieldOutput(tf.keras.layers.Layer):
             denormalize: options for denormalization
         """
         super().__init__(name=name)
-        self.denorm = (
+        self.normalizer = (
             denormalize.build(sample_out, name=f"denormalized_{name}")
             if denormalize
             else None
         )
 
     def call(self, tensor):
-        return self.denorm.backward(tensor) if self.denorm else tensor
+        return self.normalizer.backward(tensor) if self.normalizer else tensor
 
 
 class IncrementStateLayer(tf.keras.layers.Layer):
