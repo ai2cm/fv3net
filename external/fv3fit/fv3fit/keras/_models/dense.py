@@ -1,4 +1,5 @@
 import dataclasses
+from fv3fit._shared.predictor import Predictor
 from toolz.functoolz import curry
 import numpy as np
 import tensorflow as tf
@@ -96,7 +97,7 @@ def train_dense_model(
     hyperparameters: DenseHyperparameters,
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
-):
+) -> Predictor:
     return train_column_model(
         train_batches=train_batches,
         validation_batches=validation_batches,
@@ -111,7 +112,7 @@ def train_dense_model(
 
 class ModelBuilder(Protocol):
     def __call__(
-        self, X: tf.Tensor, y: tf.Tensor
+        self, X: Tuple[tf.Tensor, ...], y: Tuple[tf.Tensor, ...]
     ) -> Tuple[tf.keras.Model, tf.keras.Model]:
         """
         Builds keras models for training and prediction based on input data.
