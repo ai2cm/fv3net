@@ -36,19 +36,12 @@ def sequence_size(seq):
 
 
 def _tfdataset_to_tensor_sequence(
-    Xy: tf.data.Dataset, validation_data: Optional[tf.data.Dataset]
-) -> Tuple[
-    Tuple[Sequence[tf.Tensor], Sequence[tf.Tensor]],
-    Optional[Tuple[Sequence[tf.Tensor], Sequence[tf.Tensor]]],
-]:
-    n_samples = sequence_size(Xy)
-    Xy_fit = next(iter(Xy.batch(n_samples)))
-    if validation_data is not None:
-        n_val_samples = sequence_size(validation_data)
-        validation_fit = next(iter(validation_data.batch(n_val_samples)))
-    else:
-        validation_fit = None
-    return Xy_fit, validation_fit
+    dataset: tf.data.Dataset,
+) -> Tuple[Sequence[tf.Tensor], Sequence[tf.Tensor]]:
+    dataset = dataset.unbatch()
+    n_samples = sequence_size(dataset)
+    tensor_sequence = next(iter(dataset.batch(n_samples)))
+    return tensor_sequence
 
 
 @dataclasses.dataclass
@@ -56,8 +49,10 @@ class TrainingLoopConfig:
     """
     Attributes:
         epochs: number of times to run through the batches when training
-        shuffle_buffer_size: size of buffer to use when shuffling data, only
+        shuffle_buffer_size: size of buffer to use when shuffling samples, only
             applies if in_memory=False
+        batch_shuffle_buffer_size: size of buffer to use when re-ordering input
+            batches, only applies if in_memory=False
         batch_size: actual batch_size to pass to keras model.fit,
             independent of number of samples in each data batch in batches
         in_memory: if True, cast incoming data to eagerly loaded numpy arrays
@@ -66,6 +61,7 @@ class TrainingLoopConfig:
 
     epochs: int = 3
     shuffle_buffer_size: int = 50_000
+    batch_shuffle_buffer_size: int = 1000
     batch_size: int = 16
     in_memory: bool = True
 
@@ -94,7 +90,13 @@ class TrainingLoopConfig:
             callbacks=[EpochCallback(func) for func in callbacks], epochs=self.epochs
         )
         if self.in_memory:
-            Xy_fit, validation_fit = _tfdataset_to_tensor_sequence(Xy, validation_data)
+            Xy_fit = _tfdataset_to_tensor_sequence(Xy)
+            if validation_data is not None:
+                validation_fit: Optional[
+                    Tuple[Sequence[tf.Tensor], Sequence[tf.Tensor]]
+                ] = _tfdataset_to_tensor_sequence(validation_data)
+            else:
+                validation_fit = None
             model.fit(
                 x=Xy_fit[0],
                 y=Xy_fit[1],
@@ -104,7 +106,9 @@ class TrainingLoopConfig:
             )
         else:
             Xy_fit = (
-                Xy.shuffle(buffer_size=self.shuffle_buffer_size)
+                Xy.shuffle(self.batch_shuffle_buffer_size)
+                .unbatch()
+                .shuffle(buffer_size=self.shuffle_buffer_size)
                 .batch(self.batch_size)
                 .prefetch(tf.data.AUTOTUNE)
             )

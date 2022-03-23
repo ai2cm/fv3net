@@ -161,7 +161,7 @@ def append_halos(ds: xr.Dataset, n_halo: int) -> xr.Dataset:
 def append_halos_tensor(n_halo: int, tensor: tf.Tensor) -> tf.Tensor:
     """
     Given a tensor with
-    "tile", "x", "y", and "z" dimensions and no halo data,
+    "sample", "tile", "x", "y", and "z" dimensions and no halo data,
     return a tensor which has n_halo halo points of valid data
     appended to the start and end of the x and y dimensions.
     """
@@ -178,24 +178,25 @@ def append_halos_tensor(n_halo: int, tensor: tf.Tensor) -> tf.Tensor:
 def _append_halos_tensor(n_halo: int, tensor: tf.Tensor) -> tf.Tensor:
     comms = _create_comms(total_ranks=6)
     communicators = [_get_cubed_sphere_communicator(comm) for comm in comms]
-    shape = list(tensor.shape[1:])
-    shape[0] += 2 * n_halo
+    # need to split tensors into one for each tile
+    shape = [tensor.shape[0]] + list(tensor.shape[2:])
     shape[1] += 2 * n_halo
+    shape[2] += 2 * n_halo
     quantities = [
         pace.util.Quantity(
             data=np.zeros(shape, dtype=_dtype_to_numpy[tensor.dtype]),
-            dims=["x", "y", "z"],
+            dims=["sample", "x", "y", "z"],
             units="unknown",
-            origin=(n_halo, n_halo, 0),
-            extent=tuple(tensor.shape[1:]),
+            origin=(0, n_halo, n_halo, 0),
+            extent=tuple([tensor.shape[0]] + list(tensor.shape[2:])),
         )
         for _ in range(6)
     ]
     for i, quantity in enumerate(quantities):
-        quantity.view[:] = tensor[i, :, :, :].numpy()
+        quantity.view[:] = tensor[:, i, :].numpy()
     _halo_update(communicators=communicators, quantities=quantities, n_halo=n_halo)
     out_tensor = tf.concat(
-        [quantity.data[None, :, :, :] for quantity in quantities], axis=0
+        [quantity.data[:, None, :] for quantity in quantities], axis=1
     )
     return out_tensor
 
