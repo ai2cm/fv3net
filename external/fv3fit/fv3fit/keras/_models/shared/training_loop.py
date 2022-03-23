@@ -51,8 +51,6 @@ class TrainingLoopConfig:
         epochs: number of times to run through the batches when training
         shuffle_buffer_size: size of buffer to use when shuffling samples, only
             applies if in_memory=False
-        batch_shuffle_buffer_size: size of buffer to use when re-ordering input
-            batches, only applies if in_memory=False
         batch_size: actual batch_size to pass to keras model.fit,
             independent of number of samples in each data batch in batches
         in_memory: if True, cast incoming data to eagerly loaded numpy arrays
@@ -61,7 +59,6 @@ class TrainingLoopConfig:
 
     epochs: int = 3
     shuffle_buffer_size: int = 50_000
-    batch_shuffle_buffer_size: int = 1000
     batch_size: int = 16
     in_memory: bool = True
 
@@ -105,11 +102,14 @@ class TrainingLoopConfig:
                 **fit_kwargs,
             )
         else:
+            n_batches = sequence_size(Xy)
             Xy_fit = (
-                Xy.shuffle(self.batch_shuffle_buffer_size)
-                .unbatch()
+                Xy.shuffle(
+                    n_batches
+                )  # elements are [sample, z], sample dimension not shuffled
+                .unbatch()  # elements are [z]
                 .shuffle(buffer_size=self.shuffle_buffer_size)
-                .batch(self.batch_size)
+                .batch(self.batch_size)  # elements are [sample, z]
                 .prefetch(tf.data.AUTOTUNE)
             )
             if validation_data is not None:

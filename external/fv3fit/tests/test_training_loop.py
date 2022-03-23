@@ -1,9 +1,10 @@
 import fv3fit
 from unittest import mock
-from fv3fit.keras._models.shared.training_loop import EpochCallback
+from fv3fit.keras._models.shared.training_loop import EpochCallback, sequence_size
 import tensorflow as tf
 import pytest
 import contextlib
+import numpy as np
 
 
 def test_mock_in_sequence():
@@ -79,3 +80,42 @@ def test_fit_loop_calls_fit(n_epochs):
     with mock_tfdataset_to_tensor_sequence():
         config.fit_loop(mock_model, mock_Xy, validation_data)
     assert mock_model.fit.call_count == 1
+
+
+def test_fit_loop_shuffles_batches():
+    fv3fit.set_random_seed(0)
+    # for test, batch_shuffle_buffer_size should fit all batches
+    # and shuffle_buffer_size should not
+    # in_memory must be False because keras's model.fit handle shuffling for True
+    batch_size = 1000
+    n_samples = 20_000
+    n_batches = n_samples // batch_size
+    config = fv3fit.TrainingLoopConfig(shuffle_buffer_size=batch_size, in_memory=False)
+    mock_model = mock.MagicMock()
+
+    array_x = np.arange(n_samples)
+    x = tf.data.Dataset.from_tensor_slices(array_x).batch(batch_size)
+    y = tf.data.Dataset.from_tensor_slices(array_x).batch(batch_size)
+    data = tf.data.Dataset.zip((x, y))
+
+    config.fit_loop(model=mock_model, Xy=data, validation_data=None, callbacks=())
+    args = mock_model.fit.call_args_list[0]
+    Xy = args.args[0].unbatch()
+    n_samples = sequence_size(Xy)
+    shuffled_x, shuffled_y = next(iter(Xy.batch(n_samples)))
+    np.testing.assert_array_equal(shuffled_x, shuffled_y)
+    assert not np.all(shuffled_x == np.arange(n_samples))
+    # this code is here for manual checking, since it's hard to assert that something
+    # is shuffled
+    # import matplotlib.pyplot as plt
+    # plt.figure()
+    # plt.hist2d(array_x, shuffled_x, bins=n_batches)
+    # plt.xlabel("output index")
+    # plt.ylabel("input index")
+    # plt.show()
+
+    # check that there is some inter-batch shuffling
+    hist, _, _ = np.histogram2d(array_x, shuffled_x, bins=n_batches)
+    assert np.sum((hist > 0).astype(np.int)) > n_batches * 5
+    # check that input batch is uncorrelated with output batch
+    assert (np.corrcoef(array_x, shuffled_x)[0, 1] ** 2) < 0.1
