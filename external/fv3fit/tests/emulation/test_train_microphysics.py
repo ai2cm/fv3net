@@ -1,3 +1,4 @@
+from pathlib import PosixPath
 import sys
 from dataclasses import asdict, dataclass
 from unittest.mock import Mock
@@ -96,17 +97,12 @@ def test_TrainConfig_from_flat_dict():
     assert result == expected
 
 
-def test_TrainConfig_from_yaml(tmp_path):
-
-    default = get_default_config()
-
-    yaml_path = str(tmp_path / "train_config.yaml")
-    with open(yaml_path, "w") as f:
-        yaml.safe_dump(asdict(default), f)
-
-        loaded = TrainConfig.from_yaml_path(yaml_path)
-
-        assert loaded == default
+def test_TrainConfig_from_yaml(tmp_path: PosixPath):
+    default = TrainConfig(".", ".", ".")
+    yaml_path = tmp_path / "train_config.yaml"
+    yaml_path.write_text(default.to_yaml())
+    loaded = TrainConfig.from_yaml_path(yaml_path.as_posix())
+    assert loaded == default
 
 
 def test_TrainConfig_from_args_default():

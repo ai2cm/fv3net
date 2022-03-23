@@ -12,7 +12,7 @@ import pytest
 
 
 def test_norm_layer():
-    norm = NormLayer(scale=2.0, center=1.0, epsilon=1.0)
+    norm = NormLayer(scale=2.0, center=1.0)
     x = tf.ones([1], dtype=tf.float32)
     round_trip = norm.backward(norm.forward(x))
     np.testing.assert_almost_equal(round_trip, x)

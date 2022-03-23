@@ -1,7 +1,6 @@
 import tensorflow as tf
 from typing import Optional
-
-from .normalization import NormalizeConfig, DenormalizeConfig
+from .normalization2 import NormFactory
 
 
 class FieldInput(tf.keras.layers.Layer):
@@ -11,7 +10,7 @@ class FieldInput(tf.keras.layers.Layer):
         self,
         *args,
         sample_in: Optional[tf.Tensor] = None,
-        normalize: Optional[str] = None,
+        normalize: Optional[NormFactory] = None,
         selection: Optional[slice] = None,
         **kwargs,
     ):
@@ -24,25 +23,18 @@ class FieldInput(tf.keras.layers.Layer):
             norm_layer:
         """
         super().__init__(*args, **kwargs)
-
-        self._selection = selection
-
-        if normalize is not None:
-            self.normalize = NormalizeConfig(
-                class_name=normalize,
-                layer_name=f"normalized_{self.name}",
-                sample_data=sample_in,
-            ).initialize_layer()
-        else:
-            self.normalize = tf.keras.layers.Lambda(
-                lambda x: x, name=f"passthru_{self.name}"
-            )
-
+        self.normalize = (
+            None
+            if normalize is None
+            else normalize.build(sample_in, name=f"normalized_{self.name}")
+        )
         self.selection = selection
 
-    def call(self, tensor: tf.Tensor):
+    def call(self, tensor: tf.Tensor) -> tf.Tensor:
 
-        tensor = self.normalize(tensor)
+        if self.normalize is not None:
+            tensor = self.normalize.forward(tensor)
+
         if self.selection is not None:
             tensor = tensor[..., self.selection]
 
@@ -54,36 +46,24 @@ class FieldOutput(tf.keras.layers.Layer):
 
     def __init__(
         self,
-        *args,
         sample_out: Optional[tf.Tensor] = None,
-        denormalize: Optional[str] = None,
-        **kwargs,
+        denormalize: Optional[NormFactory] = None,
+        name: Optional[str] = None,
     ):
         """
         Args:
-            nfeatures: size of the output feature dimension
             sample_out: Output sample for variable to fit denormalization layer.
-            denormalize: denormalize layer key to use on
-                the dense layer output
+            denormalize: options for denormalization
         """
-        super().__init__(*args, **kwargs)
-
-        if denormalize is not None:
-            self.denorm = DenormalizeConfig(
-                class_name=denormalize,
-                layer_name=f"denormalized_{self.name}",
-                sample_data=sample_out,
-            ).initialize_layer()
-        else:
-            self.denorm = tf.keras.layers.Lambda(
-                lambda x: x, name=f"passthru_{self.name}"
-            )
+        super().__init__(name=name)
+        self.denorm = (
+            denormalize.build(sample_out, name=f"denormalized_{name}")
+            if denormalize
+            else None
+        )
 
     def call(self, tensor):
-
-        tensor = self.denorm(tensor)
-
-        return tensor
+        return self.denorm.backward(tensor) if self.denorm else tensor
 
 
 class IncrementStateLayer(tf.keras.layers.Layer):
@@ -123,7 +103,7 @@ class IncrementedFieldOutput(tf.keras.layers.Layer):
         *args,
         sample_in: Optional[tf.Tensor] = None,
         sample_out: Optional[tf.Tensor] = None,
-        denormalize: Optional[str] = None,
+        denormalize: Optional[NormFactory] = None,
         tendency_name: Optional[str] = None,
         **kwargs,
     ):
