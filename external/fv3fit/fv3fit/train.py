@@ -48,6 +48,9 @@ def get_parser():
             "by default an empty sequence is used"
         ),
     )
+    parser.add_argument(
+        "--wandb", help="Log run to wandb", action="store_true",
+    )
     return parser
 
 
@@ -165,17 +168,26 @@ def main(args, unknown_args=None):
             config_dict = get_arg_updated_config_dict(
                 args=unknown_args, config_dict=config_dict
             )
-        wandb.init(config=to_flat_dict(config_dict["hyperparameters"]))
-        # hyperparameters should be accessed throughthe wandb config, I think
-        # this is how the values changed by wandb are passed to the training
-        config_dict["hyperparameters"] = to_nested_dict(wandb.config)
-        logger.info(
-            f"hyperparameters from wandb config: {config_dict['hyperparameters']}"
-        )
+        if args.wandb:
+            # hyperparameters are repeated as flattened top level keys so they can
+            # be referenced in the sweep configuration parameters
+            # https://github.com/wandb/client/issues/982
+            wandb.init(config=to_flat_dict(config_dict["hyperparameters"]))
+            # hyperparameters should be accessed throughthe wandb config so that
+            # sweeps use the wandb-provided hyperparameter values
+            config_dict["hyperparameters"] = to_nested_dict(wandb.config)
+            logger.info(
+                f"hyperparameters from wandb config: {config_dict['hyperparameters']}"
+            )
+            wandb.config["training_config"] = config_dict
+
         training_config = fv3fit.TrainingConfig.from_dict(config_dict)
 
     with open(args.training_data_config, "r") as f:
-        training_data_config = loaders.BatchesLoader.from_dict(yaml.safe_load(f))
+        config_dict = yaml.safe_load(f)
+        training_data_config = loaders.BatchesLoader.from_dict(config_dict)
+        if args.wandb:
+            wandb.config["training_data_config"] = config_dict
 
     fv3fit.set_random_seed(training_config.random_seed)
 
