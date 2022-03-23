@@ -110,7 +110,9 @@ def test_netcdf_url_to_dataset(tmpdir):
 
     tf_ds = netcdf_url_to_dataset(str(tmpdir), variables=set(ds), transform=lambda x: x)
 
-    assert len(tf_ds) == nfiles
-    for item in tf_ds:
-        for variable in ds:
-            assert isinstance(item[variable], tf.Tensor)
+    for i, batch in enumerate(iter(tf_ds.batch(10)), 1):
+        pass
+
+    assert i == nfiles
+    for variable in batch:
+        assert isinstance(batch[variable], tf.Tensor)
