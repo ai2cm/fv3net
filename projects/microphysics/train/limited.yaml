@@ -36,7 +36,6 @@
     ],
     "metric_variables": []
   },
-  "cache": false,
   "model": {
     "architecture": {
       "name": "rnn-v1-shared-weights",
