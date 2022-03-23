@@ -18,6 +18,23 @@ def load_yaml(path):
     return yaml.safe_load(pathlib.Path(path).read_bytes())
 
 
+def submit(job, labels):
+    args = (
+        [
+            "argo",
+            "submit",
+            WORKFLOW_FILE.absolute().as_posix(),
+            "--entrypoint",
+            job.entrypoint,
+            "--name",
+            job.name,
+        ]
+        + _argo_parameters(job.parameters)
+        + _label_args(labels)
+    )
+    subprocess.check_call(args, stdout=subprocess.DEVNULL)
+
+
 def submit_jobs(jobs, experiment_name):
     print("The following experiments are queued:")
     for job in jobs:
@@ -27,16 +44,62 @@ def submit_jobs(jobs, experiment_name):
     if ch == "n":
         sys.exit(1)
     print("Submitting all these jobs")
-    for job in jobs:
-        with open("experiment-logs.txt", "a") as f:
-            print(repr(job), file=f)
-        job.submit(labels={"experiment": experiment_name})
+    with open("experiment-logs.txt", "a") as f:
+        for job in jobs:
+            submit(job, labels={"experiment": experiment_name})
+            print(job, file=f)
+        print(
+            f"to monitor experiments: argo list -lexperiment={experiment_name}", file=f
+        )
     print(f"to monitor experiments: argo list -lexperiment={experiment_name}")
 
 
 def _label_args(labels):
     label_vals = [f"{key}={val}" for key, val in labels.items()]
     return ["--labels", ",".join(label_vals)] if labels else []
+
+
+@dataclasses.dataclass
+class TrainingJob:
+    """
+
+    Examples:
+
+    A short configuration::
+
+        from end_to_end import TrainingJob, load_yaml
+
+        job = TrainingJob(
+            name="test-v5",
+            fv3fit_image_tag="d848e586db85108eb142863e600741621307502b",
+            config=load_yaml("../train/rnn.yaml"),
+        )
+
+    """
+
+    name: str
+    config: dict = dataclasses.field(repr=False)
+    fv3fit_image_tag: str
+    bucket: str = "vcm-ml-experiments"
+    project: str = "microphysics-emulation"
+
+    @property
+    def parameters(self):
+        model_out_url = resolve_url(self.bucket, self.project, self.name)
+        assert model_out_url.startswith(
+            "gs://"
+        ), f"Must use a remote URL. Got {model_out_url}"
+
+        config = deepcopy(self.config)
+        config["out_url"] = model_out_url
+        return {
+            "training-config": _encode(self.config),
+            "fv3fit_image_tag": self.fv3fit_image_tag,
+        }
+
+    @property
+    def entrypoint(self):
+        return "training"
 
 
 @dataclasses.dataclass
@@ -67,7 +130,12 @@ class EndToEndJob:
     bucket: str = "vcm-ml-experiments"
     project: str = "microphysics-emulation"
 
-    def to_argo_args(self, labels=()):
+    @property
+    def entrypoint(self):
+        return "end-to-end"
+
+    @property
+    def parameters(self):
         model_out_url = resolve_url(self.bucket, self.project, self.name)
         assert model_out_url.startswith(
             "gs://"
@@ -80,32 +148,12 @@ class EndToEndJob:
         model_path = os.path.join(model_out_url, "model.tf")
         assert model_path.startswith("gs://")
         prog_config["zhao_carr_emulation"] = {"model": {"path": model_path}}
-        parameters = _argo_parameters(
-            {
-                "training-config": _encode(ml_config),
-                "config": _encode(prog_config),
-                "image_tag": self.image_tag,
-                "fv3fit_image_tag": self.fv3fit_image_tag,
-            }
-        )
-
-        return (
-            [
-                "argo",
-                "submit",
-                WORKFLOW_FILE.absolute().as_posix(),
-                "--entrypoint",
-                "end-to-end",
-                "--name",
-                self.name,
-            ]
-            + parameters
-            + _label_args(labels)
-        )
-
-    def submit(self, labels):
-        print(self)
-        subprocess.check_call(self.to_argo_args(labels), stdout=subprocess.DEVNULL)
+        return {
+            "training-config": _encode(ml_config),
+            "config": _encode(prog_config),
+            "image_tag": self.image_tag,
+            "fv3fit_image_tag": self.fv3fit_image_tag,
+        }
 
 
 def _encode(dict):

@@ -15,6 +15,7 @@ spec:
       - name: gpu-train
         value: "true"
       - name: config
+        value: ""
       - name: fv3fit_image_tag
         value: latest
       - name: image_tag
