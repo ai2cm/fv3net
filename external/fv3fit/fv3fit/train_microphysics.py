@@ -20,6 +20,7 @@ from fv3fit._shared.config import (
     to_nested_dict,
 )
 from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
+from fv3fit.keras._models.shared.pure_keras import PureKerasDictPredictor
 from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 
 from fv3fit.emulation.transforms.factories import ConditionallyScaled
@@ -117,6 +118,9 @@ class MicrophysicsHyperParameters:
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 13824
     checkpoint_model: bool = True
+    out_url: str = ""
+    use_wandb: bool = True
+    wandb: WandBConfig = field(default_factory=WandBConfig)
 
     @property
     def transform_factory(self) -> ComposedTransformFactory:
@@ -202,7 +206,6 @@ class TrainConfig(MicrophysicsHyperParameters):
 
     train_url: str = ""
     test_url: str = ""
-    out_url: str = ""
     transform: TransformConfig = field(default_factory=TransformConfig)
     tensor_transform: List[
         Union[TransformedVariableConfig, ConditionallyScaled, Difference]
@@ -211,8 +214,6 @@ class TrainConfig(MicrophysicsHyperParameters):
     conservative_model: Optional[models.ConservativeWaterConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
-    use_wandb: bool = True
-    wandb: WandBConfig = field(default_factory=WandBConfig)
     loss: CustomLoss = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
@@ -328,26 +329,25 @@ def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
         np.savez(os.path.join(tmpdir, filename), **dumpable)
 
 
-def train_function(config: MicrophysicsHyperParameters):
-    assert False
+def train_function(
+    config: MicrophysicsHyperParameters,
+    train_ds: tf.data.Dataset,
+    test_ds: tf.data.Dataset,
+) -> PureKerasDictPredictor:
+    return _train_function_unbatched(config, train_ds.unbatch(), test_ds.unbatch())
 
 
-def main(config: TrainConfig, seed: int = 0):
-    logging.basicConfig(level=getattr(logging, config.log_level))
-    set_random_seed(seed)
-
+def _train_function_unbatched(
+    config: MicrophysicsHyperParameters,
+    train_ds: tf.data.Dataset,
+    test_ds: tf.data.Dataset,
+) -> PureKerasDictPredictor:
     # callbacks that are always active
     callbacks = [tf.keras.callbacks.TerminateOnNaN()]
+
     if config.use_wandb:
         config.wandb.init(config=_asdict_with_enum(config))
         callbacks.append(config.wandb.get_callback())
-
-    train_ds = config.open_dataset(
-        config.train_url, config.nfiles, config.model_variables
-    ).unbatch()
-    test_ds = config.open_dataset(
-        config.test_url, config.nfiles_valid, config.model_variables
-    ).unbatch()
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
@@ -384,6 +384,25 @@ def main(config: TrainConfig, seed: int = 0):
         verbose=config.verbose,
         callbacks=callbacks,
     )
+
+    return PureKerasDictPredictor(
+        model, passthrough=(model, transform, history, train_set)
+    )
+
+
+def main(config: TrainConfig, seed: int = 0):
+    logging.basicConfig(level=getattr(logging, config.log_level))
+    set_random_seed(seed)
+
+    train_ds = config.open_dataset(
+        config.train_url, config.nfiles, config.model_variables
+    )
+    test_ds = config.open_dataset(
+        config.test_url, config.nfiles_valid, config.model_variables
+    )
+
+    predictor = train_function(config, train_ds, test_ds)
+    model, transform, history, train_set = predictor.passthrough  # type: ignore
 
     logger.debug("Training complete")
 

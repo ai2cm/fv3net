@@ -199,14 +199,15 @@ class PureKerasDictPredictor(Predictor):
     _MODEL_FILENAME = "model.tf"
     _CONFIG_FILENAME = "config.yaml"
 
-    def __init__(
-        self, model: tf.keras.Model,
-    ):
+    def __init__(self, model: tf.keras.Model, passthrough: Any = None):
         """Initialize the predictor.
 
         Args:
             model: a keras model. Tuple in/out models are okay, but will be cast
                 to a dict-output model before saving.
+            passthru: any data! Is NOT serialized, but can be
+                used by other parts of the training workflow. Mostly exists for
+                backwards compatibility and should be avoided in new code.
         """
         dict_model = ensure_dict_output(model)
         tuple_model = ensure_tuple_model(dict_model)
@@ -224,6 +225,7 @@ class PureKerasDictPredictor(Predictor):
             # TODO consider this refactor
             unstacked_dims=["z"],
         )
+        self.passthrough = passthrough
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
