@@ -66,7 +66,9 @@ def test_convolutional_network_build_standard_input_gives_standard_output():
         next(
             iter(
                 tf.data.Dataset.from_tensor_slices(X_array)
+                .batch(nt)
                 .map(append_halos)
+                .unbatch()
                 .unbatch()
                 .batch(6 * nt)
             )
@@ -83,6 +85,7 @@ def test_convolutional_network_build_standard_input_gives_standard_output():
 
 
 def test_convolutional_network_build_initial_loss_near_one():
+    tf.compat.v1.enable_eager_execution()
     fv3fit.set_random_seed(0)
     nt, nx, ny, nz = 5, 12, 12, 15
     config = ConvolutionalHyperparameters(
@@ -94,7 +97,9 @@ def test_convolutional_network_build_initial_loss_near_one():
         next(
             iter(
                 tf.data.Dataset.from_tensor_slices(X_array)
+                .batch(nt)
                 .map(append_halos)
+                .unbatch()
                 .unbatch()
                 .batch(6 * nt)
             )
