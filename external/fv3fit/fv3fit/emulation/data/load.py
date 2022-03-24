@@ -27,7 +27,7 @@ def nc_files_to_tf_dataset(
     """
 
     transform = compose_left(*[open_netcdf_dataset, convert])
-    return seq_to_tfdataset(files, transform).unbatch().prefetch(tf.data.AUTOTUNE)
+    return seq_to_tfdataset(files, transform).prefetch(tf.data.AUTOTUNE)
 
 
 def nc_dir_to_tfdataset(

@@ -344,10 +344,10 @@ def main(config: TrainConfig, seed: int = 0):
 
     train_ds = config.open_dataset(
         config.train_url, config.nfiles, config.model_variables
-    )
+    ).unbatch()
     test_ds = config.open_dataset(
         config.test_url, config.nfiles_valid, config.model_variables
-    )
+    ).unbatch()
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
