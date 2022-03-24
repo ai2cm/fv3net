@@ -60,6 +60,44 @@ def _label_args(labels):
 
 
 @dataclasses.dataclass
+class PrognosticJob:
+    """A configuration for prognostic jobs
+
+    Examples:
+
+    A short configuration::
+
+        from end_to_end import PrognosticJob, load_yaml
+
+        job = PrognosticJob(
+            name="test-v5",
+            image_tag="d848e586db85108eb142863e600741621307502b",
+            config=load_yaml("../configs/default_short.yaml"),
+        )
+
+    """
+
+    name: str
+    config: dict = dataclasses.field(repr=False)
+    image_tag: str
+    model_path: str
+
+    @property
+    def entrypoint(self):
+        return "prognostic-run"
+
+    @property
+    def parameters(self):
+        prog_config = deepcopy(self.config)
+        assert self.model_path.startswith("gs://")
+        prog_config["zhao_carr_emulation"] = {"model": {"path": self.model_path}}
+        return {
+            "config": _encode(prog_config),
+            "image_tag": self.image_tag,
+        }
+
+
+@dataclasses.dataclass
 class TrainingJob:
     """
 
