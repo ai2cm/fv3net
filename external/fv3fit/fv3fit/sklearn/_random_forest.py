@@ -254,7 +254,7 @@ class SklearnWrapper(Predictor):
     def fit(self, batches: tf.data.Dataset):
         logger = logging.getLogger("SklearnWrapper")
         logger.info(f"Fitting random forest")
-        batches = batches.map(apply_to_mapping(ensure_nd(1)))
+        batches = batches.map(apply_to_mapping(ensure_nd(2)))
 
         batches_clipped = batches.map(clip_sample(self.packer_config.clip))
         x_dataset, _ = pack_tfdataset(
@@ -265,6 +265,8 @@ class SklearnWrapper(Predictor):
         )
 
         # put all data in one batch, implement batching later
+        x_dataset = x_dataset.unbatch()
+        y_dataset = y_dataset.unbatch()
         total_samples = _get_iterator_size(iter(x_dataset))
         X: Batch = next(iter(x_dataset.batch(total_samples)))
         y: Batch = next(iter(y_dataset.batch(total_samples)))
