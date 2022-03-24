@@ -35,19 +35,27 @@ def submit(job, labels):
     subprocess.check_call(args, stdout=subprocess.DEVNULL)
 
 
+def _run_job_q(job):
+    print(job)
+    return input("Y/n") != "n"
+
+
 def submit_jobs(jobs, experiment_name):
     print("The following experiments are queued:")
     for job in jobs:
         print(job)
 
-    ch = input("Submit? (Y/n)")
+    ch = input("Submit? (Y/n,i)")
     if ch == "n":
         sys.exit(1)
-    print("Submitting all these jobs")
+    elif ch == "i":
+        jobs = [job for job in jobs if _run_job_q(job)]
+
     with open("experiment-logs.txt", "a") as f:
         for job in jobs:
             submit(job, labels={"experiment": experiment_name})
             print(job, file=f)
+            print(job)
         print(
             f"to monitor experiments: argo list -lexperiment={experiment_name}", file=f
         )
@@ -80,7 +88,6 @@ class PrognosticJob:
     name: str
     config: dict = dataclasses.field(repr=False)
     image_tag: str
-    model_path: str
 
     @property
     def entrypoint(self):
@@ -88,11 +95,8 @@ class PrognosticJob:
 
     @property
     def parameters(self):
-        prog_config = deepcopy(self.config)
-        assert self.model_path.startswith("gs://")
-        prog_config["zhao_carr_emulation"] = {"model": {"path": self.model_path}}
         return {
-            "config": _encode(prog_config),
+            "config": _encode(self.config),
             "image_tag": self.image_tag,
         }
 

@@ -10,6 +10,7 @@ spec:
   arguments:
     parameters:
       - name: training-config
+        value: ""
       - name: flags
         value: ""
       - name: gpu-train
