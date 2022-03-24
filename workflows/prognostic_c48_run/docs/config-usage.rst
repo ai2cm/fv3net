@@ -33,8 +33,6 @@ configurations, run the following::
 
     prepare-config \
         minimal.yaml \
-        gs://vcm-ml-code-testing-data/c48-restarts-for-e2e \
-        20160801.001500 \
         > fv3config.yaml
 
 
@@ -89,7 +87,7 @@ reference analysis data. Here is an example ``minimal.yaml``:
 Machine learning
 ~~~~~~~~~~~~~~~~
 
-A machine learning run can be configured in two ways. The first is by
+A machine learning run is configured by
 specifying a path to a fv3fit_ model in
 :py:attr:`runtime.config.UserConfig.scikit_learn.model`. This can be done
 by adding the following to the ``minimal.yaml`` example::
@@ -97,18 +95,6 @@ by adding the following to the ``minimal.yaml`` example::
     scikit_learn:
         model: ["path/to/model"]
 
-
-For convenient scripting, the ``--model_url`` command line argument adds a
-model to :py:class:`runtime.steppers.machine_learning.MachineLearningConfig`.
-It can be used multiple times to specify multiple models. For example::
-
-    prepare-config \
-        minimal.yaml \
-        gs://vcm-ml-code-testing-data/c48-restarts-for-e2e \
-        20160801.001500 \
-        --model_url path/to/model
-        --model_url path/to_another/model
-        > fv3config.yaml
 
 Diagnostics
 ~~~~~~~~~~~
