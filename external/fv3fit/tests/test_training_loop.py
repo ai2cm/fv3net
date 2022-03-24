@@ -1,6 +1,11 @@
+from typing import Tuple
 import fv3fit
 from unittest import mock
-from fv3fit.keras._models.shared.training_loop import EpochCallback, sequence_size
+from fv3fit.keras._models.shared.training_loop import (
+    EpochCallback,
+    _shuffle_batched_tfdataset,
+    sequence_size,
+)
 import tensorflow as tf
 import pytest
 import contextlib
@@ -82,25 +87,17 @@ def test_fit_loop_calls_fit(n_epochs):
     assert mock_model.fit.call_count == 1
 
 
-def test_fit_loop_shuffles_batches():
-    fv3fit.set_random_seed(0)
-    # for test, batch_shuffle_buffer_size should fit all batches
-    # and shuffle_buffer_size should not
-    # in_memory must be False because keras's model.fit handle shuffling for True
-    batch_size = 1000
-    n_samples = 20_000
-    n_batches = n_samples // batch_size
-    config = fv3fit.TrainingLoopConfig(shuffle_buffer_size=batch_size, in_memory=False)
-    mock_model = mock.MagicMock()
-
+def get_monotonic_data(
+    n_samples: int, batch_size: int
+) -> Tuple[tf.data.Dataset, np.ndarray]:
     array_x = np.arange(n_samples)
     x = tf.data.Dataset.from_tensor_slices(array_x).batch(batch_size)
     y = tf.data.Dataset.from_tensor_slices(array_x).batch(batch_size)
     data = tf.data.Dataset.zip((x, y))
+    return data, array_x
 
-    config.fit_loop(model=mock_model, Xy=data, validation_data=None, callbacks=())
-    args = mock_model.fit.call_args_list[0]
-    Xy = args.args[0].unbatch()
+
+def assert_data_is_shuffled(Xy, array_x, n_batches):
     n_samples = sequence_size(Xy)
     shuffled_x, shuffled_y = next(iter(Xy.batch(n_samples)))
     np.testing.assert_array_equal(shuffled_x, shuffled_y)
@@ -119,3 +116,34 @@ def test_fit_loop_shuffles_batches():
     assert np.sum((hist > 0).astype(np.int)) > n_batches * 5
     # check that input batch is uncorrelated with output batch
     assert (np.corrcoef(array_x, shuffled_x)[0, 1] ** 2) < 0.1
+
+
+@pytest.mark.slow
+def test__shuffle_batched_tfdataset():
+    batch_size = 1000
+    n_samples = 20_000
+    data, array_x = get_monotonic_data(n_samples, batch_size)
+    n_batches = n_samples // batch_size
+
+    shuffled_data = _shuffle_batched_tfdataset(data, sample_buffer_size=batch_size)
+    assert_data_is_shuffled(shuffled_data, array_x=array_x, n_batches=n_batches)
+
+
+@pytest.mark.slow
+def test_fit_loop_shuffles_batches():
+    fv3fit.set_random_seed(0)
+    # for test, batch_shuffle_buffer_size should fit all batches
+    # and shuffle_buffer_size should not
+    # in_memory must be False because keras's model.fit handle shuffling for True
+    batch_size = 1000
+    n_samples = 20_000
+    data, array_x = get_monotonic_data(n_samples, batch_size)
+    mock_model = mock.MagicMock()
+    n_batches = n_samples // batch_size
+    config = fv3fit.TrainingLoopConfig(shuffle_buffer_size=batch_size, in_memory=False)
+    mock_model = mock.MagicMock()
+
+    config.fit_loop(model=mock_model, Xy=data, validation_data=None, callbacks=())
+    args = mock_model.fit.call_args_list[0]
+    Xy = args.args[0].unbatch()
+    assert_data_is_shuffled(Xy, array_x=array_x, n_batches=n_batches)

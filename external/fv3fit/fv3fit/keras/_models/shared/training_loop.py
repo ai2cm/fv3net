@@ -44,6 +44,25 @@ def _tfdataset_to_tensor_sequence(
     return tensor_sequence
 
 
+def _shuffle_batched_tfdataset(
+    data: tf.data.Dataset, sample_buffer_size: int
+) -> tf.data.Dataset:
+    """
+    Given a tfdataset with a sample dimension in its elements, return a tfdataset
+    without that sample dimension which is the result of fully shuffling
+    those elements (batches) before doing a per-sample shuffle
+    with the given buffer size.
+    """
+    n_batches = sequence_size(data)
+    return (
+        data.shuffle(
+            n_batches
+        )  # elements are [sample, z], sample dimension not shuffled
+        .unbatch()  # elements are [z]
+        .shuffle(buffer_size=sample_buffer_size)
+    )
+
+
 @dataclasses.dataclass
 class TrainingLoopConfig:
     """
@@ -102,13 +121,10 @@ class TrainingLoopConfig:
                 **fit_kwargs,
             )
         else:
-            n_batches = sequence_size(Xy)
-            Xy_fit = (
-                Xy.shuffle(
-                    n_batches
-                )  # elements are [sample, z], sample dimension not shuffled
-                .unbatch()  # elements are [z]
-                .shuffle(buffer_size=self.shuffle_buffer_size)
+            Xy_fit = (  # input elements are [sample, z]
+                _shuffle_batched_tfdataset(
+                    Xy, sample_buffer_size=self.shuffle_buffer_size
+                )  # elements are [z]
                 .batch(self.batch_size)  # elements are [sample, z]
                 .prefetch(tf.data.AUTOTUNE)
             )
