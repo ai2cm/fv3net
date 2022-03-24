@@ -65,6 +65,7 @@ class MainArgs:
     validation_data_config: str
     output_path: str
     local_download_path: Optional[str] = None
+    wandb: bool = False
 
 
 class MockHyperparameters:
