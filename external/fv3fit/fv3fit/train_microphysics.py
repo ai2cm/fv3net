@@ -328,6 +328,10 @@ def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
         np.savez(os.path.join(tmpdir, filename), **dumpable)
 
 
+def train_function(config: MicrophysicsHyperParameters):
+    assert False
+
+
 def main(config: TrainConfig, seed: int = 0):
     logging.basicConfig(level=getattr(logging, config.log_level))
     set_random_seed(seed)
