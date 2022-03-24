@@ -15,6 +15,7 @@ from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.train_microphysics import (
     TrainConfig,
+    MicrophysicsHyperParameters,
     get_default_config,
     main,
     _asdict_with_enum,
@@ -97,7 +98,7 @@ def test_TrainConfig_from_flat_dict():
 
 
 def test_TrainConfig_from_yaml(tmp_path: PosixPath):
-    default = TrainConfig(".", ".", ".")
+    default = TrainConfig(test_url=".", train_url=".", out_url=".")
     yaml_path = tmp_path / "train_config.yaml"
     yaml_path.write_text(default.to_yaml())
     loaded = TrainConfig.from_yaml_path(yaml_path.as_posix())
@@ -149,14 +150,11 @@ def test_training_entry_integration(tmp_path):
     main(config)
 
 
-def test_TrainConfig_build_model():
+def test_MicrophysicsHyperParameters_build_model():
     field = Field("out", "in")
     in_ = "in"
     out = "out"
-    config = TrainConfig(
-        ".",
-        ".",
-        ".",
+    config = MicrophysicsHyperParameters(
         model=MicrophysicsConfig(
             input_variables=[in_],
             direct_out_variables=[out],

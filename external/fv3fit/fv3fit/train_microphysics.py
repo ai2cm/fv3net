@@ -76,7 +76,7 @@ def load_config_yaml(path: str) -> Dict[str, Any]:
 
 
 @dataclass
-class TrainConfig:
+class MicrophysicsHyperParameters:
     """
     Configuration for training a microphysics emulator
 
@@ -105,19 +105,11 @@ class TrainConfig:
         log_level: what logging level to use
     """
 
-    train_url: str
-    test_url: str
-    out_url: str
-    transform: TransformConfig = field(default_factory=TransformConfig)
     tensor_transform: List[
         Union[TransformedVariableConfig, ConditionallyScaled, Difference]
     ] = field(default_factory=list)
     model: Optional[models.MicrophysicsConfig] = None
     conservative_model: Optional[models.ConservativeWaterConfig] = None
-    nfiles: Optional[int] = None
-    nfiles_valid: Optional[int] = None
-    use_wandb: bool = True
-    wandb: WandBConfig = field(default_factory=WandBConfig)
     loss: CustomLoss = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
@@ -125,7 +117,6 @@ class TrainConfig:
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 13824
     checkpoint_model: bool = True
-    log_level: str = "INFO"
 
     @property
     def transform_factory(self) -> ComposedTransformFactory:
@@ -169,6 +160,67 @@ class TrainConfig:
         return list(
             self.transform_factory.backward_names(set(self._model.input_variables))
         )
+
+    @property
+    def model_variables(self) -> Set[str]:
+        return self.transform_factory.backward_names(
+            set(self._model.input_variables) | set(self._model.output_variables)
+        )
+
+
+# Temporarily subclass from the hyperparameters object for backwards compatibility
+# we can delete this class once usage has switched to fv3fit.train
+@dataclass
+class TrainConfig(MicrophysicsHyperParameters):
+    """
+    Configuration for training a microphysics emulator
+
+    Args:
+        train_url: Path to training netcdfs (already in [sample x feature] format)
+        test_url: Path to validation netcdfs (already in [sample x feature] format)
+        out_url:  Where to store the trained model, history, and configuration
+        transform: Data preprocessing TransformConfig
+        tensor_transform: specification of differerentiable tensorflow
+            transformations to apply before and after data is passed to models and
+            losses.
+        model: MicrophysicsConfig used to build the keras model
+        nfiles: Number of files to use from train_url
+        nfiles_valid: Number of files to use from test_url
+        use_wandb: Enable wandb logging of training, requires that wandb is installed
+            and initialized
+        wandb: WandBConfig to set up the wandb logged run
+        loss:  Configuration of the keras loss to prepare and use for training
+        epochs: Number of training epochs
+        batch_size: batch size applied to tf datasets during training
+        valid_freq: How often to score validation data (in epochs)
+        verbose: Verbosity of keras fit output
+        shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
+            during training
+        checkpoint_model: if true, save a checkpoint after each epoch
+        log_level: what logging level to use
+    """
+
+    train_url: str = ""
+    test_url: str = ""
+    out_url: str = ""
+    transform: TransformConfig = field(default_factory=TransformConfig)
+    tensor_transform: List[
+        Union[TransformedVariableConfig, ConditionallyScaled, Difference]
+    ] = field(default_factory=list)
+    model: Optional[models.MicrophysicsConfig] = None
+    conservative_model: Optional[models.ConservativeWaterConfig] = None
+    nfiles: Optional[int] = None
+    nfiles_valid: Optional[int] = None
+    use_wandb: bool = True
+    wandb: WandBConfig = field(default_factory=WandBConfig)
+    loss: CustomLoss = field(default_factory=CustomLoss)
+    epochs: int = 1
+    batch_size: int = 128
+    valid_freq: int = 5
+    verbose: int = 2
+    shuffle_buffer_size: Optional[int] = 13824
+    checkpoint_model: bool = True
+    log_level: str = "INFO"
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -250,6 +302,9 @@ class TrainConfig:
 
         return config
 
+    def to_yaml(self) -> str:
+        return yaml.safe_dump(_asdict_with_enum(self))
+
     def open_dataset(
         self, url: str, nfiles: Optional[int], required_variables: Set[str],
     ) -> tf.data.Dataset:
@@ -261,15 +316,6 @@ class TrainConfig:
             shuffle=True,
             random_state=np.random.RandomState(0),
         )
-
-    @property
-    def model_variables(self) -> Set[str]:
-        return self.transform_factory.backward_names(
-            set(self._model.input_variables) | set(self._model.output_variables)
-        )
-
-    def to_yaml(self) -> str:
-        return yaml.safe_dump(_asdict_with_enum(self))
 
 
 def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
