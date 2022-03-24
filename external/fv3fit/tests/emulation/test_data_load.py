@@ -47,20 +47,6 @@ def nc_dir_files(nc_dir):
     return [str(f) for f in nc_dir.glob("*.nc")]
 
 
-def test__seq_to_tf_dataset():
-
-    batches = [np.arange(30).reshape(10, 3)] * 3
-
-    def transform(batch):
-        return batch * 2
-
-    tf_ds = load._seq_to_tf_dataset(batches, transform)
-    assert isinstance(tf_ds, tf.data.Dataset)
-
-    result = next(tf_ds.batch(10).as_numpy_iterator())
-    np.testing.assert_equal(result, batches[0] * 2)
-
-
 def _assert_batch_valid(batch, expected_size):
 
     assert batch
@@ -71,7 +57,7 @@ def _assert_batch_valid(batch, expected_size):
 
 def test_netcdf_directory_to_tf_dataset(config, nc_dir):
 
-    tf_ds = load.nc_dir_to_tf_dataset(str(nc_dir), config)
+    tf_ds = load.nc_dir_to_tfdataset(str(nc_dir), config)
 
     assert isinstance(tf_ds, tf.data.Dataset)
     batch = next(iter(tf_ds.batch(150)))  # larger than total samples
@@ -88,7 +74,7 @@ def test_netcdf_files_to_tf_dataset(config, nc_dir_files):
 
 
 def test_netcdf_dir_to_tf_dataset_with_nfiles(config, nc_dir):
-    ds = load.nc_dir_to_tf_dataset(str(nc_dir), config, nfiles=1)
+    ds = load.nc_dir_to_tfdataset(str(nc_dir), config, nfiles=1)
     batch = next(iter(ds.batch(30)))
     tensor_in = next(iter(batch.values()))
 
@@ -101,10 +87,10 @@ def test_netcdf_dir_to_tf_dataset_with_shuffle(config, nc_dir):
     random1 = np.random.RandomState(10)
     random2 = np.random.RandomState(20)
 
-    ds1 = load.nc_dir_to_tf_dataset(
+    ds1 = load.nc_dir_to_tfdataset(
         str(nc_dir), config, shuffle=True, random_state=random1
     )
-    ds2 = load.nc_dir_to_tf_dataset(
+    ds2 = load.nc_dir_to_tfdataset(
         str(nc_dir), config, shuffle=True, random_state=random2
     )
 

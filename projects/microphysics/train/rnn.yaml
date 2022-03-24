@@ -8,7 +8,6 @@ valid_freq: 2
 out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
 train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
 test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
-cache: false
 tensor_transform:
   - to: log_cloud_input
     source: cloud_water_mixing_ratio_input
@@ -114,7 +113,9 @@ model:
     - humidity_precpd_difference_tscaled
     - temperature_gscond_difference_tscaled
     - humidity_gscond_difference_tscaled
-  normalize_key: mean_std
+  normalize_default:
+    center: per_feature
+    scale: all
   selection_map: {}
   timestep_increment_sec: 900
 transform:

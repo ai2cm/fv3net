@@ -1,12 +1,12 @@
 import argparse
 import dacite
+from enum import Enum
 from dataclasses import asdict, dataclass, field
 import fsspec
 import json
 import logging
 import numpy as np
 import os
-import tempfile
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
 
 import tensorflow as tf
@@ -19,12 +19,13 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
+from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
 from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 
 from fv3fit.emulation.transforms.factories import ConditionallyScaled
 from fv3fit.emulation.types import LossFunction, TensorDict
 from fv3fit.emulation import models, train, ModelCheckpointCallback
-from fv3fit.emulation.data import TransformConfig, nc_dir_to_tf_dataset
+from fv3fit.emulation.data import TransformConfig, nc_dir_to_tfdataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.keras import save_model
@@ -44,6 +45,23 @@ from fv3fit.wandb import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _asdict_with_enum(obj):
+    """Recursively turn a dataclass obj into a dictionary handling any Enums
+    """
+
+    def _generate(x):
+        for key, val in x:
+            if isinstance(val, Enum):
+                yield key, val.value
+            else:
+                yield key, val
+
+    def dict_factory(x):
+        return dict(_generate(x))
+
+    return asdict(obj, dict_factory=dict_factory)
 
 
 def load_config_yaml(path: str) -> Dict[str, Any]:
@@ -85,8 +103,6 @@ class TrainConfig:
             during training
         checkpoint_model: if true, save a checkpoint after each epoch
         log_level: what logging level to use
-        cache: Use a cache for training/testing batches. Speeds up training for
-            I/O bound architectures.  Always disabled for rnn-v1 architectures.
     """
 
     train_url: str
@@ -107,10 +123,9 @@ class TrainConfig:
     batch_size: int = 128
     valid_freq: int = 5
     verbose: int = 2
-    shuffle_buffer_size: Optional[int] = 100_000
+    shuffle_buffer_size: Optional[int] = 13824
     checkpoint_model: bool = True
     log_level: str = "INFO"
-    cache: bool = True
 
     @property
     def transform_factory(self) -> ComposedTransformFactory:
@@ -160,7 +175,9 @@ class TrainConfig:
         """Standard init from nested dictionary"""
         # casting necessary for 'from_args' which all come in as string
         # TODO: should this be just a json parsed??
-        config = dacite.Config(strict=True, cast=[bool, str, int, float])
+        config = dacite.Config(
+            strict=True, cast=[bool, str, int, float, StdDevMethod, MeanMethod]
+        )
         return dacite.from_dict(cls, d, config=config)
 
     @classmethod
@@ -226,7 +243,9 @@ class TrainConfig:
             config = cls.from_yaml_path(path_arg.config_path)
 
         if unknown_args:
-            updated = get_arg_updated_config_dict(unknown_args, asdict(config))
+            updated = get_arg_updated_config_dict(
+                unknown_args, _asdict_with_enum(config)
+            )
             config = cls.from_dict(updated)
 
         return config
@@ -235,7 +254,7 @@ class TrainConfig:
         self, url: str, nfiles: Optional[int], required_variables: Set[str],
     ) -> tf.data.Dataset:
         nc_open_fn = self.transform.get_pipeline(required_variables)
-        return nc_dir_to_tf_dataset(
+        return nc_dir_to_tfdataset(
             url,
             nc_open_fn,
             nfiles=nfiles,
@@ -249,14 +268,8 @@ class TrainConfig:
             set(self._model.input_variables) | set(self._model.output_variables)
         )
 
-    def __post_init__(self) -> None:
-        if (
-            self.model is not None
-            and "rnn-v1" in self.model.architecture.name
-            and self.cache
-        ):
-            logger.warn("Caching disabled for rnn-v1 architectures due to memory leak")
-            self.cache = False
+    def to_yaml(self) -> str:
+        return yaml.safe_dump(_asdict_with_enum(self))
 
 
 def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
@@ -276,7 +289,7 @@ def main(config: TrainConfig, seed: int = 0):
     # callbacks that are always active
     callbacks = [tf.keras.callbacks.TerminateOnNaN()]
     if config.use_wandb:
-        config.wandb.init(config=asdict(config))
+        config.wandb.init(config=_asdict_with_enum(config))
         callbacks.append(config.wandb.get_callback())
 
     train_ds = config.open_dataset(
@@ -286,16 +299,17 @@ def main(config: TrainConfig, seed: int = 0):
         config.test_url, config.nfiles_valid, config.model_variables
     )
 
-    train_set = next(iter(train_ds.shuffle(1_000_000).batch(50_000)))
+    if config.shuffle_buffer_size is not None:
+        train_ds = train_ds.shuffle(config.shuffle_buffer_size)
+
+    train_set = next(iter(train_ds.batch(50_000)))
+
     transform = config.build_transform(train_set)
 
     train_ds = train_ds.map(transform.forward)
     test_ds = test_ds.map(transform.forward)
 
     model = config.build_model(train_set, transform)
-
-    if config.shuffle_buffer_size is not None:
-        train_ds = train_ds.shuffle(config.shuffle_buffer_size)
 
     if config.checkpoint_model:
         callbacks.append(
@@ -306,27 +320,20 @@ def main(config: TrainConfig, seed: int = 0):
             )
         )
 
-    with tempfile.TemporaryDirectory() as train_temp:
-        with tempfile.TemporaryDirectory() as test_temp:
+    train_ds_batched = train_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
+    test_ds_batched = test_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
 
-            train_ds_batched = train_ds.batch(config.batch_size)
-            test_ds_batched = test_ds.batch(config.batch_size)
-
-            if config.cache:
-                train_ds_batched = train_ds_batched.cache(train_temp)
-                test_ds_batched = test_ds_batched.cache(test_temp)
-
-            history = train(
-                model,
-                train_ds_batched,
-                config.build_loss(train_set, transform),
-                optimizer=config.loss.optimizer.instance,
-                epochs=config.epochs,
-                validation_data=test_ds_batched,
-                validation_freq=config.valid_freq,
-                verbose=config.verbose,
-                callbacks=callbacks,
-            )
+    history = train(
+        model,
+        train_ds_batched,
+        config.build_loss(train_set, transform),
+        optimizer=config.loss.optimizer.instance,
+        epochs=config.epochs,
+        validation_data=test_ds_batched,
+        validation_freq=config.valid_freq,
+        verbose=config.verbose,
+        callbacks=callbacks,
+    )
 
     logger.debug("Training complete")
 
@@ -336,7 +343,7 @@ def main(config: TrainConfig, seed: int = 0):
             json.dump(history.params, f)
 
         with open(os.path.join(tmpdir, "config.yaml"), "w") as f:
-            f.write(yaml.safe_dump(asdict(config)))
+            f.write(config.to_yaml())
 
         local_model_path = save_model(model, tmpdir)
 

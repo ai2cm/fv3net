@@ -3,6 +3,7 @@ Array transforms to build onto our batching pipeline into training.
 Generally assumes data to be in Sample x Feature shape.
 """
 
+import contextlib
 import logging
 import numpy as np
 import tensorflow as tf
@@ -10,7 +11,7 @@ from vcm.derived_mapping import DerivedMapping
 import xarray as xr
 from .io import download_cached
 from toolz.functoolz import curry
-from typing import Hashable, Mapping, Sequence, Union
+from typing import Hashable, Iterator, Mapping, Sequence, Union
 
 
 logger = logging.getLogger(__name__)
@@ -55,10 +56,18 @@ def _register_derived_variables(mapping: DerivedMapping, timestep):
         return (end - begin) / timestep
 
 
+@contextlib.contextmanager
+def open_dataset(path: str) -> Iterator[xr.Dataset]:
+    ds = xr.open_dataset(path)
+    yield ds
+    ds.close()
+
+
 def open_netcdf_dataset(path: str) -> xr.Dataset:
     """Open a netcdf from a local/remote path"""
     local_path = download_cached(path)
-    return xr.open_dataset(local_path)
+    with open_dataset(local_path) as ds:
+        return ds.load()
 
 
 @curry

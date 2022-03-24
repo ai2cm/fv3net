@@ -50,7 +50,15 @@ image_test_dataflow: push_image_dataflow
 		$(REGISTRY)/dataflow:$(VERSION) \
 		tests/integration -s
 
-image_test_prognostic_run:
+image_test_emulation:
+	docker run \
+		--rm \
+		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
+		-w /fv3net/external/emulation \
+		$(REGISTRY)/prognostic_run:$(VERSION) pytest
+
+image_test_prognostic_run: image_test_emulation
 	docker run \
 		--rm \
 		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
@@ -78,6 +86,7 @@ enter_prognostic_run:
 		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
 		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
 		-v $(shell pwd)/workflows:/fv3net/workflows \
+		-v $(shell pwd)/external:/fv3net/external \
 		-w /fv3net/workflows/prognostic_c48_run \
 		$(REGISTRY)/prognostic_run:$(VERSION) bash
 
@@ -205,9 +214,19 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		workflows/post_process_run/requirements.txt \
 		workflows/prognostic_c48_run/requirements.in
 
+docker/fv3fit/requirements.txt: constraints.txt
+	cp constraints.txt docker/prognostic_run/requirements.txt
+	# this will subset the needed dependencies from constraints.txt
+	# while preserving the versions
+	pip-compile --no-annotate \
+		--output-file docker/fv3fit/requirements.txt \
+		external/fv3fit/setup.py \
+		external/loaders/setup.py \
+		external/vcm/setup.py
+
 .PHONY: lock_pip constraints.txt docker/prognostic_run/requirements.txt
 ## Lock the pip dependencies of this repo
-lock_pip: constraints.txt docker/prognostic_run/requirements.txt
+lock_pip: constraints.txt docker/prognostic_run/requirements.txt docker/fv3fit/requirements.txt
 
 ## Install External Dependencies
 install_deps:

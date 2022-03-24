@@ -45,8 +45,6 @@ class PureKerasModel(Predictor):
         Args:
             input_variables: names of input variables
             output_variables: names of output variables
-            output_metadata: attributes and stacked dimension order for each variable
-                in output_variables
             model: keras model to wrap
             unstacked_dims: non-sample dimensions of model output
             n_halo: number of halo points required in input data

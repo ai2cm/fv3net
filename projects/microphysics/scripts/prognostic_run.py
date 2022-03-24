@@ -3,7 +3,6 @@ import argparse
 import logging
 import os
 from pathlib import Path
-import dacite
 
 import wandb
 import yaml
@@ -34,7 +33,7 @@ def run_from_config_dict(config: dict):
             "env": {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")},
         }
     )
-    config = dacite.from_dict(HighLevelConfig, config)
+    config = HighLevelConfig.from_dict(config)
     config_dict = config.to_fv3config()
 
     api.create(url, config_dict)

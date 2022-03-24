@@ -19,6 +19,10 @@ def nearest_time_batch_index(
     return min_index
 
 
+def select_snapshot(batch: xr.Dataset, time: cftime.DatetimeJulian) -> xr.Dataset:
+    return batch.sortby("time").sel(time=time, method="nearest")
+
+
 def meridional_transect(ds: xr.Dataset):
     transect_coords = meridional_ring()
     return vcm.interpolate_unstructured(ds, transect_coords)

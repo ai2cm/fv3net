@@ -210,8 +210,13 @@ class TransformedPredictor(Predictor):
         super().__init__(sorted(list(input_variables)), sorted(list(output_variables)))
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
-        base_prediction = self.base_model.predict(X)
-        return self.output_transform.apply(base_prediction)
+        prediction = self.base_model.predict(X)
+        transform_inputs = xr.merge([prediction, X], compat="override")
+        transformed_prediction = self.output_transform.apply(transform_inputs)
+        transformed_outputs = transformed_prediction[
+            self.output_transform.output_variables
+        ]
+        return xr.merge([prediction, transformed_outputs])
 
     def dump(self, path: str):
         base_model_path = os.path.join(path, self._BASE_MODEL_SUBDIR)
