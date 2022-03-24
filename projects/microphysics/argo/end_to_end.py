@@ -93,7 +93,7 @@ class TrainingJob:
         config = deepcopy(self.config)
         config["out_url"] = model_out_url
         return {
-            "training-config": _encode(self.config),
+            "training-config": _encode(config),
             "fv3fit_image_tag": self.fv3fit_image_tag,
         }
 
