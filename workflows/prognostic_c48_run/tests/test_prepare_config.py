@@ -16,10 +16,7 @@ TEST_DATA_DIR = "tests/prepare_config_test_data"
 @pytest.mark.parametrize(
     "argv",
     [
-        pytest.param(
-            [f"{TEST_DATA_DIR}/prognostic_config.yml", "--model_url", "gs://ml-model"],
-            id="ml",
-        ),
+        pytest.param([f"{TEST_DATA_DIR}/prognostic_config.yml"], id="ml",),
         pytest.param([f"{TEST_DATA_DIR}/nudge_to_fine_config.yml"], id="n2f"),
         pytest.param([f"{TEST_DATA_DIR}/nudge_to_obs_config.yml"], id="n2o"),
         pytest.param([f"{TEST_DATA_DIR}/emulator.yml"], id="emulator"),
