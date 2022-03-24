@@ -27,13 +27,6 @@ logger = logging.getLogger(__file__)
 UNSTACKED_DIMS = ("x", "y", "z", "z_interface")
 
 
-def multiply_loss_by_factor(original_loss, factor):
-    def loss(y_true, y_pred):
-        return tf.math.scalar_mul(factor, original_loss(y_true, y_pred))
-
-    return loss
-
-
 @dataclasses.dataclass
 class ConvolutionalHyperparameters(Hyperparameters):
     """
