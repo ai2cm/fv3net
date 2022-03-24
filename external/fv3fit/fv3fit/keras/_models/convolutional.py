@@ -77,7 +77,7 @@ def get_Xy_dataset(
     clip_config: Optional[Mapping[Hashable, SliceConfig]],
     n_halo: int,
     data: tf.data.Dataset,
-):
+) -> tf.data.Dataset:
     """
     Given a tf.data.Dataset with mappings from variable name to samples,
     return a tf.data.Dataset whose entries are two tuples, the first containing the

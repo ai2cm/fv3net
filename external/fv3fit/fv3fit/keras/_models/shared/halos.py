@@ -193,8 +193,10 @@ def _append_halos_tensor(n_halo: int, tensor: tf.Tensor) -> tf.Tensor:
         for _ in range(6)
     ]
     for i, quantity in enumerate(quantities):
+        # split tensor into quantity list over the tile dimension
         quantity.view[:] = tensor[:, i, :].numpy()
     _halo_update(communicators=communicators, quantities=quantities, n_halo=n_halo)
+    # restore the tile dimension with None and concatenate along it
     out_tensor = tf.concat(
         [quantity.data[:, None, :] for quantity in quantities], axis=1
     )
