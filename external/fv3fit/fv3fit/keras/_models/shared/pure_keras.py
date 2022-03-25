@@ -205,7 +205,7 @@ class PureKerasDictPredictor(Predictor):
         Args:
             model: a keras model. Tuple in/out models are okay, but will be cast
                 to a dict-output model before saving.
-            passthru: any data! Is NOT serialized, but can be
+            passthrough: any data! Is NOT serialized, but can be
                 used by other parts of the training workflow. Mostly exists for
                 backwards compatibility and should be avoided in new code.
         """
