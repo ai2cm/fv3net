@@ -77,7 +77,7 @@ def train_identity_model(model_type, sample_func, hyperparameters=None):
     )
     if hyperparameters is None:
         cls = get_hyperparameter_class(model_type)
-        hyperparameters = cls.get_default_model(input_variables, output_variables)
+        hyperparameters = cls.init_testing(input_variables, output_variables)
     input_variables, output_variables, test_dataset = get_dataset(
         model_type, sample_func
     )
@@ -420,7 +420,7 @@ def test_train_dense_model_clipped_inputs_outputs():
     output_variables = ["var_out_0", "var_out_1"]
 
     cls = get_hyperparameter_class("dense")
-    hyperparameters = cls.get_default_model(input_variables, output_variables)
+    hyperparameters = cls.init_testing(input_variables, output_variables)
     hyperparameters.clip_config = ClipConfig(
         {"var_in_0": SliceConfig(2, 5), "var_out_0": SliceConfig(4, 8)}
     )

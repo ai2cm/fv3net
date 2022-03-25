@@ -198,9 +198,7 @@ class TransformedParameters(Hyperparameters):
         return self.model_variables
 
     @classmethod
-    def get_default_model(
-        cls, input_variables, output_variables
-    ) -> "TransformedParameters":
+    def init_testing(cls, input_variables, output_variables) -> "TransformedParameters":
         """used for testing"""
         return TransformedParameters(
             model=MicrophysicsConfig(
