@@ -53,6 +53,52 @@ class Difference(TensorTransform):
 
 
 @dataclasses.dataclass
+class CloudPrecpdUpdate(TensorTransform):
+    """
+    A specialized transform for patching in some necessary information
+    about cloud water after gscond.  Adds both differences and updates
+    both fields on the backwards step.
+    """
+
+    to: str
+    # input names
+    sphum_source: str
+    cloud_input: str
+    cloud_after_precpd: str
+
+    def build(self, sample: TensorDict) -> TensorTransform:
+        return self
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+
+        if self.to in requested_names:
+            requested_names -= {self.to}
+            requested_names |= {
+                self.sphum_source,
+                self.cloud_input,
+                self.cloud_after_precpd,
+            }
+        return requested_names
+
+    def _get_cloud_after_gscond(self, x: TensorDict) -> tf.Tensor:
+        cloud_source = tf.constant(-1.0, dtype=tf.float32) * x[self.sphum_source]
+        cloud_after_gscond = x[self.cloud_input] + cloud_source
+        return cloud_after_gscond
+
+    def forward(self, x: TensorDict):
+        x = {**x}
+        cloud_after_gscond = self._get_cloud_after_gscond(x)
+        x[self.to] = x[self.cloud_after_precpd] - cloud_after_gscond
+        return x
+
+    def backward(self, y: TensorDict):
+        y = {**y}
+        cloud_after_gscond = self._get_cloud_after_gscond(y)
+        y[self.cloud_after_precpd] = cloud_after_gscond + y[self.to]
+        return y
+
+
+@dataclasses.dataclass
 class LogTransform:
     """A univariate transformation for::
 
@@ -104,7 +150,9 @@ class LimitValueTransform:
         return x
 
 
-UnivariateCompatible = Union[LogTransform, LimitValueTransform]
+UnivariateCompatible = Union[
+    LogTransform, LimitValueTransform,
+]
 
 
 class UnivariateTransform(TensorTransform):
