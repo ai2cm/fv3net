@@ -113,52 +113,83 @@ def unstack_test_dataset(test_dataset: xr.Dataset):
     )
 
 
-def get_dataset(
-    model_type, sample_func
-) -> Tuple[Sequence[str], Sequence[str], tf.data.Dataset]:
-    if model_type == "precipitative":
-        input_variables = [
-            "air_temperature",
-            "specific_humidity",
-            "pressure_thickness_of_atmospheric_layer",
-            "physics_precip",
-        ]
-        output_variables = ["dQ1", "dQ2", "total_precipitation_rate"]
-    else:
-        input_variables = ["var_in_2d", "var_in_3d"]  # 2d var will be clipped below
-        output_variables = ["var_out"]
-    input_values = list(sample_func() for _ in input_variables)
-    if model_type == "precipitative":
-        i_phys_prec = input_variables.index("physics_precip")
-        input_values[i_phys_prec] = input_values[i_phys_prec].isel(z=0) * 0.0
-        output_values = (
-            input_values[0] - LV / CPD * input_values[1],  # latent heat of condensation
-            input_values[1],
-            1.0
-            / GRAVITY
-            * np.sum(
-                input_values[2] * input_values[1], axis=-1
-            ),  # total_precipitation_rate is integration of dQ2
-        )
-    else:
-        i_2d_input = input_variables.index("var_in_2d")
-        input_values[i_2d_input] = input_values[i_2d_input].isel(z=0) * 0.0
-        i_3d_input = input_variables.index("var_in_3d")
-        output_values = [input_values[i_3d_input]]
-
+def _process(input_variables, input_values, output_variables, output_values):
     data_vars = {name: value for name, value in zip(input_variables, input_values)}
     data_vars[input_variables[0]] = data_vars[input_variables[0]].astype(np.float32)
     data_vars.update(
         {name: value for name, value in zip(output_variables, output_values)}
     )
-    train_dataset = xr.Dataset(data_vars=data_vars)
-    # originally we trained on unstacked data, which is why we don't
-    # produce unstacked data directly above and have this conversion here
-    if model_type == "convolutional":
-        train_dataset = stack(train_dataset, unstacked_dims=["tile", "x", "y", "z"])
-    else:
-        train_dataset = stack_non_vertical(train_dataset)
+    return xr.Dataset(data_vars=data_vars)
+
+
+def _get_dataset_precipitative(sample_func):
+    input_variables = [
+        "air_temperature",
+        "specific_humidity",
+        "pressure_thickness_of_atmospheric_layer",
+        "physics_precip",
+    ]
+    output_variables = ["dQ1", "dQ2", "total_precipitation_rate"]
+    input_values = list(sample_func() for _ in input_variables)
+    i_phys_prec = input_variables.index("physics_precip")
+    input_values[i_phys_prec] = input_values[i_phys_prec].isel(z=0) * 0.0
+    output_values = (
+        input_values[0] - LV / CPD * input_values[1],  # latent heat of condensation
+        input_values[1],
+        1.0
+        / GRAVITY
+        * np.sum(
+            input_values[2] * input_values[1], axis=-1
+        ),  # total_precipitation_rate is integration of dQ2
+    )
+    return (
+        input_variables,
+        output_variables,
+        _process(input_variables, input_values, output_variables, output_values),
+    )
+
+
+def _get_dataset_default(sample_func):
+    input_variables = ["var_in_2d", "var_in_3d"]  # 2d var will be clipped below
+    output_variables = ["var_out"]
+    input_values = list(sample_func() for _ in input_variables)
+    i_2d_input = input_variables.index("var_in_2d")
+    input_values[i_2d_input] = input_values[i_2d_input].isel(z=0) * 0.0
+    i_3d_input = input_variables.index("var_in_3d")
+    output_values = [input_values[i_3d_input]]
+    return (
+        input_variables,
+        output_variables,
+        _process(input_variables, input_values, output_variables, output_values),
+    )
+
+
+def get_dataset_default(sample_func):
+    input_variables, output_variables, train_dataset = _get_dataset_default(sample_func)
+    train_dataset = stack_non_vertical(train_dataset)
     return input_variables, output_variables, train_dataset
+
+
+def get_dataset_precipitative(sample_func):
+    input_variables, output_variables, train_dataset = _get_dataset_precipitative(
+        sample_func
+    )
+    train_dataset = stack_non_vertical(train_dataset)
+    return input_variables, output_variables, train_dataset
+
+
+def get_dataset_convolutional(sample_func):
+    input_variables, output_variables, train_dataset = _get_dataset_default(sample_func)
+    train_dataset = stack(train_dataset, unstacked_dims=["tile", "x", "y", "z"])
+    return input_variables, output_variables, train_dataset
+
+
+def get_dataset(
+    model_type, sample_func
+) -> Tuple[Sequence[str], Sequence[str], tf.data.Dataset]:
+
+    build_test_case = globals().get(f"get_dataset_{model_type}", get_dataset_default)
+    return build_test_case(sample_func)
 
 
 def assert_can_learn_identity(
