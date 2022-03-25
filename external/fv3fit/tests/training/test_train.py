@@ -227,6 +227,9 @@ def test_train_default_model_on_identity(model_type, regtest):
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around 0 with unit variance.
     """
+    if model_type == "transformed":
+        pytest.skip()
+
     fv3fit.set_random_seed(1)
     # don't set n_feature too high for this, because of curse of dimensionality
     n_sample, n_tile, nx, ny, n_feature = 5, 6, 12, 12, 2
