@@ -1,7 +1,6 @@
 import argparse
 import dacite
-from enum import Enum
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 import fsspec
 import json
 import logging
@@ -9,6 +8,9 @@ import numpy as np
 import os
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
 from fv3fit._shared.config import register_training_function
+from fv3fit.dataclasses import asdict_with_enum as _asdict_with_enum
+from fv3fit.emulation.data.transforms import expand_single_dim_data
+from fv3fit import tfdataset
 
 import tensorflow as tf
 import yaml
@@ -20,6 +22,7 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
+from fv3fit._shared.hyperparameters import Hyperparameters
 from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
 from fv3fit.keras._models.shared.pure_keras import PureKerasDictPredictor
 from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
@@ -49,23 +52,6 @@ from fv3fit.wandb import (
 logger = logging.getLogger(__name__)
 
 
-def _asdict_with_enum(obj):
-    """Recursively turn a dataclass obj into a dictionary handling any Enums
-    """
-
-    def _generate(x):
-        for key, val in x:
-            if isinstance(val, Enum):
-                yield key, val.value
-            else:
-                yield key, val
-
-    def dict_factory(x):
-        return dict(_generate(x))
-
-    return asdict(obj, dict_factory=dict_factory)
-
-
 def load_config_yaml(path: str) -> Dict[str, Any]:
     """
     Load yaml from local/remote location
@@ -78,7 +64,7 @@ def load_config_yaml(path: str) -> Dict[str, Any]:
 
 
 @dataclass
-class TransformedParameters:
+class TransformedParameters(Hyperparameters):
     """
     Configuration for training a microphysics emulator
 
@@ -89,8 +75,6 @@ class TransformedParameters:
             transformations to apply before and after data is passed to models and
             losses.
         model: MicrophysicsConfig used to build the keras model
-        nfiles: Number of files to use from train_url
-        nfiles_valid: Number of files to use from test_url
         use_wandb: Enable wandb logging of training, requires that wandb is installed
             and initialized
         wandb: WandBConfig to set up the wandb logged run
@@ -103,6 +87,25 @@ class TransformedParameters:
             during training
         checkpoint_model: if true, save a checkpoint after each epoch
         log_level: what logging level to use
+
+    Example:
+
+        model_type: transformed
+        hyperparameters:
+        epochs: 1
+        loss:
+            loss_variables: [dQ2]
+        model:
+            architecture:
+                name: dense
+            direct_out_variables:
+            - dQ2
+            input_variables:
+            - air_temperature
+            - specific_humidity
+            - cos_zenith_angle
+        use_wandb: false
+
     """
 
     tensor_transform: List[
@@ -172,6 +175,10 @@ class TransformedParameters:
         return self.transform_factory.backward_names(
             set(self._model.input_variables) | set(self._model.output_variables)
         )
+
+    @property
+    def variables(self) -> Set[str]:
+        return self.model_variables
 
 
 # Temporarily subclass from the hyperparameters object for backwards compatibility
@@ -333,13 +340,28 @@ def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
 
 @register_training_function("transformed", TransformedParameters)
 def train_function(
-    config: TransformedParameters, train_ds: tf.data.Dataset, test_ds: tf.data.Dataset,
+    hyperparameters: TransformedParameters,
+    train_batches: tf.data.Dataset,
+    validation_batches: Optional[tf.data.Dataset],
 ) -> PureKerasDictPredictor:
-    return _train_function_unbatched(config, train_ds.unbatch(), test_ds.unbatch())
+    def _prepare(ds):
+        return (
+            ds.map(tfdataset.apply_to_mapping(tfdataset.float64_to_float32))
+            .map(expand_single_dim_data)
+            .unbatch()
+        )
+
+    return _train_function_unbatched(
+        hyperparameters,
+        _prepare(train_batches),
+        _prepare(validation_batches) if validation_batches else None,
+    )
 
 
 def _train_function_unbatched(
-    config: TransformedParameters, train_ds: tf.data.Dataset, test_ds: tf.data.Dataset,
+    config: TransformedParameters,
+    train_ds: tf.data.Dataset,
+    test_ds: Optional[tf.data.Dataset],
 ) -> PureKerasDictPredictor:
     # callbacks that are always active
     callbacks = [tf.keras.callbacks.TerminateOnNaN()]
@@ -356,7 +378,6 @@ def _train_function_unbatched(
     transform = config.build_transform(train_set)
 
     train_ds = train_ds.map(transform.forward)
-    test_ds = test_ds.map(transform.forward)
 
     model = config.build_model(train_set, transform)
 
@@ -370,7 +391,12 @@ def _train_function_unbatched(
         )
 
     train_ds_batched = train_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
-    test_ds_batched = test_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
+
+    if test_ds is not None:
+        test_ds = test_ds.map(transform.forward)
+        test_ds_batched = test_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
+    else:
+        test_ds_batched = None
 
     history = train(
         model,

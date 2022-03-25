@@ -1,9 +1,8 @@
 from pathlib import PosixPath
 import sys
-from dataclasses import asdict, dataclass
+from fv3fit.dataclasses import asdict_with_enum as asdict
 from unittest.mock import Mock
 
-from enum import Enum
 from fv3fit.emulation.losses import CustomLoss
 
 import pytest
@@ -18,7 +17,6 @@ from fv3fit.train_microphysics import (
     TransformedParameters,
     get_default_config,
     main,
-    _asdict_with_enum,
 )
 
 
@@ -179,14 +177,3 @@ def test_TrainConfig_build_loss():
     loss_value, _ = loss(data, data)
     assert 0 == pytest.approx(loss_value.numpy())
     transform.forward.assert_called()
-
-
-def test__asdict_with_enum():
-    class A(Enum):
-        a = 1
-
-    @dataclass
-    class B:
-        enum: A
-
-    assert _asdict_with_enum(B(A.a)) == {"enum": 1}
