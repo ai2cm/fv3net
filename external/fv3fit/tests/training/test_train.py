@@ -1,5 +1,6 @@
 import dataclasses
 from typing import Any, Callable, Optional, Sequence, TextIO, Tuple
+
 from fv3fit._shared.config import SliceConfig
 from fv3fit.keras._models.shared.clip import ClipConfig
 from fv3fit.keras._models.convolutional import ConvolutionalHyperparameters
@@ -24,6 +25,7 @@ GENERAL_TRAINING_TYPES = [
     "sklearn_random_forest",
     "precipitative",
     "dense",
+    "transformed",
 ]
 # training functions that have restrictions on the datasets they support,
 # cannot be used in generic tests below
@@ -75,6 +77,12 @@ def get_default_hyperparameters(model_type, input_variables, output_variables):
     values.
     """
     cls = get_hyperparameter_class(model_type)
+
+    try:
+        return cls.get_default_model(input_variables, output_variables)
+    except AttributeError:
+        pass
+
     try:
         hyperparameters = cls()
     except TypeError:
@@ -149,12 +157,12 @@ def _get_dataset_precipitative(sample_func):
     )
 
 
-def _get_dataset_default(sample_func):
+def _get_dataset_default(sample_func, data_2d_ceof=1):
     input_variables = ["var_in_2d", "var_in_3d"]  # 2d var will be clipped below
     output_variables = ["var_out"]
     input_values = list(sample_func() for _ in input_variables)
     i_2d_input = input_variables.index("var_in_2d")
-    input_values[i_2d_input] = input_values[i_2d_input].isel(z=0) * 0.0
+    input_values[i_2d_input] = input_values[i_2d_input].isel(z=0) * data_2d_ceof
     i_3d_input = input_variables.index("var_in_3d")
     output_values = [input_values[i_3d_input]]
     return (
@@ -179,7 +187,11 @@ def get_dataset_precipitative(sample_func):
 
 
 def get_dataset_convolutional(sample_func):
-    input_variables, output_variables, train_dataset = _get_dataset_default(sample_func)
+    input_variables, output_variables, train_dataset = _get_dataset_default(
+        sample_func,
+        # transpose tests fail if the 2d data varies
+        data_2d_ceof=0.0,
+    )
     train_dataset = stack(train_dataset, unstacked_dims=["tile", "x", "y", "z"])
     return input_variables, output_variables, train_dataset
 

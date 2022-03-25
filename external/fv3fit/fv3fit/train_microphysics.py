@@ -180,6 +180,20 @@ class TransformedParameters(Hyperparameters):
     def variables(self) -> Set[str]:
         return self.model_variables
 
+    @classmethod
+    def get_default_model(
+        cls, input_variables, output_variables
+    ) -> "TransformedParameters":
+        """used for testing"""
+        return cls(
+            model=models.MicrophysicsConfig(
+                input_variables=input_variables,
+                direct_out_variables=output_variables,
+                architecture=ArchitectureConfig("dense"),
+            ),
+            loss=CustomLoss(loss_variables=output_variables),
+        )
+
 
 # Temporarily subclass from the hyperparameters object for backwards compatibility
 # we can delete this class once usage has switched to fv3fit.train
