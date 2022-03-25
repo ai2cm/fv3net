@@ -15,7 +15,7 @@ class Hyperparameters(abc.ABC):
 
     @classmethod
     def init_testing(cls, input_variables, output_variables) -> "Hyperparameters":
-        """Initialize a default model for a given input/output problem"""
+        """Initialize a default instance for a given input/output problem"""
         try:
             hyperparameters = cls()
         except TypeError:
