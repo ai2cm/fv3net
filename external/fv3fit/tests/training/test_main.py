@@ -64,6 +64,7 @@ class MainArgs:
     training_data_config: str
     validation_data_config: str
     output_path: str
+    wandb: bool = False
 
 
 class MockHyperparameters:
