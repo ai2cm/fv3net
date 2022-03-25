@@ -416,7 +416,7 @@ def test_train_dense_model_clipped_inputs_outputs():
     input_variables = ["var_in_0", "var_in_1"]
     output_variables = ["var_out_0", "var_out_1"]
 
-    cls = get_hyperparameter_class(model_type)
+    cls = get_hyperparameter_class("dense")
     hyperparameters = cls.get_default_model(input_variables, output_variables)
     hyperparameters.clip_config = ClipConfig(
         {"var_in_0": SliceConfig(2, 5), "var_out_0": SliceConfig(4, 8)}
