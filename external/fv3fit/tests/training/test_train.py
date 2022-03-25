@@ -71,35 +71,13 @@ class TrainingResult:
     hyperparameters: Any
 
 
-def get_default_hyperparameters(model_type, input_variables, output_variables):
-    """
-    Returns a hyperparameter configuration class for the model type with default
-    values.
-    """
-    cls = get_hyperparameter_class(model_type)
-
-    try:
-        return cls.get_default_model(input_variables, output_variables)
-    except AttributeError:
-        pass
-
-    try:
-        hyperparameters = cls()
-    except TypeError:
-        hyperparameters = cls(
-            input_variables=input_variables, output_variables=output_variables
-        )
-    return hyperparameters
-
-
 def train_identity_model(model_type, sample_func, hyperparameters=None):
     input_variables, output_variables, train_dataset = get_dataset(
         model_type, sample_func
     )
     if hyperparameters is None:
-        hyperparameters = get_default_hyperparameters(
-            model_type, input_variables, output_variables
-        )
+        cls = get_hyperparameter_class(model_type)
+        hyperparameters = cls.get_default_model(input_variables, output_variables)
     input_variables, output_variables, test_dataset = get_dataset(
         model_type, sample_func
     )
@@ -438,9 +416,8 @@ def test_train_dense_model_clipped_inputs_outputs():
     input_variables = ["var_in_0", "var_in_1"]
     output_variables = ["var_out_0", "var_out_1"]
 
-    hyperparameters = get_default_hyperparameters(
-        "dense", input_variables, output_variables
-    )
+    cls = get_hyperparameter_class(model_type)
+    hyperparameters = cls.get_default_model(input_variables, output_variables)
     hyperparameters.clip_config = ClipConfig(
         {"var_in_0": SliceConfig(2, 5), "var_out_0": SliceConfig(4, 8)}
     )
