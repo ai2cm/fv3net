@@ -1,7 +1,7 @@
 import dataclasses
 from typing import Any, Optional, Sequence
 import fv3fit
-from fv3fit._shared.config import get_hyperparameter_class
+from fv3fit._shared.config import CacheConfig, get_hyperparameter_class
 from fv3fit._shared.hyperparameters import Hyperparameters
 import fv3fit.train
 from fv3fit._shared.io import register
@@ -64,7 +64,6 @@ class MainArgs:
     training_data_config: str
     validation_data_config: str
     output_path: str
-    local_download_path: Optional[str] = None
     wandb: bool = False
 
 
@@ -79,6 +78,7 @@ class TestConfig:
     hyperparameters: Hyperparameters
     output_path: str
     mock_dataset: xr.Dataset
+    local_download_path: Optional[str] = None
 
 
 @dataclasses.dataclass
@@ -168,13 +168,6 @@ def call_main(
         output_transforms=output_transforms,
     )
     mock_load_batches.return_value = [config.mock_dataset for _ in range(6)]
-    if use_local_download_path is True:
-        local_download_path_arg = [
-            "--cache.local_download_path",
-            config.args.local_download_path,
-        ]
-    else:
-        local_download_path_arg = []
     with mock.patch("fv3fit.DerivedModel") as MockDerivedModel, mock.patch(
         "fv3fit.TransformedPredictor"
     ) as MockTransformedPredictor:
@@ -184,7 +177,7 @@ def call_main(
         MockTransformedPredictor.return_value = mock.MagicMock(
             name="transformed_predictor_return", spec=fv3fit.Predictor
         )
-        fv3fit.train.main(config.args, unknown_args=local_download_path_arg)
+        fv3fit.train.main(config.args)
     return CallArtifacts(
         config.output_path,
         config.variables,
@@ -389,11 +382,17 @@ def get_config(
     hyperparameters = get_hyperparameters(
         model_type, hyperparameter_dict, input_variables, output_variables
     )
+
+    if use_local_download_path:
+        local_download_path = os.path.join(base_dir, "local_data")
+    else:
+        local_download_path = None
     training_config = fv3fit.TrainingConfig(
         model_type=model_type,
         hyperparameters=hyperparameters,
         derived_output_variables=derived_output_variables,
         output_transforms=output_transforms,
+        cache=CacheConfig(local_download_path=local_download_path, in_memory=False),
     )
     mock_dataset = get_mock_dataset(n_time=9, unstacked_dims=unstacked_dims)
     train_times = [vcm.encode_time(dt) for dt in mock_dataset["time"][:6].values]
@@ -442,21 +441,20 @@ def get_config(
         yaml.dump(dataclasses.asdict(training_config), f)
     output_path = os.path.join(base_dir, "output")
 
-    if use_local_download_path:
-        local_download_path = os.path.join(base_dir, "local_data")
-    else:
-        local_download_path = None
-
     args = MainArgs(
         data_path=data_path,
         training_config=training_filename,
         training_data_config=train_data_filename,
         validation_data_config=validation_data_filename,
         output_path=output_path,
-        local_download_path=local_download_path,
     )
     return TestConfig(
-        args, training_config.variables, hyperparameters, output_path, mock_dataset
+        args,
+        training_config.variables,
+        hyperparameters,
+        output_path,
+        mock_dataset,
+        local_download_path=local_download_path,
     )
 
 
@@ -496,10 +494,6 @@ def cli_main(args: MainArgs):
         validation_args = []
     else:
         validation_args = ["--validation-data-config", args.validation_data_config]
-    if args.local_download_path is None:
-        local_download_args = []
-    else:
-        local_download_args = ["--cache.local_download_path", args.local_download_path]
     subprocess.check_call(
         [
             "python",
@@ -510,7 +504,6 @@ def cli_main(args: MainArgs):
             args.output_path,
         ]
         + validation_args
-        + local_download_args
     )
     # if you need pdb support, temporarily replace the check_call above with this:
     # fv3fit.train.main(args)
@@ -571,4 +564,4 @@ def test_cli(
     cli_main(config.args)
     fv3fit.load(config.args.output_path)
     if use_local_download_path:
-        assert len(os.listdir(config.args.local_download_path)) > 0
+        assert len(os.listdir(config.local_download_path)) > 0

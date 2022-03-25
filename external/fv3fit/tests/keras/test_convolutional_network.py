@@ -66,7 +66,9 @@ def test_convolutional_network_build_standard_input_gives_standard_output():
         next(
             iter(
                 tf.data.Dataset.from_tensor_slices(X_array)
+                .batch(nt)
                 .map(append_halos)
+                .unbatch()
                 .unbatch()
                 .batch(6 * nt)
             )
@@ -94,7 +96,9 @@ def test_convolutional_network_build_initial_loss_near_one():
         next(
             iter(
                 tf.data.Dataset.from_tensor_slices(X_array)
+                .batch(nt)
                 .map(append_halos)
+                .unbatch()
                 .unbatch()
                 .batch(6 * nt)
             )

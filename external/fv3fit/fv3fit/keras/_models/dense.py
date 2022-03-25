@@ -194,7 +194,7 @@ def train_column_model(
         tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
     )
     get_Xy = curry(get_Xy_dataset)(
-        input_variables=input_variables, output_variables=output_variables, n_dims=1,
+        input_variables=input_variables, output_variables=output_variables, n_dims=2,
     )
     if validation_batches is not None:
         validation_batches = validation_batches.map(
@@ -206,7 +206,11 @@ def train_column_model(
 
     train_Xy = get_Xy(data=train_batches, clip_config=clip_config.clip)
     # need unclipped shapes for build_model
-    X, y = next(iter(get_Xy(data=train_batches, clip_config=None).batch(build_samples)))
+    X, y = next(
+        iter(
+            get_Xy(data=train_batches, clip_config=None).unbatch().batch(build_samples)
+        )
+    )
 
     train_model, predict_model = build_model(X=X, y=y)
     del X
