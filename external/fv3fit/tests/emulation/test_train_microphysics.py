@@ -15,7 +15,7 @@ from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.train_microphysics import (
     TrainConfig,
-    MicrophysicsHyperParameters,
+    TransformedParameters,
     get_default_config,
     main,
     _asdict_with_enum,
@@ -154,7 +154,7 @@ def test_MicrophysicsHyperParameters_build_model():
     field = Field("out", "in")
     in_ = "in"
     out = "out"
-    config = MicrophysicsHyperParameters(
+    config = TransformedParameters(
         model=MicrophysicsConfig(
             input_variables=[in_],
             direct_out_variables=[out],

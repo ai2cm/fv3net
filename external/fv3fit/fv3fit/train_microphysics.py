@@ -8,6 +8,7 @@ import logging
 import numpy as np
 import os
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
+from fv3fit._shared.config import register_training_function
 
 import tensorflow as tf
 import yaml
@@ -77,14 +78,12 @@ def load_config_yaml(path: str) -> Dict[str, Any]:
 
 
 @dataclass
-class MicrophysicsHyperParameters:
+class TransformedParameters:
     """
     Configuration for training a microphysics emulator
 
     Args:
-        train_url: Path to training netcdfs (already in [sample x feature] format)
-        test_url: Path to validation netcdfs (already in [sample x feature] format)
-        out_url:  Where to store the trained model, history, and configuration
+        out_url:  where to save checkpoints
         transform: Data preprocessing TransformConfig
         tensor_transform: specification of differerentiable tensorflow
             transformations to apply before and after data is passed to models and
@@ -117,8 +116,11 @@ class MicrophysicsHyperParameters:
     valid_freq: int = 5
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 13824
+    # only model checkpoints are saved at out_url, but need to keep these name
+    # for backwards compatibility
     checkpoint_model: bool = True
     out_url: str = ""
+    # ideally will refactor these out, but need to insert the callback somehow
     use_wandb: bool = True
     wandb: WandBConfig = field(default_factory=WandBConfig)
 
@@ -175,7 +177,7 @@ class MicrophysicsHyperParameters:
 # Temporarily subclass from the hyperparameters object for backwards compatibility
 # we can delete this class once usage has switched to fv3fit.train
 @dataclass
-class TrainConfig(MicrophysicsHyperParameters):
+class TrainConfig(TransformedParameters):
     """
     Configuration for training a microphysics emulator
 
@@ -329,18 +331,15 @@ def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
         np.savez(os.path.join(tmpdir, filename), **dumpable)
 
 
+@register_training_function("transformed", TransformedParameters)
 def train_function(
-    config: MicrophysicsHyperParameters,
-    train_ds: tf.data.Dataset,
-    test_ds: tf.data.Dataset,
+    config: TransformedParameters, train_ds: tf.data.Dataset, test_ds: tf.data.Dataset,
 ) -> PureKerasDictPredictor:
     return _train_function_unbatched(config, train_ds.unbatch(), test_ds.unbatch())
 
 
 def _train_function_unbatched(
-    config: MicrophysicsHyperParameters,
-    train_ds: tf.data.Dataset,
-    test_ds: tf.data.Dataset,
+    config: TransformedParameters, train_ds: tf.data.Dataset, test_ds: tf.data.Dataset,
 ) -> PureKerasDictPredictor:
     # callbacks that are always active
     callbacks = [tf.keras.callbacks.TerminateOnNaN()]
