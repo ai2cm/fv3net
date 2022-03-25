@@ -29,13 +29,17 @@ from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 
 from fv3fit.emulation.transforms.factories import ConditionallyScaled
 from fv3fit.emulation.types import LossFunction, TensorDict
-from fv3fit.emulation import models, train, ModelCheckpointCallback
+from fv3fit.emulation import train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tfdataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.keras import save_model
 from fv3fit.emulation.losses import CustomLoss
-from fv3fit.emulation.models import transform_model
+from fv3fit.emulation.models import (
+    transform_model,
+    MicrophysicsConfig,
+    ConservativeWaterConfig,
+)
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
     Difference,
@@ -50,6 +54,18 @@ from fv3fit.wandb import (
 )
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "TransformedParameters",
+    "MicrophysicsConfig",
+    "CustomLoss",
+    "TransformedVariableConfig",
+    "ConditionallyScaled",
+    "Difference",
+    "WandBConfig",
+    "ArchitectureConfig",
+    "SliceConfig",
+]
 
 
 def load_config_yaml(path: str) -> Dict[str, Any]:
@@ -69,7 +85,6 @@ class TransformedParameters(Hyperparameters):
     Configuration for training a microphysics emulator
 
     Args:
-        out_url:  where to save checkpoints
         transform: Data preprocessing TransformConfig
         tensor_transform: specification of differerentiable tensorflow
             transformations to apply before and after data is passed to models and
@@ -85,34 +100,36 @@ class TransformedParameters(Hyperparameters):
         verbose: Verbosity of keras fit output
         shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
             during training
+        out_url:  where to save checkpoints
         checkpoint_model: if true, save a checkpoint after each epoch
-        log_level: what logging level to use
 
     Example:
 
+    .. code-block:: yaml
+
         model_type: transformed
         hyperparameters:
-        epochs: 1
-        loss:
-            loss_variables: [dQ2]
-        model:
-            architecture:
-                name: dense
-            direct_out_variables:
-            - dQ2
-            input_variables:
-            - air_temperature
-            - specific_humidity
-            - cos_zenith_angle
-        use_wandb: false
+            epochs: 1
+            loss:
+                loss_variables: [dQ2]
+            model:
+                architecture:
+                    name: dense
+                direct_out_variables:
+                - dQ2
+                input_variables:
+                - air_temperature
+                - specific_humidity
+                - cos_zenith_angle
+            use_wandb: false
 
     """
 
     tensor_transform: List[
         Union[TransformedVariableConfig, ConditionallyScaled, Difference]
     ] = field(default_factory=list)
-    model: Optional[models.MicrophysicsConfig] = None
-    conservative_model: Optional[models.ConservativeWaterConfig] = None
+    model: Optional[MicrophysicsConfig] = None
+    conservative_model: Optional[ConservativeWaterConfig] = None
     loss: CustomLoss = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
@@ -138,7 +155,7 @@ class TransformedParameters(Hyperparameters):
     def _model(
         self,
     ) -> Union[
-        models.MicrophysicsConfig, models.ConservativeWaterConfig,
+        MicrophysicsConfig, ConservativeWaterConfig,
     ]:
         if self.model:
             return self.model
@@ -186,7 +203,7 @@ class TransformedParameters(Hyperparameters):
     ) -> "TransformedParameters":
         """used for testing"""
         return cls(
-            model=models.MicrophysicsConfig(
+            model=MicrophysicsConfig(
                 input_variables=input_variables,
                 direct_out_variables=output_variables,
                 architecture=ArchitectureConfig("dense"),
@@ -233,8 +250,8 @@ class TrainConfig(TransformedParameters):
     tensor_transform: List[
         Union[TransformedVariableConfig, ConditionallyScaled, Difference]
     ] = field(default_factory=list)
-    model: Optional[models.MicrophysicsConfig] = None
-    conservative_model: Optional[models.ConservativeWaterConfig] = None
+    model: Optional[MicrophysicsConfig] = None
+    conservative_model: Optional[ConservativeWaterConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     loss: CustomLoss = field(default_factory=CustomLoss)
@@ -481,7 +498,7 @@ def get_default_config():
         "pressure_thickness_of_atmospheric_layer",
     ]
 
-    model_config = models.MicrophysicsConfig(
+    model_config = MicrophysicsConfig(
         input_variables=input_vars,
         direct_out_variables=[
             "cloud_water_mixing_ratio_after_precpd",
