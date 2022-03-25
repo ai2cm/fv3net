@@ -202,13 +202,14 @@ class TransformedParameters(Hyperparameters):
         cls, input_variables, output_variables
     ) -> "TransformedParameters":
         """used for testing"""
-        return cls(
+        return TransformedParameters(
             model=MicrophysicsConfig(
                 input_variables=input_variables,
                 direct_out_variables=output_variables,
                 architecture=ArchitectureConfig("dense"),
             ),
             loss=CustomLoss(loss_variables=output_variables),
+            use_wandb=False,
         )
 
 
