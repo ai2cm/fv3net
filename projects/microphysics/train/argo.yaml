@@ -60,7 +60,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: us.gcr.io/vcm-ml/fv3fit:2f8116a5431b927d84636715293846961791dcf5
+        image: us.gcr.io/vcm-ml/fv3fit:be696063a93d2829c5f03fa9f81e8aa3855790b1
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -103,7 +103,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: us.gcr.io/vcm-ml/fv3fit:2f8116a5431b927d84636715293846961791dcf5
+        image: us.gcr.io/vcm-ml/fv3fit:be696063a93d2829c5f03fa9f81e8aa3855790b1
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
