@@ -8,6 +8,7 @@ from typing import MutableMapping, Sequence, List
 import fsspec
 
 import fv3viz
+import matplotlib.pyplot as plt
 import numpy as np
 import report
 import vcm
@@ -23,6 +24,7 @@ from fv3net.diagnostics.offline._helpers import (
 )
 from fv3net.diagnostics.offline._select import plot_transect
 from fv3net.diagnostics.offline.compute import (
+    DATASET_DIM_NAME,
     DIAGS_NC_NAME,
     TRANSECT_NC_NAME,
     METRICS_JSON_NAME,
@@ -151,6 +153,7 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
                 section_name=section,
                 output_dir=output_dir,
             )
+            plt.close(fig)
             fig_error = plot_column_integrated_var(
                 ds.update(ds_diags[["lat", "lon", "latb", "lonb"]]),
                 f"error_in_{var}",
@@ -164,6 +167,7 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
                 section_name=section,
                 output_dir=output_dir,
             )
+            plt.close(fig_error)
     return report.create_html(sections=report_sections, title="Maps",)
 
 
@@ -192,12 +196,15 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name="Timesteps used for testing",
             output_dir=output_dir,
         )
+        plt.close(fig)
 
     # Zonal average of vertical profiles for R2
     zonal_avg_pressure_level_metrics = [
         var
         for var in ds_diags.data_vars
-        if var.endswith("_pressure_level_zonal_avg_global") and ("r2" in var.lower())
+        if var.endswith("_pressure_level_zonal_avg_global")
+        and ("r2" in var.lower())
+        and ("per_dataset" not in var.lower())
     ]
     for var in sorted(zonal_avg_pressure_level_metrics):
         fig = plot_zonal_average(
@@ -212,25 +219,31 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name="Zonal averaged pressure level metrics",
             output_dir=output_dir,
         )
+        plt.close(fig)
 
     # vertical profiles of bias and R2
-    pressure_level_metrics = [
-        var
-        for var in ds_diags.data_vars
-        if var.endswith("pressure_level_global") and ("r2" in var.lower())
-    ]
-    for var in sorted(pressure_level_metrics):
-        ylim = (0, 1) if "r2" in var.lower() else None
-        fig = plot_generic_data_array(
-            ds_diags[var], xlabel="pressure [Pa]", ylim=ylim, title=tidy_title(var)
-        )
-        report.insert_report_figure(
-            report_sections,
-            fig,
-            filename=f"{var}.png",
-            section_name="Pressure level metrics",
-            output_dir=output_dir,
-        )
+    for coord in ["pressure_level", "model_level"]:
+        label = "pressure [Pa]" if coord == "pressure_level" else "model level"
+        level_metrics = [
+            var
+            for var in ds_diags.data_vars
+            if var.endswith(f"{coord}_global")
+            and ("r2" in var.lower())
+            and ("per_dataset" not in var.lower())
+        ]
+        for var in sorted(level_metrics):
+            ylim = (0, 1) if "r2" in var.lower() else None
+            fig = plot_generic_data_array(
+                ds_diags[var], xlabel=label, ylim=ylim, title=tidy_title(var)
+            )
+            report.insert_report_figure(
+                report_sections,
+                fig,
+                filename=f"{var}.png",
+                section_name=coord.replace("_", " ") + " metrics",
+                output_dir=output_dir,
+            )
+            plt.close(fig)
 
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
     vars_3d = [v for v in ds_diags if is_3d(ds_diags[v])]
@@ -256,6 +269,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name="Vertical profiles of predicted variables",
             output_dir=output_dir,
         )
+        plt.close(fig)
 
     # 2d quantity diurnal cycles
     ds_diurnal = get_plot_dataset(
@@ -270,6 +284,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name="Diurnal cycles of column integrated quantities",
             output_dir=output_dir,
         )
+        plt.close(fig)
 
     # transect of predicted fields at lon=0
     if len(ds_transect) > 0:
@@ -283,10 +298,13 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
                 section_name=f"Transect snapshot at lon=0 deg, {transect_time}",
                 output_dir=output_dir,
             )
+            plt.close(fig)
 
     # scalar metrics for RMSE and bias
     metrics_formatted = []
-    scalar_vars_r2 = sorted([var for var in metrics if "r2" in var])
+    scalar_vars_r2 = sorted(
+        [var for var in metrics if "_r2" in var and "per_dataset" not in var]
+    )
     scalar_vars_bias = [var.replace("_r2", "_bias") for var in scalar_vars_r2]
 
     for var_r2, var_bias in zip(scalar_vars_r2, scalar_vars_bias):
@@ -309,6 +327,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name=f"Water vapor path versus column integrated drying",
             output_dir=output_dir,
         )
+        plt.close(hist2d_wvp_vs_q2)
         hist_wvp = plot_histogram(ds_diags, f"{WVP}_histogram")
         report.insert_report_figure(
             report_sections,
@@ -317,6 +336,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name=f"Water vapor path versus column integrated drying",
             output_dir=output_dir,
         )
+        plt.close(hist_wvp)
         hist_col_drying = plot_histogram(ds_diags, f"{COL_DRYING}_histogram")
         report.insert_report_figure(
             report_sections,
@@ -325,6 +345,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name=f"Water vapor path versus column integrated drying",
             output_dir=output_dir,
         )
+        plt.close(hist_col_drying)
     return report.create_html(
         sections=report_sections,
         title="ML offline diagnostics",
@@ -344,6 +365,9 @@ def create_report(args):
         metrics_json_name=METRICS_JSON_NAME,
         metadata_json_name=METADATA_JSON_NAME,
     )
+
+    if DATASET_DIM_NAME in ds_diags.dims:
+        ds_diags = ds_diags.mean(DATASET_DIM_NAME)
 
     if args.commit_sha:
         metadata["commit"] = args.commit_sha

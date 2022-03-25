@@ -1,58 +1,8 @@
-from fv3fit._shared.packer import ArrayPacker
 import tensorflow as tf
-from typing import List, Optional, Sequence, Type, Tuple, Dict, Any
-import xarray as xr
+from typing import List, Sequence, Type
 from fv3fit.emulation.layers import StandardNormLayer, StandardDenormLayer, NormLayer
-from fv3fit._shared.stacking import stack
 
 import numpy as np
-
-
-def get_stacked_metadata(
-    names, ds: xr.Dataset, unstacked_dims: Sequence[str]
-) -> Tuple[Dict[str, Any], ...]:
-    """
-    Retrieve xarray metadata for dataset after stacking.
-
-    Returns a dict containing "dims" and "units" for each name.
-    """
-    ds = stack(ds, unstacked_dims=unstacked_dims)
-    metadata = []
-    for name in names:
-        metadata.append(
-            {"dims": ds[name].dims, "units": ds[name].attrs.get("units", "unknown")}
-        )
-    return tuple(metadata)
-
-
-def get_input_vector(
-    packer: ArrayPacker, n_window: Optional[int] = None, series: bool = True,
-):
-    """
-    Given a packer, return a list of input layers with one layer
-    for each input used by the packer, and a list of output tensors which are
-    the result of packing those input layers.
-
-    Args:
-        packer
-        n_window: required if series is True, number of timesteps in a sample
-        series: if True, returned inputs have shape [n_window, n_features], otherwise
-            they are 1D [n_features] arrays
-    """
-    features = [packer.feature_counts[name] for name in packer.pack_names]
-    if series:
-        if n_window is None:
-            raise TypeError("n_window is required if series is True")
-        input_layers = [
-            tf.keras.layers.Input(shape=[n_window, n_features])
-            for n_features in features
-        ]
-    else:
-        input_layers = [
-            tf.keras.layers.Input(shape=[n_features]) for n_features in features
-        ]
-    packed = tf.keras.layers.Concatenate()(input_layers)
-    return input_layers, packed
 
 
 def _fit_norm_layer(

@@ -1,17 +1,24 @@
+from pathlib import PosixPath
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from unittest.mock import Mock
+
+from enum import Enum
 from fv3fit.emulation.losses import CustomLoss
 
 import pytest
 import tensorflow as tf
-import yaml
 from fv3fit._shared.config import _to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
-from fv3fit.train_microphysics import TrainConfig, get_default_config, main
+from fv3fit.train_microphysics import (
+    TrainConfig,
+    get_default_config,
+    main,
+    _asdict_with_enum,
+)
 
 
 def test_TrainConfig_defaults():
@@ -89,17 +96,12 @@ def test_TrainConfig_from_flat_dict():
     assert result == expected
 
 
-def test_TrainConfig_from_yaml(tmp_path):
-
-    default = get_default_config()
-
-    yaml_path = str(tmp_path / "train_config.yaml")
-    with open(yaml_path, "w") as f:
-        yaml.safe_dump(asdict(default), f)
-
-        loaded = TrainConfig.from_yaml_path(yaml_path)
-
-        assert loaded == default
+def test_TrainConfig_from_yaml(tmp_path: PosixPath):
+    default = TrainConfig(".", ".", ".")
+    yaml_path = tmp_path / "train_config.yaml"
+    yaml_path.write_text(default.to_yaml())
+    loaded = TrainConfig.from_yaml_path(yaml_path.as_posix())
+    assert loaded == default
 
 
 def test_TrainConfig_from_args_default():
@@ -131,22 +133,8 @@ def test_TrainConfig_from_args_sysargv(monkeypatch):
     assert config.model.architecture.name == "rnn"
 
 
-@pytest.mark.parametrize(
-    "arch_key, expected_cache",
-    [("dense", True), ("rnn-v1", False), ("rnn-v1-shared-weights", False)],
-)
-def test_rnn_v1_cache_disable(arch_key, expected_cache):
-
-    default = get_default_config()
-    d = asdict(default)
-    d["cache"] = True
-    d["model"]["architecture"]["name"] = arch_key
-    config = TrainConfig.from_dict(d)
-
-    assert config.cache == expected_cache
-
-
 @pytest.mark.regression
+@pytest.mark.slow
 def test_training_entry_integration(tmp_path):
 
     config_dict = asdict(get_default_config())
@@ -193,3 +181,14 @@ def test_TrainConfig_build_loss():
     loss_value, _ = loss(data, data)
     assert 0 == pytest.approx(loss_value.numpy())
     transform.forward.assert_called()
+
+
+def test__asdict_with_enum():
+    class A(Enum):
+        a = 1
+
+    @dataclass
+    class B:
+        enum: A
+
+    assert _asdict_with_enum(B(A.a)) == {"enum": 1}

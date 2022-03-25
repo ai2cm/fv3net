@@ -1,8 +1,12 @@
+from dataclasses import dataclass
+import datetime
+import cftime
 import gc
 import sys
 from typing import Callable, Optional, Set
 
 from .._typing import FortranState
+from .._time import translate_time
 
 # Tensorflow looks at sys args which are not initialized
 # when this module is loaded under callpyfort, so ensure
@@ -13,32 +17,66 @@ if not hasattr(sys, "argv"):
 import logging  # noqa: E402
 import numpy as np  # noqa: E402
 import tensorflow as tf  # noqa: E402
-from ..debug import print_errors  # noqa: E402
 from fv3fit.keras import adapters  # noqa: E402
-from .._filesystem import get_dir  # noqa: E402
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 MaskFn = Callable[[FortranState, FortranState, FortranState], FortranState]
 
 
-class MicrophysicsHook:
+@dataclass
+class IntervalSchedule:
+    """Select left value if in first half of interval of a given ``period`` and
+    ``initial_time``.
     """
-    Singleton class for configuring from the environment for
-    the microphysics function used during fv3gfs-runtime by
-    call-py-fort
 
-    Instanced at the top level of `_emulate`
-    """
+    period: datetime.timedelta
+    initial_time: cftime.DatetimeJulian
+
+    def __call__(self, time: cftime.DatetimeJulian) -> float:
+        fraction_of_interval = ((time - self.initial_time) / self.period) % 1
+        return 1.0 if fraction_of_interval < 0.5 else 0.0
+
+
+@dataclass
+class TimeMask:
+    schedule: IntervalSchedule
+
+    def __call__(self, state: FortranState, emulator: FortranState) -> FortranState:
+        time = translate_time(state["model_time"])
+        alpha = self.schedule(time)
+        common_keys = set(state) & set(emulator)
+        return {
+            key: state[key] * alpha + emulator[key] * (1 - alpha) for key in common_keys
+        }
+
+
+def always_emulator(state: FortranState, outputs, emulator: FortranState):
+    return emulator
+
+
+Mask = Callable[[FortranState, FortranState, FortranState], FortranState]
+
+
+class MicrophysicsHook:
+    """Object that applies a ML model to the fortran state"""
 
     def __init__(
         self,
         model: tf.keras.Model,
-        mask: MaskFn,
+        mask: Mask = always_emulator,
         garbage_collection_interval: int = 10,
     ) -> None:
+        """
+
+        Args:
+            model_path: URL to model. gcs is ok too.
+            mask: ``mask(state, emulator_updates)`` blends the state and
+                emulator_updates into a single prediction. Used to e.g. mask
+                portions of the emulators prediction.
+        """
 
         self.name = "microphysics emulator"
 
@@ -54,16 +92,9 @@ class MicrophysicsHook:
         )
         self.orig_outputs: Optional[Set[str]] = None
         self.garbage_collection_interval = garbage_collection_interval
+        self.mask = mask
         self._calls_since_last_collection = 0
         self._mask = mask
-
-    @staticmethod
-    @print_errors
-    def from_path(model_path: str, mask: MaskFn) -> tf.keras.Model:
-        logger.info(f"Loading keras model: {model_path}")
-        with get_dir(model_path) as local_model_path:
-            model = tf.keras.models.load_model(local_model_path)
-        return MicrophysicsHook(model, mask)
 
     def _maybe_garbage_collect(self):
         if self._calls_since_last_collection % self.garbage_collection_interval:
@@ -93,6 +124,7 @@ class MicrophysicsHook:
         true_output = {
             name: np.atleast_2d(state[name]).T for name in state if name in predictions
         }
+        # masking happens in transposed space
         predictions = self._mask(inputs, true_output, predictions)
 
         # tranpose back to FV3 conventions
@@ -101,11 +133,12 @@ class MicrophysicsHook:
         # fields stay in global state so check overwrites on first step
         if self.orig_outputs is None:
             self.orig_outputs = set(state).intersection(model_outputs)
+            logger.debug(f"Overwriting existing state fields: {self.orig_outputs}")
 
-        logger.info(f"Overwritting existing state fields: {self.orig_outputs}")
         microphysics_diag = {
             f"{name}_physics_diag": state[name] for name in self.orig_outputs
         }
+
         state.update(model_outputs)
         state.update(microphysics_diag)
         self._maybe_garbage_collect()

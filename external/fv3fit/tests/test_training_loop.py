@@ -1,8 +1,15 @@
+from typing import Tuple
 import fv3fit
 from unittest import mock
+from fv3fit.keras._models.shared.training_loop import (
+    EpochCallback,
+    _shuffle_batched_tfdataset,
+    sequence_size,
+)
 import tensorflow as tf
-import numpy as np
 import pytest
+import contextlib
+import numpy as np
 
 
 def test_mock_in_sequence():
@@ -15,39 +22,51 @@ def test_mock_in_sequence():
     assert m not in [mock.MagicMock()]
 
 
+@contextlib.contextmanager
+def mock_tfdataset_to_tensor_sequence():
+    tfdataset_to_tensor_sequence_mock = mock.MagicMock()
+    tfdataset_to_tensor_sequence_mock.return_value = [
+        mock.MagicMock(),
+        mock.MagicMock(),
+    ]
+    with mock.patch(
+        "fv3fit.keras._models.shared.training_loop._tfdataset_to_tensor_sequence",
+        new=tfdataset_to_tensor_sequence_mock,
+    ) as m:
+        yield m
+
+
 def test_fit_loop():
-    n_batches = 5
     n_callbacks = 0
     config = fv3fit.TrainingLoopConfig()
     mock_model = mock.MagicMock(spec=tf.keras.Model)
-    mock_Xy = []
-    for _ in range(n_batches):
-        mock_Xy.append(
-            (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
-        )
-    validation_data = (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
+    mock_Xy = mock.MagicMock(spec=tf.data.Dataset)
+    validation_data = mock.MagicMock(spec=tf.data.Dataset)
     callbacks = tuple(mock.MagicMock for _ in range(n_callbacks))
-    config.fit_loop(mock_model, mock_Xy, validation_data, callbacks)
+    with mock_tfdataset_to_tensor_sequence():
+        config.fit_loop(mock_model, mock_Xy, validation_data, callbacks)
 
 
 @pytest.mark.parametrize("n_callbacks", [0, 1, 3])
 @pytest.mark.parametrize("n_epochs", [0, 1, 3])
-def test_fit_loop_calls_callbacks(n_callbacks, n_epochs):
+def test_fit_loop_passes_callbacks(n_callbacks, n_epochs):
     n_batches = 5
     config = fv3fit.TrainingLoopConfig(epochs=n_epochs)
     mock_model = mock.MagicMock(spec=tf.keras.Model)
     mock_history = mock.MagicMock(spec=tf.keras.callbacks.History)
     mock_model.fit.return_value = mock_history
-    mock_Xy = []
-    for _ in range(n_batches):
-        mock_Xy.append(
-            (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
-        )
-    validation_data = (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
+    mock_Xy = mock.MagicMock(spec=tf.data.Dataset)
+    validation_data = mock.MagicMock(spec=tf.data.Dataset)
     callbacks = tuple(mock.MagicMock() for _ in range(n_callbacks))
-    config.fit_loop(mock_model, mock_Xy, validation_data, callbacks)
+    with mock_tfdataset_to_tensor_sequence():
+        config.fit_loop(mock_model, mock_Xy, validation_data, callbacks)
+    assert mock_model.fit.called
+    args = mock_model.fit.call_args
+    for wrapper in args.kwargs["callbacks"]:
+        assert isinstance(wrapper, EpochCallback)
+    passed_callbacks = [wrapper._callback for wrapper in args.kwargs["callbacks"]]
+    assert set(passed_callbacks) == set(callbacks)
     for callback in callbacks:
-        assert callback.call_count == n_epochs
         for i, call_args in enumerate(callback.call_args_list):
             assert call_args == mock.call(
                 fv3fit.EpochResult(
@@ -56,90 +75,75 @@ def test_fit_loop_calls_callbacks(n_callbacks, n_epochs):
             )
 
 
-@pytest.mark.parametrize(
-    "n_epochs, n_batches", [(0, 1), (1, 1), (5, 1), (1, 5), (3, 4)]
-)
-def test_fit_loop_calls_fit(n_epochs, n_batches):
-    n_batches = 5
+@pytest.mark.parametrize("n_epochs", [0, 1, 5])
+def test_fit_loop_calls_fit(n_epochs):
     n_epochs = 1
     config = fv3fit.TrainingLoopConfig(epochs=n_epochs)
     mock_model = mock.MagicMock(spec=tf.keras.Model)
-    mock_Xy = []
-    for _ in range(n_batches):
-        mock_Xy.append(
-            (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
-        )
-    validation_data = (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
-    config.fit_loop(mock_model, mock_Xy, validation_data)
-    assert mock_model.fit.call_count == n_epochs * n_batches
+    mock_Xy = mock.MagicMock(spec=tf.data.Dataset)
+    validation_data = mock.MagicMock(spec=tf.data.Dataset)
+    with mock_tfdataset_to_tensor_sequence():
+        config.fit_loop(mock_model, mock_Xy, validation_data)
+    assert mock_model.fit.call_count == 1
 
 
-@pytest.mark.parametrize("n_batches", [1, 3])
-@pytest.mark.parametrize("n_epochs", [1, 5])
-def test_fit_loop_calls_fit_with_data(n_batches, n_epochs):
-    n_batches = 5
-    n_epochs = 1
-    config = fv3fit.TrainingLoopConfig(epochs=n_epochs)
-    mock_model = mock.MagicMock(spec=tf.keras.Model)
-    mock_Xy = []
-    for _ in range(n_batches):
-        mock_Xy.append(
-            (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
-        )
-    validation_data = (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
-    config.fit_loop(mock_model, mock_Xy, validation_data)
-    assert mock_model.fit.call_count == len(mock_Xy)
-    epoch_calls = []
-    for i in range(n_epochs):
-        epoch_calls.append(
-            mock_model.fit.call_args_list[i * n_batches : (i + 1) * n_batches]
-        )
-    # check all data are passed as args on each epoch
-    for call_args_list in epoch_calls:
-        for X, y in mock_Xy:
-            assert (
-                mock.call(
-                    X, y, batch_size=config.batch_size, validation_data=validation_data,
-                )
-                in call_args_list
-            )
+def get_monotonic_data(
+    n_samples: int, batch_size: int
+) -> Tuple[tf.data.Dataset, np.ndarray]:
+    array_x = np.arange(n_samples)
+    x = tf.data.Dataset.from_tensor_slices(array_x).batch(batch_size)
+    y = tf.data.Dataset.from_tensor_slices(array_x).batch(batch_size)
+    data = tf.data.Dataset.zip((x, y))
+    return data, array_x
 
 
-def test_fit_loop_calls_in_different_order_on_two_epochs():
-    n_batches = 5
-    n_epochs = 2
-    config = fv3fit.TrainingLoopConfig(epochs=n_epochs)
-    mock_model = mock.MagicMock(spec=tf.keras.Model)
-    mock_Xy = []
-    for _ in range(n_batches):
-        mock_Xy.append(
-            (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
-        )
-    validation_data = (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
-    config.fit_loop(mock_model, mock_Xy, validation_data)
-    assert mock_model.fit.call_count == len(mock_Xy) * n_epochs
-    epoch_calls = []
-    for i in range(n_epochs):
-        epoch_calls.append(
-            mock_model.fit.call_args_list[i * n_batches : (i + 1) * n_batches]
-        )
-    assert epoch_calls[0] != epoch_calls[1]
+def assert_data_is_shuffled(Xy, array_x, n_batches):
+    n_samples = sequence_size(Xy)
+    shuffled_x, shuffled_y = next(iter(Xy.batch(n_samples)))
+    np.testing.assert_array_equal(shuffled_x, shuffled_y)
+    assert not np.all(shuffled_x == np.arange(n_samples))
+    # this code is here for manual checking, since it's hard to assert that something
+    # is shuffled
+    # import matplotlib.pyplot as plt
+    # plt.figure()
+    # plt.hist2d(array_x, shuffled_x, bins=n_batches)
+    # plt.xlabel("output index")
+    # plt.ylabel("input index")
+    # plt.show()
+
+    # check that there is some inter-batch shuffling
+    hist, _, _ = np.histogram2d(array_x, shuffled_x, bins=n_batches)
+    assert np.sum((hist > 0).astype(np.int)) > n_batches * 5
+    # check that input batch is uncorrelated with output batch
+    assert (np.corrcoef(array_x, shuffled_x)[0, 1] ** 2) < 0.1
 
 
-def test_fit_loop_calls_in_reproducible_order():
-    n_batches = 5
-    n_epochs = 2
-    config = fv3fit.TrainingLoopConfig(epochs=n_epochs)
-    first_mock_model = mock.MagicMock(spec=tf.keras.Model)
-    second_mock_model = mock.MagicMock(spec=tf.keras.Model)
-    mock_Xy = []
-    for _ in range(n_batches):
-        mock_Xy.append(
-            (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
-        )
-    validation_data = (mock.MagicMock(spec=np.ndarray), mock.MagicMock(spec=np.ndarray))
+@pytest.mark.slow
+def test__shuffle_batched_tfdataset():
+    batch_size = 1000
+    n_samples = 20_000
+    data, array_x = get_monotonic_data(n_samples, batch_size)
+    n_batches = n_samples // batch_size
+
+    shuffled_data = _shuffle_batched_tfdataset(data, sample_buffer_size=batch_size)
+    assert_data_is_shuffled(shuffled_data, array_x=array_x, n_batches=n_batches)
+
+
+@pytest.mark.slow
+def test_fit_loop_shuffles_batches():
     fv3fit.set_random_seed(0)
-    config.fit_loop(first_mock_model, mock_Xy, validation_data)
-    fv3fit.set_random_seed(0)
-    config.fit_loop(second_mock_model, mock_Xy, validation_data)
-    assert first_mock_model.fit.call_args_list == second_mock_model.fit.call_args_list
+    # for test, batch_shuffle_buffer_size should fit all batches
+    # and shuffle_buffer_size should not
+    # in_memory must be False because keras's model.fit handle shuffling for True
+    batch_size = 1000
+    n_samples = 20_000
+    data, array_x = get_monotonic_data(n_samples, batch_size)
+    mock_model = mock.MagicMock()
+    n_batches = n_samples // batch_size
+    config = fv3fit.TrainingLoopConfig(shuffle_buffer_size=batch_size, in_memory=False)
+    mock_model = mock.MagicMock()
+
+    config.fit_loop(model=mock_model, Xy=data, validation_data=None, callbacks=())
+    args = mock_model.fit.call_args_list[0]
+    Xy = args.args[0].unbatch()
+    assert_data_is_shuffled(Xy, array_x=array_x, n_batches=n_batches)

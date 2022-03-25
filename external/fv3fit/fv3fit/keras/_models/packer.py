@@ -1,5 +1,4 @@
 from typing import Sequence, Mapping
-from fv3fit._shared.packer import ArrayPacker
 import tensorflow as tf
 
 
@@ -48,11 +47,3 @@ class Unpack(tf.keras.layers.Layer):
             "n_features": self.n_features,
             "feature_dim": self.feature_dim,
         }
-
-
-def get_unpack_layer(array_packer: ArrayPacker, feature_dim: int):
-    return Unpack(
-        pack_names=array_packer.pack_names,
-        n_features=array_packer.feature_counts,
-        feature_dim=feature_dim,
-    )

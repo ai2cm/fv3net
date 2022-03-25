@@ -89,6 +89,7 @@ def get_model(sample_dim_name, use_moisture_limiter):
     )
 
 
+@pytest.mark.slow
 def test_predict_model_gives_tendency_of_train_model(
     sample_dim_name, dt, use_moisture_limiter
 ):
@@ -125,6 +126,7 @@ def test_predict_model_gives_tendency_of_train_model(
     np.testing.assert_allclose(dQ2[:, 0, :], Q2_train_tendency, atol=1e-6)
 
 
+@pytest.mark.slow
 def test_fit_bptt_command_line(regtest, sample_dim_name, dt):
     config_text = """
 regularizer:
@@ -180,6 +182,7 @@ random_seed: 0
             assert isinstance(loaded_output, xr.Dataset)
 
 
+@pytest.mark.slow
 def test_train_model_uses_correct_given_tendency(sample_dim_name, dt):
     train_dataset = get_train_dataset(sample_dim_name, dt)
     np.random.seed(0)
@@ -246,6 +249,7 @@ def test_train_model_uses_correct_given_tendency(sample_dim_name, dt):
     )
 
 
+@pytest.mark.slow
 def test_predict_model_gives_different_tendencies(sample_dim_name, dt):
     train_dataset = get_train_dataset(sample_dim_name, dt)
     model = _BPTTTrainer(
@@ -264,6 +268,7 @@ def test_predict_model_gives_different_tendencies(sample_dim_name, dt):
     assert not np.all(tendency_ds["dQ1"].values == tendency_ds["dQ2"].values)
 
 
+@pytest.mark.slow
 def test_train_model_gives_different_outputs(sample_dim_name, dt):
     train_dataset = get_train_dataset(sample_dim_name, dt)
     model = _BPTTTrainer(
@@ -284,6 +289,7 @@ def test_train_model_gives_different_outputs(sample_dim_name, dt):
     assert not np.all(air_temperature == specific_humidity)
 
 
+@pytest.mark.slow
 def test_integrate_stepwise(sample_dim_name, dt):
     """
     We need an integrate_stepwise routine for scripts that evaluate the model
@@ -341,6 +347,7 @@ def test_integrate_stepwise(sample_dim_name, dt):
     assert not np.all(air_temperature == specific_humidity)
 
 
+@pytest.mark.slow
 def test_reloaded_model_gives_same_outputs(sample_dim_name, dt):
     train_dataset = get_train_dataset(sample_dim_name, dt)
     model = _BPTTTrainer(
@@ -402,13 +409,7 @@ def test_pure_keras_predict_works_on_format(da):
     input_vars, output_vars = ["input"], ["output"]
     dummy_predictor = DummyPredictor("sample", input_vars, output_vars)
     model = PureKerasModel(
-        input_vars,
-        output_vars,
-        output_metadata=[
-            {"dims": ["sample", "z"], "units": ""},
-            {"dims": ["sample", "z"], "units": ""},
-        ],
-        model=dummy_predictor,
+        input_vars, output_vars, model=dummy_predictor, unstacked_dims=("z",)
     )
     ds = xr.Dataset({"input": da, "output": da})
     prediction = model.predict(ds)

@@ -5,6 +5,7 @@ import os
 from typing import (
     Any,
     Callable,
+    Hashable,
     Mapping,
     Optional,
     Tuple,
@@ -14,7 +15,6 @@ from typing import (
     List,
     Type,
     Dict,
-    Hashable,
     MutableMapping,
 )
 from fv3fit.typing import Dataclass
@@ -25,12 +25,10 @@ import dacite
 import numpy as np
 import random
 import warnings
+import vcm
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
-
-
-DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 TrainingFunction = Callable[
@@ -53,6 +51,12 @@ def get_keras_model(name):
 
 @dataclasses.dataclass
 class CacheConfig:
+    """
+    Attributes:
+        local_download_path: location to save data locally
+        in_memory: if True, keep data in memory once loaded
+    """
+
     local_download_path: Optional[str] = None
     in_memory: bool = False
 
@@ -70,6 +74,9 @@ class TrainingConfig:
         derived_output_variables: optional list of prediction variables that
             are not directly predicted by the ML model but instead are derived
             using the ML-predicted output_variables
+        output_transforms: if given, apply these output transformations in the
+            saved Predictor
+        cache: configuration for local caching of input data
     """
 
     model_type: str
@@ -77,6 +84,9 @@ class TrainingConfig:
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
     derived_output_variables: List[str] = dataclasses.field(default_factory=list)
+    output_transforms: Sequence[vcm.DataTransform] = dataclasses.field(
+        default_factory=list
+    )
     cache: CacheConfig = dataclasses.field(default_factory=lambda: CacheConfig())
 
     @property
@@ -328,12 +338,19 @@ class SliceConfig:
         return slice(self.start, self.stop, self.step)
 
 
-ClipDims = Mapping[Hashable, Mapping[str, SliceConfig]]
-
-
 @dataclasses.dataclass(frozen=True)
 class PackerConfig:
-    clip: ClipDims = dataclasses.field(default_factory=dict)
+    """
+    Configuration for packing.
+
+    Attributes:
+        clip: a mapping from variable name to configuration for the slice of
+            the feature (last) dimension of that variable we want to retain.
+            Used to exclude data (e.g. at start or end of dimension). User
+            must ensure the last dimension is the dimension they want to clip.
+    """
+
+    clip: Mapping[Hashable, SliceConfig] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass

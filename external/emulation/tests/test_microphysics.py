@@ -1,15 +1,20 @@
+import datetime
 import numpy as np
 import pytest
 import tensorflow as tf
 
-from emulation._emulate.microphysics import MicrophysicsHook
+import cftime
+from emulation._emulate.microphysics import (
+    MicrophysicsHook,
+    IntervalSchedule,
+    TimeMask,
+)
 
 
 def _create_model():
     in_ = tf.keras.layers.Input(shape=(63,), name="air_temperature_input")
     out_ = tf.keras.layers.Lambda(lambda x: x + 1, name="air_temperature_dummy")(in_)
     model = tf.keras.Model(inputs=in_, outputs=out_)
-
     return model
 
 
@@ -18,13 +23,6 @@ def _create_model_dict():
     out_ = tf.keras.layers.Lambda(lambda x: x + 1)(in_)
     model = tf.keras.Model(inputs=in_, outputs={"air_temperature_dummy": out_})
     return model
-
-
-@pytest.mark.parametrize("model_factory", [_create_model, _create_model_dict])
-def test_MicrophysicsHook_from_path(model_factory, tmpdir):
-    saved_model_path = str(tmpdir.join("model.tf"))
-    model_factory().save(saved_model_path)
-    MicrophysicsHook.from_path(saved_model_path, (lambda x, y, z: z))
 
 
 @pytest.mark.parametrize("model_factory", [_create_model, _create_model_dict])
@@ -73,3 +71,23 @@ def test_MicrophysicsHook_model_with_new_output_name():
 
     assert "out" not in state
     hook.microphysics(state)
+
+
+def test_IntervalSchedule():
+    scheduler = IntervalSchedule(
+        datetime.timedelta(hours=3), cftime.DatetimeJulian(2000, 1, 1)
+    )
+    assert scheduler(cftime.DatetimeJulian(2000, 1, 1)) == 1
+    assert scheduler(cftime.DatetimeJulian(2000, 1, 1, 1)) == 1
+    assert scheduler(cftime.DatetimeJulian(2000, 1, 1, 1, 30)) == 0
+    assert scheduler(cftime.DatetimeJulian(2000, 1, 1, 2)) == 0
+    assert scheduler(cftime.DatetimeJulian(2000, 1, 20)) == 1
+
+
+@pytest.mark.parametrize("weight", [0.0, 0.5, 1.0])
+def test_TimeMask(weight):
+    expected = 1 - weight
+    mask = TimeMask(schedule=lambda time: weight)
+    left = {"a": 0.0, "model_time": [2021, 1, 1, 0, 0, 0]}
+    right = {"a": 1.0}
+    assert mask(left, right) == {"a": expected}
