@@ -120,7 +120,7 @@ def assert_data_is_shuffled(Xy, array_x, n_batches):
 
 @pytest.mark.slow
 def test__shuffle_batched_tfdataset():
-    batch_size = 1000
+    batch_size = 100
     n_samples = 20_000
     data, array_x = get_monotonic_data(n_samples, batch_size)
     n_batches = n_samples // batch_size
@@ -131,11 +131,10 @@ def test__shuffle_batched_tfdataset():
 
 @pytest.mark.slow
 def test_fit_loop_shuffles_batches():
-    fv3fit.set_random_seed(0)
     # for test, batch_shuffle_buffer_size should fit all batches
     # and shuffle_buffer_size should not
     # in_memory must be False because keras's model.fit handle shuffling for True
-    batch_size = 1000
+    batch_size = 100
     n_samples = 20_000
     data, array_x = get_monotonic_data(n_samples, batch_size)
     mock_model = mock.MagicMock()
