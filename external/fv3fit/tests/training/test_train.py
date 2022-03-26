@@ -50,15 +50,6 @@ def test_all_training_functions_are_tested_or_exempted():
     )
 
 
-SYSTEM_DEPENDENT_TYPES = [
-    "convolutional",
-    "sklearn_random_forest",
-    "precipitative",
-    "dense",
-]
-"""model types which produce different results on different systems"""
-
-
 def test_training_functions_exist():
     assert len(TRAINING_FUNCTIONS.keys()) > 0
 
@@ -212,13 +203,6 @@ def assert_can_learn_identity(
         ** 0.5
     )
     assert rmse < max_rmse
-    if model_type in SYSTEM_DEPENDENT_TYPES:
-        print(f"{model_type} is system dependent, not checking against regtest output")
-    else:
-        for result in vcm.testing.checksum_dataarray_mapping(result.test_dataset):
-            print(result, file=regtest)
-        for result in vcm.testing.checksum_dataarray_mapping(out_dataset):
-            print(result, file=regtest)
 
 
 @pytest.mark.slow
@@ -227,8 +211,6 @@ def test_train_default_model_on_identity(model_type, regtest):
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around 0 with unit variance.
     """
-    # if model_type == "transformed":
-    #     pytest.skip()
 
     fv3fit.set_random_seed(1)
     # don't set n_feature too high for this, because of curse of dimensionality
