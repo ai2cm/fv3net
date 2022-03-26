@@ -7,7 +7,7 @@ from fv3fit.emulation.losses import CustomLoss
 
 import pytest
 import tensorflow as tf
-from fv3fit._shared.config import _to_flat_dict
+from fv3fit._shared.config import to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.models import MicrophysicsConfig
@@ -90,7 +90,7 @@ def test_TrainConfig_from_flat_dict():
     assert config.model.architecture.name == "rnn"
 
     expected = get_default_config()
-    flat_dict = _to_flat_dict(asdict(expected))
+    flat_dict = to_flat_dict(asdict(expected))
     result = TrainConfig.from_flat_dict(flat_dict)
     assert result == expected
 
