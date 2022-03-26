@@ -2,7 +2,11 @@ import argparse
 import logging
 import os
 from typing import Optional, Sequence, Tuple
-from fv3fit._shared.config import get_arg_updated_config_dict
+from fv3fit._shared.config import (
+    get_arg_updated_config_dict,
+    to_flat_dict,
+    to_nested_dict,
+)
 import yaml
 import dataclasses
 import fsspec
@@ -16,6 +20,7 @@ import tempfile
 from loaders.batches.save import main as save_main
 from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
+import wandb
 
 from vcm.cloud import copy
 
@@ -43,6 +48,14 @@ def get_parser():
             "path of loaders.BatchesLoader validation data yaml file, "
             "by default an empty sequence is used"
         ),
+    )
+    parser.add_argument(
+        "--wandb",
+        help=(
+            "Log run to wandb. Uses environment variables WANDB_ENTITY, "
+            "WANDB_PROJECT, WANDB_JOB_TYPE as wandb.init options."
+        ),
+        action="store_true",
     )
     return parser
 
@@ -173,10 +186,26 @@ def main(args, unknown_args=None):
             config_dict = get_arg_updated_config_dict(
                 args=unknown_args, config_dict=config_dict
             )
+        if args.wandb:
+            # hyperparameters are repeated as flattened top level keys so they can
+            # be referenced in the sweep configuration parameters
+            # https://github.com/wandb/client/issues/982
+            wandb.init(config=to_flat_dict(config_dict["hyperparameters"]))
+            # hyperparameters should be accessed throughthe wandb config so that
+            # sweeps use the wandb-provided hyperparameter values
+            config_dict["hyperparameters"] = to_nested_dict(wandb.config)
+            logger.info(
+                f"hyperparameters from wandb config: {config_dict['hyperparameters']}"
+            )
+            wandb.config["training_config"] = config_dict
+
         training_config = fv3fit.TrainingConfig.from_dict(config_dict)
 
     with open(args.training_data_config, "r") as f:
-        training_data_config = loaders.BatchesLoader.from_dict(yaml.safe_load(f))
+        config_dict = yaml.safe_load(f)
+        training_data_config = loaders.BatchesLoader.from_dict(config_dict)
+        if args.wandb:
+            wandb.config["training_data_config"] = config_dict
 
     fv3fit.set_random_seed(training_config.random_seed)
 
