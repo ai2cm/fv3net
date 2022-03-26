@@ -1,12 +1,7 @@
 """
 # Will thresholding small tendencies reduce the cloud bias?
-{{date}}
-- Author: Noah Brenowitz
-
-{{url}}
 
 """
-from datetime import datetime, date
 from fv3net.diagnostics.prognostic_run.emulation import tendencies
 from fv3net.diagnostics.prognostic_run.emulation.single_run import open_rundir
 
@@ -14,7 +9,6 @@ import vcm
 import xarray as xr
 import matplotlib.pyplot as plt
 import numpy as np
-import datapane
 import report
 
 from joblib import Memory
@@ -28,7 +22,7 @@ field = "cloud_water"
 
 
 def matplotlib_png(fig, **kwargs):
-    ret = datapane.HTML(report.MatplotlibFigure(fig, dpi=75, format="jpg"))
+    ret = report.MatplotlibFigure(fig)
     plt.close(fig)
     return ret
 
@@ -114,39 +108,29 @@ def report_(url, field, tendency):
     optimal_threshold = compute_optimal_threshold(data)
 
     fig = plt.figure()
-    data.bias.drop("z").plot(y="z", xscale="log")
+    data.bias.drop("z").plot(y="z", xscale="log", yincrease=False)
     optimal_threshold.drop("z").plot(y="z")
 
     fig2 = plt.figure()
-    data.skill.drop("z").plot(y="z", xscale="log", vmax=1, vmin=-1)
+    data.skill.drop("z").plot(y="z", xscale="log", vmax=1, vmin=-1, yincrease=False)
     optimal_threshold.drop("z").plot(y="z")
     plt.close("all")
-    return datapane.Group(
-        datapane.Text(f"## {tendency.__name__}"),
-        datapane.Group(matplotlib_png(fig), matplotlib_png(fig2), columns=2,),
-    )
+    return f"{field} {tendency.__name__}", [matplotlib_png(fig), matplotlib_png(fig2)]
 
 
 def field_plots(url, field):
-    return datapane.Group(
-        report_(url, field, tendencies.gscond_tendency),
-        report_(url, field, tendencies.precpd_tendency),
-        label=field,
-    )
+    yield report_(url, field, tendencies.gscond_tendency)
+    yield report_(url, field, tendencies.precpd_tendency)
 
 
 def all_plots(url):
-    return datapane.Select(
-        field_plots(url, "cloud_water"),
-        field_plots(url, "air_temperature"),
-        field_plots(url, "specific_humidity"),
-        type=datapane.SelectType.TABS,
-    )
+    yield "Discussion", [report.RawHTML(__doc__)]
+    for field in ["cloud_water", "air_temperature", "specific_humidity"]:
+        yield from field_plots(url, field)
 
 
 # %%
-date = date.today().isoformat()
-datapane.Report(
-    datapane.Text(__doc__).format(date=datetime.now().isoformat(), url=URL),
-    all_plots(URL),
-).save("local.thml")
+html = report.create_html(
+    title="Symmetric Thresholding", sections=dict(all_plots(URL)), metadata={"url": URL}
+)
+report.upload(html)
