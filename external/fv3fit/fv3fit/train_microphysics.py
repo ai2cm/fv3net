@@ -1,13 +1,16 @@
 import argparse
 import dacite
-from enum import Enum
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 import fsspec
 import json
 import logging
 import numpy as np
 import os
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
+from fv3fit._shared.config import register_training_function
+from fv3fit.dataclasses import asdict_with_enum as _asdict_with_enum
+from fv3fit.emulation.data.transforms import expand_single_dim_data
+from fv3fit import tfdataset
 
 import tensorflow as tf
 import yaml
@@ -19,18 +22,24 @@ from fv3fit._shared.config import (
     get_arg_updated_config_dict,
     to_nested_dict,
 )
+from fv3fit._shared.hyperparameters import Hyperparameters
 from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
+from fv3fit.keras._models.shared.pure_keras import PureKerasDictPredictor
 from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 
 from fv3fit.emulation.transforms.factories import ConditionallyScaled
 from fv3fit.emulation.types import LossFunction, TensorDict
-from fv3fit.emulation import models, train, ModelCheckpointCallback
+from fv3fit.emulation import train, ModelCheckpointCallback
 from fv3fit.emulation.data import TransformConfig, nc_dir_to_tfdataset
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.keras import save_model
 from fv3fit.emulation.losses import CustomLoss
-from fv3fit.emulation.models import transform_model
+from fv3fit.emulation.models import (
+    transform_model,
+    MicrophysicsConfig,
+    ConservativeWaterConfig,
+)
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
     Difference,
@@ -46,22 +55,17 @@ from fv3fit.wandb import (
 
 logger = logging.getLogger(__name__)
 
-
-def _asdict_with_enum(obj):
-    """Recursively turn a dataclass obj into a dictionary handling any Enums
-    """
-
-    def _generate(x):
-        for key, val in x:
-            if isinstance(val, Enum):
-                yield key, val.value
-            else:
-                yield key, val
-
-    def dict_factory(x):
-        return dict(_generate(x))
-
-    return asdict(obj, dict_factory=dict_factory)
+__all__ = [
+    "TransformedParameters",
+    "MicrophysicsConfig",
+    "CustomLoss",
+    "TransformedVariableConfig",
+    "ConditionallyScaled",
+    "Difference",
+    "WandBConfig",
+    "ArchitectureConfig",
+    "SliceConfig",
+]
 
 
 def load_config_yaml(path: str) -> Dict[str, Any]:
@@ -76,21 +80,16 @@ def load_config_yaml(path: str) -> Dict[str, Any]:
 
 
 @dataclass
-class TrainConfig:
+class TransformedParameters(Hyperparameters):
     """
     Configuration for training a microphysics emulator
 
     Args:
-        train_url: Path to training netcdfs (already in [sample x feature] format)
-        test_url: Path to validation netcdfs (already in [sample x feature] format)
-        out_url:  Where to store the trained model, history, and configuration
         transform: Data preprocessing TransformConfig
         tensor_transform: specification of differerentiable tensorflow
             transformations to apply before and after data is passed to models and
             losses.
         model: MicrophysicsConfig used to build the keras model
-        nfiles: Number of files to use from train_url
-        nfiles_valid: Number of files to use from test_url
         use_wandb: Enable wandb logging of training, requires that wandb is installed
             and initialized
         wandb: WandBConfig to set up the wandb logged run
@@ -101,31 +100,49 @@ class TrainConfig:
         verbose: Verbosity of keras fit output
         shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
             during training
+        out_url:  where to save checkpoints
         checkpoint_model: if true, save a checkpoint after each epoch
-        log_level: what logging level to use
+
+    Example:
+
+    .. code-block:: yaml
+
+        model_type: transformed
+        hyperparameters:
+            epochs: 1
+            loss:
+                loss_variables: [dQ2]
+            model:
+                architecture:
+                    name: dense
+                direct_out_variables:
+                - dQ2
+                input_variables:
+                - air_temperature
+                - specific_humidity
+                - cos_zenith_angle
+            use_wandb: false
+
     """
 
-    train_url: str
-    test_url: str
-    out_url: str
-    transform: TransformConfig = field(default_factory=TransformConfig)
     tensor_transform: List[
         Union[TransformedVariableConfig, ConditionallyScaled, Difference]
     ] = field(default_factory=list)
-    model: Optional[models.MicrophysicsConfig] = None
-    conservative_model: Optional[models.ConservativeWaterConfig] = None
-    nfiles: Optional[int] = None
-    nfiles_valid: Optional[int] = None
-    use_wandb: bool = True
-    wandb: WandBConfig = field(default_factory=WandBConfig)
+    model: Optional[MicrophysicsConfig] = None
+    conservative_model: Optional[ConservativeWaterConfig] = None
     loss: CustomLoss = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
     valid_freq: int = 5
     verbose: int = 2
     shuffle_buffer_size: Optional[int] = 13824
+    # only model checkpoints are saved at out_url, but need to keep these name
+    # for backwards compatibility
     checkpoint_model: bool = True
-    log_level: str = "INFO"
+    out_url: str = ""
+    # ideally will refactor these out, but need to insert the callback somehow
+    use_wandb: bool = True
+    wandb: WandBConfig = field(default_factory=WandBConfig)
 
     @property
     def transform_factory(self) -> ComposedTransformFactory:
@@ -138,7 +155,7 @@ class TrainConfig:
     def _model(
         self,
     ) -> Union[
-        models.MicrophysicsConfig, models.ConservativeWaterConfig,
+        MicrophysicsConfig, ConservativeWaterConfig,
     ]:
         if self.model:
             return self.model
@@ -169,6 +186,81 @@ class TrainConfig:
         return list(
             self.transform_factory.backward_names(set(self._model.input_variables))
         )
+
+    @property
+    def model_variables(self) -> Set[str]:
+        return self.transform_factory.backward_names(
+            set(self._model.input_variables) | set(self._model.output_variables)
+        )
+
+    @property
+    def variables(self) -> Set[str]:
+        return self.model_variables
+
+    @classmethod
+    def init_testing(cls, input_variables, output_variables) -> "TransformedParameters":
+        """used for testing"""
+        return TransformedParameters(
+            model=MicrophysicsConfig(
+                input_variables=input_variables,
+                direct_out_variables=output_variables,
+                architecture=ArchitectureConfig("dense"),
+            ),
+            loss=CustomLoss(loss_variables=output_variables),
+            use_wandb=False,
+        )
+
+
+# Temporarily subclass from the hyperparameters object for backwards compatibility
+# we can delete this class once usage has switched to fv3fit.train
+@dataclass
+class TrainConfig(TransformedParameters):
+    """
+    Configuration for training a microphysics emulator
+
+    Args:
+        train_url: Path to training netcdfs (already in [sample x feature] format)
+        test_url: Path to validation netcdfs (already in [sample x feature] format)
+        out_url:  Where to store the trained model, history, and configuration
+        transform: Data preprocessing TransformConfig
+        tensor_transform: specification of differerentiable tensorflow
+            transformations to apply before and after data is passed to models and
+            losses.
+        model: MicrophysicsConfig used to build the keras model
+        nfiles: Number of files to use from train_url
+        nfiles_valid: Number of files to use from test_url
+        use_wandb: Enable wandb logging of training, requires that wandb is installed
+            and initialized
+        wandb: WandBConfig to set up the wandb logged run
+        loss:  Configuration of the keras loss to prepare and use for training
+        epochs: Number of training epochs
+        batch_size: batch size applied to tf datasets during training
+        valid_freq: How often to score validation data (in epochs)
+        verbose: Verbosity of keras fit output
+        shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
+            during training
+        checkpoint_model: if true, save a checkpoint after each epoch
+        log_level: what logging level to use
+    """
+
+    train_url: str = ""
+    test_url: str = ""
+    transform: TransformConfig = field(default_factory=TransformConfig)
+    tensor_transform: List[
+        Union[TransformedVariableConfig, ConditionallyScaled, Difference]
+    ] = field(default_factory=list)
+    model: Optional[MicrophysicsConfig] = None
+    conservative_model: Optional[ConservativeWaterConfig] = None
+    nfiles: Optional[int] = None
+    nfiles_valid: Optional[int] = None
+    loss: CustomLoss = field(default_factory=CustomLoss)
+    epochs: int = 1
+    batch_size: int = 128
+    valid_freq: int = 5
+    verbose: int = 2
+    shuffle_buffer_size: Optional[int] = 13824
+    checkpoint_model: bool = True
+    log_level: str = "INFO"
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -250,6 +342,9 @@ class TrainConfig:
 
         return config
 
+    def to_yaml(self) -> str:
+        return yaml.safe_dump(_asdict_with_enum(self))
+
     def open_dataset(
         self, url: str, nfiles: Optional[int], required_variables: Set[str],
     ) -> tf.data.Dataset:
@@ -262,15 +357,6 @@ class TrainConfig:
             random_state=np.random.RandomState(0),
         )
 
-    @property
-    def model_variables(self) -> Set[str]:
-        return self.transform_factory.backward_names(
-            set(self._model.input_variables) | set(self._model.output_variables)
-        )
-
-    def to_yaml(self) -> str:
-        return yaml.safe_dump(_asdict_with_enum(self))
-
 
 def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
     with put_dir(dir_) as tmpdir:
@@ -282,22 +368,37 @@ def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
         np.savez(os.path.join(tmpdir, filename), **dumpable)
 
 
-def main(config: TrainConfig, seed: int = 0):
-    logging.basicConfig(level=getattr(logging, config.log_level))
-    set_random_seed(seed)
+@register_training_function("transformed", TransformedParameters)
+def train_function(
+    hyperparameters: TransformedParameters,
+    train_batches: tf.data.Dataset,
+    validation_batches: Optional[tf.data.Dataset],
+) -> PureKerasDictPredictor:
+    def _prepare(ds):
+        return (
+            ds.map(tfdataset.apply_to_mapping(tfdataset.float64_to_float32))
+            .map(expand_single_dim_data)
+            .unbatch()
+        )
 
+    return _train_function_unbatched(
+        hyperparameters,
+        _prepare(train_batches),
+        _prepare(validation_batches) if validation_batches else None,
+    )
+
+
+def _train_function_unbatched(
+    config: TransformedParameters,
+    train_ds: tf.data.Dataset,
+    test_ds: Optional[tf.data.Dataset],
+) -> PureKerasDictPredictor:
     # callbacks that are always active
     callbacks = [tf.keras.callbacks.TerminateOnNaN()]
+
     if config.use_wandb:
         config.wandb.init(config=_asdict_with_enum(config))
         callbacks.append(config.wandb.get_callback())
-
-    train_ds = config.open_dataset(
-        config.train_url, config.nfiles, config.model_variables
-    )
-    test_ds = config.open_dataset(
-        config.test_url, config.nfiles_valid, config.model_variables
-    )
 
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
@@ -307,7 +408,6 @@ def main(config: TrainConfig, seed: int = 0):
     transform = config.build_transform(train_set)
 
     train_ds = train_ds.map(transform.forward)
-    test_ds = test_ds.map(transform.forward)
 
     model = config.build_model(train_set, transform)
 
@@ -321,7 +421,12 @@ def main(config: TrainConfig, seed: int = 0):
         )
 
     train_ds_batched = train_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
-    test_ds_batched = test_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
+
+    if test_ds is not None:
+        test_ds = test_ds.map(transform.forward)
+        test_ds_batched = test_ds.batch(config.batch_size).prefetch(tf.data.AUTOTUNE)
+    else:
+        test_ds_batched = None
 
     history = train(
         model,
@@ -334,6 +439,25 @@ def main(config: TrainConfig, seed: int = 0):
         verbose=config.verbose,
         callbacks=callbacks,
     )
+
+    return PureKerasDictPredictor(
+        model, passthrough=(model, transform, history, train_set)
+    )
+
+
+def main(config: TrainConfig, seed: int = 0):
+    logging.basicConfig(level=getattr(logging, config.log_level))
+    set_random_seed(seed)
+
+    train_ds = config.open_dataset(
+        config.train_url, config.nfiles, config.model_variables
+    )
+    test_ds = config.open_dataset(
+        config.test_url, config.nfiles_valid, config.model_variables
+    )
+
+    predictor = train_function(config, train_ds, test_ds)
+    model, transform, history, train_set = predictor.passthrough  # type: ignore
 
     logger.debug("Training complete")
 
@@ -373,7 +497,7 @@ def get_default_config():
         "pressure_thickness_of_atmospheric_layer",
     ]
 
-    model_config = models.MicrophysicsConfig(
+    model_config = MicrophysicsConfig(
         input_variables=input_vars,
         direct_out_variables=[
             "cloud_water_mixing_ratio_after_precpd",
