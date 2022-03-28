@@ -10,7 +10,6 @@ from typing import (
     Optional,
     Union,
 )
-import dacite
 import xarray as xr
 from toolz import partition_all, curry, compose_left
 from ._sequences import Map
@@ -137,7 +136,7 @@ def batches_from_mapper(
     drop_nans: bool = False,
     shuffle_timesteps: bool = True,
     shuffle_samples: bool = False,
-    data_transforms: Optional[Sequence[Mapping]] = None,
+    data_transforms: Optional[vcm.ChainedDataTransform] = None,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -198,10 +197,7 @@ def batches_from_mapper(
         ]
 
     if data_transforms is not None:
-        data_transform = dacite.from_dict(
-            vcm.ChainedDataTransform, {"transforms": data_transforms}
-        )
-        transforms.append(curry(data_transform.apply))
+        transforms.append(data_transforms.apply)
 
     transforms.append(add_derived_data(variable_names))
 
