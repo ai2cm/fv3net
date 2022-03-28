@@ -62,7 +62,7 @@ class BatchesFromMapperConfig(BatchesLoader):
         shuffle_samples: if True, shuffle the samples after stacking. If False, can
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
-        data_transforms: list of transforms to compute derived variables in batches.
+        data_transforms: chained transformation to compute derived variables in batches.
     """
 
     mapper_config: MapperConfig
@@ -77,7 +77,7 @@ class BatchesFromMapperConfig(BatchesLoader):
     drop_nans: bool = False
     shuffle_timesteps: bool = True
     shuffle_samples: bool = False
-    data_transforms: Optional[Sequence[Mapping]] = None
+    data_transforms: Optional[vcm.ChainedDataTransform] = None
 
     def __post_init__(self):
         duplicate_times = [
@@ -160,7 +160,7 @@ def batches_from_mapper(
         shuffle_samples: if True, shuffle the samples after stacking. If False, can
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
-        data_transforms: list of transforms to compute derived variables in batches.
+        data_transforms: chained transformation to compute derived variables in batches.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
     Returns:
