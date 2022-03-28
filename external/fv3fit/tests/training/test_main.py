@@ -413,7 +413,6 @@ def get_config(
     )
     if use_validation_data:
         validation_data_config = loaders.BatchesFromMapperConfig(
-            function="batches_from_mapper",
             variable_names=all_variables,
             timesteps=validation_times,
             needs_grid=False,
