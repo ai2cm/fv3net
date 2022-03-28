@@ -43,7 +43,7 @@ def test_get_user_config_is_valid():
         ],
     }
 
-    config = prepare_config.to_fv3config(dict_, model_url=[], diagnostic_ml=True,)
+    config = prepare_config.to_fv3config(dict_)
     # validate using dacite.from_dict
     dacite.from_dict(UserConfig, config)
 
