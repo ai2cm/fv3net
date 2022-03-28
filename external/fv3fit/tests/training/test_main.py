@@ -401,6 +401,9 @@ def get_config(
     # instead of reading from disk, for CLI tests where we can't mock
     data_path = os.path.join(base_dir, "data")
     mock_dataset.to_zarr(data_path, consolidated=True)
+    data_transforms = vcm.ChainedDataTransform(
+        [vcm.DataTransform(name="Qm_from_Q1_Q2")]
+    )
     train_data_config = loaders.BatchesFromMapperConfig(
         variable_names=all_variables,
         timesteps=train_times,
@@ -409,7 +412,7 @@ def get_config(
         timesteps_per_batch=3,
         unstacked_dims=unstacked_dims,
         mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
-        data_transforms=[{"name": "Qm_from_Q1_Q2"}],
+        data_transforms=data_transforms,
     )
     if use_validation_data:
         validation_data_config = loaders.BatchesFromMapperConfig(
@@ -419,7 +422,7 @@ def get_config(
             res="c8_random_values",
             timesteps_per_batch=3,
             unstacked_dims=unstacked_dims,
-            data_transforms=[{"name": "Qm_from_Q1_Q2"}],
+            data_transforms=data_transforms,
             mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
         )
         validation_data_filename = os.path.join(base_dir, "validation_data.yaml")

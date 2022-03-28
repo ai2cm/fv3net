@@ -77,7 +77,9 @@ class BatchesFromMapperConfig(BatchesLoader):
     drop_nans: bool = False
     shuffle_timesteps: bool = True
     shuffle_samples: bool = False
-    data_transforms: Optional[vcm.ChainedDataTransform] = None
+    data_transforms: vcm.ChainedDataTransform = dataclasses.field(
+        default_factory=lambda: vcm.ChainedDataTransform([])
+    )
 
     def __post_init__(self):
         duplicate_times = [
