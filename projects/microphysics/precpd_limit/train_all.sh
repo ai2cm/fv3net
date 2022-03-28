@@ -13,10 +13,11 @@ fi
 group="$(openssl rand -hex 3)"
 
 
-for config in rnn rnn-limited-qc
+# for config in rnn-control
+for config in rnn-limited-qc
 do
     config_file="${config}.yaml"
-    model_name="dqc-precpd-limiter-${config}-v1-${group}"
+    model_name="dqc-precpd-limiter-${config}-v2-adjust-lr-lossvar-${group}"
     out_url=$(artifacts resolve-url "$bucket" microphysics-emulation "${model_name}")
     flags="--out_url ${out_url} ${extra_flags}"
 
