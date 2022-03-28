@@ -146,6 +146,7 @@ def expand_single_dim_data(
     dataset: Union[ArrayDataset, TensorDataset]
 ) -> Union[ArrayDataset, TensorDataset]:
     """Expand a feature dimension for single-dimension data"""
+    # TODO refactor to fv3fit.tfdataset?
 
     new_ds = {}
     for key, data in dataset.items():
