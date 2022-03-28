@@ -8,7 +8,8 @@ mapper_config:
       - x_wind
       - y_wind
       - pressure_thickness_of_atmospheric_layer
-unstacked_dims: z
+unstacked_dims:
+  - z
 timesteps_per_batch: 2
 timesteps:
   - "20160801.004500"
