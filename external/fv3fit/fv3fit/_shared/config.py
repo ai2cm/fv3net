@@ -126,7 +126,7 @@ class TrainingConfig:
 TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
 
 
-def get_hyperparameter_class(model_type: str) -> Type:
+def get_hyperparameter_class(model_type: str):
     if model_type in TRAINING_FUNCTIONS:
         _, subclass = TRAINING_FUNCTIONS[model_type]
     else:

@@ -20,6 +20,7 @@ import tempfile
 from loaders.batches.save import main as save_main
 from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
+from fv3fit.dataclasses import asdict_with_enum
 import wandb
 
 from vcm.cloud import copy
@@ -62,7 +63,7 @@ def get_parser():
 
 def dump_dataclass(obj, yaml_filename):
     with fsspec.open(yaml_filename, "w") as f:
-        yaml.safe_dump(dataclasses.asdict(obj), f)
+        yaml.safe_dump(asdict_with_enum(obj), f)
 
 
 def get_data(
