@@ -82,16 +82,16 @@ loss:
     - specific_humidity_after_precpd
     - cloud_water_mixing_ratio_after_precpd
   weights:
-    total_precipitation: 1.0
+    total_precipitation: 2.0
     cloud_precpd_difference_tscaled: 1.0
     temperature_precpd_difference_tscaled: 1.0
     humidity_precpd_difference_tscaled: 1.0
     temperature_gscond_difference_tscaled: 1.0
     humidity_gscond_difference_tscaled: 1.0
-    air_temperature_after_gscond: 100000
-    specific_humidity_after_gscond: 50000
-    air_temperature_after_precpd: 100000
-    specific_humidity_after_precpd: 50000
+    air_temperature_after_gscond: 100000.0
+    specific_humidity_after_gscond: 50000.0
+    air_temperature_after_precpd: 100000.0
+    specific_humidity_after_precpd: 50000.0
     cloud_water_mixing_ratio_after_precpd: 5
 model:
   architecture:

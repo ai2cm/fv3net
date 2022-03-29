@@ -73,20 +73,20 @@ tensor_transform:
 loss:
   optimizer:
     kwargs:
-      learning_rate: 0.00001
+      learning_rate: 0.0001
     name: Adam
   metric_variables: []
   loss_variables:
     - total_precipitation
-    - cloud_precpd_difference_tscaled
-    - cloud_precpd_difference
-    - humidity_gscond_difference
+    # - cloud_precpd_difference_tscaled
+    # - cloud_precpd_difference
+    # - humidity_gscond_difference
     - temperature_precpd_difference_tscaled
     - humidity_precpd_difference_tscaled
     - temperature_gscond_difference_tscaled
     # - humidity_gscond_difference_tscaled
     - air_temperature_after_gscond
-    # - specific_humidity_after_gscond
+    - specific_humidity_after_gscond
     - air_temperature_after_precpd
     - specific_humidity_after_precpd
     - cloud_water_mixing_ratio_after_precpd
@@ -96,13 +96,13 @@ loss:
     temperature_precpd_difference_tscaled: 1.0
     humidity_precpd_difference_tscaled: 1.0
     temperature_gscond_difference_tscaled: 1.0
-    humidity_gscond_difference: 1
+    # humidity_gscond_difference: 1
     # humidity_gscond_difference_tscaled: 0.5
-    cloud_precpd_difference: 1
-    air_temperature_after_gscond: 100000
-    specific_humidity_after_gscond: 50000
-    air_temperature_after_precpd: 100000
-    specific_humidity_after_precpd: 50000
+    # cloud_precpd_difference: 1
+    air_temperature_after_gscond: 100000.0
+    specific_humidity_after_gscond: 50000.0
+    air_temperature_after_precpd: 100000.0
+    specific_humidity_after_precpd: 50000.0
     cloud_water_mixing_ratio_after_precpd: 5
 model:
   architecture:
