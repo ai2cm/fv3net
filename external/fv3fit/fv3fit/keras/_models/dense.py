@@ -36,7 +36,7 @@ from fv3fit.keras._models.shared.utils import (
     full_standard_normalized_input,
 )
 from fv3fit import tfdataset
-from fv3fit.keras._models.shared.clip import clip_sequence, ClipConfig
+from fv3fit.keras._models.shared.clip import clip_sequence, ClipConfig, taper_sequence
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping, clip_sample
 
 
@@ -302,7 +302,10 @@ def build_model(
         config.clip_config.zero_mask_clipped_layer(denorm_layer, name)
         for denorm_layer, name in zip(denorm_output_layers, config.output_variables)
     ]
+    tapered_denorm_output_layers = taper_sequence(
+        config.clip_config, zero_filled_denorm_output_layers, config.output_variables
+    )
     predict_model = tf.keras.Model(
-        inputs=input_layers, outputs=zero_filled_denorm_output_layers
+        inputs=input_layers, outputs=tapered_denorm_output_layers
     )
     return train_model, predict_model
