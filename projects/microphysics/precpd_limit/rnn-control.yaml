@@ -121,7 +121,6 @@ model:
   normalize_default:
     center: per_feature
     scale: all
-  # normalize_key: mean_std
   selection_map: {}
   timestep_increment_sec: 900
 transform:

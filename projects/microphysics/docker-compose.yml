@@ -2,9 +2,7 @@
 version: '3.4'
 services:
   fv3:
-    # image: us.gcr.io/vcm-ml/fv3fit:be696063a93d2829c5f03fa9f81e8aa3855790b1
-    # image: us.gcr.io/vcm-ml/prognostic_run_gpu:d6a0ed27eb58dae25782e9c6613774562f2e640f0
-    image: us.gcr.io/vcm-ml/prognostic_run_gpu:04de1e27915f3af51cafec4434c7041425257c9e
+    image: us.gcr.io/vcm-ml/fv3fit:81a999aab6ba52e7650f821f8cf80e79476f3283 # working
     entrypoint: []
     command: [bash]
     working_dir: /fv3net/projects/microphysics

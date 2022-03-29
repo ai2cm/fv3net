@@ -253,7 +253,12 @@ class TrainConfig(TransformedParameters):
     test_url: str = ""
     transform: TransformConfig = field(default_factory=TransformConfig)
     tensor_transform: List[
-        Union[TransformedVariableConfig, ConditionallyScaled, Difference]
+        Union[
+            TransformedVariableConfig,
+            ConditionallyScaled,
+            Difference,
+            CloudPrecpdUpdate,
+        ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
     conservative_model: Optional[ConservativeWaterConfig] = None
