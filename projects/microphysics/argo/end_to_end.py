@@ -18,7 +18,8 @@ def load_yaml(path):
     return yaml.safe_load(pathlib.Path(path).read_bytes())
 
 
-def submit(job, labels):
+def submit(job, labels, other_parameters=None):
+    other_parameters = other_parameters or {}
     args = (
         [
             "argo",
@@ -29,7 +30,7 @@ def submit(job, labels):
             "--name",
             job.name,
         ]
-        + _argo_parameters(job.parameters)
+        + _argo_parameters(job.parameters + other_parameters)
         + _label_args(labels)
     )
     subprocess.check_call(args, stdout=subprocess.DEVNULL)
@@ -53,7 +54,11 @@ def submit_jobs(jobs, experiment_name):
 
     with open("experiment-logs.txt", "a") as f:
         for job in jobs:
-            submit(job, labels={"experiment": experiment_name})
+            submit(
+                job,
+                labels={"experiment": experiment_name},
+                other_parameters={"experiment": experiment_name},
+            )
             print(job, file=f)
             print(job)
         print(
