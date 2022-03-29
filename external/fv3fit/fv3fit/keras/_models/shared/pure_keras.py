@@ -9,6 +9,7 @@ from fv3fit.keras.adapters import (
     ensure_dict_output,
     rename_dict_input,
     rename_dict_output,
+    ensure_tuple_model,
 )
 import tensorflow as tf
 from typing import Any, Dict, Hashable, Iterable, Sequence, Mapping
@@ -175,3 +176,80 @@ class PureKerasModel(Predictor):
         std_factors = {name: np.std(data, axis=0) for name, data in data_dict.items()}
         jacobians_std = nondimensionalize_jacobians(jacobians, std_factors)
         return InputSensitivity(jacobians=jacobians_std)
+
+
+@io.register("all-keras-dict")
+class PureKerasDictPredictor(Predictor):
+    """Save a keras model encoding the input/output names into a saved_model
+    artifact
+
+    The output names of the keras model are assumed to be correct. To do this
+    requires including the following logic when building the model::
+
+        out_with_correct_name = tf.keras.layers.Lambda(
+            lambda x: x, name="desired_name")
+
+    Note:
+        This class relies on PureKerasModel to implement Mhe Predictor methods.
+        It might be worth refactoring the implementation here instead since the
+        dict-in/out format has more structure.
+
+    """
+
+    _MODEL_FILENAME = "model.tf"
+    _CONFIG_FILENAME = "config.yaml"
+
+    def __init__(self, model: tf.keras.Model, passthrough: Any = None):
+        """Initialize the predictor.
+
+        Args:
+            model: a keras model. Tuple in/out models are okay, but will be cast
+                to a dict-output model before saving.
+            passthrough: any data! Is NOT serialized, but can be
+                used by other parts of the training workflow. Mostly exists for
+                backwards compatibility and should be avoided in new code.
+        """
+        dict_model = ensure_dict_output(model)
+        tuple_model = ensure_tuple_model(dict_model)
+        super().__init__(tuple_model.input_names, tuple_model.output_names)
+        self._model = tuple_model
+        self._pure_keras_predictor = PureKerasModel(
+            self.input_variables,
+            self.output_variables,
+            tuple_model,
+            # unstacked dims is hardcoded most places in fv3fit.keras, but it
+            # seems like useful metadata, but more of an aspect of the training
+            # data pipeline since it is the piece of code that removes the
+            # dimension names...would be nice to remove this concept...e.g. pass
+            # unstacked_dims to the .dump rather than in the constructor
+            # TODO consider this refactor
+            unstacked_dims=["z"],
+        )
+        self.passthrough = passthrough
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        """Predict an output xarray dataset from an input xarray dataset."""
+        return self._pure_keras_predictor.predict(X)
+
+    def dump(self, path: str) -> None:
+        """Serialize to a directory."""
+        with put_dir(path) as local_path:
+            self._model.save(self._model_filename(local_path))
+            path
+
+    @classmethod
+    def _model_filename(cls, path: str) -> str:
+        return os.path.join(path, cls._MODEL_FILENAME)
+
+    @classmethod
+    def load(cls, path: str) -> "Predictor":
+        """Load a serialized model from a directory."""
+        model = tf.keras.models.load_model(cls._model_filename(path))
+        return cls(model)
+
+    def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
+        """Calculate sensitivity to input features."""
+        raise NotImplementedError(
+            "input_sensitivity is not implemented...but could be pretty "
+            "easily using jacobian routines."
+        )

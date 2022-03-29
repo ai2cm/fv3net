@@ -1,4 +1,5 @@
 import dataclasses
+from fv3fit._shared.predictor import Predictor
 from toolz.functoolz import curry
 import numpy as np
 import tensorflow as tf
@@ -96,7 +97,7 @@ def train_dense_model(
     hyperparameters: DenseHyperparameters,
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
-):
+) -> Predictor:
     return train_column_model(
         train_batches=train_batches,
         validation_batches=validation_batches,
@@ -111,7 +112,7 @@ def train_dense_model(
 
 class ModelBuilder(Protocol):
     def __call__(
-        self, X: tf.Tensor, y: tf.Tensor
+        self, X: Tuple[tf.Tensor, ...], y: Tuple[tf.Tensor, ...]
     ) -> Tuple[tf.keras.Model, tf.keras.Model]:
         """
         Builds keras models for training and prediction based on input data.
@@ -193,7 +194,7 @@ def train_column_model(
         tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
     )
     get_Xy = curry(get_Xy_dataset)(
-        input_variables=input_variables, output_variables=output_variables, n_dims=1,
+        input_variables=input_variables, output_variables=output_variables, n_dims=2,
     )
     if validation_batches is not None:
         validation_batches = validation_batches.map(
@@ -205,7 +206,11 @@ def train_column_model(
 
     train_Xy = get_Xy(data=train_batches, clip_config=clip_config.clip)
     # need unclipped shapes for build_model
-    X, y = next(iter(get_Xy(data=train_batches, clip_config=None).batch(build_samples)))
+    X, y = next(
+        iter(
+            get_Xy(data=train_batches, clip_config=None).unbatch().batch(build_samples)
+        )
+    )
 
     train_model, predict_model = build_model(X=X, y=y)
     del X

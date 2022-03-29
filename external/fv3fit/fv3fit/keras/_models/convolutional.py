@@ -20,18 +20,11 @@ from fv3fit.keras._models.shared.utils import (
     full_standard_normalized_input,
 )
 from fv3fit import tfdataset
-from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping
+from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping, apply_to_tuple
 
 logger = logging.getLogger(__file__)
 
 UNSTACKED_DIMS = ("x", "y", "z", "z_interface")
-
-
-def multiply_loss_by_factor(original_loss, factor):
-    def loss(y_true, y_pred):
-        return tf.math.scalar_mul(factor, original_loss(y_true, y_pred))
-
-    return loss
 
 
 @dataclasses.dataclass
@@ -45,6 +38,8 @@ class ConvolutionalHyperparameters(Hyperparameters):
         training_loop: configuration of training loop
         loss: configuration of loss functions, will be applied separately to
             each output variable
+        normalization_fit_samples: number of samples to use when fitting normalization,
+            note that one sample is one tile
     """
 
     input_variables: List[str]
@@ -62,6 +57,7 @@ class ConvolutionalHyperparameters(Hyperparameters):
         default_factory=dict
     )
     loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
+    normalization_fit_samples: int = 30
 
     @property
     def variables(self) -> Set[str]:
@@ -74,27 +70,35 @@ def get_Xy_dataset(
     clip_config: Optional[Mapping[Hashable, SliceConfig]],
     n_halo: int,
     data: tf.data.Dataset,
-):
+) -> tf.data.Dataset:
     """
     Given a tf.data.Dataset with mappings from variable name to samples,
     return a tf.data.Dataset whose entries are two tuples, the first containing the
     requested input variables and the second containing
     the requested output variables.
     """
-    # tile, x, y, z
-    data = data.map(apply_to_mapping(ensure_nd(4)))
+    # sample, tile, x, y, z
+    data = data.map(apply_to_mapping(ensure_nd(5)))
+
     if clip_config is not None:
-        y_source = data.map(clip_sample(clip_config))
+        clip_function = clip_sample(clip_config)
     else:
-        y_source = data
-    y = y_source.map(select_keys(output_variables))
-    X = data.map(apply_to_mapping(append_halos_tensor(n_halo))).map(
-        select_keys(input_variables)
-    )
-    # now that we have halos, we need to collapse tile back into the sample dimension
-    X = X.unbatch()
-    y = y.unbatch()
-    return tf.data.Dataset.zip((X, y))
+
+        def clip_function(data):
+            return data
+
+    def map_fn(data):
+        # clipping of inputs happens within the keras model, we don't clip at the
+        # data layer so that the model still takes full-sized inputs when used
+        # in production
+        x = apply_to_tuple(append_halos_tensor(n_halo))(
+            select_keys(input_variables, data)
+        )
+        y = select_keys(output_variables, clip_function(data))
+        return x, y
+
+    # unbatch to fold sample dimension into tile dimension as new sample dimension
+    return data.map(map_fn).unbatch()
 
 
 @register_training_function("convolutional", ConvolutionalHyperparameters)
@@ -125,7 +129,13 @@ def train_convolutional_model(
     train_Xy = get_Xy(data=train_batches, clip_config=hyperparameters.clip_config)
     # need unclipped shapes for build_model
     # have to batch data so we can take statistics for scaling transforms
-    X, y = next(iter(get_Xy(data=train_batches, clip_config=None).batch(10_000_000)))
+    X, y = next(
+        iter(
+            get_Xy(data=train_batches, clip_config=None)
+            .unbatch()
+            .batch(hyperparameters.normalization_fit_samples)
+        )
+    )
 
     train_model, predict_model = build_model(hyperparameters, X=X, y=y)
     hyperparameters.training_loop.fit_loop(

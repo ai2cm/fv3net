@@ -1,13 +1,12 @@
 from typing import Sequence
 import fv3fit
-from fv3fit.keras._models.shared.sequences import XyMultiArraySequence
+from fv3fit.keras._models.shared.halos import append_halos_tensor
 import numpy as np
 import tensorflow as tf
 import pytest
 import sys
 from fv3fit.testing import numpy_print_precision
 from fv3fit.keras._models.convolutional import build_model, ConvolutionalHyperparameters
-import xarray as xr
 from fv3fit.keras._models.shared.convolutional_network import Diffusive
 
 
@@ -58,28 +57,24 @@ def test_standard_input_gives_standard_output():
 def test_convolutional_network_build_standard_input_gives_standard_output():
     fv3fit.set_random_seed(0)
     nt, nx, ny, nz = 5, 12, 12, 15
-    ds = xr.Dataset(
-        data_vars={
-            "var_in": xr.DataArray(
-                np.random.randn(nt, 6, nx, ny, nz),
-                dims=["sample", "tile", "x", "y", "z"],
-            ),
-            "var_out": xr.DataArray(
-                np.random.randn(nt, 6, nx, ny, nz),
-                dims=["sample", "tile", "x", "y", "z"],
-            ),
-        }
-    )
     config = ConvolutionalHyperparameters(
         input_variables=["var_in"], output_variables=["var_out"]
     )
-    X, y = XyMultiArraySequence(
-        X_names=["var_in"],
-        y_names=["var_out"],
-        dataset_sequence=[ds],
-        unstacked_dims=["x", "y", "z"],
-        n_halo=config.convolutional_network.halos_required,
-    )[0]
+    X_array = np.random.randn(nt, 6, nx, ny, nz)
+    append_halos = append_halos_tensor(config.convolutional_network.halos_required)
+    X = [
+        next(
+            iter(
+                tf.data.Dataset.from_tensor_slices(X_array)
+                .batch(nt)
+                .map(append_halos)
+                .unbatch()
+                .unbatch()
+                .batch(6 * nt)
+            )
+        )
+    ]
+    y = [np.random.randn(nt * 6, nx, ny, nz)]
     _, predict_model = build_model(config=config, X=X, y=y)
     out = predict_model.predict(X)
     np.testing.assert_almost_equal(np.mean(out), 0.0, decimal=1)
@@ -92,34 +87,28 @@ def test_convolutional_network_build_standard_input_gives_standard_output():
 def test_convolutional_network_build_initial_loss_near_one():
     fv3fit.set_random_seed(0)
     nt, nx, ny, nz = 5, 12, 12, 15
-    ds = xr.Dataset(
-        data_vars={
-            "var_in": xr.DataArray(
-                np.random.randn(nt, 6, nx, ny, nz),
-                dims=["sample", "tile", "x", "y", "z"],
-            ),
-            "var_out": xr.DataArray(
-                np.random.randn(nt, 6, nx, ny, nz),
-                dims=["sample", "tile", "x", "y", "z"],
-            ),
-        }
-    )
     config = ConvolutionalHyperparameters(
         input_variables=["var_in"], output_variables=["var_out"]
     )
-    X, y = XyMultiArraySequence(
-        X_names=["var_in"],
-        y_names=["var_out"],
-        dataset_sequence=[ds],
-        unstacked_dims=["x", "y", "z"],
-        n_halo=config.convolutional_network.halos_required,
-    )[0]
+    X_array = np.random.randn(nt, 6, nx, ny, nz)
+    append_halos = append_halos_tensor(config.convolutional_network.halos_required)
+    X = [
+        next(
+            iter(
+                tf.data.Dataset.from_tensor_slices(X_array)
+                .batch(nt)
+                .map(append_halos)
+                .unbatch()
+                .unbatch()
+                .batch(6 * nt)
+            )
+        )
+    ]
+    y = [np.random.randn(nt * 6, nx, ny, nz)]
     _, predict_model = build_model(config=config, X=X, y=y)
     out = predict_model.predict(X)
     np.testing.assert_allclose(np.std(y - out), 1.0, atol=0.3)
-    loss = ConvolutionalHyperparameters.loss.loss(
-        std=np.std(ds["var_out"], axis=(0, 1, 2, 3))
-    )
+    loss = ConvolutionalHyperparameters.loss.loss(std=np.std(y[0], axis=(0, 1, 2, 3)))
     np.testing.assert_allclose(loss(y, out), 1.0, atol=0.3)
 
 
