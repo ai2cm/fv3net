@@ -308,7 +308,7 @@ def main(config: TrainConfig, seed: int = 0):
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
 
-    train_set = next(iter(train_ds.batch(50_000)))
+    train_set = next(iter(train_ds.batch(150_000)))
 
     transform = config.build_transform(train_set)
 
