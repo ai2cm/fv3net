@@ -19,4 +19,3 @@ def test_random_forest_predict_dim_size(outputs):
     model.fit(tfdataset)
     prediction = model.predict(ds[["air_temperature"]])
     assert prediction.sizes["z"] == 10
-
