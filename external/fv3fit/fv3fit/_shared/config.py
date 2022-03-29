@@ -31,9 +31,6 @@ import vcm
 import tensorflow as tf
 
 
-DELP = "pressure_thickness_of_atmospheric_layer"
-
-
 TrainingFunction = Callable[
     [Dataclass, Sequence[xr.Dataset], Sequence[xr.Dataset]], Predictor
 ]
@@ -54,6 +51,12 @@ def get_keras_model(name):
 
 @dataclasses.dataclass
 class CacheConfig:
+    """
+    Attributes:
+        local_download_path: location to save data locally
+        in_memory: if True, keep data in memory once loaded
+    """
+
     local_download_path: Optional[str] = None
     in_memory: bool = False
 
@@ -71,6 +74,9 @@ class TrainingConfig:
         derived_output_variables: optional list of prediction variables that
             are not directly predicted by the ML model but instead are derived
             using the ML-predicted output_variables
+        output_transforms: if given, apply these output transformations in the
+            saved Predictor
+        cache: configuration for local caching of input data
     """
 
     model_type: str
@@ -120,7 +126,7 @@ class TrainingConfig:
 TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
 
 
-def get_hyperparameter_class(model_type: str) -> Type:
+def get_hyperparameter_class(model_type: str):
     if model_type in TRAINING_FUNCTIONS:
         _, subclass = TRAINING_FUNCTIONS[model_type]
     else:
@@ -194,7 +200,7 @@ def _add_items_to_parser_arguments(
             parser.add_argument(f"--{key}", default=value)
 
 
-def _to_flat_dict(d: dict):
+def to_flat_dict(d: dict):
     """
     Converts any nested dictionaries to a flat version with
     the nested keys joined with a '.', e.g., {a: {b: 1}} ->
@@ -204,7 +210,7 @@ def _to_flat_dict(d: dict):
     new_flat = {}
     for k, v in d.items():
         if isinstance(v, dict):
-            sub_d = _to_flat_dict(v)
+            sub_d = to_flat_dict(v)
             for sk, sv in sub_d.items():
                 new_flat[".".join([k, sk])] = sv
         else:
@@ -258,7 +264,7 @@ def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]
         args: a list of argument strings to parse
         config_dict: the configuration to update
     """
-    config = _to_flat_dict(config_dict)
+    config = to_flat_dict(config_dict)
     parser = ArgumentParser()
     _add_items_to_parser_arguments(config, parser)
     try:

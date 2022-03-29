@@ -1,14 +1,14 @@
-from fv3fit._shared import ArrayPacker, SliceConfig, PackerConfig
+from fv3fit._shared import SliceConfig, PackerConfig
+from fv3fit.keras._models.recurrent import ArrayPacker, get_unpack_layer
 from typing import Iterable
 from fv3fit._shared.packer import (
-    unpack_matrix,
     pack,
     unpack,
     _unique_dim_name,
     count_features,
     clip,
 )
-from fv3fit.keras._models.packer import get_unpack_layer, Unpack
+from fv3fit.keras._models.packer import Unpack
 import pytest
 import numpy as np
 import xarray as xr
@@ -141,33 +141,6 @@ def test_repack_array(names, dims_list, array: np.ndarray):
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.to_array(packer.to_dataset(array))
     np.testing.assert_array_equal(result, array)
-
-
-def test_unpack_matrix():
-    nz = 10
-
-    in_ = xr.Dataset({"a": (["x", "z"], np.ones((1, nz))), "b": (["x"], np.ones((1)))})
-    out = xr.Dataset(
-        {"c": (["x", "z"], np.ones((1, nz))), "d": (["x", "z"], np.ones((1, nz)))}
-    )
-
-    x_packer = ArrayPacker("x", pack_names=["a", "b"])
-    y_packer = ArrayPacker("x", pack_names=["c", "d"])
-
-    in_packed = x_packer.to_array(in_)
-    out_packed = y_packer.to_array(out)
-
-    matrix = np.outer(out_packed.squeeze(), in_packed.squeeze())
-    jacobian = unpack_matrix(x_packer, y_packer, matrix)
-
-    assert isinstance(jacobian[("a", "c")], xr.DataArray)
-    assert jacobian[("a", "c")].dims == ("c", "a")
-    assert isinstance(jacobian[("a", "d")], xr.DataArray)
-    assert jacobian[("a", "d")].dims == ("d", "a")
-    assert isinstance(jacobian[("b", "c")], xr.DataArray)
-    assert jacobian[("b", "c")].dims == ("c", "b")
-    assert isinstance(jacobian[("b", "d")], xr.DataArray)
-    assert jacobian[("b", "d")].dims == ("d", "b")
 
 
 stacked_dataset = xr.Dataset({"a": xr.DataArray([1.0, 2.0, 3.0, 4.0], dims=["sample"])})

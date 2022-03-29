@@ -17,22 +17,15 @@ def test_save(tmpdir):
     """
     mock_batches = [unittest.mock.MagicMock(spec=xr.Dataset) for _ in range(3)]
     filenames = [f"{tmpdir}/00000.nc", f"{tmpdir}/00001.nc", f"{tmpdir}/00002.nc"]
-    with mapper_context(), batches_from_mapper_context():
+    with mapper_context(), batches_from_mapper_context() as mock_batches_from_mapper:
+        mock_batches_from_mapper.return_value = mock_batches
 
         @loaders._config.mapper_functions.register
         def mock_mapper():
             return None
 
-        @loaders._config.batches_from_mapper_functions.register
-        def mock_batches_from_mapper(
-            mapping_function, variable_names, mapping_kwargs=None,
-        ):
-            return mock_batches
-
         config_dict = {
-            "function": "mock_batches_from_mapper",
             "mapper_config": {"function": "mock_mapper", "kwargs": {}},
-            "kwargs": {},
         }
         with tempfile.NamedTemporaryFile() as tmpfile:
             with open(tmpfile.name, "w") as f:
@@ -42,8 +35,9 @@ def test_save(tmpdir):
             batch.to_netcdf.assert_called_once_with(filename, engine="h5netcdf")
 
 
+@pytest.mark.slow
 def test_save_stacked_data(tmpdir):
-    with mapper_context(), batches_from_mapper_context():
+    with mapper_context():
 
         @loaders._config.mapper_functions.register
         def mock_mapper():
@@ -57,14 +51,10 @@ def test_save_stacked_data(tmpdir):
                 )
             }
 
-        loaders._config.batches_from_mapper_functions.register(
-            loaders.batches_from_mapper
-        )
-
         config_dict = {
-            "function": "batches_from_mapper",
             "mapper_config": {"function": "mock_mapper", "kwargs": {}},
-            "kwargs": {"unstacked_dims": ["z"], "variable_names": ["a"]},
+            "unstacked_dims": ["z"],
+            "variable_names": ["a"],
         }
         with tempfile.NamedTemporaryFile() as tmpfile:
             with open(tmpfile.name, "w") as f:
@@ -77,8 +67,9 @@ def test_save_stacked_data(tmpdir):
             assert ds.a.dims == ("_fv3net_sample", "z")
 
 
+@pytest.mark.slow
 def test_save_raises_on_missing_variable(tmpdir):
-    with mapper_context(), batches_from_mapper_context():
+    with mapper_context():
 
         @loaders._config.mapper_functions.register
         def mock_mapper():
@@ -92,14 +83,10 @@ def test_save_raises_on_missing_variable(tmpdir):
                 )
             }
 
-        loaders._config.batches_from_mapper_functions.register(
-            loaders.batches_from_mapper
-        )
-
         config_dict = {
-            "function": "batches_from_mapper",
             "mapper_config": {"function": "mock_mapper", "kwargs": {}},
-            "kwargs": {"unstacked_dims": ["z"], "variable_names": ["a"]},
+            "unstacked_dims": ["z"],
+            "variable_names": ["a"],
         }
         with tempfile.NamedTemporaryFile() as tmpfile:
             with open(tmpfile.name, "w") as f:

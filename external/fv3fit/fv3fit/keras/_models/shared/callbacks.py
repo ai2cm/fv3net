@@ -1,8 +1,16 @@
 from .training_loop import EpochResult
 
 import logging
+import wandb
 
 logger = logging.getLogger(__name__)
+
+
+def _log_to_wandb_if_initialized(metrics):
+    try:
+        wandb.log(metrics)
+    except wandb.errors.Error:
+        pass
 
 
 class TrainingLoopLossHistory:
@@ -33,6 +41,10 @@ class TrainingLoopLossHistory:
         for batch_log in epoch_result.batch_logs:
             self.train_loss_all.append(batch_log.loss)
             self.val_loss_all.append(batch_log.val_loss)
+
+        _log_to_wandb_if_initialized(
+            metrics={"validation_loss": self.val_loss_end_of_epoch[-1]}
+        )
 
     def log_summary(self):
         logger.info(f"All batches train loss history: {self.train_loss_all}")

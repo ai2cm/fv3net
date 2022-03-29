@@ -2,6 +2,7 @@ from functools import partial
 from toolz import identity
 import xarray as xr
 import numpy as np
+import pytest
 
 from loaders.batches._sequences import shuffle
 
@@ -64,6 +65,7 @@ def test__sequence_take():
         assert out_seq[k] == val
 
 
+@pytest.mark.slow
 def test__sequence_local(tmpdir):
     ds = xr.Dataset({"a": (["x"], np.array([1]))})
     test_seq = Map(identity, [ds, ds])
@@ -77,6 +79,7 @@ def test__sequence_local(tmpdir):
     xr.testing.assert_equal(local[0], ds)
 
 
+@pytest.mark.slow
 def test__sequence_local_getitem_slice(tmpdir):
     ds = xr.Dataset({"a": (["x"], np.array([1]))})
     test_seq = Map(identity, [ds, ds, ds])
