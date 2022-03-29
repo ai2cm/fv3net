@@ -57,7 +57,10 @@ def submit_jobs(jobs, experiment_name):
             submit(
                 job,
                 labels={"experiment": experiment_name},
-                other_parameters={"experiment": experiment_name},
+                other_parameters={
+                    "wandb-tags": f"experiment/{experiment_name}",
+                    "wandb-group": experiment_name,
+                },
             )
             print(job, file=f)
             print(job)

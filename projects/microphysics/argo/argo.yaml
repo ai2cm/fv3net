@@ -25,6 +25,16 @@ spec:
         value: latest
       - name: image_tag
         value: 811d4a88b8b8f29d727f2d61f46f96b770c8ab47
+      - name: wandb-tags
+        value: ""
+      - name: wandb-group
+        value: ""
+  podSpecPatch: |
+    containers:
+      - name: main
+        env:
+          - name: WANDB_TAGS
+            value: "{{workflow.parameters.wandb-tags}}"
   volumes:
   - name: gcp-key-secret
     secret:
@@ -111,8 +121,6 @@ spec:
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
         value: "{{inputs.parameters.tag}}"
-      - name: WANDB_TAGS
-        value: "experiment/{{workflow.parameters.experiment}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
@@ -151,8 +159,6 @@ spec:
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
         value: "{{inputs.parameters.tag}}"
-      - name: WANDB_TAGS
-        value: "experiment/{{workflow.parameters.experiment}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
@@ -188,9 +194,7 @@ spec:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
-        value: "{{inputs.parameters.tag}}"
-      - name: WANDB_TAGS
-        value: "experiment/{{workflow.parameters.experiment}}"
+        value: "{{workflow.parameters.wandb-group}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
@@ -252,9 +256,7 @@ spec:
         - name: WANDB_NAME
           value: "{{workflow.name}}"
         - name: WANDB_RUN_GROUP
-          value: "{{workflow.parameters.experiment}}"
-        - name: WANDB_TAGS
-          value: "experiment/{{workflow.parameters.experiment}}"
+          value: "{{workflow.parameters.wandb-group}}"
       volumeMounts:
         - mountPath: /secret/gcp-credentials
           name: gcp-key-secret
@@ -297,9 +299,7 @@ spec:
         - name: WANDB_NAME
           value: "{{workflow.name}}"
         - name: WANDB_RUN_GROUP
-          value: "{{workflow.parameters.experiment}}"
-        - name: WANDB_TAGS
-          value: "experiment/{{workflow.parameters.experiment}}"
+          value: "{{workflow.parameters.wandb-group}}"
       volumeMounts:
         - mountPath: /secret/gcp-credentials
           name: gcp-key-secret
@@ -350,9 +350,7 @@ spec:
         - name: WANDB_NAME
           value: "{{workflow.name}}"
         - name: WANDB_RUN_GROUP
-          value: "{{workflow.parameters.experiment}}"
-        - name: WANDB_TAGS
-          value: "experiment/{{workflow.parameters.experiment}}"
+          value: "{{workflow.parameters.wandb-group}}"
       volumeMounts:
         - mountPath: /secret/gcp-credentials
           name: gcp-key-secret
