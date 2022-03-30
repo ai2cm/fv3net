@@ -1,17 +1,23 @@
+from pathlib import PosixPath
 import sys
-from dataclasses import asdict
+from fv3fit.dataclasses import asdict_with_enum as asdict
 from unittest.mock import Mock
+
 from fv3fit.emulation.losses import CustomLoss
 
 import pytest
 import tensorflow as tf
-import yaml
-from fv3fit._shared.config import _to_flat_dict
+from fv3fit._shared.config import to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
-from fv3fit.train_microphysics import TrainConfig, get_default_config, main
+from fv3fit.train_microphysics import (
+    TrainConfig,
+    TransformedParameters,
+    get_default_config,
+    main,
+)
 
 
 def test_TrainConfig_defaults():
@@ -84,22 +90,17 @@ def test_TrainConfig_from_flat_dict():
     assert config.model.architecture.name == "rnn"
 
     expected = get_default_config()
-    flat_dict = _to_flat_dict(asdict(expected))
+    flat_dict = to_flat_dict(asdict(expected))
     result = TrainConfig.from_flat_dict(flat_dict)
     assert result == expected
 
 
-def test_TrainConfig_from_yaml(tmp_path):
-
-    default = get_default_config()
-
-    yaml_path = str(tmp_path / "train_config.yaml")
-    with open(yaml_path, "w") as f:
-        yaml.safe_dump(asdict(default), f)
-
-        loaded = TrainConfig.from_yaml_path(yaml_path)
-
-        assert loaded == default
+def test_TrainConfig_from_yaml(tmp_path: PosixPath):
+    default = TrainConfig(test_url=".", train_url=".", out_url=".")
+    yaml_path = tmp_path / "train_config.yaml"
+    yaml_path.write_text(default.to_yaml())
+    loaded = TrainConfig.from_yaml_path(yaml_path.as_posix())
+    assert loaded == default
 
 
 def test_TrainConfig_from_args_default():
@@ -131,22 +132,8 @@ def test_TrainConfig_from_args_sysargv(monkeypatch):
     assert config.model.architecture.name == "rnn"
 
 
-@pytest.mark.parametrize(
-    "arch_key, expected_cache",
-    [("dense", True), ("rnn-v1", False), ("rnn-v1-shared-weights", False)],
-)
-def test_rnn_v1_cache_disable(arch_key, expected_cache):
-
-    default = get_default_config()
-    d = asdict(default)
-    d["cache"] = True
-    d["model"]["architecture"]["name"] = arch_key
-    config = TrainConfig.from_dict(d)
-
-    assert config.cache == expected_cache
-
-
 @pytest.mark.regression
+@pytest.mark.slow
 def test_training_entry_integration(tmp_path):
 
     config_dict = asdict(get_default_config())
@@ -161,14 +148,11 @@ def test_training_entry_integration(tmp_path):
     main(config)
 
 
-def test_TrainConfig_build_model():
+def test_MicrophysicsHyperParameters_build_model():
     field = Field("out", "in")
     in_ = "in"
     out = "out"
-    config = TrainConfig(
-        ".",
-        ".",
-        ".",
+    config = TransformedParameters(
         model=MicrophysicsConfig(
             input_variables=[in_],
             direct_out_variables=[out],

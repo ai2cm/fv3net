@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from fv3fit.keras.adapters import (
+    ensure_tuple_model,
     get_inputs,
     ensure_dict_output,
     rename_dict_output,
@@ -151,3 +152,14 @@ def test_ensure_list_input_preserves_output_dicts():
         np.testing.assert_array_equal(
             output_from_dict_input[key], output_from_list_input[key]
         )
+
+
+def test_ensure_tuple_model():
+    in_ = {"a": tf.keras.Input(shape=[2], name="a")}
+    out = tf.keras.layers.Lambda(lambda x: x, name="out")(in_)
+    # easier to test two output case...since keras has annoying behavior of
+    # single outputs
+    dict_model = tf.keras.Model(inputs=in_, outputs=out)
+    tuple_model = ensure_tuple_model(dict_model)
+    assert set(tuple_model.output_names) == set(dict_model.output_names)
+    out = tuple_model([in_[name] for name in tuple_model.input_names])

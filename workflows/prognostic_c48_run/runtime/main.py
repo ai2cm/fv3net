@@ -16,7 +16,7 @@ import runtime
 STATISTICS_LOG_NAME = "statistics"
 PROFILES_LOG_NAME = "profiles"
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 logging.getLogger("pace.util").setLevel(logging.WARN)
 logging.getLogger("fsspec").setLevel(logging.WARN)
@@ -50,7 +50,7 @@ def main():
         for time, diagnostics in loop:
 
             if comm.rank == 0:
-                logger.info(f"diags: {list(diagnostics.keys())}")
+                logger.debug(f"diags: {list(diagnostics.keys())}")
 
             averages = runtime.globally_average_2d_diagnostics(
                 comm, diagnostics, exclude=loop._states_to_output

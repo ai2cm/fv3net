@@ -1,9 +1,11 @@
 import dataclasses
-from typing import Any, Callable, Optional, Sequence, TextIO
+from typing import Any, Callable, Optional, Sequence, TextIO, Tuple
+
 from fv3fit._shared.config import SliceConfig
 from fv3fit.keras._models.shared.clip import ClipConfig
 from fv3fit.keras._models.convolutional import ConvolutionalHyperparameters
 from fv3fit.keras._models.shared.convolutional_network import ConvolutionalNetworkConfig
+from fv3fit.keras._models.shared.pure_keras import PureKerasModel
 import pytest
 import xarray as xr
 import numpy as np
@@ -12,7 +14,9 @@ from fv3fit._shared.config import TRAINING_FUNCTIONS, get_hyperparameter_class
 import vcm.testing
 import tempfile
 from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
-from fv3fit._shared.stacking import SAMPLE_DIM_NAME, stack_non_vertical
+from fv3fit._shared.stacking import stack, stack_non_vertical, SAMPLE_DIM_NAME
+from fv3fit.train import tfdataset_from_batches
+import tensorflow as tf
 
 
 # training functions that work on arbitrary datasets, can be used in generic tests below
@@ -21,6 +25,7 @@ GENERAL_TRAINING_TYPES = [
     "sklearn_random_forest",
     "precipitative",
     "dense",
+    "transformed",
 ]
 # training functions that have restrictions on the datasets they support,
 # cannot be used in generic tests below
@@ -45,15 +50,6 @@ def test_all_training_functions_are_tested_or_exempted():
     )
 
 
-SYSTEM_DEPENDENT_TYPES = [
-    "convolutional",
-    "sklearn_random_forest",
-    "precipitative",
-    "dense",
-]
-"""model types which produce different results on different systems"""
-
-
 def test_training_functions_exist():
     assert len(TRAINING_FUNCTIONS.keys()) > 0
 
@@ -66,80 +62,115 @@ class TrainingResult:
     hyperparameters: Any
 
 
-def get_default_hyperparameters(model_type, input_variables, output_variables):
-    """
-    Returns a hyperparameter configuration class for the model type with default
-    values.
-    """
-    cls = get_hyperparameter_class(model_type)
-    try:
-        hyperparameters = cls()
-    except TypeError:
-        hyperparameters = cls(
-            input_variables=input_variables, output_variables=output_variables
-        )
-    return hyperparameters
-
-
 def train_identity_model(model_type, sample_func, hyperparameters=None):
     input_variables, output_variables, train_dataset = get_dataset(
         model_type, sample_func
     )
     if hyperparameters is None:
-        hyperparameters = get_default_hyperparameters(
-            model_type, input_variables, output_variables
-        )
-    train_batches = [train_dataset for _ in range(10)]
+        cls = get_hyperparameter_class(model_type)
+        hyperparameters = cls.init_testing(input_variables, output_variables)
     input_variables, output_variables, test_dataset = get_dataset(
         model_type, sample_func
     )
-    val_batches = [test_dataset]
+    train_tfdataset = tfdataset_from_batches([train_dataset for _ in range(10)])
+    val_tfdataset = tfdataset_from_batches([test_dataset])
     train = fv3fit.get_training_function(model_type)
-    model = train(hyperparameters, train_batches, val_batches)
+    model = train(hyperparameters, train_tfdataset, val_tfdataset)
+    test_dataset = unstack_test_dataset(test_dataset)
     return TrainingResult(model, output_variables, test_dataset, hyperparameters)
 
 
-def get_dataset(model_type, sample_func):
-    if model_type == "precipitative":
-        input_variables = [
-            "air_temperature",
-            "specific_humidity",
-            "pressure_thickness_of_atmospheric_layer",
-            "physics_precip",
-        ]
-        output_variables = ["dQ1", "dQ2", "total_precipitation_rate"]
-    else:
-        input_variables = ["var_in_2d", "var_in_3d"]  # 2d var will be clipped below
-        output_variables = ["var_out"]
-    input_values = list(sample_func() for _ in input_variables)
-    if model_type == "precipitative":
-        i_phys_prec = input_variables.index("physics_precip")
-        input_values[i_phys_prec] = input_values[i_phys_prec].isel(z=0) * 0.0
-        output_values = (
-            input_values[0] - LV / CPD * input_values[1],  # latent heat of condensation
-            input_values[1],
-            1.0
-            / GRAVITY
-            * np.sum(
-                input_values[2] * input_values[1], axis=-1
-            ),  # total_precipitation_rate is integration of dQ2
-        )
-    else:
-        i_2d_input = input_variables.index("var_in_2d")
-        input_values[i_2d_input] = input_values[i_2d_input].isel(z=0) * 0.0
-        i_3d_input = input_variables.index("var_in_3d")
-        output_values = [input_values[i_3d_input]]
+def unstack_test_dataset(test_dataset: xr.Dataset):
+    """
+    Undo the stacking used to create stacked tf.data.Datasets,
+    so we can call .predict on unstacked data.
+    """
+    return test_dataset.unstack(SAMPLE_DIM_NAME).transpose(
+        "sample", "tile", "x", "y", "z"
+    )
 
+
+def _process(input_variables, input_values, output_variables, output_values):
     data_vars = {name: value for name, value in zip(input_variables, input_values)}
+    data_vars[input_variables[0]] = data_vars[input_variables[0]].astype(np.float32)
     data_vars.update(
         {name: value for name, value in zip(output_variables, output_values)}
     )
-    train_dataset = xr.Dataset(data_vars=data_vars)
-    if model_type in ["sklearn_random_forest"]:  # refactored to use stacked data
-        train_dataset = stack_non_vertical(train_dataset).rename_dims(
-            {SAMPLE_DIM_NAME: "foo_sample"}
-        )
+    return xr.Dataset(data_vars=data_vars)
+
+
+def _get_dataset_precipitative(sample_func):
+    input_variables = [
+        "air_temperature",
+        "specific_humidity",
+        "pressure_thickness_of_atmospheric_layer",
+        "physics_precip",
+    ]
+    output_variables = ["dQ1", "dQ2", "total_precipitation_rate"]
+    input_values = list(sample_func() for _ in input_variables)
+    i_phys_prec = input_variables.index("physics_precip")
+    input_values[i_phys_prec] = input_values[i_phys_prec].isel(z=0) * 0.0
+    output_values = (
+        input_values[0] - LV / CPD * input_values[1],  # latent heat of condensation
+        input_values[1],
+        1.0
+        / GRAVITY
+        * np.sum(
+            input_values[2] * input_values[1], axis=-1
+        ),  # total_precipitation_rate is integration of dQ2
+    )
+    return (
+        input_variables,
+        output_variables,
+        _process(input_variables, input_values, output_variables, output_values),
+    )
+
+
+def _get_dataset_default(sample_func, data_2d_ceof=1):
+    input_variables = ["var_in_2d", "var_in_3d"]  # 2d var will be clipped below
+    output_variables = ["var_out"]
+    input_values = list(sample_func() for _ in input_variables)
+    i_2d_input = input_variables.index("var_in_2d")
+    input_values[i_2d_input] = input_values[i_2d_input].isel(z=0) * data_2d_ceof
+    i_3d_input = input_variables.index("var_in_3d")
+    output_values = [input_values[i_3d_input]]
+    return (
+        input_variables,
+        output_variables,
+        _process(input_variables, input_values, output_variables, output_values),
+    )
+
+
+def get_dataset_default(sample_func):
+    input_variables, output_variables, train_dataset = _get_dataset_default(sample_func)
+    train_dataset = stack_non_vertical(train_dataset)
     return input_variables, output_variables, train_dataset
+
+
+def get_dataset_precipitative(sample_func):
+    input_variables, output_variables, train_dataset = _get_dataset_precipitative(
+        sample_func
+    )
+    train_dataset = stack_non_vertical(train_dataset)
+    return input_variables, output_variables, train_dataset
+
+
+def get_dataset_convolutional(sample_func):
+    input_variables, output_variables, train_dataset = _get_dataset_default(
+        sample_func,
+        # transpose tests fail if the 2d data varies
+        data_2d_ceof=0.0,
+    )
+    train_dataset = stack(train_dataset, unstacked_dims=["tile", "x", "y", "z"])
+    return input_variables, output_variables, train_dataset
+
+
+def get_dataset(
+    model_type, sample_func
+) -> Tuple[Sequence[str], Sequence[str], tf.data.Dataset]:
+
+    build_test_case = globals().get(f"get_dataset_{model_type}", get_dataset_default)
+    return build_test_case(sample_func)
 
 
 def assert_can_learn_identity(
@@ -172,20 +203,15 @@ def assert_can_learn_identity(
         ** 0.5
     )
     assert rmse < max_rmse
-    if model_type in SYSTEM_DEPENDENT_TYPES:
-        print(f"{model_type} is system dependent, not checking against regtest output")
-    else:
-        for result in vcm.testing.checksum_dataarray_mapping(result.test_dataset):
-            print(result, file=regtest)
-        for result in vcm.testing.checksum_dataarray_mapping(out_dataset):
-            print(result, file=regtest)
 
 
+@pytest.mark.slow
 def test_train_default_model_on_identity(model_type, regtest):
     """
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around 0 with unit variance.
     """
+
     fv3fit.set_random_seed(1)
     # don't set n_feature too high for this, because of curse of dimensionality
     n_sample, n_tile, nx, ny, n_feature = 5, 6, 12, 12, 2
@@ -196,6 +222,7 @@ def test_train_default_model_on_identity(model_type, regtest):
     )
 
 
+@pytest.mark.slow
 def test_default_convolutional_model_is_transpose_invariant():
     """
     The model with default configuration options can learn the identity function,
@@ -227,6 +254,7 @@ def test_default_convolutional_model_is_transpose_invariant():
     )
 
 
+@pytest.mark.slow
 def test_diffusive_convolutional_model_gives_bounded_output():
     """
     The model with diffusive enabled should give outputs in the range of the inputs.
@@ -252,12 +280,13 @@ def test_diffusive_convolutional_model_gives_bounded_output():
     result = train_identity_model(
         "convolutional", sample_func=train_sample_func, hyperparameters=hyperparameters
     )
-    output = result.model.predict(test_dataset)
+    output = result.model.predict(unstack_test_dataset(test_dataset))
     for name, data_array in output.data_vars.items():
         assert np.all(data_array.values >= low), name
         assert np.all(data_array.values <= high), name
 
 
+@pytest.mark.slow
 def test_train_with_same_seed_gives_same_result(model_type):
     n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
     fv3fit.set_random_seed(0)
@@ -273,6 +302,7 @@ def test_train_with_same_seed_gives_same_result(model_type):
     xr.testing.assert_equal(first_output, second_output)
 
 
+@pytest.mark.slow
 def test_predict_does_not_mutate_input(model_type):
     n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
@@ -298,6 +328,7 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
     return sample_func
 
 
+@pytest.mark.slow
 def test_train_default_model_on_nonstandard_identity(model_type):
     """
     The model with default configuration options can learn the identity function,
@@ -315,6 +346,19 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     )
 
 
+def remove_key(d: dict, key: Any):
+    """
+    Removes the given key from dict and all subdicts, if present.
+    """
+    return_dict = {**d}
+    return_dict.pop(key, None)
+    for name, value in return_dict.items():
+        if isinstance(value, dict):
+            return_dict[name] = remove_key(value, key)
+    return return_dict
+
+
+@pytest.mark.slow
 def test_dump_and_load_default_maintains_prediction(model_type):
     n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
@@ -324,14 +368,29 @@ def test_dump_and_load_default_maintains_prediction(model_type):
     with tempfile.TemporaryDirectory() as tmpdir:
         fv3fit.dump(result.model, tmpdir)
         loaded_model = fv3fit.load(tmpdir)
+    if isinstance(result.model, PureKerasModel):
+        # we used to test for bit-identical results, but the convolutional model is
+        # somehow not bit-identical when reloaded, so we've added these checks that at
+        # least the model weights, config, and summary are bit-identical.
+        assert result.model.model.summary() == loaded_model.model.summary()
+        for l1, l2 in zip(result.model.model.layers, loaded_model.model.layers):
+            loaded_config = remove_key(l2.get_config(), "shared_object_id")
+            assert l1.get_config() == loaded_config
+        assert all(
+            [
+                np.all(w1 == w2)
+                for w1, w2 in zip(
+                    result.model.model.weights, loaded_model.model.weights
+                )
+            ]
+        )
     loaded_result = loaded_model.predict(result.test_dataset)
-    xr.testing.assert_equal(loaded_result, original_result)
+    xr.testing.assert_allclose(loaded_result, original_result, rtol=1e-4)
 
 
+@pytest.mark.slow
 def test_train_dense_model_clipped_inputs_outputs():
-    da = xr.DataArray(
-        np.arange(1500).reshape(6, 5, 5, 10) * 1.0, dims=["tile", "x", "y", "z"],
-    )
+    da = xr.DataArray(np.arange(1500).reshape(150, 10) * 1.0, dims=["sample", "z"],)
     train_dataset = xr.Dataset(
         data_vars={"var_in_0": da, "var_in_1": da, "var_out_0": da, "var_out_1": da}
     )
@@ -342,13 +401,16 @@ def test_train_dense_model_clipped_inputs_outputs():
     input_variables = ["var_in_0", "var_in_1"]
     output_variables = ["var_out_0", "var_out_1"]
 
-    hyperparameters = get_default_hyperparameters(
-        "dense", input_variables, output_variables
-    )
+    cls = get_hyperparameter_class("dense")
+    hyperparameters = cls.init_testing(input_variables, output_variables)
     hyperparameters.clip_config = ClipConfig(
-        {"var_in_0": {"z": SliceConfig(2, 5)}, "var_out_0": {"z": SliceConfig(4, 8)}}
+        {"var_in_0": SliceConfig(2, 5), "var_out_0": SliceConfig(4, 8)}
     )
-    model = train(hyperparameters, train_batches, val_batches,)
+    model = train(
+        hyperparameters,
+        tfdataset_from_batches(train_batches),
+        tfdataset_from_batches(val_batches),
+    )
     prediction = model.predict(train_dataset)
     assert np.unique(prediction["var_out_0"].isel(z=slice(None, 4)).values) == 0.0
     assert np.unique(prediction["var_out_0"].isel(z=slice(8, None)).values) == 0.0

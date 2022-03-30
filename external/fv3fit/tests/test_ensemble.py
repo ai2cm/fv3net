@@ -22,7 +22,7 @@ def test_ensemble_model_median(values, reduction, output):
     ds_in = xr.Dataset(
         data_vars={"input": xr.DataArray(np.zeros([3, 3, 5]), dims=["x", "y", "z"],)}
     )
-    ds_out = ensemble.predict_columnwise(ds_in, feature_dim="z")
+    ds_out = ensemble.predict(ds_in)
     assert len(ds_out.data_vars) == 1
     assert "output" in ds_out.data_vars
     np.testing.assert_almost_equal(ds_out["output"].values, output)

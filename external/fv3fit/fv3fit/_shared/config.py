@@ -5,6 +5,7 @@ import os
 from typing import (
     Any,
     Callable,
+    Hashable,
     Mapping,
     Optional,
     Tuple,
@@ -14,7 +15,6 @@ from typing import (
     List,
     Type,
     Dict,
-    Hashable,
     MutableMapping,
 )
 from fv3fit.typing import Dataclass
@@ -25,12 +25,10 @@ import dacite
 import numpy as np
 import random
 import warnings
+import vcm
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
-
-
-DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 TrainingFunction = Callable[
@@ -53,6 +51,12 @@ def get_keras_model(name):
 
 @dataclasses.dataclass
 class CacheConfig:
+    """
+    Attributes:
+        local_download_path: location to save data locally
+        in_memory: if True, keep data in memory once loaded
+    """
+
     local_download_path: Optional[str] = None
     in_memory: bool = False
 
@@ -70,6 +74,9 @@ class TrainingConfig:
         derived_output_variables: optional list of prediction variables that
             are not directly predicted by the ML model but instead are derived
             using the ML-predicted output_variables
+        output_transforms: if given, apply these output transformations in the
+            saved Predictor
+        cache: configuration for local caching of input data
     """
 
     model_type: str
@@ -77,6 +84,9 @@ class TrainingConfig:
     sample_dim_name: str = "sample"
     random_seed: Union[float, int] = 0
     derived_output_variables: List[str] = dataclasses.field(default_factory=list)
+    output_transforms: Sequence[vcm.DataTransform] = dataclasses.field(
+        default_factory=list
+    )
     cache: CacheConfig = dataclasses.field(default_factory=lambda: CacheConfig())
 
     @property
@@ -116,7 +126,7 @@ class TrainingConfig:
 TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
 
 
-def get_hyperparameter_class(model_type: str) -> Type:
+def get_hyperparameter_class(model_type: str):
     if model_type in TRAINING_FUNCTIONS:
         _, subclass = TRAINING_FUNCTIONS[model_type]
     else:
@@ -190,7 +200,7 @@ def _add_items_to_parser_arguments(
             parser.add_argument(f"--{key}", default=value)
 
 
-def _to_flat_dict(d: dict):
+def to_flat_dict(d: dict):
     """
     Converts any nested dictionaries to a flat version with
     the nested keys joined with a '.', e.g., {a: {b: 1}} ->
@@ -200,7 +210,7 @@ def _to_flat_dict(d: dict):
     new_flat = {}
     for k, v in d.items():
         if isinstance(v, dict):
-            sub_d = _to_flat_dict(v)
+            sub_d = to_flat_dict(v)
             for sk, sv in sub_d.items():
                 new_flat[".".join([k, sk])] = sv
         else:
@@ -254,7 +264,7 @@ def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]
         args: a list of argument strings to parse
         config_dict: the configuration to update
     """
-    config = _to_flat_dict(config_dict)
+    config = to_flat_dict(config_dict)
     parser = ArgumentParser()
     _add_items_to_parser_arguments(config, parser)
     try:
@@ -328,12 +338,19 @@ class SliceConfig:
         return slice(self.start, self.stop, self.step)
 
 
-ClipDims = Mapping[Hashable, Mapping[str, SliceConfig]]
-
-
 @dataclasses.dataclass(frozen=True)
 class PackerConfig:
-    clip: ClipDims = dataclasses.field(default_factory=dict)
+    """
+    Configuration for packing.
+
+    Attributes:
+        clip: a mapping from variable name to configuration for the slice of
+            the feature (last) dimension of that variable we want to retain.
+            Used to exclude data (e.g. at start or end of dimension). User
+            must ensure the last dimension is the dimension they want to clip.
+    """
+
+    clip: Mapping[Hashable, SliceConfig] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass

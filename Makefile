@@ -8,6 +8,7 @@ REGISTRY ?= us.gcr.io/vcm-ml
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_NAME ?= fv3net
 CACHE_TAG =latest
+BEAM_VERSION = 2.37.0
 
 IMAGES = fv3net post_process_run prognostic_run
 
@@ -16,8 +17,10 @@ IMAGES = fv3net post_process_run prognostic_run
 # Docker Image Management
 ############################################################
 # pattern rule for building docker images
+build_image_%: ARGS
 build_image_%:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:$(CACHE_TAG) \
+		$(ARGS) \
 		-f docker/$*/Dockerfile -t $(REGISTRY)/$*:$(VERSION) .
 
 build_images: $(addprefix build_image_, $(IMAGES))
@@ -35,7 +38,27 @@ build_image_prognostic_run_gpu:
 		--target prognostic-run \
 		--build-arg BASE_IMAGE=nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu20.04 .
 
-image_test_prognostic_run:
+
+build_image_dataflow: ARGS = --build-arg BEAM_VERSION=$(BEAM_VERSION)
+
+image_test_dataflow: push_image_dataflow
+	docker run \
+		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
+		-w /tmp/dataflow \
+		--entrypoint="pytest" \
+		$(REGISTRY)/dataflow:$(VERSION) \
+		tests/integration -s
+
+image_test_emulation:
+	docker run \
+		--rm \
+		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
+		-w /fv3net/external/emulation \
+		$(REGISTRY)/prognostic_run:$(VERSION) pytest
+
+image_test_prognostic_run: image_test_emulation
 	docker run \
 		--rm \
 		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
@@ -55,11 +78,23 @@ pull_image_%:
 enter_emulation:
 	cd projects/microphysics && docker-compose run --rm -w /fv3net/external/emulation fv3 bash
 
+enter_prognostic_run:
+	docker run \
+		--tty \
+		--interactive \
+		--rm \
+		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
+		-v $(shell pwd)/workflows:/fv3net/workflows \
+		-v $(shell pwd)/external:/fv3net/external \
+		-w /fv3net/workflows/prognostic_c48_run \
+		$(REGISTRY)/prognostic_run:$(VERSION) bash
+
 ############################################################
 # Documentation (rules match "deploy_docs_%")
 ############################################################
 
-## Empty rule for deploying docs
+## Deploy documentation to vulcanclimatemodeling.com
 deploy_docs_%:
 	@echo "Nothing to do."
 
@@ -86,22 +121,24 @@ run_integration_tests:
 	./tests/end_to_end_integration/run_test.sh $(REGISTRY) $(VERSION)
 
 test_prognostic_run:
-	docker run prognostic_run pytest
+	docker run us.gcr.io/vcm-ml/prognostic_run:$(VERSION) pytest $(ARGS)
+
 
 test_prognostic_run_report:
 	bash workflows/diagnostics/tests/prognostic/test_integration.sh
 
+test_%: ARGS =
 test_%:
-	cd external/$* && tox
+	cd external/$* && tox -- $(ARGS)
 
 test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
-	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images $(ARGS)
 
 test_regression:
-	coverage run -m pytest -vv -m regression -s
+	pytest -vv -m regression -s $(ARGS)
 
 test_dataflow:
-	coverage run -m pytest -vv workflows/dataflow/tests/integration -s
+	coverage run -m pytest -vv workflows/dataflow/tests/integration -s $(ARGS)
 
 coverage_report:
 	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
@@ -143,8 +180,12 @@ lock_deps: lock_pip
 	# external directories must be explicitly listed to avoid model requirements files which use locked versions
 
 constraints.txt:
+	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
+		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/'> .dataflow-versions.txt
+
 	pip-compile  \
 	--no-annotate \
+	.dataflow-versions.txt \
 	external/vcm/setup.py \
 	pip-requirements.txt \
 	external/fv3kube/setup.py \
@@ -152,10 +193,12 @@ constraints.txt:
 	external/*.requirements.in \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
+	$< \
 	--output-file constraints.txt
 	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
 	sed -i.bak  's/\[.*\]//g' constraints.txt
-	rm -f constraints.txt.bak
+	rm -f constraints.txt.bak .dataflow-versions.txt
+	@echo "remember to update numpy version in external/vcm/pyproject.toml"
 
 docker/prognostic_run/requirements.txt: constraints.txt
 	cp constraints.txt docker/prognostic_run/requirements.txt
@@ -171,9 +214,19 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		workflows/post_process_run/requirements.txt \
 		workflows/prognostic_c48_run/requirements.in
 
+docker/fv3fit/requirements.txt: constraints.txt
+	cp constraints.txt docker/prognostic_run/requirements.txt
+	# this will subset the needed dependencies from constraints.txt
+	# while preserving the versions
+	pip-compile --no-annotate \
+		--output-file docker/fv3fit/requirements.txt \
+		external/fv3fit/setup.py \
+		external/loaders/setup.py \
+		external/vcm/setup.py
 
 .PHONY: lock_pip constraints.txt docker/prognostic_run/requirements.txt
-lock_pip: constraints.txt docker/prognostic_run/requirements.txt
+## Lock the pip dependencies of this repo
+lock_pip: constraints.txt docker/prognostic_run/requirements.txt docker/fv3fit/requirements.txt
 
 ## Install External Dependencies
 install_deps:

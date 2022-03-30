@@ -57,14 +57,11 @@ def random_state():
 
 
 def test__get_batch(mapper):
-    ds = _get_batch(
-        mapper=mapper,
-        data_vars=["air_temperature", "specific_humidity"],
-        keys=mapper.keys(),
-    )
+    ds = _get_batch(mapper=mapper, keys=mapper.keys(),)
     assert len(ds["time"]) == 4
 
 
+@pytest.mark.slow
 def test_batches_from_mapper(mapper):
     batched_data_sequence = batches_from_mapper(
         mapper, DATA_VARS, timesteps_per_batch=2, needs_grid=False,
@@ -130,6 +127,7 @@ def test_diagnostic_batches_from_mapper(mapper):
         pytest.param([0, 1, 2, 3, 4, 5], id="zero-indexed"),
     ],
 )
+@pytest.mark.slow
 def test_batches_from_mapper_different_indexing_conventions(tiles):
     n = 48
     ds = xr.Dataset(
@@ -173,6 +171,7 @@ def get_mapper(n_keys: int, n_vars: int, n_dims: int):
         pytest.param(3, 6, id="stack_multiple_dims"),
     ],
 )
+@pytest.mark.slow
 def test_batches_from_mapper_stacking(n_keys: int, stacked_dims: int, total_dims: int):
     mapper = get_mapper(n_keys=n_keys, n_vars=2, n_dims=total_dims)
     variable_names = list(list(mapper.values())[0].data_vars.keys())
@@ -190,6 +189,7 @@ def test_batches_from_mapper_stacking(n_keys: int, stacked_dims: int, total_dims
             assert data.dims[0] == SAMPLE_DIM_NAME
 
 
+@pytest.mark.slow
 def test_batches_from_mapper_stacked_data_is_shuffled():
     # the assertions of this test have a small chance to fail for a given random seed
     np.random.seed(0)
@@ -222,6 +222,7 @@ def test_batches_from_mapper_stacked_data_is_shuffled():
 @pytest.mark.parametrize(
     "n_keys", [pytest.param(1, id="one_key"), pytest.param(3, id="multiple_keys")]
 )
+@pytest.mark.slow
 def test_batches_from_mapper_unstacked(n_keys: int):
     n_dims = 3
     mapper = get_mapper(n_keys=n_keys, n_vars=2, n_dims=n_dims)
@@ -237,6 +238,7 @@ def test_batches_from_mapper_unstacked(n_keys: int):
 
 
 @pytest.mark.parametrize("subsample_ratio", [0.8, 0.5])  # 1.0 is covered by other tests
+@pytest.mark.slow
 def test_batches_from_mapper_subsample(subsample_ratio: float):
     np.random.seed(0)  # results are slightly seed-dependent
     mapper = get_mapper(n_keys=10, n_vars=1, n_dims=3)
@@ -289,6 +291,7 @@ def test_batches_from_netcdf(tmpdir):
         xr.testing.assert_equal(ds_saved, ds_loaded)
 
 
+@pytest.mark.slow
 def test_batches_from_mapper_stacked_data_is_not_shuffled():
     mapper = get_mapper(n_keys=10, n_vars=1, n_dims=3)
     unstacked_dims = ["dim_2"]
@@ -307,3 +310,21 @@ def test_batches_from_mapper_stacked_data_is_not_shuffled():
     sample_dim1 = [sample[2] for sample in multiindex[:5]]
     assert sample_times == sorted(sample_times)
     assert sample_dim1 == sorted(sample_dim1)
+
+
+def test_batches_from_mapper_data_transform(mapper):
+    batched_data_sequence = batches_from_mapper(
+        mapper,
+        ["Q1", "Q2", "Qm"],
+        timesteps_per_batch=2,
+        needs_grid=False,
+        data_transforms=[
+            {"name": "Q1_from_dQ1_pQ1"},
+            {"name": "Q2_from_dQ2_pQ2"},
+            {"name": "Qm_from_Q1_Q2"},
+        ],
+    )
+    ds = batched_data_sequence[0]
+    assert "Q1" in ds
+    assert "Q2" in ds
+    assert "Qm" in ds

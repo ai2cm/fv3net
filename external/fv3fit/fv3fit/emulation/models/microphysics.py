@@ -1,11 +1,16 @@
 import dataclasses
 import dacite
 import tensorflow as tf
-from typing import List, Mapping
+from typing import List, Mapping, Optional
 import vcm
 
 from fv3fit._shared import SliceConfig
 from fv3fit.emulation import thermo
+from fv3fit.emulation.layers.normalization2 import (
+    NormFactory,
+    StdDevMethod,
+    MeanMethod,
+)
 from fv3fit.keras.adapters import ensure_dict_output
 from fv3fit.emulation.zhao_carr_fields import Field, ZhaoCarrFields
 from fv3fit.emulation.layers import (
@@ -34,8 +39,8 @@ class MicrophysicsConfig:
         architecture: `ArchitectureConfig` object initialized with keyword
             arguments "name" (key for architecture layer) and "kwargs" (mapping
             of any keyword arguments to initialize the layer)
-        normalize_key: Normalization style to use for inputs/outputs.  Pass None
-            to disable normalization
+        normalize_default: default normalization to use for inputs/outputs
+        normalize_map: overrides the default normalization per variable
         selection_map: Subselection mapping for feature dimension of input/output
             variables to slices along the feature dimension
         tendency_outputs: Additional output tendencies to get from the
@@ -53,8 +58,11 @@ class MicrophysicsConfig:
     architecture: ArchitectureConfig = dataclasses.field(
         default_factory=lambda: ArchitectureConfig(name="linear")
     )
-    normalize_key: str = "mean_std"
+    normalize_default: Optional[NormFactory] = NormFactory(
+        scale=StdDevMethod.all, center=MeanMethod.per_feature
+    )
     selection_map: Mapping[str, SliceConfig] = dataclasses.field(default_factory=dict)
+    normalize_map: Mapping[str, NormFactory] = dataclasses.field(default_factory=dict)
     tendency_outputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
     timestep_increment_sec: int = 900
 
@@ -80,11 +88,14 @@ class MicrophysicsConfig:
             + list(self.tendency_outputs.values())
         )
 
+    def _get_norm_factory(self, name: str) -> Optional[NormFactory]:
+        return self.normalize_map.get(name, self.normalize_default)
+
     def _get_processed_inputs(self, sample_in, inputs):
         return {
             name: FieldInput(
                 sample_in=sample_in[name],
-                normalize=self.normalize_key,
+                normalize=self._get_norm_factory(name),
                 selection=self.selection_map_slices.get(name, None),
                 name=f"processed_{name}",
             )(tensor)
@@ -98,7 +109,7 @@ class MicrophysicsConfig:
         for name in self.direct_out_variables:
             sample = data[name]
             out_ = FieldOutput(
-                sample_out=sample, denormalize=self.normalize_key, name=name,
+                sample_out=sample, denormalize=self._get_norm_factory(name), name=name,
             )(net_output[name])
             outputs[name] = out_
         return outputs
@@ -113,7 +124,7 @@ class MicrophysicsConfig:
                 self.timestep_increment_sec,
                 sample_out=data[name],
                 sample_in=data[self.residual_out_variables[name]],
-                denormalize=self.normalize_key,
+                denormalize=self._get_norm_factory(name),
                 name=name,
                 tendency_name=self.tendency_outputs.get(name, None),
             )
@@ -177,7 +188,9 @@ class ConservativeWaterConfig:
         default_factory=lambda: ArchitectureConfig(name="linear")
     )
     extra_input_variables: List[Field] = dataclasses.field(default_factory=list)
-    normalize_key: str = "mean_std"
+    normalize_key: Optional[NormFactory] = NormFactory(
+        scale=StdDevMethod.all, center=MeanMethod.per_feature
+    )
     timestep_increment_sec: int = 900
 
     @property
@@ -210,7 +223,7 @@ class ConservativeWaterConfig:
                 if var.residual and var.tendency_name
             },
             architecture=self.architecture,
-            normalize_key=self.normalize_key,
+            normalize_default=self.normalize_key,
             timestep_increment_sec=self.timestep_increment_sec,
             selection_map={v.input_name: v.selection for v in self._input_variables},
         ).build(data)

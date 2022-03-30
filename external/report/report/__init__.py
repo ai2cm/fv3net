@@ -6,5 +6,8 @@ from .create_report import (
     OrderedList,
     RawHTML,
 )
+from ._io import upload
+
+from .matplotlib import MatplotlibFigure
 
 __version__ = "0.1.0"

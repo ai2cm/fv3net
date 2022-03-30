@@ -20,13 +20,16 @@ from .compute_diagnostics import compute_diagnostics
 from .derived_diagnostics import derived_registry
 from ._input_sensitivity import plot_input_sensitivity
 from ._helpers import (
+    DATASET_DIM_NAME,
     load_grid_info,
     is_3d,
-    insert_r2,
+    compute_r2,
+    insert_aggregate_bias,
+    insert_aggregate_r2,
     insert_rmse,
     insert_column_integrated_vars,
 )
-from ._select import meridional_transect, nearest_time
+from ._select import meridional_transect, nearest_time_batch_index, select_snapshot
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -44,7 +47,6 @@ TRANSECT_NC_NAME = "transect_lon0.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 METADATA_JSON_NAME = "metadata.json"
 
-DATASET_DIM_NAME = "dataset"
 DERIVATION_DIM_NAME = "derivation"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PREDICT_COORD = "predict"
@@ -171,10 +173,12 @@ def _compute_diagnostics(
 
     # then average over the batches for each output
     ds_summary = xr.concat(batches_summary, dim="batch")
+    ds_summary = ds_summary.merge(compute_r2(ds_summary))
+    if DATASET_DIM_NAME in ds_summary.dims:
+        ds_summary = insert_aggregate_r2(ds_summary)
+        ds_summary = insert_aggregate_bias(ds_summary)
     ds_diagnostics, ds_scalar_metrics = _consolidate_dimensioned_data(ds_summary)
-
-    ds_scalar_metrics = insert_r2(ds_scalar_metrics)
-    ds_diagnostics = ds_diagnostics.pipe(insert_r2).pipe(insert_rmse)
+    ds_diagnostics = ds_diagnostics.pipe(insert_rmse)
     ds_diagnostics, ds_scalar_metrics = _standardize_names(
         ds_diagnostics, ds_scalar_metrics
     )
@@ -234,9 +238,7 @@ def _get_predict_function(predictor, variables, grid):
         )
         derived_mapping = DerivedMapping(ds)
         ds_derived = derived_mapping.dataset(variables)
-        ds_prediction = predictor.predict_columnwise(
-            safe.get_variables(ds_derived, variables), feature_dim="z"
-        )
+        ds_prediction = predictor.predict(safe.get_variables(ds_derived, variables))
         return insert_prediction(ds_derived, ds_prediction)
 
     return transform
@@ -314,12 +316,15 @@ def main(args):
 
     mapper = _get_data_mapper_if_exists(config)
     if mapper is not None:
-        snapshot_time = (
+        snapshot_timestamp = (
             args.snapshot_time
-            or sorted(config.kwargs.get("timesteps", list(mapper.keys())))[0]
+            or sorted(getattr(config, "timesteps", list(mapper.keys())))[0]
         )
-        snapshot_key = nearest_time(snapshot_time, list(mapper.keys()))
-        ds_snapshot = predict_function(mapper[snapshot_key])
+        snapshot_time = vcm.parse_datetime_from_str(snapshot_timestamp)
+        snapshot_index = nearest_time_batch_index(
+            snapshot_time, [batch.time.values for batch in batches]
+        )
+        ds_snapshot = select_snapshot(batches[snapshot_index], snapshot_time)
 
         vertical_vars = [
             var for var in model.output_variables if is_3d(ds_snapshot[var])

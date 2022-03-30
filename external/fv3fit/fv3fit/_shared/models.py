@@ -1,4 +1,6 @@
-from typing import Iterable, Set, Hashable
+import dataclasses
+from typing import Iterable, Set, Hashable, Sequence
+import dacite
 import fsspec
 import yaml
 import os
@@ -16,7 +18,7 @@ class DerivedModel(Predictor):
     _BASE_MODEL_SUBDIR = "base_model_data"
 
     def __init__(
-        self, model: Predictor, derived_output_variables: Iterable[Hashable],
+        self, model: Predictor, derived_output_variables: Sequence[Hashable],
     ):
         """
 
@@ -31,11 +33,16 @@ class DerivedModel(Predictor):
         """
         # if base_model is itself a DerivedModel, combine the underlying base model
         # and combine derived attributes instead of wrapping twice with DerivedModel
-        self.base_model: Predictor = model.base_model if isinstance(
-            model, DerivedModel
-        ) else model
+        if isinstance(model, DerivedModel):
+            self.base_model: Predictor = model.base_model
+            existing_derived_outputs = model._derived_output_variables  # type: ignore
+            self._derived_output_variables = (
+                existing_derived_outputs + derived_output_variables
+            )
 
-        self._derived_output_variables = derived_output_variables
+        else:
+            self.base_model = model
+            self._derived_output_variables = derived_output_variables
         self._additional_input_variables = self.get_additional_inputs()
 
         full_input_variables = sorted(
@@ -172,3 +179,62 @@ class EnsembleModel(Predictor):
         models = [io.load(path) for path in config["models"]]
         reduction = config["reduction"]
         return cls(models, reduction)
+
+
+@io.register("output_transformed_model")
+class TransformedPredictor(Predictor):
+    _CONFIG_FILENAME = "output_transformed_model.yaml"
+    _BASE_MODEL_SUBDIR = "base_model_data"
+
+    def __init__(
+        self, base_model: Predictor, transforms: Sequence[vcm.DataTransform],
+    ):
+        """
+        Args:
+            base_model: trained ML model whose predicted output(s) will be
+                used as inputs for the specified transforms.
+            transforms: data transformations to apply to model prediction outputs.
+        """
+        self.base_model = base_model
+        self.transforms = transforms
+        self.output_transform = vcm.ChainedDataTransform(self.transforms)
+
+        inputs_for_derived = self.output_transform.input_variables
+        derived_outputs = self.output_transform.output_variables
+        input_variables = set(base_model.input_variables) | set(inputs_for_derived)
+        output_variables = set(base_model.output_variables) | set(derived_outputs)
+
+        for name in set(base_model.output_variables):
+            input_variables.discard(name)
+
+        super().__init__(sorted(list(input_variables)), sorted(list(output_variables)))
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        prediction = self.base_model.predict(X)
+        transform_inputs = xr.merge([prediction, X], compat="override")
+        transformed_prediction = self.output_transform.apply(transform_inputs)
+        transformed_outputs = transformed_prediction[
+            self.output_transform.output_variables
+        ]
+        return xr.merge([prediction, transformed_outputs])
+
+    def dump(self, path: str):
+        base_model_path = os.path.join(path, self._BASE_MODEL_SUBDIR)
+        options = {
+            "base_model": base_model_path,
+            "transforms": [dataclasses.asdict(x) for x in self.transforms],
+        }
+        io.dump(self.base_model, base_model_path)
+        with fsspec.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
+            yaml.safe_dump(options, f)
+
+    @classmethod
+    def load(cls, path: str) -> "TransformedPredictor":
+        with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+            config = yaml.safe_load(f)
+        base_model = io.load(config["base_model"])
+        transform_configs = [
+            dacite.from_dict(vcm.DataTransform, x) for x in config["transforms"]
+        ]
+        transformed_model = cls(base_model, transform_configs)
+        return transformed_model

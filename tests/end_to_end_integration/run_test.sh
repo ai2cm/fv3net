@@ -81,7 +81,7 @@ tag="${commitShort}-${random}"
 name="integration-test-${tag}"
 bucket="vcm-ml-scratch"
 project="test-end-to-end-integration"
-date=$(date +'%F')
+date=$(date -u +'%F')
 
 # to avoid fv3net dep, we reimplement 'artifacts generate-url' here
 n2fDataPath="gs://${bucket}/${project}/${date}/${tag}-nudge-to-fine-run/fv3gfs_run"

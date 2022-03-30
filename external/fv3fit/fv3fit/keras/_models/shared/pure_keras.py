@@ -5,14 +5,14 @@ from fv3fit._shared import (
     SAMPLE_DIM_NAME,
     stack,
 )
-from fv3fit._shared.stacking import Z_DIM_NAMES
 from fv3fit.keras.adapters import (
     ensure_dict_output,
     rename_dict_input,
     rename_dict_output,
+    ensure_tuple_model,
 )
 import tensorflow as tf
-from typing import Any, Dict, Hashable, Iterable, Optional, Sequence, Mapping
+from typing import Any, Dict, Hashable, Iterable, Sequence, Mapping
 import xarray as xr
 import os
 from ...._shared import get_dir, put_dir, InputSensitivity
@@ -37,9 +37,8 @@ class PureKerasModel(Predictor):
         self,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
-        output_metadata: Iterable[Dict[str, Any]],
         model: tf.keras.Model,
-        unstacked_dims: Optional[Sequence[str]] = None,
+        unstacked_dims: Sequence[str],
         n_halo: int = 0,
     ):
         """Initialize the predictor
@@ -47,23 +46,16 @@ class PureKerasModel(Predictor):
         Args:
             input_variables: names of input variables
             output_variables: names of output variables
-            output_metadata: attributes and stacked dimension order for each variable
-                in output_variables
             model: keras model to wrap
-            unstacked_dims: if given, stacking should leave these dimensions in place.
-                by default uses z-dimension names from pace.util
+            unstacked_dims: non-sample dimensions of model output
             n_halo: number of halo points required in input data
         """
         super().__init__(input_variables, output_variables)
         self.input_variables = input_variables
         self.output_variables = output_variables
-        self._output_metadata = output_metadata
         self.model = model
         self._n_halo = n_halo
-        if unstacked_dims is None:
-            self._unstacked_dims: Sequence[str] = Z_DIM_NAMES
-        else:
-            self._unstacked_dims = unstacked_dims
+        self._unstacked_dims = unstacked_dims
 
     @classmethod
     def load(cls, path: str) -> "PureKerasModel":
@@ -78,7 +70,6 @@ class PureKerasModel(Predictor):
             obj = cls(
                 config["input_variables"],
                 config["output_variables"],
-                config.get("output_metadata", None),
                 model,
                 unstacked_dims=config.get("unstacked_dims", None),
                 n_halo=config.get("n_halo", 0),
@@ -86,23 +77,21 @@ class PureKerasModel(Predictor):
             return obj
 
     def _array_prediction_to_dataset(
-        self, names, outputs, stacked_output_metadata, stacked_coords
+        self, names, outputs, stacked_coords
     ) -> xr.Dataset:
         ds = xr.Dataset()
-        for name, output, metadata in zip(names, outputs, stacked_output_metadata):
-            scalar_output_as_singleton_dim = (
-                len(metadata["dims"]) == 1
-                and len(output.shape) == 2
-                and output.shape[1] == 1
+        for name, output in zip(names, outputs):
+            dims = [SAMPLE_DIM_NAME] + list(self._unstacked_dims)
+            scalar_singleton_dim = (
+                len(output.shape) == len(dims) and output.shape[-1] == 1
             )
-            if scalar_output_as_singleton_dim:
-                output = output[:, 0]  # remove singleton dimension
+            if scalar_singleton_dim:  # remove singleton dimension
+                output = output[..., 0]
+                dims = dims[:-1]
             da = xr.DataArray(
-                data=output,
-                dims=[SAMPLE_DIM_NAME] + list(metadata["dims"][1:]),
-                coords={SAMPLE_DIM_NAME: stacked_coords},
+                data=output, dims=dims, coords={SAMPLE_DIM_NAME: stacked_coords},
             ).unstack(SAMPLE_DIM_NAME)
-            dim_order = [dim for dim in metadata["dims"] if dim in da.dims]
+            dim_order = [dim for dim in self._unstacked_dims if dim in da.dims]
             ds[name] = da.transpose(*dim_order, ...)
         return ds
 
@@ -123,34 +112,9 @@ class PureKerasModel(Predictor):
         outputs = self.model.predict(inputs)
         if isinstance(outputs, np.ndarray):
             outputs = [outputs]
-        if self._output_metadata is not None:
-            return_ds = self._array_prediction_to_dataset(
-                self.output_variables,
-                outputs,
-                self._output_metadata,
-                X_stacked.coords[SAMPLE_DIM_NAME],
-            )
-        else:
-            # workaround for saved datasets which do not have output metadata
-            # from an initial version of the BPTT code. Can be removed
-            # eventually
-            dQ1, dQ2 = outputs
-            return_ds = xr.Dataset(
-                data_vars={
-                    "dQ1": xr.DataArray(
-                        dQ1,
-                        dims=X_stacked["air_temperature"].dims,
-                        coords=X_stacked["air_temperature"].coords,
-                        attrs={"units": X_stacked["air_temperature"].units + " / s"},
-                    ),
-                    "dQ2": xr.DataArray(
-                        dQ2,
-                        dims=X_stacked["specific_humidity"].dims,
-                        coords=X_stacked["specific_humidity"].coords,
-                        attrs={"units": X_stacked["specific_humidity"].units + " / s"},
-                    ),
-                }
-            ).unstack(SAMPLE_DIM_NAME)
+        return_ds = self._array_prediction_to_dataset(
+            self.output_variables, outputs, X_stacked.coords[SAMPLE_DIM_NAME],
+        )
         return match_prediction_to_input_coords(X, return_ds)
 
     def dump(self, path: str) -> None:
@@ -164,7 +128,6 @@ class PureKerasModel(Predictor):
                         {
                             "input_variables": self.input_variables,
                             "output_variables": self.output_variables,
-                            "output_metadata": self._output_metadata,
                             "unstacked_dims": self._unstacked_dims,
                             "n_halo": self._n_halo,
                         }
@@ -213,3 +176,80 @@ class PureKerasModel(Predictor):
         std_factors = {name: np.std(data, axis=0) for name, data in data_dict.items()}
         jacobians_std = nondimensionalize_jacobians(jacobians, std_factors)
         return InputSensitivity(jacobians=jacobians_std)
+
+
+@io.register("all-keras-dict")
+class PureKerasDictPredictor(Predictor):
+    """Save a keras model encoding the input/output names into a saved_model
+    artifact
+
+    The output names of the keras model are assumed to be correct. To do this
+    requires including the following logic when building the model::
+
+        out_with_correct_name = tf.keras.layers.Lambda(
+            lambda x: x, name="desired_name")
+
+    Note:
+        This class relies on PureKerasModel to implement Mhe Predictor methods.
+        It might be worth refactoring the implementation here instead since the
+        dict-in/out format has more structure.
+
+    """
+
+    _MODEL_FILENAME = "model.tf"
+    _CONFIG_FILENAME = "config.yaml"
+
+    def __init__(self, model: tf.keras.Model, passthrough: Any = None):
+        """Initialize the predictor.
+
+        Args:
+            model: a keras model. Tuple in/out models are okay, but will be cast
+                to a dict-output model before saving.
+            passthrough: any data! Is NOT serialized, but can be
+                used by other parts of the training workflow. Mostly exists for
+                backwards compatibility and should be avoided in new code.
+        """
+        dict_model = ensure_dict_output(model)
+        tuple_model = ensure_tuple_model(dict_model)
+        super().__init__(tuple_model.input_names, tuple_model.output_names)
+        self._model = tuple_model
+        self._pure_keras_predictor = PureKerasModel(
+            self.input_variables,
+            self.output_variables,
+            tuple_model,
+            # unstacked dims is hardcoded most places in fv3fit.keras, but it
+            # seems like useful metadata, but more of an aspect of the training
+            # data pipeline since it is the piece of code that removes the
+            # dimension names...would be nice to remove this concept...e.g. pass
+            # unstacked_dims to the .dump rather than in the constructor
+            # TODO consider this refactor
+            unstacked_dims=["z"],
+        )
+        self.passthrough = passthrough
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        """Predict an output xarray dataset from an input xarray dataset."""
+        return self._pure_keras_predictor.predict(X)
+
+    def dump(self, path: str) -> None:
+        """Serialize to a directory."""
+        with put_dir(path) as local_path:
+            self._model.save(self._model_filename(local_path))
+            path
+
+    @classmethod
+    def _model_filename(cls, path: str) -> str:
+        return os.path.join(path, cls._MODEL_FILENAME)
+
+    @classmethod
+    def load(cls, path: str) -> "Predictor":
+        """Load a serialized model from a directory."""
+        model = tf.keras.models.load_model(cls._model_filename(path))
+        return cls(model)
+
+    def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
+        """Calculate sensitivity to input features."""
+        raise NotImplementedError(
+            "input_sensitivity is not implemented...but could be pretty "
+            "easily using jacobian routines."
+        )
