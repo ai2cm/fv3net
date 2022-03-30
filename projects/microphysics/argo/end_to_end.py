@@ -81,7 +81,10 @@ def submit_jobs(jobs: Sequence[ArgoJob], experiment_name: str):
     for job in jobs:
         print(job)
 
-    ch = input("Submit? (Y/n,i)")
+    if sys.stdin.isatty():
+        ch = input("Submit? (Y/n,i)")
+    else:
+        ch = "y"
     if ch == "n":
         sys.exit(1)
     elif ch == "i":
