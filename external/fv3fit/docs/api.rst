@@ -21,3 +21,10 @@ API
    :imported-members:
    :undoc-members:
    :show-inheritance:
+
+
+Transformed Model Configurations
+--------------------------------
+
+.. automodule:: fv3fit.train_microphysics
+   :members:

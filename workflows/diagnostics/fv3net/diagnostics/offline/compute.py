@@ -318,7 +318,7 @@ def main(args):
     if mapper is not None:
         snapshot_timestamp = (
             args.snapshot_time
-            or sorted(config.kwargs.get("timesteps", list(mapper.keys())))[0]
+            or sorted(getattr(config, "timesteps", list(mapper.keys())))[0]
         )
         snapshot_time = vcm.parse_datetime_from_str(snapshot_timestamp)
         snapshot_index = nearest_time_batch_index(

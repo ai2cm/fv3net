@@ -1,4 +1,5 @@
 from loaders import _config
+import loaders.batches._batch
 import contextlib
 import xarray as xr
 import unittest.mock
@@ -54,9 +55,6 @@ def batches_from_mapper_context():
     A context manager that provides a clean slate for registering
     batches from mapper functions, and restores the registration state when exiting.
     """
-    with registration_context(_config.batches_from_mapper_functions):
-        mock_batches = [xr.Dataset()]
-        mock_batches_function = unittest.mock.MagicMock(return_value=mock_batches)
-        mock_batches_function.__name__ = "mock_batches_function"
-        _config.batches_from_mapper_functions.register(mock_batches_function)
-        yield mock_batches_function
+    mock = unittest.mock.MagicMock(spec=loaders.batches._batch.batches_from_mapper)
+    with unittest.mock.patch("loaders.batches._batch.batches_from_mapper", new=mock):
+        yield mock

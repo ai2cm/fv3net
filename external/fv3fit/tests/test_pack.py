@@ -3,6 +3,7 @@ import xarray as xr
 from typing import Sequence, Mapping
 import numpy as np
 import pytest
+from fv3fit._shared.packer import PackingInfo
 
 
 def get_dataset(
@@ -101,3 +102,16 @@ def test_count_features(
     _, feature_index = pack(data=ds, sample_dims=base_dims)
     counts = count_features(feature_index)
     assert counts == n_features
+
+
+def test_packing_info_multi_index():
+    packing_info = PackingInfo(names=["Q1", "Q2"], features=[3, 3])
+    multi_index = packing_info.multi_index
+    assert multi_index.to_list() == [
+        ("Q1", 0),
+        ("Q1", 1),
+        ("Q1", 2),
+        ("Q2", 0),
+        ("Q2", 1),
+        ("Q2", 2),
+    ]

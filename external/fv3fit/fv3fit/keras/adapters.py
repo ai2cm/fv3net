@@ -1,5 +1,5 @@
 """Routines for backwards compatibility of model artifacts"""
-from typing import Mapping
+from typing import Mapping, Sequence, Tuple, List
 import tensorflow as tf
 
 
@@ -135,6 +135,36 @@ def _ensure_list_input(model: tf.keras.Model) -> tf.keras.Model:
     # need to keep outputs dict- without calling this the model will revert
     # to list outputs
     return ensure_dict_output(list_input_model)
+
+
+def _ensure_list_output(model: tf.keras.Model) -> Tuple[tf.keras.Model, List[str]]:
+    """Takes dict output model and converts it to produce list output
+    """
+    outputs = model(model.inputs)
+    if isinstance(outputs, Sequence):
+        return model
+
+    if not isinstance(outputs, Mapping):
+        raise ValueError(f"cannot {outputs} to list.")
+
+    names: List[str] = sorted(outputs)
+    list_output = [
+        # need to use lambda to inject the approriate name into the tensorflow
+        # graph otherwise output_names will be randomly named by keras
+        tf.keras.layers.Lambda(lambda x: x, name=name)(outputs[name])
+        for name in names
+    ]
+    list_output_model = tf.keras.Model(inputs=model.inputs, outputs=list_output)
+    list_output_model(model.inputs)
+    return list_output_model
+
+
+def ensure_tuple_model(model: tf.keras.Model,) -> tf.keras.Model:
+    """Convert a dict-in/out model to a tuple-in/out model
+    """
+    list_input_model = _ensure_list_input(model)
+    list_output_model = _ensure_list_output(list_input_model)
+    return list_output_model
 
 
 def rename_dict_input(
