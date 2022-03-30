@@ -1,0 +1,27 @@
+#!/bin/bash
+
+exps=(
+    # dqc-precpd-limiter-rnn-87e803
+    dqc-precpd-limiter-rnn-control-87e803
+    dqc-precpd-limiter-rnn-limited-qc-87e803
+)
+
+
+image=latest
+
+for exp in ${exps[@]}
+do
+    # tag=$(echo $exp | sed --expression='s/^.\{11\}//')-30d-v1
+    # tag=$exp-30d-v1
+    tag=$exp-6hr
+    url=gs://vcm-ml-experiments/microphysics-emulation/2022-03-29/${exp}/model.tf
+
+    yq  --arg url "$url" '.zhao_carr_emulation.model.path |= $url' ../configs/default_short.yaml > config.yaml
+    trap 'rm config.yaml' EXIT
+
+    argo submit ../argo/prog-run-and-eval.yaml \
+        --name "$tag" \
+        -p image_tag="$image" \
+        -p tag=$tag \
+        -p config=$(base64 --wrap 0 config.yaml) | grep -v 'config:'
+done
