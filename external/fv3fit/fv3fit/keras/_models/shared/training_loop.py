@@ -129,8 +129,10 @@ class TrainingLoopConfig:
                 .prefetch(tf.data.AUTOTUNE)
             )
             if validation_data is not None:
-                validation_fit = validation_data.batch(self.batch_size).prefetch(
-                    tf.data.AUTOTUNE
+                validation_fit = (
+                    validation_data.unbatch()
+                    .batch(self.batch_size)
+                    .prefetch(tf.data.AUTOTUNE)
                 )
             else:
                 validation_fit = None
