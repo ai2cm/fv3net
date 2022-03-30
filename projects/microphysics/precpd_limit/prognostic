@@ -1,13 +1,13 @@
 #!/bin/bash
 
 exps=(
-    # dqc-precpd-limiter-rnn-87e803
+    dqc-precpd-limiter-rnn-87e803
     dqc-precpd-limiter-rnn-control-87e803
     dqc-precpd-limiter-rnn-limited-qc-87e803
 )
 
 
-image=latest
+image=f9a23b4ea793d797dc8deebbb29a5cab934c2a2c
 
 for exp in ${exps[@]}
 do
@@ -20,8 +20,8 @@ do
     trap 'rm config.yaml' EXIT
 
     argo submit ../argo/prog-run-and-eval.yaml \
-        --name "$tag" \
+        --name "$tag-v4" \
         -p image_tag="$image" \
-        -p tag=$tag \
+        -p tag=$tag-v4 \
         -p config=$(base64 --wrap 0 config.yaml) | grep -v 'config:'
 done
