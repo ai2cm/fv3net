@@ -18,6 +18,7 @@ namelist:
   fv_core_nml:
     n_split: 6
 online_emulator:
-  url: "some/path"
+  url: 
+    - "some/path"
   variables:
     air_temperature: dQ1
