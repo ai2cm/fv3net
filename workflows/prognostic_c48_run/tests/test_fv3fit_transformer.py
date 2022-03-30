@@ -2,7 +2,12 @@ import joblib
 import fv3fit
 import vcm
 import xarray as xr
-from runtime.transformers.fv3fit import Config, Adapter
+from runtime.transformers.fv3fit import (
+    Config,
+    Adapter,
+    update_q1_to_conserve_mse,
+    update_q2_to_ensure_non_negative_humidity,
+)
 from runtime.transformers.core import StepTransformer
 from machine_learning_mocks import get_mock_predictor
 
@@ -94,3 +99,23 @@ def test_multimodel_adapter(state, tmpdir_factory):
         return {"some_diag": state["specific_humidity"]}
 
     transform(add_one_to_temperature)()
+
+
+def test_update_q2_to_ensure_non_negative_humidity():
+    sphum = xr.DataArray([1, 2])
+    q2 = xr.DataArray([-3, -1])
+    dt = 1.0
+    limited_tendency = update_q2_to_ensure_non_negative_humidity(sphum, q2, dt)
+    expected_limited_tendency = xr.DataArray([-1, -1])
+    xr.testing.assert_identical(limited_tendency, expected_limited_tendency)
+
+
+def test_update_q1_to_conserve_mse():
+    q1 = xr.DataArray([-4, 2])
+    q2 = xr.DataArray([-3, -1])
+    q2_limited = xr.DataArray([-1, -1])
+    q1_limited = update_q1_to_conserve_mse(q1, q2, q2_limited)
+    xr.testing.assert_identical(
+        vcm.moist_static_energy_tendency(q1, q2),
+        vcm.moist_static_energy_tendency(q1_limited, q2_limited),
+    )
