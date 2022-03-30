@@ -12,7 +12,6 @@ from vcm.data_transform import (
     USW_TOA,
     LHF,
     SHF,
-    PRECIP,
     COL_T_NUDGE,
 )
 import vcm
@@ -30,7 +29,6 @@ VARIABLES_2D = {
     USW_TOA,
     LHF,
     SHF,
-    PRECIP,
     COL_T_NUDGE,
     "implied_downward_radiative_flux_at_surface",
     "implied_surface_precipitation_rate",
