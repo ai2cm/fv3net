@@ -34,7 +34,7 @@ build_image_prognostic_run: docker/prognostic_run/requirements.txt
 		--target prognostic-run \
 		--build-arg BASE_IMAGE=ubuntu:20.04 .
 
-build_image_prognostic_run_gpu:
+build_image_prognostic_run_gpu: docker/prognostic_run/requirements.txt
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run_gpu:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run_gpu:$(VERSION) \
 		--target prognostic-run \
