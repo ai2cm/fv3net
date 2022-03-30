@@ -49,11 +49,9 @@ class PackingInfo:
     @property
     def multi_index(self) -> pd.MultiIndex:
         entries = []
-        i = 0
         for name, n_features in zip(self.names, self.features):
-            for j in range(i, i + n_features):
-                entries.append((name, j))
-            i += n_features
+            for i in range(n_features):
+                entries.append((name, i))
         feature_index = pd.MultiIndex.from_tuples(
             tuple(entries), names=("variable", "z")
         )

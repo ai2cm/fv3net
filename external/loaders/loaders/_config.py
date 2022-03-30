@@ -4,7 +4,6 @@ from loaders.typing import (
     Mapper,
     Batches,
 )
-import collections
 import dataclasses
 import dacite
 
@@ -23,7 +22,6 @@ class FunctionRegister(Dict[str, Callable[..., RT]]):
 
 mapper_functions: FunctionRegister[Mapper] = FunctionRegister()
 batches_functions: FunctionRegister[Batches] = FunctionRegister()
-batches_from_mapper_functions: FunctionRegister[Batches] = FunctionRegister()
 
 
 @dataclasses.dataclass
@@ -85,61 +83,6 @@ class BatchesLoader(abc.ABC):
             except (TypeError, AttributeError, dacite.exceptions.MissingValueError):
                 pass
         raise ValueError("invalid BatchesLoader dictionary")
-
-
-@dataclasses.dataclass
-class BatchesFromMapperConfig(BatchesLoader):
-    """Configuration for the use of batch loading functions using mappers as input.
-
-    Attributes:
-        mapper_config: configuration to retriev einput mapper
-        batches_function: name of function to use to convert mapper to batches,
-            can take any value in the keys of `loaders.batches_from_mapper_functions`
-        batches_kwargs: keyword arguments to pass to batches function
-    """
-
-    mapper_config: MapperConfig
-    function: str
-    kwargs: dict
-
-    def load_mapper(self) -> Mapper:
-        return self.mapper_config.load_mapper()
-
-    def load_batches(self, variables: Optional[Sequence[str]] = None) -> Batches:
-        """
-        Args:
-            variables: if given, these variables are guaranteed to be present in
-                the returned batches, or an exception will be raised
-
-        Returns:
-            Sequence of datasets according to configuration
-        """
-        if variables is None:
-            variables = []
-        mapper = self.mapper_config.load_mapper()
-        batches_function = batches_from_mapper_functions[self.function]
-        kwargs = {**self.kwargs}
-        kwargs["variable_names"] = list(kwargs.get("variable_names", []))
-        kwargs["variable_names"].extend(variables)
-        return batches_function(mapper, **kwargs)
-
-    def __post_init__(self):
-        if self.function not in batches_from_mapper_functions:
-            raise ValueError(
-                f"Invalid batches function {self.function}, "
-                f"must be one of {list(batches_from_mapper_functions.keys())}"
-            )
-        if "timesteps" in self.kwargs:
-            duplicate_times = [
-                t
-                for t, count in collections.Counter(self.kwargs["timesteps"]).items()
-                if count > 1
-            ]
-            if len(duplicate_times) > 0:
-                raise ValueError(
-                    "Timesteps provided for selection must be unique. "
-                    f"Duplicated times were found: {duplicate_times}"
-                )
 
 
 @dataclasses.dataclass
