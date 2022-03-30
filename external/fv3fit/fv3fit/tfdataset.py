@@ -14,6 +14,13 @@ def apply_to_mapping(
 
 
 @curry
+def apply_to_tuple(
+    tensor_func: Callable[[tf.Tensor], tf.Tensor], data: Tuple[tf.Tensor, ...]
+) -> Tuple[tf.Tensor, ...]:
+    return tuple(tensor_func(tensor) for tensor in data)
+
+
+@curry
 def ensure_nd(n: int, tensor: tf.Tensor) -> tf.Tensor:
     """
     Given a tensor that may be n-dimensional or (n-1)-dimensional, return
@@ -116,7 +123,7 @@ def seq_to_tfdataset(
             key: tf.TensorSpec(process_shape(val.shape), dtype=val.dtype)
             for key, val in sample.items()
         },
-    ).unbatch()
+    )
 
 
 def dataset_to_tensor_dict(ds):

@@ -8,11 +8,9 @@ mapper_config:
       - x_wind
       - y_wind
       - pressure_thickness_of_atmospheric_layer
-function: batches_from_mapper
-kwargs:
-  # note this differs from the training config in that
-  # there is no unstacked_dims arg here
-  timesteps_per_batch: 2
-  timesteps:
-    - "20160801.004500"
-    - "20160801.011500"
+# note this differs from the training config in that
+# there is no unstacked_dims arg here
+timesteps_per_batch: 2
+timesteps:
+  - "20160801.004500"
+  - "20160801.011500"

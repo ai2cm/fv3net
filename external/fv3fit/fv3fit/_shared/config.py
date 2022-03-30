@@ -126,7 +126,7 @@ class TrainingConfig:
 TRAINING_FUNCTIONS: Dict[str, Tuple[TrainingFunction, Type[Dataclass]]] = {}
 
 
-def get_hyperparameter_class(model_type: str) -> Type:
+def get_hyperparameter_class(model_type: str):
     if model_type in TRAINING_FUNCTIONS:
         _, subclass = TRAINING_FUNCTIONS[model_type]
     else:
@@ -200,7 +200,7 @@ def _add_items_to_parser_arguments(
             parser.add_argument(f"--{key}", default=value)
 
 
-def _to_flat_dict(d: dict):
+def to_flat_dict(d: dict):
     """
     Converts any nested dictionaries to a flat version with
     the nested keys joined with a '.', e.g., {a: {b: 1}} ->
@@ -210,7 +210,7 @@ def _to_flat_dict(d: dict):
     new_flat = {}
     for k, v in d.items():
         if isinstance(v, dict):
-            sub_d = _to_flat_dict(v)
+            sub_d = to_flat_dict(v)
             for sk, sv in sub_d.items():
                 new_flat[".".join([k, sk])] = sv
         else:
@@ -264,7 +264,7 @@ def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]
         args: a list of argument strings to parse
         config_dict: the configuration to update
     """
-    config = _to_flat_dict(config_dict)
+    config = to_flat_dict(config_dict)
     parser = ArgumentParser()
     _add_items_to_parser_arguments(config, parser)
     try:

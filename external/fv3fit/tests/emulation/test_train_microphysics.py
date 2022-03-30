@@ -1,23 +1,22 @@
 from pathlib import PosixPath
 import sys
-from dataclasses import asdict, dataclass
+from fv3fit.dataclasses import asdict_with_enum as asdict
 from unittest.mock import Mock
 
-from enum import Enum
 from fv3fit.emulation.losses import CustomLoss
 
 import pytest
 import tensorflow as tf
-from fv3fit._shared.config import _to_flat_dict
+from fv3fit._shared.config import to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.train_microphysics import (
     TrainConfig,
+    TransformedParameters,
     get_default_config,
     main,
-    _asdict_with_enum,
 )
 
 
@@ -91,13 +90,13 @@ def test_TrainConfig_from_flat_dict():
     assert config.model.architecture.name == "rnn"
 
     expected = get_default_config()
-    flat_dict = _to_flat_dict(asdict(expected))
+    flat_dict = to_flat_dict(asdict(expected))
     result = TrainConfig.from_flat_dict(flat_dict)
     assert result == expected
 
 
 def test_TrainConfig_from_yaml(tmp_path: PosixPath):
-    default = TrainConfig(".", ".", ".")
+    default = TrainConfig(test_url=".", train_url=".", out_url=".")
     yaml_path = tmp_path / "train_config.yaml"
     yaml_path.write_text(default.to_yaml())
     loaded = TrainConfig.from_yaml_path(yaml_path.as_posix())
@@ -149,14 +148,11 @@ def test_training_entry_integration(tmp_path):
     main(config)
 
 
-def test_TrainConfig_build_model():
+def test_MicrophysicsHyperParameters_build_model():
     field = Field("out", "in")
     in_ = "in"
     out = "out"
-    config = TrainConfig(
-        ".",
-        ".",
-        ".",
+    config = TransformedParameters(
         model=MicrophysicsConfig(
             input_variables=[in_],
             direct_out_variables=[out],
@@ -181,14 +177,3 @@ def test_TrainConfig_build_loss():
     loss_value, _ = loss(data, data)
     assert 0 == pytest.approx(loss_value.numpy())
     transform.forward.assert_called()
-
-
-def test__asdict_with_enum():
-    class A(Enum):
-        a = 1
-
-    @dataclass
-    class B:
-        enum: A
-
-    assert _asdict_with_enum(B(A.a)) == {"enum": 1}

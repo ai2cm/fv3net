@@ -12,7 +12,7 @@ import tempfile
 import yaml
 from fv3fit._shared.config import (
     to_nested_dict,
-    _to_flat_dict,
+    to_flat_dict,
     get_arg_updated_config_dict,
     _add_items_to_parser_arguments,
 )
@@ -129,10 +129,10 @@ def get_cfg_and_args_dicts():
     return config_d, flat_d
 
 
-def test_to_flat_dict():
+def testto_flat_dict():
 
     config_d, expected = get_cfg_and_args_dicts()
-    result = _to_flat_dict(config_d)
+    result = to_flat_dict(config_d)
     assert result == expected
 
 
@@ -147,7 +147,7 @@ def test_flat_dict_round_trip():
 
     config_d, _ = get_cfg_and_args_dicts()
 
-    args_d = _to_flat_dict(config_d)
+    args_d = to_flat_dict(config_d)
     result = to_nested_dict(args_d)
 
     assert result == config_d
