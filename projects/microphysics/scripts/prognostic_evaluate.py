@@ -397,9 +397,7 @@ def main():
 
     def get_url_wandb(artifact: str):
         art = run.use_artifact(artifact + ":latest", type="prognostic-run")
-        path = "fv3config.yml"
-        url = art.get_path(path).ref
-        return url[: -len("/" + path)]
+        return art.metadata["url"]
 
     prog_url = os.path.join(get_url_wandb(args.tag), "state_after_timestep.zarr")
     baseline_url = os.path.join(
