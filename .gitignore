@@ -128,3 +128,6 @@ external/vcm/external/mappm/MANIFEST
 external/vcm/vcm/interpolate_2dmodule.c
 
 .hypothesis
+
+# redundant lock files that should be regenerated before builds
+docker/*/requirements.txt
