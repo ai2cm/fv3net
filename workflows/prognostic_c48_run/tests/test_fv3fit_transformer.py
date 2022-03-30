@@ -81,6 +81,7 @@ def test_multimodel_adapter(state, tmpdir_factory):
                 "air_temperature": "dQ1",
                 "surface_temperature": "total_sky_downward_shortwave_flux_at_surface",
             },
+            limit_negative_humidity=False,
         ),
         900,
     )
