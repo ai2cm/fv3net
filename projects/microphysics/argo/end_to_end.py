@@ -170,6 +170,9 @@ class TrainingJob:
     """
 
     name: str
+    # training config passed to -m fv3fit.train_microphysics
+    # Should be parseable into fv3fit.train_microphysics.TrainConfig using
+    # from_dict
     config: dict = dataclasses.field(repr=False)
     fv3fit_image_tag: str
     bucket: str = "vcm-ml-experiments"
