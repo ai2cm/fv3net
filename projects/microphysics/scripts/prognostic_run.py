@@ -41,11 +41,7 @@ def run_from_config_dict(config: dict):
         logging.info(f"Running segment {i+1} of {segments}")
         api.append(url)
 
-    # Might be a bug in wandb that doesn't let us grab references to files below
-    # the added reference directory level when checksum=False, adding to metadata
-    # allows us to have a ref without downloading whole directory, keeping ref in
-    # case downloading is important later
-    artifact = wandb.Artifact(tag, type="prognostic-run", metadata={"url": url})
+    artifact = wandb.Artifact(tag, type="prognostic-run")
     artifact.add_reference(url, checksum=False)
     wandb.log_artifact(artifact)
 
