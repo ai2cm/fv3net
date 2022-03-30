@@ -2,6 +2,7 @@
 """
 from copy import deepcopy
 import yaml
+from typing import Mapping, Protocol, Optional, Sequence
 import subprocess
 import dataclasses
 import base64
@@ -18,7 +19,31 @@ def load_yaml(path):
     return yaml.safe_load(pathlib.Path(path).read_bytes())
 
 
-def submit(job, labels, other_parameters=None):
+class ArgoJob(Protocol):
+    @property
+    def parameters(self):
+        """return dict of argo parameters"""
+        pass
+
+    @property
+    def entrypoint(self) -> str:
+        """name of argo template to use as an entrypoint"""
+        pass
+
+
+def submit(
+    job: ArgoJob,
+    labels: Mapping[str, str],
+    other_parameters: Optional[Mapping[str, str]] = None,
+):
+    """Submit an ArgoJob to the cluster
+
+    Args:
+        job: the argo job to run
+        labels: labels to apply to the k8s metadata of the argo job.
+        other_parameters: Other common parameters to pass to the workflow an
+            addition to ``job.parameters``
+    """
     other_parameters = other_parameters or {}
     args = (
         [
@@ -30,8 +55,7 @@ def submit(job, labels, other_parameters=None):
             "--name",
             job.name,
         ]
-        + _argo_parameters(job.parameters + other_parameters)
-        _argo_parameters(dict(**job.parameters, **other_parameters))
+        + _argo_parameters(dict(**job.parameters, **other_parameters))
         + _label_args(labels)
     )
     subprocess.check_call(args, stdout=subprocess.DEVNULL)
@@ -42,7 +66,17 @@ def _run_job_q(job):
     return input("Y/n") != "n"
 
 
-def submit_jobs(jobs, experiment_name):
+def submit_jobs(jobs: Sequence[ArgoJob], experiment_name: str):
+    """Submit a set of experiments
+
+    Will display the set of proposed experiments and prompt the user
+    if they should be run or not.
+
+    Args:
+        experiment_name: the argo workflow is tagged with this and the wandb
+            jobs are tagged with ``experiment/{experiment_name}``
+
+    """
     print("The following experiments are queued:")
     for job in jobs:
         print(job)
@@ -95,6 +129,10 @@ class PrognosticJob:
     """
 
     name: str
+    # dict for prognostic config, must be a
+    # runtime.segmented_run.HighLevelConfig object.  Also supports a couple
+    # other options. Consumed by projects/microphysics/scripts/prognostic_run.py
+    # See the source for more information.
     config: dict = dataclasses.field(repr=False)
     image_tag: str
 
