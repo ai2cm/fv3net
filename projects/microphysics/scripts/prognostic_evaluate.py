@@ -1,6 +1,6 @@
 import argparse
 import os
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Any
 import logging
 import hashlib
 import tempfile
@@ -36,6 +36,7 @@ TRANSECT_VARS = [
     "cloud_water_mixing_ratio",
     "specific_humidity",
 ]
+WANDB_ENTITY = "ai2cm"
 
 
 def consistent_time_len(*da_args):
@@ -361,6 +362,22 @@ def log_all_drifts(
             wandb.log({f"drifts/{name}/{key}": value})
 
 
+def get_prognostic_run_from_tag(tag: str, project: str) -> Any:
+    api = wandb.Api()
+    runs = api.runs(filters={"group": tag}, path=f"{WANDB_ENTITY}/{project}")
+    prognostic_runs = []
+
+    for run in runs:
+        if run.job_type == "prognostic_run":
+            prognostic_runs.append(run)
+    (run,) = prognostic_runs
+    return run
+
+
+def get_prognostic_run_out_url_from_tag(tag: str, project: str) -> str:
+    return get_prognostic_run_from_tag(tag, project).config["rundir"]
+
+
 def main():
 
     parser = argparse.ArgumentParser(
@@ -396,10 +413,11 @@ def main():
     wandb.config.update(args)
 
     def get_url_wandb(artifact: str):
-        art = run.use_artifact(artifact + ":latest", type="prognostic-run")
-        path = "fv3config.yml"
-        url = art.get_path(path).ref
-        return url[: -len("/" + path)]
+        art = run.use_artifact(artifact + ":latest", type="prognostic-run")  # noqa
+        prog_run = get_prognostic_run_out_url_from_tag(
+            artifact, project=args.wandb_project
+        )
+        return prog_run
 
     prog_url = os.path.join(get_url_wandb(args.tag), "state_after_timestep.zarr")
     baseline_url = os.path.join(
