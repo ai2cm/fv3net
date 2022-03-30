@@ -88,7 +88,7 @@ Machine learning
 ~~~~~~~~~~~~~~~~
 
 A machine learning run is configured by
-specifying a path to a fv3fit_ model in
+specifying a path to one or more fv3fit_ models in
 :py:attr:`runtime.config.UserConfig.scikit_learn.model`. This can be done
 by adding the following to the ``minimal.yaml`` example::
 
