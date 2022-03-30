@@ -394,6 +394,7 @@ def main():
     )
 
     wandb.config.update(args)
+    wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
 
     def get_url_wandb(artifact: str):
         art = run.use_artifact(artifact + ":latest", type="prognostic-run")

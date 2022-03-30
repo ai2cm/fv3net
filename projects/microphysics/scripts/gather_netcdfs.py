@@ -1,4 +1,5 @@
 import argparse
+import os
 import subprocess
 import wandb
 from config import PROJECT, BUCKET
@@ -34,6 +35,7 @@ if __name__ == "__main__":
         job_type="netcdf-gather", project="microphysics-emulation", entity="ai2cm"
     )
     wandb.config.update(args)
+    wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
 
     base_url = f"gs://{BUCKET}/{PROJECT}/{args.run_date}"
     train_out = f"{base_url}/{args.tag_prefix}-training_netcdfs/train"
