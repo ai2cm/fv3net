@@ -31,6 +31,7 @@ def submit(job, labels, other_parameters=None):
             job.name,
         ]
         + _argo_parameters(job.parameters + other_parameters)
+        _argo_parameters(dict(**job.parameters, **other_parameters))
         + _label_args(labels)
     )
     subprocess.check_call(args, stdout=subprocess.DEVNULL)
