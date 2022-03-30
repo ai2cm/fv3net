@@ -26,7 +26,9 @@ build_image_%:
 build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
 
-build_image_prognostic_run:
+build_image_fv3fit: docker/fv3fit/requirements.txt
+
+build_image_prognostic_run: docker/prognostic_run/requirements.txt
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
 		--target prognostic-run \
@@ -226,9 +228,9 @@ docker/fv3fit/requirements.txt: constraints.txt
 		external/loaders/setup.py \
 		external/vcm/setup.py
 
-.PHONY: lock_pip constraints.txt docker/prognostic_run/requirements.txt
+.PHONY: lock_pip
 ## Lock the pip dependencies of this repo
-lock_pip: constraints.txt docker/prognostic_run/requirements.txt docker/fv3fit/requirements.txt
+lock_pip: constraints.txt
 
 ## Install External Dependencies
 install_deps:
