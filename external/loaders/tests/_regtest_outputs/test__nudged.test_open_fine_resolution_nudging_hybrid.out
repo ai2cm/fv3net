@@ -1,13 +1,37 @@
 xarray.Dataset {
 dimensions:
 	tile = 6 ;
-	z = 19 ;
 	y = 8 ;
 	x = 8 ;
+	z = 19 ;
 	y_interface = 9 ;
 	x_interface = 9 ;
 
 variables:
+	float32 DLWRFsfc_coarse(tile, y, x) ;
+		DLWRFsfc_coarse:cell_methods = time: point ;
+		DLWRFsfc_coarse:long_name = surface downward longwave flux [W/m**2] ;
+		DLWRFsfc_coarse:units = W/m**2 ;
+	float32 DSWRFsfc_coarse(tile, y, x) ;
+		DSWRFsfc_coarse:cell_methods = time: point ;
+		DSWRFsfc_coarse:long_name = surface downward shortwave flux [W/m**2] ;
+		DSWRFsfc_coarse:units = W/m**2 ;
+	float32 DSWRFtoa_coarse(tile, y, x) ;
+		DSWRFtoa_coarse:cell_methods = time: point ;
+		DSWRFtoa_coarse:long_name = top of atmos downward shortwave flux [W/m**2] ;
+		DSWRFtoa_coarse:units = W/m**2 ;
+	float32 LHTFLsfc_coarse(tile, y, x) ;
+		LHTFLsfc_coarse:cell_methods = time: point ;
+		LHTFLsfc_coarse:long_name = surface latent heat flux [W/m**2] ;
+		LHTFLsfc_coarse:units = w/m**2 ;
+	float32 PRATEsfc_coarse(tile, y, x) ;
+		PRATEsfc_coarse:cell_methods = time: point ;
+		PRATEsfc_coarse:long_name = surface precipitation rate [kg/m**2/s] ;
+		PRATEsfc_coarse:units = kg/m**2/s ;
+	float32 SHTFLsfc_coarse(tile, y, x) ;
+		SHTFLsfc_coarse:cell_methods = time: point ;
+		SHTFLsfc_coarse:long_name = instantaneous surface sensible heat flux ;
+		SHTFLsfc_coarse:units = XXX ;
 	float32 T(tile, z, y, x) ;
 		T:checksum = 84E9D5116058750E ;
 		T:long_name = temperature ;
@@ -18,6 +42,22 @@ variables:
 	float32 T_vulcan_omega_coarse(tile, z, y, x) ;
 		T_vulcan_omega_coarse:long_name = Product of temperature and coarse-grained vulcan omega ;
 		T_vulcan_omega_coarse:units = K Pa/s ;
+	float32 ULWRFsfc_coarse(tile, y, x) ;
+		ULWRFsfc_coarse:cell_methods = time: point ;
+		ULWRFsfc_coarse:long_name = surface upward longwave flux [W/m**2] ;
+		ULWRFsfc_coarse:units = W/m**2 ;
+	float32 ULWRFtoa_coarse(tile, y, x) ;
+		ULWRFtoa_coarse:cell_methods = time: point ;
+		ULWRFtoa_coarse:long_name = top of atmos upward longwave flux [W/m**2] ;
+		ULWRFtoa_coarse:units = W/m**2 ;
+	float32 USWRFsfc_coarse(tile, y, x) ;
+		USWRFsfc_coarse:cell_methods = time: point ;
+		USWRFsfc_coarse:long_name = surface upward shortwave flux [W/m**2] ;
+		USWRFsfc_coarse:units = W/m**2 ;
+	float32 USWRFtoa_coarse(tile, y, x) ;
+		USWRFtoa_coarse:cell_methods = time: point ;
+		USWRFtoa_coarse:long_name = top of atmos upward shortwave flux [W/m**2] ;
+		USWRFtoa_coarse:units = W/m**2 ;
 	float32 area(tile, y, x) ;
 		area:long_name = area_of_grid_cell ;
 		area:units = m^2 ;

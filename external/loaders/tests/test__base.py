@@ -76,13 +76,10 @@ def test_MultiDatasetMapper_keys(multi_dataset_mapper, expected_keys):
 
 
 def test_MultiDatasetMapper_value(multi_dataset_mapper, datasets):
-    single_time = datasets[0][TIME_NAME].isel({TIME_NAME: 0}).item()
-    time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
+    single_time = pd.to_datetime(datasets[0][TIME_NAME].isel({TIME_NAME: 0}).item())
+    time_key = single_time.strftime(TIME_FMT)
     expected_dataset = xr.concat(
-        [
-            ds.sel({TIME_NAME: single_time}).drop_vars(names=TIME_NAME)
-            for ds in datasets
-        ],
+        [ds.isel(time=0).drop_vars(names=TIME_NAME) for ds in datasets],
         dim=DATASET_DIM_NAME,
     )
     xr.testing.assert_identical(multi_dataset_mapper[time_key], expected_dataset)

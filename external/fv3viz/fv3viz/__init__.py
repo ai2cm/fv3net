@@ -9,6 +9,7 @@ from ._plot_diagnostics import (
     plot_time_series,
 )
 from ._plot_helpers import infer_cmap_params
+from ._styles import use_colorblind_friendly_style
 
 __all__ = [
     "plot_daily_and_hourly_hist",
@@ -19,6 +20,7 @@ __all__ = [
     "plot_diurnal_cycle",
     "plot_time_series",
     "infer_cmap_params",
+    "use_colorblind_friendly_style",
 ]
 
 __version__ = "0.1.0"

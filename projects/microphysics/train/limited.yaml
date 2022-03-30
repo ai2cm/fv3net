@@ -1,0 +1,236 @@
+{
+  "loss": {
+    "weights": {
+      "total_precipitation": 2,
+      "air_temperature_after_gscond": 100000,
+      "air_temperature_after_precpd": 100000,
+      "specific_humidity_after_gscond": 100000,
+      "specific_humidity_after_precpd": 100000,
+      "cloud_precpd_difference_tscaled": 1,
+      "humidity_gscond_difference_tscaled": 1,
+      "humidity_precpd_difference_tscaled": 1,
+      "cloud_water_mixing_ratio_after_precpd": 5,
+      "temperature_gscond_difference_tscaled": 1,
+      "temperature_precpd_difference_tscaled": 1
+    },
+    "optimizer": {
+      "name": "Adam",
+      "kwargs": {
+        "learning_rate": 0.0001
+      },
+      "learning_rate_schedule": null
+    },
+    "normalization": {"center": "per_feature", "scale": "all"},
+    "loss_variables": [
+      "air_temperature_after_gscond",
+      "specific_humidity_after_gscond",
+      "air_temperature_after_precpd",
+      "specific_humidity_after_precpd",
+      "cloud_water_mixing_ratio_after_precpd",
+      "total_precipitation",
+      "cloud_precpd_difference_tscaled",
+      "temperature_precpd_difference_tscaled",
+      "humidity_precpd_difference_tscaled",
+      "temperature_gscond_difference_tscaled",
+      "humidity_gscond_difference_tscaled"
+    ],
+    "metric_variables": []
+  },
+  "cache": false,
+  "model": {
+    "architecture": {
+      "name": "rnn-v1-shared-weights",
+      "kwargs": {
+        "channels": 256
+      }
+    },
+    "normalize_default": {"center": "per_feature", "scale": "all"},
+    "selection_map": {},
+    "input_variables": [
+      "air_temperature_input",
+      "specific_humidity_input",
+      "cloud_water_mixing_ratio_input",
+      "log_cloud_input",
+      "log_humidity_input",
+      "pressure_thickness_of_atmospheric_layer",
+      "air_temperature_after_last_gscond",
+      "specific_humidity_after_last_gscond",
+      "log_humidity_after_last_gscond",
+      "air_pressure",
+      "surface_air_pressure",
+      "surface_air_pressure_after_last_gscond"
+    ],
+    "tendency_outputs": {},
+    "direct_out_variables": [
+      "total_precipitation",
+      "cloud_precpd_difference_tscaled",
+      "temperature_precpd_difference_tscaled",
+      "humidity_precpd_difference_tscaled",
+      "temperature_gscond_difference_tscaled",
+      "humidity_gscond_difference_tscaled"
+    ],
+    "residual_out_variables": {},
+    "timestep_increment_sec": 900
+  },
+  "wandb": {
+    "entity": "ai2cm",
+    "job_type": "train",
+    "wandb_project": "microphysics-emulation"
+  },
+  "epochs": 25,
+  "nfiles": 1440,
+  "out_url": "gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273",
+  "verbose": 2,
+  "test_url": "gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",
+  "log_level": "INFO",
+  "train_url": "gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train",
+  "transform": {
+    "use_tensors": true,
+    "antarctic_only": false,
+    "vertical_subselections": null,
+    "derived_microphys_timestep": 900
+  },
+  "use_wandb": true,
+  "batch_size": 512,
+  "valid_freq": 100,
+  "nfiles_valid": 2,
+  "checkpoint_model": true,
+  "tensor_transform": [
+    {
+      "to": "log_cloud_input",
+      "source": "cloud_water_mixing_ratio_input",
+      "transform": {
+        "epsilon": 1e-10
+      }
+    },
+    {
+      "to": "log_humidity_input",
+      "source": "specific_humidity_input",
+      "transform": {
+        "epsilon": 1e-08
+      }
+    },
+    {
+      "to": "log_humidity_after_last_gscond",
+      "source": "specific_humidity_after_last_gscond",
+      "transform": {
+        "epsilon": 1e-08
+      }
+    },
+    {
+      "to": null,
+      "source": "air_temperature_after_gscond",
+      "transform": {
+        "lower": 0,
+        "upper": null
+      }
+    },
+    {
+      "to": null,
+      "source": "air_temperature_after_precpd",
+      "transform": {
+        "lower": 0,
+        "upper": null
+      }
+    },
+    {
+      "to": null,
+      "source": "specific_humidity_after_gscond",
+      "transform": {
+        "lower": 0,
+        "upper": null
+      }
+    },
+    {
+      "to": null,
+      "source": "specific_humidity_after_precpd",
+      "transform": {
+        "lower": 0,
+        "upper": null
+      }
+    },
+    {
+      "to": null,
+      "source": "cloud_water_mixing_ratio_after_precpd",
+      "transform": {
+        "lower": 0,
+        "upper": null
+      }
+    },
+    {
+      "to": null,
+      "source": "total_precipitation",
+      "transform": {
+        "lower": 0,
+        "upper": null
+      }
+    },
+    {
+      "to": "temperature_gscond_difference",
+      "after": "air_temperature_after_gscond",
+      "before": "air_temperature_input"
+    },
+    {
+      "to": "humidity_gscond_difference",
+      "after": "specific_humidity_after_gscond",
+      "before": "specific_humidity_input"
+    },
+    {
+      "to": "cloud_precpd_difference",
+      "after": "cloud_water_mixing_ratio_after_precpd",
+      "before": "cloud_water_mixing_ratio_input"
+    },
+    {
+      "to": "temperature_precpd_difference",
+      "after": "air_temperature_after_precpd",
+      "before": "air_temperature_input"
+    },
+    {
+      "to": "humidity_precpd_difference",
+      "after": "specific_humidity_after_precpd",
+      "before": "specific_humidity_input"
+    },
+    {
+      "to": "cloud_precpd_difference_tscaled",
+      "bins": 50,
+      "source": "cloud_precpd_difference",
+      "min_scale": 1e-10,
+      "condition_on": "air_temperature_input",
+      "fit_filter_magnitude": 1e-10
+    },
+    {
+      "to": "humidity_gscond_difference_tscaled",
+      "bins": 50,
+      "source": "humidity_gscond_difference",
+      "min_scale": 1e-14,
+      "condition_on": "air_temperature_input",
+      "fit_filter_magnitude": 1e-14
+    },
+    {
+      "to": "humidity_precpd_difference_tscaled",
+      "bins": 50,
+      "source": "humidity_precpd_difference",
+      "min_scale": 1e-14,
+      "condition_on": "air_temperature_input",
+      "fit_filter_magnitude": 1e-14
+    },
+    {
+      "to": "temperature_precpd_difference_tscaled",
+      "bins": 50,
+      "source": "temperature_precpd_difference",
+      "min_scale": 1e-05,
+      "condition_on": "air_temperature_input",
+      "fit_filter_magnitude": 1e-05
+    },
+    {
+      "to": "temperature_gscond_difference_tscaled",
+      "bins": 50,
+      "source": "temperature_gscond_difference",
+      "min_scale": 1e-05,
+      "condition_on": "air_temperature_input",
+      "fit_filter_magnitude": 1e-05
+    }
+  ],
+  "conservative_model": null,
+  "shuffle_buffer_size": 100000
+}

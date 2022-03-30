@@ -19,7 +19,15 @@ from .convenience import (
 )
 from .calc.calc import local_time, weighted_average
 from .calc._zenith_angle import cos_zenith_angle
-from .calc.metrics import r2_score
+from .calc.metrics import (
+    r2_score,
+    precision,
+    recall,
+    true_positive_rate,
+    false_positive_rate,
+    accuracy,
+    f1_score,
+)
 from .calc.thermo.vertically_dependent import (
     height_at_interface,
     height_at_midpoint,
@@ -44,6 +52,8 @@ from .calc.thermo.local import (
     density,
     pressure_thickness,
     layer_mass,
+    temperature_tendency,
+    moist_static_energy_tendency,
 )
 from .calc.histogram import histogram, histogram2d
 
@@ -67,6 +77,11 @@ from .calc.vertical_flux import (
 )
 
 from .cdl.generate import cdl_to_dataset
+
+from .data_transform import (
+    DataTransform,
+    ChainedDataTransform,
+)
 
 __all__ = [item for item in dir() if not item.startswith("_")]
 __version__ = "0.1.0"

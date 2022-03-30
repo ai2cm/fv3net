@@ -9,15 +9,13 @@ spec:
   entrypoint: training
   arguments:
     parameters:
-    - name: tag
-      value: ":8fc663ea9bf56db13196ed2a21e89737f35c4550"
     - name: wandb-run-group
       value: ""
     - name: training-config
     - name: flags
       value: ""
     - name: gpu-train
-      value: "false"
+      value: "true"
   volumes:
     - name: gcp-key-secret
       secret:
@@ -62,7 +60,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: "us.gcr.io/vcm-ml/prognostic_run{{workflow.parameters.tag}}"
+        image: us.gcr.io/vcm-ml/fv3fit:2f8116a5431b927d84636715293846961791dcf5
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -105,7 +103,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: "us.gcr.io/vcm-ml/prognostic_run_gpu{{workflow.parameters.tag}}"
+        image: us.gcr.io/vcm-ml/fv3fit:2f8116a5431b927d84636715293846961791dcf5
         command: ["bash", "-c", "-x"]
         envFrom:
         - secretRef:
@@ -155,7 +153,7 @@ spec:
           - name: training-config
           - {name: flags, value: " "}
       container:
-        image: "us.gcr.io/vcm-ml/prognostic_run{{workflow.parameters.tag}}"
+        image: "us.gcr.io/vcm-ml/prognostic_run:latest"
         command: ["bash", "-c", "-x"]
         workingDir: "/fv3net/projects/microphysics"
         envFrom:

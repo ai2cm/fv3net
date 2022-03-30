@@ -9,15 +9,14 @@ from typing import (
     Optional,
     Union,
 )
+import dacite
 import xarray as xr
-from vcm import safe, parse_datetime_from_str
 from toolz import partition_all, curry, compose_left
 from ._sequences import Map
 from .._utils import (
     add_grid_info,
     add_derived_data,
     add_wind_rotation_info,
-    nonderived_variables,
     stack,
     shuffle,
     dropna,
@@ -53,6 +52,7 @@ def batches_from_mapper(
     drop_nans: bool = False,
     shuffle_timesteps: bool = True,
     shuffle_samples: bool = False,
+    data_transforms: Optional[Sequence[Mapping]] = None,
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -77,6 +77,7 @@ def batches_from_mapper(
         shuffle_samples: if True, shuffle the samples after stacking. If False, can
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
+        data_transforms: list of transforms to compute derived variables in batches.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
 
@@ -105,13 +106,19 @@ def batches_from_mapper(
 
     # First function goes from mapper + timesteps to xr.dataset
     # Subsequent transforms are all dataset -> dataset
-    transforms = [_get_batch(data_mapping, variable_names)]
+    transforms = [_get_batch(data_mapping)]
 
     if needs_grid:
         transforms += [
             add_grid_info(res),
             add_wind_rotation_info(res),
         ]
+
+    if data_transforms is not None:
+        data_transform = dacite.from_dict(
+            vcm.ChainedDataTransform, {"transforms": data_transforms}
+        )
+        transforms.append(curry(data_transform.apply))
 
     transforms.append(add_derived_data(variable_names))
 
@@ -143,9 +150,7 @@ def batches_from_mapper(
 
 
 @curry
-def _get_batch(
-    mapper: Mapping[str, xr.Dataset], data_vars: Sequence[str], keys: Iterable[str],
-) -> xr.Dataset:
+def _get_batch(mapper: Mapping[str, xr.Dataset], keys: Iterable[str],) -> xr.Dataset:
     """
     Selects requested variables in the dataset that are there by default
     (i.e., not added in derived step) and combines the given mapper keys
@@ -154,12 +159,10 @@ def _get_batch(
     If all keys are time strings, converts them to time when creating the coordinate.
     """
     try:
-        time_coords = [parse_datetime_from_str(key) for key in keys]
+        time_coords = [vcm.parse_datetime_from_str(key) for key in keys]
     except ValueError:
         time_coords = list(keys)
     ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
-    nonderived_vars = nonderived_variables(data_vars, tuple(ds.data_vars))
-    ds = safe.get_variables(ds, nonderived_vars)
     return ds
 
 

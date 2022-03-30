@@ -1,20 +1,21 @@
 from setuptools import find_namespace_packages, setup
 
 dependencies = [
-    "dask==2.13.0",
-    "f90nml==1.1.2",
+    "apache_beam[gcp]",
+    "dask>=2.13.0",
+    "f90nml>=1.1.2",
     "fsspec",
-    "gcsfs==2021.6.0",
-    "intake==0.5.4",
-    "MetPy==0.12.0",
-    "toolz==0.10.0",
-    "xarray==0.19.0",
-    "xgcm==0.3.0",
-    "zarr==2.7.0",
+    "gcsfs>=2021.6.0",
+    "intake>=0.5.4",
+    "MetPy>=0.12.0",
+    "toolz>=0.10.0",
+    "xarray>=0.19.0",
+    "xgcm>=0.3.0",
+    "zarr>=2.7.0",
     "numba",
-    "cftime==1.2.1",
+    "cftime>=1.2.1",
     "vcm",
-    "xpartition==0.2.0",
+    "xpartition>=0.2.0",
 ]
 
 setup(

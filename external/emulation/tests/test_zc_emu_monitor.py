@@ -13,8 +13,8 @@ from emulation._monitor.monitor import (
     _get_timestep,
     _load_nml,
     _remove_io_suffix,
-    _translate_time,
 )
+from emulation._time import translate_time
 from pace.util import Quantity
 from xarray import DataArray
 
@@ -109,7 +109,7 @@ def test__translate_time():
     month = 10
     day = 29
 
-    time = _translate_time([year, month, day, None, 0, 0])
+    time = translate_time([year, month, day, None, 0, 0])
 
     assert time.year == year
     assert time.month == month
@@ -187,3 +187,11 @@ def test_StorageHook_save_tf(dummy_rundir):
             ), key
             assert tf_ds.element_spec[key].shape[0] is None
     assert len(list(tf_ds)) == n
+
+
+def test_StorageHook_does_not_modify_state(dummy_rundir):
+    hook = StorageHook("", output_freq_sec=1, save_nc=False, save_zarr=False)
+    state = {"a": 0.0, "model_time": [2021, 1, 1, 0, 0, 0]}
+    state_before = state.copy()
+    hook.store(state)
+    assert state == state_before

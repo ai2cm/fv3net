@@ -42,6 +42,12 @@ def test_wrap_another_derived_model():
         {"Q2", "net_shortwave_sfc_flux_derived"}
     )
 
+    # also need to check that the prediction matches the list of outputs
+    arr = xr.DataArray(np.zeros(10), dims=["x"],)
+    inputs = xr.Dataset(data_vars={var: arr for var in derived_model_1.input_variables})
+    outputs = derived_model_1.predict(inputs)
+    assert set(outputs.data_vars) == set(derived_model_1.output_variables)
+
 
 def test_get_additional_inputs():
     derived_model = DerivedModel(

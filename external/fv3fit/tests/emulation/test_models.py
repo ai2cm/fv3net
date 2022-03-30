@@ -136,6 +136,7 @@ def test_precip_conserving_extra_inputs():
 
 
 @pytest.mark.parametrize("arch", _ARCHITECTURE_KEYS)
+@pytest.mark.slow
 def test_MicrophysicConfig_model_save_reload(arch):
 
     config = MicrophysicsConfig(
@@ -163,6 +164,7 @@ def test_MicrophysicConfig_model_save_reload(arch):
     )
 
 
+@pytest.mark.slow
 def test_RNN_downward_dependence():
 
     config = MicrophysicsConfig(
@@ -239,6 +241,7 @@ def test_transform_model_input_names():
 
 
 @pytest.mark.xfail
+@pytest.mark.slow
 def test_saved_model_jacobian():
     """
     SimpleRNN saving prevents jacobian calculation due to some internal

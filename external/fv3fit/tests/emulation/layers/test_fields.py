@@ -8,6 +8,7 @@ from fv3fit.emulation.layers.fields import (
     IncrementedFieldOutput,
     IncrementStateLayer,
 )
+from fv3fit.emulation.layers.normalization import norm2_factory_from_key
 
 from hypothesis.strategies import floats
 from hypothesis import given
@@ -35,18 +36,23 @@ def test_FieldInput_no_args():
 def test_FieldInput():
 
     tensor = _get_tensor((10, 3))
-    field_in = FieldInput(sample_in=tensor, normalize="mean_std", selection=slice(0, 2))
+    field_in = FieldInput(
+        sample_in=tensor,
+        normalize=norm2_factory_from_key("mean_std"),
+        selection=slice(0, 2),
+    )
 
     result = field_in(tensor)
     assert result.shape == (10, 2)
-    assert field_in.normalize.fitted
     assert np.max(abs(result)) < 2
 
 
 def test_FieldOutput():
     sample = _get_tensor((20, 3))
 
-    field_out = FieldOutput(sample_out=sample, denormalize="mean_std")
+    field_out = FieldOutput(
+        sample_out=sample, denormalize=norm2_factory_from_key("mean_std")
+    )
     result = field_out(sample)
 
     assert result.shape == (20, 3)
@@ -85,7 +91,10 @@ def test_IncrementedFieldOutput(dt_sec: float):
     sample = tf.random.uniform((20, 3))
 
     field_out = IncrementedFieldOutput(
-        dt_sec, sample_in=sample, sample_out=sample + dt_sec, denormalize="mean_std",
+        dt_sec,
+        sample_in=sample,
+        sample_out=sample + dt_sec,
+        denormalize=norm2_factory_from_key("mean_std"),
     )
     result = field_out(sample, net_tensor)
     tendency = field_out.get_tendency_output(net_tensor)
@@ -97,20 +106,6 @@ def test_IncrementedFieldOutput(dt_sec: float):
     assert magnitude == pytest.approx(dt_sec, rel=1.0)
 
 
-def test_IncrementedFieldOutput_tendency_layer_name():
-
-    sample = tf.random.uniform((20, 3))
-    field_out = IncrementedFieldOutput(
-        900,
-        sample_in=sample,
-        sample_out=sample + 1,
-        denormalize="mean_std",
-        tendency_name="test_name",
-    )
-
-    assert field_out.tendency.name == "test_name"
-
-
 def get_test_tensor():
     return _get_tensor((20, 10))
 
@@ -119,7 +114,9 @@ def get_FieldInput():
 
     tensor = get_test_tensor()
     input_layer = FieldInput(
-        sample_in=tensor, normalize="mean_std", selection=slice(-3)
+        sample_in=tensor,
+        normalize=norm2_factory_from_key("mean_std"),
+        selection=slice(-3),
     )
 
     return input_layer
@@ -128,7 +125,9 @@ def get_FieldInput():
 def get_FieldOutput():
 
     tensor = get_test_tensor()
-    output_layer = FieldOutput(sample_out=tensor, denormalize="mean_std",)
+    output_layer = FieldOutput(
+        sample_out=tensor, denormalize=norm2_factory_from_key("mean_std")
+    )
 
     return output_layer
 
@@ -149,7 +148,7 @@ def test_layer_model_saving(tmpdir, get_layer_func):
     np.testing.assert_array_equal(result, expected)
 
 
-def test_layer_IncrementedStateOutput_model_saving(tmpdir):
+def test_layer_IncrementedFieldOutput_model_saving(tmpdir):
 
     tensor = get_test_tensor()
 
@@ -157,7 +156,10 @@ def test_layer_IncrementedStateOutput_model_saving(tmpdir):
     net_out = tf.keras.layers.Lambda(lambda x: x)(in_)
     tensor = get_test_tensor()
     layer = IncrementedFieldOutput(
-        900, sample_in=tensor - 1, sample_out=tensor, denormalize="mean_std",
+        900,
+        sample_in=tensor - 1,
+        sample_out=tensor,
+        denormalize=norm2_factory_from_key("mean_std"),
     )
     out = layer(in_, net_out)
     model = tf.keras.models.Model(inputs=in_, outputs=out)

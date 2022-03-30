@@ -89,7 +89,11 @@ def regrid_to_edge_weighted_pressure(
     )
     interp_dim = "x" if edge == "y" else "y"
     delp_staggered = grid.interp(delp, interp_dim).assign_coords(
-        {hor_dims[interp_dim]: np.arange(1, delp.sizes[hor_dims[edge]] + 2)}
+        {
+            hor_dims[interp_dim]: np.arange(
+                1, delp.sizes[hor_dims[edge]] + 2, dtype=np.float32
+            )
+        }
     )
     delp_staggered_coarse = edge_weighted_block_average(
         delp_staggered, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
