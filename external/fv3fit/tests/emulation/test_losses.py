@@ -5,20 +5,24 @@ from fv3fit.emulation.losses import (
     CustomLoss,
     NormalizedMSE,
 )
+from fv3fit.emulation.layers.normalization2 import (
+    NormFactory,
+    StdDevMethod,
+    MeanMethod,
+    NormLayer,
+)
 
 
 def test_NormalizeMSE():
-    sample = np.array([[25.0], [75.0]])
-    target = np.array([[50.0], [50.0]])
-
-    mse_func = NormalizedMSE("mean_std", sample)
-    mse = mse_func(target, sample)
-    np.testing.assert_approx_equal(mse, 1.0, 6)
+    sample = np.array([[0], [0]])
+    target = np.array([[1], [2]])
+    mse_func = NormalizedMSE(NormLayer(1, 0))
+    assert tf.is_tensor(mse_func(target, sample))
 
 
 def test_CustomLoss():
     loss_config = CustomLoss(
-        normalization="mean_std",
+        normalization=NormFactory(StdDevMethod.all, MeanMethod.per_feature),
         loss_variables=["fieldA", "fieldB"],
         metric_variables=["fieldC"],
         weights=dict(fieldA=2.0),

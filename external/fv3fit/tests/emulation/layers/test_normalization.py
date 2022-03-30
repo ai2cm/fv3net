@@ -1,4 +1,3 @@
-from fv3fit.emulation.layers.normalization import NormLayer
 import pytest
 import numpy as np
 import tensorflow as tf
@@ -90,7 +89,4 @@ def test_NormLayer_Configs(config_cls):
 
     tensor = _get_tensor()
     config = config_cls("mean_std", tensor, "lol")
-    layer = config.initialize_layer()
-
-    assert isinstance(layer, NormLayer)
-    assert layer.name == "lol"
+    config.initialize_layer()

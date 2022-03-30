@@ -16,10 +16,7 @@ TEST_DATA_DIR = "tests/prepare_config_test_data"
 @pytest.mark.parametrize(
     "argv",
     [
-        pytest.param(
-            [f"{TEST_DATA_DIR}/prognostic_config.yml", "--model_url", "gs://ml-model"],
-            id="ml",
-        ),
+        pytest.param([f"{TEST_DATA_DIR}/prognostic_config.yml"], id="ml",),
         pytest.param([f"{TEST_DATA_DIR}/nudge_to_fine_config.yml"], id="n2f"),
         pytest.param([f"{TEST_DATA_DIR}/nudge_to_obs_config.yml"], id="n2o"),
         pytest.param([f"{TEST_DATA_DIR}/emulator.yml"], id="emulator"),
@@ -46,7 +43,7 @@ def test_get_user_config_is_valid():
         ],
     }
 
-    config = prepare_config.to_fv3config(dict_, model_url=[], diagnostic_ml=True,)
+    config = prepare_config.to_fv3config(dict_)
     # validate using dacite.from_dict
     dacite.from_dict(UserConfig, config)
 
