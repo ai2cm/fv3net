@@ -18,7 +18,6 @@ import pandas as pd
 from runtime.diagnostics.manager import FortranFileConfig
 from runtime.diagnostics.fortran import file_configs_to_namelist_settings
 from runtime.config import UserConfig
-from runtime.steppers.machine_learning import MachineLearningConfig
 
 
 __all__ = ["to_fv3config", "InitialCondition", "FV3Config", "HighLevelConfig"]
@@ -197,26 +196,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Path to a config update YAML file specifying the changes from the base"
         "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
     )
-    parser.add_argument(
-        "--model_url",
-        type=str,
-        default=None,
-        action="append",
-        help=(
-            "Remote url to a trained ML model. If a model is omitted (and not "
-            "specified in `user_config`'s `scikit-learn` `model` field either), then "
-            "no ML updating will be done. Also, if an ML model is provided, no "
-            "nudging will be done. Can be provided multiple times, "
-            "ex. --model_url model1 --model_url model2. If multiple urls are given, "
-            "they will be combined into a single model at runtime, providing the "
-            "outputs are nonoverlapping."
-        ),
-    )
-    parser.add_argument(
-        "--diagnostic_ml",
-        action="store_true",
-        help="Compute and save ML predictions but do not apply them to model state.",
-    )
     return parser
 
 
@@ -233,9 +212,7 @@ def _diag_table_overlay(
     return {"diag_table": diag_table}
 
 
-def to_fv3config(
-    dict_: dict, model_url: Sequence[str] = (), diagnostic_ml: bool = False,
-) -> dict:
+def to_fv3config(dict_: dict,) -> dict:
     """Convert a loaded prognostic run yaml ``dict_`` into an fv3config
     dictionary depending on some options
 
@@ -253,18 +230,6 @@ def to_fv3config(
     """
     user_config = HighLevelConfig.from_dict(dict_)
 
-    # insert command line option overrides
-    if user_config.scikit_learn is None:
-        if model_url:
-            user_config.scikit_learn = MachineLearningConfig(
-                model=list(model_url), diagnostic_ml=diagnostic_ml
-            )
-    else:
-        if model_url:
-            user_config.scikit_learn.model = list(model_url)
-        if diagnostic_ml:
-            user_config.scikit_learn.diagnostic_ml = diagnostic_ml
-
     if user_config.nudging and user_config.scikit_learn:
         raise NotImplementedError(
             "Nudging and machine learning cannot currently be run at the same time."
@@ -278,9 +243,7 @@ def prepare_config(args):
     with open(args.user_config, "r") as f:
         dict_ = yaml.safe_load(f)
 
-    final = to_fv3config(
-        dict_, model_url=args.model_url, diagnostic_ml=args.diagnostic_ml,
-    )
+    final = to_fv3config(dict_)
     fv3config.dump(final, sys.stdout)
 
 
