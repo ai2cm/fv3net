@@ -9,12 +9,6 @@ from runtime.names import SPHUM, TEMP
 
 __all__ = ["Config", "Adapter"]
 
-LV = vcm.calc.thermo.constants._LATENT_HEAT_VAPORIZATION_0_C
-CV = (
-    vcm.calc.thermo.constants._SPECIFIC_HEAT_CONST_PRESSURE
-    - vcm.calc.thermo.constants._RDGAS
-)
-
 
 @dataclasses.dataclass
 class Config:
@@ -97,4 +91,6 @@ def update_q2_to_ensure_non_negative_humidity(
 def update_q1_to_conserve_mse(
     q1: xr.DataArray, q2_old: xr.DataArray, q2_new: xr.DataArray
 ) -> xr.DataArray:
-    return q1 - LV / CV * (q2_new - q2_old)
+    mse_tendency = vcm.moist_static_energy_tendency(q1, q2_old)
+    q1_new = vcm.temperature_tendency(mse_tendency, q2_new)
+    return q1_new
