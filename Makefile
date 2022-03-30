@@ -217,7 +217,7 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		workflows/prognostic_c48_run/requirements.in
 
 docker/fv3fit/requirements.txt: constraints.txt
-	cp constraints.txt docker/prognostic_run/requirements.txt
+	cp constraints.txt $@
 	# this will subset the needed dependencies from constraints.txt
 	# while preserving the versions
 	pip-compile --no-annotate \

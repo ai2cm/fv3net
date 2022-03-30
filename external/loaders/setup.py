@@ -23,7 +23,8 @@ setup(
         "xarray>=0.15.1",
         "zarr>=2.4.0",
         "joblib>=0.16.0",
-        "vcm",
+        # cannot refer to vcm packages here...only pypi
+        # "vcm",
         "m2r2",
     ],
     dependency_links=["../vcm"],
