@@ -77,6 +77,10 @@ spec:
               value: "{{inputs.parameters.training-flags}}"
             - name: wandb-project
               value: "{{inputs.parameters.wandb-project}}"
+            - name: wandb-tags
+              value: "{{inputs.parameters.wandb-tags}}"
+            - name: wandb-run-group
+              value: "{{inputs.parameters.wandb-run-group}}"
       - name: offline-diags
         dependencies: [train-model]
         templateRef:

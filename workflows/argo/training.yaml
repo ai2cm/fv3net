@@ -24,6 +24,8 @@ spec:
           - {name: memory, value: 6Gi}
           - {name: flags, value: " "}
           - {name: wandb-project, value: "argo-default"}
+          - {name: wandb-tags, value: " "}
+          - {name: wandb-run-group, value: " "}
       container:
         image: us.gcr.io/vcm-ml/prognostic_run
         command: ["bash", "-c", "-x"]
@@ -36,6 +38,10 @@ spec:
             value: ai2cm
           - name: WANDB_PROJECT
             value: "{{inputs.parameters.wandb-project}}"
+          - name: WANDB_TAGS
+            value: "{{inputs.parameters.wandb-tags}}"
+          - name: WANDB_RUN_GROUP
+            value: "{{inputs.parameters.wandb-run-group}}"
         envFrom:
           - secretRef:
               name: wandb-token
