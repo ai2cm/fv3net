@@ -26,6 +26,8 @@ TransformName = Literal[
     "Q2_flux_from_Q2_tendency",
     "Qm_tendency_from_Qm_flux",
     "Q2_tendency_from_Q2_flux",
+    "implied_surface_precipitation_rate",
+    "implied_downward_radiative_flux_at_surface",
 ]
 
 
@@ -219,6 +221,57 @@ def Q2_tendency_from_Q2_flux(ds):
     ds["Q2"] = -vcm.mass_divergence(
         Q2_flux, ds[DELP], dim_center="z", dim_interface="z"
     )
+    return ds
+
+
+@register(
+    [
+        "Qm",
+        DELP,
+        DLW_SFC,
+        DSW_SFC,
+        DSW_TOA,
+        ULW_SFC,
+        ULW_TOA,
+        USW_SFC,
+        USW_TOA,
+        LHF,
+        SHF,
+        COL_T_NUDGE,
+    ],
+    ["implied_downward_radiative_flux_at_surface"],
+)
+def implied_downward_radiative_flux_at_surface(
+    ds, rectify=True, include_temperature_nudging=True
+):
+    """Assuming <Qm> = SHF + LHF + R_net + <T_nudge>."""
+    column_Qm = vcm.mass_integrate(ds["Qm"], ds[DELP], dim="z")
+    toa_rad_flux = ds[DSW_TOA] - ds[USW_TOA] - ds[ULW_TOA]
+    upward_surface_mse_flux = ds[LHF] + ds[SHF] + ds[USW_SFC] + ds[ULW_SFC]
+
+    # add TOA boundary condition
+    column_Qm += toa_rad_flux
+    if include_temperature_nudging:
+        column_Qm += ds[COL_T_NUDGE]
+
+    # compute downward flux at surface
+    downward_sfc_Qm_flux = upward_surface_mse_flux - column_Qm
+    if rectify:
+        downward_sfc_Qm_flux = downward_sfc_Qm_flux.where(downward_sfc_Qm_flux >= 0, 0)
+
+    ds["implied_downward_radiative_flux_at_surface"] = downward_sfc_Qm_flux
+    return ds
+
+
+@register(["Q2", DELP, LHF], ["implied_surface_precipitation_rate"])
+def implied_surface_precipitation_rate(ds, rectify=True):
+    """Assuming <Q2> = E-P."""
+    column_q2 = vcm.mass_integrate(ds["Q2"], ds[DELP], dim="z")
+    evaporation = vcm.latent_heat_flux_to_evaporation(ds[LHF])
+    implied_precip = evaporation - column_q2
+    if rectify:
+        implied_precip = implied_precip.where(implied_precip >= 0, 0)
+    ds["implied_surface_precipitation_rate"] = implied_precip
     return ds
 
 
