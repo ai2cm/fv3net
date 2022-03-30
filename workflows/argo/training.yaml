@@ -35,7 +35,7 @@ spec:
           - name: WANDB_ENTITY
             value: ai2cm
           - name: WANDB_PROJECT
-            value: {{inputs.parameters.wandb-project}}
+            value: "{{inputs.parameters.wandb-project}}"
         envFrom:
           - secretRef:
               name: wandb-token
