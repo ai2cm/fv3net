@@ -181,7 +181,9 @@ lock_deps: lock_pip
 
 constraints.txt:
 	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
-		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/'> .dataflow-versions.txt
+		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/' \
+		| grep -v google-python-cloud-debugger \
+		> .dataflow-versions.txt
 
 	pip-compile  \
 	--no-annotate \
