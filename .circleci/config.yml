@@ -108,7 +108,12 @@ jobs:
       IMAGE: <<parameters.image>>
     steps:
       - checkout
-      - run: sudo apt-get update && sudo apt-get install -y make jq python3 python3-pip
+      - run: |
+          sudo apt-get update && sudo apt-get install -y make jq \
+            python3 \
+            python3-pip \
+            # needed by pip-compile to handle vcm/setup.py
+            python3-numpy
       - run: sudo pip3 install -c constraints.txt pip-tools
       - add_ssh_keys:
           fingerprints:
