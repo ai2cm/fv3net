@@ -38,6 +38,7 @@ spec:
       - {name: training-flags, value: " "}
       - {name: online-diags-flags, value: " "}
       - {name: do-prognostic-run, value: "true"}
+      - {name: wandb-project, value: "argo-default"}
     dag:
       tasks:
       - name: resolve-output-url
@@ -74,6 +75,8 @@ spec:
               value: "{{inputs.parameters.memory-training}}"
             - name: flags
               value: "{{inputs.parameters.training-flags}}"
+            - name: wandb-project
+              value: "{{inputs.parameters.wandb-project}}"
       - name: offline-diags
         dependencies: [train-model]
         templateRef:

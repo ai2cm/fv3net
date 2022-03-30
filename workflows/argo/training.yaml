@@ -23,6 +23,7 @@ spec:
           - {name: cpu, value: 1000m}
           - {name: memory, value: 6Gi}
           - {name: flags, value: " "}
+          - {name: wandb-project, value: "argo-default"}
       container:
         image: us.gcr.io/vcm-ml/prognostic_run
         command: ["bash", "-c", "-x"]
@@ -31,6 +32,13 @@ spec:
             value: /secret/gcp-credentials/key.json
           - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
             value: /secret/gcp-credentials/key.json
+          - name: WANDB_ENTITY
+            value: ai2cm
+          - name: WANDB_PROJECT
+            value: {{inputs.parameters.wandb-project}}
+        envFrom:
+          - secretRef:
+              name: wandb-token
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
