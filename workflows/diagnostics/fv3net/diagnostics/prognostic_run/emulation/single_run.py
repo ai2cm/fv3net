@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import logging
+import os
 from functools import partial
 from typing import Any, Callable, List
 
@@ -333,6 +334,7 @@ def upload_diagnostics_for_tag(tag: str):
         tags=[tag],
         reinit=True,
     )
+    wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
     with run:
         url = get_rundir_from_prognostic_run(get_prognostic_run_from_tag(tag))
         upload_diagnostics_for_rundir(url)

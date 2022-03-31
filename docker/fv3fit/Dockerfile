@@ -37,3 +37,6 @@ RUN pip3 install --no-dependencies /fv3net/external/fv3fit
 
 # Greatly improves memory performance of tensorflow training
 ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4
+
+ARG COMMIT_SHA_ARG
+ENV COMMIT_SHA=$COMMIT_SHA_ARG
