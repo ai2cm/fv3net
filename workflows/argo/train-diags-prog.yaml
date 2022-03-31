@@ -37,6 +37,9 @@ spec:
       - {name: online-diags-flags, value: " "}
       - {name: do-prognostic-run, value: "true"}
       - {name: wandb-project, value: "argo-default"}
+      - {name: wandb-tags, value: " "}
+      - {name: wandb-run-group, value: " "}
+
     dag:
       tasks:
       - name: resolve-output-url
