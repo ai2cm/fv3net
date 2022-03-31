@@ -11,17 +11,15 @@ image=ad5b1e91472f34cad97cd8b5aead1dbbfdb09c42
 
 for exp in ${exps[@]}
 do
-    # tag=$(echo $exp | sed --expression='s/^.\{11\}//')-30d-v1
-    # tag=$exp-30d-v1
-    tag=$exp-6hr
+    tag=$exp-30d-v1
     url=gs://vcm-ml-experiments/microphysics-emulation/2022-03-29/${exp}/model.tf
 
-    yq  --arg url "$url" '.zhao_carr_emulation.model.path |= $url' ../configs/default_short.yaml > config.yaml
+    yq  --arg url "$url" '.zhao_carr_emulation.model.path |= $url' ../configs/default.yaml > config.yaml
     trap 'rm config.yaml' EXIT
 
     argo submit ../argo/prog-run-and-eval.yaml \
-        --name "$tag-v4" \
+        --name "$tag" \
         -p image_tag="$image" \
-        -p tag=$tag-v4 \
+        -p tag=$tag \
         -p config=$(base64 --wrap 0 config.yaml) | grep -v 'config:'
 done
