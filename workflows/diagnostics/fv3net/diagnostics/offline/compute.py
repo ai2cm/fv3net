@@ -110,16 +110,16 @@ def _create_arg_parser() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _resolve_grid(
-    grid_path: str, grid_resolution: str, data_kwargs: dict
-) -> xr.Dataset:
-    logger.info("Reading grid.")
-    if not grid_path:
-        grid = load_grid_info(data_kwargs.get("res", grid_resolution))
-    else:
-        with fsspec.open(grid_path, "rb") as f:
-            grid = xr.open_dataset(f, engine="h5netcdf").load()
-    return grid
+# def _resolve_grid(
+#     grid_path: str, grid_resolution: str, data_kwargs: dict
+# ) -> xr.Dataset:
+#     logger.info("Reading grid.")
+#     if not grid_path:
+#         grid = load_grid_info(data_kwargs.get("res", grid_resolution))
+#     else:
+#         with fsspec.open(grid_path, "rb") as f:
+#             grid = xr.open_dataset(f, engine="h5netcdf").load()
+#     return grid
 
 
 def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
@@ -281,7 +281,8 @@ def main(args):
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
 
-    grid = _resolve_grid(args.grid, args.grid_resolution, config)
+    #     grid = _resolve_grid(args.grid, args.grid_resolution, config.kwargs)
+    grid = load_grid_info(getattr(config, "res"))
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
