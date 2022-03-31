@@ -1,0 +1,55 @@
+cache:
+  delete_existing: false
+  in_memory: false
+  local_download_path: null
+derived_output_variables: []
+hyperparameters:
+  clip_config:
+    clip: {}
+  dense_network:
+    depth: 4
+    gaussian_noise: 0.5
+    kernel_regularizer:
+      kwargs: {}
+      name: none
+    spectral_normalization: false
+    width: 256
+  input_variables:
+  - cos_zenith_angle
+  - air_temperature
+  - specific_humidity
+  - land_sea_mask
+  - surface_geopotential
+  - latent_heat_flux
+  - sensible_heat_flux
+  loss:
+    loss_type: mse
+    scaling: standard
+    weight: 0.5
+  n_batches: null
+  normalization_fit_samples: 500000
+  normalize_loss: true
+  optimizer_config:
+    kwargs:
+      learning_rate: 0.002
+    learning_rate_schedule: null
+    name: Adam
+  output_limit_config:
+    limits: {}
+  output_variables:
+  - Q1
+  - Q2
+  - air_temperature
+  - specific_humidity
+  - surface_geopotential
+  save_model_checkpoints: false
+  training_loop:
+    batch_size: 128
+    epochs: 100
+    in_memory: true
+    shuffle_buffer_size: 50000
+  weights: null
+model_type: dense
+output_transforms: []
+random_seed: 0
+sample_dim_name: sample

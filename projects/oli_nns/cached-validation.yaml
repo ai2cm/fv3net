@@ -1,0 +1,4 @@
+function: batches_from_netcdf
+kwargs:
+  path: cached_validation
+  subsample_ratio: 0.0625

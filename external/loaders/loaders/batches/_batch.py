@@ -256,7 +256,10 @@ def _open_dataset(fs: fsspec.AbstractFileSystem, variable_names, filename):
 
 @batches_functions.register
 def batches_from_netcdf(
-    path: str, variable_names: Iterable[str], in_memory: bool = False,
+    path: str,
+    variable_names: Iterable[str],
+    in_memory: bool = False,
+    subsample_ratio: float = 1.0,
 ) -> loaders.typing.Batches:
     """
     Loads a series of netCDF files from the given directory, in alphabetical order.
@@ -265,12 +268,15 @@ def batches_from_netcdf(
         path: path (local or remote) of a directory of netCDF files
         variable_names: variables to load from datasets
         in_memory: if True, load data eagerly and keep it in memory
+        subsample_ratio: fraction of samples to load
     Returns:
         A sequence of batched data
     """
     fs = vcm.get_fs(path)
     filenames = [fname for fname in sorted(fs.ls(path)) if fname.endswith(".nc")]
     seq = Map(_open_dataset(fs, variable_names), filenames)
+    if subsample_ratio != 1.0:
+        seq = Map(select_fraction(subsample_ratio), seq)
 
     if in_memory:
         out_seq: Batches = tuple(ds.load() for ds in seq)

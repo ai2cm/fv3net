@@ -1,0 +1,57 @@
+random_seed: 0
+model_type: dense
+hyperparameters:
+  input_variables:
+    - cos_zenith_angle
+    - air_temperature
+    - specific_humidity
+    - land_sea_mask
+    - surface_geopotential
+    - latent_heat_flux
+    - sensible_heat_flux
+  output_variables:
+    - Q1
+    - Q2
+    - air_temperature
+    - specific_humidity
+    - surface_geopotential
+  loss:
+    loss_type: mse
+    scaling: standard
+    weight: 0.5
+  dense_network:
+    depth: 4
+    width: 256
+    gaussian_noise: 0.5
+    # spectral_normalization: true
+    # kernel_regularizer:
+    #   name: l2
+    #   kwargs:
+    #     l: 0.00001
+  training_loop:
+    epochs: 100
+    shuffle_buffer_size: 50_000
+    batch_size: 128
+    in_memory: True
+  optimizer_config:
+    name: Adam
+    kwargs:
+      learning_rate: 0.002
+        # input_variables: names of variables to use as inputs
+        # output_variables: names of variables to use as outputs
+        # weights: loss function weights, defined as a dict whose keys are
+        #     variable names and values are either a scalar referring to the
+        #     total weight of the variable. Default is a total weight of 1
+        #     for each variable.
+        # normalize_loss: if True (default), normalize outputs by their standard
+        #     deviation before computing the loss function
+        # optimizer_config: selection of algorithm to be used in gradient descent
+        # dense_network: configuration of dense network
+        # training_loop: configuration of training loop
+        # loss: configuration of loss functions, will be applied separately to
+        #     each output variable.
+        # save_model_checkpoints: if True, save one model per epoch when
+        #     dumping, under a 'model_checkpoints' subdirectory
+        # clip_config: configuration of input and output clipping of last dimension
+        # output_limit_config: configuration for limiting output values.
+        # normalization_fit_samples: number of samples to use when fitting normalization

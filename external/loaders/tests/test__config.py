@@ -7,6 +7,7 @@ import os
 import yaml
 import dataclasses
 from loaders.testing import mapper_context, batches_context, batches_from_mapper_context
+import dacite
 
 
 def test_load_mapper():
@@ -171,14 +172,17 @@ def test_safe_dump_BatchesFromMapperConfig():
     Test that dataclass.asdict and pyyaml can be used to save BatchesFromMapperConfig.
     """
     config = loaders.BatchesFromMapperConfig(
-        timesteps=["1", "2", "3"], mapper_config={},
+        timesteps=["1", "2", "3"],
+        mapper_config=loaders.MapperConfig(function="open_zarr", kwargs={}),
     )
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, "config.yaml")
         with open(filename, "w") as f:
             as_dict = dataclasses.asdict(config)
             yaml.safe_dump(as_dict, f)
-        from_dict = loaders.BatchesFromMapperConfig(**as_dict)
+        from_dict = dacite.from_dict(
+            data_class=loaders.BatchesFromMapperConfig, data=as_dict
+        )
         assert config == from_dict
 
 

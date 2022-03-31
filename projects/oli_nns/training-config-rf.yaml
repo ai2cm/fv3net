@@ -1,0 +1,17 @@
+random_seed: 0
+model_type: sklearn_random_forest
+hyperparameters:
+  n_jobs: 8
+  max_depth: 13
+  n_estimators: 15
+  input_variables:
+    - cos_zenith_angle
+    - air_temperature
+    - specific_humidity
+    - land_sea_mask
+    - surface_geopotential
+    - latent_heat_flux
+    - sensible_heat_flux
+  output_variables:
+    - Q1
+    - Q2

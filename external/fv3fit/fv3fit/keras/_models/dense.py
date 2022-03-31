@@ -64,6 +64,7 @@ class DenseHyperparameters(Hyperparameters):
         clip_config: configuration of input and output clipping of last dimension
         output_limit_config: configuration for limiting output values.
         normalization_fit_samples: number of samples to use when fitting normalization
+        n_batches: if given, use this many batches for training
     """
 
     input_variables: List[str]
@@ -86,6 +87,7 @@ class DenseHyperparameters(Hyperparameters):
         default_factory=lambda: OutputLimitConfig()
     )
     normalization_fit_samples: int = 500_000
+    n_batches: Optional[int] = None
 
     @property
     def variables(self) -> Set[str]:
@@ -107,6 +109,7 @@ def train_dense_model(
         clip_config=hyperparameters.clip_config,
         training_loop=hyperparameters.training_loop,
         build_samples=hyperparameters.normalization_fit_samples,
+        n_batches=hyperparameters.n_batches,
     )
 
 
@@ -174,6 +177,7 @@ def train_column_model(
     clip_config: ClipConfig,
     training_loop: TrainingLoopConfig,
     build_samples: int = 500_000,
+    n_batches: Optional[int] = None,
 ) -> PureKerasModel:
     """
     Train a columnwise PureKerasModel.
@@ -189,7 +193,10 @@ def train_column_model(
         clip_config: configuration of input and output clipping of last dimension
         training_loop: configuration of training loop
         build_samples: the number of samples to pass to build_model
+        n_batches: if given, use this many batches for training
     """
+    if n_batches is not None:
+        train_batches = train_batches.take(n_batches)
     train_batches = train_batches.map(
         tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
     )

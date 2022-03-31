@@ -55,10 +55,12 @@ class CacheConfig:
     Attributes:
         local_download_path: location to save data locally
         in_memory: if True, keep data in memory once loaded
+        delete_existing: if True, delete data at local_download_path before caching
     """
 
     local_download_path: Optional[str] = None
     in_memory: bool = False
+    delete_existing: bool = False
 
 
 @dataclasses.dataclass

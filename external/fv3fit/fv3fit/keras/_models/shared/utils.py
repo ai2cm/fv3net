@@ -1,6 +1,7 @@
 import tensorflow as tf
 from typing import List, Sequence, Type
 from fv3fit.emulation.layers import StandardNormLayer, StandardDenormLayer, NormLayer
+import secrets
 
 import numpy as np
 
@@ -13,7 +14,7 @@ def _fit_norm_layer(
 ) -> Sequence[NormLayer]:
     out: List[NormLayer] = []
     for name, layer, array in zip(names, layers, arrays):
-        norm = cls(name=f"standard_normalize_{name}")
+        norm = cls(name=f"norm_{name}_{secrets.token_hex(4)}")
         norm.fit(array)
         out.append(norm(layer))
     return out

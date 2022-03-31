@@ -1,0 +1,3 @@
+function: batches_from_netcdf
+kwargs:
+  path: cached_train

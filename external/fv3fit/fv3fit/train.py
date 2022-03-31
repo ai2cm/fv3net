@@ -3,6 +3,7 @@ import logging
 import os
 from typing import Optional, Sequence, Tuple
 from fv3fit._shared.config import (
+    CacheConfig,
     get_arg_updated_config_dict,
     to_flat_dict,
     to_nested_dict,
@@ -22,6 +23,7 @@ from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
 from fv3fit.dataclasses import asdict_with_enum
 import wandb
+import shutil
 
 from vcm.cloud import copy
 
@@ -69,9 +71,8 @@ def dump_dataclass(obj, yaml_filename):
 def get_data(
     training_data_config: str,
     validation_data_config: Optional[str],
-    local_download_path: Optional[str],
     variable_names: Sequence[str],
-    in_memory: bool = False,
+    cache_config: CacheConfig,
 ) -> Tuple[tf.data.Dataset, Optional[tf.data.Dataset]]:
     """
     Args:
@@ -84,19 +85,23 @@ def get_data(
     Returns:
         Training and validation data
     """
-    if local_download_path is None:
+    if cache_config.local_download_path is None:
         train_batches, val_batches = get_uncached_data(
             training_data_config=training_data_config,
             validation_data_config=validation_data_config,
             variable_names=variable_names,
         )
     else:
+        if cache_config.delete_existing and os.path.isdir(
+            cache_config.local_download_path
+        ):
+            shutil.rmtree(cache_config.local_download_path)
         train_batches, val_batches = get_cached_data(
             training_data_config=training_data_config,
             validation_data_config=validation_data_config,
-            local_download_path=local_download_path,
+            local_download_path=cache_config.local_download_path,
             variable_names=variable_names,
-            in_memory=in_memory,
+            in_memory=cache_config.in_memory,
         )
     logger.info(f"Following variables are in train batches: {list(train_batches[0])}")
     # tensorflow training shuffles within blocks of samples,
@@ -109,7 +114,7 @@ def get_data(
         val_dataset = tfdataset_from_batches(val_batches)
     else:
         val_dataset = None
-    if in_memory:
+    if cache_config.in_memory:
         train_dataset = train_dataset.cache()
         if val_dataset is not None:
             val_dataset = val_dataset.cache()
@@ -218,9 +223,8 @@ def main(args, unknown_args=None):
     train_batches, val_batches = get_data(
         args.training_data_config,
         args.validation_data_config,
-        training_config.cache.local_download_path,
+        cache_config=training_config.cache,
         variable_names=training_config.variables,
-        in_memory=training_config.cache.in_memory,
     )
 
     train = fv3fit.get_training_function(training_config.model_type)
@@ -245,7 +249,7 @@ if __name__ == "__main__":
     with tempfile.NamedTemporaryFile() as temp_log:
         logging.basicConfig(
             level=logging.INFO,
-            format="%(asctime)s [%(levelname)s] %(message)s",
+            format="%(asctime)s [%(levelname)s] %(name)s:%(message)s",
             handlers=[logging.FileHandler(temp_log.name), logging.StreamHandler()],
             datefmt="%Y-%m-%d %H:%M:%S",
         )
