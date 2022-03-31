@@ -24,8 +24,6 @@ spec:
       - {name: validation-data-config, value: " "}
       - name: test-data-config
       - name: prognostic-run-config
-      - name: flags
-        value: " "
       - name: public-report-output
       - {name: bucket, value: "vcm-ml-experiments"}
       - {name: project, value: "default"}
@@ -96,35 +94,34 @@ spec:
                 value: "{{inputs.parameters.public-report-output}}/{{item.name}}"
               - name: memory
                 value: "{{inputs.parameters.memory-offline-diags}}"
-      - name: construct-full-flags
+      - name: insert-model-urls
+        when: "{{inputs.parameters.do-prognostic-run}} == true"
         dependencies: [resolve-output-url]
-        template: construct-full-flags
+        template: insert-model-urls
         arguments:
           parameters:
               - name: root
                 value: "{{tasks.resolve-output-url.outputs.result}}"
               - name: training-configs
                 value: "{{inputs.parameters.training-configs}}"
-              - name: flags
-                value: "{{inputs.parameters.flags}}"
+              - name: prognostic-config
+                value: "{{inputs.parameters.prognostic-run-config}}"
       - name: prognostic-run
         when: "{{inputs.parameters.do-prognostic-run}} == true"
         templateRef:
           name: prognostic-run
           template: prognostic-run
-        dependencies: [train-model, construct-full-flags]
+        dependencies: [train-model, insert-model-urls]
         arguments:
           parameters:
               - name: config
-                value: "{{inputs.parameters.prognostic-run-config}}"
+                value: "{{tasks.insert-model-urls.outputs.parameters.prognostic-config}}"
               - name: bucket
                 value: "{{inputs.parameters.bucket}}"
               - name: project
                 value: "{{inputs.parameters.project}}"
               - name: tag
                 value: "{{inputs.parameters.tag}}"
-              - name: flags
-                value: "{{tasks.construct-full-flags.outputs.parameters.prognostic-flags}}"
               - name: models-dir
                 value: "{{tasks.resolve-output-url.outputs.result}}/trained_models"
               - name: segment-count
@@ -135,32 +132,30 @@ spec:
                 value: "{{inputs.parameters.memory-prog}}"
               - name: online-diags-flags
                 value: "{{inputs.parameters.online-diags-flags}}"
-  - name: construct-full-flags
+  - name: insert-model-urls
     inputs:
       parameters:
         - {name: root}
         - {name: training-configs}
-        - {name: flags}
+        - {name: prognostic-config}
     outputs:
       parameters:
-      - name: prognostic-flags
+      - name: prognostic-config
         valueFrom:
-          path: /tmp/prognostic-flags.txt
+          path: /tmp/compiled-config.yaml
     container:
-      image: bash:4.4
+      image: linuxserver/yq:2.14.0-ls33
       command: ["bash", "-c", "-x", "-e"]
       args:
         - |
-          FLAGS_OUTPUT=/tmp/prognostic-flags.txt
+          TRAINING_CONFIGS='{{inputs.parameters.training-configs}}'
+          PROGNOSTIC_CONFIG='{{inputs.parameters.prognostic-config}}'
 
-          apk add --no-cache jq
+          MODEL_NAMES=$( echo "$TRAINING_CONFIGS" | jq -r '.[].name' )
+          echo "$PROGNOSTIC_CONFIG" | yq -y '.scikit_learn.model=[]' > /tmp/compiled-config.yaml
 
-          configs='{{inputs.parameters.training-configs}}'
-
-          echo "{{inputs.parameters.flags}} " | tr '\n' ' ' > $FLAGS_OUTPUT
-          echo "$configs" | jq -c '.[]' | \
-          while IFS= read -r line;
-          do
-              model=$( echo $line | jq -j '.name, "\n"');
-              echo "--model_url {{inputs.parameters.root}}/trained_models/${model}" | tr '\n' ' ' >>  $FLAGS_OUTPUT
+          for NAME in $MODEL_NAMES; do
+              URL="{{inputs.parameters.root}}/trained_models/${NAME}"
+              yq -y --arg url "$URL" '.scikit_learn.model|=.+[$url]' /tmp/compiled-config.yaml > temp.yaml
+              cp temp.yaml /tmp/compiled-config.yaml
           done
