@@ -281,7 +281,7 @@ def main(args):
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
 
-    grid = _resolve_grid(args.grid, args.grid_resolution, config.kwargs)
+    grid = _resolve_grid(args.grid, args.grid_resolution, config)
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
