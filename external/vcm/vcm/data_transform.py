@@ -182,7 +182,7 @@ def Q2_flux_from_Q2_tendency(
         long_name="Implied surface precipitation rate computed as E-<Q2>",
     )
 
-    ds["Q2_flux"] = Q2_flux.assign_attsr(
+    ds["Q2_flux"] = Q2_flux.assign_attrs(
         units="kg/s/m**2", long_name="Net flux of moisture"
     )
     ds["implied_surface_precipitation_rate"] = downward_sfc_Q2_flux
