@@ -13,7 +13,7 @@ def _tendency_to_flux(
     rectify: bool = True,
 ) -> Tuple[xr.DataArray, xr.DataArray]:
     """Compute cell-interface fluxes from cell-center tendencies and boundary fluxes.
-    
+
     Args:
         tendency: Vertical column of tendencies.
         toa_net_flux: Net flux at TOA.
@@ -49,9 +49,9 @@ def _tendency_to_implied_surface_downward_flux(
     delp: xr.DataArray,
     dim: str = "z",
     rectify: bool = True,
-) -> Tuple[xr.DataArray, xr.DataArray]:
+) -> xr.DataArray:
     """Compute implied downward surface flux assuming budget closure.
-    
+
     Args:
         tendency: Vertical column of tendencies.
         toa_net_flux: Net flux at TOA.
@@ -81,7 +81,7 @@ def _flux_to_tendency(
     dim: str = "z",
 ) -> xr.DataArray:
     """Compute tendencies given flux between model levels and surface fluxes.
-    
+
     Args:
         net_flux: The net flux between model layers, not including surface interface.
         surface_downward_flux: Downward flux at surface.
@@ -98,4 +98,3 @@ def _flux_to_tendency(
         net_flux_full, delp, dim_center=dim, dim_interface=dim
     )
     return tendency
-

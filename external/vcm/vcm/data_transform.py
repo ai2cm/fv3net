@@ -1,7 +1,6 @@
 import dataclasses
 from toolz.functoolz import curry
 from typing import Callable, Literal, MutableMapping, Sequence, Set
-import dask
 import xarray as xr
 import vcm
 from .calc.flux_form import (
@@ -256,7 +255,12 @@ def implied_surface_precipitation_rate(ds, rectify=True):
     """Assuming <Q2> = E-P."""
     evaporation = vcm.latent_heat_flux_to_evaporation(ds[LHF])
     implied_precip = _tendency_to_implied_surface_downward_flux(
-        ds["Q2"], 0.0, evaporation, ds[DELP], dim="z", rectify=rectify
+        ds["Q2"],
+        xr.zeros_like(ds[LHF]),
+        evaporation,
+        ds[DELP],
+        dim="z",
+        rectify=rectify,
     )
     implied_precip = implied_precip.assign_attrs(
         units="kg/s/m**2",
