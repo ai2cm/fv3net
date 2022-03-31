@@ -141,7 +141,12 @@ def Qm_flux_from_Qm_tendency(
     if isinstance(Qm_flux.data, dask.array.Array):
         Qm_flux = Qm_flux.chunk({"z": Qm_flux.sizes["z"]})
 
-    ds["Qm_flux"] = Qm_flux
+    downward_sfc_Qm_flux = downward_sfc_Qm_flux.assign_attrs(
+        units="W/m**2",
+        long_name="Implied downward radiative flux from <Qm> budget closure",
+    )
+
+    ds["Qm_flux"] = Qm_flux.assign_attrs(units="W/m**2", long_name="Net flux of MSE")
     ds["implied_downward_radiative_flux_at_surface"] = downward_sfc_Qm_flux
     return ds
 
@@ -172,7 +177,14 @@ def Q2_flux_from_Q2_tendency(
     if isinstance(Q2_flux.data, dask.array.Array):
         Q2_flux = Q2_flux.chunk({"z": Q2_flux.sizes["z"]})
 
-    ds["Q2_flux"] = Q2_flux
+    downward_sfc_Q2_flux = downward_sfc_Q2_flux.assign_attrs(
+        units="kg/s/m**2",
+        long_name="Implied surface precipitation rate computed as E-<Q2>",
+    )
+
+    ds["Q2_flux"] = Q2_flux.assign_attsr(
+        units="kg/s/m**2", long_name="Net flux of moisture"
+    )
     ds["implied_surface_precipitation_rate"] = downward_sfc_Q2_flux
     return ds
 
@@ -202,7 +214,7 @@ def Qm_tendency_from_Qm_flux(ds):
         Qm_flux = Qm_flux.chunk({"z": Qm_flux.sizes["z"]})
     ds["Qm"] = -vcm.mass_divergence(
         Qm_flux, ds[DELP], dim_center="z", dim_interface="z"
-    )
+    ).assign_attrs(units="W/kg")
     return ds
 
 
@@ -220,7 +232,7 @@ def Q2_tendency_from_Q2_flux(ds):
         Q2_flux = Q2_flux.chunk({"z": Q2_flux.sizes["z"]})
     ds["Q2"] = -vcm.mass_divergence(
         Q2_flux, ds[DELP], dim_center="z", dim_interface="z"
-    )
+    ).assign_attrs(units="kg/kg/s")
     return ds
 
 
@@ -259,6 +271,10 @@ def implied_downward_radiative_flux_at_surface(
     if rectify:
         downward_sfc_Qm_flux = downward_sfc_Qm_flux.where(downward_sfc_Qm_flux >= 0, 0)
 
+    downward_sfc_Qm_flux = downward_sfc_Qm_flux.assign_attrs(
+        units="W/m**2",
+        long_name="Implied downward radiative flux from <Qm> budget closure",
+    )
     ds["implied_downward_radiative_flux_at_surface"] = downward_sfc_Qm_flux
     return ds
 
@@ -271,6 +287,11 @@ def implied_surface_precipitation_rate(ds, rectify=True):
     implied_precip = evaporation - column_q2
     if rectify:
         implied_precip = implied_precip.where(implied_precip >= 0, 0)
+
+    implied_precip = implied_precip.assign_attrs(
+        units="kg/s/m**2",
+        long_name="Implied surface precipitation rate computed as E-<Q2>",
+    )
     ds["implied_surface_precipitation_rate"] = implied_precip
     return ds
 
