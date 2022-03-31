@@ -4,6 +4,11 @@ from typing import Callable, Literal, MutableMapping, Sequence, Set
 import dask
 import xarray as xr
 import vcm
+from .calc.flux_form import (
+    _tendency_to_flux,
+    _flux_to_tendency,
+    _tendency_to_implied_surface_downward_flux,
+)
 
 
 @dataclasses.dataclass
@@ -120,34 +125,24 @@ def Qm_flux_from_Qm_tendency(
     """See https://github.com/ai2cm/explore/blob/master/oliwm/
     2021-12-13-fine-res-in-flux-form/2021-12-13-fine-res-in-flux-form-proposal-v2.ipynb
     for derivation of transform."""
-    Qm_flux = -vcm.mass_cumsum(ds["Qm"], ds[DELP], dim="z")
-    toa_rad_flux = ds[DSW_TOA] - ds[USW_TOA] - ds[ULW_TOA]
-    upward_surface_mse_flux = ds[LHF] + ds[SHF] + ds[USW_SFC] + ds[ULW_SFC]
-
-    # add TOA boundary condition
-    Qm_flux = Qm_flux.pad(z=(1, 0), constant_values=0.0)
-    Qm_flux += toa_rad_flux
+    toa_net_flux = ds[DSW_TOA] - ds[USW_TOA] - ds[ULW_TOA]
     if include_temperature_nudging:
-        Qm_flux += ds[COL_T_NUDGE]
-
-    # compute downward flux at surface
-    downward_sfc_Qm_flux = Qm_flux.isel(z=-1) + upward_surface_mse_flux
-    if rectify_downward_radiative_flux:
-        downward_sfc_Qm_flux = downward_sfc_Qm_flux.where(downward_sfc_Qm_flux >= 0, 0)
-
-    # remove bottom flux level from net fluxes
-    Qm_flux = Qm_flux.isel(z=slice(None, -1))
-
-    if isinstance(Qm_flux.data, dask.array.Array):
-        Qm_flux = Qm_flux.chunk({"z": Qm_flux.sizes["z"]})
-
-    downward_sfc_Qm_flux = downward_sfc_Qm_flux.assign_attrs(
+        toa_net_flux += ds[COL_T_NUDGE]
+    surface_upward_flux = ds[LHF] + ds[SHF] + ds[USW_SFC] + ds[ULW_SFC]
+    net_flux, surface_downward_flux = _tendency_to_flux(
+        ds["Qm"],
+        toa_net_flux,
+        surface_upward_flux,
+        ds[DELP],
+        dim="z",
+        rectify=rectify_downward_radiative_flux,
+    )
+    surface_downward_flux = surface_downward_flux.assign_attrs(
         units="W/m**2",
         long_name="Implied downward radiative flux from <Qm> budget closure",
     )
-
-    ds["Qm_flux"] = Qm_flux.assign_attrs(units="W/m**2", long_name="Net flux of MSE")
-    ds["implied_downward_radiative_flux_at_surface"] = downward_sfc_Qm_flux
+    ds["Qm_flux"] = net_flux.assign_attrs(units="W/m**2", long_name="Net flux of MSE")
+    ds["implied_downward_radiative_flux_at_surface"] = surface_downward_flux
     return ds
 
 
@@ -160,32 +155,24 @@ def Q2_flux_from_Q2_tendency(
     """See https://github.com/ai2cm/explore/blob/master/oliwm/
     2021-12-13-fine-res-in-flux-form/2021-12-13-fine-res-in-flux-form-proposal-v2.ipynb
     for derivation of transform."""
-    Q2_flux = -vcm.mass_cumsum(ds["Q2"], ds[DELP], dim="z")
-    evaporation = vcm.latent_heat_flux_to_evaporation(ds[LHF])
-
-    # pad at top for TOA flux (boundary condition for Q2_flux=0)
-    Q2_flux = Q2_flux.pad(z=(1, 0), constant_values=0.0)
-
-    # compute downward flux at surface
-    downward_sfc_Q2_flux = Q2_flux.isel(z=-1) + evaporation
-    if rectify_surface_precipitation_rate:
-        downward_sfc_Q2_flux = downward_sfc_Q2_flux.where(downward_sfc_Q2_flux >= 0, 0)
-
-    # remove bottom flux level from net fluxes
-    Q2_flux = Q2_flux.isel(z=slice(None, -1))
-
-    if isinstance(Q2_flux.data, dask.array.Array):
-        Q2_flux = Q2_flux.chunk({"z": Q2_flux.sizes["z"]})
-
-    downward_sfc_Q2_flux = downward_sfc_Q2_flux.assign_attrs(
+    toa_net_flux = xr.zeros_like(ds[LHF])
+    surface_upward_flux = vcm.latent_heat_flux_to_evaporation(ds[LHF])
+    net_flux, surface_downward_flux = _tendency_to_flux(
+        ds["Q2"],
+        toa_net_flux,
+        surface_upward_flux,
+        ds[DELP],
+        dim="z",
+        rectify=rectify_surface_precipitation_rate,
+    )
+    surface_downward_flux = surface_downward_flux.assign_attrs(
         units="kg/s/m**2",
         long_name="Implied surface precipitation rate computed as E-<Q2>",
     )
-
-    ds["Q2_flux"] = Q2_flux.assign_attrs(
+    ds["Q2_flux"] = net_flux.assign_attrs(
         units="kg/s/m**2", long_name="Net flux of moisture"
     )
-    ds["implied_surface_precipitation_rate"] = downward_sfc_Q2_flux
+    ds["implied_surface_precipitation_rate"] = surface_downward_flux
     return ds
 
 
@@ -202,19 +189,14 @@ def Q2_flux_from_Q2_tendency(
     ["Qm"],
 )
 def Qm_tendency_from_Qm_flux(ds):
-    """See https://github.com/ai2cm/explore/blob/master/oliwm/
-    2021-12-13-fine-res-in-flux-form/2021-12-13-fine-res-in-flux-form-proposal-v2.ipynb
-    for derivation of transform."""
-    upward_surface_mse_flux = ds[LHF] + ds[SHF] + ds[USW_SFC] + ds[ULW_SFC]
-    net_surface_mse_flux = (
-        ds["implied_downward_radiative_flux_at_surface"] - upward_surface_mse_flux
+    surface_upward_flux = ds[LHF] + ds[SHF] + ds[USW_SFC] + ds[ULW_SFC]
+    Qm = _flux_to_tendency(
+        ds["Qm_flux"],
+        ds["implied_downward_radiative_flux_at_surface"],
+        surface_upward_flux,
+        ds[DELP],
     )
-    Qm_flux = xr.concat([ds["Qm_flux"], net_surface_mse_flux], dim="z")
-    if isinstance(Qm_flux.data, dask.array.Array):
-        Qm_flux = Qm_flux.chunk({"z": Qm_flux.sizes["z"]})
-    ds["Qm"] = -vcm.mass_divergence(
-        Qm_flux, ds[DELP], dim_center="z", dim_interface="z"
-    ).assign_attrs(units="W/kg")
+    ds["Qm"] = Qm.assign_attrs(units="W/kg")
     return ds
 
 
@@ -222,17 +204,14 @@ def Qm_tendency_from_Qm_flux(ds):
     ["Q2_flux", "implied_surface_precipitation_rate", DELP, LHF], ["Q2"],
 )
 def Q2_tendency_from_Q2_flux(ds):
-    """See https://github.com/ai2cm/explore/blob/master/oliwm/
-    2021-12-13-fine-res-in-flux-form/2021-12-13-fine-res-in-flux-form-proposal-v2.ipynb
-    for derivation of transform."""
-    evaporation = vcm.latent_heat_flux_to_evaporation(ds[LHF])
-    net_surface_q2_flux = ds["implied_surface_precipitation_rate"] - evaporation
-    Q2_flux = xr.concat([ds["Q2_flux"], net_surface_q2_flux], dim="z")
-    if isinstance(Q2_flux.data, dask.array.Array):
-        Q2_flux = Q2_flux.chunk({"z": Q2_flux.sizes["z"]})
-    ds["Q2"] = -vcm.mass_divergence(
-        Q2_flux, ds[DELP], dim_center="z", dim_interface="z"
-    ).assign_attrs(units="kg/kg/s")
+    surface_upward_flux = vcm.latent_heat_flux_to_evaporation(ds[LHF])
+    Q2 = _flux_to_tendency(
+        ds["Q2_flux"],
+        ds["implied_surface_precipitation_rate"],
+        surface_upward_flux,
+        ds[DELP],
+    )
+    ds["Q2"] = Q2.assign_attrs(units="kg/kg/s")
     return ds
 
 
@@ -257,37 +236,28 @@ def implied_downward_radiative_flux_at_surface(
     ds, rectify=True, include_temperature_nudging=True
 ):
     """Assuming <Qm> = SHF + LHF + R_net + <T_nudge>."""
-    column_Qm = vcm.mass_integrate(ds["Qm"], ds[DELP], dim="z")
-    toa_rad_flux = ds[DSW_TOA] - ds[USW_TOA] - ds[ULW_TOA]
-    upward_surface_mse_flux = ds[LHF] + ds[SHF] + ds[USW_SFC] + ds[ULW_SFC]
-
-    # add TOA boundary condition
-    column_Qm += toa_rad_flux
+    toa_net_flux = ds[DSW_TOA] - ds[USW_TOA] - ds[ULW_TOA]
     if include_temperature_nudging:
-        column_Qm += ds[COL_T_NUDGE]
-
-    # compute downward flux at surface
-    downward_sfc_Qm_flux = upward_surface_mse_flux - column_Qm
-    if rectify:
-        downward_sfc_Qm_flux = downward_sfc_Qm_flux.where(downward_sfc_Qm_flux >= 0, 0)
-
-    downward_sfc_Qm_flux = downward_sfc_Qm_flux.assign_attrs(
+        toa_net_flux += ds[COL_T_NUDGE]
+    surface_upward_flux = ds[LHF] + ds[SHF] + ds[USW_SFC] + ds[ULW_SFC]
+    surface_downward_flux = _tendency_to_implied_surface_downward_flux(
+        ds["Qm"], toa_net_flux, surface_upward_flux, ds[DELP], dim="z", rectify=rectify
+    )
+    surface_downward_flux = surface_downward_flux.assign_attrs(
         units="W/m**2",
         long_name="Implied downward radiative flux from <Qm> budget closure",
     )
-    ds["implied_downward_radiative_flux_at_surface"] = downward_sfc_Qm_flux
+    ds["implied_downward_radiative_flux_at_surface"] = surface_downward_flux
     return ds
 
 
 @register(["Q2", DELP, LHF], ["implied_surface_precipitation_rate"])
 def implied_surface_precipitation_rate(ds, rectify=True):
     """Assuming <Q2> = E-P."""
-    column_q2 = vcm.mass_integrate(ds["Q2"], ds[DELP], dim="z")
     evaporation = vcm.latent_heat_flux_to_evaporation(ds[LHF])
-    implied_precip = evaporation - column_q2
-    if rectify:
-        implied_precip = implied_precip.where(implied_precip >= 0, 0)
-
+    implied_precip = _tendency_to_implied_surface_downward_flux(
+        ds["Q2"], 0.0, evaporation, ds[DELP], dim="z", rectify=rectify
+    )
     implied_precip = implied_precip.assign_attrs(
         units="kg/s/m**2",
         long_name="Implied surface precipitation rate computed as E-<Q2>",
