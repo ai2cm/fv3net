@@ -176,6 +176,7 @@ def get_cached_data(
 
 
 def main(args, unknown_args=None):
+
     with open(args.training_config, "r") as f:
         config_dict = yaml.safe_load(f)
         if unknown_args is not None:
@@ -199,6 +200,7 @@ def main(args, unknown_args=None):
                 f"hyperparameters from wandb config: {config_dict['hyperparameters']}"
             )
             wandb.config["training_config"] = config_dict
+            wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
 
         training_config = fv3fit.TrainingConfig.from_dict(config_dict)
 

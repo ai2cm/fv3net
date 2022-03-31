@@ -1,5 +1,9 @@
 FROM nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu20.04
 
+# An nvidia outage was breaking image builds, and we don't need to install anything
+# nvidia specific currently.  Feel free to remove if that changes.
+RUN rm -f /etc/apt/sources.list.d/cuda.list /etc/apt/sources.list.d/nvidia-ml.list
+
 RUN apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
     apt-get install -y  --no-install-recommends \
@@ -33,3 +37,6 @@ RUN pip3 install --no-dependencies /fv3net/external/fv3fit
 
 # Greatly improves memory performance of tensorflow training
 ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4
+
+ARG COMMIT_SHA_ARG
+ENV COMMIT_SHA=$COMMIT_SHA_ARG
