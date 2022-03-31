@@ -171,7 +171,9 @@ def test_round_trip_mse_temperature_tendency():
 def test_mass_cumsum():
     da = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "z"])
     delp = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "z"])
-    vcm.mass_cumsum(da, delp, dim="z")
+    out = vcm.mass_cumsum(da, delp, dim="z")
+    assert set(out.dims) == {"x", "z"}
+    assert out.shape == (5, 4)
 
 
 def test_mass_divergence():
