@@ -15,28 +15,41 @@ hyperparameters:
     - air_temperature
     - specific_humidity
     - surface_geopotential
+    - air_temperature_tendency_due_to_nudging
+    - specific_humidity_tendency_due_to_nudging
+    - vertical_wind
+    - longitude
+    - latitude
+    - surface_temperature
+    - surface_precipitation_rate
+    - t_dt_phys_coarse
+    - qv_dt_phys_coarse
+    - dq3dt_deep_conv_coarse
+    - dq3dt_shal_conv_coarse
+    - eddy_flux_vulcan_omega_sphum
   loss:
     loss_type: mse
     scaling: standard
-    weight: 0.5
+    weight: 0.2
   dense_network:
     depth: 4
     width: 256
-    gaussian_noise: 0.5
+    gaussian_noise: 1.0
     # spectral_normalization: true
-    # kernel_regularizer:
-    #   name: l2
-    #   kwargs:
-    #     l: 0.00001
+    kernel_regularizer:
+      name: l2
+      kwargs:
+        l: 0.0001
   training_loop:
-    epochs: 100
+    epochs: 50
     shuffle_buffer_size: 50_000
-    batch_size: 128
+    batch_size: 512
     in_memory: True
   optimizer_config:
     name: Adam
     kwargs:
-      learning_rate: 0.002
+      learning_rate: 0.0002
+      clipnorm: 0.01
         # input_variables: names of variables to use as inputs
         # output_variables: names of variables to use as outputs
         # weights: loss function weights, defined as a dict whose keys are

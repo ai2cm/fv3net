@@ -8,10 +8,11 @@ hyperparameters:
     clip: {}
   dense_network:
     depth: 4
-    gaussian_noise: 0.5
+    gaussian_noise: 1.0
     kernel_regularizer:
-      kwargs: {}
-      name: none
+      kwargs:
+        l: 0.0001
+      name: l2
     spectral_normalization: false
     width: 256
   input_variables:
@@ -25,13 +26,14 @@ hyperparameters:
   loss:
     loss_type: mse
     scaling: standard
-    weight: 0.5
+    weight: 0.2
   n_batches: null
   normalization_fit_samples: 500000
   normalize_loss: true
   optimizer_config:
     kwargs:
-      learning_rate: 0.002
+      clipnorm: 0.01
+      learning_rate: 0.0002
     learning_rate_schedule: null
     name: Adam
   output_limit_config:
@@ -42,10 +44,22 @@ hyperparameters:
   - air_temperature
   - specific_humidity
   - surface_geopotential
+  - air_temperature_tendency_due_to_nudging
+  - specific_humidity_tendency_due_to_nudging
+  - vertical_wind
+  - longitude
+  - latitude
+  - surface_temperature
+  - surface_precipitation_rate
+  - t_dt_phys_coarse
+  - qv_dt_phys_coarse
+  - dq3dt_deep_conv_coarse
+  - dq3dt_shal_conv_coarse
+  - eddy_flux_vulcan_omega_sphum
   save_model_checkpoints: false
   training_loop:
-    batch_size: 128
-    epochs: 100
+    batch_size: 512
+    epochs: 50
     in_memory: true
     shuffle_buffer_size: 50000
   weights: null

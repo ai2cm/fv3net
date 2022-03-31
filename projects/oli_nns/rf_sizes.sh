@@ -33,9 +33,12 @@ if [ ! -d cached_train ]; then
     ./cache_data.sh
 fi
 echo "training model"
-python -m fv3fit.train training-config-rf.yaml train.yaml model_rf --validation-data-config validation.yaml
-mv model_rf model_rf_reference
-./report.sh model_rf_reference
+counts=( "25" "50" "100" "125" )
+for count in $counts; do
+    python -m fv3fit.train rf_data_sizes/training-config-rf-${count}.yaml cached-train.yaml rf_data_sizes/model_rf_${count} --validation-data-config cached-validation.yaml
+    python3 -m fv3net.diagnostics.offline.compute rf_data_sizes/model_rf_${count} test.yaml rf_data_sizes/model_rf_${count}_offline_diags
+    python3 -m fv3net.diagnostics.offline.views.create_report rf_data_sizes/model_rf_${count}_offline_diags rf_data_sizes/model_rf_${count}_offline_report --training-config rf_data_sizes/model_rf_${count}/train.yaml --training-data-config rf_data_sizes/model_rf_${count}/training_data.yaml
+done
 # fil-profile run -m fv3fit.train train-dense.yaml cached_data.yaml model_1batch
 # echo "offline report for 1batch model"
 # python3 -m fv3net.diagnostics.offline.compute model_1batch train.yaml offline_diags_1batch

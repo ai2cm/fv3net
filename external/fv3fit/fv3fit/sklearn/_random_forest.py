@@ -52,6 +52,8 @@ def train_random_forest(
             with at most one non-sample dimension
         validation_batches: ignored in this function
     """
+    if hyperparameters.n_batches is not None:
+        train_batches = train_batches.take(hyperparameters.n_batches)
     train_batches = train_batches.map(
         tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
     )

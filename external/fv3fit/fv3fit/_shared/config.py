@@ -385,6 +385,7 @@ class RandomForestHyperparameters(Hyperparameters):
         bootstrap: whether bootstrap samples are used when building trees.
             If False, the whole dataset is used to build each tree.
         packer_config: configuration of dataset packing.
+        n_batches: if given, only use this number of batches from the training data
     """
 
     input_variables: List[str]
@@ -406,6 +407,7 @@ class RandomForestHyperparameters(Hyperparameters):
     packer_config: PackerConfig = dataclasses.field(
         default_factory=lambda: PackerConfig({})
     )
+    n_batches: Optional[int] = None
 
     @property
     def variables(self) -> Set[str]:
