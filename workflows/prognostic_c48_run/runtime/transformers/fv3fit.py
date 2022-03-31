@@ -3,8 +3,11 @@ from typing import Mapping, Iterable, Hashable, Sequence
 
 import xarray as xr
 import fv3fit
-import vcm
-from runtime.steppers.machine_learning import MultiModelAdapter
+from runtime.steppers.machine_learning import (
+    MultiModelAdapter,
+    update_moisture_tendency_to_ensure_non_negative_humidity,
+    update_temperature_tendency_to_conserve_mse,
+)
 from runtime.types import State
 from runtime.names import SPHUM, TEMP
 
@@ -71,28 +74,14 @@ class Adapter:
                 "updates not being predicted."
             )
         q2_name = self.config.variables[SPHUM]
-        q2_new = update_q2_to_ensure_non_negative_humidity(
+        q2_new = update_moisture_tendency_to_ensure_non_negative_humidity(
             inputs[SPHUM], tendencies[q2_name], self.timestep
         )
         limited_tendencies[q2_name] = q2_new
         if TEMP in self.config.variables:
             q1_name = self.config.variables[TEMP]
-            q1_new = update_q1_to_conserve_mse(
+            q1_new = update_temperature_tendency_to_conserve_mse(
                 tendencies[q1_name], tendencies[q2_name], q2_new
             )
             limited_tendencies[q1_name] = q1_new
         return limited_tendencies
-
-
-def update_q2_to_ensure_non_negative_humidity(
-    sphum: xr.DataArray, q2: xr.DataArray, dt: float
-) -> xr.DataArray:
-    return xr.where(sphum + q2 * dt >= 0, q2, -sphum / dt)
-
-
-def update_q1_to_conserve_mse(
-    q1: xr.DataArray, q2_old: xr.DataArray, q2_new: xr.DataArray
-) -> xr.DataArray:
-    mse_tendency = vcm.moist_static_energy_tendency(q1, q2_old)
-    q1_new = vcm.temperature_tendency(mse_tendency, q2_new)
-    return q1_new

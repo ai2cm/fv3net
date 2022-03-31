@@ -34,6 +34,9 @@ class MachineLearningConfig:
             the canonical names used in the wrapper.
         output_standard_names: mapping from non-standard names to the standard
             ones used by the model. Renames the ML predictions.
+        use_mse_conserving_humidity_limiter: if true, use an MSE-conserving
+            humidity limiter. If false, use a previous method that did not
+            conserve MSE. This option is available for backwards compatibility.
 
     Example::
 
@@ -54,6 +57,7 @@ class MachineLearningConfig:
     output_standard_names: Mapping[Hashable, Hashable] = dataclasses.field(
         default_factory=dict
     )
+    use_mse_conserving_humidity_limiter: bool = True
 
 
 def non_negative_sphum(
@@ -64,6 +68,20 @@ def non_negative_sphum(
     dQ1_updated = xr.where(sphum + delta >= 0, dQ1, reduction_ratio * dQ1)
     dQ2_updated = xr.where(sphum + delta >= 0, dQ2, reduction_ratio * dQ2)
     return dQ1_updated, dQ2_updated
+
+
+def update_moisture_tendency_to_ensure_non_negative_humidity(
+    sphum: xr.DataArray, q2: xr.DataArray, dt: float
+) -> xr.DataArray:
+    return xr.where(sphum + q2 * dt >= 0, q2, -sphum / dt)
+
+
+def update_temperature_tendency_to_conserve_mse(
+    q1: xr.DataArray, q2_old: xr.DataArray, q2_new: xr.DataArray
+) -> xr.DataArray:
+    mse_tendency = vcm.moist_static_energy_tendency(q1, q2_old)
+    q1_new = vcm.temperature_tendency(mse_tendency, q2_new)
+    return q1_new
 
 
 def _invert_dict(d: Mapping) -> Mapping:
@@ -166,17 +184,26 @@ class PureMLStepper:
 
     label = "machine_learning"
 
-    def __init__(self, model: MultiModelAdapter, timestep: float, hydrostatic: bool):
+    def __init__(
+        self,
+        model: MultiModelAdapter,
+        timestep: float,
+        hydrostatic: bool,
+        mse_conserving_limiter: bool = True,
+    ):
         """A stepper for predicting machine learning tendencies and state updates.
 
         Args:
             model: the machine learning model.
             timestep: physics timestep in seconds.
             hydrostatic: whether simulation is hydrostatic. For net heating diagnostic.
+            mse_conserving_limiter (optional): whether to use MSE-conserving humidity
+                limiter. Defaults to True.
         """
         self.model = model
         self.timestep = timestep
         self.hydrostatic = hydrostatic
+        self.mse_conserving_limiter = mse_conserving_limiter
 
     def __call__(self, time, state):
 
@@ -200,9 +227,17 @@ class PureMLStepper:
         dQ1_initial = tendency.get("dQ1", xr.zeros_like(state[SPHUM]))
         dQ2_initial = tendency.get("dQ2", xr.zeros_like(state[SPHUM]))
 
-        dQ1_updated, dQ2_updated = non_negative_sphum(
-            state[SPHUM], dQ1_initial, dQ2_initial, dt=self.timestep,
-        )
+        if self.mse_conserving_limiter:
+            dQ2_updated = update_moisture_tendency_to_ensure_non_negative_humidity(
+                state[SPHUM], dQ2_initial, self.timestep
+            )
+            dQ1_updated = update_temperature_tendency_to_conserve_mse(
+                dQ1_initial, dQ2_initial, dQ2_updated
+            )
+        else:
+            dQ1_updated, dQ2_updated = non_negative_sphum(
+                state[SPHUM], dQ1_initial, dQ2_initial, dt=self.timestep,
+            )
 
         if "dQ1" in tendency:
             if self.hydrostatic:

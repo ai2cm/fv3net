@@ -297,7 +297,10 @@ class TimeLoop(
             self._log_info("Using MLStepper for postphysics updates")
             model = self._open_model(config.scikit_learn, "_postphysics")
             stepper: Optional[Stepper] = PureMLStepper(
-                model, self._timestep, hydrostatic
+                model,
+                self._timestep,
+                hydrostatic,
+                config.scikit_learn.use_mse_conserving_humidity_limiter,
             )
         elif config.nudging:
             self._log_info("Using NudgingStepper for postphysics updates")
