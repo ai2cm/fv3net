@@ -7,7 +7,7 @@ exps=(
 )
 
 
-image=f9a23b4ea793d797dc8deebbb29a5cab934c2a2c
+image=ad5b1e91472f34cad97cd8b5aead1dbbfdb09c42
 
 for exp in ${exps[@]}
 do
