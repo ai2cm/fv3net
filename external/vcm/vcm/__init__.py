@@ -27,6 +27,7 @@ from .calc.metrics import (
     false_positive_rate,
     accuracy,
     f1_score,
+    mean_squared_error,
 )
 from .calc.thermo.vertically_dependent import (
     height_at_interface,

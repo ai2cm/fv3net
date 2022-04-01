@@ -139,7 +139,7 @@ def main(
 
 plt.style.use(["tableau-colorblind10", "seaborn-talk"])
 for key, fig in main(
-    model_path="gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273",
+    model_path="gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273/model.tf",
     test_url="gs://vcm-ml-experiments/microphysics-emulation/2022-03-17/online-12hr-cycle-v3-online/artifacts/20160611.000000/netcdf_output",
 ):
     fig.savefig(f"{key}.png")
