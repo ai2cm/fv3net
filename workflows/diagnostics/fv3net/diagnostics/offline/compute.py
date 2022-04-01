@@ -262,6 +262,23 @@ def _add_derived_diagnostics(ds):
     return merged.assign_attrs(ds.attrs)
 
 
+def get_grid(grid_path: str, grid_resolution: str, data_resolution: str) -> xr.Dataset:
+    logger.info("Reading grid...")
+    if not grid_path:
+        if grid_resolution != data_resolution:
+            logger.info(
+                f"Using grid resolution {data_resolution} based on data resolution."
+            )
+            res = data_resolution
+        else:
+            res = grid_resolution
+        grid = load_grid_info(res)
+    else:
+        with fsspec.open(grid_path, "rb") as f:
+            grid = xr.open_dataset(f, engine="h5netcdf").load()
+    return grid
+
+
 def main(args):
     logger.info("Starting diagnostics routine.")
 
@@ -269,13 +286,7 @@ def main(args):
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
 
-    logger.info("Reading grid...")
-    if not args.grid:
-        # By default, read the appropriate resolution grid from vcm.catalog
-        grid = load_grid_info(args.grid_resolution)
-    else:
-        with fsspec.open(args.grid, "rb") as f:
-            grid = xr.open_dataset(f, engine="h5netcdf").load()
+    grid = get_grid(args.grid, args.grid_resolution, config.res)
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
