@@ -4,6 +4,7 @@ from runtime.steppers.machine_learning import (
     non_negative_sphum,
     update_temperature_tendency_to_conserve_mse,
     update_moisture_tendency_to_ensure_non_negative_humidity,
+    non_negative_sphum_mse_conserving,
 )
 import vcm
 
@@ -64,3 +65,15 @@ def test_update_q1_to_conserve_mse():
         vcm.moist_static_energy_tendency(q1, q2),
         vcm.moist_static_energy_tendency(q1_limited, q2_limited),
     )
+
+
+@pytest.mark.parametrize(
+    "Q1_is_None", [True, False],
+)
+def test_non_negative_sphum_mse_conserving(Q1_is_None):
+    if Q1_is_None:
+        q2_out, q1_out = non_negative_sphum_mse_conserving(sphum, dQ2, 1, q1=None)
+        assert q1_out is None
+    else:
+        q2_out, q1_out = non_negative_sphum_mse_conserving(sphum, dQ2, 1, q1=dQ1)
+        assert isinstance(q1_out, xr.DataArray)

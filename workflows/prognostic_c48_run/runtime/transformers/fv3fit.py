@@ -5,8 +5,7 @@ import xarray as xr
 import fv3fit
 from runtime.steppers.machine_learning import (
     MultiModelAdapter,
-    update_moisture_tendency_to_ensure_non_negative_humidity,
-    update_temperature_tendency_to_conserve_mse,
+    non_negative_sphum_mse_conserving,
 )
 from runtime.types import State
 from runtime.names import SPHUM, TEMP
@@ -74,14 +73,14 @@ class Adapter:
                 "updates not being predicted."
             )
         q2_name = self.config.variables[SPHUM]
-        q2_new = update_moisture_tendency_to_ensure_non_negative_humidity(
-            inputs[SPHUM], tendencies[q2_name], self.timestep
+        q1_name = self.config.variables.get(TEMP)
+        q2_new, q1_new = non_negative_sphum_mse_conserving(
+            inputs[SPHUM],
+            tendencies[q2_name],
+            self.timestep,
+            q1=tendencies.get(q1_name),
         )
         limited_tendencies[q2_name] = q2_new
-        if TEMP in self.config.variables:
-            q1_name = self.config.variables[TEMP]
-            q1_new = update_temperature_tendency_to_conserve_mse(
-                tendencies[q1_name], tendencies[q2_name], q2_new
-            )
+        if q1_name is not None:
             limited_tendencies[q1_name] = q1_new
         return limited_tendencies

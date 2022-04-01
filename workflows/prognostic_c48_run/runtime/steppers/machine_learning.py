@@ -3,7 +3,7 @@
 import dataclasses
 import logging
 import os
-from typing import Hashable, Iterable, Mapping, Sequence, Set, Tuple, cast
+from typing import Hashable, Iterable, Mapping, Optional, Sequence, Set, Tuple, cast
 
 import fv3fit
 import xarray as xr
@@ -82,6 +82,17 @@ def update_temperature_tendency_to_conserve_mse(
     mse_tendency = vcm.moist_static_energy_tendency(q1, q2_old)
     q1_new = vcm.temperature_tendency(mse_tendency, q2_new)
     return q1_new
+
+
+def non_negative_sphum_mse_conserving(
+    sphum: xr.DataArray, q2: xr.DataArray, dt: float, q1: Optional[xr.DataArray] = None
+) -> Tuple[xr.DataArray, Optional[xr.DataArray]]:
+    q2_new = update_moisture_tendency_to_ensure_non_negative_humidity(sphum, q2, dt)
+    if q1 is not None:
+        q1_new = update_temperature_tendency_to_conserve_mse(q1, q2, q2_new)
+    else:
+        q1_new = None
+    return q2_new, q1_new
 
 
 def _invert_dict(d: Mapping) -> Mapping:
@@ -228,11 +239,8 @@ class PureMLStepper:
         dQ2_initial = tendency.get("dQ2", xr.zeros_like(state[SPHUM]))
 
         if self.mse_conserving_limiter:
-            dQ2_updated = update_moisture_tendency_to_ensure_non_negative_humidity(
-                state[SPHUM], dQ2_initial, self.timestep
-            )
-            dQ1_updated = update_temperature_tendency_to_conserve_mse(
-                dQ1_initial, dQ2_initial, dQ2_updated
+            dQ2_updated, dQ1_updated = non_negative_sphum_mse_conserving(
+                state[SPHUM], dQ2_initial, self.timestep, q1=dQ1_initial,
             )
         else:
             dQ1_updated, dQ2_updated = non_negative_sphum(

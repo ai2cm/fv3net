@@ -295,6 +295,12 @@ class TimeLoop(
     ) -> Optional[Stepper]:
         if config.scikit_learn:
             self._log_info("Using MLStepper for postphysics updates")
+            if config.scikit_learn.use_mse_conserving_humidity_limiter:
+                self._log_info("Using MSE-conserving moisture limiter for postphysics")
+            else:
+                self._log_info(
+                    "Using old non-MSE-conserving moisture limiter for postphysics"
+                )
             model = self._open_model(config.scikit_learn, "_postphysics")
             stepper: Optional[Stepper] = PureMLStepper(
                 model,
