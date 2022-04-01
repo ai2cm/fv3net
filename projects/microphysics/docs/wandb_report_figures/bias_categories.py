@@ -1,10 +1,12 @@
 # flake8: noqa
 import xarray as xr
 import numpy as np
+import vcm
 from fv3fit.emulation.data.load import nc_dir_to_tfdataset
 from fv3fit.train_microphysics import TransformConfig
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import report
 
 
 def tensordict_to_dataset(x):
@@ -96,6 +98,17 @@ def open_data(url: str) -> tf.data.Dataset:
     return nc_dir_to_tfdataset(url, data_transform.get_pipeline(variables))
 
 
+def metric_on_classes(truth, pred, classes, metric):
+    out = {}
+    for v in classes:
+
+        def avg(x):
+            return vcm.weighted_average(x, classes[v], dims=["sample"])
+
+        out[v] = metric(truth, pred, avg)
+    return xr.Dataset(out)
+
+
 def main(
     test_url="/Users/noahb/data/vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",
     model_path="/Users/noahb/workspace/ai2cm/fv3net/model.tf",
@@ -125,10 +138,33 @@ def main(
     )
     plt.xlabel("vertical index (0=TOA)")
     plt.ylabel("Total ZC cloud tendency (kg/kg/s)")
-    plt.title("Emulator bias within categories")
+    plt.title("Bias | category * p(category)")
     plt.grid()
     plt.legend()
     yield "bias", plt.gcf()
+
+    mses = np.sqrt(
+        metric_on_classes(
+            (
+                truth.cloud_water_mixing_ratio_after_precpd
+                - truth.cloud_water_mixing_ratio_input
+            )
+            / 900,
+            (
+                pred.cloud_water_mixing_ratio_after_precpd
+                - truth.cloud_water_mixing_ratio_input
+            )
+            / 900,
+            classes,
+            vcm.mean_squared_error,
+        )
+    )
+    mses.to_dataframe().plot.line()
+    plt.xlabel("vertical index (0=TOA)")
+    plt.ylabel("RMSE (kg/kg/s)")
+    plt.title("RMSE | category")
+    plt.grid()
+    yield "mse", plt.gcf()
 
     classes.mean("sample").to_dataframe().plot.area().legend(loc="upper left")
     plt.ylabel("Fraction")
@@ -138,8 +174,17 @@ def main(
 
 
 plt.style.use(["tableau-colorblind10", "seaborn-talk"])
-for key, fig in main(
-    model_path="gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273/model.tf",
-    test_url="gs://vcm-ml-experiments/microphysics-emulation/2022-03-17/online-12hr-cycle-v3-online/artifacts/20160611.000000/netcdf_output",
-):
-    fig.savefig(f"{key}.png")
+model_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273/model.tf"
+test_url = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-17/online-12hr-cycle-v3-online/artifacts/20160611.000000/netcdf_output"
+figs = []
+for key, fig in main(model_path=model_path, test_url=test_url):
+    figs.append(report.MatplotlibFigure(fig))
+
+html = report.create_html(
+    {"Figures": figs},
+    title="Category analysis",
+    metadata={"model_path": model_path, "test_url": test_url, "script": __file__},
+)
+report.upload(html)
+# import pathlib
+# pathlib.Path("report.html").write_text(html)
