@@ -32,6 +32,7 @@ TransformName = Literal[
     "Q2_tendency_from_Q2_flux",
     "implied_surface_precipitation_rate",
     "implied_downward_radiative_flux_at_surface",
+    "implied_downward_radiative_flux_at_surface_no_fine_res_t_nudging",
 ]
 
 
@@ -238,6 +239,37 @@ def implied_downward_radiative_flux_at_surface(
     toa_net_flux = ds[DSW_TOA] - ds[USW_TOA] - ds[ULW_TOA]
     if include_temperature_nudging:
         toa_net_flux += ds[COL_T_NUDGE]
+    surface_upward_flux = ds[LHF] + ds[SHF] + ds[USW_SFC] + ds[ULW_SFC]
+    surface_downward_flux = _tendency_to_implied_surface_downward_flux(
+        ds["Qm"], toa_net_flux, surface_upward_flux, ds[DELP], dim="z", rectify=rectify
+    )
+    surface_downward_flux = surface_downward_flux.assign_attrs(
+        units="W/m**2",
+        long_name="Implied downward radiative flux from <Qm> budget closure",
+    )
+    ds["implied_downward_radiative_flux_at_surface"] = surface_downward_flux
+    return ds
+
+
+@register(
+    [
+        "Qm",
+        DELP,
+        DLW_SFC,
+        DSW_SFC,
+        DSW_TOA,
+        ULW_SFC,
+        ULW_TOA,
+        USW_SFC,
+        USW_TOA,
+        LHF,
+        SHF,
+    ],
+    ["implied_downward_radiative_flux_at_surface"],
+)
+def implied_downward_radiative_flux_at_surface_no_fine_res_t_nudging(ds, rectify=True):
+    """Assuming <Qm> = SHF + LHF + R_net + <T_nudge>."""
+    toa_net_flux = ds[DSW_TOA] - ds[USW_TOA] - ds[ULW_TOA]
     surface_upward_flux = ds[LHF] + ds[SHF] + ds[USW_SFC] + ds[ULW_SFC]
     surface_downward_flux = _tendency_to_implied_surface_downward_flux(
         ds["Qm"], toa_net_flux, surface_upward_flux, ds[DELP], dim="z", rectify=rectify
