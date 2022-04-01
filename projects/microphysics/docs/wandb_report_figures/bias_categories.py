@@ -1,4 +1,6 @@
 # flake8: noqa
+from audioop import bias
+import os
 import xarray as xr
 import numpy as np
 import vcm
@@ -109,6 +111,50 @@ def metric_on_classes(truth, pred, classes, metric):
     return xr.Dataset(out)
 
 
+def threshold_analysis(truth, pred):
+
+    c_in = truth.cloud_water_mixing_ratio_input
+    c_0 = np.abs(c_in) >= 1e-12
+    c_1 = np.abs(truth.cloud_water_mixing_ratio_after_precpd) >= 1e-12
+    destroyed = c_0 & (~c_1)
+
+    fractional_change = (pred.cloud_water_mixing_ratio_after_precpd - c_in) / c_in
+
+    def avg(x):
+        return vcm.weighted_average(x, c_0, dims=["sample", "z"])
+
+    def _gen():
+        thresholds = np.linspace(-0.5, 1.5, 100)
+        for thresh in thresholds:
+            for func in [vcm.false_positive_rate, vcm.true_positive_rate, vcm.accuracy]:
+                yield func.__name__, (thresh,), func(
+                    destroyed, fractional_change < -thresh, avg
+                )
+
+    return vcm.combine_array_sequence(_gen(), labels=["threshold"]).assign(
+        prob=avg(destroyed)
+    )
+
+
+def plot_threshold_analysis(truth, pred):
+    acc = threshold_analysis(truth, pred)
+    acc = acc.swap_dims({"threshold": "false_positive_rate"}).sortby(
+        "false_positive_rate"
+    )
+    plt.figure()
+    acc.true_positive_rate.plot()
+    auc = acc.true_positive_rate.integrate("false_positive_rate")
+    plt.title(f"ROC AUC={float(auc):3f} Prob={float(acc.prob):.3f}")
+    yield "roc", plt.gcf()
+    plt.figure()
+    acc.threshold.plot()
+    yield "threshold", plt.gcf()
+
+
+def group(gen):
+    return [report.MatplotlibFigure(fig) for _, fig in gen]
+
+
 def main(
     test_url="/Users/noahb/data/vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",
     model_path="/Users/noahb/workspace/ai2cm/fv3net/model.tf",
@@ -122,6 +168,40 @@ def main(
     truth = tensordict_to_dataset(truth_dict)
     pred = tensordict_to_dataset(pred_dict)
 
+    yield class_fractions(truth)
+    yield "threshold analysis", group(plot_threshold_analysis(truth, pred))
+    yield "bias", group(bias_plots(truth, pred))
+    yield "bias theshold 20% decrease", group(bias_plots_thresholded(truth, pred, -0.2))
+    yield "bias theshold 50% decrease", group(bias_plots_thresholded(truth, pred, -0.5))
+
+
+def class_fractions(truth):
+    classes = classify(
+        truth.cloud_water_mixing_ratio_input,
+        truth.cloud_water_mixing_ratio_after_precpd,
+    )
+    classes.mean("sample").to_dataframe().plot.area().legend(loc="upper left")
+    plt.ylabel("Fraction")
+    plt.xlabel("vertical index (0=TOA)")
+    plt.grid()
+    return "fraction", [report.MatplotlibFigure(plt.gcf())]
+
+
+def bias_plots_thresholded(truth, pred, threshold):
+    c_in = truth.cloud_water_mixing_ratio_input
+    c_0 = np.abs(c_in) >= 1e-12
+    fractional_change = (pred.cloud_water_mixing_ratio_after_precpd - c_in) / c_in
+    new_precpd = xr.where(
+        c_0 & (fractional_change < threshold),
+        0,
+        pred.cloud_water_mixing_ratio_after_precpd,
+    )
+    pred_thresholded = pred.assign(cloud_water_mixing_ratio_after_precpd=new_precpd)
+    yield from bias_plots(truth, pred_thresholded)
+
+
+def bias_plots(truth, pred):
+
     error = pred - truth
     classes = classify(
         truth.cloud_water_mixing_ratio_input,
@@ -129,6 +209,7 @@ def main(
     )
     assert set(classes.to_array().sum("variable").values.ravel()) == {1}
 
+    plt.figure()
     for v in classes:
         (error.cloud_water_mixing_ratio_after_precpd / 900).where(classes[v], 0).mean(
             "sample"
@@ -166,22 +247,13 @@ def main(
     plt.grid()
     yield "mse", plt.gcf()
 
-    classes.mean("sample").to_dataframe().plot.area().legend(loc="upper left")
-    plt.ylabel("Fraction")
-    plt.xlabel("vertical index (0=TOA)")
-    plt.grid()
-    yield "fraction", plt.gcf()
-
 
 plt.style.use(["tableau-colorblind10", "seaborn-talk"])
-model_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273/model.tf"
 test_url = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-17/online-12hr-cycle-v3-online/artifacts/20160611.000000/netcdf_output"
-figs = []
-for key, fig in main(model_path=model_path, test_url=test_url):
-    figs.append(report.MatplotlibFigure(fig))
-
+model_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273/model.tf"
+# model_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-all-loss-rnn-7ef273/model.tf"
 html = report.create_html(
-    {"Figures": figs},
+    dict(main(model_path=model_path, test_url=test_url)),
     title="Category analysis",
     metadata={"model_path": model_path, "test_url": test_url, "script": __file__},
 )
