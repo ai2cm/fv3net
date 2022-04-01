@@ -35,7 +35,7 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
     adapted_model = Adapter(
         Config(
             [model_path],
-            {"air_temperature": "dQ1", "specific_humidity": "dQ2"},
+            tendency_predictions={"air_temperature": "dQ1", "specific_humidity": "dQ2"},
             limit_negative_humidity=True,
         ),
         900,
@@ -77,8 +77,8 @@ def test_multimodel_adapter(state, tmpdir_factory):
     adapted_model = Adapter(
         Config(
             [model_path1, model_path2],
-            {
-                "air_temperature": "dQ1",
+            tendency_predictions={"air_temperature": "dQ1"},
+            state_predictions={
                 "surface_temperature": "total_sky_downward_shortwave_flux_at_surface",
             },
             limit_negative_humidity=False,
