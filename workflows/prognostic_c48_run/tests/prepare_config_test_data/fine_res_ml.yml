@@ -20,5 +20,5 @@ namelist:
 online_emulator:
   url:
     - "some/path"
-  variables:
+  tendency_predictions:
     air_temperature: dQ1
