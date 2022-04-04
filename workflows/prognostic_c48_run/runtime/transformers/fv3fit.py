@@ -110,7 +110,6 @@ class Adapter:
         return list(
             set(self.model.input_variables)
             | set(self.config.tendency_predictions.values())
-            | set(self.config.state_predictions.values())
         )
 
     def non_negative_sphum_limiter(self, tendencies, inputs):
@@ -129,7 +128,7 @@ class Adapter:
         return limited_tendencies
 
 
-TOTAL_PRECIP_RATE = "total_precipitation_rate"
+PRECIP_RATE = "surface_precipitation_rate"
 TOTAL_PRECIP = "total_precipitation"  # has units of m
 
 
@@ -141,8 +140,8 @@ def _replace_precip_rate_with_accumulation(  # type: ignore
 ) -> State:
     # Precipitative ML models predict a rate, but the precipitation to update
     # in the state is an accumulated total over the timestep
-    if TOTAL_PRECIP_RATE in state_updates:
+    if PRECIP_RATE in state_updates:
         state_updates[TOTAL_PRECIP] = precipitation_accumulation(
-            state_updates[TOTAL_PRECIP_RATE], dt
+            state_updates[PRECIP_RATE], dt
         )
-        state_updates.pop(TOTAL_PRECIP_RATE)
+        state_updates.pop(PRECIP_RATE)
