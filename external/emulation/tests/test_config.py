@@ -1,4 +1,5 @@
-from emulation.config import EmulationConfig, ModelConfig, always_emulator
+from emulation._emulate.microphysics import TimeMask
+from emulation.config import EmulationConfig, ModelConfig
 import datetime
 
 
@@ -22,7 +23,7 @@ def test_EmulationConfig_from_dict():
 
 def test_ModelConfig_no_interval():
     config = ModelConfig(path="")
-    assert config._build_mask() == always_emulator
+    assert len(list(config._build_masks())) == 0
 
 
 def test_ModelConfig_with_interval():
@@ -30,4 +31,7 @@ def test_ModelConfig_with_interval():
         return 1.0
 
     config = ModelConfig(path="", online_schedule=schedule)
-    assert config._build_mask().schedule == schedule
+    time_schedule = [
+        mask for mask in config._build_masks() if isinstance(mask, TimeMask)
+    ][0]
+    assert time_schedule.schedule == schedule

@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 import datetime
-from typing import Callable
 import cftime
 import gc
 import sys
 
 from .._typing import FortranState
+from emulation.masks import Mask
 from .._time import translate_time
 
 # Tensorflow looks at sys args which are not initialized
@@ -71,9 +71,6 @@ class TimeMask:
 
 def always_emulator(state: FortranState, emulator: FortranState):
     return emulator
-
-
-Mask = Callable[[FortranState, FortranState], FortranState]
 
 
 class MicrophysicsHook:
