@@ -1,8 +1,13 @@
 import joblib
 import fv3fit
 import vcm
+import numpy as np
 import xarray as xr
-from runtime.transformers.fv3fit import Config, Adapter
+from runtime.transformers.fv3fit import (
+    Config,
+    Adapter,
+    TendencyOrStateMultiModelAdapter,
+)
 from runtime.transformers.core import StepTransformer
 from machine_learning_mocks import get_mock_predictor
 
@@ -35,7 +40,7 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
     adapted_model = Adapter(
         Config(
             [model_path],
-            tendency_predictions={"air_temperature": "dQ1", "specific_humidity": "dQ2"},
+            tendency_predictions={"dQ1": "air_temperature", "dQ2": "specific_humidity"},
             limit_negative_humidity=True,
         ),
         900,
@@ -66,7 +71,45 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
     regression_state(out, regtest)
 
 
-def test_multimodel_adapter(state, tmpdir_factory):
+def test_multimodel_adapter(state):
+    nz = 63
+    outputs = {
+        "Q1": np.full(nz, 1 / 86400),
+        "tendency_of_air_temperature_due_to_nudging": np.full(nz, 1 / 86400),
+        "implied_surface_precipitation_rate": 10 / 86400,
+    }
+    predictor_one = fv3fit.testing.ConstantOutputPredictor(
+        input_variables=["air_temperature", "specific_humidity"],
+        output_variables=["Q1", "implied_surface_precipitation_rate"],
+    )
+    predictor_two = fv3fit.testing.ConstantOutputPredictor(
+        input_variables=["air_temperature", "land_sea_mask"],
+        output_variables=["tendency_of_air_temperature_due_to_nudging"],
+    )
+    predictor_one.set_outputs(**outputs)
+    predictor_two.set_outputs(**outputs)
+    multi_model_predictor = TendencyOrStateMultiModelAdapter(
+        [predictor_one, predictor_two],
+        {
+            "Q1": "air_temperature",
+            "tendency_of_air_temperature_due_to_nudging": "air_temperature",
+        },
+        {"implied_surface_precipitation_rate": "surface_precipitation_rate"},
+    )
+    tendencies, state_updates = multi_model_predictor.predict(state)
+
+    expected_inputs = {"air_temperature", "specific_humidity", "land_sea_mask"}
+    assert set(multi_model_predictor.input_variables) == expected_inputs
+
+    expected_tendency = xr.full_like(state["air_temperature"], 2 / 86400)
+    expected_tendency = expected_tendency.transpose("y", "x", "z")
+    xr.testing.assert_allclose(
+        xr.Dataset({"air_temperature": expected_tendency}), tendencies
+    )
+    assert set(state_updates) == {"surface_precipitation_rate"}
+
+
+def test_multimodel_adapter_integration(state, tmpdir_factory):
     model_path1 = str(tmpdir_factory.mktemp("model1"))
     model_path2 = str(tmpdir_factory.mktemp("model2"))
     mock1 = get_mock_predictor(dQ1_tendency=1 / 86400)
@@ -77,9 +120,9 @@ def test_multimodel_adapter(state, tmpdir_factory):
     adapted_model = Adapter(
         Config(
             [model_path1, model_path2],
-            tendency_predictions={"air_temperature": "dQ1"},
+            tendency_predictions={"dQ1": "air_temperature"},
             state_predictions={
-                "surface_temperature": "total_sky_downward_shortwave_flux_at_surface",
+                "total_sky_downward_shortwave_flux_at_surface": "surface_temperature",
             },
             limit_negative_humidity=False,
         ),
