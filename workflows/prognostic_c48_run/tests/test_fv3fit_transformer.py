@@ -116,13 +116,13 @@ def test_multimodel_adapter_integration(state, tmpdir_factory):
     mock2 = get_mock_predictor(model_predictands="rad_fluxes")
     fv3fit.dump(mock1, model_path1)
     fv3fit.dump(mock2, model_path2)
-    DOWN_SW_PREDICITON_NAME = "total_sky_downward_shortwave_flux_at_surface"
+    DOWN_SW_PREDICTION_NAME = "total_sky_downward_shortwave_flux_at_surface"
 
     adapted_model = Adapter(
         Config(
             [model_path1, model_path2],
             tendency_predictions={"dQ1": "air_temperature"},
-            state_predictions={DOWN_SW_PREDICITON_NAME: "surface_precipitation_rate"},
+            state_predictions={DOWN_SW_PREDICTION_NAME: "surface_precipitation_rate"},
             limit_negative_humidity=False,
         ),
         900,
@@ -136,3 +136,6 @@ def test_multimodel_adapter_integration(state, tmpdir_factory):
         return {"some_diag": state["specific_humidity"]}
 
     transform(add_one_to_temperature)()
+    assert "total_precipitation" in state
+    expected_precip = xr.full_like(state["surface_temperature"], 300.0 * 900 / 1000)
+    xr.testing.assert_allclose(state["total_precipitation"], expected_precip)
