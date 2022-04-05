@@ -39,20 +39,6 @@ def register_log(func):
     return func
 
 
-def register_summary(func):
-    summary_functions.append(func)
-    return func
-
-
-def compute_summaries(ds):
-    out = {}
-    for func in summary_functions:
-        for key, val in func(ds).items():
-            out[key] = val
-
-    return out
-
-
 def _get_image(fig=None):
     if fig is None:
         fig = plt.gcf()
@@ -148,27 +134,13 @@ def summarize_column_skill(ds, prefix, tendency_func):
             column_integrated_skill(ds, partial(tendency_func, field=field))
         )
         for field in SKILL_FIELDS
-    }
+    }.items()
 
 
-for name, tendency_func in [
-    # total tendency named skill for backwards compatibility reasons
-    ("column_skill", tendencies.total_tendency),
-    ("column_skill/gscond", tendencies.gscond_tendency),
-    ("column_skill/precpd", tendencies.precpd_tendency),
-]:
-    register_summary(
-        partial(summarize_column_skill, prefix=name, tendency_func=tendency_func)
-    )
-
-
-@register_summary
 def summarize_precip_skill(ds):
-    return {
-        "column_skill/surface_precipitation": float(
-            column_integrated_skill(ds, tendencies.surface_precipitation)
-        )
-    }
+    yield "column_skill/surface_precipitation", float(
+        column_integrated_skill(ds, tendencies.surface_precipitation)
+    )
 
 
 def mse(x: xr.DataArray, y, area, dims=None):
@@ -275,6 +247,9 @@ def register_parser(subparsers) -> None:
         "to weights and biases.",
     )
     parser.add_argument("tag", help="The unique tag used for the prognostic run.")
+    parser.add_argument(
+        "-s", "--summary-only", help="Only run summaries.", action="store_true"
+    )
     parser.set_defaults(func=main)
 
 
@@ -309,22 +284,45 @@ def open_rundir(url):
     return vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
 
 
-def upload_diagnostics_for_rundir(url):
+def log_summary(key, val):
+    # print summary stats to stdout
+    print(key, val)
+    wandb.summary[key] = val
+
+
+def upload_diagnostics_for_rundir(url: str, summary_only: bool):
     wandb.config["run"] = url
-    wandb.summary["duration_seconds"] = get_duration_seconds(url)
+    log_summary("duration_seconds", get_duration_seconds(url))
 
     ds = open_rundir(url)
 
-    for func in log_functions:
-        print(f"Running {func}")
-        with dask.diagnostics.ProgressBar():
-            wandb.log(func(ds))
+    if not summary_only:
+        for func in log_functions:
+            print(f"Running {func}")
+            with dask.diagnostics.ProgressBar():
+                wandb.log(func(ds))
 
-    for key, val in compute_summaries(ds).items():
-        wandb.summary[key] = val
+    # build list of summaries
+    summary_functions = [
+        summarize_precip_skill,
+    ]
+
+    for name, tendency_func in [
+        # total tendency named skill for backwards compatibility reasons
+        ("column_skill", tendencies.total_tendency),
+        ("column_skill/gscond", tendencies.gscond_tendency),
+        ("column_skill/precpd", tendencies.precpd_tendency),
+    ]:
+        summary_functions.append(
+            partial(summarize_column_skill, prefix=name, tendency_func=tendency_func)
+        )
+
+    for func in summary_functions:
+        for key, val in func(ds):
+            log_summary(key, val)
 
 
-def upload_diagnostics_for_tag(tag: str):
+def upload_diagnostics_for_tag(tag: str, summary_only: bool):
     run = wandb.init(
         job_type="piggy-back",
         project=WANDB_PROJECT,
@@ -335,8 +333,8 @@ def upload_diagnostics_for_tag(tag: str):
     )
     with run:
         url = get_rundir_from_prognostic_run(get_prognostic_run_from_tag(tag))
-        upload_diagnostics_for_rundir(url)
+        upload_diagnostics_for_rundir(url, summary_only)
 
 
 def main(args):
-    return upload_diagnostics_for_tag(args.tag)
+    return upload_diagnostics_for_tag(args.tag, summary_only=args.summary_only)
