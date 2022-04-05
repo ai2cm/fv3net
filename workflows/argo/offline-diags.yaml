@@ -23,6 +23,10 @@ spec:
           - name: test_data_config
           - name: offline-diags-output
           - name: report-output
+          - {name: use-wandb, value: "false"}
+          - {name: wandb-project, value: "argo-default"}
+          - {name: wandb-tags, value: ""}
+          - {name: wandb-run-group, value: ""}
           - {name: memory, value: 10Gi}
 
       container:
@@ -33,6 +37,14 @@ spec:
             value: /secret/gcp-credentials/key.json
           - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
             value: /secret/gcp-credentials/key.json
+          - name: WANDB_ENTITY
+            value: ai2cm
+          - name: WANDB_PROJECT
+            value: "{{inputs.parameters.wandb-project}}"
+          - name: WANDB_TAGS
+            value: "{{inputs.parameters.wandb-tags}}"
+          - name: WANDB_RUN_GROUP
+            value: "{{inputs.parameters.wandb-run-group}}"
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
@@ -56,6 +68,14 @@ spec:
             cat << EOF > training_data.yaml
             {{inputs.parameters.training_data_config}}
             EOF
+
+            if [ "{{inputs.parameters.use-wandb}}" == "false" ];
+            then
+              wandb_flag=" "
+            else
+              wandb_flag="--wandb"
+            fi
+
             python -m fv3net.diagnostics.offline.views.create_report \
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
@@ -63,7 +83,9 @@ spec:
               --training-config \
               training.yaml \
               --training-data-config \
-              training_data.yaml
+              training_data.yaml \
+              $wandb_flag
+
       podSpecPatch: |
         containers:
           - name: main

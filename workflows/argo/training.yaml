@@ -23,9 +23,10 @@ spec:
           - {name: cpu, value: 1000m}
           - {name: memory, value: 6Gi}
           - {name: flags, value: " "}
+          - {name: use-wandb, value: "false"}
           - {name: wandb-project, value: "argo-default"}
-          - {name: wandb-tags, value: " "}
-          - {name: wandb-run-group, value: " "}
+          - {name: wandb-tags, value: ""}
+          - {name: wandb-run-group, value: ""}
       container:
         image: us.gcr.io/vcm-ml/prognostic_run
         command: ["bash", "-c", "-x"]
@@ -77,12 +78,25 @@ spec:
                 validation_arg=" "
             fi
 
+            if [ "{{inputs.parameters.use-wandb}}" == "false" ] || [[ "{{inputs.parameters.flags}}" == *"--wandb"* ]];
+            then
+              wandb_flag=" "
+            else
+              wandb_flag="--wandb"
+            fi
+
+            if [ -z "{{inputs.parameters.wandb-tags}}" ]
+            then
+              unset WANDB_TAGS
+            fi
+
             python3 -m fv3fit.train \
               training_config.yaml \
               training_data.yaml \
               {{inputs.parameters.output}} \
               $validation_arg \
-              {{inputs.parameters.flags}}
+              {{inputs.parameters.flags}} \
+              $wandb_flag
       tolerations:
       - key: "dedicated"
         operator: "Equal"

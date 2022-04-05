@@ -36,9 +36,10 @@ spec:
       - {name: training-flags, value: " "}
       - {name: online-diags-flags, value: " "}
       - {name: do-prognostic-run, value: "true"}
+      - {name: use-wandb, value: "false"}
       - {name: wandb-project, value: "argo-default"}
-      - {name: wandb-tags, value: " "}
-      - {name: wandb-run-group, value: " "}
+      - {name: wandb-tags, value: ""}
+      - {name: wandb-run-group, value: ""}
 
     dag:
       tasks:
@@ -76,6 +77,8 @@ spec:
               value: "{{inputs.parameters.memory-training}}"
             - name: flags
               value: "{{inputs.parameters.training-flags}}"
+            - name: use-wandb
+              value: "{{inputs.parameters.use-wandb}}"
             - name: wandb-project
               value: "{{inputs.parameters.wandb-project}}"
             - name: wandb-tags
@@ -104,6 +107,14 @@ spec:
                 value: "{{inputs.parameters.public-report-output}}/{{item.name}}"
               - name: memory
                 value: "{{inputs.parameters.memory-offline-diags}}"
+              - name: use-wandb
+                value: "{{inputs.parameters.use-wandb}}"
+              - name: wandb-project
+                value: "{{inputs.parameters.wandb-project}}"
+              - name: wandb-tags
+                value: "{{inputs.parameters.wandb-tags}}"
+              - name: wandb-run-group
+                value: "{{inputs.parameters.wandb-run-group}}"
       - name: insert-model-urls
         when: "{{inputs.parameters.do-prognostic-run}} == true"
         dependencies: [resolve-output-url]

@@ -6,6 +6,7 @@ import sys
 import tempfile
 from typing import MutableMapping, Sequence, List
 import fsspec
+import wandb
 
 import fv3viz
 import matplotlib.pyplot as plt
@@ -105,6 +106,14 @@ def _create_arg_parser() -> argparse.Namespace:
         type=str,
         default=None,
         help=("Training data configuration yaml file to insert into report"),
+    )
+    parser.add_argument(
+        "--wandb",
+        help=(
+            "Log run to wandb. Uses environment variables WANDB_ENTITY, "
+            "WANDB_PROJECT, WANDB_JOB_TYPE as wandb.init options."
+        ),
+        action="store_true",
     )
     return parser.parse_args()
 
@@ -377,6 +386,14 @@ def create_report(args):
     if args.training_data_config:
         with fsspec.open(args.training_data_config, "r") as f:
             metadata["training_data_config"] = yaml.safe_load(f)
+    if args.wandb:
+        wandb_config = {
+            "training_data": metadata.pop("training_data_config"),
+            "model_training_config": metadata.pop("training_config"),
+            "metadata": metadata,
+        }
+        wandb.init(config=wandb_config)
+        wandb.log(metrics)
 
     html_index = render_index(
         metadata, metrics, ds_diags, ds_transect, output_dir=temp_output_dir.name,
