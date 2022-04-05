@@ -200,7 +200,7 @@ def rms_errors(diag_arg: DiagArg):
 
 
 @registry_2d.register("zonal_and_time_mean")
-@transform.apply(transform.resample_time, "1H")
+@transform.apply(transform.resample_time, "3H")
 @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
 def zonal_means_2d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (2d)")
@@ -249,7 +249,7 @@ def zonal_bias_3d(diag_arg: DiagArg):
 
 
 @registry_2d.register("zonal_bias")
-@transform.apply(transform.resample_time, "1H")
+@transform.apply(transform.resample_time, "3H")
 @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
 def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
     prognostic, verification, grid = (
@@ -364,7 +364,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
 
 @registry_2d.register("time_mean_value")
-@transform.apply(transform.resample_time, "1H", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.subset_variables, TIME_MEAN_VARS)
 def time_means_2d(diag_arg: DiagArg):
     logger.info("Preparing time means for 2d variables")
@@ -373,7 +373,7 @@ def time_means_2d(diag_arg: DiagArg):
 
 
 @registry_2d.register("time_mean_bias")
-@transform.apply(transform.resample_time, "1H", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.subset_variables, TIME_MEAN_VARS)
 def time_mean_biases_2d(diag_arg: DiagArg):
     logger.info("Preparing time mean biases for 2d variables")
@@ -385,7 +385,7 @@ for mask_type in ["global", "land", "sea"]:
 
     @registry_2d.register(f"diurnal_{mask_type}")
     @transform.apply(transform.mask_to_sfc_type, mask_type)
-    @transform.apply(transform.resample_time, "1H", inner_join=True)
+    @transform.apply(transform.resample_time, "3H", inner_join=True)
     @transform.apply(transform.subset_variables, DIURNAL_CYCLE_VARS)
     def _diurnal_func(diag_arg: DiagArg, mask_type=mask_type) -> xr.Dataset:
         # mask_type is added as a kwarg solely to give the logging access to the info
