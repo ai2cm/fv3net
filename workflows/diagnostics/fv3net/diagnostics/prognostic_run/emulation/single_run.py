@@ -2,7 +2,8 @@
 import argparse
 import logging
 from functools import partial
-from typing import Any, Callable, List
+from typing import Any, Callable, Iterable, List, Tuple
+import cftime
 
 import dask.diagnostics
 import fv3viz
@@ -135,6 +136,24 @@ def summarize_column_skill(ds, prefix, tendency_func):
         )
         for field in SKILL_FIELDS
     }.items()
+
+
+def global_average_cloud_5d_300mb_ppm(ds: xr.Dataset) -> Iterable[Tuple[str, float]]:
+
+    time = cftime.DatetimeJulian(2016, 6, 15)
+    z = 300
+    field = "cloud_water_mixing_ratio"
+    to_parts_per_million = 1e6
+
+    selected = ds[field].sel(time=time).interp(z=z)
+    if selected.size > 0:
+        average_cloud = float(
+            vcm.weighted_average(selected, ds.area, dims=set(selected.dims))
+        )
+        yield (
+            global_average_cloud_5d_300mb_ppm.__name__,
+            average_cloud * to_parts_per_million,
+        )
 
 
 def summarize_precip_skill(ds):
@@ -304,6 +323,7 @@ def upload_diagnostics_for_rundir(url: str, summary_only: bool):
 
     # build list of summaries
     summary_functions = [
+        global_average_cloud_5d_300mb_ppm,
         summarize_precip_skill,
     ]
 
