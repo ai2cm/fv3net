@@ -145,15 +145,20 @@ def global_average_cloud_5d_300mb_ppm(ds: xr.Dataset) -> Iterable[Tuple[str, flo
     field = "cloud_water_mixing_ratio"
     to_parts_per_million = 1e6
 
-    selected = ds[field].sel(time=time).interp(z=z)
-    if selected.size > 0:
-        average_cloud = float(
-            vcm.weighted_average(selected, ds.area, dims=set(selected.dims))
-        )
-        yield (
-            global_average_cloud_5d_300mb_ppm.__name__,
-            average_cloud * to_parts_per_million,
-        )
+    try:
+        selected = ds[field].sel(time=time)
+    except KeyError:
+        logger.warn("No field {} or time {}".format(field, time))
+        return
+
+    selected_height = selected.interp(z=z)
+    average_cloud = float(
+        vcm.weighted_average(selected_height, ds.area, dims=set(selected_height.dims))
+    )
+    yield (
+        global_average_cloud_5d_300mb_ppm.__name__,
+        average_cloud * to_parts_per_million,
+    )
 
 
 def summarize_precip_skill(ds):
@@ -321,11 +326,18 @@ def upload_diagnostics_for_rundir(url: str, summary_only: bool):
             with dask.diagnostics.ProgressBar():
                 wandb.log(func(ds))
 
+    for func in get_summary_functions():
+        for key, val in func(ds):
+            log_summary(key, val)
+
+
+def get_summary_functions() -> Iterable[
+    Callable[[xr.Dataset], Iterable[Tuple[str, Any]]]
+]:
+
     # build list of summaries
-    summary_functions = [
-        global_average_cloud_5d_300mb_ppm,
-        summarize_precip_skill,
-    ]
+    yield global_average_cloud_5d_300mb_ppm
+    yield summarize_precip_skill
 
     for name, tendency_func in [
         # total tendency named skill for backwards compatibility reasons
@@ -333,13 +345,9 @@ def upload_diagnostics_for_rundir(url: str, summary_only: bool):
         ("column_skill/gscond", tendencies.gscond_tendency),
         ("column_skill/precpd", tendencies.precpd_tendency),
     ]:
-        summary_functions.append(
-            partial(summarize_column_skill, prefix=name, tendency_func=tendency_func)
-        )
-
-    for func in summary_functions:
-        for key, val in func(ds):
-            log_summary(key, val)
+        func = partial(summarize_column_skill, prefix=name, tendency_func=tendency_func)
+        func.__name__ = name
+        yield func
 
 
 def upload_diagnostics_for_tag(tag: str, summary_only: bool):
