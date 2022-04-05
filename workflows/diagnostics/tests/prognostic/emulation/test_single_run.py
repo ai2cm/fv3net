@@ -272,7 +272,7 @@ def test_skill_table(regtest):
         for func in single_run.get_summary_functions()
     ],
 )
-def test_compute_summaries(func, regtest):
+def test_summary_function(func, regtest):
     ds = vcm.cdl_to_dataset(cdl)
     output = dict(func(ds))
     print(sorted(output), file=regtest)
