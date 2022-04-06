@@ -11,7 +11,7 @@ from fv3fit.keras._models.shared.clip import ClipConfig, clip_sequence
 from fv3fit.keras._models.shared.loss import LossConfig
 import tensorflow as tf
 from ..._shared.config import Hyperparameters
-from .shared import DenseNetworkConfig, TrainingLoopConfig
+from .shared import DenseNetworkConfig, TrainingLoopConfig, CallbackConfig
 import numpy as np
 import logging
 from fv3fit.keras._models.shared.utils import (
@@ -115,6 +115,7 @@ class PrecipitativeHyperparameters(Hyperparameters):
         couple_precip_to_dQ1_dQ2: if False, try to recover behavior of Dense model type
             by not adding "precipitative" terms to dQ1 and dQ2
         normalization_fit_samples: number of samples to use when fitting normalization
+        callback_config: configuration for keras callbacks
     """
 
     additional_input_variables: List[str] = dataclasses.field(default_factory=list)
@@ -134,6 +135,9 @@ class PrecipitativeHyperparameters(Hyperparameters):
     loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
     couple_precip_to_dQ1_dQ2: bool = True
     normalization_fit_samples: int = 500_000
+    callback_config: CallbackConfig = dataclasses.field(
+        default_factory=lambda: CallbackConfig()
+    )
 
     @property
     def variables(self) -> Set[str]:
@@ -176,6 +180,7 @@ def train_precipitative_model(
         clip_config=hyperparameters.clip_config,
         training_loop=hyperparameters.training_loop,
         build_samples=hyperparameters.normalization_fit_samples,
+        callback_config=hyperparameters.callback_config,
     )
 
 
