@@ -25,8 +25,16 @@ def _stack_sample_data(ds: xr.Dataset) -> xr.Dataset:
     return ds.stack(sample=stack_dims).transpose("sample", ...)
 
 
+def _is_derived(predictor: fv3fit.Predictor) -> bool:
+    return isinstance(predictor, fv3fit.DerivedModel) or isinstance(
+        predictor, fv3fit.TransformedPredictor
+    )
+
+
 def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
-    base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
+    base_model = model
+    while _is_derived(base_model):
+        base_model = base_model.base_model
     stacked_sample = _stack_sample_data(sample)
 
     try:
