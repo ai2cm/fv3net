@@ -26,6 +26,8 @@ build_image_%:
 build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
 
+build_image_log_handler: docker/log_handler/requirements.txt
+
 build_image_fv3fit: docker/fv3fit/requirements.txt
 
 build_image_prognostic_run: docker/prognostic_run/requirements.txt
@@ -203,6 +205,13 @@ constraints.txt:
 	sed -i.bak  's/\[.*\]//g' constraints.txt
 	rm -f constraints.txt.bak .dataflow-versions.txt
 	@echo "remember to update numpy version in external/vcm/pyproject.toml"
+
+
+docker/%/requirements.txt: docker/%/requirements.in
+	cp -f constraints.txt $@
+	pip-compile  \
+	--no-annotate \
+	--output-file $@ $<
 
 docker/prognostic_run/requirements.txt: constraints.txt
 	cp constraints.txt docker/prognostic_run/requirements.txt
