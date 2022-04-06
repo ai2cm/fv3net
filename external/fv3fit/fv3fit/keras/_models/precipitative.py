@@ -115,7 +115,7 @@ class PrecipitativeHyperparameters(Hyperparameters):
         couple_precip_to_dQ1_dQ2: if False, try to recover behavior of Dense model type
             by not adding "precipitative" terms to dQ1 and dQ2
         normalization_fit_samples: number of samples to use when fitting normalization
-        callback_config: configuration for keras callbacks
+        callbacks: configurations for keras callbacks
     """
 
     additional_input_variables: List[str] = dataclasses.field(default_factory=list)
@@ -135,9 +135,7 @@ class PrecipitativeHyperparameters(Hyperparameters):
     loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
     couple_precip_to_dQ1_dQ2: bool = True
     normalization_fit_samples: int = 500_000
-    callback_config: CallbackConfig = dataclasses.field(
-        default_factory=lambda: CallbackConfig()
-    )
+    callbacks: List[CallbackConfig] = dataclasses.field(default_factory=list)
 
     @property
     def variables(self) -> Set[str]:
@@ -180,7 +178,7 @@ def train_precipitative_model(
         clip_config=hyperparameters.clip_config,
         training_loop=hyperparameters.training_loop,
         build_samples=hyperparameters.normalization_fit_samples,
-        callback_config=hyperparameters.callback_config,
+        callbacks=hyperparameters.callbacks,
     )
 
 

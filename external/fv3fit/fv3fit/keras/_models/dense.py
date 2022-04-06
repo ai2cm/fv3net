@@ -87,9 +87,7 @@ class DenseHyperparameters(Hyperparameters):
         default_factory=lambda: OutputLimitConfig()
     )
     normalization_fit_samples: int = 500_000
-    callback_config: CallbackConfig = dataclasses.field(
-        default_factory=lambda: CallbackConfig()
-    )
+    callbacks: List[CallbackConfig] = dataclasses.field(default_factory=list)
 
     @property
     def variables(self) -> Set[str]:
@@ -111,7 +109,7 @@ def train_dense_model(
         clip_config=hyperparameters.clip_config,
         training_loop=hyperparameters.training_loop,
         build_samples=hyperparameters.normalization_fit_samples,
-        callback_config=hyperparameters.callback_config,
+        callbacks=hyperparameters.callbacks,
     )
 
 
@@ -178,7 +176,7 @@ def train_column_model(
     output_variables: Sequence[str],
     clip_config: ClipConfig,
     training_loop: TrainingLoopConfig,
-    callback_config: CallbackConfig,
+    callbacks: List[CallbackConfig],
     build_samples: int = 500_000,
 ) -> PureKerasModel:
     """
@@ -226,7 +224,7 @@ def train_column_model(
         model=train_model,
         Xy=train_Xy,
         validation_data=val_Xy,
-        callbacks=[callback.instance for callback in callback_config.callbacks],
+        callbacks=[callback.instance for callback in callbacks],
     )
     predictor = PureKerasModel(
         input_variables=input_variables,
