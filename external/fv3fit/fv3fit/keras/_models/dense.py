@@ -24,12 +24,12 @@ from ..._shared.config import (
 from .shared import (
     TrainingLoopConfig,
     DenseNetworkConfig,
-    TrainingLoopLossHistory,
 )
 from fv3fit.keras._models.shared import (
     PureKerasModel,
     LossConfig,
     OutputLimitConfig,
+    CallbackConfig,
 )
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
@@ -64,6 +64,7 @@ class DenseHyperparameters(Hyperparameters):
         clip_config: configuration of input and output clipping of last dimension
         output_limit_config: configuration for limiting output values.
         normalization_fit_samples: number of samples to use when fitting normalization
+        callback_config: configuration for keras callbacks
     """
 
     input_variables: List[str]
@@ -86,6 +87,9 @@ class DenseHyperparameters(Hyperparameters):
         default_factory=lambda: OutputLimitConfig()
     )
     normalization_fit_samples: int = 500_000
+    callback_config: CallbackConfig = dataclasses.field(
+        default_factory=lambda: CallbackConfig()
+    )
 
     @property
     def variables(self) -> Set[str]:
@@ -107,6 +111,7 @@ def train_dense_model(
         clip_config=hyperparameters.clip_config,
         training_loop=hyperparameters.training_loop,
         build_samples=hyperparameters.normalization_fit_samples,
+        callback_config=hyperparameters.callback_config,
     )
 
 
@@ -173,6 +178,7 @@ def train_column_model(
     output_variables: Sequence[str],
     clip_config: ClipConfig,
     training_loop: TrainingLoopConfig,
+    callback_config: CallbackConfig,
     build_samples: int = 500_000,
 ) -> PureKerasModel:
     """
@@ -216,12 +222,11 @@ def train_column_model(
     del X
     del y
 
-    loss_history = TrainingLoopLossHistory()
     training_loop.fit_loop(
         model=train_model,
         Xy=train_Xy,
         validation_data=val_Xy,
-        callbacks=[loss_history.callback],
+        callbacks=[callback.instance for callback in callback_config.callbacks],
     )
     predictor = PureKerasModel(
         input_variables=input_variables,
@@ -230,7 +235,6 @@ def train_column_model(
         unstacked_dims=("z",),
         n_halo=0,
     )
-    loss_history.log_summary()
     return predictor
 
 
