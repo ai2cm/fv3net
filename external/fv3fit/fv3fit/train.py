@@ -202,7 +202,8 @@ def main(args, unknown_args=None):
             )
             wandb.config["training_config"] = config_dict
             wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
-
+        logger.info("config dict: ")
+        logger.info(config_dict)
         training_config = fv3fit.TrainingConfig.from_dict(config_dict)
 
     with open(args.training_data_config, "r") as f:

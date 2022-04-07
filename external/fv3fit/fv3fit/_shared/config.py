@@ -113,6 +113,8 @@ class TrainingConfig:
                 "output_variables"
             )
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
+        print("hyperparameter class: ", hyperparameter_class)
+        print(kwargs)
         kwargs["hyperparameters"] = dacite.from_dict(
             data_class=hyperparameter_class,
             data=kwargs.get("hyperparameters", {}),
