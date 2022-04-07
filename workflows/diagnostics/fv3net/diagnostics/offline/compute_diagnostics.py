@@ -312,7 +312,33 @@ for mask_type in ["global", "sea", "land"]:
             diag_arg.verification,
             diag_arg.grid,
         )
-        logger.info(f"Preparing mean squared errors for 3D variables, {mask_type}")
+        logger.info(
+            "Preparing mean squared errors for 3D variables "
+            f"on pressure levels, {mask_type}"
+        )
+        if len(predicted) == 0:
+            return xr.Dataset()
+        mse_area_weighted_avg = weighted_mean(
+            (predicted - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
+        )
+        return mse_area_weighted_avg.mean("time")
+
+
+for mask_type in ["global", "sea", "land"]:
+
+    @diagnostics_registry.register(f"mse_model_level_{mask_type}")
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.mask_area, mask_type)
+    def mse_3d_model_levels(diag_arg, mask_type=mask_type):
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        logger.info(
+            "Preparing mean squared errors for 3D variables "
+            f"on model levels, {mask_type}"
+        )
         if len(predicted) == 0:
             return xr.Dataset()
         mse_area_weighted_avg = weighted_mean(
@@ -344,7 +370,29 @@ for mask_type in ["global", "sea", "land"]:
     @transform.apply(transform.regrid_zdim_to_pressure_levels)
     @transform.apply(transform.mask_area, mask_type)
     def variance_3d(diag_arg, mask_type=mask_type):
-        logger.info(f"Preparing variance for 3D variables, {mask_type}")
+        logger.info(f"Preparing variance for 3D variables, on pressure {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) == 0:
+            return xr.Dataset()
+        mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
+            "time"
+        )
+        return weighted_mean(
+            (mean - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
+        ).mean("time")
+
+
+for mask_type in ["global", "sea", "land"]:
+
+    @diagnostics_registry.register(f"variance_model_level_{mask_type}")
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.mask_area, mask_type)
+    def variance_3d_model_levels(diag_arg, mask_type=mask_type):
+        logger.info(f"Preparing variance for 3D variables on model levels, {mask_type}")
         predicted, target, grid = (
             diag_arg.prediction,
             diag_arg.verification,
@@ -522,6 +570,109 @@ for domain in ["positive_net_precipitation", "negative_net_precipitation"]:
                 net_precipitation=net_precip,
             )
             return domain_avg
+        else:
+            return xr.Dataset()
+
+
+for domain in ["global", "land", "sea"]:
+
+    @diagnostics_registry.register(f"time_domain_mean_2d_{domain}")
+    @transform.apply(transform.select_2d_variables)
+    @transform.apply(transform.mask_area, mask_type)
+    def time_domain_mean_2d(diag_arg, mask_type=mask_type):
+        logger.info(f"Preparing time means for 2D variables, {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) > 0:
+            ds = xr.concat(
+                [predicted, target],
+                dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
+            )
+            return weighted_mean(ds, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
+                "time"
+            )
+        else:
+            return xr.Dataset()
+
+
+for domain in ["global", "land", "sea"]:
+
+    @diagnostics_registry.register(f"time_domain_mean_pressure_level_{domain}")
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_area, mask_type)
+    def time_domain_mean_pressure_level(diag_arg, mask_type=mask_type):
+        logger.info(
+            f"Preparing time means for 3D variables interpolated to pressure "
+            f"levels, {mask_type}"
+        )
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) > 0:
+            ds = xr.concat(
+                [predicted, target],
+                dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
+            )
+            return weighted_mean(ds, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
+                "time"
+            )
+        else:
+            return xr.Dataset()
+
+    @diagnostics_registry.register(f"time_domain_mean_model_level_{domain}")
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.mask_area, mask_type)
+    def time_domain_mean_model_level(diag_arg, mask_type=mask_type):
+        logger.info(
+            f"Preparing time means for 3D variables on model levels, {mask_type}"
+        )
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) > 0:
+            ds = xr.concat(
+                [predicted, target],
+                dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
+            )
+            return weighted_mean(ds, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
+                "time"
+            )
+        else:
+            return xr.Dataset()
+
+
+for domain in ["global", "land", "sea"]:
+
+    @diagnostics_registry.register(
+        f"time_domain_mean_pressure_level_zonal_avg_{domain}"
+    )
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_area, mask_type)
+    def time_domain_mean_pressure_level_zonal_avg(diag_arg, mask_type=mask_type):
+        logger.info(
+            f"Preparing time means for zonal mean 3D variables interpolated to "
+            f"pressure levels, {mask_type}"
+        )
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) > 0:
+            ds = xr.concat(
+                [predicted, target],
+                dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
+            )
+            return zonal_mean(ds, grid.lat).mean("time")
         else:
             return xr.Dataset()
 

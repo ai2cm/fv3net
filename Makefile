@@ -26,13 +26,15 @@ build_image_%:
 build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
 
-build_image_prognostic_run:
+build_image_fv3fit: docker/fv3fit/requirements.txt
+
+build_image_prognostic_run: docker/prognostic_run/requirements.txt
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
 		--target prognostic-run \
 		--build-arg BASE_IMAGE=ubuntu:20.04 .
 
-build_image_prognostic_run_gpu:
+build_image_prognostic_run_gpu: docker/prognostic_run/requirements.txt
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run_gpu:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run_gpu:$(VERSION) \
 		--target prognostic-run \
@@ -50,7 +52,15 @@ image_test_dataflow: push_image_dataflow
 		$(REGISTRY)/dataflow:$(VERSION) \
 		tests/integration -s
 
-image_test_prognostic_run:
+image_test_emulation:
+	docker run \
+		--rm \
+		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
+		-w /fv3net/external/emulation \
+		$(REGISTRY)/prognostic_run:$(VERSION) pytest
+
+image_test_prognostic_run: image_test_emulation
 	docker run \
 		--rm \
 		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
@@ -78,6 +88,7 @@ enter_prognostic_run:
 		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
 		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
 		-v $(shell pwd)/workflows:/fv3net/workflows \
+		-v $(shell pwd)/external:/fv3net/external \
 		-w /fv3net/workflows/prognostic_c48_run \
 		$(REGISTRY)/prognostic_run:$(VERSION) bash
 
@@ -172,7 +183,9 @@ lock_deps: lock_pip
 
 constraints.txt:
 	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
-		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/'> .dataflow-versions.txt
+		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/' \
+		| grep -v google-python-cloud-debugger \
+		> .dataflow-versions.txt
 
 	pip-compile  \
 	--no-annotate \
@@ -205,9 +218,19 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		workflows/post_process_run/requirements.txt \
 		workflows/prognostic_c48_run/requirements.in
 
-.PHONY: lock_pip constraints.txt docker/prognostic_run/requirements.txt
+docker/fv3fit/requirements.txt: constraints.txt
+	cp constraints.txt $@
+	# this will subset the needed dependencies from constraints.txt
+	# while preserving the versions
+	pip-compile --no-annotate \
+		--output-file docker/fv3fit/requirements.txt \
+		external/fv3fit/setup.py \
+		external/loaders/setup.py \
+		external/vcm/setup.py
+
+.PHONY: lock_pip
 ## Lock the pip dependencies of this repo
-lock_pip: constraints.txt docker/prognostic_run/requirements.txt
+lock_pip: constraints.txt
 
 ## Install External Dependencies
 install_deps:

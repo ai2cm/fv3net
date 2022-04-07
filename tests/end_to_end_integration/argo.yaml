@@ -335,7 +335,7 @@ spec:
             - name: project
               value: "{{workflow.parameters.project}}"
             - name: tag
-              value: "{{workflow.parameters.tag}}-nudge-to-fine-run"
+              value: "{{workflow.parameters.tag}}-train-diags-prog"
       - name: nudge-to-fine-run
         templateRef:
           name: prognostic-run

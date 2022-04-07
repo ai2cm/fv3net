@@ -1,5 +1,6 @@
+import collections
 import logging
-from loaders.typing import Batches
+from loaders.typing import Batches, Mapper
 import numpy as np
 import pandas as pd
 from typing import (
@@ -24,7 +25,7 @@ from .._utils import (
     sort_by_time,
 )
 from ..constants import TIME_NAME
-from .._config import batches_functions, batches_from_mapper_functions
+from .._config import batches_functions, BatchesLoader, MapperConfig
 from ._serialized_phys import (
     SerializedSequence,
     FlattenDims,
@@ -33,12 +34,96 @@ from ._serialized_phys import (
 import loaders
 import fsspec
 import vcm
+import dataclasses
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-@batches_from_mapper_functions.register
+@dataclasses.dataclass
+class BatchesFromMapperConfig(BatchesLoader):
+    """Configuration for the use of batch loading functions using mappers as input.
+
+    Attributes:
+        mapper_config: configuration to retrieve input mapper
+        variable_names: data variables to select
+        timesteps_per_batch (int, optional): Defaults to 1.
+        timesteps: List of timesteps to use in training.
+        needs_grid: Add grid information into batched datasets. [Warning] requires
+            remote GCS access
+        in_memory: if True, load data eagerly and keep it in memory
+        unstacked_dims: if given, produce stacked and shuffled batches retaining
+            these dimensions as unstacked (non-sample) dimensions
+        subsample_ratio: the fraction of data to retain in each batch, selected
+            at random along the sample dimension.
+        drop_nans: if True, drop samples with NaN values from the data, and raise an
+            exception if all values in a batch are NaN. requires unstacked_dims
+            argument is given, raises a ValueError otherwise.
+        shuffle_timesteps: if True, shuffle the timesteps list.
+        shuffle_samples: if True, shuffle the samples after stacking. If False, can
+            still subselect a random subset, but it is ordered by stacked dims
+            multiindex.
+        data_transforms: list of transforms to compute derived variables in batches.
+    """
+
+    mapper_config: MapperConfig
+    variable_names: Sequence[str] = ()
+    timesteps_per_batch: int = 1
+    timesteps: Optional[Sequence[str]] = None
+    res: str = "c48"
+    needs_grid: bool = True
+    in_memory: bool = False
+    unstacked_dims: Optional[Sequence[str]] = None
+    subsample_ratio: float = 1.0
+    drop_nans: bool = False
+    shuffle_timesteps: bool = True
+    shuffle_samples: bool = False
+    data_transforms: Optional[Sequence[Mapping]] = None
+
+    def __post_init__(self):
+        duplicate_times = [
+            t for t, count in collections.Counter(self.timesteps).items() if count > 1
+        ]
+        if len(duplicate_times) > 0:
+            raise ValueError(
+                "Timesteps provided for selection must be unique. "
+                f"Duplicated times were found: {duplicate_times}"
+            )
+
+    def load_mapper(self) -> Mapper:
+        return self.mapper_config.load_mapper()
+
+    def load_batches(self, variables: Optional[Sequence[str]] = None) -> Batches:
+        """
+        Args:
+            variables: if given, these variables are guaranteed to be present in
+                the returned batches, or an exception will be raised
+
+        Returns:
+            Sequence of datasets according to configuration
+        """
+        if variables is None:
+            all_variables = self.variable_names
+        else:
+            all_variables = list(set(variables).union(self.variable_names))
+        mapper = self.mapper_config.load_mapper()
+        return batches_from_mapper(
+            data_mapping=mapper,
+            variable_names=all_variables,
+            timesteps_per_batch=self.timesteps_per_batch,
+            timesteps=self.timesteps,
+            res=self.res,
+            needs_grid=self.needs_grid,
+            in_memory=self.in_memory,
+            unstacked_dims=self.unstacked_dims,
+            subsample_ratio=self.subsample_ratio,
+            drop_nans=self.drop_nans,
+            shuffle_timesteps=self.shuffle_samples,
+            shuffle_samples=self.shuffle_samples,
+            data_transforms=self.data_transforms,
+        )
+
+
 def batches_from_mapper(
     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Sequence[str],
@@ -56,7 +141,6 @@ def batches_from_mapper(
 ) -> loaders.typing.Batches:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
-
     Args:
         data_mapping: Interface to select data for
             given timestep keys.
@@ -80,7 +164,6 @@ def batches_from_mapper(
         data_transforms: list of transforms to compute derived variables in batches.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
-
     Returns:
         Sequence of xarray datasets
     """

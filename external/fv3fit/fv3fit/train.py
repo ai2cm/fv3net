@@ -18,10 +18,13 @@ import loaders
 import loaders.typing
 import tempfile
 from loaders.batches.save import main as save_main
+from fv3fit.tfdataset import tfdataset_from_batches
+import tensorflow as tf
+from fv3fit.dataclasses import asdict_with_enum
+import wandb
 
 from vcm.cloud import copy
 
-import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +52,19 @@ def get_parser():
         ),
     )
     parser.add_argument(
-        "--wandb", help="Log run to wandb", action="store_true",
+        "--wandb",
+        help=(
+            "Log run to wandb. Uses environment variables WANDB_ENTITY, "
+            "WANDB_PROJECT, WANDB_JOB_TYPE as wandb.init options."
+        ),
+        action="store_true",
     )
     return parser
 
 
 def dump_dataclass(obj, yaml_filename):
     with fsspec.open(yaml_filename, "w") as f:
-        yaml.safe_dump(dataclasses.asdict(obj), f)
+        yaml.safe_dump(asdict_with_enum(obj), f)
 
 
 def get_data(
@@ -65,7 +73,7 @@ def get_data(
     local_download_path: Optional[str],
     variable_names: Sequence[str],
     in_memory: bool = False,
-) -> Tuple[loaders.typing.Batches, loaders.typing.Batches]:
+) -> Tuple[tf.data.Dataset, Optional[tf.data.Dataset]]:
     """
     Args:
         training_data_config: configuration of training data
@@ -73,11 +81,9 @@ def get_data(
             an empty list will be returned for validation data.
         local_download_path: if provided, cache data locally at this path
         variable_names: names of variables to include when loading data
-        in_memory: if True and local_download_path is also set, batches will be
-            returned as a tuple of eagerly-loaded Datasets. Has no effect if
-            local_download_path is not set.
+        in_memory: if True, returned tfdatasets will use in-memory caching
     Returns:
-        Training and validation data batches
+        Training and validation data
     """
     if local_download_path is None:
         train_batches, val_batches = get_uncached_data(
@@ -94,7 +100,21 @@ def get_data(
             in_memory=in_memory,
         )
     logger.info(f"Following variables are in train batches: {list(train_batches[0])}")
-    return train_batches, val_batches
+    # tensorflow training shuffles within blocks of samples,
+    # so we must pre-shuffle batches in order that contiguous blocks
+    # of samples contain temporally-distant data
+    train_batches = loaders.batches.shuffle(train_batches)
+    train_dataset = tfdataset_from_batches(train_batches)
+    if len(val_batches) > 0:
+        val_batches = loaders.batches.shuffle(val_batches)
+        val_dataset = tfdataset_from_batches(val_batches)
+    else:
+        val_dataset = None
+    if in_memory:
+        train_dataset = train_dataset.cache()
+        if val_dataset is not None:
+            val_dataset = val_dataset.cache()
+    return train_dataset, val_dataset
 
 
 def get_uncached_data(
@@ -157,6 +177,7 @@ def get_cached_data(
 
 
 def main(args, unknown_args=None):
+
     with open(args.training_config, "r") as f:
         config_dict = yaml.safe_load(f)
         if unknown_args is not None:
@@ -180,6 +201,7 @@ def main(args, unknown_args=None):
                 f"hyperparameters from wandb config: {config_dict['hyperparameters']}"
             )
             wandb.config["training_config"] = config_dict
+            wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
 
         training_config = fv3fit.TrainingConfig.from_dict(config_dict)
 

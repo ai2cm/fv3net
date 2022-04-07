@@ -2,6 +2,10 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} as bld
 
+# An nvidia outage was breaking image builds, and we don't need to install anything
+# nvidia specific currently.  Feel free to remove if that changes.
+RUN rm -f /etc/apt/sources.list.d/cuda.list /etc/apt/sources.list.d/nvidia-ml.list
+
 RUN apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
     apt-get install -y  --no-install-recommends \

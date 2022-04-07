@@ -21,7 +21,6 @@ spec:
         parameters:
           - {name: config}
           - {name: tag}
-          - {name: flags, value: ""}
           - {name: bucket, value: "vcm-ml-experiments"}
           - {name: project, value: "default"}
           - {name: segment-count, value: "1"}
@@ -44,7 +43,6 @@ spec:
           arguments:
             parameters:
               - {name: config, value: "{{inputs.parameters.config}}"}
-              - {name: flags, value: "{{inputs.parameters.flags}}"}
       - - name: run-model
           continueOn:
             failed: true
@@ -92,7 +90,6 @@ spec:
       inputs:
         parameters:
           - name: config
-          - name: flags
       outputs:
         artifacts:
           - {name: fv3config, path: /tmp/fv3config.yaml}
@@ -110,6 +107,5 @@ spec:
             EOF
 
             prepare-config \
-              {{inputs.parameters.flags}} \
               config.yaml \
               > /tmp/fv3config.yaml

@@ -6,6 +6,7 @@ from .create_report import (
     OrderedList,
     RawHTML,
 )
+from ._io import upload
 
 from .matplotlib import MatplotlibFigure
 
