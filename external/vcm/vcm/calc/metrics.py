@@ -108,3 +108,7 @@ def f1_score(truth, pred, mean=default_mean):
 
 
 recall = true_positive_rate
+
+
+def mean_squared_error(truth, pred, mean=default_mean):
+    return mean((truth - pred) ** 2)

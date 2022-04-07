@@ -7,6 +7,7 @@ from vcm import (
     false_positive_rate,
     accuracy,
     f1_score,
+    mean_squared_error,
 )
 
 
@@ -40,3 +41,9 @@ def test_classification_score_error_if_not_binary(score):
     x = xarray.DataArray([1.0], dims=["sample"])
     with pytest.raises(ValueError):
         score(x, x)
+
+
+def test_mean_squared_error():
+    x = xarray.DataArray([1.0, 2.0, 3.0], dims=["sample"])
+    y = xarray.DataArray([1.0, 2.0, 3.0], dims=["sample"])
+    assert mean_squared_error(x, y) == 0.0
