@@ -113,6 +113,8 @@ class TrainingConfig:
                 "output_variables"
             )
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
+        print("hyperparameter class: ", hyperparameter_class)
+        print(kwargs)
         kwargs["hyperparameters"] = dacite.from_dict(
             data_class=hyperparameter_class,
             data=kwargs.get("hyperparameters", {}),
@@ -265,6 +267,8 @@ def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]
         config_dict: the configuration to update
     """
     config = to_flat_dict(config_dict)
+    print("config dict before arg update: ")
+    print(config)
     parser = ArgumentParser()
     _add_items_to_parser_arguments(config, parser)
     try:
@@ -274,6 +278,8 @@ def get_arg_updated_config_dict(args: Sequence[str], config_dict: Dict[str, Any]
 
     update_dict = vars(updates)
     config.update(update_dict)
+    print("config after arg update: ")
+    print(to_nested_dict(config))
     return to_nested_dict(config)
 
 

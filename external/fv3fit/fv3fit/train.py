@@ -25,6 +25,7 @@ import wandb
 
 from vcm.cloud import copy
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -193,6 +194,9 @@ def main(args, unknown_args=None):
             # be referenced in the sweep configuration parameters
             # https://github.com/wandb/client/issues/982
             wandb.init(config=to_flat_dict(config_dict["hyperparameters"]))
+            logger.info("wandb config at init: ")
+            logger.info(wandb.config)
+            logger.info(to_nested_dict(wandb.config))
             # hyperparameters should be accessed throughthe wandb config so that
             # sweeps use the wandb-provided hyperparameter values
             config_dict["hyperparameters"] = to_nested_dict(wandb.config)
@@ -201,7 +205,8 @@ def main(args, unknown_args=None):
             )
             wandb.config["training_config"] = config_dict
             wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
-
+        logger.info("config dict: ")
+        logger.info(config_dict)
         training_config = fv3fit.TrainingConfig.from_dict(config_dict)
 
     with open(args.training_data_config, "r") as f:
@@ -244,6 +249,7 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
+
     with tempfile.NamedTemporaryFile() as temp_log:
         logging.basicConfig(
             level=logging.INFO,
