@@ -6,6 +6,7 @@ import contextlib
 from pathlib import Path
 
 import fv3config
+from .logs import handle_fv3_log
 
 runfile = Path(__file__).parent.parent / "main.py"
 
@@ -45,9 +46,12 @@ def run_segment(config: dict, rundir: str):
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                text=True,
             )
-            for c in iter(lambda: process.stdout.read(32), b""):  # type: ignore
-                sys.stdout.write(c.decode("utf-8"))
-                f.write(c.decode("utf-8"))
+            # need this assertion so that mypy knows that stdout is not None
+            assert process.stdout, "stdout should not be None"
+            for line in handle_fv3_log(process.stdout):
+                for out_file in [sys.stdout, f]:
+                    print(line.strip(), file=out_file)
 
         return process.wait()
