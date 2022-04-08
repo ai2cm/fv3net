@@ -6,7 +6,6 @@ Description of special payload strings
 https://cloud.google.com/logging/docs/structured-logging#special-payload-fields
 """
 from dataclasses import dataclass
-import logging
 import re
 from enum import Enum
 from typing import Mapping, Optional
@@ -132,13 +131,3 @@ def handle_fv3_log(f: Iterable[str], labels: Mapping[str, Any] = {},) -> Iterabl
     handler = Handler(labels)
     for line in f:
         yield handler.handle(parse_line(line))
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    fname = "/Users/noahb/workspace/ai2cm/fv3net/logs.txt"
-    import fileinput
-
-    with fileinput.input() as f:
-        for line in handle_fv3_log(f, labels={"fname": fileinput.filename()}):
-            print(line)
