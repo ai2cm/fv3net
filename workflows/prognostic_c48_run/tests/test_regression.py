@@ -727,7 +727,7 @@ def test_fv3run_emulation_zarr_out(completed_rundir, configuration, regtest):
     emu_state_zarr.info(regtest)
 
 
-def test_each_line_of_life_is_json(completed_segment):
+def test_each_line_of_file_is_json(completed_segment):
     with completed_segment.join("logs.txt").open() as f:
         k = 0
         for line in f:

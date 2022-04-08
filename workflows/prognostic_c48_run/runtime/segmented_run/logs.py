@@ -60,7 +60,7 @@ def parse_line(line):
 
 
 class Handler:
-    """Handler handels the parsed lines produces by the log stream
+    """Handler handles the parsed lines produces by the log stream
 
     Attributes:
         model_time: the last handled time

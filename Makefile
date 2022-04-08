@@ -26,17 +26,13 @@ build_image_%:
 build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
 
-build_image_log_handler: docker/log_handler/requirements.txt
-
-build_image_fv3fit: docker/fv3fit/requirements.txt
-
-build_image_prognostic_run: docker/prognostic_run/requirements.txt
+build_image_prognostic_run:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
 		--target prognostic-run \
 		--build-arg BASE_IMAGE=ubuntu:20.04 .
 
-build_image_prognostic_run_gpu: docker/prognostic_run/requirements.txt
+build_image_prognostic_run_gpu:
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run_gpu:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run_gpu:$(VERSION) \
 		--target prognostic-run \
@@ -185,9 +181,7 @@ lock_deps: lock_pip
 
 constraints.txt:
 	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
-		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/' \
-		| grep -v google-python-cloud-debugger \
-		> .dataflow-versions.txt
+		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/'> .dataflow-versions.txt
 
 	pip-compile  \
 	--no-annotate \
@@ -206,13 +200,6 @@ constraints.txt:
 	rm -f constraints.txt.bak .dataflow-versions.txt
 	@echo "remember to update numpy version in external/vcm/pyproject.toml"
 
-
-docker/%/requirements.txt: docker/%/requirements.in
-	cp -f constraints.txt $@
-	pip-compile  \
-	--no-annotate \
-	--output-file $@ $<
-
 docker/prognostic_run/requirements.txt: constraints.txt
 	cp constraints.txt docker/prognostic_run/requirements.txt
 	# this will subset the needed dependencies from constraints.txt
@@ -228,7 +215,7 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		workflows/prognostic_c48_run/requirements.in
 
 docker/fv3fit/requirements.txt: constraints.txt
-	cp constraints.txt $@
+	cp constraints.txt docker/prognostic_run/requirements.txt
 	# this will subset the needed dependencies from constraints.txt
 	# while preserving the versions
 	pip-compile --no-annotate \
@@ -237,9 +224,9 @@ docker/fv3fit/requirements.txt: constraints.txt
 		external/loaders/setup.py \
 		external/vcm/setup.py
 
-.PHONY: lock_pip
+.PHONY: lock_pip constraints.txt docker/prognostic_run/requirements.txt
 ## Lock the pip dependencies of this repo
-lock_pip: constraints.txt
+lock_pip: constraints.txt docker/prognostic_run/requirements.txt docker/fv3fit/requirements.txt
 
 ## Install External Dependencies
 install_deps:
