@@ -36,10 +36,10 @@ class Config:
 
 class TendencyOrStateMultiModelAdapter:
     """Adapter for multiple models that predict tendencies and state updates.
-    
+
     Args:
         models: Sequence of fv3fit.Predictor objects.
-        tendency_predictions: Mapping from names of outputs predicted by ML model to 
+        tendency_predictions: Mapping from names of outputs predicted by ML model to
             state names. These predictions will be multiplied by the physics timestep.
         state_predictions: Mapping from names of outputs predicted by ML model to
             state names. The state will be set to be equal to these predictions.
@@ -77,7 +77,7 @@ class TendencyOrStateMultiModelAdapter:
 
         Note:
             Tendencies are summed over all predictions for a given variable. For
-            example, if self.tendency_predictions = {'Q1': 'air_temperature', 
+            example, if self.tendency_predictions = {'Q1': 'air_temperature',
             'air_temperature_tendency_due_to_nudging': 'air_temperature'} then
             the returned tendency dataset will contain a tendency for
             'air_temperature' that is the sum of these two predicted tendencies.
