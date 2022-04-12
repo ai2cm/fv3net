@@ -169,7 +169,10 @@ def plot_histogram(
     bin_name = varname.replace("histogram", "bins")
     for run in run_diags.runs:
         v = run_diags.get_variable(run, varname)
-        ax.step(v[bin_name], v, label=run, where="post", linewidth=1)
+        if run == "verification":
+            ax.step(v[bin_name], v, label=run, where="post", linewidth=1, color="k")
+        else:
+            ax.step(v[bin_name], v, label=run, where="post", linewidth=1)
     ax.set_xlabel(f"{v.long_name} [{v.units}]")
     ax.set_ylabel(f"Frequency [({v.units})^-1]")
     ax.set_xscale(xscale)

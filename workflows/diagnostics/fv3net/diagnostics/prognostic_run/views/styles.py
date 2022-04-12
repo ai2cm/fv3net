@@ -6,6 +6,5 @@ modified_wong_palette = [
     "#0072B2",
     "#D55E00",
     "#CC79A7",
-    "#F0E442",  # put yellow and black last
-    "#000000",
+    "#F0E442",  # put yellow last
 ]

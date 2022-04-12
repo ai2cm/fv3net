@@ -103,9 +103,10 @@ def plot_1d(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:
         for varname in vars_to_plot:
             v = run_diags.get_variable(run, varname).rename("value")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
+            color = "black" if run == "verification" else COLOR_CYCLE
             long_name = v.long_name
             hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
-                line_dash=style, color=COLOR_CYCLE
+                line_dash=style, color=color
             )
     return HVPlot(_set_opts_and_overlay(hmap))
 
@@ -125,13 +126,14 @@ def plot_1d_min_max_with_region_bar(
             vmin = run_diags.get_variable(run, min_var).rename("min")
             vmax = run_diags.get_variable(run, max_var).rename("max")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
+            color = "black" if run == "verification" else COLOR_CYCLE
             long_name = vmin.long_name
             region = min_var.split("_")[-1]
             # Area plot doesn't automatically add correct y label
             ylabel = f'{vmin.attrs["long_name"]} {vmin.attrs["units"]}'
             hmap[(long_name, region, run)] = hv.Area(
                 (vmin.time, vmin, vmax), label="Min/max", vdims=["y", "y2"]
-            ).options(line_dash=style, color=COLOR_CYCLE, alpha=0.6, ylabel=ylabel)
+            ).options(line_dash=style, color=color, alpha=0.6, ylabel=ylabel)
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
@@ -145,10 +147,11 @@ def plot_1d_with_region_bar(run_diags: RunDiagnostics, varfilter: str) -> HVPlot
         for varname in vars_to_plot:
             v = run_diags.get_variable(run, varname).rename("value")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
+            color = "black" if run == "verification" else COLOR_CYCLE
             long_name = v.long_name
             region = varname.split("_")[-1]
             hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
-                line_dash=style, color=COLOR_CYCLE
+                line_dash=style, color=color
             )
     return HVPlot(_set_opts_and_overlay(hmap))
 
