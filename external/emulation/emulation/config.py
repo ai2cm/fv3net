@@ -1,5 +1,6 @@
 import dataclasses
 import datetime
+from functools import partial
 import logging
 from typing import Iterable, Mapping, Optional
 
@@ -15,6 +16,7 @@ from emulation._emulate.microphysics import (
 from emulation._monitor.monitor import StorageConfig, StorageHook
 from emulation._time import from_datetime, to_datetime
 from emulation.masks import RangeMask, compose_masks
+import emulation.zhao_carr
 
 logger = logging.getLogger("emulation")
 
@@ -47,6 +49,8 @@ class ModelConfig:
     path: str
     online_schedule: Optional[IntervalSchedule] = None
     ranges: Mapping[str, Range] = dataclasses.field(default_factory=dict)
+    cloud_squash: float = 0.0
+    gscond_cloud_conservative: bool = False
 
     def build(self) -> MicrophysicsHook:
         return MicrophysicsHook(self.path, mask=self._build_mask())
@@ -60,6 +64,12 @@ class ModelConfig:
 
         for key, range in self.ranges.items():
             yield RangeMask(key, min=range.min, max=range.max)
+
+        yield partial(
+            emulation.zhao_carr.modify_zhao_carr,
+            cloud_squash=self.cloud_squash,
+            gscond_cloud_conservative=self.gscond_cloud_conservative,
+        )
 
 
 @dataclasses.dataclass
