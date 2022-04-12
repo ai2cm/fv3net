@@ -27,7 +27,18 @@ class PrecpdOutput:
 def squash_water_water_conserving(cloud, qv, bound: float):
     cloud_out = np.where(cloud < bound, 0, cloud)
     qv_out = qv + (cloud - cloud_out)
-    return qv_out
+    return cloud_out, qv_out
+
+
+def _apply_squash(struct, emulator, cloud_squash: float):
+    if struct.cloud_water in emulator:
+        if cloud_squash:
+            cloud, humidity = squash_water_water_conserving(
+                emulator[struct.cloud_water], emulator[struct.humidity], cloud_squash,
+            )
+
+            emulator[struct.cloud_water] = cloud
+            emulator[struct.humidity] = humidity
 
 
 def modify_zhao_carr(
@@ -45,19 +56,6 @@ def modify_zhao_carr(
         humidity_change = emulator[GscondOutput.humidity] - state[Input.humidity]
         state[GscondOutput.cloud_water] = state[Input.cloud_water] - humidity_change
 
-    if GscondOutput.cloud_water in emulator:
-        if cloud_squash:
-            emulator[GscondOutput.cloud_water] = squash_water_water_conserving(
-                emulator[GscondOutput.cloud_water],
-                emulator[GscondOutput.humidity],
-                cloud_squash,
-            )
-
-    if PrecpdOutput.humidity in emulator:
-        if cloud_squash:
-            emulator[PrecpdOutput.cloud_water] = squash_water_water_conserving(
-                emulator[PrecpdOutput.cloud_water],
-                emulator[PrecpdOutput.humidity],
-                cloud_squash,
-            )
+    _apply_squash(GscondOutput, emulator, cloud_squash)
+    _apply_squash(PrecpdOutput, emulator, cloud_squash)
     return emulator
