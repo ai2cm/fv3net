@@ -9,6 +9,7 @@ ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_NAME ?= fv3net
 CACHE_TAG =latest
 BEAM_VERSION = 2.37.0
+UBUNTU_IMAGE = ubuntu@sha256:9101220a875cee98b016668342c489ff0674f247f6ca20dfc91b91c0f28581ae
 
 IMAGES = fv3net post_process_run prognostic_run
 
@@ -32,7 +33,7 @@ build_image_prognostic_run: docker/prognostic_run/requirements.txt
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
 		--target prognostic-run \
-		--build-arg BASE_IMAGE=ubuntu:20.04 .
+		--build-arg BASE_IMAGE=$(UBUNTU_IMAGE) .
 
 build_image_prognostic_run_gpu: docker/prognostic_run/requirements.txt
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run_gpu:$(CACHE_TAG) \
