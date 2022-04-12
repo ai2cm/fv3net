@@ -48,16 +48,16 @@ spec:
           value: "{{workflow.name}}"
     dag:
       tasks:
-        - name: run-offline
-          template: run-model
-          arguments:
-            parameters:
-            - name: tag
-              value: "{{inputs.parameters.tag}}-offline"
-            - name: config
-              value:  "{{workflow.parameters.config}}"
-            - name: on_off_flag
-              value: --offline
+        # - name: run-offline
+        #   template: run-model
+        #   arguments:
+        #     parameters:
+        #     - name: tag
+        #       value: "{{inputs.parameters.tag}}-offline"
+        #     - name: config
+        #       value:  "{{workflow.parameters.config}}"
+        #     - name: on_off_flag
+        #       value: --offline
         - name: run-online
           template: run-model
           arguments:
@@ -75,22 +75,22 @@ spec:
             parameters:
             - name: tag
               value: "{{inputs.parameters.tag}}-online"
-        - name: piggy-offline
-          template: piggyback-diags
-          dependencies: [run-offline]
-          arguments:
-            parameters:
-            - name: tag
-              value: "{{inputs.parameters.tag}}-offline"
+        # - name: piggy-offline
+        #   template: piggyback-diags
+        #   dependencies: [run-offline]
+        #   arguments:
+        #     parameters:
+        #     - name: tag
+        #       value: "{{inputs.parameters.tag}}-offline"
         - name: prognostic-diags
-          dependencies: [run-offline, run-online]
+          dependencies: [run-online]
           template: prognostic-diags
           arguments:
             parameters:
             - name: tag
               value: "{{inputs.parameters.tag}}-online"
             - name: baseline_tag
-              value: "{{inputs.parameters.tag}}-offline"
+              value: squash-control-offline
   - name: run-model
     inputs:
       parameters:
