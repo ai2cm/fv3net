@@ -6,7 +6,6 @@ import fv3fit
 from runtime.steppers.machine_learning import non_negative_sphum_mse_conserving
 from runtime.types import State
 from runtime.names import SPHUM, TEMP
-from runtime.diagnostics.compute import precipitation_accumulation
 
 __all__ = ["Config", "Adapter"]
 
@@ -99,7 +98,6 @@ class Adapter:
 
     def apply(self, prediction: State, state: State):
         if self.config.online:
-            _replace_precip_rate_with_accumulation(prediction, self.timestep)
             state.update(prediction)
 
     def partial_fit(self, inputs: State, state: State):
@@ -127,21 +125,3 @@ class Adapter:
             limited_tendencies[TEMP] = q1_new
         return limited_tendencies
 
-
-PRECIP_RATE = "surface_precipitation_rate"
-TOTAL_PRECIP = "total_precipitation"  # has units of m
-
-
-# TODO: define setter for 'surface_precipitation_rate' in fv3gfs-wrapper
-# so that we do not need to do this conversion here. For now, this function
-# is copied from loop.py
-def _replace_precip_rate_with_accumulation(  # type: ignore
-    state_updates: State, dt: float
-) -> State:
-    # Precipitative ML models predict a rate, but the precipitation to update
-    # in the state is an accumulated total over the timestep
-    if PRECIP_RATE in state_updates:
-        state_updates[TOTAL_PRECIP] = precipitation_accumulation(
-            state_updates[PRECIP_RATE], dt
-        )
-        state_updates.pop(PRECIP_RATE)
