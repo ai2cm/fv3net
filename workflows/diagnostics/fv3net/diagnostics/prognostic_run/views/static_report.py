@@ -22,6 +22,7 @@ from .matplotlib import (
     plot_histogram,
     plot_histogram2d,
 )
+from .styles import modified_wong_palette
 from fv3net.diagnostics.prognostic_run.constants import (
     PERCENTILES,
     PRECIP_RATE,
@@ -42,6 +43,7 @@ warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
+COLOR_CYCLE = hv.Cycle(modified_wong_palette)
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 MovieManifest = Sequence[Tuple[str, str]]
 PublicLinks = Mapping[str, Sequence[Tuple[str, str]]]
@@ -94,7 +96,7 @@ class PlotManager:
 def plot_1d(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 1D."""
-    p = hv.Cycle("Colorblind")
+
     hmap = hv.HoloMap(kdims=["variable", "run"])
     vars_to_plot = run_diags.matching_variables(varfilter)
     for run in run_diags.runs:
@@ -103,7 +105,7 @@ def plot_1d(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:
             style = "solid" if run_diags.is_baseline(run) else "dashed"
             long_name = v.long_name
             hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
-                line_dash=style, color=p
+                line_dash=style, color=COLOR_CYCLE
             )
     return HVPlot(_set_opts_and_overlay(hmap))
 
@@ -113,7 +115,6 @@ def plot_1d_min_max_with_region_bar(
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 1D."""
-    p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
 
     variables_to_plot = run_diags.matching_variables(varfilter_min)
@@ -130,7 +131,7 @@ def plot_1d_min_max_with_region_bar(
             ylabel = f'{vmin.attrs["long_name"]} {vmin.attrs["units"]}'
             hmap[(long_name, region, run)] = hv.Area(
                 (vmin.time, vmin, vmax), label="Min/max", vdims=["y", "y2"]
-            ).options(line_dash=style, color=p, alpha=0.6, ylabel=ylabel)
+            ).options(line_dash=style, color=COLOR_CYCLE, alpha=0.6, ylabel=ylabel)
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
@@ -138,7 +139,6 @@ def plot_1d_with_region_bar(run_diags: RunDiagnostics, varfilter: str) -> HVPlot
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     Region will be selectable through a drop-down bar. Region is assumed to be part of
     variable name after last underscore. All matching diagnostics must be 1D."""
-    p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
     vars_to_plot = run_diags.matching_variables(varfilter)
     for run in run_diags.runs:
@@ -148,7 +148,7 @@ def plot_1d_with_region_bar(run_diags: RunDiagnostics, varfilter: str) -> HVPlot
             long_name = v.long_name
             region = varname.split("_")[-1]
             hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
-                line_dash=style, color=p
+                line_dash=style, color=COLOR_CYCLE
             )
     return HVPlot(_set_opts_and_overlay(hmap))
 
@@ -157,7 +157,12 @@ def _set_opts_and_overlay(hmap, overlay="run"):
     return (
         hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
         .overlay(overlay)
-        .opts(legend_position="right")
+        .opts(
+            legend_position="right",
+            bgcolor="lightgray",
+            show_grid=True,
+            gridstyle=dict(grid_line_color="white", grid_line_width=0.5),
+        )
     )
 
 
@@ -177,7 +182,6 @@ def diurnal_component_plot(
     diurnal_component_name="diurn_component",
 ) -> HVPlot:
 
-    p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["run", "surface_type", "short_varname"])
     variables_to_plot = run_diags.matching_variables(diurnal_component_name)
 
@@ -187,7 +191,7 @@ def diurnal_component_plot(
             short_vname, surface_type = _parse_diurnal_component_fields(varname)
             hmap[(run, surface_type, short_vname)] = hv.Curve(
                 v, label=diurnal_component_name
-            ).options(color=p)
+            ).options(color=COLOR_CYCLE)
     return HVPlot(_set_opts_and_overlay(hmap, overlay="short_varname"))
 
 
