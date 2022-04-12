@@ -124,4 +124,3 @@ class Adapter:
         if q1_new is not None:
             limited_tendencies[TEMP] = q1_new
         return limited_tendencies
-
