@@ -206,7 +206,6 @@ def main(args, unknown_args=None):
             wandb.config["training_config"] = config_dict
 
         training_config = fv3fit.TrainingConfig.from_dict(config_dict)
-
     with open(args.training_data_config, "r") as f:
         config_dict = yaml.safe_load(f)
         training_data_config = loaders.BatchesLoader.from_dict(config_dict)

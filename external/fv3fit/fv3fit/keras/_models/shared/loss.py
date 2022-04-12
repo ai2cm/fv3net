@@ -3,13 +3,13 @@ import numpy as np
 import tensorflow as tf
 
 
-def _standard_scaled_mse(std):
+def _standard_scaled_loss(std, loss=tf.losses.mse):
     std = tf.constant(std, dtype=std.dtype)
 
     def custom_loss(y_true, y_pred):
-        return tf.math.reduce_mean(
-            tf.math.reduce_mean(tf.math.square((y_pred - y_true) / std), axis=0)
-        )
+        y_true = y_true / std
+        y_pred = y_pred / std
+        return loss(y_true, y_pred)
 
     return custom_loss
 
@@ -25,11 +25,11 @@ def _standard_scaled_mae(std):
     return custom_loss
 
 
-def _uniform_scaled_mse(std):
+def _uniform_scaled_loss(std, loss=tf.losses.mse):
     factor = tf.constant(1.0 / np.mean(std ** 2), dtype=std.dtype)
 
     def custom_loss(y_true, y_pred):
-        return tf.math.scalar_mul(factor, tf.losses.mse(y_true, y_pred))
+        return tf.math.scalar_mul(factor, loss(y_true, y_pred))
 
     return custom_loss
 
@@ -54,7 +54,7 @@ def multiply_loss_by_factor(original_loss, factor):
 class LossConfig:
     """
     Attributes:
-        loss_type: one of "mse" or "mae"
+        loss_type: one of "mse", "mae", or "huber
         scaling: "standard" corresponds to scaling each feature's lossby
             its scale, "standard_uniform" corresponds to scaling
             each feature's loss by the mean of all feature scales, where
@@ -68,9 +68,9 @@ class LossConfig:
     weight: float = 1.0
 
     def __post_init__(self):
-        if self.loss_type not in ("mse", "mae"):
+        if self.loss_type not in ("mse", "mae", "huber"):
             raise ValueError(
-                f"loss_type must be 'mse' or 'mae', got '{self.loss_type}'"
+                f"loss_type must be 'mse', 'mae' or 'huber', got '{self.loss_type}'"
             )
         if self.scaling not in ("standard", "standard_uniform"):
             raise ValueError(
@@ -90,9 +90,14 @@ class LossConfig:
         """
         if self.loss_type == "mse":
             if self.scaling == "standard_uniform":
-                loss = _uniform_scaled_mse(std)
+                loss = _uniform_scaled_loss(std=std, loss=tf.losses.mse)
             elif self.scaling == "standard":
-                loss = _standard_scaled_mse(std)
+                loss = _standard_scaled_loss(std=std, loss=tf.losses.mse)
+        elif self.loss_type == "huber":
+            if self.scaling == "standard_uniform":
+                loss = _uniform_scaled_loss(std=std, loss=tf.keras.losses.Huber())
+            elif self.scaling == "standard":
+                loss = _standard_scaled_loss(std=std, loss=tf.keras.losses.Huber())
         elif self.loss_type == "mae":
             if self.scaling == "standard_uniform":
                 loss = _uniform_scaled_mae(std)

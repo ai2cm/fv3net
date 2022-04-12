@@ -1,4 +1,0 @@
-function: batches_from_netcdf
-kwargs:
-  path: cached_train
-  subsample_ratio: 0.125

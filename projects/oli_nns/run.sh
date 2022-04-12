@@ -33,7 +33,8 @@ if [ ! -d cached_train ]; then
     ./cache_data.sh
 fi
 echo "training model"
-python -m fv3fit.train training-config.yaml cached-train.yaml model --validation-data-config cached-validation.yaml
+python -m fv3fit.train training-config-$1.yaml train.yaml model_$1 --validation-data-config validation.yaml
+./report.sh model_$1
 # fil-profile run -m fv3fit.train train-dense.yaml cached_data.yaml model_1batch
 # echo "offline report for 1batch model"
 # python3 -m fv3net.diagnostics.offline.compute model_1batch train.yaml offline_diags_1batch

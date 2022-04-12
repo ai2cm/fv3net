@@ -105,44 +105,44 @@ class TrainingLoopConfig:
         fit_kwargs = dict(
             callbacks=[EpochCallback(func) for func in callbacks], epochs=self.epochs
         )
-        # if self.in_memory:
-        #     Xy_fit = _tfdataset_to_tensor_sequence(Xy)
-        #     if validation_data is not None:
-        #         validation_fit: Optional[
-        #             Tuple[Sequence[tf.Tensor], Sequence[tf.Tensor]]
-        #         ] = _tfdataset_to_tensor_sequence(validation_data)
-        #     else:
-        #         validation_fit = None
-        #     model.fit(
-        #         x=Xy_fit[0],
-        #         y=Xy_fit[1],
-        #         validation_data=validation_fit,
-        #         batch_size=self.batch_size,
-        #         **fit_kwargs,
-        #     )
-        # else:
         if self.in_memory:
-            Xy = Xy.cache()
+            Xy_fit = _tfdataset_to_tensor_sequence(Xy)
             if validation_data is not None:
-                validation_data = validation_data.cache()
-        Xy_fit = (  # input elements are [sample, z]
-            _shuffle_batched_tfdataset(
-                Xy, sample_buffer_size=self.shuffle_buffer_size
-            )  # elements are [z]
-            .batch(self.batch_size)  # elements are [sample, z]
-            .prefetch(tf.data.AUTOTUNE)
-        )
-        if validation_data is not None:
-            validation_fit = (
-                validation_data.unbatch()
-                # prediction insensitive to batching,
-                # use something big enough to keep processor busy
-                .batch(2048)
-                .prefetch(tf.data.AUTOTUNE)
+                validation_fit: Optional[
+                    Tuple[Sequence[tf.Tensor], Sequence[tf.Tensor]]
+                ] = _tfdataset_to_tensor_sequence(validation_data)
+            else:
+                validation_fit = None
+            model.fit(
+                x=Xy_fit[0],
+                y=Xy_fit[1],
+                validation_data=validation_fit,
+                batch_size=self.batch_size,
+                **fit_kwargs,
             )
         else:
-            validation_fit = None
-        model.fit(Xy_fit, validation_data=validation_fit, **fit_kwargs)
+            if self.in_memory:
+                Xy = Xy.cache()
+                if validation_data is not None:
+                    validation_data = validation_data.cache()
+            Xy_fit = (  # input elements are [sample, z]
+                _shuffle_batched_tfdataset(
+                    Xy, sample_buffer_size=self.shuffle_buffer_size
+                )  # elements are [z]
+                .batch(self.batch_size)  # elements are [sample, z]
+                .prefetch(tf.data.AUTOTUNE)
+            )
+            if validation_data is not None:
+                validation_fit = (
+                    validation_data.unbatch()
+                    # prediction insensitive to batching,
+                    # use something big enough to keep processor busy
+                    .batch(2048)
+                    .prefetch(tf.data.AUTOTUNE)
+                )
+            else:
+                validation_fit = None
+            model.fit(Xy_fit, validation_data=validation_fit, **fit_kwargs)
 
 
 class EpochCallback(tf.keras.callbacks.History):
