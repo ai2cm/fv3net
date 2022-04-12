@@ -71,7 +71,7 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
     regression_state(out, regtest)
 
 
-def test_multimodel_adapter(state):
+def test_tendency_or_state_multimodel_adapter(state):
     nz = 63
     outputs = {
         "Q1": np.full(nz, 1 / 86400),
@@ -135,7 +135,6 @@ def test_multimodel_adapter_integration(state, tmpdir_factory):
         state["air_temperature"] += 1
         return {"some_diag": state["specific_humidity"]}
 
+    assert "surface_precipitation_rate" not in state
     transform(add_one_to_temperature)()
-    assert "total_precipitation" in state
-    expected_precip = xr.full_like(state["surface_temperature"], 300.0 * 900 / 1000)
-    xr.testing.assert_allclose(state["total_precipitation"], expected_precip)
+    assert "surface_precipitation_rate" in state
