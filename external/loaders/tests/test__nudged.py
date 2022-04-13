@@ -241,12 +241,16 @@ def test_open_fine_resolution_nudging_hybrid(
 
 
 @pytest.mark.parametrize("use_fine_res_state", [True, False])
-def test_open_fine_resolution(regtest, fine_res_zarr, use_fine_res_state):
+@pytest.mark.parametrize("use_fine_res_fluxes", [True, False])
+def test_open_fine_resolution(
+    regtest, fine_res_zarr, use_fine_res_state, use_fine_res_fluxes
+):
     data = open_fine_resolution(
         approach="apparent_sources_only",
         fine_url=fine_res_zarr,
         include_temperature_nudging=True,
         use_fine_res_state=use_fine_res_state,
+        use_fine_res_fluxes=use_fine_res_fluxes,
     )
     data[timestep1_end].info(regtest)
 
