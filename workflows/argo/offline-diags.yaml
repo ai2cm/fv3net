@@ -45,6 +45,9 @@ spec:
             value: "{{inputs.parameters.wandb-tags}}"
           - name: WANDB_RUN_GROUP
             value: "{{inputs.parameters.wandb-run-group}}"
+        envFrom:
+          - secretRef:
+              name: wandb-token
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
