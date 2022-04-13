@@ -182,7 +182,16 @@ lock_deps: lock_pip
 	conda-lock -f environment.yml
 	# external directories must be explicitly listed to avoid model requirements files which use locked versions
 
-constraints.txt:
+REQUIREMENTS = external/vcm/setup.py \
+	pip-requirements.txt \
+	external/fv3kube/setup.py \
+	external/fv3fit/setup.py \
+	external/*.requirements.in \
+	workflows/post_process_run/requirements.txt \
+	workflows/prognostic_c48_run/requirements.in \
+	projects/microphysics/requirements.in
+
+constraints.txt: $(REQUIREMENTS)
 	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
 		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/' \
 		| grep -v google-python-cloud-debugger \
@@ -191,14 +200,7 @@ constraints.txt:
 	pip-compile  \
 	--no-annotate \
 	.dataflow-versions.txt \
-	external/vcm/setup.py \
-	pip-requirements.txt \
-	external/fv3kube/setup.py \
-	external/fv3fit/setup.py \
-	external/*.requirements.in \
-	workflows/post_process_run/requirements.txt \
-	workflows/prognostic_c48_run/requirements.in \
-	$< \
+	$^ \
 	--output-file constraints.txt
 	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
 	sed -i.bak  's/\[.*\]//g' constraints.txt
