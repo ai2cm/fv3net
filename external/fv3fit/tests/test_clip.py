@@ -2,7 +2,11 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
-from fv3fit.keras._models.shared.clip import ClipConfig
+from fv3fit.keras._models.shared.clip import (
+    ClipConfig,
+    TaperConfig,
+    clip_and_taper_sequence,
+)
 from fv3fit._shared.config import SliceConfig
 
 
@@ -95,3 +99,36 @@ def test_ClipConfig_zero_mask_clipped_layer_2d():
     predict = model.predict(np.array([test_input]))
     expected = np.array([[0, 0, 2, 3, 4, 0], [0, 0, 8, 9, 10, 0]])
     assert np.array_equal(predict[0], expected)
+
+
+@pytest.mark.parametrize(
+    "clip_config, expected",
+    [
+        pytest.param(
+            ClipConfig(taper={"var": TaperConfig(cutoff=2, rate=1)}),
+            np.array([0 * 0.13533528, 1 * 0.36787944, 2, 3]),
+            id="taper",
+        ),
+        pytest.param(
+            ClipConfig(
+                clip={"var": SliceConfig(1, None)},
+                taper={"var": TaperConfig(cutoff=2, rate=1)},
+            ),
+            np.array([1 * 0.36787944, 2, 3]),
+            id="clip_and_taper",
+        ),
+    ],
+)
+def test_ClipConfig_clip_and_taper(clip_config, expected):
+    layer = tf.keras.layers.Input(shape=(4,))
+    # tapered = clip_config.taper_layer(layer, "var")
+    # clipped = clip_config.clip_layer(tapered, "var")
+    print(clip_config.clip["var"])
+    model = tf.keras.Model(
+        inputs=layer, outputs=clip_and_taper_sequence(clip_config, [layer], ["var"])
+    )
+    test_input = np.array([[i for i in range(4)]])
+    predict = model.predict(test_input)
+    print(predict[0])
+    print(expected)
+    np.testing.assert_array_almost_equal(predict[0], expected)

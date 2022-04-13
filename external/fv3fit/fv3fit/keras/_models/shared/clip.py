@@ -91,22 +91,7 @@ class ClipConfig(PackerConfig):
             return clip_object
 
 
-def taper_sequence(
-    config: ClipConfig,
-    taper_objects: Sequence[Clippable],
-    variable_names: Sequence[str],
-) -> Sequence[tf.Tensor]:
-
-    outputs = []
-    for layer, name in zip(taper_objects, variable_names):
-        if name in config.taper:
-            outputs.append(config.taper_layer(layer, name))
-        else:
-            outputs.append(layer)
-    return outputs
-
-
-def clip_sequence(
+def clip_and_taper_sequence(
     config: ClipConfig, clip_objects: Sequence[Clippable], variable_names: Sequence[str]
 ) -> Sequence[tf.Tensor]:
     """Takes a sequence of arrays or layers and applies clipping to those that have
@@ -118,11 +103,24 @@ def clip_sequence(
         variable_names: ordered list of variable names corresponding to the items
         in sequence
     """
-    outputs = []
+    outputs = []  # type: ignore
     for layer, name in zip(clip_objects, variable_names):
         layer_ = layer
+        if name in config.taper:
+            layer_ = config.taper_layer(layer_, name)
         if name in config.clip:
             layer_ = config.clip_along_last_dim(layer_, name)
+        outputs.append(layer_)
+
+    return outputs
+
+
+def taper_sequence(
+    config: ClipConfig, clip_objects: Sequence[Clippable], variable_names: Sequence[str]
+) -> Sequence[tf.Tensor]:
+    outputs = []  # type: ignore
+    for layer, name in zip(outputs, variable_names):
+        layer_ = layer
         if name in config.taper:
             layer_ = config.taper_layer(layer_, name)
         outputs.append(layer_)

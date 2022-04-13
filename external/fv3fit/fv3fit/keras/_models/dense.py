@@ -36,7 +36,11 @@ from fv3fit.keras._models.shared.utils import (
     full_standard_normalized_input,
 )
 from fv3fit import tfdataset
-from fv3fit.keras._models.shared.clip import clip_sequence, ClipConfig, taper_sequence
+from fv3fit.keras._models.shared.clip import (
+    clip_and_taper_sequence,
+    ClipConfig,
+    taper_sequence,
+)
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping, clip_sample
 
 
@@ -246,12 +250,12 @@ def build_model(
         y: example output for keras fitting, used to determine shape and normalization
     """
     input_layers = [tf.keras.layers.Input(shape=arr.shape[1]) for arr in X]
-    clipped_input_layers = clip_sequence(
+    clipped_input_layers = clip_and_taper_sequence(
         config.clip_config, input_layers, config.input_variables
     )
     full_input = full_standard_normalized_input(
         clipped_input_layers,
-        clip_sequence(config.clip_config, X, config.input_variables),
+        clip_and_taper_sequence(config.clip_config, X, config.input_variables),
         config.input_variables,
     )
 
@@ -279,23 +283,31 @@ def build_model(
 
     # Model used in training has output levels clipped off, so std also must
     # be calculated over the same set of levels after clipping.
-    clipped_denorm_output_layers = clip_sequence(
+    clipped_and_tapered_denorm_output_layers = clip_and_taper_sequence(
         config.clip_config, denorm_output_layers, config.output_variables
     )
-    clipped_output_arrays = clip_sequence(
+
+    clipped_and_tapered_output_arrays = clip_and_taper_sequence(
         config.clip_config, list(y), config.output_variables
     )
-    clipped_output_stds = (
+
+    clipped_and_tapered_output_stds = (
         np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)
-        for array in clipped_output_arrays
+        for array in clipped_and_tapered_output_arrays
     )
+    print("output layer shapes: ")
+
+    print([arr.shape for arr in clipped_and_tapered_denorm_output_layers])
+    print("std shapes: ")
+
+    print([arr.shape for arr in clipped_and_tapered_output_stds])
 
     train_model = tf.keras.Model(
-        inputs=input_layers, outputs=clipped_denorm_output_layers
+        inputs=input_layers, outputs=clipped_and_tapered_denorm_output_layers
     )
     train_model.compile(
         optimizer=config.optimizer_config.instance,
-        loss=[config.loss.loss(std) for std in clipped_output_stds],
+        loss=[config.loss.loss(std) for std in clipped_and_tapered_output_stds],
     )
 
     # Returns a separate prediction model where outputs layers have

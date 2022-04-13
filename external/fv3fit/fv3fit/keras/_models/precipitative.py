@@ -7,7 +7,7 @@ from fv3fit._shared.config import (
     RegularizerConfig,
     register_training_function,
 )
-from fv3fit.keras._models.shared.clip import ClipConfig, clip_sequence
+from fv3fit.keras._models.shared.clip import ClipConfig, clip_and_taper_sequence
 from fv3fit.keras._models.shared.loss import LossConfig
 import tensorflow as tf
 from ..._shared.config import Hyperparameters
@@ -194,7 +194,7 @@ def build_model(
     get updated.
     """
     input_layers = [tf.keras.layers.Input(shape=arr.shape[1]) for arr in X]
-    clipped_input_layers = clip_sequence(
+    clipped_input_layers = clip_and_taper_sequence(
         config.clip_config, input_layers, config.input_variables
     )
     # TODO: fold full_standard_normalized_input up to standard_denormalize
@@ -202,7 +202,7 @@ def build_model(
     # in three training routines
     full_input = full_standard_normalized_input(
         clipped_input_layers,
-        clip_sequence(config.clip_config, X, config.input_variables),
+        clip_and_taper_sequence(config.clip_config, X, config.input_variables),
         config.input_variables,
     )
 
