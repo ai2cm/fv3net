@@ -24,7 +24,7 @@ import fsspec
 from joblib import Parallel, delayed
 
 
-from typing import Mapping, Union, Tuple, Sequence
+from typing import Optional, Mapping, MutableMapping, Union, Tuple, Sequence
 
 import vcm
 
@@ -107,7 +107,7 @@ def _merge_diag_computes(
 
 
 def merge_diags(diags: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, xr.DataArray]:
-    out = {}
+    out: MutableMapping[str, xr.DataArray] = {}
     for name, ds in diags:
         out.update(_prepare_diag_dict(name, ds))
     return out
@@ -155,11 +155,13 @@ def time_mean(ds: xr.Dataset, dim: str = "time") -> xr.Dataset:
     return _assign_diagnostic_time_attrs(result, ds)
 
 
-def _get_time_attrs(ds: Union[xr.Dataset, xr.DataArray]) -> Mapping[str, str]:
+def _get_time_attrs(ds: Union[xr.Dataset, xr.DataArray]) -> Optional[Mapping[str, str]]:
     if "time" in ds.coords:
         start_time = str(ds.time.values[0])
         end_time = str(ds.time.values[-1])
         return {"diagnostic_start_time": start_time, "diagnostic_end_time": end_time}
+    else:
+        return None
 
 
 def _assign_diagnostic_time_attrs(

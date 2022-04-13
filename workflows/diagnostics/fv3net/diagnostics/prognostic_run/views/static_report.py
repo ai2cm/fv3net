@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from typing import Iterable, Mapping, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 import os
 import xarray as xr
 import fsspec
@@ -44,7 +44,7 @@ logging.basicConfig(level=logging.INFO)
 hv.extension("bokeh")
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 MovieManifest = Sequence[Tuple[str, str]]
-PublicLinks = Mapping[str, Sequence[Tuple[str, str]]]
+PublicLinks = Dict[str, List[Tuple[str, str]]]
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -536,7 +536,7 @@ def _get_movie_manifest(movie_urls: MovieUrls, output: str) -> MovieManifest:
 
 def _get_public_links(movie_urls: MovieUrls, output: str) -> PublicLinks:
     """Get the public links at which each movie can be opened in a browser."""
-    public_links = {}
+    public_links: PublicLinks = {}
     for run_name, urls in movie_urls.items():
         for url in urls:
             movie_name = _movie_name(url)
@@ -638,7 +638,3 @@ def main_json(args):
         args.input, args.urls_are_rundirs
     )
     make_report(computed_diagnostics, args.output)
-
-
-if __name__ == "__main__":
-    main()

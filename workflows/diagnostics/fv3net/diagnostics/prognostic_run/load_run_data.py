@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from typing_extensions import Protocol
-from typing import List
+from typing import List, Mapping
 import warnings
 
 import fsspec
@@ -135,7 +135,9 @@ def loads_stats(b: bytes):
 def open_segmented_stats(url: str) -> pd.DataFrame:
     fs = get_fs(url)
     logfiles = sorted(fs.glob(f"{url}/**/statistics.txt"))
-    records = sum([loads_stats(fs.cat(logfile)) for logfile in logfiles], [])
+    records: List[Mapping] = sum(
+        [loads_stats(fs.cat(logfile)) for logfile in logfiles], []
+    )
     return pd.DataFrame.from_records(records)
 
 
