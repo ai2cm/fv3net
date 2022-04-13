@@ -1,9 +1,10 @@
+import dataclasses
 import logging
 import os
 from multiprocessing import get_context
 import subprocess
 import tempfile
-from typing import Mapping, Sequence, Tuple
+from typing import Callable, Sequence, Tuple
 
 import dask
 
@@ -43,6 +44,13 @@ WIND_TENDENCY_PLOT_KWARGS = {
     "column_int_dQu": {"vmin": -4, "vmax": 4, "cmap": "RdBu_r"},
     "column_int_dQv": {"vmin": -4, "vmax": 4, "cmap": "RdBu_r"},
 }
+
+
+@dataclasses.dataclass
+class MovieSpec:
+    name: str
+    plotting_function: Callable[[MovieArg], None]
+    required_variables: Sequence[str]
 
 
 def _plot_maps(ds, axes, plot_kwargs):
@@ -89,35 +97,24 @@ def _non_zero(ds: xr.Dataset, variables: Sequence, tol=1e-12) -> bool:
     return False
 
 
-def _movie_specs():
-    """Return mapping of movie name to movie specification.
-
-    Movie specification is a mapping with a "plotting_function" key and
-    a "required_variables" key.
-
-    Each plotting function must have following signature:
-
-        func(arg: MovieArg)
-
-        where arg is a tuple of an xr.Dataset containing the data to be plotted
-        and a path for where func should save the figure it generates.
-    """
-    return {
-        "column_ML_wind_tendencies": {
-            "plotting_function": _save_wind_tendency_fig,
-            "required_variables": list(WIND_TENDENCY_PLOT_KWARGS.keys()),
-        },
-        "column_heating_moistening": {
-            "plotting_function": _save_heating_moistening_fig,
-            "required_variables": list(HEATING_MOISTENING_PLOT_KWARGS.keys()),
-        },
-    }
+_MOVIE_SPECS = [
+    MovieSpec(
+        "column_ML_wind_tendencies",
+        _save_wind_tendency_fig,
+        list(WIND_TENDENCY_PLOT_KWARGS.keys()),
+    ),
+    MovieSpec(
+        "column_heating_moistening",
+        _save_heating_moistening_fig,
+        list(HEATING_MOISTENING_PLOT_KWARGS.keys()),
+    ),
+]
 
 
-def _create_movie(name: str, spec: Mapping, ds: xr.Dataset, output: str, n_jobs: int):
+def _create_movie(spec: MovieSpec, ds: xr.Dataset, output: str, n_jobs: int):
     fs = vcm.cloud.get_fs(output)
-    func = spec["plotting_function"]
-    required_variables = spec["required_variables"]
+    name = spec.name
+    required_variables = list(spec.required_variables)
     logger.info(f"Forcing load for required variables for {name} movie")
     data = ds[GRID_VARS + required_variables].load()
     T = data.sizes["time"]
@@ -127,7 +124,7 @@ def _create_movie(name: str, spec: Mapping, ds: xr.Dataset, output: str, n_jobs:
             filename = os.path.join(tmpdir, name + FIG_SUFFIX)
             func_args = [(data.isel(time=t), filename % t) for t in range(T)]
             with get_context("spawn").Pool(n_jobs) as p:
-                p.map(func, func_args)
+                p.map(spec.plotting_function, func_args)
             movie_path = _stitch_movie_stills(filename)
             fs.put(movie_path, os.path.join(output, f"{name}.mp4"))
     else:
@@ -196,5 +193,5 @@ def main(args):
         max_time = min(args.n_timesteps, prognostic.sizes["time"])
         prognostic = prognostic.isel(time=slice(None, max_time))
 
-    for name, movie_spec in _movie_specs().items():
-        _create_movie(name, movie_spec, prognostic, args.output, args.n_jobs)
+    for movie_spec in _MOVIE_SPECS:
+        _create_movie(movie_spec, prognostic, args.output, args.n_jobs)
