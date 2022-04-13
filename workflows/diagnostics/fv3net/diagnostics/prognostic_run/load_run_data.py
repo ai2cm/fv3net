@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def load_verification(
-    catalog_keys: List[str], catalog: intake.catalog.Catalog,
+    catalog_keys: List[str], catalog: intake.catalog.Catalog, join="outer"
 ) -> xr.Dataset:
 
     """
@@ -31,6 +31,7 @@ def load_verification(
     Args:
         catalog_keys: catalog sources to load as verification data
         catalog: Intake catalog of available data sources.
+        join: how to join verification data sources.
 
     Returns:
         All specified verification datasources standardized and merged
@@ -41,7 +42,7 @@ def load_verification(
         ds = catalog[dataset_key].to_dask()
         ds = standardize_fv3_diagnostics(ds)
         verif_data.append(ds)
-    return xr.merge(verif_data, join="outer")
+    return xr.merge(verif_data, join=join)
 
 
 def _load_standardized(path):
@@ -176,6 +177,7 @@ class CatalogSimulation:
 
     tag: str
     catalog: intake.catalog.base.Catalog
+    join_2d: str = "outer"
 
     @property
     def _verif_entries(self):
@@ -183,7 +185,9 @@ class CatalogSimulation:
 
     @property
     def data_2d(self) -> xr.Dataset:
-        return load_verification(self._verif_entries["2d"], self.catalog)
+        return load_verification(
+            self._verif_entries["2d"], self.catalog, join=self.join_2d
+        )
 
     @property
     def data_3d(self) -> xr.Dataset:
@@ -197,6 +201,7 @@ class CatalogSimulation:
 class SegmentedRun:
     url: str
     catalog: intake.catalog.base.Catalog
+    join_2d: str = "outer"
 
     @property
     def data_2d(self) -> xr.Dataset:
@@ -214,7 +219,7 @@ class SegmentedRun:
                 load_coarse_data(diags_url, catalog).fillna(0.0),
                 load_coarse_data(sfc_dt_atmos_url, catalog),
             ],
-            join="outer",
+            join=self.join_2d,
         )
 
     @property

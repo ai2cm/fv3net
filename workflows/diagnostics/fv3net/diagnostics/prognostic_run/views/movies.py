@@ -16,9 +16,12 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import fv3viz
 import vcm
-import vcm.catalog
 
 from fv3net.diagnostics.prognostic_run import derived_variables
+from fv3net.diagnostics.prognostic_run.compute import (
+    add_catalog_and_verification_arguments,
+    get_verification,
+)
 import fv3net.diagnostics.prognostic_run.load_run_data as load_diags
 
 dask.config.set(sheduler="single-threaded")
@@ -45,12 +48,19 @@ WIND_TENDENCY_PLOT_KWARGS = {
     "column_int_dQv": {"vmin": -4, "vmax": 4, "cmap": "RdBu_r"},
 }
 
+WATER_VAPOR_PATH_PLOT_KWARGS = {
+    "water_vapor_path": {"vmin": 0, "vmax": 60, "cmap": "viridis"},
+    "water_vapor_path_verification": {"vmin": 0, "vmax": 60, "cmap": "viridis"},
+    "water_vapor_path_bias": {"vmin": -10, "vmax": 10, "cmap": "RdBu_r"},
+}
+
 
 @dataclasses.dataclass
 class MovieSpec:
     name: str
     plotting_function: Callable[[MovieArg], None]
     required_variables: Sequence[str]
+    require_verification_data: bool = False
 
 
 def _plot_maps(ds, axes, plot_kwargs):
@@ -88,6 +98,24 @@ def _save_wind_tendency_fig(arg: MovieArg):
     plt.close(fig)
 
 
+def _save_water_vapor_path_fig(arg: MovieArg):
+    ds, fig_filename = arg
+    with xr.set_options(keep_attrs=True):
+        ds["water_vapor_path_bias"] = (
+            ds["water_vapor_path"] - ds["water_vapor_path_verification"]
+        )
+    print(f"Saving to {fig_filename}")
+    fig, axes = plt.subplots(
+        1, 3, figsize=(14, 2.8), subplot_kw={"projection": ccrs.Robinson()}
+    )
+    _plot_maps(ds, axes, WATER_VAPOR_PATH_PLOT_KWARGS)
+    fig.suptitle(ds.time.values.item())
+    plt.subplots_adjust(left=0.01, right=0.92, bottom=0.05, wspace=0.25)
+    with fsspec.open(fig_filename, "wb") as fig_file:
+        fig.savefig(fig_file, dpi=100)
+    plt.close(fig)
+
+
 def _non_zero(ds: xr.Dataset, variables: Sequence, tol=1e-12) -> bool:
     """Check whether any of variables are non-zero. Useful to ensure that
     movies of all zero-valued fields are not generated."""
@@ -108,7 +136,14 @@ _MOVIE_SPECS = [
         _save_heating_moistening_fig,
         list(HEATING_MOISTENING_PLOT_KWARGS.keys()),
     ),
+    MovieSpec(
+        "water_vapor_path",
+        _save_water_vapor_path_fig,
+        ["water_vapor_path", "water_vapor_path_verification"],
+        require_verification_data=True,
+    ),
 ]
+_MOVIE_SPECS = _MOVIE_SPECS[-1:]
 
 
 def _create_movie(spec: MovieSpec, ds: xr.Dataset, output: str, n_jobs: int):
@@ -167,8 +202,25 @@ def register_parser(subparsers):
         type=int,
         help="Number of timesteps to use in movie. If not provided all times are used.",
     )
-    parser.add_argument("--catalog", default=vcm.catalog.catalog_path)
+    add_catalog_and_verification_arguments(parser)
     parser.set_defaults(func=main)
+
+
+def _merge_prognostic_verification(
+    prognostic: xr.Dataset, verification: xr.Dataset
+) -> xr.Dataset:
+    """Merge prognostic and verification datasets into a single dataset."""
+    common_variables = set(prognostic.data_vars).intersection(verification.data_vars)
+    verification_renamed = verification[common_variables].rename(
+        {v: f"{v}_verification" for v in common_variables}
+    )
+    return xr.merge([prognostic[common_variables], verification_renamed], join="inner")
+
+
+def _limit_time_length(ds: xr.Dataset, n_timesteps: int) -> xr.Dataset:
+    """Limit the time dimension of a dataset to the first n_timesteps."""
+    max_time = min(n_timesteps, ds.sizes["time"])
+    return ds.isel(time=slice(None, max_time))
 
 
 def main(args):
@@ -182,16 +234,21 @@ def main(args):
     prognostic = derived_variables.physics_variables(
         load_diags.SegmentedRun(args.url, catalog).data_2d
     )
+    verification = derived_variables.physics_variables(
+        get_verification(args, catalog, join_2d="inner").data_2d
+    )
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
     prognostic = (
         prognostic.drop_vars(GRID_VARS, errors="ignore")
         .drop_dims(INTERFACE_DIMS, errors="ignore")
         .merge(grid)
     )
+    merged = _merge_prognostic_verification(prognostic, verification).merge(grid)
 
     if args.n_timesteps:
-        max_time = min(args.n_timesteps, prognostic.sizes["time"])
-        prognostic = prognostic.isel(time=slice(None, max_time))
+        prognostic = _limit_time_length(prognostic, args.n_timesteps)
+        merged = _limit_time_length(merged, args.n_timesteps)
 
     for movie_spec in _MOVIE_SPECS:
-        _create_movie(movie_spec, prognostic, args.output, args.n_jobs)
+        dataset = merged if movie_spec.require_verification_data else prognostic
+        _create_movie(movie_spec, dataset, args.output, args.n_jobs)
