@@ -37,9 +37,10 @@ from fv3fit.keras._models.shared.utils import (
 )
 from fv3fit import tfdataset
 from fv3fit.keras._models.shared.clip import (
-    clip_and_taper_sequence,
+    clip_sequence,
     ClipConfig,
     taper_sequence,
+    clip_and_taper_sequence,
 )
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping, clip_sample
 
@@ -283,31 +284,23 @@ def build_model(
 
     # Model used in training has output levels clipped off, so std also must
     # be calculated over the same set of levels after clipping.
-    clipped_and_tapered_denorm_output_layers = clip_and_taper_sequence(
+    clipped_denorm_output_layers = clip_and_taper_sequence(
         config.clip_config, denorm_output_layers, config.output_variables
     )
-
-    clipped_and_tapered_output_arrays = clip_and_taper_sequence(
+    clipped_output_arrays = clip_sequence(
         config.clip_config, list(y), config.output_variables
     )
-
-    clipped_and_tapered_output_stds = (
+    clipped_output_stds = (
         np.std(array, axis=tuple(range(len(array.shape) - 1)), dtype=np.float32)
-        for array in clipped_and_tapered_output_arrays
+        for array in clipped_output_arrays
     )
-    print("output layer shapes: ")
-
-    print([arr.shape for arr in clipped_and_tapered_denorm_output_layers])
-    print("std shapes: ")
-
-    print([arr.shape for arr in clipped_and_tapered_output_stds])
 
     train_model = tf.keras.Model(
-        inputs=input_layers, outputs=clipped_and_tapered_denorm_output_layers
+        inputs=input_layers, outputs=clipped_denorm_output_layers
     )
     train_model.compile(
         optimizer=config.optimizer_config.instance,
-        loss=[config.loss.loss(std) for std in clipped_and_tapered_output_stds],
+        loss=[config.loss.loss(std) for std in clipped_output_stds],
     )
 
     # Returns a separate prediction model where outputs layers have
@@ -316,10 +309,10 @@ def build_model(
         config.clip_config.zero_mask_clipped_layer(denorm_layer, name)
         for denorm_layer, name in zip(denorm_output_layers, config.output_variables)
     ]
-    tapered_denorm_output_layers = taper_sequence(
+    tapered_zero_filled_output_layers = taper_sequence(
         config.clip_config, zero_filled_denorm_output_layers, config.output_variables
     )
     predict_model = tf.keras.Model(
-        inputs=input_layers, outputs=tapered_denorm_output_layers
+        inputs=input_layers, outputs=tapered_zero_filled_output_layers
     )
     return train_model, predict_model

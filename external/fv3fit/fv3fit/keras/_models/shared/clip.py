@@ -10,7 +10,7 @@ Clippable = Union[tf.Tensor, np.ndarray]
 @dataclasses.dataclass
 class TaperConfig:
     cutoff: Optional[int] = None
-    rate: Optional[int] = None
+    rate: Optional[float] = None
 
 
 def _scale_factors(n_levels: int, taper_config: TaperConfig):
@@ -45,6 +45,7 @@ class ClipConfig(PackerConfig):
         scale_factors_layer = tf.constant(
             _scale_factors(total_length, taper_config), dtype=tf.float32
         )
+
         return tf.math.multiply(layer, scale_factors_layer)
 
     def _get_mask_array(
@@ -119,9 +120,21 @@ def taper_sequence(
     config: ClipConfig, clip_objects: Sequence[Clippable], variable_names: Sequence[str]
 ) -> Sequence[tf.Tensor]:
     outputs = []  # type: ignore
-    for layer, name in zip(outputs, variable_names):
+    for layer, name in zip(clip_objects, variable_names):
         layer_ = layer
         if name in config.taper:
             layer_ = config.taper_layer(layer_, name)
+        outputs.append(layer_)
+    return outputs
+
+
+def clip_sequence(
+    config: ClipConfig, clip_objects: Sequence[Clippable], variable_names: Sequence[str]
+) -> Sequence[tf.Tensor]:
+    outputs = []  # type: ignore
+    for layer, name in zip(clip_objects, variable_names):
+        layer_ = layer
+        if name in config.clip:
+            layer_ = config.clip_along_last_dim(layer_, name)
         outputs.append(layer_)
     return outputs
