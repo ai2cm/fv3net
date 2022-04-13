@@ -432,7 +432,7 @@ online_emulator:
   online: true
   state_predictions: {}
   tendency_predictions:
-    air_temperature: dQ1
+    Q1: air_temperature
   url:
   - some/path
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
