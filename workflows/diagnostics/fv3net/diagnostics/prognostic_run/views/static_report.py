@@ -22,7 +22,7 @@ from .matplotlib import (
     plot_histogram,
     plot_histogram2d,
 )
-from .styles import modified_wong_palette
+from fv3viz import wong_palette
 from fv3net.diagnostics.prognostic_run.constants import (
     PERCENTILES,
     PRECIP_RATE,
@@ -43,7 +43,7 @@ warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
-COLOR_CYCLE = hv.Cycle(modified_wong_palette)
+COLOR_CYCLE = hv.Cycle(wong_palette)
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 MovieManifest = Sequence[Tuple[str, str]]
 PublicLinks = Mapping[str, Sequence[Tuple[str, str]]]
@@ -162,7 +162,7 @@ def _set_opts_and_overlay(hmap, overlay="run"):
         .overlay(overlay)
         .opts(
             legend_position="right",
-            bgcolor="lightgray",
+            bgcolor="gainsboro",
             show_grid=True,
             gridstyle=dict(grid_line_color="white", grid_line_width=0.5),
         )

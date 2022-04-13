@@ -7,14 +7,12 @@ import cartopy.crs as ccrs
 import jinja2
 import matplotlib.pyplot as plt
 import matplotlib
-from cycler import cycler
 import numpy as np
 
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunDiagnostics,
     RunMetrics,
 )
-from .styles import modified_wong_palette
 import fv3viz
 from report import MatplotlibFigure, RawHTML
 
@@ -164,8 +162,7 @@ def plot_histogram(
 
     logging.info(f"plotting {varname}")
     fig, ax = plt.subplots()
-    custom_cycler = cycler(color=modified_wong_palette)
-    ax.set_prop_cycle(custom_cycler)
+    fv3viz.use_colorblind_friendly_style()
     bin_name = varname.replace("histogram", "bins")
     for run in run_diags.runs:
         v = run_diags.get_variable(run, varname)
