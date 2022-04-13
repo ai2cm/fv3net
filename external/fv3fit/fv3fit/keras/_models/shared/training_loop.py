@@ -1,5 +1,5 @@
 import tensorflow as tf
-from typing import Any, Iterable, List, Optional, Sequence, Callable, Tuple
+from typing import Iterable, Optional, Sequence, Tuple
 import dataclasses
 import logging
 
@@ -93,7 +93,7 @@ class TrainingLoopConfig:
         model: tf.keras.Model,
         Xy: tf.data.Dataset,
         validation_data: Optional[tf.data.Dataset] = None,
-        callbacks: Iterable[Callable[[EpochResult], None]] = (),
+        callbacks: Iterable[tf.keras.callbacks.Callback] = (),
     ) -> None:
         """
         Args:
@@ -102,9 +102,7 @@ class TrainingLoopConfig:
             validation_data: passed as `validation_data` argument to `model.fit`
             callbacks: if given, these will be called at the end of each epoch
         """
-        fit_kwargs = dict(
-            callbacks=[EpochCallback(func) for func in callbacks], epochs=self.epochs
-        )
+        fit_kwargs = dict(callbacks=callbacks, epochs=self.epochs)
         if self.in_memory:
             Xy_fit = _tfdataset_to_tensor_sequence(Xy)
             if validation_data is not None:
@@ -137,32 +135,3 @@ class TrainingLoopConfig:
             else:
                 validation_fit = None
             model.fit(Xy_fit, validation_data=validation_fit, **fit_kwargs)
-
-
-class EpochCallback(tf.keras.callbacks.History):
-    def __init__(self, callback: Callable[[EpochResult], Any]):
-        self._callback = callback
-        self._batch_logs: List[Logs] = []
-
-    def on_train_batch_end(self, epoch: int, logs=None):
-        if logs is None or "loss" not in logs:
-            raise NotImplementedError(
-                "fv3fit epoch callbacks are hard-coded to require loss values"
-            )
-        self._batch_logs.append(
-            Logs(loss=logs["loss"], val_loss=logs.get("val_loss", None))
-        )
-
-    def on_epoch_end(self, epoch: int, logs=None):
-        if logs is None or "loss" not in logs:
-            raise NotImplementedError(
-                "fv3fit epoch callbacks are hard-coded to require loss values"
-            )
-        self._callback(
-            EpochResult(
-                epoch=epoch,
-                batch_logs=tuple(self._batch_logs),
-                epoch_logs=Logs(loss=logs["loss"], val_loss=logs.get("val_loss", None)),
-            )
-        )
-        self._batch_logs.clear()

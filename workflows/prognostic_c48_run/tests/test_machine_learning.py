@@ -25,7 +25,9 @@ def model_output_type(request):
 def ml_stepper(model_output_type):
     timestep = 900
     mock_model = get_mock_predictor(model_output_type)
-    ml_stepper = PureMLStepper(mock_model, timestep, hydrostatic=False)
+    ml_stepper = PureMLStepper(
+        mock_model, timestep, hydrostatic=False, mse_conserving_limiter=False
+    )
     return ml_stepper
 
 

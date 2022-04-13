@@ -507,11 +507,10 @@ def get_ml_config(model_path):
         }
     ]
     config["fortran_diagnostics"] = []
-    config["scikit_learn"] = {"model": [model_path]}
-    # use local paths in prognostic_run image. fv3config
-    # downloads data. We should change this once the fixes in
-    # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
-    # into the prognostic_run image
+    config["scikit_learn"] = {
+        "model": [model_path],
+        "use_mse_conserving_humidity_limiter": False,
+    }
     return config
 
 

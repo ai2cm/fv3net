@@ -1,6 +1,12 @@
 import pytest
 import xarray as xr
-from runtime.steppers.machine_learning import non_negative_sphum
+from runtime.steppers.machine_learning import (
+    non_negative_sphum,
+    update_temperature_tendency_to_conserve_mse,
+    update_moisture_tendency_to_ensure_non_negative_humidity,
+    non_negative_sphum_mse_conserving,
+)
+import vcm
 
 
 sphum = 1.0e-3 * xr.DataArray(data=[1.0, 1.0, 1.0], dims=["x"])  # type: ignore
@@ -37,3 +43,37 @@ def test_non_negative_sphum(sphum, dQ1, dQ2, dt, dQ1_expected, dQ2_expected):
     dQ1_updated, dQ2_updated = non_negative_sphum(sphum, dQ1, dQ2, dt)
     xr.testing.assert_allclose(dQ1_updated, dQ1_expected)
     xr.testing.assert_allclose(dQ2_updated, dQ2_expected)
+
+
+def test_update_q2_to_ensure_non_negative_humidity():
+    sphum = xr.DataArray([1, 2])
+    q2 = xr.DataArray([-3, -1])
+    dt = 1.0
+    limited_tendency = update_moisture_tendency_to_ensure_non_negative_humidity(
+        sphum, q2, dt
+    )
+    expected_limited_tendency = xr.DataArray([-1, -1])
+    xr.testing.assert_identical(limited_tendency, expected_limited_tendency)
+
+
+def test_update_q1_to_conserve_mse():
+    q1 = xr.DataArray([-4, 2])
+    q2 = xr.DataArray([-3, -1])
+    q2_limited = xr.DataArray([-1, -1])
+    q1_limited = update_temperature_tendency_to_conserve_mse(q1, q2, q2_limited)
+    xr.testing.assert_identical(
+        vcm.moist_static_energy_tendency(q1, q2),
+        vcm.moist_static_energy_tendency(q1_limited, q2_limited),
+    )
+
+
+@pytest.mark.parametrize(
+    "Q1_is_None", [True, False],
+)
+def test_non_negative_sphum_mse_conserving(Q1_is_None):
+    if Q1_is_None:
+        q2_out, q1_out = non_negative_sphum_mse_conserving(sphum, dQ2, 1, q1=None)
+        assert q1_out is None
+    else:
+        q2_out, q1_out = non_negative_sphum_mse_conserving(sphum, dQ2, 1, q1=dQ1)
+        assert isinstance(q1_out, xr.DataArray)
