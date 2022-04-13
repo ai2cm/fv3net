@@ -143,7 +143,6 @@ _MOVIE_SPECS = [
         require_verification_data=True,
     ),
 ]
-_MOVIE_SPECS = _MOVIE_SPECS[-1:]
 
 
 def _create_movie(spec: MovieSpec, ds: xr.Dataset, output: str, n_jobs: int):
