@@ -85,11 +85,6 @@ spec:
               wandb_flag="--wandb"
             fi
 
-            if [ -z "{{inputs.parameters.wandb-tags}}" ]
-            then
-              unset WANDB_TAGS
-            fi
-
             python3 -m fv3fit.train \
               training_config.yaml \
               training_data.yaml \
