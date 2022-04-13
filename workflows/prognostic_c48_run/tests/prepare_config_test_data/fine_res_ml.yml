@@ -21,4 +21,4 @@ online_emulator:
   url:
     - "some/path"
   tendency_predictions:
-    Q1: air_temperature:
+    Q1: air_temperature
