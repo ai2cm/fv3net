@@ -22,6 +22,22 @@ def mass_integrate(
     return (da * delp / _GRAVITY).sum(dim)
 
 
+def mass_cumsum(da: xr.DataArray, delp: xr.DataArray, dim: str = "z") -> xr.DataArray:
+    """Compute mass-weighted cumulative sum."""
+    return (da * delp / _GRAVITY).cumsum(dim)
+
+
+def mass_divergence(
+    da: xr.DataArray,
+    delp: xr.DataArray,
+    dim_center: str = "z",
+    dim_interface: str = "z_interface",
+) -> xr.DataArray:
+    """Compute vertical divergence from cell-interface array."""
+    diffed_da = da.diff(dim_interface).rename({dim_interface: dim_center})
+    return _GRAVITY * diffed_da / delp
+
+
 def pressure_at_interface(
     delp: xr.DataArray,
     toa_pressure: float = _TOA_PRESSURE,

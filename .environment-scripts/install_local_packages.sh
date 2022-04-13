@@ -14,6 +14,7 @@ local_packages_to_install=(
   external/artifacts
   external/loaders
   external/fv3fit
+  external/report
 )
 set -e
 for package  in "${local_packages_to_install[@]}"
@@ -30,7 +31,6 @@ poetry_packages=(
   external/fv3viz
   external/synth
   external/fv3kube
-  external/report
   workflows/fine_res_budget
   workflows/dataflow
 )
