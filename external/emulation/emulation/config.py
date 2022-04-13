@@ -49,7 +49,7 @@ class ModelConfig:
     path: str
     online_schedule: Optional[IntervalSchedule] = None
     ranges: Mapping[str, Range] = dataclasses.field(default_factory=dict)
-    cloud_squash: float = 0.0
+    cloud_squash: Optional[float] = None
     gscond_cloud_conservative: bool = False
 
     def build(self) -> MicrophysicsHook:

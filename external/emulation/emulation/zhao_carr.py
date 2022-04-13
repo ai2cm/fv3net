@@ -3,6 +3,8 @@
 the functions in this submodule know the variable names of the ZC microphysics
 
 """
+from ._typing import FortranState
+from typing import Optional
 import numpy as np
 
 
@@ -42,12 +44,15 @@ def _apply_squash(struct, emulator, cloud_squash: float):
 
 
 def modify_zhao_carr(
-    state, emulator, cloud_squash: float, gscond_cloud_conservative: bool
+    state: FortranState,
+    emulator: FortranState,
+    cloud_squash: Optional[float],
+    gscond_cloud_conservative: bool,
 ):
     """
 
     Args:
-        squash: convert any cloud amounts less than this to humidity
+        cloud_squash: if not None, convert any cloud amounts less than this to humidity
         gscond_cloud_conservative: if True, then compute the cloud after gscond
             from humidity conservation
     """
@@ -56,6 +61,7 @@ def modify_zhao_carr(
         humidity_change = emulator[GscondOutput.humidity] - state[Input.humidity]
         state[GscondOutput.cloud_water] = state[Input.cloud_water] - humidity_change
 
-    _apply_squash(GscondOutput, emulator, cloud_squash)
-    _apply_squash(PrecpdOutput, emulator, cloud_squash)
+    if cloud_squash is not None:
+        _apply_squash(GscondOutput, emulator, cloud_squash)
+        _apply_squash(PrecpdOutput, emulator, cloud_squash)
     return emulator
