@@ -132,7 +132,7 @@ def skill_time_table(ds):
 def summarize_column_skill(ds, prefix, tendency_func):
     return {
         f"{prefix}/{field}": float(
-            column_integrated_skill(ds, partial(tendency_func, field=field))
+            column_integrated_skill(ds, lambda x, y: tendency_func(x, field, y))
         )
         for field in SKILL_FIELDS
     }.items()
