@@ -103,7 +103,7 @@ def plot_1d(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:
         for varname in vars_to_plot:
             v = run_diags.get_variable(run, varname).rename("value")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
-            color = "black" if run == "verification" else COLOR_CYCLE
+            color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
             long_name = v.long_name
             hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
                 line_dash=style, color=color
@@ -126,7 +126,7 @@ def plot_1d_min_max_with_region_bar(
             vmin = run_diags.get_variable(run, min_var).rename("min")
             vmax = run_diags.get_variable(run, max_var).rename("max")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
-            color = "black" if run == "verification" else COLOR_CYCLE
+            color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
             long_name = vmin.long_name
             region = min_var.split("_")[-1]
             # Area plot doesn't automatically add correct y label
@@ -147,7 +147,7 @@ def plot_1d_with_region_bar(run_diags: RunDiagnostics, varfilter: str) -> HVPlot
         for varname in vars_to_plot:
             v = run_diags.get_variable(run, varname).rename("value")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
-            color = "black" if run == "verification" else COLOR_CYCLE
+            color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
             long_name = v.long_name
             region = varname.split("_")[-1]
             hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
