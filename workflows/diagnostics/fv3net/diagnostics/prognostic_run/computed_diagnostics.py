@@ -152,6 +152,10 @@ class RunDiagnostics:
     def is_baseline(self, run: str) -> bool:
         return self._attrs[run]["baseline"]
 
+    @staticmethod
+    def is_verification(run: str) -> bool:
+        return run == "verification"
+
 
 @dataclass
 class RunMetrics:
@@ -337,9 +341,8 @@ def parse_rundirs(rundirs) -> pd.DataFrame:
 
 
 def _parse_metadata(run: str):
-    baseline_s = "-baseline"
 
-    if run.endswith(baseline_s):
+    if "baseline" in run:
         baseline = True
     else:
         baseline = False
