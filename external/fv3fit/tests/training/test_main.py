@@ -1,3 +1,4 @@
+import argparse
 import dataclasses
 from typing import Any, Optional, Sequence
 import fv3fit
@@ -57,23 +58,13 @@ def get_mock_dataset(n_time, unstacked_dims: Sequence[str]):
     return data
 
 
-@dataclasses.dataclass
-class MainArgs:
-    data_path: str
-    training_config: str
-    training_data_config: str
-    validation_data_config: str
-    output_path: str
-    wandb: bool = False
-
-
 class MockHyperparameters:
     param1: str = ""
 
 
 @dataclasses.dataclass
 class TestConfig:
-    args: MainArgs
+    args: argparse.Namespace
     variables: Sequence[str]
     hyperparameters: Hyperparameters
     output_path: str
@@ -411,6 +402,7 @@ def get_config(
         mapper_config=dict(function="open_zarr", kwargs=dict(data_path=data_path)),
         data_transforms=[{"name": "Qm_from_Q1_Q2"}],
     )
+
     if use_validation_data:
         validation_data_config = loaders.BatchesFromMapperConfig(
             variable_names=all_variables,
@@ -426,7 +418,7 @@ def get_config(
         with open(validation_data_filename, "w") as f:
             yaml.dump(dataclasses.asdict(validation_data_config), f)
     else:
-        validation_data_filename = None
+        validation_data_filename = ""
     train_data_filename = os.path.join(base_dir, "train_data.yaml")
     training_filename = os.path.join(base_dir, "training.yaml")
     with open(train_data_filename, "w") as f:
@@ -435,13 +427,12 @@ def get_config(
         yaml.dump(dataclasses.asdict(training_config), f)
     output_path = os.path.join(base_dir, "output")
 
-    args = MainArgs(
-        data_path=data_path,
-        training_config=training_filename,
-        training_data_config=train_data_filename,
-        validation_data_config=validation_data_filename,
-        output_path=output_path,
-    )
+    args_list = [training_filename, train_data_filename, output_path, "--no-wandb"]
+    if use_validation_data:
+        args_list += ["--validation-data-config", validation_data_filename]
+
+    args = fv3fit.train.get_parser().parse_args(args_list)
+
     return TestConfig(
         args,
         training_config.variables,
@@ -483,7 +474,7 @@ def test_train_config_override_args(tmpdir, mock_load_batches, mock_train_dense_
     assert hyperparameters.optimizer_config.name == "MyOpt"
 
 
-def cli_main(args: MainArgs):
+def cli_main(args: argparse.Namespace):
     if args.validation_data_config is None:
         validation_args = []
     else:

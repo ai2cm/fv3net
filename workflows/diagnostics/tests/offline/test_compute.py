@@ -84,7 +84,11 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
                 os.path.join(tmpdir, "offline_diags")
             )
         create_report_args = create_report._get_parser().parse_args(
-            [os.path.join(tmpdir, "offline_diags"), os.path.join(tmpdir, "report")]
+            [
+                os.path.join(tmpdir, "offline_diags"),
+                os.path.join(tmpdir, "report"),
+                "--no-wandb",
+            ]
         )
         create_report.create_report(create_report_args)
         with open(os.path.join(tmpdir, "report/index.html")) as f:
