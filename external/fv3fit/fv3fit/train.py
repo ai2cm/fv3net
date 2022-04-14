@@ -56,7 +56,7 @@ def get_parser():
             "Disable logging of run to wandb. Uses environment variables WANDB_ENTITY, "
             "WANDB_PROJECT, WANDB_JOB_TYPE as wandb.init options."
         ),
-        action="store_false",
+        action="store_true",
     )
     return parser
 
