@@ -421,7 +421,7 @@ def create_report(args):
         "json": json.dumps(metrics),
         "logging.googleapis.com/labels": {
             "model": metadata["model_path"],
-            "commit_sha": metadata["commit"],
+            "commit_sha": metadata.get("commit", "n/a"),
         },
     }
     print(gcloud_logging)
