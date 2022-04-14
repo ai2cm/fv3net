@@ -108,12 +108,12 @@ def _get_parser() -> argparse.ArgumentParser:
         help=("Training data configuration yaml file to insert into report"),
     )
     parser.add_argument(
-        "--wandb",
+        "--no-wandb",
         help=(
-            "Log run to wandb. Uses environment variables WANDB_ENTITY, "
+            "Disable logging of run to wandb. Uses environment variables WANDB_ENTITY, "
             "WANDB_PROJECT, WANDB_JOB_TYPE as wandb.init options."
         ),
-        action="store_true",
+        action="store_false",
     )
     return parser
 
@@ -386,7 +386,7 @@ def create_report(args):
     if args.training_data_config:
         with fsspec.open(args.training_data_config, "r") as f:
             metadata["training_data_config"] = yaml.safe_load(f)
-    if args.wandb:
+    if args.no_wandb is False:
         wandb_config = {
             "training_data": metadata.pop("training_data_config"),
             "model_training_config": metadata.pop("training_config"),

@@ -23,7 +23,7 @@ spec:
           - name: test_data_config
           - name: offline-diags-output
           - name: report-output
-          - {name: use-wandb, value: "false"}
+          - {name: no-wandb, value: "false"}
           - {name: wandb-project, value: "argo-default"}
           - {name: wandb-tags, value: ""}
           - {name: wandb-group, value: ""}
@@ -72,11 +72,11 @@ spec:
             {{inputs.parameters.training_data_config}}
             EOF
 
-            if [ "{{inputs.parameters.use-wandb}}" == "false" ];
+            if [ "{{inputs.parameters.no-wandb}}" == "false" ];
             then
               wandb_flag=""
             else
-              wandb_flag="--wandb"
+              wandb_flag="--no-wandb"
             fi
 
             python -m fv3net.diagnostics.offline.views.create_report \

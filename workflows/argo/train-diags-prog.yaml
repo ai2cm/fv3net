@@ -36,7 +36,7 @@ spec:
       - {name: training-flags, value: " "}
       - {name: online-diags-flags, value: " "}
       - {name: do-prognostic-run, value: "true"}
-      - {name: use-wandb, value: "false"}
+      - {name: no-wandb, value: "false"}
       - {name: wandb-project, value: "argo-default"}
       - {name: wandb-tags, value: ""}
       - {name: wandb-group, value: ""}
@@ -77,8 +77,8 @@ spec:
               value: "{{inputs.parameters.memory-training}}"
             - name: flags
               value: "{{inputs.parameters.training-flags}}"
-            - name: use-wandb
-              value: "{{inputs.parameters.use-wandb}}"
+            - name: no-wandb
+              value: "{{inputs.parameters.no-wandb}}"
             - name: wandb-project
               value: "{{inputs.parameters.wandb-project}}"
             - name: wandb-tags
@@ -107,8 +107,8 @@ spec:
                 value: "{{inputs.parameters.public-report-output}}/{{item.name}}"
               - name: memory
                 value: "{{inputs.parameters.memory-offline-diags}}"
-              - name: use-wandb
-                value: "{{inputs.parameters.use-wandb}}"
+              - name: no-wandb
+                value: "{{inputs.parameters.no-wandb}}"
               - name: wandb-project
                 value: "{{inputs.parameters.wandb-project}}"
               - name: wandb-tags
