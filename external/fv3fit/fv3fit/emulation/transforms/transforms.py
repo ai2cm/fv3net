@@ -53,11 +53,14 @@ class Difference(TensorTransform):
 
 
 @dataclasses.dataclass
-class CloudPrecpdUpdate(TensorTransform):
+class CloudWaterDiffPrecpd(TensorTransform):
     """
     A specialized transform for patching in some necessary information
-    about cloud water after gscond.  Adds both differences and updates
-    both fields on the backwards step.
+    about cloud water after gscond in order to provide information on the
+    cloud tendencies from the Zhao-Carr precpd scheme.
+
+    Once `cloud_water_mixing_ratio_after_gscond` is in the dataset, this
+    transform will no longer be needed.
     """
 
     to: str

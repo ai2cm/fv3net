@@ -10,5 +10,5 @@ from .transforms import (
     LogTransform,
     TensorTransform,
     LimitValueTransform,
-    CloudPrecpdUpdate,
+    CloudWaterDiffPrecpd,
 )
