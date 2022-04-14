@@ -76,7 +76,7 @@ def _cleanup_temp_dir(temp_dir):
     temp_dir.cleanup()
 
 
-def _create_arg_parser() -> argparse.Namespace:
+def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "input_path", type=str, help=("Location of diagnostics and metrics data."),
@@ -115,7 +115,7 @@ def _create_arg_parser() -> argparse.Namespace:
         ),
         action="store_true",
     )
-    return parser.parse_args()
+    return parser
 
 
 def render_model_sensitivity(figures_dir, output_dir) -> str:
@@ -423,5 +423,6 @@ def create_report(args):
 
 if __name__ == "__main__":
     logger.info("Starting create report routine.")
-    args = _create_arg_parser()
+    parser = _get_parser()
+    args = parser.parse_args()
     create_report(args)
