@@ -68,12 +68,7 @@ loss:
     kwargs:
       learning_rate: 0.0001
     name: Adam
-  metric_variables:
-    - air_temperature_after_gscond
-    - specific_humidity_after_gscond
-    - air_temperature_after_precpd
-    - specific_humidity_after_precpd
-    - cloud_water_mixing_ratio_after_precpd
+  metric_variables: []
   loss_variables:
     - total_precipitation
     - cloud_precpd_difference_tscaled
@@ -81,13 +76,23 @@ loss:
     - humidity_precpd_difference_tscaled
     - temperature_gscond_difference_tscaled
     - humidity_gscond_difference_tscaled
+    - air_temperature_after_gscond
+    - specific_humidity_after_gscond
+    - air_temperature_after_precpd
+    - specific_humidity_after_precpd
+    - cloud_water_mixing_ratio_after_precpd
   weights:
-    total_precipitation: 1.0
+    total_precipitation: 2.0
     cloud_precpd_difference_tscaled: 1.0
     temperature_precpd_difference_tscaled: 1.0
     humidity_precpd_difference_tscaled: 1.0
     temperature_gscond_difference_tscaled: 1.0
     humidity_gscond_difference_tscaled: 1.0
+    air_temperature_after_gscond: 100000.0
+    specific_humidity_after_gscond: 100000.0
+    air_temperature_after_precpd: 100000.0
+    specific_humidity_after_precpd: 100000.0
+    cloud_water_mixing_ratio_after_precpd: 5
 model:
   architecture:
     kwargs:
@@ -123,4 +128,3 @@ transform:
   derived_microphys_timestep: 900
   use_tensors: true
   vertical_subselections: null
-
