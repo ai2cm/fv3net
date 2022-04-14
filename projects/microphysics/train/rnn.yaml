@@ -1,3 +1,4 @@
+#https://wandb.ai/ai2cm/microphysics-emulation/groups/dqc-precpd-limiter-rnn-limited-qc-87e803-30d-v1-online/workspace?workspace=user-aperkins
 use_wandb: true
 wandb:
   wandb_project: microphysics-emulation

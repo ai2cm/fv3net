@@ -1,3 +1,4 @@
+# https://wandb.ai/ai2cm/microphysics-emulation/groups/in-ablat-log-q-qc-dense-4201be-30d-v1-online/workspace?workspace=user-aperkins
 use_wandb: true
 wandb:
   wandb_project: microphysics-emulation

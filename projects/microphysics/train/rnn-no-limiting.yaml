@@ -1,4 +1,5 @@
 # Previous best in class rnn, no limiting, all final fields in loss function
+# https://wandb.ai/ai2cm/microphysics-emulation/groups/limit-tests-limiter-all-loss-rnn-7ef273-10d-88ef76-online/workspace?workspace=user-aperkins
 use_wandb: true
 wandb:
   wandb_project: microphysics-emulation
