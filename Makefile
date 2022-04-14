@@ -207,7 +207,7 @@ constraints.txt: $(REQUIREMENTS)
 	rm -f constraints.txt.bak .dataflow-versions.txt
 	@echo "remember to update numpy version in external/vcm/pyproject.toml"
 
-docker/prognostic_run/requirements.txt: constraints.txt
+docker/prognostic_run/requirements.txt:
 	cp constraints.txt docker/prognostic_run/requirements.txt
 	# this will subset the needed dependencies from constraints.txt
 	# while preserving the versions
@@ -221,7 +221,7 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		workflows/post_process_run/requirements.txt \
 		workflows/prognostic_c48_run/requirements.in
 
-docker/fv3fit/requirements.txt: constraints.txt
+docker/fv3fit/requirements.txt:
 	cp constraints.txt $@
 	# this will subset the needed dependencies from constraints.txt
 	# while preserving the versions
