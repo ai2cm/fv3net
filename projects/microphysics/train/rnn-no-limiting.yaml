@@ -1,3 +1,4 @@
+# Previous best in class rnn, no limiting, all final fields in loss function
 use_wandb: true
 wandb:
   wandb_project: microphysics-emulation
