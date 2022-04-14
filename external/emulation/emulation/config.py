@@ -1,7 +1,7 @@
 import dataclasses
 import datetime
 import logging
-from typing import Optional
+from typing import Iterable, Mapping, Optional
 
 import cftime
 import dacite
@@ -11,16 +11,22 @@ from emulation._emulate.microphysics import (
     IntervalSchedule,
     Mask,
     TimeMask,
-    always_emulator,
 )
 from emulation._monitor.monitor import StorageConfig, StorageHook
 from emulation._time import from_datetime, to_datetime
+from emulation.masks import RangeMask, compose_masks
 
 logger = logging.getLogger("emulation")
 
 
 def do_nothing(state):
     pass
+
+
+@dataclasses.dataclass
+class Range:
+    min: Optional[float] = None
+    max: Optional[float] = None
 
 
 @dataclasses.dataclass
@@ -33,19 +39,27 @@ class ModelConfig:
             of the fortran model. Only supports scheduling by an interval.
             The physics is used for the first half of the interval, and the ML
             for the second half.
+        ranges: post-hoc limits to apply to the predicted values
+        min_cloud_threshold: all cloud values less than this amount (including
+            negative values) will be squashed to zero.
     """
 
     path: str
     online_schedule: Optional[IntervalSchedule] = None
+    ranges: Mapping[str, Range] = dataclasses.field(default_factory=dict)
 
     def build(self) -> MicrophysicsHook:
         return MicrophysicsHook(self.path, mask=self._build_mask())
 
     def _build_mask(self) -> Mask:
+        return compose_masks(self._build_masks())
+
+    def _build_masks(self) -> Iterable[Mask]:
         if self.online_schedule:
-            return TimeMask(self.online_schedule)
-        else:
-            return always_emulator
+            yield TimeMask(self.online_schedule)
+
+        for key, range in self.ranges.items():
+            yield RangeMask(key, min=range.min, max=range.max)
 
 
 @dataclasses.dataclass

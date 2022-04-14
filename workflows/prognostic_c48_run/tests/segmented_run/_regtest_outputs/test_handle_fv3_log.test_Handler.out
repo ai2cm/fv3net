@@ -1,0 +1,10 @@
+{"severity": "DEBUG", "module": "runtime.loop", "logging.googleapis.com/labels": {"kind": "python", "model_time": null}, "message": "Physics Step (apply)", "model_time": null}
+{"message": "WARNING from PE     0: diag_util_mod::opening_file: module/field_name (dynamics/w50) NOT registered", "logging.googleapis.com/labels": {"kind": "fortran", "model_time": null}, "severity": "DEBUG", "model_time": null}
+{"max_min_name": " PS", "max": "1034.9816787407742", "min": "539.31719196478946", "logging.googleapis.com/labels": {"kind": "max_min", "model_time": null}, "model_time": null}
+{"message": "WARNING from PE     0: diag_util_mod::opening_file: module/field_name (dynamics/w50) NOT registered", "logging.googleapis.com/labels": {"kind": "fortran", "model_time": null}, "severity": "DEBUG", "model_time": null}
+{"message": " ---isec,seconds         900        1800", "logging.googleapis.com/labels": {"kind": "fortran", "model_time": null}, "severity": "DEBUG", "model_time": null}
+{"message": "  gfs diags time since last bucket empty:   0.25000000000000000      hrs", "logging.googleapis.com/labels": {"kind": "fortran", "model_time": null}, "severity": "DEBUG", "model_time": null}
+{"severity": "INFO", "module": "runtime.loop", "logging.googleapis.com/labels": {"kind": "python", "model_time": null}, "message": "Computing Postphysics Updates", "model_time": null}
+{"severity": "INFO", "module": "runtime.loop", "logging.googleapis.com/labels": {"kind": "python", "model_time": null}, "message": "Computing Postphysics Updates", "model_time": null}
+{"severity": "INFO", "module": "runtime.loop", "logging.googleapis.com/labels": {"kind": "python", "model_time": null}, "json": {"a": 1}, "model_time": null}
+{"message": "    ", "logging.googleapis.com/labels": {"kind": "fortran", "model_time": null}, "severity": "DEBUG", "model_time": null}

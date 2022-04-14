@@ -3,9 +3,12 @@ from typing import Mapping, Iterable, Hashable, Sequence
 
 import xarray as xr
 import fv3fit
-from runtime.steppers.machine_learning import non_negative_sphum, MultiModelAdapter
+from runtime.steppers.machine_learning import (
+    MultiModelAdapter,
+    non_negative_sphum_mse_conserving,
+)
 from runtime.types import State
-from runtime.names import SPHUM
+from runtime.names import SPHUM, TEMP
 
 __all__ = ["Config", "Adapter"]
 
@@ -40,10 +43,9 @@ class Adapter:
     def predict(self, inputs: State) -> State:
         tendencies = self.model.predict(xr.Dataset(inputs))
         if self.config.limit_negative_humidity:
-            dQ1, dQ2 = non_negative_sphum(
-                inputs[SPHUM], tendencies["dQ1"], tendencies["dQ2"], self.timestep
-            )
-            tendencies.update({"dQ1": dQ1, "dQ2": dQ2})
+            limited_tendencies = self.non_negative_sphum_limiter(tendencies, inputs)
+            tendencies = tendencies.update(limited_tendencies)
+
         state_prediction: State = {}
         for variable_name, tendency_name in self.config.variables.items():
             with xr.set_options(keep_attrs=True):
@@ -62,3 +64,23 @@ class Adapter:
     @property
     def input_variables(self) -> Iterable[Hashable]:
         return list(set(self.model.input_variables) | set(self.config.variables))
+
+    def non_negative_sphum_limiter(self, tendencies, inputs):
+        limited_tendencies = {}
+        if SPHUM not in self.config.variables:
+            raise NotImplementedError(
+                "Cannot limit specific humidity tendencies if specific humidity "
+                "updates not being predicted."
+            )
+        q2_name = self.config.variables[SPHUM]
+        q1_name = self.config.variables.get(TEMP)
+        q2_new, q1_new = non_negative_sphum_mse_conserving(
+            inputs[SPHUM],
+            tendencies[q2_name],
+            self.timestep,
+            q1=tendencies.get(q1_name),
+        )
+        limited_tendencies[q2_name] = q2_new
+        if q1_name is not None:
+            limited_tendencies[q1_name] = q1_new
+        return limited_tendencies

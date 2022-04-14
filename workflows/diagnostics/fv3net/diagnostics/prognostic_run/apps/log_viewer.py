@@ -5,6 +5,7 @@ from fv3net.diagnostics.prognostic_run.load_run_data import (
 )
 import streamlit as st
 import vcm.fv3.logs
+from fv3viz import wong_palette
 import pandas as pd
 import plotly.express as px
 import subprocess
@@ -12,18 +13,6 @@ import subprocess
 
 open_segmented_stats = st.cache(open_segmented_stats)
 open_segmented_logs = st.cache(open_segmented_logs)
-
-# https://davidmathlogic.com/colorblind/#%23000000-%23E69F00-%2356B4E9-%23009E73-%23F0E442-%230072B2-%23D55E00-%23CC79A7
-wong_palette = [
-    "#000000",
-    "#E69F00",
-    "#56B4E9",
-    "#009E73",
-    "#F0E442",
-    "#0072B2",
-    "#D55E00",
-    "#CC79A7",
-]
 
 
 def plotly_chart(fig):

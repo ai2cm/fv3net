@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from typing import Iterable, Mapping, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 import os
 import xarray as xr
 import fsspec
@@ -22,6 +22,7 @@ from .matplotlib import (
     plot_histogram,
     plot_histogram2d,
 )
+from fv3viz import wong_palette
 from fv3net.diagnostics.prognostic_run.constants import (
     PERCENTILES,
     PRECIP_RATE,
@@ -42,9 +43,10 @@ warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
+COLOR_CYCLE = hv.Cycle(wong_palette)
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 MovieManifest = Sequence[Tuple[str, str]]
-PublicLinks = Mapping[str, Sequence[Tuple[str, str]]]
+PublicLinks = Dict[str, List[Tuple[str, str]]]
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -94,16 +96,17 @@ class PlotManager:
 def plot_1d(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 1D."""
-    p = hv.Cycle("Colorblind")
+
     hmap = hv.HoloMap(kdims=["variable", "run"])
     vars_to_plot = run_diags.matching_variables(varfilter)
     for run in run_diags.runs:
         for varname in vars_to_plot:
             v = run_diags.get_variable(run, varname).rename("value")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
+            color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
             long_name = v.long_name
             hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
-                line_dash=style, color=p
+                line_dash=style, color=color
             )
     return HVPlot(_set_opts_and_overlay(hmap))
 
@@ -113,7 +116,6 @@ def plot_1d_min_max_with_region_bar(
 ) -> HVPlot:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 1D."""
-    p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
 
     variables_to_plot = run_diags.matching_variables(varfilter_min)
@@ -124,13 +126,14 @@ def plot_1d_min_max_with_region_bar(
             vmin = run_diags.get_variable(run, min_var).rename("min")
             vmax = run_diags.get_variable(run, max_var).rename("max")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
+            color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
             long_name = vmin.long_name
             region = min_var.split("_")[-1]
             # Area plot doesn't automatically add correct y label
             ylabel = f'{vmin.attrs["long_name"]} {vmin.attrs["units"]}'
             hmap[(long_name, region, run)] = hv.Area(
                 (vmin.time, vmin, vmax), label="Min/max", vdims=["y", "y2"]
-            ).options(line_dash=style, color=p, alpha=0.6, ylabel=ylabel)
+            ).options(line_dash=style, color=color, alpha=0.6, ylabel=ylabel)
     return HVPlot(_set_opts_and_overlay(hmap))
 
 
@@ -138,17 +141,17 @@ def plot_1d_with_region_bar(run_diags: RunDiagnostics, varfilter: str) -> HVPlot
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     Region will be selectable through a drop-down bar. Region is assumed to be part of
     variable name after last underscore. All matching diagnostics must be 1D."""
-    p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "region", "run"])
     vars_to_plot = run_diags.matching_variables(varfilter)
     for run in run_diags.runs:
         for varname in vars_to_plot:
             v = run_diags.get_variable(run, varname).rename("value")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
+            color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
             long_name = v.long_name
             region = varname.split("_")[-1]
             hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
-                line_dash=style, color=p
+                line_dash=style, color=color
             )
     return HVPlot(_set_opts_and_overlay(hmap))
 
@@ -157,7 +160,12 @@ def _set_opts_and_overlay(hmap, overlay="run"):
     return (
         hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
         .overlay(overlay)
-        .opts(legend_position="right")
+        .opts(
+            legend_position="right",
+            bgcolor="gainsboro",
+            show_grid=True,
+            gridstyle=dict(grid_line_color="white", grid_line_width=0.5),
+        )
     )
 
 
@@ -177,7 +185,6 @@ def diurnal_component_plot(
     diurnal_component_name="diurn_component",
 ) -> HVPlot:
 
-    p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["run", "surface_type", "short_varname"])
     variables_to_plot = run_diags.matching_variables(diurnal_component_name)
 
@@ -187,7 +194,7 @@ def diurnal_component_plot(
             short_vname, surface_type = _parse_diurnal_component_fields(varname)
             hmap[(run, surface_type, short_vname)] = hv.Curve(
                 v, label=diurnal_component_name
-            ).options(color=p)
+            ).options(color=COLOR_CYCLE)
     return HVPlot(_set_opts_and_overlay(hmap, overlay="short_varname"))
 
 
@@ -536,7 +543,7 @@ def _get_movie_manifest(movie_urls: MovieUrls, output: str) -> MovieManifest:
 
 def _get_public_links(movie_urls: MovieUrls, output: str) -> PublicLinks:
     """Get the public links at which each movie can be opened in a browser."""
-    public_links = {}
+    public_links: PublicLinks = {}
     for run_name, urls in movie_urls.items():
         for url in urls:
             movie_name = _movie_name(url)
@@ -638,7 +645,3 @@ def main_json(args):
         args.input, args.urls_are_rundirs
     )
     make_report(computed_diagnostics, args.output)
-
-
-if __name__ == "__main__":
-    main()

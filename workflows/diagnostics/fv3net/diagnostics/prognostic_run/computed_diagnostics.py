@@ -22,7 +22,7 @@ __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
 
 GRID_VARS = ["area", "lonb", "latb", "lon", "lat", "land_sea_mask"]
 
-Diagnostics = Iterable[xr.Dataset]
+Diagnostics = Sequence[xr.Dataset]
 Metadata = Any
 
 
@@ -151,6 +151,10 @@ class RunDiagnostics:
 
     def is_baseline(self, run: str) -> bool:
         return self._attrs[run]["baseline"]
+
+    @staticmethod
+    def is_verification(run: str) -> bool:
+        return run == "verification"
 
 
 @dataclass
@@ -337,9 +341,8 @@ def parse_rundirs(rundirs) -> pd.DataFrame:
 
 
 def _parse_metadata(run: str):
-    baseline_s = "-baseline"
 
-    if run.endswith(baseline_s):
+    if "baseline" in run:
         baseline = True
     else:
         baseline = False

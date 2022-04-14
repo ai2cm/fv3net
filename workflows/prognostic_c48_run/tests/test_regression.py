@@ -507,11 +507,10 @@ def get_ml_config(model_path):
         }
     ]
     config["fortran_diagnostics"] = []
-    config["scikit_learn"] = {"model": [model_path]}
-    # use local paths in prognostic_run image. fv3config
-    # downloads data. We should change this once the fixes in
-    # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
-    # into the prognostic_run image
+    config["scikit_learn"] = {
+        "model": [model_path],
+        "use_mse_conserving_humidity_limiter": False,
+    }
     return config
 
 
@@ -726,6 +725,16 @@ def test_fv3run_emulation_zarr_out(completed_rundir, configuration, regtest):
 
     emu_state_zarr = xr.open_zarr(str(completed_rundir.join("state_output.zarr")))
     emu_state_zarr.info(regtest)
+
+
+def test_each_line_of_file_is_json(completed_segment):
+    with completed_segment.join("logs.txt").open() as f:
+        k = 0
+        for line in f:
+            json.loads(line)
+            k += 1
+    some_lines_read = k > 0
+    assert some_lines_read
 
 
 def test_fv3run_emulation_nc_out(completed_segment, configuration, regtest):

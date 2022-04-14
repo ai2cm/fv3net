@@ -1,5 +1,8 @@
 # Contributions Guides and Standards
 
+Coding guidelines for contributors (and pull request reviewers) are described in
+the [Code Review Checklist](https://docs.google.com/document/d/1lIC1m1vYhdZITjvcUKuIE8jb05QYPwxX/edit).
+
 Please record all changes and updates in [HISTORY.rst](./HISTORY.rst) under the
 upcoming section.  It is especially important to log changes that break backwards
 compatibility so we can appropriately adjust the versioning.
