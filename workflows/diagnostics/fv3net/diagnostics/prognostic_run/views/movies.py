@@ -158,7 +158,8 @@ def _create_movie(spec: MovieSpec, ds: xr.Dataset, output: str, n_jobs: int):
             filename = os.path.join(tmpdir, name + FIG_SUFFIX)
             func_args = [(data.isel(time=t), filename % t) for t in range(T)]
             with get_context("spawn").Pool(n_jobs) as p:
-                p.map(spec.plotting_function, func_args)
+                # ignoring because of https://github.com/python/mypy/issues/5485
+                p.map(spec.plotting_function, func_args)  # type: ignore
             movie_path = _stitch_movie_stills(filename)
             fs.put(movie_path, os.path.join(output, f"{name}.mp4"))
     else:
