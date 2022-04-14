@@ -1,10 +1,10 @@
-from typing import Mapping, Sequence
+from typing import Mapping, List
 import intake
 
 
 def get_verification_entries(
     name: str, catalog: intake.catalog.Catalog
-) -> Mapping[str, Sequence[str]]:
+) -> Mapping[str, List[str]]:
     """Given simulation name, return catalog keys for c48 dycore and physics data.
 
     Args:
@@ -15,7 +15,7 @@ def get_verification_entries(
         Mapping from category name ('physics', 'dycore', or '3d') to sequence
         of catalog keys representing given diagnostics for specified simulation.
     """
-    entries = {"2d": [], "3d": []}
+    entries: Mapping[str, List[str]] = {"2d": [], "3d": []}
     for item in catalog:
         metadata = catalog[item].metadata
         item_simulation = metadata.get("simulation", None)

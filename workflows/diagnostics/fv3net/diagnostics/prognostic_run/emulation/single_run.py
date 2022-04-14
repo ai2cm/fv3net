@@ -33,7 +33,6 @@ WANDB_PROJECT = "microphysics-emulation"
 WANDB_ENTITY = "ai2cm"
 
 log_functions = []
-summary_functions = []
 
 
 def register_log(func):
@@ -133,7 +132,7 @@ def skill_time_table(ds):
 def summarize_column_skill(ds, prefix, tendency_func):
     return {
         f"{prefix}/{field}": float(
-            column_integrated_skill(ds, partial(tendency_func, field=field))
+            column_integrated_skill(ds, lambda x, y: tendency_func(x, field, y))
         )
         for field in SKILL_FIELDS
     }.items()
@@ -154,7 +153,7 @@ def global_average_cloud_5d_300mb_ppm(ds: xr.Dataset) -> Iterable[Tuple[str, flo
 
     selected_height = selected.interp(z=z)
     average_cloud = float(
-        vcm.weighted_average(selected_height, ds.area, dims=set(selected_height.dims))
+        vcm.weighted_average(selected_height, ds.area, dims=selected_height.dims)
     )
     yield (
         global_average_cloud_5d_300mb_ppm.__name__,
@@ -193,8 +192,8 @@ def skills_3d(
 ):
     out = {}
     for field in fields:
-        prediction = transform(ds, field, source="emulator")
-        truth = transform(ds, field, source="physics")
+        prediction = transform(ds, field, "emulator")
+        truth = transform(ds, field, "physics")
         out[field] = skill_improvement(truth, prediction, ds.area)
     return xr.Dataset(out)
 
@@ -202,8 +201,8 @@ def skills_3d(
 def column_integrated_skill(
     ds: xr.Dataset, transform: Callable[[xr.Dataset, str], xr.DataArray],
 ):
-    prediction = transform(ds, source="emulator")
-    truth = transform(ds, source="physics")
+    prediction = transform(ds, "emulator")
+    truth = transform(ds, "physics")
     return skill_improvement_column(truth, prediction, ds.area)
 
 
@@ -346,7 +345,9 @@ def get_summary_functions() -> Iterable[
         ("column_skill/gscond", tendencies.gscond_tendency),
         ("column_skill/precpd", tendencies.precpd_tendency),
     ]:
-        func = partial(summarize_column_skill, prefix=name, tendency_func=tendency_func)
+        func: Callable = partial(
+            summarize_column_skill, prefix=name, tendency_func=tendency_func
+        )
         func.__name__ = name
         yield func
 

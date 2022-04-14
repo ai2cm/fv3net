@@ -16,7 +16,8 @@ from loaders.mappers._fine_res_budget import (
     compute_fine_res_sources,
     column_integrated_fine_res_nudging_heating,
     FineResBudget,
-    FINE_RES_BUDGET_NAMES,
+    FINE_RES_STATE_NAMES,
+    FINE_RES_FLUX_NAMES,
 )
 
 
@@ -51,6 +52,7 @@ def _open_merged_dataset(
     additional_dataset_urls: Optional[Sequence[str]],
     standardize_fine_coords: bool = True,
     use_fine_res_state: bool = True,
+    use_fine_res_fluxes: bool = False,
 ) -> FineResBudget:
 
     fine = open_zarr(fine_url)
@@ -69,9 +71,12 @@ def _open_merged_dataset(
     else:
         merged = fine
 
+    # optionally overwrite standard name arrays with those from fine-res budget
     if use_fine_res_state:
-        # overwrite standard name arrays with those from fine-res budget
-        for fine_res_name, standard_name in FINE_RES_BUDGET_NAMES.items():
+        for fine_res_name, standard_name in FINE_RES_STATE_NAMES.items():
+            merged[standard_name] = fine[fine_res_name]
+    if use_fine_res_fluxes:
+        for fine_res_name, standard_name in FINE_RES_FLUX_NAMES.items():
             merged[standard_name] = fine[fine_res_name]
 
     return merged
@@ -200,6 +205,7 @@ def open_fine_resolution(
     include_temperature_nudging: bool = False,
     additional_dataset_urls: Sequence[str] = None,
     use_fine_res_state: bool = True,
+    use_fine_res_fluxes: bool = False,
 ) -> GeoMapper:
     """
     Open the fine-res mapper using several configuration options
@@ -217,6 +223,9 @@ def open_fine_resolution(
             as required by the above approaches
         use_fine_res_state: set standard name state variables to point to the fine-res
             data. Set to True if wanting to use fine-res state as ML inputs in training.
+        use_fine_res_fluxes: set standard name surface and TOA flux diagnostic variables
+            to point to the fine-res data. Set of True if wanting to use fine-res fluxes
+            as ML inputs in training.
 
     Returns:
         a mapper
@@ -228,6 +237,7 @@ def open_fine_resolution(
         fine_url=fine_url,
         additional_dataset_urls=additional_dataset_urls,
         use_fine_res_state=use_fine_res_state,
+        use_fine_res_fluxes=use_fine_res_fluxes,
     )
     budget: MLTendencies = compute_budget(
         merged, approach_enum, include_temperature_nudging=include_temperature_nudging
