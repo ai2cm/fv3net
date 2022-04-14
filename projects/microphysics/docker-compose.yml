@@ -2,7 +2,7 @@
 version: '3.4'
 services:
   fv3:
-    image: us.gcr.io/vcm-ml/fv3fit:latest
+    image: us.gcr.io/vcm-ml/prognostic_run:latest
     entrypoint: []
     command: [bash]
     working_dir: /fv3net/projects/microphysics
