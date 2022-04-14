@@ -6,6 +6,8 @@ import sys
 import tempfile
 from typing import MutableMapping, Sequence, List
 import fsspec
+import wandb
+import json
 
 import fv3viz
 import matplotlib.pyplot as plt
@@ -75,7 +77,7 @@ def _cleanup_temp_dir(temp_dir):
     temp_dir.cleanup()
 
 
-def _create_arg_parser() -> argparse.Namespace:
+def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "input_path", type=str, help=("Location of diagnostics and metrics data."),
@@ -106,7 +108,15 @@ def _create_arg_parser() -> argparse.Namespace:
         default=None,
         help=("Training data configuration yaml file to insert into report"),
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--no-wandb",
+        help=(
+            "Disable logging of run to wandb. Uses environment variables WANDB_ENTITY, "
+            "WANDB_PROJECT, WANDB_JOB_TYPE as wandb.init options."
+        ),
+        action="store_true",
+    )
+    return parser
 
 
 def render_model_sensitivity(figures_dir, output_dir) -> str:
@@ -377,6 +387,14 @@ def create_report(args):
     if args.training_data_config:
         with fsspec.open(args.training_data_config, "r") as f:
             metadata["training_data_config"] = yaml.safe_load(f)
+    if args.no_wandb is False:
+        wandb_config = {
+            "training_data": metadata.pop("training_data_config"),
+            "model_training_config": metadata.pop("training_config"),
+            "metadata": metadata,
+        }
+        wandb.init(config=wandb_config)
+        wandb.log(metrics)
 
     html_index = render_index(
         metadata, metrics, ds_diags, ds_transect, output_dir=temp_output_dir.name,
@@ -398,6 +416,16 @@ def create_report(args):
     copy_outputs(temp_output_dir.name, args.output_path)
     logger.info(f"Save report to {args.output_path}")
 
+    # Gcloud logging allows metrics to get ingested into database
+    gcloud_logging = {
+        "json": json.dumps(metrics),
+        "logging.googleapis.com/labels": {
+            "model": metadata["model_path"],
+            "commit_sha": metadata.get("commit", "n/a"),
+        },
+    }
+    print(gcloud_logging)
+
     # Explicitly call .close() or xarray raises errors atexit
     # described in https://github.com/shoyer/h5netcdf/issues/50
     ds_diags.close()
@@ -406,5 +434,6 @@ def create_report(args):
 
 if __name__ == "__main__":
     logger.info("Starting create report routine.")
-    args = _create_arg_parser()
+    parser = _get_parser()
+    args = parser.parse_args()
     create_report(args)

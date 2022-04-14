@@ -51,9 +51,9 @@ def get_parser():
         ),
     )
     parser.add_argument(
-        "--wandb",
+        "--no-wandb",
         help=(
-            "Log run to wandb. Uses environment variables WANDB_ENTITY, "
+            "Disable logging of run to wandb. Uses environment variables WANDB_ENTITY, "
             "WANDB_PROJECT, WANDB_JOB_TYPE as wandb.init options."
         ),
         action="store_true",
@@ -188,7 +188,7 @@ def main(args, unknown_args=None):
             config_dict = get_arg_updated_config_dict(
                 args=unknown_args, config_dict=config_dict
             )
-        if args.wandb:
+        if args.no_wandb is False:
             # hyperparameters are repeated as flattened top level keys so they can
             # be referenced in the sweep configuration parameters
             # https://github.com/wandb/client/issues/982
@@ -207,7 +207,7 @@ def main(args, unknown_args=None):
     with open(args.training_data_config, "r") as f:
         config_dict = yaml.safe_load(f)
         training_data_config = loaders.BatchesLoader.from_dict(config_dict)
-        if args.wandb:
+        if args.no_wandb is False:
             wandb.config["training_data_config"] = config_dict
 
     fv3fit.set_random_seed(training_config.random_seed)

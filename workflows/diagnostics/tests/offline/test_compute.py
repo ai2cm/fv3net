@@ -1,9 +1,7 @@
 import dataclasses
 import logging
-from dataclasses import dataclass
 import tempfile
 import os
-from typing import Optional
 import loaders
 import synth
 from synth import (  # noqa: F401
@@ -15,8 +13,7 @@ from synth import (  # noqa: F401
 import fv3fit
 from fv3net.diagnostics.offline._helpers import DATASET_DIM_NAME
 from fv3net.diagnostics.offline import compute
-from fv3net.diagnostics.offline.views.create_report import create_report
-
+from fv3net.diagnostics.offline.views import create_report
 import pathlib
 import pytest
 import numpy as np
@@ -40,26 +37,6 @@ def data_path(tmpdir, request):
 
     ds.to_zarr(str(tmpdir), consolidated=True)
     return str(tmpdir)
-
-
-@dataclass
-class ComputeDiagsArgs:
-    model_path: str
-    output_path: str
-    data_yaml: str
-    snapshot_time: Optional[str] = None
-    grid: str = None
-    grid_resolution: str = "c8_random_values"
-    n_jobs: int = 1
-
-
-@dataclass
-class CreateReportArgs:
-    input_path: str
-    output_path: str
-    commit_sha: str = "commit_sha_placeholder"
-    training_config: Optional[str] = None
-    training_data_config: Optional[str] = None
 
 
 def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
@@ -88,22 +65,32 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
         data_config_filename = os.path.join(tmpdir, "data_config.yaml")
         with open(data_config_filename, "w") as f:
             yaml.safe_dump(dataclasses.asdict(data_config), f)
-        compute_diags_args = ComputeDiagsArgs(
-            model_path=model_dir,
-            output_path=os.path.join(tmpdir, "offline_diags"),
-            data_yaml=data_config_filename,
-            grid=grid_dataset_path,
+        compute_diags_args = compute._get_parser().parse_args(
+            [
+                model_dir,
+                data_config_filename,
+                os.path.join(tmpdir, "offline_diags"),
+                "--grid",
+                grid_dataset_path,
+                "--grid-resolution",
+                "c8_random_values",
+                "--n-jobs",
+                "1",
+            ]
         )
         compute.main(compute_diags_args)
         if isinstance(data_config, loaders.BatchesFromMapperConfig):
             assert "transect_lon0.nc" in os.listdir(
                 os.path.join(tmpdir, "offline_diags")
             )
-        create_report_args = CreateReportArgs(
-            input_path=os.path.join(tmpdir, "offline_diags"),
-            output_path=os.path.join(tmpdir, "report"),
+        create_report_args = create_report._get_parser().parse_args(
+            [
+                os.path.join(tmpdir, "offline_diags"),
+                os.path.join(tmpdir, "report"),
+                "--no-wandb",
+            ]
         )
-        create_report(create_report_args)
+        create_report.create_report(create_report_args)
         with open(os.path.join(tmpdir, "report/index.html")) as f:
             report = f.read()
         if isinstance(data_config, loaders.BatchesFromMapperConfig):
