@@ -7,6 +7,7 @@ import tempfile
 from typing import MutableMapping, Sequence, List
 import fsspec
 import wandb
+import json
 
 import fv3viz
 import matplotlib.pyplot as plt
@@ -414,6 +415,16 @@ def create_report(args):
 
     copy_outputs(temp_output_dir.name, args.output_path)
     logger.info(f"Save report to {args.output_path}")
+
+    # Gcloud logging allows metrics to get ingested into database
+    gcloud_logging = {
+        "json": json.dumps(metrics),
+        "logging.googleapis.com/labels": {
+            "model": metadata["model_path"],
+            "commit_sha": metadata["commit"],
+        },
+    }
+    print(gcloud_logging)
 
     # Explicitly call .close() or xarray raises errors atexit
     # described in https://github.com/shoyer/h5netcdf/issues/50
