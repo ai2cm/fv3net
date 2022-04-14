@@ -487,6 +487,7 @@ def cli_main(args: argparse.Namespace):
             args.training_config,
             args.training_data_config,
             args.output_path,
+            "--no-wandb",
         ]
         + validation_args
     )
