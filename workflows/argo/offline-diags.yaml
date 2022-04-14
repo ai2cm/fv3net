@@ -26,7 +26,7 @@ spec:
           - {name: use-wandb, value: "false"}
           - {name: wandb-project, value: "argo-default"}
           - {name: wandb-tags, value: ""}
-          - {name: wandb-run-group, value: ""}
+          - {name: wandb-group, value: ""}
           - {name: memory, value: 10Gi}
 
       container:
@@ -44,7 +44,7 @@ spec:
           - name: WANDB_TAGS
             value: "{{inputs.parameters.wandb-tags}}"
           - name: WANDB_RUN_GROUP
-            value: "{{inputs.parameters.wandb-run-group}}"
+            value: "{{inputs.parameters.wandb-group}}"
         envFrom:
           - secretRef:
               name: wandb-token
@@ -74,7 +74,7 @@ spec:
 
             if [ "{{inputs.parameters.use-wandb}}" == "false" ];
             then
-              wandb_flag=" "
+              wandb_flag=""
             else
               wandb_flag="--wandb"
             fi

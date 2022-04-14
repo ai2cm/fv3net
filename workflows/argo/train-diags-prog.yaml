@@ -39,7 +39,7 @@ spec:
       - {name: use-wandb, value: "false"}
       - {name: wandb-project, value: "argo-default"}
       - {name: wandb-tags, value: ""}
-      - {name: wandb-run-group, value: ""}
+      - {name: wandb-group, value: ""}
 
     dag:
       tasks:
@@ -83,8 +83,8 @@ spec:
               value: "{{inputs.parameters.wandb-project}}"
             - name: wandb-tags
               value: "{{inputs.parameters.wandb-tags}}"
-            - name: wandb-run-group
-              value: "{{inputs.parameters.wandb-run-group}}"
+            - name: wandb-group
+              value: "{{inputs.parameters.wandb-group}}"
       - name: offline-diags
         dependencies: [train-model]
         templateRef:
@@ -113,8 +113,8 @@ spec:
                 value: "{{inputs.parameters.wandb-project}}"
               - name: wandb-tags
                 value: "{{inputs.parameters.wandb-tags}}"
-              - name: wandb-run-group
-                value: "{{inputs.parameters.wandb-run-group}}"
+              - name: wandb-group
+                value: "{{inputs.parameters.wandb-group}}"
       - name: insert-model-urls
         when: "{{inputs.parameters.do-prognostic-run}} == true"
         dependencies: [resolve-output-url]
