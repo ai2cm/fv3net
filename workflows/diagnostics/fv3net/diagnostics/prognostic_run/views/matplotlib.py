@@ -1,12 +1,12 @@
 import logging
 from collections import defaultdict
-from typing import Tuple, Mapping
+from typing import Tuple, Mapping, MutableMapping
 import xarray as xr
 
 import cartopy.crs as ccrs
 import jinja2
 import matplotlib.pyplot as plt
-import matplotlib
+from matplotlib.colors import LogNorm
 import numpy as np
 
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
@@ -17,6 +17,7 @@ import fv3viz
 from report import MatplotlibFigure, RawHTML
 
 COORD_VARS = ["lon", "lat", "lonb", "latb"]
+OverlaidPlotData = MutableMapping[str, MutableMapping[str, MatplotlibFigure]]
 
 
 template = jinja2.Template(
@@ -63,7 +64,7 @@ def plot_2d_matplotlib(
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
 
-    data = defaultdict(dict)
+    data: OverlaidPlotData = defaultdict(dict)
 
     # kwargs handling
     ylabel = opts.pop("ylabel", "")
@@ -123,7 +124,7 @@ def plot_cubed_sphere_map(
         run_diags must include lat/lon/latb/lonb coordinates.
     """
 
-    data = defaultdict(dict)
+    data: OverlaidPlotData = defaultdict(dict)
     if metrics_for_title is None:
         metrics_for_title = {}
 
@@ -181,7 +182,7 @@ def plot_histogram(
 def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHTML:
     """Plot 2D histogram of xname versus yname overlaid across runs."""
 
-    data = defaultdict(dict)
+    data: OverlaidPlotData = defaultdict(dict)
     count_name = f"{xname.lower()}_versus_{yname.lower()}_hist_2d"
     conditional_average_name = f"conditional_average_of_{yname}_on_{xname}"
     x_bin_name = f"{xname}_bins"
@@ -203,7 +204,7 @@ def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHT
         xcenters = x.values + 0.5 * x_bin_widths.values
         fig, ax = plt.subplots()
         xx, yy = np.meshgrid(xedges, yedges)
-        ax.pcolormesh(xx, yy, count.T, norm=matplotlib.colors.LogNorm(), cmap="Blues")
+        ax.pcolormesh(xx, yy, count.T, norm=LogNorm(), cmap="Blues")
         ax.plot(xcenters, conditional_average, color="r", linewidth=2)
         ax.set_xlabel(f"{xname} [{x_bin_widths.units}]")
         ax.set_ylabel(f"{yname} [{y_bin_widths.units}]")

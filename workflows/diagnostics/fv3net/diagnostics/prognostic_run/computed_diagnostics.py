@@ -22,7 +22,7 @@ __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
 
 GRID_VARS = ["area", "lonb", "latb", "lon", "lat", "land_sea_mask"]
 
-Diagnostics = Iterable[xr.Dataset]
+Diagnostics = Sequence[xr.Dataset]
 Metadata = Any
 
 
