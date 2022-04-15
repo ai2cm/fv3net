@@ -283,5 +283,5 @@ def register_parser(subparsers):
 def main(args):
     diags = _add_derived_diagnostics(xr.open_dataset(args.input))
     metrics = metrics_registry.compute(diags, n_jobs=1)
-    metrics[LABEL_NAME] = diags.attrs
+    metrics[LABEL_NAME] = {k: str(v) for k, v in diags.attrs.items()}
     print(json.dumps(metrics))
