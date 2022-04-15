@@ -23,7 +23,7 @@ def test_EmulationConfig_from_dict():
 
 def test_ModelConfig_no_interval():
     config = ModelConfig(path="")
-    assert len(list(config._build_masks())) == 0
+    assert len(list(config._build_masks())) == 1
 
 
 def test_ModelConfig_with_interval():
