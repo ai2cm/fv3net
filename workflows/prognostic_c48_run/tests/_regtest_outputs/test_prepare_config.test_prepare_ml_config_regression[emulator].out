@@ -440,6 +440,8 @@ tendency_prescriber: null
 zhao_carr_emulation:
   gscond: null
   model:
+    cloud_squash: null
+    gscond_cloud_conservative: false
     online_schedule:
       initial_time: 2016-06-01 00:00:00
       period: 21600

@@ -9,6 +9,7 @@ ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_NAME ?= fv3net
 CACHE_TAG =latest
 BEAM_VERSION = 2.37.0
+UBUNTU_IMAGE = ubuntu@sha256:9101220a875cee98b016668342c489ff0674f247f6ca20dfc91b91c0f28581ae
 
 IMAGES = fv3net post_process_run prognostic_run
 
@@ -32,7 +33,7 @@ build_image_prognostic_run: docker/prognostic_run/requirements.txt
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
 		--target prognostic-run \
-		--build-arg BASE_IMAGE=ubuntu:20.04 .
+		--build-arg BASE_IMAGE=$(UBUNTU_IMAGE) .
 
 build_image_prognostic_run_gpu: docker/prognostic_run/requirements.txt
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run_gpu:$(CACHE_TAG) \
@@ -181,7 +182,16 @@ lock_deps: lock_pip
 	conda-lock -f environment.yml
 	# external directories must be explicitly listed to avoid model requirements files which use locked versions
 
-constraints.txt:
+REQUIREMENTS = external/vcm/setup.py \
+	pip-requirements.txt \
+	external/fv3kube/setup.py \
+	external/fv3fit/setup.py \
+	external/*.requirements.in \
+	workflows/post_process_run/requirements.txt \
+	workflows/prognostic_c48_run/requirements.in \
+	projects/microphysics/requirements.in
+
+constraints.txt: $(REQUIREMENTS)
 	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
 		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/' \
 		| grep -v google-python-cloud-debugger \
@@ -190,21 +200,14 @@ constraints.txt:
 	pip-compile  \
 	--no-annotate \
 	.dataflow-versions.txt \
-	external/vcm/setup.py \
-	pip-requirements.txt \
-	external/fv3kube/setup.py \
-	external/fv3fit/setup.py \
-	external/*.requirements.in \
-	workflows/post_process_run/requirements.txt \
-	workflows/prognostic_c48_run/requirements.in \
-	$< \
+	$^ \
 	--output-file constraints.txt
 	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
 	sed -i.bak  's/\[.*\]//g' constraints.txt
 	rm -f constraints.txt.bak .dataflow-versions.txt
 	@echo "remember to update numpy version in external/vcm/pyproject.toml"
 
-docker/prognostic_run/requirements.txt: constraints.txt
+docker/prognostic_run/requirements.txt:
 	cp constraints.txt docker/prognostic_run/requirements.txt
 	# this will subset the needed dependencies from constraints.txt
 	# while preserving the versions
@@ -218,7 +221,7 @@ docker/prognostic_run/requirements.txt: constraints.txt
 		workflows/post_process_run/requirements.txt \
 		workflows/prognostic_c48_run/requirements.in
 
-docker/fv3fit/requirements.txt: constraints.txt
+docker/fv3fit/requirements.txt:
 	cp constraints.txt $@
 	# this will subset the needed dependencies from constraints.txt
 	# while preserving the versions

@@ -3,6 +3,7 @@ import argparse
 import logging
 import os
 from functools import partial
+import re
 from typing import Any, Callable, Iterable, List, Tuple
 import cftime
 
@@ -274,6 +275,9 @@ def register_parser(subparsers) -> None:
     parser.add_argument(
         "-s", "--summary-only", help="Only run summaries.", action="store_true"
     )
+    parser.add_argument(
+        "--summary-filter", help="Regex to select summaries", type=str, default=".*"
+    )
     parser.set_defaults(func=main)
 
 
@@ -314,7 +318,7 @@ def log_summary(key, val):
     wandb.summary[key] = val
 
 
-def upload_diagnostics_for_rundir(url: str, summary_only: bool):
+def upload_diagnostics_for_rundir(url: str, summary_only: bool, summary_name: str):
     wandb.config["run"] = url
     log_summary("duration_seconds", get_duration_seconds(url))
 
@@ -328,7 +332,8 @@ def upload_diagnostics_for_rundir(url: str, summary_only: bool):
 
     for func in get_summary_functions():
         for key, val in func(ds):
-            log_summary(key, val)
+            if re.match(summary_name, key):
+                log_summary(key, val)
 
 
 def get_summary_functions() -> Iterable[
@@ -352,7 +357,7 @@ def get_summary_functions() -> Iterable[
         yield func
 
 
-def upload_diagnostics_for_tag(tag: str, summary_only: bool):
+def upload_diagnostics_for_tag(tag: str, summary_only: bool, summary_name: str):
     run = wandb.init(
         job_type="piggy-back",
         project=WANDB_PROJECT,
@@ -364,8 +369,10 @@ def upload_diagnostics_for_tag(tag: str, summary_only: bool):
     wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
     with run:
         url = get_rundir_from_prognostic_run(get_prognostic_run_from_tag(tag))
-        upload_diagnostics_for_rundir(url, summary_only)
+        upload_diagnostics_for_rundir(url, summary_only, summary_name)
 
 
 def main(args):
-    return upload_diagnostics_for_tag(args.tag, summary_only=args.summary_only)
+    return upload_diagnostics_for_tag(
+        args.tag, summary_only=args.summary_only, summary_name=args.summary_filter
+    )
