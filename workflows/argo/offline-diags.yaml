@@ -41,8 +41,6 @@ spec:
             value: ai2cm
           - name: WANDB_PROJECT
             value: "{{inputs.parameters.wandb-project}}"
-          - name: WANDB_TAGS
-            value: "{{inputs.parameters.wandb-tags}}"
           - name: WANDB_RUN_GROUP
             value: "{{inputs.parameters.wandb-group}}"
         envFrom:
@@ -55,6 +53,10 @@ spec:
           - |
 
             gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
+
+            if [ ! -z {{inputs.parameters.wandb-tags}} ]; then
+              export WANDB_TAGS={{inputs.parameters.wandb-tags}}
+            fi
 
             cat << EOF > test_data.yaml
             {{inputs.parameters.test_data_config}}
