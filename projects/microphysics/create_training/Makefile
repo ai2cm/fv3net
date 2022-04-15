@@ -1,7 +1,7 @@
 
 CONFIG ?= ./training_fv3config_template.yaml
 OUTPUT_FREQUENCY ?= 18000
-TAG_PREFIX ?= microphysics-training-data-v3
+TAG_PREFIX ?= microphysics-training-data-v4
 RUN_DATE ?= 2021-11-18
 
 create:

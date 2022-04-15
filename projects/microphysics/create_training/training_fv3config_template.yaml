@@ -93,3 +93,4 @@ zhao_carr_emulation:
   storage:
     output_freq_sec: 18000
     save_nc: true
+    save_zarr: false
