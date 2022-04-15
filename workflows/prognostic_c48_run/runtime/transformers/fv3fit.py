@@ -1,9 +1,12 @@
 import dataclasses
-from typing import Mapping, MutableMapping, Iterable, Hashable, Sequence, Tuple
+from typing import Mapping, MutableMapping, Iterable, Hashable, Sequence, Literal
 
 import xarray as xr
 import fv3fit
-from runtime.steppers.machine_learning import non_negative_sphum_mse_conserving
+from runtime.steppers.machine_learning import (
+    non_negative_sphum_mse_conserving,
+    MultiModelAdapter,
+)
 from runtime.types import State
 from runtime.names import SPHUM, TEMP
 
@@ -11,91 +14,93 @@ __all__ = ["Config", "Adapter"]
 
 
 @dataclasses.dataclass
+class MLOutputApplier:
+    """Configuration of how to apply ML predictions to state.
+
+    Attrs:
+        target_name: Name of the variable to apply ML predictions to.
+        method: How to apply ML predictions to the target variable.
+    """
+
+    target_name: str
+    method: Literal["tendency", "state"]
+
+    def apply(
+        self, inputs: State, prediction: xr.DataArray, timestep: float
+    ) -> xr.DataArray:
+        if self.method == "tendency":
+            with xr.set_options(keep_attrs=True):
+                output = inputs[self.target_name] + prediction * timestep
+        elif self.method == "state":
+            output = prediction
+        return output
+
+
+@dataclasses.dataclass
 class Config:
     """
     Attributes:
         url: Sequence of paths to models that can be loaded with fv3fit.load.
-        tendency_predictions: Mapping from names of outputs predicted by ML model to
-            state names. For example: {"Q1": "air_temperature"}. These predictions
-            will be multiplied by the physics timestep before being added to the state.
-        state_predictions: Mapping from names of outputs predicted by ML model to
-            state names. For example:
-            {"implied_surface_precipitation_rate": "surface_precipitation_rate"}. The
-            state will be set to be equal to these predictions.
+        output_targets: Mapping from names of outputs predicted by ML model to
+            MLOutputApplier configuration. For example:
+            {"Q1": {"target_name": "air_temperature", "method": "tendency"}.
         limit_negative_humidity: if True, rescale tendencies to not allow specific
             humidity to become negative.
         online: if True, the ML predictions will be applied to model state.
     """
 
     url: Sequence[str]
-    tendency_predictions: Mapping[str, str] = dataclasses.field(default_factory=dict)
-    state_predictions: Mapping[str, str] = dataclasses.field(default_factory=dict)
+    output_targets: Mapping[str, MLOutputApplier]
     limit_negative_humidity: bool = True
     online: bool = True
 
 
-class TendencyOrStateMultiModelAdapter:
-    """Adapter for multiple models that predict tendencies and state updates.
+class PredictionInverter:
+    """Take ML predictions and convert to mapping keyed on state variable names"""
 
-    Args:
-        models: Sequence of fv3fit.Predictor objects.
-        tendency_predictions: Mapping from names of outputs predicted by ML model to
-            state names. These predictions will be multiplied by the physics timestep.
-        state_predictions: Mapping from names of outputs predicted by ML model to
-            state names. The state will be set to be equal to these predictions.
-    """
-
-    def __init__(
-        self,
-        models: Iterable[fv3fit.Predictor],
-        tendency_predictions: Mapping[str, str],
-        state_predictions: Mapping[str, str],
-    ):
-        self.models = models
-        if len(set(state_predictions.values())) < len(state_predictions.values()):
+    def __init__(self, targets: Mapping[str, MLOutputApplier]):
+        states = [t.target_name for t in targets.values() if t.method == "state"]
+        tendencies = [t.target_name for t in targets.values() if t.method == "tendency"]
+        if len(set(states)) < len(states):
             raise ValueError(
-                "Cannot have multiple state predictions for same state variable."
+                "Cannot have multiple state predictions for same variable."
             )
-        self.tendency_predictions = tendency_predictions
-        self.state_predictions = state_predictions
+        if len(set(states).intersection(tendencies)) > 0:
+            raise ValueError(
+                "A variable cannot be updated by tendency and state predictions."
+            )
+        self.targets = targets
 
-    @property
-    def input_variables(self) -> Iterable[Hashable]:
-        nested_vars = [model.input_variables for model in self.models]
-        return list({var for model_vars in nested_vars for var in model_vars})
-
-    def predict(self, arg: xr.Dataset) -> Tuple[xr.Dataset, xr.Dataset]:
-        """Predict tendencies and state updates.
+    def invert(self, predictions: State) -> State:
+        """Separate a dataset of predictions into tendency and state predictions.
 
         Args:
-            arg: dataset with input variables.
+            predictions: tendency and/or state predictions, keyed on ML output names.
 
         Returns:
-            Tuple of two datasets. The first dataset contains the tendencies, the
-            second dataset contains the state updates. The keys of each dataset
-            are the state names to be updated.
+            Mapping of tendencies and state updates keyed on state names to be updated.
 
         Note:
-            Tendencies are summed over all predictions for a given variable. For
-            example, if self.tendency_predictions = {'Q1': 'air_temperature',
-            'air_temperature_tendency_due_to_nudging': 'air_temperature'} then
-            the returned tendency dataset will contain a tendency for
-            'air_temperature' that is the sum of these two predicted tendencies.
+            Tendencies are summed over all predictions for a given variable.
         """
-        predictions = []
-        for model in self.models:
-            predictions.append(model.predict(arg))
-        merged_predictions = xr.merge(predictions)
-        tendencies: MutableMapping[str, xr.DataArray] = {}
-        state_updates: MutableMapping[str, xr.DataArray] = {}
-        for tendency_name, variable_name in self.tendency_predictions.items():
-            if variable_name in tendencies:
-                tendencies[variable_name] += merged_predictions[tendency_name]
-            else:
-                tendencies[variable_name] = merged_predictions[tendency_name]
-        for prediction_name, variable_name in self.state_predictions.items():
-            state_updates[variable_name] = merged_predictions[prediction_name]
-        return xr.Dataset(tendencies), xr.Dataset(state_updates)
+        output: MutableMapping[Hashable, xr.DataArray] = {}
+        for ml_output_name, target in self.targets.items():
+            if target.method == "tendency":
+                if target.target_name in output:
+                    output[target.target_name] += predictions[ml_output_name]
+                else:
+                    output[target.target_name] = predictions[ml_output_name]
+            elif target.method == "state":
+                output[target.target_name] = predictions[ml_output_name]
+        return output
+
+    def apply(self, inputs: State, predictions: State, timestep: float) -> State:
+        """Apply tendency and state updates to the input state."""
+        apply_methods = {t.target_name: t.apply for t in self.targets.values()}
+        output: MutableMapping[Hashable, xr.DataArray] = {}
+        for name, apply in apply_methods.items():
+            output[name] = apply(inputs, predictions[name], timestep)
+        return output
 
 
 @dataclasses.dataclass
@@ -105,23 +110,16 @@ class Adapter:
 
     def __post_init__(self: "Adapter"):
         models = [fv3fit.load(url) for url in self.config.url]
-        self.model = TendencyOrStateMultiModelAdapter(
-            models, self.config.tendency_predictions, self.config.state_predictions
-        )
+        self.model = MultiModelAdapter(models)  # type: ignore
+        self.inverter = PredictionInverter(self.config.output_targets)
 
     def predict(self, inputs: State) -> State:
-        tendencies, state_updates = self.model.predict(xr.Dataset(inputs))
+        prediction = self.model.predict(xr.Dataset(inputs))
+        tendencies = self.inverter.invert(prediction)
         if self.config.limit_negative_humidity:
             limited_tendencies = self.non_negative_sphum_limiter(tendencies, inputs)
-            tendencies = tendencies.update(limited_tendencies)
-
-        prediction: State = {}
-        for name in tendencies:
-            with xr.set_options(keep_attrs=True):
-                prediction[name] = inputs[name] + tendencies[name] * self.timestep
-        for name in state_updates:
-            prediction[name] = state_updates[name]
-        return prediction
+            tendencies.update(limited_tendencies)
+        return self.inverter.apply(inputs, tendencies, self.timestep)
 
     def apply(self, prediction: State, state: State):
         if self.config.online:
@@ -132,10 +130,12 @@ class Adapter:
 
     @property
     def input_variables(self) -> Iterable[Hashable]:
-        return list(
-            set(self.model.input_variables)
-            | set(self.config.tendency_predictions.values())
-        )
+        tendency_target_names = [
+            t.target_name
+            for t in self.config.output_targets.values()
+            if t.method == "tendency"
+        ]
+        return list(set(self.model.input_variables) | set(tendency_target_names))
 
     def non_negative_sphum_limiter(self, tendencies, inputs):
         limited_tendencies = {}

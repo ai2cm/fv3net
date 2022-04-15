@@ -3,13 +3,28 @@ import fv3fit
 import vcm
 import numpy as np
 import xarray as xr
+import pytest
 from runtime.transformers.fv3fit import (
     Config,
     Adapter,
-    TendencyOrStateMultiModelAdapter,
+    PredictionInverter,
+    MLOutputApplier,
 )
 from runtime.transformers.core import StepTransformer
 from machine_learning_mocks import get_mock_predictor
+
+
+TEMP = "air_temperature"
+SPHUM = "specific_humidity"
+Q1 = "Q1"
+Q2 = "Q2"
+DQ1 = "dQ1"
+DQ2 = "dQ2"
+NUDGING = "tendency_of_air_temperature_due_to_nudging"
+PRECIP_PRED = "implied_surface_precipitation_rate"
+PRECIP = "surface_precipitation_rate"
+DOWN_SW_PREDICTION_NAME = "total_sky_downward_shortwave_flux_at_surface"
+NZ = 63
 
 
 class MockDerivedState:
@@ -40,7 +55,10 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
     adapted_model = Adapter(
         Config(
             [model_path],
-            tendency_predictions={"dQ1": "air_temperature", "dQ2": "specific_humidity"},
+            output_targets={
+                DQ1: MLOutputApplier(TEMP, "tendency"),
+                DQ2: MLOutputApplier(SPHUM, "tendency"),
+            },
             limit_negative_humidity=True,
         ),
         900,
@@ -71,42 +89,41 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
     regression_state(out, regtest)
 
 
-def test_tendency_or_state_multimodel_adapter(state):
-    nz = 63
-    outputs = {
-        "Q1": np.full(nz, 1 / 86400),
-        "tendency_of_air_temperature_due_to_nudging": np.full(nz, 1 / 86400),
-        "implied_surface_precipitation_rate": 10 / 86400,
-    }
-    predictor_one = fv3fit.testing.ConstantOutputPredictor(
-        input_variables=["air_temperature", "specific_humidity"],
-        output_variables=["Q1", "implied_surface_precipitation_rate"],
-    )
-    predictor_two = fv3fit.testing.ConstantOutputPredictor(
-        input_variables=["air_temperature", "land_sea_mask"],
-        output_variables=["tendency_of_air_temperature_due_to_nudging"],
-    )
-    predictor_one.set_outputs(**outputs)
-    predictor_two.set_outputs(**outputs)
-    multi_model_predictor = TendencyOrStateMultiModelAdapter(
-        [predictor_one, predictor_two],
+def test_prediction_inverter():
+    inverter = PredictionInverter(
         {
-            "Q1": "air_temperature",
-            "tendency_of_air_temperature_due_to_nudging": "air_temperature",
-        },
-        {"implied_surface_precipitation_rate": "surface_precipitation_rate"},
+            Q1: MLOutputApplier(TEMP, "tendency"),
+            Q2: MLOutputApplier(SPHUM, "tendency"),
+            NUDGING: MLOutputApplier(TEMP, "tendency"),
+            PRECIP_PRED: MLOutputApplier(PRECIP, "state"),
+        }
     )
-    tendencies, state_updates = multi_model_predictor.predict(state)
-
-    expected_inputs = {"air_temperature", "specific_humidity", "land_sea_mask"}
-    assert set(multi_model_predictor.input_variables) == expected_inputs
-
-    expected_tendency = xr.full_like(state["air_temperature"], 2 / 86400)
-    expected_tendency = expected_tendency.transpose("y", "x", "z")
+    prediction = {
+        Q1: xr.DataArray(np.full(NZ, 1 / 86400), dims=("z")),
+        NUDGING: xr.DataArray(np.full(NZ, 1 / 86400), dims=("z")),
+        Q2: xr.DataArray(np.full(NZ, 1 / 86400 / 1000), dims=("z")),
+        PRECIP_PRED: xr.DataArray(np.full(NZ, 1 / 86400), dims=("z")),
+    }
+    inverted_prediction = inverter.invert(prediction)
+    assert TEMP in inverted_prediction
+    assert PRECIP in inverted_prediction
     xr.testing.assert_allclose(
-        xr.Dataset({"air_temperature": expected_tendency}), tendencies
+        inverted_prediction[TEMP], xr.DataArray(np.full(NZ, 2 / 86400), dims=("z"))
     )
-    assert set(state_updates) == {"surface_precipitation_rate"}
+
+
+def test_prediction_inverter_raises_multiple_state_update_error():
+    with pytest.raises(ValueError):
+        PredictionInverter(
+            {Q1: MLOutputApplier(TEMP, "state"), Q2: MLOutputApplier(TEMP, "state")}
+        )
+
+
+def test_prediction_inverter_raises_state_and_tendency_error():
+    with pytest.raises(ValueError):
+        PredictionInverter(
+            {Q1: MLOutputApplier(TEMP, "tendency"), Q2: MLOutputApplier(TEMP, "state")}
+        )
 
 
 def test_multimodel_adapter_integration(state, tmpdir_factory):
@@ -116,13 +133,14 @@ def test_multimodel_adapter_integration(state, tmpdir_factory):
     mock2 = get_mock_predictor(model_predictands="rad_fluxes")
     fv3fit.dump(mock1, model_path1)
     fv3fit.dump(mock2, model_path2)
-    DOWN_SW_PREDICTION_NAME = "total_sky_downward_shortwave_flux_at_surface"
 
     adapted_model = Adapter(
         Config(
             [model_path1, model_path2],
-            tendency_predictions={"dQ1": "air_temperature"},
-            state_predictions={DOWN_SW_PREDICTION_NAME: "surface_precipitation_rate"},
+            output_targets={
+                DQ1: MLOutputApplier(TEMP, "tendency"),
+                DOWN_SW_PREDICTION_NAME: MLOutputApplier(PRECIP, "state"),
+            },
             limit_negative_humidity=False,
         ),
         900,
