@@ -27,7 +27,7 @@ def prognostic_runs(experiment: str, filter_tags: str = typer.Option("", "-f")):
 
     Rerun the piggy-backed diagnostics for all runs in an experiment::
 
-        top.py prognostic-runs experiment/squash -f bug \
+        query-wandb.py prognostic-runs experiment/squash -f bug \
             | parallel conda run -n fv3net prognostic_run_diags piggy -s
 
     """
@@ -80,7 +80,8 @@ def runs(experiment: str, filter_tags: str = typer.Option("", "-f")):
 
     Filter all runs with "bug" in tags::
 
-        ./top.py runs experiment/squash -f bug | jq -sr '[.[].group] | unique | .[]'
+        query-wandb.py runs experiment/squash -f bug \
+            | jq -sr '[.[].group] | unique | .[]'
     """
     api = wandb.Api()
     runs = api.runs(PROJECT, filters={"tags": experiment})
