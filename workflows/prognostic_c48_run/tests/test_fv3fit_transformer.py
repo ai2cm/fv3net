@@ -3,10 +3,7 @@ import fv3fit
 import vcm
 import xarray as xr
 import pytest
-from runtime.transformers.fv3fit import (
-    Config,
-    Adapter,
-)
+from runtime.transformers.fv3fit import Config, Adapter
 from runtime.transformers.core import StepTransformer
 from machine_learning_mocks import get_mock_predictor
 
@@ -96,7 +93,7 @@ def test_multimodel_adapter_integration(state, tmpdir_factory):
     adapted_model = Adapter(
         Config(
             [model_path1, model_path2],
-            tendency_predictions={"dQ1": "air_temperature"},
+            tendency_predictions={"dQ1": "air_temperature", "dQ2": "air_temperature"},
             state_predictions={DOWN_SW_PREDICTION_NAME: "surface_precipitation_rate"},
             limit_negative_humidity=False,
         ),

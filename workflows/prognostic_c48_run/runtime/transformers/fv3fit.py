@@ -59,8 +59,8 @@ class Adapter:
         models = [fv3fit.load(url) for url in self.config.url]
         self.model = MultiModelAdapter(models)  # type: ignore
         self.tendency_names = defaultdict(list)
-        for tendency_name, state_name in self.config.tendency_predictions.items():
-            self.tendency_names[state_name].append(tendency_name)
+        for k, v in self.config.tendency_predictions.items():
+            self.tendency_names[v].append(k)
         self.state_names = {v: k for k, v in self.config.state_predictions.items()}
 
     def predict(self, inputs: State) -> State:
