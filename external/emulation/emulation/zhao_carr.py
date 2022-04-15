@@ -26,9 +26,9 @@ class PrecpdOutput:
     temperature = "air_temperature_after_precpd"
 
 
-def squash_water_water_conserving(cloud, qv, bound: float):
+def squash_water_water_conserving(cloud, humidity, bound: float):
     cloud_out = np.where(cloud < bound, 0, cloud)
-    qv_out = qv + (cloud - cloud_out)
+    qv_out = humidity + (cloud - cloud_out)
     return cloud_out, qv_out
 
 
