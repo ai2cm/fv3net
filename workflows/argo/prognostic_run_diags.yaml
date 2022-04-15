@@ -170,17 +170,17 @@ spec:
     tolerations:
     - key: "dedicated"
       operator: "Equal"
-      value: "med-sim-pool"
+      value: "climate-sim-pool"
       effect: "NoSchedule"
     container:
       image: us.gcr.io/vcm-ml/fv3net
       resources:
         requests:
           memory: "25Gi"
-          cpu: "7500m"
+          cpu: "25500m"
         limits:
           memory: "25Gi"
-          cpu: "8000m"
+          cpu: "26000m"
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - |

@@ -481,12 +481,7 @@ def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
     )
 
 
-def register_parser(subparsers):
-    parser: ArgumentParser = subparsers.add_parser(
-        "save", help="Compute the prognostic run diags."
-    )
-    parser.add_argument("url", help="Prognostic run output location.")
-    parser.add_argument("output", help="Output path including filename.")
+def add_catalog_and_verification_arguments(parser: ArgumentParser):
     parser.add_argument("--catalog", default=vcm.catalog.catalog_path)
     verification_group = parser.add_mutually_exclusive_group()
     verification_group.add_argument(
@@ -502,6 +497,15 @@ def register_parser(subparsers):
         help="URL to segmented run. "
         "If not passed then the --verification argument is used.",
     )
+
+
+def register_parser(subparsers):
+    parser: ArgumentParser = subparsers.add_parser(
+        "save", help="Compute the prognostic run diags."
+    )
+    parser.add_argument("url", help="Prognostic run output location.")
+    parser.add_argument("output", help="Output path including filename.")
+    add_catalog_and_verification_arguments(parser)
     parser.add_argument(
         "--n-jobs",
         type=int,
@@ -514,11 +518,11 @@ def register_parser(subparsers):
     parser.set_defaults(func=main)
 
 
-def get_verification(args, catalog):
+def get_verification(args, catalog, join_2d="outer"):
     if args.verification_url:
-        return load_diags.SegmentedRun(args.verification_url, catalog)
+        return load_diags.SegmentedRun(args.verification_url, catalog, join_2d=join_2d)
     else:
-        return load_diags.CatalogSimulation(args.verification, catalog)
+        return load_diags.CatalogSimulation(args.verification, catalog, join_2d=join_2d)
 
 
 def main(args):
@@ -537,17 +541,6 @@ def main(args):
     grid = load_diags.load_grid(catalog)
     input_data = load_diags.evaluation_pair_to_input_data(
         prognostic, verification, grid
-    )
-
-    # maps
-    diags["pwat_run_initial"] = (
-        input_data["2d"][0].PWAT.isel(time=0).rename({"time": "initial_time"})
-    )
-    diags["pwat_run_final"] = (
-        input_data["2d"][0].PWAT.isel(time=-1).rename({"time": "final_time"})
-    )
-    diags["pwat_verification_final"] = (
-        input_data["2d"][0].PWAT.isel(time=-1).rename({"time": "final_time"})
     )
 
     computed_diags = _merge_diag_computes(input_data, registries, args.n_jobs)
