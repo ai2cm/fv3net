@@ -45,6 +45,7 @@ from fv3fit.emulation.transforms import (
     Difference,
     TensorTransform,
     TransformedVariableConfig,
+    CloudWaterDiffPrecpd,
 )
 from fv3fit.emulation.layers.normalization import standard_deviation_all_features
 from fv3fit.wandb import (
@@ -126,7 +127,12 @@ class TransformedParameters(Hyperparameters):
     """
 
     tensor_transform: List[
-        Union[TransformedVariableConfig, ConditionallyScaled, Difference]
+        Union[
+            TransformedVariableConfig,
+            ConditionallyScaled,
+            Difference,
+            CloudWaterDiffPrecpd,
+        ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
     conservative_model: Optional[ConservativeWaterConfig] = None
@@ -247,7 +253,12 @@ class TrainConfig(TransformedParameters):
     test_url: str = ""
     transform: TransformConfig = field(default_factory=TransformConfig)
     tensor_transform: List[
-        Union[TransformedVariableConfig, ConditionallyScaled, Difference]
+        Union[
+            TransformedVariableConfig,
+            ConditionallyScaled,
+            Difference,
+            CloudWaterDiffPrecpd,
+        ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
     conservative_model: Optional[ConservativeWaterConfig] = None
@@ -403,7 +414,7 @@ def _train_function_unbatched(
     if config.shuffle_buffer_size is not None:
         train_ds = train_ds.shuffle(config.shuffle_buffer_size)
 
-    train_set = next(iter(train_ds.batch(50_000)))
+    train_set = next(iter(train_ds.batch(150_000)))
 
     transform = config.build_transform(train_set)
 
