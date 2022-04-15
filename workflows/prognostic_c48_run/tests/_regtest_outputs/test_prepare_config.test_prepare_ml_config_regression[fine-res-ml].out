@@ -430,10 +430,9 @@ nudging: null
 online_emulator:
   limit_negative_humidity: true
   online: true
-  output_targets:
-    Q1:
-      method: tendency
-      target_name: air_temperature
+  state_predictions: {}
+  tendency_predictions:
+    Q1: air_temperature
   url:
   - some/path
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0

@@ -20,7 +20,5 @@ namelist:
 online_emulator:
   url:
     - "some/path"
-  output_targets:
-    Q1:
-      target_name: air_temperature
-      method: tendency
+  tendency_predictions:
+    Q1: air_temperature
