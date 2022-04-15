@@ -31,7 +31,7 @@ def _get_job(config_name: str, exp_tag: str, limit_negative_qc: bool):
 
 
 jobs = [
-    _get_job("rnn-no-limit", "rnn-control", limit_negative_qc=False),
+    _get_job("rnn-no-limiting", "rnn-control", limit_negative_qc=False),
     _get_job("rnn", "rnn-limit-precpd-tend", limit_negative_qc=False),
     _get_job("rnn", "rnn-limit-precpd-tend-limit-qc", limit_negative_qc=True),
 ]
