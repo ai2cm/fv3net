@@ -359,12 +359,7 @@ def upload_diagnostics_for_tag(tag: str, summary_only: bool, summary_name: str):
     url = prognostic_run.get_rundir_url()
     wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
     with run:
-<<<<<<< emulation-piggy-use-prog-run-artifact
-        upload_diagnostics_for_rundir(url, summary_only)
-=======
-        url = get_rundir_from_prognostic_run(get_prognostic_run_from_tag(tag))
         upload_diagnostics_for_rundir(url, summary_only, summary_name)
->>>>>>> master
 
 
 def main(args):
