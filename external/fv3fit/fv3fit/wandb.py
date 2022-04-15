@@ -1,6 +1,7 @@
 from collections import defaultdict
 import dataclasses
 import logging
+import os
 import wandb
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,6 +45,7 @@ class WandBConfig:
             job_type=self.job_type,
             config=config,
         )
+        wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
 
 
 def log_to_table(log_key: str, data: Dict[str, Any], index: Optional[List[Any]] = None):

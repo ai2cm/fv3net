@@ -4,6 +4,7 @@ import logging
 import os
 from functools import partial
 import re
+import sys
 from typing import Any, Callable, Iterable, List, Tuple
 import cftime
 
@@ -17,6 +18,7 @@ import vcm.catalog
 import vcm.fv3.metadata
 import xarray as xr
 from fv3fit.tensorboard import plot_to_image
+from fv3net.artifacts.metadata import StepMetadata, log_fact_json
 
 import wandb
 from fv3net.diagnostics.prognostic_run.load_run_data import (
@@ -33,6 +35,7 @@ SKILL_FIELDS = ["cloud_water", "specific_humidity", "air_temperature"]
 
 WANDB_PROJECT = "microphysics-emulation"
 WANDB_ENTITY = "ai2cm"
+WANDB_JOB_TYPE = "piggy-back"
 
 log_functions = []
 
@@ -297,15 +300,16 @@ def open_rundir(url):
     return vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
 
 
-def log_summary(key, val):
-    # print summary stats to stdout
-    print(key, val)
-    wandb.summary[key] = val
+def log_summary_wandb(summary):
+    for key, val in summary.items():
+        wandb.summary[key] = val
 
 
 def upload_diagnostics_for_rundir(url: str, summary_only: bool, summary_name: str):
+    summary_metrics = {"duration_seconds": get_duration_seconds(url)}
+    print("duration_seconds", summary_metrics["duration_seconds"])
+
     wandb.config["run"] = url
-    log_summary("duration_seconds", get_duration_seconds(url))
 
     ds = open_rundir(url)
 
@@ -318,7 +322,11 @@ def upload_diagnostics_for_rundir(url: str, summary_only: bool, summary_name: st
     for func in get_summary_functions():
         for key, val in func(ds):
             if re.match(summary_name, key):
-                log_summary(key, val)
+                print(key, val)
+                summary_metrics[key] = val
+
+    log_summary_wandb(summary_metrics)
+    log_fact_json(data=summary_metrics)
 
 
 def get_summary_functions() -> Iterable[
@@ -344,7 +352,7 @@ def get_summary_functions() -> Iterable[
 
 def upload_diagnostics_for_tag(tag: str, summary_only: bool, summary_name: str):
     run = wandb.init(
-        job_type="piggy-back",
+        job_type=WANDB_JOB_TYPE,
         project=WANDB_PROJECT,
         entity=WANDB_ENTITY,
         group=tag,
@@ -357,7 +365,15 @@ def upload_diagnostics_for_tag(tag: str, summary_only: bool, summary_name: str):
     )
     prognostic_run.use_artifact_in(run)
     url = prognostic_run.get_rundir_url()
+
     wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
+    StepMetadata(
+        job_type=WANDB_JOB_TYPE,
+        url=url,
+        dependencies={"prognostic_run": url},
+        args=sys.argv[1:],
+    ).print_json()
+
     with run:
         upload_diagnostics_for_rundir(url, summary_only, summary_name)
 

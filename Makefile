@@ -28,6 +28,7 @@ build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
 
 build_image_fv3fit: docker/fv3fit/requirements.txt
+build_image_artifacts: docker/artifacts/requirements.txt
 
 build_image_prognostic_run: docker/prognostic_run/requirements.txt
 	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
@@ -230,6 +231,15 @@ docker/fv3fit/requirements.txt:
 		external/fv3fit/setup.py \
 		external/loaders/setup.py \
 		external/vcm/setup.py
+
+docker/artifacts/requirements.txt:
+	cp -f constraints.txt $@
+	# this will subset the needed dependencies from constraints.txt
+	# while preserving the versions
+	pip-compile --no-annotate \
+		--output-file $@ \
+		external/artifacts/setup.py \
+		docker/artifacts/requirements.in
 
 .PHONY: lock_pip constraints.txt
 ## Lock the pip dependencies of this repo
