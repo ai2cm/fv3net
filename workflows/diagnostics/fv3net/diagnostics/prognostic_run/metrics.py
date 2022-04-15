@@ -22,6 +22,7 @@ from .constants import (
 )
 import json
 
+LABEL_NAME = "logging.googleapis.com/labels"
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
 SURFACE_TYPE_CODES = {"sea": (0, 2), "land": (1,), "seaice": (2,)}
 
@@ -282,5 +283,5 @@ def register_parser(subparsers):
 def main(args):
     diags = _add_derived_diagnostics(xr.open_dataset(args.input))
     metrics = metrics_registry.compute(diags, n_jobs=1)
-    # print to stdout, use pipes to save
-    print(json.dumps(metrics, indent=4))
+    metrics[LABEL_NAME] = diags.attrs
+    print(json.dumps(metrics))
