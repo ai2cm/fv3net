@@ -389,3 +389,5 @@ spec:
             value: "24"
           - name: memory-prog
             value: 25Gi
+          - name: wandb-group
+            value: integration-tests
