@@ -23,6 +23,7 @@ from fv3net.diagnostics.prognostic_run.load_run_data import (
     open_segmented_logs_as_strings,
 )
 from fv3net.diagnostics.prognostic_run.logs import parse_duration
+from fv3net.diagnostics.prognostic_run.emulation import query
 
 from . import tendencies
 
@@ -281,22 +282,6 @@ def register_parser(subparsers) -> None:
     parser.set_defaults(func=main)
 
 
-def get_prognostic_run_from_tag(tag: str) -> Any:
-    api = wandb.Api()
-    runs = api.runs(filters={"group": tag}, path=f"{WANDB_ENTITY}/{WANDB_PROJECT}")
-    prognostic_runs = []
-
-    for run in runs:
-        if run.job_type == "prognostic_run":
-            prognostic_runs.append(run)
-    (run,) = prognostic_runs
-    return run
-
-
-def get_rundir_from_prognostic_run(run: Any) -> str:
-    return run.config["rundir"]
-
-
 def open_zarr(url: str):
     cachedir = "/tmp/files"
     logger.info(f"Opening {url} with caching at {cachedir}.")
@@ -366,9 +351,14 @@ def upload_diagnostics_for_tag(tag: str, summary_only: bool, summary_name: str):
         tags=[tag],
         reinit=True,
     )
+    api = wandb.Api()
+    prognostic_run = query.PrognosticRunClient(
+        tag, entity=run.entity, project=run.project, api=api
+    )
+    prognostic_run.use_artifact_in(run)
+    url = prognostic_run.get_rundir_url()
     wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
     with run:
-        url = get_rundir_from_prognostic_run(get_prognostic_run_from_tag(tag))
         upload_diagnostics_for_rundir(url, summary_only, summary_name)
 
 
