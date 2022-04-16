@@ -6,6 +6,7 @@ import cftime
 import fv3config
 import pytest
 import xarray as xr
+import numpy as np
 
 from runtime.diagnostics.fortran import (
     FortranFileConfig,
@@ -273,6 +274,31 @@ def test_TimeConfig_interval_average_endpoint():
     assert container == IntervalAveragedTimes(
         timedelta(seconds=3600), datetime(2020, 1, 1), includes_lower=True
     )
+
+
+def test_DiagnosticsFile_dims_consistent():
+    class MockSink:
+        def __init__(self):
+            self.data = None
+
+        def sink(self, time, x):
+            if self.data is None:
+                self.data = x
+            else:
+                for key, da in x.items():
+                    assert da.dims == self.data[key].dims
+
+    t0 = datetime(2000, 1, 1)
+    container = TimeConfig(kind="every").time_container(t0)
+    diag_file = DiagnosticFile(times=container, variables=["a"], sink=MockSink())
+
+    da1 = xr.DataArray(np.arange(12.0).reshape(3, 4), dims=["x", "y"])
+    da2 = xr.DataArray(np.arange(12.0).reshape(4, 3), dims=["y", "x"])
+    diags1 = {"a": da1}
+    diags2 = {"a": da2}
+    diag_file.observe(t0, diags1)
+    diag_file.observe(datetime(2000, 1, 1, 15, 0, 0), diags2)
+    diag_file.flush()
 
 
 @pytest.mark.parametrize(
