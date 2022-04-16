@@ -1,14 +1,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: create-training-microphysics-
+  name: create-training-microphysics-v4
   labels:
-    app: microphysics-training-data
+    project: microphysics-emulation
 spec:
   entrypoint: main
-  arguments:
-    parameters:
-      - name: tag
   volumes:
   - name: gcp-key-secret
     secret:
@@ -44,8 +41,13 @@ spec:
       operator: "Equal"
       value: "med-sim-pool"
       effect: "NoSchedule"
+    metadata:
+      labels:
+        project: microphysics-emulation
+        job_type: training_data
+        author: noahb
     container:
-      image: "us.gcr.io/vcm-ml/prognostic_run:latest"
+      image: "us.gcr.io/vcm-ml/prognostic_run:ca49e3adf2dd02de83dfb49c4e81991500594844"
       imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
@@ -62,7 +64,7 @@ spec:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
-        value: "{{workflow.parameters.tag}}"
+        value: "{{workflow.name}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
@@ -70,4 +72,4 @@ spec:
         - run_single_training.sh
         - "{{workflow.parameters.config}}"
         - "{{inputs.parameters.month}}"
-        - "{{workflow.parameters.tag}}"
+        - "{{workflow.name}}"

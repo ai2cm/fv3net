@@ -1,5 +1,5 @@
 base_version: v0.5
-duration: "12d"
+duration: "30d"
 fortran_diagnostics: []
 initial_conditions: $IC_URL
 diagnostics:
@@ -92,5 +92,7 @@ namelist:
 zhao_carr_emulation:
   storage:
     output_freq_sec: 18000
+    # 10 day burn-in
+    output_start_sec:  864_000
     save_nc: true
     save_zarr: false

@@ -38,4 +38,5 @@ while using the make operation to adjust the source of the gathered netCDFs.
 ## v4
 
 - Add `add_cloud_water_after_gscond` as ML output
+- Run each month for 30 days with 10 day burn-in
 
