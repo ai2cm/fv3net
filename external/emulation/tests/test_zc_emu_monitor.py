@@ -4,44 +4,18 @@ from typing import Mapping
 import numpy as np
 import pytest
 import tensorflow as tf
+import yaml
 from emulation._monitor.monitor import (
     StorageHook,
     _convert_to_quantities,
     _convert_to_xr_dataset,
     _create_nc_path,
     _get_attrs,
-    _get_timestep,
-    _load_nml,
     _remove_io_suffix,
 )
 from emulation._time import translate_time
 from pace.util import Quantity
 from xarray import DataArray
-
-
-def save_var_metadata(path):
-    metadata_content = """
-    air_temperature:
-        units: K
-    specific_humidity:
-        units: kg/kg
-    """
-
-    with open(path, "w") as f:
-        f.write(metadata_content)
-
-
-def test__load_nml(dummy_rundir):
-
-    namelist = _load_nml()
-    assert namelist["coupler_nml"]["hours"] == 1
-
-
-def test__get_timestep(dummy_rundir):
-    namelist = _load_nml()
-    timestep = _get_timestep(namelist)
-
-    assert timestep == 900
 
 
 @pytest.mark.parametrize(
@@ -122,13 +96,18 @@ def test__create_nc_path(dummy_rundir):
     assert os.path.exists(dummy_rundir / "netcdf_output")
 
 
-def _get_data(dummy_rundir, save_nc, save_zarr, save_tfrecord=False):
+def _get_data(save_nc, save_zarr, save_tfrecord=False):
 
-    meta_path = dummy_rundir / "var_metadata.yaml"
-    save_var_metadata(meta_path)
+    metadata_content = """
+    air_temperature:
+        units: K
+    specific_humidity:
+        units: kg/kg
+    """
+
     config = StorageHook(
-        meta_path,
-        900,
+        output_freq_sec=900,
+        metadata=yaml.safe_load(metadata_content),
         save_nc=save_nc,
         save_zarr=save_zarr,
         save_tfrecord=save_tfrecord,
@@ -148,25 +127,23 @@ def _get_data(dummy_rundir, save_nc, save_zarr, save_tfrecord=False):
         config.store(state)
         states.append(state)
 
-    return dummy_rundir, states
+    return states
 
 
 def test_StorageHook_save_zarr(dummy_rundir):
-    _get_data(dummy_rundir, save_nc=False, save_zarr=True)
+    _get_data(save_nc=False, save_zarr=True)
     assert (dummy_rundir / "state_output.zarr").exists()
 
 
 def test_StorageHook_save_nc(dummy_rundir):
 
-    dummy_rundir, expected_states = _get_data(
-        dummy_rundir, save_nc=True, save_zarr=False
-    )
+    expected_states = _get_data(save_nc=True, save_zarr=False)
     nc_files = list((dummy_rundir / "netcdf_output").glob("*.nc"))
     assert len(nc_files) == len(expected_states)
 
 
 def test_StorageHook_save_tf(dummy_rundir):
-    dummy_rundir, expected_states = _get_data(dummy_rundir, False, False, True)
+    expected_states = _get_data(False, False, True)
     tf_records_path = dummy_rundir / "tfrecords"
 
     # load tf records
@@ -189,8 +166,8 @@ def test_StorageHook_save_tf(dummy_rundir):
     assert len(list(tf_ds)) == n
 
 
-def test_StorageHook_does_not_modify_state(dummy_rundir):
-    hook = StorageHook("", output_freq_sec=1, save_nc=False, save_zarr=False)
+def test_StorageHook_does_not_modify_state():
+    hook = StorageHook(output_freq_sec=1, save_nc=False, save_zarr=False)
     state = {"a": 0.0, "model_time": [2021, 1, 1, 0, 0, 0]}
     state_before = state.copy()
     hook.store(state)
