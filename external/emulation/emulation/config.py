@@ -163,11 +163,10 @@ def _get_storage_hook(storage_config: Optional[StorageConfig]) -> Optional[Stora
     timestep = _get_timestep(namelist)
     layout: Tuple[int, int] = namelist["fv_core_nml"]["layout"]
 
+    kwargs = dataclasses.asdict(storage_config)
+    kwargs.pop("var_meta_path", None)
     return StorageHook(
-        metadata=variable_metadata,
-        layout=layout,
-        dt_sec=timestep,
-        **dataclasses.asdict(storage_config),
+        metadata=variable_metadata, layout=layout, dt_sec=timestep, **kwargs
     )
 
 

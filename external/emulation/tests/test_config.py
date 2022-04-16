@@ -2,8 +2,10 @@ from emulation._emulate.microphysics import TimeMask
 from emulation.config import (
     EmulationConfig,
     ModelConfig,
+    StorageConfig,
     _load_nml,
     _get_timestep,
+    _get_storage_hook,
     get_hooks,
 )
 import datetime
@@ -54,6 +56,12 @@ def test__load_nml(dummy_rundir):
 
     namelist = _load_nml()
     assert namelist["coupler_nml"]["hours"] == 1
+
+
+def test__get_storage_hook(dummy_rundir):
+    config = StorageConfig()
+    hook = _get_storage_hook(config)
+    assert hook
 
 
 def test_get_hooks(dummy_rundir):
