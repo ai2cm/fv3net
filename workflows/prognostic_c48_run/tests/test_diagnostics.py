@@ -20,6 +20,7 @@ from runtime.diagnostics.manager import (
     get_chunks,
     ZarrSink,
     TensorBoardSink,
+    PREFERRED_ORDER,
 )
 from runtime.diagnostics.time import (
     TimeConfig,
@@ -276,7 +277,17 @@ def test_TimeConfig_interval_average_endpoint():
     )
 
 
-def test_DiagnosticsFile_dims_consistent():
+@pytest.fixture(
+    scope="module",
+    params=[["x", "y"], ["x", "y", "z"], ["x_interface", "y_interface"]],
+)
+def diag(request):
+    dims = request.param
+    da = xr.DataArray(np.ones([size + 1 for size in range(len(dims))]), dims=dims)
+    return da
+
+
+def test_DiagnosticsFile_dims_consistent(diag):
     class MockSink:
         def __init__(self):
             self.data = None
@@ -292,12 +303,23 @@ def test_DiagnosticsFile_dims_consistent():
     container = TimeConfig(kind="every").time_container(t0)
     diag_file = DiagnosticFile(times=container, variables=["a"], sink=MockSink())
 
-    da1 = xr.DataArray(np.arange(12.0).reshape(3, 4), dims=["x", "y"])
-    da2 = xr.DataArray(np.arange(12.0).reshape(4, 3), dims=["y", "x"])
-    diags1 = {"a": da1}
-    diags2 = {"a": da2}
-    diag_file.observe(t0, diags1)
-    diag_file.observe(datetime(2000, 1, 1, 15, 0, 0), diags2)
+    diag_reversed = diag.transpose(*reversed(diag.dims))
+    diag_file.observe(t0, {"a": diag})
+    diag_file.observe(datetime(2000, 1, 1, 15, 0, 0), {"a": diag_reversed})
+    diag_file.flush()
+
+
+def test_DiagnosticsFile_dims_preferred_order(diag):
+    class MockSink:
+        def sink(self, time, x):
+            for key, da in x.items():
+                correct_order = [dim for dim in PREFERRED_ORDER if dim in da.dims]
+                assert correct_order == list(da.dims)
+
+    t0 = datetime(2000, 1, 1)
+    container = TimeConfig(kind="every").time_container(t0)
+    diag_file = DiagnosticFile(times=container, variables=["a"], sink=MockSink())
+    diag_file.observe(t0, {"a": diag})
     diag_file.flush()
 
 
