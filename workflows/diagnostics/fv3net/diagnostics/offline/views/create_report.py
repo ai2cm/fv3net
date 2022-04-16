@@ -418,13 +418,13 @@ def create_report(args):
 
     # Gcloud logging allows metrics to get ingested into database
     gcloud_logging = {
-        "json": json.dumps(metrics),
+        "json": metrics,
         "logging.googleapis.com/labels": {
             "model": metadata["model_path"],
             "commit_sha": metadata.get("commit", "n/a"),
         },
     }
-    print(gcloud_logging)
+    print(json.dumps(gcloud_logging))
 
     # Explicitly call .close() or xarray raises errors atexit
     # described in https://github.com/shoyer/h5netcdf/issues/50
