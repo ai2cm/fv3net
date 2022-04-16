@@ -1,5 +1,11 @@
 from emulation._emulate.microphysics import TimeMask
-from emulation.config import EmulationConfig, ModelConfig
+from emulation.config import (
+    EmulationConfig,
+    ModelConfig,
+    _load_nml,
+    _get_timestep,
+    get_hooks,
+)
 import datetime
 
 
@@ -35,3 +41,23 @@ def test_ModelConfig_with_interval():
         mask for mask in config._build_masks() if isinstance(mask, TimeMask)
     ][0]
     assert time_schedule.schedule == schedule
+
+
+def test__get_timestep(dummy_rundir):
+    namelist = _load_nml()
+    timestep = _get_timestep(namelist)
+
+    assert timestep == 900
+
+
+def test__load_nml(dummy_rundir):
+
+    namelist = _load_nml()
+    assert namelist["coupler_nml"]["hours"] == 1
+
+
+def test_get_hooks(dummy_rundir):
+    gscond, model, storage = get_hooks()
+    assert storage
+    assert model
+    assert gscond

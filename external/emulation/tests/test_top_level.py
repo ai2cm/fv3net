@@ -1,2 +1,2 @@
 def test_hooks_defined():
-    from emulation import store, microphysics  # noqa: F401
+    from emulation import gscond, store, microphysics  # noqa: F401

@@ -2,10 +2,8 @@ import dataclasses
 import logging
 import os
 import json
-from typing import Mapping
+from typing import Mapping, Tuple, Any
 import cftime
-import f90nml
-import yaml
 import numpy as np
 import xarray as xr
 from datetime import datetime, timedelta
@@ -13,8 +11,7 @@ from mpi4py import MPI
 import tensorflow as tf
 import emulation.serialize
 
-from pace.util import ZarrMonitor, CubedSpherePartitioner, Quantity
-from ..debug import print_errors
+from pace.util import ZarrMonitor, CubedSpherePartitioner, Quantity, TilePartitioner
 from .._typing import FortranState
 from emulation._time import translate_time
 
@@ -36,6 +33,7 @@ class StorageConfig:
     Attributes:
         output_freq_sec: output frequency in seconds to save
             nc and/or zarr files at
+        output_start_sec: do not save any outputs before this time
         var_meta_path: path to variable metadata added to saved field
             attributes. if not set, then the environmental variable VAR_META_PATH
             will be used. If THAT isn't set then no metadata other than 'unknown'
@@ -49,47 +47,21 @@ class StorageConfig:
 
     var_meta_path: str = ""
     output_freq_sec: int = 10_800
+    output_start_sec: int = 0
     save_nc: bool = True
     save_zarr: bool = True
     save_tfrecord: bool = False
 
 
-@print_errors
-def _load_nml():
-    path = os.path.join(os.getcwd(), "input.nml")
-    namelist = f90nml.read(path)
-    logger.info(f"Loaded namelist for ZarrMonitor from {path}")
+def _load_monitor(layout):
 
-    return namelist
-
-
-@print_errors
-def _load_metadata(path: str):
-    try:
-        with open(str(path), "r") as f:
-            variable_metadata = yaml.safe_load(f)
-            logger.info(f"Loaded variable metadata from: {path}")
-    except FileNotFoundError:
-        variable_metadata = {}
-        logger.info(f"No metadata found at: {path}")
-
-    return variable_metadata
-
-
-@print_errors
-def _load_monitor(namelist):
-
-    partitioner = CubedSpherePartitioner.from_namelist(namelist)
+    tile_partitioner = TilePartitioner(layout)
+    partitioner = CubedSpherePartitioner(tile_partitioner)
 
     output_zarr = os.path.join(os.getcwd(), "state_output.zarr")
     output_monitor = ZarrMonitor(output_zarr, partitioner, mpi_comm=MPI.COMM_WORLD)
     logger.info(f"Initialized zarr monitor at: {output_zarr}")
     return output_monitor
-
-
-@print_errors
-def _get_timestep(namelist):
-    return int(namelist["coupler_nml"]["dt_atmos"])
 
 
 def _remove_io_suffix(key: str):
@@ -229,33 +201,28 @@ class StorageHook:
 
     def __init__(
         self,
-        var_meta_path: str,
         output_freq_sec: int,
+        output_start_sec: int = 0,
+        dt_sec: int = 900,
+        layout: Tuple[int, int] = (1, 1),
+        metadata: Any = {},
         save_nc: bool = True,
         save_zarr: bool = True,
         save_tfrecord: bool = False,
     ):
         self.name = "emulation storage monitor"
 
-        if var_meta_path:
-            self.var_meta_path = var_meta_path
-        else:
-            # VAR_META_PATH is set during docker image creation
-            self.var_meta_path = os.getenv("VAR_META_PATH", "")
-
         self.output_freq_sec = output_freq_sec
+        self.output_start_sec = output_start_sec
+        self.metadata = metadata
         self.save_nc = save_nc
         self.save_zarr = save_zarr
         self.save_tfrecord = save_tfrecord
-
-        self.namelist = _load_nml()
-
         self.initial_time = None
-        self.dt_sec = _get_timestep(self.namelist)
-        self.metadata = _load_metadata(self.var_meta_path)
+        self.dt_sec = dt_sec
 
         if self.save_zarr:
-            self.monitor = _load_monitor(self.namelist)
+            self.monitor = _load_monitor(layout)
         else:
             self.monitor = None
 
@@ -298,6 +265,7 @@ class StorageHook:
         if self.initial_time is None:
             self.initial_time = time
 
+        # add increment since we are in the middle of timestep
         if self._store_interval_check(time):
 
             logger.debug(
