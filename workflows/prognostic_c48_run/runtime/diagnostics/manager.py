@@ -23,6 +23,9 @@ from .tensorboard import TensorBoardSink
 logger = logging.getLogger(__name__)
 
 
+PREFERRED_ORDER = ["z", "y", "x", "y_interface", "x_interface"]
+
+
 @dataclasses.dataclass
 class DiagnosticFileConfig:
     """Configurations for Diagnostic Files
@@ -178,7 +181,7 @@ class DiagnosticFile:
         self.flush()
 
 
-def sort_dims(da: xr.DataArray, preferred_order=["z", "y", "x"]):
+def sort_dims(da: xr.DataArray, preferred_order=PREFERRED_ORDER):
     dims_in_array = [dim for dim in preferred_order if dim in da.dims]
     return da.transpose(*dims_in_array)
 
