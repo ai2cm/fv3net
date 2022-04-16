@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  name: create-training-microphysics-v4
+  name: create-training-microphysics-v4-1
   labels:
     project: microphysics-emulation
 spec:
@@ -47,7 +47,7 @@ spec:
         job_type: training_data
         author: noahb
     container:
-      image: "us.gcr.io/vcm-ml/prognostic_run:ca49e3adf2dd02de83dfb49c4e81991500594844"
+      image: "us.gcr.io/vcm-ml/prognostic_run:cfb802e3e95c38fd985f7e302b239c0dc8bcc634"
       imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
