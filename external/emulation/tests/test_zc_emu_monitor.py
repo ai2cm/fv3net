@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import os
 from typing import Mapping
 
@@ -172,3 +173,19 @@ def test_StorageHook_does_not_modify_state():
     state_before = state.copy()
     hook.store(state)
     assert state == state_before
+
+
+def test_StorageHook__store_data_at_time():
+
+    hook = StorageHook(output_freq_sec=10, save_nc=False, save_zarr=False)
+    t0 = datetime(2020, 1, 1, 0, 0, 0)
+    hook.initial_time = t0
+    assert hook._store_data_at_time(t0 + timedelta(seconds=10))
+
+    hook = StorageHook(
+        output_freq_sec=10, output_start_sec=11, save_nc=False, save_zarr=False
+    )
+    t0 = datetime(2020, 1, 1, 0, 0, 0)
+    hook.initial_time = t0
+    assert not hook._store_data_at_time(t0 + timedelta(seconds=10))
+    assert hook._store_data_at_time(t0 + timedelta(seconds=20))

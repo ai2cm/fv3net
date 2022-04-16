@@ -233,18 +233,17 @@ class StorageHook:
             rank = MPI.COMM_WORLD.Get_rank()
             self._store_tfrecord = _TFRecordStore("tfrecords", rank)
 
-    def _store_interval_check(self, time):
+    def _store_data_at_time(self, time: cftime.DatetimeJulian):
 
-        # add increment since we are in the middle of timestep
-        increment = timedelta(seconds=self.dt_sec)
-        elapsed = (time + increment) - self.initial_time
+        elapsed: timedelta = time - self.initial_time
 
         logger.debug(f"Time elapsed after increment: {elapsed}")
         logger.debug(
             f"Output frequency modulus: {elapsed.seconds % self.output_freq_sec}"
         )
-
-        return elapsed.seconds % self.output_freq_sec == 0
+        return (elapsed.seconds % self.output_freq_sec == 0) and (
+            elapsed.seconds >= self.output_start_sec
+        )
 
     def store(self, state: FortranState) -> None:
         """
@@ -266,7 +265,8 @@ class StorageHook:
             self.initial_time = time
 
         # add increment since we are in the middle of timestep
-        if self._store_interval_check(time):
+        increment = timedelta(seconds=self.dt_sec)
+        if self._store_data_at_time(time + increment):
 
             logger.debug(
                 f"Store flags: save_zarr={self.save_zarr}, save_nc={self.save_nc}"
