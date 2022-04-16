@@ -169,13 +169,18 @@ class DiagnosticFile:
             for key in average:
                 average[key].attrs["units"] = self._units[key]
             data_to_sink = {
-                key: average[key] for key in average if key in self.variables
+                key: sort_dims(average[key]) for key in average if key in self.variables
             }
             self._sink.sink(self._current_label, data_to_sink)
             self._last_time_flushed = self._current_label
 
     def __del__(self):
         self.flush()
+
+
+def sort_dims(da: xr.DataArray, preferred_order=["z", "y", "x"]):
+    dims_in_array = [dim for dim in preferred_order if dim in da.dims]
+    return da.transpose(*dims_in_array)
 
 
 def get_diagnostic_files(
