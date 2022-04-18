@@ -289,6 +289,7 @@ def main(args):
     if args.output is not None:
         with open(args.output, "w") as f:
             json.dump(metrics, f, indent=4)
+    metrics = {k: v for k, v in metrics.items() if not np.isnan(v["value"])}
     metrics_for_logger = {
         "json": metrics,
         LABEL_NAME: {k: str(v) for k, v in diags.attrs.items()},
