@@ -102,7 +102,6 @@ jobs:
     machine:
       image: ubuntu-2004:202111-02
     environment:
-      FSSPEC_GS_REQUESTER_PAYS: vcm-ml
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
