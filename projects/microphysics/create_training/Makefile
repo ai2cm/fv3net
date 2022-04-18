@@ -1,10 +1,11 @@
 
 CONFIG ?= ./training_fv3config_template.yaml
-RUN_DATE ?= 2021-11-18
 
 create:
 	argo submit argo.yaml \
 		-p config="$(shell base64 --wrap=0 $(CONFIG))" \
 
 gather:
-	python ../scripts/gather_netcdfs.py $(RUN_DATE) $(TAG_PREFIX)
+	python ../scripts/gather_netcdfs.py \
+		gs://vcm-ml-experiments/microphysics-emulation/2022-04-16/create-training-microphysics-v4-1- \
+		gs://vcm-ml-experiments/microphysics-emulation/2022-04-16/microphysics-training-data-v4
