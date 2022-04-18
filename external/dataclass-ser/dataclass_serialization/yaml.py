@@ -53,9 +53,7 @@ class DumperVisitor(Visitor):
         )
 
         _make_repr(
-            self.dumper,
-            node.cls,
-            tag,
+            self.dumper, node.cls, tag,
         )
         self.visited.add(node.cls)
 
