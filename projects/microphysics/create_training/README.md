@@ -33,4 +33,12 @@ The netCDFs will be gathered into the base project folder for a given run date
 while using the make operation to adjust the source of the gathered netCDFs.
 
 
+# History
 
+## microphysics-training-data
+
+### v4
+
+- Add `add_cloud_water_after_gscond` as ML output
+- Run each month for 30 days with 20 day burn-in before saving data
+- Use forcing data from GRIB files rather than initial data

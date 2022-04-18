@@ -1,14 +1,11 @@
 
 CONFIG ?= ./training_fv3config_template.yaml
-OUTPUT_FREQUENCY ?= 18000
-TAG_PREFIX ?= microphysics-training-data-v3
-RUN_DATE ?= 2021-11-18
 
 create:
 	argo submit argo.yaml \
 		-p config="$(shell base64 --wrap=0 $(CONFIG))" \
-		-p tag="$(TAG_PREFIX)" \
-		-p output_frequency="$(OUTPUT_FREQUENCY)"
 
 gather:
-	python ../scripts/gather_netcdfs.py $(RUN_DATE) $(TAG_PREFIX)
+	python ../scripts/gather_netcdfs.py \
+		gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-1- \
+		gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4
