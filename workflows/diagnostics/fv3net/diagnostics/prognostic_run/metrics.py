@@ -272,16 +272,25 @@ def restore_units(source, target):
 
 def register_parser(subparsers):
     parser = subparsers.add_parser(
-        "metrics",
-        help="Compute metrics from verification diagnostics. "
-        "Prints to standard output.",
+        "metrics", help="Compute metrics from verification diagnostics."
     )
     parser.add_argument("input", help="netcdf file of prognostic_run_diags save.")
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="Optional name of output. If not provided, only stream to stdout.",
+    )
     parser.set_defaults(func=main)
 
 
 def main(args):
     diags = _add_derived_diagnostics(xr.open_dataset(args.input))
     metrics = metrics_registry.compute(diags, n_jobs=1)
-    metrics[LABEL_NAME] = {k: str(v) for k, v in diags.attrs.items()}
-    print(json.dumps(metrics))
+    if args.output is not None:
+        with open(args.output, "w") as f:
+            json.dump(metrics, f, indent=4)
+    metrics_for_logger = {
+        "json": metrics,
+        LABEL_NAME: {k: str(v) for k, v in diags.attrs.items()},
+    }
+    print(json.dumps(metrics_for_logger))

@@ -150,7 +150,7 @@ spec:
       args:
       - |
         prognostic_run_diags save {{inputs.parameters.flags}} {{inputs.parameters.run}} diags.nc
-        prognostic_run_diags metrics diags.nc | tee metrics.json
+        prognostic_run_diags metrics diags.nc -o metrics.json
         gsutil cp diags.nc "{{inputs.parameters.output}}/diags.nc"
         gsutil cp metrics.json "{{inputs.parameters.output}}/metrics.json"
       workingDir: /home/jovyan/fv3net/workflows/diagnostics
