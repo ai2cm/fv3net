@@ -231,7 +231,7 @@ docker/fv3fit/requirements.txt:
 		external/loaders/setup.py \
 		external/vcm/setup.py
 
-.PHONY: lock_pip
+.PHONY: lock_pip constraints.txt
 ## Lock the pip dependencies of this repo
 lock_pip: constraints.txt
 
