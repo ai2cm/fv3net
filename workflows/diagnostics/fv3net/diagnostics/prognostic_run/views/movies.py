@@ -226,9 +226,9 @@ def _merge_prognostic_verification(
 
 
 def _limit_time_length(
-    ds: xr.Dataset, n_timesteps: int, from_start: bool = True
+    ds: xr.Dataset, n_timesteps: int, from_start: bool
 ) -> xr.Dataset:
-    """Limit the time dimension of a dataset to the first n_timesteps."""
+    """Limit the time dimension of a dataset to the first or last n_timesteps."""
     max_time = min(n_timesteps, ds.sizes["time"])
     if from_start:
         return ds.isel(time=slice(None, max_time))
