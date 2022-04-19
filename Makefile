@@ -66,6 +66,7 @@ image_test_prognostic_run: image_test_emulation
 		--rm \
 		-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
 		-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
+		-e FSSPEC_GS_REQUESTER_PAYS=vcm-ml \
 		-w /fv3net/workflows/prognostic_c48_run \
 		$(REGISTRY)/prognostic_run:$(VERSION) pytest
 
