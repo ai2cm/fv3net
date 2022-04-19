@@ -449,6 +449,7 @@ zhao_carr_emulation:
     ranges: {}
   storage:
     output_freq_sec: 3600
+    output_start_sec: 0
     save_nc: true
     save_tfrecord: false
     save_zarr: true

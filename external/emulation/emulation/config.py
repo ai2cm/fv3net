@@ -2,10 +2,12 @@ import dataclasses
 import datetime
 from functools import partial
 import logging
-from typing import Iterable, Mapping, Optional
+from typing import Iterable, Mapping, Optional, Tuple
+import os
 
 import cftime
 import dacite
+import f90nml
 import yaml
 from emulation._emulate.microphysics import (
     MicrophysicsHook,
@@ -23,6 +25,18 @@ logger = logging.getLogger("emulation")
 
 def do_nothing(state):
     pass
+
+
+def _get_timestep(namelist):
+    return int(namelist["coupler_nml"]["dt_atmos"])
+
+
+def _load_nml():
+    path = os.path.join(os.getcwd(), "input.nml")
+    namelist = f90nml.read(path)
+    logger.info(f"Loaded namelist for ZarrMonitor from {path}")
+
+    return namelist
 
 
 @dataclasses.dataclass
@@ -93,11 +107,8 @@ class EmulationConfig:
         return self._build_model(self.gscond)
 
     def build_storage_hook(self):
-        if self.storage is None:
-            logger.info("No storage configured.")
-            return do_nothing
-        else:
-            return StorageHook(**dataclasses.asdict(self.storage)).store
+        hook = _get_storage_hook(self.storage)
+        return hook.store if hook else do_nothing
 
     @staticmethod
     def from_dict(dict_: dict) -> "EmulationConfig":
@@ -125,6 +136,38 @@ class EmulationConfig:
             return out
 
         return dataclasses.asdict(self, dict_factory=factory)
+
+
+def _get_storage_hook(storage_config: Optional[StorageConfig]) -> Optional[StorageHook]:
+
+    if storage_config is None:
+        logger.info("No storage configured.")
+        return None
+
+    try:
+        namelist = _load_nml()
+    except FileNotFoundError:
+        logger.warn("Namelist could not be loaded. Storage disabled.")
+        return None
+
+    # get metadata
+    path = os.getenv("VAR_META_PATH", storage_config.var_meta_path)
+    try:
+        with open(str(path), "r") as f:
+            variable_metadata = yaml.safe_load(f)
+            logger.info(f"Loaded variable metadata from: {path}")
+    except FileNotFoundError:
+        variable_metadata = {}
+        logger.info(f"No metadata found at: {path}")
+
+    timestep = _get_timestep(namelist)
+    layout: Tuple[int, int] = namelist["fv_core_nml"]["layout"]
+
+    kwargs = dataclasses.asdict(storage_config)
+    kwargs.pop("var_meta_path", None)
+    return StorageHook(
+        metadata=variable_metadata, layout=layout, dt_sec=timestep, **kwargs
+    )
 
 
 def get_hooks():
