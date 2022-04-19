@@ -39,6 +39,16 @@ while using the make operation to adjust the source of the gathered netCDFs.
 
 ### v4
 
+Location and directory structure:
+
+```
+$ gsutil ls gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4
+gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test/
+gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/train/
+```
+
+Changes:
+
 - Add `add_cloud_water_after_gscond` as ML output
 - Run each month for 30 days with 20 day burn-in before saving data
 - Use forcing data from GRIB files rather than initial data

@@ -7,5 +7,5 @@ create:
 
 gather:
 	python ../scripts/gather_netcdfs.py \
-		gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-1- \
+		gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2- \
 		gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4
