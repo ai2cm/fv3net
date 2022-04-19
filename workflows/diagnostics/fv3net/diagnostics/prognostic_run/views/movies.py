@@ -202,6 +202,14 @@ def register_parser(subparsers):
         type=int,
         help="Number of timesteps to use in movie. If not provided all times are used.",
     )
+    parser.add_argument(
+        "--from_start",
+        action="store_true",
+        help=(
+            "If true, generate the movie of n_timesteps at the start of the run. "
+            "If false, use last n_timesteps of the run."
+        ),
+    )
     add_catalog_and_verification_arguments(parser)
     parser.set_defaults(func=main)
 
@@ -217,10 +225,15 @@ def _merge_prognostic_verification(
     return xr.merge([prognostic[common_variables], verification_renamed], join="inner")
 
 
-def _limit_time_length(ds: xr.Dataset, n_timesteps: int) -> xr.Dataset:
+def _limit_time_length(
+    ds: xr.Dataset, n_timesteps: int, from_start: bool = True
+) -> xr.Dataset:
     """Limit the time dimension of a dataset to the first n_timesteps."""
     max_time = min(n_timesteps, ds.sizes["time"])
-    return ds.isel(time=slice(None, max_time))
+    if from_start:
+        return ds.isel(time=slice(None, max_time))
+    else:
+        return ds.isel(time=slice(-max_time, None))
 
 
 def main(args):
@@ -246,8 +259,8 @@ def main(args):
     merged = _merge_prognostic_verification(prognostic, verification).merge(grid)
 
     if args.n_timesteps:
-        prognostic = _limit_time_length(prognostic, args.n_timesteps)
-        merged = _limit_time_length(merged, args.n_timesteps)
+        prognostic = _limit_time_length(prognostic, args.n_timesteps, args.from_start)
+        merged = _limit_time_length(merged, args.n_timesteps, args.from_start)
 
     for movie_spec in _MOVIE_SPECS:
         dataset = merged if movie_spec.require_verification_data else prognostic
