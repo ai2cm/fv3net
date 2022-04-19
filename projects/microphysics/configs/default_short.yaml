@@ -200,7 +200,7 @@ forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 namelist:
   namsfc:
     # these flags make the coarse run use the GRIB data for snoalb and vegetation
-    # if not included, it will use the restart data (which may differ from GRIB file)
+    # if not included, it will use the initial condition data (which may differ from GRIB file)
     # for more info see https://docs.google.com/document/d/1ndOG4u3gZ6kWJV6TqLh-E04n15tl9Ni55B2bavta1Cc/edit#heading=h.uqcex6mf4e10
     fabss: 0
     fabsl: 0
