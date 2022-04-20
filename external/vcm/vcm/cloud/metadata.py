@@ -11,5 +11,5 @@ class StepMetadata:
     dependencies: Mapping[str, str] = dataclasses.field(default_factory=dict)
     args: List[str] = dataclasses.field(default_factory=list)
 
-    def print(self):
+    def print_json(self):
         print(json.dumps(dataclasses.asdict(self)))
