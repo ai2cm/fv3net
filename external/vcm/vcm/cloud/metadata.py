@@ -10,6 +10,7 @@ class StepMetadata:
     url: str
     dependencies: Mapping[str, str] = dataclasses.field(default_factory=dict)
     args: List[str] = dataclasses.field(default_factory=list)
+    env_vars: Mapping[str, str] = dataclasses.field(default_factory=dict)
 
     def print_json(self):
         print(json.dumps(dataclasses.asdict(self)))
