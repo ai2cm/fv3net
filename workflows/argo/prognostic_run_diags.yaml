@@ -184,7 +184,7 @@ spec:
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - |
-        prognostic_run_diags movie --n_timesteps 960 {{inputs.parameters.run}} {{inputs.parameters.output}}
+        prognostic_run_diags movie --n_timesteps 960 --n_jobs 26 {{inputs.parameters.run}} {{inputs.parameters.output}}
       workingDir: /home/jovyan/fv3net/workflows/diagnostics
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
