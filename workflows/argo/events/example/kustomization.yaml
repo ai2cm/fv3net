@@ -1,0 +1,10 @@
+bases:
+  - https://raw.githubusercontent.com/argoproj/argo-events/stable/manifests/install.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-workflows/master/manifests/install.yaml
+
+resources:
+  - event-bus-native.yaml
+  - namespaces.yaml
+  - event-source-resource.yaml
+  - sensor-resource.yaml
+  - sa.yaml
