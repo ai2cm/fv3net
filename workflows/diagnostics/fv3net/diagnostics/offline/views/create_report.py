@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import report
 import vcm
-from vcm.cloud import get_fs
+from vcm.cloud import get_fs, StepMetadata
 import yaml
 from fv3net.diagnostics.offline._helpers import (
     get_metric_string,
@@ -364,6 +364,21 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
     )
 
 
+def _print_step_metadata_json(args, metadata):
+    dependencies = {
+        "offline_diagnostics": args.input_path,
+        "model": metadata.get("model_path"),
+    }
+    info = StepMetadata(
+        job_type="offline_report",
+        commit=args.commit_sha,
+        url=args.output_path,
+        dependencies=dependencies,
+        args=sys.argv[1:],
+    )
+    info.print_json()
+
+
 def create_report(args):
     temp_output_dir = tempfile.TemporaryDirectory()
     atexit.register(_cleanup_temp_dir, temp_output_dir)
@@ -417,14 +432,8 @@ def create_report(args):
     logger.info(f"Save report to {args.output_path}")
 
     # Gcloud logging allows metrics to get ingested into database
-    gcloud_logging = {
-        "json": metrics,
-        "logging.googleapis.com/labels": {
-            "model": metadata["model_path"],
-            "commit_sha": metadata.get("commit", "n/a"),
-        },
-    }
-    print(json.dumps(gcloud_logging))
+    print(json.dumps({"json": metrics}))
+    _print_step_metadata_json(args, metadata)
 
     # Explicitly call .close() or xarray raises errors atexit
     # described in https://github.com/shoyer/h5netcdf/issues/50
