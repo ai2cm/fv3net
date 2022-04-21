@@ -124,7 +124,9 @@ jobs:
             echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
             echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
       - gcp-gcr/gcr-auth
-      - run: sudo -E .circleci/build_and_push_image.sh
+      - run: |
+          sudo chmod -R 777 /home/circleci/.docker && \
+          .circleci/build_and_push_image.sh
   lint:
     docker:
       - image: circleci/python:3.8
