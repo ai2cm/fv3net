@@ -6,9 +6,11 @@ import warnings
 
 import fv3config
 import vcm
+from fv3net.artifacts.metadata import StepMetadata
+
 from fv3post.append import append_segment
 from fv3post.post_process import post_process
-
+from runtime.config import get_model_urls
 from .run import run_segment
 
 
@@ -30,6 +32,16 @@ def read_run_config(run_url):
     return fv3config.load(io.BytesIO(s))
 
 
+def print_step_metadata_json(run_url: str, config: dict):
+    info = StepMetadata(
+        job_type="prognostic_run",
+        commit=os.environ.get("COMMIT_SHA"),
+        url=run_url,
+        dependencies={"ml_models": get_model_urls(config)},
+    )
+    info.print_json()
+
+
 def append_segment_to_run_url(run_url):
     """Append an segment to an initialized segmented run
 
@@ -39,6 +51,8 @@ def append_segment_to_run_url(run_url):
         print(f"Iteration run={run_url} working_directory={dir_}", file=sys.stderr)
 
         config = read_run_config(run_url)
+        print_step_metadata_json(run_url, config)
+
         last_segment = read_last_segment(run_url)
 
         if last_segment is not None:
