@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import report
 import vcm
-from vcm.cloud import get_fs, StepMetadata
+from vcm.cloud import get_fs
+from fv3net.artifacts.metadata import StepMetadata
 import yaml
 from fv3net.diagnostics.offline._helpers import (
     get_metric_string,
