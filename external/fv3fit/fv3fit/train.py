@@ -22,8 +22,10 @@ from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
 from fv3fit.dataclasses import asdict_with_enum
 import wandb
+import sys
 
 from vcm.cloud import copy
+from fv3net.artifacts.metadata import StepMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +177,17 @@ def get_cached_data(
     return train_batches, val_batches
 
 
+def _print_step_metadata_json(args):
+    info = StepMetadata(
+        job_type="training",
+        commit=os.environ.get("COMMIT_SHA"),
+        url=args.output_path,
+        dependencies={},
+        args=sys.argv[1:],
+    )
+    info.print_json()
+
+
 def main(args, unknown_args=None):
 
     with open(args.training_config, "r") as f:
@@ -238,6 +251,8 @@ def main(args, unknown_args=None):
     if len(training_config.output_transforms) > 0:
         model = fv3fit.TransformedPredictor(model, training_config.output_transforms)
     fv3fit.dump(model, args.output_path)
+
+    _print_step_metadata_json(args)
 
 
 if __name__ == "__main__":
