@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bq
+  labels:
+    app.kubernetes.io/name: bq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bq
+  template:
+    metadata:
+      labels:
+        app: bq
+    spec:
+      volumes:
+        - name: gcp-key
+          secret:
+            defaultMode: 420
+            secretName: gcp-key-secret
+      containers:
+      - name: bq
+        # the image is already on minikube
+        imagePullPolicy: Never
+        image: my_image
+        command: ["/bin/main"]
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /etc/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /etc/gcp-credentials
+            name: gcp-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bq
+spec:
+  selector:
+    app: bq
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8080
+    targetPort: 8080

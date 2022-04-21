@@ -5,6 +5,7 @@ bases:
 resources:
   - event-bus-native.yaml
   - namespaces.yaml
+  - big-query-sensor.yaml
+  - bq-http-deployment.yaml
   - event-source-resource.yaml
-  - sensor-resource.yaml
   - sa.yaml

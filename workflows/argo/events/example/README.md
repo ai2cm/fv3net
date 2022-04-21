@@ -1,60 +1,24 @@
 Based on this tutorial: https://argoproj.github.io/argo-events/tutorials/01-introduction/
 
+If developing on minikube you may need to startup the cluster:
+
+    ./setup_cluster.sh
 
 To setup all the stuff
 
-    kustomize build . | kubectl apply -f -
+    # Start here if deploying elswhere
+    kustomize build manifests | kubectl apply -f -
     # might error on the CRDs...run it again in 5 seconds
-    kustomize build . | kubectl apply -f -
+    kustomize build manifests | kubectl apply -f -
 
-Wait a minute or two. The submit a workflow
+Wait a minute or two (make sure everything is "Runnning" in `kubectl -n
+argo-events pod`). Then submit a workflow
 
     argo submit workflow.yaml
 
-Listing the workflows should show two workflows:
+Now print the logs of the server that transfers pod info to big query.
 
-    $ argo list
-    NAME                      STATUS      AGE   DURATION   PRIORITY
-    resource-workflow-5h4fz   Succeeded   49s   45s        0
-    my-workflow54mc5          Succeeded   49s   44s        0
-
-The "resource-workflow-" workflow was launched when the first workflow was
-detected. See [./sensor-resource.yaml]. This is the data it was passed:
-```
-$ argo logs resource-workflow-5h4fz
- _________________________________________
-/ {"apiVersion":"argoproj.io/v1alpha1","k \
-| ind":"Workflow","metadata":{"creationTi |
-| mestamp":"2022-04-20T22:46:30Z","genera |
-| teName":"my-workflow","generation":1,"l |
-| abels":{"app":"my-workflow"},"managedFi |
-| elds":[{"apiVersion":"argoproj.io/v1alp |
-| ha1","fieldsType":"FieldsV1","fieldsV1" |
-| :{"f:metadata":{"f:generateName":{},"f: |
-| labels":{".":{},"f:app":{}}},"f:spec":{ |
-| },"f:status":{}},"manager":"argo","oper |
-| ation":"Update","time":"2022-04-20T22:4 |
-| 6:30Z"}],"name":"my-workflow54mc5","nam |
-| espace":"default","resourceVersion":"10 |
-| 25","uid":"4cbf972c-071e-4f0f-a307-290a |
-| 2ea60505"},"spec":{"arguments":{},"entr |
-| ypoint":"whalesay","templates":[{"conta |
-| iner":{"args":["hello                   |
-| world"],"command":["cowsay"],"image":"d |
-| ocker/whalesay:latest","name":"","resou |
-| rces":{}},"inputs":{},"metadata":{},"na |
-| me":"whalesay","outputs":{}}]},"status" |
-\ :{"finishedAt":null,"startedAt":null}}  /
- -----------------------------------------
-    \
-     \
-      \
-                    ##        .
-              ## ## ##       ==
-           ## ## ## ##      ===
-       /""""""""""""""""___/ ===
-  ~~~ {~~ ~~~~ ~~~ ~~~~ ~~ ~ /  ===- ~~~
-       \______ o          __/
-        \    \        __/
-          \____\______/
-```
+    $ kubectl logs -l app=bq
+    2022/04/21 21:00:21 request received
+    2022/04/21 21:00:21 {"apiVersion":"argoproj.io/v1alpha1","kind":"Workflow","metadata":{"creationTimestamp":"2022-04-21T21:00:21Z","generateName":"my-workflow","generation":1,"labels":{"app":"my-workflow"},"managedFields":[{"apiVersion":"argoproj.io/v1alpha1","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:generateName":{},"f:labels":{".":{},"f:app":{}}},"f:spec":{},"f:status":{}},"manager":"argo","operation":"Update","time":"2022-04-21T21:00:21Z"}],"name":"my-workflow4zkq2","namespace":"default","resourceVersion":"1561","uid":"c7fb5177-8c96-4b17-a750-4eefd52aac60"},"spec":{"arguments":{},"entrypoint":"whalesay","templates":[{"container":{"args":["hello world"],"command":["cowsay"],"image":"docker/whalesay:latest","name":"","resources":{}},"inputs":{},"metadata":{},"name":"whalesay","outputs":{}}]},"status":{"finishedAt":null,"startedAt":null}}
+    2022/04/21 21:00:22 Uploaded c7fb5177-8c96-4b17-a750-4eefd52aac60 to big query
