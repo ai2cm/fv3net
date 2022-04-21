@@ -21,8 +21,8 @@ def _get_job(conservative_cloud: bool, squash: float):
     config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = False
     cons = "-conservative" if conservative_cloud else ""
     return PrognosticJob(
-        name=f"precpd-limit-squash-v1-{squash:.0e}{cons}",
-        image_tag="b0d7d83f9680c27ad82e0667d848b3d5fb41932d",
+        name=f"precpd-limit-squash-v3-{squash:.0e}{cons}",
+        image_tag="98ea028bec53447f5bb94c4c3ce5bd330a690d52",
         config=config,
     )
 
