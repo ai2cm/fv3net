@@ -118,14 +118,9 @@ class DynamicsDifferenceApparentSource:
 
 
 def compute_budget(
-    merged: xr.Dataset,
-    approach: Approach,
-    include_temperature_nudging: bool,
-    include_pbl_tendency: bool,
+    merged: xr.Dataset, approach: Approach, include_temperature_nudging: bool,
 ) -> MLTendencies:
-    sources = compute_fine_res_sources(
-        merged, include_temperature_nudging, include_pbl_tendency
-    )
+    sources = compute_fine_res_sources(merged, include_temperature_nudging)
     merged = xr.merge([merged] + list(sources))
 
     if approach == Approach.apparent_sources_plus_nudging_tendencies:
@@ -145,6 +140,13 @@ def compute_budget(
     if include_temperature_nudging:
         name = "storage_of_internal_energy_path_due_to_fine_res_temperature_nudging"
         merged[name] = column_integrated_fine_res_nudging_heating(merged)
+
+    merged["Q1_no_pbl"] = (merged.Q1 - merged.dt3dt_pbl_coarse).assign_attrs(
+        units="K/s", description="apparent source minus PBL tendency"
+    )
+    merged["Q2_no_pbl"] = (merged.Q2 - merged.dq3dt_pbl_coarse).assign_attrs(
+        units="K/s", description="apparent source minus PBL tendency"
+    )
 
     return _ml_standard_names(merged)
 
@@ -211,7 +213,6 @@ def open_fine_resolution(
     additional_dataset_urls: Sequence[str] = None,
     use_fine_res_state: bool = True,
     use_fine_res_fluxes: bool = False,
-    include_pbl_tendency: bool = True,
 ) -> GeoMapper:
     """
     Open the fine-res mapper using several configuration options
@@ -232,7 +233,6 @@ def open_fine_resolution(
         use_fine_res_fluxes: set standard name surface and TOA flux diagnostic variables
             to point to the fine-res data. Set of True if wanting to use fine-res fluxes
             as ML inputs in training.
-        include_pbl_tendency: whether to include fine-res PBL tendency in Q1 and Q2.
 
     Returns:
         a mapper
@@ -247,7 +247,7 @@ def open_fine_resolution(
         use_fine_res_fluxes=use_fine_res_fluxes,
     )
     budget: MLTendencies = compute_budget(
-        merged, approach_enum, include_temperature_nudging, include_pbl_tendency
+        merged, approach_enum, include_temperature_nudging
     )
 
     return XarrayMapper(budget)
