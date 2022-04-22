@@ -93,6 +93,8 @@ ENV PIP_NO_CACHE_DIR=off
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 
+# compile and install the wrapper. Then import fv3gfs.wrapper as a minimal test
+# that it works.
 RUN make -C /tmp/fortran-build/FV3 wrapper_build &&\
     pip3 install --no-dependencies /tmp/fortran-build/FV3/wrapper/dist/*.whl && \
     python3 -c 'import fv3gfs.wrapper'
