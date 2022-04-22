@@ -170,7 +170,7 @@ variables:
 	float32 Q2(tile, z, y, x) ;
 		Q2:units = kg/kg/s ;
 		Q2:long_name = apparent moistening from high resolution data ;
-		Q2:description = Apparent moistening due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence ;
+		Q2:description = Apparent moistening due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence. ;
 	float32 air_temperature(tile, z, y, x) ;
 		air_temperature:units = degK ;
 	float32 clear_sky_downward_longwave_flux_at_surface(tile, y, x) ;

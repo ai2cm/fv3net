@@ -76,7 +76,11 @@ class FineResBudget(Protocol):
     PRATEsfc_coarse: xarray.DataArray
 
 
-def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = False):
+def apparent_heating(
+    data: FineResBudget,
+    include_temperature_nudging: bool = False,
+    include_pbl_tendency: bool = True,
+):
     eddy_flux = eddy_flux_coarse(
         data.eddy_flux_vulcan_omega_temp,
         data.T_vulcan_omega_coarse,
@@ -84,6 +88,7 @@ def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = Fa
         data.T,
     )
     eddy_flux_convergence = vcm.convergence_cell_center(eddy_flux, data.delp, dim="z")
+    name = "Q1"
     result = data.t_dt_fv_sat_adj_coarse + data.t_dt_phys_coarse + eddy_flux_convergence
     description = (
         "Apparent heating due to physics and sub-grid-scale advection. Given "
@@ -92,14 +97,18 @@ def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = Fa
     if include_temperature_nudging:
         result = result + data.t_dt_nudge_coarse
         description = description + " + temperature nudging"
+    if not include_pbl_tendency:
+        result = result - data.dt3dt_pbl_coarse
+        description = description + " not including PBL tendency"
+        name = f"{name}_no_pbl"
     return result.assign_attrs(
         units="K/s",
         long_name="apparent heating from high resolution data",
         description=description,
-    ).rename("Q1")
+    ).rename(name)
 
 
-def apparent_moistening(data: FineResBudget):
+def apparent_moistening(data: FineResBudget, include_pbl_tendency: bool = True):
     eddy_flux = eddy_flux_coarse(
         data.eddy_flux_vulcan_omega_sphum,
         data.sphum_vulcan_omega_coarse,
@@ -107,19 +116,23 @@ def apparent_moistening(data: FineResBudget):
         data.sphum,
     )
     eddy_flux_convergence = vcm.convergence_cell_center(eddy_flux, data.delp, dim="z")
-    return (
-        (data.qv_dt_fv_sat_adj_coarse + data.qv_dt_phys_coarse + eddy_flux_convergence)
-        .assign_attrs(
-            units="kg/kg/s",
-            long_name="apparent moistening from high resolution data",
-            description=(
-                "Apparent moistening due to physics and sub-grid-scale advection. "
-                "Given by "
-                "sat adjustment (dycore) + physics tendency + eddy-flux-convergence"
-            ),
-        )
-        .rename("Q2")
+    name = "Q2"
+    result = (
+        data.qv_dt_fv_sat_adj_coarse + data.qv_dt_phys_coarse + eddy_flux_convergence
     )
+    description = (
+        "Apparent moistening due to physics and sub-grid-scale advection. Given by "
+        "sat adjustment (dycore) + physics tendency + eddy-flux-convergence."
+    )
+    if not include_pbl_tendency:
+        result = result - data.dq3dt_pbl_coarse
+        description = description + " not including PBL tendency"
+        name = f"{name}_no_pbl"
+    return result.assign_attrs(
+        units="kg/kg/s",
+        long_name="apparent moistening from high resolution data",
+        description=description,
+    ).rename(name)
 
 
 def column_integrated_fine_res_nudging_heating(data: FineResBudget) -> xarray.DataArray:

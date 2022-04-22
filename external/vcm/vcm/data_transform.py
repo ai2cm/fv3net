@@ -32,6 +32,9 @@ TransformName = Literal[
     "Q2_tendency_from_Q2_flux",
     "implied_surface_precipitation_rate",
     "implied_downward_radiative_flux_at_surface",
+    "Q1_from_Q1_no_pbl_and_pbl_tendency",
+    "Q2_from_Q2_no_pbl_and_pbl_tendency",
+    "implied_surface_precipitation_rate_from_Q2_no_pbl",
 ]
 
 
@@ -98,6 +101,31 @@ def Q1_from_dQ1_pQ1(ds):
 @register(["dQ2", "pQ2"], ["Q2"])
 def Q2_from_dQ2_pQ2(ds):
     ds["Q2"] = ds["dQ2"] + ds["pQ2"]
+    return ds
+
+
+@register(["Q1_no_pbl", "dt3dt_pbl_coarse"], ["Q1"])
+def Q1_from_Q1_no_pbl_and_pbl_tendency(ds):
+    ds["Q1"] = ds["Q1_no_pbl"] + ds["dt3dt_pbl_coarse"]
+    return ds
+
+
+@register(["Q2_no_pbl", "dq3dt_pbl_coarse"], ["Q2"])
+def Q2_from_Q2_no_pbl_and_pbl_tendency(ds):
+    ds["Q2"] = ds["Q2_no_pbl"] + ds["dq3dt_pbl_coarse"]
+    return ds
+
+
+@register(["Q2_no_pbl", DELP,], ["implied_surface_precipitation_rate"])
+def implied_surface_precipitation_rate_from_Q2_no_pbl(ds, rectify=True):
+    """Assuming <Q2_no_PBL> = -P."""
+    implied_precip = -vcm.mass_integrate(ds["Q2_no_pbl"], ds[DELP], "z").assign_attrs(
+        units="kg/s/m**2",
+        long_name="Implied surface precipitation rate computed as E-<Q2>",
+    )
+    if rectify:
+        implied_precip = implied_precip.where(implied_precip >= 0, 0)
+    ds["implied_surface_precipitation_rate"] = implied_precip
     return ds
 
 
