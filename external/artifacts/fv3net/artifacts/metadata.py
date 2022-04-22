@@ -14,4 +14,4 @@ class StepMetadata:
     env_vars: Optional[Mapping[str, str]] = None
 
     def print_json(self):
-        print(json.dumps(dataclasses.asdict(self)))
+        print(json.dumps({"step_metadata": dataclasses.asdict(self)}))
