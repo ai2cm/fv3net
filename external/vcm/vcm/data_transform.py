@@ -116,7 +116,7 @@ def Q2_from_Q2_no_pbl_and_pbl_tendency(ds):
     return ds
 
 
-@register(["Q2_no_pbl", DELP,], ["implied_surface_precipitation_rate"])
+@register(["Q2_no_pbl", DELP], ["implied_surface_precipitation_rate"])
 def implied_surface_precipitation_rate_from_Q2_no_pbl(ds, rectify=True):
     """Assuming <Q2_no_PBL> = -P."""
     implied_precip = -vcm.mass_integrate(ds["Q2_no_pbl"], ds[DELP], "z").assign_attrs(
