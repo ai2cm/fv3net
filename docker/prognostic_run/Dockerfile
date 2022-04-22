@@ -84,24 +84,18 @@ RUN cd /tmp/fortran-build/FV3 && \
     make -j 8 && \
     PREFIX=/usr/local make install
 
-COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
-
-RUN pip3 install -c /tmp/requirements.txt numpy cython jinja2 && make -C /tmp/fortran-build/FV3 wrapper_build
-
-
-#
 # Python Stuff Here
 #
 # Equivalent to passing --no-cache-dir to every pip install
 ENV PIP_NO_CACHE_DIR=off
 
-# do this early on the build since it is upstream of fv3net
-RUN pip3 install -c /tmp/requirements.txt /tmp/fortran-build/FV3/wrapper/dist/*.whl && \
-    python3 -c 'import fv3gfs.wrapper'
-
 # Install dependencies
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
+
+RUN make -C /tmp/fortran-build/FV3 wrapper_build &&\
+    pip3 install --no-dependencies /tmp/fortran-build/FV3/wrapper/dist/*.whl && \
+    python3 -c 'import fv3gfs.wrapper'
 
 COPY external/vcm /fv3net/external/vcm
 RUN pip3 install --no-dependencies /fv3net/external/vcm
