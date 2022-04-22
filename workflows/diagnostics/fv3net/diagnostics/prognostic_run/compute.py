@@ -18,7 +18,6 @@ import sys
 import datetime
 import intake
 import numpy as np
-import os
 import xarray as xr
 from dask.diagnostics import ProgressBar
 import fsspec
@@ -563,7 +562,6 @@ def main(args):
 
     StepMetadata(
         job_type="prognostic_run_diags",
-        commit=os.getenv("COMMIT_SHA"),
         url=args.output,
         dependencies={"prognostic_run": args.url},
         args=sys.argv[1:],

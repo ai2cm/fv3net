@@ -421,7 +421,6 @@ def create_report(args):
     print(json.dumps({"json": metrics}))
     StepMetadata(
         job_type="offline_report",
-        commit=args.commit_sha,
         url=args.output_path,
         dependencies={
             "offline_diagnostics": args.input_path,

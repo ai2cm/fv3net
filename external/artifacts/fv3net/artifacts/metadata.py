@@ -1,16 +1,17 @@
 import dataclasses
 import json
-from typing import Mapping, List
+import os
+from typing import Mapping, List, Optional
 
 
 @dataclasses.dataclass
 class StepMetadata:
     job_type: str
-    commit: str
     url: str
-    dependencies: Mapping[str, str] = dataclasses.field(default_factory=dict)
-    args: List[str] = dataclasses.field(default_factory=list)
-    env_vars: Mapping[str, str] = dataclasses.field(default_factory=dict)
+    commit: Optional[str] = os.getenv("COMMIT_SHA")
+    dependencies: Optional[Mapping[str, str]] = None
+    args: Optional[List[str]] = None
+    env_vars: Optional[Mapping[str, str]] = None
 
     def print_json(self):
         print(json.dumps(dataclasses.asdict(self)))

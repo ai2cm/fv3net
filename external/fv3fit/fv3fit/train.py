@@ -241,10 +241,7 @@ def main(args, unknown_args=None):
         model = fv3fit.TransformedPredictor(model, training_config.output_transforms)
     fv3fit.dump(model, args.output_path)
     StepMetadata(
-        job_type="training",
-        commit=os.environ.get("COMMIT_SHA"),
-        url=args.output_path,
-        args=sys.argv[1:],
+        job_type="training", url=args.output_path, args=sys.argv[1:],
     ).print_json()
 
 

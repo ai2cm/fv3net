@@ -43,7 +43,6 @@ def append_segment_to_run_url(run_url):
         config = read_run_config(run_url)
         StepMetadata(
             job_type="prognostic_run",
-            commit=os.environ.get("COMMIT_SHA"),
             url=run_url,
             dependencies={"ml_models": get_model_urls(config)},
         ).print_json()
