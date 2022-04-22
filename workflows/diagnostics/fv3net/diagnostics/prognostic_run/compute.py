@@ -528,17 +528,6 @@ def get_verification(args, catalog, join_2d="outer"):
         return load_diags.CatalogSimulation(args.verification, catalog, join_2d=join_2d)
 
 
-def _print_step_metadata_json(args):
-    info = StepMetadata(
-        job_type="prognostic_run_diags",
-        commit=os.environ.get("COMMIT_SHA"),
-        url=args.output,
-        dependencies={"prognostic_run": args.url},
-        args=sys.argv[1:],
-    )
-    info.print_json()
-
-
 def main(args):
 
     logging.basicConfig(level=logging.INFO)
@@ -572,4 +561,10 @@ def main(args):
     with fsspec.open(args.output, "wb") as f:
         vcm.dump_nc(diags, f)
 
-    _print_step_metadata_json(args)
+    StepMetadata(
+        job_type="prognostic_run_diags",
+        commit=os.getenv("COMMIT_SHA"),
+        url=args.output,
+        dependencies={"prognostic_run": args.url},
+        args=sys.argv[1:],
+    ).print_json()

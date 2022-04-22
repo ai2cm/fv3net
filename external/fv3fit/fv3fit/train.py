@@ -177,17 +177,6 @@ def get_cached_data(
     return train_batches, val_batches
 
 
-def _print_step_metadata_json(args):
-    info = StepMetadata(
-        job_type="training",
-        commit=os.environ.get("COMMIT_SHA"),
-        url=args.output_path,
-        dependencies={},
-        args=sys.argv[1:],
-    )
-    info.print_json()
-
-
 def main(args, unknown_args=None):
 
     with open(args.training_config, "r") as f:
@@ -251,8 +240,12 @@ def main(args, unknown_args=None):
     if len(training_config.output_transforms) > 0:
         model = fv3fit.TransformedPredictor(model, training_config.output_transforms)
     fv3fit.dump(model, args.output_path)
-
-    _print_step_metadata_json(args)
+    StepMetadata(
+        job_type="training",
+        commit=os.environ.get("COMMIT_SHA"),
+        url=args.output_path,
+        args=sys.argv[1:],
+    ).print_json()
 
 
 if __name__ == "__main__":
