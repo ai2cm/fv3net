@@ -75,5 +75,5 @@ def test_compute_budget(approach, include_temperature_nudging):
     ]:
         ds[name] = one
 
-    out = compute_budget(ds, approach, include_temperature_nudging)
+    out = compute_budget(ds, approach, include_temperature_nudging, True)
     assert {"dQ1", "dQ2"} <= set(out)

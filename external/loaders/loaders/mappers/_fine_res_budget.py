@@ -146,8 +146,10 @@ def column_integrated_fine_res_nudging_heating(data: FineResBudget) -> xarray.Da
 
 
 def compute_fine_res_sources(
-    data: FineResBudget, include_temperature_nudging: bool = False
+    data: FineResBudget,
+    include_temperature_nudging: bool = False,
+    include_pbl_tendency: bool = True,
 ) -> Tuple[xarray.DataArray, xarray.DataArray]:
-    heating = apparent_heating(data, include_temperature_nudging)
-    moistening = apparent_moistening(data)
+    heating = apparent_heating(data, include_temperature_nudging, include_pbl_tendency)
+    moistening = apparent_moistening(data, include_pbl_tendency)
     return heating, moistening
