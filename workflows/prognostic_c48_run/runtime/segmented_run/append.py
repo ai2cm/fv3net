@@ -41,10 +41,11 @@ def append_segment_to_run_url(run_url):
         print(f"Iteration run={run_url} working_directory={dir_}", file=sys.stderr)
 
         config = read_run_config(run_url)
+        model_urls = get_model_urls(config)
         StepMetadata(
             job_type="prognostic_run",
             url=run_url,
-            dependencies={"ml_models": get_model_urls(config)},
+            dependencies={"ml_models": model_urls} if len(model_urls) > 0 else None,
         ).print_json()
         last_segment = read_last_segment(run_url)
 
