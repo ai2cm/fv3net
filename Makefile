@@ -168,7 +168,6 @@ update_submodules:
 	git submodule sync --recursive
 	git submodule update --init \
 		external/fv3gfs-fortran \
-		external/fv3gfs-wrapper
 
 
 overwrite_baseline_images:
