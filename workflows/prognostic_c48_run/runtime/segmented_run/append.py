@@ -6,9 +6,11 @@ import warnings
 
 import fv3config
 import vcm
+from fv3net.artifacts.metadata import StepMetadata
+
 from fv3post.append import append_segment
 from fv3post.post_process import post_process
-
+from runtime.config import get_model_urls
 from .run import run_segment
 
 
@@ -39,6 +41,12 @@ def append_segment_to_run_url(run_url):
         print(f"Iteration run={run_url} working_directory={dir_}", file=sys.stderr)
 
         config = read_run_config(run_url)
+        model_urls = get_model_urls(config)
+        StepMetadata(
+            job_type="prognostic_run",
+            url=run_url,
+            dependencies={"ml_models": model_urls} if len(model_urls) > 0 else None,
+        ).print_json()
         last_segment = read_last_segment(run_url)
 
         if last_segment is not None:

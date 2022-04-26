@@ -22,8 +22,10 @@ from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
 from fv3fit.dataclasses import asdict_with_enum
 import wandb
+import sys
 
 from vcm.cloud import copy
+from fv3net.artifacts.metadata import StepMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +240,9 @@ def main(args, unknown_args=None):
     if len(training_config.output_transforms) > 0:
         model = fv3fit.TransformedPredictor(model, training_config.output_transforms)
     fv3fit.dump(model, args.output_path)
+    StepMetadata(
+        job_type="training", url=args.output_path, args=sys.argv[1:],
+    ).print_json()
 
 
 if __name__ == "__main__":
