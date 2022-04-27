@@ -45,6 +45,6 @@ def score_model(model: tf.keras.Model, data: Mapping[str, tf.Tensor],) -> Scorin
         ``model``.
     """
     model = fv3fit.keras.adapters.ensure_dict_output(model)
-    prediction = model(data)
+    prediction = model.predict(data, batch_size=8192)
     names = sorted(set(prediction) & set(data))
     return score_multi_output(get(names, data), get(names, prediction), names)

@@ -15,6 +15,7 @@ import numpy as np
 import report
 import vcm
 from vcm.cloud import get_fs
+from fv3net.artifacts.metadata import StepMetadata
 import yaml
 from fv3net.diagnostics.offline._helpers import (
     get_metric_string,
@@ -417,14 +418,16 @@ def create_report(args):
     logger.info(f"Save report to {args.output_path}")
 
     # Gcloud logging allows metrics to get ingested into database
-    gcloud_logging = {
-        "json": metrics,
-        "logging.googleapis.com/labels": {
-            "model": metadata["model_path"],
-            "commit_sha": metadata.get("commit", "n/a"),
+    print(json.dumps({"json": metrics}))
+    StepMetadata(
+        job_type="offline_report",
+        url=args.output_path,
+        dependencies={
+            "offline_diagnostics": args.input_path,
+            "model": metadata.get("model_path"),
         },
-    }
-    print(json.dumps(gcloud_logging))
+        args=sys.argv[1:],
+    ).print_json()
 
     # Explicitly call .close() or xarray raises errors atexit
     # described in https://github.com/shoyer/h5netcdf/issues/50

@@ -47,6 +47,8 @@ from .constants import (
 )
 from fv3net.diagnostics._shared.registry import Registry
 from fv3net.diagnostics._shared import transform
+from fv3net.artifacts.metadata import StepMetadata
+
 
 import logging
 
@@ -557,3 +559,10 @@ def main(args):
     logger.info(f"Saving data to {args.output}")
     with fsspec.open(args.output, "wb") as f:
         vcm.dump_nc(diags, f)
+
+    StepMetadata(
+        job_type="prognostic_run_diags",
+        url=args.output,
+        dependencies={"prognostic_run": args.url},
+        args=sys.argv[1:],
+    ).print_json()

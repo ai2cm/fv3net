@@ -70,6 +70,12 @@ ENV CALLPY=/opt/call_py_fort \
     PYTHONPATH=${CALLPY}/src/:$PYTHONPATH
 RUN cd ${CALLPY} && make && make install && ldconfig
 
+#Install gcloud
+RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext && \
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
+    apt-get update && apt-get install -y google-cloud-sdk jq python3-dev python3-pip kubectl gfortran graphviz
+
 # build/install the fortran model
 COPY external/fv3gfs-fortran/ /tmp/fortran-build
 RUN cd /tmp/fortran-build/FV3 && \
@@ -78,16 +84,6 @@ RUN cd /tmp/fortran-build/FV3 && \
     make -j 8 && \
     PREFIX=/usr/local make install
 
-# gcloud
-
-#Install gcloud
-RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext && \
-    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
-    apt-get update && apt-get install -y google-cloud-sdk jq python3-dev python3-pip kubectl gfortran graphviz
-
-
-#
 # Python Stuff Here
 #
 # Equivalent to passing --no-cache-dir to every pip install
@@ -97,15 +93,11 @@ ENV PIP_NO_CACHE_DIR=off
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 
-COPY /external/fv3gfs-wrapper /fv3gfs-wrapper
-RUN pip3 install jinja2 && make -C /fv3gfs-wrapper/lib
-
-# cache external package installation
-RUN mkdir -p /fv3net/external /fv3net/workflows && \
-    mv /fv3gfs-wrapper /fv3net/external/fv3gfs-wrapper
-
-ENV MPI=mpich
-RUN pip3 install --no-dependencies /fv3net/external/fv3gfs-wrapper
+# compile and install the wrapper. Then import fv3gfs.wrapper as a minimal test
+# that it works.
+RUN make -C /tmp/fortran-build/FV3 wrapper_build &&\
+    pip3 install --no-dependencies /tmp/fortran-build/FV3/wrapper/dist/*.whl && \
+    python3 -c 'import fv3gfs.wrapper'
 
 COPY external/vcm /fv3net/external/vcm
 RUN pip3 install --no-dependencies /fv3net/external/vcm
