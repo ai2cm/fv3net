@@ -72,7 +72,7 @@ def main(config: TrainConfig, seed: int = 0, model_url: str = None):
         config.train_url, config.nfiles, config.model_variables
     )
 
-    train_set = next(iter(train_ds.unbatch().shuffle(100_000).batch(50_000)))
+    train_set = next(iter(train_ds.unbatch().shuffle(160_000).batch(80_000)))
     test_set = next(iter(test_ds.unbatch().shuffle(160_000).batch(80_000)))
 
     train_scores, train_profiles = score_model(model, train_set)
@@ -90,7 +90,7 @@ def main(config: TrainConfig, seed: int = 0, model_url: str = None):
     log_fact_json(data=summary_metrics)
 
     if config.use_wandb:
-        pred_sample = model.predict(test_set)
+        pred_sample = model.predict(test_set, batch_size=8192)
         log_profile_plots(test_set, pred_sample)
 
         # add level for dataframe index, assumes equivalent feature dims
