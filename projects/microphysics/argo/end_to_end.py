@@ -20,6 +20,9 @@ def load_yaml(path):
 
 
 class ArgoJob(Protocol):
+    project: str
+    name: str  # trial name
+
     @property
     def parameters(self):
         """return dict of argo parameters"""
@@ -94,7 +97,11 @@ def submit_jobs(jobs: Sequence[ArgoJob], experiment_name: str):
         for job in jobs:
             submit(
                 job,
-                labels={"experiment": experiment_name},
+                labels={
+                    "project": job.project,
+                    "experiment": experiment_name,
+                    "trial": job.name,
+                },
                 other_parameters={
                     "wandb-tags": f"experiment/{experiment_name}",
                     "wandb-group": experiment_name,
@@ -138,6 +145,8 @@ class PrognosticJob:
     # See the source for more information.
     config: dict = dataclasses.field(repr=False)
     image_tag: str
+    bucket: str = "vcm-ml-experiments"
+    project: str = "microphysics-emulation"
 
     @property
     def entrypoint(self):

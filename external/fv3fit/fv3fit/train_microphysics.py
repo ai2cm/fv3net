@@ -1,11 +1,14 @@
 import argparse
+import sys
 import dacite
 from dataclasses import dataclass, field
 import fsspec
 import json
 import logging
+from fv3net.artifacts.metadata import StepMetadata, log_fact_json
 import numpy as np
 import os
+import time
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
 from fv3fit._shared.config import register_training_function
 from fv3fit.dataclasses import asdict_with_enum as _asdict_with_enum
@@ -460,12 +463,20 @@ def main(config: TrainConfig, seed: int = 0):
     logging.basicConfig(level=getattr(logging, config.log_level))
     set_random_seed(seed)
 
+    start = time.perf_counter()
     train_ds = config.open_dataset(
         config.train_url, config.nfiles, config.model_variables
     )
     test_ds = config.open_dataset(
         config.test_url, config.nfiles_valid, config.model_variables
     )
+
+    StepMetadata(
+        job_type="train",
+        url=config.out_url,
+        dependencies={"train_data": config.train_url, "test_data": config.test_url},
+        args=sys.argv[1:],
+    ).print_json()
 
     predictor = train_function(config, train_ds, test_ds)
     model, transform, history, train_set = predictor.passthrough  # type: ignore
@@ -484,6 +495,9 @@ def main(config: TrainConfig, seed: int = 0):
 
         if config.use_wandb:
             store_model_artifact(local_model_path, name=config._model.name)
+
+    end = time.perf_counter()
+    log_fact_json(data={"train_time_seconds": end - start})
 
     # Jacobians after model storing in case of "out of memory" errors
     sample = transform.forward(train_set)
