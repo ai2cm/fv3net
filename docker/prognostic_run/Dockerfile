@@ -93,6 +93,13 @@ ENV PIP_NO_CACHE_DIR=off
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 
+# for temporary installation of dev version of pace-util to test fv3net integration,
+# need to 1) clone pace into fv3net/external (pace-util can't be pip installed
+# from git) and checkout appropriate commit, 2) comment out pace-util in
+# requirements.txt above, and 3) add the following to install pace-util locally 
+COPY external/pace/pace-util /fv3net/external/pace-util
+RUN pip3 install --no-dependencies -e /fv3net/external/pace-util
+
 # compile and install the wrapper. Then import fv3gfs.wrapper as a minimal test
 # that it works.
 RUN make -C /tmp/fortran-build/FV3 wrapper_build &&\
