@@ -105,8 +105,10 @@ def write_chunks(config: UserConfig):
 
 def get_model_urls(config_dict: dict) -> List[str]:
     urls: List[str] = []
-    urls = config_dict.get("scikit_learn", {}).get("model", [])
+    ml_config = config_dict.get("scikit_learn", {})
+    urls = ml_config.get("model", []) if ml_config is not None else []
     prephysics_config = config_dict.get("prephysics", [])
-    for entry in prephysics_config:
-        urls += entry.get("model", [])
+    if prephysics_config is not None:
+        for entry in prephysics_config:
+            urls += entry.get("model", [])
     return urls
