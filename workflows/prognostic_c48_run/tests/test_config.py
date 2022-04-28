@@ -1,6 +1,7 @@
 import dacite
 import pytest
 from runtime.config import get_model_urls, UserConfig
+import dataclasses
 
 dummy_prescriber = {"dataset_key": "data_url", "variables": ["a"]}
 
@@ -33,5 +34,7 @@ dummy_prescriber = {"dataset_key": "data_url", "variables": ["a"]}
 def test_get_model_urls(config, model_urls):
     # Since this function is coupled to the UserConfig, check that test is in sync
     # with this class
-    dacite.from_dict(UserConfig, config, dacite.Config(strict=True))
-    assert set(get_model_urls(config)) == set(model_urls)
+    validated_config = dataclasses.asdict(
+        dacite.from_dict(UserConfig, config, dacite.Config(strict=True))
+    )
+    assert set(get_model_urls(validated_config)) == set(model_urls)
