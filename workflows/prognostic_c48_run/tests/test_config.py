@@ -1,5 +1,8 @@
+import dacite
 import pytest
-from runtime.config import get_model_urls
+from runtime.config import get_model_urls, UserConfig
+
+dummy_prescriber = {"dataset_key": "data_url", "variables": ["a"]}
 
 
 @pytest.mark.parametrize(
@@ -7,11 +10,11 @@ from runtime.config import get_model_urls
     [
         ({}, []),
         ({"scikit_learn": None, "prephysics": None}, []),
-        ({"scikit_learn": None, "prephysics": [{"some_prescribed_data": 0}]}, []),
+        ({"scikit_learn": None, "prephysics": [dummy_prescriber]}, []),
         (
             {
                 "scikit_learn": {"model": ["ml_model_url"]},
-                "prephysics": [{"some_prescribed_data": 0}],
+                "prephysics": [dummy_prescriber],
             },
             ["ml_model_url"],
         ),
@@ -19,7 +22,7 @@ from runtime.config import get_model_urls
             {
                 "scikit_learn": {"model": ["ml_model_url"]},
                 "prephysics": [
-                    {"some_prescribed_data": 0},
+                    dummy_prescriber,
                     {"model": ["prephysics_model_0", "prephysics_model_1"]},
                 ],
             },
@@ -28,4 +31,7 @@ from runtime.config import get_model_urls
     ],
 )
 def test_get_model_urls(config, model_urls):
+    # Since this function is coupled to the UserConfig, check that test is in sync
+    # with this class
+    dacite.from_dict(UserConfig, config, dacite.Config(strict=True))
     assert set(get_model_urls(config)) == set(model_urls)
