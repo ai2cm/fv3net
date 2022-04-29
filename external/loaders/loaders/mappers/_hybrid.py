@@ -58,28 +58,3 @@ def open_fine_resolution_nudging_hybrid(
     hybrid_budget = compute_hybrid_budget(budget)
 
     return XarrayMapper(hybrid_budget)
-
-
-@mapper_functions.register
-def open_precomputed_fine_resolution_nudging_hybrid(
-    fine_url: str, additional_dataset_urls: str = None
-) -> GeoMapper:
-    """
-    Open the fine resolution nudging hybrid mapper with precomputed fine-res data
-
-    Args:
-        fine_url: url where coarsened fine resolution data is stored, must include
-            precomputed Q1, Q2, dQ1 and dQ2
-        additional_dataset_urls: sequence of urls which to zarrs containing additional
-            data to be merged into the resulting mapper dataset
-
-    Returns:
-        a mapper
-    """
-    return XarrayMapper(
-        _open_merged_dataset(
-            fine_url=fine_url,
-            additional_dataset_urls=additional_dataset_urls,
-            standardize_fine_coords=False,
-        )
-    )

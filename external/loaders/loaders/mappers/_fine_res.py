@@ -141,7 +141,7 @@ def compute_budget(
         name = "storage_of_internal_energy_path_due_to_fine_res_temperature_nudging"
         merged[name] = column_integrated_fine_res_nudging_heating(merged)
 
-    return _ml_standard_names(merged)
+    return merged.astype(np.float32)
 
 
 def _add_nudging_tendencies(merged: xr.Dataset):
@@ -187,15 +187,6 @@ def _extend_lower(
         }
     )
     return fine_source_extended_lower
-
-
-def _ml_standard_names(merged: xr.Dataset):
-
-    # since ML target is Q1/Q2, dQ1=Q1 and same for moistening
-    merged["dQ1"] = merged["Q1"]
-    merged["dQ2"] = merged["Q2"]
-
-    return merged.astype(np.float32)
 
 
 @mapper_functions.register
@@ -256,7 +247,7 @@ def _open_precomputed_fine_resolution_dataset(
         standardize_fine_coords=False,
     )
 
-    return _ml_standard_names(merged)
+    return merged.astype(np.float32)
 
 
 @mapper_functions.register

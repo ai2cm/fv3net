@@ -7,10 +7,7 @@ from ._nudged import (
 )
 from ._transformations import ValMap, KeyMap, SubsetTimes
 from ._local import LocalMapper, mapper_to_local
-from ._hybrid import (
-    open_fine_resolution_nudging_hybrid,
-    open_precomputed_fine_resolution_nudging_hybrid,
-)
+from ._hybrid import open_fine_resolution_nudging_hybrid
 from ._fine_res import open_fine_resolution, open_precomputed_fine_resolution
 
 # additional open mapper functions

@@ -201,9 +201,9 @@ variables:
 		Q2:units = kg/kg/s ;
 		Q2:long_name = apparent moistening from high resolution data ;
 		Q2:description = Apparent moistening due to physics and sub-grid-scale advection. Given by sat adjustment (dycore) + physics tendency + eddy-flux-convergence ;
+	object time() ;
 	float32 dQ1(tile, z, y, x) ;
 	float32 dQ2(tile, z, y, x) ;
-	object time() ;
 	float32 dQxwind(tile, z, y_interface, x) ;
 		dQxwind:units = m/s s^-1 ;
 	float32 dQywind(tile, z, y, x_interface) ;
