@@ -48,7 +48,6 @@ def test_expected_mapper_functions_exist():
         "open_high_res_diags",
         "open_fine_resolution_nudging_hybrid",
         "open_fine_resolution",
-        "open_precomputed_fine_resolution",
         "open_nudge_to_fine_multiple_datasets",
         "open_zarr",
     )
