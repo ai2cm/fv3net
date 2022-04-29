@@ -2,4 +2,4 @@ jsonschema
 dacite
 sphinx
 sphinx_rtd_theme
-pace-util>=0.7.0
+#pace-util>=0.7.0

@@ -15,6 +15,7 @@ local_packages_to_install=(
   external/loaders
   external/fv3fit
   external/report
+  external/pace/pace-util
 )
 set -e
 for package  in "${local_packages_to_install[@]}"

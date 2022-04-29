@@ -43,6 +43,9 @@ COPY projects $FV3NET/projects
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
 
+# temporary install of pace-util for testing
+RUN pip3 install -c constraints.txt -e external/pace/pace-util
+
 # delete any gsutil's installed by conda
 RUN rm -f /opt/conda/envs/$PROJECT_NAME/bin/gsutil
 RUN fix-permissions /home/jovyan/
