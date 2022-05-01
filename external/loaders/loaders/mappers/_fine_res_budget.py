@@ -75,6 +75,9 @@ class FineResBudget(Protocol):
     SHTFLsfc_coarse: xarray.DataArray
     PRATEsfc_coarse: xarray.DataArray
 
+    def astype(self, dtype):
+        pass
+
 
 def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = False):
     eddy_flux = eddy_flux_coarse(

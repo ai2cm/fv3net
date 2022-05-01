@@ -235,7 +235,12 @@ def test_open_fine_resolution_nudging_hybrid(
     regtest, nudge_to_fine_data_dir, fine_res_zarr
 ):
     data = open_fine_resolution_nudging_hybrid(
-        fine_url=fine_res_zarr, nudge_url=nudge_to_fine_data_dir,
+        approach="apparent_sources_only",
+        fine_url=fine_res_zarr,
+        additional_dataset_urls=[
+            os.path.join(nudge_to_fine_data_dir, "physics_tendencies.zarr"),
+            os.path.join(nudge_to_fine_data_dir, "nudging_tendencies.zarr"),
+        ],
     )
     data[timestep1_end].info(regtest)
 
