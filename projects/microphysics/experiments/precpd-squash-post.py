@@ -5,7 +5,7 @@ sys.path.insert(0, "../argo")
 
 from end_to_end import PrognosticJob, load_yaml, submit_jobs  # noqa: E402
 
-MODEL = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/dqc-precpd-limiter-rnn-limited-qc-87e803-30d-v1-online/model.tf"  # noqa: E501
+MODEL = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-29/dqc-precpd-limiter-rnn-limited-qc-87e803/model.tf"  # noqa: E501
 
 
 def _get_job(conservative_cloud: bool, squash: float):
@@ -19,10 +19,10 @@ def _get_job(conservative_cloud: bool, squash: float):
         }
     }
     config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = False
-    cons = "-conservative" if conservative_cloud else ""
+    cons = "-conser" if conservative_cloud else ""
     return PrognosticJob(
-        name=f"precpd-limit-squash-v3-{squash:.0e}{cons}",
-        image_tag="98ea028bec53447f5bb94c4c3ce5bd330a690d52",
+        name=f"precpd-lim-squash-post-v1-{squash:.0e}{cons}",
+        image_tag="db3c57138817c74d0be8efb9a52c27018feec85b",
         config=config,
     )
 
@@ -32,4 +32,4 @@ def _gen():
         yield _get_job(*args)
 
 
-submit_jobs(list(_gen()), f"precpd-limit-squash")
+submit_jobs(list(_gen()), f"precpd-limit-squash-posthoc")
