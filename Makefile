@@ -146,11 +146,11 @@ test_dataflow:
 	coverage run -m pytest -vv workflows/dataflow/tests/integration -s $(ARGS)
 
 coverage_report:
-	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
+	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-fortran/**.py'
 
 htmlcov:
 	rm -rf $@
-	coverage html -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
+	coverage html -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-fortran/**.py'
 
 test_argo:
 	make -C workflows/argo/ test
@@ -216,7 +216,7 @@ docker/prognostic_run/requirements.txt:
 		--output-file docker/prognostic_run/requirements.txt \
 		external/artifacts/setup.py \
 		external/fv3fit/setup.py \
-		external/fv3gfs-wrapper.requirements.in \
+		external/fv3gfs-fortran.requirements.in \
 		external/fv3kube/setup.py \
 		external/vcm/setup.py \
 		workflows/post_process_run/requirements.txt \
