@@ -18,17 +18,14 @@ Packages
 :doc:`fv3kube <readme_links/fv3kube_readme>` contains utilities to handle submitting and monitoring fv3gfs jobs on kubernetes.
 
 
-.. rubric:: VCM packages in other repositories:
+.. rubric:: Packages in other repositories:
 
-fv3gfs-wrapper_ is a Python wrapper for the FV3GFS Fortran model.
-
-fv3gfs-fortran_ is our fork of the FV3GFS fortran model, which we run using the wrapper.
+fv3gfs-fortran_ is our fork of the FV3GFS fortran model, which we run using its included Python wrapper
 
 pace-util_ (`docs, which are no longer maintained <https://fv3gfs-util.readthedocs.io/en/latest/>`_) is a library of general-purpose Python code to use in a model script.
 
 fv3config_ (`docs <https://fv3config.readthedocs.io/en/latest/>`_) provides routines to configure and write a FV3GFS run directory using a yaml configuration file and data stored on the cloud.
 
-.. _fv3gfs-wrapper: https://github.com/ai2cm/fv3gfs-wrapper
 .. _fv3gfs-fortran: https://github.com/ai2cm/fv3gfs-fortran
 .. _pace-util: https://github.com/ai2cm/pace/tree/main/pace-util
 .. _fv3config: https://github.com/ai2cm/fv3config
