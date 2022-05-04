@@ -129,6 +129,7 @@ TIME_MEAN_VARS = [
 PRESSURE_INTERPOLATED_VARS = [
     "air_temperature",
     "specific_humidity",
+    "relative_humidity",
     "eastward_wind",
     "northward_wind",
     "vertical_wind",

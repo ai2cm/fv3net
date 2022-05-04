@@ -240,10 +240,14 @@ def evaluation_pair_to_input_data(
     verif_3d = verification.data_3d
 
     return {
-        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"]),),
+        "3d": (
+            derived_variables.derive_3d_variables(data_3d),
+            derived_variables.derive_3d_variables(verif_3d),
+            grid.drop(["tile", "land_sea_mask"]),
+        ),
         "2d": (
-            derived_variables.physics_variables(prognostic.data_2d),
-            derived_variables.physics_variables(verification.data_2d),
+            derived_variables.derive_2d_variables(prognostic.data_2d),
+            derived_variables.derive_2d_variables(verification.data_2d),
             grid,
         ),
     }

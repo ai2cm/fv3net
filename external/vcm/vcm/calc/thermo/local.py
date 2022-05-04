@@ -276,6 +276,19 @@ def density(delp, delz, math=np):
     return math.abs(delp / delz / _GRAVITY)
 
 
+def density_dry_air(temperature, pressure):
+    """Compute density from temperature and pressure assuming dry air.
+
+    Args:
+        temperature: air temperature in units of K.
+        pressure: air pressure in units of Pa.
+
+    Returns:
+        Density in units of kg/m**3.
+    """
+    return pressure / (_RDGAS * temperature)
+
+
 def pressure_thickness(density, delz, math=np):
     """Compute density from pressure and vertical thickness.
 

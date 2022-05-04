@@ -1,5 +1,6 @@
 import logging
 import warnings
+from typing import Sequence, Callable
 import xarray as xr
 
 import vcm
@@ -10,18 +11,8 @@ TOLERANCE = 1.0e-12
 logger = logging.getLogger(__name__)
 
 
-def physics_variables(ds: xr.Dataset) -> xr.Dataset:
-    """
-    Compute selected derived variables from a physics dataset and merge them back in.
-
-    Args:
-        ds: Dataset to calculated derived values from and merge to
-
-    Note:
-        Derived variables are linear combinations of other variables with no reductions.
-    """
-    arrays = []
-    for func in [
+def derive_2d_variables(ds: xr.Dataset) -> xr.Dataset:
+    functions_2d = [
         _column_pq1,
         _column_pq2,
         _column_dq1,
@@ -37,7 +28,28 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_dq2_or_nq2,
         _water_vapor_path,
         _minus_column_q2,
-    ]:
+    ]
+    return derive_variables(ds, functions_2d)
+
+
+def derive_3d_variables(ds: xr.Dataset) -> xr.Dataset:
+    functions_3d = [_relative_humidity]
+    return derive_variables(ds, functions_3d)
+
+
+def derive_variables(ds: xr.Dataset, functions: Sequence[Callable]) -> xr.Dataset:
+    """
+    Compute derived variables defined by functions and merge them back in.
+
+    Args:
+        ds: Dataset to calculated derived values from and merge to.
+        functions: Sequence of functions which take input dataset and return DataArrays
+
+    Note:
+        Derived variables are linear combinations of other variables with no reductions.
+    """
+    arrays = []
+    for func in functions:
         try:
             arrays.append(func(ds))
         except (KeyError, AttributeError):  # account for ds[var] and ds.var notations
@@ -321,3 +333,16 @@ def _minus_column_q2(ds: xr.Dataset) -> xr.DataArray:
     result = -_column_q2(ds)
     result.attrs = {"long_name": "-<Q2> column integrated drying", "units": "mm/day"}
     return result.rename("minus_column_integrated_q2")
+
+
+def _relative_humidity(ds: xr.Dataset) -> xr.DataArray:
+    result = vcm.relative_humidity(
+        ds.air_temperature,
+        ds.specific_humidity,
+        vcm.density_dry_air(ds.air_temperature, ds.pressure),
+    )
+    result.attrs = {
+        "long_name": "relative humidity",
+        "units": "dimensionless",
+    }
+    return result.rename("relative_humidity")

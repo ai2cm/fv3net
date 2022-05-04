@@ -53,6 +53,7 @@ from .calc.thermo.local import (
     relative_humidity,
     specific_humidity_from_rh,
     density,
+    density_dry_air,
     pressure_thickness,
     layer_mass,
     temperature_tendency,
