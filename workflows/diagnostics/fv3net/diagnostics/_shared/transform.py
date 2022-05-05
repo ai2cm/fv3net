@@ -8,13 +8,13 @@ diagnostic function arguments.
 """
 
 import logging
-from typing import Sequence, Tuple, Callable
+from typing import Sequence, Tuple, Callable, Optional
 import numpy as np
 import pandas as pd
 import xarray as xr
 from datetime import datetime, timedelta
 import cftime
-from vcm import interpolate_to_pressure_levels
+from vcm import interpolate_to_pressure_levels, minus_column_integrated_moistening
 
 from .constants import HORIZONTAL_DIMS, VERTICAL_DIM, DiagArg
 
@@ -248,16 +248,43 @@ def mask_area(region: str, arg: DiagArg) -> DiagArg:
             "land", "sea", and "tropics".
         arg: input arguments to transform prior to the diagnostic calculation
     """
-    prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
+    prognostic, verification, grid, delp = (
+        arg.prediction,
+        arg.verification,
+        arg.grid,
+        arg.delp,
+    )
 
-    masked_area = _mask_array(region, grid.area, grid.lat, grid.land_sea_mask)
+    net_precipitation = _get_net_preciptation(region, verification, delp)
+
+    masked_area = _mask_array(
+        region, grid.area, grid.lat, grid.land_sea_mask, net_precipitation
+    )
 
     grid_copy = grid.copy()
     return DiagArg(prognostic, verification, grid_copy.update({"area": masked_area}))
 
 
+def _get_net_preciptation(
+    region: str, verification: xr.Dataset, delp: Optional[xr.DataArray]
+) -> Optional[xr.DataArray]:
+    if "net_precipitation" in region:
+        if delp is not None:
+            return minus_column_integrated_moistening(verification["Q2"], delp)
+        else:
+            raise ValueError(
+                "delp dataarray must be provided to compute precipitation domains."
+            )
+    else:
+        return None
+
+
 def _mask_array(
-    region: str, arr: xr.DataArray, latitude: xr.DataArray, land_sea_mask: xr.DataArray,
+    region: str,
+    arr: xr.DataArray,
+    latitude: xr.DataArray,
+    land_sea_mask: xr.DataArray,
+    net_precipitation: Optional[xr.DataArray] = None,
 ) -> xr.DataArray:
     """Mask given DataArray to a specific region."""
     if region == "tropics":
@@ -266,6 +293,10 @@ def _mask_array(
         masked_arr = arr.where(abs(latitude) <= 20.0)
     elif region == "global":
         masked_arr = arr.copy()
+    elif region == "positive_net_precipitation":
+        masked_arr = arr.where(net_precipitation > 0.0)
+    elif region == "negative_net_precipitation":
+        masked_arr = arr.where(net_precipitation > 0.0)
     elif region in SURFACE_TYPE_CODES:
         masks = [land_sea_mask == code for code in SURFACE_TYPE_CODES[region]]
         mask_union = masks[0]
