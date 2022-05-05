@@ -574,9 +574,9 @@ for domain in ["positive_net_precipitation", "negative_net_precipitation"]:
             return xr.Dataset()
 
 
-for domain in ["global", "land", "sea"]:
+for mask_type in ["global", "land", "sea"]:
 
-    @diagnostics_registry.register(f"time_domain_mean_2d_{domain}")
+    @diagnostics_registry.register(f"time_domain_mean_2d_{mask_type}")
     @transform.apply(transform.select_2d_variables)
     @transform.apply(transform.mask_area, mask_type)
     def time_domain_mean_2d(diag_arg, mask_type=mask_type):
@@ -598,9 +598,9 @@ for domain in ["global", "land", "sea"]:
             return xr.Dataset()
 
 
-for domain in ["global", "land", "sea"]:
+for mask_type in ["global", "land", "sea"]:
 
-    @diagnostics_registry.register(f"time_domain_mean_pressure_level_{domain}")
+    @diagnostics_registry.register(f"time_domain_mean_pressure_level_{mask_type}")
     @transform.apply(transform.select_3d_variables)
     @transform.apply(transform.regrid_zdim_to_pressure_levels)
     @transform.apply(transform.mask_area, mask_type)
@@ -625,7 +625,7 @@ for domain in ["global", "land", "sea"]:
         else:
             return xr.Dataset()
 
-    @diagnostics_registry.register(f"time_domain_mean_model_level_{domain}")
+    @diagnostics_registry.register(f"time_domain_mean_model_level_{mask_type}")
     @transform.apply(transform.select_3d_variables)
     @transform.apply(transform.mask_area, mask_type)
     def time_domain_mean_model_level(diag_arg, mask_type=mask_type):
@@ -649,10 +649,10 @@ for domain in ["global", "land", "sea"]:
             return xr.Dataset()
 
 
-for domain in ["global", "land", "sea"]:
+for mask_type in ["global", "land", "sea"]:
 
     @diagnostics_registry.register(
-        f"time_domain_mean_pressure_level_zonal_avg_{domain}"
+        f"time_domain_mean_pressure_level_zonal_avg_{mask_type}"
     )
     @transform.apply(transform.select_3d_variables)
     @transform.apply(transform.regrid_zdim_to_pressure_levels)
