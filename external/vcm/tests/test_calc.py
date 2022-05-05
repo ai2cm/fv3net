@@ -182,3 +182,11 @@ def test_mass_divergence():
     out = vcm.mass_divergence(da, delp, dim_center="pfull", dim_interface="phalf")
     assert set(out.dims) == {"x", "pfull"}
     assert out.shape == (5, 4)
+
+
+def test_zonal_mean():
+    da = xr.DataArray(np.reshape(np.arange(0, 80, 2), (5, 4, 2)), dims=["x", "y", "z"])
+    lat = xr.DataArray(np.reshape(np.linspace(-85, 85, 20), (5, 4)), dims=["x", "y"])
+    out = vcm.zonal_mean(da, lat, bins=np.arange(-90, 91, 10), lat_name="foo")
+    assert set(out.dims) == {"foo", "z"}
+    np.testing.assert_allclose(out.foo.values, np.arange(-85, 86, 10))

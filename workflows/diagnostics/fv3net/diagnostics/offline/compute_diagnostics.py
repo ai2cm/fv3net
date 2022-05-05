@@ -242,19 +242,6 @@ def weighted_mean(ds, weights, dims):
         return (ds * weights).sum(dims) / weights.sum(dims)
 
 
-def zonal_mean(
-    ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2)
-) -> xr.Dataset:
-    with xr.set_options(keep_attrs=True):
-        zm = (
-            ds.groupby_bins(latitude, bins=bins)
-            .mean(skipna=True)
-            .rename(lat_bins="latitude")
-        )
-    latitude_midpoints = [x.item().mid for x in zm["latitude"]]
-    return zm.assign_coords(latitude=latitude_midpoints)
-
-
 def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
     counts = xr.Dataset()
     col_drying = -ds[COL_MOISTENING].rename(COL_DRYING)
@@ -459,7 +446,7 @@ for mask_type in ["global", "sea", "land"]:
             diag_arg.verification,
             diag_arg.grid,
         )
-        zonal_avg_bias = zonal_mean(predicted - target, grid.lat)
+        zonal_avg_bias = vcm.zonal_mean(predicted - target, grid.lat)
         return zonal_avg_bias.mean("time")
 
 
@@ -478,7 +465,7 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        zonal_avg_bias = zonal_mean(predicted - target, grid.lat)
+        zonal_avg_bias = vcm.zonal_mean(predicted - target, grid.lat)
         return zonal_avg_bias.mean("time")
 
 
@@ -497,7 +484,7 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        zonal_avg_mse = zonal_mean((predicted - target) ** 2, grid.lat)
+        zonal_avg_mse = vcm.zonal_mean((predicted - target) ** 2, grid.lat)
         return zonal_avg_mse.mean("time")
 
 
@@ -520,7 +507,7 @@ for mask_type in ["global", "sea", "land"]:
         mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
             "time"
         )
-        zonal_avg_variance = zonal_mean((mean - target) ** 2, grid.lat)
+        zonal_avg_variance = vcm.zonal_mean((mean - target) ** 2, grid.lat)
         return zonal_avg_variance.mean("time")
 
 
@@ -672,7 +659,7 @@ for domain in ["global", "land", "sea"]:
                 [predicted, target],
                 dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
             )
-            return zonal_mean(ds, grid.lat).mean("time")
+            return vcm.zonal_mean(ds, grid.lat).mean("time")
         else:
             return xr.Dataset()
 
