@@ -251,7 +251,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
                 report_sections,
                 fig,
                 filename=f"{var}.png",
-                section_name=coord.replace("_", " ") + " metrics",
+                section_name=(coord.replace("_", " ") + " metrics").capitalize(),
                 output_dir=output_dir,
             )
             plt.close(fig)
@@ -260,7 +260,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
     vars_3d = [v for v in ds_diags if is_3d(ds_diags[v])]
     ds_profiles = get_plot_dataset(
         ds_diags[vars_3d],
-        var_filter="time_domain_mean",
+        var_filter="time_domain_mean_model_level",
         column_filters=[
             "global",
             "land",
@@ -277,7 +277,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             report_sections,
             fig,
             filename=f"{var}.png",
-            section_name="Vertical profiles of predicted variables",
+            section_name="Vertical profiles of predicted variables on model levels",
             output_dir=output_dir,
         )
         plt.close(fig)
