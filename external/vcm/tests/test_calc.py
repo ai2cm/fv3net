@@ -15,7 +15,7 @@ from vcm.calc.thermo.vertically_dependent import (
     _add_coords_to_interface_variable,
     mass_streamfunction,
 )
-from vcm.calc.calc import local_time
+from vcm.calc.calc import local_time, weighted_average
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 from vcm.calc.thermo.constants import _GRAVITY, _RDGAS, _RVGAS
 import vcm
@@ -201,3 +201,32 @@ def test_relative_humidity_from_pressure():
     expected_rh = 0.4
     rh = vcm.relative_humidity_from_pressure(temperature, q, pressure)
     assert pytest.approx(expected_rh, rel=1e-3) == rh
+
+
+da = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
+da_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
+ds = xr.Dataset({"a": da})
+weights = xr.DataArray([0.5, 0.5, 1, 1], dims=["z"])
+weights_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
+
+
+@pytest.mark.parametrize(
+    "da,weights,dims,expected",
+    [
+        (da, weights, "z", xr.DataArray(17.0 / 6.0)),
+        (ds, weights, "z", xr.Dataset({"a": xr.DataArray(17.0 / 6.0)})),
+        (da_nans, weights, "z", xr.DataArray(0.0)),
+        (da, weights_nans, "z", xr.DataArray(np.nan)),
+    ],
+)
+def test_weighted_average(da, weights, dims, expected):
+    xr.testing.assert_allclose(weighted_average(da, weights, dims), expected)
+
+
+def test_weighted_averaged_no_dims():
+
+    da = xr.DataArray([[[np.arange(1.0, 5.0)]]], dims=["tile", "y", "x", "z"])
+    weights = xr.DataArray([[[[0.5, 0.5, 1, 1]]]], dims=["tile", "y", "x", "z"])
+    expected = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
+
+    xr.testing.assert_allclose(weighted_average(da, weights), expected)
