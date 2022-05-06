@@ -256,8 +256,8 @@ def relative_humidity_from_pressure(temperature, specific_humidity, pressure, ma
     Returns:
         Relative humidity.
 
-    Notes:
-        Following Eq. 3.59 of Wallace and Hobb
+    Note:
+        Following Eq. 3.59 of Wallace and Hobbs (2006).
     """
     mixing_ratio = specific_humidity / (1 - specific_humidity)
     partial_pressure = pressure * mixing_ratio / (mixing_ratio + _RDGAS / _RVGAS)
@@ -294,19 +294,6 @@ def density(delp, delz, math=np):
         Density in units of kg/m**3.
     """
     return math.abs(delp / delz / _GRAVITY)
-
-
-def density_dry_air(temperature, pressure):
-    """Compute density from temperature and pressure assuming dry air.
-
-    Args:
-        temperature: air temperature in units of K.
-        pressure: air pressure in units of Pa.
-
-    Returns:
-        Density in units of kg/m**3.
-    """
-    return pressure / (_RDGAS * temperature)
 
 
 def pressure_thickness(density, delz, math=np):
