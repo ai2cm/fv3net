@@ -81,13 +81,6 @@ def _calc_ds_diurnal_cycle(ds):
     return diurnal_cycles
 
 
-def _predicts_sphum_tendency(ds):
-    for var in ds.data_vars:
-        if "q2" in var.lower():
-            return True
-    return False
-
-
 def mse(x, y, w, dims):
     with xr.set_options(keep_attrs=True):
         return ((x - y) ** 2 * w).sum(dims) / w.sum(dims)

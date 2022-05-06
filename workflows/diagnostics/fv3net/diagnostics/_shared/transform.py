@@ -245,7 +245,8 @@ def mask_area(region: str, arg: DiagArg) -> DiagArg:
 
     Args:
         region: name of region to leave unmasked. Valid options are "global",
-            "land", "sea", and "tropics".
+            "land", "sea", "seaice", "tropics", "tropics20",
+            "positive_net_precipitation" and "negative_net_precipitation"
         arg: input arguments to transform prior to the diagnostic calculation
     """
     prognostic, verification, grid, delp = (
@@ -255,7 +256,7 @@ def mask_area(region: str, arg: DiagArg) -> DiagArg:
         arg.delp,
     )
 
-    net_precipitation = _get_net_preciptation(region, verification, delp)
+    net_precipitation = _get_net_preciptation(verification, grid.area, delp)
 
     masked_area = _mask_array(
         region, grid.area, grid.lat, grid.land_sea_mask, net_precipitation
@@ -266,17 +267,12 @@ def mask_area(region: str, arg: DiagArg) -> DiagArg:
 
 
 def _get_net_preciptation(
-    region: str, verification: xr.Dataset, delp: Optional[xr.DataArray]
-) -> Optional[xr.DataArray]:
-    if "net_precipitation" in region:
-        if delp is not None:
-            return minus_column_integrated_moistening(verification["Q2"], delp)
-        else:
-            raise ValueError(
-                "delp dataarray must be provided to compute precipitation domains."
-            )
+    verification: xr.Dataset, area: xr.DataArray, delp: Optional[xr.DataArray]
+) -> xr.DataArray:
+    if delp is not None and "Q2" in verification.data_vars:
+        return minus_column_integrated_moistening(verification["Q2"], delp)
     else:
-        return None
+        return xr.full_like(area, fill_value=np.nan, dtype=float)
 
 
 def _mask_array(
@@ -287,6 +283,8 @@ def _mask_array(
     net_precipitation: Optional[xr.DataArray] = None,
 ) -> xr.DataArray:
     """Mask given DataArray to a specific region."""
+    if net_precipitation is None:
+        net_precipitation = xr.full_like(arr, fill_value=np.nan)
     if region == "tropics":
         masked_arr = arr.where(abs(latitude) <= 10.0)
     elif region == "tropics20":
@@ -296,7 +294,7 @@ def _mask_array(
     elif region == "positive_net_precipitation":
         masked_arr = arr.where(net_precipitation > 0.0)
     elif region == "negative_net_precipitation":
-        masked_arr = arr.where(net_precipitation > 0.0)
+        masked_arr = arr.where(net_precipitation <= 0.0)
     elif region in SURFACE_TYPE_CODES:
         masks = [land_sea_mask == code for code in SURFACE_TYPE_CODES[region]]
         mask_union = masks[0]
