@@ -13,7 +13,7 @@ import pandas as pd
 from typing import Sequence, Tuple, Dict
 import xarray as xr
 
-from vcm import local_time, histogram, histogram2d
+import vcm
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ def _calc_ds_diurnal_cycle(ds):
     Calculates the diurnal cycle for all variables.  Expects
     time dimension and longitude variable "lon".
     """
-    local_time_ = local_time(ds, time="time", lon_var="lon")
+    local_time_ = vcm.local_time(ds, time="time", lon_var="lon")
     local_time_.attrs = {"long_name": "local time", "units": "hour"}
     ds["local_time"] = np.floor(local_time_)  # equivalent to hourly binning
     with xr.set_options(keep_attrs=True):
@@ -102,7 +102,7 @@ def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
     col_drying.attrs["units"] = ds[COL_MOISTENING].attrs.get("units")
     bins = [HISTOGRAM_BINS[WVP], np.linspace(-50, 150, 101)]
 
-    counts, wvp_bins, q2_bins = histogram2d(ds[WVP], col_drying, bins=bins)
+    counts, wvp_bins, q2_bins = vcm.histogram2d(ds[WVP], col_drying, bins=bins)
     return xr.Dataset(
         {
             f"{WVP}_versus_{COL_DRYING}": counts,
@@ -542,7 +542,7 @@ def compute_histogram(diag_arg: DiagArg):
             )
             counts = xr.Dataset()
             for varname in ds.data_vars:
-                count, width = histogram(
+                count, width = vcm.histogram(
                     ds[varname], bins=HISTOGRAM_BINS[varname.lower()], density=True
                 )
                 counts[varname] = count
