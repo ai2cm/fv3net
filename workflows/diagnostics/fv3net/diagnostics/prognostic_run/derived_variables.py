@@ -336,10 +336,8 @@ def _minus_column_q2(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _relative_humidity(ds: xr.Dataset) -> xr.DataArray:
-    result = vcm.relative_humidity(
-        ds.air_temperature,
-        ds.specific_humidity,
-        vcm.density_dry_air(ds.air_temperature, ds.pressure),
+    result = vcm.relative_humidity_from_pressure(
+        ds.air_temperature, ds.specific_humidity, ds.pressure,
     )
     result.attrs = {
         "long_name": "relative humidity",

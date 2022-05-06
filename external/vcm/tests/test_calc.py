@@ -190,3 +190,14 @@ def test_zonal_mean():
     out = vcm.zonal_mean(da, lat, bins=np.arange(-90, 91, 10), lat_name="foo")
     assert set(out.dims) == {"foo", "z"}
     np.testing.assert_allclose(out.foo.values, np.arange(-85, 86, 10))
+
+
+def test_relative_humidity_from_pressure():
+    # values taken from https://www.omnicalculator.com/physics/air-density
+    pressure = 1e5
+    temperature = 300
+    e = 1412
+    q = 0.622 * e / (pressure - 0.378 * e)
+    expected_rh = 0.4
+    rh = vcm.relative_humidity_from_pressure(temperature, q, pressure)
+    assert pytest.approx(expected_rh, rel=1e-3) == rh
