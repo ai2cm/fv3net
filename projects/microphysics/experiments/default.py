@@ -11,12 +11,17 @@ from end_to_end import EndToEndJob, load_yaml, submit_jobs  # noqa: E402
 def _get_job(config: str, revision, suffix):
     config_name = os.path.splitext(os.path.basename(config))[0]
     config = load_yaml(config)
+
+    config["nfiles"] = 50
+    config["epochs"] = 3
+    config["nfiles_valid"] = 10
+
     return EndToEndJob(
         name=f"{config_name}-{revision[:6]}-{suffix}",
         fv3fit_image_tag=revision,
         image_tag=revision,
         ml_config=config,
-        prog_config=load_yaml("../configs/default.yaml"),
+        prog_config=load_yaml("../configs/default_short.yaml"),
     )
 
 
