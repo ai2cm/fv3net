@@ -37,4 +37,5 @@ parser.add_argument("--test", action="store_true")
 
 args = parser.parse_args()
 jobs = [_get_job(config, args.revision, args.suffix, args.test) for config in configs]
-submit_jobs(jobs, f"{args.revision}-end-to-end")
+test_str = "-test-" if args.test else ""
+submit_jobs(jobs, f"emu-end-to-end-{test_str}{args.revision}")
