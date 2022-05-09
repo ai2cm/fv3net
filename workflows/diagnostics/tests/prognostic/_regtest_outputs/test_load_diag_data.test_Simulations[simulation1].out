@@ -134,9 +134,9 @@ variables:
 		int_dt3dt_sw:long_name = int_dt3dt_sw ;
 		int_dt3dt_sw:units = unspecified ;
 	int64 tile(tile) ;
-	float32 tsfc(tile, time, y, x) ;
-		tsfc:long_name = tsfc ;
-		tsfc:units = unspecified ;
+	float32 TMPsfc(tile, time, y, x) ;
+		TMPsfc:long_name = tsfc ;
+		TMPsfc:units = unspecified ;
 	float32 uflx(tile, time, y, x) ;
 		uflx:long_name = uflx ;
 		uflx:units = unspecified ;
@@ -173,9 +173,9 @@ variables:
 	float32 REFC(tile, time, y, x) ;
 		REFC:long_name = REFC ;
 		REFC:units = unspecified ;
-	float32 TB(tile, time, y, x) ;
-		TB:long_name = TB ;
-		TB:units = unspecified ;
+	float32 TMPlowest(tile, time, y, x) ;
+		TMPlowest:long_name = TB ;
+		TMPlowest:units = unspecified ;
 	float32 TMP500_300(tile, time, y, x) ;
 		TMP500_300:long_name = TMP500_300 ;
 		TMP500_300:units = unspecified ;

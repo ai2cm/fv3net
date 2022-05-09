@@ -186,14 +186,20 @@ class CatalogSimulation:
         return config.get_verification_entries(self.tag, self.catalog)
 
     @property
+    def _rename_map(self):
+        return constants.VERIFICATION_RENAME_MAP.get(self.tag, {})
+
+    @property
     def data_2d(self) -> xr.Dataset:
         return load_verification(
             self._verif_entries["2d"], self.catalog, join=self.join_2d
-        )
+        ).rename(self._rename_map.get("2d", {}))
 
     @property
     def data_3d(self) -> xr.Dataset:
-        return load_verification(self._verif_entries["3d"], self.catalog)
+        return load_verification(self._verif_entries["3d"], self.catalog).rename(
+            self._rename_map.get("3d", {})
+        )
 
     def __str__(self) -> str:
         return self.tag

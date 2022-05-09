@@ -3,6 +3,10 @@ from typing import Mapping, Sequence
 
 MovieUrls = Mapping[str, Sequence[str]]
 
+VERIFICATION_RENAME_MAP = {
+    "40day_may2020": {"2d": {"TB": "TMPlowest", "tsfc": "TMPsfc"}}
+}
+
 RMSE_VARS = [
     "UGRDlowest",
     "VGRDlowest",
