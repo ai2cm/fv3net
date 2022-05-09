@@ -41,7 +41,7 @@ variables:
 		vertical_wind:long_name = vertical wind ;
 		vertical_wind:units = m/sec ;
 		vertical_wind:valid_range = [-100.0, 100.0] ;
-	float64 relative_humidity(tile, time, y, x, pressure) ;
+	float64 relative_humidity(pressure, tile, time, y, x) ;
 		relative_humidity:long_name = relative humidity ;
 		relative_humidity:units = dimensionless ;
 
@@ -93,7 +93,7 @@ variables:
 		vertical_wind:long_name = vertical wind ;
 		vertical_wind:units = m/sec ;
 		vertical_wind:valid_range = [-100.0, 100.0] ;
-	float64 relative_humidity(tile, time, y, x, pressure) ;
+	float64 relative_humidity(pressure, tile, time, y, x) ;
 		relative_humidity:long_name = relative humidity ;
 		relative_humidity:units = dimensionless ;
 
