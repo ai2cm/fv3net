@@ -121,6 +121,8 @@ spec:
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
         value: "{{inputs.parameters.tag}}"
+      - name: FSSPEC_GS_REQUESTER_PAYS
+        value: "vcm-ml"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
