@@ -196,7 +196,7 @@ spec:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
-        value: "{{workflow.parameters.wandb-group}}"
+        value: "{{inputs.parameters.tag}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
