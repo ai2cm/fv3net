@@ -7,8 +7,8 @@ epochs: 25
 nfiles_valid: 100
 valid_freq: 2
 out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
-train_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train
-test_url: gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test
+train_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/train
+test_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test
 tensor_transform:
   - to: log_cloud_input
     source: cloud_water_mixing_ratio_input
