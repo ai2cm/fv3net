@@ -222,8 +222,8 @@ namelist:
   coupler_nml:
     current_date:
     - 2016
-    - $MONTH_INT
-    - 1
+    - 8
+    - 2
     - 0
     - 0
     - 0
@@ -237,13 +237,13 @@ namelist:
     do_sat_adj: false
     nudge: false
     nudge_qv: false
-    warm_start: false
-    external_ic: true
-    external_eta: false
-    make_nh: true
-    nggps_ic: true
-    mountain: false
-    na_init: 1
+    warm_start: true
+    external_ic: false
+    external_eta: true
+    make_nh: false
+    nggps_ic: false
+    mountain: true
+    na_init: 0
     nwat: 2
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
