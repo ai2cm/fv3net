@@ -251,7 +251,9 @@ class EndToEndJob:
         prog_config = deepcopy(self.prog_config)
         model_path = os.path.join(model_out_url, "model.tf")
         assert model_path.startswith("gs://")
-        prog_config["zhao_carr_emulation"] = {"model": {"path": model_path}}
+        prog_config["zhao_carr_emulation"] = {
+            "gscond": {"path": model_path, "gscond_cloud_conservative": True}
+        }
         return {
             "training-config": _encode(ml_config),
             "config": _encode(prog_config),
