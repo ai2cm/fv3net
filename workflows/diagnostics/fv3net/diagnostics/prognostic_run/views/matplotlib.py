@@ -48,7 +48,7 @@ template = jinja2.Template(
 CONTOUR_LEVELS = {
     "eastward_wind_pressure_level_zonal_bias": np.arange(-30, 31, 4),
     "northward_wind_pressure_level_zonal_bias": np.arange(-3, 3.1, 0.4),
-    "air_temperature_pressure_level_zonal_bias": np.arange(-15, 16, 2),
+    "air_temperature_pressure_level_zonal_bias": np.arange(-10.5, 11, 1),
     "specific_humidity_pressure_level_zonal_bias": np.arange(-1.1e-3, 1.2e-3, 2e-4),
     "relative_humidity_pressure_level_zonal_bias": np.arange(-0.425, 0.43, 0.05),
     "vertical_wind_pressure_level_zonal_bias": np.arange(-2.1e-2, 2.2e-2, 2e-3),
