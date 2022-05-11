@@ -24,16 +24,21 @@ OverlaidPlotData = MutableMapping[str, MutableMapping[str, MatplotlibFigure]]
 template = jinja2.Template(
     """
 <h2> {{varfilter}} </h2>
-<table cellpadding="0" cellspacing="0">
+<table class="display" style="width:100%">
 
+<thead>
 <tr>
+<th>Variable</th>
 {% for run in runs %}
 <th><center> {{ run }} </center></th>
 {% endfor %}
 </tr>
+</thead>
 
+<tbody>
 {% for varname in variables_to_plot %}
 <tr>
+<td> {{ varname }} </td>
 {% for run in runs %}
 <td>
 {{ images[varname][run] }}
@@ -41,6 +46,7 @@ template = jinja2.Template(
 {% endfor %}
 </tr>
 {% endfor %}
+</tbody>
 </table>
 """
 )

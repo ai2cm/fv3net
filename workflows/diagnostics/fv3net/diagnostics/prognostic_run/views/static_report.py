@@ -50,6 +50,28 @@ MovieManifest = Sequence[Tuple[str, str]]
 PublicLinks = Dict[str, List[Tuple[str, str]]]
 
 
+def get_datatables_header() -> str:
+    header = ""
+    header += '\n<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>'  # noqa: E501
+    header += '\n<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">'  # noqa: E501
+    header += '\n<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"></script>'  # noqa: E501
+    header += """
+<script>
+    $(document).ready(function() {
+        $('table.display').DataTable( {
+            "scrollY":        "400px",
+            "scrollCollapse": true,
+            "paging":         false
+        } );
+    } );
+</script>"""
+    return header
+
+
+def get_header() -> str:
+    return get_html_header() + "\n" + get_datatables_header()
+
+
 def upload(html: str, url: str, content_type: str = "text/html"):
     """Upload to a local or remote path, setting the content type if remote
 
@@ -439,7 +461,7 @@ def render_index(metadata, diagnostics, metrics, movie_links):
         title="Prognostic run report",
         metadata={**metadata, **render_links(movie_links)},
         sections=sections_index,
-        html_header=get_html_header(),
+        html_header=get_header(),
     )
 
 
@@ -454,7 +476,7 @@ def render_hovmollers(metadata, diagnostics):
         title="Latitude versus time hovmoller plots",
         metadata=metadata,
         sections=sections_hovmoller,
-        html_header=get_html_header(),
+        html_header=get_header(),
     )
 
 
@@ -471,7 +493,7 @@ def render_maps(metadata, diagnostics, metrics):
         title="Time-mean maps",
         metadata=metadata,
         sections=sections,
-        html_header=get_html_header(),
+        html_header=get_header(),
     )
 
 
@@ -486,7 +508,7 @@ def render_zonal_pressures(metadata, diagnostics):
         title="Pressure versus latitude plots",
         metadata=metadata,
         sections=sections_zonal_pressure,
-        html_header=get_html_header(),
+        html_header=get_header(),
     )
 
 
@@ -504,7 +526,7 @@ def render_process_diagnostics(metadata, diagnostics, metrics):
         title="Process diagnostics",
         metadata=metadata,
         sections=sections,
-        html_header=get_html_header(),
+        html_header=get_header(),
     )
 
 
