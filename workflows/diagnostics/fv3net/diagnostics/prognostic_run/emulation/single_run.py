@@ -177,11 +177,11 @@ def global_average_cloud_1d_200mb_ppm(
     ds: xr.Dataset,
 ) -> Iterable[Tuple[str, Optional[float]]]:
 
-    time = cftime.DatetimeJulian(2016, 6, 12)
+    time = cftime.DatetimeJulian(2016, 7, 2)
     z = 200
 
     yield (
-        global_average_cloud_1d_200mb_ppm.__name__,
+        "global_average_cloud_July2_200mb_ppm",
         _global_average_cloud_ppm(ds, time, z),
     )
 
