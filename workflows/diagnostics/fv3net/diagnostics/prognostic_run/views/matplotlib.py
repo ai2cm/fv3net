@@ -17,6 +17,7 @@ import fv3viz
 from report import MatplotlibFigure, RawHTML
 
 COORD_VARS = ["lon", "lat", "lonb", "latb"]
+IGNORE_POLES_LATITUDE = 75.0
 OverlaidPlotData = MutableMapping[str, MutableMapping[str, MatplotlibFigure]]
 
 
@@ -243,6 +244,6 @@ def _get_cmap_kwargs(run_diags, variable, ignore_poles=False, **kwargs):
     for run in run_diags.runs:
         input_data.append(run_diags.get_variable(run, variable).assign_coords(run=run))
     input_data = xr.concat(input_data, dim="run")
-    if ignore_poles and "latitude" in input_data:
-        input_data = input_data.where(abs(input_data.latitude) < 80)
+    if ignore_poles and "latitude" in input_data.coords:
+        input_data = input_data.where(abs(input_data.latitude) < IGNORE_POLES_LATITUDE)
     return fv3viz.infer_cmap_params(input_data.values, **kwargs)
