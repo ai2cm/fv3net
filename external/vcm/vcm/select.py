@@ -2,7 +2,7 @@
 This module is for functions that select subsets of the data
 """
 import numpy as np
-from typing import Tuple, Hashable, Union, Sequence
+from typing import Tuple, Hashable, Union, Sequence, Optional
 import xarray as xr
 from dataclasses import dataclass
 
@@ -17,17 +17,28 @@ from vcm.cubedsphere.constants import (
 def zonal_average_approximate(
     lat: xr.DataArray,
     data: Union[xr.DataArray, xr.Dataset],
-    bins: Sequence[float] = None,
+    bins: Optional[Sequence[float]] = None,
+    lat_name: str = "lat",
 ):
+    """Compute zonal mean of a dataset or dataarray using groupby_bins.
+
+    Args:
+        lat: latitude values on same grid as data.
+        data: dataset of variables to averaged or dataarray to be averaged.
+        bins: bins to use for zonal mean. Output will have a coordinate
+            using the midpoints of given bins. Defaults to np.arange(-90, 90, 2).
+        lat_name: name to use for latitude coordinate in output.
+
+    Returns:
+        zonal mean of dataset or dataarray.
+    """
     if bins is None:
         bins = np.arange(-90, 90, 2)
-    data = data.assign_coords(lat=lat)
-    grouped = data.groupby_bins("lat", bins=bins)
-    output = (
-        grouped.mean().drop_vars("lat", errors="ignore").rename({"lat_bins": "lat"})
-    )
-    lats_mid = [lat.item().mid for lat in output["lat"]]
-    return output.assign_coords({"lat": lats_mid})
+    with xr.set_options(keep_attrs=True):
+        output = data.groupby_bins(lat.rename("lat"), bins=bins).mean()
+        output = output.rename({"lat_bins": lat_name})
+    lats_mid = [lat.item().mid for lat in output[lat_name]]
+    return output.assign_coords({lat_name: lats_mid})
 
 
 def meridional_ring(lon=0, n=180):

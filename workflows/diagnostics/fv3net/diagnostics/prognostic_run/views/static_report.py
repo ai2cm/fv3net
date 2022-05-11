@@ -13,6 +13,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 
+import fv3viz
 import vcm
 from report import create_html, Link, OrderedList, RawHTML
 from report.holoviews import HVPlot, get_html_header
@@ -22,7 +23,6 @@ from .matplotlib import (
     plot_histogram,
     plot_histogram2d,
 )
-from fv3viz import wong_palette
 from fv3net.diagnostics.prognostic_run.constants import (
     PERCENTILES,
     PRECIP_RATE,
@@ -43,7 +43,8 @@ warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
-COLOR_CYCLE = hv.Cycle(wong_palette)
+COLOR_CYCLE = hv.Cycle(fv3viz.wong_palette)
+fv3viz.use_colorblind_friendly_style()
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 MovieManifest = Sequence[Tuple[str, str]]
 PublicLinks = Dict[str, List[Tuple[str, str]]]
@@ -335,6 +336,16 @@ def time_mean_bias_metrics(metrics: RunMetrics) -> RawHTML:
 @metrics_plot_manager.register
 def rmse_time_mean_metrics(metrics: RunMetrics) -> RawHTML:
     return metric_type_table(metrics, "rmse_of_time_mean")
+
+
+@metrics_plot_manager.register
+def rmse_time_mean_land_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "rmse_of_time_mean_land")
+
+
+@metrics_plot_manager.register
+def rmse_time_mean_sea_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "rmse_of_time_mean_sea")
 
 
 @metrics_plot_manager.register

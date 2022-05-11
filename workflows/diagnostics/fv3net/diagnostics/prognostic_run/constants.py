@@ -3,6 +3,10 @@ from typing import Mapping, Sequence
 
 MovieUrls = Mapping[str, Sequence[str]]
 
+VERIFICATION_RENAME_MAP = {
+    "40day_may2020": {"2d": {"TB": "TMPlowest", "tsfc": "TMPsfc"}}
+}
+
 RMSE_VARS = [
     "UGRDlowest",
     "VGRDlowest",
@@ -15,8 +19,10 @@ RMSE_VARS = [
     "TMP500_300",
     "TMPlowest",
     "TMP850",
+    "TMP500",
     "TMP200",
     "h500",
+    "q500",
     "PRMSL",
     "PRESsfc",
     "PWAT",
@@ -37,8 +43,10 @@ GLOBAL_AVERAGE_DYCORE_VARS = [
     "RH1000",
     "RH850",
     "RH500",
+    "RH200",
     "q1000",
     "q500",
+    "q200",
     "PRMSL",
     "PRESsfc",
     "PWAT",
@@ -132,6 +140,7 @@ TIME_MEAN_VARS = [
 PRESSURE_INTERPOLATED_VARS = [
     "air_temperature",
     "specific_humidity",
+    "relative_humidity",
     "eastward_wind",
     "northward_wind",
     "vertical_wind",

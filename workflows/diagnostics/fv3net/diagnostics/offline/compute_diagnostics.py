@@ -13,7 +13,7 @@ import pandas as pd
 from typing import Sequence, Tuple, Dict
 import xarray as xr
 
-from vcm import local_time, histogram, histogram2d
+import vcm
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ def _calc_ds_diurnal_cycle(ds):
     Calculates the diurnal cycle for all variables.  Expects
     time dimension and longitude variable "lon".
     """
-    local_time_ = local_time(ds, time="time", lon_var="lon")
+    local_time_ = vcm.local_time(ds, time="time", lon_var="lon")
     local_time_.attrs = {"long_name": "local time", "units": "hour"}
     ds["local_time"] = np.floor(local_time_)  # equivalent to hourly binning
     with xr.set_options(keep_attrs=True):
@@ -96,26 +96,13 @@ def weighted_mean(ds, weights, dims):
         return (ds * weights).sum(dims) / weights.sum(dims)
 
 
-def zonal_mean(
-    ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2)
-) -> xr.Dataset:
-    with xr.set_options(keep_attrs=True):
-        zm = (
-            ds.groupby_bins(latitude, bins=bins)
-            .mean(skipna=True)
-            .rename(lat_bins="latitude")
-        )
-    latitude_midpoints = [x.item().mid for x in zm["latitude"]]
-    return zm.assign_coords(latitude=latitude_midpoints)
-
-
 def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
     counts = xr.Dataset()
     col_drying = -ds[COL_MOISTENING].rename(COL_DRYING)
     col_drying.attrs["units"] = ds[COL_MOISTENING].attrs.get("units")
     bins = [HISTOGRAM_BINS[WVP], np.linspace(-50, 150, 101)]
 
-    counts, wvp_bins, q2_bins = histogram2d(ds[WVP], col_drying, bins=bins)
+    counts, wvp_bins, q2_bins = vcm.histogram2d(ds[WVP], col_drying, bins=bins)
     return xr.Dataset(
         {
             f"{WVP}_versus_{COL_DRYING}": counts,
@@ -313,7 +300,9 @@ for mask_type in ["global", "sea", "land"]:
             diag_arg.verification,
             diag_arg.grid,
         )
-        zonal_avg_bias = zonal_mean(predicted - target, grid.lat)
+        zonal_avg_bias = vcm.zonal_average_approximate(
+            grid.lat, predicted - target, lat_name="latitude"
+        )
         return zonal_avg_bias.mean("time")
 
 
@@ -332,7 +321,9 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        zonal_avg_bias = zonal_mean(predicted - target, grid.lat)
+        zonal_avg_bias = vcm.zonal_average_approximate(
+            grid.lat, predicted - target, lat_name="latitude"
+        )
         return zonal_avg_bias.mean("time")
 
 
@@ -351,7 +342,9 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        zonal_avg_mse = zonal_mean((predicted - target) ** 2, grid.lat)
+        zonal_avg_mse = vcm.zonal_average_approximate(
+            grid.lat, (predicted - target) ** 2, lat_name="latitude"
+        )
         return zonal_avg_mse.mean("time")
 
 
@@ -374,7 +367,9 @@ for mask_type in ["global", "sea", "land"]:
         mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
             "time"
         )
-        zonal_avg_variance = zonal_mean((mean - target) ** 2, grid.lat)
+        zonal_avg_variance = vcm.zonal_average_approximate(
+            grid.lat, (mean - target) ** 2, lat_name="latitude"
+        )
         return zonal_avg_variance.mean("time")
 
 
@@ -505,7 +500,9 @@ for mask_type in ["global", "land", "sea"]:
                 [predicted, target],
                 dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
             )
-            return zonal_mean(ds, grid.lat).mean("time")
+            return vcm.zonal_average_approximate(
+                grid.lat, ds, lat_name="latitude"
+            ).mean("time")
         else:
             return xr.Dataset()
 
@@ -555,7 +552,7 @@ def compute_histogram(diag_arg: DiagArg):
             )
             counts = xr.Dataset()
             for varname in ds.data_vars:
-                count, width = histogram(
+                count, width = vcm.histogram(
                     ds[varname], bins=HISTOGRAM_BINS[varname.lower()], density=True
                 )
                 counts[varname] = count

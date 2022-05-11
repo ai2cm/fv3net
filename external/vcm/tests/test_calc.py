@@ -184,6 +184,17 @@ def test_mass_divergence():
     assert out.shape == (5, 4)
 
 
+def test_relative_humidity_from_pressure():
+    # values taken from https://www.omnicalculator.com/physics/air-density
+    pressure = 1e5
+    temperature = 300
+    e = 1412
+    q = 0.622 * e / (pressure - 0.378 * e)
+    expected_rh = 0.4
+    rh = vcm.relative_humidity_from_pressure(temperature, q, pressure)
+    assert pytest.approx(expected_rh, rel=1e-3) == rh
+
+
 da = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
 da_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
 ds = xr.Dataset({"a": da})

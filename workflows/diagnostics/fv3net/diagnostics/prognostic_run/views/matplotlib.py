@@ -17,6 +17,7 @@ import fv3viz
 from report import MatplotlibFigure, RawHTML
 
 COORD_VARS = ["lon", "lat", "lonb", "latb"]
+IGNORE_POLES_LATITUDE = 75.0
 OverlaidPlotData = MutableMapping[str, MutableMapping[str, MatplotlibFigure]]
 
 
@@ -47,8 +48,9 @@ template = jinja2.Template(
 CONTOUR_LEVELS = {
     "eastward_wind_pressure_level_zonal_bias": np.arange(-30, 31, 4),
     "northward_wind_pressure_level_zonal_bias": np.arange(-3, 3.1, 0.4),
-    "air_temperature_pressure_level_zonal_bias": np.arange(-15, 16, 2),
+    "air_temperature_pressure_level_zonal_bias": np.arange(-10.5, 11, 1),
     "specific_humidity_pressure_level_zonal_bias": np.arange(-1.1e-3, 1.2e-3, 2e-4),
+    "relative_humidity_pressure_level_zonal_bias": np.arange(-0.425, 0.43, 0.05),
     "vertical_wind_pressure_level_zonal_bias": np.arange(-2.1e-2, 2.2e-2, 2e-3),
     "mass_streamfunction_pressure_level_zonal_bias": np.arange(-105, 106, 10),
 }
@@ -74,7 +76,7 @@ def plot_2d_matplotlib(
     for varname in variables_to_plot:
         if not contour:
             opts["vmin"], opts["vmax"], opts["cmap"] = _get_cmap_kwargs(
-                run_diags, varname, robust=False
+                run_diags, varname, robust=False, ignore_poles=True
             )
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
@@ -163,7 +165,6 @@ def plot_histogram(
 
     logging.info(f"plotting {varname}")
     fig, ax = plt.subplots()
-    fv3viz.use_colorblind_friendly_style()
     bin_name = varname.replace("histogram", "bins")
     for run in run_diags.runs:
         v = run_diags.get_variable(run, varname)
@@ -238,9 +239,11 @@ def _render_map_title(
     return ", ".join(title_parts)
 
 
-def _get_cmap_kwargs(run_diags, variable, **kwargs):
+def _get_cmap_kwargs(run_diags, variable, ignore_poles=False, **kwargs):
     input_data = []
     for run in run_diags.runs:
         input_data.append(run_diags.get_variable(run, variable).assign_coords(run=run))
     input_data = xr.concat(input_data, dim="run")
+    if ignore_poles and "latitude" in input_data.coords:
+        input_data = input_data.where(abs(input_data.latitude) < IGNORE_POLES_LATITUDE)
     return fv3viz.infer_cmap_params(input_data.values, **kwargs)
