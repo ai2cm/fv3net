@@ -184,14 +184,6 @@ def test_mass_divergence():
     assert out.shape == (5, 4)
 
 
-def test_zonal_mean():
-    da = xr.DataArray(np.reshape(np.arange(0, 80, 2), (5, 4, 2)), dims=["x", "y", "z"])
-    lat = xr.DataArray(np.reshape(np.linspace(-85, 85, 20), (5, 4)), dims=["x", "y"])
-    out = vcm.zonal_mean(da, lat, bins=np.arange(-90, 91, 10), lat_name="foo")
-    assert set(out.dims) == {"foo", "z"}
-    np.testing.assert_allclose(out.foo.values, np.arange(-85, 86, 10))
-
-
 def test_relative_humidity_from_pressure():
     # values taken from https://www.omnicalculator.com/physics/air-density
     pressure = 1e5

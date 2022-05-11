@@ -55,28 +55,3 @@ def weighted_average(
         kwargs=kwargs,
         dask="allowed",
     )
-
-
-def zonal_mean(
-    ds: xr.Dataset,
-    latitude: xr.DataArray,
-    bins=np.arange(-90, 91, 2),
-    lat_name="latitude",
-) -> xr.Dataset:
-    """Compute zonal mean of a dataset using groupby_bins.
-
-    Args:
-        ds: dataset of variables to averaged.
-        latitude: latitude values on same grid as ds.
-        bins: bins to use for zonal mean. Output will have a coordinate
-            using the midpoints of given bins.
-        lat_name: name to use for latitude coordinate in output.
-
-    Returns:
-        zonal mean of dataset.
-    """
-    with xr.set_options(keep_attrs=True):
-        zm = ds.groupby_bins(latitude.rename("lat"), bins=bins).mean()
-        zm = zm.rename(lat_bins=lat_name)
-    latitude_midpoints = [x.item().mid for x in zm[lat_name]]
-    return zm.assign_coords({lat_name: latitude_midpoints})

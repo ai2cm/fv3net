@@ -17,7 +17,7 @@ from .convenience import (
     shift_timestamp,
     round_time,
 )
-from .calc.calc import local_time, weighted_average, zonal_mean
+from .calc.calc import local_time, weighted_average
 from .calc._zenith_angle import cos_zenith_angle
 from .calc.metrics import (
     r2_score,
