@@ -236,7 +236,9 @@ def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHT
             runs=sorted(run_diags.runs),
             variables_to_plot=[count_name],
             varfilter="2D Histogram",
-            variable_long_names={count_name: "<Q2> versus water vapor path"},
+            variable_long_names={
+                count_name: "water vapor path versus minus column integrated Q2"
+            },
         )
     )
 
