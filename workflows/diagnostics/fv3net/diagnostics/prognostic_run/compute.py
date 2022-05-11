@@ -200,7 +200,9 @@ def rms_errors(diag_arg: DiagArg):
 def zonal_means_2d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (2d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
-    zonal_means = vcm.zonal_average_approximate(prognostic, grid.lat)
+    zonal_means = vcm.zonal_average_approximate(
+        grid.lat, prognostic, lat_name="latitude"
+    )
     return time_mean(zonal_means)
 
 
@@ -215,7 +217,9 @@ def zonal_means_3d(diag_arg: DiagArg):
     for var in prognostic.data_vars:
         logger.info(f"Computing zonal+time means (3d) for {var}")
         with xr.set_options(keep_attrs=True):
-            zm = vcm.zonal_average_approximate(prognostic[[var]], grid.lat)
+            zm = vcm.zonal_average_approximate(
+                grid.lat, prognostic[[var]], lat_name="latitude"
+            )
             zm_time_mean = time_mean(zm)[var].load()
             zonal_means[var] = zm_time_mean
     return zonal_means
@@ -238,7 +242,9 @@ def zonal_bias_3d(diag_arg: DiagArg):
         logger.info(f"Computing zonal+time mean biases (3d) for {var}")
         with xr.set_options(keep_attrs=True):
             zm_bias = vcm.zonal_average_approximate(
-                bias(verification[[var]], prognostic[[var]]), grid.lat
+                grid.lat,
+                bias(verification[[var]], prognostic[[var]]),
+                lat_name="latitude",
             )
             zm_bias_time_mean = time_mean(zm_bias)[var].load()
             zonal_means[var] = zm_bias_time_mean
@@ -260,7 +266,7 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
     for var in common_vars:
         logger.info("Computing zonal+time mean biases (2d)")
         zonal_mean_bias = vcm.zonal_average_approximate(
-            bias(verification[[var]], prognostic[[var]]), grid.lat
+            grid.lat, bias(verification[[var]], prognostic[[var]]), lat_name="latitude"
         )
         zonal_means[var] = time_mean(zonal_mean_bias)[var].load()
     return zonal_means
@@ -278,7 +284,7 @@ def zonal_mean_hovmoller(diag_arg: DiagArg):
         logger.info(f"Computing zonal mean (2d) over time for {var}")
         with xr.set_options(keep_attrs=True):
             zonal_means[var] = vcm.zonal_average_approximate(
-                prognostic[[var]], grid.lat
+                grid.lat, prognostic[[var]], lat_name="latitude"
             )[var].load()
     return zonal_means
 
@@ -301,7 +307,9 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
         logger.info(f"Computing zonal mean biases (2d) over time for {var}")
         with xr.set_options(keep_attrs=True):
             zonal_means[var] = vcm.zonal_average_approximate(
-                bias(verification[[var]], prognostic[[var]]), grid.lat
+                grid.lat,
+                bias(verification[[var]], prognostic[[var]]),
+                lat_name="latitude",
             )[var].load()
     return zonal_means
 

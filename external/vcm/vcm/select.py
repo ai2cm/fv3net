@@ -15,16 +15,16 @@ from vcm.cubedsphere.constants import (
 
 
 def zonal_average_approximate(
-    data: Union[xr.DataArray, xr.Dataset],
     lat: xr.DataArray,
+    data: Union[xr.DataArray, xr.Dataset],
     bins: Optional[Sequence[float]] = None,
-    lat_name: str = "latitude",
+    lat_name: str = "lat",
 ):
     """Compute zonal mean of a dataset or dataarray using groupby_bins.
 
     Args:
-        data: dataset of variables to averaged or dataarray to be averaged.
         lat: latitude values on same grid as data.
+        data: dataset of variables to averaged or dataarray to be averaged.
         bins: bins to use for zonal mean. Output will have a coordinate
             using the midpoints of given bins. Defaults to np.arange(-90, 90, 2).
         lat_name: name to use for latitude coordinate in output.

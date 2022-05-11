@@ -300,7 +300,9 @@ for mask_type in ["global", "sea", "land"]:
             diag_arg.verification,
             diag_arg.grid,
         )
-        zonal_avg_bias = vcm.zonal_average_approximate(predicted - target, grid.lat)
+        zonal_avg_bias = vcm.zonal_average_approximate(
+            grid.lat, predicted - target, lat_name="latitude"
+        )
         return zonal_avg_bias.mean("time")
 
 
@@ -319,7 +321,9 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        zonal_avg_bias = vcm.zonal_average_approximate(predicted - target, grid.lat)
+        zonal_avg_bias = vcm.zonal_average_approximate(
+            grid.lat, predicted - target, lat_name="latitude"
+        )
         return zonal_avg_bias.mean("time")
 
 
@@ -339,7 +343,7 @@ for mask_type in ["global", "sea", "land"]:
         if len(predicted) == 0:
             return xr.Dataset()
         zonal_avg_mse = vcm.zonal_average_approximate(
-            (predicted - target) ** 2, grid.lat
+            grid.lat, (predicted - target) ** 2, lat_name="latitude"
         )
         return zonal_avg_mse.mean("time")
 
@@ -364,7 +368,7 @@ for mask_type in ["global", "sea", "land"]:
             "time"
         )
         zonal_avg_variance = vcm.zonal_average_approximate(
-            (mean - target) ** 2, grid.lat
+            grid.lat, (mean - target) ** 2, lat_name="latitude"
         )
         return zonal_avg_variance.mean("time")
 
@@ -496,7 +500,9 @@ for mask_type in ["global", "land", "sea"]:
                 [predicted, target],
                 dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
             )
-            return vcm.zonal_average_approximate(ds, grid.lat).mean("time")
+            return vcm.zonal_average_approximate(
+                grid.lat, ds, lat_name="latitude"
+            ).mean("time")
         else:
             return xr.Dataset()
 

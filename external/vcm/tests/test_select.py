@@ -15,7 +15,7 @@ def test_zonal_average_approximate():
     data = xr.DataArray(
         [[i * j for i in range(10)] for j in [0, 1]], dims=["z", "x"]
     ).rename("data")
-    zonal_avg = zonal_average_approximate(data, lat, bins=np.arange(0, 10, 2),)
+    zonal_avg = zonal_average_approximate(lat, data, bins=np.arange(0, 10, 2),)
     # bins are (low, high]
     np.testing.assert_allclose(zonal_avg.isel(z=0), np.zeros(4))
     np.testing.assert_allclose(zonal_avg.isel(z=1), [1.5, 3.5, 5.5, 7.5])
