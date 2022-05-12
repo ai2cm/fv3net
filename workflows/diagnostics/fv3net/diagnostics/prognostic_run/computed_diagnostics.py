@@ -116,6 +116,13 @@ class RunDiagnostics:
         """The available variables"""
         return set.union(*[set(d) for d in self.diagnostics])
 
+    @property
+    def long_names(self) -> Mapping[str, str]:
+        """Mapping from variable name to long names"""
+        vars = self.variables
+        run = self.runs[0]
+        return {v: self.get_variable(run, v).attrs.get("long_name", v) for v in vars}
+
     def _get_run(self, run: str) -> xr.Dataset:
         return self.diagnostics[self._run_index[run]]
 

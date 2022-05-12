@@ -144,6 +144,20 @@ def test_RunDiagnostics_list_variables():
     assert diagnostics.variables == {"a", "b", "c"}
 
 
+def test_RunDiagnostics_long_names():
+    ds = xarray.Dataset({})
+    a = xarray.DataArray(1, attrs={"long_name": "foo"})
+    c = xarray.DataArray(1, attrs={"long_name": "bar"})
+    diagnostics = RunDiagnostics(
+        [
+            ds.assign(a=a, b=1).assign_attrs(run="1"),
+            ds.assign(b=1).assign_attrs(run="2"),
+            ds.assign(c=c).assign_attrs(run="3"),
+        ]
+    )
+    assert diagnostics.long_names == {"a": "foo", "b": "b", "c": "bar"}
+
+
 metrics_df = pd.DataFrame(
     {
         "run": ["run1", "run1", "run2", "run2"],
