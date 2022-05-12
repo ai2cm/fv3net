@@ -39,9 +39,9 @@ build_image_prognostic_run_base:
 		--build-arg BASE_IMAGE=$(UBUNTU_IMAGE) .
 
 build_image_prognostic_run: docker/prognostic_run/requirements.txt
-	if [ ! [ "$(docker images -q $(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION) 2> /dev/null)" == "" ]]; then
+ifneq ("$(docker images -q $(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION) 2> /dev/null)","")
 		docker pull $(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION)
-	fi
+endif
 	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
 		--target prognostic-run \
@@ -54,9 +54,9 @@ build_image_prognostic_run_base_gpu:
 		--build-arg BASE_IMAGE=nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu20.04 .
 
 build_image_prognostic_run_gpu: docker/prognostic_run/requirements.txt
-	if [ ! [ "$(docker images -q $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION) 2> /dev/null)" == "" ]]; then
+ifneq ("$(docker images -q $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION) 2> /dev/null)","")
 		docker pull $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION)
-	fi
+endif
 	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run_gpu:$(CACHE_TAG) \
 		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run_gpu:$(VERSION) \
 		--target prognostic-run \
