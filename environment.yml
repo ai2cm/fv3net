@@ -11,7 +11,6 @@ dependencies:
   - crcmod
   - ffmpeg
   - gfortran
-  - intake  # todo: remove and put intake in pip-requirements.txt
   - partd
   - pyquery>=1.4.0
   # testing
