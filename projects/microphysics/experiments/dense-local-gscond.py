@@ -1,5 +1,6 @@
 import argparse
 import sys
+from itertools import product
 
 sys.path.insert(0, "../argo")
 
@@ -17,8 +18,8 @@ arch_params = {
 }
 
 
-def _get_job(arch_key: str, revision: str, suffix: str):
-    train_config = load_yaml("../train/gscond-only.yaml")
+def _get_job(config_name: str, arch_key: str, revision: str, suffix: str):
+    train_config = load_yaml(f"../train/{config_name}.yaml")
     train_config["model"]["architecture"]["name"] = arch_key
     train_config["model"]["architecture"]["kwargs"] = arch_params[arch_key]
 
@@ -27,7 +28,7 @@ def _get_job(arch_key: str, revision: str, suffix: str):
     prog_config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = True
 
     return EndToEndJob(
-        name=f"gscond-only-{arch_key}-{revision[:6]}-{suffix}",
+        name=f"{config_name}-{arch_key}-{revision[:6]}-{suffix}",
         fv3fit_image_tag=revision,
         image_tag=revision,
         ml_config=train_config,
@@ -39,7 +40,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--revision", default="latest")
 parser.add_argument("--suffix", default="v1")
 
-arch_keys = ["dense", "dense-local", "rnn", "rnn-v1-shared-weights"]
+arch_keys = ["dense-local", "rnn-v1-shared-weights"]
+configs = ["gscond-only", "gscond-only-tscale"]
 args = parser.parse_args()
-jobs = [_get_job(arch_key, args.revision, args.suffix) for arch_key in arch_keys]
+
+jobs = [
+    _get_job(config_name, arch_key, args.revision, args.suffix)
+    for config_name, arch_key in product(configs, arch_keys)
+]
 submit_jobs(jobs, f"gscond-only-emu-may2022")
