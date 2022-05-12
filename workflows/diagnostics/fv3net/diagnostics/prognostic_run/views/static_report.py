@@ -68,6 +68,7 @@ def get_datatables_header() -> str:
                     "paging":         false,
                     "columnDefs": [{"targets": [0], "className": "firstcolumn"}]
                 } );
+                $('table.dataframe').DataTable();
             } );
         </script>"""
     return header
