@@ -26,14 +26,14 @@ def zonal_average_approximate(
         lat: latitude values on same grid as data.
         data: dataset of variables to averaged or dataarray to be averaged.
         bins: bins to use for zonal mean. Output will have a coordinate
-            using the midpoints of given bins. Defaults to np.arange(-90, 90, 2).
+            using the midpoints of given bins. Defaults to np.arange(-90, 91, 2).
         lat_name: name to use for latitude coordinate in output.
 
     Returns:
         zonal mean of dataset or dataarray.
     """
     if bins is None:
-        bins = np.arange(-90, 90, 2)
+        bins = np.arange(-90, 91, 2)
     with xr.set_options(keep_attrs=True):
         output = data.groupby_bins(lat.rename("lat"), bins=bins).mean()
         output = output.rename({"lat_bins": lat_name})
