@@ -1,17 +1,30 @@
 #!/bin/bash
 
+set -e -x
+
 CONDA_ENV=$1
 CONDA_BASE=$(conda info --base)
 
 case $(uname) in
     Darwin)
-        packages=conda-osx-64.lock
+        case $(uname -m) in
+            arm64)
+                packages=conda-osx-arm64.lock
+                ;;
+            x86_64)
+                packages=conda-osx-64.lock
+                ;;
+            *)
+                echo "$(uname -m) on $(uname) unsupported, quitting"
+                exit 1
+                ;;
+        esac
         ;;
     Linux)
         packages=conda-linux-64.lock
         ;;
     *)
-        echo "$(uname) unsupported quiting"
+        echo "$(uname) unsupported, quitting"
         exit 1
         ;;
 esac

@@ -1,23 +1,20 @@
 channels:
   - conda-forge
   - defaults
+platforms:
+  - linux-64
+  - osx-64
 dependencies:
   - python=3.8
   - cartopy
   - conda-build
   - crcmod
   - ffmpeg
-  - intake
+  - gfortran
+  - intake  # todo: remove and put intake in pip-requirements.txt
   - partd
   - pyquery>=1.4.0
-  # developer tools
-  - isort
-  - black=19.10b0
-  - flake8=3.7.9
-  - mypy=0.770
   # testing
-  - pytest-mpl
-  - hypothesis
   - coverage>=5
   # newer pip version 20.3 does not work when constraints have extras
   - pip==20.2.4
