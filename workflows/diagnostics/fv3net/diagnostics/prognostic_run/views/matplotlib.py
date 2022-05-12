@@ -73,7 +73,6 @@ def plot_2d_matplotlib(
     All matching diagnostics must be 2D and have the same dimensions."""
 
     data: OverlaidPlotData = defaultdict(dict)
-    variable_long_names = {}
 
     # kwargs handling
     ylabel = opts.pop("ylabel", "")
@@ -89,7 +88,6 @@ def plot_2d_matplotlib(
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
             long_name_and_units = f"{v.long_name} [{v.units}]"
-            variable_long_names[varname] = v.long_name
             fig, ax = plt.subplots()
             if contour:
                 levels = CONTOUR_LEVELS.get(varname)
@@ -110,7 +108,7 @@ def plot_2d_matplotlib(
             runs=sorted(run_diags.runs),
             variables_to_plot=sorted(variables_to_plot),
             varfilter=varfilter,
-            variable_long_names=variable_long_names,
+            variable_long_names=run_diags.long_names,
         )
     )
 
@@ -136,7 +134,6 @@ def plot_cubed_sphere_map(
     """
 
     data: OverlaidPlotData = defaultdict(dict)
-    variable_long_names = {}
     if metrics_for_title is None:
         metrics_for_title = {}
 
@@ -147,7 +144,6 @@ def plot_cubed_sphere_map(
             logging.info(f"plotting {varname} in {run}")
             shortname = varname.split(varfilter)[0][:-1]
             ds = run_diags.get_variables(run, COORD_VARS + [varname])
-            variable_long_names[varname] = ds[varname].long_name
             plot_title = _render_map_title(
                 run_metrics, shortname, run, metrics_for_title
             )
@@ -165,7 +161,7 @@ def plot_cubed_sphere_map(
             runs=sorted(run_diags.runs),
             variables_to_plot=sorted(variables_to_plot),
             varfilter=varfilter,
-            variable_long_names=variable_long_names,
+            variable_long_names=run_diags.long_names,
         )
     )
 
@@ -236,9 +232,7 @@ def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHT
             runs=sorted(run_diags.runs),
             variables_to_plot=[count_name],
             varfilter="2D Histogram",
-            variable_long_names={
-                count_name: "water vapor path versus minus column integrated Q2"
-            },
+            variable_long_names={count_name: f"{xname} versus {yname}"},
         )
     )
 
