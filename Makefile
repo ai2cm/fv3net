@@ -10,6 +10,8 @@ PROJECT_NAME ?= fv3net
 CACHE_TAG =latest
 BEAM_VERSION = 2.37.0
 UBUNTU_IMAGE = ubuntu@sha256:9101220a875cee98b016668342c489ff0674f247f6ca20dfc91b91c0f28581ae
+# prognostic base image is updated manually, not on every commit
+PROGNOSTIC_BASE_VERSION = 1.0.0
 
 IMAGES = fv3net post_process_run prognostic_run
 
@@ -20,7 +22,7 @@ IMAGES = fv3net post_process_run prognostic_run
 # pattern rule for building docker images
 build_image_%: ARGS
 build_image_%:
-	tools/docker_build_cached.sh us.gcr.io/vcm-ml/$*:$(CACHE_TAG) \
+	tools/docker_build_cached.sh $(REGISTRY)/$*:$(CACHE_TAG) \
 		$(ARGS) \
 		-f docker/$*/Dockerfile -t $(REGISTRY)/$*:$(VERSION) .
 
@@ -30,18 +32,35 @@ push_images: $(addprefix push_image_, $(IMAGES))
 build_image_fv3fit: docker/fv3fit/requirements.txt
 build_image_artifacts: docker/artifacts/requirements.txt
 
-build_image_prognostic_run: docker/prognostic_run/requirements.txt
-	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run:$(CACHE_TAG) \
-		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
-		--target prognostic-run \
+build_image_prognostic_run_base:
+	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run_base:$(CACHE_TAG) \
+		-f docker/prognostic_run/base.Dockerfile -t $(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION) \
+		--target prognostic-run-base \
 		--build-arg BASE_IMAGE=$(UBUNTU_IMAGE) .
 
-build_image_prognostic_run_gpu: docker/prognostic_run/requirements.txt
-	tools/docker_build_cached.sh us.gcr.io/vcm-ml/prognostic_run_gpu:$(CACHE_TAG) \
-		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run_gpu:$(VERSION) \
+build_image_prognostic_run: docker/prognostic_run/requirements.txt
+	if [ ! [ "$(docker images -q $(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION) 2> /dev/null)" == "" ]]; then
+		docker pull $(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION)
+	fi
+	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run:$(CACHE_TAG) \
+		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
 		--target prognostic-run \
+		--build-arg BASE_IMAGE=$(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION) .
+
+build_image_prognostic_run_base_gpu:
+	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run_base_gpu:$(CACHE_TAG) \
+		-f docker/prognostic_run/base.Dockerfile -t $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION) \
+		--target prognostic-run-base \
 		--build-arg BASE_IMAGE=nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu20.04 .
 
+build_image_prognostic_run_gpu: docker/prognostic_run/requirements.txt
+	if [ ! [ "$(docker images -q $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION) 2> /dev/null)" == "" ]]; then
+		docker pull $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION)
+	fi
+	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run_gpu:$(CACHE_TAG) \
+		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run_gpu:$(VERSION) \
+		--target prognostic-run \
+		--build-arg BASE_IMAGE=$(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION) .
 
 build_image_dataflow: ARGS = --build-arg BEAM_VERSION=$(BEAM_VERSION)
 
@@ -77,8 +96,20 @@ image_test_%:
 push_image_%: build_image_%
 	docker push $(REGISTRY)/$*:$(VERSION)
 
+push_image_prognostic_run_base: build_image_prognostic_run_base
+	docker push $(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION)
+
+push_image_prognostic_run_base_gpu: build_image_prognostic_run_base_gpu
+	docker push $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION)
+
 pull_image_%:
 	docker pull $(REGISTRY)/$*:$(VERSION)
+
+pull_image_prognostic_run_base:
+	docker pull $(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION)
+
+pull_image_prognostic_run_base_gpu:
+	docker pull $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION)
 
 enter_emulation:
 	cd projects/microphysics && docker-compose run --rm -w /fv3net/external/emulation fv3 bash
@@ -107,7 +138,7 @@ deploy_docs_%:
 deploy_docs_fv3net:
 	mkdir -p fv3net_docs
 	# use tar to grab already-built docs from inside the docker image and extract them to "./fv3net_docs"
-	docker run us.gcr.io/vcm-ml/fv3net:$(VERSION) tar -C fv3net_docs -c . | tar -C fv3net_docs -x
+	docker run $(REGISTRY)/fv3net:$(VERSION) tar -C fv3net_docs -c . | tar -C fv3net_docs -x
 	gsutil -m rsync -R fv3net_docs gs://vulcanclimatemodeling-com-static/docs
 	rm -rf fv3net_docs
 
@@ -115,7 +146,7 @@ deploy_docs_fv3net:
 deploy_docs_prognostic_run:
 	mkdir html
 	# use tar to grab docs from inside the docker image and extract them to "./html"
-	docker run us.gcr.io/vcm-ml/prognostic_run tar -C docs/_build/html  -c . | tar -C html -x
+	docker run $(REGISTRY)/prognostic_run tar -C docs/_build/html  -c . | tar -C html -x
 	gsutil -m rsync -R html gs://vulcanclimatemodeling-com-static/docs/prognostic_c48_run
 	rm -rf html
 
@@ -126,7 +157,7 @@ run_integration_tests:
 	./tests/end_to_end_integration/run_test.sh $(REGISTRY) $(VERSION)
 
 test_prognostic_run:
-	docker run us.gcr.io/vcm-ml/prognostic_run:$(VERSION) pytest $(ARGS)
+	docker run $(REGISTRY)/prognostic_run:$(VERSION) pytest $(ARGS)
 
 
 test_prognostic_run_report:
