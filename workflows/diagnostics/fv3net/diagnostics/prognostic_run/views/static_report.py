@@ -54,7 +54,8 @@ PublicLinks = Dict[str, List[Tuple[str, str]]]
 
 
 def get_datatables_header() -> str:
-    header = f'\n<script src="{JQUERY_CDN}"></script>'
+    header = "<style>th{font-size: 1.15em}\n.firstcolumn{font-size: 1.15em}</style>"
+    header += f'\n<script src="{JQUERY_CDN}"></script>'
     header += f'\n<link rel="stylesheet" type="text/css" href="{DATATABLES_CSS_CDN}">'
     header += f'\n<script src="{DATATABLES_JS_CDN}"></script>'
     header += """
@@ -64,7 +65,8 @@ def get_datatables_header() -> str:
                     "scrollX":        "100%",
                     "scrollY":        "700px",
                     "scrollCollapse": true,
-                    "paging":         false
+                    "paging":         false,
+                    "columnDefs": [{"targets": [0], "className": "firstcolumn"}]
                 } );
             } );
         </script>"""
