@@ -3,8 +3,10 @@ from typing import Mapping, Sequence
 
 MovieUrls = Mapping[str, Sequence[str]]
 
+# Renamed keys already have "_coarse" suffix removed prior to the renaming being applied
 VERIFICATION_RENAME_MAP = {
-    "40day_may2020": {"2d": {"TB": "TMPlowest", "tsfc": "TMPsfc"}}
+    "40day_may2020": {"2d": {"TB": "TMPlowest", "tsfc": "TMPsfc"}},
+    "1yr_pire_postspinup": {"2d": {"TB": "TMPlowest", "tsfc": "TMPsfc"}},
 }
 
 RMSE_VARS = [
