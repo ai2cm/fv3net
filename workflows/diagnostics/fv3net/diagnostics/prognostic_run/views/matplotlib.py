@@ -24,16 +24,21 @@ OverlaidPlotData = MutableMapping[str, MutableMapping[str, MatplotlibFigure]]
 template = jinja2.Template(
     """
 <h2> {{varfilter}} </h2>
-<table cellpadding="0" cellspacing="0">
+<table class="display" style="width:100%">
 
+<thead>
 <tr>
+<th>Variable</th>
 {% for run in runs %}
 <th><center> {{ run }} </center></th>
 {% endfor %}
 </tr>
+</thead>
 
+<tbody>
 {% for varname in variables_to_plot %}
 <tr>
+<td> {{ variable_long_names[varname] }} </td>
 {% for run in runs %}
 <td>
 {{ images[varname][run] }}
@@ -41,6 +46,7 @@ template = jinja2.Template(
 {% endfor %}
 </tr>
 {% endfor %}
+</tbody>
 </table>
 """
 )
@@ -102,6 +108,7 @@ def plot_2d_matplotlib(
             runs=sorted(run_diags.runs),
             variables_to_plot=sorted(variables_to_plot),
             varfilter=varfilter,
+            variable_long_names=run_diags.long_names,
         )
     )
 
@@ -154,6 +161,7 @@ def plot_cubed_sphere_map(
             runs=sorted(run_diags.runs),
             variables_to_plot=sorted(variables_to_plot),
             varfilter=varfilter,
+            variable_long_names=run_diags.long_names,
         )
     )
 
@@ -224,6 +232,7 @@ def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHT
             runs=sorted(run_diags.runs),
             variables_to_plot=[count_name],
             varfilter="2D Histogram",
+            variable_long_names={count_name: f"{xname} versus {yname}"},
         )
     )
 
