@@ -46,25 +46,28 @@ hv.extension("bokeh")
 COLOR_CYCLE = hv.Cycle(fv3viz.wong_palette)
 fv3viz.use_colorblind_friendly_style()
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
+JQUERY_CDN = "https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"
+DATATABLES_CSS_CDN = "https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css"
+DATATABLES_JS_CDN = "https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"
 MovieManifest = Sequence[Tuple[str, str]]
 PublicLinks = Dict[str, List[Tuple[str, str]]]
 
 
 def get_datatables_header() -> str:
-    header = ""
-    header += '\n<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>'  # noqa: E501
-    header += '\n<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">'  # noqa: E501
-    header += '\n<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"></script>'  # noqa: E501
+    header = f'\n<script src="{JQUERY_CDN}"></script>'
+    header += f'\n<link rel="stylesheet" type="text/css" href="{DATATABLES_CSS_CDN}">'
+    header += f'\n<script src="{DATATABLES_JS_CDN}"></script>'
     header += """
-<script>
-    $(document).ready(function() {
-        $('table.display').DataTable( {
-            "scrollY":        "400px",
-            "scrollCollapse": true,
-            "paging":         false
-        } );
-    } );
-</script>"""
+        <script>
+            $(document).ready(function() {
+                $('table.display').DataTable( {
+                    "scrollX":        "100%",
+                    "scrollY":        "700px",
+                    "scrollCollapse": true,
+                    "paging":         false
+                } );
+            } );
+        </script>"""
     return header
 
 
