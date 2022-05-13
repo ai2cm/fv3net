@@ -29,7 +29,6 @@ def _get_job(config_name: str, arch_key: str, revision: str, suffix: str):
 
     prog_config = load_yaml(f"../configs/default.yaml")
     prog_config["duration"] = "2d"
-    prog_config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = True
 
     return EndToEndJob(
         name=f"{config_name}-{arch_key}-{revision[:6]}-{suffix}",
