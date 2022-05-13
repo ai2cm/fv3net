@@ -21,6 +21,7 @@ def test_histogram2d():
     bins = [np.array([0, 20, 40]), np.array([0, 10, 20])]
     var1 = xr.DataArray(np.reshape(data_x, (5, 4)), dims=["x", "y"], name="temp")
     var2 = xr.DataArray(np.reshape(data_y, (5, 4)), dims=["x", "y"], name="humidity")
+    var2 = var2.transpose("y", "x")  # vcm.histogram2d should handle this
     temp_coords = {"temp_bins": [0, 20]}
     sphum_coords = {"humidity_bins": [0, 10]}
     expected_count = xr.DataArray(
