@@ -124,21 +124,18 @@ def set_prognostic_emulation_model(
     config: dict,
     model_path: str,
     gscond_only: bool = False,
-    gscond_conservative: bool = True,
+    emu_model_kwargs: Optional[dict] = None,
 ) -> dict:
     prog_config = deepcopy(config)
     assert model_path.startswith("gs://")
+    emu_model_kwargs = {} if emu_model_kwargs is None else emu_model_kwargs
+    emu_model_kwargs["path"] = model_path
 
     if gscond_only:
-        emu_config = {
-            "gscond": {
-                "path": model_path,
-                "gscond_cloud_conservative": gscond_conservative,
-            }
-        }
+        emu_config = {"gscond": {**emu_model_kwargs}}
         prog_config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = True
     else:
-        emu_config = {"model": {"path": model_path}}
+        emu_config = {"model": {**emu_model_kwargs}}
     prog_config["zhao_carr_emulation"] = emu_config
     return prog_config
 
@@ -272,8 +269,12 @@ class EndToEndJob:
         ml_config["out_url"] = model_out_url
 
         model_path = os.path.join(model_out_url, "model.tf")
+        model_kwargs = {"gscond_cloud_conservative": True}
         prog_config = set_prognostic_emulation_model(
-            self.prog_config, model_path, gscond_only=True, gscond_conservative=True
+            self.prog_config,
+            model_path,
+            gscond_only=True,
+            emu_model_kwargs=model_kwargs,
         )
         return {
             "training-config": _encode(ml_config),
