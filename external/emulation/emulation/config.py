@@ -17,7 +17,7 @@ from emulation._emulate.microphysics import (
 )
 from emulation._monitor.monitor import StorageConfig, StorageHook
 from emulation._time import from_datetime, to_datetime
-from emulation.masks import RangeMask, compose_masks
+from emulation.masks import RangeMask, LevelMask, compose_masks
 import emulation.zhao_carr
 
 logger = logging.getLogger("emulation")
@@ -46,6 +46,12 @@ class Range:
 
 
 @dataclasses.dataclass
+class LevelSlice:
+    start: Optional[int] = None
+    stop: Optional[int] = None
+
+
+@dataclasses.dataclass
 class ModelConfig:
     """
 
@@ -63,6 +69,9 @@ class ModelConfig:
     path: str
     online_schedule: Optional[IntervalSchedule] = None
     ranges: Mapping[str, Range] = dataclasses.field(default_factory=dict)
+    mask_emulator_levels: Mapping[str, LevelSlice] = dataclasses.field(
+        default_factory=dict
+    )
     cloud_squash: Optional[float] = None
     gscond_cloud_conservative: bool = False
 
@@ -78,6 +87,9 @@ class ModelConfig:
 
         for key, range in self.ranges.items():
             yield RangeMask(key, min=range.min, max=range.max)
+
+        for key, _slice in self.mask_emulator_levels.items():
+            yield LevelMask(key, start=_slice.start, stop=_slice.stop)
 
         yield partial(
             emulation.zhao_carr.modify_zhao_carr,

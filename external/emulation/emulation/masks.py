@@ -37,3 +37,16 @@ class RangeMask:
             out[self.key] = np.minimum(out[self.key], self.max)
 
         return out
+
+
+class LevelMask:
+    def __init__(self, key: str, start: Optional[int], stop: Optional[int]):
+        self.key = key
+        self.start = start
+        self.stop = stop
+
+    def __call__(self, state: FortranState, emulator: FortranState) -> FortranState:
+        out = {**emulator}
+        use_fortran_state = slice(self.start, self.stop)
+        out[self.key][..., use_fortran_state] = state[..., use_fortran_state]
+        return out
