@@ -9,18 +9,8 @@ source activate $CONDA_ENV
 rm -f "external/vcm/vcm/mappm.*.so"
 rm -rf external/vcm/build
 
-local_packages_to_install=(
-  external/vcm
-  external/artifacts
-  external/loaders
-  external/fv3fit
-  external/report
-)
 set -e
-for package  in "${local_packages_to_install[@]}"
-do
-  pip install -c constraints.txt -e "$package"
-done
+pip install -c constraints.txt -e external/vcm -e external/artifacts -e external/loaders -e external/fv3fit -e external/report
 set +e
 
 

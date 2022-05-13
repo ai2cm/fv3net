@@ -212,6 +212,7 @@ overwrite_baseline_images:
 
 lock_deps: lock_pip
 	conda-lock -f environment.yml
+	conda-lock render
 	# external directories must be explicitly listed to avoid model requirements files which use locked versions
 
 REQUIREMENTS = external/vcm/setup.py \
