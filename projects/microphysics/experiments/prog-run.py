@@ -13,7 +13,10 @@ MODEL = "gs://vcm-ml-experiments/microphysics-emulation/2022-05-12/gscond-only-t
 config = load_yaml("../configs/default.yaml")
 
 config = set_prognostic_emulation_model(
-    config, MODEL, gscond_only=True, gscond_conservative=True
+    config,
+    MODEL,
+    gscond_only=True,
+    emu_model_kwargs=dict(gscond_cloud_conservative=True),
 )
 
 job = PrognosticJob(
