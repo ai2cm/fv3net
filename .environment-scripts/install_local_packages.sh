@@ -10,7 +10,13 @@ rm -f "external/vcm/vcm/mappm.*.so"
 rm -rf external/vcm/build
 
 set -e
-pip install -c constraints.txt -e external/vcm -e external/artifacts -e external/loaders -e external/fv3fit -e external/report
+pip install -c constraints.txt \
+  -e external/vcm \
+  -e external/artifacts \
+  -e external/loaders \
+  -e external/fv3fit \
+  -e external/report \
+  -e external/fv3viz
 set +e
 
 
@@ -18,7 +24,6 @@ set +e
 pip install -c constraints.txt external/report
 
 poetry_packages=(
-  external/fv3viz
   external/synth
   external/fv3kube
   workflows/fine_res_budget
