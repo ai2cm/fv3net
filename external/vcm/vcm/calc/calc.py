@@ -55,3 +55,10 @@ def weighted_average(
         kwargs=kwargs,
         dask="allowed",
     )
+
+
+def vertical_scale_factors(n_levels: int, cutoff: int, rate: float):
+    z_arr = np.arange(n_levels)
+    scaled = np.exp((z_arr[slice(None, cutoff)] - cutoff) / rate)
+    unscaled = np.ones(n_levels - cutoff)
+    return np.hstack([scaled, unscaled])
