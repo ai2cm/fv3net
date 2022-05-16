@@ -26,6 +26,10 @@ DOCKER_INTERACTIVE_ARGS = \
 	--mount source=bash_history,target=/root/.bash_history \
 	-e HISTFILE=/root/.bash_history/history
 
+ifneq ("$(wildcard .env)","")
+	DOCKER_INTERACTIVE_ARGS += --env-file=.env
+endif
+
 IMAGES = fv3net post_process_run prognostic_run
 
 .PHONY: build_images push_image run_integration_tests image_name_explicit
