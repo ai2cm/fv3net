@@ -232,7 +232,7 @@ class TransformedPredictor(Predictor):
     def load(cls, path: str) -> "TransformedPredictor":
         with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
             config = yaml.safe_load(f)
-        base_model = io.load(config["base_model"])
+        base_model = io.load(os.path.join(path, cls._BASE_MODEL_SUBDIR))
         transform_configs = [
             dacite.from_dict(vcm.DataTransform, x) for x in config["transforms"]
         ]
