@@ -1,3 +1,4 @@
+# flake8: noqa
 # Copyright 2020 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +15,7 @@
 # =============================================================================
 
 # this file comes from tensorflow_addons
+# https://github.com/tensorflow/addons/blob/cb0f29a4e66/tensorflow_addons/layers/spectral_normalization.py
 
 import tensorflow as tf
 
@@ -29,6 +31,7 @@ class SpectralNormalization(tf.keras.layers.Wrapper):
 
     Wrap `tf.keras.layers.Conv2D`:
 
+    >>> import numpy as np
     >>> x = np.random.rand(1, 10, 10, 1)
     >>> conv2d = SpectralNormalization(tf.keras.layers.Conv2D(2, 2))
     >>> y = conv2d(x)
