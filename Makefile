@@ -15,13 +15,16 @@ PROGNOSTIC_BASE_VERSION = 1.0.0
 DOCKER_AUTH_ARGS = \
 	-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
 	-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
-	-e FSSPEC_GS_REQUESTER_PAYS=vcm-ml \
+	-e FSSPEC_GS_REQUESTER_PAYS=vcm-ml
 
 DOCKER_INTERACTIVE_ARGS = \
 	--tty \
 	--interactive \
 	-v $(shell pwd)/external:/fv3net/external \
 	-v $(shell pwd)/workflows:/fv3net/workflows \
+	-v $(shell pwd)/projects:/fv3net/projects \
+	--mount source=bash_history,target=/root/.bash_history \
+	-e HISTFILE=/root/.bash_history/history
 
 IMAGES = fv3net post_process_run prognostic_run
 
