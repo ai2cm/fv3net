@@ -33,6 +33,8 @@ TransformName = Literal[
     "Q2_tendency_from_Q2_flux",
     "implied_surface_precipitation_rate",
     "implied_downward_radiative_flux_at_surface",
+    "taper_dQ1",
+    "taper_dQ2",
 ]
 
 
