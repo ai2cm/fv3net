@@ -1,10 +1,30 @@
 import dataclasses
 import numpy as np
 import tensorflow as tf
-from typing import Hashable, Mapping, Sequence, Union
+from typing import Hashable, Mapping, Sequence, Union, Optional
 from fv3fit._shared.config import SliceConfig, PackerConfig
 
 Clippable = Union[tf.Tensor, np.ndarray]
+
+
+@dataclasses.dataclass
+class TaperConfig:
+    cutoff: Optional[int] = None
+    rate: Optional[float] = None
+
+
+def _scale_factors(n_levels: int, taper_config: TaperConfig):
+    if taper_config.cutoff is not None and taper_config.rate is not None:
+        z_arr = np.arange(n_levels)
+        scaled = np.exp(
+            (z_arr[slice(None, taper_config.cutoff)] - taper_config.cutoff)
+            / taper_config.rate
+        )
+        unscaled = np.ones(n_levels - taper_config.cutoff)
+        print(f"scale factors:  {np.hstack([scaled, unscaled])}")
+        return np.hstack([scaled, unscaled])
+    else:
+        return np.ones(n_levels)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -17,6 +37,16 @@ class ClipConfig(PackerConfig):
     """
 
     clip: Mapping[Hashable, SliceConfig] = dataclasses.field(default_factory=dict)
+    taper: Mapping[Hashable, TaperConfig] = dataclasses.field(default_factory=dict)
+
+    def taper_layer(self, layer: tf.Tensor, name: str,) -> tf.Tensor:
+        taper_config = self.taper[name]
+        total_length = layer.shape[-1]
+        scale_factors_layer = tf.constant(
+            _scale_factors(total_length, taper_config), dtype=tf.float32
+        )
+
+        return tf.math.multiply(layer, scale_factors_layer)
 
     def _get_mask_array(
         self, unmasked: Union[tf.Tensor, np.ndarray], name: str
@@ -62,7 +92,7 @@ class ClipConfig(PackerConfig):
             return clip_object
 
 
-def clip_sequence(
+def clip_and_taper_sequence(
     config: ClipConfig, clip_objects: Sequence[Clippable], variable_names: Sequence[str]
 ) -> Sequence[tf.Tensor]:
     """Takes a sequence of arrays or layers and applies clipping to those that have
@@ -74,10 +104,37 @@ def clip_sequence(
         variable_names: ordered list of variable names corresponding to the items
         in sequence
     """
-    outputs = []
+    outputs = []  # type: ignore
     for layer, name in zip(clip_objects, variable_names):
+        layer_ = layer
+        if name in config.taper:
+            layer_ = config.taper_layer(layer_, name)
         if name in config.clip:
-            outputs.append(config.clip_along_last_dim(layer, name))
-        else:
-            outputs.append(layer)
+            layer_ = config.clip_along_last_dim(layer_, name)
+        outputs.append(layer_)
+
+    return outputs
+
+
+def taper_sequence(
+    config: ClipConfig, clip_objects: Sequence[Clippable], variable_names: Sequence[str]
+) -> Sequence[tf.Tensor]:
+    outputs = []  # type: ignore
+    for layer, name in zip(clip_objects, variable_names):
+        layer_ = layer
+        if name in config.taper:
+            layer_ = config.taper_layer(layer_, name)
+        outputs.append(layer_)
+    return outputs
+
+
+def clip_sequence(
+    config: ClipConfig, clip_objects: Sequence[Clippable], variable_names: Sequence[str]
+) -> Sequence[tf.Tensor]:
+    outputs = []  # type: ignore
+    for layer, name in zip(clip_objects, variable_names):
+        layer_ = layer
+        if name in config.clip:
+            layer_ = config.clip_along_last_dim(layer_, name)
+        outputs.append(layer_)
     return outputs

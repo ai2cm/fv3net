@@ -36,7 +36,12 @@ from fv3fit.keras._models.shared.utils import (
     full_standard_normalized_input,
 )
 from fv3fit import tfdataset
-from fv3fit.keras._models.shared.clip import clip_sequence, ClipConfig
+from fv3fit.keras._models.shared.clip import (
+    clip_sequence,
+    ClipConfig,
+    taper_sequence,
+    clip_and_taper_sequence,
+)
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping, clip_sample
 
 
@@ -246,12 +251,12 @@ def build_model(
         y: example output for keras fitting, used to determine shape and normalization
     """
     input_layers = [tf.keras.layers.Input(shape=arr.shape[1]) for arr in X]
-    clipped_input_layers = clip_sequence(
+    clipped_input_layers = clip_and_taper_sequence(
         config.clip_config, input_layers, config.input_variables
     )
     full_input = full_standard_normalized_input(
         clipped_input_layers,
-        clip_sequence(config.clip_config, X, config.input_variables),
+        clip_and_taper_sequence(config.clip_config, X, config.input_variables),
         config.input_variables,
     )
 
@@ -279,7 +284,7 @@ def build_model(
 
     # Model used in training has output levels clipped off, so std also must
     # be calculated over the same set of levels after clipping.
-    clipped_denorm_output_layers = clip_sequence(
+    clipped_denorm_output_layers = clip_and_taper_sequence(
         config.clip_config, denorm_output_layers, config.output_variables
     )
     clipped_output_arrays = clip_sequence(
@@ -304,7 +309,10 @@ def build_model(
         config.clip_config.zero_mask_clipped_layer(denorm_layer, name)
         for denorm_layer, name in zip(denorm_output_layers, config.output_variables)
     ]
+    tapered_zero_filled_output_layers = taper_sequence(
+        config.clip_config, zero_filled_denorm_output_layers, config.output_variables
+    )
     predict_model = tf.keras.Model(
-        inputs=input_layers, outputs=zero_filled_denorm_output_layers
+        inputs=input_layers, outputs=tapered_zero_filled_output_layers
     )
     return train_model, predict_model
