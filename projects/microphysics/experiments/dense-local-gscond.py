@@ -17,9 +17,13 @@ arch_params = {
     "rnn-v1-shared-weights": rnn,
 }
 
+# It's a PITA to adjust transforms programmatically at this point time
+# If you want to get the config for non-tscaled experiments
+# https://github.com/ai2cm/fv3net/blob/74d20d5fd78d6fe73f85d82f81a828e9324a5b24/projects/microphysics/train/gscond-only.yaml # noqa
+
 
 def _get_job(config_name: str, arch_key: str, revision: str, suffix: str):
-    train_config = load_yaml(f"../train/{config_name}.yaml")
+    train_config = load_yaml(f"../train/gscond-only.yaml")
     train_config["model"]["architecture"]["name"] = arch_key
     train_config["model"]["architecture"]["kwargs"] = arch_params[arch_key]
 
@@ -41,7 +45,7 @@ parser.add_argument("--revision", default="latest")
 parser.add_argument("--suffix", default="v1")
 
 arch_keys = ["dense-local", "rnn-v1-shared-weights"]
-configs = ["gscond-only", "gscond-only-tscale"]
+configs = ["gscond-only"]
 args = parser.parse_args()
 
 jobs = [
