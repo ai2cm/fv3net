@@ -20,12 +20,21 @@ def _get_job(config: str, revision: str, suffix: str, test: bool):
     else:
         run_config = "default"
 
+    if config == "gscond-only":
+        gscond_only = True
+        gscond_conserve = True
+    else:
+        gscond_only = False
+        gscond_conserve = False
+
     return EndToEndJob(
         name=f"{config_name}-{revision[:6]}-{suffix}",
         fv3fit_image_tag=revision,
         image_tag=revision,
         ml_config=config,
         prog_config=load_yaml(f"../configs/{run_config}.yaml"),
+        gscond_only=gscond_only,
+        gscond_conservative=gscond_conserve,
     )
 
 
