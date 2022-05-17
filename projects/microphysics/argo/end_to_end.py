@@ -231,7 +231,7 @@ class TrainingJob:
 
 @dataclasses.dataclass
 class EndToEndJob:
-    """A configuration for prognostic jobs
+    """A configuration for E2E training and prognostic
 
     Examples:
 
@@ -256,6 +256,8 @@ class EndToEndJob:
     image_tag: str
     bucket: str = "vcm-ml-experiments"
     project: str = "microphysics-emulation"
+    gscond_only: bool = False
+    gscond_conservative: bool = True
 
     @property
     def entrypoint(self):
@@ -273,8 +275,12 @@ class EndToEndJob:
 
         model_path = os.path.join(model_out_url, "model.tf")
         prog_config = set_prognostic_emulation_model(
-            self.prog_config, model_path, gscond_only=True, gscond_conservative=True
+            self.prog_config,
+            model_path,
+            gscond_only=self.gscond_only,
+            gscond_conservative=self.gscond_conservative,
         )
+
         return {
             "training-config": _encode(ml_config),
             "config": _encode(prog_config),
