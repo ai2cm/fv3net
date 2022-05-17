@@ -48,7 +48,6 @@ xarray >= 0.19.0
 # developer tools
 conda-lock
 pip-tools
-poetry
 tox
 pre-commit
 ipython>=7.29.0
