@@ -100,7 +100,7 @@ def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
     counts = xr.Dataset()
     col_drying = -ds[COL_MOISTENING].rename(COL_DRYING)
     col_drying.attrs["units"] = ds[COL_MOISTENING].attrs.get("units")
-    bins = [HISTOGRAM_BINS[WVP], np.linspace(-50, 150, 101)]
+    bins = [HISTOGRAM_BINS[WVP], HISTOGRAM_BINS[COL_DRYING]]
 
     counts, wvp_bins, q2_bins = vcm.histogram2d(ds[WVP], col_drying, bins=bins)
     return xr.Dataset(
