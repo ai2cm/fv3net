@@ -14,6 +14,7 @@ HISTOGRAM_BINS = {
     PRECIP_RATE: np.logspace(-1, np.log10(500), 101),
     WVP: np.linspace(-10, 90, 101),
     COL_DRYING: np.linspace(-50, 150, 101),
+    COL_MOISTENING: np.linspace(-150, 50, 101),
 }
 
 # argument typehint for diags in save_prognostic_run_diags but used
