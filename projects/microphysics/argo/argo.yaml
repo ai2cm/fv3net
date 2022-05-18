@@ -144,7 +144,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
+      image: "us.gcr.io/vcm-ml/fv3net:latest"
       imagePullPolicy: Always
       resources:
         requests:
@@ -180,7 +180,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
+      image: "us.gcr.io/vcm-ml/fv3net:latest"
       imagePullPolicy: Always
       resources:
         requests:
