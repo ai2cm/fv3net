@@ -26,19 +26,19 @@ RUN make -C /tmp/fortran-build/FV3 wrapper_build &&\
     python3 -c 'import fv3gfs.wrapper'
 
 COPY external/vcm /fv3net/external/vcm
-RUN pip3 install --no-dependencies /fv3net/external/vcm
+RUN pip3 install --no-dependencies -e /fv3net/external/vcm
 
 COPY external/artifacts /fv3net/external/artifacts
-RUN pip3 install --no-dependencies /fv3net/external/artifacts
+RUN pip3 install --no-dependencies -e /fv3net/external/artifacts
 
 COPY external/loaders /fv3net/external/loaders
-RUN pip3 install --no-dependencies /fv3net/external/loaders
+RUN pip3 install --no-dependencies -e /fv3net/external/loaders
 
 COPY external/fv3fit /fv3net/external/fv3fit
-RUN pip3 install --no-dependencies /fv3net/external/fv3fit
+RUN pip3 install --no-dependencies -e /fv3net/external/fv3fit
 
 COPY external/fv3kube /fv3net/external/fv3kube
-RUN pip3 install --no-dependencies /fv3net/external/fv3kube
+RUN pip3 install --no-dependencies -e /fv3net/external/fv3kube
 
 COPY workflows/post_process_run /fv3net/workflows/post_process_run
 RUN pip3 install --no-dependencies -e /fv3net/workflows/post_process_run
@@ -53,11 +53,11 @@ ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
-RUN pip install --no-dependencies /fv3net/workflows/prognostic_c48_run
+RUN pip install --no-dependencies -e /fv3net/workflows/prognostic_c48_run
 
 # Override microphysics emulation
 COPY external/emulation /fv3net/external/emulation
-RUN pip install --no-dependencies /fv3net/external/emulation
+RUN pip install --no-dependencies -e /fv3net/external/emulation
 ENV VAR_META_PATH=/fv3net/external/emulation/microphysics_parameter_metadata.yaml
 ENV OUTPUT_FREQ_SEC=18000
 
@@ -66,7 +66,7 @@ COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
 RUN chmod +x /fv3net/projects/microphysics/scripts/*
 ENV PATH=/fv3net/projects/microphysics/scripts:${PATH}
 
-ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
+ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:/fv3net/external/fv3fit:/fv3net/external/emulation:/fv3net/external/vcm:/fv3net/external/artifacts:/fv3net/external/loaders:/fv3net/external/fv3kube:/fv3net/workflows/post_process_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run
 CMD ["bash"]
 
