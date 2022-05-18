@@ -25,7 +25,7 @@ test_requirements = []
 
 setup(
     author="Vulcan Technologies LLC",
-    author_email="andrep@vulcan.com",
+    author_email="andrep@allenai.org",
     python_requires=">=3.6",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
