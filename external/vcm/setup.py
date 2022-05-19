@@ -37,7 +37,7 @@ install_requirements = [
 
 setup(
     author="Vulcan Technologies, LLC",
-    author_email="noahb@vulcan.com",
+    author_email="noahb@allenai.org",
     python_requires=">=3.6",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
