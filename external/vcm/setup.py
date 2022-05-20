@@ -32,7 +32,6 @@ install_requirements = [
     "dacite",
 ]
 
-
 setup(
     author="Vulcan Technologies, LLC",
     author_email="noahb@vulcan.com",
