@@ -20,6 +20,7 @@ from fv3fit.tensorboard import plot_to_image
 from vcm import interpolate_unstructured
 from vcm.select import meridional_ring, zonal_average_approximate
 from vcm.catalog import catalog
+from fv3net.diagnostics.prognostic_run.emulation import query
 
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ TRANSECT_VARS = [
     "cloud_water_mixing_ratio",
     "specific_humidity",
 ]
+WANDB_ENTITY = "ai2cm"
 
 
 def consistent_time_len(*da_args):
@@ -390,35 +392,53 @@ def main():
 
     args = parser.parse_args()
     run = wandb.init(
-        job_type="prognostic_evaluation", entity="ai2cm", project=args.wandb_project
+        job_type="prognostic_evaluation",
+        entity=WANDB_ENTITY,
+        project=args.wandb_project,
     )
 
     wandb.config.update(args)
+    wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
 
-    def get_url_wandb(artifact: str):
-        art = run.use_artifact(artifact + ":latest", type="prognostic-run")
-        path = "fv3config.yml"
-        url = art.get_path(path).ref
-        return url[: -len("/" + path)]
-
-    prog_url = os.path.join(get_url_wandb(args.tag), "state_after_timestep.zarr")
-    baseline_url = os.path.join(
-        get_url_wandb(args.baseline_tag), "state_after_timestep.zarr"
+    api = wandb.Api()
+    prognostic_run = query.PrognosticRunClient(
+        args.tag, entity=run.entity, project=run.project, api=api
     )
+    baseline_run = query.PrognosticRunClient(
+        args.baseline_tag, entity=run.entity, project=run.project, api=api
+    )
+
+    # establish links to the prognostic run
+    prognostic_run.use_artifact_in(run)
+    baseline_run.use_artifact_in(run)
+
+    prog_url = prognostic_run.get_rundir_url()
+    baseline_url = baseline_run.get_rundir_url()
+
     wandb.config["run"] = prog_url
     wandb.config["baseline_run"] = baseline_url
 
-    prog = xr.open_zarr(prog_url, consolidated=True)
-    baseline = xr.open_zarr(baseline_url, consolidated=True)
+    state_after_timestep = "state_after_timestep.zarr"
+    prognostic_state_after_timestep_url = os.path.join(prog_url, state_after_timestep)
+    baseline_state_after_timestep_url = os.path.join(baseline_url, state_after_timestep)
+
+    prog = xr.open_zarr(prognostic_state_after_timestep_url)
+    baseline = xr.open_zarr(baseline_state_after_timestep_url)
     grid = catalog[f"grid/{args.grid_key}"].to_dask()
     prog = prog.merge(grid)
     baseline = baseline.merge(grid)
 
     prog_mean_by_height = get_avg_data(
-        prog_url, grid, run, override_artifact=args.override_artifacts
+        prognostic_state_after_timestep_url,
+        grid,
+        run,
+        override_artifact=args.override_artifacts,
     )
     base_mean_by_height = get_avg_data(
-        baseline_url, grid, run, override_artifact=args.override_artifacts
+        baseline_state_after_timestep_url,
+        grid,
+        run,
+        override_artifact=args.override_artifacts,
     )
 
     plot_time_heights(prog_mean_by_height, base_mean_by_height)

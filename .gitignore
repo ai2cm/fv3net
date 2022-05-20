@@ -1,4 +1,4 @@
-external/vcm/vcm/mappm.*.so*
+**/.data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -122,7 +122,8 @@ tests/end_to_end_integration/submit_e2e_job_k8s.yml
 # large files
 *.png
 *.ipynb
-external/vcm/external/mappm/MANIFEST
-external/vcm/vcm/interpolate_2dmodule.c
 
 .hypothesis
+
+# redundant lock files that should be regenerated before builds
+docker/*/requirements.txt

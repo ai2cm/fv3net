@@ -4,7 +4,10 @@ import xarray as xr
 
 from typing import Tuple, Union
 
-import vcm.mappm
+try:
+    import mappm
+except ModuleNotFoundError:
+    mappm = None
 from ..calc.thermo.vertically_dependent import pressure_at_interface
 from ..cubedsphere import edge_weighted_block_average, weighted_block_average
 from ..cubedsphere.coarsen import block_upsample_like
@@ -89,7 +92,11 @@ def regrid_to_edge_weighted_pressure(
     )
     interp_dim = "x" if edge == "y" else "y"
     delp_staggered = grid.interp(delp, interp_dim).assign_coords(
-        {hor_dims[interp_dim]: np.arange(1, delp.sizes[hor_dims[edge]] + 2)}
+        {
+            hor_dims[interp_dim]: np.arange(
+                1, delp.sizes[hor_dims[edge]] + 2, dtype=np.float32
+            )
+        }
     )
     delp_staggered_coarse = edge_weighted_block_average(
         delp_staggered, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
@@ -262,9 +269,14 @@ def _columnwise_mappm(
         p_in, f_in, p_out = _reshape_for_mappm(p_in, f_in, p_out)
         dummy_ptop = 0.0  # Not used by mappm, but required as an argument
         n_columns = p_in.shape[0]
-        return vcm.mappm.mappm(
-            p_in, f_in, p_out, 1, n_columns, iv, kord, dummy_ptop
-        ).reshape(output_shape)
+        if mappm is not None:
+            return mappm.mappm(
+                p_in, f_in, p_out, 1, n_columns, iv, kord, dummy_ptop
+            ).reshape(output_shape)
+        else:
+            raise ModuleNotFoundError(
+                "mappm is not installed, required for this routine"
+            )
 
 
 def _adjust_chunks_for_mappm(

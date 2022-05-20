@@ -2,10 +2,8 @@ import dataclasses
 import logging
 import os
 import json
-from typing import Mapping, Tuple
+from typing import Mapping, Tuple, Any
 import cftime
-import f90nml
-import yaml
 import numpy as np
 import xarray as xr
 from datetime import datetime, timedelta
@@ -13,12 +11,13 @@ from mpi4py import MPI
 import tensorflow as tf
 import emulation.serialize
 
-from pace.util import ZarrMonitor, CubedSpherePartitioner, Quantity
-from ..debug import print_errors
+from pace.util import ZarrMonitor, CubedSpherePartitioner, Quantity, TilePartitioner
 from .._typing import FortranState
+from emulation._time import translate_time
 
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 DIMS_MAP = {
@@ -34,6 +33,7 @@ class StorageConfig:
     Attributes:
         output_freq_sec: output frequency in seconds to save
             nc and/or zarr files at
+        output_start_sec: do not save any outputs before this time
         var_meta_path: path to variable metadata added to saved field
             attributes. if not set, then the environmental variable VAR_META_PATH
             will be used. If THAT isn't set then no metadata other than 'unknown'
@@ -47,47 +47,21 @@ class StorageConfig:
 
     var_meta_path: str = ""
     output_freq_sec: int = 10_800
+    output_start_sec: int = 0
     save_nc: bool = True
     save_zarr: bool = True
     save_tfrecord: bool = False
 
 
-@print_errors
-def _load_nml():
-    path = os.path.join(os.getcwd(), "input.nml")
-    namelist = f90nml.read(path)
-    logger.info(f"Loaded namelist for ZarrMonitor from {path}")
+def _load_monitor(layout):
 
-    return namelist
-
-
-@print_errors
-def _load_metadata(path: str):
-    try:
-        with open(str(path), "r") as f:
-            variable_metadata = yaml.safe_load(f)
-            logger.info(f"Loaded variable metadata from: {path}")
-    except FileNotFoundError:
-        variable_metadata = {}
-        logger.info(f"No metadata found at: {path}")
-
-    return variable_metadata
-
-
-@print_errors
-def _load_monitor(namelist):
-
-    partitioner = CubedSpherePartitioner.from_namelist(namelist)
+    tile_partitioner = TilePartitioner(layout)
+    partitioner = CubedSpherePartitioner(tile_partitioner)
 
     output_zarr = os.path.join(os.getcwd(), "state_output.zarr")
     output_monitor = ZarrMonitor(output_zarr, partitioner, mpi_comm=MPI.COMM_WORLD)
     logger.info(f"Initialized zarr monitor at: {output_zarr}")
     return output_monitor
-
-
-@print_errors
-def _get_timestep(namelist):
-    return int(namelist["coupler_nml"]["dt_atmos"])
 
 
 def _remove_io_suffix(key: str):
@@ -143,20 +117,6 @@ def _convert_to_xr_dataset(state, metadata):
         dataset[key] = xr.DataArray(data_t, dims=dims, attrs=attrs)
 
     return xr.Dataset(dataset)
-
-
-def _translate_time(time: Tuple[int, int, int, int, int, int]) -> cftime.DatetimeJulian:
-
-    # list order is set by fortran from variable Model%jdat
-    year = time[0]
-    month = time[1]
-    day = time[2]
-    hour = time[4]
-    min = time[5]
-    datetime = cftime.DatetimeJulian(year, month, day, hour, min)
-    logger.debug(f"Translated input time: {datetime}")
-
-    return datetime
 
 
 def _create_nc_path():
@@ -241,33 +201,28 @@ class StorageHook:
 
     def __init__(
         self,
-        var_meta_path: str,
         output_freq_sec: int,
+        output_start_sec: int = 0,
+        dt_sec: int = 900,
+        layout: Tuple[int, int] = (1, 1),
+        metadata: Any = {},
         save_nc: bool = True,
         save_zarr: bool = True,
         save_tfrecord: bool = False,
     ):
         self.name = "emulation storage monitor"
 
-        if var_meta_path:
-            self.var_meta_path = var_meta_path
-        else:
-            # VAR_META_PATH is set during docker image creation
-            self.var_meta_path = os.getenv("VAR_META_PATH", "")
-
         self.output_freq_sec = output_freq_sec
+        self.output_start_sec = output_start_sec
+        self.metadata = metadata
         self.save_nc = save_nc
         self.save_zarr = save_zarr
         self.save_tfrecord = save_tfrecord
-
-        self.namelist = _load_nml()
-
         self.initial_time = None
-        self.dt_sec = _get_timestep(self.namelist)
-        self.metadata = _load_metadata(self.var_meta_path)
+        self.dt_sec = dt_sec
 
         if self.save_zarr:
-            self.monitor = _load_monitor(self.namelist)
+            self.monitor = _load_monitor(layout)
         else:
             self.monitor = None
 
@@ -278,18 +233,18 @@ class StorageHook:
             rank = MPI.COMM_WORLD.Get_rank()
             self._store_tfrecord = _TFRecordStore("tfrecords", rank)
 
-    def _store_interval_check(self, time):
+    def _store_data_at_time(self, time: cftime.DatetimeJulian):
 
-        # add increment since we are in the middle of timestep
-        increment = timedelta(seconds=self.dt_sec)
-        elapsed = (time + increment) - self.initial_time
+        elapsed: timedelta = time - self.initial_time
+        elapsed_seconds = elapsed.total_seconds()
 
         logger.debug(f"Time elapsed after increment: {elapsed}")
         logger.debug(
             f"Output frequency modulus: {elapsed.seconds % self.output_freq_sec}"
         )
-
-        return elapsed.seconds % self.output_freq_sec == 0
+        return (elapsed_seconds % self.output_freq_sec == 0) and (
+            elapsed_seconds >= self.output_start_sec
+        )
 
     def store(self, state: FortranState) -> None:
         """
@@ -305,12 +260,14 @@ class StorageHook:
         """
 
         state = dict(**state)
-        time = _translate_time(state.pop("model_time"))
+        time = translate_time(state.pop("model_time"))
 
         if self.initial_time is None:
             self.initial_time = time
 
-        if self._store_interval_check(time):
+        # add increment since we are in the middle of timestep
+        increment = timedelta(seconds=self.dt_sec)
+        if self._store_data_at_time(time + increment):
 
             logger.debug(
                 f"Store flags: save_zarr={self.save_zarr}, save_nc={self.save_nc}"

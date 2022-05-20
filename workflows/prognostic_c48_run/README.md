@@ -14,19 +14,8 @@ for more details.
 Docker quickstart
 -----------------
 
-Use docker-compose to develop this.
-
-    # slow/correct
-    docker-compose build fv3
-
-    # fast/possibly incorrect
-    docker pull us.gcr.io/vcm-ml/prognostic_run:latest
-
-    # run tests
-    docker-compose run fv3 pytest
-
-    # get a shell
-    docker-compose run fv3 bash
-
+Use entrypoints at the top level of fv3net to develop this, particularly
+``make image_test_prognostic_run`` for non-interactive testing, or
+``make enter_prognostic_run`` to enter the docker image for development.
 
 See the [developer's guide](https://www.vulcanclimatemodeling.com/docs/prognostic_c48_run/development.html).

@@ -264,6 +264,10 @@ the appropriate verification using the `online-diags-flags` parameter, e.g. `-p 
 | `training-flags`        | (optional) `flags` for `training` workflow                            |
 | `online-diags-flags`    | (optional) `flags` for `prognostic-run-diags` workflow                |
 | `do-prognostic-run`     | (optional) do prognostic run step; default "true"                     |
+| `wandb-project`     | (optional) if --wandb flag provided to training, will log under this project ; default 'argo-default' |
+| `wandb-tags`     | (optional) if --wandb flag provided to training, will log under these tags; default none |
+| `wandb-group`     | (optional) if --wandb flag provided to training, will log under this group; default none    |
+
 
 Output for the various steps will be written to `gs://{bucket}/{project}/$(date +%F)/{tag}`.
 Slashes (`/`) are not permitted in `bucket`, `project` and `tag` to preserve the depth

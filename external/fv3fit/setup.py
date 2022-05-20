@@ -11,12 +11,15 @@ requirements = [
     "scikit-learn>=0.22",
     "fsspec>=0.6.2",
     "pyyaml>=5.1.2",
-    "tensorflow==2.5.2",
-    "tensorflow-addons>=0.11.2",
+    "tensorflow>=2.5.2",
     "typing_extensions>=3.7.4.3",
     "dacite>=1.6.0",
     "wandb[media]>=0.12.1",
     "pace-util>=0.7.0",
+    "matplotlib",
+    "plotly",
+    "tensorboard",
+    "pandas",
 ]
 
 setup_requirements = []
@@ -25,7 +28,7 @@ test_requirements = ["pytest"]
 
 setup(
     author="Vulcan Technologies LLC",
-    author_email="jeremym@vulcan.com",
+    author_email="jeremym@allenai.org",
     python_requires=">=3.6.9",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",

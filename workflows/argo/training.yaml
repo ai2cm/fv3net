@@ -23,6 +23,10 @@ spec:
           - {name: cpu, value: 1000m}
           - {name: memory, value: 6Gi}
           - {name: flags, value: " "}
+          - {name: no-wandb, value: "false"}
+          - {name: wandb-project, value: "argo-default"}
+          - {name: wandb-tags, value: ""}
+          - {name: wandb-group, value: ""}
       container:
         image: us.gcr.io/vcm-ml/prognostic_run
         command: ["bash", "-c", "-x"]
@@ -31,11 +35,24 @@ spec:
             value: /secret/gcp-credentials/key.json
           - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
             value: /secret/gcp-credentials/key.json
+          - name: WANDB_ENTITY
+            value: ai2cm
+          - name: WANDB_PROJECT
+            value: "{{inputs.parameters.wandb-project}}"
+          - name: WANDB_RUN_GROUP
+            value: "{{inputs.parameters.wandb-group}}"
+        envFrom:
+          - secretRef:
+              name: wandb-token
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
         args:
           - |
+
+            if [ ! -z {{inputs.parameters.wandb-tags}} ]; then
+              export WANDB_TAGS={{inputs.parameters.wandb-tags}}
+            fi
 
             cat <<EOF >training_config.yaml
             {{inputs.parameters.training_config}}
@@ -63,12 +80,20 @@ spec:
                 validation_arg=" "
             fi
 
+            if [ "{{inputs.parameters.no-wandb}}" == "false" ] || [[ "{{inputs.parameters.flags}}" == *"--no-wandb"* ]];
+            then
+              wandb_flag=""
+            else
+              wandb_flag="--no-wandb"
+            fi
+
             python3 -m fv3fit.train \
               training_config.yaml \
               training_data.yaml \
               {{inputs.parameters.output}} \
               $validation_arg \
-              {{inputs.parameters.flags}}
+              {{inputs.parameters.flags}} \
+              $wandb_flag
       tolerations:
       - key: "dedicated"
         operator: "Equal"

@@ -1,14 +1,12 @@
-import base64
-import io
 import logging
 from collections import defaultdict
-from typing import Tuple, Mapping
+from typing import Tuple, Mapping, MutableMapping
 import xarray as xr
 
 import cartopy.crs as ccrs
 import jinja2
 import matplotlib.pyplot as plt
-import matplotlib
+from matplotlib.colors import LogNorm
 import numpy as np
 
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
@@ -16,39 +14,39 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 import fv3viz
-from report import RawHTML
+from report import MatplotlibFigure, RawHTML
 
 COORD_VARS = ["lon", "lat", "lonb", "latb"]
-
-
-def fig_to_b64(fig, format="png", dpi=None):
-    pic_IObytes = io.BytesIO()
-    fig.savefig(pic_IObytes, format=format, bbox_inches="tight", dpi=dpi)
-    pic_IObytes.seek(0)
-    pic_hash = base64.b64encode(pic_IObytes.read())
-    return f"data:image/png;base64, " + pic_hash.decode()
+IGNORE_POLES_LATITUDE = 75.0
+OverlaidPlotData = MutableMapping[str, MutableMapping[str, MatplotlibFigure]]
 
 
 template = jinja2.Template(
     """
 <h2> {{varfilter}} </h2>
-<table cellpadding="0" cellspacing="0">
+<table class="display" style="width:100%">
 
+<thead>
 <tr>
+<th>Variable</th>
 {% for run in runs %}
 <th><center> {{ run }} </center></th>
 {% endfor %}
 </tr>
+</thead>
 
+<tbody>
 {% for varname in variables_to_plot %}
 <tr>
+<td> {{ variable_long_names[varname] }} </td>
 {% for run in runs %}
 <td>
-<img src="{{ image_data[varname][run] }}" width="500px" />
+{{ images[varname][run] }}
 </td>
 {% endfor %}
 </tr>
 {% endfor %}
+</tbody>
 </table>
 """
 )
@@ -56,8 +54,9 @@ template = jinja2.Template(
 CONTOUR_LEVELS = {
     "eastward_wind_pressure_level_zonal_bias": np.arange(-30, 31, 4),
     "northward_wind_pressure_level_zonal_bias": np.arange(-3, 3.1, 0.4),
-    "air_temperature_pressure_level_zonal_bias": np.arange(-15, 16, 2),
+    "air_temperature_pressure_level_zonal_bias": np.arange(-10.5, 11, 1),
     "specific_humidity_pressure_level_zonal_bias": np.arange(-1.1e-3, 1.2e-3, 2e-4),
+    "relative_humidity_pressure_level_zonal_bias": np.arange(-0.425, 0.43, 0.05),
     "vertical_wind_pressure_level_zonal_bias": np.arange(-2.1e-2, 2.2e-2, 2e-3),
     "mass_streamfunction_pressure_level_zonal_bias": np.arange(-105, 106, 10),
 }
@@ -73,7 +72,7 @@ def plot_2d_matplotlib(
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
     All matching diagnostics must be 2D and have the same dimensions."""
 
-    data = defaultdict(dict)
+    data: OverlaidPlotData = defaultdict(dict)
 
     # kwargs handling
     ylabel = opts.pop("ylabel", "")
@@ -83,7 +82,7 @@ def plot_2d_matplotlib(
     for varname in variables_to_plot:
         if not contour:
             opts["vmin"], opts["vmax"], opts["cmap"] = _get_cmap_kwargs(
-                run_diags, varname, robust=False
+                run_diags, varname, robust=False, ignore_poles=True
             )
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
@@ -101,14 +100,15 @@ def plot_2d_matplotlib(
                 ax.set_ylabel(ylabel)
             ax.set_title(long_name_and_units)
             plt.tight_layout()
-            data[varname][run] = fig_to_b64(fig)
+            data[varname][run] = MatplotlibFigure(fig, width="500px")
             plt.close(fig)
     return RawHTML(
         template.render(
-            image_data=data,
+            images=data,
             runs=sorted(run_diags.runs),
             variables_to_plot=sorted(variables_to_plot),
             varfilter=varfilter,
+            variable_long_names=run_diags.long_names,
         )
     )
 
@@ -133,7 +133,7 @@ def plot_cubed_sphere_map(
         run_diags must include lat/lon/latb/lonb coordinates.
     """
 
-    data = defaultdict(dict)
+    data: OverlaidPlotData = defaultdict(dict)
     if metrics_for_title is None:
         metrics_for_title = {}
 
@@ -153,14 +153,15 @@ def plot_cubed_sphere_map(
             fv3viz.plot_cube(ds, varname, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
             ax.set_title(plot_title)
             plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
-            data[varname][run] = fig_to_b64(fig)
+            data[varname][run] = MatplotlibFigure(fig, width="500px")
             plt.close(fig)
     return RawHTML(
         template.render(
-            image_data=data,
+            images=data,
             runs=sorted(run_diags.runs),
             variables_to_plot=sorted(variables_to_plot),
             varfilter=varfilter,
+            variable_long_names=run_diags.long_names,
         )
     )
 
@@ -175,7 +176,10 @@ def plot_histogram(
     bin_name = varname.replace("histogram", "bins")
     for run in run_diags.runs:
         v = run_diags.get_variable(run, varname)
-        ax.step(v[bin_name], v, label=run, where="post", linewidth=1)
+        if run == "verification":
+            ax.step(v[bin_name], v, label=run, where="post", linewidth=1, color="k")
+        else:
+            ax.step(v[bin_name], v, label=run, where="post", linewidth=1)
     ax.set_xlabel(f"{v.long_name} [{v.units}]")
     ax.set_ylabel(f"Frequency [({v.units})^-1]")
     ax.set_xscale(xscale)
@@ -183,15 +187,15 @@ def plot_histogram(
     ax.set_xlim([v[bin_name].values[0], v[bin_name].values[-1]])
     ax.legend()
     fig.tight_layout()
-    data = fig_to_b64(fig, dpi=150)
+    html = MatplotlibFigure(fig, width="800px")
     plt.close(fig)
-    return RawHTML(f'<img src="{data}" width="800px" />')
+    return html
 
 
 def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHTML:
     """Plot 2D histogram of xname versus yname overlaid across runs."""
 
-    data = defaultdict(dict)
+    data: OverlaidPlotData = defaultdict(dict)
     count_name = f"{xname.lower()}_versus_{yname.lower()}_hist_2d"
     conditional_average_name = f"conditional_average_of_{yname}_on_{xname}"
     x_bin_name = f"{xname}_bins"
@@ -213,21 +217,22 @@ def plot_histogram2d(run_diags: RunDiagnostics, xname: str, yname: str) -> RawHT
         xcenters = x.values + 0.5 * x_bin_widths.values
         fig, ax = plt.subplots()
         xx, yy = np.meshgrid(xedges, yedges)
-        ax.pcolormesh(xx, yy, count.T, norm=matplotlib.colors.LogNorm(), cmap="Blues")
+        ax.pcolormesh(xx, yy, count.T, norm=LogNorm(), cmap="Blues")
         ax.plot(xcenters, conditional_average, color="r", linewidth=2)
         ax.set_xlabel(f"{xname} [{x_bin_widths.units}]")
         ax.set_ylabel(f"{yname} [{y_bin_widths.units}]")
         ax.set_xlim([xedges[0], xedges[-1]])
         ax.set_ylim([yedges[0], yedges[-1]])
         plt.tight_layout()
-        data[count_name][run] = fig_to_b64(fig)
+        data[count_name][run] = MatplotlibFigure(fig, width="500px")
         plt.close(fig)
     return RawHTML(
         template.render(
-            image_data=data,
+            images=data,
             runs=sorted(run_diags.runs),
             variables_to_plot=[count_name],
             varfilter="2D Histogram",
+            variable_long_names={count_name: f"{xname} versus {yname}"},
         )
     )
 
@@ -243,9 +248,11 @@ def _render_map_title(
     return ", ".join(title_parts)
 
 
-def _get_cmap_kwargs(run_diags, variable, **kwargs):
+def _get_cmap_kwargs(run_diags, variable, ignore_poles=False, **kwargs):
     input_data = []
     for run in run_diags.runs:
         input_data.append(run_diags.get_variable(run, variable).assign_coords(run=run))
     input_data = xr.concat(input_data, dim="run")
+    if ignore_poles and "latitude" in input_data.coords:
+        input_data = input_data.where(abs(input_data.latitude) < IGNORE_POLES_LATITUDE)
     return fv3viz.infer_cmap_params(input_data.values, **kwargs)

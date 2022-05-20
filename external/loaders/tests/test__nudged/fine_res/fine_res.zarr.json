@@ -33,6 +33,180 @@
             }
         },
         "variables": {
+            "DLWRFsfc_coarse": {
+                "name": "DLWRFsfc_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "surface downward longwave flux [W/m**2]",
+                    "units": "W/m**2"
+                }
+            },
+            "DSWRFsfc_coarse": {
+                "name": "DSWRFsfc_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "surface downward shortwave flux [W/m**2]",
+                    "units": "W/m**2"
+                }
+            },
+            "DSWRFtoa_coarse": {
+                "name": "DSWRFtoa_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "top of atmos downward shortwave flux [W/m**2]",
+                    "units": "W/m**2"
+                }
+            },
+            "LHTFLsfc_coarse": {
+                "name": "LHTFLsfc_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "surface latent heat flux [W/m**2]",
+                    "units": "w/m**2"
+                }
+            },
+            "PRATEsfc_coarse": {
+                "name": "PRATEsfc_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "surface precipitation rate [kg/m**2/s]",
+                    "units": "kg/m**2/s"
+                }
+            },
+            "SHTFLsfc_coarse": {
+                "name": "SHTFLsfc_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "instantaneous surface sensible heat flux",
+                    "units": "XXX"
+                }
+            },
             "T": {
                 "name": "T",
                 "dims": [
@@ -125,6 +299,122 @@
                 "attrs": {
                     "long_name": "Product of temperature and coarse-grained vulcan omega",
                     "units": "K Pa/s"
+                }
+            },
+            "ULWRFsfc_coarse": {
+                "name": "ULWRFsfc_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "surface upward longwave flux [W/m**2]",
+                    "units": "W/m**2"
+                }
+            },
+            "ULWRFtoa_coarse": {
+                "name": "ULWRFtoa_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "top of atmos upward longwave flux [W/m**2]",
+                    "units": "W/m**2"
+                }
+            },
+            "USWRFsfc_coarse": {
+                "name": "USWRFsfc_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "surface upward shortwave flux [W/m**2]",
+                    "units": "W/m**2"
+                }
+            },
+            "USWRFtoa_coarse": {
+                "name": "USWRFtoa_coarse",
+                "dims": [
+                    "time",
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        2,
+                        6,
+                        8,
+                        8
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        1,
+                        6,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "cell_methods": "time: point",
+                    "long_name": "top of atmos upward shortwave flux [W/m**2]",
+                    "units": "W/m**2"
                 }
             },
             "area": {

@@ -2,6 +2,7 @@ import joblib
 import fv3fit
 import vcm
 import xarray as xr
+import pytest
 from runtime.transformers.fv3fit import Config, Adapter
 from runtime.transformers.core import StepTransformer
 from machine_learning_mocks import get_mock_predictor
@@ -33,7 +34,12 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
     fv3fit.dump(mock, model_path)
 
     adapted_model = Adapter(
-        Config(model_path, {"air_temperature": "dQ1", "specific_humidity": "dQ2"}), 900
+        Config(
+            [model_path],
+            tendency_predictions={"dQ1": "air_temperature", "dQ2": "specific_humidity"},
+            limit_negative_humidity=True,
+        ),
+        900,
     )
     transform = StepTransformer(
         adapted_model,
@@ -59,3 +65,48 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
 
     # sort to make the check deterministic
     regression_state(out, regtest)
+
+
+def test_config_raises_multiple_state_update_error():
+    with pytest.raises(ValueError):
+        Config(["gs://bucket"], state_predictions={"foo": "bar", "baz": "bar"})
+
+
+def test_config_raises_state_and_tendency_error():
+    with pytest.raises(ValueError):
+        Config(
+            ["gs://bucket"],
+            tendency_predictions={"foo": "bar"},
+            state_predictions={"baz": "bar"},
+        )
+
+
+def test_multimodel_adapter_integration(state, tmpdir_factory):
+    DOWN_SW_PREDICTION_NAME = "total_sky_downward_shortwave_flux_at_surface"
+    model_path1 = str(tmpdir_factory.mktemp("model1"))
+    model_path2 = str(tmpdir_factory.mktemp("model2"))
+    mock1 = get_mock_predictor(dQ1_tendency=1 / 86400)
+    mock2 = get_mock_predictor(model_predictands="rad_fluxes")
+    fv3fit.dump(mock1, model_path1)
+    fv3fit.dump(mock2, model_path2)
+
+    adapted_model = Adapter(
+        Config(
+            [model_path1, model_path2],
+            tendency_predictions={"dQ1": "air_temperature", "dQ2": "air_temperature"},
+            state_predictions={DOWN_SW_PREDICTION_NAME: "surface_precipitation_rate"},
+            limit_negative_humidity=False,
+        ),
+        900,
+    )
+    transform = StepTransformer(
+        adapted_model, MockDerivedState(state), "machine_learning", timestep=900,
+    )
+
+    def add_one_to_temperature():
+        state["air_temperature"] += 1
+        return {"some_diag": state["specific_humidity"]}
+
+    assert "surface_precipitation_rate" not in state
+    transform(add_one_to_temperature)()
+    assert "surface_precipitation_rate" in state

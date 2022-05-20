@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from typing_extensions import Protocol
-from typing import List
+from typing import List, Mapping
 import warnings
 
 import fsspec
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def load_verification(
-    catalog_keys: List[str], catalog: intake.catalog.Catalog,
+    catalog_keys: List[str], catalog: intake.catalog.Catalog, join="outer"
 ) -> xr.Dataset:
 
     """
@@ -31,6 +31,7 @@ def load_verification(
     Args:
         catalog_keys: catalog sources to load as verification data
         catalog: Intake catalog of available data sources.
+        join: how to join verification data sources.
 
     Returns:
         All specified verification datasources standardized and merged
@@ -41,7 +42,7 @@ def load_verification(
         ds = catalog[dataset_key].to_dask()
         ds = standardize_fv3_diagnostics(ds)
         verif_data.append(ds)
-    return xr.merge(verif_data, join="outer")
+    return xr.merge(verif_data, join=join)
 
 
 def _load_standardized(path):
@@ -135,7 +136,9 @@ def loads_stats(b: bytes):
 def open_segmented_stats(url: str) -> pd.DataFrame:
     fs = get_fs(url)
     logfiles = sorted(fs.glob(f"{url}/**/statistics.txt"))
-    records = sum([loads_stats(fs.cat(logfile)) for logfile in logfiles], [])
+    records: List[Mapping] = sum(
+        [loads_stats(fs.cat(logfile)) for logfile in logfiles], []
+    )
     return pd.DataFrame.from_records(records)
 
 
@@ -176,18 +179,27 @@ class CatalogSimulation:
 
     tag: str
     catalog: intake.catalog.base.Catalog
+    join_2d: str = "outer"
 
     @property
     def _verif_entries(self):
         return config.get_verification_entries(self.tag, self.catalog)
 
     @property
+    def _rename_map(self):
+        return constants.VERIFICATION_RENAME_MAP.get(self.tag, {})
+
+    @property
     def data_2d(self) -> xr.Dataset:
-        return load_verification(self._verif_entries["2d"], self.catalog)
+        return load_verification(
+            self._verif_entries["2d"], self.catalog, join=self.join_2d
+        ).rename(self._rename_map.get("2d", {}))
 
     @property
     def data_3d(self) -> xr.Dataset:
-        return load_verification(self._verif_entries["3d"], self.catalog)
+        return load_verification(self._verif_entries["3d"], self.catalog).rename(
+            self._rename_map.get("3d", {})
+        )
 
     def __str__(self) -> str:
         return self.tag
@@ -197,6 +209,7 @@ class CatalogSimulation:
 class SegmentedRun:
     url: str
     catalog: intake.catalog.base.Catalog
+    join_2d: str = "outer"
 
     @property
     def data_2d(self) -> xr.Dataset:
@@ -214,7 +227,7 @@ class SegmentedRun:
                 load_coarse_data(diags_url, catalog).fillna(0.0),
                 load_coarse_data(sfc_dt_atmos_url, catalog),
             ],
-            join="outer",
+            join=self.join_2d,
         )
 
     @property
@@ -233,10 +246,14 @@ def evaluation_pair_to_input_data(
     verif_3d = verification.data_3d
 
     return {
-        "3d": (data_3d, verif_3d, grid.drop(["tile", "land_sea_mask"]),),
+        "3d": (
+            derived_variables.derive_3d_variables(data_3d),
+            derived_variables.derive_3d_variables(verif_3d),
+            grid.drop(["tile", "land_sea_mask"]),
+        ),
         "2d": (
-            derived_variables.physics_variables(prognostic.data_2d),
-            derived_variables.physics_variables(verification.data_2d),
+            derived_variables.derive_2d_variables(prognostic.data_2d),
+            derived_variables.derive_2d_variables(verification.data_2d),
             grid,
         ),
     }

@@ -1,12 +1,11 @@
 #!/bin/bash
 
-url=gs://vcm-ml-experiments/microphysics-emulation/2022-01-27/rnn-gscond-cloudtdep-cbfc4a/model.tf
-tag=rnn-gscond-cloudtdep-cbfc4a-30d-v1
-image=latest
+# This model training ran out of memory
+export MODEL=gs://vcm-ml-experiments/microphysics-emulation/2022-03-17/cycle-trained-limited-eb2271/checkpoints/epoch.015.tf
+tag=iter2-cycle-v2
+image=654a829dc65db61d7be330e6d68b6a6f15086d07
 
-yq  --arg url "$url" '.zhao_carr_emulation.model.path |= $url' ../configs/default.yaml > config.yaml
-trap 'rm config.yaml' EXIT
-
+envsubst < ../configs/online.yaml > config.yaml
 
 argo submit prog-run-and-eval.yaml \
     --name "$tag" \

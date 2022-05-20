@@ -6,12 +6,16 @@ import sys
 import tempfile
 from typing import MutableMapping, Sequence, List
 import fsspec
+import wandb
+import json
 
 import fv3viz
+import matplotlib.pyplot as plt
 import numpy as np
 import report
 import vcm
 from vcm.cloud import get_fs
+from fv3net.artifacts.metadata import StepMetadata
 import yaml
 from fv3net.diagnostics.offline._helpers import (
     get_metric_string,
@@ -23,6 +27,7 @@ from fv3net.diagnostics.offline._helpers import (
 )
 from fv3net.diagnostics.offline._select import plot_transect
 from fv3net.diagnostics.offline.compute import (
+    DATASET_DIM_NAME,
     DIAGS_NC_NAME,
     TRANSECT_NC_NAME,
     METRICS_JSON_NAME,
@@ -73,7 +78,7 @@ def _cleanup_temp_dir(temp_dir):
     temp_dir.cleanup()
 
 
-def _create_arg_parser() -> argparse.Namespace:
+def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "input_path", type=str, help=("Location of diagnostics and metrics data."),
@@ -104,7 +109,15 @@ def _create_arg_parser() -> argparse.Namespace:
         default=None,
         help=("Training data configuration yaml file to insert into report"),
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--no-wandb",
+        help=(
+            "Disable logging of run to wandb. Uses environment variables WANDB_ENTITY, "
+            "WANDB_PROJECT, WANDB_JOB_TYPE as wandb.init options."
+        ),
+        action="store_true",
+    )
+    return parser
 
 
 def render_model_sensitivity(figures_dir, output_dir) -> str:
@@ -151,6 +164,7 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
                 section_name=section,
                 output_dir=output_dir,
             )
+            plt.close(fig)
             fig_error = plot_column_integrated_var(
                 ds.update(ds_diags[["lat", "lon", "latb", "lonb"]]),
                 f"error_in_{var}",
@@ -164,6 +178,7 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
                 section_name=section,
                 output_dir=output_dir,
             )
+            plt.close(fig_error)
     return report.create_html(sections=report_sections, title="Maps",)
 
 
@@ -192,12 +207,15 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name="Timesteps used for testing",
             output_dir=output_dir,
         )
+        plt.close(fig)
 
     # Zonal average of vertical profiles for R2
     zonal_avg_pressure_level_metrics = [
         var
         for var in ds_diags.data_vars
-        if var.endswith("_pressure_level_zonal_avg_global") and ("r2" in var.lower())
+        if var.endswith("_pressure_level_zonal_avg_global")
+        and ("r2" in var.lower())
+        and ("per_dataset" not in var.lower())
     ]
     for var in sorted(zonal_avg_pressure_level_metrics):
         fig = plot_zonal_average(
@@ -212,31 +230,37 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name="Zonal averaged pressure level metrics",
             output_dir=output_dir,
         )
+        plt.close(fig)
 
     # vertical profiles of bias and R2
-    pressure_level_metrics = [
-        var
-        for var in ds_diags.data_vars
-        if var.endswith("pressure_level_global") and ("r2" in var.lower())
-    ]
-    for var in sorted(pressure_level_metrics):
-        ylim = (0, 1) if "r2" in var.lower() else None
-        fig = plot_generic_data_array(
-            ds_diags[var], xlabel="pressure [Pa]", ylim=ylim, title=tidy_title(var)
-        )
-        report.insert_report_figure(
-            report_sections,
-            fig,
-            filename=f"{var}.png",
-            section_name="Pressure level metrics",
-            output_dir=output_dir,
-        )
+    for coord in ["pressure_level", "model_level"]:
+        label = "pressure [Pa]" if coord == "pressure_level" else "model level"
+        level_metrics = [
+            var
+            for var in ds_diags.data_vars
+            if var.endswith(f"{coord}_global")
+            and ("r2" in var.lower())
+            and ("per_dataset" not in var.lower())
+        ]
+        for var in sorted(level_metrics):
+            ylim = (0, 1) if "r2" in var.lower() else None
+            fig = plot_generic_data_array(
+                ds_diags[var], xlabel=label, ylim=ylim, title=tidy_title(var)
+            )
+            report.insert_report_figure(
+                report_sections,
+                fig,
+                filename=f"{var}.png",
+                section_name=(coord.replace("_", " ") + " metrics").capitalize(),
+                output_dir=output_dir,
+            )
+            plt.close(fig)
 
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
     vars_3d = [v for v in ds_diags if is_3d(ds_diags[v])]
     ds_profiles = get_plot_dataset(
         ds_diags[vars_3d],
-        var_filter="time_domain_mean",
+        var_filter="time_domain_mean_model_level",
         column_filters=[
             "global",
             "land",
@@ -253,9 +277,10 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             report_sections,
             fig,
             filename=f"{var}.png",
-            section_name="Vertical profiles of predicted variables",
+            section_name="Vertical profiles of predicted variables on model levels",
             output_dir=output_dir,
         )
+        plt.close(fig)
 
     # 2d quantity diurnal cycles
     ds_diurnal = get_plot_dataset(
@@ -270,6 +295,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name="Diurnal cycles of column integrated quantities",
             output_dir=output_dir,
         )
+        plt.close(fig)
 
     # transect of predicted fields at lon=0
     if len(ds_transect) > 0:
@@ -283,10 +309,13 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
                 section_name=f"Transect snapshot at lon=0 deg, {transect_time}",
                 output_dir=output_dir,
             )
+            plt.close(fig)
 
     # scalar metrics for RMSE and bias
     metrics_formatted = []
-    scalar_vars_r2 = sorted([var for var in metrics if "r2" in var])
+    scalar_vars_r2 = sorted(
+        [var for var in metrics if "_r2" in var and "per_dataset" not in var]
+    )
     scalar_vars_bias = [var.replace("_r2", "_bias") for var in scalar_vars_r2]
 
     for var_r2, var_bias in zip(scalar_vars_r2, scalar_vars_bias):
@@ -309,6 +338,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name=f"Water vapor path versus column integrated drying",
             output_dir=output_dir,
         )
+        plt.close(hist2d_wvp_vs_q2)
         hist_wvp = plot_histogram(ds_diags, f"{WVP}_histogram")
         report.insert_report_figure(
             report_sections,
@@ -317,7 +347,10 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name=f"Water vapor path versus column integrated drying",
             output_dir=output_dir,
         )
-        hist_col_drying = plot_histogram(ds_diags, f"{COL_DRYING}_histogram")
+        plt.close(hist_wvp)
+        hist_col_drying = plot_histogram(
+            ds_diags, f"{COL_DRYING}_histogram", yscale="log"
+        )
         report.insert_report_figure(
             report_sections,
             hist_col_drying,
@@ -325,6 +358,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             section_name=f"Water vapor path versus column integrated drying",
             output_dir=output_dir,
         )
+        plt.close(hist_col_drying)
     return report.create_html(
         sections=report_sections,
         title="ML offline diagnostics",
@@ -345,6 +379,9 @@ def create_report(args):
         metadata_json_name=METADATA_JSON_NAME,
     )
 
+    if DATASET_DIM_NAME in ds_diags.dims:
+        ds_diags = ds_diags.mean(DATASET_DIM_NAME)
+
     if args.commit_sha:
         metadata["commit"] = args.commit_sha
     if args.training_config:
@@ -353,6 +390,14 @@ def create_report(args):
     if args.training_data_config:
         with fsspec.open(args.training_data_config, "r") as f:
             metadata["training_data_config"] = yaml.safe_load(f)
+    if args.no_wandb is False:
+        wandb_config = {
+            "training_data": metadata.pop("training_data_config"),
+            "model_training_config": metadata.pop("training_config"),
+            "metadata": metadata,
+        }
+        wandb.init(config=wandb_config)
+        wandb.log(metrics)
 
     html_index = render_index(
         metadata, metrics, ds_diags, ds_transect, output_dir=temp_output_dir.name,
@@ -374,6 +419,18 @@ def create_report(args):
     copy_outputs(temp_output_dir.name, args.output_path)
     logger.info(f"Save report to {args.output_path}")
 
+    # Gcloud logging allows metrics to get ingested into database
+    print(json.dumps({"json": metrics}))
+    StepMetadata(
+        job_type="offline_report",
+        url=args.output_path,
+        dependencies={
+            "offline_diagnostics": args.input_path,
+            "model": metadata.get("model_path"),
+        },
+        args=sys.argv[1:],
+    ).print_json()
+
     # Explicitly call .close() or xarray raises errors atexit
     # described in https://github.com/shoyer/h5netcdf/issues/50
     ds_diags.close()
@@ -382,5 +439,6 @@ def create_report(args):
 
 if __name__ == "__main__":
     logger.info("Starting create report routine.")
-    args = _create_arg_parser()
+    parser = _get_parser()
+    args = parser.parse_args()
     create_report(args)

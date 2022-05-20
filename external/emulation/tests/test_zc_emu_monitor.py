@@ -1,47 +1,22 @@
+from datetime import datetime, timedelta
 import os
 from typing import Mapping
 
 import numpy as np
 import pytest
 import tensorflow as tf
+import yaml
 from emulation._monitor.monitor import (
     StorageHook,
     _convert_to_quantities,
     _convert_to_xr_dataset,
     _create_nc_path,
     _get_attrs,
-    _get_timestep,
-    _load_nml,
     _remove_io_suffix,
-    _translate_time,
 )
+from emulation._time import translate_time
 from pace.util import Quantity
 from xarray import DataArray
-
-
-def save_var_metadata(path):
-    metadata_content = """
-    air_temperature:
-        units: K
-    specific_humidity:
-        units: kg/kg
-    """
-
-    with open(path, "w") as f:
-        f.write(metadata_content)
-
-
-def test__load_nml(dummy_rundir):
-
-    namelist = _load_nml()
-    assert namelist["coupler_nml"]["hours"] == 1
-
-
-def test__get_timestep(dummy_rundir):
-    namelist = _load_nml()
-    timestep = _get_timestep(namelist)
-
-    assert timestep == 900
 
 
 @pytest.mark.parametrize(
@@ -109,7 +84,7 @@ def test__translate_time():
     month = 10
     day = 29
 
-    time = _translate_time([year, month, day, None, 0, 0])
+    time = translate_time([year, month, day, None, 0, 0])
 
     assert time.year == year
     assert time.month == month
@@ -122,13 +97,18 @@ def test__create_nc_path(dummy_rundir):
     assert os.path.exists(dummy_rundir / "netcdf_output")
 
 
-def _get_data(dummy_rundir, save_nc, save_zarr, save_tfrecord=False):
+def _get_data(save_nc, save_zarr, save_tfrecord=False):
 
-    meta_path = dummy_rundir / "var_metadata.yaml"
-    save_var_metadata(meta_path)
+    metadata_content = """
+    air_temperature:
+        units: K
+    specific_humidity:
+        units: kg/kg
+    """
+
     config = StorageHook(
-        meta_path,
-        900,
+        output_freq_sec=900,
+        metadata=yaml.safe_load(metadata_content),
         save_nc=save_nc,
         save_zarr=save_zarr,
         save_tfrecord=save_tfrecord,
@@ -148,25 +128,23 @@ def _get_data(dummy_rundir, save_nc, save_zarr, save_tfrecord=False):
         config.store(state)
         states.append(state)
 
-    return dummy_rundir, states
+    return states
 
 
 def test_StorageHook_save_zarr(dummy_rundir):
-    _get_data(dummy_rundir, save_nc=False, save_zarr=True)
+    _get_data(save_nc=False, save_zarr=True)
     assert (dummy_rundir / "state_output.zarr").exists()
 
 
 def test_StorageHook_save_nc(dummy_rundir):
 
-    dummy_rundir, expected_states = _get_data(
-        dummy_rundir, save_nc=True, save_zarr=False
-    )
+    expected_states = _get_data(save_nc=True, save_zarr=False)
     nc_files = list((dummy_rundir / "netcdf_output").glob("*.nc"))
     assert len(nc_files) == len(expected_states)
 
 
 def test_StorageHook_save_tf(dummy_rundir):
-    dummy_rundir, expected_states = _get_data(dummy_rundir, False, False, True)
+    expected_states = _get_data(False, False, True)
     tf_records_path = dummy_rundir / "tfrecords"
 
     # load tf records
@@ -187,3 +165,33 @@ def test_StorageHook_save_tf(dummy_rundir):
             ), key
             assert tf_ds.element_spec[key].shape[0] is None
     assert len(list(tf_ds)) == n
+
+
+def test_StorageHook_does_not_modify_state():
+    hook = StorageHook(output_freq_sec=1, save_nc=False, save_zarr=False)
+    state = {"a": 0.0, "model_time": [2021, 1, 1, 0, 0, 0]}
+    state_before = state.copy()
+    hook.store(state)
+    assert state == state_before
+
+
+def test_StorageHook__store_data_at_time():
+
+    hook = StorageHook(output_freq_sec=10, save_nc=False, save_zarr=False)
+    t0 = datetime(2020, 1, 1, 0, 0, 0)
+    hook.initial_time = t0
+    assert hook._store_data_at_time(t0 + timedelta(seconds=10))
+
+    hook = StorageHook(
+        output_freq_sec=10, output_start_sec=11, save_nc=False, save_zarr=False
+    )
+    t0 = datetime(2020, 1, 1, 0, 0, 0)
+    hook.initial_time = t0
+    assert not hook._store_data_at_time(t0 + timedelta(seconds=10))
+    assert hook._store_data_at_time(t0 + timedelta(seconds=20))
+
+    hook = StorageHook(
+        output_freq_sec=18000, output_start_sec=864_000, save_nc=False, save_zarr=False
+    )
+    hook.initial_time = datetime(2016, 3, 1, 0, 0, 0)
+    assert hook._store_data_at_time(datetime(2016, 3, 11, 0, 0))

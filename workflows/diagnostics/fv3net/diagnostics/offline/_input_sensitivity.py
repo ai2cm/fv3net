@@ -6,6 +6,7 @@ import xarray as xr
 
 import fv3fit
 
+from ._helpers import DATASET_DIM_NAME
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -17,11 +18,28 @@ def _stack_sample_data(ds: xr.Dataset) -> xr.Dataset:
         ds = ds.sel({"derivation": "predict"})
     if "time" in ds.dims:
         ds = ds.isel(time=0).squeeze(drop=True)
-    return ds.stack(sample=["tile", "x", "y"]).transpose("sample", ...)
+    if DATASET_DIM_NAME in ds.dims:
+        stack_dims = ["tile", "x", "y", DATASET_DIM_NAME]
+    else:
+        stack_dims = ["tile", "x", "y"]
+    return ds.stack(sample=stack_dims).transpose("sample", ...)
+
+
+def _is_derived(predictor: fv3fit.Predictor) -> bool:
+    is_derived_model = isinstance(predictor, fv3fit.DerivedModel)
+    is_transformed_predictor = isinstance(predictor, fv3fit.TransformedPredictor)
+    return is_derived_model or is_transformed_predictor
+
+
+def _get_base_model(model: fv3fit.Predictor) -> fv3fit.Predictor:
+    base_model = model
+    while _is_derived(base_model):
+        base_model = base_model.base_model  # type: ignore
+    return base_model
 
 
 def plot_input_sensitivity(model: fv3fit.Predictor, sample: xr.Dataset):
-    base_model = model.base_model if isinstance(model, fv3fit.DerivedModel) else model
+    base_model = _get_base_model(model)
     stacked_sample = _stack_sample_data(sample)
 
     try:

@@ -35,6 +35,9 @@ spec:
               do_sat_adj: false
             gfdl_cloud_microphysics_nml:
               fast_sat_adj: false
+            gfs_physics_nml:
+              fhswr: 1800
+              fhlwr: 1800
           fortran_diagnostics:
             - name: atmos_dt_atmos.zarr
               chunks:
@@ -335,7 +338,7 @@ spec:
             - name: project
               value: "{{workflow.parameters.project}}"
             - name: tag
-              value: "{{workflow.parameters.tag}}-nudge-to-fine-run"
+              value: "{{workflow.parameters.tag}}-train-diags-prog"
       - name: nudge-to-fine-run
         templateRef:
           name: prognostic-run
@@ -389,3 +392,5 @@ spec:
             value: "24"
           - name: memory-prog
             value: 25Gi
+          - name: wandb-group
+            value: integration-tests

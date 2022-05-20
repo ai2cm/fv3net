@@ -15,9 +15,10 @@ from vcm.calc.thermo.vertically_dependent import (
     _add_coords_to_interface_variable,
     mass_streamfunction,
 )
-from vcm.calc.calc import local_time
+from vcm.calc.calc import local_time, weighted_average
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 from vcm.calc.thermo.constants import _GRAVITY, _RDGAS, _RVGAS
+import vcm
 
 
 @pytest.mark.parametrize("toa_pressure", [0, 5])
@@ -143,3 +144,81 @@ def test_specific_humidity(t, rh, rho):
     rh_round_trip = relative_humidity(t, q, rho)
 
     assert pytest.approx(rh) == rh_round_trip
+
+
+def test_moist_static_energy_tendency():
+    Q1 = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Q2 = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Qm = vcm.moist_static_energy_tendency(Q1, Q2)
+    assert Qm.shape == Q1.shape
+
+
+def test_temperature_tendency():
+    Qm = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Q2 = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Q1 = vcm.temperature_tendency(Qm, Q2)
+    assert Qm.shape == Q1.shape
+
+
+def test_round_trip_mse_temperature_tendency():
+    Q1 = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Q2 = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "y"],)
+    Qm = vcm.moist_static_energy_tendency(Q1, Q2)
+    round_tripped_Q1 = vcm.temperature_tendency(Qm, Q2)
+    xr.testing.assert_allclose(Q1, round_tripped_Q1)
+
+
+def test_mass_cumsum():
+    da = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "z"])
+    delp = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "z"])
+    out = vcm.mass_cumsum(da, delp, dim="z")
+    assert set(out.dims) == {"x", "z"}
+    assert out.shape == (5, 4)
+
+
+def test_mass_divergence():
+    da = xr.DataArray(np.reshape(np.arange(0, 50, 2), (5, 5)), dims=["x", "phalf"])
+    delp = xr.DataArray(np.reshape(np.arange(0, 40, 2), (5, 4)), dims=["x", "pfull"])
+    out = vcm.mass_divergence(da, delp, dim_center="pfull", dim_interface="phalf")
+    assert set(out.dims) == {"x", "pfull"}
+    assert out.shape == (5, 4)
+
+
+def test_relative_humidity_from_pressure():
+    # values taken from https://www.omnicalculator.com/physics/air-density
+    pressure = 1e5
+    temperature = 300
+    e = 1412
+    q = 0.622 * e / (pressure - 0.378 * e)
+    expected_rh = 0.4
+    rh = vcm.relative_humidity_from_pressure(temperature, q, pressure)
+    assert pytest.approx(expected_rh, rel=1e-3) == rh
+
+
+da = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
+da_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
+ds = xr.Dataset({"a": da})
+weights = xr.DataArray([0.5, 0.5, 1, 1], dims=["z"])
+weights_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
+
+
+@pytest.mark.parametrize(
+    "da,weights,dims,expected",
+    [
+        (da, weights, "z", xr.DataArray(17.0 / 6.0)),
+        (ds, weights, "z", xr.Dataset({"a": xr.DataArray(17.0 / 6.0)})),
+        (da_nans, weights, "z", xr.DataArray(0.0)),
+        (da, weights_nans, "z", xr.DataArray(np.nan)),
+    ],
+)
+def test_weighted_average(da, weights, dims, expected):
+    xr.testing.assert_allclose(weighted_average(da, weights, dims), expected)
+
+
+def test_weighted_averaged_no_dims():
+
+    da = xr.DataArray([[[np.arange(1.0, 5.0)]]], dims=["tile", "y", "x", "z"])
+    weights = xr.DataArray([[[[0.5, 0.5, 1, 1]]]], dims=["tile", "y", "x", "z"])
+    expected = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
+
+    xr.testing.assert_allclose(weighted_average(da, weights), expected)

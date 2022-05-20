@@ -3,9 +3,7 @@
 
 """The setup script."""
 
-from setuptools import find_packages
-from glob import glob
-from numpy.distutils.core import Extension, setup
+from setuptools import find_packages, setup
 
 install_requirements = [
     "Click>=7.0",
@@ -31,12 +29,12 @@ install_requirements = [
     "pytest-regtest",
     "h5netcdf>=0.8",
     "intake-xarray>=0.3.1",
+    "dacite",
 ]
-
 
 setup(
     author="Vulcan Technologies, LLC",
-    author_email="noahb@vulcan.com",
+    author_email="noahb@allenai.org",
     python_requires=">=3.6",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
@@ -57,5 +55,4 @@ setup(
     package_data={"vcm": ["catalog.yaml"]},
     version="0.1.0",
     zip_safe=False,
-    ext_modules=[Extension(name="vcm.mappm", sources=glob("vcm/*.f90"))],
 )

@@ -265,7 +265,25 @@ def test_skill_table(regtest):
         print(name, ":", signature, file=regtest)
 
 
-def test_compute_summaries(regtest):
+@pytest.mark.parametrize(
+    "func",
+    [
+        pytest.param(func, id=func.__name__)
+        for func in single_run.get_summary_functions()
+    ],
+)
+def test_summary_function(func, regtest):
     ds = vcm.cdl_to_dataset(cdl)
-    output = single_run.compute_summaries(ds)
+    output = dict(func(ds))
     print(sorted(output), file=regtest)
+
+
+# xfail this tests since it requires internet access...still is useful for
+# integration testing
+@pytest.mark.xfail
+def test_get_url_from_tag():
+    tag = "rnn-gscond-cloudtdep-cbfc4a-30d-v2-online"
+    run = single_run.get_prognostic_run_from_tag(tag=tag)
+    assert run.group == tag
+    rundir = single_run.get_rundir_from_prognostic_run(run)
+    assert rundir.startswith("gs://")

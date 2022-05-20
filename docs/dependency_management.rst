@@ -16,17 +16,29 @@ builds. Therefore, adding or modifying a dependency involves a few steps:
 
 #. add any anaconda packages to the ``environment.yml``
 #. add any pip packages to ``pip-requirements.txt``
+#. change ``BEAM_VERSION`` macro in ``Makefile``
 #. add any pip packages for a ``external/<package>`` to ``external/<package>.requirements.in``
-#. run ``make lock_deps`` to create lock files ``conda-<system>.lock``
-   which explicitly list all the conda packages
+#. if ``environment.yml`` was edited, run ``make lock_deps`` to create lock files ``conda-<system>.lock``
+   which explicitly list all the conda packages, otherwise run ``make lock_pip`` to update only the
+   ``constraints.txt`` which lists all pypi packages
 #. Commit the lock files and any other changes to git
 
 ..  note::
 
-    Not all ``setup.py`` files are compatible with `pip-compile`. Packages
+    To ensure that google cloud dataflow works, the versions of packages used
+    here are constrained to equal those installed within the apache_beam docker
+    image with the variable specified in the ``BEAM_VERSION`` macro of
+    ``Makefile``. Since these images install specific tensorflow and numpy
+    versions, updating e.g. tensorflow will often require bumping
+    ``BEAM_VERSION``.  This might seem inflexible, but it also means we benefit
+    from the testing Google presumably does before releasing a new version.
+
+..  note::
+
+    Not all ``setup.py`` files are compatible with ``pip-compile``. Packages
     within fv3net can be fixed, but this is not possible or easy for external
     dependencies or submodules. To pin the transitive dependencies of external
-    submodules (e.g. external/fv3gfs-wrapper), you can add the requirements to
+    submodules (e.g. external/fv3gfs-fortran), you can add the requirements to
     ``external/<package>.requirements.in``.
 
 The ``make create_environment`` uses these lock files and
@@ -60,7 +72,7 @@ run image, then you could add something like the following to the
 
     fsspec!=0.7.0
 
-Then run ``make lock_deps`` to update the ``constraints.txt`` file.
+Then run ``make lock_pip`` to update the ``constraints.txt`` file.
 
 This currently requires ``pip`` version < 20.3. The latest version 20.3 does not work with
 the automatically generated ``constraints.txt`` because it contains extras.

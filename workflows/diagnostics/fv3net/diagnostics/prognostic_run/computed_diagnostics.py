@@ -22,7 +22,7 @@ __all__ = ["ComputedDiagnosticsList", "RunDiagnostics"]
 
 GRID_VARS = ["area", "lonb", "latb", "lon", "lat", "land_sea_mask"]
 
-Diagnostics = Iterable[xr.Dataset]
+Diagnostics = Sequence[xr.Dataset]
 Metadata = Any
 
 
@@ -116,6 +116,13 @@ class RunDiagnostics:
         """The available variables"""
         return set.union(*[set(d) for d in self.diagnostics])
 
+    @property
+    def long_names(self) -> Mapping[str, str]:
+        """Mapping from variable name to long names"""
+        vars = self.variables
+        run = self.runs[0]
+        return {v: self.get_variable(run, v).attrs.get("long_name", v) for v in vars}
+
     def _get_run(self, run: str) -> xr.Dataset:
         return self.diagnostics[self._run_index[run]]
 
@@ -151,6 +158,10 @@ class RunDiagnostics:
 
     def is_baseline(self, run: str) -> bool:
         return self._attrs[run]["baseline"]
+
+    @staticmethod
+    def is_verification(run: str) -> bool:
+        return run == "verification"
 
 
 @dataclass
@@ -337,9 +348,8 @@ def parse_rundirs(rundirs) -> pd.DataFrame:
 
 
 def _parse_metadata(run: str):
-    baseline_s = "-baseline"
 
-    if run.endswith(baseline_s):
+    if "baseline" in run:
         baseline = True
     else:
         baseline = False

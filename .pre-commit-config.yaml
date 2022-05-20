@@ -13,6 +13,7 @@ repos:
     rev: 19.10b0
     hooks:
     - id: black
+      additional_dependencies: ["click==8.0.4"]
 -   repo: https://gitlab.com/pycqa/flake8
     rev: 3.7.9
     hooks:
@@ -41,7 +42,8 @@ repos:
         workflows/prognostic_c48_run/tests/.+ |
         external/fv3fit/fv3fit/.+ |
         external/loaders/loaders/.+ |
-        workflows/diagnostics/fv3net/diagnostics/offline/.+
+        workflows/diagnostics/fv3net/diagnostics/offline/.+ |
+        workflows/diagnostics/fv3net/diagnostics/prognostic_run/.+
         )$
       exclude: |
         (?x)^(

@@ -6,31 +6,26 @@ from fv3fit.keras._models.shared.clip import ClipConfig
 from fv3fit._shared.config import SliceConfig
 
 
-def test_ClipConfig_only_single_clip_dims_allowed():
-    with pytest.raises(ValueError):
-        ClipConfig({"var": {"z": SliceConfig(8, None), "y": SliceConfig(None, 2)}})
-
-
 @pytest.mark.parametrize(
     "clip_config, expected",
     [
         pytest.param(
-            ClipConfig({"var": {"z": SliceConfig(2, 6)}}),
+            ClipConfig({"var": SliceConfig(2, 6)}),
             np.array([2, 3, 4, 5]),
             id="clip_1d",
         ),
         pytest.param(
-            ClipConfig({"var": {"z": SliceConfig(8, None)}}),
+            ClipConfig({"var": SliceConfig(8, None)}),
             np.array([8, 9]),
             id="clip_1d_no_stop",
         ),
         pytest.param(
-            ClipConfig({"var": {"z": SliceConfig(None, 2)}}),
+            ClipConfig({"var": SliceConfig(None, 2)}),
             np.array([0, 1]),
             id="clip_1d_no_start",
         ),
         pytest.param(
-            ClipConfig({"var_": {"z": SliceConfig(8, None)}}),
+            ClipConfig({"var_": SliceConfig(8, None)}),
             np.arange(10),
             id="clip_var_not_in_config",
         ),
@@ -53,7 +48,7 @@ def test_ClipConfig_clip_along_last_dim_1d(clip_config, expected):
 def test_ClipConfig_clip_along_last_dim_2d():
     shape = (2, 10)
     layer = tf.keras.layers.Input(shape=shape)
-    clip_config = ClipConfig({"var": {"z": SliceConfig(2, 6)}})
+    clip_config = ClipConfig({"var": SliceConfig(2, 6)})
     clipped = clip_config.clip_along_last_dim(layer, "var")
     model = tf.keras.Model(inputs=layer, outputs=clipped)
     test_input = np.arange(20).reshape(1, *shape)
@@ -65,17 +60,17 @@ def test_ClipConfig_clip_along_last_dim_2d():
     "clip_config, expected",
     [
         pytest.param(
-            ClipConfig({"var": {"z": SliceConfig(2, 5)}}),
+            ClipConfig({"var": SliceConfig(2, 5)}),
             np.array([0, 0, 2, 3, 4, 0]),
             id="clip_both_ends",
         ),
         pytest.param(
-            ClipConfig({"var": {"z": SliceConfig(2, None)}}),
+            ClipConfig({"var": SliceConfig(2, None)}),
             np.array([0, 0, 2, 3, 4, 5]),
             id="clip_start",
         ),
         pytest.param(
-            ClipConfig({"var": {"z": SliceConfig(None, 5)}}),
+            ClipConfig({"var": SliceConfig(None, 5)}),
             np.array([0, 1, 2, 3, 4, 0]),
             id="clip_end",
         ),
@@ -92,7 +87,7 @@ def test_ClipConfig_zero_mask_clipped_layer_1d(clip_config, expected):
 
 
 def test_ClipConfig_zero_mask_clipped_layer_2d():
-    clip_config = ClipConfig({"var": {"z": SliceConfig(2, 5)}})
+    clip_config = ClipConfig({"var": SliceConfig(2, 5)})
     layer = tf.keras.layers.Input(shape=(2, 6))
     masked = clip_config.zero_mask_clipped_layer(layer, "var")
     model = tf.keras.Model(inputs=layer, outputs=masked)

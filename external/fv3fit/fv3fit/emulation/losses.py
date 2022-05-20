@@ -2,23 +2,28 @@ import dataclasses
 from typing import Callable, List, Mapping
 
 import tensorflow as tf
-from fv3fit.emulation.layers.normalization import NormalizeConfig
+from fv3fit.emulation.layers.normalization2 import (
+    MeanMethod,
+    NormFactory,
+    NormLayer,
+    StdDevMethod,
+)
 
 from .._shared.config import OptimizerConfig
 
 
-class NormalizedMSE(tf.keras.losses.MeanSquaredError):
+class NormalizedMSE:
     """
     Keras MSE that uses an emulation normalization class before
     scoring
     """
 
-    def __init__(self, norm_cls_name, sample_data, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._normalize = NormalizeConfig(norm_cls_name, sample_data).initialize_layer()
+    def __init__(self, norm_layer: NormLayer):
+        self._normalize = norm_layer.forward
+        self._mse = tf.keras.losses.MeanSquaredError()
 
-    def call(self, y_true, y_pred):
-        return super().call(self._normalize(y_true), self._normalize(y_pred))
+    def __call__(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+        return self._mse(self._normalize(y_true), self._normalize(y_pred))
 
 
 @dataclasses.dataclass
@@ -41,7 +46,7 @@ class CustomLoss:
     optimizer: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
-    normalization: str = "mean_std"
+    normalization: NormFactory = NormFactory(StdDevMethod.all, MeanMethod.per_feature)
     loss_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
@@ -60,7 +65,8 @@ class CustomLoss:
         """
         loss_funcs = {}
         for out_varname, sample in output_samples.items():
-            loss_funcs[out_varname] = NormalizedMSE(self.normalization, sample)
+            norm_layer = self.normalization.build(sample)
+            loss_funcs[out_varname] = NormalizedMSE(norm_layer)
 
         return _MultiVariableLoss(
             loss_funcs=loss_funcs,

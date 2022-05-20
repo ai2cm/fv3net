@@ -1,3 +1,4 @@
+from typing import Union
 import numpy as np
 import xarray as xr
 from .constants import (
@@ -243,6 +244,26 @@ def relative_humidity(temperature, specific_humidity, density, math=np):
     return partial_pressure / saturation_pressure(temperature, math=math)
 
 
+def relative_humidity_from_pressure(temperature, specific_humidity, pressure, math=np):
+    """Relative humidity from temperature, specific humidity and pressure.
+
+    Args:
+        temperature: air temperature in units of K.
+        specific_humidity: in units of kg/kg.
+        density: air density in kg/m**3.
+        math (optional): module with an exponential function `exp`. Defaults to numpy.
+
+    Returns:
+        Relative humidity.
+
+    Note:
+        Following Eq. 3.59 of Wallace and Hobbs (2006).
+    """
+    mixing_ratio = specific_humidity / (1 - specific_humidity)
+    partial_pressure = pressure * mixing_ratio / (mixing_ratio + _RDGAS / _RVGAS)
+    return partial_pressure / saturation_pressure(temperature, math=math)
+
+
 def specific_humidity_from_rh(temperature, relative_humidity, density, math=np):
     """Specific humidity from temperature, relative humidity and density.
 
@@ -292,3 +313,51 @@ def pressure_thickness(density, delz, math=np):
 def layer_mass(delp):
     """Layer mass in kg/m^2 from ``delp`` in Pa"""
     return delp / _GRAVITY
+
+
+def moist_static_energy_tendency(
+    temperature_tendency: xr.DataArray,
+    specific_humidity_tendency: xr.DataArray,
+    temperature: Union[float, xr.DataArray] = _FREEZING_TEMPERATURE,
+) -> xr.DataArray:
+
+    """Compute moist static energy tendency from temperature and humidity tendencies.
+
+    Args:
+        temperature_tendency: in units of K/s
+        specific_humidity_tendency: in units of kg/kg/s
+        temperature: in units of K, for computing latent heat of vaporization
+    """
+    mse_tendency = (
+        (_SPECIFIC_HEAT_CONST_PRESSURE - _RDGAS) * temperature_tendency
+        + latent_heat_vaporization(temperature) * specific_humidity_tendency
+    )
+
+    return mse_tendency.assign_attrs(
+        units="W/kg", long_name="tendency of moist static energy"
+    )
+
+
+def temperature_tendency(
+    moist_static_energy_tendency: xr.DataArray,
+    specific_humidity_tendency: xr.DataArray,
+    temperature: Union[float, xr.DataArray] = _FREEZING_TEMPERATURE,
+) -> xr.DataArray:
+
+    """Compute temperature tendency from moist static energy and humidity tendencies.
+
+    Args:
+        moist static energy_tendency: in units of W/kg
+        specific_humidity_tendency: in units of kg/kg/s
+        temperature: in units of K, for computing latent heat of vaporization
+    """
+    heat_capacity = _SPECIFIC_HEAT_CONST_PRESSURE - _RDGAS
+
+    temperature_tendency = (
+        moist_static_energy_tendency
+        - latent_heat_vaporization(temperature) * specific_humidity_tendency
+    ) / heat_capacity
+
+    return temperature_tendency.assign_attrs(
+        units="K/s", long_name="tendency of air temperature"
+    )

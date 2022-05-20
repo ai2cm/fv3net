@@ -23,5 +23,4 @@ setup_kwargs = {
     "python_requires": ">=3.7,<4.0",
 }
 
-
 setup(**setup_kwargs)

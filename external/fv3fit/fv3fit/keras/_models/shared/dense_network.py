@@ -2,7 +2,7 @@ from fv3fit._shared.config import RegularizerConfig
 import tensorflow as tf
 from typing import Sequence
 import dataclasses
-import tensorflow_addons as tfa
+from .spectral_normalization import SpectralNormalization
 
 
 @dataclasses.dataclass
@@ -70,7 +70,7 @@ class DenseNetworkConfig:
                 name=f"hidden_{label}_{i}",
             )
             if self.spectral_normalization:
-                hidden_layer = tfa.layers.SpectralNormalization(
+                hidden_layer = SpectralNormalization(
                     hidden_layer, name=f"spectral_norm_{label}_{i}"
                 )
             x = hidden_layer(x)

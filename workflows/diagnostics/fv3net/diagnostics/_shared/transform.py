@@ -8,13 +8,13 @@ diagnostic function arguments.
 """
 
 import logging
-from typing import Sequence, Tuple, Callable
+from typing import Sequence, Tuple, Callable, Optional
 import numpy as np
 import pandas as pd
 import xarray as xr
 from datetime import datetime, timedelta
 import cftime
-from vcm import interpolate_to_pressure_levels
+from vcm import interpolate_to_pressure_levels, minus_column_integrated_moistening
 
 from .constants import HORIZONTAL_DIMS, VERTICAL_DIM, DiagArg
 
@@ -245,27 +245,56 @@ def mask_area(region: str, arg: DiagArg) -> DiagArg:
 
     Args:
         region: name of region to leave unmasked. Valid options are "global",
-            "land", "sea", and "tropics".
+            "land", "sea", "seaice", "tropics", "tropics20",
+            "positive_net_precipitation" and "negative_net_precipitation"
         arg: input arguments to transform prior to the diagnostic calculation
     """
-    prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
+    prognostic, verification, grid, delp = (
+        arg.prediction,
+        arg.verification,
+        arg.grid,
+        arg.delp,
+    )
 
-    masked_area = _mask_array(region, grid.area, grid.lat, grid.land_sea_mask)
+    net_precipitation = _get_net_preciptation(verification, grid.area, delp)
+
+    masked_area = _mask_array(
+        region, grid.area, grid.lat, grid.land_sea_mask, net_precipitation
+    )
 
     grid_copy = grid.copy()
     return DiagArg(prognostic, verification, grid_copy.update({"area": masked_area}))
 
 
+def _get_net_preciptation(
+    verification: xr.Dataset, area: xr.DataArray, delp: Optional[xr.DataArray]
+) -> xr.DataArray:
+    if delp is not None and "Q2" in verification.data_vars:
+        return minus_column_integrated_moistening(verification["Q2"], delp)
+    else:
+        return xr.full_like(area, fill_value=np.nan, dtype=float)
+
+
 def _mask_array(
-    region: str, arr: xr.DataArray, latitude: xr.DataArray, land_sea_mask: xr.DataArray,
+    region: str,
+    arr: xr.DataArray,
+    latitude: xr.DataArray,
+    land_sea_mask: xr.DataArray,
+    net_precipitation: Optional[xr.DataArray] = None,
 ) -> xr.DataArray:
     """Mask given DataArray to a specific region."""
+    if net_precipitation is None:
+        net_precipitation = xr.full_like(arr, fill_value=np.nan)
     if region == "tropics":
         masked_arr = arr.where(abs(latitude) <= 10.0)
     elif region == "tropics20":
         masked_arr = arr.where(abs(latitude) <= 20.0)
     elif region == "global":
         masked_arr = arr.copy()
+    elif region == "positive_net_precipitation":
+        masked_arr = arr.where(net_precipitation > 0.0)
+    elif region == "negative_net_precipitation":
+        masked_arr = arr.where(net_precipitation <= 0.0)
     elif region in SURFACE_TYPE_CODES:
         masks = [land_sea_mask == code for code in SURFACE_TYPE_CODES[region]]
         mask_union = masks[0]

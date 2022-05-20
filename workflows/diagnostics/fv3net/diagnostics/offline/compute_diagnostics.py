@@ -10,11 +10,10 @@ from fv3net.diagnostics._shared.constants import (
 import logging
 import numpy as np
 import pandas as pd
-from typing import Sequence, Tuple, Dict, Union, Mapping, Optional
+from typing import Sequence, Tuple, Dict
 import xarray as xr
 
 import vcm
-from vcm import safe, weighted_average, local_time, histogram, histogram2d
 
 logger = logging.getLogger(__name__)
 
@@ -69,162 +68,17 @@ def compute_diagnostics(
     )
 
 
-def conditional_average_over_domain(
-    ds: xr.Dataset,
-    grid: xr.Dataset,
-    primary_vars: Sequence[str],
-    domain: str,
-    net_precipitation: Optional[xr.DataArray] = None,
-    uninformative_coords: Sequence[str] = ["tile", "z", "y", "x"],
-) -> xr.Dataset:
-    """Reduce a sequence of batches to a diagnostic dataset
-
-    Args:
-        ds: xarray datasets with relevant variables batched in time
-        grid: xarray dataset containing grid variables
-        (latb, lonb, lat, lon, area, land_sea_mask)
-        domains: sequence of area domains over which to produce conditional
-            averages; optional, defaults to global, land, sea, and positive and
-            negative net_precipitation domains
-        primary_vars: sequence of variables for which to compute column integrals
-            and composite means; optional, defaults to dQs, pQs and Qs
-        net_precipitation: xr.DataArray of net_precipitation values for computing
-            composites, typically supplied by SHiELD net_precipitation; optional
-        uninformative_coords: sequence of names of uninformative (i.e.,
-            range(len(dim))), coordinates to be dropped
-
-    Returns:
-        diagnostic_ds: xarray dataset of reduced diagnostic variables
-    """
-
-    ds = ds.drop_vars(names=uninformative_coords, errors="ignore")
-
-    grid = grid.drop_vars(names=uninformative_coords, errors="ignore")
-    surface_type_array = _snap_mask_to_type(grid[SURFACE_TYPE])
-    if "net_precipitation" in domain:
-        net_precipitation_type_array = _snap_net_precipitation_to_type(
-            net_precipitation
-        )
-        cell_type = net_precipitation_type_array.drop_vars(
-            names=uninformative_coords, errors="ignore"
-        )
-    else:
-        cell_type = surface_type_array
-    domain_average = _conditional_average(
-        safe.get_variables(ds, primary_vars), cell_type, domain, grid["area"],
-    )
-    return domain_average.mean("time")
-
-
-def _conditional_average(
-    ds: Union[xr.Dataset, xr.DataArray],
-    cell_type_array: xr.DataArray,
-    category: str,
-    area: xr.DataArray,
-    dims: Sequence[str] = ["tile", "y", "x"],
-) -> xr.Dataset:
-    """Average over a conditional type
-
-    Args:
-        ds: xr dataarray or dataset of variables to averaged conditionally
-        cell_type_array: xr datarray of cell category strings
-        category: str of category over which to conditionally average
-        area: xr datarray of grid cell areas for weighted averaging
-        dims: dimensions to average over
-
-    Returns:
-        xr dataarray or dataset of conditionally averaged variables
-    """
-
-    if category == "global":
-        area_masked = area
-    elif category in DOMAINS:
-        area_masked = area.where(cell_type_array == category)
-    else:
-        raise ValueError(
-            f"surface type {category} not in provided surface type array "
-            f"with types {DOMAINS}."
-        )
-
-    return weighted_average(ds, area_masked, dims)
-
-
-def _snap_mask_to_type(
-    float_mask: xr.DataArray,
-    enumeration: Mapping[float, str] = SURFACE_TYPE_ENUMERATION,
-    atol: float = 1e-7,
-) -> xr.DataArray:
-    """Convert float surface type array to categorical surface type array
-
-    Args:
-        float_mask: xr dataarray of float cell types
-        enumeration: mapping of surface type str names to float values
-        atol: absolute tolerance of float value matching
-
-    Returns:
-        types: xr dataarray of str categorical cell types
-
-    """
-
-    types = np.full(float_mask.shape, np.nan)
-    for type_number, type_name in enumeration.items():
-        types = np.where(
-            np.isclose(float_mask.values, type_number, atol), type_name, types
-        )
-
-    types = xr.DataArray(types, float_mask.coords, float_mask.dims)
-
-    return types
-
-
-def _snap_net_precipitation_to_type(
-    net_precipitation: xr.DataArray, type_names: Mapping[str, str] = None
-) -> xr.DataArray:
-    """Convert net_precipitation array to positive and negative categorical types
-
-    Args:
-        net_precipitation: xr.DataArray of numerical values
-        type_names: Mapping relating the "positive" and "negative" cases to their
-            categorical type names
-
-    Returns:
-        types: xr dataarray of categorical str type
-
-    """
-
-    type_names = type_names or {
-        "negative": "negative_net_precipitation",
-        "positive": "positive_net_precipitation",
-    }
-
-    if any(key not in type_names for key in ["negative", "positive"]):
-        raise ValueError("'type_names' must include 'positive' and negative' as keys")
-
-    types = np.where(
-        net_precipitation.values < 0, type_names["negative"], type_names["positive"]
-    )
-
-    return xr.DataArray(types, net_precipitation.coords, net_precipitation.dims)
-
-
 def _calc_ds_diurnal_cycle(ds):
     """
     Calculates the diurnal cycle for all variables.  Expects
     time dimension and longitude variable "lon".
     """
-    local_time_ = local_time(ds, time="time", lon_var="lon")
+    local_time_ = vcm.local_time(ds, time="time", lon_var="lon")
     local_time_.attrs = {"long_name": "local time", "units": "hour"}
     ds["local_time"] = np.floor(local_time_)  # equivalent to hourly binning
     with xr.set_options(keep_attrs=True):
         diurnal_cycles = ds.drop("lon").groupby("local_time").mean()
     return diurnal_cycles
-
-
-def _predicts_sphum_tendency(ds):
-    for var in ds.data_vars:
-        if "q2" in var.lower():
-            return True
-    return False
 
 
 def mse(x, y, w, dims):
@@ -242,26 +96,13 @@ def weighted_mean(ds, weights, dims):
         return (ds * weights).sum(dims) / weights.sum(dims)
 
 
-def zonal_mean(
-    ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2)
-) -> xr.Dataset:
-    with xr.set_options(keep_attrs=True):
-        zm = (
-            ds.groupby_bins(latitude, bins=bins)
-            .mean(skipna=True)
-            .rename(lat_bins="latitude")
-        )
-    latitude_midpoints = [x.item().mid for x in zm["latitude"]]
-    return zm.assign_coords(latitude=latitude_midpoints)
-
-
 def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
     counts = xr.Dataset()
     col_drying = -ds[COL_MOISTENING].rename(COL_DRYING)
     col_drying.attrs["units"] = ds[COL_MOISTENING].attrs.get("units")
-    bins = [HISTOGRAM_BINS[WVP], np.linspace(-50, 150, 101)]
+    bins = [HISTOGRAM_BINS[WVP], HISTOGRAM_BINS[COL_DRYING]]
 
-    counts, wvp_bins, q2_bins = histogram2d(ds[WVP], col_drying, bins=bins)
+    counts, wvp_bins, q2_bins = vcm.histogram2d(ds[WVP], col_drying, bins=bins)
     return xr.Dataset(
         {
             f"{WVP}_versus_{COL_DRYING}": counts,
@@ -312,7 +153,33 @@ for mask_type in ["global", "sea", "land"]:
             diag_arg.verification,
             diag_arg.grid,
         )
-        logger.info(f"Preparing mean squared errors for 3D variables, {mask_type}")
+        logger.info(
+            "Preparing mean squared errors for 3D variables "
+            f"on pressure levels, {mask_type}"
+        )
+        if len(predicted) == 0:
+            return xr.Dataset()
+        mse_area_weighted_avg = weighted_mean(
+            (predicted - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
+        )
+        return mse_area_weighted_avg.mean("time")
+
+
+for mask_type in ["global", "sea", "land"]:
+
+    @diagnostics_registry.register(f"mse_model_level_{mask_type}")
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.mask_area, mask_type)
+    def mse_3d_model_levels(diag_arg, mask_type=mask_type):
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        logger.info(
+            "Preparing mean squared errors for 3D variables "
+            f"on model levels, {mask_type}"
+        )
         if len(predicted) == 0:
             return xr.Dataset()
         mse_area_weighted_avg = weighted_mean(
@@ -344,7 +211,29 @@ for mask_type in ["global", "sea", "land"]:
     @transform.apply(transform.regrid_zdim_to_pressure_levels)
     @transform.apply(transform.mask_area, mask_type)
     def variance_3d(diag_arg, mask_type=mask_type):
-        logger.info(f"Preparing variance for 3D variables, {mask_type}")
+        logger.info(f"Preparing variance for 3D variables, on pressure {mask_type}")
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) == 0:
+            return xr.Dataset()
+        mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
+            "time"
+        )
+        return weighted_mean(
+            (mean - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
+        ).mean("time")
+
+
+for mask_type in ["global", "sea", "land"]:
+
+    @diagnostics_registry.register(f"variance_model_level_{mask_type}")
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.mask_area, mask_type)
+    def variance_3d_model_levels(diag_arg, mask_type=mask_type):
+        logger.info(f"Preparing variance for 3D variables on model levels, {mask_type}")
         predicted, target, grid = (
             diag_arg.prediction,
             diag_arg.verification,
@@ -411,7 +300,9 @@ for mask_type in ["global", "sea", "land"]:
             diag_arg.verification,
             diag_arg.grid,
         )
-        zonal_avg_bias = zonal_mean(predicted - target, grid.lat)
+        zonal_avg_bias = vcm.zonal_average_approximate(
+            grid.lat, predicted - target, lat_name="latitude"
+        )
         return zonal_avg_bias.mean("time")
 
 
@@ -430,7 +321,9 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        zonal_avg_bias = zonal_mean(predicted - target, grid.lat)
+        zonal_avg_bias = vcm.zonal_average_approximate(
+            grid.lat, predicted - target, lat_name="latitude"
+        )
         return zonal_avg_bias.mean("time")
 
 
@@ -449,7 +342,9 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        zonal_avg_mse = zonal_mean((predicted - target) ** 2, grid.lat)
+        zonal_avg_mse = vcm.zonal_average_approximate(
+            grid.lat, (predicted - target) ** 2, lat_name="latitude"
+        )
         return zonal_avg_mse.mean("time")
 
 
@@ -472,7 +367,9 @@ for mask_type in ["global", "sea", "land"]:
         mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
             "time"
         )
-        zonal_avg_variance = zonal_mean((mean - target) ** 2, grid.lat)
+        zonal_avg_variance = vcm.zonal_average_approximate(
+            grid.lat, (mean - target) ** 2, lat_name="latitude"
+        )
         return zonal_avg_variance.mean("time")
 
 
@@ -496,42 +393,13 @@ for mask_type in ["global", "land", "sea"]:
         return _calc_ds_diurnal_cycle(ds)
 
 
-for domain in ["positive_net_precipitation", "negative_net_precipitation"]:
+for mask_type in ["global", "land", "sea"]:
 
-    @diagnostics_registry.register(f"time_domain_mean_{domain}")
-    @transform.apply(transform.subset_variables, ["dQ1", "dQ2", "Q2"])
-    def precip_domain_time_mean(diag_arg, domain=domain):
-        logger.info(f"Preparing conditional averages over domain {domain}")
-        predicted, target, grid, delp = (
-            diag_arg.prediction,
-            diag_arg.verification,
-            diag_arg.grid,
-            diag_arg.delp,
-        )
-        if len(predicted) > 0 and _predicts_sphum_tendency(predicted):
-            net_precip = vcm.minus_column_integrated_moistening(target["Q2"], delp)
-            ds = xr.concat(
-                [predicted, target],
-                dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
-            )
-            domain_avg = conditional_average_over_domain(
-                ds,
-                grid,
-                predicted.data_vars,
-                domain=domain,
-                net_precipitation=net_precip,
-            )
-            return domain_avg
-        else:
-            return xr.Dataset()
-
-
-for domain in ["global", "land", "sea"]:
-
-    @diagnostics_registry.register(f"time_domain_mean_{domain}")
-    @transform.apply(transform.select_3d_variables)
-    def surface_type_domain_time_mean(diag_arg, domain=domain):
-        logger.info(f"Preparing conditional averages over domain {domain}")
+    @diagnostics_registry.register(f"time_domain_mean_2d_{mask_type}")
+    @transform.apply(transform.select_2d_variables)
+    @transform.apply(transform.mask_area, mask_type)
+    def time_domain_mean_2d(diag_arg, mask_type=mask_type):
+        logger.info(f"Preparing time means for 2D variables, {mask_type}")
         predicted, target, grid = (
             diag_arg.prediction,
             diag_arg.verification,
@@ -542,10 +410,99 @@ for domain in ["global", "land", "sea"]:
                 [predicted, target],
                 dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
             )
-            domain_avg = conditional_average_over_domain(
-                ds, grid, predicted.data_vars, domain=domain,
+            return weighted_mean(ds, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
+                "time"
             )
-            return domain_avg
+        else:
+            return xr.Dataset()
+
+
+for mask_type in ["global", "land", "sea"]:
+
+    @diagnostics_registry.register(f"time_domain_mean_pressure_level_{mask_type}")
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_area, mask_type)
+    def time_domain_mean_pressure_level(diag_arg, mask_type=mask_type):
+        logger.info(
+            f"Preparing time means for 3D variables interpolated to pressure "
+            f"levels, {mask_type}"
+        )
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) > 0:
+            ds = xr.concat(
+                [predicted, target],
+                dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
+            )
+            return weighted_mean(ds, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
+                "time"
+            )
+        else:
+            return xr.Dataset()
+
+
+for mask_type in [
+    "global",
+    "land",
+    "sea",
+    "positive_net_precipitation",
+    "negative_net_precipitation",
+]:
+
+    @diagnostics_registry.register(f"time_domain_mean_model_level_{mask_type}")
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.mask_area, mask_type)
+    def time_domain_mean_model_level(diag_arg, mask_type=mask_type):
+        logger.info(
+            f"Preparing time means for 3D variables on model levels, {mask_type}"
+        )
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) > 0:
+            ds = xr.concat(
+                [predicted, target],
+                dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
+            )
+            return weighted_mean(ds, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
+                "time"
+            )
+        else:
+            return xr.Dataset()
+
+
+for mask_type in ["global", "land", "sea"]:
+
+    @diagnostics_registry.register(
+        f"time_domain_mean_pressure_level_zonal_avg_{mask_type}"
+    )
+    @transform.apply(transform.select_3d_variables)
+    @transform.apply(transform.regrid_zdim_to_pressure_levels)
+    @transform.apply(transform.mask_area, mask_type)
+    def time_domain_mean_pressure_level_zonal_avg(diag_arg, mask_type=mask_type):
+        logger.info(
+            f"Preparing time means for zonal mean 3D variables interpolated to "
+            f"pressure levels, {mask_type}"
+        )
+        predicted, target, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if len(predicted) > 0:
+            ds = xr.concat(
+                [predicted, target],
+                dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
+            )
+            return vcm.zonal_average_approximate(
+                grid.lat, ds, lat_name="latitude"
+            ).mean("time")
         else:
             return xr.Dataset()
 
@@ -595,7 +552,7 @@ def compute_histogram(diag_arg: DiagArg):
             )
             counts = xr.Dataset()
             for varname in ds.data_vars:
-                count, width = histogram(
+                count, width = vcm.histogram(
                     ds[varname], bins=HISTOGRAM_BINS[varname.lower()], density=True
                 )
                 counts[varname] = count

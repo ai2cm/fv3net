@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  gcp-gcr: circleci/gcp-gcr@0.14.1
+  gcp-gcr: circleci/gcp-gcr@0.15.0
   slack: circleci/slack@3.4.2
 jobs:
   pytest:
@@ -96,6 +96,8 @@ jobs:
           - prognostic_run_gpu
           - post_process_run
           - fv3net
+          - fv3fit
+          - dataflow
           - artifacts
     machine:
       image: ubuntu-2004:202111-02
@@ -106,7 +108,12 @@ jobs:
       IMAGE: <<parameters.image>>
     steps:
       - checkout
-      - run: sudo apt-get update && sudo apt-get install -y make jq
+      - run: |
+          sudo apt-get update && sudo apt-get install -y make jq \
+            python3 \
+            python3-pip \
+            python3-numpy # needed by pip-compile to handle vcm/setup.py
+      - run: sudo pip3 install -c constraints.txt pip-tools
       - add_ssh_keys:
           fingerprints:
             - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key
@@ -117,10 +124,12 @@ jobs:
             echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
             echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
       - gcp-gcr/gcr-auth
-      - run: sudo -E .circleci/build_and_push_image.sh
+      - run: |
+          sudo chown -R circleci:circleci /home/circleci/.docker && \
+          .circleci/build_and_push_image.sh
   lint:
     docker:
-      - image: circleci/python:3.7
+      - image: circleci/python:3.8
     steps:
       - checkout
       - run: sudo pip install -c constraints.txt pre-commit xarray
@@ -206,9 +215,9 @@ workflows:
               ignore:
                 - master
       # manually trigger on PRs
-      - pytest:
+      - build_default:
           name: "Test Dataflow (held)"
-          kind: test_dataflow
+          image: dataflow
           requires:
             - hold
           filters:
@@ -217,9 +226,9 @@ workflows:
             branches:
               ignore: master
       # automatically trigger on master
-      - pytest:
+      - build_default:
           name: "Test Dataflow (not held)"
-          kind: test_dataflow
+          image: dataflow
           filters:
             tags:
               only: /^v.*/
@@ -234,6 +243,11 @@ workflows:
                 - post_process_run
                 - fv3net
                 - artifacts
+      - build_default:
+          name: "build/push fv3fit image"
+          image: fv3fit
+          requires:
+            - pytest
       # manually trigger on PRs
       - integration_tests:
           requires:

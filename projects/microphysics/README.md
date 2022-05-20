@@ -1,41 +1,20 @@
 # Microphysics Emulation
 
-
 ## Prognostic Evaluation
 
-Setup environment file to authenticate against external services
-```
-cat << EOF> .env
-GOOGLE_CLOUD_PROJECT=vcm-ml
-WANDB_API_KEY=<wandb api key>
-EOF
+Be sure to set up your environment file for authentication from the instructions in our [quickstart documentation](https://vulcanclimatemodeling.com/docs/fv3net/quickstarts.html#quickstarts).
 
-# login to google cloud
-gcloud auth application-default login
-```
+Once authentication is configured, you can enter the docker image for development with ``make enter_prognostic_run``.
+Within this image, the microphysics projects folder is at ``/fv3net/projects/microphysics``.
 
-Pull docker image
+From within the microphysics project folder, you can run the prognostic run using::
 
-    TAG=latest # replace with the desired git sha
-    docker pull us.gcr.io/vcm-ml/prognostic_run:$TAG
-    # tag with latest to use with docker-compose
-    docker tag us.gcr.io/vcm-ml/prognostic_run:$TAG us.gcr.io/vcm-ml/prognostic_run:latest
+    python3 scripts/prognostic_run.py
 
-Enter the docker image
+By default this will use the configuration at ``configs/default.yml``.
+This can be modified using the ``--config-path`` argument.
 
-    docker-compose run --rm fv3
-
-Run the prognostic run
-
-    python3 scripts/prognostic_run.py --duration 1h
-
-Pass `--help` to this script for more information
-## All in one prognostic run script
-
-
-See [this script](scripts/run_all_prognostic.sh) for an example of how to run a
-prognostic run and the diagnostics at the same time.
-
+Pass `--help` to this script for more information.
 
 ## ARGO
 
@@ -49,7 +28,6 @@ the README for more details.
 The `create_training/` subdirectory provides make targets for performing the
 monthly-initialized training data generation runs as well as gathering
 of netcdfs into training/testing GCS buckets after all runs have finished.
-
 
 ### Training a model
 The `train/` subdirectory provides an argo workflow that trains with

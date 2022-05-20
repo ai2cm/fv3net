@@ -24,7 +24,7 @@ import fsspec
 from joblib import Parallel, delayed
 
 
-from typing import Mapping, Union, Tuple, Sequence
+from typing import Optional, Mapping, MutableMapping, Union, Tuple, Sequence
 
 import vcm
 
@@ -47,6 +47,8 @@ from .constants import (
 )
 from fv3net.diagnostics._shared.registry import Registry
 from fv3net.diagnostics._shared import transform
+from fv3net.artifacts.metadata import StepMetadata
+
 
 import logging
 
@@ -107,7 +109,7 @@ def _merge_diag_computes(
 
 
 def merge_diags(diags: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, xr.DataArray]:
-    out = {}
+    out: MutableMapping[str, xr.DataArray] = {}
     for name, ds in diags:
         out.update(_prepare_diag_dict(name, ds))
     return out
@@ -140,26 +142,19 @@ def weighted_mean(ds, weights, dims):
         return (ds * weights).sum(dims) / weights.sum(dims)
 
 
-def zonal_mean(
-    ds: xr.Dataset, latitude: xr.DataArray, bins=np.arange(-90, 91, 2),
-) -> xr.Dataset:
-    with xr.set_options(keep_attrs=True):
-        zm = ds.groupby_bins(latitude, bins=bins).mean().rename(lat_bins="latitude")
-    latitude_midpoints = [x.item().mid for x in zm["latitude"]]
-    return zm.assign_coords(latitude=latitude_midpoints)
-
-
 def time_mean(ds: xr.Dataset, dim: str = "time") -> xr.Dataset:
     with xr.set_options(keep_attrs=True):
         result = ds.mean(dim)
     return _assign_diagnostic_time_attrs(result, ds)
 
 
-def _get_time_attrs(ds: Union[xr.Dataset, xr.DataArray]) -> Mapping[str, str]:
+def _get_time_attrs(ds: Union[xr.Dataset, xr.DataArray]) -> Optional[Mapping[str, str]]:
     if "time" in ds.coords:
         start_time = str(ds.time.values[0])
         end_time = str(ds.time.values[-1])
         return {"diagnostic_start_time": start_time, "diagnostic_end_time": end_time}
+    else:
+        return None
 
 
 def _assign_diagnostic_time_attrs(
@@ -205,7 +200,9 @@ def rms_errors(diag_arg: DiagArg):
 def zonal_means_2d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (2d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
-    zonal_means = zonal_mean(prognostic, grid.lat)
+    zonal_means = vcm.zonal_average_approximate(
+        grid.lat, prognostic, lat_name="latitude"
+    )
     return time_mean(zonal_means)
 
 
@@ -220,7 +217,9 @@ def zonal_means_3d(diag_arg: DiagArg):
     for var in prognostic.data_vars:
         logger.info(f"Computing zonal+time means (3d) for {var}")
         with xr.set_options(keep_attrs=True):
-            zm = zonal_mean(prognostic[[var]], grid.lat)
+            zm = vcm.zonal_average_approximate(
+                grid.lat, prognostic[[var]], lat_name="latitude"
+            )
             zm_time_mean = time_mean(zm)[var].load()
             zonal_means[var] = zm_time_mean
     return zonal_means
@@ -242,7 +241,11 @@ def zonal_bias_3d(diag_arg: DiagArg):
     for var in common_vars:
         logger.info(f"Computing zonal+time mean biases (3d) for {var}")
         with xr.set_options(keep_attrs=True):
-            zm_bias = zonal_mean(bias(verification[[var]], prognostic[[var]]), grid.lat)
+            zm_bias = vcm.zonal_average_approximate(
+                grid.lat,
+                bias(verification[[var]], prognostic[[var]]),
+                lat_name="latitude",
+            )
             zm_bias_time_mean = time_mean(zm_bias)[var].load()
             zonal_means[var] = zm_bias_time_mean
     return zonal_means
@@ -262,8 +265,8 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
     zonal_means = xr.Dataset()
     for var in common_vars:
         logger.info("Computing zonal+time mean biases (2d)")
-        zonal_mean_bias = zonal_mean(
-            bias(verification[[var]], prognostic[[var]]), grid.lat
+        zonal_mean_bias = vcm.zonal_average_approximate(
+            grid.lat, bias(verification[[var]], prognostic[[var]]), lat_name="latitude"
         )
         zonal_means[var] = time_mean(zonal_mean_bias)[var].load()
     return zonal_means
@@ -280,7 +283,9 @@ def zonal_mean_hovmoller(diag_arg: DiagArg):
     for var in prognostic.data_vars:
         logger.info(f"Computing zonal mean (2d) over time for {var}")
         with xr.set_options(keep_attrs=True):
-            zonal_means[var] = zonal_mean(prognostic[[var]], grid.lat)[var].load()
+            zonal_means[var] = vcm.zonal_average_approximate(
+                grid.lat, prognostic[[var]], lat_name="latitude"
+            )[var].load()
     return zonal_means
 
 
@@ -301,8 +306,10 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
     for var in common_vars:
         logger.info(f"Computing zonal mean biases (2d) over time for {var}")
         with xr.set_options(keep_attrs=True):
-            zonal_means[var] = zonal_mean(
-                bias(verification[[var]], prognostic[[var]]), grid.lat
+            zonal_means[var] = vcm.zonal_average_approximate(
+                grid.lat,
+                bias(verification[[var]], prognostic[[var]]),
+                lat_name="latitude",
             )[var].load()
     return zonal_means
 
@@ -468,7 +475,7 @@ def compute_hist_2d_bias(diag_arg: DiagArg):
 
 def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
     counts = xr.Dataset()
-    bins = [HISTOGRAM_BINS[WVP], np.linspace(-50, 150, 101)]
+    bins = [HISTOGRAM_BINS[WVP], HISTOGRAM_BINS[COL_DRYING]]
     counts, wvp_bins, q2_bins = vcm.histogram2d(ds[WVP], ds[COL_DRYING], bins=bins)
     return xr.Dataset(
         {
@@ -479,12 +486,7 @@ def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
     )
 
 
-def register_parser(subparsers):
-    parser: ArgumentParser = subparsers.add_parser(
-        "save", help="Compute the prognostic run diags."
-    )
-    parser.add_argument("url", help="Prognostic run output location.")
-    parser.add_argument("output", help="Output path including filename.")
+def add_catalog_and_verification_arguments(parser: ArgumentParser):
     parser.add_argument("--catalog", default=vcm.catalog.catalog_path)
     verification_group = parser.add_mutually_exclusive_group()
     verification_group.add_argument(
@@ -500,6 +502,15 @@ def register_parser(subparsers):
         help="URL to segmented run. "
         "If not passed then the --verification argument is used.",
     )
+
+
+def register_parser(subparsers):
+    parser: ArgumentParser = subparsers.add_parser(
+        "save", help="Compute the prognostic run diags."
+    )
+    parser.add_argument("url", help="Prognostic run output location.")
+    parser.add_argument("output", help="Output path including filename.")
+    add_catalog_and_verification_arguments(parser)
     parser.add_argument(
         "--n-jobs",
         type=int,
@@ -512,11 +523,11 @@ def register_parser(subparsers):
     parser.set_defaults(func=main)
 
 
-def get_verification(args, catalog):
+def get_verification(args, catalog, join_2d="outer"):
     if args.verification_url:
-        return load_diags.SegmentedRun(args.verification_url, catalog)
+        return load_diags.SegmentedRun(args.verification_url, catalog, join_2d=join_2d)
     else:
-        return load_diags.CatalogSimulation(args.verification, catalog)
+        return load_diags.CatalogSimulation(args.verification, catalog, join_2d=join_2d)
 
 
 def main(args):
@@ -537,17 +548,6 @@ def main(args):
         prognostic, verification, grid
     )
 
-    # maps
-    diags["pwat_run_initial"] = (
-        input_data["2d"][0].PWAT.isel(time=0).rename({"time": "initial_time"})
-    )
-    diags["pwat_run_final"] = (
-        input_data["2d"][0].PWAT.isel(time=-1).rename({"time": "final_time"})
-    )
-    diags["pwat_verification_final"] = (
-        input_data["2d"][0].PWAT.isel(time=-1).rename({"time": "final_time"})
-    )
-
     computed_diags = _merge_diag_computes(input_data, registries, args.n_jobs)
     diags.update(computed_diags)
 
@@ -562,3 +562,10 @@ def main(args):
     logger.info(f"Saving data to {args.output}")
     with fsspec.open(args.output, "wb") as f:
         vcm.dump_nc(diags, f)
+
+    StepMetadata(
+        job_type="prognostic_run_diags",
+        url=args.output,
+        dependencies={"prognostic_run": args.url},
+        args=sys.argv[1:],
+    ).print_json()

@@ -20,10 +20,7 @@ install_requirements = [
     "toolz",
     "cartopy",
     "intake-xarray",
-    # including these vulcan packages managed with poetry causes this error
-    # pkg_resources.DistributionNotFound: The 'fv3viz' distribution was not
-    # found and is required by fv3net-diagnostics
-    # "fv3viz",
+    "fv3viz",
     "vcm",
     "wandb>=0.12.1",
     "report",
@@ -35,7 +32,7 @@ install_requirements = [
 
 setup(
     author="Vulcan Technologies, LLC",
-    author_email="noahb@vulcan.com",
+    author_email="noahb@allenai.org",
     python_requires=">=3.6",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",

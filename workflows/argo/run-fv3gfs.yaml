@@ -100,6 +100,8 @@ spec:
           value: /secret/gcp-credentials/key.json
         - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
           value: /secret/gcp-credentials/key.json
+        - name: FSSPEC_GS_REQUESTER_PAYS
+          value: vcm-ml
       terminationMessagePath: /dev/termination-log
       terminationMessagePolicy: File
       volumeMounts:
@@ -115,11 +117,12 @@ spec:
       image: python:alpine3.6
       command: [python]
       source: |
-        node_pool = (
-            'climate-sim-pool'
-            if {{inputs.parameters.cpu-request}} <= {{inputs.parameters.cpu-cutoff}}
-            else 'ultra-sim-pool'
-        )
+        cpu_request = "{{inputs.parameters.cpu-request}}"
+        if cpu_request.endswith('m'):
+            cpus = float(cpu_request[:-1])/1000.0
+        else:
+            cpus = float(cpu_request)
+        node_pool = 'climate-sim-pool' if cpus <= {{inputs.parameters.cpu-cutoff}} else 'ultra-sim-pool'
         print(node_pool)
   - name: append-segment
     inputs:
@@ -152,6 +155,8 @@ spec:
           value: /secret/gcp-credentials/key.json
         - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
           value: /secret/gcp-credentials/key.json
+        - name: FSSPEC_GS_REQUESTER_PAYS
+          value: vcm-ml
       terminationMessagePath: /dev/termination-log
       terminationMessagePolicy: File
       volumeMounts:

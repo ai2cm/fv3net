@@ -10,6 +10,26 @@ def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
     return unresolved_flux + (total_resolved_flux - omega * field)
 
 
+FINE_RES_STATE_NAMES = {
+    "T": "air_temperature",
+    "sphum": "specific_humidity",
+    "delp": "pressure_thickness_of_atmospheric_layer",
+}
+
+FINE_RES_FLUX_NAMES = {
+    "DLWRFsfc_coarse": "total_sky_downward_longwave_flux_at_surface",
+    "DSWRFsfc_coarse": "total_sky_downward_shortwave_flux_at_surface",
+    "DSWRFtoa_coarse": "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    "ULWRFsfc_coarse": "total_sky_upward_longwave_flux_at_surface",
+    "ULWRFtoa_coarse": "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+    "USWRFsfc_coarse": "total_sky_upward_shortwave_flux_at_surface",
+    "USWRFtoa_coarse": "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+    "LHTFLsfc_coarse": "latent_heat_flux",
+    "SHTFLsfc_coarse": "sensible_heat_flux",
+    "PRATEsfc_coarse": "surface_precipitation_rate",
+}
+
+
 class FineResBudget(Protocol):
     """Protocol defining what input vaiables are required
 
@@ -55,6 +75,9 @@ class FineResBudget(Protocol):
     SHTFLsfc_coarse: xarray.DataArray
     PRATEsfc_coarse: xarray.DataArray
 
+    def astype(self, dtype):
+        pass
+
 
 def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = False):
     eddy_flux = eddy_flux_coarse(
@@ -99,6 +122,16 @@ def apparent_moistening(data: FineResBudget):
             ),
         )
         .rename("Q2")
+    )
+
+
+def column_integrated_fine_res_nudging_heating(data: FineResBudget) -> xarray.DataArray:
+    heating_in_energy_units = vcm.internal_energy(data.t_dt_nudge_coarse)
+    column_heating = vcm.mass_integrate(heating_in_energy_units, data.delp, dim="z")
+    return column_heating.assign_attrs(
+        units="W/m**2",
+        long_name="Column integrated heating tendency due to temperature "
+        "nudging of fine-res run.",
     )
 
 

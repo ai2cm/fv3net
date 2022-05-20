@@ -2,6 +2,9 @@ import argparse
 from dataclasses import asdict
 import json
 import logging
+import sys
+from typing import Any, Dict, Tuple
+from fv3net.artifacts.metadata import StepMetadata, log_fact_json
 import numpy as np
 import os
 import tensorflow as tf
@@ -19,7 +22,7 @@ from vcm import get_fs
 logger = logging.getLogger(__name__)
 
 
-def load_final_model_or_checkpoint(train_out_url) -> tf.keras.Model:
+def load_final_model_or_checkpoint(train_out_url) -> Tuple[tf.keras.Model, str]:
 
     model_url = os.path.join(train_out_url, "model.tf")
     checkpoints = os.path.join(train_out_url, "checkpoints", "*.tf")
@@ -34,7 +37,7 @@ def load_final_model_or_checkpoint(train_out_url) -> tf.keras.Model:
     else:
         raise FileNotFoundError(f"No keras models found at {train_out_url}")
 
-    return tf.keras.models.load_model(url_to_load)
+    return tf.keras.models.load_model(url_to_load), url_to_load
 
 
 def main(config: TrainConfig, seed: int = 0, model_url: str = None):
@@ -48,10 +51,19 @@ def main(config: TrainConfig, seed: int = 0, model_url: str = None):
         config.wandb.init(config=d)
 
     if model_url is None:
-        model = load_final_model_or_checkpoint(config.out_url)
+        model, model_url = load_final_model_or_checkpoint(config.out_url)
     else:
         logger.info(f"Loading user specified model from {model_url}")
         model = tf.keras.models.load_model(model_url)
+
+    StepMetadata(
+        job_type="train_score",
+        url=config.out_url,
+        dependencies=dict(
+            train_data=config.train_url, test_data=config.test_url, model=model_url
+        ),
+        args=sys.argv[1:],
+    ).print_json()
 
     train_ds = config.open_dataset(
         config.train_url, config.nfiles, config.model_variables
@@ -60,15 +72,25 @@ def main(config: TrainConfig, seed: int = 0, model_url: str = None):
         config.train_url, config.nfiles, config.model_variables
     )
 
-    train_set = next(iter(train_ds.shuffle(100_000).batch(50_000)))
-    test_set = next(iter(test_ds.shuffle(160_000).batch(80_000)))
+    train_set = next(iter(train_ds.unbatch().shuffle(160_000).batch(80_000)))
+    test_set = next(iter(test_ds.unbatch().shuffle(160_000).batch(80_000)))
 
     train_scores, train_profiles = score_model(model, train_set)
     test_scores, test_profiles = score_model(model, test_set)
     logger.debug("Scoring Complete")
 
+    summary_metrics: Dict[str, Any] = {
+        f"score/train/{key}": value for key, value in train_scores.items()
+    }
+    summary_metrics.update(
+        {f"score/test/{key}": value for key, value in test_scores.items()}
+    )
+
+    # Logging for google cloud
+    log_fact_json(data=summary_metrics)
+
     if config.use_wandb:
-        pred_sample = model.predict(test_set)
+        pred_sample = model.predict(test_set, batch_size=8192)
         log_profile_plots(test_set, pred_sample)
 
         # add level for dataframe index, assumes equivalent feature dims
@@ -76,8 +98,8 @@ def main(config: TrainConfig, seed: int = 0, model_url: str = None):
         train_profiles["level"] = np.arange(len(sample_profile))
         test_profiles["level"] = np.arange(len(sample_profile))
 
-        log_to_table("score/train", train_scores, index=[config.wandb.job.name])
-        log_to_table("score/test", test_scores, index=[config.wandb.job.name])
+        config.wandb.job.log(summary_metrics)
+
         log_to_table("profiles/train", train_profiles)
         log_to_table("profiles/test", test_profiles)
 
