@@ -4,7 +4,11 @@ import metpy.interpolate
 import numpy as np
 import xarray as xr
 from scipy.spatial import KDTree
-import vcm.mappm
+
+try:
+    import mappm
+except ModuleNotFoundError:
+    mappm = None
 
 import vcm.calc.thermo
 
@@ -170,7 +174,10 @@ def _interpolate_1d_constant_output_levels(
 
 
 def _interpolate_2d(xp: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
-    return vcm.mappm.interpolate_2d(xp, x, y, fill_value=np.nan)
+    if mappm is not None:
+        return mappm.interpolate_2d(xp, x, y, fill_value=np.nan)
+    else:
+        raise ModuleNotFoundError("mappm is not installed, required for this routine")
 
 
 def _apply_2d(

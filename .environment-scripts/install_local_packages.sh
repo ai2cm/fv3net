@@ -6,8 +6,8 @@ source activate $CONDA_ENV
 
 # we want to force a rebuild in case numpy version changes
 # this doesn't rebuild automatically when dependencies change version
-rm -f "external/vcm/vcm/mappm.*.so"
-rm -rf external/vcm/build
+rm -f "external/mappm/mappm/mappm.*.so"
+rm -rf external/mappm/build
 
 set -e
 pip install -c constraints.txt \
@@ -19,6 +19,7 @@ pip install -c constraints.txt \
   -e external/report \
   -e external/synth \
   -e external/vcm \
+  -e external/mappm \
   -e workflows/fine_res_budget \
   -e workflows/dataflow \
   -e workflows/diagnostics
