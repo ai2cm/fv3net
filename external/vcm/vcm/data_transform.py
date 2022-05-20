@@ -33,8 +33,10 @@ TransformName = Literal[
     "Q2_tendency_from_Q2_flux",
     "implied_surface_precipitation_rate",
     "implied_downward_radiative_flux_at_surface",
-    "taper_dQ1",
-    "taper_dQ2",
+    "tapered_dQ1",
+    "tapered_dQ2",
+    "tapered_dQu",
+    "tapered_dQv",
 ]
 
 
@@ -65,7 +67,7 @@ def register(
 
 
 @register(["dQ1"], ["tapered_dQ1"])
-def taper_dQ1(ds, cutoff: int, rate: float):
+def tapered_dQ1(ds, cutoff: int, rate: float):
     n_levels = len(ds["z"])
     scaling = xr.DataArray(
         vertical_scale_factors(n_levels=n_levels, cutoff=cutoff, rate=rate), dims=["z"]
@@ -75,12 +77,32 @@ def taper_dQ1(ds, cutoff: int, rate: float):
 
 
 @register(["dQ2"], ["tapered_dQ2"])
-def taper_dQ2(ds, cutoff: int, rate: float):
+def tapered_dQ2(ds, cutoff: int, rate: float):
     n_levels = len(ds["z"])
     scaling = xr.DataArray(
         vertical_scale_factors(n_levels=n_levels, cutoff=cutoff, rate=rate), dims=["z"]
     )
     ds["tapered_dQ2"] = scaling * ds["dQ2"]
+    return ds
+
+
+@register(["dQu"], ["tapered_dQu"])
+def tapered_dQu(ds, cutoff: int, rate: float):
+    n_levels = len(ds["z"])
+    scaling = xr.DataArray(
+        vertical_scale_factors(n_levels=n_levels, cutoff=cutoff, rate=rate), dims=["z"]
+    )
+    ds["tapered_dQu"] = scaling * ds["dQu"]
+    return ds
+
+
+@register(["dQv"], ["tapered_dQv"])
+def tapered_dQv(ds, cutoff: int, rate: float):
+    n_levels = len(ds["z"])
+    scaling = xr.DataArray(
+        vertical_scale_factors(n_levels=n_levels, cutoff=cutoff, rate=rate), dims=["z"]
+    )
+    ds["tapered_dQv"] = scaling * ds["dQv"]
     return ds
 
 
