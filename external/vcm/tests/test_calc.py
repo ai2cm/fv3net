@@ -222,3 +222,16 @@ def test_weighted_averaged_no_dims():
     expected = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
 
     xr.testing.assert_allclose(weighted_average(da, weights), expected)
+
+
+def test_weighted_averaged_keeps_attrs():
+    da = xr.DataArray(
+        [[[np.arange(1.0, 5.0)]]],
+        dims=["tile", "y", "x", "z"],
+        attrs={"units": "unit_name", "other": "foo"},
+    )
+    weights = xr.DataArray([[[[0.5, 0.5, 1, 1]]]], dims=["tile", "y", "x", "z"])
+    expected = xr.DataArray(
+        np.arange(1.0, 5.0), dims=["z"], attrs={"units": "unit_name", "other": "foo"}
+    )
+    xr.testing.assert_identical(weighted_average(da, weights), expected)
