@@ -64,23 +64,23 @@ def register(
     return func
 
 
-@register(["dQ1"], ["dQ1"])
+@register(["dQ1"], ["tapered_dQ1"])
 def taper_dQ1(ds, cutoff: int, rate: float):
     n_levels = len(ds["z"])
     scaling = xr.DataArray(
         vertical_scale_factors(n_levels=n_levels, cutoff=cutoff, rate=rate), dims=["z"]
     )
-    ds["dQ1"] = scaling * ds["dQ1"]
+    ds["tapered_dQ1"] = scaling * ds["dQ1"]
     return ds
 
 
-@register(["dQ2"], ["dQ2"])
+@register(["dQ2"], ["tapered_dQ2"])
 def taper_dQ2(ds, cutoff: int, rate: float):
     n_levels = len(ds["z"])
     scaling = xr.DataArray(
         vertical_scale_factors(n_levels=n_levels, cutoff=cutoff, rate=rate), dims=["z"]
     )
-    ds["dQ2"] = scaling * ds["dQ2"]
+    ds["tapered_dQ2"] = scaling * ds["dQ2"]
     return ds
 
 
