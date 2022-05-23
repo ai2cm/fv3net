@@ -28,15 +28,22 @@ HTML_TEMPLATE = Template(
     Report created {{now}}
 
     {% if metadata is not none %}
-        <h2>Metadata </h2>
-    <details>
-        <summary> Click to expand </summary>
-        <p class="abstract-text" style="font-size:.90em">
+    <h2>Metadata </h2>
+        {% if collapse_metadata is true %}
+            <details>
+                <summary> Click to expand </summary>
+                <p class="abstract-text" style="font-size:.90em">
+                    <pre id="json">
+                    {{ metadata }}
+                </pre>
+                </p>
+            </details>
+        {% else %}
             <pre id="json">
-            {{ metadata }}
-        </pre>
-        </p>
-    </details>
+                {{ metadata }}
+            </pre>
+        {% endif %}
+
 
     {% endif %}
 
@@ -170,6 +177,7 @@ def create_html(
     metadata=None,
     html_header: str = "",
     metrics: Metrics = None,
+    collapse_metadata: bool = False,
 ) -> str:
     """Return html report of figures described in sections.
 
@@ -203,5 +211,6 @@ def create_html(
         now=now_str,
         header=html_header,
         metrics_columns=metrics_columns,
+        collapse_metadata=collapse_metadata,
     )
     return html

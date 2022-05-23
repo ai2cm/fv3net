@@ -364,6 +364,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
         title="ML offline diagnostics",
         metadata=config,
         metrics=dict(metrics_formatted),
+        collapse_metadata=True,
     )
 
 
