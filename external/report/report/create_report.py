@@ -26,11 +26,18 @@ HTML_TEMPLATE = Template(
     <body>
     <h1>{{title}}</h1>
     Report created {{now}}
+
     {% if metadata is not none %}
-        <h2>Metadata</h2>
-<pre id="json">
-{{ metadata }}
-</pre>
+        <h2>Metadata </h2>
+    <details>
+        <summary> Click to expand </summary>
+        <p class="abstract-text" style="font-size:.90em">
+            <pre id="json">
+            {{ metadata }}
+        </pre>
+        </p>
+    </details>
+
     {% endif %}
 
     {% if metrics is not none %}
