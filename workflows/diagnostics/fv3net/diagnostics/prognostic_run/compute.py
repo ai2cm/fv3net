@@ -475,7 +475,7 @@ def compute_hist_2d_bias(diag_arg: DiagArg):
 
 def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
     counts = xr.Dataset()
-    bins = [HISTOGRAM_BINS[WVP], np.linspace(-50, 150, 101)]
+    bins = [HISTOGRAM_BINS[WVP], HISTOGRAM_BINS[COL_DRYING]]
     counts, wvp_bins, q2_bins = vcm.histogram2d(ds[WVP], ds[COL_DRYING], bins=bins)
     return xr.Dataset(
         {

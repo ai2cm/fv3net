@@ -47,14 +47,15 @@ def weighted_average(
         kwargs = {"axis": tuple(range(-len(dims), 0))}
     else:
         kwargs = {}
-    return xr.apply_ufunc(
-        _weighted_average,
-        array,
-        weights,
-        input_core_dims=[dims, dims],
-        kwargs=kwargs,
-        dask="allowed",
-    )
+    with xr.set_options(keep_attrs=True):
+        return xr.apply_ufunc(
+            _weighted_average,
+            array,
+            weights,
+            input_core_dims=[dims, dims],
+            kwargs=kwargs,
+            dask="allowed",
+        )
 
 
 def vertical_scale_factors(n_levels: int, cutoff: int, rate: float):

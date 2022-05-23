@@ -6,7 +6,7 @@ setup(
     version="0.1.0",
     python_requires=">=3.6.9",
     author="Oliver Watt-Meyer",
-    author_email="oliwm@vulcan.com",
+    author_email="oliverwm@allenai.org",
     packages=find_packages(),
     package_dir={"": "."},
     package_data={"fv3kube": ["base_yamls/*/fv3config.yml"]},

@@ -5,7 +5,7 @@ import os
 from functools import partial
 import re
 import sys
-from typing import Any, Callable, Iterable, List, Tuple
+from typing import Any, Callable, Iterable, List, Optional, Tuple
 import cftime
 
 import dask.diagnostics
@@ -143,10 +143,7 @@ def summarize_column_skill(ds, prefix, tendency_func):
     }.items()
 
 
-def global_average_cloud_5d_300mb_ppm(ds: xr.Dataset) -> Iterable[Tuple[str, float]]:
-
-    time = cftime.DatetimeJulian(2016, 6, 15)
-    z = 300
+def _global_average_cloud_ppm(ds, time, z) -> Optional[float]:
     field = "cloud_water_mixing_ratio"
     to_parts_per_million = 1e6
 
@@ -154,15 +151,38 @@ def global_average_cloud_5d_300mb_ppm(ds: xr.Dataset) -> Iterable[Tuple[str, flo
         selected = ds[field].sel(time=time)
     except KeyError:
         logger.warn("No field {} or time {}".format(field, time))
-        return
+        return None
 
     selected_height = selected.interp(z=z)
     average_cloud = float(
         vcm.weighted_average(selected_height, ds.area, dims=selected_height.dims)
     )
+    return average_cloud * to_parts_per_million
+
+
+def global_average_cloud_5d_300mb_ppm(
+    ds: xr.Dataset,
+) -> Iterable[Tuple[str, Optional[float]]]:
+
+    time = cftime.DatetimeJulian(2016, 6, 16)
+    z = 300
+
     yield (
         global_average_cloud_5d_300mb_ppm.__name__,
-        average_cloud * to_parts_per_million,
+        _global_average_cloud_ppm(ds, time, z),
+    )
+
+
+def global_average_cloud_1d_200mb_ppm(
+    ds: xr.Dataset,
+) -> Iterable[Tuple[str, Optional[float]]]:
+
+    time = cftime.DatetimeJulian(2016, 7, 2)
+    z = 200
+
+    yield (
+        "global_average_cloud_July2_200mb_ppm",
+        _global_average_cloud_ppm(ds, time, z),
     )
 
 
@@ -335,6 +355,7 @@ def get_summary_functions() -> Iterable[
 
     # build list of summaries
     yield global_average_cloud_5d_300mb_ppm
+    yield global_average_cloud_1d_200mb_ppm
     yield summarize_precip_skill
 
     for name, tendency_func in [

@@ -11,6 +11,8 @@ from loaders.mappers._fine_res_budget import FineResBudget
 def compute_hybrid_budget(ds: xr.Dataset) -> xr.Dataset:
     ds["dQ1"] = ds.Q1 - ds.tendency_of_air_temperature_due_to_fv3_physics
     ds["dQ2"] = ds.Q2 - ds.tendency_of_specific_humidity_due_to_fv3_physics
+    ds["pQ1"] = ds.tendency_of_air_temperature_due_to_fv3_physics
+    ds["pQ2"] = ds.tendency_of_specific_humidity_due_to_fv3_physics
     ds["dQxwind"] = ds.x_wind_tendency_due_to_nudging
     ds["dQywind"] = ds.y_wind_tendency_due_to_nudging
     return ds
