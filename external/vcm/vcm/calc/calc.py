@@ -58,7 +58,7 @@ def weighted_average(
         )
 
 
-def vertical_scale_factors(n_levels: int, cutoff: int, rate: float):
+def vertical_tapering_scale_factors(n_levels: int, cutoff: int, rate: float):
     z_arr = np.arange(n_levels)
     scaled = np.exp((z_arr[slice(None, cutoff)] - cutoff) / rate)
     unscaled = np.ones(n_levels - cutoff)

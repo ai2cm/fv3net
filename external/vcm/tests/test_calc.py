@@ -15,7 +15,7 @@ from vcm.calc.thermo.vertically_dependent import (
     _add_coords_to_interface_variable,
     mass_streamfunction,
 )
-from vcm.calc.calc import local_time, weighted_average, vertical_scale_factors
+from vcm.calc.calc import local_time, weighted_average, vertical_tapering_scale_factors
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 from vcm.calc.thermo.constants import _GRAVITY, _RDGAS, _RVGAS
 import vcm
@@ -231,10 +231,10 @@ def test_weighted_averaged_no_dims():
         (2, 5, np.array([np.exp(-2.0 / 5), np.exp(-1.0 / 5), 1.0, 1.0])),
     ],
 )
-def test_vertical_scale_factors(cutoff, rate, expected):
+def test_vertical_tapering_scale_factors(cutoff, rate, expected):
     x = np.ones(4)
     np.testing.assert_array_almost_equal(
-        x * vertical_scale_factors(4, cutoff=cutoff, rate=rate), expected
+        x * vertical_tapering_scale_factors(4, cutoff=cutoff, rate=rate), expected
     )
 
 
