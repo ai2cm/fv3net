@@ -66,7 +66,11 @@ def test_all_registered_transforms_are_added_to_data_transform_name_type():
 @pytest.mark.parametrize("key", list(DATA_TRANSFORM_REGISTRY))
 def test_transform_correctly_specify_inputs_and_outputs(key):
     data = get_dataset(DATA_TRANSFORM_REGISTRY[key].inputs)
-    out = DATA_TRANSFORM_REGISTRY[key].func(data)
+    required_kwargs = {
+        "tapered_dQ1": {"rate": 1.0, "cutoff": 0},
+        "tapered_dQ2": {"rate": 1.0, "cutoff": 0},
+    }
+    out = DATA_TRANSFORM_REGISTRY[key].func(data, **required_kwargs.get(key, {}))
     for output_name in DATA_TRANSFORM_REGISTRY[key].outputs:
         assert output_name in out
 
