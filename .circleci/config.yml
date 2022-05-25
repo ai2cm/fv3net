@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  gcp-gcr: circleci/gcp-gcr@0.14.1
+  gcp-gcr: circleci/gcp-gcr@0.15.0
   slack: circleci/slack@3.4.2
 jobs:
   pytest:
@@ -124,7 +124,9 @@ jobs:
             echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
             echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
       - gcp-gcr/gcr-auth
-      - run: sudo -E .circleci/build_and_push_image.sh
+      - run: |
+          sudo chown -R circleci:circleci /home/circleci/.docker && \
+          .circleci/build_and_push_image.sh
   lint:
     docker:
       - image: circleci/python:3.8

@@ -17,12 +17,19 @@ This creates an Anaconda environment ``fv3net`` with all the dependicies for run
 
     conda activate fv3net
 
+Wandb Integration
+-----------------
+
+For Weights and Biases (wandb) integration to work when in a development image, you must pass it your API key.
+This can be created and retrieved from the "API Keys" section of the `Wandb settings page <https://wandb.ai/settings>`_.
+Once generated, run ``cp .env_template .env`` in the fv3net root and edit the ``.env`` file created to include your API key.
+
 .. _cloud_auth:
 
 Cloud Authentication
 --------------------
 
-The `fv3net` project currently utilizes Google Cloud to deploy workflow items to services such as Kubernetes and Dataflow.  Authentication requires an installation of `Google Cloud SDK <https://cloud.google.com/sdk/docs/install>`_.
+The ``fv3net`` project currently utilizes Google Cloud to deploy workflow items to services such as Kubernetes and Dataflow.  Authentication requires an installation of `Google Cloud SDK <https://cloud.google.com/sdk/docs/install>`_.
 
 Authentication obtained via ``gcloud auth login`` does not work well with secrets management and is not used by many APIs. Service account key-based authentication works much better, because the service account key is a single file that can be deployed in a variety of contexts (K8s cluter, VM, etc) (`Google docs on service accounts <https://cloud.google.com/iam/docs/service-accounts>`_). Many Python APIs can authenticate with google using the ``GOOGLE_APPLICATION_CREDENTIALS`` environmental variable `(See Google authentication details) <https://cloud.google.com/sdk/docs/authorizing>`_.
 
@@ -76,7 +83,6 @@ If this is a new/personal cluster, then the ``fv3net`` argo templates can be ins
     kubectl apply -k workflows/argo
 
 For more information, please see the :doc:`Argo README <readme_links/argo_readme>`.
-
 
 Test drive
 ----------

@@ -1,5 +1,5 @@
 base_version: v0.5
-duration: "12d"
+duration: "30d"
 fortran_diagnostics: []
 initial_conditions: $IC_URL
 diagnostics:
@@ -51,6 +51,23 @@ diagnostics:
   - tendency_of_ozone_mixing_ratio_due_to_fv3_physics
   - tendency_of_pressure_thickness_of_atmospheric_layer_due_to_fv3_physics
 namelist:
+  namsfc:
+    # these flags make the coarse run use the GRIB data for snoalb and vegetation
+    # if not included, it will use the initial condition data (which may differ from GRIB file)
+    # for more info see https://docs.google.com/document/d/1ndOG4u3gZ6kWJV6TqLh-E04n15tl9Ni55B2bavta1Cc/edit#heading=h.uqcex6mf4e10
+    fabss: 0
+    fabsl: 0
+    fvmnl: 0
+    fvmns: 0
+    fvmxl: 0
+    fvmxs: 0
+    # for time-varying SSTs from GRIB
+    ftsfs: 0
+    # for time-varying sea ice from GRIB
+    fsicl: 0
+    fsics: 0
+    faisl: 0
+    faiss: 0
   atmos_model_nml:
     blocksize: -1
   coupler_nml:
@@ -91,5 +108,9 @@ namelist:
     emulate_zc_microphysics: false
 zhao_carr_emulation:
   storage:
-    output_freq_sec: 18000
+    # 5 hour sampling
+    output_freq_sec:  18000
+    # 20 day burn-in
+    output_start_sec: 172_800
     save_nc: true
+    save_zarr: false

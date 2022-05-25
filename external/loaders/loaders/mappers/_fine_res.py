@@ -16,7 +16,8 @@ from loaders.mappers._fine_res_budget import (
     compute_fine_res_sources,
     column_integrated_fine_res_nudging_heating,
     FineResBudget,
-    FINE_RES_BUDGET_NAMES,
+    FINE_RES_STATE_NAMES,
+    FINE_RES_FLUX_NAMES,
 )
 
 
@@ -51,6 +52,7 @@ def _open_merged_dataset(
     additional_dataset_urls: Optional[Sequence[str]],
     standardize_fine_coords: bool = True,
     use_fine_res_state: bool = True,
+    use_fine_res_fluxes: bool = False,
 ) -> FineResBudget:
 
     fine = open_zarr(fine_url)
@@ -69,9 +71,12 @@ def _open_merged_dataset(
     else:
         merged = fine
 
+    # optionally overwrite standard name arrays with those from fine-res budget
     if use_fine_res_state:
-        # overwrite standard name arrays with those from fine-res budget
-        for fine_res_name, standard_name in FINE_RES_BUDGET_NAMES.items():
+        for fine_res_name, standard_name in FINE_RES_STATE_NAMES.items():
+            merged[standard_name] = fine[fine_res_name]
+    if use_fine_res_fluxes:
+        for fine_res_name, standard_name in FINE_RES_FLUX_NAMES.items():
             merged[standard_name] = fine[fine_res_name]
 
     return merged
@@ -136,7 +141,7 @@ def compute_budget(
         name = "storage_of_internal_energy_path_due_to_fine_res_temperature_nudging"
         merged[name] = column_integrated_fine_res_nudging_heating(merged)
 
-    return _ml_standard_names(merged)
+    return merged.astype(np.float32)
 
 
 def _add_nudging_tendencies(merged: xr.Dataset):
@@ -184,15 +189,6 @@ def _extend_lower(
     return fine_source_extended_lower
 
 
-def _ml_standard_names(merged: xr.Dataset):
-
-    # since ML target is Q1/Q2, dQ1=Q1 and same for moistening
-    merged["dQ1"] = merged["Q1"]
-    merged["dQ2"] = merged["Q2"]
-
-    return merged.astype(np.float32)
-
-
 @mapper_functions.register
 def open_fine_resolution(
     approach: str,
@@ -200,6 +196,7 @@ def open_fine_resolution(
     include_temperature_nudging: bool = False,
     additional_dataset_urls: Sequence[str] = None,
     use_fine_res_state: bool = True,
+    use_fine_res_fluxes: bool = False,
 ) -> GeoMapper:
     """
     Open the fine-res mapper using several configuration options
@@ -217,6 +214,9 @@ def open_fine_resolution(
             as required by the above approaches
         use_fine_res_state: set standard name state variables to point to the fine-res
             data. Set to True if wanting to use fine-res state as ML inputs in training.
+        use_fine_res_fluxes: set standard name surface and TOA flux diagnostic variables
+            to point to the fine-res data. Set of True if wanting to use fine-res fluxes
+            as ML inputs in training.
 
     Returns:
         a mapper
@@ -228,45 +228,10 @@ def open_fine_resolution(
         fine_url=fine_url,
         additional_dataset_urls=additional_dataset_urls,
         use_fine_res_state=use_fine_res_state,
+        use_fine_res_fluxes=use_fine_res_fluxes,
     )
     budget: MLTendencies = compute_budget(
         merged, approach_enum, include_temperature_nudging=include_temperature_nudging
     )
 
     return XarrayMapper(budget)
-
-
-def _open_precomputed_fine_resolution_dataset(
-    fine_url: str, additional_dataset_urls: Optional[Sequence[str]] = None
-) -> MLTendencies:
-
-    merged = _open_merged_dataset(
-        fine_url=fine_url,
-        additional_dataset_urls=additional_dataset_urls,
-        standardize_fine_coords=False,
-    )
-
-    return _ml_standard_names(merged)
-
-
-@mapper_functions.register
-def open_precomputed_fine_resolution(
-    fine_url: str, additional_dataset_urls: str = None
-) -> GeoMapper:
-    """
-    Open a fine-res mapper from precomputed data, optionally using state
-        from another run.
-
-    Args:
-        fine_url: url where coarsened fine resolution data is stored, must include
-            precomputed Q1 and Q2
-        additional_dataset_urls: sequence of urls which to zarrs containing additional
-            data to be merged into the resulting mapper dataset
-    Returns:
-        a mapper
-    """
-    return XarrayMapper(
-        _open_precomputed_fine_resolution_dataset(
-            fine_url=fine_url, additional_dataset_urls=additional_dataset_urls
-        )
-    )

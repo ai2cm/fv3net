@@ -1,0 +1,95 @@
+# https://wandb.ai/ai2cm/microphysics-emulation/groups/in-ablat-log-q-qc-dense-4201be-30d-v1-online/workspace?workspace=user-aperkins
+use_wandb: true
+wandb:
+  wandb_project: microphysics-emulation
+batch_size: 512
+epochs: 25
+nfiles_valid: 100
+valid_freq: 2
+out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
+train_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/train
+test_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test
+tensor_transform:
+  - to: log_cloud_input
+    source: cloud_water_mixing_ratio_input
+    transform: {epsilon: 1e-10}
+  - to: log_humidity_input
+    source: specific_humidity_input
+    transform: {epsilon: 1e-8}
+  - to: log_humidity_after_last_gscond
+    source: specific_humidity_after_last_gscond
+    transform: {epsilon: 1e-8}
+  - to: temperature_gscond_difference
+    before: air_temperature_input
+    after: air_temperature_after_gscond
+  - to: humidity_gscond_difference
+    before: specific_humidity_input
+    after: specific_humidity_after_gscond
+  - to: cloud_precpd_difference
+    before: cloud_water_mixing_ratio_input
+    after: cloud_water_mixing_ratio_after_precpd
+  - to: temperature_precpd_difference
+    before: air_temperature_input
+    after: air_temperature_after_precpd
+  - to: humidity_precpd_difference
+    before: specific_humidity_input
+    after: specific_humidity_after_precpd
+loss:
+  optimizer:
+    kwargs:
+      learning_rate: 0.0001
+    name: Adam
+  metric_variables:
+    - air_temperature_after_gscond
+    - specific_humidity_after_gscond
+    - air_temperature_after_precpd
+    - specific_humidity_after_precpd
+    - cloud_water_mixing_ratio_after_precpd
+  loss_variables:
+    - total_precipitation
+    - cloud_precpd_difference
+    - temperature_precpd_difference
+    - humidity_precpd_difference
+    - temperature_gscond_difference
+    - humidity_gscond_difference
+  weights:
+    total_precipitation: 1.0
+    cloud_precpd_difference: 1.0
+    temperature_precpd_difference: 1.0
+    humidity_precpd_difference: 1.0
+    temperature_gscond_difference: 1.0
+    humidity_gscond_difference: 1.0
+model:
+  architecture:
+    kwargs:
+      width: 256
+      depth: 2
+    name: dense
+  input_variables:
+  - air_temperature_input
+  - specific_humidity_input
+  - cloud_water_mixing_ratio_input
+  - log_cloud_input
+  - log_humidity_input
+  - pressure_thickness_of_atmospheric_layer
+  - air_temperature_after_last_gscond
+  - specific_humidity_after_last_gscond
+  - log_humidity_after_last_gscond
+  direct_out_variables:
+    - total_precipitation
+    - cloud_precpd_difference
+    - temperature_precpd_difference
+    - humidity_precpd_difference
+    - temperature_gscond_difference
+    - humidity_gscond_difference
+  normalize_default:
+    center: per_feature
+    scale: all
+  selection_map: {}
+  timestep_increment_sec: 900
+transform:
+  antarctic_only: false
+  derived_microphys_timestep: 900
+  use_tensors: true
+  vertical_subselections: null
+

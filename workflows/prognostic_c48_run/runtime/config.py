@@ -101,3 +101,15 @@ def write_chunks(config: UserConfig):
     chunks = get_chunks(diagnostic_file_configs)
     with open("chunks.yaml", "w") as f:
         yaml.safe_dump(chunks, f)
+
+
+def get_model_urls(config_dict: dict) -> List[str]:
+    urls: List[str] = []
+    ml_config = config_dict.get("scikit_learn")
+    if ml_config is not None:
+        urls += ml_config["model"]
+    prephysics_config = config_dict.get("prephysics")
+    if prephysics_config is not None:
+        for entry in prephysics_config:
+            urls += entry.get("model", [])
+    return urls

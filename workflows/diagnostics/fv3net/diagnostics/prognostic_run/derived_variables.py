@@ -1,26 +1,18 @@
 import logging
 import warnings
+from typing import Sequence, Callable
 import xarray as xr
 
 import vcm
 
 SECONDS_PER_DAY = 86400
+TOLERANCE = 1.0e-12
 
 logger = logging.getLogger(__name__)
 
 
-def physics_variables(ds: xr.Dataset) -> xr.Dataset:
-    """
-    Compute selected derived variables from a physics dataset and merge them back in.
-
-    Args:
-        ds: Dataset to calculated derived values from and merge to
-
-    Note:
-        Derived variables are linear combinations of other variables with no reductions.
-    """
-    arrays = []
-    for func in [
+def derive_2d_variables(ds: xr.Dataset) -> xr.Dataset:
+    functions_2d = [
         _column_pq1,
         _column_pq2,
         _column_dq1,
@@ -36,7 +28,28 @@ def physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_dq2_or_nq2,
         _water_vapor_path,
         _minus_column_q2,
-    ]:
+    ]
+    return derive_variables(ds, functions_2d)
+
+
+def derive_3d_variables(ds: xr.Dataset) -> xr.Dataset:
+    functions_3d = [_relative_humidity]
+    return derive_variables(ds, functions_3d)
+
+
+def derive_variables(ds: xr.Dataset, functions: Sequence[Callable]) -> xr.Dataset:
+    """
+    Compute derived variables defined by functions and merge them back in.
+
+    Args:
+        ds: Dataset to calculated derived values from and merge to.
+        functions: Sequence of functions which take input dataset and return DataArrays
+
+    Note:
+        Derived variables are linear combinations of other variables with no reductions.
+    """
+    arrays = []
+    for func in functions:
         try:
             arrays.append(func(ds))
         except (KeyError, AttributeError):  # account for ds[var] and ds.var notations
@@ -276,14 +289,14 @@ def _total_precip_to_surface(ds: xr.Dataset) -> xr.DataArray:
     return total_precip_to_surface.rename("total_precip_to_surface")
 
 
-def _column_dq1_or_nq1(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
+def _column_dq1_or_nq1(ds: xr.Dataset) -> xr.DataArray:
     """<dQ1>+<nQ1> with appropriate long name if either is zero. Useful for movies."""
     column_dq1 = _column_dq1(ds)
     column_nq1 = _column_nq1(ds)
     column_dq1_or_nq1 = column_dq1 + column_nq1
-    if abs(column_nq1).max() < tol:
+    if abs(column_nq1).max() < TOLERANCE:
         long_name = "<dQ1> column integrated moistening from ML"
-    elif abs(column_dq1).max() < tol:
+    elif abs(column_dq1).max() < TOLERANCE:
         long_name = "<nQ1> column integrated moistening from nudging"
     else:
         long_name = "<dQ1> + <nQ1> column integrated moistening from ML + nudging"
@@ -291,14 +304,14 @@ def _column_dq1_or_nq1(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
     return column_dq1_or_nq1.rename("column_integrated_dQ1_or_nQ1")
 
 
-def _column_dq2_or_nq2(ds: xr.Dataset, tol=1.0e-12) -> xr.DataArray:
+def _column_dq2_or_nq2(ds: xr.Dataset) -> xr.DataArray:
     """<dQ2>+<nQ2> with appropriate long name if either is zero. Useful for movies."""
     column_dq2 = _column_dq2(ds)
     column_nq2 = _column_nq2(ds)
     column_dq2_or_nq2 = column_dq2 + column_nq2
-    if abs(column_nq2).max() < tol:
+    if abs(column_nq2).max() < TOLERANCE:
         long_name = "<dQ2> column integrated moistening from ML"
-    elif abs(column_dq2).max() < tol:
+    elif abs(column_dq2).max() < TOLERANCE:
         long_name = "<nQ2> column integrated moistening from nudging"
     else:
         long_name = "<dQ2> + <nQ2> column integrated moistening from ML + nudging"
@@ -320,3 +333,14 @@ def _minus_column_q2(ds: xr.Dataset) -> xr.DataArray:
     result = -_column_q2(ds)
     result.attrs = {"long_name": "-<Q2> column integrated drying", "units": "mm/day"}
     return result.rename("minus_column_integrated_q2")
+
+
+def _relative_humidity(ds: xr.Dataset) -> xr.DataArray:
+    result = vcm.relative_humidity_from_pressure(
+        ds.air_temperature, ds.specific_humidity, ds.pressure,
+    )
+    result.attrs = {
+        "long_name": "relative humidity",
+        "units": "dimensionless",
+    }
+    return result.rename("relative_humidity")

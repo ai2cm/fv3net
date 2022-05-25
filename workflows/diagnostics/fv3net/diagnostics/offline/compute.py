@@ -53,7 +53,7 @@ PREDICT_COORD = "predict"
 TARGET_COORD = "target"
 
 
-def _create_arg_parser() -> argparse.Namespace:
+def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -107,7 +107,7 @@ def _create_arg_parser() -> argparse.Namespace:
         default=-1,
         help=("Optional n_jobs parameter for joblib.parallel when computing metrics."),
     )
-    return parser.parse_args()
+    return parser
 
 
 def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
@@ -376,5 +376,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = _create_arg_parser()
+    parser = _get_parser()
+    args = parser.parse_args()
     main(args)

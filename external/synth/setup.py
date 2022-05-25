@@ -8,7 +8,7 @@ setup(
     version="0.1.0",
     python_requires="==3.*,>=3.7.0",
     author="Noah D. Brenowitz",
-    author_email="noahb@vulcan.com",
+    author_email="noahb@allenai.org",
     packages=["synth"],
     package_dir={"": "."},
     package_data={

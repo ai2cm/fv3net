@@ -41,10 +41,13 @@ variables:
 		vertical_wind:long_name = vertical wind ;
 		vertical_wind:units = m/sec ;
 		vertical_wind:valid_range = [-100.0, 100.0] ;
+	float64 relative_humidity(pressure, tile, time, y, x) ;
+		relative_humidity:long_name = relative humidity ;
+		relative_humidity:units = dimensionless ;
 
 // global attributes:
 }
-time 7151b727a6f28023527facbac8dac491
+time 08762d03ff9aecd3690c342c7189c570
 x dc9136a3153fe1adada82a1b225b8d1d
 y dc9136a3153fe1adada82a1b225b8d1d
 pressure 5ffba331ffbf7a5f41da67d710427656
@@ -90,10 +93,13 @@ variables:
 		vertical_wind:long_name = vertical wind ;
 		vertical_wind:units = m/sec ;
 		vertical_wind:valid_range = [-100.0, 100.0] ;
+	float64 relative_humidity(pressure, tile, time, y, x) ;
+		relative_humidity:long_name = relative humidity ;
+		relative_humidity:units = dimensionless ;
 
 // global attributes:
 }
-time 7151b727a6f28023527facbac8dac491
+time 08762d03ff9aecd3690c342c7189c570
 x dc9136a3153fe1adada82a1b225b8d1d
 y dc9136a3153fe1adada82a1b225b8d1d
 pressure 5ffba331ffbf7a5f41da67d710427656
@@ -512,7 +518,7 @@ variables:
 }
 x dc9136a3153fe1adada82a1b225b8d1d
 y dc9136a3153fe1adada82a1b225b8d1d
-time 073e68517ab1de13f9f7196e1f8a67f8
+time 48706651e4f065eb9b4915d4c31ab35a
 Verification
 xarray.Dataset {
 dimensions:
@@ -874,7 +880,7 @@ variables:
 }
 x dc9136a3153fe1adada82a1b225b8d1d
 y dc9136a3153fe1adada82a1b225b8d1d
-time 073e68517ab1de13f9f7196e1f8a67f8
+time 48706651e4f065eb9b4915d4c31ab35a
 grid
 xarray.Dataset {
 dimensions:

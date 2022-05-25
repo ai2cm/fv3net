@@ -46,7 +46,9 @@ def histogram2d(
     """
     xcoord_name = f"{x.name}_bins" if x.name is not None else "xbins"
     ycoord_name = f"{y.name}_bins" if y.name is not None else "ybins"
-    count, xedges, yedges = np.histogram2d(x.values.ravel(), y.values.ravel(), **kwargs)
+    count, xedges, yedges = np.histogram2d(
+        x.values.ravel(), y.transpose(*x.dims).values.ravel(), **kwargs
+    )
     xcoord: Mapping[Hashable, Any] = {xcoord_name: xedges[:-1]}
     ycoord: Mapping[Hashable, Any] = {ycoord_name: yedges[:-1]}
     xwidth = xedges[1:] - xedges[:-1]

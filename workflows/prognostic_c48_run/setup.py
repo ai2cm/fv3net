@@ -20,7 +20,7 @@ test_requirements = ["pytest"]
 
 setup(
     author="Vulcan Technologies LLC",
-    author_email="noahb@vulcan.com",
+    author_email="noahb@allenai.org",
     python_requires=">=3.6",
     package_data={"": ["*.json"]},
     description="The prognostic run application code. Not a library.",

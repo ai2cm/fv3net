@@ -4,18 +4,6 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-SCALE_VALUES = {
-    "air_temperature_output": 1,
-    "specific_humidity_output": 1000,  # g / kg
-    "cloud_water_mixing_ratio_output": 1000,  # g / kg
-    "total_precipitation": 1000 / (900 / (3600 * 24)),  # mm / day
-    "tendency_of_air_temperature_due_to_microphysics": 3600 * 24,  # K / day,
-    "tendency_of_specific_humidity_due_to_microphysics": 1000
-    * (3600 * 24),  # g / kg / day
-    "tendency_of_cloud_water_mixing_ratio_due_to_microphysics": 1000
-    * (3600 * 24),  # g / kg / day
-}
-
 ScoringOutput = Tuple[Dict[str, float], Dict[str, np.ndarray]]
 
 
@@ -53,28 +41,33 @@ def score(target, prediction) -> ScoringOutput:
 
 
 def score_single_output(
-    target: np.ndarray, prediction: np.ndarray, name: str, rescale: bool = True
+    target: np.ndarray, prediction: np.ndarray, name: str
 ) -> ScoringOutput:
     """
     Score a single named output from an emulation model. Returns
     a flat dictionary with score/profile keys preceding variable
     name for Weights & Biases chart grouping.
 
+    Precipitation scores are rescaled for backwards compatibility
+
     Args:
         target: truth values
         prediction: emulated values
         name: name of field being emulated to be added to the key
             of each score
-        rescale: rescale outputs using factor in top-level
-            SCALE_VALUES mapping if available
     """
 
-    if rescale:
-        try:
-            target *= SCALE_VALUES[name]
-            prediction *= SCALE_VALUES[name]
-        except KeyError:
-            logger.error(f"No scaling value found for {name}. Leaving unscaled...")
+    # including for backwards compatibility for precip scores
+    # precip has units meters/timestep, scaling assumes timestep is 900s
+    if name == "total_precipitation":
+        millimeters_in_meter = 1000
+        timestep_seconds = 900
+        seconds_in_day = 60 * 60 * 24
+        precip_scaling = (
+            millimeters_in_meter / timestep_seconds * seconds_in_day
+        )  # mm/day
+        target *= precip_scaling
+        prediction *= precip_scaling
 
     scores, profiles = score(target, prediction)
     # Keys use directory style for wandb chart grouping
@@ -88,7 +81,6 @@ def score_multi_output(
     targets: Sequence[np.ndarray],
     predictions: Sequence[np.ndarray],
     names: Sequence[str],
-    rescale: bool = True,
 ) -> ScoringOutput:
 
     """
@@ -100,8 +92,6 @@ def score_multi_output(
         prediction: emulated values for each model output
         names: names of fields being emulated, used for score key
             uniqueness
-        rescale: rescale outputs using factor in top-level
-            SCALE_VALUES mapping if available
     """
 
     all_scores: Dict[str, float] = {}
@@ -109,7 +99,7 @@ def score_multi_output(
 
     for target, pred, name in zip(targets, predictions, names):
 
-        scores, profiles = score_single_output(target, pred, name, rescale=rescale)
+        scores, profiles = score_single_output(target, pred, name)
         all_scores.update(scores)
         all_profiles.update(profiles)
 

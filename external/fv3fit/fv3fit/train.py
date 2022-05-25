@@ -22,8 +22,10 @@ from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
 from fv3fit.dataclasses import asdict_with_enum
 import wandb
+import sys
 
 from vcm.cloud import copy
+from fv3net.artifacts.metadata import StepMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +53,9 @@ def get_parser():
         ),
     )
     parser.add_argument(
-        "--wandb",
+        "--no-wandb",
         help=(
-            "Log run to wandb. Uses environment variables WANDB_ENTITY, "
+            "Disable logging of run to wandb. Uses environment variables WANDB_ENTITY, "
             "WANDB_PROJECT, WANDB_JOB_TYPE as wandb.init options."
         ),
         action="store_true",
@@ -188,7 +190,7 @@ def main(args, unknown_args=None):
             config_dict = get_arg_updated_config_dict(
                 args=unknown_args, config_dict=config_dict
             )
-        if args.wandb:
+        if args.no_wandb is False:
             # hyperparameters are repeated as flattened top level keys so they can
             # be referenced in the sweep configuration parameters
             # https://github.com/wandb/client/issues/982
@@ -207,7 +209,7 @@ def main(args, unknown_args=None):
     with open(args.training_data_config, "r") as f:
         config_dict = yaml.safe_load(f)
         training_data_config = loaders.BatchesLoader.from_dict(config_dict)
-        if args.wandb:
+        if args.no_wandb is False:
             wandb.config["training_data_config"] = config_dict
 
     fv3fit.set_random_seed(training_config.random_seed)
@@ -238,6 +240,9 @@ def main(args, unknown_args=None):
     if len(training_config.output_transforms) > 0:
         model = fv3fit.TransformedPredictor(model, training_config.output_transforms)
     fv3fit.dump(model, args.output_path)
+    StepMetadata(
+        job_type="training", url=args.output_path, args=sys.argv[1:],
+    ).print_json()
 
 
 if __name__ == "__main__":

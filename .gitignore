@@ -1,5 +1,3 @@
-external/vcm/vcm/mappm.*.so*
-
 **/.data/
 
 # Byte-compiled / optimized / DLL files
@@ -124,8 +122,6 @@ tests/end_to_end_integration/submit_e2e_job_k8s.yml
 # large files
 *.png
 *.ipynb
-external/vcm/external/mappm/MANIFEST
-external/vcm/vcm/interpolate_2dmodule.c
 
 .hypothesis
 

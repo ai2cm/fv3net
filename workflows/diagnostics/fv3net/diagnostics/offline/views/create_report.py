@@ -6,6 +6,8 @@ import sys
 import tempfile
 from typing import MutableMapping, Sequence, List
 import fsspec
+import wandb
+import json
 
 import fv3viz
 import matplotlib.pyplot as plt
@@ -13,6 +15,7 @@ import numpy as np
 import report
 import vcm
 from vcm.cloud import get_fs
+from fv3net.artifacts.metadata import StepMetadata
 import yaml
 from fv3net.diagnostics.offline._helpers import (
     get_metric_string,
@@ -75,7 +78,7 @@ def _cleanup_temp_dir(temp_dir):
     temp_dir.cleanup()
 
 
-def _create_arg_parser() -> argparse.Namespace:
+def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "input_path", type=str, help=("Location of diagnostics and metrics data."),
@@ -106,7 +109,15 @@ def _create_arg_parser() -> argparse.Namespace:
         default=None,
         help=("Training data configuration yaml file to insert into report"),
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--no-wandb",
+        help=(
+            "Disable logging of run to wandb. Uses environment variables WANDB_ENTITY, "
+            "WANDB_PROJECT, WANDB_JOB_TYPE as wandb.init options."
+        ),
+        action="store_true",
+    )
+    return parser
 
 
 def render_model_sensitivity(figures_dir, output_dir) -> str:
@@ -240,7 +251,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
                 report_sections,
                 fig,
                 filename=f"{var}.png",
-                section_name=coord.replace("_", " ") + " metrics",
+                section_name=(coord.replace("_", " ") + " metrics").capitalize(),
                 output_dir=output_dir,
             )
             plt.close(fig)
@@ -249,7 +260,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
     vars_3d = [v for v in ds_diags if is_3d(ds_diags[v])]
     ds_profiles = get_plot_dataset(
         ds_diags[vars_3d],
-        var_filter="time_domain_mean",
+        var_filter="time_domain_mean_model_level",
         column_filters=[
             "global",
             "land",
@@ -266,7 +277,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             report_sections,
             fig,
             filename=f"{var}.png",
-            section_name="Vertical profiles of predicted variables",
+            section_name="Vertical profiles of predicted variables on model levels",
             output_dir=output_dir,
         )
         plt.close(fig)
@@ -337,7 +348,9 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
             output_dir=output_dir,
         )
         plt.close(hist_wvp)
-        hist_col_drying = plot_histogram(ds_diags, f"{COL_DRYING}_histogram")
+        hist_col_drying = plot_histogram(
+            ds_diags, f"{COL_DRYING}_histogram", yscale="log"
+        )
         report.insert_report_figure(
             report_sections,
             hist_col_drying,
@@ -351,6 +364,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
         title="ML offline diagnostics",
         metadata=config,
         metrics=dict(metrics_formatted),
+        collapse_metadata=True,
     )
 
 
@@ -377,6 +391,14 @@ def create_report(args):
     if args.training_data_config:
         with fsspec.open(args.training_data_config, "r") as f:
             metadata["training_data_config"] = yaml.safe_load(f)
+    if args.no_wandb is False:
+        wandb_config = {
+            "training_data": metadata.pop("training_data_config"),
+            "model_training_config": metadata.pop("training_config"),
+            "metadata": metadata,
+        }
+        wandb.init(config=wandb_config)
+        wandb.log(metrics)
 
     html_index = render_index(
         metadata, metrics, ds_diags, ds_transect, output_dir=temp_output_dir.name,
@@ -398,6 +420,18 @@ def create_report(args):
     copy_outputs(temp_output_dir.name, args.output_path)
     logger.info(f"Save report to {args.output_path}")
 
+    # Gcloud logging allows metrics to get ingested into database
+    print(json.dumps({"json": metrics}))
+    StepMetadata(
+        job_type="offline_report",
+        url=args.output_path,
+        dependencies={
+            "offline_diagnostics": args.input_path,
+            "model": metadata.get("model_path"),
+        },
+        args=sys.argv[1:],
+    ).print_json()
+
     # Explicitly call .close() or xarray raises errors atexit
     # described in https://github.com/shoyer/h5netcdf/issues/50
     ds_diags.close()
@@ -406,5 +440,6 @@ def create_report(args):
 
 if __name__ == "__main__":
     logger.info("Starting create report routine.")
-    args = _create_arg_parser()
+    parser = _get_parser()
+    args = parser.parse_args()
     create_report(args)

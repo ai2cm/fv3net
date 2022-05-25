@@ -265,9 +265,16 @@ def test_skill_table(regtest):
         print(name, ":", signature, file=regtest)
 
 
-def test_compute_summaries(regtest):
+@pytest.mark.parametrize(
+    "func",
+    [
+        pytest.param(func, id=func.__name__)
+        for func in single_run.get_summary_functions()
+    ],
+)
+def test_summary_function(func, regtest):
     ds = vcm.cdl_to_dataset(cdl)
-    output = single_run.compute_summaries(ds)
+    output = dict(func(ds))
     print(sorted(output), file=regtest)
 
 

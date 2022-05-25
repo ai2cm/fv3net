@@ -35,6 +35,11 @@ RUN pip3 install --no-dependencies /fv3net/external/loaders
 COPY external/fv3fit /fv3net/external/fv3fit
 RUN pip3 install --no-dependencies /fv3net/external/fv3fit
 
+# Add emulation project scripts
+COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
+RUN chmod +x /fv3net/projects/microphysics/scripts/*
+ENV PATH=/fv3net/projects/microphysics/scripts:${PATH}
+
 # Greatly improves memory performance of tensorflow training
 ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4
 

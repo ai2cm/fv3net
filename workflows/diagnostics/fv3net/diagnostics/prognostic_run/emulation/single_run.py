@@ -3,7 +3,10 @@ import argparse
 import logging
 import os
 from functools import partial
-from typing import Any, Callable, List
+import re
+import sys
+from typing import Any, Callable, Iterable, List, Optional, Tuple
+import cftime
 
 import dask.diagnostics
 import fv3viz
@@ -15,12 +18,14 @@ import vcm.catalog
 import vcm.fv3.metadata
 import xarray as xr
 from fv3fit.tensorboard import plot_to_image
+from fv3net.artifacts.metadata import StepMetadata, log_fact_json
 
 import wandb
 from fv3net.diagnostics.prognostic_run.load_run_data import (
     open_segmented_logs_as_strings,
 )
 from fv3net.diagnostics.prognostic_run.logs import parse_duration
+from fv3net.diagnostics.prognostic_run.emulation import query
 
 from . import tendencies
 
@@ -30,28 +35,14 @@ SKILL_FIELDS = ["cloud_water", "specific_humidity", "air_temperature"]
 
 WANDB_PROJECT = "microphysics-emulation"
 WANDB_ENTITY = "ai2cm"
+WANDB_JOB_TYPE = "piggy-back"
 
 log_functions = []
-summary_functions = []
 
 
 def register_log(func):
     log_functions.append(func)
     return func
-
-
-def register_summary(func):
-    summary_functions.append(func)
-    return func
-
-
-def compute_summaries(ds):
-    out = {}
-    for func in summary_functions:
-        for key, val in func(ds).items():
-            out[key] = val
-
-    return out
 
 
 def _get_image(fig=None):
@@ -146,30 +137,59 @@ def skill_time_table(ds):
 def summarize_column_skill(ds, prefix, tendency_func):
     return {
         f"{prefix}/{field}": float(
-            column_integrated_skill(ds, partial(tendency_func, field=field))
+            column_integrated_skill(ds, lambda x, y: tendency_func(x, field, y))
         )
         for field in SKILL_FIELDS
-    }
+    }.items()
 
 
-for name, tendency_func in [
-    # total tendency named skill for backwards compatibility reasons
-    ("column_skill", tendencies.total_tendency),
-    ("column_skill/gscond", tendencies.gscond_tendency),
-    ("column_skill/precpd", tendencies.precpd_tendency),
-]:
-    register_summary(
-        partial(summarize_column_skill, prefix=name, tendency_func=tendency_func)
+def _global_average_cloud_ppm(ds, time, z) -> Optional[float]:
+    field = "cloud_water_mixing_ratio"
+    to_parts_per_million = 1e6
+
+    try:
+        selected = ds[field].sel(time=time)
+    except KeyError:
+        logger.warn("No field {} or time {}".format(field, time))
+        return None
+
+    selected_height = selected.interp(z=z)
+    average_cloud = float(
+        vcm.weighted_average(selected_height, ds.area, dims=selected_height.dims)
+    )
+    return average_cloud * to_parts_per_million
+
+
+def global_average_cloud_5d_300mb_ppm(
+    ds: xr.Dataset,
+) -> Iterable[Tuple[str, Optional[float]]]:
+
+    time = cftime.DatetimeJulian(2016, 6, 16)
+    z = 300
+
+    yield (
+        global_average_cloud_5d_300mb_ppm.__name__,
+        _global_average_cloud_ppm(ds, time, z),
     )
 
 
-@register_summary
+def global_average_cloud_1d_200mb_ppm(
+    ds: xr.Dataset,
+) -> Iterable[Tuple[str, Optional[float]]]:
+
+    time = cftime.DatetimeJulian(2016, 7, 2)
+    z = 200
+
+    yield (
+        "global_average_cloud_July2_200mb_ppm",
+        _global_average_cloud_ppm(ds, time, z),
+    )
+
+
 def summarize_precip_skill(ds):
-    return {
-        "column_skill/surface_precipitation": float(
-            column_integrated_skill(ds, tendencies.surface_precipitation)
-        )
-    }
+    yield "column_skill/surface_precipitation", float(
+        column_integrated_skill(ds, tendencies.surface_precipitation)
+    )
 
 
 def mse(x: xr.DataArray, y, area, dims=None):
@@ -197,8 +217,8 @@ def skills_3d(
 ):
     out = {}
     for field in fields:
-        prediction = transform(ds, field, source="emulator")
-        truth = transform(ds, field, source="physics")
+        prediction = transform(ds, field, "emulator")
+        truth = transform(ds, field, "physics")
         out[field] = skill_improvement(truth, prediction, ds.area)
     return xr.Dataset(out)
 
@@ -206,8 +226,8 @@ def skills_3d(
 def column_integrated_skill(
     ds: xr.Dataset, transform: Callable[[xr.Dataset, str], xr.DataArray],
 ):
-    prediction = transform(ds, source="emulator")
-    truth = transform(ds, source="physics")
+    prediction = transform(ds, "emulator")
+    truth = transform(ds, "physics")
     return skill_improvement_column(truth, prediction, ds.area)
 
 
@@ -276,23 +296,13 @@ def register_parser(subparsers) -> None:
         "to weights and biases.",
     )
     parser.add_argument("tag", help="The unique tag used for the prognostic run.")
+    parser.add_argument(
+        "-s", "--summary-only", help="Only run summaries.", action="store_true"
+    )
+    parser.add_argument(
+        "--summary-filter", help="Regex to select summaries", type=str, default=".*"
+    )
     parser.set_defaults(func=main)
-
-
-def get_prognostic_run_from_tag(tag: str) -> Any:
-    api = wandb.Api()
-    runs = api.runs(filters={"group": tag}, path=f"{WANDB_ENTITY}/{WANDB_PROJECT}")
-    prognostic_runs = []
-
-    for run in runs:
-        if run.job_type == "prognostic_run":
-            prognostic_runs.append(run)
-    (run,) = prognostic_runs
-    return run
-
-
-def get_rundir_from_prognostic_run(run: Any) -> str:
-    return run.config["rundir"]
 
 
 def open_zarr(url: str):
@@ -310,35 +320,86 @@ def open_rundir(url):
     return vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
 
 
-def upload_diagnostics_for_rundir(url):
-    wandb.config["run"] = url
-    wandb.summary["duration_seconds"] = get_duration_seconds(url)
-
-    ds = open_rundir(url)
-
-    for func in log_functions:
-        print(f"Running {func}")
-        with dask.diagnostics.ProgressBar():
-            wandb.log(func(ds))
-
-    for key, val in compute_summaries(ds).items():
+def log_summary_wandb(summary):
+    for key, val in summary.items():
         wandb.summary[key] = val
 
 
-def upload_diagnostics_for_tag(tag: str):
+def upload_diagnostics_for_rundir(url: str, summary_only: bool, summary_name: str):
+    summary_metrics = {"duration_seconds": get_duration_seconds(url)}
+    print("duration_seconds", summary_metrics["duration_seconds"])
+
+    wandb.config["run"] = url
+
+    ds = open_rundir(url)
+
+    if not summary_only:
+        for func in log_functions:
+            print(f"Running {func}")
+            with dask.diagnostics.ProgressBar():
+                wandb.log(func(ds))
+
+    for func in get_summary_functions():
+        for key, val in func(ds):
+            if re.match(summary_name, key):
+                print(key, val)
+                summary_metrics[key] = val
+
+    log_summary_wandb(summary_metrics)
+    log_fact_json(data=summary_metrics)
+
+
+def get_summary_functions() -> Iterable[
+    Callable[[xr.Dataset], Iterable[Tuple[str, Any]]]
+]:
+
+    # build list of summaries
+    yield global_average_cloud_5d_300mb_ppm
+    yield global_average_cloud_1d_200mb_ppm
+    yield summarize_precip_skill
+
+    for name, tendency_func in [
+        # total tendency named skill for backwards compatibility reasons
+        ("column_skill", tendencies.total_tendency),
+        ("column_skill/gscond", tendencies.gscond_tendency),
+        ("column_skill/precpd", tendencies.precpd_tendency),
+    ]:
+        func: Callable = partial(
+            summarize_column_skill, prefix=name, tendency_func=tendency_func
+        )
+        func.__name__ = name
+        yield func
+
+
+def upload_diagnostics_for_tag(tag: str, summary_only: bool, summary_name: str):
     run = wandb.init(
-        job_type="piggy-back",
+        job_type=WANDB_JOB_TYPE,
         project=WANDB_PROJECT,
         entity=WANDB_ENTITY,
         group=tag,
         tags=[tag],
         reinit=True,
     )
+    api = wandb.Api()
+    prognostic_run = query.PrognosticRunClient(
+        tag, entity=run.entity, project=run.project, api=api
+    )
+    prognostic_run.use_artifact_in(run)
+    url = prognostic_run.get_rundir_url()
+
     wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
+    StepMetadata(
+        job_type=WANDB_JOB_TYPE,
+        url=url,
+        dependencies={"prognostic_run": url},
+        args=sys.argv[1:],
+    ).print_json()
+
     with run:
-        url = get_rundir_from_prognostic_run(get_prognostic_run_from_tag(tag))
-        upload_diagnostics_for_rundir(url)
+        upload_diagnostics_for_rundir(url, summary_only, summary_name)
 
 
 def main(args):
-    return upload_diagnostics_for_tag(args.tag)
+    return upload_diagnostics_for_tag(
+        args.tag, summary_only=args.summary_only, summary_name=args.summary_filter
+    )

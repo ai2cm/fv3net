@@ -10,10 +10,13 @@ def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
     return unresolved_flux + (total_resolved_flux - omega * field)
 
 
-FINE_RES_BUDGET_NAMES = {
+FINE_RES_STATE_NAMES = {
     "T": "air_temperature",
     "sphum": "specific_humidity",
     "delp": "pressure_thickness_of_atmospheric_layer",
+}
+
+FINE_RES_FLUX_NAMES = {
     "DLWRFsfc_coarse": "total_sky_downward_longwave_flux_at_surface",
     "DSWRFsfc_coarse": "total_sky_downward_shortwave_flux_at_surface",
     "DSWRFtoa_coarse": "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
@@ -71,6 +74,9 @@ class FineResBudget(Protocol):
     LHTFLsfc_coarse: xarray.DataArray
     SHTFLsfc_coarse: xarray.DataArray
     PRATEsfc_coarse: xarray.DataArray
+
+    def astype(self, dtype):
+        pass
 
 
 def apparent_heating(data: FineResBudget, include_temperature_nudging: bool = False):

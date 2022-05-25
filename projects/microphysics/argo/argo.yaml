@@ -121,6 +121,8 @@ spec:
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
         value: "{{inputs.parameters.tag}}"
+      - name: FSSPEC_GS_REQUESTER_PAYS
+        value: "vcm-ml"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
@@ -142,7 +144,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
+      image: "us.gcr.io/vcm-ml/fv3net:latest"
       imagePullPolicy: Always
       resources:
         requests:
@@ -178,7 +180,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
+      image: "us.gcr.io/vcm-ml/fv3net:latest"
       imagePullPolicy: Always
       resources:
         requests:
@@ -194,7 +196,7 @@ spec:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
       - name: WANDB_RUN_GROUP
-        value: "{{workflow.parameters.wandb-group}}"
+        value: "{{inputs.parameters.tag}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
