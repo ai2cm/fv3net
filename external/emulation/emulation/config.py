@@ -1,6 +1,5 @@
 import dataclasses
 import datetime
-from functools import partial
 import logging
 from typing import Iterable, Mapping, Optional, Tuple
 import os
@@ -79,11 +78,16 @@ class ModelConfig:
         for key, range in self.ranges.items():
             yield RangeMask(key, min=range.min, max=range.max)
 
-        yield partial(
-            emulation.zhao_carr.modify_zhao_carr,
-            cloud_squash=self.cloud_squash,
-            gscond_cloud_conservative=self.gscond_cloud_conservative,
-        )
+        if self.gscond_cloud_conservative:
+            yield emulation.zhao_carr.infer_gscond_cloud_from_conservation
+
+        if self.cloud_squash is not None:
+            yield lambda x, y: emulation.zhao_carr.squash_gscond(
+                x, y, self.cloud_squash
+            )
+            yield lambda x, y: emulation.zhao_carr.squash_precpd(
+                x, y, self.cloud_squash
+            )
 
 
 @dataclasses.dataclass
