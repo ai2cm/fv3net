@@ -242,10 +242,10 @@ def main(args):
 
     catalog = intake.open_catalog(args.catalog)
     grid = load_diags.load_grid(catalog)
-    prognostic = derived_variables.physics_variables(
+    prognostic = derived_variables.derive_2d_variables(
         load_diags.SegmentedRun(args.url, catalog).data_2d
     )
-    verification = derived_variables.physics_variables(
+    verification = derived_variables.derive_2d_variables(
         get_verification(args, catalog, join_2d="inner").data_2d
     )
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead

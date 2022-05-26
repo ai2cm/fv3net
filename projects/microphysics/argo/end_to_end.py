@@ -124,18 +124,21 @@ def set_prognostic_emulation_model(
     config: dict,
     model_path: str,
     gscond_only: bool = False,
-    emu_model_kwargs: Optional[dict] = None,
+    gscond_conservative: bool = True,
 ) -> dict:
     prog_config = deepcopy(config)
     assert model_path.startswith("gs://")
-    emu_model_kwargs = {} if emu_model_kwargs is None else emu_model_kwargs
-    emu_model_kwargs["path"] = model_path
 
     if gscond_only:
-        emu_config = {"gscond": {**emu_model_kwargs}}
+        emu_config = {
+            "gscond": {
+                "path": model_path,
+                "gscond_cloud_conservative": gscond_conservative,
+            }
+        }
         prog_config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = True
     else:
-        emu_config = {"model": {**emu_model_kwargs}}
+        emu_config = {"model": {"path": model_path}}
     prog_config["zhao_carr_emulation"] = emu_config
     return prog_config
 
@@ -228,7 +231,7 @@ class TrainingJob:
 
 @dataclasses.dataclass
 class EndToEndJob:
-    """A configuration for prognostic jobs
+    """A configuration for E2E training and prognostic
 
     Examples:
 
@@ -253,6 +256,8 @@ class EndToEndJob:
     image_tag: str
     bucket: str = "vcm-ml-experiments"
     project: str = "microphysics-emulation"
+    gscond_only: bool = False
+    gscond_conservative: bool = True
 
     @property
     def entrypoint(self):
@@ -269,13 +274,13 @@ class EndToEndJob:
         ml_config["out_url"] = model_out_url
 
         model_path = os.path.join(model_out_url, "model.tf")
-        model_kwargs = {"gscond_cloud_conservative": True}
         prog_config = set_prognostic_emulation_model(
             self.prog_config,
             model_path,
-            gscond_only=True,
-            emu_model_kwargs=model_kwargs,
+            gscond_only=self.gscond_only,
+            gscond_conservative=self.gscond_conservative,
         )
+
         return {
             "training-config": _encode(ml_config),
             "config": _encode(prog_config),

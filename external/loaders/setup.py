@@ -6,7 +6,7 @@ setup(
     version="0.1.0",
     python_requires=">=3.6.9",
     author="Anna Kwa",
-    author_email="annak@vulcan.com",
+    author_email="annak@allenai.org",
     packages=find_packages(),
     package_dir={"": "."},
     package_data={},

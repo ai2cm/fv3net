@@ -13,6 +13,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunMetrics,
 )
 
+import fv3viz
 import vcm
 from report import create_html, Link, OrderedList, RawHTML
 from report.holoviews import HVPlot, get_html_header
@@ -22,7 +23,6 @@ from .matplotlib import (
     plot_histogram,
     plot_histogram2d,
 )
-from fv3viz import wong_palette
 from fv3net.diagnostics.prognostic_run.constants import (
     PERCENTILES,
     PRECIP_RATE,
@@ -43,10 +43,39 @@ warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 logging.basicConfig(level=logging.INFO)
 
 hv.extension("bokeh")
-COLOR_CYCLE = hv.Cycle(wong_palette)
+COLOR_CYCLE = hv.Cycle(fv3viz.wong_palette)
+fv3viz.use_colorblind_friendly_style()
 PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
+JQUERY_CDN = "https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"
+DATATABLES_CSS_CDN = "https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css"
+DATATABLES_JS_CDN = "https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"
 MovieManifest = Sequence[Tuple[str, str]]
 PublicLinks = Dict[str, List[Tuple[str, str]]]
+
+
+def get_datatables_header() -> str:
+    header = "<style>th{font-size: 1.15em}\n.firstcolumn{font-size: 1.15em}</style>"
+    header += f'\n<script src="{JQUERY_CDN}"></script>'
+    header += f'\n<link rel="stylesheet" type="text/css" href="{DATATABLES_CSS_CDN}">'
+    header += f'\n<script src="{DATATABLES_JS_CDN}"></script>'
+    header += """
+        <script>
+            $(document).ready(function() {
+                $('table.display').DataTable( {
+                    "scrollX":        "100%",
+                    "scrollY":        "700px",
+                    "scrollCollapse": true,
+                    "paging":         false,
+                    "columnDefs": [{"targets": [0], "className": "firstcolumn"}]
+                } );
+                $('table.dataframe').DataTable();
+            } );
+        </script>"""
+    return header
+
+
+def get_header() -> str:
+    return get_html_header() + "\n" + get_datatables_header()
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -338,6 +367,16 @@ def rmse_time_mean_metrics(metrics: RunMetrics) -> RawHTML:
 
 
 @metrics_plot_manager.register
+def rmse_time_mean_land_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "rmse_of_time_mean_land")
+
+
+@metrics_plot_manager.register
+def rmse_time_mean_sea_metrics(metrics: RunMetrics) -> RawHTML:
+    return metric_type_table(metrics, "rmse_of_time_mean_sea")
+
+
+@metrics_plot_manager.register
 def rmse_3day_metrics(metrics: RunMetrics) -> RawHTML:
     return metric_type_table(metrics, "rmse_3day")
 
@@ -428,7 +467,7 @@ def render_index(metadata, diagnostics, metrics, movie_links):
         title="Prognostic run report",
         metadata={**metadata, **render_links(movie_links)},
         sections=sections_index,
-        html_header=get_html_header(),
+        html_header=get_header(),
     )
 
 
@@ -443,7 +482,7 @@ def render_hovmollers(metadata, diagnostics):
         title="Latitude versus time hovmoller plots",
         metadata=metadata,
         sections=sections_hovmoller,
-        html_header=get_html_header(),
+        html_header=get_header(),
     )
 
 
@@ -460,7 +499,7 @@ def render_maps(metadata, diagnostics, metrics):
         title="Time-mean maps",
         metadata=metadata,
         sections=sections,
-        html_header=get_html_header(),
+        html_header=get_header(),
     )
 
 
@@ -475,7 +514,7 @@ def render_zonal_pressures(metadata, diagnostics):
         title="Pressure versus latitude plots",
         metadata=metadata,
         sections=sections_zonal_pressure,
-        html_header=get_html_header(),
+        html_header=get_header(),
     )
 
 
@@ -493,7 +532,7 @@ def render_process_diagnostics(metadata, diagnostics, metrics):
         title="Process diagnostics",
         metadata=metadata,
         sections=sections,
-        html_header=get_html_header(),
+        html_header=get_header(),
     )
 
 

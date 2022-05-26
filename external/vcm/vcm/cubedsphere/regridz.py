@@ -4,7 +4,10 @@ import xarray as xr
 
 from typing import Tuple, Union
 
-import vcm.mappm
+try:
+    import mappm
+except ModuleNotFoundError:
+    mappm = None
 from ..calc.thermo.vertically_dependent import pressure_at_interface
 from ..cubedsphere import edge_weighted_block_average, weighted_block_average
 from ..cubedsphere.coarsen import block_upsample_like
@@ -266,9 +269,14 @@ def _columnwise_mappm(
         p_in, f_in, p_out = _reshape_for_mappm(p_in, f_in, p_out)
         dummy_ptop = 0.0  # Not used by mappm, but required as an argument
         n_columns = p_in.shape[0]
-        return vcm.mappm.mappm(
-            p_in, f_in, p_out, 1, n_columns, iv, kord, dummy_ptop
-        ).reshape(output_shape)
+        if mappm is not None:
+            return mappm.mappm(
+                p_in, f_in, p_out, 1, n_columns, iv, kord, dummy_ptop
+            ).reshape(output_shape)
+        else:
+            raise ModuleNotFoundError(
+                "mappm is not installed, required for this routine"
+            )
 
 
 def _adjust_chunks_for_mappm(

@@ -24,7 +24,7 @@ To make each workflow as modular as possible, we need to make sure that workflow
 - Any new workflow code is assumed workflow-specific unless actually used by multiple workflows.
 - Workflow specific code should be contained within the  `workflows/<workflow name>/` folder.
 
-Of course, some workflow-specific code will become useful in other workflows. In this case, the shared functionality should be moved to a relevant python "micropackage" in `external`. If the new functionality does not seem like a good fit for an existing package e.g. (`external/vcm`) then a new package should be created. This is relatively easy to do with tools like [poetry](https://github.com/python-poetry/poetry). Each of these micropackages should have a minimal set of dependencies.
+Of course, some workflow-specific code will become useful in other workflows. In this case, the shared functionality should be moved to a relevant python "micropackage" in `external`. If the new functionality does not seem like a good fit for an existing package e.g. (`external/vcm`) then a new package should be created. You can refer to existing packages as templates. Each of these micropackages should have a minimal set of dependencies.
 
 ##  vcm
 

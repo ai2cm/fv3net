@@ -15,7 +15,7 @@ from vcm.calc.thermo.vertically_dependent import (
     _add_coords_to_interface_variable,
     mass_streamfunction,
 )
-from vcm.calc.calc import local_time, weighted_average
+from vcm.calc.calc import local_time, weighted_average, vertical_tapering_scale_factors
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 from vcm.calc.thermo.constants import _GRAVITY, _RDGAS, _RVGAS
 import vcm
@@ -184,6 +184,17 @@ def test_mass_divergence():
     assert out.shape == (5, 4)
 
 
+def test_relative_humidity_from_pressure():
+    # values taken from https://www.omnicalculator.com/physics/air-density
+    pressure = 1e5
+    temperature = 300
+    e = 1412
+    q = 0.622 * e / (pressure - 0.378 * e)
+    expected_rh = 0.4
+    rh = vcm.relative_humidity_from_pressure(temperature, q, pressure)
+    assert pytest.approx(expected_rh, rel=1e-3) == rh
+
+
 da = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
 da_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
 ds = xr.Dataset({"a": da})
@@ -211,3 +222,30 @@ def test_weighted_averaged_no_dims():
     expected = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
 
     xr.testing.assert_allclose(weighted_average(da, weights), expected)
+
+
+@pytest.mark.parametrize(
+    "cutoff, rate, expected",
+    [
+        (0, 5, np.array([1.0, 1.0, 1.0, 1.0])),
+        (2, 5, np.array([np.exp(-2.0 / 5), np.exp(-1.0 / 5), 1.0, 1.0])),
+    ],
+)
+def test_vertical_tapering_scale_factors(cutoff, rate, expected):
+    x = np.ones(4)
+    np.testing.assert_array_almost_equal(
+        x * vertical_tapering_scale_factors(4, cutoff=cutoff, rate=rate), expected
+    )
+
+
+def test_weighted_averaged_keeps_attrs():
+    da = xr.DataArray(
+        [[[np.arange(1.0, 5.0)]]],
+        dims=["tile", "y", "x", "z"],
+        attrs={"units": "unit_name", "other": "foo"},
+    )
+    weights = xr.DataArray([[[[0.5, 0.5, 1, 1]]]], dims=["tile", "y", "x", "z"])
+    expected = xr.DataArray(
+        np.arange(1.0, 5.0), dims=["z"], attrs={"units": "unit_name", "other": "foo"}
+    )
+    xr.testing.assert_identical(weighted_average(da, weights), expected)

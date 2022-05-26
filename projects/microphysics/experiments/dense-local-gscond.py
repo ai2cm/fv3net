@@ -36,6 +36,8 @@ def _get_job(config_name: str, arch_key: str, revision: str, suffix: str):
         image_tag=revision,
         ml_config=train_config,
         prog_config=prog_config,
+        gscond_only=True,
+        gscond_conservative=True,
     )
 
 

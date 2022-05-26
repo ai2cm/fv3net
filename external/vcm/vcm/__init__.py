@@ -51,6 +51,7 @@ from .calc.thermo.local import (
     internal_energy,
     saturation_pressure,
     relative_humidity,
+    relative_humidity_from_pressure,
     specific_humidity_from_rh,
     density,
     pressure_thickness,

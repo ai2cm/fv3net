@@ -244,6 +244,26 @@ def relative_humidity(temperature, specific_humidity, density, math=np):
     return partial_pressure / saturation_pressure(temperature, math=math)
 
 
+def relative_humidity_from_pressure(temperature, specific_humidity, pressure, math=np):
+    """Relative humidity from temperature, specific humidity and pressure.
+
+    Args:
+        temperature: air temperature in units of K.
+        specific_humidity: in units of kg/kg.
+        density: air density in kg/m**3.
+        math (optional): module with an exponential function `exp`. Defaults to numpy.
+
+    Returns:
+        Relative humidity.
+
+    Note:
+        Following Eq. 3.59 of Wallace and Hobbs (2006).
+    """
+    mixing_ratio = specific_humidity / (1 - specific_humidity)
+    partial_pressure = pressure * mixing_ratio / (mixing_ratio + _RDGAS / _RVGAS)
+    return partial_pressure / saturation_pressure(temperature, math=math)
+
+
 def specific_humidity_from_rh(temperature, relative_humidity, density, math=np):
     """Specific humidity from temperature, relative humidity and density.
 

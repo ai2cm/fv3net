@@ -8,6 +8,7 @@ from .calc.flux_form import (
     _flux_to_tendency,
     _tendency_to_implied_surface_downward_flux,
 )
+from .calc.calc import vertical_tapering_scale_factors
 
 
 @dataclasses.dataclass
@@ -32,6 +33,8 @@ TransformName = Literal[
     "Q2_tendency_from_Q2_flux",
     "implied_surface_precipitation_rate",
     "implied_downward_radiative_flux_at_surface",
+    "tapered_dQ1",
+    "tapered_dQ2",
 ]
 
 
@@ -59,6 +62,28 @@ def register(
         func=func, inputs=inputs, outputs=outputs
     )
     return func
+
+
+@register(["dQ1"], ["tapered_dQ1"])
+def tapered_dQ1(ds, cutoff: int, rate: float):
+    n_levels = len(ds["z"])
+    scaling = xr.DataArray(
+        vertical_tapering_scale_factors(n_levels=n_levels, cutoff=cutoff, rate=rate),
+        dims=["z"],
+    )
+    ds["tapered_dQ1"] = scaling * ds["dQ1"]
+    return ds
+
+
+@register(["dQ2"], ["tapered_dQ2"])
+def tapered_dQ2(ds, cutoff: int, rate: float):
+    n_levels = len(ds["z"])
+    scaling = xr.DataArray(
+        vertical_tapering_scale_factors(n_levels=n_levels, cutoff=cutoff, rate=rate),
+        dims=["z"],
+    )
+    ds["tapered_dQ2"] = scaling * ds["dQ2"]
+    return ds
 
 
 @register(["Q1", "Q2"], ["Qm"])

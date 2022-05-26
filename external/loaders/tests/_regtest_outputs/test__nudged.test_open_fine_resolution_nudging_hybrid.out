@@ -204,6 +204,10 @@ variables:
 	object time() ;
 	float32 dQ1(tile, z, y, x) ;
 	float32 dQ2(tile, z, y, x) ;
+	float32 pQ1(tile, z, y, x) ;
+		pQ1:units = unknown ;
+	float32 pQ2(tile, z, y, x) ;
+		pQ2:units = unknown ;
 	float32 dQxwind(tile, z, y_interface, x) ;
 		dQxwind:units = m/s s^-1 ;
 	float32 dQywind(tile, z, y, x_interface) ;

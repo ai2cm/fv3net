@@ -9,10 +9,10 @@ sphinx-argparse
 sphinx_rtd_theme
 sphinx-gallery
 tensorflow>=2.3
-tensorflow-addons
 fv3config>=0.9.0
 pace-util>=0.9.0
 numba
+intake
 
 # prognostic run diagnostics requirements
 # this file depends on vcm, so pip-tools cannot lock it
@@ -47,7 +47,6 @@ xarray >= 0.19.0
 # developer tools
 conda-lock
 pip-tools
-poetry
 tox
 pre-commit
 ipython>=7.29.0
@@ -55,3 +54,4 @@ jupyterlab
 
 # fv3fit testing tools
 hypothesis
+pytest-mpl

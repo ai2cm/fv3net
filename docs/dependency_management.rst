@@ -18,8 +18,9 @@ builds. Therefore, adding or modifying a dependency involves a few steps:
 #. add any pip packages to ``pip-requirements.txt``
 #. change ``BEAM_VERSION`` macro in ``Makefile``
 #. add any pip packages for a ``external/<package>`` to ``external/<package>.requirements.in``
-#. run ``make lock_deps`` to create lock files ``conda-<system>.lock``
-   which explicitly list all the conda packages
+#. if ``environment.yml`` was edited, run ``make lock_deps`` to create lock files ``conda-<system>.lock``
+   which explicitly list all the conda packages, otherwise run ``make lock_pip`` to update only the
+   ``constraints.txt`` which lists all pypi packages
 #. Commit the lock files and any other changes to git
 
 ..  note::
@@ -71,7 +72,7 @@ run image, then you could add something like the following to the
 
     fsspec!=0.7.0
 
-Then run ``make lock_deps`` to update the ``constraints.txt`` file.
+Then run ``make lock_pip`` to update the ``constraints.txt`` file.
 
 This currently requires ``pip`` version < 20.3. The latest version 20.3 does not work with
 the automatically generated ``constraints.txt`` because it contains extras.
