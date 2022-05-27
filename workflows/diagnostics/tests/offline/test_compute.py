@@ -70,7 +70,7 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
                 model_dir,
                 data_config_filename,
                 os.path.join(tmpdir, "offline_diags"),
-                "--grid",
+                "--evaluation-grid",
                 grid_dataset_path,
                 "--n-jobs",
                 "1",

@@ -52,7 +52,7 @@ DERIVATION_DIM_NAME = "derivation"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
-EVALUTION_RESOLUTION = 48
+EVALUATION_RESOLUTION = "c48"
 
 
 def _get_parser() -> argparse.ArgumentParser:
@@ -84,12 +84,16 @@ def _get_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--grid",
+        "--evaluation-grid",
         type=str,
         default=None,
         help=(
-            "Optional path to grid data netcdf. If not provided, assumes grid "
-            "variables are already in validation data."
+            "Optional path to a grid data netcdf that sets the grid resolution at "
+            "which the diagnostics will be computed. If not provided, evaluation grid "
+            "resolution will be C48. If validation data resolution is higher than "
+            "the evaluation grid resolution by an integer multiple, the validation "
+            "data will be coarsened to the evaluation grid resolution. Otherwise the "
+            "evaluation grid resolution must match the validation data resolution."
         ),
     )
     parser.add_argument(
@@ -231,17 +235,13 @@ def _get_predict_function(predictor, variables):
 
 @curry
 def coarsen_cell_centered(ds, coarsening_factor, weights):
-    if coarsening_factor > 1:
-        coarsened = vcm.cubedsphere.weighted_block_average(
-            ds.drop_vars("area", errors="ignore"),
-            weights=weights,
-            coarsening_factor=coarsening_factor,
-            x_dim="x",
-            y_dim="y",
-        )
-    else:
-        coarsened = ds
-    return coarsened
+    return vcm.cubedsphere.weighted_block_average(
+        ds.drop_vars("area", errors="ignore"),
+        weights=weights,
+        coarsening_factor=coarsening_factor,
+        x_dim="x",
+        y_dim="y",
+    )
 
 
 def _get_data_mapper_if_exists(config):
@@ -282,10 +282,10 @@ def main(args):
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
 
-    if args.grid is None:
-        evaluation_grid = load_grid_info("c" + str(EVALUTION_RESOLUTION))
+    if args.evaluation_grid is None:
+        evaluation_grid = load_grid_info(EVALUATION_RESOLUTION)
     else:
-        with fsspec.open(args.grid, "rb") as f:
+        with fsspec.open(args.evaluation_grid, "rb") as f:
             evaluation_grid = xr.open_dataset(f, engine="h5netcdf").load()
 
     logger.info("Opening ML model")
@@ -306,19 +306,28 @@ def main(args):
     batches = config.load_batches(model_variables)
 
     transforms = [_get_predict_function(model, model_variables)]
+
     prediction_resolution = _res_from_string(config.res)
-    if prediction_resolution > EVALUTION_RESOLUTION:
-        if prediction_resolution % EVALUTION_RESOLUTION != 0:
-            raise ValueError(
-                "Target resolution must evenly divide prediction resolution"
-            )
-        coarsening_factor = prediction_resolution // EVALUTION_RESOLUTION
+    logger.info(
+        f"Making predictions at validation data's c{prediction_resolution} resolution."
+    )
+    evaluation_resolution = evaluation_grid.sizes["x"]
+    logger.info(f"Evaluating diagnostics at c{evaluation_resolution} resolution.")
+    if prediction_resolution % evaluation_resolution != 0:
+        raise ValueError(
+            "Evaluation grid resolution does not match or evenly divide prediction "
+            "resolution."
+        )
+    coarsening_factor = prediction_resolution // evaluation_resolution
+    if coarsening_factor > 1:
         prediction_grid = load_grid_info(config.res)
+        logger.info(f"Coarsening predictions by factor of {coarsening_factor}.")
         transforms.append(
             coarsen_cell_centered(
                 weights=prediction_grid.area, coarsening_factor=coarsening_factor
             )
         )
+
     mapping_function = compose_left(*transforms)
 
     batches = loaders.Map(mapping_function, batches)
