@@ -72,8 +72,6 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
                 os.path.join(tmpdir, "offline_diags"),
                 "--grid",
                 grid_dataset_path,
-                "--grid-resolution",
-                "c8_random_values",
                 "--n-jobs",
                 "1",
             ]

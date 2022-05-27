@@ -1,36 +1,37 @@
 import argparse
-import dataclasses
-import fsspec
-import logging
 import json
-import numpy as np
+import logging
 import os
 import sys
 from tempfile import NamedTemporaryFile
-from vcm.derived_mapping import DerivedMapping
-import xarray as xr
-import yaml
-from typing import Mapping, Sequence, Tuple, List
+from typing import List, Mapping, Sequence, Tuple
 
-import loaders
-from vcm import safe, interpolate_to_pressure_levels
-import vcm
+import yaml
+
+import dataclasses
+import fsspec
 import fv3fit
-from .compute_diagnostics import compute_diagnostics
-from .derived_diagnostics import derived_registry
-from ._input_sensitivity import plot_input_sensitivity
+import loaders
+import numpy as np
+import vcm
+import xarray as xr
+from toolz import compose_left, curry
+from vcm import interpolate_to_pressure_levels, safe
+
 from ._helpers import (
     DATASET_DIM_NAME,
-    load_grid_info,
-    is_3d,
     compute_r2,
     insert_aggregate_bias,
     insert_aggregate_r2,
-    insert_rmse,
     insert_column_integrated_vars,
+    insert_rmse,
+    is_3d,
+    load_grid_info,
 )
+from ._input_sensitivity import plot_input_sensitivity
 from ._select import meridional_transect, nearest_time_batch_index, select_snapshot
-
+from .compute_diagnostics import compute_diagnostics
+from .derived_diagnostics import derived_registry
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -51,6 +52,7 @@ DERIVATION_DIM_NAME = "derivation"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
+EVALUTION_RESOLUTION = 48
 
 
 def _get_parser() -> argparse.ArgumentParser:
@@ -86,19 +88,8 @@ def _get_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         help=(
-            "Optional path to grid data netcdf. If not provided, defaults to loading "
-            "the grid  with the appropriate resolution (given in batch_kwargs) from "
-            "the catalog. Useful if you do not have permissions to access the GCS "
-            "data in vcm.catalog."
-        ),
-    )
-    parser.add_argument(
-        "--grid-resolution",
-        type=str,
-        default="c48",
-        help=(
-            "Optional grid resolution used to retrieve grid from the vcm catalog "
-            '(e.g. "c48"), ignored if --grid is provided'
+            "Optional path to grid data netcdf. If not provided, assumes grid "
+            "variables are already in validation data."
         ),
     )
     parser.add_argument(
@@ -230,18 +221,27 @@ def insert_prediction(ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
     return xr.merge([safe.get_variables(ds, nonpredicted_vars), ds_target, ds_pred])
 
 
-def _get_predict_function(predictor, variables, grid):
+def _get_predict_function(predictor, variables):
     def transform(ds):
-        # Prioritize dataset's land_sea_mask if grid values disagree
-        ds = xr.merge(
-            [ds, grid], compat="override"  # type: ignore
-        )
-        derived_mapping = DerivedMapping(ds)
-        ds_derived = derived_mapping.dataset(variables)
-        ds_prediction = predictor.predict(safe.get_variables(ds_derived, variables))
-        return insert_prediction(ds_derived, ds_prediction)
+        ds_prediction = predictor.predict(safe.get_variables(ds, variables))
+        return insert_prediction(ds, ds_prediction)
 
     return transform
+
+
+@curry
+def coarsen_cell_centered(ds, coarsening_factor, weights):
+    if coarsening_factor > 1:
+        coarsened = vcm.cubedsphere.weighted_block_average(
+            ds.drop_vars("area", errors="ignore"),
+            weights=weights,
+            coarsening_factor=coarsening_factor,
+            x_dim="x",
+            y_dim="y",
+        )
+    else:
+        coarsened = ds
+    return coarsened
 
 
 def _get_data_mapper_if_exists(config):
@@ -262,21 +262,17 @@ def _add_derived_diagnostics(ds):
     return merged.assign_attrs(ds.attrs)
 
 
-def get_grid(grid_path: str, grid_resolution: str, data_resolution: str) -> xr.Dataset:
-    logger.info("Reading grid...")
-    if not grid_path:
-        if grid_resolution != data_resolution:
-            logger.info(
-                f"Using grid resolution {data_resolution} based on data resolution."
-            )
-            res = data_resolution
-        else:
-            res = grid_resolution
-        grid = load_grid_info(res)
+def _res_from_string(res_str):
+    if res_str.startswith("c"):
+        res = ""
+        for c in res_str[1:]:
+            if c.isnumeric():
+                res += c
+            else:
+                break
+        return int(res)
     else:
-        with fsspec.open(grid_path, "rb") as f:
-            grid = xr.open_dataset(f, engine="h5netcdf").load()
-    return grid
+        raise ValueError('res_str must start with "c" followed by integers.')
 
 
 def main(args):
@@ -286,7 +282,11 @@ def main(args):
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
 
-    grid = get_grid(args.grid, args.grid_resolution, config.res)
+    if args.grid is None:
+        evaluation_grid = load_grid_info("c" + str(EVALUTION_RESOLUTION))
+    else:
+        with fsspec.open(args.grid, "rb") as f:
+            evaluation_grid = xr.open_dataset(f, engine="h5netcdf").load()
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
@@ -305,14 +305,32 @@ def main(args):
         f_out.write(f_in.read())
     batches = config.load_batches(model_variables)
 
-    predict_function = _get_predict_function(model, model_variables, grid)
-    batches = loaders.Map(predict_function, batches)
+    transforms = [_get_predict_function(model, model_variables)]
+    prediction_resolution = _res_from_string(config.res)
+    if prediction_resolution > EVALUTION_RESOLUTION:
+        if prediction_resolution % EVALUTION_RESOLUTION != 0:
+            raise ValueError(
+                "Target resolution must evenly divide prediction resolution"
+            )
+        coarsening_factor = prediction_resolution // EVALUTION_RESOLUTION
+        prediction_grid = load_grid_info(config.res)
+        transforms.append(
+            coarsen_cell_centered(
+                weights=prediction_grid.area, coarsening_factor=coarsening_factor
+            )
+        )
+    mapping_function = compose_left(*transforms)
+
+    batches = loaders.Map(mapping_function, batches)
 
     # compute diags
     ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(
-        batches, grid, predicted_vars=model.output_variables, n_jobs=args.n_jobs
+        batches,
+        evaluation_grid,
+        predicted_vars=model.output_variables,
+        n_jobs=args.n_jobs,
     )
-    ds_diagnostics = ds_diagnostics.update(grid)
+    ds_diagnostics = ds_diagnostics.update(evaluation_grid)
 
     # save model senstivity figures- these exclude derived variables
     fig_input_sensitivity = plot_input_sensitivity(model, batches[0])
@@ -352,7 +370,7 @@ def main(args):
             )
         )
 
-        ds_transect = _get_transect(ds_snapshot, grid, vertical_vars)
+        ds_transect = _get_transect(ds_snapshot, evaluation_grid, vertical_vars)
         _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
 
     ds_diagnostics = _add_derived_diagnostics(ds_diagnostics)
