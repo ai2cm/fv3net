@@ -80,10 +80,11 @@ def open_data(url: str) -> tf.data.Dataset:
         "specific_humidity_after_last_gscond",
         "surface_air_pressure_after_last_gscond",
         "specific_humidity_after_gscond",
-        "air_temperature_after_gscond",
-        "air_temperature_after_precpd",
-        "specific_humidity_after_precpd",
-        "cloud_water_mixing_ratio_after_precpd",
+        "cloud_water_mixing_ratio_after_gscond",
+        # "air_temperature_after_gscond",
+        # "air_temperature_after_precpd",
+        # "specific_humidity_after_precpd",
+        # "cloud_water_mixing_ratio_after_precpd",
         "total_precipitation",
         "ratio_of_snowfall_to_rainfall",
         "tendency_of_rain_water_mixing_ratio_due_to_microphysics",
@@ -158,7 +159,8 @@ def group(gen):
 def main(
     test_url="/Users/noahb/data/vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",
     model_path="/Users/noahb/workspace/ai2cm/fv3net/model.tf",
-    n_samples=20_000,
+    n_samples=200_000,
+    rectified=True,
 ):
 
     model = tf.keras.models.load_model(model_path)
@@ -167,18 +169,26 @@ def main(
     truth_dict, pred_dict = next(iter(truth_pred.unbatch().batch(n_samples)))
     truth = tensordict_to_dataset(truth_dict)
     pred = tensordict_to_dataset(pred_dict)
+    pred["cloud_water_mixing_ratio_after_gscond"] = truth[
+        "cloud_water_mixing_ratio_input"
+    ] - (pred["specific_humidity_after_gscond"] - truth["specific_humidity_input"])
+    # rectify
+    if rectified:
+        qc_name = "cloud_water_mixing_ratio_after_gscond"
+        qc = pred[qc_name]
+        pred[qc_name] = qc.where(qc > 0, 0)
 
     yield class_fractions(truth)
-    yield "threshold analysis", group(plot_threshold_analysis(truth, pred))
+    # yield "threshold analysis", group(plot_threshold_analysis(truth, pred))
     yield "bias", group(bias_plots(truth, pred))
-    yield "bias theshold 20% decrease", group(bias_plots_thresholded(truth, pred, -0.2))
-    yield "bias theshold 50% decrease", group(bias_plots_thresholded(truth, pred, -0.5))
+    # yield "bias theshold 20% decrease", group(bias_plots_thresholded(truth, pred, -0.2))
+    # yield "bias theshold 50% decrease", group(bias_plots_thresholded(truth, pred, -0.5))
 
 
 def class_fractions(truth):
     classes = classify(
         truth.cloud_water_mixing_ratio_input,
-        truth.cloud_water_mixing_ratio_after_precpd,
+        truth.cloud_water_mixing_ratio_after_gscond,
     )
     classes.mean("sample").to_dataframe().plot.area().legend(loc="upper left")
     plt.ylabel("Fraction")
@@ -205,16 +215,16 @@ def bias_plots(truth, pred):
     error = pred - truth
     classes = classify(
         truth.cloud_water_mixing_ratio_input,
-        truth.cloud_water_mixing_ratio_after_precpd,
+        truth.cloud_water_mixing_ratio_after_gscond,
     )
     assert set(classes.to_array().sum("variable").values.ravel()) == {1}
 
     plt.figure()
     for v in classes:
-        (error.cloud_water_mixing_ratio_after_precpd / 900).where(classes[v], 0).mean(
+        (error.cloud_water_mixing_ratio_after_gscond / 900).where(classes[v], 0).mean(
             "sample"
         ).plot(label=v)
-    (error.cloud_water_mixing_ratio_after_precpd / 900).mean("sample").plot(
+    (error.cloud_water_mixing_ratio_after_gscond / 900).mean("sample").plot(
         label="net", color="black", linestyle=":"
     )
     plt.xlabel("vertical index (0=TOA)")
@@ -227,12 +237,12 @@ def bias_plots(truth, pred):
     mses = np.sqrt(
         metric_on_classes(
             (
-                truth.cloud_water_mixing_ratio_after_precpd
+                truth.cloud_water_mixing_ratio_after_gscond
                 - truth.cloud_water_mixing_ratio_input
             )
             / 900,
             (
-                pred.cloud_water_mixing_ratio_after_precpd
+                pred.cloud_water_mixing_ratio_after_gscond
                 - truth.cloud_water_mixing_ratio_input
             )
             / 900,
@@ -247,11 +257,39 @@ def bias_plots(truth, pred):
     plt.grid()
     yield "mse", plt.gcf()
 
+    def skill_score(truth, pred, mean):
+        sse = mean((truth - pred) ** 2)
+        ss = mean(pred ** 2)
+        return 1 - sse / ss
+
+    mses = np.sqrt(
+        metric_on_classes(
+            (
+                truth.cloud_water_mixing_ratio_after_gscond
+                - truth.cloud_water_mixing_ratio_input
+            )
+            / 900,
+            (
+                pred.cloud_water_mixing_ratio_after_gscond
+                - truth.cloud_water_mixing_ratio_input
+            )
+            / 900,
+            classes,
+            skill_score,
+        )
+    )
+    mses.to_dataframe().plot.line()
+    plt.ylim([0, 1])
+    plt.xlabel("vertical index (0=TOA)")
+    plt.ylabel("R2")
+    plt.title("R2 | category")
+    plt.grid()
+    yield "r2", plt.gcf()
+
 
 plt.style.use(["tableau-colorblind10", "seaborn-talk"])
-test_url = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-17/online-12hr-cycle-v3-online/artifacts/20160611.000000/netcdf_output"
-model_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273/model.tf"
-# model_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-all-loss-rnn-7ef273/model.tf"
+test_url = "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test"
+model_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-05-13/gscond-only-dense-local-nfiles1980-41b1c1-v1/model.tf"
 html = report.create_html(
     dict(main(model_path=model_path, test_url=test_url)),
     title="Category analysis",
