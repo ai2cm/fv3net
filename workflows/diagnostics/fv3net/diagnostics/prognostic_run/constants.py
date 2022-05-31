@@ -99,6 +99,10 @@ GLOBAL_3D_AVERAGE_VARS = [
     "air_temperature",
     "specific_humidity",
     "relative_humidity",
+    "dQ1",
+    "dQ2",
+    "tendency_of_air_temperature_due_to_machine_learning",
+    "tendency_of_specific_humidity_due_to_machine_learning",
 ]
 
 GLOBAL_BIAS_PHYSICS_VARS = [
