@@ -13,6 +13,7 @@ DIM_RENAME_INVERSE_MAP = {
     "tile": {"rank"},
     "x_interface": {"grid_x", "grid_x_coarse"},
     "y_interface": {"grid_y", "grid_y_coarse"},
+    "z": {"pfull"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 TIME_DIM_NAME = "time"
@@ -54,6 +55,7 @@ def standardize_fv3_diagnostics(
         _adjust_tile_range,
         _rename_dims,
         _round_time_coord,
+        _drop_model_level_coord,
         _remove_name_suffix,
         _set_missing_attrs,
     ]
@@ -103,6 +105,11 @@ def _round_time_coord(ds: xr.Dataset, time_coord: str = TIME_DIM_NAME) -> xr.Dat
         )
 
     return ds
+
+
+def _drop_model_level_coord(ds: xr.Dataset, z_coord: str = "z") -> xr.Dataset:
+    """Sometimes this is a reference pressure level, sometimes just an index."""
+    return ds.drop(z_coord, errors="ignore")
 
 
 def _set_missing_attrs(ds: xr.Dataset) -> xr.Dataset:
