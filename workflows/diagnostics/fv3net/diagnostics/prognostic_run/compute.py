@@ -39,6 +39,7 @@ from fv3net.diagnostics._shared.constants import (
 )
 from .constants import (
     GLOBAL_AVERAGE_VARS,
+    GLOBAL_3D_AVERAGE_VARS,
     GLOBAL_BIAS_VARS,
     DIURNAL_CYCLE_VARS,
     TIME_MEAN_VARS,
@@ -121,10 +122,12 @@ def merge_diags(diags: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, xr.Data
 registries = {
     "2d": Registry(merge_diags),
     "3d": Registry(merge_diags),
+    "3d_model_level": Registry(merge_diags),
 }
 # expressions not allowed in decorator calls, so need explicit variables for each here
 registry_2d = registries["2d"]
 registry_3d = registries["3d"]
+registry_3d_model_level = registries["3d_model_level"]
 
 
 def rms(x, y, w, dims):
@@ -360,6 +363,32 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply(transform.subset_variables, GLOBAL_BIAS_VARS)
     def global_biases_2d(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing average biases for 2d variables ({mask_type})")
+        prognostic, verification, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        bias_errors = bias(verification, prognostic)
+        mean_bias_errors = weighted_mean(bias_errors, grid.area, HORIZONTAL_DIMS)
+        return mean_bias_errors
+
+    @registry_3d_model_level.register(f"spatial_3d_mean_{mask_type}")
+    @transform.apply(transform.mask_area, mask_type)
+    @transform.apply(transform.resample_time, "3H")
+    @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+    @transform.apply(transform.subset_variables, GLOBAL_3D_AVERAGE_VARS)
+    def global_averages_3d(diag_arg: DiagArg, mask_type=mask_type):
+        logger.info(f"Preparing averages for 3d variables ({mask_type})")
+        prognostic, grid = diag_arg.prediction, diag_arg.grid
+        return weighted_mean(prognostic, grid.area, HORIZONTAL_DIMS)
+
+    @registry_3d_model_level.register(f"mean_3d_bias_{mask_type}")
+    @transform.apply(transform.mask_area, mask_type)
+    @transform.apply(transform.resample_time, "3H")
+    @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+    @transform.apply(transform.subset_variables, GLOBAL_3D_AVERAGE_VARS)
+    def global_biases_3d(diag_arg: DiagArg, mask_type=mask_type):
+        logger.info(f"Preparing average biases for 3d variables ({mask_type})")
         prognostic, verification, grid = (
             diag_arg.prediction,
             diag_arg.verification,
