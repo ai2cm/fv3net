@@ -1,7 +1,7 @@
 import xarray as xr
 from typing import Mapping, Set, Callable, Sequence
 import logging
-from ..convenience import round_time
+from ..convenience import round_time, convert_timestamps
 from ..safe import warn_if_intersecting
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,7 @@ def standardize_fv3_diagnostics(
 
     funcs: Sequence[Callable[[xr.Dataset], xr.Dataset]] = [
         xr.decode_cf,
+        _maybe_convert_timestamps,
         _adjust_tile_range,
         _rename_dims,
         _round_time_coord,
@@ -133,6 +134,21 @@ def _remove_name_suffix(
 
         warn_if_intersecting(ds.data_vars.keys(), replace_names.values())
         ds = ds.rename(replace_names)
+    return ds
+
+
+def _maybe_convert_timestamps(
+    ds: xr.Dataset, time_name: str = TIME_DIM_NAME
+) -> xr.Dataset:
+    """Convert string timestamps to cftime.DatetimeJulian objects if necessary"""
+    if time_name in ds.coords:
+        try:
+            converted_time_coord = convert_timestamps(ds[time_name])
+        except TypeError:
+            pass
+        else:
+            ds[time_name] = converted_time_coord
+
     return ds
 
 

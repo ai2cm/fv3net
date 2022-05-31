@@ -7,6 +7,7 @@ from vcm.fv3.metadata import (
     standardize_fv3_diagnostics,
     gfdl_to_standard,
     standard_to_gfdl,
+    _maybe_convert_timestamps,
 )
 
 
@@ -126,6 +127,30 @@ def test_standardize_fv3_diagnostics_reg(regtest):
     standardized_ds.info(regtest)
     with regtest:
         print(f"\n{standardized_ds.time}")
+
+
+def test__maybe_convert_timestamps_str_input():
+    da = xr.DataArray([0, 1], dims=["time"])
+    time = xr.DataArray(["20160801.000000", "20160802.000000"], dims=["time"])
+    time_as_datetimes = xr.DataArray(
+        [cftime.DatetimeJulian(2016, 8, 1), cftime.DatetimeJulian(2016, 8, 2)],
+        dims=["time"],
+    )
+    ds = xr.Dataset({"a": da}, coords={"time": time})
+    output = _maybe_convert_timestamps(ds)
+    expected_output = xr.Dataset({"a": da}, coords={"time": time_as_datetimes})
+    xr.testing.assert_identical(output, expected_output)
+
+
+def test__maybe_convert_timestamps_datetimes_input():
+    da = xr.DataArray([0, 1], dims=["time"])
+    time = xr.DataArray(
+        [cftime.DatetimeJulian(2016, 8, 1), cftime.DatetimeJulian(2016, 8, 2)],
+        dims=["time"],
+    )
+    ds = xr.Dataset({"a": da}, coords={"time": time})
+    output = _maybe_convert_timestamps(ds)
+    xr.testing.assert_identical(output, ds)
 
 
 def test_gfdl_to_standard_dims_correct():
