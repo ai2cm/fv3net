@@ -5,6 +5,7 @@ import shutil
 from typing import Hashable, Mapping, Sequence, Dict, Tuple, Union
 import vcm
 import xarray as xr
+from toolz import curry
 
 from vcm import safe
 from vcm.cloud import gsutil
@@ -12,6 +13,7 @@ from vcm.catalog import catalog
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 DATASET_DIM_NAME = "dataset"
+EVALUATION_RESOLUTION = "c48"
 
 UNITS = {
     "column_integrated_dq1": "[W/m2]",
@@ -224,3 +226,39 @@ def insert_column_integrated_vars(
         ds = ds.assign({column_integrated_name: da})
 
     return ds
+
+
+@curry
+def coarsen_cell_centered(
+    ds: xr.Dataset, coarsening_factor: int, weights: xr.DataArray
+) -> xr.Dataset:
+    return vcm.cubedsphere.weighted_block_average(
+        ds.drop_vars("area", errors="ignore"),
+        weights=weights,
+        coarsening_factor=coarsening_factor,
+        x_dim="x",
+        y_dim="y",
+    )
+
+
+def res_from_string(res_str: str) -> int:
+    if res_str.lower().startswith("c"):
+        res = ""
+        for c in res_str[1:]:
+            if c.isnumeric():
+                res += c
+            else:
+                break
+        return int(res)
+    else:
+        raise ValueError('res_str must start with "c" followed by integers.')
+
+
+def batches_mean(ds: xr.Dataset, res: int, dim: str = "batch") -> xr.Dataset:
+    maximum_3d_resolution = res_from_string(EVALUATION_RESOLUTION)
+    with xr.set_options(keep_attrs=True):
+        if res > maximum_3d_resolution:
+            averaged_vars = [var for var in ds.data_vars if not is_3d(ds[var])]
+            return safe.get_variables(ds, averaged_vars).mean(dim=dim)
+        else:
+            return ds.mean(dim=dim)

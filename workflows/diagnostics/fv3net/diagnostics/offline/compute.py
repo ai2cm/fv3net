@@ -15,11 +15,12 @@ import loaders
 import numpy as np
 import vcm
 import xarray as xr
-from toolz import compose_left, curry
+from toolz import compose_left
 from vcm import interpolate_to_pressure_levels, safe
 
 from ._helpers import (
     DATASET_DIM_NAME,
+    EVALUATION_RESOLUTION,
     compute_r2,
     insert_aggregate_bias,
     insert_aggregate_r2,
@@ -27,6 +28,9 @@ from ._helpers import (
     insert_rmse,
     is_3d,
     load_grid_info,
+    coarsen_cell_centered,
+    res_from_string,
+    batches_mean,
 )
 from ._input_sensitivity import plot_input_sensitivity
 from ._select import meridional_transect, nearest_time_batch_index, select_snapshot
@@ -52,7 +56,6 @@ DERIVATION_DIM_NAME = "derivation"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
-EVALUATION_RESOLUTION = "c48"
 
 
 def _get_parser() -> argparse.ArgumentParser:
@@ -137,6 +140,7 @@ def _compute_diagnostics(
     batches: Sequence[xr.Dataset],
     grid: xr.Dataset,
     predicted_vars: List[str],
+    res: int,
     n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset]:
     batches_summary = []
@@ -178,7 +182,7 @@ def _compute_diagnostics(
         ds_diagnostics, ds_scalar_metrics
     )
     # this is kept as a coord to use in plotting a histogram of test timesteps
-    return ds_diagnostics.mean("batch"), ds_scalar_metrics
+    return batches_mean(ds_diagnostics, res), ds_scalar_metrics
 
 
 def _consolidate_dimensioned_data(ds):
@@ -233,17 +237,6 @@ def _get_predict_function(predictor, variables):
     return transform
 
 
-@curry
-def coarsen_cell_centered(ds, coarsening_factor, weights):
-    return vcm.cubedsphere.weighted_block_average(
-        ds.drop_vars("area", errors="ignore"),
-        weights=weights,
-        coarsening_factor=coarsening_factor,
-        x_dim="x",
-        y_dim="y",
-    )
-
-
 def _get_data_mapper_if_exists(config):
     if isinstance(config, loaders.BatchesFromMapperConfig):
         return config.load_mapper()
@@ -260,19 +253,6 @@ def _variables_to_load(model):
 def _add_derived_diagnostics(ds):
     merged = xr.merge([ds, derived_registry.compute(ds, n_jobs=1)])
     return merged.assign_attrs(ds.attrs)
-
-
-def _res_from_string(res_str):
-    if res_str.startswith("c"):
-        res = ""
-        for c in res_str[1:]:
-            if c.isnumeric():
-                res += c
-            else:
-                break
-        return int(res)
-    else:
-        raise ValueError('res_str must start with "c" followed by integers.')
 
 
 def main(args):
@@ -307,7 +287,7 @@ def main(args):
 
     transforms = [_get_predict_function(model, model_variables)]
 
-    prediction_resolution = _res_from_string(config.res)
+    prediction_resolution = res_from_string(config.res)
     logger.info(
         f"Making predictions at validation data's c{prediction_resolution} resolution."
     )
@@ -337,8 +317,10 @@ def main(args):
         batches,
         evaluation_grid,
         predicted_vars=model.output_variables,
+        res=evaluation_resolution,
         n_jobs=args.n_jobs,
     )
+    logger.info('Right after ds_diagnostics.mean("batch")')
     ds_diagnostics = ds_diagnostics.update(evaluation_grid)
 
     # save model senstivity figures- these exclude derived variables
