@@ -584,7 +584,7 @@ def main(args):
     verification = get_verification(args, catalog)
     attrs["verification"] = str(verification)
 
-    grid = load_diags.load_grid(catalog)
+    grid = load_diags.load_grid(catalog).load()
     input_data = load_diags.evaluation_pair_to_input_data(
         prognostic, verification, grid
     )
