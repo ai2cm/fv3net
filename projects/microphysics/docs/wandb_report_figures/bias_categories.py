@@ -112,51 +112,11 @@ def metric_on_classes(truth, pred, classes, metric):
     return xr.Dataset(out)
 
 
-def threshold_analysis(truth, pred):
-
-    c_in = truth.cloud_water_mixing_ratio_input
-    c_0 = np.abs(c_in) >= 1e-12
-    c_1 = np.abs(truth.cloud_water_mixing_ratio_after_precpd) >= 1e-12
-    destroyed = c_0 & (~c_1)
-
-    fractional_change = (pred.cloud_water_mixing_ratio_after_precpd - c_in) / c_in
-
-    def avg(x):
-        return vcm.weighted_average(x, c_0, dims=["sample", "z"])
-
-    def _gen():
-        thresholds = np.linspace(-0.5, 1.5, 100)
-        for thresh in thresholds:
-            for func in [vcm.false_positive_rate, vcm.true_positive_rate, vcm.accuracy]:
-                yield func.__name__, (thresh,), func(
-                    destroyed, fractional_change < -thresh, avg
-                )
-
-    return vcm.combine_array_sequence(_gen(), labels=["threshold"]).assign(
-        prob=avg(destroyed)
-    )
-
-
-def plot_threshold_analysis(truth, pred):
-    acc = threshold_analysis(truth, pred)
-    acc = acc.swap_dims({"threshold": "false_positive_rate"}).sortby(
-        "false_positive_rate"
-    )
-    plt.figure()
-    acc.true_positive_rate.plot()
-    auc = acc.true_positive_rate.integrate("false_positive_rate")
-    plt.title(f"ROC AUC={float(auc):3f} Prob={float(acc.prob):.3f}")
-    yield "roc", plt.gcf()
-    plt.figure()
-    acc.threshold.plot()
-    yield "threshold", plt.gcf()
-
-
 def group(gen):
     return [report.MatplotlibFigure(fig) for _, fig in gen]
 
 
-def main(
+def open_truth_prediction(
     test_url="/Users/noahb/data/vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",
     model_path="/Users/noahb/workspace/ai2cm/fv3net/model.tf",
     n_samples=200_000,
@@ -177,12 +137,12 @@ def main(
         qc_name = "cloud_water_mixing_ratio_after_gscond"
         qc = pred[qc_name]
         pred[qc_name] = qc.where(qc > 0, 0)
+    return truth, pred
 
+
+def plots(truth, pred):
     yield class_fractions(truth)
-    # yield "threshold analysis", group(plot_threshold_analysis(truth, pred))
     yield "bias", group(bias_plots(truth, pred))
-    # yield "bias theshold 20% decrease", group(bias_plots_thresholded(truth, pred, -0.2))
-    # yield "bias theshold 50% decrease", group(bias_plots_thresholded(truth, pred, -0.5))
 
 
 def class_fractions(truth):
@@ -195,19 +155,6 @@ def class_fractions(truth):
     plt.xlabel("vertical index (0=TOA)")
     plt.grid()
     return "fraction", [report.MatplotlibFigure(plt.gcf())]
-
-
-def bias_plots_thresholded(truth, pred, threshold):
-    c_in = truth.cloud_water_mixing_ratio_input
-    c_0 = np.abs(c_in) >= 1e-12
-    fractional_change = (pred.cloud_water_mixing_ratio_after_precpd - c_in) / c_in
-    new_precpd = xr.where(
-        c_0 & (fractional_change < threshold),
-        0,
-        pred.cloud_water_mixing_ratio_after_precpd,
-    )
-    pred_thresholded = pred.assign(cloud_water_mixing_ratio_after_precpd=new_precpd)
-    yield from bias_plots(truth, pred_thresholded)
 
 
 def bias_plots(truth, pred):
@@ -287,14 +234,17 @@ def bias_plots(truth, pred):
     yield "r2", plt.gcf()
 
 
-plt.style.use(["tableau-colorblind10", "seaborn-talk"])
-test_url = "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test"
-model_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-05-13/gscond-only-dense-local-nfiles1980-41b1c1-v1/model.tf"
-html = report.create_html(
-    dict(main(model_path=model_path, test_url=test_url)),
-    title="Category analysis",
-    metadata={"model_path": model_path, "test_url": test_url, "script": __file__},
-)
-report.upload(html)
-# import pathlib
-# pathlib.Path("report.html").write_text(html)
+if __name__ == "__main__":
+    plt.style.use(["tableau-colorblind10", "seaborn-talk"])
+    test_url = "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test"
+    model_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-05-13/gscond-only-dense-local-nfiles1980-41b1c1-v1/model.tf"
+    truth, pred = open_truth_prediction(test_url, model_path)
+    html = report.create_html(
+        dict(plots(truth, pred)),
+        title="Category analysis",
+        metadata={"model_path": model_path, "test_url": test_url, "script": __file__},
+    )
+    report.upload(html)
+    import pathlib
+
+    pathlib.Path("report.html").write_text(html)
