@@ -296,13 +296,6 @@ def land_time_height_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
 
 
 @time_height_plot_manager.register
-def tropics_time_height_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
-    return plot_2d_matplotlib(
-        diagnostics, "spatial_3d_mean_tropics", ["time", "z"], yincrease=False
-    )
-
-
-@time_height_plot_manager.register
 def global_time_height_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics, "mean_3d_bias_global", ["time", "z"], yincrease=False
@@ -320,13 +313,6 @@ def sea_time_height_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
 def land_time_height_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics, "mean_3d_bias_land", ["time", "z"], yincrease=False
-    )
-
-
-@time_height_plot_manager.register
-def tropics_time_height_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
-    return plot_2d_matplotlib(
-        diagnostics, "mean_3d_bias_tropics", ["time", "z"], yincrease=False
     )
 
 

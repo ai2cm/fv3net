@@ -96,13 +96,16 @@ GLOBAL_AVERAGE_PHYSICS_VARS = [
 GLOBAL_AVERAGE_VARS = GLOBAL_AVERAGE_DYCORE_VARS + GLOBAL_AVERAGE_PHYSICS_VARS
 
 GLOBAL_3D_AVERAGE_VARS = [
-    "air_temperature",
-    "specific_humidity",
-    "relative_humidity",
     "dQ1",
     "dQ2",
     "tendency_of_air_temperature_due_to_machine_learning",
     "tendency_of_specific_humidity_due_to_machine_learning",
+]
+
+GLOBAL_3D_BIAS_AVERAGE_VARS = [
+    "air_temperature",
+    "specific_humidity",
+    "relative_humidity",
 ]
 
 GLOBAL_BIAS_PHYSICS_VARS = [

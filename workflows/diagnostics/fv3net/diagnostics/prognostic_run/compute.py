@@ -41,6 +41,7 @@ from .constants import (
     GLOBAL_AVERAGE_VARS,
     GLOBAL_3D_AVERAGE_VARS,
     GLOBAL_BIAS_VARS,
+    GLOBAL_3D_BIAS_AVERAGE_VARS,
     DIURNAL_CYCLE_VARS,
     TIME_MEAN_VARS,
     RMSE_VARS,
@@ -372,6 +373,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         mean_bias_errors = weighted_mean(bias_errors, grid.area, HORIZONTAL_DIMS)
         return mean_bias_errors
 
+
+for mask_type in ["global", "land", "sea"]:
+
     @registry_3d_model_level.register(f"spatial_3d_mean_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
     @transform.apply(transform.resample_time, "3H")
@@ -390,7 +394,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply(transform.mask_area, mask_type)
     @transform.apply(transform.resample_time, "3H")
     @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
-    @transform.apply(transform.subset_variables, GLOBAL_3D_AVERAGE_VARS)
+    @transform.apply(transform.subset_variables, GLOBAL_3D_BIAS_AVERAGE_VARS)
     def global_biases_3d(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing average biases for 3d variables ({mask_type})")
         prognostic, verification, grid = (
