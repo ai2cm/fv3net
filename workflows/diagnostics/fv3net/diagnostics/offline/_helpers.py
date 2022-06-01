@@ -255,10 +255,12 @@ def res_from_string(res_str: str) -> int:
 
 
 def batches_mean(ds: xr.Dataset, res: int, dim: str = "batch") -> xr.Dataset:
+    """Average over batches, but not for 3D variables if at greater than
+    C48 resolution"""
     maximum_3d_resolution = res_from_string(EVALUATION_RESOLUTION)
     with xr.set_options(keep_attrs=True):
         if res > maximum_3d_resolution:
-            averaged_vars = [var for var in ds.data_vars if not is_3d(ds[var])]
-            return safe.get_variables(ds, averaged_vars).mean(dim=dim)
+            excluded_vars = [var for var in ds.data_vars if is_3d(ds[var])]
+            return ds.drop_vars(excluded_vars).mean(dim=dim)
         else:
             return ds.mean(dim=dim)

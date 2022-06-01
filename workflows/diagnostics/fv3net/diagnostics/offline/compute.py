@@ -165,6 +165,7 @@ def _compute_diagnostics(
         ds_summary = compute_diagnostics(
             prediction, target, grid, ds[DELP], n_jobs=n_jobs
         )
+        # this is kept as a coord to use in plotting a histogram of test timesteps
         ds_summary["time"] = ds["time"]
 
         batches_summary.append(ds_summary.load())
@@ -181,7 +182,7 @@ def _compute_diagnostics(
     ds_diagnostics, ds_scalar_metrics = _standardize_names(
         ds_diagnostics, ds_scalar_metrics
     )
-    # this is kept as a coord to use in plotting a histogram of test timesteps
+
     return batches_mean(ds_diagnostics, res), ds_scalar_metrics
 
 
@@ -320,7 +321,7 @@ def main(args):
         res=evaluation_resolution,
         n_jobs=args.n_jobs,
     )
-    logger.info('Right after ds_diagnostics.mean("batch")')
+
     ds_diagnostics = ds_diagnostics.update(evaluation_grid)
 
     # save model senstivity figures- these exclude derived variables
