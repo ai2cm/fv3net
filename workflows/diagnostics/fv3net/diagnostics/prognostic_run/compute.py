@@ -378,9 +378,13 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
     @transform.apply(transform.subset_variables, GLOBAL_3D_AVERAGE_VARS)
     def global_averages_3d(diag_arg: DiagArg, mask_type=mask_type):
-        logger.info(f"Preparing averages for 3d variables ({mask_type})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
-        return weighted_mean(prognostic, grid.area, HORIZONTAL_DIMS)
+        output = xr.Dataset()
+        for varname in prognostic.data_vars:
+            logger.info(f"Preparing average for 3D model-level {varname} ({mask_type})")
+            mean = weighted_mean(prognostic[varname], grid.area, HORIZONTAL_DIMS).load()
+            output[varname] = mean
+        return output
 
     @registry_3d_model_level.register(f"mean_3d_bias_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
@@ -394,9 +398,13 @@ for mask_type in ["global", "land", "sea", "tropics"]:
             diag_arg.verification,
             diag_arg.grid,
         )
-        bias_errors = bias(verification, prognostic)
-        mean_bias_errors = weighted_mean(bias_errors, grid.area, HORIZONTAL_DIMS)
-        return mean_bias_errors
+        output = xr.Dataset()
+        common_vars = set(prognostic.data_vars).intersection(verification.data_vars)
+        for varname in common_vars:
+            bias_error = bias(verification[varname], prognostic[varname])
+            mean = weighted_mean(bias_error, grid.area, HORIZONTAL_DIMS).load()
+            output[varname] = mean
+        return output
 
 
 @registry_2d.register("time_mean_value")
