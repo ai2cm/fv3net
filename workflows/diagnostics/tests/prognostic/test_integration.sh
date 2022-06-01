@@ -13,7 +13,7 @@ cd workflows/diagnostics
 
 # compute diagnostics/mterics for a short sample prognostic run
 mkdir -p /tmp/$random
-prognostic_run_diags save $RUN /tmp/$random/diags.nc --n-jobs=4
+prognostic_run_diags save $RUN /tmp/$random/diags.nc --n-jobs=2
 prognostic_run_diags metrics /tmp/$random/diags.nc > /tmp/$random/metrics.json
 gsutil cp /tmp/$random/diags.nc $OUTPUT/run1/diags.nc
 gsutil cp /tmp/$random/metrics.json $OUTPUT/run1/metrics.json
