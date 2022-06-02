@@ -92,3 +92,8 @@ def mask_where_fortran_cloud_identical(state, emulator):
     )
     net_condensation = cloud_out - state[Input.cloud_water]
     return {**emulator, **apply_condensation_liquid_phase(state, net_condensation)}
+
+
+def enforce_conservative_gscond(state, emulator):
+    net_condensation = emulator[GscondOutput.cloud_water] - state[Input.cloud_water]
+    return {**emulator, **apply_condensation_liquid_phase(state, net_condensation)}
