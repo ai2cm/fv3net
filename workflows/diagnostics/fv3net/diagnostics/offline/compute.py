@@ -136,6 +136,10 @@ def _standardize_names(*args: xr.Dataset):
     return renamed
 
 
+def _coord_to_var(coord: xr.DataArray, new_var_name: str) -> xr.DataArray:
+    return coord.rename(new_var_name).drop_vars(coord.name)
+
+
 def _compute_diagnostics(
     batches: Sequence[xr.Dataset],
     grid: xr.Dataset,
@@ -143,7 +147,7 @@ def _compute_diagnostics(
     res: int,
     n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset]:
-    batches_summary = []
+    batches_summary, timesteps = [], []
 
     # for each batch...
     for i, ds in enumerate(batches):
@@ -165,8 +169,8 @@ def _compute_diagnostics(
         ds_summary = compute_diagnostics(
             prediction, target, grid, ds[DELP], n_jobs=n_jobs
         )
-        # this is kept as a coord to use in plotting a histogram of test timesteps
-        ds_summary["time"] = ds["time"]
+
+        timesteps.append(ds["time"])
 
         batches_summary.append(ds_summary.load())
         del ds
@@ -182,7 +186,8 @@ def _compute_diagnostics(
     ds_diagnostics, ds_scalar_metrics = _standardize_names(
         ds_diagnostics, ds_scalar_metrics
     )
-
+    timesteps_all = _coord_to_var(xr.concat(timesteps, dim="time").time, "timesteps")
+    ds_diagnostics["timesteps"] = timesteps_all
     return batches_mean(ds_diagnostics, res), ds_scalar_metrics
 
 
@@ -358,7 +363,9 @@ def main(args):
         # add snapshotted prediction to saved diags.nc
         ds_diagnostics = ds_diagnostics.merge(
             safe.get_variables(ds_snapshot, predicted_vars).rename(
-                {v: f"{v}_snapshot" for v in predicted_vars}
+                dict(
+                    **{v: f"{v}_snapshot" for v in predicted_vars}, time="time_snapshot"
+                )
             )
         )
 
