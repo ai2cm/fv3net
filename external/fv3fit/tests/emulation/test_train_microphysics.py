@@ -1,15 +1,16 @@
-from pathlib import PosixPath
-import sys
-from fv3fit.dataclasses import asdict_with_enum as asdict
-from unittest.mock import Mock
-
-from fv3fit.emulation.losses import CustomLoss
-
 import pytest
 import tensorflow as tf
+import sys
+from pathlib import PosixPath
+from toolz.dicttoolz import keyfilter
+from unittest.mock import Mock
+
+
+from fv3fit.dataclasses import asdict_with_enum as asdict
 from fv3fit._shared.config import to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
+from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.train_microphysics import (
@@ -177,3 +178,27 @@ def test_TrainConfig_build_loss():
     loss_value, _ = loss(data, data)
     assert 0 == pytest.approx(loss_value.numpy())
     transform.forward.assert_called()
+
+
+def test_TrainConfig_GscondClassesV1():
+    timestep = 1.0
+    # thresholds set to 1e-15 at time of writing tests
+    data = {
+        "cloud_water_mixing_ratio_input": tf.convert_to_tensor(
+            [[0, 0, 0, 2e-15, 3e-15]]
+        ),
+        "cloud_water_mixing_ratio_after_gscond": tf.convert_to_tensor(
+            [[1e-14, 1e-16, -1e-15, 1e15, 2e-15]]
+        ),
+    }
+    config_dict = {"tensor_transform": [{"timestep": timestep}]}
+    config = TrainConfig.from_dict(config_dict)
+
+    transform = config.build_transform(sample=data)
+    result = transform.forward(data)
+    updated = keyfilter(lambda x: x in set(result) - set(data), result)
+
+    class_sum = tf.reduce_sum(
+        [tf.cast(classified, tf.int16) for classified in updated.values()], axis=0
+    )
+    tf.debugging.assert_equal(class_sum, tf.ones(5, dtype=tf.int16))
