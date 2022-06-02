@@ -14,6 +14,8 @@ NEGATIVE_TENDENCY = "negative_tendency"
 @dataclasses.dataclass
 class GscondClassesV1(TensorTransform):
     """
+    A hardcoded classification transform to assess cloud state/tendency
+    behavior
     """
 
     cloud_in: str = "cloud_water_mixing_ratio_input"
