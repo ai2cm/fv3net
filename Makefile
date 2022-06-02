@@ -124,9 +124,6 @@ pull_image_prognostic_run_base:
 pull_image_prognostic_run_base_gpu:
 	docker pull $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION)
 
-enter_emulation:
-	cd projects/microphysics && docker-compose run --rm -w /fv3net/external/emulation fv3 bash
-
 enter_prognostic_run:
 	docker run \
 		--rm \
