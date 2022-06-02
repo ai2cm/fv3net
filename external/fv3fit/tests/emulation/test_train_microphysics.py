@@ -2,10 +2,9 @@ import pytest
 import tensorflow as tf
 import sys
 from pathlib import PosixPath
-from toolz.dicttoolz import keyfilter
 from unittest.mock import Mock
 
-
+import fv3fit.emulation.transforms.zhao_carr as zhao_carr
 from fv3fit.dataclasses import asdict_with_enum as asdict
 from fv3fit._shared.config import to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
@@ -182,23 +181,19 @@ def test_TrainConfig_build_loss():
 
 def test_TrainConfig_GscondClassesV1():
     timestep = 1.0
-    # thresholds set to 1e-15 at time of writing tests
-    data = {
-        "cloud_water_mixing_ratio_input": tf.convert_to_tensor(
-            [[0, 0, 0, 2e-15, 3e-15]]
-        ),
-        "cloud_water_mixing_ratio_after_gscond": tf.convert_to_tensor(
-            [[1e-14, 1e-16, -1e-15, 1e15, 2e-15]]
-        ),
-    }
     config_dict = {"tensor_transform": [{"timestep": timestep}]}
     config = TrainConfig.from_dict(config_dict)
 
+    data = {
+        "cloud_water_mixing_ratio_input": tf.ones((1, 4)),
+        "cloud_water_mixing_ratio_after_gscond": tf.ones((1, 4),),
+    }
     transform = config.build_transform(sample=data)
     result = transform.forward(data)
-    updated = keyfilter(lambda x: x in set(result) - set(data), result)
 
-    class_sum = tf.reduce_sum(
-        [tf.cast(classified, tf.int16) for classified in updated.values()], axis=0
-    )
-    tf.debugging.assert_equal(class_sum, tf.ones(5, dtype=tf.int16))
+    # Check the length so it errors if classes added/removed without top-level
+    # definitions being updated
+    assert len(set(result) - set(data)) == len(zhao_carr.CLASS_NAMES)
+
+    for key in zhao_carr.CLASS_NAMES:
+        assert key in result
