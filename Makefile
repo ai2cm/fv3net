@@ -30,6 +30,8 @@ ifneq ("$(wildcard .env)","")
 	DOCKER_INTERACTIVE_ARGS += --env-file=.env
 endif
 
+PROGNOSTIC_RUN_WORKDIR ?= /fv3net/workflows/prognostic_c48_run
+
 IMAGES = fv3net post_process_run prognostic_run
 
 .PHONY: build_images push_image run_integration_tests image_name_explicit
@@ -124,12 +126,15 @@ pull_image_prognostic_run_base:
 pull_image_prognostic_run_base_gpu:
 	docker pull $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION)
 
+enter_emulation:
+	PROGNOSTIC_RUN_WORKDIR=/fv3net/external/emulation $(MAKE) enter_prognostic_run
+
 enter_prognostic_run:
 	docker run \
 		--rm \
 		$(DOCKER_AUTH_ARGS) \
 		$(DOCKER_INTERACTIVE_ARGS) \
-		-w /fv3net/workflows/prognostic_c48_run \
+		-w $(PROGNOSTIC_RUN_WORKDIR) \
 		$(REGISTRY)/prognostic_run:$(VERSION) bash
 
 ############################################################
