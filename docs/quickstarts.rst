@@ -32,19 +32,32 @@ Cloud Authentication
 The ``fv3net`` project currently utilizes Google Cloud to deploy workflow items to services such as Kubernetes and Dataflow.
 Authentication requires an installation of `Google Cloud SDK <https://cloud.google.com/sdk/docs/install>`_.
 
-Authentication obtained via ``gcloud auth login`` does not work well with secrets management and is not used by many APIs;
-to use user credentials for API calls, you should also also generate credentials for this with ``gcloud auth application-default login``.
-
 * If gcloud is a fresh install,
 
     > gcloud init
     > gcloud auth login
+
+Authentication obtained via ``gcloud auth login`` does not work well with secrets management and is not used by many APIs.
+Depending on whether you are working on your local machine or on a VM.
+
+* Local machine
+
     > gcloud auth application-default login
 
-If you are working in a docker container, you can bind mount in the necessary credentials location in your `docker-compose.yaml`::
+    If you are working in a docker container, you can bind mount in the necessary credentials location in your `docker-compose.yaml`::
 
-  volumes:
-    - ~/.config/gcloud:/root/.config/gcloud
+      volumes:
+        - ~/.config/gcloud:/root/.config/gcloud
+
+* VM
+
+    > mkdir -p ~/.keys
+    > gcloud iam service-accounts keys create ~/.keys/key.json \
+          --iam-account <service account>
+    > gcloud auth activate-service-account <account> --key-file=~/.keys/key.json
+    > export GOOGLE_APPLICATION_CREDENTIALS=~/.keys/key.json
+
+  Add the last line for the environment variable to your .bashrc file.
 
 
 Connecting to a kubernetes cluster
@@ -54,7 +67,7 @@ Connecting to a kubernetes cluster
 
       > gcloud container clusters get-credentials <cluster-name>
 
-  * From a VM to our firewalled cluster (Vulcan Specific)
+  * From a VM to our firewalled cluster (AI2 Specific)
 
     * Clone the `long-lived-infrastructure repo <https://github.com/VulcanClimateModeling/long-lived-infrastructure>`_
     * Use terraform to connect to our cluster `(details) <https://github.com/VulcanClimateModeling/long-lived-infrastructure#vm-access-setup>`_::
