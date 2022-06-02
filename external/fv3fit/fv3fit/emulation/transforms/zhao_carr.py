@@ -10,6 +10,13 @@ ZERO_TENDENCY = "zero_tendency"
 ZERO_CLOUD = "zero_cloud"
 NEGATIVE_TENDENCY = "negative_tendency"
 
+CLASS_NAMES = {
+    POSITIVE_TENDENCY,
+    ZERO_TENDENCY,
+    ZERO_CLOUD,
+    NEGATIVE_TENDENCY,
+}
+
 
 @dataclasses.dataclass
 class GscondClassesV1(TensorTransform):
@@ -27,9 +34,8 @@ class GscondClassesV1(TensorTransform):
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
 
-        class_names = {POSITIVE_TENDENCY, ZERO_TENDENCY, ZERO_CLOUD, NEGATIVE_TENDENCY}
-        if class_names & requested_names:
-            requested_names -= class_names
+        if CLASS_NAMES & requested_names:
+            requested_names -= CLASS_NAMES
             requested_names |= {
                 self.cloud_in,
                 self.cloud_out,
