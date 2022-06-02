@@ -58,24 +58,37 @@ def squash_precpd(state, emulator, cloud_squash):
     return _apply_squash(PrecpdOutput, emulator, cloud_squash)
 
 
+def apply_condensation_liquid_phase(state, net_condensation):
+    # from physcons.f
+    lv = 2.5e6
+    cp = 1.0046e3
+    cloud_out = state[Input.cloud_water] + net_condensation
+    qv_out = state[Input.humidity] - net_condensation
+    latent_heating = lv * net_condensation / cp
+    temperature_out = state[Input.temperature] + latent_heating
+    return {
+        GscondOutput.cloud_water: cloud_out,
+        GscondOutput.humidity: qv_out,
+        GscondOutput.temperature: temperature_out,
+    }
+
+
 def mask_where_fortran_cloud_vanishes_gscond(state, emulator):
     threshold = 1e-15
-    return {
-        **emulator,
-        GscondOutput.cloud_water: np.where(
-            state[GscondOutput.cloud_water] < threshold,
-            0,
-            emulator[GscondOutput.cloud_water],
-        ),
-    }
+    cloud_out = np.where(
+        state[GscondOutput.cloud_water] < threshold,
+        0,
+        emulator[GscondOutput.cloud_water],
+    )
+    net_condensation = cloud_out - state[Input.cloud_water]
+    return {**emulator, **apply_condensation_liquid_phase(state, net_condensation)}
 
 
 def mask_where_fortran_cloud_identical(state, emulator):
-    return {
-        **emulator,
-        GscondOutput.cloud_water: np.where(
-            state[GscondOutput.cloud_water] == state[Input.cloud_water],
-            state[Input.cloud_water],
-            emulator[GscondOutput.cloud_water],
-        ),
-    }
+    cloud_out = np.where(
+        state[GscondOutput.cloud_water] == state[Input.cloud_water],
+        state[Input.cloud_water],
+        emulator[GscondOutput.cloud_water],
+    )
+    net_condensation = cloud_out - state[Input.cloud_water]
+    return {**emulator, **apply_condensation_liquid_phase(state, net_condensation)}
