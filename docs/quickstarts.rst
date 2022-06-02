@@ -29,26 +29,23 @@ Once generated, run ``cp .env_template .env`` in the fv3net root and edit the ``
 Cloud Authentication
 --------------------
 
-The ``fv3net`` project currently utilizes Google Cloud to deploy workflow items to services such as Kubernetes and Dataflow.  Authentication requires an installation of `Google Cloud SDK <https://cloud.google.com/sdk/docs/install>`_.
+The ``fv3net`` project currently utilizes Google Cloud to deploy workflow items to services such as Kubernetes and Dataflow.
+Authentication requires an installation of `Google Cloud SDK <https://cloud.google.com/sdk/docs/install>`_.
 
-Authentication obtained via ``gcloud auth login`` does not work well with secrets management and is not used by many APIs. Service account key-based authentication works much better, because the service account key is a single file that can be deployed in a variety of contexts (K8s cluter, VM, etc) (`Google docs on service accounts <https://cloud.google.com/iam/docs/service-accounts>`_). Many Python APIs can authenticate with google using the ``GOOGLE_APPLICATION_CREDENTIALS`` environmental variable `(See Google authentication details) <https://cloud.google.com/sdk/docs/authorizing>`_.
+Authentication obtained via ``gcloud auth login`` does not work well with secrets management and is not used by many APIs;
+to use user credentials for API calls, you should also also generate credentials for this with ``gcloud auth application-default login``.
 
-* If gcloud is a fresh install, initialize and grab a keyfile::
+* If gcloud is a fresh install,
 
     > gcloud init
     > gcloud auth login
-    > mkdir -p ~/.keys
-    > gcloud iam service-accounts keys create ~/.keys/key.json \
-          --iam-account <service account>
+    > gcloud auth application-default login
 
-* Else activate your service account key::
+If you are working in a docker container, you can bind mount in the necessary credentials location in your `docker-compose.yaml`::
 
-    > gcloud auth activate-service-account <account> --key-file=<key-file>
-    > export GOOGLE_APPLICATION_CREDENTIALS=~/.keys/key.json
+  volumes:
+    - ~/.config/gcloud:/root/.config/gcloud
 
-.. note::
-
-    It is recommended to add ``GOOGLE_APPLICATION_CREDENTIALS`` to your .bashrc since many libraries and tools require it.
 
 Connecting to a kubernetes cluster
 ----------------------------------
