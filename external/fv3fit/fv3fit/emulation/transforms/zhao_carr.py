@@ -16,8 +16,6 @@ class GscondClassesV1(TensorTransform):
     """
     """
 
-    to: str
-    # input names
     cloud_in: str = "cloud_water_mixing_ratio_input"
     cloud_out: str = "cloud_water_mixing_ratio_after_gscond"
     timestep: int = 900
