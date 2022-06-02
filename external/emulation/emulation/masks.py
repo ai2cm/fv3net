@@ -48,5 +48,5 @@ class LevelMask:
     def __call__(self, state: FortranState, emulator: FortranState) -> FortranState:
         out = {**emulator}
         use_fortran_state = slice(self.start, self.stop)
-        out[self.key][..., use_fortran_state] = state[..., use_fortran_state]
+        out[self.key][..., use_fortran_state] = state[self.key][..., use_fortran_state]
         return out
