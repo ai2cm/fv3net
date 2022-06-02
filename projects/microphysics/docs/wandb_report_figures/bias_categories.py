@@ -150,6 +150,11 @@ def class_fractions(truth):
         truth.cloud_water_mixing_ratio_input,
         truth.cloud_water_mixing_ratio_after_gscond,
     )
+
+    return plot_class_fractions_by_z(classes)
+
+
+def plot_class_fractions_by_z(classes):
     classes.mean("sample").to_dataframe().plot.area().legend(loc="upper left")
     plt.ylabel("Fraction")
     plt.xlabel("vertical index (0=TOA)")
@@ -159,14 +164,17 @@ def class_fractions(truth):
 
 def bias_plots(truth, pred):
 
-    error = pred - truth
     classes = classify(
         truth.cloud_water_mixing_ratio_input,
         truth.cloud_water_mixing_ratio_after_gscond,
     )
     assert set(classes.to_array().sum("variable").values.ravel()) == {1}
+    plot_metrics_on_classes(classes, truth, pred)
 
+
+def plot_metrics_on_classes(classes, truth, pred):
     plt.figure()
+    error = pred - truth
     for v in classes:
         (error.cloud_water_mixing_ratio_after_gscond / 900).where(classes[v], 0).mean(
             "sample"
@@ -179,6 +187,27 @@ def bias_plots(truth, pred):
     plt.title("Bias | category * p(category)")
     plt.grid()
     plt.legend()
+    yield "bias", plt.gcf()
+
+    bias = metric_on_classes(
+        (
+            truth.cloud_water_mixing_ratio_after_gscond
+            - truth.cloud_water_mixing_ratio_input
+        )
+        / 900,
+        (
+            pred.cloud_water_mixing_ratio_after_gscond
+            - truth.cloud_water_mixing_ratio_input
+        )
+        / 900,
+        classes,
+        lambda x, y, mean: mean(y - x),
+    )
+    bias.to_dataframe().plot.line()
+    plt.xlabel("vertical index (0=TOA)")
+    plt.ylabel("Bias (kg/kg/s)")
+    plt.title("Bias | category")
+    plt.grid()
     yield "bias", plt.gcf()
 
     mses = np.sqrt(
