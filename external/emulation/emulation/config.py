@@ -64,6 +64,8 @@ class ModelConfig:
     ranges: Mapping[str, Range] = dataclasses.field(default_factory=dict)
     cloud_squash: Optional[float] = None
     gscond_cloud_conservative: bool = False
+    mask_gscond_identical_cloud: bool = False
+    mask_gscond_zero_cloud: bool = False
 
     def build(self) -> MicrophysicsHook:
         return MicrophysicsHook(self.path, mask=self._build_mask())
@@ -88,6 +90,12 @@ class ModelConfig:
             yield lambda x, y: emulation.zhao_carr.squash_precpd(
                 x, y, self.cloud_squash
             )
+
+        if self.mask_gscond_identical_cloud:
+            yield emulation.zhao_carr.mask_where_fortran_cloud_identical
+
+        if self.mask_gscond_zero_cloud:
+            yield emulation.zhao_carr.mask_where_fortran_cloud_vanishes_gscond
 
 
 @dataclasses.dataclass

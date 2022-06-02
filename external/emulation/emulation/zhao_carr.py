@@ -56,3 +56,26 @@ def squash_gscond(state, emulator, cloud_squash):
 
 def squash_precpd(state, emulator, cloud_squash):
     return _apply_squash(PrecpdOutput, emulator, cloud_squash)
+
+
+def mask_where_fortran_cloud_vanishes_gscond(state, emulator):
+    threshold = 1e-15
+    return {
+        **emulator,
+        GscondOutput.cloud_water: np.where(
+            state[GscondOutput.cloud_water] < threshold,
+            0,
+            emulator[GscondOutput.cloud_water],
+        ),
+    }
+
+
+def mask_where_fortran_cloud_identical(state, emulator):
+    return {
+        **emulator,
+        GscondOutput.cloud_water: np.where(
+            state[GscondOutput.cloud_water] == state[Input.cloud_water],
+            state[Input.cloud_water],
+            emulator[GscondOutput.cloud_water],
+        ),
+    }
