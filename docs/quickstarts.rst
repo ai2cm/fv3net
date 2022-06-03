@@ -32,33 +32,29 @@ Cloud Authentication
 The ``fv3net`` project currently utilizes Google Cloud to deploy workflow items to services such as Kubernetes and Dataflow.
 Authentication requires an installation of `Google Cloud SDK <https://cloud.google.com/sdk/docs/install>`_.
 
-* If gcloud is a fresh install,
+
+* On your local machine ::
 
     > gcloud init
+
     > gcloud auth login
 
-Authentication obtained via ``gcloud auth login`` does not work well with secrets management and is not used by many APIs.
-Depending on whether you are working on your local machine or on a VM.
-
-* Local machine
+  Authentication obtained via ``gcloud auth login`` does not work well with secrets management and is not used by many APIs.
+  For these to authenticate, also run the following: ::
 
     > gcloud auth application-default login
 
-    If you are working in a docker container, you can bind mount in the necessary credentials location in your `docker-compose.yaml`::
+  If you are working in a docker container, you can bind mount in the necessary credentials location in your `docker-compose.yaml`::
 
       volumes:
         - ~/.config/gcloud:/root/.config/gcloud
 
-* VM
+* On your VM
 
-    > mkdir -p ~/.keys
-    > gcloud iam service-accounts keys create ~/.keys/key.json \
-          --iam-account <service account>
-    > gcloud auth activate-service-account <account> --key-file=~/.keys/key.json
-    > export GOOGLE_APPLICATION_CREDENTIALS=~/.keys/key.json
-
-  Add the last line for the environment variable to your .bashrc file.
-
+  VMs are currently automatically provisioned with an active service account specific to the VM user.  No
+  further action should be required, but we are looking into also providing a key file referenced by
+  GOOGLE_APPLICATION_CREDENTIALS=... to simplify integration with many tools that use the environment
+  variable API.
 
 Connecting to a kubernetes cluster
 ----------------------------------
