@@ -25,6 +25,6 @@ def test_LevelMask(start, stop):
     result = mask(state={"foo": zeros}, emulator={"foo": ones})
 
     sl_ = slice(start, stop)
-    num_fortran_elements = zeros[:, sl_].size
-    np.testing.assert_array_equal(result["foo"][:, sl_], zeros[:, sl_])
+    num_fortran_elements = zeros[sl_].size
+    np.testing.assert_array_equal(result["foo"][sl_], zeros[sl_])
     assert np.sum(result["foo"]) == result["foo"].size - num_fortran_elements
