@@ -1,6 +1,7 @@
 import dataclasses
 from toolz.functoolz import curry
-from typing import Callable, Literal, MutableMapping, Sequence, Set
+from typing import Callable, MutableMapping, Sequence, Set
+from typing_extensions import Literal
 import xarray as xr
 import vcm
 from .calc.flux_form import (
