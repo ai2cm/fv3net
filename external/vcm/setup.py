@@ -24,7 +24,7 @@ install_requirements = [
     "xgcm",
     "cftime",
     "pytest",
-    "google-cloud-storage>=1.28.0",
+    "google-cloud-storage>=1.18.1",
     "google-api-core",
     "pytest-regtest",
     "h5netcdf>=0.8",
