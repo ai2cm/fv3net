@@ -29,6 +29,7 @@ install_requirements = [
     "pytest-regtest",
     "h5netcdf>=0.8",
     "intake-xarray>=0.3.1",
+    "typing_extensions",
     "dacite",
 ]
 
@@ -44,6 +45,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
     ],
     description="vcm contains general purposes tools for analyzing FV3 data",
     install_requires=install_requirements,
