@@ -1,7 +1,11 @@
 from typing import Callable, Iterable, Optional
 
 import numpy as np
+import logging
+
 from emulation._typing import FortranState
+
+logger = logging.getLogger(__name__)
 
 Mask = Callable[[FortranState, FortranState], FortranState]
 
@@ -48,5 +52,6 @@ class LevelMask:
     def __call__(self, state: FortranState, emulator: FortranState) -> FortranState:
         out = {**emulator}
         use_fortran_state = slice(self.start, self.stop)
-        out[self.key][..., use_fortran_state] = state[self.key][..., use_fortran_state]
+        # Fortran state TOA is index 79, and dims are [z, sample]
+        out[self.key][use_fortran_state] = state[self.key][use_fortran_state]
         return out
