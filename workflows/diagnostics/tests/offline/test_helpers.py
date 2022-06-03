@@ -10,7 +10,6 @@ from fv3net.diagnostics.offline._helpers import (
     insert_aggregate_r2,
     insert_column_integrated_vars,
     rename_via_replace,
-    res_from_string,
     batches_mean,
 )
 from fv3net.diagnostics.offline.compute_diagnostics import DERIVATION_DIM
@@ -111,24 +110,6 @@ def test_insert_column_integrated_vars():
     expected = ds.assign({"column_integrated_Q1": heating})
 
     xr.testing.assert_allclose(insert_column_integrated_vars(ds, ["Q1"]), expected)
-
-
-@pytest.mark.parametrize(
-    ["string", "expected_res"],
-    [
-        pytest.param("c48", 48, id="c48"),
-        pytest.param("c384", 384, id="c384"),
-        pytest.param("c8", 8, id="c8"),
-        pytest.param("c_something_invalid", "error", id="invalid_string_error"),
-    ],
-)
-def test_res_from_string(string, expected_res):
-    if expected_res != "error":
-        res = res_from_string(string)
-        assert res == expected_res
-    else:
-        with pytest.raises(ValueError, match=r"res_str must start with .*"):
-            res_from_string(string)
 
 
 @pytest.mark.parametrize(

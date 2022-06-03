@@ -28,10 +28,9 @@ from ._helpers import (
     insert_rmse,
     is_3d,
     load_grid_info,
-    coarsen_cell_centered,
-    res_from_string,
     batches_mean,
 )
+from ._coarsening import coarsen_cell_centered, res_from_string
 from ._input_sensitivity import plot_input_sensitivity
 from ._select import meridional_transect, nearest_time_batch_index, select_snapshot
 from .compute_diagnostics import compute_diagnostics

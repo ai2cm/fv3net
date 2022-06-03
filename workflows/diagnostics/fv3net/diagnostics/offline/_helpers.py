@@ -5,7 +5,6 @@ import shutil
 from typing import Hashable, Mapping, Sequence, Dict, Tuple, Union
 import vcm
 import xarray as xr
-from toolz import curry
 
 from vcm import safe
 from vcm.cloud import gsutil
@@ -228,32 +227,12 @@ def insert_column_integrated_vars(
     return ds
 
 
-@curry
-def coarsen_cell_centered(
-    ds: xr.Dataset, coarsening_factor: int, weights: xr.DataArray
+def batches_mean(
+    ds: xr.Dataset, res: int, dim: str = "batch", maximum_3d_resolution: int = 48
 ) -> xr.Dataset:
-    return vcm.cubedsphere.weighted_block_average(
-        ds.drop_vars("area", errors="ignore"),
-        weights=weights,
-        coarsening_factor=coarsening_factor,
-        x_dim="x",
-        y_dim="y",
-    )
-
-
-def res_from_string(res_str: str) -> int:
-    try:
-        return int(res_str.lower().strip("c"))
-    except ValueError:
-        raise ValueError(
-            'res_str must start with "c" or "C" followed by only integers.'
-        )
-
-
-def batches_mean(ds: xr.Dataset, res: int, dim: str = "batch") -> xr.Dataset:
     """Average over batches, but not for 3D variables if at greater than
     C48 resolution"""
-    maximum_3d_resolution = res_from_string(EVALUATION_RESOLUTION)
+
     with xr.set_options(keep_attrs=True):
         if res > maximum_3d_resolution:
             excluded_vars = [var for var in ds.data_vars if is_3d(ds[var])]
