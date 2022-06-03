@@ -46,7 +46,7 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
 
     batches_kwargs = {
         "needs_grid": False,
-        "res": "c8_random_values",
+        "res": "c8",
         "timesteps_per_batch": 1,
         "timesteps": ["20160801.001500"],
     }
@@ -70,10 +70,8 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
                 model_dir,
                 data_config_filename,
                 os.path.join(tmpdir, "offline_diags"),
-                "--grid",
+                "--evaluation-grid",
                 grid_dataset_path,
-                "--grid-resolution",
-                "c8_random_values",
                 "--n-jobs",
                 "1",
             ]

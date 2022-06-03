@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+import pytest
 import vcm
 from fv3net.diagnostics.offline._helpers import (
     DATASET_DIM_NAME,
@@ -9,6 +10,7 @@ from fv3net.diagnostics.offline._helpers import (
     insert_aggregate_r2,
     insert_column_integrated_vars,
     rename_via_replace,
+    batches_mean,
 )
 from fv3net.diagnostics.offline.compute_diagnostics import DERIVATION_DIM
 
@@ -108,3 +110,18 @@ def test_insert_column_integrated_vars():
     expected = ds.assign({"column_integrated_Q1": heating})
 
     xr.testing.assert_allclose(insert_column_integrated_vars(ds, ["Q1"]), expected)
+
+
+@pytest.mark.parametrize(
+    ["resolution", "expected_vars"],
+    [
+        pytest.param(48, ["a", "b"], id="c48_all_variables"),
+        pytest.param(384, ["b"], id="c384_only_2d_variables"),
+    ],
+)
+def test_batches_mean(resolution, expected_vars):
+    da_3d = xr.DataArray(np.arange(12.0).reshape(2, 3, 2), dims=["x", "z", "batch"])
+    da_2d = xr.DataArray(np.arange(4.0).reshape(2, 2), dims=["x", "batch"])
+    ds = xr.Dataset({"a": da_3d, "b": da_2d})
+    result = batches_mean(ds, resolution)
+    assert set(result.data_vars) == set(expected_vars)
