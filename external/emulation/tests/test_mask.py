@@ -20,7 +20,7 @@ def test_compose_masks_no_action():
 @pytest.mark.parametrize("start, stop", [(2, 3), (2, 5), (None, 2), (None, None)])
 def test_LevelMask(start, stop):
     mask = LevelMask("foo", start, stop)
-    ones = np.ones((2, 4))
+    ones = np.ones((4, 2))
     zeros = ones * 0
     result = mask(state={"foo": zeros}, emulator={"foo": ones})
 
