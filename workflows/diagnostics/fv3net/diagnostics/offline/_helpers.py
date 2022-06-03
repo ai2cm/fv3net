@@ -242,16 +242,12 @@ def coarsen_cell_centered(
 
 
 def res_from_string(res_str: str) -> int:
-    if res_str.lower().startswith("c"):
-        res = ""
-        for c in res_str[1:]:
-            if c.isnumeric():
-                res += c
-            else:
-                break
-        return int(res)
-    else:
-        raise ValueError('res_str must start with "c" followed by integers.')
+    try:
+        return int(res_str.lower().strip("c"))
+    except ValueError:
+        raise ValueError(
+            'res_str must start with "c" or "C" followed by only integers.'
+        )
 
 
 def batches_mean(ds: xr.Dataset, res: int, dim: str = "batch") -> xr.Dataset:

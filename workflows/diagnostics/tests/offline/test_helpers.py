@@ -118,8 +118,8 @@ def test_insert_column_integrated_vars():
     [
         pytest.param("c48", 48, id="c48"),
         pytest.param("c384", 384, id="c384"),
-        pytest.param("c8_then_other_stuff", 8, id="c8"),
-        pytest.param("something_invalid", "error", id="invalid_string_error"),
+        pytest.param("c8", 8, id="c8"),
+        pytest.param("c_something_invalid", "error", id="invalid_string_error"),
     ],
 )
 def test_res_from_string(string, expected_res):
