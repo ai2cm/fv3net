@@ -10,6 +10,6 @@ install the package:
 
 .. code-block:: console
 
-    $ git clone https://github.com/VulcanClimateModeling/fv3net.git
+    $ git clone https://github.com/ai2cm/fv3net.git
     $ cd fv3net/external/vcm
     $ pip install .

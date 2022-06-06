@@ -22,8 +22,8 @@ sys.path.insert(0, os.path.abspath("../external/vcm"))
 # -- Project information -----------------------------------------------------
 
 project = "fv3net"
-copyright = u"2019-2020, Vulcan Technologies LLC"
-author = u"Vulcan Technologies LLC"
+copyright = u"2019-2020, The Allen Institute for Artificial Intelligence"
+author = u"The Allen Institute for Artificial Intelligence"
 
 # The full version, including alpha/beta/rc tags
 release = "0.1.0"

@@ -19,8 +19,8 @@ import fv3fit
 # -- Project information -----------------------------------------------------
 
 project = "fv3fit"
-copyright = u"2019-2020, Vulcan Technologies LLC"
-author = u"Vulcan Technologies LLC"
+copyright = u"2019-2022, The Allen Institute for Artificial Intelligence"
+author = u"The Allen Institute for Artificial Intelligence"
 
 # The full version, including alpha/beta/rc tags
 release = fv3fit.__version__

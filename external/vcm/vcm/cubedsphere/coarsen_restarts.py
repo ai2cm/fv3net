@@ -1022,7 +1022,7 @@ def _apply_surface_chgres_corrections(ds: xr.Dataset) -> xr.Dataset:
     """This function applies the corrections noted in surface_chgres.F90
     to the variables in the coarsened surface Dataset.
 
-    See https://github.com/VulcanClimateModeling/fv3gfs/blob/
+    See https://github.com/ai2cm/fv3gfs/blob/
     master/sorc/global_chgres.fd/surface_chgres.f90 for more information.
     """
     ds = _clip_tsea_and_t3g_at_freezing_over_ice(ds)

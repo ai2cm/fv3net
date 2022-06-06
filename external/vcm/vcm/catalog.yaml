@@ -130,7 +130,7 @@ sources:
   40day_c48_pressure_interpolated_may2020:
     description: >-
       3D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and interpolated to pressure levels.
-      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-06-17-save-c3072-verification-correct-winds.ipynb
+      Generated with https://github.com/ai2cm/explore/blob/master/annak/2021-06-17-save-c3072-verification-correct-winds.ipynb
     driver: zarr
     metadata:
       grid: c48
@@ -251,7 +251,7 @@ sources:
   40day_c48_atmos_8xdaily_additional_vars_may2020:
     description: >-
       Additional pressure level 2D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution.
-      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-03-23-save-c3072-2d-vars.ipynb
+      Generated with https://github.com/ai2cm/explore/blob/master/annak/2021-03-23-save-c3072-2d-vars.ipynb
     driver: zarr
     metadata:
       grid: c48
@@ -604,7 +604,7 @@ sources:
   free_unperturbed_ssts_c384_fv3gfs_20170801_20190801_pressure_interpolated_output:
     description: >-
       3D pressure interpolated dynamical core diagnostics variables from two-year free-running C384 FV3GFS simulation with unperturbed SSTs (January 9, 2021)
-      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-03-04-save-c384-3d-verif/save_verification.py
+      Generated with https://github.com/ai2cm/explore/blob/master/annak/2021-03-04-save-c384-3d-verif/save_verification.py
     driver: zarr
     args:
       metadata:
@@ -649,7 +649,7 @@ sources:
   free_plus_4K_ssts_c384_fv3gfs_20170801_20190801_pressure_interpolated_output:
     description: >-
       3D pressure interpolated dynamical core diagnostics variables from two-year free-running C384 FV3GFS simulation with plus 4K SSTs (January 9, 2021)
-      Generated with https://github.com/VulcanClimateModeling/explore/blob/master/annak/2021-03-04-save-c384-3d-verif/save_verification.py
+      Generated with https://github.com/ai2cm/explore/blob/master/annak/2021-03-04-save-c384-3d-verif/save_verification.py
     driver: zarr
     args:
       metadata:

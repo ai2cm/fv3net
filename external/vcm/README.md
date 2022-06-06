@@ -1,7 +1,7 @@
 VCM Tools
 =========
 
-VCM Tools is a collection of routines used by the Vulcan Climate Modeling group.
+VCM Tools is a collection of routines used by the AI2 Climate Modeling group.
 
 * Free software: BSD license
 
