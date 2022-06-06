@@ -13,7 +13,7 @@ To install all the requirements and fv3net packages locally, run this from the m
     make update_submodules
     make create_environment
 
-This creates an Anaconda environment ``fv3net`` with all the dependicies for running the Vulcan FV3GFS ML workflows.   All submodules are installed in development mode (e.g., ``pip install -e``) so any modifications will be loaded in the conda environment.  After the build completes successfully, activate the environment with::
+This creates an Anaconda environment ``fv3net`` with all the dependicies for running the AI2CM FV3GFS ML workflows.   All submodules are installed in development mode (e.g., ``pip install -e``) so any modifications will be loaded in the conda environment.  After the build completes successfully, activate the environment with::
 
     conda activate fv3net
 
@@ -65,8 +65,8 @@ Connecting to a kubernetes cluster
 
   * From a VM to our firewalled cluster (AI2 Specific)
 
-    * Clone the `long-lived-infrastructure repo <https://github.com/VulcanClimateModeling/long-lived-infrastructure>`_
-    * Use terraform to connect to our cluster `(details) <https://github.com/VulcanClimateModeling/long-lived-infrastructure#vm-access-setup>`_::
+    * Clone the `long-lived-infrastructure repo <https://github.com/ai2cm/long-lived-infrastructure>`_
+    * Use terraform to connect to our cluster `(details) <https://github.com/ai2cm/long-lived-infrastructure#vm-access-setup>`_::
 
         > make tf_init
         > make tf_dev_workspace_create
@@ -153,7 +153,7 @@ And you can check on the job status using either ``argo get <job_name>`` or ``ar
 
 .. note::
 
-    The prognostic run usage and configurability is a deep topic on its own.  Take a look at the `Prognostic run documentation <https://vulcanclimatemodeling.com/docs/prognostic_c48_run/>`_ to delve further into its abilities.  For other simple examples of submitting argo workflows, check out the `examples folder <https://github.com/VulcanClimateModeling/vcm-workflow-control/tree/master/examples>`_ in `vcm-workflow-control <https://github.com/VulcanClimateModeling/vcm-workflow-control>`_.
+    The prognostic run usage and configurability is a deep topic on its own.  Take a look at the `Prognostic run documentation <https://vulcanclimatemodeling.com/docs/prognostic_c48_run/>`_ to delve further into its abilities.  For other simple examples of submitting argo workflows, check out the `examples folder <https://github.com/ai2cm/vcm-workflow-control/tree/master/examples>`_ in `vcm-workflow-control <https://github.com/ai2cm/vcm-workflow-control>`_.
 
 Cloud Workflows
 ---------------

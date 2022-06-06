@@ -111,7 +111,7 @@ def _get_run_url(line: str) -> Optional[str]:
         return line.split("<td>")[1].split("</td>")[0].strip()
     elif '": "gs://' in line:
         # handles newer style reports generated after
-        # https://github.com/VulcanClimateModeling/fv3net/pull/1304
+        # https://github.com/ai2cm/fv3net/pull/1304
         return line.split(": ")[1].strip('",')
     else:
         return None

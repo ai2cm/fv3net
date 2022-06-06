@@ -33,7 +33,7 @@ if os.getenv("CARTOPY_EXTERNAL_DOWNLOADER") != "natural_earth":
     # workaround to host our own global-scale coastline shapefile instead
     # of unreliable cartopy source
     cartopy.config["downloaders"][("shapefiles", "natural_earth")].url_template = (
-        "https://raw.githubusercontent.com/VulcanClimateModeling/"
+        "https://raw.githubusercontent.com/ai2cm/"
         "vcm-ml-example-data/main/fv3net/fv3viz/coastline_shapefiles/"
         "{resolution}_{category}/ne_{resolution}_{name}.zip"
     )

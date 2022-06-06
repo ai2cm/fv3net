@@ -74,7 +74,7 @@ def create_fv3_grid(
 
 
     .. _XGCM: https://xgcm.readthedocs.io/en/latest/
-    .. _notebook: https://github.com/VulcanClimateModeling/explore/blob/master/noahb/2019-12-06-XGCM.ipynb # noqa
+    .. _notebook: https://github.com/ai2cm/explore/blob/master/noahb/2019-12-06-XGCM.ipynb # noqa
 
     """
 

@@ -54,8 +54,8 @@ master_doc = "index"
 
 # General information about the project.
 project = "fv3viz"
-copyright = "2021, Vulcan Climate Modeling"
-author = "Vulcan Climate Modeling"
+copyright = "2021-2022, The Allen Institute for Artificial Intelligence"
+author = "The Allen Institute for Artificial Intelligence"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -147,7 +147,7 @@ latex_documents = [
         master_doc,
         "fv3viz.tex",
         "fv3viz Documentation",
-        "Vulcan Climate Modeling",
+        "The Allen Institute for Artificial Intelligence",
         "manual",
     ),
 ]

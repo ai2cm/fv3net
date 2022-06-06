@@ -15,7 +15,7 @@ Requirement changes:
 - Bulleted list, if relevant, of any changes to setup.py, requirement.txt, environment.yml, etc
 - [ ] Ran `make lock_deps/lock_pip` following these [instructions](https://vulcanclimatemodeling.com/docs/fv3net/dependency_management.html#dependency-management)
 - [ ] Add PR review with license info for any additions to `constraints.txt`
-  ([example](https://github.com/VulcanClimateModeling/fv3net/pull/1218#pullrequestreview-663644359))
+  ([example](https://github.com/ai2cm/fv3net/pull/1218#pullrequestreview-663644359))
 
 - [ ] Tests added
 

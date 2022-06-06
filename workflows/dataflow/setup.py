@@ -24,6 +24,6 @@ setup(
     install_requires=dependencies,
     version="0.2.3",
     description="Improving the GFDL FV3 model physics with machine learning",
-    author="Vulcan Inc.",
+    author="The Allen Institute for Artificial Intelligence",
     license="MIT",
 )
