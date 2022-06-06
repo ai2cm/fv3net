@@ -61,8 +61,12 @@ class ModelConfig:
             The physics is used for the first half of the interval, and the ML
             for the second half.
         ranges: post-hoc limits to apply to the predicted values
-        min_cloud_threshold: all cloud values less than this amount (including
+        mask_emulator_levels:  override the emulator tendencies with the fortran
+            physics tendencies for a specified level range.
+        cloud_squash: all cloud values less than this amount (including
             negative values) will be squashed to zero.
+        gscond_cloud_conservative: infer the gscond cloud from conservation via
+            gscond humidity tendency
     """
 
     path: str
