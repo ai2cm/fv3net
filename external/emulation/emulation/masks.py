@@ -1,11 +1,7 @@
+import numpy as np
 from typing import Callable, Iterable, Optional
 
-import numpy as np
-import logging
-
 from emulation._typing import FortranState
-
-logger = logging.getLogger(__name__)
 
 Mask = Callable[[FortranState, FortranState], FortranState]
 
