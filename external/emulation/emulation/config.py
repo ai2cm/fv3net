@@ -67,6 +67,11 @@ class ModelConfig:
             negative values) will be squashed to zero.
         gscond_cloud_conservative: infer the gscond cloud from conservation via
             gscond humidity tendency
+        enforce_conservative: if True, temperature and humidity change will be
+            inferred from the cloud change after all masks have been applied. The
+            latent heat is inferred assuming liquid condensate. Differs from,
+            but typically used in concert with ``gscond_cloud_conservative``.
+
     """
 
     path: str
@@ -77,6 +82,9 @@ class ModelConfig:
     )
     cloud_squash: Optional[float] = None
     gscond_cloud_conservative: bool = False
+    mask_gscond_identical_cloud: bool = False
+    mask_gscond_zero_cloud: bool = False
+    enforce_conservative: bool = False
 
     def build(self) -> MicrophysicsHook:
         return MicrophysicsHook(self.path, mask=self._build_mask())
@@ -101,6 +109,15 @@ class ModelConfig:
             yield lambda x, y: emulation.zhao_carr.squash_precpd(
                 x, y, self.cloud_squash
             )
+
+        if self.mask_gscond_identical_cloud:
+            yield emulation.zhao_carr.mask_where_fortran_cloud_identical
+
+        if self.mask_gscond_zero_cloud:
+            yield emulation.zhao_carr.mask_where_fortran_cloud_vanishes_gscond
+
+        if self.enforce_conservative:
+            yield emulation.zhao_carr.enforce_conservative_gscond
 
         for key, _slice in self.mask_emulator_levels.items():
             yield LevelMask(key, start=_slice.start, stop=_slice.stop)

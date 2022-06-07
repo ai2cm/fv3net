@@ -12,7 +12,7 @@ This packages allows the user to build up a "schema" describing their data. A sc
 2.  used to generate a random dataset
 3.  validate an existing dataset
 
-This package defines a set of dataclasses defining a schema. It also contains fixtures for datasets used by VCM-ML in training models, allowing for unit and regression testing of data pipelines.
+This package defines a set of dataclasses defining a schema. It also contains fixtures for datasets used by AI2CM-ML in training models, allowing for unit and regression testing of data pipelines.
 
 The function synth.read\_schema\_from\_zarr can be used to generate a schema from an existing dataset. For example, suppose we have loaded a zarr group like this:
 

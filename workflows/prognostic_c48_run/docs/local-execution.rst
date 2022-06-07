@@ -71,7 +71,7 @@ the end of the previous one will be appended. For example, the following for loo
     machine. This means that a segmented run can be continued from a machine
     other than the one it was created with. This is useful for debugging e.g.
     failing segmented runs in the integration tests or prognostic run `argo
-    workflow <https://github.com/VulcanClimateModeling/fv3net/blob/master/workflows/argo/README.md>`_.
+    workflow <https://github.com/ai2cm/fv3net/blob/master/workflows/argo/README.md>`_.
     To debug this run, simply open an prognostic_run development environment
     and run::
 
@@ -110,4 +110,4 @@ Post Processing
 
 After each segment the outputs are post processed (netCDF's are converted to zarr, and zarr's are rechuncked) using fv3post_.
 
-.. _fv3post: https://github.com/VulcanClimateModeling/fv3net/tree/master/workflows/post_process_run
+.. _fv3post: https://github.com/ai2cm/fv3net/tree/master/workflows/post_process_run

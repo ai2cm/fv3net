@@ -19,7 +19,7 @@ requirements = [
 test_requirements = ["pytest"]
 
 setup(
-    author="Vulcan Technologies LLC",
+    author="The Allen Institute for Artificial Intelligence",
     author_email="noahb@allenai.org",
     python_requires=">=3.6",
     package_data={"": ["*.json"]},

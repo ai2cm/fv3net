@@ -441,8 +441,11 @@ zhao_carr_emulation:
   gscond: null
   model:
     cloud_squash: null
+    enforce_conservative: false
     gscond_cloud_conservative: false
     mask_emulator_levels: {}
+    mask_gscond_identical_cloud: false
+    mask_gscond_zero_cloud: false
     online_schedule:
       initial_time: 2016-06-01 00:00:00
       period: 21600

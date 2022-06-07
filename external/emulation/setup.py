@@ -24,7 +24,7 @@ setup_requirements = []
 test_requirements = []
 
 setup(
-    author="Vulcan Technologies LLC",
+    author="The Allen Institute for Artificial Intelligence",
     author_email="andrep@allenai.org",
     python_requires=">=3.6",
     classifiers=[
