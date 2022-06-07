@@ -8,6 +8,7 @@ from emulation.config import (
     _get_storage_hook,
     get_hooks,
 )
+import emulation.zhao_carr
 import datetime
 
 
@@ -69,3 +70,15 @@ def test_get_hooks(dummy_rundir):
     assert storage
     assert model
     assert gscond
+
+
+def test_ModelConfig_mask_where_fortran_cloud_identical():
+    config = ModelConfig(path="", mask_gscond_identical_cloud=True)
+    (a,) = config._build_masks()
+    assert a == emulation.zhao_carr.mask_where_fortran_cloud_identical
+
+
+def test_ModelConfig_mask_gscond_zero_cloud():
+    config = ModelConfig(path="", mask_gscond_zero_cloud=True)
+    (a,) = config._build_masks()
+    assert a == emulation.zhao_carr.mask_where_fortran_cloud_vanishes_gscond

@@ -57,13 +57,21 @@ class ModelConfig:
         ranges: post-hoc limits to apply to the predicted values
         min_cloud_threshold: all cloud values less than this amount (including
             negative values) will be squashed to zero.
-    """
+        enforce_conservative: if True, temperature and humidity change will be
+            inferred from the cloud change after all masks have been applied. The
+            latent heat is inferred assuming liquid condensate. Differs from,
+            but typically used in concert with ``gscond_cloud_conservative``.
+
+        """
 
     path: str
     online_schedule: Optional[IntervalSchedule] = None
     ranges: Mapping[str, Range] = dataclasses.field(default_factory=dict)
     cloud_squash: Optional[float] = None
     gscond_cloud_conservative: bool = False
+    mask_gscond_identical_cloud: bool = False
+    mask_gscond_zero_cloud: bool = False
+    enforce_conservative: bool = False
 
     def build(self) -> MicrophysicsHook:
         return MicrophysicsHook(self.path, mask=self._build_mask())
@@ -88,6 +96,15 @@ class ModelConfig:
             yield lambda x, y: emulation.zhao_carr.squash_precpd(
                 x, y, self.cloud_squash
             )
+
+        if self.mask_gscond_identical_cloud:
+            yield emulation.zhao_carr.mask_where_fortran_cloud_identical
+
+        if self.mask_gscond_zero_cloud:
+            yield emulation.zhao_carr.mask_where_fortran_cloud_vanishes_gscond
+
+        if self.enforce_conservative:
+            yield emulation.zhao_carr.enforce_conservative_gscond
 
 
 @dataclasses.dataclass
