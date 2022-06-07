@@ -59,7 +59,8 @@ class ModelConfig:
             negative values) will be squashed to zero.
         enforce_conservative: if True, temperature and humidity change will be
             inferred from the cloud change after all masks have been applied. The
-            latent heat is inferred assuming liquid condensate.
+            latent heat is inferred assuming liquid condensate. Differs from,
+            but typically used in concert with ``gscond_cloud_conservative``.
 
         """
 
