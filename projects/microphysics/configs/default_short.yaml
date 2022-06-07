@@ -161,7 +161,7 @@ diagnostics:
   name: state_after_timestep.zarr
   tensorboard: false
   times:
-    frequency: 10800
+    frequency: 900
     includes_lower: false
     kind: interval
     times: null
@@ -183,7 +183,7 @@ diagnostics:
   name: physics_tendencies.zarr
   tensorboard: false
   times:
-    frequency: 10800
+    frequency: 900
     includes_lower: false
     kind: interval
     times: null
