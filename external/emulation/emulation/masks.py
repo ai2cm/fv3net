@@ -46,8 +46,8 @@ class LevelMask:
         self.stop = stop
 
     def __call__(self, state: FortranState, emulator: FortranState) -> FortranState:
-        out = {**emulator}
         use_fortran_state = slice(self.start, self.stop)
         # Fortran state TOA is index 79, and dims are [z, sample]
-        out[self.key][use_fortran_state] = state[self.key][use_fortran_state]
-        return out
+        emulator_field = np.copy(emulator[self.key])
+        emulator_field[use_fortran_state] = state[self.key][use_fortran_state]
+        return {**emulator, self.key: emulator_field}
