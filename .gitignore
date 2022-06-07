@@ -127,9 +127,3 @@ tests/end_to_end_integration/submit_e2e_job_k8s.yml
 
 # redundant lock files that should be regenerated before builds
 docker/*/requirements.txt
-
-# wandb
-**/wandb
-
-# microphysics experiments
-**/experiment-logs.txt
