@@ -2,10 +2,10 @@
 
 set -e -x
 
-workflow=$CIRCLE_WORKFLOW_ID
-pr_number=${CIRCLE_PULL_REQUEST##*/}
-body=$(curl https://api.github.com/repos/ai2cm/fv3net/pulls/${pr_number} | jq '.body' | tail -c +2 | head -c -2 | sed -e 's/\\r\\n/\r\n/g' | sed -e 's/\\t/\t/g')
 if [[ -f htmlcov/index.html ]]; then
+    workflow=$CIRCLE_WORKFLOW_ID
+    pr_number=${CIRCLE_PULL_REQUEST##*/}
+    body=$(curl https://api.github.com/repos/ai2cm/fv3net/pulls/${pr_number} | jq '.body' | tail -c +2 | head -c -2 | sed -e 's/\\r\\n/\r\n/g' | sed -e 's/\\t/\t/g')
     coverage_label=$(grep -oP '(?<=<span class="pc_cov">).+(?=<\/span>)' htmlcov/index.html)
 
     if [[ "$body" == *"${workflow}:"* ]]; then
