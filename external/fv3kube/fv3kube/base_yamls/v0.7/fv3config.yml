@@ -23,7 +23,7 @@ namelist:
     chksum_debug: false
     dycore_only: false
     fdiag: 0.0
-    fhmax: 1024.0
+    fhmax: 99999
     fhmaxhf: -1.0
     fhout: 0.25
     fhouthf: 0.0
