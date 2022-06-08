@@ -2,6 +2,7 @@ version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.15.0
   slack: circleci/slack@3.4.2
+  github-cli: circleci/github-cli@2.1.0
 jobs:
   pytest:
     parameters:
@@ -68,6 +69,7 @@ jobs:
 
             make htmlcov
             mv htmlcov /tmp/coverage/htmlcov-<<parameters.kind>>
+            .circleci/update_coverage_description.sh
             set -e
             exit 0
       - store_artifacts:
