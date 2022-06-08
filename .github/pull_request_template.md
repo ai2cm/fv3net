@@ -20,3 +20,5 @@ Requirement changes:
 - [ ] Tests added
 
 Resolves #<github issues> [JIRA-TAG]
+
+Coverage reports (updated automatically):
