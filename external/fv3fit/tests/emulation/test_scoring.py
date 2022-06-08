@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 
-from fv3fit.emulation.scoring import score, score_single_output, score_multi_output
+from fv3fit.emulation.scoring import score, score_multi_output
 
 
 def _get_tensor():
@@ -32,17 +32,6 @@ def prediction(arraylike_input):
 def test_score(target, prediction):
 
     scores, profiles = score(target, prediction)
-
-    for v in scores.values():
-        assert v == 1.0
-
-    for v in profiles.values():
-        np.testing.assert_array_equal(v, np.ones(2))
-
-
-def test_score_single_output_flat_scores(target, prediction):
-
-    scores, profiles = score_single_output(target, prediction, "field")
 
     for v in scores.values():
         assert v == 1.0

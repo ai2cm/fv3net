@@ -40,43 +40,6 @@ def score(target, prediction) -> ScoringOutput:
     return metrics, profiles
 
 
-def score_single_output(
-    target: np.ndarray, prediction: np.ndarray, name: str
-) -> ScoringOutput:
-    """
-    Score a single named output from an emulation model. Returns
-    a flat dictionary with score/profile keys preceding variable
-    name for Weights & Biases chart grouping.
-
-    Precipitation scores are rescaled for backwards compatibility
-
-    Args:
-        target: truth values
-        prediction: emulated values
-        name: name of field being emulated to be added to the key
-            of each score
-    """
-
-    # including for backwards compatibility for precip scores
-    # precip has units meters/timestep, scaling assumes timestep is 900s
-    if name == "total_precipitation":
-        millimeters_in_meter = 1000
-        timestep_seconds = 900
-        seconds_in_day = 60 * 60 * 24
-        precip_scaling = (
-            millimeters_in_meter / timestep_seconds * seconds_in_day
-        )  # mm/day
-        target *= precip_scaling
-        prediction *= precip_scaling
-
-    scores, profiles = score(target, prediction)
-    # Keys use directory style for wandb chart grouping
-    flat_score = {f"{k}/{name}": v for k, v in scores.items()}
-    flat_profile = {f"{k}/{name}": v for k, v in profiles.items()}
-
-    return flat_score, flat_profile
-
-
 def score_multi_output(
     targets: Sequence[np.ndarray],
     predictions: Sequence[np.ndarray],
@@ -97,10 +60,26 @@ def score_multi_output(
     all_scores: Dict[str, float] = {}
     all_profiles: Dict[str, np.ndarray] = {}
 
-    for target, pred, name in zip(targets, predictions, names):
+    for target, prediction, name in zip(targets, predictions, names):
 
-        scores, profiles = score_single_output(target, pred, name)
-        all_scores.update(scores)
-        all_profiles.update(profiles)
+        # including for backwards compatibility for precip scores
+        # precip has units meters/timestep, scaling assumes timestep is 900s
+        if name == "total_precipitation":
+            millimeters_in_meter = 1000
+            timestep_seconds = 900
+            seconds_in_day = 60 * 60 * 24
+            precip_scaling = (
+                millimeters_in_meter / timestep_seconds * seconds_in_day
+            )  # mm/day
+            target *= precip_scaling
+            prediction *= precip_scaling
+
+        scores, profiles = score(target, prediction)
+        # Keys use directory style for wandb chart grouping
+        flat_score = {f"{k}/{name}": v for k, v in scores.items()}
+        flat_profile = {f"{k}/{name}": v for k, v in profiles.items()}
+
+        all_scores.update(flat_score)
+        all_profiles.update(flat_profile)
 
     return all_scores, all_profiles
