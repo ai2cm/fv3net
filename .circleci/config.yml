@@ -71,8 +71,8 @@ jobs:
             make coverage_report
 
             make htmlcov
-            mv htmlcov /tmp/coverage/htmlcov-<<parameters.kind>>
             .circleci/update_coverage_description.sh
+            mv htmlcov /tmp/coverage/htmlcov-<<parameters.kind>>
             set -e
             exit 0
       - store_artifacts:
