@@ -38,6 +38,9 @@ class CustomLoss:
         normalization: the normalization type (see normalization.py) to
             use for the MSE
         loss_variables: variable names to include in the MSE loss dict
+        logit_variables: variable names to compute classification scores for.
+            ``truth[name]`` is one-hot encoded. ``prediction[name]`` is in the
+            range [-infty, infty].
         metric_variables: variable names to include in the metrics dict
         weights: custom scaling for the loss variables applied in the
             overall keras "loss" term
@@ -50,6 +53,7 @@ class CustomLoss:
     loss_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
+    logit_variables: List[str] = dataclasses.field(default_factory=list)
 
     def build(self, output_samples: Mapping[str, tf.Tensor],) -> Callable:
         """
@@ -64,9 +68,14 @@ class CustomLoss:
 
         """
         loss_funcs = {}
-        for out_varname, sample in output_samples.items():
-            norm_layer = self.normalization.build(sample)
-            loss_funcs[out_varname] = NormalizedMSE(norm_layer)
+        for out_varname in self.loss_variables + self.metric_variables:
+            if out_varname in output_samples:
+                sample = output_samples[out_varname]
+                norm_layer = self.normalization.build(sample)
+                loss_funcs[out_varname] = NormalizedMSE(norm_layer)
+
+        for name in self.logit_variables:
+            loss_funcs[name] = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
 
         return _MultiVariableLoss(
             loss_funcs=loss_funcs,
