@@ -207,6 +207,8 @@ workflows:
       - lint
       - argo
       - pytest:
+          context:
+            - GITHUB_CREDENTIALS
           name: pytest-<<matrix.kind>>
           matrix:
             parameters:
