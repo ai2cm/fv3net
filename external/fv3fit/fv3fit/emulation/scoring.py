@@ -40,6 +40,20 @@ def score(target, prediction) -> ScoringOutput:
     return metrics, profiles
 
 
+def _append_rectified_cloud_if_available(targets, predictions, names):
+
+    qc_key = "cloud_water_mixing_ratio_after_gscond"
+    if qc_key in names:
+        idx = names.index(qc_key)
+        target = targets[idx]
+        prediction = predictions[idx]
+
+        rectified = np.where(prediction < 0, 0, prediction)
+        targets.append(target)
+        predictions.append(rectified)
+        names.append(f"{qc_key}_rectified")
+
+
 def score_multi_output(
     targets: Sequence[np.ndarray],
     predictions: Sequence[np.ndarray],
@@ -59,6 +73,12 @@ def score_multi_output(
 
     all_scores: Dict[str, float] = {}
     all_profiles: Dict[str, np.ndarray] = {}
+
+    targets = list(targets)
+    predictions = list(predictions)
+    names = list(names)
+
+    _append_rectified_cloud_if_available(targets, predictions, names)
 
     for target, prediction, name in zip(targets, predictions, names):
 
