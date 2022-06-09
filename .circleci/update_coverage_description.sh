@@ -6,7 +6,12 @@ report_type=$1
 
 if [[ -f htmlcov/index.html ]]; then
     pr_number=${CIRCLE_PULL_REQUEST##*/}
-    body=$(curl https://api.github.com/repos/ai2cm/fv3net/pulls/${pr_number} | jq '.body' | tail -c +2 | head -c -2 | sed -e 's/\\r\\n/\r\n/g')
+    body=$(curl https://api.github.com/repos/ai2cm/fv3net/pulls/${pr_number} | jq '.body' | tail -c +2 | head -c -2 | sed -e 's/\\r\\n/\r\n/g' | sed -e 's/\\r/\r/g')
+    x=`tail -n 1 <(echo "$body")`
+    if ! [ "$x" == "" ]; then
+        # no newline at end of body, probably removed by curl, so add one
+        body="${body}\n"
+    fi
     coverage_label=$(grep -oP '(?<=<span class="pc_cov">).+(?=<\/span>)' htmlcov/index.html)
 
     if [[ "$body" == *"${report_type}:"* ]]; then
