@@ -57,3 +57,4 @@ def test_custom_loss_logits():
     config = CustomLoss(logit_variables=["a"])
     loss = config.build({})
     assert "a" in loss.loss_funcs
+    assert "a" in loss.loss_variables

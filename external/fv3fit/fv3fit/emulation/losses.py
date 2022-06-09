@@ -79,7 +79,7 @@ class CustomLoss:
 
         return _MultiVariableLoss(
             loss_funcs=loss_funcs,
-            loss_variables=self.loss_variables,
+            loss_variables=self.loss_variables + self.logit_variables,
             metric_variables=self.metric_variables,
             weights=self.weights,
         )
