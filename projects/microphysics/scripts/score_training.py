@@ -1,10 +1,11 @@
 import argparse
 from dataclasses import asdict
+from toolz import get
 import json
 import logging
 from pathlib import Path
 import sys
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple, Union
 from fv3net.artifacts.metadata import StepMetadata, log_fact_json
 import numpy as np
 import os
@@ -13,7 +14,8 @@ import tensorflow as tf
 from fv3fit import set_random_seed
 from fv3fit.train_microphysics import TrainConfig
 from fv3fit._shared import put_dir
-from fv3fit.emulation.keras import score_model
+from fv3fit.emulation.scoring import score_multi_output, ScoringOutput
+from fv3fit.emulation.types import TensorDict
 from fv3fit.wandb import (
     log_profile_plots,
     log_to_table,
@@ -21,8 +23,13 @@ from fv3fit.wandb import (
 from vcm import get_fs
 import yaml
 from emulation.config import ModelConfig
+from emulation.masks import Mask
 
 logger = logging.getLogger(__name__)
+
+
+ArrayDict = Mapping[str, np.ndarray]
+ArrayLikeDict = Union[ArrayDict, TensorDict]
 
 
 def load_final_model_or_checkpoint(train_out_url) -> Tuple[tf.keras.Model, str]:
@@ -43,11 +50,32 @@ def load_final_model_or_checkpoint(train_out_url) -> Tuple[tf.keras.Model, str]:
     return tf.keras.models.load_model(url_to_load), url_to_load
 
 
+def _transpose(d):
+    return {k: np.array(v).T for k, v in d.items()}
+
+
+def _apply_mask_with_transpose(mask, emulated, state):
+    # prognostic run data is [feature, sample] dimensions
+    out = mask(_transpose(state), _transpose(emulated))
+    return _transpose(out)
+
+
+def score_model(
+    targets: ArrayLikeDict, predictions: ArrayLikeDict, mask: Optional[Mask] = None
+) -> ScoringOutput:
+
+    if mask is not None:
+        predictions = _apply_mask_with_transpose(mask, predictions, targets)
+
+    names = sorted(set(predictions) & set(targets))
+    return score_multi_output(get(names, targets), get(names, predictions), names)
+
+
 def main(
     config: TrainConfig,
     seed: int = 0,
-    model_url: str = None,
-    emulation_config_path: Path = None,
+    model_url: Optional[str] = None,
+    emulation_config_path: Optional[Path] = None,
 ):
 
     logging.basicConfig(level=getattr(logging, config.log_level))
@@ -67,8 +95,9 @@ def main(
     if emulation_config_path is not None:
         with emulation_config_path.open() as f:
             emu_config = ModelConfig.from_dict(yaml.safe_load(f))
+            mask = emu_config.build_mask()
     else:
-        emu_config = None  # noqa
+        mask = None
 
     StepMetadata(
         job_type="train_score",
@@ -89,8 +118,8 @@ def main(
     train_set = next(iter(train_ds.unbatch().shuffle(160_000).batch(80_000)))
     test_set = next(iter(test_ds.unbatch().shuffle(160_000).batch(80_000)))
 
-    train_scores, train_profiles = score_model(model, train_set)
-    test_scores, test_profiles = score_model(model, test_set)
+    train_scores, train_profiles = score_model(model, train_set, mask=mask)
+    test_scores, test_profiles = score_model(model, test_set, mask=mask)
     logger.debug("Scoring Complete")
 
     summary_metrics: Dict[str, Any] = {
