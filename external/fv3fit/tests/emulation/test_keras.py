@@ -5,10 +5,7 @@ import tensorflow as tf
 import fv3fit.emulation
 from fv3fit.emulation.trainer import _ModelWrapper, train
 from fv3fit.emulation.losses import CustomLoss
-from fv3fit.emulation.keras import (
-    save_model,
-    score_model,
-)
+from fv3fit.emulation.keras import save_model
 
 
 def test_train():
@@ -88,28 +85,3 @@ def test_model_save(tmp_path):
     save_model(model, str(tmp_path))
     loaded = tf.keras.models.load_model(str(tmp_path / "model.tf"))
     np.testing.assert_array_equal(output_before_save, loaded(data)["b"])
-
-
-def test_model_score():
-    in_ = tf.keras.Input(shape=[10], name="a")
-    out = tf.keras.layers.Lambda(lambda x: x)(in_)
-    model = tf.keras.Model(inputs={"a": in_}, outputs={"b": out})
-
-    one = tf.ones((5, 10))
-    data = {"a": one, "b": one}
-
-    scores, profiles = score_model(model, data)
-    assert scores["mse/b"] == 0
-    assert scores["bias/b"] == 0
-
-
-def test_model_score_no_outputs():
-
-    in_ = tf.keras.Input(shape=[10])
-    model = tf.keras.Model(inputs={"a": in_}, outputs=[])
-
-    one = tf.ones((10, 5))
-    data = {"a": one}
-
-    with pytest.raises(ValueError):
-        score_model(model, data)

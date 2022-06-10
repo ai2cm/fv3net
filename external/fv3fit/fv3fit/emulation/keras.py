@@ -1,11 +1,6 @@
 import logging
 import os
 import tensorflow as tf
-from toolz import get
-from typing import Mapping
-
-from .scoring import score_multi_output, ScoringOutput
-import fv3fit.keras.adapters
 
 logger = logging.getLogger(__name__)
 
@@ -30,21 +25,3 @@ def save_model(model: tf.keras.Model, destination: str):
     logging.getLogger(__name__).debug(f"saving model to {model_path}")
     model.save(model_path, save_format="tf")
     return model_path
-
-
-def score_model(model: tf.keras.Model, data: Mapping[str, tf.Tensor],) -> ScoringOutput:
-    """
-    Score an emulation model with single or multiple
-    output tensors.  Created to handle difference between
-    single-out and multiple-out models producing a tensor
-    vs. a list
-
-    Args:
-        model: tensorflow emulation model
-        data: data to score with, must contain inputs and outputs of
-        ``model``.
-    """
-    model = fv3fit.keras.adapters.ensure_dict_output(model)
-    prediction = model.predict(data, batch_size=8192)
-    names = sorted(set(prediction) & set(data))
-    return score_multi_output(get(names, data), get(names, prediction), names)
