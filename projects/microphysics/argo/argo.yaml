@@ -75,6 +75,19 @@ spec:
             parameters:
             - name: tag
               value: "{{inputs.parameters.tag}}-online"
+        - name: score-model-posthoc-adjusted
+          template: score-model
+          dependencies: [run-online]
+          arguments:
+            parameters:
+            - name: "training-config"
+              value: ""
+            - name: "tag"
+              value: "{{inputs.parameters.tag}}-masked-scores"
+            - name: "wandb-group"
+              value: "{{inputs.parameters.tag}}-online"
+            - name: "flags"
+              value: "--emulation_model_config {{workflow.parameters.config}}"
         - name: piggy-offline
           template: piggyback-diags
           dependencies: [run-offline]
@@ -336,7 +349,12 @@ spec:
     inputs:
       parameters:
         - name: training-config
-        - {name: flags, value: " "}
+        - name: flags
+          value: ""
+        - name: tag
+          value: "{{workflow.name}}"
+        - name: wandb-group
+          value: "{{workflow.parameters.wandb-group}}"
     container:
       image: "us.gcr.io/vcm-ml/fv3fit:{{workflow.parameters.fv3fit_image_tag}}"
       command: ["bash", "-c", "-x"]
@@ -350,9 +368,9 @@ spec:
         - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
           value: /secret/gcp-credentials/key.json
         - name: WANDB_NAME
-          value: "{{workflow.name}}"
+          value: "{{input.parameters.tag}}"
         - name: WANDB_RUN_GROUP
-          value: "{{workflow.parameters.wandb-group}}"
+          value: "{{input.parameters.wandb-group}}"
       volumeMounts:
         - mountPath: /secret/gcp-credentials
           name: gcp-key-secret
