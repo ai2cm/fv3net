@@ -2,6 +2,7 @@ import argparse
 from dataclasses import asdict
 import json
 import logging
+from pathlib import Path
 import sys
 from typing import Any, Dict, Tuple
 from fv3net.artifacts.metadata import StepMetadata, log_fact_json
@@ -18,6 +19,8 @@ from fv3fit.wandb import (
     log_to_table,
 )
 from vcm import get_fs
+import yaml
+from emulation.config import ModelConfig
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +43,12 @@ def load_final_model_or_checkpoint(train_out_url) -> Tuple[tf.keras.Model, str]:
     return tf.keras.models.load_model(url_to_load), url_to_load
 
 
-def main(config: TrainConfig, seed: int = 0, model_url: str = None):
+def main(
+    config: TrainConfig,
+    seed: int = 0,
+    model_url: str = None,
+    emulation_config_path: Path = None,
+):
 
     logging.basicConfig(level=getattr(logging, config.log_level))
     set_random_seed(seed)
@@ -55,6 +63,12 @@ def main(config: TrainConfig, seed: int = 0, model_url: str = None):
     else:
         logger.info(f"Loading user specified model from {model_url}")
         model = tf.keras.models.load_model(model_url)
+
+    if emulation_config_path is not None:
+        with emulation_config_path.open() as f:
+            emu_config = ModelConfig.from_dict(yaml.safe_load(f))
+    else:
+        emu_config = None  # noqa
 
     StepMetadata(
         job_type="train_score",
@@ -119,7 +133,18 @@ if __name__ == "__main__":
         ),
         default=None,
     )
+    parser.add_argument(
+        "--emulation_model_config",
+        type=Path,
+        optional=True,
+        help=("Load ModelConfig for post-hoc emulation corrections"),
+    )
 
     known, unknown = parser.parse_known_args()
     config = TrainConfig.from_args(unknown)
-    main(config, model_url=known.model_url)
+
+    main(
+        config,
+        model_url=known.model_url,
+        emulation_config_path=known.emulation_model_config,
+    )
