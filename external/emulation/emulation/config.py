@@ -87,9 +87,9 @@ class ModelConfig:
     enforce_conservative: bool = False
 
     def build(self) -> MicrophysicsHook:
-        return MicrophysicsHook(self.path, mask=self._build_mask())
+        return MicrophysicsHook(self.path, mask=self.build_mask())
 
-    def _build_mask(self) -> Mask:
+    def build_mask(self) -> Mask:
         return compose_masks(self._build_masks())
 
     def _build_masks(self) -> Iterable[Mask]:
