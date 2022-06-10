@@ -1,6 +1,5 @@
 import dataclasses
 import datetime
-from functools import partial
 import logging
 from typing import Iterable, Mapping, Optional, Tuple
 import os
@@ -17,7 +16,7 @@ from emulation._emulate.microphysics import (
 )
 from emulation._monitor.monitor import StorageConfig, StorageHook
 from emulation._time import from_datetime, to_datetime
-from emulation.masks import RangeMask, compose_masks
+from emulation.masks import RangeMask, LevelMask, compose_masks
 import emulation.zhao_carr
 
 logger = logging.getLogger("emulation")
@@ -46,6 +45,12 @@ class Range:
 
 
 @dataclasses.dataclass
+class LevelSlice:
+    start: Optional[int] = None
+    stop: Optional[int] = None
+
+
+@dataclasses.dataclass
 class ModelConfig:
     """
 
@@ -56,15 +61,30 @@ class ModelConfig:
             The physics is used for the first half of the interval, and the ML
             for the second half.
         ranges: post-hoc limits to apply to the predicted values
-        min_cloud_threshold: all cloud values less than this amount (including
+        mask_emulator_levels:  override the emulator tendencies with the fortran
+            physics tendencies for a specified level range.
+        cloud_squash: all cloud values less than this amount (including
             negative values) will be squashed to zero.
+        gscond_cloud_conservative: infer the gscond cloud from conservation via
+            gscond humidity tendency
+        enforce_conservative: if True, temperature and humidity change will be
+            inferred from the cloud change after all masks have been applied. The
+            latent heat is inferred assuming liquid condensate. Differs from,
+            but typically used in concert with ``gscond_cloud_conservative``.
+
     """
 
     path: str
     online_schedule: Optional[IntervalSchedule] = None
     ranges: Mapping[str, Range] = dataclasses.field(default_factory=dict)
+    mask_emulator_levels: Mapping[str, LevelSlice] = dataclasses.field(
+        default_factory=dict
+    )
     cloud_squash: Optional[float] = None
     gscond_cloud_conservative: bool = False
+    mask_gscond_identical_cloud: bool = False
+    mask_gscond_zero_cloud: bool = False
+    enforce_conservative: bool = False
 
     def build(self) -> MicrophysicsHook:
         return MicrophysicsHook(self.path, mask=self._build_mask())
@@ -79,11 +99,28 @@ class ModelConfig:
         for key, range in self.ranges.items():
             yield RangeMask(key, min=range.min, max=range.max)
 
-        yield partial(
-            emulation.zhao_carr.modify_zhao_carr,
-            cloud_squash=self.cloud_squash,
-            gscond_cloud_conservative=self.gscond_cloud_conservative,
-        )
+        if self.gscond_cloud_conservative:
+            yield emulation.zhao_carr.infer_gscond_cloud_from_conservation
+
+        if self.cloud_squash is not None:
+            yield lambda x, y: emulation.zhao_carr.squash_gscond(
+                x, y, self.cloud_squash
+            )
+            yield lambda x, y: emulation.zhao_carr.squash_precpd(
+                x, y, self.cloud_squash
+            )
+
+        if self.mask_gscond_identical_cloud:
+            yield emulation.zhao_carr.mask_where_fortran_cloud_identical
+
+        if self.mask_gscond_zero_cloud:
+            yield emulation.zhao_carr.mask_where_fortran_cloud_vanishes_gscond
+
+        if self.enforce_conservative:
+            yield emulation.zhao_carr.enforce_conservative_gscond
+
+        for key, _slice in self.mask_emulator_levels.items():
+            yield LevelMask(key, start=_slice.start, stop=_slice.stop)
 
 
 @dataclasses.dataclass

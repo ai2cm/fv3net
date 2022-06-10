@@ -10,13 +10,13 @@ import fv3config
 
 # Map for different base fv3config dictionaries
 PWD = Path(os.path.abspath(__file__)).parent
-DEFAULT_BASE_VERSION = "v0.3"  # for backward compatibility
 BASE_FV3CONFIG_BY_VERSION = {
     "v0.2": os.path.join(PWD, "base_yamls/v0.2/fv3config.yml"),
     "v0.3": os.path.join(PWD, "base_yamls/v0.3/fv3config.yml"),
     "v0.4": os.path.join(PWD, "base_yamls/v0.4/fv3config.yml"),
     "v0.5": os.path.join(PWD, "base_yamls/v0.5/fv3config.yml"),
     "v0.6": os.path.join(PWD, "base_yamls/v0.6/fv3config.yml"),
+    "v0.7": os.path.join(PWD, "base_yamls/v0.7/fv3config.yml"),
 }
 TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
 FV_CORE_ASSET = fv3config.get_asset_dict(
@@ -80,11 +80,10 @@ def merge_fv3config_overlays(*mappings) -> Mapping:
     return out
 
 
-def get_base_fv3config(version_key: Optional[str] = None) -> FV3Config:
+def get_base_fv3config(version_key: str) -> FV3Config:
     """
     Get base configuration dictionary labeled by version_key.
     """
-    version_key = version_key or DEFAULT_BASE_VERSION
     config_path = BASE_FV3CONFIG_BY_VERSION[version_key]
     with fsspec.open(config_path) as f:
         base_yaml = yaml.safe_load(f)
@@ -149,7 +148,7 @@ def get_full_config(
     Returns:
         fv3config Mapping
     """
-    base_version = config_update.get("base_version", DEFAULT_BASE_VERSION)
+    base_version = config_update["base_version"]
     return merge_fv3config_overlays(
         get_base_fv3config(base_version),
         c48_initial_conditions_overlay(ic_url, ic_timestep),

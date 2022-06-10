@@ -1,15 +1,15 @@
-from pathlib import PosixPath
-import sys
-from fv3fit.dataclasses import asdict_with_enum as asdict
-from unittest.mock import Mock
-
-from fv3fit.emulation.losses import CustomLoss
-
 import pytest
 import tensorflow as tf
+import sys
+from pathlib import PosixPath
+from unittest.mock import Mock
+
+import fv3fit.emulation.transforms.zhao_carr as zhao_carr
+from fv3fit.dataclasses import asdict_with_enum as asdict
 from fv3fit._shared.config import to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
+from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.train_microphysics import (
@@ -177,3 +177,23 @@ def test_TrainConfig_build_loss():
     loss_value, _ = loss(data, data)
     assert 0 == pytest.approx(loss_value.numpy())
     transform.forward.assert_called()
+
+
+def test_TrainConfig_GscondClassesV1():
+    timestep = 1.0
+    config_dict = {"tensor_transform": [{"timestep": timestep}]}
+    config = TrainConfig.from_dict(config_dict)
+
+    data = {
+        "cloud_water_mixing_ratio_input": tf.ones((1, 4)),
+        "cloud_water_mixing_ratio_after_gscond": tf.ones((1, 4),),
+    }
+    transform = config.build_transform(sample=data)
+    result = transform.forward(data)
+
+    # Check the length so it errors if classes added/removed without top-level
+    # definitions being updated
+    assert len(set(result) - set(data)) == len(zhao_carr.CLASS_NAMES)
+
+    for key in zhao_carr.CLASS_NAMES:
+        assert key in result

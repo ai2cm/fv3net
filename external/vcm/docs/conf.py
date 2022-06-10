@@ -50,8 +50,8 @@ master_doc = "index"
 
 # General information about the project.
 project = u"VCM Tools"
-copyright = u"2021, Vulcan Technologies, LLC"
-author = u"Vulcan Technologies, LLC"
+copyright = u"2021-2022, The Allen Institute for Artificial Intelligence"
+author = u"The Allen Institute for Artificial Intelligence"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -132,7 +132,7 @@ latex_documents = [
         master_doc,
         "vcm.tex",
         u"VCM Tools Documentation",
-        u"Vulcan Technologies, LLC",
+        u"The Allen Institute for Artificial Intelligence",
         "manual",
     )
 ]

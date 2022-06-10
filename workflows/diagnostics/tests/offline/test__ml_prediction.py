@@ -79,7 +79,7 @@ def test_predict_function_mapper_inserts_prediction_dim(
 ):
     mock_model = get_mock_model(input_variables, output_variables)
     variables = mock_model.output_variables + mock_model.input_variables
-    predict_function = _get_predict_function(mock_model, variables, grid=xr.Dataset())
+    predict_function = _get_predict_function(mock_model, variables)
     output = predict_function(base_dataset)
     for var in mock_model.output_variables:
         assert var in output
@@ -95,7 +95,7 @@ def test_predict_function_inserts_prediction_values(
 ):
     mock_model = get_mock_model(input_variables, output_variables)
     variables = mock_model.output_variables + mock_model.input_variables
-    predict_function = _get_predict_function(mock_model, variables, grid=xr.Dataset())
+    predict_function = _get_predict_function(mock_model, variables)
     output = predict_function(base_dataset)
     for var in mock_model.output_variables:
         assert var in output
@@ -111,26 +111,3 @@ def test_predict_function_inserts_prediction_values(
         )
         xr.testing.assert_allclose(truth, target)
         xr.testing.assert_allclose(prediction, mock_model.output_ds[var])
-
-
-def test_predict_function_inserts_grid_before_calling_predict(base_dataset):
-    input_variables, output_variables = ["feature0", "feature1"], ["pred0", "pred1"]
-    mock_model = get_mock_model(input_variables, output_variables)
-    grid_ds = xr.Dataset(
-        data_vars={
-            "grid_var": xr.DataArray(
-                np.random.randn(3, 4, 5), dims=["dim1", "dim2", "dim3"]
-            )
-        }
-    )
-    variables = (
-        mock_model.output_variables
-        + mock_model.input_variables
-        + list(grid_ds.data_vars.keys())
-    )
-    predict_function = _get_predict_function(mock_model, variables, grid=grid_ds)
-    _ = predict_function(base_dataset)
-    assert len(mock_model.call_datasets) == 1, "should be called only once"
-    passed_ds = mock_model.call_datasets[0]
-    for varname in grid_ds.data_vars:
-        xr.testing.assert_identical(grid_ds[varname], passed_ds[varname])
