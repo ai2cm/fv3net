@@ -1,0 +1,17 @@
+# Generates (overwrites) gscond cloud water based on specific humidity change
+# Masks locations where condensate should end in zero cloud based on target data
+# Enforces heat/moisture conservation at the end
+path: ""
+mask_emulator_levels:
+  cloud_water_mixing_ratio_after_gscond:
+    start: 74
+    stop: null
+  air_temperature_after_gscond:
+    start: 74
+    stop: null
+  specific_humidity_after_gscond:
+    start: 74
+    stop: null
+  gscond_cloud_conservative: true
+  mask_gscond_zero_cloud: true
+  enforce_conservative: true
