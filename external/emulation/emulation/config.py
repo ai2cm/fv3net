@@ -122,6 +122,10 @@ class ModelConfig:
         for key, _slice in self.mask_emulator_levels.items():
             yield LevelMask(key, start=_slice.start, stop=_slice.stop)
 
+    @staticmethod
+    def from_dict(dict_: dict) -> "ModelConfig":
+        return dacite.from_dict(ModelConfig, dict_, config=dacite.Config(strict=True))
+
 
 @dataclasses.dataclass
 class EmulationConfig:
