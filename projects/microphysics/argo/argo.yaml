@@ -86,8 +86,8 @@ spec:
               value: "{{inputs.parameters.tag}}-masked-scores"
             - name: "wandb-group"
               value: "{{inputs.parameters.tag}}-online"
-            - name: "flags"
-              value: "--emulation_model_config {{workflow.parameters.config}}"
+            - name: prognostic-emulation-config
+              value: "{{workflow.parameters.config}}"
         - name: piggy-offline
           template: piggyback-diags
           dependencies: [run-offline]
@@ -355,6 +355,8 @@ spec:
           value: "{{workflow.name}}"
         - name: wandb-group
           value: "{{workflow.parameters.wandb-group}}"
+        - name: prognostic-emulation-config
+          value: ""
     container:
       image: "us.gcr.io/vcm-ml/fv3fit:{{workflow.parameters.fv3fit_image_tag}}"
       command: ["bash", "-c", "-x"]
@@ -385,8 +387,18 @@ spec:
         - |
           echo "{{inputs.parameters.training-config}}" | base64 --decode > training_config.yaml
 
+          emu_config="{{inputs.parameters.emulation-config}}"
+          if [ -z $emu_config ]
+          then
+            emu_flag=""
+          else
+            echo $emu_config | base64 --decode > emulation_config.yaml
+            emu_flag="--emulator_config emulation_config.yaml"
+          fi
+
           python3 scripts/score_training.py \
             --config-path training_config.yaml \
+            ${emu_flag} \
             --wandb.job_type train_score \
             {{inputs.parameters.flags}}
     tolerations:
