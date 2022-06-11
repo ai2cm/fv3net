@@ -81,7 +81,7 @@ spec:
           arguments:
             parameters:
             - name: "training-config"
-              value: ""
+              value: "{{workflow.parameters.training-confg}}"
             - name: "tag"
               value: "{{inputs.parameters.tag}}-masked-scores"
             - name: "wandb-group"
@@ -385,20 +385,28 @@ spec:
           memory: "28G"
       args:
         - |
-          echo "{{inputs.parameters.training-config}}" | base64 --decode > training_config.yaml
-
           emu_config="{{inputs.parameters.emulation-config}}"
+          train_config="{{inputs.parameters.training-config}}"
+          echo $train_config | base64 --decode > training_config.yaml
+          echo $emu_config | base64 --decode > emulation_config.yaml
+
           if [ -z $emu_config ]
           then
-            emu_flag=""
+            emu_config_flag=""
           else
-            echo $emu_config | base64 --decode > emulation_config.yaml
             emu_flag="--emulator_config emulation_config.yaml"
           fi
 
+          if [ -z $train_config ]
+          then
+            train_config_flag="--config-path default"
+          else
+            train_config_flag="--config-path training_config.yaml"
+          fi
+
           python3 scripts/score_training.py \
-            --config-path training_config.yaml \
-            ${emu_flag} \
+            ${train_config_flag} \
+            ${emu_config_flag} \
             --wandb.job_type train_score \
             {{inputs.parameters.flags}}
     tolerations:
