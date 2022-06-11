@@ -22,7 +22,7 @@ from fv3fit.wandb import (
 )
 from vcm import get_fs
 import yaml
-from emulation.config import ModelConfig
+from emulation.config import EmulationConfig, ModelConfig
 from emulation.masks import Mask
 
 logger = logging.getLogger(__name__)
@@ -75,7 +75,7 @@ def main(
     config: TrainConfig,
     seed: int = 0,
     model_url: Optional[str] = None,
-    emulation_config_path: Optional[Path] = None,
+    prognostic_emu_config: Optional[ModelConfig] = None,
 ):
 
     logging.basicConfig(level=getattr(logging, config.log_level))
@@ -92,10 +92,8 @@ def main(
         logger.info(f"Loading user specified model from {model_url}")
         model = tf.keras.models.load_model(model_url)
 
-    if emulation_config_path is not None:
-        with emulation_config_path.open() as f:
-            emu_config = ModelConfig.from_dict(yaml.safe_load(f))
-            mask = emu_config.build_mask()
+    if prognostic_emu_config:
+        mask = prognostic_emu_config.build_mask()
     else:
         mask = None
 
@@ -151,6 +149,15 @@ def main(
             json.dump({"train": train_scores, "test": test_scores}, f)
 
 
+def _load_prognostic_emulator_model_config(config: Path) -> ModelConfig:
+    with config.open() as f:
+        d = yaml.safe_load(f)
+
+    emu_config = EmulationConfig.from_dict(d)
+    model_config = emu_config.get_defined_model_config()
+    return model_config
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -163,17 +170,32 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
-        "--emulation_model_config",
+        "--emulator_config",
         type=Path,
         optional=True,
-        help=("Load ModelConfig for post-hoc emulation corrections"),
+        help=(
+            "Use EmulatorConfig for post-hoc emulation corrections. "
+            "Overrides TrainConfig out_url."
+        ),
     )
 
-    known, unknown = parser.parse_known_args()
-    config = TrainConfig.from_args(unknown)
+    known, train_config_args = parser.parse_known_args()
+
+    if known.emulator_config is not None:
+        model_config = _load_prognostic_emulator_model_config(known.emulator_config)
+        model_url = model_config.path
+        model_out_dir = Path(model_url).parent.as_posix()
+        train_config_args.extend(["--out_url", model_out_dir])
+        logger.info(
+            "Prognostic emulation config provided. New output path for "
+            f"saving scores: {model_out_dir}"
+        )
+    else:
+        model_url = known.model_url
+        model_config = None
+
+    train_config = TrainConfig.from_args(train_config_args)
 
     main(
-        config,
-        model_url=known.model_url,
-        emulation_config_path=known.emulation_model_config,
+        train_config, model_url=model_url, prognostic_emu_config=model_config,
     )
