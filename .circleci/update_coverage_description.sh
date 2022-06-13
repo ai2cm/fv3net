@@ -15,7 +15,7 @@ if [[ -f htmlcov/index.html ]]; then
     elif [[ "$body" == *"${link_header}"* ]]; then
         body=$(echo "$body" | sed -e "s/${link_header}/${link_header}\r\n- ${report_type}: [${coverage_label}](${report_url})/g")
     else
-        body="${body}\r\n\r\n${link_header}\r\n- ${report_type}: [${coverage_label}](${report_url})"
+        body=$(echo -e "${body}\r\n\r\n${link_header}\r\n- ${report_type}: [${coverage_label}](${report_url})")
     fi
     echo "$body"
     gh pr edit --body "$body"
