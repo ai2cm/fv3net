@@ -1,36 +1,40 @@
 import argparse
-import dataclasses
-import fsspec
-import logging
 import json
-import numpy as np
+import logging
 import os
 import sys
 from tempfile import NamedTemporaryFile
-from vcm.derived_mapping import DerivedMapping
-import xarray as xr
-import yaml
-from typing import Mapping, Sequence, Tuple, List
+from typing import List, Mapping, Sequence, Tuple
 
-import loaders
-from vcm import safe, interpolate_to_pressure_levels
-import vcm
+import yaml
+
+import dataclasses
+import fsspec
 import fv3fit
-from .compute_diagnostics import compute_diagnostics
-from .derived_diagnostics import derived_registry
-from ._input_sensitivity import plot_input_sensitivity
+import loaders
+import numpy as np
+import vcm
+import xarray as xr
+from toolz import compose_left
+from vcm import interpolate_to_pressure_levels, safe
+
 from ._helpers import (
     DATASET_DIM_NAME,
-    load_grid_info,
-    is_3d,
+    EVALUATION_RESOLUTION,
     compute_r2,
     insert_aggregate_bias,
     insert_aggregate_r2,
-    insert_rmse,
     insert_column_integrated_vars,
+    insert_rmse,
+    is_3d,
+    load_grid_info,
+    batches_mean,
 )
+from ._coarsening import coarsen_cell_centered, res_from_string
+from ._input_sensitivity import plot_input_sensitivity
 from ._select import meridional_transect, nearest_time_batch_index, select_snapshot
-
+from .compute_diagnostics import compute_diagnostics
+from .derived_diagnostics import derived_registry
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -82,23 +86,16 @@ def _get_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--grid",
+        "--evaluation-grid",
         type=str,
         default=None,
         help=(
-            "Optional path to grid data netcdf. If not provided, defaults to loading "
-            "the grid  with the appropriate resolution (given in batch_kwargs) from "
-            "the catalog. Useful if you do not have permissions to access the GCS "
-            "data in vcm.catalog."
-        ),
-    )
-    parser.add_argument(
-        "--grid-resolution",
-        type=str,
-        default="c48",
-        help=(
-            "Optional grid resolution used to retrieve grid from the vcm catalog "
-            '(e.g. "c48"), ignored if --grid is provided'
+            "Optional path to a grid data netcdf that sets the grid resolution at "
+            "which the diagnostics will be computed. If not provided, evaluation grid "
+            "resolution will be C48. If validation data resolution is higher than "
+            "the evaluation grid resolution by an integer multiple, the validation "
+            "data will be coarsened to the evaluation grid resolution. Otherwise the "
+            "evaluation grid resolution must match the validation data resolution."
         ),
     )
     parser.add_argument(
@@ -138,13 +135,18 @@ def _standardize_names(*args: xr.Dataset):
     return renamed
 
 
+def _coord_to_var(coord: xr.DataArray, new_var_name: str) -> xr.DataArray:
+    return coord.rename(new_var_name).drop_vars(coord.name)
+
+
 def _compute_diagnostics(
     batches: Sequence[xr.Dataset],
     grid: xr.Dataset,
     predicted_vars: List[str],
+    res: int,
     n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset]:
-    batches_summary = []
+    batches_summary, timesteps = [], []
 
     # for each batch...
     for i, ds in enumerate(batches):
@@ -166,7 +168,8 @@ def _compute_diagnostics(
         ds_summary = compute_diagnostics(
             prediction, target, grid, ds[DELP], n_jobs=n_jobs
         )
-        ds_summary["time"] = ds["time"]
+
+        timesteps.append(ds["time"])
 
         batches_summary.append(ds_summary.load())
         del ds
@@ -182,8 +185,9 @@ def _compute_diagnostics(
     ds_diagnostics, ds_scalar_metrics = _standardize_names(
         ds_diagnostics, ds_scalar_metrics
     )
-    # this is kept as a coord to use in plotting a histogram of test timesteps
-    return ds_diagnostics.mean("batch"), ds_scalar_metrics
+    timesteps_all = _coord_to_var(xr.concat(timesteps, dim="time").time, "timesteps")
+    ds_diagnostics["timesteps"] = timesteps_all
+    return batches_mean(ds_diagnostics, res), ds_scalar_metrics
 
 
 def _consolidate_dimensioned_data(ds):
@@ -230,16 +234,10 @@ def insert_prediction(ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
     return xr.merge([safe.get_variables(ds, nonpredicted_vars), ds_target, ds_pred])
 
 
-def _get_predict_function(predictor, variables, grid):
+def _get_predict_function(predictor, variables):
     def transform(ds):
-        # Prioritize dataset's land_sea_mask if grid values disagree
-        ds = xr.merge(
-            [ds, grid], compat="override"  # type: ignore
-        )
-        derived_mapping = DerivedMapping(ds)
-        ds_derived = derived_mapping.dataset(variables)
-        ds_prediction = predictor.predict(safe.get_variables(ds_derived, variables))
-        return insert_prediction(ds_derived, ds_prediction)
+        ds_prediction = predictor.predict(safe.get_variables(ds, variables))
+        return insert_prediction(ds, ds_prediction)
 
     return transform
 
@@ -269,13 +267,11 @@ def main(args):
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
 
-    logger.info("Reading grid...")
-    if not args.grid:
-        # By default, read the appropriate resolution grid from vcm.catalog
-        grid = load_grid_info(args.grid_resolution)
+    if args.evaluation_grid is None:
+        evaluation_grid = load_grid_info(EVALUATION_RESOLUTION)
     else:
-        with fsspec.open(args.grid, "rb") as f:
-            grid = xr.open_dataset(f, engine="h5netcdf").load()
+        with fsspec.open(args.evaluation_grid, "rb") as f:
+            evaluation_grid = xr.open_dataset(f, engine="h5netcdf").load()
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
@@ -294,14 +290,43 @@ def main(args):
         f_out.write(f_in.read())
     batches = config.load_batches(model_variables)
 
-    predict_function = _get_predict_function(model, model_variables, grid)
-    batches = loaders.Map(predict_function, batches)
+    transforms = [_get_predict_function(model, model_variables)]
+
+    prediction_resolution = res_from_string(config.res)
+    logger.info(
+        f"Making predictions at validation data's c{prediction_resolution} resolution."
+    )
+    evaluation_resolution = evaluation_grid.sizes["x"]
+    logger.info(f"Evaluating diagnostics at c{evaluation_resolution} resolution.")
+    if prediction_resolution % evaluation_resolution != 0:
+        raise ValueError(
+            "Evaluation grid resolution does not match or evenly divide prediction "
+            "resolution."
+        )
+    coarsening_factor = prediction_resolution // evaluation_resolution
+    if coarsening_factor > 1:
+        prediction_grid = load_grid_info(config.res)
+        logger.info(f"Coarsening predictions by factor of {coarsening_factor}.")
+        transforms.append(
+            coarsen_cell_centered(
+                weights=prediction_grid.area, coarsening_factor=coarsening_factor
+            )
+        )
+
+    mapping_function = compose_left(*transforms)
+
+    batches = loaders.Map(mapping_function, batches)
 
     # compute diags
     ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(
-        batches, grid, predicted_vars=model.output_variables, n_jobs=args.n_jobs
+        batches,
+        evaluation_grid,
+        predicted_vars=model.output_variables,
+        res=evaluation_resolution,
+        n_jobs=args.n_jobs,
     )
-    ds_diagnostics = ds_diagnostics.update(grid)
+
+    ds_diagnostics = ds_diagnostics.update(evaluation_grid)
 
     # save model senstivity figures- these exclude derived variables
     fig_input_sensitivity = plot_input_sensitivity(model, batches[0])
@@ -337,11 +362,13 @@ def main(args):
         # add snapshotted prediction to saved diags.nc
         ds_diagnostics = ds_diagnostics.merge(
             safe.get_variables(ds_snapshot, predicted_vars).rename(
-                {v: f"{v}_snapshot" for v in predicted_vars}
+                dict(
+                    **{v: f"{v}_snapshot" for v in predicted_vars}, time="time_snapshot"
+                )
             )
         )
 
-        ds_transect = _get_transect(ds_snapshot, grid, vertical_vars)
+        ds_transect = _get_transect(ds_snapshot, evaluation_grid, vertical_vars)
         _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
 
     ds_diagnostics = _add_derived_diagnostics(ds_diagnostics)

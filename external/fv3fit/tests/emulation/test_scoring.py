@@ -2,7 +2,11 @@ import pytest
 import numpy as np
 import tensorflow as tf
 
-from fv3fit.emulation.scoring import score, score_single_output, score_multi_output
+from fv3fit.emulation.scoring import (
+    score,
+    score_multi_output,
+    _append_rectified_cloud_if_available,
+)
 
 
 def _get_tensor():
@@ -40,17 +44,6 @@ def test_score(target, prediction):
         np.testing.assert_array_equal(v, np.ones(2))
 
 
-def test_score_single_output_flat_scores(target, prediction):
-
-    scores, profiles = score_single_output(target, prediction, "field")
-
-    for v in scores.values():
-        assert v == 1.0
-
-    for v in profiles.values():
-        np.testing.assert_array_equal(v, np.ones(2))
-
-
 def test_score_multi_output_flat_scores(target, prediction):
 
     nout = 3
@@ -64,3 +57,18 @@ def test_score_multi_output_flat_scores(target, prediction):
 
     for v in profiles.values():
         np.testing.assert_array_equal(v, np.ones(2))
+
+
+def test__append_rectified_cloud_if_available():
+
+    targets = [np.array([1, 1, 1])]
+    predictions = [np.array([-1, 0, 1])]
+    names = ["cloud_water_mixing_ratio_after_gscond"]
+
+    _append_rectified_cloud_if_available(targets, predictions, names)
+
+    for _list in [targets, predictions, names]:
+        assert len(_list) == 2
+
+    np.testing.assert_array_equal(predictions[1], np.array([0, 0, 1]))
+    np.testing.assert_array_equal(targets[0], targets[1])

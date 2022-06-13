@@ -1,142 +1,15 @@
+# base config for initializing from model restart data. Defaults provided for
+# nudge-to-obs runs.
 data_table: default
-diag_table:
-  base_time: 2000-01-01 00:00:00
-  file_configs: []
-  name: prognostic_run
-diagnostics: []
+diag_table: default
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
-fortran_diagnostics: []
+initial_conditions: ''  # no default provided
+orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 gfs_analysis_data:
-  copy_method: copy
-  filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
   url: gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data
-initial_conditions:
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_core.res.tile1.nc
-  target_location: INPUT
-  target_name: fv_core.res.tile1.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_core.res.tile2.nc
-  target_location: INPUT
-  target_name: fv_core.res.tile2.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_core.res.tile3.nc
-  target_location: INPUT
-  target_name: fv_core.res.tile3.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_core.res.tile4.nc
-  target_location: INPUT
-  target_name: fv_core.res.tile4.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_core.res.tile5.nc
-  target_location: INPUT
-  target_name: fv_core.res.tile5.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_core.res.tile6.nc
-  target_location: INPUT
-  target_name: fv_core.res.tile6.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.sfc_data.tile1.nc
-  target_location: INPUT
-  target_name: sfc_data.tile1.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.sfc_data.tile2.nc
-  target_location: INPUT
-  target_name: sfc_data.tile2.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.sfc_data.tile3.nc
-  target_location: INPUT
-  target_name: sfc_data.tile3.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.sfc_data.tile4.nc
-  target_location: INPUT
-  target_name: sfc_data.tile4.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.sfc_data.tile5.nc
-  target_location: INPUT
-  target_name: sfc_data.tile5.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.sfc_data.tile6.nc
-  target_location: INPUT
-  target_name: sfc_data.tile6.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_tracer.res.tile1.nc
-  target_location: INPUT
-  target_name: fv_tracer.res.tile1.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_tracer.res.tile2.nc
-  target_location: INPUT
-  target_name: fv_tracer.res.tile2.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_tracer.res.tile3.nc
-  target_location: INPUT
-  target_name: fv_tracer.res.tile3.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_tracer.res.tile4.nc
-  target_location: INPUT
-  target_name: fv_tracer.res.tile4.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_tracer.res.tile5.nc
-  target_location: INPUT
-  target_name: fv_tracer.res.tile5.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_tracer.res.tile6.nc
-  target_location: INPUT
-  target_name: fv_tracer.res.tile6.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_srf_wnd.res.tile1.nc
-  target_location: INPUT
-  target_name: fv_srf_wnd.res.tile1.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_srf_wnd.res.tile2.nc
-  target_location: INPUT
-  target_name: fv_srf_wnd.res.tile2.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_srf_wnd.res.tile3.nc
-  target_location: INPUT
-  target_name: fv_srf_wnd.res.tile3.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_srf_wnd.res.tile4.nc
-  target_location: INPUT
-  target_name: fv_srf_wnd.res.tile4.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_srf_wnd.res.tile5.nc
-  target_location: INPUT
-  target_name: fv_srf_wnd.res.tile5.nc
-- copy_method: copy
-  source_location: gs://ic-bucket/20160805.000000
-  source_name: 20160805.000000.fv_srf_wnd.res.tile6.nc
-  target_location: INPUT
-  target_name: fv_srf_wnd.res.tile6.nc
-- copy_method: copy
-  source_location: gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0/
-  source_name: fv_core.res.nc
-  target_location: INPUT
-  target_name: fv_core.res.nc
+  filename_pattern: "%Y%m%d_%HZ_T85LR.nc"
+  copy_method: copy
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -197,13 +70,12 @@ namelist:
     - 0
     - 15
     - 0
-    days: 1
+    days: 0
     dt_atmos: 900
     dt_ocean: 900
-    force_date_from_namelist: true
     hours: 0
     memuse_verbose: true
-    minutes: 0
+    minutes: 30
     months: 0
     ncores_per_node: 32
     seconds: 0
@@ -239,10 +111,9 @@ namelist:
     dddmp: 0.2
     delt_max: 0.002
     dnats: 1
-    do_sat_adj: false
+    do_sat_adj: true
     do_vort_damp: true
     dwind_2d: false
-    external_eta: true
     external_ic: false
     fill: true
     fv_debug: false
@@ -278,6 +149,7 @@ namelist:
     npx: 49
     npy: 49
     npz: 79
+    external_eta: true
     ntiles: 6
     nudge: false
     nudge_qv: true
@@ -285,7 +157,7 @@ namelist:
     p_fac: 0.1
     phys_hydrostatic: false
     print_freq: 3
-    range_warn: false
+    range_warn: true
     reset_eta: false
     rf_cutoff: 800.0
     rf_fast: false
@@ -307,17 +179,17 @@ namelist:
     nudge_debug: true
     nudge_hght: false
     nudge_ps: false
-    nudge_q: false
     nudge_virt: false
     nudge_winds: false
+    nudge_q: false
+    tau_ps: 21600.0
+    tau_virt: 21600.0
+    tau_winds: 21600.0
+    tau_q: 21600.0
     r_hi: 5.0
     r_lo: 3.0
     r_min: 225000.0
     t_is_tv: false
-    tau_ps: 21600.0
-    tau_q: 21600.0
-    tau_virt: 21600.0
-    tau_winds: 21600.0
     tc_mask: true
     time_varying: false
     track_file_name: No_File_specified
@@ -338,7 +210,7 @@ namelist:
     do_sedi_heat: false
     dw_land: 0.16
     dw_ocean: 0.1
-    fast_sat_adj: false
+    fast_sat_adj: true
     fix_negative: true
     icloud_f: 1
     mono_prof: true
@@ -417,10 +289,10 @@ namelist:
     lon_s: 192
     ntrunc: 94
   namsfc:
-    fabsl: 0
-    fabss: 0
-    faisl: 0
-    faiss: 0
+    fabsl: 0  # Use maximum snow albedo from forcing files instead of initial conditions
+    fabss: 0  # Use maximum snow albedo from forcing files instead of initial conditions
+    faisl: 0  # Use land / sea / sea-ice mask from forcing files instead of initial conditions
+    faiss: 0  # Use land / sea / sea-ice mask from forcing files instead of initial conditions
     fnabsc: grb/global_mxsnoalb.uariz.t1534.3072.1536.rg.grb
     fnacna: ''
     fnaisc: grb/CFSR.SEAICE.1982.2012.monthly.clim.grb
@@ -442,41 +314,21 @@ namelist:
     fnvmnc: grb/global_shdmin.0.144x0.144.grb
     fnvmxc: grb/global_shdmax.0.144x0.144.grb
     fnzorc: igbp
-    fsicl: 0
-    fsics: 0
-    fslpl: 99999
+    fsicl: 0 # Use sea ice fraction from forcing files instead of persisting the fraction in the initial condition
+    fsics: 0 # Use sea ice fraction from forcing files instead of persisting the fraction in the initial condition
+    fslpl: 99999  # Use slope type from initial condition
     fsmcl:
+    - 99999  # Use soil moisture from initial condition
     - 99999
     - 99999
-    - 99999
-    fsnol: 99999
-    fsnos: 99999
+    fsnol: 99999  # Use snow cover fraction from initial condition
+    fsnos: 99999  # Use snow cover fraction from initial condition
     fsotl: 99999
     ftsfl: 99999
-    ftsfs: 0
+    ftsfs: 0   # Use only climatological SSTs, no relaxation from initial conditions
     fvetl: 99999
-    fvmnl: 0
-    fvmns: 0
-    fvmxl: 0
-    fvmxs: 0
+    fvmnl: 0  # Use minimum green vegetation fraction from forcing files instead of initial condition
+    fvmns: 0  # Use minimum green vegetation fraction from forcing files instead of initial condition
+    fvmxl: 0  # Use maximum green vegetation fraction from forcing files instead of initial condition
+    fvmxs: 0  # Use maximum green vegetation fraction from forcing files instead of initial condition
     ldebug: false
-nudging:
-  reference_frequency_seconds: 900
-  reference_initial_time: null
-  restart_categories: null
-  restarts_path: gs://ic-bucket
-  timescale_hours:
-    air_temperature: 12
-    pressure_thickness_of_atmospheric_layer: 12
-    specific_humidity: 12
-    x_wind: 12
-    y_wind: 12
-online_emulator: null
-orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-prephysics: null
-scikit_learn: null
-tendency_prescriber: null
-zhao_carr_emulation:
-  gscond: null
-  model: null
-  storage: null

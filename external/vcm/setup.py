@@ -24,16 +24,17 @@ install_requirements = [
     "xgcm",
     "cftime",
     "pytest",
-    "google-cloud-storage>=1.28.0",
+    "google-cloud-storage>=1.18.1",
     "google-api-core",
     "pytest-regtest",
     "h5netcdf>=0.8",
     "intake-xarray>=0.3.1",
+    "typing_extensions",
     "dacite",
 ]
 
 setup(
-    author="Vulcan Technologies, LLC",
+    author="The Allen Institute for Artificial Intelligence",
     author_email="noahb@allenai.org",
     python_requires=">=3.6",
     classifiers=[
@@ -44,6 +45,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
     ],
     description="vcm contains general purposes tools for analyzing FV3 data",
     install_requires=install_requirements,

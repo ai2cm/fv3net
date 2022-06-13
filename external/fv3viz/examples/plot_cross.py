@@ -10,7 +10,7 @@ are not easily available.
 import vcm
 import fsspec
 
-url = "https://github.com/VulcanClimateModeling/vcm-ml-example-data/blob/main/fv3net/fv3viz/plot_2_plot_cube_prognostic_diags.nc?raw=true"  # noqa
+url = "https://github.com/ai2cm/vcm-ml-example-data/blob/main/fv3net/fv3viz/plot_2_plot_cube_prognostic_diags.nc?raw=true"  # noqa
 fs = fsspec.get_fs_token_paths(url)[0]
 ds = vcm.open_remote_nc(fs, url).load()
 

@@ -7,7 +7,7 @@ spec:
     parameters:
       - name: nudge-to-fine-config
         value: |
-          base_version: v0.6
+          base_version: v0.7
           forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
           initial_conditions:
             base_url: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
@@ -204,7 +204,7 @@ spec:
           ]
       - name: prognostic-run-config
         value: |
-          base_version: v0.6
+          base_version: v0.7
           initial_conditions:
             base_url: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
             timestep: "20160801.001500"

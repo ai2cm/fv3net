@@ -256,7 +256,11 @@ def mask_area(region: str, arg: DiagArg) -> DiagArg:
         arg.delp,
     )
 
-    net_precipitation = _get_net_preciptation(verification, grid.area, delp)
+    net_precipitation = (
+        _get_net_precipitation(verification, grid.area, delp)
+        if "precipitation" in region
+        else None
+    )
 
     masked_area = _mask_array(
         region, grid.area, grid.lat, grid.land_sea_mask, net_precipitation
@@ -266,7 +270,7 @@ def mask_area(region: str, arg: DiagArg) -> DiagArg:
     return DiagArg(prognostic, verification, grid_copy.update({"area": masked_area}))
 
 
-def _get_net_preciptation(
+def _get_net_precipitation(
     verification: xr.Dataset, area: xr.DataArray, delp: Optional[xr.DataArray]
 ) -> xr.DataArray:
     if delp is not None and "Q2" in verification.data_vars:
