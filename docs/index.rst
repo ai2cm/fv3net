@@ -14,7 +14,7 @@ The :ref:`workflows` page documents our overall scientific workflow, with links 
 
 If you run into issues, you may want to check the :ref:`FAQs` to see if this is a known issue we have a solution for.
 
-We track our internal experiments in this `dropbox paper document <https://paper.dropbox.com/doc/ML-skill-for-FV3-GFS-rcRyq37aoDiWOtYMVchW9>`_. Available datasets can also be seen in the `intake catalog <https://github.com/VulcanClimateModeling/fv3net/blob/master/external/vcm/vcm/catalog.yaml>`_. These resources are both private and available internally.
+We track our internal experiments in this `dropbox paper document <https://paper.dropbox.com/doc/ML-skill-for-FV3-GFS-rcRyq37aoDiWOtYMVchW9>`_. Available datasets can also be seen in the `intake catalog <https://github.com/ai2cm/fv3net/blob/master/external/vcm/vcm/catalog.yaml>`_. These resources are both private and available internally.
 
 .. toctree::
    :maxdepth: 2

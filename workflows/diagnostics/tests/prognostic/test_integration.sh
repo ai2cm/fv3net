@@ -4,7 +4,7 @@ set -xe
 
 [[ -n $GOOGLE_APPLICATION_CREDENTIALS ]] && gcloud auth activate-service-account --key-file $GOOGLE_APPLICATION_CREDENTIALS
 
-RUN=gs://vcm-ml-code-testing-data/sample-prognostic-run-output-v2
+RUN=gs://vcm-ml-code-testing-data/sample-prognostic-run-output-v3
 
 random=$(openssl rand --hex 6)
 OUTPUT=gs://vcm-ml-scratch/test-prognostic-report/$random
@@ -13,7 +13,7 @@ cd workflows/diagnostics
 
 # compute diagnostics/mterics for a short sample prognostic run
 mkdir -p /tmp/$random
-prognostic_run_diags save $RUN /tmp/$random/diags.nc --n-jobs=-1
+prognostic_run_diags save $RUN /tmp/$random/diags.nc --n-jobs=4
 prognostic_run_diags metrics /tmp/$random/diags.nc > /tmp/$random/metrics.json
 gsutil cp /tmp/$random/diags.nc $OUTPUT/run1/diags.nc
 gsutil cp /tmp/$random/metrics.json $OUTPUT/run1/metrics.json

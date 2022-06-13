@@ -27,7 +27,7 @@ setup_requirements = []
 test_requirements = ["pytest"]
 
 setup(
-    author="Vulcan Technologies LLC",
+    author="The Allen Institute for Artificial Intelligence",
     author_email="jeremym@allenai.org",
     python_requires=">=3.6.9",
     classifiers=[
@@ -52,7 +52,7 @@ setup(
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
-    url="https://github.com/VulcanClimateModeling/fv3fit",
+    url="https://github.com/ai2cm/fv3fit",
     version="0.1.0",
     zip_safe=False,
 )

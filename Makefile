@@ -30,6 +30,8 @@ ifneq ("$(wildcard .env)","")
 	DOCKER_INTERACTIVE_ARGS += --env-file=.env
 endif
 
+PROGNOSTIC_RUN_WORKDIR ?= /fv3net/workflows/prognostic_c48_run
+
 IMAGES = fv3net post_process_run prognostic_run
 
 .PHONY: build_images push_image run_integration_tests image_name_explicit
@@ -125,14 +127,14 @@ pull_image_prognostic_run_base_gpu:
 	docker pull $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION)
 
 enter_emulation:
-	cd projects/microphysics && docker-compose run --rm -w /fv3net/external/emulation fv3 bash
+	PROGNOSTIC_RUN_WORKDIR=/fv3net/external/emulation $(MAKE) enter_prognostic_run
 
 enter_prognostic_run:
 	docker run \
 		--rm \
 		$(DOCKER_AUTH_ARGS) \
 		$(DOCKER_INTERACTIVE_ARGS) \
-		-w /fv3net/workflows/prognostic_c48_run \
+		-w $(PROGNOSTIC_RUN_WORKDIR) \
 		$(REGISTRY)/prognostic_run:$(VERSION) bash
 
 ############################################################
@@ -174,6 +176,12 @@ test_%:
 
 test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images $(ARGS)
+	coverage combine \
+		--append \
+		external/fv3kube/.coverage \
+		external/vcm/.coverage \
+		external/fv3fit/.coverage \
+		external/artifacts/.coverage
 
 test_regression:
 	pytest -vv -m regression -s $(ARGS)

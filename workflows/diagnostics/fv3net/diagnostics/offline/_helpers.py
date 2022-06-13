@@ -12,6 +12,7 @@ from vcm.catalog import catalog
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 DATASET_DIM_NAME = "dataset"
+EVALUATION_RESOLUTION = "c48"
 
 UNITS = {
     "column_integrated_dq1": "[W/m2]",
@@ -141,7 +142,9 @@ def load_grid_info(res: str = "c48"):
     wind_rotation = catalog[f"wind_rotation/{res}"].read()
     land_sea_mask = catalog[f"landseamask/{res}"].read()
     grid_info = xr.merge([grid, wind_rotation, land_sea_mask])
-    return safe.get_variables(grid_info, GRID_INFO_VARS).drop("tile")
+    return safe.get_variables(grid_info, GRID_INFO_VARS).drop_vars(
+        "tile", errors="ignore"
+    )
 
 
 def open_diagnostics_outputs(
@@ -222,3 +225,17 @@ def insert_column_integrated_vars(
         ds = ds.assign({column_integrated_name: da})
 
     return ds
+
+
+def batches_mean(
+    ds: xr.Dataset, res: int, dim: str = "batch", maximum_3d_resolution: int = 48
+) -> xr.Dataset:
+    """Average over batches, but not for 3D variables if at greater than
+    C48 resolution"""
+
+    with xr.set_options(keep_attrs=True):
+        if res > maximum_3d_resolution:
+            excluded_vars = [var for var in ds.data_vars if is_3d(ds[var])]
+            return ds.drop_vars(excluded_vars).mean(dim=dim)
+        else:
+            return ds.mean(dim=dim)

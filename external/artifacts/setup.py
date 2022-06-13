@@ -11,7 +11,7 @@ install_requirements = [
 ]
 
 setup(
-    author="Allen Insitute of Artificial Intelligence",
+    author="The Allen Institute for Artificial Intelligence",
     author_email="noahb@allenai.org",
     python_requires=">=3.6",
     classifiers=[

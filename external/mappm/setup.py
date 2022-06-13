@@ -7,7 +7,7 @@ from glob import glob
 from numpy.distutils.core import Extension, setup
 
 setup(
-    author="Allen Institute for AI",
+    author="The Allen Institute for Artificial Intelligence",
     author_email="noahb@vulcan.com",
     python_requires=">=3.6",
     classifiers=[

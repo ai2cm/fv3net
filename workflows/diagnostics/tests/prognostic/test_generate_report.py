@@ -85,11 +85,11 @@ def test_render_links(regtest):
     link_dict = {
         "column_heating_moistening.mp4": [
             (
-                "/Users/noah/workspace/VulcanClimateModeling/fv3net/workflows/prognostic_run_diags/45adebaeb631/run1/column_heating_moistening.mp4",  # noqa
+                "/Users/noah/workspace/ai2cm/fv3net/workflows/prognostic_run_diags/45adebaeb631/run1/column_heating_moistening.mp4",  # noqa
                 "run1",
             ),
             (
-                "/Users/noah/workspace/VulcanClimateModeling/fv3net/workflows/prognostic_run_diags/45adebaeb631/run2/column_heating_moistening.mp4",  # noqa
+                "/Users/noah/workspace/ai2cm/fv3net/workflows/prognostic_run_diags/45adebaeb631/run2/column_heating_moistening.mp4",  # noqa
                 "run2",
             ),
         ]

@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = "Prognostic Run Diagnostics"
-copyright = "2021, Vulcan Technologies, LLC"
+copyright = "2021-2022, The Allen Institute for Artificial Intelligence"
 author = "Oliver Watt-Meyer"
 
 
