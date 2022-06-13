@@ -176,6 +176,12 @@ test_%:
 
 test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images $(ARGS)
+	coverage combine \
+		--append \
+		external/fv3kube/.coverage \
+		external/vcm/.coverage \
+		external/fv3fit/.coverage \
+		external/artifacts/.coverage
 
 test_regression:
 	pytest -vv -m regression -s $(ARGS)
