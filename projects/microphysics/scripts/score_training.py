@@ -76,6 +76,7 @@ def main(
     seed: int = 0,
     model_url: Optional[str] = None,
     prognostic_emu_config: Optional[ModelConfig] = None,
+    out_url_override: Optional[str] = None,
 ):
 
     logging.basicConfig(level=getattr(logging, config.log_level))
@@ -97,9 +98,11 @@ def main(
     else:
         mask = None
 
+    out_url = config.out_url if out_url_override is None else out_url_override
+
     StepMetadata(
         job_type="train_score",
-        url=config.out_url,
+        url=out_url,
         dependencies=dict(
             train_data=config.train_url, test_data=config.test_url, model=model_url
         ),
@@ -146,7 +149,7 @@ def main(
         log_to_table("profiles/train", train_profiles)
         log_to_table("profiles/test", test_profiles)
 
-    with put_dir(config.out_url) as tmpdir:
+    with put_dir(out_url) as tmpdir:
         with open(os.path.join(tmpdir, "scores.json"), "w") as f:
             json.dump({"train": train_scores, "test": test_scores}, f)
 
@@ -180,18 +183,18 @@ if __name__ == "__main__":
             "Overrides TrainConfig out_url."
         ),
     )
+    parser.add_argument(
+        "--out_url",
+        type=str,
+        required=False,
+        help="Override the save location for the scoring metrics",
+    )
 
     known, train_config_args = parser.parse_known_args()
 
     if known.emulator_config is not None:
         model_config = _load_prognostic_emulator_model_config(known.emulator_config)
         model_url = model_config.path
-        model_out_dir = Path(model_url).parent.as_posix()
-        train_config_args.extend(["--out_url", model_out_dir])
-        logger.info(
-            "Prognostic emulation config provided. New output path for "
-            f"saving scores: {model_out_dir}"
-        )
     else:
         model_url = known.model_url
         model_config = None
@@ -199,5 +202,8 @@ if __name__ == "__main__":
     train_config = TrainConfig.from_args(train_config_args)
 
     main(
-        train_config, model_url=model_url, prognostic_emu_config=model_config,
+        train_config,
+        model_url=model_url,
+        prognostic_emu_config=model_config,
+        out_url_override=known.out_url,
     )
