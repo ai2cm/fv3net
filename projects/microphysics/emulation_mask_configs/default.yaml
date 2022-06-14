@@ -1,6 +1,6 @@
 # Masks top five levels where we have known emulation issues
 gscond:
-  path: ""
+  path: "gs://vcm-ml-experiments/microphysics-emulation/2022-05-12/gscond-only-tscale-dense-local-41b1c1-v1/model.tf"
   mask_emulator_levels:
     cloud_water_mixing_ratio_after_gscond:
       start: 74
