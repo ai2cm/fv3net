@@ -81,7 +81,7 @@ spec:
           arguments:
             parameters:
             - name: "training-config"
-              value: "{{workflow.parameters.training-confg}}"
+              value: "{{workflow.parameters.training-config}}"
             - name: "tag"
               value: "{{inputs.parameters.tag}}-masked-scores"
             - name: "wandb-group"
@@ -385,23 +385,23 @@ spec:
           memory: "28G"
       args:
         - |
-          emu_config="{{inputs.parameters.emulation-config}}"
+          emu_config="{{inputs.parameters.prognostic-emulation-config}}"
           train_config="{{inputs.parameters.training-config}}"
           echo $train_config | base64 --decode > training_config.yaml
-          echo $emu_config | base64 --decode > emulation_config.yaml
+          echo $emu_config | base64 --decode | yq .zhao_carr_emulation > emulation_config.yaml
 
-          if [ -z $emu_config ]
+          if [ ! -z $emu_config ]
           then
-            emu_config_flag=""
+            emu_config_flag="--emulator_config emulation_config.yaml"
           else
-            emu_flag="--emulator_config emulation_config.yaml"
+            emu_config_flag=""
           fi
 
-          if [ -z $train_config ]
+          if [ ! -z $train_config ]
           then
-            train_config_flag="--config-path default"
-          else
             train_config_flag="--config-path training_config.yaml"
+          else
+            train_config_flag="--config-path default"
           fi
 
           python3 scripts/score_training.py \
