@@ -126,7 +126,7 @@ def main(
         config.train_url, config.nfiles, config.model_variables
     )
     test_ds = config.open_dataset(
-        config.train_url, config.nfiles, config.model_variables
+        config.test_url, config.nfiles, config.model_variables
     )
 
     train_set = next(iter(train_ds.unbatch().shuffle(160_000).batch(80_000)))
