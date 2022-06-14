@@ -115,9 +115,11 @@ def main(
 
     train_set = next(iter(train_ds.unbatch().shuffle(160_000).batch(80_000)))
     test_set = next(iter(test_ds.unbatch().shuffle(160_000).batch(80_000)))
+    train_predictions = model.predict(train_set, batch_size=1024)
+    test_predictions = model.predict(test_set, batch_size=1024)
 
-    train_scores, train_profiles = score_model(model, train_set, mask=mask)
-    test_scores, test_profiles = score_model(model, test_set, mask=mask)
+    train_scores, train_profiles = score_model(train_set, train_predictions, mask=mask)
+    test_scores, test_profiles = score_model(test_set, test_predictions, mask=mask)
     logger.debug("Scoring Complete")
 
     summary_metrics: Dict[str, Any] = {
@@ -172,7 +174,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--emulator_config",
         type=Path,
-        optional=True,
+        required=False,
         help=(
             "Use EmulatorConfig for post-hoc emulation corrections. "
             "Overrides TrainConfig out_url."
