@@ -99,6 +99,9 @@ class ModelConfig:
         for key, range in self.ranges.items():
             yield RangeMask(key, min=range.min, max=range.max)
 
+        for key, _slice in self.mask_emulator_levels.items():
+            yield LevelMask(key, start=_slice.start, stop=_slice.stop)
+
         if self.gscond_cloud_conservative:
             yield emulation.zhao_carr.infer_gscond_cloud_from_conservation
 
@@ -118,9 +121,6 @@ class ModelConfig:
 
         if self.enforce_conservative:
             yield emulation.zhao_carr.enforce_conservative_gscond
-
-        for key, _slice in self.mask_emulator_levels.items():
-            yield LevelMask(key, start=_slice.start, stop=_slice.stop)
 
     @staticmethod
     def from_dict(dict_: dict) -> "ModelConfig":
