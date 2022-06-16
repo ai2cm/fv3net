@@ -37,6 +37,11 @@ def derive_3d_variables(ds: xr.Dataset) -> xr.Dataset:
     return derive_variables(ds, functions_3d)
 
 
+def derive_3d_model_level_variables(ds: xr.Dataset) -> xr.Dataset:
+    functions_3d = [_relative_humidity_model_level]
+    return derive_variables(ds, functions_3d)
+
+
 def derive_variables(ds: xr.Dataset, functions: Sequence[Callable]) -> xr.Dataset:
     """
     Compute derived variables defined by functions and merge them back in.
@@ -338,6 +343,22 @@ def _minus_column_q2(ds: xr.Dataset) -> xr.DataArray:
 def _relative_humidity(ds: xr.Dataset) -> xr.DataArray:
     result = vcm.relative_humidity_from_pressure(
         ds.air_temperature, ds.specific_humidity, ds.pressure,
+    )
+    result.attrs = {
+        "long_name": "relative humidity",
+        "units": "dimensionless",
+    }
+    return result.rename("relative_humidity")
+
+
+def _relative_humidity_model_level(ds: xr.Dataset) -> xr.DataArray:
+    result = vcm.relative_humidity(
+        ds.air_temperature,
+        ds.specific_humidity,
+        vcm.density(
+            ds.pressure_thickness_of_atmospheric_layer,
+            ds.vertical_thickness_of_atmospheric_layer,
+        ),
     )
     result.attrs = {
         "long_name": "relative humidity",

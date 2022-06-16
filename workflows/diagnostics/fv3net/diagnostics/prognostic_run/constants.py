@@ -5,7 +5,16 @@ MovieUrls = Mapping[str, Sequence[str]]
 
 # Renamed keys already have "_coarse" suffix removed prior to the renaming being applied
 VERIFICATION_RENAME_MAP = {
-    "40day_may2020": {"2d": {"TB": "TMPlowest", "tsfc": "TMPsfc"}},
+    "40day_may2020": {
+        "2d": {"TB": "TMPlowest", "tsfc": "TMPsfc"},
+        "3d_model_level": {
+            "T": "air_temperature",
+            "DZ": "vertical_thickness_of_atmospheric_layer",
+            "W": "vertical_wind",
+            "delp": "pressure_thickness_of_atmospheric_layer",
+            "sphum": "specific_humidity",
+        },
+    },
     "1yr_pire_postspinup": {"2d": {"TB": "TMPlowest", "tsfc": "TMPsfc"}},
 }
 
@@ -85,6 +94,19 @@ GLOBAL_AVERAGE_PHYSICS_VARS = [
 ]
 
 GLOBAL_AVERAGE_VARS = GLOBAL_AVERAGE_DYCORE_VARS + GLOBAL_AVERAGE_PHYSICS_VARS
+
+GLOBAL_3D_AVERAGE_VARS = [
+    "dQ1",
+    "dQ2",
+    "tendency_of_air_temperature_due_to_machine_learning",
+    "tendency_of_specific_humidity_due_to_machine_learning",
+]
+
+GLOBAL_3D_BIAS_AVERAGE_VARS = [
+    "air_temperature",
+    "specific_humidity",
+    "relative_humidity",
+]
 
 GLOBAL_BIAS_PHYSICS_VARS = [
     "column_integrated_Q1",

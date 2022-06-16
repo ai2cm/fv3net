@@ -157,6 +157,7 @@ sources:
       converted to cftime.datetime via `vcm.convert_timestamps(time_coord)`.
     driver: zarr
     metadata:
+      category: 3d_model_level
       grid: c48
       simulation: 40day_may2020
       variables:

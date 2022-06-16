@@ -39,7 +39,9 @@ from fv3net.diagnostics._shared.constants import (
 )
 from .constants import (
     GLOBAL_AVERAGE_VARS,
+    GLOBAL_3D_AVERAGE_VARS,
     GLOBAL_BIAS_VARS,
+    GLOBAL_3D_BIAS_AVERAGE_VARS,
     DIURNAL_CYCLE_VARS,
     TIME_MEAN_VARS,
     RMSE_VARS,
@@ -121,10 +123,12 @@ def merge_diags(diags: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, xr.Data
 registries = {
     "2d": Registry(merge_diags),
     "3d": Registry(merge_diags),
+    "3d_model_level": Registry(merge_diags),
 }
 # expressions not allowed in decorator calls, so need explicit variables for each here
 registry_2d = registries["2d"]
 registry_3d = registries["3d"]
+registry_3d_model_level = registries["3d_model_level"]
 
 
 def rms(x, y, w, dims):
@@ -370,6 +374,43 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         return mean_bias_errors
 
 
+for mask_type in ["global", "land", "sea"]:
+
+    @registry_3d_model_level.register(f"spatial_3d_mean_{mask_type}")
+    @transform.apply(transform.mask_area, mask_type)
+    @transform.apply(transform.resample_time, "3H")
+    @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+    @transform.apply(transform.subset_variables, GLOBAL_3D_AVERAGE_VARS)
+    def global_averages_3d(diag_arg: DiagArg, mask_type=mask_type):
+        prognostic, grid = diag_arg.prediction, diag_arg.grid
+        output = xr.Dataset()
+        for varname in prognostic.data_vars:
+            logger.info(f"Preparing average for 3D model-level {varname} ({mask_type})")
+            mean = weighted_mean(prognostic[varname], grid.area, HORIZONTAL_DIMS).load()
+            output[varname] = mean
+        return output
+
+    @registry_3d_model_level.register(f"mean_3d_bias_{mask_type}")
+    @transform.apply(transform.mask_area, mask_type)
+    @transform.apply(transform.resample_time, "3H")
+    @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+    @transform.apply(transform.subset_variables, GLOBAL_3D_BIAS_AVERAGE_VARS)
+    def global_biases_3d(diag_arg: DiagArg, mask_type=mask_type):
+        logger.info(f"Preparing average biases for 3d variables ({mask_type})")
+        prognostic, verification, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        output = xr.Dataset()
+        common_vars = set(prognostic.data_vars).intersection(verification.data_vars)
+        for varname in common_vars:
+            bias_error = bias(verification[varname], prognostic[varname])
+            mean = weighted_mean(bias_error, grid.area, HORIZONTAL_DIMS).load()
+            output[varname] = mean
+        return output
+
+
 @registry_2d.register("time_mean_value")
 @transform.apply(transform.resample_time, "1H", inner_join=True)
 @transform.apply(transform.subset_variables, TIME_MEAN_VARS)
@@ -543,7 +584,7 @@ def main(args):
     verification = get_verification(args, catalog)
     attrs["verification"] = str(verification)
 
-    grid = load_diags.load_grid(catalog)
+    grid = load_diags.load_grid(catalog).load()
     input_data = load_diags.evaluation_pair_to_input_data(
         prognostic, verification, grid
     )

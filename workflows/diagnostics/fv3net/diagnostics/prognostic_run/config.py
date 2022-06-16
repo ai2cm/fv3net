@@ -12,10 +12,10 @@ def get_verification_entries(
         catalog: Catalog to search for verification data.
 
     Returns:
-        Mapping from category name ('physics', 'dycore', or '3d') to sequence
+        Mapping from category name ('2d', '3d' or '3d_model_level') to sequence
         of catalog keys representing given diagnostics for specified simulation.
     """
-    entries: Mapping[str, List[str]] = {"2d": [], "3d": []}
+    entries: Mapping[str, List[str]] = {"2d": [], "3d": [], "3d_model_level": []}
     for item in catalog:
         metadata = catalog[item].metadata
         item_simulation = metadata.get("simulation", None)

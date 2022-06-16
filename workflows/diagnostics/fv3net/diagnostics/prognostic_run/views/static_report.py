@@ -232,6 +232,7 @@ def diurnal_component_plot(
 timeseries_plot_manager = PlotManager()
 zonal_mean_plot_manager = PlotManager()
 hovmoller_plot_manager = PlotManager()
+time_height_plot_manager = PlotManager()
 zonal_pressure_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
 histogram_plot_manager = PlotManager()
@@ -271,6 +272,48 @@ def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(diagnostics, "zonal_mean_bias", ["time", "latitude"])
+
+
+@time_height_plot_manager.register
+def global_time_height_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+    return plot_2d_matplotlib(
+        diagnostics, "spatial_3d_mean_global", ["time", "z"], yincrease=False
+    )
+
+
+@time_height_plot_manager.register
+def sea_time_height_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+    return plot_2d_matplotlib(
+        diagnostics, "spatial_3d_mean_sea", ["time", "z"], yincrease=False
+    )
+
+
+@time_height_plot_manager.register
+def land_time_height_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+    return plot_2d_matplotlib(
+        diagnostics, "spatial_3d_mean_land", ["time", "z"], yincrease=False
+    )
+
+
+@time_height_plot_manager.register
+def global_time_height_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+    return plot_2d_matplotlib(
+        diagnostics, "mean_3d_bias_global", ["time", "z"], yincrease=False
+    )
+
+
+@time_height_plot_manager.register
+def sea_time_height_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+    return plot_2d_matplotlib(
+        diagnostics, "mean_3d_bias_sea", ["time", "z"], yincrease=False
+    )
+
+
+@time_height_plot_manager.register
+def land_time_height_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+    return plot_2d_matplotlib(
+        diagnostics, "mean_3d_bias_land", ["time", "z"], yincrease=False
+    )
 
 
 def time_mean_cubed_sphere_maps(
@@ -449,6 +492,7 @@ navigation = OrderedList(
     Link("Home", "index.html"),
     Link("Process diagnostics", "process_diagnostics.html"),
     Link("Latitude versus time hovmoller", "hovmoller.html"),
+    Link("Model level versus time", "time_height.html"),
     Link("Time-mean maps", "maps.html"),
     Link("Time-mean zonal-pressure profiles", "zonal_pressure.html"),
 )
@@ -536,6 +580,19 @@ def render_process_diagnostics(metadata, diagnostics, metrics):
     )
 
 
+def render_time_height(metadata, diagnostics):
+    sections = {
+        "Links": navigation,
+        "Plots": list(time_height_plot_manager.make_plots(diagnostics)),
+    }
+    return create_html(
+        title="Time versus model level plots",
+        metadata=metadata,
+        sections=sections,
+        html_header=get_header(),
+    )
+
+
 def _html_link(url, tag):
     return f"<a href='{url}'>{tag}</a>"
 
@@ -607,6 +664,7 @@ def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     pages = {
         "index.html": render_index(metadata, diagnostics, metrics, public_links),
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
+        "time_height.html": render_time_height(metadata, diagnostics),
         "maps.html": render_maps(metadata, diagnostics, metrics),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
         "process_diagnostics.html": render_process_diagnostics(

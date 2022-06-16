@@ -79,7 +79,9 @@ def _coarsen_cell_centered_to_target_resolution(
     )
 
 
-def _load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
+def _load_3d(
+    url: str, catalog: intake.catalog.Catalog, pressure_interpolated: bool = True
+) -> xr.Dataset:
     logger.info(f"Processing 3d data from run directory at {url}")
     files_3d = ["diags_3d.zarr", "state_after_timestep.zarr", "nudging_tendencies.zarr"]
     ds = xr.merge(
@@ -89,15 +91,18 @@ def _load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
         ]
     )
 
-    # interpolate 3d prognostic fields to pressure levels
-    ds_interp = xr.Dataset()
-    pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
-    for var in pressure_vars:
-        ds_interp[var] = vcm.interpolate_to_pressure_levels(
-            field=ds[var], delp=ds["pressure_thickness_of_atmospheric_layer"], dim="z",
-        )
-
-    return ds_interp
+    if pressure_interpolated:
+        ds_interp = xr.Dataset()
+        pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
+        for var in pressure_vars:
+            ds_interp[var] = vcm.interpolate_to_pressure_levels(
+                field=ds[var],
+                delp=ds["pressure_thickness_of_atmospheric_layer"],
+                dim="z",
+            )
+        return ds_interp
+    else:
+        return ds
 
 
 def load_grid(catalog):
@@ -167,6 +172,10 @@ class Simulation(Protocol):
     def data_3d(self) -> xr.Dataset:
         pass
 
+    @property
+    def data_3d_model_level(self) -> xr.Dataset:
+        pass
+
 
 @dataclass
 class CatalogSimulation:
@@ -201,6 +210,12 @@ class CatalogSimulation:
             self._rename_map.get("3d", {})
         )
 
+    @property
+    def data_3d_model_level(self) -> xr.Dataset:
+        return load_verification(
+            self._verif_entries["3d_model_level"], self.catalog
+        ).rename(self._rename_map.get("3d_model_level", {}))
+
     def __str__(self) -> str:
         return self.tag
 
@@ -234,6 +249,10 @@ class SegmentedRun:
     def data_3d(self) -> xr.Dataset:
         return _load_3d(self.url, self.catalog)
 
+    @property
+    def data_3d_model_level(self) -> xr.Dataset:
+        return _load_3d(self.url, self.catalog, pressure_interpolated=False)
+
     def __str__(self) -> str:
         return self.url
 
@@ -241,15 +260,20 @@ class SegmentedRun:
 def evaluation_pair_to_input_data(
     prognostic: Simulation, verification: Simulation, grid: xr.Dataset
 ):
-    # 3d data special handling
-    data_3d = prognostic.data_3d
-    verif_3d = verification.data_3d
-
     return {
         "3d": (
-            derived_variables.derive_3d_variables(data_3d),
-            derived_variables.derive_3d_variables(verif_3d),
+            derived_variables.derive_3d_variables(prognostic.data_3d),
+            derived_variables.derive_3d_variables(verification.data_3d),
             grid.drop(["tile", "land_sea_mask"]),
+        ),
+        "3d_model_level": (
+            derived_variables.derive_3d_model_level_variables(
+                prognostic.data_3d_model_level
+            ),
+            derived_variables.derive_3d_model_level_variables(
+                verification.data_3d_model_level
+            ),
+            grid.drop(["tile"]),
         ),
         "2d": (
             derived_variables.derive_2d_variables(prognostic.data_2d),

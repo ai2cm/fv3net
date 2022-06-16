@@ -156,6 +156,179 @@ x 62828491827a146d12b842d73f965371
 x_interface 8062ce3b8dd2f97ff35b3d26189231ca
 y 62828491827a146d12b842d73f965371
 y_interface 8062ce3b8dd2f97ff35b3d26189231ca
+3d_model_level
+Prognostic Run
+xarray.Dataset {
+dimensions:
+	time = 8 ;
+	x = 48 ;
+	y = 48 ;
+	tile = 6 ;
+	z = 79 ;
+
+variables:
+	object time(time) ;
+	float32 x(x) ;
+		x:cartesian_axis = X ;
+		x:long_name = T-cell longitude ;
+		x:units = degrees_E ;
+	float32 y(y) ;
+		y:cartesian_axis = Y ;
+		y:long_name = T-cell latitude ;
+		y:units = degrees_N ;
+	float32 air_temperature(tile, time, z, y, x) ;
+		air_temperature:cell_methods = time: point ;
+		air_temperature:long_name = temperature ;
+		air_temperature:units = K ;
+		air_temperature:valid_range = [100.0, 350.0] ;
+	float32 eastward_wind(tile, time, z, y, x) ;
+		eastward_wind:cell_methods = time: point ;
+		eastward_wind:long_name = zonal wind ;
+		eastward_wind:units = m/sec ;
+		eastward_wind:valid_range = [-330.0, 330.0] ;
+	float32 northward_wind(tile, time, z, y, x) ;
+		northward_wind:cell_methods = time: point ;
+		northward_wind:long_name = meridional wind ;
+		northward_wind:units = m/sec ;
+		northward_wind:valid_range = [-330.0, 330.0] ;
+	float32 pressure_thickness_of_atmospheric_layer(tile, time, z, y, x) ;
+		pressure_thickness_of_atmospheric_layer:cell_methods = time: point ;
+		pressure_thickness_of_atmospheric_layer:long_name = pressure thickness ;
+		pressure_thickness_of_atmospheric_layer:units = pa ;
+	float32 specific_humidity(tile, time, z, y, x) ;
+		specific_humidity:cell_methods = time: point ;
+		specific_humidity:long_name = specific humidity ;
+		specific_humidity:units = kg/kg ;
+	float32 vertical_wind(tile, time, z, y, x) ;
+		vertical_wind:cell_methods = time: point ;
+		vertical_wind:long_name = vertical wind ;
+		vertical_wind:units = m/sec ;
+		vertical_wind:valid_range = [-100.0, 100.0] ;
+
+// global attributes:
+	:filename = atmos_8xdaily.tile1.nc ;
+	:grid_tile = N/A ;
+	:grid_type = regular ;
+	:path = /mnt/data/rundir/atmos_8xdaily.zarr ;
+	:title = default_experiment ;
+}
+time 08762d03ff9aecd3690c342c7189c570
+x dc9136a3153fe1adada82a1b225b8d1d
+y dc9136a3153fe1adada82a1b225b8d1d
+Verification
+xarray.Dataset {
+dimensions:
+	time = 8 ;
+	x = 48 ;
+	y = 48 ;
+	tile = 6 ;
+	z = 79 ;
+
+variables:
+	object time(time) ;
+	float32 x(x) ;
+		x:cartesian_axis = X ;
+		x:long_name = T-cell longitude ;
+		x:units = degrees_E ;
+	float32 y(y) ;
+		y:cartesian_axis = Y ;
+		y:long_name = T-cell latitude ;
+		y:units = degrees_N ;
+	float32 air_temperature(tile, time, z, y, x) ;
+		air_temperature:cell_methods = time: point ;
+		air_temperature:long_name = temperature ;
+		air_temperature:units = K ;
+		air_temperature:valid_range = [100.0, 350.0] ;
+	float32 eastward_wind(tile, time, z, y, x) ;
+		eastward_wind:cell_methods = time: point ;
+		eastward_wind:long_name = zonal wind ;
+		eastward_wind:units = m/sec ;
+		eastward_wind:valid_range = [-330.0, 330.0] ;
+	float32 northward_wind(tile, time, z, y, x) ;
+		northward_wind:cell_methods = time: point ;
+		northward_wind:long_name = meridional wind ;
+		northward_wind:units = m/sec ;
+		northward_wind:valid_range = [-330.0, 330.0] ;
+	float32 pressure_thickness_of_atmospheric_layer(tile, time, z, y, x) ;
+		pressure_thickness_of_atmospheric_layer:cell_methods = time: point ;
+		pressure_thickness_of_atmospheric_layer:long_name = pressure thickness ;
+		pressure_thickness_of_atmospheric_layer:units = pa ;
+	float32 specific_humidity(tile, time, z, y, x) ;
+		specific_humidity:cell_methods = time: point ;
+		specific_humidity:long_name = specific humidity ;
+		specific_humidity:units = kg/kg ;
+	float32 vertical_wind(tile, time, z, y, x) ;
+		vertical_wind:cell_methods = time: point ;
+		vertical_wind:long_name = vertical wind ;
+		vertical_wind:units = m/sec ;
+		vertical_wind:valid_range = [-100.0, 100.0] ;
+
+// global attributes:
+	:filename = atmos_8xdaily.tile1.nc ;
+	:grid_tile = N/A ;
+	:grid_type = regular ;
+	:path = /mnt/data/rundir/atmos_8xdaily.zarr ;
+	:title = default_experiment ;
+}
+time 08762d03ff9aecd3690c342c7189c570
+x dc9136a3153fe1adada82a1b225b8d1d
+y dc9136a3153fe1adada82a1b225b8d1d
+grid
+xarray.Dataset {
+dimensions:
+	tile = 6 ;
+	y = 48 ;
+	x = 48 ;
+	y_interface = 49 ;
+	x_interface = 49 ;
+
+variables:
+	float32 area(tile, y, x) ;
+		area:cell_methods = time: point ;
+		area:long_name = cell area ;
+		area:units = m**2 ;
+	float32 lat(tile, y, x) ;
+		lat:cell_methods = time: point ;
+		lat:long_name = latitude ;
+		lat:units = degrees_N ;
+	float32 latb(tile, y_interface, x_interface) ;
+		latb:cell_methods = time: point ;
+		latb:long_name = latitude ;
+		latb:units = degrees_N ;
+	float32 lon(tile, y, x) ;
+		lon:cell_methods = time: point ;
+		lon:long_name = longitude ;
+		lon:units = degrees_E ;
+	float32 lonb(tile, y_interface, x_interface) ;
+		lonb:cell_methods = time: point ;
+		lonb:long_name = longitude ;
+		lonb:units = degrees_E ;
+	float64 x(x) ;
+		x:cartesian_axis = X ;
+		x:long_name = T-cell longitude ;
+		x:units = degrees_E ;
+	float64 x_interface(x_interface) ;
+		x_interface:cartesian_axis = X ;
+		x_interface:long_name = cell corner longitude ;
+		x_interface:units = degrees_E ;
+	float64 y(y) ;
+		y:cartesian_axis = Y ;
+		y:long_name = T-cell latitude ;
+		y:units = degrees_N ;
+	float64 y_interface(y_interface) ;
+		y_interface:cartesian_axis = Y ;
+		y_interface:long_name = cell corner latitude ;
+		y_interface:units = degrees_N ;
+	float64 land_sea_mask(tile, y, x) ;
+		land_sea_mask:units =  ;
+		land_sea_mask:long_name = land_sea_mask ;
+
+// global attributes:
+}
+x 62828491827a146d12b842d73f965371
+x_interface 8062ce3b8dd2f97ff35b3d26189231ca
+y 62828491827a146d12b842d73f965371
+y_interface 8062ce3b8dd2f97ff35b3d26189231ca
 2d
 Prognostic Run
 xarray.Dataset {
