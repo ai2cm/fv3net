@@ -50,6 +50,7 @@ from fv3fit.emulation.transforms import (
     TransformedVariableConfig,
     CloudWaterDiffPrecpd,
     GscondClassesV1,
+    TendencyToFlux,
 )
 
 from fv3fit.emulation.layers.normalization import standard_deviation_all_features
@@ -138,6 +139,7 @@ class TransformedParameters(Hyperparameters):
             Difference,
             CloudWaterDiffPrecpd,
             GscondClassesV1,
+            TendencyToFlux,
         ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
@@ -202,7 +204,9 @@ class TransformedParameters(Hyperparameters):
     @property
     def model_variables(self) -> Set[str]:
         return self.transform_factory.backward_names(
-            set(self._model.input_variables) | set(self._model.output_variables)
+            set(self._model.input_variables)
+            | set(self._model.output_variables)
+            | set(self.loss.loss_variables)
         )
 
     @property
@@ -265,6 +269,7 @@ class TrainConfig(TransformedParameters):
             Difference,
             CloudWaterDiffPrecpd,
             GscondClassesV1,
+            TendencyToFlux,
         ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None

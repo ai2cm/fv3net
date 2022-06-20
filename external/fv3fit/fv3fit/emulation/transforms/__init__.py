@@ -11,6 +11,7 @@ from .transforms import (
     TensorTransform,
     LimitValueTransform,
     CloudWaterDiffPrecpd,
+    TendencyToFlux,
 )
 
 from .zhao_carr import GscondClassesV1
