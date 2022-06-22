@@ -11,6 +11,7 @@ import os
 import time
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
 from fv3fit._shared.config import register_training_function
+from fv3fit.emulation.models import Model
 from fv3fit.dataclasses import asdict_with_enum as _asdict_with_enum
 from fv3fit.emulation.data.transforms import expand_single_dim_data
 from fv3fit import tfdataset
@@ -166,11 +167,7 @@ class TransformedParameters(Hyperparameters):
         return self.transform_factory.build(sample)
 
     @property
-    def _model(
-        self,
-    ) -> Union[
-        MicrophysicsConfig, ConservativeWaterConfig,
-    ]:
+    def _model(self,) -> Model:
         if self.model:
             return self.model
         elif self.conservative_model:
