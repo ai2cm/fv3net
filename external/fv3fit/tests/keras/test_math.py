@@ -28,3 +28,19 @@ def test_groupby_bins():
     values = tf.convert_to_tensor([0.5, 0.75, 1, 2, 3])
     out = groupby_bins(edges, values, values, tf.size)
     assert [2, 3] == out.numpy().tolist()
+
+
+def test_groupby_bins_y_has_more_dims_than_x():
+    """groupby should work if y and x are broadcastable."""
+    num_channels = 4
+
+    edges = tf.convert_to_tensor([0.0, 1, 4])
+    x = tf.convert_to_tensor([0.5, 0.75, 1, 2, 3])
+    y = tf.convert_to_tensor([0.5, 0.75, 1, 2, 3])
+    y = tf.tile(y[:, None], tf.convert_to_tensor([1, num_channels]))
+
+    def reduce(x):
+        return tf.reduce_mean(x, axis=[0])
+
+    out = groupby_bins(edges, x, y, reduction=reduce)
+    assert tuple(out.shape) == (2, num_channels)
