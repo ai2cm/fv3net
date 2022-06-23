@@ -217,6 +217,44 @@ class TendencyToFlux(TensorTransform):
         return x
 
 
+@dataclasses.dataclass
+class MoistStaticEnergyTransform(TensorTransform):
+    """
+    From heating (in K/s) and moistening (in kg/kg/s) rates, compute moist static energy
+    tendency in W/kg. The backwards transformation computes heating from moistening and
+    MSE tendnecy.
+    """
+
+    heating: str
+    moistening: str
+    mse_tendency: str
+    cv: float = 1004 - 287.05
+    Lv: float = 2.5e6
+
+    def build(self, sample: TensorDict) -> TensorTransform:
+        return self
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+
+        if self.mse_tendency in requested_names:
+            requested_names -= {self.mse_tendency}
+            requested_names |= {self.heating, self.moistening}
+
+        return requested_names
+
+    def forward(self, y: TensorDict):
+        y = {**y}
+        y[self.mse_tendency] = self.cv * y[self.heating] + self.Lv * y[self.moistening]
+        return y
+
+    def backward(self, x: TensorDict):
+        x = {**x}
+        x[self.heating] = (1 / self.cv) * (
+            x[self.mse_tendency] - self.Lv * x[self.moistening]
+        )
+        return x
+
+
 UnivariateCompatible = Union[
     LogTransform, LimitValueTransform,
 ]

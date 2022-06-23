@@ -12,6 +12,7 @@ from .transforms import (
     LimitValueTransform,
     CloudWaterDiffPrecpd,
     TendencyToFlux,
+    MoistStaticEnergyTransform,
 )
 
 from .zhao_carr import GscondClassesV1
