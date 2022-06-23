@@ -360,3 +360,43 @@ def water_vapor_path(self):
     return da.assign_attrs(
         {"long_name": "column integrated water vapor", "units": "mm"}
     )
+
+
+@DerivedMapping.register(
+    "total_sky_net_radiative_flux_at_top_of_atmosphere",
+    required_inputs=[
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+        "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+        "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+    ],
+)
+def total_sky_net_radiative_flux_at_top_of_atmosphere(self):
+    result = (
+        self["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
+        - self["total_sky_upward_shortwave_flux_at_top_of_atmosphere"]
+        - self["total_sky_upward_longwave_flux_at_top_of_atmosphere"]
+    )
+    if "storage_of_internal_energy_path_due_to_fine_res_temperature_nudging" in self:
+        result += self[
+            "storage_of_internal_energy_path_due_to_fine_res_temperature_nudging"
+        ]
+    return result.assign_attrs(long_name="Net radiative flux at TOA", units="W/m**2")
+
+
+@DerivedMapping.register(
+    "upward_heat_flux_at_surface",
+    required_inputs=[
+        "total_sky_upward_shortwave_flux_at_surface",
+        "total_sky_upward_longwave_flux_at_surface",
+        "sensible_heat_flux",
+    ],
+)
+def upward_heat_flux_at_surface(self):
+    result = (
+        self["total_sky_upward_shortwave_flux_at_surface"]
+        + self["total_sky_upward_longwave_flux_at_surface"]
+        + self["sensible_heat_flux"]
+    )
+    return result.assign_attrs(
+        long_name="Upward heat (sensible+radiative) flux at surface", units="W/m**2"
+    )
