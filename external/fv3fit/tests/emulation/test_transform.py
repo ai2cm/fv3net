@@ -400,3 +400,10 @@ def test_TendencyToFlux_round_trip():
     x_round_tripped = transform.forward(y)
     tf.debugging.assert_equal(x_round_tripped["flux"], x["flux"])
     tf.debugging.assert_equal(x_round_tripped["sfc_down"], x["sfc_down"])
+
+
+def test_TendencyToFlux_backward_names():
+    transform = TendencyToFlux("a", "b", "c", "d", "e", "f")
+    expected_requested_names = {"a", "d", "e", "f"}
+    requested_names = transform.backward_names({"b", "c"})
+    assert expected_requested_names == requested_names
