@@ -141,9 +141,8 @@ class MicrophysicsHook:
         """
 
         model_outputs = predict(self.model, state)
-
         if self.classifier is not None:
-            classifier_outputs = predict(self.model, state)
+            classifier_outputs = predict(self.classifier, state)
             model_outputs.update(classifier_outputs)
 
         # fields stay in global state so check overwrites on first step

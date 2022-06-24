@@ -75,7 +75,7 @@ class ModelConfig:
     """
 
     path: str
-    classifier_path: str = None
+    classifier_path: Optional[str] = None
     online_schedule: Optional[IntervalSchedule] = None
     ranges: Mapping[str, Range] = dataclasses.field(default_factory=dict)
     mask_emulator_levels: Mapping[str, LevelSlice] = dataclasses.field(

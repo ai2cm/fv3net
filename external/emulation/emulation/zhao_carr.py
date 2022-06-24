@@ -103,8 +103,8 @@ def _get_classify_output(emulator, class_name):
     idx = names.index(class_name)
     logit_classes = emulator["gscond_classes"]
     # TODO this should probably be in transforms
-    one_hot = logit_classes == np.max(logit_classes, axis=-1, keepdims=True)
-    return one_hot[..., idx]
+    one_hot = logit_classes == np.max(logit_classes, axis=0, keepdims=True)
+    return one_hot[idx]
 
 
 def mask_zero_cloud_classifier(state, emulator):
