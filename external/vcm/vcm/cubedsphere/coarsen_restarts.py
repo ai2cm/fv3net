@@ -385,7 +385,9 @@ def _coarse_grain_fv_core_on_pressure(
         edge="y",
     )
 
-    return xr.merge([area_weighted, masked_area_weighted, edge_weighted_x, edge_weighted_y])
+    return xr.merge(
+        [area_weighted, masked_area_weighted, edge_weighted_x, edge_weighted_y]
+    )
 
 
 def _coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
