@@ -14,12 +14,14 @@ POSITIVE_TENDENCY = "positive_tendency"
 ZERO_TENDENCY = "zero_tendency"
 ZERO_CLOUD = "zero_cloud"
 NEGATIVE_TENDENCY = "negative_tendency"
+NONTRIVIAL_TENDENCY = "nontrivial_tendency"
 
 CLASS_NAMES = {
     POSITIVE_TENDENCY,
     ZERO_TENDENCY,
     ZERO_CLOUD,
     NEGATIVE_TENDENCY,
+    NONTRIVIAL_TENDENCY,
 }
 
 CLOUD_INPUT = "cloud_water_mixing_ratio_input"
@@ -45,18 +47,19 @@ class GscondClassesV1(TensorTransform):
         return self
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
-
-        if CLASS_NAMES & requested_names:
-            requested_names -= CLASS_NAMES
-            requested_names |= {
-                self.cloud_in,
-                self.cloud_out,
-            }
+        requested_names -= CLASS_NAMES
+        requested_names |= {
+            self.cloud_in,
+            self.cloud_out,
+        }
         return requested_names
 
     def forward(self, x: TensorDict) -> TensorDict:
         x = {**x}
         classes = classify(x[self.cloud_in], x[self.cloud_out], self.timestep)
+        classes[NONTRIVIAL_TENDENCY] = (
+            classes[POSITIVE_TENDENCY] | classes[NEGATIVE_TENDENCY]
+        )
         x.update(classes)
         return x
 
@@ -119,13 +122,16 @@ def _combine(
 
 @dataclasses.dataclass
 class GSCondRoute(TensorTransform):
-    classes: str = "gscond_classes"
+    gscond_route: bool = True
 
     def build(self, sample: TensorDict):
         return self
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         return requested_names
+
+    def forward(self, x: TensorDict) -> TensorDict:
+        return x
 
     def backward(self, y: TensorDict) -> TensorDict:
         y = {**y}

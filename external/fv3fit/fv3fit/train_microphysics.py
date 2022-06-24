@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import fsspec
 import json
 import logging
+from fv3fit.emulation.zhao_carr.loss import ZhaoCarrLoss
 from fv3net.artifacts.metadata import StepMetadata, log_fact_json
 import numpy as np
 import os
@@ -147,7 +148,7 @@ class TransformedParameters(Hyperparameters):
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
     conservative_model: Optional[ConservativeWaterConfig] = None
-    loss: CustomLoss = field(default_factory=CustomLoss)
+    loss: Union[CustomLoss, ZhaoCarrLoss] = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
     valid_freq: int = 5
@@ -274,7 +275,7 @@ class TrainConfig(TransformedParameters):
     conservative_model: Optional[ConservativeWaterConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
-    loss: CustomLoss = field(default_factory=CustomLoss)
+    loss: Union[CustomLoss, ZhaoCarrLoss] = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
     valid_freq: int = 5
