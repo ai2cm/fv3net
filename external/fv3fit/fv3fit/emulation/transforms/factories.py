@@ -48,13 +48,11 @@ class TransformedVariableConfig(TransformFactory):
         return UnivariateTransform(self.source, self.transform, to=self.to)
 
 
-def reduce_std(x: tf.Tensor) -> tf.Tensor:
-    mean = tf.reduce_mean(x)
-    return tf.sqrt(tf.reduce_mean((x - mean) ** 2))
-
-
 def fit_conditional(
-    x: tf.Tensor, y: tf.Tensor, reduction: Callable[[tf.Tensor], tf.Tensor], bins: int,
+    x: tf.Tensor,
+    y: tf.Tensor,
+    reduction: Callable[[tf.Tensor, tf.Tensor], tf.Tensor],
+    bins: int,
 ) -> Callable[[tf.Tensor], tf.Tensor]:
     min = tf.reduce_min(x)
     max = tf.reduce_max(x)
@@ -87,6 +85,7 @@ class ConditionallyScaled(TransformFactory):
         fit_filter_magnitude: if provided, any values with
             |source| < filter_magnitude are removed from the standard
             deviation/mean calculation.
+        weights: name of variable to weight the expectations by
 
     """
 
@@ -96,6 +95,7 @@ class ConditionallyScaled(TransformFactory):
     bins: int
     min_scale: float = 0.0
     fit_filter_magnitude: Optional[float] = None
+    weights: str = ""
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         """List the names needed to compute ``self.to``"""
@@ -103,30 +103,41 @@ class ConditionallyScaled(TransformFactory):
         if self.to in requested_names:
             dependencies = {self.condition_on, self.source}
             requested_names = (requested_names - {self.to}) | dependencies
+            if self.weights:
+                requested_names.add(self.weights)
 
         return requested_names
 
     def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
 
         if self.fit_filter_magnitude is not None:
-            mask = tf.abs(sample[self.source]) > self.fit_filter_magnitude
+            weights = tf.abs(sample[self.source]) > self.fit_filter_magnitude
         else:
-            mask = ...
+            weights = tf.ones_like(sample[self.source], dtype=tf.bool)
+
+        if self.weights:
+            weights *= sample[self.weights]
+
+        def weighted_mean(x, w):
+            dt = x.dtype
+            w_float = tf.cast(w, dt) * tf.cast(weights, dt)
+            return tf.reduce_sum(w_float * x) / tf.reduce_sum(w_float)
+
+        def weighted_std(x, w):
+            mu = weighted_mean(x, w)
+            return tf.math.sqrt(weighted_mean((x - mu) ** 2, w))
 
         return ConditionallyScaledTransform(
             to=self.to,
             on=self.condition_on,
             source=self.source,
             scale=fit_conditional(
-                sample[self.condition_on][mask],
-                sample[self.source][mask],
-                reduce_std,
-                self.bins,
+                sample[self.condition_on], sample[self.source], weighted_std, self.bins,
             ),
             center=fit_conditional(
-                sample[self.condition_on][mask],
-                sample[self.source][mask],
-                tf.reduce_mean,
+                sample[self.condition_on],
+                sample[self.source],
+                weighted_mean,
                 self.bins,
             ),
             min_scale=self.min_scale,

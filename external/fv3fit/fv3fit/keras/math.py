@@ -27,12 +27,12 @@ def groupby_bins(
     edges: tf.Tensor,
     x: tf.Tensor,
     y: tf.Tensor,
-    reduction: Callable[[tf.Tensor], tf.Tensor],
+    reduction: Callable[[tf.Tensor, tf.Tensor], tf.Tensor],
 ) -> tf.Tensor:
     """Groupby edges (left inclusive)"""
 
     assert tf.rank(edges).numpy() == 1, edges
     assert tf.reduce_all(edges[1:] - edges[:-1] > 0), "edges not sorted"
     n = edges.shape[0] - 1
-    output = [reduction(y[(edges[i] <= x) & (x < edges[i + 1])]) for i in range(n)]
+    output = [reduction(y, (edges[i] <= x) & (x < edges[i + 1])) for i in range(n)]
     return tf.stack(output)
