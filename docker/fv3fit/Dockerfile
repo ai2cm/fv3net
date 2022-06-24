@@ -13,7 +13,13 @@ RUN apt-get update && \
         libmpich-dev \
         libnetcdf-dev \
         libtcmalloc-minimal4 \
-        python3-setuptools
+        python3-setuptools \
+        wget \
+        jq
+
+# Install yq
+RUN wget https://github.com/mikefarah/yq/releases/download/v4.25.3/yq_linux_amd64.tar.gz -O - | \
+  tar xz && mv yq_linux_amd64 /usr/bin/yq
 
 # Equivalent to passing --no-cache-dir to every pip install
 ENV PIP_NO_CACHE_DIR=off
@@ -34,6 +40,7 @@ RUN pip3 install --no-dependencies /fv3net/external/loaders
 
 COPY external/fv3fit /fv3net/external/fv3fit
 RUN pip3 install --no-dependencies /fv3net/external/fv3fit
+
 
 # Add emulation project scripts
 COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
