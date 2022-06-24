@@ -22,6 +22,13 @@ CLASS_NAMES = {
     NEGATIVE_TENDENCY,
 }
 
+CLOUD_INPUT = "cloud_water_mixing_ratio_input"
+CLOUD_GSCOND = "cloud_water_mixing_ratio_after_gscond"
+T_INPUT = "air_temperature_input"
+T_GSCOND = "air_temperature_after_gscond"
+QV_INPUT = "specific_humidity_input"
+QV_GSCOND = "specific_humidity_after_gscond"
+
 
 @dataclasses.dataclass
 class GscondClassesV1(TensorTransform):
@@ -83,6 +90,62 @@ class GscondClassesV1OneHot(GscondClassesV1):
         classes = classify(x[self.cloud_in], x[self.cloud_out], self.timestep)
         x[self.to] = tf.stack([classes[name] for name in self._names], -1)
         return x
+
+
+def _combine(
+    cloud_before,
+    cloud_after,
+    t_before,
+    t_after,
+    qv_before,
+    qv_after,
+    zero_tendency,
+    zero_cloud,
+):
+    # apply no change case
+    cloud_out = tf.where(zero_tendency, cloud_before, cloud_after)
+    t_out = tf.where(zero_tendency, t_before, t_after)
+    q_out = tf.where(zero_tendency, qv_before, qv_after)
+
+    # apply zero cloud case
+    # TODO fix these constants
+    latent_heat = 2.51e6
+    specific_heat = 1004
+    cloud_out = tf.where(zero_cloud, 0.0, cloud_out)
+    q_out = tf.where(zero_cloud, qv_before + cloud_before, q_out)
+    t_out = tf.where(
+        zero_cloud, t_before - cloud_before * latent_heat / specific_heat, t_out
+    )
+
+    return cloud_out, t_out, q_out
+
+
+@dataclasses.dataclass
+class GSCondRoute(TensorTransform):
+    classes: str = "gscond_classes"
+
+    def build(self, sample: TensorDict):
+        return self
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        return requested_names
+
+    def backward(self, y: TensorDict) -> TensorDict:
+        y = {**y}
+        cloud_out, t_out, qv_out = _combine(
+            cloud_before=y[CLOUD_INPUT],
+            cloud_after=y[CLOUD_GSCOND],
+            t_before=y[T_INPUT],
+            t_after=y[T_GSCOND],
+            qv_before=y[QV_INPUT],
+            qv_after=y[QV_GSCOND],
+            zero_tendency=y[ZERO_TENDENCY],
+            zero_cloud=y[ZERO_CLOUD],
+        )
+        y[CLOUD_GSCOND] = cloud_out
+        y[T_GSCOND] = t_out
+        y[QV_GSCOND] = qv_out
+        return y
 
 
 def classify(cloud_in, cloud_out, timestep, math=tf.math):
