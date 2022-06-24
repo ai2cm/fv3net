@@ -293,6 +293,8 @@ def _coarse_grain_fv_core_on_pressure(
     ----------
     ds : xr.Dataset
         Input Dataset; assumed to be from a set of fv_core restart files
+    delp : xr.DataArray
+        Pressure thicknesses
     area : xr.DataArray
         Area weights
     dx : xr.DataArray
@@ -309,19 +311,19 @@ def _coarse_grain_fv_core_on_pressure(
     xr.Dataset
     """
     area_weighted_vars = ["phis", "delp", "DZ"]
-    mass_weighted_vars = ["W", "T"]
+    masked_area_weighted_vars = ["W", "T"]
     if coarsen_agrid_winds:
         if not ("ua" in ds and "va" in ds):
             raise ValueError(
                 "If 'coarsen_agrid_winds' is active, 'ua' and 'va' "
                 "must be present in the 'fv_core.res' restart files."
             )
-        mass_weighted_vars.extend(["ua", "va"])
+        masked_area_weighted_vars.extend(["ua", "va"])
     dx_edge_weighted_vars = ["u"]
     dy_edge_weighted_vars = ["v"]
 
     area_pressure_regridded, masked_area = regrid_to_area_weighted_pressure(
-        ds[mass_weighted_vars],
+        ds[masked_area_weighted_vars],
         delp,
         area,
         coarsening_factor,
@@ -357,10 +359,9 @@ def _coarse_grain_fv_core_on_pressure(
         y_dim=FV_CORE_Y_CENTER,
     )
 
-    masked_mass = delp * masked_area
-    mass_weighted = weighted_block_average(
+    masked_area_weighted = weighted_block_average(
         area_pressure_regridded,
-        masked_mass,
+        masked_area,
         coarsening_factor,
         x_dim=FV_CORE_X_CENTER,
         y_dim=FV_CORE_Y_CENTER,
@@ -384,7 +385,7 @@ def _coarse_grain_fv_core_on_pressure(
         edge="y",
     )
 
-    return xr.merge([area_weighted, mass_weighted, edge_weighted_x, edge_weighted_y])
+    return xr.merge([area_weighted, masked_area_weighted, edge_weighted_x, edge_weighted_y])
 
 
 def _coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
@@ -457,7 +458,7 @@ def _coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
     xr.Dataset
     """
     area_weighted_vars = ["cld_amt"]
-    mass_weighted_vars = [
+    masked_area_weighted_vars = [
         "sphum",
         "liq_wat",
         "rainwat",
@@ -485,16 +486,15 @@ def _coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
         y_dim=FV_TRACER_Y_CENTER,
     )
 
-    masked_mass = delp * masked_area
-    mass_weighted = weighted_block_average(
-        ds_regridded[mass_weighted_vars],
-        masked_mass,
+    masked_area_weighted = weighted_block_average(
+        ds_regridded[masked_area_weighted_vars],
+        masked_area,
         coarsening_factor,
         x_dim=FV_TRACER_X_CENTER,
         y_dim=FV_TRACER_Y_CENTER,
     )
 
-    return xr.merge([area_weighted, mass_weighted])
+    return xr.merge([area_weighted, masked_area_weighted])
 
 
 def _coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
