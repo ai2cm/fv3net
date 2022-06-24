@@ -7,6 +7,7 @@ from fv3fit._shared.config import (
     to_flat_dict,
     to_nested_dict,
 )
+from fv3fit.dataclasses import asdict_with_enum
 import yaml
 import dataclasses
 import fsspec
@@ -184,9 +185,7 @@ def main(args, unknown_args=None):
         if unknown_args is not None:
             # converting to TrainingConfig and then back to dict allows command line to
             # update fields that are not present in original configuration file
-            config_dict = dataclasses.asdict(
-                fv3fit.TrainingConfig.from_dict(config_dict)
-            )
+            config_dict = asdict_with_enum(fv3fit.TrainingConfig.from_dict(config_dict))
             config_dict = get_arg_updated_config_dict(
                 args=unknown_args, config_dict=config_dict
             )

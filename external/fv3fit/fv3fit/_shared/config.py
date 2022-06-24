@@ -18,6 +18,7 @@ from typing import (
     MutableMapping,
 )
 from fv3fit.typing import Dataclass
+from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
 import xarray as xr
 from .predictor import Predictor
 from .hyperparameters import Hyperparameters
@@ -113,10 +114,13 @@ class TrainingConfig:
                 "output_variables"
             )
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
+        dacite_config = dacite.Config(
+            strict=True, cast=[bool, str, int, float, StdDevMethod, MeanMethod]
+        )
         kwargs["hyperparameters"] = dacite.from_dict(
             data_class=hyperparameter_class,
             data=kwargs.get("hyperparameters", {}),
-            config=dacite.Config(strict=True),
+            config=dacite_config,
         )
         return dacite.from_dict(
             data_class=cls, data=kwargs, config=dacite.Config(strict=True)
