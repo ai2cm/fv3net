@@ -13,4 +13,4 @@ from .transforms import (
     CloudWaterDiffPrecpd,
 )
 
-from .zhao_carr import GscondClassesV1, GscondClassesV1OneHot
+from .zhao_carr import GscondClassesV1, GscondClassesV1OneHot, GSCondRoute
