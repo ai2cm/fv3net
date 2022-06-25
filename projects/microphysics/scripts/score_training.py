@@ -45,23 +45,26 @@ def logit_to_one_hot(x):
 
 
 def score_gscond_classes(config, model, batch):
-    v = "gscond_classes"
-    if v not in model.output_names:
+    one_hot_encoded_name = "gscond_classes"
+    if one_hot_encoded_name not in model.output_names:
         return {}, {}
 
     transform = config.build_transform(batch)
     batch_transformed = transform.forward(batch)
     out = model(batch)
 
-    y = out[v]
+    y = out[one_hot_encoded_name]
+    # expected shape of y is [..., height, number of classes]
     predicted_class = logit_to_one_hot(y).numpy()
-    truth = batch_transformed[v].numpy()
+    truth = batch_transformed[one_hot_encoded_name].numpy()
 
     profiles = {}
     scalars = {}
 
     for score in [vcm.accuracy, vcm.f1_score, vcm.precision, vcm.recall]:
+        # average over final dimension: number of classes
         profile = score(truth, predicted_class, mean=lambda x: x.mean(0))
+        # average over height and classes
         integral = score(truth, predicted_class, mean=lambda x: x.mean(0).mean(0))
 
         score_name = score.__name__
