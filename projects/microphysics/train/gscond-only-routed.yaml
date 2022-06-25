@@ -1,7 +1,7 @@
 use_wandb: true
 wandb:
   wandb_project: microphysics-emulation
-batch_size: 512
+batch_size: 1024
 epochs: 25
 nfiles_valid: 100
 valid_freq: 2
@@ -44,6 +44,10 @@ tensor_transform:
   - gscond_route: true
 loss:
   zhao_carr_loss: true
+  optimizer:
+    kwargs:
+      learning_rate: 0.0001
+    name: Adam
 model:
   architecture:
     kwargs:
