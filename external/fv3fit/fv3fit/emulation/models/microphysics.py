@@ -36,6 +36,9 @@ class MicrophysicsConfig:
             to an associated model input name to increment. E.g.,
             {"air_temperature_output": "air_temperature_input"} produces the
             output air_temperature_output = air_temperature_input + tendency * timestep
+        unscaled_outputs: outputs that won't be rescaled.
+            ``direct_out_variables`` are rescaled before being returned by the
+            constructed model.
         architecture: `ArchitectureConfig` object initialized with keyword
             arguments "name" (key for architecture layer) and "kwargs" (mapping
             of any keyword arguments to initialize the layer)
@@ -65,6 +68,7 @@ class MicrophysicsConfig:
     normalize_map: Mapping[str, NormFactory] = dataclasses.field(default_factory=dict)
     tendency_outputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
     timestep_increment_sec: int = 900
+    unscaled_outputs: List[str] = dataclasses.field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d) -> "MicrophysicsConfig":
@@ -86,6 +90,7 @@ class MicrophysicsConfig:
             self.direct_out_variables
             + list(self.residual_out_variables.keys())
             + list(self.tendency_outputs.values())
+            + list(self.unscaled_outputs)
         )
 
     def _get_norm_factory(self, name: str) -> Optional[NormFactory]:
@@ -113,6 +118,12 @@ class MicrophysicsConfig:
             )(net_output[name])
             outputs[name] = out_
         return outputs
+
+    def _get_unscaled_outputs(self, net_output):
+        return {
+            name: tf.keras.layers.Lambda(lambda x: x, name=name)(net_output[name])
+            for name in self.unscaled_outputs
+        }
 
     def _get_residual_outputs(self, inputs, data, net_output):
 
@@ -165,6 +176,7 @@ class MicrophysicsConfig:
             outputs={
                 **self._get_direct_outputs(data, hidden),
                 **self._get_residual_outputs(inputs, data, hidden),
+                **self._get_unscaled_outputs(hidden),
             },
         )
 
