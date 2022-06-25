@@ -9,7 +9,7 @@ def _get_job():
     config = load_yaml(f"../train/gscond-only-routed.yaml")
     config["epochs"] = 25
     return TrainingJob(
-        name=f"gscond-routed-reg-v1", fv3fit_image_tag=revision, config=config,
+        name=f"gscond-routed-reg-v2", fv3fit_image_tag=revision, config=config,
     )
 
 
