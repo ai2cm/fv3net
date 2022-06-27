@@ -110,7 +110,8 @@ class TendencyScalingStepper:
     def __call__(self, time, state) -> Tuple[Tendencies, Diagnostics, State]:
         tendencies, diagnostics, state = self._stepper(time, state)
         for name, scale in self._scales.items():
-            tendencies[name] *= scale
+            if name in tendencies:
+                tendencies[name] *= scale
         return tendencies, diagnostics, state
 
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
