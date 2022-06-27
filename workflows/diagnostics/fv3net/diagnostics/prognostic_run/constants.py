@@ -35,7 +35,6 @@ RMSE_VARS = [
     "water_vapor_path",
     "VIL",
     "iw",
-    "total_precip_to_surface",
 ]
 
 GLOBAL_AVERAGE_DYCORE_VARS = [
