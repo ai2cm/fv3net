@@ -30,14 +30,12 @@ tensor_transform:
   - to: humidity_gscond_difference_tscaled
     source: humidity_gscond_difference
     condition_on: air_temperature_input
-    weights: nontrivial_tendency
     bins: 50
     min_scale: 1e-14
     fit_filter_magnitude: 1e-14
   - to: temperature_gscond_difference_tscaled
     source: temperature_gscond_difference
     condition_on: air_temperature_input
-    weights: nontrivial_tendency
     bins: 50
     min_scale: 1e-5
     fit_filter_magnitude: 1e-5
