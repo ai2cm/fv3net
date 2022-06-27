@@ -7,9 +7,7 @@ from fv3fit._shared.config import (
     to_flat_dict,
     to_nested_dict,
 )
-from fv3fit.dataclasses import asdict_with_enum
 import yaml
-import dataclasses
 import fsspec
 
 import fv3fit.keras
