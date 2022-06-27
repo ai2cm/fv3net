@@ -41,6 +41,9 @@ RUN pip3 install --no-dependencies /fv3net/external/loaders
 COPY external/fv3fit /fv3net/external/fv3fit
 RUN pip3 install --no-dependencies /fv3net/external/fv3fit
 
+COPY external/emulation /fv3net/external/emulation
+RUN pip3 install --no-dependencies /fv3net/external/emulation
+
 
 # Add emulation project scripts
 COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
