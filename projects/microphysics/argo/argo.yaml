@@ -88,8 +88,6 @@ spec:
               value: "{{inputs.parameters.tag}}-online"
             - name: prognostic-emulation-config
               value: "{{workflow.parameters.config}}"
-            - name: "run_url"
-              value: "{{tasks.run-online.outputs.parameters.prog-run-url}}"
         - name: piggy-offline
           template: piggyback-diags
           dependencies: [run-offline]
@@ -112,11 +110,6 @@ spec:
       - name: tag
       - name: config
       - name: on_off_flag
-    outputs:
-      parameters:
-      - name: prog-run-url
-        valueFrom:
-          path: /tmp/run_url.txt
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -150,8 +143,6 @@ spec:
       args:
       - |
         echo "{{inputs.parameters.config}}" | base64 --decode > fv3config.yaml
-
-        python3 scripts/print_run_url.py "{{inputs.parameters.tag}}" > /tmp/run_url.txt
 
         python3 scripts/prognostic_run.py \
           --tag "{{inputs.parameters.tag}}" \
@@ -367,8 +358,6 @@ spec:
           value: "{{workflow.parameters.wandb-group}}"
         - name: prognostic-emulation-config
           value: ""
-        - name: run-url
-          value: ""
     container:
       image: "us.gcr.io/vcm-ml/fv3fit:{{workflow.parameters.fv3fit_image_tag}}"
       command: ["bash", "-c", "-x"]
@@ -397,32 +386,23 @@ spec:
           memory: "28G"
       args:
         - |
-          emu_config="{{inputs.parameters.prognostic-emulation-config}}"
           train_config="{{inputs.parameters.training-config}}"
           echo $train_config | base64 --decode > training_config.yaml
+
+          emu_config="{{inputs.parameters.prognostic-emulation-config}}"
           echo $emu_config | base64 --decode | \
-            yq -y -rej '.zhao_carr_emulation // ""' > emulation_config.yaml
+            yq -r '.zhao_carr_emulation // ""' > emulation_config.yaml
 
           if [ ! -s emulation_config.yaml ]
           then
             emu_config_flag="--emulator_config emulation_config.yaml"
-            out_url_flag="--out_url {{inputs.parameters.run-url}}"
           else
             emu_config_flag=""
-            out_url_flag=""
-          fi
-
-          if [ ! -z $train_config ]
-          then
-            train_config_flag="--config-path training_config.yaml"
-          else
-            train_config_flag="--config-path default"
           fi
 
           python3 scripts/score_training.py \
-            ${train_config_flag} \
+            --config-path training_config.yaml \
             ${emu_config_flag} \
-            ${out_url_flag} \
             --wandb.job_type train_score \
             {{inputs.parameters.flags}}
     tolerations:

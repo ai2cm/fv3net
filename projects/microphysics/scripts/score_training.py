@@ -122,7 +122,6 @@ def main(
     seed: int = 0,
     model_url: Optional[str] = None,
     prognostic_emu_config: Optional[ModelConfig] = None,
-    out_url_override: Optional[str] = None,
 ):
 
     logging.basicConfig(level=getattr(logging, config.log_level))
@@ -144,11 +143,9 @@ def main(
     else:
         mask = None
 
-    out_url = config.out_url if out_url_override is None else out_url_override
-
     StepMetadata(
         job_type="train_score",
-        url=out_url,
+        url=config.out_url,
         dependencies=dict(
             train_data=config.train_url, test_data=config.test_url, model=model_url
         ),
@@ -234,12 +231,6 @@ if __name__ == "__main__":
             "Overrides TrainConfig out_url."
         ),
     )
-    parser.add_argument(
-        "--out_url",
-        type=str,
-        required=False,
-        help="Override the save location for the scoring metrics",
-    )
 
     known, train_config_args = parser.parse_known_args()
 
@@ -253,8 +244,5 @@ if __name__ == "__main__":
     train_config = TrainConfig.from_args(train_config_args)
 
     main(
-        train_config,
-        model_url=model_url,
-        prognostic_emu_config=model_config,
-        out_url_override=known.out_url,
+        train_config, model_url=model_url, prognostic_emu_config=model_config,
     )
