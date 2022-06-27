@@ -168,6 +168,7 @@ class PrognosticJob:
     # See the source for more information.
     config: dict = dataclasses.field(repr=False)
     image_tag: str
+    fv3fit_image_tag: str = "latest"
     bucket: str = "vcm-ml-experiments"
     project: str = "microphysics-emulation"
 
@@ -180,6 +181,7 @@ class PrognosticJob:
         return {
             "config": _encode(self.config),
             "image_tag": self.image_tag,
+            "fv3fit_image_tag": self.fv3fit_image_tag,
         }
 
 
