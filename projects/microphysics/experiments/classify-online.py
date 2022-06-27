@@ -19,7 +19,7 @@ mask_levels = {
 }
 
 
-def _get_job():
+def _get_job(classify_zero_cloud, classify_zero_tend):
     config = load_yaml("../configs/default.yaml")
 
     config = set_prognostic_emulation_model(
@@ -28,15 +28,19 @@ def _get_job():
     gscond_config = config["zhao_carr_emulation"]["gscond"]
     gscond_config["classifier_path"] = CLASSIFIER
     gscond_config["mask_emulator_levels"] = mask_levels
-    gscond_config["mask_gscond_zero_cloud_classifier"] = True
-    gscond_config["mask_gscond_zero_tend_classifier"] = True
+    gscond_config["mask_gscond_zero_cloud_classifier"] = classify_zero_cloud
+    gscond_config["mask_gscond_zero_tend_classifier"] = classify_zero_tend
     gscond_config["enforce_conservative"] = True
 
+    zcloud_tag = "zcloud-" if classify_zero_cloud else ""
+    ztend_tag = "ztend-" if classify_zero_tend else ""
+
     return PrognosticJob(
-        name=f"gscond-only-classifier-zcloud-ztend-online-10d-v1",
-        image_tag="ea5443c7b008f6435cec24c32132be35a1613204",
+        name=f"gscond-only-classifier-{zcloud_tag}{ztend_tag}online-10d-v2",
+        image_tag="59317e157f079dee5de07244695c96e6c6f38215",
         config=config,
     )
 
 
-submit_jobs([_get_job()], f"test-online-classifier")
+jobs = [_get_job(zc, zt) for zc, zt in [(False, True), (True, False), (True, True)]]
+submit_jobs(jobs, f"test-online-classifier")
