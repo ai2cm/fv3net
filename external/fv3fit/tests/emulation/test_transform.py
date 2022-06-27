@@ -141,14 +141,10 @@ def test_ComposedTransform_forward_backward_on_sequential_transforms():
     assert set(transform.backward(transform.forward(data))) == set(data)
 
 
-def _weighted_mean(x, w):
-    return tf.reduce_mean(x[w])
-
-
 def test_fit_conditional():
     x = tf.convert_to_tensor([0.0, 1, 2])
     y = tf.convert_to_tensor([1.0, 2, 2])
-    interp = fit_conditional(x, y, _weighted_mean, 2)
+    interp = fit_conditional(x, y, tf.reduce_mean, 2)
     # bins will be 0, 1, 2
     # mean is [1, 2]
     out = interp([-1, 0.0, 1, 3])
@@ -160,7 +156,7 @@ def test_fit_conditional_2d():
     # should work with multiple dimensions
     x = tf.convert_to_tensor([0.0, 1, 2])
     y = tf.convert_to_tensor([1.0, 2, 2])
-    interp = fit_conditional(x, y, _weighted_mean, 2)
+    interp = fit_conditional(x, y, tf.reduce_mean, 2)
 
     in_ = tf.ones((10, 10))
     out = interp(in_)
@@ -290,6 +286,13 @@ def test_ConditionallyScaled_applies_mask(monkeypatch, filter_magnitude):
         on: tf.random.uniform(shape),
     }
 
+    if filter_magnitude is None:
+        expected_shape = shape
+    elif filter_magnitude >= magnitude:
+        expected_shape = (0,)
+    else:
+        expected_shape = shape
+
     # .build calls fit_conditional, so let's mock it
     fit_conditional = Mock()
     fit_conditional.return_value = lambda x: 1.0
@@ -306,7 +309,8 @@ def test_ConditionallyScaled_applies_mask(monkeypatch, filter_magnitude):
     factory.build(data)
 
     # assert that fit_conditional was passed arrays of the expected size
-    fit_conditional.assert_called()
+    fit_conditional_x_arg = fit_conditional.call_args[0][0]
+    assert fit_conditional_x_arg.shape == expected_shape
 
 
 def test_ComposedTransform_with_build():
