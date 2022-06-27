@@ -1,11 +1,10 @@
 import argparse
 from dataclasses import asdict
 from toolz import get
-import json
 import logging
 from pathlib import Path
 import sys
-from typing import Any, Dict, Mapping, Optional, Tuple, Union
+from typing import Mapping, Optional, Tuple, Union
 from fv3net.artifacts.metadata import StepMetadata, log_fact_json
 import numpy as np
 import os
@@ -13,13 +12,14 @@ import tensorflow as tf
 
 from fv3fit import set_random_seed
 from fv3fit.train_microphysics import TrainConfig
-from fv3fit._shared import put_dir
 from fv3fit.emulation.scoring import score_multi_output, ScoringOutput
 from fv3fit.emulation.types import TensorDict
+from fv3fit.emulation.transforms.zhao_carr import CLASS_NAMES
 from fv3fit.wandb import (
     log_profile_plots,
     log_to_table,
 )
+import vcm
 from vcm import get_fs
 import yaml
 from emulation.config import EmulationConfig, ModelConfig
@@ -84,6 +84,44 @@ def score_model(
     return score_multi_output(get(names, targets), get(names, predictions), names)
 
 
+def logit_to_one_hot(x):
+    return x == tf.math.reduce_max(x, axis=-1, keepdims=True)
+
+
+def score_gscond_classes(targets: ArrayLikeDict, predictions: ArrayLikeDict):
+    one_hot_encoded_name = "gscond_classes"
+    if one_hot_encoded_name not in predictions:
+        return {}, {}
+
+    y = predictions[one_hot_encoded_name]
+    # expected shape of y is [..., height, number of classes]
+    predicted_class = logit_to_one_hot(y).numpy()
+    truth = targets[one_hot_encoded_name].numpy()
+
+    profiles = {}
+    scalars = {}
+
+    for score in [vcm.accuracy, vcm.f1_score, vcm.precision, vcm.recall]:
+        # average over final dimension: number of classes
+        profile = score(truth, predicted_class, mean=lambda x: x.mean(0))
+        # average over height and classes
+        integral = score(truth, predicted_class, mean=lambda x: x.mean(0).mean(0))
+
+        score_name = score.__name__
+
+        names = sorted(CLASS_NAMES)
+        for i, class_name in enumerate(names):
+            profiles[f"{score_name}/{class_name}"] = profile[..., i]
+            scalars[f"{score_name}/{class_name}"] = integral[..., i].item()
+
+    scalars["accuracy/all"] = vcm.accuracy(truth, predicted_class, lambda x: x.mean())
+    profiles["accuracy/all"] = vcm.accuracy(
+        truth, predicted_class, lambda x: x.mean(0).mean(-1)
+    )
+
+    return scalars, profiles
+
+
 def main(
     config: TrainConfig,
     seed: int = 0,
@@ -128,51 +166,48 @@ def main(
     test_ds = config.open_dataset(
         config.test_url, config.nfiles, config.model_variables
     )
+    n = 80_000
+    train_set = next(iter(train_ds.unbatch().shuffle(2 * n).batch(n)))
+    test_set = next(iter(test_ds.unbatch().shuffle(2 * n).batch(n)))
 
-    train_set = next(iter(train_ds.unbatch().shuffle(160_000).batch(80_000)))
-    test_set = next(iter(test_ds.unbatch().shuffle(160_000).batch(80_000)))
+    summary_metrics = {}
 
-    transform = config.build_transform(train_set)
+    for split_name, data in [("train", train_set), ("test", test_set)]:
+        transform = config.build_transform(train_set)
+        target = transform.backward(transform.forward(data))
+        predictions = model.predict(data, batch_size=8192)
 
-    train_predictions = model.predict(train_set, batch_size=1024)
-    test_predictions = model.predict(test_set, batch_size=1024)
+        scores, profiles = score_model(target, predictions, mask=mask)
 
-    train_target = transform.backward(transform.forward(train_set))
-    test_target = transform.backward(transform.forward(test_set))
+        summary_metrics.update(
+            {f"score/{split_name}/{key}": value for key, value in scores.items()}
+        )
+        class_scores, class_profiles = score_gscond_classes(config, model, data)
+        scores.update(class_scores)
 
-    train_scores, train_profiles = score_model(
-        train_target, train_predictions, mask=mask
-    )
-    test_scores, test_profiles = score_model(test_target, test_predictions, mask=mask)
+        for score, value in scores.items():
+            summary_metrics[f"score/{split_name}/{score}"] = value
+
+        all_profiles = {**profiles, **class_profiles}
+        # add level for dataframe index, assumes equivalent feature dims
+        sample_profile = next(iter(all_profiles.values()))
+        all_profiles["level"] = np.arange(len(sample_profile))
+
+        if config.use_wandb:
+            log_to_table(f"profiles/{split_name}", all_profiles)
+
     logger.debug("Scoring Complete")
 
-    summary_metrics: Dict[str, Any] = {
-        f"score/train/{key}": value for key, value in train_scores.items()
-    }
-    summary_metrics.update(
-        {f"score/test/{key}": value for key, value in test_scores.items()}
-    )
-
+    # log scalar metrics
     # Logging for google cloud
     log_fact_json(data=summary_metrics)
+    if config.use_wandb:
+        config.wandb.job.log(summary_metrics)
 
+    # log individual profile predictions
     if config.use_wandb:
         pred_sample = model.predict(test_set, batch_size=8192)
         log_profile_plots(test_set, pred_sample)
-
-        # add level for dataframe index, assumes equivalent feature dims
-        sample_profile = next(iter(train_profiles.values()))
-        train_profiles["level"] = np.arange(len(sample_profile))
-        test_profiles["level"] = np.arange(len(sample_profile))
-
-        config.wandb.job.log(summary_metrics)
-
-        log_to_table("profiles/train", train_profiles)
-        log_to_table("profiles/test", test_profiles)
-
-    with put_dir(out_url) as tmpdir:
-        with open(os.path.join(tmpdir, "scores.json"), "w") as f:
-            json.dump({"train": train_scores, "test": test_scores}, f)
 
 
 def _load_prognostic_emulator_model_config(config: Path) -> ModelConfig:

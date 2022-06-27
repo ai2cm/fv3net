@@ -2,6 +2,8 @@ version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.15.0
   slack: circleci/slack@3.4.2
+  gh: circleci/github-cli@2.1.0
+  jq: circleci/jq@2.2.0
 jobs:
   pytest:
     parameters:
@@ -19,6 +21,8 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: /etc/key.json
     steps:
       - checkout
+      - gh/setup
+      - jq/install
       - add_ssh_keys:
           fingerprints:
             - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d" # github user key
@@ -67,6 +71,7 @@ jobs:
             make coverage_report
 
             make htmlcov
+            .circleci/update_coverage_description.sh <<parameters.kind>>
             mv htmlcov /tmp/coverage/htmlcov-<<parameters.kind>>
             set -e
             exit 0
@@ -157,7 +162,7 @@ jobs:
             mv kustomize /usr/local/bin/
 
             # Install argo
-            curl -sLO https://github.com/argoproj/argo-workflows/releases/download/v2.11.6/argo-linux-amd64.gz
+            curl -sLO https://github.com/argoproj/argo-workflows/releases/download/v3.3.7/argo-linux-amd64.gz
             gunzip argo-linux-amd64.gz
             chmod +x argo-linux-amd64
             mv ./argo-linux-amd64 /usr/local/bin/argo
@@ -204,6 +209,8 @@ workflows:
       - lint
       - argo
       - pytest:
+          context:
+            - GITHUB_CREDENTIALS
           name: pytest-<<matrix.kind>>
           matrix:
             parameters:

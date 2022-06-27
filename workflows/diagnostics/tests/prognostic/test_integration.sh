@@ -4,7 +4,7 @@ set -xe
 
 [[ -n $GOOGLE_APPLICATION_CREDENTIALS ]] && gcloud auth activate-service-account --key-file $GOOGLE_APPLICATION_CREDENTIALS
 
-RUN=gs://vcm-ml-code-testing-data/sample-prognostic-run-output
+RUN=gs://vcm-ml-code-testing-data/sample-prognostic-run-output-v3
 
 random=$(openssl rand --hex 6)
 OUTPUT=gs://vcm-ml-scratch/test-prognostic-report/$random
