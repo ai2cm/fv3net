@@ -15,9 +15,9 @@ RUN apt-get update && \
         libtcmalloc-minimal4 \
         python3-setuptools
 
-
 # Equivalent to passing --no-cache-dir to every pip install
 ENV PIP_NO_CACHE_DIR=off
+
 
 # Install dependencies
 COPY docker/fv3fit/requirements.txt /tmp/requirements.txt

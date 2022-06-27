@@ -122,10 +122,6 @@ class ModelConfig:
         if self.enforce_conservative:
             yield emulation.zhao_carr.enforce_conservative_gscond
 
-    @staticmethod
-    def from_dict(dict_: dict) -> "ModelConfig":
-        return dacite.from_dict(ModelConfig, dict_, config=dacite.Config(strict=True))
-
 
 @dataclasses.dataclass
 class EmulationConfig:

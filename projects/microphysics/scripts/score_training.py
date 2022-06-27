@@ -247,9 +247,7 @@ if __name__ == "__main__":
 
     # preference to model_url override if specified
     model_url = known.model_url or prognostic_emu_model_url
-
-    train_config = TrainConfig.from_args(train_config_args)
-
+    config = TrainConfig.from_args(train_config_args)
     main(
-        train_config, model_url=model_url, emulation_mask=mask,
+        config, model_url=model_url, emulation_mask=mask,
     )
