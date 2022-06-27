@@ -275,7 +275,9 @@ docker/fv3fit/requirements.txt:
 		--output-file docker/fv3fit/requirements.txt \
 		external/fv3fit/setup.py \
 		external/loaders/setup.py \
-		external/vcm/setup.py
+		external/vcm/setup.py \
+		external/artifacts/setup.py \
+		external/emulation/setup.py
 
 docker/artifacts/requirements.txt:
 	cp -f constraints.txt $@
