@@ -222,7 +222,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model_url",
+        "--model-url",
         help=(
             "Specify model path to run scoring for. Overrides use of models "
             "in the training configuration or prognostic emulator config."
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
-        "--prognostic_config",
+        "--prognostic-config",
         type=Path,
         required=False,
         help=(

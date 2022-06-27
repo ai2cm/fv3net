@@ -394,7 +394,7 @@ spec:
 
           python3 scripts/score_training.py \
             --config-path training_config.yaml \
-            --emulator_config emulation_config.yaml \
+            --prognostic-config emulation_config.yaml \
             --wandb.job_type train_score \
             {{inputs.parameters.flags}}
     tolerations:
