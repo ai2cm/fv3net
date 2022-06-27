@@ -8,6 +8,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Sequence,
     Tuple,
@@ -82,6 +83,43 @@ class Stepper(Protocol):
     def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
         """Return diagnostics of momentum tendencies."""
         return {}
+
+
+class TendencyScalingStepper:
+    """Stepper interface
+
+    Steppers know the difference between tendencies, diagnostics, and
+    in-place state updates, but they do not know how and when these updates
+    will be applied.
+
+    Note:
+        Uses typing_extensions.Protocol to avoid the need for explicit sub-typing
+
+    """
+
+    def __init__(self, stepper: Stepper, scales: Mapping[str, float]):
+        self._stepper = stepper
+        self._scales = scales
+
+    @property
+    def label(self) -> str:
+        """Label used for naming diagnostics.
+        """
+        return self._stepper.label
+
+    def __call__(self, time, state) -> Tuple[Tendencies, Diagnostics, State]:
+        tendencies, diagnostics, state = self._stepper(time, state)
+        for name, scale in self._scales.items():
+            tendencies[name] *= scale
+        return tendencies, diagnostics, state
+
+    def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
+        """Return diagnostics mapping and net moistening array."""
+        return self._stepper.get_diagnostics(state, tendency)
+
+    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
+        """Return diagnostics of momentum tendencies."""
+        return self._stepper.get_momentum_diagnostics(state, tendency)
 
 
 def _replace_precip_rate_with_accumulation(  # type: ignore
@@ -288,6 +326,8 @@ class TimeLoop(
                         )
                     )
             stepper = CombinedStepper(prephysics_steppers)
+        if len(config.scale_tendencies) > 0 and stepper is not None:
+            stepper = TendencyScalingStepper(stepper, config.scale_tendencies)
         return stepper
 
     def _get_postphysics_stepper(
@@ -314,6 +354,8 @@ class TimeLoop(
         else:
             self._log_info("Performing baseline simulation")
             stepper = None
+        if len(config.scale_tendencies) > 0 and stepper is not None:
+            stepper = TendencyScalingStepper(stepper, config.scale_tendencies)
         return stepper
 
     def _open_model(self, ml_config: MachineLearningConfig, step: str):

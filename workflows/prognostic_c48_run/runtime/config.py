@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, Iterable
+from typing import List, Mapping, Optional, Union, Iterable
 import dataclasses
 import yaml
 import f90nml
@@ -63,6 +63,7 @@ class UserConfig:
     online_emulator: Optional[
         Union[runtime.transformers.emulator.Config, runtime.transformers.fv3fit.Config]
     ] = None
+    scale_tendencies: Mapping[str, float] = dataclasses.field(default_factory=dict)
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
