@@ -147,7 +147,7 @@ class EmulationConfig:
     def build_gscond_hook(self):
         return self._build_model(self.gscond)
 
-    def get_defined_model_config(self) -> ModelConfig:
+    def get_defined_model_config(self) -> Optional[ModelConfig]:
         if self.model is not None and self.gscond is not None:
             raise ValueError(
                 "Ambiguous request, both model and gscond are defined in the config."
@@ -157,7 +157,7 @@ class EmulationConfig:
         elif self.gscond is not None:
             return self.gscond
         else:
-            raise ValueError("No defined model config.")
+            return None
 
     def build_storage_hook(self):
         hook = _get_storage_hook(self.storage)
