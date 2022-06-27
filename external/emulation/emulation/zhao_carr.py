@@ -109,7 +109,9 @@ def _get_classify_output(emulator, class_name):
 
 def mask_zero_cloud_classifier(state, emulator):
     cloud_out = np.where(
-        _get_classify_output(emulator, ZERO_CLOUD), 0, state[GscondOutput.cloud_water]
+        _get_classify_output(emulator, ZERO_CLOUD),
+        0,
+        emulator[GscondOutput.cloud_water],
     )
     return _update_with_net_condensation(cloud_out, state, emulator)
 
