@@ -96,15 +96,12 @@ class GscondClassesV1OneHot(GscondClassesV1):
 
 
 def _combine(
-    cloud_before,
-    cloud_after,
-    t_before,
-    t_after,
-    qv_before,
-    qv_after,
-    zero_tendency,
-    zero_cloud,
+    cloud_before, t_before, t_after, qv_before, qv_after, zero_tendency, zero_cloud,
 ):
+    # compute net condensation = Condensation - Evap
+    condensation = qv_before - qv_after
+    cloud_after = cloud_before + condensation
+
     # apply no change case
     cloud_out = tf.where(zero_tendency, cloud_before, cloud_after)
     t_out = tf.where(zero_tendency, t_before, t_after)
@@ -140,7 +137,6 @@ class GSCondRoute(TensorTransform):
         y = {**y}
         cloud_out, t_out, qv_out = _combine(
             cloud_before=y[CLOUD_INPUT],
-            cloud_after=y[CLOUD_GSCOND],
             t_before=y[T_INPUT],
             t_after=y[T_GSCOND],
             qv_before=y[QV_INPUT],
