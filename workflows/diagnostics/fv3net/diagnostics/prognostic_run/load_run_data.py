@@ -18,6 +18,7 @@ from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
 from fv3net.diagnostics.prognostic_run import constants
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -67,11 +68,18 @@ def _get_factor(ds: xr.Dataset, target_resolution: int) -> int:
     return int(input_res / target_resolution)
 
 
+def _drop_tile_only_vars(ds):
+    # drop variables inserted by fortran diags that have nonstandard dimensions
+    # before coarsening, e.g. average_T1: [tile, time]
+    keep_vars = [v for v in ds if v not in constants.FORTRAN_TILE_ONLY_VARS]
+    return ds[keep_vars]
+
+
 def _coarsen_cell_centered_to_target_resolution(
     ds: xr.Dataset, target_resolution: int, catalog: intake.catalog.Catalog,
 ) -> xr.Dataset:
     return vcm.cubedsphere.weighted_block_average(
-        ds,
+        _drop_tile_only_vars(ds),
         weights=_get_area(ds, catalog),
         coarsening_factor=_get_factor(ds, target_resolution),
         x_dim="x",
