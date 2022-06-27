@@ -465,6 +465,7 @@ nudging: null
 online_emulator: null
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 prephysics: null
+scale_tendencies: {}
 scikit_learn:
   diagnostic_ml: false
   input_standard_names: {}
