@@ -169,15 +169,15 @@ def main(
 
     for split_name, data in [("train", train_set), ("test", test_set)]:
         transform = config.build_transform(train_set)
-        target = transform.backward(transform.forward(data))
+        targets = transform.backward(transform.forward(data))
         predictions = model.predict(data, batch_size=8192)
 
-        scores, profiles = score_model(target, predictions, mask=mask)
+        scores, profiles = score_model(targets, predictions, mask=mask)
 
         summary_metrics.update(
             {f"score/{split_name}/{key}": value for key, value in scores.items()}
         )
-        class_scores, class_profiles = score_gscond_classes(config, model, data)
+        class_scores, class_profiles = score_gscond_classes(targets, predictions)
         scores.update(class_scores)
 
         for score, value in scores.items():
