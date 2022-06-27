@@ -114,6 +114,7 @@ class TrainingConfig:
                 "output_variables"
             )
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
+        # custom enums must be specified for dacite to handle correctly
         dacite_config = dacite.Config(
             strict=True, cast=[bool, str, int, float, StdDevMethod, MeanMethod]
         )
