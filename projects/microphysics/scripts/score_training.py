@@ -21,7 +21,7 @@ from fv3fit.wandb import (
 import vcm
 from vcm import get_fs
 import yaml
-from emulation.config import EmulationConfig, ModelConfig
+from emulation.config import EmulationConfig
 from emulation.masks import Mask
 
 logger = logging.getLogger(__name__)
@@ -121,7 +121,7 @@ def main(
     config: TrainConfig,
     seed: int = 0,
     model_url: Optional[str] = None,
-    prognostic_emu_config: Optional[ModelConfig] = None,
+    emulation_mask: Optional[Mask] = None,
 ):
 
     logging.basicConfig(level=getattr(logging, config.log_level))
@@ -137,11 +137,6 @@ def main(
     else:
         logger.info(f"Loading user specified model from {model_url}")
         model = tf.keras.models.load_model(model_url)
-
-    if prognostic_emu_config:
-        mask = prognostic_emu_config.build_mask()
-    else:
-        mask = None
 
     StepMetadata(
         job_type="train_score",
@@ -169,7 +164,7 @@ def main(
         targets = transform.backward(transform.forward(data))
         predictions = model.predict(data, batch_size=8192)
 
-        scores, profiles = score_model(targets, predictions, mask=mask)
+        scores, profiles = score_model(targets, predictions, mask=emulation_mask)
 
         summary_metrics.update(
             {f"score/{split_name}/{key}": value for key, value in scores.items()}
@@ -202,13 +197,25 @@ def main(
         log_profile_plots(test_set, pred_sample)
 
 
-def _load_prognostic_emulator_model_config(config: Path) -> ModelConfig:
-    with config.open() as f:
-        d = yaml.safe_load(f)
+def get_mask_and_emu_url_from_prog_config(
+    config: Optional[Path] = None,
+) -> Tuple[Optional[Mask], Optional[str]]:
+    if config is None:
+        return None, None
 
-    emu_config = EmulationConfig.from_dict(d)
-    model_config = emu_config.get_defined_model_config()
-    return model_config
+    with config.open() as f:
+        d = yaml.safe_load(f) or {}
+
+    if "zhao_carr_emulation" in d:
+
+        emu_config = EmulationConfig.from_dict(d["zhao_carr_emulation"])
+        model_config = emu_config.get_defined_model_config()
+
+        model_url = model_config.path
+        mask = model_config.build_mask()
+        return mask, model_url
+    else:
+        return None, None
 
 
 if __name__ == "__main__":
@@ -218,31 +225,31 @@ if __name__ == "__main__":
         "--model_url",
         help=(
             "Specify model path to run scoring for. Overrides use of models "
-            "at the config.out_url"
+            "in the training configuration or prognostic emulator config."
         ),
         default=None,
     )
     parser.add_argument(
-        "--emulator_config",
+        "--prognostic_config",
         type=Path,
         required=False,
         help=(
-            "Use EmulatorConfig for post-hoc emulation corrections. "
-            "Overrides TrainConfig out_url."
+            "Use EmulatorConfig for post-hoc emulation adjustments when scoring. "
+            "Overrides training configuration model."
         ),
     )
 
     known, train_config_args = parser.parse_known_args()
 
-    if known.emulator_config is not None:
-        model_config = _load_prognostic_emulator_model_config(known.emulator_config)
-        model_url = model_config.path
-    else:
-        model_url = known.model_url
-        model_config = None
+    mask, prognostic_emu_model_url = get_mask_and_emu_url_from_prog_config(
+        known.prognostic_config
+    )
+
+    # preference to model_url override if specified
+    model_url = known.model_url or prognostic_emu_model_url
 
     train_config = TrainConfig.from_args(train_config_args)
 
     main(
-        train_config, model_url=model_url, prognostic_emu_config=model_config,
+        train_config, model_url=model_url, emulation_mask=mask,
     )

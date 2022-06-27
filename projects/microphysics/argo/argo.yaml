@@ -386,23 +386,15 @@ spec:
           memory: "28G"
       args:
         - |
-          train_config="{{inputs.parameters.training-config}}"
-          echo $train_config | base64 --decode > training_config.yaml
+          echo "{{inputs.parameters.training-config}}" | \
+            base64 --decode > training_config.yaml
 
-          emu_config="{{inputs.parameters.prognostic-emulation-config}}"
-          echo $emu_config | base64 --decode | \
-            yq -r '.zhao_carr_emulation // ""' > emulation_config.yaml
-
-          if [ ! -s emulation_config.yaml ]
-          then
-            emu_config_flag="--emulator_config emulation_config.yaml"
-          else
-            emu_config_flag=""
-          fi
+          echo "{{inputs.parameters.prognostic-emulation-config}}" | \
+            base64 --decode > emulation_config.yaml
 
           python3 scripts/score_training.py \
             --config-path training_config.yaml \
-            ${emu_config_flag} \
+            --emulator_config emulation_config.yaml \
             --wandb.job_type train_score \
             {{inputs.parameters.flags}}
     tolerations:
