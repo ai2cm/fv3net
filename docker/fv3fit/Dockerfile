@@ -13,17 +13,11 @@ RUN apt-get update && \
         libmpich-dev \
         libnetcdf-dev \
         libtcmalloc-minimal4 \
-        python3-setuptools \
-        wget \
-        jq
+        python3-setuptools
 
-# Install yq
-RUN wget https://github.com/mikefarah/yq/releases/download/v4.25.3/yq_linux_amd64.tar.gz -O - | \
-  tar xz && mv yq_linux_amd64 /usr/bin/yq
 
 # Equivalent to passing --no-cache-dir to every pip install
 ENV PIP_NO_CACHE_DIR=off
-
 
 # Install dependencies
 COPY docker/fv3fit/requirements.txt /tmp/requirements.txt
