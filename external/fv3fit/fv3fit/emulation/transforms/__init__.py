@@ -15,4 +15,4 @@ from .transforms import (
     MoistStaticEnergyTransform,
 )
 
-from .zhao_carr import GscondClassesV1
+from .zhao_carr import GscondClassesV1, GscondClassesV1OneHot

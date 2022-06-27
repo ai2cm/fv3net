@@ -50,6 +50,7 @@ from fv3fit.emulation.transforms import (
     TransformedVariableConfig,
     CloudWaterDiffPrecpd,
     GscondClassesV1,
+    GscondClassesV1OneHot,
     TendencyToFlux,
     MoistStaticEnergyTransform,
 )
@@ -140,6 +141,7 @@ class TransformedParameters(Hyperparameters):
             Difference,
             CloudWaterDiffPrecpd,
             GscondClassesV1,
+            GscondClassesV1OneHot,
             TendencyToFlux,
             MoistStaticEnergyTransform,
         ]
@@ -271,6 +273,7 @@ class TrainConfig(TransformedParameters):
             Difference,
             CloudWaterDiffPrecpd,
             GscondClassesV1,
+            GscondClassesV1OneHot,
             TendencyToFlux,
             MoistStaticEnergyTransform,
         ]
