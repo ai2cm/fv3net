@@ -110,22 +110,18 @@ class ConditionallyScaled(TransformFactory):
 
     def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
 
-        y = sample[self.source]
-
         if self.fit_filter_magnitude is not None:
-            weights = tf.abs(y) > self.fit_filter_magnitude
+            weights = tf.abs(sample[self.source]) > self.fit_filter_magnitude
         else:
-            weights = tf.ones_like(y, dtype=y.dtype)
+            weights = tf.ones_like(sample[self.source], dtype=tf.bool)
 
         if self.weights:
-            weights = tf.cast(weights, y.dtype) * tf.cast(sample[self.weights], y.dtype)
+            weights *= sample[self.weights]
 
         def weighted_mean(x, w):
             dt = x.dtype
             w_float = tf.cast(w, dt) * tf.cast(weights, dt)
-            denom = tf.reduce_sum(w_float)
-            num = tf.reduce_sum(w_float * x)
-            return tf.where(denom > 0, num / denom, tf.zeros_like(num))
+            return tf.reduce_sum(w_float * x) / tf.reduce_sum(w_float)
 
         def weighted_std(x, w):
             mu = weighted_mean(x, w)
@@ -136,10 +132,13 @@ class ConditionallyScaled(TransformFactory):
             on=self.condition_on,
             source=self.source,
             scale=fit_conditional(
-                sample[self.condition_on], y, weighted_std, self.bins,
+                sample[self.condition_on], sample[self.source], weighted_std, self.bins,
             ),
             center=fit_conditional(
-                sample[self.condition_on], y, weighted_mean, self.bins,
+                sample[self.condition_on],
+                sample[self.source],
+                weighted_mean,
+                self.bins,
             ),
             min_scale=self.min_scale,
         )
