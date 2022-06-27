@@ -68,18 +68,11 @@ def _get_factor(ds: xr.Dataset, target_resolution: int) -> int:
     return int(input_res / target_resolution)
 
 
-def _drop_tile_only_vars(ds):
-    # drop variables inserted by fortran diags that have nonstandard dimensions
-    # before coarsening, e.g. average_T1: [tile, time]
-    keep_vars = [v for v in ds if v not in constants.FORTRAN_TILE_ONLY_VARS]
-    return ds[keep_vars]
-
-
 def _coarsen_cell_centered_to_target_resolution(
     ds: xr.Dataset, target_resolution: int, catalog: intake.catalog.Catalog,
 ) -> xr.Dataset:
     return vcm.cubedsphere.weighted_block_average(
-        _drop_tile_only_vars(ds),
+        ds,
         weights=_get_area(ds, catalog),
         coarsening_factor=_get_factor(ds, target_resolution),
         x_dim="x",
@@ -127,7 +120,10 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
     if len(ds) > 0:
         # drop interface vars to avoid broadcasting by coarsen func
         ds = ds.drop_vars(
-            constants.GRID_VARS + constants.GRID_INTERFACE_COORDS, errors="ignore"
+            constants.GRID_VARS
+            + constants.GRID_INTERFACE_COORDS
+            + constants.FORTRAN_TILE_ONLY_VARS,
+            errors="ignore",
         )
         ds = _coarsen_cell_centered_to_target_resolution(
             ds, target_resolution=48, catalog=catalog
