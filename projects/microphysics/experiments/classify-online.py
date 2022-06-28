@@ -29,7 +29,7 @@ def _get_job(classify_zero_cloud, classify_no_tend):
     gscond_config["classifier_path"] = CLASSIFIER
     gscond_config["mask_emulator_levels"] = mask_levels
     gscond_config["mask_gscond_zero_cloud_classifier"] = classify_zero_cloud
-    gscond_config["mask_gscond_zero_tend_classifier"] = classify_no_tend
+    gscond_config["mask_gscond_no_tend_classifier"] = classify_no_tend
     gscond_config["enforce_conservative"] = True
 
     zcloud_tag = "zcloud-" if classify_zero_cloud else ""
@@ -37,7 +37,7 @@ def _get_job(classify_zero_cloud, classify_no_tend):
 
     return PrognosticJob(
         name=f"gscond-only-classifier-{zcloud_tag}{ztend_tag}online-10d-v3",
-        image_tag="59317e157f079dee5de07244695c96e6c6f38215",
+        image_tag="f580dfd909dd9e785131b4b34861b2224bc0b34a",
         config=config,
     )
 
