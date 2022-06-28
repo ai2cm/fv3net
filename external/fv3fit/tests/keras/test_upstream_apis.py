@@ -116,3 +116,35 @@ def test_train_keras_with_dict_output(
 
     assert b_graph_name + "_loss" in loss_names
     assert c_graph_name + "_loss" in loss_names
+
+
+class TestModule(tf.Module):
+    @tf.function
+    def forward(self, x):
+        return x
+
+    @tf.function
+    def backward(self, x):
+        return x
+
+    def call(self, x):
+        return x
+
+
+def test_multiple_method_custom_model(tmp_path):
+    x = {"x": tf.ones(1, 10), "y": tf.ones(1, 10)}
+    model = TestModule()
+    tf.saved_model.save(
+        model,
+        tmp_path.as_posix(),
+        signatures={
+            "doesn't matter": model.forward.get_concrete_function(x),
+            "also doesn't matter": model.backward.get_concrete_function(x),
+        },
+    )
+    loaded = tf.saved_model.load(tmp_path.as_posix())
+    loaded.forward(x)
+    loaded.backward(x)
+    # need to explicitly specify signature when saving to call when loaded.
+    with pytest.raises(Exception):
+        loaded.call(x)
