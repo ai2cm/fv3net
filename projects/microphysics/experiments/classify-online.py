@@ -19,7 +19,7 @@ mask_levels = {
 }
 
 
-def _get_job(classify_zero_cloud, classify_zero_tend):
+def _get_job(classify_zero_cloud, classify_no_tend):
     config = load_yaml("../configs/default.yaml")
 
     config = set_prognostic_emulation_model(
@@ -29,14 +29,14 @@ def _get_job(classify_zero_cloud, classify_zero_tend):
     gscond_config["classifier_path"] = CLASSIFIER
     gscond_config["mask_emulator_levels"] = mask_levels
     gscond_config["mask_gscond_zero_cloud_classifier"] = classify_zero_cloud
-    gscond_config["mask_gscond_zero_tend_classifier"] = classify_zero_tend
+    gscond_config["mask_gscond_zero_tend_classifier"] = classify_no_tend
     gscond_config["enforce_conservative"] = True
 
     zcloud_tag = "zcloud-" if classify_zero_cloud else ""
-    ztend_tag = "ztend-" if classify_zero_tend else ""
+    ztend_tag = "ztend-" if classify_no_tend else ""
 
     return PrognosticJob(
-        name=f"gscond-only-classifier-{zcloud_tag}{ztend_tag}online-10d-v2",
+        name=f"gscond-only-classifier-{zcloud_tag}{ztend_tag}online-10d-v3",
         image_tag="59317e157f079dee5de07244695c96e6c6f38215",
         config=config,
     )

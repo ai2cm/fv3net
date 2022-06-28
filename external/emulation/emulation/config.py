@@ -167,7 +167,8 @@ class EmulationConfig:
                 type_hooks={
                     cftime.DatetimeJulian: from_datetime,
                     datetime.timedelta: lambda x: datetime.timedelta(seconds=x),
-                }
+                },
+                strict=True,
             ),
         )
 
