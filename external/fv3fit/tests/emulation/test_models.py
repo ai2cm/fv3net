@@ -9,7 +9,11 @@ import tensorflow as tf
 from fv3fit._shared import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.layers.architecture import _ARCHITECTURE_KEYS
-from fv3fit.emulation.models import MicrophysicsConfig, transform_model
+from fv3fit.emulation.models import (
+    MicrophysicsConfig,
+    transform_model,
+    TransformedModel,
+)
 from fv3fit.emulation.transforms.transforms import Identity
 
 
@@ -278,3 +282,21 @@ def test_saved_model_jacobian():
 def test_Microphysics_unscaled_outputs():
     builder = MicrophysicsConfig(unscaled_outputs=["a"])
     assert builder.output_variables == ["a"]
+
+
+def test_TransformedModel(tmp_path):
+    inputs = {"a": tf.keras.Input(10, name="a")}
+    outputs = {"out": tf.keras.layers.Lambda(lambda x: x, name="out")(inputs["a"])}
+    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+    transformed_model = TransformedModel(model, Identity, inputs=inputs)
+
+    transformed_model.save(tmp_path.as_posix())
+    loaded = tf.keras.models.load_model(tmp_path.as_posix())
+
+    input = {"a": tf.ones((1, 10))}
+    loaded.forward(input)
+    loaded.inner_model(input)
+    loaded.backward(input)
+
+    assert loaded.get_model_inputs() == model.input_names
+    breakpoint()

@@ -103,12 +103,13 @@ class ModelCheckpointCallback(tf.keras.callbacks.Callback):
     """the built in one doesn't work with ``Trainer`` since it saves the full
     trainer object rather than the inner model"""
 
-    def __init__(self, filepath: str):
+    def __init__(self, filepath: str, model: tf.keras.Model):
         super().__init__()
         self.filepath = filepath
+        self.model = model
 
-    def set_model(self, model: _ModelWrapper):
-        self.model = model.model
+    def set_model(self, model):
+        pass
 
     def on_epoch_end(self, epoch, logs=None):
         self.model.save(self.filepath.format(epoch=epoch), save_format="tf")
