@@ -23,8 +23,13 @@ from vcm import get_fs
 import yaml
 from emulation.config import EmulationConfig
 from emulation.masks import Mask
+from emulation.zhao_carr import Input, GscondOutput
 
 logger = logging.getLogger(__name__)
+
+REQUIRED_VARS = set(
+    [Input.cloud_water, Input.humidity, GscondOutput.cloud_water, GscondOutput.humidity]
+)
 
 
 def load_final_model_or_checkpoint(train_out_url) -> Tuple[tf.keras.Model, str]:
@@ -147,12 +152,9 @@ def main(
         args=sys.argv[1:],
     ).print_json()
 
-    train_ds = config.open_dataset(
-        config.train_url, config.nfiles, config.model_variables
-    )
-    test_ds = config.open_dataset(
-        config.test_url, config.nfiles, config.model_variables
-    )
+    vars_to_include = config.model_variables | REQUIRED_VARS
+    train_ds = config.open_dataset(config.train_url, config.nfiles, vars_to_include)
+    test_ds = config.open_dataset(config.test_url, config.nfiles, vars_to_include)
     n = 80_000
     train_set = next(iter(train_ds.unbatch().shuffle(2 * n).batch(n)))
     test_set = next(iter(test_ds.unbatch().shuffle(2 * n).batch(n)))
