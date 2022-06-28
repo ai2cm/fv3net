@@ -7,6 +7,8 @@ from fv3post.post_process import (
     open_tiles,
     cast_time,
     clear_encoding,
+    drop_time_average_info_vars,
+    FORTRAN_TIME_AVERAGING_VARS,
 )
 import tempfile
 from datetime import datetime
@@ -154,3 +156,27 @@ def test_clear_encoding_with_coords():
         coords={"time": [datetime(2016, 8, 1)], "x": np.arange(10)},
     )
     xr.testing.assert_identical(ds_with_coord, ds_no_encoding)
+
+
+def test_drop_time_average_info_vars():
+    dt = np.timedelta64(1, "s")
+    ds_with_interval_vars = xr.Dataset(
+        {
+            "a": (["time", "x"], np.ones((2, 10))),
+            "average_T1": (["time", "x"], np.ones((2, 10))),
+            "average_T2": (["time", "x"], np.ones((2, 10))),
+            "average_DT": (["time", "x"], np.full((2, 10), dt)),
+        },
+    )
+
+    ds_dropped = drop_time_average_info_vars(ds_with_interval_vars)
+    for time_avg_var in FORTRAN_TIME_AVERAGING_VARS:
+        assert time_avg_var not in ds_dropped
+    assert ds_dropped.attrs["time_averaging_interval"] == dt
+
+
+def test_drop_time_average_info_vars_not_present():
+    ds_no_interval_vars = xr.Dataset({"a": (["time", "x"], np.ones((2, 10)))})
+
+    ds_dropped = drop_time_average_info_vars(ds_no_interval_vars)
+    assert "a" in ds_dropped

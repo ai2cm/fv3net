@@ -18,6 +18,17 @@ logging.basicConfig(level=logging.INFO)
 
 ChunkSpec = Mapping[str, Mapping[str, int]]
 CHUNKS_DEFAULT = {"time": 96}
+FORTRAN_TIME_AVERAGING_VARS = ["average_T1", "average_T2", "average_DT"]
+
+
+def drop_time_average_info_vars(ds):
+    """Drop variables related to time averaging interval and write
+    this information in the dataset attrs, if applicable."""
+    if "average_DT" in ds:
+        dt = ds["average_DT"].values.flatten()[0]
+        ds.attrs.update({"time_averaging_interval": dt})
+    ds = ds.drop_vars(FORTRAN_TIME_AVERAGING_VARS, errors="ignore")
+    return ds
 
 
 def _get_true_chunks(ds, chunks):
@@ -128,6 +139,7 @@ def process_item(
         chunked = encode_chunks(chunked, chunks)
         dest = os.path.join(d_out, relpath)
         chunked = cast_time(chunked)
+        chunked = drop_time_average_info_vars(chunked)
         chunked.to_zarr(dest, mode="w", consolidated=True)
     except ValueError:
         # is an empty xarray, do nothing
