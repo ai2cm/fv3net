@@ -2,8 +2,21 @@ import dataclasses
 import tensorflow as tf
 import wandb
 
+# Add third party callbacks here to make them available in training
+ADDITIONAL_CALLBACKS = {"WandbCallback": wandb.keras.WandbCallback}
 
-THIRD_PARTY_CALLBACKS = {"WandbCallback": wandb.keras.WandbCallback}
+
+def register_custom_callback(name: str):
+    """
+    Returns a decorator that will register the given training function
+    to be usable in training configuration.
+    """
+
+    def decorator(callback: tf.keras.callbacks.Callback) -> tf.keras.callbacks.Callback:
+        ADDITIONAL_CALLBACKS[name] = callback
+        return callback
+
+    return decorator
 
 
 @dataclasses.dataclass
@@ -18,44 +31,9 @@ class CallbackConfig:
             return cls(**self.kwargs)
         except AttributeError:
             try:
-                return THIRD_PARTY_CALLBACKS[self.name](**self.kwargs)
+                return ADDITIONAL_CALLBACKS[self.name](**self.kwargs)
             except KeyError:
                 raise ValueError(
                     f"callback {self.name} is not in the Keras library nor the list "
-                    f"of usable third party callbacks {list(THIRD_PARTY_CALLBACKS)}"
+                    f"of usable third party callbacks {list(ADDITIONAL_CALLBACKS)}"
                 )
-
-
-class EpochModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
-    def __init__(
-        self,
-        filepath,
-        interval=1,
-        monitor="val_loss",
-        verbose=0,
-        save_best_only=False,
-        save_weights_only=False,
-        mode="auto",
-        options=None,
-        **kwargs,
-    ):
-        super(EpochModelCheckpoint, self).__init__(
-            filepath,
-            monitor,
-            verbose,
-            save_best_only,
-            save_weights_only,
-            mode,
-            "epoch",
-            options,
-        )
-        self.epochs_since_last_save = 0
-        self.interval = interval
-
-    def on_epoch_end(self, epoch, logs=None):
-        self.epochs_since_last_save += 1
-        if self.epochs_since_last_save % self.interval == 0:
-            self._save_model(epoch=epoch, batch=None, logs=logs)
-
-    def on_train_batch_end(self, batch, logs=None):
-        pass
