@@ -220,6 +220,13 @@ def get_mask_and_emu_url_from_prog_config(
         return None, None
 
 
+def get_train_config_from_model_url(model_url: str) -> str:
+    train_config_parent = "/".join(model_url.split("/")[:-1])
+    train_config_url = os.path.join(train_config_parent, "config.yaml")
+
+    return train_config_url
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -249,6 +256,11 @@ if __name__ == "__main__":
 
     # preference to model_url override if specified
     model_url = known.model_url or prognostic_emu_model_url
+    if model_url is not None:
+        train_config_url = get_train_config_from_model_url(model_url)
+        # argparse uses last found match, so overrides if already present in args
+        train_config_args.extend(["--config-path", train_config_url])
+
     config = TrainConfig.from_args(train_config_args)
     main(
         config, model_url=model_url, emulation_mask=mask,
