@@ -342,6 +342,7 @@ class RNNOutput(tf.keras.layers.Layer):
     def __init__(
         self,
         feature_lengths: Mapping[str, int],
+        output_channels: Mapping[str, int],
         share_conv_weights: bool = False,
         *args,
         **kwargs,
@@ -349,7 +350,7 @@ class RNNOutput(tf.keras.layers.Layer):
         """
         Args:
             feature_lengths: Map of output variable names to expected
-                feature dimension length
+                feature dimension length (typically the number of vertical levels)
         """
         super().__init__(*args, **kwargs)
         self._feature_lengths = feature_lengths
@@ -361,7 +362,7 @@ class RNNOutput(tf.keras.layers.Layer):
             layer_cls = tf.keras.layers.LocallyConnected1D
 
         self.output_layers = {
-            name: layer_cls(1, 1, name=f"rnn_output_{name}")
+            name: layer_cls(output_channels.get(name, 1), 1, name=f"rnn_output_{name}")
             for name in self._feature_lengths.keys()
         }
 
@@ -370,7 +371,6 @@ class RNNOutput(tf.keras.layers.Layer):
         Args:
             hidden_output: Network output from hidden layers of RNN with dim
                 [nsamples, nlev, channels]
-
         Returns:
             Connected model outputs by variable
         """
@@ -383,8 +383,10 @@ class RNNOutput(tf.keras.layers.Layer):
                 rnn_out = rnn_outputs
 
             field_out = self.output_layers[name](rnn_out)
-            field_out = tf.squeeze(field_out, axis=-1)
-            fields[name] = field_out
+            if field_out.shape[-1] == 1:
+                fields[name] = tf.squeeze(field_out, axis=-1)
+            else:
+                fields[name] = field_out
 
         return fields
 
@@ -435,6 +437,7 @@ class ArchitectureConfig:
 
     name: str
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
+    output_channels: Mapping[str, int] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
         if self.name not in _ARCHITECTURE_KEYS:
@@ -455,13 +458,21 @@ class ArchitectureConfig:
             return _HiddenArchitecture(
                 combine_sequence_inputs,
                 RNNBlock(**kwargs),
-                RNNOutput(feature_lengths, share_conv_weights=False),
+                RNNOutput(
+                    feature_lengths,
+                    share_conv_weights=True,
+                    output_channels=self.output_channels,
+                ),
             )
         elif key == "rnn-v1-shared-weights":
             return _HiddenArchitecture(
                 combine_sequence_inputs,
                 RNNBlock(**kwargs),
-                RNNOutput(feature_lengths, share_conv_weights=True),
+                RNNOutput(
+                    feature_lengths,
+                    share_conv_weights=True,
+                    output_channels=self.output_channels,
+                ),
             )
         elif key == "rnn":
             return _HiddenArchitecture(
@@ -477,7 +488,11 @@ class ArchitectureConfig:
             return _HiddenArchitecture(
                 combine_sequence_inputs,
                 MLPBlock(**kwargs),
-                RNNOutput(feature_lengths, share_conv_weights=True),
+                RNNOutput(
+                    feature_lengths,
+                    share_conv_weights=True,
+                    output_channels=self.output_channels,
+                ),
             )
         elif key == "linear":
             if kwargs:

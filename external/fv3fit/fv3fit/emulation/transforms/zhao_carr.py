@@ -52,6 +52,34 @@ class GscondClassesV1(TensorTransform):
         return y
 
 
+@dataclasses.dataclass
+class GscondClassesV1OneHot(GscondClassesV1):
+    to: str = "gscond_classes"
+
+    def build(self, sample: TensorDict):
+        # ensure classes are always encoded in the same order
+        classes = classify(sample[self.cloud_in], sample[self.cloud_out], self.timestep)
+        self._names = sorted(classes)
+        return self
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+
+        if self.to in requested_names:
+            requested_names -= {self.to}
+            requested_names |= {
+                self.cloud_in,
+                self.cloud_out,
+            }
+        return requested_names
+
+    def forward(self, x: TensorDict) -> TensorDict:
+        x = {**x}
+        # python dicts remember order in 3.7 and later
+        classes = classify(x[self.cloud_in], x[self.cloud_out], self.timestep)
+        x[self.to] = tf.stack([classes[name] for name in self._names], -1)
+        return x
+
+
 def classify(cloud_in, cloud_out, timestep, math=tf.math):
     state_thresh = 1e-15
     tend_thresh = 1e-15

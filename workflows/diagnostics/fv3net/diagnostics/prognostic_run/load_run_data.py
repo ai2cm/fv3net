@@ -18,6 +18,7 @@ from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
 from fv3net.diagnostics.prognostic_run import constants
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -119,7 +120,10 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
     if len(ds) > 0:
         # drop interface vars to avoid broadcasting by coarsen func
         ds = ds.drop_vars(
-            constants.GRID_VARS + constants.GRID_INTERFACE_COORDS, errors="ignore"
+            constants.GRID_VARS
+            + constants.GRID_INTERFACE_COORDS
+            + constants.FORTRAN_TILE_ONLY_VARS,
+            errors="ignore",
         )
         ds = _coarsen_cell_centered_to_target_resolution(
             ds, target_resolution=48, catalog=catalog

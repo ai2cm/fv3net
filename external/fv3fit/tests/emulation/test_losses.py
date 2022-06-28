@@ -43,3 +43,18 @@ def test_CustomLoss():
     expected_variables = set(v + "_loss" for v in all_loss_vars)
     assert set(info) == expected_variables
     assert loss.numpy() == pytest.approx(0.0)
+
+
+def test_keras_categorical_cross_entropy():
+    x = tf.ones([4, 5, 3])
+    y = tf.random.normal(shape=[4, 5, 3])
+    cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+    loss = cce(x, y)
+    assert tuple(loss.shape) == ()
+
+
+def test_custom_loss_logits():
+    config = CustomLoss(logit_variables=["a"])
+    loss = config.build({})
+    assert "a" in loss.loss_funcs
+    assert "a" in loss.loss_variables
