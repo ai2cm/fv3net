@@ -187,9 +187,14 @@ class TransformedParameters(Hyperparameters):
     def build_model(
         self, data: Mapping[str, tf.Tensor], transform: TensorTransform
     ) -> tf.keras.Model:
+        input_names = set(self.input_variables)
+        if any(isinstance(x, TendencyToFlux) for x in self.tensor_transform):
+            # this transform is applied to outputs and so need to manually specify
+            # pressure thickness as an auxiliary input
+            input_names |= {"pressure_thickness_of_atmospheric_layer"}
         inputs = {
             name: tf.keras.Input(data[name].shape[1:], name=name)
-            for name in self.input_variables
+            for name in input_names
         }
         inner_model = self._model.build(transform.forward(data))
         return transform_model(inner_model, transform, inputs)
