@@ -37,3 +37,44 @@ class CallbackConfig:
                     f"callback {self.name} is not in the Keras library nor the list "
                     f"of usable third party callbacks {list(ADDITIONAL_CALLBACKS)}"
                 )
+
+
+@register_custom_callback("EpochModelCheckpoint")
+class EpochModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
+    """ The built-in keras checkpoint can only take sample intervals as an arg
+    for saving at fixed intervals. The arg 'period' for epochs is deprecated.
+    This class replicates that functionality.
+    """
+
+    def __init__(
+        self,
+        filepath,
+        period=1,
+        monitor="val_loss",
+        verbose=0,
+        save_best_only=False,
+        save_weights_only=False,
+        mode="auto",
+        options=None,
+        **kwargs,
+    ):
+        super(EpochModelCheckpoint, self).__init__(
+            filepath,
+            monitor,
+            verbose,
+            save_best_only,
+            save_weights_only,
+            mode,
+            "epoch",
+            options,
+        )
+        self.epochs_since_last_save = 0
+        self.period = period
+
+    def on_epoch_end(self, epoch, logs=None):
+        self.epochs_since_last_save += 1
+        if self.epochs_since_last_save % self.period == 0:
+            self._save_model(epoch=epoch, batch=None, logs=logs)
+
+    def on_train_batch_end(self, batch, logs=None):
+        pass
