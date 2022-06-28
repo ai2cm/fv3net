@@ -371,9 +371,9 @@ spec:
         - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
           value: /secret/gcp-credentials/key.json
         - name: WANDB_NAME
-          value: "{{input.parameters.tag}}"
+          value: "{{inputs.parameters.tag}}"
         - name: WANDB_RUN_GROUP
-          value: "{{input.parameters.wandb-group}}"
+          value: "{{inputs.parameters.wandb-group}}"
       volumeMounts:
         - mountPath: /secret/gcp-credentials
           name: gcp-key-secret
