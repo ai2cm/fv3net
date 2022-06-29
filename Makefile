@@ -298,9 +298,15 @@ install_deps:
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
-create_environment: update_submodules
+create_environment: update_submodules install_matplotlibrc
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
+
+.PHONY: install_matplotlibrc
+install_matplotlibrc:
+	mkdir -p ${HOME}/.config/matplotlib
+	rm -f ${HOME}/.config/matplotlib/matplotlibrc
+	cp external/fv3viz/matplotlibrc ${HOME}/.config/matplotlib/
 
 ############################################################
 # Linting
