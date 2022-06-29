@@ -21,13 +21,12 @@ CHUNKS_DEFAULT = {"time": 96}
 FORTRAN_TIME_AVERAGING_VARS = ["average_T1", "average_T2", "average_DT"]
 
 
-def drop_time_average_info_vars(ds):
-    """Drop variables related to time averaging interval and write
-    this information in the dataset attrs, if applicable."""
-    if "average_DT" in ds:
-        dt = ds["average_DT"].values.flatten()[0]
-        ds.attrs.update({"time_averaging_interval": dt})
-    ds = ds.drop_vars(FORTRAN_TIME_AVERAGING_VARS, errors="ignore")
+def drop_redundant_tile_dims(ds):
+    """Time average information variables inserted by fortran have tile dims
+    after concatenation though data is uniform across tiles."""
+    for var in FORTRAN_TIME_AVERAGING_VARS:
+        if var in ds:
+            ds[var] = ds[var].mean("tile")
     return ds
 
 
@@ -139,7 +138,7 @@ def process_item(
         chunked = encode_chunks(chunked, chunks)
         dest = os.path.join(d_out, relpath)
         chunked = cast_time(chunked)
-        chunked = drop_time_average_info_vars(chunked)
+        chunked = drop_redundant_tile_dims(chunked)
         chunked.to_zarr(dest, mode="w", consolidated=True)
     except ValueError:
         # is an empty xarray, do nothing
