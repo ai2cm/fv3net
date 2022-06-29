@@ -98,12 +98,12 @@ def mask_where_fortran_cloud_identical(state, emulator):
     return _update_with_net_condensation(cloud_out, state, emulator)
 
 
-def _get_classify_output(emulator, class_name):
+def _get_classify_output(emulator, class_name, one_hot_axis=0):
     names = sorted(CLASS_NAMES)
     idx = names.index(class_name)
     logit_classes = emulator["gscond_classes"]
     # TODO this should probably be in transforms
-    one_hot = logit_classes == np.max(logit_classes, axis=0, keepdims=True)
+    one_hot = logit_classes == np.max(logit_classes, axis=one_hot_axis, keepdims=True)
     return one_hot[idx]
 
 
