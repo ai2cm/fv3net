@@ -41,7 +41,7 @@ from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.keras import save_model
 from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.models import (
-    transform_model,
+    TransformedModel,
     MicrophysicsConfig,
     ConservativeWaterConfig,
 )
@@ -180,15 +180,16 @@ class TransformedParameters(Hyperparameters):
                 "Neither .model, .conservative_model, nor .transformed_model provided."
             )
 
-    def build_model(
-        self, data: Mapping[str, tf.Tensor], transform: TensorTransform
-    ) -> tf.keras.Model:
-        inputs = {
+    def build_inputs(self, data):
+        return {
             name: tf.keras.Input(data[name].shape[1:], name=name)
             for name in self.input_variables
         }
-        inner_model = self._model.build(transform.forward(data))
-        return transform_model(inner_model, transform, inputs)
+
+    def build_model(
+        self, data: Mapping[str, tf.Tensor], transform: TensorTransform
+    ) -> tf.keras.Model:
+        return self._model.build(transform.forward(data))
 
     def build_loss(
         self, data: Mapping[str, tf.Tensor], transform: TensorTransform
@@ -431,14 +432,19 @@ def _train_function_unbatched(
 
     train_ds = train_ds.map(transform.forward)
 
-    model = config.build_model(train_set, transform)
+    inner_model = config.build_model(train_set, transform)
+    inputs = config.build_inputs(train_set)
+
+    transformed_model = TransformedModel(inner_model, transform, inputs)
+    model = transformed_model.as_functional_model()
 
     if config.checkpoint_model:
         callbacks.append(
             ModelCheckpointCallback(
+                model=transformed_model,
                 filepath=os.path.join(
                     config.out_url, "checkpoints", "epoch.{epoch:03d}.tf"
-                )
+                ),
             )
         )
 
@@ -463,7 +469,7 @@ def _train_function_unbatched(
     )
 
     return PureKerasDictPredictor(
-        model, passthrough=(model, transform, history, train_set)
+        model, passthrough=(history, train_set, transformed_model)
     )
 
 
@@ -487,19 +493,17 @@ def main(config: TrainConfig, seed: int = 0):
     ).print_json()
 
     predictor = train_function(config, train_ds, test_ds)
-    model, transform, history, train_set = predictor.passthrough  # type: ignore
+    history, train_set, transformed_model = predictor.passthrough  # type: ignore
 
     logger.debug("Training complete")
 
     with put_dir(config.out_url) as tmpdir:
-
+        local_model_path = save_model(transformed_model, tmpdir)
         with open(os.path.join(tmpdir, "history.json"), "w") as f:
             json.dump(history.params, f)
 
         with open(os.path.join(tmpdir, "config.yaml"), "w") as f:
             f.write(config.to_yaml())
-
-        local_model_path = save_model(model, tmpdir)
 
         if config.use_wandb:
             store_model_artifact(local_model_path, name=config._model.name)
@@ -508,8 +512,8 @@ def main(config: TrainConfig, seed: int = 0):
     log_fact_json(data={"train_time_seconds": end - start})
 
     # Jacobians after model storing in case of "out of memory" errors
-    sample = transform.forward(train_set)
-    jacobians = compute_jacobians(model, sample, config.input_variables)
+    sample = transformed_model.forward(train_set)
+    jacobians = compute_jacobians(transformed_model, sample, config.input_variables)
     std_factors = {
         name: np.array(float(standard_deviation_all_features(data)))
         for name, data in sample.items()
