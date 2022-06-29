@@ -1,6 +1,7 @@
 import dataclasses
 import tensorflow as tf
 import wandb
+from typing import List, Optional
 
 # Add third party callbacks here to make them available in training
 ADDITIONAL_CALLBACKS = {"WandbCallback": wandb.keras.WandbCallback}
@@ -78,3 +79,11 @@ class EpochModelCheckpoint(tf.keras.callbacks.ModelCheckpoint):
 
     def on_train_batch_end(self, batch, logs=None):
         pass
+
+
+def get_checkpoint_dir_if_exists(callbacks: List[CallbackConfig]) -> Optional[str]:
+    for callback in callbacks:
+        if callback.name in ["ModelCheckpoint", "EpochModelCheckpoint"]:
+            return callback.kwargs["filepath"].split("/")[0]
+    else:
+        return None

@@ -12,7 +12,7 @@ from fv3fit.keras.adapters import (
     ensure_tuple_model,
 )
 import tensorflow as tf
-from typing import Any, Dict, Hashable, Iterable, Sequence, Mapping
+from typing import Any, Dict, Hashable, Iterable, Sequence, Mapping, Optional
 import xarray as xr
 import os
 from ...._shared import get_dir, put_dir, InputSensitivity
@@ -20,6 +20,7 @@ import yaml
 import numpy as np
 from .halos import append_halos, append_halos_using_mpi
 from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
+import shutil
 
 
 @io.register("all-keras")
@@ -40,6 +41,7 @@ class PureKerasModel(Predictor):
         model: tf.keras.Model,
         unstacked_dims: Sequence[str],
         n_halo: int = 0,
+        checkpoint_dir: Optional[str] = None,
     ):
         """Initialize the predictor
 
@@ -56,6 +58,7 @@ class PureKerasModel(Predictor):
         self.model = model
         self._n_halo = n_halo
         self._unstacked_dims = unstacked_dims
+        self._checkpoint_dir = checkpoint_dir
 
     @classmethod
     def load(cls, path: str) -> "PureKerasModel":
@@ -130,8 +133,13 @@ class PureKerasModel(Predictor):
                             "output_variables": self.output_variables,
                             "unstacked_dims": self._unstacked_dims,
                             "n_halo": self._n_halo,
+                            "checkpoint_dir": self._checkpoint_dir,
                         }
                     )
+                )
+            if self._checkpoint_dir is not None:
+                shutil.move(
+                    self._checkpoint_dir, os.path.join(path, self._checkpoint_dir)
                 )
 
     def get_dict_compatible_model(self) -> tf.keras.Model:

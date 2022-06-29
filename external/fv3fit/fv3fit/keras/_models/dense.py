@@ -30,6 +30,7 @@ from fv3fit.keras._models.shared import (
     LossConfig,
     OutputLimitConfig,
     CallbackConfig,
+    get_checkpoint_dir_if_exists,
 )
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
@@ -223,13 +224,16 @@ def train_column_model(
         validation_data=val_Xy,
         callbacks=[callback.instance for callback in callbacks],
     )
+
     predictor = PureKerasModel(
         input_variables=input_variables,
         output_variables=output_variables,
         model=predict_model,
         unstacked_dims=("z",),
         n_halo=0,
+        checkpoint_dir=get_checkpoint_dir_if_exists(callbacks),
     )
+
     return predictor
 
 
