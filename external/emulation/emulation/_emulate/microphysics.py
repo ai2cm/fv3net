@@ -79,7 +79,7 @@ def always_emulator(state: FortranState, emulator: FortranState):
     return emulator
 
 
-def predict(model: tf.keras.Model, state: FortranState) -> FortranState:
+def _predict(model: tf.keras.Model, state: FortranState) -> FortranState:
     # grab model-required variables and
     # switch state to model-expected [sample, feature]
     inputs = {name: state[name].T for name in model.input_names}
