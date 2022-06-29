@@ -517,6 +517,7 @@ def main(config: TrainConfig, seed: int = 0):
     std_factors = {
         name: np.array(float(standard_deviation_all_features(data)))
         for name, data in sample.items()
+        if data.dtype != tf.bool
     }
     std_jacobians = nondimensionalize_jacobians(jacobians, std_factors)
 
