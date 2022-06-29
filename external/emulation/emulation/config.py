@@ -153,7 +153,7 @@ class EmulationConfig:
         elif self.gscond is not None:
             return self.gscond
         else:
-            return None
+            raise ValueError("no model configuration defined.")
 
     def build_storage_hook(self):
         hook = _get_storage_hook(self.storage)

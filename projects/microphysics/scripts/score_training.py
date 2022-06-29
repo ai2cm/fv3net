@@ -55,7 +55,7 @@ def _transpose(d):
 
 
 def _apply_mask_with_transpose(mask, emulated, state):
-    # prognostic run data is [feature, sample] dimensions
+    # prognostic runtime mask expects [feature, sample] dimensions
     out = mask(_transpose(state), _transpose(emulated))
     return _transpose(out)
 
