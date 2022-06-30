@@ -21,7 +21,7 @@ from fv3fit.wandb import (
 import vcm
 from vcm import get_fs
 import yaml
-from emulation.config import EmulationConfig
+from emulation.config import EmulationConfig, ModelConfig
 from emulation.masks import Mask
 from emulation.zhao_carr import Input, GscondOutput
 
@@ -187,19 +187,18 @@ def main(
         log_profile_plots(test_set, pred_sample)
 
 
-def _get_defined_model_config(emu_config: EmulationConfig):
+def _get_defined_model_config(emu_config: EmulationConfig) -> ModelConfig:
     # Based on GFS_physics_driver only one of model or gscond
     # should be provided, return whichever that is
 
-    if emu_config.model is None and emu_config.gscond is None:
+    if emu_config.model is not None:
+        return emu_config.model
+    elif emu_config.gscond is not None:
+        return emu_config.gscond
+    else:
         raise ValueError(
             "Both model and gscond attributes are undefind for provided EmulationConfig"
         )
-
-    if emu_config.model is not None:
-        return emu_config.model
-    else:
-        return emu_config.gscond
 
 
 def get_mask_and_emu_url_from_prog_config(
@@ -214,7 +213,7 @@ def get_mask_and_emu_url_from_prog_config(
     if "zhao_carr_emulation" in d:
 
         emu_config = EmulationConfig.from_dict(d["zhao_carr_emulation"])
-        model_config = emu_config.get_defined_model_config()
+        model_config = _get_defined_model_config(emu_config)
 
         model_url = model_config.path
         mask = model_config.build_mask()
