@@ -25,21 +25,27 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-@print_errors
 def _load_tf_model(model_path: str) -> tf.keras.Model:
     logger.info(f"Loading keras model: {model_path}")
     with get_dir(model_path) as local_model_path:
-        model = tf.keras.models.load_model(local_model_path)
-        # These following two adapters are for backwards compatibility
-        dict_output_model = adapters.ensure_dict_output(model)
-        return adapters.rename_dict_output(
-            dict_output_model,
-            translation={
-                "air_temperature_output": "air_temperature_after_precpd",
-                "specific_humidity_output": "specific_humidity_after_precpd",
-                "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
-            },
-        )
+        return tf.keras.models.load_model(local_model_path)
+
+
+@print_errors
+def _load_tf_model_compatibility(model_path: str) -> tf.keras.Model:
+
+    model = _load_tf_model(model_path)
+
+    # These following two adapters are for backwards compatibility
+    dict_output_model = adapters.ensure_dict_output(model)
+    return adapters.rename_dict_output(
+        dict_output_model,
+        translation={
+            "air_temperature_output": "air_temperature_after_precpd",
+            "specific_humidity_output": "specific_humidity_after_precpd",
+            "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
+        },
+    )
 
 
 @dataclass
@@ -73,6 +79,18 @@ def always_emulator(state: FortranState, emulator: FortranState):
     return emulator
 
 
+def _predict(model: tf.keras.Model, state: FortranState) -> FortranState:
+    # grab model-required variables and
+    # switch state to model-expected [sample, feature]
+    inputs = {name: state[name].T for name in model.input_names}
+
+    predictions = model.predict(inputs)
+    # tranpose back to FV3 conventions
+    model_outputs = {name: tensor.T for name, tensor in predictions.items()}
+
+    return model_outputs
+
+
 class MicrophysicsHook:
     """Object that applies a ML model to the fortran state"""
 
@@ -81,6 +99,7 @@ class MicrophysicsHook:
         model_path: str,
         mask: Mask = always_emulator,
         garbage_collection_interval: int = 10,
+        classifier_path: str = None,
     ) -> None:
         """
 
@@ -92,11 +111,15 @@ class MicrophysicsHook:
         """
 
         self.name = "microphysics emulator"
-        self.model = _load_tf_model(model_path)
+        self.model = _load_tf_model_compatibility(model_path)
         self.orig_outputs = None
         self.garbage_collection_interval = garbage_collection_interval
         self.mask = mask
         self._calls_since_last_collection = 0
+
+        self.classifier = (
+            _load_tf_model(classifier_path) if classifier_path is not None else None
+        )
 
     def _maybe_garbage_collect(self):
         if self._calls_since_last_collection % self.garbage_collection_interval:
@@ -117,13 +140,10 @@ class MicrophysicsHook:
                 dimensions or [sample]
         """
 
-        # grab model-required variables and
-        # switch state to model-expected [sample, feature]
-        inputs = {name: state[name].T for name in self.model.input_names}
-
-        predictions = self.model.predict(inputs)
-        # tranpose back to FV3 conventions
-        model_outputs = {name: tensor.T for name, tensor in predictions.items()}
+        model_outputs = _predict(self.model, state)
+        if self.classifier is not None:
+            classifier_outputs = _predict(self.classifier, state)
+            model_outputs.update(classifier_outputs)
 
         # fields stay in global state so check overwrites on first step
         if self.orig_outputs is None:

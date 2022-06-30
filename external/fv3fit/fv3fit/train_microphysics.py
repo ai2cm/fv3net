@@ -50,6 +50,7 @@ from fv3fit.emulation.transforms import (
     TransformedVariableConfig,
     CloudWaterDiffPrecpd,
     GscondClassesV1,
+    GscondClassesV1OneHot,
 )
 
 from fv3fit.emulation.layers.normalization import standard_deviation_all_features
@@ -138,6 +139,7 @@ class TransformedParameters(Hyperparameters):
             Difference,
             CloudWaterDiffPrecpd,
             GscondClassesV1,
+            GscondClassesV1OneHot,
         ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
@@ -265,6 +267,7 @@ class TrainConfig(TransformedParameters):
             Difference,
             CloudWaterDiffPrecpd,
             GscondClassesV1,
+            GscondClassesV1OneHot,
         ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None

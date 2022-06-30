@@ -1,0 +1,67 @@
+use_wandb: true
+wandb:
+  wandb_project: microphysics-emulation
+batch_size: 512
+epochs: 25
+nfiles_valid: 100
+valid_freq: 2
+out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
+train_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/train
+test_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test
+tensor_transform:
+  - to: log_cloud_input
+    source: cloud_water_mixing_ratio_input
+    transform: {epsilon: 1e-10}
+  - to: log_humidity_input
+    source: specific_humidity_input
+    transform: {epsilon: 1e-8}
+  - to: log_humidity_after_last_gscond
+    source: specific_humidity_after_last_gscond
+    transform: {epsilon: 1e-8}
+  # the clasification categories
+  - cloud_in: "cloud_water_mixing_ratio_input"
+    to: gscond_classes
+loss:
+  optimizer:
+    kwargs:
+      learning_rate: 0.001
+    name: Adam
+  metric_variables: []
+  logit_variables:
+    - gscond_classes
+  weights:
+    gscond_classes: 1.0
+model:
+  architecture:
+    kwargs:
+      width: 256
+      depth: 2
+    name: dense-local
+    output_channels:
+      gscond_classes: 4
+  input_variables:
+  - air_temperature_input
+  - specific_humidity_input
+  - cloud_water_mixing_ratio_input
+  - log_cloud_input
+  - log_humidity_input
+  - pressure_thickness_of_atmospheric_layer
+  - air_temperature_after_last_gscond
+  - specific_humidity_after_last_gscond
+  - log_humidity_after_last_gscond
+  - air_pressure
+  - surface_air_pressure
+  - surface_air_pressure_after_last_gscond
+  unscaled_outputs:
+    - gscond_classes
+  normalize_default:
+    center: per_feature
+    scale: all
+  selection_map: {}
+  timestep_increment_sec: 900
+transform:
+  antarctic_only: false
+  derived_microphys_timestep: 900
+  use_tensors: true
+  vertical_subselections: null
+
