@@ -4,9 +4,10 @@ import cftime
 import gc
 import sys
 
-from .._typing import FortranState
+from emulation._typing import FortranState
 from emulation.masks import Mask
-from .._time import translate_time
+from emulation.zhao_carr import _get_classify_output
+from emulation._time import translate_time
 
 # Tensorflow looks at sys args which are not initialized
 # when this module is loaded under callpyfort, so ensure
@@ -17,9 +18,8 @@ if not hasattr(sys, "argv"):
 import logging  # noqa: E402
 import tensorflow as tf  # noqa: E402
 
-from ..debug import print_errors  # noqa: E402
 from fv3fit.keras import adapters  # noqa: E402
-from .._filesystem import get_dir  # noqa: E402
+from emulation._filesystem import get_dir  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -31,21 +31,32 @@ def _load_tf_model(model_path: str) -> tf.keras.Model:
         return tf.keras.models.load_model(local_model_path)
 
 
-@print_errors
-def _load_tf_model_compatibility(model_path: str) -> tf.keras.Model:
+class ModelWithClassifier:
+    def __init__(self, model, classifier=None):
+        self.model = model
+        self.classifier = classifier
 
-    model = _load_tf_model(model_path)
+    def __call__(self, state: FortranState):
+        model_outputs = _predict(self.model, state)
+        if self.classifier is not None:
+            classifier_outputs = _predict(self.classifier, state)
+            model_outputs.update(classifier_outputs)
+        return model_outputs
 
-    # These following two adapters are for backwards compatibility
-    dict_output_model = adapters.ensure_dict_output(model)
-    return adapters.rename_dict_output(
-        dict_output_model,
-        translation={
-            "air_temperature_output": "air_temperature_after_precpd",
-            "specific_humidity_output": "specific_humidity_after_precpd",
-            "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
-        },
-    )
+
+class TransformedModelWithClassifier:
+    def __init__(self, model, classifier):
+        self.model = model
+        self.classifier = classifier
+
+    def __call__(self, state: FortranState) -> FortranState:
+        transformed_inputs = _predict(self.model.forward, state)
+        classes_one_hot = _predict(self.classifier, state)
+        classes = _get_classify_output(classes_one_hot)
+        # need to override any existing classes with the prediction
+        transformed_inputs.update(classes)
+        model_output = _predict(self.model.inner_model, transformed_inputs)
+        return _predict(self.model.backward, model_output)
 
 
 @dataclass
@@ -91,6 +102,31 @@ def _predict(model: tf.keras.Model, state: FortranState) -> FortranState:
     return model_outputs
 
 
+def _open_model_and_classifier(model_path, classifier_path):
+    model = _load_tf_model(model_path)
+    classifier = (
+        _load_tf_model(classifier_path) if classifier_path is not None else None
+    )
+
+    try:
+        model.get_model_inputs()
+        logger.info("fv3fit.emulation.models.TransformedModel detected")
+        return TransformedModelWithClassifier(model, classifier)
+    except AttributeError:
+        logger.info("tf.keras.Model detected")
+        # These following two adapters are for backwards compatibility
+        dict_output_model = adapters.ensure_dict_output(model)
+        model = adapters.rename_dict_output(
+            dict_output_model,
+            translation={
+                "air_temperature_output": "air_temperature_after_precpd",
+                "specific_humidity_output": "specific_humidity_after_precpd",
+                "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
+            },
+        )
+        return ModelWithClassifier(model, classifier)
+
+
 class MicrophysicsHook:
     """Object that applies a ML model to the fortran state"""
 
@@ -111,15 +147,11 @@ class MicrophysicsHook:
         """
 
         self.name = "microphysics emulator"
-        self.model = _load_tf_model_compatibility(model_path)
         self.orig_outputs = None
         self.garbage_collection_interval = garbage_collection_interval
         self.mask = mask
         self._calls_since_last_collection = 0
-
-        self.classifier = (
-            _load_tf_model(classifier_path) if classifier_path is not None else None
-        )
+        self.model = _open_model_and_classifier(model_path, classifier_path)
 
     def _maybe_garbage_collect(self):
         if self._calls_since_last_collection % self.garbage_collection_interval:
@@ -139,11 +171,7 @@ class MicrophysicsHook:
                 'set_state' calls.  Expected to be [feature, sample]
                 dimensions or [sample]
         """
-
-        model_outputs = _predict(self.model, state)
-        if self.classifier is not None:
-            classifier_outputs = _predict(self.classifier, state)
-            model_outputs.update(classifier_outputs)
+        model_outputs = self.model(state)
 
         # fields stay in global state so check overwrites on first step
         if self.orig_outputs is None:
