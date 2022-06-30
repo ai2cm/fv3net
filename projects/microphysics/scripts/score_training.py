@@ -4,7 +4,7 @@ from toolz import get
 import logging
 from pathlib import Path
 import sys
-from typing import MutableMapping, Mapping, Optional, Tuple
+from typing import Mapping, Optional, Tuple
 from fv3net.artifacts.metadata import StepMetadata, log_fact_json
 import numpy as np
 import os
@@ -64,7 +64,6 @@ def score_model(
     targets: Mapping, predictions: Mapping, mask: Optional[Mask] = None
 ) -> ScoringOutput:
 
-    targets: MutableMapping = {**targets}
     if mask is not None:
         predictions = _apply_mask_with_transpose(mask, predictions, targets)
 
@@ -211,7 +210,6 @@ def get_mask_and_emu_url_from_prog_config(
         d = yaml.safe_load(f) or {}
 
     if "zhao_carr_emulation" in d:
-
         emu_config = EmulationConfig.from_dict(d["zhao_carr_emulation"])
         model_config = _get_defined_model_config(emu_config)
 
@@ -219,11 +217,14 @@ def get_mask_and_emu_url_from_prog_config(
         mask = model_config.build_mask()
         return mask, model_url
     else:
+        # Empty config file, or no zhao_carr_emulation defined
         return None, None
 
 
 def get_train_config_from_model_url(model_url: str) -> str:
+    # parent that preserves protocol, e.g. "gs://", at the beginning
     train_config_parent = "/".join(model_url.split("/")[:-1])
+    # hard coded to saved output config from train_microphysics.py
     train_config_url = os.path.join(train_config_parent, "config.yaml")
 
     return train_config_url
