@@ -140,9 +140,9 @@ class MicrophysicsHook:
                 dimensions or [sample]
         """
 
-        model_outputs = predict(self.model, state)
+        model_outputs = _predict(self.model, state)
         if self.classifier is not None:
-            classifier_outputs = predict(self.classifier, state)
+            classifier_outputs = _predict(self.classifier, state)
             model_outputs.update(classifier_outputs)
 
         # fields stay in global state so check overwrites on first step
