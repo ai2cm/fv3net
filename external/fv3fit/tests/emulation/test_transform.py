@@ -10,6 +10,7 @@ from fv3fit.emulation.transforms import (
     TransformedVariableConfig,
     LimitValueTransform,
     TendencyToFlux,
+    MoistStaticEnergyTransform,
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
 from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional
@@ -407,3 +408,14 @@ def test_TendencyToFlux_backward_names():
     expected_requested_names = {"a", "d", "e", "f"}
     requested_names = transform.backward_names({"b", "c"})
     assert expected_requested_names == requested_names
+
+
+def test_MoistStaticEnergyTransform_round_trip():
+    heating = tf.convert_to_tensor([1.0, 1, 2])
+    moistening = tf.convert_to_tensor([0.5, 1, 2])
+    x = {"Q1": heating, "Q2": moistening}
+    transform = MoistStaticEnergyTransform("Q1", "Q2", "Qm")
+    x_round_tripped = transform.backward(transform.forward(x))
+    np.testing.assert_allclose(x_round_tripped["Q1"], x["Q1"], rtol=1e-5, atol=1e-3)
+    np.testing.assert_allclose(x_round_tripped["Q2"], x["Q2"])
+    assert "Qm" in x_round_tripped
