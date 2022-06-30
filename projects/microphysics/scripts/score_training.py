@@ -199,6 +199,21 @@ def main(
         log_profile_plots(test_set, pred_sample)
 
 
+def _get_defined_model_config(emu_config: EmulationConfig):
+    # Based on GFS_physics_driver only one of model or gscond
+    # should be provided, return whichever that is
+
+    if emu_config.model is None and emu_config.gscond is None:
+        raise ValueError(
+            "Both model and gscond attributes are undefind for provided EmulationConfig"
+        )
+
+    if emu_config.model is not None:
+        return emu_config.model
+    else:
+        return emu_config.gscond
+
+
 def get_mask_and_emu_url_from_prog_config(
     config: Optional[Path] = None,
 ) -> Tuple[Optional[Mask], Optional[str]]:
