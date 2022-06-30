@@ -4,6 +4,7 @@ from typing import Callable, List, Union, Set, Optional
 import tensorflow as tf
 from typing_extensions import Protocol
 from fv3fit.emulation.types import TensorDict
+import vcm
 
 
 class TensorTransform(Protocol):
@@ -166,7 +167,7 @@ class TendencyToFlux(TensorTransform):
     up_sfc_flux: str
     delp: str
     net_toa_flux: Optional[str] = None  # if not provided, assume TOA flux is zero
-    gravity: float = 9.8065
+    gravity: float = 9.8065  # TODO: define vcm mass integral function for tensors
 
     def build(self, sample: TensorDict) -> TensorTransform:
         return self
@@ -228,8 +229,6 @@ class MoistStaticEnergyTransform(TensorTransform):
     heating: str
     moistening: str
     mse_tendency: str
-    cv: float = 1004 - 287.05
-    Lv: float = 2.5e6
 
     def build(self, sample: TensorDict) -> TensorTransform:
         return self
@@ -244,13 +243,15 @@ class MoistStaticEnergyTransform(TensorTransform):
 
     def forward(self, y: TensorDict):
         y = {**y}
-        y[self.mse_tendency] = self.cv * y[self.heating] + self.Lv * y[self.moistening]
+        y[self.mse_tendency] = vcm.moist_static_energy_tendency(
+            y[self.heating], y[self.moistening]
+        )
         return y
 
     def backward(self, x: TensorDict):
         x = {**x}
-        x[self.heating] = (1 / self.cv) * (
-            x[self.mse_tendency] - self.Lv * x[self.moistening]
+        x[self.heating] = vcm.temperature_tendency(
+            x[self.mse_tendency], x[self.moistening]
         )
         return x
 
