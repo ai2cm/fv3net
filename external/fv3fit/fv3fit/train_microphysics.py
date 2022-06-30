@@ -52,6 +52,7 @@ from fv3fit.emulation.transforms import (
     GscondClassesV1,
     GscondClassesV1OneHot,
     TendencyToFlux,
+    SurfaceFlux,
     MoistStaticEnergyTransform,
 )
 
@@ -143,6 +144,7 @@ class TransformedParameters(Hyperparameters):
             GscondClassesV1,
             GscondClassesV1OneHot,
             TendencyToFlux,
+            SurfaceFlux,
             MoistStaticEnergyTransform,
         ]
     ] = field(default_factory=list)
@@ -188,7 +190,10 @@ class TransformedParameters(Hyperparameters):
         self, data: Mapping[str, tf.Tensor], transform: TensorTransform
     ) -> tf.keras.Model:
         input_names = set(self.input_variables)
-        if any(isinstance(x, TendencyToFlux) for x in self.tensor_transform):
+        if any(
+            isinstance(x, TendencyToFlux) or isinstance(x, SurfaceFlux)
+            for x in self.tensor_transform
+        ):
             # this transform is applied to outputs and so need to manually specify
             # pressure thickness as an auxiliary input
             input_names |= {"pressure_thickness_of_atmospheric_layer"}
@@ -280,6 +285,7 @@ class TrainConfig(TransformedParameters):
             GscondClassesV1,
             GscondClassesV1OneHot,
             TendencyToFlux,
+            SurfaceFlux,
             MoistStaticEnergyTransform,
         ]
     ] = field(default_factory=list)
