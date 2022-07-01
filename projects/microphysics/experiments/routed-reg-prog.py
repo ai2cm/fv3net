@@ -9,8 +9,8 @@ from end_to_end import (
 )  # noqa: E402
 
 
-name = "gscond-routed-reg-v3-prog-v5"
-image = "2fec4c64a1326374b98f755e384e98b487ef7c2f"
+name = "gscond-routed-reg-v3-prog-v6"
+image = "7250d75ac38bfc4c163d33371eb7428a4afd341f"
 
 
 config = load_yaml("../configs/gscond-only.yaml")
