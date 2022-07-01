@@ -5,17 +5,18 @@ function usage {
     >&2 echo "google_log_cat [-n numrecords ] <podname>"
 }
 
-if [[ $# < 1 ]]
+if [[ $# -lt 1 ]]
 then
     usage
     exit 1
 fi
 
-args=""
-while [[ $# > 0 ]]; do
+args=()
+while [[ $# -gt 0 ]]; do
     case $1 in
         -n)
-            n="--limit $2"
+            args+=("--limit")
+            args+=("$2")
             shift
             shift
             ;;
@@ -28,5 +29,5 @@ done
 
 gcloud logging read \
 "resource.labels.pod_name=$pod" \
-$n \
+"${args[@]}" \
 --format='value(jsonPayload.message)' | grep -v '^$' | tac
