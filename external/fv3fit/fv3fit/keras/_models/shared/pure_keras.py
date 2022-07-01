@@ -76,6 +76,7 @@ class PureKerasModel(Predictor):
                 model,
                 unstacked_dims=config.get("unstacked_dims", None),
                 n_halo=config.get("n_halo", 0),
+                checkpoint_dir=config.get("checkpoint_dir", None),
             )
             return obj
 
