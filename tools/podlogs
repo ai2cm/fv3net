@@ -1,0 +1,32 @@
+#!/bin/bash
+
+function usage {
+    >&2 echo "Usage:"
+    >&2 echo "google_log_cat [-n numrecords ] <podname>"
+}
+
+if [[ $# < 1 ]]
+then
+    usage
+    exit 1
+fi
+
+args=""
+while [[ $# > 0 ]]; do
+    case $1 in
+        -n)
+            n="--limit $2"
+            shift
+            shift
+            ;;
+        *)
+            pod=$1
+            shift
+            ;;
+    esac
+done
+
+gcloud logging read \
+"resource.labels.pod_name=$pod" \
+$n \
+--format='value(jsonPayload.message)' | grep -v '^$' | tac
