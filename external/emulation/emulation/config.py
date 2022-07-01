@@ -75,6 +75,7 @@ class ModelConfig:
     """
 
     path: str
+    classifier_path: Optional[str] = None
     online_schedule: Optional[IntervalSchedule] = None
     ranges: Mapping[str, Range] = dataclasses.field(default_factory=dict)
     mask_emulator_levels: Mapping[str, LevelSlice] = dataclasses.field(
@@ -85,9 +86,13 @@ class ModelConfig:
     mask_gscond_identical_cloud: bool = False
     mask_gscond_zero_cloud: bool = False
     enforce_conservative: bool = False
+    mask_gscond_zero_cloud_classifier: bool = False
+    mask_gscond_no_tend_classifier: bool = False
 
     def build(self) -> MicrophysicsHook:
-        return MicrophysicsHook(self.path, mask=self.build_mask())
+        return MicrophysicsHook(
+            self.path, mask=self.build_mask(), classifier_path=self.classifier_path
+        )
 
     def build_mask(self) -> Mask:
         return compose_masks(self._build_masks())
@@ -115,6 +120,12 @@ class ModelConfig:
 
         if self.mask_gscond_zero_cloud:
             yield emulation.zhao_carr.mask_where_fortran_cloud_vanishes_gscond
+
+        if self.mask_gscond_no_tend_classifier:
+            yield emulation.zhao_carr.mask_zero_tend_classifier
+
+        if self.mask_gscond_zero_cloud_classifier:
+            yield emulation.zhao_carr.mask_zero_cloud_classifier
 
         if self.enforce_conservative:
             yield emulation.zhao_carr.enforce_conservative_gscond
@@ -156,7 +167,8 @@ class EmulationConfig:
                 type_hooks={
                     cftime.DatetimeJulian: from_datetime,
                     datetime.timedelta: lambda x: datetime.timedelta(seconds=x),
-                }
+                },
+                strict=True,
             ),
         )
 
