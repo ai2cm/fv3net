@@ -2,7 +2,9 @@ import argparse
 import logging
 import os
 from typing import Optional, Sequence, Tuple
+import tensorflow as tf
 from fv3fit._shared.config import (
+    CacheConfig,
     get_arg_updated_config_dict,
     to_flat_dict,
     to_nested_dict,
@@ -13,12 +15,8 @@ import fsspec
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
-import loaders
-import loaders.typing
+from .data import FromBatches
 import tempfile
-from loaders.batches.save import main as save_main
-from fv3fit.tfdataset import tfdataset_from_batches
-import tensorflow as tf
 from fv3fit.dataclasses import asdict_with_enum
 import wandb
 import sys
@@ -67,113 +65,39 @@ def dump_dataclass(obj, yaml_filename):
         yaml.safe_dump(asdict_with_enum(obj), f)
 
 
-def get_data(
-    training_data_config: str,
-    validation_data_config: Optional[str],
-    local_download_path: Optional[str],
-    variable_names: Sequence[str],
-    in_memory: bool = False,
+def maybe_join_path(base: Optional[str], append: str) -> Optional[str]:
+    if base is not None:
+        return os.path.join(base, append)
+    else:
+        return None
+
+
+def load_data(
+    variables: Sequence[str],
+    training_data_config: FromBatches,
+    validation_data_config: Optional[FromBatches],
+    cache_config: CacheConfig,
 ) -> Tuple[tf.data.Dataset, Optional[tf.data.Dataset]]:
-    """
-    Args:
-        training_data_config: configuration of training data
-        validation_data_config:  if provided, configuration of validation data. If None,
-            an empty list will be returned for validation data.
-        local_download_path: if provided, cache data locally at this path
-        variable_names: names of variables to include when loading data
-        in_memory: if True, returned tfdatasets will use in-memory caching
-    Returns:
-        Training and validation data
-    """
-    if local_download_path is None:
-        train_batches, val_batches = get_uncached_data(
-            training_data_config=training_data_config,
-            validation_data_config=validation_data_config,
-            variable_names=variable_names,
-        )
-    else:
-        train_batches, val_batches = get_cached_data(
-            training_data_config=training_data_config,
-            validation_data_config=validation_data_config,
-            local_download_path=local_download_path,
-            variable_names=variable_names,
-            in_memory=in_memory,
-        )
-    logger.info(f"Following variables are in train batches: {list(train_batches[0])}")
-    # tensorflow training shuffles within blocks of samples,
-    # so we must pre-shuffle batches in order that contiguous blocks
-    # of samples contain temporally-distant data
-    train_batches = loaders.batches.shuffle(train_batches)
-    train_dataset = tfdataset_from_batches(train_batches)
-    if len(val_batches) > 0:
-        val_batches = loaders.batches.shuffle(val_batches)
-        val_dataset = tfdataset_from_batches(val_batches)
-    else:
-        val_dataset = None
-    if in_memory:
-        train_dataset = train_dataset.cache()
-        if val_dataset is not None:
-            val_dataset = val_dataset.cache()
-    return train_dataset, val_dataset
-
-
-def get_uncached_data(
-    training_data_config: str,
-    validation_data_config: Optional[str],
-    variable_names: Sequence[str],
-) -> Tuple[loaders.typing.Batches, loaders.typing.Batches]:
-    with open(training_data_config, "r") as f:
-        config = yaml.safe_load(f)
-    loader = loaders.BatchesLoader.from_dict(config)
-    logger.info("configuration loaded, creating batches object")
-    train_batches = loader.load_batches(variables=variable_names)
-    if validation_data_config is not None:
-        with open(validation_data_config, "r") as f:
-            config = yaml.safe_load(f)
-        loader = loaders.BatchesLoader.from_dict(config)
-        logger.info("configuration loaded, creating batches object")
-        val_batches = loader.load_batches(variables=variable_names)
-    else:
-        val_batches = []
-    return train_batches, val_batches
-
-
-def get_cached_data(
-    training_data_config: str,
-    validation_data_config: Optional[str],
-    local_download_path: str,
-    variable_names: Sequence[str],
-    in_memory: bool,
-) -> Tuple[loaders.typing.Batches, loaders.typing.Batches]:
-    train_data_path = os.path.join(local_download_path, "train_data")
-    logger.info("saving training data to %s", train_data_path)
-    logger.info(f"using in_memory={in_memory} for cached training data")
-    os.makedirs(train_data_path, exist_ok=True)
-    save_main(
-        data_config=training_data_config,
-        output_path=train_data_path,
-        variable_names=variable_names,
+    train_tfdataset = training_data_config.get_data(
+        local_download_path=maybe_join_path(
+            cache_config.local_download_path, "train_data"
+        ),
+        variable_names=variables,
     )
-    train_batches = loaders.batches_from_netcdf(
-        path=train_data_path, variable_names=variable_names, in_memory=in_memory
-    )
+    if cache_config.in_memory:
+        train_tfdataset = train_tfdataset.cache()
     if validation_data_config is not None:
-        validation_data_path = os.path.join(local_download_path, "validation_data")
-        logger.info("saving validation data to %s", validation_data_path)
-        os.makedirs(validation_data_path, exist_ok=True)
-        save_main(
-            data_config=validation_data_config,
-            output_path=validation_data_path,
-            variable_names=variable_names,
+        validation_tfdataset = validation_data_config.get_data(
+            local_download_path=maybe_join_path(
+                cache_config.local_download_path, "validation_data"
+            ),
+            variable_names=variables,
         )
-        val_batches = loaders.batches_from_netcdf(
-            path=validation_data_path,
-            variable_names=variable_names,
-            in_memory=in_memory,
-        )
+        if cache_config.in_memory:
+            validation_tfdataset = validation_tfdataset.cache()
     else:
-        val_batches = []
-    return train_batches, val_batches
+        validation_tfdataset = None
+    return train_tfdataset, validation_tfdataset
 
 
 def main(args, unknown_args=None):
@@ -205,9 +129,17 @@ def main(args, unknown_args=None):
 
     with open(args.training_data_config, "r") as f:
         config_dict = yaml.safe_load(f)
-        training_data_config = loaders.BatchesLoader.from_dict(config_dict)
+        training_data_config = FromBatches.from_dict(config_dict)
         if args.no_wandb is False:
             wandb.config["training_data_config"] = config_dict
+    if args.validation_data_config is not None:
+        with open(args.validation_data_config, "r") as f:
+            config_dict = yaml.safe_load(f)
+            validation_data_config = FromBatches.from_dict(config_dict)
+            if args.no_wandb is False:
+                wandb.config["validation_data_config"] = config_dict
+    else:
+        validation_data_config = None
 
     fv3fit.set_random_seed(training_config.random_seed)
 
@@ -216,12 +148,11 @@ def main(args, unknown_args=None):
         training_data_config, os.path.join(args.output_path, "training_data.yaml")
     )
 
-    train_batches, val_batches = get_data(
-        args.training_data_config,
-        args.validation_data_config,
-        training_config.cache.local_download_path,
-        variable_names=training_config.variables,
-        in_memory=training_config.cache.in_memory,
+    train_tfdataset, validation_tfdataset = load_data(
+        training_config.variables,
+        training_data_config,
+        validation_data_config,
+        training_config.cache,
     )
 
     train = fv3fit.get_training_function(training_config.model_type)
@@ -229,8 +160,8 @@ def main(args, unknown_args=None):
     logger.info("calling train function")
     model = train(
         hyperparameters=training_config.hyperparameters,
-        train_batches=train_batches,
-        validation_batches=val_batches,
+        train_batches=train_tfdataset,
+        validation_batches=validation_tfdataset,
     )
     if len(training_config.derived_output_variables) > 0:
         model = fv3fit.DerivedModel(model, training_config.derived_output_variables)
