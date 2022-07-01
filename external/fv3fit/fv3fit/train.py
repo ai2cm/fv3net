@@ -15,7 +15,7 @@ import fsspec
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
-from .data import FromBatches
+from .data import TFDatasetLoader
 import tempfile
 from fv3fit.dataclasses import asdict_with_enum
 import wandb
@@ -74,8 +74,8 @@ def maybe_join_path(base: Optional[str], append: str) -> Optional[str]:
 
 def load_data(
     variables: Sequence[str],
-    training_data_config: FromBatches,
-    validation_data_config: Optional[FromBatches],
+    training_data_config: TFDatasetLoader,
+    validation_data_config: Optional[TFDatasetLoader],
     cache_config: CacheConfig,
 ) -> Tuple[tf.data.Dataset, Optional[tf.data.Dataset]]:
     train_tfdataset = training_data_config.get_data(
@@ -129,13 +129,13 @@ def main(args, unknown_args=None):
 
     with open(args.training_data_config, "r") as f:
         config_dict = yaml.safe_load(f)
-        training_data_config = FromBatches.from_dict(config_dict)
+        training_data_config = TFDatasetLoader.from_dict(config_dict)
         if args.no_wandb is False:
             wandb.config["training_data_config"] = config_dict
     if args.validation_data_config is not None:
         with open(args.validation_data_config, "r") as f:
             config_dict = yaml.safe_load(f)
-            validation_data_config = FromBatches.from_dict(config_dict)
+            validation_data_config = TFDatasetLoader.from_dict(config_dict)
             if args.no_wandb is False:
                 wandb.config["validation_data_config"] = config_dict
     else:
