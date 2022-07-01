@@ -193,7 +193,4 @@ def test_TrainConfig_GscondClassesV1():
 
     # Check the length so it errors if classes added/removed without top-level
     # definitions being updated
-    assert len(set(result) - set(data)) == len(zhao_carr.CLASS_NAMES)
-
-    for key in zhao_carr.CLASS_NAMES:
-        assert key in result
+    assert set(result) >= set(zhao_carr.CLASS_NAMES) | {zhao_carr.NONTRIVIAL_TENDENCY}

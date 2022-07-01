@@ -2,6 +2,7 @@ from typing import Callable
 import logging
 
 
+import numpy as np
 import tensorflow as tf
 from fv3fit.keras import adapters
 from emulation._typing import FortranState
@@ -42,11 +43,11 @@ class TransformedModelWithClassifier:
 def _predict(model: tf.keras.Model, state: FortranState) -> FortranState:
     # grab model-required variables and
     # switch state to model-expected [sample, feature]
-    inputs = {name: state[name].T for name in model.input_names}
+    inputs = {name: state[name].T for name in state}
 
-    predictions = model.predict(inputs)
+    predictions = model(inputs)
     # tranpose back to FV3 conventions
-    model_outputs = {name: tensor.T for name, tensor in predictions.items()}
+    model_outputs = {name: np.asarray(tensor).T for name, tensor in predictions.items()}
 
     return model_outputs
 

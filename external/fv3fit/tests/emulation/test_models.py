@@ -299,4 +299,3 @@ def test_TransformedModel(tmp_path):
     loaded.backward(input)
 
     assert loaded.get_model_inputs() == model.input_names
-    breakpoint()

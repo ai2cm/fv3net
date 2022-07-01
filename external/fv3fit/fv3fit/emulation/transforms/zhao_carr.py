@@ -16,12 +16,12 @@ ZERO_CLOUD = "zero_cloud"
 NEGATIVE_TENDENCY = "negative_tendency"
 NONTRIVIAL_TENDENCY = "nontrivial_tendency"
 
+# this constant is reused elswhere so is effectively public api
 CLASS_NAMES = {
     POSITIVE_TENDENCY,
     ZERO_TENDENCY,
     ZERO_CLOUD,
     NEGATIVE_TENDENCY,
-    NONTRIVIAL_TENDENCY,
 }
 
 CLOUD_INPUT = "cloud_water_mixing_ratio_input"
@@ -48,6 +48,7 @@ class GscondClassesV1(TensorTransform):
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         requested_names -= CLASS_NAMES
+        requested_names -= {NONTRIVIAL_TENDENCY}
         requested_names |= {
             self.cloud_in,
             self.cloud_out,
