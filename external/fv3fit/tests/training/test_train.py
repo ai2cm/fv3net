@@ -27,16 +27,30 @@ GENERAL_TRAINING_TYPES = [
     "dense",
     "transformed",
 ]
+
+# unlabeled models that can be tested on all model configuration tests, but not those
+# that actually depend on the quality of supervised learning that occurs
+UNLABELED_TRAINING_TYPES = [
+    "min_max_novelty_detector"
+]
+
 # training functions that have restrictions on the datasets they support,
 # cannot be used in generic tests below
 # you must write a separate file that specializes each of the tests
 # for models in this list
-SPECIAL_TRAINING_TYPES = []
+SPECIAL_TRAINING_TYPES = [
+    "min_max_novelty_detector",
+]
 
 
 # automatically test on every registered training class
-@pytest.fixture(params=GENERAL_TRAINING_TYPES)
+@pytest.fixture(params=GENERAL_TRAINING_TYPES+UNLABELED_TRAINING_TYPES)
 def model_type(request):
+    return request.param
+
+# automatically test on every registered training class with labeled data
+@pytest.fixture(params=GENERAL_TRAINING_TYPES)
+def labeled_model_type(request):
     return request.param
 
 
@@ -99,6 +113,12 @@ def _process(input_variables, input_values, output_variables, output_values):
     return xr.Dataset(data_vars=data_vars)
 
 
+def _process_unlabeled(input_variables, input_values):
+    data_vars = {name: value for name, value in zip(input_variables, input_values)}
+    data_vars[input_variables[0]] = data_vars[input_variables[0]].astype(np.float32)
+    return xr.Dataset(data_vars=data_vars)
+
+
 def _get_dataset_precipitative(sample_func):
     input_variables = [
         "air_temperature",
@@ -126,23 +146,28 @@ def _get_dataset_precipitative(sample_func):
     )
 
 
-def _get_dataset_default(sample_func, data_2d_ceof=1):
+def _get_dataset_default(sample_func, data_2d_ceof=1, labeled=True):
     input_variables = ["var_in_2d", "var_in_3d"]  # 2d var will be clipped below
-    output_variables = ["var_out"]
     input_values = list(sample_func() for _ in input_variables)
     i_2d_input = input_variables.index("var_in_2d")
     input_values[i_2d_input] = input_values[i_2d_input].isel(z=0) * data_2d_ceof
-    i_3d_input = input_variables.index("var_in_3d")
-    output_values = [input_values[i_3d_input]]
+    if labeled:
+        output_variables = ["var_out"]
+        i_3d_input = input_variables.index("var_in_3d")
+        output_values = [input_values[i_3d_input]]
+        processed_dataset = _process(input_variables, input_values, output_variables, output_values)
+    else:
+        output_variables = []
+        processed_dataset = _process_unlabeled(input_variables, input_values)
     return (
         input_variables,
         output_variables,
-        _process(input_variables, input_values, output_variables, output_values),
+        processed_dataset
     )
 
 
-def get_dataset_default(sample_func):
-    input_variables, output_variables, train_dataset = _get_dataset_default(sample_func)
+def get_dataset_default(sample_func, labeled=True):
+    input_variables, output_variables, train_dataset = _get_dataset_default(sample_func, labeled=labeled)
     train_dataset = stack_non_vertical(train_dataset)
     return input_variables, output_variables, train_dataset
 
@@ -206,7 +231,7 @@ def assert_can_learn_identity(
 
 
 @pytest.mark.slow
-def test_train_default_model_on_identity(model_type, regtest):
+def test_train_default_model_on_identity(labeled_model_type, regtest):
     """
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around 0 with unit variance.
@@ -218,7 +243,7 @@ def test_train_default_model_on_identity(model_type, regtest):
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
 
     assert_can_learn_identity(
-        model_type, sample_func=sample_func, max_rmse=0.2, regtest=regtest,
+        labeled_model_type, sample_func=sample_func, max_rmse=0.2, regtest=regtest,
     )
 
 
@@ -329,7 +354,7 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
 
 
 @pytest.mark.slow
-def test_train_default_model_on_nonstandard_identity(model_type):
+def test_train_default_model_on_nonstandard_identity(labeled_model_type):
     """
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around a non-zero value with non-unit variance.
@@ -342,7 +367,7 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     )
 
     assert_can_learn_identity(
-        model_type, sample_func=sample_func, max_rmse=0.2 * (high - low),
+        labeled_model_type, sample_func=sample_func, max_rmse=0.2 * (high - low),
     )
 
 

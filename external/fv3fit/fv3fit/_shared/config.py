@@ -421,3 +421,38 @@ class RandomForestHyperparameters(Hyperparameters):
             .union(self.output_variables)
             .union(additional_variables)
         )
+
+@dataclasses.dataclass
+class MinMaxNoveltyDetectorHyperparameters(Hyperparameters):
+    """
+    Configuration for training a min-max novelty detection algorithm.
+
+    Args:
+        input_variables: names of variables to use as inputs.
+        # cutoff: non-negative number specifying how much larger than the maximum 
+        #     or smaller than the minimum one coordinate must be to have a novelty.
+        #     Default is 0.
+        packer_config: configuration of dataset packing.
+    """
+
+    input_variables: List[str]
+    # cutoff: Union[int, float] = 0
+    packer_config: PackerConfig = dataclasses.field(
+        default_factory=lambda: PackerConfig({})
+    )
+
+    @property 
+    def variables(self) -> Set[str]:
+        return set(self.input_variables)
+
+    @classmethod
+    def init_testing(cls, input_variables, output_variables) -> "MinMaxNoveltyDetectorHyperparameters":
+        """Initialize a default instance for a given input/output problem"""
+        try:
+            hyperparameters = cls()
+        except TypeError:
+            hyperparameters = cls(
+                input_variables=input_variables
+            )
+        return hyperparameters
+
