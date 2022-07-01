@@ -19,13 +19,14 @@ logging.basicConfig(level=logging.INFO)
 ChunkSpec = Mapping[str, Mapping[str, int]]
 CHUNKS_DEFAULT = {"time": 96}
 REDUNDANT_TIME_AVERAGING_VARS = ["average_T1", "average_T2", "time_bnds"]
+TIME_AVERAGE_DT = "average_DT"
 
 
 def drop_redundant_time_avg_vars(ds):
     """Multiple time average information variables inserted by fortran have tile dims are
     redundant. Keep just average_DT with tile dim dropped."""
-
-    ds["average_DT"] = ds["average_DT"].mean("tile")
+    if TIME_AVERAGE_DT in ds:
+        ds["TIME_AVERAGE_DT"] = ds["TIME_AVERAGE_DT"].mean("tile")
     return ds.drop_vars(REDUNDANT_TIME_AVERAGING_VARS, errors="ignore")
 
 
