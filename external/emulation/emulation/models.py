@@ -29,54 +29,30 @@ class TransformedModelWithClassifier:
         self.model = model
         self.classifier = classifier
 
-        self._forward = _predict_with_concrete_function(model.forward)
-        self._backward = _predict_with_concrete_function(model.backward)
-        self._inner_model = _predict_with_concrete_function(model.inner_model)
-
     def __call__(self, state: FortranState) -> FortranState:
-        transformed_inputs = _predict(self._forward, state)
+        transformed_inputs = _predict(self.model.forward, state)
         classes_one_hot = _predict(self.classifier, state)
         classes = _get_classify_output(classes_one_hot)
         # need to override any existing classes with the prediction
         transformed_inputs.update(classes)
-        model_output = _predict(self._inner_model, transformed_inputs)
+        model_output = _predict(self.model.inner_model, transformed_inputs)
         transformed_inputs.update(model_output)
-        return _predict(self._backward, transformed_inputs)
-
-
-def _predict_with_concrete_function(model):
-    # model may be backed by several concrete functions, and depending on
-    # the signatures they were created with they may produce different
-    # outputs. This is a particular problem with the
-    # fv3fit.emulation.transformsComposedTransform since it will silently
-    # fail when tracing and one of the concrete functions will simply be the
-    # identity. To work around this choose the concrete function which
-    # produces the most outputs
-    def number_of_outputs(f):
-        (signature,), _ = f.structured_input_signature
-        outs = f.structured_outputs
-        return len(outs)
-
-    def predict(state):
-        inputs = {}
-        for key, spec in signature.items():
-            arr2d = state[key]
-            tensor = tf.convert_to_tensor(arr2d)
-            inputs[key] = tf.cast(tensor, spec.dtype)
-        return model(inputs)
-
-    try:
-        best_f = max(model.concrete_functions, key=number_of_outputs)
-        (signature,), _ = best_f.structured_input_signature
-        logger.info(best_f.pretty_printed_signature())
-        return predict
-    except AttributeError:
-        return model
+        return _predict(self.model.backward, transformed_inputs)
 
 
 def _predict(model: tf.keras.Model, state: FortranState) -> FortranState:
 
-    inputs = {name: np.atleast_2d(state[name]).T for name in state}
+    try:
+        concrete_f = model.concrete_functions[0]
+        (signature,), _ = concrete_f.structured_input_signature
+        inputs = {}
+        for key, spec in signature.items():
+            arr2d = np.atleast_2d(state[key]).T
+            tensor = tf.convert_to_tensor(arr2d)
+            inputs[key] = tf.cast(tensor, spec.dtype)
+    except AttributeError:
+        inputs = {name: np.atleast_2d(state[name]).T for name in state}
+
     predictions = model(inputs)
     # tranpose back to FV3 conventions
     model_outputs = {name: np.asarray(tensor).T for name, tensor in predictions.items()}
