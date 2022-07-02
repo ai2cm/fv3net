@@ -36,8 +36,7 @@ class TransformedModelWithClassifier:
         # need to override any existing classes with the prediction
         transformed_inputs.update(classes)
         model_output = _predict(self.model.inner_model, transformed_inputs)
-        transformed_inputs.update(model_output)
-        return _predict(self.model.backward, transformed_inputs)
+        return _predict(self.model.backward, model_output)
 
 
 def _predict(model: tf.keras.Model, state: FortranState) -> FortranState:
