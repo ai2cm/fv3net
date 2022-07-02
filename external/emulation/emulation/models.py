@@ -68,6 +68,7 @@ def _predict_with_concrete_function(model):
     try:
         best_f = max(model.concrete_functions, key=number_of_outputs)
         (signature,), _ = best_f.structured_input_signature
+        logger.info(best_f.pretty_printed_signature())
         return predict
     except AttributeError:
         return model
