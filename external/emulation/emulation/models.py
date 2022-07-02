@@ -41,17 +41,9 @@ class TransformedModelWithClassifier:
 
 
 def _predict(model: tf.keras.Model, state: FortranState) -> FortranState:
-
-    try:
-        concrete_f = model.concrete_functions[0]
-        (signature,), _ = concrete_f.structured_input_signature
-        inputs = {}
-        for key, spec in signature.items():
-            arr2d = np.atleast_2d(state[key]).T
-            tensor = tf.convert_to_tensor(arr2d)
-            inputs[key] = tf.cast(tensor, spec.dtype)
-    except AttributeError:
-        inputs = {name: np.atleast_2d(state[name]).T for name in state}
+    # grab model-required variables and
+    # switch state to model-expected [sample, feature]
+    inputs = {name: state[name].T for name in state}
 
     predictions = model(inputs)
     # tranpose back to FV3 conventions
