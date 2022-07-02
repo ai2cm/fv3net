@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, Mapping
+from typing import Callable, Mapping, List
 from fv3fit._shared.config import OptimizerConfig
 from fv3fit.emulation.losses import CustomLoss
 
@@ -15,15 +15,21 @@ class ZhaoCarrLoss:
     )
     masked_weight: float = 2.0
 
+    @property
+    def loss_variables(self) -> List[str]:
+        return [
+            "air_temperature_after_gscond",
+            "specific_humidity_after_gscond",
+            "temperature_gscond_difference_tscaled",
+            "humidity_gscond_difference_tscaled",
+        ]
+
     def build(self, output_samples: Mapping[str, tf.Tensor]) -> Callable:
         mask_key = "nontrivial_tendency"
 
         loss_factory = CustomLoss(
             optimizer=self.optimizer,
-            loss_variables=[
-                "air_temperature_after_gscond",
-                "specific_humidity_after_gscond",
-            ],
+            loss_variables=self.loss_variables,
             weights={
                 "air_temperature_after_gscond": 100000.0,
                 "specific_humidity_after_gscond": 50000.0,

@@ -9,9 +9,8 @@ out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
 train_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/train
 test_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test
 tensor_transform:
-  # the clasification categories
-  # should make "nontrivial_tendency"
-  - cloud_in: "cloud_water_mixing_ratio_input"
+  # first transform is run last on the backwards step...confusing
+  - gscond_route: true
   - to: log_cloud_input
     source: cloud_water_mixing_ratio_input
     transform: {epsilon: 1e-10}
@@ -39,7 +38,6 @@ tensor_transform:
     bins: 50
     min_scale: 1e-5
     fit_filter_magnitude: 1e-5
-  - gscond_route: true
 loss:
   zhao_carr_loss: true
   optimizer:
@@ -78,4 +76,7 @@ transform:
   derived_microphys_timestep: 900
   use_tensors: true
   vertical_subselections: null
-
+  tensor_transforms:
+    # the clasification categories
+    # should make "nontrivial_tendency"
+    - cloud_in: "cloud_water_mixing_ratio_input"

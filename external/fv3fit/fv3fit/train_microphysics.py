@@ -184,7 +184,9 @@ class TransformedParameters(Hyperparameters):
         self, data: Mapping[str, tf.Tensor], transform: TensorTransform
     ) -> tf.keras.Model:
         inputs = {
-            name: tf.keras.Input(data[name].shape[1:], name=name)
+            name: tf.keras.Input(
+                data[name].shape[1:], name=name, dtype=data[name].dtype
+            )
             for name in self.input_variables
         }
         inner_model = self._model.build(transform.forward(data))
@@ -196,15 +198,30 @@ class TransformedParameters(Hyperparameters):
         return self.loss.build(transform.forward(data))
 
     @property
-    def input_variables(self) -> Sequence:
-        return list(
-            self.transform_factory.backward_names(set(self._model.input_variables))
+    def input_variables(self) -> Set[str]:
+        backward_transform_inputs = self.transform_factory.backward_input_names()
+        model_inputs = set(self._model.input_variables)
+        model_outputs = set(self._model.output_variables)
+
+        required_for_model = self.transform_factory.backward_names(model_inputs)
+        required_for_backward = self.transform_factory.backward_names(
+            backward_transform_inputs - model_outputs
         )
+        return required_for_model | required_for_backward
 
     @property
     def model_variables(self) -> Set[str]:
+        names_forward_must_make = (
+            set(self.loss.loss_variables)
+            - self.transform_factory.backward_output_names()
+        )
+        loss_variables = self.transform_factory.backward_names(names_forward_must_make)
+
         return self.transform_factory.backward_names(
-            set(self._model.input_variables) | set(self._model.output_variables)
+            set(self._model.input_variables)
+            | set(self._model.output_variables)
+            | self.transform_factory.backward_input_names()
+            | loss_variables
         )
 
     @property

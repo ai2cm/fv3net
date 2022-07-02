@@ -131,6 +131,20 @@ class GSCondRoute(TensorTransform):
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         return requested_names
 
+    def backward_input_names(self) -> Set[str]:
+        return {
+            CLOUD_INPUT,
+            T_INPUT,
+            T_GSCOND,
+            QV_INPUT,
+            QV_GSCOND,
+            ZERO_TENDENCY,
+            ZERO_CLOUD,
+        }
+
+    def backward_output_names(self) -> Set[str]:
+        return {CLOUD_GSCOND}
+
     def forward(self, x: TensorDict) -> TensorDict:
         return x
 
