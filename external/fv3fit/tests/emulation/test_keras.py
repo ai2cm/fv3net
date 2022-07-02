@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 
 import fv3fit.emulation
-from fv3fit.emulation.trainer import train
+from fv3fit.emulation.trainer import _ModelWrapper, train
 from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.keras import (
     save_model,
@@ -69,9 +69,11 @@ def _get_model_data_loss():
 
 def test_checkpoint_callback(tmpdir):
     model, _, _ = _get_model_data_loss()
+    trainer = _ModelWrapper(model)
     callback = fv3fit.emulation.ModelCheckpointCallback(
-        model=model, filepath=str(tmpdir.join("{epoch:03d}.tf"))
+        filepath=str(tmpdir.join("{epoch:03d}.tf"))
     )
+    callback.set_model(trainer)
     epoch = 0
     callback.on_epoch_end(epoch)
     tf.keras.models.load_model(callback.filepath.format(epoch=epoch))
