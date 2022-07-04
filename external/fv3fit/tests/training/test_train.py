@@ -20,7 +20,7 @@ import tensorflow as tf
 
 
 # training functions that work on arbitrary datasets, can be used in generic tests below
-GENERAL_TRAINING_TYPES = [
+REGRESSION_TRAINING_TYPES = [
     "convolutional",
     "sklearn_random_forest",
     "precipitative",
@@ -30,7 +30,7 @@ GENERAL_TRAINING_TYPES = [
 
 # unlabeled models that can be tested on all model configuration tests, but not those
 # that actually depend on the quality of supervised learning that occurs
-UNLABELED_TRAINING_TYPES = [
+NON_REGRESSION_TRAINING_TYPES = [
     "min_max_novelty_detector"
 ]
 
@@ -44,19 +44,19 @@ SPECIAL_TRAINING_TYPES = [
 
 
 # automatically test on every registered training class
-@pytest.fixture(params=GENERAL_TRAINING_TYPES+UNLABELED_TRAINING_TYPES)
+@pytest.fixture(params=REGRESSION_TRAINING_TYPES + NON_REGRESSION_TRAINING_TYPES)
 def model_type(request):
     return request.param
 
 # automatically test on every registered training class with labeled data
-@pytest.fixture(params=GENERAL_TRAINING_TYPES)
+@pytest.fixture(params=REGRESSION_TRAINING_TYPES)
 def labeled_model_type(request):
     return request.param
 
 
 def test_all_training_functions_are_tested_or_exempted():
     missing_types = set(TRAINING_FUNCTIONS.keys()).difference(
-        GENERAL_TRAINING_TYPES + SPECIAL_TRAINING_TYPES
+        REGRESSION_TRAINING_TYPES + SPECIAL_TRAINING_TYPES
     )
     assert len(missing_types) == 0, (
         "training type must be added to GENERAL_TRAINING_TYPES or "
@@ -113,12 +113,6 @@ def _process(input_variables, input_values, output_variables, output_values):
     return xr.Dataset(data_vars=data_vars)
 
 
-def _process_unlabeled(input_variables, input_values):
-    data_vars = {name: value for name, value in zip(input_variables, input_values)}
-    data_vars[input_variables[0]] = data_vars[input_variables[0]].astype(np.float32)
-    return xr.Dataset(data_vars=data_vars)
-
-
 def _get_dataset_precipitative(sample_func):
     input_variables = [
         "air_temperature",
@@ -146,28 +140,20 @@ def _get_dataset_precipitative(sample_func):
     )
 
 
-def _get_dataset_default(sample_func, data_2d_ceof=1, labeled=True):
+def _get_dataset_default(sample_func, data_2d_ceof=1):
     input_variables = ["var_in_2d", "var_in_3d"]  # 2d var will be clipped below
     input_values = list(sample_func() for _ in input_variables)
     i_2d_input = input_variables.index("var_in_2d")
     input_values[i_2d_input] = input_values[i_2d_input].isel(z=0) * data_2d_ceof
-    if labeled:
-        output_variables = ["var_out"]
-        i_3d_input = input_variables.index("var_in_3d")
-        output_values = [input_values[i_3d_input]]
-        processed_dataset = _process(input_variables, input_values, output_variables, output_values)
-    else:
-        output_variables = []
-        processed_dataset = _process_unlabeled(input_variables, input_values)
-    return (
-        input_variables,
-        output_variables,
-        processed_dataset
-    )
+    output_variables = ["var_out"]
+    i_3d_input = input_variables.index("var_in_3d")
+    output_values = [input_values[i_3d_input]]
+    processed_dataset = _process(input_variables, input_values, output_variables, output_values)
+    return (input_variables, output_variables, processed_dataset)
 
 
-def get_dataset_default(sample_func, labeled=True):
-    input_variables, output_variables, train_dataset = _get_dataset_default(sample_func, labeled=labeled)
+def get_dataset_default(sample_func):
+    input_variables, output_variables, train_dataset = _get_dataset_default(sample_func)
     train_dataset = stack_non_vertical(train_dataset)
     return input_variables, output_variables, train_dataset
 

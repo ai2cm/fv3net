@@ -1,4 +1,5 @@
 from fv3fit._shared import stacking
+from fv3fit._shared.novelty_detector import NoveltyDetector
 from .. import _shared
 from .._shared import (
     match_prediction_to_input_coords,
@@ -7,7 +8,6 @@ from .._shared import (
     Predictor,
     register_training_function,
     SAMPLE_DIM_NAME,
-    stack_non_vertical,
 )
 from .._shared.config import MinMaxNoveltyDetectorHyperparameters, PackerConfig
 
@@ -44,21 +44,16 @@ def train_min_max_novelty_detector(
     return model
 
 @_shared.io.register("minmax")
-class MinMaxNoveltyDetector(Predictor):
+class MinMaxNoveltyDetector(NoveltyDetector):
 
     _PICKLE_NAME = "minmax.pkl"
     _METADATA_NAME = "metadata.bin"
-
-    _NOVELTY_OUTPUT_VAR = "is_novelty"
-
-    dims = ["x", "y", "tile", "time"]
 
     def __init__(
         self,
         hyperparameters: MinMaxNoveltyDetectorHyperparameters
     ):
-        output_variables = [self._NOVELTY_OUTPUT_VAR]
-        super().__init__(hyperparameters.input_variables, output_variables)
+        super().__init__(hyperparameters.input_variables)
         self.packer_config = hyperparameters.packer_config
 
     def fit(self, batches: tf.data.Dataset):
@@ -80,23 +75,27 @@ class MinMaxNoveltyDetector(Predictor):
 
         logger.info(f"Min-max novelty detector done fitting.")
 
-    def predict(self, data: xr.Dataset) -> xr.Dataset:  
+    def predict(self, data: xr.Dataset) -> xr.Dataset:
+        """
+        For each coordinate c, computes a score with the following expression:
+        score(c) = max(0, (c - c_max) / c_max) + max(0, (c_min - c) / c_min).
+        A total scores over a column is taken by taking the maximum score.
+        If the score is greater than 0, then at least one coordinate is out of range.
+        """  
         stack_dims = [dim for dim in data.dims if dim not in stacking.Z_DIM_NAMES]  
         stacked_data = data.stack({SAMPLE_DIM_NAME: stack_dims}).transpose(SAMPLE_DIM_NAME, ...)
 
         X, _ = pack(stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config)
         scaled_X = self.scaler.transform(X)
-        larger_than_max = np.where(scaled_X.max(axis=1) > 1, 1, 0)
-        smaller_than_min = np.where(scaled_X.min(axis=1) < 0, 1, 0)
-        stacked_is_novelty = larger_than_max + smaller_than_min
+        scores_larger_than_max = np.maximum(scaled_X.max(axis=1) - 1, 0)
+        scores_smaller_than_min = np.maximum(-1 * scaled_X.min(axis=1), 0)
+        stacked_scores = scores_larger_than_max + scores_smaller_than_min
 
         new_coords = {k: v for (k, v) in stacked_data.coords.items() if k not in stacking.Z_DIM_NAMES}
-        stacked_is_novelty = xr.DataArray(stacked_is_novelty, dims=[SAMPLE_DIM_NAME], coords=new_coords)
-        is_novelty = stacked_is_novelty\
-            .to_dataset(name=self._NOVELTY_OUTPUT_VAR)\
-            .unstack(SAMPLE_DIM_NAME)
+        stacked_scores = xr.DataArray(stacked_scores, dims=[SAMPLE_DIM_NAME], coords=new_coords)
+        score_dataset = stacked_scores.to_dataset(name=self._SCORE_OUTPUT_VAR).unstack(SAMPLE_DIM_NAME)
 
-        return match_prediction_to_input_coords(data, is_novelty)
+        return match_prediction_to_input_coords(data, score_dataset)
 
     def dump(self, path: str) -> None:
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
