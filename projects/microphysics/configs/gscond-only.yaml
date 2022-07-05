@@ -256,7 +256,7 @@ namelist:
     emulate_gscond_only: true
 zhao_carr_emulation:
   gscond:
-    path: gs://vcm-ml-experiments/microphysics-emulation/2022-06-28/gscond-routed-reg-v3/model.tf
+    path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-02/gscond-routed-reg-v4/model.tf
     classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-06-09/gscond-classifier-v1/model.tf
     enforce_conservative: true
     mask_emulator_levels:
