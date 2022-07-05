@@ -16,17 +16,20 @@ mask_levels = {
     "cloud_water_mixing_ratio_after_gscond": dict(start=74, stop=None),
     "specific_humidity_after_gscond": dict(start=74, stop=None),
     "air_temperature_after_gscond": dict(start=74, stop=None),
+    "cloud_water_mixing_ratio_after_precpd": dict(start=74, stop=None),
+    "specific_humidity_after_precpd": dict(start=74, stop=None),
+    "air_temperature_after_precpd": dict(start=74, stop=None),
 }
 
 
 def _get_job():
-    config = load_yaml("../configs/default_short.yaml")
+    config = load_yaml("../configs/default.yaml")
 
     config = set_prognostic_emulation_model(
         config,
         MODEL,
-        gscond_only=True,
-        gscond_conservative=True,
+        gscond_only=False,
+        gscond_cloud_conservative=True,
         classifier_path=CLASSIFIER,
         mask_emulator_levels=mask_levels,
         mask_gscond_zero_cloud_classifier=True,
@@ -34,7 +37,7 @@ def _get_job():
     )
 
     return PrognosticJob(
-        name=f"full-zc-emulation-online-6h-v1", image_tag="latest", config=config,
+        name=f"full-zc-emulation-online-30d-v1", image_tag="latest", config=config,
     )
 
 
