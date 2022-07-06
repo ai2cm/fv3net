@@ -30,6 +30,8 @@ class TFDatasetLoader(abc.ABC):
 def register_tfdataset_loader(loader_class: Type[TFDatasetLoader]):
     """
     Register a TFDatasetLoader subclass as a factory for TFDatasetLoaders.
+
+    This allows the subclass to be initialized using `tfdataset_loader_from_dict`.
     """
     global _TFDATASET_LOADERS
     _TFDATASET_LOADERS.append(loader_class)
@@ -37,6 +39,11 @@ def register_tfdataset_loader(loader_class: Type[TFDatasetLoader]):
 
 
 def tfdataset_loader_from_dict(d: dict) -> TFDatasetLoader:
+    """
+    Initializes a registered TFDatasetLoader subclass.
+
+    To add a new subclass, use `register_tfdataset_loader`.
+    """
     for cls in _TFDATASET_LOADERS:
         try:
             return cls.from_dict(d)
