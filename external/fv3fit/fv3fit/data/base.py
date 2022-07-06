@@ -25,6 +25,7 @@ class TFDatasetLoader(abc.ABC):
         except (TypeError, AttributeError):
             pass
         for subclass in cls.__subclasses__():
+            print(subclass)
             try:
                 # if the subclass defines its own from_dict use that,
                 # otherwise use dacite
@@ -35,6 +36,11 @@ class TFDatasetLoader(abc.ABC):
                     return subclass.from_dict(kwargs)
                 else:
                     return dacite.from_dict(data_class=subclass, data=kwargs)
-            except (TypeError, AttributeError, dacite.exceptions.MissingValueError):
+            except (
+                TypeError,
+                ValueError,
+                AttributeError,
+                dacite.exceptions.MissingValueError,
+            ):
                 pass
         raise ValueError("invalid TFDatasetLoader dictionary")
