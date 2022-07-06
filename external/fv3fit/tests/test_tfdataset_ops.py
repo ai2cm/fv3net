@@ -218,7 +218,7 @@ def test__seq_to_tfdataset():
         out["a"] = out["a"] * 2
         return out
 
-    tf_ds = fv3fit.tfdataset.seq_to_tfdataset(batches, transform)
+    tf_ds = fv3fit.tfdataset.iterable_to_tfdataset(batches, transform)
     assert isinstance(tf_ds, tf.data.Dataset)
 
     result = next(tf_ds.as_numpy_iterator())
