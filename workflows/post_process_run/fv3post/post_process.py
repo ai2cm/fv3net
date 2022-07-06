@@ -27,6 +27,12 @@ def drop_redundant_time_avg_vars(ds):
     redundant. Keep just average_DT with tile dim dropped."""
     if TIME_AVERAGE_DT in ds:
         ds[TIME_AVERAGE_DT] = ds[TIME_AVERAGE_DT].mean("tile")
+    for var in ds:
+        if "time_avg_info" in ds[var].attrs:
+            # This attribute seems redundant given the existence of the variable
+            # average_DT, and confuses the regridding if it exists and other time
+            # averaging info variables are not present.
+            del ds[var].attrs["time_avg_info"]
     return ds.drop_vars(REDUNDANT_TIME_AVERAGING_VARS, errors="ignore")
 
 
