@@ -1,10 +1,4 @@
-import os
-import fv3viz
-import xarray as xr
-import numpy as np
-from vcm.calc.calc import weighted_average
 from vcm.calc import metrics
-from vcm import mass_integrate
 
 
 def find_common_times(ds1, ds2):
