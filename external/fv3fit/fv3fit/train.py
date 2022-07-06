@@ -15,7 +15,7 @@ import fsspec
 import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
-from .data import TFDatasetLoader
+from .data import tfdataset_loader_from_dict, TFDatasetLoader
 import tempfile
 from fv3fit.dataclasses import asdict_with_enum
 import wandb
@@ -129,13 +129,13 @@ def main(args, unknown_args=None):
 
     with open(args.training_data_config, "r") as f:
         config_dict = yaml.safe_load(f)
-        training_data_config = TFDatasetLoader.from_dict(config_dict)
+        training_data_config = tfdataset_loader_from_dict(config_dict)
         if args.no_wandb is False:
             wandb.config["training_data_config"] = config_dict
     if args.validation_data_config is not None:
         with open(args.validation_data_config, "r") as f:
             config_dict = yaml.safe_load(f)
-            validation_data_config = TFDatasetLoader.from_dict(config_dict)
+            validation_data_config = tfdataset_loader_from_dict(config_dict)
             if args.no_wandb is False:
                 wandb.config["validation_data_config"] = config_dict
     else:

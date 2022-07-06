@@ -7,11 +7,12 @@ from loaders.batches.save import save_batches
 from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
 import logging
-from .base import TFDatasetLoader
+from .base import TFDatasetLoader, register_tfdataset_loader
 
 logger = logging.getLogger(__name__)
 
 
+@register_tfdataset_loader
 @dataclasses.dataclass
 class FromBatches(TFDatasetLoader):
 

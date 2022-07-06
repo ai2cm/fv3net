@@ -1,7 +1,9 @@
 import abc
 import tensorflow as tf
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Type, List
 import dacite
+
+_TFDATASET_LOADERS: List[Type["TFDatasetLoader"]] = []
 
 
 class TFDatasetLoader(abc.ABC):
@@ -14,33 +16,36 @@ class TFDatasetLoader(abc.ABC):
             local_download_path: if provided, cache data locally at this path
             variable_names: names of variables to include when loading data
         Returns:
-            dataset containing requested variables
+            dataset containing requested variables, each record is a mapping from
+                variable name to variable value, and each value is a tensor whose
+                first dimension is the batch dimension
         """
         ...
 
     @classmethod
-    def from_dict(cls, kwargs) -> "TFDatasetLoader":
+    def from_dict(cls, d: dict) -> "TFDatasetLoader":
+        raise NotImplementedError("must be implemented by subclass")
+
+
+def register_tfdataset_loader(loader_class: Type[TFDatasetLoader]):
+    """
+    Register a TFDatasetLoader subclass as a factory for TFDatasetLoaders.
+    """
+    global _TFDATASET_LOADERS
+    _TFDATASET_LOADERS.append(loader_class)
+    return loader_class
+
+
+def tfdataset_loader_from_dict(d: dict) -> TFDatasetLoader:
+    for cls in _TFDATASET_LOADERS:
         try:
-            return dacite.from_dict(data_class=cls, data=kwargs)
-        except (TypeError, AttributeError):
+            return cls.from_dict(d)
+        except (
+            TypeError,
+            ValueError,
+            AttributeError,
+            dacite.exceptions.MissingValueError,
+            dacite.exceptions.UnexpectedDataError,
+        ):
             pass
-        for subclass in cls.__subclasses__():
-            print(subclass)
-            try:
-                # if the subclass defines its own from_dict use that,
-                # otherwise use dacite
-                if (
-                    hasattr(subclass, "from_dict")
-                    and subclass.from_dict is not cls.from_dict
-                ):
-                    return subclass.from_dict(kwargs)
-                else:
-                    return dacite.from_dict(data_class=subclass, data=kwargs)
-            except (
-                TypeError,
-                ValueError,
-                AttributeError,
-                dacite.exceptions.MissingValueError,
-            ):
-                pass
-        raise ValueError("invalid TFDatasetLoader dictionary")
+    raise ValueError("invalid TFDatasetLoader dictionary")

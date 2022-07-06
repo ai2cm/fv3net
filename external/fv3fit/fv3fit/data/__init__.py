@@ -1,3 +1,3 @@
-from .base import TFDatasetLoader
+from .base import TFDatasetLoader, tfdataset_loader_from_dict, register_tfdataset_loader
 from .batches import FromBatches
 from .tfdataset import WindowedZarrLoader

@@ -1,7 +1,8 @@
 import dataclasses
 from typing import Mapping, Sequence, Optional
 import tensorflow as tf
-from .base import TFDatasetLoader
+from .base import TFDatasetLoader, register_tfdataset_loader
+import dacite
 
 
 @dataclasses.dataclass
@@ -9,6 +10,7 @@ class VariableConfig:
     unstacked_dims: Sequence[str]
 
 
+@register_tfdataset_loader
 @dataclasses.dataclass
 class WindowedZarrLoader(TFDatasetLoader):
     """
@@ -41,3 +43,9 @@ class WindowedZarrLoader(TFDatasetLoader):
         # if local_download_path is given, cache on disk
         # using tfdataset.cache(local_download_path)
         raise NotImplementedError()
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "WindowedZarrLoader":
+        return dacite.from_dict(
+            data_class=cls, data=d, config=dacite.Config(strict=True)
+        )
