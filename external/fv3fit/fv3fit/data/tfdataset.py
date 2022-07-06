@@ -32,7 +32,7 @@ class VariableConfig:
         return data
 
 
-def open_zarr(url: str):
+def open_zarr_using_filecache(url: str):
     cachedir = tempfile.mkdtemp()
     return xr.open_zarr(
         "filecache::" + url, storage_options={"filecache": {"cache_storage": cachedir}}
@@ -72,7 +72,7 @@ class WindowedZarrLoader(TFDatasetLoader):
             dataset containing requested variables
         """
         # using tfdataset.cache(local_download_path)
-        ds = open_zarr(self.data_path)
+        ds = open_zarr_using_filecache(self.data_path)
 
         def records():
             n_times = ds.dims["time"]
