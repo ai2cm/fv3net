@@ -34,6 +34,8 @@ class GscondClassesV1(TensorTransform):
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
 
+        requested_names = set(requested_names)
+
         if CLASS_NAMES & requested_names:
             requested_names -= CLASS_NAMES
             requested_names |= {
@@ -64,6 +66,8 @@ class GscondClassesV1OneHot(GscondClassesV1):
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
 
+        requested_names = set(requested_names)
+
         if self.to in requested_names:
             requested_names -= {self.to}
             requested_names |= {
@@ -78,6 +82,22 @@ class GscondClassesV1OneHot(GscondClassesV1):
         classes = classify(x[self.cloud_in], x[self.cloud_out], self.timestep)
         x[self.to] = tf.stack([classes[name] for name in self._names], -1)
         return x
+
+
+# TODO: Probably a V2 of this class that just uses gscond outputs
+@dataclasses.dataclass
+class PrecpdClassesV1(GscondClassesV1):
+    cloud_in: str = "cloud_water_mixing_ratio_input"
+    cloud_out: str = "cloud_water_mixing_ratio_after_precpd"
+    timestep: int = 900
+
+
+@dataclasses.dataclass
+class PrecpdClassesV1OneHot(GscondClassesV1OneHot):
+    cloud_in: str = "cloud_water_mixing_ratio_input"
+    cloud_out: str = "cloud_water_mixing_ratio_after_precpd"
+    timestep: int = 900
+    to: str = "precpd_classes"
 
 
 def classify(cloud_in, cloud_out, timestep, math=tf.math):
