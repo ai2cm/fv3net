@@ -12,7 +12,7 @@ from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
-from fv3fit.emulation.transforms import GSCondRoute
+from fv3fit.emulation.transforms import GscondRoute
 from fv3fit.train_microphysics import (
     TrainConfig,
     TransformedParameters,
@@ -198,13 +198,13 @@ def test_TrainConfig_GscondClassesV1():
 
 
 def test_TrainConfig_model_variables_with_backwards_transform():
-    route = GSCondRoute()
+    route = GscondRoute()
     config = TrainConfig(tensor_transform=[route], model=MicrophysicsConfig())
     assert config.model_variables >= route.backward_input_names()
 
 
 def test_TrainConfig_input_variables_with_backwards_transform():
-    route = GSCondRoute()
+    route = GscondRoute()
     config = TrainConfig(tensor_transform=[route], model=MicrophysicsConfig())
     assert set(config.input_variables) >= route.backward_input_names()
 

@@ -14,7 +14,7 @@ from fv3fit.emulation.transforms import (
     CloudWaterDiffPrecpd,
     GscondClassesV1,
     GscondClassesV1OneHot,
-    GSCondRoute,
+    GscondRoute,
 )
 from . import transforms
 
@@ -28,7 +28,7 @@ SimpleTransforms = Union[
     CloudWaterDiffPrecpd,
     GscondClassesV1,
     GscondClassesV1OneHot,
-    GSCondRoute,
+    GscondRoute,
 ]
 
 

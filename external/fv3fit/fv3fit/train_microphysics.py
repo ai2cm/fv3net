@@ -53,7 +53,7 @@ from fv3fit.emulation.transforms import (
     CloudWaterDiffPrecpd,
     GscondClassesV1,
     GscondClassesV1OneHot,
-    GSCondRoute,
+    GscondRoute,
 )
 
 from fv3fit.emulation.layers.normalization import standard_deviation_all_features
@@ -143,7 +143,7 @@ class TransformedParameters(Hyperparameters):
             CloudWaterDiffPrecpd,
             GscondClassesV1,
             GscondClassesV1OneHot,
-            GSCondRoute,
+            GscondRoute,
         ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
@@ -285,7 +285,7 @@ class TrainConfig(TransformedParameters):
             CloudWaterDiffPrecpd,
             GscondClassesV1,
             GscondClassesV1OneHot,
-            GSCondRoute,
+            GscondRoute,
         ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
