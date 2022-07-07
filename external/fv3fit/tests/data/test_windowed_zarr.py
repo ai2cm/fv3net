@@ -105,7 +105,7 @@ def test_loader_handles_window_start():
     with temporary_zarr_path() as data_path:
         loader = WindowedZarrLoader(
             data_path=data_path,
-            window_size=10,
+            window_size=window_size,
             unstacked_dims=["time", "x", "y", "z"],
             default_variable_config=VariableConfig(times="window"),
             variable_configs={"a_sfc": VariableConfig(times="start")},
