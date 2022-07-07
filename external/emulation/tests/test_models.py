@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from emulation.models import ModelWithClassifier, _predict
+from emulation.zhao_carr import CLASS_NAMES
 
 
 def test_TransformedModel_with_classifier(tmp_path):
@@ -24,6 +25,7 @@ def test_TransformedModel_with_classifier(tmp_path):
     x = {"a": np.ones([10, 100])}
     out = transformed_model(x)
     assert out
+    assert set(out) >= set(CLASS_NAMES)
     for v in out.values():
         assert isinstance(v, np.ndarray)
 
