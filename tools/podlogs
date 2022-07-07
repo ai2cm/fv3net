@@ -38,5 +38,5 @@ gcloud logging read \
 "${args[@]}" \
 --freshness="$freshness" \
 --format='json' \
- | jq -r '.[] | "\(.textPayload // .jsonPayload.message)"'  \
+| jq -r '.[] | .textPayload // .jsonPayload.message | select( . != null)'  \
  | tac
