@@ -2,7 +2,7 @@
 
 function usage {
     >&2 echo "Usage:"
-    >&2 echo "google_log_cat [-n numrecords ] <podname>"
+    >&2 echo "podlogs [--freshness AGE] [-n numrecords ] <podname>"
 }
 
 if [[ $# -lt 1 ]]
@@ -12,8 +12,14 @@ then
 fi
 
 args=()
+freshness=10d
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --freshness)
+            freshness=$2
+            shift
+            shift
+            ;;
         -n)
             args+=("--limit")
             args+=("$2")
@@ -30,4 +36,7 @@ done
 gcloud logging read \
 "resource.labels.pod_name=$pod" \
 "${args[@]}" \
---format='value(jsonPayload.message)' | grep -v '^$' | tac
+--freshness="$freshness" \
+--format='json' \
+ | jq -r '.[] | "\(.textPayload // .jsonPayload.message)"'  \
+ | tac
