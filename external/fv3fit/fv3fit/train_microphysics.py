@@ -5,12 +5,14 @@ from dataclasses import dataclass, field
 import fsspec
 import json
 import logging
+from fv3fit.emulation.zhao_carr.loss import ZhaoCarrLoss
 from fv3net.artifacts.metadata import StepMetadata, log_fact_json
 import numpy as np
 import os
 import time
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
 from fv3fit._shared.config import register_training_function
+from fv3fit.emulation.models import Model
 from fv3fit.dataclasses import asdict_with_enum as _asdict_with_enum
 from fv3fit.emulation.data.transforms import expand_single_dim_data
 from fv3fit import tfdataset
@@ -53,6 +55,7 @@ from fv3fit.emulation.transforms import (
     GscondClassesV1OneHot,
     TendencyToFlux,
     MoistStaticEnergyTransform,
+    GscondRoute,
 )
 
 from fv3fit.emulation.layers.normalization import standard_deviation_all_features
@@ -144,11 +147,12 @@ class TransformedParameters(Hyperparameters):
             GscondClassesV1OneHot,
             TendencyToFlux,
             MoistStaticEnergyTransform,
+            GscondRoute,
         ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
     conservative_model: Optional[ConservativeWaterConfig] = None
-    loss: CustomLoss = field(default_factory=CustomLoss)
+    loss: Union[CustomLoss, ZhaoCarrLoss] = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
     valid_freq: int = 5
@@ -170,11 +174,7 @@ class TransformedParameters(Hyperparameters):
         return self.transform_factory.build(sample)
 
     @property
-    def _model(
-        self,
-    ) -> Union[
-        MicrophysicsConfig, ConservativeWaterConfig,
-    ]:
+    def _model(self,) -> Model:
         if self.model:
             return self.model
         elif self.conservative_model:
@@ -193,7 +193,9 @@ class TransformedParameters(Hyperparameters):
             # pressure thickness as an auxiliary input
             input_names |= {"pressure_thickness_of_atmospheric_layer"}
         inputs = {
-            name: tf.keras.Input(data[name].shape[1:], name=name)
+            name: tf.keras.Input(
+                data[name].shape[1:], name=name, dtype=data[name].dtype
+            )
             for name in input_names
         }
         inner_model = self._model.build(transform.forward(data))
@@ -205,17 +207,30 @@ class TransformedParameters(Hyperparameters):
         return self.loss.build(transform.forward(data))
 
     @property
-    def input_variables(self) -> Sequence:
-        return list(
-            self.transform_factory.backward_names(set(self._model.input_variables))
+    def input_variables(self) -> Set[str]:
+        backward_transform_inputs = self.transform_factory.backward_input_names()
+        model_inputs = set(self._model.input_variables)
+        model_outputs = set(self._model.output_variables)
+
+        required_for_model = self.transform_factory.backward_names(model_inputs)
+        required_for_backward = self.transform_factory.backward_names(
+            backward_transform_inputs - model_outputs
         )
+        return required_for_model | required_for_backward
 
     @property
     def model_variables(self) -> Set[str]:
+        names_forward_must_make = (
+            set(self.loss.loss_variables)
+            - self.transform_factory.backward_output_names()
+        )
+        loss_variables = self.transform_factory.backward_names(names_forward_must_make)
+
         return self.transform_factory.backward_names(
             set(self._model.input_variables)
             | set(self._model.output_variables)
-            | set(self.loss.loss_variables)
+            | self.transform_factory.backward_input_names()
+            | loss_variables
         )
 
     @property
@@ -281,13 +296,14 @@ class TrainConfig(TransformedParameters):
             GscondClassesV1OneHot,
             TendencyToFlux,
             MoistStaticEnergyTransform,
+            GscondRoute,
         ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
     conservative_model: Optional[ConservativeWaterConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
-    loss: CustomLoss = field(default_factory=CustomLoss)
+    loss: Union[CustomLoss, ZhaoCarrLoss] = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
     valid_freq: int = 5
@@ -525,6 +541,7 @@ def main(config: TrainConfig, seed: int = 0):
     std_factors = {
         name: np.array(float(standard_deviation_all_features(data)))
         for name, data in sample.items()
+        if data.dtype != tf.bool
     }
     std_jacobians = nondimensionalize_jacobians(jacobians, std_factors)
 

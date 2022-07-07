@@ -13,6 +13,7 @@ from fv3fit.emulation.layers.normalization2 import (
 )
 from fv3fit.keras.adapters import ensure_dict_output
 from fv3fit.emulation.zhao_carr_fields import Field, ZhaoCarrFields
+from fv3fit.emulation.models.base import Model
 from fv3fit.emulation.layers import (
     FieldInput,
     FieldOutput,
@@ -179,6 +180,13 @@ class MicrophysicsConfig:
                 **self._get_unscaled_outputs(hidden),
             },
         )
+
+
+def _check_types():
+    # add some type assertions to enforce ensure that the model classes match
+    # the protocol
+    _: Model = MicrophysicsConfig()
+    _: Model = ConservativeWaterConfig()
 
 
 @dataclasses.dataclass

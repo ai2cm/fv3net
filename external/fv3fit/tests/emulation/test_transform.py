@@ -5,6 +5,7 @@ import tensorflow as tf
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
     ComposedTransform,
+    ConditionallyScaled,
     Difference,
     LogTransform,
     TransformedVariableConfig,
@@ -13,7 +14,7 @@ from fv3fit.emulation.transforms import (
     MoistStaticEnergyTransform,
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
-from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional
+from fv3fit.emulation.transforms.factories import fit_conditional
 from fv3fit.emulation.transforms import factories
 
 
@@ -419,3 +420,27 @@ def test_MoistStaticEnergyTransform_round_trip():
     np.testing.assert_allclose(x_round_tripped["Q1"], x["Q1"], rtol=1e-5, atol=1e-3)
     np.testing.assert_allclose(x_round_tripped["Q2"], x["Q2"])
     assert "Qm" in x_round_tripped
+
+
+def test_ComposedTransformFactory_backward_input_names():
+    factory = ComposedTransformFactory(
+        factories=[
+            Difference("diff", "a", "b"),
+            ConditionallyScaled("diff_scaled", "a", source="diff", bins=1),
+        ]
+    )
+    assert factory.backward_input_names() == {"diff_scaled", "a"}
+
+
+def test_ConditionallyScaled_backward_input_names():
+    factory = ComposedTransformFactory(
+        factories=[ConditionallyScaled("diff_scaled", "a", source="diff", bins=1)]
+    )
+    assert factory.backward_input_names() == {"a", "diff_scaled"}
+    assert factory.backward_output_names() == {"diff"}
+
+
+def test_Difference_backward_input_names():
+    factory = ComposedTransformFactory(factories=[Difference("diff", "a", "b")])
+    assert factory.backward_input_names() == {"a", "diff"}
+    assert factory.backward_output_names() == {"b"}

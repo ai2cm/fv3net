@@ -48,6 +48,10 @@ def main(data_config: str, output_path: str, variable_names: Sequence[str]):
     loader = BatchesLoader.from_dict(config)
     logger.info("configuration loaded, creating batches object")
     batches = loader.load_batches(variables=variable_names)
+    save_batches(batches, output_path)
+
+
+def save_batches(batches, output_path):
     n_batches = len(batches)
     logger.info(f"batches object created, saving {n_batches} batches to {output_path}")
     os.makedirs(output_path, exist_ok=True)

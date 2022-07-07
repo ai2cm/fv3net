@@ -32,6 +32,12 @@ class Difference(TensorTransform):
     before: str
     after: str
 
+    def backward_input_names(self) -> Set[str]:
+        return {self.to, self.before}
+
+    def backward_output_names(self) -> Set[str]:
+        return {self.after}
+
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
 
         if self.to in requested_names:
@@ -278,6 +284,12 @@ class UnivariateTransform(TensorTransform):
         out = {**y}
         out[self.source] = self.transform.backward(y[self.to])
         return out
+
+    def backward_input_names(self) -> Set[str]:
+        return {self.to}
+
+    def backward_output_names(self) -> Set[str]:
+        return {self.source}
 
 
 class ConditionallyScaledTransform(TensorTransform):

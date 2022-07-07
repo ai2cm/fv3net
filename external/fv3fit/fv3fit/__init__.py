@@ -32,6 +32,12 @@ from .keras._models.convolutional import ConvolutionalHyperparameters
 from .keras._models.dense import DenseHyperparameters
 from . import keras, sklearn, testing
 from fv3fit._py_function import py_function_dict_output
+from .data import (
+    register_tfdataset_loader,
+    TFDatasetLoader,
+    tfdataset_loader_from_dict,
+    FromBatches,
+)
 
 # need to import this to register the training func
 import fv3fit.train_microphysics
