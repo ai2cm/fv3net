@@ -194,6 +194,15 @@ class TendencyToFlux(TensorTransform):
 
         return requested_names
 
+    def backward_input_names(self) -> Set[str]:
+        names = {self.interface_flux, self.down_sfc_flux, self.up_sfc_flux, self.delp}
+        if self.net_toa_flux is not None:
+            names |= {self.net_toa_flux}
+        return names
+
+    def backward_output_names(self) -> Set[str]:
+        return {self.tendency}
+
     def forward(self, y: TensorDict):
         y = {**y}
         flux = tf.constant(-1 / self.gravity, dtype=tf.float32) * tf.math.cumsum(
