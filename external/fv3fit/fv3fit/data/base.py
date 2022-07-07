@@ -8,7 +8,7 @@ _TFDATASET_LOADERS: List[Type["TFDatasetLoader"]] = []
 
 class TFDatasetLoader(abc.ABC):
     @abc.abstractmethod
-    def get_data(
+    def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
     ) -> tf.data.Dataset:
         """

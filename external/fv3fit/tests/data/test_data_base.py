@@ -16,7 +16,7 @@ def test_loader_from_dict():
         def from_dict(cls, d):
             return mock_result
 
-        def get_data(
+        def open_tfdataset(
             self, local_download_path, variable_names,
         ):
             raise NotImplementedError()

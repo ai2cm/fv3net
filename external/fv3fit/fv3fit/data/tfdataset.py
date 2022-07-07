@@ -88,7 +88,7 @@ class WindowedZarrLoader(TFDatasetLoader):
     )
     n_windows: Optional[int] = None
 
-    def get_data(
+    def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
     ) -> tf.data.Dataset:
         """

@@ -44,7 +44,7 @@ def test_loader_gets_requested_variables(variable_names: str):
             default_variable_config=VariableConfig(times="window"),
             variable_configs={},
         )
-        dataset = loader.get_data(
+        dataset = loader.open_tfdataset(
             local_download_path=None, variable_names=variable_names
         )
         item = next(iter(dataset))
@@ -61,7 +61,7 @@ def test_loader_stacks_default_config():
             default_variable_config=VariableConfig(times="window"),
             variable_configs={},
         )
-        dataset = loader.get_data(
+        dataset = loader.open_tfdataset(
             local_download_path=None, variable_names=variable_names
         )
         item = next(iter(dataset))
@@ -87,7 +87,7 @@ def test_loader_stacks_default_config_without_stacked_dims():
             default_variable_config=VariableConfig(times="window"),
             variable_configs={},
         )
-        dataset = loader.get_data(
+        dataset = loader.open_tfdataset(
             local_download_path=None, variable_names=variable_names
         )
         item = next(iter(dataset))
@@ -110,7 +110,7 @@ def test_loader_handles_window_start():
             default_variable_config=VariableConfig(times="window"),
             variable_configs={"a_sfc": VariableConfig(times="start")},
         )
-        dataset = loader.get_data(
+        dataset = loader.open_tfdataset(
             local_download_path=None, variable_names=variable_names
         )
         item = next(iter(dataset))
