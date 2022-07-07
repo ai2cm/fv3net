@@ -67,12 +67,13 @@ class WindowedZarrLoader(TFDatasetLoader):
 
     Attributes:
         data_path: path to zarr data
+        unstacked_dims: dimensions to keep unstacked when loading data, data loaded
+            will have dimensionality [sample] + unstacked_dims
         window_size: number of timesteps to include in time windows, note that
             to account for n_steps timesteps, you must have a window_size of
             n_steps + 1 to include both the start and end point of the window
         default_variable_config: default configuration for variables
         variable_configs: configuration for variables by name
-        batch_size: number of windows to include in each batch
         n_windows: number of windows to create per epoch, defaults to the number
             of windows needed to fully cover the dataset with overlapping
             start and end times.
