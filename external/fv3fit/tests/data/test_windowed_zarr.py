@@ -1,4 +1,5 @@
 from fv3fit.data import WindowedZarrLoader, VariableConfig
+from fv3fit.data.tfdataset import get_n_windows
 import tempfile
 import xarray as xr
 import numpy as np
@@ -115,3 +116,18 @@ def test_loader_handles_window_start():
         item = next(iter(dataset))
         assert item["a"].shape == [1, window_size, NX, NY, NZ]
         assert item["a_sfc"].shape == [1, NX, NY]
+
+
+@pytest.mark.parametrize(
+    ["n_times", "window_size", "n_windows"],
+    [
+        pytest.param(9, 10, 0, id="no_window"),
+        pytest.param(10, 10, 1, id="one_window"),
+        pytest.param(10, 6, 1, id="one_window_almost_two"),
+        # two windows: [0, 1, 2, 3, 4, 5], [5, 6, 7, 8, 9, 10]
+        pytest.param(11, 6, 2, id="two_windows"),
+        pytest.param(12, 6, 2, id="two_windows_one_extra_point"),
+    ],
+)
+def test_get_n_windows(n_times, window_size, n_windows):
+    assert get_n_windows(n_times, window_size) == n_windows
