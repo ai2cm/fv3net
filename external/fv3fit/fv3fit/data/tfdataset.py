@@ -59,7 +59,6 @@ class WindowedZarrLoader(TFDatasetLoader):
     variable_configs: Mapping[str, VariableConfig] = dataclasses.field(
         default_factory=dict
     )
-    batch_size: int = 1
 
     def get_data(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
@@ -77,8 +76,6 @@ class WindowedZarrLoader(TFDatasetLoader):
         def records():
             n_times = ds.dims["time"]
             n_windows = n_times // self.window_size
-            # must ensure n_windows is evenly divisible by self.batch_size
-            n_windows = int((n_windows // self.batch_size) * self.batch_size)
             starts = np.random.randint(0, n_times - self.window_size, n_windows)
             for i_start in starts:
                 record = {}
@@ -96,4 +93,4 @@ class WindowedZarrLoader(TFDatasetLoader):
         # if local_download_path is given, cache on disk
         if local_download_path is not None:
             tfdataset = tfdataset.cache(local_download_path)
-        return tfdataset.unbatch().batch(self.batch_size)
+        return tfdataset

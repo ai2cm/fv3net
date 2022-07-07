@@ -42,7 +42,6 @@ def test_loader_gets_requested_variables(variable_names: str):
             unstacked_dims=["time", "z"],
             default_variable_config=VariableConfig(times="window"),
             variable_configs={},
-            batch_size=1,
         )
         dataset = loader.get_data(
             local_download_path=None, variable_names=variable_names
@@ -53,7 +52,6 @@ def test_loader_gets_requested_variables(variable_names: str):
 
 def test_loader_stacks_default_config():
     variable_names = ["a", "a_sfc"]
-    batch_size = 1
     with temporary_zarr_path() as data_path:
         loader = WindowedZarrLoader(
             data_path=data_path,
@@ -61,16 +59,15 @@ def test_loader_stacks_default_config():
             unstacked_dims=["time", "z"],
             default_variable_config=VariableConfig(times="window"),
             variable_configs={},
-            batch_size=batch_size,
         )
         dataset = loader.get_data(
             local_download_path=None, variable_names=variable_names
         )
         item = next(iter(dataset))
-        assert item["a"].shape[0] == batch_size
+        assert item["a"].shape[0] == NX * NY
         assert len(item["a"].shape) == 3
         assert item["a"].shape[-1] == NZ
-        assert item["a_sfc"].shape[0] == batch_size
+        assert item["a_sfc"].shape[0] == NX * NY
         assert len(item["a_sfc"].shape) == 2
 
 
@@ -80,7 +77,6 @@ def test_loader_stacks_default_config_without_stacked_dims():
     because a "sample" dimension may or may not be created in this case.
     """
     variable_names = ["a", "a_sfc"]
-    batch_size = 1
     window_size = 10
     with temporary_zarr_path() as data_path:
         loader = WindowedZarrLoader(
@@ -89,14 +85,13 @@ def test_loader_stacks_default_config_without_stacked_dims():
             unstacked_dims=["time", "x", "y", "z"],
             default_variable_config=VariableConfig(times="window"),
             variable_configs={},
-            batch_size=batch_size,
         )
         dataset = loader.get_data(
             local_download_path=None, variable_names=variable_names
         )
         item = next(iter(dataset))
-        assert item["a"].shape == [batch_size, window_size, NX, NY, NZ]
-        assert item["a_sfc"].shape == [batch_size, window_size, NX, NY]
+        assert item["a"].shape == [1, window_size, NX, NY, NZ]
+        assert item["a_sfc"].shape == [1, window_size, NX, NY]
 
 
 def test_loader_handles_window_start():
@@ -105,7 +100,6 @@ def test_loader_handles_window_start():
     because a "sample" dimension may or may not be created in this case.
     """
     variable_names = ["a", "a_sfc"]
-    batch_size = 1
     window_size = 10
     with temporary_zarr_path() as data_path:
         loader = WindowedZarrLoader(
@@ -114,11 +108,10 @@ def test_loader_handles_window_start():
             unstacked_dims=["time", "x", "y", "z"],
             default_variable_config=VariableConfig(times="window"),
             variable_configs={"a_sfc": VariableConfig(times="start")},
-            batch_size=batch_size,
         )
         dataset = loader.get_data(
             local_download_path=None, variable_names=variable_names
         )
         item = next(iter(dataset))
-        assert item["a"].shape == [batch_size, window_size, NX, NY, NZ]
-        assert item["a_sfc"].shape == [batch_size, NX, NY]
+        assert item["a"].shape == [1, window_size, NX, NY, NZ]
+        assert item["a_sfc"].shape == [1, NX, NY]
