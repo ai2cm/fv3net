@@ -1,8 +1,12 @@
 import pytest
 import tensorflow as tf
 
-import fv3fit.emulation.transforms.zhao_carr as zhao_carr
-from fv3fit.emulation.transforms.zhao_carr import classify, CLASS_NAMES
+from fv3fit.emulation.transforms.zhao_carr import (
+    classify,
+    CLASS_NAMES,
+    MicrophysicsClasssesV1,
+    MicrophysicsClassesV1OneHot,
+)
 
 
 def test_classify():
@@ -24,18 +28,11 @@ def _get_cloud_state(shape=(4, 2)):
     return {
         "cloud_water_mixing_ratio_input": tf.zeros(shape),
         "cloud_water_mixing_ratio_after_gscond": tf.ones(shape),
-        "cloud_water_mixing_ratio_after_precpd": tf.ones(shape),
     }
 
 
 @pytest.mark.parametrize(
-    "classify_class",
-    [
-        zhao_carr.GscondClassesV1,
-        zhao_carr.GscondClassesV1OneHot,
-        zhao_carr.PrecpdClassesV1,
-        zhao_carr.PrecpdClassesV1OneHot,
-    ],
+    "classify_class", [MicrophysicsClasssesV1, MicrophysicsClassesV1OneHot],
 )
 def test_classify_classes_build(classify_class):
 
@@ -46,13 +43,10 @@ def test_classify_classes_build(classify_class):
     assert transform
 
 
-@pytest.mark.parametrize(
-    "classify_class", [zhao_carr.GscondClassesV1, zhao_carr.PrecpdClassesV1]
-)
-def test_classify_classes_v1(classify_class):
+def test_classify_classes_v1():
     state = _get_cloud_state()
 
-    transform = classify_class().build(state)
+    transform = MicrophysicsClasssesV1().build(state)
 
     required = transform.backward_names(CLASS_NAMES)
     assert transform.cloud_in in required
@@ -62,19 +56,16 @@ def test_classify_classes_v1(classify_class):
     assert set(new_state) & CLASS_NAMES == CLASS_NAMES
 
 
-@pytest.mark.parametrize(
-    "classify_class",
-    [zhao_carr.GscondClassesV1OneHot, zhao_carr.PrecpdClassesV1OneHot],
-)
-def test_classify_classes_v1OneHot(classify_class):
+def test_classify_classes_v1OneHot():
     state = _get_cloud_state()
 
-    transform = classify_class().build(state)
+    dclass = MicrophysicsClassesV1OneHot
+    transform = dclass().build(state)
 
     required = transform.backward_names({transform.to})
     assert transform.cloud_in in required
     assert transform.cloud_out in required
 
     new_state = transform.forward(state)
-    assert classify_class.to in new_state
-    assert new_state[classify_class.to].shape[-1] == len(CLASS_NAMES)
+    assert dclass.to in new_state
+    assert new_state[dclass.to].shape[-1] == len(CLASS_NAMES)

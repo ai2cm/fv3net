@@ -19,7 +19,7 @@ CLASS_NAMES = {
 
 
 @dataclasses.dataclass
-class GscondClassesV1(TensorTransform):
+class MicrophysicsClasssesV1(TensorTransform):
     """
     A hardcoded classification transform to assess cloud state/tendency
     behavior
@@ -55,7 +55,7 @@ class GscondClassesV1(TensorTransform):
 
 
 @dataclasses.dataclass
-class GscondClassesV1OneHot(GscondClassesV1):
+class MicrophysicsClassesV1OneHot(MicrophysicsClasssesV1):
     to: str = "gscond_classes"
 
     def build(self, sample: TensorDict):
@@ -82,22 +82,6 @@ class GscondClassesV1OneHot(GscondClassesV1):
         classes = classify(x[self.cloud_in], x[self.cloud_out], self.timestep)
         x[self.to] = tf.stack([classes[name] for name in self._names], -1)
         return x
-
-
-# TODO: Probably a V2 of this class that just uses gscond outputs
-@dataclasses.dataclass
-class PrecpdClassesV1(GscondClassesV1):
-    cloud_in: str = "cloud_water_mixing_ratio_input"
-    cloud_out: str = "cloud_water_mixing_ratio_after_precpd"
-    timestep: int = 900
-
-
-@dataclasses.dataclass
-class PrecpdClassesV1OneHot(GscondClassesV1OneHot):
-    cloud_in: str = "cloud_water_mixing_ratio_input"
-    cloud_out: str = "cloud_water_mixing_ratio_after_precpd"
-    timestep: int = 900
-    to: str = "precpd_classes"
 
 
 def classify(cloud_in, cloud_out, timestep, math=tf.math):
