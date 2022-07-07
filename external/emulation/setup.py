@@ -17,6 +17,8 @@ requirements = [
     "xarray",
     "zarr",
     "scipy",
+    # ai2 deps
+    "fv3fit",
 ]
 
 setup_requirements = []

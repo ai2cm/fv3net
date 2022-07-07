@@ -7,11 +7,12 @@ from loaders.batches.save import save_batches
 from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
 import logging
-from .base import TFDatasetLoader
+from .base import TFDatasetLoader, register_tfdataset_loader
 
 logger = logging.getLogger(__name__)
 
 
+@register_tfdataset_loader
 @dataclasses.dataclass
 class FromBatches(TFDatasetLoader):
 
@@ -29,7 +30,9 @@ class FromBatches(TFDatasetLoader):
             local_download_path: if provided, cache data locally at this path
             variable_names: names of variables to include when loading data
         Returns:
-            dataset containing requested variables
+            dataset containing requested variables, each record is a mapping from
+                variable name to variable value, and each value is a tensor whose
+                first dimension is the batch dimension
         """
         batches = self.batches_loader.load_batches(variables=variable_names)
         if local_download_path is not None:

@@ -1,7 +1,8 @@
 import dataclasses
 from typing import Mapping, Sequence, Optional
 import tensorflow as tf
-from .base import TFDatasetLoader
+from .base import TFDatasetLoader, register_tfdataset_loader
+import dacite
 from ..tfdataset import iterable_to_tfdataset
 import tempfile
 import xarray as xr
@@ -55,6 +56,7 @@ def get_n_windows(n_times: int, window_size: int) -> int:
     return (n_times - 1) // (window_size - 1)
 
 
+@register_tfdataset_loader
 @dataclasses.dataclass
 class WindowedZarrLoader(TFDatasetLoader):
     """
@@ -93,7 +95,9 @@ class WindowedZarrLoader(TFDatasetLoader):
             local_download_path: if provided, cache data locally at this path
             variable_names: names of variables to include when loading data
         Returns:
-            dataset containing requested variables
+            dataset containing requested variables, each record is a mapping from
+                variable name to variable value, and each value is a tensor whose
+                first dimension is the batch dimension
         """
         # using tfdataset.cache(local_download_path)
         ds = open_zarr_using_filecache(self.data_path)
@@ -122,3 +126,9 @@ class WindowedZarrLoader(TFDatasetLoader):
         if local_download_path is not None:
             tfdataset = tfdataset.cache(local_download_path)
         return tfdataset
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "WindowedZarrLoader":
+        return dacite.from_dict(
+            data_class=cls, data=d, config=dacite.Config(strict=True)
+        )

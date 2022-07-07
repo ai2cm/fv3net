@@ -4,7 +4,13 @@ the functions in this submodule know the variable names of the ZC microphysics
 
 """
 import numpy as np
-from fv3fit.emulation.transforms.zhao_carr import CLASS_NAMES, ZERO_CLOUD, ZERO_TENDENCY
+from fv3fit.emulation.transforms.zhao_carr import (
+    CLASS_NAMES,
+    ZERO_CLOUD,
+    ZERO_TENDENCY,
+    POSITIVE_TENDENCY,
+    NEGATIVE_TENDENCY,
+)
 
 
 class Input:
@@ -102,7 +108,9 @@ def _get_classify_output(emulator, one_hot_axis=0):
     names = sorted(CLASS_NAMES)
     logit_classes = emulator["gscond_classes"]
     one_hot = logit_classes == np.max(logit_classes, axis=one_hot_axis, keepdims=True)
-    return {name: one_hot[i] for i, name in enumerate(names)}
+    d = {name: one_hot[i] for i, name in enumerate(names)}
+    d["nontrivial_tendency"] = d[POSITIVE_TENDENCY] | d[NEGATIVE_TENDENCY]
+    return d
 
 
 def mask_zero_cloud_classifier(state, emulator):

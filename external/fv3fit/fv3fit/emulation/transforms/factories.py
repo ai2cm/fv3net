@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, Optional, Sequence, Set
+from typing import Callable, Optional, Sequence, Set, runtime_checkable
 
 import tensorflow as tf
 from fv3fit.emulation.transforms.transforms import (
@@ -24,6 +24,31 @@ class TransformFactory(Protocol):
     """
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        pass
+
+    def build(self, sample: TensorDict) -> TensorTransform:
+        pass
+
+
+@runtime_checkable
+class TransformFactoryBackwardsRequiredNames(Protocol):
+    """The interface of a static configuration object
+
+    Methods:
+        backward_names: used to infer to the required input variables
+        backward_required_names: used to infer required input varialbes for
+            backwards transformations
+        build: builds the transform given some data
+
+    """
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        pass
+
+    def backward_input_names(self) -> Set[str]:
+        pass
+
+    def backward_output_names(self) -> Set[str]:
         pass
 
     def build(self, sample: TensorDict) -> TensorTransform:
@@ -106,6 +131,12 @@ class ConditionallyScaled(TransformFactory):
 
         return requested_names
 
+    def backward_input_names(self) -> Set[str]:
+        return {self.condition_on, self.to}
+
+    def backward_output_names(self) -> Set[str]:
+        return {self.source}
+
     def build(self, sample: TensorDict) -> ConditionallyScaledTransform:
 
         if self.fit_filter_magnitude is not None:
@@ -133,7 +164,7 @@ class ConditionallyScaled(TransformFactory):
         )
 
 
-class ComposedTransformFactory(TransformFactory):
+class ComposedTransformFactory(TransformFactoryBackwardsRequiredNames):
     def __init__(self, factories: Sequence[TransformFactory]):
         self.factories = factories
 
@@ -141,6 +172,22 @@ class ComposedTransformFactory(TransformFactory):
         for factory in self.factories[::-1]:
             requested_names = factory.backward_names(requested_names)
         return requested_names
+
+    def backward_input_names(self) -> Set[str]:
+        input_names = set()
+        available_vars: Set[str] = set()
+        for factory in self.factories[::-1]:
+            if isinstance(factory, TransformFactoryBackwardsRequiredNames):
+                input_names |= factory.backward_input_names() - available_vars
+                available_vars |= factory.backward_output_names()
+        return input_names
+
+    def backward_output_names(self) -> Set[str]:
+        output_names = set()
+        for factory in self.factories:
+            if isinstance(factory, TransformFactoryBackwardsRequiredNames):
+                output_names |= factory.backward_output_names()
+        return output_names
 
     def build(self, sample: TensorDict) -> ComposedTransform:
         transforms = []

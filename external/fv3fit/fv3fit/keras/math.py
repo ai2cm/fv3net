@@ -33,10 +33,6 @@ def groupby_bins(
 
     assert tf.rank(edges).numpy() == 1, edges
     assert tf.reduce_all(edges[1:] - edges[:-1] > 0), "edges not sorted"
-    assert x.shape == y.shape
-
     n = edges.shape[0] - 1
-
     output = [reduction(y[(edges[i] <= x) & (x < edges[i + 1])]) for i in range(n)]
-
     return tf.stack(output)

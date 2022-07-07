@@ -5,13 +5,14 @@ import tensorflow as tf
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
     ComposedTransform,
+    ConditionallyScaled,
     Difference,
     LogTransform,
     TransformedVariableConfig,
     LimitValueTransform,
 )
 from fv3fit.emulation.transforms.transforms import ConditionallyScaledTransform
-from fv3fit.emulation.transforms.factories import ConditionallyScaled, fit_conditional
+from fv3fit.emulation.transforms.factories import fit_conditional
 from fv3fit.emulation.transforms import factories
 
 
@@ -358,3 +359,27 @@ def test_PositiveTransform(lower, upper, expected):
     positive = tf.convert_to_tensor(expected)
     backward_result = transform.backward(tensor)
     np.testing.assert_array_equal(positive, backward_result)
+
+
+def test_ComposedTransformFactory_backward_input_names():
+    factory = ComposedTransformFactory(
+        factories=[
+            Difference("diff", "a", "b"),
+            ConditionallyScaled("diff_scaled", "a", source="diff", bins=1),
+        ]
+    )
+    assert factory.backward_input_names() == {"diff_scaled", "a"}
+
+
+def test_ConditionallyScaled_backward_input_names():
+    factory = ComposedTransformFactory(
+        factories=[ConditionallyScaled("diff_scaled", "a", source="diff", bins=1)]
+    )
+    assert factory.backward_input_names() == {"a", "diff_scaled"}
+    assert factory.backward_output_names() == {"diff"}
+
+
+def test_Difference_backward_input_names():
+    factory = ComposedTransformFactory(factories=[Difference("diff", "a", "b")])
+    assert factory.backward_input_names() == {"a", "diff"}
+    assert factory.backward_output_names() == {"b"}
