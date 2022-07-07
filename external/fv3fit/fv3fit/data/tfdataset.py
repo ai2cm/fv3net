@@ -102,27 +102,17 @@ class WindowedZarrLoader(TFDatasetLoader):
         """
         # using tfdataset.cache(local_download_path)
         ds = open_zarr_using_filecache(self.data_path)
-
-        def records():
-            n_times = ds.dims["time"]
-            if self.n_windows is None:
-                n_windows = get_n_windows(n_times, self.window_size)
-            else:
-                n_windows = self.n_windows
-            starts = np.random.randint(0, n_times - self.window_size, n_windows)
-            for i_start in starts:
-                record = {}
-                window_ds = ds.isel(time=range(i_start, i_start + self.window_size))
-                for name in variable_names:
-                    config = self.variable_configs.get(
-                        name, self.default_variable_config
-                    )
-                    record[name] = config.get_record(
-                        name, window_ds, self.unstacked_dims
-                    )
-                yield record
-
-        tfdataset = iterable_to_tfdataset(records())
+        tfdataset = iterable_to_tfdataset(
+            records(
+                n_windows=self.n_windows,
+                window_size=self.window_size,
+                ds=ds,
+                variable_names=variable_names,
+                default_variable_config=self.default_variable_config,
+                variable_configs=self.variable_configs,
+                unstacked_dims=self.unstacked_dims,
+            )
+        )
         # if local_download_path is given, cache on disk
         if local_download_path is not None:
             tfdataset = tfdataset.cache(local_download_path)
@@ -133,3 +123,25 @@ class WindowedZarrLoader(TFDatasetLoader):
         return dacite.from_dict(
             data_class=cls, data=d, config=dacite.Config(strict=True)
         )
+
+
+def records(
+    n_windows: Optional[int],
+    window_size: int,
+    ds: xr.Dataset,
+    variable_names: Sequence[str],
+    default_variable_config: VariableConfig,
+    variable_configs: Mapping[str, VariableConfig],
+    unstacked_dims: Sequence[str],
+):
+    n_times = ds.dims["time"]
+    if n_windows is None:
+        n_windows = get_n_windows(n_times, window_size)
+    starts = np.random.randint(0, n_times - window_size, n_windows)
+    for i_start in starts:
+        record = {}
+        window_ds = ds.isel(time=range(i_start, i_start + window_size))
+        for name in variable_names:
+            config = variable_configs.get(name, default_variable_config)
+            record[name] = config.get_record(name, window_ds, unstacked_dims)
+        yield record
