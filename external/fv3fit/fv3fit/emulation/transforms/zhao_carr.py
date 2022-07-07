@@ -122,7 +122,7 @@ def _combine(
 
 
 @dataclasses.dataclass
-class GSCondRoute(TensorTransform):
+class GscondRoute(TensorTransform):
     gscond_route: bool = True
 
     def build(self, sample: TensorDict):
