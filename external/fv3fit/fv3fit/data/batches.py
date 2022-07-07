@@ -22,7 +22,7 @@ class FromBatches(TFDatasetLoader):
     def from_dict(cls, d: dict) -> "FromBatches":
         return FromBatches(loaders.BatchesLoader.from_dict(d))
 
-    def get_data(
+    def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
     ) -> tf.data.Dataset:
         """

@@ -37,6 +37,7 @@ from .data import (
     TFDatasetLoader,
     tfdataset_loader_from_dict,
     FromBatches,
+    WindowedZarrLoader,
 )
 
 # need to import this to register the training func
