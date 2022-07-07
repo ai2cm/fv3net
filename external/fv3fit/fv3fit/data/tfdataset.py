@@ -38,7 +38,9 @@ class WindowedZarrLoader(TFDatasetLoader):
             local_download_path: if provided, cache data locally at this path
             variable_names: names of variables to include when loading data
         Returns:
-            dataset containing requested variables
+            dataset containing requested variables, each record is a mapping from
+                variable name to variable value, and each value is a tensor whose
+                first dimension is the batch dimension
         """
         # if local_download_path is given, cache on disk
         # using tfdataset.cache(local_download_path)
