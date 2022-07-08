@@ -1,6 +1,6 @@
 - name: GraphHyperparameters
   config:
-    random_seed: 0 
+    random_seed: 0
     model_type: convolutiongraph
     hyperparameters:
       loss:

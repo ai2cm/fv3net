@@ -1,4 +1,3 @@
-
 class PytorchModel(Predictor):
     pass
 

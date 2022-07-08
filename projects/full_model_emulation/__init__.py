@@ -14,9 +14,7 @@ from GraphOptim import (
     get_hyperparameter_class,
 )
 
-from GraphOptim import (
-    OptimizerConfig
-)
+from GraphOptim import OptimizerConfig
 
 from graph import GraphHyperparameters
 

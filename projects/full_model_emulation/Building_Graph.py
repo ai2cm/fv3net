@@ -11,7 +11,8 @@ Attributes:
     lon: longitude of the cubed sphere data
 """
 
-class BuildingGraph():
+
+class BuildingGraph:
     def __init__(self, Neighbor, lat, lon, selfpoint=True):
         super().__init__()
         self.Neighbor = Neighbor
@@ -44,20 +45,27 @@ class BuildingGraph():
             xyz = np.concatenate([arr[:, None] for arr in (x, y, z)], axis=-1)
         return xyz
 
-
     def graphStruc(self):
-        xyz=self.lon_lat_to_xyz()
+        xyz = self.lon_lat_to_xyz()
 
-        kdtree=KDTree(xyz)
+        kdtree = KDTree(xyz)
 
-        _,points=kdtree.query(xyz,self.Neighbor+1)
+        _, points = kdtree.query(xyz, self.Neighbor + 1)
 
         if self.selfpoint:
-            nodes=torch.tensor(np.repeat(points[:,0], self.Neighbor+1, axis=0).reshape(-1,self.Neighbor+1).flatten())
-            edges=torch.tensor(points[:,0:self.Neighbor+1]).flatten()
+            nodes = torch.tensor(
+                np.repeat(points[:, 0], self.Neighbor + 1, axis=0)
+                .reshape(-1, self.Neighbor + 1)
+                .flatten()
+            )
+            edges = torch.tensor(points[:, 0 : self.Neighbor + 1]).flatten()
         else:
-            nodes=torch.tensor(np.repeat(points[:,0], self.Neighbor, axis=0).reshape(-1,self.Neighbor).flatten())
-            edges=torch.tensor(points[:,1:self.Neighbor+1].flatten())
+            nodes = torch.tensor(
+                np.repeat(points[:, 0], self.Neighbor, axis=0)
+                .reshape(-1, self.Neighbor)
+                .flatten()
+            )
+            edges = torch.tensor(points[:, 1 : self.Neighbor + 1].flatten())
 
-        g = dgl.graph((nodes,edges))
+        g = dgl.graph((nodes, edges))
         return g

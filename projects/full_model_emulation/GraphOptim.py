@@ -18,18 +18,18 @@ from typing import (
     MutableMapping,
 )
 
+
 @dataclasses.dataclass
 class OptimizerConfig:
     name: str
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
-    
-    def instance(self,params):
+
+    def instance(self, params):
         cls = getattr(optim, self.name)
-        
-        kwargs = dict(params=params,**self.kwargs)
+
+        kwargs = dict(params=params, **self.kwargs)
 
         return cls(**kwargs)
-
 
 
 # @dataclasses.dataclass

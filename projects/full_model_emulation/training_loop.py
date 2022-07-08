@@ -75,6 +75,7 @@ class TrainingLoopConfig:
         in_memory: if True, cast incoming data to eagerly loaded numpy arrays
             before calling keras fit routine (uses tf.data.Dataset if False).
     """
+
     build_samples: int = 500_000
     Nbatch: int = 1
     n_loop: int = 100
@@ -85,14 +86,13 @@ class TrainingLoopConfig:
     # batch_size: int = 16
     # in_memory: bool = True
 
-
     # def __post_init__(self):
     #     if self.in_memory:
     #         logger.info(
     #             "training with in_memory=True, if you run out of memory "
     #             "try setting in_memory on TrainingLoopConfig to False"
     #         )
-    def fit_loop(config,train_model,inputs, labels, optimizer, get_loss)-> None:
+    def fit_loop(config, train_model, inputs, labels, optimizer, get_loss) -> None:
         """
         Args:
             model: keras model to train
@@ -101,9 +101,9 @@ class TrainingLoopConfig:
             callbacks: if given, these will be called at the end of each epoch
         """
         for epoch in config.n_epoch:  # loop over the dataset multiple times
-            for step in range(0,config.n_loop-config.Nbatch,config.Nbatch):
+            for step in range(0, config.n_loop - config.Nbatch, config.Nbatch):
                 optimizer.zero_grad()
-                loss = get_loss(train_model, inputs, labels)                    
+                loss = get_loss(train_model, inputs, labels)
                 loss.backward()
                 optimizer.step()
-        torch.save(net.state_dict(), WeightsFile+'.pt')
+        torch.save(net.state_dict(), WeightsFile + ".pt")
