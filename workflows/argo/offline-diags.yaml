@@ -43,6 +43,8 @@ spec:
             value: "{{inputs.parameters.wandb-project}}"
           - name: WANDB_RUN_GROUP
             value: "{{inputs.parameters.wandb-group}}"
+          - name: WANDB_JOB_TYPE
+            value: offline_diags
         envFrom:
           - secretRef:
               name: wandb-token
