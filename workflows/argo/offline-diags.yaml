@@ -44,7 +44,7 @@ spec:
           - name: WANDB_RUN_GROUP
             value: "{{inputs.parameters.wandb-group}}"
           - name: WANDB_JOB_TYPE
-            value: offline_diags
+            value: offline_report
         envFrom:
           - secretRef:
               name: wandb-token
