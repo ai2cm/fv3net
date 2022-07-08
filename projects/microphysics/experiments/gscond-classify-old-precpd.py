@@ -23,7 +23,7 @@ mask_levels = {
 
 
 def _get_job():
-    config = load_yaml("../configs/default_short.yaml")
+    config = load_yaml("../configs/default.yaml")
 
     config = set_prognostic_emulation_model(
         config,
@@ -38,7 +38,7 @@ def _get_job():
     )
 
     return PrognosticJob(
-        name=f"full-zc-emulation-zero-cloud-v1",
+        name=f"full-zc-emulation-zero-cloud-30d-v1",
         image_tag="1e93473324cf76e807b96baa5ffd0f39d177be1b",
         config=config,
     )
