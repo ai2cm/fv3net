@@ -78,7 +78,7 @@ def load_data(
     validation_data_config: Optional[TFDatasetLoader],
     cache_config: CacheConfig,
 ) -> Tuple[tf.data.Dataset, Optional[tf.data.Dataset]]:
-    train_tfdataset = training_data_config.get_data(
+    train_tfdataset = training_data_config.open_tfdataset(
         local_download_path=maybe_join_path(
             cache_config.local_download_path, "train_data"
         ),
@@ -87,7 +87,7 @@ def load_data(
     if cache_config.in_memory:
         train_tfdataset = train_tfdataset.cache()
     if validation_data_config is not None:
-        validation_tfdataset = validation_data_config.get_data(
+        validation_tfdataset = validation_data_config.open_tfdataset(
             local_download_path=maybe_join_path(
                 cache_config.local_download_path, "validation_data"
             ),

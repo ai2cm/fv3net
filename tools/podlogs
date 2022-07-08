@@ -1,0 +1,42 @@
+#!/bin/bash
+
+function usage {
+    >&2 echo "Usage:"
+    >&2 echo "podlogs [--freshness AGE] [-n numrecords ] <podname>"
+}
+
+if [[ $# -lt 1 ]]
+then
+    usage
+    exit 1
+fi
+
+args=()
+freshness=10d
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --freshness)
+            freshness=$2
+            shift
+            shift
+            ;;
+        -n)
+            args+=("--limit")
+            args+=("$2")
+            shift
+            shift
+            ;;
+        *)
+            pod=$1
+            shift
+            ;;
+    esac
+done
+
+gcloud logging read \
+"resource.labels.pod_name=$pod" \
+"${args[@]}" \
+--freshness="$freshness" \
+--format='json' \
+| jq -r '.[] | .textPayload // .jsonPayload.message | select( . != null)'  \
+ | tac
