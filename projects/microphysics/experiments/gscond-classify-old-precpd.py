@@ -10,7 +10,7 @@ from end_to_end import (
 )  # noqa: E402
 
 MODEL = "gs://vcm-ml-experiments/microphysics-emulation/2022-07-01/combined-gscond-precpd-v1/model.tf"  # noqa
-CLASSIFIER = "gs://vcm-ml-experiments/microphysics-emulation/2022-06-09/gscond-classifier-v1/model.tf"  # noqa
+CLASSIFIER = "gs://vcm-ml-experiments/microphysics-emulation/2022-07-07/gscond-precpd-classifier-v1/checkpoints/epoch.041.tf"  # noqa
 
 mask_levels = {
     "cloud_water_mixing_ratio_after_gscond": dict(start=74, stop=None),
@@ -23,7 +23,7 @@ mask_levels = {
 
 
 def _get_job():
-    config = load_yaml("../configs/default.yaml")
+    config = load_yaml("../configs/default_short.yaml")
 
     config = set_prognostic_emulation_model(
         config,
@@ -33,11 +33,14 @@ def _get_job():
         classifier_path=CLASSIFIER,
         mask_emulator_levels=mask_levels,
         mask_gscond_zero_cloud_classifier=True,
+        mask_precpd_zero_cloud_classifier=True,
         enforce_conservative=True,
     )
 
     return PrognosticJob(
-        name=f"full-zc-emulation-online-30d-v1", image_tag="latest", config=config,
+        name=f"full-zc-emulation-zero-cloud-v1",
+        image_tag="1e93473324cf76e807b96baa5ffd0f39d177be1b",
+        config=config,
     )
 
 
