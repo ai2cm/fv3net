@@ -18,6 +18,22 @@ logging.basicConfig(level=logging.INFO)
 
 ChunkSpec = Mapping[str, Mapping[str, int]]
 CHUNKS_DEFAULT = {"time": 96}
+REDUNDANT_TIME_AVERAGING_VARS = ["average_T1", "average_T2", "time_bnds"]
+TIME_AVERAGE_DT = "average_DT"
+
+
+def drop_redundant_time_avg_vars(ds):
+    """Multiple time average information variables inserted by fortran have tile dims are
+    redundant. Keep just average_DT with tile dim dropped."""
+    if TIME_AVERAGE_DT in ds:
+        ds[TIME_AVERAGE_DT] = ds[TIME_AVERAGE_DT].mean("tile")
+    for var in ds:
+        if "time_avg_info" in ds[var].attrs:
+            # This attribute seems redundant given the existence of the variable
+            # average_DT, and confuses the regridding if it exists and other time
+            # averaging info variables are not present.
+            del ds[var].attrs["time_avg_info"]
+    return ds.drop_vars(REDUNDANT_TIME_AVERAGING_VARS, errors="ignore")
 
 
 def _get_true_chunks(ds, chunks):
@@ -128,6 +144,7 @@ def process_item(
         chunked = encode_chunks(chunked, chunks)
         dest = os.path.join(d_out, relpath)
         chunked = cast_time(chunked)
+        chunked = drop_redundant_time_avg_vars(chunked)
         chunked.to_zarr(dest, mode="w", consolidated=True)
     except ValueError:
         # is an empty xarray, do nothing

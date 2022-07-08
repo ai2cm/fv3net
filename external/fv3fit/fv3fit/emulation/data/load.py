@@ -5,7 +5,7 @@ import xarray as xr
 from toolz.functoolz import compose_left
 from typing import Callable, Mapping, Optional, Sequence
 
-from fv3fit.tfdataset import seq_to_tfdataset
+from fv3fit.tfdataset import iterable_to_tfdataset
 from .transforms import open_netcdf_dataset
 from .io import get_nc_files
 
@@ -27,7 +27,7 @@ def nc_files_to_tf_dataset(
     """
 
     transform = compose_left(*[open_netcdf_dataset, convert])
-    return seq_to_tfdataset(files, transform).prefetch(tf.data.AUTOTUNE)
+    return iterable_to_tfdataset(files, transform).prefetch(tf.data.AUTOTUNE)
 
 
 def nc_dir_to_tfdataset(

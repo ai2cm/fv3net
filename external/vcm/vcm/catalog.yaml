@@ -273,6 +273,22 @@ sources:
       urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_add_vars_corrected_wind.zarr"
       consolidated: True
 
+  40day_c48_atmos_vwinds:
+    description: Additional v wind 2D dycore variables interpolated to pressure levels from 40-day nudged simulation (May 27 2020 SHiELD),
+      coarsened to C48 resolution. Created by script https://github.com/ai2cm/explore/blob/master/annak/2022-06-17-save-vwind-verif/save_vwind_netcdfs_shield_40d.py
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 40day_may2020
+      category: 2d
+      variables:
+        - VGRD500
+        - VGRD850
+        - VGRD1000
+    args:
+      urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/shield_40d_additional_northward_wind_plev.zarr"
+      consolidated: True
+
   40day_c48_fine_res_apparent_sources_15min_may2020:
     description: >-
       Fine res apparent sources of heat and moisture, coarsened to C48 resolution, with time coordinate shifted to beginning of 15-minute
@@ -291,6 +307,7 @@ sources:
         access: read_only
       urlpath: 'gs://vcm-ml-intermediate/2021-09-09-fine-res-Q1-Q2-from-40-day-X-SHiELD-simulation-2020-05-27.zarr'
       consolidated: True
+
 
   40day_c48_fine_res_apparent_sources_3hrly_may2020:
     description: >-
@@ -716,6 +733,23 @@ sources:
     args:
       urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire_atmos_phys_3h_coarse.zarr"
       consolidated: True
+
+  2020_1yr_pire_vwinds:
+    description: Additional v wind 2D dycore variables interpolated to pressure levels from 1 year PIRE simulation post-spinup,
+      coarsened to C48 resolution. Created by script https://github.com/ai2cm/explore/blob/master/annak/2022-06-17-save-vwind-verif/save_vwind_netcdfs_pire.py
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 1yr_pire_postspinup
+      category: 2d
+      variables:
+        - VGRD500
+        - VGRD850
+        - VGRD1000
+    args:
+      urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/additional_northward_wind_plev.zarr"
+      consolidated: True
+
 
   2020_1yr_pire_dyn_plev:
     description: 2D dycore variables interpolated to pressure levels from 1 year PIRE simulation post-spinup, coarsened to C48 resolution.

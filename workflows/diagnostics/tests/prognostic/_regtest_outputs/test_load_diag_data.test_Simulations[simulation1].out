@@ -233,6 +233,15 @@ variables:
 	float32 q500(time, tile, y, x) ;
 		q500:long_name = specific humidity ;
 		q500:units = kg / kg ;
+	float32 VGRD1000(time, tile, y, x) ;
+		VGRD1000:long_name = VGRD1000 ;
+		VGRD1000:units = unspecified ;
+	float32 VGRD500(time, tile, y, x) ;
+		VGRD500:long_name = VGRD500 ;
+		VGRD500:units = unspecified ;
+	float32 VGRD850(time, tile, y, x) ;
+		VGRD850:long_name = VGRD850 ;
+		VGRD850:units = unspecified ;
 
 // global attributes:
 }

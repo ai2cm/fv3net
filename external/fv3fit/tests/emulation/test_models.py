@@ -273,3 +273,8 @@ def test_saved_model_jacobian():
         output = loaded_model(profile)
 
     assert g.jacobian(output["field_output"], profile)
+
+
+def test_Microphysics_unscaled_outputs():
+    builder = MicrophysicsConfig(unscaled_outputs=["a"])
+    assert builder.output_variables == ["a"]

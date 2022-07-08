@@ -20,6 +20,12 @@ from loaders.mappers._fine_res_budget import (
     FINE_RES_FLUX_NAMES,
 )
 
+COLUMN_T_NUDGE = "storage_of_internal_energy_path_due_to_fine_res_temperature_nudging"
+TOA_NET_RADIATION = "total_sky_net_radiative_flux_at_top_of_atmosphere"
+TOA_DOWN_SW = "total_sky_downward_shortwave_flux_at_top_of_atmosphere"
+TOA_UP_SW = "total_sky_upward_longwave_flux_at_top_of_atmosphere"
+TOA_UP_LW = "total_sky_upward_longwave_flux_at_top_of_atmosphere"
+
 
 class MLTendencies(Protocol):
     dQ1: xr.DataArray
@@ -138,8 +144,13 @@ def compute_budget(
         raise ValueError(f"{approach} not implemented.")
 
     if include_temperature_nudging:
-        name = "storage_of_internal_energy_path_due_to_fine_res_temperature_nudging"
-        merged[name] = column_integrated_fine_res_nudging_heating(merged)
+        merged[COLUMN_T_NUDGE] = column_integrated_fine_res_nudging_heating(merged)
+
+    try:
+        # older vesions of fine-res budget may not include radiative fluxes
+        _compute_net_toa_radiative_flux(merged, include_temperature_nudging)
+    except KeyError:
+        pass
 
     return merged.astype(np.float32)
 
@@ -187,6 +198,18 @@ def _extend_lower(
         }
     )
     return fine_source_extended_lower
+
+
+def _compute_net_toa_radiative_flux(
+    ds: xr.Dataset, include_temperature_nudging: bool
+) -> None:
+    ds[TOA_NET_RADIATION] = ds[TOA_DOWN_SW] - ds[TOA_UP_SW] - ds[TOA_UP_LW]
+    if include_temperature_nudging:
+        ds[TOA_NET_RADIATION] += ds[COLUMN_T_NUDGE]
+    ds[TOA_NET_RADIATION].attrs = {
+        "long_name": "Net radiative flux at TOA",
+        "units": "W/m**2",
+    }
 
 
 @mapper_functions.register

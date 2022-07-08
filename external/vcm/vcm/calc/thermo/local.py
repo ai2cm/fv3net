@@ -1,4 +1,3 @@
-from typing import Union
 import numpy as np
 import xarray as xr
 from .constants import (
@@ -316,10 +315,8 @@ def layer_mass(delp):
 
 
 def moist_static_energy_tendency(
-    temperature_tendency: xr.DataArray,
-    specific_humidity_tendency: xr.DataArray,
-    temperature: Union[float, xr.DataArray] = _FREEZING_TEMPERATURE,
-) -> xr.DataArray:
+    temperature_tendency, specific_humidity_tendency, temperature=_FREEZING_TEMPERATURE,
+):
 
     """Compute moist static energy tendency from temperature and humidity tendencies.
 
@@ -333,16 +330,18 @@ def moist_static_energy_tendency(
         + latent_heat_vaporization(temperature) * specific_humidity_tendency
     )
 
-    return mse_tendency.assign_attrs(
-        units="W/kg", long_name="tendency of moist static energy"
-    )
+    if isinstance(mse_tendency, xr.DataArray):
+        mse_tendency = mse_tendency.assign_attrs(
+            units="W/kg", long_name="tendency of moist static energy"
+        )
+    return mse_tendency
 
 
 def temperature_tendency(
-    moist_static_energy_tendency: xr.DataArray,
-    specific_humidity_tendency: xr.DataArray,
-    temperature: Union[float, xr.DataArray] = _FREEZING_TEMPERATURE,
-) -> xr.DataArray:
+    moist_static_energy_tendency,
+    specific_humidity_tendency,
+    temperature=_FREEZING_TEMPERATURE,
+):
 
     """Compute temperature tendency from moist static energy and humidity tendencies.
 
@@ -358,6 +357,8 @@ def temperature_tendency(
         - latent_heat_vaporization(temperature) * specific_humidity_tendency
     ) / heat_capacity
 
-    return temperature_tendency.assign_attrs(
-        units="K/s", long_name="tendency of air temperature"
-    )
+    if isinstance(temperature_tendency, xr.DataArray):
+        temperature_tendency = temperature_tendency.assign_attrs(
+            units="K/s", long_name="tendency of air temperature"
+        )
+    return temperature_tendency

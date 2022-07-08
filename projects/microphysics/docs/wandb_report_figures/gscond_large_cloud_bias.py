@@ -16,7 +16,7 @@ import joblib
 cache = joblib.Memory("/tmp/joblib")
 open_truth_prediction = cache.cache(open_truth_prediction)
 
-plt.style.use(["tableau-colorblind10", "seaborn-talk"])
+# plt.style.use(["tableau-colorblind10", "seaborn-talk"])
 
 
 test_url = "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test"
@@ -64,9 +64,32 @@ def classify(cloud_in, cloud_out):
     )
 
 
+def plot_p_vs_lat_fractions(truth, classes):
+    merged = xr.merge([truth, classes])
+    out = {}
+
+    def gen():
+        for key in classes:
+            z = merged[key].astype(float).rename(key)
+            pressure_int = vcm.interpolate_to_pressure_levels(
+                z, merged["pressure_thickness_of_atmospheric_layer"], dim="z"
+            ).rename(key)
+            avg = vcm.zonal_average_approximate(
+                np.rad2deg(merged.latitude), pressure_int
+            ).rename(key)
+            yield "fraction", (key,), avg
+
+    ds = vcm.combine_array_sequence(gen(), labels=["class"])
+    ds.fraction.plot(
+        y="pressure", yincrease=False, col="class", col_wrap=2, figsize=(12, 6)
+    )
+    return "fraction", [report.MatplotlibFigure(plt.gcf())]
+
+
 def matplotlib_figs():
     classes = classify(cloud_in, cloud_out)
     yield plot_class_fractions_by_z(classes)
+    yield plot_p_vs_lat_fractions(truth, classes)
     for name, fig in plot_metrics_on_classes(classes, truth, pred):
         yield name, [report.MatplotlibFigure(fig)]
 
@@ -74,10 +97,13 @@ def matplotlib_figs():
 plt.style.use(["tableau-colorblind10", "seaborn-talk"])
 test_url = "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test"
 model_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-05-13/gscond-only-dense-local-nfiles1980-41b1c1-v1/model.tf"
+
 html = report.create_html(
     dict(matplotlib_figs()),
     title="Output category analysis",
     metadata={"model_path": model_path, "test_url": test_url, "script": __file__},
 )
+
+# %%
 pathlib.Path("report.html").write_text(html)
 report.upload(html)

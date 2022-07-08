@@ -5,7 +5,7 @@ import yaml
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import Any, Callable, Mapping, Sequence, Optional, TypeVar, Union
+from typing import Any, Callable, List, Mapping, Sequence, Optional, TypeVar, Union
 
 import dacite
 
@@ -59,6 +59,7 @@ class FV3Config:
     forcing: Any = None
     orographic_forcing: Any = None
     gfs_analysis_data: Any = None
+    patch_files: List = dataclasses.field(default_factory=list)
 
     def asdict(self):
         dict_ = dataclasses.asdict(self)
@@ -143,6 +144,7 @@ class HighLevelConfig(UserConfig, FV3Config):
             forcing=self.forcing,
             orographic_forcing=self.orographic_forcing,
             gfs_analysis_data=self.gfs_analysis_data,
+            patch_files=self.patch_files,
         )
 
     def to_runtime_config(self) -> UserConfig:

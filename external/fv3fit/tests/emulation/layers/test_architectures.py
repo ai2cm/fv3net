@@ -139,9 +139,13 @@ def test_from_config(layer_cls):
     assert isinstance(rebuilt, layer_cls)
 
 
+def _RNNOutput(feature_lengths):
+    return RNNOutput(feature_lengths, output_channels={})
+
+
 @pytest.mark.parametrize(
     "connector_cls, hidden_out",
-    [(StandardOutput, _get_tensor((10, 64))), (RNNOutput, _get_tensor((10, 79, 64)))],
+    [(StandardOutput, _get_tensor((10, 64))), (_RNNOutput, _get_tensor((10, 79, 64)))],
 )
 def test_OutputConnectors(connector_cls, hidden_out):
 
@@ -223,3 +227,10 @@ def test_dense_local_is_local(seed):
     jacobian = g.jacobian(output, in_).numpy()
     assert jacobian.shape == (nz, nz)
     _assert_is_diagonal(jacobian)
+
+
+def test_RNN_output_output_channels():
+    data = _get_tensor((3, 4, 5))
+    rnn = RNNOutput(feature_lengths={"a": 5}, output_channels={"a": 3})
+    out = rnn(data)
+    assert (3, 4, 3) == tuple(out["a"].shape)
