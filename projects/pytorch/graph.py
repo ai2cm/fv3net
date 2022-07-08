@@ -14,7 +14,7 @@ from graphPredict import PytorchModel
 from Building_Graph import graphStruc
 from graph_config import graphnetwork
 from training_loop import TrainingLoopConfig
-
+from fv3fit.data import tfdataset
 from ..._shared.config import (
     register_training_function,
 )
@@ -85,7 +85,6 @@ def train_graph_model(
     validation_batches: Optional[tf.data.Dataset],
     input_variables: Sequence[str],
     output_variables: Sequence[str],
-
 ):
 
     """
@@ -114,12 +113,16 @@ def train_graph_model(
             get_Xy(data=train_batches, clip_config=None).unbatch().batch(build_samples)
         )
     )
-    train_model = build_model(hyperparameters, X=X, y=y)
+    """
+    meanX=np.mean(X)
+    calculate the normalized values 
+    """
+    train_model = build_model()
     optimizer = hyperparameters.optimizer_config
-    multistep = multistep
+    
 
-    fit_loop(train_model, Nbatch, n_epoch, n_loop, inputs, labels, optimizer, multistep,get_loss=stepwise_loss)
-    torch.save(net.state_dict(), WeightsFile+'.pt')
+    hyperparameters.training_loop.fit_loop(train_model, train_batches, validation_batches, optimizer,get_loss=stepwise_loss)
+    
 
     predictor = PytorchModel(
         input_variables=input_variables,
@@ -156,10 +159,6 @@ def fit_loop(train_model, Nbatch, n_epoch, n_loop,inputs, labels, optimizer, get
 
 def build_model(
     config: GraphHyperparameters,
-    X: Sequence[np.ndarray],
-    y: Sequence[np.ndarray],
-    ################lat:
-    ##################lon: 
 ):
     """
     Args:
@@ -170,19 +169,19 @@ def build_model(
         selfpoint: True if self connected graph is needed.
     """
 
-    X=np.squeeze(X,0)
-    y=np.squeeze(y,0)
-    for item in list(X) + list(y):
-        if len(item.shape) != 2:
-            raise ValueError(
-                "convolutional building requires 2d arrays [grids,features], "
-                f"got shape {item.shape}"
-            )
-        if item.shape[1] != item.shape[2]:
-            raise ValueError(
-                "x and y dimensions should be the same length, "
-                f"got shape {item.shape}"
-            )
+    # X=np.squeeze(X,0)
+    # y=np.squeeze(y,0)
+    # for item in list(X) + list(y):
+    #     if len(item.shape) != 2:
+    #         raise ValueError(
+    #             "convolutional building requires 2d arrays [grids,features], "
+    #             f"got shape {item.shape}"
+    #         )
+    #     if item.shape[1] != item.shape[2]:
+    #         raise ValueError(
+    #             "x and y dimensions should be the same length, "
+    #             f"got shape {item.shape}"
+    #         )
     g=graphStruc(config.build_graph)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     train_model = graphnetwork(config.graph_network,g).to(device)
