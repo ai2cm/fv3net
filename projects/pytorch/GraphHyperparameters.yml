@@ -1,0 +1,29 @@
+- name: GraphHyperparameters
+  config:
+    random_seed: 0 
+    model_type: convolutiongraph
+    hyperparameters:
+      loss:
+        loss_type: mse
+        #scaling: standard_uniform
+      graph_network:
+        n_layers: 2
+        n_hidden: 256
+        out_dim: 2
+        dropout: 0.1
+        # kernel_regularizer:
+        #   name: l2
+        #   kwargs:
+        #     l: 0.01
+      training_loop:
+        batch_size: 1
+        epochs: 2
+      #normalize_loss: true
+      optimizer_config:
+        name: Adam
+        learning_rate: 0.001
+      input_variables:
+        - a
+        - f
+      output_variables:
+        - a_t
