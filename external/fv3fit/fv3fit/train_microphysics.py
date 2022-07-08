@@ -13,6 +13,7 @@ import time
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
 from fv3fit._shared.config import register_training_function
 from fv3fit.emulation.models import Model
+from fv3fit.emulation.transforms.zhao_carr import PrecpdOnly
 from fv3fit.dataclasses import asdict_with_enum as _asdict_with_enum
 from fv3fit.emulation.data.transforms import expand_single_dim_data
 from fv3fit import tfdataset
@@ -55,6 +56,7 @@ from fv3fit.emulation.transforms import (
     GscondClassesV1OneHot,
     GscondRoute,
 )
+from fv3fit.emulation.zhao_carr.models import PrecpdModelConfig
 
 from fv3fit.emulation.layers.normalization import standard_deviation_all_features
 from fv3fit.wandb import (
@@ -144,9 +146,10 @@ class TransformedParameters(Hyperparameters):
             GscondClassesV1,
             GscondClassesV1OneHot,
             GscondRoute,
+            PrecpdOnly,
         ]
     ] = field(default_factory=list)
-    model: Optional[MicrophysicsConfig] = None
+    model: Union[PrecpdModelConfig, MicrophysicsConfig, None] = None
     conservative_model: Optional[ConservativeWaterConfig] = None
     loss: Union[CustomLoss, ZhaoCarrLoss] = field(default_factory=CustomLoss)
     epochs: int = 1
@@ -286,9 +289,10 @@ class TrainConfig(TransformedParameters):
             GscondClassesV1,
             GscondClassesV1OneHot,
             GscondRoute,
+            PrecpdOnly,
         ]
     ] = field(default_factory=list)
-    model: Optional[MicrophysicsConfig] = None
+    model: Union[PrecpdModelConfig, MicrophysicsConfig, None] = None
     conservative_model: Optional[ConservativeWaterConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
