@@ -1,12 +1,10 @@
-import torch.nn.functional as F
+import torch
 import tensorflow as tf
 import numpy as np
-from typing import Sequence
 import dataclasses
 from Building_Graph import BuildingGraph
 from Graphloss import LossConfig
 from GraphOptim import OptimizerConfig
-from graph import PytorchModel
 from graph_config import GraphNetworkConfig
 from .hyperparameters import Hyperparameters
 from toolz.functoolz import curry
@@ -14,20 +12,13 @@ from graphPredict import PytorchModel
 from Building_Graph import graphStruc
 from graph_config import graphnetwork
 from training_loop import TrainingLoopConfig
-from fv3fit.data import tfdataset
-from ..._shared.config import (
-    register_training_function,
-)
+from ..._shared.config import register_training_function
 from typing import (
-    Hashable,
     List,
     Optional,
-    Protocol,
     Sequence,
-    Tuple,
     Set,
     Mapping,
-    Union,
 )
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping
 
@@ -69,14 +60,27 @@ class GraphHyperparameters(Hyperparameters):
         return set(self.input_variables).union(self.output_variables)
 
 
-#def train(hyperparameters, train_batches, validation_batches):
-    # preprocess training data
-    # - normalization
-    # - preparing "forcing", "input", and "output" objects (probably dicts?)
+# Some temporary transforms to make life easy for training process
+@curry
+def select_keys_mapping(
+    variable_names: Sequence[str], data: Mapping[str, tf.Tensor]
+) -> Mapping[str, tf.Tensor]:
+    return {name: data[name] for name in variable_names}
 
-    # model = build_model(something)
 
-    # call train_loop(model, inputs, forcing, outputs)
+@curry
+def normalize(
+    means: Mapping[str, float], stds: Mapping[str, float], data: Mapping[str, tf.Tensor]
+) -> Mapping[str, tf.Tensor]:
+    normed_data = {}
+    for key, tensor in data.items():
+        normed_data[key] = (tensor - means[key]) / stds[key]
+
+    return normed_data
+
+
+# TODO: Still have to handle forcing
+
 
 @register_training_function("graph", GraphHyperparameters)
 def train_graph_model(
@@ -104,25 +108,48 @@ def train_graph_model(
         Nbatch: number of batch size
     """
 
+    # use transforms to get correct variables, correct dimensions
+    required_variables = set(hyperparameters.input_variables) | set(
+        hyperparameters.output_variables
+    )
+    processed_train_batches = train_batches.map(
+        select_keys(list(required_variables))
+    ).map(apply_to_mapping(ensure_nd(2)))
+
+    sample = next(
+        iter(processed_train_batches.unbatch().batch(hyperparameters.build_samples))
+    )
+
+    # create a a transform that will properly normalize or denormalize values
+    means = apply_to_mapping(np.mean, sample)
+    stds = apply_to_mapping(np.std, sample)
+    processed_train_batches = processed_train_batches.map(normalize(means, stds))
+
     get_Xy = curry(get_Xy_dataset)(
         input_variables=input_variables, output_variables=output_variables, n_dims=2,
     )
-    
-    X, y = next(
-        iter(
-            get_Xy(data=train_batches, clip_config=None).unbatch().batch(build_samples)
-        )
-    )
-    """
-    meanX=np.mean(X)
-    calculate the normalized values 
-    """
-    train_model = build_model()
-    optimizer = hyperparameters.optimizer_config
-    
 
-    hyperparameters.training_loop.fit_loop(train_model, train_batches, validation_batches, optimizer,get_loss=stepwise_loss)
-    
+    if validation_batches is not None:
+        validation_batches = validation_batches.map(
+            select_keys(list(required_variables))
+        ).map(normalize(means, stds))
+        val_Xy = get_Xy(data=validation_batches)
+    else:
+        val_Xy = None
+
+    train_Xy = get_Xy(data=processed_train_batches)
+
+    train_model = build_model(hyperparameters)
+    optimizer = hyperparameters.optimizer_config
+
+    hyperparameters.training_loop.fit_loop(
+        hyperparameters.training_loop,
+        train_model,
+        train_Xy,
+        val_Xy,
+        optimizer,
+        get_loss=stepwise_loss,
+    )
 
     predictor = PytorchModel(
         input_variables=input_variables,
@@ -132,34 +159,34 @@ def train_graph_model(
     return predictor
 
 
-def stepwise_loss(config: GraphHyperparameters,train_model, criterion, inputs, labels,multistep):
+def stepwise_loss(
+    config: GraphHyperparameters, train_model, criterion, inputs, labels, multistep
+):
     # forward + backward + optimize
 
     criterion = config.loss.loss()
-    loss=0
+    loss = 0
     for sm in range(multistep):
-        if sm==0:
+        if sm == 0:
             outputs = train_model(inputs)
             loss += criterion(outputs, labels[sm])
         else:
             outputs = train_model(outputs)
             loss += criterion(outputs, labels[sm])
-    loss=loss/multistep
+    loss = loss / multistep
     return loss
 
 
-def fit_loop(train_model, Nbatch, n_epoch, n_loop,inputs, labels, optimizer, get_loss):
+def fit_loop(train_model, Nbatch, n_epoch, n_loop, inputs, labels, optimizer, get_loss):
     for epoch in n_epoch:  # loop over the dataset multiple times
-        for step in range(0,n_loop-Nbatch,Nbatch):
+        for step in range(0, n_loop - Nbatch, Nbatch):
             optimizer.zero_grad()
-            loss = get_loss(train_model, inputs, labels)                    
+            loss = get_loss(train_model, inputs, labels)
             loss.backward()
             optimizer.step()
 
 
-def build_model(
-    config: GraphHyperparameters,
-):
+def build_model(config: GraphHyperparameters,):
     """
     Args:
         config: configuration of convolutional training
@@ -182,10 +209,11 @@ def build_model(
     #             "x and y dimensions should be the same length, "
     #             f"got shape {item.shape}"
     #         )
-    g=graphStruc(config.build_graph)
+    g = graphStruc(config.build_graph)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    train_model = graphnetwork(config.graph_network,g).to(device)
+    train_model = graphnetwork(config.graph_network, g).to(device)
     return train_model
+
 
 def get_Xy_dataset(
     input_variables: Sequence[str],
@@ -200,6 +228,7 @@ def get_Xy_dataset(
     the requested output variables.
     """
     data = data.map(apply_to_mapping(ensure_nd(n_dims)))
+
     def map_fn(data):
         x = select_keys(input_variables, data)
         y = select_keys(output_variables, data)
@@ -209,14 +238,20 @@ def get_Xy_dataset(
 
 
 def get_data() -> tf.data.Dataset:
-        n_records = 10
-        n_batch, nt, nx, ny, nz = 10, 40, 4, 4, 6
-        def records():
-            for _ in range(n_records):
-                record = {
-                    "a": np.random.uniform([n_batch, nt, nx, ny, nz]),
-                    "f": np.random.uniform([n_batch, nt, nx, ny, nz])
-                }
-                yield record
-        tfdataset = tfdataset.from_generator(records,output_types = (tf.float32), output_shapes = (tf.TensorShape([nt, nx, ny, nz])))
-        return tfdataset
+    n_records = 10
+    n_batch, nt, nx, ny, nz = 10, 40, 4, 4, 6
+
+    def records():
+        for _ in range(n_records):
+            record = {
+                "a": np.random.uniform([n_batch, nt, nx, ny, nz]),
+                "f": np.random.uniform([n_batch, nt, nx, ny, nz]),
+            }
+            yield record
+
+    tfdataset = tf.data.Dataset.from_generator(
+        records,
+        output_types=(tf.float32),
+        output_shapes=(tf.TensorShape([nt, nx, ny, nz])),
+    )
+    return tfdataset
