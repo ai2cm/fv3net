@@ -121,25 +121,21 @@ def _label_args(labels):
 
 
 def set_prognostic_emulation_model(
-    config: dict,
-    model_path: str,
-    gscond_only: bool = False,
-    gscond_conservative: bool = True,
+    config: dict, model_path: str, gscond_only: bool = False, **kwargs
 ) -> dict:
     prog_config = deepcopy(config)
     assert model_path.startswith("gs://")
 
     if gscond_only:
-        emu_config = {
-            "gscond": {
-                "path": model_path,
-                "gscond_cloud_conservative": gscond_conservative,
-            }
-        }
-        prog_config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = True
+        model_key = "gscond"
     else:
-        emu_config = {"model": {"path": model_path}}
+        model_key = "model"
+
+    emu_config = {model_key: {"path": model_path, **kwargs}}
+
+    prog_config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = gscond_only
     prog_config["zhao_carr_emulation"] = emu_config
+
     return prog_config
 
 
