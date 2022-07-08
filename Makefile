@@ -8,7 +8,7 @@ REGISTRY ?= us.gcr.io/vcm-ml
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_NAME ?= fv3net
 CACHE_TAG =latest
-BEAM_VERSION = 2.37.0
+BEAM_VERSION = 2.40.0
 UBUNTU_IMAGE = ubuntu@sha256:9101220a875cee98b016668342c489ff0674f247f6ca20dfc91b91c0f28581ae
 # prognostic base image is updated manually, not on every commit
 PROGNOSTIC_BASE_VERSION = 1.0.0
@@ -241,6 +241,7 @@ constraints.txt: $(REQUIREMENTS)
 	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
 		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/' \
 		| grep -v google-python-cloud-debugger \
+		| grep -v atomicwrites \
 		> .dataflow-versions.txt
 
 	pip-compile  \
