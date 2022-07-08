@@ -98,7 +98,7 @@ def mask_where_fortran_cloud_identical(state, emulator):
     return _update_with_net_condensation(cloud_out, state, emulator)
 
 
-def _get_classify_output(emulator, one_hot_axis=0):
+def _get_classify_output(emulator, one_hot_axis=0, class_key="gscond_classes"):
     names = sorted(CLASS_NAMES)
     logit_classes = emulator["gscond_classes"]
     one_hot = logit_classes == np.max(logit_classes, axis=one_hot_axis, keepdims=True)
@@ -121,6 +121,16 @@ def mask_zero_tend_classifier(state, emulator):
         emulator[GscondOutput.cloud_water],
     )
     return _update_with_net_condensation(cloud_out, state, emulator)
+
+
+def mask_zero_cloud_classifier_precpd(state, emulator):
+    cloud_out = np.where(
+        _get_classify_output(emulator, class_key="precpd_classes")[ZERO_CLOUD],
+        0,
+        emulator[PrecpdOutput.cloud_water],
+    )
+    out = {**emulator, PrecpdOutput.cloud_water: cloud_out}
+    return out
 
 
 def enforce_conservative_gscond(state, emulator):

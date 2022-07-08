@@ -14,5 +14,5 @@ def _get_job(revision):
     )
 
 
-image_tag = "1a2610a55a889855f5c1f93028f83cf08c1d2bf7"
-submit_jobs([_get_job()], f"classifier")
+image_tag = "fa9d94983c8b89fac75654260ae6b9fc114f4dff"
+submit_jobs([_get_job(image_tag)], f"classifier")

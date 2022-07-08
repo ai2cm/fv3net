@@ -88,6 +88,7 @@ class ModelConfig:
     enforce_conservative: bool = False
     mask_gscond_zero_cloud_classifier: bool = False
     mask_gscond_no_tend_classifier: bool = False
+    mask_precpd_zero_cloud_classifier: bool = False
 
     def build(self) -> MicrophysicsHook:
         return MicrophysicsHook(
@@ -126,6 +127,9 @@ class ModelConfig:
 
         if self.mask_gscond_zero_cloud_classifier:
             yield emulation.zhao_carr.mask_zero_cloud_classifier
+
+        if self.mask_precpd_zero_cloud_classifier:
+            yield emulation.zhao_carr.mask_zero_cloud_classifier_precpd
 
         if self.enforce_conservative:
             yield emulation.zhao_carr.enforce_conservative_gscond
