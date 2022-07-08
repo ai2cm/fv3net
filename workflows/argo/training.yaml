@@ -51,7 +51,9 @@ spec:
           - |
 
             if [ ! -z {{inputs.parameters.wandb-tags}} ]; then
-              export WANDB_TAGS={{inputs.parameters.wandb-tags}}
+              TAGS={{inputs.parameters.wandb-tags}}
+              # strip possible trailing comma
+              export WANDB_TAGS=$( echo $TAGS | sed 's/,$//' )
             fi
 
             cat <<EOF >training_config.yaml

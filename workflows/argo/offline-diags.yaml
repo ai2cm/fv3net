@@ -55,7 +55,9 @@ spec:
             gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
 
             if [ ! -z {{inputs.parameters.wandb-tags}} ]; then
-              export WANDB_TAGS={{inputs.parameters.wandb-tags}}
+              TAGS={{inputs.parameters.wandb-tags}}
+              # strip possible trailing comma
+              export WANDB_TAGS=$( echo $TAGS | sed 's/,$//' )
             fi
 
             cat << EOF > test_data.yaml
