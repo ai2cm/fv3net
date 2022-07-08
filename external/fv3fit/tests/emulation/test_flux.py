@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-import xarray as xr
 from fv3fit.emulation.flux import TendencyToFlux, MoistStaticEnergyTransform
 
 
@@ -61,4 +60,3 @@ def test_MoistStaticEnergyTransform_round_trip():
     np.testing.assert_allclose(x_round_tripped["Q1"], x["Q1"], rtol=1e-5, atol=1e-3)
     np.testing.assert_allclose(x_round_tripped["Q2"], x["Q2"])
     assert "Qm" in x_round_tripped
-
