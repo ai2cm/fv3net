@@ -82,7 +82,7 @@ spec:
             - name: wandb-project
               value: "{{inputs.parameters.wandb-project}}"
             - name: wandb-tags
-              value: "{{inputs.parameters.wandb-tags}}"
+              value: "{{inputs.parameters.tag}},{{inputs.parameters.wandb-tags}}"
             - name: wandb-group
               value: "{{inputs.parameters.wandb-group}}"
       - name: offline-diags
@@ -112,7 +112,7 @@ spec:
               - name: wandb-project
                 value: "{{inputs.parameters.wandb-project}}"
               - name: wandb-tags
-                value: "{{inputs.parameters.wandb-tags}}"
+                value: "{{inputs.parameters.tag}},{{inputs.parameters.wandb-tags}}"
               - name: wandb-group
                 value: "{{inputs.parameters.wandb-group}}"
       - name: insert-model-urls
