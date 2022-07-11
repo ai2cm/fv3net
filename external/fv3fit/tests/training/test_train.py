@@ -30,9 +30,7 @@ REGRESSION_TRAINING_TYPES = [
 
 # unlabeled models that can be tested on all model configuration tests, but not those
 # that actually depend on the quality of supervised learning that occurs
-NON_REGRESSION_TRAINING_TYPES = [
-    "min_max_novelty_detector"
-]
+NON_REGRESSION_TRAINING_TYPES = ["min_max_novelty_detector"]
 
 # training functions that have restrictions on the datasets they support,
 # cannot be used in generic tests below
@@ -47,6 +45,7 @@ SPECIAL_TRAINING_TYPES = [
 @pytest.fixture(params=REGRESSION_TRAINING_TYPES + NON_REGRESSION_TRAINING_TYPES)
 def model_type(request):
     return request.param
+
 
 # automatically test on every registered training class with labeled data
 @pytest.fixture(params=REGRESSION_TRAINING_TYPES)
@@ -148,7 +147,9 @@ def _get_dataset_default(sample_func, data_2d_ceof=1):
     output_variables = ["var_out"]
     i_3d_input = input_variables.index("var_in_3d")
     output_values = [input_values[i_3d_input]]
-    processed_dataset = _process(input_variables, input_values, output_variables, output_values)
+    processed_dataset = _process(
+        input_variables, input_values, output_variables, output_values
+    )
     return (input_variables, output_variables, processed_dataset)
 
 

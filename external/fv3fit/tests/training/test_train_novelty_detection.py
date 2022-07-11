@@ -5,27 +5,27 @@ from fv3fit._shared.hyperparameters import Hyperparameters
 from fv3fit._shared.novelty_detector import NoveltyDetector
 from fv3fit.tfdataset import tfdataset_from_batches
 from fv3fit.sklearn._min_max_novelty_detector import MinMaxNoveltyDetector
-import numpy as np
 import pytest
-import tensorflow as tf
-from typing import Callable, Sequence, Tuple, Union
+from typing import Callable, Sequence, Union
 import xarray as xr
 
 from tests.training.test_train import (
     get_dataset_default,
     get_uniform_sample_func,
-    unstack_test_dataset
+    unstack_test_dataset,
 )
 
-# novelty detection predictors that can be tested on any input data, but whose outputs will
-# not correspond to the labels of standard supervised prediction tasks
+# novelty detection predictors that can be tested on any input data, but whose outputs
+# will not correspond to the labels of standard supervised prediction tasks
 NOVELTY_TRAINING_TYPES = [
     "min_max_novelty_detector",
 ]
 
+
 @pytest.fixture(params=NOVELTY_TRAINING_TYPES)
 def model_type(request):
     return request.param
+
 
 @dataclasses.dataclass
 class NoveltyTrainingResult:
@@ -35,7 +35,11 @@ class NoveltyTrainingResult:
     hyperparameters: Hyperparameters
 
 
-def train_novelty_detector(model_type: str, sample_func: Callable[[], xr.DataArray], hyperparameters: Hyperparameters=None):
+def train_novelty_detector(
+    model_type: str,
+    sample_func: Callable[[], xr.DataArray],
+    hyperparameters: Hyperparameters = None,
+):
     input_variables, output_variables, train_dataset = get_dataset_default(sample_func)
     if hyperparameters is None:
         cls = get_hyperparameter_class(model_type)
@@ -51,16 +55,15 @@ def train_novelty_detector(model_type: str, sample_func: Callable[[], xr.DataArr
     return NoveltyTrainingResult(model, output_variables, test_dataset, hyperparameters)
 
 
-def scale_test_sample(test_dataset: xr.Dataset, scaling: Union[int, float]=100) -> xr.Dataset:
+def scale_test_sample(
+    test_dataset: xr.Dataset, scaling: Union[int, float] = 100
+) -> xr.Dataset:
     for data_var in test_dataset.data_vars:
         test_dataset[data_var] = scaling * test_dataset[data_var]
     return test_dataset
 
 
-def assert_correct_output(
-    model_type: str,
-    sample_func: Callable[[], xr.DataArray]
-):
+def assert_correct_output(model_type: str, sample_func: Callable[[], xr.DataArray]):
     """
     Args:
         model_type: type of model to train
@@ -75,7 +78,9 @@ def assert_correct_output(
     test_dataset_dimensions = set(result.test_dataset.dims.keys())
     assert output_dimensions == test_dataset_dimensions
     # output is is_novelty
-    assert set(out_dataset.data_vars.keys()) == set([NoveltyDetector._NOVELTY_OUTPUT_VAR, NoveltyDetector._SCORE_OUTPUT_VAR])
+    assert set(out_dataset.data_vars.keys()) == set(
+        [NoveltyDetector._NOVELTY_OUTPUT_VAR, NoveltyDetector._SCORE_OUTPUT_VAR]
+    )
     # outputs are either 0 or 1 (and at least one output is not a novelty)
     assert out_dataset[NoveltyDetector._NOVELTY_OUTPUT_VAR].max() <= 1
     assert out_dataset[NoveltyDetector._NOVELTY_OUTPUT_VAR].min() == 0
@@ -86,7 +91,7 @@ def assert_extreme_novelties(
     model_type: str,
     sample_func: Callable[[], xr.DataArray],
     scaling: Union[int, float] = 100,
-    epsilon: float = 0.01
+    epsilon: float = 0.01,
 ):
     """
     Args:
@@ -107,9 +112,9 @@ def assert_extreme_novelties(
 @pytest.mark.slow
 def test_train_novelty_default_correct_output(model_type: str, regtest):
     """
-    The model has properly formatted output, including (1) thesame dimensions as the input
-    (besides the vertical dimension), (2) the correct data variable, and (3) outputs in the
-    correct [0, 1] range.
+    The model has properly formatted output, including (1) thesame dimensions as the
+    input (besides the vertical dimension), (2) the correct data variable, and
+    (3) outputs in the correct [0, 1] range.
     """
     n_sample, n_tile, nx, ny, n_feature = 10, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
@@ -119,8 +124,8 @@ def test_train_novelty_default_correct_output(model_type: str, regtest):
 @pytest.mark.slow
 def test_train_novelty_default_extreme_novelties(model_type: str, regtest):
     """
-    When testing coordinates are scaled by a very large amount, nearly every sample is deemed a
-    novelty.
+    When testing coordinates are scaled by a very large amount, nearly every sample is
+    deemed a novelty.
     """
     n_sample, n_tile, nx, ny, n_feature = 10, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))

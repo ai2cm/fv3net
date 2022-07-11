@@ -15,7 +15,7 @@ import dataclasses
 import dacite
 import fsspec
 from fv3fit import tfdataset
-from fv3fit._shared.packer import PackingInfo, clip_sample, unpack
+from fv3fit._shared.packer import PackingInfo, clip_sample
 from fv3fit.tfdataset import apply_to_mapping, ensure_nd
 from fv3fit.typing import Batch
 import io
@@ -24,24 +24,26 @@ import logging
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
-from typing import Optional, Iterable, Sequence
-from vcm import safe
 import xarray as xr
 import yaml
 
-@register_training_function("min_max_novelty_detector", MinMaxNoveltyDetectorHyperparameters)
+
+@register_training_function(
+    "min_max_novelty_detector", MinMaxNoveltyDetectorHyperparameters
+)
 def train_min_max_novelty_detector(
     hyperparameters: MinMaxNoveltyDetectorHyperparameters,
     train_batches: tf.data.Dataset,
-    validation_batches: tf.data.Dataset
+    validation_batches: tf.data.Dataset,
 ):
     train_batches = train_batches.map(
         tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
     )
-    
+
     model = MinMaxNoveltyDetector(hyperparameters)
     model.fit(train_batches)
     return model
+
 
 @_shared.io.register("minmax")
 class MinMaxNoveltyDetector(NoveltyDetector):
@@ -49,10 +51,7 @@ class MinMaxNoveltyDetector(NoveltyDetector):
     _PICKLE_NAME = "minmax.pkl"
     _METADATA_NAME = "metadata.bin"
 
-    def __init__(
-        self,
-        hyperparameters: MinMaxNoveltyDetectorHyperparameters
-    ):
+    def __init__(self, hyperparameters: MinMaxNoveltyDetectorHyperparameters):
         super().__init__(hyperparameters.input_variables)
         self.packer_config = hyperparameters.packer_config
 
@@ -81,19 +80,30 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         score(c) = max(0, (c - c_max) / c_max) + max(0, (c_min - c) / c_min).
         A total scores over a column is taken by taking the maximum score.
         If the score is greater than 0, then at least one coordinate is out of range.
-        """  
-        stack_dims = [dim for dim in data.dims if dim not in stacking.Z_DIM_NAMES]  
-        stacked_data = data.stack({SAMPLE_DIM_NAME: stack_dims}).transpose(SAMPLE_DIM_NAME, ...)
+        """
+        stack_dims = [dim for dim in data.dims if dim not in stacking.Z_DIM_NAMES]
+        stacked_data = data.stack({SAMPLE_DIM_NAME: stack_dims})
+        stacked_data = stacked_data.transpose(SAMPLE_DIM_NAME, ...)
 
-        X, _ = pack(stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config)
+        X, _ = pack(
+            stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config
+        )
         scaled_X = self.scaler.transform(X)
         scores_larger_than_max = np.maximum(scaled_X.max(axis=1) - 1, 0)
         scores_smaller_than_min = np.maximum(-1 * scaled_X.min(axis=1), 0)
         stacked_scores = scores_larger_than_max + scores_smaller_than_min
 
-        new_coords = {k: v for (k, v) in stacked_data.coords.items() if k not in stacking.Z_DIM_NAMES}
-        stacked_scores = xr.DataArray(stacked_scores, dims=[SAMPLE_DIM_NAME], coords=new_coords)
-        score_dataset = stacked_scores.to_dataset(name=self._SCORE_OUTPUT_VAR).unstack(SAMPLE_DIM_NAME)
+        new_coords = {
+            k: v
+            for (k, v) in stacked_data.coords.items()
+            if k not in stacking.Z_DIM_NAMES
+        }
+        stacked_scores = xr.DataArray(
+            stacked_scores, dims=[SAMPLE_DIM_NAME], coords=new_coords
+        )
+        score_dataset = stacked_scores.to_dataset(name=self._SCORE_OUTPUT_VAR).unstack(
+            SAMPLE_DIM_NAME
+        )
 
         return match_prediction_to_input_coords(data, score_dataset)
 
@@ -120,11 +130,16 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         components = joblib.load(io.BytesIO(mapper[cls._PICKLE_NAME]))
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
 
-        hyperparameters = MinMaxNoveltyDetectorHyperparameters(metadata["input_variables"])
+        hyperparameters = MinMaxNoveltyDetectorHyperparameters(
+            metadata["input_variables"]
+        )
         obj = cls(hyperparameters)
         obj.scaler = components["scaler"]
-        obj.input_features_ = dacite.from_dict(PackingInfo, data=metadata["input_features_"])
-        obj.packer_config = dacite.from_dict(PackerConfig, data=metadata.get("packer_config", {}))
+        obj.input_features_ = dacite.from_dict(
+            PackingInfo, data=metadata["input_features_"]
+        )
+        obj.packer_config = dacite.from_dict(
+            PackerConfig, data=metadata.get("packer_config", {})
+        )
 
-        return obj        
-
+        return obj
