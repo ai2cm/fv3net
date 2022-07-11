@@ -464,6 +464,12 @@ namelist:
 nudging: null
 online_emulator: null
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+patch_files:
+- copy_method: copy
+  source_location: gs://patch-file
+  source_name: patch.nc
+  target_location: INPUT/
+  target_name: patch.nc
 prephysics: null
 scikit_learn:
   diagnostic_ml: false

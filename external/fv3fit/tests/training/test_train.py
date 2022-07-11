@@ -16,7 +16,7 @@ import vcm.testing
 import tempfile
 from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
 from fv3fit._shared.stacking import stack, stack_non_vertical, SAMPLE_DIM_NAME
-from fv3fit.train import tfdataset_from_batches
+from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
 
 

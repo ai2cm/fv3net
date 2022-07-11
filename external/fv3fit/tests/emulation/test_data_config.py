@@ -28,3 +28,15 @@ def test_TransformConfig_from_dict():
     transform_in = _get_config()
     transform_from_dict = TransformConfig.from_dict(dataclasses.asdict(transform_in))
     assert transform_from_dict == transform_in
+
+
+def test_TransformConfig_get_dataset_names():
+    class Mock:
+        def forward(self, x):
+            return x
+
+        def backward_names(self, required):
+            return required | {"z"}
+
+    config = TransformConfig(tensor_transforms=[Mock()])
+    assert config.get_dataset_names(set()) == {"z"}
