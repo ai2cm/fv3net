@@ -212,9 +212,8 @@ class TransformedParameters(Hyperparameters):
         model_outputs = set(self._model.output_variables)
 
         required_for_model = self.transform_factory.backward_names(model_inputs)
-        required_for_backward = (
-            self.transform_factory.backward_names(backward_transform_inputs)
-            - model_outputs
+        required_for_backward = self.transform_factory.backward_names(
+            backward_transform_inputs - model_outputs
         )
         return required_for_model | required_for_backward
 
