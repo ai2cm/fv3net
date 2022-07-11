@@ -116,3 +116,55 @@ class MoistStaticEnergyTransform(TensorTransform):
             x[self.mse_tendency], x[self.moistening]
         )
         return x
+
+
+@dataclasses.dataclass
+class SurfaceFlux(TensorTransform):
+    """
+    From an array of cell-centered tendencies, TOA net flux and upward surface flux,
+    compute downward surface flux.
+    """
+
+    tendency: str
+    down_sfc_flux: str
+    up_sfc_flux: str
+    delp: str
+    net_toa_flux: Optional[str] = None  # if not provided, assume TOA flux is zero
+    gravity: float = 9.8065  # TODO: define vcm mass integral function for tensors
+
+    def build(self, sample: TensorDict) -> TensorTransform:
+        return self
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+
+        if self.down_sfc_flux in requested_names:
+            requested_names -= {self.down_sfc_flux}
+            requested_names |= {self.tendency, self.up_sfc_flux, self.delp}
+            if self.net_toa_flux:
+                requested_names |= {self.net_toa_flux}
+
+        return requested_names
+
+    def backward_input_names(self) -> Set[str]:
+        names = {self.tendency, self.up_sfc_flux, self.delp}
+        if self.net_toa_flux is not None:
+            names |= {self.net_toa_flux}
+        return names
+
+    def backward_output_names(self) -> Set[str]:
+        return {self.down_sfc_flux}
+
+    def forward(self, y: TensorDict):
+        return y
+
+    def backward(self, y: TensorDict):
+        y = {**y}
+        net_sfc_flux = tf.constant(
+            -1 / self.gravity, dtype=tf.float32
+        ) * tf.math.reduce_sum(y[self.tendency] * y[self.delp], axis=-1, keepdims=True)
+
+        if self.net_toa_flux is not None:
+            net_sfc_flux += y[self.net_toa_flux]
+
+        y[self.down_sfc_flux] = net_sfc_flux + y[self.up_sfc_flux]
+        return y

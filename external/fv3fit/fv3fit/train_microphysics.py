@@ -55,7 +55,11 @@ from fv3fit.emulation.transforms import (
     GscondClassesV1OneHot,
     GscondRoute,
 )
-from fv3fit.emulation.flux import TendencyToFlux, MoistStaticEnergyTransform
+from fv3fit.emulation.flux import (
+    TendencyToFlux,
+    MoistStaticEnergyTransform,
+    SurfaceFlux,
+)
 
 from fv3fit.emulation.layers.normalization import standard_deviation_all_features
 from fv3fit.wandb import (
@@ -147,6 +151,7 @@ class TransformedParameters(Hyperparameters):
             TendencyToFlux,
             MoistStaticEnergyTransform,
             GscondRoute,
+            SurfaceFlux,
         ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
@@ -291,6 +296,7 @@ class TrainConfig(TransformedParameters):
             TendencyToFlux,
             MoistStaticEnergyTransform,
             GscondRoute,
+            SurfaceFlux,
         ]
     ] = field(default_factory=list)
     model: Optional[MicrophysicsConfig] = None
