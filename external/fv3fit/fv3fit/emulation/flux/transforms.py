@@ -137,12 +137,6 @@ class SurfaceFlux(TensorTransform):
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
 
-        if self.down_sfc_flux in requested_names:
-            requested_names -= {self.down_sfc_flux}
-            requested_names |= {self.tendency, self.up_sfc_flux, self.delp}
-            if self.net_toa_flux:
-                requested_names |= {self.net_toa_flux}
-
         return requested_names
 
     def backward_input_names(self) -> Set[str]:
