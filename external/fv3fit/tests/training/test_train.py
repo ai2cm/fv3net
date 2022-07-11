@@ -48,9 +48,9 @@ def model_type(request):
     return request.param
 
 
-# automatically test on every registered training class with labeled data
+# automatically test on every registered training class for regression
 @pytest.fixture(params=REGRESSION_TRAINING_TYPES)
-def labeled_model_type(request):
+def regression_model_type(request):
     return request.param
 
 
@@ -219,7 +219,7 @@ def assert_can_learn_identity(
 
 
 @pytest.mark.slow
-def test_train_default_model_on_identity(labeled_model_type, regtest):
+def test_train_default_model_on_identity(regression_model_type, regtest):
     """
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around 0 with unit variance.
@@ -231,7 +231,7 @@ def test_train_default_model_on_identity(labeled_model_type, regtest):
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
 
     assert_can_learn_identity(
-        labeled_model_type, sample_func=sample_func, max_rmse=0.2, regtest=regtest,
+        regression_model_type, sample_func=sample_func, max_rmse=0.2, regtest=regtest,
     )
 
 
@@ -342,7 +342,7 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
 
 
 @pytest.mark.slow
-def test_train_default_model_on_nonstandard_identity(labeled_model_type):
+def test_train_default_model_on_nonstandard_identity(regression_model_type):
     """
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around a non-zero value with non-unit variance.
@@ -355,7 +355,7 @@ def test_train_default_model_on_nonstandard_identity(labeled_model_type):
     )
 
     assert_can_learn_identity(
-        labeled_model_type, sample_func=sample_func, max_rmse=0.2 * (high - low),
+        regression_model_type, sample_func=sample_func, max_rmse=0.2 * (high - low),
     )
 
 

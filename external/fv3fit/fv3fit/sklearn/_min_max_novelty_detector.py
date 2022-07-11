@@ -94,22 +94,14 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         """
         assert self.is_trained
 
-        stack_dims = [dim for dim in data.dims if dim not in stacking.Z_DIM_NAMES]
-        stacked_data = data.stack({SAMPLE_DIM_NAME: stack_dims})
-        stacked_data = stacked_data.transpose(SAMPLE_DIM_NAME, ...)
+        scaled_X, coords = self.predict_pre_aggregation(data)
 
-        X, _ = pack(
-            stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config
-        )
-        scaled_X = self.scaler.transform(X)
         scores_larger_than_max = np.maximum(scaled_X.max(axis=1) - 1, 0)
         scores_smaller_than_min = np.maximum(-1 * scaled_X.min(axis=1), 0)
         stacked_scores = scores_larger_than_max + scores_smaller_than_min
 
         new_coords = {
-            k: v
-            for (k, v) in stacked_data.coords.items()
-            if k not in stacking.Z_DIM_NAMES
+            k: v for (k, v) in coords.items() if k not in stacking.Z_DIM_NAMES
         }
         stacked_scores = xr.DataArray(
             stacked_scores, dims=[SAMPLE_DIM_NAME], coords=new_coords
@@ -119,6 +111,17 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         )
 
         return match_prediction_to_input_coords(data, score_dataset)
+
+    def predict_pre_aggregation(self, data: xr.Dataset):
+        stack_dims = [dim for dim in data.dims if dim not in stacking.Z_DIM_NAMES]
+        stacked_data = data.stack({SAMPLE_DIM_NAME: stack_dims})
+        stacked_data = stacked_data.transpose(SAMPLE_DIM_NAME, ...)
+
+        X, _ = pack(
+            stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config
+        )
+        stacked_data.coords
+        return self.scaler.transform(X), stacked_data.coords
 
     def dump(self, path: str) -> None:
         assert self.is_trained
