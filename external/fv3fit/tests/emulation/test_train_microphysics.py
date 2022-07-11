@@ -13,6 +13,7 @@ from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.emulation.transforms import GscondRoute
+from fv3fit.emulation.flux.transforms import TendencyToFlux
 from fv3fit.train_microphysics import (
     TrainConfig,
     TransformedParameters,
@@ -216,3 +217,14 @@ def test_TrainConfig_inputs_routed():
     assert "air_temperature_after_gscond" not in config.input_variables
     assert "specific_humidity_after_gscond" not in config.input_variables
     assert "cloud_water_mixing_ratio_after_gscond" not in config.input_variables
+
+
+def test_TrainConfig_input_variables_dont_include_model_output():
+    transform = TendencyToFlux("Q2", "Q2_flux", "precip", "evap", "delp")
+    config = TrainConfig(
+        tensor_transform=[transform],
+        model=MicrophysicsConfig(
+            input_variables=["air_temp", "evap"], direct_out_variables=["Q2"]
+        ),
+    )
+    assert "Q2" not in config.input_variables
