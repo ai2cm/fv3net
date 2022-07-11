@@ -360,3 +360,22 @@ def water_vapor_path(self):
     return da.assign_attrs(
         {"long_name": "column integrated water vapor", "units": "mm"}
     )
+
+
+@DerivedMapping.register(
+    "upward_heat_flux_at_surface",
+    required_inputs=[
+        "total_sky_upward_shortwave_flux_at_surface",
+        "total_sky_upward_longwave_flux_at_surface",
+        "sensible_heat_flux",
+    ],
+)
+def upward_heat_flux_at_surface(self):
+    result = (
+        self["total_sky_upward_shortwave_flux_at_surface"]
+        + self["total_sky_upward_longwave_flux_at_surface"]
+        + self["sensible_heat_flux"]
+    )
+    return result.assign_attrs(
+        long_name="Upward heat (sensible+radiative) flux at surface", units="W/m**2"
+    )

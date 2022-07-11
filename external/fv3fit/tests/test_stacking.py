@@ -41,6 +41,18 @@ def test_stack_dims(gridded_dataset):
     assert ds_train["var"].dims[0] == s_dim
 
 
+@pytest.mark.parametrize(
+    "gridded_dataset", [(0, 1, 10, 10), (0, 10, 10, 10)], indirect=True,
+)
+def test_stack_dims_no_unstacked_dims(gridded_dataset):
+    s_dim = SAMPLE_DIM_NAME
+    ds_train = stack(gridded_dataset, unstacked_dims=["x", "y", "z"])
+    assert set(ds_train.dims) == {s_dim, "x", "y", "z"}
+    assert len(ds_train["z"]) == len(gridded_dataset.z)
+    assert list(ds_train["var"].dims) == [s_dim, "x", "y", "z"]
+    assert ds_train["var"].shape[0] == 1
+
+
 def test_multiple_unstacked_dims():
     na, nb, nc, nd = 2, 3, 4, 5
     ds = xr.Dataset(

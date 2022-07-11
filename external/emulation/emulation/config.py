@@ -7,6 +7,7 @@ import os
 import cftime
 import dacite
 import f90nml
+import tensorflow as tf
 import yaml
 from emulation._emulate.microphysics import (
     MicrophysicsHook,
@@ -17,9 +18,17 @@ from emulation._emulate.microphysics import (
 from emulation._monitor.monitor import StorageConfig, StorageHook
 from emulation._time import from_datetime, to_datetime
 from emulation.masks import RangeMask, LevelMask, compose_masks
+import emulation._filesystem
+import emulation.models
 import emulation.zhao_carr
 
 logger = logging.getLogger("emulation")
+
+
+def _load_tf_model(model_path: str) -> tf.keras.Model:
+    logger.info(f"Loading keras model: {model_path}")
+    with emulation._filesystem.get_dir(model_path) as local_model_path:
+        return tf.keras.models.load_model(local_model_path)
 
 
 def do_nothing(state):
@@ -91,9 +100,16 @@ class ModelConfig:
     mask_precpd_zero_cloud_classifier: bool = False
 
     def build(self) -> MicrophysicsHook:
-        return MicrophysicsHook(
-            self.path, mask=self._build_mask(), classifier_path=self.classifier_path
+        model = _load_tf_model(self.path)
+        classifier = (
+            _load_tf_model(self.classifier_path)
+            if self.classifier_path is not None
+            else None
         )
+        model = emulation.models.combine_classifier_and_regressor(
+            regressor=model, classifier=classifier
+        )
+        return MicrophysicsHook(model=model, mask=self._build_mask())
 
     def _build_mask(self) -> Mask:
         return compose_masks(self._build_masks())

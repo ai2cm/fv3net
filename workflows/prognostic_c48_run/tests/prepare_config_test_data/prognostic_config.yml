@@ -20,3 +20,9 @@ namelist:
 scikit_learn:
   model:
   - gs://ml-model
+patch_files:
+- copy_method: copy
+  source_location: gs://patch-file
+  source_name: patch.nc
+  target_location: INPUT/
+  target_name: patch.nc
