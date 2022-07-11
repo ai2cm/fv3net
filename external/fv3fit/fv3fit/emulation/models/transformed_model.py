@@ -32,6 +32,9 @@ def transform_model(
 
     # filter out inputs that were unchanged by the transform
     new_outputs = {key: tensor for key, tensor in outputs.items() if key not in inputs}
+    PRECIP_NAME = "surface_precipitation_rate"
+    if PRECIP_NAME in outputs:
+        new_outputs[PRECIP_NAME] = outputs[PRECIP_NAME]
 
     functional_keras_model = tf.keras.Model(inputs=inputs, outputs=new_outputs)
     return ensure_dict_output(functional_keras_model)
