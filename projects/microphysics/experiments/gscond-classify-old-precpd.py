@@ -16,9 +16,9 @@ mask_levels = {
     "cloud_water_mixing_ratio_after_gscond": dict(start=74, stop=None),
     "specific_humidity_after_gscond": dict(start=74, stop=None),
     "air_temperature_after_gscond": dict(start=74, stop=None),
-    "cloud_water_mixing_ratio_after_precpd": dict(start=74, stop=None),
-    "specific_humidity_after_precpd": dict(start=74, stop=None),
-    "air_temperature_after_precpd": dict(start=74, stop=None),
+    "cloud_water_mixing_ratio_after_precpd": dict(start=64, stop=None),
+    "specific_humidity_after_precpd": dict(start=64, stop=None),
+    "air_temperature_after_precpd": dict(start=64, stop=None),
 }
 
 
@@ -38,7 +38,7 @@ def _get_job():
     )
 
     return PrognosticJob(
-        name=f"full-zc-emulation-zero-cloud-30d-v1",
+        name=f"full-zc-emulation-zcloud-upper15clip-30d-v1",
         image_tag="1e93473324cf76e807b96baa5ffd0f39d177be1b",
         config=config,
     )
