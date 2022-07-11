@@ -6,6 +6,7 @@ from fv3fit.keras._models.shared.clip import ClipConfig
 from fv3fit.keras._models.convolutional import ConvolutionalHyperparameters
 from fv3fit.keras._models.shared.convolutional_network import ConvolutionalNetworkConfig
 from fv3fit.keras._models.shared.pure_keras import PureKerasModel
+import fv3fit.sklearn._min_max_novelty_detector
 import pytest
 import xarray as xr
 import numpy as np

@@ -40,9 +40,7 @@ def train_min_max_novelty_detector(
         tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
     )
 
-    model = MinMaxNoveltyDetector(hyperparameters)
-    model.fit(train_batches)
-    return model
+    return MinMaxNoveltyDetector.fit(train_batches, hyperparameters)
 
 
 @_shared.io.register("minmax")
@@ -51,28 +49,41 @@ class MinMaxNoveltyDetector(NoveltyDetector):
     _PICKLE_NAME = "minmax.pkl"
     _METADATA_NAME = "metadata.bin"
 
+    scaler: MinMaxScaler
+    input_features_: PackingInfo
+    is_trained: bool = False
+
     def __init__(self, hyperparameters: MinMaxNoveltyDetectorHyperparameters):
         super().__init__(hyperparameters.input_variables)
         self.packer_config = hyperparameters.packer_config
 
-    def fit(self, batches: tf.data.Dataset):
+    @classmethod
+    def fit(
+        self,
+        batches: tf.data.Dataset,
+        hyperparameters: MinMaxNoveltyDetectorHyperparameters,
+    ) -> "MinMaxNoveltyDetector":
         logger = logging.getLogger("MinMaxNoveltyDetector")
         logger.info(f"Fitting min-max novelty detector.")
 
+        model = MinMaxNoveltyDetector(hyperparameters)
+
         batches = batches.map(apply_to_mapping(ensure_nd(2)))
-        batches_clipped = batches.map(clip_sample(self.packer_config.clip))
-        x_dataset, self.input_features_ = pack_tfdataset(
-            batches_clipped, [str(item) for item in self.input_variables]
+        batches_clipped = batches.map(clip_sample(model.packer_config.clip))
+        x_dataset, model.input_features_ = pack_tfdataset(
+            batches_clipped, [str(item) for item in model.input_variables]
         )
         x_dataset = x_dataset.unbatch()
 
         total_samples = sum(1 for _ in iter(x_dataset))
         X: Batch = next(iter(x_dataset.batch(total_samples)))
 
-        self.scaler = MinMaxScaler()
-        self.scaler.fit(X)
+        model.scaler = MinMaxScaler()
+        model.scaler.fit(X)
 
         logger.info(f"Min-max novelty detector done fitting.")
+        model.is_trained = True
+        return model
 
     def predict(self, data: xr.Dataset) -> xr.Dataset:
         """
@@ -81,6 +92,8 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         A total scores over a column is taken by taking the maximum score.
         If the score is greater than 0, then at least one coordinate is out of range.
         """
+        assert self.is_trained
+
         stack_dims = [dim for dim in data.dims if dim not in stacking.Z_DIM_NAMES]
         stacked_data = data.stack({SAMPLE_DIM_NAME: stack_dims})
         stacked_data = stacked_data.transpose(SAMPLE_DIM_NAME, ...)
@@ -108,6 +121,8 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         return match_prediction_to_input_coords(data, score_dataset)
 
     def dump(self, path: str) -> None:
+        assert self.is_trained
+
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)
 
@@ -141,5 +156,6 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         obj.packer_config = dacite.from_dict(
             PackerConfig, data=metadata.get("packer_config", {})
         )
+        obj.is_trained = True
 
         return obj
