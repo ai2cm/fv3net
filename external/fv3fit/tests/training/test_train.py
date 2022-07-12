@@ -7,6 +7,7 @@ from fv3fit.keras._models.convolutional import ConvolutionalHyperparameters
 from fv3fit.keras._models.shared.convolutional_network import ConvolutionalNetworkConfig
 from fv3fit.keras._models.shared.pure_keras import PureKerasModel
 import fv3fit.sklearn._min_max_novelty_detector
+import fv3fit.sklearn._ocsvm_novelty_detector
 import pytest
 import xarray as xr
 import numpy as np
@@ -31,15 +32,13 @@ REGRESSION_TRAINING_TYPES = [
 
 # unlabeled models that can be tested on all model configuration tests, but not those
 # that actually depend on the quality of supervised learning that occurs
-NON_REGRESSION_TRAINING_TYPES = ["min_max_novelty_detector"]
+NON_REGRESSION_TRAINING_TYPES = ["min_max_novelty_detector", "ocsvm_novelty_detector"]
 
 # training functions that have restrictions on the datasets they support,
 # cannot be used in generic tests below
 # you must write a separate file that specializes each of the tests
 # for models in this list
-SPECIAL_TRAINING_TYPES = [
-    "min_max_novelty_detector",
-]
+SPECIAL_TRAINING_TYPES = ["min_max_novelty_detector", "ocsvm_novelty_detector"]
 
 
 # automatically test on every registered training class

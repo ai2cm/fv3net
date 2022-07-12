@@ -85,6 +85,9 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         model.is_trained = True
         return model
 
+    def _get_default_cutoff(self):
+        return 0
+
     def predict(self, data: xr.Dataset) -> xr.Dataset:
         """
         For each coordinate c, computes a score with the following expression:
@@ -120,7 +123,6 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         X, _ = pack(
             stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config
         )
-        stacked_data.coords
         return self.scaler.transform(X), stacked_data.coords
 
     def dump(self, path: str) -> None:

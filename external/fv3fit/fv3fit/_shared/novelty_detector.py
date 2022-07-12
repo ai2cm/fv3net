@@ -25,9 +25,15 @@ class NoveltyDetector(Predictor, abc.ABC):
         super().__init__(input_variables, output_variables)
 
     def predict_novelties(
-        self, X: xr.Dataset, cutoff: Union[float, int] = 0
+        self, X: xr.Dataset, cutoff: Union[float, int] = None
     ) -> xr.Dataset:
+        if cutoff is None:
+            cutoff = self._get_default_cutoff()
         score_dataset = self.predict(X)
         is_novelty = xr.where(score_dataset[self._SCORE_OUTPUT_VAR] > cutoff, 1, 0)
         score_dataset[self._NOVELTY_OUTPUT_VAR] = is_novelty
         return score_dataset
+
+    @abc.abstractmethod
+    def _get_default_cutoff(self):
+        pass
