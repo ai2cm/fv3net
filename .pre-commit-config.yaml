@@ -9,18 +9,22 @@ repos:
       workflows/fine_res_budget/tests/diag.json|\
       external/vcm/tests/test_data/test_data.tar"
     - id: trailing-whitespace
+      exclude: "external/radiation"
 -   repo: https://github.com/psf/black
     rev: 19.10b0
     hooks:
     - id: black
       additional_dependencies: ["click==8.0.4"]
+      exclude: "external/radiation"
 -   repo: https://gitlab.com/pycqa/flake8
     rev: 3.7.9
     hooks:
     - id: flake8
       name: flake8
       language_version: python3
-      exclude: "__init__.py"
+      exclude: "\
+      __init__.py|\
+      external/radiation"
       args: [--config, setup.cfg]
     - id: flake8
       name: flake8 __init__.py files
