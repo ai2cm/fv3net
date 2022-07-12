@@ -372,7 +372,8 @@ for mask_type in ["global", "sea", "land"]:
         zonal_mean_interp = xr.Dataset()
         for var in zonal_mean:
             da = zonal_mean[var]
-            interp_func = interp1d(da.lat, da.transpose(..., "lat"))
+            # Ignore extrapolation errors for test case with randomized lat data
+            interp_func = interp1d(da.lat, da.transpose(..., "lat"), bounds_error=False)
             zonal_mean_interp[var] = xr.DataArray(
                 interp_func(grid.lat.transpose(*HORIZONTAL_DIMS)),
                 dims=("pressure", *HORIZONTAL_DIMS),
