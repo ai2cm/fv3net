@@ -470,7 +470,7 @@ class OCSVMNoveltyDetectorHyperparameters(Hyperparameters):
     packer_config: PackerConfig = dataclasses.field(
         default_factory=lambda: PackerConfig({})
     )
-    gamma: Union[int, float, str] = "auto"
+    gamma: Union[float, str] = "auto"
     nu: float = 0.1
     max_iter: int = -1
 

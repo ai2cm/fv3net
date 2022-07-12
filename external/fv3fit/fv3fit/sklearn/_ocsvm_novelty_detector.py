@@ -163,12 +163,8 @@ class OCSVMNoveltyDetector(NoveltyDetector):
             "input_variables": self.input_variables,
             "packer_config": dataclasses.asdict(self.packer_config),
             "input_features_": dataclasses.asdict(self.input_features_),
-            "gamma": self.gamma,
-            "nu": self.nu,
-            "max_iter": self.max_iter,
             "maximum_training_score": self.maximum_training_score,
         }
-        print(metadata)
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
     @classmethod
@@ -188,9 +184,6 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         obj.packer_config = dacite.from_dict(
             PackerConfig, data=metadata.get("packer_config", {})
         )
-        obj.gamma = metadata["gamma"]
-        obj.nu = metadata["nu"]
-        obj.max_iter = metadata["max_iter"]
         obj.maximum_training_score = metadata["maximum_training_score"]
         obj.is_trained = True
 

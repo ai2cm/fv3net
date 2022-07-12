@@ -1,5 +1,5 @@
 import abc
-from typing import Hashable, Iterable, Union
+from typing import Hashable, Iterable, Optional
 from fv3fit._shared.predictor import Predictor
 import xarray as xr
 
@@ -25,7 +25,7 @@ class NoveltyDetector(Predictor, abc.ABC):
         super().__init__(input_variables, output_variables)
 
     def predict_novelties(
-        self, X: xr.Dataset, cutoff: Union[float, int] = None
+        self, X: xr.Dataset, cutoff: Optional[float] = None
     ) -> xr.Dataset:
         if cutoff is None:
             cutoff = self._get_default_cutoff()
