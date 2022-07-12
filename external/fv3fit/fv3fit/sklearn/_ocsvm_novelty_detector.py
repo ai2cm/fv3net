@@ -1,21 +1,21 @@
-
-from curses import meta
 import dataclasses
 import io
 import logging
 import time
-from typing import Union
-import dacite
+]import dacite
 import fsspec
 import joblib
 import numpy as np
-from sklearn import pipeline
 
 from sklearn.pipeline import Pipeline, make_pipeline
 import yaml
 from fv3fit import _shared, tfdataset
 from fv3fit._shared import stacking, SAMPLE_DIM_NAME
-from fv3fit._shared.config import OCSVMNoveltyDetectorHyperparameters, PackerConfig, register_training_function
+from fv3fit._shared.config import (
+    OCSVMNoveltyDetectorHyperparameters,
+    PackerConfig,
+    register_training_function,
+)
 from fv3fit._shared.novelty_detector import NoveltyDetector
 from fv3fit._shared.packer import PackingInfo, clip_sample, pack, pack_tfdataset
 from fv3fit.tfdataset import apply_to_mapping, ensure_nd
@@ -28,7 +28,9 @@ from fv3fit._shared.predictor import Predictor
 from fv3fit.typing import Batch
 
 
-@register_training_function("ocsvm_novelty_detector", OCSVMNoveltyDetectorHyperparameters)
+@register_training_function(
+    "ocsvm_novelty_detector", OCSVMNoveltyDetectorHyperparameters
+)
 def train_ocsvm_novelty_detector(
     hyperparameters: OCSVMNoveltyDetectorHyperparameters,
     train_batches: tf.data.Dataset,
@@ -39,6 +41,7 @@ def train_ocsvm_novelty_detector(
     )
 
     return OCSVMNoveltyDetector.fit(train_batches, hyperparameters)
+
 
 @_shared.io.register("ocsvm")
 class OCSVMNoveltyDetector(NoveltyDetector):
@@ -86,7 +89,7 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         )
         model.pipeline = make_pipeline(scaler, ocsvm)
         model.pipeline.fit(X)
-        
+
         seconds = time.time() - start_time
         model.logger.info(f"OCSVM novelty detector done fitting in {seconds}s.")
 
@@ -116,7 +119,6 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         start_time = time.time()
         self.logger.info(f"Predicting with OCSVM novelty detector.")
 
-
         stack_dims = [dim for dim in data.dims if dim not in stacking.Z_DIM_NAMES]
         stacked_data = data.stack({SAMPLE_DIM_NAME: stack_dims})
         stacked_data = stacked_data.transpose(SAMPLE_DIM_NAME, ...)
@@ -127,7 +129,9 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         stacked_scores = -1 * self.pipeline.score_samples(X)
 
         new_coords = {
-            k: v for (k, v) in stacked_data.coords.items() if k not in stacking.Z_DIM_NAMES
+            k: v
+            for (k, v) in stacked_data.coords.items()
+            if k not in stacking.Z_DIM_NAMES
         }
         stacked_scores = xr.DataArray(
             stacked_scores, dims=[SAMPLE_DIM_NAME], coords=new_coords
@@ -135,9 +139,11 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         score_dataset = stacked_scores.to_dataset(name=self._SCORE_OUTPUT_VAR).unstack(
             SAMPLE_DIM_NAME
         )
-        
+
         seconds = time.time() - start_time
-        self.logger.info(f"Finished predicting with OCSVM novelty detector in {seconds}s.")
+        self.logger.info(
+            f"Finished predicting with OCSVM novelty detector in {seconds}s."
+        )
 
         return stacking.match_prediction_to_input_coords(data, score_dataset)
 
@@ -160,7 +166,7 @@ class OCSVMNoveltyDetector(NoveltyDetector):
             "gamma": self.gamma,
             "nu": self.nu,
             "max_iter": self.max_iter,
-            "maximum_training_score": self.maximum_training_score
+            "maximum_training_score": self.maximum_training_score,
         }
         print(metadata)
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
