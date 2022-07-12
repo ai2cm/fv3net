@@ -10,7 +10,6 @@ from fv3net.diagnostics._shared.constants import (
 import logging
 import numpy as np
 import pandas as pd
-from scipy.interpolate import interp1d
 from typing import Sequence, Tuple, Dict
 import xarray as xr
 
@@ -366,23 +365,14 @@ for mask_type in ["global", "sea", "land"]:
         if len(predicted) == 0:
             return xr.Dataset()
 
-        zonal_mean = vcm.zonal_average_approximate(grid.lat, target).mean("time")
+        zonal_mean = vcm.zonal_average_approximate(
+            grid.lat, target, lat_name="latitude"
+        ).mean("time")
+        squares_zonal_mean = vcm.zonal_average_approximate(
+            grid.lat, target ** 2, lat_name="latitude"
+        ).mean("time")
 
-        # Fill cubedsphere with zonal mean, interpolating between integer latitudes
-        zonal_mean_interp = xr.Dataset()
-        for var in zonal_mean:
-            da = zonal_mean[var]
-            # Ignore extrapolation errors for test case with randomized lat data
-            interp_func = interp1d(da.lat, da.transpose(..., "lat"), bounds_error=False)
-            zonal_mean_interp[var] = xr.DataArray(
-                interp_func(grid.lat.transpose(*HORIZONTAL_DIMS)),
-                dims=("pressure", *HORIZONTAL_DIMS),
-            )
-
-        zonal_avg_variance = vcm.zonal_average_approximate(
-            grid.lat, (zonal_mean_interp - target) ** 2, lat_name="latitude"
-        )
-        return zonal_avg_variance.mean("time")
+        return squares_zonal_mean - zonal_mean ** 2
 
 
 for mask_type in ["global", "land", "sea"]:
