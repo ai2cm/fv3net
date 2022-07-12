@@ -44,6 +44,10 @@ fortran_diagnostics:
     - field_name: tendency_of_specific_humidity_due_to_emulator
       module_name: zhao_carr_gscond
       output_name: tendency_of_specific_humidity_due_to_gscond_emulator
+    - field_name: tendency_of_cloud_water_due_to_emulator
+      module_name: zhao_carr_gscond
+      output_name: tendency_of_cloud_water_due_to_gscond_emulator
+    # gscond physics
     # gscond physics
     - field_name: tendency_of_air_temperature_due_to_physics
       module_name: zhao_carr_gscond
