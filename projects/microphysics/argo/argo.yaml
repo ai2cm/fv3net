@@ -102,16 +102,20 @@ spec:
       operator: "Equal"
       value: "med-sim-pool"
       effect: "NoSchedule"
+    - key: "dedicated"
+      operator: "Equal"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
     container:
       image: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.image_tag}}"
       imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
         requests:
-          memory: "16Gi"
+          memory: "24Gi"
           cpu: "7500m"
         limits:
-          memory: "16Gi"
+          memory: "24Gi"
           cpu: "7500m"
       envFrom:
       - secretRef:
