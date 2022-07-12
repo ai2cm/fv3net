@@ -1,33 +1,14 @@
 # Radiation Driver
 
-First, download the data via:
+Install nix: https://nixos.org/download.html.
+
+Enter a nix-shell:
+
+    nix-shell
+
+Download the data via:
 ```
 ./get_data.sh
-```
-
-Install the necessary Python requirements (tested with Python 3.8.5):
-```
-python -m venv venv
-source venv/bin/activate
-git clone -b v35 https://github.com/ai2cm/gt4py.git
-pip install -e ./gt4py
-python -m gt4py.gt_src_manager install -m 2
-pip install numpy xarray[complete]
-```
-
-Install serialbox:
-```
-git clone -b v2.6.1 --depth 1 https://github.com/GridTools/serialbox.git
-cd serialbox
-mkdir build
-cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local/serialbox -DCMAKE_BUILD_TYPE=Debug \
-    -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_ENABLE_FORTRAN=ON \
-    -DSERIALBOX_TESTING=ON  ../
-make -j4
-make test
-make install
-export PYTHONPATH=/usr/local/serialbox/python
 ```
 
 Running radiation driver test:
