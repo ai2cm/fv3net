@@ -8,6 +8,8 @@ import numpy as np
 import xarray as xr
 import vcm
 
+from fv3fit._shared.novelty_detector import NoveltyDetector
+
 from . import io
 from .predictor import Predictor
 
@@ -238,3 +240,76 @@ class TransformedPredictor(Predictor):
         ]
         transformed_model = cls(base_model, transform_configs)
         return transformed_model
+
+
+@io.register("out_of_sample")
+class OutOfSampleModel(Predictor):
+
+    _CONFIG_FILENAME = "out_of_sample_model.yaml"
+    _BASE_MODEL_SUBDIR = "base"
+    _NOVELTY_DETECTOR_SUBDIR = "novelty"
+
+    def __init__(
+        self,
+        base_model: Predictor,
+        novelty_detector: NoveltyDetector,
+        cutoff: float = None,
+    ):
+        """
+        Args:
+            base_model: trained ML-based predictor, to be used unless an input is
+                deemed "out of sample"
+            novelty_detection: trained novelty detector on the same inputs, which
+                predicts whether a training sample does _not_ belong the training
+                distribution of base_model
+        """
+        self.base_model = base_model
+        self.novelty_detector = novelty_detector
+        self.cutoff = cutoff
+
+        output_variables = base_model.output_variables
+        base_inputs = set(base_model.input_variables)
+        novelty_inputs = set(novelty_detector.input_variables)
+        input_variables = tuple(sorted(base_inputs.union(novelty_inputs)))
+        super().__init__(
+            input_variables=input_variables, output_variables=output_variables
+        )
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        base_predict = self.base_model.predict(X)
+        novelties = self.novelty_detector.predict_novelties(X, self.cutoff)
+        masked_predict = base_predict.copy()
+        for output_variable in self.output_variables:
+            masked_predict[output_variable] = xr.where(
+                novelties[NoveltyDetector._NOVELTY_OUTPUT_VAR] == 0,
+                base_predict[output_variable],
+                0,
+            )
+        return masked_predict
+
+    def dump(self, path: str):
+        base_model_path = os.path.join(path, self._BASE_MODEL_SUBDIR)
+        novelty_detector_path = os.path.join(path, self._NOVELTY_DETECTOR_SUBDIR)
+        options = {
+            "base_model": base_model_path,
+            "novelty_model": novelty_detector_path,
+            "cutoff": self.cutoff,
+        }
+        io.dump(self.base_model, base_model_path)
+        io.dump(self.novelty_detector, novelty_detector_path)
+        with fsspec.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
+            yaml.safe_dump(options, f)
+
+    @classmethod
+    def load(cls, path: str) -> "OutOfSampleModel":
+        with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+            config = yaml.safe_load(f)
+
+        base_model = io.load(os.path.join(path, cls._BASE_MODEL_SUBDIR))
+        novelty_detector = io.load(os.path.join(path, cls._NOVELTY_DETECTOR_SUBDIR))
+        cutoff = config["cutoff"]
+
+        assert isinstance(novelty_detector, NoveltyDetector)
+
+        model = cls(base_model, novelty_detector, cutoff)
+        return model
