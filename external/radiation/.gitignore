@@ -1,0 +1,15 @@
+.dace.conf
+*/_dace*
+*.F90
+*.o
+*.mod
+*.dat
+*.nc
+*.txt
+*.json
+*.sdfg
+*.x
+python/radlw/taugb10
+fortran/progcld4
+fortran/setaer
+python/forcing
