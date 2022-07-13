@@ -34,7 +34,7 @@ def test_out_of_sample_model(base_value, novelty_cutoff, output):
         data_vars={"input": xr.DataArray(np.zeros([3, 3, 5]), dims=["x", "y", "z"],)}
     )
     ds_out = oosModel.predict(ds_in)
-    assert len(ds_out.data_vars) == 1
+    assert len(ds_out.data_vars) == 3
     assert "output" in ds_out.data_vars
     np.testing.assert_almost_equal(ds_out["output"].values, output)
 
@@ -61,7 +61,7 @@ def test_out_of_sample_model_different_inputs(base_value, novelty_cutoff, output
         }
     )
     ds_out = oosModel.predict(ds_in)
-    assert len(ds_out.data_vars) == 1
+    assert len(ds_out.data_vars) == 3
     assert "output" in ds_out.data_vars
     np.testing.assert_almost_equal(ds_out["output"].values, output)
 
@@ -91,7 +91,10 @@ def test_out_of_sample_identity_same_output_when_in_sample():
     base_output = base_model.predict(test_dataset)
     never_oos_output = never_oos_model.predict(test_dataset)
     always_oos_output = always_oos_model.predict(test_dataset)
-    xr.testing.assert_equal(base_output, never_oos_output)
+    for output_variable in output_variables:
+        xr.testing.assert_equal(
+            base_output[output_variable], never_oos_output[output_variable]
+        )
     for output_variable in output_variables:
         np.testing.assert_almost_equal(always_oos_output[output_variable].values, 0)
 
