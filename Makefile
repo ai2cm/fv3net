@@ -241,6 +241,7 @@ constraints.txt: $(REQUIREMENTS)
 	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
 		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/' \
 		| grep -v google-python-cloud-debugger \
+		| grep -v atomicwrites \
 		> .dataflow-versions.txt
 
 	pip-compile  \

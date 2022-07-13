@@ -421,3 +421,67 @@ class RandomForestHyperparameters(Hyperparameters):
             .union(self.output_variables)
             .union(additional_variables)
         )
+
+
+@dataclasses.dataclass
+class MinMaxNoveltyDetectorHyperparameters(Hyperparameters):
+    """
+    Configuration for training a min-max novelty detection algorithm.
+
+    Args:
+        input_variables: names of variables to use as inputs.
+        packer_config: configuration of dataset packing.
+    """
+
+    input_variables: List[str]
+    packer_config: PackerConfig = dataclasses.field(
+        default_factory=lambda: PackerConfig({})
+    )
+
+    @property
+    def variables(self) -> Set[str]:
+        return set(self.input_variables)
+
+    @classmethod
+    def init_testing(
+        cls, input_variables, output_variables
+    ) -> "MinMaxNoveltyDetectorHyperparameters":
+        """Initialize a default instance for a given input/output problem"""
+        hyperparameters = cls(input_variables=input_variables)
+        return hyperparameters
+
+
+@dataclasses.dataclass
+class OCSVMNoveltyDetectorHyperparameters(Hyperparameters):
+    """
+    Configuration for training an OCSVM detection algorithm with an RBF kernel. See
+    https://scikit-learn.org/stable/modules/generated/sklearn.svm.OneClassSVM.html
+    for a discussion of some parameters for the sklearn model.
+
+    Args:
+        input_variables: names of variables to use as inputs.
+        packer_config: configuration of dataset packing.
+        gamma: kernel coefficient, default = 1 / #features
+        nu: fraction of training samples as support vectors, default = 0.1
+        max_iter: maximum number of iterations to convergence, default = -1 (unlimited)
+    """
+
+    input_variables: List[str]
+    packer_config: PackerConfig = dataclasses.field(
+        default_factory=lambda: PackerConfig({})
+    )
+    gamma: Union[float, str] = "auto"
+    nu: float = 0.01
+    max_iter: int = -1
+
+    @property
+    def variables(self) -> Set[str]:
+        return set(self.input_variables)
+
+    @classmethod
+    def init_testing(
+        cls, input_variables, output_variables
+    ) -> "OCSVMNoveltyDetectorHyperparameters":
+        """Initialize a default instance for a given input/output problem"""
+        hyperparameters = cls(input_variables=input_variables)
+        return hyperparameters
