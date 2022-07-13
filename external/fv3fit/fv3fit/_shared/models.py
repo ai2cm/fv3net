@@ -8,6 +8,8 @@ import numpy as np
 import xarray as xr
 import vcm
 
+from fv3fit._shared.novelty_detector import NoveltyDetector
+
 from . import io
 from .predictor import Predictor
 
@@ -168,7 +170,7 @@ class EnsembleModel(Predictor):
         raise NotImplementedError(
             "no dump method yet for this class, you can define one manually "
             "using instructions at "
-            "http://vulcanclimatemodeling.com/docs/fv3fit/ensembles.html"
+            "http://vulcanclimatemodeling.com/docs/fv3fit/composite-models.html"
         )
 
     @classmethod
@@ -238,3 +240,77 @@ class TransformedPredictor(Predictor):
         ]
         transformed_model = cls(base_model, transform_configs)
         return transformed_model
+
+
+@io.register("out_of_sample")
+class OutOfSampleModel(Predictor):
+
+    _CONFIG_FILENAME = "out_of_sample_model.yaml"
+
+    def __init__(
+        self,
+        base_model: Predictor,
+        novelty_detector: NoveltyDetector,
+        cutoff: float = None,
+    ):
+        """
+        Args:
+            base_model: trained ML-based predictor, to be used unless an input is
+                deemed "out of sample"
+            novelty_detector: trained novelty detector on the same inputs, which
+                predicts whether a training sample does _not_ belong the training
+                distribution of base_model
+            cutoff: a score cutoff for the novelty detector's scores; scores larger
+                are deemed out-of-samples, scores smaller are not. Specifying None
+                supplies the default cutoff value for the given NoveltyDetector
+                implementation
+        """
+        self.base_model = base_model
+        self.novelty_detector = novelty_detector
+        self.cutoff = cutoff
+
+        base_inputs = set(base_model.input_variables)
+        base_outputs = set(base_model.output_variables)
+        novelty_inputs = set(novelty_detector.input_variables)
+        novelty_outputs = set(novelty_detector.output_variables)
+        input_variables = tuple(sorted(base_inputs | novelty_inputs))
+        output_variables = tuple(sorted(base_outputs | novelty_outputs))
+        super().__init__(
+            input_variables=input_variables, output_variables=output_variables
+        )
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        base_predict = self.base_model.predict(X)
+        novelties = self.novelty_detector.predict_novelties(X, self.cutoff)
+        masked_predict = base_predict.copy()
+        for output_variable in self.base_model.output_variables:
+            masked_predict[output_variable] = xr.where(
+                novelties[NoveltyDetector._NOVELTY_OUTPUT_VAR] == 0,
+                base_predict[output_variable],
+                0,
+            )
+        return xr.merge([masked_predict, novelties])
+
+    def dump(self, path):
+        raise NotImplementedError(
+            "no dump method yet for this class, you can define one manually "
+            "using instructions at "
+            "http://vulcanclimatemodeling.com/docs/fv3fit/composite-models.html"
+        )
+
+    @classmethod
+    def load(cls, path: str) -> "OutOfSampleModel":
+        with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+            config = yaml.safe_load(f)
+
+        base_model = io.load(config["base_model_path"])
+        novelty_detector = io.load(config["novelty_detector_path"])
+        if "cutoff" in config:
+            cutoff = config["cutoff"]
+        else:
+            cutoff = None
+
+        assert isinstance(novelty_detector, NoveltyDetector)
+
+        model = cls(base_model, novelty_detector, cutoff)
+        return model
