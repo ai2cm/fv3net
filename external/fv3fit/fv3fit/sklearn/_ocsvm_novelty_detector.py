@@ -22,6 +22,7 @@ from fv3fit.tfdataset import apply_to_mapping, ensure_nd
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import OneClassSVM
 import tensorflow as tf
+from vcm import safe
 import xarray as xr
 
 from fv3fit._shared.predictor import Predictor
@@ -119,9 +120,9 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         start_time = time.time()
         self.logger.info(f"Predicting with OCSVM novelty detector.")
 
-        stack_dims = [dim for dim in data.dims if dim not in stacking.Z_DIM_NAMES]
-        stacked_data = data.stack({SAMPLE_DIM_NAME: stack_dims})
-        stacked_data = stacked_data.transpose(SAMPLE_DIM_NAME, ...)
+        stacked_data = stacking.stack_non_vertical(
+            safe.get_variables(data, self.input_variables)
+        )
 
         X, _ = pack(
             stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config

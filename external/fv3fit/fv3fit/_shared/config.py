@@ -471,7 +471,7 @@ class OCSVMNoveltyDetectorHyperparameters(Hyperparameters):
         default_factory=lambda: PackerConfig({})
     )
     gamma: Union[float, str] = "auto"
-    nu: float = 0.1
+    nu: float = 0.01
     max_iter: int = -1
 
     @property
