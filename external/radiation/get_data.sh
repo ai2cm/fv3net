@@ -8,6 +8,7 @@ else
     export MYHOME=`pwd`
 
     if [ ! -d "./fortran/data" ]; then
+        mkdir -p fortran
         cd ./fortran
         mkdir data
         cd data

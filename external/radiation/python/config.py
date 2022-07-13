@@ -1,11 +1,9 @@
 import numpy as np
 import sys
 import os
-import gt4py
 
 IS_DOCKER = (os.getenv("IS_DOCKER") == "True") if ("IS_DOCKER" in os.environ) else False
 IS_TEST = (os.getenv("IS_TEST") == "True") if ("IS_TEST" in os.environ) else False
-backend = (os.getenv("BACKEND")) if ("BACKEND" in os.environ) else "gtc:gt:cpu_ifirst"
 
 if IS_DOCKER:
     if IS_TEST:
@@ -18,12 +16,7 @@ else:
     )
 from radlw.radlw_param import nbands, maxgas, maxxsec, ngptlw, nrates
 from radsw.radsw_param import ngptsw, nbandssw, nbdsw, ntbmx
-from gt4py import gtscript
-from gt4py.gtscript import Field
 
-gt4py.config.build_settings["extra_compile_args"]["cxx"].extend(
-    ["-fno-strict-aliasing"]
-)
 if IS_DOCKER:
     SERIALBOX_DIR = "/usr/local/serialbox"
     if IS_TEST:
@@ -45,8 +38,6 @@ else:
     SW_SERIALIZED_DIR = "../fortran/radsw/dump"
     FORCING_DIR = "./forcing"
 
-backend = "gtc:gt:cpu_ifirst"
-
 sys.path.append(SERIALBOX_DIR + "/python")
 
 npts = 24
@@ -61,12 +52,6 @@ isubclw = 2
 DTYPE_INT = np.int32
 DTYPE_FLT = np.float64
 DTYPE_BOOL = bool
-FIELD_INT = Field[DTYPE_INT]
-FIELD_FLT = Field[DTYPE_FLT]
-FIELD_BOOL = Field[DTYPE_BOOL]
-FIELD_2D = Field[gtscript.IJ, DTYPE_FLT]
-FIELD_2DINT = Field[gtscript.IJ, DTYPE_INT]
-FIELD_2DBOOL = Field[gtscript.IJ, DTYPE_BOOL]
 
 shape = (npts, 1, 1)
 shape_2D = (npts, 1)
