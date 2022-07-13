@@ -24,6 +24,7 @@ import logging
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
+from vcm import safe
 import xarray as xr
 import yaml
 
@@ -85,6 +86,9 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         model.is_trained = True
         return model
 
+    def _get_default_cutoff(self):
+        return 0
+
     def predict(self, data: xr.Dataset) -> xr.Dataset:
         """
         For each coordinate c, computes a score with the following expression:
@@ -113,14 +117,12 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         return match_prediction_to_input_coords(data, score_dataset)
 
     def predict_pre_aggregation(self, data: xr.Dataset):
-        stack_dims = [dim for dim in data.dims if dim not in stacking.Z_DIM_NAMES]
-        stacked_data = data.stack({SAMPLE_DIM_NAME: stack_dims})
-        stacked_data = stacked_data.transpose(SAMPLE_DIM_NAME, ...)
-
+        stacked_data = stacking.stack_non_vertical(
+            safe.get_variables(data, self.input_variables)
+        )
         X, _ = pack(
             stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config
         )
-        stacked_data.coords
         return self.scaler.transform(X), stacked_data.coords
 
     def dump(self, path: str) -> None:
