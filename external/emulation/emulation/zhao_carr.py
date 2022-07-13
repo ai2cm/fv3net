@@ -104,9 +104,8 @@ def mask_where_fortran_cloud_identical(state, emulator):
     return _update_with_net_condensation(cloud_out, state, emulator)
 
 
-def _get_classify_output(emulator, one_hot_axis=0, class_key="gscond_classes"):
+def _get_classify_output(logit_classes, one_hot_axis=0):
     names = sorted(CLASS_NAMES)
-    logit_classes = emulator["gscond_classes"]
     one_hot = logit_classes == np.max(logit_classes, axis=one_hot_axis, keepdims=True)
     d = {name: one_hot[i] for i, name in enumerate(names)}
     d["nontrivial_tendency"] = d[POSITIVE_TENDENCY] | d[NEGATIVE_TENDENCY]
@@ -115,7 +114,7 @@ def _get_classify_output(emulator, one_hot_axis=0, class_key="gscond_classes"):
 
 def mask_zero_cloud_classifier(state, emulator):
     cloud_out = np.where(
-        _get_classify_output(emulator)[ZERO_CLOUD],
+        _get_classify_output(emulator["gscond_classes"])[ZERO_CLOUD],
         0,
         emulator[GscondOutput.cloud_water],
     )
@@ -124,7 +123,7 @@ def mask_zero_cloud_classifier(state, emulator):
 
 def mask_zero_tend_classifier(state, emulator):
     cloud_out = np.where(
-        _get_classify_output(emulator)[ZERO_TENDENCY],
+        _get_classify_output(emulator["gscond_classes"])[ZERO_TENDENCY],
         state[Input.cloud_water],
         emulator[GscondOutput.cloud_water],
     )
@@ -133,7 +132,7 @@ def mask_zero_tend_classifier(state, emulator):
 
 def mask_zero_cloud_classifier_precpd(state, emulator):
     cloud_out = np.where(
-        _get_classify_output(emulator, class_key="precpd_classes")[ZERO_CLOUD],
+        _get_classify_output(emulator["precpd_classes"])[ZERO_CLOUD],
         0,
         emulator[PrecpdOutput.cloud_water],
     )
