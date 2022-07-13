@@ -246,8 +246,6 @@ class TransformedPredictor(Predictor):
 class OutOfSampleModel(Predictor):
 
     _CONFIG_FILENAME = "out_of_sample_model.yaml"
-    _BASE_MODEL_SUBDIR = "base"
-    _NOVELTY_DETECTOR_SUBDIR = "novelty"
 
     def __init__(
         self,
@@ -287,26 +285,20 @@ class OutOfSampleModel(Predictor):
             )
         return masked_predict
 
-    def dump(self, path: str):
-        base_model_path = os.path.join(path, self._BASE_MODEL_SUBDIR)
-        novelty_detector_path = os.path.join(path, self._NOVELTY_DETECTOR_SUBDIR)
-        options = {
-            "base_model": base_model_path,
-            "novelty_model": novelty_detector_path,
-            "cutoff": self.cutoff,
-        }
-        io.dump(self.base_model, base_model_path)
-        io.dump(self.novelty_detector, novelty_detector_path)
-        with fsspec.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
-            yaml.safe_dump(options, f)
+    def dump(self, path):
+        raise NotImplementedError(
+            "no dump method yet for this class, you can define one manually "
+            "using instructions at "
+            "http://vulcanclimatemodeling.com/docs/fv3fit/ensembles.html"
+        )
 
     @classmethod
     def load(cls, path: str) -> "OutOfSampleModel":
         with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
             config = yaml.safe_load(f)
 
-        base_model = io.load(os.path.join(path, cls._BASE_MODEL_SUBDIR))
-        novelty_detector = io.load(os.path.join(path, cls._NOVELTY_DETECTOR_SUBDIR))
+        base_model = io.load(config["base_model_path"])
+        novelty_detector = io.load(config["novelty_detector_path"])
         cutoff = config["cutoff"]
 
         assert isinstance(novelty_detector, NoveltyDetector)

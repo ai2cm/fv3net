@@ -1,8 +1,12 @@
 import tempfile
+
+import fsspec
+import yaml
 import fv3fit
 from fv3fit._shared.config import RandomForestHyperparameters
 from fv3fit._shared.models import OutOfSampleModel
 import numpy as np
+import os
 import pytest
 import xarray as xr
 from fv3fit.tfdataset import tfdataset_from_batches
@@ -109,11 +113,26 @@ def test_out_of_sample_dump_and_load_default_maintains_prediction():
 
     base_model = train_random_forest(hyperparameters, train_tfdataset, val_tfdataset)
     novelty_detector = fv3fit.testing.ConstantOutputNoveltyDetector(input_variables)
-    original_model = OutOfSampleModel(base_model, novelty_detector, 1)
+    cutoff = 1
+    original_model = OutOfSampleModel(base_model, novelty_detector, cutoff)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        fv3fit.dump(original_model, tmpdir)
-        loaded_model = fv3fit.load(tmpdir)
+        base_path = os.path.join(tmpdir, "base")
+        novelty_path = os.path.join(tmpdir, "novelty")
+        fv3fit.dump(base_model, base_path)
+        fv3fit.dump(novelty_detector, novelty_path)
+
+        options = {
+            "base_model_path": base_path,
+            "novelty_detector_path": novelty_path,
+            "cutoff": cutoff,
+        }
+        with fsspec.open(
+            os.path.join(tmpdir, OutOfSampleModel._CONFIG_FILENAME), "w"
+        ) as f:
+            yaml.safe_dump(options, f)
+
+        loaded_model = OutOfSampleModel.load(tmpdir)
 
     original_result = original_model.predict(test_dataset)
     loaded_result = loaded_model.predict(test_dataset)
