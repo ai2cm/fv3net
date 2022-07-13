@@ -38,8 +38,8 @@ def test_classify_classes_build(classify_class):
 
     state = _get_cloud_state()
 
-    transform = classify_class()
-    transform = transform.build(state)
+    factory = classify_class()
+    transform = factory.build(state)
     assert transform
 
 
