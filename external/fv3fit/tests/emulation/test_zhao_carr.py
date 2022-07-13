@@ -59,13 +59,13 @@ def test_classify_classes_v1():
 def test_classify_classes_v1OneHot():
     state = _get_cloud_state()
 
-    dclass = MicrophysicsClassesV1OneHot
-    transform = dclass().build(state)
+    factory = MicrophysicsClassesV1OneHot()
+    transform = factory.build(state)
 
-    required = transform.backward_names({transform.to})
-    assert transform.cloud_in in required
-    assert transform.cloud_out in required
+    required = factory.backward_names({transform.to})
+    assert factory.cloud_in in required
+    assert factory.cloud_out in required
 
     new_state = transform.forward(state)
-    assert dclass.to in new_state
-    assert new_state[dclass.to].shape[-1] == len(CLASS_NAMES)
+    assert factory.to in new_state
+    assert new_state[factory.to].shape[-1] == len(CLASS_NAMES)
