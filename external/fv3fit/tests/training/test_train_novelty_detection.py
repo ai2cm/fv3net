@@ -17,9 +17,7 @@ from tests.training.test_train import (
 
 # novelty detection predictors that can be tested on any input data, but whose outputs
 # will not correspond to the labels of standard supervised prediction tasks
-NOVELTY_TRAINING_TYPES = [
-    "min_max_novelty_detector",
-]
+NOVELTY_TRAINING_TYPES = ["min_max_novelty_detector", "ocsvm_novelty_detector"]
 
 
 @pytest.fixture(params=NOVELTY_TRAINING_TYPES)
@@ -71,7 +69,7 @@ def assert_correct_output(model_type: str, sample_func: Callable[[], xr.DataArra
             validation, should return different data on subsequent calls
     """
     result = train_novelty_detector(model_type, sample_func)
-    out_dataset = result.model.predict_novelties(result.test_dataset, cutoff=0)
+    out_dataset = result.model.predict_novelties(result.test_dataset)
     # dimensions are the same, except for "z"
     output_dimensions = set(out_dataset.dims.keys())
     output_dimensions.add("z")
@@ -84,7 +82,11 @@ def assert_correct_output(model_type: str, sample_func: Callable[[], xr.DataArra
     # outputs are either 0 or 1 (and at least one output is not a novelty)
     assert out_dataset[NoveltyDetector._NOVELTY_OUTPUT_VAR].max() <= 1
     assert out_dataset[NoveltyDetector._NOVELTY_OUTPUT_VAR].min() == 0
-    assert out_dataset[NoveltyDetector._SCORE_OUTPUT_VAR].min() == 0
+
+    if model_type == "min_max_novelty_detector":
+        assert out_dataset[NoveltyDetector._SCORE_OUTPUT_VAR].min() == 0
+    elif model_type == "ocsvm_novelty_detector":
+        assert out_dataset[NoveltyDetector._SCORE_OUTPUT_VAR].max() < 0
 
 
 def assert_extreme_novelties(
@@ -103,7 +105,7 @@ def assert_extreme_novelties(
     """
     result = train_novelty_detector(model_type, sample_func)
     scaled_test_dataset = scale_test_sample(result.test_dataset, scaling=scaling)
-    out_dataset = result.model.predict_novelties(scaled_test_dataset, cutoff=0)
+    out_dataset = result.model.predict_novelties(scaled_test_dataset)
     # almost every output is a novelty
     assert out_dataset[NoveltyDetector._NOVELTY_OUTPUT_VAR].mean() >= 1 - epsilon
     assert out_dataset[NoveltyDetector._NOVELTY_OUTPUT_VAR].mean() > 0
