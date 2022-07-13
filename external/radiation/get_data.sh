@@ -1,5 +1,6 @@
 #!/bin/bash
 
+mkdir -p fortran  
 if [ ! -z "$IS_DOCKER" ] ; then
     echo "This script cannot be run in the Docker image"
 else
