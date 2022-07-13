@@ -4,11 +4,17 @@ These will typically depend on the variable names used by the zhao carr
 microphysics
 """
 import dataclasses
-from typing import Set
+from typing import Set, List
 
 import tensorflow as tf
 from fv3fit.emulation.types import TensorDict
-from .transforms import TensorTransform
+from .transforms import Difference, TensorTransform, LogTransform
+from .factories import (
+    ComposedTransformFactory,
+    ConditionallyScaled,
+    TransformedVariableConfig,
+    TransformFactory,
+)
 
 POSITIVE_TENDENCY = "positive_tendency"
 ZERO_TENDENCY = "zero_tendency"
@@ -24,12 +30,20 @@ CLASS_NAMES = {
     NEGATIVE_TENDENCY,
 }
 
+DELP = "pressure_thickness_of_atmospheric_layer"
+PRESSURE = "air_pressure"
+SURFACE_PRESSURE = "surface_air_pressure"
 CLOUD_INPUT = "cloud_water_mixing_ratio_input"
 CLOUD_GSCOND = "cloud_water_mixing_ratio_after_gscond"
+CLOUD_PRECPD = "cloud_water_mixing_ratio_after_precpd"
+T_LAST = "air_temperature_after_last_gscond"
 T_INPUT = "air_temperature_input"
 T_GSCOND = "air_temperature_after_gscond"
+T_PRECPD = "air_temperature_after_precpd"
+QV_LAST = "specific_humidity_after_last_gscond"
 QV_INPUT = "specific_humidity_input"
 QV_GSCOND = "specific_humidity_after_gscond"
+QV_PRECPD = "specific_humidity_after_precpd"
 
 
 @dataclasses.dataclass
@@ -184,3 +198,145 @@ def classify(cloud_in, cloud_out, timestep, math=tf.math):
         ZERO_CLOUD: negative_tend & ~some_cloud_out,
         NEGATIVE_TENDENCY: negative_tend & some_cloud_out,
     }
+
+
+class GscondOnly(TransformFactory):
+    """A python Transform Factory encoding this configuration
+
+
+    tensor_transform:
+    - to: log_cloud_input
+        source: cloud_water_mixing_ratio_input
+        transform: {epsilon: 1e-10}
+    - to: log_humidity_input
+        source: specific_humidity_input
+        transform: {epsilon: 1e-8}
+    - to: log_humidity_after_last_gscond
+        source: specific_humidity_after_last_gscond
+        transform: {epsilon: 1e-8}
+    - to: temperature_gscond_difference
+        before: air_temperature_input
+        after: air_temperature_after_gscond
+    - to: humidity_gscond_difference
+        before: specific_humidity_input
+        after: specific_humidity_after_gscond
+    - to: humidity_gscond_difference_tscaled
+        source: humidity_gscond_difference
+        condition_on: air_temperature_input
+        bins: 50
+        min_scale: 1e-14
+        fit_filter_magnitude: 1e-14
+    - to: temperature_gscond_difference_tscaled
+        source: temperature_gscond_difference
+        condition_on: air_temperature_input
+        bins: 50
+        min_scale: 1e-5
+        fit_filter_magnitude: 1e-5
+    """
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        return self._composed().backward_names(requested_names)
+
+    def _composed(self) -> TransformFactory:
+        t_diff = "temperature_gscond_difference"
+        t_diff_scale = "temperature_gscond_difference_tscaled"
+        qv_diff = "humidity_gscond_difference"
+        qv_diff_scale = "humidity_gscond_difference_tscaled"
+        factories: List[TransformFactory] = [
+            TransformedVariableConfig(
+                CLOUD_INPUT, to="log_cloud_input", transform=LogTransform(1e-10)
+            ),
+            TransformedVariableConfig(
+                QV_INPUT, to="log_humidity_input", transform=LogTransform(1e-8)
+            ),
+            TransformedVariableConfig(
+                QV_LAST,
+                to="log_humidity_after_last_gscond",
+                transform=LogTransform(1e-8),
+            ),
+            Difference(to=t_diff, before=T_INPUT, after=T_GSCOND),
+            Difference(to=qv_diff, before=QV_INPUT, after=QV_GSCOND),
+            ConditionallyScaled(
+                to=t_diff_scale,
+                condition_on=T_INPUT,
+                source=t_diff,
+                bins=50,
+                min_scale=1e-5,
+                fit_filter_magnitude=1e-5,
+            ),
+            ConditionallyScaled(
+                to=qv_diff_scale,
+                condition_on=T_INPUT,
+                source=qv_diff,
+                bins=50,
+                min_scale=1e-14,
+                fit_filter_magnitude=1e-14,
+            ),
+        ]
+        return ComposedTransformFactory(factories)
+
+    def build(self, sample: TensorDict) -> TensorTransform:
+        return self._composed().build(sample)
+
+
+@dataclasses.dataclass
+class PrecpdOnly(TransformFactory):
+    """A Transform Factory for precpd only prediction with inputs as output
+
+    """
+
+    t_diff = "temperature_precpd_difference"
+    t_diff_scale = "temperature_precpd_difference_tscaled"
+    qv_diff = "humidity_precpd_difference"
+    qv_diff_scale = "humidity_precpd_difference_tscaled"
+    qc_diff = "cloud_precpd_difference"
+    qc_diff_scale = "cloud_precpd_difference_tscaled"
+
+    log_cloud_input = "log_cloud_input"
+    log_humidity_input = "log_humidity_input"
+    # useless field to disambiguate with
+    precpd_only: bool = True
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        return self._composed().backward_names(requested_names)
+
+    def _composed(self) -> TransformFactory:
+        factories: List[TransformFactory] = [
+            TransformedVariableConfig(
+                CLOUD_GSCOND, to=self.log_cloud_input, transform=LogTransform(1e-10)
+            ),
+            TransformedVariableConfig(
+                QV_GSCOND, to=self.log_humidity_input, transform=LogTransform(1e-8)
+            ),
+            Difference(to=self.t_diff, before=T_GSCOND, after=T_PRECPD),
+            Difference(to=self.qv_diff, before=QV_GSCOND, after=QV_PRECPD),
+            Difference(to=self.qc_diff, before=CLOUD_GSCOND, after=CLOUD_PRECPD),
+            ConditionallyScaled(
+                to=self.t_diff_scale,
+                condition_on=T_GSCOND,
+                source=self.t_diff,
+                bins=50,
+                min_scale=1e-5,
+                fit_filter_magnitude=1e-5,
+            ),
+            ConditionallyScaled(
+                to=self.qv_diff_scale,
+                condition_on=T_GSCOND,
+                source=self.qv_diff,
+                bins=50,
+                min_scale=1e-14,
+                fit_filter_magnitude=1e-14,
+            ),
+            ConditionallyScaled(
+                to=self.qc_diff_scale,
+                condition_on=T_GSCOND,
+                source=self.qc_diff,
+                bins=50,
+                min_scale=1e-14,
+                fit_filter_magnitude=1e-14,
+            ),
+        ]
+        return ComposedTransformFactory(factories)
+
+    def build(self, sample: TensorDict) -> TensorTransform:
+        return self._composed().build(sample)

@@ -1,16 +1,19 @@
 """Configuration class for submitting end to end experiments with argo
 """
-from copy import deepcopy
-import yaml
-from typing import Mapping, Protocol, Optional, Sequence
-import subprocess
-import dataclasses
+import argparse
 import base64
+import dataclasses
 import os
-from fv3net.artifacts.resolve_url import resolve_url
 import pathlib
+import subprocess
 import sys
+from copy import deepcopy
+from typing import Mapping, Optional, Protocol, Sequence
 
+import dacite
+import yaml
+
+from fv3net.artifacts.resolve_url import resolve_url
 
 WORKFLOW_FILE = pathlib.Path(__file__).parent / "argo.yaml"
 
@@ -299,3 +302,16 @@ def _argo_parameters(kwargs):
             encoded = str(val)
         args.extend(["-p", key + "=" + encoded])
     return args
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("spec")
+    args = parser.parse_args()
+    with open(args.spec) as f:
+        config_ = yaml.safe_load(f)
+        name = config_.pop("kind")
+        experiment = config_.pop("experiment", "default")
+        cls = {"train": TrainingJob, "prognostic": PrognosticJob}[name]
+        job = dacite.from_dict(cls, config_)
+        submit_jobs([job], experiment_name=experiment)
