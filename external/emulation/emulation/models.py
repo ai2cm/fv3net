@@ -15,7 +15,7 @@ class ModelWithClassifier:
     def __init__(self, model, classifier=None, class_key="gscond_classes"):
         self.model = model
         self.classifier = classifier
-        self._class_key
+        self._class_key = class_key
 
     def __call__(self, state: FortranState):
 
