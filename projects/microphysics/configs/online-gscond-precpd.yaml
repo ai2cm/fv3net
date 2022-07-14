@@ -1,13 +1,13 @@
 # submit with
 # python3 argo/end_to_end.py configs/online-gscond-precpd.yaml
 kind: prognostic
-name: full-zc-emulation-zcloud-upper15clip-6hr-v3test
+name: full-zc-emulation-zcloud-upper15clip-30d-v1
 experiment: full-zc-emulation-online
 image_tag: 1e93473324cf76e807b96baa5ffd0f39d177be1b
 config:
   base_version: v0.5
   data_table: default
-  duration: "6hr"
+  duration: "30d"
   initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
   fortran_diagnostics:
   - name: piggy.zarr
