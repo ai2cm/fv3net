@@ -47,7 +47,7 @@ QV_PRECPD = "specific_humidity_after_precpd"
 
 
 @dataclasses.dataclass
-class GscondClassesV1(TensorTransform):
+class MicrophysicsClasssesV1(TensorTransform):
     """
     A hardcoded classification transform to assess cloud state/tendency
     behavior
@@ -61,6 +61,9 @@ class GscondClassesV1(TensorTransform):
         return self
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
+
+        requested_names = set(requested_names)
+
         requested_names -= CLASS_NAMES
         requested_names -= {NONTRIVIAL_TENDENCY}
         requested_names |= {
@@ -83,7 +86,7 @@ class GscondClassesV1(TensorTransform):
 
 
 @dataclasses.dataclass
-class GscondClassesV1OneHot(GscondClassesV1):
+class MicrophysicsClassesV1OneHot(MicrophysicsClasssesV1):
     to: str = "gscond_classes"
 
     def build(self, sample: TensorDict):
@@ -93,6 +96,8 @@ class GscondClassesV1OneHot(GscondClassesV1):
         return self
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
+
+        requested_names = set(requested_names)
 
         if self.to in requested_names:
             requested_names -= {self.to}

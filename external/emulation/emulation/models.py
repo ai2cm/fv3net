@@ -12,15 +12,17 @@ logger = logging.getLogger(__name__)
 
 
 class ModelWithClassifier:
-    def __init__(self, model, classifier=None):
+    def __init__(self, model, classifier=None, class_key="gscond_classes"):
         self.model = model
         self.classifier = classifier
+        self._class_key = class_key
 
     def __call__(self, state: FortranState):
 
         if self.classifier is not None:
             classifier_outputs = _predict(self.classifier, state)
-            classifier_outputs.update(_get_classify_output(classifier_outputs))
+            logit_classes = classifier_outputs[self._class_key]
+            classifier_outputs.update(_get_classify_output(logit_classes))
         else:
             classifier_outputs = {}
 

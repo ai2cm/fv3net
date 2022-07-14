@@ -450,6 +450,7 @@ zhao_carr_emulation:
     mask_gscond_no_tend_classifier: false
     mask_gscond_zero_cloud: false
     mask_gscond_zero_cloud_classifier: false
+    mask_precpd_zero_cloud_classifier: false
     online_schedule:
       initial_time: 2016-06-01 00:00:00
       period: 21600
