@@ -14,6 +14,7 @@ import dacite
 import yaml
 
 from fv3net.artifacts.resolve_url import resolve_url
+from emulation.config import EmulationConfig, ModelConfig
 
 WORKFLOW_FILE = pathlib.Path(__file__).parent / "argo.yaml"
 
@@ -123,25 +124,6 @@ def _label_args(labels):
     return ["--labels", ",".join(label_vals)] if labels else []
 
 
-def set_prognostic_emulation_model(
-    config: dict, model_path: str, gscond_only: bool = False, **kwargs
-) -> dict:
-    prog_config = deepcopy(config)
-    assert model_path.startswith("gs://")
-
-    if gscond_only:
-        model_key = "gscond"
-    else:
-        model_key = "model"
-
-    emu_config = {model_key: {"path": model_path, **kwargs}}
-
-    prog_config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = gscond_only
-    prog_config["zhao_carr_emulation"] = emu_config
-
-    return prog_config
-
-
 @dataclasses.dataclass
 class PrognosticJob:
     """A configuration for prognostic jobs
@@ -228,9 +210,30 @@ class TrainingJob:
         return "training"
 
 
+def _insert_model_path_to_zhao_carr_config(
+    config: EmulationConfig, model_path: str, gscond_only: bool
+):
+
+    out = EmulationConfig.from_dict(dataclasses.asdict(config))
+    if gscond_only:
+        out.gscond.path = model_path
+    else:
+        out.model.path = model_path
+
+    return out
+
+
 @dataclasses.dataclass
 class EndToEndJob:
     """A configuration for E2E training and prognostic
+
+    Currently only supports single model training + prognostic experiments
+
+    Notes:
+
+    A provided zhao_carr_config will override the gscond_conservative parameter.
+    If gscond only is true, then the model url will be inserted into the "gscond"
+    ModelConfig.  Otherwise, it is inserted into the "model" ModelConfig.
 
     Examples:
 
@@ -256,7 +259,8 @@ class EndToEndJob:
     bucket: str = "vcm-ml-experiments"
     project: str = "microphysics-emulation"
     gscond_only: bool = False
-    gscond_conservative: bool = True
+    gscond_conservative: bool = False
+    zhao_carr_config: Optional[EmulationConfig] = None
 
     @property
     def entrypoint(self):
@@ -273,16 +277,25 @@ class EndToEndJob:
         ml_config["out_url"] = model_out_url
 
         model_path = os.path.join(model_out_url, "model.tf")
-        prog_config = set_prognostic_emulation_model(
-            self.prog_config,
-            model_path,
-            gscond_only=self.gscond_only,
-            gscond_conservative=self.gscond_conservative,
-        )
+        config = deepcopy(self.prog_config)
+        config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = self.gscond_only
+
+        if self.zhao_carr_config is None:
+            model_config = ModelConfig(
+                path=model_path, gscond_cloud_conservative=self.gscond_conservative
+            )
+            key = "gscond" if self.gscond_only else "model"
+            zc_config = EmulationConfig.from_dict({key: model_config})
+        else:
+            zc_config = _insert_model_path_to_zhao_carr_config(
+                self.zhao_carr_config, model_path, self.gscond_only
+            )
+
+        config["zhao_carr_emulation"] = dataclasses.asdict(zc_config)
 
         return {
             "training-config": _encode(ml_config),
-            "config": _encode(prog_config),
+            "config": _encode(config),
             "image_tag": self.image_tag,
             "fv3fit_image_tag": self.fv3fit_image_tag,
         }

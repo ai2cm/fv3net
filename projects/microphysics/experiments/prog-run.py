@@ -6,7 +6,6 @@ from end_to_end import (
     PrognosticJob,
     load_yaml,
     submit_jobs,
-    set_prognostic_emulation_model,
 )  # noqa: E402
 
 MODEL = "gs://vcm-ml-experiments/microphysics-emulation/2022-05-12/gscond-only-tscale-dense-local-41b1c1-v1/model.tf"  # noqa
@@ -16,9 +15,9 @@ config = load_yaml("../configs/default.yaml")
 
 config["duration"] = "2d"
 
-config = set_prognostic_emulation_model(
-    config, MODEL, gscond_only=True, gscond_conservative=True
-)
+zc_config = {"gscond": {"path": MODEL, "gscond_cloud_conservative": True}}
+config["zhao_carr_emulation"] = zc_config
+config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = True
 
 job = PrognosticJob(name=NAME, image_tag="latest", config=config,)
 
