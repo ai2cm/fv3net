@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Configuration class for submitting end to end experiments with argo
 """
 import argparse
@@ -14,7 +15,9 @@ import yaml
 
 from fv3net.artifacts.resolve_url import resolve_url
 
-WORKFLOW_FILE = pathlib.Path(__file__).parent / "argo.yaml"
+WORKFLOW_FILE = pathlib.Path(__file__).parent.parent / "argo" / "argo.yaml"
+
+PROGNOSTIC = "prognostic"
 
 
 def load_yaml(path):
@@ -122,8 +125,13 @@ def _label_args(labels):
     return ["--labels", ",".join(label_vals)] if labels else []
 
 
+class ToYaml:
+    def to_yaml(self):
+        return yaml.safe_dump(dataclasses.asdict(self))
+
+
 @dataclasses.dataclass
-class PrognosticJob:
+class PrognosticJob(ToYaml):
     """A configuration for prognostic jobs
 
     Examples:
@@ -161,9 +169,14 @@ class PrognosticJob:
             "image_tag": self.image_tag,
         }
 
+    def to_yaml(self):
+        d = dataclasses.asdict(self)
+        d["kind"] = PROGNOSTIC
+        return yaml.safe_dump(d)
+
 
 @dataclasses.dataclass
-class TrainingJob:
+class TrainingJob(ToYaml):
     """
 
     Examples:
@@ -232,6 +245,6 @@ if __name__ == "__main__":
         config_ = yaml.safe_load(f)
         name = config_.pop("kind")
         experiment = config_.pop("experiment", "default")
-        cls = {"train": TrainingJob, "prognostic": PrognosticJob}[name]
+        cls = {"train": TrainingJob, PROGNOSTIC: PrognosticJob}[name]
         job = dacite.from_dict(cls, config_)
         submit_jobs([job], experiment_name=experiment)
