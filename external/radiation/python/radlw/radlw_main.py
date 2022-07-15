@@ -6860,7 +6860,7 @@ class RadLWClass:
         #  --- ...  generate subcolumns for homogeneous clouds
         tem1 = 1.0 - cldf 
         for n in range(ngptlw):
-            lcloudy[n,:] = cdfunc[n, k] >= tem1
+            lcloudy[n,:] = cdfunc[n, :] >= tem1
         
         # for k in range(nlay):
         #     tem1 = 1.0 - cldf[k]
