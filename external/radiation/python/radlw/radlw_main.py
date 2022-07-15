@@ -2387,7 +2387,9 @@ class RadLWClass:
                     cldf[k] = cfrac[k + 1]
 
             #  --- ...  call sub-column cloud generator
-            lcloudy = self.mcica_subcol(cldf, nlay, ipseed, dz, de_lgth, iplon)
+            ds = xr.open_dataset(self.rand_file)
+            rand2d = ds["rand2d"].values
+            lcloudy = self.mcica_subcol(cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d)
 
             for k in range(nlay):
                 for ig in range(ngptlw):
@@ -6783,8 +6785,8 @@ class RadLWClass:
             fracs[ns16 + ig, laytrop:nlay] = fracrefb[ig]
 
         return taug, fracs
-    #@jit
-    def mcica_subcol(self, cldf, nlay, ipseed, dz, de_lgth, iplon):
+    #@jit(nopython=True)
+    def mcica_subcol(self, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
         #  ====================  defination of variables  ====================  !
         #                                                                       !
         #  input variables:                                                size !
@@ -6806,8 +6808,7 @@ class RadLWClass:
         #                                                                       !
         #  =====================    end of definitions    ====================  !
 
-        ds = xr.open_dataset(self.rand_file)
-        rand2d = ds["rand2d"][iplon, :].data
+        rand2d = rand2d[iplon, :]
         cdfunc = np.reshape(rand2d,[ngptlw,nlay])
         # ===> ...  begin here
         #
