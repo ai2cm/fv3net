@@ -91,8 +91,8 @@ class RadLWClass:
     amdw = con_amd / con_amw
     amdo3 = con_amd / con_amo3
 
-    nspa = nspa #[1, 1, 9, 9, 9, 1, 9, 1, 9, 1, 1, 9, 9, 1, 9, 9]
-    nspb = nspb #[1, 1, 5, 5, 5, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0]
+    nspa = nspa  
+    nspb = nspb  
 
     def __init__(self, me, iovrlw, isubclw):
         self.lhlwb = False
@@ -499,6 +499,13 @@ class RadLWClass:
 
             if verbose:
                 print("Running setcoef . . .")
+
+            dfile = os.path.join(LOOKUP_DIR, "totplnk.nc")
+            pfile = os.path.join(LOOKUP_DIR, "radlw_ref_data.nc")
+            totplnk = xr.open_dataset(dfile)["totplnk"].data
+            preflog = xr.open_dataset(pfile)["preflog"].data
+            tref = xr.open_dataset(pfile)["tref"].data
+            chi_mls = xr.open_dataset(pfile)["chi_mls"].data
             (
                 laytrop,
                 pklay,
@@ -522,7 +529,7 @@ class RadLWClass:
                 scaleminorn2,
                 indminor,
             ) = self.setcoef(
-                pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1
+                pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1, totplnk, preflog, tref, chi_mls
             )
 
             if verbose:
@@ -667,7 +674,7 @@ class RadLWClass:
         )
 
     def setcoef(
-        self, pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1
+        self, pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1, totplnk, preflog, tref, chi_mls
     ):
 
         #  ====================  definition of variables  ====================  !
@@ -722,13 +729,6 @@ class RadLWClass:
         #           coefficients and indices needed to compute the optical depths
         #           by interpolating data from stored reference atmospheres.
 
-        dfile = os.path.join(LOOKUP_DIR, "totplnk.nc")
-        pfile = os.path.join(LOOKUP_DIR, "radlw_ref_data.nc")
-        totplnk = xr.open_dataset(dfile)["totplnk"].data
-        preflog = xr.open_dataset(pfile)["preflog"].data
-        tref = xr.open_dataset(pfile)["tref"].data
-        chi_mls = xr.open_dataset(pfile)["chi_mls"].data
-        #chi_mls = chi_mls_input
 
         pklay = np.zeros((nbands, nlp1))
         pklev = np.zeros((nbands, nlp1))
