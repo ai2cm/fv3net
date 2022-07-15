@@ -1,3 +1,7 @@
+from fv3fit._shared import (
+    Predictor,
+)
+
 class PytorchModel(Predictor):
     pass
 
