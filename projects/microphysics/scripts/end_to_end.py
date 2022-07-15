@@ -1,9 +1,9 @@
+#!/usr/bin/env python3
 """Configuration class for submitting end to end experiments with argo
 """
 import argparse
 import base64
 import dataclasses
-import os
 import pathlib
 import subprocess
 import sys
@@ -14,9 +14,10 @@ import dacite
 import yaml
 
 from fv3net.artifacts.resolve_url import resolve_url
-from emulation.config import EmulationConfig, ModelConfig
 
-WORKFLOW_FILE = pathlib.Path(__file__).parent / "argo.yaml"
+WORKFLOW_FILE = pathlib.Path(__file__).parent.parent / "argo" / "argo.yaml"
+
+PROGNOSTIC = "prognostic"
 
 
 def load_yaml(path):
@@ -124,8 +125,13 @@ def _label_args(labels):
     return ["--labels", ",".join(label_vals)] if labels else []
 
 
+class ToYaml:
+    def to_yaml(self):
+        return yaml.safe_dump(dataclasses.asdict(self))
+
+
 @dataclasses.dataclass
-class PrognosticJob:
+class PrognosticJob(ToYaml):
     """A configuration for prognostic jobs
 
     Examples:
@@ -163,9 +169,14 @@ class PrognosticJob:
             "image_tag": self.image_tag,
         }
 
+    def to_yaml(self):
+        d = dataclasses.asdict(self)
+        d["kind"] = PROGNOSTIC
+        return yaml.safe_dump(d)
+
 
 @dataclasses.dataclass
-class TrainingJob:
+class TrainingJob(ToYaml):
     """
 
     Examples:
@@ -210,97 +221,6 @@ class TrainingJob:
         return "training"
 
 
-def _insert_model_path_to_zhao_carr_config(
-    config: EmulationConfig, model_path: str, gscond_only: bool
-):
-
-    out = EmulationConfig.from_dict(dataclasses.asdict(config))
-    if gscond_only:
-        out.gscond.path = model_path
-    else:
-        out.model.path = model_path
-
-    return out
-
-
-@dataclasses.dataclass
-class EndToEndJob:
-    """A configuration for E2E training and prognostic
-
-    Currently only supports single model training + prognostic experiments
-
-    Notes:
-
-    A provided zhao_carr_config will override the gscond_conservative parameter.
-    If gscond only is true, then the model url will be inserted into the "gscond"
-    ModelConfig.  Otherwise, it is inserted into the "model" ModelConfig.
-
-    Examples:
-
-    A short configuration::
-
-        from end_to_end import EndToEndJob, load_yaml
-
-        job = EndToEndJob(
-            name="test-v5",
-            fv3fit_image_tag="d848e586db85108eb142863e600741621307502b",
-            image_tag="d848e586db85108eb142863e600741621307502b",
-            ml_config=load_yaml("../train/rnn.yaml"),
-            prog_config=load_yaml("../configs/default_short.yaml"),
-        )
-
-    """
-
-    name: str
-    ml_config: dict = dataclasses.field(repr=False)
-    prog_config: dict = dataclasses.field(repr=False)
-    fv3fit_image_tag: str
-    image_tag: str
-    bucket: str = "vcm-ml-experiments"
-    project: str = "microphysics-emulation"
-    gscond_only: bool = False
-    gscond_conservative: bool = False
-    zhao_carr_config: Optional[EmulationConfig] = None
-
-    @property
-    def entrypoint(self):
-        return "end-to-end"
-
-    @property
-    def parameters(self):
-        model_out_url = resolve_url(self.bucket, self.project, self.name)
-        assert model_out_url.startswith(
-            "gs://"
-        ), f"Must use a remote URL. Got {model_out_url}"
-
-        ml_config = deepcopy(self.ml_config)
-        ml_config["out_url"] = model_out_url
-
-        model_path = os.path.join(model_out_url, "model.tf")
-        config = deepcopy(self.prog_config)
-        config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = self.gscond_only
-
-        if self.zhao_carr_config is None:
-            model_config = ModelConfig(
-                path=model_path, gscond_cloud_conservative=self.gscond_conservative
-            )
-            key = "gscond" if self.gscond_only else "model"
-            zc_config = EmulationConfig.from_dict({key: model_config})
-        else:
-            zc_config = _insert_model_path_to_zhao_carr_config(
-                self.zhao_carr_config, model_path, self.gscond_only
-            )
-
-        config["zhao_carr_emulation"] = dataclasses.asdict(zc_config)
-
-        return {
-            "training-config": _encode(ml_config),
-            "config": _encode(config),
-            "image_tag": self.image_tag,
-            "fv3fit_image_tag": self.fv3fit_image_tag,
-        }
-
-
 def _encode(dict):
     s = yaml.safe_dump(dict).encode()
     return base64.b64encode(s).decode()
@@ -325,6 +245,6 @@ if __name__ == "__main__":
         config_ = yaml.safe_load(f)
         name = config_.pop("kind")
         experiment = config_.pop("experiment", "default")
-        cls = {"train": TrainingJob, "prognostic": PrognosticJob}[name]
+        cls = {"train": TrainingJob, PROGNOSTIC: PrognosticJob}[name]
         job = dacite.from_dict(cls, config_)
         submit_jobs([job], experiment_name=experiment)

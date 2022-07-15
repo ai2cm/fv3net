@@ -1,7 +1,7 @@
 import dataclasses
 import datetime
 import logging
-from typing import Iterable, Mapping, Optional, Tuple
+from typing import Iterable, Mapping, Optional, Tuple, Union
 import os
 
 import cftime
@@ -55,8 +55,17 @@ class Range:
 
 @dataclasses.dataclass
 class LevelSlice:
+    """
+
+    Attributes:
+        fill_value: how to fill the values between start and stop. If a float,
+            then fill with fill_value. If a string, then fill with the values from
+            ``truth[fill_value]``.
+    """
+
     start: Optional[int] = None
     stop: Optional[int] = None
+    fill_value: Union[float, str, None] = None
 
 
 @dataclasses.dataclass
@@ -70,8 +79,7 @@ class ModelConfig:
             The physics is used for the first half of the interval, and the ML
             for the second half.
         ranges: post-hoc limits to apply to the predicted values
-        mask_emulator_levels:  override the emulator tendencies with the fortran
-            physics tendencies for a specified level range.
+        mask_emulator_levels:  levels to mask the emulator tendencies at.
         cloud_squash: all cloud values less than this amount (including
             negative values) will be squashed to zero.
         gscond_cloud_conservative: infer the gscond cloud from conservation via
@@ -151,7 +159,9 @@ class ModelConfig:
             yield emulation.zhao_carr.enforce_conservative_gscond
 
         for key, _slice in self.mask_emulator_levels.items():
-            yield LevelMask(key, start=_slice.start, stop=_slice.stop)
+            yield LevelMask(
+                key, start=_slice.start, stop=_slice.stop, fill_value=_slice.fill_value
+            )
 
 
 @dataclasses.dataclass

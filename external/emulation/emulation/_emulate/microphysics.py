@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import datetime
-from typing import Callable
+from typing import Callable, Optional, Set
 import cftime
 import gc
 
@@ -65,7 +65,7 @@ class MicrophysicsHook:
         """
 
         self.name = "microphysics emulator"
-        self.orig_outputs = None
+        self.orig_outputs: Optional[Set[str]] = None
         self.garbage_collection_interval = garbage_collection_interval
         self.mask = mask
         self._calls_since_last_collection = 0
