@@ -12,7 +12,7 @@ let
   }) { };
 in pkgs.mkShell {
   buildInputs = [
-    pkgs.python38Packages.gt4py-dev
+    pkgs.python38Packages.numba
     pkgs.python38Packages.xarray
     pkgs.python38Packages.numpy
     pkgs.python38Packages.netcdf4
