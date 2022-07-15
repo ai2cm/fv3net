@@ -1210,18 +1210,6 @@ class RadLWClass:
 
         flxfac = self.wtdiff * self.fluxfac
         
-        # for k in range(nlp1):
-        #     for ib in range(nbands):
-        #         totuflux[k] = totuflux[k] + toturad[k, ib]
-        #         totdflux[k] = totdflux[k] + totdrad[k, ib]
-        #         totuclfl[k] = totuclfl[k] + clrurad[k, ib]
-        #         totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
-
-        #     totuflux[k] = totuflux[k] * flxfac
-        #     totdflux[k] = totdflux[k] * flxfac
-        #     totuclfl[k] = totuclfl[k] * flxfac
-        #     totdclfl[k] = totdclfl[k] * flxfac
-
         totuflux =   np.nansum(toturad, axis = 1)* flxfac
         totdflux =   np.nansum(totdrad, axis = 1)* flxfac
         totuclfl =   np.nansum(clrurad, axis = 1)* flxfac  
@@ -1558,12 +1546,6 @@ class RadLWClass:
             clrurad[:, ib] = 0.0
             clrdrad[:, ib] = 0.0
 
-            # for k in range(nlp1):
-            #     totuflux[k] = 0.0
-            #     totdflux[k] = 0.0
-            #     totuclfl[k] = 0.0
-            #     totdclfl[k] = 0.0
-
             totuflux = np.zeros(nlp1)
             totdflux = np.zeros(nlp1)
             totuclfl = np.zeros(nlp1)
@@ -1743,18 +1725,6 @@ class RadLWClass:
             # calculate upward, downward, and net flux.
 
             flxfac = self.wtdiff * self.fluxfac
-
-            # for k in range(nlp1):
-            #     for ib in range(nbands):
-            #         totuflux[k] = totuflux[k] + toturad[k, ib]
-            #         totdflux[k] = totdflux[k] + totdrad[k, ib]
-            #         totuclfl[k] = totuclfl[k] + clrurad[k, ib]
-            #         totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
-
-            #     totuflux[k] = totuflux[k] * flxfac
-            #     totdflux[k] = totdflux[k] * flxfac
-            #     totuclfl[k] = totuclfl[k] * flxfac
-            #     totdclfl[k] = totdclfl[k] * flxfac
 
             totuflux =   np.nansum(toturad, axis = 1)* flxfac
             totdflux =   np.nansum(totdrad, axis = 1)* flxfac
@@ -2079,18 +2049,6 @@ class RadLWClass:
         # Calculate upward, downward, and net flux.
 
         flxfac = self.wtdiff * self.fluxfac
-
-        # for k in range(nlp1):
-        #     for ib in range(nbands):
-        #         totuflux[k] = totuflux[k] + toturad[k, ib]
-        #         totdflux[k] = totdflux[k] + totdrad[k, ib]
-        #         totuclfl[k] = totuclfl[k] + clrurad[k, ib]
-        #         totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
-
-        #     totuflux[k] = totuflux[k] * flxfac
-        #     totdflux[k] = totdflux[k] * flxfac
-        #     totuclfl[k] = totuclfl[k] * flxfac
-        #     totdclfl[k] = totdclfl[k] * flxfac
 
         totuflux = np.nansum(toturad,axis = 1) * flxfac
         totdflux = np.nansum(totdrad,axis = 1) * flxfac
