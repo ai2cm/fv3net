@@ -28,7 +28,7 @@ class LossConfig:
         loss_type: one of "mse" or "mae"
     """
 
-    multistep: int
+    multistep: int = 6
     loss_type: str = "mse"
 
     def __post_init__(self):
@@ -36,11 +36,11 @@ class LossConfig:
             raise ValueError(
                 f"loss_type must be 'mse' or 'mae', got '{self.loss_type}'"
             )
-        if self.scaling not in ("standard", "standard_uniform"):
-            raise ValueError(
-                "loss_type must be 'standard' or 'standard_uniform', "
-                f"got '{self.scaling}'"
-            )
+        # if self.scaling not in ("standard", "standard_uniform"):
+        #     raise ValueError(
+        #         "loss_type must be 'standard' or 'standard_uniform', "
+        #         f"got '{self.scaling}'"
+        #     )
 
     def loss(self):
         """

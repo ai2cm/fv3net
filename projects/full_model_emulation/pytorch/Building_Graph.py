@@ -1,7 +1,10 @@
 import torch
-from scipy.spatial import KDTree
 import numpy as np
 import dgl
+import geopy.distance
+from vcm.catalog import catalog
+import dataclasses
+
 
 """
 Attributes:
@@ -10,62 +13,47 @@ Attributes:
     lat: latitude of cubed sphere data
     lon: longitude of the cubed sphere data
 """
-
-
+@dataclasses.dataclass
 class BuildingGraph:
-    def __init__(self, Neighbor, lat, lon, selfpoint=True):
-        super().__init__()
-        self.Neighbor = Neighbor
-        self.selfpoint = selfpoint
-        self.lat = lat
-        self.lon = lon
+    """
+    Attributes:
+        epochs: number of times to run through the batches when training
+        shuffle_buffer_size: size of buffer to use when shuffling samples, only
+            applies if in_memory=False
+        coarsen: 1 if the full model resolution is used, othewise 
+        Resolution: Name of model resolution to load the corresponding lat and lon.
+    """
 
-    def normalize_vector(self, *vector_components):
-        scale = np.divide(
-            1.0, np.sum(np.asarray([item ** 2.0 for item in vector_components])) ** 0.5
-        )
-        return np.asarray([item * scale for item in vector_components])
+    Neighbor: int = 5
+    coarsen: int = 1
+    Resolution: str = "grid/c48"
 
-    def lon_lat_to_xyz(self):
-        """map (lon, lat) to (x, y, z)
-        Args:
-            lon: 2d array of longitudes
-            lat: 2d array of latitudes
-            np: numpy-like module for arrays
-        Returns:
-            xyz: 3d array whose last dimension is length 3 and indicates x/y/z value
-        """
-        x = np.cos(self.lat) * np.cos(self.lon)
-        y = np.cos(self.lat) * np.sin(self.lon)
-        z = np.sin(self.lat)
-        x, y, z = self.normalize_vector(x, y, z)
-        if len(self.lon.shape) == 2:
-            xyz = np.concatenate([arr[:, :, None] for arr in (x, y, z)], axis=-1)
-        elif len(self.lon.shape) == 1:
-            xyz = np.concatenate([arr[:, None] for arr in (x, y, z)], axis=-1)
-        return xyz
+def graphStruc(config):
+    nodes=[]
+    edges=[]
 
-    def graphStruc(self):
-        xyz = self.lon_lat_to_xyz()
+    grid = catalog[config.Resolution].read()
+    lat=grid.lat.load()
+    lon=grid.lon.load()
 
-        kdtree = KDTree(xyz)
-
-        _, points = kdtree.query(xyz, self.Neighbor + 1)
-
-        if self.selfpoint:
-            nodes = torch.tensor(
-                np.repeat(points[:, 0], self.Neighbor + 1, axis=0)
-                .reshape(-1, self.Neighbor + 1)
-                .flatten()
-            )
-            edges = torch.tensor(points[:, 0 : self.Neighbor + 1]).flatten()
-        else:
-            nodes = torch.tensor(
-                np.repeat(points[:, 0], self.Neighbor, axis=0)
-                .reshape(-1, self.Neighbor)
-                .flatten()
-            )
-            edges = torch.tensor(points[:, 1 : self.Neighbor + 1].flatten())
-
-        g = dgl.graph((nodes, edges))
-        return g
+    lat=lat[:,::config.coarsen,::config.coarsen].values.flatten()
+    lon=lon[:,::config.coarsen,::config.coarsen].values.flatten()
+        
+    lon=lon*180/np.pi
+    lat=lat*180/np.pi
+    for i in range(0,len(lat)):
+        dis=np.zeros([len(lat)])
+        coords_1 = (lat[i], lon[i])
+        for j in range(0,len(lat)):
+            coords_2 = (lat[j], lon[j])
+            dis[j]=geopy.distance.geodesic(coords_1, coords_2).km
+        res = sorted(range(len(dis)), key = lambda sub: dis[sub])[:config.Neighbor]
+        nodes.append(np.repeat(i , config.Neighbor, axis=0))
+        edges.append(res)
+    nodes=torch.tensor(nodes).flatten()
+    edges=torch.tensor(edges).flatten()
+    with open('NodesEdges.npy', 'wb') as f:
+        np.save(f, nodes)
+        np.save(f, edges)
+    g = dgl.graph((nodes,edges))
+    return g

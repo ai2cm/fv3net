@@ -6,13 +6,15 @@ from Building_Graph import BuildingGraph
 from Graphloss import LossConfig
 from GraphOptim import OptimizerConfig
 from graph_config import GraphNetworkConfig
-from .hyperparameters import Hyperparameters
+from hyperparameters import Hyperparameters
 from toolz.functoolz import curry
 from graphPredict import PytorchModel
 from Building_Graph import graphStruc
 from graph_config import graphnetwork
 from training_loop import TrainingLoopConfig
-from ..._shared.config import register_training_function
+# from ..tfdataset import iterable_to_tfdataset
+
+from fv3fit._shared import register_training_function
 from typing import (
     List,
     Optional,
@@ -117,7 +119,7 @@ def train_graph_model(
     ).map(apply_to_mapping(ensure_nd(2)))
 
     sample = next(
-        iter(processed_train_batches.unbatch().batch(hyperparameters.build_samples))
+        iter(processed_train_batches.unbatch().batch(hyperparameters.training_loop.build_samples))
     )
 
     # create a a transform that will properly normalize or denormalize values
@@ -162,7 +164,6 @@ def train_graph_model(
 def stepwise_loss(
     config: GraphHyperparameters, train_model, criterion, inputs, labels, multistep
 ):
-    # forward + backward + optimize
 
     criterion = config.loss.loss()
     loss = 0
@@ -237,21 +238,83 @@ def get_Xy_dataset(
     return data.map(map_fn)
 
 
+# def iterable_to_tfdataset(
+#     source: Iterable,
+#     transform: Optional[Callable] = None,
+#     varying_first_dim: bool = False,
+# ) -> tf.data.Dataset:
+#     """
+#     A general function to convert from an iterable into a tensorflow dataset.
+
+#     Args:
+#         source: data items to be included in the dataset
+#         transform: function to process data items into a Mapping[str, tf.Tensor],
+#             if needed.
+#         varying_first_dim: if True, the first dimension of the produced tensors
+#             can be of varying length
+#     """
+#     if transform is None:
+
+#         def transform(x):
+#             return x
+
+#     def generator():
+#         for batch in source:
+#             yield transform(batch)
+
+#     try:
+#         sample = next(iter(generator()))
+#     except StopIteration:
+#         raise NotImplementedError("can only make tfdataset from non-empty batches")
+
+#     # if batches have different numbers of samples, we need to set the dimension size
+#     # to None to indicate the size can be different across generated tensors
+#     if varying_first_dim:
+
+#         def process_shape(shape):
+#             return (None,) + shape[1:]
+
+#     else:
+
+#         def process_shape(shape):
+#             return shape
+
+#     return tf.data.Dataset.from_generator(
+#         generator,
+#         output_signature={
+#             key: tf.TensorSpec(process_shape(val.shape), dtype=val.dtype)
+#             for key, val in sample.items()
+#         },
+#     )
+
+    
 def get_data() -> tf.data.Dataset:
     n_records = 10
-    n_batch, nt, nx, ny, nz = 10, 40, 4, 4, 6
+    n_batch, nt, grid,nz = 1, 40, 10,2
 
     def records():
         for _ in range(n_records):
             record = {
-                "a": np.random.uniform([n_batch, nt, nx, ny, nz]),
-                "f": np.random.uniform([n_batch, nt, nx, ny, nz]),
+                "a": np.random.uniform([n_batch, nt, grid, nz]),
+                "f": np.random.uniform([n_batch, nt, grid, nz]),
             }
             yield record
-
+    
+    # tfdataset = iterable_to_tfdataset(
+    #         records(
+    #             n_windows=nt,
+    #             window_size=,
+    #             ds=ds,
+    #             variable_names=variable_names,
+    #             default_variable_config=self.default_variable_config,
+    #             variable_configs=self.variable_configs,
+    #             unstacked_dims=self.unstacked_dims,
+    #         )
+    #     )
+        
     tfdataset = tf.data.Dataset.from_generator(
         records,
         output_types=(tf.float32),
-        output_shapes=(tf.TensorShape([nt, nx, ny, nz])),
+        output_shapes=(tf.TensorShape([nt,grid,nz])),
     )
     return tfdataset
