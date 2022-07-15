@@ -6783,7 +6783,7 @@ class RadLWClass:
             fracs[ns16 + ig, laytrop:nlay] = fracrefb[ig]
 
         return taug, fracs
-    @jit
+    #@jit
     def mcica_subcol(self, cldf, nlay, ipseed, dz, de_lgth, iplon):
         #  ====================  defination of variables  ====================  !
         #                                                                       !
@@ -6806,12 +6806,6 @@ class RadLWClass:
         #                                                                       !
         #  =====================    end of definitions    ====================  !
 
-        lcloudy = np.zeros((ngptlw, nlay), dtype=bool)
-        #cdfunc = np.zeros((ngptlw, nlay))
-        rand1d = np.zeros(ngptlw)
-        #rand2d = np.zeros(nlay * ngptlw)
-        fac_lcf = np.zeros(nlay)
-        cdfun2 = np.zeros((ngptlw, nlay))
         ds = xr.open_dataset(self.rand_file)
         rand2d = ds["rand2d"][iplon, :].data
         cdfunc = np.reshape(rand2d,[ngptlw,nlay])
@@ -6820,19 +6814,8 @@ class RadLWClass:
         #  --- ...  advance randum number generator by ipseed values
 
         #  --- ...  sub-column set up according to overlapping assumption
-
-        if self.iovrlw == 0:
-            # random overlap, pick a random value at every level
-            print("Not Implemented!!")
-
-        elif self.iovrlw == 1:  # max-ran overlap
-            # k1 = 0
-            # for n in range(ngptlw):
-            #     for k in range(nlay):
-            #         cdfunc[n, k] = rand2d[k1]
-            #         k1 += 1
-            
-
+        ## it is only implemented for iovrlw == 1 
+        if self.iovrlw == 1:  # max-ran overlap
             #  ---  first pick a random number for bottom (or top) layer.
             #       then walk up the column: (aer's code)
             #       if layer below is cloudy, use the same rand num in the layer below
@@ -6848,24 +6831,8 @@ class RadLWClass:
                         cdfunc[n, k] = cdfunc[n, k1]
                     else:
                         cdfunc[n, k] = cdfunc[n, k] * tem1
-
-        elif (
-            self.iovrlw == 2
-        ):  # maximum overlap, pick same random numebr at every level
-            print("Not Implemented!!")
-
-        elif self.iovrlw == 3:  # decorrelation length overlap
-            print("Not Implemented!!")
-
         #  --- ...  generate subcolumns for homogeneous clouds
         tem1 = 1.0 - cldf 
-        for n in range(ngptlw):
-            lcloudy[n,:] = cdfunc[n, :] >= tem1
-        
-        # for k in range(nlay):
-        #     tem1 = 1.0 - cldf[k]
-
-        #     for n in range(ngptlw):
-        #         lcloudy[n, k] = cdfunc[n, k] >= tem1
-
+        lcloudy  = cdfunc >= tem1
+    
         return lcloudy
