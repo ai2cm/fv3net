@@ -2389,7 +2389,7 @@ class RadLWClass:
             #  --- ...  call sub-column cloud generator
             ds = xr.open_dataset(self.rand_file)
             rand2d = ds["rand2d"].values
-            lcloudy = self.mcica_subcol(cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d)
+            lcloudy = self.mcica_subcol(self.iovrlw,cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d)
 
             for k in range(nlay):
                 for ig in range(ngptlw):
@@ -6785,8 +6785,9 @@ class RadLWClass:
             fracs[ns16 + ig, laytrop:nlay] = fracrefb[ig]
 
         return taug, fracs
-    #@jit(nopython=True)
-    def mcica_subcol(self, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
+    @staticmethod
+    @jit(nopython=True)
+    def mcica_subcol(iovrlw, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
         #  ====================  defination of variables  ====================  !
         #                                                                       !
         #  input variables:                                                size !
@@ -6809,14 +6810,14 @@ class RadLWClass:
         #  =====================    end of definitions    ====================  !
 
         rand2d = rand2d[iplon, :]
-        cdfunc = np.reshape(rand2d,[ngptlw,nlay])
+        cdfunc = np.reshape(rand2d,(ngptlw,nlay))
         # ===> ...  begin here
         #
         #  --- ...  advance randum number generator by ipseed values
 
         #  --- ...  sub-column set up according to overlapping assumption
         ## it is only implemented for iovrlw == 1 
-        if self.iovrlw == 1:  # max-ran overlap
+        if iovrlw == 1:  # max-ran overlap
             #  ---  first pick a random number for bottom (or top) layer.
             #       then walk up the column: (aer's code)
             #       if layer below is cloudy, use the same rand num in the layer below
