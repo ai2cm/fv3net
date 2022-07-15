@@ -41,6 +41,7 @@ repos:
       files: |
         (?x)^(
         external/vcm/vcm/.+ |
+        external/emulation/.+ |
         workflows/dataflow/fv3net/pipelines/restarts_to_zarr/.+ |
         workflows/prognostic_c48_run/.+ |
         workflows/prognostic_c48_run/tests/.+ |

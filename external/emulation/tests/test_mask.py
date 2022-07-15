@@ -28,3 +28,20 @@ def test_LevelMask(start, stop):
     num_fortran_elements = zeros[sl_].size
     np.testing.assert_array_equal(result["foo"][sl_], zeros[sl_])
     assert np.sum(result["foo"]) == result["foo"].size - num_fortran_elements
+
+
+def test_LevelMask_fill_value():
+    fill_value = 0.5
+    mask = LevelMask("foo", 0, 2, fill_value=fill_value)
+    ones = np.ones((4, 2))
+    result = mask(state={}, emulator={"foo": ones})
+    np.testing.assert_array_equal(fill_value, result["foo"][:2])
+
+
+def test_LevelMask_fill_value_string():
+    mask = LevelMask("foo", 0, 2, fill_value="a")
+    ones = np.ones((4, 2))
+
+    a = ones * 1.1
+    result = mask(state={"a": a}, emulator={"foo": ones})
+    np.testing.assert_array_equal(a[:2], result["foo"][:2])

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import json
+from typing import Any
 import typer
 import wandb
 import db
+import end_to_end
 
 app = typer.Typer()
 
@@ -17,6 +19,28 @@ def groups(experiment: str, filter_tags: str = typer.Option("", "-f")):
     groups = set(run.group for run in runs if len(filter_tags & set(run.tags)) == 0)
     for group in groups:
         print(group)
+
+
+def wandb2job(run: Any) -> end_to_end.ToYaml:
+    if run.job_type == "prognostic_run":
+        return end_to_end.PrognosticJob(
+            name=run.name,
+            config=run.config["config"],
+            image_tag=run.config["env"]["COMMIT_SHA"],
+            project="microphysics-emulation",
+            bucket="vcm-ml-experiments",
+        )
+    else:
+        raise NotImplementedError(f"{run.job_type} not implemented.")
+
+
+@app.command()
+def reproduce(run_id: str):
+    """Show the yaml required to reproduce a given wadnb run"""
+    api = wandb.Api()
+    run = api.run(run_id)
+    job = wandb2job(run)
+    print(job.to_yaml())
 
 
 @app.command()
