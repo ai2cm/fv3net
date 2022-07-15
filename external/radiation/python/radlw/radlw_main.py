@@ -1,3 +1,4 @@
+from re import A
 import numpy as np
 import xarray as xr
 import sys
@@ -57,6 +58,11 @@ from radlw.radlw_param import (
     ns14,
     ns15,
     ns16,
+    a0,
+    a1,
+    a2,
+    nspa,
+    nspb
 )
 from phys_const import con_g, con_avgd, con_cp, con_amd, con_amw, con_amo3
 from config import *
@@ -75,69 +81,17 @@ class RadLWClass:
     stpfac = 296.0 / 1013.0
     wtdiff = 0.5
     tblint = ntbl
+    a0 = a0
+    a1 = a1
+    a2 = a2
 
     ipsdlw0 = ngptlw
 
     amdw = con_amd / con_amw
     amdo3 = con_amd / con_amo3
 
-    nspa = [1, 1, 9, 9, 9, 1, 9, 1, 9, 1, 1, 9, 9, 1, 9, 9]
-    nspb = [1, 1, 5, 5, 5, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0]
-
-    a0 = [
-        1.66,
-        1.55,
-        1.58,
-        1.66,
-        1.54,
-        1.454,
-        1.89,
-        1.33,
-        1.668,
-        1.66,
-        1.66,
-        1.66,
-        1.66,
-        1.66,
-        1.66,
-        1.66,
-    ]
-    a1 = [
-        0.00,
-        0.25,
-        0.22,
-        0.00,
-        0.13,
-        0.446,
-        -0.10,
-        0.40,
-        -0.006,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-    ]
-    a2 = [
-        0.00,
-        -12.0,
-        -11.7,
-        0.00,
-        -0.72,
-        -0.243,
-        0.19,
-        -0.062,
-        0.414,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-    ]
+    nspa = nspa #[1, 1, 9, 9, 9, 1, 9, 1, 9, 1, 1, 9, 9, 1, 9, 9]
+    nspb = nspb #[1, 1, 5, 5, 5, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0]
 
     def __init__(self, me, iovrlw, isubclw):
         self.lhlwb = False
@@ -715,7 +669,7 @@ class RadLWClass:
         self, pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1
     ):
 
-        #  ====================  defination of variables  ====================  !
+        #  ====================  definition of variables  ====================  !
         #                                                                       !
         #  inputs:                                                       -size- !
         #   pavel     - real, layer pressures (mb)                         nlay !
@@ -773,6 +727,7 @@ class RadLWClass:
         preflog = xr.open_dataset(pfile)["preflog"].data
         tref = xr.open_dataset(pfile)["tref"].data
         chi_mls = xr.open_dataset(pfile)["chi_mls"].data
+        #chi_mls = chi_mls_input
 
         pklay = np.zeros((nbands, nlp1))
         pklev = np.zeros((nbands, nlp1))
@@ -801,18 +756,23 @@ class RadLWClass:
         tlyrfr = stemp - int(stemp)
         tlvlfr = tz[0] - int(tz[0])
 
-        for i in range(nbands):
-            tem1 = totplnk[indlay, i] - totplnk[indlay - 1, i]
-            tem2 = totplnk[indlev, i] - totplnk[indlev - 1, i]
-            pklay[i, 0] = delwave[i] * (totplnk[indlay - 1, i] + tlyrfr * tem1)
-            pklev[i, 0] = delwave[i] * (totplnk[indlev - 1, i] + tlvlfr * tem2)
+        #for i in range(nbands):
+        tem1 = totplnk[indlay, :] - totplnk[indlay - 1, :]
+        tem2 = totplnk[indlev, :] - totplnk[indlev - 1, :]
+        pklay[:, 0] = delwave * (totplnk[indlay - 1, :] + tlyrfr * tem1)
+        pklev[:, 0] = delwave * (totplnk[indlev - 1, :] + tlvlfr * tem2)
+
+        # for i in range(nbands):
+        #     tem1 = totplnk[indlay, i] - totplnk[indlay - 1, i]
+        #     tem2 = totplnk[indlev, i] - totplnk[indlev - 1, i]
+        #     pklay[i, 0] = delwave[i] * (totplnk[indlay - 1, i] + tlyrfr * tem1)
+        #     pklev[i, 0] = delwave[i] * (totplnk[indlev - 1, i] + tlvlfr * tem2)
 
         #  --- ...  begin layer loop
         #           calculate the integrated Planck functions for each band at the
         #           surface, level, and layer temperatures.
 
         laytrop = 0
-
         for k in range(nlay):
             indlay = np.minimum(180, np.maximum(1, int(tavel[k] - 159.0)))
             tlyrfr = tavel[k] - int(tavel[k])
@@ -821,7 +781,6 @@ class RadLWClass:
             tlvlfr = tz[k + 1] - int(tz[k + 1])
 
             #  --- ...  begin spectral band loop
-
             for i in range(nbands):
                 pklay[i, k + 1] = delwave[i] * (
                     totplnk[indlay - 1, i]
@@ -967,7 +926,7 @@ class RadLWClass:
             scaleminorn2,
             indminor,
         )
-
+    #@jit(nopython=True)
     def rtrn(
         self,
         semiss,
@@ -990,7 +949,7 @@ class RadLWClass:
         #                                                                       !
         # subprograms called:  none                                             !
         #                                                                       !
-        #  ====================  defination of variables  ====================  !
+        #  ====================  definition of variables  ====================  !
         #                                                                       !
         #  inputs:                                                     -size-   !
         #   semiss  - real, lw surface emissivity                         nbands!
@@ -1113,7 +1072,7 @@ class RadLWClass:
         #
 
         #  --- ...  loop over all g-points
-
+        
         for ig in range(ngptlw):
             ib = ngb(ig)
 
@@ -1249,26 +1208,30 @@ class RadLWClass:
         #      Calculate upward, downward, and net flux.
 
         flxfac = self.wtdiff * self.fluxfac
+        
+        # for k in range(nlp1):
+        #     for ib in range(nbands):
+        #         totuflux[k] = totuflux[k] + toturad[k, ib]
+        #         totdflux[k] = totdflux[k] + totdrad[k, ib]
+        #         totuclfl[k] = totuclfl[k] + clrurad[k, ib]
+        #         totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
 
-        for k in range(nlp1):
-            for ib in range(nbands):
-                totuflux[k] = totuflux[k] + toturad[k, ib]
-                totdflux[k] = totdflux[k] + totdrad[k, ib]
-                totuclfl[k] = totuclfl[k] + clrurad[k, ib]
-                totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
+        #     totuflux[k] = totuflux[k] * flxfac
+        #     totdflux[k] = totdflux[k] * flxfac
+        #     totuclfl[k] = totuclfl[k] * flxfac
+        #     totdclfl[k] = totdclfl[k] * flxfac
 
-            totuflux[k] = totuflux[k] * flxfac
-            totdflux[k] = totdflux[k] * flxfac
-            totuclfl[k] = totuclfl[k] * flxfac
-            totdclfl[k] = totdclfl[k] * flxfac
+        totuflux =   np.nansum(toturad, axis = 1)* flxfac
+        totdflux =   np.nansum(totdrad, axis = 1)* flxfac
+        totuclfl =   np.nansum(clrurad, axis = 1)* flxfac  
+        totdclfl =   np.nansum(clrdrad, axis = 1)* flxfac
 
         #  --- ...  calculate net fluxes and heating rates
         fnet[0] = totuflux[0] - totdflux[0]
-
-        for k in range(nlay):
-            rfdelp[k] = self.heatfac / delp[k]
-            fnet[k] = totuflux[k] - totdflux[k]
-            htr[k] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
+        #for k in range(nlay):
+        rfdelp = self.heatfac / delp
+        fnet = totuflux - totdflux
+        htr = (fnet[1:] - fnet) * rfdelp
 
         # --- ...  optional clear sky heating rates
         if self.lhlw0:
@@ -1288,7 +1251,7 @@ class RadLWClass:
                     htrb[k, ib] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
-
+    #@jit(nopython=True)
     def rtrnmr(
         self,
         semiss,
@@ -1452,7 +1415,7 @@ class RadLWClass:
         lstcldu[0] = cldfrc[0] > self.eps
         rat1 = 0.0
         rat2 = 0.0
-
+        
         for k in range(nlay - 1):
 
             lstcldu[k + 1] = cldfrc[k + 1] > self.eps and cldfrc[k] <= self.eps
@@ -1510,19 +1473,19 @@ class RadLWClass:
 
                 faccmb1u[k + 1] = facclr1u[k + 1] * faccld2u[k] * cldfrc[k - 1]
                 faccmb2u[k + 1] = faccld1u[k + 1] * facclr2u[k] * (1.0 - cldfrc[k - 1])
-
-        for k in range(nlp1):
-            faccld1d[k] = 0.0
-            faccld2d[k] = 0.0
-            facclr1d[k] = 0.0
-            facclr2d[k] = 0.0
-            faccmb1d[k] = 0.0
-            faccmb2d[k] = 0.0
+        ## it is already set to zeros
+        # for k in range(nlp1):
+        #     faccld1d[k] = 0.0
+        #     faccld2d[k] = 0.0
+        #     facclr1d[k] = 0.0
+        #     facclr2d[k] = 0.0
+        #     faccmb1d[k] = 0.0
+        #     faccmb2d[k] = 0.0
 
         lstcldd[nlay] = cldfrc[nlay] > self.eps
         rat1 = 0.0
         rat2 = 0.0
-
+        
         for k in range(nlay - 1, 0, -1):
             lstcldd[k - 1] = cldfrc[k - 1] > self.eps and cldfrc[k] <= self.eps
 
@@ -1584,18 +1547,26 @@ class RadLWClass:
         # Initialize for radiative transfer
 
         for ib in range(nbands):
-            for k in range(nlp1):
-                toturad[k, ib] = 0.0
-                totdrad[k, ib] = 0.0
-                clrurad[k, ib] = 0.0
-                clrdrad[k, ib] = 0.0
+            # for k in range(nlp1):
+            #     toturad[k, ib] = 0.0
+            #     totdrad[k, ib] = 0.0
+            #     clrurad[k, ib] = 0.0
+            #     clrdrad[k, ib] = 0.0
+            toturad[:, ib] = 0.0
+            totdrad[:, ib] = 0.0
+            clrurad[:, ib] = 0.0
+            clrdrad[:, ib] = 0.0
 
-            for k in range(nlp1):
-                totuflux[k] = 0.0
-                totdflux[k] = 0.0
-                totuclfl[k] = 0.0
-                totdclfl[k] = 0.0
+            # for k in range(nlp1):
+            #     totuflux[k] = 0.0
+            #     totdflux[k] = 0.0
+            #     totuclfl[k] = 0.0
+            #     totdclfl[k] = 0.0
 
+            totuflux = np.zeros(nlp1)
+            totdflux = np.zeros(nlp1)
+            totuclfl = np.zeros(nlp1)
+            totdclfl = np.zeros(nlp1)
             #  --- ...  loop over all g-points
 
             for ig in range(ngptlw):
@@ -1772,17 +1743,22 @@ class RadLWClass:
 
             flxfac = self.wtdiff * self.fluxfac
 
-            for k in range(nlp1):
-                for ib in range(nbands):
-                    totuflux[k] = totuflux[k] + toturad[k, ib]
-                    totdflux[k] = totdflux[k] + totdrad[k, ib]
-                    totuclfl[k] = totuclfl[k] + clrurad[k, ib]
-                    totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
+            # for k in range(nlp1):
+            #     for ib in range(nbands):
+            #         totuflux[k] = totuflux[k] + toturad[k, ib]
+            #         totdflux[k] = totdflux[k] + totdrad[k, ib]
+            #         totuclfl[k] = totuclfl[k] + clrurad[k, ib]
+            #         totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
 
-                totuflux[k] = totuflux[k] * flxfac
-                totdflux[k] = totdflux[k] * flxfac
-                totuclfl[k] = totuclfl[k] * flxfac
-                totdclfl[k] = totdclfl[k] * flxfac
+            #     totuflux[k] = totuflux[k] * flxfac
+            #     totdflux[k] = totdflux[k] * flxfac
+            #     totuclfl[k] = totuclfl[k] * flxfac
+            #     totdclfl[k] = totdclfl[k] * flxfac
+
+            totuflux =   np.nansum(toturad, axis = 1)* flxfac
+            totdflux =   np.nansum(totdrad, axis = 1)* flxfac
+            totuclfl =   np.nansum(clrurad, axis = 1)* flxfac  
+            totdclfl =   np.nansum(clrdrad, axis = 1)* flxfac
 
             #  --- ...  calculate net fluxes and heating rates
             fnet[0] = totuflux[0] - totdflux[0]
@@ -1810,7 +1786,7 @@ class RadLWClass:
                         htrb[k, ib] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
-
+    #@jit(nopython=True)
     def rtrnmc(
         self,
         semiss,
@@ -2103,17 +2079,22 @@ class RadLWClass:
 
         flxfac = self.wtdiff * self.fluxfac
 
-        for k in range(nlp1):
-            for ib in range(nbands):
-                totuflux[k] = totuflux[k] + toturad[k, ib]
-                totdflux[k] = totdflux[k] + totdrad[k, ib]
-                totuclfl[k] = totuclfl[k] + clrurad[k, ib]
-                totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
+        # for k in range(nlp1):
+        #     for ib in range(nbands):
+        #         totuflux[k] = totuflux[k] + toturad[k, ib]
+        #         totdflux[k] = totdflux[k] + totdrad[k, ib]
+        #         totuclfl[k] = totuclfl[k] + clrurad[k, ib]
+        #         totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
 
-            totuflux[k] = totuflux[k] * flxfac
-            totdflux[k] = totdflux[k] * flxfac
-            totuclfl[k] = totuclfl[k] * flxfac
-            totdclfl[k] = totdclfl[k] * flxfac
+        #     totuflux[k] = totuflux[k] * flxfac
+        #     totdflux[k] = totdflux[k] * flxfac
+        #     totuclfl[k] = totuclfl[k] * flxfac
+        #     totdclfl[k] = totdclfl[k] * flxfac
+
+        totuflux = np.nansum(toturad,axis = 1) * flxfac
+        totdflux = np.nansum(totdrad,axis = 1) * flxfac
+        totuclfl = np.nansum(clrurad,axis = 1) * flxfac
+        totdclfl = np.nansum(clrdrad,axis = 1) * flxfac
 
         #  --- ...  calculate net fluxes and heating rates
         fnet[0] = totuflux[0] - totdflux[0]
@@ -2396,7 +2377,7 @@ class RadLWClass:
 
         # -# if physparam::isubclw > 0, call mcica_subcol() to distribute
         #    cloud properties to each g-point.
-
+    
         if self.isubclw > 0:  # mcica sub-col clouds approx
             for k in range(nlay):
                 if cfrac[k + 1] < cldmin:
@@ -3390,6 +3371,7 @@ class RadLWClass:
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
         chi_mls = dsc["chi_mls"].data
+        #chi_mls = chi_mls_input
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb03_data.nc"))
         selfref = ds["selfref"].data
@@ -6799,7 +6781,7 @@ class RadLWClass:
             fracs[ns16 + ig, laytrop:nlay] = fracrefb[ig]
 
         return taug, fracs
-
+    
     def mcica_subcol(self, cldf, nlay, ipseed, dz, de_lgth, iplon):
         #  ====================  defination of variables  ====================  !
         #                                                                       !
