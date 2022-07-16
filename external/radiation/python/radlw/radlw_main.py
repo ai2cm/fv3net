@@ -470,6 +470,7 @@ class RadLWClass:
             if verbose:
                 print("Running cldprop . . .")
             if lcf1:
+                ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_cldprlw_data.nc"))
                 cldfmc, taucld = self.cldprop(
                     cldfrc,
                     clwp,
@@ -486,6 +487,7 @@ class RadLWClass:
                     dz,
                     delgth,
                     iplon,
+                    ds,
                 )
                 if verbose:
                     print("Done")
@@ -499,13 +501,13 @@ class RadLWClass:
 
             if verbose:
                 print("Running setcoef . . .")
-
             dfile = os.path.join(LOOKUP_DIR, "totplnk.nc")
             pfile = os.path.join(LOOKUP_DIR, "radlw_ref_data.nc")
             totplnk = xr.open_dataset(dfile)["totplnk"].data
             preflog = xr.open_dataset(pfile)["preflog"].data
             tref = xr.open_dataset(pfile)["tref"].data
             chi_mls = xr.open_dataset(pfile)["chi_mls"].data
+
             (
                 laytrop,
                 pklay,
@@ -674,7 +676,8 @@ class RadLWClass:
         )
 
     def setcoef(
-        self, pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1, totplnk, preflog, tref, chi_mls
+        self, pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1, 
+        totplnk, preflog, tref, chi_mls
     ):
 
         #  ====================  definition of variables  ====================  !
@@ -728,8 +731,6 @@ class RadLWClass:
         #           that is specific to this atmosphere, especially some of the
         #           coefficients and indices needed to compute the optical depths
         #           by interpolating data from stored reference atmospheres.
-
-
         pklay = np.zeros((nbands, nlp1))
         pklev = np.zeros((nbands, nlp1))
 
@@ -1462,14 +1463,7 @@ class RadLWClass:
 
                 faccmb1u[k + 1] = facclr1u[k + 1] * faccld2u[k] * cldfrc[k - 1]
                 faccmb2u[k + 1] = faccld1u[k + 1] * facclr2u[k] * (1.0 - cldfrc[k - 1])
-        ## it is already set to zeros
-        # for k in range(nlp1):
-        #     faccld1d[k] = 0.0
-        #     faccld2d[k] = 0.0
-        #     facclr1d[k] = 0.0
-        #     facclr2d[k] = 0.0
-        #     faccmb1d[k] = 0.0
-        #     faccmb2d[k] = 0.0
+
 
         lstcldd[nlay] = cldfrc[nlay] > self.eps
         rat1 = 0.0
@@ -1757,7 +1751,7 @@ class RadLWClass:
                         htrb[k, ib] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
-    #@jit(nopython=True)
+
     def rtrnmc(
         self,
         semiss,
@@ -2099,6 +2093,7 @@ class RadLWClass:
         dz,
         de_lgth,
         iplon,
+        ds,
     ):
         #  ===================  program usage description  ===================  !
         #                                                                       !
@@ -2205,7 +2200,6 @@ class RadLWClass:
         cldfmc = np.zeros((ngptlw, nlay))
         cldf = np.zeros(nlay)
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_cldprlw_data.nc"))
         absliq1 = ds["absliq1"]
         absice0 = ds["absice0"]
         absice1 = ds["absice1"]
