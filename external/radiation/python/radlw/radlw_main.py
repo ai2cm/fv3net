@@ -2498,6 +2498,7 @@ class RadLWClass:
         #
         # ===> ...  begin here
         #
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb01_data.nc"))
         taug, fracs = self.taugb01(
             laytrop,
             pavel,
@@ -2525,7 +2526,9 @@ class RadLWClass:
             scaleminorn2,
             indminor,
             nlay,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb02_data.nc"))
         taug, fracs, tauself = self.taugb02(
             laytrop,
             pavel,
@@ -2555,7 +2558,10 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds,
         )
+        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb03_data.nc"))
         taug, fracs = self.taugb03(
             laytrop,
             pavel,
@@ -2586,7 +2592,10 @@ class RadLWClass:
             taug,
             fracs,
             tauself,
+            dsc,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb04_data.nc"))
         taug, fracs = self.taugb04(
             laytrop,
             pavel,
@@ -2616,7 +2625,10 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            dsc,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb05_data.nc"))
         taug, fracs = self.taugb05(
             laytrop,
             pavel,
@@ -2646,7 +2658,10 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            dsc,
+            ds
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb06_data.nc"))
         taug, fracs = self.taugb06(
             laytrop,
             pavel,
@@ -2676,7 +2691,10 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            dsc,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb07_data.nc"))
         taug, fracs = self.taugb07(
             laytrop,
             pavel,
@@ -2706,7 +2724,11 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            dsc,
+            ds,
         )
+
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb08_data.nc"))
         taug, fracs = self.taugb08(
             laytrop,
             pavel,
@@ -2736,7 +2758,10 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            dsc,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb09_data.nc"))
         taug, fracs = self.taugb09(
             laytrop,
             pavel,
@@ -2766,7 +2791,10 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            dsc,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb10_data.nc"))
         taug, fracs = self.taugb10(
             laytrop,
             pavel,
@@ -2796,7 +2824,9 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb11_data.nc"))
         taug, fracs = self.taugb11(
             laytrop,
             pavel,
@@ -2826,7 +2856,9 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb12_data.nc"))
         taug, fracs = self.taugb12(
             laytrop,
             pavel,
@@ -2856,7 +2888,10 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            dsc,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb13_data.nc"))
         taug, fracs, taufor = self.taugb13(
             laytrop,
             pavel,
@@ -2886,7 +2921,10 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            dsc,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb14_data.nc"))
         taug, fracs = self.taugb14(
             laytrop,
             pavel,
@@ -2917,7 +2955,9 @@ class RadLWClass:
             taug,
             fracs,
             taufor,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb15_data.nc"))
         taug, fracs = self.taugb15(
             laytrop,
             pavel,
@@ -2947,7 +2987,10 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            dsc,
+            ds,
         )
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb16_data.nc"))
         taug, fracs = self.taugb16(
             laytrop,
             pavel,
@@ -2977,6 +3020,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            dsc,
+            ds,
         )
 
         tautot = np.zeros((ngptlw, nlay))
@@ -3023,6 +3068,7 @@ class RadLWClass:
         scaleminorn2,
         indminor,
         nlay,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #  written by eli j. mlawer, atmospheric & environmental research.     !
@@ -3045,7 +3091,6 @@ class RadLWClass:
         taug = np.zeros((ngptlw, nlay))
         fracs = np.zeros((ngptlw, nlay))
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb01_data.nc"))
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         ka_mn2 = ds["ka_mn2"].values
@@ -3186,6 +3231,7 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 2:  350-500 cm-1 (low key - h2o; high key - h2o)            !
@@ -3195,7 +3241,6 @@ class RadLWClass:
         #
         #  --- ...  lower atmosphere loop
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb02_data.nc"))
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -3312,6 +3357,8 @@ class RadLWClass:
         taug,
         fracs,
         tauself,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 3:  500-630 cm-1 (low key - h2o,co2; low minor - n2o)       !
@@ -3325,11 +3372,7 @@ class RadLWClass:
         #     lower - n2o, p = 706.272 mbar, t = 278.94 k
         #     upper - n2o, p = 95.58 mbar, t = 215.7 k
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
         chi_mls = dsc["chi_mls"].values
-        #chi_mls = chi_mls_input
-
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb03_data.nc"))
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         ka_mn2o = ds["ka_mn2o"].values
@@ -3713,6 +3756,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 4:  630-700 cm-1 (low key - h2o,co2; high key - o3,co2)     !
@@ -3721,10 +3766,8 @@ class RadLWClass:
         # ===> ...  begin here
         #
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].values
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb04_data.nc"))
+        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -4042,6 +4085,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 5:  700-820 cm-1 (low key - h2o,co2; low minor - o3, ccl4)  !
@@ -4057,10 +4102,7 @@ class RadLWClass:
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower/upper atmosphere.
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
         chi_mls = dsc["chi_mls"].values
-
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb05_data.nc"))
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -4402,6 +4444,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 6:  820-980 cm-1 (low key - h2o; low minor - co2)           !
@@ -4411,11 +4455,7 @@ class RadLWClass:
         #  --- ...  minor gas mapping level:
         #     lower - co2, p = 706.2720 mb, t = 294.2 k
         #     upper - cfc11, cfc12
-
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
         chi_mls = dsc["chi_mls"].values
-
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb06_data.nc"))
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -4520,6 +4560,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 7:  980-1080 cm-1 (low key - h2o,o3; low minor - co2)       !
@@ -4533,10 +4575,8 @@ class RadLWClass:
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower atmosphere.
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].values
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb07_data.nc"))
+        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -4848,6 +4888,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 8:  1080-1180 cm-1 (low key - h2o; low minor - co2,o3,n2o)  !
@@ -4861,10 +4903,7 @@ class RadLWClass:
         #     upper - co2, p = 35.1632 mb, t = 223.28 k
         #     upper - n2o, p = 8.716e-2 mb, t = 226.03 k
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
         chi_mls = dsc["chi_mls"].values
-
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb08_data.nc"))
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -5018,6 +5057,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 9:  1180-1390 cm-1 (low key - h2o,ch4; low minor - n2o)     !
@@ -5028,10 +5069,8 @@ class RadLWClass:
         #     lower - n2o, p = 706.272 mbar, t = 278.94 k
         #     upper - n2o, p = 95.58 mbar, t = 215.7 k
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].values
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb09_data.nc"))
+        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -5332,12 +5371,12 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 10:  1390-1480 cm-1 (low key - h2o; high key - h2o)         !
         #  ------------------------------------------------------------------  !
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb10_data.nc"))
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -5443,6 +5482,7 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 11:  1480-1800 cm-1 (low - h2o; low minor - o2)             !
@@ -5453,7 +5493,6 @@ class RadLWClass:
         #     lower - o2, p = 706.2720 mbar, t = 278.94 k
         #     upper - o2, p = 4.758820 mbarm t = 250.85 k
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb11_data.nc"))
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -5577,15 +5616,15 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 12:  1800-2080 cm-1 (low - h2o,co2; high - nothing)         !
         #  ------------------------------------------------------------------  !
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].values
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb12_data.nc"))
+        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -5826,6 +5865,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 13:  2080-2250 cm-1 (low key-h2o,n2o; high minor-o3 minor)  !
@@ -5836,10 +5877,8 @@ class RadLWClass:
         #     lower - co, p = 706 mb, t = 278.94 k
         #     upper - o3, p = 95.5835 mb, t = 215.7 k
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].values
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb13_data.nc"))
+        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -6138,12 +6177,12 @@ class RadLWClass:
         taug,
         fracs,
         taufor,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 14:  2250-2380 cm-1 (low - co2; high - co2)                 !
         #  ------------------------------------------------------------------  !
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb14_data.nc"))
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -6239,6 +6278,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 15:  2380-2600 cm-1 (low - n2o,co2; low minor - n2)         !
@@ -6248,10 +6289,8 @@ class RadLWClass:
         #  --- ...  minor gas mapping level :
         #     lower - nitrogen continuum, P = 1053., T = 294.
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].values
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb15_data.nc"))
+        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -6510,15 +6549,15 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 16:  2600-3250 cm-1 (low key- h2o,ch4; high key - ch4)      !
         #  ------------------------------------------------------------------  !
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].values
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb16_data.nc"))
+        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
