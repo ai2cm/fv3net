@@ -423,22 +423,20 @@ class RadSWClass:
                     asyae[k, ib] = aerosols[j1, k, ib, 2]
 
             if iswcliq > 0:  # use prognostic cloud method
-                for k in range(nlay):
-                    cfrac[k] = clouds[j1, k, 0]  # cloud fraction
-                    cliqp[k] = clouds[j1, k, 1]  # cloud liq path
-                    reliq[k] = clouds[j1, k, 2]  # liq partical effctive radius
-                    cicep[k] = clouds[j1, k, 3]  # cloud ice path
-                    reice[k] = clouds[j1, k, 4]  # ice partical effctive radius
-                    cdat1[k] = clouds[j1, k, 5]  # cloud rain drop path
-                    cdat2[k] = clouds[j1, k, 6]  # rain partical effctive radius
-                    cdat3[k] = clouds[j1, k, 7]  # cloud snow path
-                    cdat4[k] = clouds[j1, k, 8]  # snow partical effctive radius
+                cfrac = clouds[j1, :, 0]  # cloud fraction
+                cliqp = clouds[j1, :, 1]  # cloud liq path
+                reliq = clouds[j1, :, 2]  # liq partical effctive radius
+                cicep = clouds[j1, :, 3]  # cloud ice path
+                reice = clouds[j1, :, 4]  # ice partical effctive radius
+                cdat1 = clouds[j1, :, 5]  # cloud rain drop path
+                cdat2 = clouds[j1, :, 6]  # rain partical effctive radius
+                cdat3 = clouds[j1, :, 7]  # cloud snow path
+                cdat4 = clouds[j1, :, 8]  # snow partical effctive radius
             else:  # use diagnostic cloud method
-                for k in range(nlay):
-                    cfrac[k] = clouds[j1, k, 0]  # cloud fraction
-                    cdat1[k] = clouds[j1, k, 1]  # cloud optical depth
-                    cdat2[k] = clouds[j1, k, 2]  # cloud single scattering albedo
-                    cdat3[k] = clouds[j1, k, 3]  # cloud asymmetry factor
+                cfrac = clouds[j1, :, 0]  # cloud fraction
+                cdat1 = clouds[j1, :, 1]  # cloud optical depth
+                cdat2 = clouds[j1, :, 2]  # cloud single scattering albedo
+                cdat3 = clouds[j1, :, 3]  # cloud asymmetry factor
 
             # -# Compute fractions of clear sky view:
             #    - random overlapping
