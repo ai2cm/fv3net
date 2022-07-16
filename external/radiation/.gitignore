@@ -13,3 +13,5 @@ python/radlw/taugb10
 fortran/progcld4
 fortran/setaer
 python/forcing
+python/lookupdata
+fortran

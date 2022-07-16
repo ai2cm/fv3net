@@ -1,16 +1,21 @@
 #!/bin/bash
 
-mkdir -p fortran  
+
+#ROOT="${1:-}"
+
+set -e
+
 if [ ! -z "$IS_DOCKER" ] ; then
     echo "This script cannot be run in the Docker image"
 else
 
     export MYHOME=`pwd`
 
-    if [ ! -d "./fortran/data" ]; then
-        mkdir -p fortran
-        cd ./fortran
+    if [ ! -d "./fortran" ]; then
+        mkdir fortran
+        cd fortran
         mkdir data
+        mkdir input_data_c12_npz63
         cd data
         mkdir LW
         mkdir SW
@@ -36,14 +41,21 @@ else
     else
         echo "SW Fortran data already present"
     fi
+    
+    if [ -z "$(ls -A ./fortran/input_data_c12_npz63)" ]; then
+        gsutil cp -r gs://vcm-fv3gfs-serialized-regression-data/physics/ML_config/input_data_c12_npz63/* ./fortran/input_data_c12_npz63/.
+        cd ./fortran/input_data_c12_npz63
+        tar -xzvf dat_files.tar.gz
+        cd $MYHOME
+    else
+        echo "ML Config Fortran data already present"
+    fi
 
-    cd ./python
-    mkdir lookupdata
-    cd $MYHOME
-
-    if [ -z "$(ls -A ./python/lookupdata)" ]; then
-        gsutil cp -r gs://vcm-fv3gfs-serialized-regression-data/physics/lookupdata/lookup.tar.gz ./python/lookupdata/.
-        cd ./python/lookupdata
+    if [ ! -d "./python/lookupdata" ]; then
+        cd ./python
+        mkdir lookupdata
+        gsutil cp -r gs://vcm-fv3gfs-serialized-regression-data/physics/lookupdata/lookup.tar.gz ./lookupdata/.
+        cd ./lookupdata
         tar -xzvf lookup.tar.gz
         cd $MYHOME
     else
@@ -51,16 +63,14 @@ else
     fi
 
     if [ ! -d "./fortran/radlw/dump" ]; then
-        cd ./fortran/radlw
-        mkdir dump
+        mkdir -p ./fortran/radlw/dump
         cd $MYHOME
     else
         echo "LW standalone output directory already exists"
     fi
 
     if [ ! -d "./fortran/radsw/dump" ]; then
-        cd ./fortran/radsw
-        mkdir dump
+        mkdir -p ./fortran/radsw/dump
         cd $MYHOME
     else
         echo "SW standalone output directory already exists"
@@ -109,4 +119,6 @@ else
     else
 	    echo "Forcing data already present"
     fi  
+    
+    echo "Script completed succesfully."
 fi

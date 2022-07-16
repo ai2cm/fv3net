@@ -113,25 +113,19 @@ def compare_data(data, ref_data, explicit=True, blocking=True):
         blocking (bool, optional): Flag to make failure block progress. Defaults to True.
     """
 
-    wrong = []
-    flag = True
-
     for var in data:
-
         if not np.allclose(
-            data[var], ref_data[var], rtol=1e-11, atol=1.0e-13, equal_nan=True
+            data[var], ref_data[var], rtol=1.0e-2, equal_nan=True
         ):
-
-            wrong.append(var)
-            flag = False
-
-        else:
-
+            print(f"Output data does not match reference data for field {var}!")
+            print(f"Ported output: {data[var]}")
+            print(f"Fortran output: {ref_data[var]}")
+            if blocking:
+                assert False, f"{var}"
+        else:           
             if explicit:
                 print(f"Successfully validated {var}!")
+        print(f"Data shape: {data[var].shape}")
+        print(f"Max relative error: {np.nanmax(data[var] / ref_data[var])}")
+        print(f"Max absolute error: {np.max(np.abs(data[var] - ref_data[var]))}")
 
-    if blocking:
-        assert flag, f"Output data does not match reference data for field {wrong}!"
-    else:
-        if not flag:
-            print(f"Output data does not match reference data for field {wrong}!")

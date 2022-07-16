@@ -8,6 +8,8 @@ from radiation_driver import RadiationDriver
 rank = 0
 driver = RadiationDriver()
 
+FORTRAN_DATA_DIR = '../fortran/input_data_c12_npz63'
+
 serial = ser.Serializer(
     ser.OpenModeKind.Read,
     os.path.join(FORTRANDATA_DIR, "SW"),
@@ -85,10 +87,10 @@ slag, sdec, cdec, solcon = driver.radupdate(
     updatedict["lsswr"],
 )
 
-for rank in range(6):
+for rank in range(1):
     serializer = ser.Serializer(
         ser.OpenModeKind.Read,
-        "../fortran/data/radiation_driver",
+        FORTRAN_DATA_DIR,
         "Generator_rank" + str(rank),
     )
 
@@ -312,4 +314,4 @@ for rank in range(6):
         else:
             outdict[var] = Diagout[var]
 
-    compare_data(valdict, outdict)
+    compare_data(valdict, outdict, blocking=False)
