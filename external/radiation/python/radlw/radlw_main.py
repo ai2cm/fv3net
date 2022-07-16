@@ -503,10 +503,10 @@ class RadLWClass:
                 print("Running setcoef . . .")
             dfile = os.path.join(LOOKUP_DIR, "totplnk.nc")
             pfile = os.path.join(LOOKUP_DIR, "radlw_ref_data.nc")
-            totplnk = xr.open_dataset(dfile)["totplnk"].data
-            preflog = xr.open_dataset(pfile)["preflog"].data
-            tref = xr.open_dataset(pfile)["tref"].data
-            chi_mls = xr.open_dataset(pfile)["chi_mls"].data
+            totplnk = xr.open_dataset(dfile)["totplnk"].values
+            preflog = xr.open_dataset(pfile)["preflog"].values
+            tref = xr.open_dataset(pfile)["tref"].values
+            chi_mls = xr.open_dataset(pfile)["chi_mls"].values
 
             (
                 laytrop,
@@ -3046,13 +3046,13 @@ class RadLWClass:
         fracs = np.zeros((ngptlw, nlay))
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb01_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        ka_mn2 = ds["ka_mn2"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        ka_mn2 = ds["ka_mn2"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         ind0 = ((jp - 1) * 5 + (jt - 1)) * self.nspa[0]
         ind1 = (jp * 5 + (jt1 - 1)) * self.nspa[0]
@@ -3196,12 +3196,12 @@ class RadLWClass:
         #  --- ...  lower atmosphere loop
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb02_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         ind0 = ((jp - 1) * 5 + (jt - 1)) * self.nspa[1]
         ind1 = (jp * 5 + (jt1 - 1)) * self.nspa[1]
@@ -3326,18 +3326,18 @@ class RadLWClass:
         #     upper - n2o, p = 95.58 mbar, t = 215.7 k
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
+        chi_mls = dsc["chi_mls"].values
         #chi_mls = chi_mls_input
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb03_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        ka_mn2o = ds["ka_mn2o"].data
-        kb_mn2o = ds["kb_mn2o"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        ka_mn2o = ds["ka_mn2o"].values
+        kb_mn2o = ds["kb_mn2o"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         refrat_planck_a = chi_mls[0, 8] / chi_mls[1, 8]  # P = 212.725 mb
         refrat_planck_b = chi_mls[0, 12] / chi_mls[1, 12]  # P = 95.58   mb
@@ -3722,15 +3722,15 @@ class RadLWClass:
         #
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
+        chi_mls = dsc["chi_mls"].values
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb04_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         refrat_planck_a = chi_mls[0, 10] / chi_mls[1, 10]  # P = 142.5940 mb
         refrat_planck_b = chi_mls[2, 12] / chi_mls[1, 12]  # P = 95.58350 mb
@@ -4058,17 +4058,17 @@ class RadLWClass:
         #           fraction in lower/upper atmosphere.
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
+        chi_mls = dsc["chi_mls"].values
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb05_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mo3 = ds["ka_mo3"].data
-        ccl4 = ds["ccl4"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mo3 = ds["ka_mo3"].values
+        ccl4 = ds["ccl4"].values
 
         refrat_planck_a = chi_mls[0, 4] / chi_mls[1, 4]  # P = 473.420 mb
         refrat_planck_b = chi_mls[2, 42] / chi_mls[1, 42]  # P = 0.2369  mb
@@ -4413,16 +4413,16 @@ class RadLWClass:
         #     upper - cfc11, cfc12
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
+        chi_mls = dsc["chi_mls"].values
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb06_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        fracrefa = ds["fracrefa"].data
-        ka_mco2 = ds["ka_mco2"].data
-        cfc11adj = ds["cfc11adj"].data
-        cfc12 = ds["cfc12"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        fracrefa = ds["fracrefa"].values
+        ka_mco2 = ds["ka_mco2"].values
+        cfc11adj = ds["cfc11adj"].values
+        cfc12 = ds["cfc12"].values
 
         #  --- ...  lower atmosphere loop
         ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[5]
@@ -4534,17 +4534,17 @@ class RadLWClass:
         #           fraction in lower atmosphere.
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
+        chi_mls = dsc["chi_mls"].values
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb07_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mco2 = ds["ka_mco2"].data
-        kb_mco2 = ds["kb_mco2"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mco2 = ds["ka_mco2"].values
+        kb_mco2 = ds["kb_mco2"].values
 
         refrat_planck_a = chi_mls[0, 2] / chi_mls[2, 2]  # P = 706.2620 mb
         refrat_m_a = chi_mls[0, 2] / chi_mls[2, 2]  # P = 706.2720 mb
@@ -4862,22 +4862,22 @@ class RadLWClass:
         #     upper - n2o, p = 8.716e-2 mb, t = 226.03 k
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
+        chi_mls = dsc["chi_mls"].values
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb08_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mo3 = ds["ka_mo3"].data
-        ka_mco2 = ds["ka_mco2"].data
-        kb_mco2 = ds["kb_mco2"].data
-        cfc12 = ds["cfc12"].data
-        ka_mn2o = ds["ka_mn2o"].data
-        kb_mn2o = ds["kb_mn2o"].data
-        cfc22adj = ds["cfc22adj"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mo3 = ds["ka_mo3"].values
+        ka_mco2 = ds["ka_mco2"].values
+        kb_mco2 = ds["kb_mco2"].values
+        cfc12 = ds["cfc12"].values
+        ka_mn2o = ds["ka_mn2o"].values
+        kb_mn2o = ds["kb_mn2o"].values
+        cfc22adj = ds["cfc22adj"].values
 
         #  --- ...  lower atmosphere loop
         ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[7]
@@ -5029,17 +5029,17 @@ class RadLWClass:
         #     upper - n2o, p = 95.58 mbar, t = 215.7 k
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
+        chi_mls = dsc["chi_mls"].values
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb09_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mn2o = ds["ka_mn2o"].data
-        kb_mn2o = ds["kb_mn2o"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mn2o = ds["ka_mn2o"].values
+        kb_mn2o = ds["kb_mn2o"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower/upper atmosphere.
@@ -5338,12 +5338,12 @@ class RadLWClass:
         #  ------------------------------------------------------------------  !
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb10_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         #  --- ...  lower atmosphere loop
         ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[9]
@@ -5454,14 +5454,14 @@ class RadLWClass:
         #     upper - o2, p = 4.758820 mbarm t = 250.85 k
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb11_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mo2 = ds["ka_mo2"].data
-        kb_mo2 = ds["kb_mo2"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mo2 = ds["ka_mo2"].values
+        kb_mo2 = ds["kb_mo2"].values
 
         #  --- ...  lower atmosphere loop
         ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[10]
@@ -5583,13 +5583,13 @@ class RadLWClass:
         #  ------------------------------------------------------------------  !
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
+        chi_mls = dsc["chi_mls"].values
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb12_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        fracrefa = ds["fracrefa"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        fracrefa = ds["fracrefa"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower/upper atmosphere.
@@ -5837,17 +5837,17 @@ class RadLWClass:
         #     upper - o3, p = 95.5835 mb, t = 215.7 k
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
+        chi_mls = dsc["chi_mls"].values
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb13_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mco2 = ds["ka_mco2"].data
-        ka_mco = ds["ka_mco"].data
-        kb_mo3 = ds["kb_mo3"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mco2 = ds["ka_mco2"].values
+        ka_mco = ds["ka_mco"].values
+        kb_mo3 = ds["kb_mo3"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower/upper atmosphere.
@@ -6144,12 +6144,12 @@ class RadLWClass:
         #  ------------------------------------------------------------------  !
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb14_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         #  --- ...  lower atmosphere loop
 
@@ -6249,14 +6249,14 @@ class RadLWClass:
         #     lower - nitrogen continuum, P = 1053., T = 294.
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
+        chi_mls = dsc["chi_mls"].values
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb15_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        fracrefa = ds["fracrefa"].data
-        ka_mn2 = ds["ka_mn2"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        fracrefa = ds["fracrefa"].values
+        ka_mn2 = ds["ka_mn2"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower atmosphere.
@@ -6516,15 +6516,15 @@ class RadLWClass:
         #  ------------------------------------------------------------------  !
 
         dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
+        chi_mls = dsc["chi_mls"].values
 
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb16_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower atmosphere.
