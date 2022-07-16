@@ -235,7 +235,8 @@ REQUIREMENTS = external/vcm/setup.py \
 	external/*.requirements.in \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
-	projects/microphysics/requirements.in
+	projects/microphysics/requirements.in \
+	projects/full_model_emulation/requirements.in
 
 constraints.txt: $(REQUIREMENTS)
 	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
