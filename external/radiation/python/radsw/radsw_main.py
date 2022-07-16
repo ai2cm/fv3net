@@ -592,24 +592,11 @@ class RadSWClass:
             # -# Save outputs.
             #  --- ...  sum up total spectral fluxes for total-sky
 
-            # for k in range(nlp1):
-            #     flxuc[k] = 0.0
-            #     flxdc[k] = 0.0
-
-            #     for ib in range(nbdsw):
             flxuc = np.nansum(fxupc , axis = 1)
             flxdc = np.nansum(fxdnc , axis = 1)
 
             # --- ...  optional clear sky fluxes
-
             if self.lhsw0 or self.lflxprf:
-                # for k in range(nlp1):
-                #     flxu0[k] = 0.0
-                #     flxd0[k] = 0.0
-
-                #     for ib in range(nbdsw):
-                #         flxu0[k] = flxu0[k] + fxup0[k, ib]
-                #         flxd0[k] = flxd0[k] + fxdn0[k, ib]
                 flxu0 = np.nansum(fxup0 , axis = 1)
                 flxd0 = np.nansum(fxdn0, axis = 1)
             #  --- ...  prepare for final outputs
@@ -649,7 +636,6 @@ class RadSWClass:
             # --- ...  optional flux profiles
 
             if self.lflxprf:
-                #for k in range(nlp1):
                 upfxc_f[j1, :] = flxuc
                 dnfxc_f[j1, :] = flxdc
                 upfx0_f[j1, :] = flxu0
