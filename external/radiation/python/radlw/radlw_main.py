@@ -939,7 +939,8 @@ class RadLWClass:
             scaleminorn2,
             indminor,
         )
-    #@jit(nopython=True)
+    @staticmethod
+    @jit(nopython=True)
     def rtrn(lhlwb,
         lhlw0,
         heatfac,
