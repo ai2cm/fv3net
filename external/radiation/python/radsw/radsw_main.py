@@ -370,27 +370,24 @@ class RadSWClass:
             tem1 = 100.0 * con_g
             tem2 = 1.0e-20 * 1.0e3 * con_avgd
 
-            for k in range(nlay):
-                pavel[k] = plyr[j1, k]
-                tavel[k] = tlyr[j1, k]
-                delp[k] = delpin[j1, k]
-                dz[k] = dzlyr[j1, k]
+            pavel = plyr[j1, :]
+            tavel = tlyr[j1, :]
+            delp = delpin[j1, :]
+            dz = dzlyr[j1, :]
 
-                #  --- ...  set absorber amount
-                # ncep model use
-                h2ovmr[k] = max(
-                    0.0, qlyr[j1, k] * self.amdw / (1.0 - qlyr[j1, k])
-                )  # input specific humidity
-                o3vmr[k] = max(0.0, olyr[j1, k] * self.amdo3)  # input mass mixing ratio
+            #  --- ...  set absorber amount
+            # ncep model use
+            h2ovmr = np.maximum(0.0, qlyr[j1, :] * self.amdw / (1.0 - qlyr[j1, :]))  # input specific humidity
+            o3vmr  = np.maximum(0.0, olyr[j1, :] * self.amdo3)  # input mass mixing ratio
 
-                tem0 = (1.0 - h2ovmr[k]) * con_amd + h2ovmr[k] * con_amw
-                coldry[k] = tem2 * delp[k] / (tem1 * tem0 * (1.0 + h2ovmr[k]))
-                temcol[k] = 1.0e-12 * coldry[k]
+            tem0 = (1.0 - h2ovmr) * con_amd + h2ovmr * con_amw
+            coldry = tem2 * delp / (tem1 * tem0 * (1.0 + h2ovmr))
+            temcol = 1.0e-12 * coldry
 
-                colamt[k, 0] = max(0.0, coldry[k] * h2ovmr[k])  # h2o
-                colamt[k, 1] = max(temcol[k], coldry[k] * gasvmr[j1, k, 0])  # co2
-                colamt[k, 2] = max(0.0, coldry[k] * o3vmr[k])  # o3
-                colmol[k] = coldry[k] + colamt[k, 0]
+            colamt[:, 0] = np.maximum(0.0, coldry * h2ovmr)  # h2o
+            colamt[:, 1] = np.maximum(temcol, coldry * gasvmr[j1, :, 0])  # co2
+            colamt[:, 2] = np.maximum(0.0, coldry * o3vmr)  # o3
+            colmol = coldry + colamt[:, 0]
 
             if lprnt:
                 if ipt == 1:
