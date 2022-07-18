@@ -139,7 +139,7 @@ for ss in np.arange(0,int(TotalSamples/Chuncksize)):
     len_val = round(num_samples * 0.2)
     len_train = round(num_samples * 0.8)
     train = dataSets[:,: len_train]
-    val = dataSets[:,len_train: len_train + len_val]
+    val = dataSets[:,len_train+14: len_train + len_val]
 
     x_train, y_train = data_transform(train, window, pred_len, lead, device)
     x_val, y_val = data_transform(val, window, pred_len, lead, device)
