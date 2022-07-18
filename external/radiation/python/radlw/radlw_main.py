@@ -253,7 +253,6 @@ class RadLWClass:
         self.lhlw0 = lhlw0
         self.lhlwb = lhlwb
         self.lflxprf = lflxprf
-        self.rand_file = lw_rand_file
 
         cldfrc = np.zeros(nlp1 + 1)
 
@@ -472,6 +471,7 @@ class RadLWClass:
             if lcf1:
                 ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_cldprlw_data.nc"))
                 cldfmc, taucld = self.cldprop(
+                    lw_rand_file,
                     cldfrc,
                     clwp,
                     relw,
@@ -616,6 +616,14 @@ class RadLWClass:
                     ) = self.rtrnmr(
                         self.eps,
                         self.bpade,
+                        self.lhlw0,
+                        self.lhlwb,
+                        self.exp_tbl,
+                        self.tfn_tbl,
+                        self.tau_tbl,
+                        self.wtdiff,
+                        self.fluxfac,
+                        self.heatfac,
                         semiss,
                         delp,
                         cldfrc,
@@ -639,6 +647,16 @@ class RadLWClass:
                     htrcl,
                     htrb,
                 ) = self.rtrnmc(
+                    self.eps,
+                    self.bpade,
+                    self.lhlw0,
+                    self.lhlwb,
+                    self.exp_tbl,
+                    self.tfn_tbl,
+                    self.tau_tbl,
+                    self.wtdiff,
+                    self.fluxfac,
+                    self.heatfac,
                     semiss,
                     delp,
                     cldfmc,
@@ -1266,9 +1284,16 @@ class RadLWClass:
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
     #@jit(nopython=True)
     def rtrnmr(
-        self,
         eps,
         bpade,
+        lhlw0,
+        lhlwb,
+        exp_tbl,
+        tfn_tbl,
+        tau_tbl,
+        wtdiff,
+        fluxfac,
+        heatfac,
         semiss,
         delp,
         cldfrc,
@@ -1586,10 +1611,10 @@ class RadLWClass:
                     else:
                         tblind = odepth / (bpade + odepth)
                         itgas = tblint * tblind + 0.5
-                        trng = self.exp_tbl[itgas]
+                        trng = exp_tbl[itgas]
                         atrgas = 1.0 - trng
-                        gasfac = self.tfn_tbl[itgas]
-                        odepth = self.tau_tbl[itgas]
+                        gasfac = tfn_tbl[itgas]
+                        odepth = tau_tbl[itgas]
 
                     plfrac = fracs[ig, k]
                     blay = pklay[ib, k]
@@ -1620,10 +1645,10 @@ class RadLWClass:
                             atrtot = odtot - 0.5 * odtot * odtot
                             trnt = 1.0 - atrtot
                         else:
-                            tblind = odtot / (self.bpade + odtot)
+                            tblind = odtot / (bpade + odtot)
                             ittot = tblint * tblind + 0.5
-                            totfac = self.tfn_tbl[ittot]
-                            trnt = self.exp_tbl[ittot]
+                            totfac = tfn_tbl[ittot]
+                            trnt = exp_tbl[ittot]
                             atrtot = 1.0 - trnt
 
                         bbdtot = plfrac * (blay + dplnkd * totfac)
@@ -1738,7 +1763,7 @@ class RadLWClass:
             # -# Process longwave output from band for total and clear streams.
             # calculate upward, downward, and net flux.
 
-            flxfac = self.wtdiff * self.fluxfac
+            flxfac = wtdiff * fluxfac
 
             totuflux =   np.nansum(toturad, axis = 1)* flxfac
             totdflux =   np.nansum(totdrad, axis = 1)* flxfac
@@ -1749,12 +1774,12 @@ class RadLWClass:
             fnet[0] = totuflux[0] - totdflux[0]
 
             for k in range(nlay):
-                rfdelp[k] = self.heatfac / delp[k]
+                rfdelp[k] = heatfac / delp[k]
                 fnet[k] = totuflux[k] - totdflux[k]
                 htr[k] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
 
             # --- ...  optional clear sky heating rates
-            if self.lhlw0:
+            if lhlw0:
                 fnetc[0] = totuclfl[0] - totdclfl[0]
 
                 for k in range(nlay):
@@ -1762,7 +1787,7 @@ class RadLWClass:
                     htrcl[k] = (fnetc[k - 1] - fnetc[k]) * rfdelp[k]
 
             # --- ...  optional spectral band heating rates
-            if self.lhlwb:
+            if lhlwb:
                 for ib in range(nbands):
                     fnet[0] = (toturad[0, ib] - totdrad[0, ib]) * flxfac
 
@@ -1774,6 +1799,16 @@ class RadLWClass:
 
     def rtrnmc(
         self,
+        eps,
+        bpade,
+        lhlw0,
+        lhlwb,
+        exp_tbl,
+        tfn_tbl,
+        tau_tbl,
+        wtdiff,
+        fluxfac,
+        heatfac,
         semiss,
         delp,
         cldfmc,
@@ -1943,12 +1978,12 @@ class RadLWClass:
                     trng = 1.0 - atrgas
                     gasfac = rec_6 * odepth
                 else:
-                    tblind = odepth / (self.bpade + odepth)
+                    tblind = odepth / (bpade + odepth)
                     itgas = int(tblint * tblind + 0.5)
-                    trng = self.exp_tbl[itgas]
+                    trng = exp_tbl[itgas]
                     atrgas = 1.0 - trng
-                    gasfac = self.tfn_tbl[itgas]
-                    odepth = self.tau_tbl[itgas]
+                    gasfac = tfn_tbl[itgas]
+                    odepth = tau_tbl[itgas]
 
                 plfrac = fracs[ig, k]
                 blay = pklay[ib, k + 1]
@@ -1963,7 +1998,7 @@ class RadLWClass:
 
                 #  --- ...  total sky, gases+clouds contribution
                 clfm = cldfmc[ig, k]
-                if clfm >= self.eps:
+                if clfm >= eps:
                     #  --- ...  cloudy layer
                     odcld = secdif[ib] * taucld[ib, k]
                     efclrfr[k] = 1.0 - (1.0 - np.exp(-odcld)) * clfm
@@ -1972,10 +2007,10 @@ class RadLWClass:
                         totfac = rec_6 * odtot
                         atrtot = odtot - 0.5 * odtot * odtot
                     else:
-                        tblind = odtot / (self.bpade + odtot)
+                        tblind = odtot / (bpade + odtot)
                         ittot = int(tblint * tblind + 0.5)
-                        totfac = self.tfn_tbl[ittot]
-                        atrtot = 1.0 - self.exp_tbl[ittot]
+                        totfac = tfn_tbl[ittot]
+                        atrtot = 1.0 - exp_tbl[ittot]
 
                     bbdtot = plfrac * (blay + dplnkd * totfac)
                     bbutot = plfrac * (blay + dplnku * totfac)
@@ -2035,7 +2070,7 @@ class RadLWClass:
                 trng = trngas[k]
                 gasu = gassrcu[k]
 
-                if clfm > self.eps:
+                if clfm > eps:
                     #  --- ...  cloudy layer
 
                     #  --- ... total sky radiance
@@ -2062,7 +2097,7 @@ class RadLWClass:
         # Process longwave output from band for total and clear streams.
         # Calculate upward, downward, and net flux.
 
-        flxfac = self.wtdiff * self.fluxfac
+        flxfac = wtdiff * fluxfac
 
         totuflux = np.nansum(toturad,axis = 1) * flxfac
         totdflux = np.nansum(totdrad,axis = 1) * flxfac
@@ -2073,12 +2108,12 @@ class RadLWClass:
         fnet[0] = totuflux[0] - totdflux[0]
 
         for k in range(nlay):
-            rfdelp[k] = self.heatfac / delp[k]
+            rfdelp[k] =  heatfac / delp[k]
             fnet[k + 1] = totuflux[k + 1] - totdflux[k + 1]
             htr[k] = (fnet[k] - fnet[k + 1]) * rfdelp[k]
 
         # --- ...  optional clear sky heating rates
-        if self.lhlw0:
+        if lhlw0:
             fnetc[0] = totuclfl[0] - totdclfl[0]
 
             for k in range(nlay):
@@ -2086,7 +2121,7 @@ class RadLWClass:
                 htrcl[k] = (fnetc[k] - fnetc[k + 1]) * rfdelp[k]
 
         # --- ...  optional spectral band heating rates
-        if self.lhlwb:
+        if lhlwb:
             for ib in range(nbands):
                 fnet[0] = (toturad[0, ib] - totdrad[0, ib]) * flxfac
 
@@ -2098,6 +2133,7 @@ class RadLWClass:
 
     def cldprop(
         self,
+        lw_rand_file,
         cfrac,
         cliqp,
         reliq,
@@ -2359,7 +2395,7 @@ class RadLWClass:
                     cldf[k] = cfrac[k + 1]
 
             #  --- ...  call sub-column cloud generator
-            ds = xr.open_dataset(self.rand_file)
+            ds = xr.open_dataset(lw_rand_file)
             rand2d = ds["rand2d"].values
             lcloudy = self.mcica_subcol(self.iovrlw,cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d)
 
