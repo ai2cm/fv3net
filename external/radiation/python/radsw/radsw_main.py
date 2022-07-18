@@ -2207,6 +2207,7 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds,
         )
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb19_data.nc"))
         taug, taur = self.taumol19(
@@ -2231,6 +2232,7 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds,
         )
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb20_data.nc"))
         taug, taur = self.taumol20(
@@ -2330,6 +2332,7 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds,
         )
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb24_data.nc"))
         taug, taur = self.taumol24(
@@ -2404,6 +2407,7 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds,
         )
         ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb27_data.nc"))
         taug, taur = self.taumol27(
@@ -2478,6 +2482,7 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds
         )
 
         return sfluxzen, taug, taur
