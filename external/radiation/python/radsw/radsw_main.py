@@ -465,6 +465,7 @@ class RadSWClass:
             #    optical properties for each cloudy layer.
 
             if zcf1 > 0.0:  # cloudy sky column
+                ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_cldprtb_data.nc"))
                 taucw, ssacw, asycw, cldfrc, cldfmc = self.cldprop(
                     cfrac,
                     cliqp,
@@ -481,6 +482,7 @@ class RadSWClass:
                     dz,
                     delgth,
                     ipt,
+                    ds,
                 )
 
                 #  --- ...  save computed layer cloud optical depth for output
@@ -519,6 +521,7 @@ class RadSWClass:
 
             # -# Call taumol() to calculate optical depths for gaseous absorption
             #    and rayleigh scattering
+            ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_sflux_data.nc"))
             sfluxzen, taug, taur = self.taumol(
                 colamt,
                 colmol,
@@ -537,6 +540,7 @@ class RadSWClass:
                 selffrac,
                 indself,
                 nlay,
+                ds,
             )
 
             # -# Call the 2-stream radiation transfer model:
@@ -688,8 +692,8 @@ class RadSWClass:
         dz,
         delgth,
         ipt,
+        ds,
     ):
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_cldprtb_data.nc"))
         extliq1 = ds["extliq1"].values
         extliq2 = ds["extliq2"].values
         ssaliq1 = ds["ssaliq1"].values
@@ -1954,6 +1958,7 @@ class RadSWClass:
         selffrac,
         indself,
         nlay,
+        ds,
     ):
         #  ==================   program usage description   ==================  !
         #                                                                       !
@@ -2051,7 +2056,6 @@ class RadSWClass:
         #  *******************************************************************  !
         #  ======================  end of description block  =================  !
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_sflux_data.nc"))
         self.strrat = ds["strrat"].values
         specwt = ds["specwt"].values
         layreffr = ds["layreffr"].values
