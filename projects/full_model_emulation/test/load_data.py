@@ -4,14 +4,6 @@ import pandas as pd
 
 
 
-def load_data(file_path, len_train, len_val):
-    df = pd.read_csv(file_path, header=None).values.astype(float)
-    train = df[: len_train]
-    val = df[len_train: len_train + len_val]
-    test = df[len_train + len_val:]
-    return train, val, test
-
-
 def data_transform(data, n_his, n_pred, lead,device):
     # produce data slices for training and testing
     if len(np.shape(data))==2:
