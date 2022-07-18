@@ -614,6 +614,8 @@ class RadLWClass:
                         htrcl,
                         htrb,
                     ) = self.rtrnmr(
+                        self.eps,
+                        self.bpade,
                         semiss,
                         delp,
                         cldfrc,
@@ -1265,6 +1267,8 @@ class RadLWClass:
     #@jit(nopython=True)
     def rtrnmr(
         self,
+        eps,
+        bpade,
         semiss,
         delp,
         cldfrc,
@@ -1423,15 +1427,15 @@ class RadLWClass:
         # ===> ...  begin here
         #
 
-        lstcldu[0] = cldfrc[0] > self.eps
+        lstcldu[0] = cldfrc[0] > eps
         rat1 = 0.0
         rat2 = 0.0
         
         for k in range(nlay - 1):
 
-            lstcldu[k + 1] = cldfrc[k + 1] > self.eps and cldfrc[k] <= self.eps
+            lstcldu[k + 1] = cldfrc[k + 1] > eps and cldfrc[k] <= eps
 
-            if cldfrc[k] > self.eps:
+            if cldfrc[k] > eps:
                 # Setup maximum/random cloud overlap.
 
                 if cldfrc[k + 1] >= cldfrc[k]:
@@ -1486,14 +1490,14 @@ class RadLWClass:
                 faccmb2u[k + 1] = faccld1u[k + 1] * facclr2u[k] * (1.0 - cldfrc[k - 1])
 
 
-        lstcldd[nlay] = cldfrc[nlay] > self.eps
+        lstcldd[nlay] = cldfrc[nlay] > eps
         rat1 = 0.0
         rat2 = 0.0
         
         for k in range(nlay - 1, 0, -1):
-            lstcldd[k - 1] = cldfrc[k - 1] > self.eps and cldfrc[k] <= self.eps
+            lstcldd[k - 1] = cldfrc[k - 1] > eps and cldfrc[k] <= eps
 
-            if cldfrc[k] > self.eps:
+            if cldfrc[k] > eps:
                 if cldfrc[k - 1] >= cldfrc[k]:
                     if lstcldd[k]:
                         if cldfrc[k] < 1.0:
@@ -1551,11 +1555,6 @@ class RadLWClass:
         # Initialize for radiative transfer
 
         for ib in range(nbands):
-            # for k in range(nlp1):
-            #     toturad[k, ib] = 0.0
-            #     totdrad[k, ib] = 0.0
-            #     clrurad[k, ib] = 0.0
-            #     clrdrad[k, ib] = 0.0
             toturad[:, ib] = 0.0
             totdrad[:, ib] = 0.0
             clrurad[:, ib] = 0.0
@@ -1585,7 +1584,7 @@ class RadLWClass:
                         trng = 1.0 - atrgas
                         gasfac = rec_6 * odepth
                     else:
-                        tblind = odepth / (self.bpade + odepth)
+                        tblind = odepth / (bpade + odepth)
                         itgas = tblint * tblind + 0.5
                         trng = self.exp_tbl[itgas]
                         atrgas = 1.0 - trng
@@ -1611,7 +1610,7 @@ class RadLWClass:
                         clrradd = radtotd - totradd
                         rad = 0.0
 
-                    if clfr >= self.eps:
+                    if clfr >= eps:
                         #  - cloudy layer
 
                         odcld = secdif[ib] * taucld[ib, k]
@@ -1698,7 +1697,7 @@ class RadLWClass:
                         clrradu = radtotu - totradu
                         rad = 0.0
 
-                    if clfr >= self.eps:
+                    if clfr >= eps:
                         #  - cloudy layer radiance
                         trnt = trntot[k]
                         totu = totsrcu[k]
