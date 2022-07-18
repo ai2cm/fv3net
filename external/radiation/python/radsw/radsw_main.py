@@ -401,23 +401,19 @@ class RadSWClass:
             #           to molec/cm2 based on coldry (scaled to 1.0e-20)
 
             if iswrgas > 0:
-                for k in range(nlay):
-                    colamt[k, 3] = max(temcol[k], coldry[k] * gasvmr[j1, k, 1])  # n2o
-                    colamt[k, 4] = max(temcol[k], coldry[k] * gasvmr[j1, k, 2])  # ch4
-                    colamt[k, 5] = max(temcol[k], coldry[k] * gasvmr[j1, k, 3])  # o2
+                colamt[:, 3] = max(temcol, coldry * gasvmr[j1, :, 1])  # n2o
+                colamt[:, 4] = max(temcol, coldry * gasvmr[j1, :, 2])  # ch4
+                colamt[:, 5] = max(temcol, coldry * gasvmr[j1, :, 3])  # o2
             else:
-                for k in range(nlay):
-                    colamt[k, 3] = temcol[k]  # n2o
-                    colamt[k, 4] = temcol[k]  # ch4
-                    colamt[k, 5] = temcol[k]  # o2
-
+                    colamt[:, 3] = temcol  # n2o
+                    colamt[:, 4] = temcol  # ch4
+                    colamt[:, 5] = temcol  # o2
             #  --- ...  set aerosol optical properties
 
             for ib in range(nbdsw):
-                for k in range(nlay):
-                    tauae[k, ib] = aerosols[j1, k, ib, 0]
-                    ssaae[k, ib] = aerosols[j1, k, ib, 1]
-                    asyae[k, ib] = aerosols[j1, k, ib, 2]
+                tauae[:, ib] = aerosols[j1, :, ib, 0]
+                ssaae[:, ib] = aerosols[j1, :, ib, 1]
+                asyae[:, ib] = aerosols[j1, :, ib, 2]
 
             if iswcliq > 0:  # use prognostic cloud method
                 cfrac = clouds[j1, :, 0]  # cloud fraction
@@ -490,8 +486,7 @@ class RadSWClass:
                 #  --- ...  save computed layer cloud optical depth for output
                 #           rrtm band 10 is approx to the 0.55 mu spectrum
 
-                for k in range(nlay):
-                    cldtau[j1, k] = taucw[k, 9]
+                cldtau[j1, :] = taucw[:, 9]
             else:
                 cldfrc[:] = 0.0
                 cldfmc[:, :] = 0.0
@@ -501,6 +496,10 @@ class RadSWClass:
 
             # -# Call setcoef() to compute various coefficients needed in
             #    radiative transfer calculations.
+            ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_ref_data.nc"))
+            preflog = ds["preflog"].values
+            tref = ds["tref"].values
+
             (
                 laytrop,
                 jp,
@@ -516,7 +515,7 @@ class RadSWClass:
                 forfac,
                 forfrac,
                 indfor,
-            ) = self.setcoef(pavel, tavel, h2ovmr, nlay, nlp1)
+            ) = self.setcoef(pavel, tavel, h2ovmr, nlay, nlp1, preflog, tref)
 
             # -# Call taumol() to calculate optical depths for gaseous absorption
             #    and rayleigh scattering
@@ -625,10 +624,8 @@ class RadSWClass:
             #  --- ...  compute heating rates
 
             fnet[0] = flxdc[0] - flxuc[0]
-
-            for k in range(1, nlp1):
-                fnet[k] = flxdc[k] - flxuc[k]
-                hswc[j1, k - 1] = (fnet[k] - fnet[k - 1]) * rfdelp[k - 1]
+            fnet[1:] = flxdc[1:] - flxuc[1:]
+            hswc[j1, :-1] = (fnet[1:] - fnet[:-1]) * rfdelp[:-1]
 
             # --- ...  optional flux profiles
 
@@ -642,10 +639,8 @@ class RadSWClass:
 
             if self.lhsw0:
                 fnet[0] = flxd0[0] - flxu0[0]
-
-                for k in range(1, nlp1):
-                    fnet[k] = flxd0[k] - flxu0[k]
-                    hsw0[j1, k - 1] = (fnet[k] - fnet[k - 1]) * rfdelp[k - 1]
+                fnet[1:] = flxd0[1:] - flxu0[1:]
+                hsw0[j1, :-1] = (fnet[1:] - fnet[:-1]) * rfdelp[:-1]
 
             # --- ...  optional spectral band heating rates
 
@@ -871,10 +866,9 @@ class RadSWClass:
                     #  --- ...  calculation of absorption coefficients due to ice clouds.
 
                     if cldice <= 0.0:
-                        for ib in range(nbandssw):
-                            tauice[ib] = 0.0
-                            ssaice[ib] = 0.0
-                            asyice[ib] = 0.0
+                        tauice[:] = 0.0
+                        ssaice[:] = 0.0
+                        asyice[:] = 0.0
                     else:
 
                         #  --- ...  ebert and curry approach for all particle sizes though somewhat
@@ -1000,8 +994,9 @@ class RadSWClass:
             cldf = np.where(cldf < self.ftiny, 0.0, cldf)
 
             #  --- ...  call sub-column cloud generator
-
-            lcloudy = self.mcica_subcol(cldf, nlay, ipseed, dz, delgth, ipt)
+            ds = xr.open_dataset(self.rand_file)
+            rand2d = ds["rand2d"]
+            lcloudy = self.mcica_subcol(cldf, nlay, ipseed, dz, delgth, ipt, rand2d)
 
             for ig in range(ngptsw):
                 for k in range(nlay):
@@ -1015,12 +1010,11 @@ class RadSWClass:
                 cldfrc[k] = cfrac[k] / cf1
 
         return taucw, ssacw, asycw, cldfrc, cldfmc
+    
 
-    def mcica_subcol(self, cldf, nlay, ipseed, dz, de_lgth, ipt):
+    def mcica_subcol(self, cldf, nlay, ipseed, dz, de_lgth, ipt,rand2d):
 
-        ds = xr.open_dataset(self.rand_file)
-        rand2d = ds["rand2d"][ipt, :].data
-
+        rand2d = rand2d[ipt, :].values
         #  ---  outputs:
         lcloudy = np.zeros((nlay, ngptsw))
 
@@ -1062,8 +1056,9 @@ class RadSWClass:
                 lcloudy[k, n] = cdfunc[k, n] >= tem1
 
         return lcloudy
+    
 
-    def setcoef(self, pavel, tavel, h2ovmr, nlay, nlp1):
+    def setcoef(self, pavel, tavel, h2ovmr, nlay, nlp1, preflog, tref):
         #  ===================  program usage description  ===================  !
         #                                                                       !
         # purpose:  compute various coefficients needed in radiative transfer   !
@@ -1116,9 +1111,6 @@ class RadSWClass:
         forfac = np.zeros(nlay)
         forfrac = np.zeros(nlay)
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_ref_data.nc"))
-        preflog = ds["preflog"].data
-        tref = ds["tref"].data
 
         laytrop = nlay
 
