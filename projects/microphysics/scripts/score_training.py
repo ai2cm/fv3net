@@ -82,6 +82,12 @@ def score_gscond_classes(config, model, batch):
     return scalars, profiles
 
 
+SCORE_FUNCTIONS = [
+    lambda config, model, data: score_model(model, data),
+    score_gscond_classes,
+]
+
+
 def main(config: TrainConfig, seed: int = 0, model_url: str = None):
 
     logging.basicConfig(level=getattr(logging, config.log_level))
@@ -118,20 +124,16 @@ def main(config: TrainConfig, seed: int = 0, model_url: str = None):
     test_set = next(iter(test_ds.unbatch().shuffle(2 * n).batch(n)))
 
     summary_metrics = {}
-    profiles = {}
+    all_profiles = {}
 
     for split_name, data in [("train", train_set), ("test", test_set)]:
-        scores, profiles = score_model(model, data)
-        summary_metrics.update(
-            {f"score/{split_name}/{key}": value for key, value in scores.items()}
-        )
-        class_scores, class_profiles = score_gscond_classes(config, model, data)
-        scores.update(class_scores)
+        for score_fn in SCORE_FUNCTIONS:
+            scores, profiles = score_fn(config, model, data)
+            for score, value in scores.items():
+                summary_metrics[f"score/{split_name}/{score}"] = value
 
-        for score, value in scores.items():
-            summary_metrics[f"score/{split_name}/{score}"] = value
+            all_profiles.update(profiles)
 
-        all_profiles = {**profiles, **class_profiles}
         # add level for dataframe index, assumes equivalent feature dims
         sample_profile = next(iter(all_profiles.values()))
         all_profiles["level"] = np.arange(len(sample_profile))
