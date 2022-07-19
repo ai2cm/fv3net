@@ -85,7 +85,6 @@ model:
     - cloud_precpd_difference
     - temperature_precpd_difference
     - humidity_precpd_difference
-    - cloud_precpd_difference
   normalize_default:
     center: per_feature
     scale: all
