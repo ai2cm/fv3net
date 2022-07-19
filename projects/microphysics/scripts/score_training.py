@@ -122,6 +122,9 @@ def main(config: TrainConfig, seed: int = 0, model_url: str = None):
     n = 80_000
     train_set = next(iter(train_ds.unbatch().shuffle(2 * n).batch(n)))
     test_set = next(iter(test_ds.unbatch().shuffle(2 * n).batch(n)))
+    transform = config.build_transform(train_set)
+    train_set = transform.forward(train_set)
+    test_set = transform.forward(test_set)
 
     summary_metrics = {}
     all_profiles = {}
