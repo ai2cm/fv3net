@@ -324,6 +324,24 @@ class RadSWClass:
         jt = np.zeros(nlay, np.int32)
         jt1 = np.zeros(nlay, np.int32)
 
+        ## data loading 
+        ds_radsw_sflux = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_sflux_data.nc"))
+        ## loading data for taumol
+        ds_bands = {}
+        for nband in range(16,30):
+            ds_bands['radsw_kgb' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb" + str(nband) + "_data.nc"))
+        ## data loading for setcoef
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_ref_data.nc"))
+        preflog = ds["preflog"].values
+        tref = ds["tref"].values
+
+        ## load data 
+        ds_cldprtb = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_cldprtb_data.nc"))
+
+        ## 
+        ds = xr.open_dataset(self.rand_file)
+        rand2d_data = ds["rand2d"]
+
         # Compute solar constant adjustment factor (s0fac) according to solcon.
         #      ***  s0, the solar constant at toa in w/m**2, is hard-coded with
         #           each spectra band, the total flux is about 1368.22 w/m**2.
@@ -370,27 +388,24 @@ class RadSWClass:
             tem1 = 100.0 * con_g
             tem2 = 1.0e-20 * 1.0e3 * con_avgd
 
-            for k in range(nlay):
-                pavel[k] = plyr[j1, k]
-                tavel[k] = tlyr[j1, k]
-                delp[k] = delpin[j1, k]
-                dz[k] = dzlyr[j1, k]
+            pavel = plyr[j1, :]
+            tavel = tlyr[j1, :]
+            delp = delpin[j1, :]
+            dz = dzlyr[j1, :]
 
-                #  --- ...  set absorber amount
-                # ncep model use
-                h2ovmr[k] = max(
-                    0.0, qlyr[j1, k] * self.amdw / (1.0 - qlyr[j1, k])
-                )  # input specific humidity
-                o3vmr[k] = max(0.0, olyr[j1, k] * self.amdo3)  # input mass mixing ratio
+            #  --- ...  set absorber amount
+            # ncep model use
+            h2ovmr = np.maximum(0.0, qlyr[j1, :] * self.amdw / (1.0 - qlyr[j1, :]))  # input specific humidity
+            o3vmr  = np.maximum(0.0, olyr[j1, :] * self.amdo3)  # input mass mixing ratio
 
-                tem0 = (1.0 - h2ovmr[k]) * con_amd + h2ovmr[k] * con_amw
-                coldry[k] = tem2 * delp[k] / (tem1 * tem0 * (1.0 + h2ovmr[k]))
-                temcol[k] = 1.0e-12 * coldry[k]
+            tem0 = (1.0 - h2ovmr) * con_amd + h2ovmr * con_amw
+            coldry = tem2 * delp / (tem1 * tem0 * (1.0 + h2ovmr))
+            temcol = 1.0e-12 * coldry
 
-                colamt[k, 0] = max(0.0, coldry[k] * h2ovmr[k])  # h2o
-                colamt[k, 1] = max(temcol[k], coldry[k] * gasvmr[j1, k, 0])  # co2
-                colamt[k, 2] = max(0.0, coldry[k] * o3vmr[k])  # o3
-                colmol[k] = coldry[k] + colamt[k, 0]
+            colamt[:, 0] = np.maximum(0.0, coldry * h2ovmr)  # h2o
+            colamt[:, 1] = np.maximum(temcol, coldry * gasvmr[j1, :, 0])  # co2
+            colamt[:, 2] = np.maximum(0.0, coldry * o3vmr)  # o3
+            colmol = coldry + colamt[:, 0]
 
             if lprnt:
                 if ipt == 1:
@@ -404,41 +419,35 @@ class RadSWClass:
             #           to molec/cm2 based on coldry (scaled to 1.0e-20)
 
             if iswrgas > 0:
-                for k in range(nlay):
-                    colamt[k, 3] = max(temcol[k], coldry[k] * gasvmr[j1, k, 1])  # n2o
-                    colamt[k, 4] = max(temcol[k], coldry[k] * gasvmr[j1, k, 2])  # ch4
-                    colamt[k, 5] = max(temcol[k], coldry[k] * gasvmr[j1, k, 3])  # o2
+                colamt[:, 3] = np.maximum(temcol, coldry * gasvmr[j1, :, 1])  # n2o
+                colamt[:, 4] = np.maximum(temcol, coldry * gasvmr[j1, :, 2])  # ch4
+                colamt[:, 5] = np.maximum(temcol, coldry * gasvmr[j1, :, 3])  # o2
             else:
-                for k in range(nlay):
-                    colamt[k, 3] = temcol[k]  # n2o
-                    colamt[k, 4] = temcol[k]  # ch4
-                    colamt[k, 5] = temcol[k]  # o2
-
+                    colamt[:, 3] = temcol  # n2o
+                    colamt[:, 4] = temcol  # ch4
+                    colamt[:, 5] = temcol  # o2
             #  --- ...  set aerosol optical properties
 
             for ib in range(nbdsw):
-                for k in range(nlay):
-                    tauae[k, ib] = aerosols[j1, k, ib, 0]
-                    ssaae[k, ib] = aerosols[j1, k, ib, 1]
-                    asyae[k, ib] = aerosols[j1, k, ib, 2]
+                tauae[:, ib] = aerosols[j1, :, ib, 0]
+                ssaae[:, ib] = aerosols[j1, :, ib, 1]
+                asyae[:, ib] = aerosols[j1, :, ib, 2]
 
             if iswcliq > 0:  # use prognostic cloud method
-                for k in range(nlay):
-                    cfrac[k] = clouds[j1, k, 0]  # cloud fraction
-                    cliqp[k] = clouds[j1, k, 1]  # cloud liq path
-                    reliq[k] = clouds[j1, k, 2]  # liq partical effctive radius
-                    cicep[k] = clouds[j1, k, 3]  # cloud ice path
-                    reice[k] = clouds[j1, k, 4]  # ice partical effctive radius
-                    cdat1[k] = clouds[j1, k, 5]  # cloud rain drop path
-                    cdat2[k] = clouds[j1, k, 6]  # rain partical effctive radius
-                    cdat3[k] = clouds[j1, k, 7]  # cloud snow path
-                    cdat4[k] = clouds[j1, k, 8]  # snow partical effctive radius
+                cfrac = clouds[j1, :, 0]  # cloud fraction
+                cliqp = clouds[j1, :, 1]  # cloud liq path
+                reliq = clouds[j1, :, 2]  # liq partical effctive radius
+                cicep = clouds[j1, :, 3]  # cloud ice path
+                reice = clouds[j1, :, 4]  # ice partical effctive radius
+                cdat1 = clouds[j1, :, 5]  # cloud rain drop path
+                cdat2 = clouds[j1, :, 6]  # rain partical effctive radius
+                cdat3 = clouds[j1, :, 7]  # cloud snow path
+                cdat4 = clouds[j1, :, 8]  # snow partical effctive radius
             else:  # use diagnostic cloud method
-                for k in range(nlay):
-                    cfrac[k] = clouds[j1, k, 0]  # cloud fraction
-                    cdat1[k] = clouds[j1, k, 1]  # cloud optical depth
-                    cdat2[k] = clouds[j1, k, 2]  # cloud single scattering albedo
-                    cdat3[k] = clouds[j1, k, 3]  # cloud asymmetry factor
+                cfrac = clouds[j1, :, 0]  # cloud fraction
+                cdat1 = clouds[j1, :, 1]  # cloud optical depth
+                cdat2 = clouds[j1, :, 2]  # cloud single scattering albedo
+                cdat3 = clouds[j1, :, 3]  # cloud asymmetry factor
 
             # -# Compute fractions of clear sky view:
             #    - random overlapping
@@ -490,24 +499,24 @@ class RadSWClass:
                     dz,
                     delgth,
                     ipt,
+                    ds_cldprtb,
+                    rand2d_data, 
                 )
 
                 #  --- ...  save computed layer cloud optical depth for output
                 #           rrtm band 10 is approx to the 0.55 mu spectrum
 
-                for k in range(nlay):
-                    cldtau[j1, k] = taucw[k, 9]
+                cldtau[j1, :] = taucw[:, 9]
             else:
                 cldfrc[:] = 0.0
                 cldfmc[:, :] = 0.0
-                for i in range(nbdsw):
-                    for k in range(nlay):
-                        taucw[k, i] = 0.0
-                        ssacw[k, i] = 0.0
-                        asycw[k, i] = 0.0
+                taucw[:, :] = 0.0
+                ssacw[:, :] = 0.0
+                asycw[:, :] = 0.0
 
             # -# Call setcoef() to compute various coefficients needed in
             #    radiative transfer calculations.
+
             (
                 laytrop,
                 jp,
@@ -523,7 +532,7 @@ class RadSWClass:
                 forfac,
                 forfrac,
                 indfor,
-            ) = self.setcoef(pavel, tavel, h2ovmr, nlay, nlp1)
+            ) = self.setcoef(pavel, tavel, h2ovmr, nlay, nlp1, preflog, tref)
 
             # -# Call taumol() to calculate optical depths for gaseous absorption
             #    and rayleigh scattering
@@ -545,6 +554,8 @@ class RadSWClass:
                 selffrac,
                 indself,
                 nlay,
+                ds_radsw_sflux,
+                ds_bands,
             )
 
             # -# Call the 2-stream radiation transfer model:
@@ -596,28 +607,16 @@ class RadSWClass:
             # -# Save outputs.
             #  --- ...  sum up total spectral fluxes for total-sky
 
-            for k in range(nlp1):
-                flxuc[k] = 0.0
-                flxdc[k] = 0.0
-
-                for ib in range(nbdsw):
-                    flxuc[k] = flxuc[k] + fxupc[k, ib]
-                    flxdc[k] = flxdc[k] + fxdnc[k, ib]
+            flxuc = np.nansum(fxupc , axis = 1)
+            flxdc = np.nansum(fxdnc , axis = 1)
 
             # --- ...  optional clear sky fluxes
-
             if self.lhsw0 or self.lflxprf:
-                for k in range(nlp1):
-                    flxu0[k] = 0.0
-                    flxd0[k] = 0.0
-
-                    for ib in range(nbdsw):
-                        flxu0[k] = flxu0[k] + fxup0[k, ib]
-                        flxd0[k] = flxd0[k] + fxdn0[k, ib]
-
+                flxu0 = np.nansum(fxup0 , axis = 1)
+                flxd0 = np.nansum(fxdn0, axis = 1)
             #  --- ...  prepare for final outputs
-            for k in range(nlay):
-                rfdelp[k] = self.heatfac / delp[k]
+            #for k in range(nlay):
+            rfdelp = self.heatfac / delp
 
             if self.lfdncmp:
                 # --- ...  optional uv-b surface downward flux
@@ -644,28 +643,23 @@ class RadSWClass:
             #  --- ...  compute heating rates
 
             fnet[0] = flxdc[0] - flxuc[0]
-
-            for k in range(1, nlp1):
-                fnet[k] = flxdc[k] - flxuc[k]
-                hswc[j1, k - 1] = (fnet[k] - fnet[k - 1]) * rfdelp[k - 1]
+            fnet[1:] = flxdc[1:] - flxuc[1:]
+            hswc[j1, :] = (fnet[1:] - fnet[:-1]) * rfdelp
 
             # --- ...  optional flux profiles
 
             if self.lflxprf:
-                for k in range(nlp1):
-                    upfxc_f[j1, k] = flxuc[k]
-                    dnfxc_f[j1, k] = flxdc[k]
-                    upfx0_f[j1, k] = flxu0[k]
-                    dnfx0_f[j1, k] = flxd0[k]
+                upfxc_f[j1, :] = flxuc
+                dnfxc_f[j1, :] = flxdc
+                upfx0_f[j1, :] = flxu0
+                dnfx0_f[j1, :] = flxd0
 
             # --- ...  optional clear sky heating rates
 
             if self.lhsw0:
                 fnet[0] = flxd0[0] - flxu0[0]
-
-                for k in range(1, nlp1):
-                    fnet[k] = flxd0[k] - flxu0[k]
-                    hsw0[j1, k - 1] = (fnet[k] - fnet[k - 1]) * rfdelp[k - 1]
+                fnet[1:] = flxd0[1:] - flxu0[1:]
+                hsw0[j1, :] = (fnet[1:] - fnet[:-1]) * rfdelp
 
             # --- ...  optional spectral band heating rates
 
@@ -713,35 +707,36 @@ class RadSWClass:
         dz,
         delgth,
         ipt,
+        ds,
+        rand2d,
     ):
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_cldprtb_data.nc"))
-        extliq1 = ds["extliq1"].data
-        extliq2 = ds["extliq2"].data
-        ssaliq1 = ds["ssaliq1"].data
-        ssaliq2 = ds["ssaliq2"].data
-        asyliq1 = ds["asyliq1"].data
-        asyliq2 = ds["asyliq2"].data
-        extice2 = ds["extice2"].data
-        ssaice2 = ds["ssaice2"].data
-        asyice2 = ds["asyice2"].data
-        extice3 = ds["extice3"].data
-        ssaice3 = ds["ssaice3"].data
-        asyice3 = ds["asyice3"].data
-        abari = ds["abari"].data
-        bbari = ds["bbari"].data
-        cbari = ds["cbari"].data
-        dbari = ds["dbari"].data
-        ebari = ds["ebari"].data
-        fbari = ds["fbari"].data
-        b0s = ds["b0s"].data
-        b1s = ds["b1s"].data
-        b0r = ds["b0r"].data
-        c0s = ds["c0s"].data
-        c0r = ds["c0r"].data
-        a0r = ds["a0r"].data
-        a1r = ds["a1r"].data
-        a0s = ds["a0s"].data
-        a1s = ds["a1s"].data
+        extliq1 = ds["extliq1"].values
+        extliq2 = ds["extliq2"].values
+        ssaliq1 = ds["ssaliq1"].values
+        ssaliq2 = ds["ssaliq2"].values
+        asyliq1 = ds["asyliq1"].values
+        asyliq2 = ds["asyliq2"].values
+        extice2 = ds["extice2"].values
+        ssaice2 = ds["ssaice2"].values
+        asyice2 = ds["asyice2"].values
+        extice3 = ds["extice3"].values
+        ssaice3 = ds["ssaice3"].values
+        asyice3 = ds["asyice3"].values
+        abari = ds["abari"].values
+        bbari = ds["bbari"].values
+        cbari = ds["cbari"].values
+        dbari = ds["dbari"].values
+        ebari = ds["ebari"].values
+        fbari = ds["fbari"].values
+        b0s = ds["b0s"].values
+        b1s = ds["b1s"].values
+        b0r = ds["b0r"].values
+        c0s = ds["c0s"].values
+        c0r = ds["c0r"].values
+        a0r = ds["a0r"].values
+        a1r = ds["a1r"].values
+        a0s = ds["a0s"].values
+        a1s = ds["a1s"].values
 
         #  ---  outputs:
         cldfmc = np.zeros((nlay, ngptsw))
@@ -891,10 +886,9 @@ class RadSWClass:
                     #  --- ...  calculation of absorption coefficients due to ice clouds.
 
                     if cldice <= 0.0:
-                        for ib in range(nbandssw):
-                            tauice[ib] = 0.0
-                            ssaice[ib] = 0.0
-                            asyice[ib] = 0.0
+                        tauice[:] = 0.0
+                        ssaice[:] = 0.0
+                        asyice[:] = 0.0
                     else:
 
                         #  --- ...  ebert and curry approach for all particle sizes though somewhat
@@ -1021,7 +1015,7 @@ class RadSWClass:
 
             #  --- ...  call sub-column cloud generator
 
-            lcloudy = self.mcica_subcol(cldf, nlay, ipseed, dz, delgth, ipt)
+            lcloudy = self.mcica_subcol(cldf, nlay, ipseed, dz, delgth, ipt, rand2d)
 
             for ig in range(ngptsw):
                 for k in range(nlay):
@@ -1035,18 +1029,16 @@ class RadSWClass:
                 cldfrc[k] = cfrac[k] / cf1
 
         return taucw, ssacw, asycw, cldfrc, cldfmc
+    
 
-    def mcica_subcol(self, cldf, nlay, ipseed, dz, de_lgth, ipt):
+    def mcica_subcol(self, cldf, nlay, ipseed, dz, de_lgth, ipt,rand2d):
 
-        ds = xr.open_dataset(self.rand_file)
-        rand2d = ds["rand2d"][ipt, :].data
-
+        rand2d = rand2d[ipt, :].values
         #  ---  outputs:
         lcloudy = np.zeros((nlay, ngptsw))
 
         #  ---  locals:
         cdfunc = np.zeros((nlay, ngptsw))
-
         #  --- ...  sub-column set up according to overlapping assumption
 
         if self.iovrsw == 1:  # max-ran overlap
@@ -1082,8 +1074,9 @@ class RadSWClass:
                 lcloudy[k, n] = cdfunc[k, n] >= tem1
 
         return lcloudy
+    
 
-    def setcoef(self, pavel, tavel, h2ovmr, nlay, nlp1):
+    def setcoef(self, pavel, tavel, h2ovmr, nlay, nlp1, preflog, tref):
         #  ===================  program usage description  ===================  !
         #                                                                       !
         # purpose:  compute various coefficients needed in radiative transfer   !
@@ -1136,9 +1129,6 @@ class RadSWClass:
         forfac = np.zeros(nlay)
         forfrac = np.zeros(nlay)
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_ref_data.nc"))
-        preflog = ds["preflog"].data
-        tref = ds["tref"].data
 
         laytrop = nlay
 
@@ -1983,6 +1973,8 @@ class RadSWClass:
         selffrac,
         indself,
         nlay,
+        ds,
+        ds_bands,
     ):
         #  ==================   program usage description   ==================  !
         #                                                                       !
@@ -2080,17 +2072,16 @@ class RadSWClass:
         #  *******************************************************************  !
         #  ======================  end of description block  =================  !
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_sflux_data.nc"))
-        self.strrat = ds["strrat"].data
-        specwt = ds["specwt"].data
-        layreffr = ds["layreffr"].data
-        ix1 = ds["ix1"].data
-        ix2 = ds["ix2"].data
-        ibx = ds["ibx"].data
-        sfluxref01 = ds["sfluxref01"].data
-        sfluxref02 = ds["sfluxref02"].data
-        sfluxref03 = ds["sfluxref03"].data
-        scalekur = ds["scalekur"].data
+        self.strrat = ds["strrat"].values
+        specwt = ds["specwt"].values
+        layreffr = ds["layreffr"].values
+        ix1 = ds["ix1"].values
+        ix2 = ds["ix2"].values
+        ibx = ds["ibx"].values
+        sfluxref01 = ds["sfluxref01"].values
+        sfluxref02 = ds["sfluxref02"].values
+        sfluxref03 = ds["sfluxref03"].values
+        scalekur = ds["scalekur"].values
 
         id0 = np.zeros((nlay, nbhgh), dtype=np.int32)
         id1 = np.zeros((nlay, nbhgh), dtype=np.int32)
@@ -2098,6 +2089,7 @@ class RadSWClass:
 
         taug = np.zeros((nlay, ngptsw))
         taur = np.zeros((nlay, ngptsw))
+
 
         for b in range(nbhgh - nblow + 1):
             jb = nblow + b - 1
@@ -2159,7 +2151,6 @@ class RadSWClass:
                         sfluxzen[ns + j] = sfluxref03[j, js, ibd] + fs * (
                             sfluxref03[j, js + 1, ibd] - sfluxref03[j, js, ibd]
                         )
-
         taug, taur = self.taumol16(
             colamt,
             colmol,
@@ -2182,8 +2173,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb16'],
         )
-
         taug, taur = self.taumol17(
             colamt,
             colmol,
@@ -2206,8 +2197,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb17'],
         )
-
         taug, taur = self.taumol18(
             colamt,
             colmol,
@@ -2230,8 +2221,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb18'],
         )
-
         taug, taur = self.taumol19(
             colamt,
             colmol,
@@ -2254,8 +2245,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb19'],
         )
-
         taug, taur = self.taumol20(
             colamt,
             colmol,
@@ -2278,8 +2269,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb20'],
         )
-
         taug, taur = self.taumol21(
             colamt,
             colmol,
@@ -2302,8 +2293,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb21'],
         )
-
         taug, taur = self.taumol22(
             colamt,
             colmol,
@@ -2326,8 +2317,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb22'],
         )
-
         taug, taur = self.taumol23(
             colamt,
             colmol,
@@ -2350,8 +2341,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb23'],
         )
-
         taug, taur = self.taumol24(
             colamt,
             colmol,
@@ -2374,8 +2365,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb24'],
         )
-
         taug, taur = self.taumol25(
             colamt,
             colmol,
@@ -2398,8 +2389,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb25'],
         )
-
         taug, taur = self.taumol26(
             colamt,
             colmol,
@@ -2422,8 +2413,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb26'],
         )
-
         taug, taur = self.taumol27(
             colamt,
             colmol,
@@ -2446,8 +2437,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb27'],
         )
-
         taug, taur = self.taumol28(
             colamt,
             colmol,
@@ -2470,8 +2461,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb28'],
         )
-
         taug, taur = self.taumol29(
             colamt,
             colmol,
@@ -2494,6 +2485,7 @@ class RadSWClass:
             id1,
             taug,
             taur,
+            ds_bands['radsw_kgb29'],
         )
 
         return sfluxzen, taug, taur
@@ -2521,14 +2513,13 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
-
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb16_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        rayl = ds["rayl"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        rayl = ds["rayl"].values
 
         #  --- ... compute the optical depth by interpolating in ln(pressure),
         #          temperature, and appropriate species.  below laytrop, the water
@@ -2633,6 +2624,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -2640,12 +2632,11 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb17_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        rayl = ds["rayl"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -2756,7 +2747,6 @@ class RadSWClass:
 
     # The subroutine computes the optical depth in band 18:  4000-4650
     # cm-1 (low - h2o,ch4; high - ch4)
-
     def taumol18(
         self,
         colamt,
@@ -2780,6 +2770,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -2787,12 +2778,11 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb18_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        rayl = ds["rayl"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -2899,6 +2889,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -2906,12 +2897,11 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb19_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        rayl = ds["rayl"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -2994,7 +2984,6 @@ class RadSWClass:
 
     # The subroutine computes the optical depth in band 20:  5150-6150
     # cm-1 (low - h2o; high - h2o)
-
     def taumol20(
         self,
         colamt,
@@ -3018,6 +3007,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3025,13 +3015,12 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb20_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        absch4 = ds["absch4"].data
-        rayl = ds["rayl"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        absch4 = ds["absch4"].values
+        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -3132,6 +3121,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3139,12 +3129,11 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb21_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        rayl = ds["rayl"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -3279,6 +3268,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3286,12 +3276,11 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb22_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        rayl = ds["rayl"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        rayl = ds["rayl"].values
 
         #  --- ...  the following factor is the ratio of total o2 band intensity (lines
         #           and mate continuum) to o2 band intensity (line only). it is needed
@@ -3419,6 +3408,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3426,12 +3416,11 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb23_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        rayl = ds["rayl"].data
-        givfac = ds["givfac"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        rayl = ds["rayl"].values
+        givfac = ds["givfac"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -3505,6 +3494,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3512,15 +3502,14 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb24_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        abso3a = ds["abso3a"].data
-        abso3b = ds["abso3b"].data
-        rayla = ds["rayla"].data
-        raylb = ds["raylb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        abso3a = ds["abso3a"].values
+        abso3b = ds["abso3b"].values
+        rayla = ds["rayla"].values
+        raylb = ds["raylb"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -3637,6 +3626,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3644,11 +3634,10 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb25_data.nc"))
-        absa = ds["absa"].data
-        abso3a = ds["abso3a"].data
-        abso3b = ds["abso3b"].data
-        rayl = ds["rayl"].data
+        absa = ds["absa"].values
+        abso3a = ds["abso3a"].values
+        abso3b = ds["abso3b"].values
+        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -3684,7 +3673,6 @@ class RadSWClass:
 
     # The subroutine computes the optical depth in band 26:  22650-29000
     # cm-1 (low - nothing; high - nothing)
-
     def taumol26(
         self,
         colamt,
@@ -3708,6 +3696,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3715,8 +3704,7 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb26_data.nc"))
-        rayl = ds["rayl"].data
+        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -3755,6 +3743,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3762,10 +3751,9 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb27_data.nc"))
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        rayl = ds["rayl"].data
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -3831,6 +3819,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3838,10 +3827,9 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb28_data.nc"))
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        rayl = ds["rayl"].data
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -3955,6 +3943,7 @@ class RadSWClass:
         id1,
         taug,
         taur,
+        ds,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3962,14 +3951,13 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb29_data.nc"))
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        selfref = ds["selfref"].data
-        absh2o = ds["absh2o"].data
-        absco2 = ds["absco2"].data
-        rayl = ds["rayl"].data
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        selfref = ds["selfref"].values
+        absh2o = ds["absh2o"].values
+        absco2 = ds["absco2"].values
+        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water

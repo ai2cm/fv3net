@@ -1,9 +1,11 @@
+from re import A
 import numpy as np
 import xarray as xr
 import sys
 import os
 import time
 import warnings
+from numba import jit
 
 sys.path.insert(0, "..")
 from radphysparam import (
@@ -57,6 +59,11 @@ from radlw.radlw_param import (
     ns14,
     ns15,
     ns16,
+    a0,
+    a1,
+    a2,
+    nspa,
+    nspb
 )
 from phys_const import con_g, con_avgd, con_cp, con_amd, con_amw, con_amo3
 from config import *
@@ -75,69 +82,17 @@ class RadLWClass:
     stpfac = 296.0 / 1013.0
     wtdiff = 0.5
     tblint = ntbl
+    a0 = a0
+    a1 = a1
+    a2 = a2
 
     ipsdlw0 = ngptlw
 
     amdw = con_amd / con_amw
     amdo3 = con_amd / con_amo3
 
-    nspa = [1, 1, 9, 9, 9, 1, 9, 1, 9, 1, 1, 9, 9, 1, 9, 9]
-    nspb = [1, 1, 5, 5, 5, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0]
-
-    a0 = [
-        1.66,
-        1.55,
-        1.58,
-        1.66,
-        1.54,
-        1.454,
-        1.89,
-        1.33,
-        1.668,
-        1.66,
-        1.66,
-        1.66,
-        1.66,
-        1.66,
-        1.66,
-        1.66,
-    ]
-    a1 = [
-        0.00,
-        0.25,
-        0.22,
-        0.00,
-        0.13,
-        0.446,
-        -0.10,
-        0.40,
-        -0.006,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-    ]
-    a2 = [
-        0.00,
-        -12.0,
-        -11.7,
-        0.00,
-        -0.72,
-        -0.243,
-        0.19,
-        -0.062,
-        0.414,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-    ]
+    nspa = nspa  
+    nspb = nspb  
 
     def __init__(self, me, iovrlw, isubclw):
         self.lhlwb = False
@@ -298,7 +253,34 @@ class RadLWClass:
         self.lhlw0 = lhlw0
         self.lhlwb = lhlwb
         self.lflxprf = lflxprf
-        self.rand_file = lw_rand_file
+
+        ## loading data for
+        dfile = os.path.join(LOOKUP_DIR, "totplnk.nc")
+        pfile = os.path.join(LOOKUP_DIR, "radlw_ref_data.nc")
+        totplnk = xr.open_dataset(dfile)["totplnk"].values
+        preflog = xr.open_dataset(pfile)["preflog"].values
+        tref = xr.open_dataset(pfile)["tref"].values
+        chi_mls = xr.open_dataset(pfile)["chi_mls"].values
+        
+        ## loading data for cldprop
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_cldprlw_data.nc"))
+        absliq1 = ds["absliq1"].values
+        absice0 = ds["absice0"].values
+        absice1 = ds["absice1"].values
+        absice2 = ds["absice2"].values
+        absice3 = ds["absice3"].values
+
+        ds_lw_rand = xr.open_dataset(lw_rand_file)
+        rand2d_data = ds_lw_rand["rand2d"].values
+
+        ## loading data for taumol
+        ds_radlw_ref = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
+        ds_bands = {}
+        for nband in range(1,17):
+            if nband < 10:
+                ds_bands['radlw_kgb0' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb0" + str(nband) + "_data.nc"))
+            else:
+                ds_bands['radlw_kgb' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb" + str(nband) + "_data.nc"))
 
         cldfrc = np.zeros(nlp1 + 1)
 
@@ -516,6 +498,7 @@ class RadLWClass:
                 print("Running cldprop . . .")
             if lcf1:
                 cldfmc, taucld = self.cldprop(
+                    lw_rand_file,
                     cldfrc,
                     clwp,
                     relw,
@@ -531,6 +514,12 @@ class RadLWClass:
                     dz,
                     delgth,
                     iplon,
+                    absliq1,
+                    absice0,
+                    absice1,
+                    absice2,
+                    absice3,
+                    rand2d_data,
                 )
                 if verbose:
                     print("Done")
@@ -544,6 +533,8 @@ class RadLWClass:
 
             if verbose:
                 print("Running setcoef . . .")
+
+
             (
                 laytrop,
                 pklay,
@@ -567,7 +558,7 @@ class RadLWClass:
                 scaleminorn2,
                 indminor,
             ) = self.setcoef(
-                pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1
+                pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1, totplnk, preflog, tref, chi_mls
             )
 
             if verbose:
@@ -601,6 +592,8 @@ class RadLWClass:
                 scaleminorn2,
                 indminor,
                 nlay,
+                ds_radlw_ref,
+                ds_bands,
             )
             if verbose:
                 print("Done")
@@ -617,6 +610,17 @@ class RadLWClass:
                         htrcl,
                         htrb,
                     ) = self.rtrn(
+                        self.lhlwb,
+                        self.lhlw0,
+                        self.heatfac,
+                        self.wtdiff,
+                        self.fluxfac,
+                        self.exp_tbl,
+                        self.tfn_tbl,
+                        self.tblint, 
+                        self.bpade,
+                        self.eps,
+                        self.tau_tbl,
                         semiss,
                         delp,
                         cldfrc,
@@ -639,6 +643,16 @@ class RadLWClass:
                         htrcl,
                         htrb,
                     ) = self.rtrnmr(
+                        self.eps,
+                        self.bpade,
+                        self.lhlw0,
+                        self.lhlwb,
+                        self.exp_tbl,
+                        self.tfn_tbl,
+                        self.tau_tbl,
+                        self.wtdiff,
+                        self.fluxfac,
+                        self.heatfac,
                         semiss,
                         delp,
                         cldfrc,
@@ -662,6 +676,16 @@ class RadLWClass:
                     htrcl,
                     htrb,
                 ) = self.rtrnmc(
+                    self.eps,
+                    self.bpade,
+                    self.lhlw0,
+                    self.lhlwb,
+                    self.exp_tbl,
+                    self.tfn_tbl,
+                    self.tau_tbl,
+                    self.wtdiff,
+                    self.fluxfac,
+                    self.heatfac,
                     semiss,
                     delp,
                     cldfmc,
@@ -712,10 +736,11 @@ class RadLWClass:
         )
 
     def setcoef(
-        self, pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1
+        self, pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1, 
+        totplnk, preflog, tref, chi_mls
     ):
 
-        #  ====================  defination of variables  ====================  !
+        #  ====================  definition of variables  ====================  !
         #                                                                       !
         #  inputs:                                                       -size- !
         #   pavel     - real, layer pressures (mb)                         nlay !
@@ -766,14 +791,6 @@ class RadLWClass:
         #           that is specific to this atmosphere, especially some of the
         #           coefficients and indices needed to compute the optical depths
         #           by interpolating data from stored reference atmospheres.
-
-        dfile = os.path.join(LOOKUP_DIR, "totplnk.nc")
-        pfile = os.path.join(LOOKUP_DIR, "radlw_ref_data.nc")
-        totplnk = xr.open_dataset(dfile)["totplnk"].data
-        preflog = xr.open_dataset(pfile)["preflog"].data
-        tref = xr.open_dataset(pfile)["tref"].data
-        chi_mls = xr.open_dataset(pfile)["chi_mls"].data
-
         pklay = np.zeros((nbands, nlp1))
         pklev = np.zeros((nbands, nlp1))
 
@@ -801,18 +818,23 @@ class RadLWClass:
         tlyrfr = stemp - int(stemp)
         tlvlfr = tz[0] - int(tz[0])
 
-        for i in range(nbands):
-            tem1 = totplnk[indlay, i] - totplnk[indlay - 1, i]
-            tem2 = totplnk[indlev, i] - totplnk[indlev - 1, i]
-            pklay[i, 0] = delwave[i] * (totplnk[indlay - 1, i] + tlyrfr * tem1)
-            pklev[i, 0] = delwave[i] * (totplnk[indlev - 1, i] + tlvlfr * tem2)
+        #for i in range(nbands):
+        tem1 = totplnk[indlay, :] - totplnk[indlay - 1, :]
+        tem2 = totplnk[indlev, :] - totplnk[indlev - 1, :]
+        pklay[:, 0] = delwave * (totplnk[indlay - 1, :] + tlyrfr * tem1)
+        pklev[:, 0] = delwave * (totplnk[indlev - 1, :] + tlvlfr * tem2)
+
+        # for i in range(nbands):
+        #     tem1 = totplnk[indlay, i] - totplnk[indlay - 1, i]
+        #     tem2 = totplnk[indlev, i] - totplnk[indlev - 1, i]
+        #     pklay[i, 0] = delwave[i] * (totplnk[indlay - 1, i] + tlyrfr * tem1)
+        #     pklev[i, 0] = delwave[i] * (totplnk[indlev - 1, i] + tlvlfr * tem2)
 
         #  --- ...  begin layer loop
         #           calculate the integrated Planck functions for each band at the
         #           surface, level, and layer temperatures.
 
         laytrop = 0
-
         for k in range(nlay):
             indlay = np.minimum(180, np.maximum(1, int(tavel[k] - 159.0)))
             tlyrfr = tavel[k] - int(tavel[k])
@@ -821,7 +843,6 @@ class RadLWClass:
             tlvlfr = tz[k + 1] - int(tz[k + 1])
 
             #  --- ...  begin spectral band loop
-
             for i in range(nbands):
                 pklay[i, k + 1] = delwave[i] * (
                     totplnk[indlay - 1, i]
@@ -967,9 +988,19 @@ class RadLWClass:
             scaleminorn2,
             indminor,
         )
-
-    def rtrn(
-        self,
+    @staticmethod
+    @jit(nopython=True)
+    def rtrn(lhlwb,
+        lhlw0,
+        heatfac,
+        wtdiff,
+        fluxfac,
+        exp_tbl,
+        tfn_tbl,
+        tblint,
+        bpade,
+        eps,
+        tau_tbl,
         semiss,
         delp,
         cldfrc,
@@ -990,7 +1021,7 @@ class RadLWClass:
         #                                                                       !
         # subprograms called:  none                                             !
         #                                                                       !
-        #  ====================  defination of variables  ====================  !
+        #  ====================  definition of variables  ====================  !
         #                                                                       !
         #  inputs:                                                     -size-   !
         #   semiss  - real, lw surface emissivity                         nbands!
@@ -1113,7 +1144,7 @@ class RadLWClass:
         #
 
         #  --- ...  loop over all g-points
-
+        
         for ig in range(ngptlw):
             ib = ngb(ig)
 
@@ -1132,12 +1163,12 @@ class RadLWClass:
                     trng = 1.0 - atrgas
                     gasfac = rec_6 * odepth
                 else:
-                    tblind = odepth / (self.bpade + odepth)
-                    itgas = self.tblint * tblind + 0.5
-                    trng = self.exp_tbl[itgas]
+                    tblind = odepth / (bpade + odepth)
+                    itgas = tblint * tblind + 0.5
+                    trng = exp_tbl[itgas]
                     atrgas = 1.0 - trng
-                    gasfac = self.tfn_tbl[itgas]
-                    odepth = self.tau_tbl[itgas]
+                    gasfac = tfn_tbl[itgas]
+                    odepth = tau_tbl[itgas]
 
                 plfrac = fracs[ig, k]
                 blay = pklay[ib, k]
@@ -1153,7 +1184,7 @@ class RadLWClass:
                 # - total sky, gases+clouds contribution
 
                 clfr = cldfrc[k]
-                if clfr >= self.eps:
+                if clfr >= eps:
                     # \n  - cloudy layer
 
                     odcld = secdif[ib] * taucld[ib, k]
@@ -1163,10 +1194,10 @@ class RadLWClass:
                         totfac = rec_6 * odtot
                         atrtot = odtot - 0.5 * odtot * odtot
                     else:
-                        tblind = odtot / (self.bpade + odtot)
-                        ittot = self.tblint * tblind + 0.5
-                        totfac = self.tfn_tbl[ittot]
-                        atrtot = 1.0 - self.exp_tbl[ittot]
+                        tblind = odtot / (bpade + odtot)
+                        ittot = tblint * tblind + 0.5
+                        totfac = tfn_tbl[ittot]
+                        atrtot = 1.0 - exp_tbl[ittot]
 
                     bbdtot = plfrac * (blay + dplnkd * totfac)
                     bbutot = plfrac * (blay + dplnku * totfac)
@@ -1221,7 +1252,7 @@ class RadLWClass:
                 trng = trngas[k]
                 gasu = gassrcu(k)
 
-                if clfr >= self.eps:
+                if clfr >= eps:
                     #  --- ...  cloudy layer
 
                     #  --- ... total sky radiance
@@ -1248,30 +1279,22 @@ class RadLWClass:
         # -    # Process longwave output from band for total and clear streams.
         #      Calculate upward, downward, and net flux.
 
-        flxfac = self.wtdiff * self.fluxfac
-
-        for k in range(nlp1):
-            for ib in range(nbands):
-                totuflux[k] = totuflux[k] + toturad[k, ib]
-                totdflux[k] = totdflux[k] + totdrad[k, ib]
-                totuclfl[k] = totuclfl[k] + clrurad[k, ib]
-                totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
-
-            totuflux[k] = totuflux[k] * flxfac
-            totdflux[k] = totdflux[k] * flxfac
-            totuclfl[k] = totuclfl[k] * flxfac
-            totdclfl[k] = totdclfl[k] * flxfac
+        flxfac = wtdiff * fluxfac
+        
+        totuflux =   np.nansum(toturad, axis = 1)* flxfac
+        totdflux =   np.nansum(totdrad, axis = 1)* flxfac
+        totuclfl =   np.nansum(clrurad, axis = 1)* flxfac  
+        totdclfl =   np.nansum(clrdrad, axis = 1)* flxfac
 
         #  --- ...  calculate net fluxes and heating rates
         fnet[0] = totuflux[0] - totdflux[0]
-
-        for k in range(nlay):
-            rfdelp[k] = self.heatfac / delp[k]
-            fnet[k] = totuflux[k] - totdflux[k]
-            htr[k] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
+        #for k in range(nlay):
+        rfdelp = heatfac / delp
+        fnet = totuflux - totdflux
+        htr = (fnet[1:] - fnet) * rfdelp
 
         # --- ...  optional clear sky heating rates
-        if self.lhlw0:
+        if lhlw0:
             fnetc[0] = totuclfl[0] - totdclfl[0]
 
             for k in range(nlay):
@@ -1279,7 +1302,7 @@ class RadLWClass:
                 htrcl[k] = (fnetc[k - 1] - fnetc[k]) * rfdelp[k]
 
         # --- ...  optional spectral band heating rates
-        if self.lhlwb:
+        if lhlwb:
             for ib in range(nbands):
                 fnet[0] = (toturad[0, ib] - totdrad[0, ib]) * flxfac
 
@@ -1288,9 +1311,18 @@ class RadLWClass:
                     htrb[k, ib] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
-
+    #@jit(nopython=True)
     def rtrnmr(
-        self,
+        eps,
+        bpade,
+        lhlw0,
+        lhlwb,
+        exp_tbl,
+        tfn_tbl,
+        tau_tbl,
+        wtdiff,
+        fluxfac,
+        heatfac,
         semiss,
         delp,
         cldfrc,
@@ -1449,15 +1481,15 @@ class RadLWClass:
         # ===> ...  begin here
         #
 
-        lstcldu[0] = cldfrc[0] > self.eps
+        lstcldu[0] = cldfrc[0] > eps
         rat1 = 0.0
         rat2 = 0.0
-
+        
         for k in range(nlay - 1):
 
-            lstcldu[k + 1] = cldfrc[k + 1] > self.eps and cldfrc[k] <= self.eps
+            lstcldu[k + 1] = cldfrc[k + 1] > eps and cldfrc[k] <= eps
 
-            if cldfrc[k] > self.eps:
+            if cldfrc[k] > eps:
                 # Setup maximum/random cloud overlap.
 
                 if cldfrc[k + 1] >= cldfrc[k]:
@@ -1511,22 +1543,15 @@ class RadLWClass:
                 faccmb1u[k + 1] = facclr1u[k + 1] * faccld2u[k] * cldfrc[k - 1]
                 faccmb2u[k + 1] = faccld1u[k + 1] * facclr2u[k] * (1.0 - cldfrc[k - 1])
 
-        for k in range(nlp1):
-            faccld1d[k] = 0.0
-            faccld2d[k] = 0.0
-            facclr1d[k] = 0.0
-            facclr2d[k] = 0.0
-            faccmb1d[k] = 0.0
-            faccmb2d[k] = 0.0
 
-        lstcldd[nlay] = cldfrc[nlay] > self.eps
+        lstcldd[nlay] = cldfrc[nlay] > eps
         rat1 = 0.0
         rat2 = 0.0
-
+        
         for k in range(nlay - 1, 0, -1):
-            lstcldd[k - 1] = cldfrc[k - 1] > self.eps and cldfrc[k] <= self.eps
+            lstcldd[k - 1] = cldfrc[k - 1] > eps and cldfrc[k] <= eps
 
-            if cldfrc[k] > self.eps:
+            if cldfrc[k] > eps:
                 if cldfrc[k - 1] >= cldfrc[k]:
                     if lstcldd[k]:
                         if cldfrc[k] < 1.0:
@@ -1584,18 +1609,15 @@ class RadLWClass:
         # Initialize for radiative transfer
 
         for ib in range(nbands):
-            for k in range(nlp1):
-                toturad[k, ib] = 0.0
-                totdrad[k, ib] = 0.0
-                clrurad[k, ib] = 0.0
-                clrdrad[k, ib] = 0.0
+            toturad[:, ib] = 0.0
+            totdrad[:, ib] = 0.0
+            clrurad[:, ib] = 0.0
+            clrdrad[:, ib] = 0.0
 
-            for k in range(nlp1):
-                totuflux[k] = 0.0
-                totdflux[k] = 0.0
-                totuclfl[k] = 0.0
-                totdclfl[k] = 0.0
-
+            totuflux = np.zeros(nlp1)
+            totdflux = np.zeros(nlp1)
+            totuclfl = np.zeros(nlp1)
+            totdclfl = np.zeros(nlp1)
             #  --- ...  loop over all g-points
 
             for ig in range(ngptlw):
@@ -1616,12 +1638,12 @@ class RadLWClass:
                         trng = 1.0 - atrgas
                         gasfac = rec_6 * odepth
                     else:
-                        tblind = odepth / (self.bpade + odepth)
+                        tblind = odepth / (bpade + odepth)
                         itgas = tblint * tblind + 0.5
-                        trng = self.exp_tbl[itgas]
+                        trng = exp_tbl[itgas]
                         atrgas = 1.0 - trng
-                        gasfac = self.tfn_tbl[itgas]
-                        odepth = self.tau_tbl[itgas]
+                        gasfac = tfn_tbl[itgas]
+                        odepth = tau_tbl[itgas]
 
                     plfrac = fracs[ig, k]
                     blay = pklay[ib, k]
@@ -1642,7 +1664,7 @@ class RadLWClass:
                         clrradd = radtotd - totradd
                         rad = 0.0
 
-                    if clfr >= self.eps:
+                    if clfr >= eps:
                         #  - cloudy layer
 
                         odcld = secdif[ib] * taucld[ib, k]
@@ -1652,10 +1674,10 @@ class RadLWClass:
                             atrtot = odtot - 0.5 * odtot * odtot
                             trnt = 1.0 - atrtot
                         else:
-                            tblind = odtot / (self.bpade + odtot)
+                            tblind = odtot / (bpade + odtot)
                             ittot = tblint * tblind + 0.5
-                            totfac = self.tfn_tbl[ittot]
-                            trnt = self.exp_tbl[ittot]
+                            totfac = tfn_tbl[ittot]
+                            trnt = exp_tbl[ittot]
                             atrtot = 1.0 - trnt
 
                         bbdtot = plfrac * (blay + dplnkd * totfac)
@@ -1729,7 +1751,7 @@ class RadLWClass:
                         clrradu = radtotu - totradu
                         rad = 0.0
 
-                    if clfr >= self.eps:
+                    if clfr >= eps:
                         #  - cloudy layer radiance
                         trnt = trntot[k]
                         totu = totsrcu[k]
@@ -1770,30 +1792,23 @@ class RadLWClass:
             # -# Process longwave output from band for total and clear streams.
             # calculate upward, downward, and net flux.
 
-            flxfac = self.wtdiff * self.fluxfac
+            flxfac = wtdiff * fluxfac
 
-            for k in range(nlp1):
-                for ib in range(nbands):
-                    totuflux[k] = totuflux[k] + toturad[k, ib]
-                    totdflux[k] = totdflux[k] + totdrad[k, ib]
-                    totuclfl[k] = totuclfl[k] + clrurad[k, ib]
-                    totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
-
-                totuflux[k] = totuflux[k] * flxfac
-                totdflux[k] = totdflux[k] * flxfac
-                totuclfl[k] = totuclfl[k] * flxfac
-                totdclfl[k] = totdclfl[k] * flxfac
+            totuflux =   np.nansum(toturad, axis = 1)* flxfac
+            totdflux =   np.nansum(totdrad, axis = 1)* flxfac
+            totuclfl =   np.nansum(clrurad, axis = 1)* flxfac  
+            totdclfl =   np.nansum(clrdrad, axis = 1)* flxfac
 
             #  --- ...  calculate net fluxes and heating rates
             fnet[0] = totuflux[0] - totdflux[0]
 
             for k in range(nlay):
-                rfdelp[k] = self.heatfac / delp[k]
+                rfdelp[k] = heatfac / delp[k]
                 fnet[k] = totuflux[k] - totdflux[k]
                 htr[k] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
 
             # --- ...  optional clear sky heating rates
-            if self.lhlw0:
+            if lhlw0:
                 fnetc[0] = totuclfl[0] - totdclfl[0]
 
                 for k in range(nlay):
@@ -1801,7 +1816,7 @@ class RadLWClass:
                     htrcl[k] = (fnetc[k - 1] - fnetc[k]) * rfdelp[k]
 
             # --- ...  optional spectral band heating rates
-            if self.lhlwb:
+            if lhlwb:
                 for ib in range(nbands):
                     fnet[0] = (toturad[0, ib] - totdrad[0, ib]) * flxfac
 
@@ -1813,6 +1828,16 @@ class RadLWClass:
 
     def rtrnmc(
         self,
+        eps,
+        bpade,
+        lhlw0,
+        lhlwb,
+        exp_tbl,
+        tfn_tbl,
+        tau_tbl,
+        wtdiff,
+        fluxfac,
+        heatfac,
         semiss,
         delp,
         cldfmc,
@@ -1982,12 +2007,12 @@ class RadLWClass:
                     trng = 1.0 - atrgas
                     gasfac = rec_6 * odepth
                 else:
-                    tblind = odepth / (self.bpade + odepth)
+                    tblind = odepth / (bpade + odepth)
                     itgas = int(tblint * tblind + 0.5)
-                    trng = self.exp_tbl[itgas]
+                    trng = exp_tbl[itgas]
                     atrgas = 1.0 - trng
-                    gasfac = self.tfn_tbl[itgas]
-                    odepth = self.tau_tbl[itgas]
+                    gasfac = tfn_tbl[itgas]
+                    odepth = tau_tbl[itgas]
 
                 plfrac = fracs[ig, k]
                 blay = pklay[ib, k + 1]
@@ -2002,7 +2027,7 @@ class RadLWClass:
 
                 #  --- ...  total sky, gases+clouds contribution
                 clfm = cldfmc[ig, k]
-                if clfm >= self.eps:
+                if clfm >= eps:
                     #  --- ...  cloudy layer
                     odcld = secdif[ib] * taucld[ib, k]
                     efclrfr[k] = 1.0 - (1.0 - np.exp(-odcld)) * clfm
@@ -2011,10 +2036,10 @@ class RadLWClass:
                         totfac = rec_6 * odtot
                         atrtot = odtot - 0.5 * odtot * odtot
                     else:
-                        tblind = odtot / (self.bpade + odtot)
+                        tblind = odtot / (bpade + odtot)
                         ittot = int(tblint * tblind + 0.5)
-                        totfac = self.tfn_tbl[ittot]
-                        atrtot = 1.0 - self.exp_tbl[ittot]
+                        totfac = tfn_tbl[ittot]
+                        atrtot = 1.0 - exp_tbl[ittot]
 
                     bbdtot = plfrac * (blay + dplnkd * totfac)
                     bbutot = plfrac * (blay + dplnku * totfac)
@@ -2074,7 +2099,7 @@ class RadLWClass:
                 trng = trngas[k]
                 gasu = gassrcu[k]
 
-                if clfm > self.eps:
+                if clfm > eps:
                     #  --- ...  cloudy layer
 
                     #  --- ... total sky radiance
@@ -2101,30 +2126,23 @@ class RadLWClass:
         # Process longwave output from band for total and clear streams.
         # Calculate upward, downward, and net flux.
 
-        flxfac = self.wtdiff * self.fluxfac
+        flxfac = wtdiff * fluxfac
 
-        for k in range(nlp1):
-            for ib in range(nbands):
-                totuflux[k] = totuflux[k] + toturad[k, ib]
-                totdflux[k] = totdflux[k] + totdrad[k, ib]
-                totuclfl[k] = totuclfl[k] + clrurad[k, ib]
-                totdclfl[k] = totdclfl[k] + clrdrad[k, ib]
-
-            totuflux[k] = totuflux[k] * flxfac
-            totdflux[k] = totdflux[k] * flxfac
-            totuclfl[k] = totuclfl[k] * flxfac
-            totdclfl[k] = totdclfl[k] * flxfac
+        totuflux = np.nansum(toturad,axis = 1) * flxfac
+        totdflux = np.nansum(totdrad,axis = 1) * flxfac
+        totuclfl = np.nansum(clrurad,axis = 1) * flxfac
+        totdclfl = np.nansum(clrdrad,axis = 1) * flxfac
 
         #  --- ...  calculate net fluxes and heating rates
         fnet[0] = totuflux[0] - totdflux[0]
 
         for k in range(nlay):
-            rfdelp[k] = self.heatfac / delp[k]
+            rfdelp[k] =  heatfac / delp[k]
             fnet[k + 1] = totuflux[k + 1] - totdflux[k + 1]
             htr[k] = (fnet[k] - fnet[k + 1]) * rfdelp[k]
 
         # --- ...  optional clear sky heating rates
-        if self.lhlw0:
+        if lhlw0:
             fnetc[0] = totuclfl[0] - totdclfl[0]
 
             for k in range(nlay):
@@ -2132,7 +2150,7 @@ class RadLWClass:
                 htrcl[k] = (fnetc[k] - fnetc[k + 1]) * rfdelp[k]
 
         # --- ...  optional spectral band heating rates
-        if self.lhlwb:
+        if lhlwb:
             for ib in range(nbands):
                 fnet[0] = (toturad[0, ib] - totdrad[0, ib]) * flxfac
 
@@ -2142,8 +2160,11 @@ class RadLWClass:
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
 
+    
+
     def cldprop(
         self,
+        lw_rand_file,
         cfrac,
         cliqp,
         reliq,
@@ -2159,6 +2180,12 @@ class RadLWClass:
         dz,
         de_lgth,
         iplon,
+        absliq1,
+        absice0,
+        absice1,
+        absice2,
+        absice3,
+        rand2d,
     ):
         #  ===================  program usage description  ===================  !
         #                                                                       !
@@ -2264,13 +2291,6 @@ class RadLWClass:
         tauliq = np.zeros(nbands)
         cldfmc = np.zeros((ngptlw, nlay))
         cldf = np.zeros(nlay)
-
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_cldprlw_data.nc"))
-        absliq1 = ds["absliq1"]
-        absice0 = ds["absice0"]
-        absice1 = ds["absice1"]
-        absice2 = ds["absice2"]
-        absice3 = ds["absice3"]
 
         # Compute cloud radiative properties for a cloudy column:
         # - Compute cloud radiative properties for rain and snow (tauran,tausnw)
@@ -2396,7 +2416,7 @@ class RadLWClass:
 
         # -# if physparam::isubclw > 0, call mcica_subcol() to distribute
         #    cloud properties to each g-point.
-
+    
         if self.isubclw > 0:  # mcica sub-col clouds approx
             for k in range(nlay):
                 if cfrac[k + 1] < cldmin:
@@ -2405,7 +2425,7 @@ class RadLWClass:
                     cldf[k] = cfrac[k + 1]
 
             #  --- ...  call sub-column cloud generator
-            lcloudy = self.mcica_subcol(cldf, nlay, ipseed, dz, de_lgth, iplon)
+            lcloudy = self.mcica_subcol(self.iovrlw,cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d)
 
             for k in range(nlay):
                 for ig in range(ngptlw):
@@ -2444,6 +2464,8 @@ class RadLWClass:
         scaleminorn2,
         indminor,
         nlay,
+        ds_radlw_ref,
+        ds_bands,
     ):
 
         #  ************    original subprogram description    ***************   !
@@ -2562,6 +2584,7 @@ class RadLWClass:
         #
         # ===> ...  begin here
         #
+
         taug, fracs = self.taugb01(
             laytrop,
             pavel,
@@ -2589,6 +2612,7 @@ class RadLWClass:
             scaleminorn2,
             indminor,
             nlay,
+            ds_bands['radlw_kgb01'],
         )
         taug, fracs, tauself = self.taugb02(
             laytrop,
@@ -2619,6 +2643,7 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_bands['radlw_kgb02'],
         )
         taug, fracs = self.taugb03(
             laytrop,
@@ -2650,6 +2675,8 @@ class RadLWClass:
             taug,
             fracs,
             tauself,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb03'],
         )
         taug, fracs = self.taugb04(
             laytrop,
@@ -2680,6 +2707,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb04'],
         )
         taug, fracs = self.taugb05(
             laytrop,
@@ -2710,6 +2739,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb05']
         )
         taug, fracs = self.taugb06(
             laytrop,
@@ -2740,6 +2771,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb06'],
         )
         taug, fracs = self.taugb07(
             laytrop,
@@ -2770,7 +2803,10 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb07'],
         )
+
         taug, fracs = self.taugb08(
             laytrop,
             pavel,
@@ -2800,6 +2836,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb08'],
         )
         taug, fracs = self.taugb09(
             laytrop,
@@ -2830,6 +2868,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb09'],
         )
         taug, fracs = self.taugb10(
             laytrop,
@@ -2860,6 +2900,7 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_bands['radlw_kgb10'],
         )
         taug, fracs = self.taugb11(
             laytrop,
@@ -2890,6 +2931,7 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_bands['radlw_kgb11'],
         )
         taug, fracs = self.taugb12(
             laytrop,
@@ -2920,6 +2962,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb12'],
         )
         taug, fracs, taufor = self.taugb13(
             laytrop,
@@ -2950,6 +2994,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb13'],
         )
         taug, fracs = self.taugb14(
             laytrop,
@@ -2981,6 +3027,7 @@ class RadLWClass:
             taug,
             fracs,
             taufor,
+            ds_bands['radlw_kgb14'],
         )
         taug, fracs = self.taugb15(
             laytrop,
@@ -3011,6 +3058,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb15'],
         )
         taug, fracs = self.taugb16(
             laytrop,
@@ -3041,6 +3090,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb16'],
         )
 
         tautot = np.zeros((ngptlw, nlay))
@@ -3057,7 +3108,8 @@ class RadLWClass:
 
         # band 1:  10-350 cm-1 (low key - h2o; low minor - n2);
         #  (high key - h2o; high minor - n2)
-
+    #@staticmethod
+    #@jit
     def taugb01(
         self,
         laytrop,
@@ -3086,6 +3138,7 @@ class RadLWClass:
         scaleminorn2,
         indminor,
         nlay,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #  written by eli j. mlawer, atmospheric & environmental research.     !
@@ -3108,14 +3161,13 @@ class RadLWClass:
         taug = np.zeros((ngptlw, nlay))
         fracs = np.zeros((ngptlw, nlay))
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb01_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        ka_mn2 = ds["ka_mn2"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        ka_mn2 = ds["ka_mn2"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         ind0 = ((jp - 1) * 5 + (jt - 1)) * self.nspa[0]
         ind1 = (jp * 5 + (jt1 - 1)) * self.nspa[0]
@@ -3249,6 +3301,7 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 2:  350-500 cm-1 (low key - h2o; high key - h2o)            !
@@ -3258,13 +3311,12 @@ class RadLWClass:
         #
         #  --- ...  lower atmosphere loop
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb02_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         ind0 = ((jp - 1) * 5 + (jt - 1)) * self.nspa[1]
         ind1 = (jp * 5 + (jt1 - 1)) * self.nspa[1]
@@ -3375,6 +3427,8 @@ class RadLWClass:
         taug,
         fracs,
         tauself,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 3:  500-630 cm-1 (low key - h2o,co2; low minor - n2o)       !
@@ -3388,18 +3442,15 @@ class RadLWClass:
         #     lower - n2o, p = 706.272 mbar, t = 278.94 k
         #     upper - n2o, p = 95.58 mbar, t = 215.7 k
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
-
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb03_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        ka_mn2o = ds["ka_mn2o"].data
-        kb_mn2o = ds["kb_mn2o"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        chi_mls = dsc["chi_mls"].values
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        ka_mn2o = ds["ka_mn2o"].values
+        kb_mn2o = ds["kb_mn2o"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         refrat_planck_a = chi_mls[0, 8] / chi_mls[1, 8]  # P = 212.725 mb
         refrat_planck_b = chi_mls[0, 12] / chi_mls[1, 12]  # P = 95.58   mb
@@ -3775,6 +3826,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 4:  630-700 cm-1 (low key - h2o,co2; high key - o3,co2)     !
@@ -3783,16 +3836,14 @@ class RadLWClass:
         # ===> ...  begin here
         #
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb04_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        chi_mls = dsc["chi_mls"].values
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         refrat_planck_a = chi_mls[0, 10] / chi_mls[1, 10]  # P = 142.5940 mb
         refrat_planck_b = chi_mls[2, 12] / chi_mls[1, 12]  # P = 95.58350 mb
@@ -4104,6 +4155,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 5:  700-820 cm-1 (low key - h2o,co2; low minor - o3, ccl4)  !
@@ -4119,18 +4172,15 @@ class RadLWClass:
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower/upper atmosphere.
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
-
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb05_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mo3 = ds["ka_mo3"].data
-        ccl4 = ds["ccl4"].data
+        chi_mls = dsc["chi_mls"].values
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mo3 = ds["ka_mo3"].values
+        ccl4 = ds["ccl4"].values
 
         refrat_planck_a = chi_mls[0, 4] / chi_mls[1, 4]  # P = 473.420 mb
         refrat_planck_b = chi_mls[2, 42] / chi_mls[1, 42]  # P = 0.2369  mb
@@ -4464,6 +4514,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 6:  820-980 cm-1 (low key - h2o; low minor - co2)           !
@@ -4473,18 +4525,14 @@ class RadLWClass:
         #  --- ...  minor gas mapping level:
         #     lower - co2, p = 706.2720 mb, t = 294.2 k
         #     upper - cfc11, cfc12
-
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
-
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb06_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        fracrefa = ds["fracrefa"].data
-        ka_mco2 = ds["ka_mco2"].data
-        cfc11adj = ds["cfc11adj"].data
-        cfc12 = ds["cfc12"].data
+        chi_mls = dsc["chi_mls"].values
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        fracrefa = ds["fracrefa"].values
+        ka_mco2 = ds["ka_mco2"].values
+        cfc11adj = ds["cfc11adj"].values
+        cfc12 = ds["cfc12"].values
 
         #  --- ...  lower atmosphere loop
         ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[5]
@@ -4582,6 +4630,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 7:  980-1080 cm-1 (low key - h2o,o3; low minor - co2)       !
@@ -4595,18 +4645,16 @@ class RadLWClass:
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower atmosphere.
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb07_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mco2 = ds["ka_mco2"].data
-        kb_mco2 = ds["kb_mco2"].data
+        chi_mls = dsc["chi_mls"].values
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mco2 = ds["ka_mco2"].values
+        kb_mco2 = ds["kb_mco2"].values
 
         refrat_planck_a = chi_mls[0, 2] / chi_mls[2, 2]  # P = 706.2620 mb
         refrat_m_a = chi_mls[0, 2] / chi_mls[2, 2]  # P = 706.2720 mb
@@ -4910,6 +4958,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 8:  1080-1180 cm-1 (low key - h2o; low minor - co2,o3,n2o)  !
@@ -4923,23 +4973,20 @@ class RadLWClass:
         #     upper - co2, p = 35.1632 mb, t = 223.28 k
         #     upper - n2o, p = 8.716e-2 mb, t = 226.03 k
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
-
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb08_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mo3 = ds["ka_mo3"].data
-        ka_mco2 = ds["ka_mco2"].data
-        kb_mco2 = ds["kb_mco2"].data
-        cfc12 = ds["cfc12"].data
-        ka_mn2o = ds["ka_mn2o"].data
-        kb_mn2o = ds["kb_mn2o"].data
-        cfc22adj = ds["cfc22adj"].data
+        chi_mls = dsc["chi_mls"].values
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mo3 = ds["ka_mo3"].values
+        ka_mco2 = ds["ka_mco2"].values
+        kb_mco2 = ds["kb_mco2"].values
+        cfc12 = ds["cfc12"].values
+        ka_mn2o = ds["ka_mn2o"].values
+        kb_mn2o = ds["kb_mn2o"].values
+        cfc22adj = ds["cfc22adj"].values
 
         #  --- ...  lower atmosphere loop
         ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[7]
@@ -5080,6 +5127,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 9:  1180-1390 cm-1 (low key - h2o,ch4; low minor - n2o)     !
@@ -5090,18 +5139,16 @@ class RadLWClass:
         #     lower - n2o, p = 706.272 mbar, t = 278.94 k
         #     upper - n2o, p = 95.58 mbar, t = 215.7 k
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb09_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mn2o = ds["ka_mn2o"].data
-        kb_mn2o = ds["kb_mn2o"].data
+        chi_mls = dsc["chi_mls"].values
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mn2o = ds["ka_mn2o"].values
+        kb_mn2o = ds["kb_mn2o"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower/upper atmosphere.
@@ -5394,18 +5441,18 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 10:  1390-1480 cm-1 (low key - h2o; high key - h2o)         !
         #  ------------------------------------------------------------------  !
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb10_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         #  --- ...  lower atmosphere loop
         ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[9]
@@ -5505,6 +5552,7 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 11:  1480-1800 cm-1 (low - h2o; low minor - o2)             !
@@ -5515,15 +5563,14 @@ class RadLWClass:
         #     lower - o2, p = 706.2720 mbar, t = 278.94 k
         #     upper - o2, p = 4.758820 mbarm t = 250.85 k
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb11_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mo2 = ds["ka_mo2"].data
-        kb_mo2 = ds["kb_mo2"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mo2 = ds["ka_mo2"].values
+        kb_mo2 = ds["kb_mo2"].values
 
         #  --- ...  lower atmosphere loop
         ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[10]
@@ -5639,19 +5686,19 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 12:  1800-2080 cm-1 (low - h2o,co2; high - nothing)         !
         #  ------------------------------------------------------------------  !
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb12_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        fracrefa = ds["fracrefa"].data
+        chi_mls = dsc["chi_mls"].values
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        fracrefa = ds["fracrefa"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower/upper atmosphere.
@@ -5888,6 +5935,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 13:  2080-2250 cm-1 (low key-h2o,n2o; high minor-o3 minor)  !
@@ -5898,18 +5947,16 @@ class RadLWClass:
         #     lower - co, p = 706 mb, t = 278.94 k
         #     upper - o3, p = 95.5835 mb, t = 215.7 k
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb13_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
-        ka_mco2 = ds["ka_mco2"].data
-        ka_mco = ds["ka_mco"].data
-        kb_mo3 = ds["kb_mo3"].data
+        chi_mls = dsc["chi_mls"].values
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
+        ka_mco2 = ds["ka_mco2"].values
+        ka_mco = ds["ka_mco"].values
+        kb_mo3 = ds["kb_mo3"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower/upper atmosphere.
@@ -6200,18 +6247,18 @@ class RadLWClass:
         taug,
         fracs,
         taufor,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 14:  2250-2380 cm-1 (low - co2; high - co2)                 !
         #  ------------------------------------------------------------------  !
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb14_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         #  --- ...  lower atmosphere loop
 
@@ -6301,6 +6348,8 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 15:  2380-2600 cm-1 (low - n2o,co2; low minor - n2)         !
@@ -6310,15 +6359,13 @@ class RadLWClass:
         #  --- ...  minor gas mapping level :
         #     lower - nitrogen continuum, P = 1053., T = 294.
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb15_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        fracrefa = ds["fracrefa"].data
-        ka_mn2 = ds["ka_mn2"].data
+        chi_mls = dsc["chi_mls"].values
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        fracrefa = ds["fracrefa"].values
+        ka_mn2 = ds["ka_mn2"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower atmosphere.
@@ -6572,21 +6619,21 @@ class RadLWClass:
         nlay,
         taug,
         fracs,
+        dsc,
+        ds,
     ):
         #  ------------------------------------------------------------------  !
         #     band 16:  2600-3250 cm-1 (low key- h2o,ch4; high key - ch4)      !
         #  ------------------------------------------------------------------  !
 
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        chi_mls = dsc["chi_mls"].data
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb16_data.nc"))
-        selfref = ds["selfref"].data
-        forref = ds["forref"].data
-        absa = ds["absa"].data
-        absb = ds["absb"].data
-        fracrefa = ds["fracrefa"].data
-        fracrefb = ds["fracrefb"].data
+        chi_mls = dsc["chi_mls"].values
+        selfref = ds["selfref"].values
+        forref = ds["forref"].values
+        absa = ds["absa"].values
+        absb = ds["absb"].values
+        fracrefa = ds["fracrefa"].values
+        fracrefb = ds["fracrefb"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower atmosphere.
@@ -6799,8 +6846,9 @@ class RadLWClass:
             fracs[ns16 + ig, laytrop:nlay] = fracrefb[ig]
 
         return taug, fracs
-
-    def mcica_subcol(self, cldf, nlay, ipseed, dz, de_lgth, iplon):
+    @staticmethod
+    @jit(nopython=True)
+    def mcica_subcol(iovrlw, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
         #  ====================  defination of variables  ====================  !
         #                                                                       !
         #  input variables:                                                size !
@@ -6822,34 +6870,15 @@ class RadLWClass:
         #                                                                       !
         #  =====================    end of definitions    ====================  !
 
-        lcloudy = np.zeros((ngptlw, nlay), dtype=bool)
-        cdfunc = np.zeros((ngptlw, nlay))
-        rand1d = np.zeros(ngptlw)
-        rand2d = np.zeros(nlay * ngptlw)
-        fac_lcf = np.zeros(nlay)
-        cdfun2 = np.zeros((ngptlw, nlay))
-
-        #
+        rand2d = rand2d[iplon, :]
+        cdfunc = np.reshape(rand2d,(ngptlw,nlay))
         # ===> ...  begin here
         #
         #  --- ...  advance randum number generator by ipseed values
 
         #  --- ...  sub-column set up according to overlapping assumption
-
-        if self.iovrlw == 0:
-            # random overlap, pick a random value at every level
-            print("Not Implemented!!")
-
-        elif self.iovrlw == 1:  # max-ran overlap
-            ds = xr.open_dataset(self.rand_file)
-            rand2d = ds["rand2d"][iplon, :].data
-
-            k1 = 0
-            for n in range(ngptlw):
-                for k in range(nlay):
-                    cdfunc[n, k] = rand2d[k1]
-                    k1 += 1
-
+        ## it is only implemented for iovrlw == 1 
+        if iovrlw == 1:  # max-ran overlap
             #  ---  first pick a random number for bottom (or top) layer.
             #       then walk up the column: (aer's code)
             #       if layer below is cloudy, use the same rand num in the layer below
@@ -6865,21 +6894,8 @@ class RadLWClass:
                         cdfunc[n, k] = cdfunc[n, k1]
                     else:
                         cdfunc[n, k] = cdfunc[n, k] * tem1
-
-        elif (
-            self.iovrlw == 2
-        ):  # maximum overlap, pick same random numebr at every level
-            print("Not Implemented!!")
-
-        elif self.iovrlw == 3:  # decorrelation length overlap
-            print("Not Implemented!!")
-
         #  --- ...  generate subcolumns for homogeneous clouds
-
-        for k in range(nlay):
-            tem1 = 1.0 - cldf[k]
-
-            for n in range(ngptlw):
-                lcloudy[n, k] = cdfunc[n, k] >= tem1
-
+        tem1 = 1.0 - cldf 
+        lcloudy  = cdfunc >= tem1
+    
         return lcloudy
