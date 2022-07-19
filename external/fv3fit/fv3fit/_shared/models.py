@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Iterable, Set, Hashable, Sequence
+from typing import Iterable, Optional, Set, Hashable, Sequence
 import dacite
 import fsspec
 import yaml
@@ -9,6 +9,7 @@ import xarray as xr
 import vcm
 
 from fv3fit._shared.novelty_detector import NoveltyDetector
+from fv3fit._shared.taper_function import TaperFunction
 
 from . import io
 from .predictor import Predictor
@@ -251,7 +252,8 @@ class OutOfSampleModel(Predictor):
         self,
         base_model: Predictor,
         novelty_detector: NoveltyDetector,
-        cutoff: float = None,
+        cutoff: Optional[float] = None,
+        taper_function: Optional[TaperFunction] = None,
     ):
         """
         Args:
@@ -268,6 +270,7 @@ class OutOfSampleModel(Predictor):
         self.base_model = base_model
         self.novelty_detector = novelty_detector
         self.cutoff = cutoff
+        self.taper_function = taper_function
 
         base_inputs = set(base_model.input_variables)
         base_outputs = set(base_model.output_variables)
@@ -281,7 +284,9 @@ class OutOfSampleModel(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         base_predict = self.base_model.predict(X)
-        novelties = self.novelty_detector.predict_novelties(X, self.cutoff)
+        novelties = self.novelty_detector.predict_novelties(
+            X, cutoff=self.cutoff, taper_function=self.taper_function
+        )
         masked_predict = base_predict.copy()
         for output_variable in self.base_model.output_variables:
             masked_predict[output_variable] = xr.where(
@@ -312,5 +317,13 @@ class OutOfSampleModel(Predictor):
 
         assert isinstance(novelty_detector, NoveltyDetector)
 
-        model = cls(base_model, novelty_detector, cutoff)
+        taper_function = None
+        if "tapering_function" in config:
+            taper_function = TaperFunction.load(
+                config["tapering_function"], novelty_detector
+            )
+
+        model = cls(
+            base_model, novelty_detector, cutoff=cutoff, taper_function=taper_function
+        )
         return model
