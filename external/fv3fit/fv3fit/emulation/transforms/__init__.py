@@ -13,4 +13,6 @@ from .transforms import (
     CloudWaterDiffPrecpd,
 )
 
+from .quantize import StepQuantizerFactory
+
 from .zhao_carr import MicrophysicsClasssesV1, MicrophysicsClassesV1OneHot, GscondRoute
