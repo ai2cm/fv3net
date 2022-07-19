@@ -254,6 +254,34 @@ class RadLWClass:
         self.lhlwb = lhlwb
         self.lflxprf = lflxprf
 
+        ## loading data for
+        dfile = os.path.join(LOOKUP_DIR, "totplnk.nc")
+        pfile = os.path.join(LOOKUP_DIR, "radlw_ref_data.nc")
+        totplnk = xr.open_dataset(dfile)["totplnk"].values
+        preflog = xr.open_dataset(pfile)["preflog"].values
+        tref = xr.open_dataset(pfile)["tref"].values
+        chi_mls = xr.open_dataset(pfile)["chi_mls"].values
+        
+        ## loading data for cldprop
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_cldprlw_data.nc"))
+        absliq1 = ds["absliq1"].values
+        absice0 = ds["absice0"].values
+        absice1 = ds["absice1"].values
+        absice2 = ds["absice2"].values
+        absice3 = ds["absice3"].values
+
+        ds_lw_rand = xr.open_dataset(lw_rand_file)
+        rand2d_data = ds_lw_rand["rand2d"].values
+
+        ## loading data for taumol
+        ds_radlw_ref = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
+        ds_bands = {}
+        for nband in range(1,17):
+            if nband < 10:
+                ds_bands['radlw_kgb0' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb0" + str(nband) + "_data.nc"))
+            else:
+                ds_bands['radlw_kgb' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb" + str(nband) + "_data.nc"))
+
         cldfrc = np.zeros(nlp1 + 1)
 
         totuflux = np.zeros(nlp1)
@@ -469,7 +497,6 @@ class RadLWClass:
             if verbose:
                 print("Running cldprop . . .")
             if lcf1:
-                ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_cldprlw_data.nc"))
                 cldfmc, taucld = self.cldprop(
                     lw_rand_file,
                     cldfrc,
@@ -487,7 +514,12 @@ class RadLWClass:
                     dz,
                     delgth,
                     iplon,
-                    ds,
+                    absliq1,
+                    absice0,
+                    absice1,
+                    absice2,
+                    absice3,
+                    rand2d_data,
                 )
                 if verbose:
                     print("Done")
@@ -501,12 +533,7 @@ class RadLWClass:
 
             if verbose:
                 print("Running setcoef . . .")
-            dfile = os.path.join(LOOKUP_DIR, "totplnk.nc")
-            pfile = os.path.join(LOOKUP_DIR, "radlw_ref_data.nc")
-            totplnk = xr.open_dataset(dfile)["totplnk"].values
-            preflog = xr.open_dataset(pfile)["preflog"].values
-            tref = xr.open_dataset(pfile)["tref"].values
-            chi_mls = xr.open_dataset(pfile)["chi_mls"].values
+
 
             (
                 laytrop,
@@ -565,6 +592,8 @@ class RadLWClass:
                 scaleminorn2,
                 indminor,
                 nlay,
+                ds_radlw_ref,
+                ds_bands,
             )
             if verbose:
                 print("Done")
@@ -2131,6 +2160,8 @@ class RadLWClass:
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
 
+    
+
     def cldprop(
         self,
         lw_rand_file,
@@ -2149,7 +2180,12 @@ class RadLWClass:
         dz,
         de_lgth,
         iplon,
-        ds,
+        absliq1,
+        absice0,
+        absice1,
+        absice2,
+        absice3,
+        rand2d,
     ):
         #  ===================  program usage description  ===================  !
         #                                                                       !
@@ -2255,12 +2291,6 @@ class RadLWClass:
         tauliq = np.zeros(nbands)
         cldfmc = np.zeros((ngptlw, nlay))
         cldf = np.zeros(nlay)
-
-        absliq1 = ds["absliq1"]
-        absice0 = ds["absice0"]
-        absice1 = ds["absice1"]
-        absice2 = ds["absice2"]
-        absice3 = ds["absice3"]
 
         # Compute cloud radiative properties for a cloudy column:
         # - Compute cloud radiative properties for rain and snow (tauran,tausnw)
@@ -2395,8 +2425,6 @@ class RadLWClass:
                     cldf[k] = cfrac[k + 1]
 
             #  --- ...  call sub-column cloud generator
-            ds = xr.open_dataset(lw_rand_file)
-            rand2d = ds["rand2d"].values
             lcloudy = self.mcica_subcol(self.iovrlw,cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d)
 
             for k in range(nlay):
@@ -2436,6 +2464,8 @@ class RadLWClass:
         scaleminorn2,
         indminor,
         nlay,
+        ds_radlw_ref,
+        ds_bands,
     ):
 
         #  ************    original subprogram description    ***************   !
@@ -2554,8 +2584,7 @@ class RadLWClass:
         #
         # ===> ...  begin here
         #
-        dsc = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb01_data.nc"))
+
         taug, fracs = self.taugb01(
             laytrop,
             pavel,
@@ -2583,9 +2612,8 @@ class RadLWClass:
             scaleminorn2,
             indminor,
             nlay,
-            ds,
+            ds_bands['radlw_kgb01'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb02_data.nc"))
         taug, fracs, tauself = self.taugb02(
             laytrop,
             pavel,
@@ -2615,9 +2643,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            ds,
+            ds_bands['radlw_kgb02'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb03_data.nc"))
         taug, fracs = self.taugb03(
             laytrop,
             pavel,
@@ -2648,10 +2675,9 @@ class RadLWClass:
             taug,
             fracs,
             tauself,
-            dsc,
-            ds,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb03'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb04_data.nc"))
         taug, fracs = self.taugb04(
             laytrop,
             pavel,
@@ -2681,10 +2707,9 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            dsc,
-            ds,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb04'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb05_data.nc"))
         taug, fracs = self.taugb05(
             laytrop,
             pavel,
@@ -2714,10 +2739,9 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            dsc,
-            ds
+            ds_radlw_ref,
+            ds_bands['radlw_kgb05']
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb06_data.nc"))
         taug, fracs = self.taugb06(
             laytrop,
             pavel,
@@ -2747,10 +2771,9 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            dsc,
-            ds,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb06'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb07_data.nc"))
         taug, fracs = self.taugb07(
             laytrop,
             pavel,
@@ -2780,11 +2803,10 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            dsc,
-            ds,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb07'],
         )
 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb08_data.nc"))
         taug, fracs = self.taugb08(
             laytrop,
             pavel,
@@ -2814,10 +2836,9 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            dsc,
-            ds,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb08'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb09_data.nc"))
         taug, fracs = self.taugb09(
             laytrop,
             pavel,
@@ -2847,10 +2868,9 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            dsc,
-            ds,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb09'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb10_data.nc"))
         taug, fracs = self.taugb10(
             laytrop,
             pavel,
@@ -2880,9 +2900,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            ds,
+            ds_bands['radlw_kgb10'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb11_data.nc"))
         taug, fracs = self.taugb11(
             laytrop,
             pavel,
@@ -2912,9 +2931,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            ds,
+            ds_bands['radlw_kgb11'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb12_data.nc"))
         taug, fracs = self.taugb12(
             laytrop,
             pavel,
@@ -2944,10 +2962,9 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            dsc,
-            ds,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb12'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb13_data.nc"))
         taug, fracs, taufor = self.taugb13(
             laytrop,
             pavel,
@@ -2977,10 +2994,9 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            dsc,
-            ds,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb13'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb14_data.nc"))
         taug, fracs = self.taugb14(
             laytrop,
             pavel,
@@ -3011,9 +3027,8 @@ class RadLWClass:
             taug,
             fracs,
             taufor,
-            ds,
+            ds_bands['radlw_kgb14'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb15_data.nc"))
         taug, fracs = self.taugb15(
             laytrop,
             pavel,
@@ -3043,10 +3058,9 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            dsc,
-            ds,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb15'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb16_data.nc"))
         taug, fracs = self.taugb16(
             laytrop,
             pavel,
@@ -3076,8 +3090,8 @@ class RadLWClass:
             nlay,
             taug,
             fracs,
-            dsc,
-            ds,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb16'],
         )
 
         tautot = np.zeros((ngptlw, nlay))
