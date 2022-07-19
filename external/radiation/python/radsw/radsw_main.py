@@ -324,6 +324,24 @@ class RadSWClass:
         jt = np.zeros(nlay, np.int32)
         jt1 = np.zeros(nlay, np.int32)
 
+        ## data loading 
+        ds_radsw_sflux = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_sflux_data.nc"))
+        ## loading data for taumol
+        ds_bands = {}
+        for nband in range(16,30):
+            ds_bands['radsw_kgb' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb" + str(nband) + "_data.nc"))
+        ## data loading for setcoef
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_ref_data.nc"))
+        preflog = ds["preflog"].values
+        tref = ds["tref"].values
+
+        ## load data 
+        ds_cldprtb = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_cldprtb_data.nc"))
+
+        ## 
+        ds = xr.open_dataset(self.rand_file)
+        rand2d_data = ds["rand2d"]
+
         # Compute solar constant adjustment factor (s0fac) according to solcon.
         #      ***  s0, the solar constant at toa in w/m**2, is hard-coded with
         #           each spectra band, the total flux is about 1368.22 w/m**2.
@@ -465,7 +483,6 @@ class RadSWClass:
             #    optical properties for each cloudy layer.
 
             if zcf1 > 0.0:  # cloudy sky column
-                ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_cldprtb_data.nc"))
                 taucw, ssacw, asycw, cldfrc, cldfmc = self.cldprop(
                     cfrac,
                     cliqp,
@@ -482,7 +499,8 @@ class RadSWClass:
                     dz,
                     delgth,
                     ipt,
-                    ds,
+                    ds_cldprtb,
+                    rand2d_data, 
                 )
 
                 #  --- ...  save computed layer cloud optical depth for output
@@ -498,9 +516,6 @@ class RadSWClass:
 
             # -# Call setcoef() to compute various coefficients needed in
             #    radiative transfer calculations.
-            ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_ref_data.nc"))
-            preflog = ds["preflog"].values
-            tref = ds["tref"].values
 
             (
                 laytrop,
@@ -521,7 +536,6 @@ class RadSWClass:
 
             # -# Call taumol() to calculate optical depths for gaseous absorption
             #    and rayleigh scattering
-            ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_sflux_data.nc"))
             sfluxzen, taug, taur = self.taumol(
                 colamt,
                 colmol,
@@ -540,7 +554,8 @@ class RadSWClass:
                 selffrac,
                 indself,
                 nlay,
-                ds,
+                ds_radsw_sflux,
+                ds_bands,
             )
 
             # -# Call the 2-stream radiation transfer model:
@@ -693,6 +708,7 @@ class RadSWClass:
         delgth,
         ipt,
         ds,
+        rand2d,
     ):
         extliq1 = ds["extliq1"].values
         extliq2 = ds["extliq2"].values
@@ -998,8 +1014,7 @@ class RadSWClass:
             cldf = np.where(cldf < self.ftiny, 0.0, cldf)
 
             #  --- ...  call sub-column cloud generator
-            ds = xr.open_dataset(self.rand_file)
-            rand2d = ds["rand2d"]
+
             lcloudy = self.mcica_subcol(cldf, nlay, ipseed, dz, delgth, ipt, rand2d)
 
             for ig in range(ngptsw):
@@ -1959,6 +1974,7 @@ class RadSWClass:
         indself,
         nlay,
         ds,
+        ds_bands,
     ):
         #  ==================   program usage description   ==================  !
         #                                                                       !
@@ -2074,6 +2090,7 @@ class RadSWClass:
         taug = np.zeros((nlay, ngptsw))
         taur = np.zeros((nlay, ngptsw))
 
+
         for b in range(nbhgh - nblow + 1):
             jb = nblow + b - 1
 
@@ -2134,7 +2151,6 @@ class RadSWClass:
                         sfluxzen[ns + j] = sfluxref03[j, js, ibd] + fs * (
                             sfluxref03[j, js + 1, ibd] - sfluxref03[j, js, ibd]
                         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb16_data.nc"))
         taug, taur = self.taumol16(
             colamt,
             colmol,
@@ -2157,9 +2173,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb16'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb17_data.nc"))
         taug, taur = self.taumol17(
             colamt,
             colmol,
@@ -2182,9 +2197,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb17'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb18_data.nc"))
         taug, taur = self.taumol18(
             colamt,
             colmol,
@@ -2207,9 +2221,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb18'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb19_data.nc"))
         taug, taur = self.taumol19(
             colamt,
             colmol,
@@ -2232,9 +2245,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb19'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb20_data.nc"))
         taug, taur = self.taumol20(
             colamt,
             colmol,
@@ -2257,9 +2269,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb20'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb21_data.nc"))
         taug, taur = self.taumol21(
             colamt,
             colmol,
@@ -2282,9 +2293,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb21'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb22_data.nc"))
         taug, taur = self.taumol22(
             colamt,
             colmol,
@@ -2307,9 +2317,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb22'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb23_data.nc"))
         taug, taur = self.taumol23(
             colamt,
             colmol,
@@ -2332,9 +2341,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb23'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb24_data.nc"))
         taug, taur = self.taumol24(
             colamt,
             colmol,
@@ -2357,9 +2365,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb24'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb25_data.nc"))
         taug, taur = self.taumol25(
             colamt,
             colmol,
@@ -2382,9 +2389,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb25'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb26_data.nc"))
         taug, taur = self.taumol26(
             colamt,
             colmol,
@@ -2407,9 +2413,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb26'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb27_data.nc"))
         taug, taur = self.taumol27(
             colamt,
             colmol,
@@ -2432,9 +2437,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb27'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb28_data.nc"))
         taug, taur = self.taumol28(
             colamt,
             colmol,
@@ -2457,9 +2461,8 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds,
+            ds_bands['radsw_kgb28'],
         )
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb29_data.nc"))
         taug, taur = self.taumol29(
             colamt,
             colmol,
@@ -2482,7 +2485,7 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds
+            ds_bands['radsw_kgb29'],
         )
 
         return sfluxzen, taug, taur
