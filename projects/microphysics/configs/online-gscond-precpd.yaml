@@ -1,7 +1,7 @@
 # submit with
 # python3 argo/end_to_end.py configs/online-gscond-precpd.yaml
 kind: prognostic
-name: full-zc-emulation-zcloud-upper15clip-30d-v1
+name: full-zc-emulation-retrain-zcloud-15clip-30d-v2
 experiment: full-zc-emulation-online
 image_tag: 1e93473324cf76e807b96baa5ffd0f39d177be1b
 config:
@@ -263,7 +263,7 @@ config:
       emulate_gscond_only: false
   zhao_carr_emulation:
     model:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-01/combined-gscond-precpd-v1/model.tf
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-18/combined-gscond-precpd-v2/model.tf
       classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-07/gscond-precpd-classifier-v1/checkpoints/epoch.041.tf
       gscond_cloud_conservative: true
       mask_gscond_zero_cloud_classifier: true
