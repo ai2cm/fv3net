@@ -2,7 +2,7 @@
 # submit with
 # python3 argo/end_to_end.py train/rnn.yaml
 kind: train
-name: rnn-precpd-retrain-v1
+name: rnn-precpd-retrain-v2
 fv3fit_image_tag: latest
 experiment: emulation-retrain-july2022
 config:
@@ -29,9 +29,6 @@ config:
     - to: log_humidity_after_last_gscond
       source: specific_humidity_after_last_gscond
       transform: {epsilon: 1e-8}
-    - to: temperature_gscond_difference
-      before: air_temperature_input
-      after: air_temperature_after_gscond
     - to: humidity_gscond_difference
       before: specific_humidity_input
       after: specific_humidity_after_gscond
@@ -56,12 +53,6 @@ config:
       fit_filter_magnitude: 1e-14
     - to: temperature_precpd_difference_tscaled
       source: temperature_precpd_difference
-      condition_on: air_temperature_input
-      bins: 50
-      min_scale: 1e-5
-      fit_filter_magnitude: 1e-5
-    - to: temperature_gscond_difference_tscaled
-      source: temperature_gscond_difference
       condition_on: air_temperature_input
       bins: 50
       min_scale: 1e-5
