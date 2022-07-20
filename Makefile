@@ -50,6 +50,7 @@ push_images: $(addprefix push_image_, $(IMAGES))
 
 build_image_fv3fit: docker/fv3fit/requirements.txt
 build_image_artifacts: docker/artifacts/requirements.txt
+build_image_torch: docker/torch/requirements.txt
 
 build_image_prognostic_run_base:
 	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run_base:$(CACHE_TAG) \
@@ -235,7 +236,8 @@ REQUIREMENTS = external/vcm/setup.py \
 	external/*.requirements.in \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
-	projects/microphysics/requirements.in
+	projects/microphysics/requirements.in \
+	projects/full_model_emulation/requirements.in
 
 constraints.txt: $(REQUIREMENTS)
 	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
@@ -276,7 +278,18 @@ docker/fv3fit/requirements.txt:
 		--output-file docker/fv3fit/requirements.txt \
 		external/fv3fit/setup.py \
 		external/loaders/setup.py \
+		external/artifacts/setup.py \
 		external/vcm/setup.py
+
+docker/torch/requirements.txt:
+	cp constraints.txt $@
+	# this will subset the needed dependencies from constraints.txt
+	# while preserving the versions
+	pip-compile --no-annotate \
+		--output-file docker/torch/requirements.txt \
+		external/fv3fit/setup.py \
+		external/vcm/setup.py \
+		projects/full_model_emulation/requirements.in
 
 docker/artifacts/requirements.txt:
 	cp -f constraints.txt $@

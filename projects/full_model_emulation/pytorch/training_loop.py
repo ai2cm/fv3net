@@ -2,6 +2,7 @@ import tensorflow as tf
 from typing import Iterable, Optional, Sequence, Tuple
 import dataclasses
 import logging
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,8 @@ class TrainingLoopConfig:
     Nbatch: int = 1
     n_loop: int = 100
     n_epoch: int = 1
-
-    def fit_loop(config, train_model, inputs, labels, optimizer, get_loss) -> None:
+    savemodelpath: str = 'weight.pt'
+    def fit_loop(config, train_model, inputs, validation, labels, optimizer, get_loss) -> None:
         """
         Args:
             model: keras model to train
@@ -38,4 +39,9 @@ class TrainingLoopConfig:
                 loss = get_loss(train_model, inputs, labels)
                 loss.backward()
                 optimizer.step()
+                val_loss = evaluate_model(train_model, loss, validation)
+                if val_loss < min_val_loss:
+                    min_val_loss = val_loss
+                    torch.save(train_model.state_dict(), config.savemodelpath)
+
         #torch.save(net.state_dict(), WeightsFile + ".pt")
