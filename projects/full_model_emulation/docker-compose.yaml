@@ -1,6 +1,6 @@
 services:
   torch:
-    image: us.gcr.io/vcm-ml/torch:735669676ccac932745aff63634dadeef70b85ee
+    image: us.gcr.io/vcm-ml/torch:f5980016d53949ea397c31fd39193641edd54e37
     volumes:
       - ../../projects:/fv3net/projects
       - bash_history:/root/.bash_history
