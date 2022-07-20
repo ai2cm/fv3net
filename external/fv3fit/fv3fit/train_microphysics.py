@@ -78,6 +78,20 @@ __all__ = [
     "WandBConfig",
     "ArchitectureConfig",
     "SliceConfig",
+    "TransformT",
+]
+
+TransformT = Union[
+    TransformedVariableConfig,
+    ConditionallyScaled,
+    Difference,
+    CloudWaterDiffPrecpd,
+    MicrophysicsClasssesV1,
+    MicrophysicsClassesV1OneHot,
+    TendencyToFlux,
+    MoistStaticEnergyTransform,
+    GscondRoute,
+    PrecpdOnly,
 ]
 
 
@@ -138,20 +152,7 @@ class TransformedParameters(Hyperparameters):
 
     """
 
-    tensor_transform: List[
-        Union[
-            TransformedVariableConfig,
-            ConditionallyScaled,
-            Difference,
-            CloudWaterDiffPrecpd,
-            MicrophysicsClasssesV1,
-            MicrophysicsClassesV1OneHot,
-            TendencyToFlux,
-            MoistStaticEnergyTransform,
-            GscondRoute,
-            PrecpdOnly,
-        ]
-    ] = field(default_factory=list)
+    tensor_transform: List[TransformT] = field(default_factory=list)
     model: Union[PrecpdModelConfig, MicrophysicsConfig, None] = None
     conservative_model: Optional[ConservativeWaterConfig] = None
     loss: Union[CustomLoss, ZhaoCarrLoss] = field(default_factory=CustomLoss)
