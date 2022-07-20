@@ -282,7 +282,8 @@ docker/fv3fit/requirements.txt:
 		external/vcm/setup.py
 
 docker/torch/requirements.txt:
-	cp constraints.txt $@
+	# TODO: Figure out why using pre-defined constraints doesn't add torch, etc.
+	# cp constraints.txt $@
 	# this will subset the needed dependencies from constraints.txt
 	# while preserving the versions
 	pip-compile --no-annotate \
