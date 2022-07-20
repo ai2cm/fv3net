@@ -214,19 +214,19 @@ jobs:
     steps:
       - checkout
       - run:
-        name: "Install nix"
-        command: sh <(curl -L https://nixos.org/nix/install) --no-daemon
+          name: "Install nix"
+          command: sh <(curl -L https://nixos.org/nix/install) --no-daemon
       - gcp-cli/install
       - run:
-        name: "gcloud auth"
-        command: echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
+          name: "gcloud auth"
+          command: echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
       - gcp-cli/initialize
       - run:
-        name: "Get data"
-        command: cd external/radiation && ./get_data.sh
+          name: "Get data"
+          command: cd external/radiation && ./get_data.sh
       - run:
-        name: "Validate rad port"
-        command: nix-shell --command "cd python && python test_driver.py"
+          name: "Validate rad port"
+          command: nix-shell --command "cd python && python test_driver.py"
 
 
 workflows:
