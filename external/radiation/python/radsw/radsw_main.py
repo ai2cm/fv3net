@@ -602,6 +602,14 @@ class RadSWClass:
                 asycw,
                 nlay,
                 nlp1,
+                self.idxsfc,
+                self.ftiny,
+                self.eps,
+                self.nuvb,
+                self.exp_tbl,
+                self.bpade,
+                self.flimit,
+                self.oneminus,
             )
 
             # -# Save outputs.
@@ -1250,6 +1258,14 @@ class RadSWClass:
         asycw,
         nlay,
         nlp1,
+        idxsfc,
+        ftiny,
+        eps,
+        nuvb,
+        exp_tbl,
+        bpade,
+        flimit,
+        oneminus,
     ):
         #  ===================  program usage description  ===================  !
         #                                                                       !
@@ -1380,7 +1396,7 @@ class RadSWClass:
         for jg in range(ngptsw):
             jb = NGB[jg] - 1
             ib = jb + 1 - nblow
-            ibd = self.idxsfc[jb - 15] - 1  # spectral band index
+            ibd = idxsfc[jb - 15] - 1  # spectral band index
 
             zsolar = ssolar * sfluxzen[jg]
 
@@ -1413,11 +1429,11 @@ class RadSWClass:
             for k in range(nlay - 1, -1, -1):
                 kp = k + 1
 
-                ztau0 = max(self.ftiny, taur[k, jg] + taug[k, jg] + tauae[k, ib])
+                ztau0 = max(ftiny, taur[k, jg] + taug[k, jg] + tauae[k, ib])
                 zssa0 = taur[k, jg] + tauae[k, ib] * ssaae[k, ib]
                 zasy0 = asyae[k, ib] * ssaae[k, ib] * tauae[k, ib]
-                zssaw = min(self.oneminus, zssa0 / ztau0)
-                zasyw = zasy0 / max(self.ftiny, zssa0)
+                zssaw = min(oneminus, zssa0 / ztau0)
+                zasyw = zasy0 / max(ftiny, zssa0)
 
                 #  --- ...  saving clear-sky quantities for later total-sky usage
                 ztaus[k] = ztau0
@@ -1462,9 +1478,9 @@ class RadSWClass:
                     if zb1 <= od_lo:
                         zb2 = 1.0 - zb1 + 0.5 * zb1 * zb1
                     else:
-                        ftind = zb1 / (self.bpade + zb1)
+                        ftind = zb1 / (bpade + zb1)
                         itind = int(ftind * ntbmx + 0.5)
-                        zb2 = self.exp_tbl[itind]
+                        zb2 = exp_tbl[itind]
 
                     #      ...  collimated beam
                     zrefb[kp] = max(
@@ -1487,7 +1503,7 @@ class RadSWClass:
                     zrm1 = 1.0 - zrp
                     zrpp1 = 1.0 - zrp * zrp
                     zrpp = np.copysign(
-                        max(self.flimit, abs(zrpp1)), zrpp1
+                        max(flimit, abs(zrpp1)), zrpp1
                     )  # avoid numerical singularity
                     zrkg1 = zrk + zgam1
                     zrkg3 = zrk * zgam3
@@ -1510,9 +1526,9 @@ class RadSWClass:
                     if zb1 <= od_lo:
                         zexm1 = 1.0 - zb1 + 0.5 * zb1 * zb1
                     else:
-                        ftind = zb1 / (self.bpade + zb1)
+                        ftind = zb1 / (bpade + zb1)
                         itind = int(ftind * ntbmx + 0.5)
-                        zexm1 = self.exp_tbl[itind]
+                        zexm1 = exp_tbl[itind]
 
                     zexp1 = 1.0 / zexm1
 
@@ -1520,9 +1536,9 @@ class RadSWClass:
                     if zb2 <= od_lo:
                         zexm2 = 1.0 - zb2 + 0.5 * zb2 * zb2
                     else:
-                        ftind = zb2 / (self.bpade + zb2)
+                        ftind = zb2 / (bpade + zb2)
                         itind = int(ftind * ntbmx + 0.5)
-                        zexm2 = self.exp_tbl[itind]
+                        zexm2 = exp_tbl[itind]
 
                     zexp2 = 1.0 / zexm2
                     ze1r45 = zr4 * zexp1 + zr5 * zexm1
@@ -1562,9 +1578,9 @@ class RadSWClass:
                 if zr1 <= od_lo:
                     zexp3 = 1.0 - zr1 + 0.5 * zr1 * zr1
                 else:
-                    ftind = zr1 / (self.bpade + zr1)
+                    ftind = zr1 / (bpade + zr1)
                     itind = int(max(0, min(ntbmx, int(0.5 + ntbmx * ftind))))
-                    zexp3 = self.exp_tbl[itind]
+                    zexp3 = exp_tbl[itind]
 
                 ztdbt[k] = zexp3 * ztdbt[kp]
                 zldbt[kp] = zexp3
@@ -1576,9 +1592,9 @@ class RadSWClass:
                 if zr1 <= od_lo:
                     zexp4 = 1.0 - zr1 + 0.5 * zr1 * zr1
                 else:
-                    ftind = zr1 / (self.bpade + zr1)
+                    ftind = zr1 / (bpade + zr1)
                     itind = int(max(0, min(ntbmx, int(0.5 + ntbmx * ftind))))
-                    zexp4 = self.exp_tbl[itind]
+                    zexp4 = exp_tbl[itind]
 
                 zldbt0[k] = zexp4
                 ztdbt0 = zexp4 * ztdbt0
@@ -1615,7 +1631,7 @@ class RadSWClass:
             #    - Pre-delta-scaling clear and cloudy direct beam transmittance
             #    - Call swflux() to compute the upward and downward radiation fluxes
 
-            if cf1 > self.eps:
+            if cf1 > eps:
 
                 #  --- ...  set up toa direct beam and surface values (beam and diff)
                 ztdbt0 = 1.0
@@ -1623,13 +1639,13 @@ class RadSWClass:
 
                 for k in range(nlay - 1, -1, -1):
                     kp = k + 1
-                    if cldfmc[k, jg] > self.ftiny:  # it is a cloudy-layer
+                    if cldfmc[k, jg] > ftiny:  # it is a cloudy-layer
 
                         ztau0 = ztaus[k] + taucw[k, ib]
                         zssa0 = zssas[k] + ssacw[k, ib]
                         zasy0 = zasys[k] + asycw[k, ib]
-                        zssaw = min(self.oneminus, zssa0 / ztau0)
-                        zasyw = zasy0 / max(self.ftiny, zssa0)
+                        zssaw = min(oneminus, zssa0 / ztau0)
+                        zasyw = zasy0 / max(ftiny, zssa0)
 
                         #  --- ...  delta scaling for total-sky condition
                         za1 = zasyw * zasyw
@@ -1669,9 +1685,9 @@ class RadSWClass:
                             if zb1 <= od_lo:
                                 zb2 = 1.0 - zb1 + 0.5 * zb1 * zb1
                             else:
-                                ftind = zb1 / (self.bpade + zb1)
+                                ftind = zb1 / (bpade + zb1)
                                 itind = int(ftind * ntbmx + 0.5)
-                                zb2 = self.exp_tbl[itind]
+                                zb2 = exp_tbl[itind]
 
                             #      ...  collimated beam
                             zrefb[kp] = max(
@@ -1694,7 +1710,7 @@ class RadSWClass:
                             zrm1 = 1.0 - zrp
                             zrpp1 = 1.0 - zrp * zrp
                             zrpp = np.copysign(
-                                max(self.flimit, abs(zrpp1)), zrpp1
+                                max(flimit, abs(zrpp1)), zrpp1
                             )  # avoid numerical singularity
                             zrkg1 = zrk + zgam1
                             zrkg3 = zrk * zgam3
@@ -1717,9 +1733,9 @@ class RadSWClass:
                             if zb1 <= od_lo:
                                 zexm1 = 1.0 - zb1 + 0.5 * zb1 * zb1
                             else:
-                                ftind = zb1 / (self.bpade + zb1)
+                                ftind = zb1 / (bpade + zb1)
                                 itind = int(ftind * ntbmx + 0.5)
-                                zexm1 = self.exp_tbl[itind]
+                                zexm1 = exp_tbl[itind]
 
                             zexp1 = 1.0 / zexm1
 
@@ -1727,9 +1743,9 @@ class RadSWClass:
                             if zb2 <= od_lo:
                                 zexm2 = 1.0 - zb2 + 0.5 * zb2 * zb2
                             else:
-                                ftind = zb2 / (self.bpade + zb2)
+                                ftind = zb2 / (bpade + zb2)
                                 itind = int(ftind * ntbmx + 0.5)
-                                zexm2 = self.exp_tbl[itind]
+                                zexm2 = exp_tbl[itind]
 
                             zexp2 = 1.0 / zexm2
                             ze1r45 = zr4 * zexp1 + zr5 * zexm1
@@ -1776,9 +1792,9 @@ class RadSWClass:
                         if zr1 <= od_lo:
                             zexp3 = 1.0 - zr1 + 0.5 * zr1 * zr1
                         else:
-                            ftind = zr1 / (self.bpade + zr1)
+                            ftind = zr1 / (bpade + zr1)
                             itind = int(max(0, min(ntbmx, int(0.5 + ntbmx * ftind))))
-                            zexp3 = self.exp_tbl[itind]
+                            zexp3 = exp_tbl[itind]
 
                         zldbt[kp] = zexp3
                         ztdbt[k] = zexp3 * ztdbt[kp]
@@ -1790,9 +1806,9 @@ class RadSWClass:
                         if zr1 <= od_lo:
                             zexp4 = 1.0 - zr1 + 0.5 * zr1 * zr1
                         else:
-                            ftind = zr1 / (self.bpade + zr1)
+                            ftind = zr1 / (bpade + zr1)
                             itind = int(max(0, min(ntbmx, int(0.5 + ntbmx * ftind))))
-                            zexp4 = self.exp_tbl[itind]
+                            zexp4 = exp_tbl[itind]
 
                         ztdbt0 = zexp4 * ztdbt0
 
@@ -1847,10 +1863,10 @@ class RadSWClass:
             fsfcd0 = fsfcd0 + fxdn0[0, ib]
 
         # --- ...  uv-b surface downward flux
-        ibd = self.nuvb - nblow
+        ibd = nuvb - nblow
         suvbf0 = fxdn0[0, ibd]
 
-        if cf1 <= self.eps:  # clear column, set total-sky=clear-sky fluxes
+        if cf1 <= eps:  # clear column, set total-sky=clear-sky fluxes
             for ib in range(nbdsw):
                 for k in range(nlp1):
                     fxupc[k, ib] = fxup0[k, ib]
