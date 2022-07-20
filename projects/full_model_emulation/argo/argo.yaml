@@ -14,7 +14,7 @@ spec:
       - name: training-config
         value: ""
       - name: image_tag
-        value: cce205a8d4724d8a02da8464d01293fcf83920ab
+        value: f5980016d53949ea397c31fd39193641edd54e37
   volumes:
   - name: gcp-key-secret
     secret:
@@ -55,7 +55,8 @@ spec:
         requests:
           cpu: "7"
           memory: "15Gi"
-      args: ["/fv3net/projects/full_model_emulation/test/test.py"]
+      workingDir: "/fv3net/projects/full_model_emulation/test"
+      args: ["test.py"]
     tolerations:
     - key: "dedicated"
       operator: "Equal"

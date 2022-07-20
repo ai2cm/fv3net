@@ -21,24 +21,27 @@ import pickle
 from load_data import *
 from utils import *
 from model import *
+import wandb
+from fv3net.artifacts.resolve_url import resolve_url
+from vcm import get_fs
 
 
 lead = 6
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
-Chuncksize = 500
+Chuncksize = 300
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-day = 5
+day = 1
 lr = 0.001
 disablecuda = "store_true"
-batch_size = 10
-epochs = 3
+batch_size = 20
+epochs = 1
 num_layers = 2  # 9
 window = 24 * day
 pred_len = 1
-control_str = "TSTTST"  #'TNSTTNST' #'TNTSTNTST'
+control_str = "TST"  #'TNSTTNST' #'TNTSTNTST'
 channels = [7, 16, 32, 64, 32, 128]
 drop_prob = 0
 out_feat = 2
@@ -54,6 +57,11 @@ savemodelpath = (
     + str(epochs)
     + ".pt"
 )
+
+BUCKET = "vcm-ml-experiments"
+PROJECT = "full-model-emulation"
+
+model_out_url = resolve_url(BUCKET, PROJECT, savemodelpath)
 
 
 data_url = "gs://vcm-ml-scratch/ebrahimn/2022-07-02/experiment-1-y/fv3gfs_run/"
@@ -109,7 +117,7 @@ for i in range(3):
         cosLat = (cosLat).unsqueeze(0).repeat(batch_size, 1, 1, 1)
         landSea_Mask = (landSea_Mask).unsqueeze(0).repeat(batch_size, 1, 1, 1)
 
-exteraVar = torch.cat((sinLon, sinLat, cosLon, cosLat, landSea_Mask), 1)
+exteraVar = torch.cat((sinLon, sinLat, cosLon, cosLat, landSea_Mask), 1).to(device)
 
 num_nodes = len(lon)
 print(f"numebr of grids: {num_nodes}")
@@ -221,6 +229,9 @@ for ss in np.arange(0, int(TotalSamples / Chuncksize)):
         print(
             "epoch", epoch, ", train loss:", l_sum / n, ", validation loss:", val_loss
         )
+
+        fs = get_fs(model_out_url)
+        fs.put(savemodelpath, model_out_url)
 
 
 # best_model = STGCN_WAVE(channels, window, num_nodes, g, drop_prob, num_layers, device, control_str).to(device)
