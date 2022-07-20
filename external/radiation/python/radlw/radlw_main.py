@@ -2825,7 +2825,10 @@ class RadLWClass:
             taug,
             fracs,
             ds_radlw_ref,
-            ds_bands['radlw_kgb05']
+            ds_bands['radlw_kgb05'],
+            self.oneminus,
+            nspa,
+            nspb,
         )
         taug, fracs = self.taugb06(
             laytrop,
@@ -2858,6 +2861,7 @@ class RadLWClass:
             fracs,
             ds_radlw_ref,
             ds_bands['radlw_kgb06'],
+            nspa,
         )
         taug, fracs = self.taugb07(
             laytrop,
@@ -4252,6 +4256,9 @@ class RadLWClass:
         fracs,
         dsc,
         ds,
+        oneminus,
+        nspa,
+        nspb,
     ):
         #  ------------------------------------------------------------------  !
         #     band 5:  700-820 cm-1 (low key - h2o,co2; low minor - o3, ccl4)  !
@@ -4285,27 +4292,27 @@ class RadLWClass:
 
         speccomb = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 0] * colamt[:laytrop, 1]
         specparm = colamt[:laytrop, 0] / speccomb
-        specmult = 8.0 * np.minimum(specparm, self.oneminus)
+        specmult = 8.0 * np.minimum(specparm, oneminus)
         js = 1 + specmult.astype(np.int32)
         fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[4] + js - 1
+        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * nspa[4] + js - 1
 
         speccomb1 = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 1] * colamt[:laytrop, 1]
         specparm1 = colamt[:laytrop, 0] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, self.oneminus)
+        specmult1 = 8.0 * np.minimum(specparm1, oneminus)
         js1 = 1 + specmult1.astype(np.int32)
         fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[4] + js1 - 1
+        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * nspa[4] + js1 - 1
 
         speccomb_mo3 = colamt[:laytrop, 0] + refrat_m_a * colamt[:laytrop, 1]
         specparm_mo3 = colamt[:laytrop, 0] / speccomb_mo3
-        specmult_mo3 = 8.0 * np.minimum(specparm_mo3, self.oneminus)
+        specmult_mo3 = 8.0 * np.minimum(specparm_mo3, oneminus)
         jmo3 = 1 + specmult_mo3.astype(np.int32) - 1
         fmo3 = specmult_mo3 % 1.0
 
         speccomb_planck = colamt[:laytrop, 0] + refrat_planck_a * colamt[:laytrop, 1]
         specparm_planck = colamt[:laytrop, 0] / speccomb_planck
-        specmult_planck = 8.0 * np.minimum(specparm_planck, self.oneminus)
+        specmult_planck = 8.0 * np.minimum(specparm_planck, oneminus)
         jpl = 1 + specmult_planck.astype(np.int32) - 1
         fpl = specmult_planck % 1.0
 
@@ -4495,11 +4502,11 @@ class RadLWClass:
             + rfrate[laytrop:nlay, 5, 0] * colamt[laytrop:nlay, 1]
         )
         specparm = colamt[laytrop:nlay, 2] / speccomb
-        specmult = 4.0 * np.minimum(specparm, self.oneminus)
+        specmult = 4.0 * np.minimum(specparm, oneminus)
         js = 1 + specmult.astype(np.int32)
         fs = specmult % 1.0
         ind0 = (
-            ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[4]
+            ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * nspb[4]
             + js
             - 1
         )
@@ -4509,11 +4516,11 @@ class RadLWClass:
             + rfrate[laytrop:nlay, 5, 1] * colamt[laytrop:nlay, 1]
         )
         specparm1 = colamt[laytrop:nlay, 2] / speccomb1
-        specmult1 = 4.0 * np.minimum(specparm1, self.oneminus)
+        specmult1 = 4.0 * np.minimum(specparm1, oneminus)
         js1 = 1 + specmult1.astype(np.int32)
         fs1 = specmult1 % 1.0
         ind1 = (
-            ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[4]
+            ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * nspb[4]
             + js1
             - 1
         )
@@ -4522,7 +4529,7 @@ class RadLWClass:
             colamt[laytrop:nlay, 2] + refrat_planck_b * colamt[laytrop:nlay, 1]
         )
         specparm_planck = colamt[laytrop:nlay, 2] / speccomb_planck
-        specmult_planck = 4.0 * np.minimum(specparm_planck, self.oneminus)
+        specmult_planck = 4.0 * np.minimum(specparm_planck, oneminus)
         jpl = 1 + specmult_planck.astype(np.int32) - 1
         fpl = specmult_planck % 1.0
         jplp = jpl + 1
@@ -4611,6 +4618,7 @@ class RadLWClass:
         fracs,
         dsc,
         ds,
+        nspa,
     ):
         #  ------------------------------------------------------------------  !
         #     band 6:  820-980 cm-1 (low key - h2o; low minor - co2)           !
@@ -4630,8 +4638,8 @@ class RadLWClass:
         cfc12 = ds["cfc12"].values
 
         #  --- ...  lower atmosphere loop
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[5]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[5]
+        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * nspa[5]
+        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * nspa[5]
 
         inds = indself[:laytrop] - 1
         indf = indfor[:laytrop] - 1
