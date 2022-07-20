@@ -18,6 +18,7 @@ from fv3net.artifacts.resolve_url import resolve_url
 WORKFLOW_FILE = pathlib.Path(__file__).parent.parent / "argo" / "argo.yaml"
 
 PROGNOSTIC = "prognostic"
+TRAIN = "train"
 
 
 def load_yaml(path):
@@ -220,6 +221,11 @@ class TrainingJob(ToYaml):
     def entrypoint(self):
         return "training"
 
+    def to_yaml(self):
+        d = dataclasses.asdict(self)
+        d["kind"] = TRAIN
+        return yaml.safe_dump(d)
+
 
 def _encode(dict):
     s = yaml.safe_dump(dict).encode()
@@ -245,6 +251,6 @@ if __name__ == "__main__":
         config_ = yaml.safe_load(f)
         name = config_.pop("kind")
         experiment = config_.pop("experiment", "default")
-        cls = {"train": TrainingJob, PROGNOSTIC: PrognosticJob}[name]
+        cls = {TRAIN: TrainingJob, PROGNOSTIC: PrognosticJob}[name]
         job = dacite.from_dict(cls, config_)
         submit_jobs([job], experiment_name=experiment)
