@@ -90,7 +90,7 @@ slag, sdec, cdec, solcon = driver.radupdate(
 
 columns_validated = 0
 
-for rank in range(1):
+for rank in range(6):
     serializer = ser.Serializer(
         ser.OpenModeKind.Read,
         "../fortran/data/radiation_driver",
