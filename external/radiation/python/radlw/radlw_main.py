@@ -400,8 +400,9 @@ def cldprop(
 
         return cldfmc, taucld
 
-#@staticmethod
-#@jit
+
+# band 1:  10-350 cm-1 (low key - h2o; low minor - n2);
+#  (high key - h2o; high minor - n2)
 def taugb01(
         laytrop,
         pavel,
@@ -6981,5 +6982,4 @@ class RadLWClass:
 
         return fracs, tautot
 
-        # band 1:  10-350 cm-1 (low key - h2o; low minor - n2);
-        #  (high key - h2o; high minor - n2)
+
