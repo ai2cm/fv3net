@@ -2930,6 +2930,8 @@ class RadLWClass:
             fracs,
             ds_radlw_ref,
             ds_bands['radlw_kgb08'],
+            nspa,
+            nspb,
         )
         taug, fracs = self.taugb09(
             laytrop,
@@ -5069,6 +5071,8 @@ class RadLWClass:
         fracs,
         dsc,
         ds,
+        nspa,
+        nspb,
     ):
         #  ------------------------------------------------------------------  !
         #     band 8:  1080-1180 cm-1 (low key - h2o; low minor - co2,o3,n2o)  !
@@ -5098,8 +5102,8 @@ class RadLWClass:
         cfc22adj = ds["cfc22adj"].values
 
         #  --- ...  lower atmosphere loop
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[7]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[7]
+        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * nspa[7]
+        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * nspa[7]
 
         inds = indself[:laytrop] - 1
         indf = indfor[:laytrop] - 1
@@ -5160,8 +5164,8 @@ class RadLWClass:
 
         #  --- ...  upper atmosphere loop
 
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[7]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[7]
+        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * nspb[7]
+        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * nspb[7]
 
         indm = indminor[laytrop:nlay] - 1
         ind0p = ind0 + 1
