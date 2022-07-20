@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Any
 import logging
 
 
@@ -17,7 +17,7 @@ class ModelWithClassifier:
         self.classifier = classifier
         self._class_key = class_key
 
-    def __call__(self, state: FortranState):
+    def __call__(self, state: FortranState) -> FortranState:
 
         if self.classifier is not None:
             classifier_outputs = _predict(self.classifier, state)
@@ -30,6 +30,18 @@ class ModelWithClassifier:
         model_outputs = _predict(self.model, inputs)
         model_outputs.update(classifier_outputs)
         return model_outputs
+
+
+def transform_model(
+    model: Callable[[FortranState], FortranState], transform: Any
+) -> Callable[[FortranState], FortranState]:
+    def combined(x: FortranState) -> FortranState:
+        x_transformed = _predict(transform.forward, x)
+        x_transformed.update(model(x_transformed))
+        output = _predict(transform.backward, x_transformed)
+        return output
+
+    return combined
 
 
 def _predict(model: tf.keras.Model, state: FortranState) -> FortranState:
