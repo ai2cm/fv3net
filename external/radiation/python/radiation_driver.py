@@ -443,27 +443,19 @@ class RadiationDriver:
             lsk = LEVS - LM
 
         #           convert pressure unit from pa to mb
-        for k in range(LM):
-            k1 = k + kd
-            k2 = k + lsk
-            for i in range(IM):
-                plvl[i, k1 + kb] = Statein["prsi"][i, k2 + kb] * 0.01  # pa to mb (hpa)
-                plyr[i, k1] = Statein["prsl"][i, k2] * 0.01  # pa to mb (hpa)
-                tlyr[i, k1] = Statein["tgrs"][i, k2]
-                prslk1[i, k1] = Statein["prslk"][i, k2]
+        k1 = np.arange(LM) + kd
+        k2 = np.arange(LM) + lsk
+        #for i in range(IM):
+        plvl[:, k1 + kb] = Statein["prsi"][:, k2 + kb] * 0.01  # pa to mb (hpa)
+        plyr[:, k1] = Statein["prsl"][:, k2] * 0.01  # pa to mb (hpa)
+        tlyr[:, k1] = Statein["tgrs"][:, k2]
+        prslk1[:, k1] = Statein["prslk"][:, k2]
 
-                #  - Compute relative humidity.
-                es = min(
-                    Statein["prsl"][i, k2], fpvs(Statein["tgrs"][i, k2])
-                )  # fpvs and prsl in pa
-                qs = max(
-                    self.QMIN, con_eps * es / (Statein["prsl"][i, k2] + con_epsm1 * es)
-                )
-                rhly[i, k1] = max(
-                    0.0, min(1.0, max(self.QMIN, Statein["qgrs"][i, k2, 0]) / qs)
-                )
-                qstl[i, k1] = qs
-
+        #  - Compute relative humidity.
+        es = np.minimum(Statein["prsl"][:, k2], fpvs(Statein["tgrs"][:, k2]))  # fpvs and prsl in pa
+        qs = np.maximum(self.QMIN, con_eps * es / (Statein["prsl"][:, k2] + con_epsm1 * es))
+        rhly[:, k1] = np.maximum(0.0, np.minimum(1.0, np.maximum(self.QMIN, Statein["qgrs"][:, k2, 0]) / qs))
+        qstl[:, k1] = qs
         # --- recast remaining all tracers (except sphum) forcing them all to be positive
         for j in range(1, NTRAC):
             for k in range(LM):
