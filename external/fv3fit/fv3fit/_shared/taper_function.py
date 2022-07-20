@@ -1,4 +1,5 @@
 import abc
+import numpy as np
 import xarray as xr
 
 from fv3fit._shared.novelty_detector import NoveltyDetector
@@ -7,29 +8,25 @@ from fv3fit._shared.novelty_detector import NoveltyDetector
 class TaperFunction(abc.ABC):
     @abc.abstractmethod
     def get_taper_value(self, novelty_score: xr.DataArray) -> xr.DataArray:
+        """
+            Given an array of novelty scores (larger scores imply greater novelty),
+            determines the multiplicative suppression factor that should be applied
+            to the learned tendencies. This factor is a value in [0, 1] for each
+            sample, where 0 is total suppression and 1 denotes leaving as is.
+        """
         pass
-
-    @classmethod
-    def load(cls, tapering_config: dict, novelty_detector: NoveltyDetector):
-        name = tapering_config["name"]
-        if name == MaskTaperFunction._NAME:
-            return MaskTaperFunction.load(tapering_config, novelty_detector)
-        elif name == RampTaperFunction._NAME:
-            return RampTaperFunction.load(tapering_config, novelty_detector)
-        elif name == ExponentialDecayTaperFunction._NAME:
-            return ExponentialDecayTaperFunction.load(tapering_config, novelty_detector)
-        else:
-            return None
 
 
 class MaskTaperFunction(TaperFunction):
-    _NAME = "mask"
-
     def __init__(self, cutoff: float):
         self.cutoff = cutoff
 
     def get_taper_value(self, novelty_score: xr.DataArray) -> xr.DataArray:
-        return xr.where(novelty_score > self.cutoff, 1, 0)
+        """
+            Completely suppresses the output if the novelty scores is larger that
+            some cutoff and does nothing otherwise.
+        """
+        return xr.where(novelty_score > self.cutoff, 0, 1)
 
     @classmethod
     def load(
@@ -43,16 +40,19 @@ class MaskTaperFunction(TaperFunction):
 
 
 class RampTaperFunction(TaperFunction):
-    _NAME = "ramp"
-
     def __init__(self, ramp_min: float, ramp_max: float):
-        assert ramp_min <= ramp_max
+        if ramp_min > ramp_max:
+            raise ValueError(f"Ramp max {ramp_max} must be at least min {ramp_min}")
         self.ramp_min = ramp_min
         self.ramp_max = ramp_max
 
     def get_taper_value(self, novelty_score: xr.DataArray) -> xr.DataArray:
+        """
+            Linearly interpolates between complete suppression when the novelty score
+            is larger than ramp_max and complete expression when smaller than ramp_min.
+        """
         unclipped = (self.ramp_max - novelty_score) / (self.ramp_max - self.ramp_min)
-        return xr.ufuncs.minimum(xr.ufuncs.maximum(unclipped, 1), 0)
+        return np.clip(unclipped, 0, 1)
 
     @classmethod
     def load(
@@ -75,15 +75,19 @@ class RampTaperFunction(TaperFunction):
 
 
 class ExponentialDecayTaperFunction(TaperFunction):
-    _NAME = "decay"
-
     def __init__(self, threshold: float, rate: float):
         self.threshold = threshold
-        assert rate >= 0 and rate <= 1
+        if rate > 1 or rate < 0:
+            raise ValueError(f"Decay rate of {rate} must be in [0, 1].")
         self.rate = rate
 
     def get_taper_value(self, novelty_score: xr.DataArray) -> xr.DataArray:
-        return xr.ufuncs.maximum(self.rate ** (novelty_score - self.threshold), 1)
+        """
+            For novelty scores smaller than threshold, tendencies are completely
+            expressed. Otherwise, the fraction of the tendency not suppressed decays
+            exponentially with the base rate in [0, 1].
+        """
+        return np.minimum(self.rate ** (novelty_score - self.threshold), 1)
 
     @classmethod
     def load(

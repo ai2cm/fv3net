@@ -9,7 +9,8 @@ import xarray as xr
 import vcm
 
 from fv3fit._shared.novelty_detector import NoveltyDetector
-from fv3fit._shared.taper_function import TaperFunction
+from fv3fit._shared import taper_function
+from fv3fit._shared.taper_function import MaskTaperFunction, TaperFunction
 
 from . import io
 from .predictor import Predictor
@@ -246,6 +247,8 @@ class TransformedPredictor(Predictor):
 @io.register("out_of_sample")
 class OutOfSampleModel(Predictor):
 
+    _TAPER_VALUES_OUTPUT_VAR = "taper_values"
+
     _CONFIG_FILENAME = "out_of_sample_model.yaml"
 
     def __init__(
@@ -253,12 +256,12 @@ class OutOfSampleModel(Predictor):
         base_model: Predictor,
         novelty_detector: NoveltyDetector,
         cutoff: Optional[float] = None,
-        taper_function: Optional[TaperFunction] = None,
+        taper: Optional[TaperFunction] = None,
     ):
         """
         Args:
-            base_model: trained ML-based predictor, to be used unless an input is
-                deemed "out of sample"
+            base_model: trained ML-based predictor, to be used for inputs deemed
+                "in-sample" and to be suppressed otherwise
             novelty_detector: trained novelty detector on the same inputs, which
                 predicts whether a training sample does _not_ belong the training
                 distribution of base_model
@@ -266,35 +269,44 @@ class OutOfSampleModel(Predictor):
                 are deemed out-of-samples, scores smaller are not. Specifying None
                 supplies the default cutoff value for the given NoveltyDetector
                 implementation
+            taper: given an array of novelty scores, determines how much the predicted
+                tendencies should be suppressed. Specifying None supplies a default
+                "mask" tapering, which either completely suppressed the tendencies
+                or does nothing
         """
         self.base_model = base_model
         self.novelty_detector = novelty_detector
-        self.cutoff = cutoff
-        self.taper_function = taper_function
+        self.cutoff = cutoff or novelty_detector._get_default_cutoff()
+        self.taper = taper or MaskTaperFunction(self.cutoff)
 
         base_inputs = set(base_model.input_variables)
         base_outputs = set(base_model.output_variables)
         novelty_inputs = set(novelty_detector.input_variables)
         novelty_outputs = set(novelty_detector.output_variables)
+        taper_output = set([self._TAPER_VALUES_OUTPUT_VAR])
         input_variables = tuple(sorted(base_inputs | novelty_inputs))
-        output_variables = tuple(sorted(base_outputs | novelty_outputs))
+        output_variables = tuple(sorted(base_outputs | novelty_outputs | taper_output))
         super().__init__(
             input_variables=input_variables, output_variables=output_variables
         )
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         base_predict = self.base_model.predict(X)
-        novelties = self.novelty_detector.predict_novelties(
-            X, cutoff=self.cutoff, taper_function=self.taper_function
+        novelties = self.novelty_detector.predict_novelties(X, cutoff=self.cutoff)
+        taper_values = self.taper.get_taper_value(
+            novelties[NoveltyDetector._SCORE_OUTPUT_VAR]
         )
-        masked_predict = base_predict.copy()
+        novelties[self._TAPER_VALUES_OUTPUT_VAR] = taper_values
+
+        tapered_predict = xr.Dataset(
+            coords=base_predict.coords, attrs=base_predict.attrs
+        )
         for output_variable in self.base_model.output_variables:
-            masked_predict[output_variable] = xr.where(
-                novelties[NoveltyDetector._NOVELTY_OUTPUT_VAR] == 0,
-                base_predict[output_variable],
-                0,
+            tapered_predict[output_variable] = (
+                base_predict[output_variable] * taper_values
             )
-        return xr.merge([masked_predict, novelties])
+
+        return xr.merge([tapered_predict, novelties])
 
     def dump(self, path):
         raise NotImplementedError(
@@ -317,13 +329,12 @@ class OutOfSampleModel(Predictor):
 
         assert isinstance(novelty_detector, NoveltyDetector)
 
-        taper_function = None
+        taper = None
         if "tapering_function" in config:
-            taper_function = TaperFunction.load(
-                config["tapering_function"], novelty_detector
+            tapering_config = config["tapering_function"]
+            taper = getattr(taper_function, tapering_config["name"]).load(
+                tapering_config, novelty_detector
             )
 
-        model = cls(
-            base_model, novelty_detector, cutoff=cutoff, taper_function=taper_function
-        )
+        model = cls(base_model, novelty_detector, cutoff=cutoff, taper=taper)
         return model
