@@ -109,7 +109,7 @@ for i in range(3):
         cosLat = (cosLat).unsqueeze(0).repeat(batch_size, 1, 1, 1)
         landSea_Mask = (landSea_Mask).unsqueeze(0).repeat(batch_size, 1, 1, 1)
 
-exteraVar = torch.cat((sinLon, sinLat, cosLon, cosLat, landSea_Mask), 1)
+exteraVar = torch.cat((sinLon, sinLat, cosLon, cosLat, landSea_Mask), 1).to(device)
 
 num_nodes = len(lon)
 print(f"numebr of grids: {num_nodes}")
