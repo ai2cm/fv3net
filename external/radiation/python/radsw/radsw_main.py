@@ -3,6 +3,7 @@ import xarray as xr
 import os
 import sys
 import warnings
+from numba import jit
 
 sys.path.insert(0, "..")
 from radsw.radsw_param import (
@@ -52,6 +53,65 @@ from radphysparam import iswmode, iswrgas, iswrate, iswcice, iswcliq
 from phys_const import con_amd, con_amw, con_amo3, con_g, con_cp, con_avgd
 from util import compare_data
 from config import *
+
+def vrtqdr(zrefb, zrefd, ztrab, ztrad, zldbt, ztdbt, nlay, nlp1):
+
+    #  ---  outputs:
+    zfu = np.zeros(nlp1)
+    zfd = np.zeros(nlp1)
+
+    #  ---  locals:
+    zrupb = np.zeros(nlp1)
+    zrupd = np.zeros(nlp1)
+    zrdnd = np.zeros(nlp1)
+    ztdn = np.zeros(nlp1)
+
+    # -# Link lowest layer with surface.
+    zrupb[0] = zrefb[0]  # direct beam
+    zrupd[0] = zrefd[0]  # diffused
+
+    # -# Pass from bottom to top.
+    for k in range(nlay):
+        kp = k + 1
+
+        zden1 = 1.0 / (1.0 - zrupd[k] * zrefd[kp])
+        zrupb[kp] = (
+        zrefb[kp]
+        + (
+            ztrad[kp]
+            * ((ztrab[kp] - zldbt[kp]) * zrupd[k] + zldbt[kp] * zrupb[k])
+        )
+        * zden1
+        )
+        zrupd[kp] = zrefd[kp] + ztrad[kp] * ztrad[kp] * zrupd[k] * zden1
+
+    # -# Upper boundary conditions
+    ztdn[nlp1 - 1] = 1.0
+    zrdnd[nlp1 - 1] = 0.0
+    ztdn[nlay - 1] = ztrab[nlp1 - 1]
+    zrdnd[nlay - 1] = zrefd[nlp1 - 1]
+
+    # -# Pass from top to bottom
+    for k in range(nlay - 1, 0, -1):
+        zden1 = 1.0 / (1.0 - zrefd[k] * zrdnd[k])
+        ztdn[k - 1] = (
+        ztdbt[k] * ztrab[k]
+        + (ztrad[k] * ((ztdn[k] - ztdbt[k]) + ztdbt[k] * zrefb[k] * zrdnd[k]))
+        * zden1
+        )
+        zrdnd[k - 1] = zrefd[k] + ztrad[k] * ztrad[k] * zrdnd[k] * zden1
+
+    # -# Up and down-welling fluxes at levels.
+    for k in range(nlp1):
+        zden1 = 1.0 / (1.0 - zrdnd[k] * zrupd[k])
+        zfu[k] = (ztdbt[k] * zrupb[k] + (ztdn[k] - ztdbt[k]) * zrupd[k]) * zden1
+        zfd[k] = (
+        ztdbt[k] + (ztdn[k] - ztdbt[k] + ztdbt[k] * zrupb[k] * zrdnd[k]) * zden1
+        )
+
+    return zfu, zfd
+
+
 
 
 class RadSWClass:
@@ -1599,7 +1659,7 @@ class RadSWClass:
                 zldbt0[k] = zexp4
                 ztdbt0 = zexp4 * ztdbt0
 
-            zfu, zfd = self.vrtqdr(zrefb, zrefd, ztrab, ztrad, zldbt, ztdbt, nlay, nlp1)
+            zfu, zfd = vrtqdr(zrefb, zrefd, ztrab, ztrad, zldbt, ztdbt, nlay, nlp1)
 
             #  --- ...  compute upward and downward fluxes at levels
             for k in range(nlp1):
@@ -1822,7 +1882,7 @@ class RadSWClass:
 
                 #  --- ...  perform vertical quadrature
 
-                zfu, zfd = self.vrtqdr(
+                zfu, zfd = vrtqdr(
                     zrefb, zrefd, ztrab, ztrad, zldbt, ztdbt, nlay, nlp1
                 )
 
@@ -1913,62 +1973,7 @@ class RadSWClass:
             suvbf0,
         )
 
-    def vrtqdr(self, zrefb, zrefd, ztrab, ztrad, zldbt, ztdbt, nlay, nlp1):
 
-        #  ---  outputs:
-        zfu = np.zeros(nlp1)
-        zfd = np.zeros(nlp1)
-
-        #  ---  locals:
-        zrupb = np.zeros(nlp1)
-        zrupd = np.zeros(nlp1)
-        zrdnd = np.zeros(nlp1)
-        ztdn = np.zeros(nlp1)
-
-        # -# Link lowest layer with surface.
-        zrupb[0] = zrefb[0]  # direct beam
-        zrupd[0] = zrefd[0]  # diffused
-
-        # -# Pass from bottom to top.
-        for k in range(nlay):
-            kp = k + 1
-
-            zden1 = 1.0 / (1.0 - zrupd[k] * zrefd[kp])
-            zrupb[kp] = (
-                zrefb[kp]
-                + (
-                    ztrad[kp]
-                    * ((ztrab[kp] - zldbt[kp]) * zrupd[k] + zldbt[kp] * zrupb[k])
-                )
-                * zden1
-            )
-            zrupd[kp] = zrefd[kp] + ztrad[kp] * ztrad[kp] * zrupd[k] * zden1
-
-        # -# Upper boundary conditions
-        ztdn[nlp1 - 1] = 1.0
-        zrdnd[nlp1 - 1] = 0.0
-        ztdn[nlay - 1] = ztrab[nlp1 - 1]
-        zrdnd[nlay - 1] = zrefd[nlp1 - 1]
-
-        # -# Pass from top to bottom
-        for k in range(nlay - 1, 0, -1):
-            zden1 = 1.0 / (1.0 - zrefd[k] * zrdnd[k])
-            ztdn[k - 1] = (
-                ztdbt[k] * ztrab[k]
-                + (ztrad[k] * ((ztdn[k] - ztdbt[k]) + ztdbt[k] * zrefb[k] * zrdnd[k]))
-                * zden1
-            )
-            zrdnd[k - 1] = zrefd[k] + ztrad[k] * ztrad[k] * zrdnd[k] * zden1
-
-        # -# Up and down-welling fluxes at levels.
-        for k in range(nlp1):
-            zden1 = 1.0 / (1.0 - zrdnd[k] * zrupd[k])
-            zfu[k] = (ztdbt[k] * zrupb[k] + (ztdn[k] - ztdbt[k]) * zrupd[k]) * zden1
-            zfd[k] = (
-                ztdbt[k] + (ztdn[k] - ztdbt[k] + ztdbt[k] * zrupb[k] * zrdnd[k]) * zden1
-            )
-
-        return zfu, zfd
 
     def taumol(
         self,
