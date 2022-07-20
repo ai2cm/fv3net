@@ -5,7 +5,6 @@ orbs:
   slack: circleci/slack@3.4.2
   gh: circleci/github-cli@2.1.0
   jq: circleci/jq@2.2.0
-  nix: eld/nix@1.0.0
 jobs:
   pytest:
     parameters:
@@ -213,18 +212,20 @@ jobs:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
     steps:
       - checkout
-      - nix/install
       - gcp-cli/install
       - run:
           name: "gcloud auth"
           command: echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
       - gcp-cli/initialize
       - run:
-          name: "Validate radiation port"
-          command: nix-shell --command "cd python && python test_driver.py"
-      - run:
           name: "Get data"
           command: cd external/radiation && ./get_data.sh
+      - run:
+          name: "Validate radiation port"
+          command: |
+            sh <(curl -L https://nixos.org/nix/install) --no-daemon
+            . /home/circleci/.nix-profile/etc/profile.d/nix.sh
+            nix-shell --command "cd python && python test_driver.py"
 
 
 workflows:
