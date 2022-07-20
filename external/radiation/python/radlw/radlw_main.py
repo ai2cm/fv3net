@@ -4163,6 +4163,716 @@ def taugb16(
 
         return taug, fracs
 
+
+def taumol(
+        laytrop,
+        pavel,
+        coldry,
+        colamt,
+        colbrd,
+        wx,
+        tauaer,
+        rfrate,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        selffac,
+        selffrac,
+        indself,
+        forfac,
+        forfrac,
+        indfor,
+        minorfrac,
+        scaleminor,
+        scaleminorn2,
+        indminor,
+        nlay,
+        ds_radlw_ref,
+        ds_bands,
+        oneminus,
+    ):
+
+        #  ************    original subprogram description    ***************   !
+        #                                                                       !
+        #                  optical depths developed for the                     !
+        #                                                                       !
+        #                rapid radiative transfer model (rrtm)                  !
+        #                                                                       !
+        #            atmospheric and environmental research, inc.               !
+        #                        131 hartwell avenue                            !
+        #                        lexington, ma 02421                            !
+        #                                                                       !
+        #                           eli j. mlawer                               !
+        #                         jennifer delamere                             !
+        #                         steven j. taubman                             !
+        #                         shepard a. clough                             !
+        #                                                                       !
+        #                       email:  mlawer@aer.com                          !
+        #                       email:  jdelamer@aer.com                        !
+        #                                                                       !
+        #        the authors wish to acknowledge the contributions of the       !
+        #        following people:  karen cady-pereira, patrick d. brown,       !
+        #        michael j. iacono, ronald e. farren, luke chen,                !
+        #        robert bergstrom.                                              !
+        #                                                                       !
+        #  revision for g-point reduction: michael j. iacono; aer, inc.         !
+        #                                                                       !
+        #     taumol                                                            !
+        #                                                                       !
+        #     this file contains the subroutines taugbn (where n goes from      !
+        #     1 to 16).  taugbn calculates the optical depths and planck        !
+        #     fractions per g-value and layer for band n.                       !
+        #                                                                       !
+        #  *******************************************************************  !
+        #  ==================   program usage description   ==================  !
+        #                                                                       !
+        #    call  taumol                                                       !
+        #       inputs:                                                         !
+        #          ( laytrop,pavel,coldry,colamt,colbrd,wx,tauaer,              !
+        #            rfrate,fac00,fac01,fac10,fac11,jp,jt,jt1,                  !
+        #            selffac,selffrac,indself,forfac,forfrac,indfor,            !
+        #            minorfrac,scaleminor,scaleminorn2,indminor,                !
+        #            nlay,                                                      !
+        #       outputs:                                                        !
+        #            fracs, tautot )                                            !
+        #                                                                       !
+        #  subprograms called:  taugb## (## = 01 -16)                           !
+        #                                                                       !
+        #                                                                       !
+        #  ====================  defination of variables  ====================  !
+        #                                                                       !
+        #  inputs:                                                        size  !
+        #     laytrop   - integer, tropopause layer index (unitless)        1   !
+        #                   layer at which switch is made for key species       !
+        #     pavel     - real, layer pressures (mb)                       nlay !
+        #     coldry    - real, column amount for dry air (mol/cm2)        nlay !
+        #     colamt    - real, column amounts of h2o, co2, o3, n2o, ch4,       !
+        #                   o2, co (mol/cm**2)                       nlay*maxgas!
+        #     colbrd    - real, column amount of broadening gases          nlay !
+        #     wx        - real, cross-section amounts(mol/cm2)      nlay*maxxsec!
+        #     tauaer    - real, aerosol optical depth               nbands*nlay !
+        #     rfrate    - real, reference ratios of binary species parameter    !
+        #     (:,m,:)m=1-h2o/co2,2-h2o/o3,3-h2o/n2o,4-h2o/ch4,5-n2o/co2,6-o3/co2!
+        #     (:,:,n)n=1,2: the rates of ref press at the 2 sides of the layer  !
+        #                                                          nlay*nrates*2!
+        #     facij     - real, factors multiply the reference ks, i,j of 0/1   !
+        #                   for lower/higher of the 2 appropriate temperatures  !
+        #                   and altitudes                                  nlay !
+        #     jp        - real, index of lower reference pressure          nlay !
+        #     jt, jt1   - real, indices of lower reference temperatures    nlay !
+        #                   for pressure levels jp and jp+1, respectively       !
+        #     selffac   - real, scale factor for water vapor self-continuum     !
+        #                   equals (water vapor density)/(atmospheric density   !
+        #                   at 296k and 1013 mb)                           nlay !
+        #     selffrac  - real, factor for temperature interpolation of         !
+        #                   reference water vapor self-continuum data      nlay !
+        #     indself   - integer, index of lower reference temperature for     !
+        #                   the self-continuum interpolation               nlay !
+        #     forfac    - real, scale factor for w. v. foreign-continuum   nlay !
+        #     forfrac   - real, factor for temperature interpolation of         !
+        #                   reference w.v. foreign-continuum data          nlay !
+        #     indfor    - integer, index of lower reference temperature for     !
+        #                   the foreign-continuum interpolation            nlay !
+        #     minorfrac - real, factor for minor gases                     nlay !
+        #     scaleminor,scaleminorn2                                           !
+        #               - real, scale factors for minor gases              nlay !
+        #     indminor  - integer, index of lower reference temperature for     !
+        #                   minor gases                                    nlay !
+        #     nlay      - integer, total number of layers                   1   !
+        #                                                                       !
+        #  outputs:                                                             !
+        #     fracs     - real, planck fractions                     ngptlw,nlay!
+        #     tautot    - real, total optical depth (gas+aerosols)   ngptlw,nlay!
+        #                                                                       !
+        #  internal variables:                                                  !
+        #     ng##      - integer, number of g-values in band ## (##=01-16) 1   !
+        #     nspa      - integer, for lower atmosphere, the number of ref      !
+        #                   atmos, each has different relative amounts of the   !
+        #                   key species for the band                      nbands!
+        #     nspb      - integer, same but for upper atmosphere          nbands!
+        #     absa      - real, k-values for lower ref atmospheres (no w.v.     !
+        #                   self-continuum) (cm**2/molecule)  nspa(##)*5*13*ng##!
+        #     absb      - real, k-values for high ref atmospheres (all sources) !
+        #                   (cm**2/molecule)               nspb(##)*5*13:59*ng##!
+        #     ka_m'mgas'- real, k-values for low ref atmospheres minor species  !
+        #                   (cm**2/molecule)                          mmn##*ng##!
+        #     kb_m'mgas'- real, k-values for high ref atmospheres minor species !
+        #                   (cm**2/molecule)                          mmn##*ng##!
+        #     selfref   - real, k-values for w.v. self-continuum for ref atmos  !
+        #                   used below laytrop (cm**2/mol)               10*ng##!
+        #     forref    - real, k-values for w.v. foreign-continuum for ref atmos
+        #                   used below/above laytrop (cm**2/mol)          4*ng##!
+        #                                                                       !
+        #  ******************************************************************   !
+
+        #
+        # ===> ...  begin here
+        #
+
+        taug, fracs = taugb01(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            ds_bands['radlw_kgb01'],
+            nspa,
+            nspb,
+        )
+        taug, fracs, tauself = taugb02(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_bands['radlw_kgb02'],
+            nspa,
+            nspb,
+        )
+        taug, fracs = taugb03(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            tauself,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb03'],
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs = taugb04(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb04'],
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs = taugb05(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb05'],
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs = taugb06(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb06'],
+            nspa,
+        )
+        taug, fracs = taugb07(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb07'],
+            oneminus,
+            nspa,
+            nspb,
+        )
+
+        taug, fracs = taugb08(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb08'],
+            nspa,
+            nspb,
+        )
+        taug, fracs = taugb09(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb09'],
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs = taugb10(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_bands['radlw_kgb10'],
+            nspa,
+            nspb,
+        )
+        taug, fracs = taugb11(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_bands['radlw_kgb11'],
+            nspa,
+            nspb,
+        )
+        taug, fracs = taugb12(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb12'],
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs, taufor = taugb13(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb13'],
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs = taugb14(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            taufor,
+            ds_bands['radlw_kgb14'],
+            nspa,
+            nspb,
+        )
+        taug, fracs = taugb15(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb15'],
+            oneminus,
+            nspa,
+        )
+        taug, fracs = taugb16(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            ds_radlw_ref,
+            ds_bands['radlw_kgb16'],
+            oneminus,
+            nspa,
+            nspb,
+        )
+
+        tautot = np.zeros((ngptlw, nlay))
+
+        #  ---  combine gaseous and aerosol optical depths
+
+        for ig in range(ngptlw):
+            ib = ngb[ig] - 1
+
+            for k in range(nlay):
+                tautot[ig, k] = taug[ig, k] + tauaer[ib, k]
+
+        return fracs, tautot
+
 class RadLWClass:
     VTAGLW = "NCEP LW v5.1  Nov 2012 -RRTMG-LW v4.82"
     expeps = 1.0e-20
@@ -4187,7 +4897,6 @@ class RadLWClass:
     nspb = nspb  
 
     
-
     def __init__(self, me, iovrlw, isubclw):
         self.lhlwb = False
         self.lhlw0 = False
@@ -4661,7 +5370,7 @@ class RadLWClass:
                 print("Done")
                 print(" ")
                 print("Running taumol . . .")
-            fracs, tautot = self.taumol(
+            fracs, tautot = taumol(
                 laytrop,
                 pavel,
                 coldry,
@@ -4690,6 +5399,7 @@ class RadLWClass:
                 nlay,
                 ds_radlw_ref,
                 ds_bands,
+                self.oneminus,
             )
             if verbose:
                 print("Done")
@@ -5932,7 +6642,6 @@ class RadLWClass:
                         htrb[k, ib] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
-
     @staticmethod
     @jit(nopython=True)
     def rtrnmc(
@@ -6272,714 +6981,4 @@ class RadLWClass:
                     htrb[k, ib] = (fnet[k] - fnet[k + 1]) * rfdelp[k]
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
-
-    def taumol(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        ds_radlw_ref,
-        ds_bands,
-    ):
-
-        #  ************    original subprogram description    ***************   !
-        #                                                                       !
-        #                  optical depths developed for the                     !
-        #                                                                       !
-        #                rapid radiative transfer model (rrtm)                  !
-        #                                                                       !
-        #            atmospheric and environmental research, inc.               !
-        #                        131 hartwell avenue                            !
-        #                        lexington, ma 02421                            !
-        #                                                                       !
-        #                           eli j. mlawer                               !
-        #                         jennifer delamere                             !
-        #                         steven j. taubman                             !
-        #                         shepard a. clough                             !
-        #                                                                       !
-        #                       email:  mlawer@aer.com                          !
-        #                       email:  jdelamer@aer.com                        !
-        #                                                                       !
-        #        the authors wish to acknowledge the contributions of the       !
-        #        following people:  karen cady-pereira, patrick d. brown,       !
-        #        michael j. iacono, ronald e. farren, luke chen,                !
-        #        robert bergstrom.                                              !
-        #                                                                       !
-        #  revision for g-point reduction: michael j. iacono; aer, inc.         !
-        #                                                                       !
-        #     taumol                                                            !
-        #                                                                       !
-        #     this file contains the subroutines taugbn (where n goes from      !
-        #     1 to 16).  taugbn calculates the optical depths and planck        !
-        #     fractions per g-value and layer for band n.                       !
-        #                                                                       !
-        #  *******************************************************************  !
-        #  ==================   program usage description   ==================  !
-        #                                                                       !
-        #    call  taumol                                                       !
-        #       inputs:                                                         !
-        #          ( laytrop,pavel,coldry,colamt,colbrd,wx,tauaer,              !
-        #            rfrate,fac00,fac01,fac10,fac11,jp,jt,jt1,                  !
-        #            selffac,selffrac,indself,forfac,forfrac,indfor,            !
-        #            minorfrac,scaleminor,scaleminorn2,indminor,                !
-        #            nlay,                                                      !
-        #       outputs:                                                        !
-        #            fracs, tautot )                                            !
-        #                                                                       !
-        #  subprograms called:  taugb## (## = 01 -16)                           !
-        #                                                                       !
-        #                                                                       !
-        #  ====================  defination of variables  ====================  !
-        #                                                                       !
-        #  inputs:                                                        size  !
-        #     laytrop   - integer, tropopause layer index (unitless)        1   !
-        #                   layer at which switch is made for key species       !
-        #     pavel     - real, layer pressures (mb)                       nlay !
-        #     coldry    - real, column amount for dry air (mol/cm2)        nlay !
-        #     colamt    - real, column amounts of h2o, co2, o3, n2o, ch4,       !
-        #                   o2, co (mol/cm**2)                       nlay*maxgas!
-        #     colbrd    - real, column amount of broadening gases          nlay !
-        #     wx        - real, cross-section amounts(mol/cm2)      nlay*maxxsec!
-        #     tauaer    - real, aerosol optical depth               nbands*nlay !
-        #     rfrate    - real, reference ratios of binary species parameter    !
-        #     (:,m,:)m=1-h2o/co2,2-h2o/o3,3-h2o/n2o,4-h2o/ch4,5-n2o/co2,6-o3/co2!
-        #     (:,:,n)n=1,2: the rates of ref press at the 2 sides of the layer  !
-        #                                                          nlay*nrates*2!
-        #     facij     - real, factors multiply the reference ks, i,j of 0/1   !
-        #                   for lower/higher of the 2 appropriate temperatures  !
-        #                   and altitudes                                  nlay !
-        #     jp        - real, index of lower reference pressure          nlay !
-        #     jt, jt1   - real, indices of lower reference temperatures    nlay !
-        #                   for pressure levels jp and jp+1, respectively       !
-        #     selffac   - real, scale factor for water vapor self-continuum     !
-        #                   equals (water vapor density)/(atmospheric density   !
-        #                   at 296k and 1013 mb)                           nlay !
-        #     selffrac  - real, factor for temperature interpolation of         !
-        #                   reference water vapor self-continuum data      nlay !
-        #     indself   - integer, index of lower reference temperature for     !
-        #                   the self-continuum interpolation               nlay !
-        #     forfac    - real, scale factor for w. v. foreign-continuum   nlay !
-        #     forfrac   - real, factor for temperature interpolation of         !
-        #                   reference w.v. foreign-continuum data          nlay !
-        #     indfor    - integer, index of lower reference temperature for     !
-        #                   the foreign-continuum interpolation            nlay !
-        #     minorfrac - real, factor for minor gases                     nlay !
-        #     scaleminor,scaleminorn2                                           !
-        #               - real, scale factors for minor gases              nlay !
-        #     indminor  - integer, index of lower reference temperature for     !
-        #                   minor gases                                    nlay !
-        #     nlay      - integer, total number of layers                   1   !
-        #                                                                       !
-        #  outputs:                                                             !
-        #     fracs     - real, planck fractions                     ngptlw,nlay!
-        #     tautot    - real, total optical depth (gas+aerosols)   ngptlw,nlay!
-        #                                                                       !
-        #  internal variables:                                                  !
-        #     ng##      - integer, number of g-values in band ## (##=01-16) 1   !
-        #     nspa      - integer, for lower atmosphere, the number of ref      !
-        #                   atmos, each has different relative amounts of the   !
-        #                   key species for the band                      nbands!
-        #     nspb      - integer, same but for upper atmosphere          nbands!
-        #     absa      - real, k-values for lower ref atmospheres (no w.v.     !
-        #                   self-continuum) (cm**2/molecule)  nspa(##)*5*13*ng##!
-        #     absb      - real, k-values for high ref atmospheres (all sources) !
-        #                   (cm**2/molecule)               nspb(##)*5*13:59*ng##!
-        #     ka_m'mgas'- real, k-values for low ref atmospheres minor species  !
-        #                   (cm**2/molecule)                          mmn##*ng##!
-        #     kb_m'mgas'- real, k-values for high ref atmospheres minor species !
-        #                   (cm**2/molecule)                          mmn##*ng##!
-        #     selfref   - real, k-values for w.v. self-continuum for ref atmos  !
-        #                   used below laytrop (cm**2/mol)               10*ng##!
-        #     forref    - real, k-values for w.v. foreign-continuum for ref atmos
-        #                   used below/above laytrop (cm**2/mol)          4*ng##!
-        #                                                                       !
-        #  ******************************************************************   !
-
-        #
-        # ===> ...  begin here
-        #
-
-        taug, fracs = taugb01(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            ds_bands['radlw_kgb01'],
-            nspa,
-            nspb,
-        )
-        taug, fracs, tauself = taugb02(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_bands['radlw_kgb02'],
-            nspa,
-            nspb,
-        )
-        taug, fracs = taugb03(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            tauself,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb03'],
-            self.oneminus,
-            nspa,
-            nspb,
-        )
-        taug, fracs = taugb04(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb04'],
-            self.oneminus,
-            nspa,
-            nspb,
-        )
-        taug, fracs = taugb05(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb05'],
-            self.oneminus,
-            nspa,
-            nspb,
-        )
-        taug, fracs = taugb06(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb06'],
-            nspa,
-        )
-        taug, fracs = taugb07(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb07'],
-            self.oneminus,
-            nspa,
-            nspb,
-        )
-
-        taug, fracs = taugb08(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb08'],
-            nspa,
-            nspb,
-        )
-        taug, fracs = taugb09(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb09'],
-            self.oneminus,
-            nspa,
-            nspb,
-        )
-        taug, fracs = taugb10(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_bands['radlw_kgb10'],
-            nspa,
-            nspb,
-        )
-        taug, fracs = taugb11(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_bands['radlw_kgb11'],
-            nspa,
-            nspb,
-        )
-        taug, fracs = taugb12(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb12'],
-            self.oneminus,
-            nspa,
-            nspb,
-        )
-        taug, fracs, taufor = taugb13(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb13'],
-            self.oneminus,
-            nspa,
-            nspb,
-        )
-        taug, fracs = taugb14(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            taufor,
-            ds_bands['radlw_kgb14'],
-            nspa,
-            nspb,
-        )
-        taug, fracs = taugb15(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb15'],
-            self.oneminus,
-            nspa,
-        )
-        taug, fracs = taugb16(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb16'],
-            self.oneminus,
-            nspa,
-            nspb,
-        )
-
-        tautot = np.zeros((ngptlw, nlay))
-
-        #  ---  combine gaseous and aerosol optical depths
-
-        for ig in range(ngptlw):
-            ib = ngb[ig] - 1
-
-            for k in range(nlay):
-                tautot[ig, k] = taug[ig, k] + tauaer[ib, k]
-
-        return fracs, tautot
-
-
+    
