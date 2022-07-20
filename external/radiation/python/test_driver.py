@@ -4,6 +4,9 @@ from config import *
 from util import compare_data
 import serialbox as ser
 from radiation_driver import RadiationDriver
+import time
+
+startTime = time.time()
 
 rank = 0
 driver = RadiationDriver()
@@ -85,7 +88,9 @@ slag, sdec, cdec, solcon = driver.radupdate(
     updatedict["lsswr"],
 )
 
-for rank in range(6):
+columns_validated = 0
+
+for rank in range(1):
     serializer = ser.Serializer(
         ser.OpenModeKind.Read,
         "../fortran/data/radiation_driver",
@@ -313,3 +318,9 @@ for rank in range(6):
             outdict[var] = Diagout[var]
 
     compare_data(valdict, outdict)
+    
+    columns_validated += valdict[radtend_vars_out[0]].shape[0]
+
+executionTime = (time.time() - startTime)
+
+print(f'Execution time: {executionTime:.2f} seconds for {columns_validated} columns.')

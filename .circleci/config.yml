@@ -221,11 +221,13 @@ jobs:
           name: "Get data"
           command: cd external/radiation && ./get_data.sh
       - run:
+          name: "Install nix"
+          command: sh <(curl -L https://nixos.org/nix/install) --no-daemon
+      - run:
           name: "Validate radiation port"
           command: |
-            sh <(curl -L https://nixos.org/nix/install) --no-daemon
-            . /home/circleci/.nix-profile/etc/profile.d/nix.sh
             cd external/radiation
+            . /home/circleci/.nix-profile/etc/profile.d/nix.sh
             nix-shell --command "cd python && python test_driver.py"
 
 
