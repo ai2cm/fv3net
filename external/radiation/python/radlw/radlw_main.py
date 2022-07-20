@@ -2998,6 +2998,8 @@ class RadLWClass:
             taug,
             fracs,
             ds_bands['radlw_kgb10'],
+            nspa,
+            nspb,
         )
         taug, fracs = self.taugb11(
             laytrop,
@@ -5561,6 +5563,8 @@ class RadLWClass:
         taug,
         fracs,
         ds,
+        nspa,
+        nspb,
     ):
         #  ------------------------------------------------------------------  !
         #     band 10:  1390-1480 cm-1 (low key - h2o; high key - h2o)         !
@@ -5574,8 +5578,8 @@ class RadLWClass:
         fracrefb = ds["fracrefb"].values
 
         #  --- ...  lower atmosphere loop
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[9]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[9]
+        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * nspa[9]
+        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * nspa[9]
 
         inds = indself[:laytrop] - 1
         indf = indfor[:laytrop] - 1
@@ -5610,8 +5614,8 @@ class RadLWClass:
 
         #  --- ...  upper atmosphere loop
 
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[9]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[9]
+        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * nspb[9]
+        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * nspb[9]
 
         indf = indfor[laytrop:nlay] - 1
         ind0p = ind0 + 1
