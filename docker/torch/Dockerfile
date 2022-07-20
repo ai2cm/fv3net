@@ -30,6 +30,9 @@ RUN pip3 install --no-dependencies /fv3net/external/vcm
 COPY external/fv3fit /fv3net/external/fv3fit
 RUN pip3 install --no-dependencies /fv3net/external/fv3fit
 
+# overwrite install cuda dgl
+RUN pip3 install dgl-cu113 dglgo -f https://data.dgl.ai/wheels/repo.html
+
 # Add FME project scripts
 COPY projects/full_model_emulation /fv3net/projects/full_model_emulation
 RUN chmod +x /fv3net/projects/full_model_emulation/scripts/*
