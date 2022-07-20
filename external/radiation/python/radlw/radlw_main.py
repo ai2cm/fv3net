@@ -3135,6 +3135,8 @@ class RadLWClass:
             fracs,
             taufor,
             ds_bands['radlw_kgb14'],
+            nspa,
+            nspb,
         )
         taug, fracs = self.taugb15(
             laytrop,
@@ -6387,6 +6389,8 @@ class RadLWClass:
         fracs,
         taufor,
         ds,
+        nspa,
+        nspb,
     ):
         #  ------------------------------------------------------------------  !
         #     band 14:  2250-2380 cm-1 (low - co2; high - co2)                 !
@@ -6401,8 +6405,8 @@ class RadLWClass:
 
         #  --- ...  lower atmosphere loop
 
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[13]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[13]
+        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * nspa[13]
+        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * nspa[13]
 
         inds = indself[:laytrop] - 1
         indf = indfor[:laytrop] - 1
@@ -6437,8 +6441,8 @@ class RadLWClass:
 
         #  --- ...  upper atmosphere loop
 
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[13]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[13]
+        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * nspb[13]
+        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * nspb[13]
 
         ind0p = ind0 + 1
         ind1p = ind1 + 1
