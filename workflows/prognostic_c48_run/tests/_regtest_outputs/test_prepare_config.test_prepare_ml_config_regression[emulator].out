@@ -456,6 +456,7 @@ zhao_carr_emulation:
       period: 21600
     path: gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273/model.tf
     ranges: {}
+    tensor_transform: []
   storage:
     output_freq_sec: 3600
     output_start_sec: 0
