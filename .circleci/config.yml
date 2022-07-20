@@ -1,6 +1,7 @@
 version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.15.0
+  gcp-cli: circleci/gcp-cli@2.4.1
   slack: circleci/slack@3.4.2
   gh: circleci/github-cli@2.1.0
   jq: circleci/jq@2.2.0
@@ -202,6 +203,32 @@ jobs:
       - slack/status:
           fail_only: true
           mentions: "channel"
+
+  validate_rad_port:
+    machine:
+      image: ubuntu-2004:202111-02
+    environment:
+      GOOGLE_PROJECT_ID: vcm-ml
+#       GOOGLE_COMPUTE_ZONE: us-central1
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+    steps:
+      - checkout
+      - run:
+        name: "Install nix"
+        command: sh <(curl -L https://nixos.org/nix/install) --no-daemon
+      - gcp-cli/install
+      - run:
+        name: "gcloud auth"
+        command: echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
+      - gcp-cli/initialize
+      - run:
+        name: "Get data"
+        command: cd external/radiation && ./get_data.sh
+      - run:
+        name: "Validate rad port"
+        command: nix-shell --command "cd python && python test_driver.py"
+
+
 workflows:
   version: 2
   test_and_lint:
@@ -274,3 +301,4 @@ workflows:
               only: /^v.*/
             branches:
               only: master
+      - validate_rad_port
