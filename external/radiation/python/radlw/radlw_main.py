@@ -1650,7 +1650,8 @@ class RadLWClass:
                     htrb[k, ib] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
-    #@jit(nopython=True)
+    @staticmethod
+    @jit(nopython=True)
     def rtrnmr(
         eps,
         bpade,
