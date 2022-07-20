@@ -55,7 +55,8 @@ spec:
         requests:
           cpu: "7"
           memory: "15Gi"
-      args: ["/fv3net/projects/full_model_emulation/test/test.py"]
+      workingDir: "/fv3net/projects/full_model_emulation/test"
+      args: ["test.py"]
     tolerations:
     - key: "dedicated"
       operator: "Equal"
