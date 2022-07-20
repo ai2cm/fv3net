@@ -69,7 +69,7 @@ from phys_const import con_g, con_avgd, con_cp, con_amd, con_amw, con_amo3
 from config import *
 
 np.set_printoptions(precision=15)
-
+ngb = np.array(ngb)
 
 @jit(nopython=True)
 def mcica_subcol(iovrlw, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
@@ -423,6 +423,8 @@ class RadLWClass:
 
     nspa = nspa  
     nspb = nspb  
+
+    
 
     def __init__(self, me, iovrlw, isubclw):
         self.lhlwb = False
@@ -1613,10 +1615,15 @@ class RadLWClass:
 
         flxfac = wtdiff * fluxfac
         
-        totuflux =   np.nansum(toturad, axis = 1)* flxfac
-        totdflux =   np.nansum(totdrad, axis = 1)* flxfac
-        totuclfl =   np.nansum(clrurad, axis = 1)* flxfac  
-        totdclfl =   np.nansum(clrdrad, axis = 1)* flxfac
+        for ib in range(nbands):
+            totuflux[:] = totuflux[:] + toturad[:, ib]
+            totdflux[:] = totdflux[:] + totdrad[:, ib]
+            totuclfl[:] = totuclfl[:] + clrurad[:, ib]
+            totdclfl[:] = totdclfl[:] + clrdrad[:, ib]
+        totuflux = totuflux * flxfac
+        totdflux = totdflux * flxfac
+        totuclfl = totuclfl * flxfac
+        totdclfl = totdclfl * flxfac
 
         #  --- ...  calculate net fluxes and heating rates
         fnet[0] = totuflux[0] - totdflux[0]
@@ -2126,10 +2133,15 @@ class RadLWClass:
 
             flxfac = wtdiff * fluxfac
 
-            totuflux =   np.nansum(toturad, axis = 1)* flxfac
-            totdflux =   np.nansum(totdrad, axis = 1)* flxfac
-            totuclfl =   np.nansum(clrurad, axis = 1)* flxfac  
-            totdclfl =   np.nansum(clrdrad, axis = 1)* flxfac
+            for ib in range(nbands):
+                totuflux[:] = totuflux[:] + toturad[:, ib]
+                totdflux[:] = totdflux[:] + totdrad[:, ib]
+                totuclfl[:] = totuclfl[:] + clrurad[:, ib]
+                totdclfl[:] = totdclfl[:] + clrdrad[:, ib]
+            totuflux = totuflux * flxfac
+            totdflux = totdflux * flxfac
+            totuclfl = totuclfl * flxfac
+            totdclfl = totdclfl * flxfac
 
             #  --- ...  calculate net fluxes and heating rates
             fnet[0] = totuflux[0] - totdflux[0]
@@ -2158,8 +2170,9 @@ class RadLWClass:
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
 
+    @staticmethod
+    @jit(nopython=True)
     def rtrnmc(
-        self,
         eps,
         bpade,
         lhlw0,
@@ -2460,10 +2473,15 @@ class RadLWClass:
 
         flxfac = wtdiff * fluxfac
 
-        totuflux = np.nansum(toturad,axis = 1) * flxfac
-        totdflux = np.nansum(totdrad,axis = 1) * flxfac
-        totuclfl = np.nansum(clrurad,axis = 1) * flxfac
-        totdclfl = np.nansum(clrdrad,axis = 1) * flxfac
+        for ib in range(nbands):
+            totuflux[:] = totuflux[:] + toturad[:, ib]
+            totdflux[:] = totdflux[:] + totdrad[:, ib]
+            totuclfl[:] = totuclfl[:] + clrurad[:, ib]
+            totdclfl[:] = totdclfl[:] + clrdrad[:, ib]
+        totuflux = totuflux * flxfac
+        totdflux = totdflux * flxfac
+        totuclfl = totuclfl * flxfac
+        totdclfl = totdclfl * flxfac
 
         #  --- ...  calculate net fluxes and heating rates
         fnet[0] = totuflux[0] - totdflux[0]
