@@ -45,6 +45,7 @@ def fpvs(t):
     c2xpvs = 1.0 / xinc
     c1xpvs = 1.0 - xmin * c2xpvs
 
+    ## this line can be call only one time when initialized 
     tbpvs = np.array([ fpvsx(xmin + jx * xinc) for jx in range(nxpvs)])
     
     xj = np.minimum(np.maximum(c1xpvs + c2xpvs * t, 1.0), nxpvs)
