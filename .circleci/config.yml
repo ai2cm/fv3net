@@ -215,15 +215,17 @@ jobs:
           name: "gcloud auth"
           command: echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
       - run:
-          name: "Get data"
-          command: cd external/radiation && ./get_data.sh
-      - run:
           name: "Install nix and cachix"
           command: |
             sh <(curl -L https://nixos.org/nix/install) --no-daemon
             . /home/circleci/.nix-profile/etc/profile.d/nix.sh
             nix-env -iA cachix -f https://cachix.org/api/v1/install
             cachix use vulcanclimatemodeling
+      - run:
+          name: "Get data"
+#                       nix-shell --command "gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS"
+          command: |
+            nix-shell --command "cd external/radiation && ./get_data.sh"
       - run:
           name: "Validate radiation port"
           command: |
