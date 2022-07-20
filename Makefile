@@ -290,6 +290,7 @@ docker/torch/requirements.txt:
 		--output-file docker/torch/requirements.txt \
 		external/fv3fit/setup.py \
 		external/vcm/setup.py \
+		external/artifacts/setup.py \
 		projects/full_model_emulation/requirements.in
 
 docker/artifacts/requirements.txt:
