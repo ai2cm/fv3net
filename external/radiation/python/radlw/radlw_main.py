@@ -3065,6 +3065,9 @@ class RadLWClass:
             fracs,
             ds_radlw_ref,
             ds_bands['radlw_kgb12'],
+            oneminus,
+            nspa,
+            nspb,
         )
         taug, fracs, taufor = self.taugb13(
             laytrop,
@@ -5815,6 +5818,9 @@ class RadLWClass:
         fracs,
         dsc,
         ds,
+        oneminus,
+        nspa,
+        nspb,
     ):
         #  ------------------------------------------------------------------  !
         #     band 12:  1800-2080 cm-1 (low - h2o,co2; high - nothing)         !
@@ -5836,22 +5842,22 @@ class RadLWClass:
 
         speccomb = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 0] * colamt[:laytrop, 1]
         specparm = colamt[:laytrop, 0] / speccomb
-        specmult = 8.0 * np.minimum(specparm, self.oneminus)
+        specmult = 8.0 * np.minimum(specparm, oneminus)
         js = 1 + specmult.astype(np.int32)
         fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[11] + js - 1
+        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * nspa[11] + js - 1
 
         speccomb1 = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 1] * colamt[:laytrop, 1]
         specparm1 = colamt[:laytrop, 0] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, self.oneminus)
+        specmult1 = 8.0 * np.minimum(specparm1,  oneminus)
         js1 = 1 + specmult1.astype(np.int32)
         fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[11] + js1 - 1
+        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) *  nspa[11] + js1 - 1
 
         speccomb_planck = colamt[:laytrop, 0] + refrat_planck_a * colamt[:laytrop, 1]
         specparm_planck = colamt[:laytrop, 0] / speccomb_planck
         specparm_planck = np.where(
-            specparm_planck >= self.oneminus, self.oneminus, specparm_planck
+            specparm_planck >=  oneminus,  oneminus, specparm_planck
         )
         specmult_planck = 8.0 * specparm_planck
         jpl = 1 + specmult_planck.astype(np.int32) - 1
