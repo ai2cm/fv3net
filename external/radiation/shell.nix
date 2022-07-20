@@ -17,7 +17,7 @@ in pkgs.mkShell {
     pkgs.python38Packages.numpy
     pkgs.python38Packages.netcdf4
     pkgs.python38Packages.ipython
-
+    pkgs.google-cloud-sdk
   ];
   shellHook = ''
     export PYTHONPATH=${pkgs.serialbox}/python:$PYTHONPATH
