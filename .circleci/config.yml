@@ -225,6 +225,7 @@ jobs:
           name: "Get data"
 #                       nix-shell --command "gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS"
           command: |
+            . /home/circleci/.nix-profile/etc/profile.d/nix.sh
             nix-shell --command "cd external/radiation && ./get_data.sh"
       - run:
           name: "Validate radiation port"
