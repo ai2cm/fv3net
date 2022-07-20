@@ -217,7 +217,8 @@ jobs:
           name: "Install nix"
           command: |
             sh <(curl -L https://nixos.org/nix/install) --no-daemon
-            . ~/.nix-profile/etc/profile.d/nix.sh
+            . /home/circleci/.nix-profile/etc/profile.d/nix.sh
+            nix-shell --help
       - gcp-cli/install
       - run:
           name: "gcloud auth"
