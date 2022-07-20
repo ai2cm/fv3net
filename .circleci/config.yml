@@ -221,8 +221,12 @@ jobs:
           name: "Get data"
           command: cd external/radiation && ./get_data.sh
       - run:
-          name: "Install nix"
-          command: sh <(curl -L https://nixos.org/nix/install) --no-daemon
+          name: "Install nix and cachix"
+          command: |
+            sh <(curl -L https://nixos.org/nix/install) --no-daemon
+            . /home/circleci/.nix-profile/etc/profile.d/nix.sh
+            nix-env -iA cachix -f https://cachix.org/api/v1/install
+            cachix use vulcanclimatemodeling
       - run:
           name: "Validate radiation port"
           command: |
