@@ -1,7 +1,6 @@
 import numpy as np
 from phys_const import *
 
-
 def fpvs(t):
     # $$$     Subprogram Documentation Block
     #
@@ -25,7 +24,8 @@ def fpvs(t):
     # Usage:   pvs=fpvs(t)
     #
     #   Input argument list:
-    #     t          Real(krealfp) temperature in Kelvin
+    #     t        2 dimensional array Real(krealfp) temperature in Kelvin
+    #              [npoints, nlevels]
     #
     #   Output argument list:
     #     fpvs       Real(krealfp) saturation vapor pressure in Pascals
@@ -45,17 +45,14 @@ def fpvs(t):
     c2xpvs = 1.0 / xinc
     c1xpvs = 1.0 - xmin * c2xpvs
 
-    for jx in range(nxpvs):
-        x = xmin + jx * xinc
-        tt = x
-        tbpvs[jx] = fpvsx(tt)
+    tbpvs = np.array([ fpvsx(xmin + jx * xinc) for jx in range(nxpvs)])
+    
+    xj = np.minimum(np.maximum(c1xpvs + c2xpvs * t, 1.0), nxpvs)
+    jx = np.minimum(xj, nxpvs - 1).astype('int')
 
-    xj = min(max(c1xpvs + c2xpvs * t, 1.0), nxpvs)
-    jx = int(min(xj, nxpvs - 1))
     fpvs = tbpvs[jx - 1] + (xj - jx) * (tbpvs[jx] - tbpvs[jx - 1])
 
     return fpvs
-
 
 def fpvsx(t):
     # $$$     Subprogram Documentation Block
