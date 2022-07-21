@@ -2970,7 +2970,10 @@ def taugb12(
         taug,
         fracs,
         chi_mls,
-        ds,
+        selfref,
+        forref,
+        absa,
+        fracrefa,
         oneminus,
         nspa,
         nspb,
@@ -2979,11 +2982,6 @@ def taugb12(
         #     band 12:  1800-2080 cm-1 (low - h2o,co2; high - nothing)         !
         #  ------------------------------------------------------------------  !
 
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        fracrefa = ds["fracrefa"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower/upper atmosphere.
@@ -4250,6 +4248,10 @@ def taumol(
         fracrefb_band_11,
         ka_mo2_band_11,
         kb_mo2_band_11,
+        selfref_band_12,
+        forref_band_12,
+        absa_band_12,
+        fracrefa_band_12,
         oneminus,
     ):
 
@@ -4847,7 +4849,10 @@ def taumol(
             taug,
             fracs,
             chi_mls,
-            ds_bands['radlw_kgb12'],
+            selfref_band_12,
+            forref_band_12,
+            absa_band_12,
+            fracrefa_band_12,
             oneminus,
             nspa,
             nspb,
@@ -5310,7 +5315,11 @@ class RadLWClass:
         fracrefb_band_11 = ds_bands['radlw_kgb11']["fracrefb"].values
         ka_mo2_band_11 = ds_bands['radlw_kgb11']["ka_mo2"].values
         kb_mo2_band_11 = ds_bands['radlw_kgb11']["kb_mo2"].values
-        
+        ## band 12
+        selfref_band_12 = ds_bands['radlw_kgb12']["selfref"].values
+        forref_band_12 = ds_bands['radlw_kgb12']["forref"].values
+        absa_band_12 = ds_bands['radlw_kgb12']["absa"].values
+        fracrefa_band_12 = ds_bands['radlw_kgb12']["fracrefa"].values
         ## ending data loading for taumol
         ########################################        
         cldfrc = np.zeros(nlp1 + 1)
@@ -5712,6 +5721,10 @@ class RadLWClass:
                 fracrefb_band_11,
                 ka_mo2_band_11,
                 kb_mo2_band_11,
+                selfref_band_12,
+                forref_band_12,
+                absa_band_12,
+                fracrefa_band_12,
                 self.oneminus,
             )
             if verbose:
