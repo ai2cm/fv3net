@@ -28,7 +28,7 @@ epochs = 1
 num_layers = 2  # 9
 window = 24 * day
 pred_len = 1
-control_str = "TST"  #'TNSTTNST' #'TNTSTNTST'
+control_str = "TST"  # 'TNSTTNST' #'TNTSTNTST'
 channels = [7, 16, 32, 64, 32, 128]
 drop_prob = 0
 out_feat = 2
@@ -52,17 +52,25 @@ model_out_url = resolve_url(BUCKET, PROJECT, savemodelpath)
 
 
 data_url = "gs://vcm-ml-scratch/ebrahimn/2022-07-02/experiment-1-y/fv3gfs_run/"
+
+wandb.init(
+    job_type="train",
+    project="torch-testing",
+    group="test",
+    config={"train_data": data_url},
+)
+
 state_training_data = xr.open_zarr(
     fsspec.get_mapper(os.path.join(data_url, "atmos_dt_atmos.zarr"))
 )
-# state_training_data2 = xr.open_zarr(fsspec.get_mapper(os.path.join(data_url, 'sfc_dt_atmos.zarr')))
+# state_training_data2 = xr.open_zarr(fsspec.get_mapper(os.path.join(data_url, 'sfc_dt_atmos.zarr'))) # noqa
 lat_lon_data = xr.open_zarr(
     fsspec.get_mapper(os.path.join(data_url, "state_after_timestep.zarr"))
 )
 
 landSea = xr.open_zarr(
     fsspec.get_mapper(
-        "gs://vcm-ml-experiments/default/2022-05-09/baseline-35day-spec-sst/fv3gfs_run/state_after_timestep.zarr"
+        "gs://vcm-ml-experiments/default/2022-05-09/baseline-35day-spec-sst/fv3gfs_run/state_after_timestep.zarr"  # noqa
     )
 )
 landSea_Mask = landSea.land_sea_mask[1].load()
@@ -193,20 +201,23 @@ for ss in np.arange(0, int(TotalSamples / Chuncksize)):
     if ss == 0:
         min_val_loss = np.inf
 
+    wandb.watch(model, log_freq=100)
+
     for epoch in range(1, epochs + 1):
         l_sum, n = 0.0, 0
         model.train()
-        for x, y in train_iter:
+        for batch_idx, (x, y) in enumerate(train_iter):
             exteraVar1 = exteraVar[: x.size(0)]
             x = torch.cat((x, exteraVar1), 1).float()
             y_pred = model(x).view(len(x), out_feat, -1)
-            l = loss(y_pred, y)
+            train_loss = loss(y_pred, y)
             optimizer.zero_grad()
-            l.backward()
+            train_loss.backward()
             optimizer.step()
-            l_sum += l.item() * y.shape[0]
+            l_sum += train_loss.item() * y.shape[0]
             n += y.shape[0]
-            print("section ", ss, " epoch", epoch, ", train loss:", l.item())
+            print("section ", ss, " epoch", epoch, ", train loss:", train_loss.item())
+            wandb.log({"loss": train_loss.item()})
 
         scheduler.step()
         val_loss = evaluate_model(model, loss, val_iter, exteraVar, out_feat)
@@ -216,12 +227,13 @@ for ss in np.arange(0, int(TotalSamples / Chuncksize)):
         print(
             "epoch", epoch, ", train loss:", l_sum / n, ", validation loss:", val_loss
         )
+        wandb.log({"val_loss": val_loss})
 
         fs = get_fs(model_out_url)
         fs.put(savemodelpath, model_out_url)
 
 
-# best_model = STGCN_WAVE(channels, window, num_nodes, g, drop_prob, num_layers, device, control_str).to(device)
+# best_model = STGCN_WAVE(channels, window, num_nodes, g, drop_prob, num_layers, device, control_str).to(device) # noqa
 # best_model.load_state_dict(torch.load(savemodelpath))
 
 # l = evaluate_model(best_model, loss, test_iter)
