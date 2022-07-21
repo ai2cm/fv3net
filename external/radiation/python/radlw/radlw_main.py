@@ -3527,20 +3527,18 @@ def taugb14(
         taug,
         fracs,
         taufor,
-        ds,
+        selfref,
+        forref,
+        absa,
+        absb,
+        fracrefa,
+        fracrefb,
         nspa,
         nspb,
     ):
         #  ------------------------------------------------------------------  !
         #     band 14:  2250-2380 cm-1 (low - co2; high - co2)                 !
         #  ------------------------------------------------------------------  !
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
 
         #  --- ...  lower atmosphere loop
 
@@ -4257,6 +4255,12 @@ def taumol(
         ka_mco2_band_13,
         ka_mco_band_13,
         kb_mo3_band_13,
+        selfref_band_14,
+        forref_band_14,
+        absa_band_14,
+        absb_band_14,
+        fracrefa_band_14,
+        fracrefb_band_14,
         oneminus,
     ):
 
@@ -4934,7 +4938,12 @@ def taumol(
             taug,
             fracs,
             taufor,
-            ds_bands['radlw_kgb14'],
+            selfref_band_14,
+            forref_band_14,
+            absa_band_14,
+            absb_band_14,
+            fracrefa_band_14,
+            fracrefb_band_14,
             nspa,
             nspb,
         )
@@ -5341,6 +5350,14 @@ class RadLWClass:
         ka_mco2_band_13 = ds_bands['radlw_kgb13']["ka_mco2"].values
         ka_mco_band_13 = ds_bands['radlw_kgb13']["ka_mco"].values
         kb_mo3_band_13 = ds_bands['radlw_kgb13']["kb_mo3"].values
+        ## band 14
+        selfref_band_14 = ds_bands['radlw_kgb14']["selfref"].values
+        forref_band_14 = ds_bands['radlw_kgb14']["forref"].values
+        absa_band_14 = ds_bands['radlw_kgb14']["absa"].values
+        absb_band_14 = ds_bands['radlw_kgb14']["absb"].values
+        fracrefa_band_14 = ds_bands['radlw_kgb14']["fracrefa"].values
+        fracrefb_band_14 = ds_bands['radlw_kgb14']["fracrefb"].values
+
         ## ending data loading for taumol
         ########################################        
         cldfrc = np.zeros(nlp1 + 1)
@@ -5754,6 +5771,12 @@ class RadLWClass:
                 ka_mco2_band_13,
                 ka_mco_band_13,
                 kb_mo3_band_13,
+                selfref_band_14,
+                forref_band_14,
+                absa_band_14,
+                absb_band_14,
+                fracrefa_band_14,
+                fracrefb_band_14,
                 self.oneminus,
             )
             if verbose:
