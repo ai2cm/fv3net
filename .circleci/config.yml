@@ -222,11 +222,11 @@ jobs:
             nix-env -iA cachix -f https://cachix.org/api/v1/install
             cachix use vulcanclimatemodeling
       - run:
-          name: "Get data"
-#                       nix-shell --command "gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS"
+          name: "Get data"         
           command: |
             cd external/radiation
             . /home/circleci/.nix-profile/etc/profile.d/nix.sh
+            nix-shell --command "gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS"
             nix-shell --command "./get_data.sh"
       - run:
           name: "Validate radiation port"
