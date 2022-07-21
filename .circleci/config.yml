@@ -222,7 +222,7 @@ jobs:
             nix-env -iA cachix -f https://cachix.org/api/v1/install
             cachix use vulcanclimatemodeling
       - run:
-          name: "Get data"         
+          name: "Get data"
           command: |
             cd external/radiation
             . /home/circleci/.nix-profile/etc/profile.d/nix.sh
