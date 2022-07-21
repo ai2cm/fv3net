@@ -3628,7 +3628,11 @@ def taugb15(
         taug,
         fracs,
         chi_mls,
-        ds,
+        selfref,
+        forref,
+        absa,
+        fracrefa,
+        ka_mn2,
         oneminus,
         nspa,
     ):
@@ -3640,12 +3644,6 @@ def taugb15(
         #  --- ...  minor gas mapping level :
         #     lower - nitrogen continuum, P = 1053., T = 294.
 
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        fracrefa = ds["fracrefa"].values
-        ka_mn2 = ds["ka_mn2"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower atmosphere.
@@ -4261,6 +4259,12 @@ def taumol(
         absb_band_14,
         fracrefa_band_14,
         fracrefb_band_14,
+        selfref_band_15,
+        forref_band_15,
+        absa_band_15,
+        fracrefa_band_15,
+        ka_mn2_band_15,
+
         oneminus,
     ):
 
@@ -4977,7 +4981,11 @@ def taumol(
             taug,
             fracs,
             chi_mls,
-            ds_bands['radlw_kgb15'],
+            selfref_band_15,
+            forref_band_15,
+            absa_band_15,
+            fracrefa_band_15,
+            ka_mn2_band_15,
             oneminus,
             nspa,
         )
@@ -5357,7 +5365,12 @@ class RadLWClass:
         absb_band_14 = ds_bands['radlw_kgb14']["absb"].values
         fracrefa_band_14 = ds_bands['radlw_kgb14']["fracrefa"].values
         fracrefb_band_14 = ds_bands['radlw_kgb14']["fracrefb"].values
-
+        ## band 15 
+        selfref_band_15 = ds_bands['radlw_kgb15']["selfref"].values
+        forref_band_15 = ds_bands['radlw_kgb15']["forref"].values
+        absa_band_15 = ds_bands['radlw_kgb15']["absa"].values
+        fracrefa_band_15 = ds_bands['radlw_kgb15']["fracrefa"].values
+        ka_mn2_band_15 = ds_bands['radlw_kgb15']["ka_mn2"].values
         ## ending data loading for taumol
         ########################################        
         cldfrc = np.zeros(nlp1 + 1)
@@ -5777,6 +5790,11 @@ class RadLWClass:
                 absb_band_14,
                 fracrefa_band_14,
                 fracrefb_band_14,
+                selfref_band_15,
+                forref_band_15,
+                absa_band_15,
+                fracrefa_band_15,
+                ka_mn2_band_15,
                 self.oneminus,
             )
             if verbose:
