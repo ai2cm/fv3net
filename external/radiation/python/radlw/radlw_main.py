@@ -717,8 +717,15 @@ def taugb03(
         taug,
         fracs,
         tauself,
-        dsc,
-        ds,
+        chi_mls,
+        selfref,
+        forref,
+        ka_mn2o,
+        kb_mn2o,
+        absa,
+        absb,
+        fracrefa,
+        fracrefb,
         oneminus,
         nspa,
         nspb,
@@ -735,15 +742,7 @@ def taugb03(
         #     lower - n2o, p = 706.272 mbar, t = 278.94 k
         #     upper - n2o, p = 95.58 mbar, t = 215.7 k
 
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        ka_mn2o = ds["ka_mn2o"].values
-        kb_mn2o = ds["kb_mn2o"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
+
 
         refrat_planck_a = chi_mls[0, 8] / chi_mls[1, 8]  # P = 212.725 mb
         refrat_planck_b = chi_mls[0, 12] / chi_mls[1, 12]  # P = 95.58   mb
@@ -1118,7 +1117,7 @@ def taugb04(
         nlay,
         taug,
         fracs,
-        dsc,
+        chi_mls,
         ds,
         oneminus,
         nspa,
@@ -1131,8 +1130,6 @@ def taugb04(
         # ===> ...  begin here
         #
 
-
-        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -1449,7 +1446,7 @@ def taugb05(
         nlay,
         taug,
         fracs,
-        dsc,
+        chi_mls,
         ds,
         oneminus,
         nspa,
@@ -1469,7 +1466,6 @@ def taugb05(
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower/upper atmosphere.
 
-        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -1810,7 +1806,7 @@ def taugb06(
         nlay,
         taug,
         fracs,
-        dsc,
+        chi_mls,
         ds,
         nspa,
     ):
@@ -1822,7 +1818,6 @@ def taugb06(
         #  --- ...  minor gas mapping level:
         #     lower - co2, p = 706.2720 mb, t = 294.2 k
         #     upper - cfc11, cfc12
-        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -1926,7 +1921,7 @@ def taugb07(
         nlay,
         taug,
         fracs,
-        dsc,
+        chi_mls,
         ds,
         oneminus,
         nspa,
@@ -1945,7 +1940,6 @@ def taugb07(
         #           fraction in lower atmosphere.
 
 
-        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -2256,7 +2250,7 @@ def taugb08(
         nlay,
         taug,
         fracs,
-        dsc,
+        chi_mls,
         ds,
         nspa,
         nspb,
@@ -2273,7 +2267,6 @@ def taugb08(
         #     upper - co2, p = 35.1632 mb, t = 223.28 k
         #     upper - n2o, p = 8.716e-2 mb, t = 226.03 k
 
-        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -2426,7 +2419,7 @@ def taugb09(
         nlay,
         taug,
         fracs,
-        dsc,
+        chi_mls,
         ds,
         oneminus,
         nspa,
@@ -2442,7 +2435,6 @@ def taugb09(
         #     upper - n2o, p = 95.58 mbar, t = 215.7 k
 
 
-        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -2989,7 +2981,7 @@ def taugb12(
         nlay,
         taug,
         fracs,
-        dsc,
+        chi_mls,
         ds,
         oneminus,
         nspa,
@@ -3000,7 +2992,6 @@ def taugb12(
         #  ------------------------------------------------------------------  !
 
 
-        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -3240,7 +3231,7 @@ def taugb13(
         nlay,
         taug,
         fracs,
-        dsc,
+        chi_mls,
         ds,
         oneminus,
         nspa,
@@ -3256,7 +3247,6 @@ def taugb13(
         #     upper - o3, p = 95.5835 mb, t = 215.7 k
 
 
-        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -3656,7 +3646,7 @@ def taugb15(
         nlay,
         taug,
         fracs,
-        dsc,
+        chi_mls,
         ds,
         oneminus,
         nspa,
@@ -3670,7 +3660,6 @@ def taugb15(
         #     lower - nitrogen continuum, P = 1053., T = 294.
 
 
-        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -3928,7 +3917,7 @@ def taugb16(
         nlay,
         taug,
         fracs,
-        dsc,
+        chi_mls,
         ds,
         oneminus,
         nspa,
@@ -3939,7 +3928,6 @@ def taugb16(
         #  ------------------------------------------------------------------  !
 
 
-        chi_mls = dsc["chi_mls"].values
         selfref = ds["selfref"].values
         forref = ds["forref"].values
         absa = ds["absa"].values
@@ -4187,7 +4175,6 @@ def taumol(
         scaleminorn2,
         indminor,
         nlay,
-        ds_radlw_ref,
         ds_bands,
         selfref_band_01,
         forref_band_01,
@@ -4202,6 +4189,15 @@ def taumol(
         absb_band_02,
         fracrefa_band_02,
         fracrefb_band_02,
+        chi_mls,
+        selfref_band_03,
+        forref_band_03,
+        ka_mn2o_band_03,
+        kb_mn2o_band_03,
+        absa_band_03,
+        absb_band_03,
+        fracrefa_band_03,
+        fracrefb_band_03,
         oneminus,
     ):
 
@@ -4426,8 +4422,15 @@ def taumol(
             taug,
             fracs,
             tauself,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb03'],
+            chi_mls,
+            selfref_band_03,
+            forref_band_03,
+            ka_mn2o_band_03,
+            kb_mn2o_band_03,
+            absa_band_03,
+            absb_band_03,
+            fracrefa_band_03,
+            fracrefb_band_03,
             oneminus,
             nspa,
             nspb,
@@ -4461,7 +4464,7 @@ def taumol(
             nlay,
             taug,
             fracs,
-            ds_radlw_ref,
+            chi_mls,
             ds_bands['radlw_kgb04'],
             oneminus,
             nspa,
@@ -4496,7 +4499,7 @@ def taumol(
             nlay,
             taug,
             fracs,
-            ds_radlw_ref,
+            chi_mls,
             ds_bands['radlw_kgb05'],
             oneminus,
             nspa,
@@ -4531,7 +4534,7 @@ def taumol(
             nlay,
             taug,
             fracs,
-            ds_radlw_ref,
+            chi_mls,
             ds_bands['radlw_kgb06'],
             nspa,
         )
@@ -4564,7 +4567,7 @@ def taumol(
             nlay,
             taug,
             fracs,
-            ds_radlw_ref,
+            chi_mls,
             ds_bands['radlw_kgb07'],
             oneminus,
             nspa,
@@ -4600,7 +4603,7 @@ def taumol(
             nlay,
             taug,
             fracs,
-            ds_radlw_ref,
+            chi_mls,
             ds_bands['radlw_kgb08'],
             nspa,
             nspb,
@@ -4634,7 +4637,7 @@ def taumol(
             nlay,
             taug,
             fracs,
-            ds_radlw_ref,
+            chi_mls,
             ds_bands['radlw_kgb09'],
             oneminus,
             nspa,
@@ -4735,7 +4738,7 @@ def taumol(
             nlay,
             taug,
             fracs,
-            ds_radlw_ref,
+            chi_mls,
             ds_bands['radlw_kgb12'],
             oneminus,
             nspa,
@@ -4770,7 +4773,7 @@ def taumol(
             nlay,
             taug,
             fracs,
-            ds_radlw_ref,
+            chi_mls,
             ds_bands['radlw_kgb13'],
             oneminus,
             nspa,
@@ -4839,7 +4842,7 @@ def taumol(
             nlay,
             taug,
             fracs,
-            ds_radlw_ref,
+            chi_mls,
             ds_bands['radlw_kgb15'],
             oneminus,
             nspa,
@@ -4873,7 +4876,7 @@ def taumol(
             nlay,
             taug,
             fracs,
-            ds_radlw_ref,
+            chi_mls,
             ds_bands['radlw_kgb16'],
             oneminus,
             nspa,
@@ -5096,7 +5099,6 @@ class RadLWClass:
         rand2d_data = ds_lw_rand["rand2d"].values
         ########################################
         ## loading data for taumol
-        ds_radlw_ref = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
         ds_bands = {}
         for nband in range(1,17):
             if nband < 10:
@@ -5119,7 +5121,15 @@ class RadLWClass:
         absb_band_02 = ds_bands['radlw_kgb02']["absb"].values
         fracrefa_band_02 = ds_bands['radlw_kgb02']["fracrefa"].values
         fracrefb_band_02 = ds_bands['radlw_kgb02']["fracrefb"].values
-
+        ## band 03        
+        selfref_band_03  = ds_bands['radlw_kgb03']["selfref"].values
+        forref_band_03   = ds_bands['radlw_kgb03']["forref"].values
+        ka_mn2o_band_03  = ds_bands['radlw_kgb03']["ka_mn2o"].values
+        kb_mn2o_band_03  = ds_bands['radlw_kgb03']["kb_mn2o"].values
+        absa_band_03     = ds_bands['radlw_kgb03']["absa"].values
+        absb_band_03     = ds_bands['radlw_kgb03']["absb"].values
+        fracrefa_band_03 = ds_bands['radlw_kgb03']["fracrefa"].values
+        fracrefb_band_03 = ds_bands['radlw_kgb03']["fracrefb"].values
 
         ## ending data loading for taumol
         ########################################
@@ -5436,7 +5446,6 @@ class RadLWClass:
                 scaleminorn2,
                 indminor,
                 nlay,
-                ds_radlw_ref,
                 ds_bands,
                 selfref_band_01,
                 forref_band_01,
@@ -5451,6 +5460,15 @@ class RadLWClass:
                 absb_band_02,
                 fracrefa_band_02,
                 fracrefb_band_02,
+                chi_mls,
+                selfref_band_03,
+                forref_band_03,
+                ka_mn2o_band_03,
+                kb_mn2o_band_03,
+                absa_band_03,
+                absb_band_03,
+                fracrefa_band_03,
+                fracrefb_band_03,
                 self.oneminus,
             )
             if verbose:
