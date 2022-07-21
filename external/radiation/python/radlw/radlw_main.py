@@ -430,7 +430,13 @@ def taugb01(
         scaleminorn2,
         indminor,
         nlay,
-        ds,
+        selfref,
+        forref,
+        ka_mn2,
+        absa,
+        absb,
+        fracrefa,
+        fracrefb,
         nspa,
         nspb,
     ):
@@ -454,14 +460,6 @@ def taugb01(
 
         taug = np.zeros((ngptlw, nlay))
         fracs = np.zeros((ngptlw, nlay))
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        ka_mn2 = ds["ka_mn2"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
 
         ind0 = ((jp - 1) * 5 + (jt - 1)) * nspa[0]
         ind1 = (jp * 5 + (jt1 - 1)) * nspa[0]
@@ -4193,6 +4191,13 @@ def taumol(
         nlay,
         ds_radlw_ref,
         ds_bands,
+        selfref_band_01,
+        forref_band_01,
+        ka_mn2_band_01,
+        absa_band_01,
+        absb_band_01,
+        fracrefa_band_01,
+        fracrefb_band_01,
         oneminus,
     ):
 
@@ -4312,7 +4317,6 @@ def taumol(
         #
         # ===> ...  begin here
         #
-
         taug, fracs = taugb01(
             laytrop,
             pavel,
@@ -4340,7 +4344,13 @@ def taumol(
             scaleminorn2,
             indminor,
             nlay,
-            ds_bands['radlw_kgb01'],
+            selfref_band_01,
+            forref_band_01,
+            ka_mn2_band_01,
+            absa_band_01,
+            absb_band_01,
+            fracrefa_band_01,
+            fracrefb_band_01,
             nspa,
             nspb,
         )
@@ -5075,7 +5085,7 @@ class RadLWClass:
 
         ds_lw_rand = xr.open_dataset(lw_rand_file)
         rand2d_data = ds_lw_rand["rand2d"].values
-
+        ########################################
         ## loading data for taumol
         ds_radlw_ref = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
         ds_bands = {}
@@ -5084,6 +5094,18 @@ class RadLWClass:
                 ds_bands['radlw_kgb0' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb0" + str(nband) + "_data.nc"))
             else:
                 ds_bands['radlw_kgb' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb" + str(nband) + "_data.nc"))
+
+        ## band 01 
+        selfref_band_01 = ds_bands['radlw_kgb01']["selfref"].values
+        forref_band_01 = ds_bands['radlw_kgb01']["forref"].values
+        ka_mn2_band_01 = ds_bands['radlw_kgb01']["ka_mn2"].values
+        absa_band_01 = ds_bands['radlw_kgb01']["absa"].values
+        absb_band_01 = ds_bands['radlw_kgb01']["absb"].values
+        fracrefa_band_01 = ds_bands['radlw_kgb01']["fracrefa"].values
+        fracrefb_band_01 = ds_bands['radlw_kgb01']["fracrefb"].values
+
+        ## ending data loading for taumol
+        ########################################
 
         cldfrc = np.zeros(nlp1 + 1)
 
@@ -5399,6 +5421,13 @@ class RadLWClass:
                 nlay,
                 ds_radlw_ref,
                 ds_bands,
+                selfref_band_01,
+                forref_band_01,
+                ka_mn2_band_01,
+                absa_band_01,
+                absb_band_01,
+                fracrefa_band_01,
+                fracrefb_band_01,
                 self.oneminus,
             )
             if verbose:
