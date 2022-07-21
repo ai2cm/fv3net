@@ -1118,7 +1118,12 @@ def taugb04(
         taug,
         fracs,
         chi_mls,
-        ds,
+        selfref,
+        forref,
+        absa,
+        absb,
+        fracrefa,
+        fracrefb,
         oneminus,
         nspa,
         nspb,
@@ -1130,12 +1135,7 @@ def taugb04(
         # ===> ...  begin here
         #
 
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
+
 
         refrat_planck_a = chi_mls[0, 10] / chi_mls[1, 10]  # P = 142.5940 mb
         refrat_planck_b = chi_mls[2, 12] / chi_mls[1, 12]  # P = 95.58350 mb
@@ -4198,6 +4198,12 @@ def taumol(
         absb_band_03,
         fracrefa_band_03,
         fracrefb_band_03,
+        selfref_band_04,
+        forref_band_04,
+        absa_band_04,
+        absb_band_04,
+        fracrefa_band_04,
+        fracrefb_band_04,
         oneminus,
     ):
 
@@ -4465,7 +4471,12 @@ def taumol(
             taug,
             fracs,
             chi_mls,
-            ds_bands['radlw_kgb04'],
+            selfref_band_04,
+            forref_band_04,
+            absa_band_04,
+            absb_band_04,
+            fracrefa_band_04,
+            fracrefb_band_04,
             oneminus,
             nspa,
             nspb,
@@ -5130,7 +5141,13 @@ class RadLWClass:
         absb_band_03     = ds_bands['radlw_kgb03']["absb"].values
         fracrefa_band_03 = ds_bands['radlw_kgb03']["fracrefa"].values
         fracrefb_band_03 = ds_bands['radlw_kgb03']["fracrefb"].values
-
+        ## band 04
+        selfref_band_04 = ds_bands['radlw_kgb04']["selfref"].values
+        forref_band_04 = ds_bands['radlw_kgb04']["forref"].values
+        absa_band_04 = ds_bands['radlw_kgb04']["absa"].values
+        absb_band_04 = ds_bands['radlw_kgb04']["absb"].values
+        fracrefa_band_04 = ds_bands['radlw_kgb04']["fracrefa"].values
+        fracrefb_band_04= ds_bands['radlw_kgb04']["fracrefb"].values
         ## ending data loading for taumol
         ########################################
 
@@ -5469,6 +5486,12 @@ class RadLWClass:
                 absb_band_03,
                 fracrefa_band_03,
                 fracrefb_band_03,
+                selfref_band_04,
+                forref_band_04,
+                absa_band_04,
+                absb_band_04,
+                fracrefa_band_04,
+                fracrefb_band_04,
                 self.oneminus,
             )
             if verbose:
