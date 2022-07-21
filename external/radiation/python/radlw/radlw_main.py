@@ -2245,7 +2245,19 @@ def taugb08(
         taug,
         fracs,
         chi_mls,
-        ds,
+        selfref,
+        forref,
+        absa,
+        absb,
+        fracrefa,
+        fracrefb,
+        ka_mo3,
+        ka_mco2,
+        kb_mco2,
+        cfc12,
+        ka_mn2o,
+        kb_mn2o,
+        cfc22adj,
         nspa,
         nspb,
     ):
@@ -2261,19 +2273,7 @@ def taugb08(
         #     upper - co2, p = 35.1632 mb, t = 223.28 k
         #     upper - n2o, p = 8.716e-2 mb, t = 226.03 k
 
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-        ka_mo3 = ds["ka_mo3"].values
-        ka_mco2 = ds["ka_mco2"].values
-        kb_mco2 = ds["kb_mco2"].values
-        cfc12 = ds["cfc12"].values
-        ka_mn2o = ds["ka_mn2o"].values
-        kb_mn2o = ds["kb_mn2o"].values
-        cfc22adj = ds["cfc22adj"].values
+
 
         #  --- ...  lower atmosphere loop
         ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * nspa[7]
@@ -4221,6 +4221,19 @@ def taumol(
         fracrefb_band_07,
         ka_mco2_band_07,
         kb_mco2_band_07,
+        selfref_band_08,
+        forref_band_08,
+        absa_band_08,
+        absb_band_08,
+        fracrefa_band_08,
+        fracrefb_band_08,
+        ka_mo3_band_08,
+        ka_mco2_band_08,
+        kb_mco2_band_08,
+        cfc12_band_08,
+        ka_mn2o_band_08,
+        kb_mn2o_band_08,
+        cfc22adj_band_08,
         oneminus,
     ):
 
@@ -4652,7 +4665,19 @@ def taumol(
             taug,
             fracs,
             chi_mls,
-            ds_bands['radlw_kgb08'],
+            selfref_band_08,
+            forref_band_08,
+            absa_band_08,
+            absb_band_08,
+            fracrefa_band_08,
+            fracrefb_band_08,
+            ka_mo3_band_08,
+            ka_mco2_band_08,
+            kb_mco2_band_08,
+            cfc12_band_08,
+            ka_mn2o_band_08,
+            kb_mn2o_band_08,
+            cfc22adj_band_08,            
             nspa,
             nspb,
         )
@@ -5211,6 +5236,21 @@ class RadLWClass:
         fracrefb_band_07 = ds_bands['radlw_kgb07']["fracrefb"].values
         ka_mco2_band_07 = ds_bands['radlw_kgb07']["ka_mco2"].values
         kb_mco2_band_07 = ds_bands['radlw_kgb07']["kb_mco2"].values
+        ## band 08
+        selfref_band_08 = ds_bands['radlw_kgb08']["selfref"].values
+        forref_band_08 = ds_bands['radlw_kgb08']["forref"].values
+        absa_band_08 = ds_bands['radlw_kgb08']["absa"].values
+        absb_band_08 = ds_bands['radlw_kgb08']["absb"].values
+        fracrefa_band_08 = ds_bands['radlw_kgb08']["fracrefa"].values
+        fracrefb_band_08 = ds_bands['radlw_kgb08']["fracrefb"].values
+        ka_mo3_band_08 = ds_bands['radlw_kgb08']["ka_mo3"].values
+        ka_mco2_band_08 = ds_bands['radlw_kgb08']["ka_mco2"].values
+        kb_mco2_band_08 = ds_bands['radlw_kgb08']["kb_mco2"].values
+        cfc12_band_08 = ds_bands['radlw_kgb08']["cfc12"].values
+        ka_mn2o_band_08 = ds_bands['radlw_kgb08']["ka_mn2o"].values
+        kb_mn2o_band_08 = ds_bands['radlw_kgb08']["kb_mn2o"].values
+        cfc22adj_band_08 = ds_bands['radlw_kgb08']["cfc22adj"].values
+
 
         ## ending data loading for taumol
         ########################################        
@@ -5578,6 +5618,19 @@ class RadLWClass:
                 fracrefb_band_07,
                 ka_mco2_band_07,
                 kb_mco2_band_07,
+                selfref_band_08,
+                forref_band_08,
+                absa_band_08,
+                absb_band_08,
+                fracrefa_band_08,
+                fracrefb_band_08,
+                ka_mo3_band_08,
+                ka_mco2_band_08,
+                kb_mco2_band_08,
+                cfc12_band_08,
+                ka_mn2o_band_08,
+                kb_mn2o_band_08,
+                cfc22adj_band_08,
                 self.oneminus,
             )
             if verbose:
