@@ -592,7 +592,12 @@ def taugb02(
         nlay,
         taug,
         fracs,
-        ds,
+        selfref,
+        forref,
+        absa,
+        absb,
+        fracrefa,
+        fracrefb,
         nspa,
         nspb,
     ):
@@ -603,13 +608,6 @@ def taugb02(
         # ===> ...  begin here
         #
         #  --- ...  lower atmosphere loop
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
 
         ind0 = ((jp - 1) * 5 + (jt - 1)) * nspa[1]
         ind1 = (jp * 5 + (jt1 - 1)) * nspa[1]
@@ -4198,6 +4196,12 @@ def taumol(
         absb_band_01,
         fracrefa_band_01,
         fracrefb_band_01,
+        selfref_band_02,
+        forref_band_02,
+        absa_band_02,
+        absb_band_02,
+        fracrefa_band_02,
+        fracrefb_band_02,
         oneminus,
     ):
 
@@ -4383,7 +4387,12 @@ def taumol(
             nlay,
             taug,
             fracs,
-            ds_bands['radlw_kgb02'],
+            selfref_band_02,
+            forref_band_02,
+            absa_band_02,
+            absb_band_02,
+            fracrefa_band_02,
+            fracrefb_band_02,
             nspa,
             nspb,
         )
@@ -5103,6 +5112,14 @@ class RadLWClass:
         absb_band_01 = ds_bands['radlw_kgb01']["absb"].values
         fracrefa_band_01 = ds_bands['radlw_kgb01']["fracrefa"].values
         fracrefb_band_01 = ds_bands['radlw_kgb01']["fracrefb"].values
+        ## band 02
+        selfref_band_02 = ds_bands['radlw_kgb02']["selfref"].values
+        forref_band_02 = ds_bands['radlw_kgb02']["forref"].values
+        absa_band_02 = ds_bands['radlw_kgb02']["absa"].values
+        absb_band_02 = ds_bands['radlw_kgb02']["absb"].values
+        fracrefa_band_02 = ds_bands['radlw_kgb02']["fracrefa"].values
+        fracrefb_band_02 = ds_bands['radlw_kgb02']["fracrefb"].values
+
 
         ## ending data loading for taumol
         ########################################
@@ -5428,6 +5445,12 @@ class RadLWClass:
                 absb_band_01,
                 fracrefa_band_01,
                 fracrefb_band_01,
+                selfref_band_02,
+                forref_band_02,
+                absa_band_02,
+                absb_band_02,
+                fracrefa_band_02,
+                fracrefb_band_02,
                 self.oneminus,
             )
             if verbose:
