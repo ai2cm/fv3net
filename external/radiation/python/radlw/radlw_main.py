@@ -2414,7 +2414,14 @@ def taugb09(
         taug,
         fracs,
         chi_mls,
-        ds,
+        selfref,
+        forref,
+        absa,
+        absb,
+        fracrefa,
+        fracrefb,
+        ka_mn2o,
+        kb_mn2o,
         oneminus,
         nspa,
         nspb,
@@ -2428,15 +2435,6 @@ def taugb09(
         #     lower - n2o, p = 706.272 mbar, t = 278.94 k
         #     upper - n2o, p = 95.58 mbar, t = 215.7 k
 
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-        ka_mn2o = ds["ka_mn2o"].values
-        kb_mn2o = ds["kb_mn2o"].values
 
         #  --- ...  calculate reference ratio to be used in calculation of Planck
         #           fraction in lower/upper atmosphere.
@@ -4234,6 +4232,14 @@ def taumol(
         ka_mn2o_band_08,
         kb_mn2o_band_08,
         cfc22adj_band_08,
+        selfref_band_09,
+        forref_band_09,
+        absa_band_09,
+        absb_band_09,
+        fracrefa_band_09,
+        fracrefb_band_09,
+        ka_mn2o_band_09,
+        kb_mn2o_band_09,
         oneminus,
     ):
 
@@ -4711,7 +4717,14 @@ def taumol(
             taug,
             fracs,
             chi_mls,
-            ds_bands['radlw_kgb09'],
+            selfref_band_09,
+            forref_band_09,
+            absa_band_09,
+            absb_band_09,
+            fracrefa_band_09,
+            fracrefb_band_09,
+            ka_mn2o_band_09,
+            kb_mn2o_band_09,
             oneminus,
             nspa,
             nspb,
@@ -5250,8 +5263,15 @@ class RadLWClass:
         ka_mn2o_band_08 = ds_bands['radlw_kgb08']["ka_mn2o"].values
         kb_mn2o_band_08 = ds_bands['radlw_kgb08']["kb_mn2o"].values
         cfc22adj_band_08 = ds_bands['radlw_kgb08']["cfc22adj"].values
-
-
+        ## band 09
+        selfref_band_09 = ds_bands['radlw_kgb09']["selfref"].values
+        forref_band_09 = ds_bands['radlw_kgb09']["forref"].values
+        absa_band_09 = ds_bands['radlw_kgb09']["absa"].values
+        absb_band_09 = ds_bands['radlw_kgb09']["absb"].values
+        fracrefa_band_09 = ds_bands['radlw_kgb09']["fracrefa"].values
+        fracrefb_band_09 = ds_bands['radlw_kgb09']["fracrefb"].values
+        ka_mn2o_band_09 = ds_bands['radlw_kgb09']["ka_mn2o"].values
+        kb_mn2o_band_09 = ds_bands['radlw_kgb09']["kb_mn2o"].values
         ## ending data loading for taumol
         ########################################        
         cldfrc = np.zeros(nlp1 + 1)
@@ -5631,6 +5651,14 @@ class RadLWClass:
                 ka_mn2o_band_08,
                 kb_mn2o_band_08,
                 cfc22adj_band_08,
+                selfref_band_09,
+                forref_band_09,
+                absa_band_09,
+                absb_band_09,
+                fracrefa_band_09,
+                fracrefb_band_09,
+                ka_mn2o_band_09,
+                kb_mn2o_band_09,
                 self.oneminus,
             )
             if verbose:
