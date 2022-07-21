@@ -1,26 +1,13 @@
-import dgl
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import dgl.function as fn
-from dgl.nn import SAGEConv
-from dgl.nn.pytorch import GraphConv, ChebConv, GATConv
 import numpy as np
-import dask.diagnostics
 import fsspec
 import xarray as xr
-import matplotlib.pyplot as plt
-import networkx as nx
 import os
-from torch.utils.data import DataLoader
-import torch.optim as optim
-import warnings
-import time
-import select as sl
 import pickle
-from load_data import *
-from utils import *
-from model import *
+from load_data import data_transform
+from utils import evaluate_model
+from model import STGCN_WAVE
 import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
