@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Iterable, Optional, Set, Hashable, Sequence
+from typing import Callable, Iterable, Optional, Set, Hashable, Sequence
 import dacite
 import fsspec
 import yaml
@@ -10,7 +10,7 @@ import vcm
 
 from fv3fit._shared.novelty_detector import NoveltyDetector
 from fv3fit._shared import taper_function
-from fv3fit._shared.taper_function import MaskTaperFunction, TaperFunction
+from fv3fit._shared.taper_function import get_taper_function
 
 from . import io
 from .predictor import Predictor
@@ -255,8 +255,8 @@ class OutOfSampleModel(Predictor):
         self,
         base_model: Predictor,
         novelty_detector: NoveltyDetector,
-        cutoff: Optional[float] = None,
-        taper: Optional[TaperFunction] = None,
+        cutoff: float = 0,
+        taper: Optional[Callable[[xr.DataArray], xr.DataArray]] = None,
     ):
         """
         Args:
@@ -276,8 +276,10 @@ class OutOfSampleModel(Predictor):
         """
         self.base_model = base_model
         self.novelty_detector = novelty_detector
-        self.cutoff = cutoff or novelty_detector._get_default_cutoff()
-        self.taper = taper or MaskTaperFunction(self.cutoff)
+        self.cutoff = cutoff
+        self.taper = taper or get_taper_function(
+            taper_function._MASK_NAME, {"cutoff": cutoff}
+        )
 
         base_inputs = set(base_model.input_variables)
         base_outputs = set(base_model.output_variables)
@@ -292,11 +294,11 @@ class OutOfSampleModel(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         base_predict = self.base_model.predict(X)
-        novelties = self.novelty_detector.predict_novelties(X, cutoff=self.cutoff)
-        taper_values = self.taper.get_taper_value(
-            novelties[NoveltyDetector._SCORE_OUTPUT_VAR]
+        centered_scores, diagnostics = self.novelty_detector.predict_novelties(
+            X, cutoff=self.cutoff
         )
-        novelties[self._TAPER_VALUES_OUTPUT_VAR] = taper_values
+        taper_values = self.taper(centered_scores)
+        diagnostics[self._TAPER_VALUES_OUTPUT_VAR] = taper_values
 
         tapered_predict = xr.Dataset(
             coords=base_predict.coords, attrs=base_predict.attrs
@@ -306,7 +308,7 @@ class OutOfSampleModel(Predictor):
                 base_predict[output_variable] * taper_values
             )
 
-        return xr.merge([tapered_predict, novelties])
+        return xr.merge([tapered_predict, diagnostics])
 
     def dump(self, path):
         raise NotImplementedError(
@@ -322,19 +324,26 @@ class OutOfSampleModel(Predictor):
 
         base_model = io.load(config["base_model_path"])
         novelty_detector = io.load(config["novelty_detector_path"])
+        cutoff = 0
         if "cutoff" in config:
             cutoff = config["cutoff"]
-        else:
-            cutoff = None
 
         assert isinstance(novelty_detector, NoveltyDetector)
 
-        taper = None
+        default_tapering_config = {
+            "name": taper_function._MASK_NAME,
+            "cutoff": cutoff,
+            "ramp_min": cutoff,
+            "ramp_max": 1 if cutoff == 0 else max(cutoff * 2, cutoff / 2),
+            "threshold": cutoff,
+            "rate": 0.5,
+        }
         if "tapering_function" in config:
-            tapering_config = config["tapering_function"]
-            taper = getattr(taper_function, tapering_config["name"]).load(
-                tapering_config, novelty_detector
-            )
+            tapering_config = {**default_tapering_config, **config["tapering_function"]}
+        else:
+            tapering_config = default_tapering_config
+
+        taper = get_taper_function(tapering_config["name"], tapering_config)
 
         model = cls(base_model, novelty_detector, cutoff=cutoff, taper=taper)
         return model
