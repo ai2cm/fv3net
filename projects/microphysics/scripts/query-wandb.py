@@ -30,6 +30,17 @@ def wandb2job(run: Any) -> end_to_end.ToYaml:
             project="microphysics-emulation",
             bucket="vcm-ml-experiments",
         )
+    if run.job_type == "train":
+        config = dict(run.config)
+        env = config.pop("env")
+        sha = env["COMMIT_SHA"]
+        return end_to_end.TrainingJob(
+            name=run.name,
+            config=config,
+            fv3fit_image_tag=sha,
+            project="microphysics-emulation",
+            bucket="vcm-ml-experiments",
+        )
     else:
         raise NotImplementedError(f"{run.job_type} not implemented.")
 

@@ -86,9 +86,6 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         model.is_trained = True
         return model
 
-    def _get_default_cutoff(self):
-        return 0
-
     def predict(self, data: xr.Dataset) -> xr.Dataset:
         """
         For each coordinate c, computes a score with the following expression:
@@ -113,6 +110,9 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         score_dataset = stacked_scores.to_dataset(name=self._SCORE_OUTPUT_VAR).unstack(
             SAMPLE_DIM_NAME
         )
+        score_dataset[self._CENTERED_SCORE_OUTPUT_VAR] = score_dataset[
+            self._SCORE_OUTPUT_VAR
+        ]
 
         return match_prediction_to_input_coords(data, score_dataset)
 
