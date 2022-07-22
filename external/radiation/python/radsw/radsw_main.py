@@ -836,6 +836,7 @@ def mcica_subcol(iovrsw, cldf, nlay, ipseed, dz, de_lgth, ipt,rand2d):
 
         return lcloudy
     
+
 def cldprop(
         cfrac,
         cliqp,
@@ -852,7 +853,6 @@ def cldprop(
         dz,
         delgth,
         ipt,
-        ds,
         rand2d,
         extliq1, 
         extliq2, 
@@ -906,7 +906,7 @@ def cldprop(
         asysnw = np.zeros(nbandssw)
         cldf = np.zeros(nlay)
 
-        lcloudy = np.zeros((nlay, ngptsw), dtype=bool)
+        lcloudy = np.zeros((nlay, ngptsw), dtype=np.bool_)
 
         # Compute cloud radiative properties for a cloudy column.
 
@@ -1650,7 +1650,6 @@ class RadSWClass:
                     dz,
                     delgth,
                     ipt,
-                    ds_cldprtb,
                     rand2d_data, 
                     extliq1, 
                     extliq2, 
