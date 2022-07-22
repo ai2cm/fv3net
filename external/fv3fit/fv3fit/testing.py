@@ -1,8 +1,12 @@
+import fsspec
 from fv3fit._shared import (
     stack_non_vertical,
     match_prediction_to_input_coords,
+    stacking,
 )
 from typing import Any, Dict, Hashable, Iterable, Mapping, Optional, Union
+
+from fv3fit._shared.novelty_detector import NoveltyDetector
 from ._shared import Predictor, io, SAMPLE_DIM_NAME
 import numpy as np
 import xarray as xr
@@ -108,4 +112,44 @@ class ConstantOutputPredictor(Predictor):
             if value.ndim == 0:
                 outputs[key] = value.item()
         obj.set_outputs(**outputs)
+        return obj
+
+
+@io.register("constant-output-novelty")
+class ConstantOutputNoveltyDetector(NoveltyDetector):
+    """
+    A simple novelty detector to be used in testing. Its score outputs are always 0
+    and its novelty assessment can be changed by adjusting the score.
+    """
+
+    def __init__(self, input_variables: Iterable[Hashable]):
+        super().__init__(input_variables=input_variables)
+
+    def predict(self, data: xr.Dataset) -> xr.Dataset:
+        scores_unreduced = xr.zeros_like(data[next(iter(self.input_variables))])
+        unnecessary_coords = {
+            k: v
+            for (k, v) in scores_unreduced.coords.items()
+            if k in stacking.Z_DIM_NAMES
+        }
+        scores_reduced = scores_unreduced.max(unnecessary_coords)
+        score_dataset = scores_reduced.to_dataset(name=self._SCORE_OUTPUT_VAR)
+        return score_dataset
+
+    def _get_default_cutoff(self):
+        return 0
+
+    def dump(self, path: str) -> None:
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        fs.makedirs(path, exist_ok=True)
+
+        with open(os.path.join(path, "attrs.yaml"), "w") as f:
+            yaml.safe_dump({"input_variables": self.input_variables}, f)
+
+    @classmethod
+    def load(cls, path: str) -> "ConstantOutputNoveltyDetector":
+        """Load a serialized model from a directory."""
+        with open(os.path.join(path, "attrs.yaml"), "r") as f:
+            attrs = yaml.safe_load(f)
+        obj = cls(**attrs)
         return obj

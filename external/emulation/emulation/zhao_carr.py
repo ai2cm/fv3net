@@ -4,6 +4,13 @@ the functions in this submodule know the variable names of the ZC microphysics
 
 """
 import numpy as np
+from fv3fit.emulation.transforms.zhao_carr import (
+    CLASS_NAMES,
+    ZERO_CLOUD,
+    ZERO_TENDENCY,
+    POSITIVE_TENDENCY,
+    NEGATIVE_TENDENCY,
+)
 
 
 class Input:
@@ -73,6 +80,11 @@ def apply_condensation_liquid_phase(state, net_condensation):
     }
 
 
+def _update_with_net_condensation(cloud_out, state, emulator):
+    net_condensation = cloud_out - state[Input.cloud_water]
+    return {**emulator, **apply_condensation_liquid_phase(state, net_condensation)}
+
+
 def mask_where_fortran_cloud_vanishes_gscond(state, emulator):
     threshold = 1e-15
     cloud_out = np.where(
@@ -80,8 +92,7 @@ def mask_where_fortran_cloud_vanishes_gscond(state, emulator):
         0,
         emulator[GscondOutput.cloud_water],
     )
-    net_condensation = cloud_out - state[Input.cloud_water]
-    return {**emulator, **apply_condensation_liquid_phase(state, net_condensation)}
+    return _update_with_net_condensation(cloud_out, state, emulator)
 
 
 def mask_where_fortran_cloud_identical(state, emulator):
@@ -90,10 +101,45 @@ def mask_where_fortran_cloud_identical(state, emulator):
         state[Input.cloud_water],
         emulator[GscondOutput.cloud_water],
     )
-    net_condensation = cloud_out - state[Input.cloud_water]
-    return {**emulator, **apply_condensation_liquid_phase(state, net_condensation)}
+    return _update_with_net_condensation(cloud_out, state, emulator)
+
+
+def _get_classify_output(logit_classes, one_hot_axis=0):
+    names = sorted(CLASS_NAMES)
+    one_hot = logit_classes == np.max(logit_classes, axis=one_hot_axis, keepdims=True)
+    d = {name: one_hot[i] for i, name in enumerate(names)}
+    d["nontrivial_tendency"] = d[POSITIVE_TENDENCY] | d[NEGATIVE_TENDENCY]
+    return d
+
+
+def mask_zero_cloud_classifier(state, emulator):
+    cloud_out = np.where(
+        _get_classify_output(emulator["gscond_classes"])[ZERO_CLOUD],
+        0,
+        emulator[GscondOutput.cloud_water],
+    )
+    return _update_with_net_condensation(cloud_out, state, emulator)
+
+
+def mask_zero_tend_classifier(state, emulator):
+    cloud_out = np.where(
+        _get_classify_output(emulator["gscond_classes"])[ZERO_TENDENCY],
+        state[Input.cloud_water],
+        emulator[GscondOutput.cloud_water],
+    )
+    return _update_with_net_condensation(cloud_out, state, emulator)
+
+
+def mask_zero_cloud_classifier_precpd(state, emulator):
+    cloud_out = np.where(
+        _get_classify_output(emulator["precpd_classes"])[ZERO_CLOUD],
+        0,
+        emulator[PrecpdOutput.cloud_water],
+    )
+    out = {**emulator, PrecpdOutput.cloud_water: cloud_out}
+    return out
 
 
 def enforce_conservative_gscond(state, emulator):
-    net_condensation = emulator[GscondOutput.cloud_water] - state[Input.cloud_water]
-    return {**emulator, **apply_condensation_liquid_phase(state, net_condensation)}
+    cloud_out = emulator[GscondOutput.cloud_water]
+    return _update_with_net_condensation(cloud_out, state, emulator)

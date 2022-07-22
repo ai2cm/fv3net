@@ -22,14 +22,19 @@ def get_jacobians(
             tensors with dimensions of [1, nfeatures]
     """
 
+    float_inputs = {
+        key: tensor for key, tensor in inputs.items() if tensor.dtype != tf.bool
+    }
     with tf.GradientTape(persistent=True) as g:
-        g.watch(inputs)
+        g.watch(float_inputs)
         outputs = model(inputs)
 
     all_jacobians = {}
     for out_name, out_data in outputs.items():
-        jacobians = g.jacobian(out_data, inputs)
-        jacobians = {name: j[0, :, 0].numpy() for name, j in jacobians.items()}
+        jacobians = g.jacobian(out_data, float_inputs)
+        jacobians = {
+            name: j[0, :, 0].numpy() for name, j in jacobians.items() if j is not None
+        }
         all_jacobians[out_name] = jacobians
 
     return all_jacobians
@@ -65,10 +70,15 @@ def standardize_jacobians(
 
 
 def compute_jacobians(model, data, input_variables):
-    avg_profiles = {
-        name: tf.reduce_mean(data[name], axis=0, keepdims=True)
-        for name in input_variables
-    }
+    avg_profiles = {}
+    for name in data:
+        if data[name].dtype == tf.bool:
+            mask = tf.cast(data[name], tf.int32)
+            n = data[name].shape[0]
+            profile = tf.reduce_sum(mask, axis=0, keepdims=True) > n // 2
+            avg_profiles[name] = profile
+        else:
+            avg_profiles[name] = tf.reduce_mean(data[name], axis=0, keepdims=True)
     return get_jacobians(model, avg_profiles)
 
 

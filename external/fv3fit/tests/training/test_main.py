@@ -122,7 +122,7 @@ def mock_shuffle():
 @pytest.fixture
 def mock_tfdataset_from_batches():
     with mock.patch(
-        "fv3fit.train.tfdataset_from_batches"
+        "fv3fit.data.batches.tfdataset_from_batches"
     ) as tfdataset_from_batches_mock:
         yield tfdataset_from_batches_mock
 

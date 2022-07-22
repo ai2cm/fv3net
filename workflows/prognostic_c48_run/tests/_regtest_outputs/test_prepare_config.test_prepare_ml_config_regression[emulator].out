@@ -434,18 +434,23 @@ online_emulator:
   online: false
   train: true
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+patch_files: []
 prephysics: null
 scikit_learn: null
 tendency_prescriber: null
 zhao_carr_emulation:
   gscond: null
   model:
+    classifier_path: null
     cloud_squash: null
     enforce_conservative: false
     gscond_cloud_conservative: false
     mask_emulator_levels: {}
     mask_gscond_identical_cloud: false
+    mask_gscond_no_tend_classifier: false
     mask_gscond_zero_cloud: false
+    mask_gscond_zero_cloud_classifier: false
+    mask_precpd_zero_cloud_classifier: false
     online_schedule:
       initial_time: 2016-06-01 00:00:00
       period: 21600

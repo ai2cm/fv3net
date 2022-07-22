@@ -1,18 +1,24 @@
+#!/usr/bin/env python3
 """Configuration class for submitting end to end experiments with argo
 """
-from copy import deepcopy
-import yaml
-from typing import Mapping, Protocol, Optional, Sequence
-import subprocess
-import dataclasses
+import argparse
 import base64
-import os
-from fv3net.artifacts.resolve_url import resolve_url
+import dataclasses
 import pathlib
+import subprocess
 import sys
+from copy import deepcopy
+from typing import Mapping, Optional, Protocol, Sequence
 
+import dacite
+import yaml
 
-WORKFLOW_FILE = pathlib.Path(__file__).parent / "argo.yaml"
+from fv3net.artifacts.resolve_url import resolve_url
+
+WORKFLOW_FILE = pathlib.Path(__file__).parent.parent / "argo" / "argo.yaml"
+
+PROGNOSTIC = "prognostic"
+TRAIN = "train"
 
 
 def load_yaml(path):
@@ -120,31 +126,13 @@ def _label_args(labels):
     return ["--labels", ",".join(label_vals)] if labels else []
 
 
-def set_prognostic_emulation_model(
-    config: dict,
-    model_path: str,
-    gscond_only: bool = False,
-    gscond_conservative: bool = True,
-) -> dict:
-    prog_config = deepcopy(config)
-    assert model_path.startswith("gs://")
-
-    if gscond_only:
-        emu_config = {
-            "gscond": {
-                "path": model_path,
-                "gscond_cloud_conservative": gscond_conservative,
-            }
-        }
-        prog_config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = True
-    else:
-        emu_config = {"model": {"path": model_path}}
-    prog_config["zhao_carr_emulation"] = emu_config
-    return prog_config
+class ToYaml:
+    def to_yaml(self):
+        return yaml.safe_dump(dataclasses.asdict(self))
 
 
 @dataclasses.dataclass
-class PrognosticJob:
+class PrognosticJob(ToYaml):
     """A configuration for prognostic jobs
 
     Examples:
@@ -182,9 +170,14 @@ class PrognosticJob:
             "image_tag": self.image_tag,
         }
 
+    def to_yaml(self):
+        d = dataclasses.asdict(self)
+        d["kind"] = PROGNOSTIC
+        return yaml.safe_dump(d)
+
 
 @dataclasses.dataclass
-class TrainingJob:
+class TrainingJob(ToYaml):
     """
 
     Examples:
@@ -228,65 +221,10 @@ class TrainingJob:
     def entrypoint(self):
         return "training"
 
-
-@dataclasses.dataclass
-class EndToEndJob:
-    """A configuration for E2E training and prognostic
-
-    Examples:
-
-    A short configuration::
-
-        from end_to_end import EndToEndJob, load_yaml
-
-        job = EndToEndJob(
-            name="test-v5",
-            fv3fit_image_tag="d848e586db85108eb142863e600741621307502b",
-            image_tag="d848e586db85108eb142863e600741621307502b",
-            ml_config=load_yaml("../train/rnn.yaml"),
-            prog_config=load_yaml("../configs/default_short.yaml"),
-        )
-
-    """
-
-    name: str
-    ml_config: dict = dataclasses.field(repr=False)
-    prog_config: dict = dataclasses.field(repr=False)
-    fv3fit_image_tag: str
-    image_tag: str
-    bucket: str = "vcm-ml-experiments"
-    project: str = "microphysics-emulation"
-    gscond_only: bool = False
-    gscond_conservative: bool = True
-
-    @property
-    def entrypoint(self):
-        return "end-to-end"
-
-    @property
-    def parameters(self):
-        model_out_url = resolve_url(self.bucket, self.project, self.name)
-        assert model_out_url.startswith(
-            "gs://"
-        ), f"Must use a remote URL. Got {model_out_url}"
-
-        ml_config = deepcopy(self.ml_config)
-        ml_config["out_url"] = model_out_url
-
-        model_path = os.path.join(model_out_url, "model.tf")
-        prog_config = set_prognostic_emulation_model(
-            self.prog_config,
-            model_path,
-            gscond_only=self.gscond_only,
-            gscond_conservative=self.gscond_conservative,
-        )
-
-        return {
-            "training-config": _encode(ml_config),
-            "config": _encode(prog_config),
-            "image_tag": self.image_tag,
-            "fv3fit_image_tag": self.fv3fit_image_tag,
-        }
+    def to_yaml(self):
+        d = dataclasses.asdict(self)
+        d["kind"] = TRAIN
+        return yaml.safe_dump(d)
 
 
 def _encode(dict):
@@ -303,3 +241,16 @@ def _argo_parameters(kwargs):
             encoded = str(val)
         args.extend(["-p", key + "=" + encoded])
     return args
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("spec")
+    args = parser.parse_args()
+    with open(args.spec) as f:
+        config_ = yaml.safe_load(f)
+        name = config_.pop("kind")
+        experiment = config_.pop("experiment", "default")
+        cls = {TRAIN: TrainingJob, PROGNOSTIC: PrognosticJob}[name]
+        job = dacite.from_dict(cls, config_)
+        submit_jobs([job], experiment_name=experiment)

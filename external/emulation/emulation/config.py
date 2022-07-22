@@ -1,12 +1,13 @@
 import dataclasses
 import datetime
 import logging
-from typing import Iterable, Mapping, Optional, Tuple
+from typing import Iterable, Mapping, Optional, Tuple, Union
 import os
 
 import cftime
 import dacite
 import f90nml
+import tensorflow as tf
 import yaml
 from emulation._emulate.microphysics import (
     MicrophysicsHook,
@@ -17,9 +18,17 @@ from emulation._emulate.microphysics import (
 from emulation._monitor.monitor import StorageConfig, StorageHook
 from emulation._time import from_datetime, to_datetime
 from emulation.masks import RangeMask, LevelMask, compose_masks
+import emulation._filesystem
+import emulation.models
 import emulation.zhao_carr
 
 logger = logging.getLogger("emulation")
+
+
+def _load_tf_model(model_path: str) -> tf.keras.Model:
+    logger.info(f"Loading keras model: {model_path}")
+    with emulation._filesystem.get_dir(model_path) as local_model_path:
+        return tf.keras.models.load_model(local_model_path)
 
 
 def do_nothing(state):
@@ -46,8 +55,17 @@ class Range:
 
 @dataclasses.dataclass
 class LevelSlice:
+    """
+
+    Attributes:
+        fill_value: how to fill the values between start and stop. If a float,
+            then fill with fill_value. If a string, then fill with the values from
+            ``truth[fill_value]``.
+    """
+
     start: Optional[int] = None
     stop: Optional[int] = None
+    fill_value: Union[float, str, None] = None
 
 
 @dataclasses.dataclass
@@ -61,8 +79,7 @@ class ModelConfig:
             The physics is used for the first half of the interval, and the ML
             for the second half.
         ranges: post-hoc limits to apply to the predicted values
-        mask_emulator_levels:  override the emulator tendencies with the fortran
-            physics tendencies for a specified level range.
+        mask_emulator_levels:  levels to mask the emulator tendencies at.
         cloud_squash: all cloud values less than this amount (including
             negative values) will be squashed to zero.
         gscond_cloud_conservative: infer the gscond cloud from conservation via
@@ -75,6 +92,7 @@ class ModelConfig:
     """
 
     path: str
+    classifier_path: Optional[str] = None
     online_schedule: Optional[IntervalSchedule] = None
     ranges: Mapping[str, Range] = dataclasses.field(default_factory=dict)
     mask_emulator_levels: Mapping[str, LevelSlice] = dataclasses.field(
@@ -85,9 +103,21 @@ class ModelConfig:
     mask_gscond_identical_cloud: bool = False
     mask_gscond_zero_cloud: bool = False
     enforce_conservative: bool = False
+    mask_gscond_zero_cloud_classifier: bool = False
+    mask_gscond_no_tend_classifier: bool = False
+    mask_precpd_zero_cloud_classifier: bool = False
 
     def build(self) -> MicrophysicsHook:
-        return MicrophysicsHook(self.path, mask=self._build_mask())
+        model = _load_tf_model(self.path)
+        classifier = (
+            _load_tf_model(self.classifier_path)
+            if self.classifier_path is not None
+            else None
+        )
+        model = emulation.models.combine_classifier_and_regressor(
+            regressor=model, classifier=classifier
+        )
+        return MicrophysicsHook(model=model, mask=self._build_mask())
 
     def _build_mask(self) -> Mask:
         return compose_masks(self._build_masks())
@@ -116,11 +146,22 @@ class ModelConfig:
         if self.mask_gscond_zero_cloud:
             yield emulation.zhao_carr.mask_where_fortran_cloud_vanishes_gscond
 
+        if self.mask_gscond_no_tend_classifier:
+            yield emulation.zhao_carr.mask_zero_tend_classifier
+
+        if self.mask_gscond_zero_cloud_classifier:
+            yield emulation.zhao_carr.mask_zero_cloud_classifier
+
+        if self.mask_precpd_zero_cloud_classifier:
+            yield emulation.zhao_carr.mask_zero_cloud_classifier_precpd
+
         if self.enforce_conservative:
             yield emulation.zhao_carr.enforce_conservative_gscond
 
         for key, _slice in self.mask_emulator_levels.items():
-            yield LevelMask(key, start=_slice.start, stop=_slice.stop)
+            yield LevelMask(
+                key, start=_slice.start, stop=_slice.stop, fill_value=_slice.fill_value
+            )
 
 
 @dataclasses.dataclass
@@ -156,7 +197,8 @@ class EmulationConfig:
                 type_hooks={
                     cftime.DatetimeJulian: from_datetime,
                     datetime.timedelta: lambda x: datetime.timedelta(seconds=x),
-                }
+                },
+                strict=True,
             ),
         )
 

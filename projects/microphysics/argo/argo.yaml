@@ -102,16 +102,20 @@ spec:
       operator: "Equal"
       value: "med-sim-pool"
       effect: "NoSchedule"
+    - key: "dedicated"
+      operator: "Equal"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
     container:
       image: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.image_tag}}"
       imagePullPolicy: Always
       workingDir: "/fv3net/projects/microphysics"
       resources:
         requests:
-          memory: "16Gi"
+          memory: "24Gi"
           cpu: "7500m"
         limits:
-          memory: "16Gi"
+          memory: "24Gi"
           cpu: "7500m"
       envFrom:
       - secretRef:
@@ -376,23 +380,3 @@ spec:
       operator: "Equal"
       value: "med-sim-pool"
       effect: "NoSchedule"
-  - name: end-to-end
-    steps:
-      - - name: train-model-gpu
-          template: train-model-gpu
-          arguments:
-            parameters:
-            - name: training-config
-              value: "{{workflow.parameters.training-config}}"
-            - name: flags
-              value: "{{workflow.parameters.flags}}"
-      - - name: prognostic-run
-          template: prognostic-run
-        - name: score-model
-          template: score-model
-          arguments:
-            parameters:
-            - name: training-config
-              value: "{{workflow.parameters.training-config}}"
-            - name: flags
-              value: "{{workflow.parameters.flags}}"
