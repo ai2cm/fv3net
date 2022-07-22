@@ -1072,8 +1072,35 @@ class RadSWClass:
         preflog = ds["preflog"].values
         tref = ds["tref"].values
 
-        ## load data 
+        ## load data for cldprop
         ds_cldprtb = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_cldprtb_data.nc"))
+        extliq1 = ds_cldprtb["extliq1"].values
+        extliq2 = ds_cldprtb["extliq2"].values
+        ssaliq1 = ds_cldprtb["ssaliq1"].values
+        ssaliq2 = ds_cldprtb["ssaliq2"].values
+        asyliq1 = ds_cldprtb["asyliq1"].values
+        asyliq2 = ds_cldprtb["asyliq2"].values
+        extice2 = ds_cldprtb["extice2"].values
+        ssaice2 = ds_cldprtb["ssaice2"].values
+        asyice2 = ds_cldprtb["asyice2"].values
+        extice3 = ds_cldprtb["extice3"].values
+        ssaice3 = ds_cldprtb["ssaice3"].values
+        asyice3 = ds_cldprtb["asyice3"].values
+        abari = ds_cldprtb["abari"].values
+        bbari = ds_cldprtb["bbari"].values
+        cbari = ds_cldprtb["cbari"].values
+        dbari = ds_cldprtb["dbari"].values
+        ebari = ds_cldprtb["ebari"].values
+        fbari = ds_cldprtb["fbari"].values
+        b0s = ds_cldprtb["b0s"].values
+        b1s = ds_cldprtb["b1s"].values
+        b0r = ds_cldprtb["b0r"].values
+        c0s = ds_cldprtb["c0s"].values
+        c0r = ds_cldprtb["c0r"].values
+        a0r = ds_cldprtb["a0r"].values
+        a1r = ds_cldprtb["a1r"].values
+        a0s = ds_cldprtb["a0s"].values
+        a1s = ds_cldprtb["a1s"].values
 
         ## 
         ds = xr.open_dataset(self.rand_file)
@@ -1238,6 +1265,33 @@ class RadSWClass:
                     ipt,
                     ds_cldprtb,
                     rand2d_data, 
+                    extliq1, 
+                    extliq2, 
+                    ssaliq1, 
+                    ssaliq2, 
+                    asyliq1, 
+                    asyliq2, 
+                    extice2, 
+                    ssaice2, 
+                    asyice2, 
+                    extice3, 
+                    ssaice3, 
+                    asyice3, 
+                    abari,  
+                    bbari, 
+                    cbari, 
+                    dbari,  
+                    ebari,  
+                    fbari, 
+                    b0s, 
+                    b1s, 
+                    b0r, 
+                    c0s,  
+                    c0r,  
+                    a0r, 
+                    a1r, 
+                    a0s, 
+                    a1s, 
                 )
 
                 #  --- ...  save computed layer cloud optical depth for output
@@ -1455,35 +1509,34 @@ class RadSWClass:
         ipt,
         ds,
         rand2d,
+        extliq1, 
+        extliq2, 
+        ssaliq1, 
+        ssaliq2, 
+        asyliq1, 
+        asyliq2, 
+        extice2, 
+        ssaice2, 
+        asyice2, 
+        extice3, 
+        ssaice3, 
+        asyice3, 
+        abari,  
+        bbari, 
+        cbari, 
+        dbari,  
+        ebari,  
+        fbari, 
+        b0s, 
+        b1s, 
+        b0r, 
+        c0s,  
+        c0r,  
+        a0r, 
+        a1r, 
+        a0s, 
+        a1s, 
     ):
-        extliq1 = ds["extliq1"].values
-        extliq2 = ds["extliq2"].values
-        ssaliq1 = ds["ssaliq1"].values
-        ssaliq2 = ds["ssaliq2"].values
-        asyliq1 = ds["asyliq1"].values
-        asyliq2 = ds["asyliq2"].values
-        extice2 = ds["extice2"].values
-        ssaice2 = ds["ssaice2"].values
-        asyice2 = ds["asyice2"].values
-        extice3 = ds["extice3"].values
-        ssaice3 = ds["ssaice3"].values
-        asyice3 = ds["asyice3"].values
-        abari = ds["abari"].values
-        bbari = ds["bbari"].values
-        cbari = ds["cbari"].values
-        dbari = ds["dbari"].values
-        ebari = ds["ebari"].values
-        fbari = ds["fbari"].values
-        b0s = ds["b0s"].values
-        b1s = ds["b1s"].values
-        b0r = ds["b0r"].values
-        c0s = ds["c0s"].values
-        c0r = ds["c0r"].values
-        a0r = ds["a0r"].values
-        a1r = ds["a1r"].values
-        a0s = ds["a0s"].values
-        a1s = ds["a1s"].values
-
         #  ---  outputs:
         cldfmc = np.zeros((nlay, ngptsw))
         taucw = np.zeros((nlay, nbdsw))
