@@ -791,6 +791,50 @@ def spcvrtm(
         )
 
 
+def mcica_subcol(iovrsw, cldf, nlay, ipseed, dz, de_lgth, ipt,rand2d):
+
+        rand2d = rand2d[ipt, :].values
+        #  ---  outputs:
+        lcloudy = np.zeros((nlay, ngptsw))
+
+        #  ---  locals:
+        cdfunc = np.zeros((nlay, ngptsw))
+        #  --- ...  sub-column set up according to overlapping assumption
+
+        if iovrsw == 1:  # max-ran overlap
+
+            k1 = 0
+            for n in range(ngptsw):
+                for k in range(nlay):
+                    cdfunc[k, n] = rand2d[k1]
+                    k1 = k1 + 1
+
+            #  ---  first pick a random number for bottom/top layer.
+            #       then walk up the column: (aer's code)
+            #       if layer below is cloudy, use the same rand num in the layer below
+            #       if layer below is clear,  use a new random number
+
+            #  ---  from bottom up
+            for k in range(1, nlay):
+                k1 = k - 1
+                tem1 = 1.0 - cldf[k1]
+
+                for n in range(ngptsw):
+                    if cdfunc[k1, n] > tem1:
+                        cdfunc[k, n] = cdfunc[k1, n]
+                    else:
+                        cdfunc[k, n] = cdfunc[k, n] * tem1
+
+        #  --- ...  generate subcolumns for homogeneous clouds
+
+        for k in range(nlay):
+            tem1 = 1.0 - cldf[k]
+
+            for n in range(ngptsw):
+                lcloudy[k, n] = cdfunc[k, n] >= tem1
+
+        return lcloudy
+    
 class RadSWClass:
     VTAGSW = "NCEP SW v5.1  Nov 2012 -RRTMG-SW v3.8"
 
@@ -1814,7 +1858,7 @@ class RadSWClass:
 
             #  --- ...  call sub-column cloud generator
 
-            lcloudy = self.mcica_subcol(cldf, nlay, ipseed, dz, delgth, ipt, rand2d)
+            lcloudy = mcica_subcol(self.iovrsw,cldf, nlay, ipseed, dz, delgth, ipt, rand2d)
 
             for ig in range(ngptsw):
                 for k in range(nlay):
@@ -1830,50 +1874,7 @@ class RadSWClass:
         return taucw, ssacw, asycw, cldfrc, cldfmc
     
 
-    def mcica_subcol(self, cldf, nlay, ipseed, dz, de_lgth, ipt,rand2d):
 
-        rand2d = rand2d[ipt, :].values
-        #  ---  outputs:
-        lcloudy = np.zeros((nlay, ngptsw))
-
-        #  ---  locals:
-        cdfunc = np.zeros((nlay, ngptsw))
-        #  --- ...  sub-column set up according to overlapping assumption
-
-        if self.iovrsw == 1:  # max-ran overlap
-
-            k1 = 0
-            for n in range(ngptsw):
-                for k in range(nlay):
-                    cdfunc[k, n] = rand2d[k1]
-                    k1 = k1 + 1
-
-            #  ---  first pick a random number for bottom/top layer.
-            #       then walk up the column: (aer's code)
-            #       if layer below is cloudy, use the same rand num in the layer below
-            #       if layer below is clear,  use a new random number
-
-            #  ---  from bottom up
-            for k in range(1, nlay):
-                k1 = k - 1
-                tem1 = 1.0 - cldf[k1]
-
-                for n in range(ngptsw):
-                    if cdfunc[k1, n] > tem1:
-                        cdfunc[k, n] = cdfunc[k1, n]
-                    else:
-                        cdfunc[k, n] = cdfunc[k, n] * tem1
-
-        #  --- ...  generate subcolumns for homogeneous clouds
-
-        for k in range(nlay):
-            tem1 = 1.0 - cldf[k]
-
-            for n in range(ngptsw):
-                lcloudy[k, n] = cdfunc[k, n] >= tem1
-
-        return lcloudy
-    
 
     def setcoef(self, pavel, tavel, h2ovmr, nlay, nlp1, preflog, tref):
         #  ===================  program usage description  ===================  !
