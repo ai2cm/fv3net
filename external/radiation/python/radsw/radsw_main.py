@@ -836,7 +836,7 @@ def mcica_subcol(iovrsw, cldf, nlay, ipseed, dz, de_lgth, ipt,rand2d):
 
         return lcloudy
     
-
+@jit(nopython=True)
 def cldprop(
         cfrac,
         cliqp,
@@ -1679,7 +1679,7 @@ class RadSWClass:
                     a0s, 
                     a1s, 
                     self.ftiny,
-                    self.idxebc,
+                    np.array(self.idxebc),
                     self.isubcsw,
                     self.iovrsw,
                 )
