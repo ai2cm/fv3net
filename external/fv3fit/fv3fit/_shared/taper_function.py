@@ -2,23 +2,6 @@ from typing import Callable
 import numpy as np
 import xarray as xr
 
-_MASK_NAME = "mask"
-_RAMP_NAME = "ramp"
-_DECAY_NAME = "decay"
-
-
-def get_taper_function(
-    name=_MASK_NAME, config: dict = {}
-) -> Callable[[xr.DataArray], xr.DataArray]:
-    if name == _MASK_NAME:
-        return lambda x: taper_mask(x, **config)
-    elif name == _RAMP_NAME:
-        return lambda x: taper_ramp(x, **config)
-    elif name == _DECAY_NAME:
-        return lambda x: taper_decay(x, **config)
-    else:
-        raise ValueError("Incorrect tapering name")
-
 
 def taper_mask(
     novelty_score: xr.DataArray, cutoff: float = 0, **kwargs
@@ -50,3 +33,17 @@ def taper_decay(
         exponentially with the base rate in [0, 1].
     """
     return np.minimum(rate ** (novelty_score - threshold), 1)
+
+
+def get_taper_function(
+    name=taper_mask.__name__, config: dict = {}
+) -> Callable[[xr.DataArray], xr.DataArray]:
+    """
+        Returns the proper taper function, based on the configuration. The default is
+        the mask tapering function with a cutoff of 0.
+    """
+    try:
+        taper_func = globals()[name]
+        return lambda x: taper_func(x, **config)
+    except (KeyError):
+        raise ValueError("Incorrect tapering name")

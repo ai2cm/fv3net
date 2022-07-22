@@ -9,8 +9,7 @@ import xarray as xr
 import vcm
 
 from fv3fit._shared.novelty_detector import NoveltyDetector
-from fv3fit._shared import taper_function
-from fv3fit._shared.taper_function import get_taper_function
+from fv3fit._shared.taper_function import get_taper_function, taper_mask
 
 from . import io
 from .predictor import Predictor
@@ -278,7 +277,7 @@ class OutOfSampleModel(Predictor):
         self.novelty_detector = novelty_detector
         self.cutoff = cutoff
         self.taper = taper or get_taper_function(
-            taper_function._MASK_NAME, {"cutoff": cutoff}
+            taper_mask.__name__, {"cutoff": cutoff}
         )
 
         base_inputs = set(base_model.input_variables)
@@ -324,24 +323,21 @@ class OutOfSampleModel(Predictor):
 
         base_model = io.load(config["base_model_path"])
         novelty_detector = io.load(config["novelty_detector_path"])
-        cutoff = 0
-        if "cutoff" in config:
-            cutoff = config["cutoff"]
+        cutoff = config.get("cutoff", 0)
 
         assert isinstance(novelty_detector, NoveltyDetector)
 
         default_tapering_config = {
-            "name": taper_function._MASK_NAME,
+            "name": taper_mask.__name__,
             "cutoff": cutoff,
             "ramp_min": cutoff,
             "ramp_max": 1 if cutoff == 0 else max(cutoff * 2, cutoff / 2),
             "threshold": cutoff,
-            "rate": 0.5,
         }
-        if "tapering_function" in config:
-            tapering_config = {**default_tapering_config, **config["tapering_function"]}
-        else:
-            tapering_config = default_tapering_config
+        tapering_config = {
+            **default_tapering_config,
+            **config.get("tapering_function", {}),
+        }
 
         taper = get_taper_function(tapering_config["name"], tapering_config)
 
