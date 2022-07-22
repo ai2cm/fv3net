@@ -54,7 +54,6 @@ from phys_const import con_amd, con_amw, con_amo3, con_g, con_cp, con_avgd
 from util import compare_data
 from config import *
 
-ngptsw = np.int(ngptsw)
 @jit(nopython=True)
 def vrtqdr(zrefb, zrefd, ztrab, ztrad, zldbt, ztdbt, nlay, nlp1):
 
