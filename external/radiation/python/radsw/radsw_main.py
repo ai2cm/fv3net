@@ -54,6 +54,7 @@ from phys_const import con_amd, con_amw, con_amo3, con_g, con_cp, con_avgd
 from util import compare_data
 from config import *
 
+ngptsw = np.int(ngptsw)
 @jit(nopython=True)
 def vrtqdr(zrefb, zrefd, ztrab, ztrad, zldbt, ztdbt, nlay, nlp1):
 
@@ -790,10 +791,10 @@ def spcvrtm(
             suvbf0,
         )
 
-
+@jit(nopython=True)
 def mcica_subcol(iovrsw, cldf, nlay, ipseed, dz, de_lgth, ipt,rand2d):
+        rand2d = rand2d[ipt, :] 
 
-        rand2d = rand2d[ipt, :].values
         #  ---  outputs:
         lcloudy = np.zeros((nlay, ngptsw))
 
@@ -1490,7 +1491,7 @@ class RadSWClass:
 
         ## 
         ds = xr.open_dataset(self.rand_file)
-        rand2d_data = ds["rand2d"]
+        rand2d_data = ds["rand2d"].values
 
         # Compute solar constant adjustment factor (s0fac) according to solcon.
         #      ***  s0, the solar constant at toa in w/m**2, is hard-coded with
