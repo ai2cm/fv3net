@@ -368,6 +368,46 @@
             "examples": [
                 1.3542121849959635e-07
             ]
+        },
+        "snow_mixing_ratio_path": {
+            "type": "number",
+            "description": "column snow",
+            "units": "kg/m^2"
+        },
+        "cloud_water_mixing_ratio_path": {
+            "type": "number",
+            "description": "column cloud water",
+            "units": "kg/m^2"
+        },
+        "specific_humidity_path": {
+            "type": "number",
+            "description": "column water vapor",
+            "units": "kg/m^2"
+        },
+        "graupel_mixing_ratio_path": {
+            "type": "number",
+            "description": "column graupel",
+            "units": "kg/m^2"
+        },
+        "cloud_ice_mixing_ratio_path": {
+            "type": "number",
+            "description": "column cloud ice",
+            "units": "kg/m^2"
+        },
+        "rain_mixing_ratio_path": {
+            "type": "number",
+            "description": "column rain",
+            "units": "kg/m^2"
+        },
+        "ozone_mixing_ratio_path": {
+            "type": "number",
+            "description": "mass integrated ozone",
+            "units": "<unknown>"
+        },
+        "cloud_amount_path": {
+            "type": "number",
+            "description": "",
+            "units": "<unkown>"
         }
     },
     "additionalProperties": false
