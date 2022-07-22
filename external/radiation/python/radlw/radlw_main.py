@@ -15,6 +15,9 @@ from radphysparam import (
     ilwrate as ilwrate,
     ilwcice as ilwcice,
 )
+
+import radlw.radlw_bands as bands
+
 from radlw.radlw_param import (
     ntbl,
     nbands,
@@ -69,7 +72,1256 @@ from phys_const import con_g, con_avgd, con_cp, con_amd, con_amw, con_amo3
 from config import *
 
 np.set_printoptions(precision=15)
+ngb = np.array(ngb)
 
+@jit(nopython=True)
+def mcica_subcol(iovrlw, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
+        #  ====================  defination of variables  ====================  !
+        #                                                                       !
+        #  input variables:                                                size !
+        #   cldf    - real, layer cloud fraction                           nlay !
+        #   nlay    - integer, number of model vertical layers               1  !
+        #   ipseed  - integer, permute seed for random num generator         1  !
+        #    ** note : if the cloud generator is called multiple times, need    !
+        #              to permute the seed between each call; if between calls  !
+        #              for lw and sw, use values differ by the number of g-pts. !
+        #   dz      - real, layer thickness (km)                           nlay !
+        #   de_lgth - real, layer cloud decorrelation length (km)            1  !
+        #                                                                       !
+        #  output variables:                                                    !
+        #   lcloudy - logical, sub-colum cloud profile flag array    ngptlw*nlay!
+        #                                                                       !
+        #  other control flags from module variables:                           !
+        #     iovrlw    : control flag for cloud overlapping method             !
+        #                 =0:random; =1:maximum/random: =2:maximum; =3:decorr   !
+        #                                                                       !
+        #  =====================    end of definitions    ====================  !
+
+        rand2d = rand2d[iplon, :]
+        cdfunc = np.reshape(rand2d,(ngptlw,nlay))
+        # ===> ...  begin here
+        #
+        #  --- ...  advance randum number generator by ipseed values
+
+        #  --- ...  sub-column set up according to overlapping assumption
+        ## it is only implemented for iovrlw == 1 
+        if iovrlw == 1:  # max-ran overlap
+            #  ---  first pick a random number for bottom (or top) layer.
+            #       then walk up the column: (aer's code)
+            #       if layer below is cloudy, use the same rand num in the layer below
+            #       if layer below is clear,  use a new random number
+
+            #  ---  from bottom up
+            for k in range(1, nlay):
+                k1 = k - 1
+                tem1 = 1.0 - cldf[k1]
+
+                for n in range(ngptlw):
+                    if cdfunc[n, k1] > tem1:
+                        cdfunc[n, k] = cdfunc[n, k1]
+                    else:
+                        cdfunc[n, k] = cdfunc[n, k] * tem1
+        #  --- ...  generate subcolumns for homogeneous clouds
+        tem1 = 1.0 - cldf 
+        lcloudy  = cdfunc >= tem1
+    
+        return lcloudy
+
+@jit(nopython=True)
+def cldprop(
+        lw_rand_file,
+        cfrac,
+        cliqp,
+        reliq,
+        cicep,
+        reice,
+        cdat1,
+        cdat2,
+        cdat3,
+        cdat4,
+        nlay,
+        nlp1,
+        ipseed,
+        dz,
+        de_lgth,
+        iplon,
+        absliq1,
+        absice0,
+        absice1,
+        absice2,
+        absice3,
+        rand2d,
+        isubclw,
+        iovrlw,
+    ):
+        #  ===================  program usage description  ===================  !
+        #                                                                       !
+        # purpose:  compute the cloud optical depth(s) for each cloudy layer    !
+        # and g-point interval.                                                 !
+        #                                                                       !
+        # subprograms called:  none                                             !
+        #                                                                       !
+        #  ====================  defination of variables  ====================  !
+        #                                                                       !
+        #  inputs:                                                       -size- !
+        #    cfrac - real, layer cloud fraction                          0:nlp1 !
+        #        .....  for ilwcliq > 0  (prognostic cloud sckeme)  - - -       !
+        #    cliqp - real, layer in-cloud liq water path (g/m**2)          nlay !
+        #    reliq - real, mean eff radius for liq cloud (micron)          nlay !
+        #    cicep - real, layer in-cloud ice water path (g/m**2)          nlay !
+        #    reice - real, mean eff radius for ice cloud (micron)          nlay !
+        #    cdat1 - real, layer rain drop water path  (g/m**2)            nlay !
+        #    cdat2 - real, effective radius for rain drop (microm)         nlay !
+        #    cdat3 - real, layer snow flake water path (g/m**2)            nlay !
+        #    cdat4 - real, effective radius for snow flakes (micron)       nlay !
+        #        .....  for ilwcliq = 0  (diagnostic cloud sckeme)  - - -       !
+        #    cdat1 - real, input cloud optical depth                       nlay !
+        #    cdat2 - real, layer cloud single scattering albedo            nlay !
+        #    cdat3 - real, layer cloud asymmetry factor                    nlay !
+        #    cdat4 - real, optional use                                    nlay !
+        #    cliqp - not used                                              nlay !
+        #    reliq - not used                                              nlay !
+        #    cicep - not used                                              nlay !
+        #    reice - not used                                              nlay !
+        #                                                                       !
+        #    dz     - real, layer thickness (km)                           nlay !
+        #    de_lgth- real, layer cloud decorrelation length (km)             1 !
+        #    nlay  - integer, number of vertical layers                      1  !
+        #    nlp1  - integer, number of vertical levels                      1  !
+        #    ipseed- permutation seed for generating random numbers (isubclw>0) !
+        #                                                                       !
+        #  outputs:                                                             !
+        #    cldfmc - real, cloud fraction for each sub-column       ngptlw*nlay!
+        #    taucld - real, cld opt depth for bands (non-mcica)      nbands*nlay!
+        #                                                                       !
+        #  explanation of the method for each value of ilwcliq, and ilwcice.    !
+        #    set up in module "module_radlw_cntr_para"                          !
+        #                                                                       !
+        #     ilwcliq=0  : input cloud optical property (tau, ssa, asy).        !
+        #                  (used for diagnostic cloud method)                   !
+        #     ilwcliq>0  : input cloud liq/ice path and effective radius, also  !
+        #                  require the user of 'ilwcice' to specify the method  !
+        #                  used to compute aborption due to water/ice parts.    !
+        #  ...................................................................  !
+        #                                                                       !
+        #     ilwcliq=1:   the water droplet effective radius (microns) is input!
+        #                  and the opt depths due to water clouds are computed  !
+        #                  as in hu and stamnes, j., clim., 6, 728-742, (1993). !
+        #                  the values for absorption coefficients appropriate for
+        #                  the spectral bands in rrtm have been obtained for a  !
+        #                  range of effective radii by an averaging procedure   !
+        #                  based on the work of j. pinto (private communication).
+        #                  linear interpolation is used to get the absorption   !
+        #                  coefficients for the input effective radius.         !
+        #                                                                       !
+        #     ilwcice=1:   the cloud ice path (g/m2) and ice effective radius   !
+        #                  (microns) are input and the optical depths due to ice!
+        #                  clouds are computed as in ebert and curry, jgr, 97,  !
+        #                  3831-3836 (1992).  the spectral regions in this work !
+        #                  have been matched with the spectral bands in rrtm to !
+        #                  as great an extent as possible:                      !
+        #                     e&c 1      ib = 5      rrtm bands 9-16            !
+        #                     e&c 2      ib = 4      rrtm bands 6-8             !
+        #                     e&c 3      ib = 3      rrtm bands 3-5             !
+        #                     e&c 4      ib = 2      rrtm band 2                !
+        #                     e&c 5      ib = 1      rrtm band 1                !
+        #     ilwcice=2:   the cloud ice path (g/m2) and ice effective radius   !
+        #                  (microns) are input and the optical depths due to ice!
+        #                  clouds are computed as in rt code, streamer v3.0     !
+        #                  (ref: key j., streamer user's guide, cooperative     !
+        #                  institute for meteorological satellite studies, 2001,!
+        #                  96 pp.) valid range of values for re are between 5.0 !
+        #                  and 131.0 micron.                                    !
+        #     ilwcice=3:   the ice generalized effective size (dge) is input and!
+        #                  the optical properties, are calculated as in q. fu,  !
+        #                  j. climate, (1998). q. fu provided high resolution   !
+        #                  tales which were appropriately averaged for the bands!
+        #                  in rrtm_lw. linear interpolation is used to get the  !
+        #                  coeff from the stored tables. valid range of values  !
+        #                  for deg are between 5.0 and 140.0 micron.            !
+        #                                                                       !
+        #  other cloud control module variables:                                !
+        #     isubclw =0: standard cloud scheme, no sub-col cloud approximation !
+        #             >0: mcica sub-col cloud scheme using ipseed as permutation!
+        #                 seed for generating rundom numbers                    !
+        #                                                                       !
+        #  ======================  end of description block  =================  !
+        #
+
+        #
+        # ===> ...  begin here
+        #
+        cldmin = 1.0e-80
+
+        taucld = np.zeros((nbands, nlay))
+        tauice = np.zeros(nbands)
+        tauliq = np.zeros(nbands)
+        cldfmc = np.zeros((ngptlw, nlay))
+        cldf = np.zeros(nlay)
+
+        # Compute cloud radiative properties for a cloudy column:
+        # - Compute cloud radiative properties for rain and snow (tauran,tausnw)
+        # - Calculation of absorption coefficients due to water clouds(tauliq)
+        # - Calculation of absorption coefficients due to ice clouds (tauice).
+        # - For prognostic cloud scheme: sum up the cloud optical property:
+        #   \f$ taucld=tauice+tauliq+tauran+tausnw \f$
+
+        #  --- ...  compute cloud radiative properties for a cloudy column
+
+        if ilwcliq > 0:
+            for k in range(nlay):
+                if cfrac[k + 1] > cldmin:
+                    tauran = absrain * cdat1[k]  # ncar formula
+
+                    #  ---  if use fu's formula it needs to be normalized by snow density
+                    #       !not use snow density = 0.1 g/cm**3 = 0.1 g/(mu * m**2)
+                    #       use ice density = 0.9167 g/cm**3 = 0.9167 g/(mu * m**2)
+                    #       factor 1.5396=8/(3*sqrt(3)) converts reff to generalized ice particle size
+                    #       use newer factor value 1.0315
+                    #       1/(0.9167*1.0315) = 1.05756
+                    if cdat3[k] > 0.0 and cdat4[k] > 10.0:
+                        tausnw = (
+                            abssnow0 * 1.05756 * cdat3[k] / cdat4[k]
+                        )  # fu's formula
+                    else:
+                        tausnw = 0.0
+
+                    cldliq = cliqp[k]
+                    cldice = cicep[k]
+                    refliq = reliq[k]
+                    refice = reice[k]
+
+                    #  --- ...  calculation of absorption coefficients due to water clouds.
+
+                    if cldliq <= 0.0:
+                        for ib in range(nbands):
+                            tauliq[ib] = 0.0
+                    else:
+                        if ilwcliq == 1:
+                            factor = refliq - 1.5
+                            index = max(1, min(57, int(factor))) - 1
+                            fint = factor - float(index + 1)
+
+                            for ib in range(nbands):
+                                tauliq[ib] = max(
+                                    0.0,
+                                    cldliq
+                                    * (
+                                        absliq1[index, ib]
+                                        + fint
+                                        * (absliq1[index + 1, ib] - absliq1[index, ib])
+                                    ),
+                                )
+
+                    #  --- ...  calculation of absorption coefficients due to ice clouds.
+                    if cldice <= 0.0:
+                        for ib in range(nbands):
+                            tauice[ib] = 0.0
+                    else:
+                        #  --- ...  ebert and curry approach for all particle sizes though somewhat
+                        #           unjustified for large ice particles
+                        if ilwcice == 1:
+                            refice = min(130.0, max(13.0, np.real(refice)))
+
+                            for ib in range(nbands):
+                                ia = (
+                                    ipat[ib] - 1
+                                )  # eb_&_c band index for ice cloud coeff
+                                tauice[ib] = max(
+                                    0.0,
+                                    cldice * (absice1[0, ia] + absice1[1, ia] / refice),
+                                )
+
+                            #  --- ...  streamer approach for ice effective radius between 5.0 and 131.0 microns
+                            #           and ebert and curry approach for ice eff radius greater than 131.0 microns.
+                            #           no smoothing between the transition of the two methods.
+
+                        elif ilwcice == 2:
+                            factor = (refice - 2.0) / 3.0
+                            index = max(1, min(42, int(factor))) - 1
+                            fint = factor - float(index + 1)
+
+                            for ib in range(nbands):
+                                tauice[ib] = max(
+                                    0.0,
+                                    cldice
+                                    * (
+                                        absice2[index, ib]
+                                        + fint
+                                        * (absice2[index + 1, ib] - absice2[index, ib])
+                                    ),
+                                )
+
+                        #  --- ...  fu's approach for ice effective radius between 4.8 and 135 microns
+                        #           (generalized effective size from 5 to 140 microns)
+
+                        elif ilwcice == 3:
+                            dgeice = max(5.0, 1.0315 * refice)  # v4.71 value
+                            factor = (dgeice - 2.0) / 3.0
+                            index = max(1, min(45, int(factor))) - 1
+                            fint = factor - float(index + 1)
+
+                            for ib in range(nbands):
+                                tauice[ib] = max(
+                                    0.0,
+                                    cldice
+                                    * (
+                                        absice3[index, ib]
+                                        + fint
+                                        * (absice3[index + 1, ib] - absice3[index, ib])
+                                    ),
+                                )
+
+                    for ib in range(nbands):
+                        taucld[ib, k] = tauice[ib] + tauliq[ib] + tauran + tausnw
+
+        else:
+            for k in range(nlay):
+                if cfrac[k + 1] > cldmin:
+                    for ib in range(nbands):
+                        taucld[ib, k] = cdat1[k]
+
+        # -# if physparam::isubclw > 0, call mcica_subcol() to distribute
+        #    cloud properties to each g-point.
+    
+        if isubclw > 0:  # mcica sub-col clouds approx
+            for k in range(nlay):
+                if cfrac[k + 1] < cldmin:
+                    cldf[k] = 0.0
+                else:
+                    cldf[k] = cfrac[k + 1]
+
+            #  --- ...  call sub-column cloud generator
+            lcloudy = mcica_subcol(iovrlw,cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d)
+
+            for k in range(nlay):
+                for ig in range(ngptlw):
+                    if lcloudy[ig, k]:
+                        cldfmc[ig, k] = 1.0
+                    else:
+                        cldfmc[ig, k] = 0.0
+
+        return cldfmc, taucld
+
+def taumol(
+        laytrop,
+        pavel,
+        coldry,
+        colamt,
+        colbrd,
+        wx,
+        tauaer,
+        rfrate,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        selffac,
+        selffrac,
+        indself,
+        forfac,
+        forfrac,
+        indfor,
+        minorfrac,
+        scaleminor,
+        scaleminorn2,
+        indminor,
+        nlay,
+        ds_bands,
+        selfref_band_01,
+        forref_band_01,
+        ka_mn2_band_01,
+        absa_band_01,
+        absb_band_01,
+        fracrefa_band_01,
+        fracrefb_band_01,
+        selfref_band_02,
+        forref_band_02,
+        absa_band_02,
+        absb_band_02,
+        fracrefa_band_02,
+        fracrefb_band_02,
+        chi_mls,
+        selfref_band_03,
+        forref_band_03,
+        ka_mn2o_band_03,
+        kb_mn2o_band_03,
+        absa_band_03,
+        absb_band_03,
+        fracrefa_band_03,
+        fracrefb_band_03,
+        selfref_band_04,
+        forref_band_04,
+        absa_band_04,
+        absb_band_04,
+        fracrefa_band_04,
+        fracrefb_band_04,
+        selfref_band_05,
+        forref_band_05,
+        absa_band_05,
+        absb_band_05,
+        fracrefa_band_05,
+        fracrefb_band_05,
+        ka_mo3_band_05,
+        ccl4_band_05,
+        selfref_band_06,
+        forref_band_06,
+        absa_band_06,
+        fracrefa_band_06,
+        ka_mco2_band_06,
+        cfc11adj_band_06,
+        cfc12_band_06,
+        selfref_band_07,
+        forref_band_07,
+        absa_band_07,
+        absb_band_07,
+        fracrefa_band_07,
+        fracrefb_band_07,
+        ka_mco2_band_07,
+        kb_mco2_band_07,
+        selfref_band_08,
+        forref_band_08,
+        absa_band_08,
+        absb_band_08,
+        fracrefa_band_08,
+        fracrefb_band_08,
+        ka_mo3_band_08,
+        ka_mco2_band_08,
+        kb_mco2_band_08,
+        cfc12_band_08,
+        ka_mn2o_band_08,
+        kb_mn2o_band_08,
+        cfc22adj_band_08,
+        selfref_band_09,
+        forref_band_09,
+        absa_band_09,
+        absb_band_09,
+        fracrefa_band_09,
+        fracrefb_band_09,
+        ka_mn2o_band_09,
+        kb_mn2o_band_09,
+        selfref_band_10,
+        forref_band_10,
+        absa_band_10,
+        absb_band_10,
+        fracrefa_band_10,
+        fracrefb_band_10,
+        selfref_band_11,
+        forref_band_11,
+        absa_band_11,
+        absb_band_11,
+        fracrefa_band_11,
+        fracrefb_band_11,
+        ka_mo2_band_11,
+        kb_mo2_band_11,
+        selfref_band_12,
+        forref_band_12,
+        absa_band_12,
+        fracrefa_band_12,
+        selfref_band_13,
+        forref_band_13,
+        absa_band_13,
+        fracrefa_band_13,
+        fracrefb_band_13,
+        ka_mco2_band_13,
+        ka_mco_band_13,
+        kb_mo3_band_13,
+        selfref_band_14,
+        forref_band_14,
+        absa_band_14,
+        absb_band_14,
+        fracrefa_band_14,
+        fracrefb_band_14,
+        selfref_band_15,
+        forref_band_15,
+        absa_band_15,
+        fracrefa_band_15,
+        ka_mn2_band_15,
+        selfref_band_16,
+        forref_band_16,
+        absa_band_16,
+        absb_band_16,
+        fracrefa_band_16,
+        fracrefb_band_16,
+        oneminus,
+    ):
+
+        #  ************    original subprogram description    ***************   !
+        #                                                                       !
+        #                  optical depths developed for the                     !
+        #                                                                       !
+        #                rapid radiative transfer model (rrtm)                  !
+        #                                                                       !
+        #            atmospheric and environmental research, inc.               !
+        #                        131 hartwell avenue                            !
+        #                        lexington, ma 02421                            !
+        #                                                                       !
+        #                           eli j. mlawer                               !
+        #                         jennifer delamere                             !
+        #                         steven j. taubman                             !
+        #                         shepard a. clough                             !
+        #                                                                       !
+        #                       email:  mlawer@aer.com                          !
+        #                       email:  jdelamer@aer.com                        !
+        #                                                                       !
+        #        the authors wish to acknowledge the contributions of the       !
+        #        following people:  karen cady-pereira, patrick d. brown,       !
+        #        michael j. iacono, ronald e. farren, luke chen,                !
+        #        robert bergstrom.                                              !
+        #                                                                       !
+        #  revision for g-point reduction: michael j. iacono; aer, inc.         !
+        #                                                                       !
+        #     taumol                                                            !
+        #                                                                       !
+        #     this file contains the subroutines taugbn (where n goes from      !
+        #     1 to 16).  taugbn calculates the optical depths and planck        !
+        #     fractions per g-value and layer for band n.                       !
+        #                                                                       !
+        #  *******************************************************************  !
+        #  ==================   program usage description   ==================  !
+        #                                                                       !
+        #    call  taumol                                                       !
+        #       inputs:                                                         !
+        #          ( laytrop,pavel,coldry,colamt,colbrd,wx,tauaer,              !
+        #            rfrate,fac00,fac01,fac10,fac11,jp,jt,jt1,                  !
+        #            selffac,selffrac,indself,forfac,forfrac,indfor,            !
+        #            minorfrac,scaleminor,scaleminorn2,indminor,                !
+        #            nlay,                                                      !
+        #       outputs:                                                        !
+        #            fracs, tautot )                                            !
+        #                                                                       !
+        #  subprograms called:  taugb## (## = 01 -16)                           !
+        #                                                                       !
+        #                                                                       !
+        #  ====================  defination of variables  ====================  !
+        #                                                                       !
+        #  inputs:                                                        size  !
+        #     laytrop   - integer, tropopause layer index (unitless)        1   !
+        #                   layer at which switch is made for key species       !
+        #     pavel     - real, layer pressures (mb)                       nlay !
+        #     coldry    - real, column amount for dry air (mol/cm2)        nlay !
+        #     colamt    - real, column amounts of h2o, co2, o3, n2o, ch4,       !
+        #                   o2, co (mol/cm**2)                       nlay*maxgas!
+        #     colbrd    - real, column amount of broadening gases          nlay !
+        #     wx        - real, cross-section amounts(mol/cm2)      nlay*maxxsec!
+        #     tauaer    - real, aerosol optical depth               nbands*nlay !
+        #     rfrate    - real, reference ratios of binary species parameter    !
+        #     (:,m,:)m=1-h2o/co2,2-h2o/o3,3-h2o/n2o,4-h2o/ch4,5-n2o/co2,6-o3/co2!
+        #     (:,:,n)n=1,2: the rates of ref press at the 2 sides of the layer  !
+        #                                                          nlay*nrates*2!
+        #     facij     - real, factors multiply the reference ks, i,j of 0/1   !
+        #                   for lower/higher of the 2 appropriate temperatures  !
+        #                   and altitudes                                  nlay !
+        #     jp        - real, index of lower reference pressure          nlay !
+        #     jt, jt1   - real, indices of lower reference temperatures    nlay !
+        #                   for pressure levels jp and jp+1, respectively       !
+        #     selffac   - real, scale factor for water vapor self-continuum     !
+        #                   equals (water vapor density)/(atmospheric density   !
+        #                   at 296k and 1013 mb)                           nlay !
+        #     selffrac  - real, factor for temperature interpolation of         !
+        #                   reference water vapor self-continuum data      nlay !
+        #     indself   - integer, index of lower reference temperature for     !
+        #                   the self-continuum interpolation               nlay !
+        #     forfac    - real, scale factor for w. v. foreign-continuum   nlay !
+        #     forfrac   - real, factor for temperature interpolation of         !
+        #                   reference w.v. foreign-continuum data          nlay !
+        #     indfor    - integer, index of lower reference temperature for     !
+        #                   the foreign-continuum interpolation            nlay !
+        #     minorfrac - real, factor for minor gases                     nlay !
+        #     scaleminor,scaleminorn2                                           !
+        #               - real, scale factors for minor gases              nlay !
+        #     indminor  - integer, index of lower reference temperature for     !
+        #                   minor gases                                    nlay !
+        #     nlay      - integer, total number of layers                   1   !
+        #                                                                       !
+        #  outputs:                                                             !
+        #     fracs     - real, planck fractions                     ngptlw,nlay!
+        #     tautot    - real, total optical depth (gas+aerosols)   ngptlw,nlay!
+        #                                                                       !
+        #  internal variables:                                                  !
+        #     ng##      - integer, number of g-values in band ## (##=01-16) 1   !
+        #     nspa      - integer, for lower atmosphere, the number of ref      !
+        #                   atmos, each has different relative amounts of the   !
+        #                   key species for the band                      nbands!
+        #     nspb      - integer, same but for upper atmosphere          nbands!
+        #     absa      - real, k-values for lower ref atmospheres (no w.v.     !
+        #                   self-continuum) (cm**2/molecule)  nspa(##)*5*13*ng##!
+        #     absb      - real, k-values for high ref atmospheres (all sources) !
+        #                   (cm**2/molecule)               nspb(##)*5*13:59*ng##!
+        #     ka_m'mgas'- real, k-values for low ref atmospheres minor species  !
+        #                   (cm**2/molecule)                          mmn##*ng##!
+        #     kb_m'mgas'- real, k-values for high ref atmospheres minor species !
+        #                   (cm**2/molecule)                          mmn##*ng##!
+        #     selfref   - real, k-values for w.v. self-continuum for ref atmos  !
+        #                   used below laytrop (cm**2/mol)               10*ng##!
+        #     forref    - real, k-values for w.v. foreign-continuum for ref atmos
+        #                   used below/above laytrop (cm**2/mol)          4*ng##!
+        #                                                                       !
+        #  ******************************************************************   !
+
+        #
+        # ===> ...  begin here
+        #
+        taug, fracs = bands.taugb01(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            selfref_band_01,
+            forref_band_01,
+            ka_mn2_band_01,
+            absa_band_01,
+            absb_band_01,
+            fracrefa_band_01,
+            fracrefb_band_01,
+            nspa,
+            nspb,
+        )
+        taug, fracs, tauself = bands.taugb02(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            selfref_band_02,
+            forref_band_02,
+            absa_band_02,
+            absb_band_02,
+            fracrefa_band_02,
+            fracrefb_band_02,
+            nspa,
+            nspb,
+        )
+        taug, fracs = bands.taugb03(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            tauself,
+            chi_mls,
+            selfref_band_03,
+            forref_band_03,
+            ka_mn2o_band_03,
+            kb_mn2o_band_03,
+            absa_band_03,
+            absb_band_03,
+            fracrefa_band_03,
+            fracrefb_band_03,
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs = bands.taugb04(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            chi_mls,
+            selfref_band_04,
+            forref_band_04,
+            absa_band_04,
+            absb_band_04,
+            fracrefa_band_04,
+            fracrefb_band_04,
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs = bands.taugb05(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            chi_mls,
+            selfref_band_05,
+            forref_band_05,
+            absa_band_05,
+            absb_band_05,
+            fracrefa_band_05,
+            fracrefb_band_05,
+            ka_mo3_band_05,
+            ccl4_band_05,
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs = bands.taugb06(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            chi_mls,
+            selfref_band_06,
+            forref_band_06,
+            absa_band_06,
+            fracrefa_band_06,
+            ka_mco2_band_06,
+            cfc11adj_band_06,
+            cfc12_band_06,
+            nspa,
+        )
+        taug, fracs = bands.taugb07(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            chi_mls,
+            selfref_band_07,
+            forref_band_07,
+            absa_band_07,
+            absb_band_07,
+            fracrefa_band_07,
+            fracrefb_band_07,
+            ka_mco2_band_07,
+            kb_mco2_band_07,
+            oneminus,
+            nspa,
+            nspb,
+        )
+
+        taug, fracs = bands.taugb08(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            chi_mls,
+            selfref_band_08,
+            forref_band_08,
+            absa_band_08,
+            absb_band_08,
+            fracrefa_band_08,
+            fracrefb_band_08,
+            ka_mo3_band_08,
+            ka_mco2_band_08,
+            kb_mco2_band_08,
+            cfc12_band_08,
+            ka_mn2o_band_08,
+            kb_mn2o_band_08,
+            cfc22adj_band_08,            
+            nspa,
+            nspb,
+        )
+        taug, fracs = bands.taugb09(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            chi_mls,
+            selfref_band_09,
+            forref_band_09,
+            absa_band_09,
+            absb_band_09,
+            fracrefa_band_09,
+            fracrefb_band_09,
+            ka_mn2o_band_09,
+            kb_mn2o_band_09,
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs = bands.taugb10(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            selfref_band_10,
+            forref_band_10,
+            absa_band_10,
+            absb_band_10,
+            fracrefa_band_10,
+            fracrefb_band_10,
+            nspa,
+            nspb,
+        )
+        taug, fracs = bands.taugb11(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            selfref_band_11,
+            forref_band_11,
+            absa_band_11,
+            absb_band_11,
+            fracrefa_band_11,
+            fracrefb_band_11,
+            ka_mo2_band_11,
+            kb_mo2_band_11,
+            nspa,
+            nspb,
+        )
+        taug, fracs = bands.taugb12(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            chi_mls,
+            selfref_band_12,
+            forref_band_12,
+            absa_band_12,
+            fracrefa_band_12,
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs, taufor = bands.taugb13(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            chi_mls,
+            selfref_band_13,
+            forref_band_13,
+            absa_band_13,
+            fracrefa_band_13,
+            fracrefb_band_13,
+            ka_mco2_band_13,
+            ka_mco_band_13,
+            kb_mo3_band_13,
+            oneminus,
+            nspa,
+            nspb,
+        )
+        taug, fracs = bands.taugb14(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            taufor,
+            selfref_band_14,
+            forref_band_14,
+            absa_band_14,
+            absb_band_14,
+            fracrefa_band_14,
+            fracrefb_band_14,
+            nspa,
+            nspb,
+        )
+        taug, fracs = bands.taugb15(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            chi_mls,
+            selfref_band_15,
+            forref_band_15,
+            absa_band_15,
+            fracrefa_band_15,
+            ka_mn2_band_15,
+            oneminus,
+            nspa,
+        )
+        taug, fracs = bands.taugb16(
+            laytrop,
+            pavel,
+            coldry,
+            colamt,
+            colbrd,
+            wx,
+            tauaer,
+            rfrate,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            selffac,
+            selffrac,
+            indself,
+            forfac,
+            forfrac,
+            indfor,
+            minorfrac,
+            scaleminor,
+            scaleminorn2,
+            indminor,
+            nlay,
+            taug,
+            fracs,
+            chi_mls,
+            selfref_band_16,
+            forref_band_16,
+            absa_band_16,
+            absb_band_16,
+            fracrefa_band_16,
+            fracrefb_band_16,
+            oneminus,
+            nspa,
+            nspb,
+        )
+
+        tautot = np.zeros((ngptlw, nlay))
+
+        #  ---  combine gaseous and aerosol optical depths
+
+        for ig in range(ngptlw):
+            ib = ngb[ig] - 1
+
+            for k in range(nlay):
+                tautot[ig, k] = taug[ig, k] + tauaer[ib, k]
+
+        return fracs, tautot
 
 class RadLWClass:
     VTAGLW = "NCEP LW v5.1  Nov 2012 -RRTMG-LW v4.82"
@@ -94,6 +1346,7 @@ class RadLWClass:
     nspa = nspa  
     nspb = nspb  
 
+    
     def __init__(self, me, iovrlw, isubclw):
         self.lhlwb = False
         self.lhlw0 = False
@@ -272,9 +1525,8 @@ class RadLWClass:
 
         ds_lw_rand = xr.open_dataset(lw_rand_file)
         rand2d_data = ds_lw_rand["rand2d"].values
-
+        ########################################
         ## loading data for taumol
-        ds_radlw_ref = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_ref_data.nc"))
         ds_bands = {}
         for nband in range(1,17):
             if nband < 10:
@@ -282,6 +1534,138 @@ class RadLWClass:
             else:
                 ds_bands['radlw_kgb' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb" + str(nband) + "_data.nc"))
 
+        ## band 01 
+        selfref_band_01 = ds_bands['radlw_kgb01']["selfref"].values
+        forref_band_01 = ds_bands['radlw_kgb01']["forref"].values
+        ka_mn2_band_01 = ds_bands['radlw_kgb01']["ka_mn2"].values
+        absa_band_01 = ds_bands['radlw_kgb01']["absa"].values
+        absb_band_01 = ds_bands['radlw_kgb01']["absb"].values
+        fracrefa_band_01 = ds_bands['radlw_kgb01']["fracrefa"].values
+        fracrefb_band_01 = ds_bands['radlw_kgb01']["fracrefb"].values
+        ## band 02
+        selfref_band_02 = ds_bands['radlw_kgb02']["selfref"].values
+        forref_band_02 = ds_bands['radlw_kgb02']["forref"].values
+        absa_band_02 = ds_bands['radlw_kgb02']["absa"].values
+        absb_band_02 = ds_bands['radlw_kgb02']["absb"].values
+        fracrefa_band_02 = ds_bands['radlw_kgb02']["fracrefa"].values
+        fracrefb_band_02 = ds_bands['radlw_kgb02']["fracrefb"].values
+        ## band 03        
+        selfref_band_03  = ds_bands['radlw_kgb03']["selfref"].values
+        forref_band_03   = ds_bands['radlw_kgb03']["forref"].values
+        ka_mn2o_band_03  = ds_bands['radlw_kgb03']["ka_mn2o"].values
+        kb_mn2o_band_03  = ds_bands['radlw_kgb03']["kb_mn2o"].values
+        absa_band_03     = ds_bands['radlw_kgb03']["absa"].values
+        absb_band_03     = ds_bands['radlw_kgb03']["absb"].values
+        fracrefa_band_03 = ds_bands['radlw_kgb03']["fracrefa"].values
+        fracrefb_band_03 = ds_bands['radlw_kgb03']["fracrefb"].values
+        ## band 04
+        selfref_band_04 = ds_bands['radlw_kgb04']["selfref"].values
+        forref_band_04 = ds_bands['radlw_kgb04']["forref"].values
+        absa_band_04 = ds_bands['radlw_kgb04']["absa"].values
+        absb_band_04 = ds_bands['radlw_kgb04']["absb"].values
+        fracrefa_band_04 = ds_bands['radlw_kgb04']["fracrefa"].values
+        fracrefb_band_04= ds_bands['radlw_kgb04']["fracrefb"].values
+        ## band 05
+        selfref_band_05 = ds_bands['radlw_kgb05']["selfref"].values
+        forref_band_05 = ds_bands['radlw_kgb05']["forref"].values
+        absa_band_05 = ds_bands['radlw_kgb05']["absa"].values
+        absb_band_05 = ds_bands['radlw_kgb05']["absb"].values
+        fracrefa_band_05 = ds_bands['radlw_kgb05']["fracrefa"].values
+        fracrefb_band_05 = ds_bands['radlw_kgb05']["fracrefb"].values
+        ka_mo3_band_05 = ds_bands['radlw_kgb05']["ka_mo3"].values
+        ccl4_band_05 = ds_bands['radlw_kgb05']["ccl4"].values
+        ## band 06
+        selfref_band_06 = ds_bands['radlw_kgb06']["selfref"].values
+        forref_band_06 = ds_bands['radlw_kgb06']["forref"].values
+        absa_band_06 = ds_bands['radlw_kgb06']["absa"].values
+        fracrefa_band_06 = ds_bands['radlw_kgb06']["fracrefa"].values
+        ka_mco2_band_06 = ds_bands['radlw_kgb06']["ka_mco2"].values
+        cfc11adj_band_06 = ds_bands['radlw_kgb06']["cfc11adj"].values
+        cfc12_band_06 = ds_bands['radlw_kgb06']["cfc12"].values
+        ## band 07
+        selfref_band_07 = ds_bands['radlw_kgb07']["selfref"].values
+        forref_band_07 = ds_bands['radlw_kgb07']["forref"].values
+        absa_band_07 = ds_bands['radlw_kgb07']["absa"].values
+        absb_band_07 = ds_bands['radlw_kgb07']["absb"].values
+        fracrefa_band_07 = ds_bands['radlw_kgb07']["fracrefa"].values
+        fracrefb_band_07 = ds_bands['radlw_kgb07']["fracrefb"].values
+        ka_mco2_band_07 = ds_bands['radlw_kgb07']["ka_mco2"].values
+        kb_mco2_band_07 = ds_bands['radlw_kgb07']["kb_mco2"].values
+        ## band 08
+        selfref_band_08 = ds_bands['radlw_kgb08']["selfref"].values
+        forref_band_08 = ds_bands['radlw_kgb08']["forref"].values
+        absa_band_08 = ds_bands['radlw_kgb08']["absa"].values
+        absb_band_08 = ds_bands['radlw_kgb08']["absb"].values
+        fracrefa_band_08 = ds_bands['radlw_kgb08']["fracrefa"].values
+        fracrefb_band_08 = ds_bands['radlw_kgb08']["fracrefb"].values
+        ka_mo3_band_08 = ds_bands['radlw_kgb08']["ka_mo3"].values
+        ka_mco2_band_08 = ds_bands['radlw_kgb08']["ka_mco2"].values
+        kb_mco2_band_08 = ds_bands['radlw_kgb08']["kb_mco2"].values
+        cfc12_band_08 = ds_bands['radlw_kgb08']["cfc12"].values
+        ka_mn2o_band_08 = ds_bands['radlw_kgb08']["ka_mn2o"].values
+        kb_mn2o_band_08 = ds_bands['radlw_kgb08']["kb_mn2o"].values
+        cfc22adj_band_08 = ds_bands['radlw_kgb08']["cfc22adj"].values
+        ## band 09
+        selfref_band_09 = ds_bands['radlw_kgb09']["selfref"].values
+        forref_band_09 = ds_bands['radlw_kgb09']["forref"].values
+        absa_band_09 = ds_bands['radlw_kgb09']["absa"].values
+        absb_band_09 = ds_bands['radlw_kgb09']["absb"].values
+        fracrefa_band_09 = ds_bands['radlw_kgb09']["fracrefa"].values
+        fracrefb_band_09 = ds_bands['radlw_kgb09']["fracrefb"].values
+        ka_mn2o_band_09 = ds_bands['radlw_kgb09']["ka_mn2o"].values
+        kb_mn2o_band_09 = ds_bands['radlw_kgb09']["kb_mn2o"].values
+        ## band 10
+        selfref_band_10 = ds_bands['radlw_kgb10']["selfref"].values
+        forref_band_10 = ds_bands['radlw_kgb10']["forref"].values
+        absa_band_10 = ds_bands['radlw_kgb10']["absa"].values
+        absb_band_10 = ds_bands['radlw_kgb10']["absb"].values
+        fracrefa_band_10 = ds_bands['radlw_kgb10']["fracrefa"].values
+        fracrefb_band_10 = ds_bands['radlw_kgb10']["fracrefb"].values
+        ## band 11
+        selfref_band_11 = ds_bands['radlw_kgb11']["selfref"].values
+        forref_band_11 = ds_bands['radlw_kgb11']["forref"].values
+        absa_band_11 = ds_bands['radlw_kgb11']["absa"].values
+        absb_band_11 = ds_bands['radlw_kgb11']["absb"].values
+        fracrefa_band_11 = ds_bands['radlw_kgb11']["fracrefa"].values
+        fracrefb_band_11 = ds_bands['radlw_kgb11']["fracrefb"].values
+        ka_mo2_band_11 = ds_bands['radlw_kgb11']["ka_mo2"].values
+        kb_mo2_band_11 = ds_bands['radlw_kgb11']["kb_mo2"].values
+        ## band 12
+        selfref_band_12 = ds_bands['radlw_kgb12']["selfref"].values
+        forref_band_12 = ds_bands['radlw_kgb12']["forref"].values
+        absa_band_12 = ds_bands['radlw_kgb12']["absa"].values
+        fracrefa_band_12 = ds_bands['radlw_kgb12']["fracrefa"].values
+        ## band 13
+        selfref_band_13 = ds_bands['radlw_kgb13']["selfref"].values
+        forref_band_13 = ds_bands['radlw_kgb13']["forref"].values
+        absa_band_13 = ds_bands['radlw_kgb13']["absa"].values
+        fracrefa_band_13 = ds_bands['radlw_kgb13']["fracrefa"].values
+        fracrefb_band_13 = ds_bands['radlw_kgb13']["fracrefb"].values
+        ka_mco2_band_13 = ds_bands['radlw_kgb13']["ka_mco2"].values
+        ka_mco_band_13 = ds_bands['radlw_kgb13']["ka_mco"].values
+        kb_mo3_band_13 = ds_bands['radlw_kgb13']["kb_mo3"].values
+        ## band 14
+        selfref_band_14 = ds_bands['radlw_kgb14']["selfref"].values
+        forref_band_14 = ds_bands['radlw_kgb14']["forref"].values
+        absa_band_14 = ds_bands['radlw_kgb14']["absa"].values
+        absb_band_14 = ds_bands['radlw_kgb14']["absb"].values
+        fracrefa_band_14 = ds_bands['radlw_kgb14']["fracrefa"].values
+        fracrefb_band_14 = ds_bands['radlw_kgb14']["fracrefb"].values
+        ## band 15 
+        selfref_band_15 = ds_bands['radlw_kgb15']["selfref"].values
+        forref_band_15 = ds_bands['radlw_kgb15']["forref"].values
+        absa_band_15 = ds_bands['radlw_kgb15']["absa"].values
+        fracrefa_band_15 = ds_bands['radlw_kgb15']["fracrefa"].values
+        ka_mn2_band_15 = ds_bands['radlw_kgb15']["ka_mn2"].values
+        ## band 16
+        selfref_band_16 = ds_bands['radlw_kgb16']["selfref"].values
+        forref_band_16 = ds_bands['radlw_kgb16']["forref"].values
+        absa_band_16 = ds_bands['radlw_kgb16']["absa"].values
+        absb_band_16 = ds_bands['radlw_kgb16']["absb"].values
+        fracrefa_band_16 = ds_bands['radlw_kgb16']["fracrefa"].values
+        fracrefb_band_16 = ds_bands['radlw_kgb16']["fracrefb"].values
+        ## ending data loading for taumol
+        ########################################        
         cldfrc = np.zeros(nlp1 + 1)
 
         totuflux = np.zeros(nlp1)
@@ -497,7 +1881,7 @@ class RadLWClass:
             if verbose:
                 print("Running cldprop . . .")
             if lcf1:
-                cldfmc, taucld = self.cldprop(
+                cldfmc, taucld = cldprop(
                     lw_rand_file,
                     cldfrc,
                     clwp,
@@ -520,6 +1904,8 @@ class RadLWClass:
                     absice2,
                     absice3,
                     rand2d_data,
+                    self.isubclw,
+                    self.iovrlw,
                 )
                 if verbose:
                     print("Done")
@@ -565,7 +1951,7 @@ class RadLWClass:
                 print("Done")
                 print(" ")
                 print("Running taumol . . .")
-            fracs, tautot = self.taumol(
+            fracs, tautot = taumol(
                 laytrop,
                 pavel,
                 coldry,
@@ -592,8 +1978,123 @@ class RadLWClass:
                 scaleminorn2,
                 indminor,
                 nlay,
-                ds_radlw_ref,
                 ds_bands,
+                selfref_band_01,
+                forref_band_01,
+                ka_mn2_band_01,
+                absa_band_01,
+                absb_band_01,
+                fracrefa_band_01,
+                fracrefb_band_01,
+                selfref_band_02,
+                forref_band_02,
+                absa_band_02,
+                absb_band_02,
+                fracrefa_band_02,
+                fracrefb_band_02,
+                chi_mls,
+                selfref_band_03,
+                forref_band_03,
+                ka_mn2o_band_03,
+                kb_mn2o_band_03,
+                absa_band_03,
+                absb_band_03,
+                fracrefa_band_03,
+                fracrefb_band_03,
+                selfref_band_04,
+                forref_band_04,
+                absa_band_04,
+                absb_band_04,
+                fracrefa_band_04,
+                fracrefb_band_04,
+                selfref_band_05,
+                forref_band_05,
+                absa_band_05,
+                absb_band_05,
+                fracrefa_band_05,
+                fracrefb_band_05,
+                ka_mo3_band_05,
+                ccl4_band_05,
+                selfref_band_06,
+                forref_band_06,
+                absa_band_06,
+                fracrefa_band_06,
+                ka_mco2_band_06,
+                cfc11adj_band_06,
+                cfc12_band_06,
+                selfref_band_07,
+                forref_band_07,
+                absa_band_07,
+                absb_band_07,
+                fracrefa_band_07,
+                fracrefb_band_07,
+                ka_mco2_band_07,
+                kb_mco2_band_07,
+                selfref_band_08,
+                forref_band_08,
+                absa_band_08,
+                absb_band_08,
+                fracrefa_band_08,
+                fracrefb_band_08,
+                ka_mo3_band_08,
+                ka_mco2_band_08,
+                kb_mco2_band_08,
+                cfc12_band_08,
+                ka_mn2o_band_08,
+                kb_mn2o_band_08,
+                cfc22adj_band_08,
+                selfref_band_09,
+                forref_band_09,
+                absa_band_09,
+                absb_band_09,
+                fracrefa_band_09,
+                fracrefb_band_09,
+                ka_mn2o_band_09,
+                kb_mn2o_band_09,
+                selfref_band_10,
+                forref_band_10,
+                absa_band_10,
+                absb_band_10,
+                fracrefa_band_10,
+                fracrefb_band_10,
+                selfref_band_11,
+                forref_band_11,
+                absa_band_11,
+                absb_band_11,
+                fracrefa_band_11,
+                fracrefb_band_11,
+                ka_mo2_band_11,
+                kb_mo2_band_11,
+                selfref_band_12,
+                forref_band_12,
+                absa_band_12,
+                fracrefa_band_12,
+                selfref_band_13,
+                forref_band_13,
+                absa_band_13,
+                fracrefa_band_13,
+                fracrefb_band_13,
+                ka_mco2_band_13,
+                ka_mco_band_13,
+                kb_mo3_band_13,
+                selfref_band_14,
+                forref_band_14,
+                absa_band_14,
+                absb_band_14,
+                fracrefa_band_14,
+                fracrefb_band_14,
+                selfref_band_15,
+                forref_band_15,
+                absa_band_15,
+                fracrefa_band_15,
+                ka_mn2_band_15,
+                selfref_band_16,
+                forref_band_16,
+                absa_band_16,
+                absb_band_16,
+                fracrefa_band_16,
+                fracrefb_band_16,
+                self.oneminus,
             )
             if verbose:
                 print("Done")
@@ -1281,10 +2782,15 @@ class RadLWClass:
 
         flxfac = wtdiff * fluxfac
         
-        totuflux =   np.nansum(toturad, axis = 1)* flxfac
-        totdflux =   np.nansum(totdrad, axis = 1)* flxfac
-        totuclfl =   np.nansum(clrurad, axis = 1)* flxfac  
-        totdclfl =   np.nansum(clrdrad, axis = 1)* flxfac
+        for ib in range(nbands):
+            totuflux[:] = totuflux[:] + toturad[:, ib]
+            totdflux[:] = totdflux[:] + totdrad[:, ib]
+            totuclfl[:] = totuclfl[:] + clrurad[:, ib]
+            totdclfl[:] = totdclfl[:] + clrdrad[:, ib]
+        totuflux = totuflux * flxfac
+        totdflux = totdflux * flxfac
+        totuclfl = totuclfl * flxfac
+        totdclfl = totdclfl * flxfac
 
         #  --- ...  calculate net fluxes and heating rates
         fnet[0] = totuflux[0] - totdflux[0]
@@ -1311,7 +2817,8 @@ class RadLWClass:
                     htrb[k, ib] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
-    #@jit(nopython=True)
+    @staticmethod
+    @jit(nopython=True)
     def rtrnmr(
         eps,
         bpade,
@@ -1794,10 +3301,15 @@ class RadLWClass:
 
             flxfac = wtdiff * fluxfac
 
-            totuflux =   np.nansum(toturad, axis = 1)* flxfac
-            totdflux =   np.nansum(totdrad, axis = 1)* flxfac
-            totuclfl =   np.nansum(clrurad, axis = 1)* flxfac  
-            totdclfl =   np.nansum(clrdrad, axis = 1)* flxfac
+            for ib in range(nbands):
+                totuflux[:] = totuflux[:] + toturad[:, ib]
+                totdflux[:] = totdflux[:] + totdrad[:, ib]
+                totuclfl[:] = totuclfl[:] + clrurad[:, ib]
+                totdclfl[:] = totdclfl[:] + clrdrad[:, ib]
+            totuflux = totuflux * flxfac
+            totdflux = totdflux * flxfac
+            totuclfl = totuclfl * flxfac
+            totdclfl = totdclfl * flxfac
 
             #  --- ...  calculate net fluxes and heating rates
             fnet[0] = totuflux[0] - totdflux[0]
@@ -1825,9 +3337,9 @@ class RadLWClass:
                         htrb[k, ib] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
-
+    @staticmethod
+    @jit(nopython=True)
     def rtrnmc(
-        self,
         eps,
         bpade,
         lhlw0,
@@ -2128,10 +3640,15 @@ class RadLWClass:
 
         flxfac = wtdiff * fluxfac
 
-        totuflux = np.nansum(toturad,axis = 1) * flxfac
-        totdflux = np.nansum(totdrad,axis = 1) * flxfac
-        totuclfl = np.nansum(clrurad,axis = 1) * flxfac
-        totdclfl = np.nansum(clrdrad,axis = 1) * flxfac
+        for ib in range(nbands):
+            totuflux[:] = totuflux[:] + toturad[:, ib]
+            totdflux[:] = totdflux[:] + totdrad[:, ib]
+            totuclfl[:] = totuclfl[:] + clrurad[:, ib]
+            totdclfl[:] = totdclfl[:] + clrdrad[:, ib]
+        totuflux = totuflux * flxfac
+        totdflux = totdflux * flxfac
+        totuclfl = totuclfl * flxfac
+        totdclfl = totdclfl * flxfac
 
         #  --- ...  calculate net fluxes and heating rates
         fnet[0] = totuflux[0] - totdflux[0]
@@ -2159,4743 +3676,4 @@ class RadLWClass:
                     htrb[k, ib] = (fnet[k] - fnet[k + 1]) * rfdelp[k]
 
         return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
-
     
-
-    def cldprop(
-        self,
-        lw_rand_file,
-        cfrac,
-        cliqp,
-        reliq,
-        cicep,
-        reice,
-        cdat1,
-        cdat2,
-        cdat3,
-        cdat4,
-        nlay,
-        nlp1,
-        ipseed,
-        dz,
-        de_lgth,
-        iplon,
-        absliq1,
-        absice0,
-        absice1,
-        absice2,
-        absice3,
-        rand2d,
-    ):
-        #  ===================  program usage description  ===================  !
-        #                                                                       !
-        # purpose:  compute the cloud optical depth(s) for each cloudy layer    !
-        # and g-point interval.                                                 !
-        #                                                                       !
-        # subprograms called:  none                                             !
-        #                                                                       !
-        #  ====================  defination of variables  ====================  !
-        #                                                                       !
-        #  inputs:                                                       -size- !
-        #    cfrac - real, layer cloud fraction                          0:nlp1 !
-        #        .....  for ilwcliq > 0  (prognostic cloud sckeme)  - - -       !
-        #    cliqp - real, layer in-cloud liq water path (g/m**2)          nlay !
-        #    reliq - real, mean eff radius for liq cloud (micron)          nlay !
-        #    cicep - real, layer in-cloud ice water path (g/m**2)          nlay !
-        #    reice - real, mean eff radius for ice cloud (micron)          nlay !
-        #    cdat1 - real, layer rain drop water path  (g/m**2)            nlay !
-        #    cdat2 - real, effective radius for rain drop (microm)         nlay !
-        #    cdat3 - real, layer snow flake water path (g/m**2)            nlay !
-        #    cdat4 - real, effective radius for snow flakes (micron)       nlay !
-        #        .....  for ilwcliq = 0  (diagnostic cloud sckeme)  - - -       !
-        #    cdat1 - real, input cloud optical depth                       nlay !
-        #    cdat2 - real, layer cloud single scattering albedo            nlay !
-        #    cdat3 - real, layer cloud asymmetry factor                    nlay !
-        #    cdat4 - real, optional use                                    nlay !
-        #    cliqp - not used                                              nlay !
-        #    reliq - not used                                              nlay !
-        #    cicep - not used                                              nlay !
-        #    reice - not used                                              nlay !
-        #                                                                       !
-        #    dz     - real, layer thickness (km)                           nlay !
-        #    de_lgth- real, layer cloud decorrelation length (km)             1 !
-        #    nlay  - integer, number of vertical layers                      1  !
-        #    nlp1  - integer, number of vertical levels                      1  !
-        #    ipseed- permutation seed for generating random numbers (isubclw>0) !
-        #                                                                       !
-        #  outputs:                                                             !
-        #    cldfmc - real, cloud fraction for each sub-column       ngptlw*nlay!
-        #    taucld - real, cld opt depth for bands (non-mcica)      nbands*nlay!
-        #                                                                       !
-        #  explanation of the method for each value of ilwcliq, and ilwcice.    !
-        #    set up in module "module_radlw_cntr_para"                          !
-        #                                                                       !
-        #     ilwcliq=0  : input cloud optical property (tau, ssa, asy).        !
-        #                  (used for diagnostic cloud method)                   !
-        #     ilwcliq>0  : input cloud liq/ice path and effective radius, also  !
-        #                  require the user of 'ilwcice' to specify the method  !
-        #                  used to compute aborption due to water/ice parts.    !
-        #  ...................................................................  !
-        #                                                                       !
-        #     ilwcliq=1:   the water droplet effective radius (microns) is input!
-        #                  and the opt depths due to water clouds are computed  !
-        #                  as in hu and stamnes, j., clim., 6, 728-742, (1993). !
-        #                  the values for absorption coefficients appropriate for
-        #                  the spectral bands in rrtm have been obtained for a  !
-        #                  range of effective radii by an averaging procedure   !
-        #                  based on the work of j. pinto (private communication).
-        #                  linear interpolation is used to get the absorption   !
-        #                  coefficients for the input effective radius.         !
-        #                                                                       !
-        #     ilwcice=1:   the cloud ice path (g/m2) and ice effective radius   !
-        #                  (microns) are input and the optical depths due to ice!
-        #                  clouds are computed as in ebert and curry, jgr, 97,  !
-        #                  3831-3836 (1992).  the spectral regions in this work !
-        #                  have been matched with the spectral bands in rrtm to !
-        #                  as great an extent as possible:                      !
-        #                     e&c 1      ib = 5      rrtm bands 9-16            !
-        #                     e&c 2      ib = 4      rrtm bands 6-8             !
-        #                     e&c 3      ib = 3      rrtm bands 3-5             !
-        #                     e&c 4      ib = 2      rrtm band 2                !
-        #                     e&c 5      ib = 1      rrtm band 1                !
-        #     ilwcice=2:   the cloud ice path (g/m2) and ice effective radius   !
-        #                  (microns) are input and the optical depths due to ice!
-        #                  clouds are computed as in rt code, streamer v3.0     !
-        #                  (ref: key j., streamer user's guide, cooperative     !
-        #                  institute for meteorological satellite studies, 2001,!
-        #                  96 pp.) valid range of values for re are between 5.0 !
-        #                  and 131.0 micron.                                    !
-        #     ilwcice=3:   the ice generalized effective size (dge) is input and!
-        #                  the optical properties, are calculated as in q. fu,  !
-        #                  j. climate, (1998). q. fu provided high resolution   !
-        #                  tales which were appropriately averaged for the bands!
-        #                  in rrtm_lw. linear interpolation is used to get the  !
-        #                  coeff from the stored tables. valid range of values  !
-        #                  for deg are between 5.0 and 140.0 micron.            !
-        #                                                                       !
-        #  other cloud control module variables:                                !
-        #     isubclw =0: standard cloud scheme, no sub-col cloud approximation !
-        #             >0: mcica sub-col cloud scheme using ipseed as permutation!
-        #                 seed for generating rundom numbers                    !
-        #                                                                       !
-        #  ======================  end of description block  =================  !
-        #
-
-        #
-        # ===> ...  begin here
-        #
-        cldmin = 1.0e-80
-
-        taucld = np.zeros((nbands, nlay))
-        tauice = np.zeros(nbands)
-        tauliq = np.zeros(nbands)
-        cldfmc = np.zeros((ngptlw, nlay))
-        cldf = np.zeros(nlay)
-
-        # Compute cloud radiative properties for a cloudy column:
-        # - Compute cloud radiative properties for rain and snow (tauran,tausnw)
-        # - Calculation of absorption coefficients due to water clouds(tauliq)
-        # - Calculation of absorption coefficients due to ice clouds (tauice).
-        # - For prognostic cloud scheme: sum up the cloud optical property:
-        #   \f$ taucld=tauice+tauliq+tauran+tausnw \f$
-
-        #  --- ...  compute cloud radiative properties for a cloudy column
-
-        if ilwcliq > 0:
-            for k in range(nlay):
-                if cfrac[k + 1] > cldmin:
-                    tauran = absrain * cdat1[k]  # ncar formula
-
-                    #  ---  if use fu's formula it needs to be normalized by snow density
-                    #       !not use snow density = 0.1 g/cm**3 = 0.1 g/(mu * m**2)
-                    #       use ice density = 0.9167 g/cm**3 = 0.9167 g/(mu * m**2)
-                    #       factor 1.5396=8/(3*sqrt(3)) converts reff to generalized ice particle size
-                    #       use newer factor value 1.0315
-                    #       1/(0.9167*1.0315) = 1.05756
-                    if cdat3[k] > 0.0 and cdat4[k] > 10.0:
-                        tausnw = (
-                            abssnow0 * 1.05756 * cdat3[k] / cdat4[k]
-                        )  # fu's formula
-                    else:
-                        tausnw = 0.0
-
-                    cldliq = cliqp[k]
-                    cldice = cicep[k]
-                    refliq = reliq[k]
-                    refice = reice[k]
-
-                    #  --- ...  calculation of absorption coefficients due to water clouds.
-
-                    if cldliq <= 0.0:
-                        for ib in range(nbands):
-                            tauliq[ib] = 0.0
-                    else:
-                        if ilwcliq == 1:
-                            factor = refliq - 1.5
-                            index = max(1, min(57, int(factor))) - 1
-                            fint = factor - float(index + 1)
-
-                            for ib in range(nbands):
-                                tauliq[ib] = max(
-                                    0.0,
-                                    cldliq
-                                    * (
-                                        absliq1[index, ib]
-                                        + fint
-                                        * (absliq1[index + 1, ib] - absliq1[index, ib])
-                                    ),
-                                )
-
-                    #  --- ...  calculation of absorption coefficients due to ice clouds.
-                    if cldice <= 0.0:
-                        for ib in range(nbands):
-                            tauice[ib] = 0.0
-                    else:
-                        #  --- ...  ebert and curry approach for all particle sizes though somewhat
-                        #           unjustified for large ice particles
-                        if ilwcice == 1:
-                            refice = min(130.0, max(13.0, np.real(refice)))
-
-                            for ib in range(nbands):
-                                ia = (
-                                    ipat[ib] - 1
-                                )  # eb_&_c band index for ice cloud coeff
-                                tauice[ib] = max(
-                                    0.0,
-                                    cldice * (absice1[0, ia] + absice1[1, ia] / refice),
-                                )
-
-                            #  --- ...  streamer approach for ice effective radius between 5.0 and 131.0 microns
-                            #           and ebert and curry approach for ice eff radius greater than 131.0 microns.
-                            #           no smoothing between the transition of the two methods.
-
-                        elif ilwcice == 2:
-                            factor = (refice - 2.0) / 3.0
-                            index = max(1, min(42, int(factor))) - 1
-                            fint = factor - float(index + 1)
-
-                            for ib in range(nbands):
-                                tauice[ib] = max(
-                                    0.0,
-                                    cldice
-                                    * (
-                                        absice2[index, ib]
-                                        + fint
-                                        * (absice2[index + 1, ib] - absice2[index, ib])
-                                    ),
-                                )
-
-                        #  --- ...  fu's approach for ice effective radius between 4.8 and 135 microns
-                        #           (generalized effective size from 5 to 140 microns)
-
-                        elif ilwcice == 3:
-                            dgeice = max(5.0, 1.0315 * refice)  # v4.71 value
-                            factor = (dgeice - 2.0) / 3.0
-                            index = max(1, min(45, int(factor))) - 1
-                            fint = factor - float(index + 1)
-
-                            for ib in range(nbands):
-                                tauice[ib] = max(
-                                    0.0,
-                                    cldice
-                                    * (
-                                        absice3[index, ib]
-                                        + fint
-                                        * (absice3[index + 1, ib] - absice3[index, ib])
-                                    ),
-                                )
-
-                    for ib in range(nbands):
-                        taucld[ib, k] = tauice[ib] + tauliq[ib] + tauran + tausnw
-
-        else:
-            for k in range(nlay):
-                if cfrac[k + 1] > cldmin:
-                    for ib in range(nbands):
-                        taucld[ib, k] = cdat1[k]
-
-        # -# if physparam::isubclw > 0, call mcica_subcol() to distribute
-        #    cloud properties to each g-point.
-    
-        if self.isubclw > 0:  # mcica sub-col clouds approx
-            for k in range(nlay):
-                if cfrac[k + 1] < cldmin:
-                    cldf[k] = 0.0
-                else:
-                    cldf[k] = cfrac[k + 1]
-
-            #  --- ...  call sub-column cloud generator
-            lcloudy = self.mcica_subcol(self.iovrlw,cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d)
-
-            for k in range(nlay):
-                for ig in range(ngptlw):
-                    if lcloudy[ig, k]:
-                        cldfmc[ig, k] = 1.0
-                    else:
-                        cldfmc[ig, k] = 0.0
-
-        return cldfmc, taucld
-
-    def taumol(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        ds_radlw_ref,
-        ds_bands,
-    ):
-
-        #  ************    original subprogram description    ***************   !
-        #                                                                       !
-        #                  optical depths developed for the                     !
-        #                                                                       !
-        #                rapid radiative transfer model (rrtm)                  !
-        #                                                                       !
-        #            atmospheric and environmental research, inc.               !
-        #                        131 hartwell avenue                            !
-        #                        lexington, ma 02421                            !
-        #                                                                       !
-        #                           eli j. mlawer                               !
-        #                         jennifer delamere                             !
-        #                         steven j. taubman                             !
-        #                         shepard a. clough                             !
-        #                                                                       !
-        #                       email:  mlawer@aer.com                          !
-        #                       email:  jdelamer@aer.com                        !
-        #                                                                       !
-        #        the authors wish to acknowledge the contributions of the       !
-        #        following people:  karen cady-pereira, patrick d. brown,       !
-        #        michael j. iacono, ronald e. farren, luke chen,                !
-        #        robert bergstrom.                                              !
-        #                                                                       !
-        #  revision for g-point reduction: michael j. iacono; aer, inc.         !
-        #                                                                       !
-        #     taumol                                                            !
-        #                                                                       !
-        #     this file contains the subroutines taugbn (where n goes from      !
-        #     1 to 16).  taugbn calculates the optical depths and planck        !
-        #     fractions per g-value and layer for band n.                       !
-        #                                                                       !
-        #  *******************************************************************  !
-        #  ==================   program usage description   ==================  !
-        #                                                                       !
-        #    call  taumol                                                       !
-        #       inputs:                                                         !
-        #          ( laytrop,pavel,coldry,colamt,colbrd,wx,tauaer,              !
-        #            rfrate,fac00,fac01,fac10,fac11,jp,jt,jt1,                  !
-        #            selffac,selffrac,indself,forfac,forfrac,indfor,            !
-        #            minorfrac,scaleminor,scaleminorn2,indminor,                !
-        #            nlay,                                                      !
-        #       outputs:                                                        !
-        #            fracs, tautot )                                            !
-        #                                                                       !
-        #  subprograms called:  taugb## (## = 01 -16)                           !
-        #                                                                       !
-        #                                                                       !
-        #  ====================  defination of variables  ====================  !
-        #                                                                       !
-        #  inputs:                                                        size  !
-        #     laytrop   - integer, tropopause layer index (unitless)        1   !
-        #                   layer at which switch is made for key species       !
-        #     pavel     - real, layer pressures (mb)                       nlay !
-        #     coldry    - real, column amount for dry air (mol/cm2)        nlay !
-        #     colamt    - real, column amounts of h2o, co2, o3, n2o, ch4,       !
-        #                   o2, co (mol/cm**2)                       nlay*maxgas!
-        #     colbrd    - real, column amount of broadening gases          nlay !
-        #     wx        - real, cross-section amounts(mol/cm2)      nlay*maxxsec!
-        #     tauaer    - real, aerosol optical depth               nbands*nlay !
-        #     rfrate    - real, reference ratios of binary species parameter    !
-        #     (:,m,:)m=1-h2o/co2,2-h2o/o3,3-h2o/n2o,4-h2o/ch4,5-n2o/co2,6-o3/co2!
-        #     (:,:,n)n=1,2: the rates of ref press at the 2 sides of the layer  !
-        #                                                          nlay*nrates*2!
-        #     facij     - real, factors multiply the reference ks, i,j of 0/1   !
-        #                   for lower/higher of the 2 appropriate temperatures  !
-        #                   and altitudes                                  nlay !
-        #     jp        - real, index of lower reference pressure          nlay !
-        #     jt, jt1   - real, indices of lower reference temperatures    nlay !
-        #                   for pressure levels jp and jp+1, respectively       !
-        #     selffac   - real, scale factor for water vapor self-continuum     !
-        #                   equals (water vapor density)/(atmospheric density   !
-        #                   at 296k and 1013 mb)                           nlay !
-        #     selffrac  - real, factor for temperature interpolation of         !
-        #                   reference water vapor self-continuum data      nlay !
-        #     indself   - integer, index of lower reference temperature for     !
-        #                   the self-continuum interpolation               nlay !
-        #     forfac    - real, scale factor for w. v. foreign-continuum   nlay !
-        #     forfrac   - real, factor for temperature interpolation of         !
-        #                   reference w.v. foreign-continuum data          nlay !
-        #     indfor    - integer, index of lower reference temperature for     !
-        #                   the foreign-continuum interpolation            nlay !
-        #     minorfrac - real, factor for minor gases                     nlay !
-        #     scaleminor,scaleminorn2                                           !
-        #               - real, scale factors for minor gases              nlay !
-        #     indminor  - integer, index of lower reference temperature for     !
-        #                   minor gases                                    nlay !
-        #     nlay      - integer, total number of layers                   1   !
-        #                                                                       !
-        #  outputs:                                                             !
-        #     fracs     - real, planck fractions                     ngptlw,nlay!
-        #     tautot    - real, total optical depth (gas+aerosols)   ngptlw,nlay!
-        #                                                                       !
-        #  internal variables:                                                  !
-        #     ng##      - integer, number of g-values in band ## (##=01-16) 1   !
-        #     nspa      - integer, for lower atmosphere, the number of ref      !
-        #                   atmos, each has different relative amounts of the   !
-        #                   key species for the band                      nbands!
-        #     nspb      - integer, same but for upper atmosphere          nbands!
-        #     absa      - real, k-values for lower ref atmospheres (no w.v.     !
-        #                   self-continuum) (cm**2/molecule)  nspa(##)*5*13*ng##!
-        #     absb      - real, k-values for high ref atmospheres (all sources) !
-        #                   (cm**2/molecule)               nspb(##)*5*13:59*ng##!
-        #     ka_m'mgas'- real, k-values for low ref atmospheres minor species  !
-        #                   (cm**2/molecule)                          mmn##*ng##!
-        #     kb_m'mgas'- real, k-values for high ref atmospheres minor species !
-        #                   (cm**2/molecule)                          mmn##*ng##!
-        #     selfref   - real, k-values for w.v. self-continuum for ref atmos  !
-        #                   used below laytrop (cm**2/mol)               10*ng##!
-        #     forref    - real, k-values for w.v. foreign-continuum for ref atmos
-        #                   used below/above laytrop (cm**2/mol)          4*ng##!
-        #                                                                       !
-        #  ******************************************************************   !
-
-        #
-        # ===> ...  begin here
-        #
-
-        taug, fracs = self.taugb01(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            ds_bands['radlw_kgb01'],
-        )
-        taug, fracs, tauself = self.taugb02(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_bands['radlw_kgb02'],
-        )
-        taug, fracs = self.taugb03(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            tauself,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb03'],
-        )
-        taug, fracs = self.taugb04(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb04'],
-        )
-        taug, fracs = self.taugb05(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb05']
-        )
-        taug, fracs = self.taugb06(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb06'],
-        )
-        taug, fracs = self.taugb07(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb07'],
-        )
-
-        taug, fracs = self.taugb08(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb08'],
-        )
-        taug, fracs = self.taugb09(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb09'],
-        )
-        taug, fracs = self.taugb10(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_bands['radlw_kgb10'],
-        )
-        taug, fracs = self.taugb11(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_bands['radlw_kgb11'],
-        )
-        taug, fracs = self.taugb12(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb12'],
-        )
-        taug, fracs, taufor = self.taugb13(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb13'],
-        )
-        taug, fracs = self.taugb14(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            taufor,
-            ds_bands['radlw_kgb14'],
-        )
-        taug, fracs = self.taugb15(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb15'],
-        )
-        taug, fracs = self.taugb16(
-            laytrop,
-            pavel,
-            coldry,
-            colamt,
-            colbrd,
-            wx,
-            tauaer,
-            rfrate,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            selffac,
-            selffrac,
-            indself,
-            forfac,
-            forfrac,
-            indfor,
-            minorfrac,
-            scaleminor,
-            scaleminorn2,
-            indminor,
-            nlay,
-            taug,
-            fracs,
-            ds_radlw_ref,
-            ds_bands['radlw_kgb16'],
-        )
-
-        tautot = np.zeros((ngptlw, nlay))
-
-        #  ---  combine gaseous and aerosol optical depths
-
-        for ig in range(ngptlw):
-            ib = ngb[ig] - 1
-
-            for k in range(nlay):
-                tautot[ig, k] = taug[ig, k] + tauaer[ib, k]
-
-        return fracs, tautot
-
-        # band 1:  10-350 cm-1 (low key - h2o; low minor - n2);
-        #  (high key - h2o; high minor - n2)
-    #@staticmethod
-    #@jit
-    def taugb01(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #  written by eli j. mlawer, atmospheric & environmental research.     !
-        #  revised by michael j. iacono, atmospheric & environmental research. !
-        #                                                                      !
-        #     band 1:  10-350 cm-1 (low key - h2o; low minor - n2)             !
-        #                          (high key - h2o; high minor - n2)           !
-        #                                                                      !
-        #  compute the optical depth by interpolating in ln(pressure) and      !
-        #  temperature.  below laytrop, the water vapor self-continuum and     !
-        #  foreign continuum is interpolated (in temperature) separately.      !
-        #  ------------------------------------------------------------------  !
-
-        #  ---  minor gas mapping levels:
-        #     lower - n2, p = 142.5490 mbar, t = 215.70 k
-        #     upper - n2, p = 142.5490 mbar, t = 215.70 k
-
-        #  --- ...  lower atmosphere loop
-
-        taug = np.zeros((ngptlw, nlay))
-        fracs = np.zeros((ngptlw, nlay))
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        ka_mn2 = ds["ka_mn2"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-
-        ind0 = ((jp - 1) * 5 + (jt - 1)) * self.nspa[0]
-        ind1 = (jp * 5 + (jt1 - 1)) * self.nspa[0]
-        inds = indself - 1
-        indf = indfor - 1
-        indm = indminor - 1
-
-        ind0 = ind0[:laytrop]
-        ind1 = ind1[:laytrop]
-        inds = inds[:laytrop]
-        indf = indf[:laytrop]
-        indm = indm[:laytrop]
-
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-
-        pp = pavel[:laytrop]
-        scalen2 = colbrd[:laytrop] * scaleminorn2[:laytrop]
-        corradj = np.where(pp < 250.0, 1.0 - 0.15 * (250.0 - pp) / 154.4, 1.0)
-        # if pp < 250.0:
-        #     corradj = 1.0 - 0.15 * (250.0-pp) / 154.4
-        # else:
-        #     corradj = 1.0
-
-        for ig in range(ng01):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            taun2 = scalen2 * (
-                ka_mn2[ig, indm]
-                + minorfrac[:laytrop] * (ka_mn2[ig, indmp] - ka_mn2[ig, indm])
-            )
-
-            taug[ig, :laytrop] = corradj * (
-                colamt[:laytrop, 0]
-                * (
-                    fac00[:laytrop] * absa[ig, ind0]
-                    + fac10[:laytrop] * absa[ig, ind0p]
-                    + fac01[:laytrop] * absa[ig, ind1]
-                    + fac11[:laytrop] * absa[ig, ind1p]
-                )
-                + tauself
-                + taufor
-                + taun2
-            )
-
-            fracs[ig, :laytrop] = fracrefa[ig]
-
-        #  --- ...  upper atmosphere loop
-
-        ind0 = ((jp - 13) * 5 + (jt - 1)) * self.nspb[0]
-        ind1 = ((jp - 12) * 5 + (jt1 - 1)) * self.nspb[0]
-        indf = indfor - 1
-        indm = indminor - 1
-
-        ind0 = ind0[laytrop:nlay]
-        ind1 = ind1[laytrop:nlay]
-        indf = indf[laytrop:nlay]
-        indm = indm[laytrop:nlay]
-
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indfp = indf + 1
-        indmp = indm + 1
-
-        scalen2 = colbrd[laytrop:nlay] * scaleminorn2[laytrop:nlay]
-        corradj = 1.0 - 0.15 * (pavel[laytrop:nlay] / 95.6)
-
-        for ig in range(ng01):
-            taufor = forfac[laytrop:nlay] * (
-                forref[ig, indf]
-                + forfrac[laytrop:nlay] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            taun2 = scalen2 * (
-                ka_mn2[ig, indm]
-                + minorfrac[laytrop:nlay] * (ka_mn2[ig, indmp] - ka_mn2[ig, indm])
-            )
-
-            taug[ig, laytrop:nlay] = corradj * (
-                colamt[laytrop:nlay, 0]
-                * (
-                    fac00[laytrop:nlay] * absb[ig, ind0]
-                    + fac10[laytrop:nlay] * absb[ig, ind0p]
-                    + fac01[laytrop:nlay] * absb[ig, ind1]
-                    + fac11[laytrop:nlay] * absb[ig, ind1p]
-                )
-                + taufor
-                + taun2
-            )
-
-            fracs[ig, laytrop:nlay] = fracrefb[ig]
-
-        return taug, fracs
-
-    # Band 2:  350-500 cm-1 (low key - h2o; high key - h2o)
-    def taugb02(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 2:  350-500 cm-1 (low key - h2o; high key - h2o)            !
-        #  ------------------------------------------------------------------  !
-        #
-        # ===> ...  begin here
-        #
-        #  --- ...  lower atmosphere loop
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-
-        ind0 = ((jp - 1) * 5 + (jt - 1)) * self.nspa[1]
-        ind1 = (jp * 5 + (jt1 - 1)) * self.nspa[1]
-        inds = indself - 1
-        indf = indfor - 1
-
-        ind0 = ind0[:laytrop]
-        ind1 = ind1[:laytrop]
-        inds = inds[:laytrop]
-        indf = indf[:laytrop]
-
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indsp = inds + 1
-        indfp = indf + 1
-
-        corradj = 1.0 - 0.05 * (pavel[:laytrop] - 100.0) / 900.0
-
-        for ig in range(ng02):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-
-            taug[ns02 + ig, :laytrop] = corradj * (
-                colamt[:laytrop, 0]
-                * (
-                    fac00[:laytrop] * absa[ig, ind0]
-                    + fac10[:laytrop] * absa[ig, ind0p]
-                    + fac01[:laytrop] * absa[ig, ind1]
-                    + fac11[:laytrop] * absa[ig, ind1p]
-                )
-                + +tauself
-                + taufor
-            )
-
-            fracs[ns02 + ig, :laytrop] = fracrefa[ig]
-
-        #  --- ...  upper atmosphere loop
-
-        ind0 = ((jp - 13) * 5 + (jt - 1)) * self.nspb[1]
-        ind1 = ((jp - 12) * 5 + (jt1 - 1)) * self.nspb[1]
-        indf = indfor - 1
-
-        ind0 = ind0[laytrop:nlay]
-        ind1 = ind1[laytrop:nlay]
-        indf = indf[laytrop:nlay]
-
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indfp = indf + 1
-
-        for ig in range(ng02):
-            taufor = forfac[laytrop:nlay] * (
-                forref[ig, indf]
-                + forfrac[laytrop:nlay] * (forref[ig, indfp] - forref[ig, indf])
-            )
-
-            taug[ns02 + ig, laytrop:nlay] = (
-                colamt[laytrop:nlay, 0]
-                * (
-                    fac00[laytrop:nlay] * absb[ig, ind0]
-                    + fac10[laytrop:nlay] * absb[ig, ind0p]
-                    + fac01[laytrop:nlay] * absb[ig, ind1]
-                    + fac11[laytrop:nlay] * absb[ig, ind1p]
-                )
-                + taufor
-            )
-
-            fracs[ns02 + ig, laytrop:nlay] = fracrefb[ig]
-
-        return taug, fracs, tauself
-
-    # Band 3:  500-630 cm-1 (low key - h2o,co2; low minor - n2o);
-    #                        (high key - h2o,co2; high minor - n2o)
-    def taugb03(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        tauself,
-        dsc,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 3:  500-630 cm-1 (low key - h2o,co2; low minor - n2o)       !
-        #                           (high key - h2o,co2; high minor - n2o)     !
-        #  ------------------------------------------------------------------  !
-
-        #
-        # ===> ...  begin here
-        #
-        #  --- ...  minor gas mapping levels:
-        #     lower - n2o, p = 706.272 mbar, t = 278.94 k
-        #     upper - n2o, p = 95.58 mbar, t = 215.7 k
-
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        ka_mn2o = ds["ka_mn2o"].values
-        kb_mn2o = ds["kb_mn2o"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-
-        refrat_planck_a = chi_mls[0, 8] / chi_mls[1, 8]  # P = 212.725 mb
-        refrat_planck_b = chi_mls[0, 12] / chi_mls[1, 12]  # P = 95.58   mb
-        refrat_m_a = chi_mls[0, 2] / chi_mls[1, 2]  # P = 706.270 mb
-        refrat_m_b = chi_mls[0, 12] / chi_mls[1, 12]  # P = 95.58   mb
-
-        #  --- ...  lower atmosphere loop
-
-        speccomb = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 0] * colamt[:laytrop, 1]
-        specparm = colamt[:laytrop, 0] / speccomb
-        specmult = 8.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[2] + js - 1
-
-        speccomb1 = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 1] * colamt[:laytrop, 1]
-        specparm1 = colamt[:laytrop, 0] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[2] + js1 - 1
-
-        speccomb_mn2o = colamt[:laytrop, 0] + refrat_m_a * colamt[:laytrop, 1]
-        specparm_mn2o = colamt[:laytrop, 0] / speccomb_mn2o
-        specmult_mn2o = 8.0 * np.minimum(specparm_mn2o, self.oneminus)
-        jmn2o = 1 + specmult_mn2o.astype(np.int32) - 1
-        fmn2o = specmult_mn2o % 1.0
-
-        speccomb_planck = colamt[:laytrop, 0] + refrat_planck_a * colamt[:laytrop, 1]
-        specparm_planck = colamt[:laytrop, 0] / speccomb_planck
-        specmult_planck = 8.0 * np.minimum(specparm_planck, self.oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-        jmn2op = jmn2o + 1
-        jplp = jpl + 1
-
-        #  --- ...  in atmospheres where the amount of n2O is too great to be considered
-        #           a minor species, adjust the column amount of n2O by an empirical factor
-        #           to obtain the proper contribution.
-
-        p = coldry[:laytrop] * chi_mls[3, jp[:laytrop]]
-        ratn2o = colamt[:laytrop, 3] / p
-
-        adjcoln2o = np.where(
-            ratn2o > 1.5, (0.5 + (ratn2o - 0.5) ** 0.65) * p, colamt[:laytrop, 3]
-        )
-
-        p = np.where(specparm < 0.125, fs - 1.0, 0) + np.where(specparm > 0.875, -fs, 0)
-        p = np.where(p == 0, 0, p)
-
-        p4 = np.where(specparm < 0.125, p ** 4, 0) + np.where(
-            specparm > 0.875, p ** 4, 0
-        )
-        p4 = np.where(p4 == 0, 0, p4)
-
-        fk0 = np.where(specparm < 0.125, p4, 0) + np.where(specparm > 0.875, p ** 4, 0)
-        fk0 = np.where(fk0 == 0, 1.0 - fs, fk0)
-
-        fk1 = np.where(specparm < 0.125, 1.0 - p - 2.0 * p4, 0) + np.where(
-            specparm > 0.875, 1.0 - p - 2.0 * p4, 0
-        )
-        fk1 = np.where(fk1 == 0, fs, fk1)
-
-        fk2 = np.where(specparm < 0.125, p + p4, 0) + np.where(
-            specparm > 0.875, p + p4, 0
-        )
-        fk2 = np.where(fk2 == 0, 0.0, fk2)
-
-        id000 = np.where(specparm < 0.125, ind0, 0) + np.where(
-            specparm > 0.875, ind0 + 1, 0
-        )
-        id000 = np.where(id000 == 0, ind0, id000)
-
-        id010 = np.where(specparm < 0.125, ind0 + 9, 0) + np.where(
-            specparm > 0.875, ind0 + 10, 0
-        )
-        id010 = np.where(id010 == 0, ind0 + 9, id010)
-
-        id100 = np.where(specparm < 0.125, ind0 + 1, 0) + np.where(
-            specparm > 0.875, ind0, 0
-        )
-        id100 = np.where(id100 == 0, ind0 + 1, id100)
-
-        id110 = np.where(specparm < 0.125, ind0 + 10, 0) + np.where(
-            specparm > 0.875, ind0 + 9, 0
-        )
-        id110 = np.where(id110 == 0, ind0 + 10, id110)
-
-        id200 = np.where(specparm < 0.125, ind0 + 2, 0) + np.where(
-            specparm > 0.875, ind0 - 1, 0
-        )
-        id200 = np.where(id200 == 0, ind0, id200)
-
-        id210 = np.where(specparm < 0.125, ind0 + 11, 0) + np.where(
-            specparm > 0.875, ind0 + 8, 0
-        )
-        id210 = np.where(id210 == 0, ind0, id210)
-
-        fac000 = fk0 * fac00[:laytrop]
-        fac100 = fk1 * fac00[:laytrop]
-        fac200 = fk2 * fac00[:laytrop]
-        fac010 = fk0 * fac10[:laytrop]
-        fac110 = fk1 * fac10[:laytrop]
-        fac210 = fk2 * fac10[:laytrop]
-
-        p = np.where(specparm1 < 0.125, fs1 - 1.0, 0) + np.where(
-            specparm1 > 0.875, -fs1, 0
-        )
-        p = np.where(p == 0, 0, p)
-
-        p4 = np.where(specparm1 < 0.125, p ** 4, 0) + np.where(
-            specparm1 > 0.875, p ** 4, 0
-        )
-        p4 = np.where(p4 == 0, 0, p4)
-
-        fk0 = np.where(specparm1 < 0.125, p4, 0) + np.where(
-            specparm1 > 0.875, p ** 4, 0
-        )
-        fk0 = np.where(fk0 == 0, 1.0 - fs1, fk0)
-
-        fk1 = np.where(specparm1 < 0.125, 1.0 - p - 2.0 * p4, 0) + np.where(
-            specparm1 > 0.875, 1.0 - p - 2.0 * p4, 0
-        )
-        fk1 = np.where(fk1 == 0, fs1, fk1)
-
-        fk2 = np.where(specparm1 < 0.125, p + p4, 0) + np.where(
-            specparm1 > 0.875, p + p4, 0
-        )
-        fk2 = np.where(fk2 == 0, 0.0, fk2)
-
-        id001 = np.where(specparm1 < 0.125, ind1, 0) + np.where(
-            specparm1 > 0.875, ind1 + 1, 0
-        )
-        id001 = np.where(id001 == 0, ind1, id001)
-
-        id011 = np.where(specparm1 < 0.125, ind1 + 9, 0) + np.where(
-            specparm1 > 0.875, ind1 + 10, 0
-        )
-        id011 = np.where(id011 == 0, ind1 + 9, id011)
-
-        id101 = np.where(specparm1 < 0.125, ind1 + 1, 0) + np.where(
-            specparm1 > 0.875, ind1, 0
-        )
-        id101 = np.where(id101 == 0, ind1 + 1, id101)
-
-        id111 = np.where(specparm1 < 0.125, ind1 + 10, 0) + np.where(
-            specparm1 > 0.875, ind1 + 9, 0
-        )
-        id111 = np.where(id111 == 0, ind1 + 10, id111)
-
-        id201 = np.where(specparm1 < 0.125, ind1 + 2, 0) + np.where(
-            specparm1 > 0.875, ind1 - 1, 0
-        )
-        id201 = np.where(id201 == 0, ind1, id201)
-
-        id211 = np.where(specparm1 < 0.125, ind1 + 11, 0) + np.where(
-            specparm1 > 0.875, ind1 + 8, 0
-        )
-        id211 = np.where(id211 == 0, ind1, id211)
-
-        fac001 = fk0 * fac01[:laytrop]
-        fac101 = fk1 * fac01[:laytrop]
-        fac201 = fk2 * fac01[:laytrop]
-        fac011 = fk0 * fac11[:laytrop]
-        fac111 = fk1 * fac11[:laytrop]
-        fac211 = fk2 * fac11[:laytrop]
-
-        for ig in range(ng03):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            n2om1 = ka_mn2o[ig, jmn2o, indm] + fmn2o * (
-                ka_mn2o[ig, jmn2op, indm] - ka_mn2o[ig, jmn2o, indm]
-            )
-            n2om2 = ka_mn2o[ig, jmn2o, indmp] + fmn2o * (
-                ka_mn2o[ig, jmn2op, indmp] - ka_mn2o[ig, jmn2o, indmp]
-            )
-            absn2o = n2om1 + minorfrac[:laytrop] * (n2om2 - n2om1)
-
-            tau_major = speccomb * (
-                fac000 * absa[ig, id000]
-                + fac010 * absa[ig, id010]
-                + fac100 * absa[ig, id100]
-                + fac110 * absa[ig, id110]
-                + fac200 * absa[ig, id200]
-                + fac210 * absa[ig, id210]
-            )
-
-            tau_major1 = speccomb1 * (
-                fac001 * absa[ig, id001]
-                + fac011 * absa[ig, id011]
-                + fac101 * absa[ig, id101]
-                + fac111 * absa[ig, id111]
-                + fac201 * absa[ig, id201]
-                + fac211 * absa[ig, id211]
-            )
-
-            taug[ns03 + ig, :laytrop] = (
-                tau_major + tau_major1 + tauself + taufor + adjcoln2o * absn2o
-            )
-
-            fracs[ns03 + ig, :laytrop] = fracrefa[ig, jpl] + fpl * (
-                fracrefa[ig, jplp] - fracrefa[ig, jpl]
-            )
-
-        #  --- ...  upper atmosphere loop
-
-        speccomb = (
-            colamt[laytrop:nlay, 0]
-            + rfrate[laytrop:nlay, 0, 0] * colamt[laytrop:nlay, 1]
-        )
-        specparm = colamt[laytrop:nlay, 0] / speccomb
-        specmult = 4.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = (
-            ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[2]
-            + js
-            - 1
-        )
-
-        speccomb1 = (
-            colamt[laytrop:nlay, 0]
-            + rfrate[laytrop:nlay, 0, 1] * colamt[laytrop:nlay, 1]
-        )
-        specparm1 = colamt[laytrop:nlay, 0] / speccomb1
-        specmult1 = 4.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (
-            ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[2]
-            + js1
-            - 1
-        )
-
-        speccomb_mn2o = colamt[laytrop:nlay, 0] + refrat_m_b * colamt[laytrop:nlay, 1]
-        specparm_mn2o = colamt[laytrop:nlay, 0] / speccomb_mn2o
-        specmult_mn2o = 4.0 * np.minimum(specparm_mn2o, self.oneminus)
-        jmn2o = 1 + specmult_mn2o.astype(np.int32) - 1
-        fmn2o = specmult_mn2o % 1.0
-
-        speccomb_planck = (
-            colamt[laytrop:nlay, 0] + refrat_planck_b * colamt[laytrop:nlay, 1]
-        )
-        specparm_planck = colamt[laytrop:nlay, 0] / speccomb_planck
-        specmult_planck = 4.0 * np.minimum(specparm_planck, self.oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-
-        indf = indfor[laytrop:nlay] - 1
-        indm = indminor[laytrop:nlay] - 1
-        indfp = indf + 1
-        indmp = indm + 1
-        jmn2op = jmn2o + 1
-        jplp = jpl + 1
-
-        id000 = ind0
-        id010 = ind0 + 5
-        id100 = ind0 + 1
-        id110 = ind0 + 6
-        id001 = ind1
-        id011 = ind1 + 5
-        id101 = ind1 + 1
-        id111 = ind1 + 6
-
-        #  --- ...  in atmospheres where the amount of n2o is too great to be considered
-        #           a minor species, adjust the column amount of N2O by an empirical factor
-        #           to obtain the proper contribution.
-
-        p = coldry[laytrop:nlay] * chi_mls[3, jp[laytrop:nlay]]
-        ratn2o = colamt[laytrop:nlay, 3] / p
-        adjcoln2o = np.where(
-            ratn2o > 1.5, (0.5 + (ratn2o - 0.5) ** 0.65) * p, colamt[laytrop:nlay, 3]
-        )
-        # if ratn2o > 1.5:
-        #     adjfac = 0.5 + (ratn2o - 0.5)**0.65
-        #     adjcoln2o = adjfac * p
-        # else:
-        #     adjcoln2o = colamt[laytrop:nlay, 3]
-
-        fk0 = 1.0 - fs
-        fk1 = fs
-        fac000 = fk0 * fac00[laytrop:nlay]
-        fac010 = fk0 * fac10[laytrop:nlay]
-        fac100 = fk1 * fac00[laytrop:nlay]
-        fac110 = fk1 * fac10[laytrop:nlay]
-
-        fk0 = 1.0 - fs1
-        fk1 = fs1
-        fac001 = fk0 * fac01[laytrop:nlay]
-        fac011 = fk0 * fac11[laytrop:nlay]
-        fac101 = fk1 * fac01[laytrop:nlay]
-        fac111 = fk1 * fac11[laytrop:nlay]
-
-        for ig in range(ng03):
-            taufor = forfac[laytrop:nlay] * (
-                forref[ig, indf]
-                + forfrac[laytrop:nlay] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            n2om1 = kb_mn2o[ig, jmn2o, indm] + fmn2o * (
-                kb_mn2o[ig, jmn2op, indm] - kb_mn2o[ig, jmn2o, indm]
-            )
-            n2om2 = kb_mn2o[ig, jmn2o, indmp] + fmn2o * (
-                kb_mn2o[ig, jmn2op, indmp] - kb_mn2o[ig, jmn2o, indmp]
-            )
-            absn2o = n2om1 + minorfrac[laytrop:nlay] * (n2om2 - n2om1)
-
-            tau_major = speccomb * (
-                fac000 * absb[ig, id000]
-                + fac010 * absb[ig, id010]
-                + fac100 * absb[ig, id100]
-                + fac110 * absb[ig, id110]
-            )
-
-            tau_major1 = speccomb1 * (
-                fac001 * absb[ig, id001]
-                + fac011 * absb[ig, id011]
-                + fac101 * absb[ig, id101]
-                + fac111 * absb[ig, id111]
-            )
-
-            taug[ns03 + ig, laytrop:nlay] = (
-                tau_major + tau_major1 + taufor + adjcoln2o * absn2o
-            )
-
-            fracs[ns03 + ig, laytrop:nlay] = fracrefb[ig, jpl] + fpl * (
-                fracrefb[ig, jplp] - fracrefb[ig, jpl]
-            )
-
-        return taug, fracs
-
-    # Band 4:  630-700 cm-1 (low key - h2o,co2; high key - o3,co2)
-    # ----------------------------------
-    def taugb04(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        dsc,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 4:  630-700 cm-1 (low key - h2o,co2; high key - o3,co2)     !
-        #  ------------------------------------------------------------------  !
-        #
-        # ===> ...  begin here
-        #
-
-
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-
-        refrat_planck_a = chi_mls[0, 10] / chi_mls[1, 10]  # P = 142.5940 mb
-        refrat_planck_b = chi_mls[2, 12] / chi_mls[1, 12]  # P = 95.58350 mb
-
-        #  --- ...  lower atmosphere loop
-        speccomb = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 0] * colamt[:laytrop, 1]
-        specparm = colamt[:laytrop, 0] / speccomb
-        specmult = 8.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[3] + js - 1
-
-        speccomb1 = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 1] * colamt[:laytrop, 1]
-        specparm1 = colamt[:laytrop, 0] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[3] + js1 - 1
-
-        speccomb_planck = colamt[:laytrop, 0] + refrat_planck_a * colamt[:laytrop, 1]
-        specparm_planck = colamt[:laytrop, 0] / speccomb_planck
-        specmult_planck = 8.0 * np.minimum(specparm_planck, self.oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        jplp = jpl + 1
-
-        p = np.where(specparm < 0.125, fs - 1.0, 0) + np.where(specparm > 0.875, -fs, 0)
-        p = np.where(p == 0, 0, p)
-
-        p4 = np.where(specparm < 0.125, p ** 4, 0) + np.where(
-            specparm > 0.875, p ** 4, 0
-        )
-        p4 = np.where(p4 == 0, 0, p4)
-
-        fk0 = np.where(specparm < 0.125, p4, 0) + np.where(specparm > 0.875, p ** 4, 0)
-        fk0 = np.where(fk0 == 0, 1.0 - fs, fk0)
-
-        fk1 = np.where(specparm < 0.125, 1.0 - p - 2.0 * p4, 0) + np.where(
-            specparm > 0.875, 1.0 - p - 2.0 * p4, 0
-        )
-        fk1 = np.where(fk1 == 0, fs, fk1)
-
-        fk2 = np.where(specparm < 0.125, p + p4, 0) + np.where(
-            specparm > 0.875, p + p4, 0
-        )
-        fk2 = np.where(fk2 == 0, 0.0, fk2)
-
-        id000 = np.where(specparm < 0.125, ind0, 0) + np.where(
-            specparm > 0.875, ind0 + 1, 0
-        )
-        id000 = np.where(id000 == 0, ind0, id000)
-
-        id010 = np.where(specparm < 0.125, ind0 + 9, 0) + np.where(
-            specparm > 0.875, ind0 + 10, 0
-        )
-        id010 = np.where(id010 == 0, ind0 + 9, id010)
-
-        id100 = np.where(specparm < 0.125, ind0 + 1, 0) + np.where(
-            specparm > 0.875, ind0, 0
-        )
-        id100 = np.where(id100 == 0, ind0 + 1, id100)
-
-        id110 = np.where(specparm < 0.125, ind0 + 10, 0) + np.where(
-            specparm > 0.875, ind0 + 9, 0
-        )
-        id110 = np.where(id110 == 0, ind0 + 10, id110)
-
-        id200 = np.where(specparm < 0.125, ind0 + 2, 0) + np.where(
-            specparm > 0.875, ind0 - 1, 0
-        )
-        id200 = np.where(id200 == 0, ind0, id200)
-
-        id210 = np.where(specparm < 0.125, ind0 + 11, 0) + np.where(
-            specparm > 0.875, ind0 + 8, 0
-        )
-        id210 = np.where(id210 == 0, ind0, id210)
-
-        fac000 = fk0 * fac00[:laytrop]
-        fac100 = fk1 * fac00[:laytrop]
-        fac200 = fk2 * fac00[:laytrop]
-        fac010 = fk0 * fac10[:laytrop]
-        fac110 = fk1 * fac10[:laytrop]
-        fac210 = fk2 * fac10[:laytrop]
-
-        p = np.where(specparm1 < 0.125, fs1 - 1.0, 0) + np.where(
-            specparm1 > 0.875, -fs1, 0
-        )
-        p = np.where(p == 0, 0, p)
-
-        p4 = np.where(specparm1 < 0.125, p ** 4, 0) + np.where(
-            specparm1 > 0.875, p ** 4, 0
-        )
-        p4 = np.where(p4 == 0, 0, p4)
-
-        fk0 = np.where(specparm1 < 0.125, p4, 0) + np.where(
-            specparm1 > 0.875, p ** 4, 0
-        )
-        fk0 = np.where(fk0 == 0, 1.0 - fs1, fk0)
-
-        fk1 = np.where(specparm1 < 0.125, 1.0 - p - 2.0 * p4, 0) + np.where(
-            specparm1 > 0.875, 1.0 - p - 2.0 * p4, 0
-        )
-        fk1 = np.where(fk1 == 0, fs1, fk1)
-
-        fk2 = np.where(specparm1 < 0.125, p + p4, 0) + np.where(
-            specparm1 > 0.875, p + p4, 0
-        )
-        fk2 = np.where(fk2 == 0, 0.0, fk2)
-
-        id001 = np.where(specparm1 < 0.125, ind1, 0) + np.where(
-            specparm1 > 0.875, ind1 + 1, 0
-        )
-        id001 = np.where(id001 == 0, ind1, id001)
-
-        id011 = np.where(specparm1 < 0.125, ind1 + 9, 0) + np.where(
-            specparm1 > 0.875, ind1 + 10, 0
-        )
-        id011 = np.where(id011 == 0, ind1 + 9, id011)
-
-        id101 = np.where(specparm1 < 0.125, ind1 + 1, 0) + np.where(
-            specparm1 > 0.875, ind1, 0
-        )
-        id101 = np.where(id101 == 0, ind1 + 1, id101)
-
-        id111 = np.where(specparm1 < 0.125, ind1 + 10, 0) + np.where(
-            specparm1 > 0.875, ind1 + 9, 0
-        )
-        id111 = np.where(id111 == 0, ind1 + 10, id111)
-
-        id201 = np.where(specparm1 < 0.125, ind1 + 2, 0) + np.where(
-            specparm1 > 0.875, ind1 - 1, 0
-        )
-        id201 = np.where(id201 == 0, ind1, id201)
-
-        id211 = np.where(specparm1 < 0.125, ind1 + 11, 0) + np.where(
-            specparm1 > 0.875, ind1 + 8, 0
-        )
-        id211 = np.where(id211 == 0, ind1, id211)
-
-        fac001 = fk0 * fac01[:laytrop]
-        fac101 = fk1 * fac01[:laytrop]
-        fac201 = fk2 * fac01[:laytrop]
-        fac011 = fk0 * fac11[:laytrop]
-        fac111 = fk1 * fac11[:laytrop]
-        fac211 = fk2 * fac11[:laytrop]
-
-        for ig in range(ng04):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-
-            tau_major = speccomb * (
-                fac000 * absa[ig, id000]
-                + fac010 * absa[ig, id010]
-                + fac100 * absa[ig, id100]
-                + fac110 * absa[ig, id110]
-                + fac200 * absa[ig, id200]
-                + fac210 * absa[ig, id210]
-            )
-
-            tau_major1 = speccomb1 * (
-                fac001 * absa[ig, id001]
-                + fac011 * absa[ig, id011]
-                + fac101 * absa[ig, id101]
-                + fac111 * absa[ig, id111]
-                + fac201 * absa[ig, id201]
-                + fac211 * absa[ig, id211]
-            )
-
-            taug[ns04 + ig, :laytrop] = tau_major + tau_major1 + tauself + taufor
-
-            fracs[ns04 + ig, :laytrop] = fracrefa[ig, jpl] + fpl * (
-                fracrefa[ig, jplp] - fracrefa[ig, jpl]
-            )
-
-        #  --- ...  upper atmosphere loop
-        speccomb = (
-            colamt[laytrop:nlay, 2]
-            + rfrate[laytrop:nlay, 5, 0] * colamt[laytrop:nlay, 1]
-        )
-        specparm = colamt[laytrop:nlay, 2] / speccomb
-        specmult = 4.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = (
-            ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[3]
-            + js
-            - 1
-        )
-
-        speccomb1 = (
-            colamt[laytrop:nlay, 2]
-            + rfrate[laytrop:nlay, 5, 1] * colamt[laytrop:nlay, 1]
-        )
-        specparm1 = colamt[laytrop:nlay, 2] / speccomb1
-        specmult1 = 4.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (
-            ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[3]
-            + js1
-            - 1
-        )
-
-        speccomb_planck = (
-            colamt[laytrop:nlay, 2] + refrat_planck_b * colamt[laytrop:nlay, 1]
-        )
-        specparm_planck = colamt[laytrop:nlay, 2] / speccomb_planck
-        specmult_planck = 4.0 * np.minimum(specparm_planck, self.oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-        jplp = jpl + 1
-
-        id000 = ind0
-        id010 = ind0 + 5
-        id100 = ind0 + 1
-        id110 = ind0 + 6
-        id001 = ind1
-        id011 = ind1 + 5
-        id101 = ind1 + 1
-        id111 = ind1 + 6
-
-        fk0 = 1.0 - fs
-        fk1 = fs
-        fac000 = fk0 * fac00[laytrop:nlay]
-        fac010 = fk0 * fac10[laytrop:nlay]
-        fac100 = fk1 * fac00[laytrop:nlay]
-        fac110 = fk1 * fac10[laytrop:nlay]
-
-        fk0 = 1.0 - fs1
-        fk1 = fs1
-        fac001 = fk0 * fac01[laytrop:nlay]
-        fac011 = fk0 * fac11[laytrop:nlay]
-        fac101 = fk1 * fac01[laytrop:nlay]
-        fac111 = fk1 * fac11[laytrop:nlay]
-
-        for ig in range(ng04):
-            tau_major = speccomb * (
-                fac000 * absb[ig, id000]
-                + fac010 * absb[ig, id010]
-                + fac100 * absb[ig, id100]
-                + fac110 * absb[ig, id110]
-            )
-            tau_major1 = speccomb1 * (
-                fac001 * absb[ig, id001]
-                + fac011 * absb[ig, id011]
-                + fac101 * absb[ig, id101]
-                + fac111 * absb[ig, id111]
-            )
-
-            taug[ns04 + ig, laytrop:nlay] = tau_major + tau_major1
-
-            fracs[ns04 + ig, laytrop:nlay] = fracrefb[ig, jpl] + fpl * (
-                fracrefb[ig, jplp] - fracrefb[ig, jpl]
-            )
-
-            #  --- ...  empirical modification to code to improve stratospheric cooling rates
-            #           for co2. revised to apply weighting for g-point reduction in this band.
-
-        taug[ns04 + 7, laytrop:nlay] = taug[ns04 + 7, laytrop:nlay] * 0.92
-        taug[ns04 + 8, laytrop:nlay] = taug[ns04 + 8, laytrop:nlay] * 0.88
-        taug[ns04 + 9, laytrop:nlay] = taug[ns04 + 9, laytrop:nlay] * 1.07
-        taug[ns04 + 10, laytrop:nlay] = taug[ns04 + 10, laytrop:nlay] * 1.1
-        taug[ns04 + 11, laytrop:nlay] = taug[ns04 + 11, laytrop:nlay] * 0.99
-        taug[ns04 + 12, laytrop:nlay] = taug[ns04 + 12, laytrop:nlay] * 0.88
-        taug[ns04 + 13, laytrop:nlay] = taug[ns04 + 13, laytrop:nlay] * 0.943
-
-        return taug, fracs
-
-    # Band 5:  700-820 cm-1 (low key - h2o,co2; low minor - o3, ccl4)
-    #                       (high key - o3,co2)
-    def taugb05(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        dsc,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 5:  700-820 cm-1 (low key - h2o,co2; low minor - o3, ccl4)  !
-        #                           (high key - o3,co2)                        !
-        #  ------------------------------------------------------------------  !
-        #
-        # ===> ...  begin here
-        #
-        #  --- ...  minor gas mapping level :
-        #     lower - o3, p = 317.34 mbar, t = 240.77 k
-        #     lower - ccl4
-
-        #  --- ...  calculate reference ratio to be used in calculation of Planck
-        #           fraction in lower/upper atmosphere.
-
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-        ka_mo3 = ds["ka_mo3"].values
-        ccl4 = ds["ccl4"].values
-
-        refrat_planck_a = chi_mls[0, 4] / chi_mls[1, 4]  # P = 473.420 mb
-        refrat_planck_b = chi_mls[2, 42] / chi_mls[1, 42]  # P = 0.2369  mb
-        refrat_m_a = chi_mls[0, 6] / chi_mls[1, 6]  # P = 317.348 mb
-
-        #  --- ...  lower atmosphere loop
-
-        speccomb = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 0] * colamt[:laytrop, 1]
-        specparm = colamt[:laytrop, 0] / speccomb
-        specmult = 8.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[4] + js - 1
-
-        speccomb1 = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 1] * colamt[:laytrop, 1]
-        specparm1 = colamt[:laytrop, 0] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[4] + js1 - 1
-
-        speccomb_mo3 = colamt[:laytrop, 0] + refrat_m_a * colamt[:laytrop, 1]
-        specparm_mo3 = colamt[:laytrop, 0] / speccomb_mo3
-        specmult_mo3 = 8.0 * np.minimum(specparm_mo3, self.oneminus)
-        jmo3 = 1 + specmult_mo3.astype(np.int32) - 1
-        fmo3 = specmult_mo3 % 1.0
-
-        speccomb_planck = colamt[:laytrop, 0] + refrat_planck_a * colamt[:laytrop, 1]
-        specparm_planck = colamt[:laytrop, 0] / speccomb_planck
-        specmult_planck = 8.0 * np.minimum(specparm_planck, self.oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-        jplp = jpl + 1
-        jmo3p = jmo3 + 1
-
-        p0 = np.where(specparm < 0.125, fs - 1.0, 0) + np.where(
-            specparm > 0.875, -fs, 0
-        )
-        p0 = np.where(p0 == 0, 0, p0)
-
-        p40 = np.where(specparm < 0.125, p0 ** 4, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        p40 = np.where(p40 == 0, 0, p40)
-
-        fk00 = np.where(specparm < 0.125, p40, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        fk00 = np.where(fk00 == 0, 1.0 - fs, fk00)
-
-        fk10 = np.where(specparm < 0.125, 1.0 - p0 - 2.0 * p40, 0) + np.where(
-            specparm > 0.875, 1.0 - p0 - 2.0 * p40, 0
-        )
-        fk10 = np.where(fk10 == 0, fs, fk10)
-
-        fk20 = np.where(specparm < 0.125, p0 + p40, 0) + np.where(
-            specparm > 0.875, p0 + p40, 0
-        )
-        fk20 = np.where(fk20 == 0, 0.0, fk20)
-
-        id000 = np.where(specparm < 0.125, ind0, 0) + np.where(
-            specparm > 0.875, ind0 + 1, 0
-        )
-        id000 = np.where(id000 == 0, ind0, id000)
-
-        id010 = np.where(specparm < 0.125, ind0 + 9, 0) + np.where(
-            specparm > 0.875, ind0 + 10, 0
-        )
-        id010 = np.where(id010 == 0, ind0 + 9, id010)
-
-        id100 = np.where(specparm < 0.125, ind0 + 1, 0) + np.where(
-            specparm > 0.875, ind0, 0
-        )
-        id100 = np.where(id100 == 0, ind0 + 1, id100)
-
-        id110 = np.where(specparm < 0.125, ind0 + 10, 0) + np.where(
-            specparm > 0.875, ind0 + 9, 0
-        )
-        id110 = np.where(id110 == 0, ind0 + 10, id110)
-
-        id200 = np.where(specparm < 0.125, ind0 + 2, 0) + np.where(
-            specparm > 0.875, ind0 - 1, 0
-        )
-        id200 = np.where(id200 == 0, ind0, id200)
-
-        id210 = np.where(specparm < 0.125, ind0 + 11, 0) + np.where(
-            specparm > 0.875, ind0 + 8, 0
-        )
-        id210 = np.where(id210 == 0, ind0, id210)
-
-        fac000 = fk00 * fac00[:laytrop]
-        fac100 = fk10 * fac00[:laytrop]
-        fac200 = fk20 * fac00[:laytrop]
-        fac010 = fk00 * fac10[:laytrop]
-        fac110 = fk10 * fac10[:laytrop]
-        fac210 = fk20 * fac10[:laytrop]
-
-        p1 = np.where(specparm1 < 0.125, fs1 - 1.0, 0) + np.where(
-            specparm1 > 0.875, -fs1, 0
-        )
-        p1 = np.where(p1 == 0, 0, p1)
-
-        p41 = np.where(specparm1 < 0.125, p1 ** 4, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        p41 = np.where(p41 == 0, 0, p41)
-
-        fk01 = np.where(specparm1 < 0.125, p41, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        fk01 = np.where(fk01 == 0, 1.0 - fs1, fk01)
-
-        fk11 = np.where(specparm1 < 0.125, 1.0 - p1 - 2.0 * p41, 0) + np.where(
-            specparm1 > 0.875, 1.0 - p1 - 2.0 * p41, 0
-        )
-        fk11 = np.where(fk11 == 0, fs1, fk11)
-
-        fk21 = np.where(specparm1 < 0.125, p1 + p41, 0) + np.where(
-            specparm1 > 0.875, p1 + p41, 0
-        )
-        fk21 = np.where(fk21 == 0, 0.0, fk21)
-
-        id001 = np.where(specparm1 < 0.125, ind1, 0) + np.where(
-            specparm1 > 0.875, ind1 + 1, 0
-        )
-        id001 = np.where(id001 == 0, ind1, id001)
-
-        id011 = np.where(specparm1 < 0.125, ind1 + 9, 0) + np.where(
-            specparm1 > 0.875, ind1 + 10, 0
-        )
-        id011 = np.where(id011 == 0, ind1 + 9, id011)
-
-        id101 = np.where(specparm1 < 0.125, ind1 + 1, 0) + np.where(
-            specparm1 > 0.875, ind1, 0
-        )
-        id101 = np.where(id101 == 0, ind1 + 1, id101)
-
-        id111 = np.where(specparm1 < 0.125, ind1 + 10, 0) + np.where(
-            specparm1 > 0.875, ind1 + 9, 0
-        )
-        id111 = np.where(id111 == 0, ind1 + 10, id111)
-
-        id201 = np.where(specparm1 < 0.125, ind1 + 2, 0) + np.where(
-            specparm1 > 0.875, ind1 - 1, 0
-        )
-        id201 = np.where(id201 == 0, ind1, id201)
-
-        id211 = np.where(specparm1 < 0.125, ind1 + 11, 0) + np.where(
-            specparm1 > 0.875, ind1 + 8, 0
-        )
-        id211 = np.where(id211 == 0, ind1, id211)
-
-        fac001 = fk01 * fac01[:laytrop]
-        fac101 = fk11 * fac01[:laytrop]
-        fac201 = fk21 * fac01[:laytrop]
-        fac011 = fk01 * fac11[:laytrop]
-        fac111 = fk11 * fac11[:laytrop]
-        fac211 = fk21 * fac11[:laytrop]
-
-        for ig in range(ng05):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            o3m1 = ka_mo3[ig, jmo3, indm] + fmo3 * (
-                ka_mo3[ig, jmo3p, indm] - ka_mo3[ig, jmo3, indm]
-            )
-            o3m2 = ka_mo3[ig, jmo3, indmp] + fmo3 * (
-                ka_mo3[ig, jmo3p, indmp] - ka_mo3[ig, jmo3, indmp]
-            )
-            abso3 = o3m1 + minorfrac[:laytrop] * (o3m2 - o3m1)
-
-            taug[ns05 + ig, :laytrop] = (
-                speccomb
-                * (
-                    fac000 * absa[ig, id000]
-                    + fac010 * absa[ig, id010]
-                    + fac100 * absa[ig, id100]
-                    + fac110 * absa[ig, id110]
-                    + fac200 * absa[ig, id200]
-                    + fac210 * absa[ig, id210]
-                )
-                + speccomb1
-                * (
-                    fac001 * absa[ig, id001]
-                    + fac011 * absa[ig, id011]
-                    + fac101 * absa[ig, id101]
-                    + fac111 * absa[ig, id111]
-                    + fac201 * absa[ig, id201]
-                    + fac211 * absa[ig, id211]
-                )
-                + tauself
-                + taufor
-                + abso3 * colamt[:laytrop, 2]
-                + wx[:laytrop, 0] * ccl4[ig]
-            )
-
-            fracs[ns05 + ig, :laytrop] = fracrefa[ig, jpl] + fpl * (
-                fracrefa[ig, jplp] - fracrefa[ig, jpl]
-            )
-
-        #  --- ...  upper atmosphere loop
-
-        speccomb = (
-            colamt[laytrop:nlay, 2]
-            + rfrate[laytrop:nlay, 5, 0] * colamt[laytrop:nlay, 1]
-        )
-        specparm = colamt[laytrop:nlay, 2] / speccomb
-        specmult = 4.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = (
-            ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[4]
-            + js
-            - 1
-        )
-
-        speccomb1 = (
-            colamt[laytrop:nlay, 2]
-            + rfrate[laytrop:nlay, 5, 1] * colamt[laytrop:nlay, 1]
-        )
-        specparm1 = colamt[laytrop:nlay, 2] / speccomb1
-        specmult1 = 4.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (
-            ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[4]
-            + js1
-            - 1
-        )
-
-        speccomb_planck = (
-            colamt[laytrop:nlay, 2] + refrat_planck_b * colamt[laytrop:nlay, 1]
-        )
-        specparm_planck = colamt[laytrop:nlay, 2] / speccomb_planck
-        specmult_planck = 4.0 * np.minimum(specparm_planck, self.oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-        jplp = jpl + 1
-
-        id000 = ind0
-        id010 = ind0 + 5
-        id100 = ind0 + 1
-        id110 = ind0 + 6
-        id001 = ind1
-        id011 = ind1 + 5
-        id101 = ind1 + 1
-        id111 = ind1 + 6
-
-        fk00 = 1.0 - fs
-        fk10 = fs
-
-        fk01 = 1.0 - fs1
-        fk11 = fs1
-
-        fac000 = fk00 * fac00[laytrop:nlay]
-        fac010 = fk00 * fac10[laytrop:nlay]
-        fac100 = fk10 * fac00[laytrop:nlay]
-        fac110 = fk10 * fac10[laytrop:nlay]
-
-        fac001 = fk01 * fac01[laytrop:nlay]
-        fac011 = fk01 * fac11[laytrop:nlay]
-        fac101 = fk11 * fac01[laytrop:nlay]
-        fac111 = fk11 * fac11[laytrop:nlay]
-
-        for ig in range(ng05):
-            taug[ns05 + ig, laytrop:nlay] = (
-                speccomb
-                * (
-                    fac000 * absb[ig, id000]
-                    + fac010 * absb[ig, id010]
-                    + fac100 * absb[ig, id100]
-                    + fac110 * absb[ig, id110]
-                )
-                + speccomb1
-                * (
-                    fac001 * absb[ig, id001]
-                    + fac011 * absb[ig, id011]
-                    + fac101 * absb[ig, id101]
-                    + fac111 * absb[ig, id111]
-                )
-                + wx[laytrop:nlay, 0] * ccl4[ig]
-            )
-
-            fracs[ns05 + ig, laytrop:nlay] = fracrefb[ig, jpl] + fpl * (
-                fracrefb[ig, jplp] - fracrefb[ig, jpl]
-            )
-
-        return taug, fracs
-
-    # Band 6:  820-980 cm-1 (low key - h2o; low minor - co2)
-    #                       (high key - none; high minor - cfc11, cfc12)
-    def taugb06(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        dsc,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 6:  820-980 cm-1 (low key - h2o; low minor - co2)           !
-        #                           (high key - none; high minor - cfc11, cfc12)
-        #  ------------------------------------------------------------------  !
-
-        #  --- ...  minor gas mapping level:
-        #     lower - co2, p = 706.2720 mb, t = 294.2 k
-        #     upper - cfc11, cfc12
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        fracrefa = ds["fracrefa"].values
-        ka_mco2 = ds["ka_mco2"].values
-        cfc11adj = ds["cfc11adj"].values
-        cfc12 = ds["cfc12"].values
-
-        #  --- ...  lower atmosphere loop
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[5]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[5]
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-
-        #  --- ...  in atmospheres where the amount of co2 is too great to be considered
-        #           a minor species, adjust the column amount of co2 by an empirical factor
-        #           to obtain the proper contribution.
-
-        temp = coldry[:laytrop] * chi_mls[1, jp[:laytrop] + 1]
-        ratco2 = colamt[:laytrop, 1] / temp
-        adjcolco2 = np.where(
-            ratco2 > 3.0, (2.0 + (ratco2 - 2.0) ** 0.77) * temp, colamt[:laytrop, 1]
-        )
-
-        for ig in range(ng06):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            absco2 = ka_mco2[ig, indm] + minorfrac[:laytrop] * (
-                ka_mco2[ig, indmp] - ka_mco2[ig, indm]
-            )
-
-            taug[ns06 + ig, :laytrop] = (
-                colamt[:laytrop, 0]
-                * (
-                    fac00[:laytrop] * absa[ig, ind0]
-                    + fac10[:laytrop] * absa[ig, ind0p]
-                    + fac01[:laytrop] * absa[ig, ind1]
-                    + fac11[:laytrop] * absa[ig, ind1p]
-                )
-                + tauself
-                + taufor
-                + adjcolco2 * absco2
-                + wx[:laytrop, 1] * cfc11adj[ig]
-                + wx[:laytrop, 2] * cfc12[ig]
-            )
-
-            fracs[ns06 + ig, :laytrop] = fracrefa[ig]
-
-        #  --- ...  upper atmosphere loop
-        #           nothing important goes on above laytrop in this band.
-
-        for ig in range(ng06):
-            taug[ns06 + ig, laytrop:nlay] = (
-                wx[laytrop:nlay, 1] * cfc11adj[ig] + wx[laytrop:nlay, 2] * cfc12[ig]
-            )
-            fracs[ns06 + ig, laytrop:nlay] = fracrefa[ig]
-
-        return taug, fracs
-
-    # Band 7:  980-1080 cm-1 (low key - h2o,o3; low minor - co2)
-    #                        (high key - o3; high minor - co2)
-    def taugb07(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        dsc,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 7:  980-1080 cm-1 (low key - h2o,o3; low minor - co2)       !
-        #                            (high key - o3; high minor - co2)         !
-        #  ------------------------------------------------------------------  !
-
-        #  --- ...  minor gas mapping level :
-        #     lower - co2, p = 706.2620 mbar, t= 278.94 k
-        #     upper - co2, p = 12.9350 mbar, t = 234.01 k
-
-        #  --- ...  calculate reference ratio to be used in calculation of Planck
-        #           fraction in lower atmosphere.
-
-
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-        ka_mco2 = ds["ka_mco2"].values
-        kb_mco2 = ds["kb_mco2"].values
-
-        refrat_planck_a = chi_mls[0, 2] / chi_mls[2, 2]  # P = 706.2620 mb
-        refrat_m_a = chi_mls[0, 2] / chi_mls[2, 2]  # P = 706.2720 mb
-
-        #  --- ...  lower atmosphere loop
-        speccomb = colamt[:laytrop, 0] + rfrate[:laytrop, 1, 0] * colamt[:laytrop, 2]
-        specparm = colamt[:laytrop, 0] / speccomb
-        specmult = 8.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[6] + js - 1
-
-        speccomb1 = colamt[:laytrop, 0] + rfrate[:laytrop, 1, 1] * colamt[:laytrop, 2]
-        specparm1 = colamt[:laytrop, 0] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[6] + js1 - 1
-
-        speccomb_mco2 = colamt[:laytrop, 0] + refrat_m_a * colamt[:laytrop, 2]
-        specparm_mco2 = colamt[:laytrop, 0] / speccomb_mco2
-        specmult_mco2 = 8.0 * np.minimum(specparm_mco2, self.oneminus)
-        jmco2 = 1 + specmult_mco2.astype(np.int32) - 1
-        fmco2 = specmult_mco2 % 1.0
-
-        speccomb_planck = colamt[:laytrop, 0] + refrat_planck_a * colamt[:laytrop, 2]
-        specparm_planck = colamt[:laytrop, 0] / speccomb_planck
-        specmult_planck = 8.0 * np.minimum(specparm_planck, self.oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-        jplp = jpl + 1
-        jmco2p = jmco2 + 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-
-        #  --- ...  in atmospheres where the amount of CO2 is too great to be considered
-        #           a minor species, adjust the column amount of CO2 by an empirical factor
-        #           to obtain the proper contribution.
-
-        temp = coldry[:laytrop] * chi_mls[1, jp[:laytrop]]
-        ratco2 = colamt[:laytrop, 1] / temp
-        adjcolco2 = np.where(
-            ratco2 > 3.0, (3.0 + (ratco2 - 3.0) ** 0.79) * temp, colamt[:laytrop, 1]
-        )
-
-        p0 = np.where(specparm < 0.125, fs - 1.0, 0) + np.where(
-            specparm > 0.875, -fs, 0
-        )
-        p0 = np.where(p0 == 0, 0, p0)
-
-        p40 = np.where(specparm < 0.125, p0 ** 4, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        p40 = np.where(p40 == 0, 0, p40)
-
-        fk00 = np.where(specparm < 0.125, p40, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        fk00 = np.where(fk00 == 0, 1.0 - fs, fk00)
-
-        fk10 = np.where(specparm < 0.125, 1.0 - p0 - 2.0 * p40, 0) + np.where(
-            specparm > 0.875, 1.0 - p0 - 2.0 * p40, 0
-        )
-        fk10 = np.where(fk10 == 0, fs, fk10)
-
-        fk20 = np.where(specparm < 0.125, p0 + p40, 0) + np.where(
-            specparm > 0.875, p0 + p40, 0
-        )
-        fk20 = np.where(fk20 == 0, 0.0, fk20)
-
-        id000 = np.where(specparm < 0.125, ind0, 0) + np.where(
-            specparm > 0.875, ind0 + 1, 0
-        )
-        id000 = np.where(id000 == 0, ind0, id000)
-
-        id010 = np.where(specparm < 0.125, ind0 + 9, 0) + np.where(
-            specparm > 0.875, ind0 + 10, 0
-        )
-        id010 = np.where(id010 == 0, ind0 + 9, id010)
-
-        id100 = np.where(specparm < 0.125, ind0 + 1, 0) + np.where(
-            specparm > 0.875, ind0, 0
-        )
-        id100 = np.where(id100 == 0, ind0 + 1, id100)
-
-        id110 = np.where(specparm < 0.125, ind0 + 10, 0) + np.where(
-            specparm > 0.875, ind0 + 9, 0
-        )
-        id110 = np.where(id110 == 0, ind0 + 10, id110)
-
-        id200 = np.where(specparm < 0.125, ind0 + 2, 0) + np.where(
-            specparm > 0.875, ind0 - 1, 0
-        )
-        id200 = np.where(id200 == 0, ind0, id200)
-
-        id210 = np.where(specparm < 0.125, ind0 + 11, 0) + np.where(
-            specparm > 0.875, ind0 + 8, 0
-        )
-        id210 = np.where(id210 == 0, ind0, id210)
-
-        fac000 = fk00 * fac00[:laytrop]
-        fac100 = fk10 * fac00[:laytrop]
-        fac200 = fk20 * fac00[:laytrop]
-        fac010 = fk00 * fac10[:laytrop]
-        fac110 = fk10 * fac10[:laytrop]
-        fac210 = fk20 * fac10[:laytrop]
-
-        p1 = np.where(specparm1 < 0.125, fs1 - 1.0, 0) + np.where(
-            specparm1 > 0.875, -fs1, 0
-        )
-        p1 = np.where(p1 == 0, 0, p1)
-
-        p41 = np.where(specparm1 < 0.125, p1 ** 4, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        p41 = np.where(p41 == 0, 0, p41)
-
-        fk01 = np.where(specparm1 < 0.125, p41, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        fk01 = np.where(fk01 == 0, 1.0 - fs1, fk01)
-
-        fk11 = np.where(specparm1 < 0.125, 1.0 - p1 - 2.0 * p41, 0) + np.where(
-            specparm1 > 0.875, 1.0 - p1 - 2.0 * p41, 0
-        )
-        fk11 = np.where(fk11 == 0, fs1, fk11)
-
-        fk21 = np.where(specparm1 < 0.125, p1 + p41, 0) + np.where(
-            specparm1 > 0.875, p1 + p41, 0
-        )
-        fk21 = np.where(fk21 == 0, 0.0, fk21)
-
-        id001 = np.where(specparm1 < 0.125, ind1, 0) + np.where(
-            specparm1 > 0.875, ind1 + 1, 0
-        )
-        id001 = np.where(id001 == 0, ind1, id001)
-
-        id011 = np.where(specparm1 < 0.125, ind1 + 9, 0) + np.where(
-            specparm1 > 0.875, ind1 + 10, 0
-        )
-        id011 = np.where(id011 == 0, ind1 + 9, id011)
-
-        id101 = np.where(specparm1 < 0.125, ind1 + 1, 0) + np.where(
-            specparm1 > 0.875, ind1, 0
-        )
-        id101 = np.where(id101 == 0, ind1 + 1, id101)
-
-        id111 = np.where(specparm1 < 0.125, ind1 + 10, 0) + np.where(
-            specparm1 > 0.875, ind1 + 9, 0
-        )
-        id111 = np.where(id111 == 0, ind1 + 10, id111)
-
-        id201 = np.where(specparm1 < 0.125, ind1 + 2, 0) + np.where(
-            specparm1 > 0.875, ind1 - 1, 0
-        )
-        id201 = np.where(id201 == 0, ind1, id201)
-
-        id211 = np.where(specparm1 < 0.125, ind1 + 11, 0) + np.where(
-            specparm1 > 0.875, ind1 + 8, 0
-        )
-        id211 = np.where(id211 == 0, ind1, id211)
-
-        fac001 = fk01 * fac01[:laytrop]
-        fac101 = fk11 * fac01[:laytrop]
-        fac201 = fk21 * fac01[:laytrop]
-        fac011 = fk01 * fac11[:laytrop]
-        fac111 = fk11 * fac11[:laytrop]
-        fac211 = fk21 * fac11[:laytrop]
-
-        for ig in range(ng07):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            co2m1 = ka_mco2[ig, jmco2, indm] + fmco2 * (
-                ka_mco2[ig, jmco2p, indm] - ka_mco2[ig, jmco2, indm]
-            )
-            co2m2 = ka_mco2[ig, jmco2, indmp] + fmco2 * (
-                ka_mco2[ig, jmco2p, indmp] - ka_mco2[ig, jmco2, indmp]
-            )
-            absco2 = co2m1 + minorfrac[:laytrop] * (co2m2 - co2m1)
-
-            taug[ns07 + ig, :laytrop] = (
-                speccomb
-                * (
-                    fac000 * absa[ig, id000]
-                    + fac010 * absa[ig, id010]
-                    + fac100 * absa[ig, id100]
-                    + fac110 * absa[ig, id110]
-                    + fac200 * absa[ig, id200]
-                    + fac210 * absa[ig, id210]
-                )
-                + speccomb1
-                * (
-                    fac001 * absa[ig, id001]
-                    + fac011 * absa[ig, id011]
-                    + fac101 * absa[ig, id101]
-                    + fac111 * absa[ig, id111]
-                    + fac201 * absa[ig, id201]
-                    + fac211 * absa[ig, id211]
-                )
-                + tauself
-                + taufor
-                + adjcolco2 * absco2
-            )
-
-            fracs[ns07 + ig, :laytrop] = fracrefa[ig, jpl] + fpl * (
-                fracrefa[ig, jplp] - fracrefa[ig, jpl]
-            )
-
-        #  --- ...  upper atmosphere loop
-
-        #  --- ...  in atmospheres where the amount of co2 is too great to be considered
-        #           a minor species, adjust the column amount of co2 by an empirical factor
-        #           to obtain the proper contribution.
-
-        temp = coldry[laytrop:nlay] * chi_mls[1, jp[laytrop:nlay]]
-        ratco2 = colamt[laytrop:nlay, 1] / temp
-        adjcolco2 = np.where(
-            ratco2 > 3.0, (2.0 + (ratco2 - 2.0) ** 0.79) * temp, colamt[laytrop:nlay, 1]
-        )
-
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[6]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[6]
-
-        indm = indminor[laytrop:nlay] - 1
-        indmp = indm + 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-
-        for ig in range(ng07):
-            absco2 = kb_mco2[ig, indm] + minorfrac[laytrop:nlay] * (
-                kb_mco2[ig, indmp] - kb_mco2[ig, indm]
-            )
-
-            taug[ns07 + ig, laytrop:nlay] = (
-                colamt[laytrop:nlay, 2]
-                * (
-                    fac00[laytrop:nlay] * absb[ig, ind0]
-                    + fac10[laytrop:nlay] * absb[ig, ind0p]
-                    + fac01[laytrop:nlay] * absb[ig, ind1]
-                    + fac11[laytrop:nlay] * absb[ig, ind1p]
-                )
-                + adjcolco2 * absco2
-            )
-
-            fracs[ns07 + ig, laytrop:nlay] = fracrefb[ig]
-
-        #  --- ...  empirical modification to code to improve stratospheric cooling rates
-        #           for o3.  revised to apply weighting for g-point reduction in this band.
-
-        taug[ns07 + 5, laytrop:nlay] = taug[ns07 + 5, laytrop:nlay] * 0.92
-        taug[ns07 + 6, laytrop:nlay] = taug[ns07 + 6, laytrop:nlay] * 0.88
-        taug[ns07 + 7, laytrop:nlay] = taug[ns07 + 7, laytrop:nlay] * 1.07
-        taug[ns07 + 8, laytrop:nlay] = taug[ns07 + 8, laytrop:nlay] * 1.1
-        taug[ns07 + 9, laytrop:nlay] = taug[ns07 + 9, laytrop:nlay] * 0.99
-        taug[ns07 + 10, laytrop:nlay] = taug[ns07 + 10, laytrop:nlay] * 0.855
-
-        return taug, fracs
-
-    # Band 8:  1080-1180 cm-1 (low key - h2o; low minor - co2,o3,n2o)
-    #                         (high key - o3; high minor - co2, n2o)
-    def taugb08(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        dsc,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 8:  1080-1180 cm-1 (low key - h2o; low minor - co2,o3,n2o)  !
-        #                             (high key - o3; high minor - co2, n2o)   !
-        #  ------------------------------------------------------------------  !
-        #  --- ...  minor gas mapping level:
-        #     lower - co2, p = 1053.63 mb, t = 294.2 k
-        #     lower - o3,  p = 317.348 mb, t = 240.77 k
-        #     lower - n2o, p = 706.2720 mb, t= 278.94 k
-        #     lower - cfc12,cfc11
-        #     upper - co2, p = 35.1632 mb, t = 223.28 k
-        #     upper - n2o, p = 8.716e-2 mb, t = 226.03 k
-
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-        ka_mo3 = ds["ka_mo3"].values
-        ka_mco2 = ds["ka_mco2"].values
-        kb_mco2 = ds["kb_mco2"].values
-        cfc12 = ds["cfc12"].values
-        ka_mn2o = ds["ka_mn2o"].values
-        kb_mn2o = ds["kb_mn2o"].values
-        cfc22adj = ds["cfc22adj"].values
-
-        #  --- ...  lower atmosphere loop
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[7]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[7]
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-
-        #  --- ...  in atmospheres where the amount of co2 is too great to be considered
-        #           a minor species, adjust the column amount of co2 by an empirical factor
-        #           to obtain the proper contribution.
-
-        temp = coldry[:laytrop] * chi_mls[1, jp[:laytrop]]
-        ratco2 = colamt[:laytrop, 1] / temp
-        adjcolco2 = np.where(
-            ratco2 > 3.0, (2.0 + (ratco2 - 2.0) ** 0.65) * temp, colamt[:laytrop, 1]
-        )
-
-        for ig in range(ng08):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            absco2 = ka_mco2[ig, indm] + minorfrac[:laytrop] * (
-                ka_mco2[ig, indmp] - ka_mco2[ig, indm]
-            )
-            abso3 = ka_mo3[ig, indm] + minorfrac[:laytrop] * (
-                ka_mo3[ig, indmp] - ka_mo3[ig, indm]
-            )
-            absn2o = ka_mn2o[ig, indm] + minorfrac[:laytrop] * (
-                ka_mn2o[ig, indmp] - ka_mn2o[ig, indm]
-            )
-
-            taug[ns08 + ig, :laytrop] = (
-                colamt[:laytrop, 0]
-                * (
-                    fac00[:laytrop] * absa[ig, ind0]
-                    + fac10[:laytrop] * absa[ig, ind0p]
-                    + fac01[:laytrop] * absa[ig, ind1]
-                    + fac11[:laytrop] * absa[ig, ind1p]
-                )
-                + tauself
-                + taufor
-                + adjcolco2 * absco2
-                + colamt[:laytrop, 2] * abso3
-                + colamt[:laytrop, 3] * absn2o
-                + wx[:laytrop, 2] * cfc12[ig]
-                + wx[:laytrop, 3] * cfc22adj[ig]
-            )
-
-            fracs[ns08 + ig, :laytrop] = fracrefa[ig]
-
-        #  --- ...  upper atmosphere loop
-
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[7]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[7]
-
-        indm = indminor[laytrop:nlay] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indmp = indm + 1
-
-        #  --- ...  in atmospheres where the amount of co2 is too great to be considered
-        #           a minor species, adjust the column amount of co2 by an empirical factor
-        #           to obtain the proper contribution.
-
-        temp = coldry[laytrop:nlay] * chi_mls[1, jp[laytrop:nlay]]
-        ratco2 = colamt[laytrop:nlay, 1] / temp
-        adjcolco2 = np.where(
-            ratco2 > 3.0, (2.0 + (ratco2 - 2.0) ** 0.65) * temp, colamt[laytrop:nlay, 1]
-        )
-
-        for ig in range(ng08):
-            absco2 = kb_mco2[ig, indm] + minorfrac[laytrop:nlay] * (
-                kb_mco2[ig, indmp] - kb_mco2[ig, indm]
-            )
-            absn2o = kb_mn2o[ig, indm] + minorfrac[laytrop:nlay] * (
-                kb_mn2o[ig, indmp] - kb_mn2o[ig, indm]
-            )
-
-            taug[ns08 + ig, laytrop:nlay] = (
-                colamt[laytrop:nlay, 2]
-                * (
-                    fac00[laytrop:nlay] * absb[ig, ind0]
-                    + fac10[laytrop:nlay] * absb[ig, ind0p]
-                    + fac01[laytrop:nlay] * absb[ig, ind1]
-                    + fac11[laytrop:nlay] * absb[ig, ind1p]
-                )
-                + adjcolco2 * absco2
-                + colamt[laytrop:nlay, 3] * absn2o
-                + wx[laytrop:nlay, 2] * cfc12[ig]
-                + wx[laytrop:nlay, 3] * cfc22adj[ig]
-            )
-
-            fracs[ns08 + ig, laytrop:nlay] = fracrefb[ig]
-
-        return taug, fracs
-
-    # Band 9:  1180-1390 cm-1 (low key - h2o,ch4; low minor - n2o)
-    #                         (high key - ch4; high minor - n2o)
-    def taugb09(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        dsc,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 9:  1180-1390 cm-1 (low key - h2o,ch4; low minor - n2o)     !
-        #                             (high key - ch4; high minor - n2o)       !
-        #  ------------------------------------------------------------------  !
-
-        #  --- ...  minor gas mapping level :
-        #     lower - n2o, p = 706.272 mbar, t = 278.94 k
-        #     upper - n2o, p = 95.58 mbar, t = 215.7 k
-
-
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-        ka_mn2o = ds["ka_mn2o"].values
-        kb_mn2o = ds["kb_mn2o"].values
-
-        #  --- ...  calculate reference ratio to be used in calculation of Planck
-        #           fraction in lower/upper atmosphere.
-
-        refrat_planck_a = chi_mls[0, 8] / chi_mls[5, 8]  # P = 212 mb
-        refrat_m_a = chi_mls[0, 2] / chi_mls[5, 2]  # P = 706.272 mb
-
-        #  --- ...  lower atmosphere loop
-        speccomb = colamt[:laytrop, 0] + rfrate[:laytrop, 3, 0] * colamt[:laytrop, 4]
-        specparm = colamt[:laytrop, 0] / speccomb
-        specmult = 8.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[8] + js - 1
-
-        speccomb1 = colamt[:laytrop, 0] + rfrate[:laytrop, 3, 1] * colamt[:laytrop, 4]
-        specparm1 = colamt[:laytrop, 0] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[8] + js1 - 1
-
-        speccomb_mn2o = colamt[:laytrop, 0] + refrat_m_a * colamt[:laytrop, 4]
-        specparm_mn2o = colamt[:laytrop, 0] / speccomb_mn2o
-        specmult_mn2o = 8.0 * np.minimum(specparm_mn2o, self.oneminus)
-        jmn2o = 1 + specmult_mn2o.astype(np.int32) - 1
-        fmn2o = specmult_mn2o % 1.0
-
-        speccomb_planck = colamt[:laytrop, 0] + refrat_planck_a * colamt[:laytrop, 4]
-        specparm_planck = colamt[:laytrop, 0] / speccomb_planck
-        specmult_planck = 8.0 * np.minimum(specparm_planck, self.oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-        jplp = jpl + 1
-        jmn2op = jmn2o + 1
-
-        #  --- ...  in atmospheres where the amount of n2o is too great to be considered
-        #           a minor species, adjust the column amount of n2o by an empirical factor
-        #           to obtain the proper contribution.
-
-        temp = coldry[:laytrop] * chi_mls[3, jp[:laytrop]]
-        ratn2o = colamt[:laytrop, 3] / temp
-        adjcoln2o = np.where(
-            ratn2o > 1.5, (0.5 + (ratn2o - 0.5) ** 0.65) * temp, colamt[:laytrop, 3]
-        )
-
-        p0 = np.where(specparm < 0.125, fs - 1.0, 0) + np.where(
-            specparm > 0.875, -fs, 0
-        )
-        p0 = np.where(p0 == 0, 0, p0)
-
-        p40 = np.where(specparm < 0.125, p0 ** 4, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        p40 = np.where(p40 == 0, 0, p40)
-
-        fk00 = np.where(specparm < 0.125, p40, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        fk00 = np.where(fk00 == 0, 1.0 - fs, fk00)
-
-        fk10 = np.where(specparm < 0.125, 1.0 - p0 - 2.0 * p40, 0) + np.where(
-            specparm > 0.875, 1.0 - p0 - 2.0 * p40, 0
-        )
-        fk10 = np.where(fk10 == 0, fs, fk10)
-
-        fk20 = np.where(specparm < 0.125, p0 + p40, 0) + np.where(
-            specparm > 0.875, p0 + p40, 0
-        )
-        fk20 = np.where(fk20 == 0, 0.0, fk20)
-
-        id000 = np.where(specparm < 0.125, ind0, 0) + np.where(
-            specparm > 0.875, ind0 + 1, 0
-        )
-        id000 = np.where(id000 == 0, ind0, id000)
-
-        id010 = np.where(specparm < 0.125, ind0 + 9, 0) + np.where(
-            specparm > 0.875, ind0 + 10, 0
-        )
-        id010 = np.where(id010 == 0, ind0 + 9, id010)
-
-        id100 = np.where(specparm < 0.125, ind0 + 1, 0) + np.where(
-            specparm > 0.875, ind0, 0
-        )
-        id100 = np.where(id100 == 0, ind0 + 1, id100)
-
-        id110 = np.where(specparm < 0.125, ind0 + 10, 0) + np.where(
-            specparm > 0.875, ind0 + 9, 0
-        )
-        id110 = np.where(id110 == 0, ind0 + 10, id110)
-
-        id200 = np.where(specparm < 0.125, ind0 + 2, 0) + np.where(
-            specparm > 0.875, ind0 - 1, 0
-        )
-        id200 = np.where(id200 == 0, ind0, id200)
-
-        id210 = np.where(specparm < 0.125, ind0 + 11, 0) + np.where(
-            specparm > 0.875, ind0 + 8, 0
-        )
-        id210 = np.where(id210 == 0, ind0, id210)
-
-        fac000 = fk00 * fac00[:laytrop]
-        fac100 = fk10 * fac00[:laytrop]
-        fac200 = fk20 * fac00[:laytrop]
-        fac010 = fk00 * fac10[:laytrop]
-        fac110 = fk10 * fac10[:laytrop]
-        fac210 = fk20 * fac10[:laytrop]
-
-        p1 = np.where(specparm1 < 0.125, fs1 - 1.0, 0) + np.where(
-            specparm1 > 0.875, -fs1, 0
-        )
-        p1 = np.where(p1 == 0, 0, p1)
-
-        p41 = np.where(specparm1 < 0.125, p1 ** 4, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        p41 = np.where(p41 == 0, 0, p41)
-
-        fk01 = np.where(specparm1 < 0.125, p41, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        fk01 = np.where(fk01 == 0, 1.0 - fs1, fk01)
-
-        fk11 = np.where(specparm1 < 0.125, 1.0 - p1 - 2.0 * p41, 0) + np.where(
-            specparm1 > 0.875, 1.0 - p1 - 2.0 * p41, 0
-        )
-        fk11 = np.where(fk11 == 0, fs1, fk11)
-
-        fk21 = np.where(specparm1 < 0.125, p1 + p41, 0) + np.where(
-            specparm1 > 0.875, p1 + p41, 0
-        )
-        fk21 = np.where(fk21 == 0, 0.0, fk21)
-
-        id001 = np.where(specparm1 < 0.125, ind1, 0) + np.where(
-            specparm1 > 0.875, ind1 + 1, 0
-        )
-        id001 = np.where(id001 == 0, ind1, id001)
-
-        id011 = np.where(specparm1 < 0.125, ind1 + 9, 0) + np.where(
-            specparm1 > 0.875, ind1 + 10, 0
-        )
-        id011 = np.where(id011 == 0, ind1 + 9, id011)
-
-        id101 = np.where(specparm1 < 0.125, ind1 + 1, 0) + np.where(
-            specparm1 > 0.875, ind1, 0
-        )
-        id101 = np.where(id101 == 0, ind1 + 1, id101)
-
-        id111 = np.where(specparm1 < 0.125, ind1 + 10, 0) + np.where(
-            specparm1 > 0.875, ind1 + 9, 0
-        )
-        id111 = np.where(id111 == 0, ind1 + 10, id111)
-
-        id201 = np.where(specparm1 < 0.125, ind1 + 2, 0) + np.where(
-            specparm1 > 0.875, ind1 - 1, 0
-        )
-        id201 = np.where(id201 == 0, ind1, id201)
-
-        id211 = np.where(specparm1 < 0.125, ind1 + 11, 0) + np.where(
-            specparm1 > 0.875, ind1 + 8, 0
-        )
-        id211 = np.where(id211 == 0, ind1, id211)
-
-        fac001 = fk01 * fac01[:laytrop]
-        fac101 = fk11 * fac01[:laytrop]
-        fac201 = fk21 * fac01[:laytrop]
-        fac011 = fk01 * fac11[:laytrop]
-        fac111 = fk11 * fac11[:laytrop]
-        fac211 = fk21 * fac11[:laytrop]
-
-        for ig in range(ng09):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            n2om1 = ka_mn2o[ig, jmn2o, indm] + fmn2o * (
-                ka_mn2o[ig, jmn2op, indm] - ka_mn2o[ig, jmn2o, indm]
-            )
-            n2om2 = ka_mn2o[ig, jmn2o, indmp] + fmn2o * (
-                ka_mn2o[ig, jmn2op, indmp] - ka_mn2o[ig, jmn2o, indmp]
-            )
-            absn2o = n2om1 + minorfrac[:laytrop] * (n2om2 - n2om1)
-
-            taug[ns09 + ig, :laytrop] = (
-                speccomb
-                * (
-                    fac000 * absa[ig, id000]
-                    + fac010 * absa[ig, id010]
-                    + fac100 * absa[ig, id100]
-                    + fac110 * absa[ig, id110]
-                    + fac200 * absa[ig, id200]
-                    + fac210 * absa[ig, id210]
-                )
-                + speccomb1
-                * (
-                    fac001 * absa[ig, id001]
-                    + fac011 * absa[ig, id011]
-                    + fac101 * absa[ig, id101]
-                    + fac111 * absa[ig, id111]
-                    + fac201 * absa[ig, id201]
-                    + fac211 * absa[ig, id211]
-                )
-                + tauself
-                + taufor
-                + adjcoln2o * absn2o
-            )
-
-            fracs[ns09 + ig, :laytrop] = fracrefa[ig, jpl] + fpl * (
-                fracrefa[ig, jplp] - fracrefa[ig, jpl]
-            )
-
-        #  --- ...  upper atmosphere loop
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[8]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[8]
-
-        indm = indminor[laytrop:nlay] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indmp = indm + 1
-
-        #  --- ...  in atmospheres where the amount of n2o is too great to be considered
-        #           a minor species, adjust the column amount of n2o by an empirical factor
-        #           to obtain the proper contribution.
-
-        temp = coldry[laytrop:nlay] * chi_mls[3, jp[laytrop:nlay]]
-        ratn2o = colamt[laytrop:nlay, 3] / temp
-        adjcoln2o = np.where(
-            ratn2o > 1.5, (0.5 + (ratn2o - 0.5) ** 0.65) * temp, colamt[laytrop:nlay, 3]
-        )
-
-        for ig in range(ng09):
-            absn2o = kb_mn2o[ig, indm] + minorfrac[laytrop:nlay] * (
-                kb_mn2o[ig, indmp] - kb_mn2o[ig, indm]
-            )
-
-            taug[ns09 + ig, laytrop:nlay] = (
-                colamt[laytrop:nlay, 4]
-                * (
-                    fac00[laytrop:nlay] * absb[ig, ind0]
-                    + fac10[laytrop:nlay] * absb[ig, ind0p]
-                    + fac01[laytrop:nlay] * absb[ig, ind1]
-                    + fac11[laytrop:nlay] * absb[ig, ind1p]
-                )
-                + adjcoln2o * absn2o
-            )
-
-            fracs[ns09 + ig, laytrop:nlay] = fracrefb[ig]
-
-        return taug, fracs
-
-    # Band 10:  1390-1480 cm-1 (low key - h2o; high key - h2o)
-    def taugb10(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 10:  1390-1480 cm-1 (low key - h2o; high key - h2o)         !
-        #  ------------------------------------------------------------------  !
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-
-        #  --- ...  lower atmosphere loop
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[9]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[9]
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indsp = inds + 1
-        indfp = indf + 1
-
-        for ig in range(ng10):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-
-            taug[ns10 + ig, :laytrop] = (
-                colamt[:laytrop, 0]
-                * (
-                    fac00[:laytrop] * absa[ig, ind0]
-                    + fac10[:laytrop] * absa[ig, ind0p]
-                    + fac01[:laytrop] * absa[ig, ind1]
-                    + fac11[:laytrop] * absa[ig, ind1p]
-                )
-                + tauself
-                + taufor
-            )
-
-            fracs[ns10 + ig, :laytrop] = fracrefa[ig]
-
-        #  --- ...  upper atmosphere loop
-
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[9]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[9]
-
-        indf = indfor[laytrop:nlay] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indfp = indf + 1
-
-        for ig in range(ng10):
-            taufor = forfac[laytrop:nlay] * (
-                forref[ig, indf]
-                + forfrac[laytrop:nlay] * (forref[ig, indfp] - forref[ig, indf])
-            )
-
-            taug[ns10 + ig, laytrop:nlay] = (
-                colamt[laytrop:nlay, 0]
-                * (
-                    fac00[laytrop:nlay] * absb[ig, ind0]
-                    + fac10[laytrop:nlay] * absb[ig, ind0p]
-                    + fac01[laytrop:nlay] * absb[ig, ind1]
-                    + fac11[laytrop:nlay] * absb[ig, ind1p]
-                )
-                + taufor
-            )
-
-            fracs[ns10 + ig, laytrop:nlay] = fracrefb[ig]
-
-        return taug, fracs
-
-    # Band 11:  1480-1800 cm-1 (low - h2o; low minor - o2)
-    #                          (high key - h2o; high minor - o2)
-    def taugb11(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 11:  1480-1800 cm-1 (low - h2o; low minor - o2)             !
-        #                              (high key - h2o; high minor - o2)       !
-        #  ------------------------------------------------------------------  !
-
-        #  --- ...  minor gas mapping level :
-        #     lower - o2, p = 706.2720 mbar, t = 278.94 k
-        #     upper - o2, p = 4.758820 mbarm t = 250.85 k
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-        ka_mo2 = ds["ka_mo2"].values
-        kb_mo2 = ds["kb_mo2"].values
-
-        #  --- ...  lower atmosphere loop
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[10]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[10]
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-
-        scaleo2 = colamt[:laytrop, 5] * scaleminor[:laytrop]
-
-        for ig in range(ng11):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            tauo2 = scaleo2 * (
-                ka_mo2[ig, indm]
-                + minorfrac[:laytrop] * (ka_mo2[ig, indmp] - ka_mo2[ig, indm])
-            )
-
-            taug[ns11 + ig, :laytrop] = (
-                colamt[:laytrop, 0]
-                * (
-                    fac00[:laytrop] * absa[ig, ind0]
-                    + fac10[:laytrop] * absa[ig, ind0p]
-                    + fac01[:laytrop] * absa[ig, ind1]
-                    + fac11[:laytrop] * absa[ig, ind1p]
-                )
-                + tauself
-                + taufor
-                + tauo2
-            )
-
-            fracs[ns11 + ig, :laytrop] = fracrefa[ig]
-
-        #  --- ...  upper atmosphere loop
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[10]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[10]
-
-        indf = indfor[laytrop:nlay] - 1
-        indm = indminor[laytrop:nlay] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indfp = indf + 1
-        indmp = indm + 1
-
-        scaleo2 = colamt[laytrop:nlay, 5] * scaleminor[laytrop:nlay]
-
-        for ig in range(ng11):
-            taufor = forfac[laytrop:nlay] * (
-                forref[ig, indf]
-                + forfrac[laytrop:nlay] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            tauo2 = scaleo2 * (
-                kb_mo2[ig, indm]
-                + minorfrac[laytrop:nlay] * (kb_mo2[ig, indmp] - kb_mo2[ig, indm])
-            )
-
-            taug[ns11 + ig, laytrop:nlay] = (
-                colamt[laytrop:nlay, 0]
-                * (
-                    fac00[laytrop:nlay] * absb[ig, ind0]
-                    + fac10[laytrop:nlay] * absb[ig, ind0p]
-                    + fac01[laytrop:nlay] * absb[ig, ind1]
-                    + fac11[laytrop:nlay] * absb[ig, ind1p]
-                )
-                + taufor
-                + tauo2
-            )
-
-            fracs[ns11 + ig, laytrop:nlay] = fracrefb[ig]
-
-        return taug, fracs
-
-    # Band 12:  1800-2080 cm-1 (low - h2o,co2; high - nothing)
-    def taugb12(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        dsc,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 12:  1800-2080 cm-1 (low - h2o,co2; high - nothing)         !
-        #  ------------------------------------------------------------------  !
-
-
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        fracrefa = ds["fracrefa"].values
-
-        #  --- ...  calculate reference ratio to be used in calculation of Planck
-        #           fraction in lower/upper atmosphere.
-
-        refrat_planck_a = chi_mls[0, 9] / chi_mls[1, 9]  # P =   174.164 mb
-
-        #  --- ...  lower atmosphere loop
-
-        speccomb = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 0] * colamt[:laytrop, 1]
-        specparm = colamt[:laytrop, 0] / speccomb
-        specmult = 8.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[11] + js - 1
-
-        speccomb1 = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 1] * colamt[:laytrop, 1]
-        specparm1 = colamt[:laytrop, 0] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[11] + js1 - 1
-
-        speccomb_planck = colamt[:laytrop, 0] + refrat_planck_a * colamt[:laytrop, 1]
-        specparm_planck = colamt[:laytrop, 0] / speccomb_planck
-        specparm_planck = np.where(
-            specparm_planck >= self.oneminus, self.oneminus, specparm_planck
-        )
-        specmult_planck = 8.0 * specparm_planck
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        jplp = jpl + 1
-
-        p0 = np.where(specparm < 0.125, fs - 1.0, 0) + np.where(
-            specparm > 0.875, -fs, 0
-        )
-        p0 = np.where(p0 == 0, 0, p0)
-
-        p40 = np.where(specparm < 0.125, p0 ** 4, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        p40 = np.where(p40 == 0, 0, p40)
-
-        fk00 = np.where(specparm < 0.125, p40, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        fk00 = np.where(fk00 == 0, 1.0 - fs, fk00)
-
-        fk10 = np.where(specparm < 0.125, 1.0 - p0 - 2.0 * p40, 0) + np.where(
-            specparm > 0.875, 1.0 - p0 - 2.0 * p40, 0
-        )
-        fk10 = np.where(fk10 == 0, fs, fk10)
-
-        fk20 = np.where(specparm < 0.125, p0 + p40, 0) + np.where(
-            specparm > 0.875, p0 + p40, 0
-        )
-        fk20 = np.where(fk20 == 0, 0.0, fk20)
-
-        id000 = np.where(specparm < 0.125, ind0, 0) + np.where(
-            specparm > 0.875, ind0 + 1, 0
-        )
-        id000 = np.where(id000 == 0, ind0, id000)
-
-        id010 = np.where(specparm < 0.125, ind0 + 9, 0) + np.where(
-            specparm > 0.875, ind0 + 10, 0
-        )
-        id010 = np.where(id010 == 0, ind0 + 9, id010)
-
-        id100 = np.where(specparm < 0.125, ind0 + 1, 0) + np.where(
-            specparm > 0.875, ind0, 0
-        )
-        id100 = np.where(id100 == 0, ind0 + 1, id100)
-
-        id110 = np.where(specparm < 0.125, ind0 + 10, 0) + np.where(
-            specparm > 0.875, ind0 + 9, 0
-        )
-        id110 = np.where(id110 == 0, ind0 + 10, id110)
-
-        id200 = np.where(specparm < 0.125, ind0 + 2, 0) + np.where(
-            specparm > 0.875, ind0 - 1, 0
-        )
-        id200 = np.where(id200 == 0, ind0, id200)
-
-        id210 = np.where(specparm < 0.125, ind0 + 11, 0) + np.where(
-            specparm > 0.875, ind0 + 8, 0
-        )
-        id210 = np.where(id210 == 0, ind0, id210)
-
-        fac000 = fk00 * fac00[:laytrop]
-        fac100 = fk10 * fac00[:laytrop]
-        fac200 = fk20 * fac00[:laytrop]
-        fac010 = fk00 * fac10[:laytrop]
-        fac110 = fk10 * fac10[:laytrop]
-        fac210 = fk20 * fac10[:laytrop]
-
-        p1 = np.where(specparm1 < 0.125, fs1 - 1.0, 0) + np.where(
-            specparm1 > 0.875, -fs1, 0
-        )
-        p1 = np.where(p1 == 0, 0, p1)
-
-        p41 = np.where(specparm1 < 0.125, p1 ** 4, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        p41 = np.where(p41 == 0, 0, p41)
-
-        fk01 = np.where(specparm1 < 0.125, p41, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        fk01 = np.where(fk01 == 0, 1.0 - fs1, fk01)
-
-        fk11 = np.where(specparm1 < 0.125, 1.0 - p1 - 2.0 * p41, 0) + np.where(
-            specparm1 > 0.875, 1.0 - p1 - 2.0 * p41, 0
-        )
-        fk11 = np.where(fk11 == 0, fs1, fk11)
-
-        fk21 = np.where(specparm1 < 0.125, p1 + p41, 0) + np.where(
-            specparm1 > 0.875, p1 + p41, 0
-        )
-        fk21 = np.where(fk21 == 0, 0.0, fk21)
-
-        id001 = np.where(specparm1 < 0.125, ind1, 0) + np.where(
-            specparm1 > 0.875, ind1 + 1, 0
-        )
-        id001 = np.where(id001 == 0, ind1, id001)
-
-        id011 = np.where(specparm1 < 0.125, ind1 + 9, 0) + np.where(
-            specparm1 > 0.875, ind1 + 10, 0
-        )
-        id011 = np.where(id011 == 0, ind1 + 9, id011)
-
-        id101 = np.where(specparm1 < 0.125, ind1 + 1, 0) + np.where(
-            specparm1 > 0.875, ind1, 0
-        )
-        id101 = np.where(id101 == 0, ind1 + 1, id101)
-
-        id111 = np.where(specparm1 < 0.125, ind1 + 10, 0) + np.where(
-            specparm1 > 0.875, ind1 + 9, 0
-        )
-        id111 = np.where(id111 == 0, ind1 + 10, id111)
-
-        id201 = np.where(specparm1 < 0.125, ind1 + 2, 0) + np.where(
-            specparm1 > 0.875, ind1 - 1, 0
-        )
-        id201 = np.where(id201 == 0, ind1, id201)
-
-        id211 = np.where(specparm1 < 0.125, ind1 + 11, 0) + np.where(
-            specparm1 > 0.875, ind1 + 8, 0
-        )
-        id211 = np.where(id211 == 0, ind1, id211)
-
-        fac001 = fk01 * fac01[:laytrop]
-        fac101 = fk11 * fac01[:laytrop]
-        fac201 = fk21 * fac01[:laytrop]
-        fac011 = fk01 * fac11[:laytrop]
-        fac111 = fk11 * fac11[:laytrop]
-        fac211 = fk21 * fac11[:laytrop]
-
-        for ig in range(ng12):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-
-            taug[ns12 + ig, :laytrop] = (
-                speccomb
-                * (
-                    fac000 * absa[ig, id000]
-                    + fac010 * absa[ig, id010]
-                    + fac100 * absa[ig, id100]
-                    + fac110 * absa[ig, id110]
-                    + fac200 * absa[ig, id200]
-                    + fac210 * absa[ig, id210]
-                )
-                + speccomb1
-                * (
-                    fac001 * absa[ig, id001]
-                    + fac011 * absa[ig, id011]
-                    + fac101 * absa[ig, id101]
-                    + fac111 * absa[ig, id111]
-                    + fac201 * absa[ig, id201]
-                    + fac211 * absa[ig, id211]
-                )
-                + tauself
-                + taufor
-            )
-
-            fracs[ns12 + ig, :laytrop] = fracrefa[ig, jpl] + fpl * (
-                fracrefa[ig, jplp] - fracrefa[ig, jpl]
-            )
-
-        #  --- ...  upper atmosphere loop
-        for ig in range(ng12):
-            taug[ns12 + ig, laytrop:nlay] = 0.0
-            fracs[ns12 + ig, laytrop:nlay] = 0.0
-
-        return taug, fracs
-
-    # Band 13:  2080-2250 cm-1 (low key-h2o,n2o; high minor-o3 minor)
-    def taugb13(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        dsc,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 13:  2080-2250 cm-1 (low key-h2o,n2o; high minor-o3 minor)  !
-        #  ------------------------------------------------------------------  !
-
-        #  --- ...  minor gas mapping levels :
-        #     lower - co2, p = 1053.63 mb, t = 294.2 k
-        #     lower - co, p = 706 mb, t = 278.94 k
-        #     upper - o3, p = 95.5835 mb, t = 215.7 k
-
-
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-        ka_mco2 = ds["ka_mco2"].values
-        ka_mco = ds["ka_mco"].values
-        kb_mo3 = ds["kb_mo3"].values
-
-        #  --- ...  calculate reference ratio to be used in calculation of Planck
-        #           fraction in lower/upper atmosphere.
-
-        refrat_planck_a = chi_mls[0, 4] / chi_mls[3, 4]  # P = 473.420 mb (Level 5)
-        refrat_m_a = chi_mls[0, 0] / chi_mls[3, 0]  # P = 1053. (Level 1)
-        refrat_m_a3 = chi_mls[0, 2] / chi_mls[3, 2]  # P = 706. (Level 3)
-
-        #  --- ...  lower atmosphere loop
-
-        speccomb = colamt[:laytrop, 0] + rfrate[:laytrop, 2, 0] * colamt[:laytrop, 3]
-        specparm = colamt[:laytrop, 0] / speccomb
-        specmult = 8.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[12] + js - 1
-
-        speccomb1 = colamt[:laytrop, 0] + rfrate[:laytrop, 2, 1] * colamt[:laytrop, 3]
-        specparm1 = colamt[:laytrop, 0] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[12] + js1 - 1
-
-        speccomb_mco2 = colamt[:laytrop, 0] + refrat_m_a * colamt[:laytrop, 3]
-        specparm_mco2 = colamt[:laytrop, 0] / speccomb_mco2
-        specmult_mco2 = 8.0 * np.minimum(specparm_mco2, self.oneminus)
-        jmco2 = 1 + specmult_mco2.astype(np.int32) - 1
-        fmco2 = specmult_mco2 % 1.0
-
-        #  --- ...  in atmospheres where the amount of co2 is too great to be considered
-        #           a minor species, adjust the column amount of co2 by an empirical factor
-        #           to obtain the proper contribution.
-
-        speccomb_mco = colamt[:laytrop, 0] + refrat_m_a3 * colamt[:laytrop, 3]
-        specparm_mco = colamt[:laytrop, 0] / speccomb_mco
-        specmult_mco = 8.0 * np.minimum(specparm_mco, self.oneminus)
-        jmco = 1 + specmult_mco.astype(np.int32) - 1
-        fmco = specmult_mco % 1.0
-
-        speccomb_planck = colamt[:laytrop, 0] + refrat_planck_a * colamt[:laytrop, 3]
-        specparm_planck = colamt[:laytrop, 0] / speccomb_planck
-        specmult_planck = 8.0 * np.minimum(specparm_planck, self.oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-        jplp = jpl + 1
-        jmco2p = jmco2 + 1
-        jmcop = jmco + 1
-
-        #  --- ...  in atmospheres where the amount of co2 is too great to be considered
-        #           a minor species, adjust the column amount of co2 by an empirical factor
-        #           to obtain the proper contribution.
-
-        temp = coldry[:laytrop] * 3.55e-4
-        ratco2 = colamt[:laytrop, 1] / temp
-        adjcolco2 = np.where(
-            ratco2 > 3.0, (2.0 + (ratco2 - 2.0) ** 0.68) * temp, colamt[:laytrop, 1]
-        )
-
-        p0 = np.where(specparm < 0.125, fs - 1.0, 0) + np.where(
-            specparm > 0.875, -fs, 0
-        )
-        p0 = np.where(p0 == 0, 0, p0)
-
-        p40 = np.where(specparm < 0.125, p0 ** 4, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        p40 = np.where(p40 == 0, 0, p40)
-
-        fk00 = np.where(specparm < 0.125, p40, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        fk00 = np.where(fk00 == 0, 1.0 - fs, fk00)
-
-        fk10 = np.where(specparm < 0.125, 1.0 - p0 - 2.0 * p40, 0) + np.where(
-            specparm > 0.875, 1.0 - p0 - 2.0 * p40, 0
-        )
-        fk10 = np.where(fk10 == 0, fs, fk10)
-
-        fk20 = np.where(specparm < 0.125, p0 + p40, 0) + np.where(
-            specparm > 0.875, p0 + p40, 0
-        )
-        fk20 = np.where(fk20 == 0, 0.0, fk20)
-
-        id000 = np.where(specparm < 0.125, ind0, 0) + np.where(
-            specparm > 0.875, ind0 + 1, 0
-        )
-        id000 = np.where(id000 == 0, ind0, id000)
-
-        id010 = np.where(specparm < 0.125, ind0 + 9, 0) + np.where(
-            specparm > 0.875, ind0 + 10, 0
-        )
-        id010 = np.where(id010 == 0, ind0 + 9, id010)
-
-        id100 = np.where(specparm < 0.125, ind0 + 1, 0) + np.where(
-            specparm > 0.875, ind0, 0
-        )
-        id100 = np.where(id100 == 0, ind0 + 1, id100)
-
-        id110 = np.where(specparm < 0.125, ind0 + 10, 0) + np.where(
-            specparm > 0.875, ind0 + 9, 0
-        )
-        id110 = np.where(id110 == 0, ind0 + 10, id110)
-
-        id200 = np.where(specparm < 0.125, ind0 + 2, 0) + np.where(
-            specparm > 0.875, ind0 - 1, 0
-        )
-        id200 = np.where(id200 == 0, ind0, id200)
-
-        id210 = np.where(specparm < 0.125, ind0 + 11, 0) + np.where(
-            specparm > 0.875, ind0 + 8, 0
-        )
-        id210 = np.where(id210 == 0, ind0, id210)
-
-        fac000 = fk00 * fac00[:laytrop]
-        fac100 = fk10 * fac00[:laytrop]
-        fac200 = fk20 * fac00[:laytrop]
-        fac010 = fk00 * fac10[:laytrop]
-        fac110 = fk10 * fac10[:laytrop]
-        fac210 = fk20 * fac10[:laytrop]
-
-        p1 = np.where(specparm1 < 0.125, fs1 - 1.0, 0) + np.where(
-            specparm1 > 0.875, -fs1, 0
-        )
-        p1 = np.where(p1 == 0, 0, p1)
-
-        p41 = np.where(specparm1 < 0.125, p1 ** 4, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        p41 = np.where(p41 == 0, 0, p41)
-
-        fk01 = np.where(specparm1 < 0.125, p41, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        fk01 = np.where(fk01 == 0, 1.0 - fs1, fk01)
-
-        fk11 = np.where(specparm1 < 0.125, 1.0 - p1 - 2.0 * p41, 0) + np.where(
-            specparm1 > 0.875, 1.0 - p1 - 2.0 * p41, 0
-        )
-        fk11 = np.where(fk11 == 0, fs1, fk11)
-
-        fk21 = np.where(specparm1 < 0.125, p1 + p41, 0) + np.where(
-            specparm1 > 0.875, p1 + p41, 0
-        )
-        fk21 = np.where(fk21 == 0, 0.0, fk21)
-
-        id001 = np.where(specparm1 < 0.125, ind1, 0) + np.where(
-            specparm1 > 0.875, ind1 + 1, 0
-        )
-        id001 = np.where(id001 == 0, ind1, id001)
-
-        id011 = np.where(specparm1 < 0.125, ind1 + 9, 0) + np.where(
-            specparm1 > 0.875, ind1 + 10, 0
-        )
-        id011 = np.where(id011 == 0, ind1 + 9, id011)
-
-        id101 = np.where(specparm1 < 0.125, ind1 + 1, 0) + np.where(
-            specparm1 > 0.875, ind1, 0
-        )
-        id101 = np.where(id101 == 0, ind1 + 1, id101)
-
-        id111 = np.where(specparm1 < 0.125, ind1 + 10, 0) + np.where(
-            specparm1 > 0.875, ind1 + 9, 0
-        )
-        id111 = np.where(id111 == 0, ind1 + 10, id111)
-
-        id201 = np.where(specparm1 < 0.125, ind1 + 2, 0) + np.where(
-            specparm1 > 0.875, ind1 - 1, 0
-        )
-        id201 = np.where(id201 == 0, ind1, id201)
-
-        id211 = np.where(specparm1 < 0.125, ind1 + 11, 0) + np.where(
-            specparm1 > 0.875, ind1 + 8, 0
-        )
-        id211 = np.where(id211 == 0, ind1, id211)
-
-        fac001 = fk01 * fac01[:laytrop]
-        fac101 = fk11 * fac01[:laytrop]
-        fac201 = fk21 * fac01[:laytrop]
-        fac011 = fk01 * fac11[:laytrop]
-        fac111 = fk11 * fac11[:laytrop]
-        fac211 = fk21 * fac11[:laytrop]
-
-        for ig in range(ng13):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            co2m1 = ka_mco2[ig, jmco2, indm] + fmco2 * (
-                ka_mco2[ig, jmco2p, indm] - ka_mco2[ig, jmco2, indm]
-            )
-            co2m2 = ka_mco2[ig, jmco2, indmp] + fmco2 * (
-                ka_mco2[ig, jmco2p, indmp] - ka_mco2[ig, jmco2, indmp]
-            )
-            absco2 = co2m1 + minorfrac[:laytrop] * (co2m2 - co2m1)
-            com1 = ka_mco[ig, jmco, indm] + fmco * (
-                ka_mco[ig, jmcop, indm] - ka_mco[ig, jmco, indm]
-            )
-            com2 = ka_mco[ig, jmco, indmp] + fmco * (
-                ka_mco[ig, jmcop, indmp] - ka_mco[ig, jmco, indmp]
-            )
-            absco = com1 + minorfrac[:laytrop] * (com2 - com1)
-
-            taug[ns13 + ig, :laytrop] = (
-                speccomb
-                * (
-                    fac000 * absa[ig, id000]
-                    + fac010 * absa[ig, id010]
-                    + fac100 * absa[ig, id100]
-                    + fac110 * absa[ig, id110]
-                    + fac200 * absa[ig, id200]
-                    + fac210 * absa[ig, id210]
-                )
-                + speccomb1
-                * (
-                    fac001 * absa[ig, id001]
-                    + fac011 * absa[ig, id011]
-                    + fac101 * absa[ig, id101]
-                    + fac111 * absa[ig, id111]
-                    + fac201 * absa[ig, id201]
-                    + fac211 * absa[ig, id211]
-                )
-                + tauself
-                + taufor
-                + adjcolco2 * absco2
-                + colamt[:laytrop, 6] * absco
-            )
-
-            fracs[ns13 + ig, :laytrop] = fracrefa[ig, jpl] + fpl * (
-                fracrefa[ig, jplp] - fracrefa[ig, jpl]
-            )
-
-        #  --- ...  upper atmosphere loop
-        indm = indminor[laytrop:nlay] - 1
-        indmp = indm + 1
-
-        for ig in range(ng13):
-            abso3 = kb_mo3[ig, indm] + minorfrac[laytrop:nlay] * (
-                kb_mo3[ig, indmp] - kb_mo3[ig, indm]
-            )
-
-            taug[ns13 + ig, laytrop:nlay] = colamt[laytrop:nlay, 2] * abso3
-
-            fracs[ns13 + ig, laytrop:nlay] = fracrefb[ig]
-
-        return taug, fracs, taufor
-
-    # Band 14:  2250-2380 cm-1 (low - co2; high - co2)
-    def taugb14(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        taufor,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 14:  2250-2380 cm-1 (low - co2; high - co2)                 !
-        #  ------------------------------------------------------------------  !
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-
-        #  --- ...  lower atmosphere loop
-
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[13]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[13]
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indsp = inds + 1
-        indfp = indf + 1
-
-        for ig in range(ng14):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-
-            taug[ns14 + ig, :laytrop] = (
-                colamt[:laytrop, 1]
-                * (
-                    fac00[:laytrop] * absa[ig, ind0]
-                    + fac10[:laytrop] * absa[ig, ind0p]
-                    + fac01[:laytrop] * absa[ig, ind1]
-                    + fac11[:laytrop] * absa[ig, ind1p]
-                )
-                + tauself
-                + taufor
-            )
-
-            fracs[ns14 + ig, :laytrop] = fracrefa[ig]
-
-        #  --- ...  upper atmosphere loop
-
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[13]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[13]
-
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-
-        for ig in range(ng14):
-            taug[ns14 + ig, laytrop:nlay] = colamt[laytrop:nlay, 1] * (
-                fac00[laytrop:nlay] * absb[ig, ind0]
-                + fac10[laytrop:nlay] * absb[ig, ind0p]
-                + fac01[laytrop:nlay] * absb[ig, ind1]
-                + fac11[laytrop:nlay] * absb[ig, ind1p]
-            )
-
-            fracs[ns14 + ig, laytrop:nlay] = fracrefb[ig]
-
-        return taug, fracs
-
-    # Band 15:  2380-2600 cm-1 (low - n2o,co2; low minor - n2)
-    #                          (high - nothing)
-    def taugb15(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        dsc,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 15:  2380-2600 cm-1 (low - n2o,co2; low minor - n2)         !
-        #                              (high - nothing)                        !
-        #  ------------------------------------------------------------------  !
-
-        #  --- ...  minor gas mapping level :
-        #     lower - nitrogen continuum, P = 1053., T = 294.
-
-
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        fracrefa = ds["fracrefa"].values
-        ka_mn2 = ds["ka_mn2"].values
-
-        #  --- ...  calculate reference ratio to be used in calculation of Planck
-        #           fraction in lower atmosphere.
-
-        refrat_planck_a = chi_mls[3, 0] / chi_mls[1, 0]  # P = 1053. mb (Level 1)
-        refrat_m_a = chi_mls[3, 0] / chi_mls[1, 0]  # P = 1053. mb
-
-        #  --- ...  lower atmosphere loop
-        speccomb = colamt[:laytrop, 3] + rfrate[:laytrop, 4, 0] * colamt[:laytrop, 1]
-        specparm = colamt[:laytrop, 3] / speccomb
-        specmult = 8.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[14] + js - 1
-
-        speccomb1 = colamt[:laytrop, 3] + rfrate[:laytrop, 4, 1] * colamt[:laytrop, 1]
-        specparm1 = colamt[:laytrop, 3] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[14] + js1 - 1
-
-        speccomb_mn2 = colamt[:laytrop, 3] + refrat_m_a * colamt[:laytrop, 1]
-        specparm_mn2 = colamt[:laytrop, 3] / speccomb_mn2
-        specmult_mn2 = 8.0 * np.minimum(specparm_mn2, self.oneminus)
-        jmn2 = 1 + specmult_mn2.astype(np.int32) - 1
-        fmn2 = specmult_mn2 % 1.0
-
-        speccomb_planck = colamt[:laytrop, 3] + refrat_planck_a * colamt[:laytrop, 1]
-        specparm_planck = colamt[:laytrop, 3] / speccomb_planck
-        specmult_planck = 8.0 * np.minimum(specparm_planck, self.oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-
-        scalen2 = colbrd[:laytrop] * scaleminor[:laytrop]
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-        jplp = jpl + 1
-        jmn2p = jmn2 + 1
-
-        p0 = np.where(specparm < 0.125, fs - 1.0, 0) + np.where(
-            specparm > 0.875, -fs, 0
-        )
-        p0 = np.where(p0 == 0, 0, p0)
-
-        p40 = np.where(specparm < 0.125, p0 ** 4, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        p40 = np.where(p40 == 0, 0, p40)
-
-        fk00 = np.where(specparm < 0.125, p40, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        fk00 = np.where(fk00 == 0, 1.0 - fs, fk00)
-
-        fk10 = np.where(specparm < 0.125, 1.0 - p0 - 2.0 * p40, 0) + np.where(
-            specparm > 0.875, 1.0 - p0 - 2.0 * p40, 0
-        )
-        fk10 = np.where(fk10 == 0, fs, fk10)
-
-        fk20 = np.where(specparm < 0.125, p0 + p40, 0) + np.where(
-            specparm > 0.875, p0 + p40, 0
-        )
-        fk20 = np.where(fk20 == 0, 0.0, fk20)
-
-        id000 = np.where(specparm < 0.125, ind0, 0) + np.where(
-            specparm > 0.875, ind0 + 1, 0
-        )
-        id000 = np.where(id000 == 0, ind0, id000)
-
-        id010 = np.where(specparm < 0.125, ind0 + 9, 0) + np.where(
-            specparm > 0.875, ind0 + 10, 0
-        )
-        id010 = np.where(id010 == 0, ind0 + 9, id010)
-
-        id100 = np.where(specparm < 0.125, ind0 + 1, 0) + np.where(
-            specparm > 0.875, ind0, 0
-        )
-        id100 = np.where(id100 == 0, ind0 + 1, id100)
-
-        id110 = np.where(specparm < 0.125, ind0 + 10, 0) + np.where(
-            specparm > 0.875, ind0 + 9, 0
-        )
-        id110 = np.where(id110 == 0, ind0 + 10, id110)
-
-        id200 = np.where(specparm < 0.125, ind0 + 2, 0) + np.where(
-            specparm > 0.875, ind0 - 1, 0
-        )
-        id200 = np.where(id200 == 0, ind0, id200)
-
-        id210 = np.where(specparm < 0.125, ind0 + 11, 0) + np.where(
-            specparm > 0.875, ind0 + 8, 0
-        )
-        id210 = np.where(id210 == 0, ind0, id210)
-
-        fac000 = fk00 * fac00[:laytrop]
-        fac100 = fk10 * fac00[:laytrop]
-        fac200 = fk20 * fac00[:laytrop]
-        fac010 = fk00 * fac10[:laytrop]
-        fac110 = fk10 * fac10[:laytrop]
-        fac210 = fk20 * fac10[:laytrop]
-
-        p1 = np.where(specparm1 < 0.125, fs1 - 1.0, 0) + np.where(
-            specparm1 > 0.875, -fs1, 0
-        )
-        p1 = np.where(p1 == 0, 0, p1)
-
-        p41 = np.where(specparm1 < 0.125, p1 ** 4, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        p41 = np.where(p41 == 0, 0, p41)
-
-        fk01 = np.where(specparm1 < 0.125, p41, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        fk01 = np.where(fk01 == 0, 1.0 - fs1, fk01)
-
-        fk11 = np.where(specparm1 < 0.125, 1.0 - p1 - 2.0 * p41, 0) + np.where(
-            specparm1 > 0.875, 1.0 - p1 - 2.0 * p41, 0
-        )
-        fk11 = np.where(fk11 == 0, fs1, fk11)
-
-        fk21 = np.where(specparm1 < 0.125, p1 + p41, 0) + np.where(
-            specparm1 > 0.875, p1 + p41, 0
-        )
-        fk21 = np.where(fk21 == 0, 0.0, fk21)
-
-        id001 = np.where(specparm1 < 0.125, ind1, 0) + np.where(
-            specparm1 > 0.875, ind1 + 1, 0
-        )
-        id001 = np.where(id001 == 0, ind1, id001)
-
-        id011 = np.where(specparm1 < 0.125, ind1 + 9, 0) + np.where(
-            specparm1 > 0.875, ind1 + 10, 0
-        )
-        id011 = np.where(id011 == 0, ind1 + 9, id011)
-
-        id101 = np.where(specparm1 < 0.125, ind1 + 1, 0) + np.where(
-            specparm1 > 0.875, ind1, 0
-        )
-        id101 = np.where(id101 == 0, ind1 + 1, id101)
-
-        id111 = np.where(specparm1 < 0.125, ind1 + 10, 0) + np.where(
-            specparm1 > 0.875, ind1 + 9, 0
-        )
-        id111 = np.where(id111 == 0, ind1 + 10, id111)
-
-        id201 = np.where(specparm1 < 0.125, ind1 + 2, 0) + np.where(
-            specparm1 > 0.875, ind1 - 1, 0
-        )
-        id201 = np.where(id201 == 0, ind1, id201)
-
-        id211 = np.where(specparm1 < 0.125, ind1 + 11, 0) + np.where(
-            specparm1 > 0.875, ind1 + 8, 0
-        )
-        id211 = np.where(id211 == 0, ind1, id211)
-
-        fac001 = fk01 * fac01[:laytrop]
-        fac101 = fk11 * fac01[:laytrop]
-        fac201 = fk21 * fac01[:laytrop]
-        fac011 = fk01 * fac11[:laytrop]
-        fac111 = fk11 * fac11[:laytrop]
-        fac211 = fk21 * fac11[:laytrop]
-
-        for ig in range(ng15):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            n2m1 = ka_mn2[ig, jmn2, indm] + fmn2 * (
-                ka_mn2[ig, jmn2p, indm] - ka_mn2[ig, jmn2, indm]
-            )
-            n2m2 = ka_mn2[ig, jmn2, indmp] + fmn2 * (
-                ka_mn2[ig, jmn2p, indmp] - ka_mn2[ig, jmn2, indmp]
-            )
-            taun2 = scalen2 * (n2m1 + minorfrac[:laytrop] * (n2m2 - n2m1))
-
-            taug[ns15 + ig, :laytrop] = (
-                speccomb
-                * (
-                    fac000 * absa[ig, id000]
-                    + fac010 * absa[ig, id010]
-                    + fac100 * absa[ig, id100]
-                    + fac110 * absa[ig, id110]
-                    + fac200 * absa[ig, id200]
-                    + fac210 * absa[ig, id210]
-                )
-                + speccomb1
-                * (
-                    fac001 * absa[ig, id001]
-                    + fac011 * absa[ig, id011]
-                    + fac101 * absa[ig, id101]
-                    + fac111 * absa[ig, id111]
-                    + fac201 * absa[ig, id201]
-                    + fac211 * absa[ig, id211]
-                )
-                + tauself
-                + taufor
-                + taun2
-            )
-
-            fracs[ns15 + ig, :laytrop] = fracrefa[ig, jpl] + fpl * (
-                fracrefa[ig, jplp] - fracrefa[ig, jpl]
-            )
-
-        #  --- ...  upper atmosphere loop
-        for ig in range(ng15):
-            taug[ns15 + ig, laytrop:nlay] = 0.0
-
-            fracs[ns15 + ig, laytrop:nlay] = 0.0
-
-        return taug, fracs
-
-    # Band 16:  2600-3250 cm-1 (low key- h2o,ch4; high key - ch4)
-    def taugb16(
-        self,
-        laytrop,
-        pavel,
-        coldry,
-        colamt,
-        colbrd,
-        wx,
-        tauaer,
-        rfrate,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        selffac,
-        selffrac,
-        indself,
-        forfac,
-        forfrac,
-        indfor,
-        minorfrac,
-        scaleminor,
-        scaleminorn2,
-        indminor,
-        nlay,
-        taug,
-        fracs,
-        dsc,
-        ds,
-    ):
-        #  ------------------------------------------------------------------  !
-        #     band 16:  2600-3250 cm-1 (low key- h2o,ch4; high key - ch4)      !
-        #  ------------------------------------------------------------------  !
-
-
-        chi_mls = dsc["chi_mls"].values
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        fracrefa = ds["fracrefa"].values
-        fracrefb = ds["fracrefb"].values
-
-        #  --- ...  calculate reference ratio to be used in calculation of Planck
-        #           fraction in lower atmosphere.
-
-        refrat_planck_a = chi_mls[0, 5] / chi_mls[5, 5]  # P = 387. mb (Level 6)
-
-        #  --- ...  lower atmosphere loop
-        speccomb = colamt[:laytrop, 0] + rfrate[:laytrop, 3, 0] * colamt[:laytrop, 4]
-        specparm = colamt[:laytrop, 0] / speccomb
-        specmult = 8.0 * np.minimum(specparm, self.oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * self.nspa[15] + js - 1
-
-        speccomb1 = colamt[:laytrop, 0] + rfrate[:laytrop, 3, 1] * colamt[:laytrop, 4]
-        specparm1 = colamt[:laytrop, 0] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, self.oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * self.nspa[15] + js1 - 1
-
-        speccomb_planck = colamt[:laytrop, 0] + refrat_planck_a * colamt[:laytrop, 4]
-        specparm_planck = colamt[:laytrop, 0] / speccomb_planck
-        specmult_planck = 8.0 * np.minimum(specparm_planck, self.oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        jplp = jpl + 1
-
-        p0 = np.where(specparm < 0.125, fs - 1.0, 0) + np.where(
-            specparm > 0.875, -fs, 0
-        )
-        p0 = np.where(p0 == 0, 0, p0)
-
-        p40 = np.where(specparm < 0.125, p0 ** 4, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        p40 = np.where(p40 == 0, 0, p40)
-
-        fk00 = np.where(specparm < 0.125, p40, 0) + np.where(
-            specparm > 0.875, p0 ** 4, 0
-        )
-        fk00 = np.where(fk00 == 0, 1.0 - fs, fk00)
-
-        fk10 = np.where(specparm < 0.125, 1.0 - p0 - 2.0 * p40, 0) + np.where(
-            specparm > 0.875, 1.0 - p0 - 2.0 * p40, 0
-        )
-        fk10 = np.where(fk10 == 0, fs, fk10)
-
-        fk20 = np.where(specparm < 0.125, p0 + p40, 0) + np.where(
-            specparm > 0.875, p0 + p40, 0
-        )
-        fk20 = np.where(fk20 == 0, 0.0, fk20)
-
-        id000 = np.where(specparm < 0.125, ind0, 0) + np.where(
-            specparm > 0.875, ind0 + 1, 0
-        )
-        id000 = np.where(id000 == 0, ind0, id000)
-
-        id010 = np.where(specparm < 0.125, ind0 + 9, 0) + np.where(
-            specparm > 0.875, ind0 + 10, 0
-        )
-        id010 = np.where(id010 == 0, ind0 + 9, id010)
-
-        id100 = np.where(specparm < 0.125, ind0 + 1, 0) + np.where(
-            specparm > 0.875, ind0, 0
-        )
-        id100 = np.where(id100 == 0, ind0 + 1, id100)
-
-        id110 = np.where(specparm < 0.125, ind0 + 10, 0) + np.where(
-            specparm > 0.875, ind0 + 9, 0
-        )
-        id110 = np.where(id110 == 0, ind0 + 10, id110)
-
-        id200 = np.where(specparm < 0.125, ind0 + 2, 0) + np.where(
-            specparm > 0.875, ind0 - 1, 0
-        )
-        id200 = np.where(id200 == 0, ind0, id200)
-
-        id210 = np.where(specparm < 0.125, ind0 + 11, 0) + np.where(
-            specparm > 0.875, ind0 + 8, 0
-        )
-        id210 = np.where(id210 == 0, ind0, id210)
-
-        fac000 = fk00 * fac00[:laytrop]
-        fac100 = fk10 * fac00[:laytrop]
-        fac200 = fk20 * fac00[:laytrop]
-        fac010 = fk00 * fac10[:laytrop]
-        fac110 = fk10 * fac10[:laytrop]
-        fac210 = fk20 * fac10[:laytrop]
-
-        p1 = np.where(specparm1 < 0.125, fs1 - 1.0, 0) + np.where(
-            specparm1 > 0.875, -fs1, 0
-        )
-        p1 = np.where(p1 == 0, 0, p1)
-
-        p41 = np.where(specparm1 < 0.125, p1 ** 4, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        p41 = np.where(p41 == 0, 0, p41)
-
-        fk01 = np.where(specparm1 < 0.125, p41, 0) + np.where(
-            specparm1 > 0.875, p1 ** 4, 0
-        )
-        fk01 = np.where(fk01 == 0, 1.0 - fs1, fk01)
-
-        fk11 = np.where(specparm1 < 0.125, 1.0 - p1 - 2.0 * p41, 0) + np.where(
-            specparm1 > 0.875, 1.0 - p1 - 2.0 * p41, 0
-        )
-        fk11 = np.where(fk11 == 0, fs1, fk11)
-
-        fk21 = np.where(specparm1 < 0.125, p1 + p41, 0) + np.where(
-            specparm1 > 0.875, p1 + p41, 0
-        )
-        fk21 = np.where(fk21 == 0, 0.0, fk21)
-
-        id001 = np.where(specparm1 < 0.125, ind1, 0) + np.where(
-            specparm1 > 0.875, ind1 + 1, 0
-        )
-        id001 = np.where(id001 == 0, ind1, id001)
-
-        id011 = np.where(specparm1 < 0.125, ind1 + 9, 0) + np.where(
-            specparm1 > 0.875, ind1 + 10, 0
-        )
-        id011 = np.where(id011 == 0, ind1 + 9, id011)
-
-        id101 = np.where(specparm1 < 0.125, ind1 + 1, 0) + np.where(
-            specparm1 > 0.875, ind1, 0
-        )
-        id101 = np.where(id101 == 0, ind1 + 1, id101)
-
-        id111 = np.where(specparm1 < 0.125, ind1 + 10, 0) + np.where(
-            specparm1 > 0.875, ind1 + 9, 0
-        )
-        id111 = np.where(id111 == 0, ind1 + 10, id111)
-
-        id201 = np.where(specparm1 < 0.125, ind1 + 2, 0) + np.where(
-            specparm1 > 0.875, ind1 - 1, 0
-        )
-        id201 = np.where(id201 == 0, ind1, id201)
-
-        id211 = np.where(specparm1 < 0.125, ind1 + 11, 0) + np.where(
-            specparm1 > 0.875, ind1 + 8, 0
-        )
-        id211 = np.where(id211 == 0, ind1, id211)
-
-        fac001 = fk01 * fac01[:laytrop]
-        fac101 = fk11 * fac01[:laytrop]
-        fac201 = fk21 * fac01[:laytrop]
-        fac011 = fk01 * fac11[:laytrop]
-        fac111 = fk11 * fac11[:laytrop]
-        fac211 = fk21 * fac11[:laytrop]
-
-        for ig in range(ng16):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-
-            taug[ns16 + ig, :laytrop] = (
-                speccomb
-                * (
-                    fac000 * absa[ig, id000]
-                    + fac010 * absa[ig, id010]
-                    + fac100 * absa[ig, id100]
-                    + fac110 * absa[ig, id110]
-                    + fac200 * absa[ig, id200]
-                    + fac210 * absa[ig, id210]
-                )
-                + speccomb1
-                * (
-                    fac001 * absa[ig, id001]
-                    + fac011 * absa[ig, id011]
-                    + fac101 * absa[ig, id101]
-                    + fac111 * absa[ig, id111]
-                    + fac201 * absa[ig, id201]
-                    + fac211 * absa[ig, id211]
-                )
-                + tauself
-                + taufor
-            )
-
-            fracs[ns16 + ig, :laytrop] = fracrefa[ig, jpl] + fpl * (
-                fracrefa[ig, jplp] - fracrefa[ig, jpl]
-            )
-
-        #  --- ...  upper atmosphere loop
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * self.nspb[15]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * self.nspb[15]
-
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-
-        for ig in range(ng16):
-            taug[ns16 + ig, laytrop:nlay] = colamt[laytrop:nlay, 4] * (
-                fac00[laytrop:nlay] * absb[ig, ind0]
-                + fac10[laytrop:nlay] * absb[ig, ind0p]
-                + fac01[laytrop:nlay] * absb[ig, ind1]
-                + fac11[laytrop:nlay] * absb[ig, ind1p]
-            )
-
-            fracs[ns16 + ig, laytrop:nlay] = fracrefb[ig]
-
-        return taug, fracs
-    @staticmethod
-    @jit(nopython=True)
-    def mcica_subcol(iovrlw, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
-        #  ====================  defination of variables  ====================  !
-        #                                                                       !
-        #  input variables:                                                size !
-        #   cldf    - real, layer cloud fraction                           nlay !
-        #   nlay    - integer, number of model vertical layers               1  !
-        #   ipseed  - integer, permute seed for random num generator         1  !
-        #    ** note : if the cloud generator is called multiple times, need    !
-        #              to permute the seed between each call; if between calls  !
-        #              for lw and sw, use values differ by the number of g-pts. !
-        #   dz      - real, layer thickness (km)                           nlay !
-        #   de_lgth - real, layer cloud decorrelation length (km)            1  !
-        #                                                                       !
-        #  output variables:                                                    !
-        #   lcloudy - logical, sub-colum cloud profile flag array    ngptlw*nlay!
-        #                                                                       !
-        #  other control flags from module variables:                           !
-        #     iovrlw    : control flag for cloud overlapping method             !
-        #                 =0:random; =1:maximum/random: =2:maximum; =3:decorr   !
-        #                                                                       !
-        #  =====================    end of definitions    ====================  !
-
-        rand2d = rand2d[iplon, :]
-        cdfunc = np.reshape(rand2d,(ngptlw,nlay))
-        # ===> ...  begin here
-        #
-        #  --- ...  advance randum number generator by ipseed values
-
-        #  --- ...  sub-column set up according to overlapping assumption
-        ## it is only implemented for iovrlw == 1 
-        if iovrlw == 1:  # max-ran overlap
-            #  ---  first pick a random number for bottom (or top) layer.
-            #       then walk up the column: (aer's code)
-            #       if layer below is cloudy, use the same rand num in the layer below
-            #       if layer below is clear,  use a new random number
-
-            #  ---  from bottom up
-            for k in range(1, nlay):
-                k1 = k - 1
-                tem1 = 1.0 - cldf[k1]
-
-                for n in range(ngptlw):
-                    if cdfunc[n, k1] > tem1:
-                        cdfunc[n, k] = cdfunc[n, k1]
-                    else:
-                        cdfunc[n, k] = cdfunc[n, k] * tem1
-        #  --- ...  generate subcolumns for homogeneous clouds
-        tem1 = 1.0 - cldf 
-        lcloudy  = cdfunc >= tem1
-    
-        return lcloudy
