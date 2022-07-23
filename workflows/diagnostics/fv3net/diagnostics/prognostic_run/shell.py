@@ -167,7 +167,7 @@ class ProgShell(cmd.Cmd):
 def register_parser(subparsers):
     parser = subparsers.add_parser("shell")
     parser.set_defaults(func=main)
-    parser.add_argument("script", default="")
+    parser.add_argument("script", default="", nargs="?")
 
 
 def main(args):
