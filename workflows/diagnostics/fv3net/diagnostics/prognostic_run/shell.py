@@ -158,6 +158,17 @@ class ProgShell(cmd.Cmd):
         transect[variable].plot(yincrease=False, y="pressure")
         loop_state.tape.save_plot()
 
+    def do_column(self, arg):
+        variable = arg
+        lon = float(state.get("lon", 0))
+        lat = float(state.get("lat", 0))
+
+        ds = loop_state.data_3d.merge(grid)
+        transect_coords = vcm.select.latlon(lat, lon)
+        transect = vcm.interpolate_unstructured(ds, transect_coords).squeeze()
+        transect[variable].plot(yincrease=False, y="pressure")
+        loop_state.tape.save_plot()
+
     def onecmd(self, line):
         try:
             super().onecmd(line)
