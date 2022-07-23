@@ -16,8 +16,8 @@ from . import iterm
 warnings.filterwarnings("ignore")
 
 
-def meridional_transect(ds: xr.Dataset):
-    transect_coords = vcm.select.meridional_ring()
+def meridional_transect(ds: xr.Dataset, lon):
+    transect_coords = vcm.select.meridional_ring(lon)
     ds = vcm.interpolate_unstructured(ds, transect_coords)
     return ds.swap_dims({"sample": "lat"})
 
@@ -135,7 +135,26 @@ class ProgShell(cmd.Cmd):
     def do_meridional(self, arg):
         variable = arg
         time = int(state.get("time", "0"))
-        transect = meridional_transect(loop_state.data_3d.isel(time=time).merge(grid))
+        lon = int(state.get("lon", "0"))
+        transect = meridional_transect(
+            loop_state.data_3d.isel(time=time).merge(grid), lon
+        )
+        transect = transect.assign_coords(lon=lon)
+        transect[variable].plot(yincrease=False, y="pressure")
+        loop_state.tape.save_plot()
+
+    def do_zonal(self, arg):
+        variable = arg
+        time = int(state.get("time", "0"))
+        lat = float(state.get("lat", 0))
+        ds = loop_state.data_3d.isel(time=time).merge(grid)
+
+        transect_coords = vcm.select.zonal_ring(lat=lat)
+        transect = vcm.interpolate_unstructured(ds, transect_coords)
+        transect = transect.swap_dims({"sample": "lon"})
+        transect = transect.assign_coords(lat=lat)
+
+        plt.figure(figsize=(10, 3))
         transect[variable].plot(yincrease=False, y="pressure")
         loop_state.tape.save_plot()
 
