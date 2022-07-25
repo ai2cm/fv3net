@@ -2219,8 +2219,8 @@ class RadLWClass:
             for k in range(nlay):
                 hlw0[iplon, k] = htrcl[k]
 
-            if verbose:
-                print("Finished!")
+        if verbose:
+            print("Finished!")
 
         return (
             hlwc,
@@ -2322,12 +2322,6 @@ class RadLWClass:
         tem2 = totplnk[indlev, :] - totplnk[indlev - 1, :]
         pklay[:, 0] = delwave * (totplnk[indlay - 1, :] + tlyrfr * tem1)
         pklev[:, 0] = delwave * (totplnk[indlev - 1, :] + tlvlfr * tem2)
-
-        # for i in range(nbands):
-        #     tem1 = totplnk[indlay, i] - totplnk[indlay - 1, i]
-        #     tem2 = totplnk[indlev, i] - totplnk[indlev - 1, i]
-        #     pklay[i, 0] = delwave[i] * (totplnk[indlay - 1, i] + tlyrfr * tem1)
-        #     pklev[i, 0] = delwave[i] * (totplnk[indlev - 1, i] + tlvlfr * tem2)
 
         #  --- ...  begin layer loop
         #           calculate the integrated Planck functions for each band at the
