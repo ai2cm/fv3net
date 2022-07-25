@@ -6,8 +6,7 @@ import serialbox as ser
 from radiation_driver import RadiationDriver
 import time
 
-startTime = time.time()
-
+sample_multiplier = int(sys.argv[1]) if len(sys.argv) == 2 else 1
 rank = 0
 driver = RadiationDriver()
 
@@ -88,7 +87,7 @@ slag, sdec, cdec, solcon = driver.radupdate(
     updatedict["lsswr"],
 )
 
-columns_validated = 0
+execution_time = []
 
 for rank in range(6):
     serializer = ser.Serializer(
@@ -249,19 +248,37 @@ for rank in range(6):
                     indict[var] = indict[var][0]
 
         return indict
+    
+    
+    def upscale_samples(data_dict, multiplier):
+        out = {}
+        for var in data_dict:
+            if not type(data_dict[var]) == dict and data_dict[var].size > 1:
+                out[var] = np.tile(
+                    data_dict[var],
+                    [multiplier] + [1 for _ in range(len(data_dict[var].shape) - 1)]
+                )
+            else:
+                out[var] = data_dict[var]
+        return out
+                
 
     Model = getscalars(Model)
-    Statein = getscalars(Statein)
-    Sfcprop = getscalars(Sfcprop)
-    Coupling = getscalars(Coupling)
-    Grid = getscalars(Grid)
-    Tbd = getscalars(Tbd)
-    Radtend = getscalars(Radtend)
-    Diag = getscalars(Diag)
+    Statein = upscale_samples(getscalars(Statein), sample_multiplier)
+    Sfcprop = upscale_samples(getscalars(Sfcprop), sample_multiplier)
+    Coupling = upscale_samples(getscalars(Coupling), sample_multiplier)
+    Grid = upscale_samples(getscalars(Grid), sample_multiplier)
+    Tbd = upscale_samples(getscalars(Tbd), sample_multiplier)
+    Radtend = upscale_samples(getscalars(Radtend), sample_multiplier)
+    Diag = upscale_samples(getscalars(Diag), sample_multiplier)
+    
+    startTime = time.time()
 
     Radtendout, Diagout = driver.GFS_radiation_driver(
         Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag
     )
+
+    execution_time.append(time.time() - startTime)
 
     radtend_vars_out = [
         "upfxc_s_lw",
@@ -319,8 +336,12 @@ for rank in range(6):
 
     compare_data(valdict, outdict)
     
-    columns_validated += valdict[radtend_vars_out[0]].shape[0]
+    columns_validated = valdict[radtend_vars_out[0]].shape[0]
 
-executionTime = (time.time() - startTime)
 
-print(f'Execution time: {executionTime:.2f} seconds for {columns_validated} columns.')
+
+print(
+    f'Execution time: {np.mean(execution_time):.2f} seconds '
+    f'(+/- {np.std(execution_time):.2f} seconds) '
+    f'for {columns_validated} columns.'
+)
