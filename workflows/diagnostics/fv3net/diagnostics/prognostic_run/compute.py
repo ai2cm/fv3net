@@ -235,7 +235,7 @@ def zonal_means_2d(diag_arg: DiagArg):
         zonal_means.update(
             vcm.zonal_average_approximate(
                 grid.lat, prognostic_subset, lat_name="latitude"
-            )
+            ).load()
         )
     return time_mean(zonal_means)
 
@@ -255,7 +255,7 @@ def zonal_means_3d(diag_arg: DiagArg):
             zm = vcm.zonal_average_approximate(
                 grid.lat, prognostic_subset, lat_name="latitude"
             )
-            zonal_means.update(time_mean(zm))
+            zonal_means.update(time_mean(zm).load())
     return zonal_means
 
 
@@ -286,7 +286,7 @@ def zonal_bias_3d(diag_arg: DiagArg):
                 bias(verification[common_vars], prognostic_subset[common_vars]),
                 lat_name="latitude",
             )
-            zonal_means.update(time_mean(zm_bias))
+            zonal_means.update(time_mean(zm_bias).load())
     return zonal_means
 
 
@@ -315,7 +315,7 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
 
         zonal_mean_bias = vcm.zonal_average_approximate(
             grid.lat,
-            bias(verification[common_vars], prognostic[common_vars]),
+            bias(verification[common_vars], prognostic_subset[common_vars]),
             lat_name="latitude",
         )
         zonal_means.update(time_mean(zonal_mean_bias).load())
@@ -341,7 +341,7 @@ def zonal_mean_hovmoller(diag_arg: DiagArg):
         with xr.set_options(keep_attrs=True):
             zonal_means.update(
                 vcm.zonal_average_approximate(
-                    grid.lat, prognostic, lat_name="latitude"
+                    grid.lat, prognostic_subset, lat_name="latitude"
                 ).load()
             )
     return zonal_means
@@ -373,7 +373,7 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
             zonal_means.update(
                 vcm.zonal_average_approximate(
                     grid.lat,
-                    bias(verification[common_vars], prognostic[common_vars]),
+                    bias(verification[common_vars], prognostic_subset[common_vars]),
                     lat_name="latitude",
                 ).load()
             )
