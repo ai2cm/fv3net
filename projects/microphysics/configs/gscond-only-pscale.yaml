@@ -1,6 +1,6 @@
 kind: prognostic
 experiment: pscaling-test
-name: gscond-only-pscale-nfile1980-10d-v1
+name: gscond-only-pscale-nfile1980-10d-v3
 image_tag: latest
 config:
   base_version: v0.5
@@ -264,7 +264,6 @@ config:
       emulate_gscond_only: true
   zhao_carr_emulation:
     gscond:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-22/gscond-only-dense-local-nfile1980-pscale-v1
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-22/gscond-only-dense-local-nfile1980-pscale-v1/model.tf
       enforce_conservative: true
       gscond_cloud_conservative: true
-      mask_gscond_zero_cloud_classifier: true
