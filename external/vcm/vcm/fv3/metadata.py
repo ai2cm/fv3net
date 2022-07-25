@@ -13,6 +13,7 @@ DIM_RENAME_INVERSE_MAP = {
     "tile": {"rank"},
     "x_interface": {"grid_x", "grid_x_coarse"},
     "y_interface": {"grid_y", "grid_y_coarse"},
+    "z": {"pfull"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 TIME_DIM_NAME = "time"

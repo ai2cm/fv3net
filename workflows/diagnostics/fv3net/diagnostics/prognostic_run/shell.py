@@ -158,6 +158,14 @@ class ProgShell(cmd.Cmd):
         transect[variable].plot(yincrease=False, y="pressure")
         loop_state.tape.save_plot()
 
+    def do_zonalavg(self, arg):
+        variable = arg
+        time = int(state.get("time", "0"))
+        ds = loop_state.data_3d.isel(time=time)
+        transect = vcm.zonal_average_approximate(ds.lat, ds[variable])
+        transect.plot(yincrease=False, y="pressure")
+        loop_state.tape.save_plot()
+
     def do_column(self, arg):
         variable = arg
         lon = float(state.get("lon", 0))
