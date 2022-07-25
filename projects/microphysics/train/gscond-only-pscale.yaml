@@ -1,5 +1,5 @@
 kind: train
-name: gscond-only-dense-local-nfile1980-pscale-v1
+name: gscond-only-dense-local-allfile-pscale-v1
 fv3fit_image_tag: latest
 experiment: pscaling-test
 config:
@@ -8,7 +8,6 @@ config:
     wandb_project: microphysics-emulation
   batch_size: 512
   epochs: 25
-  nfiles: 1980
   nfiles_valid: 100
   valid_freq: 2
   out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
