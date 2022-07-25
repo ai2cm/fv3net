@@ -66,12 +66,15 @@ class State:
 
     def load(self, url):
         prognostic = load_run_data.SegmentedRun(url, catalog)
-        self.data_3d = prognostic.data_3d
-        self.data_2d = prognostic.data_2d.merge(grid.drop("area"))
+        self.data_3d = prognostic.data_3d.merge(grid)
+        self.data_2d = prognostic.data_2d.merge(grid, compat="override")
 
     def print(self):
+        print("3D Variables:")
         for v in self.data_3d:
             print(v)
+        print()
+        print("2D Variables:")
         for v in self.data_2d:
             print(v)
 
@@ -102,9 +105,6 @@ def hovmoller(state: State, variable, vmin=None, vmax=None):
     vmax = None if vmax is None else float(vmax)
     avg.plot(x="time", vmin=vmin, vmax=vmax)
     state.tape.save_plot()
-
-
-commands = {"iterm": set_iterm_tape, "avg2d": avg2d, "hovmoller": hovmoller}
 
 
 class ProgShell(cmd.Cmd):
