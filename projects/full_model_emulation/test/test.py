@@ -57,7 +57,11 @@ wandb.init(
     job_type="train",
     project="torch-testing",
     group="test",
-    config={"train_data": data_url, "out_url": model_out_url},
+    config={
+        "train_data": data_url,
+        "out_url": model_out_url,
+        "env": {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")},
+    },
 )
 
 state_training_data = xr.open_zarr(
