@@ -203,9 +203,17 @@ class ProgShell(cmd.Cmd):
 
 
 def register_parser(subparsers):
-    parser = subparsers.add_parser("shell")
+    parser = subparsers.add_parser(
+        "shell", help="Open an prognostic run browsing shell"
+    )
     parser.set_defaults(func=main)
-    parser.add_argument("script", default="", nargs="?")
+    parser.add_argument(
+        "script",
+        default="",
+        nargs="?",
+        help="If provided, a text file of commands to run instead of opening "
+        "an interactive shell.",
+    )
 
 
 def main(args):
