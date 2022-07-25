@@ -1790,53 +1790,41 @@ class RadLWClass:
             colamt[:, 2] = np.maximum(temcol[:], coldry[:] * o3vmr[:])  # o3
 
             if ilwrgas > 0:
-                for k in range(nlay):
-                    colamt[k, 3] = max(
-                        temcol[k], coldry[k] * gasvmr[iplon, k, 1]
-                    )  # n2o
-                    colamt[k, 4] = max(
-                        temcol[k], coldry[k] * gasvmr[iplon, k, 2]
-                    )  # ch4
-                    colamt[k, 5] = max(0.0, coldry[k] * gasvmr[iplon, k, 3])  # o2
-                    colamt[k, 6] = max(0.0, coldry[k] * gasvmr[iplon, k, 4])  # co
+                colamt[:, 3] =  np.maximum(temcol[:], coldry[:] * gasvmr[iplon, :, 1])  # n2o
+                colamt[:, 4] =  np.maximum(temcol[:], coldry[:] * gasvmr[iplon, :, 2])  # ch4
+                colamt[:, 5] =  np.maximum(0.0, coldry[:] * gasvmr[iplon, :, 3])  # o2
+                colamt[:, 6] =  np.maximum(0.0, coldry[:] * gasvmr[iplon, :, 4])  # co
 
-                    wx[k, 0] = max(0.0, coldry[k] * gasvmr[iplon, k, 8])  # ccl4
-                    wx[k, 1] = max(0.0, coldry[k] * gasvmr[iplon, k, 5])  # cf11
-                    wx[k, 2] = max(0.0, coldry[k] * gasvmr[iplon, k, 6])  # cf12
-                    wx[k, 3] = max(0.0, coldry[k] * gasvmr[iplon, k, 7])  # cf22
+                wx[:, 0] =  np.maximum(0.0, coldry[:] * gasvmr[iplon, :, 8])  # ccl4
+                wx[:, 1] =  np.maximum(0.0, coldry[:] * gasvmr[iplon, :, 5])  # cf11
+                wx[:, 2] =  np.maximum(0.0, coldry[:] * gasvmr[iplon, :, 6])  # cf12
+                wx[:, 3] =  np.maximum(0.0, coldry[:] * gasvmr[iplon, :, 7])  # cf22
             else:
-                for k in range(nlay):
-                    colamt[k, 3] = 0.0  # n2o
-                    colamt[k, 4] = 0.0  # ch4
-                    colamt[k, 5] = 0.0  # o2
-                    colamt[k, 6] = 0.0  # co
+                colamt[:, 3] = 0.0  # n2o
+                colamt[:, 4] = 0.0  # ch4
+                colamt[:, 5] = 0.0  # o2
+                colamt[:, 6] = 0.0  # co
 
-                    wx[k, 0] = 0.0
-                    wx[k, 1] = 0.0
-                    wx[k, 2] = 0.0
-                    wx[k, 3] = 0.0
+                wx[:, 0] = 0.0
+                wx[:, 1] = 0.0
+                wx[:, 2] = 0.0
+                wx[:, 3] = 0.0
 
-            for k in range(nlay):
-                for j in range(nbands):
-                    tauaer[j, k] = aerosols[iplon, k, j, 0] * (
-                        1.0 - aerosols[iplon, k, j, 1]
-                    )
+            tauaer[: , :]= (aerosols[iplon, :, :, 0] * (1.0 - aerosols[iplon, :, :, 1])).T
 
             if ilwcliq > 0:
-                for k in range(nlay):
-                    cldfrc[k + 1] = clouds[iplon, k, 0]
-                    clwp[k] = clouds[iplon, k, 1]
-                    relw[k] = clouds[iplon, k, 2]
-                    ciwp[k] = clouds[iplon, k, 3]
-                    reiw[k] = clouds[iplon, k, 4]
-                    cda1[k] = clouds[iplon, k, 5]
-                    cda2[k] = clouds[iplon, k, 6]
-                    cda3[k] = clouds[iplon, k, 7]
-                    cda4[k] = clouds[iplon, k, 8]
+                cldfrc[1:-1] = clouds[iplon, :, 0]
+                clwp[:] = clouds[iplon, :, 1]
+                relw[:] = clouds[iplon, :, 2]
+                ciwp[:] = clouds[iplon, :, 3]
+                reiw[:] = clouds[iplon, :, 4]
+                cda1[:] = clouds[iplon, :, 5]
+                cda2[:] = clouds[iplon, :, 6]
+                cda3[:] = clouds[iplon, :, 7]
+                cda4[:] = clouds[iplon, :, 8]
             else:
-                for k in range(nlay):
-                    cldfrc[k + 1] = clouds[iplon, k, 0]
-                    cda1[k] = clouds[iplon, k, 1]
+                cldfrc[1:-1] = clouds[iplon, :, 0]
+                cda1[:] = clouds[iplon, :, 1]
 
             cldfrc[0] = 1.0
             cldfrc[nlp1] = 0.0
