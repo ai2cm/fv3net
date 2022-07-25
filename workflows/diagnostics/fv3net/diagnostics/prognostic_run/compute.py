@@ -23,7 +23,9 @@ from dask.diagnostics import ProgressBar
 import fsspec
 from joblib import Parallel, delayed
 from time import time
-
+import math
+import os
+from toolz import partition_all
 
 from typing import Optional, Mapping, MutableMapping, Union, Tuple, Sequence
 
@@ -55,10 +57,10 @@ import logging
 
 logger = logging.getLogger("SaveDiags")
 
+DIAG_COMPUTE_SIZE_LIMT_MB = int(os.getenv("DIAG_COMPUTE_SIZE_LIMT_MB", 3000))
+
 
 def timer(func):
-    # This function shows the execution time of
-    # the function object passed
     def wrap_func(*args, **kwargs):
         t1 = time()
         result = func(*args, **kwargs)
@@ -192,6 +194,14 @@ def _assign_source_attrs(
     return diagnostics_ds
 
 
+def _memory_manageable_split(ds: xr.Dataset) -> Sequence[xr.Dataset]:
+    """If dataset size exceeds limit, split computation across multiple datasets
+    that are below size limit."""
+    nsplit = math.ceil((ds.nbytes / 1e6) / DIAG_COMPUTE_SIZE_LIMT_MB)
+    split_vars = partition_all(max(len(ds) // nsplit, 1), ds.data_vars)
+    return [ds[list(var_subset)] for var_subset in split_vars]
+
+
 @registry_2d.register("rms_global")
 @transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
@@ -215,9 +225,18 @@ def rms_errors(diag_arg: DiagArg):
 def zonal_means_2d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (2d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
-    zonal_means = vcm.zonal_average_approximate(
-        grid.lat, prognostic, lat_name="latitude"
-    )
+    zonal_means = xr.Dataset()
+    logger.info(f"Prognostic data   size: {prognostic.nbytes / 1e6} Mb")
+
+    for prognostic_subset in _memory_manageable_split(prognostic):
+        logger.info(f"Prognostic data subset: {list(prognostic_subset.data_vars)}")
+        logger.info(f"Prognostic data subset size: {prognostic_subset.nbytes / 1e6} Mb")
+
+        zonal_means.update(
+            vcm.zonal_average_approximate(
+                grid.lat, prognostic_subset, lat_name="latitude"
+            )
+        )
     return time_mean(zonal_means)
 
 
@@ -230,9 +249,13 @@ def zonal_means_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (3d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
     logger.info(f"Computing zonal+time means (3d)")
-    with xr.set_options(keep_attrs=True):
-        zm = vcm.zonal_average_approximate(grid.lat, prognostic, lat_name="latitude")
-        zonal_means = time_mean(zm)
+    zonal_means = xr.Dataset()
+    for prognostic_subset in _memory_manageable_split(prognostic):
+        with xr.set_options(keep_attrs=True):
+            zm = vcm.zonal_average_approximate(
+                grid.lat, prognostic_subset, lat_name="latitude"
+            )
+            zonal_means.update(time_mean(zm))
     return zonal_means
 
 
@@ -248,16 +271,22 @@ def zonal_bias_3d(diag_arg: DiagArg):
         diag_arg.verification,
         diag_arg.grid,
     )
-    common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
+    zonal_means = xr.Dataset()
+    for prognostic_subset in _memory_manageable_split(prognostic):
 
-    logger.info(f"Computing zonal+time mean biases (3d) for {common_vars}")
-    with xr.set_options(keep_attrs=True):
-        zm_bias = vcm.zonal_average_approximate(
-            grid.lat,
-            bias(verification[common_vars], prognostic[common_vars]),
-            lat_name="latitude",
+        common_vars = list(
+            set(prognostic_subset.data_vars).intersection(verification.data_vars)
         )
-        zonal_means = time_mean(zm_bias)
+
+        logger.info(f"Computing zonal+time mean biases (3d) for {common_vars}")
+
+        with xr.set_options(keep_attrs=True):
+            zm_bias = vcm.zonal_average_approximate(
+                grid.lat,
+                bias(verification[common_vars], prognostic_subset[common_vars]),
+                lat_name="latitude",
+            )
+            zonal_means.update(time_mean(zm_bias))
     return zonal_means
 
 
@@ -272,16 +301,24 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
         diag_arg.grid,
     )
     logger.info("Preparing zonal+time mean biases (2d)")
+
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
     zonal_means = xr.Dataset()
 
     logger.info("Computing zonal+time mean biases (2d)")
-    zonal_mean_bias = vcm.zonal_average_approximate(
-        grid.lat,
-        bias(verification[common_vars], prognostic[common_vars]),
-        lat_name="latitude",
-    )
-    zonal_means = time_mean(zonal_mean_bias).load()
+    logger.info(f"Prognostic data size: {prognostic.nbytes / 1e9} Gb")
+    for prognostic_subset in _memory_manageable_split(prognostic):
+
+        common_vars = list(
+            set(prognostic_subset.data_vars).intersection(verification.data_vars)
+        )
+
+        zonal_mean_bias = vcm.zonal_average_approximate(
+            grid.lat,
+            bias(verification[common_vars], prognostic[common_vars]),
+            lat_name="latitude",
+        )
+        zonal_means.update(time_mean(zonal_mean_bias).load())
     return zonal_means
 
 
@@ -293,12 +330,20 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
 def zonal_mean_hovmoller(diag_arg: DiagArg):
     logger.info(f"Preparing zonal mean values (2d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
+
     zonal_means = xr.Dataset()
-    logger.info(f"Computing zonal means over time (2d)")
-    with xr.set_options(keep_attrs=True):
-        zonal_means = vcm.zonal_average_approximate(
-            grid.lat, prognostic, lat_name="latitude"
-        ).load()
+    for prognostic_subset in _memory_manageable_split(prognostic):
+        logger.info(
+            "Computing zonal means over time (2d) for "
+            f"{list(prognostic_subset.data_vars)}"
+        )
+
+        with xr.set_options(keep_attrs=True):
+            zonal_means.update(
+                vcm.zonal_average_approximate(
+                    grid.lat, prognostic, lat_name="latitude"
+                ).load()
+            )
     return zonal_means
 
 
@@ -315,14 +360,23 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
         diag_arg.verification,
         diag_arg.grid,
     )
-    common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
-    logger.info(f"Computing zonal mean biases (2d) over time for {common_vars}")
-    with xr.set_options(keep_attrs=True):
-        zonal_means = vcm.zonal_average_approximate(
-            grid.lat,
-            bias(verification[common_vars], prognostic[common_vars]),
-            lat_name="latitude",
-        ).load()
+    logger.info(f"Prognostic data size: {prognostic.nbytes / 1e9} Gb")
+
+    zonal_means = xr.Dataset()
+    for prognostic_subset in _memory_manageable_split(prognostic):
+        common_vars = list(
+            set(prognostic_subset.data_vars).intersection(verification.data_vars)
+        )
+
+        logger.info(f"Computing zonal mean biases (2d) over time for {common_vars}")
+        with xr.set_options(keep_attrs=True):
+            zonal_means.update(
+                vcm.zonal_average_approximate(
+                    grid.lat,
+                    bias(verification[common_vars], prognostic[common_vars]),
+                    lat_name="latitude",
+                ).load()
+            )
     return zonal_means
 
 
