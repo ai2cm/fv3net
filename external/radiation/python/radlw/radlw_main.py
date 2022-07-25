@@ -1772,25 +1772,22 @@ class RadLWClass:
             tem2 = 1.0e-20 * 1.0e3 * con_avgd
             tz[0] = tlvl[iplon, 0]
 
-            for k in range(nlay):
-                pavel[k] = plyr[iplon, k]
-                delp[k] = delpin[iplon, k]
-                tavel[k] = tlyr[iplon, k]
-                tz[k + 1] = tlvl[iplon, k + 1]
-                dz[k] = dzlyr[iplon, k]
+            
+            pavel[:] = plyr[iplon, :]
+            delp[:] = delpin[iplon, :]
+            tavel[:] = tlyr[iplon, :]
+            tz[1:] = tlvl[iplon, 1:]
+            dz[:] = dzlyr[iplon, :]
+            h2ovmr[:] = np.maximum(0.0, qlyr[iplon, :] * self.amdw / (1.0 - qlyr[iplon, :]))
+            o3vmr[:] = np.maximum(0.0, olyr[iplon, :] * self.amdo3)
 
-                h2ovmr[k] = max(
-                    0.0, qlyr[iplon, k] * self.amdw / (1.0 - qlyr[iplon, k])
-                )
-                o3vmr[k] = max(0.0, olyr[iplon, k] * self.amdo3)
+            tem0 = (1.0 - h2ovmr[:]) * con_amd + h2ovmr[:] * con_amw
+            coldry[:] = tem2 * delp[:] / (tem1 * tem0 * (1.0 + h2ovmr[:]))
+            temcol[:] = 1.0e-12 * coldry[:]
 
-                tem0 = (1.0 - h2ovmr[k]) * con_amd + h2ovmr[k] * con_amw
-                coldry[k] = tem2 * delp[k] / (tem1 * tem0 * (1.0 + h2ovmr[k]))
-                temcol[k] = 1.0e-12 * coldry[k]
-
-                colamt[k, 0] = max(0.0, coldry[k] * h2ovmr[k])  # h2o
-                colamt[k, 1] = max(temcol[k], coldry[k] * gasvmr[iplon, k, 0])  # co2
-                colamt[k, 2] = max(temcol[k], coldry[k] * o3vmr[k])  # o3
+            colamt[:, 0] = np.maximum(0.0, coldry[:] * h2ovmr[:])  # h2o
+            colamt[:, 1] = np.maximum(temcol[:], coldry[:] * gasvmr[iplon, :, 0])  # co2
+            colamt[:, 2] = np.maximum(temcol[:], coldry[:] * o3vmr[:])  # o3
 
             if ilwrgas > 0:
                 for k in range(nlay):
