@@ -52,6 +52,13 @@ def meridional_ring(lon=0, n=180):
     }
 
 
+def latlon(lat, lon):
+    return {
+        "lat": xr.DataArray([lat], dims="sample"),
+        "lon": xr.DataArray([lon], dims="sample"),
+    }
+
+
 def zonal_ring(lat=45, n=360):
     attrs = {"description": f"Lat = {lat}"}
     lon = np.linspace(0, 360, n)
