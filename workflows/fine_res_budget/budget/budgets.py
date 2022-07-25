@@ -94,6 +94,7 @@ def coarsen_variables(
     delp_coarse: xr.DataArray,
     area: xr.DataArray,
     factor: int,
+    grid: Grid,
 ):
     """Coarsen an iterable of DataArrays on surfaces of constant pressure.
 
@@ -103,6 +104,7 @@ def coarsen_variables(
         delp_coarse: DataArray containing delp on the coarse grid.
         area: DataArray containing surface area on the fine grid.
         factor: Integer coarsening factor.
+        grid: Names of grid dimensions.
 
     Returns:
         xr.Dataset containing the coarsened variables.
@@ -110,12 +112,12 @@ def coarsen_variables(
     fields_2d = []
     fields_3d = []
     for field in fields:
-        if GRID.z in field.dims:
+        if grid.z in field.dims:
             fields_3d.append(
-                GRID.pressure_level_average(delp_fine, delp_coarse, area, field, factor)
+                grid.pressure_level_average(delp_fine, delp_coarse, area, field, factor)
             )
         else:
-            fields_2d.append(GRID.weighted_block_average(field, area, factor))
+            fields_2d.append(grid.weighted_block_average(field, area, factor))
     return xr.merge(fields_2d + fields_3d)
 
 
@@ -232,6 +234,7 @@ def compute_recoarsened_budget_inputs(
     ),
     second_moments=(("T", "vulcan_omega_coarse"), ("sphum", "vulcan_omega_coarse")),
     storage_terms=("T", "sphum"),
+    grid=GRID,
 ):
     """Compute the inputs required for the coarse-grained budgets of
     temperature and specific humidity.
@@ -267,12 +270,12 @@ def compute_recoarsened_budget_inputs(
     logger.info("Re-coarse-graining the fields needed for the fine-resolution budgets")
 
     # rechunk to be contiguous in x and y
-    merged = merged.chunk({GRID.x: -1, GRID.y: -1, GRID.z: -1})
+    merged = merged.chunk({grid.x: -1, grid.y: -1, grid.z: -1})
 
     middle = merged.sel(step="middle")
     area = middle.area_coarse
     delp_fine = middle.delp
-    delp_coarse = GRID.weighted_block_average(delp_fine, area, factor=factor)
+    delp_coarse = grid.weighted_block_average(delp_fine, area, factor=factor)
 
     raw_first_moments = [middle[v] for v in first_moments]
     raw_second_moments = compute_second_moments(middle, second_moments)
@@ -281,12 +284,12 @@ def compute_recoarsened_budget_inputs(
     coarsened = coarsen_variables(raw_fields, delp_fine, delp_coarse, area, factor)
 
     exposed_area_c384 = middle["exposed_area_coarse"]
-    exposed_area = GRID.area_above_fine_surface(
+    exposed_area = grid.area_above_fine_surface(
         delp_fine, delp_coarse, exposed_area_c384
     )
 
     area = (
-        GRID.block_sum(area, factor)
+        grid.block_sum(area, factor)
         .rename("area")
         .assign_attrs(units="m^2", long_name="area_of_grid_cell")
     )
