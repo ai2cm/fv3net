@@ -69,24 +69,31 @@ def assert_correct_output(model_type: str, sample_func: Callable[[], xr.DataArra
             validation, should return different data on subsequent calls
     """
     result = train_novelty_detector(model_type, sample_func)
-    out_dataset = result.model.predict_novelties(result.test_dataset)
+    centered_scores, diagnostics = result.model.predict_novelties(result.test_dataset)
     # dimensions are the same, except for "z"
-    output_dimensions = set(out_dataset.dims.keys())
-    output_dimensions.add("z")
+    diagnostics_dimensions = set(diagnostics.dims.keys())
+    diagnostics_dimensions.add("z")
+    centered_dimensions = set(centered_scores.dims)
+    centered_dimensions.add("z")
     test_dataset_dimensions = set(result.test_dataset.dims.keys())
-    assert output_dimensions == test_dataset_dimensions
+    assert diagnostics_dimensions == test_dataset_dimensions
+    assert centered_dimensions == test_dataset_dimensions
     # output is is_novelty
-    assert set(out_dataset.data_vars.keys()) == set(
-        [NoveltyDetector._NOVELTY_OUTPUT_VAR, NoveltyDetector._SCORE_OUTPUT_VAR]
+    assert set(diagnostics.data_vars.keys()) == set(
+        [
+            NoveltyDetector._NOVELTY_OUTPUT_VAR,
+            NoveltyDetector._SCORE_OUTPUT_VAR,
+            NoveltyDetector._CENTERED_SCORE_OUTPUT_VAR,
+        ]
     )
     # outputs are either 0 or 1 (and at least one output is not a novelty)
-    assert out_dataset[NoveltyDetector._NOVELTY_OUTPUT_VAR].max() <= 1
-    assert out_dataset[NoveltyDetector._NOVELTY_OUTPUT_VAR].min() == 0
+    assert diagnostics[NoveltyDetector._NOVELTY_OUTPUT_VAR].max() <= 1
+    assert diagnostics[NoveltyDetector._NOVELTY_OUTPUT_VAR].min() == 0
 
     if model_type == "min_max_novelty_detector":
-        assert out_dataset[NoveltyDetector._SCORE_OUTPUT_VAR].min() == 0
+        assert diagnostics[NoveltyDetector._SCORE_OUTPUT_VAR].min() == 0
     elif model_type == "ocsvm_novelty_detector":
-        assert out_dataset[NoveltyDetector._SCORE_OUTPUT_VAR].max() < 0
+        assert diagnostics[NoveltyDetector._SCORE_OUTPUT_VAR].max() < 0
 
 
 def assert_extreme_novelties(
@@ -105,7 +112,7 @@ def assert_extreme_novelties(
     """
     result = train_novelty_detector(model_type, sample_func)
     scaled_test_dataset = scale_test_sample(result.test_dataset, scaling=scaling)
-    out_dataset = result.model.predict_novelties(scaled_test_dataset)
+    _, out_dataset = result.model.predict_novelties(scaled_test_dataset)
     # almost every output is a novelty
     assert out_dataset[NoveltyDetector._NOVELTY_OUTPUT_VAR].mean() >= 1 - epsilon
     assert out_dataset[NoveltyDetector._NOVELTY_OUTPUT_VAR].mean() > 0
