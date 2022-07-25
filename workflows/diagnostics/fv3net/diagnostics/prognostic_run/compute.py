@@ -22,6 +22,7 @@ import xarray as xr
 from dask.diagnostics import ProgressBar
 import fsspec
 from joblib import Parallel, delayed
+from time import time
 
 
 from typing import Optional, Mapping, MutableMapping, Union, Tuple, Sequence
@@ -53,6 +54,19 @@ from fv3net.artifacts.metadata import StepMetadata
 import logging
 
 logger = logging.getLogger("SaveDiags")
+
+
+def timer(func):
+    # This function shows the execution time of
+    # the function object passed
+    def wrap_func(*args, **kwargs):
+        t1 = time()
+        result = func(*args, **kwargs)
+        t2 = time()
+        logger.info(f"{func.__name__!r} executed in {(t2-t1):.4f}s")
+        return result
+
+    return wrap_func
 
 
 def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
@@ -197,6 +211,7 @@ def rms_errors(diag_arg: DiagArg):
 @registry_2d.register("zonal_and_time_mean")
 @transform.apply(transform.resample_time, "1H")
 @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
+@timer
 def zonal_means_2d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (2d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
@@ -210,6 +225,7 @@ def zonal_means_2d(diag_arg: DiagArg):
 @transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
 @transform.apply(transform.skip_if_3d_output_absent)
 @transform.apply(transform.resample_time, "3H")
+@timer
 def zonal_means_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (3d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
@@ -224,6 +240,7 @@ def zonal_means_3d(diag_arg: DiagArg):
 @transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
 @transform.apply(transform.skip_if_3d_output_absent)
 @transform.apply(transform.resample_time, "3H", inner_join=True)
+@timer
 def zonal_bias_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal mean bias (3d)")
     prognostic, verification, grid = (
@@ -247,6 +264,7 @@ def zonal_bias_3d(diag_arg: DiagArg):
 @registry_2d.register("zonal_bias")
 @transform.apply(transform.resample_time, "1H")
 @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
+@timer
 def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
     prognostic, verification, grid = (
         diag_arg.prediction,
@@ -271,6 +289,7 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
 @transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
 @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
+@timer
 def zonal_mean_hovmoller(diag_arg: DiagArg):
     logger.info(f"Preparing zonal mean values (2d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
@@ -287,6 +306,7 @@ def zonal_mean_hovmoller(diag_arg: DiagArg):
 @transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
 @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
+@timer
 def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
 
     logger.info(f"Preparing zonal mean biases (2d)")
