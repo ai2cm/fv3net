@@ -67,7 +67,7 @@ class State:
     def load(self, url):
         prognostic = load_run_data.SegmentedRun(url, catalog)
         self.data_3d = prognostic.data_3d.merge(grid)
-        self.data_2d = prognostic.data_2d.merge(grid, compat="override")
+        self.data_2d = grid.merge(prognostic.data_2d, compat="override")
 
     def print(self):
         print("3D Variables:")
