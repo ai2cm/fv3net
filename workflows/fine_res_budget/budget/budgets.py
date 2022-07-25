@@ -281,7 +281,9 @@ def compute_recoarsened_budget_inputs(
     raw_second_moments = compute_second_moments(middle, second_moments)
     raw_storage_terms = compute_storage_terms(merged, storage_terms, dt)
     raw_fields = raw_first_moments + raw_second_moments + raw_storage_terms
-    coarsened = coarsen_variables(raw_fields, delp_fine, delp_coarse, area, factor)
+    coarsened = coarsen_variables(
+        raw_fields, delp_fine, delp_coarse, area, factor, grid
+    )
 
     exposed_area_c384 = middle["exposed_area_coarse"]
     exposed_area = grid.area_above_fine_surface(
