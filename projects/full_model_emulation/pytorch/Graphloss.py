@@ -26,6 +26,7 @@ class LossConfig:
     """
     Attributes:
         loss_type: one of "mse" or "mae"
+        multistep: number of successive loss calculation before each optimization
     """
 
     multistep: int = 6
@@ -36,11 +37,6 @@ class LossConfig:
             raise ValueError(
                 f"loss_type must be 'mse' or 'mae', got '{self.loss_type}'"
             )
-        # if self.scaling not in ("standard", "standard_uniform"):
-        #     raise ValueError(
-        #         "loss_type must be 'standard' or 'standard_uniform', "
-        #         f"got '{self.scaling}'"
-        #     )
 
     def loss(self):
         """
@@ -50,7 +46,7 @@ class LossConfig:
             std: standard deviation of the output features
 
         Returns:
-            loss: keras loss function
+            loss: pytorch loss function
         """
         if self.loss_type == "mse":
             loss = _standard_mse()

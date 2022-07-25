@@ -18,12 +18,13 @@ class GraphNetworkConfig:
         in_feats: numbe rof input features
     """
 
-    activation: Callable
+    
     in_feats: int = 2
     out_feats: int = 2
     n_hidden: int = 256
     n_layers: int = 4
     dropout: float = 0.0
+    activation: Callable = torch.nn.ReLU
 
 
 class graphnetwork(nn.Module):
