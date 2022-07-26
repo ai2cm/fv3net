@@ -1,8 +1,8 @@
 # submit with
 # python3 argo/end_to_end.py train/precpd-only.yaml
 kind: prognostic
-experiment: gscond-precpd
-name: gscond-only-classifier-zcloud-online-10d-v4
+experiment: pscaling-test
+name: gscond-only-tscale-zcloud-oldrerun-v1
 image_tag: latest
 config:
   base_version: v0.5
@@ -69,7 +69,7 @@ config:
     chunks:
       time: 24
     times:
-      frequency: 900
+      frequency: 10800
       kind: interval
     variables:
     - {module_name: dynamics, field_name: grid_lont, output_name: lon}
@@ -116,7 +116,7 @@ config:
     chunks:
       time: 24
     times:
-      frequency: 900
+      frequency: 10800
       kind: interval
     variables:
     - {module_name: dynamics, field_name: grid_lont, output_name: lon}
