@@ -54,7 +54,12 @@ from phys_const import con_amd, con_amw, con_amo3, con_g, con_cp, con_avgd
 from util import compare_data
 from config import *
 
-@jit(nopython=True)
+ngs = np.array(ngs)
+ng = np.array(ng)
+nspa = np.array(nspa)
+nspb = np.array(nspb)
+
+@jit(nopython=True, cache=True)
 def vrtqdr(zrefb, zrefd, ztrab, ztrad, zldbt, ztdbt, nlay, nlp1):
 
     #  ---  outputs:
@@ -113,7 +118,7 @@ def vrtqdr(zrefb, zrefd, ztrab, ztrad, zldbt, ztdbt, nlay, nlp1):
     return zfu, zfd
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def spcvrtm(
         ssolar,
         cosz,
@@ -790,7 +795,7 @@ def spcvrtm(
             suvbf0,
         )
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def mcica_subcol(iovrsw, cldf, nlay, ipseed, dz, de_lgth, ipt,rand2d):
         rand2d = rand2d[ipt, :] 
 
@@ -835,7 +840,7 @@ def mcica_subcol(iovrsw, cldf, nlay, ipseed, dz, de_lgth, ipt,rand2d):
 
         return lcloudy
     
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def cldprop(
         cfrac,
         cliqp,
@@ -1177,8 +1182,12 @@ def cldprop(
 
         return taucw, ssacw, asycw, cldfrc, cldfmc
 
-
+@jit(nopython=True, cache=True)
 def taumol(
+        nspa,
+        nspb,
+        ng,
+        ngs,
         colamt,
         colmol,
         fac00,
@@ -1844,7 +1853,7 @@ def taumol(
 
         return sfluxzen, taug, taur
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol16(
         strrat,
         colamt,
@@ -1955,7 +1964,7 @@ def taumol16(
 
 # The subroutine computes the optical depth in band 17:  3250-4000
 # cm-1 (low - h2o,co2; high - h2o,co2)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol17(
         strrat,
         colamt,
@@ -2102,7 +2111,7 @@ def taumol17(
 
 # The subroutine computes the optical depth in band 18:  4000-4650
 # cm-1 (low - h2o,ch4; high - ch4)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol18(
         strrat,
         colamt,
@@ -2221,7 +2230,7 @@ def taumol18(
 
 # The subroutine computes the optical depth in band 19:  4650-5150
 # cm-1 (low - h2o,co2; high - co2)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol19(
         strrat,
         colamt,
@@ -2338,7 +2347,7 @@ def taumol19(
 
 # The subroutine computes the optical depth in band 20:  5150-6150
 # cm-1 (low - h2o; high - h2o)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol20(
         strrat,
         colamt,
@@ -2450,7 +2459,7 @@ def taumol20(
 
 # The subroutine computes the optical depth in band 21:  6150-7700
 # cm-1 (low - h2o,co2; high - h2o,co2)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol21(
         strrat,
         colamt,
@@ -2596,7 +2605,7 @@ def taumol21(
 
 # The subroutine computes the optical depth in band 22:  7700-8050
 # cm-1 (low - h2o,o2; high - o2)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol22(
         strrat,
         colamt,
@@ -2736,7 +2745,7 @@ def taumol22(
 
 # The subroutine computes the optical depth in band 23:  8050-12850
 # cm-1 (low - h2o; high - nothing)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol23(
         strrat,
         colamt,
@@ -2822,7 +2831,7 @@ def taumol23(
 
 # The subroutine computes the optical depth in band 24:  12850-16000
 # cm-1 (low - h2o,o2; high - o2)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol24(
         strrat,
         colamt,
@@ -2954,7 +2963,7 @@ def taumol24(
 
 # The subroutine computes the optical depth in band 25:  16000-22650
 # cm-1 (low - h2o; high - nothing)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol25(
         strrat,
         colamt,
@@ -3025,7 +3034,7 @@ def taumol25(
 
 # The subroutine computes the optical depth in band 26:  22650-29000
 # cm-1 (low - nothing; high - nothing)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol26(
         strrat,
         colamt,
@@ -3072,7 +3081,7 @@ def taumol26(
 
 # The subroutine computes the optical depth in band 27:  29000-38000
 # cm-1 (low - o3; high - o3)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol27(
         strrat,
         colamt,
@@ -3148,7 +3157,7 @@ def taumol27(
 
 # The subroutine computes the optical depth in band 28:  38000-50000
 # cm-1 (low - o3,o2; high - o3,o2)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol28(
         strrat,
         colamt,
@@ -3272,7 +3281,7 @@ def taumol28(
 
 # The subroutine computes the optical depth in band 29:  820-2600
 # cm-1 (low - h2o; high - co2)
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def taumol29(
         strrat,
         colamt,
@@ -4009,6 +4018,10 @@ class RadSWClass:
             # -# Call taumol() to calculate optical depths for gaseous absorption
             #    and rayleigh scattering
             sfluxzen, taug, taur = taumol(
+                nspa,
+                nspb,
+                ng,
+                ngs,
                 colamt,
                 colmol,
                 fac00,
