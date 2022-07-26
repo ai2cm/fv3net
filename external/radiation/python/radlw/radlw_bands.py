@@ -2482,6 +2482,7 @@ def taugb10(
 
 # Band 11:  1480-1800 cm-1 (low - h2o; low minor - o2)
 #                          (high key - h2o; high minor - o2)
+@numba.njit
 def taugb11(
         laytrop,
         pavel,
@@ -2532,85 +2533,87 @@ def taugb11(
         #     upper - o2, p = 4.758820 mbarm t = 250.85 k
 
         #  --- ...  lower atmosphere loop
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * nspa[10]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * nspa[10]
+        for k in range(laytrop):
+            ind0 = ((jp[k] - 1) * 5 + (jt[k] - 1)) * nspa[10]
+            ind1 = (jp[k] * 5 + (jt1[k] - 1)) * nspa[10]
 
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indm = indminor[k] - 1
+            ind0p = ind0 + 1
+            ind1p = ind1 + 1
+            indsp = inds + 1
+            indfp = indf + 1
+            indmp = indm + 1
 
-        scaleo2 = colamt[:laytrop, 5] * scaleminor[:laytrop]
+            scaleo2 = colamt[k, 5] * scaleminor[k]
 
-        for ig in range(ng11):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            tauo2 = scaleo2 * (
-                ka_mo2[ig, indm]
-                + minorfrac[:laytrop] * (ka_mo2[ig, indmp] - ka_mo2[ig, indm])
-            )
-
-            taug[ns11 + ig, :laytrop] = (
-                colamt[:laytrop, 0]
-                * (
-                    fac00[:laytrop] * absa[ig, ind0]
-                    + fac10[:laytrop] * absa[ig, ind0p]
-                    + fac01[:laytrop] * absa[ig, ind1]
-                    + fac11[:laytrop] * absa[ig, ind1p]
+            for ig in range(ng11):
+                tauself = selffac[k] * (
+                    selfref[ig, inds]
+                    + selffrac[k] * (selfref[ig, indsp] - selfref[ig, inds])
                 )
-                + tauself
-                + taufor
-                + tauo2
-            )
-
-            fracs[ns11 + ig, :laytrop] = fracrefa[ig]
-
-        #  --- ...  upper atmosphere loop
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * nspb[10]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * nspb[10]
-
-        indf = indfor[laytrop:nlay] - 1
-        indm = indminor[laytrop:nlay] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indfp = indf + 1
-        indmp = indm + 1
-
-        scaleo2 = colamt[laytrop:nlay, 5] * scaleminor[laytrop:nlay]
-
-        for ig in range(ng11):
-            taufor = forfac[laytrop:nlay] * (
-                forref[ig, indf]
-                + forfrac[laytrop:nlay] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            tauo2 = scaleo2 * (
-                kb_mo2[ig, indm]
-                + minorfrac[laytrop:nlay] * (kb_mo2[ig, indmp] - kb_mo2[ig, indm])
-            )
-
-            taug[ns11 + ig, laytrop:nlay] = (
-                colamt[laytrop:nlay, 0]
-                * (
-                    fac00[laytrop:nlay] * absb[ig, ind0]
-                    + fac10[laytrop:nlay] * absb[ig, ind0p]
-                    + fac01[laytrop:nlay] * absb[ig, ind1]
-                    + fac11[laytrop:nlay] * absb[ig, ind1p]
+                taufor = forfac[k] * (
+                    forref[ig, indf]
+                    + forfrac[k] * (forref[ig, indfp] - forref[ig, indf])
                 )
-                + taufor
-                + tauo2
-            )
+                tauo2 = scaleo2 * (
+                    ka_mo2[ig, indm]
+                    + minorfrac[k] * (ka_mo2[ig, indmp] - ka_mo2[ig, indm])
+                )
 
-            fracs[ns11 + ig, laytrop:nlay] = fracrefb[ig]
+                taug[ns11 + ig, k] = (
+                    colamt[k, 0]
+                    * (
+                        fac00[k] * absa[ig, ind0]
+                        + fac10[k] * absa[ig, ind0p]
+                        + fac01[k] * absa[ig, ind1]
+                        + fac11[k] * absa[ig, ind1p]
+                    )
+                    + tauself
+                    + taufor
+                    + tauo2
+                )
+
+                fracs[ns11 + ig, k] = fracrefa[ig]
+
+            #  --- ...  upper atmosphere loop
+        for k in range(laytrop, nlay):
+            ind0 = ((jp[k] - 13) * 5 + (jt[k] - 1)) * nspb[10]
+            ind1 = ((jp[k] - 12) * 5 + (jt1[k] - 1)) * nspb[10]
+
+            indf = indfor[k] - 1
+            indm = indminor[k] - 1
+            ind0p = ind0 + 1
+            ind1p = ind1 + 1
+            indfp = indf + 1
+            indmp = indm + 1
+
+            scaleo2 = colamt[k, 5] * scaleminor[k]
+
+            for ig in range(ng11):
+                taufor = forfac[k] * (
+                    forref[ig, indf]
+                    + forfrac[k] * (forref[ig, indfp] - forref[ig, indf])
+                )
+                tauo2 = scaleo2 * (
+                    kb_mo2[ig, indm]
+                    + minorfrac[k] * (kb_mo2[ig, indmp] - kb_mo2[ig, indm])
+                )
+
+                taug[ns11 + ig, k] = (
+                    colamt[k, 0]
+                    * (
+                        fac00[k] * absb[ig, ind0]
+                        + fac10[k] * absb[ig, ind0p]
+                        + fac01[k] * absb[ig, ind1]
+                        + fac11[k] * absb[ig, ind1p]
+                    )
+                    + taufor
+                    + tauo2
+                )
+
+                fracs[ns11 + ig, k] = fracrefb[ig]
 
         return taug, fracs
 
