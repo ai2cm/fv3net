@@ -1,6 +1,5 @@
 
-stats.csv: query_prog_run_location.sql example.db
-	python3 2_wandb_to_sqlite.py
+stats.csv: query.sql
 	sqlite3  example.db < $<
 
 example.db: build_db.sh
