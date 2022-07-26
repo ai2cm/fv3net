@@ -390,348 +390,346 @@ def taugb03(
         #  --- ...  minor gas mapping levels:
         #     lower - n2o, p = 706.272 mbar, t = 278.94 k
         #     upper - n2o, p = 95.58 mbar, t = 215.7 k
-
-
-
         refrat_planck_a = chi_mls[0, 8] / chi_mls[1, 8]  # P = 212.725 mb
         refrat_planck_b = chi_mls[0, 12] / chi_mls[1, 12]  # P = 95.58   mb
         refrat_m_a = chi_mls[0, 2] / chi_mls[1, 2]  # P = 706.270 mb
         refrat_m_b = chi_mls[0, 12] / chi_mls[1, 12]  # P = 95.58   mb
 
-        #  --- ...  lower atmosphere loop
+        for k in range(laytrop):
 
-        speccomb = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 0] * colamt[:laytrop, 1]
-        specparm = colamt[:laytrop, 0] / speccomb
-        specmult = 8.0 * np.minimum(specparm, oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * nspa[2] + js - 1
+            speccomb = colamt[k, 0] + rfrate[k, 0, 0] * colamt[k, 1]
+            specparm = colamt[k, 0] / speccomb
+            specmult = 8.0 * np.minimum(specparm, oneminus)
+            js = 1 + specmult.astype(np.int32)
+            fs = specmult % 1.0
+            ind0 = ((jp[k] - 1) * 5 + (jt[k] - 1)) * nspa[2] + js - 1
 
-        speccomb1 = colamt[:laytrop, 0] + rfrate[:laytrop, 0, 1] * colamt[:laytrop, 1]
-        specparm1 = colamt[:laytrop, 0] / speccomb1
-        specmult1 = 8.0 * np.minimum(specparm1, oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * nspa[2] + js1 - 1
+            speccomb1 = colamt[k, 0] + rfrate[k, 0, 1] * colamt[k, 1]
+            specparm1 = colamt[k, 0] / speccomb1
+            specmult1 = 8.0 * np.minimum(specparm1, oneminus)
+            js1 = 1 + specmult1.astype(np.int32)
+            fs1 = specmult1 % 1.0
+            ind1 = (jp[k] * 5 + (jt1[k] - 1)) * nspa[2] + js1 - 1
 
-        speccomb_mn2o = colamt[:laytrop, 0] + refrat_m_a * colamt[:laytrop, 1]
-        specparm_mn2o = colamt[:laytrop, 0] / speccomb_mn2o
-        specmult_mn2o = 8.0 * np.minimum(specparm_mn2o, oneminus)
-        jmn2o = 1 + specmult_mn2o.astype(np.int32) - 1
-        fmn2o = specmult_mn2o % 1.0
+            speccomb_mn2o = colamt[k, 0] + refrat_m_a * colamt[k, 1]
+            specparm_mn2o = colamt[k, 0] / speccomb_mn2o
+            specmult_mn2o = 8.0 * np.minimum(specparm_mn2o, oneminus)
+            jmn2o = 1 + specmult_mn2o.astype(np.int32) - 1
+            fmn2o = specmult_mn2o % 1.0
 
-        speccomb_planck = colamt[:laytrop, 0] + refrat_planck_a * colamt[:laytrop, 1]
-        specparm_planck = colamt[:laytrop, 0] / speccomb_planck
-        specmult_planck = 8.0 * np.minimum(specparm_planck, oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
+            speccomb_planck = colamt[k, 0] + refrat_planck_a * colamt[k, 1]
+            specparm_planck = colamt[k, 0] / speccomb_planck
+            specmult_planck = 8.0 * np.minimum(specparm_planck, oneminus)
+            jpl = 1 + specmult_planck.astype(np.int32) - 1
+            fpl = specmult_planck % 1.0
 
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-        jmn2op = jmn2o + 1
-        jplp = jpl + 1
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indm = indminor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+            indmp = indm + 1
+            jmn2op = jmn2o + 1
+            jplp = jpl + 1
 
-        #  --- ...  in atmospheres where the amount of n2O is too great to be considered
-        #           a minor species, adjust the column amount of n2O by an empirical factor
-        #           to obtain the proper contribution.
+            #  --- ...  in atmospheres where the amount of n2O is too great to be considered
+            #           a minor species, adjust the column amount of n2O by an empirical factor
+            #           to obtain the proper contribution.
 
-        p = coldry[:laytrop] * chi_mls[3, jp[:laytrop]]
-        ratn2o = colamt[:laytrop, 3] / p
+            p = coldry[k] * chi_mls[3, jp[k]]
+            ratn2o = colamt[k, 3] / p
 
-        adjcoln2o = np.where(
-            ratn2o > 1.5, (0.5 + (ratn2o - 0.5) ** 0.65) * p, colamt[:laytrop, 3]
-        )
-
-        p = np.where(specparm < 0.125, fs - 1.0, 0) + np.where(specparm > 0.875, -fs, 0)
-        p = np.where(p == 0, 0, p)
-
-        p4 = np.where(specparm < 0.125, p ** 4, 0) + np.where(
-            specparm > 0.875, p ** 4, 0
-        )
-        p4 = np.where(p4 == 0, 0, p4)
-
-        fk0 = np.where(specparm < 0.125, p4, 0) + np.where(specparm > 0.875, p ** 4, 0)
-        fk0 = np.where(fk0 == 0, 1.0 - fs, fk0)
-
-        fk1 = np.where(specparm < 0.125, 1.0 - p - 2.0 * p4, 0) + np.where(
-            specparm > 0.875, 1.0 - p - 2.0 * p4, 0
-        )
-        fk1 = np.where(fk1 == 0, fs, fk1)
-
-        fk2 = np.where(specparm < 0.125, p + p4, 0) + np.where(
-            specparm > 0.875, p + p4, 0
-        )
-        fk2 = np.where(fk2 == 0, 0.0, fk2)
-
-        id000 = np.where(specparm < 0.125, ind0, 0) + np.where(
-            specparm > 0.875, ind0 + 1, 0
-        )
-        id000 = np.where(id000 == 0, ind0, id000)
-
-        id010 = np.where(specparm < 0.125, ind0 + 9, 0) + np.where(
-            specparm > 0.875, ind0 + 10, 0
-        )
-        id010 = np.where(id010 == 0, ind0 + 9, id010)
-
-        id100 = np.where(specparm < 0.125, ind0 + 1, 0) + np.where(
-            specparm > 0.875, ind0, 0
-        )
-        id100 = np.where(id100 == 0, ind0 + 1, id100)
-
-        id110 = np.where(specparm < 0.125, ind0 + 10, 0) + np.where(
-            specparm > 0.875, ind0 + 9, 0
-        )
-        id110 = np.where(id110 == 0, ind0 + 10, id110)
-
-        id200 = np.where(specparm < 0.125, ind0 + 2, 0) + np.where(
-            specparm > 0.875, ind0 - 1, 0
-        )
-        id200 = np.where(id200 == 0, ind0, id200)
-
-        id210 = np.where(specparm < 0.125, ind0 + 11, 0) + np.where(
-            specparm > 0.875, ind0 + 8, 0
-        )
-        id210 = np.where(id210 == 0, ind0, id210)
-
-        fac000 = fk0 * fac00[:laytrop]
-        fac100 = fk1 * fac00[:laytrop]
-        fac200 = fk2 * fac00[:laytrop]
-        fac010 = fk0 * fac10[:laytrop]
-        fac110 = fk1 * fac10[:laytrop]
-        fac210 = fk2 * fac10[:laytrop]
-
-        p = np.where(specparm1 < 0.125, fs1 - 1.0, 0) + np.where(
-            specparm1 > 0.875, -fs1, 0
-        )
-        p = np.where(p == 0, 0, p)
-
-        p4 = np.where(specparm1 < 0.125, p ** 4, 0) + np.where(
-            specparm1 > 0.875, p ** 4, 0
-        )
-        p4 = np.where(p4 == 0, 0, p4)
-
-        fk0 = np.where(specparm1 < 0.125, p4, 0) + np.where(
-            specparm1 > 0.875, p ** 4, 0
-        )
-        fk0 = np.where(fk0 == 0, 1.0 - fs1, fk0)
-
-        fk1 = np.where(specparm1 < 0.125, 1.0 - p - 2.0 * p4, 0) + np.where(
-            specparm1 > 0.875, 1.0 - p - 2.0 * p4, 0
-        )
-        fk1 = np.where(fk1 == 0, fs1, fk1)
-
-        fk2 = np.where(specparm1 < 0.125, p + p4, 0) + np.where(
-            specparm1 > 0.875, p + p4, 0
-        )
-        fk2 = np.where(fk2 == 0, 0.0, fk2)
-
-        id001 = np.where(specparm1 < 0.125, ind1, 0) + np.where(
-            specparm1 > 0.875, ind1 + 1, 0
-        )
-        id001 = np.where(id001 == 0, ind1, id001)
-
-        id011 = np.where(specparm1 < 0.125, ind1 + 9, 0) + np.where(
-            specparm1 > 0.875, ind1 + 10, 0
-        )
-        id011 = np.where(id011 == 0, ind1 + 9, id011)
-
-        id101 = np.where(specparm1 < 0.125, ind1 + 1, 0) + np.where(
-            specparm1 > 0.875, ind1, 0
-        )
-        id101 = np.where(id101 == 0, ind1 + 1, id101)
-
-        id111 = np.where(specparm1 < 0.125, ind1 + 10, 0) + np.where(
-            specparm1 > 0.875, ind1 + 9, 0
-        )
-        id111 = np.where(id111 == 0, ind1 + 10, id111)
-
-        id201 = np.where(specparm1 < 0.125, ind1 + 2, 0) + np.where(
-            specparm1 > 0.875, ind1 - 1, 0
-        )
-        id201 = np.where(id201 == 0, ind1, id201)
-
-        id211 = np.where(specparm1 < 0.125, ind1 + 11, 0) + np.where(
-            specparm1 > 0.875, ind1 + 8, 0
-        )
-        id211 = np.where(id211 == 0, ind1, id211)
-
-        fac001 = fk0 * fac01[:laytrop]
-        fac101 = fk1 * fac01[:laytrop]
-        fac201 = fk2 * fac01[:laytrop]
-        fac011 = fk0 * fac11[:laytrop]
-        fac111 = fk1 * fac11[:laytrop]
-        fac211 = fk2 * fac11[:laytrop]
-
-        for ig in range(ng03):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            n2om1 = ka_mn2o[ig, jmn2o, indm] + fmn2o * (
-                ka_mn2o[ig, jmn2op, indm] - ka_mn2o[ig, jmn2o, indm]
-            )
-            n2om2 = ka_mn2o[ig, jmn2o, indmp] + fmn2o * (
-                ka_mn2o[ig, jmn2op, indmp] - ka_mn2o[ig, jmn2o, indmp]
-            )
-            absn2o = n2om1 + minorfrac[:laytrop] * (n2om2 - n2om1)
-
-            tau_major = speccomb * (
-                fac000 * absa[ig, id000]
-                + fac010 * absa[ig, id010]
-                + fac100 * absa[ig, id100]
-                + fac110 * absa[ig, id110]
-                + fac200 * absa[ig, id200]
-                + fac210 * absa[ig, id210]
+            adjcoln2o = np.where(
+                ratn2o > 1.5, (0.5 + (ratn2o - 0.5) ** 0.65) * p, colamt[k, 3]
             )
 
-            tau_major1 = speccomb1 * (
-                fac001 * absa[ig, id001]
-                + fac011 * absa[ig, id011]
-                + fac101 * absa[ig, id101]
-                + fac111 * absa[ig, id111]
-                + fac201 * absa[ig, id201]
-                + fac211 * absa[ig, id211]
-            )
+            p = np.where(specparm < 0.125, fs - 1.0, 0) + np.where(specparm > 0.875, -fs, 0)
+            p = np.where(p == 0, 0, p)
 
-            taug[ns03 + ig, :laytrop] = (
-                tau_major + tau_major1 + tauself + taufor + adjcoln2o * absn2o
+            p4 = np.where(specparm < 0.125, p ** 4, 0) + np.where(
+                specparm > 0.875, p ** 4, 0
             )
+            p4 = np.where(p4 == 0, 0, p4)
 
-            fracs[ns03 + ig, :laytrop] = fracrefa[ig, jpl] + fpl * (
-                fracrefa[ig, jplp] - fracrefa[ig, jpl]
+            fk0 = np.where(specparm < 0.125, p4, 0) + np.where(specparm > 0.875, p ** 4, 0)
+            fk0 = np.where(fk0 == 0, 1.0 - fs, fk0)
+
+            fk1 = np.where(specparm < 0.125, 1.0 - p - 2.0 * p4, 0) + np.where(
+                specparm > 0.875, 1.0 - p - 2.0 * p4, 0
             )
+            fk1 = np.where(fk1 == 0, fs, fk1)
+
+            fk2 = np.where(specparm < 0.125, p + p4, 0) + np.where(
+                specparm > 0.875, p + p4, 0
+            )
+            fk2 = np.where(fk2 == 0, 0.0, fk2)
+
+            id000 = np.where(specparm < 0.125, ind0, 0) + np.where(
+                specparm > 0.875, ind0 + 1, 0
+            )
+            id000 = np.where(id000 == 0, ind0, id000)
+
+            id010 = np.where(specparm < 0.125, ind0 + 9, 0) + np.where(
+                specparm > 0.875, ind0 + 10, 0
+            )
+            id010 = np.where(id010 == 0, ind0 + 9, id010)
+
+            id100 = np.where(specparm < 0.125, ind0 + 1, 0) + np.where(
+                specparm > 0.875, ind0, 0
+            )
+            id100 = np.where(id100 == 0, ind0 + 1, id100)
+
+            id110 = np.where(specparm < 0.125, ind0 + 10, 0) + np.where(
+                specparm > 0.875, ind0 + 9, 0
+            )
+            id110 = np.where(id110 == 0, ind0 + 10, id110)
+
+            id200 = np.where(specparm < 0.125, ind0 + 2, 0) + np.where(
+                specparm > 0.875, ind0 - 1, 0
+            )
+            id200 = np.where(id200 == 0, ind0, id200)
+
+            id210 = np.where(specparm < 0.125, ind0 + 11, 0) + np.where(
+                specparm > 0.875, ind0 + 8, 0
+            )
+            id210 = np.where(id210 == 0, ind0, id210)
+
+            fac000 = fk0 * fac00[k]
+            fac100 = fk1 * fac00[k]
+            fac200 = fk2 * fac00[k]
+            fac010 = fk0 * fac10[k]
+            fac110 = fk1 * fac10[k]
+            fac210 = fk2 * fac10[k]
+
+            p = np.where(specparm1 < 0.125, fs1 - 1.0, 0) + np.where(
+                specparm1 > 0.875, -fs1, 0
+            )
+            p = np.where(p == 0, 0, p)
+
+            p4 = np.where(specparm1 < 0.125, p ** 4, 0) + np.where(
+                specparm1 > 0.875, p ** 4, 0
+            )
+            p4 = np.where(p4 == 0, 0, p4)
+
+            fk0 = np.where(specparm1 < 0.125, p4, 0) + np.where(
+                specparm1 > 0.875, p ** 4, 0
+            )
+            fk0 = np.where(fk0 == 0, 1.0 - fs1, fk0)
+
+            fk1 = np.where(specparm1 < 0.125, 1.0 - p - 2.0 * p4, 0) + np.where(
+                specparm1 > 0.875, 1.0 - p - 2.0 * p4, 0
+            )
+            fk1 = np.where(fk1 == 0, fs1, fk1)
+
+            fk2 = np.where(specparm1 < 0.125, p + p4, 0) + np.where(
+                specparm1 > 0.875, p + p4, 0
+            )
+            fk2 = np.where(fk2 == 0, 0.0, fk2)
+
+            id001 = np.where(specparm1 < 0.125, ind1, 0) + np.where(
+                specparm1 > 0.875, ind1 + 1, 0
+            )
+            id001 = np.where(id001 == 0, ind1, id001)
+
+            id011 = np.where(specparm1 < 0.125, ind1 + 9, 0) + np.where(
+                specparm1 > 0.875, ind1 + 10, 0
+            )
+            id011 = np.where(id011 == 0, ind1 + 9, id011)
+
+            id101 = np.where(specparm1 < 0.125, ind1 + 1, 0) + np.where(
+                specparm1 > 0.875, ind1, 0
+            )
+            id101 = np.where(id101 == 0, ind1 + 1, id101)
+
+            id111 = np.where(specparm1 < 0.125, ind1 + 10, 0) + np.where(
+                specparm1 > 0.875, ind1 + 9, 0
+            )
+            id111 = np.where(id111 == 0, ind1 + 10, id111)
+
+            id201 = np.where(specparm1 < 0.125, ind1 + 2, 0) + np.where(
+                specparm1 > 0.875, ind1 - 1, 0
+            )
+            id201 = np.where(id201 == 0, ind1, id201)
+
+            id211 = np.where(specparm1 < 0.125, ind1 + 11, 0) + np.where(
+                specparm1 > 0.875, ind1 + 8, 0
+            )
+            id211 = np.where(id211 == 0, ind1, id211)
+
+            fac001 = fk0 * fac01[k]
+            fac101 = fk1 * fac01[k]
+            fac201 = fk2 * fac01[k]
+            fac011 = fk0 * fac11[k]
+            fac111 = fk1 * fac11[k]
+            fac211 = fk2 * fac11[k]
+
+            for ig in range(ng03):
+                tauself = selffac[k] * (
+                    selfref[ig, inds]
+                    + selffrac[k] * (selfref[ig, indsp] - selfref[ig, inds])
+                )
+                taufor = forfac[k] * (
+                    forref[ig, indf]
+                    + forfrac[k] * (forref[ig, indfp] - forref[ig, indf])
+                )
+                n2om1 = ka_mn2o[ig, jmn2o, indm] + fmn2o * (
+                    ka_mn2o[ig, jmn2op, indm] - ka_mn2o[ig, jmn2o, indm]
+                )
+                n2om2 = ka_mn2o[ig, jmn2o, indmp] + fmn2o * (
+                    ka_mn2o[ig, jmn2op, indmp] - ka_mn2o[ig, jmn2o, indmp]
+                )
+                absn2o = n2om1 + minorfrac[k] * (n2om2 - n2om1)
+
+                tau_major = speccomb * (
+                    fac000 * absa[ig, id000]
+                    + fac010 * absa[ig, id010]
+                    + fac100 * absa[ig, id100]
+                    + fac110 * absa[ig, id110]
+                    + fac200 * absa[ig, id200]
+                    + fac210 * absa[ig, id210]
+                )
+
+                tau_major1 = speccomb1 * (
+                    fac001 * absa[ig, id001]
+                    + fac011 * absa[ig, id011]
+                    + fac101 * absa[ig, id101]
+                    + fac111 * absa[ig, id111]
+                    + fac201 * absa[ig, id201]
+                    + fac211 * absa[ig, id211]
+                )
+
+                taug[ns03 + ig, k] = (
+                    tau_major + tau_major1 + tauself + taufor + adjcoln2o * absn2o
+                )
+
+                fracs[ns03 + ig, k] = fracrefa[ig, jpl] + fpl * (
+                    fracrefa[ig, jplp] - fracrefa[ig, jpl]
+                )
 
         #  --- ...  upper atmosphere loop
+        for k in range(laytrop, nlay):
 
-        speccomb = (
-            colamt[laytrop:nlay, 0]
-            + rfrate[laytrop:nlay, 0, 0] * colamt[laytrop:nlay, 1]
-        )
-        specparm = colamt[laytrop:nlay, 0] / speccomb
-        specmult = 4.0 * np.minimum(specparm, oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = (
-            ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * nspb[2]
-            + js
-            - 1
-        )
-
-        speccomb1 = (
-            colamt[laytrop:nlay, 0]
-            + rfrate[laytrop:nlay, 0, 1] * colamt[laytrop:nlay, 1]
-        )
-        specparm1 = colamt[laytrop:nlay, 0] / speccomb1
-        specmult1 = 4.0 * np.minimum(specparm1, oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (
-            ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * nspb[2]
-            + js1
-            - 1
-        )
-
-        speccomb_mn2o = colamt[laytrop:nlay, 0] + refrat_m_b * colamt[laytrop:nlay, 1]
-        specparm_mn2o = colamt[laytrop:nlay, 0] / speccomb_mn2o
-        specmult_mn2o = 4.0 * np.minimum(specparm_mn2o, oneminus)
-        jmn2o = 1 + specmult_mn2o.astype(np.int32) - 1
-        fmn2o = specmult_mn2o % 1.0
-
-        speccomb_planck = (
-            colamt[laytrop:nlay, 0] + refrat_planck_b * colamt[laytrop:nlay, 1]
-        )
-        specparm_planck = colamt[laytrop:nlay, 0] / speccomb_planck
-        specmult_planck = 4.0 * np.minimum(specparm_planck, oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-
-        indf = indfor[laytrop:nlay] - 1
-        indm = indminor[laytrop:nlay] - 1
-        indfp = indf + 1
-        indmp = indm + 1
-        jmn2op = jmn2o + 1
-        jplp = jpl + 1
-
-        id000 = ind0
-        id010 = ind0 + 5
-        id100 = ind0 + 1
-        id110 = ind0 + 6
-        id001 = ind1
-        id011 = ind1 + 5
-        id101 = ind1 + 1
-        id111 = ind1 + 6
-
-        #  --- ...  in atmospheres where the amount of n2o is too great to be considered
-        #           a minor species, adjust the column amount of N2O by an empirical factor
-        #           to obtain the proper contribution.
-
-        p = coldry[laytrop:nlay] * chi_mls[3, jp[laytrop:nlay]]
-        ratn2o = colamt[laytrop:nlay, 3] / p
-        adjcoln2o = np.where(
-            ratn2o > 1.5, (0.5 + (ratn2o - 0.5) ** 0.65) * p, colamt[laytrop:nlay, 3]
-        )
-        # if ratn2o > 1.5:
-        #     adjfac = 0.5 + (ratn2o - 0.5)**0.65
-        #     adjcoln2o = adjfac * p
-        # else:
-        #     adjcoln2o = colamt[laytrop:nlay, 3]
-
-        fk0 = 1.0 - fs
-        fk1 = fs
-        fac000 = fk0 * fac00[laytrop:nlay]
-        fac010 = fk0 * fac10[laytrop:nlay]
-        fac100 = fk1 * fac00[laytrop:nlay]
-        fac110 = fk1 * fac10[laytrop:nlay]
-
-        fk0 = 1.0 - fs1
-        fk1 = fs1
-        fac001 = fk0 * fac01[laytrop:nlay]
-        fac011 = fk0 * fac11[laytrop:nlay]
-        fac101 = fk1 * fac01[laytrop:nlay]
-        fac111 = fk1 * fac11[laytrop:nlay]
-
-        for ig in range(ng03):
-            taufor = forfac[laytrop:nlay] * (
-                forref[ig, indf]
-                + forfrac[laytrop:nlay] * (forref[ig, indfp] - forref[ig, indf])
+            speccomb = (
+                colamt[k, 0]
+                + rfrate[k, 0, 0] * colamt[k, 1]
             )
-            n2om1 = kb_mn2o[ig, jmn2o, indm] + fmn2o * (
-                kb_mn2o[ig, jmn2op, indm] - kb_mn2o[ig, jmn2o, indm]
-            )
-            n2om2 = kb_mn2o[ig, jmn2o, indmp] + fmn2o * (
-                kb_mn2o[ig, jmn2op, indmp] - kb_mn2o[ig, jmn2o, indmp]
-            )
-            absn2o = n2om1 + minorfrac[laytrop:nlay] * (n2om2 - n2om1)
-
-            tau_major = speccomb * (
-                fac000 * absb[ig, id000]
-                + fac010 * absb[ig, id010]
-                + fac100 * absb[ig, id100]
-                + fac110 * absb[ig, id110]
+            specparm = colamt[k, 0] / speccomb
+            specmult = 4.0 * np.minimum(specparm, oneminus)
+            js = 1 + specmult.astype(np.int32)
+            fs = specmult % 1.0
+            ind0 = (
+                ((jp[k] - 13) * 5 + (jt[k] - 1)) * nspb[2]
+                + js
+                - 1
             )
 
-            tau_major1 = speccomb1 * (
-                fac001 * absb[ig, id001]
-                + fac011 * absb[ig, id011]
-                + fac101 * absb[ig, id101]
-                + fac111 * absb[ig, id111]
+            speccomb1 = (
+                colamt[k, 0]
+                + rfrate[k, 0, 1] * colamt[k, 1]
+            )
+            specparm1 = colamt[k, 0] / speccomb1
+            specmult1 = 4.0 * np.minimum(specparm1, oneminus)
+            js1 = 1 + specmult1.astype(np.int32)
+            fs1 = specmult1 % 1.0
+            ind1 = (
+                ((jp[k] - 12) * 5 + (jt1[k] - 1)) * nspb[2]
+                + js1
+                - 1
             )
 
-            taug[ns03 + ig, laytrop:nlay] = (
-                tau_major + tau_major1 + taufor + adjcoln2o * absn2o
-            )
+            speccomb_mn2o = colamt[k, 0] + refrat_m_b * colamt[k, 1]
+            specparm_mn2o = colamt[k, 0] / speccomb_mn2o
+            specmult_mn2o = 4.0 * np.minimum(specparm_mn2o, oneminus)
+            jmn2o = 1 + specmult_mn2o.astype(np.int32) - 1
+            fmn2o = specmult_mn2o % 1.0
 
-            fracs[ns03 + ig, laytrop:nlay] = fracrefb[ig, jpl] + fpl * (
-                fracrefb[ig, jplp] - fracrefb[ig, jpl]
+            speccomb_planck = (
+                colamt[k, 0] + refrat_planck_b * colamt[k, 1]
             )
+            specparm_planck = colamt[k, 0] / speccomb_planck
+            specmult_planck = 4.0 * np.minimum(specparm_planck, oneminus)
+            jpl = 1 + specmult_planck.astype(np.int32) - 1
+            fpl = specmult_planck % 1.0
+
+            indf = indfor[k] - 1
+            indm = indminor[k] - 1
+            indfp = indf + 1
+            indmp = indm + 1
+            jmn2op = jmn2o + 1
+            jplp = jpl + 1
+
+            id000 = ind0
+            id010 = ind0 + 5
+            id100 = ind0 + 1
+            id110 = ind0 + 6
+            id001 = ind1
+            id011 = ind1 + 5
+            id101 = ind1 + 1
+            id111 = ind1 + 6
+
+            #  --- ...  in atmospheres where the amount of n2o is too great to be considered
+            #           a minor species, adjust the column amount of N2O by an empirical factor
+            #           to obtain the proper contribution.
+
+            p = coldry[k] * chi_mls[3, jp[k]]
+            ratn2o = colamt[k, 3] / p
+            adjcoln2o = np.where(
+                ratn2o > 1.5, (0.5 + (ratn2o - 0.5) ** 0.65) * p, colamt[k, 3]
+            )
+            # if ratn2o > 1.5:
+            #     adjfac = 0.5 + (ratn2o - 0.5)**0.65
+            #     adjcoln2o = adjfac * p
+            # else:
+            #     adjcoln2o = colamt[k, 3]
+
+            fk0 = 1.0 - fs
+            fk1 = fs
+            fac000 = fk0 * fac00[k]
+            fac010 = fk0 * fac10[k]
+            fac100 = fk1 * fac00[k]
+            fac110 = fk1 * fac10[k]
+
+            fk0 = 1.0 - fs1
+            fk1 = fs1
+            fac001 = fk0 * fac01[k]
+            fac011 = fk0 * fac11[k]
+            fac101 = fk1 * fac01[k]
+            fac111 = fk1 * fac11[k]
+
+            for ig in range(ng03):
+                taufor = forfac[k] * (
+                    forref[ig, indf]
+                    + forfrac[k] * (forref[ig, indfp] - forref[ig, indf])
+                )
+                n2om1 = kb_mn2o[ig, jmn2o, indm] + fmn2o * (
+                    kb_mn2o[ig, jmn2op, indm] - kb_mn2o[ig, jmn2o, indm]
+                )
+                n2om2 = kb_mn2o[ig, jmn2o, indmp] + fmn2o * (
+                    kb_mn2o[ig, jmn2op, indmp] - kb_mn2o[ig, jmn2o, indmp]
+                )
+                absn2o = n2om1 + minorfrac[k] * (n2om2 - n2om1)
+
+                tau_major = speccomb * (
+                    fac000 * absb[ig, id000]
+                    + fac010 * absb[ig, id010]
+                    + fac100 * absb[ig, id100]
+                    + fac110 * absb[ig, id110]
+                )
+
+                tau_major1 = speccomb1 * (
+                    fac001 * absb[ig, id001]
+                    + fac011 * absb[ig, id011]
+                    + fac101 * absb[ig, id101]
+                    + fac111 * absb[ig, id111]
+                )
+
+                taug[ns03 + ig, k] = (
+                    tau_major + tau_major1 + taufor + adjcoln2o * absn2o
+                )
+
+                fracs[ns03 + ig, k] = fracrefb[ig, jpl] + fpl * (
+                    fracrefb[ig, jplp] - fracrefb[ig, jpl]
+                )
 
         return taug, fracs
 
