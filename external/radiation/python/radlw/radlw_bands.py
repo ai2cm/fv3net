@@ -4,6 +4,7 @@ import sys
 import os
 import time
 import warnings
+import numba
 
 from radlw.radlw_param import (
     ntbl,
@@ -60,6 +61,7 @@ np.set_printoptions(precision=15)
 
 # band 1:  10-350 cm-1 (low key - h2o; low minor - n2);
 #  (high key - h2o; high minor - n2)
+# @numba.njit
 def taugb01(
         laytrop,
         pavel,
@@ -145,33 +147,34 @@ def taugb01(
         #     corradj = 1.0
 
         for ig in range(ng01):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            taun2 = scalen2 * (
-                ka_mn2[ig, indm]
-                + minorfrac[:laytrop] * (ka_mn2[ig, indmp] - ka_mn2[ig, indm])
-            )
-
-            taug[ig, :laytrop] = corradj * (
-                colamt[:laytrop, 0]
-                * (
-                    fac00[:laytrop] * absa[ig, ind0]
-                    + fac10[:laytrop] * absa[ig, ind0p]
-                    + fac01[:laytrop] * absa[ig, ind1]
-                    + fac11[:laytrop] * absa[ig, ind1p]
+            for k in range(laytrop):
+                tauself = selffac[k] * (
+                    selfref[ig, inds[k]]
+                    + selffrac[k] * (selfref[ig, indsp[k]] - selfref[ig, inds[k]])
                 )
-                + tauself
-                + taufor
-                + taun2
-            )
+                taufor = forfac[k] * (
+                    forref[ig, indf[k]]
+                    + forfrac[k] * (forref[ig, indfp[k]] - forref[ig, indf[k]])
+                )
+                taun2 = scalen2[k] * (
+                    ka_mn2[ig, indm[k]]
+                    + minorfrac[k] * (ka_mn2[ig, indmp[k]] - ka_mn2[ig, indm[k]])
+                )
 
-            fracs[ig, :laytrop] = fracrefa[ig]
+                taug[ig, k] = corradj[k] * (
+                    colamt[k, 0]
+                    * (
+                        fac00[k] * absa[ig, ind0[k]]
+                        + fac10[k] * absa[ig, ind0p[k]]
+                        + fac01[k] * absa[ig, ind1[k]]
+                        + fac11[k] * absa[ig, ind1p[k]]
+                    )
+                    + tauself
+                    + taufor
+                    + taun2
+                )
+
+                fracs[ig, k] = fracrefa[ig]
 
         #  --- ...  upper atmosphere loop
 
