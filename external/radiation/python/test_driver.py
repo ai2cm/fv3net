@@ -5,99 +5,47 @@ from util import compare_data
 import serialbox as ser
 from radiation_driver import RadiationDriver
 import time
-
 startTime = time.time()
 
-rank = 0
-driver = RadiationDriver()
+# defining useful functions
+def getscalars(indict):
+    for var in indict.keys():
+        if not type(indict[var]) == dict:
+            if indict[var].size == 1:
+                indict[var] = indict[var][0]
 
-serial = ser.Serializer(
-    ser.OpenModeKind.Read,
-    os.path.join(FORTRANDATA_DIR, "SW"),
-    "Generator_rank0",
-)
+    return indict
 
-si = serial.read("si", serial.savepoint["rad-initialize"])
-imp_physics = serial.read("imp_physics", serial.savepoint["rad-initialize"])
+def read_from_serializer(variables, serializer, in_out = 'in'):
+    out = {}
+    for var in variables:
+        out[var] = serializer.read(var, serializer.savepoint["driver-"+ in_out +"-000000"])
+    return out
 
-isolar = 2  # solar constant control flag
-ictmflg = 1  # data ic time/date control flag
-ico2flg = 2  # co2 data source control flag
-ioznflg = 7  # ozone data source control flag
-
-iaer = 111
-
-if ictmflg == 0 or ictmflg == -2:
-    iaerflg = iaer % 100  # no volcanic aerosols for clim hindcast
-else:
-    iaerflg = iaer % 1000
-
-iaermdl = iaer / 1000  # control flag for aerosol scheme selection
-if iaermdl < 0 or iaermdl > 2 and iaermdl != 5:
-    print("Error -- IAER flag is incorrect, Abort")
-
-iswcliq = 1  # optical property for liquid clouds for sw
-iovrsw = 1  # cloud overlapping control flag for sw
-iovrlw = 1  # cloud overlapping control flag for lw
-lcrick = False  # control flag for eliminating CRICK
-lcnorm = False  # control flag for in-cld condensate
-lnoprec = False  # precip effect on radiation flag (ferrier microphysics)
-isubcsw = 2  # sub-column cloud approx flag in sw radiation
-isubclw = 2  # sub-column cloud approx flag in lw radiation
-ialbflg = 1  # surface albedo control flag
-iemsflg = 1  # surface emissivity control flag
-icldflg = 1
-ivflip = 1  # vertical index direction control flag
-me = 0
-
-driver.radinit(
-    si,
-    nlay,
-    imp_physics,
-    me,
-    iemsflg,
-    ioznflg,
-    ictmflg,
-    isolar,
-    ico2flg,
-    iaerflg,
-    ialbflg,
-    icldflg,
-    ivflip,
-    iovrsw,
-    iovrlw,
-    isubcsw,
-    isubclw,
-    lcrick,
-    lcnorm,
-    lnoprec,
-    iswcliq,
-)
-
+## Defining variables 
 invars = ["idat", "jdat", "fhswr", "dtf", "lsswr"]
-updatedict = dict()
-
-for var in invars:
-    updatedict[var] = serial.read(var, serial.savepoint["rad-update"])
-
-slag, sdec, cdec, solcon = driver.radupdate(
-    updatedict["idat"],
-    updatedict["jdat"],
-    updatedict["fhswr"],
-    updatedict["dtf"],
-    updatedict["lsswr"],
-)
-
-columns_validated = 0
-
-for rank in range(6):
-    serializer = ser.Serializer(
-        ser.OpenModeKind.Read,
-        "../fortran/data/radiation_driver",
-        "Generator_rank" + str(rank),
-    )
-
-    model_vars = [
+statein_vars = [
+        "prsi",
+        "prsl",
+        "tgrs",
+        "prslk",
+        "qgrs",]
+sfcprop_vars = ["tsfc",
+        "slmsk",
+        "snowd",
+        "sncovr",
+        "snoalb",
+        "zorl",
+        "hprime",
+        "alvsf",
+        "alnsf",
+        "alvwf",
+        "alnwf",
+        "facsf",
+        "facwf",
+        "fice",
+        "tisfc",]
+model_vars = [
         "me",
         "levr",
         "levs",
@@ -136,49 +84,9 @@ for rank in range(6):
         "solcon",
         "lprnt",
         "lwhtr",
-        "lssav",
-    ]
+        "lssav",]
 
-    Model = dict()
-    for var in model_vars:
-        Model[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
-
-    statein_vars = [
-        "prsi",
-        "prsl",
-        "tgrs",
-        "prslk",
-        "qgrs",
-    ]
-
-    Statein = dict()
-    for var in statein_vars:
-        Statein[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
-
-    sfcprop_vars = [
-        "tsfc",
-        "slmsk",
-        "snowd",
-        "sncovr",
-        "snoalb",
-        "zorl",
-        "hprime",
-        "alvsf",
-        "alnsf",
-        "alvwf",
-        "alnwf",
-        "facsf",
-        "facwf",
-        "fice",
-        "tisfc",
-    ]
-
-    Sfcprop = dict()
-    for var in sfcprop_vars:
-        Sfcprop[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
-
-    coupling_vars = [
-        "nirbmdi",
+coupling_vars = ["nirbmdi",
         "nirdfdi",
         "visbmdi",
         "visdfdi",
@@ -188,83 +96,9 @@ for rank in range(6):
         "visdfui",
         "sfcnsw",
         "sfcdsw",
-        "sfcdlw",
-    ]
+        "sfcdlw",]
 
-    Coupling = dict()
-    for var in coupling_vars:
-        Coupling[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
-
-    grid_vars = [
-        "xlon",
-        "xlat",
-        "sinlat",
-        "coslat",
-    ]
-
-    Grid = dict()
-    for var in grid_vars:
-        Grid[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
-
-    tbd_vars = [
-        "phy_f3d",
-        "icsdsw",
-        "icsdlw",
-    ]
-
-    Tbd = dict()
-    for var in tbd_vars:
-        Tbd[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
-
-    radtend_vars = [
-        "coszen",
-        "coszdg",
-        "sfalb",
-        "htrsw",
-        "swhc",
-        "lwhc",
-        "semis",
-        "tsflw",
-    ]
-
-    Radtend = dict()
-    for var in radtend_vars:
-        Radtend[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
-
-    Radtend["sfcfsw"] = dict()
-    Radtend["sfcflw"] = dict()
-
-    diag_vars = ["fluxr"]
-    Diag = dict()
-    for var in diag_vars:
-        Diag[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
-
-    Diag["topflw"] = dict()
-    Diag["topfsw"] = dict()
-
-    def getscalars(indict):
-        for var in indict.keys():
-            if not type(indict[var]) == dict:
-                if indict[var].size == 1:
-                    indict[var] = indict[var][0]
-
-        return indict
-
-    Model = getscalars(Model)
-    Statein = getscalars(Statein)
-    Sfcprop = getscalars(Sfcprop)
-    Coupling = getscalars(Coupling)
-    Grid = getscalars(Grid)
-    Tbd = getscalars(Tbd)
-    Radtend = getscalars(Radtend)
-    Diag = getscalars(Diag)
-
-    Radtendout, Diagout = driver.GFS_radiation_driver(
-        Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag
-    )
-
-    radtend_vars_out = [
-        "upfxc_s_lw",
+radtend_vars_out = ["upfxc_s_lw",
         "upfx0_s_lw",
         "dnfxc_s_lw",
         "dnfx0_s_lw",
@@ -278,24 +112,164 @@ for rank in range(6):
         "semis",
         "tsflw",
         "htrlw",
-        "lwhc",
-    ]
+        "lwhc",]
 
-    diag_vars_out = [
+radtend_vars = ["coszen",
+        "coszdg",
+        "sfalb",
+        "htrsw",
+        "swhc",
+        "lwhc",
+        "semis",
+        "tsflw",]
+
+grid_vars = [
+        "xlon",
+        "xlat",
+        "sinlat",
+        "coslat",]
+
+diag_vars_out = [
         "fluxr",
         "upfxc_t_sw",
         "dnfxc_t_sw",
         "upfx0_t_sw",
         "upfxc_t_lw",
-        "upfx0_t_lw",
-    ]
+        "upfx0_t_lw",]
+
+tbd_vars = ["phy_f3d","icsdsw","icsdlw"]
+diag_vars = ["fluxr"]
+
+
+isolar = 2  # solar constant control flag
+ictmflg = 1  # data ic time/date control flag
+ico2flg = 2  # co2 data source control flag
+ioznflg = 7  # ozone data source control flag
+
+iaer = 111
+
+if ictmflg == 0 or ictmflg == -2:
+    iaerflg = iaer % 100  # no volcanic aerosols for clim hindcast
+else:
+    iaerflg = iaer % 1000
+
+iaermdl = iaer / 1000  # control flag for aerosol scheme selection
+if iaermdl < 0 or iaermdl > 2 and iaermdl != 5:
+    print("Error -- IAER flag is incorrect, Abort")
+
+iswcliq = 1  # optical property for liquid clouds for sw
+iovrsw = 1  # cloud overlapping control flag for sw
+iovrlw = 1  # cloud overlapping control flag for lw
+lcrick = False  # control flag for eliminating CRICK
+lcnorm = False  # control flag for in-cld condensate
+lnoprec = False  # precip effect on radiation flag (ferrier microphysics)
+isubcsw = 2  # sub-column cloud approx flag in sw radiation
+isubclw = 2  # sub-column cloud approx flag in lw radiation
+ialbflg = 1  # surface albedo control flag
+iemsflg = 1  # surface emissivity control flag
+icldflg = 1
+ivflip = 1  # vertical index direction control flag
+me = 0
+
+Model_all = dict()
+Statein_all = dict()
+Sfcprop_all = dict()
+Coupling_all = dict()
+Grid_all = dict()
+Tbd_all = dict()
+Radtend_all = dict()
+Diag_all = dict()
+Valdict_all = dict()
+
+for rank in range(6):
+    serializer = ser.Serializer(
+        ser.OpenModeKind.Read,
+        "../fortran/data/radiation_driver",
+        "Generator_rank" + str(rank),
+    )
+
+    Model_all[rank] = read_from_serializer(model_vars, serializer, in_out='in')
+    Statein_all[rank] = read_from_serializer(statein_vars, serializer, in_out='in')
+    Sfcprop_all[rank] = read_from_serializer(sfcprop_vars, serializer, in_out='in')
+    Coupling_all[rank] = read_from_serializer(coupling_vars,serializer, in_out='in')
+    Grid_all[rank] = read_from_serializer(grid_vars,serializer, in_out='in')
+    Tbd_all[rank] = read_from_serializer(tbd_vars, serializer, in_out='in')
+    Radtend_all[rank] = read_from_serializer(radtend_vars, serializer, in_out='in')
+    Diag_all[rank] = read_from_serializer(diag_vars, serializer, in_out='in')
+    Valdict_all[rank] = read_from_serializer(radtend_vars_out + diag_vars_out, serializer, in_out='out')
+
+## Run GFS radiation driver
+
+
+Outdict_all = dict()
+for rank in range(6):
+########################  Reading data from serialbox ####################################
+    serial = ser.Serializer(
+        ser.OpenModeKind.Read,
+        os.path.join(FORTRANDATA_DIR, "SW"),"Generator_rank" + str(rank))
+    si = serial.read("si", serial.savepoint["rad-initialize"])
+    imp_physics = serial.read("imp_physics", serial.savepoint["rad-initialize"])
+
+    driver = RadiationDriver()
+    driver.radinit(
+        si,
+        nlay,
+        imp_physics,
+        me,
+        iemsflg,
+        ioznflg,
+        ictmflg,
+        isolar,
+        ico2flg,
+        iaerflg,
+        ialbflg,
+        icldflg,
+        ivflip,
+        iovrsw,
+        iovrlw,
+        isubcsw,
+        isubclw,
+        lcrick,
+        lcnorm,
+        lnoprec,
+        iswcliq,
+    )
+
+    updatedict = dict()
+    for var in invars:
+        updatedict[var] = serial.read(var, serial.savepoint["rad-update"])
+
+    slag, sdec, cdec, solcon = driver.radupdate(
+        updatedict["idat"],
+        updatedict["jdat"],
+        updatedict["fhswr"],
+        updatedict["dtf"],
+        updatedict["lsswr"],
+    )
+    Radtend = Radtend_all[rank]
+    Radtend["sfcfsw"] = dict()
+    Radtend["sfcflw"] = dict()
+
+    Diag = Diag_all[rank]
+    Diag["topflw"] = dict()
+    Diag["topfsw"] = dict()
+
+    Model = getscalars(Model_all[rank])
+    Statein = getscalars(Statein_all[rank])
+    Sfcprop = getscalars(Sfcprop_all[rank])
+    Coupling = getscalars(Coupling_all[rank])
+    Grid = getscalars(Grid_all[rank])
+    Tbd = getscalars(Tbd_all[rank])
+    Radtend = getscalars(Radtend)
+    Diag = getscalars(Diag)
+
+    Radtendout, Diagout = driver.GFS_radiation_driver(
+        Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag
+    )
 
     # Process output to be compatible with serialized Fortran output for validation
-    valdict = dict()
     outdict = dict()
-
     for var in radtend_vars_out:
-        valdict[var] = serializer.read(var, serializer.savepoint["driver-out-000000"])
         if var[:2] in ["up", "dn"]:
             if var.split("_")[1] == "s":
                 if var.split("_")[-1] == "lw":
@@ -306,8 +280,6 @@ for rank in range(6):
             outdict[var] = Radtendout[var]
 
     for var in diag_vars_out:
-        valdict[var] = serializer.read(var, serializer.savepoint["driver-out-000000"])
-
         if var[:2] in ["up", "dn"]:
             if var[:2] in ["up", "dn"]:
                 if var.split("_")[-1] == "lw":
@@ -316,10 +288,13 @@ for rank in range(6):
                     outdict[var] = Diagout["topfsw"][var.split("_")[0]]
         else:
             outdict[var] = Diagout[var]
+    Outdict_all[rank] = outdict
 
-    compare_data(valdict, outdict)
-    
-    columns_validated += valdict[radtend_vars_out[0]].shape[0]
+## Validation
+columns_validated = 0
+for rank in range(6):
+    compare_data(Valdict_all[rank], Outdict_all[rank])
+    columns_validated += Valdict_all[rank][radtend_vars_out[0]].shape[0]
 
 executionTime = (time.time() - startTime)
 
