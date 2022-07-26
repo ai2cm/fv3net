@@ -1176,7 +1176,2196 @@ def cldprop(
                 cldfrc[k] = cfrac[k] / cf1
 
         return taucw, ssacw, asycw, cldfrc, cldfmc
-    
+
+def taumol(
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        strrat,
+        specwt,
+        layreffr,
+        ix1,
+        ix2 ,
+        ibx,
+        sfluxref01,
+        sfluxref02,
+        sfluxref03,
+        scalekur,
+        selfref_16,
+        forref_16,
+        absa_16,
+        absb_16,
+        rayl_16,
+        selfref_17,
+        forref_17,
+        absa_17,
+        absb_17,
+        rayl_17,
+        selfref_18,
+        forref_18,
+        absa_18,
+        absb_18,
+        rayl_18,
+        selfref_19,
+        forref_19,
+        absa_19,
+        absb_19,
+        rayl_19,
+        selfref_20,
+        forref_20,
+        absa_20,
+        absb_20,
+        absch4_20,
+        rayl_20,
+        selfref_21,
+        forref_21,
+        absa_21,
+        absb_21,
+        rayl_21,
+        selfref_22,
+        forref_22,
+        absa_22,
+        absb_22,
+        rayl_22,
+        selfref_23,
+        forref_23,
+        absa_23,
+        rayl_23,
+        givfac_23,
+        selfref_24,
+        forref_24,
+        absa_24,
+        absb_24,
+        abso3a_24,
+        abso3b_24,
+        rayla_24,
+        raylb_24,
+        absa_25,
+        abso3a_25,
+        abso3b_25,
+        rayl_25,
+        rayl_26,
+        absa_27,
+        absb_27,
+        rayl_27,
+        absa_28,
+        absb_28,
+        rayl_28,
+        forref_29,
+        absa_29,
+        absb_29,
+        selfref_29,
+        absh2o_29,
+        absco2_29,
+        rayl_29,
+    ):
+        #  ==================   program usage description   ==================  !
+        #                                                                       !
+        #  description:                                                         !
+        #    calculate optical depths for gaseous absorption and rayleigh       !
+        #    scattering.                                                        !
+        #                                                                       !
+        #  subroutines called: taugb## (## = 16 - 29)                           !
+        #                                                                       !
+        #  ====================  defination of variables  ====================  !
+        #                                                                       !
+        #  inputs:                                                         size !
+        #    colamt  - real, column amounts of absorbing gases the index        !
+        #                    are for h2o, co2, o3, n2o, ch4, and o2,            !
+        #                    respectively (molecules/cm**2)          nlay*maxgas!
+        #    colmol  - real, total column amount (dry air+water vapor)     nlay !
+        #    facij   - real, for each layer, these are factors that are         !
+        #                    needed to compute the interpolation factors        !
+        #                    that multiply the appropriate reference k-         !
+        #                    values.  a value of 0/1 for i,j indicates          !
+        #                    that the corresponding factor multiplies           !
+        #                    reference k-value for the lower/higher of the      !
+        #                    two appropriate temperatures, and altitudes,       !
+        #                    respectively.                                 naly !
+        #    jp      - real, the index of the lower (in altitude) of the        !
+        #                    two appropriate ref pressure levels needed         !
+        #                    for interpolation.                            nlay !
+        #    jt, jt1 - integer, the indices of the lower of the two approp      !
+        #                    ref temperatures needed for interpolation (for     !
+        #                    pressure levels jp and jp+1, respectively)    nlay !
+        #    laytrop - integer, tropopause layer index                       1  !
+        #    forfac  - real, scale factor needed to foreign-continuum.     nlay !
+        #    forfrac - real, factor needed for temperature interpolation   nlay !
+        #    indfor  - integer, index of the lower of the two appropriate       !
+        #                    reference temperatures needed for foreign-         !
+        #                    continuum interpolation                       nlay !
+        #    selffac - real, scale factor needed to h2o self-continuum.    nlay !
+        #    selffrac- real, factor needed for temperature interpolation        !
+        #                    of reference h2o self-continuum data          nlay !
+        #    indself - integer, index of the lower of the two appropriate       !
+        #                    reference temperatures needed for the self-        !
+        #                    continuum interpolation                       nlay !
+        #    nlay    - integer, number of vertical layers                    1  !
+        #                                                                       !
+        #  output:                                                              !
+        #    sfluxzen- real, spectral distribution of incoming solar flux ngptsw!
+        #    taug    - real, spectral optical depth for gases        nlay*ngptsw!
+        #    taur    - real, opt depth for rayleigh scattering       nlay*ngptsw!
+        #                                                                       !
+        #  ===================================================================  !
+        #  ************     original subprogram description    ***************  !
+        #                                                                       !
+        #                  optical depths developed for the                     !
+        #                                                                       !
+        #                rapid radiative transfer model (rrtm)                  !
+        #                                                                       !
+        #            atmospheric and environmental research, inc.               !
+        #                        131 hartwell avenue                            !
+        #                        lexington, ma 02421                            !
+        #                                                                       !
+        #                                                                       !
+        #                           eli j. mlawer                               !
+        #                         jennifer delamere                             !
+        #                         steven j. taubman                             !
+        #                         shepard a. clough                             !
+        #                                                                       !
+        #                                                                       !
+        #                                                                       !
+        #                       email:  mlawer@aer.com                          !
+        #                       email:  jdelamer@aer.com                        !
+        #                                                                       !
+        #        the authors wish to acknowledge the contributions of the       !
+        #        following people:  patrick d. brown, michael j. iacono,        !
+        #        ronald e. farren, luke chen, robert bergstrom.                 !
+        #                                                                       !
+        #  *******************************************************************  !
+        #                                                                       !
+        #  taumol                                                               !
+        #                                                                       !
+        #    this file contains the subroutines taugbn (where n goes from       !
+        #    16 to 29).  taugbn calculates the optical depths and Planck        !
+        #    fractions per g-value and layer for band n.                        !
+        #                                                                       !
+        #  output:  optical depths (unitless)                                   !
+        #           fractions needed to compute planck functions at every layer !
+        #           and g-value                                                 !
+        #                                                                       !
+        #  modifications:                                                       !
+        #                                                                       !
+        # revised: adapted to f90 coding, j.-j.morcrette, ecmwf, feb 2003       !
+        # revised: modified for g-point reduction, mjiacono, aer, dec 2003      !
+        # revised: reformatted for consistency with rrtmg_lw, mjiacono, aer,    !
+        #          jul 2006                                                     !
+        #                                                                       !
+        #  *******************************************************************  !
+        #  ======================  end of description block  =================  !
+
+        id0 = np.zeros((nlay, nbhgh), dtype=np.int32)
+        id1 = np.zeros((nlay, nbhgh), dtype=np.int32)
+        sfluxzen = np.zeros(ngptsw)
+
+        taug = np.zeros((nlay, ngptsw))
+        taur = np.zeros((nlay, ngptsw))
+
+
+        for b in range(nbhgh - nblow + 1):
+            jb = nblow + b - 1
+
+            #  --- ...  indices for layer optical depth
+
+            for k in range(laytrop):
+                id0[k, jb] = ((jp[k] - 1) * 5 + (jt[k] - 1)) * nspa[b] - 1
+                id1[k, jb] = (jp[k] * 5 + (jt1[k] - 1)) * nspa[b] - 1
+
+            for k in range(laytrop, nlay):
+                id0[k, jb] = ((jp[k] - 13) * 5 + (jt[k] - 1)) * nspb[b] - 1
+                id1[k, jb] = ((jp[k] - 12) * 5 + (jt1[k] - 1)) * nspb[b] - 1
+
+            #  --- ...  calculate spectral flux at toa
+            ibd = ibx[b] - 1
+            njb = ng[b]
+            ns = ngs[b]
+
+            if jb in [15, 19, 22, 24, 25, 28]:
+                for j in range(njb):
+                    sfluxzen[ns + j] = sfluxref01[j, 0, ibd]
+            elif jb == 26:
+                for j in range(njb):
+                    sfluxzen[ns + j] = scalekur * sfluxref01[j, 0, ibd]
+            else:
+                if jb == 16 or jb == 27:
+                    ks = nlay - 1
+                    for k in range(laytrop - 1, nlay - 1):
+                        if (jp[k] < layreffr[b]) and jp[k + 1] >= layreffr[b]:
+                            ks = k + 1
+                            break
+
+                    colm1 = colamt[ks, ix1[b] - 1]
+                    colm2 = colamt[ks, ix2[b] - 1]
+                    speccomb = colm1 + strrat[b] * colm2
+                    specmult = specwt[b] * min(oneminus, colm1 / speccomb)
+                    js = 1 + int(specmult) - 1
+                    fs = np.mod(specmult, 1.0)
+
+                    for j in range(njb):
+                        sfluxzen[ns + j] = sfluxref02[j, js, ibd] + fs * (
+                            sfluxref02[j, js + 1, ibd] - sfluxref02[j, js, ibd]
+                        )
+                else:
+                    ks = laytrop - 1
+                    for k in range(laytrop - 1):
+                        if jp[k] < layreffr[b] and jp[k + 1] >= layreffr[b]:
+                            ks = k + 1
+                            break
+                    colm1 = colamt[ks, ix1[b] - 1]
+                    colm2 = colamt[ks, ix2[b] - 1]
+                    speccomb = colm1 + strrat[b] * colm2
+                    specmult = specwt[b] * min(oneminus, colm1 / speccomb)
+                    js = 1 + int(specmult) - 1
+                    fs = np.mod(specmult, 1.0)
+
+                    for j in range(njb):
+                        sfluxzen[ns + j] = sfluxref03[j, js, ibd] + fs * (
+                            sfluxref03[j, js + 1, ibd] - sfluxref03[j, js, ibd]
+                        )
+        taug, taur = taumol16(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            selfref_16,
+            forref_16,
+            absa_16,
+            absb_16,
+            rayl_16,
+        )
+        taug, taur = taumol17(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            selfref_17,
+            forref_17,
+            absa_17,
+            absb_17,
+            rayl_17,
+        )
+        taug, taur = taumol18(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            selfref_18,
+            forref_18,
+            absa_18,
+            absb_18,
+            rayl_18,
+        )
+        taug, taur = taumol19(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            selfref_19,
+            forref_19,
+            absa_19,
+            absb_19,
+            rayl_19,
+        )
+        taug, taur = taumol20(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            selfref_20,
+            forref_20,
+            absa_20,
+            absb_20,
+            absch4_20,
+            rayl_20,
+        )
+        taug, taur = taumol21(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            selfref_21,
+            forref_21,
+            absa_21,
+            absb_21,
+            rayl_21,
+        )
+        taug, taur = taumol22(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            selfref_22,
+            forref_22,
+            absa_22,
+            absb_22,
+            rayl_22,
+        )
+        taug, taur = taumol23(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            selfref_23,
+            forref_23,
+            absa_23,
+            rayl_23,
+            givfac_23,
+        )
+        taug, taur = taumol24(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            selfref_24,
+            forref_24,
+            absa_24,
+            absb_24,
+            abso3a_24,
+            abso3b_24,
+            rayla_24,
+            raylb_24,
+        )
+        taug, taur = taumol25(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            absa_25,
+            abso3a_25,
+            abso3b_25,
+            rayl_25,
+        )
+        taug, taur = taumol26(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            rayl_26,
+        )
+        taug, taur = taumol27(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            absa_27,
+            absb_27,
+            rayl_27,
+        )
+        taug, taur = taumol28(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,
+            absa_28,
+            absb_28,
+            rayl_28,
+        )
+        taug, taur = taumol29(
+            strrat,
+            colamt,
+            colmol,
+            fac00,
+            fac01,
+            fac10,
+            fac11,
+            jp,
+            jt,
+            jt1,
+            laytrop,
+            forfac,
+            forfrac,
+            indfor,
+            selffac,
+            selffrac,
+            indself,
+            nlay,
+            id0,
+            id1,
+            taug,
+            taur,     
+            forref_29,
+            absa_29,
+            absb_29,
+            selfref_29,
+            absh2o_29,
+            absco2_29,
+            rayl_29,
+        )
+
+        return sfluxzen, taug, taur
+
+def taumol16(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        selfref,
+        forref,
+        absa,
+        absb,
+        rayl,
+    ):
+
+
+        #  --- ... compute the optical depth by interpolating in ln(pressure),
+        #          temperature, and appropriate species.  below laytrop, the water
+        #          vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            tauray = colmol[k] * rayl
+
+            for j in range(NG16):
+                taur[k, NS16 + j] = tauray
+
+        for k in range(laytrop):
+            speccomb = colamt[k, 0] + strrat[0] * colamt[k, 4]
+            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
+
+            js = 1 + int(specmult)
+            fs = np.mod(specmult, 1.0)
+            fs1 = 1.0 - fs
+            fac000 = fs1 * fac00[k]
+            fac010 = fs1 * fac10[k]
+            fac100 = fs * fac00[k]
+            fac110 = fs * fac10[k]
+            fac001 = fs1 * fac01[k]
+            fac011 = fs1 * fac11[k]
+            fac101 = fs * fac01[k]
+            fac111 = fs * fac11[k]
+
+            ind01 = id0[k, 15] + js
+            ind02 = ind01 + 1
+            ind03 = ind01 + 9
+            ind04 = ind01 + 10
+            ind11 = id1[k, 15] + js
+            ind12 = ind11 + 1
+            ind13 = ind11 + 9
+            ind14 = ind11 + 10
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+
+            for j in range(NG16):
+                taug[k, NS16 + j] = speccomb * (
+                    fac000 * absa[ind01, j]
+                    + fac100 * absa[ind02, j]
+                    + fac010 * absa[ind03, j]
+                    + fac110 * absa[ind04, j]
+                    + fac001 * absa[ind11, j]
+                    + fac101 * absa[ind12, j]
+                    + fac011 * absa[ind13, j]
+                    + fac111 * absa[ind14, j]
+                ) + colamt[k, 0] * (
+                    selffac[k]
+                    * (
+                        selfref[inds, j]
+                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
+                    )
+                    + forfac[k]
+                    * (
+                        forref[indf, j]
+                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                    )
+                )
+
+            for k in range(laytrop, nlay):
+                ind01 = id0[k, 15] + 1
+                ind02 = ind01 + 1
+                ind11 = id1[k, 15] + 1
+                ind12 = ind11 + 1
+
+                for j in range(NG16):
+                    taug[k, NS16 + j] = colamt[k, 4] * (
+                        fac00[k] * absb[ind01, j]
+                        + fac10[k] * absb[ind02, j]
+                        + fac01[k] * absb[ind11, j]
+                        + fac11[k] * absb[ind12, j]
+                    )
+        return taug, taur
+
+# The subroutine computes the optical depth in band 17:  3250-4000
+# cm-1 (low - h2o,co2; high - h2o,co2)
+
+def taumol17(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        selfref,
+        forref,
+        absa,
+        absb,
+        rayl,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 17:  3250-4000 cm-1 (low - h2o,co2; high - h2o,co2)         !
+        #  ------------------------------------------------------------------  !
+        #
+
+
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            tauray = colmol[k] * rayl
+
+            for j in range(NG17):
+                taur[k, NS17 + j] = tauray
+
+        for k in range(laytrop):
+            speccomb = colamt[k, 0] + strrat[1] * colamt[k, 1]
+            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
+
+            js = 1 + int(specmult)
+            fs = np.mod(specmult, 1.0)
+            fs1 = 1.0 - fs
+            fac000 = fs1 * fac00[k]
+            fac010 = fs1 * fac10[k]
+            fac100 = fs * fac00[k]
+            fac110 = fs * fac10[k]
+            fac001 = fs1 * fac01[k]
+            fac011 = fs1 * fac11[k]
+            fac101 = fs * fac01[k]
+            fac111 = fs * fac11[k]
+
+            ind01 = id0[k, 16] + js
+            ind02 = ind01 + 1
+            ind03 = ind01 + 9
+            ind04 = ind01 + 10
+            ind11 = id1[k, 16] + js
+            ind12 = ind11 + 1
+            ind13 = ind11 + 9
+            ind14 = ind11 + 10
+
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+
+            for j in range(NG17):
+                taug[k, NS17 + j] = speccomb * (
+                    fac000 * absa[ind01, j]
+                    + fac100 * absa[ind02, j]
+                    + fac010 * absa[ind03, j]
+                    + fac110 * absa[ind04, j]
+                    + fac001 * absa[ind11, j]
+                    + fac101 * absa[ind12, j]
+                    + fac011 * absa[ind13, j]
+                    + fac111 * absa[ind14, j]
+                ) + colamt[k, 0] * (
+                    selffac[k]
+                    * (
+                        selfref[inds, j]
+                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
+                    )
+                    + forfac[k]
+                    * (
+                        forref[indf, j]
+                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                    )
+                )
+
+        for k in range(laytrop, nlay):
+            speccomb = colamt[k, 0] + strrat[1] * colamt[k, 1]
+            specmult = 4.0 * min(oneminus, colamt[k, 0] / speccomb)
+
+            js = 1 + int(specmult)
+            fs = np.mod(specmult, 1.0)
+            fs1 = 1.0 - fs
+            fac000 = fs1 * fac00[k]
+            fac010 = fs1 * fac10[k]
+            fac100 = fs * fac00[k]
+            fac110 = fs * fac10[k]
+            fac001 = fs1 * fac01[k]
+            fac011 = fs1 * fac11[k]
+            fac101 = fs * fac01[k]
+            fac111 = fs * fac11[k]
+
+            ind01 = id0[k, 16] + js
+            ind02 = ind01 + 1
+            ind03 = ind01 + 5
+            ind04 = ind01 + 6
+            ind11 = id1[k, 16] + js
+            ind12 = ind11 + 1
+            ind13 = ind11 + 5
+            ind14 = ind11 + 6
+
+            indf = indfor[k] - 1
+            indfp = indf + 1
+
+            for j in range(NG17):
+                taug[k, NS17 + j] = speccomb * (
+                    fac000 * absb[ind01, j]
+                    + fac100 * absb[ind02, j]
+                    + fac010 * absb[ind03, j]
+                    + fac110 * absb[ind04, j]
+                    + fac001 * absb[ind11, j]
+                    + fac101 * absb[ind12, j]
+                    + fac011 * absb[ind13, j]
+                    + fac111 * absb[ind14, j]
+                ) + colamt[k, 0] * forfac[k] * (
+                    forref[indf, j] + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                )
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 18:  4000-4650
+# cm-1 (low - h2o,ch4; high - ch4)
+def taumol18(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        selfref,
+        forref,
+        absa,
+        absb,
+        rayl,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 18:  4000-4650 cm-1 (low - h2o,ch4; high - ch4)             !
+        #  ------------------------------------------------------------------  !
+        #
+
+
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            tauray = colmol[k] * rayl
+
+            for j in range(NG18):
+                taur[k, NS18 + j] = tauray
+
+        for k in range(laytrop):
+            speccomb = colamt[k, 0] + strrat[2] * colamt[k, 4]
+            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
+
+            js = 1 + int(specmult)
+            fs = np.mod(specmult, 1.0)
+            fs1 = 1.0 - fs
+            fac000 = fs1 * fac00[k]
+            fac010 = fs1 * fac10[k]
+            fac100 = fs * fac00[k]
+            fac110 = fs * fac10[k]
+            fac001 = fs1 * fac01[k]
+            fac011 = fs1 * fac11[k]
+            fac101 = fs * fac01[k]
+            fac111 = fs * fac11[k]
+
+            ind01 = id0[k, 17] + js
+            ind02 = ind01 + 1
+            ind03 = ind01 + 9
+            ind04 = ind01 + 10
+            ind11 = id1[k, 17] + js
+            ind12 = ind11 + 1
+            ind13 = ind11 + 9
+            ind14 = ind11 + 10
+
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+
+            for j in range(NG18):
+                taug[k, NS18 + j] = speccomb * (
+                    fac000 * absa[ind01, j]
+                    + fac100 * absa[ind02, j]
+                    + fac010 * absa[ind03, j]
+                    + fac110 * absa[ind04, j]
+                    + fac001 * absa[ind11, j]
+                    + fac101 * absa[ind12, j]
+                    + fac011 * absa[ind13, j]
+                    + fac111 * absa[ind14, j]
+                ) + colamt[k, 0] * (
+                    selffac[k]
+                    * (
+                        selfref[inds, j]
+                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
+                    )
+                    + forfac[k]
+                    * (
+                        forref[indf, j]
+                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                    )
+                )
+
+        for k in range(laytrop, nlay):
+            ind01 = id0[k, 17] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 17] + 1
+            ind12 = ind11 + 1
+
+            for j in range(NG18):
+                taug[k, NS18 + j] = colamt[k, 4] * (
+                    fac00[k] * absb[ind01, j]
+                    + fac10[k] * absb[ind02, j]
+                    + fac01[k] * absb[ind11, j]
+                    + fac11[k] * absb[ind12, j]
+                )
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 19:  4650-5150
+# cm-1 (low - h2o,co2; high - co2)
+
+def taumol19(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        selfref,
+        forref,
+        absa,
+        absb,
+        rayl,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 19:  4650-5150 cm-1 (low - h2o,co2; high - co2)             !
+        #  ------------------------------------------------------------------  !
+        #
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            tauray = colmol[k] * rayl
+
+            for j in range(NG19):
+                taur[k, NS19 + j] = tauray
+
+        for k in range(laytrop):
+            speccomb = colamt[k, 0] + strrat[3] * colamt[k, 1]
+            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
+
+            js = 1 + int(specmult)
+            fs = np.mod(specmult, 1.0)
+            fs1 = 1.0 - fs
+            fac000 = fs1 * fac00[k]
+            fac010 = fs1 * fac10[k]
+            fac100 = fs * fac00[k]
+            fac110 = fs * fac10[k]
+            fac001 = fs1 * fac01[k]
+            fac011 = fs1 * fac11[k]
+            fac101 = fs * fac01[k]
+            fac111 = fs * fac11[k]
+
+            ind01 = id0[k, 18] + js
+            ind02 = ind01 + 1
+            ind03 = ind01 + 9
+            ind04 = ind01 + 10
+            ind11 = id1[k, 18] + js
+            ind12 = ind11 + 1
+            ind13 = ind11 + 9
+            ind14 = ind11 + 10
+
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+
+            for j in range(NG19):
+                taug[k, NS19 + j] = speccomb * (
+                    fac000 * absa[ind01, j]
+                    + fac100 * absa[ind02, j]
+                    + fac010 * absa[ind03, j]
+                    + fac110 * absa[ind04, j]
+                    + fac001 * absa[ind11, j]
+                    + fac101 * absa[ind12, j]
+                    + fac011 * absa[ind13, j]
+                    + fac111 * absa[ind14, j]
+                ) + colamt[k, 0] * (
+                    selffac[k]
+                    * (
+                        selfref[inds, j]
+                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
+                    )
+                    + forfac[k]
+                    * (
+                        forref[indf, j]
+                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                    )
+                )
+
+        for k in range(laytrop, nlay):
+            ind01 = id0[k, 18] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 18] + 1
+            ind12 = ind11 + 1
+
+            for j in range(NG19):
+                taug[k, NS19 + j] = colamt[k, 1] * (
+                    fac00[k] * absb[ind01, j]
+                    + fac10[k] * absb[ind02, j]
+                    + fac01[k] * absb[ind11, j]
+                    + fac11[k] * absb[ind12, j]
+                )
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 20:  5150-6150
+# cm-1 (low - h2o; high - h2o)
+def taumol20(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        selfref,
+        forref,
+        absa,
+        absb,
+        absch4,
+        rayl,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 20:  5150-6150 cm-1 (low - h2o; high - h2o)                 !
+        #  ------------------------------------------------------------------  !
+        #
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            tauray = colmol[k] * rayl
+
+            for j in range(NG20):
+                taur[k, NS20 + j] = tauray
+
+        for k in range(laytrop):
+            ind01 = id0[k, 19] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 19] + 1
+            ind12 = ind11 + 1
+
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+
+            for j in range(NG20):
+                taug[k, NS20 + j] = (
+                    colamt[k, 0]
+                    * (
+                        (
+                            fac00[k] * absa[ind01, j]
+                            + fac10[k] * absa[ind02, j]
+                            + fac01[k] * absa[ind11, j]
+                            + fac11[k] * absa[ind12, j]
+                        )
+                        + selffac[k]
+                        * (
+                            selfref[inds, j]
+                            + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
+                        )
+                        + forfac[k]
+                        * (
+                            forref[indf, j]
+                            + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                        )
+                    )
+                    + colamt[k, 4] * absch4[j]
+                )
+
+        for k in range(laytrop, nlay):
+            ind01 = id0[k, 19] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 19] + 1
+            ind12 = ind11 + 1
+
+            indf = indfor[k] - 1
+            indfp = indf + 1
+
+            for j in range(NG20):
+                taug[k, NS20 + j] = (
+                    colamt[k, 0]
+                    * (
+                        fac00[k] * absb[ind01, j]
+                        + fac10[k] * absb[ind02, j]
+                        + fac01[k] * absb[ind11, j]
+                        + fac11[k] * absb[ind12, j]
+                        + forfac[k]
+                        * (
+                            forref[indf, j]
+                            + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                        )
+                    )
+                    + colamt[k, 4] * absch4[j]
+                )
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 21:  6150-7700
+# cm-1 (low - h2o,co2; high - h2o,co2)
+
+def taumol21(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        selfref,
+        forref,
+        absa,
+        absb,
+        rayl,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 21:  6150-7700 cm-1 (low - h2o,co2; high - h2o,co2)         !
+        #  ------------------------------------------------------------------  !
+        #
+
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            tauray = colmol[k] * rayl
+
+            for j in range(NG21):
+                taur[k, NS21 + j] = tauray
+
+        for k in range(laytrop):
+            speccomb = colamt[k, 0] + strrat[5] * colamt[k, 1]
+            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
+
+            js = 1 + int(specmult)
+            fs = np.mod(specmult, 1.0)
+            fs1 = 1.0 - fs
+            fac000 = fs1 * fac00[k]
+            fac010 = fs1 * fac10[k]
+            fac100 = fs * fac00[k]
+            fac110 = fs * fac10[k]
+            fac001 = fs1 * fac01[k]
+            fac011 = fs1 * fac11[k]
+            fac101 = fs * fac01[k]
+            fac111 = fs * fac11[k]
+
+            ind01 = id0[k, 20] + js
+            ind02 = ind01 + 1
+            ind03 = ind01 + 9
+            ind04 = ind01 + 10
+            ind11 = id1[k, 20] + js
+            ind12 = ind11 + 1
+            ind13 = ind11 + 9
+            ind14 = ind11 + 10
+
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+
+            for j in range(NG21):
+                taug[k, NS21 + j] = speccomb * (
+                    fac000 * absa[ind01, j]
+                    + fac100 * absa[ind02, j]
+                    + fac010 * absa[ind03, j]
+                    + fac110 * absa[ind04, j]
+                    + fac001 * absa[ind11, j]
+                    + fac101 * absa[ind12, j]
+                    + fac011 * absa[ind13, j]
+                    + fac111 * absa[ind14, j]
+                ) + colamt[k, 0] * (
+                    selffac[k]
+                    * (
+                        selfref[inds, j]
+                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
+                    )
+                    + forfac[k]
+                    * (
+                        forref[indf, j]
+                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                    )
+                )
+
+        for k in range(laytrop, nlay):
+            speccomb = colamt[k, 0] + strrat[5] * colamt[k, 1]
+            specmult = 4.0 * min(oneminus, colamt[k, 0] / speccomb)
+
+            js = 1 + int(specmult)
+            fs = np.mod(specmult, 1.0)
+            fs1 = 1.0 - fs
+            fac000 = fs1 * fac00[k]
+            fac010 = fs1 * fac10[k]
+            fac100 = fs * fac00[k]
+            fac110 = fs * fac10[k]
+            fac001 = fs1 * fac01[k]
+            fac011 = fs1 * fac11[k]
+            fac101 = fs * fac01[k]
+            fac111 = fs * fac11[k]
+
+            ind01 = id0[k, 20] + js
+            ind02 = ind01 + 1
+            ind03 = ind01 + 5
+            ind04 = ind01 + 6
+            ind11 = id1[k, 20] + js
+            ind12 = ind11 + 1
+            ind13 = ind11 + 5
+            ind14 = ind11 + 6
+
+            indf = indfor[k] - 1
+            indfp = indf + 1
+
+            for j in range(NG21):
+                taug[k, NS21 + j] = speccomb * (
+                    fac000 * absb[ind01, j]
+                    + fac100 * absb[ind02, j]
+                    + fac010 * absb[ind03, j]
+                    + fac110 * absb[ind04, j]
+                    + fac001 * absb[ind11, j]
+                    + fac101 * absb[ind12, j]
+                    + fac011 * absb[ind13, j]
+                    + fac111 * absb[ind14, j]
+                ) + colamt[k, 0] * forfac[k] * (
+                    forref[indf, j] + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                )
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 22:  7700-8050
+# cm-1 (low - h2o,o2; high - o2)
+def taumol22(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        selfref,
+        forref,
+        absa,
+        absb,
+        rayl,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 22:  7700-8050 cm-1 (low - h2o,o2; high - o2)               !
+        #  ------------------------------------------------------------------  !
+        #
+
+
+
+        #  --- ...  the following factor is the ratio of total o2 band intensity (lines
+        #           and mate continuum) to o2 band intensity (line only). it is needed
+        #           to adjust the optical depths since the k's include only lines.
+
+        o2adj = 1.6
+        o2tem = 4.35e-4 / (350.0 * 2.0)
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            tauray = colmol[k] * rayl
+
+            for j in range(NG22):
+                taur[k, NS22 + j] = tauray
+
+        for k in range(laytrop):
+            o2cont = o2tem * colamt[k, 5]
+            speccomb = colamt[k, 0] + strrat[6] * colamt[k, 5]
+            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
+
+            js = 1 + int(specmult)
+            fs = np.mod(specmult, 1.0)
+            fs1 = 1.0 - fs
+            fac000 = fs1 * fac00[k]
+            fac010 = fs1 * fac10[k]
+            fac100 = fs * fac00[k]
+            fac110 = fs * fac10[k]
+            fac001 = fs1 * fac01[k]
+            fac011 = fs1 * fac11[k]
+            fac101 = fs * fac01[k]
+            fac111 = fs * fac11[k]
+
+            ind01 = id0[k, 21] + js
+            ind02 = ind01 + 1
+            ind03 = ind01 + 9
+            ind04 = ind01 + 10
+            ind11 = id1[k, 21] + js
+            ind12 = ind11 + 1
+            ind13 = ind11 + 9
+            ind14 = ind11 + 10
+
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+
+            for j in range(NG22):
+                taug[k, NS22 + j] = (
+                    speccomb
+                    * (
+                        fac000 * absa[ind01, j]
+                        + fac100 * absa[ind02, j]
+                        + fac010 * absa[ind03, j]
+                        + fac110 * absa[ind04, j]
+                        + fac001 * absa[ind11, j]
+                        + fac101 * absa[ind12, j]
+                        + fac011 * absa[ind13, j]
+                        + fac111 * absa[ind14, j]
+                    )
+                    + colamt[k, 0]
+                    * (
+                        selffac[k]
+                        * (
+                            selfref[inds, j]
+                            + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
+                        )
+                        + forfac[k]
+                        * (
+                            forref[indf, j]
+                            + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                        )
+                    )
+                    + o2cont
+                )
+
+        for k in range(laytrop, nlay):
+            o2cont = o2tem * colamt[k, 5]
+
+            ind01 = id0[k, 21] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 21] + 1
+            ind12 = ind11 + 1
+
+            for j in range(NG22):
+                taug[k, NS22 + j] = (
+                    colamt[k, 5]
+                    * o2adj
+                    * (
+                        fac00[k] * absb[ind01, j]
+                        + fac10[k] * absb[ind02, j]
+                        + fac01[k] * absb[ind11, j]
+                        + fac11[k] * absb[ind12, j]
+                    )
+                    + o2cont
+                )
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 23:  8050-12850
+# cm-1 (low - h2o; high - nothing)
+def taumol23(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        selfref,
+        forref,
+        absa,
+        rayl,
+        givfac,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 23:  8050-12850 cm-1 (low - h2o; high - nothing)            !
+        #  ------------------------------------------------------------------  !
+        #
+
+
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            for j in range(NG23):
+                taur[k, NS23 + j] = colmol[k] * rayl[j]
+
+        for k in range(laytrop):
+            ind01 = id0[k, 22] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 22] + 1
+            ind12 = ind11 + 1
+
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+
+            for j in range(NG23):
+                taug[k, NS23 + j] = colamt[k, 0] * (
+                    givfac
+                    * (
+                        fac00[k] * absa[ind01, j]
+                        + fac10[k] * absa[ind02, j]
+                        + fac01[k] * absa[ind11, j]
+                        + fac11[k] * absa[ind12, j]
+                    )
+                    + selffac[k]
+                    * (
+                        selfref[inds, j]
+                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
+                    )
+                    + forfac[k]
+                    * (
+                        forref[indf, j]
+                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                    )
+                )
+
+        for k in range(laytrop, nlay):
+            for j in range(NG23):
+                taug[k, NS23 + j] = 0.0
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 24:  12850-16000
+# cm-1 (low - h2o,o2; high - o2)
+def taumol24(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        selfref,
+        forref,
+        absa,
+        absb,
+        abso3a,
+        abso3b,
+        rayla,
+        raylb,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 24:  12850-16000 cm-1 (low - h2o,o2; high - o2)             !
+        #  ------------------------------------------------------------------  !
+        #
+
+
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(laytrop):
+            speccomb = colamt[k, 0] + strrat[8] * colamt[k, 5]
+            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
+
+            js = 1 + int(specmult)
+            fs = np.mod(specmult, 1.0)
+            fs1 = 1.0 - fs
+            fac000 = fs1 * fac00[k]
+            fac010 = fs1 * fac10[k]
+            fac100 = fs * fac00[k]
+            fac110 = fs * fac10[k]
+            fac001 = fs1 * fac01[k]
+            fac011 = fs1 * fac11[k]
+            fac101 = fs * fac01[k]
+            fac111 = fs * fac11[k]
+
+            ind01 = id0[k, 23] + js
+            ind02 = ind01 + 1
+            ind03 = ind01 + 9
+            ind04 = ind01 + 10
+            ind11 = id1[k, 23] + js
+            ind12 = ind11 + 1
+            ind13 = ind11 + 9
+            ind14 = ind11 + 10
+
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+
+            for j in range(NG24):
+                taug[k, NS24 + j] = (
+                    speccomb
+                    * (
+                        fac000 * absa[ind01, j]
+                        + fac100 * absa[ind02, j]
+                        + fac010 * absa[ind03, j]
+                        + fac110 * absa[ind04, j]
+                        + fac001 * absa[ind11, j]
+                        + fac101 * absa[ind12, j]
+                        + fac011 * absa[ind13, j]
+                        + fac111 * absa[ind14, j]
+                    )
+                    + colamt[k, 2] * abso3a[j]
+                    + colamt[k, 0]
+                    * (
+                        selffac[k]
+                        * (
+                            selfref[inds, j]
+                            + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
+                        )
+                        + forfac[k]
+                        * (
+                            forref[indf, j]
+                            + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                        )
+                    )
+                )
+
+                taur[k, NS24 + j] = colmol[k] * (
+                    rayla[j, js - 1] + fs * (rayla[j, js] - rayla[j, js - 1])
+                )
+
+        for k in range(laytrop, nlay):
+            ind01 = id0[k, 23] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 23] + 1
+            ind12 = ind11 + 1
+
+            for j in range(NG24):
+                taug[k, NS24 + j] = (
+                    colamt[k, 5]
+                    * (
+                        fac00[k] * absb[ind01, j]
+                        + fac10[k] * absb[ind02, j]
+                        + fac01[k] * absb[ind11, j]
+                        + fac11[k] * absb[ind12, j]
+                    )
+                    + colamt[k, 2] * abso3b[j]
+                )
+
+                taur[k, NS24 + j] = colmol[k] * raylb[j]
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 25:  16000-22650
+# cm-1 (low - h2o; high - nothing)
+def taumol25(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        absa,
+        abso3a,
+        abso3b,
+        rayl,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 25:  16000-22650 cm-1 (low - h2o; high - nothing)           !
+        #  ------------------------------------------------------------------  !
+        #
+
+
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            for j in range(NG25):
+                taur[k, NS25 + j] = colmol[k] * rayl[j]
+
+        for k in range(laytrop):
+            ind01 = id0[k, 24] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 24] + 1
+            ind12 = ind11 + 1
+
+            for j in range(NG25):
+                taug[k, NS25 + j] = (
+                    colamt[k, 0]
+                    * (
+                        fac00[k] * absa[ind01, j]
+                        + fac10[k] * absa[ind02, j]
+                        + fac01[k] * absa[ind11, j]
+                        + fac11[k] * absa[ind12, j]
+                    )
+                    + colamt[k, 2] * abso3a[j]
+                )
+
+        for k in range(laytrop, nlay):
+            for j in range(NG25):
+                taug[k, NS25 + j] = colamt[k, 2] * abso3b[j]
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 26:  22650-29000
+# cm-1 (low - nothing; high - nothing)
+def taumol26(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        rayl,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 26:  22650-29000 cm-1 (low - nothing; high - nothing)       !
+        #  ------------------------------------------------------------------  !
+        #
+
+        
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            for j in range(NG26):
+                taug[k, NS26 + j] = 0.0
+                taur[k, NS26 + j] = colmol[k] * rayl[j]
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 27:  29000-38000
+# cm-1 (low - o3; high - o3)
+
+def taumol27(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        absa,
+        absb,
+        rayl,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 27:  29000-38000 cm-1 (low - o3; high - o3)                 !
+        #  ------------------------------------------------------------------  !
+        #
+
+
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            for j in range(NG27):
+                taur[k, NS27 + j] = colmol[k] * rayl[j]
+
+        for k in range(laytrop):
+            ind01 = id0[k, 26] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 26] + 1
+            ind12 = ind11 + 1
+
+            for j in range(NG27):
+                taug[k, NS27 + j] = colamt[k, 2] * (
+                    fac00[k] * absa[ind01, j]
+                    + fac10[k] * absa[ind02, j]
+                    + fac01[k] * absa[ind11, j]
+                    + fac11[k] * absa[ind12, j]
+                )
+
+        for k in range(laytrop, nlay):
+            ind01 = id0[k, 26] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 26] + 1
+            ind12 = ind11 + 1
+
+            for j in range(NG27):
+                taug[k, NS27 + j] = colamt[k, 2] * (
+                    fac00[k] * absb[ind01, j]
+                    + fac10[k] * absb[ind02, j]
+                    + fac01[k] * absb[ind11, j]
+                    + fac11[k] * absb[ind12, j]
+                )
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 28:  38000-50000
+# cm-1 (low - o3,o2; high - o3,o2)
+def taumol28(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        absa,
+        absb,
+        rayl,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 28:  38000-50000 cm-1 (low - o3,o2; high - o3,o2)           !
+        #  ------------------------------------------------------------------  !
+        #
+
+
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            tauray = colmol[k] * rayl
+
+            for j in range(NG28):
+                taur[k, NS28 + j] = tauray
+
+        for k in range(laytrop):
+            speccomb = colamt[k, 2] + strrat[12] * colamt[k, 5]
+            specmult = 8.0 * min(oneminus, colamt[k, 2] / speccomb)
+
+            js = 1 + int(specmult)
+            fs = np.mod(specmult, 1.0)
+            fs1 = 1.0 - fs
+            fac000 = fs1 * fac00[k]
+            fac010 = fs1 * fac10[k]
+            fac100 = fs * fac00[k]
+            fac110 = fs * fac10[k]
+            fac001 = fs1 * fac01[k]
+            fac011 = fs1 * fac11[k]
+            fac101 = fs * fac01[k]
+            fac111 = fs * fac11[k]
+
+            ind01 = id0[k, 27] + js
+            ind02 = ind01 + 1
+            ind03 = ind01 + 9
+            ind04 = ind01 + 10
+            ind11 = id1[k, 27] + js
+            ind12 = ind11 + 1
+            ind13 = ind11 + 9
+            ind14 = ind11 + 10
+
+            for j in range(NG28):
+                taug[k, NS28 + j] = speccomb * (
+                    fac000 * absa[ind01, j]
+                    + fac100 * absa[ind02, j]
+                    + fac010 * absa[ind03, j]
+                    + fac110 * absa[ind04, j]
+                    + fac001 * absa[ind11, j]
+                    + fac101 * absa[ind12, j]
+                    + fac011 * absa[ind13, j]
+                    + fac111 * absa[ind14, j]
+                )
+
+        for k in range(laytrop, nlay):
+            speccomb = colamt[k, 2] + strrat[12] * colamt[k, 5]
+            specmult = 4.0 * min(oneminus, colamt[k, 2] / speccomb)
+
+            js = 1 + int(specmult)
+            fs = np.mod(specmult, 1.0)
+            fs1 = 1.0 - fs
+            fac000 = fs1 * fac00[k]
+            fac010 = fs1 * fac10[k]
+            fac100 = fs * fac00[k]
+            fac110 = fs * fac10[k]
+            fac001 = fs1 * fac01[k]
+            fac011 = fs1 * fac11[k]
+            fac101 = fs * fac01[k]
+            fac111 = fs * fac11[k]
+
+            ind01 = id0[k, 27] + js
+            ind02 = ind01 + 1
+            ind03 = ind01 + 5
+            ind04 = ind01 + 6
+            ind11 = id1[k, 27] + js
+            ind12 = ind11 + 1
+            ind13 = ind11 + 5
+            ind14 = ind11 + 6
+
+            for j in range(NG28):
+                taug[k, NS28 + j] = speccomb * (
+                    fac000 * absb[ind01, j]
+                    + fac100 * absb[ind02, j]
+                    + fac010 * absb[ind03, j]
+                    + fac110 * absb[ind04, j]
+                    + fac001 * absb[ind11, j]
+                    + fac101 * absb[ind12, j]
+                    + fac011 * absb[ind13, j]
+                    + fac111 * absb[ind14, j]
+                )
+
+        return taug, taur
+
+# The subroutine computes the optical depth in band 29:  820-2600
+# cm-1 (low - h2o; high - co2)
+def taumol29(
+        strrat,
+        colamt,
+        colmol,
+        fac00,
+        fac01,
+        fac10,
+        fac11,
+        jp,
+        jt,
+        jt1,
+        laytrop,
+        forfac,
+        forfrac,
+        indfor,
+        selffac,
+        selffrac,
+        indself,
+        nlay,
+        id0,
+        id1,
+        taug,
+        taur,
+        forref,
+        absa,
+        absb,
+        selfref,
+        absh2o,
+        absco2,
+        rayl,
+    ):
+
+        #  ------------------------------------------------------------------  !
+        #     band 29:  820-2600 cm-1 (low - h2o; high - co2)                  !
+        #  ------------------------------------------------------------------  !
+        #
+
+
+
+        #  --- ...  compute the optical depth by interpolating in ln(pressure),
+        #           temperature, and appropriate species.  below laytrop, the water
+        #           vapor self-continuum is interpolated (in temperature) separately.
+
+        for k in range(nlay):
+            tauray = colmol[k] * rayl
+
+            for j in range(NG29):
+                taur[k, NS29 + j] = tauray
+
+        for k in range(laytrop):
+            ind01 = id0[k, 28] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 28] + 1
+            ind12 = ind11 + 1
+
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+
+            for j in range(NG29):
+                taug[k, NS29 + j] = (
+                    colamt[k, 0]
+                    * (
+                        (
+                            fac00[k] * absa[ind01, j]
+                            + fac10[k] * absa[ind02, j]
+                            + fac01[k] * absa[ind11, j]
+                            + fac11[k] * absa[ind12, j]
+                        )
+                        + selffac[k]
+                        * (
+                            selfref[inds, j]
+                            + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
+                        )
+                        + forfac[k]
+                        * (
+                            forref[indf, j]
+                            + forfrac[k] * (forref[indfp, j] - forref[indf, j])
+                        )
+                    )
+                    + colamt[k, 1] * absco2[j]
+                )
+
+        for k in range(laytrop, nlay):
+            ind01 = id0[k, 28] + 1
+            ind02 = ind01 + 1
+            ind11 = id1[k, 28] + 1
+            ind12 = ind11 + 1
+
+            for j in range(NG29):
+                taug[k, NS29 + j] = (
+                    colamt[k, 1]
+                    * (
+                        fac00[k] * absb[ind01, j]
+                        + fac10[k] * absb[ind02, j]
+                        + fac01[k] * absb[ind11, j]
+                        + fac11[k] * absb[ind12, j]
+                    )
+                    + colamt[k, 0] * absh2o[j]
+                )
+
+        return taug, taur
+  
 class RadSWClass:
     VTAGSW = "NCEP SW v5.1  Nov 2012 -RRTMG-SW v3.8"
 
@@ -1808,7 +3997,7 @@ class RadSWClass:
 
             # -# Call taumol() to calculate optical depths for gaseous absorption
             #    and rayleigh scattering
-            sfluxzen, taug, taur = self.taumol(
+            sfluxzen, taug, taur = taumol(
                 colamt,
                 colmol,
                 fac00,
@@ -2198,2186 +4387,3 @@ class RadSWClass:
             forfrac,
             indfor,
         )
-    def taumol(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        strrat,
-        specwt,
-        layreffr,
-        ix1,
-        ix2 ,
-        ibx,
-        sfluxref01,
-        sfluxref02,
-        sfluxref03,
-        scalekur,
-        selfref_16,
-        forref_16,
-        absa_16,
-        absb_16,
-        rayl_16,
-        selfref_17,
-        forref_17,
-        absa_17,
-        absb_17,
-        rayl_17,
-        selfref_18,
-        forref_18,
-        absa_18,
-        absb_18,
-        rayl_18,
-        selfref_19,
-        forref_19,
-        absa_19,
-        absb_19,
-        rayl_19,
-        selfref_20,
-        forref_20,
-        absa_20,
-        absb_20,
-        absch4_20,
-        rayl_20,
-        selfref_21,
-        forref_21,
-        absa_21,
-        absb_21,
-        rayl_21,
-        selfref_22,
-        forref_22,
-        absa_22,
-        absb_22,
-        rayl_22,
-        selfref_23,
-        forref_23,
-        absa_23,
-        rayl_23,
-        givfac_23,
-        selfref_24,
-        forref_24,
-        absa_24,
-        absb_24,
-        abso3a_24,
-        abso3b_24,
-        rayla_24,
-        raylb_24,
-        absa_25,
-        abso3a_25,
-        abso3b_25,
-        rayl_25,
-        rayl_26,
-        absa_27,
-        absb_27,
-        rayl_27,
-        absa_28,
-        absb_28,
-        rayl_28,
-        forref_29,
-        absa_29,
-        absb_29,
-        selfref_29,
-        absh2o_29,
-        absco2_29,
-        rayl_29,
-    ):
-        #  ==================   program usage description   ==================  !
-        #                                                                       !
-        #  description:                                                         !
-        #    calculate optical depths for gaseous absorption and rayleigh       !
-        #    scattering.                                                        !
-        #                                                                       !
-        #  subroutines called: taugb## (## = 16 - 29)                           !
-        #                                                                       !
-        #  ====================  defination of variables  ====================  !
-        #                                                                       !
-        #  inputs:                                                         size !
-        #    colamt  - real, column amounts of absorbing gases the index        !
-        #                    are for h2o, co2, o3, n2o, ch4, and o2,            !
-        #                    respectively (molecules/cm**2)          nlay*maxgas!
-        #    colmol  - real, total column amount (dry air+water vapor)     nlay !
-        #    facij   - real, for each layer, these are factors that are         !
-        #                    needed to compute the interpolation factors        !
-        #                    that multiply the appropriate reference k-         !
-        #                    values.  a value of 0/1 for i,j indicates          !
-        #                    that the corresponding factor multiplies           !
-        #                    reference k-value for the lower/higher of the      !
-        #                    two appropriate temperatures, and altitudes,       !
-        #                    respectively.                                 naly !
-        #    jp      - real, the index of the lower (in altitude) of the        !
-        #                    two appropriate ref pressure levels needed         !
-        #                    for interpolation.                            nlay !
-        #    jt, jt1 - integer, the indices of the lower of the two approp      !
-        #                    ref temperatures needed for interpolation (for     !
-        #                    pressure levels jp and jp+1, respectively)    nlay !
-        #    laytrop - integer, tropopause layer index                       1  !
-        #    forfac  - real, scale factor needed to foreign-continuum.     nlay !
-        #    forfrac - real, factor needed for temperature interpolation   nlay !
-        #    indfor  - integer, index of the lower of the two appropriate       !
-        #                    reference temperatures needed for foreign-         !
-        #                    continuum interpolation                       nlay !
-        #    selffac - real, scale factor needed to h2o self-continuum.    nlay !
-        #    selffrac- real, factor needed for temperature interpolation        !
-        #                    of reference h2o self-continuum data          nlay !
-        #    indself - integer, index of the lower of the two appropriate       !
-        #                    reference temperatures needed for the self-        !
-        #                    continuum interpolation                       nlay !
-        #    nlay    - integer, number of vertical layers                    1  !
-        #                                                                       !
-        #  output:                                                              !
-        #    sfluxzen- real, spectral distribution of incoming solar flux ngptsw!
-        #    taug    - real, spectral optical depth for gases        nlay*ngptsw!
-        #    taur    - real, opt depth for rayleigh scattering       nlay*ngptsw!
-        #                                                                       !
-        #  ===================================================================  !
-        #  ************     original subprogram description    ***************  !
-        #                                                                       !
-        #                  optical depths developed for the                     !
-        #                                                                       !
-        #                rapid radiative transfer model (rrtm)                  !
-        #                                                                       !
-        #            atmospheric and environmental research, inc.               !
-        #                        131 hartwell avenue                            !
-        #                        lexington, ma 02421                            !
-        #                                                                       !
-        #                                                                       !
-        #                           eli j. mlawer                               !
-        #                         jennifer delamere                             !
-        #                         steven j. taubman                             !
-        #                         shepard a. clough                             !
-        #                                                                       !
-        #                                                                       !
-        #                                                                       !
-        #                       email:  mlawer@aer.com                          !
-        #                       email:  jdelamer@aer.com                        !
-        #                                                                       !
-        #        the authors wish to acknowledge the contributions of the       !
-        #        following people:  patrick d. brown, michael j. iacono,        !
-        #        ronald e. farren, luke chen, robert bergstrom.                 !
-        #                                                                       !
-        #  *******************************************************************  !
-        #                                                                       !
-        #  taumol                                                               !
-        #                                                                       !
-        #    this file contains the subroutines taugbn (where n goes from       !
-        #    16 to 29).  taugbn calculates the optical depths and Planck        !
-        #    fractions per g-value and layer for band n.                        !
-        #                                                                       !
-        #  output:  optical depths (unitless)                                   !
-        #           fractions needed to compute planck functions at every layer !
-        #           and g-value                                                 !
-        #                                                                       !
-        #  modifications:                                                       !
-        #                                                                       !
-        # revised: adapted to f90 coding, j.-j.morcrette, ecmwf, feb 2003       !
-        # revised: modified for g-point reduction, mjiacono, aer, dec 2003      !
-        # revised: reformatted for consistency with rrtmg_lw, mjiacono, aer,    !
-        #          jul 2006                                                     !
-        #                                                                       !
-        #  *******************************************************************  !
-        #  ======================  end of description block  =================  !
-
-        self.strrat = strrat
-
-        id0 = np.zeros((nlay, nbhgh), dtype=np.int32)
-        id1 = np.zeros((nlay, nbhgh), dtype=np.int32)
-        sfluxzen = np.zeros(ngptsw)
-
-        taug = np.zeros((nlay, ngptsw))
-        taur = np.zeros((nlay, ngptsw))
-
-
-        for b in range(nbhgh - nblow + 1):
-            jb = nblow + b - 1
-
-            #  --- ...  indices for layer optical depth
-
-            for k in range(laytrop):
-                id0[k, jb] = ((jp[k] - 1) * 5 + (jt[k] - 1)) * nspa[b] - 1
-                id1[k, jb] = (jp[k] * 5 + (jt1[k] - 1)) * nspa[b] - 1
-
-            for k in range(laytrop, nlay):
-                id0[k, jb] = ((jp[k] - 13) * 5 + (jt[k] - 1)) * nspb[b] - 1
-                id1[k, jb] = ((jp[k] - 12) * 5 + (jt1[k] - 1)) * nspb[b] - 1
-
-            #  --- ...  calculate spectral flux at toa
-            ibd = ibx[b] - 1
-            njb = ng[b]
-            ns = ngs[b]
-
-            if jb in [15, 19, 22, 24, 25, 28]:
-                for j in range(njb):
-                    sfluxzen[ns + j] = sfluxref01[j, 0, ibd]
-            elif jb == 26:
-                for j in range(njb):
-                    sfluxzen[ns + j] = scalekur * sfluxref01[j, 0, ibd]
-            else:
-                if jb == 16 or jb == 27:
-                    ks = nlay - 1
-                    for k in range(laytrop - 1, nlay - 1):
-                        if (jp[k] < layreffr[b]) and jp[k + 1] >= layreffr[b]:
-                            ks = k + 1
-                            break
-
-                    colm1 = colamt[ks, ix1[b] - 1]
-                    colm2 = colamt[ks, ix2[b] - 1]
-                    speccomb = colm1 + self.strrat[b] * colm2
-                    specmult = specwt[b] * min(oneminus, colm1 / speccomb)
-                    js = 1 + int(specmult) - 1
-                    fs = np.mod(specmult, 1.0)
-
-                    for j in range(njb):
-                        sfluxzen[ns + j] = sfluxref02[j, js, ibd] + fs * (
-                            sfluxref02[j, js + 1, ibd] - sfluxref02[j, js, ibd]
-                        )
-                else:
-                    ks = laytrop - 1
-                    for k in range(laytrop - 1):
-                        if jp[k] < layreffr[b] and jp[k + 1] >= layreffr[b]:
-                            ks = k + 1
-                            break
-                    colm1 = colamt[ks, ix1[b] - 1]
-                    colm2 = colamt[ks, ix2[b] - 1]
-                    speccomb = colm1 + self.strrat[b] * colm2
-                    specmult = specwt[b] * min(oneminus, colm1 / speccomb)
-                    js = 1 + int(specmult) - 1
-                    fs = np.mod(specmult, 1.0)
-
-                    for j in range(njb):
-                        sfluxzen[ns + j] = sfluxref03[j, js, ibd] + fs * (
-                            sfluxref03[j, js + 1, ibd] - sfluxref03[j, js, ibd]
-                        )
-        taug, taur = self.taumol16(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            selfref_16,
-            forref_16,
-            absa_16,
-            absb_16,
-            rayl_16,
-        )
-        taug, taur = self.taumol17(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            selfref_17,
-            forref_17,
-            absa_17,
-            absb_17,
-            rayl_17,
-        )
-        taug, taur = self.taumol18(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            selfref_18,
-            forref_18,
-            absa_18,
-            absb_18,
-            rayl_18,
-        )
-        taug, taur = self.taumol19(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            selfref_19,
-            forref_19,
-            absa_19,
-            absb_19,
-            rayl_19,
-        )
-        taug, taur = self.taumol20(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            selfref_20,
-            forref_20,
-            absa_20,
-            absb_20,
-            absch4_20,
-            rayl_20,
-        )
-        taug, taur = self.taumol21(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            selfref_21,
-            forref_21,
-            absa_21,
-            absb_21,
-            rayl_21,
-        )
-        taug, taur = self.taumol22(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            selfref_22,
-            forref_22,
-            absa_22,
-            absb_22,
-            rayl_22,
-        )
-        taug, taur = self.taumol23(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            selfref_23,
-            forref_23,
-            absa_23,
-            rayl_23,
-            givfac_23,
-        )
-        taug, taur = self.taumol24(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            selfref_24,
-            forref_24,
-            absa_24,
-            absb_24,
-            abso3a_24,
-            abso3b_24,
-            rayla_24,
-            raylb_24,
-        )
-        taug, taur = self.taumol25(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            absa_25,
-            abso3a_25,
-            abso3b_25,
-            rayl_25,
-        )
-        taug, taur = self.taumol26(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            rayl_26,
-        )
-        taug, taur = self.taumol27(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            absa_27,
-            absb_27,
-            rayl_27,
-        )
-        taug, taur = self.taumol28(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,
-            absa_28,
-            absb_28,
-            rayl_28,
-        )
-        taug, taur = self.taumol29(
-            colamt,
-            colmol,
-            fac00,
-            fac01,
-            fac10,
-            fac11,
-            jp,
-            jt,
-            jt1,
-            laytrop,
-            forfac,
-            forfrac,
-            indfor,
-            selffac,
-            selffrac,
-            indself,
-            nlay,
-            id0,
-            id1,
-            taug,
-            taur,     
-            forref_29,
-            absa_29,
-            absb_29,
-            selfref_29,
-            absh2o_29,
-            absco2_29,
-            rayl_29,
-        )
-
-        return sfluxzen, taug, taur
-
-    def taumol16(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        selfref,
-        forref,
-        absa,
-        absb,
-        rayl,
-    ):
-
-
-        #  --- ... compute the optical depth by interpolating in ln(pressure),
-        #          temperature, and appropriate species.  below laytrop, the water
-        #          vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            tauray = colmol[k] * rayl
-
-            for j in range(NG16):
-                taur[k, NS16 + j] = tauray
-
-        for k in range(laytrop):
-            speccomb = colamt[k, 0] + self.strrat[0] * colamt[k, 4]
-            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
-
-            js = 1 + int(specmult)
-            fs = np.mod(specmult, 1.0)
-            fs1 = 1.0 - fs
-            fac000 = fs1 * fac00[k]
-            fac010 = fs1 * fac10[k]
-            fac100 = fs * fac00[k]
-            fac110 = fs * fac10[k]
-            fac001 = fs1 * fac01[k]
-            fac011 = fs1 * fac11[k]
-            fac101 = fs * fac01[k]
-            fac111 = fs * fac11[k]
-
-            ind01 = id0[k, 15] + js
-            ind02 = ind01 + 1
-            ind03 = ind01 + 9
-            ind04 = ind01 + 10
-            ind11 = id1[k, 15] + js
-            ind12 = ind11 + 1
-            ind13 = ind11 + 9
-            ind14 = ind11 + 10
-            inds = indself[k] - 1
-            indf = indfor[k] - 1
-            indsp = inds + 1
-            indfp = indf + 1
-
-            for j in range(NG16):
-                taug[k, NS16 + j] = speccomb * (
-                    fac000 * absa[ind01, j]
-                    + fac100 * absa[ind02, j]
-                    + fac010 * absa[ind03, j]
-                    + fac110 * absa[ind04, j]
-                    + fac001 * absa[ind11, j]
-                    + fac101 * absa[ind12, j]
-                    + fac011 * absa[ind13, j]
-                    + fac111 * absa[ind14, j]
-                ) + colamt[k, 0] * (
-                    selffac[k]
-                    * (
-                        selfref[inds, j]
-                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
-                    )
-                    + forfac[k]
-                    * (
-                        forref[indf, j]
-                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                    )
-                )
-
-            for k in range(laytrop, nlay):
-                ind01 = id0[k, 15] + 1
-                ind02 = ind01 + 1
-                ind11 = id1[k, 15] + 1
-                ind12 = ind11 + 1
-
-                for j in range(NG16):
-                    taug[k, NS16 + j] = colamt[k, 4] * (
-                        fac00[k] * absb[ind01, j]
-                        + fac10[k] * absb[ind02, j]
-                        + fac01[k] * absb[ind11, j]
-                        + fac11[k] * absb[ind12, j]
-                    )
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 17:  3250-4000
-    # cm-1 (low - h2o,co2; high - h2o,co2)
-
-    def taumol17(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        selfref,
-        forref,
-        absa,
-        absb,
-        rayl,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 17:  3250-4000 cm-1 (low - h2o,co2; high - h2o,co2)         !
-        #  ------------------------------------------------------------------  !
-        #
-
-
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            tauray = colmol[k] * rayl
-
-            for j in range(NG17):
-                taur[k, NS17 + j] = tauray
-
-        for k in range(laytrop):
-            speccomb = colamt[k, 0] + self.strrat[1] * colamt[k, 1]
-            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
-
-            js = 1 + int(specmult)
-            fs = np.mod(specmult, 1.0)
-            fs1 = 1.0 - fs
-            fac000 = fs1 * fac00[k]
-            fac010 = fs1 * fac10[k]
-            fac100 = fs * fac00[k]
-            fac110 = fs * fac10[k]
-            fac001 = fs1 * fac01[k]
-            fac011 = fs1 * fac11[k]
-            fac101 = fs * fac01[k]
-            fac111 = fs * fac11[k]
-
-            ind01 = id0[k, 16] + js
-            ind02 = ind01 + 1
-            ind03 = ind01 + 9
-            ind04 = ind01 + 10
-            ind11 = id1[k, 16] + js
-            ind12 = ind11 + 1
-            ind13 = ind11 + 9
-            ind14 = ind11 + 10
-
-            inds = indself[k] - 1
-            indf = indfor[k] - 1
-            indsp = inds + 1
-            indfp = indf + 1
-
-            for j in range(NG17):
-                taug[k, NS17 + j] = speccomb * (
-                    fac000 * absa[ind01, j]
-                    + fac100 * absa[ind02, j]
-                    + fac010 * absa[ind03, j]
-                    + fac110 * absa[ind04, j]
-                    + fac001 * absa[ind11, j]
-                    + fac101 * absa[ind12, j]
-                    + fac011 * absa[ind13, j]
-                    + fac111 * absa[ind14, j]
-                ) + colamt[k, 0] * (
-                    selffac[k]
-                    * (
-                        selfref[inds, j]
-                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
-                    )
-                    + forfac[k]
-                    * (
-                        forref[indf, j]
-                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                    )
-                )
-
-        for k in range(laytrop, nlay):
-            speccomb = colamt[k, 0] + self.strrat[1] * colamt[k, 1]
-            specmult = 4.0 * min(oneminus, colamt[k, 0] / speccomb)
-
-            js = 1 + int(specmult)
-            fs = np.mod(specmult, 1.0)
-            fs1 = 1.0 - fs
-            fac000 = fs1 * fac00[k]
-            fac010 = fs1 * fac10[k]
-            fac100 = fs * fac00[k]
-            fac110 = fs * fac10[k]
-            fac001 = fs1 * fac01[k]
-            fac011 = fs1 * fac11[k]
-            fac101 = fs * fac01[k]
-            fac111 = fs * fac11[k]
-
-            ind01 = id0[k, 16] + js
-            ind02 = ind01 + 1
-            ind03 = ind01 + 5
-            ind04 = ind01 + 6
-            ind11 = id1[k, 16] + js
-            ind12 = ind11 + 1
-            ind13 = ind11 + 5
-            ind14 = ind11 + 6
-
-            indf = indfor[k] - 1
-            indfp = indf + 1
-
-            for j in range(NG17):
-                taug[k, NS17 + j] = speccomb * (
-                    fac000 * absb[ind01, j]
-                    + fac100 * absb[ind02, j]
-                    + fac010 * absb[ind03, j]
-                    + fac110 * absb[ind04, j]
-                    + fac001 * absb[ind11, j]
-                    + fac101 * absb[ind12, j]
-                    + fac011 * absb[ind13, j]
-                    + fac111 * absb[ind14, j]
-                ) + colamt[k, 0] * forfac[k] * (
-                    forref[indf, j] + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                )
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 18:  4000-4650
-    # cm-1 (low - h2o,ch4; high - ch4)
-    def taumol18(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        selfref,
-        forref,
-        absa,
-        absb,
-        rayl,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 18:  4000-4650 cm-1 (low - h2o,ch4; high - ch4)             !
-        #  ------------------------------------------------------------------  !
-        #
-
-
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            tauray = colmol[k] * rayl
-
-            for j in range(NG18):
-                taur[k, NS18 + j] = tauray
-
-        for k in range(laytrop):
-            speccomb = colamt[k, 0] + self.strrat[2] * colamt[k, 4]
-            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
-
-            js = 1 + int(specmult)
-            fs = np.mod(specmult, 1.0)
-            fs1 = 1.0 - fs
-            fac000 = fs1 * fac00[k]
-            fac010 = fs1 * fac10[k]
-            fac100 = fs * fac00[k]
-            fac110 = fs * fac10[k]
-            fac001 = fs1 * fac01[k]
-            fac011 = fs1 * fac11[k]
-            fac101 = fs * fac01[k]
-            fac111 = fs * fac11[k]
-
-            ind01 = id0[k, 17] + js
-            ind02 = ind01 + 1
-            ind03 = ind01 + 9
-            ind04 = ind01 + 10
-            ind11 = id1[k, 17] + js
-            ind12 = ind11 + 1
-            ind13 = ind11 + 9
-            ind14 = ind11 + 10
-
-            inds = indself[k] - 1
-            indf = indfor[k] - 1
-            indsp = inds + 1
-            indfp = indf + 1
-
-            for j in range(NG18):
-                taug[k, NS18 + j] = speccomb * (
-                    fac000 * absa[ind01, j]
-                    + fac100 * absa[ind02, j]
-                    + fac010 * absa[ind03, j]
-                    + fac110 * absa[ind04, j]
-                    + fac001 * absa[ind11, j]
-                    + fac101 * absa[ind12, j]
-                    + fac011 * absa[ind13, j]
-                    + fac111 * absa[ind14, j]
-                ) + colamt[k, 0] * (
-                    selffac[k]
-                    * (
-                        selfref[inds, j]
-                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
-                    )
-                    + forfac[k]
-                    * (
-                        forref[indf, j]
-                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                    )
-                )
-
-        for k in range(laytrop, nlay):
-            ind01 = id0[k, 17] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 17] + 1
-            ind12 = ind11 + 1
-
-            for j in range(NG18):
-                taug[k, NS18 + j] = colamt[k, 4] * (
-                    fac00[k] * absb[ind01, j]
-                    + fac10[k] * absb[ind02, j]
-                    + fac01[k] * absb[ind11, j]
-                    + fac11[k] * absb[ind12, j]
-                )
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 19:  4650-5150
-    # cm-1 (low - h2o,co2; high - co2)
-
-    def taumol19(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        selfref,
-        forref,
-        absa,
-        absb,
-        rayl,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 19:  4650-5150 cm-1 (low - h2o,co2; high - co2)             !
-        #  ------------------------------------------------------------------  !
-        #
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            tauray = colmol[k] * rayl
-
-            for j in range(NG19):
-                taur[k, NS19 + j] = tauray
-
-        for k in range(laytrop):
-            speccomb = colamt[k, 0] + self.strrat[3] * colamt[k, 1]
-            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
-
-            js = 1 + int(specmult)
-            fs = np.mod(specmult, 1.0)
-            fs1 = 1.0 - fs
-            fac000 = fs1 * fac00[k]
-            fac010 = fs1 * fac10[k]
-            fac100 = fs * fac00[k]
-            fac110 = fs * fac10[k]
-            fac001 = fs1 * fac01[k]
-            fac011 = fs1 * fac11[k]
-            fac101 = fs * fac01[k]
-            fac111 = fs * fac11[k]
-
-            ind01 = id0[k, 18] + js
-            ind02 = ind01 + 1
-            ind03 = ind01 + 9
-            ind04 = ind01 + 10
-            ind11 = id1[k, 18] + js
-            ind12 = ind11 + 1
-            ind13 = ind11 + 9
-            ind14 = ind11 + 10
-
-            inds = indself[k] - 1
-            indf = indfor[k] - 1
-            indsp = inds + 1
-            indfp = indf + 1
-
-            for j in range(NG19):
-                taug[k, NS19 + j] = speccomb * (
-                    fac000 * absa[ind01, j]
-                    + fac100 * absa[ind02, j]
-                    + fac010 * absa[ind03, j]
-                    + fac110 * absa[ind04, j]
-                    + fac001 * absa[ind11, j]
-                    + fac101 * absa[ind12, j]
-                    + fac011 * absa[ind13, j]
-                    + fac111 * absa[ind14, j]
-                ) + colamt[k, 0] * (
-                    selffac[k]
-                    * (
-                        selfref[inds, j]
-                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
-                    )
-                    + forfac[k]
-                    * (
-                        forref[indf, j]
-                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                    )
-                )
-
-        for k in range(laytrop, nlay):
-            ind01 = id0[k, 18] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 18] + 1
-            ind12 = ind11 + 1
-
-            for j in range(NG19):
-                taug[k, NS19 + j] = colamt[k, 1] * (
-                    fac00[k] * absb[ind01, j]
-                    + fac10[k] * absb[ind02, j]
-                    + fac01[k] * absb[ind11, j]
-                    + fac11[k] * absb[ind12, j]
-                )
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 20:  5150-6150
-    # cm-1 (low - h2o; high - h2o)
-    def taumol20(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        selfref,
-        forref,
-        absa,
-        absb,
-        absch4,
-        rayl,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 20:  5150-6150 cm-1 (low - h2o; high - h2o)                 !
-        #  ------------------------------------------------------------------  !
-        #
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            tauray = colmol[k] * rayl
-
-            for j in range(NG20):
-                taur[k, NS20 + j] = tauray
-
-        for k in range(laytrop):
-            ind01 = id0[k, 19] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 19] + 1
-            ind12 = ind11 + 1
-
-            inds = indself[k] - 1
-            indf = indfor[k] - 1
-            indsp = inds + 1
-            indfp = indf + 1
-
-            for j in range(NG20):
-                taug[k, NS20 + j] = (
-                    colamt[k, 0]
-                    * (
-                        (
-                            fac00[k] * absa[ind01, j]
-                            + fac10[k] * absa[ind02, j]
-                            + fac01[k] * absa[ind11, j]
-                            + fac11[k] * absa[ind12, j]
-                        )
-                        + selffac[k]
-                        * (
-                            selfref[inds, j]
-                            + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
-                        )
-                        + forfac[k]
-                        * (
-                            forref[indf, j]
-                            + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                        )
-                    )
-                    + colamt[k, 4] * absch4[j]
-                )
-
-        for k in range(laytrop, nlay):
-            ind01 = id0[k, 19] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 19] + 1
-            ind12 = ind11 + 1
-
-            indf = indfor[k] - 1
-            indfp = indf + 1
-
-            for j in range(NG20):
-                taug[k, NS20 + j] = (
-                    colamt[k, 0]
-                    * (
-                        fac00[k] * absb[ind01, j]
-                        + fac10[k] * absb[ind02, j]
-                        + fac01[k] * absb[ind11, j]
-                        + fac11[k] * absb[ind12, j]
-                        + forfac[k]
-                        * (
-                            forref[indf, j]
-                            + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                        )
-                    )
-                    + colamt[k, 4] * absch4[j]
-                )
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 21:  6150-7700
-    # cm-1 (low - h2o,co2; high - h2o,co2)
-
-    def taumol21(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        selfref,
-        forref,
-        absa,
-        absb,
-        rayl,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 21:  6150-7700 cm-1 (low - h2o,co2; high - h2o,co2)         !
-        #  ------------------------------------------------------------------  !
-        #
-
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            tauray = colmol[k] * rayl
-
-            for j in range(NG21):
-                taur[k, NS21 + j] = tauray
-
-        for k in range(laytrop):
-            speccomb = colamt[k, 0] + self.strrat[5] * colamt[k, 1]
-            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
-
-            js = 1 + int(specmult)
-            fs = np.mod(specmult, 1.0)
-            fs1 = 1.0 - fs
-            fac000 = fs1 * fac00[k]
-            fac010 = fs1 * fac10[k]
-            fac100 = fs * fac00[k]
-            fac110 = fs * fac10[k]
-            fac001 = fs1 * fac01[k]
-            fac011 = fs1 * fac11[k]
-            fac101 = fs * fac01[k]
-            fac111 = fs * fac11[k]
-
-            ind01 = id0[k, 20] + js
-            ind02 = ind01 + 1
-            ind03 = ind01 + 9
-            ind04 = ind01 + 10
-            ind11 = id1[k, 20] + js
-            ind12 = ind11 + 1
-            ind13 = ind11 + 9
-            ind14 = ind11 + 10
-
-            inds = indself[k] - 1
-            indf = indfor[k] - 1
-            indsp = inds + 1
-            indfp = indf + 1
-
-            for j in range(NG21):
-                taug[k, NS21 + j] = speccomb * (
-                    fac000 * absa[ind01, j]
-                    + fac100 * absa[ind02, j]
-                    + fac010 * absa[ind03, j]
-                    + fac110 * absa[ind04, j]
-                    + fac001 * absa[ind11, j]
-                    + fac101 * absa[ind12, j]
-                    + fac011 * absa[ind13, j]
-                    + fac111 * absa[ind14, j]
-                ) + colamt[k, 0] * (
-                    selffac[k]
-                    * (
-                        selfref[inds, j]
-                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
-                    )
-                    + forfac[k]
-                    * (
-                        forref[indf, j]
-                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                    )
-                )
-
-        for k in range(laytrop, nlay):
-            speccomb = colamt[k, 0] + self.strrat[5] * colamt[k, 1]
-            specmult = 4.0 * min(oneminus, colamt[k, 0] / speccomb)
-
-            js = 1 + int(specmult)
-            fs = np.mod(specmult, 1.0)
-            fs1 = 1.0 - fs
-            fac000 = fs1 * fac00[k]
-            fac010 = fs1 * fac10[k]
-            fac100 = fs * fac00[k]
-            fac110 = fs * fac10[k]
-            fac001 = fs1 * fac01[k]
-            fac011 = fs1 * fac11[k]
-            fac101 = fs * fac01[k]
-            fac111 = fs * fac11[k]
-
-            ind01 = id0[k, 20] + js
-            ind02 = ind01 + 1
-            ind03 = ind01 + 5
-            ind04 = ind01 + 6
-            ind11 = id1[k, 20] + js
-            ind12 = ind11 + 1
-            ind13 = ind11 + 5
-            ind14 = ind11 + 6
-
-            indf = indfor[k] - 1
-            indfp = indf + 1
-
-            for j in range(NG21):
-                taug[k, NS21 + j] = speccomb * (
-                    fac000 * absb[ind01, j]
-                    + fac100 * absb[ind02, j]
-                    + fac010 * absb[ind03, j]
-                    + fac110 * absb[ind04, j]
-                    + fac001 * absb[ind11, j]
-                    + fac101 * absb[ind12, j]
-                    + fac011 * absb[ind13, j]
-                    + fac111 * absb[ind14, j]
-                ) + colamt[k, 0] * forfac[k] * (
-                    forref[indf, j] + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                )
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 22:  7700-8050
-    # cm-1 (low - h2o,o2; high - o2)
-
-    def taumol22(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        selfref,
-        forref,
-        absa,
-        absb,
-        rayl,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 22:  7700-8050 cm-1 (low - h2o,o2; high - o2)               !
-        #  ------------------------------------------------------------------  !
-        #
-
-
-
-        #  --- ...  the following factor is the ratio of total o2 band intensity (lines
-        #           and mate continuum) to o2 band intensity (line only). it is needed
-        #           to adjust the optical depths since the k's include only lines.
-
-        o2adj = 1.6
-        o2tem = 4.35e-4 / (350.0 * 2.0)
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            tauray = colmol[k] * rayl
-
-            for j in range(NG22):
-                taur[k, NS22 + j] = tauray
-
-        for k in range(laytrop):
-            o2cont = o2tem * colamt[k, 5]
-            speccomb = colamt[k, 0] + self.strrat[6] * colamt[k, 5]
-            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
-
-            js = 1 + int(specmult)
-            fs = np.mod(specmult, 1.0)
-            fs1 = 1.0 - fs
-            fac000 = fs1 * fac00[k]
-            fac010 = fs1 * fac10[k]
-            fac100 = fs * fac00[k]
-            fac110 = fs * fac10[k]
-            fac001 = fs1 * fac01[k]
-            fac011 = fs1 * fac11[k]
-            fac101 = fs * fac01[k]
-            fac111 = fs * fac11[k]
-
-            ind01 = id0[k, 21] + js
-            ind02 = ind01 + 1
-            ind03 = ind01 + 9
-            ind04 = ind01 + 10
-            ind11 = id1[k, 21] + js
-            ind12 = ind11 + 1
-            ind13 = ind11 + 9
-            ind14 = ind11 + 10
-
-            inds = indself[k] - 1
-            indf = indfor[k] - 1
-            indsp = inds + 1
-            indfp = indf + 1
-
-            for j in range(NG22):
-                taug[k, NS22 + j] = (
-                    speccomb
-                    * (
-                        fac000 * absa[ind01, j]
-                        + fac100 * absa[ind02, j]
-                        + fac010 * absa[ind03, j]
-                        + fac110 * absa[ind04, j]
-                        + fac001 * absa[ind11, j]
-                        + fac101 * absa[ind12, j]
-                        + fac011 * absa[ind13, j]
-                        + fac111 * absa[ind14, j]
-                    )
-                    + colamt[k, 0]
-                    * (
-                        selffac[k]
-                        * (
-                            selfref[inds, j]
-                            + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
-                        )
-                        + forfac[k]
-                        * (
-                            forref[indf, j]
-                            + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                        )
-                    )
-                    + o2cont
-                )
-
-        for k in range(laytrop, nlay):
-            o2cont = o2tem * colamt[k, 5]
-
-            ind01 = id0[k, 21] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 21] + 1
-            ind12 = ind11 + 1
-
-            for j in range(NG22):
-                taug[k, NS22 + j] = (
-                    colamt[k, 5]
-                    * o2adj
-                    * (
-                        fac00[k] * absb[ind01, j]
-                        + fac10[k] * absb[ind02, j]
-                        + fac01[k] * absb[ind11, j]
-                        + fac11[k] * absb[ind12, j]
-                    )
-                    + o2cont
-                )
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 23:  8050-12850
-    # cm-1 (low - h2o; high - nothing)
-
-    def taumol23(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        selfref,
-        forref,
-        absa,
-        rayl,
-        givfac,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 23:  8050-12850 cm-1 (low - h2o; high - nothing)            !
-        #  ------------------------------------------------------------------  !
-        #
-
-
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            for j in range(NG23):
-                taur[k, NS23 + j] = colmol[k] * rayl[j]
-
-        for k in range(laytrop):
-            ind01 = id0[k, 22] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 22] + 1
-            ind12 = ind11 + 1
-
-            inds = indself[k] - 1
-            indf = indfor[k] - 1
-            indsp = inds + 1
-            indfp = indf + 1
-
-            for j in range(NG23):
-                taug[k, NS23 + j] = colamt[k, 0] * (
-                    givfac
-                    * (
-                        fac00[k] * absa[ind01, j]
-                        + fac10[k] * absa[ind02, j]
-                        + fac01[k] * absa[ind11, j]
-                        + fac11[k] * absa[ind12, j]
-                    )
-                    + selffac[k]
-                    * (
-                        selfref[inds, j]
-                        + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
-                    )
-                    + forfac[k]
-                    * (
-                        forref[indf, j]
-                        + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                    )
-                )
-
-        for k in range(laytrop, nlay):
-            for j in range(NG23):
-                taug[k, NS23 + j] = 0.0
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 24:  12850-16000
-    # cm-1 (low - h2o,o2; high - o2)
-
-    def taumol24(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        selfref,
-        forref,
-        absa,
-        absb,
-        abso3a,
-        abso3b,
-        rayla,
-        raylb,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 24:  12850-16000 cm-1 (low - h2o,o2; high - o2)             !
-        #  ------------------------------------------------------------------  !
-        #
-
-
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(laytrop):
-            speccomb = colamt[k, 0] + self.strrat[8] * colamt[k, 5]
-            specmult = 8.0 * min(oneminus, colamt[k, 0] / speccomb)
-
-            js = 1 + int(specmult)
-            fs = np.mod(specmult, 1.0)
-            fs1 = 1.0 - fs
-            fac000 = fs1 * fac00[k]
-            fac010 = fs1 * fac10[k]
-            fac100 = fs * fac00[k]
-            fac110 = fs * fac10[k]
-            fac001 = fs1 * fac01[k]
-            fac011 = fs1 * fac11[k]
-            fac101 = fs * fac01[k]
-            fac111 = fs * fac11[k]
-
-            ind01 = id0[k, 23] + js
-            ind02 = ind01 + 1
-            ind03 = ind01 + 9
-            ind04 = ind01 + 10
-            ind11 = id1[k, 23] + js
-            ind12 = ind11 + 1
-            ind13 = ind11 + 9
-            ind14 = ind11 + 10
-
-            inds = indself[k] - 1
-            indf = indfor[k] - 1
-            indsp = inds + 1
-            indfp = indf + 1
-
-            for j in range(NG24):
-                taug[k, NS24 + j] = (
-                    speccomb
-                    * (
-                        fac000 * absa[ind01, j]
-                        + fac100 * absa[ind02, j]
-                        + fac010 * absa[ind03, j]
-                        + fac110 * absa[ind04, j]
-                        + fac001 * absa[ind11, j]
-                        + fac101 * absa[ind12, j]
-                        + fac011 * absa[ind13, j]
-                        + fac111 * absa[ind14, j]
-                    )
-                    + colamt[k, 2] * abso3a[j]
-                    + colamt[k, 0]
-                    * (
-                        selffac[k]
-                        * (
-                            selfref[inds, j]
-                            + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
-                        )
-                        + forfac[k]
-                        * (
-                            forref[indf, j]
-                            + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                        )
-                    )
-                )
-
-                taur[k, NS24 + j] = colmol[k] * (
-                    rayla[j, js - 1] + fs * (rayla[j, js] - rayla[j, js - 1])
-                )
-
-        for k in range(laytrop, nlay):
-            ind01 = id0[k, 23] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 23] + 1
-            ind12 = ind11 + 1
-
-            for j in range(NG24):
-                taug[k, NS24 + j] = (
-                    colamt[k, 5]
-                    * (
-                        fac00[k] * absb[ind01, j]
-                        + fac10[k] * absb[ind02, j]
-                        + fac01[k] * absb[ind11, j]
-                        + fac11[k] * absb[ind12, j]
-                    )
-                    + colamt[k, 2] * abso3b[j]
-                )
-
-                taur[k, NS24 + j] = colmol[k] * raylb[j]
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 25:  16000-22650
-    # cm-1 (low - h2o; high - nothing)
-
-    def taumol25(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        absa,
-        abso3a,
-        abso3b,
-        rayl,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 25:  16000-22650 cm-1 (low - h2o; high - nothing)           !
-        #  ------------------------------------------------------------------  !
-        #
-
-
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            for j in range(NG25):
-                taur[k, NS25 + j] = colmol[k] * rayl[j]
-
-        for k in range(laytrop):
-            ind01 = id0[k, 24] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 24] + 1
-            ind12 = ind11 + 1
-
-            for j in range(NG25):
-                taug[k, NS25 + j] = (
-                    colamt[k, 0]
-                    * (
-                        fac00[k] * absa[ind01, j]
-                        + fac10[k] * absa[ind02, j]
-                        + fac01[k] * absa[ind11, j]
-                        + fac11[k] * absa[ind12, j]
-                    )
-                    + colamt[k, 2] * abso3a[j]
-                )
-
-        for k in range(laytrop, nlay):
-            for j in range(NG25):
-                taug[k, NS25 + j] = colamt[k, 2] * abso3b[j]
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 26:  22650-29000
-    # cm-1 (low - nothing; high - nothing)
-    def taumol26(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        rayl,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 26:  22650-29000 cm-1 (low - nothing; high - nothing)       !
-        #  ------------------------------------------------------------------  !
-        #
-
-        
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            for j in range(NG26):
-                taug[k, NS26 + j] = 0.0
-                taur[k, NS26 + j] = colmol[k] * rayl[j]
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 27:  29000-38000
-    # cm-1 (low - o3; high - o3)
-
-    def taumol27(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        absa,
-        absb,
-        rayl,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 27:  29000-38000 cm-1 (low - o3; high - o3)                 !
-        #  ------------------------------------------------------------------  !
-        #
-
-
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            for j in range(NG27):
-                taur[k, NS27 + j] = colmol[k] * rayl[j]
-
-        for k in range(laytrop):
-            ind01 = id0[k, 26] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 26] + 1
-            ind12 = ind11 + 1
-
-            for j in range(NG27):
-                taug[k, NS27 + j] = colamt[k, 2] * (
-                    fac00[k] * absa[ind01, j]
-                    + fac10[k] * absa[ind02, j]
-                    + fac01[k] * absa[ind11, j]
-                    + fac11[k] * absa[ind12, j]
-                )
-
-        for k in range(laytrop, nlay):
-            ind01 = id0[k, 26] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 26] + 1
-            ind12 = ind11 + 1
-
-            for j in range(NG27):
-                taug[k, NS27 + j] = colamt[k, 2] * (
-                    fac00[k] * absb[ind01, j]
-                    + fac10[k] * absb[ind02, j]
-                    + fac01[k] * absb[ind11, j]
-                    + fac11[k] * absb[ind12, j]
-                )
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 28:  38000-50000
-    # cm-1 (low - o3,o2; high - o3,o2)
-
-    def taumol28(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        absa,
-        absb,
-        rayl,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 28:  38000-50000 cm-1 (low - o3,o2; high - o3,o2)           !
-        #  ------------------------------------------------------------------  !
-        #
-
-
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            tauray = colmol[k] * rayl
-
-            for j in range(NG28):
-                taur[k, NS28 + j] = tauray
-
-        for k in range(laytrop):
-            speccomb = colamt[k, 2] + self.strrat[12] * colamt[k, 5]
-            specmult = 8.0 * min(oneminus, colamt[k, 2] / speccomb)
-
-            js = 1 + int(specmult)
-            fs = np.mod(specmult, 1.0)
-            fs1 = 1.0 - fs
-            fac000 = fs1 * fac00[k]
-            fac010 = fs1 * fac10[k]
-            fac100 = fs * fac00[k]
-            fac110 = fs * fac10[k]
-            fac001 = fs1 * fac01[k]
-            fac011 = fs1 * fac11[k]
-            fac101 = fs * fac01[k]
-            fac111 = fs * fac11[k]
-
-            ind01 = id0[k, 27] + js
-            ind02 = ind01 + 1
-            ind03 = ind01 + 9
-            ind04 = ind01 + 10
-            ind11 = id1[k, 27] + js
-            ind12 = ind11 + 1
-            ind13 = ind11 + 9
-            ind14 = ind11 + 10
-
-            for j in range(NG28):
-                taug[k, NS28 + j] = speccomb * (
-                    fac000 * absa[ind01, j]
-                    + fac100 * absa[ind02, j]
-                    + fac010 * absa[ind03, j]
-                    + fac110 * absa[ind04, j]
-                    + fac001 * absa[ind11, j]
-                    + fac101 * absa[ind12, j]
-                    + fac011 * absa[ind13, j]
-                    + fac111 * absa[ind14, j]
-                )
-
-        for k in range(laytrop, nlay):
-            speccomb = colamt[k, 2] + self.strrat[12] * colamt[k, 5]
-            specmult = 4.0 * min(oneminus, colamt[k, 2] / speccomb)
-
-            js = 1 + int(specmult)
-            fs = np.mod(specmult, 1.0)
-            fs1 = 1.0 - fs
-            fac000 = fs1 * fac00[k]
-            fac010 = fs1 * fac10[k]
-            fac100 = fs * fac00[k]
-            fac110 = fs * fac10[k]
-            fac001 = fs1 * fac01[k]
-            fac011 = fs1 * fac11[k]
-            fac101 = fs * fac01[k]
-            fac111 = fs * fac11[k]
-
-            ind01 = id0[k, 27] + js
-            ind02 = ind01 + 1
-            ind03 = ind01 + 5
-            ind04 = ind01 + 6
-            ind11 = id1[k, 27] + js
-            ind12 = ind11 + 1
-            ind13 = ind11 + 5
-            ind14 = ind11 + 6
-
-            for j in range(NG28):
-                taug[k, NS28 + j] = speccomb * (
-                    fac000 * absb[ind01, j]
-                    + fac100 * absb[ind02, j]
-                    + fac010 * absb[ind03, j]
-                    + fac110 * absb[ind04, j]
-                    + fac001 * absb[ind11, j]
-                    + fac101 * absb[ind12, j]
-                    + fac011 * absb[ind13, j]
-                    + fac111 * absb[ind14, j]
-                )
-
-        return taug, taur
-
-    # The subroutine computes the optical depth in band 29:  820-2600
-    # cm-1 (low - h2o; high - co2)
-
-    def taumol29(
-        self,
-        colamt,
-        colmol,
-        fac00,
-        fac01,
-        fac10,
-        fac11,
-        jp,
-        jt,
-        jt1,
-        laytrop,
-        forfac,
-        forfrac,
-        indfor,
-        selffac,
-        selffrac,
-        indself,
-        nlay,
-        id0,
-        id1,
-        taug,
-        taur,
-        forref,
-        absa,
-        absb,
-        selfref,
-        absh2o,
-        absco2,
-        rayl,
-    ):
-
-        #  ------------------------------------------------------------------  !
-        #     band 29:  820-2600 cm-1 (low - h2o; high - co2)                  !
-        #  ------------------------------------------------------------------  !
-        #
-
-
-
-        #  --- ...  compute the optical depth by interpolating in ln(pressure),
-        #           temperature, and appropriate species.  below laytrop, the water
-        #           vapor self-continuum is interpolated (in temperature) separately.
-
-        for k in range(nlay):
-            tauray = colmol[k] * rayl
-
-            for j in range(NG29):
-                taur[k, NS29 + j] = tauray
-
-        for k in range(laytrop):
-            ind01 = id0[k, 28] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 28] + 1
-            ind12 = ind11 + 1
-
-            inds = indself[k] - 1
-            indf = indfor[k] - 1
-            indsp = inds + 1
-            indfp = indf + 1
-
-            for j in range(NG29):
-                taug[k, NS29 + j] = (
-                    colamt[k, 0]
-                    * (
-                        (
-                            fac00[k] * absa[ind01, j]
-                            + fac10[k] * absa[ind02, j]
-                            + fac01[k] * absa[ind11, j]
-                            + fac11[k] * absa[ind12, j]
-                        )
-                        + selffac[k]
-                        * (
-                            selfref[inds, j]
-                            + selffrac[k] * (selfref[indsp, j] - selfref[inds, j])
-                        )
-                        + forfac[k]
-                        * (
-                            forref[indf, j]
-                            + forfrac[k] * (forref[indfp, j] - forref[indf, j])
-                        )
-                    )
-                    + colamt[k, 1] * absco2[j]
-                )
-
-        for k in range(laytrop, nlay):
-            ind01 = id0[k, 28] + 1
-            ind02 = ind01 + 1
-            ind11 = id1[k, 28] + 1
-            ind12 = ind11 + 1
-
-            for j in range(NG29):
-                taug[k, NS29 + j] = (
-                    colamt[k, 1]
-                    * (
-                        fac00[k] * absb[ind01, j]
-                        + fac10[k] * absb[ind02, j]
-                        + fac01[k] * absb[ind11, j]
-                        + fac11[k] * absb[ind12, j]
-                    )
-                    + colamt[k, 0] * absh2o[j]
-                )
-
-        return taug, taur
