@@ -61,7 +61,7 @@ np.set_printoptions(precision=15)
 
 # band 1:  10-350 cm-1 (low key - h2o; low minor - n2);
 #  (high key - h2o; high minor - n2)
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def taugb01(
         laytrop,
         pavel,
@@ -218,7 +218,7 @@ def taugb01(
         return taug, fracs
 
 # Band 2:  350-500 cm-1 (low key - h2o; high key - h2o)
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def taugb02(
         laytrop,
         pavel,
@@ -336,7 +336,7 @@ def taugb02(
 
 # Band 3:  500-630 cm-1 (low key - h2o,co2; low minor - n2o);
 #                        (high key - h2o,co2; high minor - n2o)
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def where(cond, x, y):
     if cond:
         return x
@@ -344,7 +344,7 @@ def where(cond, x, y):
         return y
 
 
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def taugb03(
         laytrop,
         pavel,
@@ -744,7 +744,7 @@ def taugb03(
 
 # Band 4:  630-700 cm-1 (low key - h2o,co2; high key - o3,co2)
 # ----------------------------------
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def taugb04(
         laytrop,
         pavel,
@@ -1076,7 +1076,7 @@ def taugb04(
 
 # Band 5:  700-820 cm-1 (low key - h2o,co2; low minor - o3, ccl4)
 #                       (high key - o3,co2)
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def taugb05(
         laytrop,
         pavel,
@@ -1436,7 +1436,7 @@ def taugb05(
 
 # Band 6:  820-980 cm-1 (low key - h2o; low minor - co2)
 #                       (high key - none; high minor - cfc11, cfc12)
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def taugb06(
         laytrop,
         pavel,
@@ -1552,7 +1552,7 @@ def taugb06(
 
 # Band 7:  980-1080 cm-1 (low key - h2o,o3; low minor - co2)
 #                        (high key - o3; high minor - co2)
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def taugb07(
         laytrop,
         pavel,
@@ -1881,7 +1881,7 @@ def taugb07(
 
 # Band 8:  1080-1180 cm-1 (low key - h2o; low minor - co2,o3,n2o)
 #                         (high key - o3; high minor - co2, n2o)
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def taugb08(
         laytrop,
         pavel,
@@ -2054,7 +2054,7 @@ def taugb08(
 
 # Band 9:  1180-1390 cm-1 (low key - h2o,ch4; low minor - n2o)
 #                         (high key - ch4; high minor - n2o)
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def taugb09(
         laytrop,
         pavel,
@@ -2369,7 +2369,7 @@ def taugb09(
         return taug, fracs
 
 # Band 10:  1390-1480 cm-1 (low key - h2o; high key - h2o)
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def taugb10(
         laytrop,
         pavel,
@@ -2482,7 +2482,7 @@ def taugb10(
 
 # Band 11:  1480-1800 cm-1 (low - h2o; low minor - o2)
 #                          (high key - h2o; high minor - o2)
-@numba.njit
+@numba.jit(nopython=True, cache=True)
 def taugb11(
         laytrop,
         pavel,
