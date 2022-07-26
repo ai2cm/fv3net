@@ -2244,6 +2244,7 @@ class RadSWClass:
         rayl_25 = ds_bands['radsw_kgb25']["rayl"].values
 
         rayl_26 = ds_bands['radsw_kgb26']["rayl"].values
+        
         absa_27 = ds_bands['radsw_kgb27']["absa"].values
         absb_27 = ds_bands['radsw_kgb27']["absb"].values
         rayl_27 = ds_bands['radsw_kgb27']["rayl"].values
