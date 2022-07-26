@@ -744,6 +744,7 @@ def taugb03(
 
 # Band 4:  630-700 cm-1 (low key - h2o,co2; high key - o3,co2)
 # ----------------------------------
+@numba.njit
 def taugb04(
         laytrop,
         pavel,
@@ -979,96 +980,97 @@ def taugb04(
                 )
 
         #  --- ...  upper atmosphere loop
-        speccomb = (
-            colamt[laytrop:nlay, 2]
-            + rfrate[laytrop:nlay, 5, 0] * colamt[laytrop:nlay, 1]
-        )
-        specparm = colamt[laytrop:nlay, 2] / speccomb
-        specmult = 4.0 * np.minimum(specparm, oneminus)
-        js = 1 + specmult.astype(np.int32)
-        fs = specmult % 1.0
-        ind0 = (
-            ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * nspb[3]
-            + js
-            - 1
-        )
-
-        speccomb1 = (
-            colamt[laytrop:nlay, 2]
-            + rfrate[laytrop:nlay, 5, 1] * colamt[laytrop:nlay, 1]
-        )
-        specparm1 = colamt[laytrop:nlay, 2] / speccomb1
-        specmult1 = 4.0 * np.minimum(specparm1, oneminus)
-        js1 = 1 + specmult1.astype(np.int32)
-        fs1 = specmult1 % 1.0
-        ind1 = (
-            ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * nspb[3]
-            + js1
-            - 1
-        )
-
-        speccomb_planck = (
-            colamt[laytrop:nlay, 2] + refrat_planck_b * colamt[laytrop:nlay, 1]
-        )
-        specparm_planck = colamt[laytrop:nlay, 2] / speccomb_planck
-        specmult_planck = 4.0 * np.minimum(specparm_planck, oneminus)
-        jpl = 1 + specmult_planck.astype(np.int32) - 1
-        fpl = specmult_planck % 1.0
-        jplp = jpl + 1
-
-        id000 = ind0
-        id010 = ind0 + 5
-        id100 = ind0 + 1
-        id110 = ind0 + 6
-        id001 = ind1
-        id011 = ind1 + 5
-        id101 = ind1 + 1
-        id111 = ind1 + 6
-
-        fk0 = 1.0 - fs
-        fk1 = fs
-        fac000 = fk0 * fac00[laytrop:nlay]
-        fac010 = fk0 * fac10[laytrop:nlay]
-        fac100 = fk1 * fac00[laytrop:nlay]
-        fac110 = fk1 * fac10[laytrop:nlay]
-
-        fk0 = 1.0 - fs1
-        fk1 = fs1
-        fac001 = fk0 * fac01[laytrop:nlay]
-        fac011 = fk0 * fac11[laytrop:nlay]
-        fac101 = fk1 * fac01[laytrop:nlay]
-        fac111 = fk1 * fac11[laytrop:nlay]
-
-        for ig in range(ng04):
-            tau_major = speccomb * (
-                fac000 * absb[ig, id000]
-                + fac010 * absb[ig, id010]
-                + fac100 * absb[ig, id100]
-                + fac110 * absb[ig, id110]
+        for k in range(laytrop, nlay):
+            speccomb = (
+                colamt[k, 2]
+                + rfrate[k, 5, 0] * colamt[k, 1]
             )
-            tau_major1 = speccomb1 * (
-                fac001 * absb[ig, id001]
-                + fac011 * absb[ig, id011]
-                + fac101 * absb[ig, id101]
-                + fac111 * absb[ig, id111]
+            specparm = colamt[k, 2] / speccomb
+            specmult = 4.0 * np.minimum(specparm, oneminus)
+            js = 1 + int(specmult)
+            fs = specmult % 1.0
+            ind0 = (
+                ((jp[k] - 13) * 5 + (jt[k] - 1)) * nspb[3]
+                + js
+                - 1
             )
 
-            taug[ns04 + ig, laytrop:nlay] = tau_major + tau_major1
-
-            fracs[ns04 + ig, laytrop:nlay] = fracrefb[ig, jpl] + fpl * (
-                fracrefb[ig, jplp] - fracrefb[ig, jpl]
+            speccomb1 = (
+                colamt[k, 2]
+                + rfrate[k, 5, 1] * colamt[k, 1]
+            )
+            specparm1 = colamt[k, 2] / speccomb1
+            specmult1 = 4.0 * np.minimum(specparm1, oneminus)
+            js1 = 1 + int(specmult1)
+            fs1 = specmult1 % 1.0
+            ind1 = (
+                ((jp[k] - 12) * 5 + (jt1[k] - 1)) * nspb[3]
+                + js1
+                - 1
             )
 
-            #  --- ...  empirical modification to code to improve stratospheric cooling rates
-            #           for co2. revised to apply weighting for g-point reduction in this band.
+            speccomb_planck = (
+                colamt[k, 2] + refrat_planck_b * colamt[k, 1]
+            )
+            specparm_planck = colamt[k, 2] / speccomb_planck
+            specmult_planck = 4.0 * np.minimum(specparm_planck, oneminus)
+            jpl = 1 + int(specmult_planck) - 1
+            fpl = specmult_planck % 1.0
+            jplp = jpl + 1
 
-        taug[ns04 + 7, laytrop:nlay] = taug[ns04 + 7, laytrop:nlay] * 0.92
-        taug[ns04 + 8, laytrop:nlay] = taug[ns04 + 8, laytrop:nlay] * 0.88
-        taug[ns04 + 9, laytrop:nlay] = taug[ns04 + 9, laytrop:nlay] * 1.07
-        taug[ns04 + 10, laytrop:nlay] = taug[ns04 + 10, laytrop:nlay] * 1.1
-        taug[ns04 + 11, laytrop:nlay] = taug[ns04 + 11, laytrop:nlay] * 0.99
-        taug[ns04 + 12, laytrop:nlay] = taug[ns04 + 12, laytrop:nlay] * 0.88
-        taug[ns04 + 13, laytrop:nlay] = taug[ns04 + 13, laytrop:nlay] * 0.943
+            id000 = ind0
+            id010 = ind0 + 5
+            id100 = ind0 + 1
+            id110 = ind0 + 6
+            id001 = ind1
+            id011 = ind1 + 5
+            id101 = ind1 + 1
+            id111 = ind1 + 6
+
+            fk0 = 1.0 - fs
+            fk1 = fs
+            fac000 = fk0 * fac00[k]
+            fac010 = fk0 * fac10[k]
+            fac100 = fk1 * fac00[k]
+            fac110 = fk1 * fac10[k]
+
+            fk0 = 1.0 - fs1
+            fk1 = fs1
+            fac001 = fk0 * fac01[k]
+            fac011 = fk0 * fac11[k]
+            fac101 = fk1 * fac01[k]
+            fac111 = fk1 * fac11[k]
+
+            for ig in range(ng04):
+                tau_major = speccomb * (
+                    fac000 * absb[ig, id000]
+                    + fac010 * absb[ig, id010]
+                    + fac100 * absb[ig, id100]
+                    + fac110 * absb[ig, id110]
+                )
+                tau_major1 = speccomb1 * (
+                    fac001 * absb[ig, id001]
+                    + fac011 * absb[ig, id011]
+                    + fac101 * absb[ig, id101]
+                    + fac111 * absb[ig, id111]
+                )
+
+                taug[ns04 + ig, k] = tau_major + tau_major1
+
+                fracs[ns04 + ig, k] = fracrefb[ig, jpl] + fpl * (
+                    fracrefb[ig, jplp] - fracrefb[ig, jpl]
+                )
+
+                #  --- ...  empirical modification to code to improve stratospheric cooling rates
+                #           for co2. revised to apply weighting for g-point reduction in this band.
+
+            taug[ns04 + 7, k] = taug[ns04 + 7, k] * 0.92
+            taug[ns04 + 8, k] = taug[ns04 + 8, k] * 0.88
+            taug[ns04 + 9, k] = taug[ns04 + 9, k] * 1.07
+            taug[ns04 + 10, k] = taug[ns04 + 10, k] * 1.1
+            taug[ns04 + 11, k] = taug[ns04 + 11, k] * 0.99
+            taug[ns04 + 12, k] = taug[ns04 + 12, k] * 0.88
+            taug[ns04 + 13, k] = taug[ns04 + 13, k] * 0.943
 
         return taug, fracs
 
