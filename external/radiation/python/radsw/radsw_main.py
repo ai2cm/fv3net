@@ -1535,6 +1535,13 @@ class RadSWClass:
         absa_22 = ds_bands['radsw_kgb22']["absa"].values
         absb_22 = ds_bands['radsw_kgb22']["absb"].values
         rayl_22 = ds_bands['radsw_kgb22']["rayl"].values
+            
+        selfref_23 = ds_bands['radsw_kgb23']["selfref"].values
+        forref_23 = ds_bands['radsw_kgb23']["forref"].values
+        absa_23 = ds_bands['radsw_kgb23']["absa"].values
+        rayl_23 = ds_bands['radsw_kgb23']["rayl"].values
+        givfac_23 = ds_bands['radsw_kgb23']["givfac"].values
+
         # Compute solar constant adjustment factor (s0fac) according to solcon.
         #      ***  s0, the solar constant at toa in w/m**2, is hard-coded with
         #           each spectra band, the total flux is about 1368.22 w/m**2.
@@ -1815,6 +1822,11 @@ class RadSWClass:
                 absa_22,
                 absb_22,
                 rayl_22,
+                selfref_23,
+                forref_23,
+                absa_23,
+                rayl_23,
+                givfac_23,
             )
 
             # -# Call the 2-stream radiation transfer model:
@@ -2167,6 +2179,11 @@ class RadSWClass:
         absa_22,
         absb_22,
         rayl_22,
+        selfref_23,
+        forref_23,
+        absa_23,
+        rayl_23,
+        givfac_23,
     ):
         #  ==================   program usage description   ==================  !
         #                                                                       !
@@ -2562,7 +2579,11 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds_bands['radsw_kgb23'],
+            selfref_23,
+            forref_23,
+            absa_23,
+            rayl_23,
+            givfac_23,
         )
         taug, taur = self.taumol24(
             colamt,
@@ -3624,7 +3645,11 @@ class RadSWClass:
         id1,
         taug,
         taur,
-        ds,
+        selfref,
+        forref,
+        absa,
+        rayl,
+        givfac,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3632,11 +3657,7 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        rayl = ds["rayl"].values
-        givfac = ds["givfac"].values
+
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
