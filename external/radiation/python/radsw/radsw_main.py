@@ -1511,6 +1511,25 @@ class RadSWClass:
         absb_18 = ds_bands['radsw_kgb18']["absb"].values
         rayl_18 = ds_bands['radsw_kgb18']["rayl"].values
 
+        selfref_19 = ds_bands['radsw_kgb19']["selfref"].values
+        forref_19 = ds_bands['radsw_kgb19']["forref"].values
+        absa_19 = ds_bands['radsw_kgb19']["absa"].values
+        absb_19 = ds_bands['radsw_kgb19']["absb"].values
+        rayl_19 = ds_bands['radsw_kgb19']["rayl"].values
+
+        selfref_20 = ds_bands['radsw_kgb20']["selfref"].values
+        forref_20  = ds_bands['radsw_kgb20']["forref"].values
+        absa_20  = ds_bands['radsw_kgb20']["absa"].values
+        absb_20  = ds_bands['radsw_kgb20']["absb"].values
+        absch4_20  = ds_bands['radsw_kgb20']["absch4"].values
+        rayl_20  = ds_bands['radsw_kgb20']["rayl"].values
+
+        selfref_21 = ds_bands['radsw_kgb21']["selfref"].values
+        forref_21 = ds_bands['radsw_kgb21']["forref"].values
+        absa_21 = ds_bands['radsw_kgb21']["absa"].values
+        absb_21 = ds_bands['radsw_kgb21']["absb"].values
+        rayl_21 = ds_bands['radsw_kgb21']["rayl"].values
+
         # Compute solar constant adjustment factor (s0fac) according to solcon.
         #      ***  s0, the solar constant at toa in w/m**2, is hard-coded with
         #           each spectra band, the total flux is about 1368.22 w/m**2.
@@ -1770,6 +1789,22 @@ class RadSWClass:
                 absa_18,
                 absb_18,
                 rayl_18,
+                selfref_19,
+                forref_19,
+                absa_19,
+                absb_19,
+                rayl_19,
+                selfref_20,
+                forref_20,
+                absa_20,
+                absb_20,
+                absch4_20,
+                rayl_20,
+                selfref_21,
+                forref_21,
+                absa_21,
+                absb_21,
+                rayl_21,
             )
 
             # -# Call the 2-stream radiation transfer model:
@@ -2101,6 +2136,22 @@ class RadSWClass:
         absa_18,
         absb_18,
         rayl_18,
+        selfref_19,
+        forref_19,
+        absa_19,
+        absb_19,
+        rayl_19,
+        selfref_20,
+        forref_20,
+        absa_20,
+        absb_20,
+        absch4_20,
+        rayl_20,
+        selfref_21,
+        forref_21,
+        absa_21,
+        absb_21,
+        rayl_21,
     ):
         #  ==================   program usage description   ==================  !
         #                                                                       !
@@ -2383,7 +2434,11 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds_bands['radsw_kgb19'],
+            selfref_19,
+            forref_19,
+            absa_19,
+            absb_19,
+            rayl_19,
         )
         taug, taur = self.taumol20(
             colamt,
@@ -2407,7 +2462,12 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds_bands['radsw_kgb20'],
+            selfref_20,
+            forref_20,
+            absa_20,
+            absb_20,
+            absch4_20,
+            rayl_20,
         )
         taug, taur = self.taumol21(
             colamt,
@@ -2431,7 +2491,11 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds_bands['radsw_kgb21'],
+            selfref_21,
+            forref_21,
+            absa_21,
+            absb_21,
+            rayl_21,
         )
         taug, taur = self.taumol22(
             colamt,
@@ -3027,19 +3091,17 @@ class RadSWClass:
         id1,
         taug,
         taur,
-        ds,
+        selfref,
+        forref,
+        absa,
+        absb,
+        rayl,
     ):
 
         #  ------------------------------------------------------------------  !
         #     band 19:  4650-5150 cm-1 (low - h2o,co2; high - co2)             !
         #  ------------------------------------------------------------------  !
         #
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -3145,20 +3207,18 @@ class RadSWClass:
         id1,
         taug,
         taur,
-        ds,
+        selfref,
+        forref,
+        absa,
+        absb,
+        absch4,
+        rayl,
     ):
 
         #  ------------------------------------------------------------------  !
         #     band 20:  5150-6150 cm-1 (low - h2o; high - h2o)                 !
         #  ------------------------------------------------------------------  !
         #
-
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        absch4 = ds["absch4"].values
-        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
@@ -3259,7 +3319,11 @@ class RadSWClass:
         id1,
         taug,
         taur,
-        ds,
+        selfref,
+        forref,
+        absa,
+        absb,
+        rayl,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3267,11 +3331,6 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        rayl = ds["rayl"].values
 
         #  --- ...  compute the optical depth by interpolating in ln(pressure),
         #           temperature, and appropriate species.  below laytrop, the water
