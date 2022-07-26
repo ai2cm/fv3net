@@ -1492,6 +1492,13 @@ class RadSWClass:
         ds = xr.open_dataset(self.rand_file)
         rand2d_data = ds["rand2d"].values
 
+        ## data loading for taumol 
+        selfref_16= ds_bands['radsw_kgb16']["selfref"].values
+        forref_16 = ds_bands['radsw_kgb16']["forref"].values
+        absa_16 = ds_bands['radsw_kgb16']["absa"].values
+        absb_16 = ds_bands['radsw_kgb16']["absb"].values
+        rayl_16 = ds_bands['radsw_kgb16']["rayl"].values
+
         # Compute solar constant adjustment factor (s0fac) according to solcon.
         #      ***  s0, the solar constant at toa in w/m**2, is hard-coded with
         #           each spectra band, the total flux is about 1368.22 w/m**2.
@@ -1736,6 +1743,11 @@ class RadSWClass:
                 nlay,
                 ds_radsw_sflux,
                 ds_bands,
+                selfref_16,
+                forref_16,
+                absa_16,
+                absb_16,
+                rayl_16,
             )
 
             # -# Call the 2-stream radiation transfer model:
@@ -2052,6 +2064,11 @@ class RadSWClass:
         nlay,
         ds,
         ds_bands,
+        selfref_16,
+        forref_16,
+        absa_16,
+        absb_16,
+        rayl_16,
     ):
         #  ==================   program usage description   ==================  !
         #                                                                       !
@@ -2250,7 +2267,11 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds_bands['radsw_kgb16'],
+            selfref_16,
+            forref_16,
+            absa_16,
+            absb_16,
+            rayl_16,
         )
         taug, taur = self.taumol17(
             colamt,
@@ -2590,13 +2611,13 @@ class RadSWClass:
         id1,
         taug,
         taur,
-        ds,
+        selfref,
+        forref,
+        absa,
+        absb,
+        rayl,
     ):
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        rayl = ds["rayl"].values
+
 
         #  --- ... compute the optical depth by interpolating in ln(pressure),
         #          temperature, and appropriate species.  below laytrop, the water
