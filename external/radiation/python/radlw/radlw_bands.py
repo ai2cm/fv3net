@@ -1436,6 +1436,7 @@ def taugb05(
 
 # Band 6:  820-980 cm-1 (low key - h2o; low minor - co2)
 #                       (high key - none; high minor - cfc11, cfc12)
+@numba.njit
 def taugb06(
         laytrop,
         pavel,
@@ -1485,66 +1486,67 @@ def taugb06(
         #     upper - cfc11, cfc12
 
         #  --- ...  lower atmosphere loop
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * nspa[5]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * nspa[5]
+        for k in range(laytrop):
+            ind0 = ((jp[k] - 1) * 5 + (jt[k] - 1)) * nspa[5]
+            ind1 = (jp[k] * 5 + (jt1[k] - 1)) * nspa[5]
 
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indm = indminor[k] - 1
+            indsp = inds + 1
+            indfp = indf + 1
+            indmp = indm + 1
+            ind0p = ind0 + 1
+            ind1p = ind1 + 1
 
-        #  --- ...  in atmospheres where the amount of co2 is too great to be considered
-        #           a minor species, adjust the column amount of co2 by an empirical factor
-        #           to obtain the proper contribution.
+            #  --- ...  in atmospheres where the amount of co2 is too great to be considered
+            #           a minor species, adjust the column amount of co2 by an empirical factor
+            #           to obtain the proper contribution.
 
-        temp = coldry[:laytrop] * chi_mls[1, jp[:laytrop] + 1]
-        ratco2 = colamt[:laytrop, 1] / temp
-        adjcolco2 = np.where(
-            ratco2 > 3.0, (2.0 + (ratco2 - 2.0) ** 0.77) * temp, colamt[:laytrop, 1]
-        )
-
-        for ig in range(ng06):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            absco2 = ka_mco2[ig, indm] + minorfrac[:laytrop] * (
-                ka_mco2[ig, indmp] - ka_mco2[ig, indm]
+            temp = coldry[k] * chi_mls[1, jp[k] + 1]
+            ratco2 = colamt[k, 1] / temp
+            adjcolco2 = where(
+                ratco2 > 3.0, (2.0 + (ratco2 - 2.0) ** 0.77) * temp, colamt[k, 1]
             )
 
-            taug[ns06 + ig, :laytrop] = (
-                colamt[:laytrop, 0]
-                * (
-                    fac00[:laytrop] * absa[ig, ind0]
-                    + fac10[:laytrop] * absa[ig, ind0p]
-                    + fac01[:laytrop] * absa[ig, ind1]
-                    + fac11[:laytrop] * absa[ig, ind1p]
+            for ig in range(ng06):
+                tauself = selffac[k] * (
+                    selfref[ig, inds]
+                    + selffrac[k] * (selfref[ig, indsp] - selfref[ig, inds])
                 )
-                + tauself
-                + taufor
-                + adjcolco2 * absco2
-                + wx[:laytrop, 1] * cfc11adj[ig]
-                + wx[:laytrop, 2] * cfc12[ig]
-            )
+                taufor = forfac[k] * (
+                    forref[ig, indf]
+                    + forfrac[k] * (forref[ig, indfp] - forref[ig, indf])
+                )
+                absco2 = ka_mco2[ig, indm] + minorfrac[k] * (
+                    ka_mco2[ig, indmp] - ka_mco2[ig, indm]
+                )
 
-            fracs[ns06 + ig, :laytrop] = fracrefa[ig]
+                taug[ns06 + ig, k] = (
+                    colamt[k, 0]
+                    * (
+                        fac00[k] * absa[ig, ind0]
+                        + fac10[k] * absa[ig, ind0p]
+                        + fac01[k] * absa[ig, ind1]
+                        + fac11[k] * absa[ig, ind1p]
+                    )
+                    + tauself
+                    + taufor
+                    + adjcolco2 * absco2
+                    + wx[k, 1] * cfc11adj[ig]
+                    + wx[k, 2] * cfc12[ig]
+                )
+
+                fracs[ns06 + ig, k] = fracrefa[ig]
 
         #  --- ...  upper atmosphere loop
         #           nothing important goes on above laytrop in this band.
-
-        for ig in range(ng06):
-            taug[ns06 + ig, laytrop:nlay] = (
-                wx[laytrop:nlay, 1] * cfc11adj[ig] + wx[laytrop:nlay, 2] * cfc12[ig]
-            )
-            fracs[ns06 + ig, laytrop:nlay] = fracrefa[ig]
+        for k in range(laytrop, nlay):
+            for ig in range(ng06):
+                taug[ns06 + ig, k] = (
+                    wx[k, 1] * cfc11adj[ig] + wx[k, 2] * cfc12[ig]
+                )
+                fracs[ns06 + ig, k] = fracrefa[ig]
 
         return taug, fracs
 
