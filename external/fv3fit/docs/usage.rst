@@ -17,6 +17,7 @@ It has several useful features:
 
 * Different architectures: RNN, dense, etc...also extensible.
 
+* Any artifacts created during training saved in the `artifacts` directory will be copied to the final output location along with the trained model.
 
 Here is an example:
 .. literalinclude:: transformed-config.yaml
