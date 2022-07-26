@@ -1881,6 +1881,7 @@ def taugb07(
 
 # Band 8:  1080-1180 cm-1 (low key - h2o; low minor - co2,o3,n2o)
 #                         (high key - o3; high minor - co2, n2o)
+@numba.njit
 def taugb08(
         laytrop,
         pavel,
@@ -1942,109 +1943,112 @@ def taugb08(
 
 
         #  --- ...  lower atmosphere loop
-        ind0 = ((jp[:laytrop] - 1) * 5 + (jt[:laytrop] - 1)) * nspa[7]
-        ind1 = (jp[:laytrop] * 5 + (jt1[:laytrop] - 1)) * nspa[7]
+        for k in range(laytrop):
+            ind0 = ((jp[k] - 1) * 5 + (jt[k] - 1)) * nspa[7]
+            ind1 = (jp[k] * 5 + (jt1[k] - 1)) * nspa[7]
 
-        inds = indself[:laytrop] - 1
-        indf = indfor[:laytrop] - 1
-        indm = indminor[:laytrop] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indsp = inds + 1
-        indfp = indf + 1
-        indmp = indm + 1
+            inds = indself[k] - 1
+            indf = indfor[k] - 1
+            indm = indminor[k] - 1
+            ind0p = ind0 + 1
+            ind1p = ind1 + 1
+            indsp = inds + 1
+            indfp = indf + 1
+            indmp = indm + 1
 
-        #  --- ...  in atmospheres where the amount of co2 is too great to be considered
-        #           a minor species, adjust the column amount of co2 by an empirical factor
-        #           to obtain the proper contribution.
+            #  --- ...  in atmospheres where the amount of co2 is too great to be considered
+            #           a minor species, adjust the column amount of co2 by an empirical factor
+            #           to obtain the proper contribution.
 
-        temp = coldry[:laytrop] * chi_mls[1, jp[:laytrop]]
-        ratco2 = colamt[:laytrop, 1] / temp
-        adjcolco2 = np.where(
-            ratco2 > 3.0, (2.0 + (ratco2 - 2.0) ** 0.65) * temp, colamt[:laytrop, 1]
-        )
-
-        for ig in range(ng08):
-            tauself = selffac[:laytrop] * (
-                selfref[ig, inds]
-                + selffrac[:laytrop] * (selfref[ig, indsp] - selfref[ig, inds])
-            )
-            taufor = forfac[:laytrop] * (
-                forref[ig, indf]
-                + forfrac[:laytrop] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            absco2 = ka_mco2[ig, indm] + minorfrac[:laytrop] * (
-                ka_mco2[ig, indmp] - ka_mco2[ig, indm]
-            )
-            abso3 = ka_mo3[ig, indm] + minorfrac[:laytrop] * (
-                ka_mo3[ig, indmp] - ka_mo3[ig, indm]
-            )
-            absn2o = ka_mn2o[ig, indm] + minorfrac[:laytrop] * (
-                ka_mn2o[ig, indmp] - ka_mn2o[ig, indm]
+            temp = coldry[k] * chi_mls[1, jp[k]]
+            ratco2 = colamt[k, 1] / temp
+            adjcolco2 = where(
+                ratco2 > 3.0, (2.0 + (ratco2 - 2.0) ** 0.65) * temp, colamt[k, 1]
             )
 
-            taug[ns08 + ig, :laytrop] = (
-                colamt[:laytrop, 0]
-                * (
-                    fac00[:laytrop] * absa[ig, ind0]
-                    + fac10[:laytrop] * absa[ig, ind0p]
-                    + fac01[:laytrop] * absa[ig, ind1]
-                    + fac11[:laytrop] * absa[ig, ind1p]
+            for ig in range(ng08):
+                tauself = selffac[k] * (
+                    selfref[ig, inds]
+                    + selffrac[k] * (selfref[ig, indsp] - selfref[ig, inds])
                 )
-                + tauself
-                + taufor
-                + adjcolco2 * absco2
-                + colamt[:laytrop, 2] * abso3
-                + colamt[:laytrop, 3] * absn2o
-                + wx[:laytrop, 2] * cfc12[ig]
-                + wx[:laytrop, 3] * cfc22adj[ig]
-            )
-
-            fracs[ns08 + ig, :laytrop] = fracrefa[ig]
-
-        #  --- ...  upper atmosphere loop
-
-        ind0 = ((jp[laytrop:nlay] - 13) * 5 + (jt[laytrop:nlay] - 1)) * nspb[7]
-        ind1 = ((jp[laytrop:nlay] - 12) * 5 + (jt1[laytrop:nlay] - 1)) * nspb[7]
-
-        indm = indminor[laytrop:nlay] - 1
-        ind0p = ind0 + 1
-        ind1p = ind1 + 1
-        indmp = indm + 1
-
-        #  --- ...  in atmospheres where the amount of co2 is too great to be considered
-        #           a minor species, adjust the column amount of co2 by an empirical factor
-        #           to obtain the proper contribution.
-
-        temp = coldry[laytrop:nlay] * chi_mls[1, jp[laytrop:nlay]]
-        ratco2 = colamt[laytrop:nlay, 1] / temp
-        adjcolco2 = np.where(
-            ratco2 > 3.0, (2.0 + (ratco2 - 2.0) ** 0.65) * temp, colamt[laytrop:nlay, 1]
-        )
-
-        for ig in range(ng08):
-            absco2 = kb_mco2[ig, indm] + minorfrac[laytrop:nlay] * (
-                kb_mco2[ig, indmp] - kb_mco2[ig, indm]
-            )
-            absn2o = kb_mn2o[ig, indm] + minorfrac[laytrop:nlay] * (
-                kb_mn2o[ig, indmp] - kb_mn2o[ig, indm]
-            )
-
-            taug[ns08 + ig, laytrop:nlay] = (
-                colamt[laytrop:nlay, 2]
-                * (
-                    fac00[laytrop:nlay] * absb[ig, ind0]
-                    + fac10[laytrop:nlay] * absb[ig, ind0p]
-                    + fac01[laytrop:nlay] * absb[ig, ind1]
-                    + fac11[laytrop:nlay] * absb[ig, ind1p]
+                taufor = forfac[k] * (
+                    forref[ig, indf]
+                    + forfrac[k] * (forref[ig, indfp] - forref[ig, indf])
                 )
-                + adjcolco2 * absco2
-                + colamt[laytrop:nlay, 3] * absn2o
-                + wx[laytrop:nlay, 2] * cfc12[ig]
-                + wx[laytrop:nlay, 3] * cfc22adj[ig]
-            )
+                absco2 = ka_mco2[ig, indm] + minorfrac[k] * (
+                    ka_mco2[ig, indmp] - ka_mco2[ig, indm]
+                )
+                abso3 = ka_mo3[ig, indm] + minorfrac[k] * (
+                    ka_mo3[ig, indmp] - ka_mo3[ig, indm]
+                )
+                absn2o = ka_mn2o[ig, indm] + minorfrac[k] * (
+                    ka_mn2o[ig, indmp] - ka_mn2o[ig, indm]
+                )
 
-            fracs[ns08 + ig, laytrop:nlay] = fracrefb[ig]
+                taug[ns08 + ig, k] = (
+                    colamt[k, 0]
+                    * (
+                        fac00[k] * absa[ig, ind0]
+                        + fac10[k] * absa[ig, ind0p]
+                        + fac01[k] * absa[ig, ind1]
+                        + fac11[k] * absa[ig, ind1p]
+                    )
+                    + tauself
+                    + taufor
+                    + adjcolco2 * absco2
+                    + colamt[k, 2] * abso3
+                    + colamt[k, 3] * absn2o
+                    + wx[k, 2] * cfc12[ig]
+                    + wx[k, 3] * cfc22adj[ig]
+                )
+
+                fracs[ns08 + ig, k] = fracrefa[ig]
+
+            #  --- ...  upper atmosphere loop
+            for k in range(laytrop, nlay):
+
+                ind0 = ((jp[k] - 13) * 5 + (jt[k] - 1)) * nspb[7]
+                ind1 = ((jp[k] - 12) * 5 + (jt1[k] - 1)) * nspb[7]
+
+                indm = indminor[k] - 1
+                ind0p = ind0 + 1
+                ind1p = ind1 + 1
+                indmp = indm + 1
+
+                #  --- ...  in atmospheres where the amount of co2 is too great to be considered
+                #           a minor species, adjust the column amount of co2 by an empirical factor
+                #           to obtain the proper contribution.
+
+                temp = coldry[k] * chi_mls[1, jp[k]]
+                ratco2 = colamt[k, 1] / temp
+                adjcolco2 = where(
+                    ratco2 > 3.0, (2.0 + (ratco2 - 2.0) ** 0.65) * temp, colamt[k, 1]
+                )
+
+
+                for ig in range(ng08):
+                    absco2 = kb_mco2[ig, indm] + minorfrac[k] * (
+                        kb_mco2[ig, indmp] - kb_mco2[ig, indm]
+                    )
+                    absn2o = kb_mn2o[ig, indm] + minorfrac[k] * (
+                        kb_mn2o[ig, indmp] - kb_mn2o[ig, indm]
+                    )
+
+                    taug[ns08 + ig, k] = (
+                        colamt[k, 2]
+                        * (
+                            fac00[k] * absb[ig, ind0]
+                            + fac10[k] * absb[ig, ind0p]
+                            + fac01[k] * absb[ig, ind1]
+                            + fac11[k] * absb[ig, ind1p]
+                        )
+                        + adjcolco2 * absco2
+                        + colamt[k, 3] * absn2o
+                        + wx[k, 2] * cfc12[ig]
+                        + wx[k, 3] * cfc22adj[ig]
+                    )
+
+                    fracs[ns08 + ig, k] = fracrefb[ig]
 
         return taug, fracs
 
