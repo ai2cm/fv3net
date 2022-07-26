@@ -178,7 +178,7 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
-    os.mkdir("artifacts")
+    os.makedirs("artifacts", exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
@@ -191,6 +191,4 @@ if __name__ == "__main__":
     main(args, unknown_args)
 
     with put_dir(args.output_path) as path:
-        shutil.copytree(
-            "artifacts", os.path.join(path, "artifacts"), dirs_exist_ok=True
-        )
+        shutil.move("artifacts", os.path.join(path, "artifacts"))
