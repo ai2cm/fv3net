@@ -30,6 +30,7 @@ from runtime.diagnostics.compute import (
     precipitation_accumulation,
     rename_diagnostics,
 )
+import runtime.diagnostics.tracers
 from runtime.monitor import Monitor
 from runtime.names import (
     TENDENCY_TO_STATE_NAME,
@@ -535,6 +536,9 @@ class TimeLoop(
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics: Diagnostics = {}
             for substep in [
+                lambda: runtime.diagnostics.tracers.compute_column_integrated_tracers(
+                    self._state
+                ),
                 self.monitor("dynamics", self._step_dynamics),
                 self._step_prephysics,
                 self._compute_physics,

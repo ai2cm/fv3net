@@ -111,9 +111,6 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         seconds = time.time() - start_time
         self.logger.info(f"Computed largest score of {max_score} in {seconds}s.")
 
-    def _get_default_cutoff(self):
-        return self.maximum_training_score
-
     def predict(self, data: xr.Dataset) -> xr.Dataset:
         assert self.is_trained
 
@@ -139,6 +136,9 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         )
         score_dataset = stacked_scores.to_dataset(name=self._SCORE_OUTPUT_VAR).unstack(
             SAMPLE_DIM_NAME
+        )
+        score_dataset[self._CENTERED_SCORE_OUTPUT_VAR] = (
+            score_dataset[self._SCORE_OUTPUT_VAR] - self.maximum_training_score
         )
 
         seconds = time.time() - start_time

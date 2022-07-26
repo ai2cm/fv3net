@@ -134,10 +134,10 @@ class ConstantOutputNoveltyDetector(NoveltyDetector):
         }
         scores_reduced = scores_unreduced.max(unnecessary_coords)
         score_dataset = scores_reduced.to_dataset(name=self._SCORE_OUTPUT_VAR)
+        score_dataset[self._CENTERED_SCORE_OUTPUT_VAR] = score_dataset[
+            self._SCORE_OUTPUT_VAR
+        ]
         return score_dataset
-
-    def _get_default_cutoff(self):
-        return 0
 
     def dump(self, path: str) -> None:
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
