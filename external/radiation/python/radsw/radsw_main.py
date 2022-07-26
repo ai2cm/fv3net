@@ -1448,7 +1448,18 @@ class RadSWClass:
         jt1 = np.zeros(nlay, np.int32)
 
         ## data loading 
-        ds_radsw_sflux = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_sflux_data.nc"))
+        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_sflux_data.nc"))
+        strrat = ds["strrat"].values
+        specwt = ds["specwt"].values
+        layreffr = ds["layreffr"].values
+        ix1 = ds["ix1"].values
+        ix2 = ds["ix2"].values
+        ibx = ds["ibx"].values
+        sfluxref01 = ds["sfluxref01"].values
+        sfluxref02 = ds["sfluxref02"].values
+        sfluxref03 = ds["sfluxref03"].values
+        scalekur = ds["scalekur"].values
+
         ## loading data for taumol
         ds_bands = {}
         for nband in range(16,30):
@@ -1815,7 +1826,16 @@ class RadSWClass:
                 selffrac,
                 indself,
                 nlay,
-                ds_radsw_sflux,
+                strrat,
+                specwt,
+                layreffr,
+                ix1,
+                ix2 ,
+                ibx,
+                sfluxref01,
+                sfluxref02,
+                sfluxref03,
+                scalekur,
                 selfref_16,
                 forref_16,
                 absa_16,
@@ -2197,7 +2217,16 @@ class RadSWClass:
         selffrac,
         indself,
         nlay,
-        ds,
+        strrat,
+        specwt,
+        layreffr,
+        ix1,
+        ix2 ,
+        ibx,
+        sfluxref01,
+        sfluxref02,
+        sfluxref03,
+        scalekur,
         selfref_16,
         forref_16,
         absa_16,
@@ -2362,16 +2391,7 @@ class RadSWClass:
         #  *******************************************************************  !
         #  ======================  end of description block  =================  !
 
-        self.strrat = ds["strrat"].values
-        specwt = ds["specwt"].values
-        layreffr = ds["layreffr"].values
-        ix1 = ds["ix1"].values
-        ix2 = ds["ix2"].values
-        ibx = ds["ibx"].values
-        sfluxref01 = ds["sfluxref01"].values
-        sfluxref02 = ds["sfluxref02"].values
-        sfluxref03 = ds["sfluxref03"].values
-        scalekur = ds["scalekur"].values
+        self.strrat = strrat
 
         id0 = np.zeros((nlay, nbhgh), dtype=np.int32)
         id1 = np.zeros((nlay, nbhgh), dtype=np.int32)
