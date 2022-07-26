@@ -61,7 +61,7 @@ np.set_printoptions(precision=15)
 
 # band 1:  10-350 cm-1 (low key - h2o; low minor - n2);
 #  (high key - h2o; high minor - n2)
-# @numba.njit
+@numba.njit
 def taugb01(
         laytrop,
         pavel,
@@ -183,42 +183,37 @@ def taugb01(
         indf = indfor - 1
         indm = indminor - 1
 
-        ind0 = ind0[laytrop:nlay]
-        ind1 = ind1[laytrop:nlay]
-        indf = indf[laytrop:nlay]
-        indm = indm[laytrop:nlay]
-
         ind0p = ind0 + 1
         ind1p = ind1 + 1
         indfp = indf + 1
         indmp = indm + 1
 
-        scalen2 = colbrd[laytrop:nlay] * scaleminorn2[laytrop:nlay]
-        corradj = 1.0 - 0.15 * (pavel[laytrop:nlay] / 95.6)
-
         for ig in range(ng01):
-            taufor = forfac[laytrop:nlay] * (
-                forref[ig, indf]
-                + forfrac[laytrop:nlay] * (forref[ig, indfp] - forref[ig, indf])
-            )
-            taun2 = scalen2 * (
-                ka_mn2[ig, indm]
-                + minorfrac[laytrop:nlay] * (ka_mn2[ig, indmp] - ka_mn2[ig, indm])
-            )
-
-            taug[ig, laytrop:nlay] = corradj * (
-                colamt[laytrop:nlay, 0]
-                * (
-                    fac00[laytrop:nlay] * absb[ig, ind0]
-                    + fac10[laytrop:nlay] * absb[ig, ind0p]
-                    + fac01[laytrop:nlay] * absb[ig, ind1]
-                    + fac11[laytrop:nlay] * absb[ig, ind1p]
+            for k in range(laytrop, nlay):
+                scalen2 = colbrd[k] * scaleminorn2[k]
+                corradj = 1.0 - 0.15 * (pavel[k] / 95.6)
+                taufor = forfac[k] * (
+                    forref[ig, indf[k]]
+                    + forfrac[k] * (forref[ig, indfp[k]] - forref[ig, indf[k]])
                 )
-                + taufor
-                + taun2
-            )
+                taun2 = scalen2 * (
+                    ka_mn2[ig, indm[k]]
+                    + minorfrac[k] * (ka_mn2[ig, indmp[k]] - ka_mn2[ig, indm[k]])
+                )
 
-            fracs[ig, laytrop:nlay] = fracrefb[ig]
+                taug[ig, k] = corradj * (
+                    colamt[k, 0]
+                    * (
+                        fac00[k] * absb[ig, ind0[k]]
+                        + fac10[k] * absb[ig, ind0p[k]]
+                        + fac01[k] * absb[ig, ind1[k]]
+                        + fac11[k] * absb[ig, ind1p[k]]
+                    )
+                    + taufor
+                    + taun2
+                )
+
+                fracs[ig, k] = fracrefb[ig]
 
         return taug, fracs
 
