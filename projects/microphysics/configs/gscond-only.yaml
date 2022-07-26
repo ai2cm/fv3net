@@ -2,7 +2,7 @@
 # python3 argo/end_to_end.py train/precpd-only.yaml
 kind: prognostic
 experiment: pscaling-test
-name: gscond-only-tscale-zcloud-oldrerun-v2
+name: gscond-only-tscale-zcloud-retrained-v1
 image_tag: latest
 config:
   base_version: v0.5
@@ -267,7 +267,7 @@ config:
   zhao_carr_emulation:
     gscond:
       classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-06-09/gscond-classifier-v1/model.tf
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-05-12/gscond-only-tscale-dense-local-41b1c1-v1/model.tf
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-26/gscond-only-dense-local-tscale-retrain-v1/model.tf
       enforce_conservative: true
       gscond_cloud_conservative: true
       mask_emulator_levels:
