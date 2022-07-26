@@ -2,7 +2,7 @@
 # python3 argo/end_to_end.py train/precpd-only.yaml
 kind: prognostic
 experiment: pscaling-test
-name: gscond-only-tscale-zcloud-oldrerun-v1
+name: gscond-only-tscale-zcloud-oldrerun-v2
 image_tag: latest
 config:
   base_version: v0.5
@@ -67,7 +67,7 @@ config:
   - name: sfc_dt_atmos.zarr
     # 6 hr batches
     chunks:
-      time: 24
+      time: 1
     times:
       frequency: 10800
       kind: interval
@@ -114,7 +114,7 @@ config:
     - {module_name: gfs_sfc, field_name: SOILT4, output_name: SOILT4}
   - name: atmos_dt_atmos.zarr
     chunks:
-      time: 24
+      time: 1
     times:
       frequency: 10800
       kind: interval
