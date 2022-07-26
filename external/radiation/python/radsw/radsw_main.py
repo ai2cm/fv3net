@@ -1530,6 +1530,11 @@ class RadSWClass:
         absb_21 = ds_bands['radsw_kgb21']["absb"].values
         rayl_21 = ds_bands['radsw_kgb21']["rayl"].values
 
+        selfref_22 = ds_bands['radsw_kgb22']["selfref"].values
+        forref_22 = ds_bands['radsw_kgb22']["forref"].values
+        absa_22 = ds_bands['radsw_kgb22']["absa"].values
+        absb_22 = ds_bands['radsw_kgb22']["absb"].values
+        rayl_22 = ds_bands['radsw_kgb22']["rayl"].values
         # Compute solar constant adjustment factor (s0fac) according to solcon.
         #      ***  s0, the solar constant at toa in w/m**2, is hard-coded with
         #           each spectra band, the total flux is about 1368.22 w/m**2.
@@ -1805,6 +1810,11 @@ class RadSWClass:
                 absa_21,
                 absb_21,
                 rayl_21,
+                selfref_22,
+                forref_22,
+                absa_22,
+                absb_22,
+                rayl_22,
             )
 
             # -# Call the 2-stream radiation transfer model:
@@ -2152,6 +2162,11 @@ class RadSWClass:
         absa_21,
         absb_21,
         rayl_21,
+        selfref_22,
+        forref_22,
+        absa_22,
+        absb_22,
+        rayl_22,
     ):
         #  ==================   program usage description   ==================  !
         #                                                                       !
@@ -2519,7 +2534,11 @@ class RadSWClass:
             id1,
             taug,
             taur,
-            ds_bands['radsw_kgb22'],
+            selfref_22,
+            forref_22,
+            absa_22,
+            absb_22,
+            rayl_22,
         )
         taug, taur = self.taumol23(
             colamt,
@@ -3465,7 +3484,11 @@ class RadSWClass:
         id1,
         taug,
         taur,
-        ds,
+        selfref,
+        forref,
+        absa,
+        absb,
+        rayl,
     ):
 
         #  ------------------------------------------------------------------  !
@@ -3473,11 +3496,7 @@ class RadSWClass:
         #  ------------------------------------------------------------------  !
         #
 
-        selfref = ds["selfref"].values
-        forref = ds["forref"].values
-        absa = ds["absa"].values
-        absb = ds["absb"].values
-        rayl = ds["rayl"].values
+
 
         #  --- ...  the following factor is the ratio of total o2 band intensity (lines
         #           and mate continuum) to o2 band intensity (line only). it is needed
