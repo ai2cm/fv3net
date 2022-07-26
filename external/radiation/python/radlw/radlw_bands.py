@@ -413,20 +413,20 @@ def taugb03(
             speccomb1 = colamt[k, 0] + rfrate[k, 0, 1] * colamt[k, 1]
             specparm1 = colamt[k, 0] / speccomb1
             specmult1 = 8.0 * np.minimum(specparm1, oneminus)
-            js1 = 1 + specmult1.astype(np.int32)
+            js1 = 1 + int(specmult1)
             fs1 = specmult1 % 1.0
             ind1 = (jp[k] * 5 + (jt1[k] - 1)) * nspa[2] + js1 - 1
 
             speccomb_mn2o = colamt[k, 0] + refrat_m_a * colamt[k, 1]
             specparm_mn2o = colamt[k, 0] / speccomb_mn2o
             specmult_mn2o = 8.0 * np.minimum(specparm_mn2o, oneminus)
-            jmn2o = 1 + specmult_mn2o.astype(np.int32) - 1
+            jmn2o = 1 + int(specmult_mn2o) - 1
             fmn2o = specmult_mn2o % 1.0
 
             speccomb_planck = colamt[k, 0] + refrat_planck_a * colamt[k, 1]
             specparm_planck = colamt[k, 0] / speccomb_planck
             specmult_planck = 8.0 * np.minimum(specparm_planck, oneminus)
-            jpl = 1 + specmult_planck.astype(np.int32) - 1
+            jpl = 1 + int(specmult_planck) - 1
             fpl = specmult_planck % 1.0
 
             inds = indself[k] - 1
@@ -621,7 +621,7 @@ def taugb03(
             )
             specparm = colamt[k, 0] / speccomb
             specmult = 4.0 * np.minimum(specparm, oneminus)
-            js = 1 + specmult.astype(np.int32)
+            js = 1 + int(specmult)
             fs = specmult % 1.0
             ind0 = (
                 ((jp[k] - 13) * 5 + (jt[k] - 1)) * nspb[2]
@@ -635,7 +635,7 @@ def taugb03(
             )
             specparm1 = colamt[k, 0] / speccomb1
             specmult1 = 4.0 * np.minimum(specparm1, oneminus)
-            js1 = 1 + specmult1.astype(np.int32)
+            js1 = 1 + int(specmult1)
             fs1 = specmult1 % 1.0
             ind1 = (
                 ((jp[k] - 12) * 5 + (jt1[k] - 1)) * nspb[2]
@@ -646,7 +646,7 @@ def taugb03(
             speccomb_mn2o = colamt[k, 0] + refrat_m_b * colamt[k, 1]
             specparm_mn2o = colamt[k, 0] / speccomb_mn2o
             specmult_mn2o = 4.0 * np.minimum(specparm_mn2o, oneminus)
-            jmn2o = 1 + specmult_mn2o.astype(np.int32) - 1
+            jmn2o = 1 + int(specmult_mn2o) - 1
             fmn2o = specmult_mn2o % 1.0
 
             speccomb_planck = (
@@ -654,7 +654,7 @@ def taugb03(
             )
             specparm_planck = colamt[k, 0] / speccomb_planck
             specmult_planck = 4.0 * np.minimum(specparm_planck, oneminus)
-            jpl = 1 + specmult_planck.astype(np.int32) - 1
+            jpl = 1 + int(specmult_planck) - 1
             fpl = specmult_planck % 1.0
 
             indf = indfor[k] - 1
