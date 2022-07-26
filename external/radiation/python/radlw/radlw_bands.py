@@ -336,12 +336,15 @@ def taugb02(
 
 # Band 3:  500-630 cm-1 (low key - h2o,co2; low minor - n2o);
 #                        (high key - h2o,co2; high minor - n2o)
+@numba.njit
 def where(cond, x, y):
     if cond:
         return x
     else:
         return y
 
+
+@numba.njit
 def taugb03(
         laytrop,
         pavel,
