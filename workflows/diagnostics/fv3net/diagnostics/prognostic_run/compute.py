@@ -198,7 +198,7 @@ def _memory_manageable_split(ds: xr.Dataset) -> Sequence[xr.Dataset]:
     """If dataset size exceeds limit, split computation across multiple datasets
     that are below size limit."""
     nsplit = math.ceil((ds.nbytes / 1e6) / DIAG_COMPUTE_SIZE_LIMT_MB)
-    split_vars = partition_all(max(len(ds) // nsplit, 1), ds.data_vars)
+    split_vars = list(partition_all(max(len(ds) // nsplit, 1), ds.data_vars))
     return [ds[list(var_subset)] for var_subset in split_vars]
 
 
@@ -272,18 +272,16 @@ def zonal_bias_3d(diag_arg: DiagArg):
         diag_arg.grid,
     )
     zonal_means = xr.Dataset()
-    for prognostic_subset in _memory_manageable_split(prognostic):
+    common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
 
-        common_vars = list(
-            set(prognostic_subset.data_vars).intersection(verification.data_vars)
-        )
+    for prognostic_subset in _memory_manageable_split(prognostic[common_vars]):
 
-        logger.info(f"Computing zonal+time mean biases (3d) for {common_vars}")
-
+        vars_ = list(prognostic_subset.data_vars)
+        logger.info(f"Computing zonal+time mean biases (3d) for {vars_}")
         with xr.set_options(keep_attrs=True):
             zm_bias = vcm.zonal_average_approximate(
                 grid.lat,
-                bias(verification[common_vars], prognostic_subset[common_vars]),
+                bias(verification[vars_], prognostic_subset),
                 lat_name="latitude",
             )
             zonal_means.update(time_mean(zm_bias).load())
@@ -305,18 +303,12 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
     zonal_means = xr.Dataset()
 
-    logger.info("Computing zonal+time mean biases (2d)")
-    logger.info(f"Prognostic data size: {prognostic.nbytes / 1e9} Gb")
-    for prognostic_subset in _memory_manageable_split(prognostic):
-
-        common_vars = list(
-            set(prognostic_subset.data_vars).intersection(verification.data_vars)
-        )
+    for prognostic_subset in _memory_manageable_split(prognostic[common_vars]):
+        vars_ = list(prognostic_subset.data_vars)
+        logger.info(f"Computing zonal+time mean biases (2d) for {vars_}")
 
         zonal_mean_bias = vcm.zonal_average_approximate(
-            grid.lat,
-            bias(verification[common_vars], prognostic_subset[common_vars]),
-            lat_name="latitude",
+            grid.lat, bias(verification[vars_], prognostic_subset), lat_name="latitude",
         )
         zonal_means.update(time_mean(zonal_mean_bias).load())
     return zonal_means
@@ -363,17 +355,16 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
     logger.info(f"Prognostic data size: {prognostic.nbytes / 1e9} Gb")
 
     zonal_means = xr.Dataset()
-    for prognostic_subset in _memory_manageable_split(prognostic):
-        common_vars = list(
-            set(prognostic_subset.data_vars).intersection(verification.data_vars)
-        )
+    common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
 
-        logger.info(f"Computing zonal mean biases (2d) over time for {common_vars}")
+    for prognostic_subset in _memory_manageable_split(prognostic[common_vars]):
+        vars_ = list(prognostic_subset.data_vars)
+        logger.info(f"Computing zonal mean biases (2d) over time for {vars_}")
         with xr.set_options(keep_attrs=True):
             zonal_means.update(
                 vcm.zonal_average_approximate(
                     grid.lat,
-                    bias(verification[common_vars], prognostic_subset[common_vars]),
+                    bias(verification[vars_], prognostic_subset),
                     lat_name="latitude",
                 ).load()
             )
