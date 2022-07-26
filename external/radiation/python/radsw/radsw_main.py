@@ -1177,6 +1177,7 @@ def cldprop(
 
         return taucw, ssacw, asycw, cldfrc, cldfmc
 
+
 def taumol(
         colamt,
         colmol,
@@ -1843,6 +1844,7 @@ def taumol(
 
         return sfluxzen, taug, taur
 
+@jit(nopython=True)
 def taumol16(
         strrat,
         colamt,
@@ -1953,7 +1955,7 @@ def taumol16(
 
 # The subroutine computes the optical depth in band 17:  3250-4000
 # cm-1 (low - h2o,co2; high - h2o,co2)
-
+@jit(nopython=True)
 def taumol17(
         strrat,
         colamt,
@@ -2100,6 +2102,7 @@ def taumol17(
 
 # The subroutine computes the optical depth in band 18:  4000-4650
 # cm-1 (low - h2o,ch4; high - ch4)
+@jit(nopython=True)
 def taumol18(
         strrat,
         colamt,
@@ -2218,7 +2221,7 @@ def taumol18(
 
 # The subroutine computes the optical depth in band 19:  4650-5150
 # cm-1 (low - h2o,co2; high - co2)
-
+@jit(nopython=True)
 def taumol19(
         strrat,
         colamt,
@@ -2335,6 +2338,7 @@ def taumol19(
 
 # The subroutine computes the optical depth in band 20:  5150-6150
 # cm-1 (low - h2o; high - h2o)
+@jit(nopython=True)
 def taumol20(
         strrat,
         colamt,
@@ -2446,7 +2450,7 @@ def taumol20(
 
 # The subroutine computes the optical depth in band 21:  6150-7700
 # cm-1 (low - h2o,co2; high - h2o,co2)
-
+@jit(nopython=True)
 def taumol21(
         strrat,
         colamt,
@@ -2592,6 +2596,7 @@ def taumol21(
 
 # The subroutine computes the optical depth in band 22:  7700-8050
 # cm-1 (low - h2o,o2; high - o2)
+@jit(nopython=True)
 def taumol22(
         strrat,
         colamt,
@@ -2731,6 +2736,7 @@ def taumol22(
 
 # The subroutine computes the optical depth in band 23:  8050-12850
 # cm-1 (low - h2o; high - nothing)
+@jit(nopython=True)
 def taumol23(
         strrat,
         colamt,
@@ -2816,6 +2822,7 @@ def taumol23(
 
 # The subroutine computes the optical depth in band 24:  12850-16000
 # cm-1 (low - h2o,o2; high - o2)
+@jit(nopython=True)
 def taumol24(
         strrat,
         colamt,
@@ -2947,6 +2954,7 @@ def taumol24(
 
 # The subroutine computes the optical depth in band 25:  16000-22650
 # cm-1 (low - h2o; high - nothing)
+@jit(nopython=True)
 def taumol25(
         strrat,
         colamt,
@@ -3017,6 +3025,7 @@ def taumol25(
 
 # The subroutine computes the optical depth in band 26:  22650-29000
 # cm-1 (low - nothing; high - nothing)
+@jit(nopython=True)
 def taumol26(
         strrat,
         colamt,
@@ -3063,7 +3072,7 @@ def taumol26(
 
 # The subroutine computes the optical depth in band 27:  29000-38000
 # cm-1 (low - o3; high - o3)
-
+@jit(nopython=True)
 def taumol27(
         strrat,
         colamt,
@@ -3139,6 +3148,7 @@ def taumol27(
 
 # The subroutine computes the optical depth in band 28:  38000-50000
 # cm-1 (low - o3,o2; high - o3,o2)
+@jit(nopython=True)
 def taumol28(
         strrat,
         colamt,
@@ -3262,6 +3272,7 @@ def taumol28(
 
 # The subroutine computes the optical depth in band 29:  820-2600
 # cm-1 (low - h2o; high - co2)
+@jit(nopython=True)
 def taumol29(
         strrat,
         colamt,
