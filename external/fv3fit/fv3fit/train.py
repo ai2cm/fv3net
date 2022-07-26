@@ -178,13 +178,19 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
+    os.mkdir("artifacts")
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[logging.FileHandler("training.log"), logging.StreamHandler()],
+        handlers=[
+            logging.FileHandler("artifacts/training.log"),
+            logging.StreamHandler(),
+        ],
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     main(args, unknown_args)
 
     with put_dir(args.output_path) as path:
-        shutil.copytree(".", path, dirs_exist_ok=True)
+        shutil.copytree(
+            "artifacts", os.path.join(path, "artifacts"), dirs_exist_ok=True
+        )
