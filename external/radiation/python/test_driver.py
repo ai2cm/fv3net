@@ -204,48 +204,50 @@ for rank in range(6):
 Outdict_all = dict()
 for rank in range(6):
 ########################  Reading data from serialbox ####################################
-    serial = ser.Serializer(
-        ser.OpenModeKind.Read,
-        os.path.join(FORTRANDATA_DIR, "SW"),"Generator_rank" + str(rank))
-    si = serial.read("si", serial.savepoint["rad-initialize"])
-    imp_physics = serial.read("imp_physics", serial.savepoint["rad-initialize"])
+    if rank == 0:
+        serial = ser.Serializer(
+            ser.OpenModeKind.Read,
+            os.path.join(FORTRANDATA_DIR, "SW"),"Generator_rank" + str(rank))
+        si = serial.read("si", serial.savepoint["rad-initialize"])
+        imp_physics = serial.read("imp_physics", serial.savepoint["rad-initialize"])
 
-    driver = RadiationDriver()
-    driver.radinit(
-        si,
-        nlay,
-        imp_physics,
-        me,
-        iemsflg,
-        ioznflg,
-        ictmflg,
-        isolar,
-        ico2flg,
-        iaerflg,
-        ialbflg,
-        icldflg,
-        ivflip,
-        iovrsw,
-        iovrlw,
-        isubcsw,
-        isubclw,
-        lcrick,
-        lcnorm,
-        lnoprec,
-        iswcliq,
-    )
+        driver = RadiationDriver()
+        driver.radinit(
+            si,
+            nlay,
+            imp_physics,
+            me,
+            iemsflg,
+            ioznflg,
+            ictmflg,
+            isolar,
+            ico2flg,
+            iaerflg,
+            ialbflg,
+            icldflg,
+            ivflip,
+            iovrsw,
+            iovrlw,
+            isubcsw,
+            isubclw,
+            lcrick,
+            lcnorm,
+            lnoprec,
+            iswcliq,
+        )
 
-    updatedict = dict()
-    for var in invars:
-        updatedict[var] = serial.read(var, serial.savepoint["rad-update"])
+        updatedict = dict()
+        for var in invars:
+            updatedict[var] = serial.read(var, serial.savepoint["rad-update"])
 
-    slag, sdec, cdec, solcon = driver.radupdate(
-        updatedict["idat"],
-        updatedict["jdat"],
-        updatedict["fhswr"],
-        updatedict["dtf"],
-        updatedict["lsswr"],
-    )
+        slag, sdec, cdec, solcon = driver.radupdate(
+            updatedict["idat"],
+            updatedict["jdat"],
+            updatedict["fhswr"],
+            updatedict["dtf"],
+            updatedict["lsswr"],)
+
+            
     Radtend = Radtend_all[rank]
     Radtend["sfcfsw"] = dict()
     Radtend["sfcflw"] = dict()
