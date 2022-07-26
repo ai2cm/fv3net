@@ -8,7 +8,7 @@ from .convolutional_network import (
 )
 from .pure_keras import PureKerasModel
 from .training_loop import TrainingLoopConfig, EpochResult
-from .callbacks import CallbackConfig, get_checkpoint_dir_if_exists
+from .callbacks import CallbackConfig
 from .loss import LossConfig
 from .utils import standard_denormalize, standard_normalize
 from .halos import append_halos
