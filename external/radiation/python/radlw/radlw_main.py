@@ -6,6 +6,7 @@ import os
 import time
 import warnings
 from numba import jit
+import joblib
 
 sys.path.insert(0, "..")
 from radphysparam import (
@@ -73,7 +74,6 @@ from config import *
 
 np.set_printoptions(precision=15)
 ngb = np.array(ngb)
-
 @jit(nopython=True)
 def mcica_subcol(iovrlw, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
         #  ====================  defination of variables  ====================  !
@@ -403,6 +403,7 @@ def cldprop(
 
         return cldfmc, taucld
 
+
 def taumol(
         laytrop,
         pavel,
@@ -546,6 +547,7 @@ def taumol(
         fracrefa_band_16,
         fracrefb_band_16,
         oneminus,
+        npts,
     ):
 
         #  ************    original subprogram description    ***************   !
@@ -700,6 +702,7 @@ def taumol(
             fracrefb_band_01,
             nspa,
             nspb,
+            npts,
         )
         taug, fracs, tauself = bands.taugb02(
             laytrop,
@@ -1310,7 +1313,7 @@ def taumol(
             nspb,
         )
 
-        tautot = np.zeros((ngptlw, nlay))
+        tautot = np.zeros((ngptlw, nlay, npts))
 
         #  ---  combine gaseous and aerosol optical depths
 
@@ -1318,7 +1321,7 @@ def taumol(
             ib = ngb[ig] - 1
 
             for k in range(nlay):
-                tautot[ig, k] = taug[ig, k] + tauaer[ib, k]
+                tautot[ig, k, :] = taug[ig, k, :] + tauaer[ib, k, :]
 
         return fracs, tautot
 
@@ -1663,18 +1666,49 @@ class RadLWClass:
         absb_band_16 = ds_bands['radlw_kgb16']["absb"].values
         fracrefa_band_16 = ds_bands['radlw_kgb16']["fracrefa"].values
         fracrefb_band_16 = ds_bands['radlw_kgb16']["fracrefb"].values
+
+        pavel_all  = np.zeros((nlay, npts))
+        coldry_all = np.zeros((nlay, npts))
+        colamt_all  = np.zeros((nlay,maxgas, npts))
+        colbrd_all  = np.zeros((nlay, npts))
+        wx_all  = np.zeros((nlay, maxxsec, npts))
+        tauaer_all  = np.zeros((nbands, nlay, npts))
+        rfrate_all  = np.zeros((nlay, nrates, 2, npts))
+
+        fac00_all  = np.zeros((nlay, npts))
+        fac01_all  = np.zeros((nlay, npts))
+        fac10_all  = np.zeros((nlay, npts))
+        fac11_all  = np.zeros((nlay, npts))
+        selffac_all = np.zeros((nlay,npts))
+        selffrac_all = np.zeros((nlay,npts))
+        indself_all = np.zeros((nlay,npts), dtype=np.int32)
+        forfac_all = np.zeros((nlay,npts))
+        forfrac_all = np.zeros((nlay,npts)) 
+        indfor_all = np.zeros((nlay,npts), dtype=np.int32)
+        minorfrac_all = np.zeros((nlay,npts))
+        scaleminor_all = np.zeros((nlay,npts))
+        scaleminorn2_all = np.zeros((nlay,npts))
+        indminor_all = np.zeros((nlay,npts), dtype=np.int32)
+        jp_all = np.zeros((nlay,npts), dtype=np.int32)
+        jt_all = np.zeros((nlay,npts), dtype=np.int32)
+        jt1_all = np.zeros((nlay,npts), dtype=np.int32)
+
+        pklay_all = np.zeros((nbands, nlp1, npts))
+        pklev_all  = np.zeros((nbands, nlp1, npts))
+        taucld_all  = np.zeros((nbands, nlay, npts))
+        delp_all    = np.zeros((nlay, npts))
+        semiss_all  = np.zeros((nbands,npts))
+        cldfrc_all  =  np.zeros((nlp1 + 1, npts))
+        cldfmc_all  =  np.zeros((ngptlw, nlay, npts))
+        secdiff_all  = np.zeros((nbands,npts))
+        cldtau_all = np.zeros((npts, nlay))
+
         ## ending data loading for taumol
         ########################################        
         cldfrc = np.zeros(nlp1 + 1)
 
-        totuflux = np.zeros(nlp1)
-        totdflux = np.zeros(nlp1)
-        totuclfl = np.zeros(nlp1)
-        totdclfl = np.zeros(nlp1)
         tz = np.zeros(nlp1)
 
-        htr = np.zeros(nlay)
-        htrcl = np.zeros(nlay)
         pavel = np.zeros(nlay)
         tavel = np.zeros(nlay)
         delp = np.zeros(nlay)
@@ -1707,7 +1741,6 @@ class RadLWClass:
         pklev = np.zeros((nbands, nlp1))
         pklay = np.zeros((nbands, nlp1))
 
-        htrb = np.zeros((nlay, nbands))
         taucld = np.zeros((nbands, nlay))
         tauaer = np.zeros((nbands, nlay))
         fracs = np.zeros((ngptlw, nlay))
@@ -1810,7 +1843,11 @@ class RadLWClass:
                 wx[:, 2] = 0.0
                 wx[:, 3] = 0.0
 
-            tauaer[: , :]= (aerosols[iplon, :, :, 0] * (1.0 - aerosols[iplon, :, :, 1])).T
+            for k in range(nlay):
+                for j in range(nbands):
+                    tauaer[j, k] = aerosols[iplon, k, j, 0] * (
+                        1.0 - aerosols[iplon, k, j, 1]
+                    )
 
             if ilwcliq > 0:
                 cldfrc[1:-1] = clouds[iplon, :, 0]
@@ -1861,6 +1898,7 @@ class RadLWClass:
                 if cldfrc[k + 1] > self.eps:
                     lcf1 = True
                     break
+            cldfrc_all[:,iplon] = cldfrc
 
             if verbose:
                 print("Running cldprop . . .")
@@ -1900,6 +1938,7 @@ class RadLWClass:
             else:
                 cldfmc = np.zeros((ngptlw, nlay))
                 taucld = np.zeros((nbands, nlay))
+            taucld_all[:, :, iplon] = taucld
 
             if verbose:
                 print("Running setcoef . . .")
@@ -1931,36 +1970,69 @@ class RadLWClass:
                 pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1, totplnk, preflog, tref, chi_mls
             )
 
-            if verbose:
-                print("Done")
-                print(" ")
-                print("Running taumol . . .")
-            fracs, tautot = taumol(
+            fac00_all[:, iplon] = fac00
+            fac01_all[:, iplon] = fac01
+            fac10_all[:, iplon] = fac10
+            fac11_all[:, iplon] = fac11
+            pavel_all[:, iplon] = pavel
+            coldry_all[:, iplon] = coldry
+            colamt_all[:, :, iplon] = colamt
+            colbrd_all[:, iplon] = colbrd
+            wx_all[:, :, iplon] = wx
+            tauaer_all[:, :, iplon] = tauaer
+            rfrate_all[:, :, :, iplon] = rfrate
+            jp_all[:, iplon] = jp
+            jt_all[:, iplon] = jt
+            jt1_all[:, iplon] = jt1
+            secdiff_all[:, iplon]  = secdiff
+
+            selffac_all[:,iplon] = selffac
+            selffrac_all[:,iplon] = selffrac
+            indself_all[:,iplon] =  indself
+            forfac_all[:,iplon] = forfac
+            forfrac_all[:,iplon] = forfrac
+            indfor_all[:,iplon] = indfor
+            minorfrac_all[:,iplon] = minorfrac
+            scaleminor_all[:,iplon]  = scaleminor
+            scaleminorn2_all[:,iplon] = scaleminorn2
+            indminor_all[:,iplon] = indminor
+
+            pklay_all[:,:,iplon] = pklay
+            pklev_all[:,:,iplon] = pklev
+            delp_all[:,iplon]    = delp
+            semiss_all[:,iplon] = semiss
+            cldfmc_all[:,:,iplon] = cldfmc
+        
+        if verbose:
+            print("Done")
+            print(" ")
+            print("Running taumol . . .")
+        fracs, tautot = taumol(
                 laytrop,
-                pavel,
-                coldry,
-                colamt,
-                colbrd,
-                wx,
-                tauaer,
-                rfrate,
-                fac00,
-                fac01,
-                fac10,
-                fac11,
-                jp + 1,
-                jt + 1,
-                jt1 + 1,
-                selffac,
-                selffrac,
-                indself,
-                forfac,
-                forfrac,
-                indfor,
-                minorfrac,
-                scaleminor,
-                scaleminorn2,
-                indminor,
+                pavel_all,
+                coldry_all,
+                colamt_all,
+                colbrd_all,
+                wx_all,
+                tauaer_all,
+                rfrate_all,
+                fac00_all,
+                fac01_all,
+                fac10_all,
+                fac11_all,
+                jp_all + 1,
+                jt_all + 1,
+                jt1_all + 1,
+                selffac_all,
+                selffrac_all,
+                indself_all,
+                forfac_all,
+                forfrac_all,
+                indfor_all,
+                minorfrac_all,
+                scaleminor_all,
+                scaleminorn2_all,
+                indminor_all,
                 nlay,
                 selfref_band_01,
                 forref_band_01,
@@ -2078,7 +2150,10 @@ class RadLWClass:
                 fracrefa_band_16,
                 fracrefb_band_16,
                 self.oneminus,
+                npts,
             )
+
+        for iplon in range(npts):            
             if verbose:
                 print("Done")
                 print(" ")
@@ -2105,15 +2180,15 @@ class RadLWClass:
                         self.bpade,
                         self.eps,
                         self.tau_tbl,
-                        semiss,
-                        delp,
-                        cldfrc,
-                        taucld,
-                        tautot,
-                        pklay,
-                        pklev,
-                        fracs,
-                        secdiff,
+                        semiss_all[:,iplon],
+                        delp_all[:,iplon],
+                        cldfrc_all[:,iplon],
+                        taucld_all[:,:,iplon],
+                        tautot[:,:,iplon],
+                        pklay_all[:,:,iplon],
+                        pklev_all[:,:,iplon],
+                        fracs[:,:,iplon],
+                        secdiff_all[:, iplon],
                         nlay,
                         nlp1,
                     )
@@ -2137,15 +2212,15 @@ class RadLWClass:
                         self.wtdiff,
                         self.fluxfac,
                         self.heatfac,
-                        semiss,
-                        delp,
-                        cldfrc,
-                        taucld,
-                        tautot,
-                        pklay,
-                        pklev,
-                        fracs,
-                        secdiff,
+                        semiss_all[:,iplon],
+                        delp_all[:,iplon],
+                        cldfrc_all[:,iplon],
+                        taucld_all[:,:,iplon],
+                        tautot[:,:,iplon],
+                        pklay_all[:,:,iplon],
+                        pklev_all[:,:,iplon],
+                        fracs[:,:,iplon],
+                        secdiff_all[:, iplon],
                         nlay,
                         nlp1,
                     )
@@ -2170,15 +2245,15 @@ class RadLWClass:
                     self.wtdiff,
                     self.fluxfac,
                     self.heatfac,
-                    semiss,
-                    delp,
-                    cldfmc,
-                    taucld,
-                    tautot,
-                    pklay,
-                    pklev,
-                    fracs,
-                    secdiff,
+                    semiss_all[:,iplon],
+                    delp_all[:,iplon],
+                    cldfmc_all[:,:,iplon],
+                    taucld_all[:,:,iplon],
+                    tautot[:,:,iplon],
+                    pklay_all[:,:,iplon],
+                    pklev_all[:,:,iplon],
+                    fracs[:,:,iplon],
+                    secdiff_all[:, iplon],
                     nlay,
                     nlp1,
                     iplon,
@@ -2189,7 +2264,6 @@ class RadLWClass:
             if verbose:
                 print("Done")
                 print(" ")
-
             upfxc_t[iplon] = totuflux[nlay]
             upfx0_t[iplon] = totuclfl[nlay]
 
@@ -2206,7 +2280,7 @@ class RadLWClass:
 
         if verbose:
             print("Finished!")
-
+        
         return (
             hlwc,
             upfxc_t,
@@ -2218,7 +2292,7 @@ class RadLWClass:
             cldtau,
             hlw0,
         )
-
+        
     def setcoef(
         self, pavel, tavel, tz, stemp, h2ovmr, colamt, coldry, colbrd, nlay, nlp1, 
         totplnk, preflog, tref, chi_mls
@@ -3313,7 +3387,7 @@ class RadLWClass:
                         fnet[k] = (toturad[k, ib] - totdrad[k, ib]) * flxfac
                         htrb[k, ib] = (fnet[k - 1] - fnet[k]) * rfdelp[k]
 
-        return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb
+        return totuflux, totdflux, htr, totuclfl, totdclfl, htrcl, htrb    
     @staticmethod
     @jit(nopython=True)
     def rtrnmc(
