@@ -22,6 +22,15 @@ def read_from_serializer(variables, serializer, in_out = 'in'):
         out[var] = serializer.read(var, serializer.savepoint["driver-"+ in_out +"-000000"])
     return out
 
+def upscale_samples(data_dict, multiplier):
+    out = {}
+    for var in data_dict:
+        if not type(data_dict[var]) == dict and data_dict[var].size > 1:
+            out[var] = np.tile(data_dict[var],[multiplier] + [1 for _ in range(len(data_dict[var].shape) - 1)])
+        else:
+            out[var] = data_dict[var]
+    return out
+    
 ## Defining variables 
 invars = ["idat", "jdat", "fhswr", "dtf", "lsswr"]
 statein_vars = [
