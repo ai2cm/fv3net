@@ -1,11 +1,14 @@
 import pytest
+import numpy as np
 import tensorflow as tf
 
 from fv3fit.emulation.transforms.zhao_carr import (
     classify,
     CLASS_NAMES,
+    CloudLimiter,
     MicrophysicsClasssesV1,
     MicrophysicsClassesV1OneHot,
+    limit_negative_cloud,
 )
 
 
@@ -69,3 +72,40 @@ def test_classify_classes_v1OneHot():
     new_state = transform.forward(state)
     assert factory.to in new_state
     assert new_state[factory.to].shape[-1] == len(CLASS_NAMES)
+
+
+def test_limit_negative_cloud():
+    tf.random.set_seed(0)
+    n = 100
+    cloud = tf.random.normal([n])
+    humidity = tf.fill([n], 0.5)
+    temperature = tf.zeros([n])
+
+    c, h, t = limit_negative_cloud(
+        cloud=cloud, humidity=humidity, temperature=temperature
+    )
+    assert tf.reduce_all(h >= 0)
+    assert tf.reduce_all((c >= 0) | (h == 0))
+
+
+def test_cloud_limiter_transform():
+    d = {"qc": -1.0, "qv": 1.0, "t": 0.0}
+    factory = CloudLimiter(cloud="qc", humidity="qv", temperature="t")
+    transform = factory.build({})
+    assert transform.forward(d) == d
+    y = transform.backward(d)
+    assert set(d) == set(y)
+
+    # idempotent
+    y1 = transform.backward(d)
+    y2 = transform.backward(y1)
+    for key in d:
+        np.testing.assert_equal(y1[key], y2[key])
+
+
+def test_cloud_limiter_names():
+    names = {"qc", "qv", "t"}
+    factory = CloudLimiter(cloud="qc", humidity="qv", temperature="t")
+    assert factory.backward_names({"a"}) == {"a"}
+    assert factory.backward_input_names() == names
+    assert factory.backward_output_names() == names
