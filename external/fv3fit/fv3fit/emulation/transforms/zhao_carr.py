@@ -71,6 +71,8 @@ class CloudLimiter(TensorTransform):
     cloud: str
     humidity: str
     temperature: str
+    # used to disambiguate
+    limit_cloud: bool = True
 
     def build(self, sample: TensorDict) -> TensorTransform:
         return self
