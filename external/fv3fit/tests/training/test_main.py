@@ -506,15 +506,7 @@ def cli_main(args: argparse.Namespace):
         ),
         pytest.param("convolutional", {}, ["dQ1", "dQ2"], id="convolutional"),
         pytest.param("precipitative", {}, ["dQ1", "dQ2"], id="precipitative"),
-        pytest.param(
-            "dense", {"save_model_checkpoints": False}, ["dQ1", "dQ2"], id="dense"
-        ),
-        pytest.param(
-            "dense",
-            {"save_model_checkpoints": True},
-            ["dQ1", "dQ2"],
-            id="dense_with_checkpoints",
-        ),
+        pytest.param("dense", {}, ["dQ1", "dQ2"], id="dense"),
     ],
 )
 @pytest.mark.parametrize(
