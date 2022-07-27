@@ -74,18 +74,6 @@ from config import *
 np.set_printoptions(precision=15)
 ngb = np.array(ngb)
 
-
-def save_in_out(func):
-    def myfunc(*args):
-        joblib.dump(args,"/home/yakelyn/fv3net/external/radiation/python/inputs_all.pkl")
-        outputs = func(*args)
-        joblib.dump(outputs,"/home/yakelyn/fv3net/external/radiation/python/outputs_all.pkl")
-        outputs
-        return outputs
-    return myfunc
-
-
-
 @jit(nopython=True)
 def mcica_subcol(iovrlw, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
         #  ====================  defination of variables  ====================  !
