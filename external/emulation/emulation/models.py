@@ -36,6 +36,9 @@ def transform_model(
     model: Callable[[FortranState], FortranState], transform: Any
 ) -> Callable[[FortranState], FortranState]:
     def combined(x: FortranState) -> FortranState:
+        # model time is an array of length 8, which can conflict with the other
+        # arrays here
+        x = {k: v for k, v in x.items() if k != "model_time"}
         x_transformed = _predict(transform.forward, x)
         x_transformed.update(model(x_transformed))
         output = _predict(transform.backward, x_transformed)
