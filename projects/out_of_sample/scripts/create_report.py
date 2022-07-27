@@ -27,6 +27,7 @@ class OOSModel:
     nd: NoveltyDetector
     nd_path: str
 
+
 def _cleanup_temp_dir(temp_dir):
     logger.info(f"Cleaning up temp dir {temp_dir.name}")
     temp_dir.cleanup()
@@ -35,14 +36,13 @@ def _cleanup_temp_dir(temp_dir):
 def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "config_path",
-        default=None,
-        type=str,
-        help=("Path to yaml config file."),
+        "config_path", default=None, type=str, help=("Path to yaml config file."),
     )
     return parser
 
+
 _STATE_SUFFIX = "state_after_timestep.zarr"
+
 
 def get_diags_offline_suffix(model_name: str) -> str:
     return f"diags_novelty_offline_{model_name}.zarr"
@@ -55,7 +55,7 @@ def get_diags(oos_model: OOSModel, ds_path: str) -> xr.Dataset:
     """
     diags_url = os.path.join(
         oos_model.nd_path,
-        f"diags_novelty_offline/{hashlib.md5(ds_path.encode()).hexdigest()}"
+        f"diags_novelty_offline/{hashlib.md5(ds_path.encode()).hexdigest()}",
     )
     fs = vcm.cloud.get_fs(diags_url)
     if fs.exists(diags_url):
@@ -80,7 +80,7 @@ def make_diagnostic_plots(
     temp_output_dir: str,
     models: List[OOSModel],
     model_diags: List[xr.Dataset],
-    grid: xr.Dataset
+    grid: xr.Dataset,
 ):
     """
     Fills in sections of a future html report for a collection of models with
@@ -185,11 +185,8 @@ def create_report(args):
         except yaml.YAMLError as exc:
             print(exc)
     models = [
-        OOSModel(
-            model["name"],
-            fv3fit.load(model["model_url"]),
-            model["model_url"]
-        ) for model in config["models"]
+        OOSModel(model["name"], fv3fit.load(model["model_url"]), model["model_url"])
+        for model in config["models"]
     ]
     run_name = config["run_dataset"]["name"]
     run_url = config["run_dataset"]["url"]
@@ -199,27 +196,20 @@ def create_report(args):
         report_url = os.path.join(report_url, f"report-{report_id}")
 
     metadata = {
-        "models": [{
-            "name": model.name,
-            "model_url": model.nd_path,
-        } for model in models],
+        "models": [
+            {"name": model.name, "model_url": model.nd_path} for model in models
+        ],
         "run_name": run_name,
         "run_url": run_url,
-        "report_url": report_url
+        "report_url": report_url,
     }
     report_sections: MutableMapping[str, Sequence[str]] = {}
 
     model_diags = {}
     for model in models:
         model_diags[model.name] = get_diags(model, run_url)
-        
-    make_diagnostic_plots(
-        report_sections,
-        temp_output_dir,
-        models,
-        model_diags,
-        grid
-    )
+
+    make_diagnostic_plots(report_sections, temp_output_dir, models, model_diags, grid)
 
     # creates html text based on the above sections
     html_index = report.create_html(

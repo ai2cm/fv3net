@@ -17,7 +17,7 @@ from create_report import (
     OOSModel,
     _cleanup_temp_dir,
     _get_parser,
-    make_diagnostic_plots
+    make_diagnostic_plots,
 )
 import tempfile
 from vcm.catalog import catalog
@@ -30,6 +30,7 @@ _NOVELTY_DIAGS_SUFFIX = "diags_novelty.zarr"
 @dataclasses.dataclass
 class OnlineOOSModel(OOSModel):
     run_path: str
+
 
 def get_online_diags(oos_model: OnlineOOSModel) -> xr.Dataset:
     """
@@ -61,6 +62,7 @@ def get_online_diags(oos_model: OnlineOOSModel) -> xr.Dataset:
         print(f"Saved online novelty data to {novelty_diags_url}.")
         return diags
 
+
 def create_report(args):
     temp_output_dir = tempfile.TemporaryDirectory()
     atexit.register(_cleanup_temp_dir, temp_output_dir)
@@ -79,8 +81,9 @@ def create_report(args):
             model["name"],
             fv3fit.load(model["model_url"]),
             model["model_url"],
-            model["run_url"]
-        ) for model in config["models"]
+            model["run_url"],
+        )
+        for model in config["models"]
     ]
     print(models)
     report_url = config["report_url"]
@@ -90,12 +93,11 @@ def create_report(args):
         report_url = os.path.join(report_url, f"report-{report_id}")
 
     metadata = {
-        "models": [{
-            "name": model.name,
-            "model_url": model.nd_path,
-            "run_url": model.run_path
-        } for model in models],
-        "report_url": report_url
+        "models": [
+            {"name": model.name, "model_url": model.nd_path, "run_url": model.run_path}
+            for model in models
+        ],
+        "report_url": report_url,
     }
     report_sections: MutableMapping[str, Sequence[str]] = {}
 
@@ -103,7 +105,7 @@ def create_report(args):
     model_diags = {}
     for model in models:
         model_diags[model.name] = get_online_diags(model)
-    
+
     make_diagnostic_plots(
         report_sections, temp_output_dir, models, model_diags, grid,
     )
