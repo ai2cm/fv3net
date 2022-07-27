@@ -30,7 +30,33 @@ def upscale_samples(data_dict, multiplier):
         else:
             out[var] = data_dict[var]
     return out
-    
+
+def save_validate(data, ref_data, outfile ,explicit=True, blocking=True):
+    wrong = []
+    flag = True
+
+    for var in data:
+
+        if not np.allclose(
+            data[var], ref_data[var], rtol=1e-11, atol=1.0e-13, equal_nan=True
+        ):
+
+            wrong.append(var)
+            flag = False
+            outfile2 = outfile + '_wrong_' + '_' + var 
+        else:
+            
+
+            if explicit:
+                print(f"Successfully validated {var}!")
+                outfile2 = outfile + '_validates_' + '_' + var 
+
+        np.savez(outfile2, data = data[var], ref_data = ref_data[var])
+
+def save_radiation_inputs(outfile, Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag):
+    np.savez(outfile, model = Model, statein = Statein, sfcprop = Sfcprop, coupling= Coupling, grid = Grid, tbd = Tbd, radtend = Radtend, diag = Diag)
+
+
 ## Defining variables 
 invars = ["idat", "jdat", "fhswr", "dtf", "lsswr"]
 statein_vars = [
