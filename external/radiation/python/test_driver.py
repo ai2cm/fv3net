@@ -7,6 +7,8 @@ from radiation_driver import RadiationDriver
 import time
 startTime = time.time()
 
+sample_multiplier = int(sys.argv[1]) if len(sys.argv) == 2 else 1
+
 # defining useful functions
 def getscalars(indict):
     for var in indict.keys():
@@ -224,14 +226,14 @@ for rank in range(6):
     )
 
     Model_all[rank] = read_from_serializer(model_vars, serializer, in_out='in')
-    Statein_all[rank] = read_from_serializer(statein_vars, serializer, in_out='in')
-    Sfcprop_all[rank] = read_from_serializer(sfcprop_vars, serializer, in_out='in')
-    Coupling_all[rank] = read_from_serializer(coupling_vars,serializer, in_out='in')
-    Grid_all[rank] = read_from_serializer(grid_vars,serializer, in_out='in')
-    Tbd_all[rank] = read_from_serializer(tbd_vars, serializer, in_out='in')
-    Radtend_all[rank] = read_from_serializer(radtend_vars, serializer, in_out='in')
-    Diag_all[rank] = read_from_serializer(diag_vars, serializer, in_out='in')
-    Valdict_all[rank] = read_from_serializer(radtend_vars_out + diag_vars_out, serializer, in_out='out')
+    Statein_all[rank] = upscale_samples(read_from_serializer(statein_vars, serializer, in_out='in'), sample_multiplier)
+    Sfcprop_all[rank] = upscale_samples(read_from_serializer(sfcprop_vars, serializer, in_out='in'), sample_multiplier)
+    Coupling_all[rank] = upscale_samples(read_from_serializer(coupling_vars,serializer, in_out='in'), sample_multiplier)
+    Grid_all[rank] = upscale_samples(read_from_serializer(grid_vars,serializer, in_out='in'), sample_multiplier)
+    Tbd_all[rank] = upscale_samples(read_from_serializer(tbd_vars, serializer, in_out='in'), sample_multiplier)
+    Radtend_all[rank] = upscale_samples(read_from_serializer(radtend_vars, serializer, in_out='in'), sample_multiplier)
+    Diag_all[rank] = upscale_samples(read_from_serializer(diag_vars, serializer, in_out='in'), sample_multiplier)
+    Valdict_all[rank] = upscale_samples(read_from_serializer(radtend_vars_out + diag_vars_out, serializer, in_out='out'), sample_multiplier)
 
 ## Run GFS radiation driver
 # This subroutine initialize a model's radiation process through
