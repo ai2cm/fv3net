@@ -199,20 +199,23 @@ for rank in range(6):
     Valdict_all[rank] = read_from_serializer(radtend_vars_out + diag_vars_out, serializer, in_out='out')
 
 ## Run GFS radiation driver
+# This subroutine initialize a model's radiation process through
+# calling of specific initialization subprograms that directly
+#  related to radiation calculations. This subroutine needs to be
+# invoked only once at the start stage of a model's run, and the
+# call is placed outside of both the time advancement loop and
+# horizontal grid loop.
 
-
-Outdict_all = dict()
-for rank in range(6):
-########################  Reading data from serialbox ####################################
-    if rank == 0:
-        serial = ser.Serializer(
-            ser.OpenModeKind.Read,
+rank = 0
+serial = ser.Serializer(ser.OpenModeKind.Read,
             os.path.join(FORTRANDATA_DIR, "SW"),"Generator_rank" + str(rank))
-        si = serial.read("si", serial.savepoint["rad-initialize"])
-        imp_physics = serial.read("imp_physics", serial.savepoint["rad-initialize"])
+si = serial.read("si", serial.savepoint["rad-initialize"])
+imp_physics = serial.read("imp_physics", serial.savepoint["rad-initialize"])
 
-        driver = RadiationDriver()
-        driver.radinit(
+
+driver = RadiationDriver()
+
+driver.radinit(
             si,
             nlay,
             imp_physics,
@@ -233,21 +236,27 @@ for rank in range(6):
             lcrick,
             lcnorm,
             lnoprec,
-            iswcliq,
-        )
+            iswcliq,)
 
-        updatedict = dict()
-        for var in invars:
-            updatedict[var] = serial.read(var, serial.savepoint["rad-update"])
+#This subroutine checks and updates time sensitive data used by
+#radiation computations. This subroutine needs to be placed inside
+#the time advancement loop but outside of the horizontal grid loop.
+#It is invoked at radiation calling frequncy but before any actual
+#radiative transfer computations.
 
-        slag, sdec, cdec, solcon = driver.radupdate(
-            updatedict["idat"],
+updatedict = dict()
+for var in invars:
+    updatedict[var] = serial.read(var, serial.savepoint["rad-update"])
+    
+slag, sdec, cdec, solcon = driver.radupdate(updatedict["idat"],
             updatedict["jdat"],
             updatedict["fhswr"],
             updatedict["dtf"],
             updatedict["lsswr"],)
 
-            
+
+Outdict_all = dict()
+for rank in range(6):
     Radtend = Radtend_all[rank]
     Radtend["sfcfsw"] = dict()
     Radtend["sfcflw"] = dict()
