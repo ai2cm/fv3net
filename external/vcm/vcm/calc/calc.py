@@ -12,7 +12,7 @@ HOUR_PER_DEG_LONGITUDE = 1.0 / 15
 XRData = Union[xr.DataArray, xr.Dataset]
 
 
-def average_over_dims(x: XRData, dims=["x", "y", "tile"]) -> XRData:
+def global_average(x: XRData, dims=["x", "y", "tile"]) -> XRData:
     return x.mean(dims)
 
 

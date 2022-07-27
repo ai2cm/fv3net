@@ -16,7 +16,7 @@ import functools
 from typing import Union, Callable
 import xarray as xr
 
-from .calc import average_over_dims
+from .calc import global_average
 
 
 XRData = Union[xr.DataArray, xr.Dataset]
@@ -124,7 +124,7 @@ def mean_squared_error(truth, pred, mean=default_mean, **kwargs):
 def r2(
     target: XRData,
     prediction: XRData,
-    mean: Callable[..., XRData] = average_over_dims,
+    mean: Callable[..., XRData] = global_average,
     **mean_func_kwargs
 ) -> XRData:
     variance = (
