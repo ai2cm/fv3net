@@ -338,14 +338,16 @@ for rank in range(6):
             outdict[var] = Diagout[var]
     Outdict_all[rank] = outdict
 
+## Save validation data
+for rank in range(6):
+    save_validate(Valdict_all[rank], Outdict_all[rank],'rank_' + str(rank))
+    save_radiation_inputs('rank_' + str(rank),Model_all[rank] , Statein_all[rank] , Sfcprop_all[rank] , Coupling_all[rank] , Grid_all[rank] ,Tbd_all[rank] , Radtend_all[rank], Diag_all[rank])
+
 ## Validation
 columns_validated = 0
 for rank in range(6):
     compare_data(Valdict_all[rank], Outdict_all[rank])
     columns_validated += Valdict_all[rank][radtend_vars_out[0]].shape[0]
-
-    save_validate(Valdict_all[rank], Outdict_all[rank],'rank_' + str(rank))
-    save_radiation_inputs('rank_' + str(rank),Model_all[rank] , Statein_all[rank] , Sfcprop_all[rank] , Coupling_all[rank] , Grid_all[rank] ,Tbd_all[rank] , Radtend_all[rank], Diag_all[rank])
 
 executionTime = (time.time() - startTime)
 
