@@ -96,6 +96,7 @@ def taugb01(
         fracrefb,
         nspa,
         nspb,
+        npts,
     ):
         #  ------------------------------------------------------------------  !
         #  written by eli j. mlawer, atmospheric & environmental research.     !
@@ -115,8 +116,8 @@ def taugb01(
 
         #  --- ...  lower atmosphere loop
 
-        taug = np.zeros((ngptlw, nlay))
-        fracs = np.zeros((ngptlw, nlay))
+        taug = np.zeros((ngptlw, nlay, npts))
+        fracs = np.zeros((ngptlw, nlay, npts))
 
         ind0 = ((jp - 1) * 5 + (jt - 1)) * nspa[0]
         ind1 = (jp * 5 + (jt1 - 1)) * nspa[0]
