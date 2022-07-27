@@ -1,13 +1,33 @@
 import numpy as np
 import xarray as xr
 from vcm.cubedsphere.constants import INIT_TIME_DIM, VAR_LON_CENTER
-from typing import Sequence, Union
+from typing import Sequence, Union, Optional
 
 
 gravity = 9.81
 specific_heat = 1004
 
 HOUR_PER_DEG_LONGITUDE = 1.0 / 15
+
+XRData = Union[xr.DataArray, xr.Dataset]
+
+
+def average_over_dims(x: XRData, dims=["x", "y", "tile"]) -> XRData:
+    return x.mean(dims)
+
+
+def zonal_average(
+    x: XRData,
+    lat: xr.DataArray,
+    bins: Optional[Sequence[float]] = None,
+    lat_name: str = "lat",
+) -> XRData:
+    bins = bins or np.arange(-90, 91, 2)
+    with xr.set_options(keep_attrs=True):
+        output = x.groupby_bins(lat.rename("lat"), bins=bins).mean()
+        output = output.rename({"lat_bins": lat_name})
+    lats_mid = [lat.item().mid for lat in output[lat_name]]
+    return output.assign_coords({lat_name: lats_mid})
 
 
 def timedelta_to_seconds(dt):

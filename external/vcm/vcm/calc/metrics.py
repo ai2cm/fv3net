@@ -13,9 +13,13 @@ These should mostly work with any array-like data. Most functions take arguments
 
 """
 import functools
-import numpy as np
-from typing import Union, Sequence, Optional, Callable
+from typing import Union, Callable
 import xarray as xr
+
+from .calc import average_over_dims
+
+
+XRData = Union[xr.DataArray, xr.Dataset]
 
 
 def r2_score(truth, pred, sample_dim, mean_dims=None):
@@ -113,29 +117,8 @@ def f1_score(truth, pred, mean=default_mean):
 recall = true_positive_rate
 
 
-XRData = Union[xr.DataArray, xr.Dataset]
-
-
 def mean_squared_error(truth, pred, mean=default_mean, **kwargs):
     return mean((truth - pred) ** 2, **kwargs)
-
-
-def average_over_dims(x: XRData, dims=["x", "y", "tile"]) -> XRData:
-    return x.mean(dims)
-
-
-def zonal_average(
-    x: XRData,
-    lat: xr.DataArray,
-    bins: Optional[Sequence[float]] = None,
-    lat_name: str = "lat",
-) -> XRData:
-    bins = bins or np.arange(-90, 91, 2)
-    with xr.set_options(keep_attrs=True):
-        output = x.groupby_bins(lat.rename("lat"), bins=bins).mean()
-        output = output.rename({"lat_bins": lat_name})
-    lats_mid = [lat.item().mid for lat in output[lat_name]]
-    return output.assign_coords({lat_name: lats_mid})
 
 
 def r2(
