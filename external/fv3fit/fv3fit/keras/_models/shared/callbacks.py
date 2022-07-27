@@ -3,17 +3,24 @@ import tensorflow as tf
 import wandb
 
 # Add third party callbacks here to make them available in training
-ADDITIONAL_CALLBACKS = {"WandbCallback": wandb.keras.WandbCallback}
+THIRD_PARTY_CALLBACKS = {"WandbCallback": wandb.keras.WandbCallback}
 
 
 def register_custom_callback(name: str):
     """
-    Returns a decorator that will register the given training function
+    Returns a decorator that will register the given custom keras callback
     to be usable in training configuration.
+
+    example usage to add the callback CustomCallback to the registry:
+
+    @register_custom_callback("custom_callback")
+    class CustomCallback(tf.keras.callbacks):
+        ...
+
     """
 
     def decorator(callback: tf.keras.callbacks.Callback) -> tf.keras.callbacks.Callback:
-        ADDITIONAL_CALLBACKS[name] = callback
+        THIRD_PARTY_CALLBACKS[name] = callback
         return callback
 
     return decorator
@@ -21,6 +28,13 @@ def register_custom_callback(name: str):
 
 @dataclasses.dataclass
 class CallbackConfig:
+    """Configuration for adding callbacks to use during keras training.
+    'name' should match the name of the callback class to use (case sensitive).
+    This can be either a builtin keras callback or a third party callback.
+    Available third party callbacks are registered in
+    fv3fit.keras._models.shared.callbacks.THIRD_PARTY_CALLBACKS.
+    """
+
     name: str
     kwargs: dict = dataclasses.field(default_factory=dict)
 
@@ -31,11 +45,11 @@ class CallbackConfig:
             return cls(**self.kwargs)
         except AttributeError:
             try:
-                return ADDITIONAL_CALLBACKS[self.name](**self.kwargs)
+                return THIRD_PARTY_CALLBACKS[self.name](**self.kwargs)
             except KeyError:
                 raise ValueError(
                     f"callback {self.name} is not in the Keras library nor the list "
-                    f"of usable third party callbacks {list(ADDITIONAL_CALLBACKS)}"
+                    f"of usable third party callbacks {list(THIRD_PARTY_CALLBACKS)}"
                 )
 
 
