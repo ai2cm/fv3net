@@ -1,0 +1,50 @@
+base_model:
+  tq_tendencies_path: "gs://vcm-ml-experiments/n2f-pire-subsampled-full-range/2022-04-18/nn-tq-low-lr-tapered-mae-seed-0/trained_models/tq_tendencies"
+  wind_tendencies_path: "gs://vcm-ml-experiments/n2f-pire-stable-ml/2022-05-23/wind-nudging-add-wind-tendencies-seed-0/trained_models/wind_tendencies"
+novelty_detectors:
+  - nd_name: "ocsvm-large-gamma"
+    nd_path: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-large"
+    cutoffs:
+      - 0.5
+      - 0
+      - -1
+      - -2
+      - -3
+      - -4
+  - nd_name: "ocsvm-default-gamma"
+    nd_path: "gs://vcm-ml-experiments/claytons/2022-07-15/ocsvm-default-trial-3/trained_models/ocsvm"
+    cutoffs:
+      - 0.5
+      - 0
+      - -1
+      - -2
+      - -3
+      - -4
+  - nd_name: "ocsvm-small-gamma"
+    nd_path: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    cutoffs:
+      - 0.5
+      - 0
+      - -1
+      - -2
+      - -3
+      - -4
+  - nd_name: "minmax"
+    nd_path: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoffs:
+      - 0.5
+      - 0
+      - -1
+      - -2
+      - -3
+      - -4
+model_config_dir_path: "gs://vcm-ml-experiments/claytons/2022-07-27/oos-configs/oos-many-cutoffs-test6"
+prognostic_run_config_template: "prognostic-run-config.yaml"
+launch_destination: "submit-jobs"
+segments: 18
+result_destination:
+  bucket: "vcm-ml-experiments"
+  project: "claytons"
+  experiment: "oos-many-cutoffs-test"
+  trial: 1
+
