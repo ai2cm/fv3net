@@ -17,7 +17,6 @@ This has the following (haskell-like) pseudocode::
     (get output) . (get arch) . (get combine inputs)
 """
 import dataclasses
-import dacite
 import tensorflow as tf
 from typing import Callable, Mapping, Optional, Any
 from ..._shared.config import RegularizerConfig
@@ -235,7 +234,7 @@ class MLPBlock(tf.keras.layers.Layer):
         width: int = 256,
         depth: int = 2,
         activation: str = "relu",
-        kernel_regularizer: Optional[Mapping[str, Any]] = None,
+        kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         **kwargs,
     ):
         """
@@ -249,16 +248,13 @@ class MLPBlock(tf.keras.layers.Layer):
         self._width = width
         self._depth = depth
         self._activation = activation
-        kernel_regularizer = kernel_regularizer or {"name": "none"}
-        self._kernel_regularizer = dacite.from_dict(
-            RegularizerConfig, kernel_regularizer
-        )
+        self._kernel_regularizer = kernel_regularizer
 
         self.dense = [
             tf.keras.layers.Dense(
                 width,
                 activation=activation,
-                kernel_regularizer=self._kernel_regularizer.instance,
+                kernel_regularizer=self._kernel_regularizer,
             )
             for i in range(depth)
         ]
@@ -280,7 +276,7 @@ class MLPBlock(tf.keras.layers.Layer):
                 "width": self._width,
                 "depth": self._depth,
                 "activation": self._activation,
-                "kernel_regularizer": dataclasses.asdict(self._kernel_regularizer),
+                "kernel_regularizer": self._kernel_regularizer,
             }
         )
         return config
@@ -311,7 +307,7 @@ class StandardOutput(tf.keras.layers.Layer):
     def __init__(
         self,
         feature_lengths: Mapping[str, int],
-        kernel_regularizer: Optional[Mapping[str, Any]] = None,
+        kernel_regularizer: Optional[tf.keras.regularizers.Regularizer] = None,
         *args,
         **kwargs,
     ):
@@ -322,16 +318,13 @@ class StandardOutput(tf.keras.layers.Layer):
         """
         super().__init__(*args, **kwargs)
         self._feature_lengths = feature_lengths
-        kernel_regularizer = kernel_regularizer or {"name": "none"}
-        self._kernel_regularizer = dacite.from_dict(
-            RegularizerConfig, kernel_regularizer
-        )
+        self._kernel_regularizer = kernel_regularizer
 
         self.output_layers = {
             name: tf.keras.layers.Dense(
                 feature_length,
                 name=f"standard_output_{name}",
-                kernel_regularizer=self._kernel_regularizer.instance,
+                kernel_regularizer=self._kernel_regularizer,
             )
             for name, feature_length in self._feature_lengths.items()
         }
@@ -467,12 +460,14 @@ class ArchitectureConfig:
     name: str
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
     output_channels: Mapping[str, int] = dataclasses.field(default_factory=dict)
-    kernel_regularizer: Mapping[str, Any] = dataclasses.field(default_factory=dict)
+    kernel_regularizer: RegularizerConfig = dataclasses.field(
+        default_factory=lambda: RegularizerConfig("none")
+    )
 
     def __post_init__(self):
         if self.name not in _ARCHITECTURE_KEYS:
             raise KeyError(f"Unrecognized architecture key: {self.name}")
-        if self.name != "dense" and self.kernel_regularizer:
+        if self.name != "dense" and self.kernel_regularizer.instance is not None:
             raise ValueError("Only dense architecture supports kernel regularization.")
 
     def build(self, feature_lengths: Mapping[str, int]) -> tf.keras.layers.Layer:
@@ -515,9 +510,9 @@ class ArchitectureConfig:
         elif key == "dense":
             return _HiddenArchitecture(
                 combine_inputs,
-                MLPBlock(kernel_regularizer=self.kernel_regularizer, **kwargs),
+                MLPBlock(kernel_regularizer=self.kernel_regularizer.instance, **kwargs),
                 StandardOutput(
-                    feature_lengths, kernel_regularizer=self.kernel_regularizer
+                    feature_lengths, kernel_regularizer=self.kernel_regularizer.instance
                 ),
             )
         elif key == "dense-local":
