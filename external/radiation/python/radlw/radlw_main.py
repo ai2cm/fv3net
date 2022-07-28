@@ -1499,6 +1499,7 @@ class RadLWClass:
         lhlw0,
         lflxprf,
         lw_rand_file,
+        lookupdata,
         verbose=False,
     ):
 

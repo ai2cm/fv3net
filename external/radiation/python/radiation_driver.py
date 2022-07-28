@@ -1080,6 +1080,7 @@ class RadiationDriver:
                     lhlw0,
                     lflxprf,
                     lw_rand_file,
+                    lookupdata['lw_rand'],
                 )
             else:
                 (
@@ -1115,6 +1116,7 @@ class RadiationDriver:
                     lhlw0,
                     lflxprf,
                     lw_rand_file,
+                    lookupdata['lw_rand'],
                 )
 
             # Save calculation results
