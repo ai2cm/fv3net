@@ -243,6 +243,12 @@ class SegmentedRun:
     def data_3d(self) -> xr.Dataset:
         return _load_3d(self.url, self.catalog)
 
+    @property
+    def artifacts(self) -> List[str]:
+        url = self.url
+        fs = vcm.get_fs(url)
+        return sorted(fs.ls(f"{url}/artifacts"))
+
     def __str__(self) -> str:
         return self.url
 
