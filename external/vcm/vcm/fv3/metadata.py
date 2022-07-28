@@ -56,6 +56,7 @@ def standardize_fv3_diagnostics(
         _round_time_coord,
         _remove_name_suffix,
         _set_missing_attrs,
+        _remove_duplicate_times,
     ]
 
     for func in funcs:
@@ -135,6 +136,21 @@ def _remove_name_suffix(
         warn_if_intersecting(ds.data_vars.keys(), replace_names.values())
         ds = ds.rename(replace_names)
     return ds
+
+
+def _remove_duplicate_times(ds: xr.Dataset) -> xr.Dataset:
+    if "time" not in ds.coords:
+        return ds
+
+    times = ds.time.values.tolist()
+    unique_times = set()
+    unique_inds = []
+    for k, time in enumerate(times):
+        if time not in unique_times:
+            unique_times.add(time)
+            unique_inds.append(k)
+
+    return ds.isel(time=unique_inds)
 
 
 def gfdl_to_standard(ds: xr.Dataset):
