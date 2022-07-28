@@ -2,7 +2,8 @@ import argparse
 import dataclasses
 from typing import Any, Optional, Sequence
 import fv3fit
-from fv3fit._shared.config import CacheConfig, get_hyperparameter_class
+from fv3fit._shared.config import CacheConfig
+from fv3fit._shared.training_config import get_hyperparameter_class
 from fv3fit._shared.hyperparameters import Hyperparameters
 import fv3fit.train
 from fv3fit._shared.io import register

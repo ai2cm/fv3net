@@ -11,11 +11,11 @@ from sklearn.pipeline import Pipeline, make_pipeline
 import yaml
 from fv3fit import _shared, tfdataset
 from fv3fit._shared import stacking, SAMPLE_DIM_NAME
-from fv3fit._shared.config import (
+from fv3fit._shared.training_config import (
     OCSVMNoveltyDetectorHyperparameters,
-    PackerConfig,
     register_training_function,
 )
+from fv3fit._shared.config import PackerConfig
 from fv3fit._shared.novelty_detector import NoveltyDetector
 from fv3fit._shared.packer import PackingInfo, clip_sample, pack, pack_tfdataset
 from fv3fit.tfdataset import apply_to_mapping, ensure_nd

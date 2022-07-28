@@ -3,7 +3,7 @@ import tempfile
 import fsspec
 import yaml
 import fv3fit
-from fv3fit._shared.config import RandomForestHyperparameters
+from fv3fit._shared.training_config import RandomForestHyperparameters
 from fv3fit._shared.models import OutOfSampleModel
 import numpy as np
 import os

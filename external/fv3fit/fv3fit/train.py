@@ -3,8 +3,8 @@ import logging
 import os
 from typing import Optional, Sequence, Tuple
 import tensorflow as tf
-from fv3fit._shared.config import (
-    CacheConfig,
+from fv3fit._shared.config import CacheConfig
+from fv3fit._shared.training_config import (
     get_arg_updated_config_dict,
     to_flat_dict,
     to_nested_dict,
