@@ -1,12 +1,12 @@
 import numpy as np
-
 from config import *
 from util import compare_data
 import serialbox as ser
 from radiation_driver import RadiationDriver
 import time
-startTime = time.time()
+import getdata 
 
+startTime = time.time()
 
 # defining useful functions
 def getscalars(indict):
@@ -270,9 +270,10 @@ for rank in range(6):
     Radtend = getscalars(Radtend)
     Diag = getscalars(Diag)
 
+    lookupdata = getdata.read_lookupdata(LOOKUP_DIR, me)
+
     Radtendout, Diagout = driver.GFS_radiation_driver(
-        Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag
-    )
+        Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag, lookupdata )
 
     # Process output to be compatible with serialized Fortran output for validation
     outdict = dict()
@@ -301,9 +302,10 @@ for rank in range(6):
 ## Validation
 columns_validated = 0
 for rank in range(6):
+    print(str(rank))
     compare_data(Valdict_all[rank], Outdict_all[rank])
     columns_validated += Valdict_all[rank][radtend_vars_out[0]].shape[0]
-
+    
 executionTime = (time.time() - startTime)
 
 print(f'Execution time: {executionTime:.2f} seconds for {columns_validated} columns.')

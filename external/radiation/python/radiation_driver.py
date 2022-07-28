@@ -311,6 +311,7 @@ class RadiationDriver:
         Tbd,
         Radtend,
         Diag,
+        lookupdata,
     ):
 
         if not (Model["lsswr"] or Model["lslwr"]):
