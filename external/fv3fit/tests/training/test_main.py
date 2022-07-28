@@ -91,12 +91,12 @@ def mock_train_dense_model():
     )
     register("mock")(train_mock.return_value.__class__)
     try:
-        fv3fit._shared.config.register_training_function(
+        fv3fit._shared.training_config.register_training_function(
             "dense", fv3fit.DenseHyperparameters
         )(train_mock)
         yield train_mock
     finally:
-        fv3fit._shared.config.register_training_function(
+        fv3fit._shared.training_config.register_training_function(
             "dense", fv3fit.DenseHyperparameters
         )(original_func)
         register._model_types.pop("mock")
