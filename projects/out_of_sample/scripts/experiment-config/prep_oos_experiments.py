@@ -1,15 +1,11 @@
-
-
 import argparse
 import atexit
-from operator import mod
-import os
-import tempfile
-import uuid
 from fv3fit._shared.models import OutOfSampleModel
 from fv3net.diagnostics.offline._helpers import copy_outputs
-from vcm.cloud import gsutil
-
+import os
+import stat
+import tempfile
+import uuid
 import yaml
 
 
@@ -17,12 +13,10 @@ def write_oos_config(base_path, nd_path, cutoff, config_dir_path, temp_path):
     oos_config = {
         "base_model_path": base_path,
         "novelty_detector_path": nd_path,
-        "cutoff": cutoff
+        "cutoff": cutoff,
     }
     os.makedirs(temp_path)
-    with open(
-        os.path.join(temp_path, OutOfSampleModel._CONFIG_FILENAME), "w"
-    ) as f:
+    with open(os.path.join(temp_path, OutOfSampleModel._CONFIG_FILENAME), "w") as f:
         yaml.safe_dump(oos_config, f)
     name_string = "out_of_sample"
     with open(os.path.join(temp_path, "name"), "w") as f:
@@ -31,46 +25,46 @@ def write_oos_config(base_path, nd_path, cutoff, config_dir_path, temp_path):
 
 
 def write_prognostic_run_config(
-    prognostic_run_config_template_path,
-    prognostic_run_config_path,
-    model_paths
+    prognostic_run_config_template_path, prognostic_run_config_path, model_paths
 ):
     with open(prognostic_run_config_template_path, "r") as f:
         prognostic_run_config = yaml.safe_load(f)
     prognostic_run_config["scikit_learn"]["model"] = model_paths
-    print(prognostic_run_config)
     with open(prognostic_run_config_path, "w") as f:
         yaml.safe_dump(prognostic_run_config, f)
 
 
 def write_run_str(run_str, launch_destination):
-    with open(os.path.join(launch_destination, "run.sh"), "w") as f:
+    run_path = os.path.join(launch_destination, "run.sh")
+    with open(run_path, "w") as f:
         f.write(run_str)
+    os.chmod(run_path, stat.S_IRWXU)
 
 
 def make_argo_submit_command(
-    bucket,
-    project,
-    experiment,
-    trial: int,
-    prognostic_run_config_path,
-    segment_count
+    bucket, project, experiment, trial: int, prognostic_run_config_path, segment_count
 ) -> str:
     trial_string = f"trial{trial}"
     tag = f"{experiment}-{trial}"
-    job_name = f"prognostic-run-{tag}-{uuid.uuid4().hex}"
-    argo_submit_str = "argo submit --from workflowtemplate/prognostic-run \ \n" + \
-        f"-p bucket={bucket} \ \n" + \
-        f"-p project={project} \ \n" + \
-        f"-p tag={tag} \ \n" + \
-        f"-p config='{prognostic_run_config_path}' \ \n" + \
-        f"-p segment-count={segment_count} \ \n" + \
-        "-p memory='23Gi' \ \n" + \
-        "-p cpu='24' \ \n" + \
-        "-p online-diags-flags='--verification  1yr_pire_postspinup --n-jobs 5' \ \n" + \
-        f"--name '{job_name}' \ \n" + \
-        f"--labels 'project={project},experiment=${experiment},trial={trial_string}' \n\n"
-    output_path = f"gs://{bucket}/{project}/TODAY'S_DATE/{experiment}-{trial_string}/fv3gfs_run\n\n"
+    job_name = f"prognostic-run-{uuid.uuid4().hex}"
+    argo_submit_str = (
+        "argo submit --from workflowtemplate/prognostic-run \\\n"
+        + f"-p bucket={bucket} \\\n"
+        + f"-p project={project} \\\n"
+        + f"-p tag={tag} \\\n"
+        + f"-p config='$(< {prognostic_run_config_path})' \\\n"
+        + f"-p segment-count={segment_count} \\\n"
+        + "-p memory='23Gi' \\\n"
+        + "-p cpu='24' \\\n"
+        + "-p online-diags-flags='--verification  1yr_pire_postspinup --n-jobs 5' \\\n"
+        + f"--name '{job_name}' \\\n"
+        + f"--labels 'project={project},experiment={experiment},"
+        + f"trial={trial_string}' \n\n"
+    )
+    output_path = (
+        f"gs://{bucket}/{project}/TODAY'S_DATE/"
+        + f"{experiment}-{trial_string}/fv3gfs_run"
+    )
     return argo_submit_str, job_name, output_path
 
 
@@ -85,13 +79,15 @@ def prep_oos_experiments(args):
     with open(args.config_path, "r") as f:
         try:
             all_experiment_config = yaml.safe_load(f)
-            print(all_experiment_config)
         except yaml.YAMLError as exc:
             print(exc)
 
-    prognostic_run_config_template_path = \
-        all_experiment_config["prognostic_run_config_template"]
+    prognostic_run_config_template_path = all_experiment_config[
+        "prognostic_run_config_template"
+    ]
     launch_destination = all_experiment_config["launch_destination"]
+    if launch_destination.startswith("~"):
+        launch_destination = os.path.expanduser(launch_destination)
     model_config_dir_path = all_experiment_config["model_config_dir_path"]
 
     segments = all_experiment_config["segments"]
@@ -104,7 +100,7 @@ def prep_oos_experiments(args):
 
     tendency_paths = {
         "tq": all_experiment_config["base_model"]["tq_tendencies_path"],
-        "wind": all_experiment_config["base_model"]["wind_tendencies_path"]
+        "wind": all_experiment_config["base_model"]["wind_tendencies_path"],
     }
     n = 0
     run_str = "#!/bin/bash\n\nset -e\n\n"
@@ -116,18 +112,19 @@ def prep_oos_experiments(args):
             model_config_paths = []
             for tendency, tendency_path in tendency_paths.items():
                 tendency_id = f"{nd_name}-{cutoff}-{tendency}"
-                model_config_path = os.path.join(
-                    model_config_dir_path,
-                    tendency_id
-                )
-                temp_config_path = os.path.join(
-                    temp_dir.name,
-                    tendency_id
-                )
+                model_config_path = os.path.join(model_config_dir_path, tendency_id)
+                temp_config_path = os.path.join(temp_dir.name, tendency_id)
                 model_config_paths.append(model_config_path)
-                write_oos_config(tendency_path, nd_path, cutoff, model_config_dir_path, temp_config_path)
+                write_oos_config(
+                    tendency_path,
+                    nd_path,
+                    cutoff,
+                    model_config_dir_path,
+                    temp_config_path,
+                )
+            prognostic_config_path_dir_name = f"{nd_name}-{cutoff}"
             prognostic_run_config_dir_path = os.path.join(
-                launch_destination, f"{nd_name}-{cutoff}"
+                launch_destination, prognostic_config_path_dir_name
             )
             if not os.path.exists(prognostic_run_config_dir_path):
                 os.makedirs(prognostic_run_config_dir_path)
@@ -137,23 +134,24 @@ def prep_oos_experiments(args):
             write_prognostic_run_config(
                 prognostic_run_config_template_path,
                 prognostic_run_config_path,
-                model_config_paths
+                model_config_paths,
             )
             experiment = f"{experiment_base}-{nd_name}-{cutoff}"
-            argo_submit_str, job_name, output_path = \
-                make_argo_submit_command(
-                    bucket,
-                    project,
-                    experiment,
-                    trial,
-                    prognostic_run_config_path,
-                    segments
-                )
+            argo_submit_str, job_name, output_path = make_argo_submit_command(
+                bucket,
+                project,
+                experiment,
+                trial,
+                os.path.join(prognostic_config_path_dir_name, "prognostic-run.yaml"),
+                segments,
+            )
             run_str += argo_submit_str
             print(f"Experiment #{n}: {nd_name} with cutoff={cutoff}")
             print(f"argo job: {job_name}")
             print(f"output location: {output_path}")
+            print(f"config path: {prognostic_run_config_path}")
     write_run_str(run_str, launch_destination)
+    print(f"run path: {os.path.join(launch_destination, 'run.sh')}")
 
 
 def _get_parser() -> argparse.ArgumentParser:
@@ -162,6 +160,7 @@ def _get_parser() -> argparse.ArgumentParser:
         "config_path", default=None, type=str, help=("Path to yaml config file.")
     )
     return parser
+
 
 if __name__ == "__main__":
     parser = _get_parser()
