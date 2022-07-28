@@ -1,13 +1,13 @@
 kind: train
-name: gscond-only-dense-local-tscale-retrain-v1
-fv3fit_image_tag: latest
+name: gscond-only-dense-local-tscale-retrain-v3
+fv3fit_image_tag: 4fae484f6796d24ded4deb4042ee4ad16d647bdd
 experiment: pscaling-test
 config:
   use_wandb: true
   wandb:
     wandb_project: microphysics-emulation
   batch_size: 512
-  epochs: 25
+  epochs: 50
   nfiles_valid: 100
   valid_freq: 2
   out_url: gs://vcm-ml-scratch/andrep/2021-10-02-wandb-training/dense
@@ -57,6 +57,13 @@ config:
       humidity_gscond_difference_tscaled: 1.0
       air_temperature_after_gscond: 100000.0
       specific_humidity_after_gscond: 50000.0
+    bias_metric_variables:
+      - temperature_gscond_difference_pscaled
+      - humidity_gscond_difference_pscaled
+      - temperature_gscond_difference
+      - humidity_gscond_difference
+      - air_temperature_after_gscond
+      - specific_humidity_after_gscond
   model:
     architecture:
       kwargs:
