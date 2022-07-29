@@ -39,5 +39,19 @@ def lw(LOOKUP_DIR):
     longwave_dict['absice3'] = ds["absice3"].values
     del(ds)
 
+    ## loading data for taumol
+    ds_bands = {}
+    for nband in range(1,17):
+        if nband < 10:
+            ds_bands['radlw_kgb0' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb0" + str(nband) + "_data.nc"))
+        else:
+            ds_bands['radlw_kgb' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb" + str(nband) + "_data.nc"))
+    ## band 01
+    band01 = {}
+    varnames = ['selfref','forref','ka_mn2','absa','absb','fracrefa','fracrefb']
+    for var in varnames:
+        band01[var] = ds_bands['radlw_kgb01'][var].values
+    longwave_dict['band01'] = band01
+
     return longwave_dict
 

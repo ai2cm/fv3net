@@ -1532,13 +1532,13 @@ class RadLWClass:
                 ds_bands['radlw_kgb' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb" + str(nband) + "_data.nc"))
 
         ## band 01 
-        selfref_band_01 = ds_bands['radlw_kgb01']["selfref"].values
-        forref_band_01 = ds_bands['radlw_kgb01']["forref"].values
-        ka_mn2_band_01 = ds_bands['radlw_kgb01']["ka_mn2"].values
-        absa_band_01 = ds_bands['radlw_kgb01']["absa"].values
-        absb_band_01 = ds_bands['radlw_kgb01']["absb"].values
-        fracrefa_band_01 = ds_bands['radlw_kgb01']["fracrefa"].values
-        fracrefb_band_01 = ds_bands['radlw_kgb01']["fracrefb"].values
+        selfref_band_01 = lwdict['band01']["selfref"] 
+        forref_band_01 = lwdict['band01']["forref"] 
+        ka_mn2_band_01 = lwdict['band01']["ka_mn2"] 
+        absa_band_01 = lwdict['band01']["absa"] 
+        absb_band_01 = lwdict['band01']["absb"] 
+        fracrefa_band_01 = lwdict['band01']["fracrefa"] 
+        fracrefb_band_01 = lwdict['band01']["fracrefb"] 
         ## band 02
         selfref_band_02 = ds_bands['radlw_kgb02']["selfref"].values
         forref_band_02 = ds_bands['radlw_kgb02']["forref"].values
