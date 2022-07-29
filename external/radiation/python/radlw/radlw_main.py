@@ -1523,14 +1523,7 @@ class RadLWClass:
         absice3 = lwdict["absice3"] 
 
         ########################################
-        ## loading data for taumol
-        ds_bands = {}
-        for nband in range(1,17):
-            if nband < 10:
-                ds_bands['radlw_kgb0' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb0" + str(nband) + "_data.nc"))
-            else:
-                ds_bands['radlw_kgb' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb" + str(nband) + "_data.nc"))
-
+        ## data for taumol
         ## band 01 
         selfref_band_01 = lwdict['band1']["selfref"] 
         forref_band_01 = lwdict['band1']["forref"] 
