@@ -1,6 +1,5 @@
 from multiprocessing import Value
 import numpy as np
-import xarray as xr
 import os
 import sys
 
@@ -356,7 +355,7 @@ class AerosolClass:
 
     wvn550 = 1.0e4 / 0.55
 
-    def __init__(self, NLAY, me, iaerflg, ivflip,aer_volc_dict):
+    def __init__(self, NLAY, me, iaerflg, ivflip,aerosol_dict):
         self.NSWBND = nbdsw
         self.NLWBND = NBDLW
         self.NSWLWBD = nbdsw * NBDLW
@@ -448,7 +447,7 @@ class AerosolClass:
 
             if self.iaermdl == 0 or self.iaermdl == 5:  # opac-climatology scheme
 
-                self.clim_aerinit(aer_volc_dict['aerosol'])
+                self.clim_aerinit(aerosol_dict)
 
             else:
                 raise ValueError(
@@ -1365,6 +1364,7 @@ class AerosolClass:
         #  ==================================================================  !
 
         #  ---  locals:
+
         volcano_file = "volcanic_aerosols_1850-1859.txt"
         #
         # ===>  ...  begin here
@@ -1389,16 +1389,17 @@ class AerosolClass:
                         " optical depth set to lowest value",
                     )
             else:
+                ## Commented this lines because it might be needed at somepoint
                 file_exist = os.path.isfile(volcano_file)
                 if file_exist:
-                    ds = xr.open_dataset(volcano_file)
-                    cline = ds["cline"]
+                    #ds = xr.open_dataset(volcano_file)
+                    #cline = ds["cline"]
                     #  ---  check print
                     if self.me == 0:
                         print(f"Opened volcanic data file: {volcano_file}")
-                        print(cline)
+                    #    print(cline)
 
-                    self.ivolae = ds["ivolae"]
+                    #self.ivolae = ds["ivolae"]
                 else:
                     raise FileNotFoundError(
                         f'Requested volcanic data file "{volcano_file}" not found!',

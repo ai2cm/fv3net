@@ -51,7 +51,7 @@ icldflg = 1
 ivflip = 1  # vertical index direction control flag
 me = 0
 # reading aerosol and volcanic data
-aer_volc_dict = getdata.aerosol_volcanic(FORCING_DIR)
+aer_dict = getdata.aerosol(FORCING_DIR)
 
 driver.radinit(
     si,
@@ -75,7 +75,7 @@ driver.radinit(
     lcnorm,
     lnoprec,
     iswcliq,
-    aer_volc_dict,  
+    aer_dict,  
 )
 
 invars = ["idat", "jdat", "fhswr", "dtf", "lsswr"]
@@ -90,11 +90,11 @@ slag, sdec, cdec, solcon = driver.radupdate(
     updatedict["fhswr"],
     updatedict["dtf"],
     updatedict["lsswr"],
-    aer_volc_dict['aerosol']['kprfg'], 
-    aer_volc_dict['aerosol']['idxcg'], 
-    aer_volc_dict['aerosol']['cmixg'], 
-    aer_volc_dict['aerosol']['denng'], 
-    aer_volc_dict['aerosol']['cline'],)
+    aer_dict['kprfg'], 
+    aer_dict['idxcg'], 
+    aer_dict['cmixg'], 
+    aer_dict['denng'], 
+    aer_dict['cline'],)
 
 columns_validated = 0
 
