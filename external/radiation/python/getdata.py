@@ -7,7 +7,10 @@ import xarray as xr
 def random_numbers(LOOKUP_DIR, me):
     data_dict = {}
     # File names for serialized random numbers in mcica_subcol
-    sw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_tile" + str(me) + "_sw.nc")
+    if me == 0:
+        sw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_sw.nc")
+    else:
+        sw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_tile" + str(me) + "_sw.nc")
     lw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_tile" + str(me) + "_lw.nc")
     data_dict['sw_rand'] = xr.open_dataset(sw_rand_file)['rand2d'].values
     data_dict['lw_rand'] = xr.open_dataset(lw_rand_file)['rand2d'].values
