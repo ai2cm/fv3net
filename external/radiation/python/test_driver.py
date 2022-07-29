@@ -263,7 +263,8 @@ for rank in range(6):
     Diag = getscalars(Diag)
 
     Radtendout, Diagout = driver.GFS_radiation_driver(
-        Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag
+        Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag,
+        lookupdata,
     )
 
     radtend_vars_out = [
