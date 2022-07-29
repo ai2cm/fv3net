@@ -408,7 +408,7 @@ namelist:
     shal_cnv: true
     swhtr: true
     trans_trac: true
-    use_analysis_sst: true
+    use_analysis_sst: false
     use_ufo: true
   interpolator_nml:
     interp_method: conserve_great_circle
