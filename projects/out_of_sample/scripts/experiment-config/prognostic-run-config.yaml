@@ -180,6 +180,7 @@ diagnostics:
   - column_integrated_dQv_stress
   - is_novelty
   - novelty_score
+  - centered_score
 - name: diags_3d.zarr
   chunks:
     time: 10
