@@ -1,5 +1,7 @@
 import argparse
 import atexit
+
+from fv3fit._shared.taper_function import taper_decay, taper_mask, taper_ramp
 from fv3fit._shared.models import OutOfSampleModel
 from fv3net.diagnostics.offline._helpers import copy_outputs
 import os
@@ -9,12 +11,16 @@ import uuid
 import yaml
 
 
-def write_oos_config(base_path, nd_path, cutoff, config_dir_path, temp_path):
+def write_oos_config(
+    base_path, nd_path, cutoff, tapering_function, config_dir_path, temp_path
+):
     oos_config = {
         "base_model_path": base_path,
         "novelty_detector_path": nd_path,
         "cutoff": cutoff,
     }
+    if tapering_function is not None:
+        oos_config["tapering_function"] = tapering_function
     os.makedirs(temp_path)
     with open(os.path.join(temp_path, OutOfSampleModel._CONFIG_FILENAME), "w") as f:
         yaml.safe_dump(oos_config, f)
@@ -52,7 +58,7 @@ def make_argo_submit_command(
         + f"-p bucket={bucket} \\\n"
         + f"-p project={project} \\\n"
         + f"-p tag={tag} \\\n"
-        + f"-p config='$(< {prognostic_run_config_path})' \\\n"
+        + f"-p config=\"$(< {prognostic_run_config_path})\" \\\n"
         + f"-p segment-count={segment_count} \\\n"
         + "-p memory='23Gi' \\\n"
         + "-p cpu='24' \\\n"
@@ -70,6 +76,26 @@ def make_argo_submit_command(
 
 def _cleanup_temp_dir(temp_dir):
     temp_dir.cleanup()
+
+
+def get_tapering_string(tapering_function: dict):
+    if tapering_function["name"] == taper_mask.__name__:
+        taper_str = "mask"
+        if "cutoff" in tapering_function:
+            taper_str += f"-{tapering_function['cutoff']}"
+    elif tapering_function["name"] == taper_ramp.__name__:
+        taper_str = "ramp"
+        if "ramp_min" in tapering_function:
+            taper_str += f"-{tapering_function['ramp_min']}"
+        if "ramp_max" in tapering_function:
+            taper_str += f"-{tapering_function['ramp_max']}"
+    elif tapering_function["name"] == taper_decay.__name__:
+        taper_str = "decay"
+        if "threshold" in tapering_function:
+            taper_str += f"-{tapering_function['threshold']}"
+        if "rate" in tapering_function:
+            taper_str += f"-{tapering_function['rate']}"
+    return taper_str
 
 
 def prep_oos_experiments(args):
@@ -107,11 +133,17 @@ def prep_oos_experiments(args):
     for novelty_detector in all_experiment_config["novelty_detectors"]:
         nd_name = novelty_detector["nd_name"]
         nd_path = novelty_detector["nd_path"]
-        for cutoff in novelty_detector["cutoffs"]:
+        for param in novelty_detector["params"]:
+            cutoff = param["cutoff"]
+            if "tapering_function" in param:
+                tapering_function = param["tapering_function"]
+            else:
+                tapering_function = None
+            tapering_string = get_tapering_string(tapering_function)
             n += 1
             model_config_paths = []
             for tendency, tendency_path in tendency_paths.items():
-                tendency_id = f"{nd_name}-{cutoff}-{tendency}"
+                tendency_id = f"{nd_name}-{cutoff}-{tapering_string}-{tendency}"
                 model_config_path = os.path.join(model_config_dir_path, tendency_id)
                 temp_config_path = os.path.join(temp_dir.name, tendency_id)
                 model_config_paths.append(model_config_path)
@@ -119,10 +151,11 @@ def prep_oos_experiments(args):
                     tendency_path,
                     nd_path,
                     cutoff,
+                    tapering_function,
                     model_config_dir_path,
                     temp_config_path,
                 )
-            prognostic_config_path_dir_name = f"{nd_name}-{cutoff}"
+            prognostic_config_path_dir_name = f"{nd_name}-{cutoff}-{tapering_string}"
             prognostic_run_config_dir_path = os.path.join(
                 launch_destination, prognostic_config_path_dir_name
             )
