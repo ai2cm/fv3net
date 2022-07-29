@@ -72,6 +72,7 @@ class RadiationDriver:
         lcnorm,
         lnoprec,
         iswcliq,
+        aer_volc_dict,
         do_test=False,
     ):
         self.itsfc = iemsflg / 10  # sfc air/ground temp control
@@ -144,7 +145,7 @@ class RadiationDriver:
         #  --- ...  astronomy initialization routine
         self.sol = AstronomyClass(me, isolar)
         #  --- ...  aerosols initialization routine
-        self.aer = AerosolClass(NLAY, me, iaerflg, ivflip)
+        self.aer = AerosolClass(NLAY, me, iaerflg, ivflip, aer_volc_dict['aerosol'])
         #  --- ...  co2 and other gases initialization routine
         self.gas = GasClass(me, ioznflg, ico2flg, ictmflg)
         #  --- ...  surface initialization routine
@@ -169,7 +170,7 @@ class RadiationDriver:
 
             return aer_dict, sol_dict, gas_dict, sfc_dict, cld_dict, rlw_dict, rsw_dict
 
-    def radupdate(self, idate, jdate, deltsw, deltim, lsswr, do_test=False):
+    def radupdate(self, idate, jdate, deltsw, deltim, lsswr,data_aerosol,do_test=False):
         # =================   subprogram documentation block   ================ !
         #                                                                       !
         # subprogram:   radupdate   calls many update subroutines to check and  !
@@ -276,7 +277,7 @@ class RadiationDriver:
         # Call module_radiation_aerosols::aer_update(), monthly update, no
         # time interpolation
         if lmon_chg:
-            self.aer.aer_update(iyear, imon, 0)
+            self.aer.aer_update(iyear, imon, 0, data_aerosol)
 
         # -# Call co2 and other gases update routine:
         # module_radiation_gases::gas_update()

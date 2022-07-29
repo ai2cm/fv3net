@@ -127,3 +127,25 @@ def sw(LOOKUP_DIR):
         sw_dict['band' + str(nband)] = tmp
 
     return sw_dict
+
+def aerosol_volcanic(FORCING_DIR):
+    aeros_file = os.path.join(FORCING_DIR, 'aerosol.nc')
+    if os.path.isfile(aeros_file):
+        print(f"Using file {aeros_file}")
+    else:
+        raise FileNotFoundError(
+            f'Requested aerosol data file "{aeros_file}" not found!',
+            "*** Stopped in subroutine aero_init !!",
+            )
+    var_names= ['kprfg','kprfg','idxcg','cmixg','denng','cline',
+                'iendwv','haer','prsref','rhidext0','rhidsca0',
+                'rhidssa0','rhidasy0','rhdpext0','rhdpsca0',
+                'rhdpssa0','rhdpasy0','straext0']
+    data_dict = {}
+    tmp = {}
+    ds = xr.open_dataset(aeros_file)
+    for var in var_names:
+        tmp[var] = ds[var].values
+    data_dict['aerosol'] = tmp
+
+    return data_dict

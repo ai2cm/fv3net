@@ -50,6 +50,8 @@ iemsflg = 1  # surface emissivity control flag
 icldflg = 1
 ivflip = 1  # vertical index direction control flag
 me = 0
+# reading aerosol and volcanic data
+aer_volc_dict = getdata.aerosol_volcanic(FORCING_DIR)
 
 driver.radinit(
     si,
@@ -73,6 +75,7 @@ driver.radinit(
     lcnorm,
     lnoprec,
     iswcliq,
+    aer_volc_dict,  
 )
 
 invars = ["idat", "jdat", "fhswr", "dtf", "lsswr"]
@@ -87,6 +90,7 @@ slag, sdec, cdec, solcon = driver.radupdate(
     updatedict["fhswr"],
     updatedict["dtf"],
     updatedict["lsswr"],
+    aer_volc_dict['aerosol'],
 )
 
 columns_validated = 0
@@ -263,6 +267,7 @@ for rank in range(6):
     randomdict = getdata.random_numbers(LOOKUP_DIR,  rank)
     lwdict = getdata.lw(LOOKUP_DIR)
     swdict = getdata.sw(LOOKUP_DIR)
+    
 
     Radtendout, Diagout = driver.GFS_radiation_driver(
         Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag,
