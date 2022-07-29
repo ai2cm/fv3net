@@ -1500,7 +1500,7 @@ class RadLWClass:
         lhlwb,
         lhlw0,
         lflxprf,
-        rand2d_data,
+        lookupdata,
         verbose=False,
     ):
 
@@ -1509,20 +1509,18 @@ class RadLWClass:
         self.lflxprf = lflxprf
 
         ## loading data for
-        dfile = os.path.join(LOOKUP_DIR, "totplnk.nc")
-        pfile = os.path.join(LOOKUP_DIR, "radlw_ref_data.nc")
-        totplnk = xr.open_dataset(dfile)["totplnk"].values
-        preflog = xr.open_dataset(pfile)["preflog"].values
-        tref = xr.open_dataset(pfile)["tref"].values
-        chi_mls = xr.open_dataset(pfile)["chi_mls"].values
+        rand2d_data = lookupdata['lw_rand']
+        totplnk = lookupdata['totplnk']
+        preflog = lookupdata['preflog']
+        tref = lookupdata['tref']
+        chi_mls = lookupdata['chi_mls']
         
-        ## loading data for cldprop
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_cldprlw_data.nc"))
-        absliq1 = ds["absliq1"].values
-        absice0 = ds["absice0"].values
-        absice1 = ds["absice1"].values
-        absice2 = ds["absice2"].values
-        absice3 = ds["absice3"].values
+        # data for cldprop
+        absliq1 = lookupdata["absliq1-lw"] 
+        absice0 = lookupdata["absice0-lw"] 
+        absice1 = lookupdata["absice1-lw"] 
+        absice2 = lookupdata["absice2-lw"] 
+        absice3 = lookupdata["absice3-lw"] 
 
         ########################################
         ## loading data for taumol

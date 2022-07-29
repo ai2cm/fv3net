@@ -1072,7 +1072,7 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    lookupdata['lw_rand'],
+                    lookupdata,
                 )
             else:
                 (
@@ -1107,7 +1107,7 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    lookupdata['lw_rand'],
+                    lookupdata,
                 )
 
             # Save calculation results
