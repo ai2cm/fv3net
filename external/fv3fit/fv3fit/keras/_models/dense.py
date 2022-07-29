@@ -15,12 +15,8 @@ from typing import (
     Union,
 )
 
-from ..._shared.config import (
-    Hyperparameters,
-    OptimizerConfig,
-    SliceConfig,
-    register_training_function,
-)
+from ..._shared.config import OptimizerConfig, SliceConfig
+from ..._shared.training_config import Hyperparameters, register_training_function
 from .shared import (
     TrainingLoopConfig,
     DenseNetworkConfig,
@@ -59,8 +55,6 @@ class DenseHyperparameters(Hyperparameters):
         training_loop: configuration of training loop
         loss: configuration of loss functions, will be applied separately to
             each output variable.
-        save_model_checkpoints: if True, save one model per epoch when
-            dumping, under a 'model_checkpoints' subdirectory
         clip_config: configuration of input and output clipping of last dimension
         output_limit_config: configuration for limiting output values.
         normalization_fit_samples: number of samples to use when fitting normalization
@@ -81,7 +75,6 @@ class DenseHyperparameters(Hyperparameters):
         default_factory=TrainingLoopConfig
     )
     loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
-    save_model_checkpoints: bool = False
     clip_config: ClipConfig = dataclasses.field(default_factory=lambda: ClipConfig())
     output_limit_config: OutputLimitConfig = dataclasses.field(
         default_factory=lambda: OutputLimitConfig()
@@ -226,6 +219,7 @@ def train_column_model(
         validation_data=val_Xy,
         callbacks=[callback.instance for callback in callbacks],
     )
+
     predictor = PureKerasModel(
         input_variables=input_variables,
         output_variables=output_variables,
@@ -233,6 +227,7 @@ def train_column_model(
         unstacked_dims=("z",),
         n_halo=0,
     )
+
     return predictor
 
 

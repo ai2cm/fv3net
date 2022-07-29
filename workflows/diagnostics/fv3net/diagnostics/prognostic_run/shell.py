@@ -42,6 +42,11 @@ class OneFileTape:
         plt.close(plt.gcf())
 
 
+class JupyterTape:
+    def save_plot(self):
+        pass
+
+
 class ItermTape:
     width = 70
 
@@ -65,9 +70,9 @@ class State:
         self.tape = OneFileTape()
 
     def load(self, url):
-        prognostic = load_run_data.SegmentedRun(url, catalog)
-        self.data_3d = prognostic.data_3d.merge(grid)
-        self.data_2d = grid.merge(prognostic.data_2d, compat="override")
+        self.prognostic = load_run_data.SegmentedRun(url, catalog)
+        self.data_3d = self.prognostic.data_3d.merge(grid)
+        self.data_2d = grid.merge(self.prognostic.data_2d, compat="override")
 
     def print(self):
         print("3D Variables:")
@@ -77,6 +82,10 @@ class State:
         print("2D Variables:")
         for v in self.data_2d:
             print(v)
+
+    def list_artifacts(self):
+        for art in self.prognostic.artifacts:
+            print(art)
 
 
 catalog_path = vcm.catalog.catalog_path
@@ -91,6 +100,13 @@ def avg2d(state: State, variable):
     x = state.data_2d
     avg = vcm.weighted_average(x[variable], x.area, ["x", "y", "tile"])
     avg.plot()
+    state.tape.save_plot()
+
+
+def avg3d(state: State, variable):
+    x = state.data_3d
+    avg = vcm.weighted_average(x[variable], x.area, ["x", "y", "tile"])
+    avg.plot(y="pressure", yincrease=True)
     state.tape.save_plot()
 
 
@@ -115,11 +131,20 @@ class ProgShell(cmd.Cmd):
     def do_avg2d(self, arg):
         avg2d(loop_state, arg)
 
+    def do_avg3d(self, arg):
+        avg3d(loop_state, arg)
+
     def do_iterm(self, arg):
         set_iterm_tape(loop_state)
 
+    def do_jupyter(self, arg):
+        loop_state.tape = JupyterTape()
+
     def do_hovmoller(self, arg):
         hovmoller(loop_state, *arg.split())
+
+    def do_artifacts(self, arg):
+        loop_state.list_artifacts()
 
     def do_load(self, arg):
         url = arg

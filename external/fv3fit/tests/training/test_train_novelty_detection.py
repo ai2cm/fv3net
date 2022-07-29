@@ -1,6 +1,6 @@
 import dataclasses
 import fv3fit
-from fv3fit._shared.config import get_hyperparameter_class
+from fv3fit._shared.training_config import get_hyperparameter_class
 from fv3fit._shared.hyperparameters import Hyperparameters
 from fv3fit._shared.novelty_detector import NoveltyDetector
 from fv3fit.tfdataset import tfdataset_from_batches

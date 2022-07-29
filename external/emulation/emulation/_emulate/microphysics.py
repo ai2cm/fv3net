@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import datetime
-from typing import Callable, Optional, Set
+from typing import Callable, Optional, List
 import cftime
 import gc
 
@@ -65,7 +65,7 @@ class MicrophysicsHook:
         """
 
         self.name = "microphysics emulator"
-        self.orig_outputs: Optional[Set[str]] = None
+        self.orig_outputs: Optional[List[str]] = None
         self.garbage_collection_interval = garbage_collection_interval
         self.mask = mask
         self._calls_since_last_collection = 0
@@ -93,7 +93,7 @@ class MicrophysicsHook:
 
         # fields stay in global state so check overwrites on first step
         if self.orig_outputs is None:
-            self.orig_outputs = set(state).intersection(model_outputs)
+            self.orig_outputs = sorted(set(state).intersection(model_outputs))
             logger.debug(f"Overwriting existing state fields: {self.orig_outputs}")
 
         microphysics_diag = {

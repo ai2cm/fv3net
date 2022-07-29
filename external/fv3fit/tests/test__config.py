@@ -10,7 +10,7 @@ from fv3fit import (
 import os
 import tempfile
 import yaml
-from fv3fit._shared.config import (
+from fv3fit._shared.training_config import (
     to_nested_dict,
     to_flat_dict,
     get_arg_updated_config_dict,

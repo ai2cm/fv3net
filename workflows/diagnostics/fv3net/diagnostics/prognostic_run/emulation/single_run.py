@@ -317,7 +317,11 @@ def open_rundir(url):
     grid = vcm.catalog.catalog["grid/c48"].to_dask().load()
     piggy = open_zarr(url + "/piggy.zarr")
     state = open_zarr(url + "/state_after_timestep.zarr")
-    return vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
+
+    piggy = vcm.fv3.standardize_fv3_diagnostics(piggy)
+    state = vcm.fv3.standardize_fv3_diagnostics(state)
+
+    return piggy.merge(grid).merge(state)
 
 
 def log_summary_wandb(summary):

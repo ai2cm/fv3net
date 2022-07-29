@@ -16,8 +16,12 @@ variables:
 		air_pressure:standard_name = "air_pressure" ;
 		air_pressure:type = "real" ;
 		air_pressure:units = "Pa" ;
+	float32 air_pressure_physics_diag(time, tile, sample, z) ;
+		air_pressure_physics_diag:units = unknown ;
 	float32 air_temperature_after_gscond(time, tile, sample, z) ;
 		air_temperature_after_gscond:units = unknown ;
+	float32 air_temperature_after_gscond_physics_diag(time, tile, sample, z) ;
+		air_temperature_after_gscond_physics_diag:units = unknown ;
 	float32 air_temperature_after_last_gscond(time, tile, sample, z) ;
 		air_temperature_after_last_gscond:field_dims = ["horizontal_dimension", "vertical_dimension"] ;
 		air_temperature_after_last_gscond:fortran_name = "tp" ;
@@ -28,8 +32,12 @@ variables:
 		air_temperature_after_last_gscond:standard_name = "air_temperature_after_last_gscond" ;
 		air_temperature_after_last_gscond:type = "real" ;
 		air_temperature_after_last_gscond:units = "K" ;
+	float32 air_temperature_after_last_gscond_physics_diag(time, tile, sample, z) ;
+		air_temperature_after_last_gscond_physics_diag:units = unknown ;
 	float32 air_temperature_after_precpd(time, tile, sample, z) ;
 		air_temperature_after_precpd:units = unknown ;
+	float32 air_temperature_after_precpd_physics_diag(time, tile, sample, z) ;
+		air_temperature_after_precpd_physics_diag:units = unknown ;
 	float32 air_temperature_dummy(time, tile, sample, z) ;
 		air_temperature_dummy:units = unknown ;
 	float32 air_temperature_input(time, tile, sample, z) ;
@@ -42,10 +50,16 @@ variables:
 		air_temperature_input:standard_name = "air_temperature" ;
 		air_temperature_input:type = "real" ;
 		air_temperature_input:units = "K" ;
+	float32 air_temperature_input_physics_diag(time, tile, sample, z) ;
+		air_temperature_input_physics_diag:units = unknown ;
 	float32 cloud_water_mixing_ratio_after_gscond(time, tile, sample, z) ;
 		cloud_water_mixing_ratio_after_gscond:units = unknown ;
+	float32 cloud_water_mixing_ratio_after_gscond_physics_diag(time, tile, sample, z) ;
+		cloud_water_mixing_ratio_after_gscond_physics_diag:units = unknown ;
 	float32 cloud_water_mixing_ratio_after_precpd(time, tile, sample, z) ;
 		cloud_water_mixing_ratio_after_precpd:units = unknown ;
+	float32 cloud_water_mixing_ratio_after_precpd_physics_diag(time, tile, sample, z) ;
+		cloud_water_mixing_ratio_after_precpd_physics_diag:units = unknown ;
 	float32 cloud_water_mixing_ratio_input(time, tile, sample, z) ;
 		cloud_water_mixing_ratio_input:field_dims = ["horizontal_dimension", "vertical_dimension"] ;
 		cloud_water_mixing_ratio_input:fortran_name = "cwm" ;
@@ -56,6 +70,8 @@ variables:
 		cloud_water_mixing_ratio_input:standard_name = "cloud_water_mixing_ratio" ;
 		cloud_water_mixing_ratio_input:type = "real" ;
 		cloud_water_mixing_ratio_input:units = "kg kg-1" ;
+	float32 cloud_water_mixing_ratio_input_physics_diag(time, tile, sample, z) ;
+		cloud_water_mixing_ratio_input_physics_diag:units = unknown ;
 	float32 latitude(time, tile, sample) ;
 		latitude:field_dims = "(horizontal_dimension)" ;
 		latitude:fortran_name = "xlat" ;
@@ -66,6 +82,8 @@ variables:
 		latitude:standard_name = "latitude" ;
 		latitude:type = "real" ;
 		latitude:units = "radians" ;
+	float32 latitude_physics_diag(time, tile, sample) ;
+		latitude_physics_diag:units = unknown ;
 	float32 longitude(time, tile, sample) ;
 		longitude:field_dims = "(horizontal_dimension)" ;
 		longitude:fortran_name = "xlon" ;
@@ -76,6 +94,8 @@ variables:
 		longitude:standard_name = "longitude" ;
 		longitude:type = "real" ;
 		longitude:units = "radians" ;
+	float32 longitude_physics_diag(time, tile, sample) ;
+		longitude_physics_diag:units = unknown ;
 	float32 pressure_thickness_of_atmospheric_layer(time, tile, sample, z) ;
 		pressure_thickness_of_atmospheric_layer:field_dims = ["horizontal_dimension", "vertical_dimension"] ;
 		pressure_thickness_of_atmospheric_layer:fortran_name = "del" ;
@@ -86,6 +106,8 @@ variables:
 		pressure_thickness_of_atmospheric_layer:standard_name = "air_pressure_difference_between_midlayers" ;
 		pressure_thickness_of_atmospheric_layer:type = "real" ;
 		pressure_thickness_of_atmospheric_layer:units = "Pa" ;
+	float32 pressure_thickness_of_atmospheric_layer_physics_diag(time, tile, sample, z) ;
+		pressure_thickness_of_atmospheric_layer_physics_diag:units = unknown ;
 	float32 ratio_of_snowfall_to_rainfall(time, tile, sample) ;
 		ratio_of_snowfall_to_rainfall:field_dims = ["horizontal_dimension"] ;
 		ratio_of_snowfall_to_rainfall:fortran_name = "sr" ;
@@ -96,8 +118,12 @@ variables:
 		ratio_of_snowfall_to_rainfall:standard_name = "ratio_of_snowfall_to_rainfall" ;
 		ratio_of_snowfall_to_rainfall:type = "real" ;
 		ratio_of_snowfall_to_rainfall:units = "frac" ;
+	float32 ratio_of_snowfall_to_rainfall_physics_diag(time, tile, sample) ;
+		ratio_of_snowfall_to_rainfall_physics_diag:units = unknown ;
 	float32 specific_humidity_after_gscond(time, tile, sample, z) ;
 		specific_humidity_after_gscond:units = unknown ;
+	float32 specific_humidity_after_gscond_physics_diag(time, tile, sample, z) ;
+		specific_humidity_after_gscond_physics_diag:units = unknown ;
 	float32 specific_humidity_after_last_gscond(time, tile, sample, z) ;
 		specific_humidity_after_last_gscond:field_dims = ["horizontal_dimension", "vertical_dimension"] ;
 		specific_humidity_after_last_gscond:fortran_name = "qp1" ;
@@ -108,8 +134,12 @@ variables:
 		specific_humidity_after_last_gscond:standard_name = "specific_humidity_after_last_gscond" ;
 		specific_humidity_after_last_gscond:type = "real" ;
 		specific_humidity_after_last_gscond:units = "kg kg-1" ;
+	float32 specific_humidity_after_last_gscond_physics_diag(time, tile, sample, z) ;
+		specific_humidity_after_last_gscond_physics_diag:units = unknown ;
 	float32 specific_humidity_after_precpd(time, tile, sample, z) ;
 		specific_humidity_after_precpd:units = unknown ;
+	float32 specific_humidity_after_precpd_physics_diag(time, tile, sample, z) ;
+		specific_humidity_after_precpd_physics_diag:units = unknown ;
 	float32 specific_humidity_input(time, tile, sample, z) ;
 		specific_humidity_input:field_dims = ["horizontal_dimension", "vertical_dimension"] ;
 		specific_humidity_input:fortran_name = "q" ;
@@ -120,6 +150,8 @@ variables:
 		specific_humidity_input:standard_name = "specific_humidity" ;
 		specific_humidity_input:type = "real" ;
 		specific_humidity_input:units = "kg kg-1" ;
+	float32 specific_humidity_input_physics_diag(time, tile, sample, z) ;
+		specific_humidity_input_physics_diag:units = unknown ;
 	float32 surface_air_pressure(time, tile, sample) ;
 		surface_air_pressure:field_dims = ["horizontal_dimension"] ;
 		surface_air_pressure:fortran_name = "ps" ;
@@ -140,6 +172,10 @@ variables:
 		surface_air_pressure_after_last_gscond:standard_name = "surface_air_pressure_after_last_gscond" ;
 		surface_air_pressure_after_last_gscond:type = "real" ;
 		surface_air_pressure_after_last_gscond:units = "Pa" ;
+	float32 surface_air_pressure_after_last_gscond_physics_diag(time, tile, sample) ;
+		surface_air_pressure_after_last_gscond_physics_diag:units = unknown ;
+	float32 surface_air_pressure_physics_diag(time, tile, sample) ;
+		surface_air_pressure_physics_diag:units = unknown ;
 	float32 tendency_of_rain_water_mixing_ratio_due_to_microphysics(time, tile, sample, z) ;
 		tendency_of_rain_water_mixing_ratio_due_to_microphysics:field_dims = ["horizontal_dimension", "vertical_dimension"] ;
 		tendency_of_rain_water_mixing_ratio_due_to_microphysics:fortran_name = "rainp" ;
@@ -150,6 +186,8 @@ variables:
 		tendency_of_rain_water_mixing_ratio_due_to_microphysics:standard_name = "tendency_of_rain_water_mixing_ratio_due_to_microphysics" ;
 		tendency_of_rain_water_mixing_ratio_due_to_microphysics:type = "real" ;
 		tendency_of_rain_water_mixing_ratio_due_to_microphysics:units = "kg kg-1 s-1" ;
+	float32 tendency_of_rain_water_mixing_ratio_due_to_microphysics_physics_diag(time, tile, sample, z) ;
+		tendency_of_rain_water_mixing_ratio_due_to_microphysics_physics_diag:units = unknown ;
 	object time(time) ;
 	float32 total_precipitation(time, tile, sample) ;
 		total_precipitation:field_dims = ["horizontal_dimension"] ;
@@ -161,6 +199,8 @@ variables:
 		total_precipitation:standard_name = "total_precipitation" ;
 		total_precipitation:type = "real" ;
 		total_precipitation:units = "m" ;
+	float32 total_precipitation_physics_diag(time, tile, sample) ;
+		total_precipitation_physics_diag:units = unknown ;
 
 // global attributes:
 }

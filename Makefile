@@ -12,11 +12,6 @@ BEAM_VERSION = 2.37.0
 UBUNTU_IMAGE = ubuntu@sha256:9101220a875cee98b016668342c489ff0674f247f6ca20dfc91b91c0f28581ae
 # prognostic base image is updated manually, not on every commit
 PROGNOSTIC_BASE_VERSION = 1.0.0
-DOCKER_AUTH_ARGS = \
-	-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
-	-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
-	-e FSSPEC_GS_REQUESTER_PAYS=vcm-ml
-
 DOCKER_INTERACTIVE_ARGS = \
 	--tty \
 	--interactive \
@@ -84,24 +79,21 @@ endif
 build_image_dataflow: ARGS = --build-arg BEAM_VERSION=$(BEAM_VERSION)
 
 image_test_dataflow: push_image_dataflow
-	docker run \
-		$(DOCKER_AUTH_ARGS) \
+	tools/docker-run \
 		-w /tmp/dataflow \
 		--entrypoint="pytest" \
 		$(REGISTRY)/dataflow:$(VERSION) \
 		tests/integration -s
 
 image_test_emulation:
-	docker run \
+	tools/docker-run \
 		--rm \
-		$(DOCKER_AUTH_ARGS) \
 		-w /fv3net/external/emulation \
 		$(REGISTRY)/prognostic_run:$(VERSION) pytest
 
 image_test_prognostic_run: image_test_emulation
-	docker run \
+	tools/docker-run \
 		--rm \
-		$(DOCKER_AUTH_ARGS) \
 		-w /fv3net/workflows/prognostic_c48_run \
 		$(REGISTRY)/prognostic_run:$(VERSION) pytest
 
@@ -130,9 +122,8 @@ enter_emulation:
 	PROGNOSTIC_RUN_WORKDIR=/fv3net/external/emulation $(MAKE) enter_prognostic_run
 
 enter_%:
-	docker run \
+	tools/docker-run \
 		--rm \
-		$(DOCKER_AUTH_ARGS) \
 		$(DOCKER_INTERACTIVE_ARGS) \
 		-w $(PROGNOSTIC_RUN_WORKDIR) \
 		$(REGISTRY)/$*:$(VERSION) bash
