@@ -1,5 +1,4 @@
 import numpy as np
-import xarray as xr
 import os
 import sys
 import warnings
@@ -2016,6 +2015,7 @@ class RadSWClass:
         lflxprf,
         lfdncmp,
         rand2d_data,
+        swdict,
     ):
 
         self.lhswb = lhswb
@@ -2123,138 +2123,131 @@ class RadSWClass:
         jt1 = np.zeros(nlay, np.int32)
 
         ## data loading 
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_sflux_data.nc"))
-        strrat = ds["strrat"].values
-        specwt = ds["specwt"].values
-        layreffr = ds["layreffr"].values
-        ix1 = ds["ix1"].values
-        ix2 = ds["ix2"].values
-        ibx = ds["ibx"].values
-        sfluxref01 = ds["sfluxref01"].values
-        sfluxref02 = ds["sfluxref02"].values
-        sfluxref03 = ds["sfluxref03"].values
-        scalekur = ds["scalekur"].values
+        strrat = swdict["strrat"] 
+        specwt = swdict["specwt"] 
+        layreffr = swdict["layreffr"] 
+        ix1 = swdict["ix1"] 
+        ix2 = swdict["ix2"] 
+        ibx = swdict["ibx"] 
+        sfluxref01 = swdict["sfluxref01"] 
+        sfluxref02 = swdict["sfluxref02"] 
+        sfluxref03 = swdict["sfluxref03"] 
+        scalekur = swdict["scalekur"] 
 
-        ## loading data for taumol
-        ds_bands = {}
-        for nband in range(16,30):
-            ds_bands['radsw_kgb' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb" + str(nband) + "_data.nc"))
         ## data loading for setcoef
-        ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_ref_data.nc"))
-        preflog = ds["preflog"].values
-        tref = ds["tref"].values
+        preflog = swdict["preflog"] 
+        tref = swdict["tref"] 
 
         ## load data for cldprop
-        ds_cldprtb = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_cldprtb_data.nc"))
-        extliq1 = ds_cldprtb["extliq1"].values
-        extliq2 = ds_cldprtb["extliq2"].values
-        ssaliq1 = ds_cldprtb["ssaliq1"].values
-        ssaliq2 = ds_cldprtb["ssaliq2"].values
-        asyliq1 = ds_cldprtb["asyliq1"].values
-        asyliq2 = ds_cldprtb["asyliq2"].values
-        extice2 = ds_cldprtb["extice2"].values
-        ssaice2 = ds_cldprtb["ssaice2"].values
-        asyice2 = ds_cldprtb["asyice2"].values
-        extice3 = ds_cldprtb["extice3"].values
-        ssaice3 = ds_cldprtb["ssaice3"].values
-        asyice3 = ds_cldprtb["asyice3"].values
-        abari = ds_cldprtb["abari"].values
-        bbari = ds_cldprtb["bbari"].values
-        cbari = ds_cldprtb["cbari"].values
-        dbari = ds_cldprtb["dbari"].values
-        ebari = ds_cldprtb["ebari"].values
-        fbari = ds_cldprtb["fbari"].values
-        b0s = ds_cldprtb["b0s"].values
-        b1s = ds_cldprtb["b1s"].values
-        b0r = ds_cldprtb["b0r"].values
-        c0s = ds_cldprtb["c0s"].values
-        c0r = ds_cldprtb["c0r"].values
-        a0r = ds_cldprtb["a0r"].values
-        a1r = ds_cldprtb["a1r"].values
-        a0s = ds_cldprtb["a0s"].values
-        a1s = ds_cldprtb["a1s"].values
+        extliq1 = swdict["extliq1"] 
+        extliq2 = swdict["extliq2"] 
+        ssaliq1 = swdict["ssaliq1"] 
+        ssaliq2 = swdict["ssaliq2"] 
+        asyliq1 = swdict["asyliq1"] 
+        asyliq2 = swdict["asyliq2"] 
+        extice2 = swdict["extice2"] 
+        ssaice2 = swdict["ssaice2"] 
+        asyice2 = swdict["asyice2"] 
+        extice3 = swdict["extice3"] 
+        ssaice3 = swdict["ssaice3"] 
+        asyice3 = swdict["asyice3"] 
+        abari = swdict["abari"] 
+        bbari = swdict["bbari"] 
+        cbari = swdict["cbari"] 
+        dbari = swdict["dbari"] 
+        ebari = swdict["ebari"] 
+        fbari = swdict["fbari"] 
+        b0s = swdict["b0s"] 
+        b1s = swdict["b1s"] 
+        b0r = swdict["b0r"] 
+        c0s = swdict["c0s"] 
+        c0r = swdict["c0r"] 
+        a0r = swdict["a0r"] 
+        a1r = swdict["a1r"] 
+        a0s = swdict["a0s"] 
+        a1s = swdict["a1s"] 
 
         ## data loading for taumol 
-        selfref_16= ds_bands['radsw_kgb16']["selfref"].values
-        forref_16 = ds_bands['radsw_kgb16']["forref"].values
-        absa_16 = ds_bands['radsw_kgb16']["absa"].values
-        absb_16 = ds_bands['radsw_kgb16']["absb"].values
-        rayl_16 = ds_bands['radsw_kgb16']["rayl"].values
+        selfref_16= swdict['band16']["selfref"]
+        forref_16 = swdict['band16']["forref"]
+        absa_16 = swdict['band16']["absa"]
+        absb_16 = swdict['band16']["absb"]
+        rayl_16 = swdict['band16']["rayl"]
 
-        selfref_17 = ds_bands['radsw_kgb17']["selfref"].values
-        forref_17 = ds_bands['radsw_kgb17']["forref"].values
-        absa_17 = ds_bands['radsw_kgb17']["absa"].values
-        absb_17 = ds_bands['radsw_kgb17']["absb"].values
-        rayl_17 = ds_bands['radsw_kgb17']["rayl"].values
+        selfref_17 = swdict['band17']["selfref"]
+        forref_17 = swdict['band17']["forref"]
+        absa_17 = swdict['band17']["absa"]
+        absb_17 = swdict['band17']["absb"]
+        rayl_17 = swdict['band17']["rayl"]
 
-        selfref_18 = ds_bands['radsw_kgb18']["selfref"].values
-        forref_18 = ds_bands['radsw_kgb18']["forref"].values
-        absa_18 = ds_bands['radsw_kgb18']["absa"].values
-        absb_18 = ds_bands['radsw_kgb18']["absb"].values
-        rayl_18 = ds_bands['radsw_kgb18']["rayl"].values
+        selfref_18 = swdict['band18']["selfref"]
+        forref_18 = swdict['band18']["forref"]
+        absa_18 = swdict['band18']["absa"]
+        absb_18 = swdict['band18']["absb"]
+        rayl_18 = swdict['band18']["rayl"]
 
-        selfref_19 = ds_bands['radsw_kgb19']["selfref"].values
-        forref_19 = ds_bands['radsw_kgb19']["forref"].values
-        absa_19 = ds_bands['radsw_kgb19']["absa"].values
-        absb_19 = ds_bands['radsw_kgb19']["absb"].values
-        rayl_19 = ds_bands['radsw_kgb19']["rayl"].values
+        selfref_19 = swdict['band19']["selfref"]
+        forref_19 = swdict['band19']["forref"]
+        absa_19 = swdict['band19']["absa"]
+        absb_19 = swdict['band19']["absb"]
+        rayl_19 = swdict['band19']["rayl"]
 
-        selfref_20 = ds_bands['radsw_kgb20']["selfref"].values
-        forref_20  = ds_bands['radsw_kgb20']["forref"].values
-        absa_20  = ds_bands['radsw_kgb20']["absa"].values
-        absb_20  = ds_bands['radsw_kgb20']["absb"].values
-        absch4_20  = ds_bands['radsw_kgb20']["absch4"].values
-        rayl_20  = ds_bands['radsw_kgb20']["rayl"].values
+        selfref_20 = swdict['band20']["selfref"]
+        forref_20  = swdict['band20']["forref"]
+        absa_20  = swdict['band20']["absa"]
+        absb_20  = swdict['band20']["absb"]
+        absch4_20  = swdict['band20']["absch4"]
+        rayl_20  = swdict['band20']["rayl"]
 
-        selfref_21 = ds_bands['radsw_kgb21']["selfref"].values
-        forref_21 = ds_bands['radsw_kgb21']["forref"].values
-        absa_21 = ds_bands['radsw_kgb21']["absa"].values
-        absb_21 = ds_bands['radsw_kgb21']["absb"].values
-        rayl_21 = ds_bands['radsw_kgb21']["rayl"].values
+        selfref_21 = swdict['band21']["selfref"]
+        forref_21 = swdict['band21']["forref"]
+        absa_21 = swdict['band21']["absa"]
+        absb_21 = swdict['band21']["absb"]
+        rayl_21 = swdict['band21']["rayl"]
 
-        selfref_22 = ds_bands['radsw_kgb22']["selfref"].values
-        forref_22 = ds_bands['radsw_kgb22']["forref"].values
-        absa_22 = ds_bands['radsw_kgb22']["absa"].values
-        absb_22 = ds_bands['radsw_kgb22']["absb"].values
-        rayl_22 = ds_bands['radsw_kgb22']["rayl"].values
+        selfref_22 = swdict['band22']["selfref"]
+        forref_22 = swdict['band22']["forref"]
+        absa_22 = swdict['band22']["absa"]
+        absb_22 = swdict['band22']["absb"]
+        rayl_22 = swdict['band22']["rayl"]
             
-        selfref_23 = ds_bands['radsw_kgb23']["selfref"].values
-        forref_23 = ds_bands['radsw_kgb23']["forref"].values
-        absa_23 = ds_bands['radsw_kgb23']["absa"].values
-        rayl_23 = ds_bands['radsw_kgb23']["rayl"].values
-        givfac_23 = ds_bands['radsw_kgb23']["givfac"].values
+        selfref_23 = swdict['band23']["selfref"]
+        forref_23 = swdict['band23']["forref"]
+        absa_23 = swdict['band23']["absa"]
+        rayl_23 = swdict['band23']["rayl"]
+        givfac_23 = swdict['band23']["givfac"]
 
-        selfref_24 = ds_bands['radsw_kgb24']["selfref"].values
-        forref_24 = ds_bands['radsw_kgb24']["forref"].values
-        absa_24 = ds_bands['radsw_kgb24']["absa"].values
-        absb_24 = ds_bands['radsw_kgb24']["absb"].values
-        abso3a_24 = ds_bands['radsw_kgb24']["abso3a"].values
-        abso3b_24 = ds_bands['radsw_kgb24']["abso3b"].values
-        rayla_24 = ds_bands['radsw_kgb24']["rayla"].values
-        raylb_24 = ds_bands['radsw_kgb24']["raylb"].values
+        selfref_24 = swdict['band24']["selfref"]
+        forref_24 = swdict['band24']["forref"]
+        absa_24 = swdict['band24']["absa"]
+        absb_24 = swdict['band24']["absb"]
+        abso3a_24 = swdict['band24']["abso3a"]
+        abso3b_24 = swdict['band24']["abso3b"]
+        rayla_24 = swdict['band24']["rayla"]
+        raylb_24 = swdict['band24']["raylb"]
     
-        absa_25 = ds_bands['radsw_kgb25']["absa"].values
-        abso3a_25 = ds_bands['radsw_kgb25']["abso3a"].values
-        abso3b_25 = ds_bands['radsw_kgb25']["abso3b"].values
-        rayl_25 = ds_bands['radsw_kgb25']["rayl"].values
+        absa_25 = swdict['band25']["absa"]
+        abso3a_25 = swdict['band25']["abso3a"]
+        abso3b_25 = swdict['band25']["abso3b"]
+        rayl_25 = swdict['band25']["rayl"]
 
-        rayl_26 = ds_bands['radsw_kgb26']["rayl"].values
+        rayl_26 = swdict['band26']["rayl"]
         
-        absa_27 = ds_bands['radsw_kgb27']["absa"].values
-        absb_27 = ds_bands['radsw_kgb27']["absb"].values
-        rayl_27 = ds_bands['radsw_kgb27']["rayl"].values
+        absa_27 = swdict['band27']["absa"]
+        absb_27 = swdict['band27']["absb"]
+        rayl_27 = swdict['band27']["rayl"]
         
-        absa_28 = ds_bands['radsw_kgb28']["absa"].values
-        absb_28 = ds_bands['radsw_kgb28']["absb"].values
-        rayl_28 = ds_bands['radsw_kgb28']["rayl"].values
+        absa_28 = swdict['band28']["absa"]
+        absb_28 = swdict['band28']["absb"]
+        rayl_28 = swdict['band28']["rayl"]
 
-        forref_29 = ds_bands['radsw_kgb29']["forref"].values
-        absa_29 = ds_bands['radsw_kgb29']["absa"].values
-        absb_29 = ds_bands['radsw_kgb29']["absb"].values
-        selfref_29 = ds_bands['radsw_kgb29']["selfref"].values
-        absh2o_29 = ds_bands['radsw_kgb29']["absh2o"].values
-        absco2_29 = ds_bands['radsw_kgb29']["absco2"].values
-        rayl_29 = ds_bands['radsw_kgb29']["rayl"].values
+        forref_29 = swdict['band29']["forref"]
+        absa_29 = swdict['band29']["absa"]
+        absb_29 = swdict['band29']["absb"]
+        selfref_29 = swdict['band29']["selfref"]
+        absh2o_29 = swdict['band29']["absh2o"]
+        absco2_29 = swdict['band29']["absco2"]
+        rayl_29 = swdict['band29']["rayl"]
         
         # Compute solar constant adjustment factor (s0fac) according to solcon.
         #      ***  s0, the solar constant at toa in w/m**2, is hard-coded with

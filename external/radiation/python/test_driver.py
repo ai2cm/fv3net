@@ -262,10 +262,11 @@ for rank in range(6):
     Diag = getscalars(Diag)
     randomdict = getdata.random_numbers(LOOKUP_DIR,  rank)
     lwdict = getdata.lw(LOOKUP_DIR)
+    swdict = getdata.sw(LOOKUP_DIR)
 
     Radtendout, Diagout = driver.GFS_radiation_driver(
         Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag,
-        randomdict,lwdict,
+        randomdict,lwdict,swdict,
     )
 
     radtend_vars_out = [

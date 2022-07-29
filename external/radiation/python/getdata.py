@@ -20,33 +20,26 @@ def random_numbers(LOOKUP_DIR, me):
 def lw(LOOKUP_DIR):
         ## file names needed in lwrad()
     
-    longwave_dict = {}
+    lw_dict = {}
     dfile = os.path.join(LOOKUP_DIR, "totplnk.nc")
     pfile = os.path.join(LOOKUP_DIR, "radlw_ref_data.nc")
-    longwave_dict['totplnk'] = xr.open_dataset(dfile)["totplnk"].values
-    longwave_dict['preflog'] = xr.open_dataset(pfile)["preflog"].values
-    longwave_dict['tref'] = xr.open_dataset(pfile)["tref"].values
-    longwave_dict['chi_mls'] = xr.open_dataset(pfile)["chi_mls"].values
+    lw_dict['totplnk'] = xr.open_dataset(dfile)["totplnk"].values
+    lw_dict['preflog'] = xr.open_dataset(pfile)["preflog"].values
+    lw_dict['tref'] = xr.open_dataset(pfile)["tref"].values
+    lw_dict['chi_mls'] = xr.open_dataset(pfile)["chi_mls"].values
     del(dfile, pfile)
 
 
     ## loading data for cldprop in lwrad()
     ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_cldprlw_data.nc"))
-    longwave_dict['absliq1'] = ds["absliq1"].values
-    longwave_dict['absice0'] = ds["absice0"].values
-    longwave_dict['absice1'] = ds["absice1"].values
-    longwave_dict['absice2'] = ds["absice2"].values
-    longwave_dict['absice3'] = ds["absice3"].values
+    lw_dict['absliq1'] = ds["absliq1"].values
+    lw_dict['absice0'] = ds["absice0"].values
+    lw_dict['absice1'] = ds["absice1"].values
+    lw_dict['absice2'] = ds["absice2"].values
+    lw_dict['absice3'] = ds["absice3"].values
     del(ds)
 
     ## loading data for taumol
-    ds_bands = {}
-    for nband in range(1,17):
-        if nband < 10:
-            ds_bands['radlw_kgb0' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb0" + str(nband) + "_data.nc"))
-        else:
-            ds_bands['radlw_kgb' + str(nband)] = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb" + str(nband) + "_data.nc"))
-    bands = {}
     varnames_bands = {1:['selfref','forref','ka_mn2','absa','absb','fracrefa','fracrefb'],
                       2:['selfref','forref','absa','absb','fracrefa','fracrefb'],
                       3:['selfref','forref','ka_mn2o','kb_mn2o','absa','absb','fracrefa','fracrefb'],
@@ -66,15 +59,71 @@ def lw(LOOKUP_DIR):
                     }
 
     for nband in range(1, 17): 
-        print(nband)
         if nband < 10:
-            data =  ds_bands['radlw_kgb0' + str(nband)]
+            data =  xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb0" + str(nband) + "_data.nc"))
         else:
-            data =  ds_bands['radlw_kgb' + str(nband)]
+            data =  xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb" + str(nband) + "_data.nc"))
         tmp = {}
         for var in varnames_bands[nband]:
             tmp[var] =data[var].values
-        longwave_dict['band' + str(nband)] = tmp
+        lw_dict['band' + str(nband)] = tmp
 
-    return longwave_dict
+    return lw_dict
 
+def sw(LOOKUP_DIR):
+    sw_dict = {}
+    
+    ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_sflux_data.nc"))
+    sw_dict['strrat'] = ds["strrat"].values
+    sw_dict['specwt'] = ds["specwt"].values
+    sw_dict['layreffr'] = ds["layreffr"].values
+    sw_dict['ix1'] = ds["ix1"].values
+    sw_dict['ix2'] = ds["ix2"].values
+    sw_dict['ibx'] = ds["ibx"].values
+    sw_dict['sfluxref01']  = ds["sfluxref01"].values
+    sw_dict['sfluxref02']  = ds["sfluxref02"].values
+    sw_dict['sfluxref03']  = ds["sfluxref03"].values
+    sw_dict['scalekur']  = ds["scalekur"].values
+    del(ds)
+    ## data loading for setcoef
+    ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_ref_data.nc"))
+    sw_dict['preflog'] = ds["preflog"].values
+    sw_dict['tref'] = ds["tref"].values
+    del(ds)
+    ## load data for cldprop
+    ds_cldprtb = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_cldprtb_data.nc"))
+    var_names = ['extliq1','extliq2','ssaliq1','ssaliq2',
+    'asyliq1','asyliq2','extice2','ssaice2','asyice2',
+    'extice3','ssaice3','asyice3','abari','bbari',
+    'cbari','dbari','ebari','fbari','b0s','b1s','b0r',
+    'b0r','c0s','c0r','a0r','a1r','a0s','a1s']
+
+    for var in var_names:
+        sw_dict[var] =  ds_cldprtb[var].values
+    del(ds_cldprtb)
+    
+    ## loading data for taumol
+    varnames_bands = {16:['selfref','forref','absa','absb','rayl'],
+                    17:['selfref','forref','absa','absb','rayl'],
+                    18:['selfref','forref','absa','absb','rayl'],
+                    19:['selfref','forref','absa','absb','rayl'],
+                    20:['selfref','forref','absa','absb','absch4','rayl'],
+                    21:['selfref','forref','absa','absb','rayl'],
+                    22:['selfref','forref','absa','absb','rayl'],
+                    23:['selfref','forref','absa','rayl','givfac'],
+                    24:['selfref','forref','absa','absb','abso3a','abso3b','rayla','raylb'],
+                    25:['absa','abso3a','abso3b','rayl'],
+                    26:['rayl'],
+                    27:['absa','absb','rayl'],
+                    28:['absa','absb','rayl'],
+                    29:['forref','absa','absb','selfref','absh2o','absco2','rayl']
+                    }
+                  
+    for nband in range(16, 30): 
+        data =  xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb" + str(nband) + "_data.nc"))
+        tmp = {}
+        for var in varnames_bands[nband]:
+            tmp[var] =data[var].values
+        sw_dict['band' + str(nband)] = tmp
+
+    return sw_dict

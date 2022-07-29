@@ -313,6 +313,7 @@ class RadiationDriver:
         Diag,
         randomdict,
         lwdict,
+        swdict,
     ):
 
         if not (Model["lsswr"] or Model["lslwr"]):
@@ -909,6 +910,7 @@ class RadiationDriver:
                         lflxprf,
                         lfdncmp,
                         randomdict['sw_rand'],
+                        swdict,
                     )
                 else:
                     (
@@ -955,6 +957,7 @@ class RadiationDriver:
                         lflxprf,
                         lfdncmp,
                         randomdict['sw_rand'],
+                        swdict,
                     )
 
                 for k in range(LM):
