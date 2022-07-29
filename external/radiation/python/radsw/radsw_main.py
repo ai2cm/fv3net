@@ -2015,14 +2015,13 @@ class RadSWClass:
         lhsw0,
         lflxprf,
         lfdncmp,
-        sw_rand_file,
+        rand2d_data,
     ):
 
         self.lhswb = lhswb
         self.lhsw0 = lhsw0
         self.lflxprf = lflxprf
         self.lfdncmp = lfdncmp
-        self.rand_file = sw_rand_file
 
         # outputs
         hswc = np.zeros((npts, nlay))
@@ -2174,10 +2173,6 @@ class RadSWClass:
         a1r = ds_cldprtb["a1r"].values
         a0s = ds_cldprtb["a0s"].values
         a1s = ds_cldprtb["a1s"].values
-
-        ## 
-        ds = xr.open_dataset(self.rand_file)
-        rand2d_data = ds["rand2d"].values
 
         ## data loading for taumol 
         selfref_16= ds_bands['radsw_kgb16']["selfref"].values
