@@ -8,11 +8,13 @@ from ._shared.predictor import Predictor
 from ._shared.io import dump, load
 from .keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 from ._shared.config import (
-    TrainingConfig,
-    RandomForestHyperparameters,
     OptimizerConfig,
     LearningRateScheduleConfig,
     RegularizerConfig,
+)
+from ._shared.training_config import (
+    TrainingConfig,
+    RandomForestHyperparameters,
     set_random_seed,
     get_training_function,
     get_hyperparameter_class,

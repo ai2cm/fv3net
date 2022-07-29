@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import fv3fit.emulation.transforms.zhao_carr as zhao_carr
 from fv3fit.dataclasses import asdict_with_enum as asdict
-from fv3fit._shared.config import to_flat_dict
+from fv3fit._shared.training_config import to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.losses import CustomLoss

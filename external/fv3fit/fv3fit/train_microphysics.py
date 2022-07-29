@@ -11,8 +11,13 @@ import numpy as np
 import os
 import time
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
-from fv3fit._shared.config import register_training_function
+from fv3fit._shared.training_config import (
+    register_training_function,
+    get_arg_updated_config_dict,
+    to_nested_dict,
+)
 from fv3fit.emulation.models import Model
+from fv3fit.emulation.transforms.zhao_carr import PrecpdOnly
 from fv3fit.dataclasses import asdict_with_enum as _asdict_with_enum
 from fv3fit.emulation.data.transforms import expand_single_dim_data
 from fv3fit import tfdataset
@@ -22,11 +27,7 @@ import yaml
 
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
-from fv3fit._shared.config import (
-    OptimizerConfig,
-    get_arg_updated_config_dict,
-    to_nested_dict,
-)
+from fv3fit._shared.config import OptimizerConfig
 from fv3fit._shared.hyperparameters import Hyperparameters
 from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
 from fv3fit.keras._models.shared.pure_keras import PureKerasDictPredictor
@@ -51,10 +52,12 @@ from fv3fit.emulation.transforms import (
     TensorTransform,
     TransformedVariableConfig,
     CloudWaterDiffPrecpd,
-    GscondClassesV1,
-    GscondClassesV1OneHot,
+    MicrophysicsClasssesV1,
+    MicrophysicsClassesV1OneHot,
     GscondRoute,
 )
+from fv3fit.emulation.transforms.zhao_carr import CloudLimiter
+from fv3fit.emulation.zhao_carr.models import PrecpdModelConfig
 from fv3fit.emulation.flux import (
     TendencyToFlux,
     MoistStaticEnergyTransform,
@@ -80,6 +83,22 @@ __all__ = [
     "WandBConfig",
     "ArchitectureConfig",
     "SliceConfig",
+    "TransformT",
+]
+
+TransformT = Union[
+    TransformedVariableConfig,
+    ConditionallyScaled,
+    Difference,
+    CloudWaterDiffPrecpd,
+    MicrophysicsClasssesV1,
+    MicrophysicsClassesV1OneHot,
+    TendencyToFlux,
+    MoistStaticEnergyTransform,
+    SurfaceFlux,
+    GscondRoute,
+    PrecpdOnly,
+    CloudLimiter,
 ]
 
 
@@ -140,21 +159,8 @@ class TransformedParameters(Hyperparameters):
 
     """
 
-    tensor_transform: List[
-        Union[
-            TransformedVariableConfig,
-            ConditionallyScaled,
-            Difference,
-            CloudWaterDiffPrecpd,
-            GscondClassesV1,
-            GscondClassesV1OneHot,
-            TendencyToFlux,
-            MoistStaticEnergyTransform,
-            GscondRoute,
-            SurfaceFlux,
-        ]
-    ] = field(default_factory=list)
-    model: Optional[MicrophysicsConfig] = None
+    tensor_transform: List[TransformT] = field(default_factory=list)
+    model: Union[PrecpdModelConfig, MicrophysicsConfig, None] = None
     conservative_model: Optional[ConservativeWaterConfig] = None
     loss: Union[CustomLoss, ZhaoCarrLoss] = field(default_factory=CustomLoss)
     epochs: int = 1
@@ -257,59 +263,21 @@ class TrainConfig(TransformedParameters):
     """
     Configuration for training a microphysics emulator
 
-    Args:
+    Attributes:
+
         train_url: Path to training netcdfs (already in [sample x feature] format)
         test_url: Path to validation netcdfs (already in [sample x feature] format)
-        out_url:  Where to store the trained model, history, and configuration
         transform: Data preprocessing TransformConfig
-        tensor_transform: specification of differerentiable tensorflow
-            transformations to apply before and after data is passed to models and
-            losses.
-        model: MicrophysicsConfig used to build the keras model
         nfiles: Number of files to use from train_url
         nfiles_valid: Number of files to use from test_url
-        use_wandb: Enable wandb logging of training, requires that wandb is installed
-            and initialized
-        wandb: WandBConfig to set up the wandb logged run
-        loss:  Configuration of the keras loss to prepare and use for training
-        epochs: Number of training epochs
-        batch_size: batch size applied to tf datasets during training
-        valid_freq: How often to score validation data (in epochs)
-        verbose: Verbosity of keras fit output
-        shuffle_buffer_size: How many samples to keep in the keras shuffle buffer
-            during training
-        checkpoint_model: if true, save a checkpoint after each epoch
         log_level: what logging level to use
     """
 
     train_url: str = ""
     test_url: str = ""
     transform: TransformConfig = field(default_factory=TransformConfig)
-    tensor_transform: List[
-        Union[
-            TransformedVariableConfig,
-            ConditionallyScaled,
-            Difference,
-            CloudWaterDiffPrecpd,
-            GscondClassesV1,
-            GscondClassesV1OneHot,
-            TendencyToFlux,
-            MoistStaticEnergyTransform,
-            GscondRoute,
-            SurfaceFlux,
-        ]
-    ] = field(default_factory=list)
-    model: Optional[MicrophysicsConfig] = None
-    conservative_model: Optional[ConservativeWaterConfig] = None
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
-    loss: Union[CustomLoss, ZhaoCarrLoss] = field(default_factory=CustomLoss)
-    epochs: int = 1
-    batch_size: int = 128
-    valid_freq: int = 5
-    verbose: int = 2
-    shuffle_buffer_size: Optional[int] = 13824
-    checkpoint_model: bool = True
     log_level: str = "INFO"
 
     @classmethod

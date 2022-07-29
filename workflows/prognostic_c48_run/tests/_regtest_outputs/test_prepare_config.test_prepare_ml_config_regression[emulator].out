@@ -450,11 +450,13 @@ zhao_carr_emulation:
     mask_gscond_no_tend_classifier: false
     mask_gscond_zero_cloud: false
     mask_gscond_zero_cloud_classifier: false
+    mask_precpd_zero_cloud_classifier: false
     online_schedule:
       initial_time: 2016-06-01 00:00:00
       period: 21600
     path: gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273/model.tf
     ranges: {}
+    tensor_transform: []
   storage:
     output_freq_sec: 3600
     output_start_sec: 0

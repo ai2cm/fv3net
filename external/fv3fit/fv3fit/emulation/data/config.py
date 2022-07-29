@@ -12,8 +12,8 @@ import numpy as np
 from fv3fit.emulation.transforms import (
     Difference,
     CloudWaterDiffPrecpd,
-    GscondClassesV1,
-    GscondClassesV1OneHot,
+    MicrophysicsClasssesV1,
+    MicrophysicsClassesV1OneHot,
     GscondRoute,
 )
 from . import transforms
@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 SimpleTransforms = Union[
     Difference,
     CloudWaterDiffPrecpd,
-    GscondClassesV1,
-    GscondClassesV1OneHot,
+    MicrophysicsClasssesV1,
+    MicrophysicsClassesV1OneHot,
     GscondRoute,
 ]
 

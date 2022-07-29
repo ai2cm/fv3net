@@ -1,7 +1,7 @@
 import pytest
 import contextlib
 
-from fv3fit._shared.config import (
+from fv3fit._shared.training_config import (
     get_training_function,
     register_training_function,
     get_hyperparameter_class,

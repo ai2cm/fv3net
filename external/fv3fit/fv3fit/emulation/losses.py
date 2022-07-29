@@ -43,7 +43,7 @@ class CustomLoss:
             range [-infty, infty].
         metric_variables: variable names to include in the metrics dict
         weights: custom scaling for the loss variables applied in the
-            overall keras "loss" term
+            overall keras "loss" term. Defaults to 1.
     """
 
     optimizer: OptimizerConfig = dataclasses.field(

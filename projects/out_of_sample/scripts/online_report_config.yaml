@@ -1,0 +1,15 @@
+models:
+  - name: "minmax"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-trial2/fv3gfs_run"
+  - name: "ocsvm-1/79"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-15/ocsvm-default-trial-3/trained_models/ocsvm"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-07-16/ocsvm-test-default-trial7/fv3gfs_run"
+  - name: "ocsvm-4/79"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-large"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-07-19/oos-large-gamma-trial6/fv3gfs_run"
+  - name: "ocsvm-1/4/79"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-07-19/oos-small-gamma-trial3/fv3gfs_run"
+report_url: "gs://vcm-ml-public/claytons/oos_analysis/online/"
+append_random_id_to_url: true
