@@ -97,7 +97,6 @@ def _merge_diag_computes(
         merged_input_data += [
             (func_name, func, registry_key, diag_arg)
             for func_name, func in registries[registry_key].funcs.items()
-            # for func_name, func in registries["debug"].funcs.items()
         ]
 
     def _compute(func_name, func, key, diag_arg):
@@ -122,13 +121,11 @@ def merge_diags(diags: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, xr.Data
 registries = {
     "2d": Registry(merge_diags),
     "3d": Registry(merge_diags),
-    "debug": Registry(merge_diags),
 }
 
 # expressions not allowed in decorator calls, so need explicit variables for each here
 registry_2d = registries["2d"]
 registry_3d = registries["3d"]
-registry_debug = registries["debug"]
 
 
 def _is_empty(data: Union[xr.Dataset, xr.DataArray]) -> bool:
