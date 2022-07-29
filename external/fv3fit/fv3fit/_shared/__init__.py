@@ -1,9 +1,5 @@
-from .config import (
-    TrainingConfig,
-    register_training_function,
-    SliceConfig,
-    PackerConfig,
-)
+from .config import SliceConfig, PackerConfig
+from .training_config import TrainingConfig, register_training_function
 from .packer import (
     pack,
     pack_tfdataset,

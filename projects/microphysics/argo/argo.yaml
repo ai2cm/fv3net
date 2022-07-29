@@ -127,6 +127,8 @@ spec:
         value: "{{inputs.parameters.tag}}"
       - name: FSSPEC_GS_REQUESTER_PAYS
         value: "vcm-ml"
+      - name: PYTHONWARNINGS
+        value: "ignore:Input dict contained keys:::"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret

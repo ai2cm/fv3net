@@ -4,7 +4,7 @@ These will typically depend on the variable names used by the zhao carr
 microphysics
 """
 import dataclasses
-from typing import Set, List
+from typing import Set, List, Tuple
 
 import tensorflow as tf
 from fv3fit.emulation.types import TensorDict
@@ -15,6 +15,10 @@ from .factories import (
     TransformedVariableConfig,
     TransformFactory,
 )
+
+# from physcons.f
+latent_heat = 2.5e6
+specific_heat = 1.0046e3
 
 POSITIVE_TENDENCY = "positive_tendency"
 ZERO_TENDENCY = "zero_tendency"
@@ -44,6 +48,63 @@ QV_LAST = "specific_humidity_after_last_gscond"
 QV_INPUT = "specific_humidity_input"
 QV_GSCOND = "specific_humidity_after_gscond"
 QV_PRECPD = "specific_humidity_after_precpd"
+
+
+def limit_negative_cloud(
+    *, cloud: tf.Tensor, humidity: tf.Tensor, temperature: tf.Tensor,
+) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+    condensation = tf.where(cloud < 0, -cloud, 0.0)
+    # don not make negative humidity
+    condensation = tf.minimum(condensation, humidity)
+    humidity_out = humidity - condensation
+    temperature_out = temperature + condensation * latent_heat / specific_heat
+    return cloud + condensation, humidity_out, temperature_out
+
+
+@dataclasses.dataclass
+class CloudLimiter(TensorTransform):
+    """
+    A hardcoded classification transform to assess cloud state/tendency
+    behavior
+    """
+
+    cloud: str
+    humidity: str
+    temperature: str
+    # used to disambiguate
+    limit_cloud: bool = True
+
+    def build(self, sample: TensorDict) -> TensorTransform:
+        return self
+
+    def backward_input_names(self) -> Set[str]:
+        return {
+            self.cloud,
+            self.humidity,
+            self.temperature,
+        }
+
+    def backward_output_names(self) -> Set[str]:
+        return {self.cloud, self.humidity, self.temperature}
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        return requested_names
+
+    def forward(self, x: TensorDict) -> TensorDict:
+        return x
+
+    def backward(self, y: TensorDict) -> TensorDict:
+        out = {**y}
+        (
+            out[self.cloud],
+            out[self.humidity],
+            out[self.temperature],
+        ) = limit_negative_cloud(
+            cloud=y[self.cloud],
+            humidity=y[self.humidity],
+            temperature=y[self.temperature],
+        )
+        return out
 
 
 @dataclasses.dataclass
@@ -129,8 +190,6 @@ def _combine(
 
     # apply zero cloud case
     # TODO fix these constants
-    latent_heat = 2.51e6
-    specific_heat = 1004
     cloud_out = tf.where(zero_cloud, 0.0, cloud_out)
     q_out = tf.where(zero_cloud, qv_before + cloud_before, q_out)
     t_out = tf.where(

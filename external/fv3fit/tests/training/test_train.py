@@ -12,7 +12,7 @@ import pytest
 import xarray as xr
 import numpy as np
 import fv3fit
-from fv3fit._shared.config import TRAINING_FUNCTIONS, get_hyperparameter_class
+from fv3fit._shared.training_config import TRAINING_FUNCTIONS, get_hyperparameter_class
 import vcm.testing
 import tempfile
 from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY

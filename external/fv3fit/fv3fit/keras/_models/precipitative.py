@@ -2,15 +2,11 @@ import dataclasses
 from fv3fit.keras._models.dense import train_column_model
 from toolz.functoolz import curry
 from typing import List, Optional, Sequence, Tuple, Set
-from fv3fit._shared.config import (
-    OptimizerConfig,
-    RegularizerConfig,
-    register_training_function,
-)
+from fv3fit._shared.config import OptimizerConfig, RegularizerConfig
+from fv3fit._shared.training_config import register_training_function, Hyperparameters
 from fv3fit.keras._models.shared.clip import ClipConfig, clip_sequence
 from fv3fit.keras._models.shared.loss import LossConfig
 import tensorflow as tf
-from ..._shared.config import Hyperparameters
 from .shared import DenseNetworkConfig, TrainingLoopConfig, CallbackConfig
 import numpy as np
 import logging
