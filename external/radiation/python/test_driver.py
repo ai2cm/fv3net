@@ -52,6 +52,7 @@ ivflip = 1  # vertical index direction control flag
 me = 0
 # reading aerosol and volcanic data
 aer_dict = getdata.aerosol(FORCING_DIR)
+solar_filename ,solar_data = getdata.astronomy(FORCING_DIR, isolar, me)
 
 driver.radinit(
     si,
@@ -76,6 +77,7 @@ driver.radinit(
     lnoprec,
     iswcliq,
     aer_dict,  
+    solar_filename,
 )
 
 invars = ["idat", "jdat", "fhswr", "dtf", "lsswr"]
@@ -94,7 +96,9 @@ slag, sdec, cdec, solcon = driver.radupdate(
     aer_dict['idxcg'], 
     aer_dict['cmixg'], 
     aer_dict['denng'], 
-    aer_dict['cline'],)
+    aer_dict['cline'],
+    solar_data,
+    )
 
 columns_validated = 0
 

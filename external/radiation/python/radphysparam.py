@@ -111,10 +111,6 @@ lalw1bd = False
 #   =4:CMIP5 TIM-scale TSI table (monthly) w 11-yr cycle approx
 #   see ISOL in run scripts: Opr GFS=2; Opr CFS=1
 isolar = 0
-
-# external solar constant data table,solarconstant_noaa_a0.txt
-solar_file = "solarconstant_noaa_an.nc"
-
 # ............................................. !
 #   -2.2- For module radiation_aerosols
 # ............................................. !

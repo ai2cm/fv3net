@@ -2,6 +2,7 @@ import numpy as np
 from config import *
 import os 
 import xarray as xr 
+import warnings
 
 
 def random_numbers(LOOKUP_DIR, me):
@@ -17,8 +18,6 @@ def random_numbers(LOOKUP_DIR, me):
     del(sw_rand_file, lw_rand_file)
 
     return data_dict 
-
-
 
 def lw(LOOKUP_DIR):
         ## file names needed in lwrad()
@@ -150,3 +149,61 @@ def aerosol(FORCING_DIR):
         data_dict[var] = ds[var].values
 
     return data_dict
+
+def astronomy(FORCING_DIR, isolar, me):
+    # external solar constant data table,solarconstant_noaa_a0.txt
+
+    if me == 0:
+        if isolar == 1: # noaa ann-mean tsi in absolute scale
+            solar_file = "solarconstant_noaa_a0.nc"
+
+            if os.path.isfile(os.path.join(FORCING_DIR, solar_file)):
+                data = xr.open_dataset(os.path.join(FORCING_DIR, solar_file))
+            else:
+                warnings.warn(
+                            f'Requested solar data file "{solar_file}" not found!',
+                        )
+                raise FileNotFoundError(
+                        " !!! ERROR! Can not find solar constant file!!!")
+
+        elif isolar == 2:# noaa ann-mean tsi in tim scale
+            solar_file = "solarconstant_noaa_an.nc"
+            if os.path.isfile(os.path.join(FORCING_DIR, solar_file)):
+                data = xr.open_dataset(os.path.join(FORCING_DIR, solar_file))
+            else:
+                warnings.warn(
+                            f'Requested solar data file "{solar_file}" not found!',
+                        )
+                raise FileNotFoundError(
+                        " !!! ERROR! Can not find solar constant file!!!")
+
+        elif isolar == 3:# cmip5 ann-mean tsi in tim scale
+            solar_file ='solarconstant_cmip_an.nc'
+            if os.path.isfile(os.path.join(FORCING_DIR, solar_file)):
+                data = xr.open_dataset(os.path.join(FORCING_DIR, solar_file))
+            else:
+                warnings.warn(
+                            f'Requested solar data file "{solar_file}" not found!',
+                        )
+                raise FileNotFoundError(
+                        " !!! ERROR! Can not find solar constant file!!!")
+                       
+        elif isolar == 4:# cmip5 mon-mean tsi in tim scale
+            solar_file =  'solarconstant_cmip_mn.nc'
+            if os.path.isfile(os.path.join(FORCING_DIR, solar_file)):
+                data = xr.open_dataset(os.path.join(FORCING_DIR, solar_file))
+            else:
+                warnings.warn(
+                            f'Requested solar data file "{solar_file}" not found!',
+                        )    
+                raise FileNotFoundError(
+                        " !!! ERROR! Can not find solar constant file!!!")
+                
+        else:  
+                warnings.warn("- !!! ERROR in selection of solar constant data",
+                        f" source, ISOL = {isolar}",
+                            )
+                raise FileNotFoundError(
+                        " !!! ERROR! Can not find solar constant file!!!")
+    
+    return solar_file, data
