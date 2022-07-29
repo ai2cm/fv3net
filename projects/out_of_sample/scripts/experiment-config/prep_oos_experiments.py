@@ -51,7 +51,7 @@ def make_argo_submit_command(
     bucket, project, experiment, trial: int, prognostic_run_config_path, segment_count
 ) -> str:
     trial_string = f"trial{trial}"
-    tag = f"{experiment}-{trial}"
+    tag = f"{experiment}-{trial_string}"
     job_name = f"prognostic-run-{uuid.uuid4().hex}"
     argo_submit_str = (
         "argo submit --from workflowtemplate/prognostic-run \\\n"
@@ -152,7 +152,7 @@ def prep_oos_experiments(args):
                     nd_path,
                     cutoff,
                     tapering_function,
-                    model_config_dir_path,
+                    model_config_path,
                     temp_config_path,
                 )
             prognostic_config_path_dir_name = f"{nd_name}-{cutoff}-{tapering_string}"
@@ -169,7 +169,7 @@ def prep_oos_experiments(args):
                 prognostic_run_config_path,
                 model_config_paths,
             )
-            experiment = f"{experiment_base}-{nd_name}-{cutoff}"
+            experiment = f"{experiment_base}-{nd_name}-{cutoff}-{tapering_string}"
             argo_submit_str, job_name, output_path = make_argo_submit_command(
                 bucket,
                 project,

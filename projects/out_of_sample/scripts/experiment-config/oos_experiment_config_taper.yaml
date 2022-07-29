@@ -16,7 +16,7 @@ novelty_detectors:
           name: taper_decay
           threshold: -0.25
           rate: 0.01
-model_config_dir_path: "gs://vcm-ml-experiments/claytons/2022-07-29/oos-configs/oos-taper-test2"
+model_config_dir_path: "gs://vcm-ml-experiments/claytons/2022-07-29/oos-configs/oos-taper-test4"
 prognostic_run_config_template: "prognostic-run-config.yaml"
 launch_destination: "~/vcm-workflow-control/examples/prog-run-taper"
 segments: 18
@@ -24,5 +24,5 @@ result_destination:
   bucket: "vcm-ml-experiments"
   project: "claytons"
   experiment: "oos-taper-test"
-  trial: 1
+  trial: 3
 
