@@ -92,7 +92,6 @@ slag, sdec, cdec, solcon = driver.radupdate(
 columns_validated = 0
 
 for rank in range(6):
-    lookupdata = getdata.read_lookupdata(LOOKUP_DIR,  rank)
 
     serializer = ser.Serializer(
         ser.OpenModeKind.Read,
@@ -261,10 +260,12 @@ for rank in range(6):
     Tbd = getscalars(Tbd)
     Radtend = getscalars(Radtend)
     Diag = getscalars(Diag)
+    randomdict = getdata.random_numbers(LOOKUP_DIR,  rank)
+    lwdict = getdata.lw(LOOKUP_DIR)
 
     Radtendout, Diagout = driver.GFS_radiation_driver(
         Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag,
-        lookupdata,
+        randomdict,lwdict,
     )
 
     radtend_vars_out = [
