@@ -121,12 +121,20 @@ pull_image_prognostic_run_base_gpu:
 enter_emulation:
 	PROGNOSTIC_RUN_WORKDIR=/fv3net/external/emulation $(MAKE) enter_prognostic_run
 
+
 enter_prognostic_run:
 	tools/docker-run \
 		--rm \
 		$(DOCKER_INTERACTIVE_ARGS) \
 		-w $(PROGNOSTIC_RUN_WORKDIR) \
 		$(REGISTRY)/prognostic_run:$(VERSION) bash
+
+enter_prognostic_run_gpu:
+	tools/docker-run \
+		--rm \
+		$(DOCKER_INTERACTIVE_ARGS) \
+		-w $(PROGNOSTIC_RUN_WORKDIR) \
+		$(REGISTRY)/prognostic_run_gpu:$(VERSION) bash
 
 ############################################################
 # Documentation (rules match "deploy_docs_%")

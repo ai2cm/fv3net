@@ -1,0 +1,74 @@
+base_version: v0.5
+data_table: default
+experiment_name: default_experiment
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+initial_conditions: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART
+namelist:
+  atmos_model_nml:
+    blocksize: -1
+  coupler_nml:
+    current_date:
+    - 2016
+    - 8
+    - 2
+    - 0
+    - 0
+    - 0
+    days: 0
+    hours: 4
+    minutes: 0
+    seconds: 0
+  diag_manager_nml:
+    flush_nc_files: true
+  fv_core_nml:
+    do_sat_adj: false
+    external_eta: true
+    external_ic: false
+    make_nh: false
+    mountain: true
+    na_init: 0
+    nggps_ic: false
+    nudge: false
+    nudge_qv: false
+    nwat: 2
+    warm_start: true
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
+  gfs_physics_nml:
+    emulate_gscond_only: true
+    emulate_zc_microphysics: true
+    hybedmf: true
+    imp_physics: 99
+    ldiag3d: true
+    ncld: 1
+    satmedmf: false
+  namsfc:
+    fabsl: 0
+    fabss: 0
+    faisl: 0
+    faiss: 0
+    fsicl: 0
+    fsics: 0
+    ftsfs: 0
+    fvmnl: 0
+    fvmns: 0
+    fvmxl: 0
+    fvmxs: 0
+orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+zhao_carr_emulation:
+  gscond:
+    classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-06-09/gscond-classifier-v1/model.tf
+    enforce_conservative: true
+    gscond_cloud_conservative: true
+    mask_emulator_levels:
+      air_temperature_after_gscond:
+        start: 74
+      cloud_water_mixing_ratio_after_gscond:
+        start: 74
+      specific_humidity_after_gscond:
+        start: 74
+    mask_gscond_no_tend_classifier: true
+    mask_gscond_zero_cloud_classifier: true
+    path: gs://vcm-ml-experiments/microphysics-emulation/2022-05-12/gscond-only-tscale-dense-local-41b1c1-v1/model.tf
+  model:
+    path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-19/precpd-diff-only-rnn-v1-shared-weights-v1/model.tf
