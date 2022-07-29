@@ -356,7 +356,7 @@ class AerosolClass:
 
     wvn550 = 1.0e4 / 0.55
 
-    def __init__(self, NLAY, me, iaerflg, ivflip,data_aerosol):
+    def __init__(self, NLAY, me, iaerflg, ivflip,aer_volc_dict):
         self.NSWBND = nbdsw
         self.NLWBND = NBDLW
         self.NSWLWBD = nbdsw * NBDLW
@@ -448,7 +448,7 @@ class AerosolClass:
 
             if self.iaermdl == 0 or self.iaermdl == 5:  # opac-climatology scheme
 
-                self.clim_aerinit(data_aerosol)
+                self.clim_aerinit(aer_volc_dict['aerosol'])
 
             else:
                 raise ValueError(
@@ -638,7 +638,7 @@ class AerosolClass:
             tmp3 = 100.0 * (nw + 1)
             self.eirfwv[nw] = (tmp1 * tmp3 ** 3) / (np.exp(tmp2 * tmp3) - 1.0)
 
-    def clim_aerinit(self,data_aerosol):
+    def clim_aerinit(self,aerosol_dict):
         #  ==================================================================  !
         #                                                                      !
         #  clim_aerinit is the opac-climatology aerosol initialization program !
@@ -686,7 +686,7 @@ class AerosolClass:
         #  --- ...  invoke tropospheric aerosol initialization
 
         # - call set_aercoef() to invoke tropospheric aerosol initialization.
-        self.set_aercoef(data_aerosol)
+        self.set_aercoef(aerosol_dict)
 
         # The initialization program for climatological aerosols. The program
         # reads and maps the pre-tabulated aerosol optical spectral data onto
@@ -1237,7 +1237,7 @@ class AerosolClass:
 
                 self.extstra[ib] = sumk * rirbd
 
-    def aer_update(self, iyear, imon, me,aerosol_dict):
+    def aer_update(self, iyear, imon, me, kprfg, idxcg, cmixg, denng, cline):
         #  ==================================================================
         #
         #  aer_update checks and update time varying climatology aerosol
@@ -1277,13 +1277,13 @@ class AerosolClass:
 
         # -# Call trop_update() to update monthly tropospheric aerosol data.
         if self.lalwflg or self.laswflg:
-            self.trop_update(aerosol_dict)
+            self.trop_update(kprfg, idxcg, cmixg, denng, cline)
 
         # -# Call volc_update() to update yearly stratospheric volcanic aerosol data.
         if self.lavoflg:
             self.volc_update()
 
-    def trop_update(self,aerosol_dict):
+    def trop_update(self, kprfg, idxcg, cmixg, denng, cline):
         # This subroutine updates the monthly global distribution of aerosol
         # profiles in five degree horizontal resolution.
 
@@ -1324,11 +1324,10 @@ class AerosolClass:
         #
         #  --- ...  reading climatological aerosols data
 
-        self.kprfg = aerosol_dict["kprfg"]
-        self.idxcg = aerosol_dict["idxcg"] 
-        self.cmixg = aerosol_dict["cmixg"] 
-        self.denng = aerosol_dict["denng"] 
-        cline = aerosol_dict["cline"] 
+        self.kprfg = kprfg
+        self.idxcg = idxcg
+        self.cmixg = cmixg
+        self.denng = denng
 
         if self.me == 0:
             print(f"  --- Reading {cline[self.imon-1]}")

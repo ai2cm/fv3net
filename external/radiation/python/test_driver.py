@@ -90,8 +90,11 @@ slag, sdec, cdec, solcon = driver.radupdate(
     updatedict["fhswr"],
     updatedict["dtf"],
     updatedict["lsswr"],
-    aer_volc_dict['aerosol'],
-)
+    aer_volc_dict['aerosol']['kprfg'], 
+    aer_volc_dict['aerosol']['idxcg'], 
+    aer_volc_dict['aerosol']['cmixg'], 
+    aer_volc_dict['aerosol']['denng'], 
+    aer_volc_dict['aerosol']['cline'],)
 
 columns_validated = 0
 
