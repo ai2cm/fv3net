@@ -15,12 +15,8 @@ from typing import (
     Union,
 )
 
-from ..._shared.config import (
-    Hyperparameters,
-    OptimizerConfig,
-    SliceConfig,
-    register_training_function,
-)
+from ..._shared.config import OptimizerConfig, SliceConfig
+from ..._shared.training_config import Hyperparameters, register_training_function
 from .shared import (
     TrainingLoopConfig,
     DenseNetworkConfig,

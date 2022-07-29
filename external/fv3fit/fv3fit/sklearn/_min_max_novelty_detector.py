@@ -8,8 +8,9 @@ from .._shared import (
     Predictor,
     register_training_function,
     SAMPLE_DIM_NAME,
+    PackerConfig,
 )
-from .._shared.config import MinMaxNoveltyDetectorHyperparameters, PackerConfig
+from .._shared.training_config import MinMaxNoveltyDetectorHyperparameters
 
 import dataclasses
 import dacite

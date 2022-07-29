@@ -19,7 +19,7 @@ from .._shared import (
 )
 
 from .._shared.input_sensitivity import InputSensitivity, RandomForestInputSensitivity
-from .._shared.config import RandomForestHyperparameters
+from .._shared.training_config import RandomForestHyperparameters
 from .. import _shared
 from .._shared import (
     scaler,

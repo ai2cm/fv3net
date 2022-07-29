@@ -11,7 +11,11 @@ import numpy as np
 import os
 import time
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Union
-from fv3fit._shared.config import register_training_function
+from fv3fit._shared.training_config import (
+    register_training_function,
+    get_arg_updated_config_dict,
+    to_nested_dict,
+)
 from fv3fit.emulation.models import Model
 from fv3fit.emulation.transforms.zhao_carr import PrecpdOnly
 from fv3fit.dataclasses import asdict_with_enum as _asdict_with_enum
@@ -23,11 +27,7 @@ import yaml
 
 from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
-from fv3fit._shared.config import (
-    OptimizerConfig,
-    get_arg_updated_config_dict,
-    to_nested_dict,
-)
+from fv3fit._shared.config import OptimizerConfig
 from fv3fit._shared.hyperparameters import Hyperparameters
 from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
 from fv3fit.keras._models.shared.pure_keras import PureKerasDictPredictor

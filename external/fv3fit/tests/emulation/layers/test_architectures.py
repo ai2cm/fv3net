@@ -14,6 +14,7 @@ from fv3fit.emulation.layers.architecture import (
     ArchitectureConfig,
     _ARCHITECTURE_KEYS,
 )
+from fv3fit._shared.config import RegularizerConfig
 
 
 def _get_data(shape):
@@ -234,3 +235,19 @@ def test_RNN_output_output_channels():
     rnn = RNNOutput(feature_lengths={"a": 5}, output_channels={"a": 3})
     out = rnn(data)
     assert (3, 4, 3) == tuple(out["a"].shape)
+
+
+def test_dense_regularization():
+    regularizer = RegularizerConfig(name="L2", kwargs={"l2": 0.5})
+    model = ArchitectureConfig("dense", kernel_regularizer=regularizer).build({"a": 5})
+    assert isinstance(model.arch.dense[0].kernel_regularizer, tf.keras.regularizers.L2)
+    assert model.arch.dense[0].kernel_regularizer.l2 == 0.5
+    assert isinstance(
+        model.outputs.output_layers["a"].kernel_regularizer, tf.keras.regularizers.L2
+    )
+
+
+def test_get_architecture_non_dense_regularized():
+
+    with pytest.raises(ValueError):
+        ArchitectureConfig(name="rnn", kernel_regularizer=RegularizerConfig("L2"))
