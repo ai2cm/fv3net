@@ -1500,7 +1500,8 @@ class RadLWClass:
         lhlwb,
         lhlw0,
         lflxprf,
-        lookupdata,
+        rand2d_data,
+        lwdict,
         verbose=False,
     ):
 
@@ -1509,18 +1510,17 @@ class RadLWClass:
         self.lflxprf = lflxprf
 
         ## loading data for
-        rand2d_data = lookupdata['lw_rand']
-        totplnk = lookupdata['totplnk']
-        preflog = lookupdata['preflog']
-        tref = lookupdata['tref']
-        chi_mls = lookupdata['chi_mls']
+        totplnk = lwdict['totplnk']
+        preflog = lwdict['preflog']
+        tref = lwdict['tref']
+        chi_mls = lwdict['chi_mls']
         
         # data for cldprop
-        absliq1 = lookupdata["absliq1-lw"] 
-        absice0 = lookupdata["absice0-lw"] 
-        absice1 = lookupdata["absice1-lw"] 
-        absice2 = lookupdata["absice2-lw"] 
-        absice3 = lookupdata["absice3-lw"] 
+        absliq1 = lwdict["absliq1"] 
+        absice0 = lwdict["absice0"] 
+        absice1 = lwdict["absice1"] 
+        absice2 = lwdict["absice2"] 
+        absice3 = lwdict["absice3"] 
 
         ########################################
         ## loading data for taumol

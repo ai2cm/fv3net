@@ -311,7 +311,8 @@ class RadiationDriver:
         Tbd,
         Radtend,
         Diag,
-        lookupdata,
+        randomdict,
+        lwdict,
     ):
 
         if not (Model["lsswr"] or Model["lslwr"]):
@@ -907,7 +908,7 @@ class RadiationDriver:
                         lhsw0,
                         lflxprf,
                         lfdncmp,
-                        lookupdata['sw_rand'],
+                        randomdict['sw_rand'],
                     )
                 else:
                     (
@@ -953,7 +954,7 @@ class RadiationDriver:
                         lhsw0,
                         lflxprf,
                         lfdncmp,
-                        lookupdata['sw_rand'],
+                        randomdict['sw_rand'],
                     )
 
                 for k in range(LM):
@@ -1072,7 +1073,8 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    lookupdata,
+                    randomdict['lw_rand'],
+                    lwdict,
                 )
             else:
                 (
@@ -1107,7 +1109,8 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    lookupdata,
+                    randomdict['lw_rand'],
+                    lwdict,
                 )
 
             # Save calculation results
