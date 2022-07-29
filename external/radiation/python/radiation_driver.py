@@ -381,7 +381,6 @@ class RadiationDriver:
         Radtend["sfcfsw"]["dnfxc"] = np.zeros(IM)
         Radtend["sfcfsw"]["upfx0"] = np.zeros(IM)
         Radtend["sfcfsw"]["dnfx0"] = np.zeros(IM)
-
         Radtend["htrlw"] = np.zeros((IM, Model["levs"]))
 
         lhlwb = False
