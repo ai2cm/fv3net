@@ -5,6 +5,7 @@ from util import compare_data
 import serialbox as ser
 from radiation_driver import RadiationDriver
 import time
+import getdata 
 
 startTime = time.time()
 
@@ -91,6 +92,8 @@ slag, sdec, cdec, solcon = driver.radupdate(
 columns_validated = 0
 
 for rank in range(6):
+    lookupdata = getdata.read_lookupdata(LOOKUP_DIR,  rank)
+
     serializer = ser.Serializer(
         ser.OpenModeKind.Read,
         "../fortran/data/radiation_driver",
