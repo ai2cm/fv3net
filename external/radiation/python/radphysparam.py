@@ -135,10 +135,6 @@ iaermdl = 0
 #   =0:aerosol effect is not included; =1:aerosol effect is included
 #   Opr GFS/CFS =111; see IAER in run scripts
 iaerflg = 0
-
-# external aerosols data file: aerosol.dat
-aeros_file = "aerosol.nc"
-
 # ............................................. !
 #   -2.3- For module radiation_gases
 # ............................................. !

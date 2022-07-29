@@ -8,7 +8,7 @@ sys.path.insert(0, "..")
 from radlw.radlw_param import NBDLW, wvnlw1, wvnlw2
 from radsw.radsw_param import nbdsw, wvnum1, wvnum2, NSWSTR
 from phys_const import con_pi, con_plnk, con_c, con_boltz, con_t0c, con_rd, con_g
-from radphysparam import aeros_file, lalw1bd
+from radphysparam import lalw1bd
 
 from config import *
 
@@ -380,8 +380,6 @@ class AerosolClass:
         self.denng = np.zeros((2, self.IMXAE, self.JMXAE))
         self.idxcg = np.zeros((self.NXC, self.IMXAE, self.JMXAE))
         self.kprfg = np.zeros((self.IMXAE, self.JMXAE))
-
-        self.aeros_file = os.path.join(FORCING_DIR, aeros_file)
 
         self.iaerflg = iaerflg
         self.iaermdl = int(self.iaerflg / 1000)
@@ -1325,17 +1323,6 @@ class AerosolClass:
         # ===>  ...  begin here
         #
         #  --- ...  reading climatological aerosols data
-
-        file_exist = os.path.isfile(self.aeros_file)
-
-        if file_exist:
-            if self.me == 0:
-                print(f"Opened aerosol data file: {aeros_file}")
-        else:
-            raise FileNotFoundError(
-                f'Requested aerosol data file "{aeros_file}" not found!',
-                "*** Stopped in subroutine trop_update !!",
-            )
 
         self.kprfg = aerosol_dict["kprfg"]
         self.idxcg = aerosol_dict["idxcg"] 
