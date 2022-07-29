@@ -7,6 +7,7 @@ from vcm.fv3.metadata import (
     standardize_fv3_diagnostics,
     gfdl_to_standard,
     standard_to_gfdl,
+    _remove_duplicate_coord_values,
 )
 
 
@@ -151,3 +152,16 @@ def test_gfdl_to_standard_is_inverse_of_standard_to_gfdl():
 
     back = standard_to_gfdl(gfdl_to_standard(data))
     xr.testing.assert_equal(data, back)
+
+
+@pytest.mark.parametrize(
+    "func", [_remove_duplicate_coord_values, standardize_fv3_diagnostics]
+)
+def test_standardize_fv3_diagnostics_unique_times(func):
+    times = [0, 1, 1, 2]
+    a = [0, 1, 2, 3]
+
+    data = xr.Dataset({"a": (["t"], a)}, coords={"t": times})
+    data = func(data, "t")
+    assert data["t"].values.tolist() == [0, 1, 2]
+    assert data.a.values.tolist() == [0, 1, 3]
