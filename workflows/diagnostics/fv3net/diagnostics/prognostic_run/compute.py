@@ -97,6 +97,7 @@ def _merge_diag_computes(
         merged_input_data += [
             (func_name, func, registry_key, diag_arg)
             for func_name, func in registries[registry_key].funcs.items()
+            # for func_name, func in registries["debug"].funcs.items()
         ]
 
     def _compute(func_name, func, key, diag_arg):
@@ -121,10 +122,20 @@ def merge_diags(diags: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, xr.Data
 registries = {
     "2d": Registry(merge_diags),
     "3d": Registry(merge_diags),
+    "debug": Registry(merge_diags),
 }
+
 # expressions not allowed in decorator calls, so need explicit variables for each here
 registry_2d = registries["2d"]
 registry_3d = registries["3d"]
+registry_debug = registries["debug"]
+
+
+def _is_empty(data: Union[xr.Dataset, xr.DataArray]) -> bool:
+    if len(data) == 0 or 0 in data.sizes.values():
+        return True
+    else:
+        return False
 
 
 def rms(x, y, w, dims):
@@ -149,12 +160,12 @@ def time_mean(ds: xr.Dataset, dim: str = "time") -> xr.Dataset:
 
 
 def _get_time_attrs(ds: Union[xr.Dataset, xr.DataArray]) -> Optional[Mapping[str, str]]:
-    if "time" in ds.coords:
+    if "time" in ds.coords and not _is_empty(ds):
         start_time = str(ds.time.values[0])
         end_time = str(ds.time.values[-1])
         return {"diagnostic_start_time": start_time, "diagnostic_end_time": end_time}
     else:
-        return None
+        return {}
 
 
 def _assign_diagnostic_time_attrs(
@@ -236,17 +247,20 @@ def zonal_bias_3d(diag_arg: DiagArg):
         diag_arg.verification,
         diag_arg.grid,
     )
+    bias_ = bias(verification, prognostic)
+    if _is_empty(bias_):
+        return xr.Dataset()
+
     zonal_means = xr.Dataset()
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
     for var in common_vars:
         logger.info(f"Computing zonal+time mean biases (3d) for {var}")
+
         with xr.set_options(keep_attrs=True):
             zm_bias = vcm.zonal_average_approximate(
-                grid.lat,
-                bias(verification[[var]], prognostic[[var]]),
-                lat_name="latitude",
+                grid.lat, bias_[var], lat_name="latitude",
             )
-            zm_bias_time_mean = time_mean(zm_bias)[var].load()
+            zm_bias_time_mean = time_mean(zm_bias).load()
             zonal_means[var] = zm_bias_time_mean
     return zonal_means
 
@@ -261,14 +275,19 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
         diag_arg.grid,
     )
     logger.info("Preparing zonal+time mean biases (2d)")
+
+    bias_ = bias(verification, prognostic)
+    if _is_empty(bias_):
+        return xr.Dataset()
+
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
     zonal_means = xr.Dataset()
     for var in common_vars:
         logger.info("Computing zonal+time mean biases (2d)")
         zonal_mean_bias = vcm.zonal_average_approximate(
-            grid.lat, bias(verification[[var]], prognostic[[var]]), lat_name="latitude"
+            grid.lat, bias_[var], lat_name="latitude"
         )
-        zonal_means[var] = time_mean(zonal_mean_bias)[var].load()
+        zonal_means[var] = time_mean(zonal_mean_bias).load()
     return zonal_means
 
 
@@ -301,16 +320,19 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
         diag_arg.verification,
         diag_arg.grid,
     )
+
+    bias_ = bias(verification, prognostic)
+    if _is_empty(bias_):
+        return xr.Dataset()
+
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
     zonal_means = xr.Dataset()
     for var in common_vars:
         logger.info(f"Computing zonal mean biases (2d) over time for {var}")
         with xr.set_options(keep_attrs=True):
             zonal_means[var] = vcm.zonal_average_approximate(
-                grid.lat,
-                bias(verification[[var]], prognostic[[var]]),
-                lat_name="latitude",
-            )[var].load()
+                grid.lat, bias_[var], lat_name="latitude",
+            ).load()
     return zonal_means
 
 
@@ -404,7 +426,7 @@ for mask_type in ["global", "land", "sea"]:
             diag_arg.verification,
             diag_arg.grid,
         )
-        if len(prognostic.time) == 0:
+        if _is_empty(prognostic):
             return xr.Dataset({})
         else:
             diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid).load()
