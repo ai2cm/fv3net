@@ -390,8 +390,6 @@ class RadiationDriver:
 
         # File names for serialized random numbers in mcica_subcol
         sw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_tile" + str(me) + "_sw.nc")
-        lw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_tile" + str(me) + "_lw.nc")
-
         #  --- ...  set local /level/layer indexes corresponding to in/out variables
 
         LMK = LM + self.LTP  # num of local layers
@@ -1079,7 +1077,7 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    lw_rand_file,
+                    lookupdata['lw_rand'],
                 )
             else:
                 (
@@ -1114,7 +1112,7 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    lw_rand_file,
+                    lookupdata['lw_rand'],
                 )
 
             # Save calculation results

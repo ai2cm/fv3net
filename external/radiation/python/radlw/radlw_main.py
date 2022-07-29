@@ -129,7 +129,6 @@ def mcica_subcol(iovrlw, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
 
 @jit(nopython=True)
 def cldprop(
-        lw_rand_file,
         cfrac,
         cliqp,
         reliq,
@@ -1501,7 +1500,7 @@ class RadLWClass:
         lhlwb,
         lhlw0,
         lflxprf,
-        lw_rand_file,
+        rand2d_data,
         verbose=False,
     ):
 
@@ -1525,8 +1524,6 @@ class RadLWClass:
         absice2 = ds["absice2"].values
         absice3 = ds["absice3"].values
 
-        ds_lw_rand = xr.open_dataset(lw_rand_file)
-        rand2d_data = ds_lw_rand["rand2d"].values
         ########################################
         ## loading data for taumol
         ds_bands = {}
@@ -1904,7 +1901,6 @@ class RadLWClass:
                 print("Running cldprop . . .")
             if lcf1:
                 cldfmc, taucld = cldprop(
-                    lw_rand_file,
                     cldfrc,
                     clwp,
                     relw,
