@@ -208,6 +208,10 @@ spec:
           initial_conditions:
             base_url: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
             timestep: "20160801.001500"
+          gfs_analysis_data:
+            url: gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data
+            filename_pattern: "%Y%m%d_%HZ_T85LR.nc"
+            copy_method: copy
           namelist:
             coupler_nml:
               hours: 8
