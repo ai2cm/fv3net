@@ -232,6 +232,8 @@ spec:
               nudge_virt: false
               nudge_winds: false
               nudge_q: false
+            gfs_physics_nml:
+              use_analysis_sst: true
           fortran_diagnostics:
             - name: atmos_dt_atmos.zarr
               chunks:
