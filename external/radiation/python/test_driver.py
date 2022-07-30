@@ -50,7 +50,9 @@ iemsflg = 1  # surface emissivity control flag
 icldflg = 1
 ivflip = 1  # vertical index direction control flag
 me = 0
-# reading datasets
+
+
+# reading datasets needed for radinit() and radupdate()
 aer_dict = getdata.aerosol(FORCING_DIR)
 solar_filename ,solar_data = getdata.astronomy(FORCING_DIR, isolar, me)
 sfc_file, sfc_data = getdata.sfc(FORCING_DIR)
