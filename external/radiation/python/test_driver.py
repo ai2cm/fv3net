@@ -50,9 +50,11 @@ iemsflg = 1  # surface emissivity control flag
 icldflg = 1
 ivflip = 1  # vertical index direction control flag
 me = 0
-# reading aerosol and volcanic data
+# reading datasets
 aer_dict = getdata.aerosol(FORCING_DIR)
 solar_filename ,solar_data = getdata.astronomy(FORCING_DIR, isolar, me)
+sfc_file, sfc_data = getdata.sfc(FORCING_DIR)
+
 
 driver.radinit(
     si,
@@ -78,6 +80,8 @@ driver.radinit(
     iswcliq,
     aer_dict,  
     solar_filename,
+    sfc_file,
+    sfc_data,
 )
 
 invars = ["idat", "jdat", "fhswr", "dtf", "lsswr"]

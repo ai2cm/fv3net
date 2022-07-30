@@ -207,3 +207,8 @@ def astronomy(FORCING_DIR, isolar, me):
                         " !!! ERROR! Can not find solar constant file!!!")
     
     return solar_file, data
+
+def sfc(FORCING_DIR):
+    semis_file =  os.path.join(FORCING_DIR,"semisdata.nc") 
+    data = xr.open_dataset(semis_file)
+    return semis_file , data

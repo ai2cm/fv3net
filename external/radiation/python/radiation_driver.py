@@ -74,6 +74,8 @@ class RadiationDriver:
         iswcliq,
         aerosol_dict,
         solar_filename,
+        semis_file,
+        semis_data,
         do_test=False,
     ):
         self.itsfc = iemsflg / 10  # sfc air/ground temp control
@@ -150,7 +152,7 @@ class RadiationDriver:
         #  --- ...  co2 and other gases initialization routine
         self.gas = GasClass(me, ioznflg, ico2flg, ictmflg)
         #  --- ...  surface initialization routine
-        self.sfc = SurfaceClass(me, ialbflg, iemsflg)
+        self.sfc = SurfaceClass(me, ialbflg, iemsflg, semis_file, semis_data)
         #  --- ...  cloud initialization routine
         self.cld = CloudClass(
             si, NLAY, imp_physics, me, ivflip, icldflg, iovrsw, iovrlw
