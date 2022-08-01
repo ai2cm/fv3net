@@ -9,7 +9,7 @@ sphinx-argparse
 sphinx_rtd_theme
 sphinx-gallery
 tensorflow>=2.3
-fv3config>=0.9.0
+fv3config>=0.8.0
 pace-util>=0.9.0
 numba
 intake
