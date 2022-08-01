@@ -1,81 +1,92 @@
-import numpy as np
-from config import *
 import os 
 import xarray as xr 
 import warnings
+# this set of functions allow reading datasets needed for the radiation driver
+#  Inputs: 
+# - directory where the data is located in str
+# - tile number in int 
 
-
-def random_numbers(LOOKUP_DIR, me):
+def random_numbers(lookup_dir: str, tile_number: int):
+    ## 
     data_dict = {}
     # File names for serialized random numbers in mcica_subcol
-    if me == 0:
-        sw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_sw.nc")
+    if tile_number == 0:
+        sw_rand_file = os.path.join(lookup_dir, "rand2d_sw.nc")
     else:
-        sw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_tile" + str(me) + "_sw.nc")
-    lw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_tile" + str(me) + "_lw.nc")
+        sw_rand_file = os.path.join(lookup_dir, "rand2d_tile" + str(tile_number) + "_sw.nc")
+    lw_rand_file = os.path.join(lookup_dir, "rand2d_tile" + str(tile_number) + "_lw.nc")
     data_dict['sw_rand'] = xr.open_dataset(sw_rand_file)['rand2d'].values
     data_dict['lw_rand'] = xr.open_dataset(lw_rand_file)['rand2d'].values
-    del(sw_rand_file, lw_rand_file)
 
     return data_dict 
 
-def lw(LOOKUP_DIR):
-        ## file names needed in lwrad()
-    
+def lw(lookup_dir : str):
+    ## data needed in lwrad()
     lw_dict = {}
-    dfile = os.path.join(LOOKUP_DIR, "totplnk.nc")
-    pfile = os.path.join(LOOKUP_DIR, "radlw_ref_data.nc")
+    dfile = os.path.join(lookup_dir, "totplnk.nc")
+    pfile = os.path.join(lookup_dir, "radlw_ref_data.nc")
     lw_dict['totplnk'] = xr.open_dataset(dfile)["totplnk"].values
     lw_dict['preflog'] = xr.open_dataset(pfile)["preflog"].values
     lw_dict['tref'] = xr.open_dataset(pfile)["tref"].values
     lw_dict['chi_mls'] = xr.open_dataset(pfile)["chi_mls"].values
-    del(dfile, pfile)
 
 
     ## loading data for cldprop in lwrad()
-    ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_cldprlw_data.nc"))
+    ds = xr.open_dataset(os.path.join(lookup_dir, "radlw_cldprlw_data.nc"))
     lw_dict['absliq1'] = ds["absliq1"].values
     lw_dict['absice0'] = ds["absice0"].values
     lw_dict['absice1'] = ds["absice1"].values
     lw_dict['absice2'] = ds["absice2"].values
     lw_dict['absice3'] = ds["absice3"].values
-    del(ds)
 
     ## loading data for taumol
-    varnames_bands = {1:['selfref','forref','ka_mn2','absa','absb','fracrefa','fracrefb'],
-                      2:['selfref','forref','absa','absb','fracrefa','fracrefb'],
-                      3:['selfref','forref','ka_mn2o','kb_mn2o','absa','absb','fracrefa','fracrefb'],
-                      4:['selfref','forref','absa','absb','fracrefa','fracrefb'],
-                      5:['selfref','forref','absa','absb','fracrefa','fracrefb','ka_mo3','ccl4'],
-                      6:['selfref','forref','absa','fracrefa','ka_mco2','cfc11adj','cfc12'],
-                      7:['selfref','forref','absa','absb','fracrefa','fracrefb','ka_mco2','kb_mco2'],
-                      8:['selfref','forref','absa','absb','fracrefa','fracrefb','ka_mo3','ka_mco2','kb_mco2','cfc12','ka_mn2o','kb_mn2o','cfc22adj'],
-                      9:['selfref','forref','absa','absb','fracrefa','fracrefb','ka_mn2o','kb_mn2o'],
-                      10:['selfref','forref','absa','absb','fracrefa','fracrefb'],
-                      11:['selfref','forref','absa','absb','fracrefa','fracrefb','ka_mo2','kb_mo2'],
-                      12:['selfref','forref','absa','fracrefa'],
-                      13:['selfref','forref','absa','fracrefa','fracrefb','ka_mco2','ka_mco','kb_mo3'],
-                      14:['selfref','forref','absa','absb','fracrefa','fracrefb'],
-                      15:['selfref','forref','absa','fracrefa','ka_mn2'],
-                      16:['selfref','forref','absa','absb','fracrefa','fracrefb'],
-                    }
+    varname_bands = ['radlw_kgb01',
+                     'radlw_kgb02',
+                     'radlw_kgb03',
+                     'radlw_kgb04',
+                     'radlw_kgb05',
+                     'radlw_kgb06',
+                     'radlw_kgb07',
+                     'radlw_kgb08',
+                     'radlw_kgb09',
+                     'radlw_kgb10',
+                     'radlw_kgb11',
+                     'radlw_kgb12',
+                     'radlw_kgb13',
+                     'radlw_kgb14',
+                     'radlw_kgb15',
+                     'radlw_kgb16']
 
-    for nband in range(1, 17): 
-        if nband < 10:
-            data =  xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb0" + str(nband) + "_data.nc"))
-        else:
-            data =  xr.open_dataset(os.path.join(LOOKUP_DIR, "radlw_kgb" + str(nband) + "_data.nc"))
+    varnames_per_band = {'radlw_kgb01':['selfref','forref','ka_mn2','absa','absb','fracrefa','fracrefb'],
+                      'radlw_kgb02':['selfref','forref','absa','absb','fracrefa','fracrefb'],
+                      'radlw_kgb03':['selfref','forref','ka_mn2o','kb_mn2o','absa','absb','fracrefa','fracrefb'],
+                      'radlw_kgb04':['selfref','forref','absa','absb','fracrefa','fracrefb'],
+                      'radlw_kgb05':['selfref','forref','absa','absb','fracrefa','fracrefb','ka_mo3','ccl4'],
+                      'radlw_kgb06':['selfref','forref','absa','fracrefa','ka_mco2','cfc11adj','cfc12'],
+                      'radlw_kgb07':['selfref','forref','absa','absb','fracrefa','fracrefb','ka_mco2','kb_mco2'],
+                      'radlw_kgb08':['selfref','forref','absa','absb','fracrefa','fracrefb','ka_mo3','ka_mco2','kb_mco2','cfc12','ka_mn2o','kb_mn2o','cfc22adj'],
+                      'radlw_kgb09':['selfref','forref','absa','absb','fracrefa','fracrefb','ka_mn2o','kb_mn2o'],
+                      'radlw_kgb10':['selfref','forref','absa','absb','fracrefa','fracrefb'],
+                      'radlw_kgb11':['selfref','forref','absa','absb','fracrefa','fracrefb','ka_mo2','kb_mo2'],
+                      'radlw_kgb12':['selfref','forref','absa','fracrefa'],
+                      'radlw_kgb13':['selfref','forref','absa','fracrefa','fracrefb','ka_mco2','ka_mco','kb_mo3'],
+                      'radlw_kgb14':['selfref','forref','absa','absb','fracrefa','fracrefb'],
+                      'radlw_kgb15':['selfref','forref','absa','fracrefa','ka_mn2'],
+                      'radlw_kgb16':['selfref','forref','absa','absb','fracrefa','fracrefb'],}
+
+    for nband in varname_bands: 
+        data =  xr.open_dataset(os.path.join(lookup_dir, nband + "_data.nc"))
         tmp = {}
-        for var in varnames_bands[nband]:
+        for var in varnames_per_band[nband]:
             tmp[var] =data[var].values
-        lw_dict['band' + str(nband)] = tmp
+        lw_dict[nband] = tmp
 
     return lw_dict
 
-def sw(LOOKUP_DIR):
+def sw(lookup_dir : str):
     sw_dict = {}
     
-    ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_sflux_data.nc"))
+    ds = xr.open_dataset(os.path.join(lookup_dir, "radsw_sflux_data.nc"))
     sw_dict['strrat'] = ds["strrat"].values
     sw_dict['specwt'] = ds["specwt"].values
     sw_dict['layreffr'] = ds["layreffr"].values
@@ -86,14 +97,12 @@ def sw(LOOKUP_DIR):
     sw_dict['sfluxref02']  = ds["sfluxref02"].values
     sw_dict['sfluxref03']  = ds["sfluxref03"].values
     sw_dict['scalekur']  = ds["scalekur"].values
-    del(ds)
     ## data loading for setcoef
-    ds = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_ref_data.nc"))
+    ds = xr.open_dataset(os.path.join(lookup_dir, "radsw_ref_data.nc"))
     sw_dict['preflog'] = ds["preflog"].values
     sw_dict['tref'] = ds["tref"].values
-    del(ds)
     ## load data for cldprop
-    ds_cldprtb = xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_cldprtb_data.nc"))
+    ds_cldprtb = xr.open_dataset(os.path.join(lookup_dir, "radsw_cldprtb_data.nc"))
     var_names = ['extliq1','extliq2','ssaliq1','ssaliq2',
     'asyliq1','asyliq2','extice2','ssaice2','asyice2',
     'extice3','ssaice3','asyice3','abari','bbari',
@@ -102,36 +111,50 @@ def sw(LOOKUP_DIR):
 
     for var in var_names:
         sw_dict[var] =  ds_cldprtb[var].values
-    del(ds_cldprtb)
     
     ## loading data for taumol
-    varnames_bands = {16:['selfref','forref','absa','absb','rayl'],
-                    17:['selfref','forref','absa','absb','rayl'],
-                    18:['selfref','forref','absa','absb','rayl'],
-                    19:['selfref','forref','absa','absb','rayl'],
-                    20:['selfref','forref','absa','absb','absch4','rayl'],
-                    21:['selfref','forref','absa','absb','rayl'],
-                    22:['selfref','forref','absa','absb','rayl'],
-                    23:['selfref','forref','absa','rayl','givfac'],
-                    24:['selfref','forref','absa','absb','abso3a','abso3b','rayla','raylb'],
-                    25:['absa','abso3a','abso3b','rayl'],
-                    26:['rayl'],
-                    27:['absa','absb','rayl'],
-                    28:['absa','absb','rayl'],
-                    29:['forref','absa','absb','selfref','absh2o','absco2','rayl']
+    varname_bands = ['radsw_kgb16',
+                     'radsw_kgb17',
+                     'radsw_kgb18',
+                     'radsw_kgb19',
+                     'radsw_kgb20',
+                     'radsw_kgb21',
+                     'radsw_kgb22',
+                     'radsw_kgb23',
+                     'radsw_kgb24',
+                     'radsw_kgb25',
+                     'radsw_kgb26',
+                     'radsw_kgb27',
+                     'radsw_kgb28',
+                     'radsw_kgb29']
+
+    varnames_per_band = {'radsw_kgb16':['selfref','forref','absa','absb','rayl'],
+                    'radsw_kgb17':['selfref','forref','absa','absb','rayl'],
+                    'radsw_kgb18':['selfref','forref','absa','absb','rayl'],
+                    'radsw_kgb19':['selfref','forref','absa','absb','rayl'],
+                    'radsw_kgb20':['selfref','forref','absa','absb','absch4','rayl'],
+                    'radsw_kgb21':['selfref','forref','absa','absb','rayl'],
+                    'radsw_kgb22':['selfref','forref','absa','absb','rayl'],
+                    'radsw_kgb23':['selfref','forref','absa','rayl','givfac'],
+                    'radsw_kgb24':['selfref','forref','absa','absb','abso3a','abso3b','rayla','raylb'],
+                    'radsw_kgb25':['absa','abso3a','abso3b','rayl'],
+                    'radsw_kgb26':['rayl'],
+                    'radsw_kgb27':['absa','absb','rayl'],
+                    'radsw_kgb28':['absa','absb','rayl'],
+                    'radsw_kgb29':['forref','absa','absb','selfref','absh2o','absco2','rayl']
                     }
                   
-    for nband in range(16, 30): 
-        data =  xr.open_dataset(os.path.join(LOOKUP_DIR, "radsw_kgb" + str(nband) + "_data.nc"))
+    for nband in varname_bands: 
+        data =  xr.open_dataset(os.path.join(lookup_dir, nband + "_data.nc"))
         tmp = {}
-        for var in varnames_bands[nband]:
+        for var in varnames_per_band[nband]:
             tmp[var] =data[var].values
-        sw_dict['band' + str(nband)] = tmp
+        sw_dict[nband] = tmp
 
     return sw_dict
 
-def aerosol(FORCING_DIR):
-    aeros_file = os.path.join(FORCING_DIR, 'aerosol.nc')
+def aerosol(forcing_dir : str):
+    aeros_file = os.path.join(forcing_dir, 'aerosol.nc')
     if os.path.isfile(aeros_file):
         print(f"Using file {aeros_file}")
     else:
@@ -150,15 +173,15 @@ def aerosol(FORCING_DIR):
 
     return data_dict
 
-def astronomy(FORCING_DIR, isolar, me):
+def astronomy(forcing_dir, isolar, tile_number):
     # external solar constant data table,solarconstant_noaa_a0.txt
 
-    if me == 0:
-        if isolar == 1: # noaa ann-mean tsi in absolute scale
+    if tile_number == 0:
+        if isolar == 1: # noaa ann-tile_numberan tsi in absolute scale
             solar_file = "solarconstant_noaa_a0.nc"
 
-            if os.path.isfile(os.path.join(FORCING_DIR, solar_file)):
-                data = xr.open_dataset(os.path.join(FORCING_DIR, solar_file))
+            if os.path.isfile(os.path.join(forcing_dir, solar_file)):
+                data = xr.open_dataset(os.path.join(forcing_dir, solar_file))
             else:
                 warnings.warn(
                             f'Requested solar data file "{solar_file}" not found!',
@@ -166,10 +189,10 @@ def astronomy(FORCING_DIR, isolar, me):
                 raise FileNotFoundError(
                         " !!! ERROR! Can not find solar constant file!!!")
 
-        elif isolar == 2:# noaa ann-mean tsi in tim scale
+        elif isolar == 2:# noaa ann-tile_numberan tsi in tim scale
             solar_file = "solarconstant_noaa_an.nc"
-            if os.path.isfile(os.path.join(FORCING_DIR, solar_file)):
-                data = xr.open_dataset(os.path.join(FORCING_DIR, solar_file))
+            if os.path.isfile(os.path.join(forcing_dir, solar_file)):
+                data = xr.open_dataset(os.path.join(forcing_dir, solar_file))
             else:
                 warnings.warn(
                             f'Requested solar data file "{solar_file}" not found!',
@@ -177,10 +200,10 @@ def astronomy(FORCING_DIR, isolar, me):
                 raise FileNotFoundError(
                         " !!! ERROR! Can not find solar constant file!!!")
 
-        elif isolar == 3:# cmip5 ann-mean tsi in tim scale
+        elif isolar == 3:# cmip5 ann-tile_numberan tsi in tim scale
             solar_file ='solarconstant_cmip_an.nc'
-            if os.path.isfile(os.path.join(FORCING_DIR, solar_file)):
-                data = xr.open_dataset(os.path.join(FORCING_DIR, solar_file))
+            if os.path.isfile(os.path.join(forcing_dir, solar_file)):
+                data = xr.open_dataset(os.path.join(forcing_dir, solar_file))
             else:
                 warnings.warn(
                             f'Requested solar data file "{solar_file}" not found!',
@@ -188,10 +211,10 @@ def astronomy(FORCING_DIR, isolar, me):
                 raise FileNotFoundError(
                         " !!! ERROR! Can not find solar constant file!!!")
                        
-        elif isolar == 4:# cmip5 mon-mean tsi in tim scale
+        elif isolar == 4:# cmip5 mon-tile_numberan tsi in tim scale
             solar_file =  'solarconstant_cmip_mn.nc'
-            if os.path.isfile(os.path.join(FORCING_DIR, solar_file)):
-                data = xr.open_dataset(os.path.join(FORCING_DIR, solar_file))
+            if os.path.isfile(os.path.join(forcing_dir, solar_file)):
+                data = xr.open_dataset(os.path.join(forcing_dir, solar_file))
             else:
                 warnings.warn(
                             f'Requested solar data file "{solar_file}" not found!',
@@ -208,15 +231,15 @@ def astronomy(FORCING_DIR, isolar, me):
     
     return solar_file, data
 
-def sfc(FORCING_DIR):
-    semis_file =  os.path.join(FORCING_DIR,"semisdata.nc") 
+def sfc(forcing_dir : str):
+    semis_file =  os.path.join(forcing_dir,"semisdata.nc") 
     data = xr.open_dataset(semis_file)
     return semis_file , data
 
-def gases(FORCING_DIR, ictmflg):
+def gases(forcing_dir, ictmflg):
     
     if ictmflg == 1:
-        cfile1 = os.path.join(FORCING_DIR,'co2historicaldata_2016.nc') 
+        cfile1 = os.path.join(forcing_dir,'co2historicaldata_2016.nc') 
         var_names = ['iyr','cline','co2g1','co2g2','co2dat']
         if not os.path.isfile(cfile1):
             raise FileNotFoundError("   Can not find co2 data source file",
@@ -224,7 +247,7 @@ def gases(FORCING_DIR, ictmflg):
         
     #Opened CO2 climatology seasonal cycle data
     elif ictmflg == 2:
-        cfile1 = os.path.join(FORCING_DIR,'') 
+        cfile1 = os.path.join(forcing_dir,'') 
         var_names = ['cline','co2g1','co2g2','co2dat','gco2cyc']
         if not os.path.isfile(cfile1):
             raise FileNotFoundError("   Can not find co2 data source file",
