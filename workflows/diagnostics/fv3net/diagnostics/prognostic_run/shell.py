@@ -139,6 +139,10 @@ def hovmoller(state: State, variable, vmin=None, vmax=None):
     state.tape.save_plot()
 
 
+def parse_pcolor_arg(arg):
+    return arg, {}
+
+
 class ProgShell(cmd.Cmd):
     intro = (
         "Welcome to the ProgRunDiag shell.   Type help or ? to list commands.\n"  # noqa
@@ -178,15 +182,15 @@ class ProgShell(cmd.Cmd):
         self.state.print()
 
     def do_meridional(self, arg):
-        variable = arg
+        variable, kwargs = parse_pcolor_arg(arg)
         lon = int(self.state.get("lon", "0"))
         transect = meridional_transect(self.get_3d_snapshot())
         transect = transect.assign_coords(lon=lon)
-        transect[variable].plot(yincrease=False, y="pressure")
+        transect[variable].plot(yincrease=False, y="pressure", **kwargs)
         self.state.tape.save_plot()
 
     def do_zonal(self, arg):
-        variable = arg
+        variable, kwargs = parse_pcolor_arg(arg)
         lat = float(self.state.get("lat", 0))
 
         ds = self.state.get_3d_snapshot()
@@ -197,25 +201,25 @@ class ProgShell(cmd.Cmd):
         transect = transect.assign_coords(lat=lat)
 
         plt.figure(figsize=(10, 3))
-        transect[variable].plot(yincrease=False, y="pressure")
+        transect[variable].plot(yincrease=False, y="pressure", **kwargs)
         self.state.tape.save_plot()
 
     def do_zonalavg(self, arg):
-        variable = arg
+        variable, kwargs = parse_pcolor_arg(arg)
         ds = self.state.get_3d_snapshot()
         transect = vcm.zonal_average_approximate(ds.lat, ds[variable])
-        transect.plot(yincrease=False, y="pressure")
+        transect.plot(yincrease=False, y="pressure", **kwargs)
         self.state.tape.save_plot()
 
     def do_column(self, arg):
-        variable = arg
+        variable, kwargs = parse_pcolor_arg(arg)
         lon = float(self.state.get("lon", 0))
         lat = float(self.state.get("lat", 0))
 
         ds = self.state.get_3d_snapshot()
         transect_coords = vcm.select.latlon(lat, lon)
         transect = vcm.interpolate_unstructured(ds, transect_coords).squeeze()
-        transect[variable].plot(yincrease=False, y="pressure")
+        transect[variable].plot(yincrease=False, y="pressure", **kwargs)
         self.state.tape.save_plot()
 
     def onecmd(self, line):
@@ -225,9 +229,9 @@ class ProgShell(cmd.Cmd):
             print(e)
 
     def do_map2d(self, arg):
-        variable = arg
+        variable, kwargs = parse_pcolor_arg(arg)
         data = self.state.get_2d_snapshot()
-        fv3viz.plot_cube(data, variable)
+        fv3viz.plot_cube(data, variable, **kwargs)
         time_name = data.time.item().isoformat()
         plt.title(f"{time_name} {variable}")
         plt.tight_layout()
