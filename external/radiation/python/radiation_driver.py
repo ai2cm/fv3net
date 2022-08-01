@@ -72,6 +72,10 @@ class RadiationDriver:
         lcnorm,
         lnoprec,
         iswcliq,
+        aerosol_dict,
+        solar_filename,
+        semis_file,
+        semis_data,
         do_test=False,
     ):
         self.itsfc = iemsflg / 10  # sfc air/ground temp control
@@ -142,13 +146,13 @@ class RadiationDriver:
 
         # -# Initialization
         #  --- ...  astronomy initialization routine
-        self.sol = AstronomyClass(me, isolar)
+        self.sol = AstronomyClass(me, isolar, solar_filename)
         #  --- ...  aerosols initialization routine
-        self.aer = AerosolClass(NLAY, me, iaerflg, ivflip)
+        self.aer = AerosolClass(NLAY, me, iaerflg, ivflip, aerosol_dict)
         #  --- ...  co2 and other gases initialization routine
         self.gas = GasClass(me, ioznflg, ico2flg, ictmflg)
         #  --- ...  surface initialization routine
-        self.sfc = SurfaceClass(me, ialbflg, iemsflg)
+        self.sfc = SurfaceClass(me, ialbflg, iemsflg, semis_file, semis_data)
         #  --- ...  cloud initialization routine
         self.cld = CloudClass(
             si, NLAY, imp_physics, me, ivflip, icldflg, iovrsw, iovrlw
@@ -169,7 +173,7 @@ class RadiationDriver:
 
             return aer_dict, sol_dict, gas_dict, sfc_dict, cld_dict, rlw_dict, rsw_dict
 
-    def radupdate(self, idate, jdate, deltsw, deltim, lsswr, do_test=False):
+    def radupdate(self, idate, jdate, deltsw, deltim, lsswr, kprfg, idxcg, cmixg, denng, cline, solar_data,gas_data,do_test=False):
         # =================   subprogram documentation block   ================ !
         #                                                                       !
         # subprogram:   radupdate   calls many update subroutines to check and  !
@@ -270,13 +274,13 @@ class RadiationDriver:
             self.iyear0 = iyear
 
             slag, sdec, cdec, solcon = self.sol.sol_update(
-                jdate, kyear, deltsw, deltim, lsol_chg, 0
+                jdate, kyear, deltsw, deltim, lsol_chg, 0, solar_data 
             )
 
         # Call module_radiation_aerosols::aer_update(), monthly update, no
         # time interpolation
         if lmon_chg:
-            self.aer.aer_update(iyear, imon, 0)
+            self.aer.aer_update(iyear, imon, 0, kprfg, idxcg, cmixg, denng, cline)
 
         # -# Call co2 and other gases update routine:
         # module_radiation_gases::gas_update()
@@ -286,7 +290,7 @@ class RadiationDriver:
         else:
             lco2_chg = False
 
-        self.gas.gas_update(kyear, kmon, kday, khour, self.loz1st, lco2_chg, 0)
+        self.gas.gas_update(kyear, kmon, kday, khour, self.loz1st, lco2_chg, 0,gas_data)
 
         if self.loz1st:
             self.loz1st = False
@@ -311,6 +315,9 @@ class RadiationDriver:
         Tbd,
         Radtend,
         Diag,
+        randomdict,
+        lwdict,
+        swdict,
     ):
 
         if not (Model["lsswr"] or Model["lslwr"]):
@@ -380,18 +387,11 @@ class RadiationDriver:
         Radtend["sfcfsw"]["dnfxc"] = np.zeros(IM)
         Radtend["sfcfsw"]["upfx0"] = np.zeros(IM)
         Radtend["sfcfsw"]["dnfx0"] = np.zeros(IM)
-
         Radtend["htrlw"] = np.zeros((IM, Model["levs"]))
 
         lhlwb = False
         lhlw0 = True
         lflxprf = False
-
-        # File names for serialized random numbers in mcica_subcol
-        sw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_tile" + str(me) + "_sw.nc")
-        lw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_tile" + str(me) + "_lw.nc")
-
-        #  --- ...  set local /level/layer indexes corresponding to in/out variables
 
         LMK = LM + self.LTP  # num of local layers
         LMP = LMK + 1  # num of local levels
@@ -913,7 +913,8 @@ class RadiationDriver:
                         lhsw0,
                         lflxprf,
                         lfdncmp,
-                        sw_rand_file,
+                        randomdict['sw_rand'],
+                        swdict,
                     )
                 else:
                     (
@@ -959,7 +960,8 @@ class RadiationDriver:
                         lhsw0,
                         lflxprf,
                         lfdncmp,
-                        sw_rand_file,
+                        randomdict['sw_rand'],
+                        swdict,
                     )
 
                 for k in range(LM):
@@ -1078,7 +1080,8 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    lw_rand_file,
+                    randomdict['lw_rand'],
+                    lwdict,
                 )
             else:
                 (
@@ -1113,7 +1116,8 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    lw_rand_file,
+                    randomdict['lw_rand'],
+                    lwdict,
                 )
 
             # Save calculation results

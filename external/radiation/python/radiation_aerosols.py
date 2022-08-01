@@ -1,6 +1,5 @@
 from multiprocessing import Value
 import numpy as np
-import xarray as xr
 import os
 import sys
 
@@ -8,7 +7,7 @@ sys.path.insert(0, "..")
 from radlw.radlw_param import NBDLW, wvnlw1, wvnlw2
 from radsw.radsw_param import nbdsw, wvnum1, wvnum2, NSWSTR
 from phys_const import con_pi, con_plnk, con_c, con_boltz, con_t0c, con_rd, con_g
-from radphysparam import aeros_file, lalw1bd
+from radphysparam import lalw1bd
 
 from config import *
 
@@ -356,7 +355,7 @@ class AerosolClass:
 
     wvn550 = 1.0e4 / 0.55
 
-    def __init__(self, NLAY, me, iaerflg, ivflip):
+    def __init__(self, NLAY, me, iaerflg, ivflip,aerosol_dict):
         self.NSWBND = nbdsw
         self.NLWBND = NBDLW
         self.NSWLWBD = nbdsw * NBDLW
@@ -380,8 +379,6 @@ class AerosolClass:
         self.denng = np.zeros((2, self.IMXAE, self.JMXAE))
         self.idxcg = np.zeros((self.NXC, self.IMXAE, self.JMXAE))
         self.kprfg = np.zeros((self.IMXAE, self.JMXAE))
-
-        self.aeros_file = os.path.join(FORCING_DIR, aeros_file)
 
         self.iaerflg = iaerflg
         self.iaermdl = int(self.iaerflg / 1000)
@@ -450,7 +447,7 @@ class AerosolClass:
 
             if self.iaermdl == 0 or self.iaermdl == 5:  # opac-climatology scheme
 
-                self.clim_aerinit()
+                self.clim_aerinit(aerosol_dict)
 
             else:
                 raise ValueError(
@@ -640,7 +637,7 @@ class AerosolClass:
             tmp3 = 100.0 * (nw + 1)
             self.eirfwv[nw] = (tmp1 * tmp3 ** 3) / (np.exp(tmp2 * tmp3) - 1.0)
 
-    def clim_aerinit(self):
+    def clim_aerinit(self,aerosol_dict):
         #  ==================================================================  !
         #                                                                      !
         #  clim_aerinit is the opac-climatology aerosol initialization program !
@@ -688,7 +685,7 @@ class AerosolClass:
         #  --- ...  invoke tropospheric aerosol initialization
 
         # - call set_aercoef() to invoke tropospheric aerosol initialization.
-        self.set_aercoef()
+        self.set_aercoef(aerosol_dict)
 
         # The initialization program for climatological aerosols. The program
         # reads and maps the pre-tabulated aerosol optical spectral data onto
@@ -696,7 +693,7 @@ class AerosolClass:
         # \section det_set_aercoef General Algorithm
         # @{
 
-    def set_aercoef(self):
+    def set_aercoef(self,aerosol_dict):
         #  ==================================================================  !
         #                                                                      !
         #  subprogram : set_aercoef                                            !
@@ -767,17 +764,6 @@ class AerosolClass:
         #  subprograms called:  optavg                                         !
         #                                                                      !
         #  ==================================================================  !
-
-        file_exist = os.path.isfile(self.aeros_file)
-
-        if file_exist:
-            print(f"Using file {aeros_file}")
-        else:
-            raise FileNotFoundError(
-                f'Requested aerosol data file "{aeros_file}" not found!',
-                "*** Stopped in subroutine aero_init !!",
-            )
-
         extrhi = np.zeros((self.NCM1, self.NSWLWBD))
         scarhi = np.zeros((self.NCM1, self.NSWLWBD))
         ssarhi = np.zeros((self.NCM1, self.NSWLWBD))
@@ -791,20 +777,18 @@ class AerosolClass:
         self.extstra = np.zeros((self.NSWLWBD))
 
         #  --- ...  aloocate and input aerosol optical data
-        ds = xr.open_dataset(self.aeros_file)
-
-        iendwv = ds["iendwv"].data
-        haer = ds["haer"].data
-        prsref = ds["prsref"].data
-        rhidext0 = ds["rhidext0"].data
-        rhidsca0 = ds["rhidsca0"].data
-        rhidssa0 = ds["rhidssa0"].data
-        rhidasy0 = ds["rhidasy0"].data
-        rhdpext0 = ds["rhdpext0"].data
-        rhdpsca0 = ds["rhdpsca0"].data
-        rhdpssa0 = ds["rhdpssa0"].data
-        rhdpasy0 = ds["rhdpasy0"].data
-        straext0 = ds["straext0"].data
+        iendwv = aerosol_dict["iendwv"] 
+        haer = aerosol_dict["haer"] 
+        prsref = aerosol_dict["prsref"] 
+        rhidext0 = aerosol_dict["rhidext0"] 
+        rhidsca0 = aerosol_dict["rhidsca0"] 
+        rhidssa0 = aerosol_dict["rhidssa0"]
+        rhidasy0 = aerosol_dict["rhidasy0"] 
+        rhdpext0 = aerosol_dict["rhdpext0"] 
+        rhdpsca0 = aerosol_dict["rhdpsca0"] 
+        rhdpssa0 = aerosol_dict["rhdpssa0"] 
+        rhdpasy0 = aerosol_dict["rhdpasy0"] 
+        straext0 = aerosol_dict["straext0"] 
 
         # -# Convert pressure reference level (in mb) to sigma reference level
         #    assume an 1000mb reference surface pressure.
@@ -1252,7 +1236,7 @@ class AerosolClass:
 
                 self.extstra[ib] = sumk * rirbd
 
-    def aer_update(self, iyear, imon, me):
+    def aer_update(self, iyear, imon, me, kprfg, idxcg, cmixg, denng, cline):
         #  ==================================================================
         #
         #  aer_update checks and update time varying climatology aerosol
@@ -1292,13 +1276,13 @@ class AerosolClass:
 
         # -# Call trop_update() to update monthly tropospheric aerosol data.
         if self.lalwflg or self.laswflg:
-            self.trop_update()
+            self.trop_update(kprfg, idxcg, cmixg, denng, cline)
 
         # -# Call volc_update() to update yearly stratospheric volcanic aerosol data.
         if self.lavoflg:
             self.volc_update()
 
-    def trop_update(self):
+    def trop_update(self, kprfg, idxcg, cmixg, denng, cline):
         # This subroutine updates the monthly global distribution of aerosol
         # profiles in five degree horizontal resolution.
 
@@ -1339,23 +1323,10 @@ class AerosolClass:
         #
         #  --- ...  reading climatological aerosols data
 
-        file_exist = os.path.isfile(self.aeros_file)
-
-        if file_exist:
-            if self.me == 0:
-                print(f"Opened aerosol data file: {aeros_file}")
-        else:
-            raise FileNotFoundError(
-                f'Requested aerosol data file "{aeros_file}" not found!',
-                "*** Stopped in subroutine trop_update !!",
-            )
-
-        ds = xr.open_dataset(self.aeros_file)
-        self.kprfg = ds["kprfg"].data
-        self.idxcg = ds["idxcg"].data
-        self.cmixg = ds["cmixg"].data
-        self.denng = ds["denng"].data
-        cline = ds["cline"].data
+        self.kprfg = kprfg
+        self.idxcg = idxcg
+        self.cmixg = cmixg
+        self.denng = denng
 
         if self.me == 0:
             print(f"  --- Reading {cline[self.imon-1]}")
@@ -1393,6 +1364,7 @@ class AerosolClass:
         #  ==================================================================  !
 
         #  ---  locals:
+
         volcano_file = "volcanic_aerosols_1850-1859.txt"
         #
         # ===>  ...  begin here
@@ -1417,16 +1389,17 @@ class AerosolClass:
                         " optical depth set to lowest value",
                     )
             else:
+                ## Commented this lines because it might be needed at somepoint
                 file_exist = os.path.isfile(volcano_file)
                 if file_exist:
-                    ds = xr.open_dataset(volcano_file)
-                    cline = ds["cline"]
+                    #ds = xr.open_dataset(volcano_file)
+                    #cline = ds["cline"]
                     #  ---  check print
                     if self.me == 0:
                         print(f"Opened volcanic data file: {volcano_file}")
-                        print(cline)
+                    #    print(cline)
 
-                    self.ivolae = ds["ivolae"]
+                    #self.ivolae = ds["ivolae"]
                 else:
                     raise FileNotFoundError(
                         f'Requested volcanic data file "{volcano_file}" not found!',
