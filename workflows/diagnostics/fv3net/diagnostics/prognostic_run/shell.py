@@ -68,11 +68,21 @@ class State:
         self.data_3d = None
         self.data_2d = None
         self.tape = OneFileTape()
+        self.state = {}
 
     def load(self, url):
         self.prognostic = load_run_data.SegmentedRun(url, catalog)
         self.data_3d = self.prognostic.data_3d.merge(grid)
         self.data_2d = grid.merge(self.prognostic.data_2d, compat="override")
+
+    def get_time(self) -> int:
+        return int(self.state.get("time", "0"))
+
+    def set(self, key, val):
+        self.state[key] = val
+
+    def get(self, key, default):
+        return self.state.get(key, default)
 
     def print(self):
         print("3D Variables:")
@@ -91,9 +101,6 @@ class State:
 catalog_path = vcm.catalog.catalog_path
 catalog = intake.open_catalog(catalog_path)
 grid = load_run_data.load_grid(catalog)
-
-state = {}
-loop_state = State()
 
 
 def avg2d(state: State, variable):
@@ -128,51 +135,54 @@ class ProgShell(cmd.Cmd):
         "Welcome to the ProgRunDiag shell.   Type help or ? to list commands.\n"  # noqa
     )
 
+    def __init__(self, state: State):
+        self.state = state
+
     def do_avg2d(self, arg):
-        avg2d(loop_state, arg)
+        avg2d(self.state, arg)
 
     def do_avg3d(self, arg):
-        avg3d(loop_state, arg)
+        avg3d(self.state, arg)
 
     def do_iterm(self, arg):
-        set_iterm_tape(loop_state)
+        set_iterm_tape(self.state)
 
     def do_jupyter(self, arg):
-        loop_state.tape = JupyterTape()
+        self.state.tape = JupyterTape()
 
     def do_hovmoller(self, arg):
-        hovmoller(loop_state, *arg.split())
+        hovmoller(self.state, *arg.split())
 
     def do_artifacts(self, arg):
-        loop_state.list_artifacts()
+        self.state.list_artifacts()
 
     def do_load(self, arg):
         url = arg
-        loop_state.load(url)
+        self.state.load(url)
 
     def do_set(self, arg):
         key, val = arg.split()
-        state[key] = val
+        self.state.set(key, val)
 
     def do_print(self, arg):
-        loop_state.print()
+        self.state.print()
 
     def do_meridional(self, arg):
         variable = arg
-        time = int(state.get("time", "0"))
-        lon = int(state.get("lon", "0"))
+        time = self.state.get_time()
+        lon = int(self.state.get("lon", "0"))
         transect = meridional_transect(
-            loop_state.data_3d.isel(time=time).merge(grid), lon
+            self.state.data_3d.isel(time=time).merge(grid), lon
         )
         transect = transect.assign_coords(lon=lon)
         transect[variable].plot(yincrease=False, y="pressure")
-        loop_state.tape.save_plot()
+        self.state.tape.save_plot()
 
     def do_zonal(self, arg):
         variable = arg
-        time = int(state.get("time", "0"))
-        lat = float(state.get("lat", 0))
-        ds = loop_state.data_3d.isel(time=time).merge(grid)
+        time = self.state.get_time()
+        lat = float(self.state.get("lat", 0))
+        ds = self.state.data_3d.isel(time=time).merge(grid)
 
         transect_coords = vcm.select.zonal_ring(lat=lat)
         transect = vcm.interpolate_unstructured(ds, transect_coords)
@@ -181,26 +191,26 @@ class ProgShell(cmd.Cmd):
 
         plt.figure(figsize=(10, 3))
         transect[variable].plot(yincrease=False, y="pressure")
-        loop_state.tape.save_plot()
+        self.state.tape.save_plot()
 
     def do_zonalavg(self, arg):
         variable = arg
-        time = int(state.get("time", "0"))
-        ds = loop_state.data_3d.isel(time=time)
+        time = self.state.get_time()
+        ds = self.state.data_3d.isel(time=time)
         transect = vcm.zonal_average_approximate(ds.lat, ds[variable])
         transect.plot(yincrease=False, y="pressure")
-        loop_state.tape.save_plot()
+        self.state.tape.save_plot()
 
     def do_column(self, arg):
         variable = arg
-        lon = float(state.get("lon", 0))
-        lat = float(state.get("lat", 0))
+        lon = float(self.state.get("lon", 0))
+        lat = float(self.state.get("lat", 0))
 
-        ds = loop_state.data_3d.merge(grid)
+        ds = self.state.data_3d.merge(grid)
         transect_coords = vcm.select.latlon(lat, lon)
         transect = vcm.interpolate_unstructured(ds, transect_coords).squeeze()
         transect[variable].plot(yincrease=False, y="pressure")
-        loop_state.tape.save_plot()
+        self.state.tape.save_plot()
 
     def onecmd(self, line):
         try:
@@ -210,13 +220,13 @@ class ProgShell(cmd.Cmd):
 
     def do_map2d(self, arg):
         variable = arg
-        time = int(state.get("time", "0"))
-        data = loop_state.data_2d.isel(time=time)
+        time = self.state.get_time()
+        data = self.state.data_2d.isel(time=time)
         fv3viz.plot_cube(data, variable)
         time_name = data.time.item().isoformat()
         plt.title(f"{time_name} {variable}")
         plt.tight_layout()
-        loop_state.tape.save_plot()
+        self.state.tape.save_plot()
 
     def do_exit(self, arg):
         sys.exit(0)
@@ -242,7 +252,7 @@ def register_parser(subparsers):
 
 
 def main(args):
-    shell = ProgShell()
+    shell = ProgShell(State())
     if args.script:
         shell.do_eval(args.script)
     else:
