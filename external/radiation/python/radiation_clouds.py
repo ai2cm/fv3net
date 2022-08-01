@@ -600,14 +600,6 @@ class CloudClass:
                     qcwat[i, k] = 0.0
                     clw2[i, k] = clwf[i, k]
 
-        # -# Call module_microphysics::rsipath2(), in Ferrier's scheme, to
-        # compute layer's cloud liquid, ice, rain, and snow water condensate
-        # path and the partical effective radius for liquid droplet, rain drop,
-        # and snow flake.
-        cwp, cip, crp, csp, rew, rer, res, rsden = rsipath2(
-            plyr, plvl, tlyr, qlyr, qcwat, qcice, qrain, rrime, IX, NLAY, ivflip, flgmin
-        )
-
         for k in range(NLAY):
             for i in range(IX):
                 tem2d[i, k] = (con_g * plyr[i, k]) / (con_rd * delp[i, k])
