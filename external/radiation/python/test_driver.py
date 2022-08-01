@@ -6,6 +6,19 @@ import serialbox as ser
 from radiation_driver import RadiationDriver
 import time
 import getdata 
+import variables_to_read
+variables = variables_to_read.vars_dict 
+
+# defining useful functions
+def getscalars(indict):
+    for var in indict.keys():
+        if not type(indict[var]) == dict:
+            if indict[var].size == 1:
+                indict[var] = indict[var][0]
+
+    return indict
+
+
 
 startTime = time.time()
 
@@ -107,6 +120,7 @@ slag, sdec, cdec, solcon = driver.radupdate(
     gas_data,
     )
 
+
 columns_validated = 0
 
 for rank in range(6):
@@ -117,158 +131,43 @@ for rank in range(6):
         "Generator_rank" + str(rank),
     )
 
-    model_vars = [
-        "me",
-        "levr",
-        "levs",
-        "nfxr",
-        "ntrac",
-        "ntcw",
-        "ntiw",
-        "ncld",
-        "ntrw",
-        "ntsw",
-        "ntgl",
-        "ncnd",
-        "fhswr",
-        "fhlwr",
-        "ntoz",
-        "lsswr",
-        "solhr",
-        "lslwr",
-        "imp_physics",
-        "lgfdlmprad",
-        "uni_cld",
-        "effr_in",
-        "indcld",
-        "ntclamt",
-        "num_p3d",
-        "npdf3d",
-        "ncnvcld3d",
-        "lmfdeep2",
-        "sup",
-        "kdt",
-        "lmfshal",
-        "do_sfcperts",
-        "pertalb",
-        "do_only_clearsky_rad",
-        "swhtr",
-        "solcon",
-        "lprnt",
-        "lwhtr",
-        "lssav",
-    ]
-
     Model = dict()
-    for var in model_vars:
+    for var in variables['model']:
         Model[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
-    statein_vars = [
-        "prsi",
-        "prsl",
-        "tgrs",
-        "prslk",
-        "qgrs",
-    ]
-
     Statein = dict()
-    for var in statein_vars:
+    for var in variables['statein']:
         Statein[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
-    sfcprop_vars = [
-        "tsfc",
-        "slmsk",
-        "snowd",
-        "sncovr",
-        "snoalb",
-        "zorl",
-        "hprime",
-        "alvsf",
-        "alnsf",
-        "alvwf",
-        "alnwf",
-        "facsf",
-        "facwf",
-        "fice",
-        "tisfc",
-    ]
-
     Sfcprop = dict()
-    for var in sfcprop_vars:
+    for var in variables['sfcprop']:
         Sfcprop[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
-    coupling_vars = [
-        "nirbmdi",
-        "nirdfdi",
-        "visbmdi",
-        "visdfdi",
-        "nirbmui",
-        "nirdfui",
-        "visbmui",
-        "visdfui",
-        "sfcnsw",
-        "sfcdsw",
-        "sfcdlw",
-    ]
-
     Coupling = dict()
-    for var in coupling_vars:
+    for var in variables['coupling']:
         Coupling[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
-    grid_vars = [
-        "xlon",
-        "xlat",
-        "sinlat",
-        "coslat",
-    ]
-
     Grid = dict()
-    for var in grid_vars:
+    for var in variables['grid']:
         Grid[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
-    tbd_vars = [
-        "phy_f3d",
-        "icsdsw",
-        "icsdlw",
-    ]
-
     Tbd = dict()
-    for var in tbd_vars:
+    for var in variables['tbd']:
         Tbd[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
-    radtend_vars = [
-        "coszen",
-        "coszdg",
-        "sfalb",
-        "htrsw",
-        "swhc",
-        "lwhc",
-        "semis",
-        "tsflw",
-    ]
-
     Radtend = dict()
-    for var in radtend_vars:
+    for var in variables['radtend']:
         Radtend[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
     Radtend["sfcfsw"] = dict()
     Radtend["sfcflw"] = dict()
 
-    diag_vars = ["fluxr"]
     Diag = dict()
-    for var in diag_vars:
+    for var in variables['diag']:
         Diag[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
     Diag["topflw"] = dict()
     Diag["topfsw"] = dict()
-
-    def getscalars(indict):
-        for var in indict.keys():
-            if not type(indict[var]) == dict:
-                if indict[var].size == 1:
-                    indict[var] = indict[var][0]
-
-        return indict
 
     Model = getscalars(Model)
     Statein = getscalars(Statein)
@@ -288,38 +187,11 @@ for rank in range(6):
         randomdict,lwdict,swdict,
     )
 
-    radtend_vars_out = [
-        "upfxc_s_lw",
-        "upfx0_s_lw",
-        "dnfxc_s_lw",
-        "dnfx0_s_lw",
-        "upfxc_s_sw",
-        "upfx0_s_sw",
-        "dnfxc_s_sw",
-        "dnfx0_s_sw",
-        "sfalb",
-        "htrsw",
-        "swhc",
-        "semis",
-        "tsflw",
-        "htrlw",
-        "lwhc",
-    ]
-
-    diag_vars_out = [
-        "fluxr",
-        "upfxc_t_sw",
-        "dnfxc_t_sw",
-        "upfx0_t_sw",
-        "upfxc_t_lw",
-        "upfx0_t_lw",
-    ]
-
     # Process output to be compatible with serialized Fortran output for validation
     valdict = dict()
     outdict = dict()
 
-    for var in radtend_vars_out:
+    for var in variables['radtend_out']:
         valdict[var] = serializer.read(var, serializer.savepoint["driver-out-000000"])
         if var[:2] in ["up", "dn"]:
             if var.split("_")[1] == "s":
@@ -330,7 +202,7 @@ for rank in range(6):
         else:
             outdict[var] = Radtendout[var]
 
-    for var in diag_vars_out:
+    for var in variables['diag_out']:
         valdict[var] = serializer.read(var, serializer.savepoint["driver-out-000000"])
 
         if var[:2] in ["up", "dn"]:
@@ -344,7 +216,7 @@ for rank in range(6):
 
     compare_data(valdict, outdict)
     
-    columns_validated += valdict[radtend_vars_out[0]].shape[0]
+    columns_validated += valdict[variables['radtend_out'][0]].shape[0]
 
 executionTime = (time.time() - startTime)
 
