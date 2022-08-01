@@ -79,7 +79,9 @@ def _cleanup_temp_dir(temp_dir):
 
 
 def get_tapering_string(tapering_function: dict):
-    if tapering_function["name"] == taper_mask.__name__:
+    if tapering_function is None:
+        return "default"
+    elif tapering_function["name"] == taper_mask.__name__:
         taper_str = "mask"
         if "cutoff" in tapering_function:
             taper_str += f"-{tapering_function['cutoff']}"

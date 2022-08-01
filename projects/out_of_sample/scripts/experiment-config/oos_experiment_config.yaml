@@ -25,21 +25,21 @@ novelty_detectors:
     nd_path: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
     params:
       - cutoff: 5
-      # - cutoff: 0
-      # - cutoff: -5
+      - cutoff: 0
+      - cutoff: -5
       - cutoff: -10
-      # - cutoff: -15
-      # - cutoff: -20
+      - cutoff: -15
+      - cutoff: -20
   - nd_name: "minmax"
     nd_path: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
     params:
-      # - cutoff: 0
+      - cutoff: 0
       - cutoff: -0.1
       - cutoff: -0.2
       - cutoff: -0.3
       - cutoff: -0.4
       - cutoff: -0.6
-model_config_dir_path: "gs://vcm-ml-experiments/claytons/2022-07-28/oos-configs/oos-cutoff-sweep2"
+model_config_dir_path: "gs://vcm-ml-experiments/claytons/2022-07-28/oos-configs/oos-cutoff-sweep4"
 prognostic_run_config_template: "prognostic-run-config.yaml"
 launch_destination: "~/vcm-workflow-control/examples/prog-run-cutoff-sweep"
 segments: 18
@@ -47,5 +47,5 @@ result_destination:
   bucket: "vcm-ml-experiments"
   project: "claytons"
   experiment: "oos-many-cutoffs-test"
-  trial: 1
+  trial: 2
 
