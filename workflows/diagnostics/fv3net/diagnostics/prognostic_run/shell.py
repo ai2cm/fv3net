@@ -140,7 +140,16 @@ def hovmoller(state: State, variable, vmin=None, vmax=None):
 
 
 def parse_pcolor_arg(arg):
-    return arg, {}
+    tokens = arg.split()
+    kwargs = {}
+    if len(tokens) >= 3:
+        kwargs["vmin"] = float(tokens[1])
+        kwargs["vmax"] = float(tokens[2])
+
+    if len(tokens) >= 4:
+        kwargs["cmap"] = tokens[3]
+
+    return tokens[0], kwargs
 
 
 class ProgShell(cmd.Cmd):
