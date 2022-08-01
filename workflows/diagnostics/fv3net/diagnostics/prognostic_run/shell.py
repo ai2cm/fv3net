@@ -84,6 +84,14 @@ class State:
     def get(self, key, default):
         return self.state.get(key, default)
 
+    def get_3d_snapshot(self):
+        time = self.get_time()
+        return self.data_3d.isel(time=time).merge(grid)
+
+    def get_2d_snapshot(self):
+        time = self.get_time()
+        return self.data_2d.isel(time=time)
+
     def print(self):
         print("3D Variables:")
         for v in self.data_3d:
@@ -136,6 +144,7 @@ class ProgShell(cmd.Cmd):
     )
 
     def __init__(self, state: State):
+        super().__init__()
         self.state = state
 
     def do_avg2d(self, arg):
@@ -169,20 +178,17 @@ class ProgShell(cmd.Cmd):
 
     def do_meridional(self, arg):
         variable = arg
-        time = self.state.get_time()
         lon = int(self.state.get("lon", "0"))
-        transect = meridional_transect(
-            self.state.data_3d.isel(time=time).merge(grid), lon
-        )
+        transect = meridional_transect(self.get_3d_snapshot())
         transect = transect.assign_coords(lon=lon)
         transect[variable].plot(yincrease=False, y="pressure")
         self.state.tape.save_plot()
 
     def do_zonal(self, arg):
         variable = arg
-        time = self.state.get_time()
         lat = float(self.state.get("lat", 0))
-        ds = self.state.data_3d.isel(time=time).merge(grid)
+
+        ds = self.state.get_3d_snapshot()
 
         transect_coords = vcm.select.zonal_ring(lat=lat)
         transect = vcm.interpolate_unstructured(ds, transect_coords)
@@ -195,8 +201,7 @@ class ProgShell(cmd.Cmd):
 
     def do_zonalavg(self, arg):
         variable = arg
-        time = self.state.get_time()
-        ds = self.state.data_3d.isel(time=time)
+        ds = self.state.get_3d_snapshot()
         transect = vcm.zonal_average_approximate(ds.lat, ds[variable])
         transect.plot(yincrease=False, y="pressure")
         self.state.tape.save_plot()
@@ -206,7 +211,7 @@ class ProgShell(cmd.Cmd):
         lon = float(self.state.get("lon", 0))
         lat = float(self.state.get("lat", 0))
 
-        ds = self.state.data_3d.merge(grid)
+        ds = self.state.get_3d_snapshot()
         transect_coords = vcm.select.latlon(lat, lon)
         transect = vcm.interpolate_unstructured(ds, transect_coords).squeeze()
         transect[variable].plot(yincrease=False, y="pressure")
@@ -220,8 +225,7 @@ class ProgShell(cmd.Cmd):
 
     def do_map2d(self, arg):
         variable = arg
-        time = self.state.get_time()
-        data = self.state.data_2d.isel(time=time)
+        data = self.state.get_2d_snapshot()
         fv3viz.plot_cube(data, variable)
         time_name = data.time.item().isoformat()
         plt.title(f"{time_name} {variable}")
