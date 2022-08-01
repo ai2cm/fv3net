@@ -18,6 +18,7 @@ hovmoller PWAT
 avg2d PWAT
 map2d PWAT
 eval 3d.script
+jupyter
 EOF
 
 cat << EOF > 3d.script
@@ -25,6 +26,7 @@ meridional specific_humidity
 zonal specific_humidity
 zonalavg specific_humidity
 column specific_humidity
+avg3d specific_humidity
 EOF
 prognostic_run_diags shell report.script
 # assert an image has been output

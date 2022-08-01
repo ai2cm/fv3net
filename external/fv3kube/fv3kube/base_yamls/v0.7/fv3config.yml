@@ -6,10 +6,6 @@ experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 initial_conditions: ''  # no default provided
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-gfs_analysis_data:
-  url: gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data
-  filename_pattern: "%Y%m%d_%HZ_T85LR.nc"
-  copy_method: copy
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -280,7 +276,7 @@ namelist:
     shal_cnv: true
     swhtr: true
     trans_trac: true
-    use_analysis_sst: true
+    use_analysis_sst: false
     use_ufo: true
   interpolator_nml:
     interp_method: conserve_great_circle
