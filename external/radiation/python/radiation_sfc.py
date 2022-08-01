@@ -1,6 +1,7 @@
 import sys
 import os
 import numpy as np
+
 sys.path.insert(0, "..")
 from phys_const import con_tice, con_ttp, con_t0c, con_pi
 from config import *
@@ -68,7 +69,8 @@ class SurfaceClass:
                     print(cline)
         else:
             raise ValueError(
-                    f"!! ERROR in Emissivity Scheme Setting, IEMS={self.iemsflg}")
+                f"!! ERROR in Emissivity Scheme Setting, IEMS={self.iemsflg}"
+            )
 
         self.cline = cline
         self.idxems = idxems

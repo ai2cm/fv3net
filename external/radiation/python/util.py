@@ -103,6 +103,7 @@ def searr_to_scalar(data_dict):
 
             data_dict[var] = data_dict[var][0]
 
+
 def compare_data(data, ref_data, explicit=True, blocking=True):
     """test whether stencil output matches fortran output
 

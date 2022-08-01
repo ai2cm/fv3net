@@ -355,7 +355,7 @@ class AerosolClass:
 
     wvn550 = 1.0e4 / 0.55
 
-    def __init__(self, NLAY, me, iaerflg, ivflip,aerosol_dict):
+    def __init__(self, NLAY, me, iaerflg, ivflip, aerosol_dict):
         self.NSWBND = nbdsw
         self.NLWBND = NBDLW
         self.NSWLWBD = nbdsw * NBDLW
@@ -637,7 +637,7 @@ class AerosolClass:
             tmp3 = 100.0 * (nw + 1)
             self.eirfwv[nw] = (tmp1 * tmp3 ** 3) / (np.exp(tmp2 * tmp3) - 1.0)
 
-    def clim_aerinit(self,aerosol_dict):
+    def clim_aerinit(self, aerosol_dict):
         #  ==================================================================  !
         #                                                                      !
         #  clim_aerinit is the opac-climatology aerosol initialization program !
@@ -693,7 +693,7 @@ class AerosolClass:
         # \section det_set_aercoef General Algorithm
         # @{
 
-    def set_aercoef(self,aerosol_dict):
+    def set_aercoef(self, aerosol_dict):
         #  ==================================================================  !
         #                                                                      !
         #  subprogram : set_aercoef                                            !
@@ -777,18 +777,18 @@ class AerosolClass:
         self.extstra = np.zeros((self.NSWLWBD))
 
         #  --- ...  aloocate and input aerosol optical data
-        iendwv = aerosol_dict["iendwv"] 
-        haer = aerosol_dict["haer"] 
-        prsref = aerosol_dict["prsref"] 
-        rhidext0 = aerosol_dict["rhidext0"] 
-        rhidsca0 = aerosol_dict["rhidsca0"] 
+        iendwv = aerosol_dict["iendwv"]
+        haer = aerosol_dict["haer"]
+        prsref = aerosol_dict["prsref"]
+        rhidext0 = aerosol_dict["rhidext0"]
+        rhidsca0 = aerosol_dict["rhidsca0"]
         rhidssa0 = aerosol_dict["rhidssa0"]
-        rhidasy0 = aerosol_dict["rhidasy0"] 
-        rhdpext0 = aerosol_dict["rhdpext0"] 
-        rhdpsca0 = aerosol_dict["rhdpsca0"] 
-        rhdpssa0 = aerosol_dict["rhdpssa0"] 
-        rhdpasy0 = aerosol_dict["rhdpasy0"] 
-        straext0 = aerosol_dict["straext0"] 
+        rhidasy0 = aerosol_dict["rhidasy0"]
+        rhdpext0 = aerosol_dict["rhdpext0"]
+        rhdpsca0 = aerosol_dict["rhdpsca0"]
+        rhdpssa0 = aerosol_dict["rhdpssa0"]
+        rhdpasy0 = aerosol_dict["rhdpasy0"]
+        straext0 = aerosol_dict["straext0"]
 
         # -# Convert pressure reference level (in mb) to sigma reference level
         #    assume an 1000mb reference surface pressure.
@@ -1392,14 +1392,14 @@ class AerosolClass:
                 ## Commented this lines because it might be needed at somepoint
                 file_exist = os.path.isfile(volcano_file)
                 if file_exist:
-                    #ds = xr.open_dataset(volcano_file)
-                    #cline = ds["cline"]
+                    # ds = xr.open_dataset(volcano_file)
+                    # cline = ds["cline"]
                     #  ---  check print
                     if self.me == 0:
                         print(f"Opened volcanic data file: {volcano_file}")
                     #    print(cline)
 
-                    #self.ivolae = ds["ivolae"]
+                    # self.ivolae = ds["ivolae"]
                 else:
                     raise FileNotFoundError(
                         f'Requested volcanic data file "{volcano_file}" not found!',

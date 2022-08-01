@@ -205,11 +205,11 @@ class GasClass:
         #  --- ...  for data earlier than MINYEAR (1957), the data are in
         #           the form of semi-yearly global mean values.  otherwise,
         #           data are monthly mean in horizontal 2-d map.
-        #  --- ...  read in co2 2-d data for the requested month    
-        iyr   = data_gases["iyr"]
+        #  --- ...  read in co2 2-d data for the requested month
+        iyr = data_gases["iyr"]
         cline = data_gases["cline"]
-        co2g1 = data_gases["co2g1"] 
-        co2g2 = data_gases["co2g2"] 
+        co2g1 = data_gases["co2g1"]
+        co2g2 = data_gases["co2g2"]
 
         if me == 0:
             print(f"{iyr}, {cline} {co2g1},  GROWTH RATE = {co2g2}")
@@ -232,17 +232,17 @@ class GasClass:
 
                 if me == 0:
                     print(
-                            "CHECK: Sample of selected months of CO2 ",
-                            f"data used for year: {iyear}",
-                        )
+                        "CHECK: Sample of selected months of CO2 ",
+                        f"data used for year: {iyear}",
+                    )
                     for imo in range(0, 12, 3):
                         print(f"Month = {imo+1}")
                         print(co2vmr_sav[0, :, imo])
 
-            ## replace values as: 
-            # gco2cyc = data_gases["gco2cyc"] 
+            ## replace values as:
+            # gco2cyc = data_gases["gco2cyc"]
             # if there is a seasonal climatology data of co2
-            gco2cyc = np.zeros(12) 
+            gco2cyc = np.zeros(12)
 
         self.co2vmr_sav = co2vmr_sav
         self.gco2cyc = gco2cyc
