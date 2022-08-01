@@ -1,8 +1,5 @@
 import numpy as np
-import sys
-
-sys.path.insert(0, "/Users/AndrewP/Documents/work/physics_standalone/radiation/python")
-from phys_const import *
+from phys_const import con_g, con_cp
 
 # num of total spectral bands
 nbands = 16

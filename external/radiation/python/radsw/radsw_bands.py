@@ -1,8 +1,5 @@
 import numpy as np
-import sys
 from numba import jit
-
-sys.path.insert(0, "..")
 from radsw.radsw_param import (
     nspa,
     nspb,

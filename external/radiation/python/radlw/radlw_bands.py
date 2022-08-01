@@ -1,22 +1,7 @@
 import numpy as np
-import xarray as xr
-import sys
-import os
-import time
-import warnings
 
 from radlw.radlw_param import (
-    ntbl,
-    nbands,
-    nrates,
-    delwave,
     ngptlw,
-    ngb,
-    absrain,
-    abssnow0,
-    ipat,
-    maxgas,
-    maxxsec,
     ng01,
     ng02,
     ng03,
@@ -33,7 +18,6 @@ from radlw.radlw_param import (
     ng14,
     ng15,
     ng16,
-    ns01,
     ns02,
     ns03,
     ns04,
@@ -49,11 +33,6 @@ from radlw.radlw_param import (
     ns14,
     ns15,
     ns16,
-    a0,
-    a1,
-    a2,
-    nspa,
-    nspb,
 )
 
 np.set_printoptions(precision=15)
@@ -1019,8 +998,8 @@ def taugb04(
             fracrefb[ig, jplp] - fracrefb[ig, jpl]
         )
 
-        #  --- ...  empirical modification to code to improve stratospheric cooling rates
-        #           for co2. revised to apply weighting for g-point reduction in this band.
+        # empirical modification to code to improve stratospheric cooling rates
+        # for co2. revised to apply weighting for g-point reduction in this band.
 
     taug[ns04 + 7, laytrop:nlay] = taug[ns04 + 7, laytrop:nlay] * 0.92
     taug[ns04 + 8, laytrop:nlay] = taug[ns04 + 8, laytrop:nlay] * 0.88

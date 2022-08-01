@@ -1,8 +1,8 @@
 import numpy as np
 import warnings
 
-from config import *
-from radphysparam import *
+from config import DTYPE_INT
+from radphysparam import ictmflg, isolar, ivflip
 from phys_const import con_eps, con_epsm1, con_rocp, con_fvirt, con_rog, con_epsq
 from funcphys import fpvs
 
@@ -345,13 +345,13 @@ class RadiationDriver:
         LM = Model["levr"]
         LEVS = Model["levs"]
         IM = Grid["xlon"].shape[0]
-        NFXR = Model["nfxr"]
+        # NFXR = Model["nfxr"] # never used according to lint
         NTRAC = Model[
             "ntrac"
         ]  # tracers in grrad strip off sphum - start tracer1(2:NTRAC)
         ntcw = Model["ntcw"]
         ntiw = Model["ntiw"]
-        ncld = Model["ncld"]
+        # ncld = Model["ncld"] # never used according to lint
         ntrw = Model["ntrw"]
         ntsw = Model["ntsw"]
         ntgl = Model["ntgl"]
@@ -479,7 +479,7 @@ class RadiationDriver:
             0.0, np.minimum(1.0, np.maximum(self.QMIN, Statein["qgrs"][:, k2, 0]) / qs)
         )
         qstl[:, k1] = qs
-        # --- recast remaining all tracers (except sphum) forcing them all to be positive
+        # recast remaining all tracers (except sphum) forcing them all to be positive
         for j in range(1, NTRAC):
             for k in range(LM):
                 k1 = k + kd
@@ -712,7 +712,8 @@ class RadiationDriver:
         if Model["imp_physics"] == 11:
             if not Model["lgfdlmprad"]:
 
-                # rsun the  summation methods and order make the difference in calculation
+                # rsun the  summation methods and
+                # order make the difference in calculation
                 ccnd[:, :, 0] = tracer1[:, :LMK, ntcw - 1]
                 ccnd[:, :, 0] = ccnd[:, :, 0] + tracer1[:, :LMK, ntrw - 1]
                 ccnd[:, :, 0] = ccnd[:, :, 0] + tracer1[:, :LMK, ntiw - 1]
@@ -1223,8 +1224,10 @@ class RadiationDriver:
                         + Model["fhlwr"] * Radtend["sfcflw"]["upfx0"][i]
                     )  # clear sky sfc lw up
 
-            #  ---  save sw toa and sfc fluxes with proper diurnal sw wgt. coszen=mean cosz over daylight
-            #       part of sw calling interval, while coszdg= mean cosz over entire interval
+            # save sw toa and sfc fluxes with proper diurnal sw wgt.
+            # coszen=mean cosz over daylight
+            # part of sw calling interval, while coszdg= mean
+            # cosz over entire interval
             if Model["lsswr"]:
                 for i in range(IM):
                     if Radtend["coszen"][i] > 0.0:

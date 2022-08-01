@@ -1,14 +1,7 @@
-import sys
-import os
-
-sys.path.insert(0, "..")
-
 import numpy as np
-
 from rad_initialize import rad_initialize
 from radlw_param import ntbl
 from config import *
-
 import serialbox as ser
 
 serializer = ser.Serializer(

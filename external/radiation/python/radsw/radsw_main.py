@@ -1,10 +1,7 @@
 import numpy as np
-import sys
 import warnings
 from numba import jit
 import radsw.radsw_bands as bands
-
-sys.path.insert(0, "..")
 from radsw.radsw_param import (
     ntbmx,
     nbdsw,

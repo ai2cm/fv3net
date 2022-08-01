@@ -137,7 +137,7 @@ class GasClass:
         #  ===================================================================  !
         #
         co2dat = np.zeros((self.IMXCO2, self.JMXCO2))
-        # co2ann = np.zeros((self.IMXCO2, self.JMXCO2))
+        co2ann = np.zeros((self.IMXCO2, self.JMXCO2))
         co2vmr_sav = np.zeros((self.IMXCO2, self.JMXCO2, 12))
 
         midmon = 15
@@ -172,7 +172,7 @@ class GasClass:
             else:
                 id = iday
 
-            # facoz = float(id - midm) / float(midp - midm)
+            facoz = float(id - midm) / float(midp - midm)
 
         # - co2 data section
 

@@ -15,6 +15,7 @@ def getscalars(indict):
         if not type(indict[var]) == dict:
             if indict[var].size == 1:
                 indict[var] = indict[var][0]
+
     return indict
 
 

@@ -1,6 +1,3 @@
-import sys
-
-sys.path.insert(0, "..")
 import warnings
 import numpy as np
 import os
