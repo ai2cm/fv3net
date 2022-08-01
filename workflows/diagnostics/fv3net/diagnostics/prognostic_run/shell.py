@@ -75,8 +75,9 @@ class State:
         self.data_3d = self.prognostic.data_3d.merge(grid)
         self.data_2d = grid.merge(self.prognostic.data_2d, compat="override")
 
-    def get_time(self) -> int:
-        return int(self.state.get("time", "0"))
+    def get_time(self):
+        i = int(self.state.get("time", "0"))
+        return self.data_2d.time[i]
 
     def set(self, key, val):
         self.state[key] = val
@@ -86,11 +87,11 @@ class State:
 
     def get_3d_snapshot(self):
         time = self.get_time()
-        return self.data_3d.isel(time=time).merge(grid)
+        return self.data_3d.sel(time=time, method="nearest").merge(grid)
 
     def get_2d_snapshot(self):
         time = self.get_time()
-        return self.data_2d.isel(time=time)
+        return self.data_2d.sel(time=time)
 
     def print(self):
         print("3D Variables:")
