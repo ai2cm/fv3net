@@ -1,11 +1,11 @@
-import numpy as np
-import os
 import sys
-import warnings
 
 sys.path.insert(0, "..")
+import warnings
+import numpy as np
+import os
 from phys_const import con_pi, con_solr, con_solr_old
-from config import *
+from config import FORCING_DIR
 
 
 class AstronomyClass:
@@ -225,7 +225,7 @@ class AstronomyClass:
                     if me == 0:
                         print("Updating solar constant with cycle approx")
                         print(f"Opened solar constant data file: {self.solar_fname}")
-                    #  --- ...  check if there is a upper year limit put on the data table
+                    # check if there is a upper year limit put on the data table
                     if iyr < iyr1:
                         icy = (
                             icy1 - iyr1 + 1
@@ -423,7 +423,7 @@ class AstronomyClass:
 
         print(f"  RADIUS VECTOR {r1}")
         print(
-            f"  RIGHT ASCENSION OF SUN {halp} HRS, OR {ihalp} HRS {iyy} MINS {asec} SECS"
+            f"RIGHT ASCENSION OF SUN {halp} HRS, OR {ihalp} HRS {iyy} MINS {asec} SECS"
         )
 
         print(

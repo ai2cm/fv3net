@@ -1,8 +1,4 @@
 import numpy as np
-import xarray as xr
-from config import *
-from copy import deepcopy
-
 import serialbox as ser
 
 
@@ -111,7 +107,8 @@ def compare_data(data, ref_data, explicit=True, blocking=True):
         data (dict): dictionary of variable names and stencil output
         ref_data (dict): dictionary of variable names and fortran output
         explicit (bool, optional): Flag to print result. Defaults to True.
-        blocking (bool, optional): Flag to make failure block progress. Defaults to True.
+        blocking (bool, optional): Flag to make failure block progress. 
+        Defaults to True.
     """
 
     wrong = []

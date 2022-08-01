@@ -1,5 +1,6 @@
 import numpy as np
-from phys_const import *
+from phys_const import con_ttp, con_cvap, con_cliq, con_hvap, con_cvap
+from phys_const import con_hfus, con_rv, con_psat, con_csol
 
 
 def fpvs(t):

@@ -401,9 +401,9 @@ class AerosolClass:
         if self.iaerflg == 0:
             return  # return without any aerosol calculations
 
-            #  --- ...  in sw, aerosols optical properties are computed for each radiation
-            #           spectral band; while in lw, optical properties can be calculated
-            #           for either only one broad band or for each of the lw radiation bands
+            # in sw, aerosols optical properties are computed for each radiation
+            # spectral band; while in lw, optical properties can be calculated
+            # for either only one broad band or for each of the lw radiation bands
 
         if self.laswflg:
             self.NSWBND = nbdsw
@@ -597,14 +597,14 @@ class AerosolClass:
         #  ====================  defination of variables  ===================  !
         #                                                                      !
         # > -  inputs:  (module constants)
-        #!  -   NWVTOT:  total num of wave numbers used in sw spectrum
-        #!  -   NWVTIR:  total num of wave numbers used in the ir region
-        #!
+        #  -   NWVTOT:  total num of wave numbers used in sw spectrum
+        #  -   NWVTIR:  total num of wave numbers used in the ir region
+        #
         # > -  outputs: (in-scope variables)
-        #!  -   solfwv(NWVTOT):   solar flux for each individual wavenumber
-        #!                        (\f$W/m^2\f$)
-        #!  -   eirfwv(NWVTIR):   ir flux(273k) for each individual wavenumber
-        #!                        (\f$W/m^2\f$)
+        #  -   solfwv(NWVTOT):   solar flux for each individual wavenumber
+        #                        (\f$W/m^2\f$)
+        #  -   eirfwv(NWVTIR):   ir flux(273k) for each individual wavenumber
+        #                        (\f$W/m^2\f$)
         #                                                                      !
         #  subroutines called: none                                            !
         #                                                                      !
@@ -822,7 +822,6 @@ class AerosolClass:
                     wve = self.wvn_sw1[mb]
                     ibe = ib
 
-            #!$o    mp parallel do private(ib,mb,ii,iw1,iw2,iw,sumsol,fac,tmp,ibs,ibe)
             for ib in range(self.NSWBND):
                 mb = ib + NSWSTR - 1
                 ii = 0
@@ -1023,7 +1022,7 @@ class AerosolClass:
 
                 #  ---  for rh independent aerosol species
 
-                for nc in range(self.NCM1):  #  ---  for rh independent aerosol species
+                for nc in range(self.NCM1):  # for rh independent aerosol species
                     sumk = 0.0
                     sums = 0.0
                     sumok = 0.0
@@ -1065,7 +1064,7 @@ class AerosolClass:
                         / ((1.0 + refb) ** 2 - self.asyrhi[nc, nb] * (1.0 - refb) ** 2)
                     )
 
-                for nc in range(self.NCM2):  #  ---  for rh dependent aerosols species
+                for nc in range(self.NCM2):  # for rh dependent aerosols species
                     for nh in range(self.NRHLEV):
                         sumk = 0.0
                         sums = 0.0
@@ -1134,7 +1133,7 @@ class AerosolClass:
                 ib = self.NSWBND + nb
                 rirbd = 1.0 / self.eirbnd[nb]
 
-                for nc in range(self.NCM1):  #  ---  for rh independent aerosol species
+                for nc in range(self.NCM1):  # for rh independent aerosol species
                     sumk = 0.0
                     sums = 0.0
                     sumok = 0.0
@@ -1175,7 +1174,7 @@ class AerosolClass:
                         / ((1.0 + refb) ** 2 - self.asyrhi[nc, ib] * (1.0 - refb) ** 2)
                     )
 
-                for nc in range(self.NCM2):  #  ---  for rh dependent aerosols species
+                for nc in range(self.NCM2):  # for rh dependent aerosols species
                     for nh in range(self.NRHLEV):
                         sumk = 0.0
                         sums = 0.0
@@ -1389,7 +1388,7 @@ class AerosolClass:
                         " optical depth set to lowest value",
                     )
             else:
-                ## Commented this lines because it might be needed at somepoint
+                # Commented this lines because it might be needed at somepoint
                 file_exist = os.path.isfile(volcano_file)
                 if file_exist:
                     # ds = xr.open_dataset(volcano_file)
@@ -1410,7 +1409,8 @@ class AerosolClass:
         if self.me == 0:
             k = (self.kyrsav % 10) + 1
             print(
-                f"CHECK: Sample Volcanic data used for month, year: {self.imon}, {self.iyear}"
+                "CHECK: Sample Volcanic data used for month, year: ",
+                f"{self.imon}, {self.iyear}",
             )
             print(self.ivolae[self.kmonsav, :, k])
 
@@ -1893,7 +1893,7 @@ class AerosolClass:
         #             - logical flag for sw/lw aerosol calculations            !
         #     IMAX    - horizontal dimension of arrays                  1      !
         #     NLAY,NLP1-vertical dimensions of arrays                   1      !
-        #!    NSPC    - num of species for optional aod output fields   1      !
+        #    NSPC    - num of species for optional aod output fields   1       !
         #                                                                      !
         #  outputs:                                                            !
         #     aerosw - aeros opt properties for sw      IMAX*NLAY*NBDSW*NF_AESW!
@@ -1904,7 +1904,7 @@ class AerosolClass:
         #               (:,:,:,1): optical depth                               !
         #               (:,:,:,2): single scattering albedo                    !
         #               (:,:,:,3): asymmetry parameter                         !
-        #!    aerodp - vertically integrated aer-opt-depth         IMAX*NSPC+1 !
+        #    aerodp - vertically integrated aer-opt-depth         IMAX*NSPC+1  !
         #                                                                      !
         #  module parameters and constants:                                    !
         #     NSWBND  - total number of actual sw spectral bands computed      !
@@ -1995,10 +1995,13 @@ class AerosolClass:
                     if i3 < 1:
                         raise ValueError(
                             f"ERROR! In setclimaer alon< 0. ipt = {i}",
-                            f"dltg, alon, tlon, dlon = {dltg}, {alon[i]}, {tmp1},{dtmp}",
+                            f"dltg = {dltg}",
+                            f"alat = {alon[i]}",
+                            f"tlat = {tmp1}",
+                            f"dlat = {dtmp}",
                         )
 
-            #  ---  map grid in latitude direction, lat from 90n to 90s in 5 deg resolution
+            # map grid in latitude direction, lat from 90n to 90s in 5 deg resolution
             j3 = j1
             while j3 <= self.JMXAE:
                 tmp2 = 90.0 - dltg * (j3 - 1)
@@ -2009,7 +2012,10 @@ class AerosolClass:
                     if j3 >= self.JMXAE:
                         raise ValueError(
                             f"ERROR! In setclimaer alat<-90. ipt = {i}",
-                            f"dltg, alat, tlat, dlat = {dltg}, {alat[i]}, {tmp2}, {dtmp}",
+                            f"dltg = {dltg}",
+                            f"alat = {alat[i]}",
+                            f"tlat = {tmp2}",
+                            f"dlat = {dtmp}",
                         )
                 elif dtmp >= 0.0:
                     j1 = j3
@@ -2026,7 +2032,7 @@ class AerosolClass:
                     if j3 < 1:
                         raise ValueError(
                             f"ERROR! In setclimaer alat>90. ipt ={i}",
-                            f"dltg, alat, tlat, dlat = {dltg}, {alat[i]}, {tmp2}, {dtmp}",
+                            f"dltg,alat,tlat,dlat = {dltg}, {alat[i]}, {tmp2}, {dtmp}",
                         )
 
             # -# Determin the type of aerosol profile (kp) and scale hight for
@@ -2242,7 +2248,7 @@ class AerosolClass:
         #     tauae  - optical depth                         -     NLAY*NSWLWBD!
         #     ssaae  - single scattering albedo              -     NLAY*NSWLWBD!
         #     asyae  - asymmetry parameter                   -     NLAY*NSWLWBD!
-        #!    aerodp - vertically integrated aer-opt-depth   -     IMAX*NSPC+1 !
+        #    aerodp - vertically integrated aer-opt-depth   -     IMAX*NSPC+1  !
         #                                                                      !
         #  ==================================================================  !
         #
@@ -2350,7 +2356,7 @@ class AerosolClass:
                     self.ssaae[kk, ib] = min(1.0, ssa1 / ext1)
                     self.asyae[kk, ib] = min(1.0, asy1 / sca1)
 
-                    # --- compute aod from individual species' contribution (optional)
+                    # compute aod from individual species' contribution (optional)
                     if ib == self.nv_aod - 1:
                         self.spcodp[0] = (
                             self.spcodp[0] + 0.17e-3 * ex01 * 730.0 * self.delz[kk]
@@ -2416,7 +2422,7 @@ class AerosolClass:
                                 ssa1 = ssa1 + cm * ss00 * ex00
                                 asy1 = asy1 + cm * as00 * sc00
 
-                            # --- compute aod from individual species' contribution (optional)
+                            # compute aod from individual species'contribution(optional)
                             if ib == self.nv_aod - 1:
                                 self.spcodp[idx] = (
                                     self.spcodp[idx]

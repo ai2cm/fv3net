@@ -1,6 +1,4 @@
-import numpy as np
-
-## Defining variables
+# Defining variables
 
 invars = ["idat", "jdat", "fhswr", "dtf", "lsswr"]
 
