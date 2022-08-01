@@ -1,10 +1,7 @@
 import pytest
 import numpy as np
 import tensorflow as tf
-from fv3fit.emulation.losses import (
-    CustomLoss,
-    NormalizedMSE,
-)
+from fv3fit.emulation.losses import CustomLoss, NormalizedMSE, bias
 from fv3fit.emulation.layers.normalization2 import (
     NormFactory,
     StdDevMethod,
@@ -58,3 +55,23 @@ def test_custom_loss_logits():
     loss = config.build({})
     assert "a" in loss.loss_funcs
     assert "a" in loss.loss_variables
+
+
+def test_bias():
+    x = tf.ones([2, 2])
+    y = tf.zeros([2, 2])
+    result = bias(x, y)
+    assert tuple(result.shape) == ()
+    assert result.numpy() == pytest.approx(-1.0)
+
+
+def test_custom_loss_bias():
+    config = CustomLoss(bias_metric_variables=["a"])
+    loss = config.build({})
+    assert "a" in loss.bias_variables
+
+    true = {"a": tf.ones([2, 2])}
+    pred = {"a": tf.ones([2, 2])}
+    loss_values, metric_values = loss(true, pred)
+    assert not loss_values
+    assert "a_bias" in metric_values
