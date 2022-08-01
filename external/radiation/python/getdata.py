@@ -212,3 +212,29 @@ def sfc(FORCING_DIR):
     semis_file =  os.path.join(FORCING_DIR,"semisdata.nc") 
     data = xr.open_dataset(semis_file)
     return semis_file , data
+
+def gases(FORCING_DIR, ictmflg):
+    
+    if ictmflg == 1:
+        cfile1 = os.path.join(FORCING_DIR,'co2historicaldata_2016.nc') 
+        var_names = ['iyr','cline','co2g1','co2g2','co2dat']
+        if not os.path.isfile(cfile1):
+            raise FileNotFoundError("   Can not find co2 data source file",
+            "*** Stopped in subroutine gas_update !!",)
+        
+    #Opened CO2 climatology seasonal cycle data
+    elif ictmflg == 2:
+        cfile1 = os.path.join(FORCING_DIR,'') 
+        var_names = ['cline','co2g1','co2g2','co2dat','gco2cyc']
+        if not os.path.isfile(cfile1):
+            raise FileNotFoundError("   Can not find co2 data source file",
+            "*** Stopped in subroutine gas_update !!",)
+    #  --- ...  read in co2 2-d data  
+    ds = xr.open_dataset(cfile1)
+    data_dict ={}
+    for var in var_names:
+        data_dict[var] = ds[var].values
+
+    return data_dict
+
+

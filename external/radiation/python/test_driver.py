@@ -56,7 +56,7 @@ me = 0
 aer_dict = getdata.aerosol(FORCING_DIR)
 solar_filename ,solar_data = getdata.astronomy(FORCING_DIR, isolar, me)
 sfc_file, sfc_data = getdata.sfc(FORCING_DIR)
-
+gas_data = getdata.gases(FORCING_DIR,ictmflg)
 
 driver.radinit(
     si,
@@ -104,6 +104,7 @@ slag, sdec, cdec, solcon = driver.radupdate(
     aer_dict['denng'], 
     aer_dict['cline'],
     solar_data,
+    gas_data,
     )
 
 columns_validated = 0

@@ -173,7 +173,7 @@ class RadiationDriver:
 
             return aer_dict, sol_dict, gas_dict, sfc_dict, cld_dict, rlw_dict, rsw_dict
 
-    def radupdate(self, idate, jdate, deltsw, deltim, lsswr, kprfg, idxcg, cmixg, denng, cline, solar_data ,do_test=False):
+    def radupdate(self, idate, jdate, deltsw, deltim, lsswr, kprfg, idxcg, cmixg, denng, cline, solar_data,gas_data,do_test=False):
         # =================   subprogram documentation block   ================ !
         #                                                                       !
         # subprogram:   radupdate   calls many update subroutines to check and  !
@@ -290,7 +290,7 @@ class RadiationDriver:
         else:
             lco2_chg = False
 
-        self.gas.gas_update(kyear, kmon, kday, khour, self.loz1st, lco2_chg, 0)
+        self.gas.gas_update(kyear, kmon, kday, khour, self.loz1st, lco2_chg, 0,gas_data)
 
         if self.loz1st:
             self.loz1st = False
