@@ -7,6 +7,7 @@ import xarray as xr
 import fv3viz
 import pathlib
 import matplotlib.pyplot as plt
+import cartopy.crs
 import sys
 import io
 import warnings
@@ -160,9 +161,16 @@ class ProgShell(cmd.Cmd):
     def __init__(self, state: State):
         super().__init__()
         self.state = state
+        self.crs = None
 
     def do_avg2d(self, arg):
         avg2d(self.state, arg)
+
+    def do_crs(self, arg):
+        if arg == "antarctic":
+            self.crs = cartopy.crs.Orthographic(central_latitude=-90)
+        else:
+            raise NotImplementedError(arg)
 
     def do_avg3d(self, arg):
         avg3d(self.state, arg)
@@ -240,7 +248,7 @@ class ProgShell(cmd.Cmd):
     def do_map2d(self, arg):
         variable, kwargs = parse_pcolor_arg(arg)
         data = self.state.get_2d_snapshot()
-        fv3viz.plot_cube(data, variable, **kwargs)
+        fv3viz.plot_cube(data, variable, projection=self.crs, **kwargs)
         time_name = data.time.item().isoformat()
         plt.title(f"{time_name} {variable}")
         plt.tight_layout()
