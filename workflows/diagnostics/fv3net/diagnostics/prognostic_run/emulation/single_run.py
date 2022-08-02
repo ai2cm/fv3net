@@ -24,6 +24,7 @@ import wandb
 from fv3net.diagnostics.prognostic_run.load_run_data import (
     open_segmented_logs_as_strings,
 )
+from fv3net.diagnostics._shared.zarr import open_zarr
 from fv3net.diagnostics.prognostic_run.logs import parse_duration
 from fv3net.diagnostics.prognostic_run.emulation import query
 
@@ -303,14 +304,6 @@ def register_parser(subparsers) -> None:
         "--summary-filter", help="Regex to select summaries", type=str, default=".*"
     )
     parser.set_defaults(func=main)
-
-
-def open_zarr(url: str):
-    cachedir = "/tmp/files"
-    logger.info(f"Opening {url} with caching at {cachedir}.")
-    return xr.open_zarr(
-        "filecache::" + url, storage_options={"filecache": {"cache_storage": cachedir}}
-    )
 
 
 def open_rundir(url):

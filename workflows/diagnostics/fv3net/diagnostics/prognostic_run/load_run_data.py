@@ -6,7 +6,6 @@ from typing_extensions import Protocol
 from typing import List, Mapping
 import warnings
 
-import fsspec
 import intake
 import pandas as pd
 import vcm
@@ -17,6 +16,7 @@ from vcm.fv3 import standardize_fv3_diagnostics
 from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
 from fv3net.diagnostics.prognostic_run import constants
+from fv3net.diagnostics._shared.zarr import open_zarr
 
 
 logger = logging.getLogger(__name__)
@@ -48,8 +48,7 @@ def load_verification(
 
 def _load_standardized(path):
     logger.info(f"Loading and standardizing {path}")
-    m = fsspec.get_mapper(path)
-    ds = xr.open_zarr(m, consolidated=True, decode_times=False)
+    ds = open_zarr(path, consolidated=True, decode_times=False)
     return standardize_fv3_diagnostics(ds)
 
 
