@@ -1308,9 +1308,6 @@ class RadLWClass:
     amdw = con_amd / con_amw
     amdo3 = con_amd / con_amo3
 
-    nspa = nspa
-    nspb = nspb
-
     def __init__(self, me, iovrlw, isubclw):
         self.lhlwb = False
         self.lhlw0 = False
@@ -1652,9 +1649,8 @@ class RadLWClass:
         cldfrc_all = np.zeros((nlp1 + 1, npts))
         cldfmc_all = np.zeros((ngptlw, nlay, npts))
         secdiff_all = np.zeros((nbands, npts))
-        cldtau_all = np.zeros((npts, nlay))
 
-        ## ending data loading for taumol
+        # ending data loading for taumol
         ########################################
         cldfrc = np.zeros(nlp1 + 1)
 

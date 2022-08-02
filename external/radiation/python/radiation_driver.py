@@ -345,13 +345,13 @@ class RadiationDriver:
         LM = Model["levr"]
         LEVS = Model["levs"]
         IM = Grid["xlon"].shape[0]
-        NFXR = Model["nfxr"]
+        # NFXR = Model["nfxr"] # never used according to lint
         NTRAC = Model[
             "ntrac"
         ]  # tracers in grrad strip off sphum - start tracer1(2:NTRAC)
         ntcw = Model["ntcw"]
         ntiw = Model["ntiw"]
-        ncld = Model["ncld"]
+        # ncld = Model["ncld"] # never used according to lint
         ntrw = Model["ntrw"]
         ntsw = Model["ntsw"]
         ntgl = Model["ntgl"]

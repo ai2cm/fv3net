@@ -364,18 +364,19 @@ class SurfaceClass:
 
         # sfc-perts, mgehne ***
         # perturb all 4 kinds of surface albedo, sfcalb(:,1:4)
-        if pertalb[0] > 0.0:
-            for i in range(IMAX):
-                for kk in range(4):
-                    # compute beta distribution parameters for all 4 albedos
-                    m = sfcalb[i, kk]
-                    s = pertalb[0] * m * (1.0 - m)
-                    alpha = m * m * (1.0 - m) / (s * s) - m
-                    beta = alpha * (1.0 - m) / m
-                    # compute beta distribution value corresponding
-                    # to the given percentile albPpert to use as new albedo
-                    albtmp = ppfbet(albPpert[i], alpha, beta, iflag)
-                    sfcalb[i, kk] = albtmp
+        # what's below needs a subrutine called ppfbet() but that is not defined
+        # if pertalb[0] > 0.0:
+        #     for i in range(IMAX):
+        #         for kk in range(4):
+        #             # compute beta distribution parameters for all 4 albedos
+        #             m = sfcalb[i, kk]
+        #             s = pertalb[0] * m * (1.0 - m)
+        #             alpha = m * m * (1.0 - m) / (s * s) - m
+        #             beta = alpha * (1.0 - m) / m
+        #             # compute beta distribution value corresponding
+        #             # to the given percentile albPpert to use as new albedo
+        #             albtmp = ppfbet(albPpert[i], alpha, beta, iflag)
+        #             sfcalb[i, kk] = albtmp
 
         return sfcalb
 
