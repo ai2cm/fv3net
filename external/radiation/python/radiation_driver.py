@@ -1,8 +1,8 @@
 import numpy as np
 import warnings
 
-from config import *
-from radphysparam import *
+from config import DTYPE_INT
+from radphysparam import ictmflg, isolar, ivflip
 from phys_const import con_eps, con_epsm1, con_rocp, con_fvirt, con_rog, con_epsq
 from funcphys import fpvs
 
@@ -173,7 +173,22 @@ class RadiationDriver:
 
             return aer_dict, sol_dict, gas_dict, sfc_dict, cld_dict, rlw_dict, rsw_dict
 
-    def radupdate(self, idate, jdate, deltsw, deltim, lsswr, kprfg, idxcg, cmixg, denng, cline, solar_data,gas_data,do_test=False):
+    def radupdate(
+        self,
+        idate,
+        jdate,
+        deltsw,
+        deltim,
+        lsswr,
+        kprfg,
+        idxcg,
+        cmixg,
+        denng,
+        cline,
+        solar_data,
+        gas_data,
+        do_test=False,
+    ):
         # =================   subprogram documentation block   ================ !
         #                                                                       !
         # subprogram:   radupdate   calls many update subroutines to check and  !
@@ -274,7 +289,7 @@ class RadiationDriver:
             self.iyear0 = iyear
 
             slag, sdec, cdec, solcon = self.sol.sol_update(
-                jdate, kyear, deltsw, deltim, lsol_chg, 0, solar_data 
+                jdate, kyear, deltsw, deltim, lsol_chg, 0, solar_data
             )
 
         # Call module_radiation_aerosols::aer_update(), monthly update, no
@@ -290,7 +305,9 @@ class RadiationDriver:
         else:
             lco2_chg = False
 
-        self.gas.gas_update(kyear, kmon, kday, khour, self.loz1st, lco2_chg, 0,gas_data)
+        self.gas.gas_update(
+            kyear, kmon, kday, khour, self.loz1st, lco2_chg, 0, gas_data
+        )
 
         if self.loz1st:
             self.loz1st = False
@@ -328,13 +345,13 @@ class RadiationDriver:
         LM = Model["levr"]
         LEVS = Model["levs"]
         IM = Grid["xlon"].shape[0]
-        NFXR = Model["nfxr"]
+        # NFXR = Model["nfxr"] # never used according to lint
         NTRAC = Model[
             "ntrac"
         ]  # tracers in grrad strip off sphum - start tracer1(2:NTRAC)
         ntcw = Model["ntcw"]
         ntiw = Model["ntiw"]
-        ncld = Model["ncld"]
+        # ncld = Model["ncld"] # never used according to lint
         ntrw = Model["ntrw"]
         ntsw = Model["ntsw"]
         ntgl = Model["ntgl"]
@@ -445,18 +462,24 @@ class RadiationDriver:
         #           convert pressure unit from pa to mb
         k1 = np.arange(LM) + kd
         k2 = np.arange(LM) + lsk
-        #for i in range(IM):
+        # for i in range(IM):
         plvl[:, k1 + kb] = Statein["prsi"][:, k2 + kb] * 0.01  # pa to mb (hpa)
         plyr[:, k1] = Statein["prsl"][:, k2] * 0.01  # pa to mb (hpa)
         tlyr[:, k1] = Statein["tgrs"][:, k2]
         prslk1[:, k1] = Statein["prslk"][:, k2]
 
         #  - Compute relative humidity.
-        es = np.minimum(Statein["prsl"][:, k2], fpvs(Statein["tgrs"][:, k2]))  # fpvs and prsl in pa
-        qs = np.maximum(self.QMIN, con_eps * es / (Statein["prsl"][:, k2] + con_epsm1 * es))
-        rhly[:, k1] = np.maximum(0.0, np.minimum(1.0, np.maximum(self.QMIN, Statein["qgrs"][:, k2, 0]) / qs))
+        es = np.minimum(
+            Statein["prsl"][:, k2], fpvs(Statein["tgrs"][:, k2])
+        )  # fpvs and prsl in pa
+        qs = np.maximum(
+            self.QMIN, con_eps * es / (Statein["prsl"][:, k2] + con_epsm1 * es)
+        )
+        rhly[:, k1] = np.maximum(
+            0.0, np.minimum(1.0, np.maximum(self.QMIN, Statein["qgrs"][:, k2, 0]) / qs)
+        )
         qstl[:, k1] = qs
-        # --- recast remaining all tracers (except sphum) forcing them all to be positive
+        # recast remaining all tracers (except sphum) forcing them all to be positive
         for j in range(1, NTRAC):
             for k in range(LM):
                 k1 = k + kd
@@ -530,13 +553,7 @@ class RadiationDriver:
 
         #  --- ...  set up non-prognostic gas volume mixing ratioes
 
-        gasvmr = self.gas.getgases(
-            plvl,
-            Grid["xlon"],
-            Grid["xlat"],
-            IM,
-            LMK,
-        )
+        gasvmr = self.gas.getgases(plvl, Grid["xlon"], Grid["xlat"], IM, LMK,)
 
         #  - Get temperature at layer interface, and layer moisture.
         for k in range(1, LMK):
@@ -695,7 +712,8 @@ class RadiationDriver:
         if Model["imp_physics"] == 11:
             if not Model["lgfdlmprad"]:
 
-                # rsun the  summation methods and order make the difference in calculation
+                # rsun the  summation methods and
+                # order make the difference in calculation
                 ccnd[:, :, 0] = tracer1[:, :LMK, ntcw - 1]
                 ccnd[:, :, 0] = ccnd[:, :, 0] + tracer1[:, :LMK, ntrw - 1]
                 ccnd[:, :, 0] = ccnd[:, :, 0] + tracer1[:, :LMK, ntiw - 1]
@@ -913,7 +931,7 @@ class RadiationDriver:
                         lhsw0,
                         lflxprf,
                         lfdncmp,
-                        randomdict['sw_rand'],
+                        randomdict["sw_rand"],
                         swdict,
                     )
                 else:
@@ -960,7 +978,7 @@ class RadiationDriver:
                         lhsw0,
                         lflxprf,
                         lfdncmp,
-                        randomdict['sw_rand'],
+                        randomdict["sw_rand"],
                         swdict,
                     )
 
@@ -1080,7 +1098,7 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    randomdict['lw_rand'],
+                    randomdict["lw_rand"],
                     lwdict,
                 )
             else:
@@ -1116,7 +1134,7 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    randomdict['lw_rand'],
+                    randomdict["lw_rand"],
                     lwdict,
                 )
 
@@ -1206,8 +1224,10 @@ class RadiationDriver:
                         + Model["fhlwr"] * Radtend["sfcflw"]["upfx0"][i]
                     )  # clear sky sfc lw up
 
-            #  ---  save sw toa and sfc fluxes with proper diurnal sw wgt. coszen=mean cosz over daylight
-            #       part of sw calling interval, while coszdg= mean cosz over entire interval
+            # save sw toa and sfc fluxes with proper diurnal sw wgt.
+            # coszen=mean cosz over daylight
+            # part of sw calling interval, while coszdg= mean
+            # cosz over entire interval
             if Model["lsswr"]:
                 for i in range(IM):
                     if Radtend["coszen"][i] > 0.0:

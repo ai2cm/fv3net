@@ -1,5 +1,7 @@
 import numpy as np
-from phys_const import *
+from phys_const import con_ttp, con_cvap, con_cliq, con_hvap
+from phys_const import con_hfus, con_rv, con_psat, con_csol
+
 
 def fpvs(t):
     # $$$     Subprogram Documentation Block
@@ -45,15 +47,16 @@ def fpvs(t):
     c2xpvs = 1.0 / xinc
     c1xpvs = 1.0 - xmin * c2xpvs
 
-    ## this line can be call only one time when initialized 
-    tbpvs = np.array([ fpvsx(xmin + jx * xinc) for jx in range(nxpvs)])
-    
+    # this line can be call only one time when initialized
+    tbpvs = np.array([fpvsx(xmin + jx * xinc) for jx in range(nxpvs)])
+
     xj = np.minimum(np.maximum(c1xpvs + c2xpvs * t, 1.0), nxpvs)
-    jx = np.minimum(xj, nxpvs - 1).astype('int')
+    jx = np.minimum(xj, nxpvs - 1).astype("int")
 
     fpvs = tbpvs[jx - 1] + (xj - jx) * (tbpvs[jx] - tbpvs[jx - 1])
 
     return fpvs
+
 
 def fpvsx(t):
     # $$$     Subprogram Documentation Block
