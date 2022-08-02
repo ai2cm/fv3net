@@ -5,7 +5,7 @@ import dataclasses
 from Building_Graph import BuildingGraph
 from Graphloss import LossConfig
 from GraphOptim import OptimizerConfig
-from graph_config import GraphNetworkConfig
+from graph_configUnet import GraphNetworkConfig
 from hyperparameters import Hyperparameters
 from toolz.functoolz import curry
 from graphPredict import PytorchModel
@@ -187,29 +187,15 @@ def fit_loop(train_model, Nbatch, n_epoch, n_loop, inputs, labels, optimizer, ge
             optimizer.step()
 
 
-def build_model(config: GraphHyperparameters,):
+def build_model(config: GraphHyperparameters):
     """
     Args:
-        config: configuration of convolutional training
+        config: configuration of graph training
         X: example input for keras fitting, used to determine shape and normalization
         y: example output for keras fitting, used to determine shape and normalization
         neighbor: number of nearest neighbor points around a given point
         selfpoint: True if self connected graph is needed.
     """
-
-    # X=np.squeeze(X,0)
-    # y=np.squeeze(y,0)
-    # for item in list(X) + list(y):
-    #     if len(item.shape) != 2:
-    #         raise ValueError(
-    #             "convolutional building requires 2d arrays [grids,features], "
-    #             f"got shape {item.shape}"
-    #         )
-    #     if item.shape[1] != item.shape[2]:
-    #         raise ValueError(
-    #             "x and y dimensions should be the same length, "
-    #             f"got shape {item.shape}"
-    #         )
     g = graphStruc(config.build_graph)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     train_model = graphnetwork(config.graph_network, g).to(device)
@@ -237,84 +223,22 @@ def get_Xy_dataset(
 
     return data.map(map_fn)
 
-
-# def iterable_to_tfdataset(
-#     source: Iterable,
-#     transform: Optional[Callable] = None,
-#     varying_first_dim: bool = False,
-# ) -> tf.data.Dataset:
-#     """
-#     A general function to convert from an iterable into a tensorflow dataset.
-
-#     Args:
-#         source: data items to be included in the dataset
-#         transform: function to process data items into a Mapping[str, tf.Tensor],
-#             if needed.
-#         varying_first_dim: if True, the first dimension of the produced tensors
-#             can be of varying length
-#     """
-#     if transform is None:
-
-#         def transform(x):
-#             return x
-
-#     def generator():
-#         for batch in source:
-#             yield transform(batch)
-
-#     try:
-#         sample = next(iter(generator()))
-#     except StopIteration:
-#         raise NotImplementedError("can only make tfdataset from non-empty batches")
-
-#     # if batches have different numbers of samples, we need to set the dimension size
-#     # to None to indicate the size can be different across generated tensors
-#     if varying_first_dim:
-
-#         def process_shape(shape):
-#             return (None,) + shape[1:]
-
-#     else:
-
-#         def process_shape(shape):
-#             return shape
-
-#     return tf.data.Dataset.from_generator(
-#         generator,
-#         output_signature={
-#             key: tf.TensorSpec(process_shape(val.shape), dtype=val.dtype)
-#             for key, val in sample.items()
-#         },
-#     )
-
     
-def get_data() -> tf.data.Dataset:
-    n_records = 10
-    n_batch, nt, grid,nz = 1, 40, 10,2
+# def get_data() -> tf.data.Dataset:
+#     n_records = 10
+#     n_batch, nt, grid,nz = 1, 40, 10,2
 
-    def records():
-        for _ in range(n_records):
-            record = {
-                "a": np.random.uniform([n_batch, nt, grid, nz]),
-                "f": np.random.uniform([n_batch, nt, grid, nz]),
-            }
-            yield record
-    
-    # tfdataset = iterable_to_tfdataset(
-    #         records(
-    #             n_windows=nt,
-    #             window_size=,
-    #             ds=ds,
-    #             variable_names=variable_names,
-    #             default_variable_config=self.default_variable_config,
-    #             variable_configs=self.variable_configs,
-    #             unstacked_dims=self.unstacked_dims,
-    #         )
-    #     )
+#     def records():
+#         for _ in range(n_records):
+#             record = {
+#                 "a": np.random.uniform([n_batch, nt, grid, nz]),
+#                 "f": np.random.uniform([n_batch, nt, grid, nz]),
+#             }
+#             yield record
         
-    tfdataset = tf.data.Dataset.from_generator(
-        records,
-        output_types=(tf.float32),
-        output_shapes=(tf.TensorShape([nt,grid,nz])),
-    )
-    return tfdataset
+#     tfdataset = tf.data.Dataset.from_generator(
+#         records,
+#         output_types=(tf.float32),
+#         output_shapes=(tf.TensorShape([nt,grid,nz])),
+#     )
+#     return tfdataset

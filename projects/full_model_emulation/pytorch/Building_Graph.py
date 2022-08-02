@@ -20,8 +20,8 @@ class BuildingGraph:
         epochs: number of times to run through the batches when training
         shuffle_buffer_size: size of buffer to use when shuffling samples, only
             applies if in_memory=False
-        coarsen: 1 if the full model resolution is used, othewise 
-        Resolution: Name of model resolution to load the corresponding lat and lon.
+        coarsen: 1 if the full model resolution is used, othewise data will be coarsen
+        Resolution: Model resolution to load the corresponding lat and lon.
     """
 
     Neighbor: int = 5

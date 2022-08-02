@@ -25,7 +25,19 @@ class TrainingLoopConfig:
     n_loop: int = 100
     n_epoch: int = 1
     savemodelpath: str = 'weight.pt'
-    def fit_loop(config, train_model, inputs, validation, labels, optimizer, get_loss) -> None:
+
+    def evaluate_model(model, loss, data_iter):
+        model.eval()
+        l_sum, n = 0.0, 0
+        with torch.no_grad():
+            for x, y in data_iter:
+                y_pred = model(x)
+                l = loss(y_pred, y)
+                l_sum += l.item() * y.shape[0]
+                n += y.shape[0]
+        return l_sum / n
+
+    def fit_loop(self,config, train_model, inputs, validation, labels, optimizer, get_loss) -> None:
         """
         Args:
             model: keras model to train
@@ -33,13 +45,14 @@ class TrainingLoopConfig:
             validation_data: passed as `validation_data` argument to `model.fit`
             callbacks: if given, these will be called at the end of each epoch
         """
+        train_model.train()
         for epoch in config.n_epoch:  # loop over the dataset multiple times
             for step in range(0, config.n_loop - config.Nbatch, config.Nbatch):
                 optimizer.zero_grad()
                 loss = get_loss(train_model, inputs, labels)
                 loss.backward()
                 optimizer.step()
-                val_loss = evaluate_model(train_model, loss, validation)
+                val_loss = self.evaluate_model(train_model, get_loss, validation)
                 if val_loss < min_val_loss:
                     min_val_loss = val_loss
                     torch.save(train_model.state_dict(), config.savemodelpath)
