@@ -10,6 +10,8 @@ import os
 variables = variables_to_read.vars_dict
 
 # defining useful functions
+
+
 def getscalars(indict):
     for var in indict.keys():
         if not type(indict[var]) == dict:

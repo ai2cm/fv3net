@@ -137,42 +137,43 @@ class GasClass:
         #  ===================================================================  !
         #
         co2dat = np.zeros((self.IMXCO2, self.JMXCO2))
-        co2ann = np.zeros((self.IMXCO2, self.JMXCO2))
+        # co2ann = np.zeros((self.IMXCO2, self.JMXCO2)) not used according to lint
         co2vmr_sav = np.zeros((self.IMXCO2, self.JMXCO2, 12))
+        # this section when ioznflg == 0 is not used
 
-        midmon = 15
-        midm = 15
-        midp = 45
-        #  ---  number of days in a month
-        mdays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 30]
+        # midmon = 15
+        # midm = 15
+        # midp = 45
+        # #  ---  number of days in a month
+        # mdays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 30]
 
-        #
+        # #
         # ===>  ...  begin here
         #
         # - Ozone data section
 
-        if self.ioznflg == 0:
-            midmon = mdays[imon] / 2 + 1
-            change = loz1st or ((iday == midmon) and (ihour == 0))
+        # if self.ioznflg == 0:
+        #     midmon = mdays[imon] / 2 + 1
+        #     change = loz1st or ((iday == midmon) and (ihour == 0))
 
-            if change:
-                if iday < midmon:
-                    k1oz = (imon + 10 % 12) + 1
-                    midm = mdays[k1oz] / 2 + 1
-                    k2oz = imon
-                    midp = mdays[k1oz] + midmon
-                else:
-                    k1oz = imon
-                    midm = midmon
-                    k2oz = (imon % 12) + 1
-                    midp = mdays[k2oz] / 2 + 1 + mdays[k1oz]
+        #     if change:
+        #         if iday < midmon:
+        #             k1oz = (imon + 10 % 12) + 1
+        #             midm = mdays[k1oz] / 2 + 1
+        #             k2oz = imon
+        #             midp = mdays[k1oz] + midmon
+        #         else:
+        #             k1oz = imon
+        #             midm = midmon
+        #             k2oz = (imon % 12) + 1
+        #             midp = mdays[k2oz] / 2 + 1 + mdays[k1oz]
 
-            if iday < midmon:
-                id = iday + mdays[k1oz]
-            else:
-                id = iday
+        #     if iday < midmon:
+        #         id = iday + mdays[k1oz]
+        #     else:
+        #         id = iday
 
-            facoz = float(id - midm) / float(midp - midm)
+        # facoz = float(id - midm) / float(midp - midm) not used according to lint
 
         # - co2 data section
 

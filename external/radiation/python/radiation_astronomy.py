@@ -600,13 +600,13 @@ class AstronomyClass:
         L = JLDAYN + 68569
         N = int(4 * L // 146097)
         L = int(L - (146097 * N + 3) // 4)
-        I = int(4000 * (L + 1) // 1461001)
-        L = int(L - 1461 * I // 4 + 31)
+        I_tmp = int(4000 * (L + 1) // 1461001)
+        L = int(L - 1461 * I_tmp // 4 + 31)
         J = int(80 * L // 2447)
         IDAY = int(L - 2447 * J // 80)
         L = int(J // 11)
         MONTH = int(J + 2 - 12 * L)
-        IYEAR = int(100 * (N - 49) + I + L)
+        IYEAR = int(100 * (N - 49) + I_tmp + L)
         IDAYWK = int(((JLDAYN + 1) % 7) + 1)
         IDAYYR = int(
             JLDAYN
