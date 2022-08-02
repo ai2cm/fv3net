@@ -42,14 +42,16 @@ class graphnetwork(nn.Module):
     def forward(self,in_feat):
         in_feat = in_feat.transpose(0, 1)
         for _ in range(self.config.num_step):
-            h = self.conv1(self.g, in_feat)
-            h = self.config.activation(h)
-            h = self.conv2(self.g, h)
-            h = self.config.activation(h)
-            h = self.conv3(self.g, h)
-            h = self.config.activation(h)
-            h = torch.cat((self.config.activation(self.conv4(self.g, h)),h),dim=2)
-            h = torch.cat((self.config.activation(self.conv5(self.g, h)),h),dim=2)
-            h = self.conv6(self.g, h)
-            in_feat=h  
-        return h.transpose(0, 1)
+            h1 = self.conv1(self.g, in_feat)
+            h1 = self.config.activation(h1)
+            h2 = self.conv2(self.g, h1)
+            h2 = self.config.activation(h2)
+            h3 = self.conv3(self.g, h2)
+            h3 = self.config.activation(h3)
+            h4 = self.conv4(self.g, h3)
+            h4 = self.config.activation(h4)
+            h5 = torch.cat((self.config.activation(self.conv4(self.g, h4)),h3),dim=2)
+            h6 = torch.cat((self.config.activation(self.conv5(self.g, h5)),h2),dim=2)
+            out = self.conv6(self.g, h6)
+            in_feat=out 
+        return out.transpose(0, 1)

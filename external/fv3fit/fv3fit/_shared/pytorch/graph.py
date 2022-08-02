@@ -94,15 +94,12 @@ def train_graph_model(
     Args:
         train_batches: training data, as a dataset of Mapping[str, tf.Tensor]
         validation_batches: validation data, as a dataset of Mapping[str, tf.Tensor]
-        build_model: the function which produces a columnwise keras model
+        build_model: the function which produces the pytorch model
             from input and output samples. The models returned must take a list of
             tensors as input and return a list of tensors as output.
-        input_variables: names of inputs for the keras model
-        output_variables: names of outputs for the keras model
-        clip_config: configuration of input and output clipping of last dimension
-        n_loop: Total number training loop in a single epoch
+        input_variables: names of inputs for the pytorch model
+        output_variables: names of outputs for the pytorch model
         n_epoch: number of epochs
-        Nbatch: number of batch size
     """
 
     ## use transforms to get correct variables, correct dimensions
@@ -158,7 +155,7 @@ def stepwise_loss(
     for sm in range(config.loss.multistep):
         if sm == 0:
             outputs = train_model(inputs)
-            l += criterion(outputs,labels)
+            l += criterion(outputs,labels) # this is for the identity function, for prediction that would have an index over time
         else:
             outputs = train_model(outputs)
             l += criterion(outputs, labels)
@@ -169,9 +166,6 @@ def build_model(config: GraphHyperparameters):
     """
     Args:
         config: configuration of graph training
-        X: example input for keras fitting, used to determine shape and normalization
-        y: example output for keras fitting, used to determine shape and normalization
-        neighbor: number of nearest neighbor points around a given point
     """
     g = graphStruc(config.build_graph)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

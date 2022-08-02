@@ -33,7 +33,7 @@ class TrainingLoopConfig:
         savemodelpath: name of the file to save the best weights
     """
 
-    n_epoch: int = 5
+    n_epoch: int = 20
     buffer_size: int = 50_000
     build_samples: int = 50_000
     savemodelpath: str = 'weight.pt'
@@ -41,10 +41,11 @@ class TrainingLoopConfig:
     def fit_loop(config,train_model, train_data, validation, optimizer, get_loss) -> None:
         """
         Args:
-            model: keras model to train
-            Xy: Dataset containing samples to be passed to model.fit
-            validation_data: passed as `validation_data` argument to `model.fit`
-            callbacks: if given, these will be called at the end of each epoch
+            train_model: pytorch model to train
+            train_data: training dataset containing samples to be passed to the model
+            validation: validation dataset to examien the one time prediction
+            optimizer: type of optimizer for the model
+            get_loss: Multistep loss function 
         """
         train_data.shuffle(buffer_size=config.training_loop.buffer_size)
         train_data=tfds.as_numpy(train_data)
