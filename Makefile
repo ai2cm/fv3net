@@ -208,6 +208,9 @@ clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 
+## Delete all docker requirements.txt
+clean_docker_reqs:
+	find docker/ -type f -name "requirements.txt" -delete
 
 ## Set up python interpreter environment
 update_submodules:
@@ -236,8 +239,7 @@ REQUIREMENTS = external/vcm/setup.py \
 	external/*.requirements.in \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
-	projects/microphysics/requirements.in \
-	projects/full_model_emulation/requirements.in
+	projects/microphysics/requirements.in
 
 constraints.txt: $(REQUIREMENTS)
 	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
@@ -282,8 +284,7 @@ docker/fv3fit/requirements.txt:
 		external/vcm/setup.py
 
 docker/torch/requirements.txt:
-	# TODO: Figure out why using pre-defined constraints doesn't add torch, etc.
-	# cp constraints.txt $@
+	cp constraints.txt $@
 	# this will subset the needed dependencies from constraints.txt
 	# while preserving the versions
 	pip-compile --no-annotate \

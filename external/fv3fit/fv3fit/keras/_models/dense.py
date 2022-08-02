@@ -3,11 +3,11 @@ from fv3fit._shared.predictor import Predictor
 from toolz.functoolz import curry
 import numpy as np
 import tensorflow as tf
+from typing_extensions import Protocol
 from typing import (
     Hashable,
     List,
     Optional,
-    Protocol,
     Sequence,
     Tuple,
     Set,

@@ -14,7 +14,11 @@ spec:
       - name: training-config
         value: ""
       - name: image_tag
+<<<<<<< HEAD
         value: 6cfa293484f7814135af163581523204b3f64bac
+=======
+        value: 4985c413b9ffd168da92f57ba18f40f39546a0a3
+>>>>>>> 0e849c6e80d5fdd769d4cf7075fa06eff311b6f4
   volumes:
   - name: gcp-key-secret
     secret:
@@ -44,6 +48,8 @@ spec:
           value: /secret/gcp-credentials/key.json
         - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
           value: /secret/gcp-credentials/key.json
+        - name: WANDB_NAME
+          value: "{{workflow.name}}"
       volumeMounts:
         - mountPath: /secret/gcp-credentials
           name: gcp-key-secret

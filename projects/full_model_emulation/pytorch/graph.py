@@ -224,6 +224,7 @@ def get_Xy_dataset(
     return data.map(map_fn)
 
     
+<<<<<<< HEAD
 # def get_data() -> tf.data.Dataset:
 #     n_records = 10
 #     n_batch, nt, grid,nz = 1, 40, 10,2
@@ -235,6 +236,19 @@ def get_Xy_dataset(
 #                 "f": np.random.uniform([n_batch, nt, grid, nz]),
 #             }
 #             yield record
+=======
+def get_data() -> tf.data.Dataset:
+    n_records = 10
+    n_batch, nt, grid,nz = 1, 40, 10,2
+
+    def records():
+        for _ in range(n_records):
+            record = {
+                "a": np.random.uniform([n_batch, nt, grid, nz]),
+                "f": np.random.uniform([n_batch, nt, grid, nz]),
+            }
+            yield record
+>>>>>>> 0e849c6e80d5fdd769d4cf7075fa06eff311b6f4
         
 #     tfdataset = tf.data.Dataset.from_generator(
 #         records,

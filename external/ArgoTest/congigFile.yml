@@ -1,0 +1,197 @@
+base_version: v0.5
+field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
+namelist:
+  coupler_nml:
+    days: 5
+    hours: 0
+    minutes: 0
+    months: 0
+    seconds: 0
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
+  fv_core_nml:
+    do_sat_adj: false
+  gfs_physics_nml:
+    fhlwr: 1800.0
+    fhswr: 1800.0
+    hybedmf: false
+    satmedmf: true    
+fortran_diagnostics:
+- name: sfc_dt_atmos.zarr
+  chunks:
+    time: 96
+  times:
+    frequency: 900
+    kind: interval
+  variables:
+  - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+  - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+  - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+  - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+  - {module_name: dynamics, field_name: area, output_name: area}
+  - {module_name: gfs_phys, field_name: dusfci, output_name: uflx}
+  - {module_name: gfs_phys, field_name: dvsfci, output_name: vflx}
+  - {module_name: gfs_phys, field_name: cnvprcpb_ave, output_name: CPRATsfc}
+  - {module_name: gfs_phys, field_name: totprcpb_ave, output_name: PRATEsfc}
+  - {module_name: gfs_phys, field_name: toticeb_ave, output_name: ICEsfc}
+  - {module_name: gfs_phys, field_name: totsnwb_ave, output_name: SNOWsfc}
+  - {module_name: gfs_phys, field_name: totgrpb_ave, output_name: GRAUPELsfc}
+  - {module_name: gfs_phys, field_name: DSWRF, output_name: DSWRFsfc}
+  - {module_name: gfs_phys, field_name: USWRF, output_name: USWRFsfc}
+  - {module_name: gfs_phys, field_name: DSWRFtoa, output_name: DSWRFtoa}
+  - {module_name: gfs_phys, field_name: USWRFtoa, output_name: USWRFtoa}
+  - {module_name: gfs_phys, field_name: ULWRFtoa, output_name: ULWRFtoa}
+  - {module_name: gfs_phys, field_name: ULWRF, output_name: ULWRFsfc}
+  - {module_name: gfs_phys, field_name: DLWRF, output_name: DLWRFsfc}
+  - {module_name: gfs_phys, field_name: lhtfl_ave, output_name: LHTFLsfc}
+  - {module_name: gfs_phys, field_name: shtfl_ave, output_name: SHTFLsfc}
+  - {module_name: gfs_phys, field_name: hpbl, output_name: HPBLsfc}
+  - {module_name: gfs_sfc, field_name: fice, output_name: ICECsfc}
+  - {module_name: gfs_sfc, field_name: SLMSKsfc, output_name: SLMSKsfc}
+  - {module_name: gfs_sfc, field_name: q2m, output_name: SPFH2m}
+  - {module_name: gfs_sfc, field_name: t2m, output_name: TMP2m}
+  - {module_name: gfs_sfc, field_name: tsfc, output_name: TMPsfc}
+  - {module_name: gfs_phys, field_name: dpt2m, output_name: DPT2m}
+  - {module_name: gfs_phys, field_name: u10m, output_name: UGRD10m}
+  - {module_name: gfs_phys, field_name: v10m, output_name: VGRD10m}
+  - {module_name: gfs_phys, field_name: tmpmax2m, output_name: TMAX2m}
+  - {module_name: gfs_phys, field_name: wind10mmax, output_name: MAXWIND10m}
+  - {module_name: gfs_phys, field_name: soilm, output_name: SOILM}
+  - {module_name: gfs_sfc, field_name: SOILT1, output_name: SOILT1}
+  - {module_name: gfs_sfc, field_name: SOILT2, output_name: SOILT2}
+  - {module_name: gfs_sfc, field_name: SOILT3, output_name: SOILT3}
+  - {module_name: gfs_sfc, field_name: SOILT4, output_name: SOILT4}
+- name: atmos_dt_atmos.zarr
+  chunks:
+    time: 96
+  times:
+    frequency: 900
+    kind: interval
+  variables:
+  - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+  - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+  - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+  - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+  - {module_name: dynamics, field_name: area, output_name: area}
+  - {module_name: dynamics, field_name: us, output_name: UGRDlowest}
+  - {module_name: dynamics, field_name: u850, output_name: UGRD850}
+  - {module_name: dynamics, field_name: u500, output_name: UGRD500}
+  - {module_name: dynamics, field_name: u200, output_name: UGRD200}
+  - {module_name: dynamics, field_name: u50, output_name: UGRD50}
+  - {module_name: dynamics, field_name: vs, output_name: VGRDlowest}
+  - {module_name: dynamics, field_name: v850, output_name: VGRD850}
+  - {module_name: dynamics, field_name: v500, output_name: VGRD500}
+  - {module_name: dynamics, field_name: v200, output_name: VGRD200}
+  - {module_name: dynamics, field_name: v50, output_name: VGRD50}
+  - {module_name: dynamics, field_name: tm, output_name: TMP500_300}
+  - {module_name: dynamics, field_name: tb, output_name: TMPlowest}
+  - {module_name: dynamics, field_name: t850, output_name: TMP850}
+  - {module_name: dynamics, field_name: t500, output_name: TMP500}
+  - {module_name: dynamics, field_name: t200, output_name: TMP200}
+  - {module_name: dynamics, field_name: w850, output_name: w850}
+  - {module_name: dynamics, field_name: w500, output_name: w500}
+  - {module_name: dynamics, field_name: w200, output_name: w200}
+  - {module_name: dynamics, field_name: w50, output_name: w50}
+  - {module_name: dynamics, field_name: vort850, output_name: VORT850}
+  - {module_name: dynamics, field_name: vort500, output_name: VORT500}
+  - {module_name: dynamics, field_name: vort200, output_name: VORT200}
+  - {module_name: dynamics, field_name: z850, output_name: h850}
+  - {module_name: dynamics, field_name: z500, output_name: h500}
+  - {module_name: dynamics, field_name: z200, output_name: h200}
+  - {module_name: dynamics, field_name: rh1000, output_name: RH1000}
+  - {module_name: dynamics, field_name: rh925, output_name: RH925}
+  - {module_name: dynamics, field_name: rh850, output_name: RH850}
+  - {module_name: dynamics, field_name: rh700, output_name: RH700}
+  - {module_name: dynamics, field_name: rh500, output_name: RH500}
+  - {module_name: dynamics, field_name: q1000, output_name: q1000}
+  - {module_name: dynamics, field_name: q925, output_name: q925}
+  - {module_name: dynamics, field_name: q850, output_name: q850}
+  - {module_name: dynamics, field_name: q700, output_name: q700}
+  - {module_name: dynamics, field_name: q500, output_name: q500}
+  - {module_name: dynamics, field_name: slp, output_name: PRMSL}
+  - {module_name: dynamics, field_name: ps, output_name: PRESsfc}
+  - {module_name: dynamics, field_name: tq, output_name: PWAT}
+  - {module_name: dynamics, field_name: lw, output_name: VIL}
+  - {module_name: dynamics, field_name: iw, output_name: iw}
+  - {module_name: dynamics, field_name: ke, output_name: kinetic_energy}
+  - {module_name: dynamics, field_name: te, output_name: total_energy}
+diagnostics:
+- name: diags.zarr
+  chunks:
+    time: 96
+  times:
+    frequency: 900
+    kind: interval
+  variables:
+  - net_moistening
+  - net_heating
+  - total_precipitation_rate
+  - water_vapor_path
+  - physics_precip
+  - column_integrated_dQu
+  - column_integrated_dQv
+- name: diags_3d.zarr
+  times:
+    kind: interval
+    frequency: 10800
+  chunks:
+    time: 8
+  variables:
+  - dQ1
+  - dQ2
+  - dQu
+  - dQv
+  - tendency_of_air_temperature_due_to_fv3_physics
+  - tendency_of_specific_humidity_due_to_fv3_physics
+  - tendency_of_eastward_wind_due_to_fv3_physics
+  - tendency_of_northward_wind_due_to_fv3_physics
+- name: state_after_timestep.zarr
+  times:
+    kind: interval
+    frequency: 10800
+  chunks:
+    time: 8
+  variables:
+  - eastward_wind
+  - northward_wind
+  - vertical_wind
+  - air_temperature
+  - specific_humidity
+  - pressure_thickness_of_atmospheric_layer
+  - vertical_thickness_of_atmospheric_layer
+  - land_sea_mask
+  - surface_temperature
+  - surface_geopotential
+  - sensible_heat_flux
+  - latent_heat_flux
+  - total_precipitation
+  - surface_precipitation_rate
+  - total_soil_moisture
+  - total_sky_downward_shortwave_flux_at_surface
+  - total_sky_upward_shortwave_flux_at_surface
+  - total_sky_downward_longwave_flux_at_surface
+  - total_sky_upward_longwave_flux_at_surface
+  - total_sky_downward_shortwave_flux_at_top_of_atmosphere
+  - total_sky_upward_shortwave_flux_at_top_of_atmosphere
+  - total_sky_upward_longwave_flux_at_top_of_atmosphere
+  - clear_sky_downward_shortwave_flux_at_surface
+  - clear_sky_upward_shortwave_flux_at_surface
+  - clear_sky_downward_longwave_flux_at_surface
+  - clear_sky_upward_longwave_flux_at_surface
+  - clear_sky_upward_shortwave_flux_at_top_of_atmosphere
+  - clear_sky_upward_longwave_flux_at_top_of_atmosphere
+  - latitude
+  - longitude
+  - cloud_water_mixing_ratio
+  - cloud_ice_mixing_ratio 
+  - rain_mixing_ratio
+  - snow_mixing_ratio
+  - graupel_mixing_ratio
+step_storage_variables:
+- specific_humidity
+- total_water
+step_tendency_variables:
+- specific_humidity
+- air_temperature
+- eastward_wind
+- northward_wind
