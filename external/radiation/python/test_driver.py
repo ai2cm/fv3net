@@ -1,11 +1,10 @@
-from config import FORCING_DIR, LOOKUP_DIR, FORTRANDATA_DIR, nlay
+from config import FORCING_DIR, LOOKUP_DIR, nlay
 from util import compare_data
 import serialbox as ser
 from radiation_driver import RadiationDriver
 import time
 import getdata
 import variables_to_read
-import os
 
 variables = variables_to_read.vars_dict
 
@@ -27,9 +26,7 @@ rank = 0
 driver = RadiationDriver()
 
 serial = ser.Serializer(
-    ser.OpenModeKind.Read,
-    "../fortran/data/radiation_driver",
-    "Generator_rank0",
+    ser.OpenModeKind.Read, "../fortran/data/radiation_driver", "Generator_rank0",
 )
 
 si = serial.read("si", serial.savepoint["rad-initialize"])
