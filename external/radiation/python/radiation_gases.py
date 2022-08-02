@@ -1,11 +1,8 @@
 import numpy as np
-import os
 import sys
+from phys_const import con_pi
 
 sys.path.insert(0, "..")
-from radphysparam import co2cyc_file, co2gbl_file, co2dat_file
-from phys_const import con_pi
-from config import *
 
 
 class GasClass:
@@ -239,7 +236,7 @@ class GasClass:
                         print(f"Month = {imo+1}")
                         print(co2vmr_sav[0, :, imo])
 
-            ## replace values as:
+            # replace values as:
             # gco2cyc = data_gases["gco2cyc"]
             # if there is a seasonal climatology data of co2
             gco2cyc = np.zeros(12)

@@ -1,20 +1,6 @@
 import numpy as np
-import xarray as xr
-import os
-import sys
-import warnings
 from numba import jit
-
-sys.path.insert(0, "..")
 from radsw.radsw_param import (
-    ntbmx,
-    nbdsw,
-    ngptsw,
-    maxgas,
-    nbandssw,
-    nbhgh,
-    nblow,
-    NGB,
     nspa,
     nspb,
     ng,

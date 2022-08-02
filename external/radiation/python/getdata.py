@@ -26,7 +26,7 @@ def random_numbers(lookup_dir: str, tile_number: int):
 
 
 def lw(lookup_dir: str):
-    ## data needed in lwrad()
+    # data needed in lwrad()
     lw_dict = {}
     dfile = os.path.join(lookup_dir, "totplnk.nc")
     pfile = os.path.join(lookup_dir, "radlw_ref_data.nc")
@@ -35,7 +35,7 @@ def lw(lookup_dir: str):
     lw_dict["tref"] = xr.open_dataset(pfile)["tref"].values
     lw_dict["chi_mls"] = xr.open_dataset(pfile)["chi_mls"].values
 
-    ## loading data for cldprop in lwrad()
+    # loading data for cldprop in lwrad()
     ds = xr.open_dataset(os.path.join(lookup_dir, "radlw_cldprlw_data.nc"))
     lw_dict["absliq1"] = ds["absliq1"].values
     lw_dict["absice0"] = ds["absice0"].values
@@ -43,7 +43,7 @@ def lw(lookup_dir: str):
     lw_dict["absice2"] = ds["absice2"].values
     lw_dict["absice3"] = ds["absice3"].values
 
-    ## loading data for taumol
+    # loading data for taumol
     varname_bands = [
         "radlw_kgb01",
         "radlw_kgb02",
@@ -190,11 +190,11 @@ def sw(lookup_dir: str):
     sw_dict["sfluxref02"] = ds["sfluxref02"].values
     sw_dict["sfluxref03"] = ds["sfluxref03"].values
     sw_dict["scalekur"] = ds["scalekur"].values
-    ## data loading for setcoef
+    # data loading for setcoef
     ds = xr.open_dataset(os.path.join(lookup_dir, "radsw_ref_data.nc"))
     sw_dict["preflog"] = ds["preflog"].values
     sw_dict["tref"] = ds["tref"].values
-    ## load data for cldprop
+    # load data for cldprop
     ds_cldprtb = xr.open_dataset(os.path.join(lookup_dir, "radsw_cldprtb_data.nc"))
     var_names = [
         "extliq1",
@@ -230,7 +230,7 @@ def sw(lookup_dir: str):
     for var in var_names:
         sw_dict[var] = ds_cldprtb[var].values
 
-    ## loading data for taumol
+    # loading data for taumol
     varname_bands = [
         "radsw_kgb16",
         "radsw_kgb17",

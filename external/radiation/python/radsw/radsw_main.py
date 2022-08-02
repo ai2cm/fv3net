@@ -1,11 +1,7 @@
 import numpy as np
-import os
-import sys
 import warnings
 from numba import jit
 import radsw.radsw_bands as bands
-
-sys.path.insert(0, "..")
 from radsw.radsw_param import (
     ntbmx,
     nbdsw,
@@ -20,39 +16,10 @@ from radsw.radsw_param import (
     ng,
     ngs,
     oneminus,
-    NG16,
-    NG17,
-    NG18,
-    NG19,
-    NG20,
-    NG21,
-    NG22,
-    NG23,
-    NG24,
-    NG25,
-    NG26,
-    NG27,
-    NG28,
-    NG29,
-    NS16,
-    NS17,
-    NS18,
-    NS19,
-    NS20,
-    NS21,
-    NS22,
-    NS23,
-    NS24,
-    NS25,
-    NS26,
-    NS27,
-    NS28,
-    NS29,
 )
 from radphysparam import iswmode, iswrgas, iswrate, iswcice, iswcliq
 from phys_const import con_amd, con_amw, con_amo3, con_g, con_cp, con_avgd
-from util import compare_data
-from config import *
+
 
 ngs = np.array(ngs)
 ng = np.array(ng)
@@ -547,14 +514,14 @@ def spcvrtm(
 
                     zgam4 = 1.0 - zgam3
 
-                    #  --- ...  compute homogeneous reflectance and transmittance
+                    # compute homogeneous reflectance and transmittance
 
                     if zssaw >= zcrit:  # for conservative scattering
                         za1 = zgam1 * cosz - zgam3
                         za2 = zgam1 * ztau1
 
-                        #  --- ...  use exponential lookup table for transmittance, or expansion
-                        #           of exponential for low optical depth
+                        # use exponential lookup table for transmittance, or expansion
+                        # of exponential for low optical depth
 
                         zb1 = min(ztau1 * sntz, 500.0)
                         if zb1 <= od_lo:
@@ -601,8 +568,8 @@ def spcvrtm(
                         zt2 = zrm1 * (za1 - zrkg4)
                         zt3 = zrk2 * (zgam4 + za1 * cosz)
 
-                        #  --- ...  use exponential lookup table for transmittance, or expansion
-                        #           of exponential for low optical depth
+                        # use exponential lookup table for transmittance, or expansion
+                        # of exponential for low optical depth
 
                         zb1 = min(zrk * ztau1, 500.0)
                         if zb1 <= od_lo:
@@ -671,8 +638,8 @@ def spcvrtm(
                     zldbt[kp] = zexp3
                     ztdbt[k] = zexp3 * ztdbt[kp]
 
-                    #  --- ...  pre-delta-scaling clear and cloudy direct beam transmittance
-                    #           (must use 'orig', unscaled cloud optical depth)
+                    # pre-delta-scaling clear and cloudy direct beam transmittance
+                    # (must use 'orig', unscaled cloud optical depth)
 
                     zr1 = ztau0 * sntz
                     if zr1 <= od_lo:
@@ -686,23 +653,23 @@ def spcvrtm(
 
                 else:  # if_cldfmc_block  ---  it is a clear layer
 
-                    #  --- ...  direct beam transmittance
+                    # direct beam transmittance
                     ztdbt[k] = zldbt[kp] * ztdbt[kp]
 
-                    #  --- ...  pre-delta-scaling clear and cloudy direct beam transmittance
+                    # pre-delta-scaling clear and cloudy direct beam transmittance
                     ztdbt0 = zldbt0[k] * ztdbt0
 
-            #  --- ...  perform vertical quadrature
+            # perform vertical quadrature
 
             zfu, zfd = vrtqdr(zrefb, zrefd, ztrab, ztrad, zldbt, ztdbt, nlay, nlp1)
 
-            #  --- ...  compute upward and downward fluxes at levels
+            # compute upward and downward fluxes at levels
             for k in range(nlp1):
                 fxupc[k, ib] = fxupc[k, ib] + zsolar * zfu[k]
                 fxdnc[k, ib] = fxdnc[k, ib] + zsolar * zfd[k]
 
-            #  -# Process and save outputs.
-            # --- ...  surface downward beam/diffused flux components
+            # Process and save outputs.
+            # surface downward beam/diffused flux components
             zb1 = zsolar * ztdbt0
             zb2 = zsolar * (zfd[0] - ztdbt0)
 
@@ -928,11 +895,13 @@ def cldprop(
 
                 tauran = cldran * a0r
 
-                #  ---  if use fu's formula it needs to be normalized by snow/ice density
+                #  ---  if use fu's formula it needs to be normalized by
+                #       snow/ice density
                 #       !not use snow density = 0.1 g/cm**3 = 0.1 g/(mu * m**2)
                 #       use ice density = 0.9167 g/cm**3 = 0.9167 g/(mu * m**2)
                 #       1/0.9167 = 1.09087
-                #       factor 1.5396=8/(3*sqrt(3)) converts reff to generalized ice particle size
+                #       factor 1.5396=8/(3*sqrt(3)) converts reff to generalized
+                #       ice particle size
                 #       use newer factor value 1.0315
                 if cldsnw > 0.0 and refsnw > 10.0:
                     tausnw = cldsnw * 1.09087 * (a0s + a1s / dgesnw)  # fu's formula
@@ -1023,7 +992,7 @@ def cldprop(
                             ssaliq[ib] = tauliq[ib] * ssacoliq
                             asyliq[ib] = ssaliq[ib] * asycoliq
 
-                #  --- ...  calculation of absorption coefficients due to ice clouds.
+                # calculation of absorption coefficients due to ice clouds.
 
                 if cldice <= 0.0:
                     tauice[:] = 0.0
@@ -1031,8 +1000,8 @@ def cldprop(
                     asyice[:] = 0.0
                 else:
 
-                    #  --- ...  ebert and curry approach for all particle sizes though somewhat
-                    #           unjustified for large ice particles
+                    # ebert and curry approach for all particle sizes though somewhat
+                    # unjustified for large ice particles
 
                     if iswcice == 1:
                         refice = min(130.0, max(13.0, refice))
@@ -1052,7 +1021,8 @@ def cldprop(
                             ssaice[ib] = tauice[ib] * ssacoice
                             asyice[ib] = ssaice[ib] * asycoice
 
-                    #  --- ...  streamer approach for ice effective radius between 5.0 and 131.0 microns
+                    # streamer approach for ice effective radius
+                    # between 5.0 and 131.0 microns
                     elif iswcice == 2:
                         refice = min(131.0, max(5.0, refice))
 
@@ -1089,8 +1059,8 @@ def cldprop(
                             ssaice[ib] = tauice[ib] * ssacoice
                             asyice[ib] = ssaice[ib] * asycoice
 
-                    #  --- ...  fu's approach for ice effective radius between 4.8 and 135 microns
-                    #           (generalized effective size from 5 to 140 microns)
+                    # fu's approach for ice effective radius between 4.8 and 135 microns
+                    # (generalized effective size from 5 to 140 microns)
                     elif iswcice == 3:
                         dgeice = max(5.0, min(140.0, 1.0315 * refice))
 
@@ -1133,7 +1103,7 @@ def cldprop(
                     ssacw[k, ib] = ssaliq[jb] + ssaice[jb] + ssaran[jb] + ssasnw[jb]
                     asycw[k, ib] = asyliq[jb] + asyice[jb] + asyran[jb] + asysnw[jb]
 
-    else:  #  lab_if_iswcliq
+    else:  # lab_if_iswcliq
 
         for k in range(nlay):
             if cfrac[k] > ftiny:
@@ -1948,9 +1918,9 @@ class RadSWClass:
         #           the 1.0e-2 is to convert pressure from mb to N/m**2
 
         if iswrate == 1:
-            self.heatfac = con_g * 864.0 / con_cp  #   (in k/day)
+            self.heatfac = con_g * 864.0 / con_cp  # (in k/day)
         else:
-            self.heatfac = con_g * 1.0e-2 / con_cp  #   (in k/second)
+            self.heatfac = con_g * 1.0e-2 / con_cp  # (in k/second)
 
         #  --- ...  define exponential lookup tables for transmittance. tau is
         #           computed as a function of the tau transition function, and
@@ -2108,7 +2078,7 @@ class RadSWClass:
         jt = np.zeros(nlay, np.int32)
         jt1 = np.zeros(nlay, np.int32)
 
-        ## data loading
+        # data loading
         strrat = swdict["strrat"]
         specwt = swdict["specwt"]
         layreffr = swdict["layreffr"]
@@ -2120,11 +2090,11 @@ class RadSWClass:
         sfluxref03 = swdict["sfluxref03"]
         scalekur = swdict["scalekur"]
 
-        ## data loading for setcoef
+        # data loading for setcoef
         preflog = swdict["preflog"]
         tref = swdict["tref"]
 
-        ## load data for cldprop
+        # load data for cldprop
         extliq1 = swdict["extliq1"]
         extliq2 = swdict["extliq2"]
         ssaliq1 = swdict["ssaliq1"]
@@ -2153,7 +2123,7 @@ class RadSWClass:
         a0s = swdict["a0s"]
         a1s = swdict["a1s"]
 
-        ## data loading for taumol
+        # data loading for taumol
         selfref_16 = swdict["radsw_kgb16"]["selfref"]
         forref_16 = swdict["radsw_kgb16"]["forref"]
         absa_16 = swdict["radsw_kgb16"]["absa"]
@@ -2253,7 +2223,7 @@ class RadSWClass:
 
         if lprnt:
             print(
-                f"In radsw, isubcsw, ipsdsw0,ipseed = {self.isubcsw}, {self.ipsdsw0}, {ipseed}"
+                f"radsw,isubcsw,ipsdsw0,ipseed= {self.isubcsw},{self.ipsdsw0},{ipseed}"
             )
 
         #  --- ...  loop over each daytime grid point
@@ -2772,12 +2742,12 @@ class RadSWClass:
             jp1 = jp[k] + 1
             fp = 5.0 * (preflog[jp[k]] - plog)
 
-            #  --- ...  determine, for each reference pressure (jp and jp1), which
-            #          reference temperature (these are different for each reference
-            #          pressure) is nearest the layer temperature but does not exceed it.
-            #          store these indices in jt and jt1, resp. store in ft (resp. ft1)
-            #          the fraction of the way between jt (jt1) and the next highest
-            #          reference temperature that the layer temperature falls.
+            #  determine, for each reference pressure (jp and jp1), which
+            #  reference temperature (these are different for each reference
+            #  pressure) is nearest the layer temperature but does not exceed it.
+            #  store these indices in jt and jt1, resp. store in ft (resp. ft1)
+            #  the fraction of the way between jt (jt1) and the next highest
+            #  reference temperature that the layer temperature falls.
 
             tem1 = (tavel[k] - tref[jp[k]]) / 15.0
             tem2 = (tavel[k] - tref[jp1]) / 15.0
@@ -2786,12 +2756,12 @@ class RadSWClass:
             ft = tem1 - float(jt[k] - 2)
             ft1 = tem2 - float(jt1[k] - 2)
 
-            #  --- ...  we have now isolated the layer ln pressure and temperature,
-            #           between two reference pressures and two reference temperatures
-            #           (for each reference pressure).  we multiply the pressure
-            #           fraction fp with the appropriate temperature fractions to get
-            #           the factors that will be needed for the interpolation that yields
-            #           the optical depths (performed in routines taugbn for band n).
+            #  we have now isolated the layer ln pressure and temperature,
+            #  between two reference pressures and two reference temperatures
+            #  (for each reference pressure).  we multiply the pressure
+            #  fraction fp with the appropriate temperature fractions to get
+            #  the factors that will be needed for the interpolation that yields
+            #  the optical depths (performed in routines taugbn for band n).
 
             fp1 = 1.0 - fp
             fac10[k] = fp1 * ft
@@ -2806,8 +2776,8 @@ class RadSWClass:
 
                 laytrop = k + 1
 
-                #  --- ...  set up factors needed to separately include the water vapor
-                #           foreign-continuum in the calculation of absorption coefficient.
+                #  set up factors needed to separately include the water vapor
+                #  foreign-continuum in the calculation of absorption coefficient.
 
                 tem1 = (332.0 - tavel[k]) / 36.0
                 indfor[k] = min(2, max(1, int(tem1)))
@@ -2823,8 +2793,8 @@ class RadSWClass:
 
             else:
 
-                #  --- ...  set up factors needed to separately include the water vapor
-                #           foreign-continuum in the calculation of absorption coefficient.
+                #  set up factors needed to separately include the water vapor
+                #  foreign-continuum in the calculation of absorption coefficient.
 
                 tem1 = (tavel[k] - 188.0) / 36.0
                 indfor[k] = 3

@@ -1,8 +1,4 @@
 import numpy as np
-import os
-import sys
-
-sys.path.insert(0, "..")
 from phys_const import con_ttp, con_pi, con_g, con_rd, con_t0c, con_thgni
 from radphysparam import lcrick, lcnorm, lnoprec
 

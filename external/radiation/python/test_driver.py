@@ -1,16 +1,17 @@
-import numpy as np
-
-from config import *
+from config import FORCING_DIR, LOOKUP_DIR, FORTRANDATA_DIR, nlay
 from util import compare_data
 import serialbox as ser
 from radiation_driver import RadiationDriver
 import time
 import getdata
 import variables_to_read
+import os
 
 variables = variables_to_read.vars_dict
 
 # defining useful functions
+
+
 def getscalars(indict):
     for var in indict.keys():
         if not type(indict[var]) == dict:

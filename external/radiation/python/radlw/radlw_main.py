@@ -1,12 +1,7 @@
-from re import A
 import numpy as np
-import sys
-import os
 import time
 import warnings
 from numba import jit
-
-sys.path.insert(0, "..")
 from radphysparam import (
     ilwrgas as ilwrgas,
     icldflg as icldflg,
@@ -29,38 +24,6 @@ from radlw.radlw_param import (
     ipat,
     maxgas,
     maxxsec,
-    ng01,
-    ng02,
-    ng03,
-    ng04,
-    ng05,
-    ng06,
-    ng07,
-    ng08,
-    ng09,
-    ng10,
-    ng11,
-    ng12,
-    ng13,
-    ng14,
-    ng15,
-    ng16,
-    ns01,
-    ns02,
-    ns03,
-    ns04,
-    ns05,
-    ns06,
-    ns07,
-    ns08,
-    ns09,
-    ns10,
-    ns11,
-    ns12,
-    ns13,
-    ns14,
-    ns15,
-    ns16,
     a0,
     a1,
     a2,
@@ -68,7 +31,7 @@ from radlw.radlw_param import (
     nspb,
 )
 from phys_const import con_g, con_avgd, con_cp, con_amd, con_amw, con_amo3
-from config import *
+
 
 np.set_printoptions(precision=15)
 ngb = np.array(ngb)
@@ -104,7 +67,7 @@ def mcica_subcol(iovrlw, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
     #  --- ...  advance randum number generator by ipseed values
 
     #  --- ...  sub-column set up according to overlapping assumption
-    ## it is only implemented for iovrlw == 1
+    # it is only implemented for iovrlw == 1
     if iovrlw == 1:  # max-ran overlap
         #  ---  first pick a random number for bottom (or top) layer.
         #       then walk up the column: (aer's code)
@@ -273,12 +236,13 @@ def cldprop(
             if cfrac[k + 1] > cldmin:
                 tauran = absrain * cdat1[k]  # ncar formula
 
-                #  ---  if use fu's formula it needs to be normalized by snow density
-                #       !not use snow density = 0.1 g/cm**3 = 0.1 g/(mu * m**2)
-                #       use ice density = 0.9167 g/cm**3 = 0.9167 g/(mu * m**2)
-                #       factor 1.5396=8/(3*sqrt(3)) converts reff to generalized ice particle size
-                #       use newer factor value 1.0315
-                #       1/(0.9167*1.0315) = 1.05756
+                #  if use fu's formula it needs to be normalized by snow density
+                #  not use snow density = 0.1 g/cm**3 = 0.1 g/(mu * m**2)
+                #  use ice density = 0.9167 g/cm**3 = 0.9167 g/(mu * m**2)
+                #  factor 1.5396=8/(3*sqrt(3)) converts reff to generalized
+                #  ice particle size
+                #  use newer factor value 1.0315
+                #  1/(0.9167*1.0315) = 1.05756
                 if cdat3[k] > 0.0 and cdat4[k] > 10.0:
                     tausnw = abssnow0 * 1.05756 * cdat3[k] / cdat4[k]  # fu's formula
                 else:
@@ -316,8 +280,8 @@ def cldprop(
                     for ib in range(nbands):
                         tauice[ib] = 0.0
                 else:
-                    #  --- ...  ebert and curry approach for all particle sizes though somewhat
-                    #           unjustified for large ice particles
+                    # ebert and curry approach for all particle sizes though somewhat
+                    # unjustified for large ice particles
                     if ilwcice == 1:
                         refice = min(130.0, max(13.0, np.real(refice)))
 
@@ -328,9 +292,11 @@ def cldprop(
                                 cldice * (absice1[0, ia] + absice1[1, ia] / refice),
                             )
 
-                        #  --- ...  streamer approach for ice effective radius between 5.0 and 131.0 microns
-                        #           and ebert and curry approach for ice eff radius greater than 131.0 microns.
-                        #           no smoothing between the transition of the two methods.
+                        # streamer approach for ice effective radius between 5.0
+                        # and 131.0 microns
+                        # and ebert and curry approach for ice eff radius greater
+                        #  than 131.0 microns.
+                        # no smoothing between the transition of the two methods.
 
                     elif ilwcice == 2:
                         factor = (refice - 2.0) / 3.0
@@ -348,8 +314,8 @@ def cldprop(
                                 ),
                             )
 
-                    #  --- ...  fu's approach for ice effective radius between 4.8 and 135 microns
-                    #           (generalized effective size from 5 to 140 microns)
+                    # fu's approach for ice effective radius between 4.8 and 135 microns
+                    # (generalized effective size from 5 to 140 microns)
 
                     elif ilwcice == 3:
                         dgeice = max(5.0, 1.0315 * refice)  # v4.71 value
@@ -1421,9 +1387,9 @@ class RadLWClass:
         self.fluxfac = pival * 2.0e4
 
         if ilwrate == 1:
-            self.heatfac = con_g * 864.0 / con_cp  #   (in k/day)
+            self.heatfac = con_g * 864.0 / con_cp  # (in k/day)
         else:
-            self.heatfac = con_g * 1.0e-2 / con_cp  #   (in k/second)
+            self.heatfac = con_g * 1.0e-2 / con_cp  # (in k/second)
 
         #  --- ...  compute lookup tables for transmittance, tau transition
         #           function, and clear sky tau (for the cloudy sky radiative
@@ -1506,7 +1472,7 @@ class RadLWClass:
         self.lhlwb = lhlwb
         self.lflxprf = lflxprf
 
-        ## loading data for
+        # loading data for
         totplnk = lwdict["totplnk"]
         preflog = lwdict["preflog"]
         tref = lwdict["tref"]
@@ -1520,8 +1486,8 @@ class RadLWClass:
         absice3 = lwdict["absice3"]
 
         ########################################
-        ## data for taumol
-        ## band 01
+        # data for taumol
+        # band 01
         selfref_band_01 = lwdict["radlw_kgb01"]["selfref"]
         forref_band_01 = lwdict["radlw_kgb01"]["forref"]
         ka_mn2_band_01 = lwdict["radlw_kgb01"]["ka_mn2"]
@@ -1529,14 +1495,14 @@ class RadLWClass:
         absb_band_01 = lwdict["radlw_kgb01"]["absb"]
         fracrefa_band_01 = lwdict["radlw_kgb01"]["fracrefa"]
         fracrefb_band_01 = lwdict["radlw_kgb01"]["fracrefb"]
-        ## band 02
+        # band 02
         selfref_band_02 = lwdict["radlw_kgb02"]["selfref"]
         forref_band_02 = lwdict["radlw_kgb02"]["forref"]
         absa_band_02 = lwdict["radlw_kgb02"]["absa"]
         absb_band_02 = lwdict["radlw_kgb02"]["absb"]
         fracrefa_band_02 = lwdict["radlw_kgb02"]["fracrefa"]
         fracrefb_band_02 = lwdict["radlw_kgb02"]["fracrefb"]
-        ## band 03
+        # band 03
         selfref_band_03 = lwdict["radlw_kgb03"]["selfref"]
         forref_band_03 = lwdict["radlw_kgb03"]["forref"]
         ka_mn2o_band_03 = lwdict["radlw_kgb03"]["ka_mn2o"]
@@ -1545,14 +1511,14 @@ class RadLWClass:
         absb_band_03 = lwdict["radlw_kgb03"]["absb"]
         fracrefa_band_03 = lwdict["radlw_kgb03"]["fracrefa"]
         fracrefb_band_03 = lwdict["radlw_kgb03"]["fracrefb"]
-        ## band 04
+        # band 04
         selfref_band_04 = lwdict["radlw_kgb04"]["selfref"]
         forref_band_04 = lwdict["radlw_kgb04"]["forref"]
         absa_band_04 = lwdict["radlw_kgb04"]["absa"]
         absb_band_04 = lwdict["radlw_kgb04"]["absb"]
         fracrefa_band_04 = lwdict["radlw_kgb04"]["fracrefa"]
         fracrefb_band_04 = lwdict["radlw_kgb04"]["fracrefb"]
-        ## band 05
+        # band 05
         selfref_band_05 = lwdict["radlw_kgb05"]["selfref"]
         forref_band_05 = lwdict["radlw_kgb05"]["forref"]
         absa_band_05 = lwdict["radlw_kgb05"]["absa"]
@@ -1561,7 +1527,7 @@ class RadLWClass:
         fracrefb_band_05 = lwdict["radlw_kgb05"]["fracrefb"]
         ka_mo3_band_05 = lwdict["radlw_kgb05"]["ka_mo3"]
         ccl4_band_05 = lwdict["radlw_kgb05"]["ccl4"]
-        ## band 06
+        # band 06
         selfref_band_06 = lwdict["radlw_kgb06"]["selfref"]
         forref_band_06 = lwdict["radlw_kgb06"]["forref"]
         absa_band_06 = lwdict["radlw_kgb06"]["absa"]
@@ -1569,7 +1535,7 @@ class RadLWClass:
         ka_mco2_band_06 = lwdict["radlw_kgb06"]["ka_mco2"]
         cfc11adj_band_06 = lwdict["radlw_kgb06"]["cfc11adj"]
         cfc12_band_06 = lwdict["radlw_kgb06"]["cfc12"]
-        ## band 07
+        # band 07
         selfref_band_07 = lwdict["radlw_kgb07"]["selfref"]
         forref_band_07 = lwdict["radlw_kgb07"]["forref"]
         absa_band_07 = lwdict["radlw_kgb07"]["absa"]
@@ -1578,7 +1544,7 @@ class RadLWClass:
         fracrefb_band_07 = lwdict["radlw_kgb07"]["fracrefb"]
         ka_mco2_band_07 = lwdict["radlw_kgb07"]["ka_mco2"]
         kb_mco2_band_07 = lwdict["radlw_kgb07"]["kb_mco2"]
-        ## band 08
+        # band 08
         selfref_band_08 = lwdict["radlw_kgb08"]["selfref"]
         forref_band_08 = lwdict["radlw_kgb08"]["forref"]
         absa_band_08 = lwdict["radlw_kgb08"]["absa"]
@@ -1592,7 +1558,7 @@ class RadLWClass:
         ka_mn2o_band_08 = lwdict["radlw_kgb08"]["ka_mn2o"]
         kb_mn2o_band_08 = lwdict["radlw_kgb08"]["kb_mn2o"]
         cfc22adj_band_08 = lwdict["radlw_kgb08"]["cfc22adj"]
-        ## band 09
+        # band 09
         selfref_band_09 = lwdict["radlw_kgb09"]["selfref"]
         forref_band_09 = lwdict["radlw_kgb09"]["forref"]
         absa_band_09 = lwdict["radlw_kgb09"]["absa"]
@@ -1601,14 +1567,14 @@ class RadLWClass:
         fracrefb_band_09 = lwdict["radlw_kgb09"]["fracrefb"]
         ka_mn2o_band_09 = lwdict["radlw_kgb09"]["ka_mn2o"]
         kb_mn2o_band_09 = lwdict["radlw_kgb09"]["kb_mn2o"]
-        ## band 10
+        # band 10
         selfref_band_10 = lwdict["radlw_kgb10"]["selfref"]
         forref_band_10 = lwdict["radlw_kgb10"]["forref"]
         absa_band_10 = lwdict["radlw_kgb10"]["absa"]
         absb_band_10 = lwdict["radlw_kgb10"]["absb"]
         fracrefa_band_10 = lwdict["radlw_kgb10"]["fracrefa"]
         fracrefb_band_10 = lwdict["radlw_kgb10"]["fracrefb"]
-        ## band 11
+        # band 11
         selfref_band_11 = lwdict["radlw_kgb11"]["selfref"]
         forref_band_11 = lwdict["radlw_kgb11"]["forref"]
         absa_band_11 = lwdict["radlw_kgb11"]["absa"]
@@ -1617,12 +1583,12 @@ class RadLWClass:
         fracrefb_band_11 = lwdict["radlw_kgb11"]["fracrefb"]
         ka_mo2_band_11 = lwdict["radlw_kgb11"]["ka_mo2"]
         kb_mo2_band_11 = lwdict["radlw_kgb11"]["kb_mo2"]
-        ## band 12
+        # band 12
         selfref_band_12 = lwdict["radlw_kgb12"]["selfref"]
         forref_band_12 = lwdict["radlw_kgb12"]["forref"]
         absa_band_12 = lwdict["radlw_kgb12"]["absa"]
         fracrefa_band_12 = lwdict["radlw_kgb12"]["fracrefa"]
-        ## band 13
+        # band 13
         selfref_band_13 = lwdict["radlw_kgb13"]["selfref"]
         forref_band_13 = lwdict["radlw_kgb13"]["forref"]
         absa_band_13 = lwdict["radlw_kgb13"]["absa"]
@@ -1631,20 +1597,20 @@ class RadLWClass:
         ka_mco2_band_13 = lwdict["radlw_kgb13"]["ka_mco2"]
         ka_mco_band_13 = lwdict["radlw_kgb13"]["ka_mco"]
         kb_mo3_band_13 = lwdict["radlw_kgb13"]["kb_mo3"]
-        ## band 14
+        # band 14
         selfref_band_14 = lwdict["radlw_kgb14"]["selfref"]
         forref_band_14 = lwdict["radlw_kgb14"]["forref"]
         absa_band_14 = lwdict["radlw_kgb14"]["absa"]
         absb_band_14 = lwdict["radlw_kgb14"]["absb"]
         fracrefa_band_14 = lwdict["radlw_kgb14"]["fracrefa"]
         fracrefb_band_14 = lwdict["radlw_kgb14"]["fracrefb"]
-        ## band 15
+        # band 15
         selfref_band_15 = lwdict["radlw_kgb15"]["selfref"]
         forref_band_15 = lwdict["radlw_kgb15"]["forref"]
         absa_band_15 = lwdict["radlw_kgb15"]["absa"]
         fracrefa_band_15 = lwdict["radlw_kgb15"]["fracrefa"]
         ka_mn2_band_15 = lwdict["radlw_kgb15"]["ka_mn2"]
-        ## band 16
+        # band 16
         selfref_band_16 = lwdict["radlw_kgb16"]["selfref"]
         forref_band_16 = lwdict["radlw_kgb16"]["forref"]
         absa_band_16 = lwdict["radlw_kgb16"]["absa"]
@@ -2442,16 +2408,16 @@ class RadLWClass:
             tem2 = (tavel[k] - tref[jp1]) / 15.0
             jt[k] = np.maximum(1, np.minimum(4, int(3.0 + tem1))) - 1
             jt1[k] = np.maximum(1, np.minimum(4, int(3.0 + tem2))) - 1
-            #  --- ...  restrict extrapolation ranges by limiting abs(det t) < 37.5 deg
+            # restrict extrapolation ranges by limiting abs(det t) < 37.5 deg
             ft = np.maximum(-0.5, np.minimum(1.5, tem1 - float(jt[k] - 2)))
             ft1 = np.maximum(-0.5, np.minimum(1.5, tem2 - float(jt1[k] - 2)))
 
-            #  --- ...  we have now isolated the layer ln pressure and temperature,
-            #           between two reference pressures and two reference temperatures
-            #           (for each reference pressure).  we multiply the pressure
-            #           fraction fp with the appropriate temperature fractions to get
-            #           the factors that will be needed for the interpolation that yields
-            #           the optical depths (performed in routines taugbn for band n)
+            #  we have now isolated the layer ln pressure and temperature,
+            #  between two reference pressures and two reference temperatures
+            #  (for each reference pressure).  we multiply the pressure
+            #  fraction fp with the appropriate temperature fractions to get
+            #  the factors that will be needed for the interpolation that yields
+            #  the optical depths (performed in routines taugbn for band n)
 
             tem1 = 1.0 - fp
             fac10[k] = tem1 * ft
@@ -2796,8 +2762,8 @@ class RadLWClass:
                     clrdrad[k - 1, ib] = clrdrad[k - 1, ib] + radclrd
 
             # > -# Compute spectral emissivity & reflectance, include the
-            #!    contribution of spectrally varying longwave emissivity and
-            #!     reflection from the surface to the upward radiative transfer.
+            #  contribution of spectrally varying longwave emissivity and
+            #  reflection from the surface to the upward radiative transfer.
 
             #     note: spectral and Lambertian reflection are identical for the
             #           diffusivity angle flux integration used here.
