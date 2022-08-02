@@ -252,12 +252,11 @@ def zonal_bias_3d(diag_arg: DiagArg):
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
     for var in common_vars:
         logger.info(f"Computing zonal+time mean biases (3d) for {var}")
-
         with xr.set_options(keep_attrs=True):
             zm_bias = vcm.zonal_average_approximate(
-                grid.lat, bias_[var], lat_name="latitude",
+                grid.lat, bias_[[var]], lat_name="latitude",
             )
-            zm_bias_time_mean = time_mean(zm_bias).load()
+            zm_bias_time_mean = time_mean(zm_bias)[var].load()
             zonal_means[var] = zm_bias_time_mean
     return zonal_means
 
@@ -280,11 +279,11 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
     zonal_means = xr.Dataset()
     for var in common_vars:
-        logger.info("Computing zonal+time mean biases (2d)")
+        logger.info(f"Computing zonal+time mean biases (2d) for {var}")
         zonal_mean_bias = vcm.zonal_average_approximate(
-            grid.lat, bias_[var], lat_name="latitude"
+            grid.lat, bias_[[var]], lat_name="latitude"
         )
-        zonal_means[var] = time_mean(zonal_mean_bias).load()
+        zonal_means[var] = time_mean(zonal_mean_bias)[var].load()
     return zonal_means
 
 
