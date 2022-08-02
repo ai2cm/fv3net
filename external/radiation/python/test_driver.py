@@ -1,15 +1,17 @@
-import numpy as np
-
-from config import *
+from config import FORCING_DIR, LOOKUP_DIR, FORTRANDATA_DIR, nlay
 from util import compare_data
 import serialbox as ser
 from radiation_driver import RadiationDriver
 import time
-import getdata 
+import getdata
 import variables_to_read
-variables = variables_to_read.vars_dict 
+import os
+
+variables = variables_to_read.vars_dict
 
 # defining useful functions
+
+
 def getscalars(indict):
     for var in indict.keys():
         if not type(indict[var]) == dict:
@@ -19,16 +21,13 @@ def getscalars(indict):
     return indict
 
 
-
 startTime = time.time()
 
 rank = 0
 driver = RadiationDriver()
 
 serial = ser.Serializer(
-    ser.OpenModeKind.Read,
-    os.path.join(FORTRANDATA_DIR, "SW"),
-    "Generator_rank0",
+    ser.OpenModeKind.Read, os.path.join(FORTRANDATA_DIR, "SW"), "Generator_rank0",
 )
 
 si = serial.read("si", serial.savepoint["rad-initialize"])
@@ -67,9 +66,9 @@ me = 0
 
 # reading datasets needed for radinit() and radupdate()
 aer_dict = getdata.aerosol(FORCING_DIR)
-solar_filename ,solar_data = getdata.astronomy(FORCING_DIR, isolar, me)
+solar_filename, solar_data = getdata.astronomy(FORCING_DIR, isolar, me)
 sfc_file, sfc_data = getdata.sfc(FORCING_DIR)
-gas_data = getdata.gases(FORCING_DIR,ictmflg)
+gas_data = getdata.gases(FORCING_DIR, ictmflg)
 
 driver.radinit(
     si,
@@ -93,7 +92,7 @@ driver.radinit(
     lcnorm,
     lnoprec,
     iswcliq,
-    aer_dict,  
+    aer_dict,
     solar_filename,
     sfc_file,
     sfc_data,
@@ -111,14 +110,14 @@ slag, sdec, cdec, solcon = driver.radupdate(
     updatedict["fhswr"],
     updatedict["dtf"],
     updatedict["lsswr"],
-    aer_dict['kprfg'], 
-    aer_dict['idxcg'], 
-    aer_dict['cmixg'], 
-    aer_dict['denng'], 
-    aer_dict['cline'],
+    aer_dict["kprfg"],
+    aer_dict["idxcg"],
+    aer_dict["cmixg"],
+    aer_dict["denng"],
+    aer_dict["cline"],
     solar_data,
     gas_data,
-    )
+)
 
 
 columns_validated = 0
@@ -132,38 +131,38 @@ for rank in range(6):
     )
 
     Model = dict()
-    for var in variables['model']:
+    for var in variables["model"]:
         Model[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
     Statein = dict()
-    for var in variables['statein']:
+    for var in variables["statein"]:
         Statein[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
     Sfcprop = dict()
-    for var in variables['sfcprop']:
+    for var in variables["sfcprop"]:
         Sfcprop[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
     Coupling = dict()
-    for var in variables['coupling']:
+    for var in variables["coupling"]:
         Coupling[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
     Grid = dict()
-    for var in variables['grid']:
+    for var in variables["grid"]:
         Grid[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
     Tbd = dict()
-    for var in variables['tbd']:
+    for var in variables["tbd"]:
         Tbd[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
     Radtend = dict()
-    for var in variables['radtend']:
+    for var in variables["radtend"]:
         Radtend[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
     Radtend["sfcfsw"] = dict()
     Radtend["sfcflw"] = dict()
 
     Diag = dict()
-    for var in variables['diag']:
+    for var in variables["diag"]:
         Diag[var] = serializer.read(var, serializer.savepoint["driver-in-000000"])
 
     Diag["topflw"] = dict()
@@ -177,21 +176,29 @@ for rank in range(6):
     Tbd = getscalars(Tbd)
     Radtend = getscalars(Radtend)
     Diag = getscalars(Diag)
-    randomdict = getdata.random_numbers(LOOKUP_DIR,  rank)
+    randomdict = getdata.random_numbers(LOOKUP_DIR, rank)
     lwdict = getdata.lw(LOOKUP_DIR)
     swdict = getdata.sw(LOOKUP_DIR)
-    
 
     Radtendout, Diagout = driver.GFS_radiation_driver(
-        Model, Statein, Sfcprop, Coupling, Grid, Tbd, Radtend, Diag,
-        randomdict,lwdict,swdict,
+        Model,
+        Statein,
+        Sfcprop,
+        Coupling,
+        Grid,
+        Tbd,
+        Radtend,
+        Diag,
+        randomdict,
+        lwdict,
+        swdict,
     )
 
     # Process output to be compatible with serialized Fortran output for validation
     valdict = dict()
     outdict = dict()
 
-    for var in variables['radtend_out']:
+    for var in variables["radtend_out"]:
         valdict[var] = serializer.read(var, serializer.savepoint["driver-out-000000"])
         if var[:2] in ["up", "dn"]:
             if var.split("_")[1] == "s":
@@ -202,7 +209,7 @@ for rank in range(6):
         else:
             outdict[var] = Radtendout[var]
 
-    for var in variables['diag_out']:
+    for var in variables["diag_out"]:
         valdict[var] = serializer.read(var, serializer.savepoint["driver-out-000000"])
 
         if var[:2] in ["up", "dn"]:
@@ -215,9 +222,9 @@ for rank in range(6):
             outdict[var] = Diagout[var]
 
     compare_data(valdict, outdict)
-    
-    columns_validated += valdict[variables['radtend_out'][0]].shape[0]
 
-executionTime = (time.time() - startTime)
+    columns_validated += valdict[variables["radtend_out"][0]].shape[0]
 
-print(f'Execution time: {executionTime:.2f} seconds for {columns_validated} columns.')
+executionTime = time.time() - startTime
+
+print(f"Execution time: {executionTime:.2f} seconds for {columns_validated} columns.")

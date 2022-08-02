@@ -1,11 +1,8 @@
+import warnings
 import numpy as np
 import os
-import sys
-import warnings
-
-sys.path.insert(0, "..")
 from phys_const import con_pi, con_solr, con_solr_old
-from config import *
+from config import FORCING_DIR
 
 
 class AstronomyClass:
@@ -225,7 +222,7 @@ class AstronomyClass:
                     if me == 0:
                         print("Updating solar constant with cycle approx")
                         print(f"Opened solar constant data file: {self.solar_fname}")
-                    #  --- ...  check if there is a upper year limit put on the data table
+                    # check if there is a upper year limit put on the data table
                     if iyr < iyr1:
                         icy = (
                             icy1 - iyr1 + 1
@@ -423,7 +420,7 @@ class AstronomyClass:
 
         print(f"  RADIUS VECTOR {r1}")
         print(
-            f"  RIGHT ASCENSION OF SUN {halp} HRS, OR {ihalp} HRS {iyy} MINS {asec} SECS"
+            f"RIGHT ASCENSION OF SUN {halp} HRS, OR {ihalp} HRS {iyy} MINS {asec} SECS"
         )
 
         print(
@@ -603,13 +600,13 @@ class AstronomyClass:
         L = JLDAYN + 68569
         N = int(4 * L // 146097)
         L = int(L - (146097 * N + 3) // 4)
-        I = int(4000 * (L + 1) // 1461001)
-        L = int(L - 1461 * I // 4 + 31)
+        I_tmp = int(4000 * (L + 1) // 1461001)
+        L = int(L - 1461 * I_tmp // 4 + 31)
         J = int(80 * L // 2447)
         IDAY = int(L - 2447 * J // 80)
         L = int(J // 11)
         MONTH = int(J + 2 - 12 * L)
-        IYEAR = int(100 * (N - 49) + I + L)
+        IYEAR = int(100 * (N - 49) + I_tmp + L)
         IDAYWK = int(((JLDAYN + 1) % 7) + 1)
         IDAYYR = int(
             JLDAYN

@@ -1,11 +1,8 @@
 import numpy as np
-import os
 import sys
+from phys_const import con_pi
 
 sys.path.insert(0, "..")
-from radphysparam import co2cyc_file, co2gbl_file, co2dat_file
-from phys_const import con_pi
-from config import *
 
 
 class GasClass:
@@ -140,42 +137,43 @@ class GasClass:
         #  ===================================================================  !
         #
         co2dat = np.zeros((self.IMXCO2, self.JMXCO2))
-        co2ann = np.zeros((self.IMXCO2, self.JMXCO2))
+        # co2ann = np.zeros((self.IMXCO2, self.JMXCO2)) not used according to lint
         co2vmr_sav = np.zeros((self.IMXCO2, self.JMXCO2, 12))
+        # this section when ioznflg == 0 is not used
 
-        midmon = 15
-        midm = 15
-        midp = 45
-        #  ---  number of days in a month
-        mdays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 30]
+        # midmon = 15
+        # midm = 15
+        # midp = 45
+        # #  ---  number of days in a month
+        # mdays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 30]
 
-        #
+        # #
         # ===>  ...  begin here
         #
         # - Ozone data section
 
-        if self.ioznflg == 0:
-            midmon = mdays[imon] / 2 + 1
-            change = loz1st or ((iday == midmon) and (ihour == 0))
+        # if self.ioznflg == 0:
+        #     midmon = mdays[imon] / 2 + 1
+        #     change = loz1st or ((iday == midmon) and (ihour == 0))
 
-            if change:
-                if iday < midmon:
-                    k1oz = (imon + 10 % 12) + 1
-                    midm = mdays[k1oz] / 2 + 1
-                    k2oz = imon
-                    midp = mdays[k1oz] + midmon
-                else:
-                    k1oz = imon
-                    midm = midmon
-                    k2oz = (imon % 12) + 1
-                    midp = mdays[k2oz] / 2 + 1 + mdays[k1oz]
+        #     if change:
+        #         if iday < midmon:
+        #             k1oz = (imon + 10 % 12) + 1
+        #             midm = mdays[k1oz] / 2 + 1
+        #             k2oz = imon
+        #             midp = mdays[k1oz] + midmon
+        #         else:
+        #             k1oz = imon
+        #             midm = midmon
+        #             k2oz = (imon % 12) + 1
+        #             midp = mdays[k2oz] / 2 + 1 + mdays[k1oz]
 
-            if iday < midmon:
-                id = iday + mdays[k1oz]
-            else:
-                id = iday
+        #     if iday < midmon:
+        #         id = iday + mdays[k1oz]
+        #     else:
+        #         id = iday
 
-            facoz = float(id - midm) / float(midp - midm)
+        # facoz = float(id - midm) / float(midp - midm) not used according to lint
 
         # - co2 data section
 
@@ -205,11 +203,11 @@ class GasClass:
         #  --- ...  for data earlier than MINYEAR (1957), the data are in
         #           the form of semi-yearly global mean values.  otherwise,
         #           data are monthly mean in horizontal 2-d map.
-        #  --- ...  read in co2 2-d data for the requested month    
-        iyr   = data_gases["iyr"]
+        #  --- ...  read in co2 2-d data for the requested month
+        iyr = data_gases["iyr"]
         cline = data_gases["cline"]
-        co2g1 = data_gases["co2g1"] 
-        co2g2 = data_gases["co2g2"] 
+        co2g1 = data_gases["co2g1"]
+        co2g2 = data_gases["co2g2"]
 
         if me == 0:
             print(f"{iyr}, {cline} {co2g1},  GROWTH RATE = {co2g2}")
@@ -232,17 +230,17 @@ class GasClass:
 
                 if me == 0:
                     print(
-                            "CHECK: Sample of selected months of CO2 ",
-                            f"data used for year: {iyear}",
-                        )
+                        "CHECK: Sample of selected months of CO2 ",
+                        f"data used for year: {iyear}",
+                    )
                     for imo in range(0, 12, 3):
                         print(f"Month = {imo+1}")
                         print(co2vmr_sav[0, :, imo])
 
-            ## replace values as: 
-            # gco2cyc = data_gases["gco2cyc"] 
+            # replace values as:
+            # gco2cyc = data_gases["gco2cyc"]
             # if there is a seasonal climatology data of co2
-            gco2cyc = np.zeros(12) 
+            gco2cyc = np.zeros(12)
 
         self.co2vmr_sav = co2vmr_sav
         self.gco2cyc = gco2cyc
