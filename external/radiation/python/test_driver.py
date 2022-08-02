@@ -27,7 +27,7 @@ driver = RadiationDriver()
 
 serial = ser.Serializer(
     ser.OpenModeKind.Read,
-    os.path.join(FORTRANDATA_DIR, "SW"),
+    "../fortran/data/radiation_driver",
     "Generator_rank0",
 )
 
