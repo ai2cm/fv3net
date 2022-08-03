@@ -6,53 +6,42 @@ from vcm.catalog import catalog
 import dataclasses
 
 
-"""
-Attributes:
-    Nneighbor: number of nearest grid points
-    selfpoint: Add self-loops for each node in the graph
-    lat: latitude of cubed sphere data
-    lon: longitude of the cubed sphere data
-"""
-
-
 @dataclasses.dataclass
-class BuildingGraph:
+class GraphBuilder:
     """
     Attributes:
-        epochs: number of times to run through the batches when training
-        shuffle_buffer_size: size of buffer to use when shuffling samples, only
-            applies if in_memory=False
+        neighbor: number of nearest neighbor grids
         coarsen: 1 if the full model resolution is used, othewise data will be coarsen
-        Resolution: Model resolution to load the corresponding lat and lon.
+        resolution: Model resolution to load the corresponding lat and lon.
     """
 
-    Neighbor: int = 10
+    neighbor: int = 10
     coarsen: int = 8
-    Resolution: str = "grid/c48"
+    resolution: str = "grid/c48"
 
 
-def graphStruc(config):
+def graph_structure(config):
     nodes = []
     edges = []
 
-    grid = catalog[config.Resolution].read()
+    grid = catalog[config.resolution].read()
     lat = grid.lat.load()
     lon = grid.lon.load()
 
     lat = lat[:, :: config.coarsen, :: config.coarsen].values.flatten()
     lon = lon[:, :: config.coarsen, :: config.coarsen].values.flatten()
 
-    # lon=lon*180/np.pi
-    # lat=lat*180/np.pi
     for i in range(0, len(lat)):
-        dis = np.zeros([len(lat)])
+        distance = np.zeros([len(lat)])
         coords_1 = (lat[i], lon[i])
         for j in range(0, len(lat)):
             coords_2 = (lat[j], lon[j])
-            dis[j] = geopy.distance.geodesic(coords_1, coords_2).km
-        res = sorted(range(len(dis)), key=lambda sub: dis[sub])[: config.Neighbor]
-        nodes.append(np.repeat(i, config.Neighbor, axis=0))
-        edges.append(res)
+            distance[j] = geopy.distance.geodesic(coords_1, coords_2).km
+        distination_grids = sorted(range(len(distance)), key=lambda sub: distance[sub])[
+            : config.neighbor
+        ]
+        nodes.append(np.repeat(i, config.neighbor, axis=0))
+        edges.append(distination_grids)
     nodes = torch.tensor(nodes).flatten()
     edges = torch.tensor(edges).flatten()
     with open("NodesEdges.npy", "wb") as f:

@@ -36,6 +36,7 @@ class TrainingLoopConfig:
     buffer_size: int = 50_000
     build_samples: int = 50_000
     savemodelpath: str = "weight.pt"
+    multistep: int = 1
 
     def fit_loop(
         self, loss_config, train_model, train_data, validation, optimizer, get_loss
@@ -47,6 +48,7 @@ class TrainingLoopConfig:
             validation: validation dataset to examien the one time prediction
             optimizer: type of optimizer for the model
             get_loss: Multistep loss function
+            multistep: number of multi-step loss calculation
         """
         train_data.shuffle(buffer_size=self.buffer_size)
         train_data = tfds.as_numpy(train_data)
@@ -60,6 +62,7 @@ class TrainingLoopConfig:
                 optimizer.zero_grad()
                 loss = get_loss(
                     loss_config,
+                    self.multistep,
                     train_model=train_model,
                     inputs=torch.as_tensor(np.squeeze(x)).float().to(device),
                     labels=torch.as_tensor(np.squeeze(y)).float().to(device),

@@ -2,14 +2,13 @@ import torch
 import tensorflow as tf
 import numpy as np
 import dataclasses
-from Building_Graph import BuildingGraph
 from hyperparameters import Hyperparameters
 from toolz.functoolz import curry
-from fv3fit._shared.pytorch.graphPredict import PytorchModel
-from fv3fit._shared.pytorch.Building_Graph import graphStruc
-from fv3fit._shared.pytorch.graph_configUnet import graphnetwork, GraphNetworkConfig
-from fv3fit._shared.pytorch.Graphloss import LossConfig
-from fv3fit._shared.pytorch.GraphOptim import OptimizerConfig
+from fv3fit._shared.pytorch.graph_predict import PytorchModel
+from fv3fit._shared.pytorch.building_graph import graph_structure, GraphBuilder
+from fv3fit._shared.pytorch.graph_config import graphnetwork, GraphNetworkConfig
+from fv3fit._shared.pytorch.graph_loss import LossConfig
+from fv3fit._shared.pytorch.graph_optim import OptimizerConfig
 from fv3fit._shared.pytorch.training_loop import TrainingLoopConfig
 
 # from ..tfdataset import iterable_to_tfdataset
@@ -43,8 +42,8 @@ class GraphHyperparameters(Hyperparameters):
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("AdamW")
     )
-    build_graph: BuildingGraph = dataclasses.field(
-        default_factory=lambda: BuildingGraph()
+    build_graph: GraphBuilder = dataclasses.field(
+        default_factory=lambda: GraphBuilder()
     )
 
     graph_network: GraphNetworkConfig = dataclasses.field(
@@ -61,11 +60,11 @@ class GraphHyperparameters(Hyperparameters):
 
 
 # Some temporary transforms to make life easy for training process
-@curry
-def select_keys_mapping(
-    variable_names: Sequence[str], data: Mapping[str, tf.Tensor]
-) -> Mapping[str, tf.Tensor]:
-    return {name: data[name] for name in variable_names}
+# @curry
+# def select_keys_mapping(
+#     variable_names: Sequence[str], data: Mapping[str, tf.Tensor]
+# ) -> Mapping[str, tf.Tensor]:
+#     return {name: data[name] for name in variable_names}
 
 
 @curry
@@ -155,20 +154,20 @@ def train_graph_model(
     return predictor
 
 
-def stepwise_loss(config: LossConfig, train_model, inputs, labels):
+def stepwise_loss(config: LossConfig, multistep, train_model, inputs, labels):
 
     criterion = config.loss()
     ll = 0.0
-    # this is for the identity function,
-    # for prediction that would have an index over time
-    for sm in range(config.multistep):
+    # this is just for the identity function,
+    # for prediction label would have an index over time
+    for sm in range(multistep):
         if sm == 0:
             outputs = train_model(inputs)
             ll += criterion(outputs, labels)
         else:
             outputs = train_model(outputs)
             ll += criterion(outputs, labels)
-    ll = ll / config.multistep
+    ll = ll / multistep
     return ll
 
 
@@ -177,7 +176,7 @@ def build_model(config: GraphHyperparameters):
     Args:
         config: configuration of graph training
     """
-    g = graphStruc(config.build_graph)
+    g = graph_structure(config.build_graph)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     train_model = graphnetwork(config.graph_network, g).to(device)
     return train_model

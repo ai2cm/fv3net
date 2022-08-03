@@ -5,21 +5,15 @@
     hyperparameters:
       loss:
         loss_type: mse
-        #scaling: standard_uniform
       graph_network:
         in_feats:
         num_step: 1
         n_hidden: 256
         out_feats: 2
         dropout: 0
-        # kernel_regularizer:
-        #   name: l2
-        #   kwargs:
-        #     l: 0.01
       training_loop:
         batch_size: 1
         epochs: 2
-      #normalize_loss: true
       optimizer_config:
         name: AdamW
         learning_rate: 0.001
