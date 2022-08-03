@@ -403,21 +403,11 @@ class RadiationDriver:
         cldtausw = np.zeros((IM, Model["levr"] + self.LTP))
 
         Coupling = dict()
-        Coupling["nirbmdi"] = np.zeros(IM)
-        Coupling["nirdfdi"] = np.zeros(IM)
-        Coupling["visbmdi"] = np.zeros(IM)
-        Coupling["visdfdi"] = np.zeros(IM)
-        Coupling["nirbmui"] = np.zeros(IM)
-        Coupling["nirdfui"] = np.zeros(IM)
-        Coupling["visbmui"] = np.zeros(IM)
-        Coupling["visdfui"] = np.zeros(IM)
-
         scmpsw = dict()
         Diag = dict()
         Radtend = dict()
         Radtend["coszen"] = np.zeros(IM)
         Radtend["coszdg"] = np.zeros(IM)
-        Radtend["sfalb"] = np.zeros(IM)
         Radtend["htrsw"] = np.zeros((IM, Model["levs"]))
         Radtend["swhc"] = np.zeros((IM, Model["levs"]))
         Radtend["lwhc"] = np.zeros((IM, Model["levs"]))
@@ -906,7 +896,7 @@ class RadiationDriver:
             )
 
             # Approximate mean surface albedo from vis- and nir-  diffuse values.
-            Radtend["sfalb"][:] = np.maximum(0.01, 0.5 * (sfcalb[:, 1] + sfcalb[:, 3]))
+            Radtend["sfalb"] = np.maximum(0.01, 0.5 * (sfcalb[:, 1] + sfcalb[:, 3]))
 
             lhswb = False
             lhsw0 = True
