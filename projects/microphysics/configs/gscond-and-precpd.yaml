@@ -1,5 +1,5 @@
 kind: prognostic
-experiment: gscond-precpd
+experiment: online-all-month-init
 name: sequential-v5
 image_tag: latest
 config:
@@ -270,15 +270,8 @@ config:
       gscond_cloud_conservative: true
       mask_gscond_zero_cloud_classifier: true
       mask_emulator_levels:
-        cloud_water_mixing_ratio_after_gscond: {start: 74}
-        specific_humidity_after_gscond: {start: 74}
-        air_temperature_after_gscond: {start: 74}
+        cloud_water_mixing_ratio_after_gscond: {start: 74, fill_value: cloud_water_mixing_ratio_input}
+        specific_humidity_after_gscond: {start: 74, fill_value: specific_humidity_input}
+        air_temperature_after_gscond: {start: 74, fill_value: air_temperature_input}
     model:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-12/precpd-only-true-input-v2/model.tf
-      mask_emulator_levels:
-        air_temperature_after_precpd:
-          start: 64
-        cloud_water_mixing_ratio_after_precpd:
-          start: 64
-        specific_humidity_after_precpd:
-          start: 64
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-19/precpd-diff-only-rnn-v1-shared-weights-v1/model.tf
