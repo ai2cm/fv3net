@@ -58,6 +58,7 @@ from fv3fit.emulation.transforms import (
 )
 from fv3fit.emulation.transforms.zhao_carr import CloudLimiter
 from fv3fit.emulation.zhao_carr.models import PrecpdModelConfig
+from fv3fit.emulation.zhao_carr.filters import HighAntarctic
 from fv3fit.emulation.flux import TendencyToFlux, MoistStaticEnergyTransform
 
 from fv3fit.emulation.layers.normalization import standard_deviation_all_features
@@ -95,6 +96,8 @@ TransformT = Union[
     PrecpdOnly,
     CloudLimiter,
 ]
+
+FilterT = Union[HighAntarctic]
 
 
 def load_config_yaml(path: str) -> Dict[str, Any]:
@@ -155,6 +158,7 @@ class TransformedParameters(Hyperparameters):
     """
 
     tensor_transform: List[TransformT] = field(default_factory=list)
+    filters: List[FilterT] = field(default_factory=list)
     model: Union[PrecpdModelConfig, MicrophysicsConfig, None] = None
     conservative_model: Optional[ConservativeWaterConfig] = None
     loss: Union[CustomLoss, ZhaoCarrLoss] = field(default_factory=CustomLoss)
@@ -170,6 +174,14 @@ class TransformedParameters(Hyperparameters):
     # ideally will refactor these out, but need to insert the callback somehow
     use_wandb: bool = True
     wandb: WandBConfig = field(default_factory=WandBConfig)
+
+    @property
+    def filter_variables(self) -> Set[str]:
+        out = set()
+        for f in self.filters:
+            out |= f.input_variables
+
+        return out
 
     @property
     def transform_factory(self) -> ComposedTransformFactory:
@@ -226,11 +238,14 @@ class TransformedParameters(Hyperparameters):
         )
         loss_variables = self.transform_factory.backward_names(names_forward_must_make)
 
-        return self.transform_factory.backward_names(
-            set(self._model.input_variables)
-            | set(self._model.output_variables)
-            | self.transform_factory.backward_input_names()
-            | loss_variables
+        return (
+            self.transform_factory.backward_names(
+                set(self._model.input_variables)
+                | set(self._model.output_variables)
+                | self.transform_factory.backward_input_names()
+                | loss_variables
+            )
+            | self.filter_variables
         )
 
     @property
@@ -388,11 +403,14 @@ def train_function(
     validation_batches: Optional[tf.data.Dataset],
 ) -> PureKerasDictPredictor:
     def _prepare(ds):
-        return (
+        unbatched = (
             ds.map(tfdataset.apply_to_mapping(tfdataset.float64_to_float32))
             .map(expand_single_dim_data)
             .unbatch()
         )
+        for filter in hyperparameters.filters:
+            unbatched = unbatched.filter(filter)
+        return unbatched
 
     return _train_function_unbatched(
         hyperparameters,
