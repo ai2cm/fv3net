@@ -344,7 +344,6 @@ class RadiationDriver:
             Coupling,
             Grid,
             Tbd,
-            Radtend,
             randomdict,
             lwdict,
             swdict,
@@ -358,7 +357,6 @@ class RadiationDriver:
         Coupling,
         Grid,
         Tbd,
-        Radtend,
         randomdict,
         lwdict,
         swdict,
@@ -423,6 +421,18 @@ class RadiationDriver:
 
         scmpsw = dict()
         Diag = dict()
+        Radtend = dict()
+        Radtend["coszen"] = np.zeros(IM)
+        Radtend["coszdg"] = np.zeros(IM)
+        Radtend["sfalb"] = np.zeros(IM)
+        Radtend["htrsw"] = np.zeros((IM,Model["levs"]))
+        Radtend["swhc"] = np.zeros((IM,Model["levs"]))
+        Radtend["lwhc"] = np.zeros((IM,Model["levs"]))
+        Radtend["semis"] = np.zeros(IM)
+        Radtend["tsflw"] = np.zeros(IM)
+        Radtend["sfcfsw"] = dict()
+        Radtend["sfcflw"] = dict()
+
         Diag["fluxr"]  = np.zeros((IM,45))
         Diag["topflw"] = dict()
         Diag["topfsw"] = dict()
