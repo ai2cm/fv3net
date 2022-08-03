@@ -7,10 +7,8 @@ class LossConfig:
     """
     Attributes:
         loss_type: one of "mse" or "mae"
-        multistep: number of multi-step loss calculation
     """
 
-    multistep: int = 1
     loss_type: str = "mse"
 
     def __post_init__(self):

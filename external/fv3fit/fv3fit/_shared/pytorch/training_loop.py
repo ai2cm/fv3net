@@ -28,14 +28,13 @@ class TrainingLoopConfig:
     Attributes:
         epochs: number of times to run through the batches when training
         shuffle_buffer_size: size of buffer to use when shuffling samples
-        build_samples: the number of samples to pass to build_model
-        savemodelpath: name of the file to save the best weights
+        save_path: name of the file to save the best weights
+        multistep: number of multistep loss calculation
     """
 
     n_epoch: int = 20
     buffer_size: int = 50_000
-    build_samples: int = 50_000
-    savemodelpath: str = "weight.pt"
+    save_path: str = "weight.pt"
     multistep: int = 1
 
     def fit_loop(
@@ -45,7 +44,7 @@ class TrainingLoopConfig:
         Args:
             train_model: pytorch model to train
             train_data: training dataset containing samples to be passed to the model
-            validation: validation dataset to examien the one time prediction
+            validation: validation dataset (one time step prediction)
             optimizer: type of optimizer for the model
             get_loss: Multistep loss function
             multistep: number of multi-step loss calculation
@@ -75,4 +74,4 @@ class TrainingLoopConfig:
             val_loss = evaluate_model(loss_config, train_model, validation)
             if val_loss < min_val_loss:
                 min_val_loss = val_loss
-                torch.save(train_model.state_dict(), self.savemodelpath)
+                torch.save(train_model.state_dict(), self.save_path)

@@ -6,7 +6,7 @@ from hyperparameters import Hyperparameters
 from toolz.functoolz import curry
 from fv3fit._shared.pytorch.graph_predict import PytorchModel
 from fv3fit._shared.pytorch.building_graph import graph_structure, GraphBuilder
-from fv3fit._shared.pytorch.graph_config import graphnetwork, GraphNetworkConfig
+from fv3fit._shared.pytorch.graph_config import GraphNetwork, GraphNetworkConfig
 from fv3fit._shared.pytorch.graph_loss import LossConfig
 from fv3fit._shared.pytorch.graph_optim import OptimizerConfig
 from fv3fit._shared.pytorch.training_loop import TrainingLoopConfig
@@ -39,6 +39,7 @@ class GraphHyperparameters(Hyperparameters):
 
     input_variables: List[str]
     output_variables: List[str]
+    normalization_fit_samples: int = 50_000
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("AdamW")
     )
@@ -108,7 +109,7 @@ def train_graph_model(
     sample = next(
         iter(
             processed_train_batches.unbatch().batch(
-                hyperparameters.training_loop.build_samples
+                hyperparameters.normalization_fit_samples
             )
         )
     )
@@ -116,17 +117,17 @@ def train_graph_model(
     # create a a transform that will properly normalize or denormalize values
     means = apply_to_mapping(np.mean, sample)
     stds = apply_to_mapping(np.std, sample)
-    processed_train_batches = processed_train_batches.map(normalize(means, stds))
 
     get_Xy = curry(get_Xy_dataset)(
         input_variables=hyperparameters.input_variables,
         output_variables=hyperparameters.output_variables,
         n_dims=3,
+        means=means,
+        stds=stds,
     )
 
     if validation_batches is not None:
-        validation_batches = validation_batches.map(normalize(means, stds))
-
+        validation_batches = validation_batches.map(apply_to_mapping(ensure_nd(3)))
         val_Xy = get_Xy(data=validation_batches)
     else:
         val_Xy = None
@@ -157,18 +158,18 @@ def train_graph_model(
 def stepwise_loss(config: LossConfig, multistep, train_model, inputs, labels):
 
     criterion = config.loss()
-    ll = 0.0
+    sum_loss = 0.0
     # this is just for the identity function,
     # for prediction label would have an index over time
-    for sm in range(multistep):
-        if sm == 0:
+    for step in range(multistep):
+        if step == 0:
             outputs = train_model(inputs)
-            ll += criterion(outputs, labels)
+            sum_loss += criterion(outputs, labels)
         else:
             outputs = train_model(outputs)
-            ll += criterion(outputs, labels)
-    ll = ll / multistep
-    return ll
+            sum_loss += criterion(outputs, labels)
+    sum_loss = sum_loss / multistep
+    return sum_loss
 
 
 def build_model(config: GraphHyperparameters):
@@ -178,7 +179,7 @@ def build_model(config: GraphHyperparameters):
     """
     g = graph_structure(config.build_graph)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    train_model = graphnetwork(config.graph_network, g).to(device)
+    train_model = GraphNetwork(config.graph_network, g).to(device)
     return train_model
 
 
@@ -186,6 +187,8 @@ def get_Xy_dataset(
     input_variables: Sequence[str],
     output_variables: Sequence[str],
     n_dims: int,
+    means: float,
+    stds: float,
     data: tf.data.Dataset,
 ):
     """
@@ -195,6 +198,7 @@ def get_Xy_dataset(
     the requested output variables.
     """
     data = data.map(apply_to_mapping(ensure_nd(n_dims)))
+    data = data.map(normalize(means, stds))
 
     def map_fn(data):
         x = select_keys(input_variables, data)

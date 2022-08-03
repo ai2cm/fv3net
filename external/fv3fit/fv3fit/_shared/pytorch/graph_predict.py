@@ -61,8 +61,6 @@ class PytorchModel(Predictor):
         X = X.transpose("grid", "z")
         X_stacked = stack(X, unstacked_dims=self._unstacked_dims)
         inputs = [X_stacked[name].values for name in self.input_variables]
-        # self.model.load_state_dict(torch.load('weight.pt'))
-        # self.model.eval()
         outputs = self.model(torch.as_tensor(inputs).float())
         if isinstance(outputs, np.ndarray):
             outputs = [outputs]
