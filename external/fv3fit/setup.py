@@ -29,7 +29,6 @@ requirements = [
 
 setup_requirements = []
 
-dependency_links = ["https://download.pytorch.org/whl/cu113"]
 
 test_requirements = ["pytest"]
 
@@ -48,7 +47,11 @@ setup(
     ],
     description="FV3Fit is used to train machine learning models.",
     install_requires=requirements,
-    dependency_links=["../loaders/", "../vcm/"],
+    dependency_links=[
+        "../loaders/",
+        "../vcm/",
+        "https://download.pytorch.org/whl/cu113",
+    ],
     extras_require={},
     license="BSD license",
     long_description="FV3Fit is used to train machine learning models.",
