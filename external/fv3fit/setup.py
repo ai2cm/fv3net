@@ -20,7 +20,7 @@ requirements = [
     "plotly",
     "tensorboard",
     "pandas",
-    "torch==1.12.0",
+    "torch==1.12.0 --extra-index-url https://download.pytorch.org/whl/cu113",
     "torchvision==0.13.0+cu113",
     "dgl==0.9.0",
     "geographiclib==1.52",
