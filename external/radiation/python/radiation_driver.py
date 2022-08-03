@@ -402,10 +402,10 @@ class RadiationDriver:
 
         cldtausw = np.zeros((IM, Model["levr"] + self.LTP))
 
-        Coupling = dict()
-        scmpsw = dict()
-        Diag = dict()
-        Radtend = dict()
+        Coupling = {}
+        scmpsw = {}
+        Diag = {}
+        Radtend = {}
         Radtend["coszen"] = np.zeros(IM)
         Radtend["coszdg"] = np.zeros(IM)
         Radtend["htrsw"] = np.zeros((IM, Model["levs"]))
