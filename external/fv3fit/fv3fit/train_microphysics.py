@@ -170,6 +170,7 @@ class TransformedParameters(Hyperparameters):
     # only model checkpoints are saved at out_url, but need to keep these name
     # for backwards compatibility
     checkpoint_model: bool = True
+    checkpoint_interval: int = 1
     out_url: str = ""
     # ideally will refactor these out, but need to insert the callback somehow
     use_wandb: bool = True
@@ -447,7 +448,8 @@ def _train_function_unbatched(
             ModelCheckpointCallback(
                 filepath=os.path.join(
                     config.out_url, "checkpoints", "epoch.{epoch:03d}.tf"
-                )
+                ),
+                interval=config.checkpoint_interval,
             )
         )
 
