@@ -262,6 +262,7 @@ config:
       ncld: 1
       ldiag3d: true
       emulate_gscond_only: true
+      emulate_zc_microphysics: true
   zhao_carr_emulation:
     gscond:
       path: gs://vcm-ml-experiments/microphysics-emulation/2022-05-12/gscond-only-tscale-dense-local-41b1c1-v1/model.tf
@@ -269,6 +270,7 @@ config:
       enforce_conservative: true
       gscond_cloud_conservative: true
       mask_gscond_zero_cloud_classifier: true
+      mask_gscond_no_tend_classifier: true
       mask_emulator_levels:
         cloud_water_mixing_ratio_after_gscond: {start: 74, fill_value: cloud_water_mixing_ratio_input}
         specific_humidity_after_gscond: {start: 74, fill_value: specific_humidity_input}

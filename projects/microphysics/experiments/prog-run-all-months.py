@@ -15,9 +15,9 @@ def get_job(month: int):
     config["initial_conditions"] = BASE_URL.format(month=month)
 
     return PrognosticJob(
-        f"combined-emu-monthly-init-{month:02d}-10d-v2",
+        f"combined-emu-monthly-init-{month:02d}-10d-v3",
         config=config,
-        image_tag="latest",
+        image_tag="ee32f1d0eed1b46387847724452c7d8596066495",
     )
 
 
