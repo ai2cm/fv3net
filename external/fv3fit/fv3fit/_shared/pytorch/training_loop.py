@@ -38,7 +38,7 @@ class TrainingLoopConfig:
     multistep: int = 1
 
     def fit_loop(
-        self, loss_config, train_model, train_data, validation, optimizer, get_loss
+        self, loss_config, train_model, train_data, validation, optimizer
     ) -> None:
         """
         Args:
@@ -59,8 +59,7 @@ class TrainingLoopConfig:
             l_sum, n = 0.0, 0
             for x, y in train_data:
                 optimizer.zero_grad()
-                loss = get_loss(
-                    loss_config,
+                loss = loss_config.stepwise_loss(
                     self.multistep,
                     train_model=train_model,
                     inputs=torch.as_tensor(np.squeeze(x)).float().to(device),

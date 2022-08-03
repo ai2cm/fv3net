@@ -34,3 +34,29 @@ class LossConfig:
         else:
             raise NotImplementedError(f"loss_type {self.loss_type} is not implemented")
         return loss
+
+    def stepwise_loss(self, multistep, train_model, inputs, labels):
+        """
+        Multistep loss fucntion, used during training
+        Args:
+            multistep: number of multistep loss calculation
+            train_model: pytoch model
+            inputs: input features
+            labels: truch to be compared with
+
+        Retunrs:
+            average of the losses at each step
+        """
+        criterion = self.loss()
+        sum_loss = 0.0
+        # this is just for the identity function,
+        # for prediction label would have an index over time
+        for step in range(multistep):
+            if step == 0:
+                outputs = train_model(inputs)
+                sum_loss += criterion(outputs, labels)
+            else:
+                outputs = train_model(outputs)
+                sum_loss += criterion(outputs, labels)
+        sum_loss = sum_loss / multistep
+        return sum_loss

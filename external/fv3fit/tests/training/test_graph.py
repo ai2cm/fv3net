@@ -51,7 +51,7 @@ def test_train_default_model_on_identity(regtest):
     using gaussian-sampled data around 0 with unit variance.
     """
     assert_can_learn_identity(
-        max_rmse=0.2, regtest=regtest,
+        max_rmse=0.3, regtest=regtest,
     )
 
 
