@@ -20,7 +20,7 @@ requirements = [
     "plotly",
     "tensorboard",
     "pandas",
-    "torch==1.4.0",
+    "torch==1.12.0",
     "torchvision==0.13.0+cu113",
     "dgl==0.9.0",
     "geographiclib==1.52",
@@ -28,6 +28,8 @@ requirements = [
 ]
 
 setup_requirements = []
+
+dependency_links = ["https://download.pytorch.org/whl/cu113"]
 
 test_requirements = ["pytest"]
 
