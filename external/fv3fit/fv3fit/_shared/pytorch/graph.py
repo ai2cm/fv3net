@@ -80,6 +80,7 @@ def normalize(
 
 
 # TODO: Still have to handle forcing
+# TODO: used StandardScaler for normalization
 
 
 @register_training_function("graph", GraphHyperparameters)
