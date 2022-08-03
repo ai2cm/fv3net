@@ -337,6 +337,34 @@ class RadiationDriver:
         swdict,
     ):
 
+        return self._GFS_radiation_driver(
+            Model,
+            Statein,
+            Sfcprop,
+            Coupling,
+            Grid,
+            Tbd,
+            Radtend,
+            Diag,
+            randomdict,
+            lwdict,
+            swdict,
+        )
+
+    def _GFS_radiation_driver(
+        self,
+        Model,
+        Statein,
+        Sfcprop,
+        Coupling,
+        Grid,
+        Tbd,
+        Radtend,
+        Diag,
+        randomdict,
+        lwdict,
+        swdict,
+    ):
         if not (Model["lsswr"] or Model["lslwr"]):
             return
 
