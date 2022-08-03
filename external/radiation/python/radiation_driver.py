@@ -345,7 +345,6 @@ class RadiationDriver:
             Grid,
             Tbd,
             Radtend,
-            Diag,
             randomdict,
             lwdict,
             swdict,
@@ -360,7 +359,6 @@ class RadiationDriver:
         Grid,
         Tbd,
         Radtend,
-        Diag,
         randomdict,
         lwdict,
         swdict,
@@ -424,7 +422,10 @@ class RadiationDriver:
         cldtausw = np.zeros((IM, Model["levr"] + self.LTP))
 
         scmpsw = dict()
-
+        Diag = dict()
+        Diag["fluxr"]  = np.zeros((IM,45))
+        Diag["topflw"] = dict()
+        Diag["topfsw"] = dict()
         Diag["topfsw"]["upfxc"] = np.zeros(IM)
         Diag["topfsw"]["dnfxc"] = np.zeros(IM)
         Diag["topfsw"]["upfx0"] = np.zeros(IM)
