@@ -1354,4 +1354,4 @@ class RadiationDriver:
                             1.0 - np.exp(-tem2)
                         )
 
-        return Radtend, Diag
+        return Radtend, Diag, Coupling

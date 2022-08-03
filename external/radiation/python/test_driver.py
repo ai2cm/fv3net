@@ -179,7 +179,7 @@ for rank in range(6):
     lwdict = getdata.lw(LOOKUP_DIR)
     swdict = getdata.sw(LOOKUP_DIR)
 
-    Radtendout, Diagout = driver.GFS_radiation_driver(
+    Radtendout, Diagout, Couplingout = driver.GFS_radiation_driver(
         Model,
         Statein,
         Sfcprop,
