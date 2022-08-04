@@ -2,7 +2,7 @@ import torch
 import tensorflow as tf
 import numpy as np
 import dataclasses
-from hyperparameters import Hyperparameters
+from ..._shared.training_config import Hyperparameters
 from toolz.functoolz import curry
 from fv3fit._shared.pytorch.graph_predict import PytorchModel
 from fv3fit._shared.pytorch.building_graph import graph_structure, GraphBuilder
