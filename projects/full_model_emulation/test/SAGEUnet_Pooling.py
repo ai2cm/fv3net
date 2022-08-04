@@ -31,7 +31,7 @@ g = pickle.load(open("UpdatedGraph_Neighbour10_Coarsen3", "rb"))
 residual = 0
 
 
-control_str = "SAGEUnet_WithNewLayers"  #'TNSTTNST' #'TNTSTNTST'
+control_str = "SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
 
 print(control_str)
 
@@ -40,8 +40,8 @@ epochs = 30
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
 Chuncksize = 1000
-num_step = 1
-aggregat = "mean"
+num_step = 4
+aggregat = "pool"
 
 
 lr = 0.001
@@ -51,7 +51,7 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "weight_layer_"
+    "2weight_layer_"
     + control_str
     + "_lead"
     + str(lead)
@@ -153,11 +153,12 @@ class UnetGraphSAGE(nn.Module):
     def __init__(self, g, in_feats, h_feats, out_feat, num_step, aggregat):
         super(UnetGraphSAGE, self).__init__()
         self.conv1 = SAGEConv(in_feats, h_feats, aggregat)
-        self.conv2 = SAGEConv(h_feats, int(h_feats / 2), aggregat)
-        self.conv3 = SAGEConv(int(h_feats / 2), int(h_feats / 4), aggregat)
-        self.conv4 = SAGEConv(int(h_feats / 4), int(h_feats / 4), aggregat)
-        self.conv5 = SAGEConv(int(h_feats / 2), int(h_feats / 2), aggregat)
+        self.conv2 = SAGEConv(h_feats, int(h_feats * 2), aggregat)
+        self.conv3 = SAGEConv(int(h_feats * 2), int(h_feats * 4), aggregat)
+        self.conv4 = SAGEConv(int(h_feats * 4), int(h_feats * 4), aggregat)
+        self.conv5 = SAGEConv(int(h_feats * 2), int(h_feats * 2), aggregat)
         self.conv6 = SAGEConv(h_feats, out_feat, aggregat)
+        self.pool1 = nn.MaxPool1d(2, stride=2, return_indices=True)
         self.g = g
         self.num_step = num_step
 
@@ -166,16 +167,12 @@ class UnetGraphSAGE(nn.Module):
         for _ in range(self.num_step):
             h1 = F.relu(self.conv1(self.g, in_feat))
             h2 = F.relu(self.conv2(self.g, h1))
+            h2 = h2.transpose(0, 1)
+            h2, ind = self.pool1(h2)
+            h2 = h2.transpose(0, 1)
+
             h3 = F.relu(self.conv3(self.g, h2))
             h4 = F.relu(self.conv4(self.g, h3))
-
-            h4 = F.relu(self.conv4(self.g, h4))
-            h4 = F.relu(self.conv4(self.g, h4))
-            h4 = F.relu(self.conv4(self.g, h4))
-            h4 = F.relu(self.conv4(self.g, h4))
-            h4 = F.relu(self.conv4(self.g, h4))
-            h4 = F.relu(self.conv4(self.g, h4))
-
             h5 = torch.cat((F.relu(self.conv4(self.g, h4)), h3), dim=1)
             h6 = torch.cat((F.relu(self.conv5(self.g, h5)), h2), dim=1)
             out = self.conv6(self.g, h6)
