@@ -24,8 +24,9 @@ import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
 
+multiStep=8
 lead = 6
-hidden_filetrs=64
+hidden_filetrs=256
 coarsenInd = 3
 g = pickle.load(open("UpdatedGraph_Neighbour10_Coarsen3", "rb"))
 residual = 0
@@ -55,6 +56,8 @@ savemodelpath = (
     + control_str
     +"hidden_filetrs"
     + str(hidden_filetrs)
+    +"_MultistepLoss"
+    + str(multiStep)
     + "_lead"
     + str(lead)
     + "_epochs_"
@@ -268,21 +271,35 @@ for epoch in range(1, epochs + 1):
         train = dataSets[:, :len_train]
         val = dataSets[:, len_train + 14 : len_train + len_val]
 
-        x_train = train[:, 0:-lead, :]
-        y_train = train[:, lead::, :]
+        x_train = train[:, 0 : -multiStep * lead, :]
+
+        y_train = x_t = np.zeros(
+            [
+                np.size(train, 0),
+                np.size(train, 1) - multiStep * lead,
+                np.size(train, 2),
+                multiStep,
+            ]
+        )
+        for sm in range(1, multiStep + 1):
+            if sm == multiStep:
+                y_train[:, :, :, sm - 1] = train[:, (sm) * lead : :, :]
+            else:
+                y_train[:, :, :, sm - 1] = train[
+                    :, (sm) * lead : -(multiStep - sm) * lead, :
+                ]
+
         x_val = val[:, 0:-lead, :]
         y_val = val[:, lead::, :]
 
-        if residual == 1:
-            y_train = y_train - x_train
-            y_val = y_val - x_val
-
         x_train = np.swapaxes(x_train, 1, 0)
         y_train = np.swapaxes(y_train, 1, 0)
+
         x_train = np.swapaxes(x_train, 2, 1)
         y_train = np.swapaxes(y_train, 2, 1)
-        x_train = torch.Tensor(x_train).to(device)
-        y_train = torch.Tensor(y_train).to(device)
+
+        x_train = torch.Tensor(x_train)
+        y_train = torch.Tensor(y_train)
 
         train_data = torch.utils.data.TensorDataset(x_train, y_train)
         train_iter = torch.utils.data.DataLoader(train_data, batch_size, shuffle=True)
@@ -303,11 +320,21 @@ for epoch in range(1, epochs + 1):
 
         l_sum, n = 0.0, 0
         for x, y in train_iter:
-            exteraVar1 = exteraVar[: x.size(0)]
-            x = torch.squeeze(torch.cat((x, exteraVar1), 2)).float()
-            y_pred = model(x, exteraVar1).view(-1, out_feat)
-            l = loss(y_pred, torch.squeeze(y))
             optimizer.zero_grad()
+            exteraVar1 = exteraVar[: x.size(0)]
+            x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
+            y_pred = model(x, exteraVar1).view(-1, out_feat)
+
+            l = loss(y_pred, torch.squeeze(y[:, :, :, 0]).to(device))
+
+            for sm in range(1, multiStep):
+                y_pred2 = model(
+                    torch.cat((y_pred, torch.squeeze(exteraVar1)), 1).float(),
+                    exteraVar1,
+                ).view(-1, out_feat)
+                l += loss(y_pred2, torch.squeeze(y[:, :, :, sm]).to(device))
+
+            l = l / multiStep
             l.backward()
             optimizer.step()
             l_sum += l.item() * y.shape[0]

@@ -14,11 +14,7 @@ spec:
       - name: training-config
         value: ""
       - name: image_tag
-<<<<<<< HEAD
-        value: 6cfa293484f7814135af163581523204b3f64bac
-=======
-        value: 4985c413b9ffd168da92f57ba18f40f39546a0a3
->>>>>>> 0e849c6e80d5fdd769d4cf7075fa06eff311b6f4
+        value: 978a55c8d2feb39860b9e86741982bf87ab8d8a9
   volumes:
   - name: gcp-key-secret
     secret:
@@ -62,7 +58,7 @@ spec:
           cpu: "7"
           memory: "15Gi"
       workingDir: "/fv3net/projects/full_model_emulation/test"
-      args: ["SAGEUnetMulti_General.py"]
+      args: ["SAGEUnet_Inverse_multiStep.py"]
     tolerations:
     - key: "dedicated"
       operator: "Equal"
