@@ -2067,9 +2067,6 @@ class RadSWClass:
         sfdf0 = np.zeros(2)
 
         colamt = np.zeros((nlay, maxgas))
-
-        ipseed = np.zeros(npts)
-
         indfor = np.zeros(nlay, np.int32)
         indself = np.zeros(nlay, np.int32)
         jp = np.zeros(nlay, np.int32)
