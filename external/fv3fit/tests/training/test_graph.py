@@ -4,9 +4,9 @@ import tensorflow as tf
 import xarray as xr
 import fv3fit
 from typing import Optional, Sequence, TextIO
-from fv3fit._shared.pytorch.graph_predict import PytorchModel
+from fv3fit.pytorch.graph_predict import PytorchModel
 import pytest
-from fv3fit._shared.pytorch.graph import GraphHyperparameters
+from fv3fit.pytorch.graph import GraphHyperparameters
 
 GENERAL_TRAINING_TYPES = [
     "graph",
