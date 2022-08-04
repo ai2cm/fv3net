@@ -25,6 +25,7 @@ requirements = [
     "dgl==0.9.0",
     "geographiclib==1.52",
     "geopy==2.2.0",
+    "tensorflow-datasets",
 ]
 
 setup_requirements = []
