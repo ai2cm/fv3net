@@ -747,31 +747,9 @@ class RadiationDriver:
                     if ccnd[i, k, 0] < self.EPSQ:
                         ccnd[i, k, 0] = 0.0
 
-        if Model["uni_cld"]:
-            if Model["effr_in"]:
-                for k in range(LM):
-                    k1 = k + kd
-                    for i in range(IM):
-                        cldcov[i, k1] = Tbd["phy_f3d"][i, k, Model["indcld"] - 1]
-                        effrl[i, k1] = Tbd["phy_f3d"][i, k, 1]
-                        effri[i, k1] = Tbd["phy_f3d"][i, k, 2]
-                        effrr[i, k1] = Tbd["phy_f3d"][i, k, 3]
-                        effrs[i, k1] = Tbd["phy_f3d"][i, k, 4]
-            else:
-                for k in range(LM):
-                    k1 = k + kd
-                    for i in range(IM):
-                        cldcov[i, k1] = Tbd["phy_f3d"][i, k, Model["indcld"] - 1]
-        elif Model["imp_physics"] == 11:  # GFDL MP
+        if Model["imp_physics"] == 11:  # GFDL MP
             cldcov[:IM, kd : LM + kd] = tracer1[:IM, :LM, Model["ntclamt"] - 1]
-            if Model["effr_in"]:
-                for k in range(LM):
-                    k1 = k + kd
-                    for i in range(IM):
-                        effrl[i, k1] = Tbd["phy_f3d"][i, k, 0]
-                        effri[i, k1] = Tbd["phy_f3d"][i, k, 1]
-                        effrr[i, k1] = Tbd["phy_f3d"][i, k, 2]
-                        effrs[i, k1] = Tbd["phy_f3d"][i, k, 3]
+
         else:  # neither of the other two cases
             cldcov = 0.0
 
@@ -781,25 +759,7 @@ class RadiationDriver:
         #      for zhao/moorthi's (imp_phys=99) &
         #          ferrier's (imp_phys=5) microphysics schemes
 
-        if (
-            Model["num_p3d"] == 4 and Model["npdf3d"] == 3
-        ):  # same as Model%imp_physics = 99
-            for k in range(LM):
-                k1 = k + kd
-                for i in range(IM):
-                    deltaq[i, k1] = Tbd["phy_f3d"][i, k, 4]
-                    cnvw[i, k1] = Tbd["phy_f3d"][i, k, 5]
-                    cnvc[i, k1] = Tbd["phy_f3d"][i, k, 6]
-        elif (
-            Model["npdf3d"] == 0 and Model["ncnvcld3d"] == 1
-        ):  # same as MOdel%imp_physics=98
-            for k in range(LM):
-                k1 = k + kd
-                for i in range(IM):
-                    deltaq[i, k1] = 0.0
-                    cnvw[i, k1] = Tbd["phy_f3d"][i, k, Model["num_p3d"]]
-                    cnvc[i, k1] = 0.0
-        else:  # all the rest
+        if Model["num_p3d"] == 1 and Model["npdf3d"] == 0 and Model["ncnvcld3d"] == 0:  # all the rest
             for k in range(LMK):
                 for i in range(IM):
                     deltaq[i, k] = 0.0
