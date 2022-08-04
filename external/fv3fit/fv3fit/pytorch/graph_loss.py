@@ -35,7 +35,9 @@ class LossConfig:
             raise NotImplementedError(f"loss_type {self.loss_type} is not implemented")
         return loss
 
-    def stepwise_loss(self, multistep, train_model, inputs, labels):
+    def multi_timestep_loss(
+        self, multistep, train_model, inputs, labels
+    ) -> torch.nn.functional:
         """
         Multistep loss fucntion, used during training
         Args:

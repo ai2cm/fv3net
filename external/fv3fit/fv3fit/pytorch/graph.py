@@ -139,7 +139,7 @@ def train_graph_model(
         hyperparameters.loss,
         train_model=train_model,
         train_data=train_Xy,
-        validation=val_Xy,
+        validation_data=val_Xy,
         optimizer=optimizer.instance(train_model.parameters()),
     )
 

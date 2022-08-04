@@ -12,9 +12,9 @@ class GraphNetworkConfig:
     Attributes:
         in_feats: number of input features
         out_feats: number of output features
-        n_hidden: number of hidden channels
+        n_hidden: maximum number of hidden channels
         num_step: number of U-net blocks
-        aggregat: type of aggregator
+        aggregat: type of aggregator, choosen from "mean", "gcn","pool","lstm"
         activation: activation function
     """
 
@@ -22,27 +22,27 @@ class GraphNetworkConfig:
     out_feats: int = 2
     n_hidden: int = 256
     num_step: int = 1
-    aggregat: str = "mean"
+    aggregator: str = "mean"
     activation: Callable = F.relu
 
 
 class GraphNetwork(nn.Module):
     def __init__(self, config, g):
         super(GraphNetwork, self).__init__()
-        self.conv1 = SAGEConv(config.in_feats, config.n_hidden, config.aggregat)
+        self.conv1 = SAGEConv(config.in_feats, config.n_hidden, config.aggregator)
         self.conv2 = SAGEConv(
-            config.n_hidden, int(config.n_hidden / 2), config.aggregat
+            config.n_hidden, int(config.n_hidden / 2), config.aggregator
         )
         self.conv3 = SAGEConv(
-            int(config.n_hidden / 2), int(config.n_hidden / 4), config.aggregat
+            int(config.n_hidden / 2), int(config.n_hidden / 4), config.aggregator
         )
         self.conv4 = SAGEConv(
-            int(config.n_hidden / 4), int(config.n_hidden / 4), config.aggregat
+            int(config.n_hidden / 4), int(config.n_hidden / 4), config.aggregator
         )
         self.conv5 = SAGEConv(
-            int(config.n_hidden / 2), int(config.n_hidden / 2), config.aggregat
+            int(config.n_hidden / 2), int(config.n_hidden / 2), config.aggregator
         )
-        self.conv6 = SAGEConv(config.n_hidden, config.out_feats, config.aggregat)
+        self.conv6 = SAGEConv(config.n_hidden, config.out_feats, config.aggregator)
         self.g = g
         self.config = config
 

@@ -38,7 +38,7 @@ class TrainingLoopConfig:
     multistep: int = 1
 
     def fit_loop(
-        self, loss_config, train_model, train_data, validation, optimizer
+        self, loss_config, train_model, train_data, validation_data, optimizer
     ) -> None:
         """
         Args:
@@ -51,15 +51,14 @@ class TrainingLoopConfig:
         """
         train_data.shuffle(buffer_size=self.buffer_size)
         train_data = tfds.as_numpy(train_data)
-        validation = tfds.as_numpy(validation)
+        validation_data = tfds.as_numpy(validation_data)
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         min_val_loss = np.inf
         for epoch in range(1, self.n_epoch + 1):  # loop over the dataset multiple times
             train_model.train()
-            l_sum, n = 0.0, 0
             for x, y in train_data:
                 optimizer.zero_grad()
-                loss = loss_config.stepwise_loss(
+                loss = loss_config.multi_timestep_loss(
                     self.multistep,
                     train_model=train_model,
                     inputs=torch.as_tensor(np.squeeze(x)).float().to(device),
@@ -68,9 +67,7 @@ class TrainingLoopConfig:
                 loss.backward()
                 y = torch.as_tensor(np.squeeze(y)).float().to(device)
                 optimizer.step()
-                l_sum += loss.item() * y.shape[0]
-                n += y.shape[0]
-            val_loss = evaluate_model(loss_config, train_model, validation)
+            val_loss = evaluate_model(loss_config, train_model, validation_data)
             if val_loss < min_val_loss:
                 min_val_loss = val_loss
                 torch.save(train_model.state_dict(), self.save_path)
