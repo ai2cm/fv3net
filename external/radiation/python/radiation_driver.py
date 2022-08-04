@@ -759,7 +759,9 @@ class RadiationDriver:
         #      for zhao/moorthi's (imp_phys=99) &
         #          ferrier's (imp_phys=5) microphysics schemes
 
-        if Model["num_p3d"] == 1 and Model["npdf3d"] == 0 and Model["ncnvcld3d"] == 0:  # all the rest
+        if (
+            Model["num_p3d"] == 1 and Model["npdf3d"] == 0 and Model["ncnvcld3d"] == 0
+        ):  # all the rest
             for k in range(LMK):
                 for i in range(IM):
                     deltaq[i, k] = 0.0
