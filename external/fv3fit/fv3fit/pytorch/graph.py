@@ -2,14 +2,14 @@ import torch
 import tensorflow as tf
 import numpy as np
 import dataclasses
-from ..._shared.training_config import Hyperparameters
+from .._shared.training_config import Hyperparameters
 from toolz.functoolz import curry
-from fv3fit._shared.pytorch.graph_predict import PytorchModel
-from fv3fit._shared.pytorch.building_graph import graph_structure, GraphBuilder
-from fv3fit._shared.pytorch.graph_config import GraphNetwork, GraphNetworkConfig
-from fv3fit._shared.pytorch.graph_loss import LossConfig
-from fv3fit._shared.pytorch.graph_optim import OptimizerConfig
-from fv3fit._shared.pytorch.training_loop import TrainingLoopConfig
+from fv3fit.pytorch.graph_predict import PytorchModel
+from fv3fit.pytorch.building_graph import graph_structure, GraphBuilder
+from fv3fit.pytorch.graph_config import GraphNetwork, GraphNetworkConfig
+from fv3fit.pytorch.graph_loss import LossConfig
+from fv3fit.pytorch.graph_optim import OptimizerConfig
+from fv3fit.pytorch.training_loop import TrainingLoopConfig
 from fv3fit._shared.scaler import StandardScaler
 
 from fv3fit._shared import register_training_function
@@ -68,10 +68,12 @@ def get_normalizer(sample: Mapping[str, np.ndarray]):
         scalers[name] = s
 
     def scale(sample: Mapping[str, np.ndarray]):
-        out = {**sample}
+        output = {**sample}
         for name, array in sample.items():
-            out[name] = scalers[name].normalize(array)  # scalers[name].transform(array)
-        return out
+            output[name] = scalers[name].normalize(
+                array
+            )  # scalers[name].transform(array)
+        return output
 
     return scale
 
