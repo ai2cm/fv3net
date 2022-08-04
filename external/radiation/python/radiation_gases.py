@@ -1,12 +1,8 @@
 import numpy as np
-import xarray as xr
-import os
 import sys
+from phys_const import con_pi
 
 sys.path.insert(0, "..")
-from radphysparam import co2cyc_file, co2gbl_file, co2dat_file
-from phys_const import con_pi
-from config import *
 
 
 class GasClass:
@@ -40,10 +36,6 @@ class GasClass:
         self.ioznflg = iozn
         self.ico2flg = ico2
         self.ictmflg = ictm
-
-        self.co2cyc_file = os.path.join(FORCING_DIR, co2cyc_file)
-        self.co2gbl_file = os.path.join(FORCING_DIR, co2gbl_file)
-        self.co2dat_file = os.path.join(FORCING_DIR, co2dat_file)
 
         if self.ioznflg > 0:
             if self.me == 0:
@@ -79,34 +71,6 @@ class GasClass:
                         " - Stoped in subroutine gas_init!!!",
                     )
 
-            if self.ictmflg == -2:
-                file_exist = os.path.isfile(self.co2cyc_file)
-                if not file_exist:
-                    raise FileNotFoundError(
-                        "Can not find seasonal cycle CO2 data: ",
-                        f"{co2cyc_file} - Stopped in subroutine gas_init !!",
-                    )
-                else:
-                    co2cyc_sav = np.zeros((self.IMXCO2, self.JMXCO2, 12))
-                    ds = xr.open_dataset(self.co2cyc_file)
-                    #  --- ...  read in co2 2-d seasonal cycle data
-                    cline = ds["cline"].data
-                    co2g1 = ds["co2g1"].data
-                    co2g2 = ds["co2g2"].data
-                    co2dat = ds["co2dat"]
-
-                    if me == 0:
-                        print(" - Superimpose seasonal cycle to mean CO2 data")
-                        print(
-                            "Opened CO2 climatology seasonal cycle data",
-                            f" file: {co2cyc_file}",
-                        )
-
-                    gco2cyc = ds["gco2cyc"]
-                    gco2cyc = gco2cyc * 1.0e-6
-
-                    self.co2cyc_sav = co2dat
-
     def return_initdata(self):
         outdict = {"co2cyc_sav": 0}
         return outdict
@@ -115,7 +79,7 @@ class GasClass:
         outdict = {"co2vmr_sav": self.co2vmr_sav, "gco2cyc": self.gco2cyc}
         return outdict
 
-    def gas_update(self, iyear, imon, iday, ihour, loz1st, ldoco2, me):
+    def gas_update(self, iyear, imon, iday, ihour, loz1st, ldoco2, me, data_gases):
         #  ===================================================================  !
         #                                                                       !
         #  gas_update reads in 2-d monthly co2 data set for a specified year.   !
@@ -172,44 +136,44 @@ class GasClass:
         #                                                                       !
         #  ===================================================================  !
         #
-
         co2dat = np.zeros((self.IMXCO2, self.JMXCO2))
-        co2ann = np.zeros((self.IMXCO2, self.JMXCO2))
+        # co2ann = np.zeros((self.IMXCO2, self.JMXCO2)) not used according to lint
         co2vmr_sav = np.zeros((self.IMXCO2, self.JMXCO2, 12))
+        # this section when ioznflg == 0 is not used
 
-        midmon = 15
-        midm = 15
-        midp = 45
-        #  ---  number of days in a month
-        mdays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 30]
+        # midmon = 15
+        # midm = 15
+        # midp = 45
+        # #  ---  number of days in a month
+        # mdays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 30]
 
-        #
+        # #
         # ===>  ...  begin here
         #
         # - Ozone data section
 
-        if self.ioznflg == 0:
-            midmon = mdays[imon] / 2 + 1
-            change = loz1st or ((iday == midmon) and (ihour == 0))
+        # if self.ioznflg == 0:
+        #     midmon = mdays[imon] / 2 + 1
+        #     change = loz1st or ((iday == midmon) and (ihour == 0))
 
-            if change:
-                if iday < midmon:
-                    k1oz = (imon + 10 % 12) + 1
-                    midm = mdays[k1oz] / 2 + 1
-                    k2oz = imon
-                    midp = mdays[k1oz] + midmon
-                else:
-                    k1oz = imon
-                    midm = midmon
-                    k2oz = (imon % 12) + 1
-                    midp = mdays[k2oz] / 2 + 1 + mdays[k1oz]
+        #     if change:
+        #         if iday < midmon:
+        #             k1oz = (imon + 10 % 12) + 1
+        #             midm = mdays[k1oz] / 2 + 1
+        #             k2oz = imon
+        #             midp = mdays[k1oz] + midmon
+        #         else:
+        #             k1oz = imon
+        #             midm = midmon
+        #             k2oz = (imon % 12) + 1
+        #             midp = mdays[k2oz] / 2 + 1 + mdays[k1oz]
 
-            if iday < midmon:
-                id = iday + mdays[k1oz]
-            else:
-                id = iday
+        #     if iday < midmon:
+        #         id = iday + mdays[k1oz]
+        #     else:
+        #         id = iday
 
-            facoz = float(id - midm) / float(midp - midm)
+        # facoz = float(id - midm) / float(midp - midm) not used according to lint
 
         # - co2 data section
 
@@ -239,138 +203,47 @@ class GasClass:
         #  --- ...  for data earlier than MINYEAR (1957), the data are in
         #           the form of semi-yearly global mean values.  otherwise,
         #           data are monthly mean in horizontal 2-d map.
+        #  --- ...  read in co2 2-d data for the requested month
+        iyr = data_gases["iyr"]
+        cline = data_gases["cline"]
+        co2g1 = data_gases["co2g1"]
+        co2g2 = data_gases["co2g2"]
 
-        if idyr < self.MINYEAR and self.ictmflg > 0:
-            if me == 0:
-                print(f"Requested CO2 data year {iyear} earlier than {self.MINYEAR}")
-                print("Which is the earliest monthly observation", " data available.")
-                print("Thus, historical global mean data is used")
+        if me == 0:
+            print(f"{iyr}, {cline} {co2g1},  GROWTH RATE = {co2g2}")
+        #  --- ...  add growth rate if needed
+        if lextpl:
+            rate = 2.00 * (iyear - iyr)  # avg rate for recent period
+        else:
+            rate = 0.0
 
-            #  --- ... check to see if requested co2 data file existed
+        self.co2_glb = (co2g1 + rate) * 1.0e-6
+        if me == 0:
+            print(f"Global annual mean CO2 data for year {iyear} = {self.co2_glb}")
 
-            file_exist = os.path.isfile(self.co2gbl_file)
-
-            if not file_exist:
-                raise FileNotFoundError(
-                    f'Requested co2 data file "{co2gbl_file}" not found',
-                    " - Stopped in subroutine gas_update!!",
-                )
-            else:
-                ds = xr.open_dataset(self.co2gbl_file)
-                iyr1 = ds["iyr1"]
-                iyr2 = ds["iyr2"]
-                cline = ds["cline"]
+        if self.ictmflg == -2:  # need to calc ic time annual mean first
+            raise NotImplementedError(f"ictmflg = {self.ictmflg} Not implemented!")
+        else:  # no need to calc ic time annual mean first
+            if self.ico2flg == 2:
+                co2dat = data_gases["co2dat"]
+                co2vmr_sav = (co2dat + rate) * 1.0e-6
 
                 if me == 0:
-                    print(f"Opened co2 data file: {co2gbl_file}")
-
-                if idyr < iyr1:
-                    iyr = iyr1
-
-                i = iyr2
-                while i >= iyr1:
-                    jyr = ds["jyr"]
-                    co2g1 = ds["co2g1"]
-                    co2g2 = ds["co2g2"]
-
-                    if i == iyr and iyr == jyr:
-                        co2_glb = (co2g1 + co2g2) * 0.5e-6
-                        if self.ico2flg == 2:
-                            for j in range(self.JMXCO2):
-                                for i in range(self.IMXCO2):
-                                    co2vmr_sav[i, j, :6] = co2g1 * 1.0e-6
-                                    co2vmr_sav[i, j, 6:] = co2g2 * 1.0e-6
-
-                        if me == 0:
-                            print(f"Co2 data for year {iyear} = {co2_glb}")
-                        break
-                    else:
-                        i -= 1
-
-        else:  # Lab_if_idyr
-
-            #  --- ...  set up input data file name
-
-            cfile1 = co2dat_file
-            cfile1 = co2dat_file[:18] + str(idyr) + co2dat_file[22:]
-            cfile1 = os.path.join(FORCING_DIR, cfile1)
-
-            #  --- ... check to see if requested co2 data file existed
-
-            file_exist = os.path.isfile(cfile1)
-            if not file_exist:
-                if self.ictmflg > 10:  # specified year of data not found
-                    raise FileNotFoundError(
-                        f"Specified co2 data for year {idyr} not found !!",
-                        "Need to change namelist ICTM !!",
-                        "   *** Stopped in subroutine gas_update !!",
-                    )
-                else:  # looking for latest available data
                     print(
-                        f"Requested co2 data for year {idyr}",
-                        " not found, check for other available data set",
+                        "CHECK: Sample of selected months of CO2 ",
+                        f"data used for year: {iyear}",
                     )
+                    for imo in range(0, 12, 3):
+                        print(f"Month = {imo+1}")
+                        print(co2vmr_sav[0, :, imo])
 
-                    while iyr >= self.MINYEAR:
-                        iyr -= 1
-                        cfile1 = co2dat_file[:18] + str(iyr) + co2dat_file[22:]
-                        cfile1 = os.path.join(FORCING_DIR, cfile1)
+            # replace values as:
+            # gco2cyc = data_gases["gco2cyc"]
+            # if there is a seasonal climatology data of co2
+            gco2cyc = np.zeros(12)
 
-                        file_exist = os.path.isfile(cfile1)
-                        if me == 0:
-                            print(f"Looking for CO2 file {cfile1}")
-
-                        if file_exist:
-                            break
-
-                    if not file_exist:
-                        raise FileNotFoundError(
-                            "   Can not find co2 data source file",
-                            "   *** Stopped in subroutine gas_update !!",
-                        )
-
-            #  --- ...  read in co2 2-d data for the requested month
-            ds = xr.open_dataset(cfile1)
-            iyr = ds["iyr"].data
-            cline = ds["cline"].data
-            co2g1 = ds["co2g1"].data
-            co2g2 = ds["co2g2"].data
-
-            if me == 0:
-                print(f"Opened co2 data file: {cfile1}")
-                print(f"{iyr}, {cline} {co2g1},  GROWTH RATE = {co2g2}")
-
-            #  --- ...  add growth rate if needed
-            if lextpl:
-                rate = 2.00 * (iyear - iyr)  # avg rate for recent period
-            else:
-                rate = 0.0
-
-            self.co2_glb = (co2g1 + rate) * 1.0e-6
-            if me == 0:
-                print(f"Global annual mean CO2 data for year {iyear} = {self.co2_glb}")
-
-            if self.ictmflg == -2:  # need to calc ic time annual mean first
-                raise NotImplementedError(f"ictmflg = {self.ictmflg} Not implemented!")
-            else:  # no need to calc ic time annual mean first
-                if self.ico2flg == 2:
-                    co2dat = ds["co2dat"].data
-
-                    co2vmr_sav = (co2dat + rate) * 1.0e-6
-
-                    if me == 0:
-                        print(
-                            "CHECK: Sample of selected months of CO2 ",
-                            f"data used for year: {iyear}",
-                        )
-                        for imo in range(0, 12, 3):
-                            print(f"Month = {imo+1}")
-                            print(co2vmr_sav[0, :, imo])
-
-                gco2cyc = np.zeros(12)
-
-            self.co2vmr_sav = co2vmr_sav
-            self.gco2cyc = gco2cyc
+        self.co2vmr_sav = co2vmr_sav
+        self.gco2cyc = gco2cyc
 
     def getgases(self, plvl, xlon, xlat, IMAX, LMAX):
         #  ===================================================================  !

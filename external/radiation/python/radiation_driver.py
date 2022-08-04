@@ -1,8 +1,8 @@
 import numpy as np
 import warnings
 
-from config import *
-from radphysparam import *
+from config import DTYPE_INT
+from radphysparam import ictmflg, isolar, ivflip
 from phys_const import con_eps, con_epsm1, con_rocp, con_fvirt, con_rog, con_epsq
 from funcphys import fpvs
 
@@ -72,6 +72,10 @@ class RadiationDriver:
         lcnorm,
         lnoprec,
         iswcliq,
+        aerosol_dict,
+        solar_filename,
+        semis_file,
+        semis_data,
         do_test=False,
     ):
         self.itsfc = iemsflg / 10  # sfc air/ground temp control
@@ -142,13 +146,13 @@ class RadiationDriver:
 
         # -# Initialization
         #  --- ...  astronomy initialization routine
-        self.sol = AstronomyClass(me, isolar)
+        self.sol = AstronomyClass(me, isolar, solar_filename)
         #  --- ...  aerosols initialization routine
-        self.aer = AerosolClass(NLAY, me, iaerflg, ivflip)
+        self.aer = AerosolClass(NLAY, me, iaerflg, ivflip, aerosol_dict)
         #  --- ...  co2 and other gases initialization routine
         self.gas = GasClass(me, ioznflg, ico2flg, ictmflg)
         #  --- ...  surface initialization routine
-        self.sfc = SurfaceClass(me, ialbflg, iemsflg)
+        self.sfc = SurfaceClass(me, ialbflg, iemsflg, semis_file, semis_data)
         #  --- ...  cloud initialization routine
         self.cld = CloudClass(
             si, NLAY, imp_physics, me, ivflip, icldflg, iovrsw, iovrlw
@@ -169,7 +173,22 @@ class RadiationDriver:
 
             return aer_dict, sol_dict, gas_dict, sfc_dict, cld_dict, rlw_dict, rsw_dict
 
-    def radupdate(self, idate, jdate, deltsw, deltim, lsswr, do_test=False):
+    def radupdate(
+        self,
+        idate,
+        jdate,
+        deltsw,
+        deltim,
+        lsswr,
+        kprfg,
+        idxcg,
+        cmixg,
+        denng,
+        cline,
+        solar_data,
+        gas_data,
+        do_test=False,
+    ):
         # =================   subprogram documentation block   ================ !
         #                                                                       !
         # subprogram:   radupdate   calls many update subroutines to check and  !
@@ -270,13 +289,13 @@ class RadiationDriver:
             self.iyear0 = iyear
 
             slag, sdec, cdec, solcon = self.sol.sol_update(
-                jdate, kyear, deltsw, deltim, lsol_chg, 0
+                jdate, kyear, deltsw, deltim, lsol_chg, 0, solar_data
             )
 
         # Call module_radiation_aerosols::aer_update(), monthly update, no
         # time interpolation
         if lmon_chg:
-            self.aer.aer_update(iyear, imon, 0)
+            self.aer.aer_update(iyear, imon, 0, kprfg, idxcg, cmixg, denng, cline)
 
         # -# Call co2 and other gases update routine:
         # module_radiation_gases::gas_update()
@@ -286,7 +305,9 @@ class RadiationDriver:
         else:
             lco2_chg = False
 
-        self.gas.gas_update(kyear, kmon, kday, khour, self.loz1st, lco2_chg, 0)
+        self.gas.gas_update(
+            kyear, kmon, kday, khour, self.loz1st, lco2_chg, 0, gas_data
+        )
 
         if self.loz1st:
             self.loz1st = False
@@ -311,8 +332,18 @@ class RadiationDriver:
         Tbd,
         Radtend,
         Diag,
+        randomdict,
+        lwdict,
+        swdict,
     ):
 
+        return self._GFS_radiation_driver(
+            Model, Statein, Sfcprop, Grid, Tbd, randomdict, lwdict, swdict,
+        )
+
+    def _GFS_radiation_driver(
+        self, Model, Statein, Sfcprop, Grid, Tbd, randomdict, lwdict, swdict,
+    ):
         if not (Model["lsswr"] or Model["lslwr"]):
             return
 
@@ -321,13 +352,13 @@ class RadiationDriver:
         LM = Model["levr"]
         LEVS = Model["levs"]
         IM = Grid["xlon"].shape[0]
-        NFXR = Model["nfxr"]
+        # NFXR = Model["nfxr"] # never used according to lint
         NTRAC = Model[
             "ntrac"
         ]  # tracers in grrad strip off sphum - start tracer1(2:NTRAC)
         ntcw = Model["ntcw"]
         ntiw = Model["ntiw"]
-        ncld = Model["ncld"]
+        # ncld = Model["ncld"] # never used according to lint
         ntrw = Model["ntrw"]
         ntsw = Model["ntsw"]
         ntgl = Model["ntgl"]
@@ -371,8 +402,23 @@ class RadiationDriver:
 
         cldtausw = np.zeros((IM, Model["levr"] + self.LTP))
 
-        scmpsw = dict()
+        Coupling = {}
+        scmpsw = {}
+        Diag = {}
+        Radtend = {}
+        Radtend["coszen"] = np.zeros(IM)
+        Radtend["coszdg"] = np.zeros(IM)
+        Radtend["htrsw"] = np.zeros((IM, Model["levs"]))
+        Radtend["swhc"] = np.zeros((IM, Model["levs"]))
+        Radtend["lwhc"] = np.zeros((IM, Model["levs"]))
+        Radtend["semis"] = np.zeros(IM)
+        Radtend["tsflw"] = np.zeros(IM)
+        Radtend["sfcfsw"] = dict()
+        Radtend["sfcflw"] = dict()
 
+        Diag["fluxr"] = np.zeros((IM, 45))
+        Diag["topflw"] = dict()
+        Diag["topfsw"] = dict()
         Diag["topfsw"]["upfxc"] = np.zeros(IM)
         Diag["topfsw"]["dnfxc"] = np.zeros(IM)
         Diag["topfsw"]["upfx0"] = np.zeros(IM)
@@ -380,18 +426,11 @@ class RadiationDriver:
         Radtend["sfcfsw"]["dnfxc"] = np.zeros(IM)
         Radtend["sfcfsw"]["upfx0"] = np.zeros(IM)
         Radtend["sfcfsw"]["dnfx0"] = np.zeros(IM)
-
         Radtend["htrlw"] = np.zeros((IM, Model["levs"]))
 
         lhlwb = False
         lhlw0 = True
         lflxprf = False
-
-        # File names for serialized random numbers in mcica_subcol
-        sw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_tile" + str(me) + "_sw.nc")
-        lw_rand_file = os.path.join(LOOKUP_DIR, "rand2d_tile" + str(me) + "_lw.nc")
-
-        #  --- ...  set local /level/layer indexes corresponding to in/out variables
 
         LMK = LM + self.LTP  # num of local layers
         LMP = LMK + 1  # num of local levels
@@ -445,18 +484,24 @@ class RadiationDriver:
         #           convert pressure unit from pa to mb
         k1 = np.arange(LM) + kd
         k2 = np.arange(LM) + lsk
-        #for i in range(IM):
+        # for i in range(IM):
         plvl[:, k1 + kb] = Statein["prsi"][:, k2 + kb] * 0.01  # pa to mb (hpa)
         plyr[:, k1] = Statein["prsl"][:, k2] * 0.01  # pa to mb (hpa)
         tlyr[:, k1] = Statein["tgrs"][:, k2]
         prslk1[:, k1] = Statein["prslk"][:, k2]
 
         #  - Compute relative humidity.
-        es = np.minimum(Statein["prsl"][:, k2], fpvs(Statein["tgrs"][:, k2]))  # fpvs and prsl in pa
-        qs = np.maximum(self.QMIN, con_eps * es / (Statein["prsl"][:, k2] + con_epsm1 * es))
-        rhly[:, k1] = np.maximum(0.0, np.minimum(1.0, np.maximum(self.QMIN, Statein["qgrs"][:, k2, 0]) / qs))
+        es = np.minimum(
+            Statein["prsl"][:, k2], fpvs(Statein["tgrs"][:, k2])
+        )  # fpvs and prsl in pa
+        qs = np.maximum(
+            self.QMIN, con_eps * es / (Statein["prsl"][:, k2] + con_epsm1 * es)
+        )
+        rhly[:, k1] = np.maximum(
+            0.0, np.minimum(1.0, np.maximum(self.QMIN, Statein["qgrs"][:, k2, 0]) / qs)
+        )
         qstl[:, k1] = qs
-        # --- recast remaining all tracers (except sphum) forcing them all to be positive
+        # recast remaining all tracers (except sphum) forcing them all to be positive
         for j in range(1, NTRAC):
             for k in range(LM):
                 k1 = k + kd
@@ -530,13 +575,7 @@ class RadiationDriver:
 
         #  --- ...  set up non-prognostic gas volume mixing ratioes
 
-        gasvmr = self.gas.getgases(
-            plvl,
-            Grid["xlon"],
-            Grid["xlat"],
-            IM,
-            LMK,
-        )
+        gasvmr = self.gas.getgases(plvl, Grid["xlon"], Grid["xlat"], IM, LMK,)
 
         #  - Get temperature at layer interface, and layer moisture.
         for k in range(1, LMK):
@@ -695,7 +734,8 @@ class RadiationDriver:
         if Model["imp_physics"] == 11:
             if not Model["lgfdlmprad"]:
 
-                # rsun the  summation methods and order make the difference in calculation
+                # rsun the  summation methods and
+                # order make the difference in calculation
                 ccnd[:, :, 0] = tracer1[:, :LMK, ntcw - 1]
                 ccnd[:, :, 0] = ccnd[:, :, 0] + tracer1[:, :LMK, ntrw - 1]
                 ccnd[:, :, 0] = ccnd[:, :, 0] + tracer1[:, :LMK, ntiw - 1]
@@ -856,7 +896,7 @@ class RadiationDriver:
             )
 
             # Approximate mean surface albedo from vis- and nir-  diffuse values.
-            Radtend["sfalb"][:] = np.maximum(0.01, 0.5 * (sfcalb[:, 1] + sfcalb[:, 3]))
+            Radtend["sfalb"] = np.maximum(0.01, 0.5 * (sfcalb[:, 1] + sfcalb[:, 3]))
 
             lhswb = False
             lhsw0 = True
@@ -913,7 +953,8 @@ class RadiationDriver:
                         lhsw0,
                         lflxprf,
                         lfdncmp,
-                        sw_rand_file,
+                        randomdict["sw_rand"],
+                        swdict,
                     )
                 else:
                     (
@@ -959,7 +1000,8 @@ class RadiationDriver:
                         lhsw0,
                         lflxprf,
                         lfdncmp,
-                        sw_rand_file,
+                        randomdict["sw_rand"],
+                        swdict,
                     )
 
                 for k in range(LM):
@@ -986,41 +1028,35 @@ class RadiationDriver:
                 #  - Save two spectral bands' surface downward and upward fluxes for
                 #    output.
 
-                for i in range(IM):
-                    Coupling["nirbmdi"][i] = scmpsw["nirbm"][i]
-                    Coupling["nirdfdi"][i] = scmpsw["nirdf"][i]
-                    Coupling["visbmdi"][i] = scmpsw["visbm"][i]
-                    Coupling["visdfdi"][i] = scmpsw["visdf"][i]
+                Coupling["nirbmdi"] = scmpsw["nirbm"]
+                Coupling["nirdfdi"] = scmpsw["nirdf"]
+                Coupling["visbmdi"] = scmpsw["visbm"]
+                Coupling["visdfdi"] = scmpsw["visdf"]
 
-                    Coupling["nirbmui"][i] = scmpsw["nirbm"][i] * sfcalb[i, 0]
-                    Coupling["nirdfui"][i] = scmpsw["nirdf"][i] * sfcalb[i, 1]
-                    Coupling["visbmui"][i] = scmpsw["visbm"][i] * sfcalb[i, 2]
-                    Coupling["visdfui"][i] = scmpsw["visdf"][i] * sfcalb[i, 3]
+                Coupling["nirbmui"] = scmpsw["nirbm"] * sfcalb[:, 0]
+                Coupling["nirdfui"] = scmpsw["nirdf"] * sfcalb[:, 1]
+                Coupling["visbmui"] = scmpsw["visbm"] * sfcalb[:, 2]
+                Coupling["visdfui"] = scmpsw["visdf"] * sfcalb[:, 3]
 
             else:
 
                 Radtend["htrsw"][:, :] = 0.0
-
-                for i in range(IM):
-                    Coupling["nirbmdi"][i] = 0.0
-                    Coupling["nirdfdi"][i] = 0.0
-                    Coupling["visbmdi"][i] = 0.0
-                    Coupling["visdfdi"][i] = 0.0
-                    Coupling["nirbmui"][i] = 0.0
-                    Coupling["nirdfui"][i] = 0.0
-                    Coupling["visbmui"][i] = 0.0
-                    Coupling["visdfui"][i] = 0.0
+                Coupling["nirbmdi"] = np.zeros(IM)
+                Coupling["nirdfdi"] = np.zeros(IM)
+                Coupling["visbmdi"] = np.zeros(IM)
+                Coupling["visdfdi"] = np.zeros(IM)
+                Coupling["nirbmui"] = np.zeros(IM)
+                Coupling["nirdfui"] = np.zeros(IM)
+                Coupling["visbmui"] = np.zeros(IM)
+                Coupling["visdfui"] = np.zeros(IM)
 
                 if Model["swhtr"]:
                     Radtend["swhc"][:, :] = 0
                     cldtausw[:, :] = 0.0
 
             # --- radiation fluxes for other physics processes
-            for i in range(IM):
-                Coupling["sfcnsw"][i] = (
-                    Radtend["sfcfsw"]["dnfxc"][i] - Radtend["sfcfsw"]["upfxc"][i]
-                )
-                Coupling["sfcdsw"][i] = Radtend["sfcfsw"]["dnfxc"][i]
+            Coupling["sfcnsw"] = Radtend["sfcfsw"]["dnfxc"] - Radtend["sfcfsw"]["upfxc"]
+            Coupling["sfcdsw"] = Radtend["sfcfsw"]["dnfxc"]
 
         # Start LW radiation calculations
         if Model["lslwr"]:
@@ -1078,7 +1114,8 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    lw_rand_file,
+                    randomdict["lw_rand"],
+                    lwdict,
                 )
             else:
                 (
@@ -1113,7 +1150,8 @@ class RadiationDriver:
                     lhlwb,
                     lhlw0,
                     lflxprf,
-                    lw_rand_file,
+                    randomdict["lw_rand"],
+                    lwdict,
                 )
 
             # Save calculation results
@@ -1140,7 +1178,7 @@ class RadiationDriver:
                         Radtend["lwhc"][:IM, k] = Radtend["lwhc"][:IM, LM - 1]
 
             # --- radiation fluxes for other physics processes
-            Coupling["sfcdlw"][:] = Radtend["sfcflw"]["dnfxc"]
+            Coupling["sfcdlw"] = Radtend["sfcflw"]["dnfxc"]
 
         #  - For time averaged output quantities (including total-sky and
         #    clear-sky SW and LW fluxes at TOA and surface; conventional
@@ -1202,8 +1240,10 @@ class RadiationDriver:
                         + Model["fhlwr"] * Radtend["sfcflw"]["upfx0"][i]
                     )  # clear sky sfc lw up
 
-            #  ---  save sw toa and sfc fluxes with proper diurnal sw wgt. coszen=mean cosz over daylight
-            #       part of sw calling interval, while coszdg= mean cosz over entire interval
+            # save sw toa and sfc fluxes with proper diurnal sw wgt.
+            # coszen=mean cosz over daylight
+            # part of sw calling interval, while coszdg= mean
+            # cosz over entire interval
             if Model["lsswr"]:
                 for i in range(IM):
                     if Radtend["coszen"][i] > 0.0:
@@ -1304,4 +1344,4 @@ class RadiationDriver:
                             1.0 - np.exp(-tem2)
                         )
 
-        return Radtend, Diag
+        return Radtend, Diag, Coupling

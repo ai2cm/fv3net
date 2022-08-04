@@ -1,8 +1,6 @@
-# submit with
-# python3 argo/end_to_end.py train/precpd-only.yaml
 kind: prognostic
 experiment: pscaling-test
-name: gscond-only-tscale-zcloud-retrained-v1
+name: gscond-only-pscale-allfile-zcloud-notend-10d-v2
 image_tag: latest
 config:
   base_version: v0.5
@@ -266,19 +264,10 @@ config:
       emulate_gscond_only: true
   zhao_carr_emulation:
     gscond:
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-25/gscond-only-dense-local-allfile-pscale-v1/model.tf
       classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-06-09/gscond-classifier-v1/model.tf
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-26/gscond-only-dense-local-tscale-retrain-v1/model.tf
       enforce_conservative: true
       gscond_cloud_conservative: true
-      mask_emulator_levels:
-        air_temperature_after_gscond:
-          start: 74
-          stop: null
-        cloud_water_mixing_ratio_after_gscond:
-          start: 74
-          stop: null
-        specific_humidity_after_gscond:
-          start: 74
-          stop: null
       mask_gscond_zero_cloud_classifier: true
-      mask_gscond_no_tend_classifier: false
+      mask_gscond_no_tend_classifier: true
+
