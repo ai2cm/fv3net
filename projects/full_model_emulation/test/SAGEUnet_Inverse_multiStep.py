@@ -26,7 +26,7 @@ from vcm import get_fs
 
 multiStep = 8
 lead = 6
-hidden_filetrs = 256
+hidden_filetrs = 64
 coarsenInd = 3
 g = pickle.load(open("UpdatedGraph_Neighbour10_Coarsen3", "rb"))
 residual = 0

@@ -32,7 +32,7 @@ Chuncksize=1000
 
 lr=0.001
 disablecuda ='store_true'
-batch_size=10
+batch_size=2
 window=24*day
 pred_len=1
 channels=[7, 16, 32, 64, 32, 128,256]

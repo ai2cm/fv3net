@@ -3,13 +3,13 @@ import numpy as np
 
 
 
-def evaluate_model(model, loss, data_iter,exteraVar,out_feat):
+def evaluate_model(model, loss, data_iter,exteraVar,out_feat,device):
     model.eval()
     l_sum, n = 0.0, 0
     with torch.no_grad():
         for x, y in data_iter:
             exteraVar1=exteraVar[:x.size(0)]
-            x=torch.cat((x, exteraVar1), 1).float()
+            x=torch.cat((x.to(device), exteraVar1), 1).float()
             y_pred = model(x).view(len(x), out_feat, -1)
             l = loss(y_pred, y)
             l_sum += l.item() * y.shape[0]
