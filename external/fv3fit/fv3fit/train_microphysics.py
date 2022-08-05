@@ -282,6 +282,8 @@ class TrainConfig(TransformedParameters):
         nfiles: Number of files to use from train_url
         nfiles_valid: Number of files to use from test_url
         log_level: what logging level to use
+        save_only: If true, don't train, but save the train and test data with
+            tf.data.experimental.save to ``out_url``
     """
 
     train_url: str = ""
@@ -290,6 +292,7 @@ class TrainConfig(TransformedParameters):
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     log_level: str = "INFO"
+    save_only: bool = False
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -386,6 +389,13 @@ class TrainConfig(TransformedParameters):
             random_state=np.random.RandomState(0),
         )
 
+    def open_train_test(self):
+        train_ds = self.open_dataset(self.train_url, self.nfiles, self.model_variables)
+        test_ds = self.open_dataset(
+            self.test_url, self.nfiles_valid, self.model_variables
+        )
+        return unbatch_datasets(train_ds, test_ds, self.filters)
+
 
 def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
     with put_dir(dir_) as tmpdir:
@@ -397,27 +407,32 @@ def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
         np.savez(os.path.join(tmpdir, filename), **dumpable)
 
 
-@register_training_function("transformed", TransformedParameters)
-def train_function(
-    hyperparameters: TransformedParameters,
-    train_batches: tf.data.Dataset,
-    validation_batches: Optional[tf.data.Dataset],
-) -> PureKerasDictPredictor:
+def unbatch_datasets(train, test, filters):
     def _prepare(ds):
         unbatched = (
             ds.map(tfdataset.apply_to_mapping(tfdataset.float64_to_float32))
             .map(expand_single_dim_data)
             .unbatch()
         )
-        for filter in hyperparameters.filters:
+        for filter in filters:
             unbatched = unbatched.filter(filter)
         return unbatched
 
-    return _train_function_unbatched(
-        hyperparameters,
-        _prepare(train_batches),
-        _prepare(validation_batches) if validation_batches else None,
+    return _prepare(train), _prepare(test) if test else None
+
+
+@register_training_function("transformed", TransformedParameters)
+def train_function(
+    hyperparameters: TransformedParameters,
+    train_batches: tf.data.Dataset,
+    validation_batches: Optional[tf.data.Dataset],
+) -> PureKerasDictPredictor:
+
+    train_batches, validation_batches = unbatch_datasets(
+        train_batches, validation_batches, hyperparameters.filters
     )
+
+    return _train_function_unbatched(hyperparameters, train_batches, validation_batches)
 
 
 def _train_function_unbatched(
@@ -478,10 +493,7 @@ def _train_function_unbatched(
     )
 
 
-def main(config: TrainConfig, seed: int = 0):
-    logging.basicConfig(level=getattr(logging, config.log_level))
-    set_random_seed(seed)
-
+def train_main(config: TrainConfig):
     start = time.perf_counter()
     train_ds = config.open_dataset(
         config.train_url, config.nfiles, config.model_variables
@@ -531,6 +543,29 @@ def main(config: TrainConfig, seed: int = 0):
     save_jacobians(std_jacobians, config.out_url, "jacobians.npz")
     if config.use_wandb:
         plot_all_output_sensitivities(std_jacobians)
+
+
+def save(config: TrainConfig):
+    path = config.out_url
+    logger.info(f"saving training and validation data to {path}")
+    train, test = config.open_train_test()
+    path = path.rstrip("/")
+    tf.data.experimental.save(train, f"{path}/train")
+    tf.data.experimental.save(test, f"{path}/test")
+
+    # upload config
+    with put_dir(config.out_url) as tmpdir:
+        with open(os.path.join(tmpdir, "config.yaml"), "w") as f:
+            f.write(config.to_yaml())
+
+
+def main(config: TrainConfig, seed: int = 0):
+    logging.basicConfig(level=getattr(logging, config.log_level))
+    set_random_seed(seed)
+    if config.save_only:
+        return save(config)
+    else:
+        return train_main(config)
 
 
 def get_default_config():
