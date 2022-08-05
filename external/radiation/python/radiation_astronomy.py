@@ -1,13 +1,8 @@
-import numpy as np
-import xarray as xr
-import os
-import sys
 import warnings
-
-sys.path.insert(0, "..")
+import numpy as np
+import os
 from phys_const import con_pi, con_solr, con_solr_old
-from radphysparam import solar_file
-from config import *
+from config import FORCING_DIR
 
 
 class AstronomyClass:
@@ -21,7 +16,7 @@ class AstronomyClass:
     czlimt = 0.0001  # ~ cos(89.99427)
     pid12 = con_pi / f12  # angle per hour
 
-    def __init__(self, me, isolar):
+    def __init__(self, me, isolar, solar_filename):
         self.sollag = 0.0
         self.sindec = 0.0
         self.cosdec = 0.0
@@ -36,7 +31,7 @@ class AstronomyClass:
         #  ---  initialization
         self.isolflg = isolar
         self.solc0 = con_solr
-        self.solar_fname = solar_file
+        self.solar_fname = solar_filename
         self.iyr_sav = 0
         self.nstp = 6
 
@@ -48,7 +43,6 @@ class AstronomyClass:
             if me == 0:
                 print(f"- Using new fixed solar constant = {self.solc0}")
         elif isolar == 1:  # noaa ann-mean tsi in absolute scale
-            self.solar_fname = solar_file[:14] + "noaa_a0.nc" + solar_file[26:]
 
             if me == 0:
                 print(
@@ -68,7 +62,6 @@ class AstronomyClass:
                     )
 
         elif isolar == 2:  # noaa ann-mean tsi in tim scale
-            self.solar_fname = solar_file[:14] + "noaa_an.nc" + solar_file[26:]
 
             if me == 0:
                 print(
@@ -88,7 +81,6 @@ class AstronomyClass:
                     )
 
         elif isolar == 3:  # cmip5 ann-mean tsi in tim scale
-            self.solar_fname = solar_file[:14] + "cmip_an.nc" + solar_file[26:]
 
             if me == 0:
                 print(
@@ -108,7 +100,6 @@ class AstronomyClass:
                     )
 
         elif isolar == 4:  # cmip5 mon-mean tsi in tim scale
-            self.solar_fname = solar_file[:14] + "cmip_mn.nc" + solar_file[26:]
 
             if me == 0:
                 print(
@@ -143,7 +134,7 @@ class AstronomyClass:
         outdict = {"solar_fname": self.solar_fname}
         return outdict
 
-    def sol_update(self, jdate, kyear, deltsw, deltim, lsol_chg, me):
+    def sol_update(self, jdate, kyear, deltsw, deltim, lsol_chg, me, solar_data):
         #  ===================================================================  !
         #                                                                       !
         #  sol_update computes solar parameters at forecast time                !
@@ -223,16 +214,15 @@ class AstronomyClass:
                     )
                 else:
                     iyr = iyear
-                    ds = xr.open_dataset(os.path.join(FORCING_DIR, self.solar_fname))
-                    iyr1 = ds["yr_start"].data
-                    iyr2 = ds["yr_end"].data
-                    icy1 = ds["yr_cyc1"].data
-                    icy2 = ds["yr_cyc2"].data
-                    smean = ds["smean"].data
+                    iyr1 = solar_data["yr_start"].values
+                    iyr2 = solar_data["yr_end"].values
+                    icy1 = solar_data["yr_cyc1"].values
+                    icy2 = solar_data["yr_cyc2"].values
+                    smean = solar_data["smean"].values
                     if me == 0:
                         print("Updating solar constant with cycle approx")
                         print(f"Opened solar constant data file: {self.solar_fname}")
-                    #  --- ...  check if there is a upper year limit put on the data table
+                    # check if there is a upper year limit put on the data table
                     if iyr < iyr1:
                         icy = (
                             icy1 - iyr1 + 1
@@ -257,7 +247,7 @@ class AstronomyClass:
                             )
                     #  --- ...  locate the right record for the year of data
                     if self.isolflg < 4:  # use annual mean data tables
-                        solc1 = ds["solc1"].sel(year=iyr).data
+                        solc1 = solar_data["solc1"].sel(year=iyr).values
                         self.solc0 = smean + solc1
                         if me == 0:
                             print(
@@ -267,8 +257,8 @@ class AstronomyClass:
                     elif self.isolflg == 4:  # use monthly mean data tables
                         i = iyr2
                         while i >= iyr1:
-                            jyr = ds["jyr"]
-                            smon = ds["smon"]
+                            jyr = solar_data["jyr"].values
+                            smon = solar_data["smon"].values
                             if i == iyr and iyr == jyr:
                                 for nn in range(12):
                                     self.smon_sav[nn] = smean + smon[nn]
@@ -430,7 +420,7 @@ class AstronomyClass:
 
         print(f"  RADIUS VECTOR {r1}")
         print(
-            f"  RIGHT ASCENSION OF SUN {halp} HRS, OR {ihalp} HRS {iyy} MINS {asec} SECS"
+            f"RIGHT ASCENSION OF SUN {halp} HRS, OR {ihalp} HRS {iyy} MINS {asec} SECS"
         )
 
         print(
@@ -610,13 +600,13 @@ class AstronomyClass:
         L = JLDAYN + 68569
         N = int(4 * L // 146097)
         L = int(L - (146097 * N + 3) // 4)
-        I = int(4000 * (L + 1) // 1461001)
-        L = int(L - 1461 * I // 4 + 31)
+        I_tmp = int(4000 * (L + 1) // 1461001)
+        L = int(L - 1461 * I_tmp // 4 + 31)
         J = int(80 * L // 2447)
         IDAY = int(L - 2447 * J // 80)
         L = int(J // 11)
         MONTH = int(J + 2 - 12 * L)
-        IYEAR = int(100 * (N - 49) + I + L)
+        IYEAR = int(100 * (N - 49) + I_tmp + L)
         IDAYWK = int(((JLDAYN + 1) % 7) + 1)
         IDAYYR = int(
             JLDAYN

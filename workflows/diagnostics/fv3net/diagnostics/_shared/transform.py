@@ -157,10 +157,14 @@ def daily_mean(split: timedelta, arg: DiagArg) -> DiagArg:
         arg: input arguments to transform prior to the diagnostic calculation
     """
     prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
-    split_time = prognostic.time.values[0] + split
-    prognostic = _resample_end(prognostic, split_time, "1D")
-    verification = _resample_end(verification, split_time, "1D")
-    return DiagArg(prognostic, verification, grid)
+
+    if "time" in prognostic and prognostic.time.size > 0:
+        split_time = prognostic.time.values[0] + split
+        prognostic = _resample_end(prognostic, split_time, "1D")
+        verification = _resample_end(verification, split_time, "1D")
+        return DiagArg(prognostic, verification, grid)
+    else:
+        return DiagArg(xr.Dataset(), xr.Dataset(), grid)
 
 
 def _resample_end(ds: xr.Dataset, split: datetime, freq_label: str) -> xr.Dataset:

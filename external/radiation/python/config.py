@@ -1,6 +1,8 @@
 import numpy as np
 import sys
 import os
+from radlw.radlw_param import nbands, maxgas, maxxsec, ngptlw, nrates
+from radsw.radsw_param import ngptsw, nbandssw, nbdsw, ntbmx
 
 IS_DOCKER = (os.getenv("IS_DOCKER") == "True") if ("IS_DOCKER" in os.environ) else False
 IS_TEST = (os.getenv("IS_TEST") == "True") if ("IS_TEST" in os.environ) else False
@@ -14,8 +16,6 @@ else:
     sys.path.insert(
         0, "/Users/andrewp/Documents/work/physics_standalone/radiation/python"
     )
-from radlw.radlw_param import nbands, maxgas, maxxsec, ngptlw, nrates
-from radsw.radsw_param import ngptsw, nbandssw, nbdsw, ntbmx
 
 if IS_DOCKER:
     SERIALBOX_DIR = "/usr/local/serialbox"
