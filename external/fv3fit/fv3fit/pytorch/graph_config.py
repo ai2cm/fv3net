@@ -10,26 +10,22 @@ from dgl.nn.pytorch import SAGEConv
 class GraphNetworkConfig:
     """
     Attributes:
-        in_feats: number of input features
-        out_feats: number of output features
         n_hidden: maximum number of hidden channels
-        num_step: number of U-net blocks
-        aggregat: type of aggregator, choosen from "mean", "gcn","pool","lstm"
+        num_blocks: number of nested network (e.g, 2 means N(N(theta)))
+        aggregator: type of aggregator, one of "mean", "gcn", "pool", or "lstm"
         activation: activation function
     """
 
-    in_feats: int = 2
-    out_feats: int = 2
     n_hidden: int = 256
-    num_step: int = 1
+    num_blocks: int = 1
     aggregator: str = "mean"
     activation: Callable = F.relu
 
 
 class GraphNetwork(nn.Module):
-    def __init__(self, config, g):
+    def __init__(self, config, g, n_features_in: int, n_features_out: int):
         super(GraphNetwork, self).__init__()
-        self.conv1 = SAGEConv(config.in_feats, config.n_hidden, config.aggregator)
+        self.conv1 = SAGEConv(n_features_in, config.n_hidden, config.aggregator)
         self.conv2 = SAGEConv(
             config.n_hidden, int(config.n_hidden / 2), config.aggregator
         )
@@ -42,13 +38,13 @@ class GraphNetwork(nn.Module):
         self.conv5 = SAGEConv(
             int(config.n_hidden / 2), int(config.n_hidden / 2), config.aggregator
         )
-        self.conv6 = SAGEConv(config.n_hidden, config.out_feats, config.aggregator)
+        self.conv6 = SAGEConv(config.n_hidden, n_features_out, config.aggregator)
         self.g = g
         self.config = config
 
     def forward(self, inputs):
         inputs = inputs.transpose(0, 1)
-        for _ in range(self.config.num_step):
+        for _ in range(self.config.num_blocks):
             h1 = self.conv1(self.g, inputs)
             h1 = self.config.activation(h1)
             h2 = self.conv2(self.g, h1)

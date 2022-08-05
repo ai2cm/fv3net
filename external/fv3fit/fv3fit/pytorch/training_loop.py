@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 def evaluate_model(loss_fn, model, data_iter):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    loss = loss_fn  # torch.nn.MSELoss()
+    loss = loss_fn
     model.eval()
     loss_sum, n = 0.0, 0
     with torch.no_grad():
@@ -44,7 +44,7 @@ class TrainingLoopConfig:
         Args:
             train_model: pytorch model to train
             train_data: training dataset containing samples to be passed to the model
-            validation: validation dataset (one time step prediction)
+            validation_data: validation dataset (one time step prediction)
             optimizer: type of optimizer for the model
             get_loss: Multistep loss function
             multistep: number of multi-step loss calculation

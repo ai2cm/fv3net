@@ -23,7 +23,6 @@ requirements = [
     "torch==1.12.0",
     "torchvision==0.13.0",
     "dgl==0.9.0",
-    "geographiclib==1.52",
     "geopy==2.2.0",
     "tensorflow-datasets",
 ]

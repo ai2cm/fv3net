@@ -35,9 +35,8 @@ class LossConfig:
         self, multistep, train_model, inputs, labels
     ) -> torch.nn.functional:
         """
-        Multistep loss fucntion, used during training
         Args:
-            multistep: number of multistep loss calculation
+            multistep: number of data timesteps to include in loss calculation
             train_model: pytoch model
             inputs: input features
             labels: data to be compared with

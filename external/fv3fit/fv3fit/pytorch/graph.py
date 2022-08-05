@@ -1,11 +1,12 @@
 import torch
 import tensorflow as tf
 import numpy as np
+import dgl
 import dataclasses
 from .._shared.training_config import Hyperparameters
 from toolz.functoolz import curry
 from fv3fit.pytorch.graph_predict import PytorchModel
-from fv3fit.pytorch.building_graph import build_graph, GraphConfig
+from fv3fit.pytorch.graph_builder import build_graph, GraphConfig
 from fv3fit.pytorch.graph_config import GraphNetwork, GraphNetworkConfig
 from fv3fit.pytorch.graph_loss import LossConfig
 from fv3fit.pytorch.graph_optim import OptimizerConfig
@@ -67,16 +68,13 @@ def get_normalizer(sample: Mapping[str, np.ndarray]):
     def scale(sample: Mapping[str, np.ndarray]):
         output = {**sample}
         for name, array in sample.items():
-            output[name] = scalers[name].normalize(
-                array
-            )  # scalers[name].transform(array)
+            output[name] = scalers[name].normalize(array)
         return output
 
     return scale
 
 
 # TODO: Still have to handle forcing
-# TODO: used StandardScaler for normalization
 
 
 @register_training_function("graph", GraphHyperparameters)
@@ -154,9 +152,12 @@ def build_model(config: GraphHyperparameters):
     Args:
         config: configuration of graph training
     """
-    g = build_graph(config.build_graph)
+    graph_data = build_graph(config.build_graph)
+    g = dgl.graph(graph_data)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    train_model = GraphNetwork(config.graph_network, g).to(device)
+    train_model = GraphNetwork(
+        config.graph_network, g.to(device), n_features_in=2, n_features_out=2
+    ).to(device)
     return train_model
 
 
