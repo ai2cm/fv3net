@@ -5,7 +5,7 @@ import dataclasses
 from .._shared.training_config import Hyperparameters
 from toolz.functoolz import curry
 from fv3fit.pytorch.graph_predict import PytorchModel
-from fv3fit.pytorch.building_graph import graph_structure, GraphBuilder
+from fv3fit.pytorch.building_graph import build_graph, GraphConfig
 from fv3fit.pytorch.graph_config import GraphNetwork, GraphNetworkConfig
 from fv3fit.pytorch.graph_loss import LossConfig
 from fv3fit.pytorch.graph_optim import OptimizerConfig
@@ -42,9 +42,7 @@ class GraphHyperparameters(Hyperparameters):
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("AdamW")
     )
-    build_graph: GraphBuilder = dataclasses.field(
-        default_factory=lambda: GraphBuilder()
-    )
+    build_graph: GraphConfig = dataclasses.field(default_factory=lambda: GraphConfig())
 
     graph_network: GraphNetworkConfig = dataclasses.field(
         default_factory=lambda: GraphNetworkConfig()
@@ -59,7 +57,6 @@ class GraphHyperparameters(Hyperparameters):
         return set(self.input_variables).union(self.output_variables)
 
 
-@curry
 def get_normalizer(sample: Mapping[str, np.ndarray]):
     scalers = {}
     for name, array in sample.items():
@@ -157,7 +154,7 @@ def build_model(config: GraphHyperparameters):
     Args:
         config: configuration of graph training
     """
-    g = graph_structure(config.build_graph)
+    g = build_graph(config.build_graph)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     train_model = GraphNetwork(config.graph_network, g).to(device)
     return train_model

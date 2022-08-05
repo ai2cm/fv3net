@@ -7,7 +7,7 @@ import dataclasses
 
 
 @dataclasses.dataclass
-class GraphBuilder:
+class GraphConfig:
     """
     Attributes:
         neighbor: number of nearest neighbor grids
@@ -20,7 +20,7 @@ class GraphBuilder:
     resolution: str = "grid/c48"
 
 
-def graph_structure(config):
+def build_graph(config: GraphConfig) -> dgl.DGLGraph:
     nodes = []
     edges = []
 

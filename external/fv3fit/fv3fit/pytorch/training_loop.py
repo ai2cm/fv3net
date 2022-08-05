@@ -11,15 +11,15 @@ def evaluate_model(config, model, data_iter):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     loss = config.loss()  # torch.nn.MSELoss()
     model.eval()
-    l_sum, n = 0.0, 0
+    loss_sum, n = 0.0, 0
     with torch.no_grad():
         for x, y in data_iter:
             y_pred = model(torch.as_tensor(np.squeeze(x)).float().to(device))
             y = torch.as_tensor(np.squeeze(y)).float().to(device)
-            ll = loss(y_pred, y)
-            l_sum += ll.item() * y.shape[0]
+            loss_batch = loss(y_pred, y)
+            loss_sum += loss_batch.item() * y.shape[0]
             n += y.shape[0]
-        return l_sum / n
+        return loss_sum / n
 
 
 @dataclasses.dataclass

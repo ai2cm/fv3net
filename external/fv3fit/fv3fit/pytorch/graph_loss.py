@@ -16,8 +16,6 @@ class LossConfig:
             raise ValueError(
                 f"loss_type must be 'mse' or 'mae', got '{self.loss_type}'"
             )
-
-    def loss(self):
         """
         Returns the loss function described by the configuration.
 
@@ -28,12 +26,12 @@ class LossConfig:
             loss: pytorch loss function
         """
         if self.loss_type == "mse":
-            loss = torch.nn.MSELoss()
+            self._loss = torch.nn.MSELoss()
         elif self.loss_type == "mae":
-            loss = torch.nn.L1Loss()
+            self._loss = torch.nn.L1Loss()
         else:
             raise NotImplementedError(f"loss_type {self.loss_type} is not implemented")
-        return loss
+        return self._loss
 
     def multi_timestep_loss(
         self, multistep, train_model, inputs, labels
@@ -49,7 +47,7 @@ class LossConfig:
         Retunrs:
             average of the losses at each step
         """
-        criterion = self.loss()
+        criterion = self._loss()
         sum_loss = 0.0
         # this is just for the identity function,
         # for prediction label would have an index over time
