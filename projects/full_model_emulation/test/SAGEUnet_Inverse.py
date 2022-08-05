@@ -44,7 +44,6 @@ num_step = 2
 aggregat = "mean"
 
 
-
 disablecuda = "store_true"
 batch_size = 1
 drop_prob = 0
@@ -55,8 +54,8 @@ savemodelpath = (
     + control_str
     + "hidden_filetrs"
     + str(hidden_filetrs)
-    +"learning_rate"
-    +str(lr)
+    + "learning_rate"
+    + str(lr)
     + "_lead"
     + str(lead)
     + "_epochs_"
