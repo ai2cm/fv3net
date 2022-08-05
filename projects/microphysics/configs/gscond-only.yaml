@@ -1,13 +1,13 @@
 # submit with
 # python3 argo/end_to_end.py train/precpd-only.yaml
 kind: prognostic
-experiment: gscond-precpd
-name: gscond-only-classifier-zcloud-upper5zero-10d-v1
+experiment: zc-emu-monthly-init
+name: combined-zcemu-monthly-init-30d-v1
 image_tag: latest
 config:
   base_version: v0.5
   data_table: default
-  duration: "10d"
+  duration: "30d"
   initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
   fortran_diagnostics:
   - name: piggy.zarr

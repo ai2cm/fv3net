@@ -102,10 +102,6 @@ spec:
       operator: "Equal"
       value: "med-sim-pool"
       effect: "NoSchedule"
-    - key: "dedicated"
-      operator: "Equal"
-      value: "climate-sim-pool"
-      effect: "NoSchedule"
     container:
       image: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.image_tag}}"
       imagePullPolicy: Always
@@ -150,7 +146,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:latest"
+      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
       imagePullPolicy: Always
       resources:
         requests:
@@ -186,7 +182,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:latest"
+      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
       imagePullPolicy: Always
       resources:
         requests:

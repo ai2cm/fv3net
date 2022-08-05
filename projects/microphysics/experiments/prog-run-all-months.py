@@ -11,15 +11,15 @@ BASE_URL = "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-tra
 def get_job(month: int):
 
     config = load_yaml("../configs/gscond-and-precpd.yaml")["config"]
-    config["duration"] = "10d"
+    config["duration"] = "2d"
     config["initial_conditions"] = BASE_URL.format(month=month)
 
     return PrognosticJob(
-        f"combined-emu-monthly-init-{month:02d}-10d-v3",
+        f"combined-zcemu-monthly-init-m{month:02d}-2d-v2",
         config=config,
-        image_tag="ee32f1d0eed1b46387847724452c7d8596066495",
+        image_tag="latest",
     )
 
 
-jobs = [get_job(i) for i in range(1, 13)]
-submit_jobs(jobs, experiment_name="online-all-month-init")
+jobs = [get_job(i) for i in range(5, 8)]
+submit_jobs(jobs, experiment_name="zc-emu-monthly-init")
