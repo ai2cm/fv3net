@@ -12,7 +12,7 @@ def load_data(file_path, len_train, len_val):
     return train, val, test
 
 
-def data_transform(data, n_his, n_pred, lead,lead2, device):
+def data_transform(data, n_his, n_pred, lead,lead2):
     # produce data slices for training and testing
     if len(np.shape(data))==2:
         n_route = data.shape[1]
@@ -45,4 +45,4 @@ def data_transform(data, n_his, n_pred, lead,lead2, device):
             cnt += 1
 
 
-    return torch.Tensor(x).to(device), torch.Tensor(y).to(device)
+    return torch.Tensor(x), torch.Tensor(y)

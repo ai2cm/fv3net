@@ -75,39 +75,6 @@ class SpatioAttenLayer(nn.Module):
         output = output.transpose(0, 3)
         return output
 
-class UnetGraphSAGE(nn.Module):
-    def __init__(self, g, in_feats, h_feats,out_feat,num_step,aggregat):
-        super(UnetGraphSAGE, self).__init__()
-        self.conv1 = SAGEConv(in_feats, h_feats,aggregat)
-        self.conv2 = SAGEConv(h_feats, int(h_feats/2), aggregat)
-        self.conv3 = SAGEConv(int(h_feats/2), int(h_feats/4), aggregat)
-        self.conv4 = SAGEConv(int(h_feats/4), int(h_feats/4), aggregat)
-        self.conv5 = SAGEConv(int(h_feats/2), int(h_feats/2), aggregat)
-        self.conv6 = SAGEConv(h_feats, out_feat,aggregat)
-        self.g=g
-        self.num_step=num_step
-        
-    def forward(self, in_feat,exteraVar1):
-        x = x.transpose(0, 3)
-        x = x.transpose(1, 3)
-        
-        for _ in range(self.num_step):
-            h = self.conv1(self.g, in_feat)
-            h = F.relu(h)
-            h = self.conv2(self.g, h)
-            h = F.relu(h)
-            h = self.conv3(self.g, h)
-            h = F.relu(h)
-            tuple = (self.conv4(self.g, h),h)
-            h = torch.cat(tuple,dim=1)
-            h = F.relu(h)
-            tuple = (self.conv5(self.g, h),h)
-            h = torch.cat(tuple,dim=1)
-            h = F.relu(h)
-            h = self.conv6(self.g, h)
-            in_feat=torch.cat((h, torch.squeeze(exteraVar1)), 1).float()
-        return h
-
 class FullyConvLayer(nn.Module):
     def __init__(self, c,cout):
         super(FullyConvLayer, self).__init__()
