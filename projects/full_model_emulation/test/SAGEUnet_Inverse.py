@@ -25,10 +25,10 @@ from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
 
 lead = 6
-hidden_filetrs = 64
+hidden_filetrs = 256
 coarsenInd = 3
 g = pickle.load(open("UpdatedGraph_Neighbour10_Coarsen3", "rb"))
-residual = 0
+residual = 1
 
 
 control_str = "SAGEUnet_Inverse"  #'TNSTTNST' #'TNTSTNTST'

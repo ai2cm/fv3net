@@ -17,7 +17,7 @@ lead2=6
 day=6
 coarsenInd=3
 
-control_str='TAAAAAAAAATTAAAAAAAAAAT'#'TNSTTNST' #'TNTSTNTST'
+control_str='TAAAAAAATAAAAAAAAT'#'TNSTTNST' #'TNTSTNTST'
 
 print(control_str)
 
@@ -213,7 +213,7 @@ for epoch in range(1, epochs + 1):
             print("section ",ss," epoch", epoch, ", train loss:", train_loss.item())
 
         scheduler.step()
-        val_loss = evaluate_model(model, loss, val_iter,exteraVar,out_feat)
+        val_loss = evaluate_model(model, loss, val_iter,exteraVar,out_feat,device)
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), savemodelpath)
