@@ -20,18 +20,16 @@ class LossConfig:
         Returns the loss function described by the configuration.
 
         Args:
-            std: standard deviation of the output features
-
+            loss_type: type pf loss function
         Returns:
             loss: pytorch loss function
         """
         if self.loss_type == "mse":
-            self._loss = torch.nn.MSELoss()
+            self.loss = torch.nn.MSELoss()
         elif self.loss_type == "mae":
-            self._loss = torch.nn.L1Loss()
+            self.loss = torch.nn.L1Loss()
         else:
             raise NotImplementedError(f"loss_type {self.loss_type} is not implemented")
-        return self._loss
 
     def multi_timestep_loss(
         self, multistep, train_model, inputs, labels
@@ -47,16 +45,15 @@ class LossConfig:
         Retunrs:
             average of the losses at each step
         """
-        criterion = self._loss()
         sum_loss = 0.0
         # this is just for the identity function,
         # for prediction label would have an index over time
         for step in range(multistep):
             if step == 0:
                 outputs = train_model(inputs)
-                sum_loss += criterion(outputs, labels)
+                sum_loss += self.loss(outputs, labels)
             else:
                 outputs = train_model(outputs)
-                sum_loss += criterion(outputs, labels)
+                sum_loss += self.loss(outputs, labels)
         sum_loss = sum_loss / multistep
         return sum_loss

@@ -7,9 +7,9 @@ import tensorflow_datasets as tfds
 logger = logging.getLogger(__name__)
 
 
-def evaluate_model(config, model, data_iter):
+def evaluate_model(loss_fn, model, data_iter):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    loss = config.loss()  # torch.nn.MSELoss()
+    loss = loss_fn  # torch.nn.MSELoss()
     model.eval()
     loss_sum, n = 0.0, 0
     with torch.no_grad():
@@ -67,7 +67,7 @@ class TrainingLoopConfig:
                 loss.backward()
                 y = torch.as_tensor(np.squeeze(y)).float().to(device)
                 optimizer.step()
-            val_loss = evaluate_model(loss_config, train_model, validation_data)
+            val_loss = evaluate_model(loss_config.loss, train_model, validation_data)
             if val_loss < min_val_loss:
                 min_val_loss = val_loss
                 torch.save(train_model.state_dict(), self.save_path)
