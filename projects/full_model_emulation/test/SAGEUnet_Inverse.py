@@ -28,8 +28,8 @@ lead = 6
 hidden_filetrs = 256
 coarsenInd = 3
 g = pickle.load(open("UpdatedGraph_Neighbour10_Coarsen3", "rb"))
-residual = 1
-lr = 0.0005
+residual = 0
+lr = 0.001
 
 control_str = "SAGEUnet_Inverse"  #'TNSTTNST' #'TNTSTNTST'
 
@@ -40,7 +40,7 @@ epochs = 30
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
 Chuncksize = 1000
-num_step = 1
+num_step = 2
 aggregat = "mean"
 
 
