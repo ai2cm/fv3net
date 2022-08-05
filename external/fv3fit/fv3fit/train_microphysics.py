@@ -284,6 +284,7 @@ class TrainConfig(TransformedParameters):
         log_level: what logging level to use
         save_only: If true, don't train, but save the train and test data with
             tf.data.experimental.save to ``out_url``
+        data_format: one of ['nc', 'tf']
     """
 
     train_url: str = ""
@@ -293,6 +294,7 @@ class TrainConfig(TransformedParameters):
     nfiles_valid: Optional[int] = None
     log_level: str = "INFO"
     save_only: bool = False
+    data_format: str = "nc"
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -377,7 +379,7 @@ class TrainConfig(TransformedParameters):
     def to_yaml(self) -> str:
         return yaml.safe_dump(_asdict_with_enum(self))
 
-    def open_dataset(
+    def _open_dataset(
         self, url: str, nfiles: Optional[int], required_variables: Set[str],
     ) -> tf.data.Dataset:
         nc_open_fn = self.transform.get_pipeline(required_variables)
@@ -388,6 +390,19 @@ class TrainConfig(TransformedParameters):
             shuffle=True,
             random_state=np.random.RandomState(0),
         )
+
+    def open_dataset(
+        self, url: str, nfiles: Optional[int], required_variables: Set[str],
+    ) -> tf.data.Dataset:
+        if self.data_format == "nc":
+            self._open_dataset(
+                url, nfiles, required_variables,
+            )
+        elif self.data_format == "tf":
+            # needs to be batched
+            return tf.data.experimental.load(url).batch(1)
+        else:
+            raise NotImplementedError(self.data_format)
 
     def open_train_test(self):
         train_ds = self.open_dataset(self.train_url, self.nfiles, self.model_variables)
