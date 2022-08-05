@@ -25,7 +25,7 @@ from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
 
 lead = 6
-hidden_filetrs=64
+hidden_filetrs = 64
 coarsenInd = 3
 g = pickle.load(open("UpdatedGraph_Neighbour10_Coarsen3", "rb"))
 residual = 0
@@ -53,7 +53,7 @@ out_feat = 2
 savemodelpath = (
     "weight_layer_"
     + control_str
-    +"hidden_filetrs"
+    + "hidden_filetrs"
     + str(hidden_filetrs)
     + "_lead"
     + str(lead)
