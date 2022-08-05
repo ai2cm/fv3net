@@ -40,7 +40,7 @@ class LossConfig:
             multistep: number of multistep loss calculation
             train_model: pytoch model
             inputs: input features
-            labels: truch to be compared with
+            labels: data to be compared with
 
         Retunrs:
             average of the losses at each step

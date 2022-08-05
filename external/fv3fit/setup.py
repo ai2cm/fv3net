@@ -48,11 +48,7 @@ setup(
     ],
     description="FV3Fit is used to train machine learning models.",
     install_requires=requirements,
-    dependency_links=[
-        "../loaders/",
-        "../vcm/",
-        "https://download.pytorch.org/whl/cu113",
-    ],
+    dependency_links=["../loaders/", "../vcm/"],
     extras_require={},
     license="BSD license",
     long_description="FV3Fit is used to train machine learning models.",
