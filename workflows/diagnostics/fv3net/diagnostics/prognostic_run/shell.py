@@ -202,8 +202,9 @@ class ProgShell(cmd.Cmd):
     def do_meridional(self, arg):
         variable, kwargs = parse_pcolor_arg(arg)
         lon = int(self.state.get("lon", "0"))
-        transect = meridional_transect(self.get_3d_snapshot())
+        transect = meridional_transect(self.state.get_3d_snapshot(), lon)
         transect = transect.assign_coords(lon=lon)
+        plt.figure(figsize=(10, 3))
         transect[variable].plot(yincrease=False, y="pressure", **kwargs)
         self.state.tape.save_plot()
 
