@@ -25,23 +25,31 @@ from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
 
 lead = 6
-
-coarsenInd = 3
-g = pickle.load(open("UpdatedGraph_Neighbour10_Coarsen3", "rb"))
 residual = 0
+coarsenInd = 1
+n_filter=512
+input_res=48
+pooling_size=2
+
+g1 = pickle.load(open("UpdatedGraph_Neighbour10", "rb"))
+g2 = pickle.load(open("UpdatedGraph_Neighbour8_Coarsen2", "rb"))
+g3 = pickle.load(open("UpdatedGraph_Neighbour6_Coarsen4", "rb"))
+g4 = pickle.load(open("UpdatedGraph_Neighbour4_Coarsen8", "rb"))
+g5 = pickle.load(open("UpdatedGraph_Neighbour3_Coarsen16", "rb"))
+
 
 
 control_str = "SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
 
 print(control_str)
 
-epochs = 30
+epochs = 50
 
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
-Chuncksize = 1000
-num_step = 4
-aggregat = "pool"
+Chuncksize = 2000
+num_step = 1
+aggregat = "mean"
 
 
 lr = 0.001
@@ -51,8 +59,12 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "2weight_layer_"
+    "New_Pooling_weight_layer_"
     + control_str
+    + "hidden_filetrs"
+    + str(n_filter)
+    + "learning_rate"
+    + str(lr)
     + "_lead"
     + str(lead)
     + "_epochs_"
@@ -130,13 +142,13 @@ num_nodes = len(lon)
 print(f"numebr of grids: {num_nodes}")
 
 
-edg = np.asarray(g.edges())
-latInd = lat[edg[1]]
-lonInd = lon[edg[1]]
-latlon = [latInd.T, lonInd.T]
-# latlon=np.swapaxes(latlon, 1, 0)
-latlon = torch.from_numpy(np.swapaxes(latlon, 1, 0)).float()
-latlon = latlon.to(device)
+# edg = np.asarray(g.edges())
+# latInd = lat[edg[1]]
+# lonInd = lon[edg[1]]
+# latlon = [latInd.T, lonInd.T]
+# # latlon=np.swapaxes(latlon, 1, 0)
+# latlon = torch.from_numpy(np.swapaxes(latlon, 1, 0)).float()
+# latlon = latlon.to(device)
 
 
 Zmean = 5765.8457  # Z500mean=5765.8457,
@@ -150,39 +162,108 @@ print("loading model")
 
 
 class UnetGraphSAGE(nn.Module):
-    def __init__(self, g, in_feats, h_feats, out_feat, num_step, aggregat):
+    def __init__(self,input_res,pooling_size, g1, g2,g3,g4,g5, in_feats, h_feats, out_feat, num_step, aggregat):
         super(UnetGraphSAGE, self).__init__()
-        self.conv1 = SAGEConv(in_feats, h_feats, aggregat)
-        self.conv2 = SAGEConv(h_feats, int(h_feats * 2), aggregat)
-        self.conv3 = SAGEConv(int(h_feats * 2), int(h_feats * 4), aggregat)
-        self.conv4 = SAGEConv(int(h_feats * 4), int(h_feats * 4), aggregat)
-        self.conv5 = SAGEConv(int(h_feats * 2), int(h_feats * 2), aggregat)
-        self.conv6 = SAGEConv(h_feats, out_feat, aggregat)
-        self.pool1 = nn.MaxPool1d(2, stride=2, return_indices=True)
-        self.g = g
+        self.conv1 = SAGEConv(in_feats, int(h_feats / 16), aggregat)
+        self.conv2 = SAGEConv(int(h_feats / 16), int(h_feats / 16), aggregat)
+        self.conv3 = SAGEConv(int(h_feats / 16), int(h_feats / 8), aggregat)
+        self.conv4 = SAGEConv(int(h_feats / 8), int(h_feats / 4), aggregat)
+        self.conv5 = SAGEConv(int(h_feats / 4), int(h_feats / 2), aggregat)
+        self.conv6 = SAGEConv(int(h_feats / 2), int(h_feats), aggregat)
+        self.conv7 = SAGEConv(int(h_feats), int(h_feats / 2), aggregat)
+        self.conv8 = SAGEConv(int(h_feats / 2), int(h_feats / 4), aggregat)
+        self.conv9 = SAGEConv(int(h_feats / 4), int(h_feats / 8), aggregat)
+        self.conv10 = SAGEConv(int(h_feats / 8), int(h_feats / 16), aggregat)
+        self.conv11 = SAGEConv(int(h_feats / 16), out_feat, aggregat)
+        self.Maxpool = nn.MaxPool2d((pooling_size, pooling_size), stride=(pooling_size, pooling_size))
+        self.Meanpool = nn.AvgPool2d((pooling_size, pooling_size), stride=(pooling_size, pooling_size))
+        
+        self.upsample1 =nn.ConvTranspose2d(int(h_feats), int(h_feats), 2, stride=2, padding=0)
+        self.upsample2 =nn.ConvTranspose2d(int(h_feats / 2), int(h_feats / 2), 2, stride=2, padding=0)
+        self.upsample3 =nn.ConvTranspose2d(int(h_feats / 4), int(h_feats / 4), 2, stride=2, padding=0)
+        self.upsample4 =nn.ConvTranspose2d(int(h_feats / 8), int(h_feats / 8), 2, stride=2, padding=0)
+
+        self.g1 = g1
+        self.g2 = g2
+        self.g3 = g3
+        self.g4 = g4
+        self.g5 = g5
+
         self.num_step = num_step
+        # self.get_graph=get_graph
+        self.input_res=input_res
+        self.pooling_size=pooling_size
 
     def forward(self, in_feat, exteraVar1):
 
-        for _ in range(self.num_step):
-            h1 = F.relu(self.conv1(self.g, in_feat))
-            h2 = F.relu(self.conv2(self.g, h1))
-            h2 = h2.transpose(0, 1)
-            h2, ind = self.pool1(h2)
-            h2 = h2.transpose(0, 1)
+            h1 = F.relu(self.conv1(self.g1, in_feat))
 
-            h3 = F.relu(self.conv3(self.g, h2))
-            h4 = F.relu(self.conv4(self.g, h3))
-            h5 = torch.cat((F.relu(self.conv4(self.g, h4)), h3), dim=1)
-            h6 = torch.cat((F.relu(self.conv5(self.g, h5)), h2), dim=1)
-            out = self.conv6(self.g, h6)
-            in_feat = torch.cat((out, torch.squeeze(exteraVar1)), 1).float()
-        return out
+            h2 = F.relu(self.conv2(self.g1, h1)).view(6, self.input_res, self.input_res, -1)
+            h2=torch.permute(h2, (3, 0 , 1, 2))
+            h2=self.Meanpool(h2).view(-1, int(6*self.input_res/self.pooling_size*self.input_res/self.pooling_size))
+            h2=torch.transpose(h2, 0 , 1)
+            # g2=self.get_graph(24)
+
+            h3 = F.relu(self.conv3(self.g2, h2)).view(6, int(self.input_res/self.pooling_size), int(self.input_res/self.pooling_size), -1)
+            h3=torch.permute(h3, (3, 0 , 1, 2))
+            h3=self.Meanpool(h3).view(-1, int(6*self.input_res/(self.pooling_size)**2*self.input_res/(self.pooling_size)**2))
+            h3=torch.transpose(h3, 0 , 1)
+            # g3=self.get_graph(self.input_res/(self.pooling_size)**2)
+
+            h4 = F.relu(self.conv4(self.g3, h3)).view(6,int(self.input_res/(self.pooling_size)**2),int(self.input_res/(self.pooling_size)**2),-1)
+            h4=torch.permute(h4, (3, 0 , 1, 2))
+            h4=self.Meanpool(h4).view(-1, int(6*self.input_res/(self.pooling_size)**3*self.input_res/(self.pooling_size)**3))
+            h4=torch.transpose(h4, 0 , 1)
+            # g4=self.get_graph(self.input_res/(self.pooling_size)**3)
+
+            h5 = F.relu(self.conv5(self.g4, h4)).view(6,int(self.input_res/(self.pooling_size)**3),int(self.input_res/(self.pooling_size)**3),-1)
+            h5=torch.permute(h5, (3, 0 , 1, 2))
+            h5=self.Meanpool(h5).view(-1, int(6*self.input_res/(self.pooling_size)**4*self.input_res/(self.pooling_size)**4))
+            h5=torch.transpose(h5, 0 , 1)
+
+            h6 = F.relu(self.conv6(self.g5, h5))
+            h6 = torch.cat((F.relu(self.conv7(self.g5, h6)), h5), dim=1).view(6,int(self.input_res/(self.pooling_size)**4),int(self.input_res/(self.pooling_size)**4),-1)
+            h6=torch.permute(h6, (0, 3 , 1, 2))
+            h6=self.upsample1(h6)
+            h6=torch.permute(h6, (1, 0 , 2, 3)).reshape(-1, int(6*self.input_res/(self.pooling_size)**3*self.input_res/(self.pooling_size)**3))
+            h6=torch.transpose(h6, 0 , 1)
+
+
+            h6 = F.relu(self.conv7(self.g4, h6))
+            h6 = torch.cat((F.relu(self.conv8(self.g4, h6)), h4), dim=1).view(6,int(self.input_res/(self.pooling_size)**3),int(self.input_res/(self.pooling_size)**3),-1)
+            h6=torch.permute(h6, (0, 3 , 1, 2))
+            h6=self.upsample2(h6)
+            h6=torch.permute(h6, (1, 0 , 2, 3)).reshape(-1, int(6*self.input_res/(self.pooling_size)**2*self.input_res/(self.pooling_size)**2))
+            h6=torch.transpose(h6, 0 , 1)
+
+
+            h6 = F.relu(self.conv8(self.g3, h6))
+            h6 = torch.cat((F.relu(self.conv9(self.g3, h6)), h3), dim=1).view(6,int(self.input_res/(self.pooling_size)**2),int(self.input_res/(self.pooling_size)**2),-1)
+            h6=torch.permute(h6, (0, 3 , 1, 2))
+            h6=self.upsample3(h6)
+            h6=torch.permute(h6, (1, 0 , 2, 3)).reshape(-1, int(6*self.input_res/(self.pooling_size)*self.input_res/(self.pooling_size)))
+            h6=torch.transpose(h6, 0 , 1)
+
+
+            h6 = F.relu(self.conv9(self.g2, h6))
+            h6 = torch.cat((F.relu(self.conv10(self.g2, h6)), h2), dim=1).view(6,int(self.input_res/(self.pooling_size)),int(self.input_res/(self.pooling_size)),-1)
+            h6=torch.permute(h6, (0, 3 , 1, 2))
+            h6=self.upsample4(h6)
+            h6=torch.permute(h6, (1, 0 , 2, 3)).reshape(-1, int(6*self.input_res*self.input_res))
+            h6=torch.transpose(h6, 0 , 1)
+            
+            h6 = F.relu(self.conv10(self.g1, h6))
+            out = self.conv11(self.g1, h6)
+            return out
 
 
 loss = nn.MSELoss()
-g = g.to(device)
-model = UnetGraphSAGE(g, 7, 256, 2, num_step, aggregat).to(device)
+g1 = g1.to(device)
+g2 = g2.to(device)
+g3 = g3.to(device)
+g4 = g4.to(device)
+g5 = g5.to(device)
+model = UnetGraphSAGE(input_res, pooling_size, g1, g2,g3,g4,g5, 7, n_filter, 2, num_step, aggregat).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
 
@@ -269,8 +350,8 @@ for epoch in range(1, epochs + 1):
         y_train = np.swapaxes(y_train, 1, 0)
         x_train = np.swapaxes(x_train, 2, 1)
         y_train = np.swapaxes(y_train, 2, 1)
-        x_train = torch.Tensor(x_train).to(device)
-        y_train = torch.Tensor(y_train).to(device)
+        x_train = torch.Tensor(x_train)
+        y_train = torch.Tensor(y_train)
 
         train_data = torch.utils.data.TensorDataset(x_train, y_train)
         train_iter = torch.utils.data.DataLoader(train_data, batch_size, shuffle=True)
@@ -279,8 +360,8 @@ for epoch in range(1, epochs + 1):
         y_val = np.swapaxes(y_val, 1, 0)
         x_val = np.swapaxes(x_val, 2, 1)
         y_val = np.swapaxes(y_val, 2, 1)
-        x_val = torch.Tensor(x_val).to(device)
-        y_val = torch.Tensor(y_val).to(device)
+        x_val = torch.Tensor(x_val)
+        y_val = torch.Tensor(y_val)
 
         val_data = torch.utils.data.TensorDataset(x_val, y_val)
         val_iter = torch.utils.data.DataLoader(val_data, batch_size)
@@ -292,9 +373,9 @@ for epoch in range(1, epochs + 1):
         l_sum, n = 0.0, 0
         for x, y in train_iter:
             exteraVar1 = exteraVar[: x.size(0)]
-            x = torch.squeeze(torch.cat((x, exteraVar1), 2)).float()
+            x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
             y_pred = model(x, exteraVar1).view(-1, out_feat)
-            l = loss(y_pred, torch.squeeze(y))
+            l = loss(y_pred, torch.squeeze(y.to(device)))
             optimizer.zero_grad()
             l.backward()
             optimizer.step()
@@ -303,7 +384,7 @@ for epoch in range(1, epochs + 1):
 
         print(" epoch", epoch, ", train loss:", l.item())
         scheduler.step()
-        val_loss = evaluate_model(model, loss, val_iter, exteraVar, out_feat)
+        val_loss = evaluate_model(model, loss, val_iter, exteraVar, out_feat,device)
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), savemodelpath)

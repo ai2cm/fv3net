@@ -35,7 +35,7 @@ control_str = "SAGEUnet_Inverse"  #'TNSTTNST' #'TNTSTNTST'
 
 print(control_str)
 
-epochs = 60
+epochs = 30
 
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
