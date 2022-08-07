@@ -14,7 +14,7 @@ spec:
       - name: training-config
         value: ""
       - name: image_tag
-        value: 0fb5eb90e6521bc438ccd0dbc0c77200deb20723
+        value: 1e9b8b37129f20bf54ff94be9ddfda8e7c7f159e
   volumes:
   - name: gcp-key-secret
     secret:
@@ -58,7 +58,7 @@ spec:
           cpu: "7"
           memory: "15Gi"
       workingDir: "/fv3net/projects/full_model_emulation/test"
-      args: ["SAGEUnet_Pooling_Multistep.py"]
+      args: ["SAGEUnet_Pooling.py"]
     tolerations:
     - key: "dedicated"
       operator: "Equal"
