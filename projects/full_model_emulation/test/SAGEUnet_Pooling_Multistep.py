@@ -27,7 +27,7 @@ from vcm import get_fs
 lead = 6
 residual = 0
 coarsenInd = 1
-n_filter=256
+n_filter=512
 input_res=48
 pooling_size=2
 multiStep=12
@@ -404,6 +404,7 @@ for epoch in range(1, epochs + 1):
                     exteraVar1,
                 ).view(-1, out_feat)
                 l += loss(y_pred2, torch.squeeze(y[:, :, :, sm]).to(device))
+                y_pred=y_pred2
 
             l = l / multiStep
 

@@ -24,9 +24,9 @@ import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
 
-multiStep = 8
+multiStep = 12
 lead = 6
-hidden_filetrs = 64
+hidden_filetrs = 256
 coarsenInd = 3
 g = pickle.load(open("UpdatedGraph_Neighbour10_Coarsen3", "rb"))
 residual = 0
@@ -42,7 +42,7 @@ variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
 Chuncksize = 1000
 num_step = 1
-aggregat = "gcn"
+aggregat = "mean"
 
 
 lr = 0.001
@@ -333,6 +333,7 @@ for epoch in range(1, epochs + 1):
                     exteraVar1,
                 ).view(-1, out_feat)
                 l += loss(y_pred2, torch.squeeze(y[:, :, :, sm]).to(device))
+                y_pred=y_pred2
 
             l = l / multiStep
             l.backward()

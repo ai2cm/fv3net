@@ -329,6 +329,7 @@ for epoch in range(1, epochs + 1):
                     exteraVar1,
                 ).view(-1, out_feat)
                 l += loss(y_pred2, torch.squeeze(y[:, :, :, sm]).to(device))
+                y_pred=y_pred2
 
             l = l / multiStep
             l.backward()
