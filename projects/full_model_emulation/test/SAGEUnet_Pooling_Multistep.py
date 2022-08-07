@@ -27,10 +27,10 @@ from vcm import get_fs
 lead = 6
 residual = 0
 coarsenInd = 1
-n_filter=512
+n_filter=256
 input_res=48
 pooling_size=2
-multiStep=12
+multiStep=4
 
 g1 = pickle.load(open("UpdatedGraph_Neighbour10", "rb"))
 g2 = pickle.load(open("UpdatedGraph_Neighbour8_Coarsen2", "rb"))
