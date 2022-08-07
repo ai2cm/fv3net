@@ -30,7 +30,7 @@ coarsenInd = 1
 n_filter=256
 input_res=48
 pooling_size=2
-multiStep=8
+multiStep=12
 
 g1 = pickle.load(open("UpdatedGraph_Neighbour10", "rb"))
 g2 = pickle.load(open("UpdatedGraph_Neighbour8_Coarsen2", "rb"))
