@@ -118,6 +118,7 @@ class RadiationDriver:
                     f"- ISUBCLW={isubclw}, Use McICA with random ",
                     f"permutation seeds for LW random number generator",
                 )
+                raise ValueError('isubclw == 2 is not implemented')
             else:
                 raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
 
@@ -136,6 +137,7 @@ class RadiationDriver:
                     f"- ISUBCSW={isubcsw}, Use McICA with random ",
                     "permutation seeds for SW random number generator",
                 )
+                raise ValueError('isubcsw == 2 is not implemented')
             else:
                 raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
 
