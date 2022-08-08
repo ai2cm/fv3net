@@ -127,9 +127,7 @@ def train_graph_model(
     processed_train_batches = processed_train_batches.map(normalizer)
     train_Xy = get_Xy(data=processed_train_batches)
 
-    train_model = build_model(
-        GraphHyperparameters.graph, GraphHyperparameters.graph_network
-    )
+    train_model = build_model(hyperparameters.graph, hyperparameters.graph_network)
     optimizer = hyperparameters.optimizer_config
 
     hyperparameters.training_loop.fit_loop(
