@@ -7,6 +7,7 @@ from typing import Optional, Sequence, TextIO
 from fv3fit.pytorch.predict import PytorchModel
 import pytest
 from fv3fit.pytorch.graph.graph import GraphHyperparameters
+from fv3fit.pytorch.graph.graph_builder import build_graph, GraphConfig
 
 GENERAL_TRAINING_TYPES = [
     "graph",
@@ -38,7 +39,9 @@ def train_identity_model(hyperparameters=None):
     np.random.seed(2)
     sample_test = get_uniform_sample_func(size=(grid, nz), low=low, high=high)
     test_dataset = xr.Dataset({"a": sample_test()})
-    hyperparameters = GraphHyperparameters(input_variable, output_variables)
+    hyperparameters = GraphHyperparameters(
+        input_variable, output_variables, graph=GraphConfig(nx_tile=6)
+    )
     train = fv3fit.get_training_function("graph")
     model = train(hyperparameters, train_dataset, val_tfdataset)
     return TrainingResult(model, output_variables, test_dataset, hyperparameters)
@@ -115,3 +118,14 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
         )
 
     return sample_func
+
+
+def test_graph_builder():
+    graph = build_graph(2)
+    edges = list(zip(graph[0], graph[1]))
+    assert (0, 1) in edges
+    assert (0, 2) in edges
+    assert (0, 0) in edges
+    assert (0, 21) in edges
+    assert (0, 19) in edges
+    assert len(edges) == 5 * 6 * 4

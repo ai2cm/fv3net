@@ -127,9 +127,7 @@ def train_graph_model(
     processed_train_batches = processed_train_batches.map(normalizer)
     train_Xy = get_Xy(data=processed_train_batches)
 
-    train_model = build_model(
-        GraphHyperparameters.graph, GraphHyperparameters.graph_network
-    )
+    train_model = build_model(hyperparameters.graph, hyperparameters.graph_network)
     optimizer = hyperparameters.optimizer_config
 
     hyperparameters.training_loop.fit_loop(
@@ -155,7 +153,7 @@ def build_model(graph, graph_network):
         graph: configuration for building graph
         graph_network: configuration of the graph network
     """
-    graph_data = build_graph(graph)
+    graph_data = build_graph(graph.nx_tile)
     g = dgl.graph(graph_data)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     train_model = GraphNetwork(

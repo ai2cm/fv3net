@@ -23,7 +23,6 @@ requirements = [
     "torch",
     "torchvision",
     "dgl",
-    "geopy",
     "tensorflow-datasets",
 ]
 
