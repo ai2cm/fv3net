@@ -344,9 +344,15 @@ class RadiationDriver:
     def _GFS_radiation_driver(
         self, Model, Statein, Sfcprop, Grid, randomdict, lwdict, swdict,
     ):
+        if Model["uni_cld"] == True:
+            raise FileNotFoundError(f'uni_cld = True Not implemented')
+
+        if Model["effr_in"] == True:
+            raise FileNotFoundError(f'effr_in = True Not implemented')
+
         if not (Model["lsswr"] or Model["lslwr"]):
             return
-
+        
         # --- set commonly used integers
         me = Model["me"]
         LM = Model["levr"]
@@ -389,10 +395,6 @@ class RadiationDriver:
         deltaq = np.zeros((IM, Model["levr"] + self.LTP))
         cnvc = np.zeros((IM, Model["levr"] + self.LTP))
         cnvw = np.zeros((IM, Model["levr"] + self.LTP))
-        effrl = np.zeros((IM, Model["levr"] + self.LTP))
-        effri = np.zeros((IM, Model["levr"] + self.LTP))
-        effrr = np.zeros((IM, Model["levr"] + self.LTP))
-        effrs = np.zeros((IM, Model["levr"] + self.LTP))
         dz = np.zeros((IM, Model["levr"] + self.LTP))
         prslk1 = np.zeros((IM, Model["levr"] + self.LTP))
         tem2da = np.zeros((IM, Model["levr"] + self.LTP))
@@ -746,8 +748,10 @@ class RadiationDriver:
                 for i in range(IM):
                     if ccnd[i, k, 0] < self.EPSQ:
                         ccnd[i, k, 0] = 0.0
+        if Model["uni_cld"]:
+            raise Exception("effr_in = True not implemented")
 
-        if Model["imp_physics"] == 11:  # GFDL MP
+        elif Model["imp_physics"] == 11:  # GFDL MP
             cldcov[:IM, kd : LM + kd] = tracer1[:IM, :LM, Model["ntclamt"] - 1]
 
         else:  # neither of the other two cases
@@ -774,14 +778,7 @@ class RadiationDriver:
                 deltaq[i, lyb - 1] = deltaq[i, lya - 1]
                 cnvw[i, lyb - 1] = cnvw[i, lya - 1]
                 cnvc[i, lyb - 1] = cnvc[i, lya - 1]
-
-            if Model["effr_in"]:
-                for i in range(IM):
-                    effrl[i, lyb - 1] = effrl[i, lya - 1]
-                    effri[i, lyb - 1] = effri[i, lya - 1]
-                    effrr[i, lyb - 1] = effrr[i, lya - 1]
-                    effrs[i, lyb - 1] = effrs[i, lya - 1]
-
+                
         if Model["imp_physics"] == 99:
             ccnd[:IM, :LMK, 0] = ccnd[:IM, :LMK, 0] + cnvw[:IM, :LMK]
 
