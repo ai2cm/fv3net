@@ -122,7 +122,7 @@ class RadiationDriver:
                     f"- ISUBCLW={isubclw}, Use McICA with random ",
                     f"permutation seeds for LW random number generator",
                 )
-                
+
             else:
                 raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
 
@@ -353,15 +353,15 @@ class RadiationDriver:
     def _GFS_radiation_driver(
         self, Model, Statein, Sfcprop, Grid, randomdict, lwdict, swdict,
     ):
-        if Model["uni_cld"] == True:
-            raise FileNotFoundError(f'uni_cld = True Not implemented')
+        if Model["uni_cld"]:
+            raise FileNotFoundError(f"uni_cld = True Not implemented")
 
-        if Model["effr_in"] == True:
-            raise FileNotFoundError(f'effr_in = True Not implemented')
+        if Model["effr_in"]:
+            raise FileNotFoundError(f"effr_in = True Not implemented")
 
         if not (Model["lsswr"] or Model["lslwr"]):
             return
-        
+
         # --- set commonly used integers
         me = Model["me"]
         LM = Model["levr"]
@@ -787,7 +787,7 @@ class RadiationDriver:
                 deltaq[i, lyb - 1] = deltaq[i, lya - 1]
                 cnvw[i, lyb - 1] = cnvw[i, lya - 1]
                 cnvc[i, lyb - 1] = cnvc[i, lya - 1]
-                
+
         if Model["imp_physics"] == 99:
             ccnd[:IM, :LMK, 0] = ccnd[:IM, :LMK, 0] + cnvw[:IM, :LMK]
 
