@@ -23,8 +23,8 @@ from utilsMPGNNUnet import *
 import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
-from SAGEUnet_original import UnetGraphSAGE
-
+# from SAGEUnet_original import UnetGraphSAGE
+from SAGEUnet_original_Upsampling import UnetGraphSAGE
 lead = 6
 residual = 0
 coarsenInd = 1

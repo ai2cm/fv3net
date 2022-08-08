@@ -29,17 +29,16 @@ from SAGEUnet_original import UnetGraphSAGE
 lead = 6
 residual = 0
 coarsenInd = 1
-n_filter=512
-input_res=48
-pooling_size=2
-multiStep=8
+n_filter = 512
+input_res = 48
+pooling_size = 2
+multiStep = 8
 
 g1 = pickle.load(open("UpdatedGraph_Neighbour10", "rb"))
 g2 = pickle.load(open("UpdatedGraph_Neighbour8_Coarsen2", "rb"))
 g3 = pickle.load(open("UpdatedGraph_Neighbour6_Coarsen4", "rb"))
 g4 = pickle.load(open("UpdatedGraph_Neighbour4_Coarsen8", "rb"))
 g5 = pickle.load(open("UpdatedGraph_Neighbour3_Coarsen16", "rb"))
-
 
 
 control_str = "SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
@@ -64,10 +63,10 @@ out_feat = 2
 savemodelpath = (
     "Original_New_Pooling_weight_layer_"
     + control_str
-    +"Multistep"
-    +str(multiStep)
-    +"Poolin"
-    +"Meanpool"
+    + "Multistep"
+    + str(multiStep)
+    + "Poolin"
+    + "Meanpool"
     + "hidden_filetrs"
     + str(n_filter)
     + "learning_rate"
@@ -184,7 +183,7 @@ print("loading model")
 #         self.conv11 = SAGEConv(int(h_feats / 16), out_feat, aggregat)
 #         self.Maxpool = nn.MaxPool2d((pooling_size, pooling_size), stride=(pooling_size, pooling_size))
 #         self.Meanpool = nn.AvgPool2d((pooling_size, pooling_size), stride=(pooling_size, pooling_size))
-        
+
 #         self.upsample1 =nn.ConvTranspose2d(int(h_feats), int(h_feats), 2, stride=2, padding=0)
 #         self.upsample2 =nn.ConvTranspose2d(int(h_feats / 2), int(h_feats / 2), 2, stride=2, padding=0)
 #         self.upsample3 =nn.ConvTranspose2d(int(h_feats / 4), int(h_feats / 4), 2, stride=2, padding=0)
@@ -258,7 +257,7 @@ print("loading model")
 #             h6=self.upsample4(h6)
 #             h6=torch.permute(h6, (1, 0 , 2, 3)).reshape(-1, int(6*self.input_res*self.input_res))
 #             h6=torch.transpose(h6, 0 , 1)
-            
+
 #             h6 = F.relu(self.conv10(self.g1, h6))
 #             out = self.conv11(self.g1, h6)
 #             return out
@@ -270,7 +269,9 @@ g2 = g2.to(device)
 g3 = g3.to(device)
 g4 = g4.to(device)
 g5 = g5.to(device)
-model = UnetGraphSAGE(input_res, pooling_size, g1, g2,g3,g4,g5, 7, n_filter, 2, num_step, aggregat).to(device)
+model = UnetGraphSAGE(
+    input_res, pooling_size, g1, g2, g3, g4, g5, 7, n_filter, 2, num_step, aggregat
+).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
 
@@ -343,7 +344,7 @@ for epoch in range(1, epochs + 1):
         len_train = round(num_samples * 0.75)
         train = dataSets[:, :len_train]
         val = dataSets[:, len_train + 14 : len_train + len_val]
- 
+
         x_train = train[:, 0 : -multiStep * lead, :]
 
         y_train = x_t = np.zeros(
@@ -406,7 +407,7 @@ for epoch in range(1, epochs + 1):
                     exteraVar1,
                 ).view(-1, out_feat)
                 l += loss(y_pred2, torch.squeeze(y[:, :, :, sm]).to(device))
-                y_pred=y_pred2
+                y_pred = y_pred2
 
             l = l / multiStep
 
@@ -418,7 +419,7 @@ for epoch in range(1, epochs + 1):
 
         print(" epoch", epoch, ", train loss:", l.item())
         scheduler.step()
-        val_loss = evaluate_model(model, loss, val_iter, exteraVar, out_feat,device)
+        val_loss = evaluate_model(model, loss, val_iter, exteraVar, out_feat, device)
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), savemodelpath)
