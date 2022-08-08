@@ -7,19 +7,17 @@ import tensorflow_datasets as tfds
 logger = logging.getLogger(__name__)
 
 
-def evaluate_model(loss_fn, model, data_iter):
+def evaluate_model(loss_config, multistep, model, data_iter):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    loss = loss_fn
     model.eval()
-    loss_sum, n = 0.0, 0
     with torch.no_grad():
         for x, y in data_iter:
-            y_pred = model(torch.as_tensor(np.squeeze(x)).float().to(device))
+            x = torch.as_tensor(np.squeeze(x)).float().to(device)
             y = torch.as_tensor(np.squeeze(y)).float().to(device)
-            loss_batch = loss(y_pred, y)
-            loss_sum += loss_batch.item() * y.shape[0]
-            n += y.shape[0]
-        return loss_sum / n
+            loss = loss_config.multi_timestep_loss(
+                multistep, train_model=model, inputs=x, labels=y,
+            )
+        return loss
 
 
 @dataclasses.dataclass
@@ -67,7 +65,9 @@ class TrainingLoopConfig:
                 loss.backward()
                 y = torch.as_tensor(np.squeeze(y)).float().to(device)
                 optimizer.step()
-            val_loss = evaluate_model(loss_config.loss, train_model, validation_data)
+            val_loss = evaluate_model(
+                loss_config, self.multistep, train_model, validation_data
+            )
             if val_loss < min_val_loss:
                 min_val_loss = val_loss
                 torch.save(train_model.state_dict(), self.save_path)

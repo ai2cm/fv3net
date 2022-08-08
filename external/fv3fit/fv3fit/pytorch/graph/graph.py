@@ -3,13 +3,13 @@ import tensorflow as tf
 import numpy as np
 import dgl
 import dataclasses
-from .._shared.training_config import Hyperparameters
+from fv3fit._shared.training_config import Hyperparameters
 from toolz.functoolz import curry
-from fv3fit.pytorch.graph_predict import PytorchModel
-from fv3fit.pytorch.graph_builder import build_graph, GraphConfig
-from fv3fit.pytorch.graph_config import GraphNetwork, GraphNetworkConfig
-from fv3fit.pytorch.graph_loss import LossConfig
-from fv3fit.pytorch.graph_optim import OptimizerConfig
+from fv3fit.pytorch.predict import PytorchModel
+from fv3fit.pytorch.graph.graph_builder import build_graph, GraphConfig
+from fv3fit.pytorch.graph.graph_config import GraphNetwork, GraphNetworkConfig
+from fv3fit.pytorch.loss import LossConfig
+from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.training_loop import TrainingLoopConfig
 from fv3fit._shared.scaler import StandardScaler
 
@@ -43,7 +43,7 @@ class GraphHyperparameters(Hyperparameters):
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("AdamW")
     )
-    build_graph: GraphConfig = dataclasses.field(default_factory=lambda: GraphConfig())
+    graph: GraphConfig = dataclasses.field(default_factory=lambda: GraphConfig())
 
     graph_network: GraphNetworkConfig = dataclasses.field(
         default_factory=lambda: GraphNetworkConfig()
@@ -127,7 +127,9 @@ def train_graph_model(
     processed_train_batches = processed_train_batches.map(normalizer)
     train_Xy = get_Xy(data=processed_train_batches)
 
-    train_model = build_model(hyperparameters)
+    train_model = build_model(
+        GraphHyperparameters.graph, GraphHyperparameters.graph_network
+    )
     optimizer = hyperparameters.optimizer_config
 
     hyperparameters.training_loop.fit_loop(
@@ -147,16 +149,17 @@ def train_graph_model(
     return predictor
 
 
-def build_model(config: GraphHyperparameters):
+def build_model(graph, graph_network):
     """
     Args:
-        config: configuration of graph training
+        graph: configuration for building graph
+        graph_network: configuration of the graph network
     """
-    graph_data = build_graph(config.build_graph)
+    graph_data = build_graph(graph)
     g = dgl.graph(graph_data)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     train_model = GraphNetwork(
-        config.graph_network, g.to(device), n_features_in=2, n_features_out=2
+        graph_network, g.to(device), n_features_in=2, n_features_out=2
     ).to(device)
     return train_model
 
