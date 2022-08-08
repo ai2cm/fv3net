@@ -20,10 +20,10 @@ requirements = [
     "plotly",
     "tensorboard",
     "pandas",
-    "torch==1.12.0",
-    "torchvision==0.13.0",
-    "dgl==0.9.0",
-    "geopy==2.2.0",
+    "torch",
+    "torchvision",
+    "dgl",
+    "geopy",
     "tensorflow-datasets",
 ]
 
