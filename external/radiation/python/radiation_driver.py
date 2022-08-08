@@ -108,17 +108,21 @@ class RadiationDriver:
                     f"- ISUBCLW={isubclw}, No McICA, use grid ",
                     f"averaged cloud in LW radiation",
                 )
-            elif isubclw == 1:
+                raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
+
+            if isubclw == 1:
                 print(
                     "- ISUBCLW={isubclw}, Use McICA with fixed ",
                     "permutation seeds for LW random number generator",
                 )
-            elif isubclw == 2:
+                raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
+
+            if isubclw == 2:
                 print(
                     f"- ISUBCLW={isubclw}, Use McICA with random ",
                     f"permutation seeds for LW random number generator",
                 )
-                raise ValueError('isubclw == 2 is not implemented')
+                
             else:
                 raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
 
@@ -127,17 +131,20 @@ class RadiationDriver:
                     "- ISUBCSW={isubcsw}, No McICA, use grid ",
                     "averaged cloud in SW radiation",
                 )
-            elif isubcsw == 1:
+                raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
+
+            if isubcsw == 1:
                 print(
                     f"- ISUBCSW={isubcsw}, Use McICA with fixed ",
                     "permutation seeds for SW random number generator",
                 )
-            elif isubcsw == 2:
+                raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
+
+            if isubcsw == 2:
                 print(
                     f"- ISUBCSW={isubcsw}, Use McICA with random ",
                     "permutation seeds for SW random number generator",
                 )
-                raise ValueError('isubcsw == 2 is not implemented')
             else:
                 raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
 
