@@ -59,7 +59,7 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "Orininal_New_Pooling_weight_layer_"
+    "Upsamoling_Orininal_New_Pooling_weight_layer_"
     + control_str
     + "Poolin"
     + "Meanpool"
