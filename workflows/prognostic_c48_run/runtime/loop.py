@@ -338,10 +338,6 @@ class TimeLoop(
     def time(self) -> cftime.DatetimeJulian:
         return self._state.time
 
-    def cleanup(self):
-        self._print_global_timings()
-        self._fv3gfs.cleanup()
-
     def _step_dynamics(self) -> Diagnostics:
         self._log_debug(f"Dynamics Step")
         self._fv3gfs.step_dynamics()
@@ -381,7 +377,7 @@ class TimeLoop(
     def _print_timing(self, name, min_val, max_val, mean_val):
         self._print(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
 
-    def _print_global_timings(self, root=0):
+    def print_global_timings(self, root=0):
         is_root = self.rank == root
         recvbuf = np.array(0.0)
         reduced = {}
