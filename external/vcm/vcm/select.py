@@ -41,6 +41,33 @@ def zonal_average_approximate(
     return output.assign_coords({lat_name: lats_mid})
 
 
+def meridional_average_approximate(
+    lon: xr.DataArray,
+    data: Union[xr.DataArray, xr.Dataset],
+    bins: Optional[Sequence[float]] = None,
+    lon_name: str = "lon",
+):
+    """Compute meridional mean of a dataset or dataarray using groupby_bins.
+
+    Args:
+        lon: longitude values on same grid as data.
+        data: dataset of variables to averaged or dataarray to be averaged.
+        bins: bins to use for zonal mean. Output will have a coordinate
+            using the midpoints of given bins. Defaults to np.arange(0, 361, 2).
+        lon_name: name to use for latitude coordinate in output.
+
+    Returns:
+        meridional mean of dataset or dataarray.
+    """
+    if bins is None:
+        bins = np.arange(0, 361, 2)
+    with xr.set_options(keep_attrs=True):
+        output = data.groupby_bins(lon.rename("lon"), bins=bins).mean()
+        output = output.rename({"lon_bins": lon_name})
+    lons_mid = [lon.item().mid for lon in output[lon_name]]
+    return output.assign_coords({lon_name: lons_mid})
+
+
 def meridional_ring(lon=0, n=180):
     attrs = {"description": f"Lon = {lon}"}
     lat = np.linspace(-90, 90, n)

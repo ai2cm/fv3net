@@ -332,6 +332,25 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
     return zonal_means
 
 
+@registry_2d.register("deep_tropical_meridional_mean_value")
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+@transform.apply(transform.subset_variables, ["total_precip_to_surface", "ULWRFtoa"])
+def deep_tropical_mean_hovmoller(diag_arg: DiagArg):
+    logger.info(f"Preparing deep tropical meridional mean values (2d)")
+    prognostic, grid = diag_arg.prediction, diag_arg.grid
+    deep_tropical_means = xr.Dataset()
+    for var in prognostic.data_vars:
+        logger.info(f"Computing deep tropical meridional mean (2d) over time for {var}")
+        with xr.set_options(keep_attrs=True):
+            deep_tropical_means[var] = vcm.meridional_average_approximate(
+                grid.lon,
+                prognostic[[var]].where(np.abs(grid.lat) <= 15),
+                lon_name="longitude",
+            )[var].load()
+    return deep_tropical_means
+
+
 for mask_type in ["global", "land", "sea", "tropics"]:
 
     @registry_2d.register(f"spatial_min_{mask_type}")

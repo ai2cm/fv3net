@@ -235,6 +235,7 @@ hovmoller_plot_manager = PlotManager()
 zonal_pressure_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
 histogram_plot_manager = PlotManager()
+tropical_hovmoller_plot_manager = PlotManager()
 
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
@@ -271,6 +272,15 @@ def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(diagnostics, "zonal_mean_bias", ["time", "latitude"])
+
+
+@tropical_hovmoller_plot_manager.register
+def deep_tropical_meridional_mean_hovmoller_plots(
+    diagnostics: Iterable[xr.Dataset],
+) -> RawHTML:
+    return plot_2d_matplotlib(
+        diagnostics, "deep_tropical_meridional_mean_value", ["longitude", "time"]
+    )
 
 
 def time_mean_cubed_sphere_maps(
@@ -526,6 +536,9 @@ def render_process_diagnostics(metadata, diagnostics, metrics):
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
         "Precipitation and water vapor path": list(
             histogram_plot_manager.make_plots(diagnostics)
+        ),
+        "Tropical Hovmoller plots": list(
+            tropical_hovmoller_plot_manager.make_plots(diagnostics)
         ),
     }
     return create_html(
