@@ -2,7 +2,6 @@ import warnings
 import numpy as np
 import os
 from phys_const import con_pi, con_solr, con_solr_old
-from config import FORCING_DIR
 
 
 class AstronomyClass:
@@ -50,7 +49,7 @@ class AstronomyClass:
                     " with cycle approximation (old values)!",
                 )
 
-            file_exist = os.path.isfile(os.path.join(FORCING_DIR, self.solar_fname))
+            file_exist = os.path.isfile(self.solar_fname)
             if not file_exist:
                 self.isolflg = 10
 
@@ -69,7 +68,7 @@ class AstronomyClass:
                     " with cycle approximation (new values)!",
                 )
 
-            file_exist = os.path.isfile(os.path.join(FORCING_DIR, self.solar_fname))
+            file_exist = os.path.isfile(self.solar_fname)
             if not file_exist:
                 self.isolflg = 10
 
@@ -88,7 +87,7 @@ class AstronomyClass:
                     " with cycle approximation",
                 )
 
-            file_exist = os.path.isfile(os.path.join(FORCING_DIR, self.solar_fname))
+            file_exist = os.path.isfile(self.solar_fname)
             if not file_exist:
                 self.isolflg = 10
 
@@ -107,7 +106,7 @@ class AstronomyClass:
                     " with cycle approximation",
                 )
 
-            file_exist = os.path.isfile(os.path.join(FORCING_DIR, self.solar_fname))
+            file_exist = os.path.isfile(self.solar_fname)
             if not file_exist:
                 self.isolflg = 10
 
@@ -207,7 +206,7 @@ class AstronomyClass:
             else:  # need to read in new data
                 self.iyr_sav = iyear
                 #  --- ...  check to see if the solar constant data file existed
-                file_exist = os.path.isfile(os.path.join(FORCING_DIR, self.solar_fname))
+                file_exist = os.path.isfile(self.solar_fname)
                 if not file_exist:
                     raise FileNotFoundError(
                         " !!! ERROR! Can not find solar constant file!!!"
