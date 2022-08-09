@@ -29,7 +29,6 @@ requirements = [
 
 setup_requirements = []
 
-
 test_requirements = ["pytest"]
 
 setup(

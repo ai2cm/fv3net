@@ -96,6 +96,9 @@ def train_graph_model(
         input_variables: names of inputs for the pytorch model
         output_variables: names of outputs for the pytorch model
         n_epoch: number of epochs
+        hyperparameters: configuration for training
+        train_batches: training data, as a dataset of Mapping[str, tf.Tensor]
+        validation_batches: validation data, as a dataset of Mapping[str, tf.Tensor]
     """
 
     # use transforms to get correct variables, correct dimensions
