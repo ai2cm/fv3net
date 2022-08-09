@@ -158,10 +158,11 @@ class ProgShell(cmd.Cmd):
         "Welcome to the ProgRunDiag shell.   Type help or ? to list commands.\n"  # noqa
     )
 
-    def __init__(self, state: State):
+    def __init__(self, state: State, raise_errors: bool = False):
         super().__init__()
         self.state = state
         self.crs = None
+        self.raise_errors = raise_errors
 
     def do_avg2d(self, arg):
         avg2d(self.state, arg)
@@ -243,7 +244,10 @@ class ProgShell(cmd.Cmd):
         try:
             super().onecmd(line)
         except Exception as e:
-            print(e)
+            if self.raise_errors:
+                raise (e)
+            else:
+                print(e)
 
     def do_map2d(self, arg):
         variable, kwargs = parse_pcolor_arg(arg)
@@ -278,8 +282,9 @@ def register_parser(subparsers):
 
 
 def main(args):
-    shell = ProgShell(State())
     if args.script:
+        shell = ProgShell(State(), raise_errors=True)
         shell.do_eval(args.script)
     else:
+        shell = ProgShell(State())
         shell.cmdloop()
