@@ -83,19 +83,13 @@ def train_graph_model(
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
 ):
-
     """
     Train a graph network.
 
     Args:
+        hyperparameters: configuration for training
         train_batches: training data, as a dataset of Mapping[str, tf.Tensor]
         validation_batches: validation data, as a dataset of Mapping[str, tf.Tensor]
-        build_model: the function which produces the pytorch model
-            from input and output samples. The models returned must take a list of
-            tensors as input and return a list of tensors as output.
-        input_variables: names of inputs for the pytorch model
-        output_variables: names of outputs for the pytorch model
-        n_epoch: number of epochs
     """
 
     # use transforms to get correct variables, correct dimensions

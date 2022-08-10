@@ -108,16 +108,21 @@ class RadiationDriver:
                     f"- ISUBCLW={isubclw}, No McICA, use grid ",
                     f"averaged cloud in LW radiation",
                 )
-            elif isubclw == 1:
+                raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
+
+            if isubclw == 1:
                 print(
                     "- ISUBCLW={isubclw}, Use McICA with fixed ",
                     "permutation seeds for LW random number generator",
                 )
-            elif isubclw == 2:
+                raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
+
+            if isubclw == 2:
                 print(
                     f"- ISUBCLW={isubclw}, Use McICA with random ",
                     f"permutation seeds for LW random number generator",
                 )
+
             else:
                 raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
 
@@ -126,12 +131,16 @@ class RadiationDriver:
                     "- ISUBCSW={isubcsw}, No McICA, use grid ",
                     "averaged cloud in SW radiation",
                 )
-            elif isubcsw == 1:
+                raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
+
+            if isubcsw == 1:
                 print(
                     f"- ISUBCSW={isubcsw}, Use McICA with fixed ",
                     "permutation seeds for SW random number generator",
                 )
-            elif isubcsw == 2:
+                raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
+
+            if isubcsw == 2:
                 print(
                     f"- ISUBCSW={isubcsw}, Use McICA with random ",
                     "permutation seeds for SW random number generator",
@@ -337,6 +346,19 @@ class RadiationDriver:
         swdict,
     ):
 
+        return self._GFS_radiation_driver(
+            Model, Statein, Sfcprop, Grid, randomdict, lwdict, swdict,
+        )
+
+    def _GFS_radiation_driver(
+        self, Model, Statein, Sfcprop, Grid, randomdict, lwdict, swdict,
+    ):
+        if Model["uni_cld"]:
+            raise FileNotFoundError(f"uni_cld = True Not implemented")
+
+        if Model["effr_in"]:
+            raise FileNotFoundError(f"effr_in = True Not implemented")
+
         if not (Model["lsswr"] or Model["lslwr"]):
             return
 
@@ -382,10 +404,6 @@ class RadiationDriver:
         deltaq = np.zeros((IM, Model["levr"] + self.LTP))
         cnvc = np.zeros((IM, Model["levr"] + self.LTP))
         cnvw = np.zeros((IM, Model["levr"] + self.LTP))
-        effrl = np.zeros((IM, Model["levr"] + self.LTP))
-        effri = np.zeros((IM, Model["levr"] + self.LTP))
-        effrr = np.zeros((IM, Model["levr"] + self.LTP))
-        effrs = np.zeros((IM, Model["levr"] + self.LTP))
         dz = np.zeros((IM, Model["levr"] + self.LTP))
         prslk1 = np.zeros((IM, Model["levr"] + self.LTP))
         tem2da = np.zeros((IM, Model["levr"] + self.LTP))
@@ -395,8 +413,23 @@ class RadiationDriver:
 
         cldtausw = np.zeros((IM, Model["levr"] + self.LTP))
 
-        scmpsw = dict()
+        Coupling = {}
+        scmpsw = {}
+        Diag = {}
+        Radtend = {}
+        Radtend["coszen"] = np.zeros(IM)
+        Radtend["coszdg"] = np.zeros(IM)
+        Radtend["htrsw"] = np.zeros((IM, Model["levs"]))
+        Radtend["swhc"] = np.zeros((IM, Model["levs"]))
+        Radtend["lwhc"] = np.zeros((IM, Model["levs"]))
+        Radtend["semis"] = np.zeros(IM)
+        Radtend["tsflw"] = np.zeros(IM)
+        Radtend["sfcfsw"] = dict()
+        Radtend["sfcflw"] = dict()
 
+        Diag["fluxr"] = np.zeros((IM, 45))
+        Diag["topflw"] = dict()
+        Diag["topfsw"] = dict()
         Diag["topfsw"]["upfxc"] = np.zeros(IM)
         Diag["topfsw"]["dnfxc"] = np.zeros(IM)
         Diag["topfsw"]["upfx0"] = np.zeros(IM)
@@ -724,32 +757,12 @@ class RadiationDriver:
                 for i in range(IM):
                     if ccnd[i, k, 0] < self.EPSQ:
                         ccnd[i, k, 0] = 0.0
-
         if Model["uni_cld"]:
-            if Model["effr_in"]:
-                for k in range(LM):
-                    k1 = k + kd
-                    for i in range(IM):
-                        cldcov[i, k1] = Tbd["phy_f3d"][i, k, Model["indcld"] - 1]
-                        effrl[i, k1] = Tbd["phy_f3d"][i, k, 1]
-                        effri[i, k1] = Tbd["phy_f3d"][i, k, 2]
-                        effrr[i, k1] = Tbd["phy_f3d"][i, k, 3]
-                        effrs[i, k1] = Tbd["phy_f3d"][i, k, 4]
-            else:
-                for k in range(LM):
-                    k1 = k + kd
-                    for i in range(IM):
-                        cldcov[i, k1] = Tbd["phy_f3d"][i, k, Model["indcld"] - 1]
+            raise Exception("effr_in = True not implemented")
+
         elif Model["imp_physics"] == 11:  # GFDL MP
             cldcov[:IM, kd : LM + kd] = tracer1[:IM, :LM, Model["ntclamt"] - 1]
-            if Model["effr_in"]:
-                for k in range(LM):
-                    k1 = k + kd
-                    for i in range(IM):
-                        effrl[i, k1] = Tbd["phy_f3d"][i, k, 0]
-                        effri[i, k1] = Tbd["phy_f3d"][i, k, 1]
-                        effrr[i, k1] = Tbd["phy_f3d"][i, k, 2]
-                        effrs[i, k1] = Tbd["phy_f3d"][i, k, 3]
+
         else:  # neither of the other two cases
             cldcov = 0.0
 
@@ -760,24 +773,8 @@ class RadiationDriver:
         #          ferrier's (imp_phys=5) microphysics schemes
 
         if (
-            Model["num_p3d"] == 4 and Model["npdf3d"] == 3
-        ):  # same as Model%imp_physics = 99
-            for k in range(LM):
-                k1 = k + kd
-                for i in range(IM):
-                    deltaq[i, k1] = Tbd["phy_f3d"][i, k, 4]
-                    cnvw[i, k1] = Tbd["phy_f3d"][i, k, 5]
-                    cnvc[i, k1] = Tbd["phy_f3d"][i, k, 6]
-        elif (
-            Model["npdf3d"] == 0 and Model["ncnvcld3d"] == 1
-        ):  # same as MOdel%imp_physics=98
-            for k in range(LM):
-                k1 = k + kd
-                for i in range(IM):
-                    deltaq[i, k1] = 0.0
-                    cnvw[i, k1] = Tbd["phy_f3d"][i, k, Model["num_p3d"]]
-                    cnvc[i, k1] = 0.0
-        else:  # all the rest
+            Model["num_p3d"] == 1 and Model["npdf3d"] == 0 and Model["ncnvcld3d"] == 0
+        ):  # all the rest
             for k in range(LMK):
                 for i in range(IM):
                     deltaq[i, k] = 0.0
@@ -790,13 +787,6 @@ class RadiationDriver:
                 deltaq[i, lyb - 1] = deltaq[i, lya - 1]
                 cnvw[i, lyb - 1] = cnvw[i, lya - 1]
                 cnvc[i, lyb - 1] = cnvc[i, lya - 1]
-
-            if Model["effr_in"]:
-                for i in range(IM):
-                    effrl[i, lyb - 1] = effrl[i, lya - 1]
-                    effri[i, lyb - 1] = effri[i, lya - 1]
-                    effrr[i, lyb - 1] = effrr[i, lya - 1]
-                    effrs[i, lyb - 1] = effrs[i, lya - 1]
 
         if Model["imp_physics"] == 99:
             ccnd[:IM, :LMK, 0] = ccnd[:IM, :LMK, 0] + cnvw[:IM, :LMK]
@@ -874,7 +864,7 @@ class RadiationDriver:
             )
 
             # Approximate mean surface albedo from vis- and nir-  diffuse values.
-            Radtend["sfalb"][:] = np.maximum(0.01, 0.5 * (sfcalb[:, 1] + sfcalb[:, 3]))
+            Radtend["sfalb"] = np.maximum(0.01, 0.5 * (sfcalb[:, 1] + sfcalb[:, 3]))
 
             lhswb = False
             lhsw0 = True
@@ -913,7 +903,6 @@ class RadiationDriver:
                         olyr,
                         gasvmr,
                         clouds,
-                        Tbd["icsdsw"],
                         faersw,
                         sfcalb,
                         dz,
@@ -960,7 +949,6 @@ class RadiationDriver:
                         olyr,
                         gasvmr,
                         clouds,
-                        Tbd["icsdsw"],
                         faersw,
                         sfcalb,
                         dz,
@@ -1006,41 +994,35 @@ class RadiationDriver:
                 #  - Save two spectral bands' surface downward and upward fluxes for
                 #    output.
 
-                for i in range(IM):
-                    Coupling["nirbmdi"][i] = scmpsw["nirbm"][i]
-                    Coupling["nirdfdi"][i] = scmpsw["nirdf"][i]
-                    Coupling["visbmdi"][i] = scmpsw["visbm"][i]
-                    Coupling["visdfdi"][i] = scmpsw["visdf"][i]
+                Coupling["nirbmdi"] = scmpsw["nirbm"]
+                Coupling["nirdfdi"] = scmpsw["nirdf"]
+                Coupling["visbmdi"] = scmpsw["visbm"]
+                Coupling["visdfdi"] = scmpsw["visdf"]
 
-                    Coupling["nirbmui"][i] = scmpsw["nirbm"][i] * sfcalb[i, 0]
-                    Coupling["nirdfui"][i] = scmpsw["nirdf"][i] * sfcalb[i, 1]
-                    Coupling["visbmui"][i] = scmpsw["visbm"][i] * sfcalb[i, 2]
-                    Coupling["visdfui"][i] = scmpsw["visdf"][i] * sfcalb[i, 3]
+                Coupling["nirbmui"] = scmpsw["nirbm"] * sfcalb[:, 0]
+                Coupling["nirdfui"] = scmpsw["nirdf"] * sfcalb[:, 1]
+                Coupling["visbmui"] = scmpsw["visbm"] * sfcalb[:, 2]
+                Coupling["visdfui"] = scmpsw["visdf"] * sfcalb[:, 3]
 
             else:
 
                 Radtend["htrsw"][:, :] = 0.0
-
-                for i in range(IM):
-                    Coupling["nirbmdi"][i] = 0.0
-                    Coupling["nirdfdi"][i] = 0.0
-                    Coupling["visbmdi"][i] = 0.0
-                    Coupling["visdfdi"][i] = 0.0
-                    Coupling["nirbmui"][i] = 0.0
-                    Coupling["nirdfui"][i] = 0.0
-                    Coupling["visbmui"][i] = 0.0
-                    Coupling["visdfui"][i] = 0.0
+                Coupling["nirbmdi"] = np.zeros(IM)
+                Coupling["nirdfdi"] = np.zeros(IM)
+                Coupling["visbmdi"] = np.zeros(IM)
+                Coupling["visdfdi"] = np.zeros(IM)
+                Coupling["nirbmui"] = np.zeros(IM)
+                Coupling["nirdfui"] = np.zeros(IM)
+                Coupling["visbmui"] = np.zeros(IM)
+                Coupling["visdfui"] = np.zeros(IM)
 
                 if Model["swhtr"]:
                     Radtend["swhc"][:, :] = 0
                     cldtausw[:, :] = 0.0
 
             # --- radiation fluxes for other physics processes
-            for i in range(IM):
-                Coupling["sfcnsw"][i] = (
-                    Radtend["sfcfsw"]["dnfxc"][i] - Radtend["sfcfsw"]["upfxc"][i]
-                )
-                Coupling["sfcdsw"][i] = Radtend["sfcfsw"]["dnfxc"][i]
+            Coupling["sfcnsw"] = Radtend["sfcfsw"]["dnfxc"] - Radtend["sfcfsw"]["upfxc"]
+            Coupling["sfcdsw"] = Radtend["sfcfsw"]["dnfxc"]
 
         # Start LW radiation calculations
         if Model["lslwr"]:
@@ -1084,7 +1066,6 @@ class RadiationDriver:
                     olyr,
                     gasvmr,
                     clouds,
-                    Tbd["icsdlw"],
                     faerlw,
                     Radtend["semis"],
                     tsfg,
@@ -1120,7 +1101,6 @@ class RadiationDriver:
                     olyr,
                     gasvmr,
                     clouds,
-                    Tbd["icsdlw"],
                     faerlw,
                     Radtend["semis"],
                     tsfg,
@@ -1162,7 +1142,7 @@ class RadiationDriver:
                         Radtend["lwhc"][:IM, k] = Radtend["lwhc"][:IM, LM - 1]
 
             # --- radiation fluxes for other physics processes
-            Coupling["sfcdlw"][:] = Radtend["sfcflw"]["dnfxc"]
+            Coupling["sfcdlw"] = Radtend["sfcflw"]["dnfxc"]
 
         #  - For time averaged output quantities (including total-sky and
         #    clear-sky SW and LW fluxes at TOA and surface; conventional
@@ -1328,4 +1308,4 @@ class RadiationDriver:
                             1.0 - np.exp(-tem2)
                         )
 
-        return Radtend, Diag
+        return Radtend, Diag, Coupling
