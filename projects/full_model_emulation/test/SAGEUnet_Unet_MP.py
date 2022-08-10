@@ -25,29 +25,49 @@ from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
 from SAGE_Unet_MP import UnetGraphSAGE
 
+halo=1
+control_str = "Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
+
 
 lead = 6
 residual = 0
 coarsenInd = 1
 n_filter = 256
-edge_h_feats=32
+edge_h_feats = 32
 input_res = 48
 pooling_size = 2
 edge_in_feats = 2
 num_step_message_passing = 1
 
-g1 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen1", "rb"))
 
-g2 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen2", "rb"))
+if halo==1:
+    g1 = pickle.load(open("Halo_Graph5_Coarsen48", "rb"))
 
-g3 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen4", "rb"))
-coarsenInd3 = 4
+    g2 = pickle.load(open("Halo_Graph5_Coarsen24", "rb"))
 
-g4 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen8", "rb"))
-coarsenInd4 = 8
+    g3 = pickle.load(open("Halo_Graph5_Coarsen12", "rb"))
+    coarsenInd3 = 4
 
-g5 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen16", "rb"))
-coarsenInd5 = 16
+    g4 = pickle.load(open("Halo_Graph5_Coarsen6", "rb"))
+    coarsenInd4 = 8
+
+    g5 = pickle.load(open("Halo_Graph5_Coarsen3", "rb"))
+    coarsenInd5 = 16
+
+elif halo==0:
+
+    g1 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen1", "rb"))
+
+    g2 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen2", "rb"))
+
+    g3 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen4", "rb"))
+    coarsenInd3 = 4
+
+    g4 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen8", "rb"))
+    coarsenInd4 = 8
+
+    g5 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen16", "rb"))
+    coarsenInd5 = 16
 
 # g1=build_graph(48)
 # g2=build_graph(24)
@@ -75,7 +95,7 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "Check2_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
+    "Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
     + control_str
     + "Poolin"
     + "Meanpool"
@@ -190,14 +210,14 @@ lonInd = lon3[edg[1]]
 latInd1 = lat3[edg[0]]
 lonInd1 = lon3[edg[0]]
 
-latInd = latInd1-latInd
-lonInd = lonInd1-lonInd
+latInd = latInd1 - latInd
+lonInd = lonInd1 - lonInd
 
 latlon3 = [latInd.T, lonInd.T]
 latlon3 = torch.from_numpy(np.swapaxes(latlon3, 1, 0)).float()
 latlon3 = latlon3.to(device)
 
-del edg, lonInd, latInd,lonInd1, latInd1
+del edg, lonInd, latInd, lonInd1, latInd1
 
 edg = np.asarray(g4.edges())
 latInd = lat4[edg[1]]
@@ -206,15 +226,15 @@ lonInd = lon4[edg[1]]
 latInd1 = lat4[edg[0]]
 lonInd1 = lon4[edg[0]]
 
-latInd = latInd1-latInd
-lonInd = lonInd1-lonInd
+latInd = latInd1 - latInd
+lonInd = lonInd1 - lonInd
 
 
 latlon4 = [latInd.T, lonInd.T]
 latlon4 = torch.from_numpy(np.swapaxes(latlon4, 1, 0)).float()
 latlon4 = latlon4.to(device)
 
-del edg, lonInd, latInd,lonInd1, latInd1
+del edg, lonInd, latInd, lonInd1, latInd1
 
 edg = np.asarray(g5.edges())
 latInd = lat5[edg[1]]
@@ -223,13 +243,13 @@ lonInd = lon5[edg[1]]
 latInd1 = lat5[edg[0]]
 lonInd1 = lon5[edg[0]]
 
-latInd = latInd1-latInd
-lonInd = lonInd1-lonInd
+latInd = latInd1 - latInd
+lonInd = lonInd1 - lonInd
 
 latlon5 = [latInd.T, lonInd.T]
 latlon5 = torch.from_numpy(np.swapaxes(latlon5, 1, 0)).float()
 latlon5 = latlon5.to(device)
-del edg, lonInd, latInd,lonInd1, latInd1
+del edg, lonInd, latInd, lonInd1, latInd1
 
 
 Zmean = 5765.8457  # Z500mean=5765.8457,
