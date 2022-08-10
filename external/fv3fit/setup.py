@@ -20,6 +20,11 @@ requirements = [
     "plotly",
     "tensorboard",
     "pandas",
+    "torch",
+    "torchvision",
+    "dgl",
+    "geopy",
+    "tensorflow-datasets",
 ]
 
 setup_requirements = []
