@@ -23,11 +23,11 @@ requirements = [
     "torch",
     "torchvision",
     "dgl",
-    "geopy",
     "tensorflow-datasets",
 ]
 
 setup_requirements = []
+
 
 test_requirements = ["pytest"]
 
