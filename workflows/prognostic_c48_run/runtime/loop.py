@@ -374,17 +374,10 @@ class TimeLoop(
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
         }
 
-    def _print_timing(self, name, min_val, max_val, mean_val):
-        self._print(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
-
-    def print_global_timings(self, root=0):
+    def log_global_timings(self, root=0):
         is_root = self.rank == root
         recvbuf = np.array(0.0)
         reduced = {}
-        self._print("-----------------------------------------------------------------")
-        self._print("         Reporting clock statistics from python                  ")
-        self._print("-----------------------------------------------------------------")
-        self._print(f"{' ':<30}{'min (s)':>15}{'max (s)':>15}{'mean (s)':>15}")
         for name, value in self._timer.times.items():
             reduced[name] = {}
             for label, op in [("min", MPI.MIN), ("max", MPI.MAX), ("mean", MPI.SUM)]:
@@ -392,10 +385,8 @@ class TimeLoop(
                 if is_root and label == "mean":
                     recvbuf /= self.comm.Get_size()
                 reduced[name][label] = recvbuf.copy().item()
-            self._print_timing(
-                name, reduced[name]["min"], reduced[name]["max"], reduced[name]["mean"]
-            )
-        self._log_info(f"python_timing:{json.dumps(reduced)}")
+        out = {"steps": reduced, "units": "[s], cumulative and reduced across ranks"}
+        self._log_info(json.dumps({"python_timing": out}))
 
     def _step_prephysics(self) -> Diagnostics:
 

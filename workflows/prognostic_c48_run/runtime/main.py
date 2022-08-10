@@ -71,7 +71,7 @@ def main():
     for diag_file in diag_files:
         diag_file.flush()
 
-    loop.print_global_timings()
+    loop.log_global_timings()
 
 
 if __name__ == "__main__":
