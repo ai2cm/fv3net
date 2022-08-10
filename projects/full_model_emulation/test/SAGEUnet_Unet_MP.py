@@ -30,23 +30,24 @@ lead = 6
 residual = 0
 coarsenInd = 1
 n_filter = 256
+edge_h_feats=32
 input_res = 48
 pooling_size = 2
-edge_in_feats=2
-num_step_message_passing=1
+edge_in_feats = 2
+num_step_message_passing = 1
 
 g1 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen1", "rb"))
 
 g2 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen2", "rb"))
 
 g3 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen4", "rb"))
-coarsenInd3=4
+coarsenInd3 = 4
 
 g4 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen8", "rb"))
-coarsenInd4=8
+coarsenInd4 = 8
 
 g5 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen16", "rb"))
-coarsenInd5=16
+coarsenInd5 = 16
 
 # g1=build_graph(48)
 # g2=build_graph(24)
@@ -64,7 +65,6 @@ epochs = 30
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
 Chuncksize = 2000
-num_step = 1
 aggregat = "mean"
 
 
@@ -75,7 +75,7 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
+    "Check2_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
     + control_str
     + "Poolin"
     + "Meanpool"
@@ -88,7 +88,7 @@ savemodelpath = (
     + "_epochs_"
     + str(epochs)
     + "MP_Block_"
-    + str(num_step)
+    + str(num_step_message_passing)
     + "aggregat_"
     + aggregat
     + "coarsen_"
@@ -131,15 +131,28 @@ lon1 = lat_lon_data.longitude[1].load()
 lat = lat1[:, ::coarsenInd, ::coarsenInd].values.flatten()
 lon = lon1[:, ::coarsenInd, ::coarsenInd].values.flatten()
 
-lat3 = lat1[:, coarsenInd3-1::coarsenInd3, coarsenInd3-1::coarsenInd3].values.flatten()
-lon3 = lon1[:, coarsenInd3-1::coarsenInd3, coarsenInd3-1::coarsenInd3].values.flatten()
+lat3 = lat1[
+    :, coarsenInd3 - 1 :: coarsenInd3, coarsenInd3 - 1 :: coarsenInd3
+].values.flatten()
+lon3 = lon1[
+    :, coarsenInd3 - 1 :: coarsenInd3, coarsenInd3 - 1 :: coarsenInd3
+].values.flatten()
 
-lat4 = lat1[:, coarsenInd4-1::coarsenInd4, coarsenInd4-1::coarsenInd4].values.flatten()
-lon4 = lon1[:, coarsenInd4-1::coarsenInd4, coarsenInd4-1::coarsenInd4].values.flatten()
+lat4 = lat1[
+    :, coarsenInd4 - 1 :: coarsenInd4, coarsenInd4 - 1 :: coarsenInd4
+].values.flatten()
+lon4 = lon1[
+    :, coarsenInd4 - 1 :: coarsenInd4, coarsenInd4 - 1 :: coarsenInd4
+].values.flatten()
 
 
-lat5 = lat1[:, coarsenInd5-1::coarsenInd5, coarsenInd5-1::coarsenInd5].values.flatten()
-lon5 = lon1[:, coarsenInd5-1::coarsenInd5, coarsenInd5-1::coarsenInd5].values.flatten()
+lat5 = lat1[
+    :, coarsenInd5 - 1 :: coarsenInd5, coarsenInd5 - 1 :: coarsenInd5
+].values.flatten()
+lon5 = lon1[
+    :, coarsenInd5 - 1 :: coarsenInd5, coarsenInd5 - 1 :: coarsenInd5
+].values.flatten()
+
 # cosLat=np.expand_dims(np.cos(lat),axis=1)
 # cosLon=np.expand_dims(np.cos(lon),axis=1)
 # sinLat=np.expand_dims(np.sin(lat),axis=1)
@@ -173,27 +186,50 @@ print(f"numebr of grids: {num_nodes}")
 edg = np.asarray(g3.edges())
 latInd = lat3[edg[1]]
 lonInd = lon3[edg[1]]
+
+latInd1 = lat3[edg[0]]
+lonInd1 = lon3[edg[0]]
+
+latInd = latInd1-latInd
+lonInd = lonInd1-lonInd
+
 latlon3 = [latInd.T, lonInd.T]
 latlon3 = torch.from_numpy(np.swapaxes(latlon3, 1, 0)).float()
 latlon3 = latlon3.to(device)
 
-del edg,lonInd,latInd
+del edg, lonInd, latInd,lonInd1, latInd1
 
 edg = np.asarray(g4.edges())
 latInd = lat4[edg[1]]
 lonInd = lon4[edg[1]]
+
+latInd1 = lat4[edg[0]]
+lonInd1 = lon4[edg[0]]
+
+latInd = latInd1-latInd
+lonInd = lonInd1-lonInd
+
+
 latlon4 = [latInd.T, lonInd.T]
 latlon4 = torch.from_numpy(np.swapaxes(latlon4, 1, 0)).float()
 latlon4 = latlon4.to(device)
 
-del edg,lonInd,latInd
+del edg, lonInd, latInd,lonInd1, latInd1
 
 edg = np.asarray(g5.edges())
 latInd = lat5[edg[1]]
 lonInd = lon5[edg[1]]
+
+latInd1 = lat5[edg[0]]
+lonInd1 = lon5[edg[0]]
+
+latInd = latInd1-latInd
+lonInd = lonInd1-lonInd
+
 latlon5 = [latInd.T, lonInd.T]
 latlon5 = torch.from_numpy(np.swapaxes(latlon5, 1, 0)).float()
 latlon5 = latlon5.to(device)
+del edg, lonInd, latInd,lonInd1, latInd1
 
 
 Zmean = 5765.8457  # Z500mean=5765.8457,
@@ -213,8 +249,20 @@ g4 = g4.to(device)
 g5 = g5.to(device)
 
 model = UnetGraphSAGE(
-    input_res, pooling_size, g1, g2, g3, g4, g5, 7, n_filter, 2, num_step, aggregat,edge_in_feats,
-        num_step_message_passing
+    input_res,
+    pooling_size,
+    g1,
+    g2,
+    g3,
+    g4,
+    g5,
+    7,
+    n_filter,
+    2,
+    aggregat,
+    edge_in_feats,
+    edge_h_feats,
+    num_step_message_passing,
 ).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
@@ -326,7 +374,7 @@ for epoch in range(1, epochs + 1):
         for x, y in train_iter:
             exteraVar1 = exteraVar[: x.size(0)]
             x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
-            y_pred = model(x,latlon3,latlon4,latlon5).view(-1, out_feat)
+            y_pred = model(x, latlon3, latlon4, latlon5).view(-1, out_feat)
             l = loss(y_pred, torch.squeeze(y.to(device)))
             optimizer.zero_grad()
             l.backward()
@@ -336,7 +384,17 @@ for epoch in range(1, epochs + 1):
 
         print(" epoch", epoch, ", train loss:", l.item())
         scheduler.step()
-        val_loss = evaluate_model(model, loss, val_iter, exteraVar, out_feat, latlon3,latlon4,latlon5,device)
+        val_loss = evaluate_model(
+            model,
+            loss,
+            val_iter,
+            exteraVar,
+            out_feat,
+            latlon3,
+            latlon4,
+            latlon5,
+            device,
+        )
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), savemodelpath)

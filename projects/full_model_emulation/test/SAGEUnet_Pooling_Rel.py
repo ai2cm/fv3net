@@ -24,6 +24,7 @@ import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
 from SAGEUnet_original_Rel import UnetGraphSAGE
+
 # from SAGEUnet_original_Upsampling import UnetGraphSAGE
 # from Halo_Graph import build_graph
 
@@ -39,7 +40,6 @@ g2 = pickle.load(open("UpdatedGraph_Neighbour8_Coarsen2", "rb"))
 g3 = pickle.load(open("UpdatedGraph_Neighbour6_Coarsen4", "rb"))
 g4 = pickle.load(open("UpdatedGraph_Neighbour4_Coarsen8", "rb"))
 g5 = pickle.load(open("UpdatedGraph_Neighbour3_Coarsen16", "rb"))
-
 
 
 # g1 = pickle.load(open("UpdatedGraph_Neighbour10", "rb"))
@@ -175,7 +175,6 @@ valInde = 0
 print("loading model")
 
 
-
 loss = nn.MSELoss()
 g1 = g1.to(device)
 g2 = g2.to(device)
@@ -183,7 +182,8 @@ g3 = g3.to(device)
 g4 = g4.to(device)
 g5 = g5.to(device)
 model = UnetGraphSAGE(
-    input_res, pooling_size, g1, g2, g3, g4, g5, 7, n_filter, 2, num_rels,-1).to(device)
+    input_res, pooling_size, g1, g2, g3, g4, g5, 7, n_filter, 2, num_rels, -1
+).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
 
