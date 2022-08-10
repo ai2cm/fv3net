@@ -26,7 +26,7 @@ from vcm import get_fs
 
 lead=6
 
-coarsenInd=3
+coarsenInd=8
 
 control_str='MPGNN'#'TNSTTNST' #'TNTSTNTST'
 
@@ -36,8 +36,8 @@ epochs=20
 
 variableList=['h500','h200','h850']
 TotalSamples=8500
-Chuncksize=12
-num_step_message_passing=6
+Chuncksize=2000
+num_step_message_passing=9
 
 
 lr=0.001
@@ -119,7 +119,7 @@ print(f"numebr of grids: {num_nodes}")
 
 
 
-g = pickle.load(open("UpdatedGraph_Neighbour10_Coarsen3", 'rb'))
+g = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen8", 'rb'))
 
 edg=np.asarray(g.edges())
 latInd=lat[edg[1]]
@@ -230,16 +230,16 @@ class MPNNGNN(nn.Module):
 
 loss = nn.MSELoss()
 g = g.to(device)
-model = MPNNGNN(g,node_in_feats=7, edge_in_feats=2, edge_hidden_feats=128, node_hidden_feats=128, node_out_feats=2,num_step_message_passing=num_step_message_passing).to(device)
+model = MPNNGNN(g,node_in_feats=7, edge_in_feats=2, node_hidden_feats=128, edge_hidden_feats=128, node_out_feats=2,num_step_message_passing=num_step_message_passing).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
 model.train()
 
-all_indices=np.random.permutation(np.arange(start=0, stop=int(TotalSamples/Chuncksize)))
 
 
 for epoch in range(1, epochs + 1):
-    
+    all_indices=np.random.permutation(np.arange(start=0, stop=int(TotalSamples/Chuncksize)))
+
     for ss in all_indices:
 
         Z500train=state_training_data[variableList[0]].isel(time=slice((ss*Chuncksize),(ss+1)*Chuncksize)).coarsen(grid_yt=coarsenInd).mean().coarsen(grid_xt=coarsenInd).mean()
@@ -292,8 +292,8 @@ for epoch in range(1, epochs + 1):
         y_train=np.swapaxes(y_train, 1, 0)
         x_train=np.swapaxes(x_train, 2, 1)
         y_train=np.swapaxes(y_train, 2, 1)
-        x_train=torch.Tensor(x_train).to(device)
-        y_train=torch.Tensor(y_train).to(device)
+        x_train=torch.Tensor(x_train)
+        y_train=torch.Tensor(y_train)
 
         train_data = torch.utils.data.TensorDataset(x_train, y_train)
         train_iter = torch.utils.data.DataLoader(train_data, batch_size, shuffle=True)
@@ -304,8 +304,8 @@ for epoch in range(1, epochs + 1):
         y_val=np.swapaxes(y_val, 1, 0)
         x_val=np.swapaxes(x_val, 2, 1)
         y_val=np.swapaxes(y_val, 2, 1)
-        x_val=torch.Tensor(x_val).to(device)
-        y_val=torch.Tensor(y_val).to(device)
+        x_val=torch.Tensor(x_val)
+        y_val=torch.Tensor(y_val)
 
 
         val_data = torch.utils.data.TensorDataset(x_val, y_val)
@@ -319,9 +319,9 @@ for epoch in range(1, epochs + 1):
         l_sum, n = 0.0, 0
         for x, y in train_iter:
             exteraVar1=exteraVar[:x.size(0)]
-            x=torch.squeeze(torch.cat((x, exteraVar1), 2)).float() 
+            x=torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float() 
             y_pred = model(x,latlon).view(-1 ,out_feat)
-            l = loss(y_pred, torch.squeeze(y))
+            l = loss(y_pred, torch.squeeze(y.to(device)))
             optimizer.zero_grad()
             l.backward()
             optimizer.step()
@@ -330,7 +330,7 @@ for epoch in range(1, epochs + 1):
             print("section ",ss," epoch", epoch, ", train loss:", l.item())
 
         scheduler.step()
-        val_loss = evaluate_model(model, loss, val_iter,exteraVar,out_feat)
+        val_loss = evaluate_model(model, loss, val_iter.to(device),exteraVar,out_feat)
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), savemodelpath)
