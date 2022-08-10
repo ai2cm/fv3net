@@ -41,6 +41,7 @@ num_step_message_passing = 1
 
 
 if halo==1:
+    print("halo")
     g1 = pickle.load(open("Halo_Graph5_Coarsen48", "rb"))
 
     g2 = pickle.load(open("Halo_Graph5_Coarsen24", "rb"))
@@ -55,7 +56,7 @@ if halo==1:
     coarsenInd5 = 16
 
 elif halo==0:
-
+    print("No halo")
     g1 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen1", "rb"))
 
     g2 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen2", "rb"))
@@ -95,7 +96,7 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
+    "Ave_latlon_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
     + control_str
     + "Poolin"
     + "Meanpool"
@@ -151,27 +152,55 @@ lon1 = lat_lon_data.longitude[1].load()
 lat = lat1[:, ::coarsenInd, ::coarsenInd].values.flatten()
 lon = lon1[:, ::coarsenInd, ::coarsenInd].values.flatten()
 
-lat3 = lat1[
-    :, coarsenInd3 - 1 :: coarsenInd3, coarsenInd3 - 1 :: coarsenInd3
-].values.flatten()
-lon3 = lon1[
-    :, coarsenInd3 - 1 :: coarsenInd3, coarsenInd3 - 1 :: coarsenInd3
-].values.flatten()
+lat2=np.zeros([6,24,24])
+lon2=np.zeros([6,24,24])
 
-lat4 = lat1[
-    :, coarsenInd4 - 1 :: coarsenInd4, coarsenInd4 - 1 :: coarsenInd4
-].values.flatten()
-lon4 = lon1[
-    :, coarsenInd4 - 1 :: coarsenInd4, coarsenInd4 - 1 :: coarsenInd4
-].values.flatten()
+lat3=np.zeros([6,12,12])
+lon3=np.zeros([6,12,12])
+
+lat4=np.zeros([6,6,6])
+lon4=np.zeros([6,6,6])
+
+lat5=np.zeros([6,3,3])
+lon5=np.zeros([6,3,3])
+
+for i in range(6):
+    lat2[i]=0.25* (lat1[i,1::2, :-1:2] + lat1[i,:-1:2, :-1:2] + lat1[i,1::2, 1::2] + lat1[i,:-1:2, :-1:2])
+    lon2[i]=0.25* (lon1[i,1::2, :-1:2] + lon1[i,:-1:2, :-1:2] + lon1[i,1::2, 1::2] + lon1[i,:-1:2, :-1:2])
+
+for i in range(6):
+    lat3[i]=0.25* (lat2[i,1::2, :-1:2] + lat2[i,:-1:2, :-1:2] + lat2[i,1::2, 1::2] + lat2[i,:-1:2, :-1:2])
+    lon3[i]=0.25* (lon2[i,1::2, :-1:2] + lon2[i,:-1:2, :-1:2] + lon2[i,1::2, 1::2] + lon2[i,:-1:2, :-1:2])
+
+for i in range(6):
+    lat4[i]=0.25* (lat3[i,1::2, :-1:2] + lat3[i,:-1:2, :-1:2] + lat3[i,1::2, 1::2] + lat3[i,:-1:2, :-1:2])
+    lon4[i]=0.25* (lon3[i,1::2, :-1:2] + lon3[i,:-1:2, :-1:2] + lon3[i,1::2, 1::2] + lon3[i,:-1:2, :-1:2])
+
+for i in range(6):
+    lat5[i]=0.25* (lat4[i,1::2, :-1:2] + lat4[i,:-1:2, :-1:2] + lat4[i,1::2, 1::2] + lat4[i,:-1:2, :-1:2])
+    lon5[i]=0.25* (lon4[i,1::2, :-1:2] + lon4[i,:-1:2, :-1:2] + lon4[i,1::2, 1::2] + lon4[i,:-1:2, :-1:2])
+
+# lat3 = lat1[
+#     :, coarsenInd3 - 1 :: coarsenInd3, coarsenInd3 - 1 :: coarsenInd3
+# ].values.flatten()
+# lon3 = lon1[
+#     :, coarsenInd3 - 1 :: coarsenInd3, coarsenInd3 - 1 :: coarsenInd3
+# ].values.flatten()
+
+# lat4 = lat1[
+#     :, coarsenInd4 - 1 :: coarsenInd4, coarsenInd4 - 1 :: coarsenInd4
+# ].values.flatten()
+# lon4 = lon1[
+#     :, coarsenInd4 - 1 :: coarsenInd4, coarsenInd4 - 1 :: coarsenInd4
+# ].values.flatten()
 
 
-lat5 = lat1[
-    :, coarsenInd5 - 1 :: coarsenInd5, coarsenInd5 - 1 :: coarsenInd5
-].values.flatten()
-lon5 = lon1[
-    :, coarsenInd5 - 1 :: coarsenInd5, coarsenInd5 - 1 :: coarsenInd5
-].values.flatten()
+# lat5 = lat1[
+#     :, coarsenInd5 - 1 :: coarsenInd5, coarsenInd5 - 1 :: coarsenInd5
+# ].values.flatten()
+# lon5 = lon1[
+#     :, coarsenInd5 - 1 :: coarsenInd5, coarsenInd5 - 1 :: coarsenInd5
+# ].values.flatten()
 
 # cosLat=np.expand_dims(np.cos(lat),axis=1)
 # cosLon=np.expand_dims(np.cos(lon),axis=1)
