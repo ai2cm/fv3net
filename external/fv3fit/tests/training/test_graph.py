@@ -123,9 +123,14 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
 def test_graph_builder():
     graph = build_graph(2)
     edges = list(zip(graph[0], graph[1]))
-    assert (0, 1) in edges
-    assert (0, 2) in edges
-    assert (0, 0) in edges
-    assert (0, 21) in edges
-    assert (0, 19) in edges
+    assert (0, 1) in edges  # right edge
+    assert (0, 2) in edges  # top edge
+    assert (0, 0) in edges  # self edge
+    # Note due to the [tile, x, y] direction convention for index
+    # ordering, the node index orders are transposed compared to the
+    # MPI rank ordering used for cubed sphere decomposition in fv3gfs.
+    # If the order were [tile, y, x] then the node indices would be
+    # transposed in (x, y) on each tile.
+    assert (0, 21) in edges  # down edge
+    assert (0, 19) in edges  # left edge
     assert len(edges) == 5 * 6 * 4
