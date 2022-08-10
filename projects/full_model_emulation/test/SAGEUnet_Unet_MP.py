@@ -77,8 +77,6 @@ elif halo==0:
 # g5=build_graph(3)
 
 
-control_str = "SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
-
 print(control_str)
 
 epochs = 30
@@ -179,6 +177,14 @@ for i in range(6):
 for i in range(6):
     lat5[i]=0.25* (lat4[i,1::2, :-1:2] + lat4[i,:-1:2, :-1:2] + lat4[i,1::2, 1::2] + lat4[i,:-1:2, :-1:2])
     lon5[i]=0.25* (lon4[i,1::2, :-1:2] + lon4[i,:-1:2, :-1:2] + lon4[i,1::2, 1::2] + lon4[i,:-1:2, :-1:2])
+
+lat3=lat3.flatten()
+lat4=lat4.flatten()
+lat5=lat5.flatten()
+
+lon3=lon3.flatten()
+lon4=lon4.flatten()
+lon5=lon5.flatten()
 
 # lat3 = lat1[
 #     :, coarsenInd3 - 1 :: coarsenInd3, coarsenInd3 - 1 :: coarsenInd3
