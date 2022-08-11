@@ -554,7 +554,7 @@ for epoch in range(1, epochs + 1):
 
         print(" epoch", epoch, ", train loss:", l.item())
         scheduler.step()
-        val_loss = evaluate_model(model, loss, val_iter, exteraVar, out_feat, device)
+        val_loss = evaluate_model2(model, loss, val_iter, exteraVar, out_feat, device)
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), savemodelpath)
