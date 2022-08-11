@@ -1,88 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import dgl.function as fn
-
-
-class RGCNLayer(nn.Module):
-    def __init__(
-        self,
-        in_feat,
-        out_feat,
-        num_rels,
-        num_bases=-1,
-        bias=None,
-        activation=None,
-        is_input_layer=False,
-    ):
-        super(RGCNLayer, self).__init__()
-        self.in_feat = in_feat
-        self.out_feat = out_feat
-        self.num_rels = num_rels
-        self.num_bases = num_bases
-        self.bias = bias
-        self.activation = activation
-        self.is_input_layer = is_input_layer
-
-        # sanity check
-        if self.num_bases <= 0 or self.num_bases > self.num_rels:
-            self.num_bases = self.num_rels
-
-        # weight bases in equation (3)
-        self.weight = nn.Parameter(
-            torch.Tensor(self.num_bases, self.in_feat, self.out_feat)
-        )
-        if self.num_bases < self.num_rels:
-            # linear combination coefficients in equation (3)
-            self.w_comp = nn.Parameter(torch.Tensor(self.num_rels, self.num_bases))
-
-        # add bias
-        if self.bias:
-            self.bias = nn.Parameter(torch.Tensor(out_feat))
-
-        # init trainable parameters
-        nn.init.xavier_uniform_(self.weight, gain=nn.init.calculate_gain("relu"))
-        if self.num_bases < self.num_rels:
-            nn.init.xavier_uniform_(self.w_comp, gain=nn.init.calculate_gain("relu"))
-        if self.bias:
-            nn.init.xavier_uniform_(self.bias, gain=nn.init.calculate_gain("relu"))
-
-    def forward(self, g):
-        if self.num_bases < self.num_rels:
-            # generate all weights from bases (equation (3))
-            weight = self.weight.view(self.in_feat, self.num_bases, self.out_feat)
-            weight = torch.matmul(self.w_comp, weight).view(
-                self.num_rels, self.in_feat, self.out_feat
-            )
-        else:
-            weight = self.weight
-
-        if self.is_input_layer:
-
-            def message_func(edges):
-                # for input layer, matrix multiply can be converted to be
-                # an embedding lookup using source node id
-                embed = weight.view(-1, self.out_feat)
-                index = edges.data["rel_type"] * self.in_feat + edges.src["id"]
-                return {"msg": embed[index] * edges.data["norm"]}
-
-        else:
-
-            def message_func(edges):
-                w = weight[edges.data["rel_type"]]
-                msg = torch.bmm(edges.src["h"].unsqueeze(1), w).squeeze()
-                msg = msg * edges.data["norm"]
-                return {"msg": msg}
-
-        def apply_func(nodes):
-            h = nodes.data["h"]
-            if self.bias:
-                h = h + self.bias
-            if self.activation:
-                h = self.activation(h)
-            return {"h": h}
-
-        g.update_all(message_func, fn.sum(msg="msg", out="h"), apply_func)
+from dgl.nn import RelGraphConv
 
 
 class UnetGraphSAGE(nn.Module):
@@ -98,91 +17,46 @@ class UnetGraphSAGE(nn.Module):
         in_feats,
         h_feats,
         out_feat,
-        num_rels,
+        num_rels1,
+        num_rels2,
+        num_rels3,
+        num_rels4,
+        num_rels5,
+        reg,
         num_bases,
     ):
         super(UnetGraphSAGE, self).__init__()
-        self.conv1 = RGCNLayer(
-            in_feats,
-            int(h_feats / 16),
-            num_rels,
-            num_bases,
-            activation=F.relu,
-            is_input_layer=True,
-        )
+        self.conv1 = RelGraphConv(in_feats, int(h_feats / 16),num_rels1,regularizer=reg, num_bases=num_bases)
+        self.conv2 = RelGraphConv(int(h_feats / 16), int(h_feats / 16),num_rels1,regularizer=reg, num_bases=num_bases)
+        self.conv3 = RelGraphConv(int(h_feats / 16), int(h_feats / 8),num_rels2,regularizer=reg, num_bases=num_bases)
+        self.conv33 = RelGraphConv(int(h_feats / 8), int(h_feats / 8),num_rels2,regularizer=reg, num_bases=num_bases)
 
-        self.conv2 = RGCNLayer(
-            int(h_feats / 16), int(h_feats / 16), num_rels, num_bases, activation=F.relu
-        )
+        self.conv4 = RelGraphConv(int(h_feats / 8), int(h_feats / 4),num_rels3,regularizer=reg, num_bases=num_bases)
+        self.conv44 = RelGraphConv(int(h_feats / 4), int(h_feats / 4),num_rels3,regularizer=reg, num_bases=num_bases)
 
-        self.conv3 = RGCNLayer(
-            int(h_feats / 16), int(h_feats / 8), num_rels, num_bases, activation=F.relu
-        )
+        self.conv5 = RelGraphConv(int(h_feats / 4), int(h_feats / 2),num_rels4,regularizer=reg, num_bases=num_bases)
+        self.conv55 = RelGraphConv(int(h_feats / 2), int(h_feats / 2),num_rels4,regularizer=reg, num_bases=num_bases)
 
-        self.conv33 = RGCNLayer(
-            int(h_feats / 8), int(h_feats / 8), num_rels, num_bases, activation=F.relu
-        )
+        self.conv6 = RelGraphConv(int(h_feats / 2), int(h_feats),num_rels5,regularizer=reg, num_bases=num_bases)
+        self.conv66 = RelGraphConv(int(h_feats), int(h_feats),num_rels5,regularizer=reg, num_bases=num_bases)
+        self.conv666 = RelGraphConv(int(h_feats), int(h_feats / 2),num_rels5,regularizer=reg, num_bases=num_bases)
 
-        self.conv4 = RGCNLayer(
-            int(h_feats / 8), int(h_feats / 4), num_rels, num_bases, activation=F.relu
-        )
+        self.conv7 = RelGraphConv(int(h_feats), int(h_feats / 2),num_rels4,regularizer=reg, num_bases=num_bases)
+        self.conv77 = RelGraphConv(int(h_feats / 2), int(h_feats / 2),num_rels4,regularizer=reg, num_bases=num_bases)
+        self.conv777 = RelGraphConv(int(h_feats / 2), int(h_feats / 4),num_rels4,regularizer=reg, num_bases=num_bases)
 
-        self.conv44 = RGCNLayer(
-            int(h_feats / 4), int(h_feats / 4), num_rels, num_bases, activation=F.relu
-        )
+        self.conv8 = RelGraphConv(int(h_feats / 2), int(h_feats / 4),num_rels3,regularizer=reg, num_bases=num_bases)
+        self.conv88 = RelGraphConv(int(h_feats / 4), int(h_feats / 4),num_rels3,regularizer=reg, num_bases=num_bases)
+        self.conv888 = RelGraphConv(int(h_feats / 4), int(h_feats / 8),num_rels3,regularizer=reg, num_bases=num_bases)
 
-        self.conv5 = RGCNLayer(
-            int(h_feats / 4), int(h_feats / 2), num_rels, num_bases, activation=F.relu
-        )
+        self.conv9 = RelGraphConv(int(h_feats / 4), int(h_feats / 8),num_rels2,regularizer=reg, num_bases=num_bases)
+        self.conv99 = RelGraphConv(int(h_feats / 8), int(h_feats / 8),num_rels2,regularizer=reg, num_bases=num_bases)
+        self.conv999 = RelGraphConv(int(h_feats / 8), int(h_feats / 16),num_rels2,regularizer=reg, num_bases=num_bases)
 
-        self.conv55 = RGCNLayer(
-            int(h_feats / 2), int(h_feats / 2), num_rels, num_bases, activation=F.relu
-        )
+        self.conv10 = RelGraphConv(int(h_feats / 8), int(h_feats / 16),num_rels1,regularizer=reg, num_bases=num_bases)
+        self.conv101 = RelGraphConv(int(h_feats / 16), int(h_feats / 16),num_rels1,regularizer=reg, num_bases=num_bases)
 
-        self.conv6 = RGCNLayer(
-            int(h_feats / 2), int(h_feats), num_rels, num_bases, activation=F.relu
-        )
-
-        self.conv66 = RGCNLayer(
-            int(h_feats), int(h_feats), num_rels, num_bases, activation=F.relu
-        )
-
-        self.conv7 = RGCNLayer(
-            int(h_feats), int(h_feats / 2), num_rels, num_bases, activation=F.relu
-        )
-
-        self.conv77 = RGCNLayer(
-            int(h_feats / 2), int(h_feats / 2), num_rels, num_bases, activation=F.relu
-        )
-
-        self.conv8 = RGCNLayer(
-            int(h_feats / 2), int(h_feats / 4), num_rels, num_bases, activation=F.relu
-        )
-
-        self.conv88 = RGCNLayer(
-            int(h_feats / 4), int(h_feats / 4), num_rels, num_bases, activation=F.relu
-        )
-
-        self.conv9 = RGCNLayer(
-            int(h_feats / 4), int(h_feats / 8), num_rels, num_bases, activation=F.relu
-        )
-
-        self.conv99 = RGCNLayer(
-            int(h_feats / 8), int(h_feats / 8), num_rels, num_bases, activation=F.relu
-        )
-
-        self.conv10 = RGCNLayer(
-            int(h_feats / 8), int(h_feats / 16), num_rels, num_bases, activation=F.relu
-        )
-
-        self.conv101 = RGCNLayer(
-            int(h_feats / 16), int(h_feats / 16), num_rels, num_bases, activation=F.relu
-        )
-
-        self.conv11 = RGCNLayer(
-            int(h_feats / 16), out_feat, num_rels, num_bases, activation=F.relu
-        )
-
+        self.conv11 = RelGraphConv(int(h_feats / 16), out_feat,num_rels1,regularizer=reg, num_bases=num_bases)
         self.Maxpool = nn.MaxPool2d(
             (pooling_size, pooling_size), stride=(pooling_size, pooling_size)
         )
@@ -212,11 +86,11 @@ class UnetGraphSAGE(nn.Module):
         self.input_res = input_res
         self.pooling_size = pooling_size
 
-    def forward(self, in_feat):
+    def forward(self, in_feat,etype1,etype2,etype3,etype4,etype5):
 
-        h1 = F.relu(self.conv1(self.g1, in_feat))
+        h1 = F.relu(self.conv1(self.g1, in_feat,etype1))
 
-        h22 = F.relu(self.conv2(self.g1, h1))
+        h22 = F.relu(self.conv2(self.g1, h1,etype1))
         h2 = h22.view(6, self.input_res, self.input_res, -1)
         h2 = torch.permute(h2, (3, 0, 1, 2))
         h2 = self.Meanpool(h2).view(
@@ -230,10 +104,9 @@ class UnetGraphSAGE(nn.Module):
             ),
         )
         h2 = torch.transpose(h2, 0, 1)
-        # g2=self.get_graph(24)
 
-        h3 = F.relu(self.conv3(self.g2, h2))
-        h33 = F.relu(self.conv33(self.g2, h3))
+        h3 = F.relu(self.conv3(self.g2, h2,etype2))
+        h33 = F.relu(self.conv33(self.g2, h3,etype2))
         h3 = h33.view(
             6,
             int(self.input_res / self.pooling_size),
@@ -252,10 +125,9 @@ class UnetGraphSAGE(nn.Module):
             ),
         )
         h3 = torch.transpose(h3, 0, 1)
-        # g3=self.get_graph(self.input_res/(self.pooling_size)**2)
 
-        h4 = F.relu(self.conv4(self.g3, h3))
-        h44 = F.relu(self.conv44(self.g3, h4))
+        h4 = F.relu(self.conv4(self.g3, h3, etype3))
+        h44 = F.relu(self.conv44(self.g3, h4, etype3))
         h4 = h44.view(
             6,
             int(self.input_res / (self.pooling_size) ** 2),
@@ -274,10 +146,9 @@ class UnetGraphSAGE(nn.Module):
             ),
         )
         h4 = torch.transpose(h4, 0, 1)
-        # g4=self.get_graph(self.input_res/(self.pooling_size)**3)
 
-        h5 = F.relu(self.conv5(self.g4, h4))
-        h55 = F.relu(self.conv55(self.g4, h5))
+        h5 = F.relu(self.conv5(self.g4, h4, etype4))
+        h55 = F.relu(self.conv55(self.g4, h5, etype4))
         h5 = h55.view(
             6,
             int(self.input_res / (self.pooling_size) ** 3),
@@ -297,9 +168,9 @@ class UnetGraphSAGE(nn.Module):
         )
         h5 = torch.transpose(h5, 0, 1)
 
-        h6 = F.relu(self.conv6(self.g5, h5))
-        h6 = F.relu(self.conv66(self.g5, h6))
-        h6 = F.relu(self.conv7(self.g5, h6)).view(
+        h6 = F.relu(self.conv6(self.g5, h5, etype5))
+        h6 = F.relu(self.conv66(self.g5, h6, etype5))
+        h6 = F.relu(self.conv666(self.g5, h6, etype5)).view(
             6,
             int(self.input_res / (self.pooling_size) ** 4),
             int(self.input_res / (self.pooling_size) ** 4),
@@ -320,9 +191,9 @@ class UnetGraphSAGE(nn.Module):
         h6 = torch.transpose(h6, 0, 1)
         h6 = torch.cat((h6, h55), dim=1)
 
-        h6 = F.relu(self.conv7(self.g4, h6))
-        h6 = F.relu(self.conv77(self.g4, h6))
-        h6 = F.relu(self.conv8(self.g4, h6)).view(
+        h6 = F.relu(self.conv7(self.g4, h6, etype4))
+        h6 = F.relu(self.conv77(self.g4, h6, etype4))
+        h6 = F.relu(self.conv777(self.g4, h6, etype4)).view(
             6,
             int(self.input_res / (self.pooling_size) ** 3),
             int(self.input_res / (self.pooling_size) ** 3),
@@ -343,9 +214,9 @@ class UnetGraphSAGE(nn.Module):
         h6 = torch.transpose(h6, 0, 1)
         h6 = torch.cat((h6, h44), dim=1)
 
-        h6 = F.relu(self.conv8(self.g3, h6))
-        h6 = F.relu(self.conv88(self.g3, h6))
-        h6 = F.relu(self.conv9(self.g3, h6)).view(
+        h6 = F.relu(self.conv8(self.g3, h6, etype3))
+        h6 = F.relu(self.conv88(self.g3, h6, etype3))
+        h6 = F.relu(self.conv888(self.g3, h6, etype3)).view(
             6,
             int(self.input_res / (self.pooling_size) ** 2),
             int(self.input_res / (self.pooling_size) ** 2),
@@ -366,9 +237,9 @@ class UnetGraphSAGE(nn.Module):
         h6 = torch.transpose(h6, 0, 1)
         h6 = torch.cat((h6, h33), dim=1)
 
-        h6 = F.relu(self.conv9(self.g2, h6))
-        h6 = F.relu(self.conv99(self.g2, h6))
-        h6 = F.relu(self.conv10(self.g2, h6)).view(
+        h6 = F.relu(self.conv9(self.g2, h6, etype2))
+        h6 = F.relu(self.conv99(self.g2, h6, etype2))
+        h6 = F.relu(self.conv999(self.g2, h6, etype2)).view(
             6,
             int(self.input_res / (self.pooling_size)),
             int(self.input_res / (self.pooling_size)),
@@ -382,7 +253,7 @@ class UnetGraphSAGE(nn.Module):
         h6 = torch.transpose(h6, 0, 1)
         h6 = torch.cat((h6, h22), dim=1)
 
-        h6 = F.relu(self.conv10(self.g1, h6))
-        h6 = F.relu(self.conv101(self.g1, h6))
-        out = self.conv11(self.g1, h6)
+        h6 = F.relu(self.conv10(self.g1, h6, etype1))
+        h6 = F.relu(self.conv101(self.g1, h6, etype1))
+        out = self.conv11(self.g1, h6, etype1)
         return out
