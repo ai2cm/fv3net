@@ -752,7 +752,7 @@ def spcvrtm(
 
 
 @jit(nopython=True, cache=True)
-def mcica_subcol(iovrsw, cldf, nlay, ipseed, dz, de_lgth, ipt, rand2d):
+def mcica_subcol(iovrsw, cldf, nlay, dz, de_lgth, ipt, rand2d):
     rand2d = rand2d[ipt, :]
 
     #  ---  outputs:
@@ -810,7 +810,6 @@ def cldprop(
     cdat4,
     cf1,
     nlay,
-    ipseed,
     dz,
     delgth,
     ipt,
@@ -1121,7 +1120,7 @@ def cldprop(
 
         #  --- ...  call sub-column cloud generator
 
-        lcloudy = mcica_subcol(iovrsw, cldf, nlay, ipseed, dz, delgth, ipt, rand2d)
+        lcloudy = mcica_subcol(iovrsw, cldf, nlay, dz, delgth, ipt, rand2d)
 
         for ig in range(ngptsw):
             for k in range(nlay):
@@ -1952,7 +1951,6 @@ class RadSWClass:
         olyr,
         gasvmr,
         clouds,
-        icseed,
         aerosols,
         sfcalb,
         dzlyr,
@@ -2069,9 +2067,6 @@ class RadSWClass:
         sfdf0 = np.zeros(2)
 
         colamt = np.zeros((nlay, maxgas))
-
-        ipseed = np.zeros(npts)
-
         indfor = np.zeros(nlay, np.int32)
         indself = np.zeros(nlay, np.int32)
         jp = np.zeros(nlay, np.int32)
@@ -2211,21 +2206,6 @@ class RadSWClass:
 
         s0fac = solcon / self.s0
 
-        # -# Change random number seed value for each radiation invocation
-        #    (isubcsw =1 or 2).
-
-        if self.isubcsw == 1:  # advance prescribed permutation seed
-            for i in range(npts):
-                ipseed[i] = self.ipsdsw0 + i + 1
-        elif self.isubcsw == 2:  # use input array of permutaion seeds
-            for i in range(npts):
-                ipseed[i] = icseed[i]
-
-        if lprnt:
-            print(
-                f"radsw,isubcsw,ipsdsw0,ipseed= {self.isubcsw},{self.ipsdsw0},{ipseed}"
-            )
-
         #  --- ...  loop over each daytime grid point
 
         for ipt in range(NDAY):
@@ -2360,7 +2340,6 @@ class RadSWClass:
                     cdat4,
                     zcf1,
                     nlay,
-                    ipseed[j1],
                     dz,
                     delgth,
                     ipt,

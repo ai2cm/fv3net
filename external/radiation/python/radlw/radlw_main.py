@@ -38,7 +38,7 @@ ngb = np.array(ngb)
 
 
 @jit(nopython=True)
-def mcica_subcol(iovrlw, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d):
+def mcica_subcol(iovrlw, cldf, nlay, dz, de_lgth, iplon, rand2d):
     #  ====================  defination of variables  ====================  !
     #                                                                       !
     #  input variables:                                                size !
@@ -104,7 +104,6 @@ def cldprop(
     cdat4,
     nlay,
     nlp1,
-    ipseed,
     dz,
     de_lgth,
     iplon,
@@ -354,7 +353,7 @@ def cldprop(
                 cldf[k] = cfrac[k + 1]
 
         #  --- ...  call sub-column cloud generator
-        lcloudy = mcica_subcol(iovrlw, cldf, nlay, ipseed, dz, de_lgth, iplon, rand2d)
+        lcloudy = mcica_subcol(iovrlw, cldf, nlay, dz, de_lgth, iplon, rand2d)
 
         for k in range(nlay):
             for ig in range(ngptlw):
@@ -1446,7 +1445,6 @@ class RadLWClass:
         olyr,
         gasvmr,
         clouds,
-        icseed,
         aerosols,
         sfemis,
         sfgtmp,
@@ -1702,7 +1700,6 @@ class RadLWClass:
 
         rfrate = np.zeros((nlay, nrates, 2))
 
-        ipseed = np.zeros(npts)
         jp = np.zeros(nlay, dtype=np.int32)
         jt = np.zeros(nlay, dtype=np.int32)
         jt1 = np.zeros(nlay, dtype=np.int32)
@@ -1726,14 +1723,6 @@ class RadLWClass:
         if verbose:
             print("Beginning lwrad . . .")
             print(" ")
-
-        if self.isubclw == 1:
-            for i in range(npts):
-                ipseed[i] = self.ipsdlw0 + i + 1
-        elif self.isubclw == 2:
-            for i in range(npts):
-                ipseed[i] = icseed[i]
-
         for iplon in range(npts):
             if sfemis[iplon] > self.eps and sfemis[iplon] <= 1.0:
                 for j in range(nbands):
@@ -1867,7 +1856,6 @@ class RadLWClass:
                     cda4,
                     nlay,
                     nlp1,
-                    ipseed[iplon],
                     dz,
                     delgth,
                     iplon,
