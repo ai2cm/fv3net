@@ -28,6 +28,7 @@ from SAGEUnet_original import UnetGraphSAGE
 # from SAGEUnet_original_Upsampling import UnetGraphSAGE
 # from Halo_Graph import build_graph
 
+halo=1
 lead = 6
 residual = 0
 coarsenInd = 1
@@ -36,11 +37,36 @@ input_res = 48
 pooling_size = 2
 
 
-g1 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen1", "rb"))
-g2 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen2", "rb"))
-g3 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen4", "rb"))
-g4 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen8", "rb"))
-g5 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen16", "rb"))
+if halo==1:
+    print("halo")
+    g1 = pickle.load(open("NewHalo_Graph5_Coarsen48", "rb"))
+
+    g2 = pickle.load(open("NewHalo_Graph5_Coarsen24", "rb"))
+
+    g3 = pickle.load(open("NewHalo_Graph5_Coarsen12", "rb"))
+    coarsenInd3 = 4
+
+    g4 = pickle.load(open("NewHalo_Graph5_Coarsen6", "rb"))
+    coarsenInd4 = 8
+
+    g5 = pickle.load(open("NewHalo_Graph5_Coarsen3", "rb"))
+    coarsenInd5 = 16
+
+elif halo==0:
+    print("No halo")
+    g1 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen1", "rb"))
+
+    g2 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen2", "rb"))
+
+    g3 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen4", "rb"))
+    coarsenInd3 = 4
+
+    g4 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen8", "rb"))
+    coarsenInd4 = 8
+
+    g5 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen16", "rb"))
+    coarsenInd5 = 16
+
 
 # g1=build_graph(48)
 # g2=build_graph(24)
@@ -69,7 +95,7 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "All5_edges_Orininal_New_Pooling_weight_layer_"
+    "Halo_Shift_All5_edges_Orininal_New_Pooling_weight_layer_"
     + control_str
     + "Poolin"
     + "Meanpool"
