@@ -184,6 +184,16 @@ class TransformedParameters(Hyperparameters):
 
         return out
 
+    def prepare_flat_data(self, batched: tf.data.Dataset) -> tf.data.Dataset:
+        unbatched = (
+            batched.map(tfdataset.apply_to_mapping(tfdataset.float64_to_float32))
+            .map(expand_single_dim_data)
+            .unbatch()
+        )
+        for filter in self.filters:
+            unbatched = unbatched.filter(filter)
+        return unbatched
+
     @property
     def transform_factory(self) -> ComposedTransformFactory:
         return ComposedTransformFactory(self.tensor_transform)
@@ -406,11 +416,11 @@ class TrainConfig(TransformedParameters):
             raise NotImplementedError(self.data_format)
 
     def open_train_test(self):
-        train_ds = self.open_dataset(self.train_url, self.nfiles, self.model_variables)
-        test_ds = self.open_dataset(
-            self.test_url, self.nfiles_valid, self.model_variables
-        )
-        return unbatch_datasets(train_ds, test_ds, self.filters)
+        train = self.open_dataset(self.train_url, self.nfiles, self.model_variables)
+        test = self.open_dataset(self.test_url, self.nfiles_valid, self.model_variables)
+        train_ds = self.prepare_flat_data(train)
+        test_ds = self.prepare_flat_data(test) if test else None
+        return train_ds, test_ds
 
 
 def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
@@ -423,32 +433,19 @@ def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
         np.savez(os.path.join(tmpdir, filename), **dumpable)
 
 
-def unbatch_datasets(train, test, filters):
-    def _prepare(ds):
-        unbatched = (
-            ds.map(tfdataset.apply_to_mapping(tfdataset.float64_to_float32))
-            .map(expand_single_dim_data)
-            .unbatch()
-        )
-        for filter in filters:
-            unbatched = unbatched.filter(filter)
-        return unbatched
-
-    return _prepare(train), _prepare(test) if test else None
-
-
 @register_training_function("transformed", TransformedParameters)
 def train_function(
     hyperparameters: TransformedParameters,
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
 ) -> PureKerasDictPredictor:
-
-    train_batches, validation_batches = unbatch_datasets(
-        train_batches, validation_batches, hyperparameters.filters
+    train = hyperparameters.prepare_flat_data(train_batches)
+    validation = (
+        hyperparameters.prepare_flat_data(validation_batches)
+        if validation_batches
+        else None
     )
-
-    return _train_function_unbatched(hyperparameters, train_batches, validation_batches)
+    return _train_function_unbatched(hyperparameters, train, validation)
 
 
 def _train_function_unbatched(
