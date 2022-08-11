@@ -276,15 +276,16 @@ class TrainConfig(TransformedParameters):
 
     Attributes:
 
-        train_url: Path to training netcdfs (already in [sample x feature] format)
-        test_url: Path to validation netcdfs (already in [sample x feature] format)
+        train_url: Path to training data (already in [sample x feature] format)
+        test_url: Path to validation data (already in [sample x feature] format)
         transform: Data preprocessing TransformConfig
         nfiles: Number of files to use from train_url
         nfiles_valid: Number of files to use from test_url
         log_level: what logging level to use
         save_only: If true, don't train, but save the train and test data with
             tf.data.experimental.save to ``out_url``
-        data_format: one of ['nc', 'tf']
+        data_format: one of ['nc', 'tf']. The data format of datasets at
+            ``train_url`` and ``test_url``.
     """
 
     train_url: str = ""
