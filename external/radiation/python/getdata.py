@@ -336,38 +336,18 @@ def astronomy(forcing_dir, isolar, tile_number):
         if isolar == 1:  # noaa ann-tile_numberan tsi in absolute scale
             file_name = "solarconstant_noaa_a0.nc"
             solar_file = os.path.join(forcing_dir, file_name)
-            if not os.path.isfile(solar_file):
-                warnings.warn(f'Requested solar data file "{solar_file}" not found!',)
-                raise FileNotFoundError(
-                    " !!! ERROR! Can not find solar constant file!!!"
-                )
 
         elif isolar == 2:  # noaa ann-tile_numberan tsi in tim scale
             file_name = "solarconstant_noaa_an.nc"
             solar_file = os.path.join(forcing_dir, file_name)
-            if not os.path.isfile(solar_file):
-                warnings.warn(f'Requested solar data file "{solar_file}" not found!',)
-                raise FileNotFoundError(
-                    " !!! ERROR! Can not find solar constant file!!!"
-                )
 
         elif isolar == 3:  # cmip5 ann-tile_numberan tsi in tim scale
             file_name = "solarconstant_cmip_an.nc"
             solar_file = os.path.join(forcing_dir, file_name)
-            if not os.path.isfile(solar_file):
-                warnings.warn(f'Requested solar data file "{solar_file}" not found!',)
-                raise FileNotFoundError(
-                    " !!! ERROR! Can not find solar constant file!!!"
-                )
 
         elif isolar == 4:  # cmip5 mon-tile_numberan tsi in tim scale
             file_name = "solarconstant_cmip_mn.nc"
             solar_file = os.path.join(forcing_dir, file_name)
-            if not os.path.isfile(solar_file):
-                warnings.warn(f'Requested solar data file "{solar_file}" not found!',)
-                raise FileNotFoundError(
-                    " !!! ERROR! Can not find solar constant file!!!"
-                )
 
         else:
             warnings.warn(
