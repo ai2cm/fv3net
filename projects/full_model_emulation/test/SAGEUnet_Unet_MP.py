@@ -42,17 +42,17 @@ num_step_message_passing = 1
 
 if halo==1:
     print("halo")
-    g1 = pickle.load(open("Halo_Graph5_Coarsen48", "rb"))
+    g1 = pickle.load(open("NewHalo_Graph5_Coarsen48", "rb"))
 
-    g2 = pickle.load(open("Halo_Graph5_Coarsen24", "rb"))
+    g2 = pickle.load(open("NewHalo_Graph5_Coarsen24", "rb"))
 
-    g3 = pickle.load(open("Halo_Graph5_Coarsen12", "rb"))
+    g3 = pickle.load(open("NewHalo_Graph5_Coarsen12", "rb"))
     coarsenInd3 = 4
 
-    g4 = pickle.load(open("Halo_Graph5_Coarsen6", "rb"))
+    g4 = pickle.load(open("NewHalo_Graph5_Coarsen6", "rb"))
     coarsenInd4 = 8
 
-    g5 = pickle.load(open("Halo_Graph5_Coarsen3", "rb"))
+    g5 = pickle.load(open("NewHalo_Graph5_Coarsen3", "rb"))
     coarsenInd5 = 16
 
 elif halo==0:
@@ -94,7 +94,7 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "Ave_latlon_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
+    "Shift_Ave_latlon_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
     + control_str
     + "Poolin"
     + "Meanpool"
