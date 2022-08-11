@@ -406,9 +406,7 @@ class TrainConfig(TransformedParameters):
         self, url: str, nfiles: Optional[int], required_variables: Set[str],
     ) -> tf.data.Dataset:
         if self.data_format == "nc":
-            self._open_dataset(
-                url, nfiles, required_variables,
-            )
+            return self._open_dataset(url, nfiles, required_variables,)
         elif self.data_format == "tf":
             # needs to be batched
             return tf.data.experimental.load(url).batch(1)
