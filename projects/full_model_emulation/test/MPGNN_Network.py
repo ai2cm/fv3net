@@ -134,23 +134,6 @@ class MPGNN(nn.Module):
                                     edge_hidden_feats,
                                     num_step_message_passing) for i in range(num_layers)])
 
-        # self.processor[0]=processor_layer(g,
-        #                             node_in_feats,
-        #                             edge_in_feats,
-        #                             node_hidden_feats,
-        #                             edge_hidden_feats,
-        #                             num_step_message_passing,
-        #                             input_res)
-
-        # for i in range(1,self.num_layers-1):
-        #     self.processor[i]=processor_layer(g,
-        #                             node_hidden_feats,
-        #                             edge_in_feats,
-        #                             node_hidden_feats,
-        #                             edge_hidden_feats,
-        #                             num_step_message_passing,
-        #                             input_res)
-
         # decoder: only for node embeddings
         self.decoder = nn.Sequential(nn.Linear( node_hidden_feats ,int(node_hidden_feats/2)),
                                 nn.ReLU(),

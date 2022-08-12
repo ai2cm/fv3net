@@ -37,10 +37,13 @@ epochs = 20
 input_res=48
 pooling_size=2
 
+node_hidden_feats=128,
+edge_hidden_feats=32,
+
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
-Chuncksize = 200
-num_step_message_passing = 1
+Chuncksize = 2000
+num_step_message_passing = 2
 num_layers=2
 
 if halo==1:
@@ -297,8 +300,8 @@ model = MPGNN(
     g,
     node_in_feats=7,
     edge_in_feats=2,
-    node_hidden_feats=128,
-    edge_hidden_feats=32,
+    node_hidden_feats=node_hidden_feats,
+    edge_hidden_feats=edge_hidden_feats,
     node_out_feats=2,
     num_step_message_passing=num_step_message_passing,input_res=input_res,num_layers=num_layers,pooling_size=pooling_size).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
@@ -412,8 +415,6 @@ for epoch in range(1, epochs + 1):
             x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
             optimizer.zero_grad()
             y_pred = model(x, latlon).view(-1, out_feat)
-            print(np.shape(y_pred))
-            print(np.shape(y))
             l = loss(y_pred, torch.squeeze(y.to(device)))
             l.backward()
             optimizer.step()
