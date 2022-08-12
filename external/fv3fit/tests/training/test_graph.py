@@ -6,8 +6,10 @@ import fv3fit
 from typing import Optional, Sequence, TextIO
 from fv3fit.pytorch.predict import PytorchModel
 import pytest
-from fv3fit.pytorch.graph.graph import GraphHyperparameters
-from fv3fit.pytorch.graph.graph_builder import build_graph, GraphConfig
+from fv3fit.pytorch.graph import GraphHyperparameters, build_graph
+from fv3fit.tfdataset import iterable_to_tfdataset
+import collections
+
 
 GENERAL_TRAINING_TYPES = [
     "graph",
@@ -27,21 +29,65 @@ class TrainingResult:
     hyperparameters: GraphHyperparameters
 
 
+def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
+    ntile = 6
+
+    def sample_iterator():
+        for _ in range(nsamples):
+            yield {
+                "a": np.random.uniform(
+                    low=0, high=1, size=(nbatch, ntime, ntile, nx, ny, nz)
+                ),
+                "b": np.random.uniform(
+                    low=0, high=1, size=(nbatch, ntime, ntile, nx, ny)
+                ),
+            }
+
+    return iterable_to_tfdataset(list(sample_iterator()))
+
+
+def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
+    data_sequences = collections.defaultdict(list)
+    for sample in tfdataset:
+        for name, value in sample.items():
+            data_sequences[name].append(value)
+    data_vars = {}
+    for name in data_sequences:
+        data = np.concatenate(data_sequences[name])
+        data_vars[name] = xr.DataArray(
+            data, dims=["sample"] + list(dims[: len(data.shape) - 1])
+        )
+    return xr.Dataset(data_vars)
+
+
+def test_train_graph_network():
+    sizes = {"nbatch": 2, "ntime": 2, "nx": 8, "ny": 8, "nz": 2}
+    train_tfdataset = get_tfdataset(nsamples=20, **sizes)
+    val_tfdataset = get_tfdataset(nsamples=3, **sizes)
+    test_xrdataset = tfdataset_to_xr_dataset(
+        get_tfdataset(nsamples=10, **sizes), dims=["time", "tile", "x", "y", "z"]
+    )
+    hyperparameters = GraphHyperparameters(state_variables=["a", "b"])
+    train = fv3fit.get_training_function("graph")
+    predictor = train(hyperparameters, train_tfdataset, val_tfdataset)
+    predictor.predict(test_xrdataset)
+
+
 def train_identity_model(hyperparameters=None):
-    time, grid, nz = 50, 6 * 6 * 6, 2
+    ntime, ntile, nx, ny, nz = 50, 6, 6, 6, 2
     low, high = 0.0, 1.0
     np.random.seed(0)
     input_variable, output_variables, train_dataset = get_data(
-        size=(time, grid, nz), low=low - 1.0, high=high + 1.0
+        size=(ntime, ntile, nx, ny, nz), low=low, high=high
     )
     np.random.seed(1)
-    _, _, val_tfdataset = get_data(size=(time, grid, nz), low=low, high=high)
+    _, _, val_tfdataset = get_data(size=(ntime, ntile, nx, ny, nz), low=low, high=high)
     np.random.seed(2)
-    sample_test = get_uniform_sample_func(size=(grid, nz), low=low, high=high)
-    test_dataset = xr.Dataset({"a": sample_test()})
-    hyperparameters = GraphHyperparameters(
-        input_variable, output_variables, graph=GraphConfig(nx_tile=6)
+    sample_test = get_uniform_sample_func(
+        size=(ntime, ntile, nx, ny, nz), low=low, high=high
     )
+    test_dataset = xr.Dataset({"a": sample_test()})
+    hyperparameters = GraphHyperparameters(input_variable, output_variables)
     train = fv3fit.get_training_function("graph")
     model = train(hyperparameters, train_dataset, val_tfdataset)
     return TrainingResult(model, output_variables, test_dataset, hyperparameters)
@@ -113,7 +159,7 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
     def sample_func():
         return xr.DataArray(
             random.uniform(low=low, high=high, size=size),
-            dims=["grid", "z"],
+            dims=["time", "tile", "x", "y", "z"],
             coords=[range(size[i]) for i in range(len(size))],
         )
 

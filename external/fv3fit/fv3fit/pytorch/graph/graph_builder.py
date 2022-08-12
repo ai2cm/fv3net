@@ -1,20 +1,10 @@
 from typing import Tuple
 import numpy as np
-import dataclasses
 from fv3fit.keras._models.shared.halos import append_halos
 import xarray as xr
-
-
-@dataclasses.dataclass
-class GraphConfig:
-    """
-    Attributes:
-        nx_tile: number of horizontal grid points on each tile of the cubed sphere
-    """
-
-    # TODO: this should not be configurable, it should be determined
-    # by the shape of the input data
-    nx_tile: int = 48
+import functools
+import torch
+import dgl
 
 
 def build_graph(nx_tile: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -55,3 +45,11 @@ def build_graph(nx_tile: int) -> Tuple[np.ndarray, np.ndarray]:
     out[4 * n_points : 5 * n_points, 1] = index[:, 1:-1, 1:-1].flatten()
 
     return out[:, 0], out[:, 1]
+
+
+@functools.lru_cache(maxsize=64)
+def build_dgl_graph(nx_tile: int) -> dgl.DGLGraph:
+    graph_data = build_graph(nx_tile)
+    g = dgl.graph(graph_data)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    return g.to(device)

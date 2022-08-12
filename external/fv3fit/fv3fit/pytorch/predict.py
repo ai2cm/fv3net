@@ -22,6 +22,7 @@ class PytorchModel(Predictor):
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
         model: nn.Module,
+        normalizers,
         unstacked_dims: Sequence[str],
     ):
         """Initialize the predictor
@@ -35,7 +36,21 @@ class PytorchModel(Predictor):
         self.input_variables = input_variables
         self.output_variables = output_variables
         self.model = model
+        self.normalizers = normalizers
         self._unstacked_dims = unstacked_dims
+
+    def pack_to_tensor(self, ds: xr.Dataset) -> torch.Tensor:
+        """
+        Args:
+            ds
+
+        Returns:
+            tensor of shape [sample, time, tile, x, y, feature]
+        """
+        pass
+
+    def unpack_tensor(self, data: torch.Tensor) -> xr.Dataset:
+        pass
 
     def _array_prediction_to_dataset(
         self, names, outputs, stacked_coords

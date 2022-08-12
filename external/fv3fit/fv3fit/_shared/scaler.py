@@ -3,6 +3,7 @@ import numpy as np
 from typing import BinaryIO, Type, Sequence
 import io
 import yaml
+import tensorflow as tf
 
 
 class NormalizeTransform(abc.ABC):
@@ -37,7 +38,7 @@ class StandardScaler(NormalizeTransform):
 
     kind: str = "standard"
 
-    def __init__(self, std_epsilon: np.float64 = 1e-12):
+    def __init__(self, std_epsilon: np.float64 = 1e-12, n_sample_dims: int = 1):
         """Standard scaler normalizer: normalizes via (x-mean)/std
 
         Args:
@@ -49,10 +50,16 @@ class StandardScaler(NormalizeTransform):
         self.mean = None
         self.std = None
         self.std_epsilon: np.float64 = std_epsilon
+        self._n_sample_dims = n_sample_dims
 
     def fit(self, data: np.ndarray):
-        self.mean = np.mean(data, axis=0).astype(np.float64)
-        self.std = np.std(data, axis=0).astype(np.float64) + self.std_epsilon
+        self.mean = np.mean(data, axis=tuple(range(self._n_sample_dims))).astype(
+            np.float64
+        )
+        self.std = (
+            np.std(data, axis=tuple(range(self._n_sample_dims))).astype(np.float64)
+            + self.std_epsilon
+        )
 
     def normalize(self, data):
         if self.mean is None or self.std is None:
@@ -79,6 +86,13 @@ class StandardScaler(NormalizeTransform):
         scaler.mean = data.get("mean")
         scaler.std = data.get("std")
         return scaler
+
+
+class TensorStandardScaler(StandardScaler):
+    def fit(self, data: np.ndarray):
+        super().fit(data)
+        self.mean = tf.convert_to_tensor(self.mean)
+        self.std = tf.convert_to_tensor(self.std)
 
 
 class ManualScaler(NormalizeTransform):
