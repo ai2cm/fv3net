@@ -1,6 +1,6 @@
 import abc
 import numpy as np
-from typing import BinaryIO, Optional, Type, Sequence
+from typing import BinaryIO, Optional, Type, Sequence, IO
 import io
 import yaml
 
@@ -70,7 +70,18 @@ class StandardScaler(NormalizeTransform):
             raise RuntimeError("StandardScaler.fit must be called before denormalize.")
         return data * self.std + self.mean
 
-    def dump(self, f: BinaryIO):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, StandardScaler):
+            return False
+        else:
+            return (
+                np.all(self.mean == other.mean)
+                and np.all(self.std == other.std)
+                and self.std_epsilon == other.std_epsilon
+                and self._n_sample_dims == other._n_sample_dims
+            )
+
+    def dump(self, f: IO[bytes]):
         data = {}  # type: ignore
         if self.mean is not None:
             data["mean"] = self.mean
@@ -79,7 +90,7 @@ class StandardScaler(NormalizeTransform):
         return np.savez(f, **data)
 
     @classmethod
-    def load(cls, f: BinaryIO):
+    def load(cls, f: IO[bytes]):
         data = np.load(f)
         scaler = cls()
         scaler.mean = data.get("mean")
