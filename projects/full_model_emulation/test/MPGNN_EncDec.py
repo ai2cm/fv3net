@@ -37,14 +37,14 @@ epochs = 20
 input_res=48
 pooling_size=2
 
-node_hidden_feats=128,
-edge_hidden_feats=32,
+node_hidden_feats=128
+edge_hidden_feats=32
 
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
-Chuncksize = 2000
-num_step_message_passing = 2
-num_layers=2
+Chuncksize = 200
+num_step_message_passing = 6
+num_layers=1
 
 if halo==1:
     print("halo")
@@ -87,6 +87,10 @@ savemodelpath = (
     +str(num_layers)
     +"StepOverEachBlock"
     + str(num_step_message_passing)
+    +"edge_hidden_feats"
+    +str(edge_hidden_feats)
+    +"node_hidden_feats"
+    +str(node_hidden_feats)
     + ".pt"
 )
 
