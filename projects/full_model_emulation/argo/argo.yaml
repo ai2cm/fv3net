@@ -58,7 +58,7 @@ spec:
           cpu: "7"
           memory: "15Gi"
       workingDir: "/fv3net/projects/full_model_emulation/test"
-      args: ["SAGEUnet_Pooling_Rel.py"]
+      args: ["SAGEUnet_Pooling_Rel_Shallow.py"]
     tolerations:
     - key: "dedicated"
       operator: "Equal"
