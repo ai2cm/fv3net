@@ -250,7 +250,8 @@ model = MPNNGNN(
 ).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
-model.train()
+
+print('Total Parameters:', sum([p.nelement() for p in model.parameters()]))
 
 
 for epoch in range(1, epochs + 1):
@@ -259,6 +260,7 @@ for epoch in range(1, epochs + 1):
     )
 
     for ss in all_indices:
+        model.train()
 
         Z500train = (
             state_training_data[variableList[0]]
@@ -355,9 +357,9 @@ for epoch in range(1, epochs + 1):
         for x, y in train_iter:
             exteraVar1 = exteraVar[: x.size(0)]
             x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
+            optimizer.zero_grad()
             y_pred = model(x, latlon).view(-1, out_feat)
             l = loss(y_pred, torch.squeeze(y.to(device)))
-            optimizer.zero_grad()
             l.backward()
             optimizer.step()
             l_sum += l.item() * y.shape[0]

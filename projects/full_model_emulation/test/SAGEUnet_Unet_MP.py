@@ -26,7 +26,7 @@ from vcm import get_fs
 from SAGE_Unet_MP import UnetGraphSAGE
 
 halo=1
-control_str = "Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
+control_str = "Reverse_Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
 
 
 lead = 6
@@ -239,11 +239,11 @@ print(f"numebr of grids: {num_nodes}")
 
 
 edg = np.asarray(g3.edges())
-latInd = lat3[edg[1]]
-lonInd = lon3[edg[1]]
+latInd = lat3[edg[0]]
+lonInd = lon3[edg[0]]
 
-latInd1 = lat3[edg[0]]
-lonInd1 = lon3[edg[0]]
+latInd1 = lat3[edg[1]]
+lonInd1 = lon3[edg[1]]
 
 latInd = latInd1 - latInd
 lonInd = lonInd1 - lonInd
@@ -255,11 +255,11 @@ latlon3 = latlon3.to(device)
 del edg, lonInd, latInd, lonInd1, latInd1
 
 edg = np.asarray(g4.edges())
-latInd = lat4[edg[1]]
-lonInd = lon4[edg[1]]
+latInd = lat4[edg[0]]
+lonInd = lon4[edg[0]]
 
-latInd1 = lat4[edg[0]]
-lonInd1 = lon4[edg[0]]
+latInd1 = lat4[edg[1]]
+lonInd1 = lon4[edg[1]]
 
 latInd = latInd1 - latInd
 lonInd = lonInd1 - lonInd
@@ -272,11 +272,11 @@ latlon4 = latlon4.to(device)
 del edg, lonInd, latInd, lonInd1, latInd1
 
 edg = np.asarray(g5.edges())
-latInd = lat5[edg[1]]
-lonInd = lon5[edg[1]]
+latInd = lat5[edg[0]]
+lonInd = lon5[edg[0]]
 
-latInd1 = lat5[edg[0]]
-lonInd1 = lon5[edg[0]]
+latInd1 = lat5[edg[1]]
+lonInd1 = lon5[edg[1]]
 
 latInd = latInd1 - latInd
 lonInd = lonInd1 - lonInd
