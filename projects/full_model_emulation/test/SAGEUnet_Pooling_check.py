@@ -23,24 +23,21 @@ from utilsMPGNNUnet import *
 import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
-from SAGEUnet_original_Rel import UnetGraphSAGE
+from SAGEUnet_original import UnetGraphSAGE
 
 # from SAGEUnet_original_Upsampling import UnetGraphSAGE
 # from Halo_Graph import build_graph
 
-halo = 1
+halo=1
 lead = 6
 residual = 0
 coarsenInd = 1
 n_filter = 256
 input_res = 48
 pooling_size = 2
-reg = "basis"
-num_bases = 5
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-if halo == 1:
+if halo==1:
     print("halo")
     g1 = pickle.load(open("NewHalo_Graph5_Coarsen48", "rb"))
 
@@ -55,7 +52,7 @@ if halo == 1:
     g5 = pickle.load(open("NewHalo_Graph5_Coarsen3", "rb"))
     coarsenInd5 = 16
 
-elif halo == 0:
+elif halo==0:
     print("No halo")
     g1 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen1", "rb"))
 
@@ -70,20 +67,12 @@ elif halo == 0:
     g5 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen16", "rb"))
     coarsenInd5 = 16
 
-num_rels1 = g1.num_edges()
-etype1 = torch.tensor(np.arange(g1.num_edges())).to(device)
 
-num_rels2 = g2.num_edges()
-etype2 = torch.tensor(np.arange(g2.num_edges())).to(device)
-
-num_rels3 = g3.num_edges()
-etype3 = torch.tensor(np.arange(g3.num_edges())).to(device)
-
-num_rels4 = g4.num_edges()
-etype4 = torch.tensor(np.arange(g4.num_edges())).to(device)
-
-num_rels5 = g5.num_edges()
-etype5 = torch.tensor(np.arange(g5.num_edges())).to(device)
+# g1=build_graph(48)
+# g2=build_graph(24)
+# g3=build_graph(12)
+# g4=build_graph(6)
+# g5=build_graph(3)
 
 
 control_str = "SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
@@ -94,7 +83,9 @@ epochs = 30
 
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
-Chuncksize = 2000
+Chuncksize = 200
+num_step = 1
+aggregat = "mean"
 
 
 lr = 0.001
@@ -104,7 +95,7 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "Deep_Rel_Halo_Shift_All5_edges_Orininal_New_Pooling_weight_layer_"
+    "Halo_Shift_All5_edges_Orininal_New_Pooling_weight_layer_"
     + control_str
     + "Poolin"
     + "Meanpool"
@@ -116,10 +107,10 @@ savemodelpath = (
     + str(lead)
     + "_epochs_"
     + str(epochs)
-    + "num_bases_"
-    + str(num_bases)
-    + "basis_"
-    + reg
+    + "MP_Block_"
+    + str(num_step)
+    + "aggregat_"
+    + aggregat
     + "coarsen_"
     + str(coarsenInd)
     + "residual_"
@@ -136,6 +127,7 @@ model_out_url = resolve_url(BUCKET, PROJECT, savemodelpath)
 data_url = "gs://vcm-ml-scratch/ebrahimn/2022-07-02/experiment-1-y/fv3gfs_run/"
 
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 data_url = "gs://vcm-ml-scratch/ebrahimn/2022-07-02/experiment-1-y/fv3gfs_run/"
 state_training_data = xr.open_zarr(
     fsspec.get_mapper(os.path.join(data_url, "atmos_dt_atmos.zarr")), consolidated=True
@@ -188,14 +180,6 @@ num_nodes = len(lon)
 print(f"numebr of grids: {num_nodes}")
 
 
-# edg = np.asarray(g.edges())
-# latInd = lat[edg[1]]
-# lonInd = lon[edg[1]]
-# latlon = [latInd.T, lonInd.T]
-# # latlon=np.swapaxes(latlon, 1, 0)
-# latlon = torch.from_numpy(np.swapaxes(latlon, 1, 0)).float()
-# latlon = latlon.to(device)
-
 
 Zmean = 5765.8457  # Z500mean=5765.8457,
 Zstd = 90.79599  # Z500std=90.79599
@@ -207,34 +191,19 @@ valInde = 0
 print("loading model")
 
 
+
 loss = nn.MSELoss()
 g1 = g1.to(device)
 g2 = g2.to(device)
 g3 = g3.to(device)
 g4 = g4.to(device)
 g5 = g5.to(device)
-
 model = UnetGraphSAGE(
-    input_res,
-    pooling_size,
-    g1,
-    g2,
-    g3,
-    g4,
-    g5,
-    7,
-    n_filter,
-    2,
-    num_rels1,
-    num_rels2,
-    num_rels3,
-    num_rels4,
-    num_rels5,
-    reg,
-    num_bases,
+    input_res, pooling_size, g1, g2, g3, g4, g5, 7, n_filter, 2, num_step, aggregat
 ).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
+print('Total Parameters:', sum([p.nelement() for p in model.parameters()]))
 
 
 for epoch in range(1, epochs + 1):
@@ -341,18 +310,22 @@ for epoch in range(1, epochs + 1):
 
         l_sum, n = 0.0, 0
         for x, y in train_iter:
+            start = time.time()
             exteraVar1 = exteraVar[: x.size(0)]
             x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
-            y_pred = model(x, etype1, etype2, etype3, etype4, etype5).view(-1, out_feat)
+            optimizer.zero_grad()
+            y_pred = model(x, exteraVar1).view(-1, out_feat)
             l = loss(y_pred, torch.squeeze(y.to(device)))
             l.backward()
             optimizer.step()
             l_sum += l.item() * y.shape[0]
             n += y.shape[0]
+            end = time.time()
+            print(end-start)
 
         print(" epoch", epoch, ", train loss:", l.item())
         scheduler.step()
-        val_loss = evaluate_model2(model, loss, val_iter, exteraVar, out_feat, etype1, etype2, etype3, etype4, etype5, device)
+        val_loss = evaluate_model2(model, loss, val_iter, exteraVar, out_feat, device)
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), savemodelpath)
@@ -360,9 +333,9 @@ for epoch in range(1, epochs + 1):
             "epoch", epoch, ", train loss:", l_sum / n, ", validation loss:", val_loss
         )
 
-        fs = get_fs(model_out_url)
-        fs.put(savemodelpath, model_out_url)
-        print(savemodelpath, model_out_url)
+        # fs = get_fs(model_out_url)
+        # fs.put(savemodelpath, model_out_url)
+        # print(savemodelpath, model_out_url)
 
 
 # best_model = STGCN_WAVE(channels, window, num_nodes, g, drop_prob, num_layers, device, control_str).to(device)

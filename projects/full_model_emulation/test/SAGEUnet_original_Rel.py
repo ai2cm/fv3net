@@ -26,37 +26,163 @@ class UnetGraphSAGE(nn.Module):
         num_bases,
     ):
         super(UnetGraphSAGE, self).__init__()
-        self.conv1 = RelGraphConv(in_feats, int(h_feats / 16),num_rels1,regularizer=reg, num_bases=num_bases)
-        self.conv2 = RelGraphConv(int(h_feats / 16), int(h_feats / 16),num_rels1,regularizer=reg, num_bases=num_bases)
-        self.conv3 = RelGraphConv(int(h_feats / 16), int(h_feats / 8),num_rels2,regularizer=reg, num_bases=num_bases)
-        self.conv33 = RelGraphConv(int(h_feats / 8), int(h_feats / 8),num_rels2,regularizer=reg, num_bases=num_bases)
+        self.conv1 = RelGraphConv(
+            in_feats, int(h_feats / 16), num_rels1, regularizer=reg, num_bases=num_bases
+        )
+        self.conv2 = RelGraphConv(
+            int(h_feats / 16),
+            int(h_feats / 16),
+            num_rels1,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv3 = RelGraphConv(
+            int(h_feats / 16),
+            int(h_feats / 8),
+            num_rels2,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv33 = RelGraphConv(
+            int(h_feats / 8),
+            int(h_feats / 8),
+            num_rels2,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
 
-        self.conv4 = RelGraphConv(int(h_feats / 8), int(h_feats / 4),num_rels3,regularizer=reg, num_bases=num_bases)
-        self.conv44 = RelGraphConv(int(h_feats / 4), int(h_feats / 4),num_rels3,regularizer=reg, num_bases=num_bases)
+        self.conv4 = RelGraphConv(
+            int(h_feats / 8),
+            int(h_feats / 4),
+            num_rels3,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv44 = RelGraphConv(
+            int(h_feats / 4),
+            int(h_feats / 4),
+            num_rels3,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
 
-        self.conv5 = RelGraphConv(int(h_feats / 4), int(h_feats / 2),num_rels4,regularizer=reg, num_bases=num_bases)
-        self.conv55 = RelGraphConv(int(h_feats / 2), int(h_feats / 2),num_rels4,regularizer=reg, num_bases=num_bases)
+        self.conv5 = RelGraphConv(
+            int(h_feats / 4),
+            int(h_feats / 2),
+            num_rels4,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv55 = RelGraphConv(
+            int(h_feats / 2),
+            int(h_feats / 2),
+            num_rels4,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
 
-        self.conv6 = RelGraphConv(int(h_feats / 2), int(h_feats),num_rels5,regularizer=reg, num_bases=num_bases)
-        self.conv66 = RelGraphConv(int(h_feats), int(h_feats),num_rels5,regularizer=reg, num_bases=num_bases)
-        self.conv666 = RelGraphConv(int(h_feats), int(h_feats / 2),num_rels5,regularizer=reg, num_bases=num_bases)
+        self.conv6 = RelGraphConv(
+            int(h_feats / 2),
+            int(h_feats),
+            num_rels5,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv66 = RelGraphConv(
+            int(h_feats), int(h_feats), num_rels5, regularizer=reg, num_bases=num_bases
+        )
+        self.conv666 = RelGraphConv(
+            int(h_feats),
+            int(h_feats / 2),
+            num_rels5,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
 
-        self.conv7 = RelGraphConv(int(h_feats), int(h_feats / 2),num_rels4,regularizer=reg, num_bases=num_bases)
-        self.conv77 = RelGraphConv(int(h_feats / 2), int(h_feats / 2),num_rels4,regularizer=reg, num_bases=num_bases)
-        self.conv777 = RelGraphConv(int(h_feats / 2), int(h_feats / 4),num_rels4,regularizer=reg, num_bases=num_bases)
+        self.conv7 = RelGraphConv(
+            int(h_feats),
+            int(h_feats / 2),
+            num_rels4,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv77 = RelGraphConv(
+            int(h_feats / 2),
+            int(h_feats / 2),
+            num_rels4,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv777 = RelGraphConv(
+            int(h_feats / 2),
+            int(h_feats / 4),
+            num_rels4,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
 
-        self.conv8 = RelGraphConv(int(h_feats / 2), int(h_feats / 4),num_rels3,regularizer=reg, num_bases=num_bases)
-        self.conv88 = RelGraphConv(int(h_feats / 4), int(h_feats / 4),num_rels3,regularizer=reg, num_bases=num_bases)
-        self.conv888 = RelGraphConv(int(h_feats / 4), int(h_feats / 8),num_rels3,regularizer=reg, num_bases=num_bases)
+        self.conv8 = RelGraphConv(
+            int(h_feats / 2),
+            int(h_feats / 4),
+            num_rels3,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv88 = RelGraphConv(
+            int(h_feats / 4),
+            int(h_feats / 4),
+            num_rels3,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv888 = RelGraphConv(
+            int(h_feats / 4),
+            int(h_feats / 8),
+            num_rels3,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
 
-        self.conv9 = RelGraphConv(int(h_feats / 4), int(h_feats / 8),num_rels2,regularizer=reg, num_bases=num_bases)
-        self.conv99 = RelGraphConv(int(h_feats / 8), int(h_feats / 8),num_rels2,regularizer=reg, num_bases=num_bases)
-        self.conv999 = RelGraphConv(int(h_feats / 8), int(h_feats / 16),num_rels2,regularizer=reg, num_bases=num_bases)
+        self.conv9 = RelGraphConv(
+            int(h_feats / 4),
+            int(h_feats / 8),
+            num_rels2,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv99 = RelGraphConv(
+            int(h_feats / 8),
+            int(h_feats / 8),
+            num_rels2,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv999 = RelGraphConv(
+            int(h_feats / 8),
+            int(h_feats / 16),
+            num_rels2,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
 
-        self.conv10 = RelGraphConv(int(h_feats / 8), int(h_feats / 16),num_rels1,regularizer=reg, num_bases=num_bases)
-        self.conv101 = RelGraphConv(int(h_feats / 16), int(h_feats / 16),num_rels1,regularizer=reg, num_bases=num_bases)
+        self.conv10 = RelGraphConv(
+            int(h_feats / 8),
+            int(h_feats / 16),
+            num_rels1,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
+        self.conv101 = RelGraphConv(
+            int(h_feats / 16),
+            int(h_feats / 16),
+            num_rels1,
+            regularizer=reg,
+            num_bases=num_bases,
+        )
 
-        self.conv11 = RelGraphConv(int(h_feats / 16), out_feat,num_rels1,regularizer=reg, num_bases=num_bases)
+        self.conv11 = RelGraphConv(
+            int(h_feats / 16), out_feat, num_rels1, regularizer=reg, num_bases=num_bases
+        )
         self.Maxpool = nn.MaxPool2d(
             (pooling_size, pooling_size), stride=(pooling_size, pooling_size)
         )
@@ -86,11 +212,11 @@ class UnetGraphSAGE(nn.Module):
         self.input_res = input_res
         self.pooling_size = pooling_size
 
-    def forward(self, in_feat,etype1,etype2,etype3,etype4,etype5):
+    def forward(self, in_feat, etype1, etype2, etype3, etype4, etype5):
 
-        h1 = F.relu(self.conv1(self.g1, in_feat,etype1))
+        h1 = F.relu(self.conv1(self.g1, in_feat, etype1))
 
-        h22 = F.relu(self.conv2(self.g1, h1,etype1))
+        h22 = F.relu(self.conv2(self.g1, h1, etype1))
         h2 = h22.view(6, self.input_res, self.input_res, -1)
         h2 = torch.permute(h2, (3, 0, 1, 2))
         h2 = self.Meanpool(h2).view(
@@ -105,8 +231,8 @@ class UnetGraphSAGE(nn.Module):
         )
         h2 = torch.transpose(h2, 0, 1)
 
-        h3 = F.relu(self.conv3(self.g2, h2,etype2))
-        h33 = F.relu(self.conv33(self.g2, h3,etype2))
+        h3 = F.relu(self.conv3(self.g2, h2, etype2))
+        h33 = F.relu(self.conv33(self.g2, h3, etype2))
         h3 = h33.view(
             6,
             int(self.input_res / self.pooling_size),

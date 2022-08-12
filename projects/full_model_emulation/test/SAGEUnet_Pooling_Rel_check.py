@@ -23,7 +23,7 @@ from utilsMPGNNUnet import *
 import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
-from SAGEUnet_original_Rel import UnetGraphSAGE
+from SAGEUnet_original_Rel_Shallow import UnetGraphSAGE
 
 # from SAGEUnet_original_Upsampling import UnetGraphSAGE
 # from Halo_Graph import build_graph
@@ -32,11 +32,11 @@ halo = 1
 lead = 6
 residual = 0
 coarsenInd = 1
-n_filter = 256
+n_filter = 64
 input_res = 48
 pooling_size = 2
 reg = "basis"
-num_bases = 5
+num_bases = 1
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -94,7 +94,7 @@ epochs = 30
 
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
-Chuncksize = 2000
+Chuncksize = 200
 
 
 lr = 0.001
@@ -104,7 +104,7 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "Deep_Rel_Halo_Shift_All5_edges_Orininal_New_Pooling_weight_layer_"
+    "10check_Rel_Halo_Shift_All5_edges_Orininal_New_Pooling_weight_layer_"
     + control_str
     + "Poolin"
     + "Meanpool"
@@ -220,22 +220,19 @@ model = UnetGraphSAGE(
     g1,
     g2,
     g3,
-    g4,
-    g5,
     7,
     n_filter,
     2,
     num_rels1,
     num_rels2,
     num_rels3,
-    num_rels4,
-    num_rels5,
     reg,
     num_bases,
 ).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
 
+print('Total Parameters:', sum([p.nelement() for p in model.parameters()]))
 
 for epoch in range(1, epochs + 1):
     all_indices = np.random.permutation(
@@ -340,19 +337,25 @@ for epoch in range(1, epochs + 1):
             valInde += 1
 
         l_sum, n = 0.0, 0
+        c=0
         for x, y in train_iter:
+            start = time.time()
             exteraVar1 = exteraVar[: x.size(0)]
             x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
-            y_pred = model(x, etype1, etype2, etype3, etype4, etype5).view(-1, out_feat)
+            y_pred = model(x, etype1, etype2, etype3).view(-1, out_feat)
+            optimizer.zero_grad()
             l = loss(y_pred, torch.squeeze(y.to(device)))
             l.backward()
             optimizer.step()
             l_sum += l.item() * y.shape[0]
             n += y.shape[0]
+            c+=1
+            end = time.time()
+            print(end-start)
 
         print(" epoch", epoch, ", train loss:", l.item())
         scheduler.step()
-        val_loss = evaluate_model2(model, loss, val_iter, exteraVar, out_feat, etype1, etype2, etype3, etype4, etype5, device)
+        val_loss = evaluate_model2(model, loss, val_iter, exteraVar, out_feat, device)
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), savemodelpath)
@@ -360,9 +363,9 @@ for epoch in range(1, epochs + 1):
             "epoch", epoch, ", train loss:", l_sum / n, ", validation loss:", val_loss
         )
 
-        fs = get_fs(model_out_url)
-        fs.put(savemodelpath, model_out_url)
-        print(savemodelpath, model_out_url)
+        # fs = get_fs(model_out_url)
+        # fs.put(savemodelpath, model_out_url)
+        # print(savemodelpath, model_out_url)
 
 
 # best_model = STGCN_WAVE(channels, window, num_nodes, g, drop_prob, num_layers, device, control_str).to(device)

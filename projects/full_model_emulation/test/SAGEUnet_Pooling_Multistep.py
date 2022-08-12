@@ -398,6 +398,7 @@ for epoch in range(1, epochs + 1):
         for x, y in train_iter:
             exteraVar1 = exteraVar[: x.size(0)]
             x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
+            optimizer.zero_grad()
             y_pred = model(x, exteraVar1).view(-1, out_feat)
             l = loss(y_pred, torch.squeeze(y[:, :, :, 0]).to(device))
 
@@ -411,7 +412,7 @@ for epoch in range(1, epochs + 1):
 
             l = l / multiStep
 
-            optimizer.zero_grad()
+            
             l.backward()
             optimizer.step()
             l_sum += l.item() * y.shape[0]

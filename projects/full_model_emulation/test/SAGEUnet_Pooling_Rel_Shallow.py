@@ -23,7 +23,7 @@ from utilsMPGNNUnet import *
 import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
-from SAGEUnet_original_Rel import UnetGraphSAGE
+from SAGEUnet_original_Rel_Shallow import UnetGraphSAGE
 
 # from SAGEUnet_original_Upsampling import UnetGraphSAGE
 # from Halo_Graph import build_graph
@@ -32,7 +32,7 @@ halo = 1
 lead = 6
 residual = 0
 coarsenInd = 1
-n_filter = 256
+n_filter = 64
 input_res = 48
 pooling_size = 2
 reg = "basis"
@@ -79,11 +79,6 @@ etype2 = torch.tensor(np.arange(g2.num_edges())).to(device)
 num_rels3 = g3.num_edges()
 etype3 = torch.tensor(np.arange(g3.num_edges())).to(device)
 
-num_rels4 = g4.num_edges()
-etype4 = torch.tensor(np.arange(g4.num_edges())).to(device)
-
-num_rels5 = g5.num_edges()
-etype5 = torch.tensor(np.arange(g5.num_edges())).to(device)
 
 
 control_str = "SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
@@ -104,7 +99,7 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "Deep_Rel_Halo_Shift_All5_edges_Orininal_New_Pooling_weight_layer_"
+    "Shallow_Rel_Halo_Shift_All5_edges_Orininal_New_Pooling_weight_layer_"
     + control_str
     + "Poolin"
     + "Meanpool"
@@ -220,16 +215,12 @@ model = UnetGraphSAGE(
     g1,
     g2,
     g3,
-    g4,
-    g5,
     7,
     n_filter,
     2,
     num_rels1,
     num_rels2,
     num_rels3,
-    num_rels4,
-    num_rels5,
     reg,
     num_bases,
 ).to(device)
@@ -343,7 +334,7 @@ for epoch in range(1, epochs + 1):
         for x, y in train_iter:
             exteraVar1 = exteraVar[: x.size(0)]
             x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
-            y_pred = model(x, etype1, etype2, etype3, etype4, etype5).view(-1, out_feat)
+            y_pred = model(x, etype1, etype2, etype3).view(-1, out_feat)
             l = loss(y_pred, torch.squeeze(y.to(device)))
             l.backward()
             optimizer.step()
@@ -352,7 +343,7 @@ for epoch in range(1, epochs + 1):
 
         print(" epoch", epoch, ", train loss:", l.item())
         scheduler.step()
-        val_loss = evaluate_model2(model, loss, val_iter, exteraVar, out_feat, etype1, etype2, etype3, etype4, etype5, device)
+        val_loss = evaluate_model4(model, loss, val_iter, exteraVar, out_feat, etype1, etype2, etype3, device)
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), savemodelpath)
