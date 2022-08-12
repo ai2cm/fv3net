@@ -38,13 +38,13 @@ input_res=48
 pooling_size=2
 
 node_hidden_feats=128
-edge_hidden_feats=32
+edge_hidden_feats=128
 
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
-Chuncksize = 200
-num_step_message_passing = 6
-num_layers=1
+Chuncksize = 2000
+num_step_message_passing = 9
+num_layers=0
 
 if halo==1:
     print("halo")

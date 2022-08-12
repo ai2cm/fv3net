@@ -12,7 +12,7 @@ def evaluate_model(model, latlon, loss, data_iter, exteraVar, out_feat, device):
             exteraVar1 = exteraVar[: x.size(0)]
             # x = torch.cat((x, exteraVar1), 1).float()
             x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
-            y_pred = model(x,latlon).view(len(x), out_feat, -1)
+            y_pred = model(x,latlon).view(-1, out_feat)
             l = loss(y_pred, torch.squeeze(y.to(device)))
             l_sum += l.item() * y.shape[0]
             n += y.shape[0]
