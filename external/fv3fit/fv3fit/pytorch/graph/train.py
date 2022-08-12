@@ -8,7 +8,7 @@ from fv3fit.pytorch.graph.network import GraphNetwork, GraphNetworkConfig
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.training_loop import TrainingLoopConfig
-from fv3fit._shared.scaler import TensorStandardScaler
+from fv3fit._shared.scaler import StandardScaler
 from ..system import DEVICE
 
 from fv3fit._shared import register_training_function
@@ -52,20 +52,23 @@ class GraphHyperparameters(Hyperparameters):
         return set(self.state_variables)
 
 
-def get_normalizer(sample: Mapping[str, np.ndarray]):
+def get_scalers(sample: Mapping[str, np.ndarray]):
     scalers = {}
     for name, array in sample.items():
-        s = TensorStandardScaler(n_sample_dims=5)
+        s = StandardScaler(n_sample_dims=5)
         s.fit(array)
         scalers[name] = s
+    return scalers
 
-    def scale(sample: Mapping[str, np.ndarray]):
-        output = {**sample}
-        for name, array in sample.items():
+
+def get_mapping_scaler(scalers: Mapping[str, StandardScaler]):
+    def normalize(data):
+        output = {**data}
+        for name, array in data.items():
             output[name] = scalers[name].normalize(array)
         return output
 
-    return scale
+    return normalize
 
 
 # TODO: Still have to handle forcing
@@ -76,7 +79,7 @@ def train_graph_model(
     hyperparameters: GraphHyperparameters,
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
-):
+) -> PytorchModel:
     """
     Train a graph network.
 
@@ -92,12 +95,13 @@ def train_graph_model(
         iter(train_batches.unbatch().batch(hyperparameters.normalization_fit_samples))
     )
 
-    normalizer = get_normalizer(sample)
+    scalers = get_scalers(sample)
+    mapping_scaler = get_mapping_scaler(scalers)
 
     get_state = curry(get_Xy_dataset)(
         state_variables=hyperparameters.state_variables,
         n_dims=6,  # [batch, time, tile, x, y, z]
-        normalizer=normalizer,
+        scaler=mapping_scaler,
     )
 
     if validation_batches is not None:
@@ -121,11 +125,9 @@ def train_graph_model(
     )
 
     predictor = PytorchModel(
-        input_variables=hyperparameters.state_variables,
-        output_variables=hyperparameters.state_variables,
+        state_variables=hyperparameters.state_variables,
         model=train_model,
-        normalizers=normalizer,
-        unstacked_dims=("time", "tile", "x", "y", "z"),
+        scalers=scalers,
     )
     return predictor
 
@@ -143,7 +145,7 @@ def build_model(graph_network, n_state: int):
 
 
 def get_Xy_dataset(
-    state_variables: Sequence[str], n_dims: int, normalizer, data: tf.data.Dataset,
+    state_variables: Sequence[str], n_dims: int, scaler, data: tf.data.Dataset,
 ):
     """
     Given a tf.data.Dataset with mappings from variable name to samples of shape
@@ -155,7 +157,7 @@ def get_Xy_dataset(
     ensure_dims = apply_to_mapping(ensure_nd(n_dims))
 
     def map_fn(data):
-        data = normalizer(data)
+        data = scaler(data)
         data = ensure_dims(data)
         data = select_keys(state_variables, data)
         data = tf.concat(data, axis=-1)

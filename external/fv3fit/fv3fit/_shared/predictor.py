@@ -9,7 +9,18 @@ DATASET_DIM_NAME = "dataset"
 logger = logging.getLogger(__file__)
 
 
-class Predictor(abc.ABC):
+class Dumpable(abc.ABC):
+    """
+    Abstract base class for objects that can be dumped.
+    """
+
+    @abc.abstractmethod
+    def dump(self, path: str) -> None:
+        """Serialize to a directory."""
+        pass
+
+
+class Predictor(Dumpable):
     """
     Abstract base class for a predictor object, which has a `predict` method
     that takes in a stacked xarray dataset containing variables defined the class's

@@ -1,17 +1,14 @@
+from .._shared.scaler import StandardScaler
 import numpy as np
 import torch
 import torch.nn as nn
 import xarray as xr
-from fv3fit._shared import (
-    Predictor,
-    match_prediction_to_input_coords,
-    SAMPLE_DIM_NAME,
-    stack,
-)
-from typing import Any, Dict, Hashable, Iterable, Sequence
+from fv3fit._shared import Dumpable
+from typing import Any, Dict, Hashable, Iterable, Mapping, Tuple
+from fv3fit.pytorch.system import DEVICE
 
 
-class PytorchModel(Predictor):
+class PytorchModel(Dumpable):
 
     _MODEL_FILENAME = "weight.pt"
     _CONFIG_FILENAME = "config.yaml"
@@ -19,73 +16,113 @@ class PytorchModel(Predictor):
 
     def __init__(
         self,
-        input_variables: Iterable[Hashable],
-        output_variables: Iterable[Hashable],
+        state_variables: Iterable[Hashable],
         model: nn.Module,
-        normalizers,
-        unstacked_dims: Sequence[str],
+        scalers: Mapping[Hashable, StandardScaler],
     ):
         """Initialize the predictor
         Args:
-            input_variables: names of input variables
-            output_variables: names of output variables
+            state_variables: names of state variables
             model: pytorch model to wrap
-            unstacked_dims: non-sample dimensions of model output
+            scalers:
         """
-        super().__init__(input_variables, output_variables)
-        self.input_variables = input_variables
-        self.output_variables = output_variables
+        self.state_variables = state_variables
         self.model = model
-        self.normalizers = normalizers
-        self._unstacked_dims = unstacked_dims
+        self.scalers = scalers
 
-    def pack_to_tensor(self, ds: xr.Dataset) -> torch.Tensor:
+    def pack_to_tensor(self, ds: xr.Dataset, times_per_window: int) -> torch.Tensor:
         """
         Args:
-            ds
+            ds: dataset containing values to pack
 
         Returns:
             tensor of shape [sample, time, tile, x, y, feature]
         """
-        pass
+        expected_dims = ("time", "tile", "x", "y", "z")
+        ds = ds.transpose(*expected_dims)
+        n_times = ds.time.size
+        n_windows = int(n_times / times_per_window)
+        # times need to be evenly divisible into windows
+        ds = ds.isel(time=slice(None, n_windows * times_per_window))
+        all_data = []
+        for varname in self.state_variables:
+            var_dims = ds[varname].dims
+            if tuple(var_dims[:4]) != expected_dims[:4]:
+                raise ValueError(
+                    f"received variable {varname} with "
+                    f"unexpected dimensions {var_dims}"
+                )
+            data = ds[varname].values
+            data = self.scalers[varname].normalize(data)
+            # segment time axis into windows
+            data = data.reshape(n_windows, times_per_window, *data.shape[1:])
+            if "z" not in var_dims:
+                # need a z-axis for concatenation into feature axis
+                data = data[..., np.newaxis]
+            all_data.append(data)
+        concatenated_data = np.concatenate(all_data, axis=-1)
+        return torch.as_tensor(concatenated_data).float().to(DEVICE)
 
     def unpack_tensor(self, data: torch.Tensor) -> xr.Dataset:
-        pass
+        i_feature = 0
+        data_vars = {}
+        all_dims = ["window", "time", "tile", "x", "y", "z"]
+        for varname in self.state_variables:
+            mean_value = self.scalers[varname].mean
+            if mean_value is None:
+                raise RuntimeError(f"scaler for {varname} has not been fit")
+            else:
+                if len(mean_value.shape) > 0 and mean_value.shape[0] > 1:
+                    n_features = mean_value.shape[0]
+                    var_data = data[..., i_feature : i_feature + n_features]
+                else:
+                    n_features = 1
+                    var_data = data[..., i_feature]
+                data_vars[varname] = xr.DataArray(
+                    data=var_data, dims=all_dims[: len(var_data.shape)]
+                )
+                i_feature += n_features
+        return xr.Dataset(data_vars=data_vars)
 
-    def _array_prediction_to_dataset(
-        self, names, outputs, stacked_coords
-    ) -> xr.Dataset:
-        ds = xr.Dataset()
-        for name, output in zip(names, outputs):
-            dims = [SAMPLE_DIM_NAME] + list(self._unstacked_dims)
-            scalar_singleton_dim = (
-                len(output.shape) == len(dims) and output.shape[-1] == 1
-            )
-            if scalar_singleton_dim:  # remove singleton dimension
-                output = output[..., 0]
-                dims = dims[:-1]
-            da = xr.DataArray(
-                data=output, dims=dims, coords={SAMPLE_DIM_NAME: stacked_coords},
-            ).unstack(SAMPLE_DIM_NAME)
-            dim_order = [dim for dim in self._unstacked_dims if dim in da.dims]
-            ds[name] = da.transpose(*dim_order, ...)
-        return ds
-
-    def predict(self, X: xr.Dataset) -> xr.Dataset:
-        """Predict an output xarray dataset from an input xarray dataset."""
-        X = X.transpose("grid", "z")
-        X_stacked = stack(X, unstacked_dims=self._unstacked_dims)
-        inputs = [X_stacked[name].values for name in self.input_variables]
-        outputs = self.model(torch.as_tensor(inputs).float())
-        if isinstance(outputs, np.ndarray):
-            outputs = [outputs]
-        return_ds = self._array_prediction_to_dataset(
-            self.output_variables,
-            outputs.detach().cpu().numpy(),
-            X_stacked.coords[SAMPLE_DIM_NAME],
+    def step_model(self, state: torch.Tensor, timesteps: int):
+        """
+        Step the model forward.
+        Args:
+            state: tensor of shape [sample, tile, x, y, feature]
+            timesteps: number of timesteps to predict
+        Returns:
+            tensor of shape [sample, time, tile, x, y, feature], with time dimension
+                having length timesteps + 1 and including the initial state
+        """
+        outputs = torch.zeros(
+            [state.shape[0]] + [timesteps + 1] + list(state.shape[1:])
         )
-        # turn outputs into an xarray dataset
-        return match_prediction_to_input_coords(X, return_ds)
+        outputs[:, 0, :] = state
+        for i in range(timesteps):
+            with torch.no_grad():
+                outputs[:, i + 1, :] = self.model(outputs[:, i, :])
+        return outputs
+
+    def predict(self, X: xr.Dataset, timesteps: int) -> Tuple[xr.Dataset, xr.Dataset]:
+        """
+        Predict an output xarray dataset from an input xarray dataset.
+
+        Note that returned datasets include the initial state of the prediction,
+        where by definition the model will have perfect skill.
+
+        Args:
+            X: input dataset
+            timesteps: number of timesteps to predict
+
+        Returns:
+            predicted: predicted timeseries data
+            reference: true timeseries data from the input dataset
+        """
+        tensor = self.pack_to_tensor(X, times_per_window=timesteps + 1)
+        outputs = self.step_model(tensor[:, 0, :], timesteps=timesteps)
+        predicted = self.unpack_tensor(outputs)
+        reference = self.unpack_tensor(tensor)
+        return predicted, reference
 
     @classmethod
     def load(cls, path: str) -> "PytorchModel":

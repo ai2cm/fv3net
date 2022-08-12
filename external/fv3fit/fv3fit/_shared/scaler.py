@@ -1,9 +1,8 @@
 import abc
 import numpy as np
-from typing import BinaryIO, Type, Sequence
+from typing import BinaryIO, Optional, Type, Sequence
 import io
 import yaml
-import tensorflow as tf
 
 
 class NormalizeTransform(abc.ABC):
@@ -47,8 +46,8 @@ class StandardScaler(NormalizeTransform):
                 that are constant across samples) are unable to be scaled due to
                 having zero standard deviation. Defaults to 1e-12.
         """
-        self.mean = None
-        self.std = None
+        self.mean: Optional[np.ndarray] = None
+        self.std: Optional[np.ndarray] = None
         self.std_epsilon: np.float64 = std_epsilon
         self._n_sample_dims = n_sample_dims
 
@@ -86,13 +85,6 @@ class StandardScaler(NormalizeTransform):
         scaler.mean = data.get("mean")
         scaler.std = data.get("std")
         return scaler
-
-
-class TensorStandardScaler(StandardScaler):
-    def fit(self, data: np.ndarray):
-        super().fit(data)
-        self.mean = tf.convert_to_tensor(self.mean)
-        self.std = tf.convert_to_tensor(self.std)
 
 
 class ManualScaler(NormalizeTransform):

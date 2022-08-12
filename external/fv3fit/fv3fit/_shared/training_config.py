@@ -15,13 +15,14 @@ from typing import (
     Type,
     Dict,
     MutableMapping,
+    TypeVar,
 )
 
 from fv3fit.typing import Dataclass
 from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
 from fv3fit._shared.config import CacheConfig, PackerConfig
 import xarray as xr
-from .predictor import Predictor
+from .predictor import Dumpable
 from .hyperparameters import Hyperparameters
 import dacite
 import numpy as np
@@ -34,8 +35,10 @@ import tensorflow as tf
 
 
 TrainingFunction = Callable[
-    [Dataclass, Sequence[xr.Dataset], Sequence[xr.Dataset]], Predictor
+    [Dataclass, Sequence[xr.Dataset], Sequence[xr.Dataset]], Dumpable
 ]
+
+TF = TypeVar("TF", bound=TrainingFunction)
 
 
 def set_random_seed(seed: Union[float, int] = 0):
@@ -142,7 +145,7 @@ def register_training_function(name: str, hyperparameter_class: type):
     to be usable in training configuration.
     """
 
-    def decorator(func: TrainingFunction) -> TrainingFunction:
+    def decorator(func: TF) -> TF:
         TRAINING_FUNCTIONS[name] = (func, hyperparameter_class)
         return func
 
