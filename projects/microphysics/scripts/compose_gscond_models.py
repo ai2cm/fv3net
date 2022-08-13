@@ -38,7 +38,7 @@ outputs = {
 
 def spec_to_inputs(spec):
     return {
-        name: tf.keras.Input(input.shape[0], dtype=input.dtype, name=input.name)
+        name: tf.keras.Input(input.shape[0], dtype=input.dtype, name=name)
         for name, input in inputs.items()
     }
 
