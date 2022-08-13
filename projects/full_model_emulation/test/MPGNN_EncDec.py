@@ -23,14 +23,13 @@ from utils import *
 import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
-from MPGNN_Network import MPGNN
-
+# from MPGNN_Network import MPGNN
+from MPGNN_Network_PoolUp import MPGNN
 
 res=3
 halo=1
 lead = 6
-graphFile= "NewHalo_Graph5_Coarsen48"
-control_str = "MPGNN"  #'TNSTTNST' #'TNTSTNTST'
+control_str = "MPGNN_PoolUp"  #'TNSTTNST' #'TNTSTNTST'
 print(control_str)
 coarsenInd=1
 epochs = 20
@@ -38,13 +37,13 @@ input_res=48
 pooling_size=2
 
 node_hidden_feats=128
-edge_hidden_feats=128
+edge_hidden_feats=32
 
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
 Chuncksize = 2000
-num_step_message_passing = 9
-num_layers=0
+num_step_message_passing = 5
+num_layers=1
 
 if halo==1:
     print("halo")
@@ -77,6 +76,7 @@ out_feat = 2
 
 savemodelpath = (
     "MPGNN_"
+    +control_str
     + "_lead"
     + str(lead)
     +"res"
@@ -434,9 +434,9 @@ for epoch in range(1, epochs + 1):
             "epoch", epoch, ", train loss:", l_sum / n, ", validation loss:", val_loss
         )
 
-        fs = get_fs(model_out_url)
-        fs.put(savemodelpath, model_out_url)
-        print(savemodelpath, model_out_url)
+        # fs = get_fs(model_out_url)
+        # fs.put(savemodelpath, model_out_url)
+        # print(savemodelpath, model_out_url)
 
 
 # best_model = STGCN_WAVE(channels, window, num_nodes, g, drop_prob, num_layers, device, control_str).to(device)

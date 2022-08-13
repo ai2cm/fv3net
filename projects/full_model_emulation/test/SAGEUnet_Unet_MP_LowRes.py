@@ -33,11 +33,11 @@ lead = 6
 residual = 0
 coarsenInd = 1
 n_filter = 256
-edge_h_feats = 32
+edge_h_feats = 64
 input_res = 48
 pooling_size = 2
 edge_in_feats = 2
-num_step_message_passing = 2
+num_step_message_passing = 5
 
 
 if halo==1:
@@ -99,6 +99,8 @@ savemodelpath = (
     + "Meanpool"
     + "hidden_filetrs"
     + str(n_filter)
+    +"edgeHidden"
+    +str(edge_h_feats)
     + "learning_rate"
     + str(lr)
     + "_lead"
