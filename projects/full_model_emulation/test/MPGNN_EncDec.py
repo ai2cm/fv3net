@@ -43,7 +43,7 @@ variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
 Chuncksize = 2000
 num_step_message_passing = 5
-num_layers=1
+num_layers=2
 
 if halo==1:
     print("halo")
@@ -434,9 +434,9 @@ for epoch in range(1, epochs + 1):
             "epoch", epoch, ", train loss:", l_sum / n, ", validation loss:", val_loss
         )
 
-        # fs = get_fs(model_out_url)
-        # fs.put(savemodelpath, model_out_url)
-        # print(savemodelpath, model_out_url)
+        fs = get_fs(model_out_url)
+        fs.put(savemodelpath, model_out_url)
+        print(savemodelpath, model_out_url)
 
 
 # best_model = STGCN_WAVE(channels, window, num_nodes, g, drop_prob, num_layers, device, control_str).to(device)
