@@ -38,7 +38,7 @@ input_res = 48
 pooling_size = 2
 edge_in_feats = 2
 num_step_message_passing = 5
-
+edgenormal=0
 
 if halo==1:
     print("halo")
@@ -93,8 +93,10 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "LowRes_Shift_Ave_latlon_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
+    "No_diff_latlon_LowRes_Shift_Ave_latlon_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
     + control_str
+    +"edgeNormal_"
+    +str(edgenormal)
     + "Poolin"
     + "Meanpool"
     + "hidden_filetrs"
@@ -215,14 +217,19 @@ print(f"numebr of grids: {num_nodes}")
 
 
 edg = np.asarray(g1.edges())
-latInd = lat[edg[0]]
-lonInd = lon[edg[0]]
+latInd = lat[edg[1]]
+lonInd = lon[edg[1]]
 
-latInd1 = lat[edg[1]]
-lonInd1 = lon[edg[1]]
+# latInd1 = lat[edg[0]]
+# lonInd1 = lon[edg[0]]
 
-latInd = latInd1 - latInd
-lonInd = lonInd1 - lonInd
+# latInd = latInd - latInd1
+# lonInd = lonInd - lonInd1
+
+if edgenormal==1:
+    latInd=(latInd-np.mean(latInd))/np.std(latInd)
+    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
+
 latlon1 = [latInd.T, lonInd.T]
 latlon1 = torch.from_numpy(np.swapaxes(latlon1, 1, 0)).float()
 latlon1 = latlon1.to(device)
@@ -230,14 +237,18 @@ latlon1 = latlon1.to(device)
 del edg, lonInd, latInd, lonInd1, latInd1
 
 edg = np.asarray(g2.edges())
-latInd = lat2[edg[0]]
-lonInd = lon2[edg[0]]
+latInd = lat2[edg[1]]
+lonInd = lon2[edg[1]]
 
-latInd1 = lat2[edg[1]]
-lonInd1 = lon2[edg[1]]
+# latInd1 = lat2[edg[0]]
+# lonInd1 = lon2[edg[0]]
 
-latInd = latInd1 - latInd
-lonInd = lonInd1 - lonInd
+# latInd = latInd - latInd1
+# lonInd = lonInd - lonInd1
+
+if edgenormal==1:
+    latInd=(latInd-np.mean(latInd))/np.std(latInd)
+    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
 
 latlon2 = [latInd.T, lonInd.T]
 latlon2 = torch.from_numpy(np.swapaxes(latlon2, 1, 0)).float()
@@ -247,14 +258,18 @@ del edg, lonInd, latInd, lonInd1, latInd1
 
 
 edg = np.asarray(g3.edges())
-latInd = lat3[edg[0]]
-lonInd = lon3[edg[0]]
+latInd = lat3[edg[1]]
+lonInd = lon3[edg[1]]
 
-latInd1 = lat3[edg[1]]
-lonInd1 = lon3[edg[1]]
+# latInd1 = lat3[edg[0]]
+# lonInd1 = lon3[edg[0]]
 
-latInd = latInd1 - latInd
-lonInd = lonInd1 - lonInd
+# latInd = latInd - latInd1
+# lonInd = lonInd - lonInd1
+
+if edgenormal==1:
+    latInd=(latInd-np.mean(latInd))/np.std(latInd)
+    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
 
 latlon3 = [latInd.T, lonInd.T]
 latlon3 = torch.from_numpy(np.swapaxes(latlon3, 1, 0)).float()
@@ -263,15 +278,18 @@ latlon3 = latlon3.to(device)
 del edg, lonInd, latInd, lonInd1, latInd1
 
 edg = np.asarray(g4.edges())
-latInd = lat4[edg[0]]
-lonInd = lon4[edg[0]]
+latInd = lat4[edg[1]]
+lonInd = lon4[edg[1]]
 
-latInd1 = lat4[edg[1]]
-lonInd1 = lon4[edg[1]]
+# latInd1 = lat4[edg[0]]
+# lonInd1 = lon4[edg[0]]
 
-latInd = latInd1 - latInd
-lonInd = lonInd1 - lonInd
+# latInd = latInd - latInd1
+# lonInd = lonInd - lonInd1
 
+if edgenormal==1:
+    latInd=(latInd-np.mean(latInd))/np.std(latInd)
+    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
 
 latlon4 = [latInd.T, lonInd.T]
 latlon4 = torch.from_numpy(np.swapaxes(latlon4, 1, 0)).float()
@@ -280,14 +298,18 @@ latlon4 = latlon4.to(device)
 del edg, lonInd, latInd, lonInd1, latInd1
 
 edg = np.asarray(g5.edges())
-latInd = lat5[edg[0]]
-lonInd = lon5[edg[0]]
+latInd = lat5[edg[1]]
+lonInd = lon5[edg[1]]
 
-latInd1 = lat5[edg[1]]
-lonInd1 = lon5[edg[1]]
+# latInd1 = lat5[edg[0]]
+# lonInd1 = lon5[edg[0]]
 
-latInd = latInd1 - latInd
-lonInd = lonInd1 - lonInd
+# latInd = latInd - latInd1
+# lonInd = lonInd - lonInd1
+
+if edgenormal==1:
+    latInd=(latInd-np.mean(latInd))/np.std(latInd)
+    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
 
 latlon5 = [latInd.T, lonInd.T]
 latlon5 = torch.from_numpy(np.swapaxes(latlon5, 1, 0)).float()
