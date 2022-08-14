@@ -234,7 +234,7 @@ latlon1 = [latInd.T, lonInd.T]
 latlon1 = torch.from_numpy(np.swapaxes(latlon1, 1, 0)).float()
 latlon1 = latlon1.to(device)
 
-del edg, lonInd, latInd, lonInd1, latInd1
+del edg, lonInd, latInd
 
 edg = np.asarray(g2.edges())
 latInd = lat2[edg[1]]
@@ -254,8 +254,7 @@ latlon2 = [latInd.T, lonInd.T]
 latlon2 = torch.from_numpy(np.swapaxes(latlon2, 1, 0)).float()
 latlon2 = latlon2.to(device)
 
-del edg, lonInd, latInd, lonInd1, latInd1
-
+del edg, lonInd, latInd
 
 edg = np.asarray(g3.edges())
 latInd = lat3[edg[1]]
@@ -275,7 +274,7 @@ latlon3 = [latInd.T, lonInd.T]
 latlon3 = torch.from_numpy(np.swapaxes(latlon3, 1, 0)).float()
 latlon3 = latlon3.to(device)
 
-del edg, lonInd, latInd, lonInd1, latInd1
+del edg, lonInd, latInd
 
 edg = np.asarray(g4.edges())
 latInd = lat4[edg[1]]
@@ -295,7 +294,7 @@ latlon4 = [latInd.T, lonInd.T]
 latlon4 = torch.from_numpy(np.swapaxes(latlon4, 1, 0)).float()
 latlon4 = latlon4.to(device)
 
-del edg, lonInd, latInd, lonInd1, latInd1
+del edg, lonInd, latInd
 
 edg = np.asarray(g5.edges())
 latInd = lat5[edg[1]]
@@ -314,8 +313,7 @@ if edgenormal==1:
 latlon5 = [latInd.T, lonInd.T]
 latlon5 = torch.from_numpy(np.swapaxes(latlon5, 1, 0)).float()
 latlon5 = latlon5.to(device)
-del edg, lonInd, latInd, lonInd1, latInd1
-
+del edg, lonInd, latInd
 
 Zmean = 5765.8457  # Z500mean=5765.8457,
 Zstd = 90.79599  # Z500std=90.79599
