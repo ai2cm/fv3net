@@ -101,21 +101,21 @@ class WindowedZarrLoader(TFDatasetLoader):
                 first dimension is the batch dimension
         """
         ds = open_zarr_using_filecache(self.data_path)
-        tfdataset = self.convert_to_tfdataset(ds, variable_names)
+        tfdataset = self._convert_to_tfdataset(ds, variable_names)
         # if local_download_path is given, cache on disk
         if local_download_path is not None:
             tfdataset = tfdataset.cache(local_download_path)
         return tfdataset
 
-    def convert_to_tfdataset(
+    def _convert_to_tfdataset(
         self, ds: xr.Dataset, variable_names: Sequence[str],
     ) -> tf.data.Dataset:
         """
         Args:
-            local_download_path: if provided, cache data locally at this path
+            ds: xarray data to convert to tfdataset
             variable_names: names of variables to include when loading data
         Returns:
-            dataset containing requested variables, each record is a mapping from
+            tfdataset containing requested variables, each record is a mapping from
                 variable name to variable value, and each value is a tensor whose
                 first dimension is the batch dimension
         """

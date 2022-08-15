@@ -7,6 +7,7 @@ import tensorflow_datasets as tfds
 from .system import DEVICE
 import tensorflow as tf
 from fv3fit.tfdataset import sequence_size
+from .loss import LossConfig
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +30,11 @@ class TrainingLoopConfig:
 
     def fit_loop(
         self,
-        loss_config,
         train_model: torch.nn.Module,
         train_data: tf.data.Dataset,
         validation_data: tf.data.Dataset,
         optimizer: torch.optim.Optimizer,
+        loss_config: LossConfig,
     ) -> None:
         """
         Args:
@@ -43,8 +44,7 @@ class TrainingLoopConfig:
             validation_data: validation dataset containing samples to be passed
                 to the model, should have dimensions [sample, time, tile, x, y, z]
             optimizer: type of optimizer for the model
-            get_loss: Multistep loss function
-            multistep: number of multi-step loss calculation
+            loss_config: configuration of loss function
         """
         train_data = (
             train_data.unbatch()
@@ -60,7 +60,7 @@ class TrainingLoopConfig:
             .to(DEVICE)
         )
         min_val_loss = np.inf
-        for epoch in range(1, self.n_epoch + 1):  # loop over the dataset multiple times
+        for _ in range(1, self.n_epoch + 1):  # loop over the dataset multiple times
             train_model = train_model.train()
             for batch_state in train_data:
                 batch_state = torch.as_tensor(batch_state).float().to(DEVICE)

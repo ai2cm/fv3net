@@ -49,6 +49,9 @@ def build_graph(nx_tile: int) -> Tuple[np.ndarray, np.ndarray]:
 
 @functools.lru_cache(maxsize=64)
 def build_dgl_graph(nx_tile: int) -> dgl.DGLGraph:
+    """
+    Returns a DGL graph of the cubed sphere.
+    """
     graph_data = build_graph(nx_tile)
     g = dgl.graph(graph_data)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

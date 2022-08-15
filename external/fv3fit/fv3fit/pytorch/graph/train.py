@@ -62,13 +62,13 @@ def get_scalers(sample: Mapping[str, np.ndarray]):
 
 
 def get_mapping_scaler(scalers: Mapping[str, StandardScaler]):
-    def normalize(data):
+    def scale(data):
         output = {**data}
         for name, array in data.items():
             output[name] = scalers[name].normalize(array)
         return output
 
-    return normalize
+    return scale
 
 
 # TODO: Still have to handle forcing
@@ -117,11 +117,11 @@ def train_graph_model(
     optimizer = hyperparameters.optimizer_config
 
     hyperparameters.training_loop.fit_loop(
-        hyperparameters.loss,
         train_model=train_model,
         train_data=train_state,
         validation_data=val_state,
         optimizer=optimizer.instance(train_model.parameters()),
+        loss_config=hyperparameters.loss,
     )
 
     predictor = PytorchModel(
