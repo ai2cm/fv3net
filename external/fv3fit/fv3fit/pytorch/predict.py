@@ -22,7 +22,6 @@ class BinaryLoadable(Protocol):
 
     @classmethod
     def load(cls: Type[L], f: IO[bytes]) -> L:
-        """Serialize to a directory."""
         ...
 
 
