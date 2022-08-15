@@ -24,7 +24,7 @@ class Dumpable(abc.ABC):
 
 class Loadable(abc.ABC):
     """
-    Abstract base class for objects that can be dumped.
+    Abstract base class for objects that can be loaded from a directory.
     """
 
     @classmethod
