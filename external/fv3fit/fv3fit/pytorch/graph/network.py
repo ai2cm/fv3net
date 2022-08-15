@@ -29,6 +29,14 @@ class CubedSphereGraphOperation(nn.Module):
     """
 
     def __init__(self, graph_op: nn.Module):
+        """
+        Initializes the wrapped graph operation.
+
+        Args:
+            graph_op: graph operation to apply, whose first argument should be
+                a DGL graph and second argument should be a tensor of shape
+                (n_tiles * n_x * n_y, batch_size, n_features)
+        """
         super().__init__()
         self.graph_op = graph_op
 
@@ -36,6 +44,9 @@ class CubedSphereGraphOperation(nn.Module):
         """
         Args:
             inputs: tensor of shape (batch_size, n_tiles, n_x, n_y, n_features)
+
+        Returns:
+            tensor of shape (batch_size, n_tiles, n_x, n_y, n_features_out)
         """
         if len(inputs.shape) != 5:
             raise ValueError(

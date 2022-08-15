@@ -45,6 +45,8 @@ class StandardScaler(NormalizeTransform):
                 of each variable to be scaled, such that no variables (even those
                 that are constant across samples) are unable to be scaled due to
                 having zero standard deviation. Defaults to 1e-12.
+            n_sample_dims: number of sample dimensions which come before the feature
+                dimension.
         """
         self.mean: Optional[np.ndarray] = None
         self.std: Optional[np.ndarray] = None

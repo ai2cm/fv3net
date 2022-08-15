@@ -24,7 +24,7 @@ class PytorchModel(Dumpable):
         Args:
             state_variables: names of state variables
             model: pytorch model to wrap
-            scalers:
+            scalers: normalization data for each of the state variables
         """
         self.state_variables = state_variables
         self.model = model
@@ -32,8 +32,14 @@ class PytorchModel(Dumpable):
 
     def pack_to_tensor(self, ds: xr.Dataset, times_per_window: int) -> torch.Tensor:
         """
+        Packs the dataset into a tensor to be used by the pytorch model.
+
+        Subdivides the dataset evenly into non-overlapping windows
+        of size times_per_window.
+
         Args:
             ds: dataset containing values to pack
+            times_per_window: number of times to include per window
 
         Returns:
             tensor of shape [sample, time, tile, x, y, feature]
@@ -64,6 +70,15 @@ class PytorchModel(Dumpable):
         return torch.as_tensor(concatenated_data).float().to(DEVICE)
 
     def unpack_tensor(self, data: torch.Tensor) -> xr.Dataset:
+        """
+        Unpacks the tensor into a dataset.
+
+        Args:
+            data: tensor of shape [window, time, tile, x, y, feature]
+
+        Returns:
+            xarray dataset with values of shape [window, time, tile, x, y, feature]
+        """
         i_feature = 0
         data_vars = {}
         all_dims = ["window", "time", "tile", "x", "y", "z"]
