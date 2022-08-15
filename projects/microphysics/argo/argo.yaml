@@ -24,7 +24,9 @@ spec:
       - name: fv3fit_image_tag
         value: latest
       - name: image_tag
-        value: 811d4a88b8b8f29d727f2d61f46f96b770c8ab47
+        value: latest
+      - name: fv3net_image_tag
+        value: latest
       - name: wandb-tags
         value: ""
       - name: wandb-group
@@ -146,7 +148,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
+      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.fv3net_image_tag}}"
       imagePullPolicy: Always
       resources:
         requests:
@@ -182,7 +184,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image_tag}}"
+      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.fv3net_image_tag}}"
       imagePullPolicy: Always
       resources:
         requests:
