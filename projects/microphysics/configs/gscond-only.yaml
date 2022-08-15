@@ -1,8 +1,8 @@
 # submit with
-# python3 argo/end_to_end.py train/precpd-only.yaml
+# python3 argo/end_to_end.py configs/gscond-only.yaml
 kind: prognostic
-experiment: zc-emu-monthly-init
-name: combined-zcemu-monthly-init-30d-v1
+experiment: gscond-precpd
+name: gscond-only-classifier-zcloud-upper5zero-30d-v1
 image_tag: latest
 config:
   base_version: v0.5

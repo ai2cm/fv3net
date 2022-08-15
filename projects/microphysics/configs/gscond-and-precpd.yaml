@@ -1,6 +1,6 @@
 kind: prognostic
-experiment: online-all-month-init
-name: sequential-v5
+experiment: zc-emu-monthly-init
+name: sequential-zc-emu-monthly-v1
 image_tag: latest
 config:
   base_version: v0.5
@@ -272,8 +272,14 @@ config:
       mask_gscond_zero_cloud_classifier: true
       mask_gscond_no_tend_classifier: true
       mask_emulator_levels:
-        cloud_water_mixing_ratio_after_gscond: {start: 74, fill_value: cloud_water_mixing_ratio_input}
-        specific_humidity_after_gscond: {start: 74, fill_value: specific_humidity_input}
-        air_temperature_after_gscond: {start: 74, fill_value: air_temperature_input}
+        cloud_water_mixing_ratio_after_gscond:
+          start: 74
+          fill_value: cloud_water_mixing_ratio_input
+        specific_humidity_after_gscond:
+          start: 74
+          fill_value: specific_humidity_input
+        air_temperature_after_gscond:
+          start: 74
+          fill_value: air_temperature_input
     model:
       path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-19/precpd-diff-only-rnn-v1-shared-weights-v1/model.tf
