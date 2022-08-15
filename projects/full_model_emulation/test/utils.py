@@ -19,6 +19,22 @@ def evaluate_model(model, latlon, loss, data_iter, exteraVar, out_feat, device):
         return l_sum / n
 
 
+def evaluate_model11(model, latlon, loss, data_iter, exteraVar, out_feat, edge_index, device):
+    model.eval()
+    l_sum, n = 0.0, 0
+    with torch.no_grad():
+        for x, y in data_iter:
+            y = y.to(device)
+            x = x.to(device)
+            exteraVar1 = exteraVar[: x.size(0)]
+            # x = torch.cat((x, exteraVar1), 1).float()
+            x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
+            y_pred = model(x,edge_index,latlon).view(-1, out_feat)
+            l = loss(y_pred, torch.squeeze(y.to(device)))
+            l_sum += l.item() * y.shape[0]
+            n += y.shape[0]
+        return l_sum / n
+
 def evaluate_metric(model, data_iter, scaler):
     model.eval()
     with torch.no_grad():

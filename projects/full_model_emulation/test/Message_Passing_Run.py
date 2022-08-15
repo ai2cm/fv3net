@@ -19,27 +19,37 @@ import time
 import select as sl
 import pickle
 from load_data import *
-from utilsMPGNNUnet import *
+from utils import *
 import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
-# from SAGE_Unet_MP_LowRes import UnetGraphSAGE
-from SAGE_Unet_MP_LowRes_Conv import UnetGraphSAGE
+from torch_geometric.nn.conv import MessagePassing
+from tqdm import trange
+import pandas as pd
+from Message_Passing_Network import MeshGraphNet
 
+
+res=1
 halo=1
-control_str = "Conv_Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
-
-
-edgenormal=1
 lead = 6
-residual = 0
-coarsenInd = 1
-n_filter = 256
-edge_h_feats = 32
-input_res = 48
-pooling_size = 2
-edge_in_feats = 2
-num_step_message_passing = 5
+control_str = "Message_Passing"  #'TNSTTNST' #'TNTSTNTST'
+print(control_str)
+coarsenInd=1
+epochs = 30
+input_res=48
+num_layers=3
+
+node_hidden_feats=128
+
+input_dim_node=7
+input_dim_edge=2
+out_feat = 2
+
+
+
+variableList = ["h500", "h200", "h850"]
+TotalSamples = 8500
+Chuncksize = 2000
 
 if halo==1:
     print("halo")
@@ -48,13 +58,10 @@ if halo==1:
     g2 = pickle.load(open("NewHalo_Graph5_Coarsen24", "rb"))
 
     g3 = pickle.load(open("NewHalo_Graph5_Coarsen12", "rb"))
-    coarsenInd3 = 4
 
     g4 = pickle.load(open("NewHalo_Graph5_Coarsen6", "rb"))
-    coarsenInd4 = 8
 
     g5 = pickle.load(open("NewHalo_Graph5_Coarsen3", "rb"))
-    coarsenInd5 = 16
 
 elif halo==0:
     print("No halo")
@@ -63,62 +70,30 @@ elif halo==0:
     g2 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen2", "rb"))
 
     g3 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen4", "rb"))
-    coarsenInd3 = 4
 
     g4 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen8", "rb"))
-    coarsenInd4 = 8
 
     g5 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen16", "rb"))
-    coarsenInd5 = 16
-
-# g1=build_graph(48)
-# g2=build_graph(24)
-# g3=build_graph(12)
-# g4=build_graph(6)
-# g5=build_graph(3)
-
-
-print(control_str)
-
-epochs = 30
-
-variableList = ["h500", "h200", "h850"]
-TotalSamples = 8500
-Chuncksize = 2000
 
 
 lr = 0.001
-disablecuda = "store_true"
 batch_size = 1
-drop_prob = 0
-out_feat = 2
 
 savemodelpath = (
-    "No_diff_latlon_LowRes_Shift_Ave_latlon_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
-    + control_str
-    +"edgeNormal_"
-    +str(edgenormal)
-    + "Poolin"
-    + "Meanpool"
-    + "hidden_filetrs"
-    + str(n_filter)
-    +"edgeHidden"
-    +str(edge_h_feats)
-    + "learning_rate"
-    + str(lr)
+    "MPGNN_"
+    +control_str
     + "_lead"
     + str(lead)
+    +"res"
+    +str(res)
     + "_epochs_"
     + str(epochs)
     + "MP_Block_"
-    + str(num_step_message_passing)
-    + "coarsen_"
-    + str(coarsenInd)
-    + "residual_"
-    + str(residual)
+    +str(num_layers)
+    +"node_hidden_feats"
+    +str(node_hidden_feats)
     + ".pt"
 )
-
 print(savemodelpath)
 
 BUCKET = "vcm-ml-experiments"
@@ -144,7 +119,8 @@ landSea = xr.open_zarr(
     )
 )
 landSea_Mask = landSea.land_sea_mask[1].load()
-landSea_Mask = landSea_Mask[:, ::coarsenInd, ::coarsenInd].values.flatten()
+landSea_Mask = landSea_Mask[:, ::, ::].values.flatten()
+
 
 
 lat1 = lat_lon_data.latitude[1].load()
@@ -190,19 +166,18 @@ lon3=lon3.flatten()
 lon4=lon4.flatten()
 lon5=lon5.flatten()
 
-
 cosLat = np.cos(lat)
 cosLon = np.cos(lon)
 sinLat = np.sin(lat)
 sinLon = np.sin(lon)
-for i in range(2):
+for i in range(3):
     if i == 0:
         sinLon = torch.tensor(sinLon).unsqueeze(0).repeat(1, 1)
         cosLon = torch.tensor(cosLon).unsqueeze(0).repeat(1, 1)
         sinLat = torch.tensor(sinLat).unsqueeze(0).repeat(1, 1)
         cosLat = torch.tensor(cosLat).unsqueeze(0).repeat(1, 1)
         landSea_Mask = torch.tensor(landSea_Mask).unsqueeze(0).repeat(1, 1)
-    elif i == 1:
+    elif i == 2:
         sinLon = (sinLon).unsqueeze(0).repeat(batch_size, 1, 1)
         cosLon = (cosLon).unsqueeze(0).repeat(batch_size, 1, 1)
         sinLat = (sinLat).unsqueeze(0).repeat(batch_size, 1, 1)
@@ -218,103 +193,102 @@ print(f"numebr of grids: {num_nodes}")
 
 
 edg = np.asarray(g1.edges())
-latInd = lat[edg[1]]
-lonInd = lon[edg[1]]
+latInd = lat[edg[0]]
+lonInd = lon[edg[0]]
 
-# latInd1 = lat[edg[0]]
-# lonInd1 = lon[edg[0]]
+latInd1 = lat[edg[1]]
+lonInd1 = lon[edg[1]]
 
-# latInd = latInd - latInd1
-# lonInd = lonInd - lonInd1
-
-if edgenormal==1:
-    latInd=(latInd-np.mean(latInd))/np.std(latInd)
-    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
-
+latInd = latInd1 - latInd
+lonInd = lonInd1 - lonInd
 latlon1 = [latInd.T, lonInd.T]
 latlon1 = torch.from_numpy(np.swapaxes(latlon1, 1, 0)).float()
 latlon1 = latlon1.to(device)
 
-del edg, lonInd, latInd
+del edg, lonInd, latInd, lonInd1, latInd1
 
 edg = np.asarray(g2.edges())
-latInd = lat2[edg[1]]
-lonInd = lon2[edg[1]]
+latInd = lat2[edg[0]]
+lonInd = lon2[edg[0]]
 
-# latInd1 = lat2[edg[0]]
-# lonInd1 = lon2[edg[0]]
+latInd1 = lat2[edg[1]]
+lonInd1 = lon2[edg[1]]
 
-# latInd = latInd - latInd1
-# lonInd = lonInd - lonInd1
-
-if edgenormal==1:
-    latInd=(latInd-np.mean(latInd))/np.std(latInd)
-    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
+latInd = latInd1 - latInd
+lonInd = lonInd1 - lonInd
 
 latlon2 = [latInd.T, lonInd.T]
 latlon2 = torch.from_numpy(np.swapaxes(latlon2, 1, 0)).float()
 latlon2 = latlon2.to(device)
 
-del edg, lonInd, latInd
+del edg, lonInd, latInd, lonInd1, latInd1
+
 
 edg = np.asarray(g3.edges())
-latInd = lat3[edg[1]]
-lonInd = lon3[edg[1]]
+latInd = lat3[edg[0]]
+lonInd = lon3[edg[0]]
 
-# latInd1 = lat3[edg[0]]
-# lonInd1 = lon3[edg[0]]
+latInd1 = lat3[edg[1]]
+lonInd1 = lon3[edg[1]]
 
-# latInd = latInd - latInd1
-# lonInd = lonInd - lonInd1
-
-if edgenormal==1:
-    latInd=(latInd-np.mean(latInd))/np.std(latInd)
-    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
+latInd = latInd1 - latInd
+lonInd = lonInd1 - lonInd
 
 latlon3 = [latInd.T, lonInd.T]
 latlon3 = torch.from_numpy(np.swapaxes(latlon3, 1, 0)).float()
 latlon3 = latlon3.to(device)
 
-del edg, lonInd, latInd
+del edg, lonInd, latInd, lonInd1, latInd1
 
 edg = np.asarray(g4.edges())
-latInd = lat4[edg[1]]
-lonInd = lon4[edg[1]]
+latInd = lat4[edg[0]]
+lonInd = lon4[edg[0]]
 
-# latInd1 = lat4[edg[0]]
-# lonInd1 = lon4[edg[0]]
+latInd1 = lat4[edg[1]]
+lonInd1 = lon4[edg[1]]
 
-# latInd = latInd - latInd1
-# lonInd = lonInd - lonInd1
+latInd = latInd1 - latInd
+lonInd = lonInd1 - lonInd
 
-if edgenormal==1:
-    latInd=(latInd-np.mean(latInd))/np.std(latInd)
-    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
 
 latlon4 = [latInd.T, lonInd.T]
 latlon4 = torch.from_numpy(np.swapaxes(latlon4, 1, 0)).float()
 latlon4 = latlon4.to(device)
 
-del edg, lonInd, latInd
+del edg, lonInd, latInd, lonInd1, latInd1
 
 edg = np.asarray(g5.edges())
-latInd = lat5[edg[1]]
-lonInd = lon5[edg[1]]
+latInd = lat5[edg[0]]
+lonInd = lon5[edg[0]]
 
-# latInd1 = lat5[edg[0]]
-# lonInd1 = lon5[edg[0]]
+latInd1 = lat5[edg[1]]
+lonInd1 = lon5[edg[1]]
 
-# latInd = latInd - latInd1
-# lonInd = lonInd - lonInd1
-
-if edgenormal==1:
-    latInd=(latInd-np.mean(latInd))/np.std(latInd)
-    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
+latInd = latInd1 - latInd
+lonInd = lonInd1 - lonInd
 
 latlon5 = [latInd.T, lonInd.T]
 latlon5 = torch.from_numpy(np.swapaxes(latlon5, 1, 0)).float()
 latlon5 = latlon5.to(device)
-del edg, lonInd, latInd
+del edg, lonInd, latInd, lonInd1, latInd1
+
+
+if res==1:
+    g=g1.to(device)
+    latlon=latlon1
+elif res==2:
+    g=g2.to(device)
+    latlon=latlon2
+elif res==3:
+    g=g3.to(device)
+    latlon=latlon3
+elif res==4:
+    g=g4.to(device)
+    latlon=latlon4
+elif res==5:
+    g=g5.to(device)
+    latlon=latlon5
+
 
 Zmean = 5765.8457  # Z500mean=5765.8457,
 Zstd = 90.79599  # Z500std=90.79599
@@ -325,30 +299,21 @@ valInde = 0
 
 print("loading model")
 
-loss = nn.MSELoss()
-g1 = g1.to(device)
-g2 = g2.to(device)
-g3 = g3.to(device)
-g4 = g4.to(device)
-g5 = g5.to(device)
+edg = np.asarray(g.edges())
+aa=np.zeros([2,len(edg[0])])
+aa[0]=np.array(edg[0])
+aa[1]=np.array(edg[1])
+edge_index=torch.tensor(aa,dtype=torch.int64)
 
-model = UnetGraphSAGE(
-    input_res,
-    pooling_size,
-    g1,
-    g2,
-    g3,
-    g4,
-    g5,
-    7,
-    n_filter,
-    2,
-    edge_in_feats,
-    edge_h_feats,
-    num_step_message_passing,
-).to(device)
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+loss = nn.MSELoss()
+model = MeshGraphNet(input_dim_node, input_dim_edge, node_hidden_feats, out_feat,num_layers).to(device)
+
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
+
 print('Total Parameters:', sum([p.nelement() for p in model.parameters()]))
 
 
@@ -359,6 +324,7 @@ for epoch in range(1, epochs + 1):
 
     for ss in all_indices:
         model.train()
+
         Z500train = (
             state_training_data[variableList[0]]
             .isel(time=slice((ss * Chuncksize), (ss + 1) * Chuncksize))
@@ -426,10 +392,6 @@ for epoch in range(1, epochs + 1):
         x_val = val[:, 0:-lead, :]
         y_val = val[:, lead::, :]
 
-        if residual == 1:
-            y_train = y_train - x_train
-            y_val = y_val - x_val
-
         x_train = np.swapaxes(x_train, 1, 0)
         y_train = np.swapaxes(y_train, 1, 0)
         x_train = np.swapaxes(x_train, 2, 1)
@@ -456,32 +418,19 @@ for epoch in range(1, epochs + 1):
 
         l_sum, n = 0.0, 0
         for x, y in train_iter:
-            ss=time.time()
             exteraVar1 = exteraVar[: x.size(0)]
             x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
             optimizer.zero_grad()
-            y_pred = model(x, latlon1,latlon2,latlon3, latlon4, latlon5).view(-1, out_feat)
+            y_pred = model(x,edge_index, latlon).view(-1, out_feat)
+            # y_pred = model(x, latlon).view(-1, out_feat)
             l = loss(y_pred, torch.squeeze(y.to(device)))
             l.backward()
             optimizer.step()
             l_sum += l.item() * y.shape[0]
             n += y.shape[0]
 
-        print(" epoch", epoch, ", train loss:", l.item(),"time:",time.time()-ss)
         scheduler.step()
-        val_loss = evaluate_model11(
-            model,
-            loss,
-            val_iter,
-            exteraVar,
-            out_feat,
-            latlon1,
-            latlon2,
-            latlon3,
-            latlon4,
-            latlon5,
-            device,
-        )
+        val_loss = evaluate_model11(model, latlon, loss, val_iter, exteraVar, out_feat, edge_index, device)
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), savemodelpath)
@@ -492,11 +441,3 @@ for epoch in range(1, epochs + 1):
         fs = get_fs(model_out_url)
         fs.put(savemodelpath, model_out_url)
         print(savemodelpath, model_out_url)
-
-
-# best_model = STGCN_WAVE(channels, window, num_nodes, g, drop_prob, num_layers, device, control_str).to(device)
-# best_model.load_state_dict(torch.load(savemodelpath))
-
-# l = evaluate_model(best_model, loss, test_iter)
-# MAE, MAPE, RMSE = evaluate_metric(best_model, test_iter, scaler)
-# print("test loss:", l, "\nMAE:", MAE, ", MAPE:", MAPE, ", RMSE:", RMSE)
