@@ -1,18 +1,53 @@
+from fv3fit._shared.predictor import Dumpable, Loadable
 from .._shared.scaler import StandardScaler
 import numpy as np
 import torch
 import torch.nn as nn
 import xarray as xr
-from fv3fit._shared import Dumpable
-from typing import Any, Dict, Hashable, Iterable, Mapping, Tuple
+from typing import Hashable, Iterable, Mapping, Tuple, TypeVar, Type, IO, Protocol
+import zipfile
 from fv3fit.pytorch.system import DEVICE
+import os
+import yaml
+import vcm
 
 
-class PytorchModel(Dumpable):
+L = TypeVar("L", bound="BinaryLoadable")
+
+
+class BinaryLoadable(Protocol):
+    """
+    Abstract base class for objects that can be dumped.
+    """
+
+    @classmethod
+    def load(cls: Type[L], f: IO[bytes]) -> L:
+        ...
+
+
+def dump_mapping(mapping: Mapping[Hashable, StandardScaler], f: IO[bytes]) -> None:
+    """
+    Serialize a mapping to a zip file.
+    """
+    with zipfile.ZipFile(f, "w") as archive:
+        for key, value in mapping.items():
+            with archive.open(str(key), "w") as f_dump:
+                value.dump(f_dump)
+
+
+def load_mapping(cls: Type[L], f: IO[bytes]) -> Mapping[Hashable, L]:
+    """
+    Load a mapping from a zip file.
+    """
+    with zipfile.ZipFile(f, "r") as archive:
+        return {name: cls.load(archive.open(name, "r")) for name in archive.namelist()}
+
+
+class PytorchModel(Dumpable, Loadable):
 
     _MODEL_FILENAME = "weight.pt"
     _CONFIG_FILENAME = "config.yaml"
-    custom_objects: Dict[str, Any] = {}
+    _SCALERS_FILENAME = "scalers.zip"
 
     def __init__(
         self,
@@ -126,39 +161,29 @@ class PytorchModel(Dumpable):
 
     @classmethod
     def load(cls, path: str) -> "PytorchModel":
-        raise NotImplementedError()
-        # """Load a serialized model from a directory."""
-        # with get_dir(path) as path:
-        #     model_filename = os.path.join(path, cls._MODEL_FILENAME)
-        #     model = self.model.load_state_dict(torch.load(model_filename))
-        #     self.model.eval()
-
-        #     with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
-        #         config = yaml.load(f, Loader=yaml.Loader)
-        #     obj = cls(
-        #         config["input_variables"],
-        #         config["output_variables"],
-        #         model,
-        #         unstacked_dims=config.get("unstacked_dims", None),
-        #     )
-        #     return obj
+        """Load a serialized model from a directory."""
+        fs = vcm.get_fs(path)
+        model_filename = os.path.join(path, cls._MODEL_FILENAME)
+        with fs.open(model_filename, "rb") as f:
+            model = torch.load(f)
+        with fs.open(os.path.join(path, cls._SCALERS_FILENAME), "rb") as f:
+            scalers = load_mapping(StandardScaler, f)
+        with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+            config = yaml.load(f, Loader=yaml.Loader)
+        obj = cls(
+            state_variables=config["state_variables"], model=model, scalers=scalers,
+        )
+        return obj
 
     def dump(self, path: str) -> None:
-        raise NotImplementedError()
-        # with put_dir(path) as path:
-        #     if self.model is not None:
-        #         model_filename = os.path.join(path, self._MODEL_FILENAME)
-        #         torch.save(self.model.state_dict(), model_filename)
-        #     with open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
-        #         f.write(
-        #             yaml.dump(
-        #                 {
-        #                     "input_variables": self.input_variables,
-        #                     "output_variables": self.output_variables,
-        #                     "unstacked_dims": self._unstacked_dims,
-        #                 }
-        #             )
-        #         )
+        fs = vcm.get_fs(path)
+        model_filename = os.path.join(path, self._MODEL_FILENAME)
+        with fs.open(model_filename, "wb") as f:
+            torch.save(self.model, model_filename)
+        with fs.open(os.path.join(path, self._SCALERS_FILENAME), "wb") as f:
+            dump_mapping(self.scalers, f)
+        with fs.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
+            f.write(yaml.dump({"state_variables": self.state_variables}))
 
 
 def _pack_to_tensor(

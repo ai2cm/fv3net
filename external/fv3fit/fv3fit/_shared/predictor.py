@@ -1,12 +1,14 @@
 import xarray as xr
 import abc
-from typing import Hashable, Iterable
+from typing import Hashable, Iterable, Type, TypeVar
 import logging
 
 from .input_sensitivity import InputSensitivity
 
 DATASET_DIM_NAME = "dataset"
 logger = logging.getLogger(__file__)
+
+L = TypeVar("L", bound="Loadable")
 
 
 class Dumpable(abc.ABC):
@@ -18,6 +20,17 @@ class Dumpable(abc.ABC):
     def dump(self, path: str) -> None:
         """Serialize to a directory."""
         pass
+
+
+class Loadable(abc.ABC):
+    """
+    Abstract base class for objects that can be loaded from a directory.
+    """
+
+    @classmethod
+    def load(cls: Type[L], path: str) -> L:
+        """Load from a directory."""
+        ...
 
 
 class Predictor(Dumpable):
