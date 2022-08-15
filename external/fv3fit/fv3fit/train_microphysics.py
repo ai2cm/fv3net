@@ -184,6 +184,16 @@ class TransformedParameters(Hyperparameters):
 
         return out
 
+    def prepare_flat_data(self, batched: tf.data.Dataset) -> tf.data.Dataset:
+        unbatched = (
+            batched.map(tfdataset.apply_to_mapping(tfdataset.float64_to_float32))
+            .map(expand_single_dim_data)
+            .unbatch()
+        )
+        for filter in self.filters:
+            unbatched = unbatched.filter(filter)
+        return unbatched
+
     @property
     def transform_factory(self) -> ComposedTransformFactory:
         return ComposedTransformFactory(self.tensor_transform)
@@ -276,12 +286,16 @@ class TrainConfig(TransformedParameters):
 
     Attributes:
 
-        train_url: Path to training netcdfs (already in [sample x feature] format)
-        test_url: Path to validation netcdfs (already in [sample x feature] format)
+        train_url: Path to training data (already in [sample x feature] format)
+        test_url: Path to validation data (already in [sample x feature] format)
         transform: Data preprocessing TransformConfig
         nfiles: Number of files to use from train_url
         nfiles_valid: Number of files to use from test_url
         log_level: what logging level to use
+        save_only: If true, don't train, but save the train and test data with
+            tf.data.experimental.save to ``out_url``
+        data_format: one of ['nc', 'tf']. The data format of datasets at
+            ``train_url`` and ``test_url``.
     """
 
     train_url: str = ""
@@ -290,6 +304,8 @@ class TrainConfig(TransformedParameters):
     nfiles: Optional[int] = None
     nfiles_valid: Optional[int] = None
     log_level: str = "INFO"
+    save_only: bool = False
+    data_format: str = "nc"
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -374,7 +390,7 @@ class TrainConfig(TransformedParameters):
     def to_yaml(self) -> str:
         return yaml.safe_dump(_asdict_with_enum(self))
 
-    def open_dataset(
+    def _open_dataset(
         self, url: str, nfiles: Optional[int], required_variables: Set[str],
     ) -> tf.data.Dataset:
         nc_open_fn = self.transform.get_pipeline(required_variables)
@@ -385,6 +401,24 @@ class TrainConfig(TransformedParameters):
             shuffle=True,
             random_state=np.random.RandomState(0),
         )
+
+    def open_dataset(
+        self, url: str, nfiles: Optional[int], required_variables: Set[str],
+    ) -> tf.data.Dataset:
+        if self.data_format == "nc":
+            return self._open_dataset(url, nfiles, required_variables,)
+        elif self.data_format == "tf":
+            # needs to be batched
+            return tf.data.experimental.load(url).batch(1)
+        else:
+            raise NotImplementedError(self.data_format)
+
+    def open_train_test(self):
+        train = self.open_dataset(self.train_url, self.nfiles, self.model_variables)
+        test = self.open_dataset(self.test_url, self.nfiles_valid, self.model_variables)
+        train_ds = self.prepare_flat_data(train)
+        test_ds = self.prepare_flat_data(test) if test else None
+        return train_ds, test_ds
 
 
 def save_jacobians(std_jacobians, dir_, filename="jacobians.npz"):
@@ -403,21 +437,13 @@ def train_function(
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
 ) -> PureKerasDictPredictor:
-    def _prepare(ds):
-        unbatched = (
-            ds.map(tfdataset.apply_to_mapping(tfdataset.float64_to_float32))
-            .map(expand_single_dim_data)
-            .unbatch()
-        )
-        for filter in hyperparameters.filters:
-            unbatched = unbatched.filter(filter)
-        return unbatched
-
-    return _train_function_unbatched(
-        hyperparameters,
-        _prepare(train_batches),
-        _prepare(validation_batches) if validation_batches else None,
+    train = hyperparameters.prepare_flat_data(train_batches)
+    validation = (
+        hyperparameters.prepare_flat_data(validation_batches)
+        if validation_batches
+        else None
     )
+    return _train_function_unbatched(hyperparameters, train, validation)
 
 
 def _train_function_unbatched(
@@ -478,10 +504,7 @@ def _train_function_unbatched(
     )
 
 
-def main(config: TrainConfig, seed: int = 0):
-    logging.basicConfig(level=getattr(logging, config.log_level))
-    set_random_seed(seed)
-
+def train_main(config: TrainConfig):
     start = time.perf_counter()
     train_ds = config.open_dataset(
         config.train_url, config.nfiles, config.model_variables
@@ -531,6 +554,29 @@ def main(config: TrainConfig, seed: int = 0):
     save_jacobians(std_jacobians, config.out_url, "jacobians.npz")
     if config.use_wandb:
         plot_all_output_sensitivities(std_jacobians)
+
+
+def save(config: TrainConfig):
+    path = config.out_url
+    logger.info(f"saving training and validation data to {path}")
+    train, test = config.open_train_test()
+    path = path.rstrip("/")
+    tf.data.experimental.save(train, f"{path}/train")
+    tf.data.experimental.save(test, f"{path}/test")
+
+    # upload config
+    with put_dir(config.out_url) as tmpdir:
+        with open(os.path.join(tmpdir, "config.yaml"), "w") as f:
+            f.write(config.to_yaml())
+
+
+def main(config: TrainConfig, seed: int = 0):
+    logging.basicConfig(level=getattr(logging, config.log_level))
+    set_random_seed(seed)
+    if config.save_only:
+        return save(config)
+    else:
+        return train_main(config)
 
 
 def get_default_config():

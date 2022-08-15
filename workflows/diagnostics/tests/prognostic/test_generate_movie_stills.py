@@ -33,3 +33,8 @@ def test__non_zero():
     assert not _non_zero(xr.Dataset({"a": da_zeros, "b": da_not_zeros}), ["a"])
     assert not _non_zero(xr.Dataset({"a": da_zeros}), ["b"])
     assert _non_zero(xr.Dataset({"a": da_zeros, "b": da_not_zeros}), ["a", "b"])
+
+
+def test__non_zero_on_length_zero_time():
+    da_zero_time = xr.DataArray(np.ones((0, 5)), dims=("time", "x"))
+    assert not _non_zero(xr.Dataset({"a": da_zero_time}), ["a"])
