@@ -1,3 +1,4 @@
+import pathlib
 from util import compare_data
 import serialbox as ser
 from radiation import RadiationDriver, getdata, variables_to_read
@@ -5,10 +6,11 @@ import time
 
 variables = variables_to_read.vars_dict
 
+ROOT = pathlib.Path(__file__).parent.parent.resolve()
+LOOKUP_DIR = (ROOT / "data/lookupdata").as_posix()
+FORCING_DIR = (ROOT / "data/forcing").as_posix()
+FORTRANDATA_DIR = (ROOT / "data/fortran/radiation_driver").as_posix()
 
-LOOKUP_DIR = "../data/lookupdata"
-FORCING_DIR = "../data/forcing"
-FORTRANDATA_DIR = "../data/fortran/radiation_driver"
 nlay = 63
 
 # defining useful functions
