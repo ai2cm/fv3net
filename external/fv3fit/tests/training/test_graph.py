@@ -15,9 +15,9 @@ def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
         for _ in range(nsamples):
             start = {
                 "a": np.random.uniform(
-                    low=0, high=1, size=(nbatch, 1, ntile, nx, ny, nz)
+                    low=-1, high=1, size=(nbatch, 1, ntile, nx, ny, nz)
                 ),
-                "b": np.random.uniform(low=0, high=1, size=(nbatch, 1, ntile, nx, ny)),
+                "b": np.random.uniform(low=-1, high=1, size=(nbatch, 1, ntile, nx, ny)),
             }
             out = {key: [value] for key, value in start.items()}
             for _ in range(ntime - 1):
@@ -59,8 +59,10 @@ def test_train_graph_network(tmpdir):
     state_variables = ["a", "b"]
     train_tfdataset = get_tfdataset(nsamples=20, **sizes)
     val_tfdataset = get_tfdataset(nsamples=3, **sizes)
+    # for test, need one continuous series so we consistently flip sign
+    test_sizes = {"nbatch": 1, "ntime": 100, "nx": 8, "ny": 8, "nz": 2}
     test_xrdataset = tfdataset_to_xr_dataset(
-        get_tfdataset(nsamples=10, **sizes), dims=["time", "tile", "x", "y", "z"]
+        get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
     hyperparameters = GraphHyperparameters(state_variables=state_variables)
     predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)
