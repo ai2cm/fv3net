@@ -108,16 +108,21 @@ class RadiationDriver:
                     f"- ISUBCLW={isubclw}, No McICA, use grid ",
                     f"averaged cloud in LW radiation",
                 )
-            elif isubclw == 1:
+                raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
+
+            if isubclw == 1:
                 print(
                     "- ISUBCLW={isubclw}, Use McICA with fixed ",
                     "permutation seeds for LW random number generator",
                 )
-            elif isubclw == 2:
+                raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
+
+            if isubclw == 2:
                 print(
                     f"- ISUBCLW={isubclw}, Use McICA with random ",
                     f"permutation seeds for LW random number generator",
                 )
+
             else:
                 raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
 
@@ -126,12 +131,16 @@ class RadiationDriver:
                     "- ISUBCSW={isubcsw}, No McICA, use grid ",
                     "averaged cloud in SW radiation",
                 )
-            elif isubcsw == 1:
+                raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
+
+            if isubcsw == 1:
                 print(
                     f"- ISUBCSW={isubcsw}, Use McICA with fixed ",
                     "permutation seeds for SW random number generator",
                 )
-            elif isubcsw == 2:
+                raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
+
+            if isubcsw == 2:
                 print(
                     f"- ISUBCSW={isubcsw}, Use McICA with random ",
                     "permutation seeds for SW random number generator",
@@ -338,12 +347,18 @@ class RadiationDriver:
     ):
 
         return self._GFS_radiation_driver(
-            Model, Statein, Sfcprop, Grid, Tbd, randomdict, lwdict, swdict,
+            Model, Statein, Sfcprop, Grid, randomdict, lwdict, swdict,
         )
 
     def _GFS_radiation_driver(
-        self, Model, Statein, Sfcprop, Grid, Tbd, randomdict, lwdict, swdict,
+        self, Model, Statein, Sfcprop, Grid, randomdict, lwdict, swdict,
     ):
+        if Model["uni_cld"]:
+            raise FileNotFoundError(f"uni_cld = True Not implemented")
+
+        if Model["effr_in"]:
+            raise FileNotFoundError(f"effr_in = True Not implemented")
+
         if not (Model["lsswr"] or Model["lslwr"]):
             return
 
@@ -389,10 +404,6 @@ class RadiationDriver:
         deltaq = np.zeros((IM, Model["levr"] + self.LTP))
         cnvc = np.zeros((IM, Model["levr"] + self.LTP))
         cnvw = np.zeros((IM, Model["levr"] + self.LTP))
-        effrl = np.zeros((IM, Model["levr"] + self.LTP))
-        effri = np.zeros((IM, Model["levr"] + self.LTP))
-        effrr = np.zeros((IM, Model["levr"] + self.LTP))
-        effrs = np.zeros((IM, Model["levr"] + self.LTP))
         dz = np.zeros((IM, Model["levr"] + self.LTP))
         prslk1 = np.zeros((IM, Model["levr"] + self.LTP))
         tem2da = np.zeros((IM, Model["levr"] + self.LTP))
@@ -746,32 +757,12 @@ class RadiationDriver:
                 for i in range(IM):
                     if ccnd[i, k, 0] < self.EPSQ:
                         ccnd[i, k, 0] = 0.0
-
         if Model["uni_cld"]:
-            if Model["effr_in"]:
-                for k in range(LM):
-                    k1 = k + kd
-                    for i in range(IM):
-                        cldcov[i, k1] = Tbd["phy_f3d"][i, k, Model["indcld"] - 1]
-                        effrl[i, k1] = Tbd["phy_f3d"][i, k, 1]
-                        effri[i, k1] = Tbd["phy_f3d"][i, k, 2]
-                        effrr[i, k1] = Tbd["phy_f3d"][i, k, 3]
-                        effrs[i, k1] = Tbd["phy_f3d"][i, k, 4]
-            else:
-                for k in range(LM):
-                    k1 = k + kd
-                    for i in range(IM):
-                        cldcov[i, k1] = Tbd["phy_f3d"][i, k, Model["indcld"] - 1]
+            raise Exception("effr_in = True not implemented")
+
         elif Model["imp_physics"] == 11:  # GFDL MP
             cldcov[:IM, kd : LM + kd] = tracer1[:IM, :LM, Model["ntclamt"] - 1]
-            if Model["effr_in"]:
-                for k in range(LM):
-                    k1 = k + kd
-                    for i in range(IM):
-                        effrl[i, k1] = Tbd["phy_f3d"][i, k, 0]
-                        effri[i, k1] = Tbd["phy_f3d"][i, k, 1]
-                        effrr[i, k1] = Tbd["phy_f3d"][i, k, 2]
-                        effrs[i, k1] = Tbd["phy_f3d"][i, k, 3]
+
         else:  # neither of the other two cases
             cldcov = 0.0
 
@@ -782,24 +773,8 @@ class RadiationDriver:
         #          ferrier's (imp_phys=5) microphysics schemes
 
         if (
-            Model["num_p3d"] == 4 and Model["npdf3d"] == 3
-        ):  # same as Model%imp_physics = 99
-            for k in range(LM):
-                k1 = k + kd
-                for i in range(IM):
-                    deltaq[i, k1] = Tbd["phy_f3d"][i, k, 4]
-                    cnvw[i, k1] = Tbd["phy_f3d"][i, k, 5]
-                    cnvc[i, k1] = Tbd["phy_f3d"][i, k, 6]
-        elif (
-            Model["npdf3d"] == 0 and Model["ncnvcld3d"] == 1
-        ):  # same as MOdel%imp_physics=98
-            for k in range(LM):
-                k1 = k + kd
-                for i in range(IM):
-                    deltaq[i, k1] = 0.0
-                    cnvw[i, k1] = Tbd["phy_f3d"][i, k, Model["num_p3d"]]
-                    cnvc[i, k1] = 0.0
-        else:  # all the rest
+            Model["num_p3d"] == 1 and Model["npdf3d"] == 0 and Model["ncnvcld3d"] == 0
+        ):  # all the rest
             for k in range(LMK):
                 for i in range(IM):
                     deltaq[i, k] = 0.0
@@ -812,13 +787,6 @@ class RadiationDriver:
                 deltaq[i, lyb - 1] = deltaq[i, lya - 1]
                 cnvw[i, lyb - 1] = cnvw[i, lya - 1]
                 cnvc[i, lyb - 1] = cnvc[i, lya - 1]
-
-            if Model["effr_in"]:
-                for i in range(IM):
-                    effrl[i, lyb - 1] = effrl[i, lya - 1]
-                    effri[i, lyb - 1] = effri[i, lya - 1]
-                    effrr[i, lyb - 1] = effrr[i, lya - 1]
-                    effrs[i, lyb - 1] = effrs[i, lya - 1]
 
         if Model["imp_physics"] == 99:
             ccnd[:IM, :LMK, 0] = ccnd[:IM, :LMK, 0] + cnvw[:IM, :LMK]
@@ -935,7 +903,6 @@ class RadiationDriver:
                         olyr,
                         gasvmr,
                         clouds,
-                        Tbd["icsdsw"],
                         faersw,
                         sfcalb,
                         dz,
@@ -982,7 +949,6 @@ class RadiationDriver:
                         olyr,
                         gasvmr,
                         clouds,
-                        Tbd["icsdsw"],
                         faersw,
                         sfcalb,
                         dz,
@@ -1100,7 +1066,6 @@ class RadiationDriver:
                     olyr,
                     gasvmr,
                     clouds,
-                    Tbd["icsdlw"],
                     faerlw,
                     Radtend["semis"],
                     tsfg,
@@ -1136,7 +1101,6 @@ class RadiationDriver:
                     olyr,
                     gasvmr,
                     clouds,
-                    Tbd["icsdlw"],
                     faerlw,
                     Radtend["semis"],
                     tsfg,
