@@ -1,8 +1,5 @@
 from util import compare_data
 import serialbox as ser
-import sys
-SRC_PATH = '/home/brianh/dev/fv3net/external/radiation'
-sys.path.append(SRC_PATH)
 from radiation import RadiationDriver, getdata, variables_to_read
 import time
 
@@ -31,9 +28,7 @@ startTime = time.time()
 rank = 0
 driver = RadiationDriver()
 
-serial = ser.Serializer(
-    ser.OpenModeKind.Read, FORTRANDATA_DIR, "Generator_rank0",
-)
+serial = ser.Serializer(ser.OpenModeKind.Read, FORTRANDATA_DIR, "Generator_rank0",)
 
 si = serial.read("si", serial.savepoint["rad-initialize"])
 imp_physics = serial.read("imp_physics", serial.savepoint["rad-initialize"])
@@ -130,9 +125,7 @@ columns_validated = 0
 for rank in range(6):
 
     serializer = ser.Serializer(
-        ser.OpenModeKind.Read,
-        FORTRANDATA_DIR,
-        "Generator_rank" + str(rank),
+        ser.OpenModeKind.Read, FORTRANDATA_DIR, "Generator_rank" + str(rank),
     )
 
     Model = dict()

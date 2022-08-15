@@ -21,5 +21,6 @@ in pkgs.mkShell {
   ];
   shellHook = ''
     export PYTHONPATH=${pkgs.serialbox}/python:$PYTHONPATH
+    export PYTHONPATH=$(pwd):$PYTHONPATH
   '';
 }
