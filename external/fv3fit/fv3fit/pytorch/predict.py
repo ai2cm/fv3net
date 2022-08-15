@@ -37,7 +37,7 @@ def dump_mapping(mapping: Mapping[Hashable, StandardScaler], f: IO[bytes]) -> No
 
 def load_mapping(cls: Type[L], f: IO[bytes]) -> Mapping[Hashable, L]:
     """
-    Serialize a mapping to a zip file.
+    Load a mapping from a zip file.
     """
     with zipfile.ZipFile(f, "r") as archive:
         return {name: cls.load(archive.open(name, "r")) for name in archive.namelist()}
@@ -65,44 +65,29 @@ class PytorchModel(Dumpable, Loadable):
         self.model = model
         self.scalers = scalers
 
-    def pack_to_tensor(self, ds: xr.Dataset, times_per_window: int) -> torch.Tensor:
+    def pack_to_tensor(self, ds: xr.Dataset, timesteps: int) -> torch.Tensor:
         """
         Packs the dataset into a tensor to be used by the pytorch model.
 
-        Subdivides the dataset evenly into non-overlapping windows
-        of size times_per_window.
+        Subdivides the dataset evenly into windows
+        of size (timesteps + 1) with overlapping start and end points.
+        Overlapping the window start and ends is necessary so that every
+        timestep (evolution from one time to the next) is included within
+        one of the windows.
 
         Args:
             ds: dataset containing values to pack
-            times_per_window: number of times to include per window
+            timesteps: number timesteps to include in each window after initial time
 
         Returns:
-            tensor of shape [sample, time, tile, x, y, feature]
+            tensor of shape [window, time, tile, x, y, feature]
         """
-        expected_dims = ("time", "tile", "x", "y", "z")
-        ds = ds.transpose(*expected_dims)
-        n_times = ds.time.size
-        n_windows = int(n_times / times_per_window)
-        # times need to be evenly divisible into windows
-        ds = ds.isel(time=slice(None, n_windows * times_per_window))
-        all_data = []
-        for varname in self.state_variables:
-            var_dims = ds[varname].dims
-            if tuple(var_dims[:4]) != expected_dims[:4]:
-                raise ValueError(
-                    f"received variable {varname} with "
-                    f"unexpected dimensions {var_dims}"
-                )
-            data = ds[varname].values
-            data = self.scalers[varname].normalize(data)
-            # segment time axis into windows
-            data = data.reshape(n_windows, times_per_window, *data.shape[1:])
-            if "z" not in var_dims:
-                # need a z-axis for concatenation into feature axis
-                data = data[..., np.newaxis]
-            all_data.append(data)
-        concatenated_data = np.concatenate(all_data, axis=-1)
-        return torch.as_tensor(concatenated_data).float().to(DEVICE)
+        return _pack_to_tensor(
+            ds=ds,
+            timesteps=timesteps,
+            state_variables=self.state_variables,
+            scalers=self.scalers,
+        )
 
     def unpack_tensor(self, data: torch.Tensor) -> xr.Dataset:
         """
@@ -168,7 +153,7 @@ class PytorchModel(Dumpable, Loadable):
             predicted: predicted timeseries data
             reference: true timeseries data from the input dataset
         """
-        tensor = self.pack_to_tensor(X, times_per_window=timesteps + 1)
+        tensor = self.pack_to_tensor(X, timesteps=timesteps)
         outputs = self.step_model(tensor[:, 0, :], timesteps=timesteps)
         predicted = self.unpack_tensor(outputs)
         reference = self.unpack_tensor(tensor)
@@ -199,3 +184,56 @@ class PytorchModel(Dumpable, Loadable):
             dump_mapping(self.scalers, f)
         with fs.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
             f.write(yaml.dump({"state_variables": self.state_variables}))
+
+
+def _pack_to_tensor(
+    ds: xr.Dataset,
+    timesteps: int,
+    state_variables: Iterable[Hashable],
+    scalers: Mapping[Hashable, StandardScaler],
+) -> torch.Tensor:
+    """
+    Packs the dataset into a tensor to be used by the pytorch model.
+
+    Subdivides the dataset evenly into windows
+    of size (timesteps + 1) with overlapping start and end points.
+    Overlapping the window start and ends is necessary so that every
+    timestep (evolution from one time to the next) is included within
+    one of the windows.
+
+    Args:
+        ds: dataset containing values to pack
+        timesteps: number timesteps to include in each window after initial time
+
+    Returns:
+        tensor of shape [window, time, tile, x, y, feature]
+    """
+
+    expected_dims = ("time", "tile", "x", "y", "z")
+    ds = ds.transpose(*expected_dims)
+    n_times = ds.time.size
+    n_windows = int((n_times - 1) // timesteps)
+    # times need to be evenly divisible into windows
+    ds = ds.isel(time=slice(None, n_windows * timesteps + 1))
+    all_data = []
+    for varname in state_variables:
+        var_dims = ds[varname].dims
+        if tuple(var_dims[:4]) != expected_dims[:4]:
+            raise ValueError(
+                f"received variable {varname} with " f"unexpected dimensions {var_dims}"
+            )
+        data = ds[varname].values
+        normalized_data = scalers[varname].normalize(data)
+        # segment time axis into windows, excluding last time of each window
+        data = normalized_data[:-1, :].reshape(n_windows, timesteps, *data.shape[1:])
+        # append first time of next window to end of each window
+        end_data = np.concatenate(
+            [data[1:, :1, :], normalized_data[None, -1:, :]], axis=0
+        )
+        data = np.concatenate([data, end_data], axis=1)
+        if "z" not in var_dims:
+            # need a z-axis for concatenation into feature axis
+            data = data[..., np.newaxis]
+        all_data.append(data)
+    concatenated_data = np.concatenate(all_data, axis=-1)
+    return torch.as_tensor(concatenated_data).float().to(DEVICE)
