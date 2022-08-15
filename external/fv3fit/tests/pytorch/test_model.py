@@ -1,4 +1,5 @@
-from fv3fit.pytorch import PytorchModel, _pack_to_tensor
+from fv3fit.pytorch import PytorchModel
+from fv3fit.pytorch.predict import _pack_to_tensor
 from torch import nn
 import fv3fit
 import numpy as np
