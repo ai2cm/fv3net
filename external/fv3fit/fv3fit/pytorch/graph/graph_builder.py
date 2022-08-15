@@ -3,7 +3,7 @@ import numpy as np
 from fv3fit.keras._models.shared.halos import append_halos
 import xarray as xr
 import functools
-import torch
+from ..system import DEVICE
 import dgl
 
 
@@ -54,5 +54,4 @@ def build_dgl_graph(nx_tile: int) -> dgl.DGLGraph:
     """
     graph_data = build_graph(nx_tile)
     g = dgl.graph(graph_data)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    return g.to(device)
+    return g.to(DEVICE)
