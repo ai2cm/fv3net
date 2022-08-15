@@ -38,7 +38,7 @@ def dump_mapping(mapping: Mapping[Hashable, StandardScaler], f: IO[bytes]) -> No
 
 def load_mapping(cls: Type[L], f: IO[bytes]) -> Mapping[Hashable, L]:
     """
-    Serialize a mapping to a zip file.
+    Load a mapping from a zip file.
     """
     with zipfile.ZipFile(f, "r") as archive:
         return {name: cls.load(archive.open(name, "r")) for name in archive.namelist()}
