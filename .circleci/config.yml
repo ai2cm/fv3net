@@ -233,7 +233,7 @@ jobs:
           command: |
             cd external/radiation
             . /home/circleci/.nix-profile/etc/profile.d/nix.sh
-            nix-shell --command "cd python && python test_driver.py"
+            nix-shell --command "cd tests && python test_driver.py"
 
 workflows:
   version: 2
