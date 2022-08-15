@@ -119,9 +119,10 @@ def _save_water_vapor_path_fig(arg: MovieArg):
 def _non_zero(ds: xr.Dataset, variables: Sequence, tol=1e-12) -> bool:
     """Check whether any of variables are non-zero. Useful to ensure that
     movies of all zero-valued fields are not generated."""
-    for variable in variables:
-        if variable in ds and abs(ds[variable]).max() > tol:
-            return True
+    if min(ds.sizes.values()) > 0:
+        for variable in variables:
+            if variable in ds and abs(ds[variable]).max() > tol:
+                return True
     return False
 
 
