@@ -1,5 +1,5 @@
 import numpy as np
-from phys_const import con_g, con_cp
+from ..phys_const import con_g, con_cp
 
 # num of total spectral bands
 nbands = 16

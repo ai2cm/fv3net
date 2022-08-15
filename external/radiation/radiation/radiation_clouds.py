@@ -1,6 +1,6 @@
 import numpy as np
-from phys_const import con_ttp, con_pi, con_g, con_rd, con_thgni
-from radphysparam import lcrick, lcnorm
+from .phys_const import con_ttp, con_pi, con_g, con_rd, con_thgni
+from .radphysparam import lcrick, lcnorm
 
 
 class CloudClass:

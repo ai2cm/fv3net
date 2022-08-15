@@ -1,6 +1,6 @@
 import numpy as np
 from numba import jit
-from radsw.radsw_param import (
+from .radsw_param import (
     nspa,
     nspb,
     ng,

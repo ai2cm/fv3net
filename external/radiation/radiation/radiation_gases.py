@@ -1,7 +1,8 @@
 import numpy as np
 import sys
-from phys_const import con_pi
+from .phys_const import con_pi
 
+# TODO: can we delete this?
 sys.path.insert(0, "..")
 
 
