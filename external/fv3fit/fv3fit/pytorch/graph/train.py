@@ -13,6 +13,7 @@ from ..system import DEVICE
 
 from fv3fit._shared import register_training_function
 from typing import (
+    Callable,
     List,
     Optional,
     Sequence,
@@ -61,8 +62,10 @@ def get_scalers(sample: Mapping[str, np.ndarray]):
     return scalers
 
 
-def get_mapping_scaler(scalers: Mapping[str, StandardScaler]):
-    def scale(data):
+def get_mapping_scale_func(
+    scalers: Mapping[str, StandardScaler]
+) -> Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]]:
+    def scale(data: Mapping[str, np.ndarray]):
         output = {**data}
         for name, array in data.items():
             output[name] = scalers[name].normalize(array)
@@ -96,12 +99,12 @@ def train_graph_model(
     )
 
     scalers = get_scalers(sample)
-    mapping_scaler = get_mapping_scaler(scalers)
+    mapping_scale_func = get_mapping_scale_func(scalers)
 
     get_state = curry(get_Xy_dataset)(
         state_variables=hyperparameters.state_variables,
         n_dims=6,  # [batch, time, tile, x, y, z]
-        scaler=mapping_scaler,
+        mapping_scale_func=mapping_scale_func,
     )
 
     if validation_batches is not None:
@@ -145,19 +148,32 @@ def build_model(graph_network, n_state: int):
 
 
 def get_Xy_dataset(
-    state_variables: Sequence[str], n_dims: int, scaler, data: tf.data.Dataset,
+    state_variables: Sequence[str],
+    n_dims: int,
+    mapping_scale_func: Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]],
+    data: tf.data.Dataset,
 ):
     """
-    Given a tf.data.Dataset with mappings from variable name to samples of shape
-    [batch, time, tile, x, y(, z)]
+    Given a tf.data.Dataset with mappings from variable name to samples
     return a tf.data.Dataset whose entries are tensors of the requested
-    state variables concatenated along the feature dimension, of shape
-    [batch, time, tile, x, y, feature].
+    state variables concatenated along the feature dimension.
+
+    Args:
+        state_variables: names of variables to include in returned tensor
+        n_dims: number of dimensions of each sample, including feature dimension
+        mapping_scale_func: function which scales data stored as a mapping
+            from variable name to array
+        data: tf.data.Dataset with mappings from variable name
+            to sample tensors
+
+    Returns:
+        tf.data.Dataset where each sample is a single tensor
+            containing normalized and concatenated state variables
     """
     ensure_dims = apply_to_mapping(ensure_nd(n_dims))
 
     def map_fn(data):
-        data = scaler(data)
+        data = mapping_scale_func(data)
         data = ensure_dims(data)
         data = select_keys(state_variables, data)
         data = tf.concat(data, axis=-1)

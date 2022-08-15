@@ -72,21 +72,21 @@ class GraphNetwork(nn.Module):
             SAGEConv(n_features_in, config.n_hidden, config.aggregator)
         )
         self.conv2 = CubedSphereGraphOperation(
-            SAGEConv(config.n_hidden, int(config.n_hidden / 2), config.aggregator)
+            SAGEConv(config.n_hidden, int(config.n_hidden // 2), config.aggregator)
         )
         self.conv3 = CubedSphereGraphOperation(
             SAGEConv(
-                int(config.n_hidden / 2), int(config.n_hidden / 4), config.aggregator
+                int(config.n_hidden // 2), int(config.n_hidden // 4), config.aggregator
             )
         )
         self.conv4 = CubedSphereGraphOperation(
             SAGEConv(
-                int(config.n_hidden / 4), int(config.n_hidden / 4), config.aggregator
+                int(config.n_hidden // 4), int(config.n_hidden // 4), config.aggregator
             )
         )
         self.conv5 = CubedSphereGraphOperation(
             SAGEConv(
-                int(config.n_hidden / 2), int(config.n_hidden / 2), config.aggregator
+                int(config.n_hidden // 2), int(config.n_hidden // 2), config.aggregator
             )
         )
         self.conv6 = CubedSphereGraphOperation(
