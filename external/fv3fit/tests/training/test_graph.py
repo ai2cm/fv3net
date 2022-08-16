@@ -1,136 +1,75 @@
-import dataclasses
 import numpy as np
-import tensorflow as tf
 import xarray as xr
-import fv3fit
-from typing import Optional, Sequence, TextIO
-from fv3fit.pytorch.predict import PytorchModel
-import pytest
-from fv3fit.pytorch.graph.graph import GraphHyperparameters
-from fv3fit.pytorch.graph.graph_builder import build_graph, GraphConfig
-
-GENERAL_TRAINING_TYPES = [
-    "graph",
-]
-
-# automatically test on every registered training class
-@pytest.fixture(params=GENERAL_TRAINING_TYPES)
-def model_type(request):
-    return request.param
+from typing import Sequence
+from fv3fit.pytorch.graph import GraphHyperparameters, train_graph_model
+from fv3fit.tfdataset import iterable_to_tfdataset
+import collections
+import os
 
 
-@dataclasses.dataclass
-class TrainingResult:
-    model: PytorchModel
-    output_variables: Sequence[str]
-    test_dataset: tf.data.Dataset
-    hyperparameters: GraphHyperparameters
+def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
+    ntile = 6
 
-
-def train_identity_model(hyperparameters=None):
-    time, grid, nz = 50, 6 * 6 * 6, 2
-    low, high = 0.0, 1.0
-    np.random.seed(0)
-    input_variable, output_variables, train_dataset = get_data(
-        size=(time, grid, nz), low=low - 1.0, high=high + 1.0
-    )
-    np.random.seed(1)
-    _, _, val_tfdataset = get_data(size=(time, grid, nz), low=low, high=high)
-    np.random.seed(2)
-    sample_test = get_uniform_sample_func(size=(grid, nz), low=low, high=high)
-    test_dataset = xr.Dataset({"a": sample_test()})
-    hyperparameters = GraphHyperparameters(
-        input_variable, output_variables, graph=GraphConfig(nx_tile=6)
-    )
-    train = fv3fit.get_training_function("graph")
-    model = train(hyperparameters, train_dataset, val_tfdataset)
-    return TrainingResult(model, output_variables, test_dataset, hyperparameters)
-
-
-@pytest.mark.slow
-def test_train_default_model_on_identity(regtest):
-    """
-    The model with default configuration options can learn the identity function,
-    using gaussian-sampled data around 0 with unit variance.
-    """
-    assert_can_learn_identity(
-        max_rmse=0.5, regtest=regtest,
-    )
-
-
-def assert_can_learn_identity(
-    max_rmse: float, regtest: Optional[TextIO] = None,
-):
-    """
-    Args:
-        model_type: type of model to train
-        hyperparameters: model configuration
-        max_rmse: maximum permissible root mean squared error
-        regtest: if given, write hash of output dataset to this file object
-    """
-    result = train_identity_model()
-    out_dataset = result.model.predict(result.test_dataset)
-    for name in result.output_variables:
-        assert out_dataset[name].dims == result.test_dataset[name].dims
-    rmse = (
-        np.mean(
-            [
-                np.mean((out_dataset[name] - result.test_dataset[name]) ** 2)
-                / np.std(result.test_dataset[name]) ** 2
-                for name in result.output_variables
-            ]
-        )
-        ** 0.5
-    )
-    assert rmse < max_rmse
-
-
-def get_data(size, low=0, high=1) -> tf.data.Dataset:
-    n_records = 10
-    input_variables = ["a"]
-    output_variables = ["a"]
-
-    def records():
-        for _ in range(n_records):
-            record = {
-                "a": np.random.uniform(low, high, size),
+    def sample_iterator():
+        # creates a timeseries where each time is the negation of time before it
+        for _ in range(nsamples):
+            start = {
+                "a": np.random.uniform(
+                    low=-1, high=1, size=(nbatch, 1, ntile, nx, ny, nz)
+                ),
+                "b": np.random.uniform(low=-1, high=1, size=(nbatch, 1, ntile, nx, ny)),
             }
-            yield record
+            out = {key: [value] for key, value in start.items()}
+            for _ in range(ntime - 1):
+                for varname in start.keys():
+                    out[varname].append(out[varname][-1] * -1.0)
+            for varname in out:
+                out[varname] = np.concatenate(out[varname], axis=1)
+            yield out
 
-    tfdataset = tf.data.Dataset.from_generator(
-        records,
-        output_signature={
-            key: tf.TensorSpec(val.shape, dtype=val.dtype)
-            for key, val in next(iter(records())).items()
-        },
+    return iterable_to_tfdataset(list(sample_iterator()))
+
+
+def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
+    """
+    Returns a [time, tile, x, y, z] dataset needed for evaluation.
+
+    Assumes input samples have shape [sample, time, tile, x, y(, z)], will
+    concatenate samples along the time axis before returning.
+    """
+    data_sequences = collections.defaultdict(list)
+    for sample in tfdataset:
+        for name, value in sample.items():
+            data_sequences[name].append(
+                value.numpy().reshape(
+                    [value.shape[0] * value.shape[1]] + list(value.shape[2:])
+                )
+            )
+    data_vars = {}
+    for name in data_sequences:
+        data = np.concatenate(data_sequences[name])
+        data_vars[name] = xr.DataArray(data, dims=dims[: len(data.shape)])
+    return xr.Dataset(data_vars)
+
+
+def test_train_graph_network(tmpdir):
+    # run the test in a temporary directory to delete artifacts when done
+    os.chdir(tmpdir)
+    sizes = {"nbatch": 2, "ntime": 2, "nx": 8, "ny": 8, "nz": 2}
+    state_variables = ["a", "b"]
+    train_tfdataset = get_tfdataset(nsamples=20, **sizes)
+    val_tfdataset = get_tfdataset(nsamples=3, **sizes)
+    # for test, need one continuous series so we consistently flip sign
+    test_sizes = {"nbatch": 1, "ntime": 100, "nx": 8, "ny": 8, "nz": 2}
+    test_xrdataset = tfdataset_to_xr_dataset(
+        get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
-    return input_variables, output_variables, tfdataset
-
-
-def get_uniform_sample_func(size, low=0, high=1, seed=0):
-    random = np.random.RandomState(seed=seed)
-
-    def sample_func():
-        return xr.DataArray(
-            random.uniform(low=low, high=high, size=size),
-            dims=["grid", "z"],
-            coords=[range(size[i]) for i in range(len(size))],
-        )
-
-    return sample_func
-
-
-def test_graph_builder():
-    graph = build_graph(2)
-    edges = list(zip(graph[0], graph[1]))
-    assert (0, 1) in edges  # right edge
-    assert (0, 2) in edges  # top edge
-    assert (0, 0) in edges  # self edge
-    # Note due to the [tile, x, y] direction convention for index
-    # ordering, the node index orders are transposed compared to the
-    # MPI rank ordering used for cubed sphere decomposition in fv3gfs.
-    # If the order were [tile, y, x] then the node indices would be
-    # transposed in (x, y) on each tile.
-    assert (0, 21) in edges  # down edge
-    assert (0, 19) in edges  # left edge
-    assert len(edges) == 5 * 6 * 4
+    hyperparameters = GraphHyperparameters(state_variables=state_variables)
+    predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)
+    predicted, reference = predictor.predict(test_xrdataset, timesteps=1)
+    bias = predicted.isel(time=1) - reference.isel(time=1)
+    mean_bias: xr.Dataset = bias.mean()
+    rmse: xr.Dataset = (bias ** 2).mean() ** 0.5
+    for varname in state_variables:
+        assert np.abs(mean_bias[varname]) < 0.1
+        assert rmse[varname] < 0.1
