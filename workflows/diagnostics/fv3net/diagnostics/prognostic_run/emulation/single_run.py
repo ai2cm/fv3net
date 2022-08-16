@@ -301,6 +301,7 @@ def register_parser(subparsers) -> None:
         help="The path to the run-directory...in cases when tag alone is not enough "
         "like a crashed run.",
         type=str,
+        default="",
     )
     parser.add_argument(
         "-s", "--summary-only", help="Only run summaries.", action="store_true"
