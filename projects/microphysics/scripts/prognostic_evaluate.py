@@ -2,8 +2,6 @@ import argparse
 import os
 from typing import Mapping, Optional
 import logging
-import hashlib
-import tempfile
 import wandb
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
@@ -11,8 +9,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from datetime import timedelta
-from dask.diagnostics import ProgressBar
-from wandb.errors import CommError
 
 
 from fv3viz import infer_cmap_params, plot_cube
@@ -21,6 +17,7 @@ from vcm import interpolate_unstructured
 from vcm.select import meridional_ring, zonal_average_approximate
 from vcm.catalog import catalog
 from fv3net.diagnostics.prognostic_run.emulation import query
+import vcm.fv3.metadata
 
 
 logger = logging.getLogger(__name__)
@@ -60,55 +57,6 @@ def new_weighted_avg(ds: xr.Dataset, dim=["tile", "y", "x"]):
     weighted_mean = ds.map(_to_weighted_mean, keep_attrs=True, args=(area, dim))
 
     return weighted_mean
-
-
-def get_avg_data(
-    source_path: str,
-    grid_data: xr.Dataset,
-    run,
-    filename="state_mean_by_height.nc",
-    override_artifact=False,
-):
-    """
-    Open a dataset and get the tile, x, y averaged data. Loads from
-    a saved artifact based on the source_path, creates an artifact
-    if it doesn't exist, or updates the artifact if an override is
-    specified.
-
-    Args:
-        source_path: path to the zarr dataset we want to average
-        grid_data: loaded grid information for simulation
-        run: current wandb.init run
-        filename: filename to store the averaged data at in the artifact
-        override_artifact: ignore saved artifact and re-average data from source
-    """
-
-    source_hash = hashlib.md5(source_path.encode("utf-8")).hexdigest()
-    try:
-        artifact = run.use_artifact(f"{source_hash}:latest")
-        logger.info(f"Loaded existing artifact for: {source_path}")
-    except CommError:
-        logger.error(f"Run averaging artifact not found for: {source_path}")
-        artifact = None
-
-    if override_artifact or artifact is None:
-        # open zarr and do the average
-        ds = xr.open_zarr(source_path, consolidated=True,).merge(grid_data)
-        prog_avg = new_weighted_avg(ds)
-        with ProgressBar():
-            prog_avg.load()
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            nc_file = os.path.join(tmpdir, filename)
-            prog_avg.to_netcdf(nc_file)
-            artifact = wandb.Artifact(source_hash, type="by_height_avg")
-            artifact.add_file(nc_file)
-            run.log_artifact(artifact)
-    else:
-        artifact_dir = artifact.download()
-        prog_avg = xr.open_dataset(os.path.join(artifact_dir, filename))
-
-    return prog_avg
 
 
 def avg_vertical(ds: xr.Dataset, z_dim_names=["z", "z_soil"]):
@@ -428,19 +376,11 @@ def main():
     prog = prog.merge(grid)
     baseline = baseline.merge(grid)
 
-    prog_mean_by_height = get_avg_data(
-        prognostic_state_after_timestep_url,
-        grid,
-        run,
-        override_artifact=args.override_artifacts,
-    )
-    base_mean_by_height = get_avg_data(
-        baseline_state_after_timestep_url,
-        grid,
-        run,
-        override_artifact=args.override_artifacts,
-    )
+    prog = vcm.fv3.metadata.standardize_fv3_diagnostics(prog)
+    baseline = vcm.fv3.metadata.standardize_fv3_diagnostics(baseline)
 
+    prog_mean_by_height = new_weighted_avg(prog)
+    base_mean_by_height = new_weighted_avg(baseline)
     plot_time_heights(prog_mean_by_height, base_mean_by_height)
 
     # Global average comparison after timestep

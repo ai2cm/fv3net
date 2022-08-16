@@ -26,6 +26,10 @@ class NormalizedMSE:
         return self._mse(self._normalize(y_true), self._normalize(y_pred))
 
 
+def bias(y_true, y_pred):
+    return tf.math.reduce_mean(y_pred - y_true)
+
+
 @dataclasses.dataclass
 class CustomLoss:
     """
@@ -43,7 +47,8 @@ class CustomLoss:
             range [-infty, infty].
         metric_variables: variable names to include in the metrics dict
         weights: custom scaling for the loss variables applied in the
-            overall keras "loss" term
+            overall keras "loss" term. Defaults to 1.
+        bias_metric_variables: variable names to include bias in the metrics dict
     """
 
     optimizer: OptimizerConfig = dataclasses.field(
@@ -54,6 +59,7 @@ class CustomLoss:
     metric_variables: List[str] = dataclasses.field(default_factory=list)
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
     logit_variables: List[str] = dataclasses.field(default_factory=list)
+    bias_metric_variables: List[str] = dataclasses.field(default_factory=list)
 
     def build(self, output_samples: Mapping[str, tf.Tensor],) -> Callable:
         """
@@ -82,6 +88,7 @@ class CustomLoss:
             loss_variables=self.loss_variables + self.logit_variables,
             metric_variables=self.metric_variables,
             weights=self.weights,
+            bias_variables=self.bias_metric_variables,
         )
 
 
@@ -95,11 +102,13 @@ class _MultiVariableLoss:
         loss_variables: List[str],
         metric_variables: List[str],
         weights: Mapping[str, float],
+        bias_variables: List[str],
     ):
         self.loss_funcs = loss_funcs
         self.loss_variables = loss_variables
         self.metric_variables = metric_variables
         self.weights = weights
+        self.bias_variables = bias_variables
 
     def __call__(self, truth, prediction):
 
@@ -119,4 +128,10 @@ class _MultiVariableLoss:
                     loss += loss_value * weight
                 # append "_loss" for backwards compatibility
                 metrics[out_varname + "_loss"] = loss_value
+
+            if out_varname in self.bias_variables:
+                metrics[out_varname + "_bias"] = bias(
+                    truth[out_varname], y[out_varname]
+                )
+
         return loss, metrics

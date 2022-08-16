@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Iterable, Set, Hashable, Sequence
+from typing import Callable, Iterable, Optional, Set, Hashable, Sequence
 import dacite
 import fsspec
 import yaml
@@ -7,6 +7,9 @@ import os
 import numpy as np
 import xarray as xr
 import vcm
+
+from fv3fit._shared.novelty_detector import NoveltyDetector
+from fv3fit._shared.taper_function import get_taper_function, taper_mask
 
 from . import io
 from .predictor import Predictor
@@ -168,7 +171,7 @@ class EnsembleModel(Predictor):
         raise NotImplementedError(
             "no dump method yet for this class, you can define one manually "
             "using instructions at "
-            "http://vulcanclimatemodeling.com/docs/fv3fit/ensembles.html"
+            "http://vulcanclimatemodeling.com/docs/fv3fit/composite-models.html"
         )
 
     @classmethod
@@ -238,3 +241,105 @@ class TransformedPredictor(Predictor):
         ]
         transformed_model = cls(base_model, transform_configs)
         return transformed_model
+
+
+@io.register("out_of_sample")
+class OutOfSampleModel(Predictor):
+
+    _TAPER_VALUES_OUTPUT_VAR = "taper_values"
+
+    _CONFIG_FILENAME = "out_of_sample_model.yaml"
+
+    def __init__(
+        self,
+        base_model: Predictor,
+        novelty_detector: NoveltyDetector,
+        cutoff: float = 0,
+        taper: Optional[Callable[[xr.DataArray], xr.DataArray]] = None,
+    ):
+        """
+        Args:
+            base_model: trained ML-based predictor, to be used for inputs deemed
+                "in-sample" and to be suppressed otherwise
+            novelty_detector: trained novelty detector on the same inputs, which
+                predicts whether a training sample does _not_ belong the training
+                distribution of base_model
+            cutoff: a score cutoff for the novelty detector's scores; scores larger
+                are deemed out-of-samples, scores smaller are not. Specifying None
+                supplies the default cutoff value for the given NoveltyDetector
+                implementation
+            taper: given an array of novelty scores, determines how much the predicted
+                tendencies should be suppressed. Specifying None supplies a default
+                "mask" tapering, which either completely suppressed the tendencies
+                or does nothing
+        """
+        self.base_model = base_model
+        self.novelty_detector = novelty_detector
+        self.cutoff = cutoff
+        self.taper = taper or get_taper_function(
+            taper_mask.__name__, {"cutoff": cutoff}
+        )
+
+        base_inputs = set(base_model.input_variables)
+        base_outputs = set(base_model.output_variables)
+        novelty_inputs = set(novelty_detector.input_variables)
+        novelty_outputs = set(novelty_detector.output_variables)
+        taper_output = set([self._TAPER_VALUES_OUTPUT_VAR])
+        input_variables = tuple(sorted(base_inputs | novelty_inputs))
+        output_variables = tuple(sorted(base_outputs | novelty_outputs | taper_output))
+        super().__init__(
+            input_variables=input_variables, output_variables=output_variables
+        )
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        base_predict = self.base_model.predict(X)
+        centered_scores, diagnostics = self.novelty_detector.predict_novelties(
+            X, cutoff=self.cutoff
+        )
+        taper_values = self.taper(centered_scores)
+        diagnostics[self._TAPER_VALUES_OUTPUT_VAR] = taper_values
+
+        tapered_predict = xr.Dataset(
+            coords=base_predict.coords, attrs=base_predict.attrs
+        )
+        for output_variable in self.base_model.output_variables:
+            tapered_predict[output_variable] = (
+                base_predict[output_variable] * taper_values
+            )
+
+        return xr.merge([tapered_predict, diagnostics])
+
+    def dump(self, path):
+        raise NotImplementedError(
+            "no dump method yet for this class, you can define one manually "
+            "using instructions at "
+            "http://vulcanclimatemodeling.com/docs/fv3fit/composite-models.html"
+        )
+
+    @classmethod
+    def load(cls, path: str) -> "OutOfSampleModel":
+        with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+            config = yaml.safe_load(f)
+
+        base_model = io.load(config["base_model_path"])
+        novelty_detector = io.load(config["novelty_detector_path"])
+        cutoff = config.get("cutoff", 0)
+
+        assert isinstance(novelty_detector, NoveltyDetector)
+
+        default_tapering_config = {
+            "name": taper_mask.__name__,
+            "cutoff": cutoff,
+            "ramp_min": cutoff,
+            "ramp_max": 1 if cutoff == 0 else max(cutoff * 2, cutoff / 2),
+            "threshold": cutoff,
+        }
+        tapering_config = {
+            **default_tapering_config,
+            **config.get("tapering_function", {}),
+        }
+
+        taper = get_taper_function(tapering_config["name"], tapering_config)
+
+        model = cls(base_model, novelty_detector, cutoff=cutoff, taper=taper)
+        return model

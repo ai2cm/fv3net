@@ -364,13 +364,15 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
-            "time"
-        )
-        zonal_avg_variance = vcm.zonal_average_approximate(
-            grid.lat, (mean - target) ** 2, lat_name="latitude"
-        )
-        return zonal_avg_variance.mean("time")
+
+        zonal_mean = vcm.zonal_average_approximate(
+            grid.lat, target, lat_name="latitude"
+        ).mean("time")
+        squares_zonal_mean = vcm.zonal_average_approximate(
+            grid.lat, target ** 2, lat_name="latitude"
+        ).mean("time")
+
+        return squares_zonal_mean - zonal_mean ** 2
 
 
 for mask_type in ["global", "land", "sea"]:

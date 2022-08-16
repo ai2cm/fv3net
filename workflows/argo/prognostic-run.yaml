@@ -95,6 +95,13 @@ spec:
           - {name: fv3config, path: /tmp/fv3config.yaml}
       container:
         image: us.gcr.io/vcm-ml/prognostic_run
+        resources:
+          requests:
+            memory: "500Mi"
+            cpu: "700m"
+          limits:
+            memory: "500Mi"
+            cpu: "700m"
         command: ["bash", "-c", "-x", "-e"]
         workingDir: /fv3net/workflows/prognostic_c48_run
         volumeMounts:
