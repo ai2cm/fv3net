@@ -6,10 +6,11 @@ import time
 
 variables = variables_to_read.vars_dict
 
-ROOT = pathlib.Path(__file__).parent.parent.resolve()
+ROOT = pathlib.Path(__file__).parent.parent.absolute()
 LOOKUP_DIR = (ROOT / "data/lookupdata").as_posix()
 FORCING_DIR = (ROOT / "data/forcing").as_posix()
 FORTRANDATA_DIR = (ROOT / "data/fortran/radiation_driver").as_posix()
+print(FORTRANDATA_DIR)
 
 nlay = 63
 
