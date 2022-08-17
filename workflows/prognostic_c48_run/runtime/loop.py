@@ -30,6 +30,7 @@ from runtime.diagnostics.compute import (
     precipitation_accumulation,
     rename_diagnostics,
 )
+import runtime.diagnostics.tracers
 from runtime.monitor import Monitor
 from runtime.names import (
     TENDENCY_TO_STATE_NAME,
@@ -337,10 +338,6 @@ class TimeLoop(
     def time(self) -> cftime.DatetimeJulian:
         return self._state.time
 
-    def cleanup(self):
-        self._print_global_timings()
-        self._fv3gfs.cleanup()
-
     def _step_dynamics(self) -> Diagnostics:
         self._log_debug(f"Dynamics Step")
         self._fv3gfs.step_dynamics()
@@ -377,17 +374,21 @@ class TimeLoop(
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
         }
 
-    def _print_timing(self, name, min_val, max_val, mean_val):
-        self._print(f"{name:<30}{min_val:15.4f}{max_val:15.4f}{mean_val:15.4f}")
-
-    def _print_global_timings(self, root=0):
-        is_root = self.rank == root
-        recvbuf = np.array(0.0)
-        reduced = {}
+    def _print_timings(self, reduced):
         self._print("-----------------------------------------------------------------")
         self._print("         Reporting clock statistics from python                  ")
         self._print("-----------------------------------------------------------------")
         self._print(f"{' ':<30}{'min (s)':>15}{'max (s)':>15}{'mean (s)':>15}")
+        for name, timing in reduced.items():
+            self._print(
+                f"{name:<30}{timing['min']:15.4f}"
+                f"{timing['max']:15.4f}{timing['mean']:15.4f}"
+            )
+
+    def log_global_timings(self, root=0):
+        is_root = self.rank == root
+        recvbuf = np.array(0.0)
+        reduced = {}
         for name, value in self._timer.times.items():
             reduced[name] = {}
             for label, op in [("min", MPI.MIN), ("max", MPI.MAX), ("mean", MPI.SUM)]:
@@ -395,10 +396,12 @@ class TimeLoop(
                 if is_root and label == "mean":
                     recvbuf /= self.comm.Get_size()
                 reduced[name][label] = recvbuf.copy().item()
-            self._print_timing(
-                name, reduced[name]["min"], reduced[name]["max"], reduced[name]["mean"]
-            )
-        self._log_info(f"python_timing:{json.dumps(reduced)}")
+        self._print_timings(reduced)
+        log_out = {
+            "steps": reduced,
+            "units": "[s], cumulative and reduced across ranks",
+        }
+        self._log_info(json.dumps({"python_timing": log_out}))
 
     def _step_prephysics(self) -> Diagnostics:
 
@@ -528,6 +531,11 @@ class TimeLoop(
         )
         return diagnostics
 
+    def _intermediate_restarts(self) -> Diagnostics:
+        self._log_info("Saving intermediate restarts if enabled.")
+        self._fv3gfs.save_intermediate_restart_if_enabled()
+        return {}
+
     def __iter__(
         self,
     ) -> Iterator[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]]:
@@ -535,6 +543,9 @@ class TimeLoop(
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics: Diagnostics = {}
             for substep in [
+                lambda: runtime.diagnostics.tracers.compute_column_integrated_tracers(
+                    self._state
+                ),
                 self.monitor("dynamics", self._step_dynamics),
                 self._step_prephysics,
                 self._compute_physics,
@@ -547,6 +558,7 @@ class TimeLoop(
                 ),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
+                self._intermediate_restarts,
             ]:
                 with self._timer.clock(substep.__name__):
                     diagnostics.update(substep())

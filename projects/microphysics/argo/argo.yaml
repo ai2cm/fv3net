@@ -24,7 +24,9 @@ spec:
       - name: fv3fit_image_tag
         value: latest
       - name: image_tag
-        value: 811d4a88b8b8f29d727f2d61f46f96b770c8ab47
+        value: latest
+      - name: fv3net_image_tag
+        value: latest
       - name: wandb-tags
         value: ""
       - name: wandb-group
@@ -108,10 +110,10 @@ spec:
       workingDir: "/fv3net/projects/microphysics"
       resources:
         requests:
-          memory: "16Gi"
+          memory: "24Gi"
           cpu: "7500m"
         limits:
-          memory: "16Gi"
+          memory: "24Gi"
           cpu: "7500m"
       envFrom:
       - secretRef:
@@ -123,6 +125,8 @@ spec:
         value: "{{inputs.parameters.tag}}"
       - name: FSSPEC_GS_REQUESTER_PAYS
         value: "vcm-ml"
+      - name: PYTHONWARNINGS
+        value: "ignore:Input dict contained keys:::"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-key-secret
@@ -144,7 +148,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:latest"
+      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.fv3net_image_tag}}"
       imagePullPolicy: Always
       resources:
         requests:
@@ -180,7 +184,7 @@ spec:
       value: "med-sim-pool"
       effect: "NoSchedule"
     container:
-      image: "us.gcr.io/vcm-ml/fv3net:latest"
+      image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.fv3net_image_tag}}"
       imagePullPolicy: Always
       resources:
         requests:
@@ -376,23 +380,3 @@ spec:
       operator: "Equal"
       value: "med-sim-pool"
       effect: "NoSchedule"
-  - name: end-to-end
-    steps:
-      - - name: train-model-gpu
-          template: train-model-gpu
-          arguments:
-            parameters:
-            - name: training-config
-              value: "{{workflow.parameters.training-config}}"
-            - name: flags
-              value: "{{workflow.parameters.flags}}"
-      - - name: prognostic-run
-          template: prognostic-run
-        - name: score-model
-          template: score-model
-          arguments:
-            parameters:
-            - name: training-config
-              value: "{{workflow.parameters.training-config}}"
-            - name: flags
-              value: "{{workflow.parameters.flags}}"

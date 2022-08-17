@@ -3,12 +3,14 @@ import logging
 import os
 from typing import Optional, Sequence, Tuple
 import tensorflow as tf
-from fv3fit._shared.config import (
-    CacheConfig,
+from fv3fit._shared.config import CacheConfig
+from fv3fit._shared.training_config import (
     get_arg_updated_config_dict,
     to_flat_dict,
     to_nested_dict,
 )
+from fv3fit._shared import put_dir
+
 import yaml
 import fsspec
 
@@ -16,12 +18,11 @@ import fv3fit.keras
 import fv3fit.sklearn
 import fv3fit
 from .data import tfdataset_loader_from_dict, TFDatasetLoader
-import tempfile
 from fv3fit.dataclasses import asdict_with_enum
 import wandb
 import sys
+import shutil
 
-from vcm.cloud import copy
 from fv3net.artifacts.metadata import StepMetadata
 
 logger = logging.getLogger(__name__)
@@ -177,12 +178,17 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
-    with tempfile.NamedTemporaryFile() as temp_log:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s [%(levelname)s] %(message)s",
-            handlers=[logging.FileHandler(temp_log.name), logging.StreamHandler()],
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        main(args, unknown_args)
-        copy(temp_log.name, os.path.join(args.output_path, "training.log"))
+    os.makedirs("artifacts", exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler("artifacts/training.log"),
+            logging.StreamHandler(),
+        ],
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    main(args, unknown_args)
+
+    with put_dir(args.output_path) as path:
+        shutil.move("artifacts", os.path.join(path, "artifacts"))

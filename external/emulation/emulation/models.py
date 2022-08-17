@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Any
 import logging
 
 
@@ -12,15 +12,17 @@ logger = logging.getLogger(__name__)
 
 
 class ModelWithClassifier:
-    def __init__(self, model, classifier=None):
+    def __init__(self, model, classifier=None, class_key="gscond_classes"):
         self.model = model
         self.classifier = classifier
+        self._class_key = class_key
 
-    def __call__(self, state: FortranState):
+    def __call__(self, state: FortranState) -> FortranState:
 
         if self.classifier is not None:
             classifier_outputs = _predict(self.classifier, state)
-            classifier_outputs.update(_get_classify_output(classifier_outputs))
+            logit_classes = classifier_outputs[self._class_key]
+            classifier_outputs.update(_get_classify_output(logit_classes))
         else:
             classifier_outputs = {}
 
@@ -28,6 +30,21 @@ class ModelWithClassifier:
         model_outputs = _predict(self.model, inputs)
         model_outputs.update(classifier_outputs)
         return model_outputs
+
+
+def transform_model(
+    model: Callable[[FortranState], FortranState], transform: Any
+) -> Callable[[FortranState], FortranState]:
+    def combined(x: FortranState) -> FortranState:
+        # model time is an array of length 8, which can conflict with the other
+        # arrays here
+        x = {k: v for k, v in x.items() if k != "model_time"}
+        x_transformed = _predict(transform.forward, x)
+        x_transformed.update(model(x_transformed))
+        output = _predict(transform.backward, x_transformed)
+        return output
+
+    return combined
 
 
 def _predict(model: tf.keras.Model, state: FortranState) -> FortranState:

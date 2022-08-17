@@ -6,12 +6,13 @@ from unittest.mock import Mock
 
 import fv3fit.emulation.transforms.zhao_carr as zhao_carr
 from fv3fit.dataclasses import asdict_with_enum as asdict
-from fv3fit._shared.config import to_flat_dict
+from fv3fit._shared.training_config import to_flat_dict
 from fv3fit.emulation.data.config import TransformConfig
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
 from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
+from fv3fit.emulation.zhao_carr.filters import HighAntarctic
 from fv3fit.emulation.transforms import GscondRoute
 from fv3fit.train_microphysics import (
     TrainConfig,
@@ -216,3 +217,8 @@ def test_TrainConfig_inputs_routed():
     assert "air_temperature_after_gscond" not in config.input_variables
     assert "specific_humidity_after_gscond" not in config.input_variables
     assert "cloud_water_mixing_ratio_after_gscond" not in config.input_variables
+
+
+def test_TrainConfig_filters():
+    config = TrainConfig(filters=[HighAntarctic()], model=MicrophysicsConfig())
+    assert {"latitude", "surface_air_pressure"} <= config.model_variables

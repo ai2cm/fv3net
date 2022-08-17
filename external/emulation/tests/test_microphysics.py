@@ -66,3 +66,11 @@ def test_TimeMask(weight):
     left = {"a": 0.0, "model_time": [2021, 1, 1, 0, 0, 0]}
     right = {"a": 1.0}
     assert mask(left, right) == {"a": expected}
+
+
+def test_ModelConfig_no_model():
+    config = ModelConfig()
+    hook = config.build()
+
+    data = {}
+    hook.microphysics(data)

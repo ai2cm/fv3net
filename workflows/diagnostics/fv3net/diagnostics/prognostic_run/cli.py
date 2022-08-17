@@ -1,9 +1,10 @@
 import argparse
 import logging
-from fv3net.diagnostics.prognostic_run import metrics, compute
-from fv3net.diagnostics.prognostic_run.views import movies, static_report
+
+from fv3net.diagnostics.prognostic_run import compute, metrics, shell
 from fv3net.diagnostics.prognostic_run.apps import log_viewer
 from fv3net.diagnostics.prognostic_run.emulation import single_run
+from fv3net.diagnostics.prognostic_run.views import movies, static_report
 
 
 def dissoc(namespace, key):
@@ -19,7 +20,15 @@ def get_parser():
         help="Prognostic run diagnostics", required=True, dest="command"
     )
 
-    for entrypoint in [compute, metrics, movies, static_report, log_viewer, single_run]:
+    for entrypoint in [
+        compute,
+        log_viewer,
+        metrics,
+        movies,
+        shell,
+        single_run,
+        static_report,
+    ]:
         entrypoint.register_parser(subparsers)
     return parser
 
