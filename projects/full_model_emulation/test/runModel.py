@@ -28,6 +28,19 @@ import pandas as pd
 from graph_weather import GraphWeatherForecaster
 
 res=1
+resolution=2
+feature_dim=7
+output_dim=2
+node_dim=64 
+num_blocks=6
+hidden_dim_processor_node=64
+hidden_dim_processor_edge=64
+hidden_layers_processor_node=2
+hidden_layers_processor_edge=2
+hidden_dim_decoder=64
+hidden_layers_decoder=2
+norm_type="LayerNorm"
+
 halo=1
 lead = 6
 control_str = "Message_Passing"  #'TNSTTNST' #'TNTSTNTST'
@@ -78,8 +91,26 @@ lr = 0.001
 batch_size = 1
 
 savemodelpath = (
-    "MPGNN_weatherModelPaper_64hidden.pt"
+    "KS_Model_"
+    + "Input_res_"
+    + str(res)
+    + "h3_"
+    +str(resolution)
+    + "node_hidden_filetrs"
+    + str(node_dim)
+    + "learning_rate"
+    + str(lr)
+    + "_lead"
+    + str(lead)
+    + "_epochs_"
+    + str(epochs)
+    + "num_blocks_"
+    + str(num_blocks)
+    + "norm_type"
+    + norm_type
+    + ".pt"
 )
+
 print(savemodelpath)
 
 BUCKET = "vcm-ml-experiments"
