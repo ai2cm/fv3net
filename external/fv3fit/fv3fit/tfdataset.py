@@ -1,7 +1,16 @@
 from fv3fit._shared.config import SliceConfig
 from fv3fit._shared.packer import clip_sample
 import tensorflow as tf
-from typing import Hashable, Mapping, Dict, Callable, Optional, Sequence, Tuple
+from typing import (
+    Hashable,
+    Iterable,
+    Mapping,
+    Dict,
+    Callable,
+    Optional,
+    Sequence,
+    Tuple,
+)
 from toolz.functoolz import curry
 import loaders.typing
 
@@ -18,6 +27,13 @@ def apply_to_tuple(
     tensor_func: Callable[[tf.Tensor], tf.Tensor], data: Tuple[tf.Tensor, ...]
 ) -> Tuple[tf.Tensor, ...]:
     return tuple(tensor_func(tensor) for tensor in data)
+
+
+def sequence_size(seq):
+    n = 0
+    for _ in seq:
+        n += 1
+    return n
 
 
 @curry
@@ -75,17 +91,16 @@ def get_Xy_dataset(
     return tf.data.Dataset.zip((X, y))
 
 
-def seq_to_tfdataset(
-    source: Sequence,
+def iterable_to_tfdataset(
+    source: Iterable,
     transform: Optional[Callable] = None,
     varying_first_dim: bool = False,
 ) -> tf.data.Dataset:
     """
-    A general function to convert from a sequence into a tensorflow dataset.
+    A general function to convert from an iterable into a tensorflow dataset.
 
     Args:
-        source: A sequence of data items to be included in the
-            dataset.
+        source: data items to be included in the dataset
         transform: function to process data items into a Mapping[str, tf.Tensor],
             if needed.
         varying_first_dim: if True, the first dimension of the produced tensors
@@ -131,6 +146,6 @@ def dataset_to_tensor_dict(ds):
 
 
 def tfdataset_from_batches(batches: loaders.typing.Batches) -> tf.data.Dataset:
-    return seq_to_tfdataset(
+    return iterable_to_tfdataset(
         batches, transform=dataset_to_tensor_dict, varying_first_dim=True
     )

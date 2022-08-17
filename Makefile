@@ -12,11 +12,6 @@ BEAM_VERSION = 2.37.0
 UBUNTU_IMAGE = ubuntu@sha256:9101220a875cee98b016668342c489ff0674f247f6ca20dfc91b91c0f28581ae
 # prognostic base image is updated manually, not on every commit
 PROGNOSTIC_BASE_VERSION = 1.0.0
-DOCKER_AUTH_ARGS = \
-	-v ${GOOGLE_APPLICATION_CREDENTIALS}:/tmp/key.json \
-	-e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
-	-e FSSPEC_GS_REQUESTER_PAYS=vcm-ml
-
 DOCKER_INTERACTIVE_ARGS = \
 	--tty \
 	--interactive \
@@ -84,24 +79,21 @@ endif
 build_image_dataflow: ARGS = --build-arg BEAM_VERSION=$(BEAM_VERSION)
 
 image_test_dataflow: push_image_dataflow
-	docker run \
-		$(DOCKER_AUTH_ARGS) \
+	tools/docker-run \
 		-w /tmp/dataflow \
 		--entrypoint="pytest" \
 		$(REGISTRY)/dataflow:$(VERSION) \
 		tests/integration -s
 
 image_test_emulation:
-	docker run \
+	tools/docker-run \
 		--rm \
-		$(DOCKER_AUTH_ARGS) \
 		-w /fv3net/external/emulation \
 		$(REGISTRY)/prognostic_run:$(VERSION) pytest
 
 image_test_prognostic_run: image_test_emulation
-	docker run \
+	tools/docker-run \
 		--rm \
-		$(DOCKER_AUTH_ARGS) \
 		-w /fv3net/workflows/prognostic_c48_run \
 		$(REGISTRY)/prognostic_run:$(VERSION) pytest
 
@@ -129,13 +121,12 @@ pull_image_prognostic_run_base_gpu:
 enter_emulation:
 	PROGNOSTIC_RUN_WORKDIR=/fv3net/external/emulation $(MAKE) enter_prognostic_run
 
-enter_prognostic_run:
-	docker run \
+enter_%:
+	tools/docker-run \
 		--rm \
-		$(DOCKER_AUTH_ARGS) \
 		$(DOCKER_INTERACTIVE_ARGS) \
 		-w $(PROGNOSTIC_RUN_WORKDIR) \
-		$(REGISTRY)/prognostic_run:$(VERSION) bash
+		$(REGISTRY)/$*:$(VERSION) bash
 
 ############################################################
 # Documentation (rules match "deploy_docs_%")
@@ -232,6 +223,7 @@ REQUIREMENTS = external/vcm/setup.py \
 	pip-requirements.txt \
 	external/fv3kube/setup.py \
 	external/fv3fit/setup.py \
+	external/loaders/setup.py \
 	external/*.requirements.in \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
@@ -241,6 +233,7 @@ constraints.txt: $(REQUIREMENTS)
 	docker run -ti --entrypoint="pip" apache/beam_python3.8_sdk:$(BEAM_VERSION) freeze \
 		| sed 's/apache-beam.*/apache-beam=='$(BEAM_VERSION)'/' \
 		| grep -v google-python-cloud-debugger \
+		| grep -v atomicwrites \
 		> .dataflow-versions.txt
 
 	pip-compile  \
@@ -298,9 +291,15 @@ install_deps:
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
-create_environment: update_submodules
+create_environment: update_submodules install_matplotlibrc
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
+
+.PHONY: install_matplotlibrc
+install_matplotlibrc:
+	mkdir -p ${HOME}/.config/matplotlib
+	rm -f ${HOME}/.config/matplotlib/matplotlibrc
+	cp external/fv3viz/matplotlibrc ${HOME}/.config/matplotlib/
 
 ############################################################
 # Linting

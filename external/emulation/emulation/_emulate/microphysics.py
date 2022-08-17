@@ -1,45 +1,22 @@
 from dataclasses import dataclass
 import datetime
+from typing import Callable, Optional, List
 import cftime
 import gc
-import sys
 
-from .._typing import FortranState
+from emulation._typing import FortranState
 from emulation.masks import Mask
-from .._time import translate_time
+from emulation._time import translate_time
 
-# Tensorflow looks at sys args which are not initialized
-# when this module is loaded under callpyfort, so ensure
-# it's available here
-if not hasattr(sys, "argv"):
-    sys.argv = [""]
 
 import logging  # noqa: E402
-import tensorflow as tf  # noqa: E402
-
-from ..debug import print_errors  # noqa: E402
-from fv3fit.keras import adapters  # noqa: E402
-from .._filesystem import get_dir  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-@print_errors
-def _load_tf_model(model_path: str) -> tf.keras.Model:
-    logger.info(f"Loading keras model: {model_path}")
-    with get_dir(model_path) as local_model_path:
-        model = tf.keras.models.load_model(local_model_path)
-        # These following two adapters are for backwards compatibility
-        dict_output_model = adapters.ensure_dict_output(model)
-        return adapters.rename_dict_output(
-            dict_output_model,
-            translation={
-                "air_temperature_output": "air_temperature_after_precpd",
-                "specific_humidity_output": "specific_humidity_after_precpd",
-                "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
-            },
-        )
+def always_emulator(state: FortranState, emulator: FortranState):
+    return emulator
 
 
 @dataclass
@@ -69,16 +46,12 @@ class TimeMask:
         }
 
 
-def always_emulator(state: FortranState, emulator: FortranState):
-    return emulator
-
-
 class MicrophysicsHook:
     """Object that applies a ML model to the fortran state"""
 
     def __init__(
         self,
-        model_path: str,
+        model: Callable[[FortranState], FortranState],
         mask: Mask = always_emulator,
         garbage_collection_interval: int = 10,
     ) -> None:
@@ -92,11 +65,11 @@ class MicrophysicsHook:
         """
 
         self.name = "microphysics emulator"
-        self.model = _load_tf_model(model_path)
-        self.orig_outputs = None
+        self.orig_outputs: Optional[List[str]] = None
         self.garbage_collection_interval = garbage_collection_interval
         self.mask = mask
         self._calls_since_last_collection = 0
+        self.model = model
 
     def _maybe_garbage_collect(self):
         if self._calls_since_last_collection % self.garbage_collection_interval:
@@ -116,18 +89,11 @@ class MicrophysicsHook:
                 'set_state' calls.  Expected to be [feature, sample]
                 dimensions or [sample]
         """
-
-        # grab model-required variables and
-        # switch state to model-expected [sample, feature]
-        inputs = {name: state[name].T for name in self.model.input_names}
-
-        predictions = self.model.predict(inputs)
-        # tranpose back to FV3 conventions
-        model_outputs = {name: tensor.T for name, tensor in predictions.items()}
+        model_outputs = self.model(state)
 
         # fields stay in global state so check overwrites on first step
         if self.orig_outputs is None:
-            self.orig_outputs = set(state).intersection(model_outputs)
+            self.orig_outputs = sorted(set(state).intersection(model_outputs))
             logger.debug(f"Overwriting existing state fields: {self.orig_outputs}")
 
         microphysics_diag = {

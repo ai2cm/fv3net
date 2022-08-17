@@ -1,9 +1,5 @@
-from .config import (
-    TrainingConfig,
-    register_training_function,
-    SliceConfig,
-    PackerConfig,
-)
+from .config import SliceConfig, PackerConfig
+from .training_config import TrainingConfig, register_training_function
 from .packer import (
     pack,
     pack_tfdataset,
@@ -15,7 +11,7 @@ from .scaler import (
     ManualScaler,
     NormalizeTransform,
 )
-from .predictor import Predictor
+from .predictor import Predictor, Dumpable
 from .input_sensitivity import InputSensitivity
 from .stacking import (
     stack_non_vertical,

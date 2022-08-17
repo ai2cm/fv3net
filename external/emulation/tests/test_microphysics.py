@@ -9,11 +9,22 @@ from emulation._emulate.microphysics import (
     IntervalSchedule,
     TimeMask,
 )
+from emulation.config import _load_tf_model, ModelConfig
+import emulation.models
 
 
-def test_Config_integration(saved_model_path):
+def test_Config(saved_model_path):
+    config = ModelConfig(path=saved_model_path)
+    assert config.build()
 
-    config = MicrophysicsHook(saved_model_path, always_emulator)
+
+def test_Hook_integration(saved_model_path):
+
+    model = _load_tf_model(saved_model_path)
+    model = emulation.models.combine_classifier_and_regressor(
+        regressor=model, classifier=None
+    )
+    hook = MicrophysicsHook(model=model, mask=always_emulator)
 
     state = {
         "air_temperature_input": np.ones((63, 100)),
@@ -25,7 +36,7 @@ def test_Config_integration(saved_model_path):
     for i in range(3):
         input = state["air_temperature_input"]
 
-        config.microphysics(state)
+        hook.microphysics(state)
 
         # microphysics saves any key overwrites as a diagnostic
         updated = state["air_temperature_dummy"]
@@ -55,3 +66,11 @@ def test_TimeMask(weight):
     left = {"a": 0.0, "model_time": [2021, 1, 1, 0, 0, 0]}
     right = {"a": 1.0}
     assert mask(left, right) == {"a": expected}
+
+
+def test_ModelConfig_no_model():
+    config = ModelConfig()
+    hook = config.build()
+
+    data = {}
+    hook.microphysics(data)

@@ -9,9 +9,27 @@ from fv3fit._shared import SliceConfig
 from toolz.functoolz import pipe
 import numpy as np
 
+from fv3fit.emulation.transforms import (
+    Difference,
+    CloudWaterDiffPrecpd,
+    MicrophysicsClasssesV1,
+    MicrophysicsClassesV1OneHot,
+    GscondRoute,
+)
 from . import transforms
 
 logger = logging.getLogger(__name__)
+
+
+# SimpleTransforms must be transforms rather than factories to ensure that
+# transforms that are fit from data are not used here
+SimpleTransforms = Union[
+    Difference,
+    CloudWaterDiffPrecpd,
+    MicrophysicsClasssesV1,
+    MicrophysicsClassesV1OneHot,
+    GscondRoute,
+]
 
 
 @dataclasses.dataclass
@@ -47,6 +65,10 @@ class TransformConfig:
         vertical_subselection: Limit the feature dimension of a variable
             to a specified range. Loaded in as slices from a 2 or 3 item
             sequence.
+        tensor_transforms: Transforms that will not be included in the
+            serialized model artifact. Must be transforms (e.g. have forward and
+            backward method) rather than factories to ensure that transforms trained
+            with data are not used here.
 
     Example:
         Yaml file example::
@@ -68,6 +90,7 @@ class TransformConfig:
     use_tensors: bool = True
     vertical_subselections: Optional[Mapping[str, SliceConfig]] = None
     derived_microphys_timestep: int = 900
+    tensor_transforms: List[SimpleTransforms] = dataclasses.field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d: Dict):
@@ -89,26 +112,35 @@ class TransformConfig:
         Returns:
             conversion from dataset to dict of numpy or tensorflow tensors
         """
+        variables = self.get_dataset_names(variables)
         return Pipeline(
             self._get_xarray_transforms(variables),
             self._get_array_like_transforms(),
             use_tensors=self.use_tensors,
         )
 
-    def _get_array_like_transforms(self):
+    def get_dataset_names(self, variables: Set[str]) -> Set[str]:
+        # compute the required variable names
+        for transform in self.tensor_transforms[::-1]:
+            variables = transform.backward_names(variables)
+        return variables
+
+    def _get_array_like_transforms(self) -> List:
         # array-like dataset transforms
         transform_funcs = [transforms.expand_single_dim_data]
         if self.vertical_subselections is not None:
             transform_funcs.append(
-                transform_funcs.maybe_subselect_feature_dim(self.vert_sel_as_slices)
+                transforms.maybe_subselect_feature_dim(self.vert_sel_as_slices)
             )
+
+        for transform in self.tensor_transforms:
+            transform_funcs.append(transform.forward)  # type: ignore
         return transform_funcs
 
     def _get_xarray_transforms(
         self, variables: Set[str]
     ) -> List[Callable[[xarray.Dataset], xarray.Dataset]]:
         transform_funcs = []
-
         if self.antarctic_only:
             transform_funcs.append(transforms.select_antarctic)
 

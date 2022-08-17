@@ -1,16 +1,13 @@
 import dataclasses
 from typing import Hashable, List, Mapping, Optional, Sequence, Tuple, Set
-from fv3fit._shared.config import (
-    OptimizerConfig,
-    register_training_function,
-)
+from fv3fit._shared.config import OptimizerConfig, SliceConfig
+from fv3fit._shared.training_config import register_training_function, Hyperparameters
 from fv3fit.keras._models.shared.halos import append_halos_tensor
 from toolz.functoolz import curry
 from fv3fit._shared.packer import clip_sample
 from fv3fit.keras._models.shared.loss import LossConfig
 from fv3fit.keras._models.shared.pure_keras import PureKerasModel
 import tensorflow as tf
-from ..._shared.config import Hyperparameters, SliceConfig
 from .shared import ConvolutionalNetworkConfig, TrainingLoopConfig
 import numpy as np
 from fv3fit.keras._models.shared import Diffusive

@@ -3,6 +3,10 @@ from typing import Mapping, Sequence
 
 MovieUrls = Mapping[str, Sequence[str]]
 
+# Added to atmos diags by fortran model if interval-averaged.
+# Removed before coarsening run data to avoid errors.
+FORTRAN_TILE_ONLY_VARS = ("average_T1", "average_T2", "average_DT")
+
 # Renamed keys already have "_coarse" suffix removed prior to the renaming being applied
 VERIFICATION_RENAME_MAP = {
     "40day_may2020": {"2d": {"TB": "TMPlowest", "tsfc": "TMPsfc"}},
@@ -82,6 +86,8 @@ GLOBAL_AVERAGE_PHYSICS_VARS = [
     "MAXWIND10m",
     "SOILM",
     "VGRD10m",
+    "is_novelty",
+    "centered_score",
 ]
 
 GLOBAL_AVERAGE_VARS = GLOBAL_AVERAGE_DYCORE_VARS + GLOBAL_AVERAGE_PHYSICS_VARS

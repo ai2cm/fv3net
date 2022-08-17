@@ -208,6 +208,10 @@ spec:
           initial_conditions:
             base_url: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
             timestep: "20160801.001500"
+          gfs_analysis_data:
+            url: gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data
+            filename_pattern: "%Y%m%d_%HZ_T85LR.nc"
+            copy_method: copy
           namelist:
             coupler_nml:
               hours: 8
@@ -219,7 +223,7 @@ spec:
               layout:
                 - 2
                 - 2
-              nudge: true
+              nudge: true  # nudge-to-obs is turned on, for code coverage
             gfdl_cloud_microphysics_nml:
               fast_sat_adj: false
             fv_nwp_nudge_nml:
@@ -228,6 +232,8 @@ spec:
               nudge_virt: false
               nudge_winds: false
               nudge_q: false
+            gfs_physics_nml:
+              use_analysis_sst: true
           fortran_diagnostics:
             - name: atmos_dt_atmos.zarr
               chunks:

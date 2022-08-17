@@ -18,6 +18,7 @@ from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
 from fv3net.diagnostics.prognostic_run import constants
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -81,7 +82,12 @@ def _coarsen_cell_centered_to_target_resolution(
 
 def _load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     logger.info(f"Processing 3d data from run directory at {url}")
-    files_3d = ["diags_3d.zarr", "state_after_timestep.zarr", "nudging_tendencies.zarr"]
+    files_3d = [
+        "diags_3d.zarr",
+        "state_after_timestep.zarr",
+        "nudging_tendencies.zarr",
+        "piggy.zarr",
+    ]
     ds = xr.merge(
         [
             load_coarse_data(os.path.join(url, filename), catalog)
@@ -119,7 +125,10 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
     if len(ds) > 0:
         # drop interface vars to avoid broadcasting by coarsen func
         ds = ds.drop_vars(
-            constants.GRID_VARS + constants.GRID_INTERFACE_COORDS, errors="ignore"
+            constants.GRID_VARS
+            + constants.GRID_INTERFACE_COORDS
+            + constants.FORTRAN_TILE_ONLY_VARS,
+            errors="ignore",
         )
         ds = _coarsen_cell_centered_to_target_resolution(
             ds, target_resolution=48, catalog=catalog
@@ -233,6 +242,14 @@ class SegmentedRun:
     @property
     def data_3d(self) -> xr.Dataset:
         return _load_3d(self.url, self.catalog)
+
+    @property
+    def artifacts(self) -> List[str]:
+        url = self.url
+        fs = vcm.get_fs(url)
+        # to ensure up to date results
+        fs.invalidate_cache()
+        return sorted(fs.ls(f"{url}/artifacts"))
 
     def __str__(self) -> str:
         return self.url

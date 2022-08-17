@@ -6,43 +6,56 @@ from fv3fit.keras._models.shared.clip import ClipConfig
 from fv3fit.keras._models.convolutional import ConvolutionalHyperparameters
 from fv3fit.keras._models.shared.convolutional_network import ConvolutionalNetworkConfig
 from fv3fit.keras._models.shared.pure_keras import PureKerasModel
+import fv3fit.sklearn._min_max_novelty_detector
+import fv3fit.sklearn._ocsvm_novelty_detector
 import pytest
 import xarray as xr
 import numpy as np
 import fv3fit
-from fv3fit._shared.config import TRAINING_FUNCTIONS, get_hyperparameter_class
+from fv3fit._shared.training_config import TRAINING_FUNCTIONS, get_hyperparameter_class
 import vcm.testing
 import tempfile
 from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
 from fv3fit._shared.stacking import stack, stack_non_vertical, SAMPLE_DIM_NAME
-from fv3fit.train import tfdataset_from_batches
+from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
 
 
 # training functions that work on arbitrary datasets, can be used in generic tests below
-GENERAL_TRAINING_TYPES = [
+REGRESSION_TRAINING_TYPES = [
     "convolutional",
     "sklearn_random_forest",
     "precipitative",
     "dense",
     "transformed",
 ]
+
+# unlabeled models that can be tested on all model configuration tests, but not those
+# that actually depend on the quality of supervised learning that occurs
+NON_REGRESSION_TRAINING_TYPES = ["min_max_novelty_detector", "ocsvm_novelty_detector"]
+
 # training functions that have restrictions on the datasets they support,
 # cannot be used in generic tests below
 # you must write a separate file that specializes each of the tests
 # for models in this list
-SPECIAL_TRAINING_TYPES = []
+SPECIAL_TRAINING_TYPES = ["graph", "min_max_novelty_detector", "ocsvm_novelty_detector"]
 
 
 # automatically test on every registered training class
-@pytest.fixture(params=GENERAL_TRAINING_TYPES)
+@pytest.fixture(params=REGRESSION_TRAINING_TYPES + NON_REGRESSION_TRAINING_TYPES)
 def model_type(request):
+    return request.param
+
+
+# automatically test on every registered training class for regression
+@pytest.fixture(params=REGRESSION_TRAINING_TYPES)
+def regression_model_type(request):
     return request.param
 
 
 def test_all_training_functions_are_tested_or_exempted():
     missing_types = set(TRAINING_FUNCTIONS.keys()).difference(
-        GENERAL_TRAINING_TYPES + SPECIAL_TRAINING_TYPES
+        REGRESSION_TRAINING_TYPES + SPECIAL_TRAINING_TYPES
     )
     assert len(missing_types) == 0, (
         "training type must be added to GENERAL_TRAINING_TYPES or "
@@ -128,17 +141,16 @@ def _get_dataset_precipitative(sample_func):
 
 def _get_dataset_default(sample_func, data_2d_ceof=1):
     input_variables = ["var_in_2d", "var_in_3d"]  # 2d var will be clipped below
-    output_variables = ["var_out"]
     input_values = list(sample_func() for _ in input_variables)
     i_2d_input = input_variables.index("var_in_2d")
     input_values[i_2d_input] = input_values[i_2d_input].isel(z=0) * data_2d_ceof
+    output_variables = ["var_out"]
     i_3d_input = input_variables.index("var_in_3d")
     output_values = [input_values[i_3d_input]]
-    return (
-        input_variables,
-        output_variables,
-        _process(input_variables, input_values, output_variables, output_values),
+    processed_dataset = _process(
+        input_variables, input_values, output_variables, output_values
     )
+    return (input_variables, output_variables, processed_dataset)
 
 
 def get_dataset_default(sample_func):
@@ -206,7 +218,7 @@ def assert_can_learn_identity(
 
 
 @pytest.mark.slow
-def test_train_default_model_on_identity(model_type, regtest):
+def test_train_default_model_on_identity(regression_model_type, regtest):
     """
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around 0 with unit variance.
@@ -218,7 +230,7 @@ def test_train_default_model_on_identity(model_type, regtest):
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
 
     assert_can_learn_identity(
-        model_type, sample_func=sample_func, max_rmse=0.2, regtest=regtest,
+        regression_model_type, sample_func=sample_func, max_rmse=0.2, regtest=regtest,
     )
 
 
@@ -329,7 +341,7 @@ def get_uniform_sample_func(size, low=0, high=1, seed=0):
 
 
 @pytest.mark.slow
-def test_train_default_model_on_nonstandard_identity(model_type):
+def test_train_default_model_on_nonstandard_identity(regression_model_type):
     """
     The model with default configuration options can learn the identity function,
     using gaussian-sampled data around a non-zero value with non-unit variance.
@@ -342,7 +354,7 @@ def test_train_default_model_on_nonstandard_identity(model_type):
     )
 
     assert_can_learn_identity(
-        model_type, sample_func=sample_func, max_rmse=0.2 * (high - low),
+        regression_model_type, sample_func=sample_func, max_rmse=0.2 * (high - low),
     )
 
 

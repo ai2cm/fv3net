@@ -297,6 +297,13 @@ def register_parser(subparsers) -> None:
     )
     parser.add_argument("tag", help="The unique tag used for the prognostic run.")
     parser.add_argument(
+        "--url",
+        help="The path to the run-directory...in cases when tag alone is not enough "
+        "like a crashed run.",
+        type=str,
+        default="",
+    )
+    parser.add_argument(
         "-s", "--summary-only", help="Only run summaries.", action="store_true"
     )
     parser.add_argument(
@@ -317,7 +324,11 @@ def open_rundir(url):
     grid = vcm.catalog.catalog["grid/c48"].to_dask().load()
     piggy = open_zarr(url + "/piggy.zarr")
     state = open_zarr(url + "/state_after_timestep.zarr")
-    return vcm.fv3.metadata.gfdl_to_standard(piggy).merge(grid).merge(state)
+
+    piggy = vcm.fv3.standardize_fv3_diagnostics(piggy)
+    state = vcm.fv3.standardize_fv3_diagnostics(state)
+
+    return piggy.merge(grid).merge(state)
 
 
 def log_summary_wandb(summary):
@@ -371,7 +382,9 @@ def get_summary_functions() -> Iterable[
         yield func
 
 
-def upload_diagnostics_for_tag(tag: str, summary_only: bool, summary_name: str):
+def upload_diagnostics_for_tag(
+    tag: str, summary_only: bool, summary_name: str, url: str = ""
+):
     run = wandb.init(
         job_type=WANDB_JOB_TYPE,
         project=WANDB_PROJECT,
@@ -380,12 +393,14 @@ def upload_diagnostics_for_tag(tag: str, summary_only: bool, summary_name: str):
         tags=[tag],
         reinit=True,
     )
-    api = wandb.Api()
-    prognostic_run = query.PrognosticRunClient(
-        tag, entity=run.entity, project=run.project, api=api
-    )
-    prognostic_run.use_artifact_in(run)
-    url = prognostic_run.get_rundir_url()
+
+    if not url:
+        api = wandb.Api()
+        prognostic_run = query.PrognosticRunClient(
+            tag, entity=run.entity, project=run.project, api=api
+        )
+        prognostic_run.use_artifact_in(run)
+        url = prognostic_run.get_rundir_url()
 
     wandb.config["env"] = {"COMMIT_SHA": os.getenv("COMMIT_SHA", "")}
     StepMetadata(
@@ -401,5 +416,8 @@ def upload_diagnostics_for_tag(tag: str, summary_only: bool, summary_name: str):
 
 def main(args):
     return upload_diagnostics_for_tag(
-        args.tag, summary_only=args.summary_only, summary_name=args.summary_filter
+        args.tag,
+        summary_only=args.summary_only,
+        summary_name=args.summary_filter,
+        url=args.url,
     )
