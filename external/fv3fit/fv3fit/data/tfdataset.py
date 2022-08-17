@@ -1,7 +1,8 @@
+import contextlib
 import dataclasses
-from typing import Mapping, Sequence, Optional
+from typing import List, Mapping, Sequence, Optional
 import tensorflow as tf
-from .base import TFDatasetLoader, register_tfdataset_loader
+from .base import TFDatasetLoader, register_tfdataset_loader, tfdataset_loader_from_dict
 import dacite
 from ..tfdataset import iterable_to_tfdataset
 import tempfile
@@ -58,6 +59,45 @@ def get_n_windows(n_times: int, window_size: int) -> int:
 
 @register_tfdataset_loader
 @dataclasses.dataclass
+class CycleGANLoader(TFDatasetLoader):
+
+    domain_configs: List[TFDatasetLoader] = dataclasses.field(default_factory=list)
+    batch_size: int = 1
+
+    def open_tfdataset(
+        self, local_download_path: Optional[str], variable_names: Sequence[str],
+    ) -> tf.data.Dataset:
+        datasets = []
+        for config in self.domain_configs:
+            datasets.append(config.open_tfdataset(local_download_path, variable_names))
+        return tf.data.Dataset.zip(tuple(datasets))
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "CycleGANLoader":
+        with prevent_recursion():
+            domain_configs = [
+                tfdataset_loader_from_dict(domain_config)
+                for domain_config in d["domain_configs"]
+            ]
+        return CycleGANLoader(domain_configs=domain_configs)
+
+
+RECURSING = False
+
+
+@contextlib.contextmanager
+def prevent_recursion():
+    global RECURSING
+    if RECURSING:
+        raise RecursionError("recursion detected")
+    else:
+        RECURSING = True
+        yield
+        RECURSING = False
+
+
+@register_tfdataset_loader
+@dataclasses.dataclass
 class WindowedZarrLoader(TFDatasetLoader):
     """
     A tfdataset loader that loads directly from zarr and supports time windows.
@@ -86,6 +126,7 @@ class WindowedZarrLoader(TFDatasetLoader):
     variable_configs: Mapping[str, VariableConfig] = dataclasses.field(
         default_factory=dict
     )
+    batch_size: int = 1
     n_windows: Optional[int] = None
 
     def open_tfdataset(
@@ -105,7 +146,7 @@ class WindowedZarrLoader(TFDatasetLoader):
         # if local_download_path is given, cache on disk
         if local_download_path is not None:
             tfdataset = tfdataset.cache(local_download_path)
-        return tfdataset
+        return tfdataset.batch(self.batch_size)
 
     def _convert_to_tfdataset(
         self, ds: xr.Dataset, variable_names: Sequence[str],

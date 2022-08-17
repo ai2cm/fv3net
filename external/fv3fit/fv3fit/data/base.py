@@ -51,6 +51,7 @@ def tfdataset_loader_from_dict(d: dict) -> TFDatasetLoader:
             TypeError,
             ValueError,
             AttributeError,
+            RecursionError,
             dacite.exceptions.MissingValueError,
             dacite.exceptions.UnexpectedDataError,
         ):
