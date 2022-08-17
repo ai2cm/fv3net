@@ -31,6 +31,7 @@ control_str = "Conv_Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
 
 
 edgenormal=1
+edgediff= 1
 lead = 6
 residual = 0
 coarsenInd = 1
@@ -98,6 +99,8 @@ savemodelpath = (
     + control_str
     +"edgeNormal_"
     +str(edgenormal)
+    +"edgeDiff"
+    +str(edgediff)
     + "Poolin"
     + "Meanpool"
     + "hidden_filetrs"
@@ -221,11 +224,12 @@ edg = np.asarray(g1.edges())
 latInd = lat[edg[1]]
 lonInd = lon[edg[1]]
 
-# latInd1 = lat[edg[0]]
-# lonInd1 = lon[edg[0]]
+if edgediff==1:
+    latInd1 = lat[edg[0]]
+    lonInd1 = lon[edg[0]]
 
-# latInd = latInd - latInd1
-# lonInd = lonInd - lonInd1
+    latInd = latInd - latInd1
+    lonInd = lonInd - lonInd1
 
 if edgenormal==1:
     latInd=(latInd-np.mean(latInd))/np.std(latInd)
@@ -241,11 +245,12 @@ edg = np.asarray(g2.edges())
 latInd = lat2[edg[1]]
 lonInd = lon2[edg[1]]
 
-# latInd1 = lat2[edg[0]]
-# lonInd1 = lon2[edg[0]]
+if edgediff==1:
+    latInd1 = lat2[edg[0]]
+    lonInd1 = lon2[edg[0]]
 
-# latInd = latInd - latInd1
-# lonInd = lonInd - lonInd1
+    latInd = latInd - latInd1
+    lonInd = lonInd - lonInd1
 
 if edgenormal==1:
     latInd=(latInd-np.mean(latInd))/np.std(latInd)
@@ -261,11 +266,12 @@ edg = np.asarray(g3.edges())
 latInd = lat3[edg[1]]
 lonInd = lon3[edg[1]]
 
-# latInd1 = lat3[edg[0]]
-# lonInd1 = lon3[edg[0]]
+if edgediff==1:
+    latInd1 = lat3[edg[0]]
+    lonInd1 = lon3[edg[0]]
 
-# latInd = latInd - latInd1
-# lonInd = lonInd - lonInd1
+    latInd = latInd - latInd1
+    lonInd = lonInd - lonInd1
 
 if edgenormal==1:
     latInd=(latInd-np.mean(latInd))/np.std(latInd)
@@ -281,11 +287,12 @@ edg = np.asarray(g4.edges())
 latInd = lat4[edg[1]]
 lonInd = lon4[edg[1]]
 
-# latInd1 = lat4[edg[0]]
-# lonInd1 = lon4[edg[0]]
+if edgediff==1:
+    latInd1 = lat4[edg[0]]
+    lonInd1 = lon4[edg[0]]
 
-# latInd = latInd - latInd1
-# lonInd = lonInd - lonInd1
+    latInd = latInd - latInd1
+    lonInd = lonInd - lonInd1
 
 if edgenormal==1:
     latInd=(latInd-np.mean(latInd))/np.std(latInd)
@@ -301,11 +308,12 @@ edg = np.asarray(g5.edges())
 latInd = lat5[edg[1]]
 lonInd = lon5[edg[1]]
 
-# latInd1 = lat5[edg[0]]
-# lonInd1 = lon5[edg[0]]
+if edgediff==1:
+    latInd1 = lat5[edg[0]]
+    lonInd1 = lon5[edg[0]]
 
-# latInd = latInd - latInd1
-# lonInd = lonInd - lonInd1
+    latInd = latInd - latInd1
+    lonInd = lonInd - lonInd1
 
 if edgenormal==1:
     latInd=(latInd-np.mean(latInd))/np.std(latInd)
