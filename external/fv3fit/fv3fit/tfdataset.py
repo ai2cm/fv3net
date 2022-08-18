@@ -2,6 +2,7 @@ from fv3fit._shared.config import SliceConfig
 from fv3fit._shared.packer import clip_sample
 import tensorflow as tf
 from typing import (
+    Generator,
     Hashable,
     Iterable,
     Mapping,
@@ -134,6 +135,44 @@ def iterable_to_tfdataset(
 
     return tf.data.Dataset.from_generator(
         generator,
+        output_signature={
+            key: tf.TensorSpec(process_shape(val.shape), dtype=val.dtype)
+            for key, val in sample.items()
+        },
+    )
+
+
+def generator_to_tfdataset(
+    source: Generator, varying_first_dim: bool = False,
+) -> tf.data.Dataset:
+    """
+    A general function to convert from a generator into a tensorflow dataset.
+
+    Args:
+        source: data items to be included in the dataset
+        varying_first_dim: if True, the first dimension of the produced tensors
+            can be of varying length
+    """
+
+    try:
+        sample = next(iter(source()))
+    except StopIteration:
+        raise NotImplementedError("can only make tfdataset from non-empty batches")
+
+    # if batches have different numbers of samples, we need to set the dimension size
+    # to None to indicate the size can be different across generated tensors
+    if varying_first_dim:
+
+        def process_shape(shape):
+            return (None,) + shape[1:]
+
+    else:
+
+        def process_shape(shape):
+            return shape
+
+    return tf.data.Dataset.from_generator(
+        source,
         output_signature={
             key: tf.TensorSpec(process_shape(val.shape), dtype=val.dtype)
             for key, val in sample.items()

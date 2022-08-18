@@ -1,4 +1,4 @@
-from fv3fit.pytorch import PytorchModel
+from fv3fit.pytorch import PytorchAutoregressor
 from fv3fit.pytorch.predict import _pack_to_tensor
 from torch import nn
 import fv3fit
@@ -28,13 +28,13 @@ def test_pytorch_model_dump_load(tmpdir):
     state_variables = ["u"]
     data = np.random.uniform(low=-1, high=1, size=(n_samples, n_features))
     scaler.fit(data)
-    model = PytorchModel(
+    model = PytorchAutoregressor(
         state_variables=state_variables,
         model=nn.Linear(n_features, n_features),
         scalers={"u": scaler},
     )
     model.dump(str(tmpdir))
-    reloaded_model = PytorchModel.load(str(tmpdir))
+    reloaded_model = PytorchAutoregressor.load(str(tmpdir))
     assert model.state_variables == reloaded_model.state_variables
     assert same_state(model.model, reloaded_model.model)
     assert model.scalers == reloaded_model.scalers

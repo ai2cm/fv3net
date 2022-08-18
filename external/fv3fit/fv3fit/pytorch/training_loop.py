@@ -1,6 +1,6 @@
 import dataclasses
 import logging
-from typing import Callable
+from typing import Callable, Optional
 import numpy as np
 import torch
 import tensorflow_datasets as tfds
@@ -32,7 +32,7 @@ class TrainingLoopConfig:
         self,
         train_model: torch.nn.Module,
         train_data: tf.data.Dataset,
-        validation_data: tf.data.Dataset,
+        validation_data: Optional[tf.data.Dataset],
         optimizer: torch.optim.Optimizer,
         loss_config: LossConfig,
     ) -> None:
@@ -52,14 +52,17 @@ class TrainingLoopConfig:
             .batch(self.samples_per_batch)
         )
         train_data = tfds.as_numpy(train_data)
-        validation_data = validation_data.unbatch()
-        n_validation = sequence_size(validation_data)
-        validation_state = (
-            torch.as_tensor(next(iter(validation_data.batch(n_validation))).numpy())
-            .float()
-            .to(DEVICE)
-        )
-        min_val_loss = np.inf
+        if validation_data is not None:
+            validation_data = validation_data.unbatch()
+            n_validation = sequence_size(validation_data)
+            validation_state = (
+                torch.as_tensor(next(iter(validation_data.batch(n_validation))).numpy())
+                .float()
+                .to(DEVICE)
+            )
+            min_val_loss = np.inf
+        else:
+            validation_state = None
         for _ in range(1, self.n_epoch + 1):  # loop over the dataset multiple times
             train_model = train_model.train()
             for batch_state in train_data:
@@ -73,17 +76,18 @@ class TrainingLoopConfig:
                 )
                 loss.backward()
                 optimizer.step()
-            val_model = train_model.eval()
-            with torch.no_grad():
-                val_loss = evaluate_model(
-                    validation_state,
-                    model=val_model,
-                    multistep=self.multistep,
-                    loss=loss_config.loss,
-                )
-            if val_loss < min_val_loss:
-                min_val_loss = val_loss
-                torch.save(train_model.state_dict(), self.save_path)
+            if validation_state is not None:
+                val_model = train_model.eval()
+                with torch.no_grad():
+                    val_loss = evaluate_model(
+                        validation_state,
+                        model=val_model,
+                        multistep=self.multistep,
+                        loss=loss_config.loss,
+                    )
+                if val_loss < min_val_loss:
+                    min_val_loss = val_loss
+                    torch.save(train_model.state_dict(), self.save_path)
 
 
 def evaluate_model(

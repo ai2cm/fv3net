@@ -3,7 +3,7 @@ import numpy as np
 import dataclasses
 from fv3fit._shared.training_config import Hyperparameters
 from toolz.functoolz import curry
-from fv3fit.pytorch.predict import PytorchModel
+from fv3fit.pytorch.predict import PytorchAutoregressor
 from fv3fit.pytorch.graph.network import GraphNetwork, GraphNetworkConfig
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
@@ -82,7 +82,7 @@ def train_graph_model(
     hyperparameters: GraphHyperparameters,
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
-) -> PytorchModel:
+) -> PytorchAutoregressor:
     """
     Train a graph network.
 
@@ -127,7 +127,7 @@ def train_graph_model(
         loss_config=hyperparameters.loss,
     )
 
-    predictor = PytorchModel(
+    predictor = PytorchAutoregressor(
         state_variables=hyperparameters.state_variables,
         model=train_model,
         scalers=scalers,
