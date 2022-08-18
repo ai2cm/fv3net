@@ -14,7 +14,7 @@ spec:
       - name: training-config
         value: ""
       - name: image_tag
-        value: 97af7688d110b2e6fcb23d93f05281d9006b55e6
+        value: d28691af12d75c761ef3393b04dad4bf466e99bd
   volumes:
   - name: gcp-key-secret
     secret:
@@ -58,7 +58,7 @@ spec:
           cpu: "7"
           memory: "15Gi"
       workingDir: "/fv3net/projects/full_model_emulation/test"
-      args: ["SAGEUnet_Unet_MP_LowRes.py"]
+      args: ["SAGEUnet_Unet_MP_LowRes_MultiLoss.py"]
     tolerations:
     - key: "dedicated"
       operator: "Equal"
