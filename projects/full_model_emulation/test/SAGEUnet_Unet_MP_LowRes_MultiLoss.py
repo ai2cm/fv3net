@@ -23,15 +23,17 @@ from utilsMPGNNUnet import *
 import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
-# from SAGE_Unet_MP_LowRes import UnetGraphSAGE
-from SAGE_Unet_MP_LowRes_Conv import UnetGraphSAGE
+from SAGE_Unet_MP_LowRes import UnetGraphSAGE
+# from SAGE_Unet_MP_LowRes_Conv import UnetGraphSAGE
 
 halo=1
-control_str = "Conv_Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
+control_str = "MultiLoss_Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
 
 
-edgenormal=1
+edgenormal=0
 edgediff= 1
+multiStep=2
+
 lead = 6
 residual = 0
 coarsenInd = 1
@@ -101,6 +103,8 @@ savemodelpath = (
     +str(edgenormal)
     +"edgeDiff"
     +str(edgediff)
+    +"multiStepLoos_"
+    +str(multiStep)
     + "Poolin"
     + "Meanpool"
     + "hidden_filetrs"
@@ -429,10 +433,27 @@ for epoch in range(1, epochs + 1):
         train = dataSets[:, :len_train]
         val = dataSets[:, len_train + 14 : len_train + len_val]
 
-        x_train = train[:, 0:-lead, :]
-        y_train = train[:, lead::, :]
+        x_train = train[:, 0 : -multiStep * lead, :]
+
+        y_train = np.zeros(
+            [
+                np.size(train, 0),
+                np.size(train, 1) - multiStep * lead,
+                np.size(train, 2),
+                multiStep,
+            ]
+        )
+        for sm in range(1, multiStep + 1):
+            if sm == multiStep:
+                y_train[:, :, :, sm - 1] = train[:, (sm) * lead : :, :]
+            else:
+                y_train[:, :, :, sm - 1] = train[
+                    :, (sm) * lead : -(multiStep - sm) * lead, :
+                ]
+
         x_val = val[:, 0:-lead, :]
         y_val = val[:, lead::, :]
+
 
         if residual == 1:
             y_train = y_train - x_train
@@ -468,7 +489,21 @@ for epoch in range(1, epochs + 1):
             exteraVar1 = exteraVar[: x.size(0)]
             x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
             optimizer.zero_grad()
-            y_pred = model(x, latlon1,latlon2,latlon3, latlon4, latlon5).view(-1, out_feat)
+            y_pred = model(x, latlon1,latlon2,latlon3, latlon4, latlon5)
+
+            l = loss(y_pred, torch.squeeze(y[:, :, :, 0]).to(device))
+
+            for sm in range(1, multiStep):
+                y_pred2 = model(
+                    torch.cat((y_pred, exteraVar1), 2).float(),
+                    latlon1,latlon2,latlon3, latlon4, latlon5
+                )
+                l += loss(y_pred2, torch.squeeze(y[:, :, :, sm]).to(device))
+                y_pred = y_pred2
+
+            l = l / multiStep
+
+
             l = loss(y_pred, torch.squeeze(y.to(device)))
             l.backward()
             optimizer.step()
