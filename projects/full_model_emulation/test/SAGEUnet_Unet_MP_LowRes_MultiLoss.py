@@ -88,7 +88,7 @@ epochs = 30
 
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
-Chuncksize = 200
+Chuncksize = 2000
 
 
 lr = 0.001
@@ -568,14 +568,14 @@ for epoch in range(1, epochs + 1):
         )
         if val_loss < min_val_loss:
             min_val_loss = val_loss
-            # torch.save(model.state_dict(), savemodelpath)
+            torch.save(model.state_dict(), savemodelpath)
         print(
             "epoch", epoch, ", train loss:", l_sum / n, ", validation loss:", val_loss
         )
 
-        # fs = get_fs(model_out_url)
-        # fs.put(savemodelpath, model_out_url)
-        # print(savemodelpath, model_out_url)
+        fs = get_fs(model_out_url)
+        fs.put(savemodelpath, model_out_url)
+        print(savemodelpath, model_out_url)
 
 
 # best_model = STGCN_WAVE(channels, window, num_nodes, g, drop_prob, num_layers, device, control_str).to(device)
