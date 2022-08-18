@@ -26,37 +26,35 @@ from tqdm import trange
 import pandas as pd
 from graph_weather import GraphWeatherForecaster
 
-res=1
-resolution=2
-feature_dim=7
-output_dim=2
-node_dim=64 
-num_blocks=6
-hidden_dim_processor_node=64
-hidden_dim_processor_edge=64
-hidden_layers_processor_node=2
-hidden_layers_processor_edge=2
-hidden_dim_decoder=64
-hidden_layers_decoder=2
-norm_type="LayerNorm"
+res = 1
+resolution = 2
+feature_dim = 7
+output_dim = 2
+node_dim = 64
+num_blocks = 6
+hidden_dim_processor_node = 64
+hidden_dim_processor_edge = 64
+hidden_layers_processor_node = 2
+hidden_layers_processor_edge = 2
+hidden_dim_decoder = 64
+hidden_layers_decoder = 2
+norm_type = "LayerNorm"
 
-halo=1
+halo = 1
 lead = 6
 control_str = "Message_Passing"  #'TNSTTNST' #'TNTSTNTST'
 print(control_str)
-coarsenInd=1
+coarsenInd = 1
 epochs = 30
-input_res=48
-num_layers=3
-
-
+input_res = 48
+num_layers = 3
 
 
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
 Chuncksize = 2000
 
-if halo==1:
+if halo == 1:
     print("halo")
     g1 = pickle.load(open("NewHalo_Graph5_Coarsen48", "rb"))
 
@@ -68,7 +66,7 @@ if halo==1:
 
     g5 = pickle.load(open("NewHalo_Graph5_Coarsen3", "rb"))
 
-elif halo==0:
+elif halo == 0:
     print("No halo")
     g1 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen1", "rb"))
 
@@ -89,7 +87,7 @@ savemodelpath = (
     + "Input_res_"
     + str(res)
     + "h3_"
-    +str(resolution)
+    + str(resolution)
     + "node_hidden_filetrs"
     + str(node_dim)
     + "learning_rate"
@@ -133,49 +131,88 @@ landSea_Mask = landSea.land_sea_mask[1].load()
 landSea_Mask = landSea_Mask[:, ::, ::].values.flatten()
 
 
-
 lat1 = lat_lon_data.latitude[1].load()
 lon1 = lat_lon_data.longitude[1].load()
 lat = lat1.values.flatten()
 lon = lon1.values.flatten()
 
-lat2=np.zeros([6,24,24])
-lon2=np.zeros([6,24,24])
+lat2 = np.zeros([6, 24, 24])
+lon2 = np.zeros([6, 24, 24])
 
-lat3=np.zeros([6,12,12])
-lon3=np.zeros([6,12,12])
+lat3 = np.zeros([6, 12, 12])
+lon3 = np.zeros([6, 12, 12])
 
-lat4=np.zeros([6,6,6])
-lon4=np.zeros([6,6,6])
+lat4 = np.zeros([6, 6, 6])
+lon4 = np.zeros([6, 6, 6])
 
-lat5=np.zeros([6,3,3])
-lon5=np.zeros([6,3,3])
-
-for i in range(6):
-    lat2[i]=0.25* (lat1[i,1::2, :-1:2] + lat1[i,:-1:2, :-1:2] + lat1[i,1::2, 1::2] + lat1[i,:-1:2, :-1:2])
-    lon2[i]=0.25* (lon1[i,1::2, :-1:2] + lon1[i,:-1:2, :-1:2] + lon1[i,1::2, 1::2] + lon1[i,:-1:2, :-1:2])
+lat5 = np.zeros([6, 3, 3])
+lon5 = np.zeros([6, 3, 3])
 
 for i in range(6):
-    lat3[i]=0.25* (lat2[i,1::2, :-1:2] + lat2[i,:-1:2, :-1:2] + lat2[i,1::2, 1::2] + lat2[i,:-1:2, :-1:2])
-    lon3[i]=0.25* (lon2[i,1::2, :-1:2] + lon2[i,:-1:2, :-1:2] + lon2[i,1::2, 1::2] + lon2[i,:-1:2, :-1:2])
+    lat2[i] = 0.25 * (
+        lat1[i, 1::2, :-1:2]
+        + lat1[i, :-1:2, :-1:2]
+        + lat1[i, 1::2, 1::2]
+        + lat1[i, :-1:2, :-1:2]
+    )
+    lon2[i] = 0.25 * (
+        lon1[i, 1::2, :-1:2]
+        + lon1[i, :-1:2, :-1:2]
+        + lon1[i, 1::2, 1::2]
+        + lon1[i, :-1:2, :-1:2]
+    )
 
 for i in range(6):
-    lat4[i]=0.25* (lat3[i,1::2, :-1:2] + lat3[i,:-1:2, :-1:2] + lat3[i,1::2, 1::2] + lat3[i,:-1:2, :-1:2])
-    lon4[i]=0.25* (lon3[i,1::2, :-1:2] + lon3[i,:-1:2, :-1:2] + lon3[i,1::2, 1::2] + lon3[i,:-1:2, :-1:2])
+    lat3[i] = 0.25 * (
+        lat2[i, 1::2, :-1:2]
+        + lat2[i, :-1:2, :-1:2]
+        + lat2[i, 1::2, 1::2]
+        + lat2[i, :-1:2, :-1:2]
+    )
+    lon3[i] = 0.25 * (
+        lon2[i, 1::2, :-1:2]
+        + lon2[i, :-1:2, :-1:2]
+        + lon2[i, 1::2, 1::2]
+        + lon2[i, :-1:2, :-1:2]
+    )
 
 for i in range(6):
-    lat5[i]=0.25* (lat4[i,1::2, :-1:2] + lat4[i,:-1:2, :-1:2] + lat4[i,1::2, 1::2] + lat4[i,:-1:2, :-1:2])
-    lon5[i]=0.25* (lon4[i,1::2, :-1:2] + lon4[i,:-1:2, :-1:2] + lon4[i,1::2, 1::2] + lon4[i,:-1:2, :-1:2])
+    lat4[i] = 0.25 * (
+        lat3[i, 1::2, :-1:2]
+        + lat3[i, :-1:2, :-1:2]
+        + lat3[i, 1::2, 1::2]
+        + lat3[i, :-1:2, :-1:2]
+    )
+    lon4[i] = 0.25 * (
+        lon3[i, 1::2, :-1:2]
+        + lon3[i, :-1:2, :-1:2]
+        + lon3[i, 1::2, 1::2]
+        + lon3[i, :-1:2, :-1:2]
+    )
 
-lat2=lat2.flatten()
-lat3=lat3.flatten()
-lat4=lat4.flatten()
-lat5=lat5.flatten()
+for i in range(6):
+    lat5[i] = 0.25 * (
+        lat4[i, 1::2, :-1:2]
+        + lat4[i, :-1:2, :-1:2]
+        + lat4[i, 1::2, 1::2]
+        + lat4[i, :-1:2, :-1:2]
+    )
+    lon5[i] = 0.25 * (
+        lon4[i, 1::2, :-1:2]
+        + lon4[i, :-1:2, :-1:2]
+        + lon4[i, 1::2, 1::2]
+        + lon4[i, :-1:2, :-1:2]
+    )
 
-lon2=lon2.flatten()
-lon3=lon3.flatten()
-lon4=lon4.flatten()
-lon5=lon5.flatten()
+lat2 = lat2.flatten()
+lat3 = lat3.flatten()
+lat4 = lat4.flatten()
+lat5 = lat5.flatten()
+
+lon2 = lon2.flatten()
+lon3 = lon3.flatten()
+lon4 = lon4.flatten()
+lon5 = lon5.flatten()
 
 cosLat = np.cos(lat)
 cosLon = np.cos(lon)
@@ -284,20 +321,20 @@ latlon5 = latlon5.to(device)
 del edg, lonInd, latInd, lonInd1, latInd1
 
 
-if res==1:
-    lat_lons=[lat,lon]
-elif res==2:
-    lat_lons=[lat2,lon2]
-elif res==3:
-    lat_lons=[lat3,lon3]
-elif res==4:
-    lat_lons=[lat4,lon4]
-elif res==5:
-    lat_lons=[lat5,lon5]
+if res == 1:
+    lat_lons = [lat, lon]
+elif res == 2:
+    lat_lons = [lat2, lon2]
+elif res == 3:
+    lat_lons = [lat3, lon3]
+elif res == 4:
+    lat_lons = [lat4, lon4]
+elif res == 5:
+    lat_lons = [lat5, lon5]
 
-lat_lons=np.swapaxes(lat_lons,0,1)
-lat_lons=lat_lons*180/np.pi
-lat_lons=lat_lons.float().to(device)
+lat_lons = np.swapaxes(lat_lons, 0, 1)
+lat_lons = lat_lons * 180 / np.pi
+lat_lons = lat_lons.float().to(device)
 
 Zmean = 5765.8457  # Z500mean=5765.8457,
 Zstd = 90.79599  # Z500std=90.79599
@@ -309,17 +346,30 @@ valInde = 0
 print("loading model")
 
 
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 loss = nn.MSELoss()
 
-model = GraphWeatherForecaster(lat_lons,resolution=resolution, feature_dim=feature_dim, output_dim=output_dim, node_dim=node_dim, num_blocks=num_blocks,hidden_dim_processor_node=hidden_dim_processor_node,hidden_dim_processor_edge=hidden_dim_processor_edge,hidden_layers_processor_node=hidden_layers_processor_node,hidden_layers_processor_edge=hidden_layers_processor_edge,hidden_dim_decoder=hidden_dim_decoder,hidden_layers_decoder=hidden_layers_decoder,norm_type=norm_type).to(device)
+model = GraphWeatherForecaster(
+    lat_lons,
+    resolution=resolution,
+    feature_dim=feature_dim,
+    output_dim=output_dim,
+    node_dim=node_dim,
+    num_blocks=num_blocks,
+    hidden_dim_processor_node=hidden_dim_processor_node,
+    hidden_dim_processor_edge=hidden_dim_processor_edge,
+    hidden_layers_processor_node=hidden_layers_processor_node,
+    hidden_layers_processor_edge=hidden_layers_processor_edge,
+    hidden_dim_decoder=hidden_dim_decoder,
+    hidden_layers_decoder=hidden_layers_decoder,
+    norm_type=norm_type,
+).to(device)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
 
-print('Total Parameters:', sum([p.nelement() for p in model.parameters()]))
+print("Total Parameters:", sum([p.nelement() for p in model.parameters()]))
 
 
 for epoch in range(1, epochs + 1):
@@ -435,7 +485,9 @@ for epoch in range(1, epochs + 1):
             n += y.shape[0]
 
         scheduler.step()
-        val_loss = evaluate_model11(model, loss, val_iter, exteraVar, output_dim, device)
+        val_loss = evaluate_model11(
+            model, loss, val_iter, exteraVar, output_dim, device
+        )
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(model.state_dict(), savemodelpath)

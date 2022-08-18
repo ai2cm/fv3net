@@ -24,15 +24,16 @@ import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
 from SAGE_Unet_MP_LowRes import UnetGraphSAGE
+
 # from SAGE_Unet_MP_LowRes_Conv import UnetGraphSAGE
 
-halo=1
+halo = 1
 control_str = "MultiLoss_Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
 
 
-edgenormal=0
-edgediff= 1
-multiStep=2
+edgenormal = 0
+edgediff = 1
+multiStep = 2
 
 lead = 6
 residual = 0
@@ -44,7 +45,7 @@ pooling_size = 2
 edge_in_feats = 2
 num_step_message_passing = 5
 
-if halo==1:
+if halo == 1:
     print("halo")
     g1 = pickle.load(open("NewHalo_Graph5_Coarsen48", "rb"))
 
@@ -59,7 +60,7 @@ if halo==1:
     g5 = pickle.load(open("NewHalo_Graph5_Coarsen3", "rb"))
     coarsenInd5 = 16
 
-elif halo==0:
+elif halo == 0:
     print("No halo")
     g1 = pickle.load(open("UpdatedGraph_Neighbour5_Coarsen1", "rb"))
 
@@ -87,7 +88,7 @@ epochs = 30
 
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500
-Chuncksize = 2000
+Chuncksize = 200
 
 
 lr = 0.001
@@ -97,20 +98,20 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "No_diff_latlon_LowRes_Shift_Ave_latlon_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
+    "LowRes_Shift_Ave_latlon_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
     + control_str
-    +"edgeNormal_"
-    +str(edgenormal)
-    +"edgeDiff"
-    +str(edgediff)
-    +"multiStepLoos_"
-    +str(multiStep)
+    + "edgeNormal_"
+    + str(edgenormal)
+    + "edgeDiff"
+    + str(edgediff)
+    + "multiStepLoos_"
+    + str(multiStep)
     + "Poolin"
     + "Meanpool"
     + "hidden_filetrs"
     + str(n_filter)
-    +"edgeHidden"
-    +str(edge_h_feats)
+    + "edgeHidden"
+    + str(edge_h_feats)
     + "learning_rate"
     + str(lr)
     + "_lead"
@@ -159,43 +160,83 @@ lon1 = lat_lon_data.longitude[1].load()
 lat = lat1.values.flatten()
 lon = lon1.values.flatten()
 
-lat2=np.zeros([6,24,24])
-lon2=np.zeros([6,24,24])
+lat2 = np.zeros([6, 24, 24])
+lon2 = np.zeros([6, 24, 24])
 
-lat3=np.zeros([6,12,12])
-lon3=np.zeros([6,12,12])
+lat3 = np.zeros([6, 12, 12])
+lon3 = np.zeros([6, 12, 12])
 
-lat4=np.zeros([6,6,6])
-lon4=np.zeros([6,6,6])
+lat4 = np.zeros([6, 6, 6])
+lon4 = np.zeros([6, 6, 6])
 
-lat5=np.zeros([6,3,3])
-lon5=np.zeros([6,3,3])
-
-for i in range(6):
-    lat2[i]=0.25* (lat1[i,1::2, :-1:2] + lat1[i,:-1:2, :-1:2] + lat1[i,1::2, 1::2] + lat1[i,:-1:2, :-1:2])
-    lon2[i]=0.25* (lon1[i,1::2, :-1:2] + lon1[i,:-1:2, :-1:2] + lon1[i,1::2, 1::2] + lon1[i,:-1:2, :-1:2])
+lat5 = np.zeros([6, 3, 3])
+lon5 = np.zeros([6, 3, 3])
 
 for i in range(6):
-    lat3[i]=0.25* (lat2[i,1::2, :-1:2] + lat2[i,:-1:2, :-1:2] + lat2[i,1::2, 1::2] + lat2[i,:-1:2, :-1:2])
-    lon3[i]=0.25* (lon2[i,1::2, :-1:2] + lon2[i,:-1:2, :-1:2] + lon2[i,1::2, 1::2] + lon2[i,:-1:2, :-1:2])
+    lat2[i] = 0.25 * (
+        lat1[i, 1::2, :-1:2]
+        + lat1[i, :-1:2, :-1:2]
+        + lat1[i, 1::2, 1::2]
+        + lat1[i, :-1:2, :-1:2]
+    )
+    lon2[i] = 0.25 * (
+        lon1[i, 1::2, :-1:2]
+        + lon1[i, :-1:2, :-1:2]
+        + lon1[i, 1::2, 1::2]
+        + lon1[i, :-1:2, :-1:2]
+    )
 
 for i in range(6):
-    lat4[i]=0.25* (lat3[i,1::2, :-1:2] + lat3[i,:-1:2, :-1:2] + lat3[i,1::2, 1::2] + lat3[i,:-1:2, :-1:2])
-    lon4[i]=0.25* (lon3[i,1::2, :-1:2] + lon3[i,:-1:2, :-1:2] + lon3[i,1::2, 1::2] + lon3[i,:-1:2, :-1:2])
+    lat3[i] = 0.25 * (
+        lat2[i, 1::2, :-1:2]
+        + lat2[i, :-1:2, :-1:2]
+        + lat2[i, 1::2, 1::2]
+        + lat2[i, :-1:2, :-1:2]
+    )
+    lon3[i] = 0.25 * (
+        lon2[i, 1::2, :-1:2]
+        + lon2[i, :-1:2, :-1:2]
+        + lon2[i, 1::2, 1::2]
+        + lon2[i, :-1:2, :-1:2]
+    )
 
 for i in range(6):
-    lat5[i]=0.25* (lat4[i,1::2, :-1:2] + lat4[i,:-1:2, :-1:2] + lat4[i,1::2, 1::2] + lat4[i,:-1:2, :-1:2])
-    lon5[i]=0.25* (lon4[i,1::2, :-1:2] + lon4[i,:-1:2, :-1:2] + lon4[i,1::2, 1::2] + lon4[i,:-1:2, :-1:2])
+    lat4[i] = 0.25 * (
+        lat3[i, 1::2, :-1:2]
+        + lat3[i, :-1:2, :-1:2]
+        + lat3[i, 1::2, 1::2]
+        + lat3[i, :-1:2, :-1:2]
+    )
+    lon4[i] = 0.25 * (
+        lon3[i, 1::2, :-1:2]
+        + lon3[i, :-1:2, :-1:2]
+        + lon3[i, 1::2, 1::2]
+        + lon3[i, :-1:2, :-1:2]
+    )
 
-lat2=lat2.flatten()
-lat3=lat3.flatten()
-lat4=lat4.flatten()
-lat5=lat5.flatten()
+for i in range(6):
+    lat5[i] = 0.25 * (
+        lat4[i, 1::2, :-1:2]
+        + lat4[i, :-1:2, :-1:2]
+        + lat4[i, 1::2, 1::2]
+        + lat4[i, :-1:2, :-1:2]
+    )
+    lon5[i] = 0.25 * (
+        lon4[i, 1::2, :-1:2]
+        + lon4[i, :-1:2, :-1:2]
+        + lon4[i, 1::2, 1::2]
+        + lon4[i, :-1:2, :-1:2]
+    )
 
-lon2=lon2.flatten()
-lon3=lon3.flatten()
-lon4=lon4.flatten()
-lon5=lon5.flatten()
+lat2 = lat2.flatten()
+lat3 = lat3.flatten()
+lat4 = lat4.flatten()
+lat5 = lat5.flatten()
+
+lon2 = lon2.flatten()
+lon3 = lon3.flatten()
+lon4 = lon4.flatten()
+lon5 = lon5.flatten()
 
 
 cosLat = np.cos(lat)
@@ -228,16 +269,16 @@ edg = np.asarray(g1.edges())
 latInd = lat[edg[1]]
 lonInd = lon[edg[1]]
 
-if edgediff==1:
+if edgediff == 1:
     latInd1 = lat[edg[0]]
     lonInd1 = lon[edg[0]]
 
     latInd = latInd - latInd1
     lonInd = lonInd - lonInd1
 
-if edgenormal==1:
-    latInd=(latInd-np.mean(latInd))/np.std(latInd)
-    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
+if edgenormal == 1:
+    latInd = (latInd - np.mean(latInd)) / np.std(latInd)
+    lonInd = (lonInd - np.mean(lonInd)) / np.std(lonInd)
 
 latlon1 = [latInd.T, lonInd.T]
 latlon1 = torch.from_numpy(np.swapaxes(latlon1, 1, 0)).float()
@@ -249,16 +290,16 @@ edg = np.asarray(g2.edges())
 latInd = lat2[edg[1]]
 lonInd = lon2[edg[1]]
 
-if edgediff==1:
+if edgediff == 1:
     latInd1 = lat2[edg[0]]
     lonInd1 = lon2[edg[0]]
 
     latInd = latInd - latInd1
     lonInd = lonInd - lonInd1
 
-if edgenormal==1:
-    latInd=(latInd-np.mean(latInd))/np.std(latInd)
-    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
+if edgenormal == 1:
+    latInd = (latInd - np.mean(latInd)) / np.std(latInd)
+    lonInd = (lonInd - np.mean(lonInd)) / np.std(lonInd)
 
 latlon2 = [latInd.T, lonInd.T]
 latlon2 = torch.from_numpy(np.swapaxes(latlon2, 1, 0)).float()
@@ -270,16 +311,16 @@ edg = np.asarray(g3.edges())
 latInd = lat3[edg[1]]
 lonInd = lon3[edg[1]]
 
-if edgediff==1:
+if edgediff == 1:
     latInd1 = lat3[edg[0]]
     lonInd1 = lon3[edg[0]]
 
     latInd = latInd - latInd1
     lonInd = lonInd - lonInd1
 
-if edgenormal==1:
-    latInd=(latInd-np.mean(latInd))/np.std(latInd)
-    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
+if edgenormal == 1:
+    latInd = (latInd - np.mean(latInd)) / np.std(latInd)
+    lonInd = (lonInd - np.mean(lonInd)) / np.std(lonInd)
 
 latlon3 = [latInd.T, lonInd.T]
 latlon3 = torch.from_numpy(np.swapaxes(latlon3, 1, 0)).float()
@@ -291,16 +332,16 @@ edg = np.asarray(g4.edges())
 latInd = lat4[edg[1]]
 lonInd = lon4[edg[1]]
 
-if edgediff==1:
+if edgediff == 1:
     latInd1 = lat4[edg[0]]
     lonInd1 = lon4[edg[0]]
 
     latInd = latInd - latInd1
     lonInd = lonInd - lonInd1
 
-if edgenormal==1:
-    latInd=(latInd-np.mean(latInd))/np.std(latInd)
-    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
+if edgenormal == 1:
+    latInd = (latInd - np.mean(latInd)) / np.std(latInd)
+    lonInd = (lonInd - np.mean(lonInd)) / np.std(lonInd)
 
 latlon4 = [latInd.T, lonInd.T]
 latlon4 = torch.from_numpy(np.swapaxes(latlon4, 1, 0)).float()
@@ -312,16 +353,16 @@ edg = np.asarray(g5.edges())
 latInd = lat5[edg[1]]
 lonInd = lon5[edg[1]]
 
-if edgediff==1:
+if edgediff == 1:
     latInd1 = lat5[edg[0]]
     lonInd1 = lon5[edg[0]]
 
     latInd = latInd - latInd1
     lonInd = lonInd - lonInd1
 
-if edgenormal==1:
-    latInd=(latInd-np.mean(latInd))/np.std(latInd)
-    lonInd=(lonInd-np.mean(lonInd))/np.std(lonInd)
+if edgenormal == 1:
+    latInd = (latInd - np.mean(latInd)) / np.std(latInd)
+    lonInd = (lonInd - np.mean(lonInd)) / np.std(lonInd)
 
 latlon5 = [latInd.T, lonInd.T]
 latlon5 = torch.from_numpy(np.swapaxes(latlon5, 1, 0)).float()
@@ -361,7 +402,7 @@ model = UnetGraphSAGE(
 ).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.7)
-print('Total Parameters:', sum([p.nelement() for p in model.parameters()]))
+print("Total Parameters:", sum([p.nelement() for p in model.parameters()]))
 
 
 for epoch in range(1, epochs + 1):
@@ -454,7 +495,6 @@ for epoch in range(1, epochs + 1):
         x_val = val[:, 0:-lead, :]
         y_val = val[:, lead::, :]
 
-
         if residual == 1:
             y_train = y_train - x_train
             y_val = y_val - x_val
@@ -485,32 +525,33 @@ for epoch in range(1, epochs + 1):
 
         l_sum, n = 0.0, 0
         for x, y in train_iter:
-            ss=time.time()
+            ss = time.time()
             exteraVar1 = exteraVar[: x.size(0)]
             x = torch.squeeze(torch.cat((x.to(device), exteraVar1), 2)).float()
             optimizer.zero_grad()
-            y_pred = model(x, latlon1,latlon2,latlon3, latlon4, latlon5)
+            y_pred = model(x, latlon1, latlon2, latlon3, latlon4, latlon5)
 
             l = loss(y_pred, torch.squeeze(y[:, :, :, 0]).to(device))
-
             for sm in range(1, multiStep):
                 y_pred2 = model(
-                    torch.cat((y_pred, exteraVar1), 2).float(),
-                    latlon1,latlon2,latlon3, latlon4, latlon5
+                    torch.cat((y_pred, torch.squeeze(exteraVar1)), 1).float(),
+                    latlon1,
+                    latlon2,
+                    latlon3,
+                    latlon4,
+                    latlon5,
                 )
                 l += loss(y_pred2, torch.squeeze(y[:, :, :, sm]).to(device))
                 y_pred = y_pred2
 
             l = l / multiStep
 
-
-            l = loss(y_pred, torch.squeeze(y.to(device)))
             l.backward()
             optimizer.step()
             l_sum += l.item() * y.shape[0]
             n += y.shape[0]
 
-        print(" epoch", epoch, ", train loss:", l.item(),"time:",time.time()-ss)
+        print(" epoch", epoch, ", train loss:", l.item(), "time:", time.time() - ss)
         scheduler.step()
         val_loss = evaluate_model11(
             model,
@@ -527,14 +568,14 @@ for epoch in range(1, epochs + 1):
         )
         if val_loss < min_val_loss:
             min_val_loss = val_loss
-            torch.save(model.state_dict(), savemodelpath)
+            # torch.save(model.state_dict(), savemodelpath)
         print(
             "epoch", epoch, ", train loss:", l_sum / n, ", validation loss:", val_loss
         )
 
-        fs = get_fs(model_out_url)
-        fs.put(savemodelpath, model_out_url)
-        print(savemodelpath, model_out_url)
+        # fs = get_fs(model_out_url)
+        # fs.put(savemodelpath, model_out_url)
+        # print(savemodelpath, model_out_url)
 
 
 # best_model = STGCN_WAVE(channels, window, num_nodes, g, drop_prob, num_layers, device, control_str).to(device)
