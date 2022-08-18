@@ -3,9 +3,6 @@ geopy
 h3
 einops
 
---extra-index-url https://data.pyg.org/whl/torch-1.12.0+cu113.html
-torch-geometric
-
 --extra-index-url https://download.pytorch.org/whl/cu113
 torch
 torchvision
