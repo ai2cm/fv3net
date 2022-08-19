@@ -99,22 +99,22 @@ class PytorchPredictor(Predictor):
         with torch.no_grad():
             outputs = self.model(tensor)
         predicted = self.unpack_tensor(outputs)
+        import pdb
+
+        pdb.set_trace()
         return predicted
 
     def pack_to_tensor(self, X: xr.Dataset) -> torch.Tensor:
-        timeseries_packed = _pack_to_tensor(
+        packed = _pack_to_tensor(
             ds=X,
-            timesteps=1,
+            timesteps=0,
             state_variables=self.input_variables,
             scalers=self.scalers,
         )
-        # dimensions are [window, timestep, tile, x, y, z],
-        # we must select first timestep and squash all but (x, y, z) into a sample dim
-        first_times = timeseries_packed[:, 0, :]
+        # dimensions are [time, tile, x, y, z],
+        # we must combine [time, tile] into one sample dimension
         return torch.reshape(
-            first_times,
-            (first_times.shape[0] * first_times.shape[1],)
-            + tuple(first_times.shape[2:]),
+            packed, (packed.shape[0] * packed.shape[1],) + tuple(packed.shape[2:]),
         )
 
     def unpack_tensor(self, data: torch.Tensor) -> xr.Dataset:
@@ -325,10 +325,11 @@ def _pack_to_tensor(
 
     expected_dims = ("time", "tile", "x", "y", "z")
     ds = ds.transpose(*expected_dims)
-    n_times = ds.time.size
-    n_windows = int((n_times - 1) // timesteps)
-    # times need to be evenly divisible into windows
-    ds = ds.isel(time=slice(None, n_windows * timesteps + 1))
+    if timesteps > 0:
+        n_times = ds.time.size
+        n_windows = int((n_times - 1) // timesteps)
+        # times need to be evenly divisible into windows
+        ds = ds.isel(time=slice(None, n_windows * timesteps + 1))
     all_data = []
     for varname in state_variables:
         var_dims = ds[varname].dims
@@ -338,13 +339,16 @@ def _pack_to_tensor(
             )
         data = ds[varname].values
         normalized_data = scalers[varname].normalize(data)
-        # segment time axis into windows, excluding last time of each window
-        data = normalized_data[:-1, :].reshape(n_windows, timesteps, *data.shape[1:])
-        # append first time of next window to end of each window
-        end_data = np.concatenate(
-            [data[1:, :1, :], normalized_data[None, -1:, :]], axis=0
-        )
-        data = np.concatenate([data, end_data], axis=1)
+        if timesteps > 0:
+            # segment time axis into windows, excluding last time of each window
+            data = normalized_data[:-1, :].reshape(
+                n_windows, timesteps, *data.shape[1:]
+            )
+            # append first time of next window to end of each window
+            end_data = np.concatenate(
+                [data[1:, :1, :], normalized_data[None, -1:, :]], axis=0
+            )
+            data = np.concatenate([data, end_data], axis=1)
         if "z" not in var_dims:
             # need a z-axis for concatenation into feature axis
             data = data[..., np.newaxis]
@@ -372,6 +376,7 @@ def _unpack_tensor(
             else:
                 n_features = 1
                 var_data = data[..., i_feature]
+            var_data = scalers[varname].denormalize(var_data)
             data_vars[varname] = xr.DataArray(
                 data=var_data, dims=dims[: len(var_data.shape)]
             )
