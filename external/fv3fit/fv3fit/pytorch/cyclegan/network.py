@@ -138,7 +138,7 @@ class ConvBlock(nn.Module):
         super(ConvBlock, self).__init__()
         self.conv_block = nn.Sequential(
             convolution_factory(in_channels=in_channels, out_channels=out_channels),
-            nn.InstanceNorm2d(out_channels),
+            # nn.InstanceNorm2d(out_channels),
             activation_factory(),
         )
 
@@ -158,7 +158,7 @@ class Discriminator(nn.Module):
                 convolution_factory=strided_convolution(
                     kernel_size=3, stride=2, padding=1
                 ),
-                activation_factory=leakyrelu_activation(alpha=0.2,),
+                activation_factory=leakyrelu_activation(alpha=0.2),
             )
         ]
         for i in range(1, n_convolutions):
@@ -169,20 +169,20 @@ class Discriminator(nn.Module):
                     convolution_factory=strided_convolution(
                         kernel_size=3, stride=2, padding=1
                     ),
-                    activation_factory=leakyrelu_activation(alpha=0.2,),
+                    activation_factory=leakyrelu_activation(alpha=0.2),
                 )
             )
         final_conv = ConvBlock(
             in_channels=max_filters,
             out_channels=max_filters,
             convolution_factory=flat_convolution(kernel_size=3),
-            activation_factory=leakyrelu_activation(alpha=0.2,),
+            activation_factory=leakyrelu_activation(alpha=0.2),
         )
         patch_output = ConvBlock(
             in_channels=max_filters,
             out_channels=1,
             convolution_factory=flat_convolution(kernel_size=3),
-            activation_factory=leakyrelu_activation(alpha=0.2,),
+            activation_factory=leakyrelu_activation(alpha=0.2),
         )
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
 

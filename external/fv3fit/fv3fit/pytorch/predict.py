@@ -99,9 +99,6 @@ class PytorchPredictor(Predictor):
         with torch.no_grad():
             outputs = self.model(tensor)
         predicted = self.unpack_tensor(outputs)
-        import pdb
-
-        pdb.set_trace()
         return predicted
 
     def pack_to_tensor(self, X: xr.Dataset) -> torch.Tensor:
@@ -376,7 +373,6 @@ def _unpack_tensor(
             else:
                 n_features = 1
                 var_data = data[..., i_feature]
-            var_data = scalers[varname].denormalize(var_data)
             data_vars[varname] = xr.DataArray(
                 data=var_data, dims=dims[: len(var_data.shape)]
             )

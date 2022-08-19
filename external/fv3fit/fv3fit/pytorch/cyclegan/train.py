@@ -143,8 +143,8 @@ class TrainingLoopConfig:
                 if val_loss < min_val_loss:
                     min_val_loss = val_loss
                     best_weights = train_model.state_dict()
-        if validation_data is not None:
-            train_model.load_state_dict(best_weights)
+        # if validation_data is not None:
+        #     train_model.load_state_dict(best_weights)
 
 
 @curry

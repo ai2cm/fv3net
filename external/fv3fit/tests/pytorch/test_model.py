@@ -1,4 +1,4 @@
-from fv3fit.pytorch import PytorchAutoregressor
+from fv3fit.pytorch import PytorchAutoregressor, PytorchPredictor
 from fv3fit.pytorch.predict import _pack_to_tensor
 from torch import nn
 import fv3fit
@@ -72,3 +72,21 @@ def _helper_test_pack_to_tensor_one_var(data):
     np.testing.assert_almost_equal(tensor[2, -1, :], data[6, :])
     # check a full window
     np.testing.assert_almost_equal(tensor[2, :], data[4:7, :])
+
+
+def test_predictor_identity():
+    ntime, ntiles, nx, ny, nz = 11, 6, 8, 8, 3
+    data = np.random.uniform(low=10, high=20, size=(ntime, ntiles, nx, ny, nz))
+    ds = xr.Dataset(
+        data_vars={"u": xr.DataArray(data, dims=["time", "tile", "x", "y", "z"])}
+    )
+    scaler = fv3fit.StandardScaler()
+    scaler.fit(data)
+    predictor = PytorchPredictor(
+        input_variables=["u"],
+        output_variables=["u"],
+        model=nn.Identity(),
+        scalers={"u": scaler},
+    )
+    prediction = predictor.predict(ds)
+    np.testing.assert_almost_equal(prediction.u.values, data, decimal=5)
