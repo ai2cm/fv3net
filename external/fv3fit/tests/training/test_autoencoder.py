@@ -23,7 +23,7 @@ def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
     def sample_iterator():
         # creates a timeseries where each time is the negation of time before it
         for _ in range(nsamples):
-            ax = np.random.uniform(0.5, 1.5, size=(nbatch, 1, ntile, nz))[
+            ax = np.random.uniform(0.1, 1.5, size=(nbatch, 1, ntile, nz))[
                 :, :, :, None, None, :
             ]
             bx = np.random.uniform(8, 16, size=(nbatch, 1, ntile, nz))[
@@ -32,7 +32,7 @@ def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
             cx = np.random.uniform(0.0, 2 * np.pi, size=(nbatch, 1, ntile, nz))[
                 :, :, :, None, None, :
             ]
-            ay = np.random.uniform(0.5, 1.5, size=(nbatch, 1, ntile, nz))[
+            ay = np.random.uniform(0.1, 1.5, size=(nbatch, 1, ntile, nz))[
                 :, :, :, None, None, :
             ]
             by = np.random.uniform(8, 16, size=(nbatch, 1, ntile, nz))[

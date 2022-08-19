@@ -138,7 +138,7 @@ class ConvBlock(nn.Module):
         super(ConvBlock, self).__init__()
         self.conv_block = nn.Sequential(
             convolution_factory(in_channels=in_channels, out_channels=out_channels),
-            # nn.InstanceNorm2d(out_channels),
+            nn.InstanceNorm2d(out_channels),
             activation_factory(),
         )
 
@@ -292,11 +292,19 @@ class Generator(nn.Module):
             )
 
         min_filters = int(max_filters / 2 ** (n_convolutions - 1))
-        self._first_conv = ConvBlock(
-            in_channels=channels,
-            out_channels=min_filters,
-            convolution_factory=flat_convolution(kernel_size=3),
-            activation_factory=relu_activation(),
+
+        # self._first_conv = ConvBlock(
+        #     in_channels=channels,
+        #     out_channels=min_filters,
+        #     convolution_factory=flat_convolution(kernel_size=3),
+        #     activation_factory=relu_activation(),
+        # )
+
+        self._first_conv = nn.Sequential(
+            flat_convolution(kernel_size=3)(
+                in_channels=channels, out_channels=min_filters
+            ),
+            relu_activation()(),
         )
 
         self._unet = UNet(

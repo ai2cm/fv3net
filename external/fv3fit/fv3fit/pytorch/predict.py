@@ -99,6 +99,9 @@ class PytorchPredictor(Predictor):
         with torch.no_grad():
             outputs = self.model(tensor)
         predicted = self.unpack_tensor(outputs)
+        import pdb
+
+        pdb.set_trace()
         return predicted
 
     def pack_to_tensor(self, X: xr.Dataset) -> torch.Tensor:
@@ -346,6 +349,8 @@ def _pack_to_tensor(
                 [data[1:, :1, :], normalized_data[None, -1:, :]], axis=0
             )
             data = np.concatenate([data, end_data], axis=1)
+        else:
+            data = normalized_data
         if "z" not in var_dims:
             # need a z-axis for concatenation into feature axis
             data = data[..., np.newaxis]
@@ -373,6 +378,7 @@ def _unpack_tensor(
             else:
                 n_features = 1
                 var_data = data[..., i_feature]
+            var_data = scalers[varname].denormalize(var_data)
             data_vars[varname] = xr.DataArray(
                 data=var_data, dims=dims[: len(var_data.shape)]
             )
