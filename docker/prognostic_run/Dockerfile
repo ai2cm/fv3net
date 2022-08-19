@@ -80,12 +80,3 @@ RUN make -C docs html
 
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
-
-
-###############################################################################
-#  additionally, with radiation port available
-###############################################################################
-FROM prognostic-run AS prognostic-run-radiation
-
-COPY external/radiation /fv3net/external/radiation
-RUN pip install --no-dependencies -e /fv3net/external/radiation

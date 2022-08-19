@@ -26,15 +26,6 @@ ifneq ("$(wildcard .env)","")
 endif
 
 PROGNOSTIC_RUN_WORKDIR ?= /fv3net/workflows/prognostic_c48_run
-PROGNOSTIC_RUN_RADIATION ?= n
-
-ifeq ($(PROGNOSTIC_RUN_RADIATION),n)
-	PROGNOSTIC_RUN_IMAGE ?=prognostic_run
-	PROGNOSTIC_RUN_TARGET ?=prognostic-run
-else
-	PROGNOSTIC_RUN_IMAGE ?=prognostic_run_radiation
-	PROGNOSTIC_RUN_TARGET ?=prognostic-run-radiation
-endif
 
 IMAGES = fv3net post_process_run prognostic_run
 
@@ -65,9 +56,9 @@ build_image_prognostic_run: docker/prognostic_run/requirements.txt
 ifneq ("$(docker images -q $(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION) 2> /dev/null)","")
 		docker pull $(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION)
 endif
-	tools/docker_build_cached.sh $(REGISTRY)/$(PROGNOSTIC_RUN_IMAGE):$(CACHE_TAG) \
-		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/$(PROGNOSTIC_RUN_IMAGE):$(VERSION) \
-		--target $(PROGNOSTIC_RUN_TARGET) \
+	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run:$(CACHE_TAG) \
+		-f docker/prognostic_run/Dockerfile -t $(REGISTRY)/prognostic_run:$(VERSION) \
+		--target prognostic-run \
 		--build-arg BASE_IMAGE=$(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION) .
 
 build_image_prognostic_run_base_gpu:
@@ -104,14 +95,7 @@ image_test_prognostic_run: image_test_emulation
 	tools/docker-run \
 		--rm \
 		-w /fv3net/workflows/prognostic_c48_run \
-		$(REGISTRY)/prognostic_run:$(VERSION) pytest --ignore=tests/radiation
-
-image_test_prognostic_run_radiation: image_test_prognostic_run
-	tools/docker-run \
-		--rm \
-		-w /fv3net/workflows/prognostic_c48_run \
-		$(REGISTRY)/prognostic_run_radiation:$(VERSION) pytest tests/radiation/test_radiation.py
-
+		$(REGISTRY)/prognostic_run:$(VERSION) pytest
 
 image_test_%:
 	echo "No tests specified"
