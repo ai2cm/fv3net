@@ -2,19 +2,19 @@
 # python3 argo/end_to_end.py configs/gscond-only.yaml
 kind: prognostic
 experiment: gscond-precpd
-name: gscond-only-classifier-zcloud-upper5zero-30d-v1
+name: gscond-only-zcloud-notend-6hr-v1
 image_tag: latest
 config:
   base_version: v0.5
   data_table: default
-  duration: "30d"
+  duration: "6h"
   initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
   fortran_diagnostics:
   - name: piggy.zarr
     chunks:
       time: 1
     times:
-      frequency: 10800
+      frequency: 900
       kind: interval
     variables:
       - field_name: tendency_of_air_temperature_due_to_emulator
@@ -69,7 +69,7 @@ config:
     chunks:
       time: 1
     times:
-      frequency: 10800
+      frequency: 900
       kind: interval
     variables:
     - {module_name: dynamics, field_name: grid_lont, output_name: lon}
@@ -116,7 +116,7 @@ config:
     chunks:
       time: 1
     times:
-      frequency: 10800
+      frequency: 900
       kind: interval
     variables:
     - {module_name: dynamics, field_name: grid_lont, output_name: lon}
@@ -172,7 +172,7 @@ config:
     name: state_after_timestep.zarr
     tensorboard: false
     times:
-      frequency: 10800
+      frequency: 900
       includes_lower: false
       kind: interval
       times: null
@@ -194,7 +194,7 @@ config:
     name: physics_tendencies.zarr
     tensorboard: false
     times:
-      frequency: 10800
+      frequency: 900
       includes_lower: false
       kind: interval
       times: null
@@ -273,15 +273,12 @@ config:
       mask_emulator_levels:
         air_temperature_after_gscond:
           start: 74
-          stop: null
           fill_value: air_temperature_input
         cloud_water_mixing_ratio_after_gscond:
           start: 74
-          stop: null
           fill_value: cloud_water_mixing_ratio_input
         specific_humidity_after_gscond:
           start: 74
-          stop: null
           fill_value: specific_humidity_input
       mask_gscond_zero_cloud_classifier: true
-      mask_gscond_no_tend_classifier: false
+      mask_gscond_no_tend_classifier: true
