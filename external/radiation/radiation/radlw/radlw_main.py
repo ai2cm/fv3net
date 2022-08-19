@@ -2,7 +2,7 @@ import numpy as np
 import time
 import warnings
 from numba import jit
-from radphysparam import (
+from ..radphysparam import (
     ilwrgas as ilwrgas,
     icldflg as icldflg,
     ilwcliq as ilwcliq,
@@ -10,9 +10,9 @@ from radphysparam import (
     ilwcice as ilwcice,
 )
 
-import radlw.radlw_bands as bands
+from . import radlw_bands as bands
 
-from radlw.radlw_param import (
+from .radlw_param import (
     ntbl,
     nbands,
     nrates,
@@ -30,7 +30,7 @@ from radlw.radlw_param import (
     nspa,
     nspb,
 )
-from phys_const import con_g, con_avgd, con_cp, con_amd, con_amw, con_amo3
+from ..phys_const import con_g, con_avgd, con_cp, con_amd, con_amw, con_amo3
 
 
 np.set_printoptions(precision=15)

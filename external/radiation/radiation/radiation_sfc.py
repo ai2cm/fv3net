@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from phys_const import con_tice, con_ttp, con_t0c, con_pi
+from .phys_const import con_tice, con_ttp, con_t0c, con_pi
 
 
 class SurfaceClass:
