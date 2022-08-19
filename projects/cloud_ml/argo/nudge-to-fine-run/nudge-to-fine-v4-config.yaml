@@ -1,5 +1,4 @@
 base_version: v0.7
-field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
 prephysics:
   - dataset_key: "gs://vcm-ml-intermediate/2021-03-fine-res-surface-radiative-fluxes/C3072-surface-radiative-fluxes-precip.zarr"
     variables:
@@ -32,8 +31,8 @@ namelist:
     fhlwr: 900.0
     fhswr: 900.0
     override_surface_radiative_fluxes: true
-    hybedmf: false
-    satmedmf: true
+    hybedmf: true
+    satmedmf: false
   namsfc:
     faisl: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
     faiss: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files

@@ -2,7 +2,7 @@ base_version: v0.7
 field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
 prephysics:
   - dataset_key: "gs://vcm-ml-intermediate/2022-03-08-C3072-reference-SSTs-at-C48-C384/C48.zarr"
-    variables: 
+    variables:
       - ocean_surface_temperature
     reference_initial_time: "20160802.000000"
     reference_frequency_seconds: 86400

@@ -3,10 +3,13 @@ nudge_to_fine_run: deploy
 
 nudge_to_fine_run_v2: deploy
 	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v2
-    
+
 nudge_to_fine_run_v3: deploy
 	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v3
-    
+
+nudge_to_fine_run_v4: deploy
+	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v4
+
 baseline_run_v3: deploy
 	cd nudge-to-fine-run && ./run.sh baseline-v3
 
