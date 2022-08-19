@@ -164,14 +164,7 @@ class UNet(nn.Module):
             raise ValueError(f"depth must be at least 1, got {depth}")
         else:
             self._lower = UNet(
-                down_factory(
-                    in_channels=lower_channels, out_channels=int(lower_channels * 2)
-                ),
-                up_factory(
-                    in_channels=int(lower_channels * 2), out_channels=lower_channels
-                ),
-                depth=depth - 1,
-                in_channels=lower_channels,
+                down_factory, up_factory, depth=depth - 1, in_channels=lower_channels,
             )
 
     def forward(self, inputs):
