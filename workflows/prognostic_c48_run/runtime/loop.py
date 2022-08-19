@@ -344,10 +344,22 @@ class TimeLoop(
         # no diagnostics are computed by default
         return {}
 
-    def _compute_physics(self) -> Diagnostics:
-        self._log_debug(f"Physics Step (compute)")
-        self._fv3gfs.compute_physics()
-        # no diagnostics are computed by default
+    def _step_pre_radiation(self) -> Diagnostics:
+        self._log_debug(f"Pre-radiation Physics Step")
+        self._fv3gfs.step_pre_radiation()
+        return {
+            f"{name}_pre_radiation": self._state[name]
+            for name in self._states_to_output
+        }
+
+    def _step_radiation(self) -> Diagnostics:
+        self._log_debug(f"Radiation Physics Step")
+        self._fv3gfs.step_radiation()
+        return {}
+
+    def _step_post_radiation_physics(self) -> Diagnostics:
+        self._log_debug(f"Post-radiation Physics Step")
+        self._fv3gfs.step_post_radiation_physics()
         return {}
 
     @property
@@ -548,7 +560,9 @@ class TimeLoop(
                 ),
                 self.monitor("dynamics", self._step_dynamics),
                 self._step_prephysics,
-                self._compute_physics,
+                self._step_pre_radiation,
+                self._step_radiation,
+                self._step_post_radiation_physics,
                 self._apply_postphysics_to_physics_state,
                 self.monitor(
                     "applied_physics",
