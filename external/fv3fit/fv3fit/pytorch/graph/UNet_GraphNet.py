@@ -97,7 +97,7 @@ class Down(nn.Module):
             in_channels, out_channels, config.activation, config.aggregator
         )
         self.pool = nn.MaxPool2d(
-            kernel_size=config.pooling_stride, stride=config.stride
+            kernel_size=config.pooling_size, stride=config.pooling_stride
         )
 
     def forward(self, x):
