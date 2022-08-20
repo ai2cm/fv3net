@@ -101,7 +101,9 @@ class Down(nn.Module):
         )
 
     def forward(self, x):
+        print(x.shape)
         before_pooling = self.conv(x)
+        print(before_pooling.shape)
         x = self.pool(before_pooling)
         return x, before_pooling
 
