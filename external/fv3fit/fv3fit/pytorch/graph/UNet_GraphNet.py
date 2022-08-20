@@ -169,9 +169,7 @@ class UNet(nn.Module):
                 down_factory(
                     in_channels=lower_channels, out_channels=lower_channels // 2
                 ),
-                up_factory(
-                    in_channels=lower_channels // 2, out_channels=lower_channels
-                ),
+                up_factory(in_channels=lower_channels // 2),
                 depth=depth - 1,
                 in_channels=lower_channels,
             )
