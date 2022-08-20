@@ -156,7 +156,7 @@ class UNet(nn.Module):
         lower_channels = 2 * config.min_filters
 
         self._down = down_factory(in_channels=in_channels, out_channels=lower_channels)
-        self._up = up_factory(in_channels=lower_channels, out_channels=in_channels)
+        self._up = up_factory(in_channels=lower_channels)
         if depth == 1:
             self._lower = DoubleConv(
                 lower_channels, lower_channels, config.activation, config.aggregator
