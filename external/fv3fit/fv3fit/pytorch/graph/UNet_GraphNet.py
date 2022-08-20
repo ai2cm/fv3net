@@ -166,10 +166,8 @@ class UNet(nn.Module):
         else:
             self._lower = UNet(
                 config,
-                down_factory(
-                    in_channels=lower_channels, out_channels=lower_channels // 2
-                ),
-                up_factory(in_channels=lower_channels // 2),
+                down_factory,
+                up_factory,
                 depth=depth - 1,
                 in_channels=lower_channels,
             )
