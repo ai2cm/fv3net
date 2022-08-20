@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import dataclasses
 from dgl.nn.pytorch import SAGEConv
 from typing import Callable
@@ -24,7 +23,7 @@ class UNetGraphNetworkConfig:
     aggregator: str = "mean"
     pooling_size: int = 2
     pooling_stride: int = 2
-    activation: Callable = F.relu
+    activation: Callable = nn.ReLU()
 
 
 class CubedSphereGraphOperation(nn.Module):
