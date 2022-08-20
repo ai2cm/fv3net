@@ -18,8 +18,8 @@ class UNetGraphNetworkConfig:
         activation: activation function
     """
 
-    depth: int = 5
-    min_filters: int = 16
+    depth: int = 3
+    min_filters: int = 4
     aggregator: str = "mean"
     pooling_size: int = 2
     pooling_stride: int = 2
@@ -101,11 +101,27 @@ class Down(nn.Module):
         )
 
     def forward(self, x):
-        print(x.shape)
+        print(f"Down x: {x.shape}")
         before_pooling = self.conv(x)
-        print(before_pooling.shape)
-        x = self.pool(before_pooling)
-        return x, before_pooling
+        print(f"Down before_pooling: {before_pooling.shape}")
+        x = before_pooling.permute(0, 4, 1, 2, 3)
+        x = x.view(
+            before_pooling.size(0) * before_pooling.size(4),
+            before_pooling.size(1),
+            before_pooling.size(2),
+            before_pooling.size(3),
+        )
+        x = self.pool(x)
+        x = x.view(
+            before_pooling.size(0),
+            before_pooling.size(4),
+            x.size(1),
+            x.size(2),
+            x.size(3),
+        )
+        print(f"Down end x: {x.shape}")
+
+        return x.permute(0, 2, 3, 4, 1), before_pooling
 
 
 class Up(nn.Module):
@@ -130,9 +146,24 @@ class Up(nn.Module):
         )
 
     def forward(self, x1, x2):
+        print(f"Up x1: {x1.shape}")
+        print(f"Up x2: {x2.shape}")
+
+        input_size = x1.size()
+        x1 = x1.permute(0, 1, 4, 2, 3)
+        x1 = x1.reshape(x1.size(0) * x1.size(1), x1.size(2), x1.size(3), x1.size(4))
         x1 = self.up(x1)
+        x1 = x1.reshape(
+            input_size[0],
+            input_size[1],
+            input_size[4] // 2,
+            input_size[2] * 2,
+            input_size[3] * 2,
+        )
+        x1 = x1.permute(0, 1, 3, 4, 2)
         x = torch.cat([x2, x1], dim=-1)
         x = self.conv(x)
+        print(f"Up end x: {x.shape}")
         return x
 
 
@@ -158,11 +189,11 @@ class UNet(nn.Module):
         lower_channels = 2 * config.min_filters
 
         self._down = down_factory(in_channels=in_channels, out_channels=lower_channels)
-        self._up = up_factory(in_channels=lower_channels)
         if depth == 1:
             self._lower = DoubleConv(
-                lower_channels, lower_channels, config.activation, config.aggregator
+                lower_channels, lower_channels * 2, config.activation, config.aggregator
             )
+            lower_channels = lower_channels * 2
         elif depth <= 0:
             raise ValueError(f"depth must be at least 1, got {depth}")
         else:
@@ -173,8 +204,11 @@ class UNet(nn.Module):
                 depth=depth - 1,
                 in_channels=lower_channels,
             )
+        self._up = up_factory(in_channels=lower_channels)
+        self.depth = depth
 
     def forward(self, inputs):
+        print(self.depth)
         x, before_pooling = self._down(inputs)
         x = self._lower(x)
         x = self._up(x, before_pooling)
@@ -204,14 +238,14 @@ class GraphUNet(nn.Module):
         )
 
         self._last_conv = CubedSphereGraphOperation(
-            SAGEConv(config.min_filters, out_dim, config.aggregator)
+            SAGEConv(config.min_filters * 2, out_dim, config.aggregator)
         )
 
         self._unet = UNet(
             config,
             down_factory=down,
             up_factory=up,
-            depth=config.depth,
+            depth=config.depth - 1,
             in_channels=config.min_filters,
         )
 
