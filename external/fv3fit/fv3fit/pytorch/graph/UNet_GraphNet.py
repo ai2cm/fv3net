@@ -12,7 +12,7 @@ class UNetGraphNetworkConfig:
     """
     Attributes:
         depth: depth of U-net architecture maximum
-        min_hidden: mimumum number of hidden channels after first convolution
+        min_filters: mimumum number of hidden channels after first convolution
         aggregator: type of aggregator, one of "mean", "gcn", "pool", or "lstm"
         pooling_size: size of the pooling kernel
         pooling_stride: pooling layer stride
@@ -20,7 +20,7 @@ class UNetGraphNetworkConfig:
     """
 
     depth: int = 5
-    min_hidden: int = 16
+    min_filters: int = 16
     aggregator: str = "mean"
     pooling_size: int = 2
     pooling_stride: int = 2
@@ -154,7 +154,7 @@ class UNet(nn.Module):
         """
         super(UNet, self).__init__()
 
-        lower_channels = 2 * config.min_hidden
+        lower_channels = 2 * config.min_filters
 
         self._down = down_factory(in_channels=in_channels, out_channels=lower_channels)
         self._up = up_factory(in_channels=lower_channels, out_channels=in_channels)
