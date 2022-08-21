@@ -101,9 +101,7 @@ class Down(nn.Module):
         )
 
     def forward(self, x):
-        print(f"Down x: {x.shape}")
         before_pooling = self.conv(x)
-        print(f"Down before_pooling: {before_pooling.shape}")
         x = before_pooling.permute(0, 4, 1, 2, 3)
         x = x.view(
             before_pooling.size(0) * before_pooling.size(4),
@@ -119,7 +117,6 @@ class Down(nn.Module):
             x.size(2),
             x.size(3),
         )
-        print(f"Down end x: {x.shape}")
 
         return x.permute(0, 2, 3, 4, 1), before_pooling
 
@@ -146,9 +143,6 @@ class Up(nn.Module):
         )
 
     def forward(self, x1, x2):
-        print(f"Up x1: {x1.shape}")
-        print(f"Up x2: {x2.shape}")
-
         input_size = x1.size()
         x1 = x1.permute(0, 1, 4, 2, 3)
         x1 = x1.reshape(x1.size(0) * x1.size(1), x1.size(2), x1.size(3), x1.size(4))
@@ -163,7 +157,6 @@ class Up(nn.Module):
         x1 = x1.permute(0, 1, 3, 4, 2)
         x = torch.cat([x2, x1], dim=-1)
         x = self.conv(x)
-        print(f"Up end x: {x.shape}")
         return x
 
 
@@ -186,14 +179,13 @@ class UNet(nn.Module):
         """
         super(UNet, self).__init__()
 
-        lower_channels = 2 * config.min_filters
+        lower_channels = 2 * in_channels
 
         self._down = down_factory(in_channels=in_channels, out_channels=lower_channels)
         if depth == 1:
             self._lower = DoubleConv(
-                lower_channels, lower_channels * 2, config.activation, config.aggregator
+                lower_channels, lower_channels, config.activation, config.aggregator
             )
-            lower_channels = lower_channels * 2
         elif depth <= 0:
             raise ValueError(f"depth must be at least 1, got {depth}")
         else:
@@ -208,10 +200,10 @@ class UNet(nn.Module):
         self.depth = depth
 
     def forward(self, inputs):
-        print(self.depth)
         x, before_pooling = self._down(inputs)
         x = self._lower(x)
-        x = self._up(x, before_pooling)
+        x = self._up(x, inputs)
+        inputs = before_pooling
         return x
 
 
@@ -238,7 +230,7 @@ class GraphUNet(nn.Module):
         )
 
         self._last_conv = CubedSphereGraphOperation(
-            SAGEConv(config.min_filters * 2, out_dim, config.aggregator)
+            SAGEConv(config.min_filters, out_dim, config.aggregator)
         )
 
         self._unet = UNet(

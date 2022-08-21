@@ -71,5 +71,7 @@ def test_train_graph_network(tmpdir):
     mean_bias: xr.Dataset = bias.mean()
     rmse: xr.Dataset = (bias ** 2).mean() ** 0.5
     for varname in state_variables:
+        print(np.abs(mean_bias[varname]))
+        print(rmse[varname])
         assert np.abs(mean_bias[varname]) < 0.1
         assert rmse[varname] < 0.1
