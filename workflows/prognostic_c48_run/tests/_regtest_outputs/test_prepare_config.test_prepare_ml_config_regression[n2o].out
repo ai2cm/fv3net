@@ -462,7 +462,6 @@ online_emulator: null
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 patch_files: []
 prephysics: null
-scale_tendencies: {}
 scikit_learn: null
 tendency_prescriber: null
 zhao_carr_emulation:
