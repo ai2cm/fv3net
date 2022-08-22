@@ -99,9 +99,6 @@ class PytorchPredictor(Predictor):
         with torch.no_grad():
             outputs = self.model(tensor)
         predicted = self.unpack_tensor(outputs)
-        import pdb
-
-        pdb.set_trace()
         return predicted
 
     def pack_to_tensor(self, X: xr.Dataset) -> torch.Tensor:
