@@ -237,7 +237,7 @@ class GraphUNet(nn.Module):
             config,
             down_factory=down,
             up_factory=up,
-            depth=config.depth - 1,
+            depth=config.depth,
             in_channels=config.min_filters,
         )
 
