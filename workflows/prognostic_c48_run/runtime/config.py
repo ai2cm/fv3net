@@ -16,7 +16,7 @@ from runtime.steppers.prescriber import PrescriberConfig
 from runtime.transformers.tendency_prescriber import TendencyPrescriberConfig
 import runtime.transformers.emulator
 import runtime.transformers.fv3fit
-from runtime.radiation import RadiationConfig
+from runtime.radiation_scheme import RadiationConfig
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 FV3CONFIG_KEYS = {
