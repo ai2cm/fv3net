@@ -35,12 +35,59 @@ class ConvolutionFactoryFactory(Protocol):
     def __call__(
         self,
         kernel_size: int,
-        padding: int,
+        padding: int = 0,
+        output_padding: int = 0,
         stride: int = 1,
         stride_type: Literal["regular", "transpose"] = "regular",
         bias: bool = True,
     ) -> ConvolutionFactory:
+        """
+        Create a factory for creating convolution layers.
+
+        Args:
+            kernel_size: size of the convolution kernel
+            padding: padding to apply to the input
+            output_padding: argument used for transpose convolution
+            stride: stride of the convolution
+            stride_type: type of stride, one of "regular" or "transpose"
+            bias: whether to include a bias vector in the produced layers
+        """
         ...
+
+
+def regular_convolution(
+    kernel_size: int,
+    padding: int = 0,
+    output_padding: int = 0,
+    stride: int = 1,
+    stride_type: Literal["regular", "transpose"] = "regular",
+    bias: bool = True,
+) -> ConvolutionFactory:
+    """
+    Produces convolution factories for regular (image) data.
+
+    Args:
+        kernel_size: size of the convolution kernel
+        padding: padding to apply to the input
+        output_padding: argument used for transpose convolution
+        stride: stride of the convolution
+        stride_type: type of stride, one of "regular" or "transpose"
+        bias: whether to include a bias vector in the produced layers
+    """
+    if stride == 1:
+        return flat_convolution(kernel_size=kernel_size, bias=bias)
+    elif stride_type == "regular":
+        return strided_convolution(
+            kernel_size=kernel_size, stride=stride, padding=padding, bias=bias
+        )
+    elif stride_type == "transpose":
+        return transpose_convolution(
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            output_padding=output_padding,
+            bias=bias,
+        )
 
 
 @curry
@@ -143,7 +190,13 @@ class ConvBlock(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, in_channels: int, n_convolutions: int, max_filters: int):
+    def __init__(
+        self,
+        in_channels: int,
+        n_convolutions: int,
+        max_filters: int,
+        convolution: ConvolutionFactoryFactory = regular_convolution,
+    ):
         super(Discriminator, self).__init__()
         # max_filters = min_filters * 2 ** (n_convolutions - 1), therefore
         min_filters = int(max_filters / 2 ** (n_convolutions - 1))
@@ -151,9 +204,7 @@ class Discriminator(nn.Module):
             ConvBlock(
                 in_channels=in_channels,
                 out_channels=min_filters,
-                convolution_factory=strided_convolution(
-                    kernel_size=3, stride=2, padding=1
-                ),
+                convolution_factory=convolution(kernel_size=3, stride=2, padding=1),
                 activation_factory=leakyrelu_activation(alpha=0.2),
             )
         ]
@@ -162,22 +213,20 @@ class Discriminator(nn.Module):
                 ConvBlock(
                     in_channels=min_filters * 2 ** (i - 1),
                     out_channels=min_filters * 2 ** i,
-                    convolution_factory=strided_convolution(
-                        kernel_size=3, stride=2, padding=1
-                    ),
+                    convolution_factory=convolution(kernel_size=3, stride=2, padding=1),
                     activation_factory=leakyrelu_activation(alpha=0.2),
                 )
             )
         final_conv = ConvBlock(
             in_channels=max_filters,
             out_channels=max_filters,
-            convolution_factory=flat_convolution(kernel_size=3),
+            convolution_factory=convolution(kernel_size=3),
             activation_factory=leakyrelu_activation(alpha=0.2),
         )
         patch_output = ConvBlock(
             in_channels=max_filters,
             out_channels=1,
-            convolution_factory=flat_convolution(kernel_size=3),
+            convolution_factory=convolution(kernel_size=3),
             activation_factory=leakyrelu_activation(alpha=0.2),
         )
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
@@ -186,73 +235,14 @@ class Discriminator(nn.Module):
         return self._sequential(inputs)
 
 
-class SequentialGenerator(nn.Module):
-    def __init__(
-        self, channels: int, n_convolutions: int, n_resnet: int, max_filters: int,
-    ):
-        super(SequentialGenerator, self).__init__()
-        min_filters = int(max_filters / 2 ** (n_convolutions - 1))
-        convs = [
-            ConvBlock(
-                in_channels=channels,
-                out_channels=min_filters,
-                convolution_factory=flat_convolution(kernel_size=7),
-                activation_factory=relu_activation(),
-            )
-        ]
-        for i in range(1, n_convolutions):
-            convs.append(
-                ConvBlock(
-                    in_channels=min_filters * 2 ** (i - 1),
-                    out_channels=min_filters * 2 ** i,
-                    convolution_factory=strided_convolution(
-                        kernel_size=3, stride=2, padding=1
-                    ),
-                    activation_factory=relu_activation(),
-                )
-            )
-        resnet_blocks = [
-            ResnetBlock(
-                n_filters=max_filters,
-                convolution_factory=flat_convolution(kernel_size=3),
-                activation_factory=relu_activation(),
-            )
-            for i in range(n_resnet)
-        ]
-        transpose_convs = []
-        for i in range(1, n_convolutions):
-            transpose_convs.append(
-                ConvBlock(
-                    in_channels=max_filters // (2 ** (i - 1)),
-                    out_channels=max_filters // (2 ** i),
-                    convolution_factory=transpose_convolution(
-                        kernel_size=3, stride=2, padding=1, output_padding=1
-                    ),
-                    activation_factory=relu_activation(),
-                )
-            )
-        out_conv = ConvBlock(
-            in_channels=min_filters,
-            out_channels=channels,
-            convolution_factory=flat_convolution(kernel_size=7),
-            activation_factory=no_activation,
-        )
-        self._sequential = nn.Sequential(
-            *convs, *resnet_blocks, *transpose_convs, out_conv
-        )
-        self._identity = nn.Identity()
-
-    def forward(self, inputs: torch.Tensor):
-        # data will have channels last, model requires channels first
-        # return self._identity(inputs)
-        inputs = inputs.permute(0, 3, 1, 2)
-        outputs: torch.Tensor = self._sequential(inputs)
-        return outputs.permute(0, 2, 3, 1)
-
-
 class Generator(nn.Module):
     def __init__(
-        self, channels: int, n_convolutions: int, n_resnet: int, max_filters: int,
+        self,
+        channels: int,
+        n_convolutions: int,
+        n_resnet: int,
+        max_filters: int,
+        convolution: ConvolutionFactoryFactory = regular_convolution,
     ):
         super(Generator, self).__init__()
 
@@ -260,7 +250,7 @@ class Generator(nn.Module):
             resnet_blocks = [
                 ResnetBlock(
                     n_filters=in_channels,
-                    convolution_factory=flat_convolution(kernel_size=3),
+                    convolution_factory=convolution(kernel_size=3),
                     activation_factory=relu_activation(),
                 )
                 for _ in range(n_resnet)
@@ -271,9 +261,7 @@ class Generator(nn.Module):
             return ConvBlock(
                 in_channels=in_channels,
                 out_channels=out_channels,
-                convolution_factory=strided_convolution(
-                    kernel_size=3, stride=2, padding=1
-                ),
+                convolution_factory=convolution(kernel_size=3, stride=2, padding=1),
                 activation_factory=relu_activation(),
             )
 
@@ -281,20 +269,17 @@ class Generator(nn.Module):
             return ConvBlock(
                 in_channels=in_channels,
                 out_channels=out_channels,
-                convolution_factory=transpose_convolution(
-                    kernel_size=3, stride=2, padding=1, output_padding=1
+                convolution_factory=convolution(
+                    kernel_size=3,
+                    stride=2,
+                    padding=1,
+                    output_padding=1,
+                    stride_type="transpose",
                 ),
                 activation_factory=relu_activation(),
             )
 
         min_filters = int(max_filters / 2 ** (n_convolutions - 1))
-
-        # self._first_conv = ConvBlock(
-        #     in_channels=channels,
-        #     out_channels=min_filters,
-        #     convolution_factory=flat_convolution(kernel_size=3),
-        #     activation_factory=relu_activation(),
-        # )
 
         self._first_conv = nn.Sequential(
             flat_convolution(kernel_size=3)(
@@ -311,20 +296,12 @@ class Generator(nn.Module):
             in_channels=min_filters,
         )
 
-        # self._out_conv = ConvBlock(
-        #     in_channels=2 *min_filters,
-        #     out_channels=channels,
-        #     convolution_factory=flat_convolution(kernel_size=3),
-        #     activation_factory=no_activation,
-        # )
-
         self._out_conv = flat_convolution(kernel_size=3)(
             in_channels=2 * min_filters, out_channels=channels
         )
 
     def forward(self, inputs):
         # data will have channels last, model requires channels first
-        # return self._identity(inputs)
         inputs = inputs.permute(0, 3, 1, 2)
         x = self._first_conv(inputs)
         x = self._unet(x)
