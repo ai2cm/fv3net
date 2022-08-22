@@ -3,7 +3,9 @@ from vcm.calc.thermo.vertically_dependent import (
     pressure_at_midpoint_log,
 )
 import numpy as np
-
+from radiation import getdata
+import yaml
+import xarray as xr
 
 to_validate = [
     "clear_sky_downward_longwave_flux_at_surface",
@@ -70,6 +72,49 @@ def stack_ds(ds, columns_dict=["y", "x"]):
     for var in ds:
         ds_out[var] = ds[var].stack(ncolumns=columns_dict).values
     return ds_out
+
+
+def init_data(CONFIG_PATH, FORCING_PATH, FVCORE_PATH):
+    file_name = FVCORE_PATH + "fv_core.res.nc"
+    da = xr.open_dataset(file_name)
+
+    # Get sigma levels
+    p_ref = 101325.0
+    ak = da.ak.values
+    bk = da.bk.values
+    sigma = ((ak + p_ref * bk - ak[0]) / (p_ref - ak[0]))[::-1]
+    nlay = sigma.size - 1
+    # Static data needed for radinit()
+    with open(CONFIG_PATH, "r") as f:
+        config = yaml.safe_load(f)
+
+    config_init = {}
+    config_init["imp_physics"] = config["namelist"]["gfs_physics_nml"]["imp_physics"]
+    config_init["iemsflg"] = config["namelist"]["gfs_physics_nml"]["iems"]
+    config_init["ioznflg"] = 7
+    config_init["ictmflg"] = 1
+    config_init["isolar"] = config["namelist"]["gfs_physics_nml"]["isol"]
+    config_init["ico2flg"] = config["namelist"]["gfs_physics_nml"]["ico2"]
+    config_init["iaerflg"] = config["namelist"]["gfs_physics_nml"]["iaer"]
+    config_init["ialbflg"] = config["namelist"]["gfs_physics_nml"]["ialb"]
+    config_init["icldflg"] = 1
+    config_init["ivflip"] = 1
+    config_init["iovrsw"] = 1
+    config_init["iovrlw"] = 1
+    config_init["isubcsw"] = config["namelist"]["gfs_physics_nml"]["isubc_sw"]
+    config_init["isubclw"] = config["namelist"]["gfs_physics_nml"]["isubc_lw"]
+    config_init["lcrick"] = False
+    config_init["lcnorm"] = False
+    config_init["lnoprec"] = False
+    config_init["iswcliq"] = 1
+
+    solar_filename, _ = getdata.astronomy(
+        FORCING_PATH, config_init["isolar"], config_init["me"]
+    )
+    sfc_file, sfc_data = getdata.sfc(FORCING_PATH)
+    aer_dict = getdata.aerosol(FORCING_PATH)
+
+    return (sigma, nlay, config_init, aer_dict, solar_filename, sfc_file, sfc_data)
 
 
 def get_radiation_inputs(ds, columns_dict=["y", "x"]):
