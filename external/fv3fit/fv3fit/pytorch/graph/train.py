@@ -108,11 +108,11 @@ def train_graph_model(
     )
 
     if validation_batches is not None:
-        val_state = get_state(data=validation_batches)
+        val_state = get_state(data=validation_batches).unbatch()
     else:
         val_state = None
 
-    train_state = get_state(data=train_batches)
+    train_state = get_state(data=train_batches).unbatch()
 
     train_model = build_model(
         hyperparameters.graph_network, n_state=next(iter(train_state)).shape[-1]
