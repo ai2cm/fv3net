@@ -51,6 +51,7 @@ class AutoencoderHyperparameters(Hyperparameters):
         default_factory=lambda: TrainingLoopConfig()
     )
     loss: LossConfig = LossConfig(loss_type="mse")
+    noise_amount: float = 0.5
 
     @property
     def variables(self):
@@ -203,9 +204,13 @@ def train_autoencoder(
     print(train_model)
     optimizer = hyperparameters.optimizer_config
 
-    train_state = train_state.map(define_noisy_input(stdev=0.5))
+    train_state = train_state.map(
+        define_noisy_input(stdev=hyperparameters.noise_amount)
+    )
     if validation_batches is not None:
-        val_state = val_state.map(define_noisy_input(stdev=0.5))
+        val_state = val_state.map(
+            define_noisy_input(stdev=hyperparameters.noise_amount)
+        )
 
     hyperparameters.training_loop.fit_loop(
         train_model=train_model,
