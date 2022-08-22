@@ -777,7 +777,7 @@ sources:
         - TMP200
         - UGRD850
     args:
-      urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire_atmos_dyn_plev_coarse_3h.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire_atmos_dyn_plev_coarse_3h_mask_extroplated.zarr"
       consolidated: True
 
   2020_1yr_pire_dyn:
