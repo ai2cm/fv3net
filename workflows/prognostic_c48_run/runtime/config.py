@@ -16,6 +16,7 @@ from runtime.steppers.prescriber import PrescriberConfig
 from runtime.transformers.tendency_prescriber import TendencyPrescriberConfig
 import runtime.transformers.emulator
 import runtime.transformers.fv3fit
+from runtime.radiation import RadiationConfig
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 FV3CONFIG_KEYS = {
@@ -63,6 +64,7 @@ class UserConfig:
     online_emulator: Optional[
         Union[runtime.transformers.emulator.Config, runtime.transformers.fv3fit.Config]
     ] = None
+    radiation: Optional[RadiationConfig] = None
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
