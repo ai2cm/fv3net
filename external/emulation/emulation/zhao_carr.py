@@ -65,6 +65,18 @@ def squash_precpd(state, emulator, cloud_squash):
     return _apply_squash(PrecpdOutput, emulator, cloud_squash)
 
 
+def _limit_net_condensation_conserving(state, net_condensation):
+    available_vapor = state[Input.humidity]
+    available_liquid = state[Input.cloud_water]
+    condensation = np.where(net_condensation > 0, net_condensation, 0.0)
+    evaporation = np.where(net_condensation < 0, net_condensation, 0.0)
+
+    limited_evaporation = np.maximum(evaporation, -available_liquid)
+    limited_condensation = np.minimum(condensation, available_vapor)
+    net_condensation = limited_evaporation + limited_condensation
+    return net_condensation
+
+
 def apply_condensation_liquid_phase(state, net_condensation):
     # from physcons.f
     lv = 2.5e6
@@ -82,6 +94,7 @@ def apply_condensation_liquid_phase(state, net_condensation):
 
 def _update_with_net_condensation(cloud_out, state, emulator):
     net_condensation = cloud_out - state[Input.cloud_water]
+    _limit_net_condensation_conserving(state, net_condensation)
     return {**emulator, **apply_condensation_liquid_phase(state, net_condensation)}
 
 
