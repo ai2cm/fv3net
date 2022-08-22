@@ -1,7 +1,6 @@
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
 import tensorflow as tf
-import dataclasses
 from fv3fit.pytorch.predict import PytorchPredictor
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
@@ -89,7 +88,8 @@ class TrainingLoopConfig:
         Args:
             train_model: pytorch model to train
             train_data: training dataset containing samples to be passed to the model,
-                samples should be tuples with two tensors of shape [sample, time, tile, x, y, z]
+                samples should be tuples with two tensors of shape
+                [sample, time, tile, x, y, z]
             validation_data: validation dataset containing samples to be passed
                 to the model, samples should be tuples with two tensors
                 of shape [sample, time, tile, x, y, z]

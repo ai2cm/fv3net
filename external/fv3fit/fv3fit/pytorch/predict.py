@@ -127,7 +127,7 @@ class PytorchPredictor(Predictor):
         )
 
     @classmethod
-    def load(cls, path: str) -> "PytorchAutoregressor":
+    def load(cls, path: str) -> "PytorchPredictor":
         """Load a serialized model from a directory."""
         return _load_pytorch(cls, path)
 
@@ -261,9 +261,16 @@ class PytorchDumpable(Protocol):
     _MODEL_FILENAME: str
     _SCALERS_FILENAME: str
     _CONFIG_FILENAME: str
-    state_variables: Iterable[Hashable]
     scalers: Mapping[Hashable, StandardScaler]
     model: torch.nn.Module
+
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        scalers: Mapping[Hashable, StandardScaler],
+        **kwargs,
+    ):
+        ...
 
     def dump(self, path: str) -> None:
         ...

@@ -1,6 +1,3 @@
-import matplotlib
-
-matplotlib.use("TkAgg")
 import numpy as np
 import xarray as xr
 from typing import Sequence
@@ -10,7 +7,6 @@ from fv3fit.tfdataset import iterable_to_tfdataset
 import collections
 import os
 import fv3fit.pytorch
-import matplotlib.pyplot as plt
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
@@ -87,7 +83,6 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
 
 
 def test_autoencoder(tmpdir):
-    matplotlib.use("TkAgg")
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
     # need a larger nx, ny for the sample data here since we're training
@@ -112,11 +107,12 @@ def test_autoencoder(tmpdir):
     )
     predicted = predictor.predict(test_xrdataset)
     reference = test_xrdataset
-    fig, ax = plt.subplots(1, 2)
-    ax[0].imshow(reference["a"][0, 0, :, :, 0].values)
-    ax[1].imshow(predicted["a"][0, 0, :, :, 0].values)
-    plt.tight_layout()
-    plt.show()
+    # plotting code to uncomment if you'd like to manually check the results:
+    # fig, ax = plt.subplots(1, 2)
+    # ax[0].imshow(reference["a"][0, 0, :, :, 0].values)
+    # ax[1].imshow(predicted["a"][0, 0, :, :, 0].values)
+    # plt.tight_layout()
+    # plt.show()
     bias = predicted.isel(time=1) - reference.isel(time=1)
     mean_bias: xr.Dataset = bias.mean()
     rmse: xr.Dataset = (bias ** 2).mean() ** 0.5

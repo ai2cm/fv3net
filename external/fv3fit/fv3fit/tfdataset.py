@@ -143,13 +143,13 @@ def iterable_to_tfdataset(
 
 
 def generator_to_tfdataset(
-    source: Generator, varying_first_dim: bool = False,
+    source: Callable[[], Generator], varying_first_dim: bool = False,
 ) -> tf.data.Dataset:
     """
     A general function to convert from a generator into a tensorflow dataset.
 
     Args:
-        source: data items to be included in the dataset
+        source: function which provides data items to be included in the dataset
         varying_first_dim: if True, the first dimension of the produced tensors
             can be of varying length
     """

@@ -8,8 +8,6 @@ from ..tfdataset import generator_to_tfdataset
 import tempfile
 import xarray as xr
 import numpy as np
-from fv3fit._shared.stacking import stack, SAMPLE_DIM_NAME
-from toolz import curry
 
 
 @dataclasses.dataclass

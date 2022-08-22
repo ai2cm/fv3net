@@ -3,7 +3,7 @@ import os
 import fsspec
 import warnings
 
-from .predictor import Predictor
+from .predictor import Predictor, Dumpable
 from functools import partial
 
 _NAME_PATH = "name"
@@ -18,8 +18,9 @@ class _Register:
 
     def __init__(self) -> None:
         self._model_types: MutableMapping[str, Type[Predictor]] = {}
+        self._dump_types: MutableMapping[str, Type[Dumpable]] = {}
 
-    def __call__(self, name: str) -> Callable[[Type[Predictor]], Type[Predictor]]:
+    def __call__(self, name: str) -> Callable[[Type[Dumpable]], Type[Dumpable]]:
         if name in self._model_types:
             raise ValueError(
                 f"{name} is already registered by {self._model_types[name]}."
@@ -27,8 +28,10 @@ class _Register:
         else:
             return partial(self._register_class, name=name)
 
-    def _register_class(self, cls: Type[Predictor], name: str) -> Type[Predictor]:
-        self._model_types[name] = cls
+    def _register_class(self, cls: Type[Dumpable], name: str) -> Type[Dumpable]:
+        if isinstance(cls, Predictor):
+            self._model_types[name] = cls
+        self._dump_types[name] = cls
         return cls
 
     def _load_by_name(self, name: str, path: str) -> Predictor:
@@ -40,10 +43,10 @@ class _Register:
             )
         return self._model_types[name].load(path)
 
-    def get_name(self, obj: Predictor) -> str:
+    def get_dumpable_name(self, obj: Dumpable) -> str:
         return_name = None
         name_cls = None
-        for name, cls in self._model_types.items():
+        for name, cls in self._dump_types.items():
             if isinstance(obj, cls):
                 # always return the most specific class name / deepest subclass
                 if name_cls is None or issubclass(cls, name_cls):
@@ -61,9 +64,9 @@ class _Register:
     def _get_predictor_name(path: str) -> str:
         return fsspec.get_mapper(path)[_NAME_PATH].decode(_NAME_ENCODING).strip()
 
-    def _dump_predictor_name(self, obj: Predictor, path: str):
+    def _dump_dumpable_name(self, obj: Dumpable, path: str):
         mapper = fsspec.get_mapper(path)
-        name = self.get_name(obj)
+        name = self.get_dumpable_name(obj)
         mapper[_NAME_PATH] = name.encode(_NAME_ENCODING)
 
     def load(self, path: str) -> Predictor:
@@ -87,9 +90,9 @@ class _Register:
         else:
             return self._load_by_name(name, path)
 
-    def dump(self, obj: Predictor, path: str):
-        """Dump a Predictor to a path"""
-        self._dump_predictor_name(obj, path)
+    def dump(self, obj: Dumpable, path: str):
+        """Dump a Dumpable to a path"""
+        self._dump_dumpable_name(obj, path)
         obj.dump(path)
 
 
