@@ -21,9 +21,9 @@ class _Register:
         self._dump_types: MutableMapping[str, Type[Dumpable]] = {}
 
     def __call__(self, name: str) -> Callable[[Type[Dumpable]], Type[Dumpable]]:
-        if name in self._model_types:
+        if name in self._dump_types:
             raise ValueError(
-                f"{name} is already registered by {self._model_types[name]}."
+                f"{name} is already registered by {self._dump_types[name]}."
             )
         else:
             return partial(self._register_class, name=name)
