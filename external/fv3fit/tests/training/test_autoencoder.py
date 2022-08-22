@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 from typing import Sequence
 from fv3fit.pytorch.cyclegan import AutoencoderHyperparameters, train_autoencoder
-from fv3fit.pytorch.cyclegan.train import TrainingLoopConfig
+from fv3fit.pytorch.cyclegan.train import TrainingConfig
 from fv3fit.tfdataset import iterable_to_tfdataset
 import collections
 import os
@@ -99,7 +99,7 @@ def test_autoencoder(tmpdir):
         generator=fv3fit.pytorch.GeneratorConfig(
             n_convolutions=2, n_resnet=3, max_filters=32
         ),
-        training_loop=TrainingLoopConfig(n_epoch=5, samples_per_batch=2),
+        training_loop=TrainingConfig(n_epoch=5, samples_per_batch=2),
         optimizer_config=fv3fit.pytorch.OptimizerConfig(name="Adam",),
         noise_amount=0.5,
     )
@@ -144,7 +144,7 @@ def test_autoencoder_overfit(tmpdir):
         generator=fv3fit.pytorch.GeneratorConfig(
             n_convolutions=2, n_resnet=1, max_filters=32
         ),
-        training_loop=TrainingLoopConfig(n_epoch=100, samples_per_batch=6),
+        training_loop=TrainingConfig(n_epoch=100, samples_per_batch=6),
         optimizer_config=fv3fit.pytorch.OptimizerConfig(name="Adam",),
         noise_amount=0.0,
     )

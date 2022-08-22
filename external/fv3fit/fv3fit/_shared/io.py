@@ -29,7 +29,7 @@ class _Register:
             return partial(self._register_class, name=name)
 
     def _register_class(self, cls: Type[Dumpable], name: str) -> Type[Dumpable]:
-        if isinstance(cls, Predictor):
+        if issubclass(cls, Predictor):
             self._model_types[name] = cls
         self._dump_types[name] = cls
         return cls

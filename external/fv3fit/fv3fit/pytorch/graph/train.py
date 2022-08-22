@@ -7,7 +7,7 @@ from fv3fit.pytorch.predict import PytorchAutoregressor
 from fv3fit.pytorch.graph.network import GraphNetwork, GraphNetworkConfig
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
-from fv3fit.pytorch.training_loop import TrainingLoopConfig
+from fv3fit.pytorch.training_loop import AutoregressiveTrainingConfig
 from fv3fit._shared.scaler import StandardScaler
 from ..system import DEVICE
 
@@ -43,8 +43,8 @@ class GraphHyperparameters(Hyperparameters):
     graph_network: GraphNetworkConfig = dataclasses.field(
         default_factory=lambda: GraphNetworkConfig()
     )
-    training_loop: TrainingLoopConfig = dataclasses.field(
-        default_factory=lambda: TrainingLoopConfig()
+    training_loop: AutoregressiveTrainingConfig = dataclasses.field(
+        default_factory=lambda: AutoregressiveTrainingConfig()
     )
     loss: LossConfig = LossConfig(loss_type="mse")
 
