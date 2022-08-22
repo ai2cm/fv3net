@@ -38,7 +38,12 @@ NON_REGRESSION_TRAINING_TYPES = ["min_max_novelty_detector", "ocsvm_novelty_dete
 # cannot be used in generic tests below
 # you must write a separate file that specializes each of the tests
 # for models in this list
-SPECIAL_TRAINING_TYPES = ["graph", "min_max_novelty_detector", "ocsvm_novelty_detector"]
+SPECIAL_TRAINING_TYPES = [
+    "graph",
+    "min_max_novelty_detector",
+    "ocsvm_novelty_detector",
+    "autoencoder",
+]
 
 
 # automatically test on every registered training class
