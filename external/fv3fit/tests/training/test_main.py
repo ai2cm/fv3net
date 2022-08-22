@@ -100,6 +100,7 @@ def mock_train_dense_model():
             "dense", fv3fit.DenseHyperparameters
         )(original_func)
         register._model_types.pop("mock")
+        register._dump_types.pop("mock")
 
 
 @pytest.fixture
