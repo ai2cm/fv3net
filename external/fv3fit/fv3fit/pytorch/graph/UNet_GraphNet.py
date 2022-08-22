@@ -86,39 +86,28 @@ class Down(nn.Module):
     reduce the resolution by applying pooling layer
     """
 
-    def __init__(self, config, in_channels, out_channels):
-        """
-        Args:
-            in_channels: size of input channels
-            out_channels: size of output channels
-        """
+    def __init__(self, config):
         super(Down, self).__init__()
-        self.conv = DoubleConv(
-            in_channels, out_channels, config.activation, config.aggregator
-        )
-        self.pool = nn.MaxPool2d(
+        self.pool = nn.AvgPool2d(
             kernel_size=config.pooling_size, stride=config.pooling_stride
         )
 
     def forward(self, x):
-        before_pooling = self.conv(x)
-        x = before_pooling.permute(0, 4, 1, 2, 3)
-        x = x.view(
-            before_pooling.size(0) * before_pooling.size(4),
-            before_pooling.size(1),
-            before_pooling.size(2),
-            before_pooling.size(3),
-        )
+        input_size = x.size()
+        x = x.permute(
+            0, 1, 4, 2, 3
+        )  # change dimensions to (batch_size, n_tiles, n_features, n_x, n_y)
+        x = x.reshape(x.size(0) * x.size(1), x.size(2), x.size(3), x.size(4),)
         x = self.pool(x)
-        x = x.view(
-            before_pooling.size(0),
-            before_pooling.size(4),
-            x.size(1),
-            x.size(2),
-            x.size(3),
+        x = x.reshape(
+            input_size[0],
+            input_size[1],
+            input_size[4],
+            input_size[2] // 2,
+            input_size[3] // 2,
         )
 
-        return x.permute(0, 2, 3, 4, 1), before_pooling
+        return x.permute(0, 1, 3, 4, 2)
 
 
 class Up(nn.Module):
@@ -138,26 +127,27 @@ class Up(nn.Module):
             kernel_size=config.pooling_size,
             stride=config.pooling_stride,
         )
-        self.conv = DoubleConv(
-            in_channels, in_channels // 2, config.activation, config.aggregator
-        )
 
-    def forward(self, x1, x2):
+    def forward(self, x1):
         input_size = x1.size()
-        x1 = x1.permute(0, 1, 4, 2, 3)
-        x1 = x1.reshape(x1.size(0) * x1.size(1), x1.size(2), x1.size(3), x1.size(4))
+        x1 = x1.permute(
+            0, 1, 4, 2, 3
+        )  # change dimensions to (batch_size, n_tiles, n_features, n_x, n_y)
+        x1 = x1.reshape(
+            x1.size(0) * x1.size(1), x1.size(2), x1.size(3), x1.size(4)
+        )  # change the shape to (batch_size*n_tiles, n_features, n_x, n_y )
         x1 = self.up(x1)
         x1 = x1.reshape(
             input_size[0],
             input_size[1],
-            input_size[4] // 2,
-            input_size[2] * 2,
-            input_size[3] * 2,
+            input_size[4] // 2,  # channel
+            input_size[2] * 2,  # x
+            input_size[3] * 2,  # y
         )
-        x1 = x1.permute(0, 1, 3, 4, 2)
-        x = torch.cat([x2, x1], dim=-1)
-        x = self.conv(x)
-        return x
+        x1 = x1.permute(
+            0, 1, 3, 4, 2
+        )  # change dimensions to (batch_size, n_tiles, n_x, n_y, n_features)
+        return x1
 
 
 class UNet(nn.Module):
@@ -181,7 +171,16 @@ class UNet(nn.Module):
 
         lower_channels = 2 * in_channels
 
-        self._down = down_factory(in_channels=in_channels, out_channels=lower_channels)
+        self._down = down_factory()
+
+        self.conv1 = DoubleConv(
+            in_channels, lower_channels, config.activation, config.aggregator
+        )
+
+        self.conv2 = DoubleConv(
+            lower_channels, in_channels, config.activation, config.aggregator
+        )
+
         if depth == 1:
             self._lower = DoubleConv(
                 lower_channels, lower_channels, config.activation, config.aggregator
@@ -200,10 +199,12 @@ class UNet(nn.Module):
         self.depth = depth
 
     def forward(self, inputs):
-        x, before_pooling = self._down(inputs)
+        before_pooling = self.conv1(inputs)
+        x = self._down(before_pooling)
         x = self._lower(x)
-        x = self._up(x, inputs)
-        inputs = before_pooling
+        x = self._up(x)
+        x = torch.cat([before_pooling, x], dim=-1)
+        x = self.conv2(x)
         return x
 
 
@@ -216,8 +217,8 @@ class GraphUNet(nn.Module):
 
         super(GraphUNet, self).__init__()
 
-        def down(in_channels: int, out_channels: int):
-            return Down(config, in_channels=in_channels, out_channels=out_channels)
+        def down():
+            return Down(config)
 
         def up(in_channels: int):
             return Up(config, in_channels)
