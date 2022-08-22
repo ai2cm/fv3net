@@ -43,7 +43,8 @@ edge_h_feats = 32
 input_res = 48
 pooling_size = 2
 edge_in_feats = 2
-num_step_message_passing = 5
+num_step_message_passing = 1
+epochs = 50
 
 if halo == 1:
     print("halo")
@@ -84,7 +85,6 @@ elif halo == 0:
 
 print(control_str)
 
-epochs = 30
 
 variableList = ["h500", "h200", "h850"]
 TotalSamples = 8500

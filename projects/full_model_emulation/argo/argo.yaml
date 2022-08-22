@@ -62,7 +62,7 @@ spec:
     tolerations:
     - key: "dedicated"
       operator: "Equal"
-      value: "gpu-sim-pool"
+      value: "gpu-t4-sim-pool"
       effect: "NoSchedule"
     - key: "nvidia.com/gpu"
       operator: "Exists"
