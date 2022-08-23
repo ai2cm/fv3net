@@ -134,25 +134,37 @@ def add_tendency(state: Any, tendency: State, dt: float) -> Tuple[State, State]:
     return updated, tendency_filled_frac  # type: ignore
 
 
-REMOTE_LOOKUP_DATA_PATH = (
-    "gs://vcm-fv3gfs-serialized-regression-data/physics/lookupdata/lookup.tar.gz"
-)
-
-
-def _download_radiation_lookup(
-    lookup_data_path: str = REMOTE_LOOKUP_DATA_PATH, download_dir: str = "./lookup"
+def _download_radiation_assets(
+    lookup_data_path: str = (
+        "gs://vcm-fv3gfs-serialized-regression-data/physics/lookupdata/lookup.tar.gz"  # noqa: E501
+    ),
+    forcing_data_path: str = "gs://vcm-fv3gfs-serialized-regression-data/physics/forcing/*",  # noqa: 501
+    lookup_local_dir: str = "./data/lookup",
+    forcing_local_dir: str = "./data/forcing",
 ) -> None:
-    """Gets lookup tables needed for the radiation scheme. To do: Make this
-    part of writing a run directory."""
-    os.mkdir(download_dir)
-    copy_cmd = ["gsutil", "cp", lookup_data_path, download_dir]
+    """Gets lookup tables and forcing needed for the radiation scheme. TODO: Make lookup
+    data part of writing a run directory; make scheme able to read existing forcing.
+    """
+    os.makedirs(lookup_local_dir)
+    copy_cmd = ["gsutil", "cp", lookup_data_path, lookup_local_dir]
     subprocess.check_call(copy_cmd)
     unpack_cmd = [
         "tar",
         "-xzvf",
-        os.path.join(download_dir, "lookup.tar.gz"),
+        os.path.join(lookup_local_dir, "lookup.tar.gz"),
         "-C",
-        download_dir,
+        lookup_local_dir,
+    ]
+    subprocess.check_call(unpack_cmd)
+    os.makedirs(forcing_local_dir)
+    copy_cmd = ["gsutil", "cp", forcing_data_path, forcing_local_dir]
+    subprocess.check_call(copy_cmd)
+    unpack_cmd = [
+        "tar",
+        "-xzvf",
+        os.path.join(forcing_local_dir, "data.tar.gz"),
+        "-C",
+        forcing_local_dir,
     ]
     subprocess.check_call(unpack_cmd)
 
@@ -241,11 +253,15 @@ class TimeLoop(
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
-        if self.rank == 0:
-            _download_radiation_lookup()
-        self._radiation_driver = runtime.radiation_scheme.config.get_radiation_driver(
-            config.radiation
-        )
+        if config.radiation and config.radiation.scheme == "python":
+            if self.rank == 0:
+                _download_radiation_assets()
+            MPI.COMM_WORLD.barrier()
+            self._radiation_driver = runtime.radiation_scheme.init_radiation_driver(
+                self.rank, namelist["gfs_physics_nml"]
+            )
+        else:
+            self._radiation_driver = None
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 

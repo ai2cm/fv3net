@@ -1,1 +1,1 @@
-from .config import RadiationConfig
+from .config import RadiationConfig, init_radiation_driver
