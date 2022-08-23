@@ -3,6 +3,7 @@
 the functions in this submodule know the variable names of the ZC microphysics
 
 """
+import logging
 import numpy as np
 from fv3fit.emulation.transforms.zhao_carr import (
     CLASS_NAMES,
@@ -11,6 +12,8 @@ from fv3fit.emulation.transforms.zhao_carr import (
     POSITIVE_TENDENCY,
     NEGATIVE_TENDENCY,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class Input:
@@ -73,6 +76,8 @@ def _limit_net_condensation_conserving(state, net_condensation):
 
     limited_evaporation = np.maximum(evaporation, -available_liquid)
     limited_condensation = np.minimum(condensation, available_vapor)
+    logger.info({"evap_mass_cons_adj": np.sum(limited_evaporation - evaporation)})
+    logger.info({"cond_mass_cons_adj": np.sum(limited_condensation - condensation)})
     net_condensation = limited_evaporation + limited_condensation
     return net_condensation
 
