@@ -48,6 +48,7 @@ from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig
 from runtime.steppers.combine import CombinedStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
+from runtime.radiation_wrapper import RadiationWrapper
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -253,15 +254,16 @@ class TimeLoop(
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
-        if config.radiation and config.radiation.scheme == "python":
+        if config.radiation_scheme and config.radiation_scheme.kind == "python":
             if self.rank == 0:
                 _download_radiation_assets()
             MPI.COMM_WORLD.barrier()
-            self._radiation_driver = runtime.radiation_scheme.init_radiation_driver(
-                self.rank, namelist["gfs_physics_nml"]
+            self._radiation_wrapper: Optional[RadiationWrapper] = (
+                RadiationWrapper.from_config(config.radiation_scheme)
             )
+            self._radiation_wrapper.rad_init(self.rank, namelist["gfs_physics_nml"])
         else:
-            self._radiation_driver = None
+            self._radiation_wrapper = None
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -389,15 +391,16 @@ class TimeLoop(
         # no diagnostics are computed by default
         return {}
 
-    def _step_pre_radiation(self) -> Diagnostics:
+    def _step_pre_radiation_physics(self) -> Diagnostics:
         self._log_debug(f"Pre-radiation Physics Step")
+
         self._fv3gfs.step_pre_radiation()
         return {
             f"{name}_pre_radiation": self._state[name]
             for name in self._states_to_output
         }
 
-    def _step_radiation(self) -> Diagnostics:
+    def _step_radiation_physics(self) -> Diagnostics:
         self._log_debug(f"Radiation Physics Step")
         self._fv3gfs.step_radiation()
         return {}
@@ -605,8 +608,8 @@ class TimeLoop(
                 ),
                 self.monitor("dynamics", self._step_dynamics),
                 self._step_prephysics,
-                self._step_pre_radiation,
-                self._step_radiation,
+                self._step_pre_radiation_physics,
+                self._step_radiation_physics,
                 self._step_post_radiation_physics,
                 self._apply_postphysics_to_physics_state,
                 self.monitor(
