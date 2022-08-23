@@ -52,6 +52,7 @@ diagnostics:
     - northward_wind_pre_radiation
     - vertical_wind_pre_radiation
     - pressure_thickness_of_atmospheric_layer_pre_radiation
+    - vertical_thickness_of_atmospheric_layer_pre_radiation
     - atmosphere_hybrid_a_coordinate_pre_radiation
     - atmosphere_hybrid_b_coordinate_pre_radiation
     - interface_pressure_pre_radiation
@@ -107,6 +108,7 @@ diagnostics:
     - northward_wind
     - vertical_wind
     - pressure_thickness_of_atmospheric_layer
+    - vertical_thickness_of_atmospheric_layer
     - atmosphere_hybrid_a_coordinate
     - atmosphere_hybrid_b_coordinate
     - interface_pressure

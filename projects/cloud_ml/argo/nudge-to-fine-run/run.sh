@@ -9,7 +9,7 @@ PROJECT=cloud-ml
 EXPERIMENT="cloud-ml-training-data"
 TRIAL="trial-0"
 TAG=${EXPERIMENT}-${CONFIG}
-NAME="${TAG}"
+NAME="${TAG}-$(openssl rand --hex 2)"
 
 argo submit --from workflowtemplate/prognostic-run \
     -p project=${PROJECT} \
