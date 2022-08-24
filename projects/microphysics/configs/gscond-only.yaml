@@ -2,8 +2,8 @@
 # python3 argo/end_to_end.py configs/gscond-only.yaml
 kind: prognostic
 experiment: gscond-condensation-limit
-name: gscond-only-net-condense-limit-v2-test
-image_tag: 46e52392b0335b6ae3156f6ce872045c260b1453
+name: gscond-only-net-condense-limit-30d-v3
+image_tag: 51e9576d0f4ac1d175c144d4d74401c45796d239
 config:
   base_version: v0.5
   data_table: default
