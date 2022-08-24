@@ -13,7 +13,7 @@ from typing import (
     Tuple,
 )
 from fv3fit.tfdataset import ensure_nd, apply_to_mapping
-from .network import Generator
+from .network import Generator, GeneratorConfig
 from fv3fit.pytorch.graph.train import (
     get_scalers,
     get_mapping_scale_func,
@@ -23,13 +23,6 @@ from toolz import curry
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-@dataclasses.dataclass
-class GeneratorConfig:
-    n_convolutions: int = 3
-    n_resnet: int = 3
-    max_filters: int = 256
 
 
 @dataclasses.dataclass
@@ -137,9 +130,4 @@ def train_autoencoder(
 
 
 def build_model(config: GeneratorConfig, n_state: int) -> Generator:
-    return Generator(
-        channels=n_state,
-        n_convolutions=config.n_convolutions,
-        n_resnet=config.n_resnet,
-        max_filters=config.max_filters,
-    )
+    return config.instance(channels=n_state)

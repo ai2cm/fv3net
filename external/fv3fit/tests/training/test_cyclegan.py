@@ -1,9 +1,9 @@
 import numpy as np
 import xarray as xr
 from typing import Sequence
-from fv3fit.pytorch.cyclegan import AutoencoderHyperparameters, train_autoencoder
+from fv3fit.pytorch.cyclegan import CycleGANHyperparameters, train_cyclegan
 from fv3fit.pytorch.cyclegan.train import TrainingConfig
-from fv3fit.data.synthetic import SyntheticWaves
+from fv3fit.data import CycleGANLoader, SyntheticWaves
 import collections
 import os
 import fv3fit.pytorch
@@ -11,17 +11,33 @@ import fv3fit
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
-    config = SyntheticWaves(
-        nsamples=nsamples,
-        nbatch=nbatch,
-        ntime=ntime,
-        nx=nx,
-        nz=nz,
-        scalar_names=["b"],
-        scale_min=0.5,
-        scale_max=1.5,
-        period_min=8,
-        period_max=16,
+    config = CycleGANLoader(
+        domain_configs=[
+            SyntheticWaves(
+                nsamples=nsamples,
+                nbatch=nbatch,
+                ntime=ntime,
+                nx=nx,
+                nz=nz,
+                scalar_names=["b"],
+                scale_min=0.1,
+                scale_max=1.0,
+                period_min=4,
+                period_max=7,
+            ),
+            SyntheticWaves(
+                nsamples=nsamples,
+                nbatch=nbatch,
+                ntime=ntime,
+                nx=nx,
+                nz=nz,
+                scalar_names=["b"],
+                scale_min=0.5,
+                scale_max=1.5,
+                period_min=8,
+                period_max=16,
+            ),
+        ]
     )
     dataset = config.open_tfdataset(local_download_path=None, variable_names=["a", "b"])
     return dataset
@@ -49,18 +65,18 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
     return xr.Dataset(data_vars)
 
 
-def test_autoencoder(tmpdir):
+def test_cyclegan(tmpdir):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
     # need a larger nx, ny for the sample data here since we're training
     # on whether we can autoencode sin waves, and need to resolve full cycles
-    nx = 32
-    sizes = {"nbatch": 2, "ntime": 2, "nx": nx, "nz": 2}
+    nx, ny = 32, 32
+    sizes = {"nbatch": 2, "ntime": 2, "nx": nx, "ny": ny, "nz": 2}
     state_variables = ["a", "b"]
     train_tfdataset = get_tfdataset(nsamples=20, **sizes)
     val_tfdataset = get_tfdataset(nsamples=3, **sizes)
-    hyperparameters = AutoencoderHyperparameters(
+    hyperparameters = CycleGANHyperparameters(
         state_variables=state_variables,
         generator=fv3fit.pytorch.GeneratorConfig(
             n_convolutions=2, n_resnet=3, max_filters=32
@@ -69,9 +85,9 @@ def test_autoencoder(tmpdir):
         optimizer_config=fv3fit.pytorch.OptimizerConfig(name="Adam",),
         noise_amount=0.5,
     )
-    predictor = train_autoencoder(hyperparameters, train_tfdataset, val_tfdataset)
+    predictor = train_cyclegan(hyperparameters, train_tfdataset, val_tfdataset)
     # for test, need one continuous series so we consistently flip sign
-    test_sizes = {"nbatch": 1, "ntime": 100, "nx": nx, "nz": 2}
+    test_sizes = {"nbatch": 1, "ntime": 100, "nx": nx, "ny": ny, "nz": 2}
     test_xrdataset = tfdataset_to_xr_dataset(
         get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
@@ -94,18 +110,18 @@ def test_autoencoder(tmpdir):
         assert mse[varname] < 0.1
 
 
-def test_autoencoder_overfit(tmpdir):
+def test_cyclegan_overfit(tmpdir):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
     # need a larger nx, ny for the sample data here since we're training
     # on whether we can autoencode sin waves, and need to resolve full cycles
-    nx = 32
-    sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "nz": 2}
+    nx, ny = 32, 32
+    sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "ny": ny, "nz": 2}
     state_variables = ["a", "b"]
     train_tfdataset = get_tfdataset(nsamples=1, **sizes)
     train_tfdataset = train_tfdataset.cache()  # needed to keep sample identical
-    hyperparameters = AutoencoderHyperparameters(
+    hyperparameters = CycleGANHyperparameters(
         state_variables=state_variables,
         generator=fv3fit.pytorch.GeneratorConfig(
             n_convolutions=2, n_resnet=1, max_filters=32
@@ -114,7 +130,7 @@ def test_autoencoder_overfit(tmpdir):
         optimizer_config=fv3fit.pytorch.OptimizerConfig(name="Adam",),
         noise_amount=0.0,
     )
-    predictor = train_autoencoder(
+    predictor = train_cyclegan(
         hyperparameters, train_tfdataset, validation_batches=None
     )
     # for test, need one continuous series so we consistently flip sign

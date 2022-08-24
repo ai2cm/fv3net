@@ -2,6 +2,7 @@ from typing import Callable, Literal, Protocol
 import torch
 import torch.nn as nn
 from toolz import curry
+import dataclasses
 
 
 def relu_activation(**kwargs):
@@ -139,6 +140,31 @@ def flat_convolution(in_channels: int, out_channels: int, kernel_size: int, bias
         padding="same",
         bias=bias,
     )
+
+
+@dataclasses.dataclass
+class GeneratorConfig:
+    n_convolutions: int = 3
+    n_resnet: int = 3
+    max_filters: int = 256
+
+    def instance(
+        self,
+        channels: int,
+        convolution: ConvolutionFactoryFactory = regular_convolution,
+    ):
+        return Generator(
+            channels=channels,
+            n_convolutions=self.n_convolutions,
+            n_resnet=self.n_resnet,
+            max_filters=self.max_filters,
+            convolution=convolution,
+        )
+
+
+@dataclasses.dataclass
+class DiscriminatorConfig:
+    pass
 
 
 class ResnetBlock(nn.Module):

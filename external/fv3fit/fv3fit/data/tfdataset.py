@@ -67,7 +67,6 @@ def get_n_windows(n_times: int, window_size: int) -> int:
 class CycleGANLoader(TFDatasetLoader):
 
     domain_configs: List[TFDatasetLoader] = dataclasses.field(default_factory=list)
-    batch_size: int = 1
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
