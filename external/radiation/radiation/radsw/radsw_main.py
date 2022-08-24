@@ -1,8 +1,8 @@
 import numpy as np
 import warnings
 from numba import jit
-import radsw.radsw_bands as bands
-from radsw.radsw_param import (
+from . import radsw_bands as bands
+from .radsw_param import (
     ntbmx,
     nbdsw,
     ngptsw,
@@ -17,8 +17,8 @@ from radsw.radsw_param import (
     ngs,
     oneminus,
 )
-from radphysparam import iswmode, iswrgas, iswrate, iswcice, iswcliq
-from phys_const import con_amd, con_amw, con_amo3, con_g, con_cp, con_avgd
+from ..radphysparam import iswmode, iswrgas, iswrate, iswcice, iswcliq
+from ..phys_const import con_amd, con_amw, con_amo3, con_g, con_cp, con_avgd
 
 
 ngs = np.array(ngs)

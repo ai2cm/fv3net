@@ -294,13 +294,6 @@ def sw(lookup_dir: str):
 
 def aerosol(forcing_dir: str):
     aeros_file = os.path.join(forcing_dir, "aerosol.nc")
-    if os.path.isfile(aeros_file):
-        print(f"Using file {aeros_file}")
-    else:
-        raise FileNotFoundError(
-            f'Requested aerosol data file "{aeros_file}" not found!',
-            "*** Stopped in subroutine aero_init !!",
-        )
     var_names = [
         "kprfg",
         "kprfg",
