@@ -1,0 +1,29 @@
+base_model:
+  tq_tendencies_path: "gs://vcm-ml-experiments/n2f-pire-subsampled-full-range/2022-04-18/nn-tq-low-lr-tapered-mae-seed-0/trained_models/tq_tendencies"
+  wind_tendencies_path: "gs://vcm-ml-experiments/n2f-pire-stable-ml/2022-05-27/wind-nudging-correct-inputs-l2-1e-2/trained_models/wind_tendencies"
+# cutoffs are determined based on the offline prognostic tendencies at https://storage.googleapis.com/vcm-ml-public/claytons/oos_analysis/prognostic/report-8e9e4e2798274e128c9a2883352e2296/index.html
+novelty_detectors:
+  - nd_name: "ocsvm-large-gamma"
+    nd_path: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-large"
+    params:
+      - cutoff: 0
+        tapering_function:
+          name: taper_ramp
+          ramp_min: -0.25
+          ramp_max: 0.25
+      - cutoff: 0
+        tapering_function:
+          name: taper_decay
+          threshold: -0.25
+          rate: 0.01
+model_config_dir_path: "gs://vcm-ml-experiments/claytons/2022-07-29/oos-configs/oos-taper-test4"
+prognostic_run_config_template: "prognostic-run-config.yaml"
+launch_destination: "~/vcm-workflow-control/examples/prog-run-taper"
+experiment_summary_path: "experiment_summary_taper.txt"
+segments: 18
+result_destination:
+  bucket: "vcm-ml-experiments"
+  project: "claytons"
+  experiment: "oos-taper-test"
+  trial: 3
+
