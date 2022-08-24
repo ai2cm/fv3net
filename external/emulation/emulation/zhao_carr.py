@@ -110,8 +110,7 @@ def mask_where_fortran_cloud_vanishes_gscond(state, emulator):
         0,
         emulator[GscondOutput.cloud_water],
     )
-    return {**emulator, GscondOutput.cloud_water: cloud_out}
-    # return _update_with_net_condensation(cloud_out, state, emulator)
+    return _update_with_net_condensation(cloud_out, state, emulator)
 
 
 def mask_where_fortran_cloud_identical(state, emulator):
@@ -120,8 +119,7 @@ def mask_where_fortran_cloud_identical(state, emulator):
         state[Input.cloud_water],
         emulator[GscondOutput.cloud_water],
     )
-    # return _update_with_net_condensation(cloud_out, state, emulator)
-    return {**emulator, GscondOutput.cloud_water: cloud_out}
+    return _update_with_net_condensation(cloud_out, state, emulator)
 
 
 def _get_classify_output(logit_classes, one_hot_axis=0):
@@ -138,8 +136,7 @@ def mask_zero_cloud_classifier(state, emulator):
         0,
         emulator[GscondOutput.cloud_water],
     )
-    # return _update_with_net_condensation(cloud_out, state, emulator)
-    return {**emulator, GscondOutput.cloud_water: cloud_out}
+    return _update_with_net_condensation(cloud_out, state, emulator)
 
 
 def mask_zero_tend_classifier(state, emulator):
@@ -148,8 +145,7 @@ def mask_zero_tend_classifier(state, emulator):
         state[Input.cloud_water],
         emulator[GscondOutput.cloud_water],
     )
-    # return _update_with_net_condensation(cloud_out, state, emulator)
-    return {**emulator, GscondOutput.cloud_water: cloud_out}
+    return _update_with_net_condensation(cloud_out, state, emulator)
 
 
 def mask_zero_cloud_classifier_precpd(state, emulator):
