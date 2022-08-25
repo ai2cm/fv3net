@@ -4,7 +4,7 @@ import dataclasses
 from fv3fit._shared.training_config import Hyperparameters
 from toolz.functoolz import curry
 from fv3fit.pytorch.predict import PytorchModel
-from fv3fit.pytorch.graph.UNet_GraphNet import GraphUNet, UNetGraphNetworkConfig
+from fv3fit.pytorch.graph.unet import GraphUNet, UNetGraphNetworkConfig
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.training_loop import TrainingLoopConfig
