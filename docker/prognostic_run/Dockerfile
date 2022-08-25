@@ -66,7 +66,11 @@ COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
 RUN chmod +x /fv3net/projects/microphysics/scripts/*
 ENV PATH=/fv3net/projects/microphysics/scripts:${PATH}
 
-ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:/fv3net/external/fv3fit:/fv3net/external/emulation:/fv3net/external/vcm:/fv3net/external/artifacts:/fv3net/external/loaders:/fv3net/external/fv3kube:/fv3net/workflows/post_process_run:${PYTHONPATH}
+# Add python radiation port
+COPY external/radiation /fv3net/external/radiation
+RUN pip install --no-dependencies -e /fv3net/external/radiation
+
+ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:/fv3net/external/fv3fit:/fv3net/external/emulation:/fv3net/external/vcm:/fv3net/external/artifacts:/fv3net/external/loaders:/fv3net/external/fv3kube:/fv3net/workflows/post_process_run:/fv3net/external/radiation:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run
 CMD ["bash"]
 

@@ -98,10 +98,10 @@ spec:
         resources:
           requests:
             memory: "500Mi"
-            cpu: "1000m"
+            cpu: "700m"
           limits:
             memory: "500Mi"
-            cpu: "1200m"
+            cpu: "700m"
         command: ["bash", "-c", "-x", "-e"]
         workingDir: /fv3net/workflows/prognostic_c48_run
         volumeMounts:

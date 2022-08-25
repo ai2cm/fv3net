@@ -17,9 +17,11 @@ in pkgs.mkShell {
     pkgs.python38Packages.numpy
     pkgs.python38Packages.netcdf4
     pkgs.python38Packages.ipython
+    pkgs.python38Packages.pytest
     pkgs.google-cloud-sdk
   ];
   shellHook = ''
     export PYTHONPATH=${pkgs.serialbox}/python:$PYTHONPATH
+    export PYTHONPATH=$(pwd):$PYTHONPATH
   '';
 }

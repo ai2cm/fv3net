@@ -29,6 +29,13 @@ def apply_to_tuple(
     return tuple(tensor_func(tensor) for tensor in data)
 
 
+def sequence_size(seq):
+    n = 0
+    for _ in seq:
+        n += 1
+    return n
+
+
 @curry
 def ensure_nd(n: int, tensor: tf.Tensor) -> tf.Tensor:
     """

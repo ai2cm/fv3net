@@ -20,9 +20,14 @@ requirements = [
     "plotly",
     "tensorboard",
     "pandas",
+    "torch",
+    "torchvision",
+    "dgl",
+    "tensorflow-datasets",
 ]
 
 setup_requirements = []
+
 
 test_requirements = ["pytest"]
 

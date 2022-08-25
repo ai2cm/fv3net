@@ -121,12 +121,12 @@ pull_image_prognostic_run_base_gpu:
 enter_emulation:
 	PROGNOSTIC_RUN_WORKDIR=/fv3net/external/emulation $(MAKE) enter_prognostic_run
 
-enter_prognostic_run:
+enter_%:
 	tools/docker-run \
 		--rm \
 		$(DOCKER_INTERACTIVE_ARGS) \
 		-w $(PROGNOSTIC_RUN_WORKDIR) \
-		$(REGISTRY)/prognostic_run:$(VERSION) bash
+		$(REGISTRY)/$*:$(VERSION) bash
 
 ############################################################
 # Documentation (rules match "deploy_docs_%")
@@ -223,6 +223,8 @@ REQUIREMENTS = external/vcm/setup.py \
 	pip-requirements.txt \
 	external/fv3kube/setup.py \
 	external/fv3fit/setup.py \
+	external/loaders/setup.py \
+    external/radiation/setup.py \
 	external/*.requirements.in \
 	workflows/post_process_run/requirements.txt \
 	workflows/prognostic_c48_run/requirements.in \
@@ -256,6 +258,7 @@ docker/prognostic_run/requirements.txt:
 		external/fv3gfs-fortran.requirements.in \
 		external/fv3kube/setup.py \
 		external/vcm/setup.py \
+        external/radiation/setup.py \
 		workflows/post_process_run/requirements.txt \
 		workflows/prognostic_c48_run/requirements.in
 

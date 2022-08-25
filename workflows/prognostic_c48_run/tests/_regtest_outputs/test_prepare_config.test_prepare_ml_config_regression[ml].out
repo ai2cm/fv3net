@@ -7,10 +7,6 @@ diagnostics: []
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 fortran_diagnostics: []
-gfs_analysis_data:
-  copy_method: copy
-  filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
-  url: gs://vcm-ml-raw-flexible-retention/2019-12-02-year-2016-T85-nudging-data
 initial_conditions:
 - copy_method: copy
   source_location: gs://ic-bucket/20160805.000000
@@ -409,7 +405,7 @@ namelist:
     shal_cnv: true
     swhtr: true
     trans_trac: true
-    use_analysis_sst: true
+    use_analysis_sst: false
     use_ufo: true
   interpolator_nml:
     interp_method: conserve_great_circle
@@ -477,6 +473,7 @@ scikit_learn:
   model:
   - gs://ml-model
   output_standard_names: {}
+  scaling: {}
   use_mse_conserving_humidity_limiter: true
 tendency_prescriber: null
 zhao_carr_emulation:

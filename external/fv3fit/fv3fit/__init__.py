@@ -41,6 +41,7 @@ from .data import (
     FromBatches,
     WindowedZarrLoader,
 )
+from .pytorch import GraphHyperparameters, GraphNetworkConfig
 
 # need to import this to register the training func
 import fv3fit.train_microphysics
