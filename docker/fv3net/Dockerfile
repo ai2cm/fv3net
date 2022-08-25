@@ -1,4 +1,4 @@
-FROM jupyter/base-notebook as build
+FROM jupyter/base-notebook:ubuntu-20.04 as build
 
 # Manually increment this string to invalidate the cache
 ENV MANUAL_CACHE_STRING 2
