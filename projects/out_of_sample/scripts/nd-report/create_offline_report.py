@@ -2,18 +2,16 @@ from create_online_report import _STATE_SUFFIX
 import fsspec
 import fv3fit
 import hashlib
-from lark import logger
 from novelty_report_generation_helper import (
     generate_and_save_report,
     OOSModel,
-    _get_parser
+    _get_parser,
 )
 import os
 import uuid
 import vcm
 import xarray as xr
 import yaml
-
 
 
 def get_diags_offline_suffix(model_name: str) -> str:
@@ -63,8 +61,9 @@ def create_offline_report(args):
             model["name"],
             fv3fit.load(model["model_url"]),
             model["model_url"],
-            model.get("cutoff", 0)
-        ) for model in config["models"]
+            model.get("cutoff", 0),
+        )
+        for model in config["models"]
     ]
     model_diags = {model.name: get_offline_diags(model, run_url) for model in models}
 
@@ -87,7 +86,7 @@ def create_offline_report(args):
         config.get("has_cutoff_plots", False),
         metadata,
         report_url,
-        f"Offline metrics for out-of-sample analysis on {run_name}"
+        f"Offline metrics for out-of-sample analysis on {run_name}",
     )
 
 

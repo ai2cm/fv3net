@@ -4,18 +4,18 @@ import fv3fit
 from novelty_report_generation_helper import (
     generate_and_save_report,
     OOSModel,
-    _get_parser
+    _get_parser,
 )
 import os
 import uuid
 import vcm
-from vcm.catalog import catalog
 import xarray as xr
 import yaml
 
 _DIAGS_SUFFIX = "diags.zarr"
 _NOVELTY_DIAGS_SUFFIX = "diags_novelty.zarr"
 _STATE_SUFFIX = "state_after_timestep.zarr"
+
 
 @dataclasses.dataclass
 class OnlineOOSModel(OOSModel):
@@ -67,8 +67,9 @@ def create_online_report(args):
             fv3fit.load(model["model_url"]),
             model["model_url"],
             model.get("cutoff", 0),
-            model["run_url"]
-        ) for model in config["models"]
+            model["run_url"],
+        )
+        for model in config["models"]
     ]
     model_diags = {model.name: get_online_diags(model) for model in models}
 
@@ -90,7 +91,7 @@ def create_online_report(args):
         config.get("has_cutoff_plots", False),
         metadata,
         report_url,
-        "Online metrics for out-of-sample analysis"
+        "Online metrics for out-of-sample analysis",
     )
 
 

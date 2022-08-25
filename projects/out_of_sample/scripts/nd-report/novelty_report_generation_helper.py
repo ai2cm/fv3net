@@ -143,7 +143,9 @@ def make_diagnostic_plots(
     return metrics
 
 
-def generate_and_save_report(models, model_diags, has_cutoff_plots, metadata, report_url, title):
+def generate_and_save_report(
+    models, model_diags, has_cutoff_plots, metadata, report_url, title
+):
     common_coords = {"tile": range(6), "x": range(48), "y": range(48)}
     grid = catalog["grid/c48"].read().assign_coords(common_coords)
     report_sections: MutableMapping[str, Sequence[str]] = {}
@@ -154,7 +156,7 @@ def generate_and_save_report(models, model_diags, has_cutoff_plots, metadata, re
             models,
             model_diags,
             grid,
-            has_cutoff_plots
+            has_cutoff_plots,
         )
 
         # creates html text based on the above sections
