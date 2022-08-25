@@ -11,22 +11,26 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    TypeVar,
 )
 from toolz.functoolz import curry
 import loaders.typing
 
+T_in = TypeVar("T_in")
+T_out = TypeVar("T_out")
+
 
 @curry
 def apply_to_mapping(
-    tensor_func: Callable[[tf.Tensor], tf.Tensor], data: Mapping[str, tf.Tensor]
-) -> Dict[str, tf.Tensor]:
+    tensor_func: Callable[[T_in], T_out], data: Mapping[str, T_in]
+) -> Dict[str, T_out]:
     return {name: tensor_func(tensor) for name, tensor in data.items()}
 
 
 @curry
 def apply_to_tuple(
-    tensor_func: Callable[[tf.Tensor], tf.Tensor], data: Tuple[tf.Tensor, ...]
-) -> Tuple[tf.Tensor, ...]:
+    tensor_func: Callable[[T_in], T_out], data: Tuple[T_in, ...]
+) -> Tuple[T_out, ...]:
     return tuple(tensor_func(tensor) for tensor in data)
 
 

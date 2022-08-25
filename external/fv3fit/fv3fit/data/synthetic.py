@@ -10,6 +10,22 @@ import dacite
 @register_tfdataset_loader
 @dataclasses.dataclass
 class SyntheticWaves(TFDatasetLoader):
+    """
+    Attributes:
+        nsamples: number of samples to generate per batch
+        nbatch: number of batches to generate
+        nx: length of x- and y-dimensions to generate
+        nz: length of z-dimension to generate
+        scalar_names: names to generate as scalars instead of
+            vertically-resolved variables
+        scale_min: minimum amplitude of waves
+        scale_max: maximum amplitude of waves
+        period_min: minimum period of waves
+        period_max: maximum period of waves
+        phase_range: fraction of 2*pi to use for possible range of
+            random phase, should be a value between 0 and 1.
+
+    """
 
     nsamples: int
     nbatch: int
@@ -21,6 +37,7 @@ class SyntheticWaves(TFDatasetLoader):
     scale_max: float = 1.0
     period_min: float = 8.0
     period_max: float = 16.0
+    phase_range: float = 1.0
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
@@ -47,6 +64,7 @@ class SyntheticWaves(TFDatasetLoader):
             scale_max=self.scale_max,
             period_min=self.period_min,
             period_max=self.period_max,
+            phase_range=self.phase_range,
         )
         if local_download_path is not None:
             dataset = dataset.cache(local_download_path)
@@ -72,7 +90,8 @@ def get_tfdataset(
     scale_min: float,
     scale_max: float,
     period_min: float,
-    period_max: float
+    period_max: float,
+    phase_range: float,
 ):
     ntile = 6
 
@@ -91,18 +110,18 @@ def get_tfdataset(
             bx = np.random.uniform(period_min, period_max, size=(nbatch, 1, ntile, nz))[
                 :, :, :, None, None, :
             ]
-            cx = np.random.uniform(0.0, 2 * np.pi, size=(nbatch, 1, ntile, nz))[
-                :, :, :, None, None, :
-            ]
+            cx = np.random.uniform(
+                0.0, 2 * np.pi * phase_range, size=(nbatch, 1, ntile, nz)
+            )[:, :, :, None, None, :]
             ay = np.random.uniform(scale_min, scale_max, size=(nbatch, 1, ntile, nz))[
                 :, :, :, None, None, :
             ]
             by = np.random.uniform(period_min, period_max, size=(nbatch, 1, ntile, nz))[
                 :, :, :, None, None, :
             ]
-            cy = np.random.uniform(0.0, 2 * np.pi, size=(nbatch, 1, ntile, nz))[
-                :, :, :, None, None, :
-            ]
+            cy = np.random.uniform(
+                0.0, 2 * np.pi * phase_range, size=(nbatch, 1, ntile, nz)
+            )[:, :, :, None, None, :]
             data = (
                 ax
                 * np.sin(2 * np.pi * grid_x / bx + cx)

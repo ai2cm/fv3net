@@ -130,4 +130,4 @@ def train_autoencoder(
 
 
 def build_model(config: GeneratorConfig, n_state: int) -> Generator:
-    return config.instance(channels=n_state)
+    return config.build(channels=n_state)

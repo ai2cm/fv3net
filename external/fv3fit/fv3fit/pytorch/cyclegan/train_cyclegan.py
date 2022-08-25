@@ -1,3 +1,4 @@
+import itertools
 from fv3fit._shared.hyperparameters import Hyperparameters
 import random
 import dataclasses
@@ -12,18 +13,21 @@ from fv3fit.tfdataset import sequence_size
 
 from fv3fit._shared import register_training_function
 from typing import (
+    Callable,
     Dict,
     List,
+    Mapping,
     Optional,
+    Sequence,
+    Tuple,
 )
-from fv3fit.tfdataset import ensure_nd, apply_to_mapping
+from fv3fit.tfdataset import ensure_nd, apply_to_mapping, apply_to_tuple
 from .network import Discriminator, Generator, GeneratorConfig, DiscriminatorConfig
 from fv3fit.pytorch.graph.train import (
     get_scalers,
     get_mapping_scale_func,
-    get_Xy_dataset,
+    get_Xy_map_fn as get_Xy_map_fn_single_domain,
 )
-from toolz import curry
 import logging
 import numpy as np
 
@@ -35,14 +39,8 @@ class CycleGANHyperparameters(Hyperparameters):
 
     state_variables: List[str]
     normalization_fit_samples: int = 50_000
-    optimizer_config: OptimizerConfig = dataclasses.field(
-        default_factory=lambda: OptimizerConfig("AdamW")
-    )
-    generator: GeneratorConfig = dataclasses.field(
-        default_factory=lambda: GeneratorConfig()
-    )
-    discriminator: DiscriminatorConfig = dataclasses.field(
-        default_factory=lambda: DiscriminatorConfig()
+    network: "CycleGANNetworkConfig" = dataclasses.field(
+        default_factory=lambda: CycleGANNetworkConfig()
     )
     training_loop: "CycleGANTrainingConfig" = dataclasses.field(
         default_factory=lambda: CycleGANTrainingConfig()
@@ -54,11 +52,7 @@ class CycleGANHyperparameters(Hyperparameters):
         return tuple(self.state_variables)
 
 
-def flatten_dims(dataset: tf.data.Dataset) -> tf.data.Dataset:
-    """Transform [batch, time, tile, x, y, z] to [sample, x, y, z]"""
-    return dataset.unbatch().unbatch().unbatch()
-
-
+@dataclasses.dataclass
 class CycleGANTrainingConfig:
 
     n_epoch: int = 20
@@ -96,12 +90,46 @@ class CycleGANTrainingConfig:
             logger.info("starting epoch %d", i)
             train_losses = []
             for batch_state in train_data:
-                train_losses.append(train_model.train_on_batch(*batch_state))
-            train_loss = torch.mean(torch.stack(train_losses))
+                state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
+                state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+                train_losses.append(train_model.train_on_batch(state_a, state_b))
+            train_loss = np.mean(train_losses)
             logger.info("train_loss: %f", train_loss)
             if validation_data is not None:
                 val_loss = train_model.evaluate_on_dataset(validation_data)
-                logger.info("val_loss %f", val_loss)
+                logger.info("val_loss %s", val_loss)
+
+
+def apply_to_tuple_mapping(func):
+    # not sure why, but tensorflow doesn't like parsing
+    # apply_to_tuple(apply_to_maping(func)), so we do it manually
+    def wrapped(*tuple_of_mapping):
+        return tuple(
+            {name: func(value) for name, value in mapping.items()}
+            for mapping in tuple_of_mapping
+        )
+
+    return wrapped
+
+
+def get_Xy_map_fn(
+    state_variables: Sequence[str],
+    n_dims: int,  # [batch, time, tile, x, y, z]
+    mapping_scale_funcs: Tuple[
+        Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]], ...
+    ],
+):
+    funcs = tuple(
+        get_Xy_map_fn_single_domain(
+            state_variables=state_variables, n_dims=n_dims, mapping_scale_func=func
+        )
+        for func in mapping_scale_funcs
+    )
+
+    def Xy_map_fn(*data: Mapping[str, np.ndarray]):
+        return tuple(func(entry) for func, entry in zip(funcs, data))
+
+    return Xy_map_fn
 
 
 @register_training_function("cyclegan", CycleGANHyperparameters)
@@ -120,34 +148,36 @@ def train_cyclegan(
         validation_batches: validation data, as a dataset of Mapping[str, tf.Tensor]
             where each tensor has dimensions [sample, time, tile, x, y(, z)]
     """
-    train_batches = train_batches.map(apply_to_mapping(ensure_nd(6)))
+    train_batches = train_batches.map(apply_to_tuple_mapping(ensure_nd(6)))
     sample_batch = next(
         iter(train_batches.unbatch().batch(hyperparameters.normalization_fit_samples))
     )
 
-    scalers = get_scalers(sample_batch)
-    mapping_scale_func = get_mapping_scale_func(scalers)
+    scalers = tuple(get_scalers(entry) for entry in sample_batch)
+    mapping_scale_funcs = tuple(get_mapping_scale_func(scaler) for scaler in scalers)
 
-    get_state = curry(get_Xy_dataset)(
+    get_Xy = get_Xy_map_fn(
         state_variables=hyperparameters.state_variables,
         n_dims=6,  # [batch, time, tile, x, y, z]
-        mapping_scale_func=mapping_scale_func,
+        mapping_scale_funcs=mapping_scale_funcs,
     )
 
     if validation_batches is not None:
-        val_state = get_state(data=validation_batches)
+        val_state = validation_batches.map(get_Xy).unbatch()
     else:
         val_state = None
 
-    train_state = get_state(data=train_batches)
+    train_state = train_batches.map(get_Xy).unbatch()
 
-    train_model = build_model(
-        hyperparameters.generator, n_state=next(iter(train_state)).shape[-1]
+    train_model = hyperparameters.network.build(
+        n_state=next(iter(train_state))[0].shape[-1],
+        n_batch=hyperparameters.training_loop.samples_per_batch,
     )
 
-    train_state = flatten_dims(train_state)
+    # remove time and tile dimensions, while we're using regular convolution
+    train_state = train_state.unbatch().unbatch()
     if validation_batches is not None:
-        val_state = flatten_dims(val_state)
+        val_state = val_state.unbatch().unbatch()
 
     hyperparameters.training_loop.fit_loop(
         train_model=train_model, train_data=train_state, validation_data=val_state,
@@ -156,8 +186,9 @@ def train_cyclegan(
     predictor = PytorchPredictor(
         input_variables=hyperparameters.state_variables,
         output_variables=hyperparameters.state_variables,
-        model=train_model,
-        scalers=scalers,
+        model=train_model.generator_a_to_b,
+        scalers=scalers[0],
+        output_scalers=scalers[1],
     )
     return predictor
 
@@ -194,15 +225,15 @@ class ReplayBuffer:
 class StatsCollector:
     def __init__(self, n_dims_keep: int):
         self.n_dims_keep = n_dims_keep
-        self._sum = np.asarray(0.0, dtype=np.float64)
-        self._sum_squared = np.asarray(0.0, dtype=np.float64)
+        self._sum = 0.0
+        self._sum_squared = 0.0
         self._count = 0
 
     def observe(self, data: np.ndarray):
         mean_dims = tuple(range(0, len(data.shape) - self.n_dims_keep))
         data = data.astype(np.float64)
-        self._sum += data.mean(dims=mean_dims)
-        self._sum_squared += (data ** 2).mean(dims=mean_dims)
+        self._sum += data.mean(axis=mean_dims)
+        self._sum_squared += (data ** 2).mean(axis=mean_dims)
         self._count += 1
 
     @property
@@ -211,19 +242,68 @@ class StatsCollector:
 
     @property
     def std(self) -> np.ndarray:
-        return np.sqrt(self._sum_squared / self._count - self.mean() ** 2)
+        return np.sqrt(self._sum_squared / self._count - self.mean ** 2)
 
 
 def get_r2(predicted, target) -> float:
     """
     Compute the R^2 statistic for the predicted and target data.
     """
-    return (
-        1.0
-        - ((target - predicted) ** 2).mean() / ((target - target.mean()) ** 2).mean()
+    return 1.0 - np.var(predicted - target) / np.var(target)
+
+
+@dataclasses.dataclass
+class CycleGANNetworkConfig:
+    generator_optimizer: OptimizerConfig = dataclasses.field(
+        default_factory=lambda: OptimizerConfig("Adam")
     )
+    discriminator_optimizer: OptimizerConfig = dataclasses.field(
+        default_factory=lambda: OptimizerConfig("Adam")
+    )
+    generator: "GeneratorConfig" = dataclasses.field(
+        default_factory=lambda: GeneratorConfig()
+    )
+    discriminator: "DiscriminatorConfig" = dataclasses.field(
+        default_factory=lambda: DiscriminatorConfig()
+    )
+    identity_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
+    cycle_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
+    gan_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
+    identity_weight: float = 0.5
+    cycle_weight: float = 1.0
+    gan_weight: float = 1.0
+
+    def build(self, n_state: int, n_batch: int) -> "CycleGAN":
+        generator_a_to_b = self.generator.build(n_state)
+        generator_b_to_a = self.generator.build(n_state)
+        discriminator_a = self.discriminator.build(n_state)
+        discriminator_b = self.discriminator.build(n_state)
+        optimizer_generator = self.generator_optimizer.instance(
+            itertools.chain(
+                generator_a_to_b.parameters(), generator_b_to_a.parameters()
+            )
+        )
+        optimizer_discriminator = self.discriminator_optimizer.instance(
+            itertools.chain(discriminator_a.parameters(), discriminator_b.parameters())
+        )
+        return CycleGAN(
+            generator_a_to_b=generator_a_to_b,
+            generator_b_to_a=generator_b_to_a,
+            discriminator_a=discriminator_a,
+            discriminator_b=discriminator_b,
+            optimizer_generator=optimizer_generator,
+            optimizer_discriminator=optimizer_discriminator,
+            identity_loss=self.identity_loss.instance,
+            cycle_loss=self.cycle_loss.instance,
+            gan_loss=self.gan_loss.instance,
+            batch_size=n_batch,
+            identity_weight=self.identity_weight,
+            cycle_weight=self.cycle_weight,
+            gan_weight=self.gan_weight,
+        )
 
 
+@dataclasses.dataclass
 class CycleGAN:
 
     # This class based loosely on
@@ -372,15 +452,6 @@ class CycleGAN:
 
         self.optimizer_discriminator.step()
         return float(loss_g + loss_d)
-
-
-def build_model(config: GeneratorConfig, n_state: int) -> CycleGAN:
-    return Generator(
-        channels=n_state,
-        n_convolutions=config.n_convolutions,
-        n_resnet=config.n_resnet,
-        max_filters=config.max_filters,
-    )
 
 
 def set_requires_grad(nets: List[torch.nn.Module], requires_grad=False):

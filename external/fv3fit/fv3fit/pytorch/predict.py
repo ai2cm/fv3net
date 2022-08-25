@@ -9,6 +9,7 @@ from typing import (
     Hashable,
     Iterable,
     Mapping,
+    Optional,
     Sequence,
     Tuple,
     TypeVar,
@@ -68,6 +69,7 @@ class PytorchPredictor(Predictor):
         output_variables: Iterable[Hashable],
         model: nn.Module,
         scalers: Mapping[Hashable, StandardScaler],
+        output_scalers: Optional[Mapping[Hashable, StandardScaler]] = None,
     ):
         """Initialize the predictor
         Args:
@@ -79,6 +81,10 @@ class PytorchPredictor(Predictor):
         self.output_variables = output_variables
         self.model = model
         self.scalers = scalers
+        if output_scalers is None:
+            self.output_scalers = output_scalers
+        else:
+            self.output_scalers = scalers
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """

@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from toolz import curry
 import dataclasses
+from fv3fit.pytorch.optimizer import OptimizerConfig
 
 
 def relu_activation(**kwargs):
@@ -148,7 +149,7 @@ class GeneratorConfig:
     n_resnet: int = 3
     max_filters: int = 256
 
-    def instance(
+    def build(
         self,
         channels: int,
         convolution: ConvolutionFactoryFactory = regular_convolution,
@@ -164,7 +165,21 @@ class GeneratorConfig:
 
 @dataclasses.dataclass
 class DiscriminatorConfig:
-    pass
+
+    n_convolutions: int = 3
+    max_filters: int = 256
+
+    def build(
+        self,
+        channels: int,
+        convolution: ConvolutionFactoryFactory = regular_convolution,
+    ):
+        return Discriminator(
+            in_channels=channels,
+            n_convolutions=self.n_convolutions,
+            max_filters=self.max_filters,
+            convolution=convolution,
+        )
 
 
 class ResnetBlock(nn.Module):
@@ -231,7 +246,7 @@ class Discriminator(nn.Module):
                 in_channels=in_channels,
                 out_channels=min_filters,
                 convolution_factory=convolution(kernel_size=3, stride=2, padding=1),
-                activation_factory=leakyrelu_activation(alpha=0.2),
+                activation_factory=leakyrelu_activation(negative_slope=0.2),
             )
         ]
         for i in range(1, n_convolutions):
@@ -240,25 +255,27 @@ class Discriminator(nn.Module):
                     in_channels=min_filters * 2 ** (i - 1),
                     out_channels=min_filters * 2 ** i,
                     convolution_factory=convolution(kernel_size=3, stride=2, padding=1),
-                    activation_factory=leakyrelu_activation(alpha=0.2),
+                    activation_factory=leakyrelu_activation(negative_slope=0.2),
                 )
             )
         final_conv = ConvBlock(
             in_channels=max_filters,
             out_channels=max_filters,
             convolution_factory=convolution(kernel_size=3),
-            activation_factory=leakyrelu_activation(alpha=0.2),
+            activation_factory=leakyrelu_activation(negative_slope=0.2),
         )
         patch_output = ConvBlock(
             in_channels=max_filters,
             out_channels=1,
             convolution_factory=convolution(kernel_size=3),
-            activation_factory=leakyrelu_activation(alpha=0.2),
+            activation_factory=leakyrelu_activation(negative_slope=0.2),
         )
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
 
     def forward(self, inputs):
-        return self._sequential(inputs)
+        inputs = inputs.permute(0, 3, 1, 2)
+        outputs = self._sequential(inputs)
+        return outputs.permute(0, 2, 3, 1)
 
 
 class Generator(nn.Module):

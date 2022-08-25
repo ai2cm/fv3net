@@ -101,18 +101,18 @@ def train_graph_model(
     scalers = get_scalers(sample)
     mapping_scale_func = get_mapping_scale_func(scalers)
 
-    get_state = curry(get_Xy_dataset)(
+    get_Xy = get_Xy_map_fn(
         state_variables=hyperparameters.state_variables,
         n_dims=6,  # [batch, time, tile, x, y, z]
         mapping_scale_func=mapping_scale_func,
     )
 
     if validation_batches is not None:
-        val_state = get_state(data=validation_batches).unbatch()
+        val_state = validation_batches.map(get_Xy).unbatch()
     else:
         val_state = None
 
-    train_state = get_state(data=train_batches).unbatch()
+    train_state = train_batches.map(get_Xy).unbatch()
 
     train_model = build_model(
         hyperparameters.graph_network, n_state=next(iter(train_state)).shape[-1]
@@ -180,3 +180,37 @@ def get_Xy_dataset(
         return data
 
     return data.map(map_fn)
+
+
+def get_Xy_map_fn(
+    state_variables: Sequence[str],
+    n_dims: int,
+    mapping_scale_func: Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]],
+):
+    """
+    Given a tf.data.Dataset with mappings from variable name to samples
+    return a tf.data.Dataset whose entries are tensors of the requested
+    state variables concatenated along the feature dimension.
+
+    Args:
+        state_variables: names of variables to include in returned tensor
+        n_dims: number of dimensions of each sample, including feature dimension
+        mapping_scale_func: function which scales data stored as a mapping
+            from variable name to array
+        data: tf.data.Dataset with mappings from variable name
+            to sample tensors
+
+    Returns:
+        tf.data.Dataset where each sample is a single tensor
+            containing normalized and concatenated state variables
+    """
+    ensure_dims = apply_to_mapping(ensure_nd(n_dims))
+
+    def map_fn(data):
+        data = mapping_scale_func(data)
+        data = ensure_dims(data)
+        data = select_keys(state_variables, data)
+        data = tf.concat(data, axis=-1)
+        return data
+
+    return map_fn
