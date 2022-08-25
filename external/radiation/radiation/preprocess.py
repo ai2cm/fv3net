@@ -3,8 +3,6 @@ from vcm.calc.thermo.vertically_dependent import (
     pressure_at_midpoint_log,
 )
 import numpy as np
-from radiation import getdata
-import xarray as xr
 
 to_validate = [
     "clear_sky_downward_longwave_flux_at_surface",
@@ -71,24 +69,6 @@ def stack_ds(ds, columns_dict=["y", "x"]):
     for var in ds:
         ds_out[var] = ds[var].stack(ncolumns=columns_dict).values
     return ds_out
-
-
-def init_data(FORCING_PATH, FVCORE_PATH, isolar):
-    file_name = FVCORE_PATH + "fv_core.res.nc"
-    da = xr.open_dataset(file_name)
-
-    # Get sigma levels
-    p_ref = 101325.0
-    ak = da.ak.values.squeeze()
-    bk = da.bk.values.squeeze()
-    sigma = ((ak + p_ref * bk - ak[0]) / (p_ref - ak[0]))[::-1]
-    nlay = sigma.size - 1
-
-    solar_filename, _ = getdata.astronomy(FORCING_PATH, isolar)
-    sfc_file, sfc_data = getdata.sfc(FORCING_PATH)
-    aer_dict = getdata.aerosol(FORCING_PATH)
-
-    return (sigma, nlay, aer_dict, solar_filename, sfc_file, sfc_data)
 
 
 def get_radiation_inputs(ds, columns_dict=["y", "x"]):

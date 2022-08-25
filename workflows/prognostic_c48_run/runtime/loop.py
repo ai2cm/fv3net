@@ -20,6 +20,7 @@ import fv3gfs.wrapper
 import numpy as np
 import vcm
 import xarray as xr
+import f90nml
 from mpi4py import MPI
 import runtime.factories
 from runtime.derived_state import DerivedFV3State, MergedState
@@ -254,16 +255,7 @@ class TimeLoop(
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
-        if config.radiation_scheme and config.radiation_scheme.kind == "python":
-            if self.rank == 0:
-                _download_radiation_assets()
-            MPI.COMM_WORLD.barrier()
-            self._radiation_wrapper: Optional[RadiationWrapper] = (
-                RadiationWrapper.from_config(config.radiation_scheme)
-            )
-            self._radiation_wrapper.rad_init(self.rank, namelist["gfs_physics_nml"])
-        else:
-            self._radiation_wrapper = None
+        self._radiation_wrapper = self._get_radiation_wrapper(config, namelist)
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -380,6 +372,19 @@ class TimeLoop(
             MPI.COMM_WORLD.barrier()
         self._log_info("Model Loaded")
         return model
+
+    def _get_radiation_wrapper(self, config: UserConfig, namelist: f90nml.Namelist):
+        if config.radiation_scheme and config.radiation_scheme.kind == "python":
+            if self.rank == 0:
+                _download_radiation_assets()
+            MPI.COMM_WORLD.barrier()
+            wrapper: RadiationWrapper = RadiationWrapper.from_config(
+                config.radiation_scheme
+            )
+            wrapper.rad_init(self.rank, namelist["gfs_physics_nml"])
+            return wrapper
+        else:
+            return None
 
     @property
     def time(self) -> cftime.DatetimeJulian:

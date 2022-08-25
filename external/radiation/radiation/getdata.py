@@ -292,6 +292,20 @@ def sw(lookup_dir: str):
     return sw_dict
 
 
+def sigma(restart_dir, p_ref=101325.0):
+    """Get sigma coordiante of vertical interfaces (approximation) used by
+    radiation scheme. See https://github.com/ai2cm/fv3gfs-fortran/blob/
+    5d40389e5c8f5696d165a33395660216f99c502c/FV3/gfsphysics/GFS_layer/
+    GFS_driver.F90#L314
+    """
+    file_name = os.path.join(restart_dir, "fv_core.res.nc")
+    da = xr.open_dataset(file_name)
+    ak = da.ak.squeeze()
+    bk = da.bk.squeeze()
+    sigma = ((ak + p_ref * bk - ak[0]) / (p_ref - ak[0]))[::-1]
+    return sigma.values
+
+
 def aerosol(forcing_dir: str):
     aeros_file = os.path.join(forcing_dir, "aerosol.nc")
     var_names = [

@@ -5,7 +5,7 @@ from runtime.steppers.machine_learning import (
     open_model,
     MultiModelAdapter,
 )
-from radiation import preprocess, RadiationDriver
+from radiation import RadiationDriver, getdata
 
 
 DEFAULT_RAD_INIT_NAMELIST = {
@@ -107,14 +107,12 @@ class RadiationWrapper:
         rad_init_namelist = self._get_rad_namelist(
             physics_namelist, default_rad_init_namelist
         )
-        (
-            sigma,
-            nlay,
-            aer_dict,
-            solar_filename,
-            sfc_file,
-            sfc_data,
-        ) = preprocess.init_data(forcing_dir, fv_core_dir, rad_init_namelist["isolar"])
+        sigma = getdata.sigma(fv_core_dir)
+        nlay = len(sigma) - 1
+        aerosol_data = getdata.aerosol(forcing_dir)
+        sfc_filename, sfc_data = getdata.sfc(forcing_dir)
+        solar_filename, _ = getdata.astronomy(forcing_dir, rad_init_namelist["isolar"])
+
         self._driver.radinit(
             sigma,
             nlay,
@@ -137,9 +135,9 @@ class RadiationWrapper:
             rad_init_namelist["lcnorm"],
             rad_init_namelist["lnoprec"],
             rad_init_namelist["iswcliq"],
-            aer_dict,
+            aerosol_data,
             solar_filename,
-            sfc_file,
+            sfc_filename,
             sfc_data,
         )
 
