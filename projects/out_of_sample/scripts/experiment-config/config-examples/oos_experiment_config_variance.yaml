@@ -1,6 +1,6 @@
 base_model:
   tq_tendencies_path: "gs://vcm-ml-experiments/n2f-pire-subsampled-full-range/2022-04-18/nn-tq-low-lr-tapered-mae-seed-0/trained_models/tq_tendencies"
-  wind_tendencies_paths: 
+  wind_tendencies_paths:
     - "gs://vcm-ml-experiments/n2f-pire-stable-ml/2022-08-22/wind-tendencies-winds-seed-0-seed-0/trained_models/wind_tendencies"
     - "gs://vcm-ml-experiments/n2f-pire-stable-ml/2022-08-22/wind-tendencies-winds-seed-1-seed-1/trained_models/wind_tendencies"
     - "gs://vcm-ml-experiments/n2f-pire-stable-ml/2022-08-22/wind-tendencies-winds-seed-2-seed-2/trained_models/wind_tendencies"
