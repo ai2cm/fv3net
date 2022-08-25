@@ -6,6 +6,8 @@ from fv3fit.tfdataset import iterable_to_tfdataset
 import collections
 import os
 from fv3fit.pytorch.graph.train import TrainingLoopConfig
+from fv3fit.pytorch.optimizer import OptimizerConfig
+import fv3fit
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
@@ -54,6 +56,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
 
 
 def test_train_graph_network(tmpdir):
+    fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
     sizes = {"nbatch": 2, "ntime": 2, "nx": 8, "ny": 8, "nz": 2}
@@ -66,7 +69,9 @@ def test_train_graph_network(tmpdir):
         get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
     hyperparameters = GraphHyperparameters(
-        state_variables=state_variables, training_loop=TrainingLoopConfig(n_epoch=300)
+        state_variables=state_variables,
+        training_loop=TrainingLoopConfig(n_epoch=20),
+        optimizer_config=OptimizerConfig(kwargs={"lr": 0.01}),
     )
     predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)
     predicted, reference = predictor.predict(test_xrdataset, timesteps=1)
