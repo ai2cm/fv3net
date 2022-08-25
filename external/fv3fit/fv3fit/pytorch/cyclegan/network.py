@@ -241,11 +241,12 @@ class Generator(nn.Module):
         )
 
     def forward(self, inputs):
-        # data will have channels last, model requires channels first
+        # permute [batch, x, y, channels] to [batch, channels, x, y]
         inputs = inputs.permute(0, 3, 1, 2)
         x = self._first_conv(inputs)
         x = self._unet(x)
         outputs = self._out_conv(x)
+        # permute [batch, channels, x, y] to [batch, x, y, channels]
         return outputs.permute(0, 2, 3, 1)
 
 
