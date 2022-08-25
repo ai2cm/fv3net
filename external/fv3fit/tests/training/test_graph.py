@@ -66,7 +66,7 @@ def test_train_graph_network(tmpdir):
         get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
     hyperparameters = GraphHyperparameters(
-        state_variables=state_variables, training_loop=TrainingLoopConfig(n_epoch=200)
+        state_variables=state_variables, training_loop=TrainingLoopConfig(n_epoch=500)
     )
     predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)
     predicted, reference = predictor.predict(test_xrdataset, timesteps=1)
