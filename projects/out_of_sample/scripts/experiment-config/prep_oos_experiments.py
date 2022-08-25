@@ -96,7 +96,7 @@ def make_argo_submit_command(
         + f"-p tag={tag} \\\n"
         + f'-p config="$(< {prognostic_run_config_path})" \\\n'
         + f"-p segment-count={segment_count} \\\n"
-        + "-p memory='23Gi' \\\n"
+        + "-p memory='25Gi' \\\n"
         + "-p cpu='24' \\\n"
         + "-p online-diags-flags='--verification  1yr_pire_postspinup --n-jobs 5' \\\n"
         + f"--name '{job_name}' \\\n"
@@ -207,11 +207,11 @@ def prep_oos_experiments(args):
                 else:
                     tapering_function = None
                 tapering_string = get_tapering_string(tapering_function)
-                n += 1
                 model_config_paths = []
                 # loops over every wind tendency
                 # (only one pass if 0 or 1 wind tendency suppled)
                 for i in range(wind_path_iterates):
+                    n += 1
                     # loops over each tendency in a pair (tq + wind)
                     for tendency, tendency_path in tendency_paths.items():
                         if tendency == "wind":

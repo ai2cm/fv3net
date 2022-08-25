@@ -23,7 +23,7 @@ novelty_detectors:
     nd_path: "gs://vcm-ml-experiments/claytons/2022-08-09/tq-combined-nd-trial-1/trained_models/ocsvm-larger-gamma"
     params:
       - cutoff: 0
-model_config_dir_path: "gs://vcm-ml-experiments/claytons/2022-08-24/oos-configs/prog-run-variance"
+model_config_dir_path: "gs://vcm-ml-experiments/claytons/2022-08-25/oos-configs/prog-run-variance"
 prognostic_run_config_template: "prognostic-run-config.yaml"
 launch_destination: "~/vcm-workflow-control/examples/prog-run-variance"
 experiment_summary_path: "experiment_summary_variance.txt"
@@ -32,5 +32,5 @@ result_destination:
   bucket: "vcm-ml-experiments"
   project: "claytons"
   experiment: "prog-run-variance"
-  trial: 1
+  trial: 2
 
