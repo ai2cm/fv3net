@@ -1,0 +1,27 @@
+models:
+  - name: "ocsvm-gamma-1/4/79-5"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-ocsvm-small-gamma-5-default-trial1/fv3gfs_run"
+    cutoff: 5
+  - name: "ocsvm-gamma-1/4/79-0"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-ocsvm-small-gamma-0-default-trial1/fv3gfs_run"
+    cutoff: 0
+  - name: "ocsvm-gamma-1/4/79--5"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-ocsvm-small-gamma--5-default-trial1/fv3gfs_run"
+    cutoff: -5
+  - name: "ocsvm-gamma-1/4/79--10"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-ocsvm-small-gamma--10-default-trial1/fv3gfs_run"
+    cutoff: -10
+  - name: "ocsvm-gamma-1/4/79--15"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-ocsvm-small-gamma--15-default-trial1/fv3gfs_run"
+    cutoff: -15
+  - name: "ocsvm-gamma-1/4/79--20"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-ocsvm-small-gamma--20-default-trial1/fv3gfs_run"
+    cutoff: -20
+report_url: "gs://vcm-ml-public/claytons/oos_analysis/online/"
+append_random_id_to_url: true
