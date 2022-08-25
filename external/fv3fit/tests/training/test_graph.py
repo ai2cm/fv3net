@@ -5,6 +5,7 @@ from fv3fit.pytorch.graph import GraphHyperparameters, train_graph_model
 from fv3fit.tfdataset import iterable_to_tfdataset
 import collections
 import os
+import pytest
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
@@ -52,6 +53,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
     return xr.Dataset(data_vars)
 
 
+@pytest.mark.slow
 def test_train_graph_network(tmpdir):
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)

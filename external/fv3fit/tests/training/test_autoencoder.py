@@ -8,9 +8,18 @@ import collections
 import os
 import fv3fit.pytorch
 import fv3fit
+import tensorflow as tf
+import pytest
 
 
-def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
+def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz) -> tf.data.Dataset:
+    """
+    Returns at tf.data.Dataset of shape [nsamples, nbatch, ntime, nx, ny, nz]
+    whose samples are sin waves in the horizontal with random phases and amplitudes.
+    Contains the variables "a", which is vertically-resolved, and "b",
+    which is a scalar.
+    """
+
     ntile = 6
 
     grid_x = np.arange(0, nx, dtype=np.float32)
@@ -83,6 +92,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
     return xr.Dataset(data_vars)
 
 
+@pytest.mark.slow
 def test_autoencoder(tmpdir):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
@@ -128,7 +138,14 @@ def test_autoencoder(tmpdir):
         assert mse[varname] < 0.1
 
 
+@pytest.mark.slow
 def test_autoencoder_overfit(tmpdir):
+    """
+    Test that the autoencoder training function can overfit on a single sample.
+
+    This is an easier problem than fitting on a training dataset and testing
+    on a validation dataset.
+    """
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
