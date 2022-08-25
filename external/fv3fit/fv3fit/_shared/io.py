@@ -3,7 +3,7 @@ import os
 import fsspec
 import warnings
 
-from .predictor import Predictor, Dumpable
+from .predictor import Reloadable
 from functools import partial
 
 _NAME_PATH = "name"
@@ -17,24 +17,21 @@ class _Register:
     """
 
     def __init__(self) -> None:
-        self._model_types: MutableMapping[str, Type[Predictor]] = {}
-        self._dump_types: MutableMapping[str, Type[Dumpable]] = {}
+        self._model_types: MutableMapping[str, Type[Reloadable]] = {}
 
-    def __call__(self, name: str) -> Callable[[Type[Dumpable]], Type[Dumpable]]:
-        if name in self._dump_types:
+    def __call__(self, name: str) -> Callable[[Type[Reloadable]], Type[Reloadable]]:
+        if name in self._model_types:
             raise ValueError(
-                f"{name} is already registered by {self._dump_types[name]}."
+                f"{name} is already registered by {self._model_types[name]}."
             )
         else:
             return partial(self._register_class, name=name)
 
-    def _register_class(self, cls: Type[Dumpable], name: str) -> Type[Dumpable]:
-        if issubclass(cls, Predictor):
-            self._model_types[name] = cls
-        self._dump_types[name] = cls
+    def _register_class(self, cls: Type[Reloadable], name: str) -> Type[Reloadable]:
+        self._model_types[name] = cls
         return cls
 
-    def _load_by_name(self, name: str, path: str) -> Predictor:
+    def _load_by_name(self, name: str, path: str) -> Reloadable:
         if name in DEPCRECATED_NAMES:
             last_valid_commit = DEPCRECATED_NAMES[name]
             raise ValueError(
@@ -43,10 +40,10 @@ class _Register:
             )
         return self._model_types[name].load(path)
 
-    def get_dumpable_name(self, obj: Dumpable) -> str:
+    def get_name(self, obj: Reloadable) -> str:
         return_name = None
         name_cls = None
-        for name, cls in self._dump_types.items():
+        for name, cls in self._model_types.items():
             if isinstance(obj, cls):
                 # always return the most specific class name / deepest subclass
                 if name_cls is None or issubclass(cls, name_cls):
@@ -61,18 +58,18 @@ class _Register:
             return return_name
 
     @staticmethod
-    def _get_predictor_name(path: str) -> str:
+    def _get_class_name(path: str) -> str:
         return fsspec.get_mapper(path)[_NAME_PATH].decode(_NAME_ENCODING).strip()
 
-    def _dump_dumpable_name(self, obj: Dumpable, path: str):
+    def _dump_class_name(self, obj: Reloadable, path: str):
         mapper = fsspec.get_mapper(path)
-        name = self.get_dumpable_name(obj)
+        name = self.get_name(obj)
         mapper[_NAME_PATH] = name.encode(_NAME_ENCODING)
 
-    def load(self, path: str) -> Predictor:
-        """Load a serialized Predictor from `path`."""
+    def load(self, path: str) -> Reloadable:
+        """Load a serialized Reloadable from `path`."""
         try:
-            name = self._get_predictor_name(path)
+            name = self._get_class_name(path)
         except KeyError as e:
             # backwards compatibility
             warnings.warn(
@@ -90,9 +87,9 @@ class _Register:
         else:
             return self._load_by_name(name, path)
 
-    def dump(self, obj: Dumpable, path: str):
-        """Dump a Dumpable to a path"""
-        self._dump_dumpable_name(obj, path)
+    def dump(self, obj: Reloadable, path: str):
+        """Dump a Reloadable to a path"""
+        self._dump_class_name(obj, path)
         obj.dump(path)
 
 
