@@ -18,7 +18,7 @@ class UNetGraphNetworkConfig:
         activation: activation function
     """
 
-    depth: int = 3
+    depth: int = 1
     min_filters: int = 4
     aggregator: str = "mean"
     pooling_size: int = 2
@@ -178,12 +178,12 @@ class UNet(nn.Module):
         )
 
         self.conv2 = DoubleConv(
-            lower_channels, in_channels, config.activation, config.aggregator
+            lower_channels * 2, lower_channels, config.activation, config.aggregator
         )
 
         if depth == 1:
             self._lower = DoubleConv(
-                lower_channels, lower_channels, config.activation, config.aggregator
+                lower_channels, lower_channels * 2, config.activation, config.aggregator
             )
         elif depth <= 0:
             raise ValueError(f"depth must be at least 1, got {depth}")
@@ -195,7 +195,7 @@ class UNet(nn.Module):
                 depth=depth - 1,
                 in_channels=lower_channels,
             )
-        self._up = up_factory(in_channels=lower_channels)
+        self._up = up_factory(in_channels=lower_channels * 2)
         self.depth = depth
 
     def forward(self, inputs):
@@ -231,7 +231,7 @@ class GraphUNet(nn.Module):
         )
 
         self._last_conv = CubedSphereGraphOperation(
-            SAGEConv(config.min_filters, out_dim, config.aggregator)
+            SAGEConv(config.min_filters * 2, out_dim, config.aggregator)
         )
 
         self._unet = UNet(

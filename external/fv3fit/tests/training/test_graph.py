@@ -5,6 +5,7 @@ from fv3fit.pytorch.graph import GraphHyperparameters, train_graph_model
 from fv3fit.tfdataset import iterable_to_tfdataset
 import collections
 import os
+from fv3fit.pytorch.graph.train import TrainingLoopConfig
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
@@ -64,7 +65,9 @@ def test_train_graph_network(tmpdir):
     test_xrdataset = tfdataset_to_xr_dataset(
         get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
-    hyperparameters = GraphHyperparameters(state_variables=state_variables)
+    hyperparameters = GraphHyperparameters(
+        state_variables=state_variables, training_loop=TrainingLoopConfig(n_epoch=100)
+    )
     predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)
     predicted, reference = predictor.predict(test_xrdataset, timesteps=1)
     bias = predicted.isel(time=1) - reference.isel(time=1)
