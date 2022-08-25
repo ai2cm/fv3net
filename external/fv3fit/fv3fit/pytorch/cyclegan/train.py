@@ -8,16 +8,19 @@ from fv3fit.pytorch.training_loop import TrainingConfig
 
 from fv3fit._shared import register_training_function
 from typing import (
+    Hashable,
     List,
+    Mapping,
     Optional,
     Tuple,
+    cast,
 )
-from fv3fit.tfdataset import ensure_nd, apply_to_mapping
 from .network import Generator
-from fv3fit.pytorch.graph.train import (
-    get_scalers,
-    get_mapping_scale_func,
-    get_Xy_dataset,
+from fv3fit.pytorch.graph.train import get_Xy_dataset
+from fv3fit._shared.scaler import (
+    get_standard_scaler_mapping,
+    get_mapping_standard_scale_func,
+    StandardScaler,
 )
 from toolz import curry
 import logging
@@ -84,13 +87,12 @@ def train_autoencoder(
         validation_batches: validation data, as a dataset of Mapping[str, tf.Tensor]
             where each tensor has dimensions [sample, time, tile, x, y(, z)]
     """
-    train_batches = train_batches.map(apply_to_mapping(ensure_nd(6)))
     sample_batch = next(
         iter(train_batches.unbatch().batch(hyperparameters.normalization_fit_samples))
     )
 
-    scalers = get_scalers(sample_batch)
-    mapping_scale_func = get_mapping_scale_func(scalers)
+    scalers = get_standard_scaler_mapping(sample_batch)
+    mapping_scale_func = get_mapping_standard_scale_func(scalers)
 
     get_state = curry(get_Xy_dataset)(
         state_variables=hyperparameters.state_variables,
@@ -108,7 +110,9 @@ def train_autoencoder(
     train_model = build_model(
         hyperparameters.generator, n_state=next(iter(train_state)).shape[-1]
     )
-    print(train_model)
+
+    logging.debug("training with model structure: %s", train_model)
+
     optimizer = hyperparameters.optimizer_config
 
     train_state = flatten_dims(
@@ -131,7 +135,7 @@ def train_autoencoder(
         input_variables=hyperparameters.state_variables,
         output_variables=hyperparameters.state_variables,
         model=train_model,
-        scalers=scalers,
+        scalers=cast(Mapping[Hashable, StandardScaler], scalers),
     )
     return predictor
 
