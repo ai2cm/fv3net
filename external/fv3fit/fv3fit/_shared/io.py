@@ -58,7 +58,7 @@ class _Register:
             return return_name
 
     @staticmethod
-    def _get_class_name(path: str) -> str:
+    def _get_name_from_path(path: str) -> str:
         return fsspec.get_mapper(path)[_NAME_PATH].decode(_NAME_ENCODING).strip()
 
     def _dump_class_name(self, obj: Reloadable, path: str):
@@ -69,7 +69,7 @@ class _Register:
     def load(self, path: str) -> Reloadable:
         """Load a serialized Reloadable from `path`."""
         try:
-            name = self._get_class_name(path)
+            name = self._get_name_from_path(path)
         except KeyError as e:
             # backwards compatibility
             warnings.warn(

@@ -1,4 +1,4 @@
-from fv3fit._shared.predictor import Dumpable, Loadable, Predictor
+from fv3fit._shared.predictor import Predictor, Reloadable
 from .._shared.scaler import StandardScaler
 import numpy as np
 import torch
@@ -139,7 +139,7 @@ class PytorchPredictor(Predictor):
 
 
 @io.register("pytorch_autoregressor")
-class PytorchAutoregressor(Dumpable, Loadable):
+class PytorchAutoregressor(Reloadable):
 
     _MODEL_FILENAME = "weight.pt"
     _CONFIG_FILENAME = "config.yaml"
