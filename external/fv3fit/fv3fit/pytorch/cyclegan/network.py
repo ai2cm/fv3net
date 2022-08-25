@@ -165,56 +165,6 @@ class ConvBlock(nn.Module):
         return self.conv_block(inputs)
 
 
-class Discriminator(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        n_convolutions: int,
-        max_filters: int,
-        convolution: ConvolutionFactory = single_tile_convolution,
-    ):
-        super(Discriminator, self).__init__()
-        # max_filters = min_filters * 2 ** (n_convolutions - 1), therefore
-        min_filters = int(max_filters / 2 ** (n_convolutions - 1))
-        convs = [
-            ConvBlock(
-                in_channels=in_channels,
-                out_channels=min_filters,
-                convolution_factory=curry(convolution)(
-                    kernel_size=3, stride=2, padding=1
-                ),
-                activation_factory=leakyrelu_activation(alpha=0.2),
-            )
-        ]
-        for i in range(1, n_convolutions):
-            convs.append(
-                ConvBlock(
-                    in_channels=min_filters * 2 ** (i - 1),
-                    out_channels=min_filters * 2 ** i,
-                    convolution_factory=curry(convolution)(
-                        kernel_size=3, stride=2, padding=1
-                    ),
-                    activation_factory=leakyrelu_activation(alpha=0.2),
-                )
-            )
-        final_conv = ConvBlock(
-            in_channels=max_filters,
-            out_channels=max_filters,
-            convolution_factory=curry(convolution)(kernel_size=3, padding="same"),
-            activation_factory=leakyrelu_activation(alpha=0.2),
-        )
-        patch_output = ConvBlock(
-            in_channels=max_filters,
-            out_channels=1,
-            convolution_factory=curry(convolution)(kernel_size=3, padding="same"),
-            activation_factory=leakyrelu_activation(alpha=0.2),
-        )
-        self._sequential = nn.Sequential(*convs, final_conv, patch_output)
-
-    def forward(self, inputs):
-        return self._sequential(inputs)
-
-
 class Generator(nn.Module):
     def __init__(
         self,
