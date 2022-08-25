@@ -1,7 +1,7 @@
 import warnings
 import numpy as np
 import os
-from phys_const import con_pi, con_solr, con_solr_old
+from .phys_const import con_pi, con_solr, con_solr_old
 
 
 class AstronomyClass:

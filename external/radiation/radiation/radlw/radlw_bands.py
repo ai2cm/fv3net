@@ -1,6 +1,6 @@
 import numpy as np
 
-from radlw.radlw_param import (
+from .radlw_param import (
     ngptlw,
     ng01,
     ng02,

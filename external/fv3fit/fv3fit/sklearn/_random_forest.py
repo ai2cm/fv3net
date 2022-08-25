@@ -353,13 +353,17 @@ class SklearnWrapper(Predictor):
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
         input_variables = metadata["input_variables"]
         output_variables = metadata["output_variables"]
-        output_features_dict = metadata["output_features"]
         packer_config_dict = metadata.get("packer_config", {})
-        output_features_ = dacite.from_dict(PackingInfo, data=output_features_dict)
         packer_config = dacite.from_dict(PackerConfig, packer_config_dict)
 
         obj = cls(input_variables, output_variables, model, packer_config=packer_config)
         obj.target_scaler = scaler_obj
+        output_features_dict = metadata["output_features"]
+        if isinstance(output_features_dict, dict):
+            output_features_ = dacite.from_dict(PackingInfo, data=output_features_dict)
+        else:
+            # older model format, uses tuple instead
+            output_features_ = PackingInfo.from_tuples(output_features_dict[1])
         obj.output_features_ = output_features_
 
         return obj
