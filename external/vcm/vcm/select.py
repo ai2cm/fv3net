@@ -18,7 +18,8 @@ from vcm.xarray_utils import weighted_mean_via_groupby_bins
 def _groupby_bins(data, group, group_name, bins, weights=None):
     renamed_group = group.rename(group_name)
     if weights is None:
-        output = data.groupby_bins(renamed_group, bins=bins).mean()
+        with xr.set_options(keep_attrs=True):
+            output = data.groupby_bins(renamed_group, bins=bins).mean()
     else:
         output = weighted_mean_via_groupby_bins(data, renamed_group, weights, bins=bins)
     output = output.rename({f"{group_name}_bins": group_name})

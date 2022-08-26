@@ -121,16 +121,22 @@ def weighted_mean_via_groupby_bins(
     Returns:
         xr.Dataset or xr.DataArray
     """
-    with xr.set_options(keep_attrs=True):
-        product = weights * obj
-        numerator = product.groupby_bins(group, bins=bins).sum()
-        denominator = (
-            weights.where(product.notnull())
-            .fillna(0.0)
-            .groupby_bins(group, bins=bins)
-            .sum()
-        )
-        if isinstance(obj, xr.DataArray):
-            return (numerator / denominator).rename(obj.name)
-        else:
-            return numerator / denominator
+    # Note that keep_attrs doesn't help here, so we need to restore the attributes
+    # at the end.
+    product = weights * obj
+    numerator = product.groupby_bins(group, bins=bins).sum()
+    denominator = (
+        weights.where(product.notnull())
+        .fillna(0.0)
+        .groupby_bins(group, bins=bins)
+        .sum()
+    )
+    if isinstance(obj, xr.DataArray):
+        return (numerator / denominator).rename(obj.name).assign_attrs(obj.attrs)
+    else:
+        result = numerator / denominator
+        for v in obj.data_vars:
+            # print(obj[v])
+            result[v] = result[v].assign_attrs(obj[v].attrs)
+            # print(result[v])
+        return result

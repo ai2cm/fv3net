@@ -18,13 +18,16 @@ from vcm.select import (
 def test_approximate_averages(function, group_name):
     group = xr.DataArray(np.linspace(0, 9, 10), dims=["x"])
     data = xr.DataArray(
-        [[i * j for i in range(10)] for j in [0, 1]], dims=["z", "x"]
+        [[i * j for i in range(10)] for j in [0, 1]],
+        dims=["z", "x"],
+        attrs={"units": "test_units"},
     ).rename("data")
     average = function(group, data, bins=np.arange(0, 10, 2),)
     # bins are (low, high]
     np.testing.assert_allclose(average.isel(z=0), np.zeros(4))
     np.testing.assert_allclose(average.isel(z=1), [1.5, 3.5, 5.5, 7.5])
     assert group_name in average.dims
+    assert average.attrs["units"] == "test_units"
 
 
 @pytest.mark.parametrize(
@@ -35,13 +38,16 @@ def test_weighted_approximate_averages(function, group_name):
     group = xr.DataArray(np.arange(10), dims=["x"])
     weights = (group % 2) == 1
     data = xr.DataArray(
-        [[i * j for i in range(10)] for j in [0, 1]], dims=["z", "x"]
+        [[i * j for i in range(10)] for j in [0, 1]],
+        dims=["z", "x"],
+        attrs={"units": "test_units"},
     ).rename("data")
     average = function(group, data, bins=np.arange(0, 11, 2), weights=weights,)
     # bins are (low, high]
     np.testing.assert_allclose(average.isel(z=0), np.zeros(5))
     np.testing.assert_allclose(average.isel(z=1), np.arange(1, 11, 2))
     assert group_name in average.dims
+    assert average.attrs["units"] == "test_units"
 
 
 @pytest.fixture()

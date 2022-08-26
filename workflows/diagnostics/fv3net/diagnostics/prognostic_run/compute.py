@@ -347,6 +347,7 @@ def deep_tropical_mean_hovmoller(diag_arg: DiagArg):
                 grid.lon,
                 prognostic[[var]].where(np.abs(grid.lat) <= 15),
                 lon_name="longitude",
+                weights=grid.area,
             )[var].load()
     return deep_tropical_means
 

@@ -152,8 +152,8 @@ def test_weighted_mean_via_groupby_bins_dataset():
     # This test just ensures the broadcasting behavior matches that
     # of xarray's built-in groupby_bins.  The logic for computing weighted
     # means and ignoring NaNs is tested at the DataArray level above.
-    a = xr.DataArray(np.arange(10), dims=["x"], name="foo")
-    b = xr.DataArray(np.arange(10), dims=["y"], name="bar")
+    a = xr.DataArray(np.arange(10), dims=["x"], name="foo", attrs={"units": "mm/day"})
+    b = xr.DataArray(np.arange(10), dims=["y"], name="bar", attrs={"units": "K"})
     ds = xr.merge([a, b])
 
     group = xr.DataArray(np.arange(10), dims=["x"], name="baz")
@@ -161,5 +161,11 @@ def test_weighted_mean_via_groupby_bins_dataset():
     weights = xr.ones_like(a)
 
     result = weighted_mean_via_groupby_bins(ds, group, weights, bins)
-    expected = ds.groupby_bins(group, bins).mean()
+    with xr.set_options(keep_attrs=True):
+        expected = ds.groupby_bins(group, bins).mean()
+
+    # Due to an xarray bug in groupby_bins, units are added to the Dataset
+    # attributes in addition to being maintained on the data variables.  We
+    # remove the Dataset attributes here.
+    expected.attrs = {}
     assert_identical_including_dtype(result, expected)
