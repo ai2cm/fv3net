@@ -1,8 +1,5 @@
 import numpy as np
-import sys
-from phys_const import con_pi
-
-sys.path.insert(0, "..")
+from .phys_const import con_pi
 
 
 class GasClass:

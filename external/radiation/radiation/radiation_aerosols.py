@@ -1,10 +1,10 @@
 import numpy as np
 import os
-from radlw.radlw_param import NBDLW, wvnlw1, wvnlw2
-from radsw.radsw_param import nbdsw, wvnum1, wvnum2, NSWSTR
-from phys_const import con_pi, con_plnk, con_c, con_boltz, con_t0c, con_rd, con_g
-from radphysparam import lalw1bd
-from config import DTYPE_INT
+from .radlw.radlw_param import NBDLW, wvnlw1, wvnlw2
+from .radsw.radsw_param import nbdsw, wvnum1, wvnum2, NSWSTR
+from .phys_const import con_pi, con_plnk, con_c, con_boltz, con_t0c, con_rd, con_g
+from .radphysparam import lalw1bd
+from .types import DTYPE_INT
 
 
 class AerosolClass:

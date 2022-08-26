@@ -1,18 +1,18 @@
 import numpy as np
 import warnings
 
-from config import DTYPE_INT
-from radphysparam import ictmflg, isolar, ivflip
-from phys_const import con_eps, con_epsm1, con_rocp, con_fvirt, con_rog, con_epsq
-from funcphys import fpvs
+from .types import DTYPE_INT
+from .radphysparam import ictmflg, isolar, ivflip
+from .phys_const import con_eps, con_epsm1, con_rocp, con_fvirt, con_rog, con_epsq
+from .funcphys import fpvs
 
-from radiation_astronomy import AstronomyClass
-from radiation_aerosols import AerosolClass
-from radiation_clouds import CloudClass
-from radiation_gases import GasClass
-from radiation_sfc import SurfaceClass
-from radlw.radlw_main import RadLWClass
-from radsw.radsw_main import RadSWClass
+from .radiation_astronomy import AstronomyClass
+from .radiation_aerosols import AerosolClass
+from .radiation_clouds import CloudClass
+from .radiation_gases import GasClass
+from .radiation_sfc import SurfaceClass
+from .radlw import RadLWClass
+from .radsw import RadSWClass
 
 
 class RadiationDriver:
