@@ -14,7 +14,7 @@ spec:
       - name: training-config
         value: ""
       - name: image_tag
-        value: d28691af12d75c761ef3393b04dad4bf466e99bd
+        value: 8a3cba635cbcb214fa157b41f003f15dc4656517
   volumes:
   - name: gcp-key-secret
     secret:

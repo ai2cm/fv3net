@@ -33,7 +33,7 @@ control_str = "MultiLoss_Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
 
 edgenormal = 0
 edgediff = 1
-multiStep = 2
+multiStep = 4
 
 lead = 6
 residual = 0
@@ -43,7 +43,7 @@ edge_h_feats = 32
 input_res = 48
 pooling_size = 2
 edge_in_feats = 2
-num_step_message_passing = 1
+num_step_message_passing = 5
 epochs = 50
 
 if halo == 1:
