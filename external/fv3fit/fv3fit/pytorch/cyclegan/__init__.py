@@ -4,4 +4,5 @@ from .train_cyclegan import (
     CycleGANHyperparameters,
     CycleGANNetworkConfig,
     CycleGANTrainingConfig,
+    CycleGAN,
 )

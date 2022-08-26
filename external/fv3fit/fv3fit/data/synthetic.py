@@ -9,6 +9,51 @@ import dacite
 
 @register_tfdataset_loader
 @dataclasses.dataclass
+class SyntheticNoise(TFDatasetLoader):
+    nsamples: int
+    nbatch: int
+    ntime: int
+    nx: int
+    nz: int
+    scalar_names: List[str] = dataclasses.field(default_factory=list)
+    noise_amplitude: float = 1.0
+
+    def open_tfdataset(
+        self, local_download_path: Optional[str], variable_names: Sequence[str],
+    ) -> tf.data.Dataset:
+        """
+        Args:
+            local_download_path: if provided, cache data locally at this path
+            variable_names: names of variables to include when loading data
+        Returns:
+            dataset containing requested variables, each record is a mapping from
+                variable name to variable value, and each value is a tensor whose
+                first dimension is the batch dimension
+        """
+        dataset = get_noise_tfdataset(
+            variable_names,
+            scalar_names=self.scalar_names,
+            nsamples=self.nsamples,
+            nbatch=self.nbatch,
+            ntime=self.ntime,
+            nx=self.nx,
+            ny=self.nx,
+            nz=self.nz,
+            noise_amplitude=self.noise_amplitude,
+        )
+        if local_download_path is not None:
+            dataset = dataset.cache(local_download_path)
+        return dataset
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "TFDatasetLoader":
+        return dacite.from_dict(
+            data_class=cls, data=d, config=dacite.Config(strict=True)
+        )
+
+
+@register_tfdataset_loader
+@dataclasses.dataclass
 class SyntheticWaves(TFDatasetLoader):
     """
     Attributes:
@@ -51,7 +96,7 @@ class SyntheticWaves(TFDatasetLoader):
                 variable name to variable value, and each value is a tensor whose
                 first dimension is the batch dimension
         """
-        dataset = get_tfdataset(
+        dataset = get_waves_tfdataset(
             variable_names,
             scalar_names=self.scalar_names,
             nsamples=self.nsamples,
@@ -77,7 +122,7 @@ class SyntheticWaves(TFDatasetLoader):
         )
 
 
-def get_tfdataset(
+def get_waves_tfdataset(
     variable_names,
     *,
     scalar_names,
@@ -128,6 +173,41 @@ def get_tfdataset(
                 * ay
                 * np.sin(2 * np.pi * grid_y / by + cy)
             )
+            start = {}
+            for varname in variable_names:
+                if varname in scalar_names:
+                    start[varname] = data[..., 0].astype(np.float32)
+                else:
+                    start[varname] = data.astype(np.float32)
+            out = {key: [value] for key, value in start.items()}
+            for _ in range(ntime - 1):
+                for varname in start.keys():
+                    out[varname].append(out[varname][-1] * -1.0)
+            for varname in out:
+                out[varname] = np.concatenate(out[varname], axis=1)
+            yield out
+
+    return iterable_to_tfdataset(list(sample_iterator()))
+
+
+def get_noise_tfdataset(
+    variable_names,
+    *,
+    scalar_names,
+    nsamples: int,
+    nbatch: int,
+    ntime: int,
+    nx: int,
+    ny: int,
+    nz: int,
+    noise_amplitude: float,
+):
+    ntile = 6
+
+    def sample_iterator():
+        # creates a timeseries where each time is the negation of time before it
+        for _ in range(nsamples):
+            data = noise_amplitude * np.random.randn(nbatch, 1, ntile, nx, ny, nz)
             start = {}
             for varname in variable_names:
                 if varname in scalar_names:

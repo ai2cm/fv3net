@@ -6,15 +6,24 @@ import tensorflow as tf
 from fv3fit.pytorch.predict import PytorchPredictor
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
+import xarray as xr
 import torch
 from fv3fit.pytorch.system import DEVICE
 import tensorflow_datasets as tfds
 from fv3fit.tfdataset import sequence_size
+from fv3fit.pytorch.predict import (
+    _load_pytorch,
+    _dump_pytorch,
+    _pack_to_tensor,
+    _unpack_tensor,
+)
 
-from fv3fit._shared import register_training_function
+from fv3fit._shared import register_training_function, io, StandardScaler
 from typing import (
     Callable,
     Dict,
+    Hashable,
+    Iterable,
     List,
     Mapping,
     Optional,
@@ -62,7 +71,7 @@ class CycleGANTrainingConfig:
 
     def fit_loop(
         self,
-        train_model: "CycleGAN",
+        train_model: "CycleGANTrainer",
         train_data: tf.data.Dataset,
         validation_data: Optional[tf.data.Dataset],
     ) -> None:
@@ -93,8 +102,11 @@ class CycleGANTrainingConfig:
                 state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
                 state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
                 train_losses.append(train_model.train_on_batch(state_a, state_b))
-            train_loss = np.mean(train_losses)
-            logger.info("train_loss: %f", train_loss)
+            train_loss = {
+                name: np.mean([data[name] for data in train_losses])
+                for name in train_losses[0]
+            }
+            logger.info("train_loss: %s", train_loss)
             if validation_data is not None:
                 val_loss = train_model.evaluate_on_dataset(validation_data)
                 logger.info("val_loss %s", val_loss)
@@ -137,7 +149,7 @@ def train_cyclegan(
     hyperparameters: CycleGANHyperparameters,
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
-) -> PytorchPredictor:
+) -> "CycleGAN":
     """
     Train a denoising autoencoder for cubed sphere data.
 
@@ -172,6 +184,8 @@ def train_cyclegan(
     train_model = hyperparameters.network.build(
         n_state=next(iter(train_state))[0].shape[-1],
         n_batch=hyperparameters.training_loop.samples_per_batch,
+        state_variables=hyperparameters.state_variables,
+        scalers=scalers,
     )
 
     # remove time and tile dimensions, while we're using regular convolution
@@ -182,15 +196,7 @@ def train_cyclegan(
     hyperparameters.training_loop.fit_loop(
         train_model=train_model, train_data=train_state, validation_data=val_state,
     )
-
-    predictor = PytorchPredictor(
-        input_variables=hyperparameters.state_variables,
-        output_variables=hyperparameters.state_variables,
-        model=train_model.generator_a_to_b,
-        scalers=scalers[0],
-        output_scalers=scalers[1],
-    )
-    return predictor
+    return train_model.cycle_gan
 
 
 class ReplayBuffer:
@@ -273,7 +279,9 @@ class CycleGANNetworkConfig:
     cycle_weight: float = 1.0
     gan_weight: float = 1.0
 
-    def build(self, n_state: int, n_batch: int) -> "CycleGAN":
+    def build(
+        self, n_state: int, n_batch: int, state_variables, scalers
+    ) -> "CycleGANTrainer":
         generator_a_to_b = self.generator.build(n_state)
         generator_b_to_a = self.generator.build(n_state)
         discriminator_a = self.discriminator.build(n_state)
@@ -286,11 +294,17 @@ class CycleGANNetworkConfig:
         optimizer_discriminator = self.discriminator_optimizer.instance(
             itertools.chain(discriminator_a.parameters(), discriminator_b.parameters())
         )
-        return CycleGAN(
-            generator_a_to_b=generator_a_to_b,
-            generator_b_to_a=generator_b_to_a,
-            discriminator_a=discriminator_a,
-            discriminator_b=discriminator_b,
+        return CycleGANTrainer(
+            cycle_gan=CycleGAN(
+                model=CycleGANModule(
+                    generator_a_to_b=generator_a_to_b,
+                    generator_b_to_a=generator_b_to_a,
+                    discriminator_a=discriminator_a,
+                    discriminator_b=discriminator_b,
+                ),
+                state_variables=state_variables,
+                scalers=_merge_scaler_mappings(scalers),
+            ),
             optimizer_generator=optimizer_generator,
             optimizer_discriminator=optimizer_discriminator,
             identity_loss=self.identity_loss.instance,
@@ -303,8 +317,165 @@ class CycleGANNetworkConfig:
         )
 
 
-@dataclasses.dataclass
+def _merge_scaler_mappings(
+    scaler_tuple: Tuple[Mapping[str, StandardScaler], Mapping[str, StandardScaler]]
+) -> Mapping[str, StandardScaler]:
+    scalers = {}
+    for prefix, scaler_map in zip(("a_", "b_"), scaler_tuple):
+        for key, scaler in scaler_map.items():
+            scalers[prefix + key] = scaler
+    return scalers
+
+
+class CycleGANModule(torch.nn.Module):
+    def __init__(
+        self,
+        generator_a_to_b: Generator,
+        generator_b_to_a: Generator,
+        discriminator_a: Discriminator,
+        discriminator_b: Discriminator,
+    ):
+        super(CycleGANModule, self).__init__()
+        self.generator_a_to_b = generator_a_to_b
+        self.generator_b_to_a = generator_b_to_a
+        self.discriminator_a = discriminator_a
+        self.discriminator_b = discriminator_b
+
+
+@io.register("cycle_gan")
 class CycleGAN:
+
+    _MODEL_FILENAME = "weight.pt"
+    _CONFIG_FILENAME = "config.yaml"
+    _SCALERS_FILENAME = "scalers.zip"
+
+    def __init__(
+        self,
+        model: CycleGANModule,
+        scalers: Mapping[Hashable, StandardScaler],
+        state_variables: Iterable[Hashable],
+    ):
+        """
+            Args:
+                model: pytorch model
+                scalers: scalers for the state variables, keys are prepended with "a_"
+                    or "b_" to denote the domain of the scaler, followed by the name of
+                    the state variable it scales
+                state_variables: name of variables to be used as state variables in
+                    the order expected by the model
+        """
+        self.model = model
+        self.scalers = scalers
+        self.state_variables = state_variables
+
+    @property
+    def generator_a_to_b(self) -> torch.nn.Module:
+        return self.model.generator_a_to_b
+
+    @property
+    def generator_b_to_a(self) -> torch.nn.Module:
+        return self.model.generator_b_to_a
+
+    @property
+    def discriminator_a(self) -> torch.nn.Module:
+        return self.model.discriminator_a
+
+    @property
+    def discriminator_b(self) -> torch.nn.Module:
+        return self.model.discriminator_b
+
+    @classmethod
+    def load(cls, path: str) -> "CycleGAN":
+        """Load a serialized model from a directory."""
+        return _load_pytorch(cls, path)
+
+    def dump(self, path: str) -> None:
+        _dump_pytorch(self, path)
+
+    def get_config(self):
+        return {}
+
+    def pack_to_tensor(self, ds: xr.Dataset, domain: str = "a") -> torch.Tensor:
+        """
+        Packs the dataset into a tensor to be used by the pytorch model.
+
+        Subdivides the dataset evenly into windows
+        of size (timesteps + 1) with overlapping start and end points.
+        Overlapping the window start and ends is necessary so that every
+        timestep (evolution from one time to the next) is included within
+        one of the windows.
+
+        Args:
+            ds: dataset containing values to pack
+            domain: one of "a" or "b"
+
+        Returns:
+            tensor of shape [window, time, tile, x, y, feature]
+        """
+        scalers = {
+            name[2:]: scaler
+            for name, scaler in self.scalers.items()
+            if name.startswith(f"{domain}_")
+        }
+        return _pack_to_tensor(
+            ds=ds, timesteps=0, state_variables=self.state_variables, scalers=scalers,
+        )
+
+    def unpack_tensor(self, data: torch.Tensor, domain: str = "b") -> xr.Dataset:
+        """
+        Unpacks the tensor into a dataset.
+
+        Args:
+            data: tensor of shape [window, time, tile, x, y, feature]
+            domain: one of "a" or "b"
+
+        Returns:
+            xarray dataset with values of shape [window, time, tile, x, y, feature]
+        """
+        scalers = {
+            name[2:]: scaler
+            for name, scaler in self.scalers.items()
+            if name.startswith(f"{domain}_")
+        }
+        return _unpack_tensor(
+            data,
+            varnames=self.state_variables,
+            scalers=scalers,
+            dims=["time", "tile", "x", "y", "z"],
+        )
+
+    def predict(self, X: xr.Dataset, reverse: bool = False) -> xr.Dataset:
+        """
+        Predict a state in the output domain from a state in the input domain.
+
+        Args:
+            X: input dataset
+            reverse: if True, transform from the output domain to the input domain
+
+        Returns:
+            predicted: predicted dataset
+        """
+        if reverse:
+            input_domain, output_domain = "b", "a"
+        else:
+            input_domain, output_domain = "a", "b"
+
+        tensor = self.pack_to_tensor(X, domain=input_domain)
+        reshaped_tensor = tensor.reshape(
+            [tensor.shape[0] * tensor.shape[1]] + list(tensor.shape[2:])
+        )
+        with torch.no_grad():
+            if reverse:
+                outputs = self.generator_b_to_a(reshaped_tensor)
+            else:
+                outputs = self.generator_a_to_b(reshaped_tensor)
+        outputs = outputs.reshape(tensor.shape)
+        predicted = self.unpack_tensor(outputs, domain=output_domain)
+        return predicted
+
+
+@dataclasses.dataclass
+class CycleGANTrainer:
 
     # This class based loosely on
     # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/cycle_gan_model.py
@@ -312,10 +483,7 @@ class CycleGAN:
     # Copyright Facebook, BSD license
     # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/c99ce7c4e781712e0252c6127ad1a4e8021cc489/LICENSE
 
-    generator_a_to_b: Generator
-    generator_b_to_a: Generator
-    discriminator_a: Discriminator
-    discriminator_b: Discriminator
+    cycle_gan: CycleGAN
     optimizer_generator: torch.optim.Optimizer
     optimizer_discriminator: torch.optim.Optimizer
     identity_loss: torch.nn.Module
@@ -335,6 +503,10 @@ class CycleGAN:
         )
         self.fake_a_buffer = ReplayBuffer()
         self.fake_b_buffer = ReplayBuffer()
+        self.generator_a_to_b = self.cycle_gan.generator_a_to_b
+        self.generator_b_to_a = self.cycle_gan.generator_b_to_a
+        self.discriminator_a = self.cycle_gan.discriminator_a
+        self.discriminator_b = self.cycle_gan.discriminator_b
 
     def evaluate_on_dataset(
         self, dataset: tf.data.Dataset, n_dims_keep: int = 4
@@ -348,10 +520,10 @@ class CycleGAN:
         for real_a, real_b in dataset:
             stats_real_a.observe(real_a)
             stats_real_b.observe(real_b)
-            gen_a: torch.Tensor = self.generator_a_to_b(
+            gen_b: torch.Tensor = self.generator_a_to_b(
                 torch.as_tensor(real_a).float().to(DEVICE)
             )
-            gen_b: torch.Tensor = self.generator_b_to_a(
+            gen_a: torch.Tensor = self.generator_b_to_a(
                 torch.as_tensor(real_b).float().to(DEVICE)
             )
             stats_gen_a.observe(gen_a.detach().cpu().numpy())
@@ -368,7 +540,9 @@ class CycleGAN:
         }
         return metrics
 
-    def train_on_batch(self, real_a: torch.Tensor, real_b: torch.Tensor) -> float:
+    def train_on_batch(
+        self, real_a: torch.Tensor, real_b: torch.Tensor
+    ) -> Mapping[str, float]:
         fake_b = self.generator_a_to_b(real_a)
         fake_a = self.generator_b_to_a(real_b)
         reconstructed_a = self.generator_b_to_a(fake_b)
@@ -381,8 +555,6 @@ class CycleGAN:
             [self.discriminator_a, self.discriminator_b], requires_grad=False
         )
 
-        self.optimizer_generator.zero_grad()
-
         # Identity loss
         # G_A2B(B) should equal B if real B is fed
         same_b = self.generator_a_to_b(real_b)
@@ -390,31 +562,25 @@ class CycleGAN:
         # G_B2A(A) should equal A if real A is fed
         same_a = self.generator_b_to_a(real_b)
         loss_identity_a = self.identity_loss(same_a, real_a) * self.identity_weight
+        loss_identity = loss_identity_a + loss_identity_b
 
         # GAN loss
-        fake_b = self.generator_a_to_b(real_a)
         pred_fake = self.discriminator_b(fake_b)
-        loss_gan_a_to_b = self.gan_loss(pred_fake, self.target_real)
+        loss_gan_a_to_b = self.gan_loss(pred_fake, self.target_real) * self.gan_weight
 
-        fake_A = self.generator_b_to_a(real_b)
-        pred_fake = self.discriminator_a(fake_A)
-        loss_gan_b_to_a = self.gan_loss(pred_fake, self.target_real)
+        pred_fake = self.discriminator_a(fake_a)
+        loss_gan_b_to_a = self.gan_loss(pred_fake, self.target_real) * self.gan_weight
+        loss_gan = loss_gan_a_to_b + loss_gan_b_to_a
 
         # Cycle loss
         loss_cycle_a_b_a = self.cycle_loss(reconstructed_a, real_a) * self.cycle_weight
         loss_cycle_b_a_b = self.cycle_loss(reconstructed_b, real_b) * self.cycle_weight
+        loss_cycle = loss_cycle_a_b_a + loss_cycle_b_a_b
 
         # Total loss
-        loss_g: torch.Tensor = (
-            loss_identity_a
-            + loss_identity_b
-            + loss_gan_a_to_b
-            + loss_gan_b_to_a
-            + loss_cycle_a_b_a
-            + loss_cycle_b_a_b
-        )
+        loss_g: torch.Tensor = (loss_identity + loss_gan + loss_cycle)
+        self.optimizer_generator.zero_grad()
         loss_g.backward()
-
         self.optimizer_generator.step()
 
         # Discriminators A and B ######
@@ -423,8 +589,6 @@ class CycleGAN:
         set_requires_grad(
             [self.discriminator_a, self.discriminator_b], requires_grad=True
         )
-
-        self.optimizer_discriminator.zero_grad()
 
         # Real loss
         pred_real = self.discriminator_a(real_a)
@@ -447,11 +611,23 @@ class CycleGAN:
         # Total loss
         loss_d: torch.Tensor = (
             loss_d_b_real + loss_d_b_fake + loss_d_a_real + loss_d_a_fake
-        ) * 0.5
+        )
+        self.optimizer_discriminator.zero_grad()
         loss_d.backward()
-
         self.optimizer_discriminator.step()
-        return float(loss_g + loss_d)
+
+        return {
+            # "gan_loss": float(loss_gan),
+            "b_to_a_gan_loss": float(loss_gan_b_to_a),
+            "a_to_b_gan_loss": float(loss_gan_a_to_b),
+            "discriminator_a_loss": float(loss_d_a_fake + loss_d_a_real),
+            "discriminator_b_loss": float(loss_d_b_fake + loss_d_b_real),
+            # "cycle_loss": float(loss_cycle),
+            # "identity_loss": float(loss_identity),
+            # "generator_loss": float(loss_g),
+            # "discriminator_loss": float(loss_d),
+            "train_loss": float(loss_g + loss_d),
+        }
 
 
 def set_requires_grad(nets: List[torch.nn.Module], requires_grad=False):
