@@ -58,11 +58,11 @@ spec:
           cpu: "7"
           memory: "15Gi"
       workingDir: "/fv3net/projects/full_model_emulation/test"
-      args: ["SAGEUnet_Unet_MP_LowRes_MultiLoss.py"]
+      args: ["SAGEUnet_Unet_MP_LowRes.py"]
     tolerations:
     - key: "dedicated"
       operator: "Equal"
-      value: "gpu-t4-sim-pool"
+      value: "gpu-sim-pool"
       effect: "NoSchedule"
     - key: "nvidia.com/gpu"
       operator: "Exists"
