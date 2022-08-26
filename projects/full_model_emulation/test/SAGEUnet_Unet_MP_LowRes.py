@@ -23,14 +23,14 @@ from utilsMPGNNUnet import *
 import wandb
 from fv3net.artifacts.resolve_url import resolve_url
 from vcm import get_fs
-# from SAGE_Unet_MP_LowRes import UnetGraphSAGE
-from SAGE_Unet_MP_LowRes_Conv import UnetGraphSAGE
+from SAGE_Unet_MP_LowRes import UnetGraphSAGE
+# from SAGE_Unet_MP_LowRes_Conv import UnetGraphSAGE
 
 halo=1
-control_str = "Conv_Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
+control_str = "Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
 
 
-edgenormal=1
+edgenormal=0
 edgediff= 1
 lead = 6
 residual = 0
@@ -95,7 +95,7 @@ drop_prob = 0
 out_feat = 2
 
 savemodelpath = (
-    "No_diff_latlon_LowRes_Shift_Ave_latlon_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
+    "latlon_LowRes_Shift_Ave_latlon_Unet_MP_All5_edges_Orininal_New_Pooling_weight_layer_"
     + control_str
     +"edgeNormal_"
     +str(edgenormal)
@@ -168,20 +168,20 @@ lat5=np.zeros([6,3,3])
 lon5=np.zeros([6,3,3])
 
 for i in range(6):
-    lat2[i]=0.25* (lat1[i,1::2, :-1:2] + lat1[i,:-1:2, :-1:2] + lat1[i,1::2, 1::2] + lat1[i,:-1:2, :-1:2])
-    lon2[i]=0.25* (lon1[i,1::2, :-1:2] + lon1[i,:-1:2, :-1:2] + lon1[i,1::2, 1::2] + lon1[i,:-1:2, :-1:2])
+    lat2[i]=0.25* (lat1[i,1::2, :-1:2] + lat1[i,:-1:2, 1::2] + lat1[i,1::2, 1::2] + lat1[i,:-1:2, :-1:2])
+    lon2[i]=0.25* (lon1[i,1::2, :-1:2] + lon1[i,:-1:2, 1::2] + lon1[i,1::2, 1::2] + lon1[i,:-1:2, :-1:2])
 
 for i in range(6):
-    lat3[i]=0.25* (lat2[i,1::2, :-1:2] + lat2[i,:-1:2, :-1:2] + lat2[i,1::2, 1::2] + lat2[i,:-1:2, :-1:2])
-    lon3[i]=0.25* (lon2[i,1::2, :-1:2] + lon2[i,:-1:2, :-1:2] + lon2[i,1::2, 1::2] + lon2[i,:-1:2, :-1:2])
+    lat3[i]=0.25* (lat2[i,1::2, :-1:2] + lat2[i,:-1:2, 1::2] + lat2[i,1::2, 1::2] + lat2[i,:-1:2, :-1:2])
+    lon3[i]=0.25* (lon2[i,1::2, :-1:2] + lon2[i,:-1:2, 1::2] + lon2[i,1::2, 1::2] + lon2[i,:-1:2, :-1:2])
 
 for i in range(6):
-    lat4[i]=0.25* (lat3[i,1::2, :-1:2] + lat3[i,:-1:2, :-1:2] + lat3[i,1::2, 1::2] + lat3[i,:-1:2, :-1:2])
-    lon4[i]=0.25* (lon3[i,1::2, :-1:2] + lon3[i,:-1:2, :-1:2] + lon3[i,1::2, 1::2] + lon3[i,:-1:2, :-1:2])
+    lat4[i]=0.25* (lat3[i,1::2, :-1:2] + lat3[i,:-1:2, 1::2] + lat3[i,1::2, 1::2] + lat3[i,:-1:2, :-1:2])
+    lon4[i]=0.25* (lon3[i,1::2, :-1:2] + lon3[i,:-1:2, 1::2] + lon3[i,1::2, 1::2] + lon3[i,:-1:2, :-1:2])
 
 for i in range(6):
-    lat5[i]=0.25* (lat4[i,1::2, :-1:2] + lat4[i,:-1:2, :-1:2] + lat4[i,1::2, 1::2] + lat4[i,:-1:2, :-1:2])
-    lon5[i]=0.25* (lon4[i,1::2, :-1:2] + lon4[i,:-1:2, :-1:2] + lon4[i,1::2, 1::2] + lon4[i,:-1:2, :-1:2])
+    lat5[i]=0.25* (lat4[i,1::2, :-1:2] + lat4[i,:-1:2, 1::2] + lat4[i,1::2, 1::2] + lat4[i,:-1:2, :-1:2])
+    lon5[i]=0.25* (lon4[i,1::2, :-1:2] + lon4[i,:-1:2, 1::2] + lon4[i,1::2, 1::2] + lon4[i,:-1:2, :-1:2])
 
 lat2=lat2.flatten()
 lat3=lat3.flatten()
