@@ -17,13 +17,9 @@ from emulation._time import translate_time
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
-DIMS_MAP = {
-    1: ["sample"],
-    2: ["sample", "z"],
-}
+DIMS_MAP = {1: ["sample"], 2: ["sample", "z"], 3: ["sample", "z", "category"]}
 
 
 @dataclasses.dataclass
