@@ -7,7 +7,7 @@ image_tag: 126fff928587eccc16adc7c231e4000646e4770c
 config:
   base_version: v0.5
   data_table: default
-  duration: "6hr"
+  duration: "6h"
   initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
   fortran_diagnostics:
   - name: piggy.zarr
