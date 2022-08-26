@@ -99,7 +99,7 @@ def apply_condensation_liquid_phase(state, net_condensation):
 
 def _update_with_net_condensation(cloud_out, state, emulator):
     net_condensation = cloud_out - state[Input.cloud_water]
-    _limit_net_condensation_conserving(state, net_condensation)
+    net_condensation = _limit_net_condensation_conserving(state, net_condensation)
     return {**emulator, **apply_condensation_liquid_phase(state, net_condensation)}
 
 
