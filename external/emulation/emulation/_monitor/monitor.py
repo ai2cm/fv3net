@@ -94,7 +94,7 @@ def _convert_to_quantities(state, metadata):
         dims = DIMS_MAP.get(data.ndim, None)
         if dims is None:
             logger.info(
-                "Skipping {key} ... unrecognized dimensions, ndim = {data.ndim}"
+                f"Skipping {key} ... unrecognized dimensions, ndim = {data.ndim}"
             )
             continue
         attrs = _get_attrs(key, metadata)
