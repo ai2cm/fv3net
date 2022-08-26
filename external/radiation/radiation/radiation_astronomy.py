@@ -315,10 +315,14 @@ class AstronomyClass:
         self.anginc = pid12 * dtswh / float(self.nstp)
 
         if me == 0:
+            print(f"nswr: {type(nswr)}, {nswr}")
+            print(f"deltim: {type(deltim)}, {deltim}")
+            print(f"deltsw: {type(deltsw)}, {deltsw}")
+            print(f"dtswh: {type(dtswh)}, {dtswh}")
             print(
                 "for cosz calculations: nswr,deltim,deltsw,dtswh =",
-                f"{nswr[0]}, {deltim[0]}, {deltsw[0]}, {dtswh[0]}, anginc, nstp =",
-                f"{self.anginc[0]}, {self.nstp}",
+                f"{nswr}, {deltim}, {deltsw}, {dtswh}, anginc, nstp =",
+                f"{self.anginc}, {self.nstp}",
             )
 
         return self.slag, self.sdec, self.cdec, self.solcon

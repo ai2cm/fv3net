@@ -1,5 +1,7 @@
 import dataclasses
-from typing import Optional
+from typing import Optional, Mapping, Any, Literal
+import cftime
+import numpy as np
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
     open_model,
@@ -8,7 +10,7 @@ from runtime.steppers.machine_learning import (
 from radiation import RadiationDriver, getdata
 
 
-DEFAULT_RAD_INIT_NAMELIST = {
+DEFAULT_RAD_CONFIG = {
     "imp_physics": 11,
     "iemsflg": 1,  # surface emissivity control flag
     "ioznflg": 7,  # ozone data source control flag
@@ -27,51 +29,15 @@ DEFAULT_RAD_INIT_NAMELIST = {
     "lcnorm": False,  # control flag for in-cld condensate
     "lnoprec": False,  # precip effect on radiation flag (ferrier microphysics)
     "iswcliq": 1,  # optical property for liquid clouds for sw
-}
-
-RAD_MODEL_NAMELIST = {
-    "nfxr": 45,
-    "ntrac": 8,
-    "ntcw": 2,
-    "ntrw": 3,
-    "ntiw": 4,
-    "ntsw": 5,
-    "ntgl": 6,
-    "ntoz": 7,
-    "ntclamt": 8,
-    "ncld": 5,
-    "ncnd": 5,
-    "fhswr": 3600,
-    "fhlwr": 3600,
-    "solhr": 0.0,
     "lsswr": True,
-    "lslwr": True,
-    "imp_physics": 11,
-    "lgfdlmprad": False,
-    "uni_cld": False,
-    "effr_in": False,
-    "indcld": -1,
-    "num_p3d": 1,
-    "npdf3d": 0,
-    "ncnvcld3d": 0,
-    "lmfdeep2": True,
-    "lmfshal": True,
-    "sup": 1.0,
-    "kdt": 1,
-    "do_sfcperts": False,
-    "pertalb": [[999.0], [999.0], [999.0], [999.0], [999.0]],
-    "do_only_clearsky_rad": False,
-    "swhtr": True,
-    "solcon": 1320.8872136343873,
-    "lprnt": False,
-    "lwhtr": True,
-    "lssav": True,
 }
 
 
 @dataclasses.dataclass
 class RadiationWrapperConfig:
-    kind: str
+    """"""
+
+    kind: Literal["python"]
     input_model: Optional[MachineLearningConfig] = None
     offline: bool = True
 
@@ -83,9 +49,10 @@ class RadiationWrapper:
         input_model: Optional[MultiModelAdapter],
         driver: RadiationDriver,
     ):
-        self.offline: bool = offline
+        self._offline: bool = offline
         self._input_model: Optional[MultiModelAdapter] = input_model
         self._driver: RadiationDriver = driver
+        self._rad_config: Optional[Mapping[str, Any]] = None
 
     @classmethod
     def from_config(cls, config: RadiationWrapperConfig) -> "RadiationWrapper":
@@ -102,39 +69,38 @@ class RadiationWrapper:
         physics_namelist: dict,
         forcing_dir: str = "./data/forcing",
         fv_core_dir: str = "./INPUT/",
-        default_rad_init_namelist: dict = DEFAULT_RAD_INIT_NAMELIST,
+        default_rad_config: dict = DEFAULT_RAD_CONFIG,
     ) -> None:
-        rad_init_namelist = self._get_rad_namelist(
-            physics_namelist, default_rad_init_namelist
-        )
+        """Initialize the radiation driver"""
+        self._rad_config = self._get_rad_config(physics_namelist, default_rad_config)
         sigma = getdata.sigma(fv_core_dir)
         nlay = len(sigma) - 1
         aerosol_data = getdata.aerosol(forcing_dir)
         sfc_filename, sfc_data = getdata.sfc(forcing_dir)
-        solar_filename, _ = getdata.astronomy(forcing_dir, rad_init_namelist["isolar"])
+        solar_filename, _ = getdata.astronomy(forcing_dir, self._rad_config["isolar"])
 
         self._driver.radinit(
             sigma,
             nlay,
-            rad_init_namelist["imp_physics"],
+            self._rad_config["imp_physics"],
             rank,
-            rad_init_namelist["iemsflg"],
-            rad_init_namelist["ioznflg"],
-            rad_init_namelist["ictmflg"],
-            rad_init_namelist["isolar"],
-            rad_init_namelist["ico2flg"],
-            rad_init_namelist["iaerflg"],
-            rad_init_namelist["ialbflg"],
-            rad_init_namelist["icldflg"],
-            rad_init_namelist["ivflip"],
-            rad_init_namelist["iovrsw"],
-            rad_init_namelist["iovrlw"],
-            rad_init_namelist["isubcsw"],
-            rad_init_namelist["isubclw"],
-            rad_init_namelist["lcrick"],
-            rad_init_namelist["lcnorm"],
-            rad_init_namelist["lnoprec"],
-            rad_init_namelist["iswcliq"],
+            self._rad_config["iemsflg"],
+            self._rad_config["ioznflg"],
+            self._rad_config["ictmflg"],
+            self._rad_config["isolar"],
+            self._rad_config["ico2flg"],
+            self._rad_config["iaerflg"],
+            self._rad_config["ialbflg"],
+            self._rad_config["icldflg"],
+            self._rad_config["ivflip"],
+            self._rad_config["iovrsw"],
+            self._rad_config["iovrlw"],
+            self._rad_config["isubcsw"],
+            self._rad_config["isubclw"],
+            self._rad_config["lcrick"],
+            self._rad_config["lcnorm"],
+            self._rad_config["lnoprec"],
+            self._rad_config["iswcliq"],
             aerosol_data,
             solar_filename,
             sfc_filename,
@@ -142,27 +108,67 @@ class RadiationWrapper:
         )
 
     @staticmethod
-    def _get_rad_namelist(physics_namelist, default_rad_namelist):
+    def _get_rad_config(physics_namelist, default_rad_config) -> Mapping[str, Any]:
         """Generate radiation namelist from fv3gfs' GFS physics namelist to ensure
         identical. Additional values from hardcoded defaults.
         """
-        rad_init_namelist = {}
-        rad_init_namelist["imp_physics"] = physics_namelist["imp_physics"]
-        rad_init_namelist["iemsflg"] = physics_namelist["iems"]
-        rad_init_namelist["ioznflg"] = default_rad_namelist["ioznflg"]
-        rad_init_namelist["ictmflg"] = default_rad_namelist["ictmflg"]
-        rad_init_namelist["isolar"] = physics_namelist["isol"]
-        rad_init_namelist["ico2flg"] = physics_namelist["ico2"]
-        rad_init_namelist["iaerflg"] = physics_namelist["iaer"]
-        rad_init_namelist["ialbflg"] = physics_namelist["ialb"]
-        rad_init_namelist["icldflg"] = default_rad_namelist["icldflg"]
-        rad_init_namelist["ivflip"] = default_rad_namelist["ivflip"]
-        rad_init_namelist["iovrsw"] = default_rad_namelist["iovrsw"]
-        rad_init_namelist["iovrlw"] = default_rad_namelist["iovrlw"]
-        rad_init_namelist["isubcsw"] = physics_namelist["isubc_sw"]
-        rad_init_namelist["isubclw"] = physics_namelist["isubc_lw"]
-        rad_init_namelist["lcrick"] = default_rad_namelist["lcrick"]
-        rad_init_namelist["lcnorm"] = default_rad_namelist["lcnorm"]
-        rad_init_namelist["lnoprec"] = default_rad_namelist["lnoprec"]
-        rad_init_namelist["iswcliq"] = default_rad_namelist["iswcliq"]
-        return rad_init_namelist
+        rad_config = {}
+        rad_config["imp_physics"] = physics_namelist["imp_physics"]
+        rad_config["iemsflg"] = physics_namelist["iems"]
+        rad_config["ioznflg"] = default_rad_config["ioznflg"]
+        rad_config["ictmflg"] = default_rad_config["ictmflg"]
+        rad_config["isolar"] = physics_namelist["isol"]
+        rad_config["ico2flg"] = physics_namelist["ico2"]
+        rad_config["iaerflg"] = physics_namelist["iaer"]
+        rad_config["ialbflg"] = physics_namelist["ialb"]
+        rad_config["icldflg"] = default_rad_config["icldflg"]
+        rad_config["ivflip"] = default_rad_config["ivflip"]
+        rad_config["iovrsw"] = default_rad_config["iovrsw"]
+        rad_config["iovrlw"] = default_rad_config["iovrlw"]
+        rad_config["isubcsw"] = physics_namelist["isubc_sw"]
+        rad_config["isubclw"] = physics_namelist["isubc_lw"]
+        rad_config["lcrick"] = default_rad_config["lcrick"]
+        rad_config["lcnorm"] = default_rad_config["lcnorm"]
+        rad_config["lnoprec"] = default_rad_config["lnoprec"]
+        rad_config["iswcliq"] = default_rad_config["iswcliq"]
+        rad_config["fhswr"] = physics_namelist["fhswr"]
+        rad_config["lsswr"] = default_rad_config["lsswr"]
+        return rad_config
+
+    def rad_update(
+        self,
+        time: cftime.DatetimeJulian,
+        dt_atmos: float,
+        forcing_dir: str = "./data/forcing",
+    ) -> None:
+        """Update the radiation driver's time-varying parameters"""
+        if self._rad_config is None:
+            raise ValueError(
+                "Radiation driver not initialized. `.rad_init` must be called "
+                "before `.rad_update`."
+            )
+        idat = np.array(
+            [time.year, time.month, time.day, 0, time.hour, time.minute, 0, 0]
+        )
+        jdat = np.array(
+            [time.year, time.month, time.day, 0, time.hour, time.minute, 0, 0]
+        )
+        fhswr = np.array(float(self._rad_config["fhswr"]))
+        dt_atmos = np.array(float(dt_atmos))
+        aerosol_data = getdata.aerosol(forcing_dir)
+        _, solar_data = getdata.astronomy(forcing_dir, self._rad_config["isolar"])
+        gas_data = getdata.gases(forcing_dir, self._rad_config["ictmflg"])
+        slag, sdec, cdec, solcon = self._driver.radupdate(
+            idat,
+            jdat,
+            fhswr,
+            dt_atmos,
+            self._rad_config["lsswr"],
+            aerosol_data["kprfg"],
+            aerosol_data["idxcg"],
+            aerosol_data["cmixg"],
+            aerosol_data["denng"],
+            aerosol_data["cline"],
+            solar_data,
+            gas_data,
+        )
