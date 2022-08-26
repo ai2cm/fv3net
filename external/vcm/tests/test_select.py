@@ -6,19 +6,42 @@ from vcm.select import (
     mask_to_surface_type,
     get_latlon_grid_coords,
     RegionOfInterest,
+    meridional_average_approximate,
     zonal_average_approximate,
 )
 
 
-def test_zonal_average_approximate():
-    lat = xr.DataArray(np.linspace(0, 9, 10), dims=["x"]).rename("lat")
+@pytest.mark.parametrize(
+    ("function", "group_name"),
+    [(meridional_average_approximate, "lon"), (zonal_average_approximate, "lat")],
+)
+def test_approximate_averages(function, group_name):
+    group = xr.DataArray(np.linspace(0, 9, 10), dims=["x"])
     data = xr.DataArray(
         [[i * j for i in range(10)] for j in [0, 1]], dims=["z", "x"]
     ).rename("data")
-    zonal_avg = zonal_average_approximate(lat, data, bins=np.arange(0, 10, 2),)
+    average = function(group, data, bins=np.arange(0, 10, 2),)
     # bins are (low, high]
-    np.testing.assert_allclose(zonal_avg.isel(z=0), np.zeros(4))
-    np.testing.assert_allclose(zonal_avg.isel(z=1), [1.5, 3.5, 5.5, 7.5])
+    np.testing.assert_allclose(average.isel(z=0), np.zeros(4))
+    np.testing.assert_allclose(average.isel(z=1), [1.5, 3.5, 5.5, 7.5])
+    assert group_name in average.dims
+
+
+@pytest.mark.parametrize(
+    ("function", "group_name"),
+    [(meridional_average_approximate, "lon"), (zonal_average_approximate, "lat")],
+)
+def test_weighted_approximate_averages(function, group_name):
+    group = xr.DataArray(np.arange(10), dims=["x"])
+    weights = (group % 2) == 1
+    data = xr.DataArray(
+        [[i * j for i in range(10)] for j in [0, 1]], dims=["z", "x"]
+    ).rename("data")
+    average = function(group, data, bins=np.arange(0, 11, 2), weights=weights,)
+    # bins are (low, high]
+    np.testing.assert_allclose(average.isel(z=0), np.zeros(5))
+    np.testing.assert_allclose(average.isel(z=1), np.arange(1, 11, 2))
+    assert group_name in average.dims
 
 
 @pytest.fixture()

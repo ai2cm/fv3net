@@ -102,3 +102,35 @@ def assert_identical_including_dtype(
         assert a.dtype == b.dtype
         for coord in a.coords:
             assert a[coord].dtype == b[coord].dtype
+
+
+def weighted_mean_via_groupby_bins(
+    obj: Union[xr.Dataset, xr.DataArray],
+    group: xr.DataArray,
+    weights: xr.DataArray,
+    bins,
+):
+    """Compute a weighted mean using groupby_bins
+
+    Args:
+        obj: Input xr.Dataset or xr.DataArray
+        group: Grouping coordinate xr.DataArray
+        weights: Weights xr.DataArray
+        bins: integer or array-like input determining the bins
+
+    Returns:
+        xr.Dataset or xr.DataArray
+    """
+    with xr.set_options(keep_attrs=True):
+        product = weights * obj
+        numerator = product.groupby_bins(group, bins=bins).sum()
+        denominator = (
+            weights.where(product.notnull())
+            .fillna(0.0)
+            .groupby_bins(group, bins=bins)
+            .sum()
+        )
+        if isinstance(obj, xr.DataArray):
+            return (numerator / denominator).rename(obj.name)
+        else:
+            return numerator / denominator
