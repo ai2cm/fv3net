@@ -1,7 +1,11 @@
-from vcm.calc.thermo.vertically_dependent import (
-    pressure_at_interface,
-    pressure_at_midpoint_log,
-)
+try:
+    from vcm.calc.thermo.vertically_dependent import (
+        pressure_at_interface,
+        pressure_at_midpoint_log,
+    )
+except ImportError:
+    pass
+
 import numpy as np
 
 to_validate = [
