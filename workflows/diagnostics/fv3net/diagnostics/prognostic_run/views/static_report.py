@@ -27,6 +27,9 @@ from fv3net.diagnostics.prognostic_run.constants import (
     PERCENTILES,
     PRECIP_RATE,
     TOP_LEVEL_METRICS,
+    DEFAULT_FIGURE_WIDTH,
+    DEFAULT_FIGURE_HEIGHT,
+    REFERENCE_HOVMOLLER_DURATION_SECONDS,
     MovieUrls,
 )
 from fv3net.diagnostics._shared.constants import WVP, COL_DRYING
@@ -274,12 +277,31 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTM
     return plot_2d_matplotlib(diagnostics, "zonal_mean_bias", ["time", "latitude"])
 
 
+def infer_duration_seconds(diagnostics: Iterable[xr.Dataset]) -> float:
+    sample_diagnostics, *_ = diagnostics
+    sample_time = sample_diagnostics.time
+    return (sample_time.isel(time=-1) - sample_time.isel(time=0)).item().total_seconds()
+
+
+def infer_tropical_hovmoller_figsize(
+    diagnostics: Iterable[xr.Dataset],
+) -> Tuple[int, int]:
+    duration_seconds = infer_duration_seconds(diagnostics)
+    ratio = duration_seconds / REFERENCE_HOVMOLLER_DURATION_SECONDS
+    height = DEFAULT_FIGURE_HEIGHT * ratio
+    return (DEFAULT_FIGURE_WIDTH, 3 * height)
+
+
 @tropical_hovmoller_plot_manager.register
 def deep_tropical_meridional_mean_hovmoller_plots(
     diagnostics: Iterable[xr.Dataset],
 ) -> RawHTML:
+    figsize = infer_tropical_hovmoller_figsize(diagnostics)
     return plot_2d_matplotlib(
-        diagnostics, "deep_tropical_meridional_mean_value", ["longitude", "time"]
+        diagnostics,
+        "deep_tropical_meridional_mean_value",
+        ["longitude", "time"],
+        figsize=figsize,
     )
 
 
