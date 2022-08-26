@@ -2,19 +2,19 @@
 # python3 argo/end_to_end.py configs/gscond-only.yaml
 kind: prognostic
 experiment: gscond-condensation-limit
-name: gscond-only-net-condense-limit-30d-v3
-image_tag: 51e9576d0f4ac1d175c144d4d74401c45796d239
+name: gscond-only-net-condense-limit-6hr-v4
+image_tag: 126fff928587eccc16adc7c231e4000646e4770c
 config:
   base_version: v0.5
   data_table: default
-  duration: "30d"
+  duration: "6hr"
   initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
   fortran_diagnostics:
   - name: piggy.zarr
     chunks:
       time: 1
     times:
-      frequency: 10800
+      frequency: 900
       kind: interval
     variables:
       - field_name: tendency_of_air_temperature_due_to_emulator
@@ -69,7 +69,7 @@ config:
     chunks:
       time: 1
     times:
-      frequency: 10800
+      frequency: 900
       kind: interval
     variables:
     - {module_name: dynamics, field_name: grid_lont, output_name: lon}
@@ -116,7 +116,7 @@ config:
     chunks:
       time: 1
     times:
-      frequency: 10800
+      frequency: 900
       kind: interval
     variables:
     - {module_name: dynamics, field_name: grid_lont, output_name: lon}
@@ -172,7 +172,7 @@ config:
     name: state_after_timestep.zarr
     tensorboard: false
     times:
-      frequency: 10800
+      frequency: 900
       includes_lower: false
       kind: interval
       times: null
@@ -194,7 +194,7 @@ config:
     name: physics_tendencies.zarr
     tensorboard: false
     times:
-      frequency: 10800
+      frequency: 900
       includes_lower: false
       kind: interval
       times: null
@@ -264,6 +264,7 @@ config:
       ncld: 1
       ldiag3d: true
       emulate_gscond_only: true
+      save_zc_microphysics: true
   zhao_carr_emulation:
     gscond:
       classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-06-09/gscond-classifier-v1/model.tf
@@ -282,3 +283,7 @@ config:
           fill_value: specific_humidity_input
       mask_gscond_zero_cloud_classifier: true
       mask_gscond_no_tend_classifier: true
+    storage:
+      save_nc: false
+      save_zarr: true
+      output_freq_sec: 900
