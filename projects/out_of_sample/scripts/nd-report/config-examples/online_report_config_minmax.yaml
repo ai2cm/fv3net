@@ -1,0 +1,47 @@
+models:
+  - name: "minmax-0.6"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-07-28/oos-many-cutoffs-test-minmax-0.6-1/fv3gfs_run"
+    cutoff: 0.6
+  - name: "minmax-0.4"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-07-28/oos-many-cutoffs-test-minmax-0.4-1/fv3gfs_run"
+    cutoff: 0.4
+  - name: "minmax-0.3"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-07-28/oos-many-cutoffs-test-minmax-0.3-1/fv3gfs_run"
+    cutoff: 0.3
+  - name: "minmax-0.2"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-07-28/oos-many-cutoffs-test-minmax-0.2-1/fv3gfs_run"
+    cutoff: 0.2
+  - name: "minmax-0.1"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-07-28/oos-many-cutoffs-test-minmax-0.1-1/fv3gfs_run"
+    cutoff: 0.1
+  - name: "minmax-0"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-minmax-0-default-trial1/fv3gfs_run"
+    cutoff: 0
+  - name: "minmax--0.1"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-minmax--0.1-default-trial1/fv3gfs_run"
+    cutoff: -0.1
+  - name: "minmax--0.2"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-minmax--0.2-default-trial1/fv3gfs_run"
+    cutoff: -0.2
+  - name: "minmax--0.3"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-minmax--0.3-default-trial1/fv3gfs_run"
+    cutoff: -0.3
+  - name: "minmax--0.4"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-minmax--0.4-default-trial1/fv3gfs_run"
+    cutoff: -0.4
+  - name: "minmax--0.6"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    run_url: "gs://vcm-ml-experiments/claytons/2022-08-01/oos-many-cutoffs-test-minmax--0.6-default-trial1/fv3gfs_run"
+    cutoff: -0.6
+report_url: "gs://vcm-ml-public/claytons/oos_analysis/online/"
+append_random_id_to_url: true

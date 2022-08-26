@@ -1,0 +1,94 @@
+models:
+  - name: "ocsvm-large-0.1"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-large"
+    cutoff: 0.1
+  - name: "ocsvm-large-0"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-large"
+    cutoff: 0
+  - name: "ocsvm-large--0.5"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-large"
+    cutoff: -0.5
+  - name: "ocsvm-large--1"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-large"
+    cutoff: -1
+  - name: "ocsvm-large--2"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-large"
+    cutoff: -2
+  - name: "ocsvm-large--3"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-large"
+    cutoff: -3
+  - name: "ocsvm-default-3"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-15/ocsvm-default-trial-3/trained_models/ocsvm"
+    cutoff: 3
+  - name: "ocsvm-default-0"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-15/ocsvm-default-trial-3/trained_models/ocsvm"
+    cutoff: 0
+  - name: "ocsvm-default--3"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-15/ocsvm-default-trial-3/trained_models/ocsvm"
+    cutoff: -3
+  - name: "ocsvm-default--6"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-15/ocsvm-default-trial-3/trained_models/ocsvm"
+    cutoff: -6
+  - name: "ocsvm-default--9"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-15/ocsvm-default-trial-3/trained_models/ocsvm"
+    cutoff: -9
+  - name: "ocsvm-default--12"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-15/ocsvm-default-trial-3/trained_models/ocsvm"
+    cutoff: -12
+  - name: "ocsvm-small-5"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    cutoff: 5
+  - name: "ocsvm-small-0"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    cutoff: 0
+  - name: "ocsvm-small--5"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    cutoff: -5
+  - name: "ocsvm-small--10"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    cutoff: -10
+  - name: "ocsvm-small--15"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    cutoff: -15
+  - name: "ocsvm-small--20"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-18/ocsvm-gamma-trial-1/trained_models/ocsvm-small"
+    cutoff: -20
+  - name: "minmax-0.6"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoff: 0.6
+  - name: "minmax-0.4"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoff: 0.4
+  - name: "minmax-0.3"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoff: 0.3
+  - name: "minmax-0.2"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoff: 0.2
+  - name: "minmax-0.1"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoff: 0.1
+  - name: "minmax-0"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoff: 0
+  - name: "minmax--0.1"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoff: -0.1
+  - name: "minmax--0.2"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoff: -0.2
+  - name: "minmax--0.3"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoff: -0.3
+  - name: "minmax--0.4"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoff: -0.4
+  - name: "minmax--0.6"
+    model_url: "gs://vcm-ml-experiments/claytons/2022-07-13/oos-test/novelty"
+    cutoff: -0.6
+run_dataset:
+  name: "prognostic"
+  url: "gs://vcm-ml-experiments/claytons/2022-07-14/oos-compare-trial1/fv3gfs_run"
+report_url: "gs://vcm-ml-public/claytons/oos_analysis/prognostic-cutoffs/"
+has_cutoff_plots: false
+append_random_id_to_url: true

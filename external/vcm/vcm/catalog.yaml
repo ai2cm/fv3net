@@ -753,6 +753,8 @@ sources:
 
   2020_1yr_pire_dyn_plev:
     description: 2D dycore variables interpolated to pressure levels from 1 year PIRE simulation post-spinup, coarsened to C48 resolution.
+      Areas where the value is extrapolated (i.e. surface pressure is less than the variable pressure level) are masked using the notebook
+      https://github.com/ai2cm/explore/blob/master/annak/2021-07-30-PIRE-nudging-data/2022-08-22-fill-extrapolated-pressure-to-nan.ipynb
     driver: zarr
     metadata:
       grid: c48
@@ -777,7 +779,7 @@ sources:
         - TMP200
         - UGRD850
     args:
-      urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire_atmos_dyn_plev_coarse_3h.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire_atmos_dyn_plev_coarse_3h_mask_extroplated.zarr"
       consolidated: True
 
   2020_1yr_pire_dyn:
