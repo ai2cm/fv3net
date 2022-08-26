@@ -103,7 +103,9 @@ class RunDiagnostics:
     def __post_init__(self):
         # indexes for faster lookup
         self._attrs = {ds.run: ds.attrs for ds in self.diagnostics}
-        self._varnames = {ds.run: set(ds) for ds in self.diagnostics}
+        self._varnames = {
+            ds.run: set(ds).union(set(ds.coords)) for ds in self.diagnostics
+        }
         self._run_index = {ds.run: k for k, ds in enumerate(self.diagnostics)}
 
     @property
