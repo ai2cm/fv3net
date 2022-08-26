@@ -91,7 +91,12 @@ def _convert_to_quantities(state, metadata):
     for key, data in state.items():
         data = np.squeeze(data.astype(np.float32))
         data_t = data.T
-        dims = DIMS_MAP[data.ndim]
+        dims = DIMS_MAP.get(data.ndim, None)
+        if dims is None:
+            logger.info(
+                "Skipping {key} ... unrecognized dimensions, ndim = {data.ndim}"
+            )
+            continue
         attrs = _get_attrs(key, metadata)
         units = attrs.pop("units", "unknown")
         quantities[key] = Quantity(data_t, dims, units)
