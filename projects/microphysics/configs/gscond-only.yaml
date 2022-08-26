@@ -2,19 +2,19 @@
 # python3 argo/end_to_end.py configs/gscond-only.yaml
 kind: prognostic
 experiment: gscond-condensation-limit
-name: gscond-only-net-condense-limit-6hr-v4
+name: gscond-only-net-condense-limit-30d-v4
 image_tag: 126fff928587eccc16adc7c231e4000646e4770c
 config:
   base_version: v0.5
   data_table: default
-  duration: "6h"
+  duration: "30d"
   initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
   fortran_diagnostics:
   - name: piggy.zarr
     chunks:
       time: 1
     times:
-      frequency: 900
+      frequency: 10800
       kind: interval
     variables:
       - field_name: tendency_of_air_temperature_due_to_emulator
@@ -69,7 +69,7 @@ config:
     chunks:
       time: 1
     times:
-      frequency: 900
+      frequency: 10800
       kind: interval
     variables:
     - {module_name: dynamics, field_name: grid_lont, output_name: lon}
@@ -116,7 +116,7 @@ config:
     chunks:
       time: 1
     times:
-      frequency: 900
+      frequency: 10800
       kind: interval
     variables:
     - {module_name: dynamics, field_name: grid_lont, output_name: lon}
@@ -172,7 +172,7 @@ config:
     name: state_after_timestep.zarr
     tensorboard: false
     times:
-      frequency: 900
+      frequency: 10800
       includes_lower: false
       kind: interval
       times: null
@@ -194,7 +194,7 @@ config:
     name: physics_tendencies.zarr
     tensorboard: false
     times:
-      frequency: 900
+      frequency: 10800
       includes_lower: false
       kind: interval
       times: null
@@ -286,4 +286,4 @@ config:
     storage:
       save_nc: false
       save_zarr: true
-      output_freq_sec: 900
+      output_freq_sec: 10800
