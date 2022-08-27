@@ -116,7 +116,7 @@ class RunDiagnostics:
     @property
     def variables(self) -> Set[str]:
         """The available variables"""
-        return set.union(*[set(d) for d in self.diagnostics])
+        return set.union(*[set(d).union(set(d.coords)) for d in self.diagnostics])
 
     @property
     def long_names(self) -> Mapping[str, str]:
