@@ -84,7 +84,6 @@ class TrainingLoopConfig:
             if val_loss < min_val_loss:
                 min_val_loss = val_loss
                 torch.save(train_model.state_dict(), self.save_path)
-            print(loss, val_loss)
 
 
 def evaluate_model(
