@@ -136,7 +136,5 @@ def weighted_mean_via_groupby_bins(
     else:
         result = numerator / denominator
         for v in obj.data_vars:
-            # print(obj[v])
             result[v] = result[v].assign_attrs(obj[v].attrs)
-            # print(result[v])
         return result
