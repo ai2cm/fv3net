@@ -71,7 +71,7 @@ def test_train_graph_network(tmpdir):
     hyperparameters = GraphHyperparameters(
         state_variables=state_variables,
         training_loop=TrainingLoopConfig(n_epoch=100),
-        optimizer_config=OptimizerConfig(kwargs={"lr": 0.0005}),
+        optimizer_config=OptimizerConfig(kwargs={"lr": 0.01}),
     )
     predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)
     predicted, reference = predictor.predict(test_xrdataset, timesteps=1)

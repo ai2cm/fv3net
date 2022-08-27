@@ -29,28 +29,9 @@ class MPGUNetGraphNetworkConfig:
     activation: Callable = nn.ReLU()
 
 
-class CubedSphereGraphOperation(nn.Module):
-    """
-    A wrapper class which applies graph operations to cubed sphere data.
-    """
-
-    def __init__(self, graph_op: nn.Module):
-        super().__init__()
-        self.graph_op = graph_op
-
-    def forward(self, inputs, nx):
-        """
-        Args:
-            inputs: tensor of shape (batch_size, n_tiles, n_x, n_y, n_features)
-        """
-        graph, edge_relation = build_dgl_graph_with_edge(nx_tile=nx)
-        convolved = self.graph_op(graph, inputs, edge_relation)
-        return convolved
-
-
 class MPNNGNN(nn.Module):
     """
-    Parameters
+    Attributes:
     ----------
     node_in_feats : int
         Size for the input node features.
@@ -62,6 +43,9 @@ class MPNNGNN(nn.Module):
         Size for the hidden edge representations.
     num_step_message_passing : int
         Number of message passing steps.
+    activation: activation function
+    aggregator: aggregator type: 'sum', 'mean', 'max'
+    nx: resolution
     """
 
     def __init__(
@@ -72,9 +56,10 @@ class MPNNGNN(nn.Module):
         num_step_message_passing,
         activation,
         aggregator,
+        nx,
     ):
         super(MPNNGNN, self).__init__()
-
+        self.graph, self.edge_relation = build_dgl_graph_with_edge(nx_tile=nx)
         self.project_node_feats = nn.Sequential(
             nn.Linear(node_in_channels, node_hidden_channels),
             activation,
@@ -82,19 +67,17 @@ class MPNNGNN(nn.Module):
         )
         self.num_step_message_passing = num_step_message_passing
         edge_network = nn.Sequential(
-            nn.Linear(2, edge_hidden_channels),
+            nn.Linear(self.edge_relation.size(1), edge_hidden_channels),
             activation,
             nn.Linear(
                 edge_hidden_channels, node_hidden_channels * node_hidden_channels
             ),
         )
-        self.gnn_layer = CubedSphereGraphOperation(
-            NNConv(
-                in_feats=node_hidden_channels,
-                out_feats=node_hidden_channels,
-                edge_func=edge_network,
-                aggregator_type=aggregator,
-            )
+        self.gnn_layer = NNConv(
+            in_feats=node_hidden_channels,
+            out_feats=node_hidden_channels,
+            edge_func=edge_network,
+            aggregator_type=aggregator,
         )
         self.gru = nn.GRU(node_hidden_channels, node_hidden_channels)
         self.relu = activation
@@ -125,6 +108,7 @@ class MPNNGNN(nn.Module):
         node_feats : float32 tensor of shape (grid, node_out_feats)
             Output node representations.
         """
+
         out_node_feats = torch.zeros(
             in_node_feats.size(0),
             in_node_feats.size(1),
@@ -144,7 +128,9 @@ class MPNNGNN(nn.Module):
             hidden_feats = node_feats.unsqueeze(0)  # (1, V, node_out_feats)
 
             for _ in range(self.num_step_message_passing):
-                node_feats = self.relu(self.gnn_layer(node_feats, in_size[2]))
+                node_feats = self.relu(
+                    self.gnn_layer(self.graph, node_feats, self.edge_relation)
+                )
                 node_feats, hidden_feats = self.gru(
                     node_feats.unsqueeze(0), hidden_feats
                 )
@@ -230,7 +216,9 @@ class UNet(nn.Module):
     A graph based U-net architucture
     """
 
-    def __init__(self, config, down_factory, up_factory, depth: int, in_channels: int):
+    def __init__(
+        self, config, down_factory, up_factory, depth: int, in_channels: int, nx: int
+    ):
         """
         Args:
             down_factory: double-convolution followed
@@ -243,7 +231,6 @@ class UNet(nn.Module):
         super(UNet, self).__init__()
 
         node_lower_channels = 2 * in_channels
-
         self._down = down_factory()
 
         self.conv1 = MPNNGNN(
@@ -253,6 +240,7 @@ class UNet(nn.Module):
             config.num_step_message_passing,
             config.activation,
             config.aggregator,
+            nx,
         )
 
         self.conv2 = MPNNGNN(
@@ -262,6 +250,7 @@ class UNet(nn.Module):
             config.num_step_message_passing,
             config.activation,
             config.aggregator,
+            nx,
         )
 
         if depth == 1:
@@ -272,6 +261,7 @@ class UNet(nn.Module):
                 config.num_step_message_passing,
                 config.activation,
                 config.aggregator,
+                nx=nx // 2,
             )
 
         elif depth <= 0:
@@ -283,21 +273,27 @@ class UNet(nn.Module):
                 up_factory,
                 depth=depth - 1,
                 in_channels=node_lower_channels,
+                nx=nx // 2,
             )
         self._up = up_factory(in_channels=node_lower_channels * 2)
 
     def forward(self, inputs):
+        # print(f"1: {inputs.size()}")
         before_pooling = self.conv1(inputs)
+        # print(f"2: {before_pooling.size()}")
         x = self._down(before_pooling)
+        # print(f"3: {x.size()}")
         x = self._lower(x)
+        # print(f"4: {x.size()}")
         x = self._up(x)
+        # print(f"5: {x.size()}")
         x = torch.cat([before_pooling, x], dim=-1)
         x = self.conv2(x)
         return x
 
 
 class MPGraphUNet(nn.Module):
-    def __init__(self, config, in_channels: int, out_dim: int):
+    def __init__(self, config, in_channels: int, out_dim: int, nx: int):
         """
         Args:
             in_channels: number of input channels
@@ -318,6 +314,7 @@ class MPGraphUNet(nn.Module):
             config.num_step_message_passing,
             config.activation,
             config.aggregator,
+            nx,
         )
 
         self._last_layer = MPNNGNN(
@@ -327,6 +324,7 @@ class MPGraphUNet(nn.Module):
             config.num_step_message_passing,
             config.activation,
             config.aggregator,
+            nx,
         )
 
         self._last_layer = nn.Sequential(
@@ -341,6 +339,7 @@ class MPGraphUNet(nn.Module):
             up_factory=up,
             depth=config.depth,
             in_channels=config.min_filters,
+            nx=nx,
         )
 
     def forward(self, inputs):

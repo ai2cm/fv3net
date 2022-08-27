@@ -117,7 +117,9 @@ def train_graph_model(
     train_state = get_state(data=train_batches)
 
     train_model = build_model(
-        hyperparameters.graph_network, n_state=next(iter(train_state)).shape[-1]
+        hyperparameters.graph_network,
+        n_state=next(iter(train_state)).shape[-1],
+        nx=next(iter(train_state)).shape[3],
     )
     optimizer = hyperparameters.optimizer_config
 
@@ -137,15 +139,15 @@ def train_graph_model(
     return predictor
 
 
-def build_model(graph_network, n_state: int):
+def build_model(graph_network, n_state: int, nx: int):
     """
     Args:
         graph_network: configuration of the graph network
         n_state: number of state variables
     """
-    train_model = MPGraphUNet(graph_network, in_channels=n_state, out_dim=n_state).to(
-        DEVICE
-    )
+    train_model = MPGraphUNet(
+        graph_network, in_channels=n_state, out_dim=n_state, nx=nx
+    ).to(DEVICE)
     return train_model
 
 
