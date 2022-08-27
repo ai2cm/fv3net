@@ -59,19 +59,19 @@ def test_train_graph_network(tmpdir):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
-    sizes = {"nbatch": 2, "ntime": 2, "nx": 8, "ny": 8, "nz": 2}
+    sizes = {"nbatch": 2, "ntime": 2, "nx": 6, "ny": 6, "nz": 2}
     state_variables = ["a", "b"]
     train_tfdataset = get_tfdataset(nsamples=20, **sizes)
     val_tfdataset = get_tfdataset(nsamples=3, **sizes)
     # for test, need one continuous series so we consistently flip sign
-    test_sizes = {"nbatch": 1, "ntime": 100, "nx": 8, "ny": 8, "nz": 2}
+    test_sizes = {"nbatch": 1, "ntime": 100, "nx": 6, "ny": 6, "nz": 2}
     test_xrdataset = tfdataset_to_xr_dataset(
         get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
     hyperparameters = GraphHyperparameters(
         state_variables=state_variables,
-        training_loop=TrainingLoopConfig(n_epoch=20),
-        optimizer_config=OptimizerConfig(kwargs={"lr": 0.01}),
+        training_loop=TrainingLoopConfig(n_epoch=100),
+        optimizer_config=OptimizerConfig(kwargs={"lr": 0.0005}),
     )
     predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)
     predicted, reference = predictor.predict(test_xrdataset, timesteps=1)
