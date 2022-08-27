@@ -1,5 +1,6 @@
 import os
 import xarray as xr
+import numpy as np
 import warnings
 
 # this set of functions allow reading datasets needed for the radiation driver
@@ -399,3 +400,11 @@ def gases(forcing_dir, ictmflg):
         data_dict[var] = ds[var].values
 
     return data_dict
+
+
+def random(ncolumns, nz, ngptsw, ngptlw, seed=0):
+    """Get random numbers needed by cloud overlap scheme"""
+    np.random.seed(seed)
+    sw_rand = np.random.rand(ncolumns, nz * ngptsw)
+    lw_rand = np.random.rand(ncolumns, nz * ngptlw)
+    return {"sw_rand": sw_rand, "lw_rand": lw_rand}

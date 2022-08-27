@@ -408,8 +408,16 @@ class TimeLoop(
 
     def _step_radiation_physics(self) -> Diagnostics:
         self._log_debug(f"Radiation Physics Step")
+        if self._radiation_wrapper is not None:
+            diagnostics: Diagnostics = self._radiation_wrapper.rad_compute(
+                self._state, self._fv3gfs.get_tracer_metadata(), self.rank
+            )
+            for name, diag in diagnostics.items():
+                self._log_info(f"{name}: {diag}")
+        else:
+            diagnostics = {}
         self._fv3gfs.step_radiation()
-        return {}
+        return diagnostics
 
     def _step_post_radiation_physics(self) -> Diagnostics:
         self._log_debug(f"Post-radiation Physics Step")
