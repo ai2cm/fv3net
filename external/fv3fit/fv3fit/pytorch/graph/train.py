@@ -4,7 +4,9 @@ import dataclasses
 from fv3fit._shared.training_config import Hyperparameters
 from toolz.functoolz import curry
 from fv3fit.pytorch.predict import PytorchModel
-from fv3fit.pytorch.graph.unet import GraphUNet, UNetGraphNetworkConfig
+
+# from fv3fit.pytorch.graph.unet import GraphUNet, UNetGraphNetworkConfig
+from fv3fit.pytorch.graph.mpg_unet import MPGraphUNet, MPGUNetGraphNetworkConfig
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.training_loop import TrainingLoopConfig
@@ -40,8 +42,8 @@ class GraphHyperparameters(Hyperparameters):
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("AdamW")
     )
-    graph_network: UNetGraphNetworkConfig = dataclasses.field(
-        default_factory=lambda: UNetGraphNetworkConfig()
+    graph_network: MPGUNetGraphNetworkConfig = dataclasses.field(
+        default_factory=lambda: MPGUNetGraphNetworkConfig()
     )
     training_loop: TrainingLoopConfig = dataclasses.field(
         default_factory=lambda: TrainingLoopConfig()
@@ -141,7 +143,7 @@ def build_model(graph_network, n_state: int):
         graph_network: configuration of the graph network
         n_state: number of state variables
     """
-    train_model = GraphUNet(graph_network, in_channels=n_state, out_dim=n_state).to(
+    train_model = MPGraphUNet(graph_network, in_channels=n_state, out_dim=n_state).to(
         DEVICE
     )
     return train_model
