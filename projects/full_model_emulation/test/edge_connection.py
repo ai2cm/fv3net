@@ -1,7 +1,7 @@
 import numpy as np
 from pace.util.constants import PI
-import matplotlib.pyplot as plt
 from vcm.catalog import catalog
+
 
 def normalize_vector(np, *vector_components):
     scale = np.divide(
@@ -14,6 +14,7 @@ def normalize_vector(np, *vector_components):
 def normalize_xyz(xyz):
     # double transpose to broadcast along last dimension instead of first
     return (xyz.T / ((xyz ** 2).sum(axis=-1) ** 0.5).T).T
+
 
 def lon_lat_to_xyz(lon, lat, np):
     """map (lon, lat) to (x, y, z)
@@ -59,21 +60,27 @@ def xyz_to_lon_lat(xyz, np):
     lat = np.arcsin(z)
     return lon, lat
 
+
 def coarse_grid(nx: int):
     grid = catalog["grid/c48"].read()
     lat = grid.lat.load()
     lon = grid.lon.load()
-    lat=lat.transpose('tile', 'x', 'y')
-    lon=lon.transpose('tile', 'x', 'y')
-    lat = lat.values.flatten()/180*np.pi
-    lon = lon.values.flatten()/180*np.pi
-    xyz= lon_lat_to_xyz(lon, lat, np)
-    xyz=xyz.reshape((6, 48,48,3))
-    coarse_level=48//nx
-    for coarse in range(1,int(np.log2(coarse_level))+1):
-        xyz= (xyz[:,1::2, :-1:2] + xyz[:,:-1:2, 1::2] + xyz[:,1::2, 1::2] + xyz[:,:-1:2, :-1:2])
-    xyz=xyz.reshape((6*nx*nx,3))
-    lon_new, lat_new = xyz_to_lon_lat(xyz,np)
-    lon_new=lon_new.reshape((6,nx,nx))
-    lat_new=lat_new.reshape((6,nx,nx))
-    return lon_new,lat_new
+    lat = lat.transpose("tile", "x", "y")
+    lon = lon.transpose("tile", "x", "y")
+    lat = lat.values.flatten() / 180 * np.pi
+    lon = lon.values.flatten() / 180 * np.pi
+    xyz = lon_lat_to_xyz(lon, lat, np)
+    xyz = xyz.reshape((6, 48, 48, 3))
+    coarse_level = 48 // nx
+    for coarse in range(1, int(np.log2(coarse_level)) + 1):
+        xyz = (
+            xyz[:, 1::2, :-1:2]
+            + xyz[:, :-1:2, 1::2]
+            + xyz[:, 1::2, 1::2]
+            + xyz[:, :-1:2, :-1:2]
+        )
+    xyz = xyz.reshape((6 * nx * nx, 3))
+    lon_new, lat_new = xyz_to_lon_lat(xyz, np)
+    lon_new = lon_new.reshape((6, nx, nx))
+    lat_new = lat_new.reshape((6, nx, nx))
+    return lon_new, lat_new
