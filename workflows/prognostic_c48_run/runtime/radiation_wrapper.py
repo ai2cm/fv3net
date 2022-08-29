@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Optional, Mapping, Any, Literal, Tuple, Sequence
+from typing import Optional, Mapping, Any, Literal, Tuple, Sequence, Hashable
 import cftime
 import numpy as np
 import xarray as xr
@@ -7,7 +7,9 @@ from runtime.steppers.machine_learning import (
     MachineLearningConfig,
     open_model,
     MultiModelAdapter,
+    predict,
 )
+from runtime.types import State
 from runtime.derived_state import DerivedFV3State
 from radiation import RadiationDriver, getdata, NGPTSW, NGPTLW
 from vcm.calc.thermo.vertically_dependent import (
@@ -72,17 +74,12 @@ class RadiationWrapperConfig:
 
     kind: Literal["python"]
     input_model: Optional[MachineLearningConfig] = None
-    offline: bool = True
 
 
 class RadiationWrapper:
     def __init__(
-        self,
-        offline: bool,
-        input_model: Optional[MultiModelAdapter],
-        driver: RadiationDriver,
+        self, input_model: Optional[MultiModelAdapter], driver: RadiationDriver,
     ):
-        self._offline: bool = offline
         self._input_model: Optional[MultiModelAdapter] = input_model
         self._driver: RadiationDriver = driver
         self._rad_config: Optional[Mapping[str, Any]] = None
@@ -94,7 +91,7 @@ class RadiationWrapper:
         else:
             model = None
         driver = RadiationDriver()
-        return cls(config.offline, model, driver)
+        return cls(model, driver)
 
     def rad_init(
         self,
@@ -235,7 +232,7 @@ class RadiationWrapper:
 
     def rad_compute(
         self,
-        state: DerivedFV3State,
+        state: State,
         tracer_metadata: Mapping[str, Any],
         rank: int,
         lookup_dir: str = "./data/lookup",
@@ -245,6 +242,9 @@ class RadiationWrapper:
                 "Radiation driver not initialized. `.rad_init` must be called "
                 "before `.rad_compute`."
             )
+        if self._input_model is not None:
+            predictions = predict(self._input_model, state)
+            state = UpdatedState(state, predictions)
         statein = _statein(state, tracer_metadata, self._rad_config["ivflip"])
         grid, coords = _grid(state)
         sfcprop = _sfcprop(state)
@@ -257,6 +257,15 @@ class RadiationWrapper:
             model, statein, sfcprop, grid, random_numbers, lw_lookup, sw_lookup
         )
         return _unstack(_rename_out(out), coords)
+
+
+class UpdatedState(DerivedFV3State):
+    def __init__(self, state: State, predictions: State):
+        self._state = state
+        self._predictions = predictions
+
+    def __getitem__(self, key: Hashable) -> xr.DataArray:
+        return self._predictions.get(key, self._state[key])
 
 
 # These could be refactored to the radiation package's getdata module,
@@ -322,10 +331,7 @@ def _model(
 
 
 def _statein(
-    state: DerivedFV3State,
-    tracer_metadata: Mapping[str, Any],
-    ivflip: int,
-    unstacked_dim="z",
+    state: State, tracer_metadata: Mapping[str, Any], ivflip: int, unstacked_dim="z",
 ) -> Mapping[str, np.ndarray]:
     state_names = ["pressure_thickness_of_atmospheric_layer", "air_temperature"]
     tracer_names = list(tracer_metadata.keys())
@@ -388,7 +394,7 @@ def _unstack(
     return out
 
 
-def _grid(state: DerivedFV3State) -> Tuple[Mapping[str, np.ndarray], xr.DataArray]:
+def _grid(state: State) -> Tuple[Mapping[str, np.ndarray], xr.DataArray]:
     grid_names = ["longitude", "latitude"]
     stacked_grid = _stack(
         xr.Dataset({name: state[name] for name in grid_names}), sample_dim="column"
@@ -424,7 +430,7 @@ SFC_VAR_MAPPING = {
 
 
 def _sfcprop(
-    state: DerivedFV3State, sfc_var_mapping: Mapping[str, str] = SFC_VAR_MAPPING
+    state: State, sfc_var_mapping: Mapping[str, str] = SFC_VAR_MAPPING
 ) -> Mapping[str, np.ndarray]:
     sfc = xr.Dataset({k: state[v] for k, v in list(sfc_var_mapping.items())})
     stacked_sfc = _stack(sfc)
