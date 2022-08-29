@@ -29,7 +29,7 @@ from edge_connection import coarse_grid
 # from SAGE_Unet_MP_LowRes_Conv import UnetGraphSAGE
 
 halo = 1
-control_str = "MultiLoss_Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
+control_str = "xyz_MultiLoss_Halo_SAGEUnet"  #'TNSTTNST' #'TNTSTNTST'
 
 
 edgenormal = 0
