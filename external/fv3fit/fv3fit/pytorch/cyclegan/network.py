@@ -1,9 +1,10 @@
 from typing import Callable, Literal, Protocol
-import torch
 import torch.nn as nn
 from toolz import curry
 import dataclasses
-from fv3fit.pytorch.optimizer import OptimizerConfig
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def relu_activation(**kwargs):
@@ -147,6 +148,7 @@ def flat_convolution(in_channels: int, out_channels: int, kernel_size: int, bias
 class GeneratorConfig:
     n_convolutions: int = 3
     n_resnet: int = 3
+    kernel_size: int = 3
     max_filters: int = 256
 
     def build(
@@ -158,6 +160,7 @@ class GeneratorConfig:
             channels=channels,
             n_convolutions=self.n_convolutions,
             n_resnet=self.n_resnet,
+            kernel_size=self.kernel_size,
             max_filters=self.max_filters,
             convolution=convolution,
         )
@@ -167,6 +170,7 @@ class GeneratorConfig:
 class DiscriminatorConfig:
 
     n_convolutions: int = 3
+    kernel_size: int = 3
     max_filters: int = 256
 
     def build(
@@ -177,6 +181,7 @@ class DiscriminatorConfig:
         return Discriminator(
             in_channels=channels,
             n_convolutions=self.n_convolutions,
+            kernel_size=self.kernel_size,
             max_filters=self.max_filters,
             convolution=convolution,
         )
@@ -235,6 +240,7 @@ class Discriminator(nn.Module):
         self,
         in_channels: int,
         n_convolutions: int,
+        kernel_size: int,
         max_filters: int,
         convolution: ConvolutionFactoryFactory = regular_convolution,
     ):
@@ -245,8 +251,12 @@ class Discriminator(nn.Module):
             ConvBlock(
                 in_channels=in_channels,
                 out_channels=min_filters,
-                convolution_factory=convolution(kernel_size=3, stride=2, padding=1),
-                activation_factory=leakyrelu_activation(negative_slope=0.2),
+                convolution_factory=convolution(
+                    kernel_size=kernel_size, stride=2, padding=1
+                ),
+                activation_factory=leakyrelu_activation(
+                    negative_slope=0.2, inplace=True
+                ),
             )
         ]
         for i in range(1, n_convolutions):
@@ -254,21 +264,22 @@ class Discriminator(nn.Module):
                 ConvBlock(
                     in_channels=min_filters * 2 ** (i - 1),
                     out_channels=min_filters * 2 ** i,
-                    convolution_factory=convolution(kernel_size=3, stride=2, padding=1),
-                    activation_factory=leakyrelu_activation(negative_slope=0.2),
+                    convolution_factory=convolution(
+                        kernel_size=kernel_size, stride=2, padding=1
+                    ),
+                    activation_factory=leakyrelu_activation(
+                        negative_slope=0.2, inplace=True
+                    ),
                 )
             )
         final_conv = ConvBlock(
             in_channels=max_filters,
             out_channels=max_filters,
-            convolution_factory=convolution(kernel_size=3),
-            activation_factory=leakyrelu_activation(negative_slope=0.2),
+            convolution_factory=convolution(kernel_size=kernel_size),
+            activation_factory=leakyrelu_activation(negative_slope=0.2, inplace=True),
         )
-        patch_output = ConvBlock(
-            in_channels=max_filters,
-            out_channels=1,
-            convolution_factory=convolution(kernel_size=3),
-            activation_factory=leakyrelu_activation(negative_slope=0.2),
+        patch_output = convolution(kernel_size=3)(
+            in_channels=max_filters, out_channels=1
         )
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
 
@@ -284,6 +295,7 @@ class Generator(nn.Module):
         channels: int,
         n_convolutions: int,
         n_resnet: int,
+        kernel_size: int,
         max_filters: int,
         convolution: ConvolutionFactoryFactory = regular_convolution,
     ):
@@ -293,7 +305,7 @@ class Generator(nn.Module):
             resnet_blocks = [
                 ResnetBlock(
                     n_filters=in_channels,
-                    convolution_factory=convolution(kernel_size=3),
+                    convolution_factory=convolution(kernel_size=kernel_size),
                     activation_factory=relu_activation(),
                 )
                 for _ in range(n_resnet)
@@ -304,7 +316,9 @@ class Generator(nn.Module):
             return ConvBlock(
                 in_channels=in_channels,
                 out_channels=out_channels,
-                convolution_factory=convolution(kernel_size=3, stride=2, padding=1),
+                convolution_factory=convolution(
+                    kernel_size=kernel_size, stride=2, padding=1
+                ),
                 activation_factory=relu_activation(),
             )
 
@@ -313,7 +327,7 @@ class Generator(nn.Module):
                 in_channels=in_channels,
                 out_channels=out_channels,
                 convolution_factory=convolution(
-                    kernel_size=3,
+                    kernel_size=kernel_size,
                     stride=2,
                     padding=1,
                     output_padding=1,
@@ -325,7 +339,7 @@ class Generator(nn.Module):
         min_filters = int(max_filters / 2 ** (n_convolutions - 1))
 
         self._first_conv = nn.Sequential(
-            flat_convolution(kernel_size=3)(
+            flat_convolution(kernel_size=7)(
                 in_channels=channels, out_channels=min_filters
             ),
             relu_activation()(),
@@ -339,16 +353,21 @@ class Generator(nn.Module):
             in_channels=min_filters,
         )
 
-        self._out_conv = flat_convolution(kernel_size=3)(
-            in_channels=2 * min_filters, out_channels=channels
+        self._out_conv = flat_convolution(kernel_size=7)(
+            in_channels=min_filters, out_channels=channels
         )
+        self._identity = nn.Linear(in_features=channels, out_features=channels)
 
     def forward(self, inputs):
         # data will have channels last, model requires channels first
         inputs = inputs.permute(0, 3, 1, 2)
+        logger.info(inputs.shape)
+        # outputs = self._identity(inputs)
         x = self._first_conv(inputs)
-        x = self._unet(x)
+        logger.info(x.shape)
+        # x = self._unet(x)
         outputs = self._out_conv(x)
+        logger.info(outputs.shape)
         return outputs.permute(0, 2, 3, 1)
 
 
@@ -378,5 +397,5 @@ class UNet(nn.Module):
         x = self._lower(x)
         x = self._up(x)
         # skip connection
-        x = torch.concat([x, inputs], dim=1)
+        # x = torch.concat([x, inputs], dim=1)
         return x

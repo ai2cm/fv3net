@@ -38,7 +38,7 @@ class BinaryLoadable(Protocol):
         ...
 
 
-def dump_mapping(mapping: Mapping[Hashable, StandardScaler], f: IO[bytes]) -> None:
+def dump_mapping(mapping: Mapping[str, StandardScaler], f: IO[bytes]) -> None:
     """
     Serialize a mapping to a zip file.
     """
@@ -48,7 +48,7 @@ def dump_mapping(mapping: Mapping[Hashable, StandardScaler], f: IO[bytes]) -> No
                 value.dump(f_dump)
 
 
-def load_mapping(cls: Type[L], f: IO[bytes]) -> Mapping[Hashable, L]:
+def load_mapping(cls: Type[L], f: IO[bytes]) -> Mapping[str, L]:
     """
     Load a mapping from a zip file.
     """
@@ -68,8 +68,8 @@ class PytorchPredictor(Predictor):
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
         model: nn.Module,
-        scalers: Mapping[Hashable, StandardScaler],
-        output_scalers: Optional[Mapping[Hashable, StandardScaler]] = None,
+        scalers: Mapping[str, StandardScaler],
+        output_scalers: Optional[Mapping[str, StandardScaler]] = None,
     ):
         """Initialize the predictor
         Args:
@@ -111,7 +111,7 @@ class PytorchPredictor(Predictor):
         packed = _pack_to_tensor(
             ds=X,
             timesteps=0,
-            state_variables=self.input_variables,
+            state_variables=tuple(str(item) for item in self.input_variables),
             scalers=self.scalers,
         )
         # dimensions are [time, tile, x, y, z],
@@ -124,7 +124,7 @@ class PytorchPredictor(Predictor):
         data = torch.reshape(data, (-1, 6) + tuple(data.shape[1:]))
         return _unpack_tensor(
             data,
-            varnames=self.output_variables,
+            varnames=tuple(str(item) for item in self.output_variables),
             scalers=self.scalers,
             dims=["time", "tile", "x", "y", "z"],
         )
@@ -153,9 +153,9 @@ class PytorchAutoregressor(Dumpable, Loadable):
 
     def __init__(
         self,
-        state_variables: Iterable[Hashable],
+        state_variables: Iterable[str],
         model: nn.Module,
-        scalers: Mapping[Hashable, StandardScaler],
+        scalers: Mapping[str, StandardScaler],
     ):
         """Initialize the predictor
         Args:
@@ -264,14 +264,11 @@ class PytorchDumpable(Protocol):
     _MODEL_FILENAME: str
     _SCALERS_FILENAME: str
     _CONFIG_FILENAME: str
-    scalers: Mapping[Hashable, StandardScaler]
+    scalers: Mapping[str, StandardScaler]
     model: torch.nn.Module
 
     def __init__(
-        self,
-        model: torch.nn.Module,
-        scalers: Mapping[Hashable, StandardScaler],
-        **kwargs,
+        self, model: torch.nn.Module, scalers: Mapping[str, StandardScaler], **kwargs,
     ):
         ...
 
@@ -313,8 +310,8 @@ def _dump_pytorch(obj: PytorchDumpable, path: str) -> None:
 def _pack_to_tensor(
     ds: xr.Dataset,
     timesteps: int,
-    state_variables: Iterable[Hashable],
-    scalers: Mapping[Hashable, StandardScaler],
+    state_variables: Iterable[str],
+    scalers: Mapping[str, StandardScaler],
 ) -> torch.Tensor:
     """
     Packs the dataset into a tensor to be used by the pytorch model.
@@ -371,8 +368,8 @@ def _pack_to_tensor(
 
 def _unpack_tensor(
     data: torch.Tensor,
-    varnames: Iterable[Hashable],
-    scalers: Mapping[Hashable, StandardScaler],
+    varnames: Iterable[str],
+    scalers: Mapping[str, StandardScaler],
     dims: Sequence[Hashable],
 ) -> xr.Dataset:
     i_feature = 0
@@ -388,7 +385,7 @@ def _unpack_tensor(
             else:
                 n_features = 1
                 var_data = data[..., i_feature]
-            var_data = scalers[varname].denormalize(var_data)
+            var_data = scalers[varname].denormalize(var_data.to("cpu").numpy())
             data_vars[varname] = xr.DataArray(
                 data=var_data, dims=dims[: len(var_data.shape)]
             )

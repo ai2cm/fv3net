@@ -2,8 +2,8 @@ import itertools
 from fv3fit._shared.hyperparameters import Hyperparameters
 import random
 import dataclasses
+from fv3fit._shared.predictor import Dumpable
 import tensorflow as tf
-from fv3fit.pytorch.predict import PytorchPredictor
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 import xarray as xr
@@ -22,7 +22,6 @@ from fv3fit._shared import register_training_function, io, StandardScaler
 from typing import (
     Callable,
     Dict,
-    Hashable,
     Iterable,
     List,
     Mapping,
@@ -30,7 +29,7 @@ from typing import (
     Sequence,
     Tuple,
 )
-from fv3fit.tfdataset import ensure_nd, apply_to_mapping, apply_to_tuple
+from fv3fit.tfdataset import ensure_nd
 from .network import Discriminator, Generator, GeneratorConfig, DiscriminatorConfig
 from fv3fit.pytorch.graph.train import (
     get_scalers,
@@ -107,6 +106,47 @@ class CycleGANTrainingConfig:
                 for name in train_losses[0]
             }
             logger.info("train_loss: %s", train_loss)
+
+            # real_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
+            # real_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+            # fake_b = train_model.generator_a_to_b(real_a)
+            # fake_a = train_model.generator_b_to_a(real_b)
+            # reconstructed_a = train_model.generator_b_to_a(fake_b)
+            # reconstructed_b = train_model.generator_a_to_b(fake_a)
+
+            # import matplotlib.pyplot as plt
+
+            # fig, ax = plt.subplots(3, 2, figsize=(8, 8))
+            # i = 0
+            # iz = 0
+            # vmin = -1.5
+            # vmax = 1.5
+            # ax[0, 0].imshow(
+            #     real_a[0, :, :, iz].detach().numpy(), vmin=vmin, vmax=vmax
+            # )
+            # ax[0, 1].imshow(
+            #     real_b[0, :, :, iz].detach().numpy(), vmin=vmin, vmax=vmax
+            # )
+            # ax[1, 0].imshow(
+            #     fake_b[0, :, :, iz].detach().numpy(), vmin=vmin, vmax=vmax
+            # )
+            # ax[1, 1].imshow(
+            #     fake_a[0, :, :, iz].detach().numpy(), vmin=vmin, vmax=vmax
+            # )
+            # ax[2, 0].imshow(
+            #     reconstructed_a[0, :, :, iz].detach().numpy(), vmin=vmin, vmax=vmax
+            # )
+            # ax[2, 1].imshow(
+            #     reconstructed_b[0, :, :, iz].detach().numpy(), vmin=vmin, vmax=vmax
+            # )
+            # ax[0, 0].set_title("real a")
+            # ax[0, 1].set_title("real b")
+            # ax[1, 0].set_title("output b")
+            # ax[1, 1].set_title("output a")
+            # ax[2, 0].set_title("reconstructed a")
+            # ax[2, 1].set_title("reconstructed b")
+            # plt.tight_layout()
+            # plt.show()
             if validation_data is not None:
                 val_loss = train_model.evaluate_on_dataset(validation_data)
                 logger.info("val_loss %s", val_loss)
@@ -128,7 +168,8 @@ def get_Xy_map_fn(
     state_variables: Sequence[str],
     n_dims: int,  # [batch, time, tile, x, y, z]
     mapping_scale_funcs: Tuple[
-        Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]], ...
+        Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]],
+        ...,  # noqa: W504
     ],
 ):
     funcs = tuple(
@@ -278,6 +319,7 @@ class CycleGANNetworkConfig:
     identity_weight: float = 0.5
     cycle_weight: float = 1.0
     gan_weight: float = 1.0
+    discriminator_weight: float = 1.0
 
     def build(
         self, n_state: int, n_batch: int, state_variables, scalers
@@ -301,7 +343,7 @@ class CycleGANNetworkConfig:
                     generator_b_to_a=generator_b_to_a,
                     discriminator_a=discriminator_a,
                     discriminator_b=discriminator_b,
-                ),
+                ).to(DEVICE),
                 state_variables=state_variables,
                 scalers=_merge_scaler_mappings(scalers),
             ),
@@ -314,6 +356,7 @@ class CycleGANNetworkConfig:
             identity_weight=self.identity_weight,
             cycle_weight=self.cycle_weight,
             gan_weight=self.gan_weight,
+            discriminator_weight=self.discriminator_weight,
         )
 
 
@@ -343,7 +386,7 @@ class CycleGANModule(torch.nn.Module):
 
 
 @io.register("cycle_gan")
-class CycleGAN:
+class CycleGAN(Dumpable):
 
     _MODEL_FILENAME = "weight.pt"
     _CONFIG_FILENAME = "config.yaml"
@@ -352,8 +395,8 @@ class CycleGAN:
     def __init__(
         self,
         model: CycleGANModule,
-        scalers: Mapping[Hashable, StandardScaler],
-        state_variables: Iterable[Hashable],
+        scalers: Mapping[str, StandardScaler],
+        state_variables: Iterable[str],
     ):
         """
             Args:
@@ -493,13 +536,14 @@ class CycleGANTrainer:
     identity_weight: float = 0.5
     cycle_weight: float = 1.0
     gan_weight: float = 1.0
+    discriminator_weight: float = 1.0
 
     def __post_init__(self):
         self.target_real = torch.autograd.Variable(
-            torch.Tensor(self.batch_size).fill_(1.0), requires_grad=False
+            torch.Tensor(self.batch_size).fill_(1.0).to(DEVICE), requires_grad=False
         )
         self.target_fake = torch.autograd.Variable(
-            torch.Tensor(self.batch_size).fill_(0.0), requires_grad=False
+            torch.Tensor(self.batch_size).fill_(0.0).to(DEVICE), requires_grad=False
         )
         self.fake_a_buffer = ReplayBuffer()
         self.fake_b_buffer = ReplayBuffer()
@@ -509,7 +553,7 @@ class CycleGANTrainer:
         self.discriminator_b = self.cycle_gan.discriminator_b
 
     def evaluate_on_dataset(
-        self, dataset: tf.data.Dataset, n_dims_keep: int = 4
+        self, dataset: tf.data.Dataset, n_dims_keep: int = 3
     ) -> Dict[str, float]:
         stats_real_a = StatsCollector(n_dims_keep)
         stats_real_b = StatsCollector(n_dims_keep)
@@ -529,14 +573,15 @@ class CycleGANTrainer:
             stats_gen_a.observe(gen_a.detach().cpu().numpy())
             stats_gen_b.observe(gen_b.detach().cpu().numpy())
         metrics = {
+            # "r2_mean_b_against_real_a": get_r2(stats_real_a.mean, stats_gen_b.mean),
             "r2_mean_a": get_r2(stats_real_a.mean, stats_gen_a.mean),
-            "bias_mean_a": np.mean(stats_real_a.mean - stats_gen_a.mean),
+            # "bias_mean_a": np.mean(stats_real_a.mean - stats_gen_a.mean),
             "r2_mean_b": get_r2(stats_real_b.mean, stats_gen_b.mean),
-            "bias_mean_b": np.mean(stats_real_b.mean - stats_gen_b.mean),
+            # "bias_mean_b": np.mean(stats_real_b.mean - stats_gen_b.mean),
             "r2_std_a": get_r2(stats_real_a.std, stats_gen_a.std),
-            "bias_std_a": np.mean(stats_real_a.std - stats_gen_a.std),
+            # "bias_std_a": np.mean(stats_real_a.std - stats_gen_a.std),
             "r2_std_b": get_r2(stats_real_b.std, stats_gen_b.std),
-            "bias_std_b": np.mean(stats_real_b.std - stats_gen_b.std),
+            # "bias_std_b": np.mean(stats_real_b.std - stats_gen_b.std),
         }
         return metrics
 
@@ -560,16 +605,16 @@ class CycleGANTrainer:
         same_b = self.generator_a_to_b(real_b)
         loss_identity_b = self.identity_loss(same_b, real_b) * self.identity_weight
         # G_B2A(A) should equal A if real A is fed
-        same_a = self.generator_b_to_a(real_b)
+        same_a = self.generator_b_to_a(real_a)
         loss_identity_a = self.identity_loss(same_a, real_a) * self.identity_weight
         loss_identity = loss_identity_a + loss_identity_b
 
         # GAN loss
-        pred_fake = self.discriminator_b(fake_b)
-        loss_gan_a_to_b = self.gan_loss(pred_fake, self.target_real) * self.gan_weight
+        pred_fake_b = self.discriminator_b(fake_b)
+        loss_gan_a_to_b = self.gan_loss(pred_fake_b, self.target_real) * self.gan_weight
 
-        pred_fake = self.discriminator_a(fake_a)
-        loss_gan_b_to_a = self.gan_loss(pred_fake, self.target_real) * self.gan_weight
+        pred_fake_a = self.discriminator_a(fake_a)
+        loss_gan_b_to_a = self.gan_loss(pred_fake_a, self.target_real) * self.gan_weight
         loss_gan = loss_gan_a_to_b + loss_gan_b_to_a
 
         # Cycle loss
@@ -592,26 +637,43 @@ class CycleGANTrainer:
 
         # Real loss
         pred_real = self.discriminator_a(real_a)
-        loss_d_a_real = self.gan_loss(pred_real, self.target_real)
+        loss_d_a_real = (
+            self.gan_loss(pred_real, self.target_real)
+            * self.gan_weight
+            * self.discriminator_weight
+        )
 
         # Fake loss
         fake_a = self.fake_a_buffer.push_and_pop(fake_a)
         pred_a_fake = self.discriminator_a(fake_a.detach())
-        loss_d_a_fake = self.gan_loss(pred_a_fake, self.target_fake)
+        loss_d_a_fake = (
+            self.gan_loss(pred_a_fake, self.target_fake)
+            * self.gan_weight
+            * self.discriminator_weight
+        )
 
         # Real loss
         pred_real = self.discriminator_b(real_b)
-        loss_d_b_real = self.gan_loss(pred_real, self.target_real)
+        loss_d_b_real = (
+            self.gan_loss(pred_real, self.target_real)
+            * self.gan_weight
+            * self.discriminator_weight
+        )
 
         # Fake loss
         fake_b = self.fake_b_buffer.push_and_pop(fake_b)
         pred_b_fake = self.discriminator_b(fake_b.detach())
-        loss_d_b_fake = self.gan_loss(pred_b_fake, self.target_fake)
+        loss_d_b_fake = (
+            self.gan_loss(pred_b_fake, self.target_fake)
+            * self.gan_weight
+            * self.discriminator_weight
+        )
 
         # Total loss
         loss_d: torch.Tensor = (
             loss_d_b_real + loss_d_b_fake + loss_d_a_real + loss_d_a_fake
-        )
+        ) * self.discriminator_weight
+
         self.optimizer_discriminator.zero_grad()
         loss_d.backward()
         self.optimizer_discriminator.step()

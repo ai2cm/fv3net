@@ -1,5 +1,6 @@
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
+from fv3fit.pytorch.system import DEVICE
 import tensorflow as tf
 from fv3fit.pytorch.predict import PytorchPredictor
 from fv3fit.pytorch.loss import LossConfig
@@ -130,4 +131,4 @@ def train_autoencoder(
 
 
 def build_model(config: GeneratorConfig, n_state: int) -> Generator:
-    return config.build(channels=n_state)
+    return config.build(channels=n_state).to(DEVICE)

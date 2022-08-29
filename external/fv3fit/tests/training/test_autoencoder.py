@@ -65,7 +65,7 @@ def test_autoencoder(tmpdir):
         generator=fv3fit.pytorch.GeneratorConfig(
             n_convolutions=2, n_resnet=3, max_filters=32
         ),
-        training_loop=TrainingConfig(n_epoch=5, samples_per_batch=2),
+        training_loop=TrainingConfig(n_epoch=10, samples_per_batch=2),
         optimizer_config=fv3fit.pytorch.OptimizerConfig(name="Adam",),
         noise_amount=0.5,
     )
@@ -78,6 +78,7 @@ def test_autoencoder(tmpdir):
     predicted = predictor.predict(test_xrdataset)
     reference = test_xrdataset
     # plotting code to uncomment if you'd like to manually check the results:
+    # import matplotlib.pyplot as plt
     # for i in range(6):
     #     fig, ax = plt.subplots(1, 2)
     #     vmin = reference["a"][0, i, :, :, 0].values.min()
@@ -114,9 +115,12 @@ def test_autoencoder_overfit(tmpdir):
         optimizer_config=fv3fit.pytorch.OptimizerConfig(name="Adam",),
         noise_amount=0.0,
     )
-    predictor = train_autoencoder(
-        hyperparameters, train_tfdataset, validation_batches=None
-    )
+    import torch
+
+    with torch.amp.autocast("cpu", enabled=False):
+        predictor = train_autoencoder(
+            hyperparameters, train_tfdataset, validation_batches=None
+        )
     # for test, need one continuous series so we consistently flip sign
     test_xrdataset = tfdataset_to_xr_dataset(
         train_tfdataset, dims=["time", "tile", "x", "y", "z"]
@@ -124,12 +128,13 @@ def test_autoencoder_overfit(tmpdir):
     predicted = predictor.predict(test_xrdataset)
     reference = test_xrdataset
     # plotting code to uncomment if you'd like to manually check the results:
+    # import matplotlib.pyplot as plt
     # for i in range(6):
     #     fig, ax = plt.subplots(1, 2)
     #     vmin = reference["a"][0, i, :, :, 0].values.min()
     #     vmax = reference["a"][0, i, :, :, 0].values.max()
-    #     ax[0].imshow(reference["a"][0, i, :, :, 0].values)  # , vmin=vmin, vmax=vmax)
-    #     ax[1].imshow(predicted["a"][0, i, :, :, 0].values)  # , vmin=vmin, vmax=vmax)
+    #     ax[0].imshow(reference["a"][0, i, :, :, 0].values, vmin=vmin, vmax=vmax)
+    #     ax[1].imshow(predicted["a"][0, i, :, :, 0].values, vmin=vmin, vmax=vmax)
     #     plt.tight_layout()
     #     plt.show()
     bias = predicted - reference

@@ -3,7 +3,7 @@ import dataclasses
 from typing import Optional, Sequence, List
 import tensorflow as tf
 import numpy as np
-from ..tfdataset import iterable_to_tfdataset
+from ..tfdataset import generator_to_tfdataset
 import dacite
 
 
@@ -69,7 +69,7 @@ class SyntheticWaves(TFDatasetLoader):
         period_max: maximum period of waves
         phase_range: fraction of 2*pi to use for possible range of
             random phase, should be a value between 0 and 1.
-
+        type: one of "sinusoidal" or "square"
     """
 
     nsamples: int
@@ -83,6 +83,7 @@ class SyntheticWaves(TFDatasetLoader):
     period_min: float = 8.0
     period_max: float = 16.0
     phase_range: float = 1.0
+    type: str = "sinusoidal"
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
@@ -96,6 +97,13 @@ class SyntheticWaves(TFDatasetLoader):
                 variable name to variable value, and each value is a tensor whose
                 first dimension is the batch dimension
         """
+        if self.type == "sinusoidal":
+            func = np.sin
+        elif self.type == "square":
+
+            def func(x):
+                return np.sign(np.sin(x))
+
         dataset = get_waves_tfdataset(
             variable_names,
             scalar_names=self.scalar_names,
@@ -110,6 +118,7 @@ class SyntheticWaves(TFDatasetLoader):
             period_min=self.period_min,
             period_max=self.period_max,
             phase_range=self.phase_range,
+            func=func,
         )
         if local_download_path is not None:
             dataset = dataset.cache(local_download_path)
@@ -137,6 +146,7 @@ def get_waves_tfdataset(
     period_min: float,
     period_max: float,
     phase_range: float,
+    func=np.sin,
 ):
     ntile = 6
 
@@ -146,7 +156,7 @@ def get_waves_tfdataset(
     grid_x = grid_x[None, None, None, :, :, None]
     grid_y = grid_y[None, None, None, :, :, None]
 
-    def sample_iterator():
+    def sample_generator():
         # creates a timeseries where each time is the negation of time before it
         for _ in range(nsamples):
             ax = np.random.uniform(scale_min, scale_max, size=(nbatch, 1, ntile, nz))[
@@ -169,9 +179,9 @@ def get_waves_tfdataset(
             )[:, :, :, None, None, :]
             data = (
                 ax
-                * np.sin(2 * np.pi * grid_x / bx + cx)
+                * func(2 * np.pi * grid_x / bx + cx)
                 * ay
-                * np.sin(2 * np.pi * grid_y / by + cy)
+                * func(2 * np.pi * grid_y / by + cy)
             )
             start = {}
             for varname in variable_names:
@@ -187,7 +197,7 @@ def get_waves_tfdataset(
                 out[varname] = np.concatenate(out[varname], axis=1)
             yield out
 
-    return iterable_to_tfdataset(list(sample_iterator()))
+    return generator_to_tfdataset(sample_generator)
 
 
 def get_noise_tfdataset(
@@ -204,7 +214,7 @@ def get_noise_tfdataset(
 ):
     ntile = 6
 
-    def sample_iterator():
+    def sample_generator():
         # creates a timeseries where each time is the negation of time before it
         for _ in range(nsamples):
             data = noise_amplitude * np.random.randn(nbatch, 1, ntile, nx, ny, nz)
@@ -222,4 +232,4 @@ def get_noise_tfdataset(
                 out[varname] = np.concatenate(out[varname], axis=1)
             yield out
 
-    return iterable_to_tfdataset(list(sample_iterator()))
+    return generator_to_tfdataset(sample_generator)

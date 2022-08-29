@@ -2,7 +2,6 @@ import tensorflow as tf
 import numpy as np
 import dataclasses
 from fv3fit._shared.training_config import Hyperparameters
-from toolz.functoolz import curry
 from fv3fit.pytorch.predict import PytorchAutoregressor
 from fv3fit.pytorch.graph.network import GraphNetwork, GraphNetworkConfig
 from fv3fit.pytorch.loss import LossConfig
@@ -207,7 +206,7 @@ def get_Xy_map_fn(
     ensure_dims = apply_to_mapping(ensure_nd(n_dims))
 
     def map_fn(data):
-        data = mapping_scale_func(data)
+        # data = mapping_scale_func(data)
         data = ensure_dims(data)
         data = select_keys(state_variables, data)
         data = tf.concat(data, axis=-1)
