@@ -438,19 +438,19 @@ def _sfcprop(
 
 
 OUT_NAMES = [
-    "clear_sky_downward_longwave_flux_at_surface",
-    "clear_sky_downward_shortwave_flux_at_surface",
-    "clear_sky_upward_longwave_flux_at_surface",
-    "clear_sky_upward_shortwave_flux_at_surface",
-    "clear_sky_upward_longwave_flux_at_top_of_atmosphere",
-    "clear_sky_upward_shortwave_flux_at_top_of_atmosphere",
-    "total_sky_downward_longwave_flux_at_surface",
-    "total_sky_downward_shortwave_flux_at_surface",
-    "total_sky_upward_longwave_flux_at_surface",
-    "total_sky_upward_shortwave_flux_at_surface",
-    "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
-    "total_sky_upward_longwave_flux_at_top_of_atmosphere",
-    "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+    "clear_sky_downward_longwave_flux_at_surface_python",
+    "clear_sky_downward_shortwave_flux_at_surface_python",
+    "clear_sky_upward_longwave_flux_at_surface_python",
+    "clear_sky_upward_shortwave_flux_at_surface_python",
+    "clear_sky_upward_longwave_flux_at_top_of_atmosphere_python",
+    "clear_sky_upward_shortwave_flux_at_top_of_atmosphere_python",
+    "total_sky_downward_longwave_flux_at_surface_python",
+    "total_sky_downward_shortwave_flux_at_surface_python",
+    "total_sky_upward_longwave_flux_at_surface_python",
+    "total_sky_upward_shortwave_flux_at_surface_python",
+    "total_sky_downward_shortwave_flux_at_top_of_atmosphere_python",
+    "total_sky_upward_longwave_flux_at_top_of_atmosphere_python",
+    "total_sky_upward_shortwave_flux_at_top_of_atmosphere_python",
 ]
 
 
