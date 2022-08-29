@@ -1,3 +1,4 @@
+from fv3fit.pytorch.training_loop import AutoregressiveTrainingConfig
 import numpy as np
 import xarray as xr
 from typing import Sequence
@@ -6,6 +7,8 @@ from fv3fit.tfdataset import iterable_to_tfdataset
 import collections
 import os
 import pytest
+from fv3fit.pytorch.optimizer import OptimizerConfig
+import fv3fit
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
@@ -55,6 +58,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
 
 @pytest.mark.slow
 def test_train_graph_network(tmpdir):
+    fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
     sizes = {"nbatch": 2, "ntime": 2, "nx": 8, "ny": 8, "nz": 2}
@@ -66,7 +70,11 @@ def test_train_graph_network(tmpdir):
     test_xrdataset = tfdataset_to_xr_dataset(
         get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
-    hyperparameters = GraphHyperparameters(state_variables=state_variables)
+    hyperparameters = GraphHyperparameters(
+        state_variables=state_variables,
+        training_loop=AutoregressiveTrainingConfig(n_epoch=20),
+        optimizer_config=OptimizerConfig(kwargs={"lr": 0.01}),
+    )
     predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)
     predicted, reference = predictor.predict(test_xrdataset, timesteps=1)
     bias = predicted.isel(time=1) - reference.isel(time=1)
