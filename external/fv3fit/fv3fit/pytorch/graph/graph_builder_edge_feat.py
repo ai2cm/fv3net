@@ -11,9 +11,11 @@ from .edge_connection import coarse_grid
 
 def build_graph(nx_tile: int) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Returns two 1D arrays containing the start and end points of edges of the graph.
     Args:
         nx_tile: number of horizontal grid points on each tile of the cubed sphere
+
+    Returns:
+    two 1D arrays containing the start and end points of edges of the graph.
     """
     n_tile, nx, ny = 6, nx_tile, nx_tile
     n_points = n_tile * nx * ny
@@ -49,9 +51,13 @@ def build_graph(nx_tile: int) -> Tuple[np.ndarray, np.ndarray]:
 
 
 @functools.lru_cache(maxsize=64)
-def build_dgl_graph_with_edge(nx_tile: int) -> dgl.DGLGraph:
+def build_dgl_graph_with_edge(nx_tile: int):
     """
-    Returns a DGL graph of the cubed sphere .
+    Returns
+    g: A DGL graph of the cubed sphere.
+    edge_relation: edge features contain lat and lon
+                    relations between reference points and their neighbours
+                    (use fro networks with eadge features)
     """
     graph_data = build_graph(nx_tile)
     graph_tensor = torch.tensor(graph_data)

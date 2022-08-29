@@ -38,7 +38,7 @@ def lon_lat_to_xyz(lon, lat, np):
 
 def xyz_to_lon_lat(xyz, np):
     """map (x, y, z) to (lon, lat)
-    Returns:
+    Args:
         xyz: 3d array whose last dimension is length 3 and indicates x/y/z value
         np: numpy-like module for arrays
     Returns:
@@ -62,6 +62,13 @@ def xyz_to_lon_lat(xyz, np):
 
 
 def coarse_grid(nx: int):
+    """
+    Args:
+        nx: number of horizontal grid points on each tile of the cubed sphere
+
+    Returns:
+        lon, lat data corresponding to nx.
+    """
     grid = catalog["grid/c48"].read()
     lat = grid.lat.load()
     lon = grid.lon.load()
@@ -72,7 +79,7 @@ def coarse_grid(nx: int):
     xyz = lon_lat_to_xyz(lon, lat, np)
     xyz = xyz.reshape((6, 48, 48, 3))
     coarse_level = 48 // nx
-    for coarse in range(1, int(np.log2(coarse_level)) + 1):
+    for _ in range(1, int(np.log2(coarse_level)) + 1):
         xyz = (
             xyz[:, 1::2, :-1:2]
             + xyz[:, :-1:2, 1::2]

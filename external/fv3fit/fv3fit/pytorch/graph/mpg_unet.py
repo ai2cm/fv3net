@@ -33,19 +33,17 @@ class MPNNGNN(nn.Module):
     """
     Attributes:
     ----------
-    node_in_feats : int
-        Size for the input node features.
-    node_out_feats : int
-        Size for the output node representations.
-    edge_in_feats : int
-        Size for the input edge features.
-    edge_hidden_feats : int
+    node_in_channels : int
+        Size for the input node channels.
+    node_hidden_channels : int
+        Size for the hidden node representations.
+    edge_hidden_channels : int
         Size for the hidden edge representations.
     num_step_message_passing : int
         Number of message passing steps.
     activation: activation function
     aggregator: aggregator type: 'sum', 'mean', 'max'
-    nx: resolution
+    nx: number of horizontal grid points on each tile of the cubed sphere
     """
 
     def __init__(
@@ -96,17 +94,11 @@ class MPNNGNN(nn.Module):
         """Performs message passing and updates node representations.
 
         Args:
-        ----------
         g : DGL graph
-        node_feats : float32 tensor of shape (grid, node_in_feats)
-            Input node features. V for the number of nodes in the batch of graphs.
-        edge_feats : float32 tensor of shape (edge, edge_in_feats)
-            Input edge features. E for the number of edges in the batch of graphs.
+        in_node_feats : Input node features.
 
-        Returns
-        -------
-        node_feats : float32 tensor of shape (grid, node_out_feats)
-            Output node representations.
+        Returns:
+        out_node_feats : Output node representations.
         """
 
         out_node_feats = torch.zeros(
@@ -115,17 +107,23 @@ class MPNNGNN(nn.Module):
             in_node_feats.size(2),
             in_node_feats.size(3),
             self.out_feats,
-        )
-        for batch in range(in_node_feats.size(0)):
+        )  # initialize the updated node features (n_batch,tile,x,y,features)
+
+        for batch in range(
+            in_node_feats.size(0)
+        ):  # for loop over the n_batch since dgl NNConv
+            # just accpets data in (grids, features) format
             node_feats = in_node_feats[batch].squeeze()
             in_size = node_feats.size()
             node_feats = node_feats.reshape(
                 node_feats.shape[0] * node_feats.shape[1] * node_feats.shape[2],
                 node_feats.shape[3],
-            )
+            )  # reashape (tile,x,y,features) to (tile*x*y,features)
 
-            node_feats = self.project_node_feats(node_feats)  # (V, node_out_feats)
-            hidden_feats = node_feats.unsqueeze(0)  # (1, V, node_out_feats)
+            node_feats = self.project_node_feats(
+                node_feats
+            )  # (grids , node_out_channels)
+            hidden_feats = node_feats.unsqueeze(0)  # (1, grids , node_out_channels)
 
             for _ in range(self.num_step_message_passing):
                 node_feats = self.relu(
@@ -137,7 +135,7 @@ class MPNNGNN(nn.Module):
                 node_feats = node_feats.squeeze(0)
             out_node_feats[batch] = node_feats.reshape(
                 in_size[0], in_size[1], in_size[2], node_feats.size(1)
-            )
+            )  # reashape (tile*x*y,features) to (tile,x,y,features)
         return out_node_feats
 
 
