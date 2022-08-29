@@ -120,30 +120,7 @@ def iterable_to_tfdataset(
         for batch in source:
             yield transform(batch)
 
-    try:
-        sample = next(iter(generator()))
-    except StopIteration:
-        raise NotImplementedError("can only make tfdataset from non-empty batches")
-
-    # if batches have different numbers of samples, we need to set the dimension size
-    # to None to indicate the size can be different across generated tensors
-    if varying_first_dim:
-
-        def process_shape(shape):
-            return (None,) + shape[1:]
-
-    else:
-
-        def process_shape(shape):
-            return shape
-
-    return tf.data.Dataset.from_generator(
-        generator,
-        output_signature={
-            key: tf.TensorSpec(process_shape(val.shape), dtype=val.dtype)
-            for key, val in sample.items()
-        },
-    )
+    return generator_to_tfdataset(generator, varying_first_dim)
 
 
 def generator_to_tfdataset(

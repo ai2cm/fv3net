@@ -3,22 +3,18 @@ import numpy as np
 import dataclasses
 from fv3fit._shared.training_config import Hyperparameters
 from fv3fit.pytorch.predict import PytorchAutoregressor
-from fv3fit.pytorch.graph.network import GraphNetwork, GraphNetworkConfig
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.training_loop import AutoregressiveTrainingConfig
-from fv3fit._shared.scaler import StandardScaler
+from .unet import UNetGraphNetworkConfig, GraphUNet
+from fv3fit._shared.scaler import (
+    get_standard_scaler_mapping,
+    get_mapping_standard_scale_func,
+)
 from ..system import DEVICE
 
 from fv3fit._shared import register_training_function
-from typing import (
-    Callable,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Mapping,
-)
+from typing import Callable, List, Optional, Sequence, Set, Mapping
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping
 
 
@@ -39,8 +35,8 @@ class GraphHyperparameters(Hyperparameters):
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("AdamW")
     )
-    graph_network: GraphNetworkConfig = dataclasses.field(
-        default_factory=lambda: GraphNetworkConfig()
+    graph_network: UNetGraphNetworkConfig = dataclasses.field(
+        default_factory=lambda: UNetGraphNetworkConfig()
     )
     training_loop: AutoregressiveTrainingConfig = dataclasses.field(
         default_factory=lambda: AutoregressiveTrainingConfig()
@@ -50,27 +46,6 @@ class GraphHyperparameters(Hyperparameters):
     @property
     def variables(self) -> Set[str]:
         return set(self.state_variables)
-
-
-def get_scalers(sample: Mapping[str, np.ndarray]):
-    scalers = {}
-    for name, array in sample.items():
-        s = StandardScaler(n_sample_dims=5)
-        s.fit(array)
-        scalers[name] = s
-    return scalers
-
-
-def get_mapping_scale_func(
-    scalers: Mapping[str, StandardScaler]
-) -> Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]]:
-    def scale(data: Mapping[str, np.ndarray]):
-        output = {**data}
-        for name, array in data.items():
-            output[name] = scalers[name].normalize(array)
-        return output
-
-    return scale
 
 
 # TODO: Still have to handle forcing
@@ -92,13 +67,12 @@ def train_graph_model(
         validation_batches: validation data, as a dataset of Mapping[str, tf.Tensor]
             where each tensor has dimensions [batch, time, tile, x, y(, z)]
     """
-    train_batches = train_batches.map(apply_to_mapping(ensure_nd(6)))
     sample = next(
         iter(train_batches.unbatch().batch(hyperparameters.normalization_fit_samples))
     )
 
-    scalers = get_scalers(sample)
-    mapping_scale_func = get_mapping_scale_func(scalers)
+    scalers = get_standard_scaler_mapping(sample)
+    mapping_scale_func = get_mapping_standard_scale_func(scalers)
 
     get_Xy = get_Xy_map_fn(
         state_variables=hyperparameters.state_variables,
@@ -140,9 +114,9 @@ def build_model(graph_network, n_state: int):
         graph_network: configuration of the graph network
         n_state: number of state variables
     """
-    train_model = GraphNetwork(
-        graph_network, n_features_in=n_state, n_features_out=n_state
-    ).to(DEVICE)
+    train_model = GraphUNet(graph_network, in_channels=n_state, out_dim=n_state).to(
+        DEVICE
+    )
     return train_model
 
 

@@ -1,4 +1,3 @@
-import contextlib
 import dataclasses
 from typing import List, Mapping, Sequence, Optional
 import tensorflow as tf
@@ -67,6 +66,7 @@ def get_n_windows(n_times: int, window_size: int) -> int:
 class CycleGANLoader(TFDatasetLoader):
 
     domain_configs: List[TFDatasetLoader] = dataclasses.field(default_factory=list)
+    batch_size: int = 1
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
@@ -78,26 +78,13 @@ class CycleGANLoader(TFDatasetLoader):
 
     @classmethod
     def from_dict(cls, d: dict) -> "CycleGANLoader":
-        with prevent_recursion():
-            domain_configs = [
-                tfdataset_loader_from_dict(domain_config)
-                for domain_config in d["domain_configs"]
-            ]
-        return CycleGANLoader(domain_configs=domain_configs)
-
-
-RECURSING = False
-
-
-@contextlib.contextmanager
-def prevent_recursion():
-    global RECURSING
-    if RECURSING:
-        raise RecursionError("recursion detected")
-    else:
-        RECURSING = True
-        yield
-        RECURSING = False
+        domain_configs = [
+            tfdataset_loader_from_dict(domain_config)
+            for domain_config in d["domain_configs"]
+        ]
+        kwargs = d.copy()
+        kwargs["domain_configs"] = domain_configs
+        return CycleGANLoader(**kwargs)
 
 
 @register_tfdataset_loader

@@ -1,4 +1,4 @@
-from fv3fit._shared.predictor import Dumpable, Loadable, Predictor
+from fv3fit._shared.predictor import Reloadable, Predictor
 from .._shared.scaler import StandardScaler
 import numpy as np
 import torch
@@ -89,14 +89,11 @@ class PytorchPredictor(Predictor):
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """
         Predict an output xarray dataset from an input xarray dataset.
-
         Note that returned datasets include the initial state of the prediction,
         where by definition the model will have perfect skill.
-
         Args:
             X: input dataset
             timesteps: number of timesteps to predict
-
         Returns:
             predicted: predicted timeseries data
             reference: true timeseries data from the input dataset
@@ -145,7 +142,7 @@ class PytorchPredictor(Predictor):
 
 
 @io.register("pytorch_autoregressor")
-class PytorchAutoregressor(Dumpable, Loadable):
+class PytorchAutoregressor(Reloadable):
 
     _MODEL_FILENAME = "weight.pt"
     _CONFIG_FILENAME = "config.yaml"
@@ -260,7 +257,7 @@ class PytorchAutoregressor(Dumpable, Loadable):
         return {"state_variables": self.state_variables}
 
 
-class PytorchDumpable(Protocol):
+class _PytorchDumpable(Protocol):
     _MODEL_FILENAME: str
     _SCALERS_FILENAME: str
     _CONFIG_FILENAME: str
@@ -282,7 +279,7 @@ class PytorchDumpable(Protocol):
         ...
 
 
-def _load_pytorch(cls: Type[PytorchDumpable], path: str):
+def _load_pytorch(cls: Type[_PytorchDumpable], path: str):
     """Load a serialized model from a directory."""
     fs = vcm.get_fs(path)
     model_filename = os.path.join(path, cls._MODEL_FILENAME)
@@ -296,7 +293,7 @@ def _load_pytorch(cls: Type[PytorchDumpable], path: str):
     return obj
 
 
-def _dump_pytorch(obj: PytorchDumpable, path: str) -> None:
+def _dump_pytorch(obj: _PytorchDumpable, path: str) -> None:
     fs = vcm.get_fs(path)
     model_filename = os.path.join(path, obj._MODEL_FILENAME)
     with fs.open(model_filename, "wb") as f:

@@ -2,7 +2,7 @@ import itertools
 from fv3fit._shared.hyperparameters import Hyperparameters
 import random
 import dataclasses
-from fv3fit._shared.predictor import Dumpable
+from fv3fit._shared.predictor import Reloadable
 import tensorflow as tf
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
@@ -18,7 +18,7 @@ from fv3fit.pytorch.predict import (
     _unpack_tensor,
 )
 
-from fv3fit._shared import register_training_function, io, StandardScaler
+from fv3fit._shared import register_training_function, io
 from typing import (
     Callable,
     Dict,
@@ -31,10 +31,11 @@ from typing import (
 )
 from fv3fit.tfdataset import ensure_nd
 from .network import Discriminator, Generator, GeneratorConfig, DiscriminatorConfig
-from fv3fit.pytorch.graph.train import (
-    get_scalers,
-    get_mapping_scale_func,
-    get_Xy_map_fn as get_Xy_map_fn_single_domain,
+from fv3fit.pytorch.graph.train import get_Xy_map_fn as get_Xy_map_fn_single_domain
+from fv3fit._shared.scaler import (
+    get_standard_scaler_mapping,
+    get_mapping_standard_scale_func,
+    StandardScaler,
 )
 import logging
 import numpy as np
@@ -206,8 +207,10 @@ def train_cyclegan(
         iter(train_batches.unbatch().batch(hyperparameters.normalization_fit_samples))
     )
 
-    scalers = tuple(get_scalers(entry) for entry in sample_batch)
-    mapping_scale_funcs = tuple(get_mapping_scale_func(scaler) for scaler in scalers)
+    scalers = tuple(get_standard_scaler_mapping(entry) for entry in sample_batch)
+    mapping_scale_funcs = tuple(
+        get_mapping_standard_scale_func(scaler) for scaler in scalers
+    )
 
     get_Xy = get_Xy_map_fn(
         state_variables=hyperparameters.state_variables,
@@ -386,7 +389,7 @@ class CycleGANModule(torch.nn.Module):
 
 
 @io.register("cycle_gan")
-class CycleGAN(Dumpable):
+class CycleGAN(Reloadable):
 
     _MODEL_FILENAME = "weight.pt"
     _CONFIG_FILENAME = "config.yaml"

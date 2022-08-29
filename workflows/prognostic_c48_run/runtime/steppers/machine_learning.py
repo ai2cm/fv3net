@@ -183,7 +183,7 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
     model_paths = config.model
     models = []
     for path in model_paths:
-        model = fv3fit.load(path)
+        model = cast(fv3fit.Predictor, fv3fit.load(path))
         rename_in = config.input_standard_names
         rename_out = config.output_standard_names
         models.append(RenamingAdapter(model, rename_in, rename_out))

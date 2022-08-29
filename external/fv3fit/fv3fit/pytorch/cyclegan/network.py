@@ -1,8 +1,9 @@
-from typing import Callable, Literal, Protocol
-import torch.nn as nn
-from toolz import curry
 import dataclasses
 import logging
+
+from typing import Callable, Literal, Protocol, Union
+import torch.nn as nn
+from toolz import curry
 
 logger = logging.getLogger(__name__)
 
@@ -30,26 +31,25 @@ def no_activation():
 
 
 class ConvolutionFactory(Protocol):
-    def __call__(self, in_channels: int, out_channels: int) -> nn.Module:
-        ...
-
-
-class ConvolutionFactoryFactory(Protocol):
     def __call__(
         self,
+        in_channels: int,
+        out_channels: int,
         kernel_size: int,
-        padding: int = 0,
+        padding: Union[str, int] = 0,
         output_padding: int = 0,
         stride: int = 1,
         stride_type: Literal["regular", "transpose"] = "regular",
         bias: bool = True,
-    ) -> ConvolutionFactory:
+    ) -> nn.Module:
         """
-        Create a factory for creating convolution layers.
+        Create a convolutional layer.
 
         Args:
+            in_channels: number of input channels
+            out_channels: number of output channels
             kernel_size: size of the convolution kernel
-            padding: padding to apply to the input
+            padding: padding to apply to the input, should be an integer or "same"
             output_padding: argument used for transpose convolution
             stride: stride of the convolution
             stride_type: type of stride, one of "regular" or "transpose"
@@ -58,90 +58,67 @@ class ConvolutionFactoryFactory(Protocol):
         ...
 
 
-def regular_convolution(
+class CurriedConvolutionFactory(Protocol):
+    def __call__(self, in_channels: int, out_channels: int,) -> nn.Module:
+        """
+        Create a convolutional layer.
+
+        Args:
+            in_channels: number of input channels
+            out_channels: number of output channels
+        """
+        ...
+
+
+def single_tile_convolution(
+    in_channels: int,
+    out_channels: int,
     kernel_size: int,
-    padding: int = 0,
+    padding: Union[str, int] = 0,
     output_padding: int = 0,
     stride: int = 1,
     stride_type: Literal["regular", "transpose"] = "regular",
     bias: bool = True,
 ) -> ConvolutionFactory:
     """
-    Produces convolution factories for regular (image) data.
+    Construct a convolutional layer for single tile data (like images).
 
     Args:
         kernel_size: size of the convolution kernel
-        padding: padding to apply to the input
+        padding: padding to apply to the input, should be an integer or "same"
         output_padding: argument used for transpose convolution
         stride: stride of the convolution
         stride_type: type of stride, one of "regular" or "transpose"
         bias: whether to include a bias vector in the produced layers
     """
     if stride == 1:
-        return flat_convolution(kernel_size=kernel_size, bias=bias)
-    elif stride_type == "regular":
-        return strided_convolution(
-            kernel_size=kernel_size, stride=stride, padding=padding, bias=bias
-        )
-    elif stride_type == "transpose":
-        return transpose_convolution(
+        return nn.Conv2d(
+            in_channels=in_channels,
+            out_channels=out_channels,
             kernel_size=kernel_size,
-            stride=stride,
             padding=padding,
-            output_padding=output_padding,
             bias=bias,
         )
 
-
-@curry
-def strided_convolution(
-    in_channels: int,
-    out_channels: int,
-    kernel_size: int,
-    stride: int,
-    padding: int,
-    bias: bool = True,
-):
-    return nn.Conv2d(
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride=stride,
-        padding=padding,
-        bias=bias,
-    )
-
-
-@curry
-def transpose_convolution(
-    in_channels: int,
-    out_channels: int,
-    kernel_size: int,
-    stride: int,
-    padding: int,
-    output_padding: int,
-    bias: bool = True,
-):
-    return nn.ConvTranspose2d(
-        in_channels,
-        out_channels,
-        kernel_size,
-        stride=stride,
-        padding=(padding, padding),
-        output_padding=output_padding,
-        bias=bias,
-    )
-
-
-@curry
-def flat_convolution(in_channels: int, out_channels: int, kernel_size: int, bias=True):
-    return nn.Conv2d(
-        in_channels=in_channels,
-        out_channels=out_channels,
-        kernel_size=kernel_size,
-        padding="same",
-        bias=bias,
-    )
+    elif stride_type == "regular":
+        return nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride=stride,
+            padding=padding,
+            bias=bias,
+        )
+    elif stride_type == "transpose":
+        return nn.ConvTranspose2d(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride=stride,
+            padding=(padding, padding),
+            output_padding=output_padding,
+            bias=bias,
+        )
 
 
 @dataclasses.dataclass
@@ -152,9 +129,7 @@ class GeneratorConfig:
     max_filters: int = 256
 
     def build(
-        self,
-        channels: int,
-        convolution: ConvolutionFactoryFactory = regular_convolution,
+        self, channels: int, convolution: ConvolutionFactory = single_tile_convolution,
     ):
         return Generator(
             channels=channels,
@@ -174,9 +149,7 @@ class DiscriminatorConfig:
     max_filters: int = 256
 
     def build(
-        self,
-        channels: int,
-        convolution: ConvolutionFactoryFactory = regular_convolution,
+        self, channels: int, convolution: ConvolutionFactory = single_tile_convolution,
     ):
         return Discriminator(
             in_channels=channels,
@@ -191,7 +164,7 @@ class ResnetBlock(nn.Module):
     def __init__(
         self,
         n_filters: int,
-        convolution_factory: ConvolutionFactory,
+        convolution_factory: CurriedConvolutionFactory,
         activation_factory: Callable[[], nn.Module] = relu_activation(),
     ):
         super(ResnetBlock, self).__init__()
@@ -221,7 +194,7 @@ class ConvBlock(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        convolution_factory: ConvolutionFactory,
+        convolution_factory: CurriedConvolutionFactory,
         activation_factory: Callable[[], nn.Module] = relu_activation(),
     ):
         super(ConvBlock, self).__init__()
@@ -242,7 +215,7 @@ class Discriminator(nn.Module):
         n_convolutions: int,
         kernel_size: int,
         max_filters: int,
-        convolution: ConvolutionFactoryFactory = regular_convolution,
+        convolution: ConvolutionFactory = single_tile_convolution,
     ):
         super(Discriminator, self).__init__()
         # max_filters = min_filters * 2 ** (n_convolutions - 1), therefore
@@ -251,7 +224,7 @@ class Discriminator(nn.Module):
             ConvBlock(
                 in_channels=in_channels,
                 out_channels=min_filters,
-                convolution_factory=convolution(
+                convolution_factory=curry(convolution)(
                     kernel_size=kernel_size, stride=2, padding=1
                 ),
                 activation_factory=leakyrelu_activation(
@@ -264,7 +237,7 @@ class Discriminator(nn.Module):
                 ConvBlock(
                     in_channels=min_filters * 2 ** (i - 1),
                     out_channels=min_filters * 2 ** i,
-                    convolution_factory=convolution(
+                    convolution_factory=curry(convolution)(
                         kernel_size=kernel_size, stride=2, padding=1
                     ),
                     activation_factory=leakyrelu_activation(
@@ -275,11 +248,11 @@ class Discriminator(nn.Module):
         final_conv = ConvBlock(
             in_channels=max_filters,
             out_channels=max_filters,
-            convolution_factory=convolution(kernel_size=kernel_size),
+            convolution_factory=curry(convolution)(kernel_size=kernel_size),
             activation_factory=leakyrelu_activation(negative_slope=0.2, inplace=True),
         )
-        patch_output = convolution(kernel_size=3)(
-            in_channels=max_filters, out_channels=1
+        patch_output = convolution(
+            kernel_size=3, in_channels=max_filters, out_channels=1, padding="same"
         )
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
 
@@ -297,7 +270,7 @@ class Generator(nn.Module):
         n_resnet: int,
         kernel_size: int,
         max_filters: int,
-        convolution: ConvolutionFactoryFactory = regular_convolution,
+        convolution: ConvolutionFactory = single_tile_convolution,
     ):
         super(Generator, self).__init__()
 
@@ -305,7 +278,9 @@ class Generator(nn.Module):
             resnet_blocks = [
                 ResnetBlock(
                     n_filters=in_channels,
-                    convolution_factory=convolution(kernel_size=kernel_size),
+                    convolution_factory=curry(convolution)(
+                        kernel_size=3, padding="same"
+                    ),
                     activation_factory=relu_activation(),
                 )
                 for _ in range(n_resnet)
@@ -316,8 +291,8 @@ class Generator(nn.Module):
             return ConvBlock(
                 in_channels=in_channels,
                 out_channels=out_channels,
-                convolution_factory=convolution(
-                    kernel_size=kernel_size, stride=2, padding=1
+                convolution_factory=curry(convolution)(
+                    kernel_size=3, stride=2, padding=1
                 ),
                 activation_factory=relu_activation(),
             )
@@ -326,7 +301,7 @@ class Generator(nn.Module):
             return ConvBlock(
                 in_channels=in_channels,
                 out_channels=out_channels,
-                convolution_factory=convolution(
+                convolution_factory=curry(convolution)(
                     kernel_size=kernel_size,
                     stride=2,
                     padding=1,
@@ -339,8 +314,11 @@ class Generator(nn.Module):
         min_filters = int(max_filters / 2 ** (n_convolutions - 1))
 
         self._first_conv = nn.Sequential(
-            flat_convolution(kernel_size=7)(
-                in_channels=channels, out_channels=min_filters
+            convolution(
+                kernel_size=7,
+                in_channels=channels,
+                out_channels=min_filters,
+                padding="same",
             ),
             relu_activation()(),
         )
@@ -353,21 +331,20 @@ class Generator(nn.Module):
             in_channels=min_filters,
         )
 
-        self._out_conv = flat_convolution(kernel_size=7)(
-            in_channels=min_filters, out_channels=channels
+        self._out_conv = convolution(
+            kernel_size=7,
+            in_channels=min_filters,
+            out_channels=channels,
+            padding="same",
         )
-        self._identity = nn.Linear(in_features=channels, out_features=channels)
 
     def forward(self, inputs):
-        # data will have channels last, model requires channels first
+        # permute [batch, x, y, channels] to [batch, channels, x, y]
         inputs = inputs.permute(0, 3, 1, 2)
-        logger.info(inputs.shape)
-        # outputs = self._identity(inputs)
         x = self._first_conv(inputs)
-        logger.info(x.shape)
-        # x = self._unet(x)
+        x = self._unet(x)
         outputs = self._out_conv(x)
-        logger.info(outputs.shape)
+        # permute [batch, channels, x, y] to [batch, x, y, channels]
         return outputs.permute(0, 2, 3, 1)
 
 

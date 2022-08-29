@@ -3,6 +3,7 @@ import xarray as xr
 from typing import Sequence
 from fv3fit.pytorch.cyclegan import AutoencoderHyperparameters, train_autoencoder
 from fv3fit.pytorch.cyclegan.train import TrainingConfig
+import pytest
 from fv3fit.data.synthetic import SyntheticWaves
 import collections
 import os
@@ -49,6 +50,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
     return xr.Dataset(data_vars)
 
 
+@pytest.mark.slow
 def test_autoencoder(tmpdir):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
@@ -95,7 +97,14 @@ def test_autoencoder(tmpdir):
         assert mse[varname] < 0.1
 
 
+@pytest.mark.slow
 def test_autoencoder_overfit(tmpdir):
+    """
+    Test that the autoencoder training function can overfit on a single sample.
+
+    This is an easier problem than fitting on a training dataset and testing
+    on a validation dataset.
+    """
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
@@ -115,12 +124,9 @@ def test_autoencoder_overfit(tmpdir):
         optimizer_config=fv3fit.pytorch.OptimizerConfig(name="Adam",),
         noise_amount=0.0,
     )
-    import torch
-
-    with torch.amp.autocast("cpu", enabled=False):
-        predictor = train_autoencoder(
-            hyperparameters, train_tfdataset, validation_batches=None
-        )
+    predictor = train_autoencoder(
+        hyperparameters, train_tfdataset, validation_batches=None
+    )
     # for test, need one continuous series so we consistently flip sign
     test_xrdataset = tfdataset_to_xr_dataset(
         train_tfdataset, dims=["time", "tile", "x", "y", "z"]
