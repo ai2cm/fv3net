@@ -173,17 +173,17 @@ lon4 = np.zeros([6, 6, 6])
 lat5 = np.zeros([6, 3, 3])
 lon5 = np.zeros([6, 3, 3])
 
-lat2=np.zeros([6,24,24])
-lon2=np.zeros([6,24,24])
+lat2 = np.zeros([6, 24, 24])
+lon2 = np.zeros([6, 24, 24])
 
-lat3=np.zeros([6,12,12])
-lon3=np.zeros([6,12,12])
+lat3 = np.zeros([6, 12, 12])
+lon3 = np.zeros([6, 12, 12])
 
-lat4=np.zeros([6,6,6])
-lon4=np.zeros([6,6,6])
+lat4 = np.zeros([6, 6, 6])
+lon4 = np.zeros([6, 6, 6])
 
-lat5=np.zeros([6,3,3])
-lon5=np.zeros([6,3,3])
+lat5 = np.zeros([6, 3, 3])
+lon5 = np.zeros([6, 3, 3])
 
 lon2, lat2 = coarse_grid(24)
 lon3, lat3 = coarse_grid(12)
