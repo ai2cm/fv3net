@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, Iterable, Optional, Set, Hashable, Sequence
+from typing import Callable, Iterable, Optional, Set, Hashable, Sequence, cast
 import dacite
 import fsspec
 import yaml
@@ -98,7 +98,7 @@ class DerivedModel(Predictor):
     def load(cls, path: str) -> "DerivedModel":
         with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
             config = yaml.safe_load(f)
-        base_model = io.load(config["model"])
+        base_model = cast(Predictor, io.load(config["model"]))
         derived_output_variables = config["derived_output_variables"]
         derived_model = cls(base_model, derived_output_variables)
         return derived_model
@@ -179,7 +179,7 @@ class EnsembleModel(Predictor):
         """Load a serialized model from a directory."""
         with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
             config = yaml.safe_load(f)
-        models = [io.load(path) for path in config["models"]]
+        models = [cast(Predictor, io.load(path)) for path in config["models"]]
         reduction = config["reduction"]
         return cls(models, reduction)
 
@@ -235,7 +235,9 @@ class TransformedPredictor(Predictor):
     def load(cls, path: str) -> "TransformedPredictor":
         with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
             config = yaml.safe_load(f)
-        base_model = io.load(os.path.join(path, cls._BASE_MODEL_SUBDIR))
+        base_model = cast(
+            Predictor, io.load(os.path.join(path, cls._BASE_MODEL_SUBDIR))
+        )
         transform_configs = [
             dacite.from_dict(vcm.DataTransform, x) for x in config["transforms"]
         ]
@@ -321,8 +323,8 @@ class OutOfSampleModel(Predictor):
         with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
             config = yaml.safe_load(f)
 
-        base_model = io.load(config["base_model_path"])
-        novelty_detector = io.load(config["novelty_detector_path"])
+        base_model = cast(Predictor, io.load(config["base_model_path"]))
+        novelty_detector = cast(Predictor, io.load(config["novelty_detector_path"]))
         cutoff = config.get("cutoff", 0)
 
         assert isinstance(novelty_detector, NoveltyDetector)

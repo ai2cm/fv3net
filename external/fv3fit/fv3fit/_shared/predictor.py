@@ -33,7 +33,15 @@ class Loadable(abc.ABC):
         ...
 
 
-class Predictor(Dumpable):
+class Reloadable(Dumpable, Loadable):
+    """
+    Abstract base class for objects that can be saved to and loaded from a directory.
+    """
+
+    pass
+
+
+class Predictor(Reloadable):
     """
     Abstract base class for a predictor object, which has a `predict` method
     that takes in a stacked xarray dataset containing variables defined the class's

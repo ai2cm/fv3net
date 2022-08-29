@@ -1,4 +1,4 @@
-from fv3fit.pytorch import PytorchModel
+from fv3fit.pytorch import PytorchAutoregressor, PytorchPredictor
 from fv3fit.pytorch.predict import _pack_to_tensor
 from torch import nn
 import fv3fit
@@ -28,13 +28,13 @@ def test_pytorch_model_dump_load(tmpdir):
     state_variables = ["u"]
     data = np.random.uniform(low=-1, high=1, size=(n_samples, n_features))
     scaler.fit(data)
-    model = PytorchModel(
+    model = PytorchAutoregressor(
         state_variables=state_variables,
         model=nn.Linear(n_features, n_features),
         scalers={"u": scaler},
     )
     model.dump(str(tmpdir))
-    reloaded_model = PytorchModel.load(str(tmpdir))
+    reloaded_model = PytorchAutoregressor.load(str(tmpdir))
     assert model.state_variables == reloaded_model.state_variables
     assert same_state(model.model, reloaded_model.model)
     assert model.scalers == reloaded_model.scalers
@@ -72,3 +72,21 @@ def _helper_test_pack_to_tensor_one_var(data):
     np.testing.assert_almost_equal(tensor[2, -1, :], data[6, :])
     # check a full window
     np.testing.assert_almost_equal(tensor[2, :], data[4:7, :])
+
+
+def test_predictor_identity():
+    ntime, ntiles, nx, ny, nz = 11, 6, 8, 8, 3
+    data = np.random.uniform(low=10, high=20, size=(ntime, ntiles, nx, ny, nz))
+    ds = xr.Dataset(
+        data_vars={"u": xr.DataArray(data, dims=["time", "tile", "x", "y", "z"])}
+    )
+    scaler = fv3fit.StandardScaler()
+    scaler.fit(data)
+    predictor = PytorchPredictor(
+        input_variables=["u"],
+        output_variables=["u"],
+        model=nn.Identity(),
+        scalers={"u": scaler},
+    )
+    prediction = predictor.predict(ds)
+    np.testing.assert_almost_equal(prediction.u.values, data, decimal=5)
