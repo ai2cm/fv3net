@@ -1,3 +1,4 @@
+from fv3fit.pytorch.training_loop import AutoregressiveTrainingConfig
 import numpy as np
 import xarray as xr
 from typing import Sequence
@@ -5,7 +6,7 @@ from fv3fit.pytorch.graph import GraphHyperparameters, train_graph_model
 from fv3fit.tfdataset import iterable_to_tfdataset
 import collections
 import os
-from fv3fit.pytorch.graph.train import TrainingLoopConfig
+import pytest
 from fv3fit.pytorch.optimizer import OptimizerConfig
 import fv3fit
 
@@ -55,6 +56,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
     return xr.Dataset(data_vars)
 
 
+@pytest.mark.slow
 def test_train_graph_network(tmpdir):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
@@ -70,7 +72,7 @@ def test_train_graph_network(tmpdir):
     )
     hyperparameters = GraphHyperparameters(
         state_variables=state_variables,
-        training_loop=TrainingLoopConfig(n_epoch=20),
+        training_loop=AutoregressiveTrainingConfig(n_epoch=20),
         optimizer_config=OptimizerConfig(kwargs={"lr": 0.01}),
     )
     predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)

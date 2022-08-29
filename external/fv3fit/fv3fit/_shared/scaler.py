@@ -1,6 +1,6 @@
 import abc
 import numpy as np
-from typing import BinaryIO, Optional, Type, Sequence, IO
+from typing import BinaryIO, Callable, Mapping, Optional, Type, Sequence, IO
 import io
 import yaml
 
@@ -98,6 +98,29 @@ class StandardScaler(NormalizeTransform):
         scaler.mean = data.get("mean")
         scaler.std = data.get("std")
         return scaler
+
+
+def get_standard_scaler_mapping(
+    sample: Mapping[str, np.ndarray]
+) -> Mapping[str, StandardScaler]:
+    scalers = {}
+    for name, array in sample.items():
+        s = StandardScaler(n_sample_dims=5)
+        s.fit(array)
+        scalers[name] = s
+    return scalers
+
+
+def get_mapping_standard_scale_func(
+    scalers: Mapping[str, StandardScaler]
+) -> Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]]:
+    def scale(data: Mapping[str, np.ndarray]):
+        output = {**data}
+        for name, array in data.items():
+            output[name] = scalers[name].normalize(array)
+        return output
+
+    return scale
 
 
 class ManualScaler(NormalizeTransform):
