@@ -133,9 +133,6 @@ def build_model(graph_network, n_state: int, nx: int):
     ).to(DEVICE)
 
 
-# def build_model(graph_network, n_state: int, nx: int):
-
-
 #     if isinstance(graph_network, MPGUNetGraphNetworkConfig):
 #         train_model = MPGraphUNet(
 #             graph_network, in_channels=n_state, out_dim=n_state, nx=nx
