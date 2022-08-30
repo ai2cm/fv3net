@@ -280,8 +280,8 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTM
 
 def infer_duration_seconds(diagnostics: RunDiagnostics) -> float:
     run, *_ = diagnostics.runs
-    sample_time = diagnostics.get_variable(run, "time")
-    delta = sample_time.isel(time=-1) - sample_time.isel(time=0)
+    time = diagnostics.get_variable(run, "high_frequency_time")
+    delta = time.isel(high_frequency_time=-1) - time.isel(high_frequency_time=0)
     return (delta / np.timedelta64(1, "s")).item()
 
 
@@ -303,7 +303,7 @@ def deep_tropical_meridional_mean_hovmoller_plots(
     return plot_2d_matplotlib(
         diagnostics,
         "deep_tropical_meridional_mean_value",
-        ["longitude", "time"],
+        ["longitude", "high_frequency_time"],
         figsize=figsize,
     )
 
