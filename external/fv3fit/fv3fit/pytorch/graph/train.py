@@ -31,8 +31,6 @@ from typing import (
 )
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping
 
-network_config = Union[MPGUNetGraphNetworkConfig, UNetGraphNetworkConfig]
-
 
 @dataclasses.dataclass
 class GraphHyperparameters(Hyperparameters):
@@ -51,9 +49,9 @@ class GraphHyperparameters(Hyperparameters):
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("AdamW")
     )
-    graph_network: network_config = dataclasses.field(
-        default_factory=lambda: MPGUNetGraphNetworkConfig()
-    )
+    graph_network: Union[
+        MPGUNetGraphNetworkConfig, UNetGraphNetworkConfig
+    ] = dataclasses.field(default_factory=lambda: MPGUNetGraphNetworkConfig())
     training_loop: AutoregressiveTrainingConfig = dataclasses.field(
         default_factory=lambda: AutoregressiveTrainingConfig()
     )
