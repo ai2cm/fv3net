@@ -18,6 +18,7 @@ def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
         ntime=ntime,
         nx=nx,
         nz=nz,
+        wave_type="sinusoidal",
         scalar_names=["b"],
         scale_min=0.5,
         scale_max=1.5,
