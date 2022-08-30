@@ -128,6 +128,7 @@ def build_model(graph_network, n_state: int, nx: int):
         graph_network: configuration of the graph network
         n_state: number of state variables
     """
+
     if isinstance(graph_network, MPGUNetGraphNetworkConfig):
         train_model = MPGraphUNet(
             graph_network, in_channels=n_state, out_dim=n_state, nx=nx
