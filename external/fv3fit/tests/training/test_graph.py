@@ -9,7 +9,6 @@ import os
 import pytest
 from fv3fit.pytorch.optimizer import OptimizerConfig
 import fv3fit
-from vcm.grid import get_grid
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
@@ -84,16 +83,3 @@ def test_train_graph_network(tmpdir):
     for varname in state_variables:
         assert np.abs(mean_bias[varname]) < 0.1
         assert rmse[varname] < 0.1
-
-
-@pytest.mark.parametrize("nx", [48, 24, 6])
-def test_graph_builder(nx):
-    lon, lat = get_grid(nx)
-    assert np.all(np.diff(lat[1, 0, :]) > 0)
-    assert np.all(np.diff(lon[1, :, 0]) > 0)
-
-    if len(lon.shape) != 3 and len(lat.shape) != 3:
-        raise ValueError(
-            "inputs must be of shape (n_tiles, n_x, n_y), "
-            f"got lon {lon.shape} and lat {lat.shape}"
-        )
