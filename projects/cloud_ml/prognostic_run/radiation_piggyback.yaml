@@ -1,0 +1,142 @@
+base_version: v0.7
+initial_conditions:
+  base_url: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+  timestep: "20160805.000000"
+radiation_scheme:
+  kind: "python"
+#   input_model: # uncomment this to make predictions with an ML model
+#     model:
+#       - gs://vcm-ml-experiments/cloud-ml/2022-08-29/example-cloud-model-trial-0/trained_models/cloud_model
+namelist:
+  coupler_nml:
+    hours: 0
+    minutes: 30
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
+  gfs_physics_nml:
+    fhlwr: 900.0
+    fhswr: 900.0
+    hybedmf: true
+    satmedmf: false
+fortran_diagnostics:
+  - name: atmos_dt_atmos.zarr
+    chunks:
+      time: 2
+    times:
+      frequency: 900
+      kind: interval
+    variables:
+    - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+    - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+    - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+    - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+    - {module_name: dynamics, field_name: area, output_name: area}
+    - {module_name: dynamics, field_name: tb, output_name: TMPlowest}
+    - {module_name: dynamics, field_name: t850, output_name: TMP850}
+    - {module_name: dynamics, field_name: t500, output_name: TMP500}
+    - {module_name: dynamics, field_name: t200, output_name: TMP200}
+    - {module_name: dynamics, field_name: w500, output_name: w500}
+    - {module_name: dynamics, field_name: vort500, output_name: VORT500}
+    - {module_name: dynamics, field_name: z500, output_name: h500}
+    - {module_name: dynamics, field_name: rh850, output_name: RH850}
+    - {module_name: dynamics, field_name: q500, output_name: q500}
+    - {module_name: dynamics, field_name: ps, output_name: PRESsfc}
+    - {module_name: dynamics, field_name: tq, output_name: PWAT}
+    - {module_name: dynamics, field_name: lw, output_name: VIL}
+  - name: sfc_dt_atmos.zarr
+    chunks:
+      time: 2
+    times:
+      frequency: 900
+      kind: interval
+    variables:
+    - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+    - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+    - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+    - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+    - {module_name: dynamics, field_name: area, output_name: area}
+    - {module_name: gfs_phys, field_name: dusfci, output_name: uflx}
+    - {module_name: gfs_phys, field_name: dvsfci, output_name: vflx}
+    - {module_name: gfs_phys, field_name: cnvprcpb_ave, output_name: CPRATsfc}
+    - {module_name: gfs_phys, field_name: totprcpb_ave, output_name: PRATEsfc}
+    - {module_name: gfs_phys, field_name: DSWRF, output_name: DSWRFsfc}
+    - {module_name: gfs_phys, field_name: USWRF, output_name: USWRFsfc}
+    - {module_name: gfs_phys, field_name: DSWRFtoa, output_name: DSWRFtoa}
+    - {module_name: gfs_phys, field_name: USWRFtoa, output_name: USWRFtoa}
+    - {module_name: gfs_phys, field_name: ULWRFtoa, output_name: ULWRFtoa}
+    - {module_name: gfs_phys, field_name: ULWRF, output_name: ULWRFsfc}
+    - {module_name: gfs_phys, field_name: DLWRF, output_name: DLWRFsfc}
+    - {module_name: gfs_phys, field_name: lhtfl_ave, output_name: LHTFLsfc}
+    - {module_name: gfs_phys, field_name: shtfl_ave, output_name: SHTFLsfc}
+diagnostics:
+  - name: diags.zarr
+    chunks:
+      time: 2
+    times:
+      frequency: 900
+      kind: interval
+    variables:
+    - total_precipitation_rate
+    - water_vapor_path
+    - physics_precip
+  - name: diags_3d.zarr
+    chunks:
+      time: 2
+    times:
+      frequency: 900
+      kind: interval
+    variables:
+      - tendency_of_air_temperature_due_to_fv3_physics
+      - tendency_of_specific_humidity_due_to_fv3_physics
+      - tendency_of_eastward_wind_due_to_fv3_physics
+      - tendency_of_northward_wind_due_to_fv3_physics
+  - name: state_after_timestep.zarr
+    chunks:
+      time: 2
+    times:
+      frequency: 900
+      kind: interval
+    variables:
+      - eastward_wind
+      - northward_wind
+      - vertical_wind
+      - air_temperature
+      - specific_humidity
+      - pressure_thickness_of_atmospheric_layer
+      - vertical_thickness_of_atmospheric_layer
+      - land_sea_mask
+      - surface_temperature
+      - surface_geopotential
+      - clear_sky_downward_longwave_flux_at_surface
+      - clear_sky_downward_shortwave_flux_at_surface
+      - clear_sky_upward_longwave_flux_at_surface
+      - clear_sky_upward_shortwave_flux_at_surface
+      - clear_sky_upward_longwave_flux_at_top_of_atmosphere
+      - clear_sky_upward_shortwave_flux_at_top_of_atmosphere
+      - total_sky_downward_longwave_flux_at_surface
+      - total_sky_downward_shortwave_flux_at_surface
+      - total_sky_upward_longwave_flux_at_surface
+      - total_sky_upward_shortwave_flux_at_surface
+      - total_sky_downward_shortwave_flux_at_top_of_atmosphere
+      - total_sky_upward_longwave_flux_at_top_of_atmosphere
+      - total_sky_upward_shortwave_flux_at_top_of_atmosphere
+  - name: radiative_fluxes.zarr
+    chunks:
+      time: 2
+    times:
+      frequency: 900
+      kind: interval
+    variables:
+      - clear_sky_downward_longwave_flux_at_surface_python
+      - clear_sky_downward_shortwave_flux_at_surface_python
+      - clear_sky_upward_longwave_flux_at_surface_python
+      - clear_sky_upward_shortwave_flux_at_surface_python
+      - clear_sky_upward_longwave_flux_at_top_of_atmosphere_python
+      - clear_sky_upward_shortwave_flux_at_top_of_atmosphere_python
+      - total_sky_downward_longwave_flux_at_surface_python
+      - total_sky_downward_shortwave_flux_at_surface_python
+      - total_sky_upward_longwave_flux_at_surface_python
+      - total_sky_upward_shortwave_flux_at_surface_python
+      - total_sky_downward_shortwave_flux_at_top_of_atmosphere_python
+      - total_sky_upward_longwave_flux_at_top_of_atmosphere_python
+      - total_sky_upward_shortwave_flux_at_top_of_atmosphere_python
