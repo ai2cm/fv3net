@@ -5,4 +5,4 @@ from .train import (
     AutoregressiveTrainingConfig,
     GraphHyperparameters,
 )
-from .graph_builder_edge_feat import build_dgl_graph_with_edge, build_graph
+from .graph_builder import build_dgl_graph_with_edge, build_graph

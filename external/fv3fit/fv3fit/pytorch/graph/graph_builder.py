@@ -5,6 +5,8 @@ import xarray as xr
 import functools
 from ..system import DEVICE
 import dgl
+from .edge_connection import get_grid
+import torch
 
 
 def build_graph(nx_tile: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -55,3 +57,29 @@ def build_dgl_graph(nx_tile: int) -> dgl.DGLGraph:
     graph_data = build_graph(nx_tile)
     g = dgl.graph(graph_data)
     return g.to(DEVICE)
+
+
+@functools.lru_cache(maxsize=64)
+def build_dgl_graph_with_edge(nx_tile: int):
+    """
+    Returns
+    g: A DGL graph of the cubed sphere.
+    edge_relation: edge features contain lat and lon
+                    relations between reference points and their neighbours
+                    (use fro networks with eadge features)
+    """
+    graph_data = build_graph(nx_tile)
+    graph_tensor = torch.tensor(graph_data)
+    lon, lat = get_grid(nx_tile)
+    lon = lon.flatten()
+    lat = lat.flatten()
+    lat_neighbour = lat[graph_tensor[1]]
+    lon_neighbour = lon[graph_tensor[1]]
+    lat_reference = lat[graph_tensor[0]]
+    lon_reference = lon[graph_tensor[0]]
+    lat_difference = lat_neighbour - lat_reference
+    lon_difference = lon_neighbour - lon_reference
+    edge_relation = [lat_difference.T, lon_difference.T]
+    edge_relation = torch.from_numpy(np.swapaxes(edge_relation, 1, 0)).float()
+    g = dgl.graph(graph_data)
+    return g.to(DEVICE), edge_relation

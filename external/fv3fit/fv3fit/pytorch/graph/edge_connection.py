@@ -61,7 +61,7 @@ def xyz_to_lon_lat(xyz, np):
     return lon, lat
 
 
-def coarse_grid(nx: int):
+def get_grid(nx: int):
     """
     Args:
         nx: number of horizontal grid points on each tile of the cubed sphere
@@ -78,16 +78,19 @@ def coarse_grid(nx: int):
     lon = lon.values.flatten() / 180 * np.pi
     xyz = lon_lat_to_xyz(lon, lat, np)
     xyz = xyz.reshape((6, 48, 48, 3))
-    coarse_level = 48 // nx
-    for _ in range(1, int(np.log2(coarse_level)) + 1):
-        xyz = (
-            xyz[:, 1::2, :-1:2]
-            + xyz[:, :-1:2, 1::2]
-            + xyz[:, 1::2, 1::2]
-            + xyz[:, :-1:2, :-1:2]
-        )
-    xyz = xyz.reshape((6 * nx * nx, 3))
-    lon_new, lat_new = xyz_to_lon_lat(xyz, np)
-    lon_new = lon_new.reshape((6, nx, nx))
-    lat_new = lat_new.reshape((6, nx, nx))
+    coarse_level = int(48 / nx)
+    if coarse_level and (not (coarse_level & (coarse_level - 1))):
+        for _ in range(1, int(np.log2(coarse_level)) + 1):
+            xyz = (
+                xyz[:, 1::2, :-1:2]
+                + xyz[:, :-1:2, 1::2]
+                + xyz[:, 1::2, 1::2]
+                + xyz[:, :-1:2, :-1:2]
+            )
+        xyz = xyz.reshape((6 * nx * nx, 3))
+        lon_new, lat_new = xyz_to_lon_lat(xyz, np)
+        lon_new = lon_new.reshape((6, nx, nx))
+        lat_new = lat_new.reshape((6, nx, nx))
+    else:
+        raise ValueError("nx must be one of 48, 24, 12, 6, 3, " f"got {nx}")
     return lon_new, lat_new
