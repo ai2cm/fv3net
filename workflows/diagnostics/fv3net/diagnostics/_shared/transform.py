@@ -295,6 +295,8 @@ def _mask_array(
         net_precipitation = xr.full_like(arr, fill_value=np.nan)
     if region == "tropics":
         masked_arr = arr.where(abs(latitude) <= 10.0)
+    elif region == "tropics15":
+        masked_arr = arr.where(abs(latitude) <= 15.0)
     elif region == "tropics20":
         masked_arr = arr.where(abs(latitude) <= 20.0)
     elif region == "global":

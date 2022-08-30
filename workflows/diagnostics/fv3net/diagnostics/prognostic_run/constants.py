@@ -177,3 +177,10 @@ TOP_LEVEL_METRICS = {
 
 GRID_VARS = ("lat", "latb", "lon", "lonb")
 GRID_INTERFACE_COORDS = ("x_interface", "y_interface")
+
+# https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.figure.html
+DEFAULT_FIGURE_WIDTH = 6.4
+DEFAULT_FIGURE_HEIGHT = 4.8
+
+# For inferring a readable aspect ratio for tropical Hovmoller plots
+REFERENCE_HOVMOLLER_DURATION_SECONDS = 40 * 86400
