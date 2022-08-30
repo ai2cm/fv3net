@@ -70,16 +70,21 @@ def build_dgl_graph_with_edge(nx_tile: int):
     """
     graph_data = build_graph(nx_tile)
     graph_tensor = torch.tensor(graph_data)
-    lon, lat = get_grid(nx_tile)
-    lon = lon.flatten()
-    lat = lat.flatten()
-    lat_neighbour = lat[graph_tensor[1]]
-    lon_neighbour = lon[graph_tensor[1]]
-    lat_reference = lat[graph_tensor[0]]
-    lon_reference = lon[graph_tensor[0]]
-    lat_difference = lat_neighbour - lat_reference
-    lon_difference = lon_neighbour - lon_reference
-    edge_relation = [lat_difference.T, lon_difference.T]
-    edge_relation = torch.from_numpy(np.swapaxes(edge_relation, 1, 0)).float()
+    xyz = get_grid(nx_tile)
+    xyz_neighbour = xyz[graph_tensor[1], :]
+    xyz_reference = xyz[graph_tensor[0], :]
+    edge_relation = xyz_neighbour - xyz_reference
+    edge_relation = torch.from_numpy(edge_relation).float()
+    # lon, lat = get_grid(nx_tile)
+    # lon = lon.flatten()
+    # lat = lat.flatten()
+    # lat_neighbour = lat[graph_tensor[1]]
+    # lon_neighbour = lon[graph_tensor[1]]
+    # lat_reference = lat[graph_tensor[0]]
+    # lon_reference = lon[graph_tensor[0]]
+    # lat_difference = lat_neighbour - lat_reference
+    # lon_difference = lon_neighbour - lon_reference
+    # edge_relation = [lat_difference.T, lon_difference.T]
+    # edge_relation = torch.from_numpy(np.swapaxes(edge_relation, 1, 0)).float()
     g = dgl.graph(graph_data)
     return g.to(DEVICE), edge_relation

@@ -88,9 +88,9 @@ def get_grid(nx: int):
                 + xyz[:, :-1:2, :-1:2]
             )
         xyz = xyz.reshape((6 * nx * nx, 3))
-        lon_new, lat_new = xyz_to_lon_lat(xyz, np)
-        lon_new = lon_new.reshape((6, nx, nx))
-        lat_new = lat_new.reshape((6, nx, nx))
+        # lon_new, lat_new = xyz_to_lon_lat(xyz, np)
+        # lon_new = lon_new.reshape((6, nx, nx))
+        # lat_new = lat_new.reshape((6, nx, nx))
     else:
         raise ValueError("nx must be one of 48, 24, 12, 6, 3, " f"got {nx}")
-    return lon_new, lat_new
+    return xyz  # lon_new, lat_new
