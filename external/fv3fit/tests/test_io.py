@@ -13,7 +13,7 @@ def test_Register_get_name():
         pass
 
     mock = Mock()
-    assert register.get_dumpable_name(mock) == "mock"
+    assert register.get_name(mock) == "mock"
 
 
 def test_registering_twice_fails():
@@ -42,7 +42,7 @@ def test_registering_subclass_get_name():
         pass
 
     mock = MockSubclass()
-    assert register.get_dumpable_name(mock) == "mock-subclass"
+    assert register.get_name(mock) == "mock-subclass"
 
 
 def test_register_dump_load(tmpdir):
