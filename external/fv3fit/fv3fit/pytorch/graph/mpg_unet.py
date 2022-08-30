@@ -28,6 +28,11 @@ class MPGUNetGraphNetworkConfig:
     pooling_stride: int = 2
     activation: Callable = nn.ReLU()
 
+    def build(
+        self, config, in_channels: int, out_dim: int, nx: int,
+    ):
+        return MPGraphUNet(config, in_channels=in_channels, out_dim=out_dim, nx=nx)
+
 
 class MPNNGNN(nn.Module):
     def __init__(
