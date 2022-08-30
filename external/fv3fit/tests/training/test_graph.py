@@ -9,7 +9,7 @@ import os
 import pytest
 from fv3fit.pytorch.optimizer import OptimizerConfig
 import fv3fit
-from fv3fit.pytorch.graph.edge_connection import coarse_grid
+from fv3fit.pytorch.graph.edge_connection import get_grid
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
@@ -88,7 +88,7 @@ def test_train_graph_network(tmpdir):
 
 @pytest.mark.parametrize("nx", [48, 24, 6])
 def test_graph_builder(nx):
-    lon, lat = coarse_grid(48)
+    lon, lat = get_grid(nx)
     assert np.all(np.diff(lat[1, 0, :]) > 0)
     assert np.all(np.diff(lon[1, :, 0]) > 0)
 

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import dataclasses
 from typing import Callable
-from .graph_builder_edge_feat import build_dgl_graph_with_edge
+from .graph_builder import build_dgl_graph_with_edge
 from dgl.nn.pytorch import NNConv
 
 
