@@ -9,7 +9,7 @@ import os
 import pytest
 from fv3fit.pytorch.optimizer import OptimizerConfig
 import fv3fit
-from fv3fit.pytorch.graph.grid import get_grid
+from vcm.grid import get_grid
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):

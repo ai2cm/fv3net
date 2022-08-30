@@ -5,7 +5,7 @@ import xarray as xr
 import functools
 from ..system import DEVICE
 import dgl
-from .grid import get_grid_xyz
+from vcm.grid import get_grid_xyz
 import torch
 
 

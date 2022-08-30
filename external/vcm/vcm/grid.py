@@ -90,7 +90,7 @@ def get_grid_xyz(nx: int):
         xyz = xyz.reshape((6 * nx * nx, 3))
     else:
         raise ValueError("nx must be one of 48, 24, 12, 6, 3, " f"got {nx}")
-    return xyz  # lon_new, lat_new
+    return xyz
 
 
 def get_grid(nx):

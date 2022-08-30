@@ -79,8 +79,8 @@ class MPNNGNN(nn.Module):
             ),
         )
         self.gnn_layer = NNConv(
-            in_features=node_hidden_channels,
-            out_features=node_hidden_channels,
+            in_feats=node_hidden_channels,
+            out_feats=node_hidden_channels,
             edge_func=edge_network,
             aggregator_type=aggregator,
         )
