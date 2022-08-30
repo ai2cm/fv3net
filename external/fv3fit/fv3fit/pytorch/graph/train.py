@@ -100,7 +100,7 @@ def train_graph_model(
         val_state = None
 
     train_state = get_state(data=train_batches).unbatch()
-
+    sample = next(iter(train_state))
     train_model = build_model(
         hyperparameters.graph_network, n_state=sample.shape[-1], nx=sample.shape[3],
     )
