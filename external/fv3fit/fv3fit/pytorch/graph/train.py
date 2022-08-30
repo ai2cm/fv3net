@@ -140,7 +140,7 @@ def build_model(graph_network, n_state: int, nx: int):
         )
     else:
         raise TypeError(
-            "network must be either of MPGUNetGraphNetworkConfig\
+            "network must be either MPGUNetGraphNetworkConfig\
             or UNetGraphNetworkConfig,"
         )
     return train_model
