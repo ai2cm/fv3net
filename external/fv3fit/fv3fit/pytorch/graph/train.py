@@ -5,6 +5,8 @@ from fv3fit._shared.training_config import Hyperparameters
 from toolz.functoolz import curry
 from fv3fit.pytorch.predict import PytorchAutoregressor
 from fv3fit.pytorch.graph.mpg_unet import MPGraphUNet, MPGUNetGraphNetworkConfig
+from fv3fit.pytorch.graph.unet import GraphUNet, UNetGraphNetworkConfig
+
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.training_loop import AutoregressiveTrainingConfig
@@ -25,8 +27,11 @@ from typing import (
     Set,
     Mapping,
     cast,
+    Union,
 )
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping
+
+network_config = Union[MPGUNetGraphNetworkConfig, UNetGraphNetworkConfig]
 
 
 @dataclasses.dataclass
@@ -46,7 +51,7 @@ class GraphHyperparameters(Hyperparameters):
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("AdamW")
     )
-    graph_network: MPGUNetGraphNetworkConfig = dataclasses.field(
+    graph_network: network_config = dataclasses.field(
         default_factory=lambda: MPGUNetGraphNetworkConfig()
     )
     training_loop: AutoregressiveTrainingConfig = dataclasses.field(
@@ -127,9 +132,19 @@ def build_model(graph_network, n_state: int, nx: int):
         graph_network: configuration of the graph network
         n_state: number of state variables
     """
-    train_model = MPGraphUNet(
-        graph_network, in_channels=n_state, out_dim=n_state, nx=nx
-    ).to(DEVICE)
+    if isinstance(graph_network, MPGUNetGraphNetworkConfig):
+        train_model = MPGraphUNet(
+            graph_network, in_channels=n_state, out_dim=n_state, nx=nx
+        ).to(DEVICE)
+    elif isinstance(graph_network, UNetGraphNetworkConfig):
+        train_model = GraphUNet(graph_network, in_channels=n_state, out_dim=n_state).to(
+            DEVICE
+        )
+    else:
+        raise TypeError(
+            "network must be either of MPGUNetGraphNetworkConfig\
+            or UNetGraphNetworkConfig,"
+        )
     return train_model
 
 

@@ -276,15 +276,10 @@ class UNet(nn.Module):
         self._up = up_factory(in_channels=node_lower_channels * 2)
 
     def forward(self, inputs):
-        # print(f"1: {inputs.size()}")
         before_pooling = self.conv1(inputs)
-        # print(f"2: {before_pooling.size()}")
         x = self._down(before_pooling)
-        # print(f"3: {x.size()}")
         x = self._lower(x)
-        # print(f"4: {x.size()}")
         x = self._up(x)
-        # print(f"5: {x.size()}")
         x = torch.cat([before_pooling, x], dim=-1)
         x = self.conv2(x)
         return x

@@ -9,6 +9,7 @@ import os
 import pytest
 from fv3fit.pytorch.optimizer import OptimizerConfig
 import fv3fit
+from fv3fit.pytorch.graph.edge_connection import coarse_grid
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, ny, nz):
@@ -83,3 +84,24 @@ def test_train_graph_network(tmpdir):
     for varname in state_variables:
         assert np.abs(mean_bias[varname]) < 0.1
         assert rmse[varname] < 0.1
+
+
+def test_graph_builder():
+    lon_48, lat_48 = coarse_grid(48)
+    lon_24, lat_24 = coarse_grid(24)
+    lon_6, lat_6 = coarse_grid(6)
+
+    lon_48_0 = np.diff(lon_48[1, :, 0])
+    lon_24_0 = np.diff(lon_24[1, :, 0])
+    lon_6_0 = np.diff(lon_6[1, :, 0])
+    lat_48_0 = np.diff(lat_48[1, 0, :])
+    lat_24_0 = np.diff(lat_24[1, 0, :])
+    lat_6_0 = np.diff(lat_6[1, 0, :])
+
+    assert np.all(lon_48_0 > 0), f"lon_48 is not increasing with x"
+    assert np.all(lon_24_0 > 0), f"lon_24 is not increasing with x"
+    assert np.all(lon_6_0 > 0), f"lon_6 is not increasing with x"
+
+    assert np.all(lat_48_0 > 0), f"lat_48 is not increasing with y"
+    assert np.all(lat_24_0 > 0), f"lat_24 is not increasing with y"
+    assert np.all(lat_6_0 > 0), f"lat_6 is not increasing with y"
