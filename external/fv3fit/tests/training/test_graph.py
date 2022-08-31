@@ -2,7 +2,12 @@ from fv3fit.pytorch.training_loop import AutoregressiveTrainingConfig
 import numpy as np
 import xarray as xr
 from typing import Sequence
-from fv3fit.pytorch.graph import GraphHyperparameters, train_graph_model
+from fv3fit.pytorch.graph import (
+    GraphHyperparameters,
+    train_graph_model,
+    MPGraphUNetConfig,
+    GraphUNetConfig,
+)
 from fv3fit.tfdataset import iterable_to_tfdataset
 import collections
 import os
@@ -57,7 +62,8 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
 
 
 @pytest.mark.slow
-def test_train_graph_network(tmpdir):
+@pytest.mark.parametrize("network_type", ["MPG", "UNet"])
+def test_train_graph_network(tmpdir, network_type):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
@@ -70,10 +76,16 @@ def test_train_graph_network(tmpdir):
     test_xrdataset = tfdataset_to_xr_dataset(
         get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
+    if network_type == "MPG":
+        graph_network = MPGraphUNetConfig(num_step_message_passing=5)
+    elif network_type == "UNet":
+        graph_network = GraphUNetConfig()
+
     hyperparameters = GraphHyperparameters(
         state_variables=state_variables,
         training_loop=AutoregressiveTrainingConfig(n_epoch=100),
         optimizer_config=OptimizerConfig(kwargs={"lr": 0.01}),
+        graph_network=graph_network,
     )
     predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)
     predicted, reference = predictor.predict(test_xrdataset, timesteps=1)

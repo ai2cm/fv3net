@@ -7,7 +7,7 @@ from dgl.nn.pytorch import NNConv
 
 
 @dataclasses.dataclass
-class MPGUNetGraphNetworkConfig:
+class MPGraphUNetConfig:
     """
     Attributes:
         depth: depth of U-net architecture maximum
@@ -19,9 +19,9 @@ class MPGUNetGraphNetworkConfig:
         activation: activation function
     """
 
+    num_step_message_passing: int
     depth: int = 1
     min_filters: int = 4
-    num_step_message_passing: int = 1
     aggregator: str = "mean"
     edge_hidden_features: int = 4
     pooling_size: int = 2
@@ -29,9 +29,11 @@ class MPGUNetGraphNetworkConfig:
     activation: Callable = nn.ReLU()
 
     def build(
-        self, config, in_channels: int, out_dim: int, nx: int,
+        self, in_channels: int, out_channels: int, nx: int,
     ):
-        return MPGraphUNet(config, in_channels=in_channels, out_dim=out_dim, nx=nx)
+        return MPGraphUNet(
+            self, in_channels=in_channels, out_channels=out_channels, nx=nx
+        )
 
 
 class MPNNGNN(nn.Module):
@@ -87,15 +89,6 @@ class MPNNGNN(nn.Module):
         self.gru = nn.GRU(node_hidden_channels, node_hidden_channels)
         self.relu = activation
         self.out_features = node_hidden_channels
-
-    def reset_parameters(self):
-        """Reinitialize model parameters."""
-        self.project_node_features[0].reset_parameters()
-        self.gnn_layer.reset_parameters()
-        for layer in self.gnn_layer.edge_func:
-            if isinstance(layer, nn.Linear):
-                layer.reset_parameters()
-        self.gru.reset_parameters()
 
     def forward(self, in_node_features):
         """Performs message passing and updates node representations.
@@ -295,7 +288,7 @@ class UNet(nn.Module):
 
 
 class MPGraphUNet(nn.Module):
-    def __init__(self, config, in_channels: int, out_dim: int, nx: int):
+    def __init__(self, config, in_channels: int, out_channels: int, nx: int):
         """
         Args:
             in_channels: number of input channels
@@ -322,7 +315,7 @@ class MPGraphUNet(nn.Module):
         self._last_layer = nn.Sequential(
             nn.Linear(config.min_filters * 2, config.min_filters),
             nn.ReLU(),
-            nn.Linear(config.min_filters, out_dim),
+            nn.Linear(config.min_filters, out_channels),
         )
 
         self._unet = UNet(

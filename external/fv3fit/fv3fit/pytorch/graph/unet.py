@@ -7,7 +7,7 @@ from .graph_builder import build_dgl_graph
 
 
 @dataclasses.dataclass
-class UNetGraphNetworkConfig:
+class GraphUNetConfig:
     """
     Attributes:
         depth: depth of U-net architecture maximum
@@ -24,6 +24,11 @@ class UNetGraphNetworkConfig:
     pooling_size: int = 2
     pooling_stride: int = 2
     activation: Callable = nn.ReLU()
+
+    def build(
+        self, in_channels: int, out_channels: int, nx: int,
+    ):
+        return GraphUNet(self, in_channels=in_channels, out_channels=out_channels)
 
 
 class CubedSphereGraphOperation(nn.Module):
@@ -209,7 +214,7 @@ class UNet(nn.Module):
 
 
 class GraphUNet(nn.Module):
-    def __init__(self, config, in_channels: int, out_dim: int):
+    def __init__(self, config, in_channels: int, out_channels: int):
         """
         Args:
             in_channels: number of input channels
@@ -231,7 +236,7 @@ class GraphUNet(nn.Module):
         )
 
         self._last_conv = CubedSphereGraphOperation(
-            SAGEConv(config.min_filters * 2, out_dim, config.aggregator)
+            SAGEConv(config.min_filters * 2, out_channels, config.aggregator)
         )
 
         self._unet = UNet(

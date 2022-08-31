@@ -8,6 +8,12 @@ def test_grid_builder(nx):
     lon, lat = get_grid(nx)
     assert np.all(np.diff(lat[1, 0, :]) > 0)
     assert np.all(np.diff(lon[1, :, 0]) > 0)
+    assert (
+        lon.shape[1] != nx
+        and lon.shape[2] != nx
+        and lat.shape[1] != nx
+        and lat.shape[2] != nx
+    )
 
     if len(lon.shape) != 3 and len(lat.shape) != 3:
         raise ValueError(

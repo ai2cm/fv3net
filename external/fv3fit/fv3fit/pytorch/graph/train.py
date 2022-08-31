@@ -4,8 +4,8 @@ import dataclasses
 from fv3fit._shared.training_config import Hyperparameters
 from toolz.functoolz import curry
 from fv3fit.pytorch.predict import PytorchAutoregressor
-from fv3fit.pytorch.graph.mpg_unet import MPGUNetGraphNetworkConfig
-from fv3fit.pytorch.graph.unet import UNetGraphNetworkConfig
+from fv3fit.pytorch.graph.mpg_unet import MPGraphUNetConfig
+from fv3fit.pytorch.graph.unet import GraphUNetConfig
 
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
@@ -49,9 +49,9 @@ class GraphHyperparameters(Hyperparameters):
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("AdamW")
     )
-    graph_network: Union[
-        MPGUNetGraphNetworkConfig, UNetGraphNetworkConfig
-    ] = dataclasses.field(default_factory=lambda: MPGUNetGraphNetworkConfig())
+    graph_network: Union[MPGraphUNetConfig, GraphUNetConfig] = dataclasses.field(
+        default_factory=lambda: MPGraphUNetConfig(num_step_message_passing=5)
+    )
     training_loop: AutoregressiveTrainingConfig = dataclasses.field(
         default_factory=lambda: AutoregressiveTrainingConfig()
     )
@@ -128,26 +128,9 @@ def build_model(graph_network, n_state: int, nx: int):
         graph_network: configuration of the graph network
         n_state: number of state variables
     """
-    return graph_network.build(
-        graph_network, in_channels=n_state, out_dim=n_state, nx=nx
-    ).to(DEVICE)
-
-
-#     if isinstance(graph_network, MPGUNetGraphNetworkConfig):
-#         train_model = MPGraphUNet(
-#             graph_network, in_channels=n_state, out_dim=n_state, nx=nx
-#         ).to(DEVICE)
-#     elif isinstance(graph_network, UNetGraphNetworkConfig):
-#         train_model = GraphUNet(graph_network,
-# in_channels=n_state, out_dim=n_state).to(
-#             DEVICE
-#         )
-#     else:
-#         raise TypeError(
-#             "network must be either MPGUNetGraphNetworkConfig\
-#             or UNetGraphNetworkConfig,"
-#         )
-#     return train_model
+    return graph_network.build(in_channels=n_state, out_channels=n_state, nx=nx).to(
+        DEVICE
+    )
 
 
 def get_Xy_dataset(

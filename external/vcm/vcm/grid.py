@@ -95,7 +95,7 @@ def get_grid_xyz(nx: int):
 
 def get_grid(nx):
     xyz = get_grid_xyz(nx)
-    lon_new, lat_new = xyz_to_lon_lat(xyz, np)
-    lon_new = lon_new.reshape((6, nx, nx))
-    lat_new = lat_new.reshape((6, nx, nx))
-    return lon_new, lat_new
+    lon, lat = xyz_to_lon_lat(xyz, np)
+    lon = lon.reshape((6, nx, nx))
+    lat = lat.reshape((6, nx, nx))
+    return lon, lat

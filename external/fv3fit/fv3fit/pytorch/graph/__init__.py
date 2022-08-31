@@ -1,5 +1,5 @@
-from .mpg_unet import MPGraphUNet, MPGUNetGraphNetworkConfig
-from .unet import GraphUNet, UNetGraphNetworkConfig, CubedSphereGraphOperation
+from .mpg_unet import MPGraphUNet, MPGraphUNetConfig
+from .unet import GraphUNet, GraphUNetConfig, CubedSphereGraphOperation
 from .train import (
     train_graph_model,
     AutoregressiveTrainingConfig,
