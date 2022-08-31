@@ -205,10 +205,10 @@ class RadiationWrapper:
                 "before `.rad_update`."
             )
         idat = np.array(
-            [time.year, time.month, time.day, 0, time.hour, time.minute, 0, 0]
+            [time.year, time.month, time.day, 0, time.hour, time.minute, time.second, 0]
         )
         jdat = np.array(
-            [time.year, time.month, time.day, 0, time.hour, time.minute, 0, 0]
+            [time.year, time.month, time.day, 0, time.hour, time.minute, time.second, 0]
         )
         fhswr = np.array(float(self._rad_config["fhswr"]))
         dt_atmos = np.array(float(dt_atmos))
@@ -433,6 +433,8 @@ def _sfcprop(
     state: State, sfc_var_mapping: Mapping[str, str] = SFC_VAR_MAPPING
 ) -> Mapping[str, np.ndarray]:
     sfc = xr.Dataset({k: state[v] for k, v in list(sfc_var_mapping.items())})
+    # we only want the first of "hprime" variables
+    sfc["hprime"] = sfc["hprime"].isel({"orographic_variable": 0})
     stacked_sfc = _stack(sfc)
     return {name: stacked_sfc[name].values for name in stacked_sfc.data_vars}
 
