@@ -1,5 +1,4 @@
 import numpy as np
-from pace.util.constants import PI
 from vcm.catalog import catalog
 
 
@@ -51,6 +50,7 @@ def xyz_to_lon_lat(xyz, np):
     y = xyz.T[1, :].T
     z = xyz.T[2, :].T
     lon = 0.0 * x
+    PI = 3.14159265358979323846
     nonzero_lon = np.abs(x) + np.abs(y) >= 1.0e-10
     lon[nonzero_lon] = np.arctan2(y[nonzero_lon], x[nonzero_lon])
     negative_lon = lon < 0.0
