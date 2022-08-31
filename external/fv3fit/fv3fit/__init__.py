@@ -43,8 +43,8 @@ from .data import (
 )
 from .pytorch import (
     GraphHyperparameters,
-    MPGUNetGraphNetworkConfig,
-    UNetGraphNetworkConfig,
+    MPGraphUNetConfig,
+    GraphUNetConfig,
 )
 
 # need to import this to register the training func
