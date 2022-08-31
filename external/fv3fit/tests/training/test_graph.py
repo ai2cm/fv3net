@@ -62,7 +62,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("network_type", ["UNet", "MPG"])
+@pytest.mark.parametrize("network_type", ["UNet"])
 def test_train_graph_network(tmpdir, network_type):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done

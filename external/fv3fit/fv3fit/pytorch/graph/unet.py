@@ -98,19 +98,13 @@ class Down(nn.Module):
         )
 
     def forward(self, x):
-        input_size = x.size()
+        batch_size, n_tiles, n_x, n_y, n_features = x.size()
         x = x.permute(
             0, 1, 4, 2, 3
         )  # change dimensions to (batch_size, n_tiles, n_features, n_x, n_y)
         x = x.reshape(x.size(0) * x.size(1), x.size(2), x.size(3), x.size(4),)
         x = self.pool(x)
-        x = x.reshape(
-            input_size[0],
-            input_size[1],
-            input_size[4],
-            input_size[2] // 2,
-            input_size[3] // 2,
-        )
+        x = x.reshape(batch_size, n_tiles, n_features, n_x // 2, n_y // 2,)
 
         return x.permute(0, 1, 3, 4, 2)
 
@@ -134,7 +128,7 @@ class Up(nn.Module):
         )
 
     def forward(self, x1):
-        input_size = x1.size()
+        batch_size, n_tiles, n_x, n_y, n_features = x1.size()
         x1 = x1.permute(
             0, 1, 4, 2, 3
         )  # change dimensions to (batch_size, n_tiles, n_features, n_x, n_y)
@@ -142,13 +136,7 @@ class Up(nn.Module):
             x1.size(0) * x1.size(1), x1.size(2), x1.size(3), x1.size(4)
         )  # change the shape to (batch_size*n_tiles, n_features, n_x, n_y )
         x1 = self.up(x1)
-        x1 = x1.reshape(
-            input_size[0],
-            input_size[1],
-            input_size[4] // 2,  # channel
-            input_size[2] * 2,  # x
-            input_size[3] * 2,  # y
-        )
+        x1 = x1.reshape(batch_size, n_tiles, n_features, n_x // 2, n_y // 2,)
         x1 = x1.permute(
             0, 1, 3, 4, 2
         )  # change dimensions to (batch_size, n_tiles, n_x, n_y, n_features)
