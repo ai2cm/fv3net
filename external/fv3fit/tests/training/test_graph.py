@@ -62,7 +62,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("network_type", ["MPG", "UNet"])
+@pytest.mark.parametrize("network_type", ["UNet", "MPG"])
 def test_train_graph_network(tmpdir, network_type):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
@@ -77,14 +77,18 @@ def test_train_graph_network(tmpdir, network_type):
         get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
     if network_type == "MPG":
-        graph_network = MPGraphUNetConfig(num_step_message_passing=5)
+        graph_network = MPGraphUNetConfig(num_step_message_passing=3)
+        training_config = AutoregressiveTrainingConfig(n_epoch=100)
+        optimizer = OptimizerConfig(kwargs={"lr": 0.001})
     elif network_type == "UNet":
         graph_network = GraphUNetConfig()
+        training_config = AutoregressiveTrainingConfig(n_epoch=30)
+        optimizer = OptimizerConfig(kwargs={"lr": 0.005})
 
     hyperparameters = GraphHyperparameters(
         state_variables=state_variables,
-        training_loop=AutoregressiveTrainingConfig(n_epoch=100),
-        optimizer_config=OptimizerConfig(kwargs={"lr": 0.01}),
+        training_loop=training_config,
+        optimizer_config=optimizer,
         graph_network=graph_network,
     )
     predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)
