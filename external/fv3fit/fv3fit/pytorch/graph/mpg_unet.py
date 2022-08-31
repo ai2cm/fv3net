@@ -192,7 +192,7 @@ class Up(nn.Module):
             x1.size(0) * x1.size(1), x1.size(2), x1.size(3), x1.size(4)
         )  # change the shape to (batch_size*n_tiles, n_features, n_x, n_y )
         x1 = self.up(x1)
-        x1 = x1.reshape(batch_size, n_tiles, n_features, n_x // 2, n_y // 2,)
+        x1 = x1.reshape(batch_size, n_tiles, n_features // 2, n_x * 2, n_y * 2,)
         x1 = x1.permute(
             0, 1, 3, 4, 2
         )  # change dimensions to (batch_size, n_tiles, n_x, n_y, n_features)
