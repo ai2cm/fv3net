@@ -1,6 +1,7 @@
 import dataclasses
 from typing import Optional, Mapping, Any, Literal, Tuple, Sequence, Hashable
 import cftime
+from datetime import timedelta
 import numpy as np
 import xarray as xr
 from runtime.steppers.machine_learning import (
@@ -19,7 +20,8 @@ from vcm.calc.thermo.vertically_dependent import (
 from vcm.calc.thermo.constants import _SPECIFIC_HEAT_CONST_PRESSURE, _RDGAS
 
 P_REF = 1.0e5
-
+MINUTES_PER_HOUR = 60.0
+SECONDS_PER_MINUTE = 60.0
 
 DEFAULT_RAD_CONFIG = {
     "imp_physics": 11,
@@ -45,7 +47,6 @@ DEFAULT_RAD_CONFIG = {
     "nfxr": 45,
     "ncld": 5,
     "ncnd": 5,
-    "solhr": 0.0,
     "lgfdlmprad": False,
     "uni_cld": False,
     "effr_in": False,
@@ -164,7 +165,6 @@ class RadiationWrapper:
         rad_config["fhswr"] = physics_namelist["fhswr"]
         rad_config["lsswr"] = default_rad_config["lsswr"]
         rad_config["lslwr"] = default_rad_config["lslwr"]
-        rad_config["solhr"] = default_rad_config["solhr"]
         rad_config["nfxr"] = default_rad_config["nfxr"]
         rad_config["ncld"] = physics_namelist["ncld"]
         rad_config["ncnd"] = physics_namelist["ncld"]
@@ -204,6 +204,7 @@ class RadiationWrapper:
                 "Radiation driver not initialized. `.rad_init` must be called "
                 "before `.rad_update`."
             )
+        # idat is supposed to be model initalization time but is unused w/ current flags
         idat = np.array(
             [time.year, time.month, time.day, 0, time.hour, time.minute, time.second, 0]
         )
@@ -215,7 +216,7 @@ class RadiationWrapper:
         aerosol_data = getdata.aerosol(forcing_dir)
         _, solar_data = getdata.astronomy(forcing_dir, self._rad_config["isolar"])
         gas_data = getdata.gases(forcing_dir, self._rad_config["ictmflg"])
-        slag, sdec, cdec, solcon = self._driver.radupdate(
+        self._driver.radupdate(
             idat,
             jdat,
             fhswr,
@@ -234,6 +235,8 @@ class RadiationWrapper:
         self,
         state: State,
         tracer_metadata: Mapping[str, Any],
+        time: cftime.DatetimeJulian,
+        dt_atmos: float,
         rank: int,
         lookup_dir: str = "./data/lookup",
     ):
@@ -249,7 +252,7 @@ class RadiationWrapper:
         grid, coords = _grid(state)
         sfcprop = _sfcprop(state)
         ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
-        model = _model(self._rad_config, tracer_metadata, nz, rank)
+        model = _model(self._rad_config, tracer_metadata, time, dt_atmos, nz, rank)
         random_numbers = getdata.random(ncolumns, nz, NGPTSW, NGPTLW)
         lw_lookup = getdata.lw(lookup_dir)
         sw_lookup = getdata.sw(lookup_dir)
@@ -285,6 +288,8 @@ TRACER_NAME_MAPPING = {  # this is specific to GFS physics
 def _model(
     rad_config: Mapping[str, Any],
     tracer_metadata: Mapping[str, Any],
+    time: cftime.DatetimeJulian,
+    dt_atmos: float,
     nz: int,
     rank: int,
 ) -> Mapping[str, Any]:
@@ -297,7 +302,7 @@ def _model(
         "ncnd": rad_config["ncnd"],
         "fhswr": rad_config["fhswr"],
         "fhlwr": rad_config["fhlwr"],
-        "solhr": rad_config["solhr"],
+        "solhr": _solar_hour(time - timedelta(seconds=dt_atmos)),
         "lsswr": rad_config["lsswr"],
         "lslwr": rad_config["lslwr"],
         "imp_physics": rad_config["imp_physics"],
@@ -328,6 +333,14 @@ def _model(
             model[TRACER_NAME_MAPPING[tracer_name]] = metadata["i_tracer"]
     model["ntrac"] = max(tracer_inds)
     return model
+
+
+def _solar_hour(time: cftime.DatetimeJulian) -> float:
+    return (
+        time.hour
+        + time.minute / MINUTES_PER_HOUR
+        + time.second / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE)
+    )
 
 
 def _statein(
