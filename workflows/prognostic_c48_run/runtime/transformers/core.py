@@ -68,7 +68,9 @@ class StepTransformer:
         return set(strip_prefix(self.prefix, self.diagnostic_variables))
 
     def transform(self, func: Step) -> Diagnostics:
-        inputs: State = {key: self.state[key] for key in self.model.input_variables}
+        _inputs = self.model.input_variables
+        _inputs.remove("total_sky_net_radiative_flux_at_top_of_atmosphere")
+        inputs: State = {key: self.state[key] for key in _inputs}
         inputs_to_save: Diagnostics = {
             self.prefix + key: self.state[key] for key in self.inputs_to_save
         }
