@@ -12,6 +12,19 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_CENTER,
     VAR_LON_CENTER,
 )
+from vcm.xarray_utils import weighted_mean_via_groupby_bins
+
+
+def _groupby_bins(data, group, group_name, bins, weights=None):
+    renamed_group = group.rename(group_name)
+    if weights is None:
+        with xr.set_options(keep_attrs=True):
+            output = data.groupby_bins(renamed_group, bins=bins).mean()
+    else:
+        output = weighted_mean_via_groupby_bins(data, renamed_group, weights, bins=bins)
+    output = output.rename({f"{group_name}_bins": group_name})
+    midpoints = [v.item().mid for v in output[group_name]]
+    return output.assign_coords({group_name: midpoints})
 
 
 def zonal_average_approximate(
@@ -19,6 +32,7 @@ def zonal_average_approximate(
     data: Union[xr.DataArray, xr.Dataset],
     bins: Optional[Sequence[float]] = None,
     lat_name: str = "lat",
+    weights: Optional[xr.DataArray] = None,
 ):
     """Compute zonal mean of a dataset or dataarray using groupby_bins.
 
@@ -28,17 +42,39 @@ def zonal_average_approximate(
         bins: bins to use for zonal mean. Output will have a coordinate
             using the midpoints of given bins. Defaults to np.arange(-90, 91, 2).
         lat_name: name to use for latitude coordinate in output.
+        weights: weights to use when computing the zonal mean
 
     Returns:
         zonal mean of dataset or dataarray.
     """
     if bins is None:
         bins = np.arange(-90, 91, 2)
-    with xr.set_options(keep_attrs=True):
-        output = data.groupby_bins(lat.rename("lat"), bins=bins).mean()
-        output = output.rename({"lat_bins": lat_name})
-    lats_mid = [lat.item().mid for lat in output[lat_name]]
-    return output.assign_coords({lat_name: lats_mid})
+    return _groupby_bins(data, lat, lat_name, bins, weights)
+
+
+def meridional_average_approximate(
+    lon: xr.DataArray,
+    data: Union[xr.DataArray, xr.Dataset],
+    bins: Optional[Sequence[float]] = None,
+    lon_name: str = "lon",
+    weights: Optional[xr.DataArray] = None,
+):
+    """Compute meridional mean of a dataset or dataarray using groupby_bins.
+
+    Args:
+        lon: longitude values on same grid as data.
+        data: dataset of variables to averaged or dataarray to be averaged.
+        bins: bins to use for meridional mean. Output will have a coordinate
+            using the midpoints of given bins. Defaults to np.arange(0, 361, 2).
+        lon_name: name to use for latitude coordinate in output.
+        weights: weights to use when computing the meridional mean
+
+    Returns:
+        meridional mean of dataset or dataarray.
+    """
+    if bins is None:
+        bins = np.arange(0, 361, 2)
+    return _groupby_bins(data, lon, lon_name, bins, weights)
 
 
 def meridional_ring(lon=0, n=180):

@@ -181,7 +181,7 @@ if __name__ == "__main__":
     os.makedirs("artifacts", exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
+        format="%(asctime)s [%(levelname)s] %(filename)s::L%(lineno)d : %(message)s",
         handlers=[
             logging.FileHandler("artifacts/training.log"),
             logging.StreamHandler(),

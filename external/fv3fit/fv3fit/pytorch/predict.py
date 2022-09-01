@@ -1,15 +1,27 @@
-from fv3fit._shared.predictor import Dumpable, Loadable
+from fv3fit._shared.predictor import Predictor, Reloadable
 from .._shared.scaler import StandardScaler
 import numpy as np
 import torch
 import torch.nn as nn
 import xarray as xr
-from typing import Hashable, Iterable, Mapping, Tuple, TypeVar, Type, IO, Protocol
+from typing import (
+    Any,
+    Hashable,
+    Iterable,
+    Mapping,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Type,
+    IO,
+    Protocol,
+)
 import zipfile
 from fv3fit.pytorch.system import DEVICE
 import os
 import yaml
 import vcm
+from fv3fit._shared import io
 
 
 L = TypeVar("L", bound="BinaryLoadable")
@@ -43,7 +55,91 @@ def load_mapping(cls: Type[L], f: IO[bytes]) -> Mapping[Hashable, L]:
         return {name: cls.load(archive.open(name, "r")) for name in archive.namelist()}
 
 
-class PytorchModel(Dumpable, Loadable):
+@io.register("pytorch_predictor")
+class PytorchPredictor(Predictor):
+
+    _MODEL_FILENAME = "weight.pt"
+    _CONFIG_FILENAME = "config.yaml"
+    _SCALERS_FILENAME = "scalers.zip"
+
+    def __init__(
+        self,
+        input_variables: Iterable[Hashable],
+        output_variables: Iterable[Hashable],
+        model: nn.Module,
+        scalers: Mapping[Hashable, StandardScaler],
+    ):
+        """Initialize the predictor
+        Args:
+            state_variables: names of state variables
+            model: pytorch model to wrap
+            scalers: normalization data for each of the state variables
+        """
+        self.input_variables = input_variables
+        self.output_variables = output_variables
+        self.model = model
+        self.scalers = scalers
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        """
+        Predict an output xarray dataset from an input xarray dataset.
+
+        Note that returned datasets include the initial state of the prediction,
+        where by definition the model will have perfect skill.
+
+        Args:
+            X: input dataset
+            timesteps: number of timesteps to predict
+
+        Returns:
+            predicted: predicted timeseries data
+            reference: true timeseries data from the input dataset
+        """
+        tensor = self.pack_to_tensor(X)
+        with torch.no_grad():
+            outputs = self.model(tensor)
+        predicted = self.unpack_tensor(outputs)
+        return predicted
+
+    def pack_to_tensor(self, X: xr.Dataset) -> torch.Tensor:
+        packed = _pack_to_tensor(
+            ds=X,
+            timesteps=0,
+            state_variables=self.input_variables,
+            scalers=self.scalers,
+        )
+        # dimensions are [time, tile, x, y, z],
+        # we must combine [time, tile] into one sample dimension
+        return torch.reshape(
+            packed, (packed.shape[0] * packed.shape[1],) + tuple(packed.shape[2:]),
+        )
+
+    def unpack_tensor(self, data: torch.Tensor) -> xr.Dataset:
+        data = torch.reshape(data, (-1, 6) + tuple(data.shape[1:]))
+        return _unpack_tensor(
+            data,
+            varnames=self.output_variables,
+            scalers=self.scalers,
+            dims=["time", "tile", "x", "y", "z"],
+        )
+
+    @classmethod
+    def load(cls, path: str) -> "PytorchPredictor":
+        """Load a serialized model from a directory."""
+        return _load_pytorch(cls, path)
+
+    def dump(self, path: str) -> None:
+        _dump_pytorch(self, path)
+
+    def get_config(self):
+        return {
+            "input_variables": self.input_variables,
+            "output_variables": self.output_variables,
+        }
+
+
+@io.register("pytorch_autoregressor")
+class PytorchAutoregressor(Reloadable):
 
     _MODEL_FILENAME = "weight.pt"
     _CONFIG_FILENAME = "config.yaml"
@@ -99,25 +195,12 @@ class PytorchModel(Dumpable, Loadable):
         Returns:
             xarray dataset with values of shape [window, time, tile, x, y, feature]
         """
-        i_feature = 0
-        data_vars = {}
-        all_dims = ["window", "time", "tile", "x", "y", "z"]
-        for varname in self.state_variables:
-            mean_value = self.scalers[varname].mean
-            if mean_value is None:
-                raise RuntimeError(f"scaler for {varname} has not been fit")
-            else:
-                if len(mean_value.shape) > 0 and mean_value.shape[0] > 1:
-                    n_features = mean_value.shape[0]
-                    var_data = data[..., i_feature : i_feature + n_features]
-                else:
-                    n_features = 1
-                    var_data = data[..., i_feature]
-                data_vars[varname] = xr.DataArray(
-                    data=var_data, dims=all_dims[: len(var_data.shape)]
-                )
-                i_feature += n_features
-        return xr.Dataset(data_vars=data_vars)
+        return _unpack_tensor(
+            data,
+            varnames=self.state_variables,
+            scalers=self.scalers,
+            dims=["window", "time", "tile", "x", "y", "z"],
+        )
 
     def step_model(self, state: torch.Tensor, timesteps: int):
         """
@@ -160,30 +243,65 @@ class PytorchModel(Dumpable, Loadable):
         return predicted, reference
 
     @classmethod
-    def load(cls, path: str) -> "PytorchModel":
+    def load(cls, path: str) -> "PytorchAutoregressor":
         """Load a serialized model from a directory."""
-        fs = vcm.get_fs(path)
-        model_filename = os.path.join(path, cls._MODEL_FILENAME)
-        with fs.open(model_filename, "rb") as f:
-            model = torch.load(f)
-        with fs.open(os.path.join(path, cls._SCALERS_FILENAME), "rb") as f:
-            scalers = load_mapping(StandardScaler, f)
-        with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
-            config = yaml.load(f, Loader=yaml.Loader)
-        obj = cls(
-            state_variables=config["state_variables"], model=model, scalers=scalers,
-        )
-        return obj
+        return _load_pytorch(cls, path)
 
     def dump(self, path: str) -> None:
-        fs = vcm.get_fs(path)
-        model_filename = os.path.join(path, self._MODEL_FILENAME)
-        with fs.open(model_filename, "wb") as f:
-            torch.save(self.model, model_filename)
-        with fs.open(os.path.join(path, self._SCALERS_FILENAME), "wb") as f:
-            dump_mapping(self.scalers, f)
-        with fs.open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
-            f.write(yaml.dump({"state_variables": self.state_variables}))
+        _dump_pytorch(self, path)
+
+    def get_config(self) -> Mapping[str, Any]:
+        return {"state_variables": self.state_variables}
+
+
+class PytorchDumpable(Protocol):
+    _MODEL_FILENAME: str
+    _SCALERS_FILENAME: str
+    _CONFIG_FILENAME: str
+    scalers: Mapping[Hashable, StandardScaler]
+    model: torch.nn.Module
+
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        scalers: Mapping[Hashable, StandardScaler],
+        **kwargs,
+    ):
+        ...
+
+    def dump(self, path: str) -> None:
+        ...
+
+    def get_config(self) -> Mapping[str, Any]:
+        """
+        Returns additional keyword arguments needed to initialize this object.
+        """
+        ...
+
+
+def _load_pytorch(cls: Type[PytorchDumpable], path: str):
+    """Load a serialized model from a directory."""
+    fs = vcm.get_fs(path)
+    model_filename = os.path.join(path, cls._MODEL_FILENAME)
+    with fs.open(model_filename, "rb") as f:
+        model = torch.load(f)
+    with fs.open(os.path.join(path, cls._SCALERS_FILENAME), "rb") as f:
+        scalers = load_mapping(StandardScaler, f)
+    with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+        config = yaml.load(f, Loader=yaml.Loader)
+    obj = cls(model=model, scalers=scalers, **config)
+    return obj
+
+
+def _dump_pytorch(obj: PytorchDumpable, path: str) -> None:
+    fs = vcm.get_fs(path)
+    model_filename = os.path.join(path, obj._MODEL_FILENAME)
+    with fs.open(model_filename, "wb") as f:
+        torch.save(obj.model, model_filename)
+    with fs.open(os.path.join(path, obj._SCALERS_FILENAME), "wb") as f:
+        dump_mapping(obj.scalers, f)
+    with fs.open(os.path.join(path, obj._CONFIG_FILENAME), "w") as f:
+        f.write(yaml.dump(obj.get_config()))
 
 
 def _pack_to_tensor(
@@ -211,10 +329,11 @@ def _pack_to_tensor(
 
     expected_dims = ("time", "tile", "x", "y", "z")
     ds = ds.transpose(*expected_dims)
-    n_times = ds.time.size
-    n_windows = int((n_times - 1) // timesteps)
-    # times need to be evenly divisible into windows
-    ds = ds.isel(time=slice(None, n_windows * timesteps + 1))
+    if timesteps > 0:
+        n_times = ds.time.size
+        n_windows = int((n_times - 1) // timesteps)
+        # times need to be evenly divisible into windows
+        ds = ds.isel(time=slice(None, n_windows * timesteps + 1))
     all_data = []
     for varname in state_variables:
         var_dims = ds[varname].dims
@@ -224,16 +343,48 @@ def _pack_to_tensor(
             )
         data = ds[varname].values
         normalized_data = scalers[varname].normalize(data)
-        # segment time axis into windows, excluding last time of each window
-        data = normalized_data[:-1, :].reshape(n_windows, timesteps, *data.shape[1:])
-        # append first time of next window to end of each window
-        end_data = np.concatenate(
-            [data[1:, :1, :], normalized_data[None, -1:, :]], axis=0
-        )
-        data = np.concatenate([data, end_data], axis=1)
+        if timesteps > 0:
+            # segment time axis into windows, excluding last time of each window
+            data = normalized_data[:-1, :].reshape(
+                n_windows, timesteps, *data.shape[1:]
+            )
+            # append first time of next window to end of each window
+            end_data = np.concatenate(
+                [data[1:, :1, :], normalized_data[None, -1:, :]], axis=0
+            )
+            data = np.concatenate([data, end_data], axis=1)
+        else:
+            data = normalized_data
         if "z" not in var_dims:
             # need a z-axis for concatenation into feature axis
             data = data[..., np.newaxis]
         all_data.append(data)
     concatenated_data = np.concatenate(all_data, axis=-1)
     return torch.as_tensor(concatenated_data).float().to(DEVICE)
+
+
+def _unpack_tensor(
+    data: torch.Tensor,
+    varnames: Iterable[Hashable],
+    scalers: Mapping[Hashable, StandardScaler],
+    dims: Sequence[Hashable],
+) -> xr.Dataset:
+    i_feature = 0
+    data_vars = {}
+    for varname in varnames:
+        mean_value = scalers[varname].mean
+        if mean_value is None:
+            raise RuntimeError(f"scaler for {varname} has not been fit")
+        else:
+            if len(mean_value.shape) > 0 and mean_value.shape[0] > 1:
+                n_features = mean_value.shape[0]
+                var_data = data[..., i_feature : i_feature + n_features]
+            else:
+                n_features = 1
+                var_data = data[..., i_feature]
+            var_data = scalers[varname].denormalize(var_data)
+            data_vars[varname] = xr.DataArray(
+                data=var_data, dims=dims[: len(var_data.shape)]
+            )
+            i_feature += n_features
+    return xr.Dataset(data_vars=data_vars)

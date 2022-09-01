@@ -2,6 +2,7 @@ import os
 import pytest
 
 from fv3fit._shared.io import dump, load, register, _Register
+import fv3fit
 
 
 def test_Register_get_name():
@@ -51,9 +52,12 @@ def test_register_dump_load(tmpdir):
     relative_path = "some_path"
 
     @register("mock1")
-    class Mock1:
+    class Mock1(fv3fit.Predictor):
         def __init__(self, data):
             self.data = data
+
+        def predict(self, X):
+            pass
 
         @staticmethod
         def load(path: str):

@@ -103,7 +103,7 @@ class RunDiagnostics:
     def __post_init__(self):
         # indexes for faster lookup
         self._attrs = {ds.run: ds.attrs for ds in self.diagnostics}
-        self._varnames = {ds.run: set(ds) for ds in self.diagnostics}
+        self._varnames = {ds.run: set(ds.variables) for ds in self.diagnostics}
         self._run_index = {ds.run: k for k, ds in enumerate(self.diagnostics)}
 
     @property
@@ -114,7 +114,7 @@ class RunDiagnostics:
     @property
     def variables(self) -> Set[str]:
         """The available variables"""
-        return set.union(*[set(d) for d in self.diagnostics])
+        return set.union(*[set(d.variables) for d in self.diagnostics])
 
     @property
     def long_names(self) -> Mapping[str, str]:
@@ -370,6 +370,7 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
         "histogram": "hist_bias",
         "hist_2d": "hist2d_bias",
         "pressure_level_zonal_time_mean": "pressure_level_zonal_bias",
+        "deep_tropical_meridional_mean_value": "deep_tropical_meridional_mean_bias",
     }
     for mean_filter, bias_filter in mean_bias_pairs.items():
         mean_vars = [var for var in ds if mean_filter in var]
