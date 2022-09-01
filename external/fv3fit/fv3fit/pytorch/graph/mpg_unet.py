@@ -86,7 +86,7 @@ class MPNNGNN(nn.Module):
         self.relu = activation.instance
         self.out_features = node_hidden_channels
 
-    def forward(self, input: torch.Tensor):
+    def forward(self, inputs: torch.Tensor):
         """
         Performs message passing and updates node representations.
 
@@ -97,17 +97,19 @@ class MPNNGNN(nn.Module):
             output : output node representations.
         """
 
-        output = torch.zeros(
-            input.size(0),
-            input.size(1),
-            input.size(2),
-            input.size(3),
+        outputs = torch.zeros(
+            inputs.size(0),
+            inputs.size(1),
+            inputs.size(2),
+            inputs.size(3),
             self.out_features,
         )  # initialize the updated node features (n_batch,tile,x,y,features)
 
-        for batch in range(input.size(0)):  # for loop over the n_batch since dgl NNConv
+        for batch in range(
+            inputs.size(0)
+        ):  # for loop over the n_batch since dgl NNConv
             # only accepts data in (nodes, features) format
-            node_features = input[batch].squeeze()
+            node_features = inputs[batch].squeeze()
             in_size = node_features.size()
             node_features = node_features.reshape(
                 node_features.shape[0]
@@ -131,10 +133,10 @@ class MPNNGNN(nn.Module):
                     node_features.unsqueeze(0), hidden_features
                 )
                 node_features = node_features.squeeze(0)
-            output[batch] = node_features.reshape(
+            outputs[batch] = node_features.reshape(
                 in_size[0], in_size[1], in_size[2], node_features.size(1)
             )  # reshape (tile * x * y, features) to (tile, x, y, features)
-        return output
+        return outputs
 
 
 class Down(nn.Module):
