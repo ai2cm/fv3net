@@ -91,10 +91,10 @@ class MPNNGNN(nn.Module):
         Performs message passing and updates node representations.
 
         Args:
-            input : input node features.
+            inputs : input node features.
 
         Returns:
-            output : output node representations.
+            outputs : output node representations.
         """
 
         outputs = torch.zeros(
