@@ -27,9 +27,7 @@ class GraphUNetConfig:
         default_factory=lambda: ActivationConfig()
     )
 
-    def build(
-        self, in_channels: int, out_channels: int, nx: int,
-    ):
+    def build(self, in_channels: int, out_channels: int, nx: int,) -> "GraphUNet":
         return GraphUNet(self, in_channels=in_channels, out_channels=out_channels)
 
 
@@ -42,7 +40,7 @@ class CubedSphereGraphOperation(nn.Module):
         super().__init__()
         self.graph_op = graph_op
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """
         Args:
             inputs: tensor of shape (batch_size, n_tiles, n_x, n_y, n_features)
@@ -69,7 +67,13 @@ class DoubleConv(nn.Module):
     A class which applies 2 graph convolution layers, each followed by an activation.
     """
 
-    def __init__(self, in_channels, hidden_channels, activation, aggregator):
+    def __init__(
+        self,
+        in_channels: int,
+        hidden_channels: int,
+        activation: nn.modules,
+        aggregator: str,
+    ):
         super(DoubleConv, self).__init__()
         self.conv = nn.Sequential(
             CubedSphereGraphOperation(
@@ -82,7 +86,7 @@ class DoubleConv(nn.Module):
             activation.instance,
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         x = self.conv(x)
         return x
 
@@ -99,7 +103,7 @@ class Down(nn.Module):
             kernel_size=config.pooling_size, stride=config.pooling_stride
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         batch_size, n_tiles, n_x, n_y, n_features = x.size()
         x = x.permute(
             0, 1, 4, 2, 3
@@ -116,7 +120,7 @@ class Up(nn.Module):
     A class for the processes on each level of up path of the U-Net
     """
 
-    def __init__(self, config, in_channels):
+    def __init__(self, config: GraphUNetConfig, in_channels: int):
         """
         Args:
             in_channels: size of input channels
@@ -129,7 +133,7 @@ class Up(nn.Module):
             stride=config.pooling_stride,
         )
 
-    def forward(self, x1):
+    def forward(self, x1: torch.Tensor):
         batch_size, n_tiles, n_x, n_y, n_features = x1.size()
         x1 = x1.permute(
             0, 1, 4, 2, 3
@@ -151,14 +155,20 @@ class UNet(nn.Module):
     """
 
     def __init__(
-        self, config, down_factory, up_factory, depth: int, in_channels: int,
+        self,
+        config: GraphUNetConfig,
+        down_factory,
+        up_factory,
+        depth: int,
+        in_channels: int,
     ):
         """
         Args:
+            config: Model configuration
             down_factory: double-convolution followed
-                by a pooling layer on the down-path side
+            by a pooling layer on the down-path side
             up_factory: Upsampling followed by
-                double-convolution on the up-path side
+            double-convolution on the up-path side
             depth: depth of the UNet
             in_channels: number of input channels
         """
@@ -193,7 +203,7 @@ class UNet(nn.Module):
         self._up = up_factory(in_channels=lower_channels * 2)
         self.depth = depth
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         before_pooling = self.conv1(inputs)
         x = self._down(before_pooling)
         x = self._lower(x)
@@ -204,7 +214,7 @@ class UNet(nn.Module):
 
 
 class GraphUNet(nn.Module):
-    def __init__(self, config, in_channels: int, out_channels: int):
+    def __init__(self, config: GraphUNetConfig, in_channels: int, out_channels: int):
         """
         Args:
             in_channels: number of input channels
@@ -237,10 +247,11 @@ class GraphUNet(nn.Module):
             in_channels=config.min_filters,
         )
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """
         Args:
             inputs: tensor of shape (batch_size, n_tiles, n_x, n_y, n_features)
+
         Returns:
             tensor of shape (batch_size, n_tiles, n_x, n_y, n_features_out)
         """

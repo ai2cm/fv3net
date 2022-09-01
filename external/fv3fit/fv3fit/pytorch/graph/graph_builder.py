@@ -60,13 +60,16 @@ def build_dgl_graph(nx_tile: int) -> dgl.DGLGraph:
 
 
 @functools.lru_cache(maxsize=64)
-def build_dgl_graph_with_edge(nx_tile: int):
+def build_dgl_graph_with_edge(nx_tile: int) -> Tuple[dgl.DGLGraph, torch.Tensor]:
     """
-    Returns
-    g: A DGL graph of the cubed sphere.
-    edge_relation: edge features contain lat and lon
-                    relations between reference points and their neighbours
-                    (use fro networks with eadge features)
+    Args:
+        nx: Number of horizontal grids in x and y per tile
+
+    Returns:
+        g: a DGL graph of the cubed sphere.
+        edge_relation: edge features contain (x,y,z) relations
+            between reference points and their neighbors
+            (use for networks with edge features)
     """
     graph_data = build_graph(nx_tile)
     graph_tensor = torch.tensor(graph_data)

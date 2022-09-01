@@ -31,9 +31,7 @@ class MPGraphUNetConfig:
         default_factory=lambda: ActivationConfig()
     )
 
-    def build(
-        self, in_channels: int, out_channels: int, nx: int,
-    ):
+    def build(self, in_channels: int, out_channels: int, nx: int,) -> "MPGraphUNet":
         return MPGraphUNet(
             self, in_channels=in_channels, out_channels=out_channels, nx=nx
         )
@@ -42,31 +40,26 @@ class MPGraphUNetConfig:
 class MPNNGNN(nn.Module):
     def __init__(
         self,
-        node_in_channels,
-        node_hidden_channels,
-        edge_hidden_channels,
-        num_step_message_passing,
-        activation,
-        aggregator,
-        nx,
+        node_in_channels: int,
+        node_hidden_channels: int,
+        edge_hidden_channels: int,
+        num_step_message_passing: int,
+        activation: nn.modules,
+        aggregator: str,
+        nx: int,
     ):
         """
         MPNN is introduced in `Neural Message Passing for Quantum Chemistry
         <https://arxiv.org/abs/1704.01212>`__.
 
         Args:
-        ----------
-        node_in_channels : int
-            Size for the input node channels.
-        node_hidden_channels : int
-            Size for the hidden node representations.
-        edge_hidden_channels : int
-            Size for the hidden edge representations.
-        num_step_message_passing : int
-            Number of message passing steps.
-        activation: activation function
-        aggregator: aggregator type, one of 'sum', 'mean', 'max'
-        nx: number of horizontal grid points on each tile of the cubed sphere
+            node_in_channels : size for the input node channels.
+            node_hidden_channels : size for the hidden node representations.
+            edge_hidden_channels : size for the hidden edge representations.
+            num_step_message_passing : number of message passing steps.
+            activation: activation function
+            aggregator: aggregator type, one of 'sum', 'mean', 'max'
+            nx: number of horizontal grid points on each tile of the cubed sphere
         """
         super(MPNNGNN, self).__init__()
         self.graph, self.edge_relation = build_dgl_graph_with_edge(nx_tile=nx)
@@ -93,15 +86,16 @@ class MPNNGNN(nn.Module):
         self.relu = activation.instance
         self.out_features = node_hidden_channels
 
-    def forward(self, in_node_features):
-        """Performs message passing and updates node representations.
+    def forward(self, in_node_features: torch.Tensor):
+
+        """
+        Performs message passing and updates node representations.
 
         Args:
-        g : DGL graph
-        in_node_features : Input node features.
+            in_node_features : input node features.
 
         Returns:
-        out_node_features : Output node representations.
+            out_node_features : output node representations.
         """
 
         out_node_features = torch.zeros(
@@ -156,7 +150,7 @@ class Down(nn.Module):
         super(Down, self).__init__()
         self.pool = nn.AvgPool2d(kernel_size=pooling_size, stride=pooling_stride)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         batch_size, n_tiles, n_x, n_y, n_features = x.size()
         x = x.permute(
             0, 1, 4, 2, 3
@@ -186,7 +180,7 @@ class Up(nn.Module):
             stride=pooling_stride,
         )
 
-    def forward(self, x1):
+    def forward(self, x1: torch.Tensor):
         batch_size, n_tiles, n_x, n_y, n_features = x1.size()
         x1 = x1.permute(
             0, 1, 4, 2, 3
@@ -208,13 +202,20 @@ class UNet(nn.Module):
     """
 
     def __init__(
-        self, config, down_factory, up_factory, depth: int, in_channels: int, nx: int
+        self,
+        config: MPGraphUNetConfig,
+        down_factory,
+        up_factory,
+        depth: int,
+        in_channels: int,
+        nx: int,
     ):
         """
         Args:
+            config: Model configuration
             down_factory: double-convolution followed
                 by a pooling layer on the down-path side
-            up_factory: Upsampling followed by
+            up_factory: upsampling followed by
                 double-convolution on the up-path side
             depth: depth of the UNet
             in_channels: number of input channels
@@ -268,7 +269,7 @@ class UNet(nn.Module):
             )
         self._up = up_factory(in_channels=node_lower_channels * 2)
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         before_pooling = self.conv1(inputs)
         x = self._down(before_pooling)
         x = self._lower(x)
@@ -279,10 +280,14 @@ class UNet(nn.Module):
 
 
 class MPGraphUNet(nn.Module):
-    def __init__(self, config, in_channels: int, out_channels: int, nx: int):
+    def __init__(
+        self, config: MPGraphUNetConfig, in_channels: int, out_channels: int, nx: int
+    ):
         """
         Args:
-            in_channels: number of input channels
+            config: Network configuration
+            in_channels: Number of input channels
+            out_channels: Number of output channels
         """
 
         super(MPGraphUNet, self).__init__()
@@ -318,10 +323,11 @@ class MPGraphUNet(nn.Module):
             nx=nx,
         )
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """
         Args:
             inputs: tensor of shape (batch_size, n_tiles, n_x, n_y, n_features)
+
         Returns:
             tensor of shape (batch_size, n_tiles, n_x, n_y, n_features_out)
         """
