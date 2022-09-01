@@ -86,31 +86,28 @@ class MPNNGNN(nn.Module):
         self.relu = activation.instance
         self.out_features = node_hidden_channels
 
-    def forward(self, in_node_features: torch.Tensor):
-
+    def forward(self, input: torch.Tensor):
         """
         Performs message passing and updates node representations.
 
         Args:
-            in_node_features : input node features.
+            input : input node features.
 
         Returns:
-            out_node_features : output node representations.
+            output : output node representations.
         """
 
-        out_node_features = torch.zeros(
-            in_node_features.size(0),
-            in_node_features.size(1),
-            in_node_features.size(2),
-            in_node_features.size(3),
+        output = torch.zeros(
+            input.size(0),
+            input.size(1),
+            input.size(2),
+            input.size(3),
             self.out_features,
         )  # initialize the updated node features (n_batch,tile,x,y,features)
 
-        for batch in range(
-            in_node_features.size(0)
-        ):  # for loop over the n_batch since dgl NNConv
+        for batch in range(input.size(0)):  # for loop over the n_batch since dgl NNConv
             # only accepts data in (nodes, features) format
-            node_features = in_node_features[batch].squeeze()
+            node_features = input[batch].squeeze()
             in_size = node_features.size()
             node_features = node_features.reshape(
                 node_features.shape[0]
@@ -134,10 +131,10 @@ class MPNNGNN(nn.Module):
                     node_features.unsqueeze(0), hidden_features
                 )
                 node_features = node_features.squeeze(0)
-            out_node_features[batch] = node_features.reshape(
+            output[batch] = node_features.reshape(
                 in_size[0], in_size[1], in_size[2], node_features.size(1)
             )  # reshape (tile * x * y, features) to (tile, x, y, features)
-        return out_node_features
+        return output
 
 
 class Down(nn.Module):
@@ -146,7 +143,12 @@ class Down(nn.Module):
     reduce the resolution by applying pooling layer
     """
 
-    def __init__(self, pooling_size, pooling_stride):
+    def __init__(self, pooling_size: int, pooling_stride: int):
+        """
+        Args:
+            pooling_size: size of the pooling kernel
+            pooling_stride: pooling layer stride
+        """
         super(Down, self).__init__()
         self.pool = nn.AvgPool2d(kernel_size=pooling_size, stride=pooling_stride)
 
@@ -167,9 +169,11 @@ class Up(nn.Module):
     A class for the processes on each level of up path of the U-Net
     """
 
-    def __init__(self, pooling_size, pooling_stride, in_channels):
+    def __init__(self, pooling_size: int, pooling_stride: int, in_channels: int):
         """
         Args:
+            pooling_size: size of the pooling kernel
+            pooling_stride: pooling layer stride
             in_channels: size of input channels
         """
         super(Up, self).__init__()
