@@ -58,8 +58,12 @@ from fv3fit.emulation.transforms import (
 )
 from fv3fit.emulation.transforms.zhao_carr import CloudLimiter
 from fv3fit.emulation.zhao_carr.models import PrecpdModelConfig
+from fv3fit.emulation.flux import (
+    TendencyToFlux,
+    MoistStaticEnergyTransform,
+    SurfaceFlux,
+)
 from fv3fit.emulation.zhao_carr.filters import HighAntarctic
-from fv3fit.emulation.flux import TendencyToFlux, MoistStaticEnergyTransform
 
 from fv3fit.emulation.layers.normalization import standard_deviation_all_features
 from fv3fit.wandb import (
@@ -92,6 +96,7 @@ TransformT = Union[
     MicrophysicsClassesV1OneHot,
     TendencyToFlux,
     MoistStaticEnergyTransform,
+    SurfaceFlux,
     GscondRoute,
     PrecpdOnly,
     CloudLimiter,
