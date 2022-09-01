@@ -15,27 +15,31 @@ from typing import (
     Type,
     Dict,
     MutableMapping,
+    TypeVar,
 )
 
 from fv3fit.typing import Dataclass
 from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
 from fv3fit._shared.config import CacheConfig, PackerConfig
 import xarray as xr
-from .predictor import Predictor
+from .predictor import Dumpable
 from .hyperparameters import Hyperparameters
 import dacite
 import numpy as np
 import random
 import warnings
 import vcm
+import torch
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
 
 
 TrainingFunction = Callable[
-    [Dataclass, Sequence[xr.Dataset], Sequence[xr.Dataset]], Predictor
+    [Dataclass, Sequence[xr.Dataset], Sequence[xr.Dataset]], Dumpable
 ]
+
+TF = TypeVar("TF", bound=TrainingFunction)
 
 
 def set_random_seed(seed: Union[float, int] = 0):
@@ -44,6 +48,7 @@ def set_random_seed(seed: Union[float, int] = 0):
     np.random.seed(seed + 1)
     random.seed(seed + 2)
     tf.random.set_seed(seed + 3)
+    torch.manual_seed(seed + 4)
 
 
 # TODO: delete this routine by refactoring the tests to no longer depend on it
@@ -142,7 +147,7 @@ def register_training_function(name: str, hyperparameter_class: type):
     to be usable in training configuration.
     """
 
-    def decorator(func: TrainingFunction) -> TrainingFunction:
+    def decorator(func: TF) -> TF:
         TRAINING_FUNCTIONS[name] = (func, hyperparameter_class)
         return func
 

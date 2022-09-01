@@ -67,6 +67,7 @@ def plot_2d_matplotlib(
     varfilter: str,
     dims: Tuple[str, str],
     contour=False,
+    figsize=None,
     **opts,
 ) -> RawHTML:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
@@ -88,7 +89,7 @@ def plot_2d_matplotlib(
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
             long_name_and_units = f"{v.long_name} [{v.units}]"
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=figsize)
             if contour:
                 levels = CONTOUR_LEVELS.get(varname)
                 xr.plot.contourf(

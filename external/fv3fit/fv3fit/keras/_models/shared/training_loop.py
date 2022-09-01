@@ -2,6 +2,7 @@ import tensorflow as tf
 from typing import Iterable, Optional, Sequence, Tuple
 import dataclasses
 import logging
+from fv3fit.tfdataset import sequence_size
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +27,6 @@ class EpochResult:
     epoch: int
     batch_logs: Sequence[Logs]
     epoch_logs: Logs
-
-
-def sequence_size(seq):
-    n = 0
-    for _ in seq:
-        n += 1
-    return n
 
 
 def _tfdataset_to_tensor_sequence(

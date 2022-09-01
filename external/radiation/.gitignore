@@ -9,6 +9,7 @@
 *.json
 *.sdfg
 *.x
+*.tar.gz
 python/radlw/taugb10
 fortran/progcld4
 fortran/setaer

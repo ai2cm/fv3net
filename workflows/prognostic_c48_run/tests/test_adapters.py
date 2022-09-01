@@ -80,3 +80,14 @@ def test_MultiModelAdapter_exception_on_output_overlap():
     combined_model = MultiModelAdapter([model0, model1])
     with pytest.raises(xr.MergeError):
         combined_model.predict(ds)
+
+
+def test_MultiModelAdapter_scales_predictions():
+    ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})
+    model0 = MockPredictor(output_variables=["y0"], input_variables=["x"])
+    model1 = MockPredictor(output_variables=["y1"], input_variables=["x"])
+    combined_model = MultiModelAdapter([model0, model1], scaling={"y0": 2.0})
+    out = combined_model.predict(ds)
+    assert "y0" in out.data_vars and "y1" in out.data_vars
+    np.testing.assert_array_equal(out["y0"], 2.0)
+    np.testing.assert_array_equal(out["y1"], 1.0)

@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Hashable, Mapping
+from typing import Hashable, Mapping, cast
 import logging
 import io
 import dacite
@@ -44,7 +44,7 @@ def train_random_forest(
     hyperparameters: RandomForestHyperparameters,
     train_batches: tf.data.Dataset,
     validation_batches: tf.data.Dataset,
-):
+) -> "RandomForest":
     """
     Args:
         hyperparameters: configuration for training
@@ -100,6 +100,16 @@ class RandomForest(Predictor):
         self.input_variables = self._model_wrapper.input_variables
         self.output_variables = self._model_wrapper.output_variables
 
+    @classmethod
+    def from_sklearn_wrapper(self, wrapper: "SklearnWrapper") -> "RandomForest":
+        return_value = RandomForest(
+            cast(Iterable[str], wrapper.input_variables),
+            cast(Iterable[str], wrapper.output_variables),
+            RandomForestHyperparameters(input_variables=[], output_variables=[],),
+        )
+        return_value._model_wrapper = wrapper
+        return return_value
+
     def fit(self, batches: tf.data.Dataset):
         return self._model_wrapper.fit(batches)
 
@@ -115,8 +125,8 @@ class RandomForest(Predictor):
         self._model_wrapper.dump(path)
 
     @classmethod
-    def load(cls, path: str) -> "SklearnWrapper":
-        return SklearnWrapper.load(path)
+    def load(cls, path: str) -> "RandomForest":
+        return RandomForest.from_sklearn_wrapper(SklearnWrapper.load(path))
 
 
 class _RegressorEnsemble:
@@ -343,13 +353,17 @@ class SklearnWrapper(Predictor):
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
         input_variables = metadata["input_variables"]
         output_variables = metadata["output_variables"]
-        output_features_dict = metadata["output_features"]
         packer_config_dict = metadata.get("packer_config", {})
-        output_features_ = dacite.from_dict(PackingInfo, data=output_features_dict)
         packer_config = dacite.from_dict(PackerConfig, packer_config_dict)
 
         obj = cls(input_variables, output_variables, model, packer_config=packer_config)
         obj.target_scaler = scaler_obj
+        output_features_dict = metadata["output_features"]
+        if isinstance(output_features_dict, dict):
+            output_features_ = dacite.from_dict(PackingInfo, data=output_features_dict)
+        else:
+            # older model format, uses tuple instead
+            output_features_ = PackingInfo.from_tuples(output_features_dict[1])
         obj.output_features_ = output_features_
 
         return obj

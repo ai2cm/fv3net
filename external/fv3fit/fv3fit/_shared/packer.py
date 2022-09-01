@@ -46,6 +46,22 @@ class PackingInfo:
     names: Sequence[str]
     features: Sequence[int]
 
+    @classmethod
+    def from_tuples(cls, tuples):
+        current_name = None
+        names = []
+        features = []
+        for tup in tuples:
+            if len(tup) != 1:
+                raise ValueError("expected tuples containing only a variable name")
+            name = tup[0]
+            if name != current_name:
+                names.append(name)
+                features.append(0)
+                current_name = name
+            features[-1] += 1
+        return cls(names, features)
+
     @property
     def multi_index(self) -> pd.MultiIndex:
         entries = []

@@ -242,7 +242,7 @@ class PureKerasDictPredictor(Predictor):
         return os.path.join(path, cls._MODEL_FILENAME)
 
     @classmethod
-    def load(cls, path: str) -> "Predictor":
+    def load(cls, path: str) -> "PureKerasDictPredictor":
         """Load a serialized model from a directory."""
         model = tf.keras.models.load_model(cls._model_filename(path))
         return cls(model)

@@ -17,6 +17,9 @@ from .run import run_segment
 def read_last_segment(run_url):
     fs = vcm.get_fs(run_url)
     artifacts_dir = os.path.join(run_url, "artifacts")
+    # fsspec caches the ls call locally so it needs to be manually invalidated
+    # to get up-to-date listings
+    fs.invalidate_cache()
     try:
         segments = sorted(fs.ls(artifacts_dir))
     except FileNotFoundError:

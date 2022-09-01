@@ -156,6 +156,7 @@ class PrognosticJob(ToYaml):
     # See the source for more information.
     config: dict = dataclasses.field(repr=False)
     image_tag: str
+    fv3net_image_tag: str = "latest"
     bucket: str = "vcm-ml-experiments"
     project: str = "microphysics-emulation"
 
@@ -168,6 +169,7 @@ class PrognosticJob(ToYaml):
         return {
             "config": _encode(self.config),
             "image_tag": self.image_tag,
+            "fv3net_image_tag": self.fv3net_image_tag,
         }
 
     def to_yaml(self):
