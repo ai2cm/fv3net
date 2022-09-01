@@ -67,7 +67,7 @@ def build_dgl_graph_with_edge(nx_tile: int) -> Tuple[dgl.DGLGraph, torch.Tensor]
 
     Returns:
         g: a DGL graph of the cubed sphere.
-        edge_relation: edge features contain (x,y,z) relations
+        edge_relation: edge features contain (x,y,z) distances
             between reference points and their neighbors
             (use for networks with edge features)
     """

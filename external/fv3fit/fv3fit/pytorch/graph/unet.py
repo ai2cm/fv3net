@@ -27,7 +27,7 @@ class GraphUNetConfig:
         default_factory=lambda: ActivationConfig()
     )
 
-    def build(self, in_channels: int, out_channels: int, nx: int,) -> "GraphUNet":
+    def build(self, in_channels: int, out_channels: int, nx: int) -> "GraphUNet":
         return GraphUNet(self, in_channels=in_channels, out_channels=out_channels)
 
 

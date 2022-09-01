@@ -31,7 +31,7 @@ class MPGraphUNetConfig:
         default_factory=lambda: ActivationConfig()
     )
 
-    def build(self, in_channels: int, out_channels: int, nx: int,) -> "MPGraphUNet":
+    def build(self, in_channels: int, out_channels: int, nx: int) -> "MPGraphUNet":
         return MPGraphUNet(
             self, in_channels=in_channels, out_channels=out_channels, nx=nx
         )
