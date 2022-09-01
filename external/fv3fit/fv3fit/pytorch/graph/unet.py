@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import dataclasses
 from dgl.nn.pytorch import SAGEConv
-from typing import Callable
 from .graph_builder import build_dgl_graph
+from fv3fit.pytorch.activation import ActivationConfig
 
 
 @dataclasses.dataclass
@@ -23,7 +23,9 @@ class GraphUNetConfig:
     aggregator: str = "mean"
     pooling_size: int = 2
     pooling_stride: int = 2
-    activation: Callable = nn.ReLU()
+    activation: ActivationConfig = dataclasses.field(
+        default_factory=lambda: ActivationConfig()
+    )
 
     def build(
         self, in_channels: int, out_channels: int, nx: int,
@@ -73,11 +75,11 @@ class DoubleConv(nn.Module):
             CubedSphereGraphOperation(
                 SAGEConv(in_channels, hidden_channels, aggregator)
             ),
-            activation,
+            activation.instance,
             CubedSphereGraphOperation(
                 SAGEConv(hidden_channels, hidden_channels, aggregator)
             ),
-            activation,
+            activation.instance,
         )
 
     def forward(self, x):
@@ -220,7 +222,7 @@ class GraphUNet(nn.Module):
             CubedSphereGraphOperation(
                 SAGEConv(in_channels, config.min_filters, config.aggregator)
             ),
-            config.activation,
+            config.activation.instance,
         )
 
         self._last_conv = CubedSphereGraphOperation(

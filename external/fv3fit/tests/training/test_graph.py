@@ -77,7 +77,9 @@ def test_train_graph_network(tmpdir, network_type):
         get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
     if network_type == "MPG":
-        graph_network = MPGraphUNetConfig(num_step_message_passing=3)
+        graph_network = MPGraphUNetConfig(
+            num_step_message_passing=3, edge_hidden_features=4
+        )
         training_config = AutoregressiveTrainingConfig(n_epoch=100)
         optimizer = OptimizerConfig(kwargs={"lr": 0.001})
     elif network_type == "UNet":

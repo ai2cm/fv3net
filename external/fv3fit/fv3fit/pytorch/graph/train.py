@@ -6,7 +6,6 @@ from toolz.functoolz import curry
 from fv3fit.pytorch.predict import PytorchAutoregressor
 from fv3fit.pytorch.graph.mpg_unet import MPGraphUNetConfig
 from fv3fit.pytorch.graph.unet import GraphUNetConfig
-
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.training_loop import AutoregressiveTrainingConfig
@@ -50,7 +49,9 @@ class GraphHyperparameters(Hyperparameters):
         default_factory=lambda: OptimizerConfig("AdamW")
     )
     graph_network: Union[MPGraphUNetConfig, GraphUNetConfig] = dataclasses.field(
-        default_factory=lambda: MPGraphUNetConfig(num_step_message_passing=5)
+        default_factory=lambda: MPGraphUNetConfig(
+            num_step_message_passing=5, edge_hidden_features=4
+        )
     )
     training_loop: AutoregressiveTrainingConfig = dataclasses.field(
         default_factory=lambda: AutoregressiveTrainingConfig()
@@ -105,7 +106,6 @@ def train_graph_model(
         hyperparameters.graph_network, n_state=sample.shape[-1], nx=sample.shape[3],
     )
     optimizer = hyperparameters.optimizer_config
-
     hyperparameters.training_loop.fit_loop(
         train_model=train_model,
         train_data=train_state,

@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 import dataclasses
-from typing import Callable
 from .graph_builder import build_dgl_graph_with_edge
 from dgl.nn.pytorch import NNConv
+from fv3fit.pytorch.activation import ActivationConfig
 
 
 @dataclasses.dataclass
@@ -12,6 +12,7 @@ class MPGraphUNetConfig:
     Attributes:
         depth: depth of U-net architecture maximum
         min_filters: mimumum number of hidden channels after first convolution
+        edge_hidden_features: mimumum number of edge hidden channels
         num_step_message_passing : number of message passing steps.
         aggregator: type of aggregator, one of "mean", "sum", or "max"
         pooling_size: size of the pooling kernel
@@ -20,13 +21,15 @@ class MPGraphUNetConfig:
     """
 
     num_step_message_passing: int
+    edge_hidden_features: int
     depth: int = 1
     min_filters: int = 4
     aggregator: str = "mean"
-    edge_hidden_features: int = 4
     pooling_size: int = 2
     pooling_stride: int = 2
-    activation: Callable = nn.ReLU()
+    activation: ActivationConfig = dataclasses.field(
+        default_factory=lambda: ActivationConfig()
+    )
 
     def build(
         self, in_channels: int, out_channels: int, nx: int,
@@ -69,13 +72,13 @@ class MPNNGNN(nn.Module):
         self.graph, self.edge_relation = build_dgl_graph_with_edge(nx_tile=nx)
         self.project_node_features = nn.Sequential(
             nn.Linear(node_in_channels, node_hidden_channels),
-            activation,
+            activation.instance,
             nn.Linear(node_hidden_channels, node_hidden_channels),
         )
         self.num_step_message_passing = num_step_message_passing
         edge_network = nn.Sequential(
             nn.Linear(self.edge_relation.size(1), edge_hidden_channels),
-            activation,
+            activation.instance,
             nn.Linear(
                 edge_hidden_channels, node_hidden_channels * node_hidden_channels
             ),
@@ -87,7 +90,7 @@ class MPNNGNN(nn.Module):
             aggregator_type=aggregator,
         )
         self.gru = nn.GRU(node_hidden_channels, node_hidden_channels)
-        self.relu = activation
+        self.relu = activation.instance
         self.out_features = node_hidden_channels
 
     def forward(self, in_node_features):
@@ -302,7 +305,7 @@ class MPGraphUNet(nn.Module):
 
         self._last_layer = nn.Sequential(
             nn.Linear(config.min_filters * 2, config.min_filters),
-            nn.ReLU(),
+            config.activation.instance,
             nn.Linear(config.min_filters, out_channels),
         )
 
