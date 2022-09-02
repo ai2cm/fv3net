@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 from tempfile import NamedTemporaryFile
-from typing import List, Mapping, Sequence, Tuple
+from typing import List, Sequence, Tuple
 
 import yaml
 
@@ -12,7 +12,6 @@ import dataclasses
 import fsspec
 import fv3fit
 import loaders
-import numpy as np
 import vcm
 import xarray as xr
 from toolz import compose_left
@@ -113,18 +112,6 @@ def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
         ds.to_netcdf(tmpfile.name)
         vcm.get_fs(output_dir).put(tmpfile.name, output_file)
     logger.info(f"Writing netcdf to {output_file}")
-
-
-def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
-    logger.info("Calculating metrics mean and stddev over batches...")
-    metrics = {
-        var: {
-            "mean": float(np.mean(ds_metrics[var].values)),
-            "std": float(np.std(ds_metrics[var].values)),
-        }
-        for var in ds_metrics.data_vars
-    }
-    return metrics
 
 
 def _standardize_names(*args: xr.Dataset):
@@ -267,7 +254,9 @@ def _coarsen_transform(evaluation_resolution: int, prediction_resolution: int):
 
 
 def get_prediction(
-    config: loaders.BatchesConfig, model: fv3fit.Predictor, evaluation_grid: xr.Dataset
+    config: loaders.BatchesFromMapperConfig,
+    model: fv3fit.Predictor,
+    evaluation_grid: xr.Dataset,
 ) -> xr.Dataset:
 
     model_variables = _variables_to_load(model)
