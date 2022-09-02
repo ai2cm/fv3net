@@ -18,11 +18,9 @@ from vcm.cloud import get_fs
 from fv3net.artifacts.metadata import StepMetadata
 import yaml
 from fv3net.diagnostics.offline._helpers import (
-    get_metric_string,
     open_diagnostics_outputs,
     copy_outputs,
     tidy_title,
-    units_from_name,
     is_3d,
 )
 from fv3net.diagnostics.offline._select import plot_transect
@@ -320,10 +318,8 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
 
     for var_r2, var_bias in zip(scalar_vars_r2, scalar_vars_bias):
         values = {
-            "r2": get_metric_string(metrics[var_r2]),
-            "bias": " ".join(
-                [get_metric_string(metrics[var_bias]), units_from_name(var_bias)]
-            ),
+            "r2": "{:.2e}".format(metrics[var_r2]),
+            "bias": "{:.2e}".format(metrics[var_bias]),
         }
         metrics_formatted.append((var_r2.replace("_r2", ""), values))
 
@@ -393,8 +389,8 @@ def create_report(args):
             metadata["training_data_config"] = yaml.safe_load(f)
     if args.no_wandb is False:
         wandb_config = {
-            "training_data": metadata.pop("training_data_config"),
-            "model_training_config": metadata.pop("training_config"),
+            "training_data": metadata.pop("training_data_config", None),
+            "model_training_config": metadata.pop("training_config", None),
             "metadata": metadata,
         }
         wandb.init(config=wandb_config)
