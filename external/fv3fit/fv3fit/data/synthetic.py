@@ -15,8 +15,8 @@ class SyntheticNoise(TFDatasetLoader):
     ntime: int
     nx: int
     nz: int
+    noise_amplitude: float
     scalar_names: List[str] = dataclasses.field(default_factory=list)
-    noise_amplitude: float = 1.0
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
@@ -69,7 +69,11 @@ class SyntheticWaves(TFDatasetLoader):
         period_max: maximum period of waves
         phase_range: fraction of 2*pi to use for possible range of
             random phase, should be a value between 0 and 1.
+<<<<<<< HEAD
         type: one of "sinusoidal" or "square"
+=======
+        wave_type: one of "sinusoidal" or "square"
+>>>>>>> master
     """
 
     nsamples: int
@@ -77,6 +81,7 @@ class SyntheticWaves(TFDatasetLoader):
     ntime: int
     nx: int
     nz: int
+    wave_type: str
     scalar_names: List[str] = dataclasses.field(default_factory=list)
     scale_min: float = 0.0
     scale_max: float = 1.0
@@ -97,12 +102,15 @@ class SyntheticWaves(TFDatasetLoader):
                 variable name to variable value, and each value is a tensor whose
                 first dimension is the batch dimension
         """
-        if self.type == "sinusoidal":
+        if self.wave_type == "sinusoidal":
             func = np.sin
-        elif self.type == "square":
+        elif self.wave_type == "square":
 
             def func(x):
                 return np.sign(np.sin(x))
+
+        else:
+            raise ValueError(f"Invalid wave_type {self.wave_type}")
 
         dataset = get_waves_tfdataset(
             variable_names,

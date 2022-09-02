@@ -1,5 +1,6 @@
 import dask
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -8,6 +9,7 @@ from vcm.xarray_utils import (
     assert_identical_including_dtype,
     isclose,
     repeat,
+    weighted_mean_via_groupby_bins,
 )
 
 
@@ -109,3 +111,56 @@ def test_assert_identical_including_dtype(object_type):
 
     with pytest.raises(AssertionError):
         assert_identical_including_dtype(d, b)
+
+
+def test_weighted_mean_via_groupby_bins():
+    a = xr.DataArray(np.arange(10), dims=["x"], name="foo")
+    group = xr.DataArray(np.arange(10), dims=["x"], name="bar")
+    bins = np.array(np.arange(0, 11, 2))
+    weights = (group % 2) == 1
+
+    result = weighted_mean_via_groupby_bins(a, group, weights, bins)
+    expected_coordinate = pd.interval_range(start=0, end=10, freq=2)
+    expected = xr.DataArray(
+        np.arange(1, 11, 2, dtype=float),
+        dims=["bar_bins"],
+        coords=[expected_coordinate],
+        name="foo",
+    )
+    assert_identical_including_dtype(result, expected)
+
+
+def test_weighted_mean_via_groupby_bins_with_nans():
+    a = xr.DataArray(np.arange(10), dims=["x"], name="foo")
+    a = a.where((a % 5) > 2)  # Introduce some NaNs
+    group = xr.DataArray(np.arange(10), dims=["x"], name="bar")
+    bins = np.array(np.arange(0, 11, 5))
+
+    # This is just testing that NaNs are properly zeroed out in the weights,
+    # so we can use an array of ones to keep things simple.
+    weights = xr.ones_like(group)
+
+    result = weighted_mean_via_groupby_bins(a, group, weights, bins)
+    expected_coordinate = pd.interval_range(start=0, end=10, freq=5)
+    expected = xr.DataArray(
+        [3.5, 8.5], dims=["bar_bins"], coords=[expected_coordinate], name="foo"
+    )
+    assert_identical_including_dtype(result, expected)
+
+
+def test_weighted_mean_via_groupby_bins_dataset():
+    # This test just ensures the broadcasting behavior matches that
+    # of xarray's built-in groupby_bins.  The logic for computing weighted
+    # means and ignoring NaNs is tested at the DataArray level above.
+    a = xr.DataArray(np.arange(10), dims=["x"], name="foo", attrs={"units": "mm/day"})
+    b = xr.DataArray(np.arange(10), dims=["y"], name="bar", attrs={"units": "K"})
+    ds = xr.Dataset({a.name: a, b.name: b})
+
+    group = xr.DataArray(np.arange(10), dims=["x"], name="baz")
+    bins = np.array(np.arange(0, 11, 2))
+    weights = xr.ones_like(a)
+
+    result = weighted_mean_via_groupby_bins(ds, group, weights, bins)
+    with xr.set_options(keep_attrs=True):
+        expected = ds.groupby_bins(group, bins).mean()
+    assert_identical_including_dtype(result, expected)
