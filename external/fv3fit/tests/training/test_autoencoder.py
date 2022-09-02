@@ -11,7 +11,16 @@ import fv3fit.pytorch
 import fv3fit
 
 
-def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
+def get_synthetic_waves_tfdataset(nsamples, nbatch, ntime, nx, nz):
+    """
+    Returns a tfdataset of synthetic waves with varying period and amplitude.
+
+    Samples are dictionaries of tensors with shape
+    [batch, sample, time, tile, x, y, z].
+
+    Dataset contains a variable "a" which is vertically-resolved
+    and "b" which is a scalar.
+    """
     config = SyntheticWaves(
         nsamples=nsamples,
         nbatch=nbatch,
@@ -31,10 +40,14 @@ def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
 
 def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
     """
-    Returns a [time, tile, x, y, z] dataset needed for evaluation.
+    Takes a tfdataset whose samples all have the same shape, and converts
+    it to an xarray dataset with the given dimensions.
 
-    Assumes input samples have shape [sample, time, tile, x, y(, z)], will
-    concatenate samples along the time axis before returning.
+    Combines the first two dimensions into a single dimension labelled
+    according to the first entry of `dims`. This is done because we need
+    to convert [batch, sample] dimensions needed for tfdataset training
+    into a single [time] dimension which matches the xarray datasets we see
+    in production.
     """
     data_sequences = collections.defaultdict(list)
     for sample in tfdataset:
@@ -61,8 +74,12 @@ def test_autoencoder(tmpdir):
     nx = 32
     sizes = {"nbatch": 2, "ntime": 2, "nx": nx, "nz": 2}
     state_variables = ["a", "b"]
-    train_tfdataset = get_tfdataset(nsamples=20, **sizes)
-    val_tfdataset = get_tfdataset(nsamples=3, **sizes)
+    # dataset is random sinusoidal waves with varying amplitude and period
+    # doesn't particularly matter what the input data is, as long as the denoising
+    # autoencoder can learn to remove noise from its samples. A dataset of
+    # pure synthetic noise would not work, it must have some structure.
+    train_tfdataset = get_synthetic_waves_tfdataset(nsamples=20, **sizes)
+    val_tfdataset = get_synthetic_waves_tfdataset(nsamples=3, **sizes)
     hyperparameters = AutoencoderHyperparameters(
         state_variables=state_variables,
         generator=fv3fit.pytorch.GeneratorConfig(
@@ -73,10 +90,11 @@ def test_autoencoder(tmpdir):
         noise_amount=0.5,
     )
     predictor = train_autoencoder(hyperparameters, train_tfdataset, val_tfdataset)
-    # for test, need one continuous series so we consistently flip sign
     test_sizes = {"nbatch": 1, "ntime": 100, "nx": nx, "nz": 2}
+    # predict takes xarray datasets, so we have to convert
     test_xrdataset = tfdataset_to_xr_dataset(
-        get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
+        get_synthetic_waves_tfdataset(nsamples=1, **test_sizes),
+        dims=["time", "tile", "x", "y", "z"],
     )
     predicted = predictor.predict(test_xrdataset)
     reference = test_xrdataset
@@ -114,7 +132,8 @@ def test_autoencoder_overfit(tmpdir):
     nx = 32
     sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "nz": 2}
     state_variables = ["a", "b"]
-    train_tfdataset = get_tfdataset(nsamples=1, **sizes)
+    # for single-sample overfitting we can use any data, even pure noise
+    train_tfdataset = get_synthetic_waves_tfdataset(nsamples=1, **sizes)
     train_tfdataset = train_tfdataset.cache()  # needed to keep sample identical
     hyperparameters = AutoencoderHyperparameters(
         state_variables=state_variables,
@@ -128,7 +147,7 @@ def test_autoencoder_overfit(tmpdir):
     predictor = train_autoencoder(
         hyperparameters, train_tfdataset, validation_batches=None
     )
-    # for test, need one continuous series so we consistently flip sign
+    # predict takes xarray datasets, so we have to convert
     test_xrdataset = tfdataset_to_xr_dataset(
         train_tfdataset, dims=["time", "tile", "x", "y", "z"]
     )
