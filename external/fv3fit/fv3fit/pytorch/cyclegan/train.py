@@ -130,5 +130,9 @@ def train_autoencoder(
     return predictor
 
 
+def channels_first(data: tf.Tensor) -> tf.Tensor:
+    return tf.transpose(data, perm=[0, 3, 1, 2])
+
+
 def build_model(config: GeneratorConfig, n_state: int) -> Generator:
     return config.build(channels=n_state).to(DEVICE)

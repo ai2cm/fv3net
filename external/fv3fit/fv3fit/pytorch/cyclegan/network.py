@@ -4,6 +4,7 @@ import logging
 from typing import Callable, Literal, Protocol, Union
 import torch.nn as nn
 from toolz import curry
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -256,10 +257,8 @@ class Discriminator(nn.Module):
         )
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
 
-    def forward(self, inputs):
-        inputs = inputs.permute(0, 3, 1, 2)
-        outputs = self._sequential(inputs)
-        return outputs.permute(0, 2, 3, 1)
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return self._sequential(inputs)
 
 
 class Generator(nn.Module):
@@ -338,14 +337,11 @@ class Generator(nn.Module):
             padding="same",
         )
 
-    def forward(self, inputs):
-        # permute [batch, x, y, channels] to [batch, channels, x, y]
-        inputs = inputs.permute(0, 3, 1, 2)
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         x = self._first_conv(inputs)
         x = self._unet(x)
-        outputs = self._out_conv(x)
-        # permute [batch, channels, x, y] to [batch, x, y, channels]
-        return outputs.permute(0, 2, 3, 1)
+        outputs: torch.Tensor = self._out_conv(x)
+        return outputs
 
 
 class UNet(nn.Module):

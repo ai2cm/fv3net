@@ -110,7 +110,7 @@ def test_cyclegan(tmpdir):
     nx = 32
     sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "nz": 2}
     state_variables = ["a", "b"]
-    train_tfdataset = get_tfdataset(nsamples=100, **sizes)
+    train_tfdataset = get_tfdataset(nsamples=200, **sizes)
     val_tfdataset = get_tfdataset(nsamples=20, **sizes)
     hyperparameters = CycleGANHyperparameters(
         state_variables=state_variables,
@@ -131,7 +131,7 @@ def test_cyclegan(tmpdir):
             discriminator_weight=0.5,
         ),
         training_loop=CycleGANTrainingConfig(
-            n_epoch=20, samples_per_batch=1, validation_batch_size=10
+            n_epoch=30, samples_per_batch=20, validation_batch_size=10
         ),
     )
     predictor = train_cyclegan(hyperparameters, train_tfdataset, val_tfdataset)

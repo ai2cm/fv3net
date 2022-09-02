@@ -10,7 +10,7 @@ import xarray as xr
 import torch
 from fv3fit.pytorch.system import DEVICE
 import tensorflow_datasets as tfds
-from fv3fit.tfdataset import sequence_size
+from fv3fit.tfdataset import sequence_size, apply_to_tuple
 from fv3fit.pytorch.predict import (
     _load_pytorch,
     _dump_pytorch,
@@ -186,6 +186,10 @@ def get_Xy_map_fn(
     return Xy_map_fn
 
 
+def channels_first(data: tf.Tensor) -> tf.Tensor:
+    return tf.transpose(data, perm=[0, 3, 1, 2])
+
+
 @register_training_function("cyclegan", CycleGANHyperparameters)
 def train_cyclegan(
     hyperparameters: CycleGANHyperparameters,
@@ -233,9 +237,9 @@ def train_cyclegan(
     )
 
     # remove time and tile dimensions, while we're using regular convolution
-    train_state = train_state.unbatch().unbatch()
+    train_state = train_state.unbatch().map(apply_to_tuple(channels_first)).unbatch()
     if validation_batches is not None:
-        val_state = val_state.unbatch().unbatch()
+        val_state = val_state.unbatch().map(apply_to_tuple(channels_first)).unbatch()
 
     hyperparameters.training_loop.fit_loop(
         train_model=train_model, train_data=train_state, validation_data=val_state,
@@ -463,9 +467,10 @@ class CycleGAN(Reloadable):
             for name, scaler in self.scalers.items()
             if name.startswith(f"{domain}_")
         }
-        return _pack_to_tensor(
+        tensor = _pack_to_tensor(
             ds=ds, timesteps=0, state_variables=self.state_variables, scalers=scalers,
         )
+        return tensor.permute([0, 1, 4, 2, 3])
 
     def unpack_tensor(self, data: torch.Tensor, domain: str = "b") -> xr.Dataset:
         """
@@ -484,7 +489,7 @@ class CycleGAN(Reloadable):
             if name.startswith(f"{domain}_")
         }
         return _unpack_tensor(
-            data,
+            data.permute([0, 1, 3, 4, 2]),
             varnames=self.state_variables,
             scalers=scalers,
             dims=["time", "tile", "x", "y", "z"],
@@ -542,18 +547,22 @@ class CycleGANTrainer:
     discriminator_weight: float = 1.0
 
     def __post_init__(self):
-        self.target_real = torch.autograd.Variable(
-            torch.Tensor(self.batch_size).fill_(1.0).to(DEVICE), requires_grad=False
-        )
-        self.target_fake = torch.autograd.Variable(
-            torch.Tensor(self.batch_size).fill_(0.0).to(DEVICE), requires_grad=False
-        )
+        self.target_real: Optional[torch.autograd.Variable] = None
+        self.target_fake: Optional[torch.autograd.Variable] = None
         self.fake_a_buffer = ReplayBuffer()
         self.fake_b_buffer = ReplayBuffer()
         self.generator_a_to_b = self.cycle_gan.generator_a_to_b
         self.generator_b_to_a = self.cycle_gan.generator_b_to_a
         self.discriminator_a = self.cycle_gan.discriminator_a
         self.discriminator_b = self.cycle_gan.discriminator_b
+
+    def _init_targets(self, shape: Tuple[int, ...]):
+        self.target_real = torch.autograd.Variable(
+            torch.Tensor(shape).fill_(1.0).to(DEVICE), requires_grad=False
+        )
+        self.target_fake = torch.autograd.Variable(
+            torch.Tensor(shape).fill_(0.0).to(DEVICE), requires_grad=False
+        )
 
     def evaluate_on_dataset(
         self, dataset: tf.data.Dataset, n_dims_keep: int = 3
@@ -614,6 +623,8 @@ class CycleGANTrainer:
 
         # GAN loss
         pred_fake_b = self.discriminator_b(fake_b)
+        if self.target_real is None:
+            self._init_targets(pred_fake_b.shape)
         loss_gan_a_to_b = self.gan_loss(pred_fake_b, self.target_real) * self.gan_weight
 
         pred_fake_a = self.discriminator_a(fake_a)
