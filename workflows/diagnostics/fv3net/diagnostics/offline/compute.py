@@ -28,11 +28,10 @@ from ._helpers import (
     insert_rmse,
     is_3d,
     load_grid_info,
-    batches_mean,
 )
 from ._coarsening import coarsen_cell_centered, res_from_string
 from ._input_sensitivity import plot_input_sensitivity
-from ._select import meridional_transect, nearest_time_batch_index, select_snapshot
+from ._select import meridional_transect, select_snapshot
 from .compute_diagnostics import compute_diagnostics
 from .derived_diagnostics import derived_registry
 
@@ -140,42 +139,27 @@ def _coord_to_var(coord: xr.DataArray, new_var_name: str) -> xr.DataArray:
 
 
 def _compute_diagnostics(
-    batches: Sequence[xr.Dataset],
-    grid: xr.Dataset,
-    predicted_vars: List[str],
-    res: int,
-    n_jobs: int,
+    ds: xr.Dataset, grid: xr.Dataset, predicted_vars: List[str], n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset]:
-    batches_summary, timesteps = [], []
+    timesteps = []
 
-    # for each batch...
-    for i, ds in enumerate(batches):
-        logger.info(f"Processing batch {i+1}/{len(batches)}")
+    # ...insert additional variables
+    diagnostic_vars_3d = [var for var in predicted_vars if is_3d(ds[var])]
+    ds = ds.pipe(insert_column_integrated_vars, diagnostic_vars_3d).load()
 
-        # ...insert additional variables
-        diagnostic_vars_3d = [var for var in predicted_vars if is_3d(ds[var])]
-        ds = ds.pipe(insert_column_integrated_vars, diagnostic_vars_3d).load()
+    full_predicted_vars = [var for var in ds if DERIVATION_DIM_NAME in ds[var].dims]
+    if "dQ2" in full_predicted_vars or "Q2" in full_predicted_vars:
+        full_predicted_vars.append("water_vapor_path")
+    prediction = safe.get_variables(
+        ds.sel({DERIVATION_DIM_NAME: PREDICT_COORD}), full_predicted_vars
+    )
+    target = safe.get_variables(
+        ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
+    )
+    ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP], n_jobs=n_jobs)
 
-        full_predicted_vars = [var for var in ds if DERIVATION_DIM_NAME in ds[var].dims]
-        if "dQ2" in full_predicted_vars or "Q2" in full_predicted_vars:
-            full_predicted_vars.append("water_vapor_path")
-        prediction = safe.get_variables(
-            ds.sel({DERIVATION_DIM_NAME: PREDICT_COORD}), full_predicted_vars
-        )
-        target = safe.get_variables(
-            ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
-        )
-        ds_summary = compute_diagnostics(
-            prediction, target, grid, ds[DELP], n_jobs=n_jobs
-        )
+    timesteps.append(ds["time"])
 
-        timesteps.append(ds["time"])
-
-        batches_summary.append(ds_summary.load())
-        del ds
-
-    # then average over the batches for each output
-    ds_summary = xr.concat(batches_summary, dim="batch")
     ds_summary = ds_summary.merge(compute_r2(ds_summary))
     if DATASET_DIM_NAME in ds_summary.dims:
         ds_summary = insert_aggregate_r2(ds_summary)
@@ -187,12 +171,12 @@ def _compute_diagnostics(
     )
     timesteps_all = _coord_to_var(xr.concat(timesteps, dim="time").time, "timesteps")
     ds_diagnostics["timesteps"] = timesteps_all
-    return batches_mean(ds_diagnostics, res), ds_scalar_metrics
+    return ds_diagnostics, ds_scalar_metrics
 
 
 def _consolidate_dimensioned_data(ds):
     # moves dimensioned quantities into final diags dataset so they're saved as netcdf
-    scalar_metrics = [var for var in ds if ds[var].size == len(ds.batch)]
+    scalar_metrics = [var for var in ds if ds[var].size == 1]
     ds_scalar_metrics = safe.get_variables(ds, scalar_metrics)
     ds_metrics_arrays = ds.drop(scalar_metrics)
     ds_diagnostics = ds.merge(ds_metrics_arrays)
@@ -250,14 +234,65 @@ def _get_data_mapper_if_exists(config):
 
 
 def _variables_to_load(model):
-    return list(
+    vars = list(
         set(list(model.input_variables) + list(model.output_variables) + [DELP])
     )
+    if "Q2" in model.output_variables:
+        vars.append("water_vapor_path")
+    return vars
 
 
 def _add_derived_diagnostics(ds):
     merged = xr.merge([ds, derived_registry.compute(ds, n_jobs=1)])
     return merged.assign_attrs(ds.attrs)
+
+
+def _coarsen_transform(evaluation_resolution: int, prediction_resolution: int):
+    coarsening_factor = prediction_resolution // evaluation_resolution
+    logger.info(
+        f"Making predictions at validation data's c{prediction_resolution} resolution."
+    )
+    logger.info(f"Evaluating diagnostics at c{evaluation_resolution} resolution.")
+    if prediction_resolution % evaluation_resolution != 0:
+        raise ValueError(
+            "Evaluation grid resolution does not match or evenly divide prediction "
+            "resolution."
+        )
+    if coarsening_factor > 1:
+        prediction_grid = load_grid_info(f"c{prediction_resolution}")
+        logger.info(f"Coarsening predictions by factor of {coarsening_factor}.")
+        return coarsen_cell_centered(
+            weights=prediction_grid.area, coarsening_factor=coarsening_factor
+        )
+
+
+def get_prediction(
+    config: loaders.BatchesConfig, model: fv3fit.Predictor, evaluation_grid: xr.Dataset
+) -> xr.Dataset:
+
+    model_variables = _variables_to_load(model)
+    batches = config.load_batches(model_variables)
+
+    transforms = [_get_predict_function(model, model_variables)]
+
+    prediction_resolution = res_from_string(config.res)
+    evaluation_resolution = evaluation_grid.sizes["x"]
+    if prediction_resolution != evaluation_resolution:
+        transforms.append(
+            _coarsen_transform(
+                evaluation_resolution=evaluation_resolution,
+                prediction_resolution=prediction_resolution,
+            )
+        )
+
+    mapping_function = compose_left(*transforms)
+    batches = loaders.Map(mapping_function, batches)
+    loaded_batches = []
+    # for each batch...
+    for i, ds in enumerate(batches):
+        logger.info(f"Processing batch {i+1}/{len(batches)}")
+        loaded_batches.append(ds.load())
+    return xr.merge(loaded_batches)
 
 
 def main(args):
@@ -279,57 +314,29 @@ def main(args):
     # add Q2 and total water path for PW-Q2 scatterplots and net precip domain averages
     if any(["Q2" in v for v in model.output_variables]):
         model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
-        model_variables = _variables_to_load(model) + ["water_vapor_path"]
-    else:
-        model_variables = _variables_to_load(model)
+
+    ds_predicted = get_prediction(
+        config=config, model=model, evaluation_grid=evaluation_grid
+    )
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
     with fsspec.open(args.data_yaml, "r") as f_in, fsspec.open(
         output_data_yaml, "w"
     ) as f_out:
         f_out.write(f_in.read())
-    batches = config.load_batches(model_variables)
-
-    transforms = [_get_predict_function(model, model_variables)]
-
-    prediction_resolution = res_from_string(config.res)
-    logger.info(
-        f"Making predictions at validation data's c{prediction_resolution} resolution."
-    )
-    evaluation_resolution = evaluation_grid.sizes["x"]
-    logger.info(f"Evaluating diagnostics at c{evaluation_resolution} resolution.")
-    if prediction_resolution % evaluation_resolution != 0:
-        raise ValueError(
-            "Evaluation grid resolution does not match or evenly divide prediction "
-            "resolution."
-        )
-    coarsening_factor = prediction_resolution // evaluation_resolution
-    if coarsening_factor > 1:
-        prediction_grid = load_grid_info(config.res)
-        logger.info(f"Coarsening predictions by factor of {coarsening_factor}.")
-        transforms.append(
-            coarsen_cell_centered(
-                weights=prediction_grid.area, coarsening_factor=coarsening_factor
-            )
-        )
-
-    mapping_function = compose_left(*transforms)
-
-    batches = loaders.Map(mapping_function, batches)
 
     # compute diags
     ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(
-        batches,
+        ds_predicted,
         evaluation_grid,
         predicted_vars=model.output_variables,
-        res=evaluation_resolution,
         n_jobs=args.n_jobs,
     )
 
     ds_diagnostics = ds_diagnostics.update(evaluation_grid)
 
     # save model senstivity figures- these exclude derived variables
-    fig_input_sensitivity = plot_input_sensitivity(model, batches[0])
+    fig_input_sensitivity = plot_input_sensitivity(model, ds_predicted)
     if fig_input_sensitivity is not None:
         with fsspec.open(
             os.path.join(
@@ -346,10 +353,8 @@ def main(args):
             or sorted(getattr(config, "timesteps", list(mapper.keys())))[0]
         )
         snapshot_time = vcm.parse_datetime_from_str(snapshot_timestamp)
-        snapshot_index = nearest_time_batch_index(
-            snapshot_time, [batch.time.values for batch in batches]
-        )
-        ds_snapshot = select_snapshot(batches[snapshot_index], snapshot_time)
+
+        ds_snapshot = select_snapshot(ds_predicted, snapshot_time)
 
         vertical_vars = [
             var for var in model.output_variables if is_3d(ds_snapshot[var])
@@ -378,7 +383,9 @@ def main(args):
     )
 
     # convert and output metrics json
-    metrics = _average_metrics_dict(ds_scalar_metrics)
+    metrics = {
+        var: ds_scalar_metrics[var].values.item() for var in ds_scalar_metrics.data_vars
+    }
     with fsspec.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
         json.dump(metrics, f, indent=4)
 

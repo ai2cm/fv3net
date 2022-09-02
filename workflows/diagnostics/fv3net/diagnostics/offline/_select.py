@@ -1,5 +1,3 @@
-import numpy as np
-from typing import Sequence
 import xarray as xr
 import cftime
 
@@ -7,20 +5,8 @@ from vcm.select import meridional_ring
 import vcm
 
 
-def nearest_time_batch_index(
-    time: cftime.DatetimeJulian, time_batches: Sequence[Sequence[cftime.DatetimeJulian]]
-):
-    min_index = 0
-    min_distance = min(abs(np.array(time_batches[0]) - time))
-    for index, time_batch in enumerate(time_batches):
-        distance = min(abs(np.array(time_batch) - time))
-        if distance < min_distance:
-            min_index = index
-    return min_index
-
-
-def select_snapshot(batch: xr.Dataset, time: cftime.DatetimeJulian) -> xr.Dataset:
-    return batch.sortby("time").sel(time=time, method="nearest")
+def select_snapshot(ds: xr.Dataset, time: cftime.DatetimeJulian) -> xr.Dataset:
+    return ds.sortby("time").sel(time=time, method="nearest")
 
 
 def meridional_transect(ds: xr.Dataset):
