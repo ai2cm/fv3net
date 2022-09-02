@@ -1,5 +1,8 @@
 from typing import MutableMapping, Mapping, Hashable, Any
 
+LOOKUP_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/lookupdata/lookup.tar.gz"  # noqa: E501
+FORCING_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/forcing/data.tar.gz"  # noqa: 501
+
 
 DEFAULT_RAD_CONFIG: Mapping[Hashable, Any] = {
     "imp_physics": 11,

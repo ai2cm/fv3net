@@ -1,5 +1,4 @@
 import dataclasses
-import subprocess
 import os
 from typing import (
     Optional,
@@ -11,6 +10,7 @@ from typing import (
     Sequence,
     Hashable,
 )
+import tarfile
 from mpi4py import MPI
 import cftime
 from datetime import timedelta
@@ -24,22 +24,22 @@ from runtime.steppers.machine_learning import (
 )
 from runtime.types import State, Diagnostics
 from runtime.derived_state import DerivedFV3State
-from runtime.steppers.radiation._config import get_rad_config
+from runtime.steppers.radiation._config import (
+    get_rad_config,
+    LOOKUP_DATA_PATH,
+    FORCING_DATA_PATH,
+)
 from radiation import RadiationDriver, getdata, NGPTSW, NGPTLW
 from vcm.calc.thermo.vertically_dependent import (
     pressure_at_interface,
     pressure_at_midpoint_log,
 )
+from vcm.cloud import get_fs
 from vcm.calc.thermo.constants import _SPECIFIC_HEAT_CONST_PRESSURE, _RDGAS
 
 P_REF = 1.0e5
 MINUTES_PER_HOUR = 60.0
 SECONDS_PER_MINUTE = 60.0
-
-LOOKUP_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/lookupdata/lookup.tar.gz"  # noqa: E501
-FORCING_DATA_PATH = (
-    "gs://vcm-fv3gfs-serialized-regression-data/physics/forcing/*"  # noqa: 501
-)
 
 
 @dataclasses.dataclass
@@ -83,35 +83,19 @@ class RadiationStepper:
         self,
         lookup_data_path: str = LOOKUP_DATA_PATH,
         forcing_data_path: str = FORCING_DATA_PATH,
-        lookup_local_dir: str = "./rad_data/lookup",
-        forcing_local_dir: str = "./rad_data/forcing",
+        lookup_local_dir: str = "./rad_data/lookup/",
+        forcing_local_dir: str = "./rad_data/forcing/",
     ) -> None:
-        """Gets lookup tables and forcing needed for the radiation scheme. TODO: Make lookup
-        data part of writing a run directory; make scheme able to read existing forcing.
+        """Gets lookup tables and forcing needed for the radiation scheme.
+        TODO: make scheme able to read existing forcing; make lookup data part of
+        writing a run directory?
         """
         if self._comm.rank == 0:
-            os.makedirs(lookup_local_dir)
-            copy_cmd = ["gsutil", "cp", lookup_data_path, lookup_local_dir]
-            subprocess.check_call(copy_cmd)
-            unpack_cmd = [
-                "tar",
-                "-xzvf",
-                os.path.join(lookup_local_dir, "lookup.tar.gz"),
-                "-C",
-                lookup_local_dir,
-            ]
-            subprocess.check_call(unpack_cmd)
-            os.makedirs(forcing_local_dir)
-            copy_cmd = ["gsutil", "cp", forcing_data_path, forcing_local_dir]
-            subprocess.check_call(copy_cmd)
-            unpack_cmd = [
-                "tar",
-                "-xzvf",
-                os.path.join(forcing_local_dir, "data.tar.gz"),
-                "-C",
-                forcing_local_dir,
-            ]
-            subprocess.check_call(unpack_cmd)
+            for target, local in zip(
+                (lookup_data_path, forcing_data_path),
+                (lookup_local_dir, forcing_local_dir),
+            ):
+                _get_remote_tar_data(target, local)
         self._comm.barrier()
         self._lookup_local_dir = lookup_local_dir
         self._forcing_local_dir = forcing_local_dir
@@ -221,6 +205,14 @@ class RadiationStepper:
             model, statein, sfcprop, grid, random_numbers, lw_lookup, sw_lookup
         )
         return _unstack(_rename_out(out), coords)
+
+
+def _get_remote_tar_data(remote_filepath: str, local_dir: str):
+    os.makedirs(local_dir)
+    fs = get_fs(remote_filepath)
+    fs.get(remote_filepath, local_dir)
+    local_filepath = os.path.join(local_dir, os.path.basename(remote_filepath))
+    tarfile.open(local_filepath).extractall(path=local_dir)
 
 
 class UpdatedState(DerivedFV3State):
