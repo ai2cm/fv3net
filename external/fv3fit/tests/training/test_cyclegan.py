@@ -15,6 +15,7 @@ import os
 import fv3fit.pytorch
 import fv3fit
 import matplotlib.pyplot as plt
+import pytest
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
@@ -31,7 +32,7 @@ def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
                 scale_max=1.0,
                 period_min=8,
                 period_max=16,
-                type="sinusoidal",
+                wave_type="sinusoidal",
             ),
             SyntheticWaves(
                 nsamples=nsamples,
@@ -44,7 +45,7 @@ def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
                 scale_max=1.0,
                 period_min=8,
                 period_max=16,
-                type="square",
+                wave_type="square",
             ),
         ]
     )
@@ -99,6 +100,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
     return xr.Dataset(data_vars)
 
 
+@pytest.mark.skip("test is designed to run manually to visualize results")
 def test_cyclegan(tmpdir):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
@@ -109,12 +111,12 @@ def test_cyclegan(tmpdir):
     sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "nz": 2}
     state_variables = ["a", "b"]
     train_tfdataset = get_tfdataset(nsamples=100, **sizes)
-    val_tfdataset = get_tfdataset(nsamples=3, **sizes)
+    val_tfdataset = get_tfdataset(nsamples=20, **sizes)
     hyperparameters = CycleGANHyperparameters(
         state_variables=state_variables,
         network=CycleGANNetworkConfig(
             generator=fv3fit.pytorch.GeneratorConfig(
-                n_convolutions=2, n_resnet=5, max_filters=128, kernel_size=3
+                n_convolutions=3, n_resnet=5, max_filters=128, kernel_size=3
             ),
             generator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
@@ -128,7 +130,9 @@ def test_cyclegan(tmpdir):
             # gan_weight=1.0,
             discriminator_weight=0.5,
         ),
-        training_loop=CycleGANTrainingConfig(n_epoch=10, samples_per_batch=1),
+        training_loop=CycleGANTrainingConfig(
+            n_epoch=20, samples_per_batch=1, validation_batch_size=10
+        ),
     )
     predictor = train_cyclegan(hyperparameters, train_tfdataset, val_tfdataset)
     # for test, need one continuous series so we consistently flip sign
@@ -140,42 +144,27 @@ def test_cyclegan(tmpdir):
     )
     output_a = predictor.predict(real_b, reverse=True)
     reconstructed_b = predictor.predict(output_a)
-    # print("output a")
-    # print_compare(output_a, real_a)
-    # print("reconstructed b")
-    # print_compare(reconstructed_b, real_b)
     output_b = predictor.predict(real_a)
     reconstructed_a = predictor.predict(output_b, reverse=True)
-    # plotting code to uncomment if you'd like to manually check the results:
     iz = 0
-    for i in range(1):
-        fig, ax = plt.subplots(3, 2, figsize=(8, 8))
-        vmin = -1.5
-        vmax = 1.5
-        ax[0, 0].imshow(real_a["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
-        ax[0, 1].imshow(real_b["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
-        ax[1, 0].imshow(output_b["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
-        ax[1, 1].imshow(output_a["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
-        ax[2, 0].imshow(
-            reconstructed_a["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax
-        )
-        ax[2, 1].imshow(
-            reconstructed_b["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax
-        )
-        ax[0, 0].set_title("real a")
-        ax[0, 1].set_title("real b")
-        ax[1, 0].set_title("output b")
-        ax[1, 1].set_title("output a")
-        ax[2, 0].set_title("reconstructed a")
-        ax[2, 1].set_title("reconstructed b")
-        plt.tight_layout()
-        plt.show()
-    # bias = predicted.isel(time=1) - reference.isel(time=1)
-    # mean_bias: xr.Dataset = bias.mean()
-    # mse: xr.Dataset = (bias ** 2).mean() ** 0.5
-    # for varname in state_variables:
-    #     assert np.abs(mean_bias[varname]) < 0.1
-    #     assert mse[varname] < 0.1
+    i = 0
+    fig, ax = plt.subplots(3, 2, figsize=(8, 8))
+    vmin = -1.5
+    vmax = 1.5
+    ax[0, 0].imshow(real_a["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
+    ax[0, 1].imshow(real_b["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
+    ax[1, 0].imshow(output_b["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
+    ax[1, 1].imshow(output_a["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
+    ax[2, 0].imshow(reconstructed_a["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
+    ax[2, 1].imshow(reconstructed_b["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
+    ax[0, 0].set_title("real a")
+    ax[0, 1].set_title("real b")
+    ax[1, 0].set_title("output b")
+    ax[1, 1].set_title("output a")
+    ax[2, 0].set_title("reconstructed a")
+    ax[2, 1].set_title("reconstructed b")
+    plt.tight_layout()
+    plt.show()
 
 
 def test_cyclegan_overfit(tmpdir):
@@ -193,10 +182,13 @@ def test_cyclegan_overfit(tmpdir):
         state_variables=state_variables,
         network=CycleGANNetworkConfig(
             generator=fv3fit.pytorch.GeneratorConfig(
-                n_convolutions=2, n_resnet=1, max_filters=64
+                n_convolutions=2, n_resnet=1, max_filters=256, kernel_size=3
             ),
             generator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
+            ),
+            discriminator=fv3fit.pytorch.DiscriminatorConfig(
+                kernel_size=3, n_convolutions=2, max_filters=256
             ),
             discriminator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.0001}

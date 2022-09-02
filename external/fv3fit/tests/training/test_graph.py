@@ -83,8 +83,8 @@ def test_train_graph_network(tmpdir, network_type):
         training_config = AutoregressiveTrainingConfig(n_epoch=100)
         optimizer = OptimizerConfig(kwargs={"lr": 0.001})
     elif network_type == "UNet":
-        graph_network = GraphUNetConfig(depth=1, min_filters=8)
-        training_config = AutoregressiveTrainingConfig(n_epoch=50)
+        graph_network = GraphUNetConfig()
+        training_config = AutoregressiveTrainingConfig(n_epoch=30)
         optimizer = OptimizerConfig(kwargs={"lr": 0.005})
 
     hyperparameters = GraphHyperparameters(

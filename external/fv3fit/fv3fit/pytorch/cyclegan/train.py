@@ -14,7 +14,7 @@ from typing import (
     Tuple,
 )
 from .network import Generator, GeneratorConfig
-from fv3fit.pytorch.graph.train import get_Xy_dataset
+from fv3fit.pytorch.graph.train import get_Xy_map_fn
 from fv3fit._shared.scaler import (
     get_standard_scaler_mapping,
     get_mapping_standard_scale_func,
@@ -84,18 +84,18 @@ def train_autoencoder(
     scalers = get_standard_scaler_mapping(sample_batch)
     mapping_scale_func = get_mapping_standard_scale_func(scalers)
 
-    get_state = curry(get_Xy_dataset)(
+    get_state = get_Xy_map_fn(
         state_variables=hyperparameters.state_variables,
         n_dims=6,  # [batch, time, tile, x, y, z]
         mapping_scale_func=mapping_scale_func,
     )
 
     if validation_batches is not None:
-        val_state = get_state(data=validation_batches)
+        val_state = validation_batches.map(get_state)
     else:
         val_state = None
 
-    train_state = get_state(data=train_batches)
+    train_state = train_batches.map(get_state)
 
     train_model = build_model(
         hyperparameters.generator, n_state=next(iter(train_state)).shape[-1]

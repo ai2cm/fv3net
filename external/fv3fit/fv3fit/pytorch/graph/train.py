@@ -130,41 +130,6 @@ def build_model(graph_network, n_state: int, nx: int):
     )
 
 
-def get_Xy_dataset(
-    state_variables: Sequence[str],
-    n_dims: int,
-    mapping_scale_func: Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]],
-    data: tf.data.Dataset,
-):
-    """
-    Given a tf.data.Dataset with mappings from variable name to samples
-    return a tf.data.Dataset whose entries are tensors of the requested
-    state variables concatenated along the feature dimension.
-
-    Args:
-        state_variables: names of variables to include in returned tensor
-        n_dims: number of dimensions of each sample, including feature dimension
-        mapping_scale_func: function which scales data stored as a mapping
-            from variable name to array
-        data: tf.data.Dataset with mappings from variable name
-            to sample tensors
-
-    Returns:
-        tf.data.Dataset where each sample is a single tensor
-            containing normalized and concatenated state variables
-    """
-    ensure_dims = apply_to_mapping(ensure_nd(n_dims))
-
-    def map_fn(data):
-        data = mapping_scale_func(data)
-        data = ensure_dims(data)
-        data = select_keys(state_variables, data)
-        data = tf.concat(data, axis=-1)
-        return data
-
-    return data.map(map_fn)
-
-
 def get_Xy_map_fn(
     state_variables: Sequence[str],
     n_dims: int,
@@ -190,7 +155,7 @@ def get_Xy_map_fn(
     ensure_dims = apply_to_mapping(ensure_nd(n_dims))
 
     def map_fn(data):
-        # data = mapping_scale_func(data)
+        data = mapping_scale_func(data)
         data = ensure_dims(data)
         data = select_keys(state_variables, data)
         data = tf.concat(data, axis=-1)
