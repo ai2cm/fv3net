@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import tempfile
-import subprocess
 from typing import (
     Any,
     Dict,
@@ -20,7 +19,6 @@ import fv3gfs.wrapper
 import numpy as np
 import vcm
 import xarray as xr
-import f90nml
 from mpi4py import MPI
 import runtime.factories
 from runtime.derived_state import DerivedFV3State, MergedState
@@ -48,8 +46,8 @@ from runtime.steppers.machine_learning import (
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig
 from runtime.steppers.combine import CombinedStepper
+from runtime.steppers.radiation import RadiationStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
-from runtime.radiation_wrapper import RadiationWrapper
 from toolz import dissoc
 from typing_extensions import Protocol
 
@@ -136,41 +134,6 @@ def add_tendency(state: Any, tendency: State, dt: float) -> Tuple[State, State]:
     return updated, tendency_filled_frac  # type: ignore
 
 
-def _download_radiation_assets(
-    lookup_data_path: str = (
-        "gs://vcm-fv3gfs-serialized-regression-data/physics/lookupdata/lookup.tar.gz"  # noqa: E501
-    ),
-    forcing_data_path: str = "gs://vcm-fv3gfs-serialized-regression-data/physics/forcing/*",  # noqa: 501
-    lookup_local_dir: str = "./data/lookup",
-    forcing_local_dir: str = "./data/forcing",
-) -> None:
-    """Gets lookup tables and forcing needed for the radiation scheme. TODO: Make lookup
-    data part of writing a run directory; make scheme able to read existing forcing.
-    """
-    os.makedirs(lookup_local_dir)
-    copy_cmd = ["gsutil", "cp", lookup_data_path, lookup_local_dir]
-    subprocess.check_call(copy_cmd)
-    unpack_cmd = [
-        "tar",
-        "-xzvf",
-        os.path.join(lookup_local_dir, "lookup.tar.gz"),
-        "-C",
-        lookup_local_dir,
-    ]
-    subprocess.check_call(unpack_cmd)
-    os.makedirs(forcing_local_dir)
-    copy_cmd = ["gsutil", "cp", forcing_data_path, forcing_local_dir]
-    subprocess.check_call(copy_cmd)
-    unpack_cmd = [
-        "tar",
-        "-xzvf",
-        os.path.join(forcing_local_dir, "data.tar.gz"),
-        "-C",
-        forcing_local_dir,
-    ]
-    subprocess.check_call(unpack_cmd)
-
-
 class LoggingMixin:
 
     rank: int
@@ -255,7 +218,14 @@ class TimeLoop(
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
-        self._radiation_wrapper = self._get_radiation_wrapper(config, namelist)
+        if config.radiation_scheme:
+            self._radiation_stepper: Optional[
+                RadiationStepper
+            ] = RadiationStepper.from_config(
+                config.radiation_scheme, self.comm, namelist["gfs_physics_nml"]
+            )
+        else:
+            self._radiation_stepper = None
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -373,19 +343,6 @@ class TimeLoop(
         self._log_info("Model Loaded")
         return model
 
-    def _get_radiation_wrapper(self, config: UserConfig, namelist: f90nml.Namelist):
-        if config.radiation_scheme and config.radiation_scheme.kind == "python":
-            if self.rank == 0:
-                _download_radiation_assets()
-            MPI.COMM_WORLD.barrier()
-            wrapper: RadiationWrapper = RadiationWrapper.from_config(
-                config.radiation_scheme
-            )
-            wrapper.rad_init(self.rank, namelist["gfs_physics_nml"])
-            return wrapper
-        else:
-            return None
-
     @property
     def time(self) -> cftime.DatetimeJulian:
         return self._state.time
@@ -399,8 +356,6 @@ class TimeLoop(
     def _step_pre_radiation_physics(self) -> Diagnostics:
         self._log_debug(f"Pre-radiation Physics Step")
         self._fv3gfs.step_pre_radiation()
-        if self._radiation_wrapper is not None:
-            self._radiation_wrapper.rad_update(self.time, self._timestep)
         return {
             f"{name}_pre_radiation": self._state[name]
             for name in self._states_to_output
@@ -408,13 +363,12 @@ class TimeLoop(
 
     def _step_radiation_physics(self) -> Diagnostics:
         self._log_debug(f"Radiation Physics Step")
-        if self._radiation_wrapper is not None:
-            diagnostics: Diagnostics = self._radiation_wrapper.rad_compute(
+        if self._radiation_stepper is not None:
+            _, diagnostics, _ = self._radiation_stepper(
                 self._state,
                 self._fv3gfs.get_tracer_metadata(),
                 self.time,
                 self._timestep,
-                self.rank,
             )
             for name, diag in diagnostics.items():
                 self._log_info(f"{name}: {diag}")
