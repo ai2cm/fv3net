@@ -4,7 +4,8 @@ import dataclasses
 from fv3fit._shared.training_config import Hyperparameters
 from toolz.functoolz import curry
 from fv3fit.pytorch.predict import PytorchAutoregressor
-from .unet import UNetGraphNetworkConfig, GraphUNet
+from fv3fit.pytorch.graph.mpg_unet import MPGraphUNetConfig
+from fv3fit.pytorch.graph.unet import GraphUNetConfig
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.training_loop import AutoregressiveTrainingConfig
@@ -25,6 +26,7 @@ from typing import (
     Set,
     Mapping,
     cast,
+    Union,
 )
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping
 
@@ -46,8 +48,10 @@ class GraphHyperparameters(Hyperparameters):
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("AdamW")
     )
-    graph_network: UNetGraphNetworkConfig = dataclasses.field(
-        default_factory=lambda: UNetGraphNetworkConfig()
+    graph_network: Union[MPGraphUNetConfig, GraphUNetConfig] = dataclasses.field(
+        default_factory=lambda: MPGraphUNetConfig(
+            num_step_message_passing=5, edge_hidden_features=4
+        )
     )
     training_loop: AutoregressiveTrainingConfig = dataclasses.field(
         default_factory=lambda: AutoregressiveTrainingConfig()
@@ -97,12 +101,11 @@ def train_graph_model(
         val_state = None
 
     train_state = get_state(data=train_batches).unbatch()
-
+    sample = next(iter(train_state))
     train_model = build_model(
-        hyperparameters.graph_network, n_state=next(iter(train_state)).shape[-1]
+        hyperparameters.graph_network, n_state=sample.shape[-1], nx=sample.shape[3],
     )
     optimizer = hyperparameters.optimizer_config
-
     hyperparameters.training_loop.fit_loop(
         train_model=train_model,
         train_data=train_state,
@@ -119,16 +122,15 @@ def train_graph_model(
     return predictor
 
 
-def build_model(graph_network, n_state: int):
+def build_model(graph_network, n_state: int, nx: int):
     """
     Args:
         graph_network: configuration of the graph network
         n_state: number of state variables
     """
-    train_model = GraphUNet(graph_network, in_channels=n_state, out_dim=n_state).to(
+    return graph_network.build(in_channels=n_state, out_channels=n_state, nx=nx).to(
         DEVICE
     )
-    return train_model
 
 
 def get_Xy_dataset(

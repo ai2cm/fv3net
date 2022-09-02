@@ -1,8 +1,8 @@
-from .network import GraphNetwork, GraphNetworkConfig, CubedSphereGraphOperation
+from .mpg_unet import MPGraphUNet, MPGraphUNetConfig
+from .unet import GraphUNet, GraphUNetConfig, CubedSphereGraphOperation
 from .train import (
     train_graph_model,
     AutoregressiveTrainingConfig,
     GraphHyperparameters,
 )
-from .unet import GraphUNet, UNetGraphNetworkConfig
-from .graph_builder import build_dgl_graph, build_graph
+from .graph_builder import build_dgl_graph_with_edge, build_graph
