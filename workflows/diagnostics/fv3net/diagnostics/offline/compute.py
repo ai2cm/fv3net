@@ -260,6 +260,7 @@ def get_prediction(
 ) -> xr.Dataset:
 
     model_variables = _variables_to_load(model)
+    config.timesteps = sorted(config.timesteps)
     batches = config.load_batches(model_variables)
 
     transforms = [_get_predict_function(model, model_variables)]
@@ -277,11 +278,10 @@ def get_prediction(
     mapping_function = compose_left(*transforms)
     batches = loaders.Map(mapping_function, batches)
     loaded_batches = []
-    # for each batch...
     for i, ds in enumerate(batches):
         logger.info(f"Processing batch {i+1}/{len(batches)}")
         loaded_batches.append(ds.load())
-    return xr.merge(loaded_batches)
+    return xr.concat(loaded_batches, dim="time")
 
 
 def main(args):
