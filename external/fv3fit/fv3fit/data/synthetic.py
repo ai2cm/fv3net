@@ -69,11 +69,7 @@ class SyntheticWaves(TFDatasetLoader):
         period_max: maximum period of waves
         phase_range: fraction of 2*pi to use for possible range of
             random phase, should be a value between 0 and 1.
-<<<<<<< HEAD
-        type: one of "sinusoidal" or "square"
-=======
         wave_type: one of "sinusoidal" or "square"
->>>>>>> master
     """
 
     nsamples: int
@@ -88,7 +84,6 @@ class SyntheticWaves(TFDatasetLoader):
     period_min: float = 8.0
     period_max: float = 16.0
     phase_range: float = 1.0
-    type: str = "sinusoidal"
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
