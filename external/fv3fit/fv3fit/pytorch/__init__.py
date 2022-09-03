@@ -14,3 +14,4 @@ from .cyclegan import (
 )
 from .optimizer import OptimizerConfig
 from .activation import ActivationConfig
+from .loss import LossConfig

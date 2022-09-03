@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 from typing import Sequence
 from fv3fit.pytorch.cyclegan import AutoencoderHyperparameters, train_autoencoder
-from fv3fit.pytorch.cyclegan.train import TrainingConfig
+from fv3fit.pytorch.cyclegan.train_autoencoder import TrainingConfig
 import pytest
 from fv3fit.data.synthetic import SyntheticWaves
 import collections
@@ -78,14 +78,14 @@ def test_autoencoder(tmpdir):
     # doesn't particularly matter what the input data is, as long as the denoising
     # autoencoder can learn to remove noise from its samples. A dataset of
     # pure synthetic noise would not work, it must have some structure.
-    train_tfdataset = get_synthetic_waves_tfdataset(nsamples=20, **sizes)
+    train_tfdataset = get_synthetic_waves_tfdataset(nsamples=100, **sizes)
     val_tfdataset = get_synthetic_waves_tfdataset(nsamples=3, **sizes)
     hyperparameters = AutoencoderHyperparameters(
         state_variables=state_variables,
         generator=fv3fit.pytorch.GeneratorConfig(
             n_convolutions=2, n_resnet=3, max_filters=32
         ),
-        training_loop=TrainingConfig(n_epoch=10, samples_per_batch=2),
+        training_loop=TrainingConfig(n_epoch=5, samples_per_batch=10),
         optimizer_config=fv3fit.pytorch.OptimizerConfig(name="Adam",),
         noise_amount=0.5,
     )

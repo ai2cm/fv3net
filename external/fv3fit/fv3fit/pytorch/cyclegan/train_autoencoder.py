@@ -13,7 +13,7 @@ from typing import (
     Optional,
     Tuple,
 )
-from .network import Generator, GeneratorConfig
+from .generator import Generator, GeneratorConfig
 from fv3fit.pytorch.graph.train import get_Xy_map_fn
 from fv3fit._shared.scaler import (
     get_standard_scaler_mapping,
@@ -106,11 +106,15 @@ def train_autoencoder(
     optimizer = hyperparameters.optimizer_config
 
     train_state = flatten_dims(
-        train_state.map(define_noisy_input(stdev=hyperparameters.noise_amount))
+        train_state.map(channels_first).map(
+            define_noisy_input(stdev=hyperparameters.noise_amount)
+        )
     )
     if validation_batches is not None:
         val_state = flatten_dims(
-            val_state.map(define_noisy_input(stdev=hyperparameters.noise_amount))
+            val_state.map(channels_first).map(
+                define_noisy_input(stdev=hyperparameters.noise_amount)
+            )
         )
 
     hyperparameters.training_loop.fit_loop(
@@ -131,7 +135,7 @@ def train_autoencoder(
 
 
 def channels_first(data: tf.Tensor) -> tf.Tensor:
-    return tf.transpose(data, perm=[0, 3, 1, 2])
+    return tf.transpose(data, perm=[0, 1, 2, 5, 3, 4])
 
 
 def build_model(config: GeneratorConfig, n_state: int) -> Generator:
