@@ -370,8 +370,6 @@ class TimeLoop(
                 self.time,
                 self._timestep,
             )
-            for name, diag in diagnostics.items():
-                self._log_info(f"{name}: {diag}")
         else:
             diagnostics = {}
         self._fv3gfs.step_radiation()

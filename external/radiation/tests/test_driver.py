@@ -1,10 +1,10 @@
 import pathlib
-from util import compare_data
-import serialbox as ser
-from radiation import RadiationDriver, getdata, variables_to_read
 import time
+import serialbox as ser
+from radiation import RadiationDriver, getdata
+from util import compare_data
+from variables_to_read import vars_dict as variables
 
-variables = variables_to_read.vars_dict
 
 ROOT = pathlib.Path(__file__).parent.parent.absolute()
 LOOKUP_DIR = (ROOT / "data/lookupdata").as_posix()

@@ -1,16 +1,12 @@
 import os
 import xarray as xr
 import numpy as np
+import tarfile
 import warnings
-
-# this set of functions allow reading datasets needed for the radiation driver
-#  Inputs:
-# - directory where the data is located in str
-# - tile number in int
+from vcm.cloud import get_fs
 
 
-def random_numbers(lookup_dir: str, tile_number: int):
-    ##
+def load_random_numbers(lookup_dir: str, tile_number: int):
     data_dict = {}
     # File names for serialized random numbers in mcica_subcol
     if tile_number == 0:
@@ -26,7 +22,7 @@ def random_numbers(lookup_dir: str, tile_number: int):
     return data_dict
 
 
-def lw(lookup_dir: str):
+def load_lw(lookup_dir: str):
     # data needed in lwrad()
     lw_dict = {}
     dfile = os.path.join(lookup_dir, "totplnk.nc")
@@ -177,7 +173,7 @@ def lw(lookup_dir: str):
     return lw_dict
 
 
-def sw(lookup_dir: str):
+def load_sw(lookup_dir: str):
     sw_dict = {}
 
     ds = xr.open_dataset(os.path.join(lookup_dir, "radsw_sflux_data.nc"))
@@ -293,7 +289,7 @@ def sw(lookup_dir: str):
     return sw_dict
 
 
-def sigma(restart_dir, p_ref=101325.0):
+def load_sigma(restart_dir, p_ref=101325.0):
     """Get sigma coordiante of vertical interfaces (approximation) used by
     radiation scheme. See https://github.com/ai2cm/fv3gfs-fortran/blob/
     5d40389e5c8f5696d165a33395660216f99c502c/FV3/gfsphysics/GFS_layer/
@@ -307,7 +303,7 @@ def sigma(restart_dir, p_ref=101325.0):
     return sigma.values
 
 
-def aerosol(forcing_dir: str):
+def load_aerosol(forcing_dir: str):
     aeros_file = os.path.join(forcing_dir, "aerosol.nc")
     var_names = [
         "kprfg",
@@ -337,7 +333,7 @@ def aerosol(forcing_dir: str):
     return data_dict
 
 
-def astronomy(forcing_dir, isolar):
+def load_astronomy(forcing_dir, isolar):
     # external solar constant data table,solarconstant_noaa_a0.txt
 
     if isolar == 1:  # noaa ann-tile_numberan tsi in absolute scale
@@ -367,13 +363,13 @@ def astronomy(forcing_dir, isolar):
     return solar_file, data
 
 
-def sfc(forcing_dir: str):
+def load_sfc(forcing_dir: str):
     semis_file = os.path.join(forcing_dir, "semisdata.nc")
     data = xr.open_dataset(semis_file)
     return semis_file, data
 
 
-def gases(forcing_dir, ictmflg):
+def load_gases(forcing_dir, ictmflg):
 
     if ictmflg == 1:
         cfile1 = os.path.join(forcing_dir, "co2historicaldata_2016.nc")
@@ -402,9 +398,17 @@ def gases(forcing_dir, ictmflg):
     return data_dict
 
 
-def random(ncolumns, nz, ngptsw, ngptlw, seed=0):
+def generate_random_numbers(ncolumns, nz, ngptsw, ngptlw, seed=0):
     """Get random numbers needed by cloud overlap scheme"""
     np.random.seed(seed)
     sw_rand = np.random.rand(ncolumns, nz * ngptsw)
     lw_rand = np.random.rand(ncolumns, nz * ngptlw)
     return {"sw_rand": sw_rand, "lw_rand": lw_rand}
+
+
+def get_remote_tar_data(remote_filepath, local_dir):
+    os.makedirs(local_dir)
+    fs = get_fs(remote_filepath)
+    fs.get(remote_filepath, local_dir)
+    local_filepath = os.path.join(local_dir, os.path.basename(remote_filepath))
+    tarfile.open(local_filepath).extractall(path=local_dir)
