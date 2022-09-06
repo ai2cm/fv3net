@@ -3,11 +3,15 @@ from datetime import timedelta
 import numpy as np
 import xarray as xr
 import cftime
-from vcm.calc.thermo.vertically_dependent import (
-    pressure_at_interface,
-    pressure_at_midpoint_log,
-)
-from vcm.calc.thermo.constants import _SPECIFIC_HEAT_CONST_PRESSURE, _RDGAS
+
+try:
+    from vcm.calc.thermo.vertically_dependent import (
+        pressure_at_interface,
+        pressure_at_midpoint_log,
+    )
+    from vcm.calc.thermo.constants import _SPECIFIC_HEAT_CONST_PRESSURE, _RDGAS
+except ImportError:
+    pass
 
 P_REF = 1.0e5
 MINUTES_PER_HOUR = 60.0

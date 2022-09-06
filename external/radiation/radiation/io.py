@@ -3,7 +3,11 @@ import xarray as xr
 import numpy as np
 import tarfile
 import warnings
-from vcm.cloud import get_fs
+
+try:
+    from vcm.cloud import get_fs
+except ImportError:
+    pass
 
 
 def load_random_numbers(lookup_dir: str, tile_number: int):

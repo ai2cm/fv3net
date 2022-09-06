@@ -1,7 +1,7 @@
 import pathlib
 import time
 import serialbox as ser
-from radiation import RadiationDriver, getdata
+from radiation import RadiationDriver, io
 from util import compare_data
 from variables_to_read import vars_dict as variables
 
@@ -67,10 +67,10 @@ me = 0
 
 
 # reading datasets needed for radinit() and radupdate()
-aer_dict = getdata.aerosol(FORCING_DIR)
-solar_filename, solar_data = getdata.astronomy(FORCING_DIR, isolar)
-sfc_file, sfc_data = getdata.sfc(FORCING_DIR)
-gas_data = getdata.gases(FORCING_DIR, ictmflg)
+aer_dict = io.load_aerosol(FORCING_DIR)
+solar_filename, solar_data = io.load_astronomy(FORCING_DIR, isolar)
+sfc_file, sfc_data = io.load_sfc(FORCING_DIR)
+gas_data = io.load_gases(FORCING_DIR, ictmflg)
 
 driver.radinit(
     si,
@@ -188,9 +188,9 @@ def test_radiation_valiation():
         Tbd = getscalars(Tbd)
         Radtend = getscalars(Radtend)
         Diag = getscalars(Diag)
-        randomdict = getdata.random_numbers(LOOKUP_DIR, rank)
-        lwdict = getdata.lw(LOOKUP_DIR)
-        swdict = getdata.sw(LOOKUP_DIR)
+        randomdict = io.load_random_numbers(LOOKUP_DIR, rank)
+        lwdict = io.load_lw(LOOKUP_DIR)
+        swdict = io.load_sw(LOOKUP_DIR)
 
         Radtendout, Diagout, Couplingout = driver.GFS_radiation_driver(
             Model,
