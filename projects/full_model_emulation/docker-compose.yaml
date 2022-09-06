@@ -1,0 +1,12 @@
+services:
+  torch:
+    image: us.gcr.io/vcm-ml/torch:f5980016d53949ea397c31fd39193641edd54e37
+    volumes:
+      - ../../projects:/fv3net/projects
+      - bash_history:/root/.bash_history
+      - $HOME/.config/gcloud:/root/.config/gcloud
+    environment:
+      - HISTFILE=/root/.bash_history/history
+      - WANDB_MODE=offline
+volumes:
+  bash_history: {}

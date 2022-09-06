@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/argoproj/argo-workflows/master/api/jsonschema/schema.json
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: full-model-emulation-
+  labels:
+    project: full-model-emulation
+    job_type: train
+    experiment: default
+spec:
+  entrypoint: training
+  arguments:
+    parameters:
+      - name: training-config
+        value: ""
+      - name: image_tag
+        value: 71404ca6a4b4f8eceeb18bb80898a924b933ed80
+  volumes:
+  - name: gcp-key-secret
+    secret:
+      defaultMode: 420
+      secretName: gcp-key
+  templates:
+  - name: training
+    steps:
+    - - name: train-model
+        template: train-model
+        arguments:
+          parameters:
+          - name: training-config
+            value: "{{workflow.parameters.training-config}}"
+  - name: train-model
+    inputs:
+      parameters:
+        - name: training-config
+    container:
+      image: "us.gcr.io/vcm-ml/torch:{{workflow.parameters.image_tag}}"
+      command: ["python3"]
+      envFrom:
+      - secretRef:
+          name: wandb-andrep
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
+        - name: WANDB_NAME
+          value: "{{workflow.name}}"
+      volumeMounts:
+        - mountPath: /secret/gcp-credentials
+          name: gcp-key-secret
+      resources:
+        limits:
+          cpu: "7"
+          memory: "20Gi"
+          nvidia.com/gpu: 1
+        requests:
+          cpu: "7"
+          memory: "15Gi"
+      workingDir: "/fv3net/projects/full_model_emulation/test"
+      args: ["SAGEUnet_Unet_MP_LowRes.py"]
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "gpu-sim-pool"
+      effect: "NoSchedule"
+    - key: "nvidia.com/gpu"
+      operator: "Exists"
+      effect: "NoSchedule"

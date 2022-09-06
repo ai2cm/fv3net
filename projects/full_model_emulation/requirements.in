@@ -1,0 +1,8 @@
+dgl
+geopy
+h3
+einops
+
+--extra-index-url https://download.pytorch.org/whl/cu113
+torch
+torchvision

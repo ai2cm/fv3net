@@ -1,0 +1,3 @@
+argo submit --from workflowtemplate/prognostic-run-diags \
+    -p runs="$(< rundirs.json)" \
+    --name TestFile
