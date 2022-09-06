@@ -46,7 +46,6 @@ from runtime.steppers.machine_learning import (
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig
 from runtime.steppers.combine import CombinedStepper
-from runtime.steppers.radiation import RadiationStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
 from typing_extensions import Protocol
@@ -220,9 +219,13 @@ class TimeLoop(
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
         if config.radiation_scheme:
             self._radiation_stepper: Optional[
-                RadiationStepper
-            ] = RadiationStepper.from_config(
-                config.radiation_scheme, self.comm, namelist["gfs_physics_nml"]
+                Stepper
+            ] = runtime.factories.get_radiation_stepper(
+                config.radiation_scheme,
+                self.comm,
+                namelist["gfs_physics_nml"],
+                self._timestep,
+                self._fv3gfs.get_tracer_metadata(),
             )
         else:
             self._radiation_stepper = None
@@ -364,12 +367,7 @@ class TimeLoop(
     def _step_radiation_physics(self) -> Diagnostics:
         self._log_debug(f"Radiation Physics Step")
         if self._radiation_stepper is not None:
-            _, diagnostics, _ = self._radiation_stepper(
-                self._state,
-                self._fv3gfs.get_tracer_metadata(),
-                self.time,
-                self._timestep,
-            )
+            _, diagnostics, _ = self._radiation_stepper(self.time, self._state,)
         else:
             diagnostics = {}
         self._fv3gfs.step_radiation()

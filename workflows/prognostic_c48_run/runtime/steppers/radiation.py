@@ -6,19 +6,16 @@ from typing import (
     Any,
     Literal,
     Hashable,
+    Union,
+    Tuple,
 )
 from mpi4py import MPI
 import cftime
 import numpy as np
 import xarray as xr
-from runtime.steppers.machine_learning import (
-    MachineLearningConfig,
-    open_model,
-    MultiModelAdapter,
-    predict,
-)
+from runtime.steppers.machine_learning import PureMLStepper, MachineLearningConfig
+from runtime.steppers.prescriber import Prescriber, PrescriberConfig
 from runtime.types import State, Diagnostics
-from runtime.derived_state import DerivedFV3State
 import radiation
 from radiation import io, preprocessing
 
@@ -28,37 +25,33 @@ class RadiationConfig:
     """"""
 
     kind: Literal["python"]
-    input_model: Optional[MachineLearningConfig] = None
+    input_generator: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
 
 
 class RadiationStepper:
+
+    label = "radiation"
+
     def __init__(
         self,
         driver: radiation.RadiationDriver,
         rad_config: MutableMapping[Hashable, Any],
         comm: MPI.COMM_WORLD,
-        input_model: Optional[MultiModelAdapter],
+        timestep: float,
+        tracer_inds: Mapping[str, int],
+        input_generator: Optional[Union[PureMLStepper, Prescriber]],
     ):
         self._driver: radiation.RadiationDriver = driver
         self._rad_config: MutableMapping[Hashable, Any] = rad_config
         self._comm: MPI.COMM_WORLD = comm
-        self._input_model: Optional[MultiModelAdapter] = input_model
+        self._timestep: float = timestep
+        self._tracer_inds: Mapping[str, int] = tracer_inds
+        self._input_generator: Optional[
+            Union[PureMLStepper, Prescriber]
+        ] = input_generator
+
         self._download_radiation_assets()
         self._init_driver()
-
-    @classmethod
-    def from_config(
-        cls,
-        config: RadiationConfig,
-        comm: MPI.COMM_WORLD,
-        physics_namelist: Mapping[Hashable, Any],
-    ) -> "RadiationStepper":
-        rad_config = radiation.get_rad_config(physics_namelist)
-        if config.input_model:
-            model: Optional[MultiModelAdapter] = open_model(config.input_model)
-        else:
-            model = None
-        return cls(radiation.RadiationDriver(), rad_config, comm, model)
 
     def _download_radiation_assets(
         self,
@@ -119,17 +112,12 @@ class RadiationStepper:
         )
 
     def __call__(
-        self,
-        state: State,
-        tracer_metadata: Mapping[str, Any],
-        time: cftime.DatetimeJulian,
-        dt_atmos: float,
+        self, time: cftime.DatetimeJulian, state: State,
     ):
-        self._rad_update(time, dt_atmos)
-        tracer_inds = {
-            name: metadata["i_tracer"] for name, metadata in tracer_metadata.items()
-        }
-        diagnostics = self._rad_compute(state, tracer_inds, time, dt_atmos)
+        self._rad_update(time, self._timestep)
+        if self._input_generator is not None:
+            state = self._generate_inputs(state, time)
+        diagnostics = self._rad_compute(state, time)
         return {}, diagnostics, {}
 
     def _rad_update(self, time: cftime.DatetimeJulian, dt_atmos: float) -> None:
@@ -163,23 +151,21 @@ class RadiationStepper:
             gas_data,
         )
 
-    def _rad_compute(
-        self,
-        state: State,
-        tracer_inds: Mapping[str, int],
-        time: cftime.DatetimeJulian,
-        dt_atmos: float,
-    ) -> Diagnostics:
+    def _rad_compute(self, state: State, time: cftime.DatetimeJulian,) -> Diagnostics:
         """Compute the radiative fluxes"""
-        if self._input_model is not None:
-            predictions = predict(self._input_model, state)
-            state = UpdatedState(state, predictions)
-        statein = preprocessing.statein(state, tracer_inds, self._rad_config["ivflip"])
+        statein = preprocessing.statein(
+            state, self._tracer_inds, self._rad_config["ivflip"]
+        )
         grid, coords = preprocessing.grid(state)
         sfcprop = preprocessing.sfcprop(state)
         ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
         model = preprocessing.model(
-            self._rad_config, tracer_inds, time, dt_atmos, nz, self._comm.rank
+            self._rad_config,
+            self._tracer_inds,
+            time,
+            self._timestep,
+            nz,
+            self._comm.rank,
         )
         random_numbers = io.generate_random_numbers(
             ncolumns, nz, radiation.NGPTSW, radiation.NGPTLW
@@ -192,11 +178,44 @@ class RadiationStepper:
         out = preprocessing.rename_out(out)
         return preprocessing.unstack(out, coords)
 
+    def _generate_inputs(self, state: State, time: cftime.DatetimeJulian) -> State:
+        if self._input_generator is not None:
+            generated_inputs = self._input_generator(time, state)
+            return OverridingState(state, generated_inputs)
+        else:
+            return state
 
-class UpdatedState(DerivedFV3State):
-    def __init__(self, state: State, predictions: State):
+    def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
+        return {}, xr.DataArray()
+
+    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
+        return {}
+
+
+class OverridingState(State):
+    def __init__(self, state: State, overriding_state: State):
         self._state = state
-        self._predictions = predictions
+        self._overriding_state = overriding_state
 
     def __getitem__(self, key: Hashable) -> xr.DataArray:
-        return self._predictions.get(key, self._state[key])
+        if key in self._overriding_state:
+            return self._overriding_state[key]
+        elif key in self._state:
+            return self._state[key]
+        else:
+            raise KeyError("Key is in neither state mapping.")
+
+    def keys(self):
+        return set(self._state.keys()) | set(self._overriding_state.keys())
+
+    def __delitem__(self, key: Hashable):
+        raise NotImplementedError()
+
+    def __setitem__(self, key: Hashable, value: xr.DataArray):
+        raise NotImplementedError()
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self):
+        return len(self.keys())

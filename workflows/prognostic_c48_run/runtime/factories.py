@@ -4,7 +4,7 @@ These construct objects like Emulators that require knowledge of static
 configuration as well as runtime-only data structures like the model state.
 """
 import logging
-from typing import Optional, Callable, Sequence, Mapping
+from typing import Optional, Callable, Sequence, Mapping, Hashable, Any, Union
 from datetime import timedelta
 import xarray as xr
 import cftime
@@ -16,11 +16,18 @@ from runtime.config import UserConfig
 from runtime.transformers.core import StepTransformer
 from runtime.transformers.tendency_prescriber import TendencyPrescriber
 from runtime.steppers.prescriber import PrescriberConfig, Prescriber
+from runtime.steppers.radiation import RadiationConfig, RadiationStepper
+from runtime.steppers.machine_learning import (
+    MachineLearningConfig,
+    PureMLStepper,
+    open_model,
+)
 from runtime.interpolate import time_interpolate_func, label_to_time
 from runtime.derived_state import DerivedFV3State
 import runtime.transformers.emulator
 import runtime.transformers.fv3fit
 import pace.util
+import radiation
 
 logger = logging.getLogger(__name__)
 
@@ -162,3 +169,32 @@ def get_prescriber(
         config.reference_frequency_seconds,
     )
     return Prescriber(communicator, time_lookup_function)
+
+
+def get_radiation_stepper(
+    config: RadiationConfig,
+    comm,
+    physics_namelist: Mapping[Hashable, Any],
+    timestep: float,
+    tracer_metadata: Mapping[Hashable, Mapping[Hashable, int]],
+) -> RadiationStepper:
+    rad_config = radiation.get_rad_config(physics_namelist)
+    if isinstance(config.input_generator, MachineLearningConfig):
+        input_generator: Optional[Union[PureMLStepper, Prescriber]] = PureMLStepper(
+            open_model(config.input_generator), timestep, hydrostatic=False
+        )
+    elif isinstance(config.input_generator, PrescriberConfig):
+        input_generator = get_prescriber(config.input_generator, comm)
+    else:
+        input_generator = None
+    tracer_inds: Mapping[str, int] = {
+        str(name): metadata["i_tracer"] for name, metadata in tracer_metadata.items()
+    }
+    return RadiationStepper(
+        radiation.RadiationDriver(),
+        rad_config,
+        comm,
+        timestep,
+        tracer_inds,
+        input_generator,
+    )
