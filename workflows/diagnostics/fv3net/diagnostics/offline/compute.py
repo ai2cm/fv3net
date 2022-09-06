@@ -1,9 +1,10 @@
 import argparse
+import atexit
 import json
 import logging
 import os
 import sys
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import List, Sequence, Tuple
 
 import yaml
@@ -277,11 +278,25 @@ def get_prediction(
 
     mapping_function = compose_left(*transforms)
     batches = loaders.Map(mapping_function, batches)
-    loaded_batches = []
-    for i, ds in enumerate(batches):
-        logger.info(f"Processing batch {i+1}/{len(batches)}")
-        loaded_batches.append(ds.load())
-    return xr.concat(loaded_batches, dim="time")
+
+    temp_data_dir = TemporaryDirectory()
+    atexit.register(_cleanup_temp_dir, temp_data_dir)
+
+    concatted_batches = _daskify_sequence(batches, temp_data_dir.name)
+    del batches
+    return concatted_batches
+
+
+def _cleanup_temp_dir(temp_dir):
+    logger.info(f"Cleaning up temp dir {temp_dir.name}")
+    temp_dir.cleanup()
+
+
+def _daskify_sequence(batches, local_dir):
+    for i, batch in enumerate(batches):
+        batch.to_netcdf(os.path.join(local_dir, f"{i}.nc"))
+    dask_ds = xr.open_mfdataset(os.path.join(local_dir, "*.nc"))
+    return dask_ds
 
 
 def main(args):
