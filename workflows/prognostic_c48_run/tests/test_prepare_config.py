@@ -9,6 +9,7 @@ from runtime.segmented_run.prepare_config import (
 )
 from runtime.diagnostics.fortran import FortranFileConfig
 from runtime.segmented_run import prepare_config
+import yaml
 
 TEST_DATA_DIR = "tests/prepare_config_test_data"
 
@@ -89,3 +90,12 @@ def test_config_high_level_duration_respects_namelist():
     config = HighLevelConfig(namelist={"coupler_nml": {"seconds": 7}})
     out = config.to_fv3config()
     assert out["namelist"]["coupler_nml"]["seconds"] == 7
+
+
+def test_config_uses_specified_chunks():
+    with open(f"{TEST_DATA_DIR}/chunk_test.yml", "r") as f:
+        dict_ = yaml.safe_load(f)
+    # this first assertion just makes sure the test is sane
+    assert dict_["diagnostics"][0]["chunks"] == {"time": 2}
+    output = prepare_config.to_fv3config(dict_)
+    assert output["diagnostics"][0]["chunks"] == {"time": 2}
