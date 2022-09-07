@@ -57,8 +57,8 @@ def define_noisy_input(data: tf.Tensor, stdev=0.1) -> Tuple[tf.Tensor, tf.Tensor
 
 
 def flatten_dims(dataset: tf.data.Dataset) -> tf.data.Dataset:
-    """Transform [batch, time, tile, x, y, z] to [sample, x, y, z]"""
-    return dataset.unbatch().unbatch().unbatch()
+    """Transform [batch, time, tile, x, y, z] to [sample, tile, x, y, z]"""
+    return dataset.unbatch().unbatch()
 
 
 @register_training_function("autoencoder", AutoencoderHyperparameters)

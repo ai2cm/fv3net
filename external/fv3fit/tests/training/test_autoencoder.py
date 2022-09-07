@@ -85,7 +85,7 @@ def test_autoencoder(tmpdir):
         generator=fv3fit.pytorch.GeneratorConfig(
             n_convolutions=1, n_resnet=3, max_filters=32
         ),
-        training_loop=TrainingConfig(n_epoch=5, samples_per_batch=10),
+        training_loop=TrainingConfig(n_epoch=10, samples_per_batch=2),
         optimizer_config=fv3fit.pytorch.OptimizerConfig(name="Adam",),
         noise_amount=0.5,
     )
