@@ -3,6 +3,7 @@ import datetime
 from typing import Callable, Optional, List
 import cftime
 import gc
+import numpy as np
 
 from emulation._typing import FortranState
 from emulation.masks import Mask
@@ -89,7 +90,12 @@ class MicrophysicsHook:
                 'set_state' calls.  Expected to be [feature, sample]
                 dimensions or [sample]
         """
-        model_outputs = self.model(state)
+        inputs = {name: state[name].T for name in state}
+        predictions = self.model(inputs)
+        # tranpose back to FV3 conventions
+        model_outputs = {
+            name: np.asarray(tensor).T for name, tensor in predictions.items()
+        }
 
         # fields stay in global state so check overwrites on first step
         if self.orig_outputs is None:

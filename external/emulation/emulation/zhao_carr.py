@@ -107,7 +107,7 @@ def mask_where_fortran_cloud_identical(state, emulator):
 def _get_classify_output(logit_classes, one_hot_axis=0):
     names = sorted(CLASS_NAMES)
     one_hot = logit_classes == np.max(logit_classes, axis=one_hot_axis, keepdims=True)
-    d = {name: one_hot[i] for i, name in enumerate(names)}
+    d = {name: np.take(one_hot, i, one_hot_axis) for i, name in enumerate(names)}
     d["nontrivial_tendency"] = d[POSITIVE_TENDENCY] | d[NEGATIVE_TENDENCY]
     return d
 
