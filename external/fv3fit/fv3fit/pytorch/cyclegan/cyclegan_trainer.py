@@ -16,6 +16,30 @@ import numpy as np
 
 @dataclasses.dataclass
 class CycleGANNetworkConfig:
+    """
+    Configuration for building and training a CycleGAN network.
+
+    Attributes:
+        generator_optimizer: configuration for the optimizer used to train the
+            generator
+        discriminator_optimizer: configuration for the optimizer used to train the
+            discriminator
+        generator: configuration for building the generator network
+        discriminator: configuration for building the discriminator network
+        identity_loss: loss function used to make the generator which outputs
+            a given domain behave as an identity function when given data from
+            that domain as input
+        cycle_loss: loss function used on the difference between a round-trip
+            of the CycleGAN network and the original input
+        gan_loss: loss function used on output of the discriminator when
+            training the discriminator identify samples correctly or when training
+            the generator to fool the discriminator
+        identity_weight: weight of the identity loss
+        cycle_weight: weight of the cycle loss
+        generator_weight: weight of the generator's gan loss
+        discriminator_weight: weight of the discriminator gan loss
+    """
+
     generator_optimizer: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
@@ -33,7 +57,7 @@ class CycleGANNetworkConfig:
     gan_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
     identity_weight: float = 0.5
     cycle_weight: float = 1.0
-    gan_weight: float = 1.0
+    generator_weight: float = 1.0
     discriminator_weight: float = 1.0
 
     def build(
@@ -70,7 +94,7 @@ class CycleGANNetworkConfig:
             batch_size=n_batch,
             identity_weight=self.identity_weight,
             cycle_weight=self.cycle_weight,
-            gan_weight=self.gan_weight,
+            generator_weight=self.generator_weight,
             discriminator_weight=self.discriminator_weight,
         )
 
@@ -98,6 +122,12 @@ class ReplayBuffer:
         self.data = []
 
     def push_and_pop(self, data: torch.Tensor) -> torch.autograd.Variable:
+        """
+        Push data into the buffer and return a random sample of the buffer.
+
+        If there are at least max_size elements in the buffer, the returned sample
+        is removed from the buffer.
+        """
         to_return = []
         for element in data.data:
             element = torch.unsqueeze(element, 0)
@@ -115,6 +145,10 @@ class ReplayBuffer:
 
 
 class StatsCollector:
+    """
+    Object to track the mean and standard deviation of sampled arrays.
+    """
+
     def __init__(self, n_dims_keep: int):
         self.n_dims_keep = n_dims_keep
         self._sum = 0.0
@@ -122,6 +156,9 @@ class StatsCollector:
         self._count = 0
 
     def observe(self, data: np.ndarray):
+        """
+        Add a new sample to the statistics.
+        """
         mean_dims = tuple(range(0, len(data.shape) - self.n_dims_keep))
         data = data.astype(np.float64)
         self._sum += data.mean(axis=mean_dims)
@@ -130,10 +167,16 @@ class StatsCollector:
 
     @property
     def mean(self) -> np.ndarray:
+        """
+        Mean of the observed samples.
+        """
         return self._sum / self._count
 
     @property
     def std(self) -> np.ndarray:
+        """
+        Standard deviation of the observed samples.
+        """
         return np.sqrt(self._sum_squared / self._count - self.mean ** 2)
 
 
@@ -146,6 +189,27 @@ def get_r2(predicted, target) -> float:
 
 @dataclasses.dataclass
 class CycleGANTrainer:
+    """
+    A trainer for a CycleGAN model.
+
+    Attributes:
+        cycle_gan: the CycleGAN model to train
+        optimizer_generator: the optimizer for the generator
+        optimizer_discriminator: the optimizer for the discriminator
+        identity_loss: loss function used to make the generator which outputs
+            a given domain behave as an identity function when given data from
+            that domain as input
+        cycle_loss: loss function used on the difference between a round-trip
+            of the CycleGAN network and the original input
+        gan_loss: loss function used on output of the discriminator when
+            training the discriminator identify samples correctly or when training
+            the generator to fool the discriminator
+        batch_size: the number of samples to use in each batch when training
+        identity_weight: weight of the identity loss
+        cycle_weight: weight of the cycle loss
+        generator_weight: weight of the generator's gan loss
+        discriminator_weight: weight of the discriminator gan loss
+    """
 
     # This class based loosely on
     # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/cycle_gan_model.py
@@ -162,7 +226,7 @@ class CycleGANTrainer:
     batch_size: int
     identity_weight: float = 0.5
     cycle_weight: float = 1.0
-    gan_weight: float = 1.0
+    generator_weight: float = 1.0
     discriminator_weight: float = 1.0
 
     def __post_init__(self):
@@ -244,10 +308,14 @@ class CycleGANTrainer:
         pred_fake_b = self.discriminator_b(fake_b)
         if self.target_real is None:
             self._init_targets(pred_fake_b.shape)
-        loss_gan_a_to_b = self.gan_loss(pred_fake_b, self.target_real) * self.gan_weight
+        loss_gan_a_to_b = (
+            self.gan_loss(pred_fake_b, self.target_real) * self.generator_weight
+        )
 
         pred_fake_a = self.discriminator_a(fake_a)
-        loss_gan_b_to_a = self.gan_loss(pred_fake_a, self.target_real) * self.gan_weight
+        loss_gan_b_to_a = (
+            self.gan_loss(pred_fake_a, self.target_real) * self.generator_weight
+        )
         loss_gan = loss_gan_a_to_b + loss_gan_b_to_a
 
         # Cycle loss
@@ -271,41 +339,33 @@ class CycleGANTrainer:
         # Real loss
         pred_real = self.discriminator_a(real_a)
         loss_d_a_real = (
-            self.gan_loss(pred_real, self.target_real)
-            * self.gan_weight
-            * self.discriminator_weight
+            self.gan_loss(pred_real, self.target_real) * self.discriminator_weight
         )
 
         # Fake loss
         fake_a = self.fake_a_buffer.push_and_pop(fake_a)
         pred_a_fake = self.discriminator_a(fake_a.detach())
         loss_d_a_fake = (
-            self.gan_loss(pred_a_fake, self.target_fake)
-            * self.gan_weight
-            * self.discriminator_weight
+            self.gan_loss(pred_a_fake, self.target_fake) * self.discriminator_weight
         )
 
         # Real loss
         pred_real = self.discriminator_b(real_b)
         loss_d_b_real = (
-            self.gan_loss(pred_real, self.target_real)
-            * self.gan_weight
-            * self.discriminator_weight
+            self.gan_loss(pred_real, self.target_real) * self.discriminator_weight
         )
 
         # Fake loss
         fake_b = self.fake_b_buffer.push_and_pop(fake_b)
         pred_b_fake = self.discriminator_b(fake_b.detach())
         loss_d_b_fake = (
-            self.gan_loss(pred_b_fake, self.target_fake)
-            * self.gan_weight
-            * self.discriminator_weight
+            self.gan_loss(pred_b_fake, self.target_fake) * self.discriminator_weight
         )
 
         # Total loss
         loss_d: torch.Tensor = (
             loss_d_b_real + loss_d_b_fake + loss_d_a_real + loss_d_a_fake
-        ) * self.discriminator_weight
+        )
 
         self.optimizer_discriminator.zero_grad()
         loss_d.backward()
