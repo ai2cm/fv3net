@@ -175,13 +175,13 @@ class RadiationStepper:
         out = self._driver._GFS_radiation_driver(
             model, statein, sfcprop, grid, random_numbers, lw_lookup, sw_lookup
         )
-        out = preprocessing.rename_out(out)
+        out = preprocessing.postprocess_out(out)
         return preprocessing.unstack(out, coords)
 
     def _generate_inputs(self, state: State, time: cftime.DatetimeJulian) -> State:
         if self._input_generator is not None:
-            generated_inputs = self._input_generator(time, state)
-            return OverridingState(state, generated_inputs)
+            _, _, state_updates = self._input_generator(time, state)
+            return MergedState(state, state_updates)
         else:
             return state
 
@@ -192,7 +192,7 @@ class RadiationStepper:
         return {}
 
 
-class OverridingState(State):
+class MergedState(State):
     def __init__(self, state: State, overriding_state: State):
         self._state = state
         self._overriding_state = overriding_state

@@ -1,4 +1,4 @@
-from typing import Tuple, Sequence, MutableMapping, Hashable, Any, Mapping
+from typing import Tuple, Set, MutableMapping, Hashable, Any, Mapping
 from datetime import timedelta
 import numpy as np
 import xarray as xr
@@ -16,7 +16,7 @@ except ImportError:
 P_REF = 1.0e5
 MINUTES_PER_HOUR = 60.0
 SECONDS_PER_MINUTE = 60.0
-TRACER_NAME_MAPPING: Mapping[str, str] = {  # this is specific to GFS physics
+TRACER_NAMES_IN_MAPPING: Mapping[str, str] = {  # this is specific to GFS physics
     "cloud_water_mixing_ratio": "ntcw",
     "rain_mixing_ratio": "ntrw",
     "cloud_ice_mixing_ratio": "ntiw",
@@ -24,6 +24,42 @@ TRACER_NAME_MAPPING: Mapping[str, str] = {  # this is specific to GFS physics
     "graupel_mixing_ratio": "ntgl",
     "ozone_mixing_ratio": "ntoz",
     "cloud_amount": "ntclamt",
+}
+SFC_NAMES_IN_MAPPING: Mapping[str, str] = {
+    "surface_temperature": "tsfc",
+    "land_sea_mask": "slmsk",
+    "snow_depth_water_equivalent": "snowd",
+    "snow_cover_in_fraction": "sncovr",
+    "maximum_snow_albedo_in_fraction": "snoalb",
+    "surface_roughness": "zorl",
+    "orographic_variables": "hprime",
+    "mean_visible_albedo_with_strong_cosz_dependency": "alvsf",
+    "mean_near_infrared_albedo_with_strong_cosz_dependency": "alnsf",
+    "mean_visible_albedo_with_weak_cosz_dependency": "alvwf",
+    "mean_near_infrared_albedo_with_weak_cosz_dependency": "alnwf",
+    "fractional_coverage_with_strong_cosz_dependency": "facsf",
+    "fractional_coverage_with_weak_cosz_dependency": "facwf",
+    "ice_fraction_over_open_water": "fice",
+    "surface_temperature_over_ice_fraction": "tisfc",
+}
+RENAME_OUT: Mapping[str, str] = {
+    "sfcflw_dnfx0": "clear_sky_downward_longwave_flux_at_surface_python",
+    "sfcfsw_dnfx0": "clear_sky_downward_shortwave_flux_at_surface_python",
+    "sfcflw_upfx0": "clear_sky_upward_longwave_flux_at_surface_python",
+    "sfcfsw_upfx0": "clear_sky_upward_shortwave_flux_at_surface_python",
+    "topflw_upfx0": "clear_sky_upward_longwave_flux_at_top_of_atmosphere_python",
+    "topfsw_upfx0": "clear_sky_upward_shortwave_flux_at_top_of_atmosphere_python",
+    "sfcflw_dnfxc": "total_sky_downward_longwave_flux_at_surface_python",
+    "sfcfsw_dnfxc": "total_sky_downward_shortwave_flux_at_surface_python",
+    "sfcflw_upfxc": "total_sky_upward_longwave_flux_at_surface_python",
+    "sfcfsw_upfxc": "total_sky_upward_shortwave_flux_at_surface_python",
+    "topfsw_dnfxc": "total_sky_downward_shortwave_flux_at_top_of_atmosphere_python",
+    "topflw_upfxc": "total_sky_upward_longwave_flux_at_top_of_atmosphere_python",
+    "topfsw_upfxc": "total_sky_upward_shortwave_flux_at_top_of_atmosphere_python",
+    "htrlw": "total_sky_longwave_heating_rate_python",
+    "lwhc": "clear_sky_longwave_heating_rate_python",
+    "htrsw": "total_sky_shortwave_heating_rate_python",
+    "swhc": "clear_sky_shortwave_heating_rate_python",
 }
 
 State = MutableMapping[Hashable, xr.DataArray]
@@ -37,6 +73,7 @@ def model(
     dt_atmos: float,
     nz: int,
     rank: int,
+    tracer_name_mapping: Mapping[str, str] = TRACER_NAMES_IN_MAPPING,
 ) -> MutableMapping[Hashable, Any]:
     model: MutableMapping[Hashable, Any] = {
         "me": rank,
@@ -73,8 +110,8 @@ def model(
         "lssav": rad_config["lssav"],
     }
     for tracer_name, index in tracer_inds.items():
-        if tracer_name in TRACER_NAME_MAPPING:
-            model[TRACER_NAME_MAPPING[tracer_name]] = index
+        if tracer_name in tracer_name_mapping:
+            model[tracer_name_mapping[tracer_name]] = index
     model["ntrac"] = max(tracer_inds.values())
     return model
 
@@ -166,62 +203,55 @@ def grid(state: State) -> Tuple[Mapping[str, np.ndarray], xr.DataArray]:
     )
 
 
-SFC_VAR_MAPPING = {
-    "tsfc": "surface_temperature",
-    "slmsk": "land_sea_mask",
-    "snowd": "snow_depth_water_equivalent",
-    "sncovr": "snow_cover_in_fraction",
-    "snoalb": "maximum_snow_albedo_in_fraction",
-    "zorl": "surface_roughness",
-    "hprime": "orographic_variables",
-    "alvsf": "mean_visible_albedo_with_strong_cosz_dependency",
-    "alnsf": "mean_near_infrared_albedo_with_strong_cosz_dependency",
-    "alvwf": "mean_visible_albedo_with_weak_cosz_dependency",
-    "alnwf": "mean_near_infrared_albedo_with_weak_cosz_dependency",
-    "facsf": "fractional_coverage_with_strong_cosz_dependency",
-    "facwf": "fractional_coverage_with_weak_cosz_dependency",
-    "fice": "ice_fraction_over_open_water",
-    "tisfc": "surface_temperature_over_ice_fraction",
-}
-
-
 def sfcprop(
-    state: State, sfc_var_mapping: Mapping[str, str] = SFC_VAR_MAPPING
+    state: State, sfc_var_mapping: Mapping[str, str] = SFC_NAMES_IN_MAPPING
 ) -> Mapping[str, np.ndarray]:
-    sfc = xr.Dataset({k: state[v] for k, v in list(sfc_var_mapping.items())})
+    sfc = xr.Dataset({v: state[k] for k, v in list(sfc_var_mapping.items())})
     # we only want the first of "hprime" variables
     sfc["hprime"] = sfc["hprime"].isel({"orographic_variable": 0})
     stacked_sfc = _stack(sfc)
     return {name: stacked_sfc[name].values for name in stacked_sfc.data_vars}
 
 
-OUT_NAMES = [
-    "clear_sky_downward_longwave_flux_at_surface_python",
-    "clear_sky_downward_shortwave_flux_at_surface_python",
-    "clear_sky_upward_longwave_flux_at_surface_python",
-    "clear_sky_upward_shortwave_flux_at_surface_python",
-    "clear_sky_upward_longwave_flux_at_top_of_atmosphere_python",
-    "clear_sky_upward_shortwave_flux_at_top_of_atmosphere_python",
-    "total_sky_downward_longwave_flux_at_surface_python",
-    "total_sky_downward_shortwave_flux_at_surface_python",
-    "total_sky_upward_longwave_flux_at_surface_python",
-    "total_sky_upward_shortwave_flux_at_surface_python",
-    "total_sky_downward_shortwave_flux_at_top_of_atmosphere_python",
-    "total_sky_upward_longwave_flux_at_top_of_atmosphere_python",
-    "total_sky_upward_shortwave_flux_at_top_of_atmosphere_python",
-]
-
-
-def rename_out(
-    out: Tuple[Mapping[str, np.ndarray], ...], out_names: Sequence[str] = OUT_NAMES
+def postprocess_out(
+    out: Tuple[Mapping[str, np.ndarray], ...],
+    out_rename: Mapping[str, str] = RENAME_OUT,
 ) -> Mapping[str, np.ndarray]:
-    radtendout, diagout, _ = out
-    renamed = {}
-    for name in out_names:
-        obj = radtendout if "surface" in name else diagout
-        level = "sfc" if "surface" in name else "top"
-        band = "lw" if "longwave" in name else "sw"
-        direction = "up" if "upward" in name else "dn"
-        cloud_type = "0" if "clear" in name else "c"
-        renamed[name] = obj[f"{level}f{band}"][f"{direction}fx{cloud_type}"]
-    return renamed
+    flattened = []
+    for out_dict in out:
+        flattened.append(_flatten(out_dict))
+    merged = _merge(*flattened)
+    return {new_name: merged[old_name] for old_name, new_name in out_rename.items()}
+
+
+def _merge(*out_dicts: Mapping[str, np.ndarray]) -> Mapping[str, np.ndarray]:
+    """Merge flattened output dictionaries, which should not have name clashes"""
+    merged: MutableMapping[str, np.ndarray] = {}
+    names: Set[str] = set()
+    for out in out_dicts:
+        _names = set(out.keys())
+        overlapping = names & _names
+        if len(overlapping) > 0:
+            raise ValueError("Overlapping outputs found: {overlapping}")
+        else:
+            names = names | _names
+        merged.update(**out)
+    return merged
+
+
+def _flatten(in_mapping: Mapping[str, Any]) -> Mapping[str, np.ndarray]:
+    """Flatten output dictionaries via key concatenation"""
+    flattened = {}
+    for k, v in in_mapping.items():
+        if isinstance(v, dict):
+            flattened.update(
+                {
+                    "_".join([k, nested_k]): nested_v
+                    for nested_k, nested_v in _flatten(v).items()
+                }
+            )
+        elif isinstance(v, np.ndarray):
+            flattened[k] = v
+        else:
+            raise TypeError("Nested dict contains non-numpy array items.")
+    return flattened
