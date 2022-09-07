@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from emulation.models import ModelWithClassifier, _predict, transform_model
+from emulation.models import ModelWithClassifier, transform_model
 from emulation.zhao_carr import CLASS_NAMES
 
 
@@ -22,23 +22,12 @@ def test_TransformedModel_with_classifier(tmp_path):
 
     transformed_model = ModelWithClassifier(model, classifier)
 
-    x = {"a": np.ones([10, 100])}
+    x = {"a": np.ones([100, 10])}
     out = transformed_model(x)
     assert out
     assert set(out) >= set(CLASS_NAMES)
     for v in out.values():
         assert isinstance(v, np.ndarray)
-
-
-def test__predict():
-    x = {"a": np.ones([10, 100]), "b": np.ones([100])}
-
-    def call(x):
-        return {"y": tf.constant(x["a"])}
-
-    out = _predict(call, x)
-    assert set(out) == {"y"}
-    np.testing.assert_array_equal(x["a"], out["y"])
 
 
 def test_transform_model():
@@ -51,13 +40,13 @@ def test_transform_model():
     class Transform:
         def forward(self, x):
             a = x["a"]
-            assert a.shape == (100, 10)
+            assert a.shape == (10, 100)
             x["b"] = a
             return x
 
         def backward(self, x):
             c = x["c"]
-            assert c.shape == (100, 10)
+            assert c.shape == (10, 100)
             x["d"] = c
             return x
 

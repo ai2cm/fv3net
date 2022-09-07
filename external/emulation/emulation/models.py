@@ -3,7 +3,6 @@ import logging
 
 
 import numpy as np
-import tensorflow as tf
 from fv3fit.keras import adapters
 from emulation._typing import FortranState
 from emulation.zhao_carr import _get_classify_output
@@ -20,16 +19,17 @@ class ModelWithClassifier:
     def __call__(self, state: FortranState) -> FortranState:
 
         if self.classifier is not None:
-            classifier_outputs = _predict(self.classifier, state)
+            classifier_outputs = self.classifier(state)
             logit_classes = classifier_outputs[self._class_key]
-            classifier_outputs.update(_get_classify_output(logit_classes))
+            decoded_one_hot = _get_classify_output(logit_classes, one_hot_axis=-1)
+            classifier_outputs.update(decoded_one_hot)
         else:
             classifier_outputs = {}
 
         inputs = {**classifier_outputs, **state}
-        model_outputs = _predict(self.model, inputs)
+        model_outputs = self.model(inputs)
         model_outputs.update(classifier_outputs)
-        return model_outputs
+        return _as_numpy(model_outputs)
 
 
 def transform_model(
@@ -39,24 +39,16 @@ def transform_model(
         # model time is an array of length 8, which can conflict with the other
         # arrays here
         x = {k: v for k, v in x.items() if k != "model_time"}
-        x_transformed = _predict(transform.forward, x)
+        x_transformed = transform.forward(x)
         x_transformed.update(model(x_transformed))
-        output = _predict(transform.backward, x_transformed)
+        output = transform.backward(x_transformed)
         return output
 
     return combined
 
 
-def _predict(model: tf.keras.Model, state: FortranState) -> FortranState:
-    # grab model-required variables and
-    # switch state to model-expected [sample, feature]
-    inputs = {name: state[name].T for name in state}
-
-    predictions = model(inputs)
-    # tranpose back to FV3 conventions
-    model_outputs = {name: np.asarray(tensor).T for name, tensor in predictions.items()}
-
-    return model_outputs
+def _as_numpy(state):
+    return {key: np.asarray(state[key]) for key in state}
 
 
 def combine_classifier_and_regressor(
