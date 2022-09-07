@@ -2,7 +2,6 @@ import tensorflow as tf
 import numpy as np
 import dataclasses
 from fv3fit._shared.training_config import Hyperparameters
-from toolz.functoolz import curry
 from fv3fit.pytorch.predict import PytorchAutoregressor
 from fv3fit.pytorch.graph.mpg_unet import MPGraphUNetConfig
 from fv3fit.pytorch.graph.unet import GraphUNetConfig
@@ -89,18 +88,19 @@ def train_graph_model(
     scalers = get_standard_scaler_mapping(sample)
     mapping_scale_func = get_mapping_standard_scale_func(scalers)
 
-    get_state = curry(get_Xy_dataset)(
+    get_Xy = get_Xy_map_fn(
         state_variables=hyperparameters.state_variables,
         n_dims=6,  # [batch, time, tile, x, y, z]
         mapping_scale_func=mapping_scale_func,
     )
 
     if validation_batches is not None:
-        val_state = get_state(data=validation_batches).unbatch()
+        val_state = validation_batches.map(get_Xy).unbatch()
     else:
         val_state = None
 
-    train_state = get_state(data=train_batches).unbatch()
+    train_state = train_batches.map(get_Xy).unbatch()
+
     sample = next(iter(train_state))
     train_model = build_model(
         hyperparameters.graph_network, n_state=sample.shape[-1], nx=sample.shape[3],
@@ -133,11 +133,10 @@ def build_model(graph_network, n_state: int, nx: int):
     )
 
 
-def get_Xy_dataset(
+def get_Xy_map_fn(
     state_variables: Sequence[str],
     n_dims: int,
     mapping_scale_func: Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]],
-    data: tf.data.Dataset,
 ):
     """
     Given a tf.data.Dataset with mappings from variable name to samples
@@ -165,4 +164,4 @@ def get_Xy_dataset(
         data = tf.concat(data, axis=-1)
         return data
 
-    return data.map(map_fn)
+    return map_fn
