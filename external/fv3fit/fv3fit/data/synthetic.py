@@ -94,8 +94,8 @@ class SyntheticWaves(TFDatasetLoader):
             variable_names: names of variables to include when loading data
         Returns:
             dataset containing requested variables, each record is a mapping from
-                variable name to variable value, and each value is a tensor whose
-                first dimension is the batch dimension
+                variable name to variable value, and each value is a tensor
+                of shape [nbatch, nsamples, ntime, nx, ny(, nz)]
         """
         if self.wave_type == "sinusoidal":
             func = np.sin
