@@ -15,6 +15,12 @@ import xarray as xr
 
 
 class CycleGANModule(torch.nn.Module):
+    """
+    Torch module containing the components of a CycleGAN.
+    """
+
+    # we package this in this way so we can easily transform the model
+    # to different devices, and save/load the model as one module
     def __init__(
         self,
         generator_a_to_b: Generator,
@@ -154,7 +160,7 @@ class CycleGAN(Reloadable):
         )
         with torch.no_grad():
             if reverse:
-                outputs = self.generator_b_to_a(reshaped_tensor)
+                outputs: torch.Tensor = self.generator_b_to_a(reshaped_tensor)
             else:
                 outputs = self.generator_a_to_b(reshaped_tensor)
         outputs = outputs.reshape(tensor.shape)

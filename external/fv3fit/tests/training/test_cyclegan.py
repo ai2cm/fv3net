@@ -27,7 +27,7 @@ def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
                 ntime=ntime,
                 nx=nx,
                 nz=nz,
-                scalar_names=["b"],
+                scalar_names=["var_2d"],
                 scale_min=0.5,
                 scale_max=1.0,
                 period_min=8,
@@ -40,7 +40,7 @@ def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
                 ntime=ntime,
                 nx=nx,
                 nz=nz,
-                scalar_names=["b"],
+                scalar_names=["var_2d"],
                 scale_min=0.5,
                 scale_max=1.0,
                 period_min=8,
@@ -49,7 +49,9 @@ def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
             ),
         ]
     )
-    dataset = config.open_tfdataset(local_download_path=None, variable_names=["a", "b"])
+    dataset = config.open_tfdataset(
+        local_download_path=None, variable_names=["var_3d", "var_2d"]
+    )
     return dataset
 
 
@@ -62,6 +64,7 @@ def get_noise_tfdataset(nsamples, nbatch, ntime, nx, nz):
                 ntime=ntime,
                 nx=nx,
                 nz=nz,
+                scalar_names=["var_2d"],
                 noise_amplitude=1.0,
             ),
             SyntheticNoise(
@@ -70,11 +73,14 @@ def get_noise_tfdataset(nsamples, nbatch, ntime, nx, nz):
                 ntime=ntime,
                 nx=nx,
                 nz=nz,
+                scalar_names=["var_2d"],
                 noise_amplitude=1.0,
             ),
         ]
     )
-    dataset = config.open_tfdataset(local_download_path=None, variable_names=["a", "b"])
+    dataset = config.open_tfdataset(
+        local_download_path=None, variable_names=["var_3d", "var_2d"]
+    )
     return dataset
 
 
@@ -109,14 +115,14 @@ def test_cyclegan(tmpdir):
     # on whether we can autoencode sin waves, and need to resolve full cycles
     nx = 32
     sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "nz": 2}
-    state_variables = ["a", "b"]
+    state_variables = ["var_3d", "var_2d"]
     train_tfdataset = get_tfdataset(nsamples=200, **sizes)
     val_tfdataset = get_tfdataset(nsamples=20, **sizes)
     hyperparameters = CycleGANHyperparameters(
         state_variables=state_variables,
         network=CycleGANNetworkConfig(
             generator=fv3fit.pytorch.GeneratorConfig(
-                n_convolutions=3, n_resnet=5, max_filters=128, kernel_size=3
+                n_convolutions=2, n_resnet=5, max_filters=128, kernel_size=3
             ),
             generator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
@@ -130,7 +136,7 @@ def test_cyclegan(tmpdir):
             # gan_weight=1.0,
             discriminator_weight=0.5,
         ),
-        training_loop=CycleGANTrainingConfig(
+        training=CycleGANTrainingConfig(
             n_epoch=30, samples_per_batch=20, validation_batch_size=10
         ),
     )
@@ -151,12 +157,16 @@ def test_cyclegan(tmpdir):
     fig, ax = plt.subplots(3, 2, figsize=(8, 8))
     vmin = -1.5
     vmax = 1.5
-    ax[0, 0].imshow(real_a["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
-    ax[0, 1].imshow(real_b["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
-    ax[1, 0].imshow(output_b["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
-    ax[1, 1].imshow(output_a["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
-    ax[2, 0].imshow(reconstructed_a["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
-    ax[2, 1].imshow(reconstructed_b["a"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
+    ax[0, 0].imshow(real_a["var_3d"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
+    ax[0, 1].imshow(real_b["var_3d"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
+    ax[1, 0].imshow(output_b["var_3d"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
+    ax[1, 1].imshow(output_a["var_3d"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax)
+    ax[2, 0].imshow(
+        reconstructed_a["var_3d"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax
+    )
+    ax[2, 1].imshow(
+        reconstructed_b["var_3d"][0, i, :, :, iz].values, vmin=vmin, vmax=vmax
+    )
     ax[0, 0].set_title("real a")
     ax[0, 1].set_title("real b")
     ax[1, 0].set_title("output b")

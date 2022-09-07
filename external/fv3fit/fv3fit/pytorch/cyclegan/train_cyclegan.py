@@ -1,7 +1,6 @@
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
 import tensorflow as tf
-from fv3fit.pytorch.loss import LossConfig
 import torch
 from fv3fit.pytorch.system import DEVICE
 import tensorflow_datasets as tfds
@@ -32,16 +31,25 @@ logger = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class CycleGANHyperparameters(Hyperparameters):
+    """
+    Hyperparameters for CycleGAN training.
+
+    Attributes:
+        state_variables: list of variables to be transformed by the model
+        normalization_fit_samples: number of samples to use when fitting the
+            normalization
+        network: configuration for the CycleGAN network
+        training: configuration for the CycleGAN training
+    """
 
     state_variables: List[str]
     normalization_fit_samples: int = 50_000
     network: "CycleGANNetworkConfig" = dataclasses.field(
         default_factory=lambda: CycleGANNetworkConfig()
     )
-    training_loop: "CycleGANTrainingConfig" = dataclasses.field(
+    training: "CycleGANTrainingConfig" = dataclasses.field(
         default_factory=lambda: CycleGANTrainingConfig()
     )
-    loss: LossConfig = LossConfig(loss_type="mse")
 
     @property
     def variables(self):
@@ -50,6 +58,15 @@ class CycleGANHyperparameters(Hyperparameters):
 
 @dataclasses.dataclass
 class CycleGANTrainingConfig:
+    """
+    Attributes:
+        n_epoch: number of epochs to train for
+        shuffle_buffer_size: number of samples to use for shuffling the training data
+        samples_per_batch: number of samples to use per batch
+        validation_batch_size: number of samples to use per batch for validation,
+            does not affect training result but allows the use of out-of-sample
+            validation data
+    """
 
     n_epoch: int = 20
     shuffle_buffer_size: int = 10
@@ -178,17 +195,20 @@ def train_cyclegan(
 
     train_model = hyperparameters.network.build(
         n_state=next(iter(train_state))[0].shape[-1],
-        n_batch=hyperparameters.training_loop.samples_per_batch,
+        n_batch=hyperparameters.training.samples_per_batch,
         state_variables=hyperparameters.state_variables,
         scalers=scalers,
     )
 
     # remove time and tile dimensions, while we're using regular convolution
+    # MPS backend has a bug where it doesn't properly read striding information when
+    # doing 2d convolutions, so we need to use a channels-first data layout
+    # from the get-go and do transformations before and after while in numpy/tf space.
     train_state = train_state.unbatch().map(apply_to_tuple(channels_first)).unbatch()
     if validation_batches is not None:
         val_state = val_state.unbatch().map(apply_to_tuple(channels_first)).unbatch()
 
-    hyperparameters.training_loop.fit_loop(
+    hyperparameters.training.fit_loop(
         train_model=train_model, train_data=train_state, validation_data=val_state,
     )
     return train_model.cycle_gan

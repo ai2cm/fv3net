@@ -13,6 +13,20 @@ from .modules import (
 
 @dataclasses.dataclass
 class DiscriminatorConfig:
+    """
+    Configuration for a discriminator network.
+
+    Follows the architecture of Zhu et al. 2017, https://arxiv.org/abs/1703.10593.
+    Uses a series of strided convolutions with leaky ReLU activations, followed
+    by two convolutional layers.
+
+    Args:
+        n_convolutions: number of strided convolutional layers before the
+            final convolutional output layer, must be at least 1
+        kernel_size: size of convolutional kernels
+        max_filters: maximum number of filters in any convolutional layer,
+            equal to the number of filters in the final strided convolutional layer
+    """
 
     n_convolutions: int = 3
     kernel_size: int = 3
@@ -31,6 +45,10 @@ class DiscriminatorConfig:
 
 
 class Discriminator(nn.Module):
+
+    # analogous to NLayerDiscriminator at
+    # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/networks.py
+
     def __init__(
         self,
         in_channels: int,
@@ -39,7 +57,20 @@ class Discriminator(nn.Module):
         max_filters: int,
         convolution: ConvolutionFactory = single_tile_convolution,
     ):
+        """
+        Args:
+            in_channels: number of input channels
+            n_convolutions: number of strided convolutional layers before the
+                final convolutional output layers, must be at least 1
+            kernel_size: size of convolutional kernels
+            max_filters: maximum number of filters in any convolutional layer,
+                equal to the number of filters in the final strided convolutional layer
+                and in the convolutional layer just before the output layer
+            convolution: factory for creating all convolutional layers
+        """
         super(Discriminator, self).__init__()
+        if n_convolutions < 1:
+            raise ValueError("n_convolutions must be at least 1")
         # max_filters = min_filters * 2 ** (n_convolutions - 1), therefore
         min_filters = int(max_filters / 2 ** (n_convolutions - 1))
         convs = [
@@ -54,6 +85,7 @@ class Discriminator(nn.Module):
                 ),
             )
         ]
+        # we've already defined the first strided convolutional layer, so start at 1
         for i in range(1, n_convolutions):
             convs.append(
                 ConvBlock(
@@ -67,6 +99,7 @@ class Discriminator(nn.Module):
                     ),
                 )
             )
+        # final_conv isn't strided so it's not included in the n_convolutions count
         final_conv = ConvBlock(
             in_channels=max_filters,
             out_channels=max_filters,
@@ -79,4 +112,11 @@ class Discriminator(nn.Module):
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            inputs: tensor of shape (batch, in_channels, height, width)
+
+        Returns:
+            tensor of shape (batch, 1, height, width)
+        """
         return self._sequential(inputs)
