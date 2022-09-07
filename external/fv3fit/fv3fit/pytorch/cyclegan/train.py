@@ -8,19 +8,15 @@ from fv3fit.pytorch.training_loop import TrainingConfig
 
 from fv3fit._shared import register_training_function
 from typing import (
-    Hashable,
     List,
-    Mapping,
     Optional,
     Tuple,
-    cast,
 )
 from .network import Generator
 from fv3fit.pytorch.graph.train import get_Xy_map_fn
 from fv3fit._shared.scaler import (
     get_standard_scaler_mapping,
     get_mapping_standard_scale_func,
-    StandardScaler,
 )
 from toolz import curry
 import logging
@@ -135,7 +131,7 @@ def train_autoencoder(
         input_variables=hyperparameters.state_variables,
         output_variables=hyperparameters.state_variables,
         model=train_model,
-        scalers=cast(Mapping[Hashable, StandardScaler], scalers),
+        scalers=scalers,
     )
     return predictor
 

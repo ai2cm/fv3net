@@ -11,20 +11,17 @@ from fv3fit.pytorch.training_loop import AutoregressiveTrainingConfig
 from fv3fit._shared.scaler import (
     get_standard_scaler_mapping,
     get_mapping_standard_scale_func,
-    StandardScaler,
 )
 from ..system import DEVICE
 
 from fv3fit._shared import register_training_function
 from typing import (
     Callable,
-    Hashable,
     List,
     Optional,
     Sequence,
     Set,
     Mapping,
-    cast,
     Union,
 )
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping
@@ -117,7 +114,7 @@ def train_graph_model(
     predictor = PytorchAutoregressor(
         state_variables=hyperparameters.state_variables,
         model=train_model,
-        scalers=cast(Mapping[Hashable, StandardScaler], scalers),
+        scalers=scalers,
     )
     return predictor
 
