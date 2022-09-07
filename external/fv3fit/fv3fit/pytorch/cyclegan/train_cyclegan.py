@@ -119,7 +119,7 @@ class CycleGANTrainingConfig:
 
 def apply_to_tuple_mapping(func):
     # not sure why, but tensorflow doesn't like parsing
-    # apply_to_tuple(apply_to_maping(func)), so we do it manually
+    # apply_to_tuple(apply_to_mapping(func)), so we do it manually
     def wrapped(*tuple_of_mapping):
         return tuple(
             {name: func(value) for name, value in mapping.items()}
