@@ -7,4 +7,4 @@ from .train_cyclegan import (
 from .discriminator import DiscriminatorConfig
 from .generator import GeneratorConfig
 from .cyclegan_trainer import CycleGANNetworkConfig
-from .reloadable import CycleGAN
+from .reloadable import CycleGAN, CycleGANModule

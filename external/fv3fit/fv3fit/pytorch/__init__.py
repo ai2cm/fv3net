@@ -11,6 +11,11 @@ from .cyclegan import (
     AutoencoderHyperparameters,
     GeneratorConfig,
     DiscriminatorConfig,
+    CycleGANHyperparameters,
+    CycleGANTrainingConfig,
+    CycleGANNetworkConfig,
+    CycleGAN,
+    CycleGANModule,
 )
 from .optimizer import OptimizerConfig
 from .activation import ActivationConfig
