@@ -114,9 +114,9 @@ class Discriminator(nn.Module):
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            inputs: tensor of shape (batch, in_channels, height, width)
+            inputs: tensor of shape (batch, tile, in_channels, height, width)
 
         Returns:
-            tensor of shape (batch, 1, height, width)
+            tensor of shape (batch, tile, 1, height, width)
         """
         return self._sequential(inputs)

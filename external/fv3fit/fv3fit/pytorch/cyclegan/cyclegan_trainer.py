@@ -257,6 +257,14 @@ class CycleGANTrainer:
         real_a: np.ndarray
         real_b: np.ndarray
         for real_a, real_b in dataset:
+            # for now there is no time-evolution-based loss, so we fold the time
+            # dimension into the sample dimension
+            real_a = real_a.reshape(
+                [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
+            )
+            real_b = real_b.reshape(
+                [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
+            )
             stats_real_a.observe(real_a)
             stats_real_b.observe(real_b)
             gen_b: torch.Tensor = self.generator_a_to_b(
@@ -283,6 +291,24 @@ class CycleGANTrainer:
     def train_on_batch(
         self, real_a: torch.Tensor, real_b: torch.Tensor
     ) -> Mapping[str, float]:
+        """
+        Train the CycleGAN on a batch of data.
+
+        Args:
+            real_a: a batch of data from domain A, should have shape
+                [sample, time, tile, channel, y, x]
+            real_b: a batch of data from domain B, should have shape
+                [sample, time, tile, channel, y, x]
+        """
+        # for now there is no time-evolution-based loss, so we fold the time
+        # dimension into the sample dimension
+        real_a = real_a.reshape(
+            [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
+        )
+        real_b = real_b.reshape(
+            [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
+        )
+
         fake_b = self.generator_a_to_b(real_a)
         fake_a = self.generator_b_to_a(real_b)
         reconstructed_a = self.generator_b_to_a(fake_b)
@@ -372,15 +398,14 @@ class CycleGANTrainer:
         self.optimizer_discriminator.step()
 
         return {
-            # "gan_loss": float(loss_gan),
             "b_to_a_gan_loss": float(loss_gan_b_to_a),
             "a_to_b_gan_loss": float(loss_gan_a_to_b),
             "discriminator_a_loss": float(loss_d_a_fake + loss_d_a_real),
             "discriminator_b_loss": float(loss_d_b_fake + loss_d_b_real),
-            # "cycle_loss": float(loss_cycle),
-            # "identity_loss": float(loss_identity),
-            # "generator_loss": float(loss_g),
-            # "discriminator_loss": float(loss_d),
+            "cycle_loss": float(loss_cycle),
+            "identity_loss": float(loss_identity),
+            "generator_loss": float(loss_g),
+            "discriminator_loss": float(loss_d),
             "train_loss": float(loss_g + loss_d),
         }
 

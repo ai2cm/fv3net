@@ -17,6 +17,9 @@ import xarray as xr
 class CycleGANModule(torch.nn.Module):
     """
     Torch module containing the components of a CycleGAN.
+
+    All modules expect inputs and produce outputs of shape
+    (batch, tile, channels, x, y).
     """
 
     # we package this in this way so we can easily transform the model
@@ -155,14 +158,11 @@ class CycleGAN(Reloadable):
             input_domain, output_domain = "a", "b"
 
         tensor = self.pack_to_tensor(X, domain=input_domain)
-        reshaped_tensor = tensor.reshape(
-            [tensor.shape[0] * tensor.shape[1]] + list(tensor.shape[2:])
-        )
         with torch.no_grad():
             if reverse:
-                outputs: torch.Tensor = self.generator_b_to_a(reshaped_tensor)
+                outputs: torch.Tensor = self.generator_b_to_a(tensor)
             else:
-                outputs = self.generator_a_to_b(reshaped_tensor)
+                outputs = self.generator_a_to_b(tensor)
         outputs = outputs.reshape(tensor.shape)
         predicted = self.unpack_tensor(outputs, domain=output_domain)
         return predicted

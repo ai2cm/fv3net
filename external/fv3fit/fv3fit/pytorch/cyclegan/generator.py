@@ -156,10 +156,10 @@ class Generator(nn.Module):
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            inputs: tensor of shape (batch, channels, height, width)
+            inputs: tensor of shape [batch, tile, channels, x, y]
 
         Returns:
-            tensor of shape (batch, channels, height, width)
+            tensor of shape [batch, tile, channels, x, y]
         """
         x = self._first_conv(inputs)
         x = self._encoder_decoder(x)
@@ -213,10 +213,10 @@ class SymmetricEncoderDecoder(nn.Module):
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            inputs: tensor of shape (batch, channels, height, width)
+            inputs: tensor of shape [batch, tile, channels, x, y]
 
         Returns:
-            tensor of shape (batch, channels, height, width)
+            tensor of shape [batch, tile, channels, x, y]
         """
         x = self._down(inputs)
         x = self._lower(x)

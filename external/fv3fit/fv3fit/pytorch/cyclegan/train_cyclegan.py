@@ -81,13 +81,13 @@ class CycleGANTrainingConfig:
     ) -> None:
         """
         Args:
-            train_model: cycle-GAN to train
+            train_model: Cycle-GAN to train
             train_data: training dataset containing samples to be passed to the model,
-                should have dimensions [sample, time, tile, x, y, z]
+                should be unbatched and have dimensions [time, tile, z, x, y]
             validation_data: validation dataset containing samples to be passed
-                to the model, should have dimensions [sample, time, tile, x, y, z]
+                to the model, should be unbatched and have dimensions
+                [time, tile, z, x, y]
         """
-
         train_data = train_data.shuffle(buffer_size=self.shuffle_buffer_size).batch(
             self.samples_per_batch
         )
@@ -151,7 +151,8 @@ def get_Xy_map_fn(
 
 
 def channels_first(data: tf.Tensor) -> tf.Tensor:
-    return tf.transpose(data, perm=[0, 3, 1, 2])
+    # [batch, time, tile, x, y, z] -> [batch, time, tile, z, x, y]
+    return tf.transpose(data, perm=[0, 1, 2, 5, 3, 4])
 
 
 @register_training_function("cyclegan", CycleGANHyperparameters)
@@ -182,16 +183,16 @@ def train_cyclegan(
 
     get_Xy = get_Xy_map_fn(
         state_variables=hyperparameters.state_variables,
-        n_dims=6,  # [batch, time, tile, x, y, z]
+        n_dims=6,  # [batch, sample, tile, x, y, z]
         mapping_scale_funcs=mapping_scale_funcs,
     )
 
     if validation_batches is not None:
-        val_state = validation_batches.map(get_Xy).unbatch()
+        val_state = validation_batches.map(get_Xy)
     else:
         val_state = None
 
-    train_state = train_batches.map(get_Xy).unbatch()
+    train_state = train_batches.map(get_Xy)
 
     train_model = hyperparameters.network.build(
         n_state=next(iter(train_state))[0].shape[-1],
@@ -200,13 +201,21 @@ def train_cyclegan(
         scalers=scalers,
     )
 
-    # remove time and tile dimensions, while we're using regular convolution
+    # time and tile dimensions aren't being used yet while we're using single-tile
+    # convolution without a motion constraint, but they will be used in the future
+
     # MPS backend has a bug where it doesn't properly read striding information when
     # doing 2d convolutions, so we need to use a channels-first data layout
     # from the get-go and do transformations before and after while in numpy/tf space.
-    train_state = train_state.unbatch().map(apply_to_tuple(channels_first)).unbatch()
+    train_state = train_state.map(apply_to_tuple(channels_first))
     if validation_batches is not None:
-        val_state = val_state.unbatch().map(apply_to_tuple(channels_first)).unbatch()
+        val_state = val_state.map(apply_to_tuple(channels_first))
+
+    # batching from the loader is undone here, so we can do our own batching
+    # in fit_loop
+    train_state = train_state.unbatch()
+    if validation_batches is not None:
+        val_state = val_state.unbatch()
 
     hyperparameters.training.fit_loop(
         train_model=train_model, train_data=train_state, validation_data=val_state,
