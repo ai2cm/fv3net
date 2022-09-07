@@ -27,11 +27,13 @@ def apply_to_mapping(
     return {name: tensor_func(tensor) for name, tensor in data.items()}
 
 
-@curry
 def apply_to_tuple(
-    tensor_func: Callable[[T_in], T_out], data: Tuple[T_in, ...]
-) -> Tuple[T_out, ...]:
-    return tuple(tensor_func(tensor) for tensor in data)
+    tensor_func: Callable[[T_in], T_out],
+) -> Callable[[Tuple[T_in, ...]], Tuple[T_out, ...]]:
+    def wrapped(*data):
+        return tuple(tensor_func(tensor) for tensor in data)
+
+    return wrapped
 
 
 def sequence_size(seq):

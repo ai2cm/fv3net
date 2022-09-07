@@ -224,3 +224,26 @@ def test__seq_to_tfdataset():
     result = next(tf_ds.as_numpy_iterator())
     assert isinstance(result, dict)
     np.testing.assert_equal(result["a"], batches[0]["a"] * 2)
+
+
+def test_tuple_map():
+    """
+    External package test demonstrating that for map operations on tuples
+    of functions, tuple entries are passed as independent arguments
+    and must be collected with *args.
+    """
+
+    def generator():
+        for entry in [(1, 1), (2, 2), (3, 3)]:
+            yield entry
+
+    dataset = tf.data.Dataset.from_generator(
+        generator, output_types=(tf.int32, tf.int32)
+    )
+
+    def map_fn(x, y):
+        return x * 2, y * 3
+
+    mapped = dataset.map(map_fn)
+    out = list(mapped)
+    assert out == [(2, 3), (4, 6), (6, 9)]
