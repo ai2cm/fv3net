@@ -22,7 +22,7 @@ def test_Hook_integration(saved_model_path):
 
     model = _load_tf_model(saved_model_path)
     model = emulation.models.combine_classifier_and_regressor(
-        regressor=model, classifier=None
+        regressor=model, classifier=None, batch_size=None
     )
     hook = MicrophysicsHook(model=model, mask=always_emulator)
 
