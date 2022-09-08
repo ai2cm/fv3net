@@ -12,4 +12,4 @@ git clone $URL $CLONE_PREFIX/NCEPlibs
 cd $CLONE_PREFIX/NCEPlibs
 git checkout $SHA
 mkdir -p $INSTALL_DIR
-bash make_ncep_libs.sh -s $PLATFORM -c $COMPILER -d $INSTALL_DIR
+bash make_ncep_libs.sh -s $PLATFORM -c $COMPILER -d $INSTALL_DIR -o 1
