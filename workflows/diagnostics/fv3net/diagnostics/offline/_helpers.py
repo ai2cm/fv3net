@@ -225,17 +225,3 @@ def insert_column_integrated_vars(
         ds = ds.assign({column_integrated_name: da})
 
     return ds
-
-
-def batches_mean(
-    ds: xr.Dataset, res: int, dim: str = "batch", maximum_3d_resolution: int = 48
-) -> xr.Dataset:
-    """Average over batches, but not for 3D variables if at greater than
-    C48 resolution"""
-
-    with xr.set_options(keep_attrs=True):
-        if res > maximum_3d_resolution:
-            excluded_vars = [var for var in ds.data_vars if is_3d(ds[var])]
-            return ds.drop_vars(excluded_vars).mean(dim=dim)
-        else:
-            return ds.mean(dim=dim)
