@@ -65,7 +65,7 @@ def _as_numpy(state):
 
 
 def combine_classifier_and_regressor(
-    classifier, regressor
+    classifier, regressor, batch_size: int
 ) -> Callable[[FortranState], FortranState]:
     # These following two adapters are for backwards compatibility
     dict_output_model = adapters.ensure_dict_output(regressor)
@@ -77,4 +77,4 @@ def combine_classifier_and_regressor(
             "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
         },
     )
-    return ModelWithClassifier(model, classifier)
+    return ModelWithClassifier(model, classifier, batch_size=batch_size)

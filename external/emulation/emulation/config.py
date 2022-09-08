@@ -98,6 +98,8 @@ class ModelConfig:
             transformations to apply before and after data is passed to models.
             Currently only works with transforms that do not require to be
             built.
+        batch_size: number of columns to batch the ml prediction by. May reduce
+            memory use.
     """
 
     path: Optional[str] = None
@@ -116,6 +118,7 @@ class ModelConfig:
     mask_gscond_zero_cloud_classifier: bool = False
     mask_gscond_no_tend_classifier: bool = False
     mask_precpd_zero_cloud_classifier: bool = False
+    batch_size: int = 512
 
     @property
     def _transform_factory(self) -> ComposedTransformFactory:
@@ -133,7 +136,7 @@ class ModelConfig:
                 else None
             )
             adapter = emulation.models.combine_classifier_and_regressor(
-                classifier, regressor
+                classifier, regressor, self.batch_size
             )
         else:
 
