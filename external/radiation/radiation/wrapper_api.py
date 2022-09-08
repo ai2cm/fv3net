@@ -12,24 +12,20 @@ import radiation
 from radiation import io, preprocessing
 
 
-State = Any
-Diagnostics = Any
+State = MutableMapping[Hashable, xr.DataArray]
+Diagnostics = MutableMapping[Hashable, xr.DataArray]
 
 
-class RadiationStepper:
-
-    label = "radiation"
-
+class Radiation:
     def __init__(
         self,
-        driver: radiation.RadiationDriver,
         rad_config: MutableMapping[Hashable, Any],
         comm: MPI.COMM_WORLD,
         timestep: float,
         tracer_inds: Mapping[str, int],
         input_generator,
     ):
-        self._driver: radiation.RadiationDriver = driver
+        self._driver: radiation.RadiationDriver = radiation.RadiationDriver()
         self._rad_config: MutableMapping[Hashable, Any] = rad_config
         self._comm: MPI.COMM_WORLD = comm
         self._timestep: float = timestep
