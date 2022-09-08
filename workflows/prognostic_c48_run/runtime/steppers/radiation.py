@@ -114,11 +114,18 @@ class RadiationStepper:
     def __call__(
         self, time: cftime.DatetimeJulian, state: State,
     ):
+        diagnostics = self.__wrapper_call__(time, state)
+        return {}, diagnostics, {}
+
+    # this will end up in the radiation package
+    def __wrapper_call__(
+        self, time: cftime.DatetimeJulian, state: State,
+    ):
         self._rad_update(time, self._timestep)
         if self._input_generator is not None:
             state = self._generate_inputs(state, time)
         diagnostics = self._rad_compute(state, time)
-        return {}, diagnostics, {}
+        return diagnostics
 
     def _rad_update(self, time: cftime.DatetimeJulian, dt_atmos: float) -> None:
         """Update the radiation driver's time-varying parameters"""
@@ -185,6 +192,7 @@ class RadiationStepper:
         else:
             return state
 
+    # these stay in the stepper object
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
         return {}, xr.DataArray()
 
