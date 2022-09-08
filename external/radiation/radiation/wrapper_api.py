@@ -23,14 +23,12 @@ class Radiation:
         comm: MPI.COMM_WORLD,
         timestep: float,
         tracer_inds: Mapping[str, int],
-        input_generator,
     ):
         self._driver: radiation.RadiationDriver = radiation.RadiationDriver()
         self._rad_config: MutableMapping[Hashable, Any] = rad_config
         self._comm: MPI.COMM_WORLD = comm
         self._timestep: float = timestep
         self._tracer_inds: Mapping[str, int] = tracer_inds
-        self._input_generator = input_generator
 
         self._download_radiation_assets()
         self._init_driver()
@@ -98,8 +96,6 @@ class Radiation:
         self, time: cftime.DatetimeJulian, state: State,
     ):
         self._rad_update(time, self._timestep)
-        if self._input_generator is not None:
-            state = self._generate_inputs(state, time)
         diagnostics = self._rad_compute(state, time)
         return diagnostics
 
@@ -160,39 +156,3 @@ class Radiation:
         )
         out = preprocessing.postprocess_out(out)
         return preprocessing.unstack(out, coords)
-
-    def _generate_inputs(self, state: State, time: cftime.DatetimeJulian) -> State:
-        if self._input_generator is not None:
-            _, _, state_updates = self._input_generator(time, state)
-            return MergedState(state, state_updates)
-        else:
-            return state
-
-
-class MergedState(State):
-    def __init__(self, state: State, overriding_state: State):
-        self._state = state
-        self._overriding_state = overriding_state
-
-    def __getitem__(self, key: Hashable) -> xr.DataArray:
-        if key in self._overriding_state:
-            return self._overriding_state[key]
-        elif key in self._state:
-            return self._state[key]
-        else:
-            raise KeyError("Key is in neither state mapping.")
-
-    def keys(self):
-        return set(self._state.keys()) | set(self._overriding_state.keys())
-
-    def __delitem__(self, key: Hashable):
-        raise NotImplementedError()
-
-    def __setitem__(self, key: Hashable, value: xr.DataArray):
-        raise NotImplementedError()
-
-    def __iter__(self):
-        return iter(self.keys())
-
-    def __len__(self):
-        return len(self.keys())
