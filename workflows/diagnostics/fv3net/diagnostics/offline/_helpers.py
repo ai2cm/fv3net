@@ -1,7 +1,10 @@
+import atexit
 import json
+import logging
 import numpy as np
 import os
 import shutil
+from tempfile import TemporaryDirectory
 from typing import Hashable, Mapping, Sequence, Dict, Tuple, Union
 import vcm
 import xarray as xr
@@ -51,6 +54,8 @@ GRID_INFO_VARS = [
     "area",
 ]
 ScalarMetrics = Dict[str, Mapping[str, float]]
+
+logger = logging.getLogger(__name__)
 
 
 def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
@@ -225,3 +230,15 @@ def insert_column_integrated_vars(
         ds = ds.assign({column_integrated_name: da})
 
     return ds
+
+
+def _cleanup_temp_dir(temp_dir):
+    logger.info(f"Cleaning up temp dir {temp_dir.name}")
+    temp_dir.cleanup()
+
+
+def temporary_directory():
+    # useful for when the temp dir is used throughout the script
+    temp_data_dir = TemporaryDirectory()
+    atexit.register(_cleanup_temp_dir, temp_data_dir)
+    return temp_data_dir

@@ -1,9 +1,7 @@
 import argparse
 import os
-import atexit
 import logging
 import sys
-import tempfile
 from typing import MutableMapping, Sequence, List
 import fsspec
 import wandb
@@ -22,6 +20,7 @@ from fv3net.diagnostics.offline._helpers import (
     copy_outputs,
     tidy_title,
     is_3d,
+    temporary_directory,
 )
 from fv3net.diagnostics.offline._select import plot_transect
 from fv3net.diagnostics.offline.compute import (
@@ -365,8 +364,7 @@ def render_index(config, metrics, ds_diags, ds_transect, output_dir) -> str:
 
 
 def create_report(args):
-    temp_output_dir = tempfile.TemporaryDirectory()
-    atexit.register(_cleanup_temp_dir, temp_output_dir)
+    temp_output_dir = temporary_directory()
 
     ds_diags, ds_transect, metrics, metadata = open_diagnostics_outputs(
         args.input_path,

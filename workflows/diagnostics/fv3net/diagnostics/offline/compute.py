@@ -1,10 +1,9 @@
 import argparse
-import atexit
 import json
 import logging
 import os
 import sys
-from tempfile import NamedTemporaryFile, TemporaryDirectory
+from tempfile import NamedTemporaryFile
 from typing import List, Sequence, Tuple
 
 import yaml
@@ -28,6 +27,7 @@ from ._helpers import (
     insert_rmse,
     is_3d,
     load_grid_info,
+    temporary_directory,
 )
 from ._coarsening import coarsen_cell_centered, res_from_string
 from ._input_sensitivity import plot_input_sensitivity
@@ -261,7 +261,8 @@ def get_prediction(
 ) -> xr.Dataset:
 
     model_variables = _variables_to_load(model)
-    config.timesteps = sorted(config.timesteps)
+    if config.timesteps:
+        config.timesteps = sorted(config.timesteps)
     batches = config.load_batches(model_variables)
 
     transforms = [_get_predict_function(model, model_variables)]
@@ -279,23 +280,16 @@ def get_prediction(
     mapping_function = compose_left(*transforms)
     batches = loaders.Map(mapping_function, batches)
 
-    temp_data_dir = TemporaryDirectory()
-    atexit.register(_cleanup_temp_dir, temp_data_dir)
-
-    concatted_batches = _daskify_sequence(batches, temp_data_dir.name)
+    concatted_batches = _daskify_sequence(batches)
     del batches
     return concatted_batches
 
 
-def _cleanup_temp_dir(temp_dir):
-    logger.info(f"Cleaning up temp dir {temp_dir.name}")
-    temp_dir.cleanup()
-
-
-def _daskify_sequence(batches, local_dir):
+def _daskify_sequence(batches):
+    temp_data_dir = temporary_directory()
     for i, batch in enumerate(batches):
-        batch.to_netcdf(os.path.join(local_dir, f"{i}.nc"))
-    dask_ds = xr.open_mfdataset(os.path.join(local_dir, "*.nc"))
+        batch.to_netcdf(os.path.join(temp_data_dir.name, f"{i}.nc"))
+    dask_ds = xr.open_mfdataset(os.path.join(temp_data_dir.name, "*.nc"))
     return dask_ds
 
 
