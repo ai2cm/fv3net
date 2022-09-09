@@ -1,4 +1,4 @@
-from typing import Tuple, Set, MutableMapping, Hashable, Any, Mapping
+from typing import Tuple, Set, MutableMapping, Hashable, Any, Mapping, Sequence
 from datetime import timedelta
 import numpy as np
 import xarray as xr
@@ -13,9 +13,14 @@ try:
 except ImportError:
     pass
 
-P_REF = 1.0e5
-MINUTES_PER_HOUR = 60.0
-SECONDS_PER_MINUTE = 60.0
+P_REF: float = 1.0e5
+MINUTES_PER_HOUR: float = 60.0
+SECONDS_PER_MINUTE: float = 60.0
+STATE_NAMES_IN: Sequence[str] = [
+    "air_temperature",
+    "pressure_thickness_of_atmospheric_layer",
+]
+GRID_NAMES_IN: Sequence[str] = ["longitude", "latitude"]
 TRACER_NAMES_IN_MAPPING: Mapping[str, str] = {  # this is specific to GFS physics
     "cloud_water_mixing_ratio": "ntcw",
     "rain_mixing_ratio": "ntrw",
@@ -61,12 +66,16 @@ RENAME_OUT: Mapping[str, str] = {
     "htrsw": "total_sky_shortwave_heating_rate_python",
     "swhc": "clear_sky_shortwave_heating_rate_python",
 }
+BASE_INPUT_VARIABLE_NAMES: Sequence[str] = (
+    list(STATE_NAMES_IN) + list(GRID_NAMES_IN) + list(SFC_NAMES_IN_MAPPING.keys())
+)
+OUTPUT_VARIABLE_NAMES: Sequence[str] = list(RENAME_OUT.values())
 
 State = MutableMapping[Hashable, xr.DataArray]
 Diagnostics = MutableMapping[Hashable, xr.DataArray]
 
 
-def model(
+def get_model(
     rad_config: MutableMapping[Hashable, Any],
     tracer_inds: Mapping[str, int],
     time: cftime.DatetimeJulian,
@@ -124,15 +133,15 @@ def _solar_hour(time: cftime.DatetimeJulian) -> float:
     )
 
 
-def statein(
-    state: State, tracer_inds: Mapping[str, int], ivflip: int, unstacked_dim="z",
+def get_statein(
+    state: State,
+    tracer_inds: Mapping[str, int],
+    ivflip: int,
+    unstacked_dim="z",
+    base_state_names: Sequence[str] = STATE_NAMES_IN,
 ) -> Mapping[str, np.ndarray]:
-    state_names = [
-        "pressure_thickness_of_atmospheric_layer",
-        "air_temperature",
-    ]
     tracer_names = list(tracer_inds.keys())
-    state_names.extend(tracer_names)
+    state_names = list(base_state_names) + tracer_names
     states = xr.Dataset({name: state[name] for name in state_names})
     stacked = _stack(states, unstacked_dim)
     delp = stacked["pressure_thickness_of_atmospheric_layer"]
@@ -147,7 +156,7 @@ def statein(
     for tracer_name, index in tracer_inds.items():
         tracer_array[:, :, index - 1] = stacked[tracer_name].values
 
-    _statein = {
+    statein = {
         "prsi": pi.values,
         "prsl": pm.values,
         "tgrs": temperature.values,
@@ -155,8 +164,8 @@ def statein(
         "qgrs": tracer_array,
     }
     if ivflip == 1:
-        _statein = {name: np.flip(_statein[name], axis=1) for name in _statein}
-    return _statein
+        statein = {name: np.flip(statein[name], axis=1) for name in statein}
+    return statein
 
 
 def _stack(
@@ -187,8 +196,9 @@ def unstack(
     return out
 
 
-def grid(state: State) -> Tuple[Mapping[str, np.ndarray], xr.DataArray]:
-    grid_names = ["longitude", "latitude"]
+def get_grid(
+    state: State, grid_names: Sequence[str] = GRID_NAMES_IN
+) -> Tuple[Mapping[str, np.ndarray], xr.DataArray]:
     stacked_grid = _stack(
         xr.Dataset({name: state[name] for name in grid_names}), sample_dim="column"
     )
@@ -203,7 +213,7 @@ def grid(state: State) -> Tuple[Mapping[str, np.ndarray], xr.DataArray]:
     )
 
 
-def sfcprop(
+def get_sfcprop(
     state: State, sfc_var_mapping: Mapping[str, str] = SFC_NAMES_IN_MAPPING
 ) -> Mapping[str, np.ndarray]:
     sfc = xr.Dataset({v: state[k] for k, v in list(sfc_var_mapping.items())})

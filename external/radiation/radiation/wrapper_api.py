@@ -1,15 +1,27 @@
-from typing import (
-    MutableMapping,
-    Mapping,
-    Any,
-    Hashable,
-)
-from mpi4py import MPI
+from typing import MutableMapping, Mapping, Any, Hashable, Sequence
+
+try:
+    from mpi4py import MPI
+except ImportError:
+    pass
 import cftime
 import numpy as np
 import xarray as xr
-import radiation
-from radiation import io, preprocessing
+from radiation.config import LOOKUP_DATA_PATH, FORCING_DATA_PATH
+from radiation.radsw import ngptsw as NGPTSW
+from radiation.radlw import ngptlw as NGPTLW
+from radiation.radiation_driver import RadiationDriver
+from radiation import io
+from radiation.preprocessing import (
+    get_statein,
+    get_model,
+    get_sfcprop,
+    get_grid,
+    postprocess_out,
+    unstack,
+    BASE_INPUT_VARIABLE_NAMES,
+    OUTPUT_VARIABLE_NAMES,
+)
 
 
 State = MutableMapping[Hashable, xr.DataArray]
@@ -17,6 +29,10 @@ Diagnostics = MutableMapping[Hashable, xr.DataArray]
 
 
 class Radiation:
+
+    _base_input_variables: Sequence[str] = BASE_INPUT_VARIABLE_NAMES
+    output_variables: Sequence[str] = OUTPUT_VARIABLE_NAMES
+
     def __init__(
         self,
         rad_config: MutableMapping[Hashable, Any],
@@ -24,7 +40,7 @@ class Radiation:
         timestep: float,
         tracer_inds: Mapping[str, int],
     ):
-        self._driver: radiation.RadiationDriver = radiation.RadiationDriver()
+        self._driver: RadiationDriver = RadiationDriver()
         self._rad_config: MutableMapping[Hashable, Any] = rad_config
         self._comm: MPI.COMM_WORLD = comm
         self._timestep: float = timestep
@@ -33,10 +49,14 @@ class Radiation:
         self._download_radiation_assets()
         self._init_driver()
 
+    @property
+    def input_variables(self):
+        return self._base_input_variables + list(self._tracer_inds.keys())
+
     def _download_radiation_assets(
         self,
-        lookup_data_path: str = radiation.LOOKUP_DATA_PATH,
-        forcing_data_path: str = radiation.FORCING_DATA_PATH,
+        lookup_data_path: str = LOOKUP_DATA_PATH,
+        forcing_data_path: str = FORCING_DATA_PATH,
         lookup_local_dir: str = "./rad_data/lookup/",
         forcing_local_dir: str = "./rad_data/forcing/",
     ) -> None:
@@ -91,7 +111,6 @@ class Radiation:
             sfc_data,
         )
 
-    # this will end up in the radiation package
     def __call__(
         self, time: cftime.DatetimeJulian, state: State,
     ):
@@ -132,13 +151,11 @@ class Radiation:
 
     def _rad_compute(self, state: State, time: cftime.DatetimeJulian,) -> Diagnostics:
         """Compute the radiative fluxes"""
-        statein = preprocessing.statein(
-            state, self._tracer_inds, self._rad_config["ivflip"]
-        )
-        grid, coords = preprocessing.grid(state)
-        sfcprop = preprocessing.sfcprop(state)
+        statein = get_statein(state, self._tracer_inds, self._rad_config["ivflip"])
+        grid, coords = get_grid(state)
+        sfcprop = get_sfcprop(state)
         ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
-        model = preprocessing.model(
+        model = get_model(
             self._rad_config,
             self._tracer_inds,
             time,
@@ -146,13 +163,11 @@ class Radiation:
             nz,
             self._comm.rank,
         )
-        random_numbers = io.generate_random_numbers(
-            ncolumns, nz, radiation.NGPTSW, radiation.NGPTLW
-        )
+        random_numbers = io.generate_random_numbers(ncolumns, nz, NGPTSW, NGPTLW)
         lw_lookup = io.load_lw(self._lookup_local_dir)
         sw_lookup = io.load_sw(self._lookup_local_dir)
         out = self._driver._GFS_radiation_driver(
             model, statein, sfcprop, grid, random_numbers, lw_lookup, sw_lookup
         )
-        out = preprocessing.postprocess_out(out)
-        return preprocessing.unstack(out, coords)
+        out = postprocess_out(out)
+        return unstack(out, coords)
