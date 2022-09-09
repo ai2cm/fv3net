@@ -3,7 +3,7 @@ from typing import Optional
 
 from .report_search import ReportIndex
 
-REPORT_URL_DEFAULT = "gs://vcm-ml-public/ml_offline_diags"
+REPORT_URL_DEFAULT = "gs://vcm-ml-public/offline_ml_diags"
 
 def _get_model_url(line: str) -> Optional[str]:
     if '"model_path": "gs://' in line:
