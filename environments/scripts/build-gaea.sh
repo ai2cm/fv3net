@@ -9,5 +9,5 @@ bash build.sh \
      Unicos \
      intel \
      default \
-     gaea \
+     "CPP_FLAGS='-Duse_LARGEFILE -DMAXFIELDMETHODS_=500 -DGFS_PHYS' FCFLAGS='-g -FR -i4 -r8'" \
      gaea

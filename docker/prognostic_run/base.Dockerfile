@@ -47,15 +47,20 @@ RUN apt-get update && \
     rsync \
     wget
 
-COPY docker/prognostic_run/scripts/install_esmf.sh install_esmf.sh
-RUN bash install_esmf.sh /usr/local/esmf
+COPY environments/scripts/install-esmf.sh .
+RUN bash install-esmf.sh /esmf /usr/local/esmf Linux gfortran default
 
-COPY docker/prognostic_run/scripts/install_fms.sh install_fms.sh
+COPY environments/scripts/install-fms.sh .
 COPY external/fv3gfs-fortran/FMS /FMS
-RUN bash install_fms.sh /FMS
+ENV FMS_LDFLAGS='-L/usr/lib'
+ENV FMS_LOG_DRIVER_FLAGS='--comments'
+ENV FMS_CPPFLAGS='-I/usr/include -Duse_LARGEFILE -DMAXFIELDMETHODS_=500 -DGFS_PHYS'
+ENV FMS_FCFLAGS='-fcray-pointer -Waliasing -ffree-line-length-none -fno-range-check -fdefault-real-8 -fdefault-double-8 -fopenmp'
+ENV FMS_FLAGS="LDFLAGS=$FMS_LDFLAGS LOG_DRIVER_FLAGS=$FMS_LOG_DRIVER_FLAGS CPPFLAGS=$FMS_CPPFLAGS FCFLAGS=$FMS_FCFLAGS"
+RUN CC=/usr/bin/mpicc FC=/usr/bin/mpif90 bash install-fms.sh /FMS $FMS_FLAGS
 
-COPY docker/prognostic_run/scripts/install_nceplibs.sh .
-RUN bash install_nceplibs.sh /opt/NCEPlibs
+COPY environments/scripts/install-nceplibs.sh .
+RUN bash install-nceplibs.sh /NCEPlibs /opt/NCEPlibs linux gnu
 
 
 ENV ESMF_DIR=/usr/local/esmf
