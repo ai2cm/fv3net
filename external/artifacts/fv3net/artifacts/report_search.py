@@ -37,7 +37,7 @@ class ReportIndex:
         return set(itertools.chain.from_iterable(_reports))
 
     def compute(self, url, filename="index.html"):
-        """Compute reports_by_run index from all reports found at url.
+        """Compute reports_by_id index from all reports found at url.
 
         Args:
             url: path to directory containing report subdirectories.
@@ -51,7 +51,7 @@ class ReportIndex:
             fs = gcsfs.GCSFileSystem(asynchronous=True)
         else:
             fs = fsspec.filesystem("file")
-        self.reports_by_run = loop.run_until_complete(
+        self.reports_by_id = loop.run_until_complete(
             self._get_reports(fs, url, filename)
         )
         loop.run_until_complete(_close_session(fs))
@@ -63,15 +63,15 @@ class ReportIndex:
             index = ReportIndex(json.load(f))
         return index
 
-    def public_links(self, run_url: str) -> Sequence[str]:
-        """Return public links for all reports containing a run_url."""
-        if run_url not in self.reports_by_id:
-            print(f"Provided URL {run_url} not found in any report.")
+    def public_links(self, id_url: str) -> Sequence[str]:
+        """Return public links for all reports containing id_url."""
+        if id_url not in self.reports_by_id:
+            print(f"Provided URL {id_url} not found in any report.")
             public_links = []
         else:
             public_links = [
                 self._insert_public_domain(report_url)
-                for report_url in self.reports_by_id[run_url]
+                for report_url in self.reports_by_id[id_url]
             ]
         return public_links
 
@@ -80,7 +80,7 @@ class ReportIndex:
             json.dump(self.reports_by_id, f, sort_keys=True, indent=4)
 
     async def _get_reports(self, fs, url, filename) -> Mapping[str, Sequence[str]]:
-        """Generate mapping from run URL to report URLs for all reports found at
+        """Generate mapping from id URL to report URLs for all reports found at
         {url}/*/{filename}."""
         out = {}
         for report_dir in await _list(fs, url):
@@ -92,9 +92,9 @@ class ReportIndex:
             else:
                 report_lines = report_head.decode("UTF-8").split("\n")
                 for line in report_lines:
-                    run_url = self._search_function(line)
-                    if run_url:
-                        out.setdefault(run_url, []).append(report_url)
+                    id_url = self._search_function(line)
+                    if id_url:
+                        out.setdefault(id_url, []).append(report_url)
         return out
 
     @staticmethod

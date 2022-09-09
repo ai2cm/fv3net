@@ -144,8 +144,8 @@ def test_ReportIndex_compute(report_sample, tmpdir):
     index = ReportIndex()
     index.compute(str(tmpdir))
 
-    assert expected_run in index.reports_by_run
-    assert set(index.reports_by_run[expected_run]) == {
+    assert expected_run in index.reports_by_id
+    assert set(index.reports_by_id[expected_run]) == {
         str(tmpdir.join("report1/index.html")),
         str(tmpdir.join("report2/index.html")),
     }
