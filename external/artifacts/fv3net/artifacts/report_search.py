@@ -36,7 +36,7 @@ class ReportIndex:
         _reports = [v for v in self.reports_by_id.values()]
         return set(itertools.chain.from_iterable(_reports))
 
-    def compute(self, url, filename="index.html"):
+    def compute(self, url, recurse_once=False, filename="index.html"):
         """Compute reports_by_id index from all reports found at url.
 
         Args:
@@ -44,7 +44,8 @@ class ReportIndex:
             filename: name of report html files.
 
         Note:
-            Reports are assumed to be located at {url}/*/{filename}.
+            Reports are assumed to be located at {url}/*/{filename} if recurse_once
+            is True and otherwise are assumed to be at {url}/*/*/{filename}.
         """
         loop = asyncio.get_event_loop()
         if url.startswith("gs://"):
@@ -52,7 +53,7 @@ class ReportIndex:
         else:
             fs = fsspec.filesystem("file")
         self.reports_by_id = loop.run_until_complete(
-            self._get_reports(fs, url, filename)
+            self._get_reports(fs, url, recurse_once, filename)
         )
         loop.run_until_complete(_close_session(fs))
 
@@ -79,22 +80,27 @@ class ReportIndex:
         with fsspec.open(url, "w") as f:
             json.dump(self.reports_by_id, f, sort_keys=True, indent=4)
 
-    async def _get_reports(self, fs, url, filename) -> Mapping[str, Sequence[str]]:
+    async def _get_reports(
+        self, fs, url, recurse_once, filename
+    ) -> Mapping[str, Sequence[str]]:
         """Generate mapping from id URL to report URLs for all reports found at
         {url}/*/{filename}."""
         out = {}
-        for report_dir in await _list(fs, url):
-            report_url = self._url_prefix(fs) + os.path.join(report_dir, filename)
-            try:
-                report_head = await _cat_file(fs, report_url, end=5 * 1024)
-            except FileNotFoundError:
-                pass
-            else:
-                report_lines = report_head.decode("UTF-8").split("\n")
-                for line in report_lines:
-                    id_url = self._search_function(line)
-                    if id_url:
-                        out.setdefault(id_url, []).append(report_url)
+        for path in await _list(fs, url):
+            report_dirs = fs.ls(path) if recurse_once else [path]
+            for report_dir in report_dirs:
+                report_url = self._url_prefix(fs) + os.path.join(report_dir, filename)
+
+                try:
+                    report_head = await _cat_file(fs, report_url, end=5 * 1024)
+                except FileNotFoundError:
+                    pass
+                else:
+                    report_lines = report_head.decode("UTF-8").split("\n")
+                    for line in report_lines:
+                        id_url = self._search_function(line)
+                        if id_url:
+                            out.setdefault(id_url, []).append(report_url)
         return out
 
     @staticmethod

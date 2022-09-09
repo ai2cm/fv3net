@@ -151,6 +151,23 @@ def test_ReportIndex_compute(report_sample, tmpdir):
     }
 
 
+def test_ReportIndex_compute_with_recurse_once(tmpdir):
+    expected_run = (
+        "gs://vcm-ml-experiments/spencerc/2021-05-28/"
+        "n2f-25km-all-climate-tapered-fixed-ml-unperturbed-seed-0/fv3gfs_run"
+    )
+    os.makedirs(tmpdir.join("topdir/report1"))
+    os.makedirs(tmpdir.join("topdir/report2"))
+    with open(tmpdir.join("topdir/report1/index.html"), "w") as f:
+        f.write(NEW_REPORT_SAMPLE)
+    with open(tmpdir.join("topdir/report2/index.html"), "w") as f:
+        f.write(NEW_REPORT_SAMPLE)
+
+    index = ReportIndex()
+    index.compute(str(tmpdir), recurse_once=True)
+    assert expected_run in index.reports_by_id
+
+
 def test_ReportIndex_public_links():
     index = ReportIndex(
         {
