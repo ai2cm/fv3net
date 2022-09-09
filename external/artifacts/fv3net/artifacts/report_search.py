@@ -3,7 +3,7 @@ import dataclasses
 import json
 import itertools
 import os
-from typing import Mapping, Optional, Sequence, Set
+from typing import Callable, Mapping, Optional, Sequence, Set
 
 import gcsfs
 import fsspec
@@ -11,18 +11,29 @@ import fsspec
 from .utils import _list, _cat_file, _close_session
 
 
+def _get_run_url(line: str) -> Optional[str]:
+    if "<td> gs://" in line:
+        # handles older style reports
+        return line.split("<td>")[1].split("</td>")[0].strip()
+    elif '": "gs://' in line:
+        # handles newer style reports generated after
+        # https://github.com/ai2cm/fv3net/pull/1304
+        return line.split(": ")[1].strip('",')
+    else:
+        return None
+
+
 @dataclasses.dataclass
 class ReportIndex:
-    """Mapping from run urls to sequences of report urls."""
+    """Mapping from ID (fv3fit model URL or prog run URL) to sequence of report urls."""
 
-    reports_by_run: Mapping[str, Sequence[str]] = dataclasses.field(
-        default_factory=dict
-    )
+    reports_by_id: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
+    _search_function: Callable[[str], Optional[str]] = _get_run_url
 
     @property
     def reports(self) -> Set[str]:
         """The available reports."""
-        _reports = [v for v in self.reports_by_run.values()]
+        _reports = [v for v in self.reports_by_id.values()]
         return set(itertools.chain.from_iterable(_reports))
 
     def compute(self, url, filename="index.html"):
@@ -54,19 +65,19 @@ class ReportIndex:
 
     def public_links(self, run_url: str) -> Sequence[str]:
         """Return public links for all reports containing a run_url."""
-        if run_url not in self.reports_by_run:
+        if run_url not in self.reports_by_id:
             print(f"Provided URL {run_url} not found in any report.")
             public_links = []
         else:
             public_links = [
                 self._insert_public_domain(report_url)
-                for report_url in self.reports_by_run[run_url]
+                for report_url in self.reports_by_id[run_url]
             ]
         return public_links
 
     def dump(self, url: str):
         with fsspec.open(url, "w") as f:
-            json.dump(self.reports_by_run, f, sort_keys=True, indent=4)
+            json.dump(self.reports_by_id, f, sort_keys=True, indent=4)
 
     async def _get_reports(self, fs, url, filename) -> Mapping[str, Sequence[str]]:
         """Generate mapping from run URL to report URLs for all reports found at
@@ -81,7 +92,7 @@ class ReportIndex:
             else:
                 report_lines = report_head.decode("UTF-8").split("\n")
                 for line in report_lines:
-                    run_url = _get_run_url(line)
+                    run_url = self._search_function(line)
                     if run_url:
                         out.setdefault(run_url, []).append(report_url)
         return out
@@ -103,18 +114,6 @@ class ReportIndex:
             return url
         else:
             raise ValueError(f"Public domain unknown for url {url}.")
-
-
-def _get_run_url(line: str) -> Optional[str]:
-    if "<td> gs://" in line:
-        # handles older style reports
-        return line.split("<td>")[1].split("</td>")[0].strip()
-    elif '": "gs://' in line:
-        # handles newer style reports generated after
-        # https://github.com/ai2cm/fv3net/pull/1304
-        return line.split(": ")[1].strip('",')
-    else:
-        return None
 
 
 def main(args):
