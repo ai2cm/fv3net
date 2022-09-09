@@ -87,7 +87,7 @@ class ReportIndex:
         {url}/*/{filename}."""
         out = {}
         for path in await _list(fs, url):
-            report_dirs = fs.ls(path) if recurse_once else [path]
+            report_dirs = await _list(fs, path) if recurse_once else [path]
             for report_dir in report_dirs:
                 report_url = self._url_prefix(fs) + os.path.join(report_dir, filename)
 
