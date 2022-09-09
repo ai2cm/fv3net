@@ -1,6 +1,6 @@
 import xarray as xr
 import abc
-from typing import Hashable, Iterable
+from typing import Hashable, Iterable, Type, TypeVar
 import logging
 
 from .input_sensitivity import InputSensitivity
@@ -8,8 +8,40 @@ from .input_sensitivity import InputSensitivity
 DATASET_DIM_NAME = "dataset"
 logger = logging.getLogger(__file__)
 
+L = TypeVar("L", bound="Loadable")
 
-class Predictor(abc.ABC):
+
+class Dumpable(abc.ABC):
+    """
+    Abstract base class for objects that can be dumped.
+    """
+
+    @abc.abstractmethod
+    def dump(self, path: str) -> None:
+        """Serialize to a directory."""
+        pass
+
+
+class Loadable(abc.ABC):
+    """
+    Abstract base class for objects that can be loaded from a directory.
+    """
+
+    @classmethod
+    def load(cls: Type[L], path: str) -> L:
+        """Load from a directory."""
+        ...
+
+
+class Reloadable(Dumpable, Loadable):
+    """
+    Abstract base class for objects that can be saved to and loaded from a directory.
+    """
+
+    pass
+
+
+class Predictor(Reloadable):
     """
     Abstract base class for a predictor object, which has a `predict` method
     that takes in a stacked xarray dataset containing variables defined the class's

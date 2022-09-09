@@ -25,7 +25,6 @@ import tensorflow as tf
 from vcm import safe
 import xarray as xr
 
-from fv3fit._shared.predictor import Predictor
 from fv3fit.typing import Batch
 
 
@@ -169,7 +168,7 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
     @classmethod
-    def load(cls, path: str) -> "Predictor":
+    def load(cls, path: str) -> "OCSVMNoveltyDetector":
         mapper = fsspec.get_mapper(path)
         components = joblib.load(io.BytesIO(mapper[cls._PICKLE_NAME]))
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])

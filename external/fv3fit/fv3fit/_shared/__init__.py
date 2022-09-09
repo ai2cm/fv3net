@@ -11,7 +11,7 @@ from .scaler import (
     ManualScaler,
     NormalizeTransform,
 )
-from .predictor import Predictor
+from .predictor import Predictor, Dumpable
 from .input_sensitivity import InputSensitivity
 from .stacking import (
     stack_non_vertical,

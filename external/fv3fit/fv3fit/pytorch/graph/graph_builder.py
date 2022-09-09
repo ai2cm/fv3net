@@ -1,20 +1,12 @@
 from typing import Tuple
 import numpy as np
-import dataclasses
 from fv3fit.keras._models.shared.halos import append_halos
 import xarray as xr
-
-
-@dataclasses.dataclass
-class GraphConfig:
-    """
-    Attributes:
-        nx_tile: number of horizontal grid points on each tile of the cubed sphere
-    """
-
-    # TODO: this should not be configurable, it should be determined
-    # by the shape of the input data
-    nx_tile: int = 48
+import functools
+from ..system import DEVICE
+import dgl
+from vcm.grid import get_grid_xyz
+import torch
 
 
 def build_graph(nx_tile: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -55,3 +47,36 @@ def build_graph(nx_tile: int) -> Tuple[np.ndarray, np.ndarray]:
     out[4 * n_points : 5 * n_points, 1] = index[:, 1:-1, 1:-1].flatten()
 
     return out[:, 0], out[:, 1]
+
+
+@functools.lru_cache(maxsize=64)
+def build_dgl_graph(nx_tile: int) -> dgl.DGLGraph:
+    """
+    Returns a DGL graph of the cubed sphere.
+    """
+    graph_data = build_graph(nx_tile)
+    g = dgl.graph(graph_data)
+    return g.to(DEVICE)
+
+
+@functools.lru_cache(maxsize=64)
+def build_dgl_graph_with_edge(nx_tile: int) -> Tuple[dgl.DGLGraph, torch.Tensor]:
+    """
+    Args:
+        nx: Number of horizontal grids in x and y per tile
+
+    Returns:
+        g: a DGL graph of the cubed sphere.
+        edge_relation: edge features contain (x,y,z) distances
+            between reference points and their neighbors
+            (use for networks with edge features)
+    """
+    graph_data = build_graph(nx_tile)
+    graph_tensor = torch.tensor(graph_data)
+    xyz = get_grid_xyz(nx_tile)
+    xyz_neighbour = xyz[graph_tensor[1], :]
+    xyz_reference = xyz[graph_tensor[0], :]
+    edge_relation = xyz_neighbour - xyz_reference
+    edge_relation = torch.from_numpy(edge_relation).float()
+    g = dgl.graph(graph_data)
+    return g.to(DEVICE), edge_relation

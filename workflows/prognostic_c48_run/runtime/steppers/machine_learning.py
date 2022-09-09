@@ -37,6 +37,9 @@ class MachineLearningConfig:
         use_mse_conserving_humidity_limiter: if true, use an MSE-conserving
             humidity limiter. If false, use a previous method that did not
             conserve MSE. This option is available for backwards compatibility.
+        scaling: if given, scale the outputs by the given factor. This is a manually
+            defined alteration of the model, and should not be used for
+            normalization.
 
     Example::
 
@@ -58,6 +61,7 @@ class MachineLearningConfig:
         default_factory=dict
     )
     use_mse_conserving_humidity_limiter: bool = True
+    scaling: Mapping[str, float] = dataclasses.field(default_factory=dict)
 
 
 def non_negative_sphum(
@@ -144,8 +148,21 @@ class RenamingAdapter:
 
 
 class MultiModelAdapter:
-    def __init__(self, models: Iterable[RenamingAdapter]):
+    def __init__(
+        self,
+        models: Iterable[RenamingAdapter],
+        scaling: Optional[Mapping[str, float]] = None,
+    ):
+        """
+        Args:
+            models: models for which to combine predictions
+            scaling: if given, scale the predictions by the given factor
+        """
         self.models = models
+        if scaling is None:
+            self._scaling: Mapping[str, float] = {}
+        else:
+            self._scaling = scaling
 
     @property
     def input_variables(self) -> Set[str]:
@@ -156,18 +173,21 @@ class MultiModelAdapter:
         predictions = []
         for model in self.models:
             predictions.append(model.predict(arg))
-        return xr.merge(predictions)
+        ds = xr.merge(predictions)
+        for var, scale in self._scaling.items():
+            ds[var] *= scale
+        return ds
 
 
 def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
     model_paths = config.model
     models = []
     for path in model_paths:
-        model = fv3fit.load(path)
+        model = cast(fv3fit.Predictor, fv3fit.load(path))
         rename_in = config.input_standard_names
         rename_out = config.output_standard_names
         models.append(RenamingAdapter(model, rename_in, rename_out))
-    return MultiModelAdapter(models)
+    return MultiModelAdapter(models, scaling=config.scaling)
 
 
 def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:

@@ -332,6 +332,41 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
     return zonal_means
 
 
+def _compute_deep_tropical_meridional_mean(
+    ds: xr.Dataset, grid: xr.Dataset
+) -> xr.Dataset:
+    deep_tropical_means = xr.Dataset()
+    for var in ds.data_vars:
+        logger.info(f"Computing deep tropical meridional mean (2d) over time for {var}")
+        with xr.set_options(keep_attrs=True):
+            deep_tropical_means[var] = vcm.meridional_average_approximate(
+                grid.lon, ds[[var]], lon_name="longitude", weights=grid.area,
+            )[var].load()
+    return deep_tropical_means
+
+
+@registry_2d.register("deep_tropical_meridional_mean_value")
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.subset_variables, ["total_precip_to_surface", "ULWRFtoa"])
+@transform.apply(transform.mask_to_sfc_type, "tropics20")
+def deep_tropical_mean_hovmoller_value(diag_arg: DiagArg):
+    logger.info(f"Preparing deep tropical meridional mean values (2d)")
+    result = _compute_deep_tropical_meridional_mean(diag_arg.prediction, diag_arg.grid)
+    return result.rename({"time": "high_frequency_time"})
+
+
+@registry_2d.register("deep_tropical_meridional_mean_bias")
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.subset_variables, ["total_precip_to_surface", "ULWRFtoa"])
+@transform.apply(transform.mask_to_sfc_type, "tropics20")
+def deep_tropical_mean_hovmoller_bias(diag_arg: DiagArg):
+    logger.info(f"Preparing deep tropical meridional mean biases (2d)")
+    grid = diag_arg.grid
+    prediction = _compute_deep_tropical_meridional_mean(diag_arg.prediction, grid)
+    verification = _compute_deep_tropical_meridional_mean(diag_arg.verification, grid)
+    return bias(verification, prediction).rename({"time": "high_frequency_time"})
+
+
 for mask_type in ["global", "land", "sea", "tropics"]:
 
     @registry_2d.register(f"spatial_min_{mask_type}")

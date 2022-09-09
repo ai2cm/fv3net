@@ -5,7 +5,6 @@ from .._shared import (
     match_prediction_to_input_coords,
     pack,
     pack_tfdataset,
-    Predictor,
     register_training_function,
     SAMPLE_DIM_NAME,
     PackerConfig,
@@ -146,7 +145,7 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
     @classmethod
-    def load(cls, path: str) -> "Predictor":
+    def load(cls, path: str) -> "MinMaxNoveltyDetector":
         mapper = fsspec.get_mapper(path)
         components = joblib.load(io.BytesIO(mapper[cls._PICKLE_NAME]))
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])

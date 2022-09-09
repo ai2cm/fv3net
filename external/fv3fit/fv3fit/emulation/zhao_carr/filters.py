@@ -13,12 +13,16 @@ import numpy as np
 @dataclasses.dataclass
 class HighAntarctic:
     high_antarctic_only: bool = True
+    max_lat: float = -60
 
     @property
     def input_variables(self) -> Set[str]:
         return {"latitude", "surface_air_pressure"}
 
-    def __call__(self, element: TensorDict) -> tf.Tensor:
-        lat = element["latitude"] < np.deg2rad(-60)
+    def mask(self, element: TensorDict) -> tf.Tensor:
+        lat = element["latitude"] < np.deg2rad(self.max_lat)
         ps = element["surface_air_pressure"] < 700e2
-        return (ps & lat)[0]
+        return ps & lat
+
+    def __call__(self, element: TensorDict) -> tf.Tensor:
+        return self.mask(element)[0]

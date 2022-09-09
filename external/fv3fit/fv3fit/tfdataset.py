@@ -2,6 +2,7 @@ from fv3fit._shared.config import SliceConfig
 from fv3fit._shared.packer import clip_sample
 import tensorflow as tf
 from typing import (
+    Generator,
     Hashable,
     Iterable,
     Mapping,
@@ -10,23 +11,36 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    TypeVar,
 )
 from toolz.functoolz import curry
 import loaders.typing
 
+T_in = TypeVar("T_in")
+T_out = TypeVar("T_out")
+
 
 @curry
 def apply_to_mapping(
-    tensor_func: Callable[[tf.Tensor], tf.Tensor], data: Mapping[str, tf.Tensor]
-) -> Dict[str, tf.Tensor]:
+    tensor_func: Callable[[T_in], T_out], data: Mapping[str, T_in]
+) -> Dict[str, T_out]:
     return {name: tensor_func(tensor) for name, tensor in data.items()}
 
 
-@curry
 def apply_to_tuple(
-    tensor_func: Callable[[tf.Tensor], tf.Tensor], data: Tuple[tf.Tensor, ...]
-) -> Tuple[tf.Tensor, ...]:
-    return tuple(tensor_func(tensor) for tensor in data)
+    tensor_func: Callable[[T_in], T_out],
+) -> Callable[[Tuple[T_in, ...]], Tuple[T_out, ...]]:
+    def wrapped(*data):
+        return tuple(tensor_func(tensor) for tensor in data)
+
+    return wrapped
+
+
+def sequence_size(seq):
+    n = 0
+    for _ in seq:
+        n += 1
+    return n
 
 
 @curry
@@ -108,8 +122,23 @@ def iterable_to_tfdataset(
         for batch in source:
             yield transform(batch)
 
+    return generator_to_tfdataset(generator, varying_first_dim)
+
+
+def generator_to_tfdataset(
+    source: Callable[[], Generator], varying_first_dim: bool = False,
+) -> tf.data.Dataset:
+    """
+    A general function to convert from a generator into a tensorflow dataset.
+
+    Args:
+        source: function which provides data items to be included in the dataset
+        varying_first_dim: if True, the first dimension of the produced tensors
+            can be of varying length
+    """
+
     try:
-        sample = next(iter(generator()))
+        sample = next(iter(source()))
     except StopIteration:
         raise NotImplementedError("can only make tfdataset from non-empty batches")
 
@@ -126,7 +155,7 @@ def iterable_to_tfdataset(
             return shape
 
     return tf.data.Dataset.from_generator(
-        generator,
+        source,
         output_signature={
             key: tf.TensorSpec(process_shape(val.shape), dtype=val.dtype)
             for key, val in sample.items()
