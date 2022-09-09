@@ -5,11 +5,13 @@ from .report_search import ReportIndex
 
 REPORT_URL_DEFAULT = "gs://vcm-ml-public/offline_ml_diags"
 
+
 def _get_model_url(line: str) -> Optional[str]:
     if '"model_path": "gs://' in line:
         return line.split('"model_path": ')[1].strip('",')
     else:
         return None
+
 
 def main(args):
     if args.write:
@@ -22,7 +24,9 @@ def main(args):
 
 
 def register_parser(subparsers):
-    parser = subparsers.add_parser("offline-report", help="Search for offline ML reports.")
+    parser = subparsers.add_parser(
+        "offline-report", help="Search for offline ML reports."
+    )
     parser.add_argument("url", help="An fv3fit model URL.")
     parser.add_argument(
         "-r",
