@@ -5,6 +5,7 @@ import torch
 from .modules import (
     ConvBlock,
     ConvolutionFactory,
+    FoldTileDimension,
     single_tile_convolution,
     relu_activation,
     ResnetBlock,
@@ -40,7 +41,11 @@ class GeneratorConfig:
     max_filters: int = 256
 
     def build(
-        self, channels: int, convolution: ConvolutionFactory = single_tile_convolution,
+        self,
+        channels: int,
+        nx: int,
+        ny: int,
+        convolution: ConvolutionFactory = single_tile_convolution,
     ):
         """
         Args:
@@ -55,13 +60,26 @@ class GeneratorConfig:
             kernel_size=self.kernel_size,
             max_filters=self.max_filters,
             convolution=convolution,
+            nx=nx,
+            ny=ny,
         )
+
+
+class GeographicBias(nn.Module):
+    def __init__(self, channels: int, nx: int, ny: int):
+        super().__init__()
+        self.bias = nn.Parameter(torch.zeros(1, channels, nx, ny))
+
+    def forward(self, x):
+        return x + self.bias
 
 
 class Generator(nn.Module):
     def __init__(
         self,
         channels: int,
+        nx: int,
+        ny: int,
         n_convolutions: int,
         n_resnet: int,
         kernel_size: int,
@@ -129,12 +147,14 @@ class Generator(nn.Module):
         min_filters = int(max_filters / 2 ** n_convolutions)
 
         self._first_conv = nn.Sequential(
+            FoldTileDimension(nn.ReflectionPad2d(3)),
             convolution(
                 kernel_size=7,
                 in_channels=channels,
                 out_channels=min_filters,
-                padding="same",
+                padding=0,
             ),
+            FoldTileDimension(nn.InstanceNorm2d(min_filters)),
             relu_activation()(),
         )
 
@@ -146,12 +166,17 @@ class Generator(nn.Module):
             in_channels=min_filters,
         )
 
-        self._out_conv = convolution(
-            kernel_size=7,
-            in_channels=min_filters,
-            out_channels=channels,
-            padding="same",
+        self._out_conv = nn.Sequential(
+            FoldTileDimension(nn.ReflectionPad2d(3)),
+            convolution(
+                kernel_size=7,
+                in_channels=min_filters,
+                out_channels=channels,
+                padding=0,
+            ),
         )
+        self._input_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
+        self._output_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
@@ -161,10 +186,12 @@ class Generator(nn.Module):
         Returns:
             tensor of shape [batch, tile, channels, x, y]
         """
-        x = self._first_conv(inputs)
+        x = self._input_bias(inputs)
+        x = self._first_conv(x)
         x = self._encoder_decoder(x)
-        outputs: torch.Tensor = self._out_conv(x)
-        return outputs
+        x = self._out_conv(x)
+        x = self._output_bias(x)
+        return x
 
 
 class SymmetricEncoderDecoder(nn.Module):

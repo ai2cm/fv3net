@@ -1,0 +1,40 @@
+model_type: cyclegan
+cache:
+  in_memory: true
+hyperparameters:
+    state_variables:
+      - h500
+    normalization_fit_samples: 50_000
+    network:
+      generator_optimizer:
+        name: Adam
+        kwargs:
+          lr: 0.0002
+      discriminator_optimizer:
+        name: Adam
+        kwargs:
+          lr: 0.0002
+      generator:
+        n_convolutions: 2
+        n_resnet: 6
+        kernel_size: 3
+        max_filters: 256
+      discriminator:
+        n_convolutions: 3
+        kernel_size: 3
+        max_filters: 256
+      identity_loss:
+        loss_type: mae
+      cycle_loss:
+        loss_type: mae
+      gan_loss:
+        loss_type: mse
+      identity_weight: 0.5
+      cycle_weight: 10.0
+      generator_weight: 1.0
+      discriminator_weight: 1.0
+    training:
+      n_epoch: 100
+      shuffle_buffer_size: 1000
+      samples_per_batch: 1
+      validation_batch_size: 100

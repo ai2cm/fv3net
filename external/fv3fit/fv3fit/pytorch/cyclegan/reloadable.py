@@ -85,11 +85,15 @@ class CycleGAN(Reloadable):
         """Load a serialized model from a directory."""
         return _load_pytorch(cls, path)
 
+    def to(self, device) -> "CycleGAN":
+        model = self.model.to(device)
+        return CycleGAN(model, self.scalers, **self.get_config())
+
     def dump(self, path: str) -> None:
         _dump_pytorch(self, path)
 
     def get_config(self):
-        return {}
+        return {"state_variables": self.state_variables}
 
     def pack_to_tensor(self, ds: xr.Dataset, domain: str = "a") -> torch.Tensor:
         """
@@ -116,7 +120,11 @@ class CycleGAN(Reloadable):
         tensor = _pack_to_tensor(
             ds=ds, timesteps=0, state_variables=self.state_variables, scalers=scalers,
         )
-        return tensor.permute([0, 1, 4, 2, 3])
+        # TODO: this permute order is needed, but it does not seem like it should be.
+        # when we replace the model with a linear one, the output only matches the
+        # input if we flip the x and y dimension.
+        # investigate why this is necessary
+        return tensor.permute([0, 1, 4, 3, 2])
 
     def unpack_tensor(self, data: torch.Tensor, domain: str = "b") -> xr.Dataset:
         """

@@ -1,3 +1,4 @@
+import random
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
 import tensorflow as tf
@@ -88,10 +89,16 @@ class CycleGANTrainingConfig:
                 to the model, should be unbatched and have dimensions
                 [time, tile, z, x, y]
         """
-        train_data = train_data.shuffle(buffer_size=self.shuffle_buffer_size).batch(
-            self.samples_per_batch
-        )
-        train_data = tfds.as_numpy(train_data)
+        if self.shuffle_buffer_size > 1:
+            train_data = train_data.shuffle(buffer_size=self.shuffle_buffer_size)
+        train_data = train_data.batch(self.samples_per_batch)
+        train_data_numpy = tfds.as_numpy(train_data)
+        train_states = []
+        for batch_state in train_data_numpy:
+            state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
+            state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+            train_states.append((state_a, state_b))
+        train_example_as_dataset = tfds.as_numpy(train_data.take(1).cache())
         if validation_data is not None:
             if self.validation_batch_size is None:
                 validation_batch_size = sequence_size(validation_data)
@@ -102,10 +109,12 @@ class CycleGANTrainingConfig:
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
-            for batch_state in train_data:
-                state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
-                state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+            # for batch_state in train_data_numpy:
+            #     state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
+            #     state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+            for state_a, state_b in train_states:
                 train_losses.append(train_model.train_on_batch(state_a, state_b))
+            random.shuffle(train_states)
             train_loss = {
                 name: np.mean([data[name] for data in train_losses])
                 for name in train_losses[0]
@@ -115,6 +124,8 @@ class CycleGANTrainingConfig:
             if validation_data is not None:
                 val_loss = train_model.evaluate_on_dataset(validation_data)
                 logger.info("val_loss %s", val_loss)
+            else:
+                train_model.evaluate_on_dataset(train_example_as_dataset)
 
 
 def apply_to_tuple_mapping(func):
@@ -194,8 +205,11 @@ def train_cyclegan(
 
     train_state = train_batches.map(get_Xy)
 
+    sample: tf.Tensor = next(iter(train_state))[0]
     train_model = hyperparameters.network.build(
-        n_state=next(iter(train_state))[0].shape[-1],
+        nx=sample.shape[-3],
+        ny=sample.shape[-2],
+        n_state=sample.shape[-1],
         n_batch=hyperparameters.training.samples_per_batch,
         state_variables=hyperparameters.state_variables,
         scalers=scalers,

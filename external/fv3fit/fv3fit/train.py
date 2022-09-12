@@ -175,12 +175,13 @@ def main(args, unknown_args=None):
 
 
 if __name__ == "__main__":
-    logger.setLevel(logging.INFO)
+    LOGLEVEL = os.environ.get("LOGLEVEL", "INFO").upper()
+    logger.setLevel(LOGLEVEL)
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
     os.makedirs("artifacts", exist_ok=True)
     logging.basicConfig(
-        level=logging.INFO,
+        level=LOGLEVEL,
         format="%(asctime)s [%(levelname)s] %(filename)s::L%(lineno)d : %(message)s",
         handlers=[
             logging.FileHandler("artifacts/training.log"),
