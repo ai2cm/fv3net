@@ -242,15 +242,15 @@ class CycleGANTrainer:
             stats_gen_a.observe(gen_a.detach().cpu().numpy())
             stats_gen_b.observe(gen_b.detach().cpu().numpy())
         metrics = {
-            # "r2_mean_b_against_real_a": get_r2(stats_real_a.mean, stats_gen_b.mean),
+            "r2_mean_b_against_real_a": get_r2(stats_real_a.mean, stats_gen_b.mean),
             "r2_mean_a": get_r2(stats_real_a.mean, stats_gen_a.mean),
-            # "bias_mean_a": np.mean(stats_real_a.mean - stats_gen_a.mean),
+            "bias_mean_a": np.mean(stats_real_a.mean - stats_gen_a.mean),
             "r2_mean_b": get_r2(stats_real_b.mean, stats_gen_b.mean),
-            # "bias_mean_b": np.mean(stats_real_b.mean - stats_gen_b.mean),
+            "bias_mean_b": np.mean(stats_real_b.mean - stats_gen_b.mean),
             "r2_std_a": get_r2(stats_real_a.std, stats_gen_a.std),
-            # "bias_std_a": np.mean(stats_real_a.std - stats_gen_a.std),
+            "bias_std_a": np.mean(stats_real_a.std - stats_gen_a.std),
             "r2_std_b": get_r2(stats_real_b.std, stats_gen_b.std),
-            # "bias_std_b": np.mean(stats_real_b.std - stats_gen_b.std),
+            "bias_std_b": np.mean(stats_real_b.std - stats_gen_b.std),
         }
         return metrics
 
