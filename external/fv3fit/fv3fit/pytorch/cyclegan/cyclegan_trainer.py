@@ -1,4 +1,3 @@
-import random
 from typing import Dict, List, Mapping, Tuple, Optional
 import tensorflow as tf
 from fv3fit._shared.scaler import StandardScaler
@@ -11,6 +10,7 @@ from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.system import DEVICE
 import itertools
+from .image_pool import ImagePool
 import numpy as np
 
 
@@ -109,41 +109,6 @@ def _merge_scaler_mappings(
     return scalers
 
 
-class ReplayBuffer:
-
-    # To reduce model oscillation during training, we update the discriminator
-    # using a history of generated data instead of the most recently generated data
-    # according to Shrivastava et al. (2017).
-
-    def __init__(self, max_size=50):
-        if max_size <= 0:
-            raise ValueError("max_size must be positive")
-        self.max_size = max_size
-        self.data = []
-
-    def push_and_pop(self, data: torch.Tensor) -> torch.autograd.Variable:
-        """
-        Push data into the buffer and return a random sample of the buffer.
-
-        If there are at least max_size elements in the buffer, the returned sample
-        is removed from the buffer.
-        """
-        to_return = []
-        for element in data.data:
-            element = torch.unsqueeze(element, 0)
-            if len(self.data) < self.max_size:
-                self.data.append(element)
-                to_return.append(element)
-            else:
-                if random.uniform(0, 1) > 0.5:
-                    i = random.randint(0, self.max_size - 1)
-                    to_return.append(self.data[i].clone())
-                    self.data[i] = element
-                else:
-                    to_return.append(element)
-        return torch.autograd.Variable(torch.cat(to_return))
-
-
 class StatsCollector:
     """
     Object to track the mean and standard deviation of sampled arrays.
@@ -232,8 +197,9 @@ class CycleGANTrainer:
     def __post_init__(self):
         self.target_real: Optional[torch.autograd.Variable] = None
         self.target_fake: Optional[torch.autograd.Variable] = None
-        self.fake_a_buffer = ReplayBuffer()
-        self.fake_b_buffer = ReplayBuffer()
+        # image pool size of 50 used by Zhu et al. (2017)
+        self.fake_a_buffer = ImagePool(50)
+        self.fake_b_buffer = ImagePool(50)
         self.generator_a_to_b = self.cycle_gan.generator_a_to_b
         self.generator_b_to_a = self.cycle_gan.generator_b_to_a
         self.discriminator_a = self.cycle_gan.discriminator_a
