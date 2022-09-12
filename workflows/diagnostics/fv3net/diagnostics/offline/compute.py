@@ -286,6 +286,7 @@ def get_prediction(
 def _daskify_sequence(batches):
     temp_data_dir = temporary_directory()
     for i, batch in enumerate(batches):
+        logger.info(f"Locally caching batch {i+1}/{len(batches)+1}")
         batch.to_netcdf(os.path.join(temp_data_dir.name, f"{i}.nc"))
     dask_ds = xr.open_mfdataset(os.path.join(temp_data_dir.name, "*.nc"))
     return dask_ds
@@ -381,7 +382,7 @@ def main(args):
 
     # convert and output metrics json
     metrics = {
-        var: ds_scalar_metrics[var].values.item() for var in ds_scalar_metrics.data_vars
+        var: ds_scalar_metrics[var].item() for var in ds_scalar_metrics.data_vars
     }
     with fsspec.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
         json.dump(metrics, f, indent=4)
