@@ -1,4 +1,3 @@
-import json
 import numpy as np
 import xarray as xr
 from typing import Sequence
@@ -16,7 +15,6 @@ import fv3fit.pytorch
 import fv3fit
 import matplotlib.pyplot as plt
 import pytest
-import vcm.testing
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
@@ -178,11 +176,7 @@ def test_cyclegan_visual(tmpdir):
     plt.show()
 
 
-def test_cyclegan_regression(tmpdir, regtest):
-    """
-    If this test fails, uncomment and re-run the manual test above to confirm the
-    model training is still valid.
-    """
+def test_cyclegan_runs_without_errors(tmpdir, regtest):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
@@ -224,10 +218,15 @@ def test_cyclegan_regression(tmpdir, regtest):
         train_tfdataset.map(lambda a, b: b), dims=["time", "tile", "x", "y", "z"]
     )
     output_a = predictor.predict(real_b, reverse=True)
-    reconstructed_b = predictor.predict(output_a)
+    reconstructed_b = predictor.predict(output_a)  # noqa: F841
     output_b = predictor.predict(real_a)
-    reconstructed_a = predictor.predict(output_b, reverse=True)
-    regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(output_a)))
-    regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(reconstructed_b)))
-    regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(output_b)))
-    regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(reconstructed_a)))
+    reconstructed_a = predictor.predict(output_b, reverse=True)  # noqa: F841
+    # We can't use regtest because the output is not deterministic between platforms,
+    # but you can un-comment this and use local-only (do not commit to git) regtest
+    # outputs when refactoring the code to ensure you don't change results.
+    # import json
+    # import vcm.testing
+    # regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(output_a)))
+    # regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(reconstructed_b)))
+    # regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(output_b)))
+    # regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(reconstructed_a)))
