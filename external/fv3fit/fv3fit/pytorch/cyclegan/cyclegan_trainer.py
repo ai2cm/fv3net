@@ -1,4 +1,3 @@
-import random
 from typing import Dict, List, Literal, Mapping, Tuple, Optional
 import tensorflow as tf
 from fv3fit._shared.scaler import StandardScaler
@@ -11,6 +10,7 @@ from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.system import DEVICE
 import itertools
+from .image_pool import ImagePool
 import numpy as np
 import wandb
 import io
@@ -163,41 +163,6 @@ def _merge_scaler_mappings(
     return scalers
 
 
-class ReplayBuffer:
-
-    # To reduce model oscillation during training, we update the discriminator
-    # using a history of generated data instead of the most recently generated data
-    # according to Shrivastava et al. (2017).
-
-    def __init__(self, max_size=50):
-        if max_size <= 0:
-            raise ValueError("max_size must be positive")
-        self.max_size = max_size
-        self.data = []
-
-    def push_and_pop(self, data: torch.Tensor) -> torch.autograd.Variable:
-        """
-        Push data into the buffer and return a random sample of the buffer.
-
-        If there are at least max_size elements in the buffer, the returned sample
-        is removed from the buffer.
-        """
-        to_return = []
-        for element in data.data:
-            element = torch.unsqueeze(element, 0)
-            if len(self.data) < self.max_size:
-                self.data.append(element)
-                to_return.append(element)
-            else:
-                if random.uniform(0, 1) > 0.5:
-                    i = random.randint(0, self.max_size - 1)
-                    to_return.append(self.data[i].clone())
-                    self.data[i] = element
-                else:
-                    to_return.append(element)
-        return torch.autograd.Variable(torch.cat(to_return))
-
-
 class StatsCollector:
     """
     Object to track the mean and standard deviation of sampled arrays.
@@ -286,8 +251,9 @@ class CycleGANTrainer:
     def __post_init__(self):
         self.target_real: Optional[torch.autograd.Variable] = None
         self.target_fake: Optional[torch.autograd.Variable] = None
-        self.fake_a_buffer = ReplayBuffer()
-        self.fake_b_buffer = ReplayBuffer()
+        # image pool size of 50 used by Zhu et al. (2017)
+        self.fake_a_buffer = ImagePool(50)
+        self.fake_b_buffer = ImagePool(50)
         self.generator_a_to_b = self.cycle_gan.generator_a_to_b
         self.generator_b_to_a = self.cycle_gan.generator_b_to_a
         self.discriminator_a = self.cycle_gan.discriminator_a
@@ -357,15 +323,15 @@ class CycleGANTrainer:
                 wandb.log(report)
                 reported_plot = True
         metrics = {
-            # "r2_mean_b_against_real_a": get_r2(stats_real_a.mean, stats_gen_b.mean),
+            "r2_mean_b_against_real_a": get_r2(stats_real_a.mean, stats_gen_b.mean),
             "r2_mean_a": get_r2(stats_real_a.mean, stats_gen_a.mean),
-            # "bias_mean_a": np.mean(stats_real_a.mean - stats_gen_a.mean),
+            "bias_mean_a": np.mean(stats_real_a.mean - stats_gen_a.mean),
             "r2_mean_b": get_r2(stats_real_b.mean, stats_gen_b.mean),
-            # "bias_mean_b": np.mean(stats_real_b.mean - stats_gen_b.mean),
+            "bias_mean_b": np.mean(stats_real_b.mean - stats_gen_b.mean),
             "r2_std_a": get_r2(stats_real_a.std, stats_gen_a.std),
-            # "bias_std_a": np.mean(stats_real_a.std - stats_gen_a.std),
+            "bias_std_a": np.mean(stats_real_a.std - stats_gen_a.std),
             "r2_std_b": get_r2(stats_real_b.std, stats_gen_b.std),
-            # "bias_std_b": np.mean(stats_real_b.std - stats_gen_b.std),
+            "bias_std_b": np.mean(stats_real_b.std - stats_gen_b.std),
         }
         return metrics
 
@@ -450,7 +416,7 @@ class CycleGANTrainer:
         )
 
         # Fake loss
-        fake_a = self.fake_a_buffer.push_and_pop(fake_a)
+        fake_a = self.fake_a_buffer.query(fake_a)
         pred_a_fake = self.discriminator_a(fake_a.detach())
         loss_d_a_fake = (
             self.gan_loss(pred_a_fake, self.target_fake) * self.discriminator_weight
@@ -463,7 +429,7 @@ class CycleGANTrainer:
         )
 
         # Fake loss
-        fake_b = self.fake_b_buffer.push_and_pop(fake_b)
+        fake_b = self.fake_b_buffer.query(fake_b)
         pred_b_fake = self.discriminator_b(fake_b.detach())
         loss_d_b_fake = (
             self.gan_loss(pred_b_fake, self.target_fake) * self.discriminator_weight
