@@ -23,9 +23,9 @@ RUN bash install_fv3net_python_dependencies.sh /fv3net
 
 # compile and install the wrapper. Then import fv3gfs.wrapper as a minimal test
 # that it works.
-RUN make -C /tmp/fortran-build/FV3 wrapper_build &&\
-    pip3 install --no-dependencies /tmp/fortran-build/FV3/wrapper/dist/*.whl && \
-    python3 -c 'import fv3gfs.wrapper'
+COPY .environment-scripts/install_python_wrapper.sh .
+RUN CALLPYFORT=Y bash install_python_wrapper.sh /tmp/fortran-build/FV3
+RUN python3 -c 'import fv3gfs.wrapper'
 
 RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
