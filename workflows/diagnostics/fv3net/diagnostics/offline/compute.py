@@ -257,9 +257,8 @@ def _coarsen_transform(evaluation_resolution: int, prediction_resolution: int):
 def get_prediction(
     config: loaders.BatchesFromMapperConfig,
     model: fv3fit.Predictor,
-    evaluation_grid: xr.Dataset,
+    evaluation_resolution: int,
 ) -> xr.Dataset:
-
     model_variables = _variables_to_load(model)
     if config.timesteps:
         config.timesteps = sorted(config.timesteps)
@@ -268,7 +267,6 @@ def get_prediction(
     transforms = [_get_predict_function(model, model_variables)]
 
     prediction_resolution = res_from_string(config.res)
-    evaluation_resolution = evaluation_grid.sizes["x"]
     if prediction_resolution != evaluation_resolution:
         transforms.append(
             _coarsen_transform(
@@ -304,7 +302,8 @@ def main(args):
         evaluation_grid = load_grid_info(EVALUATION_RESOLUTION)
     else:
         with fsspec.open(args.evaluation_grid, "rb") as f:
-            evaluation_grid = xr.open_dataset(f, engine="h5netcdf").load()
+            # Daskify to avoid pickling errors when running parallel computations
+            evaluation_grid = _daskify_sequence([xr.open_dataset(f, engine="h5netcdf")])
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
@@ -314,7 +313,7 @@ def main(args):
         model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
 
     ds_predicted = get_prediction(
-        config=config, model=model, evaluation_grid=evaluation_grid
+        config=config, model=model, evaluation_resolution=evaluation_grid.sizes["x"]
     )
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
