@@ -1,7 +1,10 @@
+import atexit
 import json
+import logging
 import numpy as np
 import os
 import shutil
+from tempfile import TemporaryDirectory
 from typing import Hashable, Mapping, Sequence, Dict, Tuple, Union
 import vcm
 import xarray as xr
@@ -51,6 +54,8 @@ GRID_INFO_VARS = [
     "area",
 ]
 ScalarMetrics = Dict[str, Mapping[str, float]]
+
+logger = logging.getLogger(__name__)
 
 
 def is_3d(da: xr.DataArray, vertical_dim: str = "z"):
@@ -227,15 +232,13 @@ def insert_column_integrated_vars(
     return ds
 
 
-def batches_mean(
-    ds: xr.Dataset, res: int, dim: str = "batch", maximum_3d_resolution: int = 48
-) -> xr.Dataset:
-    """Average over batches, but not for 3D variables if at greater than
-    C48 resolution"""
+def _cleanup_temp_dir(temp_dir):
+    logger.info(f"Cleaning up temp dir {temp_dir.name}")
+    temp_dir.cleanup()
 
-    with xr.set_options(keep_attrs=True):
-        if res > maximum_3d_resolution:
-            excluded_vars = [var for var in ds.data_vars if is_3d(ds[var])]
-            return ds.drop_vars(excluded_vars).mean(dim=dim)
-        else:
-            return ds.mean(dim=dim)
+
+def temporary_directory():
+    # useful for when the temp dir is used throughout the script
+    temp_data_dir = TemporaryDirectory()
+    atexit.register(_cleanup_temp_dir, temp_data_dir)
+    return temp_data_dir
