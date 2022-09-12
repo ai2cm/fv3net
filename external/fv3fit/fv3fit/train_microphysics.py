@@ -33,10 +33,12 @@ from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
 from fv3fit.keras._models.shared.pure_keras import PureKerasDictPredictor
 from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 
+from fv3fit.data.netcdf.load import nc_dir_to_tfdataset
+
 from fv3fit.emulation.transforms.factories import ConditionallyScaled
 from fv3fit.emulation.types import LossFunction, TensorDict
 from fv3fit.emulation import train, ModelCheckpointCallback
-from fv3fit.emulation.data import TransformConfig, nc_dir_to_tfdataset
+from fv3fit.emulation.data import TransformConfig
 from fv3fit.emulation.data.config import SliceConfig
 from fv3fit.emulation.layers import ArchitectureConfig
 from fv3fit.emulation.keras import save_model
@@ -393,10 +395,10 @@ class TrainConfig(TransformedParameters):
     def _open_dataset(
         self, url: str, nfiles: Optional[int], required_variables: Set[str],
     ) -> tf.data.Dataset:
-        nc_open_fn = self.transform.get_pipeline(required_variables)
+        pipeline = self.transform.get_pipeline(required_variables)
         return nc_dir_to_tfdataset(
             url,
-            nc_open_fn,
+            convert=pipeline,
             nfiles=nfiles,
             shuffle=True,
             random_state=np.random.RandomState(0),
