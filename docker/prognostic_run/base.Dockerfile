@@ -60,8 +60,8 @@ RUN CC=/usr/bin/mpicc \
     FCFLAGS='-fcray-pointer -Waliasing -ffree-line-length-none -fno-range-check -fdefault-real-8 -fdefault-double-8 -fopenmp' \
     bash install_fms.sh /FMS
 
-COPY docker/prognostic_run/scripts/install_nceplibs.sh .
-RUN bash install_nceplibs.sh /opt/NCEPlibs
+COPY .environment-scripts/install_nceplibs.sh .
+RUN bash install_nceplibs.sh /NCEPlibs /opt/NCEPlibs linux gnu
 
 
 ENV ESMF_DIR=/usr/local/esmf
