@@ -76,10 +76,10 @@ ENV CALLPYFORT_LIB=${CALLPY_DIR}/lib
 ENV CALLPYFORT_INCL=${CALLPY_DIR}/include
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}:${CALLPYFORT_LIB}
 
-RUN cd /opt && git clone https://github.com/nbren12/call_py_fort.git --branch=v0.2.0
 ENV CALLPY=/opt/call_py_fort \
     PYTHONPATH=${CALLPY}/src/:$PYTHONPATH
-RUN cd ${CALLPY} && make && make install && ldconfig
+COPY .environment-scripts/install_call_py_fort.sh .
+RUN bash install_call_py_fort.sh $CALLPY
 
 # Install gcloud
 RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext && \
