@@ -50,9 +50,15 @@ RUN apt-get update && \
 COPY .environment-scripts/install_esmf.sh .
 RUN bash install_esmf.sh /esmf /usr/local/esmf Linux gfortran default
 
-COPY docker/prognostic_run/scripts/install_fms.sh install_fms.sh
+COPY .environment-scripts/install_fms.sh .
 COPY external/fv3gfs-fortran/FMS /FMS
-RUN bash install_fms.sh /FMS
+RUN CC=/usr/bin/mpicc \
+    FC=/usr/bin/mpif90 \
+    LDFLAGS='-L/usr/lib' \
+    LOG_DRIVER_FLAGS='--comments' \
+    CPPFLAGS='-I/usr/include -Duse_LARGEFILE -DMAXFIELDMETHODS_=500 -DGFS_PHYS' \
+    FCFLAGS='-fcray-pointer -Waliasing -ffree-line-length-none -fno-range-check -fdefault-real-8 -fdefault-double-8 -fopenmp' \
+    bash install_fms.sh /FMS
 
 COPY docker/prognostic_run/scripts/install_nceplibs.sh .
 RUN bash install_nceplibs.sh /opt/NCEPlibs
