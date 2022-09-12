@@ -3,12 +3,8 @@ ARG BASE_IMAGE
 FROM ${BASE_IMAGE} as bld
 
 # build/install the fortran model
-COPY external/fv3gfs-fortran/ /tmp/fortran-build
-RUN cd /tmp/fortran-build/FV3 && \
-    ./configure gnu_docker && \
-    sed -i "33i CALLPYFORT=Y" conf/configure.fv3 && \
-    make -j 8 && \
-    PREFIX=/usr/local make install
+COPY .environment-scripts/install_fv3gfs_fortran.sh .
+RUN CALLPYFORT=Y bash install_fv3gfs_fortran.sh /tmp/fortran-build/FV3 gnu_docker /usr/local
 
 # Python Stuff Here
 #
