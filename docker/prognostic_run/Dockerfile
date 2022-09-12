@@ -17,10 +17,20 @@ COPY external/fv3kube /fv3net/external/fv3kube
 COPY workflows/post_process_run /fv3net/workflows/post_process_run
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 COPY external/emulation /fv3net/external/emulation
-COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
 COPY external/radiation /fv3net/external/radiation
+
 COPY .environment-scripts/install_fv3net_python_dependencies.sh .
-RUN bash install_fv3net_python_dependencies.sh /fv3net
+RUN bash install_fv3net_python_dependencies.sh \
+    /fv3net/docker/prognostic_run/requirements.txt \
+    /fv3net/external/vcm \
+    /fv3net/external/artifacts \
+    /fv3net/external/loaders \
+    /fv3net/external/fv3fit \
+    /fv3net/external/fv3kube \
+    /fv3net/workflows/post_process_run \
+    /fv3net/workflows/prognostic_c48_run \
+    /fv3net/external/emulation \
+    /fv3net/external/radiation
 
 # compile and install the wrapper. Then import fv3gfs.wrapper as a minimal test
 # that it works.
