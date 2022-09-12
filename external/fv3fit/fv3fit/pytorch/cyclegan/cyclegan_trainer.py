@@ -335,7 +335,7 @@ class CycleGANTrainer:
         )
 
         # Fake loss
-        fake_a = self.fake_a_buffer.push_and_pop(fake_a)
+        fake_a = self.fake_a_buffer.query(fake_a)
         pred_a_fake = self.discriminator_a(fake_a.detach())
         loss_d_a_fake = (
             self.gan_loss(pred_a_fake, self.target_fake) * self.discriminator_weight
@@ -348,7 +348,7 @@ class CycleGANTrainer:
         )
 
         # Fake loss
-        fake_b = self.fake_b_buffer.push_and_pop(fake_b)
+        fake_b = self.fake_b_buffer.query(fake_b)
         pred_b_fake = self.discriminator_b(fake_b.detach())
         loss_d_b_fake = (
             self.gan_loss(pred_b_fake, self.target_fake) * self.discriminator_weight

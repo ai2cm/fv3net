@@ -1,3 +1,4 @@
+import json
 import numpy as np
 import xarray as xr
 from typing import Sequence
@@ -9,13 +10,13 @@ from fv3fit.pytorch.cyclegan import (
 )
 from fv3fit.data import CycleGANLoader, SyntheticWaves, SyntheticNoise
 import fv3fit.tfdataset
-import tensorflow as tf
 import collections
 import os
 import fv3fit.pytorch
 import fv3fit
 import matplotlib.pyplot as plt
 import pytest
+import vcm.testing
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
@@ -107,7 +108,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
 
 
 @pytest.mark.skip("test is designed to run manually to visualize results")
-def test_cyclegan(tmpdir):
+def test_cyclegan_visual(tmpdir):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
@@ -131,9 +132,9 @@ def test_cyclegan(tmpdir):
             discriminator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
             ),
-            # identity_weight=0.01,
-            # cycle_weight=0.3,
-            # gan_weight=1.0,
+            identity_weight=0.01,
+            cycle_weight=10.0,
+            generator_weight=1.0,
             discriminator_weight=0.5,
         ),
         training=CycleGANTrainingConfig(
@@ -177,24 +178,56 @@ def test_cyclegan(tmpdir):
     plt.show()
 
 
-def test_tuple_map():
+def test_cyclegan_regression(tmpdir, regtest):
     """
-    External package test demonstrating that for map operations on tuples
-    of functions, tuple entries are passed as independent arguments
-    and must be collected with *args.
+    If this test fails, uncomment and re-run the manual test above to confirm the
+    model training is still valid.
     """
-
-    def generator():
-        for entry in [(1, 1), (2, 2), (3, 3)]:
-            yield entry
-
-    dataset = tf.data.Dataset.from_generator(
-        generator, output_types=(tf.int32, tf.int32)
+    fv3fit.set_random_seed(0)
+    # run the test in a temporary directory to delete artifacts when done
+    os.chdir(tmpdir)
+    # need a larger nx, ny for the sample data here since we're training
+    # on whether we can autoencode sin waves, and need to resolve full cycles
+    nx = 32
+    sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "nz": 2}
+    state_variables = ["var_3d", "var_2d"]
+    train_tfdataset = get_tfdataset(nsamples=5, **sizes)
+    val_tfdataset = get_tfdataset(nsamples=2, **sizes)
+    hyperparameters = CycleGANHyperparameters(
+        state_variables=state_variables,
+        network=CycleGANNetworkConfig(
+            generator=fv3fit.pytorch.GeneratorConfig(
+                n_convolutions=2, n_resnet=5, max_filters=128, kernel_size=3
+            ),
+            generator_optimizer=fv3fit.pytorch.OptimizerConfig(
+                name="Adam", kwargs={"lr": 0.001}
+            ),
+            discriminator=fv3fit.pytorch.DiscriminatorConfig(kernel_size=3),
+            discriminator_optimizer=fv3fit.pytorch.OptimizerConfig(
+                name="Adam", kwargs={"lr": 0.001}
+            ),
+            identity_weight=0.01,
+            cycle_weight=10.0,
+            generator_weight=1.0,
+            discriminator_weight=0.5,
+        ),
+        training=CycleGANTrainingConfig(
+            n_epoch=2, samples_per_batch=2, validation_batch_size=2
+        ),
     )
-
-    def map_fn(x, y):
-        return x * 2, y * 3
-
-    mapped = dataset.map(map_fn)
-    out = list(mapped)
-    assert out == [(2, 3), (4, 6), (6, 9)]
+    predictor = train_cyclegan(hyperparameters, train_tfdataset, val_tfdataset)
+    # for test, need one continuous series so we consistently flip sign
+    real_a = tfdataset_to_xr_dataset(
+        train_tfdataset.map(lambda a, b: a), dims=["time", "tile", "x", "y", "z"]
+    )
+    real_b = tfdataset_to_xr_dataset(
+        train_tfdataset.map(lambda a, b: b), dims=["time", "tile", "x", "y", "z"]
+    )
+    output_a = predictor.predict(real_b, reverse=True)
+    reconstructed_b = predictor.predict(output_a)
+    output_b = predictor.predict(real_a)
+    reconstructed_a = predictor.predict(output_b, reverse=True)
+    regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(output_a)))
+    regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(reconstructed_b)))
+    regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(output_b)))
+    regtest.write(json.dumps(vcm.testing.checksum_dataarray_mapping(reconstructed_a)))
