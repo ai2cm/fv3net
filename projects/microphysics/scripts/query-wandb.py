@@ -11,6 +11,21 @@ app = typer.Typer()
 PROJECT = "ai2cm/microphysics-emulation"
 
 
+def _get_runs(api, experiment, group, job_type):
+    if experiment:
+        filters = filters = {"tags": experiment}
+    else:
+        filters = {}
+
+    if group:
+        filters["group"] = {"$regex": group}
+
+    if job_type:
+        filters["jobType"] = {"$regex": job_type}
+
+    return api.runs(PROJECT, filters=filters)
+
+
 @app.command()
 def groups(experiment: str, filter_tags: str = typer.Option("", "-f")):
     api = wandb.Api()
@@ -109,7 +124,13 @@ def query_top_level_metrics(group):
 
 
 @app.command()
-def runs(experiment: str, filter_tags: str = typer.Option("", "-f")):
+def runs(
+    experiment: str = typer.Option("", "-e"),
+    filter_tags: str = typer.Option("", "-f"),
+    group: str = typer.Option("", "--group"),
+    job_type: str = typer.Option("", "--job-type"),
+    format: str = typer.Option("", "-o"),
+):
     """
     Examples:
 
@@ -119,7 +140,7 @@ def runs(experiment: str, filter_tags: str = typer.Option("", "-f")):
             | jq -sr '[.[].group] | unique | .[]'
     """
     api = wandb.Api()
-    runs = api.runs(PROJECT, filters={"tags": experiment})
+    runs = _get_runs(api, experiment, group, job_type)
     filter_tags = set(filter_tags.split(","))
     for run in runs:
         if len(filter_tags & set(run.tags)) == 0:
@@ -132,17 +153,19 @@ def runs(experiment: str, filter_tags: str = typer.Option("", "-f")):
                     pass
                 else:
                     summary[k] = v
-
-            d = {
-                "job_type": run.job_type,
-                "group": run.group,
-                "tags": run.tags,
-                "id": run.id,
-                "url": run.url,
-                "summary": summary,
-                "config": run.config,
-            }
-            print(json.dumps(d))
+            if format == "json":
+                d = {
+                    "job_type": run.job_type,
+                    "group": run.group,
+                    "tags": run.tags,
+                    "id": run.id,
+                    "url": run.url,
+                    "summary": summary,
+                    "config": run.config,
+                }
+                print(json.dumps(d))
+            else:
+                print(run.group, run.job_type, run.name, run.url)
 
 
 @app.command()
