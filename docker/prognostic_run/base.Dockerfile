@@ -47,8 +47,8 @@ RUN apt-get update && \
     rsync \
     wget
 
-COPY docker/prognostic_run/scripts/install_esmf.sh install_esmf.sh
-RUN bash install_esmf.sh /usr/local/esmf
+COPY .environment-scripts/install_esmf.sh .
+RUN bash install_esmf.sh /esmf /usr/local/esmf Linux gfortran default
 
 COPY docker/prognostic_run/scripts/install_fms.sh install_fms.sh
 COPY external/fv3gfs-fortran/FMS /FMS
@@ -62,7 +62,7 @@ ENV ESMF_DIR=/usr/local/esmf
 ENV CALLPY_DIR=/usr/local
 ENV FMS_DIR=/FMS
 ENV FV3GFS_FORTRAN_DIR=/external/fv3gfs-fortran
-ENV ESMF_INC="-I${ESMF_DIR}/include -I${ESMF_DIR}/mod/modO3/Linux.gfortran.64.mpiuni.default/"
+ENV ESMF_INC="-I${ESMF_DIR}/include"
 
 ENV FMS_LIB=${FMS_DIR}/libFMS/.libs/
 ENV ESMF_LIB=${ESMF_DIR}/lib
