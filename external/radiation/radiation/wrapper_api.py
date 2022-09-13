@@ -1,4 +1,4 @@
-from typing import MutableMapping, Mapping, Hashable, Sequence
+from typing import MutableMapping, Mapping, Hashable, Sequence, Optional
 
 try:
     from mpi4py import MPI
@@ -46,6 +46,13 @@ class Radiation:
         self._timestep: float = timestep
         self._tracer_inds: Mapping[str, int] = tracer_inds
 
+        self._solar_data: Optional[xr.Dataset] = None
+        self._aerosol_data: Mapping = dict()
+        self._sfc_data: Optional[xr.Dataset] = None
+        self._gas_data: Mapping = dict()
+        self._sw_lookup: Mapping = dict()
+        self._lw_lookup: Mapping = dict()
+
         self._download_radiation_assets()
         self._init_driver()
 
@@ -78,10 +85,13 @@ class Radiation:
         """Initialize the radiation driver"""
         sigma = io.load_sigma(fv_core_dir)
         nlay = len(sigma) - 1
-        aerosol_data = io.load_aerosol(self._forcing_local_dir)
-        sfc_filename, sfc_data = io.load_sfc(self._forcing_local_dir)
-        solar_filename, _ = io.load_astronomy(
+        self._aerosol_data = io.load_aerosol(self._forcing_local_dir)
+        sfc_filename, self._sfc_data = io.load_sfc(self._forcing_local_dir)
+        solar_filename, self._solar_data = io.load_astronomy(
             self._forcing_local_dir, self._rad_config.isolar
+        )
+        self._gas_data = io.load_gases(
+            self._forcing_local_dir, self._rad_config.ictmflg
         )
         self._driver.radinit(
             sigma,
@@ -105,11 +115,13 @@ class Radiation:
             self._rad_config.lcnorm,
             self._rad_config.lnoprec,
             self._rad_config.iswcliq,
-            aerosol_data,
+            self._aerosol_data,
             solar_filename,
             sfc_filename,
-            sfc_data,
+            self._sfc_data,
         )
+        self._lw_lookup = io.load_lw(self._lookup_local_dir)
+        self._sw_lookup = io.load_sw(self._lookup_local_dir)
 
     def __call__(
         self, time: cftime.DatetimeJulian, state: State,
@@ -129,24 +141,19 @@ class Radiation:
         )
         fhswr = np.array(float(self._rad_config.fhswr))
         dt_atmos = np.array(float(dt_atmos))
-        aerosol_data = io.load_aerosol(self._forcing_local_dir)
-        _, solar_data = io.load_astronomy(
-            self._forcing_local_dir, self._rad_config.isolar
-        )
-        gas_data = io.load_gases(self._forcing_local_dir, self._rad_config.ictmflg)
         self._driver.radupdate(
             idat,
             jdat,
             fhswr,
             dt_atmos,
             self._rad_config.lsswr,
-            aerosol_data["kprfg"],
-            aerosol_data["idxcg"],
-            aerosol_data["cmixg"],
-            aerosol_data["denng"],
-            aerosol_data["cline"],
-            solar_data,
-            gas_data,
+            self._aerosol_data["kprfg"],
+            self._aerosol_data["idxcg"],
+            self._aerosol_data["cmixg"],
+            self._aerosol_data["denng"],
+            self._aerosol_data["cline"],
+            self._solar_data,
+            self._gas_data,
         )
 
     def _rad_compute(self, state: State, time: cftime.DatetimeJulian,) -> Diagnostics:
@@ -164,10 +171,14 @@ class Radiation:
             self._comm.rank,
         )
         random_numbers = io.generate_random_numbers(ncolumns, nz, NGPTSW, NGPTLW)
-        lw_lookup = io.load_lw(self._lookup_local_dir)
-        sw_lookup = io.load_sw(self._lookup_local_dir)
         out = self._driver._GFS_radiation_driver(
-            model, statein, sfcprop, grid, random_numbers, lw_lookup, sw_lookup
+            model,
+            statein,
+            sfcprop,
+            grid,
+            random_numbers,
+            self._lw_lookup,
+            self._sw_lookup,
         )
         out = postprocess_out(out)
         return unstack(out, coords)
