@@ -56,7 +56,6 @@ class CustomLoss:
     )
     normalization: NormFactory = NormFactory(StdDevMethod.all, MeanMethod.per_feature)
     loss_variables: List[str] = dataclasses.field(default_factory=list)
-    bin_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
     logit_variables: List[str] = dataclasses.field(default_factory=list)
@@ -84,14 +83,9 @@ class CustomLoss:
         for name in self.logit_variables:
             loss_funcs[name] = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
 
-        for name in self.bin_variables:
-            loss_funcs[name] = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-
         return _MultiVariableLoss(
             loss_funcs=loss_funcs,
-            loss_variables=self.loss_variables
-            + self.logit_variables
-            + self.bin_variables,
+            loss_variables=self.loss_variables + self.logit_variables,
             metric_variables=self.metric_variables,
             weights=self.weights,
             bias_variables=self.bias_metric_variables,

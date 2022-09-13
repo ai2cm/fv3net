@@ -57,13 +57,6 @@ def test_custom_loss_logits():
     assert "a" in loss.loss_variables
 
 
-def test_custom_loss_bin():
-    config = CustomLoss(bin_variables=["a"])
-    loss = config.build({})
-    assert "a" in loss.loss_funcs
-    assert "a" in loss.loss_variables
-
-
 def test_bias():
     x = tf.ones([2, 2])
     y = tf.zeros([2, 2])
