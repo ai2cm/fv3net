@@ -5,7 +5,7 @@ import numpy as np
 import vcm
 
 
-def test_NetcdfDirLoader(tmp_path: Path):
+def test_NCDirLoader(tmp_path: Path):
     path = tmp_path / "a.nc"
     cache = tmp_path / ".cache"
     ds = vcm.cdl_to_dataset(
@@ -23,7 +23,7 @@ def test_NetcdfDirLoader(tmp_path: Path):
     )
 
     ds.to_netcdf(path.as_posix())
-    loader = fv3fit.data.NetcdfDirLoader(tmp_path.as_posix())
+    loader = fv3fit.data.NCDirLoader(tmp_path.as_posix())
     tfds = loader.open_tfdataset(cache.as_posix(), ["a"])
     for data in tfds.as_numpy_iterator():
         a = data["a"]
@@ -31,4 +31,4 @@ def test_NetcdfDirLoader(tmp_path: Path):
 
 
 def test_Netcdf_from_dict():
-    fv3fit.data.NetcdfDirLoader.from_dict({"url": "some/path"})
+    fv3fit.data.NCDirLoader.from_dict({"url": "some/path"})

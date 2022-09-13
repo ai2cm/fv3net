@@ -14,7 +14,7 @@ from .io import CACHE_DIR, download_cached, get_nc_files
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["NetcdfDirLoader", "nc_dir_to_tfdataset"]
+__all__ = ["NCDirLoader", "nc_dir_to_tfdataset"]
 
 
 @contextlib.contextmanager
@@ -93,7 +93,7 @@ def to_tensor(
 
 @register_tfdataset_loader
 @dataclass
-class NetcdfDirLoader(TFDatasetLoader):
+class NCDirLoader(TFDatasetLoader):
     """Loads a folder of netCDF files at given path
 
     Each file must have a CDL structure like this::
