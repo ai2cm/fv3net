@@ -9,6 +9,8 @@ from fv3fit.data.base import TFDatasetLoader, register_tfdataset_loader
 from fv3fit.tfdataset import iterable_to_tfdataset
 from toolz.functoolz import compose_left
 
+import dacite
+
 from .io import CACHE_DIR, download_cached, get_nc_files
 
 logger = logging.getLogger(__name__)
@@ -149,4 +151,4 @@ class NCDirLoader(TFDatasetLoader):
 
     @classmethod
     def from_dict(cls, d: dict) -> "TFDatasetLoader":
-        return cls(**d)
+        return dacite.from_dict(cls, d, config=dacite.Config(strict=True))
