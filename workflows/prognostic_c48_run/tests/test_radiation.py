@@ -1,7 +1,6 @@
 from runtime.segmented_run.prepare_config import HighLevelConfig
+from runtime.segmented_run.api import create, append
 import yaml
-import subprocess
-import tempfile
 import xarray as xr
 import pytest
 import os
@@ -101,19 +100,16 @@ def radiation_scheme_config():
     return config
 
 
-def run_native(config, rundir):
-    with tempfile.NamedTemporaryFile("w") as f:
-        yaml.safe_dump(config, f)
-        fv3_script = "runfv3"
-        subprocess.check_call([fv3_script, "create", rundir, f.name])
-        subprocess.check_call([fv3_script, "run-native", f.name, rundir])
+def run_model(config, rundir):
+    create(rundir, config)
+    append(rundir)
 
 
 @pytest.fixture(scope="module")
 def completed_rundir(tmpdir_factory):
     config = radiation_scheme_config()
     rundir = tmpdir_factory.mktemp("rundir").join("subdir")
-    run_native(config, str(rundir))
+    run_model(config, str(rundir))
     return rundir
 
 
