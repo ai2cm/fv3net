@@ -85,11 +85,9 @@ class PytorchPredictor(Predictor):
         Predict an output xarray dataset from an input xarray dataset.
         Note that returned datasets include the initial state of the prediction,
         where by definition the model will have perfect skill.
-
         Args:
             X: input dataset
             timesteps: number of timesteps to predict
-
         Returns:
             predicted: predicted timeseries data
             reference: true timeseries data from the input dataset
@@ -108,15 +106,13 @@ class PytorchPredictor(Predictor):
             scalers=self.scalers,
         )
         # dimensions are [time, tile, x, y, z],
-        # we must combine [time, tile] into one sample dimension
-        return torch.reshape(
-            packed, (packed.shape[0] * packed.shape[1],) + tuple(packed.shape[2:]),
-        )
+        # torch expects channels before x, y so we have to transpose
+        transposed = packed.permute([0, 1, 4, 2, 3])
+        return transposed
 
     def unpack_tensor(self, data: torch.Tensor) -> xr.Dataset:
-        data = torch.reshape(data, (-1, 6) + tuple(data.shape[1:]))
         return _unpack_tensor(
-            data,
+            data.permute([0, 1, 3, 4, 2]),  # convert from channels (z) first to last
             varnames=tuple(str(item) for item in self.output_variables),
             scalers=self.scalers,
             dims=["time", "tile", "x", "y", "z"],

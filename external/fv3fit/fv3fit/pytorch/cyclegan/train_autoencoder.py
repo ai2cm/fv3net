@@ -1,5 +1,6 @@
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
+from fv3fit.pytorch.system import DEVICE
 import tensorflow as tf
 from fv3fit.pytorch.predict import PytorchPredictor
 from fv3fit.pytorch.loss import LossConfig
@@ -12,7 +13,7 @@ from typing import (
     Optional,
     Tuple,
 )
-from .network import Generator
+from .generator import Generator, GeneratorConfig
 from fv3fit.pytorch.graph.train import get_Xy_map_fn
 from fv3fit._shared.scaler import (
     get_standard_scaler_mapping,
@@ -22,13 +23,6 @@ from toolz import curry
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-@dataclasses.dataclass
-class GeneratorConfig:
-    n_convolutions: int = 3
-    n_resnet: int = 3
-    max_filters: int = 256
 
 
 @dataclasses.dataclass
@@ -63,8 +57,8 @@ def define_noisy_input(data: tf.Tensor, stdev=0.1) -> Tuple[tf.Tensor, tf.Tensor
 
 
 def flatten_dims(dataset: tf.data.Dataset) -> tf.data.Dataset:
-    """Transform [batch, time, tile, x, y, z] to [sample, x, y, z]"""
-    return dataset.unbatch().unbatch().unbatch()
+    """Transform [batch, time, tile, x, y, z] to [sample, tile, x, y, z]"""
+    return dataset.unbatch().unbatch()
 
 
 @register_training_function("autoencoder", AutoencoderHyperparameters)
@@ -112,11 +106,15 @@ def train_autoencoder(
     optimizer = hyperparameters.optimizer_config
 
     train_state = flatten_dims(
-        train_state.map(define_noisy_input(stdev=hyperparameters.noise_amount))
+        train_state.map(channels_first).map(
+            define_noisy_input(stdev=hyperparameters.noise_amount)
+        )
     )
     if validation_batches is not None:
         val_state = flatten_dims(
-            val_state.map(define_noisy_input(stdev=hyperparameters.noise_amount))
+            val_state.map(channels_first).map(
+                define_noisy_input(stdev=hyperparameters.noise_amount)
+            )
         )
 
     hyperparameters.training_loop.fit_loop(
@@ -136,10 +134,9 @@ def train_autoencoder(
     return predictor
 
 
+def channels_first(data: tf.Tensor) -> tf.Tensor:
+    return tf.transpose(data, perm=[0, 1, 2, 5, 3, 4])
+
+
 def build_model(config: GeneratorConfig, n_state: int) -> Generator:
-    return Generator(
-        channels=n_state,
-        n_convolutions=config.n_convolutions,
-        n_resnet=config.n_resnet,
-        max_filters=config.max_filters,
-    )
+    return config.build(channels=n_state).to(DEVICE)

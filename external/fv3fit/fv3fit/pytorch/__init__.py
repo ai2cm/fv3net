@@ -6,6 +6,17 @@ from .graph import (
 )
 from .system import DEVICE
 from .predict import PytorchAutoregressor, PytorchPredictor
-from .cyclegan import train_autoencoder, AutoencoderHyperparameters, GeneratorConfig
+from .cyclegan import (
+    train_autoencoder,
+    AutoencoderHyperparameters,
+    GeneratorConfig,
+    DiscriminatorConfig,
+    CycleGANHyperparameters,
+    CycleGANTrainingConfig,
+    CycleGANNetworkConfig,
+    CycleGAN,
+    CycleGANModule,
+)
 from .optimizer import OptimizerConfig
 from .activation import ActivationConfig
+from .loss import LossConfig
