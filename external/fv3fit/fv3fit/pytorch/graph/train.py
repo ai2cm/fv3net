@@ -2,29 +2,27 @@ import tensorflow as tf
 import numpy as np
 import dataclasses
 from fv3fit._shared.training_config import Hyperparameters
-from toolz.functoolz import curry
 from fv3fit.pytorch.predict import PytorchAutoregressor
-from .unet import UNetGraphNetworkConfig, GraphUNet
+from fv3fit.pytorch.graph.mpg_unet import MPGraphUNetConfig
+from fv3fit.pytorch.graph.unet import GraphUNetConfig
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.training_loop import AutoregressiveTrainingConfig
 from fv3fit._shared.scaler import (
     get_standard_scaler_mapping,
     get_mapping_standard_scale_func,
-    StandardScaler,
 )
 from ..system import DEVICE
 
 from fv3fit._shared import register_training_function
 from typing import (
     Callable,
-    Hashable,
     List,
     Optional,
     Sequence,
     Set,
     Mapping,
-    cast,
+    Union,
 )
 from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping
 
@@ -46,8 +44,10 @@ class GraphHyperparameters(Hyperparameters):
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("AdamW")
     )
-    graph_network: UNetGraphNetworkConfig = dataclasses.field(
-        default_factory=lambda: UNetGraphNetworkConfig()
+    graph_network: Union[MPGraphUNetConfig, GraphUNetConfig] = dataclasses.field(
+        default_factory=lambda: MPGraphUNetConfig(
+            num_step_message_passing=5, edge_hidden_features=4
+        )
     )
     training_loop: AutoregressiveTrainingConfig = dataclasses.field(
         default_factory=lambda: AutoregressiveTrainingConfig()
@@ -85,24 +85,24 @@ def train_graph_model(
     scalers = get_standard_scaler_mapping(sample)
     mapping_scale_func = get_mapping_standard_scale_func(scalers)
 
-    get_state = curry(get_Xy_dataset)(
+    get_Xy = get_Xy_map_fn(
         state_variables=hyperparameters.state_variables,
         n_dims=6,  # [batch, time, tile, x, y, z]
         mapping_scale_func=mapping_scale_func,
     )
 
     if validation_batches is not None:
-        val_state = get_state(data=validation_batches).unbatch()
+        val_state = validation_batches.map(get_Xy).unbatch()
     else:
         val_state = None
 
-    train_state = get_state(data=train_batches).unbatch()
+    train_state = train_batches.map(get_Xy).unbatch()
 
+    sample = next(iter(train_state))
     train_model = build_model(
-        hyperparameters.graph_network, n_state=next(iter(train_state)).shape[-1]
+        hyperparameters.graph_network, n_state=sample.shape[-1], nx=sample.shape[3],
     )
     optimizer = hyperparameters.optimizer_config
-
     hyperparameters.training_loop.fit_loop(
         train_model=train_model,
         train_data=train_state,
@@ -114,28 +114,26 @@ def train_graph_model(
     predictor = PytorchAutoregressor(
         state_variables=hyperparameters.state_variables,
         model=train_model,
-        scalers=cast(Mapping[Hashable, StandardScaler], scalers),
+        scalers=scalers,
     )
     return predictor
 
 
-def build_model(graph_network, n_state: int):
+def build_model(graph_network, n_state: int, nx: int):
     """
     Args:
         graph_network: configuration of the graph network
         n_state: number of state variables
     """
-    train_model = GraphUNet(graph_network, in_channels=n_state, out_dim=n_state).to(
+    return graph_network.build(in_channels=n_state, out_channels=n_state, nx=nx).to(
         DEVICE
     )
-    return train_model
 
 
-def get_Xy_dataset(
+def get_Xy_map_fn(
     state_variables: Sequence[str],
     n_dims: int,
     mapping_scale_func: Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]],
-    data: tf.data.Dataset,
 ):
     """
     Given a tf.data.Dataset with mappings from variable name to samples
@@ -163,4 +161,4 @@ def get_Xy_dataset(
         data = tf.concat(data, axis=-1)
         return data
 
-    return data.map(map_fn)
+    return map_fn

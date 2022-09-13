@@ -18,7 +18,7 @@ class LossConfig:
             )
 
     @property
-    def loss(self) -> torch.nn.Module:
+    def instance(self) -> torch.nn.Module:
         """
         Returns the loss function described by the configuration.
 

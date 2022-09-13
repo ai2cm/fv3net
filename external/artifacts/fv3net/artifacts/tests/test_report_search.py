@@ -1,6 +1,7 @@
 import os
 import pytest
 from fv3net.artifacts.report_search import ReportIndex
+from fv3net.artifacts.offline_report_search import _get_model_url
 
 # flake8: noqa E501
 REPORT_SAMPLE = """<html>
@@ -127,6 +128,52 @@ NEW_REPORT_SAMPLE = """<html>
         <h2>Top-level metrics</h2>
 """
 
+OFFLINE_REPORT_SAMPLE = """
+    <html>
+    <head>
+        <title>ML offline diagnostics</title>
+
+    </head>
+
+    <body>
+    <h1>ML offline diagnostics</h1>
+    Report created 2021-11-07 01:02:49 PDT
+
+        <h2>Metadata</h2>
+<pre id="json">
+{
+    "model_path": "gs://vcm-ml-experiments/default/2021-11-07/hybrid-fluxes-input-3hrly-rf/trained_models/sklearn_model",
+    "data_config": {
+        "mapper_config": {
+            "function": "open_3hrly_fine_resolution_nudging_hybrid",
+            "kwargs": {
+                "fine_url": "gs://vcm-ml-intermediate/2021-10-08-fine-res-3hrly-averaged-Q1-Q2-from-40-day-X-SHiELD-simulation-2020-05-27.zarr",
+                "nudge_url": "gs://vcm-ml-experiments/default/2021-09-26/n2f-3km-nudging/fv3gfs_run"
+            }
+        },
+        "function": "batches_from_mapper",
+        "kwargs": {
+            "timesteps_per_batch": 10,
+            "timesteps": [
+                "20160902.203000",
+                "20160908.203000",
+                "20160906.083000",
+                "20160904.023000",
+                "20160904.233000",
+                "20160901.083000",
+                "20160905.083000",
+                "20160909.233000",
+                "20160904.143000",
+                "20160903.233000",
+                "20160907.083000",
+                "20160902.083000",
+                "20160903.173000",
+                "20160904.113000",
+                "20160907.143000",
+                "20160901.113000",
+                "20160901.203000",
+"""
+
 
 @pytest.mark.parametrize("report_sample", (REPORT_SAMPLE, NEW_REPORT_SAMPLE))
 def test_ReportIndex_compute(report_sample, tmpdir):
@@ -144,11 +191,28 @@ def test_ReportIndex_compute(report_sample, tmpdir):
     index = ReportIndex()
     index.compute(str(tmpdir))
 
-    assert expected_run in index.reports_by_run
-    assert set(index.reports_by_run[expected_run]) == {
+    assert expected_run in index.reports_by_id
+    assert set(index.reports_by_id[expected_run]) == {
         str(tmpdir.join("report1/index.html")),
         str(tmpdir.join("report2/index.html")),
     }
+
+
+def test_ReportIndex_compute_with_recurse_once(tmpdir):
+    expected_run = (
+        "gs://vcm-ml-experiments/spencerc/2021-05-28/"
+        "n2f-25km-all-climate-tapered-fixed-ml-unperturbed-seed-0/fv3gfs_run"
+    )
+    os.makedirs(tmpdir.join("topdir/report1"))
+    os.makedirs(tmpdir.join("topdir/report2"))
+    with open(tmpdir.join("topdir/report1/index.html"), "w") as f:
+        f.write(NEW_REPORT_SAMPLE)
+    with open(tmpdir.join("topdir/report2/index.html"), "w") as f:
+        f.write(NEW_REPORT_SAMPLE)
+
+    index = ReportIndex()
+    index.compute(str(tmpdir), recurse_once=True)
+    assert expected_run in index.reports_by_id
 
 
 def test_ReportIndex_public_links():
@@ -177,3 +241,17 @@ def test_ReportIndex_reports():
     )
     expected_reports = {"/report1/index.html", "/report2/index.html"}
     assert index.reports == expected_reports
+
+
+def test_offline_report_search(tmpdir):
+    expected_model_path = (
+        "gs://vcm-ml-experiments/default/2021-11-07/"
+        "hybrid-fluxes-input-3hrly-rf/trained_models/sklearn_model"
+    )
+    os.makedirs(tmpdir.join("topdir/report1"))
+    with open(tmpdir.join("topdir/report1/index.html"), "w") as f:
+        f.write(OFFLINE_REPORT_SAMPLE)
+
+    index = ReportIndex(_search_function=_get_model_url)
+    index.compute(str(tmpdir), recurse_once=True)
+    assert expected_model_path in index.reports_by_id

@@ -2,7 +2,12 @@ from fv3fit.pytorch.training_loop import AutoregressiveTrainingConfig
 import numpy as np
 import xarray as xr
 from typing import Sequence
-from fv3fit.pytorch.graph import GraphHyperparameters, train_graph_model
+from fv3fit.pytorch.graph import (
+    GraphHyperparameters,
+    train_graph_model,
+    MPGraphUNetConfig,
+    GraphUNetConfig,
+)
 from fv3fit.tfdataset import iterable_to_tfdataset
 import collections
 import os
@@ -57,23 +62,36 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
 
 
 @pytest.mark.slow
-def test_train_graph_network(tmpdir):
+@pytest.mark.parametrize("network_type", ["UNet"])
+def test_train_graph_network(tmpdir, network_type):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
-    sizes = {"nbatch": 2, "ntime": 2, "nx": 8, "ny": 8, "nz": 2}
+    sizes = {"nbatch": 2, "ntime": 2, "nx": 6, "ny": 6, "nz": 2}
     state_variables = ["a", "b"]
     train_tfdataset = get_tfdataset(nsamples=20, **sizes)
     val_tfdataset = get_tfdataset(nsamples=3, **sizes)
     # for test, need one continuous series so we consistently flip sign
-    test_sizes = {"nbatch": 1, "ntime": 100, "nx": 8, "ny": 8, "nz": 2}
+    test_sizes = {"nbatch": 1, "ntime": 100, "nx": 6, "ny": 6, "nz": 2}
     test_xrdataset = tfdataset_to_xr_dataset(
         get_tfdataset(nsamples=1, **test_sizes), dims=["time", "tile", "x", "y", "z"]
     )
+    if network_type == "MPG":
+        graph_network = MPGraphUNetConfig(
+            num_step_message_passing=3, edge_hidden_features=4
+        )
+        training_config = AutoregressiveTrainingConfig(n_epoch=100)
+        optimizer = OptimizerConfig(kwargs={"lr": 0.001})
+    elif network_type == "UNet":
+        graph_network = GraphUNetConfig()
+        training_config = AutoregressiveTrainingConfig(n_epoch=30)
+        optimizer = OptimizerConfig(kwargs={"lr": 0.005})
+
     hyperparameters = GraphHyperparameters(
         state_variables=state_variables,
-        training_loop=AutoregressiveTrainingConfig(n_epoch=20),
-        optimizer_config=OptimizerConfig(kwargs={"lr": 0.01}),
+        training_loop=training_config,
+        optimizer_config=optimizer,
+        graph_network=graph_network,
     )
     predictor = train_graph_model(hyperparameters, train_tfdataset, val_tfdataset)
     predicted, reference = predictor.predict(test_xrdataset, timesteps=1)

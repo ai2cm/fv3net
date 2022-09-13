@@ -17,7 +17,7 @@ from fv3fit.keras._models.shared.utils import (
     full_standard_normalized_input,
 )
 from fv3fit import tfdataset
-from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping, apply_to_tuple
+from fv3fit.tfdataset import select_keys, ensure_nd, apply_to_mapping
 
 logger = logging.getLogger(__file__)
 
@@ -88,8 +88,8 @@ def get_Xy_dataset(
         # clipping of inputs happens within the keras model, we don't clip at the
         # data layer so that the model still takes full-sized inputs when used
         # in production
-        x = apply_to_tuple(append_halos_tensor(n_halo))(
-            select_keys(input_variables, data)
+        x = select_keys(
+            input_variables, apply_to_mapping(append_halos_tensor(n_halo))(data)
         )
         y = select_keys(output_variables, clip_function(data))
         return x, y

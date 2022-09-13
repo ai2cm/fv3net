@@ -43,6 +43,7 @@ SPECIAL_TRAINING_TYPES = [
     "min_max_novelty_detector",
     "ocsvm_novelty_detector",
     "autoencoder",
+    "cyclegan",
 ]
 
 

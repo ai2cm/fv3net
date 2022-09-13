@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 import dataclasses
 from dgl.nn.pytorch import SAGEConv
-from typing import Callable
 from .graph_builder import build_dgl_graph
+from fv3fit.pytorch.activation import ActivationConfig
 
 
 @dataclasses.dataclass
-class UNetGraphNetworkConfig:
+class GraphUNetConfig:
     """
     Attributes:
         depth: depth of U-net architecture maximum
@@ -23,7 +23,12 @@ class UNetGraphNetworkConfig:
     aggregator: str = "mean"
     pooling_size: int = 2
     pooling_stride: int = 2
-    activation: Callable = nn.ReLU()
+    activation: ActivationConfig = dataclasses.field(
+        default_factory=lambda: ActivationConfig()
+    )
+
+    def build(self, in_channels: int, out_channels: int, nx: int) -> "GraphUNet":
+        return GraphUNet(self, in_channels=in_channels, out_channels=out_channels)
 
 
 class CubedSphereGraphOperation(nn.Module):
@@ -35,7 +40,7 @@ class CubedSphereGraphOperation(nn.Module):
         super().__init__()
         self.graph_op = graph_op
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """
         Args:
             inputs: tensor of shape (batch_size, n_tiles, n_x, n_y, n_features)
@@ -62,20 +67,26 @@ class DoubleConv(nn.Module):
     A class which applies 2 graph convolution layers, each followed by an activation.
     """
 
-    def __init__(self, in_channels, hidden_channels, activation, aggregator):
+    def __init__(
+        self,
+        in_channels: int,
+        hidden_channels: int,
+        activation: nn.modules,
+        aggregator: str,
+    ):
         super(DoubleConv, self).__init__()
         self.conv = nn.Sequential(
             CubedSphereGraphOperation(
                 SAGEConv(in_channels, hidden_channels, aggregator)
             ),
-            activation,
+            activation.instance,
             CubedSphereGraphOperation(
                 SAGEConv(hidden_channels, hidden_channels, aggregator)
             ),
-            activation,
+            activation.instance,
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         x = self.conv(x)
         return x
 
@@ -92,20 +103,14 @@ class Down(nn.Module):
             kernel_size=config.pooling_size, stride=config.pooling_stride
         )
 
-    def forward(self, x):
-        input_size = x.size()
+    def forward(self, x: torch.Tensor):
+        batch_size, n_tiles, n_x, n_y, n_features = x.size()
         x = x.permute(
             0, 1, 4, 2, 3
         )  # change dimensions to (batch_size, n_tiles, n_features, n_x, n_y)
         x = x.reshape(x.size(0) * x.size(1), x.size(2), x.size(3), x.size(4),)
         x = self.pool(x)
-        x = x.reshape(
-            input_size[0],
-            input_size[1],
-            input_size[4],
-            input_size[2] // 2,
-            input_size[3] // 2,
-        )
+        x = x.reshape(batch_size, n_tiles, n_features, n_x // 2, n_y // 2,)
 
         return x.permute(0, 1, 3, 4, 2)
 
@@ -115,7 +120,7 @@ class Up(nn.Module):
     A class for the processes on each level of up path of the U-Net
     """
 
-    def __init__(self, config, in_channels):
+    def __init__(self, config: GraphUNetConfig, in_channels: int):
         """
         Args:
             in_channels: size of input channels
@@ -128,8 +133,8 @@ class Up(nn.Module):
             stride=config.pooling_stride,
         )
 
-    def forward(self, x1):
-        input_size = x1.size()
+    def forward(self, x1: torch.Tensor):
+        batch_size, n_tiles, n_x, n_y, n_features = x1.size()
         x1 = x1.permute(
             0, 1, 4, 2, 3
         )  # change dimensions to (batch_size, n_tiles, n_features, n_x, n_y)
@@ -137,13 +142,7 @@ class Up(nn.Module):
             x1.size(0) * x1.size(1), x1.size(2), x1.size(3), x1.size(4)
         )  # change the shape to (batch_size*n_tiles, n_features, n_x, n_y )
         x1 = self.up(x1)
-        x1 = x1.reshape(
-            input_size[0],
-            input_size[1],
-            input_size[4] // 2,  # channel
-            input_size[2] * 2,  # x
-            input_size[3] * 2,  # y
-        )
+        x1 = x1.reshape(batch_size, n_tiles, n_features // 2, n_x * 2, n_y * 2,)
         x1 = x1.permute(
             0, 1, 3, 4, 2
         )  # change dimensions to (batch_size, n_tiles, n_x, n_y, n_features)
@@ -156,14 +155,20 @@ class UNet(nn.Module):
     """
 
     def __init__(
-        self, config, down_factory, up_factory, depth: int, in_channels: int,
+        self,
+        config: GraphUNetConfig,
+        down_factory,
+        up_factory,
+        depth: int,
+        in_channels: int,
     ):
         """
         Args:
+            config: Model configuration
             down_factory: double-convolution followed
-                by a pooling layer on the down-path side
+            by a pooling layer on the down-path side
             up_factory: Upsampling followed by
-                double-convolution on the up-path side
+            double-convolution on the up-path side
             depth: depth of the UNet
             in_channels: number of input channels
         """
@@ -198,7 +203,7 @@ class UNet(nn.Module):
         self._up = up_factory(in_channels=lower_channels * 2)
         self.depth = depth
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         before_pooling = self.conv1(inputs)
         x = self._down(before_pooling)
         x = self._lower(x)
@@ -209,7 +214,7 @@ class UNet(nn.Module):
 
 
 class GraphUNet(nn.Module):
-    def __init__(self, config, in_channels: int, out_dim: int):
+    def __init__(self, config: GraphUNetConfig, in_channels: int, out_channels: int):
         """
         Args:
             in_channels: number of input channels
@@ -227,11 +232,11 @@ class GraphUNet(nn.Module):
             CubedSphereGraphOperation(
                 SAGEConv(in_channels, config.min_filters, config.aggregator)
             ),
-            config.activation,
+            config.activation.instance,
         )
 
         self._last_conv = CubedSphereGraphOperation(
-            SAGEConv(config.min_filters * 2, out_dim, config.aggregator)
+            SAGEConv(config.min_filters * 2, out_channels, config.aggregator)
         )
 
         self._unet = UNet(
@@ -242,10 +247,11 @@ class GraphUNet(nn.Module):
             in_channels=config.min_filters,
         )
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """
         Args:
             inputs: tensor of shape (batch_size, n_tiles, n_x, n_y, n_features)
+
         Returns:
             tensor of shape (batch_size, n_tiles, n_x, n_y, n_features_out)
         """

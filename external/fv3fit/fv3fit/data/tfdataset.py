@@ -73,8 +73,10 @@ class CycleGANLoader(TFDatasetLoader):
     ) -> tf.data.Dataset:
         datasets = []
         for config in self.domain_configs:
-            datasets.append(config.open_tfdataset(local_download_path, variable_names))
-        return tf.data.Dataset.zip(tuple(datasets))
+            datasets.append(
+                config.open_tfdataset(local_download_path, variable_names).unbatch()
+            )
+        return tf.data.Dataset.zip(tuple(datasets)).batch(batch_size=self.batch_size)
 
     @classmethod
     def from_dict(cls, d: dict) -> "CycleGANLoader":
@@ -82,7 +84,9 @@ class CycleGANLoader(TFDatasetLoader):
             tfdataset_loader_from_dict(domain_config)
             for domain_config in d["domain_configs"]
         ]
-        return CycleGANLoader(domain_configs=domain_configs)
+        kwargs = d.copy()
+        kwargs["domain_configs"] = domain_configs
+        return CycleGANLoader(**kwargs)
 
 
 @register_tfdataset_loader

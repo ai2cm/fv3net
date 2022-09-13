@@ -442,6 +442,7 @@ tendency_prescriber: null
 zhao_carr_emulation:
   gscond: null
   model:
+    batch_size: 512
     classifier_path: null
     cloud_squash: null
     enforce_conservative: false

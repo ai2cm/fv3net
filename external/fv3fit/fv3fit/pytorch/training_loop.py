@@ -56,7 +56,7 @@ class TrainingConfig:
         def evaluate_on_batch(batch_state, model):
             batch_input = torch.as_tensor(batch_state[0]).float().to(DEVICE)
             batch_output = torch.as_tensor(batch_state[1]).float().to(DEVICE)
-            loss: torch.Tensor = loss_config.loss(model(batch_input), batch_output)
+            loss: torch.Tensor = loss_config.instance(model(batch_input), batch_output)
             return loss
 
         return _train_loop(
@@ -116,7 +116,7 @@ class AutoregressiveTrainingConfig:
                 batch_state=batch_state,
                 model=train_model,
                 multistep=self.multistep,
-                loss=loss_config.loss,
+                loss=loss_config.instance,
             )
             return loss
 
