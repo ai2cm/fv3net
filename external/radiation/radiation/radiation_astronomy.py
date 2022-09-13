@@ -317,8 +317,8 @@ class AstronomyClass:
         if me == 0:
             print(
                 "for cosz calculations: nswr,deltim,deltsw,dtswh =",
-                f"{nswr[0]}, {deltim[0]}, {deltsw[0]}, {dtswh[0]}, anginc, nstp =",
-                f"{self.anginc[0]}, {self.nstp}",
+                f"{nswr}, {deltim}, {deltsw}, {dtswh}, anginc, nstp =",
+                f"{self.anginc}, {self.nstp}",
             )
 
         return self.slag, self.sdec, self.cdec, self.solcon

@@ -1,1 +1,1 @@
-from .radlw_main import RadLWClass
+from .radlw_main import RadLWClass, ngptlw
