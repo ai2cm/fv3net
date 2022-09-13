@@ -96,7 +96,9 @@ def to_tensor(
 class NCDirLoader(TFDatasetLoader):
     """Loads a folder of netCDF files at given path
 
-    Each file must have a CDL structure like this::
+    Each file must have identical CDL scheme returned by ``ncdump -h``.
+    Typically, samples will be defined over the first dimension to allow easy
+    use with ``tf.data.Dataset.unbatch``. See this example::
 
         netcdf A {
             dimensions:
@@ -104,8 +106,9 @@ class NCDirLoader(TFDatasetLoader):
                 // but the first dimension must be the same size
                 // and should correspond to "samples".
                 sample = 10;
-                z = 1;
+                z = 5;
             variables:
+                // all arrays share the first dimension
                 float a(sample, z);
                 float b(sample);
             data:
