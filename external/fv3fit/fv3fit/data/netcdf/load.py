@@ -67,6 +67,7 @@ def nc_dir_to_tfdataset(
         nfiles: Limit to number of files
         shuffle: Randomly order the file ingestion into the dataset
         random_state: numpy random number generator for seeded shuffle
+        cache: directory to cache datat at. The default is $pwd/.cache.
     """
     cache = cache or CACHE_DIR
 
@@ -94,6 +95,29 @@ def to_tensor(
 @dataclass
 class NetcdfDirLoader(TFDatasetLoader):
     """Loads a folder of netCDF files at given path
+
+    Each file must have a CDL structure like this::
+
+        netcdf A {
+            dimensions:
+                // the dimensions can be named anything
+                // but the first dimension must be the same size
+                // and should correspond to "samples".
+                sample = 10;
+                z = 1;
+            variables:
+                float a(sample, z);
+                float b(sample);
+            data:
+                a = 0, 1, 2, 3;
+        }
+
+    Attributes:
+        url: a path to the directory
+        nfiles: the number of files to load
+        shuffle: Whether the files are opened in a shuffled order
+        seed: The random seed used for filename shuffling.
+
     """
 
     url: str
