@@ -6,4 +6,3 @@ from ._models.shared.training_loop import (
     TrainingLoopConfig,
     EpochResult,
 )
-from ._models.recurrent import StepwiseModel
