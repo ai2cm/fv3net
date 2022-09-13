@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 def download_cached(path: str, cache: str = CACHE_DIR) -> str:
     """Download path potentially retreiving from local cache"""
     hash = hashlib.md5(path.encode()).hexdigest()
-    filepath = os.path.join(CACHE_DIR, hash)
-    os.makedirs(CACHE_DIR, exist_ok=True)
+    filepath = os.path.join(cache, hash)
+    os.makedirs(cache, exist_ok=True)
     if not os.path.exists(filepath):
         logger.info(f"Downloading {path} to {filepath}")
         tf.io.gfile.copy(path, filepath, overwrite=True)
