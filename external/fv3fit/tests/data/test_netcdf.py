@@ -27,7 +27,7 @@ def test_NCDirLoader(tmp_path: Path):
     tfds = loader.open_tfdataset(cache.as_posix(), ["a"])
     for data in tfds.as_numpy_iterator():
         a = data["a"]
-    np.testing.assert_almost_equal(ds["a"], a)
+    np.testing.assert_array_equal(ds["a"], a)
 
 
 def test_Netcdf_from_dict():
