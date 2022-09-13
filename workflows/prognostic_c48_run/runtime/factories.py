@@ -16,7 +16,7 @@ from runtime.config import UserConfig
 from runtime.transformers.core import StepTransformer
 from runtime.transformers.tendency_prescriber import TendencyPrescriber
 from runtime.steppers.prescriber import PrescriberConfig, Prescriber
-from runtime.steppers.radiation import RadiationConfig, RadiationStepper
+from runtime.steppers.radiation import RadiationStepperConfig, RadiationStepper
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
     PureMLStepper,
@@ -172,24 +172,25 @@ def get_prescriber(
 
 
 def get_radiation_stepper(
-    config: RadiationConfig,
+    stepper_config: RadiationStepperConfig,
     comm,
     physics_namelist: Mapping[Hashable, Any],
     timestep: float,
     tracer_metadata: Mapping[Hashable, Mapping[Hashable, int]],
 ) -> RadiationStepper:
-    rad_config = radiation.get_rad_config(physics_namelist)
-    if isinstance(config.input_generator, MachineLearningConfig):
+    radiation_config = radiation.RadiationConfig.from_physics_namelist(physics_namelist)
+    if isinstance(stepper_config.input_generator, MachineLearningConfig):
         input_generator: Optional[Union[PureMLStepper, Prescriber]] = PureMLStepper(
-            open_model(config.input_generator), timestep, hydrostatic=False
+            open_model(stepper_config.input_generator), timestep, hydrostatic=False
         )
-    elif isinstance(config.input_generator, PrescriberConfig):
-        input_generator = get_prescriber(config.input_generator, comm)
+    elif isinstance(stepper_config.input_generator, PrescriberConfig):
+        input_generator = get_prescriber(stepper_config.input_generator, comm)
     else:
         input_generator = None
     tracer_inds: Mapping[str, int] = {
         str(name): metadata["i_tracer"] for name, metadata in tracer_metadata.items()
     }
     return RadiationStepper(
-        radiation.Radiation(rad_config, comm, timestep, tracer_inds), input_generator
+        radiation.Radiation(radiation_config, comm, timestep, tracer_inds),
+        input_generator,
     )

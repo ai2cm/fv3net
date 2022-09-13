@@ -9,7 +9,7 @@ from radiation import Radiation
 
 
 @dataclasses.dataclass
-class RadiationConfig:
+class RadiationStepperConfig:
     """"""
 
     kind: Literal["python"]
@@ -44,7 +44,6 @@ class RadiationStepper:
 
     def _generate_inputs(self, state: State, time: cftime.DatetimeJulian) -> State:
         required_names = self._radiation.input_variables
-        print(required_names)
         inputs = {name: state[name] for name in required_names}
         if self._input_generator is not None:
             _, _, state_updates = self._input_generator(time, state)

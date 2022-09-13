@@ -1,7 +1,8 @@
 import pathlib
 import time
 import serialbox as ser
-from radiation import RadiationDriver, io
+from radiation import io
+from radiation.radiation_driver import RadiationDriver
 from util import compare_data
 from variables_to_read import vars_dict as variables
 

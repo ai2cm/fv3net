@@ -3,6 +3,7 @@ from datetime import timedelta
 import numpy as np
 import xarray as xr
 import cftime
+from radiation.config import RadiationConfig
 
 try:
     from vcm.calc.thermo.vertically_dependent import (
@@ -76,7 +77,7 @@ Diagnostics = MutableMapping[Hashable, xr.DataArray]
 
 
 def get_model(
-    rad_config: MutableMapping[Hashable, Any],
+    rad_config: RadiationConfig,
     tracer_inds: Mapping[str, int],
     time: cftime.DatetimeJulian,
     dt_atmos: float,
@@ -88,35 +89,35 @@ def get_model(
         "me": rank,
         "levs": nz,
         "levr": nz,
-        "nfxr": rad_config["nfxr"],
-        "ncld": rad_config["ncld"],
-        "ncnd": rad_config["ncnd"],
-        "fhswr": rad_config["fhswr"],
-        "fhlwr": rad_config["fhlwr"],
+        "nfxr": rad_config.nfxr,
+        "ncld": rad_config.ncld,
+        "ncnd": rad_config.ncnd,
+        "fhswr": rad_config.fhswr,
+        "fhlwr": rad_config.fhlwr,
         # todo: why does solar hour need to be one timestep behind time to validate?
         "solhr": _solar_hour(time - timedelta(seconds=dt_atmos)),
-        "lsswr": rad_config["lsswr"],
-        "lslwr": rad_config["lslwr"],
-        "imp_physics": rad_config["imp_physics"],
-        "lgfdlmprad": rad_config["lgfdlmprad"],
-        "uni_cld": rad_config["uni_cld"],
-        "effr_in": rad_config["effr_in"],
-        "indcld": rad_config["indcld"],
-        "num_p3d": rad_config["num_p3d"],
-        "npdf3d": rad_config["npdf3d"],
-        "ncnvcld3d": rad_config["ncnvcld3d"],
-        "lmfdeep2": rad_config["lmfdeep2"],
-        "lmfshal": rad_config["lmfshal"],
-        "sup": rad_config["sup"],
-        "kdt": rad_config["kdt"],
-        "do_sfcperts": rad_config["do_sfcperts"],
-        "pertalb": rad_config["pertalb"],
-        "do_only_clearsky_rad": rad_config["do_only_clearsky_rad"],
-        "swhtr": rad_config["swhtr"],
-        "solcon": rad_config["solcon"],
-        "lprnt": rad_config["lprnt"],
-        "lwhtr": rad_config["lwhtr"],
-        "lssav": rad_config["lssav"],
+        "lsswr": rad_config.lsswr,
+        "lslwr": rad_config.lslwr,
+        "imp_physics": rad_config.imp_physics,
+        "lgfdlmprad": rad_config.lgfdlmprad,
+        "uni_cld": rad_config.uni_cld,
+        "effr_in": rad_config.effr_in,
+        "indcld": rad_config.indcld,
+        "num_p3d": rad_config.num_p3d,
+        "npdf3d": rad_config.npdf3d,
+        "ncnvcld3d": rad_config.ncnvcld3d,
+        "lmfdeep2": rad_config.lmfdeep2,
+        "lmfshal": rad_config.lmfshal,
+        "sup": rad_config.sup,
+        "kdt": rad_config.kdt,
+        "do_sfcperts": rad_config.do_sfcperts,
+        "pertalb": rad_config.pertalb,
+        "do_only_clearsky_rad": rad_config.do_only_clearsky_rad,
+        "swhtr": rad_config.swhtr,
+        "solcon": rad_config.solcon,
+        "lprnt": rad_config.lprnt,
+        "lwhtr": rad_config.lwhtr,
+        "lssav": rad_config.lssav,
     }
     for tracer_name, index in tracer_inds.items():
         if tracer_name in tracer_name_mapping:

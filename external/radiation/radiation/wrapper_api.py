@@ -1,4 +1,4 @@
-from typing import MutableMapping, Mapping, Any, Hashable, Sequence
+from typing import MutableMapping, Mapping, Hashable, Sequence
 
 try:
     from mpi4py import MPI
@@ -7,7 +7,7 @@ except ImportError:
 import cftime
 import numpy as np
 import xarray as xr
-from radiation.config import LOOKUP_DATA_PATH, FORCING_DATA_PATH
+from radiation.config import RadiationConfig, LOOKUP_DATA_PATH, FORCING_DATA_PATH
 from radiation.radsw import ngptsw as NGPTSW
 from radiation.radlw import ngptlw as NGPTLW
 from radiation.radiation_driver import RadiationDriver
@@ -35,14 +35,14 @@ class Radiation:
 
     def __init__(
         self,
-        rad_config: MutableMapping[Hashable, Any],
-        comm: MPI.COMM_WORLD,
+        rad_config: RadiationConfig,
+        comm: "MPI.COMM_WORLD",
         timestep: float,
         tracer_inds: Mapping[str, int],
     ):
         self._driver: RadiationDriver = RadiationDriver()
-        self._rad_config: MutableMapping[Hashable, Any] = rad_config
-        self._comm: MPI.COMM_WORLD = comm
+        self._rad_config: RadiationConfig = rad_config
+        self._comm: "MPI.COMM_WORLD" = comm
         self._timestep: float = timestep
         self._tracer_inds: Mapping[str, int] = tracer_inds
 
@@ -81,30 +81,30 @@ class Radiation:
         aerosol_data = io.load_aerosol(self._forcing_local_dir)
         sfc_filename, sfc_data = io.load_sfc(self._forcing_local_dir)
         solar_filename, _ = io.load_astronomy(
-            self._forcing_local_dir, self._rad_config["isolar"]
+            self._forcing_local_dir, self._rad_config.isolar
         )
         self._driver.radinit(
             sigma,
             nlay,
-            self._rad_config["imp_physics"],
+            self._rad_config.imp_physics,
             self._comm.rank,
-            self._rad_config["iemsflg"],
-            self._rad_config["ioznflg"],
-            self._rad_config["ictmflg"],
-            self._rad_config["isolar"],
-            self._rad_config["ico2flg"],
-            self._rad_config["iaerflg"],
-            self._rad_config["ialbflg"],
-            self._rad_config["icldflg"],
-            self._rad_config["ivflip"],
-            self._rad_config["iovrsw"],
-            self._rad_config["iovrlw"],
-            self._rad_config["isubcsw"],
-            self._rad_config["isubclw"],
-            self._rad_config["lcrick"],
-            self._rad_config["lcnorm"],
-            self._rad_config["lnoprec"],
-            self._rad_config["iswcliq"],
+            self._rad_config.iemsflg,
+            self._rad_config.ioznflg,
+            self._rad_config.ictmflg,
+            self._rad_config.isolar,
+            self._rad_config.ico2flg,
+            self._rad_config.iaerflg,
+            self._rad_config.ialbflg,
+            self._rad_config.icldflg,
+            self._rad_config.ivflip,
+            self._rad_config.iovrsw,
+            self._rad_config.iovrlw,
+            self._rad_config.isubcsw,
+            self._rad_config.isubclw,
+            self._rad_config.lcrick,
+            self._rad_config.lcnorm,
+            self._rad_config.lnoprec,
+            self._rad_config.iswcliq,
             aerosol_data,
             solar_filename,
             sfc_filename,
@@ -127,19 +127,19 @@ class Radiation:
         jdat = np.array(
             [time.year, time.month, time.day, 0, time.hour, time.minute, time.second, 0]
         )
-        fhswr = np.array(float(self._rad_config["fhswr"]))
+        fhswr = np.array(float(self._rad_config.fhswr))
         dt_atmos = np.array(float(dt_atmos))
         aerosol_data = io.load_aerosol(self._forcing_local_dir)
         _, solar_data = io.load_astronomy(
-            self._forcing_local_dir, self._rad_config["isolar"]
+            self._forcing_local_dir, self._rad_config.isolar
         )
-        gas_data = io.load_gases(self._forcing_local_dir, self._rad_config["ictmflg"])
+        gas_data = io.load_gases(self._forcing_local_dir, self._rad_config.ictmflg)
         self._driver.radupdate(
             idat,
             jdat,
             fhswr,
             dt_atmos,
-            self._rad_config["lsswr"],
+            self._rad_config.lsswr,
             aerosol_data["kprfg"],
             aerosol_data["idxcg"],
             aerosol_data["cmixg"],
@@ -151,7 +151,7 @@ class Radiation:
 
     def _rad_compute(self, state: State, time: cftime.DatetimeJulian,) -> Diagnostics:
         """Compute the radiative fluxes"""
-        statein = get_statein(state, self._tracer_inds, self._rad_config["ivflip"])
+        statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)
         grid, coords = get_grid(state)
         sfcprop = get_sfcprop(state)
         ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
