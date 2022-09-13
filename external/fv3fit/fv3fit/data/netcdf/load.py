@@ -1,7 +1,6 @@
-import contextlib
 import logging
 from dataclasses import dataclass
-from typing import Callable, Iterator, Mapping, Optional, Sequence
+from typing import Callable, Mapping, Optional, Sequence
 
 import numpy as np
 import tensorflow as tf
@@ -17,18 +16,14 @@ logger = logging.getLogger(__name__)
 __all__ = ["NCDirLoader", "nc_dir_to_tfdataset"]
 
 
-@contextlib.contextmanager
-def open_dataset(path: str) -> Iterator[xr.Dataset]:
-    ds = xr.open_dataset(path)
-    yield ds
-    ds.close()
-
-
 def open_netcdf_dataset(path: str, cache=None) -> xr.Dataset:
     """Open a netcdf from a local/remote path"""
     local_path = download_cached(path, cache)
-    with open_dataset(local_path) as ds:
+    ds = xr.open_dataset(local_path)
+    try:
         return ds.load()
+    finally:
+        ds.close()
 
 
 def nc_files_to_tf_dataset(
