@@ -11,64 +11,23 @@ FROM ${BASE_IMAGE} AS prognostic-run-base
 # nvidia specific currently.  Feel free to remove if that changes.
 RUN rm -f /etc/apt/sources.list.d/cuda.list /etc/apt/sources.list.d/nvidia-ml.list
 
-RUN apt-get update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
-    apt-get install -y  --no-install-recommends \
-    autoconf \
-    automake \
-    bats \
-    cmake \
-    curl \
-    cython3 \
-    g++ \
-    gcc \
-    gfortran \
-    git \
-    libblas-dev \
-    libffi-dev \
-    liblapack-dev \
-    libmpich-dev \
-    libnetcdf-dev \
-    libnetcdff-dev \
-    libpython3-dev \
-    libtool \
-    libtool-bin \
-    m4 \
-    make  \
-    mpich \
-    openssl \
-    perl \
-    pkg-config \
-    python3 \
-    python3-dev \
-    python3-pip \
-    python3-setuptools \
-    python3-cffi \
-    rsync \
-    wget
-
-COPY .environment-scripts/install_esmf.sh .
-RUN bash install_esmf.sh /esmf /usr/local/esmf Linux gfortran default
-
-COPY .environment-scripts/install_fms.sh .
+COPY .environment-scripts /fv3net/.environment-scripts
 COPY external/fv3gfs-fortran/FMS /FMS
-RUN CC=/usr/bin/mpicc \
-    FC=/usr/bin/mpif90 \
-    LDFLAGS='-L/usr/lib' \
-    LOG_DRIVER_FLAGS='--comments' \
-    CPPFLAGS='-I/usr/include -Duse_LARGEFILE -DMAXFIELDMETHODS_=500 -DGFS_PHYS' \
-    FCFLAGS='-fcray-pointer -Waliasing -ffree-line-length-none -fno-range-check -fdefault-real-8 -fdefault-double-8 -fopenmp' \
-    bash install_fms.sh /FMS
+RUN bash /fv3net/.environment-scripts/setup_environment.sh \
+    base \
+    gnu_docker \
+    / \
+    /usr/local \
+    /fv3net \
+    /FMS \
+    /tmp/fortran-build \
+    Y
 
-COPY .environment-scripts/install_nceplibs.sh .
-RUN bash install_nceplibs.sh /NCEPlibs /opt/NCEPlibs linux gnu
-
-
+# I think we can clean these up at some point, but for now they are OK.
 ENV ESMF_DIR=/usr/local/esmf
 ENV CALLPY_DIR=/usr/local
 ENV FMS_DIR=/FMS
 ENV FV3GFS_FORTRAN_DIR=/external/fv3gfs-fortran
-ENV ESMF_INC="-I${ESMF_DIR}/include"
 
 ENV FMS_LIB=${FMS_DIR}/libFMS/.libs/
 ENV ESMF_LIB=${ESMF_DIR}/lib
@@ -76,13 +35,5 @@ ENV CALLPYFORT_LIB=${CALLPY_DIR}/lib
 ENV CALLPYFORT_INCL=${CALLPY_DIR}/include
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}:${CALLPYFORT_LIB}
 
-ENV CALLPY=/opt/call_py_fort \
-    PYTHONPATH=${CALLPY}/src/:$PYTHONPATH
-COPY .environment-scripts/install_call_py_fort.sh .
-RUN bash install_call_py_fort.sh $CALLPY
-
-# Install gcloud
-RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext && \
-    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
-    apt-get update && apt-get install -y google-cloud-sdk jq python3-dev python3-pip kubectl gfortran graphviz
+ENV CALL_PY_FORT_DIR=/call_py_fort 
+ENV PYTHONPATH=${CALL_PY_FORT_DIR}/src/:$PYTHONPATH

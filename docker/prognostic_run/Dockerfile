@@ -2,12 +2,9 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} as bld
 
-# build/install the fortran model
-COPY external/fv3gfs-fortran/ /tmp/fortran-build
-COPY .environment-scripts/install_fv3gfs_fortran.sh .
-RUN CALLPYFORT=Y bash install_fv3gfs_fortran.sh /tmp/fortran-build/FV3 gnu_docker /usr/local
+COPY .environment-scripts /fv3net/.environment-scripts
 
-# Install the Python dependencies
+COPY external/fv3gfs-fortran/ /tmp/fortran-build
 COPY docker/prognostic_run/requirements.txt /fv3net/docker/prognostic_run/requirements.txt
 COPY external/vcm /fv3net/external/vcm
 COPY external/artifacts /fv3net/external/artifacts
@@ -19,29 +16,21 @@ COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 COPY external/emulation /fv3net/external/emulation
 COPY external/radiation /fv3net/external/radiation
 
-COPY .environment-scripts/install_fv3net_python_dependencies.sh .
-RUN bash install_fv3net_python_dependencies.sh \
-    /fv3net/docker/prognostic_run/requirements.txt \
-    /fv3net/external/vcm \
-    /fv3net/external/artifacts \
-    /fv3net/external/loaders \
-    /fv3net/external/fv3fit \
-    /fv3net/external/fv3kube \
-    /fv3net/workflows/post_process_run \
-    /fv3net/workflows/prognostic_c48_run \
-    /fv3net/external/emulation \
-    /fv3net/external/radiation
+RUN bash /fv3net/.environment-scripts/setup_environment.sh \
+    fv3net \
+    gnu_docker \
+    / \
+    /usr/local \
+    /fv3net \
+    /FMS \
+    /tmp/fortran-build/FV3 \
+    Y
 
-# compile and install the wrapper. Then import fv3gfs.wrapper as a minimal test
-# that it works.
-COPY .environment-scripts/install_python_wrapper.sh .
-RUN CALLPYFORT=Y bash install_python_wrapper.sh /tmp/fortran-build/FV3
 RUN python3 -c 'import fv3gfs.wrapper'
 
 RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
     chmod -R 777 /outdir
-
 
 # these are needed for "click" to work
 ENV LC_ALL=C.UTF-8
