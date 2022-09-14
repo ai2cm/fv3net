@@ -6,6 +6,7 @@ from fv3fit._shared.taper_function import (
     taper_decay,
     taper_mask,
     taper_ramp,
+    taper_nan_mask,
 )
 from fv3fit.testing import ConstantOutputNoveltyDetector, ConstantOutputPredictor
 import numpy as np
@@ -36,6 +37,15 @@ def test_ramp_tapering():
     taper_values = taper(novelty_score)
     np.testing.assert_almost_equal(
         taper_values, np.asarray([[1, 2 / 3, 0], [0, 1 / 3, 1]])
+    )
+
+
+def test_nan_masked_tapering():
+    cutoff = 3
+    novelty_score = xr.DataArray([[1, 3, 5], [6, 4, 2]])
+    taper_values = taper_nan_mask(novelty_score, cutoff=cutoff)
+    np.testing.assert_almost_equal(
+        taper_values, np.asarray([[1, 1, np.nan], [np.nan, np.nan, 1]])
     )
 
 
