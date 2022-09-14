@@ -84,7 +84,15 @@ class Adapter:
 
     def apply(self, prediction: State, state: State):
         if self.config.online:
-            state.update(prediction)
+            prediction_filled_nans = {}
+            for k, v in prediction.items():
+                try:
+                    existing_value = state[k]
+                except KeyError:
+                    prediction_filled_nans[k] = v
+                else:
+                    prediction_filled_nans[k] = v.where(v.notnull(), existing_value)
+            state.update(prediction_filled_nans)
 
     def partial_fit(self, inputs: State, state: State):
         pass
