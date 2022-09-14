@@ -1,14 +1,22 @@
 base_version: v0.7
-field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
 prephysics:
-  - dataset_key: "gs://vcm-ml-intermediate/2022-03-08-C3072-reference-SSTs-at-C48-C384/C48.zarr"
+  - dataset_key: "gs://vcm-ml-intermediate/2021-03-fine-res-surface-radiative-fluxes/C3072-surface-radiative-fluxes-precip.zarr"
     variables:
-      - ocean_surface_temperature
-    reference_initial_time: "20160802.000000"
-    reference_frequency_seconds: 86400
+      - override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface
+      - override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface
+      - override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface
+      - total_precipitation
 initial_conditions:
   base_url: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
   timestep: "20160805.000000"
+nudging:
+  restarts_path: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+  timescale_hours:
+    air_temperature: 3
+    specific_humidity: 3
+    x_wind: 3
+    y_wind: 3
+    pressure_thickness_of_atmospheric_layer: 3
 namelist:
   atmos_model_nml:
     fhmax: 1024  # max hours of simulation (over all segments) for which fortran physics diags are saved
@@ -23,82 +31,124 @@ namelist:
     fhlwr: 900.0
     fhswr: 900.0
     override_surface_radiative_fluxes: true
-    hybedmf: false
-    satmedmf: true
+    hybedmf: true
+    satmedmf: false
   namsfc:
     faisl: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
     faiss: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
     fsicl: 99999 # Persist the sea ice fraction from the initial conditiond instead of using climatology forcing files
     fsics: 99999 # Persist the sea ice fraction from the initial conditiond instead of using climatology forcing files
 diagnostics:
-- name: state_after_timestep.zarr
-  chunks:
-    time: 24
+- chunks:
+    time: 12
+  name: state_pre_radiation.zarr
   times:
     frequency: 900
     kind: interval
   variables:
-  - x_wind
-  - y_wind
-  - eastward_wind
-  - northward_wind
-  - vertical_wind
-  - air_temperature
-  - specific_humidity
-  - pressure_thickness_of_atmospheric_layer
-  - vertical_thickness_of_atmospheric_layer
-  - land_sea_mask
-  - surface_temperature
-  - surface_geopotential
-  - surface_diffused_shortwave_albedo
-  - sensible_heat_flux
-  - latent_heat_flux
-  - total_precipitation
-  - surface_precipitation_rate
-  - total_soil_moisture
-  - total_sky_downward_shortwave_flux_at_surface
-  - total_sky_upward_shortwave_flux_at_surface
-  - total_sky_downward_longwave_flux_at_surface
-  - total_sky_upward_longwave_flux_at_surface
-  - total_sky_downward_shortwave_flux_at_top_of_atmosphere
-  - total_sky_upward_shortwave_flux_at_top_of_atmosphere
-  - total_sky_upward_longwave_flux_at_top_of_atmosphere
-  - clear_sky_downward_shortwave_flux_at_surface
-  - clear_sky_upward_shortwave_flux_at_surface
-  - clear_sky_downward_longwave_flux_at_surface
-  - clear_sky_upward_longwave_flux_at_surface
-  - clear_sky_upward_shortwave_flux_at_top_of_atmosphere
-  - clear_sky_upward_longwave_flux_at_top_of_atmosphere
-  - latitude
-  - longitude
-  - cloud_water_mixing_ratio
-  - cloud_ice_mixing_ratio
-  - rain_mixing_ratio
-  - snow_mixing_ratio
-  - graupel_mixing_ratio
-  - cloud_amount
-  - orographic_variables
-- name: physics_tendencies.zarr
-  chunks:
-    time: 24
+    - x_wind_pre_radiation
+    - y_wind_pre_radiation
+    - eastward_wind_pre_radiation
+    - northward_wind_pre_radiation
+    - vertical_wind_pre_radiation
+    - air_temperature_pre_radiation
+    - specific_humidity_pre_radiation
+    - pressure_thickness_of_atmospheric_layer_pre_radiation
+    - vertical_thickness_of_atmospheric_layer_pre_radiation
+    - land_sea_mask_pre_radiation
+    - surface_temperature_pre_radiation
+    - surface_geopotential_pre_radiation
+    - surface_diffused_shortwave_albedo_pre_radiation
+    - sensible_heat_flux_pre_radiation
+    - latent_heat_flux_pre_radiation
+    - total_precipitation_pre_radiation
+    - surface_precipitation_rate_pre_radiation
+    - total_soil_moisture_pre_radiation
+    - cloud_water_mixing_ratio_pre_radiation
+    - rain_mixing_ratio_pre_radiation
+    - cloud_ice_mixing_ratio_pre_radiation
+    - snow_mixing_ratio_pre_radiation
+    - graupel_mixing_ratio_pre_radiation
+    - cloud_amount_pre_radiation
+- chunks:
+    time: 12
+  name: state_after_timestep.zarr
   times:
     frequency: 900
     kind: interval
+  variables:
+    - x_wind
+    - y_wind
+    - eastward_wind
+    - northward_wind
+    - vertical_wind
+    - air_temperature
+    - specific_humidity
+    - pressure_thickness_of_atmospheric_layer
+    - vertical_thickness_of_atmospheric_layer
+    - land_sea_mask
+    - surface_temperature
+    - surface_geopotential
+    - surface_diffused_shortwave_albedo
+    - sensible_heat_flux
+    - latent_heat_flux
+    - total_precipitation
+    - surface_precipitation_rate
+    - total_soil_moisture
+    - cloud_water_mixing_ratio
+    - rain_mixing_ratio
+    - cloud_ice_mixing_ratio
+    - snow_mixing_ratio
+    - graupel_mixing_ratio
+    - cloud_amount
+- name: physics_tendencies.zarr
+  chunks:
+    time: 1
+  times:
+    frequency: 10800
+    kind: interval-average
   variables:
   - tendency_of_air_temperature_due_to_fv3_physics
   - tendency_of_specific_humidity_due_to_fv3_physics
   - tendency_of_eastward_wind_due_to_fv3_physics
   - tendency_of_northward_wind_due_to_fv3_physics
+- name: nudging_tendencies.zarr
+  chunks:
+    time: 1
+  times:
+    frequency: 10800
+    kind: interval-average
+  variables:
+  - air_temperature_tendency_due_to_nudging
+  - specific_humidity_tendency_due_to_nudging
+  - x_wind_tendency_due_to_nudging
+  - y_wind_tendency_due_to_nudging
+  - pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging
 - name: diags.zarr
   chunks:
-    time: 96
+    time: 12
   times:
     frequency: 900
     kind: interval
   variables:
+  - net_moistening_due_to_nudging
+  - column_heating_due_to_nudging
+  - net_mass_tendency_due_to_nudging
   - total_precipitation_rate
   - water_vapor_path
   - physics_precip
+- name: reference_state.zarr
+  chunks:
+    time: 1
+  times:
+    frequency: 10800
+    kind: interval-average
+  variables:
+  - air_temperature_reference
+  - specific_humidity_reference
+  - x_wind_reference
+  - y_wind_reference
+  - pressure_thickness_of_atmospheric_layer_reference
 fortran_diagnostics:
 - name: sfc_dt_atmos.zarr
   chunks:
@@ -120,15 +170,15 @@ fortran_diagnostics:
   - {module_name: gfs_phys, field_name: totsnwb_ave, output_name: SNOWsfc}
   - {module_name: gfs_phys, field_name: totgrpb_ave, output_name: GRAUPELsfc}
   - {module_name: gfs_phys, field_name: DSWRF, output_name: DSWRFsfc}
-#   - {module_name: gfs_phys, field_name: DSWRF_from_rrtmg, output_name: DSWRFsfc_from_RRTMG}
+  - {module_name: gfs_phys, field_name: DSWRF_from_rrtmg, output_name: DSWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: USWRF, output_name: USWRFsfc}
-#   - {module_name: gfs_phys, field_name: USWRF_from_rrtmg, output_name: USWRFsfc_from_RRTMG}
+  - {module_name: gfs_phys, field_name: USWRF_from_rrtmg, output_name: USWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: DSWRFtoa, output_name: DSWRFtoa}
   - {module_name: gfs_phys, field_name: USWRFtoa, output_name: USWRFtoa}
   - {module_name: gfs_phys, field_name: ULWRFtoa, output_name: ULWRFtoa}
   - {module_name: gfs_phys, field_name: ULWRF, output_name: ULWRFsfc}
   - {module_name: gfs_phys, field_name: DLWRF, output_name: DLWRFsfc}
-#   - {module_name: gfs_phys, field_name: DLWRF_from_rrtmg, output_name: DLWRFsfc_from_RRTMG}
+  - {module_name: gfs_phys, field_name: DLWRF_from_rrtmg, output_name: DLWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: lhtfl_ave, output_name: LHTFLsfc}
   - {module_name: gfs_phys, field_name: shtfl_ave, output_name: SHTFLsfc}
   - {module_name: gfs_phys, field_name: hpbl, output_name: HPBLsfc}
