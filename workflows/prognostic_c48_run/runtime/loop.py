@@ -1,7 +1,5 @@
 import json
 import logging
-import os
-import tempfile
 from typing import (
     Any,
     Dict,
@@ -12,6 +10,8 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    Mapping,
+    Hashable,
 )
 import cftime
 import pace.util
@@ -40,8 +40,7 @@ from runtime.names import (
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
     PureMLStepper,
-    download_model,
-    open_model,
+    get_model,
 )
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig
@@ -217,18 +216,9 @@ class TimeLoop(
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
-        if config.radiation_scheme:
-            self._radiation_stepper: Optional[
-                Stepper
-            ] = runtime.factories.get_radiation_stepper(
-                config.radiation_scheme,
-                self.comm,
-                namelist["gfs_physics_nml"],
-                self._timestep,
-                self._fv3gfs.get_tracer_metadata(),
-            )
-        else:
-            self._radiation_stepper = None
+        self._radiation_stepper = self._get_radiation_stepper(
+            config, namelist["gfs_physics_nml"]
+        )
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -273,6 +263,29 @@ class TimeLoop(
         else:
             return func
 
+    def _get_prescriber_or_ml_stepper(
+        self,
+        stepper_config: Union[PrescriberConfig, MachineLearningConfig],
+        step: str,
+        hydrostatic: bool = False,
+    ) -> Union[PureMLStepper, Prescriber]:
+        if isinstance(stepper_config, MachineLearningConfig):
+            model = get_model(stepper_config, self.comm, self.rank)
+            stepper: Union[PureMLStepper, Prescriber] = PureMLStepper(
+                model, self._timestep, hydrostatic
+            )
+            self._log_info(
+                f"Using PureMLStepper for variables {model.output_variables} at {step}."
+            )
+        else:
+            stepper = runtime.factories.get_prescriber(
+                stepper_config, self._get_communicator()
+            )
+            self._log_info(
+                f"Using Prescriber for variables {stepper_config.variables} at {step}."
+            )
+        return stepper
+
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
     ) -> Optional[Stepper]:
@@ -280,26 +293,12 @@ class TimeLoop(
         if config.prephysics is None:
             self._log_info("No prephysics computations")
             stepper = None
-
         else:
             prephysics_steppers: List[Union[Prescriber, PureMLStepper]] = []
             for prephysics_config in config.prephysics:
-                if isinstance(prephysics_config, MachineLearningConfig):
-                    self._log_info("Using PureMLStepper for prephysics")
-                    model = self._open_model(prephysics_config, "_prephysics")
-                    prephysics_steppers.append(
-                        PureMLStepper(model, self._timestep, hydrostatic)
-                    )
-                elif isinstance(prephysics_config, PrescriberConfig):
-                    self._log_info(
-                        "Using Prescriber for prephysics for variables "
-                        f"{prephysics_config.variables}"
-                    )
-                    prephysics_steppers.append(
-                        runtime.factories.get_prescriber(
-                            prephysics_config, self._get_communicator()
-                        )
-                    )
+                prephysics_steppers.append(
+                    self._get_prescriber_or_ml_stepper(prephysics_config, "prephysics")
+                )
             stepper = CombinedStepper(prephysics_steppers)
         return stepper
 
@@ -314,7 +313,7 @@ class TimeLoop(
                 self._log_info(
                     "Using old non-MSE-conserving moisture limiter for postphysics"
                 )
-            model = self._open_model(config.scikit_learn, "_postphysics")
+            model = get_model(config.scikit_learn, self.comm, self.rank)
             stepper: Optional[Stepper] = PureMLStepper(
                 model,
                 self._timestep,
@@ -329,22 +328,29 @@ class TimeLoop(
             stepper = None
         return stepper
 
-    def _open_model(self, ml_config: MachineLearningConfig, step: str):
-        self._log_info("Downloading ML Model")
-        with tempfile.TemporaryDirectory() as tmpdir:
-            if self.rank == 0:
-                local_model_paths = download_model(
-                    ml_config, os.path.join(tmpdir, step)
+    def _get_radiation_stepper(
+        self, config: UserConfig, physics_namelist: Mapping[Hashable, Any]
+    ) -> Optional[Stepper]:
+        if config.radiation_scheme is not None:
+            radiation_input_generator_config = config.radiation_scheme.input_generator
+            if radiation_input_generator_config is not None:
+                radiation_input_generator: Optional[
+                    Union[PureMLStepper, Prescriber]
+                ] = self._get_prescriber_or_ml_stepper(
+                    radiation_input_generator_config, "radiation_inputs"
                 )
             else:
-                local_model_paths = None  # type: ignore
-            local_model_paths = self.comm.bcast(local_model_paths, root=0)
-            setattr(ml_config, "model", local_model_paths)
-            self._log_info("Model Downloaded From Remote")
-            model = open_model(ml_config)
-            MPI.COMM_WORLD.barrier()
-        self._log_info("Model Loaded")
-        return model
+                radiation_input_generator = None
+            stepper: Optional[Stepper] = runtime.factories.get_radiation_stepper(
+                physics_namelist,
+                self._timestep,
+                self.comm,
+                self._fv3gfs.get_tracer_metadata(),
+                radiation_input_generator,
+            )
+        else:
+            stepper = None
+        return stepper
 
     @property
     def time(self) -> cftime.DatetimeJulian:

@@ -62,6 +62,11 @@ def test_RenamingAdapter_input_vars_():
     assert model.input_variables == {"x"}
 
 
+def test_RenamingAdapter_output_vars_():
+    model = RenamingAdapter(MockPredictor(), {}, {"y": "rename_output"})
+    assert model.output_variables == {"y"}
+
+
 def test_MultiModelAdapter_combines_predictions():
     ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})
     model0 = MockPredictor(output_variables=["y0"], input_variables=["x"])
@@ -91,3 +96,11 @@ def test_MultiModelAdapter_scales_predictions():
     assert "y0" in out.data_vars and "y1" in out.data_vars
     np.testing.assert_array_equal(out["y0"], 2.0)
     np.testing.assert_array_equal(out["y1"], 1.0)
+
+
+def test_MultiModelAdapter_input_output_vars_():
+    model0 = MockPredictor(output_variables=["y0"], input_variables=["x0"])
+    model1 = MockPredictor(output_variables=["y1"], input_variables=["x1"])
+    combined_model = MultiModelAdapter([model0, model1])
+    assert {"x0", "x1"} == combined_model.input_variables
+    assert {"y0", "y1"} == combined_model.output_variables

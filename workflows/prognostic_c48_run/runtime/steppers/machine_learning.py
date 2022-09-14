@@ -4,6 +4,7 @@ import dataclasses
 import logging
 import os
 from typing import Hashable, Iterable, Mapping, Optional, Sequence, Set, Tuple, cast
+import tempfile
 
 import fv3fit
 import xarray as xr
@@ -13,7 +14,7 @@ from runtime.types import Diagnostics, State
 import vcm
 
 
-__all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
+__all__ = ["MachineLearningConfig", "PureMLStepper", "get_model"]
 
 
 logger = logging.getLogger(__name__)
@@ -141,6 +142,11 @@ class RenamingAdapter:
         invert_rename_in = _invert_dict(self.rename_in)
         return {invert_rename_in.get(var, var) for var in self.model.input_variables}
 
+    @property
+    def output_variables(self) -> Set[str]:
+        invert_rename_out = _invert_dict(self.rename_out)
+        return {invert_rename_out.get(var, var) for var in self.model.output_variables}
+
     def predict(self, arg: xr.Dataset) -> xr.Dataset:
         input_ = self._rename_inputs(arg)
         prediction = self.model.predict(input_)
@@ -169,6 +175,11 @@ class MultiModelAdapter:
         vars = [model.input_variables for model in self.models]
         return {var for model_vars in vars for var in model_vars}
 
+    @property
+    def output_variables(self) -> Set[str]:
+        vars = [model.output_variables for model in self.models]
+        return {var for model_vars in vars for var in model_vars}
+
     def predict(self, arg: xr.Dataset) -> xr.Dataset:
         predictions = []
         for model in self.models:
@@ -179,19 +190,23 @@ class MultiModelAdapter:
         return ds
 
 
-def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
-    model_paths = config.model
-    models = []
-    for path in model_paths:
-        model = cast(fv3fit.Predictor, fv3fit.load(path))
-        rename_in = config.input_standard_names
-        rename_out = config.output_standard_names
-        models.append(RenamingAdapter(model, rename_in, rename_out))
-    return MultiModelAdapter(models, scaling=config.scaling)
+def get_model(ml_config: MachineLearningConfig, comm, rank: int) -> MultiModelAdapter:
+    """Download models on root rank, broadcast their path, and load with adapters"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        if rank == 0:
+            local_model_paths: Optional[Sequence[str]] = _download_models(
+                ml_config, tmpdir
+            )
+        else:
+            local_model_paths = None
+        local_model_paths = comm.bcast(local_model_paths, root=0)
+        setattr(ml_config, "model", local_model_paths)
+        model = _load_models(ml_config)
+        comm.barrier()
+    return model
 
 
-def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
-    """Download models to local path and return the local paths"""
+def _download_models(config: MachineLearningConfig, path: str) -> Sequence[str]:
     remote_model_paths = config.model
     local_model_paths = []
     for i, remote_path in enumerate(remote_model_paths):
@@ -201,6 +216,17 @@ def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
         fs.get(remote_path, local_path, recursive=True)
         local_model_paths.append(local_path)
     return local_model_paths
+
+
+def _load_models(config: MachineLearningConfig) -> MultiModelAdapter:
+    model_paths = config.model
+    models = []
+    for path in model_paths:
+        model = cast(fv3fit.Predictor, fv3fit.load(path))
+        rename_in = config.input_standard_names
+        rename_out = config.output_standard_names
+        models.append(RenamingAdapter(model, rename_in, rename_out))
+    return MultiModelAdapter(models, scaling=config.scaling)
 
 
 def predict(model: MultiModelAdapter, state: State) -> State:
