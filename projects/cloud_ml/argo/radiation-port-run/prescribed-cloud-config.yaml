@@ -1,14 +1,15 @@
 base_version: v0.7
-prephysics:
-  - dataset_key: "gs://vcm-ml-intermediate/2021-03-fine-res-surface-radiative-fluxes/C3072-surface-radiative-fluxes-precip.zarr"
-    variables:
-      - override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface
-      - override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface
-      - override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface
-      - total_precipitation
 initial_conditions:
   base_url: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
   timestep: "20160805.000000"
+nudging:
+  restarts_path: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+  timescale_hours:
+    air_temperature: 3
+    specific_humidity: 3
+    x_wind: 3
+    y_wind: 3
+    pressure_thickness_of_atmospheric_layer: 3
 radiation_scheme:
   kind: "python"
   input_generator:
@@ -28,7 +29,6 @@ namelist:
   gfs_physics_nml:
     fhlwr: 900.0
     fhswr: 900.0
-    override_surface_radiative_fluxes: true
     hybedmf: true
     satmedmf: false
   namsfc:
@@ -41,7 +41,7 @@ diagnostics:
     time: 4
   name: state_after_timestep.zarr
   times:
-    frequency: 5400
+    frequency: 900
     kind: interval
   variables:
     - x_wind
@@ -68,6 +68,19 @@ diagnostics:
     - snow_mixing_ratio
     - graupel_mixing_ratio
     - cloud_amount
+    - clear_sky_downward_longwave_flux_at_surface
+    - clear_sky_downward_shortwave_flux_at_surface
+    - clear_sky_upward_longwave_flux_at_surface
+    - clear_sky_upward_shortwave_flux_at_surface
+    - clear_sky_upward_longwave_flux_at_top_of_atmosphere
+    - clear_sky_upward_shortwave_flux_at_top_of_atmosphere
+    - total_sky_downward_longwave_flux_at_surface
+    - total_sky_downward_shortwave_flux_at_surface
+    - total_sky_upward_longwave_flux_at_surface
+    - total_sky_upward_shortwave_flux_at_surface
+    - total_sky_downward_shortwave_flux_at_top_of_atmosphere
+    - total_sky_upward_longwave_flux_at_top_of_atmosphere
+    - total_sky_upward_shortwave_flux_at_top_of_atmosphere
 - name: physics_tendencies.zarr
   chunks:
     time: 2
@@ -161,15 +174,12 @@ fortran_diagnostics:
   - {module_name: gfs_phys, field_name: totsnwb_ave, output_name: SNOWsfc}
   - {module_name: gfs_phys, field_name: totgrpb_ave, output_name: GRAUPELsfc}
   - {module_name: gfs_phys, field_name: DSWRF, output_name: DSWRFsfc}
-  - {module_name: gfs_phys, field_name: DSWRF_from_rrtmg, output_name: DSWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: USWRF, output_name: USWRFsfc}
-  - {module_name: gfs_phys, field_name: USWRF_from_rrtmg, output_name: USWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: DSWRFtoa, output_name: DSWRFtoa}
   - {module_name: gfs_phys, field_name: USWRFtoa, output_name: USWRFtoa}
   - {module_name: gfs_phys, field_name: ULWRFtoa, output_name: ULWRFtoa}
   - {module_name: gfs_phys, field_name: ULWRF, output_name: ULWRFsfc}
   - {module_name: gfs_phys, field_name: DLWRF, output_name: DLWRFsfc}
-  - {module_name: gfs_phys, field_name: DLWRF_from_rrtmg, output_name: DLWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: lhtfl_ave, output_name: LHTFLsfc}
   - {module_name: gfs_phys, field_name: shtfl_ave, output_name: SHTFLsfc}
   - {module_name: gfs_phys, field_name: hpbl, output_name: HPBLsfc}
