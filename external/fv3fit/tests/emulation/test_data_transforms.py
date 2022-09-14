@@ -23,17 +23,6 @@ def xr_dataset():
     )
 
 
-def test_open_netcdf(xr_dataset: xr.Dataset):
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        path = os.path.join(tmpdir, "data.nc")
-        xr_dataset.to_netcdf(path)
-
-        result = transforms.open_netcdf_dataset(path)
-        assert isinstance(result, xr.Dataset)
-        xr.testing.assert_equal(result, xr_dataset)
-
-
 def test_xr_dataset_to_ndarray_dataset(xr_dataset):
 
     result = transforms.to_ndarrays(xr_dataset)

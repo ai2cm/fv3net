@@ -1,7 +1,7 @@
 from typing import Sequence
 import tensorflow as tf
 import vcm
-from fv3fit.emulation.data.io import get_nc_files
+from fv3fit.data.netcdf.io import get_nc_files
 
 __all__ = ["netcdf_url_to_dataset"]
 
