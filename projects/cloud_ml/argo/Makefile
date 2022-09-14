@@ -17,6 +17,9 @@ extend_nudge_to_fine_run_v4: deploy
 nudge_to_fine_run_v5: deploy
 	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v5
 
+prescribed_cloud_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cloud
+
 deploy: kustomize
 	./kustomize build . | kubectl apply -f -
 
