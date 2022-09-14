@@ -88,8 +88,6 @@ class Adapter:
                 k: v.where(v.notnull(), state[k]) for k, v in prediction.items()
             }
             state.update(prediction_masked)
-            # print(prediction)
-            # state.update(prediction)
 
     def partial_fit(self, inputs: State, state: State):
         pass
