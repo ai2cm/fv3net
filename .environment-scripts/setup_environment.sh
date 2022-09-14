@@ -20,6 +20,9 @@ then
     source $MODULES_FILE
 fi
 
+mkdir -p $CLONE_PREFIX
+mkdir -p $INSTALL_PREFIX
+
 if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "base" ];
 then
     bash $PLATFORM_SCRIPTS/install_base_software.sh $INSTALL_PREFIX
