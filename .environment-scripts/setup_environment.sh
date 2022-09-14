@@ -22,7 +22,7 @@ fi
 
 if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "base" ];
 then
-    bash $PLATFORM_SCRIPTS/install_base_software.sh
+    bash $PLATFORM_SCRIPTS/install_base_software.sh $INSTALL_PREFIX
     bash $PLATFORM_SCRIPTS/install_nceplibs.sh $SCRIPTS $CLONE_PREFIX/NCEPlibs $NCEPLIBS_DIR
     bash $PLATFORM_SCRIPTS/install_esmf.sh $SCRIPTS $CLONE_PREFIX/esmf $ESMF_DIR
     bash $PLATFORM_SCRIPTS/install_fms.sh $SCRIPTS $FMS_DIR
