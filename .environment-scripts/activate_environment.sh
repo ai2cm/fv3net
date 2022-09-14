@@ -14,7 +14,7 @@ fi
 
 # these are needed for "click" to work
 export LC_ALL=C.UTF-8
-ENV LANG=C.UTF-8
+export LANG=C.UTF-8
 
 # Override microphysics emulation
 export VAR_META_PATH=$FV3NET_DIR/external/emulation/microphysics_parameter_metadata.yaml
