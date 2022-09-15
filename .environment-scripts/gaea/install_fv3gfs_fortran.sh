@@ -1,0 +1,7 @@
+#!/bin/bash
+
+ENVIRONMENT_SCRIPTS_DIR=$1
+FV3_DIR=$2
+INSTALL_PREFIX=$3
+
+bash $ENVIRONMENT_SCRIPTS_DIR/install_fv3gfs_fortran.sh $FV3_DIR gaea $INSTALL_PREFIX
