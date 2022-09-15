@@ -68,7 +68,10 @@ class StepTransformer:
         return set(strip_prefix(self.prefix, self.diagnostic_variables))
 
     def transform(self, func: Step) -> Diagnostics:
-        inputs: State = {key: self.state[key] for key in self.model.input_variables}
+        # do deep copy of DataArrays because func() typically modifies self.state
+        inputs: State = {
+            key: self.state[key].copy(deep=True) for key in self.model.input_variables
+        }
         inputs_to_save: Diagnostics = {
             self.prefix + key: self.state[key] for key in self.inputs_to_save
         }
