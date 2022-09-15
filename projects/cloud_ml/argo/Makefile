@@ -17,6 +17,9 @@ extend_nudge_to_fine_run_v4: deploy
 nudge_to_fine_run_v5: deploy
 	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v5
 
+port_validation_run: deploy
+	cd radiation-port-run && ./run.sh port-validation
+
 prescribed_cloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cloud
 

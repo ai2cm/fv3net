@@ -15,7 +15,7 @@ argo submit --from workflowtemplate/prognostic-run \
     -p project=${PROJECT} \
     -p tag=${TAG} \
     -p config="$(< ${CONFIG}-config.yaml)" \
-    -p segment-count="4" \
+    -p segment-count="8" \
     -p memory="15Gi" \
     --name "${NAME}" \
     --labels "project=${PROJECT},experiment=${EXPERIMENT},trial=${TRIAL}"
