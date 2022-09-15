@@ -42,7 +42,7 @@ RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     chmod -R 777 /outdir
 
 # Add emulation project scripts
-COPY .environment-scripts/activate_environment.sh ${FV3NET_SCRIPTS}/ 
+COPY .environment-scripts/activate_environment.sh ${FV3NET_SCRIPTS}/
 COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
 RUN /bin/bash -c "source ${FV3NET_SCRIPTS}/activate_environment.sh ${PLATFORM} ${FV3NET_SCRIPTS}/${PLATFORM} ${FV3NET_DIR}"
 WORKDIR /fv3net/workflows/prognostic_c48_run
