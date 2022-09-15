@@ -26,9 +26,9 @@ mkdir -p $INSTALL_PREFIX
 if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "base" ];
 then
     bash $PLATFORM_SCRIPTS/install_base_software.sh $INSTALL_PREFIX
-    bash $PLATFORM_SCRIPTS/install_nceplibs.sh $SCRIPTS $CLONE_PREFIX/NCEPlibs $NCEPLIBS_DIR
-    bash $PLATFORM_SCRIPTS/install_esmf.sh $SCRIPTS $CLONE_PREFIX/esmf $ESMF_DIR
-    bash $PLATFORM_SCRIPTS/install_fms.sh $SCRIPTS $FMS_DIR
+#    bash $PLATFORM_SCRIPTS/install_nceplibs.sh $SCRIPTS $CLONE_PREFIX/NCEPlibs $NCEPLIBS_DIR
+#    bash $PLATFORM_SCRIPTS/install_esmf.sh $SCRIPTS $CLONE_PREFIX/esmf $ESMF_DIR
+#    bash $PLATFORM_SCRIPTS/install_fms.sh $SCRIPTS $FMS_DIR
     if [ ! -z "${CALLPYFORT}" ];
     then
         bash $PLATFORM_SCRIPTS/install_call_py_fort.sh $SCRIPTS $CLONE_PREFIX/call_py_fort
@@ -46,7 +46,9 @@ then
         export CALL_PY_FORT_DIR=$CLONE_PREFIX/call_py_fort
     fi
 
+    source $PLATFORM_SCRIPTS/activate_conda_environment.sh prognostic-run-2022-09-14
     CALLPYFORT=$CALLPYFORT bash $PLATFORM_SCRIPTS/install_fv3gfs_fortran.sh $SCRIPTS $FV3_DIR $INSTALL_PREFIX
+    cp $FV3NET_DIR/constraints.txt $FV3NET_DIR/docker/prognostic_run/requirements.txt
     bash $SCRIPTS/install_fv3net_python_dependencies.sh \
         $FV3NET_DIR/docker/prognostic_run/requirements.txt \
         $FV3NET_DIR/external/vcm \
