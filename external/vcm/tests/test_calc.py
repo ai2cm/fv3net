@@ -209,7 +209,7 @@ weights_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
     [
         (da, weights, "z", xr.DataArray(17.0 / 6.0)),
         (ds, weights, "z", xr.Dataset({"a": xr.DataArray(17.0 / 6.0)})),
-        (da_nans, weights, "z", xr.DataArray(0.0)),
+        (da_nans, weights, "z", xr.DataArray(np.nan)),
         (da, weights_nans, "z", xr.DataArray(np.nan)),
         (da, weights_some_nans, "z", xr.DataArray((0.5 + 1 + 4) / (0.5 + 0.5 + 1))),
         (da_some_nans, weights, "z", xr.DataArray((0.5 + 1 + 3) / (0.5 + 0.5 + 1))),
