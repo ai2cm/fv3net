@@ -1,4 +1,4 @@
-from typing import Dict, List, Mapping, Tuple, Optional
+from typing import Dict, List, Literal, Mapping, Tuple, Optional
 import tensorflow as tf
 from fv3fit._shared.scaler import StandardScaler
 from .reloadable import CycleGAN, CycleGANModule
@@ -12,6 +12,9 @@ from fv3fit.pytorch.system import DEVICE
 import itertools
 from .image_pool import ImagePool
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -61,7 +64,7 @@ class CycleGANNetworkConfig:
     discriminator_weight: float = 1.0
 
     def build(
-        self, n_state: int, n_batch: int, state_variables, scalers
+        self, n_state: int, nx: int, ny: int, n_batch: int, state_variables, scalers
     ) -> "CycleGANTrainer":
         generator_a_to_b = self.generator.build(n_state)
         generator_b_to_a = self.generator.build(n_state)
@@ -75,14 +78,16 @@ class CycleGANNetworkConfig:
         optimizer_discriminator = self.discriminator_optimizer.instance(
             itertools.chain(discriminator_a.parameters(), discriminator_b.parameters())
         )
+        model = CycleGANModule(
+            generator_a_to_b=generator_a_to_b,
+            generator_b_to_a=generator_b_to_a,
+            discriminator_a=discriminator_a,
+            discriminator_b=discriminator_b,
+        ).to(DEVICE)
+        init_weights(model)
         return CycleGANTrainer(
             cycle_gan=CycleGAN(
-                model=CycleGANModule(
-                    generator_a_to_b=generator_a_to_b,
-                    generator_b_to_a=generator_b_to_a,
-                    discriminator_a=discriminator_a,
-                    discriminator_b=discriminator_b,
-                ).to(DEVICE),
+                model=model,
                 state_variables=state_variables,
                 scalers=_merge_scaler_mappings(scalers),
             ),
@@ -97,6 +102,50 @@ class CycleGANNetworkConfig:
             generator_weight=self.generator_weight,
             discriminator_weight=self.discriminator_weight,
         )
+
+
+def init_weights(
+    net: torch.nn.Module,
+    init_type: Literal["normal", "xavier", "kaiming", "orthogonal"] = "normal",
+    init_gain: float = 0.02,
+):
+    """Initialize network weights.
+
+    Args:
+        net: network to be initialized
+        init_type: the name of an initialization method
+        init_gain: scaling factor for normal, xavier and orthogonal.
+
+    Note: We use 'normal' in the original pix2pix and CycleGAN paper.
+    But xavier and kaiming might work better for some applications.
+    Feel free to try yourself.
+    """
+
+    def init_func(module):  # define the initialization function
+        classname = module.__class__.__name__
+        if hasattr(module, "weight") and classname == "Conv2d":
+            if init_type == "normal":
+                torch.nn.init.normal_(module.weight.data, 0.0, init_gain)
+            elif init_type == "xavier":
+                torch.nn.init.xavier_normal_(module.weight.data, gain=init_gain)
+            elif init_type == "kaiming":
+                torch.nn.init.kaiming_normal_(module.weight.data, a=0, mode="fan_in")
+            elif init_type == "orthogonal":
+                torch.nn.init.orthogonal_(module.weight.data, gain=init_gain)
+            else:
+                raise NotImplementedError(
+                    "initialization method [%s] is not implemented" % init_type
+                )
+            if hasattr(module, "bias") and module.bias is not None:
+                torch.nn.init.constant_(module.bias.data, 0.0)
+        elif classname.find("BatchNorm2d") != -1:
+            # BatchNorm Layer's weight is not a matrix;
+            # only normal distribution applies.
+            torch.nn.init.normal_(module.weight.data, 1.0, init_gain)
+            torch.nn.init.constant_(module.bias.data, 0.0)
+
+    logger.info("initializing network with %s" % init_type)
+    net.apply(init_func)  # apply the initialization function <init_func>
 
 
 def _merge_scaler_mappings(
