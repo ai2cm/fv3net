@@ -1,4 +1,5 @@
 from collections import defaultdict
+import contextlib
 import dataclasses
 import logging
 import os
@@ -9,9 +10,27 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from typing import Any, Dict, List, Mapping, Optional
+from wandb import Image  # noqa: F401
 
 from .tensorboard import plot_to_image
 from .keras.jacobian import OutputSensitivity
+
+WANDB_ENABLED = True
+
+
+@contextlib.contextmanager
+def disable_wandb():
+    global WANDB_ENABLED
+    WANDB_ENABLED = False
+    try:
+        yield
+    finally:
+        WANDB_ENABLED = True
+
+
+def log(*args, **kwargs):
+    if WANDB_ENABLED:
+        wandb.log(*args, **kwargs)
 
 
 @dataclasses.dataclass
@@ -64,7 +83,7 @@ def log_to_table(log_key: str, data: Dict[str, Any], index: Optional[List[Any]] 
     df = pd.DataFrame(data, index=index)
     table = wandb.Table(dataframe=df)
 
-    wandb.log({log_key: table})
+    log({log_key: table})
 
 
 def _plot_profiles(target, prediction, name):
@@ -95,7 +114,7 @@ def _plot_profiles(target, prediction, name):
         plt.title(f"Sample {i+1}: {name}")
         plt.xlabel(f"{units[name]}")
         plt.ylabel("Level")
-        wandb.log({f"{name}_sample_{i}": wandb.Image(plot_to_image(fig))})
+        log({f"{name}_sample_{i}": wandb.Image(plot_to_image(fig))})
         plt.close()
 
 
@@ -178,4 +197,4 @@ def plot_all_output_sensitivities(jacobians: Mapping[str, OutputSensitivity]):
     }
 
     for out_name, fig in all_plots.items():
-        wandb.log({f"jacobian/{out_name}": wandb.Plotly(fig)})
+        log({f"jacobian/{out_name}": wandb.Plotly(fig)})

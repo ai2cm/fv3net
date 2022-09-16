@@ -12,6 +12,15 @@ from fv3fit.pytorch.system import DEVICE
 import itertools
 from .image_pool import ImagePool
 import numpy as np
+from fv3fit import wandb
+import io
+import PIL
+
+try:
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:
+    plt = None
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -271,6 +280,7 @@ class CycleGANTrainer:
         stats_gen_b = StatsCollector(n_dims_keep)
         real_a: np.ndarray
         real_b: np.ndarray
+        reported_plot = False
         for real_a, real_b in dataset:
             # for now there is no time-evolution-based loss, so we fold the time
             # dimension into the sample dimension
@@ -282,14 +292,40 @@ class CycleGANTrainer:
             )
             stats_real_a.observe(real_a)
             stats_real_b.observe(real_b)
-            gen_b: torch.Tensor = self.generator_a_to_b(
+            gen_b: np.ndarray = self.generator_a_to_b(
                 torch.as_tensor(real_a).float().to(DEVICE)
-            )
-            gen_a: torch.Tensor = self.generator_b_to_a(
+            ).detach().cpu().numpy()
+            gen_a: np.ndarray = self.generator_b_to_a(
                 torch.as_tensor(real_b).float().to(DEVICE)
-            )
-            stats_gen_a.observe(gen_a.detach().cpu().numpy())
-            stats_gen_b.observe(gen_b.detach().cpu().numpy())
+            ).detach().cpu().numpy()
+            stats_gen_a.observe(gen_a)
+            stats_gen_b.observe(gen_b)
+            if not reported_plot and plt is not None:
+                report = {}
+                for i_tile in range(6):
+                    fig, ax = plt.subplots(2, 2, figsize=(8, 7))
+                    im = ax[0, 0].pcolormesh(real_a[0, i_tile, 0, :, :])
+                    plt.colorbar(im, ax=ax[0, 0])
+                    ax[0, 0].set_title("a_real")
+                    im = ax[1, 0].pcolormesh(real_b[0, i_tile, 0, :, :])
+                    plt.colorbar(im, ax=ax[1, 0])
+                    ax[1, 0].set_title("b_real")
+                    im = ax[0, 1].pcolormesh(gen_b[0, i_tile, 0, :, :])
+                    plt.colorbar(im, ax=ax[0, 1])
+                    ax[0, 1].set_title("b_gen")
+                    im = ax[1, 1].pcolormesh(gen_a[0, i_tile, 0, :, :])
+                    plt.colorbar(im, ax=ax[1, 1])
+                    ax[1, 1].set_title("a_gen")
+                    plt.tight_layout()
+                    buf = io.BytesIO()
+                    plt.savefig(buf, format="png")
+                    plt.close()
+                    buf.seek(0)
+                    report[f"tile_{i_tile}_example"] = wandb.Image(
+                        PIL.Image.open(buf), caption=f"Tile {i_tile} Example",
+                    )
+                wandb.log(report)
+                reported_plot = True
         metrics = {
             "r2_mean_b_against_real_a": get_r2(stats_real_a.mean, stats_gen_b.mean),
             "r2_mean_a": get_r2(stats_real_a.mean, stats_gen_a.mean),
