@@ -47,22 +47,28 @@ RUN apt-get update && \
     rsync \
     wget
 
-COPY docker/prognostic_run/scripts/install_esmf.sh install_esmf.sh
-RUN bash install_esmf.sh /usr/local/esmf
+COPY .environment-scripts/install_esmf.sh .
+RUN bash install_esmf.sh /esmf /usr/local/esmf Linux gfortran default
 
-COPY docker/prognostic_run/scripts/install_fms.sh install_fms.sh
+COPY .environment-scripts/install_fms.sh .
 COPY external/fv3gfs-fortran/FMS /FMS
-RUN bash install_fms.sh /FMS
+RUN CC=/usr/bin/mpicc \
+    FC=/usr/bin/mpif90 \
+    LDFLAGS='-L/usr/lib' \
+    LOG_DRIVER_FLAGS='--comments' \
+    CPPFLAGS='-I/usr/include -Duse_LARGEFILE -DMAXFIELDMETHODS_=500 -DGFS_PHYS' \
+    FCFLAGS='-fcray-pointer -Waliasing -ffree-line-length-none -fno-range-check -fdefault-real-8 -fdefault-double-8 -fopenmp' \
+    bash install_fms.sh /FMS
 
-COPY docker/prognostic_run/scripts/install_nceplibs.sh .
-RUN bash install_nceplibs.sh /opt/NCEPlibs
+COPY .environment-scripts/install_nceplibs.sh .
+RUN bash install_nceplibs.sh /NCEPlibs /opt/NCEPlibs linux gnu
 
 
 ENV ESMF_DIR=/usr/local/esmf
 ENV CALLPY_DIR=/usr/local
 ENV FMS_DIR=/FMS
 ENV FV3GFS_FORTRAN_DIR=/external/fv3gfs-fortran
-ENV ESMF_INC="-I${ESMF_DIR}/include -I${ESMF_DIR}/mod/modO3/Linux.gfortran.64.mpiuni.default/"
+ENV ESMF_INC="-I${ESMF_DIR}/include"
 
 ENV FMS_LIB=${FMS_DIR}/libFMS/.libs/
 ENV ESMF_LIB=${ESMF_DIR}/lib
@@ -70,10 +76,10 @@ ENV CALLPYFORT_LIB=${CALLPY_DIR}/lib
 ENV CALLPYFORT_INCL=${CALLPY_DIR}/include
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}:${CALLPYFORT_LIB}
 
-RUN cd /opt && git clone https://github.com/nbren12/call_py_fort.git --branch=v0.2.0
 ENV CALLPY=/opt/call_py_fort \
     PYTHONPATH=${CALLPY}/src/:$PYTHONPATH
-RUN cd ${CALLPY} && make && make install && ldconfig
+COPY .environment-scripts/install_call_py_fort.sh .
+RUN bash install_call_py_fort.sh $CALLPY
 
 # Install gcloud
 RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext && \

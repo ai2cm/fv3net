@@ -217,6 +217,18 @@ class TimeLoop(
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
+        if config.radiation_scheme:
+            self._radiation_stepper: Optional[
+                Stepper
+            ] = runtime.factories.get_radiation_stepper(
+                config.radiation_scheme,
+                self.comm,
+                namelist["gfs_physics_nml"],
+                self._timestep,
+                self._fv3gfs.get_tracer_metadata(),
+            )
+        else:
+            self._radiation_stepper = None
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -344,10 +356,26 @@ class TimeLoop(
         # no diagnostics are computed by default
         return {}
 
-    def _compute_physics(self) -> Diagnostics:
-        self._log_debug(f"Physics Step (compute)")
-        self._fv3gfs.compute_physics()
-        # no diagnostics are computed by default
+    def _step_pre_radiation_physics(self) -> Diagnostics:
+        self._log_debug(f"Pre-radiation Physics Step")
+        self._fv3gfs.step_pre_radiation()
+        return {
+            f"{name}_pre_radiation": self._state[name]
+            for name in self._states_to_output
+        }
+
+    def _step_radiation_physics(self) -> Diagnostics:
+        self._log_debug(f"Radiation Physics Step")
+        if self._radiation_stepper is not None:
+            _, diagnostics, _ = self._radiation_stepper(self.time, self._state,)
+        else:
+            diagnostics = {}
+        self._fv3gfs.step_radiation()
+        return diagnostics
+
+    def _step_post_radiation_physics(self) -> Diagnostics:
+        self._log_debug(f"Post-radiation Physics Step")
+        self._fv3gfs.step_post_radiation_physics()
         return {}
 
     @property
@@ -548,7 +576,9 @@ class TimeLoop(
                 ),
                 self.monitor("dynamics", self._step_dynamics),
                 self._step_prephysics,
-                self._compute_physics,
+                self._step_pre_radiation_physics,
+                self._step_radiation_physics,
+                self._step_post_radiation_physics,
                 self._apply_postphysics_to_physics_state,
                 self.monitor(
                     "applied_physics",

@@ -1,1 +1,1 @@
-from .radsw_main import RadSWClass
+from .radsw_main import RadSWClass, ngptsw

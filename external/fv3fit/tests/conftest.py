@@ -20,5 +20,5 @@ def state(tmp_path_factory):
 @pytest.fixture(scope="session", autouse=True)
 def emulation_cache_tmpdir():
     with tempfile.TemporaryDirectory() as tmpdir:
-        with unittest.mock.patch("fv3fit.emulation.data.io.CACHE_DIR", tmpdir):
+        with unittest.mock.patch("fv3fit.data.netcdf.io.CACHE_DIR", tmpdir):
             yield

@@ -1,5 +1,4 @@
 from fv3fit._shared import SliceConfig, PackerConfig
-from fv3fit.keras._models.recurrent import ArrayPacker, get_unpack_layer
 from typing import Iterable
 from fv3fit._shared.packer import (
     pack,
@@ -82,41 +81,6 @@ def array(names: Iterable[str], dims_list: Iterable[str]) -> np.ndarray:
     return np.concatenate(array_list, axis=1)
 
 
-@pytest.fixture
-def packer(names: Iterable[str]) -> ArrayPacker:
-    return ArrayPacker(SAMPLE_DIM, names)
-
-
-def test_to_array(names, dims_list, array: np.ndarray):
-    dataset = get_dataset(names, dims_list)
-    packer = ArrayPacker(SAMPLE_DIM, names)
-    result = packer.to_array(dataset)
-    np.testing.assert_array_equal(result, array)
-
-
-def test_to_dataset(names, dims_list, array: np.ndarray):
-    dataset = get_dataset(names, dims_list)
-    packer = ArrayPacker(SAMPLE_DIM, names)
-    packer.to_array(dataset)  # must pack first to know dimension lengths
-    result = packer.to_dataset(array)
-    xr.testing.assert_equal(result, dataset)
-
-
-@pytest.mark.parametrize(
-    "dims_list", ["two_2d_vars", "1d_and_2d", "five_vars"], indirect=True
-)
-def test_get_unpack_layer(names, dims_list, array: np.ndarray):
-    dataset = get_dataset(names, dims_list)
-    packer = ArrayPacker(SAMPLE_DIM, names)
-    packer.to_array(dataset)  # must pack first to know dimension lengths
-    result = get_unpack_layer(packer, feature_dim=1)(array)
-    # to_dataset does not preserve coordinates
-    for name, array in zip(packer.pack_names, result):
-        if array.shape[1] == 1:
-            array = array[:, 0]
-        np.testing.assert_array_equal(array, dataset[name])
-
-
 def test_direct_unpack_layer():
     names = ["a", "b"]
     n_features = {"a": 4, "b": 4}
@@ -127,20 +91,6 @@ def test_direct_unpack_layer():
     unpacked = unpack_layer(packed)
     np.testing.assert_array_almost_equal(unpacked[0], a)
     np.testing.assert_array_almost_equal(unpacked[1], b)
-
-
-def test_unpack_before_pack_raises(names, array: np.ndarray):
-    packer = ArrayPacker(SAMPLE_DIM, names)
-    with pytest.raises(RuntimeError):
-        packer.to_dataset(array)
-
-
-def test_repack_array(names, dims_list, array: np.ndarray):
-    dataset = get_dataset(names, dims_list)
-    packer = ArrayPacker(SAMPLE_DIM, names)
-    packer.to_array(dataset)  # must pack first to know dimension lengths
-    result = packer.to_array(packer.to_dataset(array))
-    np.testing.assert_array_equal(result, array)
 
 
 stacked_dataset = xr.Dataset({"a": xr.DataArray([1.0, 2.0, 3.0, 4.0], dims=["sample"])})
@@ -231,20 +181,3 @@ def test_count_features():
     assert out["a"] == 1
     assert out["b"] == 1
     assert out["c"] == 5
-
-
-def test_array_packer_dump_and_load(tmpdir):
-    dataset = get_dataset(["var1"], [[SAMPLE_DIM, FEATURE_DIM]])
-    packer_config = PackerConfig({"var1": SliceConfig(None, 2)})
-    packer = ArrayPacker(SAMPLE_DIM, list(dataset.data_vars), packer_config)
-    packer.to_array(dataset)
-    with open(str(tmpdir.join("packer.yaml")), "w") as f:
-        packer.dump(f)
-    with open(str(tmpdir.join("packer.yaml"))) as f:
-        loaded_packer = ArrayPacker.load(f)
-    assert packer._pack_names == loaded_packer._pack_names
-    assert packer._n_features == loaded_packer._n_features
-    assert packer._sample_dim_name == loaded_packer._sample_dim_name
-    assert packer._config == packer_config
-    for orig, loaded in zip(packer._feature_index, loaded_packer._feature_index):
-        assert orig == loaded

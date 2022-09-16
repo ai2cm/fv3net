@@ -1,15 +1,16 @@
 import os
 import xarray as xr
-import warnings
+import numpy as np
+import tarfile
+from typing import Tuple, Mapping
 
-# this set of functions allow reading datasets needed for the radiation driver
-#  Inputs:
-# - directory where the data is located in str
-# - tile number in int
+try:
+    from vcm.cloud import get_fs
+except ImportError:
+    pass
 
 
-def random_numbers(lookup_dir: str, tile_number: int):
-    ##
+def load_random_numbers(lookup_dir: str, tile_number: int) -> Mapping[str, xr.Dataset]:
     data_dict = {}
     # File names for serialized random numbers in mcica_subcol
     if tile_number == 0:
@@ -25,7 +26,7 @@ def random_numbers(lookup_dir: str, tile_number: int):
     return data_dict
 
 
-def lw(lookup_dir: str):
+def load_lw(lookup_dir: str) -> Mapping[str, np.ndarray]:
     # data needed in lwrad()
     lw_dict = {}
     dfile = os.path.join(lookup_dir, "totplnk.nc")
@@ -176,7 +177,7 @@ def lw(lookup_dir: str):
     return lw_dict
 
 
-def sw(lookup_dir: str):
+def load_sw(lookup_dir: str) -> Mapping[str, np.ndarray]:
     sw_dict = {}
 
     ds = xr.open_dataset(os.path.join(lookup_dir, "radsw_sflux_data.nc"))
@@ -292,7 +293,21 @@ def sw(lookup_dir: str):
     return sw_dict
 
 
-def aerosol(forcing_dir: str):
+def load_sigma(restart_dir, p_ref=101325.0) -> np.ndarray:
+    """Get sigma coordiante of vertical interfaces (approximation) used by
+    radiation scheme. See https://github.com/ai2cm/fv3gfs-fortran/blob/
+    5d40389e5c8f5696d165a33395660216f99c502c/FV3/gfsphysics/GFS_layer/
+    GFS_driver.F90#L314
+    """
+    file_name = os.path.join(restart_dir, "fv_core.res.nc")
+    da = xr.open_dataset(file_name)
+    ak = da.ak.squeeze()
+    bk = da.bk.squeeze()
+    sigma = ((ak + p_ref * bk - ak[0]) / (p_ref - ak[0]))[::-1]
+    return sigma.values
+
+
+def load_aerosol(forcing_dir: str) -> Mapping[str, np.ndarray]:
     aeros_file = os.path.join(forcing_dir, "aerosol.nc")
     var_names = [
         "kprfg",
@@ -322,44 +337,39 @@ def aerosol(forcing_dir: str):
     return data_dict
 
 
-def astronomy(forcing_dir, isolar, tile_number):
+def load_astronomy(forcing_dir, isolar) -> Tuple[str, xr.Dataset]:
     # external solar constant data table,solarconstant_noaa_a0.txt
 
-    if tile_number == 0:
-        if isolar == 1:  # noaa ann-tile_numberan tsi in absolute scale
-            file_name = "solarconstant_noaa_a0.nc"
-            solar_file = os.path.join(forcing_dir, file_name)
+    if isolar == 1:  # noaa ann-tile_numberan tsi in absolute scale
+        file_name = "solarconstant_noaa_a0.nc"
+        solar_file = os.path.join(forcing_dir, file_name)
 
-        elif isolar == 2:  # noaa ann-tile_numberan tsi in tim scale
-            file_name = "solarconstant_noaa_an.nc"
-            solar_file = os.path.join(forcing_dir, file_name)
+    elif isolar == 2:  # noaa ann-tile_numberan tsi in tim scale
+        file_name = "solarconstant_noaa_an.nc"
+        solar_file = os.path.join(forcing_dir, file_name)
 
-        elif isolar == 3:  # cmip5 ann-tile_numberan tsi in tim scale
-            file_name = "solarconstant_cmip_an.nc"
-            solar_file = os.path.join(forcing_dir, file_name)
+    elif isolar == 3:  # cmip5 ann-tile_numberan tsi in tim scale
+        file_name = "solarconstant_cmip_an.nc"
+        solar_file = os.path.join(forcing_dir, file_name)
 
-        elif isolar == 4:  # cmip5 mon-tile_numberan tsi in tim scale
-            file_name = "solarconstant_cmip_mn.nc"
-            solar_file = os.path.join(forcing_dir, file_name)
+    elif isolar == 4:  # cmip5 mon-tile_numberan tsi in tim scale
+        file_name = "solarconstant_cmip_mn.nc"
+        solar_file = os.path.join(forcing_dir, file_name)
 
-        else:
-            warnings.warn(
-                "- !!! ERROR in selection of solar constant data",
-                f" source, ISOL = {isolar}",
-            )
-            raise FileNotFoundError(" !!! ERROR! Can not find solar constant file!!!")
+    else:
+        raise ValueError(f"Invalid isolar value: {isolar}.")
 
-        data = xr.open_dataset(solar_file)
+    data = xr.open_dataset(solar_file)
     return solar_file, data
 
 
-def sfc(forcing_dir: str):
+def load_sfc(forcing_dir: str) -> Tuple[str, xr.Dataset]:
     semis_file = os.path.join(forcing_dir, "semisdata.nc")
     data = xr.open_dataset(semis_file)
     return semis_file, data
 
 
-def gases(forcing_dir, ictmflg):
+def load_gases(forcing_dir, ictmflg) -> Mapping[str, np.ndarray]:
 
     if ictmflg == 1:
         cfile1 = os.path.join(forcing_dir, "co2historicaldata_2016.nc")
@@ -386,3 +396,21 @@ def gases(forcing_dir, ictmflg):
         data_dict[var] = ds[var].values
 
     return data_dict
+
+
+def generate_random_numbers(
+    ncolumns, nz, ngptsw, ngptlw, seed=0
+) -> Mapping[str, np.ndarray]:
+    """Get random numbers needed by cloud overlap scheme"""
+    np.random.seed(seed)
+    sw_rand = np.random.rand(ncolumns, nz * ngptsw)
+    lw_rand = np.random.rand(ncolumns, nz * ngptlw)
+    return {"sw_rand": sw_rand, "lw_rand": lw_rand}
+
+
+def get_remote_tar_data(remote_filepath, local_dir) -> None:
+    os.makedirs(local_dir)
+    fs = get_fs(remote_filepath)
+    fs.get(remote_filepath, local_dir)
+    local_filepath = os.path.join(local_dir, os.path.basename(remote_filepath))
+    tarfile.open(local_filepath).extractall(path=local_dir)
