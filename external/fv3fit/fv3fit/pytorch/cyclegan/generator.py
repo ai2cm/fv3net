@@ -5,6 +5,7 @@ import torch
 from .modules import (
     ConvBlock,
     ConvolutionFactory,
+    FoldTileDimension,
     single_tile_convolution,
     relu_activation,
     ResnetBlock,
@@ -128,17 +129,19 @@ class Generator(nn.Module):
 
         min_filters = int(max_filters / 2 ** n_convolutions)
 
-        self._first_conv = nn.Sequential(
+        first_conv = nn.Sequential(
+            FoldTileDimension(nn.ReflectionPad2d(3)),
             convolution(
                 kernel_size=7,
                 in_channels=channels,
                 out_channels=min_filters,
-                padding="same",
+                padding=0,
             ),
+            FoldTileDimension(nn.InstanceNorm2d(min_filters)),
             relu_activation()(),
         )
 
-        self._encoder_decoder = SymmetricEncoderDecoder(
+        encoder_decoder = SymmetricEncoderDecoder(
             down_factory=down,
             up_factory=up,
             bottom_factory=resnet,
@@ -146,12 +149,16 @@ class Generator(nn.Module):
             in_channels=min_filters,
         )
 
-        self._out_conv = convolution(
-            kernel_size=7,
-            in_channels=min_filters,
-            out_channels=channels,
-            padding="same",
+        out_conv = nn.Sequential(
+            FoldTileDimension(nn.ReflectionPad2d(3)),
+            convolution(
+                kernel_size=7,
+                in_channels=min_filters,
+                out_channels=channels,
+                padding=0,
+            ),
         )
+        self._main = nn.Sequential(first_conv, encoder_decoder, out_conv)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
@@ -161,9 +168,7 @@ class Generator(nn.Module):
         Returns:
             tensor of shape [batch, tile, channels, x, y]
         """
-        x = self._first_conv(inputs)
-        x = self._encoder_decoder(x)
-        outputs: torch.Tensor = self._out_conv(x)
+        outputs: torch.Tensor = self._main(inputs)
         return outputs
 
 
