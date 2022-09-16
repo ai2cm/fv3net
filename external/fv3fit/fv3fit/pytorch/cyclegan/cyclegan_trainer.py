@@ -12,7 +12,7 @@ from fv3fit.pytorch.system import DEVICE
 import itertools
 from .image_pool import ImagePool
 import numpy as np
-import wandb
+from fv3fit import wandb
 import io
 import PIL
 

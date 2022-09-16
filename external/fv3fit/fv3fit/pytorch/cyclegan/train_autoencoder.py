@@ -97,8 +97,12 @@ def train_autoencoder(
 
     train_state = train_batches.map(get_state)
 
+    sample: tf.Tensor = next(iter(train_state))[0]
     train_model = build_model(
-        hyperparameters.generator, n_state=next(iter(train_state)).shape[-1]
+        hyperparameters.generator,
+        nx=sample.shape[-3],
+        ny=sample.shape[-2],
+        n_state=sample.shape[-1],
     )
 
     logging.debug("training with model structure: %s", train_model)
@@ -138,5 +142,5 @@ def channels_first(data: tf.Tensor) -> tf.Tensor:
     return tf.transpose(data, perm=[0, 1, 2, 5, 3, 4])
 
 
-def build_model(config: GeneratorConfig, n_state: int) -> Generator:
-    return config.build(channels=n_state).to(DEVICE)
+def build_model(config: GeneratorConfig, n_state: int, nx: int, ny: int) -> Generator:
+    return config.build(channels=n_state, nx=nx, ny=ny).to(DEVICE)

@@ -4,7 +4,7 @@ from typing import Sequence
 from fv3fit.pytorch.cyclegan import AutoencoderHyperparameters, train_autoencoder
 from fv3fit.pytorch.cyclegan.train_autoencoder import TrainingConfig
 import pytest
-from fv3fit.data.synthetic import SyntheticWaves
+from fv3fit.data.synthetic import SyntheticWaves, SyntheticNoise
 import collections
 import os
 import fv3fit.pytorch
@@ -33,6 +33,26 @@ def get_synthetic_waves_tfdataset(nsamples, nbatch, ntime, nx, nz):
         scale_max=1.5,
         period_min=8,
         period_max=16,
+    )
+    dataset = config.open_tfdataset(local_download_path=None, variable_names=["a", "b"])
+    return dataset
+
+
+def get_noise_tfdataset(nsamples, nbatch, ntime, nx, nz):
+    """
+    Returns a tfdataset of random noise.
+
+    Dataset contains a variable "a" which is vertically-resolved
+    and "b" which is a scalar.
+    """
+    config = SyntheticNoise(
+        nsamples=nsamples,
+        nbatch=nbatch,
+        ntime=ntime,
+        nx=nx,
+        nz=nz,
+        noise_amplitude=1.0,
+        scalar_names=["b"],
     )
     dataset = config.open_tfdataset(local_download_path=None, variable_names=["a", "b"])
     return dataset
@@ -133,7 +153,7 @@ def test_autoencoder_overfit(tmpdir):
     sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "nz": 2}
     state_variables = ["a", "b"]
     # for single-sample overfitting we can use any data, even pure noise
-    train_tfdataset = get_synthetic_waves_tfdataset(nsamples=1, **sizes)
+    train_tfdataset = get_noise_tfdataset(nsamples=1, **sizes)
     train_tfdataset = train_tfdataset.cache()  # needed to keep sample identical
     hyperparameters = AutoencoderHyperparameters(
         state_variables=state_variables,
@@ -147,22 +167,26 @@ def test_autoencoder_overfit(tmpdir):
     predictor = train_autoencoder(
         hyperparameters, train_tfdataset, validation_batches=None
     )
+    fv3fit.dump(predictor, str(tmpdir))
+    predictor = fv3fit.load(str(tmpdir))
     # predict takes xarray datasets, so we have to convert
     test_xrdataset = tfdataset_to_xr_dataset(
         train_tfdataset, dims=["time", "tile", "x", "y", "z"]
     )
+
     predicted = predictor.predict(test_xrdataset)
     reference = test_xrdataset
     # plotting code to uncomment if you'd like to manually check the results:
-    # import matplotlib.pyplot as plt
-    # for i in range(6):
-    #     fig, ax = plt.subplots(1, 2)
-    #     vmin = reference["a"][0, i, :, :, 0].values.min()
-    #     vmax = reference["a"][0, i, :, :, 0].values.max()
-    #     ax[0].imshow(reference["a"][0, i, :, :, 0].values, vmin=vmin, vmax=vmax)
-    #     ax[1].imshow(predicted["a"][0, i, :, :, 0].values, vmin=vmin, vmax=vmax)
-    #     plt.tight_layout()
-    #     plt.show()
+    import matplotlib.pyplot as plt
+
+    for i in range(6):
+        fig, ax = plt.subplots(1, 2)
+        vmin = reference["a"][0, i, :, :, 0].values.min()
+        vmax = reference["a"][0, i, :, :, 0].values.max()
+        ax[0].imshow(reference["a"][0, i, :, :, 0].values, vmin=vmin, vmax=vmax)
+        ax[1].imshow(predicted["a"][0, i, :, :, 0].values, vmin=vmin, vmax=vmax)
+        plt.tight_layout()
+        plt.show()
     bias = predicted - reference
     mean_bias: xr.Dataset = bias.mean()
     rmse: xr.Dataset = (bias ** 2).mean()

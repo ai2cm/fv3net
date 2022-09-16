@@ -120,11 +120,7 @@ class CycleGAN(Reloadable):
         tensor = _pack_to_tensor(
             ds=ds, timesteps=0, state_variables=self.state_variables, scalers=scalers,
         )
-        # TODO: this permute order is needed, but it does not seem like it should be.
-        # when we replace the model with a linear one, the output only matches the
-        # input if we flip the x and y dimension.
-        # investigate why this is necessary
-        return tensor.permute([0, 1, 4, 3, 2])
+        return tensor.permute([0, 1, 4, 2, 3])
 
     def unpack_tensor(self, data: torch.Tensor, domain: str = "b") -> xr.Dataset:
         """
@@ -166,11 +162,16 @@ class CycleGAN(Reloadable):
             input_domain, output_domain = "a", "b"
 
         tensor = self.pack_to_tensor(X, domain=input_domain)
+        if reverse:
+            generator = self.generator_b_to_a
+        else:
+            generator = self.generator_a_to_b
+        n_batch = 100
+        outputs = torch.zeros_like(tensor)
         with torch.no_grad():
-            if reverse:
-                outputs: torch.Tensor = self.generator_b_to_a(tensor)
-            else:
-                outputs = self.generator_a_to_b(tensor)
-        outputs = outputs.reshape(tensor.shape)
+            for i in range(0, tensor.shape[0], n_batch):
+                new: torch.Tensor = generator(tensor[i : i + n_batch])
+                outputs[i : i + new.shape[0]] = new
+        # outputs = outputs.reshape(tensor.shape)
         predicted = self.unpack_tensor(outputs, domain=output_domain)
         return predicted
