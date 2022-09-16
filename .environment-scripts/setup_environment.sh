@@ -38,7 +38,12 @@ fi
 
 if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3net" ];
 then
-    export NCEPLIBS_DIR=$NCEPLIBS_DIR
+    if [ $PLATFORM == "gnu_docker" ];
+    then
+        export NCEPLIBS_DIR=$NCEPLIBS_DIR/lib
+    else
+        export NCEPLIBS_DIR=$NCEPLIBS_DIR
+    fi
     export ESMF_DIR=$ESMF_DIR
     export FMS_DIR=$FMS_DIR
     export FV3_DIR=$FV3_DIR

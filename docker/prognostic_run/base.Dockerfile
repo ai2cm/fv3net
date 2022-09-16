@@ -36,7 +36,6 @@ COPY .environment-scripts/${PLATFORM}/install_esmf.sh ${FV3NET_SCRIPTS}/${PLATFO
 COPY .environment-scripts/${PLATFORM}/install_fms.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
 COPY .environment-scripts/${PLATFORM}/install_call_py_fort.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
 
-
 COPY external/fv3gfs-fortran/FMS ${FMS_DIR}
 RUN bash ${FV3NET_SCRIPTS}/setup_environment.sh \
     base \
@@ -48,14 +47,18 @@ RUN bash ${FV3NET_SCRIPTS}/setup_environment.sh \
     ${FV3_DIR} \
     ${CALLPYFORT}
 
-ENV ESMF_DIR=/usr/local/esmf
-ENV CALLPY_DIR=/usr/local
+ENV ESMF_DIR=${INSTALL_PREFIX}/esmf
+ENV ESMF_INC="-I${ESMF_DIR}/include"
+ENV ESMF_LIB=${ESMF_DIR}/lib
 
 ENV FMS_LIB=${FMS_DIR}/libFMS/.libs/
-ENV ESMF_LIB=${ESMF_DIR}/lib
+
+ENV NCEPLIBS_DIR=${INSTALL_PREFIX}/NCEPlibs/lib
+
+ENV CALLPY_DIR=${INSTALL_PREFIX}
 ENV CALLPYFORT_LIB=${CALLPY_DIR}/lib
 ENV CALLPYFORT_INCL=${CALLPY_DIR}/include
-ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}:${CALLPYFORT_LIB}
-
 ENV CALL_PY_FORT_DIR=/call_py_fort
 ENV PYTHONPATH=${CALL_PY_FORT_DIR}/src/:$PYTHONPATH
+
+ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_LIB}:${FMS_LIB}:${CALLPYFORT_LIB}

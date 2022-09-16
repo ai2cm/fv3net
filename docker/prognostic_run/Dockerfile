@@ -25,6 +25,10 @@ COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 COPY external/emulation /fv3net/external/emulation
 COPY external/radiation /fv3net/external/radiation
 
+# Add emulation project scripts
+COPY .environment-scripts/post_build_steps.sh ${FV3NET_SCRIPTS}/
+COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
+
 RUN bash /fv3net/.environment-scripts/setup_environment.sh \
     fv3net \
     ${PLATFORM} \
@@ -41,9 +45,8 @@ RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
     chmod -R 777 /outdir
 
-# Add emulation project scripts
 COPY .environment-scripts/environment_variables.sh ${FV3NET_SCRIPTS}/
-COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
+
 WORKDIR /fv3net/workflows/prognostic_c48_run
 COPY .environment-scripts/gnu_docker/activate_environment.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
 RUN chmod +x ${FV3NET_SCRIPTS}/${PLATFORM}/activate_environment.sh
