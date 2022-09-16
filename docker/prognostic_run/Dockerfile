@@ -42,11 +42,13 @@ RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     chmod -R 777 /outdir
 
 # Add emulation project scripts
-COPY .environment-scripts/activate_environment.sh ${FV3NET_SCRIPTS}/
+COPY .environment-scripts/environment_variables.sh ${FV3NET_SCRIPTS}/
 COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
-RUN /bin/bash -c "source ${FV3NET_SCRIPTS}/activate_environment.sh ${PLATFORM} ${FV3NET_SCRIPTS}/${PLATFORM} ${FV3NET_DIR}"
 WORKDIR /fv3net/workflows/prognostic_c48_run
-CMD ["bash"]
+COPY .environment-scripts/gnu_docker/activate_environment.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
+RUN chmod +x ${FV3NET_SCRIPTS}/${PLATFORM}/activate_environment.sh
+ENTRYPOINT ["/fv3net/.environment-scripts/gnu_docker/activate_environment.sh"]
+CMD = ["bash"]
 
 ###############################################################################
 #  prognostic-run image

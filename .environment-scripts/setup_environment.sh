@@ -72,4 +72,5 @@ then
         $FV3NET_DIR/external/emulation \
         $FV3NET_DIR/external/radiation
     CALLPYFORT=$CALLPYFORT bash $PLATFORM_SCRIPTS/install_python_wrapper.sh $SCRIPTS $FV3_DIR
+    bash $SCRIPTS/post_build_steps.sh $FV3NET_DIR
 fi
