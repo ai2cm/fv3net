@@ -35,6 +35,9 @@ class GeneratorConfig:
             and in the resnet blocks
         use_geographic_bias: if True, include a layer that adds a trainable bias
             vector that is a function of x and y to the input and output of the network
+        disable_convolutions: if True, ignore all layers other than bias (if enabled).
+            Useful for debugging and for testing the effect of the
+            geographic bias layer.
     """
 
     n_convolutions: int = 3
@@ -42,6 +45,7 @@ class GeneratorConfig:
     kernel_size: int = 3
     max_filters: int = 256
     use_geographic_bias: bool = True
+    disable_convolutions: bool = False
 
     def build(
         self,
@@ -66,6 +70,7 @@ class GeneratorConfig:
             nx=nx,
             ny=ny,
             use_geographic_bias=self.use_geographic_bias,
+            disable_convolutions=self.disable_convolutions,
         )
 
 
@@ -89,6 +94,7 @@ class Generator(nn.Module):
         kernel_size: int,
         max_filters: int,
         use_geographic_bias: bool,
+        disable_convolutions: bool,
         convolution: ConvolutionFactory = single_tile_convolution,
     ):
         """
@@ -107,6 +113,9 @@ class Generator(nn.Module):
             use_geographic_bias: if True, include a layer that adds a trainable bias
                 vector that is a function of x and y to the input and output
                 of the network
+            disable_convolutions: if True, ignore all layers other than bias
+                (if enabled). Useful for debugging and for testing the effect
+                of the geographic bias layer.
             convolution: factory for creating all convolutional layers
                 used by the network
         """
@@ -156,36 +165,40 @@ class Generator(nn.Module):
 
         min_filters = int(max_filters / 2 ** n_convolutions)
 
-        first_conv = nn.Sequential(
-            FoldTileDimension(nn.ReflectionPad2d(3)),
-            convolution(
-                kernel_size=7,
-                in_channels=channels,
-                out_channels=min_filters,
-                padding=0,
-            ),
-            FoldTileDimension(nn.InstanceNorm2d(min_filters)),
-            relu_activation()(),
-        )
+        if disable_convolutions:
+            main = nn.Identity()
+        else:
+            first_conv = nn.Sequential(
+                FoldTileDimension(nn.ReflectionPad2d(3)),
+                convolution(
+                    kernel_size=7,
+                    in_channels=channels,
+                    out_channels=min_filters,
+                    padding=0,
+                ),
+                FoldTileDimension(nn.InstanceNorm2d(min_filters)),
+                relu_activation()(),
+            )
 
-        encoder_decoder = SymmetricEncoderDecoder(
-            down_factory=down,
-            up_factory=up,
-            bottom_factory=resnet,
-            depth=n_convolutions,
-            in_channels=min_filters,
-        )
-
-        out_conv = nn.Sequential(
-            FoldTileDimension(nn.ReflectionPad2d(3)),
-            convolution(
-                kernel_size=7,
+            encoder_decoder = SymmetricEncoderDecoder(
+                down_factory=down,
+                up_factory=up,
+                bottom_factory=resnet,
+                depth=n_convolutions,
                 in_channels=min_filters,
-                out_channels=channels,
-                padding=0,
-            ),
-        )
-        self._main = nn.Sequential(first_conv, encoder_decoder, out_conv)
+            )
+
+            out_conv = nn.Sequential(
+                FoldTileDimension(nn.ReflectionPad2d(3)),
+                convolution(
+                    kernel_size=7,
+                    in_channels=min_filters,
+                    out_channels=channels,
+                    padding=0,
+                ),
+            )
+            main = nn.Sequential(first_conv, encoder_decoder, out_conv)
+        self._main = main
         if use_geographic_bias:
             self._input_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
             self._output_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
