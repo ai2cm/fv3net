@@ -66,8 +66,8 @@ class CycleGANNetworkConfig:
     def build(
         self, n_state: int, nx: int, ny: int, n_batch: int, state_variables, scalers
     ) -> "CycleGANTrainer":
-        generator_a_to_b = self.generator.build(n_state)
-        generator_b_to_a = self.generator.build(n_state)
+        generator_a_to_b = self.generator.build(n_state, nx=nx, ny=ny)
+        generator_b_to_a = self.generator.build(n_state, nx=nx, ny=ny)
         discriminator_a = self.discriminator.build(n_state)
         discriminator_b = self.discriminator.build(n_state)
         optimizer_generator = self.generator_optimizer.instance(
