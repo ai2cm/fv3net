@@ -163,7 +163,9 @@ PRESSURE_INTERPOLATED_VARS = [
 ]
 
 PRECIP_RATE = "total_precip_to_surface"
-MASS_STREAMFUNCTION_MID_TROPOSPHERE = "mass_streamfunction_300_700_zonal_and_time_mean"
+MASS_STREAMFUNCTION_MID_TROPOSPHERE_TIME_MEAN = (
+    "mass_streamfunction_300_700_zonal_and_time_mean"
+)
 
 PERCENTILES = [25, 50, 75, 90, 99, 99.9]
 TOP_LEVEL_METRICS = {
@@ -171,7 +173,7 @@ TOP_LEVEL_METRICS = {
     "rmse_of_time_mean": [PRECIP_RATE, "pwat", "tmp200"],
     "time_and_land_mean_bias": [PRECIP_RATE],
     "rmse_of_time_mean_land": ["tmp850"],
-    "tropics_max_minus_min": [MASS_STREAMFUNCTION_MID_TROPOSPHERE],
+    "tropics_max_minus_min": [MASS_STREAMFUNCTION_MID_TROPOSPHERE_TIME_MEAN],
     "tropical_ascent_region_mean": ["column_integrated_q1"],
 }
 
