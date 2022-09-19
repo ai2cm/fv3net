@@ -36,7 +36,7 @@ then
     fi
 fi
 
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3net" ];
+if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3gfs-fortran" ] || [ $INSTALL_TYPE == "wrapper" ];
 then
     if [ $PLATFORM == "gnu_docker" ];
     then
@@ -51,20 +51,30 @@ then
     then
         export CALL_PY_FORT_DIR=$CLONE_PREFIX/call_py_fort
     fi
+fi
 
+if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3gfs-fortran" ];
+then
+    CALLPYFORT=$CALLPYFORT bash $PLATFORM_SCRIPTS/install_fv3gfs_fortran.sh $SCRIPTS $FV3_DIR $INSTALL_PREFIX
+fi
+
+if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3net-python" ] || [ $INSTALL_TYPE == "wrapper" ];
+then
     ACTIVATE_CONDA=$PLATFORM_SCRIPTS/activate_conda_environment.sh
-    if [ -f $ACTIVATE_CONDA ] && [ $INSTALL_TYPE == "fv3net" ];
+    if [ -f $ACTIVATE_CONDA ] && [ $INSTALL_TYPE == "fv3net-python" ];
     then
         source $ACTIVATE_CONDA $CONDA_ENV
     fi
+fi
 
+if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3net-python" ];
+then
     if [ $PLATFORM != "gnu_docker" ];
     then
         # See fv3net#2046 for more information regarding why we cannot simply use the make
         # rule for this.
         cp $FV3NET_DIR/constraints.txt $FV3NET_DIR/docker/prognostic_run/requirements.txt
     fi
-    CALLPYFORT=$CALLPYFORT bash $PLATFORM_SCRIPTS/install_fv3gfs_fortran.sh $SCRIPTS $FV3_DIR $INSTALL_PREFIX
     bash $SCRIPTS/install_fv3net_python_dependencies.sh \
         $FV3NET_DIR/docker/prognostic_run/requirements.txt \
         $FV3NET_DIR/external/vcm \
@@ -76,6 +86,14 @@ then
         $FV3NET_DIR/workflows/prognostic_c48_run \
         $FV3NET_DIR/external/emulation \
         $FV3NET_DIR/external/radiation
+fi
+
+if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "wrapper" ];
+then
     CALLPYFORT=$CALLPYFORT bash $PLATFORM_SCRIPTS/install_python_wrapper.sh $SCRIPTS $FV3_DIR
+fi
+
+if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "post-build" ];
+then
     bash $SCRIPTS/post_build_steps.sh $FV3NET_DIR
 fi
