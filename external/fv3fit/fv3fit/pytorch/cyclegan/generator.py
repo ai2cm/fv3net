@@ -5,6 +5,7 @@ import torch
 from .modules import (
     ConvBlock,
     ConvolutionFactory,
+    FoldTileDimension,
     single_tile_convolution,
     relu_activation,
     ResnetBlock,
@@ -32,15 +33,26 @@ class GeneratorConfig:
         max_filters: maximum number of filters in any convolutional layer,
             equal to the number of filters in the final strided convolutional layer
             and in the resnet blocks
+        use_geographic_bias: if True, include a layer that adds a trainable bias
+            vector that is a function of x and y to the input and output of the network
+        disable_convolutions: if True, ignore all layers other than bias (if enabled).
+            Useful for debugging and for testing the effect of the
+            geographic bias layer.
     """
 
     n_convolutions: int = 3
     n_resnet: int = 3
     kernel_size: int = 3
     max_filters: int = 256
+    use_geographic_bias: bool = True
+    disable_convolutions: bool = False
 
     def build(
-        self, channels: int, convolution: ConvolutionFactory = single_tile_convolution,
+        self,
+        channels: int,
+        nx: int,
+        ny: int,
+        convolution: ConvolutionFactory = single_tile_convolution,
     ):
         """
         Args:
@@ -55,22 +67,45 @@ class GeneratorConfig:
             kernel_size=self.kernel_size,
             max_filters=self.max_filters,
             convolution=convolution,
+            nx=nx,
+            ny=ny,
+            use_geographic_bias=self.use_geographic_bias,
+            disable_convolutions=self.disable_convolutions,
         )
+
+
+class GeographicBias(nn.Module):
+    """
+    Adds a trainable bias vector of shape [6, channels, nx, ny] to the layer input.
+    """
+
+    def __init__(self, channels: int, nx: int, ny: int):
+        super().__init__()
+        self.bias = nn.Parameter(torch.zeros(6, channels, nx, ny))
+
+    def forward(self, x):
+        return x + self.bias
 
 
 class Generator(nn.Module):
     def __init__(
         self,
         channels: int,
+        nx: int,
+        ny: int,
         n_convolutions: int,
         n_resnet: int,
         kernel_size: int,
         max_filters: int,
+        use_geographic_bias: bool,
+        disable_convolutions: bool,
         convolution: ConvolutionFactory = single_tile_convolution,
     ):
         """
         Args:
             channels: number of input and output channels
+            nx: number of grid points in x direction
+            ny: number of grid points in y direction
             n_convolutions: number of strided convolutional layers after the initial
                 convolutional layer and before the residual blocks
             n_resnet: number of residual blocks
@@ -79,6 +114,12 @@ class Generator(nn.Module):
             max_filters: maximum number of filters in any convolutional layer,
                 equal to the number of filters in the final strided convolutional layer
                 and in the resnet blocks
+            use_geographic_bias: if True, include a layer that adds a trainable bias
+                vector that is a function of x and y to the input and output
+                of the network
+            disable_convolutions: if True, ignore all layers other than bias
+                (if enabled). Useful for debugging and for testing the effect
+                of the geographic bias layer.
             convolution: factory for creating all convolutional layers
                 used by the network
         """
@@ -128,30 +169,46 @@ class Generator(nn.Module):
 
         min_filters = int(max_filters / 2 ** n_convolutions)
 
-        self._first_conv = nn.Sequential(
-            convolution(
-                kernel_size=7,
-                in_channels=channels,
-                out_channels=min_filters,
-                padding="same",
-            ),
-            relu_activation()(),
-        )
+        if disable_convolutions:
+            main = nn.Identity()
+        else:
+            first_conv = nn.Sequential(
+                FoldTileDimension(nn.ReflectionPad2d(3)),
+                convolution(
+                    kernel_size=7,
+                    in_channels=channels,
+                    out_channels=min_filters,
+                    padding=0,
+                ),
+                FoldTileDimension(nn.InstanceNorm2d(min_filters)),
+                relu_activation()(),
+            )
 
-        self._encoder_decoder = SymmetricEncoderDecoder(
-            down_factory=down,
-            up_factory=up,
-            bottom_factory=resnet,
-            depth=n_convolutions,
-            in_channels=min_filters,
-        )
+            encoder_decoder = SymmetricEncoderDecoder(
+                down_factory=down,
+                up_factory=up,
+                bottom_factory=resnet,
+                depth=n_convolutions,
+                in_channels=min_filters,
+            )
 
-        self._out_conv = convolution(
-            kernel_size=7,
-            in_channels=min_filters,
-            out_channels=channels,
-            padding="same",
-        )
+            out_conv = nn.Sequential(
+                FoldTileDimension(nn.ReflectionPad2d(3)),
+                convolution(
+                    kernel_size=7,
+                    in_channels=min_filters,
+                    out_channels=channels,
+                    padding=0,
+                ),
+            )
+            main = nn.Sequential(first_conv, encoder_decoder, out_conv)
+        self._main = main
+        if use_geographic_bias:
+            self._input_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
+            self._output_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
+        else:
+            self._input_bias = nn.Identity()
+            self._output_bias = nn.Identity()
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
@@ -161,9 +218,9 @@ class Generator(nn.Module):
         Returns:
             tensor of shape [batch, tile, channels, x, y]
         """
-        x = self._first_conv(inputs)
-        x = self._encoder_decoder(x)
-        outputs: torch.Tensor = self._out_conv(x)
+        x = self._input_bias(inputs)
+        x = self._main(x)
+        outputs: torch.Tensor = self._output_bias(x)
         return outputs
 
 

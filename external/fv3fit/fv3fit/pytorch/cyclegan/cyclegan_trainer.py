@@ -1,4 +1,4 @@
-from typing import Dict, List, Mapping, Tuple, Optional
+from typing import Dict, List, Literal, Mapping, Tuple, Optional
 import tensorflow as tf
 from fv3fit._shared.scaler import StandardScaler
 from .reloadable import CycleGAN, CycleGANModule
@@ -12,6 +12,18 @@ from fv3fit.pytorch.system import DEVICE
 import itertools
 from .image_pool import ImagePool
 import numpy as np
+from fv3fit import wandb
+import io
+import PIL
+
+try:
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:
+    plt = None
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -61,10 +73,10 @@ class CycleGANNetworkConfig:
     discriminator_weight: float = 1.0
 
     def build(
-        self, n_state: int, n_batch: int, state_variables, scalers
+        self, n_state: int, nx: int, ny: int, n_batch: int, state_variables, scalers
     ) -> "CycleGANTrainer":
-        generator_a_to_b = self.generator.build(n_state)
-        generator_b_to_a = self.generator.build(n_state)
+        generator_a_to_b = self.generator.build(n_state, nx=nx, ny=ny)
+        generator_b_to_a = self.generator.build(n_state, nx=nx, ny=ny)
         discriminator_a = self.discriminator.build(n_state)
         discriminator_b = self.discriminator.build(n_state)
         optimizer_generator = self.generator_optimizer.instance(
@@ -75,14 +87,16 @@ class CycleGANNetworkConfig:
         optimizer_discriminator = self.discriminator_optimizer.instance(
             itertools.chain(discriminator_a.parameters(), discriminator_b.parameters())
         )
+        model = CycleGANModule(
+            generator_a_to_b=generator_a_to_b,
+            generator_b_to_a=generator_b_to_a,
+            discriminator_a=discriminator_a,
+            discriminator_b=discriminator_b,
+        ).to(DEVICE)
+        init_weights(model)
         return CycleGANTrainer(
             cycle_gan=CycleGAN(
-                model=CycleGANModule(
-                    generator_a_to_b=generator_a_to_b,
-                    generator_b_to_a=generator_b_to_a,
-                    discriminator_a=discriminator_a,
-                    discriminator_b=discriminator_b,
-                ).to(DEVICE),
+                model=model,
                 state_variables=state_variables,
                 scalers=_merge_scaler_mappings(scalers),
             ),
@@ -97,6 +111,50 @@ class CycleGANNetworkConfig:
             generator_weight=self.generator_weight,
             discriminator_weight=self.discriminator_weight,
         )
+
+
+def init_weights(
+    net: torch.nn.Module,
+    init_type: Literal["normal", "xavier", "kaiming", "orthogonal"] = "normal",
+    init_gain: float = 0.02,
+):
+    """Initialize network weights.
+
+    Args:
+        net: network to be initialized
+        init_type: the name of an initialization method
+        init_gain: scaling factor for normal, xavier and orthogonal.
+
+    Note: We use 'normal' in the original pix2pix and CycleGAN paper.
+    But xavier and kaiming might work better for some applications.
+    Feel free to try yourself.
+    """
+
+    def init_func(module):  # define the initialization function
+        classname = module.__class__.__name__
+        if hasattr(module, "weight") and classname == "Conv2d":
+            if init_type == "normal":
+                torch.nn.init.normal_(module.weight.data, 0.0, init_gain)
+            elif init_type == "xavier":
+                torch.nn.init.xavier_normal_(module.weight.data, gain=init_gain)
+            elif init_type == "kaiming":
+                torch.nn.init.kaiming_normal_(module.weight.data, a=0, mode="fan_in")
+            elif init_type == "orthogonal":
+                torch.nn.init.orthogonal_(module.weight.data, gain=init_gain)
+            else:
+                raise NotImplementedError(
+                    "initialization method [%s] is not implemented" % init_type
+                )
+            if hasattr(module, "bias") and module.bias is not None:
+                torch.nn.init.constant_(module.bias.data, 0.0)
+        elif classname.find("BatchNorm2d") != -1:
+            # BatchNorm Layer's weight is not a matrix;
+            # only normal distribution applies.
+            torch.nn.init.normal_(module.weight.data, 1.0, init_gain)
+            torch.nn.init.constant_(module.bias.data, 0.0)
+
+    logger.info("initializing network with %s" % init_type)
+    net.apply(init_func)  # apply the initialization function <init_func>
 
 
 def _merge_scaler_mappings(
@@ -222,6 +280,7 @@ class CycleGANTrainer:
         stats_gen_b = StatsCollector(n_dims_keep)
         real_a: np.ndarray
         real_b: np.ndarray
+        reported_plot = False
         for real_a, real_b in dataset:
             # for now there is no time-evolution-based loss, so we fold the time
             # dimension into the sample dimension
@@ -233,14 +292,40 @@ class CycleGANTrainer:
             )
             stats_real_a.observe(real_a)
             stats_real_b.observe(real_b)
-            gen_b: torch.Tensor = self.generator_a_to_b(
+            gen_b: np.ndarray = self.generator_a_to_b(
                 torch.as_tensor(real_a).float().to(DEVICE)
-            )
-            gen_a: torch.Tensor = self.generator_b_to_a(
+            ).detach().cpu().numpy()
+            gen_a: np.ndarray = self.generator_b_to_a(
                 torch.as_tensor(real_b).float().to(DEVICE)
-            )
-            stats_gen_a.observe(gen_a.detach().cpu().numpy())
-            stats_gen_b.observe(gen_b.detach().cpu().numpy())
+            ).detach().cpu().numpy()
+            stats_gen_a.observe(gen_a)
+            stats_gen_b.observe(gen_b)
+            if not reported_plot and plt is not None:
+                report = {}
+                for i_tile in range(6):
+                    fig, ax = plt.subplots(2, 2, figsize=(8, 7))
+                    im = ax[0, 0].pcolormesh(real_a[0, i_tile, 0, :, :])
+                    plt.colorbar(im, ax=ax[0, 0])
+                    ax[0, 0].set_title("a_real")
+                    im = ax[1, 0].pcolormesh(real_b[0, i_tile, 0, :, :])
+                    plt.colorbar(im, ax=ax[1, 0])
+                    ax[1, 0].set_title("b_real")
+                    im = ax[0, 1].pcolormesh(gen_b[0, i_tile, 0, :, :])
+                    plt.colorbar(im, ax=ax[0, 1])
+                    ax[0, 1].set_title("b_gen")
+                    im = ax[1, 1].pcolormesh(gen_a[0, i_tile, 0, :, :])
+                    plt.colorbar(im, ax=ax[1, 1])
+                    ax[1, 1].set_title("a_gen")
+                    plt.tight_layout()
+                    buf = io.BytesIO()
+                    plt.savefig(buf, format="png")
+                    plt.close()
+                    buf.seek(0)
+                    report[f"tile_{i_tile}_example"] = wandb.Image(
+                        PIL.Image.open(buf), caption=f"Tile {i_tile} Example",
+                    )
+                wandb.log(report)
+                reported_plot = True
         metrics = {
             "r2_mean_b_against_real_a": get_r2(stats_real_a.mean, stats_gen_b.mean),
             "r2_mean_a": get_r2(stats_real_a.mean, stats_gen_a.mean),

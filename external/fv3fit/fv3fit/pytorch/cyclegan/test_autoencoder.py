@@ -4,7 +4,7 @@ from typing import Sequence
 from fv3fit.pytorch.cyclegan import AutoencoderHyperparameters, train_autoencoder
 from fv3fit.pytorch.cyclegan.train_autoencoder import TrainingConfig
 import pytest
-from fv3fit.data.synthetic import SyntheticWaves
+from fv3fit.data.synthetic import SyntheticWaves, SyntheticNoise
 import collections
 import os
 import fv3fit.pytorch
@@ -29,10 +29,30 @@ def get_synthetic_waves_tfdataset(nsamples, nbatch, ntime, nx, nz):
         nz=nz,
         wave_type="sinusoidal",
         scalar_names=["b"],
-        scale_min=0.5,
-        scale_max=1.5,
+        scale_min=1.0,
+        scale_max=1.0,
         period_min=8,
         period_max=16,
+    )
+    dataset = config.open_tfdataset(local_download_path=None, variable_names=["a", "b"])
+    return dataset
+
+
+def get_noise_tfdataset(nsamples, nbatch, ntime, nx, nz):
+    """
+    Returns a tfdataset of random noise.
+
+    Dataset contains a variable "a" which is vertically-resolved
+    and "b" which is a scalar.
+    """
+    config = SyntheticNoise(
+        nsamples=nsamples,
+        nbatch=nbatch,
+        ntime=ntime,
+        nx=nx,
+        nz=nz,
+        noise_amplitude=1.0,
+        scalar_names=["b"],
     )
     dataset = config.open_tfdataset(local_download_path=None, variable_names=["a", "b"])
     return dataset
@@ -85,7 +105,7 @@ def test_autoencoder(tmpdir):
         generator=fv3fit.pytorch.GeneratorConfig(
             n_convolutions=1, n_resnet=3, max_filters=32
         ),
-        training_loop=TrainingConfig(n_epoch=10, samples_per_batch=2),
+        training_loop=TrainingConfig(n_epoch=5, samples_per_batch=2),
         optimizer_config=fv3fit.pytorch.OptimizerConfig(name="Adam",),
         noise_amount=0.5,
     )
@@ -110,7 +130,7 @@ def test_autoencoder(tmpdir):
     #     plt.show()
     bias = predicted.isel(time=1) - reference.isel(time=1)
     mean_bias: xr.Dataset = bias.mean()
-    mse: xr.Dataset = (bias ** 2).mean() ** 0.5
+    mse: xr.Dataset = (bias ** 2).mean()
     for varname in state_variables:
         assert np.abs(mean_bias[varname]) < 0.1
         assert mse[varname] < 0.1
@@ -129,16 +149,16 @@ def test_autoencoder_overfit(tmpdir):
     os.chdir(tmpdir)
     # need a larger nx, ny for the sample data here since we're training
     # on whether we can autoencode sin waves, and need to resolve full cycles
-    nx = 32
+    nx = 16
     sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "nz": 2}
     state_variables = ["a", "b"]
     # for single-sample overfitting we can use any data, even pure noise
-    train_tfdataset = get_synthetic_waves_tfdataset(nsamples=1, **sizes)
+    train_tfdataset = get_noise_tfdataset(nsamples=1, **sizes)
     train_tfdataset = train_tfdataset.cache()  # needed to keep sample identical
     hyperparameters = AutoencoderHyperparameters(
         state_variables=state_variables,
         generator=fv3fit.pytorch.GeneratorConfig(
-            n_convolutions=1, n_resnet=1, max_filters=32
+            n_convolutions=1, n_resnet=1, max_filters=16
         ),
         training_loop=TrainingConfig(n_epoch=100, samples_per_batch=6),
         optimizer_config=fv3fit.pytorch.OptimizerConfig(name="Adam",),
@@ -165,7 +185,7 @@ def test_autoencoder_overfit(tmpdir):
     #     plt.show()
     bias = predicted - reference
     mean_bias: xr.Dataset = bias.mean()
-    rmse: xr.Dataset = (bias ** 2).mean()
+    mse: xr.Dataset = (bias ** 2).mean()
     for varname in state_variables:
         assert np.abs(mean_bias[varname]) < 0.1
-        assert rmse[varname] < 0.1
+        assert mse[varname] < 0.2
