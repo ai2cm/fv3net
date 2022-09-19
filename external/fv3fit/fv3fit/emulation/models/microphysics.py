@@ -30,12 +30,6 @@ class MicrophysicsConfig:
     Args:
         input_variables: names of all inputs to the model
         direct_out_variables: names of direct field prediction outputs of the model.
-        residual_out_variables: names of outputs using a residual-based output,
-            analogous to learning model tendencies instead of direct
-            field-to-field prediction. The mapping of residual output variable names
-            to an associated model input name to increment. E.g.,
-            {"air_temperature_output": "air_temperature_input"} produces the
-            output air_temperature_output = air_temperature_input + tendency * timestep
         unscaled_outputs: outputs that won't be rescaled.
             ``direct_out_variables`` are rescaled before being returned by the
             constructed model.
@@ -46,10 +40,6 @@ class MicrophysicsConfig:
         normalize_map: overrides the default normalization per variable
         selection_map: Subselection mapping for feature dimension of input/output
             variables to slices along the feature dimension
-        tendency_outputs: Additional output tendencies to get from the
-            residual-based output layers.  The mapping key should match a variable in
-            residual_outputs and the value will be the new output variable
-            name.
         timestep_increment_sec: Time increment multiplier for the state-tendency
             update
 
@@ -57,7 +47,6 @@ class MicrophysicsConfig:
 
     input_variables: List[str] = dataclasses.field(default_factory=list)
     direct_out_variables: List[str] = dataclasses.field(default_factory=list)
-    residual_out_variables: Mapping[str, str] = dataclasses.field(default_factory=dict)
     architecture: ArchitectureConfig = dataclasses.field(
         default_factory=lambda: ArchitectureConfig(name="linear")
     )
@@ -66,7 +55,6 @@ class MicrophysicsConfig:
     )
     selection_map: Mapping[str, SliceConfig] = dataclasses.field(default_factory=dict)
     normalize_map: Mapping[str, NormFactory] = dataclasses.field(default_factory=dict)
-    tendency_outputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
     timestep_increment_sec: int = 900
     unscaled_outputs: List[str] = dataclasses.field(default_factory=list)
 
@@ -86,12 +74,7 @@ class MicrophysicsConfig:
 
     @property
     def output_variables(self) -> List[str]:
-        return (
-            self.direct_out_variables
-            + list(self.residual_out_variables.keys())
-            + list(self.tendency_outputs.values())
-            + list(self.unscaled_outputs)
-        )
+        return self.direct_out_variables + list(self.unscaled_outputs)
 
     def _get_norm_factory(self, name: str) -> Optional[NormFactory]:
         return self.normalize_map.get(name, self.normalize_default)
