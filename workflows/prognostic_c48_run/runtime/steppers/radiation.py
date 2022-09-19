@@ -31,8 +31,7 @@ class RadiationStepper:
     def __call__(
         self, time: cftime.DatetimeJulian, state: State,
     ):
-        if self._input_generator is not None:
-            state = self._generate_inputs(state, time)
+        state = self._generate_inputs(state, time)
         diagnostics = self._radiation(time, state)
         return {}, diagnostics, {}
 

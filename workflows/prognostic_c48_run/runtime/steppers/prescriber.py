@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Optional, Callable
+from typing import Sequence, Tuple, Optional, Callable, Union, Mapping
 import dataclasses
 import logging
 import cftime
@@ -18,7 +18,9 @@ class PrescriberConfig:
 
     Attributes:
         dataset_key: path of zarr dataset
-        variables: sequence of variable names in the dataset to prescribe
+        variables: sequence of variable names in the dataset to prescribe, or a
+            mapping from the non-standard names in the dataset to the standard names
+            to be prescribed
         consolidated: whether desired dataset has consolidated metadata;
             defaults to True
         reference_initial_time: if time interpolating, time of first point in dataset
@@ -38,7 +40,7 @@ class PrescriberConfig:
     """  # noqa
 
     dataset_key: str
-    variables: Sequence[str]
+    variables: Union[Sequence[str], Mapping[str, str]]
     consolidated: bool = True
     reference_initial_time: Optional[str] = None
     reference_frequency_seconds: float = 900
