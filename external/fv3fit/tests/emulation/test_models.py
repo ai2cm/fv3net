@@ -2,7 +2,6 @@ import tempfile
 from os.path import join
 from fv3fit.emulation.keras import save_model
 
-import fv3fit.emulation.models
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -79,60 +78,6 @@ def test_Config_build():
     model = config.build(m)
     output = model(m)
     assert set(output) == {"dummy_out"}
-
-
-def test_Config_build_residual_w_extra_tends_out():
-
-    config = MicrophysicsConfig(
-        input_variables=["dummy_in"],
-        residual_out_variables={"dummy_out1": "dummy_in"},
-        tendency_outputs={"dummy_out1": "dummy_out1_tendency"},
-        architecture=ArchitectureConfig(name="dense"),
-    )
-
-    data = _get_data((20, 5))
-    m = {"dummy_out1": data, "dummy_in": data, "dummy_out1_tendency": data}
-    model = config.build(m)
-    output = model(data)
-    assert set(model.output_names) == set(output)
-    assert set(output) == {"dummy_out1", "dummy_out1_tendency"}
-
-
-def test_precip_conserving_config():
-    factory = fv3fit.emulation.models.ConservativeWaterConfig()
-
-    one = tf.ones((4, 5))
-
-    data = {v: one for v in factory.input_variables + factory.output_variables}
-    model = factory.build(data)
-    out = model(data)
-    precip = out[factory.fields.surface_precipitation.output_name]
-    # scalar outputs need a singleton dimension to avoid broadcasting mayhem
-    assert tuple(precip.shape) == (one.shape[0], 1)
-
-
-def test_precip_conserving_output_variables():
-    fields = fv3fit.emulation.models.ZhaoCarrFields(
-        cloud_water=fv3fit.emulation.models.Field(input_name="a0", output_name="a"),
-        specific_humidity=fv3fit.emulation.models.Field(
-            input_name="a1", output_name="b"
-        ),
-        air_temperature=fv3fit.emulation.models.Field(input_name="a2", output_name="c"),
-        surface_precipitation=fv3fit.emulation.models.Field(output_name="d"),
-    )
-    factory = fv3fit.emulation.models.ConservativeWaterConfig(fields=fields)
-
-    assert set(factory.output_variables) == set("abcd")
-
-
-def test_precip_conserving_extra_inputs():
-    extra_names = "abcdef"
-    extras = [fv3fit.emulation.models.Field(input_name=ch) for ch in extra_names]
-
-    factory = fv3fit.emulation.models.ConservativeWaterConfig(
-        extra_input_variables=extras
-    )
-    assert set(extra_names) < set(factory.input_variables)
 
 
 @pytest.mark.parametrize("arch", _ARCHITECTURE_KEYS)

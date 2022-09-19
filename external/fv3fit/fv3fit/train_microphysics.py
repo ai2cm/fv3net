@@ -46,7 +46,6 @@ from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.models import (
     transform_model,
     MicrophysicsConfig,
-    ConservativeWaterConfig,
 )
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
@@ -162,7 +161,6 @@ class TransformedParameters(Hyperparameters):
     tensor_transform: List[TransformT] = field(default_factory=list)
     filters: List[FilterT] = field(default_factory=list)
     model: Union[PrecpdModelConfig, MicrophysicsConfig, None] = None
-    conservative_model: Optional[ConservativeWaterConfig] = None
     loss: Union[CustomLoss, ZhaoCarrLoss] = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
@@ -207,12 +205,8 @@ class TransformedParameters(Hyperparameters):
     def _model(self,) -> Model:
         if self.model:
             return self.model
-        elif self.conservative_model:
-            return self.conservative_model
         else:
-            raise ValueError(
-                "Neither .model, .conservative_model, nor .transformed_model provided."
-            )
+            raise ValueError(".model not provided.")
 
     def build_model(
         self, data: Mapping[str, tf.Tensor], transform: TensorTransform
@@ -589,17 +583,27 @@ def get_default_config():
         "cloud_water_mixing_ratio_input",
         "pressure_thickness_of_atmospheric_layer",
     ]
+    tensor_transforms = [
+        Difference(
+            to="temperature_diff",
+            before="air_temperature_input",
+            after="air_temperature_after_precpd",
+        ),
+        Difference(
+            to="humidity_diff",
+            before="specific_humidity_input",
+            after="specific_humidity_after_precpd",
+        ),
+    ]
 
     model_config = MicrophysicsConfig(
         input_variables=input_vars,
         direct_out_variables=[
             "cloud_water_mixing_ratio_after_precpd",
             "total_precipitation",
+            "temperature_diff",
+            "humidity_diff",
         ],
-        residual_out_variables=dict(
-            air_temperature_after_precpd="air_temperature_input",
-            specific_humidity_after_precpd="specific_humidity_input",
-        ),
         architecture=ArchitectureConfig("linear"),
         selection_map=dict(
             air_temperature_input=SliceConfig(stop=-10),
@@ -629,11 +633,7 @@ def get_default_config():
             cloud_water_mixing_ratio_after_precpd=1.0,
             total_precipitation=0.04,
         ),
-        metric_variables=[
-            "tendency_of_air_temperature_due_to_microphysics",
-            "tendency_of_specific_humidity_due_to_microphysics",
-            "tendency_of_cloud_water_mixing_ratio_due_to_microphysics",
-        ],
+        metric_variables=["temperature_diff"],
     )
 
     config = TrainConfig(
@@ -641,6 +641,7 @@ def get_default_config():
         test_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",  # noqa E501
         out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
         model=model_config,
+        tensor_transform=tensor_transforms,
         transform=transform,
         loss=loss,
         nfiles=80,
