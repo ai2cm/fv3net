@@ -1,15 +1,16 @@
 #!/bin/bash
 set -e
 
-INSTALL_TYPE=$1  # Can be one of "all", "base", or "fv3net"
+INSTALL_TYPE=$1  # Can be one of "all", "base", "fv3gfs-fortran", "fv3net-python", "wrapper", or "post-build"
 PLATFORM=$2
 CLONE_PREFIX=$3
 INSTALL_PREFIX=$4
 FV3NET_DIR=$5
-FMS_DIR=$6  # This could be in fv3net if we wanted
-FV3_DIR=$7  # This could be in fv3net if we wanted -- should be optional (not relevant if we are building just the base image)
-CALLPYFORT=$8  # Should be '' if not installed -- should be made an option
-CONDA_ENV=$9  # Also optional (not needed in prognostic run docker image for instance)
+CALLPYFORT=$6  # Should be '' if not installed -- should be made an option
+CONDA_ENV=$7  # Also optional (not needed in prognostic run docker image for instance)
+
+FMS_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FMS
+FV3_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FV3
 
 SCRIPTS=$FV3NET_DIR/.environment-scripts
 PLATFORM_SCRIPTS=$SCRIPTS/$PLATFORM
@@ -37,13 +38,14 @@ then
     fi
 fi
 
-bash $SCRIPTS/setup_environment_post_base.sh \
-    $INSTALL_TYPE \
-    $PLATFORM \
-    $CLONE_PREFIX \
-    $INSTALL_PREFIX \
-    $FV3NET_DIR \
-    $FMS_DIR \
-    $FV3_DIR \
-    $CALLPYFORT \
-    $CONDA_ENV
+if [ $INSTALL_TYPE != "base" ];
+then
+    bash $SCRIPTS/setup_environment_post_base.sh \
+        $INSTALL_TYPE \
+        $PLATFORM \
+        $CLONE_PREFIX \
+        $INSTALL_PREFIX \
+        $FV3NET_DIR \
+        $CALLPYFORT \
+        $CONDA_ENV
+fi

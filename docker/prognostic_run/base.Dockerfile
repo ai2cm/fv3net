@@ -11,12 +11,12 @@ FROM ${BASE_IMAGE} AS prognostic-run-base
 # nvidia specific currently.  Feel free to remove if that changes.
 RUN rm -f /etc/apt/sources.list.d/cuda.list /etc/apt/sources.list.d/nvidia-ml.list
 
-ENV FV3GFS_FORTRAN_DIR=/tmp/fortran-build
 ENV CLONE_PREFIX=/
 ENV INSTALL_PREFIX=/usr/local
 ENV PLATFORM=gnu_docker
 ENV FV3NET_DIR=/fv3net
-ENV FMS_DIR=/FMS
+ENV FV3GFS_FORTRAN_DIR=${FV3NET_DIR}/external/fv3gfs-fortran
+ENV FMS_DIR=${FV3GFS_FORTRAN_DIR}/FMS
 ENV FV3_DIR=${FV3GFS_FORTRAN_DIR}/FV3
 ENV CALLPYFORT=Y
 
@@ -43,8 +43,6 @@ RUN bash ${FV3NET_SCRIPTS}/setup_environment.sh \
     ${CLONE_PREFIX} \
     ${INSTALL_PREFIX} \
     ${FV3NET_DIR} \
-    ${FMS_DIR} \
-    ${FV3_DIR} \
     ${CALLPYFORT}
 
 ENV ESMF_DIR=${INSTALL_PREFIX}/esmf

@@ -14,8 +14,6 @@ RUN bash /fv3net/.environment-scripts/setup_environment.sh \
     ${CLONE_PREFIX} \
     ${INSTALL_PREFIX} \
     ${FV3NET_DIR} \
-    ${FMS_DIR} \
-    ${FV3_DIR} \
     ${CALLPYFORT}
 
 # Copy data and files required for creating the Python environment
@@ -36,8 +34,6 @@ RUN bash /fv3net/.environment-scripts/setup_environment.sh \
     ${CLONE_PREFIX} \
     ${INSTALL_PREFIX} \
     ${FV3NET_DIR} \
-    ${FMS_DIR} \
-    ${FV3_DIR} \
     ${CALLPYFORT}
 
 # Copy data and files required for building the Python wrapper
@@ -49,8 +45,6 @@ RUN bash /fv3net/.environment-scripts/setup_environment.sh \
     ${CLONE_PREFIX} \
     ${INSTALL_PREFIX} \
     ${FV3NET_DIR} \
-    ${FMS_DIR} \
-    ${FV3_DIR} \
     ${CALLPYFORT}
 RUN python3 -c 'import fv3gfs.wrapper'
 
@@ -63,8 +57,6 @@ RUN bash /fv3net/.environment-scripts/setup_environment.sh \
     ${CLONE_PREFIX} \
     ${INSTALL_PREFIX} \
     ${FV3NET_DIR} \
-    ${FMS_DIR} \
-    ${FV3_DIR} \
     ${CALLPYFORT}
 
 RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
