@@ -1,9 +1,14 @@
 from runtime.segmented_run.prepare_config import HighLevelConfig
 from runtime.segmented_run.api import create, append
+from runtime.steppers.radiation import RadiationStepper
+from runtime.types import State
+import cftime
 import yaml
 import xarray as xr
+import numpy as np
 import pytest
 import os
+
 
 RADIATIVE_FLUXES = [
     "clear_sky_downward_longwave_flux_at_surface_python",
@@ -118,3 +123,51 @@ def test_radiative_fluxes_output(completed_rundir):
     ds = xr.open_zarr(zarrpath)
     for var in RADIATIVE_FLUXES:
         assert var in ds.data_vars
+
+
+class MockRadiation:
+
+    input_variables = ["x", "y"]
+
+    def __init__(self):
+        pass
+
+    def __call__(self, time, state: State):
+        return {"mock_rad_flux": state["x"] + state["y"]}
+
+
+class MockInputGenerator:
+    def __init__(self, output_variables):
+        self.output_variables = output_variables
+
+    def __call__(self, time, state: State):
+        state_updates: State = {var: state[var] + 1.0 for var in self.output_variables}
+        return {}, {}, state_updates
+
+
+def get_data_array():
+    data = np.random.random([10, 1])
+    dims = ["lat", "lon"]
+    return xr.DataArray(data, dims=dims)
+
+
+@pytest.mark.parametrize(
+    ["generated_names", "offset"],
+    [
+        pytest.param(["x"], 1.0, id="add_to_one"),
+        pytest.param(["x", "y"], 2.0, id="add_to_both"),
+        pytest.param(["z"], 0.0, id="add_to_none"),
+    ],
+)
+def test_input_generator_changes_fluxes(generated_names, offset):
+
+    radiation = MockRadiation()
+    input_generator = MockInputGenerator(generated_names)
+
+    stepper = RadiationStepper(radiation, input_generator)
+    state: State = {"x": get_data_array(), "y": get_data_array(), "z": get_data_array()}
+    time = cftime.DatetimeJulian(2016, 8, 1, 0, 0, 0)
+    _, diags, _ = stepper(time, state)
+
+    expected = state["x"] + state["y"] + offset
+    xr.testing.assert_allclose(diags["mock_rad_flux"], expected)
