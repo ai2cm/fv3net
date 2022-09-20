@@ -166,7 +166,7 @@ test_%:
 	cd external/$* && tox -- $(ARGS)
 
 test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
-	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images $(ARGS)
+	coverage run -m pytest -m "not regression" --durations=20 $(ARGS)
 	coverage combine \
 		--append \
 		external/fv3kube/.coverage \
