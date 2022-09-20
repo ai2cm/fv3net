@@ -17,7 +17,9 @@ def test_ModelWithClassifier():
     )(inputs["a"])
     classifier = tf.keras.Model([inputs["a"]], [zero_tendency])
 
-    transformed_model = ModelWithClassifier(model, classifier)
+    transformed_model = ModelWithClassifier(
+        model, classifier, inputs_to_ignore=["singleton_vector"]
+    )
 
     x = {"a": np.ones([100, 10])}
 
