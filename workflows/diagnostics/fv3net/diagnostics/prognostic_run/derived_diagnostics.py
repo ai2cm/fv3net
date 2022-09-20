@@ -6,6 +6,8 @@ import vcm
 
 from fv3net.diagnostics._shared.registry import Registry
 from fv3net.diagnostics._shared.constants import WVP, COL_DRYING
+from .constants import MASS_STREAMFUNCTION_MID_TROPOSPHERE
+from .compute import itcz_edges
 
 
 def merge_derived(diags: Sequence[Tuple[str, xr.DataArray]]) -> xr.Dataset:
@@ -59,6 +61,18 @@ def psi_bias_mid_troposphere(diags: xr.Dataset) -> xr.DataArray:
     psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
     return psi_mid_trop.assign_attrs(
         long_name="mass streamfunction 300-700hPa average", units="Gkg/s"
+    )
+
+
+@derived_registry.register("itcz_strength")
+def itcz_strength_timeseries(diags: xr.Dataset) -> xr.DataArray:
+    if MASS_STREAMFUNCTION_MID_TROPOSPHERE not in diags:
+        return xr.DataArray()
+    psi = diags[MASS_STREAMFUNCTION_MID_TROPOSPHERE]
+    lat_min, lat_max = itcz_edges(psi)
+    max_minus_min = psi.sel(latitude=lat_max) - psi.sel(latitude=lat_min)
+    return max_minus_min.assign_attrs(
+        long_name="Upward mass transport in ITCZ", units="Gkg/s"
     )
 
 

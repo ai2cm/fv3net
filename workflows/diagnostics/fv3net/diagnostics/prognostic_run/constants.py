@@ -163,6 +163,7 @@ PRESSURE_INTERPOLATED_VARS = [
 ]
 
 PRECIP_RATE = "total_precip_to_surface"
+MASS_STREAMFUNCTION_MID_TROPOSPHERE = "mass_streamfunction_300_700_zonal_mean"
 MASS_STREAMFUNCTION_MID_TROPOSPHERE_TIME_MEAN = (
     "mass_streamfunction_300_700_zonal_and_time_mean"
 )

@@ -55,6 +55,13 @@ import logging
 logger = logging.getLogger("SaveDiags")
 
 
+def itcz_edges(psi: xr.DataArray, lat: str = "latitude",) -> Tuple[float, float]:
+    """Compute latitude of ITCZ edges given mass streamfunction at particular level."""
+    lat_min = psi.sel({lat: slice(-30, 10)}).idxmin(lat).item()
+    lat_max = psi.sel({lat: slice(-10, 30)}).idxmax(lat).item()
+    return lat_min, lat_max
+
+
 def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
     """
     Take a diagnostic dataset and add a suffix to all variable names and return as dict.
@@ -524,6 +531,40 @@ def compute_hist_2d_bias(diag_arg: DiagArg):
     error = bias(hist2d_verif[name], hist2d_prog[name])
     hist2d_prog.update({name: error})
     return _assign_diagnostic_time_attrs(hist2d_prog, diag_arg.prediction)
+
+
+@registry_3d.register("300_700_zonal_mean")
+@transform.apply(transform.subset_variables, ["northward_wind"])
+@transform.apply(transform.skip_if_3d_output_absent)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+def time_dependent_mass_streamfunction(diag_arg: DiagArg):
+    logger.info("Preparing zonal+time means (3d)")
+    prognostic, grid = diag_arg.prediction, diag_arg.grid
+    if _is_empty(prognostic):
+        return xr.Dataset()
+    northward_wind = prognostic["northward_wind"]
+    v_zm = vcm.zonal_average_approximate(grid.lat, northward_wind, lat_name="latitude")
+    psi = vcm.mass_streamfunction(v_zm).sel(pressure=slice(30000, 70000))
+    psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
+    return xr.Dataset({"mass_streamfunction": psi_mid_trop})
+
+
+@registry_3d.register("300_700_zonal_bias")
+@transform.apply(transform.subset_variables, ["northward_wind"])
+@transform.apply(transform.skip_if_3d_output_absent)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+def time_dependent_mass_streamfunction_bias(diag_arg: DiagArg):
+    logger.info("Preparing zonal+time means (3d)")
+    prognostic, grid = diag_arg.prediction, diag_arg.grid
+    if _is_empty(prognostic) or _is_empty(diag_arg.verification):
+        return xr.Dataset()
+    wind_bias = prognostic["northward_wind"] - diag_arg.verification["northward_wind"]
+    v_zm = vcm.zonal_average_approximate(grid.lat, wind_bias, lat_name="latitude")
+    psi = vcm.mass_streamfunction(v_zm).sel(pressure=slice(30000, 70000))
+    psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
+    return xr.Dataset({"mass_streamfunction": psi_mid_trop})
 
 
 def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
