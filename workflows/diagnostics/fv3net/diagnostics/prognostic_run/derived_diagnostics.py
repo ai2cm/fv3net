@@ -1,5 +1,6 @@
 from typing import Sequence, Tuple
 
+import numpy as np
 import xarray as xr
 
 import vcm
@@ -64,7 +65,7 @@ def psi_bias_mid_troposphere(diags: xr.Dataset) -> xr.DataArray:
     )
 
 
-@derived_registry.register("itcz_strength")
+@derived_registry.register("itcz_strength_timeseries")
 def itcz_strength_timeseries(diags: xr.Dataset) -> xr.DataArray:
     if MASS_STREAMFUNCTION_MID_TROPOSPHERE not in diags:
         return xr.DataArray()
@@ -73,6 +74,24 @@ def itcz_strength_timeseries(diags: xr.Dataset) -> xr.DataArray:
     max_minus_min = psi.sel(latitude=lat_max) - psi.sel(latitude=lat_min)
     return max_minus_min.assign_attrs(
         long_name="Upward mass transport in ITCZ", units="Gkg/s"
+    )
+
+
+@derived_registry.register("water_vapor_path_in_tropical_ascent_timeseries")
+def water_vapor_path_in_tropical_ascent_timeseries(diags: xr.Dataset) -> xr.DataArray:
+    if (
+        MASS_STREAMFUNCTION_MID_TROPOSPHERE not in diags
+        or "water_vapor_path_zonal_mean_value" not in diags
+    ):
+        return xr.DataArray()
+    psi = diags[MASS_STREAMFUNCTION_MID_TROPOSPHERE]
+    wvp = diags["water_vapor_path_zonal_mean_value"]
+    lat_min, lat_max = itcz_edges(psi)
+    ascent_region_wvp = wvp.sel(latitude=slice(lat_min, lat_max))
+    weights = np.cos(np.deg2rad(ascent_region_wvp.latitude))
+    ascent_region_mean = vcm.weighted_average(ascent_region_wvp, weights, ["latitude"])
+    return ascent_region_mean.assign_attrs(
+        long_name="Water vapor path in tropical ascent region"
     )
 
 

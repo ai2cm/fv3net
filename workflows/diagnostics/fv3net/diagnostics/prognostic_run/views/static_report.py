@@ -263,6 +263,11 @@ def spatial_minmax_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     )
 
 
+@timeseries_plot_manager.register
+def custom_timeseries_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_1d(diagnostics, varfilter="timeseries")
+
+
 @zonal_mean_plot_manager.register
 def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_1d(diagnostics, varfilter="zonal_and_time_mean")
