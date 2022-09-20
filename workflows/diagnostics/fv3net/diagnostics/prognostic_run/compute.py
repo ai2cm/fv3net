@@ -539,7 +539,7 @@ def compute_hist_2d_bias(diag_arg: DiagArg):
 @transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
 def time_dependent_mass_streamfunction(diag_arg: DiagArg):
-    logger.info("Preparing zonal+time means (3d)")
+    logger.info("Computing mid-troposphere averaged mass streamfunction")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
     if _is_empty(prognostic):
         return xr.Dataset()
@@ -556,7 +556,7 @@ def time_dependent_mass_streamfunction(diag_arg: DiagArg):
 @transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
 def time_dependent_mass_streamfunction_bias(diag_arg: DiagArg):
-    logger.info("Preparing zonal+time means (3d)")
+    logger.info("Computing mid-troposphere averaged mass streamfunction bias")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
     if _is_empty(prognostic) or _is_empty(diag_arg.verification):
         return xr.Dataset()
