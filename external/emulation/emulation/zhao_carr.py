@@ -12,6 +12,18 @@ from fv3fit.emulation.transforms.zhao_carr import (
     NEGATIVE_TENDENCY,
 )
 
+__all__ = [
+    "infer_gscond_cloud_from_conservation",
+    "squash_gscond",
+    "squash_precpd",
+    "mask_where_fortran_cloud_identical",
+    "mask_where_fortran_cloud_vanishes_gscond",
+    "mask_zero_tend_classifier",
+    "mask_zero_cloud_classifier",
+    "mask_zero_cloud_classifier_precpd",
+    "enforce_conservative_gscond",
+]
+
 
 class Input:
     cloud_water = "cloud_water_mixing_ratio_input"
