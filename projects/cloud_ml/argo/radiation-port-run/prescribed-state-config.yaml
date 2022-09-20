@@ -15,9 +15,9 @@ radiation_scheme:
   input_generator:
     dataset_key: gs://vcm-ml-experiments/cloud-ml/2022-09-14/fine-coarse-3d-fields.zarr
     variables:
-      - air_temperature_fine
-      - specific_humidity_fine
-      - pressure_thickness_of_atmospheric_layer_fine
+      air_temperature_fine: air_temperature
+      specific_humidity_fine: specific_humidity
+      pressure_thickness_of_atmospheric_layer_fine: pressure_thickness_of_atmospheric_layer
     reference_initial_time: "20160801.001500"
     reference_frequency_seconds: 900
 namelist:
