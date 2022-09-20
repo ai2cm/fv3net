@@ -82,6 +82,7 @@ __all__ = [
     "ArchitectureConfig",
     "SliceConfig",
     "TransformT",
+    "OptimizerConfig",
 ]
 
 TransformT = Union[
@@ -352,8 +353,7 @@ class TrainConfig(TransformedParameters):
             args: A list of arguments to be parsed.  If not provided, uses
                 sys.argv
 
-                Requires "--config-path", use "--config-path default" to use
-                default configuration
+                Requires "--config-path"
 
                 Note: arguments should be in the flat style used by wandb where all
                 nested mappings are at the top level with '.' joined keys. E.g.,
@@ -362,18 +362,11 @@ class TrainConfig(TransformedParameters):
 
         parser = argparse.ArgumentParser()
         parser.add_argument(
-            "--config-path",
-            required=True,
-            help="Path to training config yaml. Use '--config-path default'"
-            " to run with a default configuration.",
+            "--config-path", required=True, help="Path to training config yaml.",
         )
 
         path_arg, unknown_args = parser.parse_known_args(args=args)
-
-        if path_arg.config_path == "default":
-            config = get_default_config()
-        else:
-            config = cls.from_yaml_path(path_arg.config_path)
+        config = cls.from_yaml_path(path_arg.config_path)
 
         if unknown_args:
             updated = get_arg_updated_config_dict(
@@ -573,81 +566,6 @@ def main(config: TrainConfig, seed: int = 0):
         return save(config)
     else:
         return train_main(config)
-
-
-def get_default_config():
-
-    input_vars = [
-        "air_temperature_input",
-        "specific_humidity_input",
-        "cloud_water_mixing_ratio_input",
-        "pressure_thickness_of_atmospheric_layer",
-    ]
-    tensor_transforms = [
-        Difference(
-            to="temperature_diff",
-            before="air_temperature_input",
-            after="air_temperature_after_precpd",
-        ),
-        Difference(
-            to="humidity_diff",
-            before="specific_humidity_input",
-            after="specific_humidity_after_precpd",
-        ),
-    ]
-
-    model_config = MicrophysicsConfig(
-        input_variables=input_vars,
-        direct_out_variables=[
-            "cloud_water_mixing_ratio_after_precpd",
-            "total_precipitation",
-            "temperature_diff",
-            "humidity_diff",
-        ],
-        architecture=ArchitectureConfig("linear"),
-        selection_map=dict(
-            air_temperature_input=SliceConfig(stop=-10),
-            specific_humidity_input=SliceConfig(stop=-10),
-            cloud_water_mixing_ratio_input=SliceConfig(stop=-10),
-            pressure_thickness_of_atmospheric_layer=SliceConfig(stop=-10),
-        ),
-    )
-
-    transform = TransformConfig()
-
-    loss = CustomLoss(
-        optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
-        loss_variables=[
-            "air_temperature_after_precpd",
-            "specific_humidity_after_precpd",
-            "cloud_water_mixing_ratio_after_precpd",
-            "total_precipitation",
-        ],
-        weights=dict(
-            air_temperature_after_precpd=0.5e5,
-            specific_humidity_after_precpd=0.5e5,
-            cloud_water_mixing_ratio_after_precpd=1.0,
-            total_precipitation=0.04,
-        ),
-        metric_variables=["temperature_diff"],
-    )
-
-    config = TrainConfig(
-        train_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train",  # noqa E501
-        test_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",  # noqa E501
-        out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
-        model=model_config,
-        tensor_transform=tensor_transforms,
-        transform=transform,
-        loss=loss,
-        nfiles=80,
-        nfiles_valid=80,
-        valid_freq=1,
-        epochs=4,
-        wandb=WandBConfig(job_type="training"),
-    )
-
-    return config
 
 
 if __name__ == "__main__":

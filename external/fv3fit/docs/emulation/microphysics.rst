@@ -9,9 +9,7 @@ Running the training script can be done via the command-line
 
 .. code-block:: bash
 
-    python -m fv3fit.train_microphysics --config-path <default | /path/to/config>
-
-where "default" loads a default configuration using :py:func:`get_default_config`
+    python -m fv3fit.train_microphysics --config-path path/to/config
 
 Any parameter that exists in the configuration :code:`--config-path` can be updated from the command-line.  Nested configuration updates are achieved using '.'-joined keys.
 
