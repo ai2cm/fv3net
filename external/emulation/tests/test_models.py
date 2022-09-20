@@ -20,6 +20,10 @@ def test_ModelWithClassifier():
     transformed_model = ModelWithClassifier(model, classifier)
 
     x = {"a": np.ones([100, 10])}
+
+    # include singleton input in input vector to avoid batching related bugs
+    x["singleton_vector"] = np.ones([1])
+
     out = transformed_model(x)
     assert out
     assert set(out) >= set(CLASS_NAMES)
