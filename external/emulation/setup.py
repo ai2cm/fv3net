@@ -17,6 +17,7 @@ requirements = [
     "xarray",
     "zarr",
     "scipy",
+    "numba",
     # ai2 deps
     "fv3fit",
 ]
