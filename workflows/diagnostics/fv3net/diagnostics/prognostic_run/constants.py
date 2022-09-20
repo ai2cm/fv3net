@@ -174,7 +174,7 @@ TOP_LEVEL_METRICS = {
     "time_and_land_mean_bias": [PRECIP_RATE],
     "rmse_of_time_mean_land": ["tmp850"],
     "tropics_max_minus_min": [MASS_STREAMFUNCTION_MID_TROPOSPHERE_TIME_MEAN],
-    "tropical_ascent_region_mean": ["column_integrated_q1"],
+    "tropical_ascent_region_mean": ["column_integrated_q1", "water_vapor_path"],
 }
 
 GRID_VARS = ("lat", "latb", "lon", "lonb")
