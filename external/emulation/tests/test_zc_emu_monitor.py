@@ -58,6 +58,7 @@ def get_state_meta_for_conversion():
     state = {
         "field_A": np.ones(50).reshape(2, 25),
         "field_B": np.ones(50).reshape(2, 25),
+        "singleton": np.array([1]),
     }
 
     return state, metadata
