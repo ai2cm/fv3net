@@ -48,9 +48,14 @@ def test__get_attrs():
     assert isinstance(dat, Mapping)
 
 
-def get_state_meta_for_conversion():
+@pytest.mark.parametrize(
+    "convert_func, expected_type",
+    [(_convert_to_quantities, Quantity), (_convert_to_xr_dataset, DataArray)],
+    ids=["to-quantity", "to-xr-dataset"],
+)
+def test__conversions(convert_func, expected_type):
 
-    metadata = dict(
+    meta = dict(
         field_A={"units": "beepboop", "real-name": "missingno"},
         field_B={"units": "goobgob", "real-name": "trivial"},
     )
@@ -61,22 +66,14 @@ def get_state_meta_for_conversion():
         "singleton": np.array([1]),
     }
 
-    return state, metadata
-
-
-@pytest.mark.parametrize(
-    "convert_func, expected_type",
-    [(_convert_to_quantities, Quantity), (_convert_to_xr_dataset, DataArray)],
-    ids=["to-quantity", "to-xr-dataset"],
-)
-def test__conversions(convert_func, expected_type):
-
-    state, meta = get_state_meta_for_conversion()
     quantities = convert_func(state, meta)
+
+    assert quantities["field_A"].values.shape == (25, 2)
+    assert quantities["field_B"].values.shape == (25, 2)
+    assert quantities["singleton"].values.shape == ()
 
     for data in quantities.values():
         assert isinstance(data, expected_type)
-        assert data.values.shape == (25, 2)
 
 
 def test__translate_time():
