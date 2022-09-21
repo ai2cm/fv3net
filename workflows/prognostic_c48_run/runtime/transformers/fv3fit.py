@@ -50,6 +50,18 @@ class Config:
             )
 
 
+def merge_masked(left: State, right: State) -> State:
+    merged = {}
+    for key, left_value in left.items():
+        try:
+            right_value = right[key]
+        except KeyError:
+            merged[key] = left[key]
+        else:
+            merged[key] = left_value.where(left_value.notnull(), right_value)
+    return merged
+
+
 @dataclasses.dataclass
 class Adapter:
     config: Config
@@ -84,15 +96,7 @@ class Adapter:
 
     def apply(self, prediction: State, state: State):
         if self.config.online:
-            prediction_filled_nans = {}
-            for k, v in prediction.items():
-                try:
-                    existing_value = state[k]
-                except KeyError:
-                    prediction_filled_nans[k] = v
-                else:
-                    prediction_filled_nans[k] = v.where(v.notnull(), existing_value)
-            state.update(prediction_filled_nans)
+            state.update(merge_masked(prediction, state))
 
     def partial_fit(self, inputs: State, state: State):
         pass
