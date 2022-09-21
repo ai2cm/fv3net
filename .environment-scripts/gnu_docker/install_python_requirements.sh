@@ -1,0 +1,6 @@
+#!/bin/bash
+
+ENVIRONMENT_SCRIPTS_DIR=$1
+REQUIREMENTS_PATH=$2
+
+bash $ENVIRONMENT_SCRIPTS_DIR/install_python_requirements.sh $REQUIREMENTS_PATH

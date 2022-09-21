@@ -10,8 +10,6 @@ from .normalization import (
     DenormalizeConfig,
 )
 from .fields import (
-    IncrementStateLayer,
-    IncrementedFieldOutput,
     FieldInput,
     FieldOutput,
 )

@@ -194,8 +194,11 @@ def train_cyclegan(
 
     train_state = train_batches.map(get_Xy)
 
+    sample: tf.Tensor = next(iter(train_state))[0]
     train_model = hyperparameters.network.build(
-        n_state=next(iter(train_state))[0].shape[-1],
+        nx=sample.shape[-3],
+        ny=sample.shape[-2],
+        n_state=sample.shape[-1],
         n_batch=hyperparameters.training.samples_per_batch,
         state_variables=hyperparameters.state_variables,
         scalers=scalers,

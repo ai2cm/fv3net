@@ -276,7 +276,7 @@ def _load_pytorch(cls: Type[_PytorchDumpable], path: str):
     fs = vcm.get_fs(path)
     model_filename = os.path.join(path, cls._MODEL_FILENAME)
     with fs.open(model_filename, "rb") as f:
-        model = torch.load(f)
+        model = torch.load(f).to(DEVICE)
     with fs.open(os.path.join(path, cls._SCALERS_FILENAME), "rb") as f:
         scalers = load_mapping(StandardScaler, f)
     with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
@@ -319,8 +319,10 @@ def _pack_to_tensor(
         tensor of shape [window, time, tile, x, y, feature]
     """
 
-    expected_dims = ("time", "tile", "x", "y", "z")
-    ds = ds.transpose(*expected_dims)
+    expected_dims: Tuple[str, ...] = ("time", "tile", "x", "y")
+    if "z" in ds.dims:
+        expected_dims += ("z",)
+    ds = ds.transpose(..., *expected_dims)
     if timesteps > 0:
         n_times = ds.time.size
         n_windows = int((n_times - 1) // timesteps)

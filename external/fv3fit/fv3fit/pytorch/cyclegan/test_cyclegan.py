@@ -15,6 +15,7 @@ import fv3fit.pytorch
 import fv3fit
 import matplotlib.pyplot as plt
 import pytest
+import fv3fit.wandb
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
@@ -139,7 +140,8 @@ def test_cyclegan_visual(tmpdir):
             n_epoch=30, samples_per_batch=20, validation_batch_size=10
         ),
     )
-    predictor = train_cyclegan(hyperparameters, train_tfdataset, val_tfdataset)
+    with fv3fit.wandb.disable_wandb():
+        predictor = train_cyclegan(hyperparameters, train_tfdataset, val_tfdataset)
     # for test, need one continuous series so we consistently flip sign
     real_a = tfdataset_to_xr_dataset(
         train_tfdataset.map(lambda a, b: a), dims=["time", "tile", "x", "y", "z"]
@@ -209,7 +211,8 @@ def test_cyclegan_runs_without_errors(tmpdir, regtest):
             n_epoch=2, samples_per_batch=2, validation_batch_size=2
         ),
     )
-    predictor = train_cyclegan(hyperparameters, train_tfdataset, val_tfdataset)
+    with fv3fit.wandb.disable_wandb():
+        predictor = train_cyclegan(hyperparameters, train_tfdataset, val_tfdataset)
     # for test, need one continuous series so we consistently flip sign
     real_a = tfdataset_to_xr_dataset(
         train_tfdataset.map(lambda a, b: a), dims=["time", "tile", "x", "y", "z"]

@@ -41,16 +41,16 @@ then
     CALLPYFORT=$CALLPYFORT bash $PLATFORM_SCRIPTS/install_fv3gfs_fortran.sh $SCRIPTS $FV3_DIR $INSTALL_PREFIX
 fi
 
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3net-python" ] || [ $INSTALL_TYPE == "wrapper" ];
+if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "python-requirements" ] || [ $INSTALL_TYPE == "fv3net-packages" ] || [ $INSTALL_TYPE == "wrapper" ];
 then
     ACTIVATE_CONDA=$PLATFORM_SCRIPTS/activate_conda_environment.sh
-    if [ -f $ACTIVATE_CONDA ] && [ $INSTALL_TYPE == "fv3net-python" ];
+    if [ -f $ACTIVATE_CONDA ] && [ $INSTALL_TYPE != "all" ];
     then
         source $ACTIVATE_CONDA $CONDA_ENV
     fi
 fi
 
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3net-python" ];
+if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "python-requirements" ];
 then
     if [ $PLATFORM != "gnu_docker" ];
     then
@@ -58,8 +58,18 @@ then
         # rule for this.
         cp $FV3NET_DIR/constraints.txt $FV3NET_DIR/docker/prognostic_run/requirements.txt
     fi
-    bash $PLATFORM_SCRIPTS/install_fv3net_python_dependencies.sh \
-        $FV3NET_DIR/docker/prognostic_run/requirements.txt \
+    bash $PLATFORM_SCRIPTS/install_python_requirements.sh $FV3NET_DIR/docker/prognostic_run/requirements.txt
+fi
+
+
+if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "wrapper" ];
+then
+    CALLPYFORT=$CALLPYFORT bash $PLATFORM_SCRIPTS/install_python_wrapper.sh $SCRIPTS $FV3_DIR
+fi
+
+if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3net-packages" ];
+then
+    bash $SCRIPTS/install_fv3net_packages.sh \
         $FV3NET_DIR/external/vcm \
         $FV3NET_DIR/external/artifacts \
         $FV3NET_DIR/external/loaders \
@@ -69,11 +79,6 @@ then
         $FV3NET_DIR/workflows/prognostic_c48_run \
         $FV3NET_DIR/external/emulation \
         $FV3NET_DIR/external/radiation
-fi
-
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "wrapper" ];
-then
-    CALLPYFORT=$CALLPYFORT bash $PLATFORM_SCRIPTS/install_python_wrapper.sh $SCRIPTS $FV3_DIR
 fi
 
 if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "post-build" ];
