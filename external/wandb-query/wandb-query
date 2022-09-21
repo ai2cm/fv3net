@@ -74,7 +74,7 @@ def runs(
             }
             typer.echo(json.dumps(d))
         else:
-            typer.echo(run.group, run.job_type, run.name, run.url)
+            print(run.group, run.job_type, run.name, run.url)
 
 
 if __name__ == "__main__":
