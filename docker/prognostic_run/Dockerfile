@@ -7,8 +7,21 @@ COPY external/fv3gfs-fortran/ /tmp/fortran-build
 COPY .environment-scripts/install_fv3gfs_fortran.sh .
 RUN CALLPYFORT=Y bash install_fv3gfs_fortran.sh /tmp/fortran-build/FV3 gnu_docker /usr/local
 
-# Install the Python dependencies
+# Install the Python requirements
+COPY .environment-scripts/install_python_requirements.sh .
 COPY docker/prognostic_run/requirements.txt /fv3net/docker/prognostic_run/requirements.txt
+RUN bash install_python_requirements.sh /fv3net/docker/prognostic_run/requirements.txt
+
+# Compile and install the wrapper. Then import fv3gfs.wrapper as a minimal test
+# that it works.
+COPY .environment-scripts/install_python_wrapper.sh .
+RUN CALLPYFORT=Y bash install_python_wrapper.sh /tmp/fortran-build/FV3
+RUN python3 -c 'import fv3gfs.wrapper'
+
+# Install the fv3net packages.  Do this last, because these packages change the most
+# frequently during our development.  This allows us to get the most out of caching
+# the prior build steps.
+COPY .environment-scripts/install_fv3net_packages.sh .
 COPY external/vcm /fv3net/external/vcm
 COPY external/artifacts /fv3net/external/artifacts
 COPY external/loaders /fv3net/external/loaders
@@ -18,10 +31,7 @@ COPY workflows/post_process_run /fv3net/workflows/post_process_run
 COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 COPY external/emulation /fv3net/external/emulation
 COPY external/radiation /fv3net/external/radiation
-
-COPY .environment-scripts/install_fv3net_python_dependencies.sh .
-RUN bash install_fv3net_python_dependencies.sh \
-    /fv3net/docker/prognostic_run/requirements.txt \
+RUN bash install_fv3net_packages.sh \
     /fv3net/external/vcm \
     /fv3net/external/artifacts \
     /fv3net/external/loaders \
@@ -31,12 +41,6 @@ RUN bash install_fv3net_python_dependencies.sh \
     /fv3net/workflows/prognostic_c48_run \
     /fv3net/external/emulation \
     /fv3net/external/radiation
-
-# compile and install the wrapper. Then import fv3gfs.wrapper as a minimal test
-# that it works.
-COPY .environment-scripts/install_python_wrapper.sh .
-RUN CALLPYFORT=Y bash install_python_wrapper.sh /tmp/fortran-build/FV3
-RUN python3 -c 'import fv3gfs.wrapper'
 
 RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
