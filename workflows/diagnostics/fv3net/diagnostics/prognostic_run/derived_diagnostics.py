@@ -87,9 +87,9 @@ def water_vapor_path_in_tropical_ascent_timeseries(diags: xr.Dataset) -> xr.Data
     psi = diags[MASS_STREAMFUNCTION_MID_TROPOSPHERE]
     wvp = diags["water_vapor_path_zonal_mean_value"]
     lat_min, lat_max = itcz_edges(psi)
-    ascent_region_wvp = wvp.sel(latitude=slice(lat_min, lat_max))
-    weights = np.cos(np.deg2rad(ascent_region_wvp.latitude))
-    ascent_region_mean = vcm.weighted_average(ascent_region_wvp, weights, ["latitude"])
+    weights = np.cos(np.deg2rad(psi.latitude))
+    weights = weights.where(psi.latitude > lat_min).where(psi.latitude < lat_max)
+    ascent_region_mean = vcm.weighted_average(wvp, weights, ["latitude"])
     return ascent_region_mean.assign_attrs(
         long_name="Water vapor path in tropical ascent region"
     )
