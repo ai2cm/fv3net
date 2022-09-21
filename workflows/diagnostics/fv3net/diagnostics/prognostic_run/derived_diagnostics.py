@@ -69,7 +69,8 @@ def psi_bias_mid_troposphere(diags: xr.Dataset) -> xr.DataArray:
 def itcz_strength_timeseries(diags: xr.Dataset) -> xr.DataArray:
     if MASS_STREAMFUNCTION_MID_TROPOSPHERE not in diags:
         return xr.DataArray()
-    psi = diags[MASS_STREAMFUNCTION_MID_TROPOSPHERE]
+    # sometimes last timestep of diagnostic is NaNs
+    psi = diags[MASS_STREAMFUNCTION_MID_TROPOSPHERE].dropna("time")
     lat_min, lat_max = itcz_edges(psi)
     max_minus_min = psi.sel(latitude=lat_max) - psi.sel(latitude=lat_min)
     return max_minus_min.assign_attrs(
