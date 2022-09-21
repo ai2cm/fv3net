@@ -58,7 +58,7 @@ then
         # rule for this.
         cp $FV3NET_DIR/constraints.txt $FV3NET_DIR/docker/prognostic_run/requirements.txt
     fi
-    bash $PLATFORM_SCRIPTS/install_python_requirements.sh $FV3NET_DIR/docker/prognostic_run/requirements.txt
+    bash $PLATFORM_SCRIPTS/install_python_requirements.sh $SCRIPTS $FV3NET_DIR/docker/prognostic_run/requirements.txt
 fi
 
 
