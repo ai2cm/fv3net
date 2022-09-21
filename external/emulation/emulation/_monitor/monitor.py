@@ -273,12 +273,16 @@ class StorageHook:
             logger.debug(
                 f"Store flags: save_zarr={self.save_zarr}, save_nc={self.save_nc}"
             )
+            try:
+                if self.save_zarr:
+                    _store_zarr(state, time, self.monitor, self.metadata)
 
-            if self.save_zarr:
-                _store_zarr(state, time, self.monitor, self.metadata)
+                if self.save_nc:
+                    _store_netcdf(state, time, self.nc_dump_path, self.metadata)
 
-            if self.save_nc:
-                _store_netcdf(state, time, self.nc_dump_path, self.metadata)
-
-            if self.save_tfrecord:
-                self._store_tfrecord(state, time)
+                if self.save_tfrecord:
+                    self._store_tfrecord(state, time)
+            except Exception as e:
+                shapes = {key: np.shape(val) for key, val in state.items()}
+                logger.critical("Failed to store state with shapes: %s", shapes)
+                raise e
