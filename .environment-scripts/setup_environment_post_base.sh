@@ -9,27 +9,15 @@ FV3NET_DIR=$5
 CALLPYFORT=$6  # Should be '' if not installed -- should be made an option
 CONDA_ENV=$7  # Also optional (not needed in prognostic run docker image for instance)
 
-FMS_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FMS
-FV3_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FV3
-
 SCRIPTS=$FV3NET_DIR/.environment-scripts
 PLATFORM_SCRIPTS=$SCRIPTS/$PLATFORM
-NCEPLIBS_DIR=$INSTALL_PREFIX/NCEPlibs
-ESMF_DIR=$INSTALL_PREFIX/esmf
 
 if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3gfs-fortran" ] || [ $INSTALL_TYPE == "wrapper" ];
 then
-    if [ $PLATFORM == "gnu_docker" ];
-    then
-        export NCEPLIBS_DIR=$NCEPLIBS_DIR/lib
-    else
-        # I prefer this version, but it is hard-coded in the configuration file for
-        # gnu_docker in the fortran repo.
-        export NCEPLIBS_DIR=$NCEPLIBS_DIR
-    fi
-    export ESMF_DIR=$ESMF_DIR
-    export FMS_DIR=$FMS_DIR
-    export FV3_DIR=$FV3_DIR
+    export NCEPLIBS_DIR=$INSTALL_PREFIX/NCEPlibs
+    export ESMFMKFILE=$INSTALL_PREFIX/esmf/lib/esmf.mk
+    export FMS_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FMS
+    export FV3_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FV3
     if [ ! -z "${CALLPYFORT}" ];
     then
         export CALL_PY_FORT_DIR=$CLONE_PREFIX/call_py_fort

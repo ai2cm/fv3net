@@ -43,7 +43,7 @@ RUN python3 -c 'import fv3gfs.wrapper'
 # Install the fv3net packages.  Do this last, because these packages change the most
 # frequently during our development.  This allows us to get the most out of caching
 # the prior build steps.
-COPY .environment-scripts/install_fv3net_packages.sh .
+COPY .environment-scripts/install_fv3net_packages.sh ${FV3NET_SCRIPTS}/
 COPY external/vcm /fv3net/external/vcm
 COPY external/artifacts /fv3net/external/artifacts
 COPY external/loaders /fv3net/external/loaders
