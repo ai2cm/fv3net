@@ -8,9 +8,8 @@ COPY .environment-scripts/install_fv3gfs_fortran.sh .
 RUN CALLPYFORT=Y bash install_fv3gfs_fortran.sh /tmp/fortran-build/FV3 gnu_docker /usr/local
 
 # Install the Python requirements
-COPY .environment-scripts/install_python_requirements.sh .
 COPY docker/prognostic_run/requirements.txt /fv3net/docker/prognostic_run/requirements.txt
-RUN bash install_python_requirements.sh /fv3net/docker/prognostic_run/requirements.txt
+RUN pip install --no-cache-dir -r /fv3net/docker/prognostic_run/requirements.txt
 
 # Compile and install the wrapper. Then import fv3gfs.wrapper as a minimal test
 # that it works.
