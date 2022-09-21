@@ -55,10 +55,12 @@ import logging
 logger = logging.getLogger("SaveDiags")
 
 
-def itcz_edges(psi: xr.DataArray, lat: str = "latitude",) -> Tuple[float, float]:
+def itcz_edges(
+    psi: xr.DataArray, lat: str = "latitude",
+) -> Tuple[xr.DataArray, xr.DataArray]:
     """Compute latitude of ITCZ edges given mass streamfunction at particular level."""
-    lat_min = psi.sel({lat: slice(-30, 10)}).idxmin(lat).item()
-    lat_max = psi.sel({lat: slice(-10, 30)}).idxmax(lat).item()
+    lat_min = psi.sel({lat: slice(-30, 10)}).idxmin(lat)
+    lat_max = psi.sel({lat: slice(-10, 30)}).idxmax(lat)
     return lat_min, lat_max
 
 
