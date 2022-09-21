@@ -101,17 +101,22 @@ def get_tendency_prescriber(
 
 def _get_time_lookup_function(
     mapper: Mapping[str, xr.Dataset],
-    variables: Sequence[str],
+    variables: Union[Sequence[str], Mapping[str, str]],
     initial_time: Optional[str] = None,
     frequency_seconds: float = 900.0,
     limiter: Optional[DatasetQuantileLimiter] = None,
 ) -> Callable[[cftime.DatetimeJulian], State]:
+    if isinstance(variables, list):
+        _variables: Mapping[str, str] = {var: var for var in variables}
+    elif isinstance(variables, dict):
+        _variables = variables
+
     def time_lookup_function(time: cftime.DatetimeJulian) -> State:
         timestamp = vcm.encode_time(time)
         ds = mapper[timestamp]
         if limiter is not None:
             ds = limiter.transform(ds)
-        return {var: ds[var].load() for var in variables}
+        return {var_out: ds[var_in].load() for var_in, var_out in _variables.items()}
 
     if initial_time is not None:
         initial_time = label_to_time(initial_time)

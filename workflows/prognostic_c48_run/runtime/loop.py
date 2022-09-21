@@ -282,7 +282,8 @@ class TimeLoop(
                 stepper_config, self._get_communicator()
             )
             self._log_info(
-                f"Using Prescriber for variables {stepper_config.variables} at {step}."
+                f"Using Prescriber for variables {list(stepper_config.variables)}"
+                f" at {step}."
             )
         return stepper
 
