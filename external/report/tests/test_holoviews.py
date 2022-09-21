@@ -1,9 +1,8 @@
+import holoviews as hv
 from report.holoviews import HVPlot, get_html_header
 
 
 def test_HVPlot():
-    import holoviews as hv
-
     hv.extension("bokeh")
     m = hv.HoloMap()
     p = hv.Curve([(0, 1), (1, 0)])
@@ -18,6 +17,15 @@ def test_HVPlot():
     # ensure that this output only contains a div and script
     # not a complete html page
     assert "<html/>" not in out
+
+
+def test_HVPlot_on_empty_holomap():
+    hv.extension("bokeh")
+    m = hv.HoloMap()
+
+    plot = HVPlot(m)
+    out = repr(plot)
+    assert out == ""
 
 
 def test_get_html_header():
