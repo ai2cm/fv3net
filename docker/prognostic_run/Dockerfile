@@ -18,6 +18,7 @@ RUN bash /fv3net/.environment-scripts/setup_environment.sh \
 
 # Copy data and files required for creating the Python environment
 COPY .environment-scripts/install_fv3net_python_dependencies.sh ${FV3NET_SCRIPTS}/
+COPY .environment-scripts/${PLATFORM}/install_fv3net_python_dependencies.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
 COPY docker/prognostic_run/requirements.txt /fv3net/docker/prognostic_run/requirements.txt
 COPY external/vcm /fv3net/external/vcm
 COPY external/artifacts /fv3net/external/artifacts
