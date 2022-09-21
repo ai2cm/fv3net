@@ -86,8 +86,10 @@ def apply_condensation_liquid_phase(state, net_condensation):
 
 
 @numba.njit
-def ice_water_number(temperature_celsius, cloud):
-    """Implement cloud water number from gscond.f
+def ice_water_flag(temperature_celsius, cloud):
+    """Implement ice water id number from gscond.f
+
+    If this is 1 then the cloud is all ice. If it is 0, then it is all liquid.
 
     Note a small difference in < -15 case to remove the RH dependent threshold
     """
@@ -118,7 +120,7 @@ def latent_heat_phase_dependent(iw):
 
 def apply_condensation_phase_dependent(state, net_condensation):
     temperature_celsius = state[Input.temperature] - 273.16
-    iw = ice_water_number(temperature_celsius, cloud=state[Input.cloud_water])
+    iw = ice_water_flag(temperature_celsius, cloud=state[Input.cloud_water])
     lv = latent_heat_phase_dependent(iw)
     return apply_condensation(state, net_condensation=net_condensation, lv=lv)
 
