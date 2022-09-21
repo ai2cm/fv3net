@@ -85,11 +85,15 @@ class CycleGAN(Reloadable):
         """Load a serialized model from a directory."""
         return _load_pytorch(cls, path)
 
+    def to(self, device) -> "CycleGAN":
+        model = self.model.to(device)
+        return CycleGAN(model, self.scalers, **self.get_config())
+
     def dump(self, path: str) -> None:
         _dump_pytorch(self, path)
 
     def get_config(self):
-        return {}
+        return {"state_variables": self.state_variables}
 
     def pack_to_tensor(self, ds: xr.Dataset, domain: str = "a") -> torch.Tensor:
         """
@@ -158,11 +162,15 @@ class CycleGAN(Reloadable):
             input_domain, output_domain = "a", "b"
 
         tensor = self.pack_to_tensor(X, domain=input_domain)
+        if reverse:
+            generator = self.generator_b_to_a
+        else:
+            generator = self.generator_a_to_b
+        n_batch = 100
+        outputs = torch.zeros_like(tensor)
         with torch.no_grad():
-            if reverse:
-                outputs: torch.Tensor = self.generator_b_to_a(tensor)
-            else:
-                outputs = self.generator_a_to_b(tensor)
-        outputs = outputs.reshape(tensor.shape)
+            for i in range(0, tensor.shape[0], n_batch):
+                new: torch.Tensor = generator(tensor[i : i + n_batch])
+                outputs[i : i + new.shape[0]] = new
         predicted = self.unpack_tensor(outputs, domain=output_domain)
         return predicted

@@ -94,6 +94,9 @@ class ModelConfig:
             inferred from the cloud change after all masks have been applied. The
             latent heat is inferred assuming liquid condensate. Differs from,
             but typically used in concert with ``gscond_cloud_conservative``.
+        enforce_conservative_phase_dependent: Same as ``enforce_conservative``
+            but uses temperature and cloud dependent latent heat value similar
+            to the gscond.f.
         tensor_transform: differerentiable tensorflow
             transformations to apply before and after data is passed to models.
             Currently only works with transforms that do not require to be
@@ -115,10 +118,15 @@ class ModelConfig:
     mask_gscond_identical_cloud: bool = False
     mask_gscond_zero_cloud: bool = False
     enforce_conservative: bool = False
+    enforce_conservative_phase_dependent: bool = False
     mask_gscond_zero_cloud_classifier: bool = False
     mask_gscond_no_tend_classifier: bool = False
     mask_precpd_zero_cloud_classifier: bool = False
     batch_size: int = 512
+
+    def __post_init__(self):
+        if self.enforce_conservative and self.enforce_conservative_phase_dependent:
+            raise ValueError("These options are mutually exclusive.")
 
     @property
     def _transform_factory(self) -> ComposedTransformFactory:
@@ -185,6 +193,8 @@ class ModelConfig:
 
         if self.enforce_conservative:
             yield emulation.zhao_carr.enforce_conservative_gscond
+        elif self.enforce_conservative_phase_dependent:
+            yield emulation.zhao_carr.enforce_conservative_phase_dependent
 
         for key, _slice in self.mask_emulator_levels.items():
             yield LevelMask(

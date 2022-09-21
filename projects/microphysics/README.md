@@ -1,5 +1,17 @@
 # Microphysics Emulation
 
+## Quickstart
+
+To submit a job (training or online evaluation) from a yaml:
+
+    end_to_end.py path/to/config.yaml
+
+To reproduce a given run in wandb, run
+
+    reproduce.py ai2cm/microphysics-emulation/id > config.yaml
+
+Then edit the `config.yaml` as you see fit and submit as above.
+
 ## Prognostic Evaluation
 
 Be sure to set up your environment file for authentication from the instructions in our [quickstart documentation](https://vulcanclimatemodeling.com/docs/fv3net/quickstarts.html#quickstarts).
