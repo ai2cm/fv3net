@@ -49,7 +49,6 @@ then
     bash $PLATFORM_SCRIPTS/install_python_requirements.sh $SCRIPTS $FV3NET_DIR/docker/prognostic_run/requirements.txt
 fi
 
-
 if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "wrapper" ];
 then
     CALLPYFORT=$CALLPYFORT bash $PLATFORM_SCRIPTS/install_python_wrapper.sh $SCRIPTS $FV3_DIR
