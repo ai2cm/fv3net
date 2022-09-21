@@ -1,0 +1,7 @@
+ablate-gscond-classifier-v1-online
+precpd-diff-only-rnn-combined-v1
+precpd-diff-only-rnn-combined-cloudlimit-v5
+gscond-only-classifier-nomasking-online-10d-v1
+gscond-only-classifier-zcloud-online-10d-v2
+precpd-diff-only-dense-v1
+precpd-diff-only-rnn-v1-shared-weights-v1
