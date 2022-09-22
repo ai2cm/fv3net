@@ -21,6 +21,10 @@ try:
 except ModuleNotFoundError:
     plt = None
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @dataclasses.dataclass
 class CycleGANNetworkConfig:
@@ -89,7 +93,7 @@ class CycleGANNetworkConfig:
             discriminator_a=discriminator_a,
             discriminator_b=discriminator_b,
         ).to(DEVICE)
-        # init_weights(model)
+        init_weights(model)
         return CycleGANTrainer(
             cycle_gan=CycleGAN(
                 model=model,
@@ -149,7 +153,7 @@ def init_weights(
             torch.nn.init.normal_(module.weight.data, 1.0, init_gain)
             torch.nn.init.constant_(module.bias.data, 0.0)
 
-    print("initialize network with %s" % init_type)
+    logger.info("initializing network with %s" % init_type)
     net.apply(init_func)  # apply the initialization function <init_func>
 
 

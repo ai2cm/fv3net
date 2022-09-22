@@ -24,7 +24,6 @@ from runtime.steppers.machine_learning import (
 )
 from runtime.interpolate import time_interpolate_func, label_to_time
 from runtime.derived_state import DerivedFV3State
-import runtime.transformers.emulator
 import runtime.transformers.fv3fit
 import pace.util
 import radiation
@@ -40,15 +39,6 @@ def get_fv3_physics_transformer(
 ) -> Optional[StepTransformer]:
     if config.online_emulator is None:
         return None
-    elif isinstance(config.online_emulator, runtime.transformers.emulator.Config):
-        emulator = runtime.transformers.emulator.Adapter(config.online_emulator)
-        return StepTransformer(
-            emulator,
-            state,
-            "emulator",
-            diagnostic_variables=set(config.diagnostic_variables),
-            timestep=timestep,
-        )
     elif isinstance(config.online_emulator, runtime.transformers.fv3fit.Config):
         model = runtime.transformers.fv3fit.Adapter(config.online_emulator, timestep)
         return StepTransformer(

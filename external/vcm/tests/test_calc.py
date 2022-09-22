@@ -197,8 +197,10 @@ def test_relative_humidity_from_pressure():
 
 da = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
 da_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
+da_some_nans = xr.DataArray([1, 2, 3, np.nan], dims=["z"])
 ds = xr.Dataset({"a": da})
 weights = xr.DataArray([0.5, 0.5, 1, 1], dims=["z"])
+weights_some_nans = xr.DataArray([0.5, 0.5, np.nan, 1], dims=["z"])
 weights_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
 
 
@@ -207,8 +209,10 @@ weights_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
     [
         (da, weights, "z", xr.DataArray(17.0 / 6.0)),
         (ds, weights, "z", xr.Dataset({"a": xr.DataArray(17.0 / 6.0)})),
-        (da_nans, weights, "z", xr.DataArray(0.0)),
+        (da_nans, weights, "z", xr.DataArray(np.nan)),
         (da, weights_nans, "z", xr.DataArray(np.nan)),
+        (da, weights_some_nans, "z", xr.DataArray((0.5 + 1 + 4) / (0.5 + 0.5 + 1))),
+        (da_some_nans, weights, "z", xr.DataArray((0.5 + 1 + 3) / (0.5 + 0.5 + 1))),
     ],
 )
 def test_weighted_average(da, weights, dims, expected):

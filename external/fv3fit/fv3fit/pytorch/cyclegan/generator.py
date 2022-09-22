@@ -75,9 +75,13 @@ class GeneratorConfig:
 
 
 class GeographicBias(nn.Module):
+    """
+    Adds a trainable bias vector of shape [6, channels, nx, ny] to the layer input.
+    """
+
     def __init__(self, channels: int, nx: int, ny: int):
         super().__init__()
-        self.bias = nn.Parameter(torch.zeros(1, channels, nx, ny))
+        self.bias = nn.Parameter(torch.zeros(6, channels, nx, ny))
 
     def forward(self, x):
         return x + self.bias
@@ -215,14 +219,9 @@ class Generator(nn.Module):
             tensor of shape [batch, tile, channels, x, y]
         """
         x = self._input_bias(inputs)
-        if hasattr(self, "_main"):
-            x = self._main(x)
-        else:
-            x = self._first_conv(x)
-            x = self._encoder_decoder(x)
-            x = self._out_conv(x)
-        x = self._output_bias(x)
-        return x
+        x = self._main(x)
+        outputs: torch.Tensor = self._output_bias(x)
+        return outputs
 
 
 class SymmetricEncoderDecoder(nn.Module):

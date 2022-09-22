@@ -46,7 +46,6 @@ from fv3fit.emulation.losses import CustomLoss
 from fv3fit.emulation.models import (
     transform_model,
     MicrophysicsConfig,
-    ConservativeWaterConfig,
 )
 from fv3fit.emulation.transforms import (
     ComposedTransformFactory,
@@ -83,6 +82,7 @@ __all__ = [
     "ArchitectureConfig",
     "SliceConfig",
     "TransformT",
+    "OptimizerConfig",
 ]
 
 TransformT = Union[
@@ -162,7 +162,6 @@ class TransformedParameters(Hyperparameters):
     tensor_transform: List[TransformT] = field(default_factory=list)
     filters: List[FilterT] = field(default_factory=list)
     model: Union[PrecpdModelConfig, MicrophysicsConfig, None] = None
-    conservative_model: Optional[ConservativeWaterConfig] = None
     loss: Union[CustomLoss, ZhaoCarrLoss] = field(default_factory=CustomLoss)
     epochs: int = 1
     batch_size: int = 128
@@ -207,12 +206,8 @@ class TransformedParameters(Hyperparameters):
     def _model(self,) -> Model:
         if self.model:
             return self.model
-        elif self.conservative_model:
-            return self.conservative_model
         else:
-            raise ValueError(
-                "Neither .model, .conservative_model, nor .transformed_model provided."
-            )
+            raise ValueError(".model not provided.")
 
     def build_model(
         self, data: Mapping[str, tf.Tensor], transform: TensorTransform
@@ -358,8 +353,7 @@ class TrainConfig(TransformedParameters):
             args: A list of arguments to be parsed.  If not provided, uses
                 sys.argv
 
-                Requires "--config-path", use "--config-path default" to use
-                default configuration
+                Requires "--config-path"
 
                 Note: arguments should be in the flat style used by wandb where all
                 nested mappings are at the top level with '.' joined keys. E.g.,
@@ -368,18 +362,11 @@ class TrainConfig(TransformedParameters):
 
         parser = argparse.ArgumentParser()
         parser.add_argument(
-            "--config-path",
-            required=True,
-            help="Path to training config yaml. Use '--config-path default'"
-            " to run with a default configuration.",
+            "--config-path", required=True, help="Path to training config yaml.",
         )
 
         path_arg, unknown_args = parser.parse_known_args(args=args)
-
-        if path_arg.config_path == "default":
-            config = get_default_config()
-        else:
-            config = cls.from_yaml_path(path_arg.config_path)
+        config = cls.from_yaml_path(path_arg.config_path)
 
         if unknown_args:
             updated = get_arg_updated_config_dict(
@@ -579,78 +566,6 @@ def main(config: TrainConfig, seed: int = 0):
         return save(config)
     else:
         return train_main(config)
-
-
-def get_default_config():
-
-    input_vars = [
-        "air_temperature_input",
-        "specific_humidity_input",
-        "cloud_water_mixing_ratio_input",
-        "pressure_thickness_of_atmospheric_layer",
-    ]
-
-    model_config = MicrophysicsConfig(
-        input_variables=input_vars,
-        direct_out_variables=[
-            "cloud_water_mixing_ratio_after_precpd",
-            "total_precipitation",
-        ],
-        residual_out_variables=dict(
-            air_temperature_after_precpd="air_temperature_input",
-            specific_humidity_after_precpd="specific_humidity_input",
-        ),
-        architecture=ArchitectureConfig("linear"),
-        selection_map=dict(
-            air_temperature_input=SliceConfig(stop=-10),
-            specific_humidity_input=SliceConfig(stop=-10),
-            cloud_water_mixing_ratio_input=SliceConfig(stop=-10),
-            pressure_thickness_of_atmospheric_layer=SliceConfig(stop=-10),
-        ),
-        tendency_outputs=dict(
-            air_temperature_after_precpd="tendency_of_air_temperature_due_to_microphysics",  # noqa E501
-            specific_humidity_after_precpd="tendency_of_specific_humidity_due_to_microphysics",  # noqa E501
-        ),
-    )
-
-    transform = TransformConfig()
-
-    loss = CustomLoss(
-        optimizer=OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
-        loss_variables=[
-            "air_temperature_after_precpd",
-            "specific_humidity_after_precpd",
-            "cloud_water_mixing_ratio_after_precpd",
-            "total_precipitation",
-        ],
-        weights=dict(
-            air_temperature_after_precpd=0.5e5,
-            specific_humidity_after_precpd=0.5e5,
-            cloud_water_mixing_ratio_after_precpd=1.0,
-            total_precipitation=0.04,
-        ),
-        metric_variables=[
-            "tendency_of_air_temperature_due_to_microphysics",
-            "tendency_of_specific_humidity_due_to_microphysics",
-            "tendency_of_cloud_water_mixing_ratio_due_to_microphysics",
-        ],
-    )
-
-    config = TrainConfig(
-        train_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train",  # noqa E501
-        test_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",  # noqa E501
-        out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
-        model=model_config,
-        transform=transform,
-        loss=loss,
-        nfiles=80,
-        nfiles_valid=80,
-        valid_freq=1,
-        epochs=4,
-        wandb=WandBConfig(job_type="training"),
-    )
-
-    return config
 
 
 if __name__ == "__main__":

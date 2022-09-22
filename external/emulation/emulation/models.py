@@ -1,4 +1,4 @@
-from typing import Callable, Any, Optional
+from typing import Callable, Any, Optional, Sequence
 import logging
 
 
@@ -18,7 +18,13 @@ class ModelWithClassifier:
         classifier: Optional[tf.keras.Model] = None,
         class_key: str = "gscond_classes",
         batch_size: int = 1024,
+        inputs_to_ignore: Sequence[str] = ("rank", "model_time"),
     ):
+        """
+        Args:
+            inputs_to_ignore: variables that ``model`` and ``classifier`` may
+                reject. For example, scalar or singleton value variables.
+        """
         self.model = adapters.ensure_dict_output(model)
         if classifier is None:
             self.classifier = None
@@ -26,8 +32,10 @@ class ModelWithClassifier:
             self.classifier = adapters.ensure_dict_output(classifier)
         self._class_key = class_key
         self._batch_size = batch_size
+        self.inputs_to_ignore = inputs_to_ignore
 
     def __call__(self, state: FortranState) -> FortranState:
+        state = {k: v for k, v in state.items() if k not in self.inputs_to_ignore}
 
         if self.classifier is not None:
             classifier_outputs = self.classifier.predict(
@@ -49,9 +57,6 @@ def transform_model(
     model: Callable[[FortranState], FortranState], transform: Any
 ) -> Callable[[FortranState], FortranState]:
     def combined(x: FortranState) -> FortranState:
-        # model time is an array of length 8, which can conflict with the other
-        # arrays here
-        x = {k: v for k, v in x.items() if k != "model_time"}
         x_transformed = transform.forward(x)
         x_transformed.update(model(x_transformed))
         output = transform.backward(x_transformed)

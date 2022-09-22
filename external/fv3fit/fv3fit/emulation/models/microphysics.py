@@ -12,12 +12,11 @@ from fv3fit.emulation.layers.normalization2 import (
     MeanMethod,
 )
 from fv3fit.keras.adapters import ensure_dict_output
-from fv3fit.emulation.zhao_carr_fields import Field, ZhaoCarrFields
+from fv3fit.emulation.zhao_carr_fields import ZhaoCarrFields
 from fv3fit.emulation.models.base import Model
 from fv3fit.emulation.layers import (
     FieldInput,
     FieldOutput,
-    IncrementedFieldOutput,
     ArchitectureConfig,
 )
 
@@ -31,12 +30,6 @@ class MicrophysicsConfig:
     Args:
         input_variables: names of all inputs to the model
         direct_out_variables: names of direct field prediction outputs of the model.
-        residual_out_variables: names of outputs using a residual-based output,
-            analogous to learning model tendencies instead of direct
-            field-to-field prediction. The mapping of residual output variable names
-            to an associated model input name to increment. E.g.,
-            {"air_temperature_output": "air_temperature_input"} produces the
-            output air_temperature_output = air_temperature_input + tendency * timestep
         unscaled_outputs: outputs that won't be rescaled.
             ``direct_out_variables`` are rescaled before being returned by the
             constructed model.
@@ -47,10 +40,6 @@ class MicrophysicsConfig:
         normalize_map: overrides the default normalization per variable
         selection_map: Subselection mapping for feature dimension of input/output
             variables to slices along the feature dimension
-        tendency_outputs: Additional output tendencies to get from the
-            residual-based output layers.  The mapping key should match a variable in
-            residual_outputs and the value will be the new output variable
-            name.
         timestep_increment_sec: Time increment multiplier for the state-tendency
             update
 
@@ -58,7 +47,6 @@ class MicrophysicsConfig:
 
     input_variables: List[str] = dataclasses.field(default_factory=list)
     direct_out_variables: List[str] = dataclasses.field(default_factory=list)
-    residual_out_variables: Mapping[str, str] = dataclasses.field(default_factory=dict)
     architecture: ArchitectureConfig = dataclasses.field(
         default_factory=lambda: ArchitectureConfig(name="linear")
     )
@@ -67,7 +55,6 @@ class MicrophysicsConfig:
     )
     selection_map: Mapping[str, SliceConfig] = dataclasses.field(default_factory=dict)
     normalize_map: Mapping[str, NormFactory] = dataclasses.field(default_factory=dict)
-    tendency_outputs: Mapping[str, str] = dataclasses.field(default_factory=dict)
     timestep_increment_sec: int = 900
     unscaled_outputs: List[str] = dataclasses.field(default_factory=list)
 
@@ -87,12 +74,7 @@ class MicrophysicsConfig:
 
     @property
     def output_variables(self) -> List[str]:
-        return (
-            self.direct_out_variables
-            + list(self.residual_out_variables.keys())
-            + list(self.tendency_outputs.values())
-            + list(self.unscaled_outputs)
-        )
+        return self.direct_out_variables + list(self.unscaled_outputs)
 
     def _get_norm_factory(self, name: str) -> Optional[NormFactory]:
         return self.normalize_map.get(name, self.normalize_default)
@@ -126,30 +108,6 @@ class MicrophysicsConfig:
             for name in self.unscaled_outputs
         }
 
-    def _get_residual_outputs(self, inputs, data, net_output):
-
-        outputs = {}
-        for name in self.residual_out_variables:
-            # incremented state field output
-            in_state = inputs[self.residual_out_variables[name]]
-            res_out = IncrementedFieldOutput(
-                self.timestep_increment_sec,
-                sample_out=data[name],
-                sample_in=data[self.residual_out_variables[name]],
-                denormalize=self._get_norm_factory(name),
-                name=name,
-                tendency_name=self.tendency_outputs.get(name, None),
-            )
-            out_ = res_out(in_state, net_output[name])
-            outputs[name] = out_
-
-            if name in self.tendency_outputs:
-                tend_name = self.tendency_outputs[name]
-                tendency = res_out.get_tendency_output(net_output[name])
-                outputs[tend_name] = tendency
-
-        return outputs
-
     def _compute_hidden(self, inputs, data):
         processed = self._get_processed_inputs(data, inputs)
         output_features = {key: data[key].shape[-1] for key in self.output_variables}
@@ -176,7 +134,6 @@ class MicrophysicsConfig:
             inputs=inputs,
             outputs={
                 **self._get_direct_outputs(data, hidden),
-                **self._get_residual_outputs(inputs, data, hidden),
                 **self._get_unscaled_outputs(hidden),
             },
         )
@@ -186,93 +143,6 @@ def _check_types():
     # add some type assertions to enforce ensure that the model classes match
     # the protocol
     _: Model = MicrophysicsConfig()
-    _: Model = ConservativeWaterConfig()
-
-
-@dataclasses.dataclass
-class ConservativeWaterConfig:
-    """Builds a model that diagnoses surface precipitation based on the total
-    water sink predicted by another ML model
-
-
-    The model returned by .build will include this surface precipitation
-    under the output name ``fields.surface_precipitation``.
-
-    Attributes:
-        extra_input_variables: extra inputs beyond cloud water, specific
-            humidity, and air temperature to pass to the ML architecture.
-    """
-
-    fields: ZhaoCarrFields = ZhaoCarrFields()
-    architecture: ArchitectureConfig = dataclasses.field(
-        default_factory=lambda: ArchitectureConfig(name="linear")
-    )
-    extra_input_variables: List[Field] = dataclasses.field(default_factory=list)
-    normalize_key: Optional[NormFactory] = NormFactory(
-        scale=StdDevMethod.all, center=MeanMethod.per_feature
-    )
-    timestep_increment_sec: int = 900
-
-    @property
-    def _prognostic_fields(self) -> List[Field]:
-        return [
-            self.fields.cloud_water,
-            self.fields.air_temperature,
-            self.fields.specific_humidity,
-        ]
-
-    def _build_base_model(self, data) -> tf.keras.Model:
-
-        prognostic_variables = self._prognostic_fields
-
-        return MicrophysicsConfig(
-            input_variables=[
-                v.input_name for v in prognostic_variables + self.extra_input_variables
-            ],
-            direct_out_variables=[
-                var.output_name for var in prognostic_variables if not var.residual
-            ],
-            residual_out_variables={
-                var.output_name: var.input_name
-                for var in prognostic_variables
-                if var.residual
-            },
-            tendency_outputs={
-                var.output_name: var.tendency_name
-                for var in prognostic_variables
-                if var.residual and var.tendency_name
-            },
-            architecture=self.architecture,
-            normalize_default=self.normalize_key,
-            timestep_increment_sec=self.timestep_increment_sec,
-            selection_map={v.input_name: v.selection for v in self._input_variables},
-        ).build(data)
-
-    @property
-    def _input_variables(self) -> List[Field]:
-        return (
-            [v for v in self._prognostic_fields]
-            + [self.fields.pressure_thickness]
-            + self.extra_input_variables
-        )
-
-    @property
-    def input_variables(self) -> List[str]:
-        return [v.input_name for v in self._input_variables]
-
-    @property
-    def output_variables(self) -> List[str]:
-        return [v.output_name for v in self._prognostic_fields] + [
-            self.fields.surface_precipitation.output_name
-        ]
-
-    @property
-    def name(self):
-        return f"conservative-microphysics-emulator-{self.architecture.name}"
-
-    def build(self, data: Mapping[str, tf.Tensor]) -> tf.keras.Model:
-        model = self._build_base_model(data)
-        return _assoc_conservative_precipitation(model, self.fields)
 
 
 def _assoc_conservative_precipitation(

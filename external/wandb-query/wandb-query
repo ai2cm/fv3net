@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+import json
+import os
+
+import typer
+import sys
+
+import wandb
+
+app = typer.Typer()
+
+
+def get_project():
+    try:
+        return os.environ["WANDB_PROJECT"]
+    except KeyError:
+        typer.echo("Error: WANDB_PROJECT environment variable not set.", err=True)
+        sys.exit(1)
+
+
+WANDB_PROJECT = get_project()
+WANDB_ENTITY = os.getenv("WANDB_ENTITY", "ai2cm")
+
+WANDB_PATH = WANDB_ENTITY + "/" + WANDB_PROJECT
+
+
+def _get_runs(api, experiment, group, job_type):
+    if experiment:
+        filters = filters = {"tags": experiment}
+    else:
+        filters = {}
+
+    if group:
+        filters["group"] = {"$regex": group}
+
+    if job_type:
+        filters["jobType"] = {"$regex": job_type}
+
+    return api.runs(WANDB_PATH, filters=filters)
+
+
+@app.command()
+def runs(
+    tag: str = typer.Option("", "--tag"),
+    group: str = typer.Option("", "--group"),
+    job_type: str = typer.Option("", "--job-type"),
+    format: str = typer.Option("", "-o"),
+):
+    """
+    By default shows the following separated by spaces:
+        run group, job type, name, url
+    """
+    api = wandb.Api()
+    runs = _get_runs(api, tag, group, job_type)
+    for run in runs:
+        summary = {}
+        for k, v in run.summary.items():
+            # ensure that summary can be serialized to json
+            try:
+                json.dumps(v)
+            except Exception:
+                pass
+            else:
+                summary[k] = v
+        if format == "json":
+            d = {
+                "job_type": run.job_type,
+                "group": run.group,
+                "tags": run.tags,
+                "id": run.id,
+                "url": run.url,
+                "summary": summary,
+                "config": run.config,
+            }
+            typer.echo(json.dumps(d))
+        else:
+            print(run.group, run.job_type, run.name, run.url)
+
+
+if __name__ == "__main__":
+    app()
