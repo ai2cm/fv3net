@@ -21,9 +21,9 @@ Here `$CLONE_PREFIX` is the path to store the repositories downloaded during the
 
 ## Activating the prognostic run environment
 
-Once the prognostic run environment is installed, to activate it use the `.environment-scripts/activate_environment.sh` script.  This will activate the specified conda environment containing all the installed Python packages, and will also update the `LD_LIBRARY_PATH` appropriately to point to the ESMF and FMS shared libraries.  An example call might look like this:
+Once the prognostic run environment is installed, to activate it source the `.environment-scripts/activate_environment.sh` script.  This will activate the specified conda environment containing all the installed Python packages, and will also update the `LD_LIBRARY_PATH` appropriately to point to the ESMF and FMS shared libraries.  An example call might look like this:
 ```
-$ bash .environment-scripts/activate_environment.sh \
+$ source .environment-scripts/activate_environment.sh \
     gaea \
     $FV3NET_DIR \
     $INSTALL_PREFIX \
