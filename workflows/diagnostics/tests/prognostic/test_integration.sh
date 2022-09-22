@@ -22,11 +22,11 @@ jupyter
 EOF
 
 cat << EOF > 3d.script
-meridional specific_humidity
-zonal specific_humidity
-zonalavg specific_humidity
-column specific_humidity
-avg3d specific_humidity
+meridional air_temperature
+zonal air_temperature
+zonalavg air_temperature
+column air_temperature
+avg3d air_temperature
 EOF
 prognostic_run_diags shell report.script
 # assert an image has been output
