@@ -18,34 +18,34 @@ NCEPLIBS_DIR=$INSTALL_PREFIX/NCEPlibs
 ESMF_DIR=$INSTALL_PREFIX/esmf
 
 MODULES_FILE=$FV3_DIR/conf/modules.fv3.$PLATFORM
-if [ -f $MODULES_FILE ];
+if [ -f "$MODULES_FILE" ];
 then
-    source $MODULES_FILE
+    source "$MODULES_FILE"
 fi
 
-mkdir -p $CLONE_PREFIX
-mkdir -p $INSTALL_PREFIX
+mkdir -p "$CLONE_PREFIX"
+mkdir -p "$INSTALL_PREFIX"
 
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "base" ];
+if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "base" ];
 then
-    bash $PLATFORM_SCRIPTS/install_base_software.sh $INSTALL_PREFIX $CONDA_ENV
-    bash $PLATFORM_SCRIPTS/install_nceplibs.sh $SCRIPTS $CLONE_PREFIX/NCEPlibs $NCEPLIBS_DIR
-    bash $PLATFORM_SCRIPTS/install_esmf.sh $SCRIPTS $CLONE_PREFIX/esmf $ESMF_DIR
-    bash $PLATFORM_SCRIPTS/install_fms.sh $SCRIPTS $FMS_DIR
-    if [ ! -z "${CALLPYFORT}" ];
+    bash "$PLATFORM_SCRIPTS"/install_base_software.sh "$INSTALL_PREFIX" "$CONDA_ENV"
+    bash "$PLATFORM_SCRIPTS"/install_nceplibs.sh "$SCRIPTS" "$CLONE_PREFIX"/NCEPlibs "$NCEPLIBS_DIR"
+    bash "$PLATFORM_SCRIPTS"/install_esmf.sh "$SCRIPTS" "$CLONE_PREFIX"/esmf "$ESMF_DIR"
+    bash "$PLATFORM_SCRIPTS"/install_fms.sh "$SCRIPTS" "$FMS_DIR"
+    if [ -n "${CALLPYFORT}" ];
     then
-        bash $PLATFORM_SCRIPTS/install_call_py_fort.sh $SCRIPTS $CLONE_PREFIX/call_py_fort
+        bash "$PLATFORM_SCRIPTS"/install_call_py_fort.sh "$SCRIPTS" "$CLONE_PREFIX"/call_py_fort
     fi
 fi
 
-if [ $INSTALL_TYPE != "base" ];
+if [ "$INSTALL_TYPE" != "base" ];
 then
-    bash $SCRIPTS/setup_environment_post_base.sh \
-        $INSTALL_TYPE \
-        $PLATFORM \
-        $CLONE_PREFIX \
-        $INSTALL_PREFIX \
-        $FV3NET_DIR \
-        $CALLPYFORT \
-        $CONDA_ENV
+    bash "$SCRIPTS"/setup_environment_post_base.sh \
+        "$INSTALL_TYPE" \
+        "$PLATFORM" \
+        "$CLONE_PREFIX" \
+        "$INSTALL_PREFIX" \
+        "$FV3NET_DIR" \
+        "$CALLPYFORT" \
+        "$CONDA_ENV"
 fi

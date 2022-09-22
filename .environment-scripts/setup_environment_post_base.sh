@@ -12,63 +12,63 @@ CONDA_ENV=$7  # Also optional (not needed in prognostic run docker image for ins
 SCRIPTS=$FV3NET_DIR/.environment-scripts
 PLATFORM_SCRIPTS=$SCRIPTS/$PLATFORM
 
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3gfs-fortran" ] || [ $INSTALL_TYPE == "wrapper" ];
+if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "fv3gfs-fortran" ] || [ "$INSTALL_TYPE" == "wrapper" ];
 then
     export NCEPLIBS_DIR=$INSTALL_PREFIX/NCEPlibs
     export ESMFMKFILE=$INSTALL_PREFIX/esmf/lib/esmf.mk
     export FMS_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FMS
     export FV3_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FV3
-    if [ ! -z "${CALLPYFORT}" ];
+    if [ -n "${CALLPYFORT}" ];
     then
         export CALL_PY_FORT_DIR=$CLONE_PREFIX/call_py_fort
     fi
 fi
 
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3gfs-fortran" ];
+if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "fv3gfs-fortran" ];
 then
-    CALLPYFORT=$CALLPYFORT bash $PLATFORM_SCRIPTS/install_fv3gfs_fortran.sh $SCRIPTS $FV3_DIR $INSTALL_PREFIX
+    CALLPYFORT=$CALLPYFORT bash "$PLATFORM_SCRIPTS"/install_fv3gfs_fortran.sh "$SCRIPTS" "$FV3_DIR" "$INSTALL_PREFIX"
 fi
 
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "python-requirements" ] || [ $INSTALL_TYPE == "fv3net-packages" ] || [ $INSTALL_TYPE == "wrapper" ];
+if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "python-requirements" ] || [ "$INSTALL_TYPE" == "fv3net-packages" ] || [ $INSTALL_TYPE == "wrapper" ];
 then
     ACTIVATE_CONDA=$PLATFORM_SCRIPTS/activate_conda_environment.sh
-    if [ -f $ACTIVATE_CONDA ] && [ $INSTALL_TYPE != "all" ];
+    if [ -f "$ACTIVATE_CONDA" ] && [ "$INSTALL_TYPE" != "all" ];
     then
-        source $ACTIVATE_CONDA $CONDA_ENV
+        source "$ACTIVATE_CONDA" "$CONDA_ENV"
     fi
 fi
 
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "python-requirements" ];
+if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "python-requirements" ];
 then
-    if [ $PLATFORM != "gnu_docker" ];
+    if [ "$PLATFORM" != "gnu_docker" ];
     then
         # See fv3net#2046 for more information regarding why we cannot simply use the make
         # rule for this.
-        cp $FV3NET_DIR/constraints.txt $FV3NET_DIR/docker/prognostic_run/requirements.txt
+        cp "$FV3NET_DIR"/constraints.txt "$FV3NET_DIR"/docker/prognostic_run/requirements.txt
     fi
-    bash $PLATFORM_SCRIPTS/install_python_requirements.sh $SCRIPTS $FV3NET_DIR/docker/prognostic_run/requirements.txt
+    bash "$PLATFORM_SCRIPTS"/install_python_requirements.sh "$SCRIPTS" "$FV3NET_DIR"/docker/prognostic_run/requirements.txt
 fi
 
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "wrapper" ];
+if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "wrapper" ];
 then
-    CALLPYFORT=$CALLPYFORT bash $PLATFORM_SCRIPTS/install_python_wrapper.sh $SCRIPTS $FV3_DIR
+    CALLPYFORT=$CALLPYFORT bash "$PLATFORM_SCRIPTS"/install_python_wrapper.sh "$SCRIPTS" "$FV3_DIR"
 fi
 
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "fv3net-packages" ];
+if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "fv3net-packages" ];
 then
-    bash $SCRIPTS/install_fv3net_packages.sh \
-        $FV3NET_DIR/external/vcm \
-        $FV3NET_DIR/external/artifacts \
-        $FV3NET_DIR/external/loaders \
-        $FV3NET_DIR/external/fv3fit \
-        $FV3NET_DIR/external/fv3kube \
-        $FV3NET_DIR/workflows/post_process_run \
-        $FV3NET_DIR/workflows/prognostic_c48_run \
-        $FV3NET_DIR/external/emulation \
-        $FV3NET_DIR/external/radiation
+    bash "$SCRIPTS"/install_fv3net_packages.sh \
+        "$FV3NET_DIR"/external/vcm \
+        "$FV3NET_DIR"/external/artifacts \
+        "$FV3NET_DIR"/external/loaders \
+        "$FV3NET_DIR"/external/fv3fit \
+        "$FV3NET_DIR"/external/fv3kube \
+        "$FV3NET_DIR"/workflows/post_process_run \
+        "$FV3NET_DIR"/workflows/prognostic_c48_run \
+        "$FV3NET_DIR"/external/emulation \
+        "$FV3NET_DIR"/external/radiation
 fi
 
-if [ $INSTALL_TYPE == "all" ] || [ $INSTALL_TYPE == "post-build" ];
+if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "post-build" ];
 then
-    bash $SCRIPTS/post_build_steps.sh $FV3NET_DIR
+    bash "$SCRIPTS"/post_build_steps.sh "$FV3NET_DIR"
 fi
