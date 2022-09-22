@@ -548,7 +548,8 @@ def time_dependent_mass_streamfunction(diag_arg: DiagArg):
     northward_wind = prognostic["northward_wind"]
     v_zm = vcm.zonal_average_approximate(grid.lat, northward_wind, lat_name="latitude")
     psi = vcm.mass_streamfunction(v_zm).sel(pressure=slice(30000, 70000))
-    psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
+    with xr.set_options(keep_attrs=True):
+        psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
     return xr.Dataset({"mass_streamfunction": psi_mid_trop})
 
 
@@ -565,7 +566,8 @@ def time_dependent_mass_streamfunction_bias(diag_arg: DiagArg):
     wind_bias = prognostic["northward_wind"] - diag_arg.verification["northward_wind"]
     v_zm = vcm.zonal_average_approximate(grid.lat, wind_bias, lat_name="latitude")
     psi = vcm.mass_streamfunction(v_zm).sel(pressure=slice(30000, 70000))
-    psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
+    with xr.set_options(keep_attrs=True):
+        psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
     return xr.Dataset({"mass_streamfunction": psi_mid_trop})
 
 
