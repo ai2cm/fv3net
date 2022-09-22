@@ -17,16 +17,13 @@ conda deactivate
 conda create -n $CONDA_ENV -c conda-forge python==3.8.10 pip pip-tools
 conda activate $CONDA_ENV
 
-PYTHON=$(which python)
-CONDA=$(which conda)
-
 echo "Compiler settings:"
 echo "cc is      $(which cc)"
 echo "ftn is     $(which ftn)"
 echo
 echo "Python settings:"
-echo "conda is  $CONDA"
-echo "python is $PYTHON"
+echo "conda is  $(which conda)"
+echo "python is $(which python)"
 echo
 echo "Base enviroment packages:"
 conda list
