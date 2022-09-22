@@ -535,7 +535,7 @@ def compute_hist_2d_bias(diag_arg: DiagArg):
     return _assign_diagnostic_time_attrs(hist2d_prog, diag_arg.prediction)
 
 
-@registry_3d.register("300_700_time_dependent_zonal_mean")
+@registry_3d.register("300_700_zonal_mean_value")
 @transform.apply(transform.subset_variables, ["northward_wind"])
 @transform.apply(transform.skip_if_3d_output_absent)
 @transform.apply(transform.resample_time, "3H", inner_join=True)
@@ -552,7 +552,7 @@ def time_dependent_mass_streamfunction(diag_arg: DiagArg):
     return xr.Dataset({"mass_streamfunction": psi_mid_trop})
 
 
-@registry_3d.register("300_700_time_dependent_zonal_bias")
+@registry_3d.register("300_700_zonal_mean_bias")
 @transform.apply(transform.subset_variables, ["northward_wind"])
 @transform.apply(transform.skip_if_3d_output_absent)
 @transform.apply(transform.resample_time, "3H", inner_join=True)
