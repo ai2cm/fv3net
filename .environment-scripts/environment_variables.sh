@@ -10,3 +10,9 @@ export OUTPUT_FREQ_SEC=18000
 export PATH=$FV3NET_DIR/projects/microphysics/scripts:${PATH}
 
 export PYTHONPATH=$FV3NET_DIR/workflows/prognostic_c48_run:$FV3NET_DIR/external/fv3fit:$FV3NET_DIR/external/emulation:$FV3NET_DIR/external/vcm:/fv3net/external/artifacts:$FV3NET_DIR/external/loaders:$FV3NET_DIR/external/fv3kube:$FV3NET_DIR/workflows/post_process_run:$FV3NET_DIR/external/radiation:${PYTHONPATH}
+
+# Add shared libraries to LD_LIBRARY_PATH
+ESMF_LIB=$INSTALL_PREFIX/esmf/lib
+FMS_LIB=$FV3NET_DIR/external/fv3gfs-fortran/FMS/libFMS/.libs/
+CALLPYFORT_LIB=$INSTALL_PREFIX/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ESMF_LIB:$FMS_LIB:$CALLPYFORT_LIB

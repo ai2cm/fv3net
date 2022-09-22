@@ -6,8 +6,8 @@ PLATFORM=$2
 CLONE_PREFIX=$3
 INSTALL_PREFIX=$4
 FV3NET_DIR=$5
-CALLPYFORT=$6  # Should be '' if not installed -- should be made an option
-CONDA_ENV=$7  # Also optional (not needed in prognostic run docker image for instance)
+CALLPYFORT=$6  # Should be '' if not installed
+CONDA_ENV=$7  # Optional (not needed in prognostic run docker image)
 
 SCRIPTS=$FV3NET_DIR/.environment-scripts
 PLATFORM_SCRIPTS=$SCRIPTS/$PLATFORM
