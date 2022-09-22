@@ -1,6 +1,6 @@
 from collections import defaultdict
 import dataclasses
-from typing import Mapping, MutableMapping, Iterable, Hashable, Sequence
+from typing import Mapping, MutableMapping, Iterable, Hashable, Sequence, Tuple
 
 import xarray as xr
 import fv3fit
@@ -8,7 +8,7 @@ from runtime.steppers.machine_learning import (
     non_negative_sphum_mse_conserving,
     MultiModelAdapter,
 )
-from runtime.types import State
+from runtime.types import State, Diagnostics
 from runtime.names import SPHUM, TEMP
 
 __all__ = ["Config", "Adapter"]
@@ -26,6 +26,8 @@ class Config:
             state names. For example:
             {"implied_surface_precipitation_rate": "surface_precipitation_rate"}. The
             state will be set to be equal to these predictions.
+        diagnostics: sequence of names for model predictions that should be saved as
+            diagnostics. May overlap with tendency or state predictions.
         limit_negative_humidity: if True, rescale tendencies to not allow specific
             humidity to become negative.
         online: if True, the ML predictions will be applied to model state.
@@ -34,6 +36,7 @@ class Config:
     url: Sequence[str]
     tendency_predictions: Mapping[str, str] = dataclasses.field(default_factory=dict)
     state_predictions: Mapping[str, str] = dataclasses.field(default_factory=dict)
+    diagnostics: Sequence[str] = dataclasses.field(default_factory=list)
     limit_negative_humidity: bool = True
     online: bool = True
 
@@ -75,7 +78,7 @@ class Adapter:
             self.tendency_names[v].append(k)
         self.state_names = {v: k for k, v in self.config.state_predictions.items()}
 
-    def predict(self, inputs: State) -> State:
+    def predict(self, inputs: State) -> Tuple[State, Diagnostics]:
         prediction = self.model.predict(xr.Dataset(inputs))
         tendencies = {
             k: sum([prediction[item] for item in v])
@@ -84,6 +87,7 @@ class Adapter:
         state_updates: MutableMapping[Hashable, xr.DataArray] = {
             k: prediction[v] for k, v in self.state_names.items()
         }
+        diagnostics: Diagnostics = {k: prediction[k] for k in self.config.diagnostics}
 
         if self.config.limit_negative_humidity:
             limited_tendencies = self.non_negative_sphum_limiter(tendencies, inputs)
@@ -92,7 +96,7 @@ class Adapter:
         for name in tendencies:
             with xr.set_options(keep_attrs=True):
                 state_updates[name] = inputs[name] + tendencies[name] * self.timestep
-        return state_updates
+        return state_updates, diagnostics
 
     def apply(self, prediction: State, state: State):
         if self.config.online:
