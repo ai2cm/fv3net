@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-INSTALL_TYPE=$1  # Can be one of "all", "base", "fv3gfs-fortran", "fv3net-python", "wrapper", or "post-build"
+INSTALL_TYPE=$1  # Can be one of "all", "base", "fv3gfs-fortran", "python-requirements", "wrapper", "fv3net-packages", or "post-build"
 PLATFORM=$2
 CLONE_PREFIX=$3
 INSTALL_PREFIX=$4

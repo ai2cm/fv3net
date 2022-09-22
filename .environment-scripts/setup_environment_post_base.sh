@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-INSTALL_TYPE=$1  # Can be one of "all", "base", "fv3gfs-fortran", "fv3net-python", "wrapper", or "post-build"
+INSTALL_TYPE=$1  # Can be one of "all", "base", "fv3gfs-fortran", "python-requirements", "wrapper", "fv3net-packages", or "post-build"
 PLATFORM=$2
 CLONE_PREFIX=$3
 INSTALL_PREFIX=$4
@@ -32,7 +32,7 @@ fi
 if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "python-requirements" ] || [ "$INSTALL_TYPE" == "fv3net-packages" ] || [ $INSTALL_TYPE == "wrapper" ];
 then
     ACTIVATE_CONDA=$PLATFORM_SCRIPTS/activate_conda_environment.sh
-    if [ -f "$ACTIVATE_CONDA" ] && [ "$INSTALL_TYPE" != "all" ];
+    if [ -f "$ACTIVATE_CONDA" ];
     then
         source "$ACTIVATE_CONDA" "$CONDA_ENV"
     fi
@@ -42,9 +42,7 @@ if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "python-requirements" ];
 then
     if [ "$PLATFORM" != "gnu_docker" ];
     then
-        # See fv3net#2046 for more information regarding why we cannot simply use the make
-        # rule for this.
-        cp "$FV3NET_DIR"/constraints.txt "$FV3NET_DIR"/docker/prognostic_run/requirements.txt
+	make -C "$FV3NET_DIR" docker/prognostic_run/requirements.txt
     fi
     bash "$PLATFORM_SCRIPTS"/install_python_requirements.sh "$SCRIPTS" "$FV3NET_DIR"/docker/prognostic_run/requirements.txt
 fi
