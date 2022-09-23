@@ -413,6 +413,7 @@ class AstronomyClass:
         eqsec = sixty * eqt
 
         print(
+            "***Begin update from Python port of the Fortran RRTMG radiation scheme***"
             f"0 FORECAST DATE {iday},{month[imon-1]},{iyear} AT {ihr} HRS, {xmin} MINS",
             f"  JULIAN DAY {jd} PLUS {fjd}",
         )
@@ -428,6 +429,7 @@ class AstronomyClass:
         )
         print(f"  EQUATION OF TIME {eqt} MINS, OR {eqsec} SECS, OR {sollag} RADIANS")
         print(f"  SOLAR CONSTANT {solc} (DISTANCE AJUSTED)")
+        print("***End update from Python port of the Fortran RRTMG radiation scheme***")
         print(" ")
         print(" ")
 

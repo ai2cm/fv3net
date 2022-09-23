@@ -8,14 +8,35 @@ FORCING_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/forcing/
 @dataclasses.dataclass
 class RadiationConfig:
     """A configuration class for the radiation wrapper. These namelist flags and
-    other attributes control the wrapper behavior.
+    other attributes control the wrapper behavior. The documentation here is largely
+    cut and pasted from the Fortran radiation routines.
     
     Args:
-        imp_physics: Surface emissivity control flag. In physics namelist.
-        iemsflg: In physics namelist as 'iems'.
+        imp_physics: Choice of microphysics scheme:
+            11: GFDL microphysics scheme
+            8: Thompson microphysics scheme
+            10: Morrison-Gettelman microphysics scheme
+        iemsflg: Surface emissivity control flag. In physics namelist as 'iems'.
         ioznflg: Ozone data source control flag.
         ictmflg: Data IC time/date control flag.
-        isolar: Solar constant control flag. In physics namelist as 'isol'.
+            yyyy#, external data ic time/date control flag
+            -2: same as 0, but superimpose seasonal cycle from climatology data set.
+            -1: use user provided external data for the forecast time, no
+                extrapolation.
+            0: use data at initial cond time, if not available, use latest, no
+                extrapolation.
+            1: use data at the forecast time, if not available, use latest and
+                extrapolation.
+            yyyy0: use yyyy data for the forecast time no further data extrapolation.
+            yyyy1: use yyyy data for the fcst. if needed, do extrapolation to match
+                the fcst time.
+        isolar: Solar constant cntrl. In physics namelist as 'isol'.
+            0: use the old fixed solar constant in "physcon"
+            10: use the new fixed solar constant in "physcon"
+            1: use noaa ann-mean tsi tbl abs-scale with cycle apprx
+            2: use noaa ann-mean tsi tbl tim-scale with cycle apprx
+            3: use cmip5 ann-mean tsi tbl tim-scale with cycl apprx
+            4: use cmip5 mon-mean tsi tbl tim-scale with cycl apprx
         ico2flg: CO2 data source control flag. In physics namelist as 'ico2'.
         iaerflg: Volcanic aerosols. In physics namelist as 'iaer'.
         ialbflg: Surface albedo control flag. In physics namelist as 'ialb'.
@@ -33,7 +54,7 @@ class RadiationConfig:
         iswcliq: Optical property for liquid clouds for SW.
         fhswr: Shortwave radiation timestep in seconds. In physics namelist.
         fhlwr: Longwave radiation timestep in seconds. In physics namelist.
-        lsswr
+        lsswr: logical flags for sw radiation calculations
         lslwr
         nfxr
         ncld: In physics namelist.

@@ -154,6 +154,7 @@ class Radiation:
             self._aerosol_data["cline"],
             self._solar_data,
             self._gas_data,
+            self._comm.rank,
         )
 
     def _rad_compute(self, state: State, time: cftime.DatetimeJulian,) -> Diagnostics:

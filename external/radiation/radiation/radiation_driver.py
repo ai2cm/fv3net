@@ -196,6 +196,7 @@ class RadiationDriver:
         cline,
         solar_data,
         gas_data,
+        me,
         do_test=False,
     ):
         # =================   subprogram documentation block   ================ !
@@ -298,13 +299,13 @@ class RadiationDriver:
             self.iyear0 = iyear
 
             slag, sdec, cdec, solcon = self.sol.sol_update(
-                jdate, kyear, deltsw, deltim, lsol_chg, 0, solar_data
+                jdate, kyear, deltsw, deltim, lsol_chg, me, solar_data
             )
 
         # Call module_radiation_aerosols::aer_update(), monthly update, no
         # time interpolation
         if lmon_chg:
-            self.aer.aer_update(iyear, imon, 0, kprfg, idxcg, cmixg, denng, cline)
+            self.aer.aer_update(iyear, imon, me, kprfg, idxcg, cmixg, denng, cline)
 
         # -# Call co2 and other gases update routine:
         # module_radiation_gases::gas_update()
@@ -315,7 +316,7 @@ class RadiationDriver:
             lco2_chg = False
 
         self.gas.gas_update(
-            kyear, kmon, kday, khour, self.loz1st, lco2_chg, 0, gas_data
+            kyear, kmon, kday, khour, self.loz1st, lco2_chg, me, gas_data
         )
 
         if self.loz1st:
