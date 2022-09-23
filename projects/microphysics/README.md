@@ -54,3 +54,10 @@ To run scoring on a pre-trained model, `score_training.py` accepts
 To train a model using a GPU node via the ARGO workflow, add the
 flag `-p gpu-train=true`.  This will spin up a node w/ a
 GPU and available CUDA libraries.
+
+
+# NeurIPS Workshop Manuscript
+
+The configurations for the best machine learning models are in `configs/models/`. If an argo cluster is available they can be submitted by running:
+
+    end_to_end.py path/to/yaml
