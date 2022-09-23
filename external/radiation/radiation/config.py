@@ -74,7 +74,6 @@ class RadiationConfig:
         pertalb
         do_only_clearsky_rad
         swhtr: In physics namelist.
-        solcon
         lprnt
         lwhtr: In physics namelist.
         lssav
@@ -122,7 +121,6 @@ class RadiationConfig:
     )
     do_only_clearsky_rad: bool = False
     swhtr: bool = True
-    solcon: float = 1320.8872136343873
     lprnt: bool = False
     lwhtr: bool = True
     lssav: bool = True

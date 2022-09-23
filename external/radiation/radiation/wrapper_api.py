@@ -1,9 +1,10 @@
-from typing import MutableMapping, Mapping, Hashable, Sequence, Optional
+from typing import MutableMapping, Mapping, Hashable, Sequence, Optional, Any
 
 try:
     from mpi4py import MPI
 except ImportError:
     pass
+from datetime import timedelta
 import cftime
 import numpy as np
 import xarray as xr
@@ -14,7 +15,6 @@ from radiation.radiation_driver import RadiationDriver
 from radiation import io
 from radiation.preprocessing import (
     get_statein,
-    get_model,
     get_sfcprop,
     get_grid,
     postprocess_out,
@@ -22,6 +22,18 @@ from radiation.preprocessing import (
     BASE_INPUT_VARIABLE_NAMES,
     OUTPUT_VARIABLE_NAMES,
 )
+
+TRACER_NAMES_IN_MAPPING: Mapping[str, str] = {  # this is specific to GFS physics
+    "cloud_water_mixing_ratio": "ntcw",
+    "rain_mixing_ratio": "ntrw",
+    "cloud_ice_mixing_ratio": "ntiw",
+    "snow_mixing_ratio": "ntsw",
+    "graupel_mixing_ratio": "ntgl",
+    "ozone_mixing_ratio": "ntoz",
+    "cloud_amount": "ntclamt",
+}
+MINUTES_PER_HOUR: float = 60.0
+SECONDS_PER_MINUTE: float = 60.0
 
 
 State = MutableMapping[Hashable, xr.DataArray]
@@ -163,14 +175,7 @@ class Radiation:
         grid, coords = get_grid(state)
         sfcprop = get_sfcprop(state)
         ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
-        model = get_model(
-            self._rad_config,
-            self._tracer_inds,
-            time,
-            self._timestep,
-            nz,
-            self._comm.rank,
-        )
+        model = self._get_model(time, nz,)
         random_numbers = io.generate_random_numbers(ncolumns, nz, NGPTSW, NGPTLW)
         out = self._driver._GFS_radiation_driver(
             model,
@@ -183,3 +188,57 @@ class Radiation:
         )
         out = postprocess_out(out)
         return unstack(out, coords)
+
+    def _get_model(
+        self,
+        time: cftime.DatetimeJulian,
+        nz: int,
+        tracer_name_mapping: Mapping[str, str] = TRACER_NAMES_IN_MAPPING,
+    ) -> MutableMapping[Hashable, Any]:
+        model: MutableMapping[Hashable, Any] = {
+            "me": self._comm.rank,
+            "levs": nz,
+            "levr": nz,
+            "nfxr": self._rad_config.nfxr,
+            "ncld": self._rad_config.ncld,
+            "ncnd": self._rad_config.ncnd,
+            "fhswr": self._rad_config.fhswr,
+            "fhlwr": self._rad_config.fhlwr,
+            # todo: why does solar hour need to be one timestep behind time to validate?
+            "solhr": _solar_hour(time - timedelta(seconds=self._timestep)),
+            "lsswr": self._rad_config.lsswr,
+            "lslwr": self._rad_config.lslwr,
+            "imp_physics": self._rad_config.imp_physics,
+            "lgfdlmprad": self._rad_config.lgfdlmprad,
+            "uni_cld": self._rad_config.uni_cld,
+            "effr_in": self._rad_config.effr_in,
+            "indcld": self._rad_config.indcld,
+            "num_p3d": self._rad_config.num_p3d,
+            "npdf3d": self._rad_config.npdf3d,
+            "ncnvcld3d": self._rad_config.ncnvcld3d,
+            "lmfdeep2": self._rad_config.lmfdeep2,
+            "lmfshal": self._rad_config.lmfshal,
+            "sup": self._rad_config.sup,
+            "kdt": self._rad_config.kdt,
+            "do_sfcperts": self._rad_config.do_sfcperts,
+            "pertalb": self._rad_config.pertalb,
+            "do_only_clearsky_rad": self._rad_config.do_only_clearsky_rad,
+            "swhtr": self._rad_config.swhtr,
+            "solcon": self._driver.solar_constant,
+            "lprnt": self._rad_config.lprnt,
+            "lwhtr": self._rad_config.lwhtr,
+            "lssav": self._rad_config.lssav,
+        }
+        for tracer_name, index in self._tracer_inds.items():
+            if tracer_name in tracer_name_mapping:
+                model[tracer_name_mapping[tracer_name]] = index
+        model["ntrac"] = max(self._tracer_inds.values())
+        return model
+
+
+def _solar_hour(time: cftime.DatetimeJulian) -> float:
+    return (
+        time.hour
+        + time.minute / MINUTES_PER_HOUR
+        + time.second / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE)
+    )

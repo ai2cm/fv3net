@@ -182,6 +182,10 @@ class RadiationDriver:
 
             return aer_dict, sol_dict, gas_dict, sfc_dict, cld_dict, rlw_dict, rsw_dict
 
+    @property
+    def solar_constant(self):
+        return self.sol.solcon
+
     def radupdate(
         self,
         idate,
@@ -328,9 +332,6 @@ class RadiationDriver:
             gasdict = self.gas.return_updatedata()
 
             return soldict, aerdict, gasdict
-
-        else:
-            return slag, sdec, cdec, solcon
 
     def GFS_radiation_driver(
         self,
