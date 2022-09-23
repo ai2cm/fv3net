@@ -6,6 +6,7 @@ from runtime.steppers.machine_learning import MachineLearningConfig, PureMLStepp
 from runtime.steppers.prescriber import PrescriberConfig, Prescriber
 from runtime.types import State, Diagnostics
 from radiation import Radiation
+from runtime.steppers.interval import IntervalStepper
 
 
 @dataclasses.dataclass
@@ -23,7 +24,9 @@ class RadiationStepper:
     def __init__(
         self,
         radiation: Radiation,
-        input_generator: Optional[Union[PureMLStepper, Prescriber]] = None,
+        input_generator: Optional[
+            Union[PureMLStepper, Prescriber, IntervalStepper]
+        ] = None,
     ):
         self._radiation = radiation
         self._input_generator = input_generator

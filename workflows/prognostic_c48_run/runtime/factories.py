@@ -22,6 +22,7 @@ from runtime.steppers.machine_learning import (
     PureMLStepper,
     open_model,
 )
+from runtime.steppers.interval import IntervalStepper
 from runtime.interpolate import time_interpolate_func, label_to_time
 from runtime.derived_state import DerivedFV3State
 import runtime.transformers.emulator
@@ -155,7 +156,7 @@ def _get_fitted_limiter(
 
 def get_prescriber(
     config: PrescriberConfig, communicator: pace.util.CubedSphereCommunicator
-) -> Prescriber:
+) -> Union[Prescriber, IntervalStepper]:
     if communicator.tile.rank == 0:
         if communicator.rank == 0:
             logger.info(f"Setting up dataset for state setting: {config.dataset_key}")
@@ -168,7 +169,14 @@ def get_prescriber(
         config.reference_initial_time,
         config.reference_frequency_seconds,
     )
-    return Prescriber(communicator, time_lookup_function)
+
+    prescriber = Prescriber(communicator, time_lookup_function)
+    if config.apply_interval_seconds:
+        return IntervalStepper(
+            apply_interval_seconds=config.apply_interval_seconds, stepper=prescriber
+        )
+    else:
+        return prescriber
 
 
 def get_radiation_stepper(
@@ -179,8 +187,9 @@ def get_radiation_stepper(
     tracer_metadata: Mapping[Hashable, Mapping[Hashable, int]],
 ) -> RadiationStepper:
     radiation_config = radiation.RadiationConfig.from_physics_namelist(physics_namelist)
+    input_generator: Optional[Union[PureMLStepper, Prescriber, IntervalStepper]]
     if isinstance(stepper_config.input_generator, MachineLearningConfig):
-        input_generator: Optional[Union[PureMLStepper, Prescriber]] = PureMLStepper(
+        input_generator = PureMLStepper(
             open_model(stepper_config.input_generator), timestep, hydrostatic=False
         )
     elif isinstance(stepper_config.input_generator, PrescriberConfig):

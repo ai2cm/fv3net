@@ -5,6 +5,7 @@ import xarray as xr
 from runtime.steppers.machine_learning import PureMLStepper
 from runtime.steppers.prescriber import Prescriber
 from runtime.types import Diagnostics
+from runtime.steppers.interval import IntervalStepper
 
 
 def _merge_outputs(
@@ -28,7 +29,9 @@ def _check_for_collisions(outputs: List[MutableMapping[Hashable, xr.DataArray]])
 class CombinedStepper:
     label = "combined"
 
-    def __init__(self, steppers: List[Union[Prescriber, PureMLStepper]]):
+    def __init__(
+        self, steppers: List[Union[Prescriber, PureMLStepper, IntervalStepper]]
+    ):
         if len(steppers) == 0:
             raise ValueError("No steppers provided to combine.")
         self._steppers = steppers

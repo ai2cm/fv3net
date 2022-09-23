@@ -23,6 +23,7 @@ class PrescriberConfig:
             defaults to True
         reference_initial_time: if time interpolating, time of first point in dataset
         reference_frequency_seconds: time frequency of dataset
+        apply_interval_seconds: optional- prescribe only on intervals
 
     Example::
 
@@ -42,6 +43,7 @@ class PrescriberConfig:
     consolidated: bool = True
     reference_initial_time: Optional[str] = None
     reference_frequency_seconds: float = 900
+    apply_interval_seconds: Optional[int] = None
 
 
 class Prescriber:

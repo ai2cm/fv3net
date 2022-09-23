@@ -45,6 +45,7 @@ from runtime.steppers.machine_learning import (
 )
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig
+from runtime.steppers.interval import IntervalStepper
 from runtime.steppers.combine import CombinedStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
@@ -148,6 +149,17 @@ class LoggingMixin:
     def _print(self, message: str):
         if self.rank == 0:
             print(message)
+
+
+def unused_state_updates_from_tendency(state_updates_from_tendency, state_updates):
+    # Prescriber can overwrite the state updates predicted by ML tendencies
+    # Sometimes this is desired and we want to save both the overwritten updated state
+    # as well as the ML-predicted state that was overwritten, ex. reservoir updates.
+    overwritten_updates = {
+        f"{k}_state_from_postphysics_tendency": v
+        for k, v in state_updates_from_tendency.items()
+    }
+    return overwritten_updates
 
 
 class TimeLoop(
@@ -282,7 +294,9 @@ class TimeLoop(
             stepper = None
 
         else:
-            prephysics_steppers: List[Union[Prescriber, PureMLStepper]] = []
+            prephysics_steppers: List[
+                Union[Prescriber, PureMLStepper, IntervalStepper]
+            ] = []
             for prephysics_config in config.prephysics:
                 if isinstance(prephysics_config, MachineLearningConfig):
                     self._log_info("Using PureMLStepper for prephysics")
@@ -450,6 +464,10 @@ class TimeLoop(
                 rename_diagnostics(diagnostics)
             else:
                 self._state_updates.update(state_updates)
+        self._log_info(
+            f"State updates from prescriber: {list(self._state_updates.keys())}"
+        )
+
         state_updates = {
             k: v for k, v in self._state_updates.items() if k in PREPHYSICS_OVERRIDES
         }
@@ -537,12 +555,18 @@ class TimeLoop(
                 updated_state_from_tendency[TOTAL_PRECIP] = precipitation_sum(
                     self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
+                diagnostics.update(
+                    unused_state_updates_from_tendency(
+                        updated_state_from_tendency, self._state_updates
+                    )
+                )
                 self._state.update_mass_conserving(updated_state_from_tendency)
                 diagnostics.update(tendency_filled_frac)
         self._log_info(
             "Applying state updates to postphysics dycore state: "
             f"{self._state_updates.keys()}"
         )
+        self._log_info(f"state updates keys: {list(self._state_updates.keys())}")
         self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
@@ -570,6 +594,8 @@ class TimeLoop(
 
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics: Diagnostics = {}
+            # clear the state updates in case some updates are on intervals
+            self._state_updates = {}
             for substep in [
                 lambda: runtime.diagnostics.tracers.compute_column_integrated_tracers(
                     self._state
