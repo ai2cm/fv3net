@@ -1,0 +1,6 @@
+group,global,lat < -75,Lat > -75
+precpd-diff-only-rnn-combined-cloudlimit-upper5zero-v1-offline,Offline,0.09498668872255943,0.034098434350634886,0.09601434217685038
+precpd-diff-only-rnn-combined-cloudlimit-upper5zero-v1-online,Control,0.09788206345891842,0.07502553320257284,0.09826782285240587
+combined-gscond-dense-local-v2-v1-online,Special model for high antarctic < 60S,0.0974861345625925,0.06018263837511741,0.09811572773394048
+combined-gscond-dense-local-75s-v4-online, > 75S,0.0981488999117005,0.06156814073053497,0.09876629476972916
+phase-dependent-lhf-v1-online,Temperature dependent latent heat,0.10328853438204767,0.07461139762522315,0.1037725325680305
