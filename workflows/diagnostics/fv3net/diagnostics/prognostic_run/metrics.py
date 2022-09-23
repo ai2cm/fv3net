@@ -18,8 +18,9 @@ from fv3net.diagnostics._shared.registry import Registry
 from .derived_diagnostics import derived_registry
 from .constants import (
     PERCENTILES,
-    MASS_STREAMFUNCTION_MID_TROPOSPHERE,
+    MASS_STREAMFUNCTION_MID_TROPOSPHERE_TIME_MEAN,
 )
+from .compute import itcz_edges
 import json
 
 GRID_VARS = ["lon", "lat", "lonb", "latb", "area"]
@@ -209,7 +210,7 @@ for percentile in PERCENTILES:
 
 @metrics_registry.register("tropics_max_minus_min")
 def itcz_mass_transport(diags):
-    psi_mid_troposphere_name = MASS_STREAMFUNCTION_MID_TROPOSPHERE
+    psi_mid_troposphere_name = MASS_STREAMFUNCTION_MID_TROPOSPHERE_TIME_MEAN
     if psi_mid_troposphere_name not in diags:
         return xr.Dataset()
     psi = diags[psi_mid_troposphere_name]
@@ -220,7 +221,7 @@ def itcz_mass_transport(diags):
 
 @metrics_registry.register("tropical_ascent_region_mean")
 def tropical_ascent_region_mean(diags):
-    psi_mid_troposphere_name = MASS_STREAMFUNCTION_MID_TROPOSPHERE
+    psi_mid_troposphere_name = MASS_STREAMFUNCTION_MID_TROPOSPHERE_TIME_MEAN
     if psi_mid_troposphere_name not in diags:
         return xr.Dataset()
     zonal_mean_diags = grab_diag(diags, "zonal_and_time_mean")
@@ -255,13 +256,6 @@ def compute_percentile(
     bin_midpoints = bins + 0.5 * bin_widths
     closest_index = np.argmin(np.abs(cumulative_distribution - percentile / 100))
     return bin_midpoints[closest_index]
-
-
-def itcz_edges(psi: xr.DataArray, lat: str = "latitude",) -> Tuple[float, float]:
-    """Compute latitude of ITCZ edges given mass streamfunction at particular level."""
-    lat_min = psi.sel({lat: slice(-30, 10)}).idxmin(lat).item()
-    lat_max = psi.sel({lat: slice(-10, 30)}).idxmax(lat).item()
-    return lat_min, lat_max
 
 
 def restore_units(source, target):

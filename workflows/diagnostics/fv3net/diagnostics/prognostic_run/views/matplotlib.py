@@ -88,7 +88,9 @@ def plot_2d_matplotlib(
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
-            long_name_and_units = f"{v.long_name} [{v.units}]"
+            long_name = v.attrs.get("long_name", varname)
+            units = v.attrs.get("units", "")
+            long_name_and_units = f"{long_name} [{units}]"
             fig, ax = plt.subplots(figsize=figsize)
             if contour:
                 levels = CONTOUR_LEVELS.get(varname)

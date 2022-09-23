@@ -3,7 +3,7 @@ import pytest
 from runtime.config import get_model_urls, UserConfig
 import dataclasses
 
-dummy_prescriber = {"dataset_key": "data_url", "variables": ["a"]}
+dummy_prescriber = {"dataset_key": "data_url", "variables": {"a": "a"}}
 
 
 @pytest.mark.parametrize(

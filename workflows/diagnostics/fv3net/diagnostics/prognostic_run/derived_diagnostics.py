@@ -1,11 +1,14 @@
 from typing import Sequence, Tuple
 
+import numpy as np
 import xarray as xr
 
 import vcm
 
 from fv3net.diagnostics._shared.registry import Registry
 from fv3net.diagnostics._shared.constants import WVP, COL_DRYING
+from .constants import MASS_STREAMFUNCTION_MID_TROPOSPHERE
+from .compute import itcz_edges
 
 
 def merge_derived(diags: Sequence[Tuple[str, xr.DataArray]]) -> xr.Dataset:
@@ -59,6 +62,37 @@ def psi_bias_mid_troposphere(diags: xr.Dataset) -> xr.DataArray:
     psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
     return psi_mid_trop.assign_attrs(
         long_name="mass streamfunction 300-700hPa average", units="Gkg/s"
+    )
+
+
+@derived_registry.register("itcz_strength_timeseries")
+def itcz_strength_timeseries(diags: xr.Dataset) -> xr.DataArray:
+    if MASS_STREAMFUNCTION_MID_TROPOSPHERE not in diags:
+        return xr.DataArray()
+    # sometimes last timestep of diagnostic is NaNs
+    psi = diags[MASS_STREAMFUNCTION_MID_TROPOSPHERE].dropna("time")
+    lat_min, lat_max = itcz_edges(psi)
+    max_minus_min = psi.sel(latitude=lat_max) - psi.sel(latitude=lat_min)
+    return max_minus_min.assign_attrs(
+        long_name="Upward mass transport in ITCZ", units="Gkg/s"
+    )
+
+
+@derived_registry.register("water_vapor_path_in_tropical_ascent_timeseries")
+def water_vapor_path_in_tropical_ascent_timeseries(diags: xr.Dataset) -> xr.DataArray:
+    if (
+        MASS_STREAMFUNCTION_MID_TROPOSPHERE not in diags
+        or "water_vapor_path_zonal_mean_value" not in diags
+    ):
+        return xr.DataArray()
+    psi = diags[MASS_STREAMFUNCTION_MID_TROPOSPHERE]
+    wvp = diags["water_vapor_path_zonal_mean_value"]
+    lat_min, lat_max = itcz_edges(psi)
+    weights = np.cos(np.deg2rad(psi.latitude))
+    weights = weights.where(psi.latitude > lat_min).where(psi.latitude < lat_max)
+    ascent_region_mean = vcm.weighted_average(wvp, weights, ["latitude"])
+    return ascent_region_mean.assign_attrs(
+        long_name="Water vapor path in tropical ascent region"
     )
 
 
