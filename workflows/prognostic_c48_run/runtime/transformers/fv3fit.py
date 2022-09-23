@@ -2,6 +2,7 @@ from collections import defaultdict
 import dataclasses
 from typing import Mapping, MutableMapping, Iterable, Hashable, Sequence, Tuple
 
+import numpy as np
 import xarray as xr
 import fv3fit
 from runtime.steppers.machine_learning import (
@@ -119,7 +120,9 @@ class Adapter:
         q2_new, q1_new = non_negative_sphum_mse_conserving(
             inputs[SPHUM], tendencies[SPHUM], self.timestep, q1=tendencies.get(TEMP),
         )
+        q2_new = q2_new.where(tendencies[SPHUM].notnull(), other=np.nan)
         limited_tendencies[SPHUM] = q2_new
         if q1_new is not None:
+            q1_new = q1_new.where(tendencies[TEMP].notnull(), other=np.nan)
             limited_tendencies[TEMP] = q1_new
         return limited_tendencies
