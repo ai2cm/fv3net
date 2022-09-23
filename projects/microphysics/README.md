@@ -67,3 +67,5 @@ To evaluate the machine learning models in a prognostic run you can use:
     end_to_end.py configs/online-evaluation/combined-gscond-precpd.yaml
 
 You'll need to modify the .zhao_carr_emulation...path configurations.
+
+Data and trained models are available here: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7109065.svg)](https://doi.org/10.5281/zenodo.7109065)
