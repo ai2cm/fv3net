@@ -61,3 +61,9 @@ GPU and available CUDA libraries.
 The configurations for the best machine learning models are in `configs/models/`. If an argo cluster is available they can be submitted by running:
 
     end_to_end.py path/to/yaml
+
+To evaluate the machine learning models in a prognostic run you can use:
+
+    end_to_end.py configs/online-evaluation/combined-gscond-precpd.yaml
+
+You'll need to modify the .zhao_carr_emulation...path configurations.
