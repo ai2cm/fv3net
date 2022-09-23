@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Optional, Callable, Union, Mapping
+from typing import Tuple, Optional, Callable, Mapping
 import dataclasses
 import logging
 import cftime
@@ -18,8 +18,7 @@ class PrescriberConfig:
 
     Attributes:
         dataset_key: path of zarr dataset
-        variables: sequence of variable names in the dataset to prescribe, or a
-            mapping from the non-standard names in the dataset to the standard names
+        variables: a mapping from variable names in the dataset to the standard names
             to be prescribed
         consolidated: whether desired dataset has consolidated metadata;
             defaults to True
@@ -30,17 +29,16 @@ class PrescriberConfig:
 
         PrescriberConfig(
             dataset_key="gs://vcm-ml-intermediate/2021-03-fine-res-surface-radiative-fluxes/fine-res-surface-radiative-fluxes.zarr",
-            variables=[
-                "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
-                "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
-                "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface",
-            ]
+            variables={
+                "DSWRFsfc": "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
+                "air_temperature": "air_temperature"
+            }
         )
 
     """  # noqa
 
     dataset_key: str
-    variables: Union[Sequence[str], Mapping[str, str]]
+    variables: Mapping[str, str]
     consolidated: bool = True
     reference_initial_time: Optional[str] = None
     reference_frequency_seconds: float = 900
@@ -54,6 +52,7 @@ class Prescriber:
         self,
         communicator: pace.util.CubedSphereCommunicator,
         time_lookup_function: Callable[[cftime.DatetimeJulian], State],
+        variables: Mapping[str, str],
     ):
         """Create a Prescriber object
 
@@ -61,12 +60,16 @@ class Prescriber:
             communicator (pace.util.CubedSphereCommunicator),
             time_lookup_function: a function that takes a time and returns a state dict
                 containing data arrays to be prescribed
+            variables: a mapping from variable names returned by the
+                `time_lookup_function` to the standard names to be prescribed
         """
         self._communicator = communicator
         self._time_lookup_function = time_lookup_function
+        self._variables = variables
 
     def _open_prescribed_timestep(self, time: cftime.DatetimeJulian) -> xr.Dataset:
-        return scatter_within_tile(time, self._time_lookup_function, self._communicator)
+        ds = scatter_within_tile(time, self._time_lookup_function, self._communicator)
+        return ds.rename(self._variables)
 
     def __call__(self, time, state):
         diagnostics: Diagnostics = {}
