@@ -195,13 +195,33 @@ def halo_convolution(
     return BreakOnOp(nn.Sequential(append, conv))
 
 
+def cpu_only(method):
+    """
+    Decorator to mark a method as only being supported on the CPU.
+    """
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        original_device = args[0].device
+        args = [arg.cpu() if isinstance(arg, torch.Tensor) else arg for arg in args]
+        kwargs = {
+            k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in kwargs.items()
+        }
+        return method(self, *args, **kwargs).to(original_device)
+
+    return wrapper
+
+
 class Crop(nn.Module):
     def __init__(self, n_halo):
         super(Crop, self).__init__()
         self.n_halo = n_halo
 
+    @cpu_only
     def forward(self, x):
-        return x[..., self.n_halo : -self.n_halo, self.n_halo : -self.n_halo]
+        return x[
+            ..., self.n_halo : -self.n_halo, self.n_halo : -self.n_halo
+        ].contiguous()
 
 
 class BreakOnOp(nn.Module):
@@ -222,23 +242,6 @@ class BreakOnOp(nn.Module):
         return output
 
 
-def cpu_only(method):
-    """
-    Decorator to mark a method as only being supported on the CPU.
-    """
-
-    @functools.wraps(method)
-    def wrapper(self, *args, **kwargs):
-        original_device = args[0].device
-        args = [arg.cpu() if isinstance(arg, torch.Tensor) else arg for arg in args]
-        kwargs = {
-            k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in kwargs.items()
-        }
-        return method(self, *args, **kwargs).to(original_device)
-
-    return wrapper
-
-
 class AppendHalos(nn.Module):
 
     """
@@ -255,6 +258,7 @@ class AppendHalos(nn.Module):
     def extra_repr(self) -> str:
         return super().extra_repr() + f"n_halo={self.n_halo}"
 
+    @cpu_only
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
         Args:
