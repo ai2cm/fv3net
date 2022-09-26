@@ -167,26 +167,22 @@ def test_autoencoder_overfit(tmpdir):
     predictor = train_autoencoder(
         hyperparameters, train_tfdataset, validation_batches=None
     )
-    fv3fit.dump(predictor, str(tmpdir))
-    predictor = fv3fit.load(str(tmpdir))
     # predict takes xarray datasets, so we have to convert
     test_xrdataset = tfdataset_to_xr_dataset(
         train_tfdataset, dims=["time", "tile", "x", "y", "z"]
     )
-
     predicted = predictor.predict(test_xrdataset)
     reference = test_xrdataset
     # plotting code to uncomment if you'd like to manually check the results:
-    import matplotlib.pyplot as plt
-
-    for i in range(6):
-        fig, ax = plt.subplots(1, 2)
-        vmin = reference["a"][0, i, :, :, 0].values.min()
-        vmax = reference["a"][0, i, :, :, 0].values.max()
-        ax[0].imshow(reference["a"][0, i, :, :, 0].values, vmin=vmin, vmax=vmax)
-        ax[1].imshow(predicted["a"][0, i, :, :, 0].values, vmin=vmin, vmax=vmax)
-        plt.tight_layout()
-        plt.show()
+    # import matplotlib.pyplot as plt
+    # for i in range(6):
+    #     fig, ax = plt.subplots(1, 2)
+    #     vmin = reference["a"][0, i, :, :, 0].values.min()
+    #     vmax = reference["a"][0, i, :, :, 0].values.max()
+    #     ax[0].imshow(reference["a"][0, i, :, :, 0].values, vmin=vmin, vmax=vmax)
+    #     ax[1].imshow(predicted["a"][0, i, :, :, 0].values, vmin=vmin, vmax=vmax)
+    #     plt.tight_layout()
+    #     plt.show()
     bias = predicted - reference
     mean_bias: xr.Dataset = bias.mean()
     mse: xr.Dataset = (bias ** 2).mean()
