@@ -185,6 +185,15 @@ def halo_convolution(
     if stride_type == "transpose":
         # have to crop halo points from the output, as pytorch has no option to
         # only output a subset of the domain for ConvTranspose2d
+        #
+        # padding * stride is the part of the output domain corresponding
+        # to the upscaled halo points
+        #
+        # transpose convolution adds (kernel_size - 1) / 2 more points which
+        # correspond to every point in the upsampled domain where the kernel
+        # can read from at least one point in the input domain
+        #
+        # we remove both of these to keep only the "compute domain"
         conv = nn.Sequential(
             conv, Crop(n_halo=padding * stride + int(kernel_size - 1) // 2)
         )
