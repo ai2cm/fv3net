@@ -6,6 +6,7 @@ hyperparameters:
       - h500
     normalization_fit_samples: 50_000
     network:
+      convolution_type: halo_conv2d
       generator_optimizer:
         name: Adam
         kwargs:
@@ -18,6 +19,7 @@ hyperparameters:
         n_convolutions: 2
         n_resnet: 6
         kernel_size: 3
+        strided_kernel_size: 4
         max_filters: 256
       discriminator:
         n_convolutions: 3
@@ -34,7 +36,8 @@ hyperparameters:
       generator_weight: 1.0
       discriminator_weight: 1.0
     training:
-      n_epoch: 10
+      n_epoch: 20
+      in_memory: true
       shuffle_buffer_size: 1000
       samples_per_batch: 1
       validation_batch_size: 100

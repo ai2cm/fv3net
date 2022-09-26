@@ -10,7 +10,7 @@ domain_configs:
     window_size: 1
     default_variable_config:
       times: window
-    n_windows: 20  # 5808
+    n_windows: 50  # 5808
   - data_path: c384_baseline.zarr
     unstacked_dims:
       - time
@@ -21,4 +21,4 @@ domain_configs:
     window_size: 1
     default_variable_config:
       times: window
-    n_windows: 20  # 5808
+    n_windows: 50  # 5808
