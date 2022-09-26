@@ -4,7 +4,7 @@ set -xe
 
 [[ -n $GOOGLE_APPLICATION_CREDENTIALS ]] && gcloud auth activate-service-account --key-file $GOOGLE_APPLICATION_CREDENTIALS
 
-RUN=gs://vcm-ml-code-testing-data/sample-prognostic-run-output-v3
+RUN=gs://vcm-ml-code-testing-data/sample-prognostic-run-output-v4
 
 random=$(openssl rand --hex 6)
 OUTPUT=gs://vcm-ml-scratch/test-prognostic-report/$random
@@ -22,11 +22,11 @@ jupyter
 EOF
 
 cat << EOF > 3d.script
-meridional specific_humidity
-zonal specific_humidity
-zonalavg specific_humidity
-column specific_humidity
-avg3d specific_humidity
+meridional air_temperature
+zonal air_temperature
+zonalavg air_temperature
+column air_temperature
+avg3d air_temperature
 EOF
 prognostic_run_diags shell report.script
 # assert an image has been output

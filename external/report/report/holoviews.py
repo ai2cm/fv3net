@@ -17,6 +17,8 @@ class HVPlot:
         # it was really hard finding a combintation that
         # 1. embedded the data for an entire HoloMap object
         # 2. exported the html as a div which can easily be embedded in the reports.
+        if len(self._plot) == 0:
+            return ""
         r = hv.renderer("bokeh")
         html, _ = r.components(self._plot)
         html = html["text/html"]
