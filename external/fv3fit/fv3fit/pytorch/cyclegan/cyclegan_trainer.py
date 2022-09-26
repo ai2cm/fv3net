@@ -5,6 +5,7 @@ from .reloadable import CycleGAN, CycleGANModule
 import torch
 from .generator import GeneratorConfig
 from .discriminator import DiscriminatorConfig
+from .modules import single_tile_convolution, halo_convolution
 import dataclasses
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
@@ -64,6 +65,7 @@ class CycleGANNetworkConfig:
     discriminator: "DiscriminatorConfig" = dataclasses.field(
         default_factory=lambda: DiscriminatorConfig()
     )
+    convolution_type: str = "conv2d"
     identity_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
     cycle_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
     gan_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
@@ -75,10 +77,20 @@ class CycleGANNetworkConfig:
     def build(
         self, n_state: int, nx: int, ny: int, n_batch: int, state_variables, scalers
     ) -> "CycleGANTrainer":
-        generator_a_to_b = self.generator.build(n_state, nx=nx, ny=ny)
-        generator_b_to_a = self.generator.build(n_state, nx=nx, ny=ny)
-        discriminator_a = self.discriminator.build(n_state)
-        discriminator_b = self.discriminator.build(n_state)
+        if self.convolution_type == "conv2d":
+            convolution = single_tile_convolution
+        elif self.convolution_type == "halo_conv2d":
+            convolution = halo_convolution
+        else:
+            raise ValueError(f"convolution_type {self.convolution_type} not supported")
+        generator_a_to_b = self.generator.build(
+            n_state, nx=nx, ny=ny, convolution=convolution
+        )
+        generator_b_to_a = self.generator.build(
+            n_state, nx=nx, ny=ny, convolution=convolution
+        )
+        discriminator_a = self.discriminator.build(n_state, convolution=convolution)
+        discriminator_b = self.discriminator.build(n_state, convolution=convolution)
         optimizer_generator = self.generator_optimizer.instance(
             itertools.chain(
                 generator_a_to_b.parameters(), generator_b_to_a.parameters()
