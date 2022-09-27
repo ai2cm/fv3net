@@ -60,16 +60,8 @@ RUN bash /fv3net/.environment-scripts/setup_environment.sh \
     ${FV3NET_DIR} \
     ${CALLPYFORT}
 
-# Add emulation project scripts and script for post-build steps
-COPY .environment-scripts/post_build_steps.sh ${FV3NET_SCRIPTS}/
+# Add emulation project scripts
 COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
-RUN bash /fv3net/.environment-scripts/setup_environment.sh \
-    post-build \
-    ${PLATFORM} \
-    ${CLONE_PREFIX} \
-    ${INSTALL_PREFIX} \
-    ${FV3NET_DIR} \
-    ${CALLPYFORT}
 
 RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \

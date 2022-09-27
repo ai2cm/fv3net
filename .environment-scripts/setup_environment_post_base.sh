@@ -69,8 +69,3 @@ then
         "$FV3NET_DIR"/external/emulation \
         "$FV3NET_DIR"/external/radiation
 fi
-
-if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "post-build" ];
-then
-    bash "$SCRIPTS"/post_build_steps.sh "$FV3NET_DIR"
-fi
