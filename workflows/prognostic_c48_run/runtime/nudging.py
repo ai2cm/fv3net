@@ -1,5 +1,4 @@
 import pace.util
-from mpi4py import MPI
 import shutil
 import fsspec
 import dataclasses
@@ -16,6 +15,7 @@ from typing import (
     Optional,
 )
 import logging
+import xarray as xr
 
 from fv3kube import RestartCategoriesConfig
 from .interpolate import time_interpolate_func, label_to_time
@@ -68,6 +68,7 @@ class NudgingConfig:
     # optional arguments needed for time interpolation
     reference_initial_time: Optional[str] = None
     reference_frequency_seconds: float = 900
+    bias_path: Optional[str] = None
 
 
 def nudging_timescales_from_dict(timescales: Mapping) -> Mapping:
@@ -104,8 +105,53 @@ def setup_get_reference_state(
             initial_time=label_to_time(initial_time_label),
             frequency=timedelta(seconds=config.reference_frequency_seconds),
         )
+    if config.bias_path:
+        get_reference_state = _add_bias(
+            get_reference_state, config.bias_path, communicator
+        )
 
     return get_reference_state
+
+
+def _scatter_dataset(
+    ds: Optional[xr.Dataset], communicator: pace.util.CubedSphereCommunicator
+) -> xr.Dataset:
+    """Scatter an xarray dataset to all ranks"""
+    # convert dataset to quantity dictionary and scatter it
+    if communicator.rank == 0:
+        if ds is None:
+            raise ValueError("dataset must be given on rank 0")
+        send_state = {}
+
+        for varname in ds:
+            if "units" not in ds[varname].attrs:
+                ds[varname].attrs["units"] = "unknown"
+            send_state[varname] = pace.util.Quantity.from_data_array(ds[varname])
+        state = communicator.scatter_state(send_state=send_state)
+    else:
+        state = communicator.scatter_state(send_state=None)
+    # convert back to dataset
+    return pace.util.to_dataset(state)
+
+
+def _add_bias(
+    get_reference_state, bias_path, communicator: pace.util.CubedSphereCommunicator
+):
+    with fsspec.open(bias_path) as f:
+        if communicator.rank == 0:
+            bias = xr.open_dataset(f)
+        else:
+            bias = None
+        bias = _scatter_dataset(bias, communicator)
+
+    @functools.wraps(get_reference_state)
+    def wrapped(*args, **kwargs):
+        reference_state = get_reference_state(*args, **kwargs)
+        for var in bias:
+            reference_state[var] += bias[var]
+        return reference_state
+
+    return wrapped
 
 
 def _get_reference_state(
@@ -121,14 +167,14 @@ def _get_reference_state(
 
     localdir = "download"
 
-    if MPI.COMM_WORLD.rank == 0:
+    if communicator.rank == 0:
         fs = fsspec.get_fs_token_paths(dirname)[0]
         fs.get(dirname, localdir, recursive=True)
         if restart_categories is not None:
             _rename_local_restarts(localdir, restart_categories)
 
     # need this for synchronization
-    MPI.COMM_WORLD.barrier()
+    communicator.comm.barrier()
 
     state = pace.util.open_restart(
         localdir,
@@ -140,8 +186,8 @@ def _get_reference_state(
 
     # clean up the local directory
     # wait for other processes to finish using the data
-    MPI.COMM_WORLD.barrier()
-    if MPI.COMM_WORLD.rank == 0:
+    communicator.comm.barrier()
+    if communicator.rank == 0:
         shutil.rmtree(localdir)
 
     return _to_state_dataarrays(state)
