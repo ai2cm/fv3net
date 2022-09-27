@@ -26,15 +26,25 @@ fi
 mkdir -p "$CLONE_PREFIX"
 mkdir -p "$INSTALL_PREFIX"
 
+source $PLATFORM_SCRIPTS/variables.sh
+
 if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "base" ];
 then
     bash "$PLATFORM_SCRIPTS"/install_base_software.sh "$INSTALL_PREFIX" "$CONDA_ENV"
-    bash "$PLATFORM_SCRIPTS"/install_nceplibs.sh "$SCRIPTS" "$CLONE_PREFIX"/NCEPlibs "$NCEPLIBS_DIR"
-    bash "$PLATFORM_SCRIPTS"/install_esmf.sh "$SCRIPTS" "$CLONE_PREFIX"/esmf "$ESMF_DIR"
-    bash "$PLATFORM_SCRIPTS"/install_fms.sh "$SCRIPTS" "$FMS_DIR"
+    bash "$SCRIPTS"/install_nceplibs.sh "$CLONE_PREFIX"/NCEPlibs "$NCEPLIBS_DIR" "$NCEPLIBS_PLATFORM" "$NCEPLIBS_COMPILER"
+    bash "$SCRIPTS"/install_esmf.sh "$CLONE_PREFIX"/esmf "$ESMF_DIR" "$ESMF_OS" "$ESMF_COMPILER" "$ESMF_SITE"
+
+    CC="$FMS_CC" \
+    FC="$FMS_FC" \
+    LDFLAGS="$FMS_LDFLAGS" \
+    LOG_DRIVER_FLAGS="$FMS_LOG_DRIVER_FLAGS" \
+    CPPFLAGS="$FMS_CPPFLAGS" \
+    FCFLAGS="$FMS_FCFLAGS" \
+    bash "$SCRIPTS"/install_fms.sh "$FMS_DIR"
+
     if [ -n "${CALLPYFORT}" ];
     then
-        bash "$PLATFORM_SCRIPTS"/install_call_py_fort.sh "$SCRIPTS" "$CLONE_PREFIX"/call_py_fort
+        bash "$SCRIPTS"/install_call_py_fort.sh "$CLONE_PREFIX"/call_py_fort
     fi
 fi
 

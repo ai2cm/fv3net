@@ -1,7 +1,0 @@
-#!/bin/bash
-
-ENVIRONMENT_SCRIPTS_DIR=$1
-CLONE_PREFIX=$2
-INSTALL_PREFIX=$3
-
-bash $ENVIRONMENT_SCRIPTS_DIR/install_esmf.sh $CLONE_PREFIX $INSTALL_PREFIX Linux gfortran default

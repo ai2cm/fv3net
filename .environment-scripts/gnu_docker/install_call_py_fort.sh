@@ -1,6 +1,0 @@
-#!/bin/bash
-
-ENVIRONMENT_SCRIPTS_DIR=$1
-CLONE_PREFIX=$2
-
-bash $ENVIRONMENT_SCRIPTS_DIR/install_call_py_fort.sh $CLONE_PREFIX

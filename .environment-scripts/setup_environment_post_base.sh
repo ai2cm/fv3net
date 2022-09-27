@@ -10,7 +10,8 @@ CALLPYFORT=$6  # Should be '' if not installed
 CONDA_ENV=$7  # Optional (not needed in prognostic run docker image)
 
 SCRIPTS=$FV3NET_DIR/.environment-scripts
-PLATFORM_SCRIPTS=$SCRIPTS/$PLATFORM
+
+source $SCRIPTS/$PLATFORM/variables.sh
 
 if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "fv3gfs-fortran" ] || [ "$INSTALL_TYPE" == "wrapper" ];
 then
@@ -26,7 +27,7 @@ fi
 
 if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "fv3gfs-fortran" ];
 then
-    CALLPYFORT=$CALLPYFORT bash "$PLATFORM_SCRIPTS"/install_fv3gfs_fortran.sh "$SCRIPTS" "$FV3_DIR" "$INSTALL_PREFIX"
+    CALLPYFORT=$CALLPYFORT bash "$SCRIPTS"/install_fv3gfs_fortran.sh "$FV3_DIR" "$FV3GFS_PLATFORM" "$INSTALL_PREFIX"
 fi
 
 if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "python-requirements" ] || [ "$INSTALL_TYPE" == "fv3net-packages" ] || [ $INSTALL_TYPE == "wrapper" ];
@@ -42,14 +43,17 @@ if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "python-requirements" ];
 then
     if [ "$PLATFORM" != "gnu_docker" ];
     then
-	make -C "$FV3NET_DIR" docker/prognostic_run/requirements.txt
+	    make -C "$FV3NET_DIR" docker/prognostic_run/requirements.txt
     fi
-    bash "$PLATFORM_SCRIPTS"/install_python_requirements.sh "$SCRIPTS" "$FV3NET_DIR"/docker/prognostic_run/requirements.txt
+    CC="$MPI4PY_CC" MPICC="$MPI4PY_MPICC" bash "$SCRIPTS"/install_python_requirements.sh "$FV3NET_DIR"/docker/prognostic_run/requirements.txt
 fi
 
 if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "wrapper" ];
 then
-    CALLPYFORT=$CALLPYFORT bash "$PLATFORM_SCRIPTS"/install_python_wrapper.sh "$SCRIPTS" "$FV3_DIR"
+    CC="$WRAPPER_CC" \
+    LDSHARED="$WRAPPER_LDSHARED" \
+    CALLPYFORT=$CALLPYFORT \
+    bash "$SCRIPTS"/install_python_wrapper.sh "$FV3_DIR"
 fi
 
 if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "fv3net-packages" ];
