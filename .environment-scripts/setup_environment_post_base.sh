@@ -45,7 +45,7 @@ then
     then
 	    make -C "$FV3NET_DIR" docker/prognostic_run/requirements.txt
     fi
-    CC="$MPI4PY_CC" MPICC="$MPI4PY_MPICC" bash "$SCRIPTS"/install_python_requirements.sh "$FV3NET_DIR"/docker/prognostic_run/requirements.txt
+    CC="$MPI4PY_CC" MPICC="$MPI4PY_MPICC" pip install --no-cache-dir -r "$FV3NET_DIR"/docker/prognostic_run/requirements.txt
 fi
 
 if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "wrapper" ];

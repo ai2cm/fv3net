@@ -16,8 +16,7 @@ RUN bash /fv3net/.environment-scripts/setup_environment.sh \
     ${FV3NET_DIR} \
     ${CALLPYFORT}
 
-# Copy data and files required for creating the Python environment
-COPY .environment-scripts/install_python_requirements.sh ${FV3NET_SCRIPTS}/
+# Copy requirements file needed for creating the Python environment
 COPY docker/prognostic_run/requirements.txt /fv3net/docker/prognostic_run/requirements.txt
 RUN bash /fv3net/.environment-scripts/setup_environment.sh \
     python-requirements \
