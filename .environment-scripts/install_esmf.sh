@@ -17,6 +17,7 @@ export ESMF_INSTALL_BINDIR=$ESMF_INSTALL_PREFIX/bin
 export ESMF_NETCDF_INCLUDE=$NETCDF_INCLUDE
 export ESMF_NETCDF_LIBS="-lnetcdf -lnetcdff"
 export ESMF_BOPT=O
+export ESMF_OPTLEVEL=3
 
 # These flags set how the build is configured depending on the platform:
 # https://github.com/esmf-org/esmf/tree/develop/build_config
