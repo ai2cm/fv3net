@@ -1,5 +1,4 @@
 import dataclasses
-from turtle import forward
 import torch.nn as nn
 from toolz import curry
 import torch
@@ -9,7 +8,6 @@ from .modules import (
     FoldTileDimension,
     single_tile_convolution,
     relu_activation,
-    no_activation,
     ResnetBlock,
     CurriedModuleFactory,
 )
@@ -93,35 +91,15 @@ class GeographicBias(nn.Module):
         return x + self.bias
 
 
-class RecurrentBlock(nn.Module):
-    def __init__(
-        self, wrapped: nn.Module, channels: int, convolution: CurriedModuleFactory,
-    ):
+class AutoRegressiveBlock(nn.Module):
+    def __init__(self, wrapped: nn.Module, n_time: int):
         super().__init__()
         self.wrapped = wrapped
-        self.channels = channels
-        self.conv_block = nn.Sequential(
-            ConvBlock(
-                in_channels=2 * channels,
-                out_channels=channels,
-                convolution_factory=convolution,
-                activation_factory=relu_activation(),
-            ),
-            ConvBlock(
-                in_channels=channels,
-                out_channels=channels,
-                convolution_factory=convolution,
-                activation_factory=no_activation,
-            ),
-        )
+        self.n_time = n_time
 
     def forward(self, x):
-        ntime, _, nx, ny = x.shape[-4:]
-        hidden_state = torch.zeros(1, 6, self.channels, nx, ny)
         out = []
-        for i in range(ntime):
-            x = torch.cat([x[..., i : i + 1, :, :, :, :], hidden_state], dim=2)
-            x = self.conv_block(x)
+        for _ in range(self.n_time):
             x = self.wrapped(x)
             out.append(x)
         x = torch.cat(out, dim=-5)
@@ -134,6 +112,7 @@ class Generator(nn.Module):
         channels: int,
         nx: int,
         ny: int,
+        n_time: int,
         n_convolutions: int,
         n_resnet: int,
         kernel_size: int,
@@ -142,7 +121,6 @@ class Generator(nn.Module):
         use_geographic_bias: bool,
         disable_convolutions: bool,
         convolution: ConvolutionFactory = single_tile_convolution,
-        recurrent: bool = False,
     ):
         """
         Args:
@@ -166,10 +144,8 @@ class Generator(nn.Module):
                 of the geographic bias layer.
             convolution: factory for creating all convolutional layers
                 used by the network
-            recurrent: if True, use a recurrent-in-time network architecture
         """
         super(Generator, self).__init__()
-        self.recurrent = recurrent
 
         def resnet(in_channels: int, out_channels: int):
             if in_channels != out_channels:
@@ -180,26 +156,21 @@ class Generator(nn.Module):
             resnet_blocks = [
                 ResnetBlock(
                     channels=in_channels,
-                    convolution_factory=curry(convolution)(
-                        kernel_size=kernel_size, padding="same"
-                    ),
+                    convolution_factory=curry(convolution)(kernel_size=kernel_size),
                     activation_factory=relu_activation(),
                 )
                 for _ in range(n_resnet)
             ]
-            resnet = nn.Sequential(*resnet_blocks)
-            if self.recurrent:
-                resnet = RecurrentBlock(
-                    resnet, in_channels, curry(convolution)(kernel_size=kernel_size)
-                )
-            return resnet
+            return AutoRegressiveBlock(
+                wrapped=nn.Sequential(*resnet_blocks), n_time=n_time,
+            )
 
         def down(in_channels: int, out_channels: int):
             return ConvBlock(
                 in_channels=in_channels,
                 out_channels=out_channels,
                 convolution_factory=curry(convolution)(
-                    kernel_size=strided_kernel_size, stride=2, padding="same"
+                    kernel_size=strided_kernel_size, stride=2
                 ),
                 activation_factory=relu_activation(),
             )
@@ -211,7 +182,6 @@ class Generator(nn.Module):
                 convolution_factory=curry(convolution)(
                     kernel_size=strided_kernel_size,
                     stride=2,
-                    padding="same",
                     output_padding=0,
                     stride_type="transpose",
                 ),
@@ -265,7 +235,7 @@ class Generator(nn.Module):
             inputs: tensor of shape [batch, tile, channels, x, y]
 
         Returns:
-            tensor of shape [batch, tile, channels, x, y]
+            tensor of shape [batch, time, tile, channels, x, y]
         """
         x = self._input_bias(inputs)
         x = self._main(x)

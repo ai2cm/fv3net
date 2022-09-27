@@ -149,7 +149,7 @@ def halo_convolution(
     in_channels: int,
     out_channels: int,
     kernel_size: int,
-    padding: Union[str, int] = 0,
+    padding: Union[str, int] = "same",
     output_padding: int = 0,
     stride: int = 1,
     stride_type: Literal["regular", "transpose"] = "regular",
