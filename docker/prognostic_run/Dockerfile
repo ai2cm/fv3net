@@ -7,7 +7,6 @@ COPY .environment-scripts/setup_environment_post_base.sh ${FV3NET_SCRIPTS}/
 # Copy data and files required for building the fortran model
 COPY external/fv3gfs-fortran/ ${FV3GFS_FORTRAN_DIR}
 COPY .environment-scripts/install_fv3gfs_fortran.sh ${FV3NET_SCRIPTS}/
-COPY .environment-scripts/${PLATFORM}/install_fv3gfs_fortran.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
 RUN bash /fv3net/.environment-scripts/setup_environment.sh \
     fv3gfs-fortran \
     ${PLATFORM} \
@@ -28,7 +27,6 @@ RUN bash /fv3net/.environment-scripts/setup_environment.sh \
 
 # Copy data and files required for building the Python wrapper
 COPY .environment-scripts/install_python_wrapper.sh ${FV3NET_SCRIPTS}/
-COPY .environment-scripts/${PLATFORM}/install_python_wrapper.sh ${FV3NET_SCRIPTS}/${PLATFORM}
 RUN bash /fv3net/.environment-scripts/setup_environment.sh \
     wrapper \
     ${PLATFORM} \
