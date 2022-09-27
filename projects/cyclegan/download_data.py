@@ -6,7 +6,7 @@ if __name__ == "__main__":
     )
     c48 = c48.drop_vars([name for name in c48.data_vars if name != "h500"])
     c384 = xr.open_zarr(
-        "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/unperturbed/C384-to-C48-diagnostics/atmos_8xdaily_coarse.zarr"  # noqa: E501
+        "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/unperturbed/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"  # noqa: E501
     )
     c384 = c384.drop_vars([name for name in c384.data_vars if name != "h500"])
     c48.to_zarr("c48_baseline.zarr")
