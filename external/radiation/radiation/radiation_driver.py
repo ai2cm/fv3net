@@ -54,7 +54,7 @@ class RadiationDriver:
         si,
         NLAY,
         imp_physics,
-        me,
+        rank,
         iemsflg,
         ioznflg,
         ictmflg,
@@ -85,7 +85,7 @@ class RadiationDriver:
         self.monthd = 0
         self.isolar = isolar
 
-        if me == 0:
+        if rank == 0:
             print("NEW RADIATION PROGRAM STRUCTURES BECAME OPER. May 01 2007")
             print(self.VTAGRAD)  # print out version tag
             print(" ")
@@ -155,21 +155,21 @@ class RadiationDriver:
 
         # -# Initialization
         #  --- ...  astronomy initialization routine
-        self.sol = AstronomyClass(me, isolar, solar_filename)
+        self.sol = AstronomyClass(rank, isolar, solar_filename)
         #  --- ...  aerosols initialization routine
-        self.aer = AerosolClass(NLAY, me, iaerflg, ivflip, aerosol_dict)
+        self.aer = AerosolClass(NLAY, rank, iaerflg, ivflip, aerosol_dict)
         #  --- ...  co2 and other gases initialization routine
-        self.gas = GasClass(me, ioznflg, ico2flg, ictmflg)
+        self.gas = GasClass(rank, ioznflg, ico2flg, ictmflg)
         #  --- ...  surface initialization routine
-        self.sfc = SurfaceClass(me, ialbflg, iemsflg, semis_file, semis_data)
+        self.sfc = SurfaceClass(rank, ialbflg, iemsflg, semis_file, semis_data)
         #  --- ...  cloud initialization routine
         self.cld = CloudClass(
-            si, NLAY, imp_physics, me, ivflip, icldflg, iovrsw, iovrlw
+            si, NLAY, imp_physics, rank, ivflip, icldflg, iovrsw, iovrlw
         )
         #  --- ...  lw radiation initialization routine
-        self.rlw = RadLWClass(me, iovrlw, isubclw)
+        self.rlw = RadLWClass(rank, iovrlw, isubclw)
         #  --- ...  sw radiation initialization routine
-        self.rsw = RadSWClass(me, iovrsw, isubcsw, iswcliq)
+        self.rsw = RadSWClass(rank, iovrsw, isubcsw, iswcliq)
 
         if do_test:
             sol_dict = self.sol.return_initdata()
@@ -200,7 +200,7 @@ class RadiationDriver:
         cline,
         solar_data,
         gas_data,
-        me,
+        rank,
         do_test=False,
     ):
         # =================   subprogram documentation block   ================ !
@@ -225,7 +225,7 @@ class RadiationDriver:
         #   deltsw         : sw radiation calling frequency in seconds          !
         #   deltim         : model timestep in seconds                          !
         #   lsswr          : logical flags for sw radiation calculations        !
-        #   me             : print control flag                                 !
+        #   rank           : print control flag                                 !
         #                                                                       !
         #  outputs:                                                             !
         #   slag           : equation of time in radians                        !
@@ -303,13 +303,13 @@ class RadiationDriver:
             self.iyear0 = iyear
 
             slag, sdec, cdec, solcon = self.sol.sol_update(
-                jdate, kyear, deltsw, deltim, lsol_chg, me, solar_data
+                jdate, kyear, deltsw, deltim, lsol_chg, rank, solar_data
             )
 
         # Call module_radiation_aerosols::aer_update(), monthly update, no
         # time interpolation
         if lmon_chg:
-            self.aer.aer_update(iyear, imon, me, kprfg, idxcg, cmixg, denng, cline)
+            self.aer.aer_update(iyear, imon, rank, kprfg, idxcg, cmixg, denng, cline)
 
         # -# Call co2 and other gases update routine:
         # module_radiation_gases::gas_update()
@@ -319,9 +319,7 @@ class RadiationDriver:
         else:
             lco2_chg = False
 
-        self.gas.gas_update(
-            kyear, kmon, kday, khour, self.loz1st, lco2_chg, me, gas_data
-        )
+        self.gas.gas_update(kyear, kmon, kday, khour, self.loz1st, lco2_chg, gas_data)
 
         if self.loz1st:
             self.loz1st = False
@@ -365,7 +363,6 @@ class RadiationDriver:
             return
 
         # --- set commonly used integers
-        me = Model["me"]
         LM = Model["levr"]
         LEVS = Model["levs"]
         IM = Grid["xlon"].shape[0]
@@ -571,7 +568,7 @@ class RadiationDriver:
 
         if Model["lsswr"]:
             Radtend["coszen"], Radtend["coszdg"] = self.sol.coszmn(
-                Grid["xlon"], Grid["sinlat"], Grid["coslat"], Model["solhr"], IM, me
+                Grid["xlon"], Grid["sinlat"], Grid["coslat"], Model["solhr"], IM
             )
 
         #  - Call getgases(), to set up non-prognostic gas volume mixing

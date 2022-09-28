@@ -196,7 +196,6 @@ class Radiation:
         tracer_name_mapping: Mapping[str, str] = TRACER_NAMES_IN_MAPPING,
     ) -> MutableMapping[Hashable, Any]:
         model: MutableMapping[Hashable, Any] = {
-            "me": self._comm.rank,
             "levs": nz,
             "levr": nz,
             "nfxr": self._rad_config.nfxr,
