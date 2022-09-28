@@ -85,7 +85,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
 
 
 @pytest.mark.slow
-def test_autoencoder(tmpdir, conv_type: str):
+def test_autoencoder(tmpdir):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
