@@ -64,12 +64,21 @@ RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
     chmod -R 777 /outdir
 
-COPY .environment-scripts/environment_variables.sh ${FV3NET_SCRIPTS}/
+# these are needed for "click" to work
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+
+# Override microphysics emulation
+ENV VAR_META_PATH=$FV3NET_DIR/external/emulation/microphysics_parameter_metadata.yaml
+ENV OUTPUT_FREQ_SEC=18000
+
+# Add emulation project scripts
+ENV PATH=$FV3NET_DIR/projects/microphysics/scripts:${PATH}
+
+# Add fv3net packages to the PYTHONPATH
+ENV PYTHONPATH=$FV3NET_DIR/workflows/prognostic_c48_run:$FV3NET_DIR/external/fv3fit:$FV3NET_DIR/external/emulation:$FV3NET_DIR/external/vcm:/fv3net/external/artifacts:$FV3NET_DIR/external/loaders:$FV3NET_DIR/external/fv3kube:$FV3NET_DIR/workflows/post_process_run:$FV3NET_DIR/external/radiation:${PYTHONPATH}
 
 WORKDIR /fv3net/workflows/prognostic_c48_run
-COPY .environment-scripts/gnu_docker/activate_environment.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
-RUN chmod +x ${FV3NET_SCRIPTS}/${PLATFORM}/activate_environment.sh
-ENTRYPOINT ["/fv3net/.environment-scripts/gnu_docker/activate_environment.sh"]
 CMD = ["bash"]
 
 ###############################################################################
