@@ -203,7 +203,8 @@ class Radiation:
             "ncnd": self._rad_config.ncnd,
             "fhswr": self._rad_config.fhswr,
             "fhlwr": self._rad_config.fhlwr,
-            # todo: why does solar hour need to be one timestep behind time to validate?
+            # todo: update wrapper with fix to avoid having to be one timestep off
+            # see https://github.com/ai2cm/fv3net/issues/2071
             "solhr": _solar_hour(time - timedelta(seconds=self._timestep)),
             "lsswr": self._rad_config.lsswr,
             "lslwr": self._rad_config.lslwr,
