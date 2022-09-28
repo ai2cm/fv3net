@@ -24,6 +24,7 @@ ENV FV3NET_SCRIPTS=${FV3NET_DIR}/.environment-scripts
 
 # Copy general scripts
 COPY .environment-scripts/setup_environment.sh ${FV3NET_SCRIPTS}/
+COPY .environment-scripts/setup_base_environment.sh ${FV3NET_SCRIPTS}/
 COPY .environment-scripts/install_nceplibs.sh ${FV3NET_SCRIPTS}/
 COPY .environment-scripts/install_esmf.sh ${FV3NET_SCRIPTS}/
 COPY .environment-scripts/install_fms.sh ${FV3NET_SCRIPTS}/
@@ -32,8 +33,8 @@ COPY .environment-scripts/install_call_py_fort.sh ${FV3NET_SCRIPTS}/
 # Copy platform-specific scripts
 COPY .environment-scripts/${PLATFORM}/install_base_software.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
 
-# Copy configuration
-COPY .environment-scripts/${PLATFORM}/variables.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
+# Copy base configuration
+COPY .environment-scripts/${PLATFORM}/base_configuration_variables.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
 
 COPY external/fv3gfs-fortran/FMS ${FMS_DIR}
 RUN bash ${FV3NET_SCRIPTS}/setup_environment.sh \

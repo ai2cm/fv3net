@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+# Note that if this script is modified the base image will need to be rebuilt.
+
 apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \
     apt-get install -y  --no-install-recommends \

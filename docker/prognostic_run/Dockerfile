@@ -2,7 +2,8 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} as bld
 
-COPY .environment-scripts/setup_environment_post_base.sh ${FV3NET_SCRIPTS}/
+COPY .environment-scripts/setup_development_environment.sh ${FV3NET_SCRIPTS}/
+COPY .environment-scripts/${PLATFORM}/development_configuration_variables.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
 
 # Copy data and files required for building the fortran model
 COPY external/fv3gfs-fortran/ ${FV3GFS_FORTRAN_DIR}

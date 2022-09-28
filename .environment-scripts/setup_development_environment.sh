@@ -1,17 +1,17 @@
 #!/bin/bash
 set -e
 
-INSTALL_TYPE=$1  # Can be one of "all", "base", "fv3gfs-fortran", "python-requirements", "wrapper", or "fv3net-packages"
+INSTALL_TYPE=$1
 PLATFORM=$2
 CLONE_PREFIX=$3
 INSTALL_PREFIX=$4
 FV3NET_DIR=$5
-CALLPYFORT=$6  # Should be '' if not installed
-CONDA_ENV=$7  # Optional (not needed in prognostic run docker image)
+CALLPYFORT=$6
+CONDA_ENV=$7
 
 SCRIPTS=$FV3NET_DIR/.environment-scripts
 
-source $SCRIPTS/$PLATFORM/variables.sh
+source $SCRIPTS/$PLATFORM/development_configuration_variables.sh
 
 if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "fv3gfs-fortran" ] || [ "$INSTALL_TYPE" == "wrapper" ];
 then
