@@ -178,7 +178,8 @@ def test_cyclegan_visual(tmpdir):
     plt.show()
 
 
-def test_cyclegan_runs_without_errors(tmpdir, regtest):
+@pytest.mark.parametrize("conv_type", ["conv2d", "halo_conv2d"])
+def test_cyclegan_runs_without_errors(tmpdir, conv_type: str, regtest):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
@@ -202,6 +203,7 @@ def test_cyclegan_runs_without_errors(tmpdir, regtest):
             discriminator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
             ),
+            convolution_type=conv_type,
             identity_weight=0.01,
             cycle_weight=10.0,
             generator_weight=1.0,

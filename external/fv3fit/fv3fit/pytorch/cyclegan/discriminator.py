@@ -78,7 +78,7 @@ class Discriminator(nn.Module):
                 in_channels=in_channels,
                 out_channels=min_filters,
                 convolution_factory=curry(convolution)(
-                    kernel_size=kernel_size, stride=2, padding=1
+                    kernel_size=kernel_size, stride=2,
                 ),
                 activation_factory=leakyrelu_activation(
                     negative_slope=0.2, inplace=True

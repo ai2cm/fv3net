@@ -167,7 +167,7 @@ class Generator(nn.Module):
                 in_channels=in_channels,
                 out_channels=out_channels,
                 convolution_factory=curry(convolution)(
-                    kernel_size=strided_kernel_size, stride=2, stride_type="transpose",
+                    kernel_size=strided_kernel_size, stride=2, stride_type="transpose"
                 ),
                 activation_factory=relu_activation(),
             )

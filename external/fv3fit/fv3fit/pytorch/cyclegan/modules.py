@@ -1,7 +1,7 @@
 import logging
 import functools
 
-from typing import Callable, Literal, Protocol
+from typing import Callable, Literal, Optional, Protocol
 import torch.nn as nn
 import torch
 
@@ -35,6 +35,7 @@ class ConvolutionFactory(Protocol):
         self,
         in_channels: int,
         out_channels: int,
+        *,
         kernel_size: int,
         output_padding: int = 0,
         stride: int = 1,
@@ -94,6 +95,7 @@ def single_tile_convolution(
     output_padding: int = 0,
     stride: int = 1,
     stride_type: Literal["regular", "transpose"] = "regular",
+    padding: Optional[int] = None,
     bias: bool = True,
 ) -> ConvolutionFactory:
     """
@@ -109,7 +111,8 @@ def single_tile_convolution(
         stride_type: type of stride, one of "regular" or "transpose"
         bias: whether to include a bias vector in the produced layers
     """
-    padding = "same"
+    if padding is None:
+        padding = int((kernel_size - 1) // 2)
     if stride == 1:
         conv = nn.Conv2d(
             in_channels=in_channels,
@@ -118,7 +121,6 @@ def single_tile_convolution(
             padding=padding,
             bias=bias,
         )
-
     elif stride_type == "regular":
         conv = nn.Conv2d(
             in_channels,
@@ -134,7 +136,7 @@ def single_tile_convolution(
             out_channels,
             kernel_size,
             stride=stride,
-            padding=(padding, padding),
+            padding=padding,
             output_padding=output_padding,
             bias=bias,
         )
@@ -150,6 +152,7 @@ def halo_convolution(
     output_padding: int = 0,
     stride: int = 1,
     stride_type: Literal["regular", "transpose"] = "regular",
+    padding: Optional[int] = None,
     bias: bool = True,
 ) -> ConvolutionFactory:
     """
@@ -263,15 +266,17 @@ def halo_convolution(
     we suggest this github repo: https://github.com/vdumoulin/conv_arithmetic
 
     Args:
+        in_channels: number of input channels,
+        out_channels: number of output channels,
         kernel_size: size of the convolution kernel
         output_padding: argument used for transpose convolution
         stride: stride of the convolution
         stride_type: type of stride, one of "regular" or "transpose"
+        padding: if given, override automatic padding calculation and use this
+            number of halo points instead
         bias: whether to include a bias vector in the produced layers
     """
-    if stride_type == "transpose":
-        padding = int((kernel_size - 1) // 2 * stride)
-    else:
+    if padding is None:
         padding = int((kernel_size - 1) // 2)
     append = AppendHalos(n_halo=padding)
     conv = single_tile_convolution(
@@ -279,6 +284,7 @@ def halo_convolution(
         out_channels=out_channels,
         kernel_size=kernel_size,
         output_padding=output_padding,
+        padding=0,
         stride=stride,
         stride_type=stride_type,
         bias=bias,
@@ -299,6 +305,15 @@ def halo_convolution(
             conv, Crop(n_halo=padding * stride + int(kernel_size - 1) // 2)
         )
     return nn.Sequential(append, conv)
+
+
+def convolution_factory_from_name(name: str) -> ConvolutionFactory:
+    if name == "conv2d":
+        return single_tile_convolution
+    elif name == "halo_conv2d":
+        return halo_convolution
+    else:
+        raise ValueError(f"Unknown convolution type: {name}")
 
 
 def cpu_only(method):
