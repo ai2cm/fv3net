@@ -1,6 +1,8 @@
 import logging
 from collections import defaultdict
-from typing import Tuple, Mapping, MutableMapping
+from functools import partial
+from typing import Tuple, Mapping, MutableMapping, Optional
+from joblib import Parallel, delayed
 import xarray as xr
 
 import cartopy.crs as ccrs
@@ -68,6 +70,7 @@ def plot_2d_matplotlib(
     dims: Tuple[str, str],
     contour=False,
     figsize=None,
+    n_jobs=1,
     **opts,
 ) -> RawHTML:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
@@ -79,32 +82,20 @@ def plot_2d_matplotlib(
     ylabel = opts.pop("ylabel", "")
     x, y = dims
 
+    _partialed_plot = partial(
+        _plot_2d_matplotlib, run_diags, contour, figsize, ylabel, x, y
+    )
+
     variables_to_plot = run_diags.matching_variables(varfilter)
-    for varname in variables_to_plot:
-        if not contour:
-            opts["vmin"], opts["vmax"], opts["cmap"] = _get_cmap_kwargs(
-                run_diags, varname, robust=False, ignore_poles=True
-            )
-        for run in run_diags.runs:
-            logging.info(f"plotting {varname} in {run}")
-            v = run_diags.get_variable(run, varname)
-            long_name = v.attrs.get("long_name", varname)
-            units = v.attrs.get("units", "")
-            long_name_and_units = f"{long_name} [{units}]"
-            fig, ax = plt.subplots(figsize=figsize)
-            if contour:
-                levels = CONTOUR_LEVELS.get(varname)
-                xr.plot.contourf(
-                    v, ax=ax, x=x, y=y, levels=levels, extend="both", **opts
-                )
-            else:
-                v.plot(ax=ax, x=x, y=y, **opts)
-            if ylabel:
-                ax.set_ylabel(ylabel)
-            ax.set_title(long_name_and_units)
-            plt.tight_layout()
-            data[varname][run] = MatplotlibFigure(fig, width="500px")
-            plt.close(fig)
+    out = Parallel(n_jobs=n_jobs, verbose=True)(
+        delayed(_partialed_plot)(run, varname, **opts)
+        for run in run_diags.runs
+        for varname in variables_to_plot
+    )
+    for i, varname in enumerate(variables_to_plot):
+        for j, run in enumerate(run_diags.runs):
+            data[varname][run] = out[i + j * len(variables_to_plot)]
+
     return RawHTML(
         template.render(
             images=data,
@@ -116,11 +107,39 @@ def plot_2d_matplotlib(
     )
 
 
+def _plot_2d_matplotlib(
+    run_diags, contour, figsize, ylabel, x, y, run, varname, **opts
+):
+    logging.info(f"plotting {varname} in {run}")
+    if not contour:
+        opts["vmin"], opts["vmax"], opts["cmap"] = _get_cmap_kwargs(
+            run_diags, varname, robust=False, ignore_poles=True
+        )
+    v = run_diags.get_variable(run, varname)
+    long_name = v.attrs.get("long_name", varname)
+    units = v.attrs.get("units", "")
+    long_name_and_units = f"{long_name} [{units}]"
+    fig, ax = plt.subplots(figsize=figsize)
+    if contour:
+        levels = CONTOUR_LEVELS.get(varname)
+        xr.plot.contourf(v, ax=ax, x=x, y=y, levels=levels, extend="both", **opts)
+    else:
+        v.plot(ax=ax, x=x, y=y, **opts)
+    if ylabel:
+        ax.set_ylabel(ylabel)
+    ax.set_title(long_name_and_units)
+    plt.tight_layout()
+    output = MatplotlibFigure(fig, width="500px")
+    plt.close(fig)
+    return output
+
+
 def plot_cubed_sphere_map(
     run_diags: RunDiagnostics,
     run_metrics: RunMetrics,
     varfilter: str,
-    metrics_for_title: Mapping[str, str] = None,
+    metrics_for_title: Optional[Mapping[str, str]] = None,
+    n_jobs=1,
 ) -> str:
     """Plot horizontal maps of cubed-sphere data for diagnostics which match varfilter.
 
@@ -130,6 +149,7 @@ def plot_cubed_sphere_map(
         varfilter: pattern to filter variable names
         metrics_for_title: metrics to put in plot title. Mapping from label to use in
             plot title to metric_type.
+        n_jobs: number of CPU to use for generating plots.
 
     Note:
         All matching diagnostics must have tile, x and y dimensions and each dataset in
@@ -141,23 +161,20 @@ def plot_cubed_sphere_map(
         metrics_for_title = {}
 
     variables_to_plot = run_diags.matching_variables(varfilter)
-    for varname in variables_to_plot:
-        vmin, vmax, cmap = _get_cmap_kwargs(run_diags, varname, robust=True)
-        for run in run_diags.runs:
-            logging.info(f"plotting {varname} in {run}")
-            shortname = varname.split(varfilter)[0][:-1]
-            ds = run_diags.get_variables(run, COORD_VARS + [varname])
-            plot_title = _render_map_title(
-                run_metrics, shortname, run, metrics_for_title
-            )
-            fig, ax = plt.subplots(
-                figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
-            )
-            fv3viz.plot_cube(ds, varname, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
-            ax.set_title(plot_title)
-            plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
-            data[varname][run] = MatplotlibFigure(fig, width="500px")
-            plt.close(fig)
+
+    _partialed_plot = partial(
+        _plot_cubed_sphere_map, run_diags, run_metrics, varfilter, metrics_for_title
+    )
+
+    out = Parallel(n_jobs=n_jobs, verbose=True)(
+        delayed(_partialed_plot)(run, varname)
+        for run in run_diags.runs
+        for varname in variables_to_plot
+    )
+    for i, varname in enumerate(variables_to_plot):
+        for j, run in enumerate(run_diags.runs):
+            data[varname][run] = out[i + j * len(variables_to_plot)]
+
     return RawHTML(
         template.render(
             images=data,
@@ -167,6 +184,23 @@ def plot_cubed_sphere_map(
             variable_long_names=run_diags.long_names,
         )
     )
+
+
+def _plot_cubed_sphere_map(
+    run_diags, run_metrics, varfilter, metrics_for_title, run, varname
+):
+    vmin, vmax, cmap = _get_cmap_kwargs(run_diags, varname, robust=True)
+    logging.info(f"plotting {varname} in {run}")
+    shortname = varname.split(varfilter)[0][:-1]
+    ds = run_diags.get_variables(run, COORD_VARS + [varname])
+    plot_title = _render_map_title(run_metrics, shortname, run, metrics_for_title)
+    fig, ax = plt.subplots(figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()})
+    fv3viz.plot_cube(ds, varname, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
+    ax.set_title(plot_title)
+    plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
+    output = MatplotlibFigure(fig, width="500px")
+    plt.close(fig)
+    return output
 
 
 def plot_histogram(
