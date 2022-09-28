@@ -80,7 +80,7 @@ ENV PATH=$FV3NET_DIR/projects/microphysics/scripts:${PATH}
 ENV PYTHONPATH=$FV3NET_DIR/workflows/prognostic_c48_run:$FV3NET_DIR/external/fv3fit:$FV3NET_DIR/external/emulation:$FV3NET_DIR/external/vcm:/fv3net/external/artifacts:$FV3NET_DIR/external/loaders:$FV3NET_DIR/external/fv3kube:$FV3NET_DIR/workflows/post_process_run:$FV3NET_DIR/external/radiation:${PYTHONPATH}
 
 WORKDIR /fv3net/workflows/prognostic_c48_run
-CMD = ["bash"]
+CMD ["bash"]
 
 ###############################################################################
 #  prognostic-run image
