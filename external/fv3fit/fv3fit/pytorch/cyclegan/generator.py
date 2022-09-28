@@ -24,12 +24,17 @@ class GeneratorConfig:
     fractionally strided convolutions with stride 1/2, followed by an output
     convolutional layer with kernel size 7 to map to the output channels.
 
+    Generally we suggest using an even kernel size for strided convolutions,
+    and an odd kernel size for resnet (non-strided) convolutions. For an explanation
+    of this, see the docstring on halo_convolution.
+
     Attributes:
         n_convolutions: number of strided convolutional layers after the initial
             convolutional layer and before the residual blocks
         n_resnet: number of residual blocks
-        kernel_size: size of convolutional kernels in the strided convolutions
-            and resnet blocks
+        kernel_size: size of convolutional kernels in the resnet blocks
+        strided_kernel_size: size of convolutional kernels in the
+            strided convolutions
         max_filters: maximum number of filters in any convolutional layer,
             equal to the number of filters in the final strided convolutional layer
             and in the resnet blocks
