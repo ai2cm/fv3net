@@ -3,7 +3,7 @@ set -e
 
 PLATFORM=$1
 FV3NET_DIR=$2
-INSTALL_PREFIX=$3
+INSTALL_PREFIX=$3  # Must be in environment when sourcing the environment_variable.sh script.
 CONDA_ENV=$4
 
 FV3NET_SCRIPTS=$FV3NET_DIR/.environment-scripts
