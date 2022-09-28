@@ -13,6 +13,7 @@ class TrainConfig:
     n_burn: int
     n_samples: None
     noise: float
+    l2: float
 
 
 @dataclasses.dataclass
