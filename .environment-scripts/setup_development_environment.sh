@@ -43,7 +43,7 @@ if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "python-requirements" ];
 then
     if [ "$PLATFORM" != "gnu_docker" ];
     then
-	    make -C "$FV3NET_DIR" docker/prognostic_run/requirements.txt
+        make -C "$FV3NET_DIR" docker/prognostic_run/requirements.txt
     fi
     CC="$MPI4PY_CC" MPICC="$MPI4PY_MPICC" pip install --no-cache-dir -r "$FV3NET_DIR"/docker/prognostic_run/requirements.txt
 fi
