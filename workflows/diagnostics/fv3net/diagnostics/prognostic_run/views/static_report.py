@@ -275,16 +275,12 @@ def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
 
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
-    return plot_2d_matplotlib(
-        diagnostics, "zonal_mean_value", ["time", "latitude"], n_jobs=-1
-    )
+    return plot_2d_matplotlib(diagnostics, "zonal_mean_value", ["time", "latitude"])
 
 
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
-    return plot_2d_matplotlib(
-        diagnostics, "zonal_mean_bias", ["time", "latitude"], n_jobs=-1
-    )
+    return plot_2d_matplotlib(diagnostics, "zonal_mean_bias", ["time", "latitude"])
 
 
 def infer_duration_seconds(diagnostics: RunDiagnostics) -> float:
@@ -314,7 +310,6 @@ def deep_tropical_meridional_mean_hovmoller_plots(
         "deep_tropical_meridional_mean_value",
         ["longitude", "high_frequency_time"],
         figsize=figsize,
-        n_jobs=-1,
     )
 
 
@@ -326,7 +321,6 @@ def time_mean_cubed_sphere_maps(
         metrics,
         "time_mean_value",
         metrics_for_title={"Mean": "time_and_global_mean_value"},
-        n_jobs=-1,
     )
 
 
@@ -341,7 +335,6 @@ def time_mean_bias_cubed_sphere_maps(
             "Mean": "time_and_global_mean_bias",
             "RMSE": "rmse_of_time_mean",
         },
-        n_jobs=-1,
     )
 
 
@@ -353,7 +346,6 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
         ["latitude", "pressure"],
         yincrease=False,
         ylabel="Pressure [Pa]",
-        n_jobs=-1,
     )
 
 
@@ -367,7 +359,6 @@ def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
         cmap="RdBu_r",
         yincrease=False,
         ylabel="Pressure [Pa]",
-        n_jobs=-1,
     )
 
 
