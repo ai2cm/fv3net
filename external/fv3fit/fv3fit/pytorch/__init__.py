@@ -10,6 +10,7 @@ from .cyclegan import (
     train_autoencoder,
     AutoencoderHyperparameters,
     GeneratorConfig,
+    RecurrentGeneratorConfig,
     DiscriminatorConfig,
     CycleGANHyperparameters,
     CycleGANTrainingConfig,

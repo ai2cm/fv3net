@@ -14,9 +14,9 @@ from .modules import (
 
 
 @dataclasses.dataclass
-class GeneratorConfig:
+class RecurrentGeneratorConfig:
     """
-    Configuration for a generator network.
+    Configuration for a recurrent generator network.
 
     Follows the architecture of Zhu et al. 2017, https://arxiv.org/abs/1703.10593.
     This network contains an initial convolutional layer with kernel size 7,
@@ -63,18 +63,8 @@ class GeneratorConfig:
             convolution: factory for creating all convolutional layers
                 used by the network
         """
-        return Generator(
-            channels=channels,
-            n_convolutions=self.n_convolutions,
-            n_resnet=self.n_resnet,
-            kernel_size=self.kernel_size,
-            strided_kernel_size=self.strided_kernel_size,
-            max_filters=self.max_filters,
-            convolution=convolution,
-            nx=nx,
-            ny=ny,
-            use_geographic_bias=self.use_geographic_bias,
-            disable_convolutions=self.disable_convolutions,
+        return RecurrentGenerator(
+            config=self, channels=channels, nx=nx, ny=ny, convolution=convolution,
         )
 
 
@@ -91,61 +81,34 @@ class GeographicBias(nn.Module):
         return x + self.bias
 
 
-class AutoRegressiveBlock(nn.Module):
-    def __init__(self, wrapped: nn.Module, n_time: int):
+class Concatenate(nn.Module):
+    def __init__(self, dim: int):
         super().__init__()
-        self.wrapped = wrapped
-        self.n_time = n_time
+        self.dim = dim
 
-    def forward(self, x):
-        out = []
-        for _ in range(self.n_time):
-            x = self.wrapped(x)
-            out.append(x)
-        x = torch.cat(out, dim=-5)
-        return x
+    def forward(self, x1, x2):
+        return torch.cat([x1, x2], dim=self.dim)
 
 
-class Generator(nn.Module):
+class RecurrentGenerator(nn.Module):
     def __init__(
         self,
+        config: RecurrentGeneratorConfig,
         channels: int,
         nx: int,
         ny: int,
-        n_time: int,
-        n_convolutions: int,
-        n_resnet: int,
-        kernel_size: int,
-        strided_kernel_size: int,
-        max_filters: int,
-        use_geographic_bias: bool,
-        disable_convolutions: bool,
         convolution: ConvolutionFactory = single_tile_convolution,
     ):
         """
         Args:
+            config: configuration for the network
             channels: number of input and output channels
             nx: number of grid points in x direction
             ny: number of grid points in y direction
-            n_convolutions: number of strided convolutional layers after the initial
-                convolutional layer and before the residual blocks
-            n_resnet: number of residual blocks
-            kernel_size: size of convolutional kernels in the resnet blocks
-            strided_kernel_size: size of convolutional kernels in the
-                strided convolutions
-            max_filters: maximum number of filters in any convolutional layer,
-                equal to the number of filters in the final strided convolutional layer
-                and in the resnet blocks
-            use_geographic_bias: if True, include a layer that adds a trainable bias
-                vector that is a function of x and y to the input and output
-                of the network
-            disable_convolutions: if True, ignore all layers other than bias
-                (if enabled). Useful for debugging and for testing the effect
-                of the geographic bias layer.
             convolution: factory for creating all convolutional layers
                 used by the network
         """
-        super(Generator, self).__init__()
+        super(RecurrentGenerator, self).__init__()
 
         def resnet(in_channels: int, out_channels: int):
             if in_channels != out_channels:
@@ -153,24 +116,31 @@ class Generator(nn.Module):
                     "resnet must have same number of output channels as "
                     "input channels, since the inputs are added to the outputs"
                 )
+            concat = Concatenate(dim=-3)
+            first_block = ConvBlock(
+                in_channels=in_channels * 2,
+                out_channels=in_channels,
+                convolution_factory=curry(convolution)(kernel_size=config.kernel_size),
+                activation_factory=relu_activation(),
+            )
             resnet_blocks = [
                 ResnetBlock(
                     channels=in_channels,
-                    convolution_factory=curry(convolution)(kernel_size=kernel_size),
+                    convolution_factory=curry(convolution)(
+                        kernel_size=config.kernel_size
+                    ),
                     activation_factory=relu_activation(),
                 )
-                for _ in range(n_resnet)
+                for _ in range(config.n_resnet)
             ]
-            return AutoRegressiveBlock(
-                wrapped=nn.Sequential(*resnet_blocks), n_time=n_time,
-            )
+            return nn.Sequential(concat, first_block, *resnet_blocks)
 
         def down(in_channels: int, out_channels: int):
             return ConvBlock(
                 in_channels=in_channels,
                 out_channels=out_channels,
                 convolution_factory=curry(convolution)(
-                    kernel_size=strided_kernel_size, stride=2
+                    kernel_size=config.strided_kernel_size, stride=2
                 ),
                 activation_factory=relu_activation(),
             )
@@ -180,7 +150,7 @@ class Generator(nn.Module):
                 in_channels=in_channels,
                 out_channels=out_channels,
                 convolution_factory=curry(convolution)(
-                    kernel_size=strided_kernel_size,
+                    kernel_size=config.strided_kernel_size,
                     stride=2,
                     output_padding=0,
                     stride_type="transpose",
@@ -188,10 +158,12 @@ class Generator(nn.Module):
                 activation_factory=relu_activation(),
             )
 
-        min_filters = int(max_filters / 2 ** n_convolutions)
+        min_filters = int(config.max_filters / 2 ** config.n_convolutions)
 
-        if disable_convolutions:
-            main = nn.Identity()
+        if config.disable_convolutions:
+            first_conv = nn.Identity()
+            encoder_decoder = nn.Identity()
+            out_conv = nn.Identity()
         else:
             first_conv = nn.Sequential(
                 convolution(
@@ -208,7 +180,7 @@ class Generator(nn.Module):
                 down_factory=down,
                 up_factory=up,
                 bottom_factory=resnet,
-                depth=n_convolutions,
+                depth=config.n_convolutions,
                 in_channels=min_filters,
             )
 
@@ -220,25 +192,57 @@ class Generator(nn.Module):
                     padding="same",
                 ),
             )
-            main = nn.Sequential(first_conv, encoder_decoder, out_conv)
-        self._main = main
-        if use_geographic_bias:
+        self._first_conv = first_conv
+        self._encoder_decoder = encoder_decoder
+        self._out_conv = out_conv
+        if config.use_geographic_bias:
             self._input_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
             self._output_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
         else:
             self._input_bias = nn.Identity()
             self._output_bias = nn.Identity()
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def init_hidden(self, input_shape) -> torch.Tensor:
+        """
+        Initialize the hidden state of the network.
+
+        Args:
+            input_shape: shape of the input to the network, should be
+                [n_sample, n_tile, n_channels, nx, ny]
+
+        Returns:
+            hidden state of the network, of shape
+            [n_sample, n_tile, n_channels, nx_coarse, ny_coarse]
+        """
+        if input_shape[-4:] != [6, self.channels, self.nx, self.ny]:
+            raise ValueError(
+                "input_shape must be [n_sample, n_tile, n_channels, nx, ny], "
+                "but given shape is {} which does not match init values of {}".format(
+                    input_shape, [6, self.channels, self.nx, self.ny]
+                )
+            )
+        hidden_state = torch.zeros(
+            input_shape[0],
+            6,
+            self.channels,
+            self.nx / (2 ** self.n_convolutions),
+            self.ny / (2 ** self.n_convolutions),
+        )
+        return hidden_state
+
+    def forward(self, inputs: torch.Tensor, hidden: torch.Tensor) -> torch.Tensor:
         """
         Args:
             inputs: tensor of shape [batch, tile, channels, x, y]
+            hidden: tensor of shape [batch, tile, channels, x_coarse, y_coarse]
 
         Returns:
-            tensor of shape [batch, time, tile, channels, x, y]
+            tensor of shape [batch, tile, channels, x, y]
         """
         x = self._input_bias(inputs)
-        x = self._main(x)
+        x = self._first_conv(x)
+        x = self._encoder_decoder(x, hidden)
+        x = self._out_conv(x)
         outputs: torch.Tensor = self._output_bias(x)
         return outputs
 
@@ -286,15 +290,16 @@ class SymmetricEncoderDecoder(nn.Module):
                 in_channels=lower_channels,
             )
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def forward(self, inputs: torch.Tensor, hidden: torch.Tensor) -> torch.Tensor:
         """
         Args:
             inputs: tensor of shape [batch, tile, channels, x, y]
+            hidden: tensor of shape [batch, tile, channels_coarse, x_coarse, y_coarse]
 
         Returns:
             tensor of shape [batch, tile, channels, x, y]
         """
         x = self._down(inputs)
-        x = self._lower(x)
+        x = self._lower(x, hidden)
         x = self._up(x)
         return x

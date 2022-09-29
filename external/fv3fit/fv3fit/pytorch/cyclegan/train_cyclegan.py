@@ -1,3 +1,4 @@
+import random
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
 import tensorflow as tf
@@ -72,6 +73,7 @@ class CycleGANTrainingConfig:
     shuffle_buffer_size: int = 10
     samples_per_batch: int = 1
     validation_batch_size: Optional[int] = None
+    in_memory: bool = False
 
     def fit_loop(
         self,
@@ -88,10 +90,10 @@ class CycleGANTrainingConfig:
                 to the model, should be unbatched and have dimensions
                 [time, tile, z, x, y]
         """
-        train_data = train_data.shuffle(buffer_size=self.shuffle_buffer_size).batch(
-            self.samples_per_batch
-        )
-        train_data = tfds.as_numpy(train_data)
+        if self.shuffle_buffer_size > 1:
+            train_data = train_data.shuffle(buffer_size=self.shuffle_buffer_size)
+        train_data = train_data.batch(self.samples_per_batch)
+        train_data_numpy = tfds.as_numpy(train_data)
         if validation_data is not None:
             if self.validation_batch_size is None:
                 validation_batch_size = sequence_size(validation_data)
@@ -99,13 +101,50 @@ class CycleGANTrainingConfig:
                 validation_batch_size = self.validation_batch_size
             validation_data = validation_data.batch(validation_batch_size)
             validation_data = tfds.as_numpy(validation_data)
+        if self.in_memory:
+            self._fit_loop_tensor(train_model, train_data_numpy, validation_data)
+        else:
+            self._fit_loop_dataset(train_model, train_data_numpy, validation_data)
+
+    def _fit_loop_dataset(
+        self,
+        train_model: CycleGANTrainer,
+        train_data_numpy,
+        validation_data: Optional[tf.data.Dataset],
+    ):
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
-            for batch_state in train_data:
-                state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
-                state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+            for batch_state in train_data_numpy:
+                train_losses.append(train_model.train_on_batch(batch_state))
+            train_loss = {
+                name: np.mean([data[name] for data in train_losses])
+                for name in train_losses[0]
+            }
+            logger.info("train_loss: %s", train_loss)
+
+            if validation_data is not None:
+                val_loss = train_model.evaluate_on_dataset(validation_data)
+                logger.info("val_loss %s", val_loss)
+
+    def _fit_loop_tensor(
+        self,
+        train_model: CycleGANTrainer,
+        train_data_numpy: tf.data.Dataset,
+        validation_data: Optional[tf.data.Dataset],
+    ):
+        train_states = []
+        batch_state: Tuple[np.ndarray, np.ndarray]
+        for batch_state in train_data_numpy:
+            state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
+            state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+            train_states.append((state_a, state_b))
+        for i in range(1, self.n_epoch + 1):
+            logger.info("starting epoch %d", i)
+            train_losses = []
+            for state_a, state_b in train_states:
                 train_losses.append(train_model.train_on_batch(state_a, state_b))
+            random.shuffle(train_states)
             train_loss = {
                 name: np.mean([data[name] for data in train_losses])
                 for name in train_losses[0]

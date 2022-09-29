@@ -1,7 +1,13 @@
 import random
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
-from fv3fit.pytorch.cyclegan.generator import GeneratorConfig
+from fv3fit._shared.predictor import Reloadable
+from fv3fit.pytorch.cyclegan.discriminator import Discriminator, DiscriminatorConfig
+from fv3fit.pytorch.cyclegan.generator import Generator, GeneratorConfig
+from fv3fit.pytorch.cyclegan.image_pool import ImagePool
+from fv3fit.pytorch.cyclegan.modules import halo_convolution, single_tile_convolution
+from fv3fit.pytorch.loss import LossConfig
+from fv3fit.pytorch.optimizer import OptimizerConfig
 import tensorflow as tf
 import torch
 from fv3fit.pytorch.system import DEVICE
@@ -11,9 +17,11 @@ from fv3fit.tfdataset import sequence_size, apply_to_tuple
 from fv3fit._shared import register_training_function
 from typing import (
     Callable,
+    Dict,
     List,
     Mapping,
     Optional,
+    Protocol,
     Sequence,
     Tuple,
 )
@@ -25,10 +33,98 @@ from fv3fit._shared.scaler import (
 )
 import logging
 import numpy as np
-from .reloadable import CycleGAN
-from .cyclegan_trainer import CycleGANNetworkConfig, CycleGANTrainer
+from .cyclegan_trainer import init_weights
+from .train_cyclegan import CycleGANTrainingConfig
 
 logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass
+class FMRNetworkConfig:
+    """
+    Configuration for building and training a full model replacement network.
+
+    Attributes:
+        generator_optimizer: configuration for the optimizer used to train the
+            generator
+        discriminator_optimizer: configuration for the optimizer used to train the
+            discriminator
+        generator: configuration for building the generator network
+        discriminator: configuration for building the discriminator network
+        identity_loss: loss function used to make the generator which outputs
+            a given domain behave as an identity function when given data from
+            that domain as input
+        cycle_loss: loss function used on the difference between a round-trip
+            of the CycleGAN network and the original input
+        gan_loss: loss function used on output of the discriminator when
+            training the discriminator identify samples correctly or when training
+            the generator to fool the discriminator
+        identity_weight: weight of the identity loss
+        cycle_weight: weight of the cycle loss
+        generator_weight: weight of the generator's gan loss
+        discriminator_weight: weight of the discriminator gan loss
+    """
+
+    generator_optimizer: OptimizerConfig = dataclasses.field(
+        default_factory=lambda: OptimizerConfig("Adam")
+    )
+    discriminator_optimizer: OptimizerConfig = dataclasses.field(
+        default_factory=lambda: OptimizerConfig("Adam")
+    )
+    generator: "GeneratorConfig" = dataclasses.field(
+        default_factory=lambda: GeneratorConfig()
+    )
+    discriminator: "DiscriminatorConfig" = dataclasses.field(
+        default_factory=lambda: DiscriminatorConfig()
+    )
+    convolution_type: str = "conv2d"
+    identity_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
+    cycle_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
+    gan_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
+    target_weight: float = 1.0
+    generator_weight: float = 1.0
+    discriminator_weight: float = 1.0
+
+    def build(
+        self,
+        n_state: int,
+        nx: int,
+        ny: int,
+        n_batch: int,
+        state_variables: Sequence[str],
+        scalers,
+    ) -> "FMRTrainer":
+        if self.convolution_type == "conv2d":
+            convolution = single_tile_convolution
+        elif self.convolution_type == "halo_conv2d":
+            convolution = halo_convolution
+        else:
+            raise ValueError(f"convolution_type {self.convolution_type} not supported")
+        generator = self.generator.build(
+            n_state, nx=nx, ny=ny, convolution=convolution
+        ).to(DEVICE)
+        discriminator = self.discriminator.build(n_state, convolution=convolution).to(
+            DEVICE
+        )
+        optimizer_generator = self.generator_optimizer.instance(generator.parameters())
+        optimizer_discriminator = self.discriminator_optimizer.instance(
+            discriminator.parameters()
+        )
+        init_weights(generator)
+        init_weights(discriminator)
+        return FMRTrainer(
+            generator=generator,
+            discriminator=discriminator,
+            optimizer_generator=optimizer_generator,
+            optimizer_discriminator=optimizer_discriminator,
+            identity_loss=self.identity_loss.instance,
+            cycle_loss=self.cycle_loss.instance,
+            gan_loss=self.gan_loss.instance,
+            batch_size=n_batch,
+            target_weight=self.target_weight,
+            generator_weight=self.generator_weight,
+            discriminator_weight=self.discriminator_weight,
+        )
 
 
 @dataclasses.dataclass
@@ -61,15 +157,14 @@ class FMRTrainer:
     # Copyright Facebook, BSD license
     # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/c99ce7c4e781712e0252c6127ad1a4e8021cc489/LICENSE
 
-    generator: GeneratorConfig
+    generator: Generator
+    discriminator: Discriminator
     optimizer_generator: torch.optim.Optimizer
     optimizer_discriminator: torch.optim.Optimizer
-    identity_loss: torch.nn.Module
-    cycle_loss: torch.nn.Module
+    target_loss: torch.nn.Module
     gan_loss: torch.nn.Module
     batch_size: int
-    identity_weight: float = 0.5
-    cycle_weight: float = 1.0
+    target_weight: float = 1.0
     generator_weight: float = 1.0
     discriminator_weight: float = 1.0
 
@@ -77,12 +172,7 @@ class FMRTrainer:
         self.target_real: Optional[torch.autograd.Variable] = None
         self.target_fake: Optional[torch.autograd.Variable] = None
         # image pool size of 50 used by Zhu et al. (2017)
-        self.fake_a_buffer = ImagePool(50)
-        self.fake_b_buffer = ImagePool(50)
-        self.generator_a_to_b = self.cycle_gan.generator_a_to_b
-        self.generator_b_to_a = self.cycle_gan.generator_b_to_a
-        self.discriminator_a = self.cycle_gan.discriminator_a
-        self.discriminator_b = self.cycle_gan.discriminator_b
+        self.fake_buffer = ImagePool(50)
 
     def _init_targets(self, shape: Tuple[int, ...]):
         self.target_real = torch.autograd.Variable(
@@ -92,190 +182,75 @@ class FMRTrainer:
             torch.Tensor(shape).fill_(0.0).to(DEVICE), requires_grad=False
         )
 
-    def evaluate_on_dataset(
-        self, dataset: tf.data.Dataset, n_dims_keep: int = 3
-    ) -> Dict[str, float]:
-        stats_real_a = StatsCollector(n_dims_keep)
-        stats_real_b = StatsCollector(n_dims_keep)
-        stats_gen_a = StatsCollector(n_dims_keep)
-        stats_gen_b = StatsCollector(n_dims_keep)
-        real_a: np.ndarray
-        real_b: np.ndarray
-        reported_plot = False
-        for real_a, real_b in dataset:
-            # for now there is no time-evolution-based loss, so we fold the time
-            # dimension into the sample dimension
-            real_a = real_a.reshape(
-                [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
-            )
-            real_b = real_b.reshape(
-                [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
-            )
-            stats_real_a.observe(real_a)
-            stats_real_b.observe(real_b)
-            gen_b: np.ndarray = self.generator_a_to_b(
-                torch.as_tensor(real_a).float().to(DEVICE)
-            ).detach().cpu().numpy()
-            gen_a: np.ndarray = self.generator_b_to_a(
-                torch.as_tensor(real_b).float().to(DEVICE)
-            ).detach().cpu().numpy()
-            stats_gen_a.observe(gen_a)
-            stats_gen_b.observe(gen_b)
-            if not reported_plot and plt is not None:
-                report = {}
-                for i_tile in range(6):
-                    fig, ax = plt.subplots(2, 2, figsize=(8, 7))
-                    im = ax[0, 0].pcolormesh(real_a[0, i_tile, 0, :, :])
-                    plt.colorbar(im, ax=ax[0, 0])
-                    ax[0, 0].set_title("a_real")
-                    im = ax[1, 0].pcolormesh(real_b[0, i_tile, 0, :, :])
-                    plt.colorbar(im, ax=ax[1, 0])
-                    ax[1, 0].set_title("b_real")
-                    im = ax[0, 1].pcolormesh(gen_b[0, i_tile, 0, :, :])
-                    plt.colorbar(im, ax=ax[0, 1])
-                    ax[0, 1].set_title("b_gen")
-                    im = ax[1, 1].pcolormesh(gen_a[0, i_tile, 0, :, :])
-                    plt.colorbar(im, ax=ax[1, 1])
-                    ax[1, 1].set_title("a_gen")
-                    plt.tight_layout()
-                    buf = io.BytesIO()
-                    plt.savefig(buf, format="png")
-                    plt.close()
-                    buf.seek(0)
-                    report[f"tile_{i_tile}_example"] = wandb.Image(
-                        PIL.Image.open(buf), caption=f"Tile {i_tile} Example",
-                    )
-                wandb.log(report)
-                reported_plot = True
-        metrics = {
-            "r2_mean_b_against_real_a": get_r2(stats_real_a.mean, stats_gen_b.mean),
-            "r2_mean_a": get_r2(stats_real_a.mean, stats_gen_a.mean),
-            "bias_mean_a": np.mean(stats_real_a.mean - stats_gen_a.mean),
-            "r2_mean_b": get_r2(stats_real_b.mean, stats_gen_b.mean),
-            "bias_mean_b": np.mean(stats_real_b.mean - stats_gen_b.mean),
-            "r2_std_a": get_r2(stats_real_a.std, stats_gen_a.std),
-            "bias_std_a": np.mean(stats_real_a.std - stats_gen_a.std),
-            "r2_std_b": get_r2(stats_real_b.std, stats_gen_b.std),
-            "bias_std_b": np.mean(stats_real_b.std - stats_gen_b.std),
-        }
-        return metrics
+    def evaluate_on_dataset(self, dataset: tf.data.Dataset) -> Dict[str, float]:
+        raise NotImplementedError()
 
-    def train_on_batch(
-        self, real_a: torch.Tensor, real_b: torch.Tensor
-    ) -> Mapping[str, float]:
+    def train_on_batch(self, real: torch.Tensor) -> Mapping[str, float]:
         """
         Train the CycleGAN on a batch of data.
 
         Args:
-            real_a: a batch of data from domain A, should have shape
-                [sample, time, tile, channel, y, x]
+            real: a batch of data from domain A, should have shape
+                [sample, time, tile, channel, x, y]
             real_b: a batch of data from domain B, should have shape
-                [sample, time, tile, channel, y, x]
+                [sample, time, tile, channel, x, y]
         """
         # for now there is no time-evolution-based loss, so we fold the time
         # dimension into the sample dimension
-        real_a = real_a.reshape(
-            [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
-        )
-        real_b = real_b.reshape(
-            [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
-        )
 
-        fake_b = self.generator_a_to_b(real_a)
-        fake_a = self.generator_b_to_a(real_b)
-        reconstructed_a = self.generator_b_to_a(fake_b)
-        reconstructed_b = self.generator_a_to_b(fake_a)
+        state = real[:, 0, ...]
+        hidden = self.generator.init_hidden()
+        out_states = [state]
+        for i in range(1, real.shape[1]):
+            state, hidden = self.generator(state, hidden)
+            out_states.append(state)
+        fake = torch.stack(out_states, dim=1)
 
         # Generators A2B and B2A ######
 
         # don't update discriminators when training generators to fool them
-        set_requires_grad(
-            [self.discriminator_a, self.discriminator_b], requires_grad=False
-        )
-
-        # Identity loss
-        # G_A2B(B) should equal B if real B is fed
-        same_b = self.generator_a_to_b(real_b)
-        loss_identity_b = self.identity_loss(same_b, real_b) * self.identity_weight
-        # G_B2A(A) should equal A if real A is fed
-        same_a = self.generator_b_to_a(real_a)
-        loss_identity_a = self.identity_loss(same_a, real_a) * self.identity_weight
-        loss_identity = loss_identity_a + loss_identity_b
+        set_requires_grad([self.discriminator], requires_grad=False)
 
         # GAN loss
-        pred_fake_b = self.discriminator_b(fake_b)
+        pred_fake = self.discriminator(fake)
         if self.target_real is None:
-            self._init_targets(pred_fake_b.shape)
-        loss_gan_a_to_b = (
-            self.gan_loss(pred_fake_b, self.target_real) * self.generator_weight
-        )
-
-        pred_fake_a = self.discriminator_a(fake_a)
-        loss_gan_b_to_a = (
-            self.gan_loss(pred_fake_a, self.target_real) * self.generator_weight
-        )
-        loss_gan = loss_gan_a_to_b + loss_gan_b_to_a
-
-        # Cycle loss
-        loss_cycle_a_b_a = self.cycle_loss(reconstructed_a, real_a) * self.cycle_weight
-        loss_cycle_b_a_b = self.cycle_loss(reconstructed_b, real_b) * self.cycle_weight
-        loss_cycle = loss_cycle_a_b_a + loss_cycle_b_a_b
-
+            self._init_targets(pred_fake.shape)
+        loss_gan = self.gan_loss(pred_fake, self.target_real) * self.generator_weight
+        loss_target = self.target_loss(real, fake) * self.target_weight
         # Total loss
-        loss_g: torch.Tensor = (loss_identity + loss_gan + loss_cycle)
+        loss_g: torch.Tensor = (loss_target + loss_gan)
         self.optimizer_generator.zero_grad()
-        loss_g.backward()
+        loss_gan.backward()
         self.optimizer_generator.step()
 
         # Discriminators A and B ######
 
         # do update discriminators when training them to identify samples
-        set_requires_grad(
-            [self.discriminator_a, self.discriminator_b], requires_grad=True
-        )
+        set_requires_grad([self.discriminator], requires_grad=True)
 
         # Real loss
-        pred_real = self.discriminator_a(real_a)
-        loss_d_a_real = (
+        pred_real = self.discriminator(real)
+        loss_d_real = (
             self.gan_loss(pred_real, self.target_real) * self.discriminator_weight
         )
 
         # Fake loss
-        fake_a = self.fake_a_buffer.query(fake_a)
-        pred_a_fake = self.discriminator_a(fake_a.detach())
-        loss_d_a_fake = (
-            self.gan_loss(pred_a_fake, self.target_fake) * self.discriminator_weight
-        )
-
-        # Real loss
-        pred_real = self.discriminator_b(real_b)
-        loss_d_b_real = (
-            self.gan_loss(pred_real, self.target_real) * self.discriminator_weight
-        )
-
-        # Fake loss
-        fake_b = self.fake_b_buffer.query(fake_b)
-        pred_b_fake = self.discriminator_b(fake_b.detach())
-        loss_d_b_fake = (
-            self.gan_loss(pred_b_fake, self.target_fake) * self.discriminator_weight
+        fake = self.fake_buffer.query(fake)
+        pred_fake = self.discriminator(fake.detach())
+        loss_d_fake = (
+            self.gan_loss(pred_fake, self.target_fake) * self.discriminator_weight
         )
 
         # Total loss
-        loss_d: torch.Tensor = (
-            loss_d_b_real + loss_d_b_fake + loss_d_a_real + loss_d_a_fake
-        )
+        loss_d: torch.Tensor = (loss_d_real + loss_d_fake)
 
         self.optimizer_discriminator.zero_grad()
         loss_d.backward()
         self.optimizer_discriminator.step()
 
         return {
-            "b_to_a_gan_loss": float(loss_gan_b_to_a),
-            "a_to_b_gan_loss": float(loss_gan_a_to_b),
-            "discriminator_a_loss": float(loss_d_a_fake + loss_d_a_real),
-            "discriminator_b_loss": float(loss_d_b_fake + loss_d_b_real),
-            "cycle_loss": float(loss_cycle),
-            "identity_loss": float(loss_identity),
+            "gan_loss": float(loss_gan),
+            "target_loss": float(loss_target),
             "generator_loss": float(loss_g),
             "discriminator_loss": float(loss_d),
             "train_loss": float(loss_g + loss_d),
@@ -311,16 +286,28 @@ class FMRHyperparameters(Hyperparameters):
 
     state_variables: List[str]
     normalization_fit_samples: int = 50_000
-    network: "CycleGANNetworkConfig" = dataclasses.field(
-        default_factory=lambda: CycleGANNetworkConfig()
+    network: "FMRNetworkConfig" = dataclasses.field(
+        default_factory=lambda: FMRNetworkConfig()
     )
-    training: "FMRTrainingConfig" = dataclasses.field(
+    training: "CycleGANTrainingConfig" = dataclasses.field(
         default_factory=lambda: FMRTrainingConfig()
     )
 
     @property
     def variables(self):
         return tuple(self.state_variables)
+
+
+class Trainer(Protocol):
+    def train_on_batch(self, batch: torch.Tensor) -> Mapping[str, float]:
+        ...
+
+    def evaluate_on_dataset(self, dataset: tf.data.Dataset) -> Dict[str, float]:
+        ...
+
+    @property
+    def reloadable(self) -> Reloadable:
+        ...
 
 
 @dataclasses.dataclass
@@ -346,7 +333,7 @@ class FMRTrainingConfig:
 
     def fit_loop(
         self,
-        train_model: FMRTrainer,
+        train_model: Trainer,
         train_data: tf.data.Dataset,
         validation_data: Optional[tf.data.Dataset],
     ) -> None:
@@ -377,8 +364,8 @@ class FMRTrainingConfig:
 
     def _fit_loop_dataset(
         self,
-        train_model: FMRTrainer,
-        train_data_numpy,
+        train_model: Trainer,
+        train_data_numpy: tf.data.Dataset,
         validation_data: Optional[tf.data.Dataset],
     ):
         for i in range(1, self.n_epoch + 1):
@@ -398,21 +385,20 @@ class FMRTrainingConfig:
 
     def _fit_loop_tensor(
         self,
-        train_model: CycleGANTrainer,
+        train_model: Trainer,
         train_data_numpy: tf.data.Dataset,
         validation_data: Optional[tf.data.Dataset],
     ):
         train_states = []
         batch_state: Tuple[np.ndarray, np.ndarray]
         for batch_state in train_data_numpy:
-            state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
-            state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
-            train_states.append((state_a, state_b))
+            state = torch.as_tensor(batch_state[0]).float().to(DEVICE)
+            train_states.append(state)
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
-            for state_a, state_b in train_states:
-                train_losses.append(train_model.train_on_batch(state_a, state_b))
+            for state in train_states:
+                train_losses.append(train_model.train_on_batch(state))
             random.shuffle(train_states)
             train_loss = {
                 name: np.mean([data[name] for data in train_losses])
@@ -468,7 +454,7 @@ def train_fmr(
     hyperparameters: FMRHyperparameters,
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
-) -> "CycleGAN":
+) -> Reloadable:
     """
     Train a denoising autoencoder for cubed sphere data.
 
@@ -503,7 +489,7 @@ def train_fmr(
     train_state = train_batches.map(get_Xy)
 
     sample: tf.Tensor = next(iter(train_state))[0]
-    train_model = hyperparameters.network.build(
+    trainer = hyperparameters.network.build(
         nx=sample.shape[-3],
         ny=sample.shape[-2],
         n_state=sample.shape[-1],
@@ -529,6 +515,6 @@ def train_fmr(
         val_state = val_state.unbatch()
 
     hyperparameters.training.fit_loop(
-        train_model=train_model, train_data=train_state, validation_data=val_state,
+        train_model=trainer, train_data=train_state, validation_data=val_state,
     )
-    return train_model.cycle_gan
+    return trainer.reloadable
