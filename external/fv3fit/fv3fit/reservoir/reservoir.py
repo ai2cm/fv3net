@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import scipy
 from sklearn.linear_model import LinearRegression, Ridge
-from typing import Union
+from typing import Union, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +21,16 @@ class ReservoirHyperparameters:
     input_dim: int
     reservoir_state_dim: int
     sparsity: float
-    spectral_radius: float = 0.9
+    spectral_radius: Optional[float] = None
     square_half: bool = False
     seed: int = 0
     input_coupling_sparsity: float = 0.0
+    input_coupling_scaling: float = 1.0
+    scaling: Optional[float] = None
+
+    def __post_init__(self):
+        if self.spectral_radius and self.scaling:
+            raise ValueError("Only one of spectral_radius or scaling can be specified")
 
 
 class Reservoir:
@@ -38,9 +44,9 @@ class Reservoir:
         self.W_out = None
         self.state = np.zeros(self.hyperparameters.reservoir_state_dim)
 
-    def _random_uniform_sample_func(self):
+    def _random_uniform_sample_func(self, a=1.0):
         def _f(d):
-            return np.random.uniform(-1, 1, size=d)
+            return np.random.uniform(-a, a, size=d)
 
         return _f
 
@@ -54,7 +60,9 @@ class Reservoir:
                     m=self.hyperparameters.reservoir_state_dim,
                     n=1,
                     density=1 - self.hyperparameters.input_coupling_sparsity,
-                    data_rvs=self._random_uniform_sample_func(),
+                    data_rvs=self._random_uniform_sample_func(
+                        a=self.hyperparameters.input_coupling_scaling
+                    ),
                 )
             )
         return scipy.sparse.hstack(W_in_rows)
@@ -67,9 +75,12 @@ class Reservoir:
             density=1.0 - self.hyperparameters.sparsity,
             data_rvs=self._random_uniform_sample_func(),
         )
-        scaling = self.hyperparameters.spectral_radius / max(
-            abs(scipy.sparse.linalg.eigs(W_res)[0])
-        )
+        if not self.hyperparameters.scaling:
+            scaling = self.hyperparameters.spectral_radius / max(
+                abs(scipy.sparse.linalg.eigs(W_res)[0])
+            )
+        else:
+            scaling = self.hyperparameters.scaling
         return scaling * W_res
 
     def increment_state(self, input):
@@ -117,14 +128,26 @@ def transform_inputs_to_reservoir_states(X, reservoir, input_noise: InputNoise):
 
 
 class ReservoirPredictor:
-    def __init__(self, reservoir: Reservoir, linreg: Union[Ridge, LinearRegression]):
+    def __init__(
+        self,
+        reservoir: Reservoir,
+        linreg: Union[Ridge, LinearRegression],
+        quadratic_x: bool = False,
+    ):
         self.reservoir = reservoir
         self.linreg = linreg
+        self.quadratic_x = quadratic_x
 
     def predict(self, input):
         # the reservoir state at t+Delta t uses the state AND input at t,
         # so the prediction occurs before the state increment
-        prediction = self.linreg.predict(self.reservoir.state.reshape(1, -1))
+        res_state_ = self.reservoir.state.reshape(1, -1)
+        if self.quadratic_x is True:
+            prediction_input = np.hstack([res_state_, res_state_ ** 2])
+        else:
+            prediction_input = res_state_
+
+        prediction = self.linreg.predict(prediction_input)
         self.reservoir.increment_state(input)
         return prediction
 
