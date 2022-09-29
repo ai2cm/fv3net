@@ -1,7 +1,7 @@
 import logging
 import functools
 
-from typing import Callable, Literal, Protocol, Union
+from typing import Callable, Literal, Optional, Protocol
 import torch.nn as nn
 import torch
 
@@ -35,8 +35,8 @@ class ConvolutionFactory(Protocol):
         self,
         in_channels: int,
         out_channels: int,
+        *,
         kernel_size: int,
-        padding: Union[str, int] = 0,
         output_padding: int = 0,
         stride: int = 1,
         stride_type: Literal["regular", "transpose"] = "regular",
@@ -51,7 +51,6 @@ class ConvolutionFactory(Protocol):
             in_channels: number of input channels
             out_channels: number of output channels
             kernel_size: size of the convolution kernel
-            padding: padding to apply to the input, should be an integer or "same"
             output_padding: argument used for transpose convolution
             stride: stride of the convolution
             stride_type: type of stride, one of "regular" or "transpose"
@@ -93,10 +92,10 @@ def single_tile_convolution(
     in_channels: int,
     out_channels: int,
     kernel_size: int,
-    padding: Union[str, int] = 0,
     output_padding: int = 0,
     stride: int = 1,
     stride_type: Literal["regular", "transpose"] = "regular",
+    padding: Optional[int] = None,
     bias: bool = True,
 ) -> ConvolutionFactory:
     """
@@ -112,6 +111,8 @@ def single_tile_convolution(
         stride_type: type of stride, one of "regular" or "transpose"
         bias: whether to include a bias vector in the produced layers
     """
+    if padding is None:
+        padding = int((kernel_size - 1) // 2)
     if stride == 1:
         conv = nn.Conv2d(
             in_channels=in_channels,
@@ -120,7 +121,6 @@ def single_tile_convolution(
             padding=padding,
             bias=bias,
         )
-
     elif stride_type == "regular":
         conv = nn.Conv2d(
             in_channels,
@@ -136,7 +136,7 @@ def single_tile_convolution(
             out_channels,
             kernel_size,
             stride=stride,
-            padding=(padding, padding),
+            padding=padding,
             output_padding=output_padding,
             bias=bias,
         )
@@ -149,39 +149,142 @@ def halo_convolution(
     in_channels: int,
     out_channels: int,
     kernel_size: int,
-    padding: Union[str, int] = "same",
     output_padding: int = 0,
     stride: int = 1,
     stride_type: Literal["regular", "transpose"] = "regular",
+    padding: Optional[int] = None,
     bias: bool = True,
 ) -> ConvolutionFactory:
     """
-    Construct a convolutional layer that appends halo data before applying conv2d.
+    Construct a convolutional layer that pads with halo data before applying conv2d.
+
+    Padding is such that the output shape should be the input shape divided by the
+    stride for regular convolution. For transpose convolution, the output shape
+    will be the input shape multiplied by the stride.
 
     Layer takes in and returns tensors of shape [batch, tile, channels, x, y].
 
+    Generally we suggest using an even kernel size for strided convolutions,
+    and an odd kernel size for non-strided convolutions. For the non-strided
+    case, an even kernel size gives a symmetric kernel as desired. We've only reasoned
+    this for a stride of 2, but it should hold for any even stride.
+
+    The strided case (which uses a stride of 2) is more complex, but an even
+    kernel size gives a symmetric kernel. This is because a (2, 2) patch of the input
+    domain corresponds to a (1, 1) patch of the output domain. We would need to have a
+    (2, 2) patch in the center of the kernel (which is in input space) in order for
+    the kernel to be symmetric about the (1, 1) center in output space. This means the
+    kernel must be even-sized in input space.
+
+    For example, consider a 6x6 kernel. In the ASCII diagram below, an X corresponds
+    to a gridcell in the input space, and gridcells in the output space are separated
+    by lines:
+
+        X X | X X | X X
+        X X | X X | X X
+        ---------------
+        X X | X X | X X
+        X X | X X | X X
+        ---------------
+        X X | X X | X X
+        X X | X X | X X
+
+    The kernel is symmetric about the center gridcell in the output space, as desired.
+
+    The fractionally-strided case (where the input domain is higher-resolution than the
+    output domain, by a factor of 2) is even more complicated.
+
+    Consider a 4x4 kernel. In the ASCII diagram below, the full diagram corresponds to
+    one example output gridcell. The X values correspond to valid data in the input
+    domain, while the O values correspond to zero-padding injected by the fractional
+    stride.
+
+        X O X O
+        O O O O
+        X O X O
+        O O O O
+
+    Another example might look like:
+
+        O O O O
+        O X O X
+        O O O O
+        O X O X
+
+    The even kernel size is desirable in this case for a different reason. Not because
+    of a symmetric kernel, but because an even kernel size means all output values
+    are "connected" to the same number of input values. If the kernel size were odd,
+    say 3x3 in this case, the first example would be connected to 4 values in the input
+    space while the second example would be connected to only one:
+
+        X O X
+        O O O
+        X O X
+
+        O O O
+        O X O
+        O O O
+
+    This can also be represented with the diagram above, where we stride the input
+    domain (lower resolution) values into the output (convolution) domain:
+
+        X O | X O | X O
+        O O | O O | O O
+        ---------------
+        X O | S O | X O
+        O O | O O | O O
+        ---------------
+        X O | X O | X O
+        O O | O O | O O
+
+    Where S is still a valid-input value, but is marked specially as the first point
+    in the compute domain, as described below.
+
+    Let's walk through what happens with a 4x4 kernel, specifically for the
+    "halo convolution" case. What we want is that each output point depends on the
+    same number of input points, to have directional invariance.
+    In this case we specifically want each output point to be connected to the
+    4 closest input points, e.g. the top-left output within a larger gridcell depends
+    on the value in that gridcell, and the values above and to the left of it.
+
+    In this case we append 2 halo points to the input, so you can consider the
+    left and top two rows to be in the computational halo (don't correspond to
+    output locations).
+    The first output gridcell for the convolution will be connected only to the
+    top-leftmost halo point, via its bottom-rightmost kernel cell. However,
+    we crop the output of the convolution - specifically for a 4x4 kernel we crop
+    2 edge points for the padded halo, and 1 more for the kernel "extension effect".
+    This means the first output gridcell S reads from exactly the 4x4 segment of the
+    top left of the domain above, which contains exactly the 4 points desired.
+
+    The second output just to the right of S will read from the two X points to the
+    right instead of the two points to the left, and the output just below S will
+    depend on the two points below instead of the two points above. So we have the
+    desired directional invariance.
+
+    If you would like to see more visualizations of fractionally-strided convolution,
+    we suggest this github repo: https://github.com/vdumoulin/conv_arithmetic
+
     Args:
+        in_channels: number of input channels,
+        out_channels: number of output channels,
         kernel_size: size of the convolution kernel
-        padding: padding to apply to the input, should be an integer or "same"
         output_padding: argument used for transpose convolution
         stride: stride of the convolution
         stride_type: type of stride, one of "regular" or "transpose"
+        padding: if given, override automatic padding calculation and use this
+            number of halo points instead
         bias: whether to include a bias vector in the produced layers
     """
-    if padding == "same":
-        if stride_type == "transpose":
-            padding = int((kernel_size - 1) // 2 * stride)
-        else:
-            padding = int((kernel_size - 1) // 2)
-    elif isinstance(padding, str):
-        raise ValueError(f'padding must be integer or "same", got: {padding}')
+    if padding is None:
+        padding = int((kernel_size - 1) // 2)
     append = AppendHalos(n_halo=padding)
     conv = single_tile_convolution(
         in_channels=in_channels,
         out_channels=out_channels,
         kernel_size=kernel_size,
-        padding=0,
         output_padding=output_padding,
+        padding=0,
         stride=stride,
         stride_type=stride_type,
         bias=bias,
@@ -189,10 +292,28 @@ def halo_convolution(
     if stride_type == "transpose":
         # have to crop halo points from the output, as pytorch has no option to
         # only output a subset of the domain for ConvTranspose2d
+        #
+        # padding * stride is the part of the output domain corresponding
+        # to the upscaled halo points
+        #
+        # transpose convolution adds (kernel_size - 1) / 2 more points which
+        # correspond to every point in the upsampled domain where the kernel
+        # can read from at least one point in the input domain
+        #
+        # we remove both of these to keep only the "compute domain"
         conv = nn.Sequential(
             conv, Crop(n_halo=padding * stride + int(kernel_size - 1) // 2)
         )
-    return BreakOnOp(nn.Sequential(append, conv))
+    return nn.Sequential(append, conv)
+
+
+def convolution_factory_from_name(name: str) -> ConvolutionFactory:
+    if name == "conv2d":
+        return single_tile_convolution
+    elif name == "halo_conv2d":
+        return halo_convolution
+    else:
+        raise ValueError(f"Unknown convolution type: {name}")
 
 
 def cpu_only(method):
@@ -222,24 +343,6 @@ class Crop(nn.Module):
         return x[
             ..., self.n_halo : -self.n_halo, self.n_halo : -self.n_halo
         ].contiguous()
-
-
-class BreakOnOp(nn.Module):
-    """
-    Module which asserts that the shape of its input does not change.
-    """
-
-    def __init__(self, op: nn.Module):
-        super(BreakOnOp, self).__init__()
-        self._op = op
-
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        output: torch.Tensor = self._op(inputs)
-        # print(inputs.shape, output.shape)
-        # if output.shape[-1] != inputs.shape[-1]:
-        #     print(self._op)
-        #     import pdb;pdb.set_trace()
-        return output
 
 
 class AppendHalos(nn.Module):
@@ -282,31 +385,37 @@ class AppendHalos(nn.Module):
                 with_halo[i_tile][0][2] = corner
                 with_halo[i_tile][2][0] = corner
                 with_halo[i_tile][2][2] = corner
-                # we must make data contiguous after rotating 90 degrees because
-                # the MPS backend doesn't properly manage strides when concatenating
-                # arrays
+                # The comments below about what to write where were verified by
+                # printing out and gluing together a 3D cube of the tile faces with
+                # their local x-y axes indicated, and looking at the boundaries of
+                # the 3D shape. The layout used is the "staircase" logical alignment
+                # described in Chen (2020).
+                # https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2020MS002280
                 if i_tile % 2 == 0:  # even tile
-                    # south edge
+                    # y-start edge
+                    # we must make data contiguous after rotating 90 degrees because
+                    # the MPS backend doesn't properly manage strides when concatenating
+                    # arrays
                     with_halo[i_tile][0][1] = torch.rot90(
                         inputs[
                             :, (i_tile - 2) % 6, :, :, -self.n_halo :
                         ],  # write tile 4 to tile 0
-                        k=-1,  # relative rotation of tile 0 with respect to tile 5
+                        k=-1,  # relative rotation of tile 0 with respect to tile 4
                         dims=(2, 3),
                     ).contiguous()
-                    # west edge
+                    # x-start edge
                     with_halo[i_tile][1][0] = inputs[
                         :, (i_tile - 1) % 6, :, :, -self.n_halo :
                     ]  # write tile 5 to tile 0
-                    # east edge
+                    # x-end edge
                     with_halo[i_tile][2][1] = inputs[
                         :,
                         (i_tile + 1) % 6,
                         :,
                         : self.n_halo,
-                        :,  # write tile 1 to tile 0
+                        :,  # write tile 5 to tile 0
                     ]
-                    # north edge
+                    # y-end edge
                     with_halo[i_tile][1][2] = torch.rot90(
                         inputs[
                             :, (i_tile + 2) % 6, :, : self.n_halo, :
@@ -315,7 +424,7 @@ class AppendHalos(nn.Module):
                         dims=(2, 3),
                     ).contiguous()
                 else:  # odd tile
-                    # south edge
+                    # y-start edge
                     with_halo[i_tile][0][1] = inputs[
                         :,
                         (i_tile - 1) % 6,
@@ -323,7 +432,7 @@ class AppendHalos(nn.Module):
                         -self.n_halo :,
                         :,  # write tile 0 to tile 1
                     ]
-                    # west edge
+                    # x-start edge
                     with_halo[i_tile][1][0] = torch.rot90(
                         inputs[
                             :, (i_tile - 2) % 6, :, -self.n_halo :, :
@@ -331,7 +440,7 @@ class AppendHalos(nn.Module):
                         k=1,  # relative rotation of tile 1 with respect to tile 5
                         dims=(2, 3),
                     ).contiguous()
-                    # east edge
+                    # x-end edge
                     with_halo[i_tile][2][1] = torch.rot90(
                         inputs[
                             :, (i_tile + 2) % 6, :, :, : self.n_halo
@@ -339,7 +448,7 @@ class AppendHalos(nn.Module):
                         k=-1,  # relative rotation of tile 1 with respect to tile 3
                         dims=(2, 3),
                     ).contiguous()
-                    # north edge
+                    # y-end edge
                     with_halo[i_tile][1][2] = inputs[
                         :, (i_tile + 1) % 6, :, :, : self.n_halo
                     ]  # write tile 2 to tile 1

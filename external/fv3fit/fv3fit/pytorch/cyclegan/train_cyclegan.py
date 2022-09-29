@@ -67,6 +67,9 @@ class CycleGANTrainingConfig:
         validation_batch_size: number of samples to use per batch for validation,
             does not affect training result but allows the use of out-of-sample
             validation data
+        in_memory: if True, load the entire dataset into memory as pytorch tensors
+            before training. Batches will be statically defined but will be shuffled
+            between epochs.
     """
 
     n_epoch: int = 20
@@ -116,7 +119,9 @@ class CycleGANTrainingConfig:
             logger.info("starting epoch %d", i)
             train_losses = []
             for batch_state in train_data_numpy:
-                train_losses.append(train_model.train_on_batch(batch_state))
+                state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
+                state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+                train_losses.append(train_model.train_on_batch(state_a, state_b))
             train_loss = {
                 name: np.mean([data[name] for data in train_losses])
                 for name in train_losses[0]
