@@ -17,7 +17,7 @@ NCEPLIBS_DIR=$INSTALL_PREFIX/NCEPlibs
 ESMF_DIR=$INSTALL_PREFIX/esmf
 FMS_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FMS
 
-source $PLATFORM_SCRIPTS/base_configuration_variables.sh
+source $PLATFORM_SCRIPTS/configuration_variables.sh
 
 bash "$PLATFORM_SCRIPTS"/install_base_software.sh "$INSTALL_PREFIX" "$CONDA_ENV"
 bash "$SCRIPTS"/install_nceplibs.sh "$CLONE_PREFIX"/NCEPlibs "$NCEPLIBS_DIR" "$NCEPLIBS_PLATFORM" "$NCEPLIBS_COMPILER"

@@ -33,8 +33,8 @@ COPY .environment-scripts/install_call_py_fort.sh ${FV3NET_SCRIPTS}/
 # Copy platform-specific scripts
 COPY .environment-scripts/${PLATFORM}/install_base_software.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
 
-# Copy base configuration
-COPY .environment-scripts/${PLATFORM}/base_configuration_variables.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
+# Copy configuration variables
+COPY .environment-scripts/${PLATFORM}/configuration_variables.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
 
 COPY external/fv3gfs-fortran/FMS ${FMS_DIR}
 RUN bash ${FV3NET_SCRIPTS}/setup_environment.sh \

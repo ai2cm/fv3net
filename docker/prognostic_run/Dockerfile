@@ -3,7 +3,6 @@ ARG BASE_IMAGE
 FROM ${BASE_IMAGE} as bld
 
 COPY .environment-scripts/setup_development_environment.sh ${FV3NET_SCRIPTS}/
-COPY .environment-scripts/${PLATFORM}/development_configuration_variables.sh ${FV3NET_SCRIPTS}/${PLATFORM}/
 
 # Copy data and files required for building the fortran model
 COPY external/fv3gfs-fortran/ ${FV3GFS_FORTRAN_DIR}
@@ -60,6 +59,7 @@ RUN bash /fv3net/.environment-scripts/setup_environment.sh \
 
 # Add emulation project scripts
 COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
+ENV PATH=$FV3NET_DIR/projects/microphysics/scripts:${PATH}
 
 RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
@@ -72,9 +72,6 @@ ENV LANG=C.UTF-8
 # Override microphysics emulation
 ENV VAR_META_PATH=$FV3NET_DIR/external/emulation/microphysics_parameter_metadata.yaml
 ENV OUTPUT_FREQ_SEC=18000
-
-# Add emulation project scripts
-ENV PATH=$FV3NET_DIR/projects/microphysics/scripts:${PATH}
 
 # Add fv3net packages to the PYTHONPATH
 ENV PYTHONPATH=$FV3NET_DIR/workflows/prognostic_c48_run:$FV3NET_DIR/external/fv3fit:$FV3NET_DIR/external/emulation:$FV3NET_DIR/external/vcm:/fv3net/external/artifacts:$FV3NET_DIR/external/loaders:$FV3NET_DIR/external/fv3kube:$FV3NET_DIR/workflows/post_process_run:$FV3NET_DIR/external/radiation:${PYTHONPATH}
