@@ -38,7 +38,7 @@ repository; `$CALLPYFORT` denotes whether `call_py_fort` will be installed
 installed, but it is supported in Docker); and finally `$CONDA_ENV` is the name
 of the conda environment you would like to create (it must not exist already).
 
-## Activating the prognostic run environment on Gaea
+## Activating an environment on Gaea
 
 Once the prognostic run environment is installed, to activate it source the
 `.environment-scripts/activate_environment.sh` script.  This will activate the
