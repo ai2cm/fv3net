@@ -50,10 +50,10 @@ spec:
       resources:
         requests:
           memory: "6Gi"
-          cpu: "1000m"
+          cpu: "2000m"
         limits:
           memory: "8Gi"
-          cpu: "1000m"
+          cpu: "2500m"
       command: ["bash", "-c", "-x", "-e"]
       args:
       - |
@@ -87,7 +87,7 @@ spec:
       resources:
         requests:
           memory: "6Gi"
-          cpu: "1000m"
+          cpu: "2000m"
       command: ["bash", "-c", "-x", "-e"]
       args:
       - |
