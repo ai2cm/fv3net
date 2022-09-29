@@ -3,9 +3,12 @@
 This directory contains a number of scripts that are used for installing
 components of the prognostic run environment.  The main entrypoint is the
 `setup_environment.sh` script, which can be used to install some or all of the
-dependencies on a particular platform.  As an illustration, to build a
-prognostic run environment on Gaea from scratch, start by cloning the fv3net
-repository and initializing the submodules:
+dependencies on a particular platform.  
+
+## Building an environment on Gaea as an example
+
+As an illustration, to build a prognostic run environment on Gaea from scratch,
+start by cloning the fv3net repository and initializing the submodules:
 ```
 $ git clone https://github.com/ai2cm/fv3net.git
 $ cd fv3net
@@ -35,7 +38,7 @@ repository; `$CALLPYFORT` denotes whether `call_py_fort` will be installed
 installed, but it is supported in Docker); and finally `$CONDA_ENV` is the name
 of the conda environment you would like to create (it must not exist already).
 
-## Activating the prognostic run environment
+## Activating the prognostic run environment on Gaea
 
 Once the prognostic run environment is installed, to activate it source the
 `.environment-scripts/activate_environment.sh` script.  This will activate the
@@ -53,14 +56,12 @@ where the variables have the same meaning as they did in the install script.
 Generally you would call the activation script at the start of a batch job to
 run a simulation.
 
-## Currently supported platforms
+## Adding support for new platforms
 
-Currently supported platforms are:
+Currently there are only two supported platforms:
 
 - `gnu_docker`
 - `gaea` (call_py_fort integration is not supported yet)
-
-## Adding support for new platforms
 
 To add support for a new platform, the following steps must be taken:
 
