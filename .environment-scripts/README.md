@@ -3,7 +3,7 @@
 This directory contains a number of scripts that are used for installing
 components of the prognostic run environment.  The main entrypoint is the
 `setup_environment.sh` script, which can be used to install some or all of the
-dependencies on a particular platform.  
+dependencies on a particular platform.
 
 ## Building an environment on Gaea
 
@@ -72,7 +72,7 @@ To add support for a new platform, the following steps must be taken:
      this involves a fairly large number of dependencies, but on HPC platforms
      it typically only involves creating a base Python environment with Python
      version 3.8.10, and minimal initial dependencies (just `pip` and
-     `pip-tools`).  
+     `pip-tools`).
      - If the environment is based on a `conda` environment, the particular
        procedure for activating a conda environment on the platform must be
        defined in a `<platform>/activate_conda_environment.sh` script.
