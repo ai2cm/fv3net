@@ -5,7 +5,7 @@ components of the prognostic run environment.  The main entrypoint is the
 `setup_environment.sh` script, which can be used to install some or all of the
 dependencies on a particular platform.  
 
-## Building an environment on Gaea as an example
+## Building an environment on Gaea
 
 As an illustration, to build a prognostic run environment on Gaea from scratch,
 start by cloning the fv3net repository and initializing the submodules:
