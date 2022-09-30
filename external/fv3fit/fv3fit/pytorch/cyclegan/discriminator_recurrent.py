@@ -1,4 +1,5 @@
 import dataclasses
+from fv3fit.pytorch.system import DEVICE
 
 import torch.nn as nn
 from toolz import curry
@@ -52,7 +53,7 @@ class TimeseriesDiscriminatorConfig:
             max_filters=self.max_filters,
             convolution=convolution,
             timeseries_convolution=timeseries_convolution,
-        )
+        ).to(DEVICE)
 
 
 class TimeseriesDiscriminator(nn.Module):

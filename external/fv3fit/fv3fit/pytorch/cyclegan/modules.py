@@ -475,7 +475,6 @@ class Crop(nn.Module):
         super(Crop, self).__init__()
         self.n_halo = n_halo
 
-    @cpu_only
     def forward(self, x):
         return x[
             ..., self.n_halo : -self.n_halo, self.n_halo : -self.n_halo
@@ -500,7 +499,6 @@ class AppendHalos(nn.Module):
     def extra_repr(self) -> str:
         return super().extra_repr() + f"n_halo={self.n_halo}"
 
-    @cpu_only
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
         Args:

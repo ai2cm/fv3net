@@ -67,7 +67,7 @@ class RecurrentGeneratorConfig:
         """
         return RecurrentGenerator(
             config=self, channels=channels, nx=nx, ny=ny, convolution=convolution,
-        )
+        ).to(DEVICE)
 
 
 class GeographicBias(nn.Module):
