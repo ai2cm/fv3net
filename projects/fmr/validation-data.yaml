@@ -1,0 +1,12 @@
+batch_size: 500
+data_path: ../cyclegan/c384_baseline.zarr
+unstacked_dims:
+  - time
+  - tile
+  - grid_xt
+  - grid_yt
+  - z
+window_size: 6
+default_variable_config:
+  times: window
+n_windows: 20  # 5808
