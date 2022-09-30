@@ -429,8 +429,9 @@ class FMRTrainer:
         self.optimizer_discriminator.step()
 
         return {
-            "gan_loss": float(loss_gan),
             "target_loss": float(loss_target),
+            "identity_loss": float(loss_identity),
+            "gan_loss": float(loss_gan),
             "generator_loss": float(loss_g),
             "discriminator_loss": float(loss_d),
             "train_loss": float(loss_g + loss_d),
