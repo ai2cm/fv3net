@@ -21,6 +21,8 @@ class ReservoirHyperparameters:
     input_dim: int
     reservoir_state_dim: int
     sparsity: float
+    output_dim: Optional[int] = None
+
     spectral_radius: Optional[float] = None
     square_half: bool = False
     seed: int = 0
@@ -31,6 +33,8 @@ class ReservoirHyperparameters:
     def __post_init__(self):
         if self.spectral_radius and self.scaling:
             raise ValueError("Only one of spectral_radius or scaling can be specified")
+        if not self.output_dim:
+            self.output_dim = self.input_dim
 
 
 class Reservoir:
