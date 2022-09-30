@@ -11,6 +11,7 @@ from .train_fmr import (
     FMRNetworkConfig,
 )
 from .discriminator import DiscriminatorConfig
+from .discriminator_recurrent import TimeseriesDiscriminatorConfig
 from .generator import GeneratorConfig
 from .generator_recurrent import RecurrentGeneratorConfig
 from .cyclegan_trainer import CycleGANNetworkConfig

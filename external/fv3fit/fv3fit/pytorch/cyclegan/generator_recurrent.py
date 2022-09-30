@@ -1,11 +1,13 @@
 import dataclasses
+from typing import Tuple
+from fv3fit.pytorch.system import DEVICE
 import torch.nn as nn
 from toolz import curry
 import torch
 from .modules import (
     ConvBlock,
     ConvolutionFactory,
-    FoldTileDimension,
+    FoldFirstDimension,
     single_tile_convolution,
     relu_activation,
     ResnetBlock,
@@ -81,13 +83,27 @@ class GeographicBias(nn.Module):
         return x + self.bias
 
 
-class Concatenate(nn.Module):
-    def __init__(self, dim: int):
+class ResnetHiddenWrapper(nn.Module):
+    def __init__(
+        self,
+        channels: int,
+        resnet: nn.Module,
+        convolution_factory: CurriedModuleFactory,
+    ):
         super().__init__()
-        self.dim = dim
+        self.first_block = ConvBlock(
+            in_channels=channels * 2,  # hidden channels will be concatenated
+            out_channels=channels,
+            convolution_factory=convolution_factory,
+            activation_factory=relu_activation(),
+        )
+        self.resnet = resnet
 
-    def forward(self, x1, x2):
-        return torch.cat([x1, x2], dim=self.dim)
+    def forward(self, x: torch.Tensor, hidden: torch.Tensor):
+        x = torch.cat([x, hidden], dim=-3)
+        x = self.first_block(x)
+        x = self.resnet(x)
+        return x, x  # the output is the hidden state
 
 
 class RecurrentGenerator(nn.Module):
@@ -109,6 +125,11 @@ class RecurrentGenerator(nn.Module):
                 used by the network
         """
         super(RecurrentGenerator, self).__init__()
+        self.channels = channels
+        self.hidden_channels = config.max_filters
+        self.nx = nx
+        self.ny = ny
+        self.n_convolutions = config.n_convolutions
 
         def resnet(in_channels: int, out_channels: int):
             if in_channels != out_channels:
@@ -116,24 +137,20 @@ class RecurrentGenerator(nn.Module):
                     "resnet must have same number of output channels as "
                     "input channels, since the inputs are added to the outputs"
                 )
-            concat = Concatenate(dim=-3)
-            first_block = ConvBlock(
-                in_channels=in_channels * 2,
-                out_channels=in_channels,
-                convolution_factory=curry(convolution)(kernel_size=config.kernel_size),
-                activation_factory=relu_activation(),
-            )
+            convolution_factory = curry(convolution)(kernel_size=config.kernel_size)
             resnet_blocks = [
                 ResnetBlock(
                     channels=in_channels,
-                    convolution_factory=curry(convolution)(
-                        kernel_size=config.kernel_size
-                    ),
+                    convolution_factory=convolution_factory,
                     activation_factory=relu_activation(),
                 )
                 for _ in range(config.n_resnet)
             ]
-            return nn.Sequential(concat, first_block, *resnet_blocks)
+            return ResnetHiddenWrapper(
+                channels=in_channels,
+                resnet=nn.Sequential(*resnet_blocks),
+                convolution_factory=convolution_factory,
+            )
 
         def down(in_channels: int, out_channels: int):
             return ConvBlock(
@@ -167,12 +184,9 @@ class RecurrentGenerator(nn.Module):
         else:
             first_conv = nn.Sequential(
                 convolution(
-                    kernel_size=7,
-                    in_channels=channels,
-                    out_channels=min_filters,
-                    padding="same",
+                    kernel_size=7, in_channels=channels, out_channels=min_filters,
                 ),
-                FoldTileDimension(nn.InstanceNorm2d(min_filters)),
+                FoldFirstDimension(nn.InstanceNorm2d(min_filters)),
                 relu_activation()(),
             )
 
@@ -186,10 +200,7 @@ class RecurrentGenerator(nn.Module):
 
             out_conv = nn.Sequential(
                 convolution(
-                    kernel_size=7,
-                    in_channels=min_filters,
-                    out_channels=channels,
-                    padding="same",
+                    kernel_size=7, in_channels=min_filters, out_channels=channels,
                 ),
             )
         self._first_conv = first_conv
@@ -214,7 +225,7 @@ class RecurrentGenerator(nn.Module):
             hidden state of the network, of shape
             [n_sample, n_tile, n_channels, nx_coarse, ny_coarse]
         """
-        if input_shape[-4:] != [6, self.channels, self.nx, self.ny]:
+        if tuple(input_shape[-4:]) != (6, self.channels, self.nx, self.ny):
             raise ValueError(
                 "input_shape must be [n_sample, n_tile, n_channels, nx, ny], "
                 "but given shape is {} which does not match init values of {}".format(
@@ -222,29 +233,34 @@ class RecurrentGenerator(nn.Module):
                 )
             )
         hidden_state = torch.zeros(
-            input_shape[0],
-            6,
-            self.channels,
-            self.nx / (2 ** self.n_convolutions),
-            self.ny / (2 ** self.n_convolutions),
-        )
+            size=(
+                input_shape[0],
+                6,
+                self.hidden_channels,
+                int(self.nx / (2 ** self.n_convolutions)),
+                int(self.ny / (2 ** self.n_convolutions)),
+            )
+        ).to(DEVICE)
         return hidden_state
 
-    def forward(self, inputs: torch.Tensor, hidden: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, inputs: torch.Tensor, hidden: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             inputs: tensor of shape [batch, tile, channels, x, y]
             hidden: tensor of shape [batch, tile, channels, x_coarse, y_coarse]
 
         Returns:
-            tensor of shape [batch, tile, channels, x, y]
+            outputs: tensor of shape [batch, tile, channels, x, y]
+            hidden: tensor of shape batch, tile, channels, x_coarse, y_coarse]
         """
         x = self._input_bias(inputs)
         x = self._first_conv(x)
-        x = self._encoder_decoder(x, hidden)
+        x, hidden = self._encoder_decoder(x, hidden)
         x = self._out_conv(x)
         outputs: torch.Tensor = self._output_bias(x)
-        return outputs
+        return outputs, hidden
 
 
 class SymmetricEncoderDecoder(nn.Module):
@@ -300,6 +316,6 @@ class SymmetricEncoderDecoder(nn.Module):
             tensor of shape [batch, tile, channels, x, y]
         """
         x = self._down(inputs)
-        x = self._lower(x, hidden)
+        x, hidden = self._lower(x, hidden)
         x = self._up(x)
-        return x
+        return x, hidden

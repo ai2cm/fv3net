@@ -61,9 +61,9 @@ def test_fmr_runs_without_errors(tmpdir):
     # need a larger nx, ny for the sample data here since we're training
     # on whether we can autoencode sin waves, and need to resolve full cycles
     nx = 32
-    sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "nz": 2}
+    sizes = {"nbatch": 1, "ntime": 4, "nx": nx, "nz": 2}
     state_variables = ["var_3d", "var_2d"]
-    train_tfdataset = get_tfdataset(nsamples=5, **sizes)
+    train_tfdataset = get_tfdataset(nsamples=3, **sizes)
     val_tfdataset = get_tfdataset(nsamples=2, **sizes)
     hyperparameters = FMRHyperparameters(
         state_variables=state_variables,
@@ -74,7 +74,7 @@ def test_fmr_runs_without_errors(tmpdir):
             generator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
             ),
-            discriminator=fv3fit.pytorch.DiscriminatorConfig(kernel_size=3),
+            discriminator=fv3fit.pytorch.TimeseriesDiscriminatorConfig(kernel_size=3),
             discriminator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
             ),
@@ -89,16 +89,10 @@ def test_fmr_runs_without_errors(tmpdir):
     with fv3fit.wandb.disable_wandb():
         predictor = train_fmr(hyperparameters, train_tfdataset, val_tfdataset)
     # for test, need one continuous series so we consistently flip sign
-    real_a = tfdataset_to_xr_dataset(
-        train_tfdataset.map(lambda a, b: a), dims=["time", "tile", "x", "y", "z"]
+    real = tfdataset_to_xr_dataset(
+        train_tfdataset, dims=["time", "tile", "x", "y", "z"]
     )
-    real_b = tfdataset_to_xr_dataset(
-        train_tfdataset.map(lambda a, b: b), dims=["time", "tile", "x", "y", "z"]
-    )
-    output_a = predictor.predict(real_b, reverse=True)
-    reconstructed_b = predictor.predict(output_a)  # noqa: F841
-    output_b = predictor.predict(real_a)
-    reconstructed_a = predictor.predict(output_b, reverse=True)  # noqa: F841
+    predictor.predict(real, timesteps=3)
     # We can't use regtest because the output is not deterministic between platforms,
     # but you can un-comment this and use local-only (do not commit to git) regtest
     # outputs when refactoring the code to ensure you don't change results.

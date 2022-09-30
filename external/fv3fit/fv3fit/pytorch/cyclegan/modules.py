@@ -59,6 +59,37 @@ class ConvolutionFactory(Protocol):
         ...
 
 
+class TimeseriesConvolutionFactory(Protocol):
+    def __call__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        *,
+        kernel_size: int,
+        time_kernel_size: int,
+        output_padding: int = 0,
+        stride: int = 1,
+        stride_type: Literal["regular", "transpose"] = "regular",
+        bias: bool = True,
+    ) -> nn.Module:
+        """
+        Create a convolutional layer.
+
+        Layer takes in and returns tensors of shape [batch, tile, channels, x, y].
+
+        Args:
+            in_channels: number of input channels
+            out_channels: number of output channels
+            kernel_size: size of the convolution kernel in space
+            time_kernel_size: size of the convolution kernel in time
+            output_padding: argument used for transpose convolution
+            stride: stride of the convolution
+            stride_type: type of stride, one of "regular" or "transpose"
+            bias: whether to include a bias vector in the produced layers
+        """
+        ...
+
+
 class CurriedModuleFactory(Protocol):
     def __call__(self, in_channels: int, out_channels: int) -> nn.Module:
         """
@@ -71,15 +102,15 @@ class CurriedModuleFactory(Protocol):
         ...
 
 
-class FoldTileDimension(nn.Module):
+class FoldFirstDimension(nn.Module):
     """
-    Module wrapping a module which takes [batch, channel, x, y] data into one
-    which takes [batch, tile, channel, x, y] data by folding the tile dimension
-    into the batch dimension.
+    Module wrapping a module which takes e.g. [batch, channel, x, y] data into one
+    which takes [batch, tile, channel, x, y] data by folding the first dimension
+    into the second dimension.
     """
 
     def __init__(self, wrapped):
-        super(FoldTileDimension, self).__init__()
+        super(FoldFirstDimension, self).__init__()
         self._wrapped = wrapped
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
@@ -142,7 +173,113 @@ def single_tile_convolution(
         )
     else:
         raise ValueError(f"Invalid stride_type: {stride_type}")
-    return FoldTileDimension(conv)
+    return FoldFirstDimension(conv)
+
+
+class TransposeChannelsFirst3D(nn.Module):
+    def forward(self, x):
+        """
+        Args:
+            x: tensor of shape [batch, time, tile, channel, x, y]
+
+        Returns:
+            tensor of shape [batch, tile, channel, time, x, y]
+        """
+        return x.permute(0, 2, 3, 1, 4, 5)
+
+
+class TransposeTimeFirst3D(nn.Module):
+    def forward(self, x):
+        """
+        Args:
+            x: tensor of shape [batch, tile, channel, time, x, y]
+
+        Returns:
+            tensor of shape [batch, time, tile, channel, x, y]
+        """
+        return x.permute(0, 3, 1, 2, 4, 5)
+
+
+def single_tile_timeseries_convolution(
+    in_channels: int,
+    out_channels: int,
+    kernel_size: int,
+    time_kernel_size: int,
+    output_padding: int = 0,
+    stride: int = 1,
+    stride_type: Literal["regular", "transpose"] = "regular",
+    padding: Optional[int] = None,
+    bias: bool = True,
+) -> ConvolutionFactory:
+    """
+    Construct a convolutional layer for single tile data (like images).
+
+    Layer takes in and returns tensors of shape [batch, tile, channels, x, y].
+
+    Args:
+        kernel_size: size of the convolution kernel
+        padding: padding to apply to the input, should be an integer or "same"
+        output_padding: argument used for transpose convolution
+        stride: stride of the convolution
+        stride_type: type of stride, one of "regular" or "transpose"
+        bias: whether to include a bias vector in the produced layers
+    """
+    if padding is None:
+        padding = int((kernel_size - 1) // 2)
+    if stride == 1:
+        conv = nn.Conv3d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=(time_kernel_size, kernel_size, kernel_size),
+            padding=(0, padding, padding),
+            bias=bias,
+        )
+    elif stride_type == "regular":
+        conv = nn.Conv3d(
+            in_channels,
+            out_channels,
+            kernel_size=(time_kernel_size, kernel_size, kernel_size),
+            stride=(1, stride, stride),
+            padding=(0, padding, padding),
+            bias=bias,
+        )
+    elif stride_type == "transpose":
+        raise NotImplementedError()
+    else:
+        raise ValueError(f"Invalid stride_type: {stride_type}")
+    return nn.Sequential(
+        TransposeChannelsFirst3D(), FoldFirstDimension(conv), TransposeTimeFirst3D()
+    )
+
+
+def halo_timeseries_convolution(
+    in_channels: int,
+    out_channels: int,
+    kernel_size: int,
+    time_kernel_size: int,
+    output_padding: int = 0,
+    stride: int = 1,
+    stride_type: Literal["regular", "transpose"] = "regular",
+    padding: Optional[int] = None,
+    bias: bool = True,
+) -> ConvolutionFactory:
+    if padding is None:
+        padding = int((kernel_size - 1) // 2)
+    append = FoldFirstDimension(AppendHalos(n_halo=padding))
+    conv = single_tile_timeseries_convolution(
+        in_channels=in_channels,
+        out_channels=out_channels,
+        kernel_size=kernel_size,
+        time_kernel_size=time_kernel_size,
+        output_padding=output_padding,
+        padding=0,
+        stride=stride,
+        stride_type=stride_type,
+        bias=bias,
+    )
+    if stride_type == "transpose":
+        raise NotImplementedError()
+    return nn.Sequential(append, conv)
 
 
 def halo_convolution(
@@ -356,6 +493,8 @@ class AppendHalos(nn.Module):
 
     def __init__(self, n_halo: int):
         super(AppendHalos, self).__init__()
+        if not isinstance(n_halo, int):
+            raise TypeError("n_halo must be an integer, got {}".format(type(n_halo)))
         self.n_halo = n_halo
 
     def extra_repr(self) -> str:
@@ -543,7 +682,7 @@ class ConvBlock(nn.Module):
         # of normalization, while debugging.
         self.conv_block = nn.Sequential(
             convolution_factory(in_channels=in_channels, out_channels=out_channels),
-            FoldTileDimension(nn.InstanceNorm2d(out_channels)),
+            FoldFirstDimension(nn.InstanceNorm2d(out_channels)),
             activation_factory(),
         )
 

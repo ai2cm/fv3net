@@ -5,7 +5,7 @@ import torch
 from .modules import (
     ConvBlock,
     ConvolutionFactory,
-    FoldTileDimension,
+    FoldFirstDimension,
     single_tile_convolution,
     relu_activation,
     no_activation,
@@ -202,7 +202,7 @@ class Generator(nn.Module):
                 convolution(
                     kernel_size=7, in_channels=channels, out_channels=min_filters,
                 ),
-                FoldTileDimension(nn.InstanceNorm2d(min_filters)),
+                FoldFirstDimension(nn.InstanceNorm2d(min_filters)),
                 relu_activation()(),
             )
 
