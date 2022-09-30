@@ -7,7 +7,7 @@ FORCING_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/forcing/
 
 @dataclasses.dataclass
 class GFSPhysicsControl:
-    """A ported version of the Fortran GFS_physics_control structure.
+    """A ported version of the Fortran GFS_physics_control structure aka 'model'.
     
     Args:
         levs: Number of model levels.
@@ -154,7 +154,7 @@ class RadiationConfig:
     lnoprec: bool = False
     iswcliq: int = 1
     gfs_physics_control: GFSPhysicsControl = dataclasses.field(
-        default_factory=GFSPhysicsControl
+        default_factory=lambda: GFSPhysicsControl()
     )
 
     @classmethod

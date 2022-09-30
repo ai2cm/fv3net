@@ -333,7 +333,7 @@ class RadiationDriver:
 
     def GFS_radiation_driver(
         self,
-        GFSPhysicsControl,
+        gfs_physics_control,
         solcon,
         solhr,
         Statein,
@@ -349,7 +349,7 @@ class RadiationDriver:
     ):
 
         return self._GFS_radiation_driver(
-            GFSPhysicsControl,
+            gfs_physics_control,
             solcon,
             solhr,
             Statein,
@@ -362,7 +362,7 @@ class RadiationDriver:
 
     def _GFS_radiation_driver(
         self,
-        GFSPhysicsControl,
+        gfs_physics_control,
         solcon,
         solhr,
         Statein,
@@ -372,30 +372,30 @@ class RadiationDriver:
         lwdict,
         swdict,
     ):
-        if GFSPhysicsControl["uni_cld"]:
+        if gfs_physics_control.uni_cld:
             raise FileNotFoundError(f"uni_cld = True Not implemented")
 
-        if GFSPhysicsControl["effr_in"]:
+        if gfs_physics_control.effr_in:
             raise FileNotFoundError(f"effr_in = True Not implemented")
 
-        if not (GFSPhysicsControl["lsswr"] or GFSPhysicsControl["lslwr"]):
+        if not (gfs_physics_control.lsswr or gfs_physics_control.lslwr):
             return
 
         # --- set commonly used integers
-        LM = GFSPhysicsControl["levr"]
-        LEVS = GFSPhysicsControl["levs"]
+        LM = gfs_physics_control.levr
+        LEVS = gfs_physics_control.levs
         IM = Grid["xlon"].shape[0]
-        # NFXR = GFSPhysicsControl["nfxr"] # never used according to lint
-        NTRAC = GFSPhysicsControl[
-            "ntrac"
-        ]  # tracers in grrad strip off sphum - start tracer1(2:NTRAC)
-        ntcw = GFSPhysicsControl["ntcw"]
-        ntiw = GFSPhysicsControl["ntiw"]
-        # ncld = GFSPhysicsControl["ncld"] # never used according to lint
-        ntrw = GFSPhysicsControl["ntrw"]
-        ntsw = GFSPhysicsControl["ntsw"]
-        ntgl = GFSPhysicsControl["ntgl"]
-        ncndl = min(GFSPhysicsControl["ncnd"], 4)
+        # NFXR = gfs_physics_control.nfxr"] # never used according to lint
+        NTRAC = (
+            gfs_physics_control.ntrac
+        )  # tracers in grrad strip off sphum - start tracer1(2:NTRAC)
+        ntcw = gfs_physics_control.ntcw
+        ntiw = gfs_physics_control.ntiw
+        # ncld = gfs_physics_control.ncld"] # never used according to lint
+        ntrw = gfs_physics_control.ntrw
+        ntsw = gfs_physics_control.ntsw
+        ntgl = gfs_physics_control.ntgl
+        ncndl = min(gfs_physics_control.ncnd, 4)
 
         LP1 = LM + 1  # num of in/out levels
 
@@ -406,36 +406,32 @@ class RadiationDriver:
         alb1d = np.zeros(IM)
         idxday = np.zeros(IM, dtype=DTYPE_INT)
 
-        plvl = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP + 1))
-        tlvl = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP + 1))
-        tem2db = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP + 1))
+        plvl = np.zeros((IM, gfs_physics_control.levr + self.LTP + 1))
+        tlvl = np.zeros((IM, gfs_physics_control.levr + self.LTP + 1))
+        tem2db = np.zeros((IM, gfs_physics_control.levr + self.LTP + 1))
 
-        plyr = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        tlyr = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        olyr = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        qlyr = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        rhly = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        tvly = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        delp = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        qstl = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        cldcov = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        deltaq = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        cnvc = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        cnvw = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        dz = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        prslk1 = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
-        tem2da = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
+        plyr = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        tlyr = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        olyr = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        qlyr = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        rhly = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        tvly = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        delp = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        qstl = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        cldcov = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        deltaq = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        cnvc = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        cnvw = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        dz = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        prslk1 = np.zeros((IM, gfs_physics_control.levr + self.LTP))
+        tem2da = np.zeros((IM, gfs_physics_control.levr + self.LTP))
 
-        tracer1 = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP, NTRAC))
+        tracer1 = np.zeros((IM, gfs_physics_control.levr + self.LTP, NTRAC))
         ccnd = np.zeros(
-            (
-                IM,
-                GFSPhysicsControl["levr"] + self.LTP,
-                min(4, GFSPhysicsControl["ncnd"]),
-            )
+            (IM, gfs_physics_control.levr + self.LTP, min(4, gfs_physics_control.ncnd),)
         )
 
-        cldtausw = np.zeros((IM, GFSPhysicsControl["levr"] + self.LTP))
+        cldtausw = np.zeros((IM, gfs_physics_control.levr + self.LTP))
 
         Coupling = {}
         scmpsw = {}
@@ -443,9 +439,9 @@ class RadiationDriver:
         Radtend = {}
         Radtend["coszen"] = np.zeros(IM)
         Radtend["coszdg"] = np.zeros(IM)
-        Radtend["htrsw"] = np.zeros((IM, GFSPhysicsControl["levs"]))
-        Radtend["swhc"] = np.zeros((IM, GFSPhysicsControl["levs"]))
-        Radtend["lwhc"] = np.zeros((IM, GFSPhysicsControl["levs"]))
+        Radtend["htrsw"] = np.zeros((IM, gfs_physics_control.levs))
+        Radtend["swhc"] = np.zeros((IM, gfs_physics_control.levs))
+        Radtend["lwhc"] = np.zeros((IM, gfs_physics_control.levs))
         Radtend["semis"] = np.zeros(IM)
         Radtend["tsflw"] = np.zeros(IM)
         Radtend["sfcfsw"] = dict()
@@ -461,7 +457,7 @@ class RadiationDriver:
         Radtend["sfcfsw"]["dnfxc"] = np.zeros(IM)
         Radtend["sfcfsw"]["upfx0"] = np.zeros(IM)
         Radtend["sfcfsw"]["dnfx0"] = np.zeros(IM)
-        Radtend["htrlw"] = np.zeros((IM, GFSPhysicsControl["levs"]))
+        Radtend["htrlw"] = np.zeros((IM, gfs_physics_control.levs))
 
         lhlwb = False
         lhlw0 = True
@@ -496,7 +492,7 @@ class RadiationDriver:
                 kt = 0  # index diff between lyr and upper bound
                 kb = 1  # index diff between lyr and lower bound
 
-        raddt = min(GFSPhysicsControl["fhswr"], GFSPhysicsControl["fhlwr"])
+        raddt = min(gfs_physics_control.fhswr, gfs_physics_control.fhlwr)
 
         # -# Setup surface ground temperature and ground/air skin temperature
         # if required.
@@ -582,18 +578,18 @@ class RadiationDriver:
         #  - Get layer ozone mass mixing ratio (if use ozone climatology data,
         #    call getozn()).
 
-        if GFSPhysicsControl["ntoz"] > 0:  # interactive ozone generation
+        if gfs_physics_control.ntoz > 0:  # interactive ozone generation
             for k in range(LMK):
                 for i in range(IM):
                     olyr[i, k] = max(
-                        self.QMIN, tracer1[i, k, GFSPhysicsControl["ntoz"] - 1]
+                        self.QMIN, tracer1[i, k, gfs_physics_control.ntoz - 1]
                     )
         else:  # climatological ozone
             print("Climatological ozone not implemented")
 
         #  - Call coszmn(), to compute cosine of zenith angle (only when SW is called)
 
-        if GFSPhysicsControl["lsswr"]:
+        if gfs_physics_control.lsswr:
             Radtend["coszen"], Radtend["coszdg"] = self.sol.coszmn(
                 Grid["xlon"], Grid["sinlat"], Grid["coslat"], solhr, IM
             )
@@ -721,8 +717,8 @@ class RadiationDriver:
             IM,
             LMK,
             LMP,
-            GFSPhysicsControl["lsswr"],
-            GFSPhysicsControl["lslwr"],
+            gfs_physics_control.lsswr,
+            gfs_physics_control.lslwr,
         )
 
         #  - Obtain cloud information for radiation calculations
@@ -736,23 +732,23 @@ class RadiationDriver:
 
         #  --- ...  obtain cloud information for radiation calculations
 
-        if GFSPhysicsControl["ncnd"] == 1:  # Zhao_Carr_Sundqvist
+        if gfs_physics_control.ncnd == 1:  # Zhao_Carr_Sundqvist
             for k in range(LMK):
                 for i in range(IM):
                     ccnd[i, k, 0] = tracer1[i, k, ntcw - 1]  # liquid water/ice
-        elif GFSPhysicsControl["ncnd"] == 2:  # MG
+        elif gfs_physics_control.ncnd == 2:  # MG
             for k in range(LMK):
                 for i in range(IM):
                     ccnd[i, k, 0] = tracer1[i, k, ntcw - 1]  # liquid water
                     ccnd[i, k, 1] = tracer1[i, k, ntiw - 1]  # ice water
-        elif GFSPhysicsControl["ncnd"] == 4:  # MG2
+        elif gfs_physics_control.ncnd == 4:  # MG2
             for k in range(LMK):
                 for i in range(IM):
                     ccnd[i, k, 0] = tracer1[i, k, ntcw - 1]  # liquid water
                     ccnd[i, k, 1] = tracer1[i, k, ntiw - 1]  # ice water
                     ccnd[i, k, 2] = tracer1[i, k, ntrw - 1]  # rain water
                     ccnd[i, k, 3] = tracer1[i, k, ntsw - 1]  # snow water
-        elif GFSPhysicsControl["ncnd"] == 5:  # GFDL MP, Thompson, MG3
+        elif gfs_physics_control.ncnd == 5:  # GFDL MP, Thompson, MG3
             for k in range(LMK):
                 for i in range(IM):
                     ccnd[i, k, 0] = tracer1[i, k, ntcw - 1]  # liquid water
@@ -768,8 +764,8 @@ class RadiationDriver:
                     if ccnd[i, k, n] < con_epsq:
                         ccnd[i, k, n] = 0.0
 
-        if GFSPhysicsControl["imp_physics"] == 11:
-            if not GFSPhysicsControl["lgfdlmprad"]:
+        if gfs_physics_control.imp_physics == 11:
+            if not gfs_physics_control.lgfdlmprad:
 
                 # rsun the  summation methods and
                 # order make the difference in calculation
@@ -783,12 +779,12 @@ class RadiationDriver:
                 for i in range(IM):
                     if ccnd[i, k, 0] < self.EPSQ:
                         ccnd[i, k, 0] = 0.0
-        if GFSPhysicsControl["uni_cld"]:
+        if gfs_physics_control.uni_cld:
             raise Exception("effr_in = True not implemented")
 
-        elif GFSPhysicsControl["imp_physics"] == 11:  # GFDL MP
+        elif gfs_physics_control.imp_physics == 11:  # GFDL MP
             cldcov[:IM, kd : LM + kd] = tracer1[
-                :IM, :LM, GFSPhysicsControl["ntclamt"] - 1
+                :IM, :LM, gfs_physics_control.ntclamt - 1
             ]
 
         else:  # neither of the other two cases
@@ -801,9 +797,9 @@ class RadiationDriver:
         #          ferrier's (imp_phys=5) microphysics schemes
 
         if (
-            GFSPhysicsControl["num_p3d"] == 1
-            and GFSPhysicsControl["npdf3d"] == 0
-            and GFSPhysicsControl["ncnvcld3d"] == 0
+            gfs_physics_control.num_p3d == 1
+            and gfs_physics_control.npdf3d == 0
+            and gfs_physics_control.ncnvcld3d == 0
         ):  # all the rest
             for k in range(LMK):
                 for i in range(IM):
@@ -818,7 +814,7 @@ class RadiationDriver:
                 cnvw[i, lyb - 1] = cnvw[i, lya - 1]
                 cnvc[i, lyb - 1] = cnvc[i, lya - 1]
 
-        if GFSPhysicsControl["imp_physics"] == 99:
+        if gfs_physics_control.imp_physics == 99:
             ccnd[:IM, :LMK, 0] = ccnd[:IM, :LMK, 0] + cnvw[:IM, :LMK]
 
         clouds, cldsa, mtopa, mbota, de_lgth = self.cld.progcld4(
@@ -851,12 +847,12 @@ class RadiationDriver:
         #  perturbation size
         #  ---  turn vegetation fraction pattern into percentile pattern
 
-        if GFSPhysicsControl["do_sfcperts"]:
+        if gfs_physics_control.do_sfcperts:
             print("Surface perturbation not implemented!")
 
         # mg, sfc-perts
 
-        if GFSPhysicsControl["do_only_clearsky_rad"]:
+        if gfs_physics_control.do_only_clearsky_rad:
             clouds[:, :, 0] = 0.0  # layer total cloud fraction
             clouds[:, :, 1] = 0.0  # layer cloud liq water path
             clouds[:, :, 3] = 0.0  # layer cloud ice water path
@@ -865,7 +861,7 @@ class RadiationDriver:
             cldsa[:, :] = 0.0  # fraction of clouds for low, mid, hi, tot, bl
 
         # Start SW radiation calculations
-        if GFSPhysicsControl["lsswr"]:
+        if gfs_physics_control.lsswr:
 
             #  - Call module_radiation_surface::setalb() to setup surface albedo.
             #  for SW radiation.
@@ -890,7 +886,7 @@ class RadiationDriver:
                 Sfcprop["tisfc"],
                 IM,
                 alb1d,
-                GFSPhysicsControl["pertalb"],
+                gfs_physics_control.pertalb,
             )
 
             # Approximate mean surface albedo from vis- and nir-  diffuse values.
@@ -906,7 +902,7 @@ class RadiationDriver:
                 #  - Call module_radsw_main::swrad(), to compute SW heating rates and
                 #   fluxes.
 
-                if GFSPhysicsControl["swhtr"]:
+                if gfs_physics_control.swhtr:
                     (
                         htswc,
                         Diag["topfsw"]["upfxc"],
@@ -945,7 +941,7 @@ class RadiationDriver:
                         IM,
                         LMK,
                         LMP,
-                        GFSPhysicsControl["lprnt"],
+                        gfs_physics_control.lprnt,
                         lhswb,
                         lhsw0,
                         lflxprf,
@@ -991,7 +987,7 @@ class RadiationDriver:
                         IM,
                         LMK,
                         LMP,
-                        GFSPhysicsControl["lprnt"],
+                        gfs_physics_control.lprnt,
                         lhswb,
                         lhsw0,
                         lflxprf,
@@ -1010,7 +1006,7 @@ class RadiationDriver:
                     for k in range(LM, LEVS):
                         Radtend["htrsw"][:IM, k] = Radtend["htrsw"][:IM, LM - 1]
 
-                if GFSPhysicsControl["swhtr"]:
+                if gfs_physics_control.swhtr:
                     for k in range(LM):
                         k1 = k + kd
                         Radtend["swhc"][:IM, k] = htsw0[:IM, k1]
@@ -1046,7 +1042,7 @@ class RadiationDriver:
                 Coupling["visbmui"] = np.zeros(IM)
                 Coupling["visdfui"] = np.zeros(IM)
 
-                if GFSPhysicsControl["swhtr"]:
+                if gfs_physics_control.swhtr:
                     Radtend["swhc"][:, :] = 0
                     cldtausw[:, :] = 0.0
 
@@ -1055,7 +1051,7 @@ class RadiationDriver:
             Coupling["sfcdsw"] = Radtend["sfcfsw"]["dnfxc"]
 
         # Start LW radiation calculations
-        if GFSPhysicsControl["lslwr"]:
+        if gfs_physics_control.lslwr:
 
             #  - Call module_radiation_surface::setemis(),to setup surface
             # emissivity for LW radiation.
@@ -1076,7 +1072,7 @@ class RadiationDriver:
             #  - Call module_radlw_main::lwrad(), to compute LW heating rates and
             #    fluxes.
 
-            if GFSPhysicsControl["lwhtr"]:
+            if gfs_physics_control.lwhtr:
                 (
                     htlwc,
                     Diag["topflw"]["upfxc"],
@@ -1105,7 +1101,7 @@ class RadiationDriver:
                     IM,
                     LMK,
                     LMP,
-                    GFSPhysicsControl["lprnt"],
+                    gfs_physics_control.lprnt,
                     lhlwb,
                     lhlw0,
                     lflxprf,
@@ -1140,7 +1136,7 @@ class RadiationDriver:
                     IM,
                     LMK,
                     LMP,
-                    GFSPhysicsControl["lprnt"],
+                    gfs_physics_control.lprnt,
                     lhlwb,
                     lhlw0,
                     lflxprf,
@@ -1161,7 +1157,7 @@ class RadiationDriver:
                 for k in range(LM, LEVS):
                     Radtend["htrlw"][IM, k] = Radtend["htrlw"][:IM, LM - 1]
 
-            if GFSPhysicsControl["lwhtr"]:
+            if gfs_physics_control.lwhtr:
                 for k in range(LM):
                     k1 = k + kd
                     Radtend["lwhc"][:IM, k] = htlw0[:IM, k1]
@@ -1182,69 +1178,69 @@ class RadiationDriver:
 
         #  --- ...  collect the fluxr data for wrtsfc
 
-        if GFSPhysicsControl["lssav"]:
-            if GFSPhysicsControl["lsswr"]:
+        if gfs_physics_control.lssav:
+            if gfs_physics_control.lsswr:
                 for i in range(IM):
                     Diag["fluxr"][i, 33] = (
-                        Diag["fluxr"][i, 33] + GFSPhysicsControl["fhswr"] * aerodp[i, 0]
+                        Diag["fluxr"][i, 33] + gfs_physics_control.fhswr * aerodp[i, 0]
                     )  # total aod at 550nm
                     Diag["fluxr"][i, 34] = (
-                        Diag["fluxr"][i, 34] + GFSPhysicsControl["fhswr"] * aerodp[i, 1]
+                        Diag["fluxr"][i, 34] + gfs_physics_control.fhswr * aerodp[i, 1]
                     )  # DU aod at 550nm
                     Diag["fluxr"][i, 35] = (
-                        Diag["fluxr"][i, 35] + GFSPhysicsControl["fhswr"] * aerodp[i, 2]
+                        Diag["fluxr"][i, 35] + gfs_physics_control.fhswr * aerodp[i, 2]
                     )  # BC aod at 550nm
                     Diag["fluxr"][i, 36] = (
-                        Diag["fluxr"][i, 36] + GFSPhysicsControl["fhswr"] * aerodp[i, 3]
+                        Diag["fluxr"][i, 36] + gfs_physics_control.fhswr * aerodp[i, 3]
                     )  # OC aod at 550nm
                     Diag["fluxr"][i, 37] = (
-                        Diag["fluxr"][i, 37] + GFSPhysicsControl["fhswr"] * aerodp[i, 4]
+                        Diag["fluxr"][i, 37] + gfs_physics_control.fhswr * aerodp[i, 4]
                     )  # SU aod at 550nm
                     Diag["fluxr"][i, 38] = (
-                        Diag["fluxr"][i, 38] + GFSPhysicsControl["fhswr"] * aerodp[i, 5]
+                        Diag["fluxr"][i, 38] + gfs_physics_control.fhswr * aerodp[i, 5]
                     )  # SS aod at 550nm
 
             #  ---  save lw toa and sfc fluxes
-            if GFSPhysicsControl["lslwr"]:
+            if gfs_physics_control.lslwr:
                 #  ---  lw total-sky fluxes
                 for i in range(IM):
                     Diag["fluxr"][i, 0] = (
                         Diag["fluxr"][i, 0]
-                        + GFSPhysicsControl["fhlwr"] * Diag["topflw"]["upfxc"][i]
+                        + gfs_physics_control.fhlwr * Diag["topflw"]["upfxc"][i]
                     )  # total sky top lw up
                     Diag["fluxr"][i, 18] = (
                         Diag["fluxr"][i, 18]
-                        + GFSPhysicsControl["fhlwr"] * Radtend["sfcflw"]["dnfxc"][i]
+                        + gfs_physics_control.fhlwr * Radtend["sfcflw"]["dnfxc"][i]
                     )  # total sky sfc lw dn
                     Diag["fluxr"][i, 19] = (
                         Diag["fluxr"][i, 19]
-                        + GFSPhysicsControl["fhlwr"] * Radtend["sfcflw"]["upfxc"][i]
+                        + gfs_physics_control.fhlwr * Radtend["sfcflw"]["upfxc"][i]
                     )  # total sky sfc lw up
                     #  ---  lw clear-sky fluxes
                     Diag["fluxr"][i, 27] = (
                         Diag["fluxr"][i, 27]
-                        + GFSPhysicsControl["fhlwr"] * Diag["topflw"]["upfx0"][i]
+                        + gfs_physics_control.fhlwr * Diag["topflw"]["upfx0"][i]
                     )  # clear sky top lw up
                     Diag["fluxr"][i, 29] = (
                         Diag["fluxr"][i, 29]
-                        + GFSPhysicsControl["fhlwr"] * Radtend["sfcflw"]["dnfx0"][i]
+                        + gfs_physics_control.fhlwr * Radtend["sfcflw"]["dnfx0"][i]
                     )  # clear sky sfc lw dn
                     Diag["fluxr"][i, 32] = (
                         Diag["fluxr"][i, 32]
-                        + GFSPhysicsControl["fhlwr"] * Radtend["sfcflw"]["upfx0"][i]
+                        + gfs_physics_control.fhlwr * Radtend["sfcflw"]["upfx0"][i]
                     )  # clear sky sfc lw up
 
             # save sw toa and sfc fluxes with proper diurnal sw wgt.
             # coszen=mean cosz over daylight
             # part of sw calling interval, while coszdg= mean
             # cosz over entire interval
-            if GFSPhysicsControl["lsswr"]:
+            if gfs_physics_control.lsswr:
                 for i in range(IM):
                     if Radtend["coszen"][i] > 0.0:
                         #  --- sw total-sky fluxes
                         #      -------------------
                         tem0d = (
-                            GFSPhysicsControl["fhswr"]
+                            gfs_physics_control.fhswr
                             * Radtend["coszdg"][i]
                             / Radtend["coszen"][i]
                         )
@@ -1298,7 +1294,7 @@ class RadiationDriver:
 
             #  ---  save total and boundary layer clouds
 
-            if GFSPhysicsControl["lsswr"] or GFSPhysicsControl["lslwr"]:
+            if gfs_physics_control.lsswr or gfs_physics_control.lslwr:
                 for i in range(IM):
                     Diag["fluxr"][i, 16] = Diag["fluxr"][i, 16] + raddt * cldsa[i, 3]
                     Diag["fluxr"][i, 17] = Diag["fluxr"][i, 17] + raddt * cldsa[i, 4]

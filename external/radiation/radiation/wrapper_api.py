@@ -178,12 +178,12 @@ class Radiation:
         """Compute the radiative fluxes"""
         # todo: update wrapper with fix to avoid having to be one timestep off to
         # compute solar hour, see https://github.com/ai2cm/fv3net/issues/2071
-        solhr = (_solar_hour(time - timedelta(seconds=self._timestep)),)
+        solhr = _solar_hour(time - timedelta(seconds=self._timestep))
         statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)
         grid, coords = get_grid(state)
         sfcprop = get_sfcprop(state)
         ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
-        gfs_physics_control = self._get_gfs_physics_control(time, nz,)
+        gfs_physics_control = self._get_gfs_physics_control(time, nz)
         random_numbers = io.generate_random_numbers(ncolumns, nz, NGPTSW, NGPTLW)
         out = self._driver._GFS_radiation_driver(
             gfs_physics_control,
