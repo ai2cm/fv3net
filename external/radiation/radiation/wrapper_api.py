@@ -1,4 +1,4 @@
-from typing import MutableMapping, Mapping, Hashable, Sequence, Optional, Any
+from typing import MutableMapping, Mapping, Hashable, Sequence, Optional
 
 try:
     from mpi4py import MPI
@@ -8,7 +8,12 @@ from datetime import timedelta
 import cftime
 import numpy as np
 import xarray as xr
-from radiation.config import RadiationConfig, LOOKUP_DATA_PATH, FORCING_DATA_PATH
+from radiation.config import (
+    RadiationConfig,
+    GFSPhysicsControl,
+    LOOKUP_DATA_PATH,
+    FORCING_DATA_PATH,
+)
 from radiation.radsw import ngptsw as NGPTSW
 from radiation.radlw import ngptlw as NGPTLW
 from radiation.radiation_driver import RadiationDriver
@@ -23,7 +28,7 @@ from radiation.preprocessing import (
     OUTPUT_VARIABLE_NAMES,
 )
 
-TRACER_NAMES_IN_MAPPING: Mapping[str, str] = {  # this is specific to GFS physics
+TRACER_NAMES_IN_MAPPING: Mapping[str, str] = {
     "cloud_water_mixing_ratio": "ntcw",
     "rain_mixing_ratio": "ntrw",
     "cloud_ice_mixing_ratio": "ntiw",
@@ -108,7 +113,7 @@ class Radiation:
         self._driver.radinit(
             sigma,
             nlay,
-            self._rad_config.imp_physics,
+            self._rad_config.gfs_physics_control.imp_physics,
             self._comm.rank,
             self._rad_config.iemsflg,
             self._rad_config.ioznflg,
@@ -151,14 +156,14 @@ class Radiation:
         jdat = np.array(
             [time.year, time.month, time.day, 0, time.hour, time.minute, time.second, 0]
         )
-        fhswr = np.array(float(self._rad_config.fhswr))
+        fhswr = np.array(float(self._rad_config.gfs_physics_control.fhswr))
         dt_atmos = np.array(float(dt_atmos))
         self._driver.radupdate(
             idat,
             jdat,
             fhswr,
             dt_atmos,
-            self._rad_config.lsswr,
+            self._rad_config.gfs_physics_control.lsswr,
             self._aerosol_data["kprfg"],
             self._aerosol_data["idxcg"],
             self._aerosol_data["cmixg"],
@@ -171,14 +176,19 @@ class Radiation:
 
     def _rad_compute(self, state: State, time: cftime.DatetimeJulian,) -> Diagnostics:
         """Compute the radiative fluxes"""
+        # todo: update wrapper with fix to avoid having to be one timestep off to
+        # compute solar hour, see https://github.com/ai2cm/fv3net/issues/2071
+        solhr = (_solar_hour(time - timedelta(seconds=self._timestep)),)
         statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)
         grid, coords = get_grid(state)
         sfcprop = get_sfcprop(state)
         ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
-        model = self._get_model(time, nz,)
+        gfs_physics_control = self._get_gfs_physics_control(time, nz,)
         random_numbers = io.generate_random_numbers(ncolumns, nz, NGPTSW, NGPTLW)
         out = self._driver._GFS_radiation_driver(
-            model,
+            gfs_physics_control,
+            self._driver.solar_constant,
+            solhr,
             statein,
             sfcprop,
             grid,
@@ -189,51 +199,20 @@ class Radiation:
         out = postprocess_out(out)
         return unstack(out, coords)
 
-    def _get_model(
+    def _get_gfs_physics_control(
         self,
         time: cftime.DatetimeJulian,
         nz: int,
         tracer_name_mapping: Mapping[str, str] = TRACER_NAMES_IN_MAPPING,
-    ) -> MutableMapping[Hashable, Any]:
-        model: MutableMapping[Hashable, Any] = {
-            "levs": nz,
-            "levr": nz,
-            "nfxr": self._rad_config.nfxr,
-            "ncld": self._rad_config.ncld,
-            "ncnd": self._rad_config.ncnd,
-            "fhswr": self._rad_config.fhswr,
-            "fhlwr": self._rad_config.fhlwr,
-            # todo: update wrapper with fix to avoid having to be one timestep off
-            # see https://github.com/ai2cm/fv3net/issues/2071
-            "solhr": _solar_hour(time - timedelta(seconds=self._timestep)),
-            "lsswr": self._rad_config.lsswr,
-            "lslwr": self._rad_config.lslwr,
-            "imp_physics": self._rad_config.imp_physics,
-            "lgfdlmprad": self._rad_config.lgfdlmprad,
-            "uni_cld": self._rad_config.uni_cld,
-            "effr_in": self._rad_config.effr_in,
-            "indcld": self._rad_config.indcld,
-            "num_p3d": self._rad_config.num_p3d,
-            "npdf3d": self._rad_config.npdf3d,
-            "ncnvcld3d": self._rad_config.ncnvcld3d,
-            "lmfdeep2": self._rad_config.lmfdeep2,
-            "lmfshal": self._rad_config.lmfshal,
-            "sup": self._rad_config.sup,
-            "kdt": self._rad_config.kdt,
-            "do_sfcperts": self._rad_config.do_sfcperts,
-            "pertalb": self._rad_config.pertalb,
-            "do_only_clearsky_rad": self._rad_config.do_only_clearsky_rad,
-            "swhtr": self._rad_config.swhtr,
-            "solcon": self._driver.solar_constant,
-            "lprnt": self._rad_config.lprnt,
-            "lwhtr": self._rad_config.lwhtr,
-            "lssav": self._rad_config.lssav,
-        }
+    ) -> GFSPhysicsControl:
+        gfs_physics_control = self._rad_config.gfs_physics_control
+        gfs_physics_control.levs = nz
+        gfs_physics_control.levr = nz
         for tracer_name, index in self._tracer_inds.items():
             if tracer_name in tracer_name_mapping:
-                model[tracer_name_mapping[tracer_name]] = index
-        model["ntrac"] = max(self._tracer_inds.values())
-        return model
+                setattr(gfs_physics_control, tracer_name_mapping[tracer_name], index)
+        gfs_physics_control.ntrac = max(self._tracer_inds.values())
+        return gfs_physics_control
 
 
 def _solar_hour(time: cftime.DatetimeJulian) -> float:

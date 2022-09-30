@@ -193,9 +193,13 @@ def test_radiation_valiation():
         randomdict = io.load_random_numbers(LOOKUP_DIR, rank)
         lwdict = io.load_lw(LOOKUP_DIR)
         swdict = io.load_sw(LOOKUP_DIR)
+        solcon = Model.pop("solcon")
+        solhr = Model.pop("solhr")
 
         Radtendout, Diagout, Couplingout = driver.GFS_radiation_driver(
             Model,
+            solcon,
+            solhr,
             Statein,
             Sfcprop,
             Coupling,
