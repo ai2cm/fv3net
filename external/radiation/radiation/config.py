@@ -59,6 +59,7 @@ class GFSPhysicsControl:
     ntsw: Optional[int] = None
     ntgl: Optional[int] = None
     ntoz: Optional[int] = None
+    ntclamt: Optional[int] = None
     ntrac: Optional[int] = None
     nfxr: int = 45
     ncld: int = 5

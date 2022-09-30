@@ -1,8 +1,10 @@
 import pathlib
+import dataclasses
 import time
 import serialbox as ser
 from radiation import io
 from radiation.radiation_driver import RadiationDriver
+from radiation.config import GFSPhysicsControl
 from util import compare_data
 from variables_to_read import vars_dict as variables
 
@@ -24,6 +26,12 @@ def getscalars(indict):
                 indict[var] = indict[var][0]
 
     return indict
+
+
+def get_gfs_physics_control(indict):
+    names = [field.name for field in dataclasses.fields(GFSPhysicsControl)]
+    kwargs = {name: indict[name] for name in names}
+    return GFSPhysicsControl(**kwargs)
 
 
 startTime = time.time()
@@ -196,8 +204,10 @@ def test_radiation_valiation():
         solcon = Model.pop("solcon")
         solhr = Model.pop("solhr")
 
+        gfs_physics_control = get_gfs_physics_control(Model)
+
         Radtendout, Diagout, Couplingout = driver.GFS_radiation_driver(
-            Model,
+            gfs_physics_control,
             solcon,
             solhr,
             Statein,

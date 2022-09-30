@@ -209,7 +209,7 @@ class Radiation:
         gfs_physics_control.levs = nz
         gfs_physics_control.levr = nz
         for tracer_name, index in self._tracer_inds.items():
-            if tracer_name in tracer_name_mapping:
+            if hasattr(gfs_physics_control, tracer_name_mapping[tracer_name]):
                 setattr(gfs_physics_control, tracer_name_mapping[tracer_name], index)
         gfs_physics_control.ntrac = max(self._tracer_inds.values())
         return gfs_physics_control
