@@ -97,8 +97,10 @@ class FMRNetworkConfig:
         default_factory=lambda: TimeseriesDiscriminatorConfig()
     )
     convolution_type: str = "conv2d"
+    identity_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
     target_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
     gan_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
+    identity_weight: float = 1.0
     target_weight: float = 1.0
     generator_weight: float = 1.0
     discriminator_weight: float = 1.0
@@ -109,6 +111,7 @@ class FMRNetworkConfig:
         nx: int,
         ny: int,
         n_batch: int,
+        n_time: int,
         state_variables: Sequence[str],
         scalers: Mapping[str, StandardScaler],
     ) -> "FMRTrainer":
@@ -121,7 +124,7 @@ class FMRNetworkConfig:
         else:
             raise ValueError(f"convolution_type {self.convolution_type} not supported")
         generator = self.generator.build(
-            n_state, nx=nx, ny=ny, convolution=convolution
+            n_state, nx=nx, ny=ny, n_time=n_time, convolution=convolution
         ).to(DEVICE)
         discriminator = self.discriminator.build(
             n_state,
@@ -142,9 +145,11 @@ class FMRNetworkConfig:
             ),
             optimizer_generator=optimizer_generator,
             optimizer_discriminator=optimizer_discriminator,
+            identity_loss=self.identity_loss.instance,
             target_loss=self.target_loss.instance,
             gan_loss=self.gan_loss.instance,
             batch_size=n_batch,
+            identity_weight=self.identity_weight,
             target_weight=self.target_weight,
             generator_weight=self.generator_weight,
             discriminator_weight=self.discriminator_weight,
@@ -326,10 +331,12 @@ class FMRTrainer:
     fmr: FullModelReplacement
     optimizer_generator: torch.optim.Optimizer
     optimizer_discriminator: torch.optim.Optimizer
+    identity_loss: torch.nn.Module
     target_loss: torch.nn.Module
     gan_loss: torch.nn.Module
     batch_size: int
     target_weight: float = 1.0
+    identity_weight: float = 1.0
     generator_weight: float = 1.0
     discriminator_weight: float = 1.0
 
@@ -374,35 +381,31 @@ class FMRTrainer:
         """
         # for now there is no time-evolution-based loss, so we fold the time
         # dimension into the sample dimension
+        fake = self.generator(real[:, 0, :])
 
-        state = real[:, 0]
-        hidden = self.generator.init_hidden(state.shape)
-        out_states = [state]
-        for _ in range(1, real.shape[1]):
-            state, hidden = self.generator(state, hidden)
-            out_states.append(state)
-        fake = torch.stack(out_states, dim=1)
+        # Generator ######
 
-        # Generators A2B and B2A ######
-
-        # don't update discriminators when training generators to fool them
+        # don't update discriminators when training generator to fool it
         set_requires_grad([self.discriminator], requires_grad=False)
 
         # GAN loss
         pred_fake = self.discriminator(fake)
         if self.target_real is None:
             self._init_targets(pred_fake.shape)
+        loss_identity = (
+            self.identity_loss(real[:, 0], fake[:, 0]) * self.identity_weight
+        )
+        loss_target = self.target_loss(real[:, 1:], fake[:, 1:]) * self.target_weight
         loss_gan = self.gan_loss(pred_fake, self.target_real) * self.generator_weight
-        loss_target = self.target_loss(real, fake) * self.target_weight
         # Total loss
-        loss_g: torch.Tensor = (loss_target + loss_gan)
+        loss_g: torch.Tensor = (loss_identity + loss_target + loss_gan)
         self.optimizer_generator.zero_grad()
         loss_g.backward()
         self.optimizer_generator.step()
 
-        # Discriminators A and B ######
+        # Discriminator ######
 
-        # do update discriminators when training them to identify samples
+        # do update discriminator when training it to identify samples
         set_requires_grad([self.discriminator], requires_grad=True)
 
         # Real loss
@@ -619,7 +622,7 @@ def train_fmr(
 
     get_Xy = get_Xy_map_fn_single_domain(
         state_variables=hyperparameters.state_variables,
-        n_dims=6,  # [batch, sample, tile, x, y, z]
+        n_dims=6,  # [batch, time, tile, x, y, z]
         mapping_scale_func=mapping_scale_func,
     )
 
@@ -635,6 +638,7 @@ def train_fmr(
         nx=sample.shape[-3],
         ny=sample.shape[-2],
         n_state=sample.shape[-1],
+        n_time=sample.shape[-5],
         n_batch=hyperparameters.training.samples_per_batch,
         state_variables=hyperparameters.state_variables,
         scalers=scalers,

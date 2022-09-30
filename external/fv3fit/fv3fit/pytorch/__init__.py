@@ -11,6 +11,7 @@ from .cyclegan import (
     AutoencoderHyperparameters,
     GeneratorConfig,
     RecurrentGeneratorConfig,
+    TimeseriesDiscriminatorConfig,
     DiscriminatorConfig,
     CycleGANHyperparameters,
     CycleGANTrainingConfig,
