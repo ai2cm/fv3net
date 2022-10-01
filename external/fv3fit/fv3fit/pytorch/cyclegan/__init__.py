@@ -9,6 +9,7 @@ from .train_fmr import (
     FMRHyperparameters,
     FMRTrainingConfig,
     FMRNetworkConfig,
+    FullModelReplacement
 )
 from .discriminator import DiscriminatorConfig
 from .discriminator_recurrent import TimeseriesDiscriminatorConfig

@@ -116,7 +116,7 @@ def main(args, unknown_args=None):
             # hyperparameters are repeated as flattened top level keys so they can
             # be referenced in the sweep configuration parameters
             # https://github.com/wandb/client/issues/982
-            wandb.init(config=to_flat_dict(config_dict["hyperparameters"]))
+            wandb.init(settings=wandb.Settings(start_method="fork"), config=to_flat_dict(config_dict["hyperparameters"]))
             # hyperparameters should be accessed throughthe wandb config so that
             # sweeps use the wandb-provided hyperparameter values
             config_dict["hyperparameters"] = to_nested_dict(wandb.config)

@@ -82,6 +82,7 @@ class FMRNetworkConfig:
         cycle_weight: weight of the cycle loss
         generator_weight: weight of the generator's gan loss
         discriminator_weight: weight of the discriminator gan loss
+        reload_path: path to a saved FullModelReplacement model to reload
     """
 
     generator_optimizer: OptimizerConfig = dataclasses.field(
@@ -104,6 +105,7 @@ class FMRNetworkConfig:
     target_weight: float = 1.0
     generator_weight: float = 1.0
     discriminator_weight: float = 1.0
+    reload_path: Optional[str] = None
 
     def build(
         self,
@@ -115,34 +117,42 @@ class FMRNetworkConfig:
         state_variables: Sequence[str],
         scalers: Mapping[str, StandardScaler],
     ) -> "FMRTrainer":
-        if self.convolution_type == "conv2d":
-            convolution = single_tile_convolution
-            timeseries_convolution = single_tile_timeseries_convolution
-        elif self.convolution_type == "halo_conv2d":
-            convolution = halo_convolution
-            timeseries_convolution = halo_timeseries_convolution
-        else:
-            raise ValueError(f"convolution_type {self.convolution_type} not supported")
-        generator = self.generator.build(
-            n_state, nx=nx, ny=ny, n_time=n_time, convolution=convolution
-        ).to(DEVICE)
-        discriminator = self.discriminator.build(
-            n_state,
-            convolution=convolution,
-            timeseries_convolution=timeseries_convolution,
-        ).to(DEVICE)
-        optimizer_generator = self.generator_optimizer.instance(generator.parameters())
-        optimizer_discriminator = self.discriminator_optimizer.instance(
-            discriminator.parameters()
-        )
-        init_weights(generator)
-        init_weights(discriminator)
-        return FMRTrainer(
-            fmr=FullModelReplacement(
+        if self.reload_path is None:
+            if self.convolution_type == "conv2d":
+                convolution = single_tile_convolution
+                timeseries_convolution = single_tile_timeseries_convolution
+            elif self.convolution_type == "halo_conv2d":
+                convolution = halo_convolution
+                timeseries_convolution = halo_timeseries_convolution
+            else:
+                raise ValueError(f"convolution_type {self.convolution_type} not supported")
+            generator = self.generator.build(
+                n_state, nx=nx, ny=ny, n_time=n_time, convolution=convolution
+            ).to(DEVICE)
+            discriminator = self.discriminator.build(
+                n_state,
+                convolution=convolution,
+                timeseries_convolution=timeseries_convolution,
+            ).to(DEVICE)
+            optimizer_generator = self.generator_optimizer.instance(generator.parameters())
+            optimizer_discriminator = self.discriminator_optimizer.instance(
+                discriminator.parameters()
+            )
+            init_weights(generator)
+            init_weights(discriminator)
+            fmr = FullModelReplacement(
                 model=FMRModule(generator=generator, discriminator=discriminator),
                 scalers=scalers,
                 state_variables=state_variables,
-            ),
+            )
+        else:
+            fmr = FullModelReplacement.load(self.reload_path)
+            optimizer_generator = self.generator_optimizer.instance(fmr.generator.parameters())
+            optimizer_discriminator = self.discriminator_optimizer.instance(
+                fmr.discriminator.parameters()
+            )
+        return FMRTrainer(
+            fmr=fmr,
             optimizer_generator=optimizer_generator,
             optimizer_discriminator=optimizer_discriminator,
             identity_loss=self.identity_loss.instance,
@@ -256,9 +266,10 @@ class FullModelReplacement(Reloadable):
             dims=["window", "time", "tile", "x", "y", "z"],
         )
 
-    def step_model(self, state: torch.Tensor, hidden: torch.Tensor, timesteps: int):
+    def step_model(self, state: torch.Tensor, timesteps: int):
         """
         Step the model forward.
+
         Args:
             state: tensor of shape [sample, tile, x, y, feature]
             timesteps: number of timesteps to predict
@@ -266,14 +277,10 @@ class FullModelReplacement(Reloadable):
             tensor of shape [sample, time, tile, x, y, feature], with time dimension
                 having length timesteps + 1 and including the initial state
         """
-        outputs = torch.zeros(
-            [state.shape[0]] + [timesteps + 1] + list(state.shape[1:])
-        )
-        outputs[:, 0, :] = state
-        for i in range(timesteps):
-            with torch.no_grad():
-                outputs[:, i + 1, :], hidden = self.generator(outputs[:, i, :], hidden)
-        return outputs
+        self.generator.n_time = int(timesteps + 1)
+        with torch.no_grad():
+            output = self.generator(state)
+        return output
 
     def predict(self, X: xr.Dataset, timesteps: int) -> Tuple[xr.Dataset, xr.Dataset]:
         """
@@ -291,8 +298,7 @@ class FullModelReplacement(Reloadable):
             reference: true timeseries data from the input dataset
         """
         tensor = self.pack_to_tensor(X, timesteps=timesteps)
-        hidden = self.generator.init_hidden(tensor[:, 0, :].shape)
-        outputs = self.step_model(tensor[:, 0, :], hidden, timesteps=timesteps)
+        outputs = self.step_model(tensor[:, 0, :], timesteps=timesteps)
         predicted = self.unpack_tensor(outputs)
         reference = self.unpack_tensor(tensor)
         return predicted, reference
@@ -564,6 +570,8 @@ class FMRTrainingConfig:
             if validation_data is not None:
                 val_loss = train_model.evaluate_on_dataset(validation_data)
                 logger.info("val_loss %s", val_loss)
+            target_loss = train_loss["target_loss"]
+            train_model.reloadable.dump(f"model_epoch_{i:04d}_loss_{target_loss:0.4f}")
 
     def _fit_loop_tensor(
         self,
