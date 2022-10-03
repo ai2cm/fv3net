@@ -350,7 +350,7 @@ class AerosolClass:
 
     wvn550 = 1.0e4 / 0.55
 
-    def __init__(self, NLAY, me, iaerflg, ivflip, aerosol_dict):
+    def __init__(self, NLAY, rank, iaerflg, ivflip, aerosol_dict):
         self.NSWBND = nbdsw
         self.NLWBND = NBDLW
         self.NSWLWBD = nbdsw * NBDLW
@@ -390,7 +390,7 @@ class AerosolClass:
 
         # -# Call wrt_aerlog() to write aerosol parameter configuration to output logs.
 
-        if me == 0:
+        if rank == 0:
             self.wrt_aerlog()  # write aerosol param info to log file
 
         if self.iaerflg == 0:
@@ -703,7 +703,7 @@ class AerosolClass:
         #  inputs:  (in-scope variables, module constants)                     !
         #   solfwv(:)    - real, solar flux for individual wavenumber (w/m2)   !
         #   eirfwv(:)    - real, lw flux(273k) for individual wavenum (w/m2)   !
-        #   me           - integer, select cpu number as print control flag    !
+        #   rank         - integer, select cpu number as print control flag    !
         #                                                                      !
         #  outputs: (to the module variables)                                  !
         #                                                                      !
@@ -1230,7 +1230,7 @@ class AerosolClass:
 
                 self.extstra[ib] = sumk * rirbd
 
-    def aer_update(self, iyear, imon, me, kprfg, idxcg, cmixg, denng, cline):
+    def aer_update(self, iyear, imon, rank, kprfg, idxcg, cmixg, denng, cline):
         #  ==================================================================
         #
         #  aer_update checks and update time varying climatology aerosol
@@ -1239,7 +1239,7 @@ class AerosolClass:
         #  inputs:                                          size
         #     iyear   - 4-digit calender year                 1
         #     imon    - month of the year                     1
-        #     me      - print message control flag            1
+        #     rank    - print message control flag            1
         #
         #  outputs: ( none )
         #
@@ -1259,7 +1259,7 @@ class AerosolClass:
 
         self.iyear = iyear
         self.imon = imon
-        self.me = me
+        self.rank = rank
 
         if self.imon < 1 or self.imon > 12:
             raise ValueError(
@@ -1322,7 +1322,7 @@ class AerosolClass:
         self.cmixg = cmixg
         self.denng = denng
 
-        if self.me == 0:
+        if self.rank == 0:
             print(f"  --- Reading {cline[self.imon-1]}")
 
     def volc_update(self):
@@ -1377,7 +1377,7 @@ class AerosolClass:
 
             if self.iyear < self.MINVYR or self.iyear > self.MAXVYR:
                 self.ivolae = np.ones((12, 4, 10))  # set as lowest value
-                if self.me == 0:
+                if self.rank == 0:
                     print(
                         "Requested volcanic date out of range,",
                         " optical depth set to lowest value",
@@ -1389,7 +1389,7 @@ class AerosolClass:
                     # ds = xr.open_dataset(volcano_file)
                     # cline = ds["cline"]
                     #  ---  check print
-                    if self.me == 0:
+                    if self.rank == 0:
                         print(f"Opened volcanic data file: {volcano_file}")
                     #    print(cline)
 
@@ -1401,7 +1401,7 @@ class AerosolClass:
                     )
 
         #  ---  check print
-        if self.me == 0:
+        if self.rank == 0:
             k = (self.kyrsav % 10) + 1
             print(
                 "CHECK: Sample Volcanic data used for month, year: ",

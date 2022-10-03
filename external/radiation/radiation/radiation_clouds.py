@@ -20,18 +20,18 @@ class CloudClass:
     cldssa_def = 0.99
     cldasy_def = 0.84
 
-    def __init__(self, si, NLAY, imp_physics, me, ivflip, icldflg, iovrsw, iovrlw):
+    def __init__(self, si, NLAY, imp_physics, rank, ivflip, icldflg, iovrsw, iovrlw):
 
         self.iovr = max(iovrsw, iovrlw)
         self.ivflip = ivflip
 
-        if me == 0:
+        if rank == 0:
             print(self.VTAGCLD)  # print out version tag
 
         if icldflg == 0:
             print(" - Diagnostic Cloud Method has been discontinued")
         else:
-            if me == 0:
+            if rank == 0:
                 print("- Using Prognostic Cloud Method")
                 if imp_physics == 99:
                     print("   --- Zhao/Carr/Sundqvist microphysics")
@@ -426,7 +426,7 @@ class CloudClass:
         deltaq,
         sup,
         kdt,
-        me,
+        rank,
         iovrsw,
         iovrlw,
     ):
