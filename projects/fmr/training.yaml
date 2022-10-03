@@ -4,6 +4,9 @@ cache:
 hyperparameters:
     state_variables:
       - h500
+      - TMP500_300
+      - TB
+      - PRESsfc
     normalization_fit_samples: 50_000
     network:
       convolution_type: halo_conv2d
@@ -24,18 +27,21 @@ hyperparameters:
       discriminator:
         n_convolutions: 3
         kernel_size: 3
-        time_kernel_size: 2
+        # time_kernel_size: 2
         max_filters: 256
+      identity_loss:
+        loss_type: mae
       target_loss:
         loss_type: mse
       gan_loss:
         loss_type: mse
+      identity_weight: 10.0
       target_weight: 1.0
       generator_weight: 1.0
       discriminator_weight: 1.0
     training:
-      n_epoch: 20
-      in_memory: false
+      n_epoch: 100
+      in_memory: true
       shuffle_buffer_size: 1000
       samples_per_batch: 1
       validation_batch_size: 100

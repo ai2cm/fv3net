@@ -6,7 +6,8 @@ unstacked_dims:
   - grid_xt
   - grid_yt
   - z
-window_size: 6
+window_size: 4
+time_stride: 2
 default_variable_config:
   times: window
-n_windows: 500  # 5808
+n_windows: 1000  # 5808

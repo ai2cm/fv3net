@@ -18,7 +18,7 @@ from .cyclegan import (
     CycleGANNetworkConfig,
     CycleGAN,
     CycleGANModule,
-    FullModelReplacement
+    FullModelReplacement,
 )
 from .optimizer import OptimizerConfig
 from .activation import ActivationConfig

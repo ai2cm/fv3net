@@ -386,7 +386,9 @@ class FMRTrainer:
     def evaluate_on_dataset(self, dataset: tf.data.Dataset) -> Dict[str, float]:
         return {}
 
-    def train_on_batch(self, real: torch.Tensor) -> Mapping[str, float]:
+    def train_on_batch(
+        self, real: torch.Tensor, evaluate_only=False
+    ) -> Mapping[str, float]:
         """
         Train the CycleGAN on a batch of data.
 
@@ -416,9 +418,10 @@ class FMRTrainer:
         loss_gan = self.gan_loss(pred_fake, self.target_real) * self.generator_weight
         # Total loss
         loss_g: torch.Tensor = (loss_identity + loss_target + loss_gan)
-        self.optimizer_generator.zero_grad()
-        loss_g.backward()
-        self.optimizer_generator.step()
+        if not evaluate_only:
+            self.optimizer_generator.zero_grad()
+            loss_g.backward()
+            self.optimizer_generator.step()
 
         # Discriminator ######
 
@@ -441,9 +444,10 @@ class FMRTrainer:
         # Total loss
         loss_d: torch.Tensor = (loss_d_real + loss_d_fake)
 
-        self.optimizer_discriminator.zero_grad()
-        loss_d.backward()
-        self.optimizer_discriminator.step()
+        if not evaluate_only:
+            self.optimizer_discriminator.zero_grad()
+            loss_d.backward()
+            self.optimizer_discriminator.step()
 
         return {
             "target_loss": float(loss_target),

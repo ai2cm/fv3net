@@ -52,6 +52,7 @@ class GeneratorConfig:
     strided_kernel_size: int = 4
     max_filters: int = 256
     use_geographic_bias: bool = True
+    use_geographic_features: bool = False
     disable_convolutions: bool = False
 
     def build(
