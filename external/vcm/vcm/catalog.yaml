@@ -7,7 +7,6 @@ sources:
     driver: zarr
     args:
       storage_options:
-
         access: read_only
       urlpath: 'gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/gfsphysics_15min_coarse.zarr/'
       consolidated: True
@@ -17,7 +16,6 @@ sources:
     driver: zarr
     args:
       storage_options:
-
         access: read_only
       urlpath: 'gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr/'
       consolidated: True
@@ -27,7 +25,6 @@ sources:
     driver: zarr
     args:
       storage_options:
-
         access: read_only
       urlpath: 'gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-regridded-diagnostics/atmos_15min_coarse_inst_1_degree.zarr/'
       consolidated: True
@@ -61,7 +58,6 @@ sources:
         - w500
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
       consolidated: True
@@ -144,7 +140,6 @@ sources:
         - vertical_wind
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/pressure-interpolated-correct-winds.zarr"
       consolidated: True
@@ -268,7 +263,6 @@ sources:
         - UGRD200
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/2020-05-coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_add_vars_corrected_wind.zarr"
       consolidated: True
@@ -303,7 +297,6 @@ sources:
         - Q2
     args:
       storage_options:
-
         access: read_only
       urlpath: 'gs://vcm-ml-intermediate/2021-09-09-fine-res-Q1-Q2-from-40-day-X-SHiELD-simulation-2020-05-27.zarr'
       consolidated: True
@@ -324,7 +317,6 @@ sources:
         - Q2
     args:
       storage_options:
-
         access: read_only
       urlpath: 'gs://vcm-ml-intermediate/2021-10-08-fine-res-3hrly-averaged-Q1-Q2-from-40-day-X-SHiELD-simulation-2020-05-27.zarr'
       consolidated: True
@@ -334,7 +326,6 @@ sources:
     driver: zarr
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/2020-03-27-T85-GFS-nudging-data-as-zarr/nudging_data_2015-2016.zarr"
 
@@ -343,7 +334,6 @@ sources:
     driver: zarr
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/2020-03-27-T85-GFS-nudging-data-as-zarr/nudging_data_mean_1M.zarr"
 
@@ -405,7 +395,6 @@ sources:
         - lonb
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/latLonArea/c96/grid_spec.zarr/"
       consolidated: true
@@ -419,7 +408,6 @@ sources:
         - land_sea_mask
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/latLonArea/c96/land_sea_mask.zarr"
       consolidated: true
@@ -440,7 +428,6 @@ sources:
         - lon_unit_vector
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/latLonArea/c96/wind_rotation_matrix_correct_factor.zarr"
       consolidated: true
@@ -458,7 +445,6 @@ sources:
         - lonb
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/latLonArea/c384/grid_spec.zarr"
       consolidated: true
@@ -472,7 +458,6 @@ sources:
         - land_sea_mask
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/latLonArea/c384/land_sea_mask.zarr"
       consolidated: true
@@ -489,7 +474,6 @@ sources:
         - northward_wind_v_coeff
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/latLonArea/c384/wind_rotation_matrix.zarr"
       consolidated: true
@@ -503,7 +487,6 @@ sources:
         simulation: nudged_c48_fv3gfs_2016
         category: 2d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-experiments/2020-09-30-nudge-to-obs-year-long-training-run/physics_output.zarr"
       consolidated: True
@@ -517,7 +500,6 @@ sources:
         simulation: nudged_c48_fv3gfs_2016
         category: 2d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-experiments/2020-09-30-nudge-to-obs-year-long-training-run/atmos_output.zarr"
       consolidated: True
@@ -531,7 +513,6 @@ sources:
         simulation: nudged_c48_fv3gfs_2015_2016
         category: 2d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-experiments/2020-10-30-nudge-to-obs-GRL-paper/nudge-to-obs-run-3hr-diags/physics_output.zarr"
       consolidated: True
@@ -545,7 +526,6 @@ sources:
         simulation: nudged_c48_fv3gfs_2015_2016
         category: 2d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-experiments/2020-10-30-nudge-to-obs-GRL-paper/nudge-to-obs-run-3hr-diags/atmos_output.zarr"
       consolidated: True
@@ -557,7 +537,6 @@ sources:
       metadata:
         grid: c384
       storage_options:
-
         access: read_only
       urlpath: gs://vcm-ml-raw/2020-11-10-C3072-to-C384-exposed-area.zarr
       consolidated: true
@@ -571,7 +550,6 @@ sources:
         simulation: free_minus_4K_ssts_c384_fv3gfs_20170801_20190801
         category: 2d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/minus-4K/C384-to-C48-diagnostics/gfsphysics_15min_coarse.zarr"
       consolidated: True
@@ -585,7 +563,6 @@ sources:
         simulation: free_minus_4K_ssts_c384_fv3gfs_20170801_20190801
         category: 2d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/minus-4K/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"
       consolidated: True
@@ -599,7 +576,6 @@ sources:
         simulation: free_unperturbed_ssts_c384_fv3gfs_20170801_20190801
         category: 2d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/unperturbed/C384-to-C48-diagnostics/gfsphysics_15min_coarse.zarr"
       consolidated: True
@@ -613,7 +589,6 @@ sources:
         simulation: free_unperturbed_ssts_c384_fv3gfs_20170801_20190801
         category: 2d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/unperturbed/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"
       consolidated: True
@@ -629,7 +604,6 @@ sources:
         simulation: free_unperturbed_ssts_c384_fv3gfs_20170801_20190801
         category: 3d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/unperturbed/C384-to-C48-diagnostics/pressure-interpolated.zarr"
       consolidated: True
@@ -644,7 +618,6 @@ sources:
         simulation: free_plus_4K_ssts_c384_fv3gfs_20170801_20190801
         category: 2d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-4K/C384-to-C48-diagnostics/gfsphysics_15min_coarse.zarr"
       consolidated: True
@@ -658,7 +631,6 @@ sources:
         simulation: free_plus_4K_ssts_c384_fv3gfs_20170801_20190801
         category: 2d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-4K/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr"
       consolidated: True
@@ -674,7 +646,6 @@ sources:
         simulation: free_plus_4K_ssts_c384_fv3gfs_20170801_20190801
         category: 3d
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-4K/C384-to-C48-diagnostics/pressure-interpolated.zarr"
       consolidated: True
@@ -695,7 +666,6 @@ sources:
         - vertical_wind
     args:
       storage_options:
-        project: 'vcm-ml'
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire-1yr-postspinup-restarts-pressure-interpolated-vertical-wind.zarr"
       consolidated: True
@@ -716,7 +686,6 @@ sources:
         - northward_wind
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire-1yr-postspinup-restarts-pressure-interpolated-fix-corrupt-tsteps.zarr"
       consolidated: True
@@ -829,7 +798,6 @@ sources:
         - lonb
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid.zarr/"
       consolidated: true
@@ -847,7 +815,6 @@ sources:
         - northward_wind_v_coeff
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/wind_rotation.zarr/"
       consolidated: true
@@ -861,7 +828,6 @@ sources:
         - land_sea_mask
     args:
       storage_options:
-
         access: read_only
       urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/landseamask.zarr/"
       consolidated: true
