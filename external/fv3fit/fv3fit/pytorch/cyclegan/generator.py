@@ -1,4 +1,5 @@
 import dataclasses
+from fv3fit.pytorch.system import DEVICE
 import torch.nn as nn
 from toolz import curry
 import torch
@@ -12,6 +13,7 @@ from .modules import (
     ResnetBlock,
     CurriedModuleFactory,
 )
+from vcm.grid import get_grid_xyz
 
 
 @dataclasses.dataclass
@@ -86,6 +88,33 @@ class GeographicBias(nn.Module):
 
     def forward(self, x):
         return x + self.bias
+
+
+class GeographicFeatures(nn.Module):
+    """
+    Appends (x, y, z) features corresponding to Eulerian position of each
+    gridcell on a unit sphere.
+    """
+
+    def __init__(self, nx: int, ny: int):
+        super().__init__()
+        if nx != ny:
+            raise ValueError("this object requires nx=ny")
+        self.xyz = torch.as_tensor(
+            get_grid_xyz(nx=nx).transpose([0, 3, 1, 2]), device=DEVICE
+        ).float()
+
+    def forward(self, x):
+        """
+        Args:
+            x: tensor of shape [sample, tile, channel, x, y]
+
+        Returns:
+            tensor of shape [sample, tile, channel, x, y]
+        """
+        # the fact that this appends instead of prepends is arbitrary but important,
+        # this is assumed to be the case elsewhere in the code.
+        return torch.concat([x, self.xyz], dim=1)
 
 
 class RecurrentBlock(nn.Module):

@@ -12,6 +12,7 @@ from .modules import (
     relu_activation,
     ResnetBlock,
 )
+from .generator import GeographicBias, GeographicFeatures
 
 
 @dataclasses.dataclass
@@ -44,6 +45,7 @@ class RecurrentGeneratorConfig:
     strided_kernel_size: int = 4
     max_filters: int = 256
     use_geographic_bias: bool = True
+    use_geographic_features: bool = True
 
     def build(
         self,
@@ -72,17 +74,19 @@ class RecurrentGeneratorConfig:
         ).to(DEVICE)
 
 
-class GeographicBias(nn.Module):
-    """
-    Adds a trainable bias vector of shape [6, channels, nx, ny] to the layer input.
-    """
+class SelectChannels(nn.Module):
+    """Module which slices the channel dimension."""
 
-    def __init__(self, channels: int, nx: int, ny: int):
+    def __init__(self, start: Optional[int], stop: Optional[int], step: Optional[int]):
         super().__init__()
-        self.bias = nn.Parameter(torch.zeros(6, channels, nx, ny))
+        self._slice = slice(start, stop, step)
 
-    def forward(self, x):
-        return x + self.bias
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: tensor of shape (..., channel, x, y)
+        """
+        return x[..., self._slice, :, :]
 
 
 class RecurrentGenerator(nn.Module):
@@ -107,13 +111,17 @@ class RecurrentGenerator(nn.Module):
         """
         super(RecurrentGenerator, self).__init__()
         self.channels = channels
+        if config.use_geographic_features:
+            xyz_channels = 3
+        else:
+            xyz_channels = 0
         self.hidden_channels = config.max_filters
         self.nx = nx
         self.ny = ny
         self.ntime = n_time
         self.n_convolutions = config.n_convolutions
 
-        def resnet(in_channels: int, out_channels: int):
+        def resnet(in_channels: int, out_channels: int, context_channels: int = 0):
             if in_channels != out_channels:
                 raise ValueError(
                     "resnet must have same number of output channels as "
@@ -122,6 +130,7 @@ class RecurrentGenerator(nn.Module):
             resnet_blocks = [
                 ResnetBlock(
                     channels=in_channels,
+                    context_channels=context_channels,
                     convolution_factory=curry(convolution)(
                         kernel_size=config.kernel_size
                     ),
@@ -157,7 +166,11 @@ class RecurrentGenerator(nn.Module):
         min_filters = int(config.max_filters / 2 ** config.n_convolutions)
 
         self.first_conv = nn.Sequential(
-            convolution(kernel_size=7, in_channels=channels, out_channels=min_filters,),
+            convolution(
+                kernel_size=7,
+                in_channels=channels + xyz_channels,
+                out_channels=min_filters,
+            ),
             FoldFirstDimension(nn.InstanceNorm2d(min_filters)),
             relu_activation()(),
         )
@@ -170,9 +183,21 @@ class RecurrentGenerator(nn.Module):
                 for i in range(self.n_convolutions)
             ]
         )
-        self.resnet = resnet(
-            in_channels=config.max_filters, out_channels=config.max_filters
-        )
+        if config.use_geographic_features:
+            nx_resnet = nx // int(2 ** config.n_convolutions)
+            self.resnet = nn.Sequential(
+                FoldFirstDimension(GeographicFeatures(nx=nx_resnet, ny=nx_resnet)),
+                resnet(
+                    in_channels=config.max_filters,
+                    out_channels=config.max_filters,
+                    context_channels=3,
+                ),
+                SelectChannels(0, config.max_filters, 1),
+            )
+        else:
+            self.resnet = resnet(
+                in_channels=config.max_filters, out_channels=config.max_filters
+            )
 
         self.decoder = nn.Sequential(
             *[
@@ -192,6 +217,10 @@ class RecurrentGenerator(nn.Module):
         else:
             self.input_bias = nn.Identity()
             self.output_bias = nn.Identity()
+        if config.use_geographic_features:
+            self.input_bias = nn.Sequential(
+                self.input_bias, FoldFirstDimension(GeographicFeatures(nx=nx, ny=ny))
+            )
 
     def forward(
         self, inputs: torch.Tensor, ntime: Optional[int] = None

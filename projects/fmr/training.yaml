@@ -24,6 +24,8 @@ hyperparameters:
         kernel_size: 3
         strided_kernel_size: 4
         max_filters: 256
+        use_geographic_bias: false
+        use_geographic_features: true
       discriminator:
         n_convolutions: 3
         kernel_size: 3
@@ -36,7 +38,7 @@ hyperparameters:
       gan_loss:
         loss_type: mse
       identity_weight: 10.0
-      target_weight: 1.0
+      target_weight: 10.0
       generator_weight: 1.0
       discriminator_weight: 1.0
     training:

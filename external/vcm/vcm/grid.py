@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 from vcm.catalog import catalog
 
@@ -61,13 +62,13 @@ def xyz_to_lon_lat(xyz, np):
     return lon, lat
 
 
-def get_grid_xyz(nx: int):
+def get_grid_xyz(nx: int) -> np.ndarray:
     """
     Args:
         nx: number of horizontal grid points on each tile of the cubed sphere
 
     Returns:
-        lon, lat data corresponding to nx.
+        x, y, z data on a unit sphere corresponding to nx, of shape [tile, x, y, 3].
     """
     grid = catalog["grid/c48"].read()
     lat = grid.lat.load()
@@ -87,14 +88,21 @@ def get_grid_xyz(nx: int):
                 + xyz[:, 1::2, 1::2]
                 + xyz[:, :-1:2, :-1:2]
             )
-        xyz = xyz.reshape((6 * nx * nx, 3))
     else:
         raise ValueError("nx must be one of 48, 24, 12, 6, 3, " f"got {nx}")
     return xyz
 
 
-def get_grid(nx):
+def get_grid(nx) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Args:
+        nx: number of horizontal grid points on each tile of the cubed sphere
+
+    Returns:
+        lon, lat data corresponding to nx, of shape [tile, x, y].
+    """
     xyz = get_grid_xyz(nx)
+    xyz = xyz.reshape((6 * nx * nx, 3))
     lon, lat = xyz_to_lon_lat(xyz, np)
     lon = lon.reshape((6, nx, nx))
     lat = lat.reshape((6, nx, nx))

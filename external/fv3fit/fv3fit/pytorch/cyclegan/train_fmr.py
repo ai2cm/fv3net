@@ -397,6 +397,8 @@ class FMRTrainer:
                 [sample, time, tile, channel, x, y]
             real_b: a batch of data from domain B, should have shape
                 [sample, time, tile, channel, x, y]
+            evaluate_only: if True, do not run optimization step. Useful
+                for getting training loss on validation or testing data.
         """
         # for now there is no time-evolution-based loss, so we fold the time
         # dimension into the sample dimension
