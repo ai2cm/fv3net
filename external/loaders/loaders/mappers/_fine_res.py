@@ -80,7 +80,7 @@ def _open_merged_dataset(
     # optionally overwrite standard name arrays with those from fine-res budget
     if use_fine_res_state:
         for fine_res_name, standard_name in FINE_RES_STATE_NAMES.items():
-            merged[standard_name] = fine[fine_res_name]
+            merged[standard_name] = fine[fine_res_name].shift(time=-1)
     if use_fine_res_fluxes:
         for fine_res_name, standard_name in FINE_RES_FLUX_NAMES.items():
             merged[standard_name] = fine[fine_res_name]
