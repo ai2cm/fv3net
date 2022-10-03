@@ -2,9 +2,14 @@ import random
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
 from fv3fit._shared.predictor import Reloadable
-from fv3fit.pytorch.cyclegan.discriminator_recurrent import (
-    TimeseriesDiscriminator,
-    TimeseriesDiscriminatorConfig,
+
+# from fv3fit.pytorch.cyclegan.discriminator_recurrent import (
+#     TimeseriesDiscriminator,
+#     TimeseriesDiscriminatorConfig,
+# )
+from fv3fit.pytorch.cyclegan.discriminator import (
+    Discriminator,
+    DiscriminatorConfig,
 )
 from fv3fit.pytorch.cyclegan.generator_recurrent import (
     RecurrentGenerator,
@@ -12,10 +17,11 @@ from fv3fit.pytorch.cyclegan.generator_recurrent import (
 )
 from fv3fit.pytorch.cyclegan.image_pool import ImagePool
 from fv3fit.pytorch.cyclegan.modules import (
+    FoldFirstDimension,
     halo_convolution,
-    halo_timeseries_convolution,
+    # halo_timeseries_convolution,
     single_tile_convolution,
-    single_tile_timeseries_convolution,
+    # single_tile_timeseries_convolution,
 )
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
@@ -94,8 +100,8 @@ class FMRNetworkConfig:
     generator: "RecurrentGeneratorConfig" = dataclasses.field(
         default_factory=lambda: RecurrentGeneratorConfig()
     )
-    discriminator: "TimeseriesDiscriminatorConfig" = dataclasses.field(
-        default_factory=lambda: TimeseriesDiscriminatorConfig()
+    discriminator: "DiscriminatorConfig" = dataclasses.field(
+        default_factory=lambda: DiscriminatorConfig()
     )
     convolution_type: str = "conv2d"
     identity_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
@@ -120,21 +126,25 @@ class FMRNetworkConfig:
         if self.reload_path is None:
             if self.convolution_type == "conv2d":
                 convolution = single_tile_convolution
-                timeseries_convolution = single_tile_timeseries_convolution
+                # timeseries_convolution = single_tile_timeseries_convolution
             elif self.convolution_type == "halo_conv2d":
                 convolution = halo_convolution
-                timeseries_convolution = halo_timeseries_convolution
+                # timeseries_convolution = halo_timeseries_convolution
             else:
-                raise ValueError(f"convolution_type {self.convolution_type} not supported")
+                raise ValueError(
+                    f"convolution_type {self.convolution_type} not supported"
+                )
             generator = self.generator.build(
                 n_state, nx=nx, ny=ny, n_time=n_time, convolution=convolution
             ).to(DEVICE)
             discriminator = self.discriminator.build(
                 n_state,
                 convolution=convolution,
-                timeseries_convolution=timeseries_convolution,
+                # timeseries_convolution=timeseries_convolution,
             ).to(DEVICE)
-            optimizer_generator = self.generator_optimizer.instance(generator.parameters())
+            optimizer_generator = self.generator_optimizer.instance(
+                generator.parameters()
+            )
             optimizer_discriminator = self.discriminator_optimizer.instance(
                 discriminator.parameters()
             )
@@ -147,7 +157,9 @@ class FMRNetworkConfig:
             )
         else:
             fmr = FullModelReplacement.load(self.reload_path)
-            optimizer_generator = self.generator_optimizer.instance(fmr.generator.parameters())
+            optimizer_generator = self.generator_optimizer.instance(
+                fmr.generator.parameters()
+            )
             optimizer_discriminator = self.discriminator_optimizer.instance(
                 fmr.discriminator.parameters()
             )
@@ -206,8 +218,8 @@ class FullModelReplacement(Reloadable):
         return self.model.generator
 
     @property
-    def discriminator(self) -> TimeseriesDiscriminator:
-        return self.model.discriminator
+    def discriminator(self) -> nn.Module:
+        return FoldFirstDimension(self.model.discriminator)
 
     @classmethod
     def load(cls, path: str) -> "FullModelReplacement":
@@ -277,9 +289,8 @@ class FullModelReplacement(Reloadable):
             tensor of shape [sample, time, tile, x, y, feature], with time dimension
                 having length timesteps + 1 and including the initial state
         """
-        self.generator.n_time = int(timesteps + 1)
         with torch.no_grad():
-            output = self.generator(state)
+            output = self.generator(state, ntime=timesteps + 1)
         return output
 
     def predict(self, X: xr.Dataset, timesteps: int) -> Tuple[xr.Dataset, xr.Dataset]:
@@ -365,7 +376,7 @@ class FMRTrainer:
         return self.fmr.generator
 
     @property
-    def discriminator(self) -> TimeseriesDiscriminator:
+    def discriminator(self) -> Discriminator:
         return self.fmr.discriminator
 
     @property

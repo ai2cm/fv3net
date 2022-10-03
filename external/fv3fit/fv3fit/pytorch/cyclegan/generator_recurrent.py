@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Tuple
+from typing import Optional, Tuple
 import torch.nn as nn
 from toolz import curry
 import torch
@@ -193,7 +193,9 @@ class RecurrentGenerator(nn.Module):
             self.input_bias = nn.Identity()
             self.output_bias = nn.Identity()
 
-    def forward(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, inputs: torch.Tensor, ntime: Optional[int] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             inputs: tensor of shape [batch, tile, channels, x, y]
@@ -201,9 +203,11 @@ class RecurrentGenerator(nn.Module):
         Returns:
             outputs: tensor of shape [batch, time, tile, channels, x, y]
         """
+        if ntime is None:
+            ntime = self.ntime
         x = self._encode(inputs)
         out_states = [self._decode(x)]
-        for _ in range(self.ntime - 1):
+        for _ in range(ntime - 1):
             x = self._step(x)
             out_states.append(self._decode(x))
         out = torch.stack(out_states, dim=1)
