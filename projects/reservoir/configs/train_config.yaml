@@ -1,0 +1,8 @@
+n_burn: 250
+n_samples: 500
+noise: 0.2
+l2: 0.0000011
+n_jobs: -1
+subdomain_output_size: 8
+subdomain_overlap: 6
+subdomain_axis: 1

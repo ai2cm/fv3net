@@ -11,9 +11,14 @@ logger = logging.getLogger(__name__)
 @dataclasses.dataclass
 class TrainConfig:
     n_burn: int
-    n_samples: None
     noise: float
     l2: float
+    n_samples: Optional[int] = None
+    n_jobs: int = -1
+    subdomain_output_size: Optional[int] = None
+    subdomain_overlap: Optional[int] = None
+    subdomain_axis: int = 1
+    seed: int = 0
 
 
 @dataclasses.dataclass

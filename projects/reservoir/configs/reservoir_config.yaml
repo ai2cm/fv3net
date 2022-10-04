@@ -1,0 +1,9 @@
+input_dim: 20
+reservoir_state_dim: 1000
+sparsity: 0.8
+output_dim: 20
+spectral_radius: 0.9
+square_half: true
+seed: 0
+input_coupling_sparsity: 0.05
+input_coupling_scaling: 0.5
