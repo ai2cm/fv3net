@@ -7,6 +7,7 @@ import dataclasses
 from typing import Set, List, Tuple
 
 import tensorflow as tf
+from vcm import relative_humidity_from_pressure
 from fv3fit.emulation.types import TensorDict
 from .transforms import Difference, TensorTransform, LogTransform
 from .factories import (
@@ -105,6 +106,44 @@ class CloudLimiter(TensorTransform):
             temperature=y[self.temperature],
         )
         return out
+
+
+@dataclasses.dataclass
+class RelativeHumidity(TensorTransform):
+
+    relative_humidity: str = "relative_humidity"
+    humidity: str = QV_INPUT
+    temperature: str = T_INPUT
+    pressure: str = PRESSURE
+
+    def build(self, sample: TensorDict) -> TensorTransform:
+        return self
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        requested_names = set(requested_names)
+        requested_names -= {self.relative_humidity}
+
+        requested_names |= {self.humidity, self.temperature, self.pressure}
+        return requested_names
+
+    def backward_input_names(self) -> Set[str]:
+        return {
+            self.pressure,
+            self.humidity,
+            self.temperature,
+        }
+
+    def backward_output_names(self) -> Set[str]:
+        return {self.relative_humidity}
+
+    def forward(self, x: TensorDict) -> TensorDict:
+        rh = relative_humidity_from_pressure(
+            x[self.temperature], x[self.humidity], x[self.pressure], math=tf.math
+        )
+        return {self.relative_humidity: rh, **x}
+
+    def backward(self, y: TensorDict) -> TensorDict:
+        return y
 
 
 @dataclasses.dataclass

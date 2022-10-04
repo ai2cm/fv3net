@@ -57,7 +57,7 @@ from fv3fit.emulation.transforms import (
     MicrophysicsClassesV1OneHot,
     GscondRoute,
 )
-from fv3fit.emulation.transforms.zhao_carr import CloudLimiter
+from fv3fit.emulation.transforms.zhao_carr import CloudLimiter, RelativeHumidity
 from fv3fit.emulation.zhao_carr.models import PrecpdModelConfig
 from fv3fit.emulation.zhao_carr.filters import HighAntarctic
 from fv3fit.emulation.flux import TendencyToFlux, MoistStaticEnergyTransform
@@ -97,6 +97,7 @@ TransformT = Union[
     GscondRoute,
     PrecpdOnly,
     CloudLimiter,
+    RelativeHumidity,
 ]
 
 FilterT = Union[HighAntarctic]
