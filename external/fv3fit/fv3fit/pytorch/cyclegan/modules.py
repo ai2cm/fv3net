@@ -191,12 +191,12 @@ def halo_convolution(
 
     The kernel is symmetric about the center gridcell in the output space, as desired.
 
-    The fractionally-strided case (where the input domain is higher-resolution than the
+    The transpose strided case (where the input domain is higher-resolution than the
     output domain, by a factor of 2) is even more complicated.
 
     Consider a 4x4 kernel. In the ASCII diagram below, the full diagram corresponds to
     one example output gridcell. The X values correspond to valid data in the input
-    domain, while the O values correspond to zero-padding injected by the fractional
+    domain, while the O values correspond to zero-padding injected by the transpose
     stride.
 
         X O X O
@@ -262,7 +262,7 @@ def halo_convolution(
     depend on the two points below instead of the two points above. So we have the
     desired directional invariance.
 
-    If you would like to see more visualizations of fractionally-strided convolution,
+    If you would like to see more visualizations of transpose convolution,
     we suggest this github repo: https://github.com/vdumoulin/conv_arithmetic
 
     Args:
@@ -284,7 +284,7 @@ def halo_convolution(
         out_channels=out_channels,
         kernel_size=kernel_size,
         output_padding=output_padding,
-        padding=0,
+        padding=0,  # we already padded with AppendHalos
         stride=stride,
         stride_type=stride_type,
         bias=bias,
