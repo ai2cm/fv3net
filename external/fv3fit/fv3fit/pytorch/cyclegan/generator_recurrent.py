@@ -8,6 +8,7 @@ from .modules import (
     ConvBlock,
     ConvolutionFactory,
     FoldFirstDimension,
+    PersistContext,
     single_tile_convolution,
     relu_activation,
     ResnetBlock,
@@ -46,6 +47,7 @@ class RecurrentGeneratorConfig:
     max_filters: int = 256
     use_geographic_bias: bool = True
     use_geographic_features: bool = True
+    step_type: str = "resnet"
 
     def build(
         self,
@@ -71,6 +73,7 @@ class RecurrentGeneratorConfig:
             ny=ny,
             n_time=n_time,
             convolution=convolution,
+            step_type=self.step_type,
         ).to(DEVICE)
 
 
@@ -98,6 +101,7 @@ class RecurrentGenerator(nn.Module):
         ny: int,
         n_time: int,
         convolution: ConvolutionFactory = single_tile_convolution,
+        step_type: str = "resnet",
     ):
         """
         Args:
@@ -121,24 +125,49 @@ class RecurrentGenerator(nn.Module):
         self.ntime = n_time
         self.n_convolutions = config.n_convolutions
 
-        def resnet(in_channels: int, out_channels: int, context_channels: int = 0):
-            if in_channels != out_channels:
-                raise ValueError(
-                    "resnet must have same number of output channels as "
-                    "input channels, since the inputs are added to the outputs"
-                )
-            resnet_blocks = [
-                ResnetBlock(
-                    channels=in_channels,
-                    context_channels=context_channels,
-                    convolution_factory=curry(convolution)(
-                        kernel_size=config.kernel_size
+        if step_type == "resnet":
+
+            def step(in_channels: int, out_channels: int, context_channels: int = 0):
+                if in_channels != out_channels:
+                    raise ValueError(
+                        "resnet must have same number of output channels as "
+                        "input channels, since the inputs are added to the outputs"
+                    )
+                resnet_blocks = [
+                    ResnetBlock(
+                        channels=in_channels,
+                        context_channels=context_channels,
+                        convolution_factory=curry(convolution)(
+                            kernel_size=config.kernel_size
+                        ),
+                        activation_factory=relu_activation(),
+                    )
+                    for _ in range(config.n_resnet)
+                ]
+                return nn.Sequential(*resnet_blocks)
+
+        elif step_type == "conv":
+
+            def step(in_channels: int, out_channels: int, context_channels: int = 0):
+                conv_block = nn.Sequential(
+                    ConvBlock(
+                        in_channels=in_channels + context_channels,
+                        out_channels=out_channels,
+                        convolution_factory=curry(convolution)(
+                            kernel_size=config.kernel_size
+                        ),
+                        activation_factory=relu_activation(),
                     ),
-                    activation_factory=relu_activation(),
+                    ConvBlock(
+                        in_channels=out_channels,
+                        out_channels=out_channels,
+                        convolution_factory=curry(convolution)(
+                            kernel_size=config.kernel_size
+                        ),
+                        activation_factory=relu_activation(),
+                    ),
                 )
-                for _ in range(config.n_resnet)
-            ]
-            return nn.Sequential(*resnet_blocks)
+                return PersistContext(conv_block, context_channels=context_channels)
 
         def down(in_channels: int, out_channels: int):
             return ConvBlock(
@@ -187,7 +216,7 @@ class RecurrentGenerator(nn.Module):
             nx_resnet = nx // int(2 ** config.n_convolutions)
             self.resnet = nn.Sequential(
                 FoldFirstDimension(GeographicFeatures(nx=nx_resnet, ny=nx_resnet)),
-                resnet(
+                step(
                     in_channels=config.max_filters,
                     out_channels=config.max_filters,
                     context_channels=3,
@@ -195,7 +224,7 @@ class RecurrentGenerator(nn.Module):
                 SelectChannels(0, config.max_filters, 1),
             )
         else:
-            self.resnet = resnet(
+            self.resnet = step(
                 in_channels=config.max_filters, out_channels=config.max_filters
             )
 
