@@ -19,8 +19,8 @@ namelist:
     hours: 3
     minutes: 0
   gfs_physics_nml:
-    fhlwr: 900.0
-    fhswr: 900.0
+    fhlwr: 1800.0
+    fhswr: 1800.0
     hybedmf: true
     satmedmf: false
   namsfc:
