@@ -11,20 +11,23 @@ def _slice(arr: np.ndarray, inds: slice, axis: int = 0):
 
 
 class Subdomain:
-    def __init__(self, data: np.ndarray, overlap: int):
+    def __init__(self, data: np.ndarray, overlap: int, subdomain_axis: int = 0):
         self.overlapping = data
         self.overlap = overlap
-        self.nonoverlapping = data[overlap:-overlap]
+        self.nonoverlapping = _slice(
+            arr=data, inds=slice(overlap, -overlap), axis=subdomain_axis
+        )
 
 
-class Domain:
+class PeriodicDomain:
     def __init__(self, data, output_size, overlap, subdomain_axis: int = 0):
         self.data = data
         self.output_size = output_size
-        if len(self.data) % self.output_size != 0:
+        if data.shape[subdomain_axis] % output_size != 0:
             raise ValueError(f"Data size must be evenly divisible by output_size")
         self.overlap = overlap
         self.subdomain_axis = subdomain_axis
+        self.n_subdomains = int(data.shape[subdomain_axis] / output_size)
 
     def __len__(self) -> int:
         return len(self.data) / self.output_size
@@ -55,4 +58,6 @@ class Domain:
         subdomain_slice = _slice(
             arr=padded, inds=slice(start_ind, stop_ind), axis=self.subdomain_axis
         )
-        return Subdomain(subdomain_slice, overlap=self.overlap)
+        return Subdomain(
+            subdomain_slice, overlap=self.overlap, subdomain_axis=self.subdomain_axis
+        )

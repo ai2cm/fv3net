@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from fv3fit.reservoir.domain import Domain, _slice
+from fv3fit.reservoir.domain import PeriodicDomain, _slice
 
 
 arr = np.arange(3)
@@ -18,8 +18,8 @@ def test__slice(data, ax, sl, expected):
     np.testing.assert_array_equal(_slice(data, axis=ax, inds=sl), expected)
 
 
-def test_Subdomain():
-    domain = Domain(np.arange(8), output_size=2, overlap=2)
+def test_PeriodicDomain():
+    domain = PeriodicDomain(np.arange(8), output_size=2, overlap=2)
     subdomain_start = domain[0]
     subdomain_end = domain[3]
     np.testing.assert_array_equal(
