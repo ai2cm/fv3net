@@ -13,6 +13,7 @@ from .modules import (
     ResnetBlock,
 )
 from .generator import GeographicBias, GeographicFeatures
+from torch.utils.checkpoint import checkpoint
 
 
 @dataclasses.dataclass
@@ -237,7 +238,7 @@ class RecurrentGenerator(nn.Module):
         x = self._encode(inputs)
         out_states = [self._decode(x)]
         for _ in range(ntime - 1):
-            x = self._step(x)
+            x = checkpoint(self._step, x)
             out_states.append(self._decode(x))
         out = torch.stack(out_states, dim=1)
         return out

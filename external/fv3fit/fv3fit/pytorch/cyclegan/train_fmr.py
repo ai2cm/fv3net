@@ -123,46 +123,38 @@ class FMRNetworkConfig:
         state_variables: Sequence[str],
         scalers: Mapping[str, StandardScaler],
     ) -> "FMRTrainer":
-        if self.reload_path is None:
-            if self.convolution_type == "conv2d":
-                convolution = single_tile_convolution
-                # timeseries_convolution = single_tile_timeseries_convolution
-            elif self.convolution_type == "halo_conv2d":
-                convolution = halo_convolution
-                # timeseries_convolution = halo_timeseries_convolution
-            else:
-                raise ValueError(
-                    f"convolution_type {self.convolution_type} not supported"
-                )
-            generator = self.generator.build(
-                n_state, nx=nx, ny=ny, n_time=n_time, convolution=convolution
-            ).to(DEVICE)
-            discriminator = self.discriminator.build(
-                n_state,
-                convolution=convolution,
-                # timeseries_convolution=timeseries_convolution,
-            ).to(DEVICE)
-            optimizer_generator = self.generator_optimizer.instance(
-                generator.parameters()
-            )
-            optimizer_discriminator = self.discriminator_optimizer.instance(
-                discriminator.parameters()
-            )
-            init_weights(generator)
-            init_weights(discriminator)
-            fmr = FullModelReplacement(
-                model=FMRModule(generator=generator, discriminator=discriminator),
-                scalers=scalers,
-                state_variables=state_variables,
-            )
+        if self.reload_path is not None:
+            fmr_reload = FullModelReplacement.load(self.reload_path)
+            scalers = fmr_reload.scalers
+        if self.convolution_type == "conv2d":
+            convolution = single_tile_convolution
+            # timeseries_convolution = single_tile_timeseries_convolution
+        elif self.convolution_type == "halo_conv2d":
+            convolution = halo_convolution
+            # timeseries_convolution = halo_timeseries_convolution
         else:
-            fmr = FullModelReplacement.load(self.reload_path)
-            optimizer_generator = self.generator_optimizer.instance(
-                fmr.generator.parameters()
-            )
-            optimizer_discriminator = self.discriminator_optimizer.instance(
-                fmr.discriminator.parameters()
-            )
+            raise ValueError(f"convolution_type {self.convolution_type} not supported")
+        generator = self.generator.build(
+            n_state, nx=nx, ny=ny, n_time=n_time, convolution=convolution
+        ).to(DEVICE)
+        discriminator = self.discriminator.build(
+            n_state,
+            convolution=convolution,
+            # timeseries_convolution=timeseries_convolution,
+        ).to(DEVICE)
+        optimizer_generator = self.generator_optimizer.instance(generator.parameters())
+        optimizer_discriminator = self.discriminator_optimizer.instance(
+            discriminator.parameters()
+        )
+        init_weights(generator)
+        init_weights(discriminator)
+        fmr = FullModelReplacement(
+            model=FMRModule(generator=generator, discriminator=discriminator),
+            scalers=scalers,
+            state_variables=state_variables,
+        )
+        if self.reload_path is not None:
+            fmr.model.load_state_dict(fmr_reload.model.state_dict(), strict=True)
         return FMRTrainer(
             fmr=fmr,
             optimizer_generator=optimizer_generator,
@@ -587,8 +579,10 @@ class FMRTrainingConfig:
             if validation_data is not None:
                 val_loss = train_model.evaluate_on_dataset(validation_data)
                 logger.info("val_loss %s", val_loss)
-            target_loss = train_loss["target_loss"]
-            train_model.reloadable.dump(f"model_epoch_{i:04d}_loss_{target_loss:0.4f}")
+            io.dump(
+                train_model.reloadable,
+                f"model_epoch_{i:04d}_loss_{train_loss['target_loss']:0.4f}",
+            )
 
     def _fit_loop_tensor(
         self,
@@ -615,6 +609,10 @@ class FMRTrainingConfig:
             if validation_data is not None:
                 val_loss = train_model.evaluate_on_dataset(validation_data)
                 logger.info("val_loss %s", val_loss)
+            io.dump(
+                train_model.reloadable,
+                f"model_epoch_{i:04d}_loss_{train_loss['target_loss']:0.4f}",
+            )
 
 
 def channels_first(data: tf.Tensor) -> tf.Tensor:
