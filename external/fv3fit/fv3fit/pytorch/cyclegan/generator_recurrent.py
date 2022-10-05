@@ -14,6 +14,7 @@ from .modules import (
     ResnetBlock,
 )
 from .generator import GeographicBias, GeographicFeatures
+import numpy as np
 
 
 @dataclasses.dataclass
@@ -38,6 +39,9 @@ class RecurrentGeneratorConfig:
             and in the resnet blocks
         use_geographic_bias: if True, include a layer that adds a trainable bias
             vector that is a function of x and y to the input and output of the network
+        samples_per_day: number of samples per model day, if given will provide the
+            model with two internal features tracking the position of the hour hand on
+            a 24 hour clock assuming the starting time of each window is midnight
     """
 
     n_convolutions: int = 3
@@ -48,6 +52,7 @@ class RecurrentGeneratorConfig:
     use_geographic_bias: bool = True
     use_geographic_features: bool = True
     step_type: str = "resnet"
+    samples_per_day: Optional[int] = 0
 
     def build(
         self,
@@ -92,6 +97,35 @@ class SelectChannels(nn.Module):
         return x[..., self._slice, :, :]
 
 
+class DiurnalFeatures(nn.Module):
+    """
+    Appends (x, y) features corresponding to the position of the hour hand
+    on a 24-hour clock, assuming the initial time is at x, y = 0, 1
+    """
+
+    def __init__(self, samples_per_day: int):
+        super(DiurnalFeatures, self).__init__()
+        self.samples_per_day = samples_per_day
+        self.clock = 0
+
+    def reset(self):
+        self.clock = 0
+
+    def forward(self, x):
+        """
+        Args:
+            inputs: tensor of shape [sample, channels, x, y]
+
+        Returns:
+            outputs: tensor of shape [sample, channels + 2, x, y]
+        """
+        features = torch.zeros(x.shape[0], 2, x.shape[2], x.shape[3], device=DEVICE)
+        features[:, 0, :, :] = np.sin(2 * np.pi * self.clock / self.samples_per_day)
+        features[:, 1, :, :] = np.cos(2 * np.pi * self.clock / self.samples_per_day)
+        self.clock = (self.clock + 1) % self.samples_per_day
+        return torch.cat([x, features], dim=-3)
+
+
 class RecurrentGenerator(nn.Module):
     def __init__(
         self,
@@ -119,6 +153,10 @@ class RecurrentGenerator(nn.Module):
             xyz_channels = 3
         else:
             xyz_channels = 0
+        if config.samples_per_day is not None:
+            diurnal_channels = 2
+        else:
+            diurnal_channels = 0
         self.hidden_channels = config.max_filters
         self.nx = nx
         self.ny = ny
@@ -169,6 +207,11 @@ class RecurrentGenerator(nn.Module):
                 )
                 return PersistContext(conv_block, context_channels=context_channels)
 
+        else:
+            raise ValueError(
+                f"Unknown step type {step_type}, expected 'resnet' or 'conv'"
+            )
+
         def down(in_channels: int, out_channels: int):
             return ConvBlock(
                 in_channels=in_channels,
@@ -212,21 +255,29 @@ class RecurrentGenerator(nn.Module):
                 for i in range(self.n_convolutions)
             ]
         )
+        context_modules = []
         if config.use_geographic_features:
             nx_resnet = nx // int(2 ** config.n_convolutions)
-            self.resnet = nn.Sequential(
-                FoldFirstDimension(GeographicFeatures(nx=nx_resnet, ny=nx_resnet)),
-                step(
-                    in_channels=config.max_filters,
-                    out_channels=config.max_filters,
-                    context_channels=3,
-                ),
-                SelectChannels(0, config.max_filters, 1),
+            context_modules.append(
+                FoldFirstDimension(GeographicFeatures(nx=nx_resnet, ny=nx_resnet))
             )
+        if config.samples_per_day is not None:
+            self.clock: Optional[DiurnalFeatures] = DiurnalFeatures(
+                samples_per_day=config.samples_per_day
+            )
+            context_modules.append(FoldFirstDimension(self.clock))
         else:
-            self.resnet = step(
-                in_channels=config.max_filters, out_channels=config.max_filters
-            )
+            self.clock = None
+
+        self.resnet = nn.Sequential(
+            *context_modules,
+            step(
+                in_channels=config.max_filters,
+                out_channels=config.max_filters,
+                context_channels=xyz_channels + diurnal_channels,
+            ),
+            SelectChannels(0, config.max_filters, 1),
+        )
 
         self.decoder = nn.Sequential(
             *[
@@ -261,6 +312,8 @@ class RecurrentGenerator(nn.Module):
         Returns:
             outputs: tensor of shape [batch, time, tile, channels, x, y]
         """
+        if hasattr(self, "clock") and self.clock is not None:
+            self.clock.reset()
         if ntime is None:
             ntime = self.ntime
         x = self._encode(inputs)
