@@ -784,6 +784,72 @@ sources:
       urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire_atmos_dyn_3h_coarse_inst.zarr"
       consolidated: True
 
+  10day_C384_physics:
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 10day_C384
+      category: 2d
+      variables:
+        - DLWRFsfc
+        - DSWRFsfc
+        - DSWRFtoa
+        - HPBLsfc
+        - LHTFLsfc
+        - SHTFLsfc
+        - TMPsfc
+        - UGRD10m
+        - VGRD10m
+        - ULWRFsfc
+        - ULWRFtoa
+        - USWRFsfc
+        - PRATEsfc
+        - cnvprcpb_ave
+        - dusfc
+        - dvsfc
+        - totgrpb_ave
+        - toticeb_ace
+        - totprcpb_ave
+        - totsnwb_ave
+    args:
+      urlpath: "gs://vcm-ml-experiments/spencerc/2022-10-04-10-day-C384-simulations/pressure-level-coarsening/diagnostics/physics_3h_coarse.zarr"
+      consolidated: True
+
+  10day_C384_ave_dynamics:
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 10day_C384
+      category: 3d
+      variables:
+        - temp
+        - sphum
+        - ps
+        - delp
+    args:
+      urlpath: "gs://vcm-ml-experiments/spencerc/2022-10-04-10-day-C384-simulations/pressure-level-coarsening/diagnostics/dynamics_3h_coarse_ave.zarr"
+      consolidated: True
+
+  10day_C384_ave_dynamics_2d:
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 10day_C384
+      category: 2d
+    args:
+      urlpath: "gs://vcm-ml-experiments/spencerc/2022-10-04-10-day-C384-simulations/pressure-level-coarsening/diagnostics/dynamics_3h_coarse_ave_2d.zarr"
+      consolidated: True
+
+  10day_C384_2d_dynamics:
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 10day_C384
+      category: 2d
+    args:
+      urlpath: "gs://vcm-ml-experiments/spencerc/2022-10-04-10-day-C384-simulations/pressure-level-coarsening/diagnostics/dynamics_plev_coarse_3h.zarr"
+      consolidated: True
+
   # Regression testing data. Do not use for analysis, values are randomized.
   grid/c8_random_values:
     description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data
