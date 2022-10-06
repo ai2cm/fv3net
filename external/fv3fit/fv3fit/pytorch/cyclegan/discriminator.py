@@ -30,6 +30,7 @@ class DiscriminatorConfig:
 
     n_convolutions: int = 3
     kernel_size: int = 3
+    strided_kernel_size: int = 3
     max_filters: int = 256
 
     def build(
@@ -39,6 +40,7 @@ class DiscriminatorConfig:
             in_channels=channels,
             n_convolutions=self.n_convolutions,
             kernel_size=self.kernel_size,
+            strided_kernel_size=self.strided_kernel_size,
             max_filters=self.max_filters,
             convolution=convolution,
         )
@@ -54,6 +56,7 @@ class Discriminator(nn.Module):
         in_channels: int,
         n_convolutions: int,
         kernel_size: int,
+        strided_kernel_size: int,
         max_filters: int,
         convolution: ConvolutionFactory = single_tile_convolution,
     ):
@@ -62,7 +65,8 @@ class Discriminator(nn.Module):
             in_channels: number of input channels
             n_convolutions: number of strided convolutional layers before the
                 final convolutional output layers, must be at least 1
-            kernel_size: size of convolutional kernels
+            kernel_size: size of non-strided convolutional kernels
+            strided_kernel_size: size of 2-strided convolutional kernels
             max_filters: maximum number of filters in any convolutional layer,
                 equal to the number of filters in the final strided convolutional layer
                 and in the convolutional layer just before the output layer
@@ -78,7 +82,7 @@ class Discriminator(nn.Module):
                 in_channels=in_channels,
                 out_channels=min_filters,
                 convolution_factory=curry(convolution)(
-                    kernel_size=kernel_size, stride=2,
+                    kernel_size=strided_kernel_size, stride=2,
                 ),
                 activation_factory=leakyrelu_activation(
                     negative_slope=0.2, inplace=True
@@ -92,7 +96,7 @@ class Discriminator(nn.Module):
                     in_channels=min_filters * 2 ** (i - 1),
                     out_channels=min_filters * 2 ** i,
                     convolution_factory=curry(convolution)(
-                        kernel_size=kernel_size, stride=2
+                        kernel_size=strided_kernel_size, stride=2
                     ),
                     activation_factory=leakyrelu_activation(
                         negative_slope=0.2, inplace=True
