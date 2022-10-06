@@ -27,6 +27,7 @@ class NormLayer(tf.Module):
 class StdDevMethod(Enum):
     per_feature = "per_feature"
     all = "all"
+    all_all = "all_all"
     max = "max"
     mean = "mean"
     none = "none"
@@ -104,6 +105,7 @@ def _compute_scale(tensor: tf.Tensor, method: StdDevMethod) -> tf.Tensor:
     fit_scale = {
         StdDevMethod.per_feature: _fit_std_per_feature,
         StdDevMethod.all: _standard_deviation_all_features,
+        StdDevMethod.all_all: tf.math.reduce_std,
         StdDevMethod.max: _fit_std_max,
         StdDevMethod.mean: _fit_std_mean,
         StdDevMethod.none: lambda _: tf.constant(1, dtype=tf.float32),
