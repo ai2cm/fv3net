@@ -301,6 +301,9 @@ def halo_convolution(
         # can read from at least one point in the input domain
         #
         # we remove both of these to keep only the "compute domain"
+        # TODO: may be able to replace this Crop with the `padding` argument
+        # to ConvTranspose2d as it behaves opposite to the padding argument
+        # for Conv2d
         conv = nn.Sequential(
             conv, Crop(n_halo=padding * stride + int(kernel_size - 1) // 2)
         )
