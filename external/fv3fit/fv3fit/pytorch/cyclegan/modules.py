@@ -489,12 +489,14 @@ class ResnetBlock(nn.Module):
     ):
         """
         Args:
-            channels: number of input channels and filters in the convolutional layers
+            channels: number of filters in the internal
+                convolutional layers, input and output channels for the block
+                are channels + context_channels
             convolution_factory: factory for creating convolutional layers
             activation_factory: factory for creating activation layers
-            context_channels: if given, include this additional number of channels
-                at the end of the input channels which are used as input and output
-                data for the resnet block, but not modified.
+            context_channels: if given, this number of channels at the end of the input
+                are treated as context channels and passed through to the output
+                of the resnet block, but not modified.
         """
         super(ResnetBlock, self).__init__()
         self.conv_block = nn.Sequential(
