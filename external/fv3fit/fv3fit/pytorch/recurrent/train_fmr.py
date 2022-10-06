@@ -175,12 +175,6 @@ class FMRTrainer:
         discriminator_weight: weight of the discriminator gan loss
     """
 
-    # This class based loosely on
-    # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/cycle_gan_model.py
-
-    # Copyright Facebook, BSD license
-    # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/c99ce7c4e781712e0252c6127ad1a4e8021cc489/LICENSE
-
     fmr: FullModelReplacement
     optimizer_generator: torch.optim.Optimizer
     optimizer_discriminator: torch.optim.Optimizer

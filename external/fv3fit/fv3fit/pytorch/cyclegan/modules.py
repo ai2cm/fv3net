@@ -534,32 +534,6 @@ class ResnetBlock(nn.Module):
         return g + self.identity(inputs)
 
 
-class PersistContext(nn.Module):
-    def __init__(self, op: nn.Module, context_channels: int):
-        super(PersistContext, self).__init__()
-        self.op = op
-        self.context_channels = context_channels
-
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            inputs: tensor of shape [batch, tile, channels, x, y]
-
-        Returns:
-            tensor of shape [batch, tile, channels, x, y]
-        """
-        x = self.op(inputs)
-        if self.context_channels > 0:
-            x = torch.cat(
-                tensors=[
-                    x,
-                    torch.zeros_like(inputs[:, :, -self.context_channels :, :]),
-                ],
-                dim=-3,
-            )
-        return x
-
-
 class ConvBlock(nn.Module):
     """
     Module packaging a convolutional layer with instance normalization and activation.

@@ -1,5 +1,4 @@
 import dataclasses
-from fv3fit.pytorch.system import DEVICE
 import torch.nn as nn
 from toolz import curry
 import torch
@@ -12,7 +11,6 @@ from .modules import (
     ResnetBlock,
     CurriedModuleFactory,
 )
-from vcm.grid import get_grid_xyz
 
 
 @dataclasses.dataclass
@@ -89,35 +87,6 @@ class GeographicBias(nn.Module):
         return x + self.bias
 
 
-class GeographicFeatures(nn.Module):
-    """
-    Appends (x, y, z) features corresponding to Eulerian position of each
-    gridcell on a unit sphere.
-    """
-
-    def __init__(self, nx: int, ny: int):
-        super().__init__()
-        if nx != ny:
-            raise ValueError("this object requires nx=ny")
-        self.xyz = torch.as_tensor(
-            get_grid_xyz(nx=nx).transpose([0, 3, 1, 2]), device=DEVICE
-        ).float()
-
-    def forward(self, x):
-        """
-        Args:
-            x: tensor of shape [sample, tile, channel, x, y]
-
-        Returns:
-            tensor of shape [sample, tile, channel, x, y]
-        """
-        # the fact that this appends instead of prepends is arbitrary but important,
-        # this is assumed to be the case elsewhere in the code.
-        return torch.concat(
-            [x, torch.stack([self.xyz for _ in range(x.shape[0])], dim=0)], dim=-3
-        )
-
-
 class Generator(nn.Module):
     def __init__(
         self,
@@ -136,7 +105,6 @@ class Generator(nn.Module):
             ny: number of grid points in y direction
             convolution: factory for creating all convolutional layers
                 used by the network
-            recurrent: if True, use a recurrent-in-time network architecture
         """
         super(Generator, self).__init__()
 

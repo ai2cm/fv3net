@@ -8,14 +8,14 @@ from ..cyclegan.modules import (
     ConvBlock,
     ConvolutionFactory,
     FoldFirstDimension,
-    PersistContext,
     single_tile_convolution,
     relu_activation,
     ResnetBlock,
 )
-from ..cyclegan.generator import GeographicBias, GeographicFeatures
+from ..cyclegan.generator import GeographicBias
 from torch.utils.checkpoint import checkpoint
 import numpy as np
+from vcm.grid import get_grid_xyz
 
 
 @dataclasses.dataclass
@@ -83,6 +83,32 @@ class RecurrentGeneratorConfig:
         ).to(DEVICE)
 
 
+class PersistContext(nn.Module):
+    def __init__(self, op: nn.Module, context_channels: int):
+        super(PersistContext, self).__init__()
+        self.op = op
+        self.context_channels = context_channels
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            inputs: tensor of shape [batch, tile, channels, x, y]
+
+        Returns:
+            tensor of shape [batch, tile, channels, x, y]
+        """
+        x = self.op(inputs)
+        if self.context_channels > 0:
+            x = torch.cat(
+                tensors=[
+                    x,
+                    torch.zeros_like(inputs[:, :, -self.context_channels :, :]),
+                ],
+                dim=-3,
+            )
+        return x
+
+
 class SelectChannels(nn.Module):
     """Module which slices the channel dimension."""
 
@@ -125,6 +151,35 @@ class DiurnalFeatures(nn.Module):
         features[:, 1, :, :] = np.cos(2 * np.pi * self.clock / self.samples_per_day)
         self.clock = (self.clock + 1) % self.samples_per_day
         return torch.cat([x, features], dim=-3)
+
+
+class GeographicFeatures(nn.Module):
+    """
+    Appends (x, y, z) features corresponding to Eulerian position of each
+    gridcell on a unit sphere.
+    """
+
+    def __init__(self, nx: int, ny: int):
+        super().__init__()
+        if nx != ny:
+            raise ValueError("this object requires nx=ny")
+        self.xyz = torch.as_tensor(
+            get_grid_xyz(nx=nx).transpose([0, 3, 1, 2]), device=DEVICE
+        ).float()
+
+    def forward(self, x):
+        """
+        Args:
+            x: tensor of shape [sample, tile, channel, x, y]
+
+        Returns:
+            tensor of shape [sample, tile, channel, x, y]
+        """
+        # the fact that this appends instead of prepends is arbitrary but important,
+        # this is assumed to be the case elsewhere in the code.
+        return torch.concat(
+            [x, torch.stack([self.xyz for _ in range(x.shape[0])], dim=0)], dim=-3
+        )
 
 
 class RecurrentGenerator(nn.Module):
