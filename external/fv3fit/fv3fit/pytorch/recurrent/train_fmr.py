@@ -113,20 +113,16 @@ class FMRNetworkConfig:
             scalers = fmr_reload.scalers
         if self.convolution_type == "conv2d":
             convolution = single_tile_convolution
-            # timeseries_convolution = single_tile_timeseries_convolution
         elif self.convolution_type == "halo_conv2d":
             convolution = halo_convolution
-            # timeseries_convolution = halo_timeseries_convolution
         else:
             raise ValueError(f"convolution_type {self.convolution_type} not supported")
         generator = self.generator.build(
             n_state, nx=nx, ny=ny, n_time=n_time, convolution=convolution
         ).to(DEVICE)
-        discriminator = self.discriminator.build(
-            n_state,
-            convolution=convolution,
-            # timeseries_convolution=timeseries_convolution,
-        ).to(DEVICE)
+        discriminator = self.discriminator.build(n_state, convolution=convolution,).to(
+            DEVICE
+        )
         optimizer_generator = self.generator_optimizer.instance(generator.parameters())
         optimizer_discriminator = self.discriminator_optimizer.instance(
             discriminator.parameters()

@@ -24,8 +24,8 @@ plotly
 gcsfs>=2021.6.0
 fsspec>=0.9.0
 
-# faster async
-zarr>=2.5.0
+# fix bug where variables sometimes become lowercase
+zarr>=2.13.2
 
 # this version has wheels = faster installs
 numcodecs>=0.7.2

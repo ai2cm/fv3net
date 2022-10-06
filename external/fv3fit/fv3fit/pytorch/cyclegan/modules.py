@@ -59,37 +59,6 @@ class ConvolutionFactory(Protocol):
         ...
 
 
-class TimeseriesConvolutionFactory(Protocol):
-    def __call__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        *,
-        kernel_size: int,
-        time_kernel_size: int,
-        output_padding: int = 0,
-        stride: int = 1,
-        stride_type: Literal["regular", "transpose"] = "regular",
-        bias: bool = True,
-    ) -> nn.Module:
-        """
-        Create a convolutional layer.
-
-        Layer takes in and returns tensors of shape [batch, tile, channels, x, y].
-
-        Args:
-            in_channels: number of input channels
-            out_channels: number of output channels
-            kernel_size: size of the convolution kernel in space
-            time_kernel_size: size of the convolution kernel in time
-            output_padding: argument used for transpose convolution
-            stride: stride of the convolution
-            stride_type: type of stride, one of "regular" or "transpose"
-            bias: whether to include a bias vector in the produced layers
-        """
-        ...
-
-
 class CurriedModuleFactory(Protocol):
     def __call__(self, in_channels: int, out_channels: int) -> nn.Module:
         """
@@ -200,88 +169,6 @@ class TransposeTimeFirst3D(nn.Module):
         return x.permute(0, 3, 1, 2, 4, 5)
 
 
-def single_tile_timeseries_convolution(
-    in_channels: int,
-    out_channels: int,
-    kernel_size: int,
-    time_kernel_size: int,
-    output_padding: int = 0,
-    stride: int = 1,
-    stride_type: Literal["regular", "transpose"] = "regular",
-    padding: Optional[int] = None,
-    bias: bool = True,
-) -> ConvolutionFactory:
-    """
-    Construct a convolutional layer for single tile data (like images).
-
-    Layer takes in and returns tensors of shape [batch, tile, channels, x, y].
-
-    Args:
-        kernel_size: size of the convolution kernel
-        padding: padding to apply to the input, should be an integer or "same"
-        output_padding: argument used for transpose convolution
-        stride: stride of the convolution
-        stride_type: type of stride, one of "regular" or "transpose"
-        bias: whether to include a bias vector in the produced layers
-    """
-    if padding is None:
-        padding = int((kernel_size - 1) // 2)
-    if stride == 1:
-        conv = nn.Conv3d(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=(time_kernel_size, kernel_size, kernel_size),
-            padding=(0, padding, padding),
-            bias=bias,
-        )
-    elif stride_type == "regular":
-        conv = nn.Conv3d(
-            in_channels,
-            out_channels,
-            kernel_size=(time_kernel_size, kernel_size, kernel_size),
-            stride=(1, stride, stride),
-            padding=(0, padding, padding),
-            bias=bias,
-        )
-    elif stride_type == "transpose":
-        raise NotImplementedError()
-    else:
-        raise ValueError(f"Invalid stride_type: {stride_type}")
-    return nn.Sequential(
-        TransposeChannelsFirst3D(), FoldFirstDimension(conv), TransposeTimeFirst3D()
-    )
-
-
-def halo_timeseries_convolution(
-    in_channels: int,
-    out_channels: int,
-    kernel_size: int,
-    time_kernel_size: int,
-    output_padding: int = 0,
-    stride: int = 1,
-    stride_type: Literal["regular", "transpose"] = "regular",
-    padding: Optional[int] = None,
-    bias: bool = True,
-) -> ConvolutionFactory:
-    if padding is None:
-        padding = int((kernel_size - 1) // 2)
-    append = FoldFirstDimension(AppendHalos(n_halo=padding))
-    conv = single_tile_timeseries_convolution(
-        in_channels=in_channels,
-        out_channels=out_channels,
-        kernel_size=kernel_size,
-        time_kernel_size=time_kernel_size,
-        output_padding=output_padding,
-        padding=0,
-        stride=stride,
-        stride_type=stride_type,
-        bias=bias,
-    )
-    if stride_type == "transpose":
-        raise NotImplementedError()
-    return nn.Sequential(append, conv)
-
-
 def halo_convolution(
     in_channels: int,
     out_channels: int,
@@ -328,12 +215,12 @@ def halo_convolution(
 
     The kernel is symmetric about the center gridcell in the output space, as desired.
 
-    The fractionally-strided case (where the input domain is higher-resolution than the
+    The transpose strided case (where the input domain is higher-resolution than the
     output domain, by a factor of 2) is even more complicated.
 
     Consider a 4x4 kernel. In the ASCII diagram below, the full diagram corresponds to
     one example output gridcell. The X values correspond to valid data in the input
-    domain, while the O values correspond to zero-padding injected by the fractional
+    domain, while the O values correspond to zero-padding injected by the transpose
     stride.
 
         X O X O
@@ -399,7 +286,7 @@ def halo_convolution(
     depend on the two points below instead of the two points above. So we have the
     desired directional invariance.
 
-    If you would like to see more visualizations of fractionally-strided convolution,
+    If you would like to see more visualizations of transpose convolution,
     we suggest this github repo: https://github.com/vdumoulin/conv_arithmetic
 
     Args:
@@ -421,7 +308,7 @@ def halo_convolution(
         out_channels=out_channels,
         kernel_size=kernel_size,
         output_padding=output_padding,
-        padding=0,
+        padding=0,  # we already padded with AppendHalos
         stride=stride,
         stride_type=stride_type,
         bias=bias,
@@ -438,6 +325,9 @@ def halo_convolution(
         # can read from at least one point in the input domain
         #
         # we remove both of these to keep only the "compute domain"
+        # TODO: may be able to replace this Crop with the `padding` argument
+        # to ConvTranspose2d as it behaves opposite to the padding argument
+        # for Conv2d
         conv = nn.Sequential(
             conv, Crop(n_halo=padding * stride + int(kernel_size - 1) // 2)
         )
@@ -475,6 +365,7 @@ class Crop(nn.Module):
         super(Crop, self).__init__()
         self.n_halo = n_halo
 
+    @cpu_only
     def forward(self, x):
         return x[
             ..., self.n_halo : -self.n_halo, self.n_halo : -self.n_halo
@@ -492,13 +383,12 @@ class AppendHalos(nn.Module):
 
     def __init__(self, n_halo: int):
         super(AppendHalos, self).__init__()
-        if not isinstance(n_halo, int):
-            raise TypeError("n_halo must be an integer, got {}".format(type(n_halo)))
         self.n_halo = n_halo
 
     def extra_repr(self) -> str:
         return super().extra_repr() + f"n_halo={self.n_halo}"
 
+    @cpu_only
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
         Args:

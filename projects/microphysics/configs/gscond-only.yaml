@@ -1,9 +1,9 @@
 # submit with
 # python3 argo/end_to_end.py configs/gscond-only.yaml
 kind: prognostic
-experiment: gscond-precpd
-name: gscond-only-classifier-zcloud-upper5zero-30d-v1
-image_tag: latest
+experiment: gscond-condensation-limit
+name: gscond-only-net-condense-limit-30d-v4
+image_tag: 126fff928587eccc16adc7c231e4000646e4770c
 config:
   base_version: v0.5
   data_table: default
@@ -264,6 +264,7 @@ config:
       ncld: 1
       ldiag3d: true
       emulate_gscond_only: true
+      save_zc_microphysics: true
   zhao_carr_emulation:
     gscond:
       classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-06-09/gscond-classifier-v1/model.tf
@@ -273,15 +274,16 @@ config:
       mask_emulator_levels:
         air_temperature_after_gscond:
           start: 74
-          stop: null
           fill_value: air_temperature_input
         cloud_water_mixing_ratio_after_gscond:
           start: 74
-          stop: null
           fill_value: cloud_water_mixing_ratio_input
         specific_humidity_after_gscond:
           start: 74
-          stop: null
           fill_value: specific_humidity_input
       mask_gscond_zero_cloud_classifier: true
-      mask_gscond_no_tend_classifier: false
+      mask_gscond_no_tend_classifier: true
+    storage:
+      save_nc: false
+      save_zarr: true
+      output_freq_sec: 10800
