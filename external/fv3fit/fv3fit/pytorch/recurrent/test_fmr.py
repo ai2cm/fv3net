@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 from typing import Sequence
-from fv3fit.pytorch.cyclegan import (
+from fv3fit.pytorch.recurrent import (
     FMRHyperparameters,
     FMRNetworkConfig,
     FMRTrainingConfig,

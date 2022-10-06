@@ -4,7 +4,7 @@ import torch.nn as nn
 from toolz import curry
 import torch
 from ..system import DEVICE
-from .modules import (
+from ..cyclegan.modules import (
     ConvBlock,
     ConvolutionFactory,
     FoldFirstDimension,
@@ -13,7 +13,7 @@ from .modules import (
     relu_activation,
     ResnetBlock,
 )
-from .generator import GeographicBias, GeographicFeatures
+from ..cyclegan.generator import GeographicBias, GeographicFeatures
 from torch.utils.checkpoint import checkpoint
 import numpy as np
 

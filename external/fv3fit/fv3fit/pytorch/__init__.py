@@ -10,15 +10,19 @@ from .cyclegan import (
     train_autoencoder,
     AutoencoderHyperparameters,
     GeneratorConfig,
-    RecurrentGeneratorConfig,
-    TimeseriesDiscriminatorConfig,
     DiscriminatorConfig,
     CycleGANHyperparameters,
     CycleGANTrainingConfig,
     CycleGANNetworkConfig,
     CycleGAN,
     CycleGANModule,
+)
+from .recurrent import (
+    RecurrentGeneratorConfig,
     FullModelReplacement,
+    FMRHyperparameters,
+    FMRTrainingConfig,
+    FMRNetworkConfig,
 )
 from .optimizer import OptimizerConfig
 from .activation import ActivationConfig
