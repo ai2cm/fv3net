@@ -60,7 +60,7 @@ def test_fmr_runs_without_errors(tmpdir):
     os.chdir(tmpdir)
     # need a larger nx, ny for the sample data here since we're training
     # on whether we can autoencode sin waves, and need to resolve full cycles
-    nx = 32
+    nx = 48
     sizes = {"nbatch": 1, "ntime": 4, "nx": nx, "nz": 2}
     state_variables = ["var_3d", "var_2d"]
     train_tfdataset = get_tfdataset(nsamples=3, **sizes)
@@ -74,7 +74,7 @@ def test_fmr_runs_without_errors(tmpdir):
             generator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
             ),
-            discriminator=fv3fit.pytorch.TimeseriesDiscriminatorConfig(kernel_size=3),
+            discriminator=fv3fit.pytorch.DiscriminatorConfig(kernel_size=3),
             discriminator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
             ),

@@ -17,7 +17,7 @@ from fv3fit._shared import io
 class FMRModule(nn.Module):
     """Module to pack generator and discriminator into a single module for saving."""
 
-    def __init__(self, generator: nn.MOdule, discriminator: nn.Module):
+    def __init__(self, generator: nn.Module, discriminator: nn.Module):
         super().__init__()
         self.generator = generator
         self.discriminator = discriminator

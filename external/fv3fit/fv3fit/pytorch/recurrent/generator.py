@@ -53,7 +53,7 @@ class RecurrentGeneratorConfig:
     use_geographic_bias: bool = True
     use_geographic_features: bool = True
     step_type: str = "resnet"
-    samples_per_day: Optional[int] = 0
+    samples_per_day: Optional[int] = None
 
     def build(
         self,
@@ -259,9 +259,7 @@ class RecurrentGenerator(nn.Module):
         context_modules = []
         if config.use_geographic_features:
             nx_resnet = nx // int(2 ** config.n_convolutions)
-            context_modules.append(
-                FoldFirstDimension(GeographicFeatures(nx=nx_resnet, ny=nx_resnet))
-            )
+            context_modules.append(GeographicFeatures(nx=nx_resnet, ny=nx_resnet))
         if config.samples_per_day is not None:
             self.clock: Optional[DiurnalFeatures] = DiurnalFeatures(
                 samples_per_day=config.samples_per_day
@@ -300,7 +298,7 @@ class RecurrentGenerator(nn.Module):
             self.output_bias = nn.Identity()
         if config.use_geographic_features:
             self.input_bias = nn.Sequential(
-                self.input_bias, FoldFirstDimension(GeographicFeatures(nx=nx, ny=ny))
+                self.input_bias, GeographicFeatures(nx=nx, ny=ny)
             )
 
     def forward(
@@ -325,11 +323,11 @@ class RecurrentGenerator(nn.Module):
         out = torch.stack(out_states, dim=1)
         return out
 
-    def _encode(self, x: torch.Tensor):
+    def _encode(self, inputs: torch.Tensor):
         """
         Transform x from real into latent space.
         """
-        x = self.input_bias(x)
+        x = self.input_bias(inputs)
         x = self.first_conv(x)
         return self.encoder(x)
 

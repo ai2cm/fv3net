@@ -114,7 +114,9 @@ class GeographicFeatures(nn.Module):
         """
         # the fact that this appends instead of prepends is arbitrary but important,
         # this is assumed to be the case elsewhere in the code.
-        return torch.concat([x, self.xyz], dim=1)
+        return torch.concat(
+            [x, torch.stack([self.xyz for _ in range(x.shape[0])], dim=0)], dim=-3
+        )
 
 
 class RecurrentBlock(nn.Module):

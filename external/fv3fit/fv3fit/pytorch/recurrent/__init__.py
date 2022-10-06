@@ -5,5 +5,4 @@ from .train_fmr import (
     FMRNetworkConfig,
     FullModelReplacement,
 )
-from .discriminator import TimeseriesDiscriminatorConfig
 from .generator import RecurrentGeneratorConfig
