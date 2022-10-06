@@ -2,75 +2,80 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} as bld
 
-# build/install the fortran model
-COPY external/fv3gfs-fortran/ /tmp/fortran-build
-RUN cd /tmp/fortran-build/FV3 && \
-    ./configure gnu_docker && \
-    sed -i "33i CALLPYFORT=Y" conf/configure.fv3 && \
-    make -j 8 && \
-    PREFIX=/usr/local make install
+COPY .environment-scripts/setup_development_environment.sh ${FV3NET_SCRIPTS}/
 
-# Python Stuff Here
-#
-# Equivalent to passing --no-cache-dir to every pip install
-ENV PIP_NO_CACHE_DIR=off
+# Copy data and files required for building the fortran model
+COPY external/fv3gfs-fortran/ ${FV3GFS_FORTRAN_DIR}
+COPY .environment-scripts/install_fv3gfs_fortran.sh ${FV3NET_SCRIPTS}/
+RUN bash /fv3net/.environment-scripts/setup_environment.sh \
+    fv3gfs-fortran \
+    ${PLATFORM} \
+    ${CLONE_PREFIX} \
+    ${INSTALL_PREFIX} \
+    ${FV3NET_DIR} \
+    ${CALLPYFORT}
 
-# Install dependencies
-COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
-RUN pip install -r /tmp/requirements.txt
+# Copy requirements file needed for creating the Python environment
+COPY docker/prognostic_run/requirements.txt /fv3net/docker/prognostic_run/requirements.txt
+RUN bash /fv3net/.environment-scripts/setup_environment.sh \
+    python-requirements \
+    ${PLATFORM} \
+    ${CLONE_PREFIX} \
+    ${INSTALL_PREFIX} \
+    ${FV3NET_DIR} \
+    ${CALLPYFORT}
 
-# compile and install the wrapper. Then import fv3gfs.wrapper as a minimal test
-# that it works.
-RUN make -C /tmp/fortran-build/FV3 wrapper_build &&\
-    pip3 install --no-dependencies /tmp/fortran-build/FV3/wrapper/dist/*.whl && \
-    python3 -c 'import fv3gfs.wrapper'
+# Copy data and files required for building the Python wrapper
+COPY .environment-scripts/install_python_wrapper.sh ${FV3NET_SCRIPTS}/
+RUN bash /fv3net/.environment-scripts/setup_environment.sh \
+    wrapper \
+    ${PLATFORM} \
+    ${CLONE_PREFIX} \
+    ${INSTALL_PREFIX} \
+    ${FV3NET_DIR} \
+    ${CALLPYFORT}
+RUN python3 -c 'import fv3gfs.wrapper'
 
+# Install the fv3net packages.  Do this last, because these packages change the most
+# frequently during our development.  This allows us to get the most out of caching
+# the prior build steps.
+COPY .environment-scripts/install_fv3net_packages.sh ${FV3NET_SCRIPTS}/
 COPY external/vcm /fv3net/external/vcm
-RUN pip3 install --no-dependencies -e /fv3net/external/vcm
-
 COPY external/artifacts /fv3net/external/artifacts
-RUN pip3 install --no-dependencies -e /fv3net/external/artifacts
-
 COPY external/loaders /fv3net/external/loaders
-RUN pip3 install --no-dependencies -e /fv3net/external/loaders
-
 COPY external/fv3fit /fv3net/external/fv3fit
-RUN pip3 install --no-dependencies -e /fv3net/external/fv3fit
-
 COPY external/fv3kube /fv3net/external/fv3kube
-RUN pip3 install --no-dependencies -e /fv3net/external/fv3kube
-
 COPY workflows/post_process_run /fv3net/workflows/post_process_run
-RUN pip3 install --no-dependencies -e /fv3net/workflows/post_process_run
+COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
+COPY external/emulation /fv3net/external/emulation
+COPY external/radiation /fv3net/external/radiation
+RUN bash /fv3net/.environment-scripts/setup_environment.sh \
+    fv3net-packages \
+    ${PLATFORM} \
+    ${CLONE_PREFIX} \
+    ${INSTALL_PREFIX} \
+    ${FV3NET_DIR} \
+    ${CALLPYFORT}
+
+# Add emulation project scripts
+COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
+ENV PATH=$FV3NET_DIR/projects/microphysics/scripts:${PATH}
 
 RUN echo "ulimit -s unlimited" >> /etc/bash.bashrc && \
     mkdir /outdir && \
     chmod -R 777 /outdir
 
-
 # these are needed for "click" to work
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
-COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
-RUN pip install --no-dependencies -e /fv3net/workflows/prognostic_c48_run
-
 # Override microphysics emulation
-COPY external/emulation /fv3net/external/emulation
-RUN pip install --no-dependencies -e /fv3net/external/emulation
-ENV VAR_META_PATH=/fv3net/external/emulation/microphysics_parameter_metadata.yaml
+ENV VAR_META_PATH=$FV3NET_DIR/external/emulation/microphysics_parameter_metadata.yaml
 ENV OUTPUT_FREQ_SEC=18000
 
-# Add emulation project scripts
-COPY projects/microphysics/scripts /fv3net/projects/microphysics/scripts
-RUN chmod +x /fv3net/projects/microphysics/scripts/*
-ENV PATH=/fv3net/projects/microphysics/scripts:${PATH}
+# Add fv3net packages to the PYTHONPATH
+ENV PYTHONPATH=$FV3NET_DIR/workflows/prognostic_c48_run:$FV3NET_DIR/external/fv3fit:$FV3NET_DIR/external/emulation:$FV3NET_DIR/external/vcm:/fv3net/external/artifacts:$FV3NET_DIR/external/loaders:$FV3NET_DIR/external/fv3kube:$FV3NET_DIR/workflows/post_process_run:$FV3NET_DIR/external/radiation:${PYTHONPATH}
 
-# Add python radiation port
-COPY external/radiation /fv3net/external/radiation
-RUN pip install --no-dependencies -e /fv3net/external/radiation
-
-ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:/fv3net/external/fv3fit:/fv3net/external/emulation:/fv3net/external/vcm:/fv3net/external/artifacts:/fv3net/external/loaders:/fv3net/external/fv3kube:/fv3net/workflows/post_process_run:/fv3net/external/radiation:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run
 CMD ["bash"]
 

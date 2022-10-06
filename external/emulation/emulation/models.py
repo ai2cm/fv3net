@@ -1,4 +1,4 @@
-from typing import Callable, Any
+from typing import Callable, Any, Optional, Sequence
 import logging
 
 
@@ -12,55 +12,65 @@ logger = logging.getLogger(__name__)
 
 
 class ModelWithClassifier:
-    def __init__(self, model, classifier=None, class_key="gscond_classes"):
-        self.model = model
-        self.classifier = classifier
+    def __init__(
+        self,
+        model: tf.keras.Model,
+        classifier: Optional[tf.keras.Model] = None,
+        class_key: str = "gscond_classes",
+        batch_size: int = 1024,
+        inputs_to_ignore: Sequence[str] = ("rank", "model_time"),
+    ):
+        """
+        Args:
+            inputs_to_ignore: variables that ``model`` and ``classifier`` may
+                reject. For example, scalar or singleton value variables.
+        """
+        self.model = adapters.ensure_dict_output(model)
+        if classifier is None:
+            self.classifier = None
+        else:
+            self.classifier = adapters.ensure_dict_output(classifier)
         self._class_key = class_key
+        self._batch_size = batch_size
+        self.inputs_to_ignore = inputs_to_ignore
 
     def __call__(self, state: FortranState) -> FortranState:
+        state = {k: v for k, v in state.items() if k not in self.inputs_to_ignore}
 
         if self.classifier is not None:
-            classifier_outputs = _predict(self.classifier, state)
+            classifier_outputs = self.classifier.predict(
+                state, batch_size=self._batch_size
+            )
             logit_classes = classifier_outputs[self._class_key]
-            classifier_outputs.update(_get_classify_output(logit_classes))
+            decoded_one_hot = _get_classify_output(logit_classes, one_hot_axis=-1)
+            classifier_outputs.update(decoded_one_hot)
         else:
             classifier_outputs = {}
 
         inputs = {**classifier_outputs, **state}
-        model_outputs = _predict(self.model, inputs)
+        model_outputs = self.model.predict(inputs, batch_size=self._batch_size)
         model_outputs.update(classifier_outputs)
-        return model_outputs
+        return _as_numpy(model_outputs)
 
 
 def transform_model(
     model: Callable[[FortranState], FortranState], transform: Any
 ) -> Callable[[FortranState], FortranState]:
     def combined(x: FortranState) -> FortranState:
-        # model time is an array of length 8, which can conflict with the other
-        # arrays here
-        x = {k: v for k, v in x.items() if k != "model_time"}
-        x_transformed = _predict(transform.forward, x)
+        x_transformed = transform.forward(x)
         x_transformed.update(model(x_transformed))
-        output = _predict(transform.backward, x_transformed)
+        output = transform.backward(x_transformed)
         return output
 
     return combined
 
 
-def _predict(model: tf.keras.Model, state: FortranState) -> FortranState:
-    # grab model-required variables and
-    # switch state to model-expected [sample, feature]
-    inputs = {name: state[name].T for name in state}
-
-    predictions = model(inputs)
-    # tranpose back to FV3 conventions
-    model_outputs = {name: np.asarray(tensor).T for name, tensor in predictions.items()}
-
-    return model_outputs
+def _as_numpy(state):
+    return {key: np.asarray(state[key]) for key in state}
 
 
 def combine_classifier_and_regressor(
-    classifier, regressor
+    classifier, regressor, batch_size: int
 ) -> Callable[[FortranState], FortranState]:
     # These following two adapters are for backwards compatibility
     dict_output_model = adapters.ensure_dict_output(regressor)
@@ -72,4 +82,4 @@ def combine_classifier_and_regressor(
             "cloud_water_mixing_ratio_output": "cloud_water_mixing_ratio_after_precpd",  # noqa: E501
         },
     )
-    return ModelWithClassifier(model, classifier)
+    return ModelWithClassifier(model, classifier, batch_size=batch_size)

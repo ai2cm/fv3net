@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 import datetime
-from typing import Callable, Optional, List
+from typing import Callable
 import cftime
 import gc
+import numpy as np
 
 from emulation._typing import FortranState
 from emulation.masks import Mask
@@ -65,7 +66,6 @@ class MicrophysicsHook:
         """
 
         self.name = "microphysics emulator"
-        self.orig_outputs: Optional[List[str]] = None
         self.garbage_collection_interval = garbage_collection_interval
         self.mask = mask
         self._calls_since_last_collection = 0
@@ -89,18 +89,12 @@ class MicrophysicsHook:
                 'set_state' calls.  Expected to be [feature, sample]
                 dimensions or [sample]
         """
-        model_outputs = self.model(state)
-
-        # fields stay in global state so check overwrites on first step
-        if self.orig_outputs is None:
-            self.orig_outputs = sorted(set(state).intersection(model_outputs))
-            logger.debug(f"Overwriting existing state fields: {self.orig_outputs}")
-
-        microphysics_diag = {
-            f"{name}_physics_diag": state[name] for name in self.orig_outputs
+        inputs = {name: state[name].T for name in state}
+        predictions = self.model(inputs)
+        # tranpose back to FV3 conventions
+        model_outputs = {
+            name: np.asarray(tensor).T for name, tensor in predictions.items()
         }
-
         model_outputs.update(self.mask(state, model_outputs))
         state.update(model_outputs)
-        state.update(microphysics_diag)
         self._maybe_garbage_collect()

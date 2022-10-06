@@ -183,6 +183,8 @@ def _column_dqv(ds: xr.Dataset) -> xr.DataArray:
         )
         # convert from m/s/s to Pa by multiplying by surface pressure divided by gravity
         column_dqv = 100000 / 9.8065 * ds.column_integrated_dQv
+    elif "column_integrated_dQv_stress" in ds:
+        column_dqv = ds.column_integrated_dQv_stress
     else:
         # assume given dataset has no ML prediction of momentum tendencies
         column_dqv = xr.zeros_like(ds.PRATEsfc)

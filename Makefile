@@ -11,7 +11,7 @@ CACHE_TAG =latest
 BEAM_VERSION = 2.37.0
 UBUNTU_IMAGE = ubuntu@sha256:9101220a875cee98b016668342c489ff0674f247f6ca20dfc91b91c0f28581ae
 # prognostic base image is updated manually, not on every commit
-PROGNOSTIC_BASE_VERSION = 1.0.0
+PROGNOSTIC_BASE_VERSION = 1.1.0
 DOCKER_INTERACTIVE_ARGS = \
 	--tty \
 	--interactive \
@@ -166,7 +166,7 @@ test_%:
 	cd external/$* && tox -- $(ARGS)
 
 test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
-	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images $(ARGS)
+	coverage run -m pytest -m "not regression" --durations=20 $(ARGS)
 	coverage combine \
 		--append \
 		external/fv3kube/.coverage \

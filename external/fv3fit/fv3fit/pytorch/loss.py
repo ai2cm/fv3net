@@ -16,6 +16,9 @@ class LossConfig:
             raise ValueError(
                 f"loss_type must be 'mse' or 'mae', got '{self.loss_type}'"
             )
+
+    @property
+    def instance(self) -> torch.nn.Module:
         """
         Returns the loss function described by the configuration.
 
@@ -25,8 +28,9 @@ class LossConfig:
             loss: pytorch loss function
         """
         if self.loss_type == "mse":
-            self.loss = torch.nn.MSELoss()
+            loss = torch.nn.MSELoss()
         elif self.loss_type == "mae":
-            self.loss = torch.nn.L1Loss()
+            loss = torch.nn.L1Loss()
         else:
             raise NotImplementedError(f"loss_type {self.loss_type} is not implemented")
+        return loss

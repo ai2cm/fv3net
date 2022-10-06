@@ -15,7 +15,7 @@ class AstronomyClass:
     czlimt = 0.0001  # ~ cos(89.99427)
     pid12 = con_pi / f12  # angle per hour
 
-    def __init__(self, me, isolar, solar_filename):
+    def __init__(self, rank, isolar, solar_filename):
         self.sollag = 0.0
         self.sindec = 0.0
         self.cosdec = 0.0
@@ -24,7 +24,7 @@ class AstronomyClass:
         self.iyr_sav = 0
         self.nstp = 6
 
-        if me == 0:
+        if rank == 0:
             print(self.VTAGAST)  # print out version tag
 
         #  ---  initialization
@@ -36,14 +36,14 @@ class AstronomyClass:
 
         if isolar == 0:
             self.solc0 = con_solr_old
-            if me == 0:
+            if rank == 0:
                 print(f"- Using old fixed solar constant = {self.solc0}")
         elif isolar == 10:
-            if me == 0:
+            if rank == 0:
                 print(f"- Using new fixed solar constant = {self.solc0}")
         elif isolar == 1:  # noaa ann-mean tsi in absolute scale
 
-            if me == 0:
+            if rank == 0:
                 print(
                     "- Using NOAA annual mean TSI table in ABS scale",
                     " with cycle approximation (old values)!",
@@ -53,7 +53,7 @@ class AstronomyClass:
             if not file_exist:
                 self.isolflg = 10
 
-                if me == 0:
+                if rank == 0:
                     warnings.warn(
                         f'Requested solar data file "{self.solar_fname}" not found!',
                         f"Using the default solar constant value = {self.solc0}",
@@ -62,7 +62,7 @@ class AstronomyClass:
 
         elif isolar == 2:  # noaa ann-mean tsi in tim scale
 
-            if me == 0:
+            if rank == 0:
                 print(
                     " - Using NOAA annual mean TSI table in TIM scale",
                     " with cycle approximation (new values)!",
@@ -72,7 +72,7 @@ class AstronomyClass:
             if not file_exist:
                 self.isolflg = 10
 
-                if me == 0:
+                if rank == 0:
                     warnings.warn(
                         f'Requested solar data file "{self.solar_fname}" not found!',
                         f"Using the default solar constant value = {self.solc0}",
@@ -81,7 +81,7 @@ class AstronomyClass:
 
         elif isolar == 3:  # cmip5 ann-mean tsi in tim scale
 
-            if me == 0:
+            if rank == 0:
                 print(
                     "- Using CMIP5 annual mean TSI table in TIM scale",
                     " with cycle approximation",
@@ -91,7 +91,7 @@ class AstronomyClass:
             if not file_exist:
                 self.isolflg = 10
 
-                if me == 0:
+                if rank == 0:
                     warnings.warn(
                         f'Requested solar data file "{self.solar_fname}" not found!',
                         f"Using the default solar constant value = {self.solc0}",
@@ -100,7 +100,7 @@ class AstronomyClass:
 
         elif isolar == 4:  # cmip5 mon-mean tsi in tim scale
 
-            if me == 0:
+            if rank == 0:
                 print(
                     "- Using CMIP5 monthly mean TSI table in TIM scale",
                     " with cycle approximation",
@@ -110,7 +110,7 @@ class AstronomyClass:
             if not file_exist:
                 self.isolflg = 10
 
-                if me == 0:
+                if rank == 0:
                     warnings.warn(
                         f'Requested solar data file "{self.solar_fname}" not found!',
                         f"Using the default solar constant value = {self.solc0}",
@@ -119,7 +119,7 @@ class AstronomyClass:
         else:  # selection error
             self.isolflg = 10
 
-            if me == 0:
+            if rank == 0:
                 warnings.warn(
                     "- !!! ERROR in selection of solar constant data",
                     f" source, ISOL = {isolar}",
@@ -133,7 +133,7 @@ class AstronomyClass:
         outdict = {"solar_fname": self.solar_fname}
         return outdict
 
-    def sol_update(self, jdate, kyear, deltsw, deltim, lsol_chg, me, solar_data):
+    def sol_update(self, jdate, kyear, deltsw, deltim, lsol_chg, rank, solar_data):
         #  ===================================================================  !
         #                                                                       !
         #  sol_update computes solar parameters at forecast time                !
@@ -147,7 +147,7 @@ class AstronomyClass:
         #     deltsw  - time duration in seconds per sw calculation             !
         #     deltim  - timestep in seconds                                     !
         #     lsol_chg- logical flags for change solar constant                 !
-        #     me      - print message control flag                              !
+        #     rank    - print message control flag                              !
         #                                                                       !
         #  outputs:                                                             !
         #    slag          - equation of time in radians                        !
@@ -218,7 +218,7 @@ class AstronomyClass:
                     icy1 = solar_data["yr_cyc1"].values
                     icy2 = solar_data["yr_cyc2"].values
                     smean = solar_data["smean"].values
-                    if me == 0:
+                    if rank == 0:
                         print("Updating solar constant with cycle approx")
                         print(f"Opened solar constant data file: {self.solar_fname}")
                     # check if there is a upper year limit put on the data table
@@ -228,7 +228,7 @@ class AstronomyClass:
                         )  # range of the earlest cycle in data table
                         while iyr < iyr1:
                             iyr += icy
-                        if me == 0:
+                        if rank == 0:
                             warnings.warn(
                                 f"*** Year {iyear} out of table range!",
                                 f"{iyr1}, {iyr2}",
@@ -238,7 +238,7 @@ class AstronomyClass:
                         icy = iyr2 - icy2 + 1  # range of the latest cycle in data table
                         while iyr > iyr2:
                             iyr -= icy
-                        if me == 0:
+                        if rank == 0:
                             warnings.warn(
                                 f"*** Year {iyear} out of table range!",
                                 f"{iyr1}, {iyr2}",
@@ -248,7 +248,7 @@ class AstronomyClass:
                     if self.isolflg < 4:  # use annual mean data tables
                         solc1 = solar_data["solc1"].sel(year=iyr).values
                         self.solc0 = smean + solc1
-                        if me == 0:
+                        if rank == 0:
                             print(
                                 "CHECK: Solar constant data used for year",
                                 f"{iyr}, {solc1}, {self.solc0}",
@@ -262,7 +262,7 @@ class AstronomyClass:
                                 for nn in range(12):
                                     self.smon_sav[nn] = smean + smon[nn]
                                 self.solc0 = smean + smon[imon]
-                                if me == 0:
+                                if rank == 0:
                                     print("CHECK: Solar constant data used for year")
                                     print(f"{iyr} and month {imon}")
 
@@ -303,7 +303,7 @@ class AstronomyClass:
 
         #  --- ...  diagnostic print out
 
-        if me == 0:
+        if rank == 0:
             self.prtime(jd, fjd, dlt, alp, r1, self.solcon, sollag)
 
         #  --- ...  setting up calculation parameters used by subr coszmn
@@ -314,11 +314,11 @@ class AstronomyClass:
         self.nstp = max(6, nswr)
         self.anginc = pid12 * dtswh / float(self.nstp)
 
-        if me == 0:
+        if rank == 0:
             print(
                 "for cosz calculations: nswr,deltim,deltsw,dtswh =",
-                f"{nswr[0]}, {deltim[0]}, {deltsw[0]}, {dtswh[0]}, anginc, nstp =",
-                f"{self.anginc[0]}, {self.nstp}",
+                f"{nswr}, {deltim}, {deltsw}, {dtswh}, anginc, nstp =",
+                f"{self.anginc}, {self.nstp}",
             )
 
         return self.slag, self.sdec, self.cdec, self.solcon
@@ -413,6 +413,7 @@ class AstronomyClass:
         eqsec = sixty * eqt
 
         print(
+            "***Begin update from Python port of the Fortran RRTMG radiation scheme***"
             f"0 FORECAST DATE {iday},{month[imon-1]},{iyear} AT {ihr} HRS, {xmin} MINS",
             f"  JULIAN DAY {jd} PLUS {fjd}",
         )
@@ -428,6 +429,7 @@ class AstronomyClass:
         )
         print(f"  EQUATION OF TIME {eqt} MINS, OR {eqsec} SECS, OR {sollag} RADIANS")
         print(f"  SOLAR CONSTANT {solc} (DISTANCE AJUSTED)")
+        print("***End update from Python port of the Fortran RRTMG radiation scheme***")
         print(" ")
         print(" ")
 
@@ -614,7 +616,7 @@ class AstronomyClass:
 
         return IYEAR, MONTH, IDAY, IDAYWK, IDAYYR
 
-    def coszmn(self, xlon, sinlat, coslat, solhr, IM, me):
+    def coszmn(self, xlon, sinlat, coslat, solhr, IM):
         #  ===================================================================  !
         #                                                                       !
         #  coszmn computes mean cos solar zenith angle over sw calling interval !
@@ -626,7 +628,6 @@ class AstronomyClass:
         #    coslat(IM)    - cosine of the corresponding latitudes              !
         #    solhr         - time after 00z in hours                            !
         #    IM            - num of grids in horizontal dimension               !
-        #    me            - print message control flag                         !
         #                                                                       !
         #  outputs:                                                             !
         #    coszen(IM)    - average of cosz for daytime only in sw call interval

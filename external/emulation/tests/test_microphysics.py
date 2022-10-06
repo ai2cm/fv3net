@@ -22,7 +22,7 @@ def test_Hook_integration(saved_model_path):
 
     model = _load_tf_model(saved_model_path)
     model = emulation.models.combine_classifier_and_regressor(
-        regressor=model, classifier=None
+        regressor=model, classifier=None, batch_size=None
     )
     hook = MicrophysicsHook(model=model, mask=always_emulator)
 
@@ -40,11 +40,7 @@ def test_Hook_integration(saved_model_path):
 
         # microphysics saves any key overwrites as a diagnostic
         updated = state["air_temperature_dummy"]
-        diag = state["air_temperature_dummy_physics_diag"]
-
-        np.testing.assert_array_equal(diag, input)
         np.testing.assert_array_almost_equal(input + 1, updated)
-
         state["air_temperature_input"] = updated
 
 

@@ -55,6 +55,15 @@ import logging
 logger = logging.getLogger("SaveDiags")
 
 
+def itcz_edges(
+    psi: xr.DataArray, lat: str = "latitude",
+) -> Tuple[xr.DataArray, xr.DataArray]:
+    """Compute latitude of ITCZ edges given mass streamfunction at particular level."""
+    lat_min = psi.sel({lat: slice(-30, 10)}).idxmin(lat)
+    lat_max = psi.sel({lat: slice(-10, 30)}).idxmax(lat)
+    return lat_min, lat_max
+
+
 def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
     """
     Take a diagnostic dataset and add a suffix to all variable names and return as dict.
@@ -332,6 +341,41 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
     return zonal_means
 
 
+def _compute_deep_tropical_meridional_mean(
+    ds: xr.Dataset, grid: xr.Dataset
+) -> xr.Dataset:
+    deep_tropical_means = xr.Dataset()
+    for var in ds.data_vars:
+        logger.info(f"Computing deep tropical meridional mean (2d) over time for {var}")
+        with xr.set_options(keep_attrs=True):
+            deep_tropical_means[var] = vcm.meridional_average_approximate(
+                grid.lon, ds[[var]], lon_name="longitude", weights=grid.area,
+            )[var].load()
+    return deep_tropical_means
+
+
+@registry_2d.register("deep_tropical_meridional_mean_value")
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.subset_variables, ["total_precip_to_surface", "ULWRFtoa"])
+@transform.apply(transform.mask_to_sfc_type, "tropics20")
+def deep_tropical_mean_hovmoller_value(diag_arg: DiagArg):
+    logger.info(f"Preparing deep tropical meridional mean values (2d)")
+    result = _compute_deep_tropical_meridional_mean(diag_arg.prediction, diag_arg.grid)
+    return result.rename({"time": "high_frequency_time"})
+
+
+@registry_2d.register("deep_tropical_meridional_mean_bias")
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.subset_variables, ["total_precip_to_surface", "ULWRFtoa"])
+@transform.apply(transform.mask_to_sfc_type, "tropics20")
+def deep_tropical_mean_hovmoller_bias(diag_arg: DiagArg):
+    logger.info(f"Preparing deep tropical meridional mean biases (2d)")
+    grid = diag_arg.grid
+    prediction = _compute_deep_tropical_meridional_mean(diag_arg.prediction, grid)
+    verification = _compute_deep_tropical_meridional_mean(diag_arg.verification, grid)
+    return bias(verification, prediction).rename({"time": "high_frequency_time"})
+
+
 for mask_type in ["global", "land", "sea", "tropics"]:
 
     @registry_2d.register(f"spatial_min_{mask_type}")
@@ -489,6 +533,42 @@ def compute_hist_2d_bias(diag_arg: DiagArg):
     error = bias(hist2d_verif[name], hist2d_prog[name])
     hist2d_prog.update({name: error})
     return _assign_diagnostic_time_attrs(hist2d_prog, diag_arg.prediction)
+
+
+@registry_3d.register("300_700_zonal_mean_value")
+@transform.apply(transform.subset_variables, ["northward_wind"])
+@transform.apply(transform.skip_if_3d_output_absent)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+def time_dependent_mass_streamfunction(diag_arg: DiagArg):
+    logger.info("Computing mid-troposphere averaged mass streamfunction")
+    prognostic, grid = diag_arg.prediction, diag_arg.grid
+    if _is_empty(prognostic):
+        return xr.Dataset()
+    northward_wind = prognostic["northward_wind"]
+    v_zm = vcm.zonal_average_approximate(grid.lat, northward_wind, lat_name="latitude")
+    psi = vcm.mass_streamfunction(v_zm).sel(pressure=slice(30000, 70000))
+    with xr.set_options(keep_attrs=True):
+        psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
+    return xr.Dataset({"mass_streamfunction": psi_mid_trop})
+
+
+@registry_3d.register("300_700_zonal_mean_bias")
+@transform.apply(transform.subset_variables, ["northward_wind"])
+@transform.apply(transform.skip_if_3d_output_absent)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+def time_dependent_mass_streamfunction_bias(diag_arg: DiagArg):
+    logger.info("Computing mid-troposphere averaged mass streamfunction bias")
+    prognostic, grid = diag_arg.prediction, diag_arg.grid
+    if _is_empty(prognostic) or _is_empty(diag_arg.verification):
+        return xr.Dataset()
+    wind_bias = prognostic["northward_wind"] - diag_arg.verification["northward_wind"]
+    v_zm = vcm.zonal_average_approximate(grid.lat, wind_bias, lat_name="latitude")
+    psi = vcm.mass_streamfunction(v_zm).sel(pressure=slice(30000, 70000))
+    with xr.set_options(keep_attrs=True):
+        psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
+    return xr.Dataset({"mass_streamfunction": psi_mid_trop})
 
 
 def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:

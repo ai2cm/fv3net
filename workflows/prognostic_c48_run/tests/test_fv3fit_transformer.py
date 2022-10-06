@@ -1,6 +1,7 @@
 import joblib
 import fv3fit
 import vcm
+import numpy as np
 import xarray as xr
 import pytest
 from runtime.transformers.fv3fit import Config, Adapter
@@ -57,11 +58,17 @@ def test_adapter_regression(state, regtest, tmpdir_factory):
         state["air_temperature"] += 1
         return {"some_diag": state["specific_humidity"]}
 
+    temperature_before = state["air_temperature"].copy(deep=True)
     out = transform(add_one_to_temperature)()
+    temperature_after = state["air_temperature"].copy(deep=True)
 
     # ensure tendency of internal energy is non-zero somewhere (GH#1433)
     max = abs(out["tendency_of_internal_energy_due_to_machine_learning"]).max()
     assert max.values.item() > 1e-6
+
+    np.testing.assert_allclose(
+        temperature_after, temperature_before + 900 / 86400, rtol=1e-5
+    )
 
     # sort to make the check deterministic
     regression_state(out, regtest)

@@ -17,13 +17,9 @@ from emulation._time import translate_time
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
-DIMS_MAP = {
-    1: ["sample"],
-    2: ["sample", "z"],
-}
+DIMS_MAP = {0: [], 1: ["sample"], 2: ["sample", "z"], 3: ["sample", "z", "category"]}
 
 
 @dataclasses.dataclass
@@ -95,7 +91,12 @@ def _convert_to_quantities(state, metadata):
     for key, data in state.items():
         data = np.squeeze(data.astype(np.float32))
         data_t = data.T
-        dims = DIMS_MAP[data.ndim]
+        dims = DIMS_MAP.get(data.ndim, None)
+        if dims is None:
+            logger.info(
+                f"Skipping {key} ... unrecognized dimensions, ndim = {data.ndim}"
+            )
+            continue
         attrs = _get_attrs(key, metadata)
         units = attrs.pop("units", "unknown")
         quantities[key] = Quantity(data_t, dims, units)
@@ -272,12 +273,16 @@ class StorageHook:
             logger.debug(
                 f"Store flags: save_zarr={self.save_zarr}, save_nc={self.save_nc}"
             )
+            try:
+                if self.save_zarr:
+                    _store_zarr(state, time, self.monitor, self.metadata)
 
-            if self.save_zarr:
-                _store_zarr(state, time, self.monitor, self.metadata)
+                if self.save_nc:
+                    _store_netcdf(state, time, self.nc_dump_path, self.metadata)
 
-            if self.save_nc:
-                _store_netcdf(state, time, self.nc_dump_path, self.metadata)
-
-            if self.save_tfrecord:
-                self._store_tfrecord(state, time)
+                if self.save_tfrecord:
+                    self._store_tfrecord(state, time)
+            except Exception as e:
+                shapes = {key: np.shape(val) for key, val in state.items()}
+                logger.critical("Failed to store state with shapes: %s", shapes)
+                raise e

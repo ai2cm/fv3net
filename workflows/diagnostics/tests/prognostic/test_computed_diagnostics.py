@@ -138,10 +138,10 @@ def test_RunDiagnostics_list_variables():
         [
             ds.assign(a=1, b=1).assign_attrs(run="1"),
             ds.assign(b=1).assign_attrs(run="2"),
-            ds.assign(c=1).assign_attrs(run="3"),
+            ds.assign(c=1).assign_coords(d=1).assign_attrs(run="3"),
         ]
     )
-    assert diagnostics.variables == {"a", "b", "c"}
+    assert diagnostics.variables == {"a", "b", "c", "d"}
 
 
 def test_RunDiagnostics_long_names():

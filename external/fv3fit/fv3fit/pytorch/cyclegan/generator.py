@@ -1,0 +1,281 @@
+import dataclasses
+import torch.nn as nn
+from toolz import curry
+import torch
+from .modules import (
+    ConvBlock,
+    ConvolutionFactory,
+    FoldTileDimension,
+    single_tile_convolution,
+    relu_activation,
+    ResnetBlock,
+    CurriedModuleFactory,
+)
+
+
+@dataclasses.dataclass
+class GeneratorConfig:
+    """
+    Configuration for a generator network.
+
+    Follows the architecture of Zhu et al. 2017, https://arxiv.org/abs/1703.10593.
+    This network contains an initial convolutional layer with kernel size 7,
+    strided convolutions with stride of 2, multiple residual blocks,
+    fractionally strided convolutions with stride 1/2, followed by an output
+    convolutional layer with kernel size 7 to map to the output channels.
+
+    Attributes:
+        n_convolutions: number of strided convolutional layers after the initial
+            convolutional layer and before the residual blocks
+        n_resnet: number of residual blocks
+        kernel_size: size of convolutional kernels in the strided convolutions
+            and resnet blocks
+        max_filters: maximum number of filters in any convolutional layer,
+            equal to the number of filters in the final strided convolutional layer
+            and in the resnet blocks
+        use_geographic_bias: if True, include a layer that adds a trainable bias
+            vector that is a function of x and y to the input and output of the network
+        disable_convolutions: if True, ignore all layers other than bias (if enabled).
+            Useful for debugging and for testing the effect of the
+            geographic bias layer.
+    """
+
+    n_convolutions: int = 3
+    n_resnet: int = 3
+    kernel_size: int = 3
+    max_filters: int = 256
+    use_geographic_bias: bool = True
+    disable_convolutions: bool = False
+
+    def build(
+        self,
+        channels: int,
+        nx: int,
+        ny: int,
+        convolution: ConvolutionFactory = single_tile_convolution,
+    ):
+        """
+        Args:
+            channels: number of input channels
+            convolution: factory for creating all convolutional layers
+                used by the network
+        """
+        return Generator(
+            channels=channels,
+            n_convolutions=self.n_convolutions,
+            n_resnet=self.n_resnet,
+            kernel_size=self.kernel_size,
+            max_filters=self.max_filters,
+            convolution=convolution,
+            nx=nx,
+            ny=ny,
+            use_geographic_bias=self.use_geographic_bias,
+            disable_convolutions=self.disable_convolutions,
+        )
+
+
+class GeographicBias(nn.Module):
+    """
+    Adds a trainable bias vector of shape [6, channels, nx, ny] to the layer input.
+    """
+
+    def __init__(self, channels: int, nx: int, ny: int):
+        super().__init__()
+        self.bias = nn.Parameter(torch.zeros(6, channels, nx, ny))
+
+    def forward(self, x):
+        return x + self.bias
+
+
+class Generator(nn.Module):
+    def __init__(
+        self,
+        channels: int,
+        nx: int,
+        ny: int,
+        n_convolutions: int,
+        n_resnet: int,
+        kernel_size: int,
+        max_filters: int,
+        use_geographic_bias: bool,
+        disable_convolutions: bool,
+        convolution: ConvolutionFactory = single_tile_convolution,
+    ):
+        """
+        Args:
+            channels: number of input and output channels
+            nx: number of grid points in x direction
+            ny: number of grid points in y direction
+            n_convolutions: number of strided convolutional layers after the initial
+                convolutional layer and before the residual blocks
+            n_resnet: number of residual blocks
+            kernel_size: size of convolutional kernels in the strided convolutions
+                and resnet blocks
+            max_filters: maximum number of filters in any convolutional layer,
+                equal to the number of filters in the final strided convolutional layer
+                and in the resnet blocks
+            use_geographic_bias: if True, include a layer that adds a trainable bias
+                vector that is a function of x and y to the input and output
+                of the network
+            disable_convolutions: if True, ignore all layers other than bias
+                (if enabled). Useful for debugging and for testing the effect
+                of the geographic bias layer.
+            convolution: factory for creating all convolutional layers
+                used by the network
+        """
+        super(Generator, self).__init__()
+
+        def resnet(in_channels: int, out_channels: int):
+            if in_channels != out_channels:
+                raise ValueError(
+                    "resnet must have same number of output channels as "
+                    "input channels, since the inputs are added to the outputs"
+                )
+            resnet_blocks = [
+                ResnetBlock(
+                    channels=in_channels,
+                    convolution_factory=curry(convolution)(
+                        kernel_size=3, padding="same"
+                    ),
+                    activation_factory=relu_activation(),
+                )
+                for _ in range(n_resnet)
+            ]
+            return nn.Sequential(*resnet_blocks)
+
+        def down(in_channels: int, out_channels: int):
+            return ConvBlock(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                convolution_factory=curry(convolution)(
+                    kernel_size=3, stride=2, padding=1
+                ),
+                activation_factory=relu_activation(),
+            )
+
+        def up(in_channels: int, out_channels: int):
+            return ConvBlock(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                convolution_factory=curry(convolution)(
+                    kernel_size=kernel_size,
+                    stride=2,
+                    padding=1,
+                    output_padding=1,
+                    stride_type="transpose",
+                ),
+                activation_factory=relu_activation(),
+            )
+
+        min_filters = int(max_filters / 2 ** n_convolutions)
+
+        if disable_convolutions:
+            main = nn.Identity()
+        else:
+            first_conv = nn.Sequential(
+                FoldTileDimension(nn.ReflectionPad2d(3)),
+                convolution(
+                    kernel_size=7,
+                    in_channels=channels,
+                    out_channels=min_filters,
+                    padding=0,
+                ),
+                FoldTileDimension(nn.InstanceNorm2d(min_filters)),
+                relu_activation()(),
+            )
+
+            encoder_decoder = SymmetricEncoderDecoder(
+                down_factory=down,
+                up_factory=up,
+                bottom_factory=resnet,
+                depth=n_convolutions,
+                in_channels=min_filters,
+            )
+
+            out_conv = nn.Sequential(
+                FoldTileDimension(nn.ReflectionPad2d(3)),
+                convolution(
+                    kernel_size=7,
+                    in_channels=min_filters,
+                    out_channels=channels,
+                    padding=0,
+                ),
+            )
+            main = nn.Sequential(first_conv, encoder_decoder, out_conv)
+        self._main = main
+        if use_geographic_bias:
+            self._input_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
+            self._output_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
+        else:
+            self._input_bias = nn.Identity()
+            self._output_bias = nn.Identity()
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            inputs: tensor of shape [batch, tile, channels, x, y]
+
+        Returns:
+            tensor of shape [batch, tile, channels, x, y]
+        """
+        x = self._input_bias(inputs)
+        x = self._main(x)
+        outputs: torch.Tensor = self._output_bias(x)
+        return outputs
+
+
+class SymmetricEncoderDecoder(nn.Module):
+    """
+    Encoder-decoder network with a symmetric structure.
+
+    Not a u-net because it does not have skip connections.
+    """
+
+    def __init__(
+        self,
+        down_factory: CurriedModuleFactory,
+        up_factory: CurriedModuleFactory,
+        bottom_factory: CurriedModuleFactory,
+        depth: int,
+        in_channels: int,
+    ):
+        """
+        Args:
+            down_factory: factory for creating a downsample module which reduces
+                height and width by a factor of 2, such as strided convolution
+            up_factory: factory for creating an upsample module which doubles
+                height and width, such as fractionally strided convolution
+            bottom_factory: factory for creating the bottom module which keeps
+                height and width constant
+        """
+        super(SymmetricEncoderDecoder, self).__init__()
+        lower_channels = 2 * in_channels
+        self._down = down_factory(in_channels=in_channels, out_channels=lower_channels)
+        self._up = up_factory(in_channels=lower_channels, out_channels=in_channels)
+        if depth == 1:
+            self._lower = bottom_factory(
+                in_channels=lower_channels, out_channels=lower_channels
+            )
+        elif depth <= 0:
+            raise ValueError(f"depth must be at least 1, got {depth}")
+        else:
+            self._lower = SymmetricEncoderDecoder(
+                down_factory,
+                up_factory,
+                bottom_factory,
+                depth=depth - 1,
+                in_channels=lower_channels,
+            )
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            inputs: tensor of shape [batch, tile, channels, x, y]
+
+        Returns:
+            tensor of shape [batch, tile, channels, x, y]
+        """
+        x = self._down(inputs)
+        x = self._lower(x)
+        x = self._up(x)
+        return x

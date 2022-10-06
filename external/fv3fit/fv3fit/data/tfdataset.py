@@ -1,13 +1,12 @@
 import dataclasses
-from typing import Mapping, Sequence, Optional
+from typing import List, Mapping, Sequence, Optional
 import tensorflow as tf
-from .base import TFDatasetLoader, register_tfdataset_loader
+from .base import TFDatasetLoader, register_tfdataset_loader, tfdataset_loader_from_dict
 import dacite
-from ..tfdataset import iterable_to_tfdataset
+from ..tfdataset import generator_to_tfdataset
 import tempfile
 import xarray as xr
 import numpy as np
-from fv3fit._shared.stacking import stack
 
 
 @dataclasses.dataclass
@@ -27,16 +26,22 @@ class VariableConfig:
             raise TypeError("times must be one of 'window' or 'start'")
 
     def get_record(self, name: str, ds: xr.Dataset, unstacked_dims: Sequence[str]):
+        for dim in unstacked_dims[:-1]:
+            if dim not in ds[name].dims:
+                raise ValueError("variable {} has no dimension {}".format(name, dim))
         if self.times == "start":
             ds = ds.isel(time=0)
-        data = stack(ds[name], unstacked_dims=unstacked_dims).values
+        dims = [d for d in unstacked_dims if d in ds[name].dims]
+        data = ds[name].transpose(*dims).values
         return data
 
 
 def open_zarr_using_filecache(url: str):
     cachedir = tempfile.mkdtemp()
     return xr.open_zarr(
-        "filecache::" + url, storage_options={"filecache": {"cache_storage": cachedir}}
+        "filecache::" + url,
+        storage_options={"filecache": {"cache_storage": cachedir}},
+        decode_times=False,
     )
 
 
@@ -54,6 +59,34 @@ def get_n_windows(n_times: int, window_size: int) -> int:
     """
     # this function is hard to derive we've included plenty of unit tests of it
     return (n_times - 1) // (window_size - 1)
+
+
+@register_tfdataset_loader
+@dataclasses.dataclass
+class CycleGANLoader(TFDatasetLoader):
+
+    domain_configs: List[TFDatasetLoader] = dataclasses.field(default_factory=list)
+    batch_size: int = 1
+
+    def open_tfdataset(
+        self, local_download_path: Optional[str], variable_names: Sequence[str],
+    ) -> tf.data.Dataset:
+        datasets = []
+        for config in self.domain_configs:
+            datasets.append(
+                config.open_tfdataset(local_download_path, variable_names).unbatch()
+            )
+        return tf.data.Dataset.zip(tuple(datasets)).batch(batch_size=self.batch_size)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "CycleGANLoader":
+        domain_configs = [
+            tfdataset_loader_from_dict(domain_config)
+            for domain_config in d["domain_configs"]
+        ]
+        kwargs = d.copy()
+        kwargs["domain_configs"] = domain_configs
+        return CycleGANLoader(**kwargs)
 
 
 @register_tfdataset_loader
@@ -86,6 +119,7 @@ class WindowedZarrLoader(TFDatasetLoader):
     variable_configs: Mapping[str, VariableConfig] = dataclasses.field(
         default_factory=dict
     )
+    batch_size: int = 1
     n_windows: Optional[int] = None
 
     def open_tfdataset(
@@ -105,7 +139,7 @@ class WindowedZarrLoader(TFDatasetLoader):
         # if local_download_path is given, cache on disk
         if local_download_path is not None:
             tfdataset = tfdataset.cache(local_download_path)
-        return tfdataset
+        return tfdataset.batch(self.batch_size)
 
     def _convert_to_tfdataset(
         self, ds: xr.Dataset, variable_names: Sequence[str],
@@ -119,7 +153,7 @@ class WindowedZarrLoader(TFDatasetLoader):
                 variable name to variable value, and each value is a tensor whose
                 first dimension is the batch dimension
         """
-        tfdataset = iterable_to_tfdataset(
+        tfdataset = generator_to_tfdataset(
             records(
                 n_windows=self.n_windows,
                 window_size=self.window_size,
@@ -148,14 +182,18 @@ def records(
     variable_configs: Mapping[str, VariableConfig],
     unstacked_dims: Sequence[str],
 ):
-    n_times = ds.dims["time"]
-    if n_windows is None:
-        n_windows = get_n_windows(n_times, window_size)
-    starts = np.random.randint(0, n_times - window_size, n_windows)
-    for i_start in starts:
-        record = {}
-        window_ds = ds.isel(time=range(i_start, i_start + window_size))
-        for name in variable_names:
-            config = variable_configs.get(name, default_variable_config)
-            record[name] = config.get_record(name, window_ds, unstacked_dims)
-        yield record
+    def generator():
+        nonlocal n_windows
+        n_times = ds.dims["time"]
+        if n_windows is None:
+            n_windows = get_n_windows(n_times, window_size)
+        starts = np.random.randint(0, n_times - window_size, n_windows)
+        for i_start in starts:
+            record = {}
+            window_ds = ds.isel(time=range(i_start, i_start + window_size))
+            for name in variable_names:
+                config = variable_configs.get(name, default_variable_config)
+                record[name] = config.get_record(name, window_ds, unstacked_dims)
+            yield record
+
+    return generator

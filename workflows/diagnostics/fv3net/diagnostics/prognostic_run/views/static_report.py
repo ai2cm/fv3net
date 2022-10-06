@@ -4,6 +4,7 @@ from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 import os
 import xarray as xr
 import fsspec
+import numpy as np
 import pandas as pd
 import holoviews as hv
 
@@ -27,6 +28,9 @@ from fv3net.diagnostics.prognostic_run.constants import (
     PERCENTILES,
     PRECIP_RATE,
     TOP_LEVEL_METRICS,
+    DEFAULT_FIGURE_WIDTH,
+    DEFAULT_FIGURE_HEIGHT,
+    REFERENCE_HOVMOLLER_DURATION_SECONDS,
     MovieUrls,
 )
 from fv3net.diagnostics._shared.constants import WVP, COL_DRYING
@@ -235,6 +239,7 @@ hovmoller_plot_manager = PlotManager()
 zonal_pressure_plot_manager = PlotManager()
 diurnal_plot_manager = PlotManager()
 histogram_plot_manager = PlotManager()
+tropical_hovmoller_plot_manager = PlotManager()
 
 # this will be passed the data from the metrics.json files
 metrics_plot_manager = PlotManager()
@@ -258,6 +263,11 @@ def spatial_minmax_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     )
 
 
+@timeseries_plot_manager.register
+def custom_timeseries_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+    return plot_1d(diagnostics, varfilter="timeseries")
+
+
 @zonal_mean_plot_manager.register
 def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
     return plot_1d(diagnostics, varfilter="zonal_and_time_mean")
@@ -271,6 +281,36 @@ def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
 @hovmoller_plot_manager.register
 def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
     return plot_2d_matplotlib(diagnostics, "zonal_mean_bias", ["time", "latitude"])
+
+
+def infer_duration_seconds(diagnostics: RunDiagnostics) -> float:
+    run, *_ = diagnostics.runs
+    time = diagnostics.get_variable(run, "high_frequency_time")
+    delta = time.isel(high_frequency_time=-1) - time.isel(high_frequency_time=0)
+    return (delta / np.timedelta64(1, "s")).item()
+
+
+def infer_tropical_hovmoller_figsize(diagnostics: RunDiagnostics,) -> Tuple[int, int]:
+    """A heuristic to infer a reasonable size and aspect ratio for Hovmoller plots"""
+    duration_seconds = infer_duration_seconds(diagnostics)
+    height_ratio = duration_seconds / REFERENCE_HOVMOLLER_DURATION_SECONDS
+    reference_width = DEFAULT_FIGURE_WIDTH
+    reference_height = DEFAULT_FIGURE_HEIGHT
+    height = min(reference_height * height_ratio, 10 * reference_height)
+    return (reference_width, height)
+
+
+@tropical_hovmoller_plot_manager.register
+def deep_tropical_meridional_mean_hovmoller_plots(
+    diagnostics: RunDiagnostics,
+) -> RawHTML:
+    figsize = infer_tropical_hovmoller_figsize(diagnostics)
+    return plot_2d_matplotlib(
+        diagnostics,
+        "deep_tropical_meridional_mean_value",
+        ["longitude", "high_frequency_time"],
+        figsize=figsize,
+    )
 
 
 def time_mean_cubed_sphere_maps(
@@ -526,6 +566,9 @@ def render_process_diagnostics(metadata, diagnostics, metrics):
         "Diurnal cycle": list(diurnal_plot_manager.make_plots(diagnostics)),
         "Precipitation and water vapor path": list(
             histogram_plot_manager.make_plots(diagnostics)
+        ),
+        "Tropical Hovmoller plots": list(
+            tropical_hovmoller_plot_manager.make_plots(diagnostics)
         ),
     }
     return create_html(

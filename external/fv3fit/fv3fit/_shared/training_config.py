@@ -29,6 +29,7 @@ import numpy as np
 import random
 import warnings
 import vcm
+import torch
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
@@ -47,6 +48,7 @@ def set_random_seed(seed: Union[float, int] = 0):
     np.random.seed(seed + 1)
     random.seed(seed + 2)
     tf.random.set_seed(seed + 3)
+    torch.manual_seed(seed + 4)
 
 
 # TODO: delete this routine by refactoring the tests to no longer depend on it

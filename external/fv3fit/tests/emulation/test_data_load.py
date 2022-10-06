@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 
-from fv3fit.emulation.data import load, TransformConfig, netcdf_url_to_dataset
+from fv3fit.emulation.data import load, TransformConfig
 
 
 def _get_dataset() -> xr.Dataset:
@@ -100,17 +100,3 @@ def test_netcdf_dir_to_tf_dataset_with_shuffle(config, nc_dir):
 
     with pytest.raises(AssertionError):
         np.testing.assert_array_equal(get_first_tensor(ds1), get_first_tensor(ds2))
-
-
-def test_netcdf_url_to_dataset(tmpdir):
-    nfiles = 3
-    ds = _get_dataset()
-    for f in [tmpdir.join(f"file{i}.nc") for i in range(nfiles)]:
-        ds.to_netcdf(str(f))
-
-    tf_ds = netcdf_url_to_dataset(str(tmpdir), variables=set(ds))
-
-    assert len(tf_ds) == nfiles
-    for item in tf_ds:
-        for variable in ds:
-            assert isinstance(item[variable], tf.Tensor)

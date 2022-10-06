@@ -6,7 +6,7 @@ import apache_beam as beam
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
 from vcm import cubedsphere
-from vcm.cloud import gcs
+import vcm.cloud
 from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
 
 from fv3net.pipelines import common
@@ -52,8 +52,8 @@ def url(bucket, prefix, suffix):
 
 def download_to_file(url: str, dest: str):
     logging.info(f"Downloading from {url} to {dest}")
-    blob = gcs.init_blob_from_gcs_url(url)
-    blob.download_to_filename(dest)
+    fs = vcm.cloud.get_fs(url)
+    fs.get_file(url, dest)
     logging.info(f"Done downloading to {dest}")
 
 

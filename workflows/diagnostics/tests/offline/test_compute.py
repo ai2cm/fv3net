@@ -48,7 +48,7 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
         "needs_grid": False,
         "res": "c8",
         "timesteps_per_batch": 1,
-        "timesteps": ["20160801.001500"],
+        "timesteps": ["20160801.001500", "20160801.003000"],
     }
     trained_model = fv3fit.testing.ConstantOutputPredictor(
         input_variables=["air_temperature", "specific_humidity"],

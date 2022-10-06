@@ -4,7 +4,7 @@ These construct objects like Emulators that require knowledge of static
 configuration as well as runtime-only data structures like the model state.
 """
 import logging
-from typing import Optional, Callable, Sequence, Mapping
+from typing import Optional, Callable, Sequence, Mapping, Hashable, Any, Union
 from datetime import timedelta
 import xarray as xr
 import cftime
@@ -16,11 +16,13 @@ from runtime.config import UserConfig
 from runtime.transformers.core import StepTransformer
 from runtime.transformers.tendency_prescriber import TendencyPrescriber
 from runtime.steppers.prescriber import PrescriberConfig, Prescriber
+from runtime.steppers.radiation import RadiationStepper
+from runtime.steppers.machine_learning import PureMLStepper
 from runtime.interpolate import time_interpolate_func, label_to_time
 from runtime.derived_state import DerivedFV3State
-import runtime.transformers.emulator
 import runtime.transformers.fv3fit
 import pace.util
+import radiation
 
 logger = logging.getLogger(__name__)
 
@@ -33,15 +35,6 @@ def get_fv3_physics_transformer(
 ) -> Optional[StepTransformer]:
     if config.online_emulator is None:
         return None
-    elif isinstance(config.online_emulator, runtime.transformers.emulator.Config):
-        emulator = runtime.transformers.emulator.Adapter(config.online_emulator)
-        return StepTransformer(
-            emulator,
-            state,
-            "emulator",
-            diagnostic_variables=set(config.diagnostic_variables),
-            timestep=timestep,
-        )
     elif isinstance(config.online_emulator, runtime.transformers.fv3fit.Config):
         model = runtime.transformers.fv3fit.Adapter(config.online_emulator, timestep)
         return StepTransformer(
@@ -157,8 +150,25 @@ def get_prescriber(
         mapper = {}
     time_lookup_function = _get_time_lookup_function(
         mapper,
-        config.variables,
+        list(config.variables),
         config.reference_initial_time,
         config.reference_frequency_seconds,
     )
-    return Prescriber(communicator, time_lookup_function)
+    return Prescriber(communicator, time_lookup_function, config.variables)
+
+
+def get_radiation_stepper(
+    comm,
+    physics_namelist: Mapping[Hashable, Any],
+    timestep: float,
+    tracer_metadata: Mapping[Hashable, Mapping[Hashable, int]],
+    input_generator: Optional[Union[PureMLStepper, Prescriber]],
+) -> RadiationStepper:
+    radiation_config = radiation.RadiationConfig.from_physics_namelist(physics_namelist)
+    tracer_inds: Mapping[str, int] = {
+        str(name): metadata["i_tracer"] for name, metadata in tracer_metadata.items()
+    }
+    return RadiationStepper(
+        radiation.Radiation(radiation_config, comm, timestep, tracer_inds),
+        input_generator,
+    )
