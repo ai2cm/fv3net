@@ -7,7 +7,7 @@ from emulation.zhao_carr import (
 )
 
 
-def test__limit_net_condenstation():
+def test__limit_net_condensation():
     qv = np.array([[1, 1, 1], [0, 0, 0]], dtype=np.float64)
     qc = np.array([[0, 0, 0], [1, 1, 0]], dtype=np.float64)
     net_condensation = np.array([[1.5, 0.5, 0], [-1.5, -0.5, 0]], dtype=np.float64)
