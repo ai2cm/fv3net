@@ -288,6 +288,7 @@ def zonal_mean_short_term_bias_plots(diagnostics: RunDiagnostics) -> RawHTML:
         diagnostics.trim_duration(np.timedelta64(3, "D")),
         "zonal_mean_bias",
         ["time", "latitude"],
+        title="3-day zonal mean bias",
     )
 
 

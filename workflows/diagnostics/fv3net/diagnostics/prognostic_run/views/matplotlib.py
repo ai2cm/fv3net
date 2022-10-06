@@ -68,6 +68,7 @@ def plot_2d_matplotlib(
     dims: Tuple[str, str],
     contour=False,
     figsize=None,
+    title=None,
     **opts,
 ) -> RawHTML:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
@@ -110,7 +111,7 @@ def plot_2d_matplotlib(
             images=data,
             runs=sorted(run_diags.runs),
             variables_to_plot=sorted(variables_to_plot),
-            varfilter=varfilter,
+            varfilter=title or varfilter,
             variable_long_names=run_diags.long_names,
         )
     )
