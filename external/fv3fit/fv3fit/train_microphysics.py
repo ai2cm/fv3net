@@ -309,6 +309,7 @@ class TrainConfig(TransformedParameters):
     log_level: str = "INFO"
     save_only: bool = False
     data_format: str = "nc"
+    nc_file_match: Optional[str] = None
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -386,7 +387,11 @@ class TrainConfig(TransformedParameters):
         return yaml.safe_dump(_asdict_with_enum(self))
 
     def _open_dataset(
-        self, url: str, nfiles: Optional[int], required_variables: Set[str],
+        self,
+        url: str,
+        nfiles: Optional[int],
+        required_variables: Set[str],
+        nc_file_match: Optional[str] = None,
     ) -> tf.data.Dataset:
         pipeline = self.transform.get_pipeline(required_variables)
         return nc_dir_to_tfdataset(
@@ -395,13 +400,20 @@ class TrainConfig(TransformedParameters):
             nfiles=nfiles,
             shuffle=True,
             random_state=np.random.RandomState(0),
+            match=nc_file_match,
         )
 
     def open_dataset(
-        self, url: str, nfiles: Optional[int], required_variables: Set[str],
+        self,
+        url: str,
+        nfiles: Optional[int],
+        required_variables: Set[str],
+        nc_file_match: Optional[str] = None,
     ) -> tf.data.Dataset:
         if self.data_format == "nc":
-            return self._open_dataset(url, nfiles, required_variables,)
+            return self._open_dataset(
+                url, nfiles, required_variables, nc_file_match=nc_file_match
+            )
         elif self.data_format == "tf":
             # needs to be batched
             return tf.data.experimental.load(url).batch(1)
@@ -409,8 +421,18 @@ class TrainConfig(TransformedParameters):
             raise NotImplementedError(self.data_format)
 
     def open_train_test(self):
-        train = self.open_dataset(self.train_url, self.nfiles, self.model_variables)
-        test = self.open_dataset(self.test_url, self.nfiles_valid, self.model_variables)
+        train = self.open_dataset(
+            self.train_url,
+            self.nfiles,
+            self.model_variables,
+            nc_file_match=self.nc_file_match,
+        )
+        test = self.open_dataset(
+            self.test_url,
+            self.nfiles_valid,
+            self.model_variables,
+            nc_file_match=self.nc_file_match,
+        )
         train_ds = self.prepare_flat_data(train)
         test_ds = self.prepare_flat_data(test) if test else None
         return train_ds, test_ds

@@ -2,7 +2,9 @@ import logging
 from dataclasses import dataclass
 from typing import Callable, Mapping, Optional, Sequence
 
+from pathlib import Path
 import numpy as np
+import re
 import tensorflow as tf
 import xarray as xr
 from fv3fit.data.base import TFDatasetLoader, register_tfdataset_loader
@@ -54,6 +56,7 @@ def nc_dir_to_tfdataset(
     shuffle: bool = False,
     random_state: Optional[np.random.RandomState] = None,
     cache: Optional[str] = None,
+    match: Optional[str] = None,
 ) -> tf.data.Dataset:
     """
     Convert a directory of netCDF files into a tensorflow dataset.
@@ -65,10 +68,14 @@ def nc_dir_to_tfdataset(
         shuffle: Randomly order the file ingestion into the dataset
         random_state: numpy random number generator for seeded shuffle
         cache: directory to cache datat at. The default is $pwd/.cache.
+        match: regexp match string to filter filenames
     """
     cache = cache or CACHE_DIR
 
     files = get_nc_files(nc_dir)
+
+    if match is not None:
+        files = [f for f in files if re.match(match, Path(f).name)]
 
     if shuffle:
         if random_state is None:
