@@ -1,6 +1,6 @@
 model_type: fmr
 cache:
-  in_memory: true
+  in_memory: false
 hyperparameters:
     state_variables:
       - h500
@@ -26,9 +26,12 @@ hyperparameters:
         max_filters: 256
         use_geographic_bias: false
         use_geographic_features: true
+        step_type: "resnet"
+        samples_per_day: 4
       discriminator:
         n_convolutions: 3
         kernel_size: 3
+        strided_kernel_size: 4
         # time_kernel_size: 2
         max_filters: 256
       identity_loss:

@@ -13,7 +13,7 @@ from fv3net.diagnostics.prognostic_run.views import movies
 GRID = catalog["grid/c48"].read()
 
 
-def plot_weather(arg, vmin=4800, vmax=6000, vmin_diff=-100, vmax_diff=100):
+def plot_h500(arg, vmin=4800, vmax=6000, vmin_diff=-100, vmax_diff=100):
     ds, filename = arg
     fig, ax = plt.subplots(
         2, 4, figsize=(12, 6), subplot_kw={"projection": ccrs.Robinson()}
@@ -59,10 +59,70 @@ def plot_weather(arg, vmin=4800, vmax=6000, vmin_diff=-100, vmax_diff=100):
     plt.close(fig)
 
 
+def plot_weather(arg):
+    ds, filename = arg
+    fig, ax = plt.subplots(
+        4, 4, figsize=(14, 10), subplot_kw={"projection": ccrs.Robinson()}
+    )
+    real = ds.isel(type=0)
+    persistence = ds.isel(type=1)
+    gen = ds.isel(type=2)
+    c48_real = ds.isel(type=3)
+    vmin = None
+    vmax = None
+    for i, (varname, vmin, vmax) in enumerate(
+        [
+            ("h500", 4800, 6000),
+            ("PRESsfc", 95e3, 103e3),
+            ("TB", 250, 310),
+            ("TMP500_300", 210, 270),
+        ]
+    ):
+        fv3viz.plot_cube(
+            ds=GRID.merge(real, compat="override"),
+            var_name=varname,
+            ax=ax[i, 0],
+            vmin=vmin,
+            vmax=vmax,
+            colorbar=False,
+        )
+        ax[i, 0].set_title("real")
+        fv3viz.plot_cube(
+            ds=GRID.merge(persistence, compat="override"),
+            var_name=varname,
+            ax=ax[i, 1],
+            vmin=vmin,
+            vmax=vmax,
+            colorbar=False,
+        )
+        ax[i, 1].set_title("persistence")
+        fv3viz.plot_cube(
+            ds=GRID.merge(gen, compat="override"),
+            var_name=varname,
+            ax=ax[i, 2],
+            vmin=vmin,
+            vmax=vmax,
+            colorbar=False,
+        )
+        ax[i, 2].set_title("gen")
+        fv3viz.plot_cube(
+            ds=GRID.merge(c48_real, compat="override"),
+            var_name=varname,
+            ax=ax[i, 3],
+            vmin=vmin,
+            vmax=vmax,
+        )
+        ax[i, 3].set_title("c48_real")
+
+    plt.tight_layout()
+    fig.savefig(filename, dpi=100)
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     random.seed(0)
     fmr: fv3fit.pytorch.FullModelReplacement = fv3fit.load(
-        "model_epoch_0013_loss_0.1263"
+        "model_epoch_0030_loss_0.0909"
     ).to(DEVICE)
     timesteps = 4 * 4
     time_stride = 2
@@ -86,7 +146,7 @@ if __name__ == "__main__":
     )
     gen = gen.isel(window=0)
     real = real.isel(window=0)
-    c48_real = c48_real_from_disk
+    c48_real = c48_real_from_disk.rename({"TMPlowest": "TB"})
     # c48_real = fmr.unpack_tensor(fmr.pack_to_tensor(c48_real_from_disk, timesteps=timesteps - 1)).isel(window=0)
     persistence = xr.concat([real.isel(time=0) for _ in range(timesteps)], dim="time")
 
@@ -99,11 +159,6 @@ if __name__ == "__main__":
         set(c48_real.data_vars).difference(real.data_vars)
     ).drop("time")
     ds = xr.concat([real, persistence, gen, c48_real], dim="type").merge(GRID)
-
-    spec = movies.MovieSpec(
-        name="h500_weather", plotting_function=plot_weather, required_variables=["h500"]
-    )
-    movies._create_movie(spec, ds, output=".", n_jobs=8)
 
     fig, ax = plt.subplots(1, 1, figsize=(5, 3))
     stderr_persistence = (persistence["h500"] - real["h500"]).std(
@@ -290,3 +345,10 @@ if __name__ == "__main__":
     # fig.savefig("h500_std.png", dpi=100)
 
     # plt.show()
+
+    spec = movies.MovieSpec(
+        name="weather",
+        plotting_function=plot_weather,
+        required_variables=["h500", "TB", "PRESsfc", "TMP500_300"],
+    )
+    movies._create_movie(spec, ds, output=".", n_jobs=8)

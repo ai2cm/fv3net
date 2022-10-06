@@ -10,4 +10,4 @@ window_size: 4
 time_stride: 2
 default_variable_config:
   times: window
-n_windows: 1000  # 5808
+n_windows: 50  # 5808
