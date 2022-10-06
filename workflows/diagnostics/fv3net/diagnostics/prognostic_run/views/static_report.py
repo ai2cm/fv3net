@@ -290,7 +290,7 @@ def zonal_mean_short_term_bias_plots(diagnostics: RunDiagnostics) -> RawHTML:
         "zonal_mean_bias",
         ["time", "latitude"],
         title="3-day zonal mean bias",
-        plot_vars=GLOBAL_AVERAGE_DYCORE_VARS,
+        plot_vars=[v.lower() for v in GLOBAL_AVERAGE_DYCORE_VARS],
     )
 
 
