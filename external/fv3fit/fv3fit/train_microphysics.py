@@ -17,7 +17,6 @@ from fv3fit._shared.training_config import (
     to_nested_dict,
 )
 from fv3fit.emulation.models import Model
-from fv3fit.emulation.transforms.zhao_carr import PrecpdOnly
 from fv3fit.dataclasses import asdict_with_enum as _asdict_with_enum
 from fv3fit.emulation.data.transforms import expand_single_dim_data
 from fv3fit import tfdataset
@@ -57,7 +56,12 @@ from fv3fit.emulation.transforms import (
     MicrophysicsClassesV1OneHot,
     GscondRoute,
 )
-from fv3fit.emulation.transforms.zhao_carr import CloudLimiter, RelativeHumidity
+from fv3fit.emulation.transforms.zhao_carr import (
+    CloudLimiter,
+    RelativeHumidity,
+    LevelAnalog,
+    PrecpdOnly,
+)
 from fv3fit.emulation.zhao_carr.models import PrecpdModelConfig
 from fv3fit.emulation.zhao_carr.filters import HighAntarctic
 from fv3fit.emulation.flux import TendencyToFlux, MoistStaticEnergyTransform
@@ -98,6 +102,7 @@ TransformT = Union[
     PrecpdOnly,
     CloudLimiter,
     RelativeHumidity,
+    LevelAnalog,
 ]
 
 FilterT = Union[HighAntarctic]
