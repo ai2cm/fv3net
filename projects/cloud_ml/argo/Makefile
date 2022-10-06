@@ -40,6 +40,22 @@ extend_prescribed_cloud_run: deploy
 prescribed_state_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-state
 
+.PHONY: baseline_run_max_ran_rad
+baseline_run_max_ran_rad: deploy
+	cd nudge-to-fine-run/rad-config && ./run.sh baseline-max-ran-rad
+
+.PHONY: baseline_run_decorr_rad
+baseline_run_decorr_rad: deploy
+	cd nudge-to-fine-run/rad-config && ./run.sh baseline-decorr-rad
+
+.PHONY: nudge_to_fine_run_max_ran_rad
+nudge_to_fine_run_max_ran_rad: deploy
+	cd nudge-to-fine-run/rad-config && ./run.sh nudge-to-fine-max-ran-rad
+
+.PHONY: nudge_to_fine_run_decorr_rad
+nudge_to_fine_run_decorr_rad: deploy
+	cd nudge-to-fine-run/rad-config && ./run.sh nudge-to-fine-decorr-rad
+
 .PHONY: deploy
 deploy: kustomize
 	./kustomize build . | kubectl apply -f -
