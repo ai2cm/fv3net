@@ -9,7 +9,6 @@ from .modules import (
     FoldFirstDimension,
     single_tile_convolution,
     relu_activation,
-    no_activation,
     ResnetBlock,
     CurriedModuleFactory,
 )
@@ -119,41 +118,6 @@ class GeographicFeatures(nn.Module):
         )
 
 
-class RecurrentBlock(nn.Module):
-    def __init__(
-        self, wrapped: nn.Module, channels: int, convolution: CurriedModuleFactory,
-    ):
-        super().__init__()
-        self.wrapped = wrapped
-        self.channels = channels
-        self.conv_block = nn.Sequential(
-            ConvBlock(
-                in_channels=2 * channels,
-                out_channels=channels,
-                convolution_factory=convolution,
-                activation_factory=relu_activation(),
-            ),
-            ConvBlock(
-                in_channels=channels,
-                out_channels=channels,
-                convolution_factory=convolution,
-                activation_factory=no_activation,
-            ),
-        )
-
-    def forward(self, x):
-        ntime, _, nx, ny = x.shape[-4:]
-        hidden_state = torch.zeros(1, 6, self.channels, nx, ny)
-        out = []
-        for i in range(ntime):
-            x = torch.cat([x[..., i : i + 1, :, :, :, :], hidden_state], dim=2)
-            x = self.conv_block(x)
-            x = self.wrapped(x)
-            out.append(x)
-        x = torch.cat(out, dim=-5)
-        return x
-
-
 class Generator(nn.Module):
     def __init__(
         self,
@@ -162,7 +126,6 @@ class Generator(nn.Module):
         nx: int,
         ny: int,
         convolution: ConvolutionFactory = single_tile_convolution,
-        recurrent: bool = False,
     ):
         """
         Args:
@@ -176,7 +139,6 @@ class Generator(nn.Module):
             recurrent: if True, use a recurrent-in-time network architecture
         """
         super(Generator, self).__init__()
-        self.recurrent = recurrent
 
         def resnet(in_channels: int, out_channels: int):
             if in_channels != out_channels:
@@ -194,14 +156,7 @@ class Generator(nn.Module):
                 )
                 for _ in range(config.n_resnet)
             ]
-            resnet = nn.Sequential(*resnet_blocks)
-            if self.recurrent:
-                resnet = RecurrentBlock(
-                    resnet,
-                    in_channels,
-                    curry(convolution)(kernel_size=config.kernel_size),
-                )
-            return resnet
+            return nn.Sequential(*resnet_blocks)
 
         def down(in_channels: int, out_channels: int):
             return ConvBlock(

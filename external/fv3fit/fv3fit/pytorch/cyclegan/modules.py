@@ -145,30 +145,6 @@ def single_tile_convolution(
     return FoldFirstDimension(conv)
 
 
-class TransposeChannelsFirst3D(nn.Module):
-    def forward(self, x):
-        """
-        Args:
-            x: tensor of shape [batch, time, tile, channel, x, y]
-
-        Returns:
-            tensor of shape [batch, tile, channel, time, x, y]
-        """
-        return x.permute(0, 2, 3, 1, 4, 5)
-
-
-class TransposeTimeFirst3D(nn.Module):
-    def forward(self, x):
-        """
-        Args:
-            x: tensor of shape [batch, tile, channel, time, x, y]
-
-        Returns:
-            tensor of shape [batch, time, tile, channel, x, y]
-        """
-        return x.permute(0, 3, 1, 2, 4, 5)
-
-
 def halo_convolution(
     in_channels: int,
     out_channels: int,
