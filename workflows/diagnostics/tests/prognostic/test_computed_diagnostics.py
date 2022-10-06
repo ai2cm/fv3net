@@ -145,6 +145,22 @@ def test_RunDiagnostics_list_variables():
     assert diagnostics.variables == {"a", "b", "c", "d"}
 
 
+def test_RunDiagnostics_matching_variables():
+    ds = xarray.Dataset({})
+    diagnostics = RunDiagnostics(
+        [
+            ds.assign(foo_mean=1, bar_mean=1, foo_bias=2).assign_attrs(run="1"),
+            ds.assign(foo_mean=1, foo_bias=2).assign_attrs(run="2"),
+            ds.assign(baz_mean=2, bar_mean=4).assign_attrs(run="3"),
+        ]
+    )
+    expected_variables = {"foo_mean", "bar_mean", "baz_mean"}
+    assert diagnostics.matching_variables("mean") == expected_variables
+    assert diagnostics.matching_variables("bias") == {"foo_bias"}
+    expected_variables = {"foo_mean", "bar_mean"}
+    assert diagnostics.matching_variables("mean", ["foo", "bar"]) == expected_variables
+
+
 def test_RunDiagnostics_long_names():
     ds = xarray.Dataset({})
     a = xarray.DataArray(1, attrs={"long_name": "foo"})

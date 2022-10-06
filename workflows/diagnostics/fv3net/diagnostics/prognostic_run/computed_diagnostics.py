@@ -2,7 +2,7 @@
 
 """
 import json
-from typing import Iterable, Hashable, Sequence, Tuple, Any, Set, Mapping
+from typing import Iterable, Hashable, Sequence, Tuple, Any, Set, Mapping, Optional
 import os
 import xarray as xr
 import numpy as np
@@ -152,9 +152,15 @@ class RunDiagnostics:
         variables = [self.get_variable(run, v) for v in varnames]
         return xr.merge(variables)
 
-    def matching_variables(self, varfilter: str) -> Set[str]:
-        """The available variabes that include varfilter in their names."""
-        return set(v for v in self.variables if varfilter in v)
+    def matching_variables(
+        self, varfilter: str, varnames: Optional[Sequence[str]] = None
+    ) -> Set[str]:
+        """The available variables that include varfilter and at least one of the
+        optional varnames in their names."""
+        matching = set(v for v in self.variables if varfilter in v)
+        if varnames:
+            matching = set(v for v in matching if any(vn in v for vn in varnames))
+        return matching
 
     def is_baseline(self, run: str) -> bool:
         return self._attrs[run]["baseline"]
