@@ -276,7 +276,7 @@ def _load_pytorch(cls: Type[_PytorchDumpable], path: str):
     fs = vcm.get_fs(path)
     model_filename = os.path.join(path, cls._MODEL_FILENAME)
     with fs.open(model_filename, "rb") as f:
-        model = torch.load(f).to(DEVICE)
+        model = torch.load(f, map_location=DEVICE)
     with fs.open(os.path.join(path, cls._SCALERS_FILENAME), "rb") as f:
         scalers = load_mapping(StandardScaler, f)
     with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
@@ -343,9 +343,12 @@ def _pack_to_tensor(
                 n_windows, timesteps, *data.shape[1:]
             )
             # append first time of next window to end of each window
-            end_data = np.concatenate(
-                [data[1:, :1, :], normalized_data[None, -1:, :]], axis=0
-            )
+            if n_windows > 1:
+                end_data = np.concatenate(
+                    [data[1:, :1, :], normalized_data[None, -1:, :]], axis=0
+                )
+            else:
+                end_data = normalized_data[None, -1:, :]
             data = np.concatenate([data, end_data], axis=1)
         else:
             data = normalized_data
