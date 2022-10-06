@@ -69,6 +69,7 @@ def plot_2d_matplotlib(
     contour=False,
     figsize=None,
     title=None,
+    plot_vars=None,
     **opts,
 ) -> RawHTML:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
@@ -80,7 +81,7 @@ def plot_2d_matplotlib(
     ylabel = opts.pop("ylabel", "")
     x, y = dims
 
-    variables_to_plot = run_diags.matching_variables(varfilter)
+    variables_to_plot = run_diags.matching_variables(varfilter, varnames=plot_vars)
     for varname in variables_to_plot:
         if not contour:
             opts["vmin"], opts["vmax"], opts["cmap"] = _get_cmap_kwargs(

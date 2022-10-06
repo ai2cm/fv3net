@@ -31,6 +31,7 @@ from fv3net.diagnostics.prognostic_run.constants import (
     DEFAULT_FIGURE_HEIGHT,
     REFERENCE_HOVMOLLER_DURATION_SECONDS,
     MovieUrls,
+    GLOBAL_AVERAGE_DYCORE_VARS,
 )
 from fv3net.diagnostics._shared.constants import WVP, COL_DRYING
 
@@ -289,6 +290,7 @@ def zonal_mean_short_term_bias_plots(diagnostics: RunDiagnostics) -> RawHTML:
         "zonal_mean_bias",
         ["time", "latitude"],
         title="3-day zonal mean bias",
+        plot_vars=GLOBAL_AVERAGE_DYCORE_VARS,
     )
 
 
