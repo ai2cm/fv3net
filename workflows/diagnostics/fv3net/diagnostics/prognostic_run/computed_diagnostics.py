@@ -163,6 +163,14 @@ class RunDiagnostics:
     def is_verification(run: str) -> bool:
         return run == "verification"
 
+    def trim_duration(
+        self, duration: np.timedelta64, time_name: str = "time"
+    ) -> "RunDiagnostics":
+        trimmed_diagnostics = [
+            _trim(ds, duration, time_name) for ds in self.diagnostics
+        ]
+        return RunDiagnostics(trimmed_diagnostics)
+
 
 @dataclass
 class RunMetrics:
@@ -226,6 +234,16 @@ class RunMetrics:
     def _get_metric(self, metric_type: str, variable: str, run: str) -> pd.Series:
         _metrics = self.get_metric_all_runs(metric_type, variable)
         return _metrics[_metrics.run == run]
+
+
+def _trim(ds: xr.Dataset, length, dim: str) -> xr.Dataset:
+    if dim in ds.dims:
+        start = ds[dim].values[0]
+        end = start + length
+        end = min(end, ds[dim].values[-1])
+        return ds.sel({dim: slice(start, end)})
+    else:
+        return ds
 
 
 def load_metrics(rundirs) -> pd.DataFrame:

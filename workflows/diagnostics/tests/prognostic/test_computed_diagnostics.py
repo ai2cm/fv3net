@@ -14,6 +14,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunDiagnostics,
     RunMetrics,
     DiagnosticFolder,
+    _trim,
 )
 
 
@@ -230,3 +231,22 @@ def test_ComputeDiagnosticsList_find_movie_urls(url):
     diags = ComputedDiagnosticsList.from_directory(url)
     movie_urls = diags.find_movie_urls()
     assert isinstance(movie_urls, MutableMapping)
+
+
+def test__trim():
+    ds = xarray.Dataset({"a": xarray.DataArray([1, 2, 3], coords={"x": [0, 2, 4]})})
+    out = _trim(ds, 3, "x")
+    assert out.sizes["x"] == 2
+    expected_coord = ds.x.isel(x=slice(2))
+    xarray.testing.assert_identical(out.x, expected_coord)
+
+
+def test__trim_not_existing_dim():
+    ds = xarray.Dataset({"a": xarray.DataArray([1, 2, 3], coords={"x": [0, 2, 4]})})
+    _trim(ds, 1, "time")
+
+
+def test__trim_dim_size_small():
+    ds = xarray.Dataset({"a": xarray.DataArray([1, 2, 3], coords={"x": [0, 2, 4]})})
+    out = _trim(ds, 6, "x")
+    assert out.sizes["x"] == 3

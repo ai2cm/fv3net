@@ -282,6 +282,15 @@ def zonal_mean_hovmoller_bias_plots(diagnostics: RunDiagnostics) -> RawHTML:
     return plot_2d_matplotlib(diagnostics, "zonal_mean_bias", ["time", "latitude"])
 
 
+@hovmoller_plot_manager.register
+def zonal_mean_short_term_bias_plots(diagnostics: RunDiagnostics) -> RawHTML:
+    return plot_2d_matplotlib(
+        diagnostics.trim_duration(np.timedelta64(3, "D")),
+        "zonal_mean_bias",
+        ["time", "latitude"],
+    )
+
+
 def infer_duration_seconds(diagnostics: RunDiagnostics) -> float:
     run, *_ = diagnostics.runs
     time = diagnostics.get_variable(run, "high_frequency_time")
