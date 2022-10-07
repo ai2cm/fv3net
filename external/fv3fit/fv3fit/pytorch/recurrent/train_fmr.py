@@ -214,7 +214,12 @@ class FMRTrainer:
         return self.fmr
 
     def evaluate_on_dataset(self, dataset: tf.data.Dataset) -> Dict[str, float]:
-        return {}
+        losses = []
+        for numpy_state in dataset:
+            batch_state = torch.as_tensor(numpy_state).float().to(DEVICE)
+            with torch.no_grad():
+                losses.append(self.train_on_batch(batch_state, evaluate_only=True))
+        return {name: np.mean([data[name] for data in losses]) for name in losses[0]}
 
     def train_on_batch(
         self, real: torch.Tensor, evaluate_only=False
