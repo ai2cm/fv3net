@@ -187,17 +187,17 @@ def global_average_cloud_1d_200mb_ppm(
     )
 
 
-def tropical_average_temp_near_tropopause(
+def tropical_average_temp_near_tropopause_5d_k(
     ds: xr.Dataset,
 ) -> Iterable[Tuple[str, Optional[float]]]:
 
-    func_name = "tropical_average_temp_near_tropopause"
+    func_name = "tropical_average_temp_near_tropopause_5d_k"
     field = "air_temperature"
     first_time = ds.time.isel(time=0).values
     time = first_time + timedelta(days=5)
 
     try:
-        selected_time = ds.sel(time=time)
+        selected_time = ds[field].sel(time=time)
     except KeyError:
         logger.warn("No field {} or time {}".format(field, time))
         return (func_name, None)
@@ -211,6 +211,32 @@ def tropical_average_temp_near_tropopause(
         )
     )
     yield (func_name, average_temperature)
+
+
+def antarctic_avg_column_integrated_cloud_5d_kg(
+    ds: xr.Dataset,
+) -> Iterable[Tuple[str, Optional[float]]]:
+
+    func_name = "antarctic_avg_column_integrated_cloud_5d_kg"
+    field = "cloud_water_mixing_ratio"
+    mass_field = "pressure_thickness_of_atmospheric_layer"
+    first_time = ds.time.isel(time=0).values
+    time = first_time + timedelta(days=5)
+
+    integrated_cloud = vcm.mass_integrate(ds[field], ds[mass_field], dim="z")
+    try:
+        selected_time = integrated_cloud.sel(time=time)
+    except KeyError:
+        logger.warn("No field {} or time {}".format(field, time))
+        return (func_name, None)
+
+    antarctic_mask = ds["lat"] < -60
+    average_cloud = float(
+        vcm.weighted_average(
+            selected_time.where(antarctic_mask), ds.area, dims=selected_time.dims
+        )
+    )
+    yield (func_name, average_cloud)
 
 
 def summarize_precip_skill(ds):
@@ -395,6 +421,8 @@ def get_summary_functions() -> Iterable[
     yield global_average_cloud_5d_300mb_ppm
     yield global_average_cloud_1d_200mb_ppm
     yield summarize_precip_skill
+    yield antarctic_avg_column_integrated_cloud_5d_kg
+    yield tropical_average_temp_near_tropopause_5d_k
 
     for name, tendency_func in [
         # total tendency named skill for backwards compatibility reasons
