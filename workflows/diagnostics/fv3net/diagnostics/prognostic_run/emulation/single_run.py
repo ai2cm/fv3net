@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+from datetime import timedelta
 import logging
 import os
 from functools import partial
@@ -184,6 +185,32 @@ def global_average_cloud_1d_200mb_ppm(
         "global_average_cloud_July2_200mb_ppm",
         _global_average_cloud_ppm(ds, time, z),
     )
+
+
+def tropical_average_temp_near_tropopause(
+    ds: xr.Dataset,
+) -> Iterable[Tuple[str, Optional[float]]]:
+
+    func_name = "tropical_average_temp_near_tropopause"
+    field = "air_temperature"
+    first_time = ds.time.isel(time=0).values
+    time = first_time + timedelta(days=5)
+
+    try:
+        selected_time = ds.sel(time=time)
+    except KeyError:
+        logger.warn("No field {} or time {}".format(field, time))
+        return (func_name, None)
+
+    vert_average = selected_time.sel(z=slice(100, 200)).mean(dim="z")
+    tropics_mask = np.logical_and(ds["lat"] < 30, ds["lat"] > -30)
+    tropics_vert_average = vert_average.where(tropics_mask)
+    average_temperature = float(
+        vcm.weighted_average(
+            tropics_vert_average, ds.area, dims=tropics_vert_average.dims
+        )
+    )
+    yield (func_name, average_temperature)
 
 
 def summarize_precip_skill(ds):
