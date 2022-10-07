@@ -34,6 +34,7 @@ from typing import (
     Protocol,
     Sequence,
     Tuple,
+    Union,
 )
 from fv3fit.tfdataset import ensure_nd
 from fv3fit.pytorch.graph.train import get_Xy_map_fn as get_Xy_map_fn_single_domain
@@ -397,52 +398,26 @@ class FMRTrainingConfig:
             validation_data = validation_data.batch(validation_batch_size)
             validation_data = tfds.as_numpy(validation_data)
         if self.in_memory:
-            self._fit_loop_tensor(train_model, train_data_numpy, validation_data)
-        else:
-            self._fit_loop_dataset(train_model, train_data_numpy, validation_data)
-
-    def _fit_loop_dataset(
-        self,
-        train_model: Trainer,
-        train_data_numpy: tf.data.Dataset,
-        validation_data: Optional[tf.data.Dataset],
-    ):
-        for i in range(1, self.n_epoch + 1):
-            logger.info("starting epoch %d", i)
-            train_losses = []
+            train_states = []
             for numpy_state in train_data_numpy:
                 batch_state = torch.as_tensor(numpy_state).float().to(DEVICE)
-                train_losses.append(train_model.train_on_batch(batch_state))
-            train_loss = {
-                name: np.mean([data[name] for data in train_losses])
-                for name in train_losses[0]
-            }
-            logger.info("train_loss: %s", train_loss)
+                train_states.append(batch_state)
+        else:
+            train_states = train_data_numpy
+        self._fit_loop(train_model, train_states, validation_data)
 
-            if validation_data is not None:
-                val_loss = train_model.evaluate_on_dataset(validation_data)
-                logger.info("val_loss %s", val_loss)
-            io.dump(
-                train_model.reloadable,
-                f"model_epoch_{i:04d}_loss_{train_loss['target_loss']:0.4f}",
-            )
-
-    def _fit_loop_tensor(
+    def _fit_loop(
         self,
         train_model: Trainer,
-        train_data_numpy: tf.data.Dataset,
+        train_states: Union[tf.data.Dataset, List[torch.Tensor]],
         validation_data: Optional[tf.data.Dataset],
     ):
-        train_states = []
-        for numpy_state in train_data_numpy:
-            batch_state = torch.as_tensor(numpy_state).float().to(DEVICE)
-            train_states.append(batch_state)
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
-            for batch_state in train_states:
-                train_losses.append(train_model.train_on_batch(batch_state))
-            random.shuffle(train_states)
+            for maybe_numpy_state in train_states:
+                tensor_state = torch.as_tensor(maybe_numpy_state).float().to(DEVICE)
+                train_losses.append(train_model.train_on_batch(tensor_state))
             train_loss = {
                 name: np.mean([data[name] for data in train_losses])
                 for name in train_losses[0]
@@ -456,6 +431,10 @@ class FMRTrainingConfig:
                 train_model.reloadable,
                 f"model_epoch_{i:04d}_loss_{train_loss['target_loss']:0.4f}",
             )
+            try:
+                random.shuffle(train_states)
+            except TypeError:  # tf.data.Dataset shuffles itself
+                pass
 
 
 def channels_first(data: tf.Tensor) -> tf.Tensor:
