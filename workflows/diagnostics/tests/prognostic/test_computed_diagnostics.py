@@ -14,6 +14,7 @@ from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     RunDiagnostics,
     RunMetrics,
     DiagnosticFolder,
+    _trim,
 )
 
 
@@ -144,6 +145,22 @@ def test_RunDiagnostics_list_variables():
     assert diagnostics.variables == {"a", "b", "c", "d"}
 
 
+def test_RunDiagnostics_matching_variables():
+    ds = xarray.Dataset({})
+    diagnostics = RunDiagnostics(
+        [
+            ds.assign(foo_mean=1, bar_mean=1, foo_bias=2).assign_attrs(run="1"),
+            ds.assign(foo_mean=1, foo_bias=2).assign_attrs(run="2"),
+            ds.assign(baz_mean=2, bar_mean=4).assign_attrs(run="3"),
+        ]
+    )
+    expected_variables = {"foo_mean", "bar_mean", "baz_mean"}
+    assert diagnostics.matching_variables("mean") == expected_variables
+    assert diagnostics.matching_variables("bias") == {"foo_bias"}
+    expected_variables = {"foo_mean", "bar_mean"}
+    assert diagnostics.matching_variables("mean", ["foo", "bar"]) == expected_variables
+
+
 def test_RunDiagnostics_long_names():
     ds = xarray.Dataset({})
     a = xarray.DataArray(1, attrs={"long_name": "foo"})
@@ -230,3 +247,22 @@ def test_ComputeDiagnosticsList_find_movie_urls(url):
     diags = ComputedDiagnosticsList.from_directory(url)
     movie_urls = diags.find_movie_urls()
     assert isinstance(movie_urls, MutableMapping)
+
+
+def test__trim():
+    ds = xarray.Dataset({"a": xarray.DataArray([1, 2, 3], coords={"x": [0, 2, 4]})})
+    out = _trim(ds, 3, "x")
+    assert out.sizes["x"] == 2
+    expected_coord = ds.x.isel(x=slice(2))
+    xarray.testing.assert_identical(out.x, expected_coord)
+
+
+def test__trim_not_existing_dim():
+    ds = xarray.Dataset({"a": xarray.DataArray([1, 2, 3], coords={"x": [0, 2, 4]})})
+    _trim(ds, 1, "time")
+
+
+def test__trim_dim_size_small():
+    ds = xarray.Dataset({"a": xarray.DataArray([1, 2, 3], coords={"x": [0, 2, 4]})})
+    out = _trim(ds, 6, "x")
+    assert out.sizes["x"] == 3

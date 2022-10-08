@@ -1,7 +1,7 @@
 kind: prognostic
-experiment: zc-emu-monthly-init
-name: sequential-zc-emu-monthly-v1
-image_tag: latest
+experiment: zc-emu-condense-limit
+name: sequential-zc-emu-condense-limit-30d-v1
+image_tag: d3525ed0f0d33f3c17957799c86fdaf4ed79dcec
 config:
   base_version: v0.5
   data_table: default

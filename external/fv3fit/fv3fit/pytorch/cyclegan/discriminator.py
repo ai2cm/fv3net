@@ -78,7 +78,7 @@ class Discriminator(nn.Module):
                 in_channels=in_channels,
                 out_channels=min_filters,
                 convolution_factory=curry(convolution)(
-                    kernel_size=kernel_size, stride=2, padding=1
+                    kernel_size=kernel_size, stride=2,
                 ),
                 activation_factory=leakyrelu_activation(
                     negative_slope=0.2, inplace=True
@@ -92,7 +92,7 @@ class Discriminator(nn.Module):
                     in_channels=min_filters * 2 ** (i - 1),
                     out_channels=min_filters * 2 ** i,
                     convolution_factory=curry(convolution)(
-                        kernel_size=kernel_size, stride=2, padding=1
+                        kernel_size=kernel_size, stride=2
                     ),
                     activation_factory=leakyrelu_activation(
                         negative_slope=0.2, inplace=True
@@ -107,7 +107,7 @@ class Discriminator(nn.Module):
             activation_factory=leakyrelu_activation(negative_slope=0.2, inplace=True),
         )
         patch_output = convolution(
-            kernel_size=3, in_channels=max_filters, out_channels=1, padding="same"
+            kernel_size=3, in_channels=max_filters, out_channels=1
         )
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
 
