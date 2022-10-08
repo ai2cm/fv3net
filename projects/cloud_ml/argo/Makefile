@@ -44,6 +44,10 @@ prescribed_state_run: deploy
 baseline_run_max_ran_rad: deploy
 	cd nudge-to-fine-run/rad-config && ./run.sh baseline-max-ran-rad
 
+.PHONY: baseline_run_max_ovr_rad
+baseline_run_max_ovr_rad: deploy
+	cd nudge-to-fine-run/rad-config && ./run.sh baseline-max-ovr-rad
+
 .PHONY: baseline_run_decorr_rad
 baseline_run_decorr_rad: deploy
 	cd nudge-to-fine-run/rad-config && ./run.sh baseline-decorr-rad
@@ -52,9 +56,17 @@ baseline_run_decorr_rad: deploy
 nudge_to_fine_run_max_ran_rad: deploy
 	cd nudge-to-fine-run/rad-config && ./run.sh nudge-to-fine-max-ran-rad
 
+.PHONY: nudge_to_fine_run_max_ovr_rad
+nudge_to_fine_run_max_ovr_rad: deploy
+	cd nudge-to-fine-run/rad-config && ./run.sh nudge-to-fine-max-ovr-rad
+
 .PHONY: nudge_to_fine_run_decorr_rad
 nudge_to_fine_run_decorr_rad: deploy
 	cd nudge-to-fine-run/rad-config && ./run.sh nudge-to-fine-decorr-rad
+
+.PHONY: rad_overlap_report
+rad_overlap_report: deploy
+	cd reports && ./submit.sh rad-overlap
 
 .PHONY: deploy
 deploy: kustomize

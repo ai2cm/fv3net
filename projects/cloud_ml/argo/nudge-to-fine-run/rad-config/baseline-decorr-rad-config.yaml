@@ -21,7 +21,6 @@ namelist:
   gfs_physics_nml:
     fhlwr: 1800.0
     fhswr: 1800.0
-    override_surface_radiative_fluxes: true
     hybedmf: false
     satmedmf: true
     iovr_sw: 3

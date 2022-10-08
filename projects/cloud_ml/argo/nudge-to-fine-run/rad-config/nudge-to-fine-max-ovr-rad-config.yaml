@@ -1,14 +1,23 @@
 base_version: v0.7
 field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
+prephysics:
+  - dataset_key: "gs://vcm-ml-intermediate/2021-03-fine-res-surface-radiative-fluxes/C3072-surface-radiative-fluxes-precip.zarr"
+    variables:
+      override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface: override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface
+      override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface: override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface
+      override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface: override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface
+      total_precipitation: total_precipitation
 initial_conditions:
   base_url: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
   timestep: "20160805.000000"
-prephysics:
-  - dataset_key: gs://vcm-ml-intermediate/2022-03-08-C3072-reference-SSTs-at-C48-C384/C48.zarr
-    variables:
-      ocean_surface_temperature: ocean_surface_temperature
-    reference_initial_time: "20160802.000000"
-    reference_frequency_seconds: 86400
+nudging:
+  restarts_path: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+  timescale_hours:
+    air_temperature: 3
+    specific_humidity: 3
+    x_wind: 3
+    y_wind: 3
+    pressure_thickness_of_atmospheric_layer: 3
 namelist:
   atmos_model_nml:
     fhmax: 1024  # max hours of simulation (over all segments) for which fortran physics diags are saved
@@ -21,8 +30,11 @@ namelist:
   gfs_physics_nml:
     fhlwr: 1800.0
     fhswr: 1800.0
+    override_surface_radiative_fluxes: true
     hybedmf: false
     satmedmf: true
+    iovr_sw: 2
+    iovr_lw: 2
   namsfc:
     faisl: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
     faiss: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
@@ -86,6 +98,18 @@ diagnostics:
   - tendency_of_specific_humidity_due_to_fv3_physics
   - tendency_of_eastward_wind_due_to_fv3_physics
   - tendency_of_northward_wind_due_to_fv3_physics
+- name: nudging_tendencies.zarr
+  chunks:
+    time: 8
+  times:
+    frequency: 10800
+    kind: interval-average
+  variables:
+  - air_temperature_tendency_due_to_nudging
+  - specific_humidity_tendency_due_to_nudging
+  - x_wind_tendency_due_to_nudging
+  - y_wind_tendency_due_to_nudging
+  - pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging
 - name: diags.zarr
   chunks:
     time: 96
@@ -93,8 +117,24 @@ diagnostics:
     frequency: 900
     kind: interval
   variables:
+  - net_moistening_due_to_nudging
+  - column_heating_due_to_nudging
+  - net_mass_tendency_due_to_nudging
+  - total_precipitation_rate
   - water_vapor_path
   - physics_precip
+- name: reference_state.zarr
+  chunks:
+    time: 8
+  times:
+    frequency: 10800
+    kind: interval-average
+  variables:
+  - air_temperature_reference
+  - specific_humidity_reference
+  - x_wind_reference
+  - y_wind_reference
+  - pressure_thickness_of_atmospheric_layer_reference
 fortran_diagnostics:
 - name: sfc_dt_atmos.zarr
   chunks:
@@ -116,15 +156,15 @@ fortran_diagnostics:
   - {module_name: gfs_phys, field_name: totsnwb_ave, output_name: SNOWsfc}
   - {module_name: gfs_phys, field_name: totgrpb_ave, output_name: GRAUPELsfc}
   - {module_name: gfs_phys, field_name: DSWRF, output_name: DSWRFsfc}
-#   - {module_name: gfs_phys, field_name: DSWRF_from_rrtmg, output_name: DSWRFsfc_from_RRTMG}
+  - {module_name: gfs_phys, field_name: DSWRF_from_rrtmg, output_name: DSWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: USWRF, output_name: USWRFsfc}
-#   - {module_name: gfs_phys, field_name: USWRF_from_rrtmg, output_name: USWRFsfc_from_RRTMG}
+  - {module_name: gfs_phys, field_name: USWRF_from_rrtmg, output_name: USWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: DSWRFtoa, output_name: DSWRFtoa}
   - {module_name: gfs_phys, field_name: USWRFtoa, output_name: USWRFtoa}
   - {module_name: gfs_phys, field_name: ULWRFtoa, output_name: ULWRFtoa}
   - {module_name: gfs_phys, field_name: ULWRF, output_name: ULWRFsfc}
   - {module_name: gfs_phys, field_name: DLWRF, output_name: DLWRFsfc}
-#   - {module_name: gfs_phys, field_name: DLWRF_from_rrtmg, output_name: DLWRFsfc_from_RRTMG}
+  - {module_name: gfs_phys, field_name: DLWRF_from_rrtmg, output_name: DLWRFsfc_from_RRTMG}
   - {module_name: gfs_phys, field_name: lhtfl_ave, output_name: LHTFLsfc}
   - {module_name: gfs_phys, field_name: shtfl_ave, output_name: SHTFLsfc}
   - {module_name: gfs_phys, field_name: hpbl, output_name: HPBLsfc}
