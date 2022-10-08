@@ -1,5 +1,5 @@
 kind: train
-name: precpd-diff-only-press-rh-in-v1
+name: precpd-diff-only-press-rh-in-and-pscale-adj-v1
 fv3fit_image_tag: 5c847f15cd8c870558e728e2782d4dd98e2c5b02
 experiment: relative-humidity-trials
 config:
@@ -63,10 +63,10 @@ config:
     normalize_default:
       center: per_feature
       scale: all
-    # normalize_map:
-    #   air_pressure:
-    #     center: all
-    #     scale: all_all
+    normalize_map:
+      air_pressure:
+        center: all
+        scale: all_all
     selection_map: {}
     timestep_increment_sec: 900
     unscaled_outputs: []
