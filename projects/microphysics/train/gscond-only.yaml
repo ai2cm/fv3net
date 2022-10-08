@@ -1,7 +1,7 @@
 kind: train
-name: gscond-only-dense-local-tscale-retrain-v3
-fv3fit_image_tag: 4fae484f6796d24ded4deb4042ee4ad16d647bdd
-experiment: pscaling-test
+name: gscond-only-dense-press-in-scale-adjust-v1
+fv3fit_image_tag: bb21a0f72b4a5db9fa4a049a3d570439496e462b
+experiment: relative-humidity-trials
 config:
   use_wandb: true
   wandb:
@@ -58,8 +58,6 @@ config:
       air_temperature_after_gscond: 100000.0
       specific_humidity_after_gscond: 50000.0
     bias_metric_variables:
-      - temperature_gscond_difference_pscaled
-      - humidity_gscond_difference_pscaled
       - temperature_gscond_difference
       - humidity_gscond_difference
       - air_temperature_after_gscond
@@ -89,6 +87,10 @@ config:
     normalize_default:
       center: per_feature
       scale: all
+    normalize_map:
+      air_pressure:
+        center: all
+        scale: all_all
     selection_map: {}
     timestep_increment_sec: 900
   transform:
