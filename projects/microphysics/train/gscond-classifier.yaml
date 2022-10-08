@@ -1,5 +1,5 @@
 kind: train
-name: gscond-only-classifier-press-in-scale-adjust-v1
+name: gscond-only-classifier-rh-in-v1
 fv3fit_image_tag: 5c847f15cd8c870558e728e2782d4dd98e2c5b02
 experiment: relative-humidity-trials
 config:
@@ -26,6 +26,7 @@ config:
     # the clasification categories
     - cloud_in: "cloud_water_mixing_ratio_input"
       to: gscond_classes
+    - relative_humidity: relative_humidity
   loss:
     optimizer:
       kwargs:
@@ -57,15 +58,16 @@ config:
     - air_pressure
     - surface_air_pressure
     - surface_air_pressure_after_last_gscond
+    - relative_humidity
     unscaled_outputs:
       - gscond_classes
     normalize_default:
       center: per_feature
       scale: all
-    normalize_map:
-      air_pressure:
-        center: all
-        scale: all_all
+    # normalize_map:
+    #   air_pressure:
+    #     center: all
+    #     scale: all_all
     selection_map: {}
     timestep_increment_sec: 900
   transform:

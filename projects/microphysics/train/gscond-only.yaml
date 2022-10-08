@@ -1,5 +1,5 @@
 kind: train
-name: gscond-only-dense-press-in-scale-adjust-v1
+name: gscond-only-dense-rh-in-v1
 fv3fit_image_tag: 5c847f15cd8c870558e728e2782d4dd98e2c5b02
 experiment: relative-humidity-trials
 config:
@@ -41,6 +41,7 @@ config:
       bins: 50
       min_scale: 1e-5
       fit_filter_magnitude: 1e-5
+    - relative_humidity: relative_humidity
   loss:
     optimizer:
       kwargs:
@@ -81,16 +82,17 @@ config:
     - air_pressure
     - surface_air_pressure
     - surface_air_pressure_after_last_gscond
+    - relative_humidity
     direct_out_variables:
       - humidity_gscond_difference_tscaled
       - temperature_gscond_difference_tscaled
     normalize_default:
       center: per_feature
       scale: all
-    normalize_map:
-      air_pressure:
-        center: all
-        scale: all_all
+    # normalize_map:
+    #   air_pressure:
+    #     center: all
+    #     scale: all_all
     selection_map: {}
     timestep_increment_sec: 900
   transform:
