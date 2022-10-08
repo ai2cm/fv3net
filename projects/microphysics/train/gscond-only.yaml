@@ -1,6 +1,6 @@
 kind: train
 name: gscond-only-dense-press-in-scale-adjust-v1
-fv3fit_image_tag: bb21a0f72b4a5db9fa4a049a3d570439496e462b
+fv3fit_image_tag: 5c847f15cd8c870558e728e2782d4dd98e2c5b02
 experiment: relative-humidity-trials
 config:
   use_wandb: true
