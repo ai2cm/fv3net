@@ -1,0 +1,5 @@
+N: 64
+L: 22
+timestep: 0.1
+spatial_downsampling: 4
+time_downsampling: 2

@@ -1,57 +1,11 @@
-import dataclasses
 import logging
 import numpy as np
 import scipy
-from typing import Optional
+
+from .config import ReservoirHyperparameters
+
 
 logger = logging.getLogger(__name__)
-
-
-@dataclasses.dataclass
-class ReservoirHyperparameters:
-    """Hyperparameters for reservoir
-
-    input_dim: Size of input vector
-    reservoir_state_dim: Size of hidden state vector,
-        W_res has shape reservoir_state_dim x reservoir_state_dim
-    sparsity: Fraction of elements in W_res that are zero
-    output_dim: Size of output vector. Can be smaller than input
-        dimension if predicting on subdomains with overlapping
-        input regions.
-    spectral_radius: Largest absolute value eigenvalue of W_res.
-        Larger values increase the memory of the reservoir.
-    seed: Random seed for sampling
-    input_coupling_sparsity: Fraction of elements in each row of W_in
-        that are zero. Kept the same in all rows to ensure each input
-        is equally connected into the reservoir. Defaults to 0.
-    input_coupling_scaling: Scaling applied to W_in. Defaults to 1,
-        where all elements are sampled from random uniform distribution
-        [-1, 1]. Changing this affects relative weighting of reservoir memory
-        versus the most recent state.
-    res_scaling: Optional scale value for W_res that can be provided in lieu of
-        spectral radius. This is useful if you know what scaling parameter
-        applied to the uniform distribution [0, 1] for a given reservoir size
-        will lead to the (approximate) desired spectral radius, since eigenvalue
-        calculation for larger reservoirs can be slow.
-    """
-
-    input_dim: int
-    reservoir_state_dim: int
-    sparsity: float
-    output_dim: Optional[int] = None
-
-    spectral_radius: Optional[float] = None
-
-    seed: int = 0
-    input_coupling_sparsity: float = 0.0
-    input_coupling_scaling: float = 1.0
-    res_scaling: Optional[float] = None
-
-    def __post_init__(self):
-        if self.spectral_radius and self.scaling:
-            raise ValueError("Only one of spectral_radius or scaling can be specified")
-        if not self.output_dim:
-            self.output_dim = self.input_dim
 
 
 class Reservoir:
