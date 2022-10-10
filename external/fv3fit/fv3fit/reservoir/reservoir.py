@@ -48,8 +48,10 @@ class ReservoirHyperparameters:
     res_scaling: Optional[float] = None
 
     def __post_init__(self):
-        if self.spectral_radius and self.scaling:
-            raise ValueError("Only one of spectral_radius or scaling can be specified")
+        if self.spectral_radius and self.res_scaling:
+            raise ValueError(
+                "Only one of spectral_radius or res_scaling can be specified"
+            )
         if not self.output_dim:
             self.output_dim = self.input_dim
 
