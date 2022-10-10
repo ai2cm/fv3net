@@ -5,7 +5,7 @@ from fv3fit.reservoir.reservoir import Reservoir, ReservoirHyperparameters
 
 
 def test_matrices_and_state_correct_dims():
-    N_input, N_res = 10, 1000
+    N_input, N_res = 10, 100
     hyperparameters = ReservoirHyperparameters(
         input_dim=N_input,
         reservoir_state_dim=N_res,
@@ -22,7 +22,7 @@ def test_matrices_and_state_correct_dims():
 
 @pytest.mark.parametrize("sparsity", [0.01, 0.1])
 def test_Wres_sparsity(sparsity):
-    N_input, N_res = 10, 1000
+    N_input, N_res = 10, 100
     hyperparameters = ReservoirHyperparameters(
         input_dim=N_input,
         reservoir_state_dim=N_res,
@@ -36,7 +36,7 @@ def test_Wres_sparsity(sparsity):
 def test_spectral_radius():
     radius = 0.6
     hyperparameters = ReservoirHyperparameters(
-        input_dim=10, reservoir_state_dim=1000, sparsity=0.8, spectral_radius=radius,
+        input_dim=10, reservoir_state_dim=100, sparsity=0.8, spectral_radius=radius,
     )
     reservoir = Reservoir(hyperparameters)
     np.testing.assert_almost_equal(
@@ -54,9 +54,9 @@ def test_Win_equal_connections_per_input():
         input_coupling_sparsity=input_coupling_sparsity,
     )
     reservoir = Reservoir(hyperparameters)
-
+    print(reservoir.W_in.shape)
     nonzero_per_row = [
-        reservoir.W_in.T.getrow(i).count_nonzero()
+        reservoir.W_in.getrow(i).count_nonzero()
         for i in range(hyperparameters.reservoir_state_dim)
     ]
     assert len(np.unique(nonzero_per_row)) == 1
