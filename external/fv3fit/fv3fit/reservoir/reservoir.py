@@ -7,17 +7,34 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
+def _random_uniform_sample_func(min, max):
+    def _f(d):
+        return np.random.uniform(min, max, size=d)
+
+    return _f
+
+
+def _random_uniform_sparse_matrix(m, n, sparsity, min=0, max=1):
+    return scipy.sparse.random(
+        m=m,
+        n=n,
+        density=1.0 - sparsity,
+        data_rvs=_random_uniform_sample_func(min=0, max=1.0),
+    )
+
+
 @dataclasses.dataclass
 class ReservoirHyperparameters:
     """Hyperparameters for reservoir
 
-    input_dim: Size of input vector
-    reservoir_state_dim: Size of hidden state vector,
-        W_res has shape reservoir_state_dim x reservoir_state_dim
-    sparsity: Fraction of elements in W_res that are zero
-    output_dim: Size of output vector. Can be smaller than input
+    input_size: Size of input vector
+    state_size: Size of hidden state vector,
+        W_res has shape state_size x state_size
+    adjacency_matrix_sparsity: Fraction of elements in adjacency matrix
+        W_res that are zero
+    output_size: Optional: size of output vector. Can be smaller than input
         dimension if predicting on subdomains with overlapping
-        input regions.
+        input regions. Defaults to same as input_size
     spectral_radius: Largest absolute value eigenvalue of W_res.
         Larger values increase the memory of the reservoir.
     seed: Random seed for sampling
@@ -28,32 +45,20 @@ class ReservoirHyperparameters:
         where all elements are sampled from random uniform distribution
         [-1, 1]. Changing this affects relative weighting of reservoir memory
         versus the most recent state.
-    res_scaling: Optional scale value for W_res that can be provided in lieu of
-        spectral radius. This is useful if you know what scaling parameter
-        applied to the uniform distribution [0, 1] for a given reservoir size
-        will lead to the (approximate) desired spectral radius, since eigenvalue
-        calculation for larger reservoirs can be slow.
     """
 
-    input_dim: int
-    reservoir_state_dim: int
-    sparsity: float
-    output_dim: Optional[int] = None
-
-    spectral_radius: Optional[float] = None
-
+    input_size: int
+    state_size: int
+    adjacency_matrix_sparsity: float
+    spectral_radius: float
+    output_size: Optional[int] = None
     seed: int = 0
     input_coupling_sparsity: float = 0.0
     input_coupling_scaling: float = 1.0
-    res_scaling: Optional[float] = None
 
     def __post_init__(self):
-        if self.spectral_radius and self.res_scaling:
-            raise ValueError(
-                "Only one of spectral_radius or res_scaling can be specified"
-            )
-        if not self.output_dim:
-            self.output_dim = self.input_dim
+        if not self.output_size:
+            self.output_size = self.input_size
 
 
 class Reservoir:
@@ -61,60 +66,50 @@ class Reservoir:
         self, hyperparameters: ReservoirHyperparameters,
     ):
         self.hyperparameters = hyperparameters
-
+        np.random.seed(self.hyperparameters.seed)
         self.W_in = self._generate_W_in()
         self.W_res = self._generate_W_res()
-        self.state = np.zeros(self.hyperparameters.reservoir_state_dim)
+        self.state = np.zeros(self.hyperparameters.state_size)
 
     def increment_state(self, input):
         self.state = np.tanh(self.W_in * input + self.W_res * self.state)
 
     def reset_state(self):
         logger.info("Resetting reservoir state.")
-        self.state = np.zeros(self.hyperparameters.reservoir_state_dim)
+        self.state = np.zeros(self.hyperparameters.state_size)
 
     def synchronize(self, synchronization_time_series):
         self.reset_state()
         for input in synchronization_time_series:
             self.increment_reservoir_state(input)
 
-    def _random_uniform_sample_func(self, min=0.0, max=1.0):
-        def _f(d):
-            return np.random.uniform(min, max, size=d)
-
-        return _f
-
     def _generate_W_in(self):
         W_in_rows = []
         # Generate by row to ensure same number of connections per input element
-        np.random.seed(self.hyperparameters.seed)
-        for k in range(self.hyperparameters.reservoir_state_dim):
+        for k in range(self.hyperparameters.state_size):
             W_in_rows.append(
-                scipy.sparse.random(
-                    m=self.hyperparameters.input_dim,
-                    n=1,
-                    density=1 - self.hyperparameters.input_coupling_sparsity,
-                    data_rvs=self._random_uniform_sample_func(
-                        min=-self.hyperparameters.input_coupling_scaling,
-                        max=self.hyperparameters.input_coupling_scaling,
-                    ),
+                _random_uniform_sparse_matrix(
+                    m=1,
+                    n=self.hyperparameters.input_size,
+                    sparsity=self.hyperparameters.input_coupling_sparsity,
+                    min=-self.hyperparameters.input_coupling_scaling,
+                    max=self.hyperparameters.input_coupling_scaling,
                 )
             )
 
-        return scipy.sparse.hstack(W_in_rows).T
+        return scipy.sparse.vstack(W_in_rows)
 
     def _generate_W_res(self):
-        np.random.seed(self.hyperparameters.seed)
-        W_res = scipy.sparse.random(
-            m=self.hyperparameters.reservoir_state_dim,
-            n=self.hyperparameters.reservoir_state_dim,
-            density=1.0 - self.hyperparameters.sparsity,
-            data_rvs=self._random_uniform_sample_func(min=0, max=1.0),
+        W_res = _random_uniform_sparse_matrix(
+            m=self.hyperparameters.state_size,
+            n=self.hyperparameters.state_size,
+            sparsity=self.hyperparameters.adjacency_matrix_sparsity,
+            min=0,
+            max=1,
         )
-        if not self.hyperparameters.res_scaling:
-            scaling = self.hyperparameters.spectral_radius / max(
-                abs(scipy.sparse.linalg.eigs(W_res)[0])
-            )
-        else:
-            scaling = self.hyperparameters.res_scaling
+        largest_magnitude_eigval = scipy.sparse.linalg.eigs(
+            W_res, return_eigenvectors=False, k=1, which="LM"
+        ).item()
+        scaling = self.hyperparameters.spectral_radius / abs(largest_magnitude_eigval)
+
         return scaling * W_res
