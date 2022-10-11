@@ -84,10 +84,11 @@ class Reservoir:
             self.increment_reservoir_state(input)
 
     def _generate_W_in(self):
-        W_in_rows = []
-        # Generate by column to ensure same number of connections per input element
+        W_in_cols = []
+        # Generate by column to ensure same number of connections per input element,
+        # as described in Wikner+ 2020 (https://doi.org/10.1063/5.0005541)
         for k in range(self.hyperparameters.input_size):
-            W_in_rows.append(
+            W_in_cols.append(
                 _random_uniform_sparse_matrix(
                     m=self.hyperparameters.state_size,
                     n=1,
@@ -97,7 +98,7 @@ class Reservoir:
                 )
             )
 
-        return scipy.sparse.hstack(W_in_rows)
+        return scipy.sparse.hstack(W_in_cols)
 
     def _generate_W_res(self):
         W_res = _random_uniform_sparse_matrix(

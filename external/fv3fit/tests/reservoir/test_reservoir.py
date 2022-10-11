@@ -63,7 +63,7 @@ def test_Win_equal_connections_per_input():
     )
     reservoir = Reservoir(hyperparameters)
     nonzero_per_col = [
-        reservoir.W_in.T.getrow(i).count_nonzero()
+        reservoir.W_in.getcol(i).count_nonzero()
         for i in range(hyperparameters.input_size)
     ]
     assert np.unique(nonzero_per_col).item() == 800
