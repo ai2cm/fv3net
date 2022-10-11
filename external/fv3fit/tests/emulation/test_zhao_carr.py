@@ -9,7 +9,6 @@ from fv3fit.emulation.transforms.zhao_carr import (
     MicrophysicsClasssesV1,
     MicrophysicsClassesV1OneHot,
     limit_negative_cloud,
-    LevelAnalog,
 )
 
 
@@ -110,15 +109,3 @@ def test_cloud_limiter_names():
     assert factory.backward_names({"a"}) == {"a"}
     assert factory.backward_input_names() == names
     assert factory.backward_output_names() == names
-
-
-def test_level_analog():
-    data = {"a": tf.ones((10, 5))}
-    factory = LevelAnalog("a", to="level")
-    transform = factory.build(data)
-    result = transform.forward(data)
-
-    assert factory.backward_names({"level"}) == {"a"}
-    assert "level" in result
-    assert result["level"].shape == data["a"].shape
-    assert result["level"].dtype == tf.float32

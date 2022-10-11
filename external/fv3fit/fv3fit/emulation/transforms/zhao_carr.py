@@ -147,44 +147,6 @@ class RelativeHumidity(TensorTransform):
 
 
 @dataclasses.dataclass
-class LevelAnalog(TensorTransform):
-
-    schema_var: str
-    to: str = "level"
-
-    def build(self, sample: TensorDict) -> TensorTransform:
-        return self
-
-    def backward_names(self, requested_names: Set[str]) -> Set[str]:
-        out = set(requested_names)
-        out -= {self.to}
-        out |= {self.schema_var}
-        return out
-
-    def backward_input_names(self) -> Set[str]:
-        return {self.schema_var}
-
-    def backward_output_names(self) -> Set[str]:
-        return {self.to}
-
-    def forward(self, x: TensorDict) -> TensorDict:
-        out = {**x}
-        schema_shape = x[self.schema_var].shape
-        feature_dim = schema_shape[-1]
-        levels = tf.linspace(0.0, 1.0, feature_dim)
-        if None in schema_shape:
-            # This is a hack to handle symbolic tensors, we don't need an extra
-            # input because it's generated
-            out[self.to] = x[self.schema_var]
-        else:
-            out[self.to] = tf.ones(schema_shape, dtype=tf.float32) * levels
-        return out
-
-    def backward(self, y: TensorDict) -> TensorDict:
-        return y
-
-
-@dataclasses.dataclass
 class MicrophysicsClasssesV1(TensorTransform):
     """
     A hardcoded classification transform to assess cloud state/tendency
