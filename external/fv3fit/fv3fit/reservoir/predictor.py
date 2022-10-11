@@ -21,7 +21,7 @@ def _square_even_terms(v: np.ndarray) -> np.ndarray:
     return c
 
 
-class ReservoirPredictor:
+class ReservoirComputingModel:
     _READOUT_NAME = "readout.pkl"
     _METADATA_NAME = "metadata.bin"
 
@@ -72,7 +72,7 @@ class ReservoirPredictor:
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
     @classmethod
-    def load(cls, path: str) -> "ReservoirPredictor":
+    def load(cls, path: str) -> "ReservoirComputingModel":
         """Load a model from a remote path"""
         mapper = fsspec.get_mapper(path)
 

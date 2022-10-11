@@ -3,7 +3,7 @@ from scipy import sparse
 
 from sklearn.dummy import DummyRegressor
 
-from fv3fit.reservoir.predictor import ReservoirPredictor, _square_even_terms
+from fv3fit.reservoir.predictor import ReservoirComputingModel, _square_even_terms
 from fv3fit.reservoir.reservoir import Reservoir, ReservoirHyperparameters
 
 
@@ -42,18 +42,18 @@ def test_dump_load_preserves_reservoir(tmpdir):
         input_coupling_sparsity=0,
     )
     reservoir = Reservoir(hyperparameters)
-    predictor = ReservoirPredictor(
+    predictor = ReservoirComputingModel(
         reservoir=reservoir, readout=DummyRegressor(strategy="constant", constant=-1.0),
     )
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
 
-    loaded_predictor = ReservoirPredictor.load(output_path)
+    loaded_predictor = ReservoirComputingModel.load(output_path)
     assert _sparse_allclose(loaded_predictor.reservoir.W_in, predictor.reservoir.W_in)
     assert _sparse_allclose(loaded_predictor.reservoir.W_res, predictor.reservoir.W_res)
 
 
-def test_ReservoirPredictor_state_increment():
+def test_ReservoirComputingModel_state_increment():
     input_size = 2
     hyperparameters = ReservoirHyperparameters(
         input_size=2,
@@ -67,7 +67,7 @@ def test_ReservoirPredictor_state_increment():
     reservoir.W_res = sparse.coo_matrix(np.ones(reservoir.W_res.shape))
 
     readout = MultiOutputMeanRegressor(n_outputs=input_size)
-    predictor = ReservoirPredictor(
+    predictor = ReservoirComputingModel(
         reservoir=reservoir, readout=readout, square_half_hidden_state=False
     )
 
@@ -89,7 +89,7 @@ def test_prediction_after_load(tmpdir):
     )
     reservoir = Reservoir(hyperparameters)
     readout = MultiOutputMeanRegressor(n_outputs=input_size)
-    predictor = ReservoirPredictor(
+    predictor = ReservoirComputingModel(
         reservoir=reservoir, readout=readout, square_half_hidden_state=False
     )
     predictor.reservoir.reset_state()
@@ -99,7 +99,7 @@ def test_prediction_after_load(tmpdir):
 
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
-    loaded_predictor = ReservoirPredictor.load(output_path)
+    loaded_predictor = ReservoirComputingModel.load(output_path)
     loaded_predictor.reservoir.reset_state()
     for i in range(10):
         loaded_predictor.reservoir.increment_state(np.ones(input_size))
