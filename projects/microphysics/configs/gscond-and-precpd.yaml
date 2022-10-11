@@ -1,7 +1,8 @@
 kind: prognostic
-experiment: zc-emu-condense-limit
-name: sequential-zc-emu-condense-limit-30d-v1
-image_tag: d3525ed0f0d33f3c17957799c86fdaf4ed79dcec
+experiment: rh-trials-prognostic-oct2022
+name: zc-emu-rh-in-and-pscale-adj-30d-v1
+image_tag: latest
+fv3net_image_tag: 9d2404bb4f04a3c7645692f3b05670b8ed1c2c73
 config:
   base_version: v0.5
   data_table: default
