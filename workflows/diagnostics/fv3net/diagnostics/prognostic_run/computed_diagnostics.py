@@ -47,10 +47,6 @@ class ComputedDiagnosticsList:
         """Open computed diagnostics at the specified urls
         """
 
-        def url_to_folder(url):
-            fs, _, path = fsspec.get_fs_token_paths(url)
-            return DiagnosticFolder(fs, path[0])
-
         return ComputedDiagnosticsList(
             {str(k): url_to_folder(url) for k, url in enumerate(urls)}
         )
@@ -61,10 +57,6 @@ class ComputedDiagnosticsList:
     ) -> "ComputedDiagnosticsList":
         """Open labeled computed diagnostics at urls specified in given JSON."""
 
-        def url_to_folder(url):
-            fs, _, path = fsspec.get_fs_token_paths(url)
-            return DiagnosticFolder(fs, path[0])
-
         with fsspec.open(url) as f:
             rundirs = json.load(f)
 
@@ -74,6 +66,20 @@ class ComputedDiagnosticsList:
 
         return ComputedDiagnosticsList(
             {item["name"]: url_to_folder(item["url"]) for item in rundirs}
+        )
+
+    @staticmethod
+    def from_dict(
+        urls: Mapping[str, str], urls_are_rundirs: bool = False
+    ) -> "ComputedDiagnosticsList":
+        """Open labeled computed diagnostics given mapping of name to url."""
+        urls = {
+            name: url + "_diagnostics" if urls_are_rundirs else url
+            for name, url in urls.items()
+        }
+
+        return ComputedDiagnosticsList(
+            {name: url_to_folder(url) for name, url in urls.items()}
         )
 
     def load_metrics(self) -> "RunMetrics":
@@ -89,6 +95,11 @@ class ComputedDiagnosticsList:
 
     def find_movie_urls(self) -> MovieUrls:
         return {name: folder.movie_urls for name, folder in self.folders.items()}
+
+
+def url_to_folder(url):
+    fs, _, path = fsspec.get_fs_token_paths(url)
+    return DiagnosticFolder(fs, path[0])
 
 
 @dataclass
