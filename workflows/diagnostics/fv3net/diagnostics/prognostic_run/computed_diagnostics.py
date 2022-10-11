@@ -46,10 +46,8 @@ class ComputedDiagnosticsList:
     def from_urls(urls: Sequence[str]) -> "ComputedDiagnosticsList":
         """Open computed diagnostics at the specified urls
         """
-
-        return ComputedDiagnosticsList(
-            {str(k): url_to_folder(url) for k, url in enumerate(urls)}
-        )
+        urls_dict = {str(k): url for k, url in enumerate(urls)}
+        return ComputedDiagnosticsList.from_dict(urls_dict)
 
     @staticmethod
     def from_json(
@@ -60,13 +58,8 @@ class ComputedDiagnosticsList:
         with fsspec.open(url) as f:
             rundirs = json.load(f)
 
-        if urls_are_rundirs:
-            for item in rundirs:
-                item["url"] += "_diagnostics"
-
-        return ComputedDiagnosticsList(
-            {item["name"]: url_to_folder(item["url"]) for item in rundirs}
-        )
+        urls_dict = {item["name"]: item["url"] for item in rundirs}
+        return ComputedDiagnosticsList.from_dict(urls_dict, urls_are_rundirs)
 
     @staticmethod
     def from_dict(
