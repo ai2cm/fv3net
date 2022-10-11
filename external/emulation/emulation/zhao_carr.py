@@ -3,6 +3,7 @@
 the functions in this submodule know the variable names of the ZC microphysics
 
 """
+import logging
 import numpy as np
 import numba
 from fv3fit.emulation.transforms.zhao_carr import (
@@ -12,6 +13,8 @@ from fv3fit.emulation.transforms.zhao_carr import (
     POSITIVE_TENDENCY,
     NEGATIVE_TENDENCY,
 )
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "infer_gscond_cloud_from_conservation",
@@ -79,6 +82,20 @@ def squash_precpd(state, emulator, cloud_squash):
     return _apply_squash(PrecpdOutput, emulator, cloud_squash)
 
 
+def _limit_net_condensation_conserving(state, net_condensation):
+    available_vapor = state[Input.humidity]
+    available_liquid = state[Input.cloud_water]
+    condensation = np.where(net_condensation > 0, net_condensation, 0.0)
+    evaporation = np.where(net_condensation < 0, net_condensation, 0.0)
+
+    limited_evaporation = np.maximum(evaporation, -available_liquid)
+    limited_condensation = np.minimum(condensation, available_vapor)
+    logger.info({"evap_mass_cons_adj": np.sum(limited_evaporation - evaporation)})
+    logger.info({"cond_mass_cons_adj": np.sum(limited_condensation - condensation)})
+    net_condensation = limited_evaporation + limited_condensation
+    return net_condensation
+
+
 def apply_condensation_liquid_phase(state, net_condensation):
     # from physcons.f
     lv = 2.5e6
@@ -141,6 +158,7 @@ def apply_condensation(state, net_condensation, lv):
 
 def _update_with_net_condensation(cloud_out, state, emulator):
     net_condensation = cloud_out - state[Input.cloud_water]
+    net_condensation = _limit_net_condensation_conserving(state, net_condensation)
     return {**emulator, **apply_condensation_liquid_phase(state, net_condensation)}
 
 
