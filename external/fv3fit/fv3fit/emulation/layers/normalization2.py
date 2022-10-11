@@ -25,15 +25,31 @@ class NormLayer(tf.Module):
 
 
 class StdDevMethod(Enum):
+    """
+    per_feature: std calculated at each individual feature
+    all: std calculated over all features, but the centering in the calculation
+        is per feature
+    true_all: std calculated over all features (mean also calculated over all features)
+    max: std is the max of the per_feature calculated std values
+    mean: std is the mean of the per_feature calculated std values
+    none: std is 1
+    """
+
     per_feature = "per_feature"
     all = "all"
-    all_all = "all_all"
+    true_all = "true_all"
     max = "max"
     mean = "mean"
     none = "none"
 
 
 class MeanMethod(Enum):
+    """
+    per_feature: mean calculated for each feature
+    all: mean calculated over all features
+    none: mean is 0
+    """
+
     per_feature = "per_feature"
     all = "all"
     none = "none"
@@ -105,7 +121,7 @@ def _compute_scale(tensor: tf.Tensor, method: StdDevMethod) -> tf.Tensor:
     fit_scale = {
         StdDevMethod.per_feature: _fit_std_per_feature,
         StdDevMethod.all: _standard_deviation_all_features,
-        StdDevMethod.all_all: tf.math.reduce_std,
+        StdDevMethod.true_all: tf.math.reduce_std,
         StdDevMethod.max: _fit_std_max,
         StdDevMethod.mean: _fit_std_mean,
         StdDevMethod.none: lambda _: tf.constant(1, dtype=tf.float32),
