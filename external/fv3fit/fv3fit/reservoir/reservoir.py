@@ -85,19 +85,19 @@ class Reservoir:
 
     def _generate_W_in(self):
         W_in_rows = []
-        # Generate by row to ensure same number of connections per input element
-        for k in range(self.hyperparameters.state_size):
+        # Generate by column to ensure same number of connections per input element
+        for k in range(self.hyperparameters.input_size):
             W_in_rows.append(
                 _random_uniform_sparse_matrix(
-                    m=1,
-                    n=self.hyperparameters.input_size,
+                    m=self.hyperparameters.state_size,
+                    n=1,
                     sparsity=self.hyperparameters.input_coupling_sparsity,
                     min=-self.hyperparameters.input_coupling_scaling,
                     max=self.hyperparameters.input_coupling_scaling,
                 )
             )
 
-        return scipy.sparse.vstack(W_in_rows)
+        return scipy.sparse.hstack(W_in_rows)
 
     def _generate_W_res(self):
         W_res = _random_uniform_sparse_matrix(

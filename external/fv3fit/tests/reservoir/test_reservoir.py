@@ -62,11 +62,12 @@ def test_Win_equal_connections_per_input():
         input_coupling_sparsity=input_coupling_sparsity,
     )
     reservoir = Reservoir(hyperparameters)
-    nonzero_per_row = [
-        reservoir.W_in.getrow(i).count_nonzero()
-        for i in range(hyperparameters.state_size)
+    nonzero_per_col = [
+        reservoir.W_in.T.getrow(i).count_nonzero()
+        for i in range(hyperparameters.input_size)
     ]
-    assert len(np.unique(nonzero_per_row)) == 1
+    assert np.unique(nonzero_per_col).item() == 800
+    assert len(np.unique(nonzero_per_col)) == 1
 
 
 def test_increment_state():
