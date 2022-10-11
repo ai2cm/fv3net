@@ -37,36 +37,9 @@ def transform_inputs_to_reservoir_states(X, reservoir, input_noise: InputNoise):
     reservoir_states = []
     X_noised = X + input_noise.generate()
     for x in X_noised:
-        reservoir_states.append(reservoir.state)
         reservoir.increment_state(x)
+        reservoir_states.append(reservoir.state)
     return np.array(reservoir_states)
-
-
-def _initialize_reservoir(reservoir_config):
-    return Reservoir(reservoir_config)
-
-
-def _train_predictor(subdomain, reservoir, train_config):
-    n_select = (
-        None
-        if not train_config.n_samples
-        else train_config.n_burn + train_config.n_samples
-    )
-    noise = InputNoise(reservoir.hyperparameters.input_dim, train_config.noise)
-    X = subdomain.overlapping[:-1]
-    y = subdomain.nonoverlapping[1:]
-
-    X_res = transform_inputs_to_reservoir_states(
-        X=X[:n_select], reservoir=reservoir, input_noise=noise
-    )
-
-    reg = Ridge(alpha=train_config.l2)
-    X_, y_ = shuffle(
-        X_res[train_config.n_burn : n_select], y[train_config.n_burn : n_select]
-    )
-    reg.fit(X_, y_)
-
-    return ReservoirPredictor(reservoir, reg)
 
 
 if __name__ == "__main__":
@@ -80,4 +53,33 @@ if __name__ == "__main__":
 
     training_ts = ks_config.generate(
         n_steps=train_config.n_samples, seed=train_config.seed
+    )
+
+    reservoir = Reservoir(train_config.reservoir_hyperparameters)
+    input_noise = InputNoise(
+        size=ks_config.N, stddev=train_config.input_noise, seed=train_config.seed
+    )
+
+    training_ts_burnin, training_ts_keep = (
+        training_ts[: train_config.n_burn],
+        training_ts[train_config.n_burn :],
+    )
+    reservoir.synchronize(training_ts_burnin, input_noise=input_noise)
+    training_reservoir_states = transform_inputs_to_reservoir_states(
+        X=training_ts_keep, reservoir=reservoir, input_noise=input_noise
+    )
+
+    X_train = training_reservoir_states[:1]
+    y_train = training_ts_keep[1:]
+    X_train, y_train = shuffle(X_train, y_train, random_state=train_config.seed)
+
+    linear_regressor = Ridge(
+        alpha=train_config.readout_config.l2, solver=train_config.readout_config.solver
+    )
+    linear_regressor.fit(X_train, y_train)
+
+    predictor = ReservoirPredictor(
+        reservoir=reservoir,
+        linreg=linear_regressor,
+        square_half_hidden_state=train_config.square_half_hidden_state,
     )
