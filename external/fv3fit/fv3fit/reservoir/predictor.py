@@ -9,7 +9,7 @@ import yaml
 
 
 from .reservoir import Reservoir
-from fv3fit.reservoir.config import ReservoirHyperparameters
+from fv3fit.reservoir.reservoir import ReservoirHyperparameters
 
 
 def _square_even_terms(v: np.ndarray) -> np.ndarray:
