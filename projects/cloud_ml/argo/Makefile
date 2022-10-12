@@ -44,6 +44,10 @@ prescribed_state_run: deploy
 baseline_run_max_ran_rad: deploy
 	cd nudge-to-fine-run/rad-config && ./run.sh baseline-max-ran-rad
 
+.PHONY: baseline_run_ran_ovr_rad
+baseline_run_ran_ovr_rad: deploy
+	cd nudge-to-fine-run/rad-config && ./run.sh baseline-ran-ovr-rad
+
 .PHONY: baseline_run_max_ovr_rad
 baseline_run_max_ovr_rad: deploy
 	cd nudge-to-fine-run/rad-config && ./run.sh baseline-max-ovr-rad
@@ -51,6 +55,10 @@ baseline_run_max_ovr_rad: deploy
 .PHONY: baseline_run_decorr_rad
 baseline_run_decorr_rad: deploy
 	cd nudge-to-fine-run/rad-config && ./run.sh baseline-decorr-rad
+
+.PHONY: nudge_to_fine_run_ran_ovr_rad
+nudge_to_fine_run_ran_ovr_rad: deploy
+	cd nudge-to-fine-run/rad-config && ./run.sh nudge-to-fine-ran-ovr-rad
 
 .PHONY: nudge_to_fine_run_max_ran_rad
 nudge_to_fine_run_max_ran_rad: deploy
