@@ -7,7 +7,8 @@ import joblib
 import yaml
 
 from .readout import ReservoirComputingReadout
-from .reservoir import Reservoir, ReservoirHyperparameters
+from .reservoir import Reservoir
+from .config import ReservoirHyperparameters
 
 
 class ReservoirComputingModel:

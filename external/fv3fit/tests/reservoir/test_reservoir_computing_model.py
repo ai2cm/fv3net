@@ -3,9 +3,12 @@ from scipy import sparse
 
 from sklearn.dummy import DummyRegressor
 
-from fv3fit.reservoir.model import ReservoirComputingModel
-from fv3fit.reservoir.readout import ReservoirComputingReadout
-from fv3fit.reservoir.reservoir import Reservoir, ReservoirHyperparameters
+from fv3fit.reservoir import (
+    ReservoirComputingModel,
+    ReservoirComputingReadout,
+    Reservoir,
+    ReservoirHyperparameters,
+)
 
 
 class MultiOutputMeanRegressor:
