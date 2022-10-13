@@ -18,6 +18,7 @@ DOCKER_INTERACTIVE_ARGS = \
 	-v $(shell pwd)/external:/fv3net/external \
 	-v $(shell pwd)/workflows:/fv3net/workflows \
 	-v $(shell pwd)/projects:/fv3net/projects \
+	-v /fv3net/external/fv3gfs-fortran \
 	--mount source=bash_history,target=/root/.bash_history \
 	-e HISTFILE=/root/.bash_history/history
 
