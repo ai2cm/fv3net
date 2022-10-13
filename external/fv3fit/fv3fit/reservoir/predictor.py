@@ -8,11 +8,10 @@ from sklearn.linear_model import Ridge
 import yaml
 
 
-from .reservoir import Reservoir
-from fv3fit.reservoir.reservoir import ReservoirHyperparameters
+from .reservoir import Reservoir, ReservoirHyperparameters
 
 
-def _square_even_terms(v: np.ndarray) -> np.ndarray:
+def _square_evens(v: np.ndarray) -> np.ndarray:
     evens = v[::2]
     odds = v[1::2]
     c = np.empty((v.size,), dtype=v.dtype)
@@ -21,35 +20,53 @@ def _square_even_terms(v: np.ndarray) -> np.ndarray:
     return c
 
 
+def square_even_terms(v: np.ndarray, axis=0) -> np.ndarray:
+    return np.apply_along_axis(func1d=_square_evens, axis=axis, arr=v)
+
+
+class ReservoirComputingReadout:
+    def __init__(
+        self, linear_regressor: Ridge, square_half_hidden_state: bool = False,
+    ):
+        self.linear_regressor = linear_regressor
+        self.square_half_hidden_state = square_half_hidden_state
+
+    def fit(self, res_states: np.ndarray, output_states: np.ndarray) -> None:
+        if self.square_half_hidden_state:
+            res_states = square_even_terms(res_states, axis=1)
+        self.linear_regressor.fit(res_states, output_states)
+
+    def predict(self, input):
+        if len(input.shape) == 1:
+            input = input.reshape(1, -1)
+        if self.square_half_hidden_state:
+            input = square_even_terms(input, axis=1)
+        return self.linear_regressor.predict(input)
+
+    def dumps(self) -> bytes:
+        components = {
+            "linear_regressor": self.linear_regressor,
+            "square_half_hidden_state": self.square_half_hidden_state,
+        }
+        f = io.BytesIO()
+        joblib.dump(components, f)
+        return f.getvalue()
+
+
 class ReservoirComputingModel:
     _READOUT_NAME = "readout.pkl"
     _METADATA_NAME = "metadata.bin"
 
     def __init__(
-        self,
-        reservoir: Reservoir,
-        readout: Ridge,
-        square_half_hidden_state: bool = False,
+        self, reservoir: Reservoir, readout: ReservoirComputingReadout,
     ):
         self.reservoir = reservoir
         self.readout = readout
-        self.square_half_hidden_state = square_half_hidden_state
 
     def predict(self):
-        # the reservoir state at t+Delta t uses the state AND input at t,
-        # so the prediction occurs before the state increment
-        res_state_ = self.reservoir.state.reshape(1, -1)
-        if self.square_half_hidden_state:
-            res_state_ = _square_even_terms(res_state_)
-
-        prediction = self.readout.predict(res_state_).reshape(-1)
+        prediction = self.readout.predict(self.reservoir.state)
         self.reservoir.increment_state(prediction)
         return prediction
-
-    def _dumps(self, obj) -> bytes:
-        f = io.BytesIO()
-        joblib.dump(obj, f)
-        return f.getvalue()
 
     def dump(self, path: str) -> None:
         """Dump data to a directory
@@ -62,12 +79,11 @@ class ReservoirComputingModel:
         fs.makedirs(path, exist_ok=True)
         mapper = fs.get_mapper(path)
 
-        mapper[self._READOUT_NAME] = self._dumps(self.readout)
+        mapper[self._READOUT_NAME] = self.readout.dumps()
         metadata = {
             "reservoir_hyperparameters": dataclasses.asdict(
                 self.reservoir.hyperparameters
-            ),
-            "square_half_hidden_state": self.square_half_hidden_state,
+            )
         }
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
@@ -77,15 +93,12 @@ class ReservoirComputingModel:
         mapper = fsspec.get_mapper(path)
 
         f = io.BytesIO(mapper[cls._READOUT_NAME])
-        readout = joblib.load(f)
+        readout_components = joblib.load(f)
+        readout = ReservoirComputingReadout(**readout_components)
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
 
         reservoir_hyperparameters = dacite.from_dict(
             ReservoirHyperparameters, metadata["reservoir_hyperparameters"]
         )
 
-        return cls(
-            reservoir=Reservoir(reservoir_hyperparameters),
-            readout=readout,
-            square_half_hidden_state=metadata["square_half_hidden_state"],
-        )
+        return cls(reservoir=Reservoir(reservoir_hyperparameters), readout=readout,)

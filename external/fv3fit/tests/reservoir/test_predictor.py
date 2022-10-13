@@ -1,15 +1,32 @@
 import numpy as np
+import pytest
 from scipy import sparse
 
 from sklearn.dummy import DummyRegressor
 
-from fv3fit.reservoir.predictor import ReservoirComputingModel, _square_even_terms
+from fv3fit.reservoir.predictor import (
+    ReservoirComputingModel,
+    ReservoirComputingReadout,
+    square_even_terms,
+)
 from fv3fit.reservoir.reservoir import Reservoir, ReservoirHyperparameters
 
 
-def test__square_even_terms():
-    x = np.arange(4)
-    np.testing.assert_array_equal(_square_even_terms(x), np.array([0, 1, 4, 3]))
+@pytest.mark.parametrize(
+    "arr, axis, expected",
+    [
+        (np.arange(4), 0, np.array([0, 1, 4, 3])),
+        (np.arange(4).reshape(1, -1), 1, np.array([[0, 1, 4, 3]])),
+        (np.arange(8).reshape(2, 4), 0, np.array([[0, 1, 4, 9], [4, 5, 6, 7]])),
+        (
+            np.arange(10).reshape(2, 5),
+            1,
+            np.array([[0, 1, 4, 3, 16], [25, 6, 49, 8, 81]]),
+        ),
+    ],
+)
+def test_square_even_terms(arr, axis, expected):
+    np.testing.assert_array_equal(square_even_terms(arr, axis=axis), expected)
 
 
 class MultiOutputMeanRegressor:
@@ -33,6 +50,17 @@ def _sparse_allclose(A, B, atol=1e-8):
         return np.allclose(v1, v2, atol=atol)
 
 
+def test_readout_square_half_hidden_state():
+    readout = ReservoirComputingReadout(
+        linear_regressor=MultiOutputMeanRegressor(n_outputs=2),
+        square_half_hidden_state=True,
+    )
+    input = np.array([2, 2, 2, 2, 2])
+    # square even entries -> [4, 2, 4, 2, 4]
+    output = readout.predict(input)
+    np.testing.assert_array_almost_equal(output, np.array([16.0 / 5, 16.0 / 5]))
+
+
 def test_dump_load_preserves_reservoir(tmpdir):
     hyperparameters = ReservoirHyperparameters(
         input_size=10,
@@ -42,9 +70,11 @@ def test_dump_load_preserves_reservoir(tmpdir):
         input_coupling_sparsity=0,
     )
     reservoir = Reservoir(hyperparameters)
-    predictor = ReservoirComputingModel(
-        reservoir=reservoir, readout=DummyRegressor(strategy="constant", constant=-1.0),
+    readout = ReservoirComputingReadout(
+        linear_regressor=DummyRegressor(strategy="constant", constant=-1.0),
+        square_half_hidden_state=False,
     )
+    predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
 
@@ -66,10 +96,11 @@ def test_ReservoirComputingModel_state_increment():
     reservoir.W_in = sparse.coo_matrix(np.ones(reservoir.W_in.shape))
     reservoir.W_res = sparse.coo_matrix(np.ones(reservoir.W_res.shape))
 
-    readout = MultiOutputMeanRegressor(n_outputs=input_size)
-    predictor = ReservoirComputingModel(
-        reservoir=reservoir, readout=readout, square_half_hidden_state=False
+    readout = ReservoirComputingReadout(
+        linear_regressor=MultiOutputMeanRegressor(n_outputs=input_size),
+        square_half_hidden_state=False,
     )
+    predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
 
     predictor.reservoir.reset_state()
     predictor.reservoir.increment_state(np.array([0.5, 0.5]))
@@ -88,10 +119,11 @@ def test_prediction_after_load(tmpdir):
         input_coupling_sparsity=0,
     )
     reservoir = Reservoir(hyperparameters)
-    readout = MultiOutputMeanRegressor(n_outputs=input_size)
-    predictor = ReservoirComputingModel(
-        reservoir=reservoir, readout=readout, square_half_hidden_state=False
+    readout = ReservoirComputingReadout(
+        linear_regressor=MultiOutputMeanRegressor(n_outputs=input_size),
+        square_half_hidden_state=True,
     )
+    predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
     predictor.reservoir.reset_state()
     for i in range(10):
         predictor.reservoir.increment_state(np.ones(input_size))
