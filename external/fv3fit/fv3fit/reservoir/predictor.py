@@ -25,6 +25,15 @@ def square_even_terms(v: np.ndarray, axis=0) -> np.ndarray:
 
 
 class ReservoirComputingReadout:
+    """Readout layer of the reservoir computing model
+
+    linear_regressor: a sklearn Ridge regreesor
+    square_half_hidden_state: if True, square even terms in the reservoir state
+        before it is used as input to the regressor's .fit and .predict methods
+        This option was found to be important for skillful predictions in
+        Wikner+2020 (https://doi.org/10.1063/5.0005541)
+    """
+
     def __init__(
         self, linear_regressor: Ridge, square_half_hidden_state: bool = False,
     ):
