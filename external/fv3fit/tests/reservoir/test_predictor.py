@@ -3,6 +3,7 @@ import pytest
 from scipy import sparse
 
 from sklearn.dummy import DummyRegressor
+from sklearn.linear_model import Ridge
 
 from fv3fit.reservoir.predictor import (
     ReservoirComputingModel,
@@ -27,6 +28,21 @@ from fv3fit.reservoir.reservoir import Reservoir, ReservoirHyperparameters
 )
 def test_square_even_terms(arr, axis, expected):
     np.testing.assert_array_equal(square_even_terms(arr, axis=axis), expected)
+
+
+def test_reservoir_computing_readout_fit():
+    unsquared = ReservoirComputingReadout(Ridge())
+    squared = ReservoirComputingReadout(Ridge(), square_half_hidden_state=True)
+
+    res_states = np.arange(10).reshape(2, 5)
+    output_states = np.arange(6).reshape(2, 3)
+
+    unsquared.fit(res_states, output_states)
+    squared.fit(res_states, output_states)
+
+    assert not np.allclose(
+        unsquared.linear_regressor.coef_, squared.linear_regressor.coef_
+    )
 
 
 class MultiOutputMeanRegressor:
