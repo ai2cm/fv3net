@@ -76,8 +76,7 @@ class ReservoirTrainingConfig:
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
-        kwargs = {**kwargs}  # make a copy to avoid mutating the input
-        # custom enums must be specified for dacite to handle correctly
+        kwargs = {**kwargs}
         dacite_config = dacite.Config(strict=True, cast=[bool, str, int, float])
         kwargs["reservoir_hyperparameters"] = dacite.from_dict(
             data_class=ReservoirHyperparameters,
