@@ -20,7 +20,7 @@ def _square_evens(v: np.ndarray) -> np.ndarray:
     return c
 
 
-def square_even_terms(v: np.ndarray, axis=0) -> np.ndarray:
+def square_even_terms(v: np.ndarray, axis=1) -> np.ndarray:
     return np.apply_along_axis(func1d=_square_evens, axis=axis, arr=v)
 
 
