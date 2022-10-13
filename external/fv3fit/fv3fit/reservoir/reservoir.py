@@ -81,7 +81,7 @@ class Reservoir:
     def synchronize(self, synchronization_time_series):
         self.reset_state()
         for input in synchronization_time_series:
-            self.increment_reservoir_state(input)
+            self.increment_state(input)
 
     def _generate_W_in(self):
         W_in_cols = []

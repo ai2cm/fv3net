@@ -1,48 +1,11 @@
 import numpy as np
-import pytest
 from scipy import sparse
 
 from sklearn.dummy import DummyRegressor
-from sklearn.linear_model import Ridge
 
-from fv3fit.reservoir.predictor import (
-    ReservoirComputingModel,
-    ReservoirComputingReadout,
-    square_even_terms,
-)
+from fv3fit.reservoir.model import ReservoirComputingModel
+from fv3fit.reservoir.readout import ReservoirComputingReadout
 from fv3fit.reservoir.reservoir import Reservoir, ReservoirHyperparameters
-
-
-@pytest.mark.parametrize(
-    "arr, axis, expected",
-    [
-        (np.arange(4), 0, np.array([0, 1, 4, 3])),
-        (np.arange(4).reshape(1, -1), 1, np.array([[0, 1, 4, 3]])),
-        (np.arange(8).reshape(2, 4), 0, np.array([[0, 1, 4, 9], [4, 5, 6, 7]])),
-        (
-            np.arange(10).reshape(2, 5),
-            1,
-            np.array([[0, 1, 4, 3, 16], [25, 6, 49, 8, 81]]),
-        ),
-    ],
-)
-def test_square_even_terms(arr, axis, expected):
-    np.testing.assert_array_equal(square_even_terms(arr, axis=axis), expected)
-
-
-def test_reservoir_computing_readout_fit():
-    unsquared = ReservoirComputingReadout(Ridge())
-    squared = ReservoirComputingReadout(Ridge(), square_half_hidden_state=True)
-
-    res_states = np.arange(10).reshape(2, 5)
-    output_states = np.arange(6).reshape(2, 3)
-
-    unsquared.fit(res_states, output_states)
-    squared.fit(res_states, output_states)
-
-    assert not np.allclose(
-        unsquared.linear_regressor.coef_, squared.linear_regressor.coef_
-    )
 
 
 class MultiOutputMeanRegressor:
@@ -64,17 +27,6 @@ def _sparse_allclose(A, B, atol=1e-8):
         return False
     else:
         return np.allclose(v1, v2, atol=atol)
-
-
-def test_readout_square_half_hidden_state():
-    readout = ReservoirComputingReadout(
-        linear_regressor=MultiOutputMeanRegressor(n_outputs=2),
-        square_half_hidden_state=True,
-    )
-    input = np.array([2, 2, 2, 2, 2])
-    # square even entries -> [4, 2, 4, 2, 4]
-    output = readout.predict(input)
-    np.testing.assert_array_almost_equal(output, np.array([16.0 / 5, 16.0 / 5]))
 
 
 def test_dump_load_preserves_reservoir(tmpdir):
@@ -120,9 +72,10 @@ def test_ReservoirComputingModel_state_increment():
 
     predictor.reservoir.reset_state()
     predictor.reservoir.increment_state(np.array([0.5, 0.5]))
-
+    state_before_prediction = predictor.reservoir.state
     prediction = predictor.predict()
     np.testing.assert_array_almost_equal(prediction, np.tanh(np.array([1.0, 1.0])))
+    assert not np.allclose(state_before_prediction, predictor.reservoir.state)
 
 
 def test_prediction_after_load(tmpdir):
@@ -141,16 +94,19 @@ def test_prediction_after_load(tmpdir):
     )
     predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
     predictor.reservoir.reset_state()
+
+    ts_sync = [np.ones(input_size) for i in range(20)]
+    predictor.reservoir.synchronize(ts_sync)
     for i in range(10):
-        predictor.reservoir.increment_state(np.ones(input_size))
-    prediction0 = predictor.predict()
+        prediction0 = predictor.predict()
 
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
     loaded_predictor = ReservoirComputingModel.load(output_path)
     loaded_predictor.reservoir.reset_state()
+
+    loaded_predictor.reservoir.synchronize(ts_sync)
     for i in range(10):
-        loaded_predictor.reservoir.increment_state(np.ones(input_size))
-    prediction1 = loaded_predictor.predict()
+        prediction1 = loaded_predictor.predict()
 
     np.testing.assert_array_almost_equal(prediction0, prediction1)
