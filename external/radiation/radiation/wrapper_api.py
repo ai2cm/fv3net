@@ -4,7 +4,6 @@ try:
     from mpi4py import MPI
 except ImportError:
     pass
-from datetime import timedelta
 import cftime
 import numpy as np
 import xarray as xr
@@ -224,26 +223,28 @@ class Radiation:
 
     def _rad_compute(self, state: State, time: cftime.DatetimeJulian,) -> Diagnostics:
         """Compute the radiative fluxes"""
-        solhr = _solar_hour(time)
-        statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)
-        grid, coords = get_grid(state)
-        sfcprop = get_sfcprop(state)
-        ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
-        random_numbers = io.generate_random_numbers(ncolumns, nz, NGPTSW, NGPTLW)
-        out = self._driver._GFS_radiation_driver(
-            self._rad_config.gfs_physics_control,
-            self._driver.solar_constant,
-            solhr,
-            statein,
-            sfcprop,
-            grid,
-            random_numbers,
-            self._lw_lookup,
-            self._sw_lookup,
-        )
-        if len(out) > 0:
-            out = postprocess_out(out)
-            self._cached = unstack(out, coords)
+        if (
+            self._rad_config.gfs_physics_control.lsswr
+            or self._rad_config.gfs_physics_control.lslwr
+        ):
+            solhr = _solar_hour(time)
+            statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)
+            grid, coords = get_grid(state)
+            sfcprop = get_sfcprop(state)
+            ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
+            random_numbers = io.generate_random_numbers(ncolumns, nz, NGPTSW, NGPTLW)
+            out = self._driver._GFS_radiation_driver(
+                self._rad_config.gfs_physics_control,
+                self._driver.solar_constant,
+                solhr,
+                statein,
+                sfcprop,
+                grid,
+                random_numbers,
+                self._lw_lookup,
+                self._sw_lookup,
+            )
+            self._cached = unstack(postprocess_out(out), coords)
         return self._cached
 
 
@@ -261,10 +262,8 @@ def _get_forecast_time_index(
     timestep_seconds: float,
 ) -> int:
     """Get integer index of forecast time, since initial time """
-    forecast_elapsed_seconds = (
-        current_time + timedelta(seconds=timestep_seconds) - init_time
-    ) / timedelta(seconds=1)
-    return int(forecast_elapsed_seconds / timestep_seconds)
+    forecast_elapsed_seconds = (current_time - init_time).total_seconds()
+    return int(forecast_elapsed_seconds / timestep_seconds) + 1
 
 
 def _is_compute_timestep(timestep_index: int, compute_period: int) -> bool:

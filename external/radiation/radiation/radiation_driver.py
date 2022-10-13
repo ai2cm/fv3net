@@ -378,9 +378,6 @@ class RadiationDriver:
         if gfs_physics_control.effr_in:
             raise FileNotFoundError(f"effr_in = True Not implemented")
 
-        if not (gfs_physics_control.lsswr or gfs_physics_control.lslwr):
-            return {}
-
         # --- set commonly used integers
         LM = gfs_physics_control.levr
         LEVS = gfs_physics_control.levs
