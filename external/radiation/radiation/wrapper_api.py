@@ -172,24 +172,19 @@ class Radiation:
         return diagnostics
 
     def _set_compute_flags(self, time: cftime.DatetimeJulian) -> None:
-        forecast_elapsed_seconds = (
-            time + timedelta(seconds=self._timestep) - self._init_time
-        ) / timedelta(seconds=1)
-        forecast_timestep_count = int(forecast_elapsed_seconds / self._timestep)
+        timestep_index = _get_forecast_time_index(time, self._init_time, self._timestep)
         sw_compute_period = self._rad_config.gfs_physics_control.nsswr
         if sw_compute_period is None:
             raise ValueError("GFS physics control nsswr not set.")
-        elif sw_compute_period == 1 or forecast_timestep_count % sw_compute_period == 1:
-            self._rad_config.gfs_physics_control.lsswr = True
-        else:
-            self._rad_config.gfs_physics_control.lsswr = False
+        self._rad_config.gfs_physics_control.lsswr = _is_compute_timestep(
+            timestep_index, sw_compute_period
+        )
         lw_compute_period = self._rad_config.gfs_physics_control.nslwr
         if lw_compute_period is None:
             raise ValueError("GFS physics control nslwr not set.")
-        elif lw_compute_period == 1 or forecast_timestep_count % lw_compute_period == 1:
-            self._rad_config.gfs_physics_control.lslwr = True
-        else:
-            self._rad_config.gfs_physics_control.lslwr = False
+        self._rad_config.gfs_physics_control.lslwr = _is_compute_timestep(
+            timestep_index, lw_compute_period
+        )
 
     def _rad_update(self, time: cftime.DatetimeJulian, dt_atmos: float) -> None:
         """Update the radiation driver's time-varying parameters"""
@@ -258,3 +253,24 @@ def _solar_hour(time: cftime.DatetimeJulian) -> float:
         + time.minute / MINUTES_PER_HOUR
         + time.second / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE)
     )
+
+
+def _get_forecast_time_index(
+    current_time: cftime.DatetimeJulian,
+    init_time: cftime.DatetimeJulian,
+    timestep_seconds: float,
+) -> int:
+    """Get integer index of forecast time, since initial time """
+    forecast_elapsed_seconds = (
+        current_time + timedelta(seconds=timestep_seconds) - init_time
+    ) / timedelta(seconds=1)
+    return int(forecast_elapsed_seconds / timestep_seconds)
+
+
+def _is_compute_timestep(timestep_index: int, compute_period: int) -> bool:
+    if compute_period == 1:
+        return True
+    elif timestep_index % compute_period == 1:
+        return True
+    else:
+        return False
