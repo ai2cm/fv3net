@@ -6,9 +6,11 @@ from sklearn.linear_model import Ridge
 from sklearn.utils import shuffle
 
 import yaml
-from fv3fit.reservoir.readout import ReservoirComputingReadout
-from fv3fit.reservoir.reservoir import Reservoir
-from fv3fit.reservoir.model import ReservoirComputingModel
+from fv3fit.reservoir import (
+    ReservoirComputingReadout,
+    Reservoir,
+    ReservoirComputingModel,
+)
 from fv3fit.reservoir.transform import InputNoise
 from fv3fit.reservoir.config import ReservoirTrainingConfig
 from ks import KSConfig
