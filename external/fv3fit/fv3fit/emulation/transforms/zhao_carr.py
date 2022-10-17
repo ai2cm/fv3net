@@ -107,6 +107,66 @@ class CloudLimiter(TensorTransform):
         return out
 
 
+def calc_total_precipitation(
+    condensate_to_precip: tf.Tensor, precip_to_vapor: tf.Tensor, delp: tf.Tensor
+) -> tf.Tensor:
+    rho_water = 1000.0
+    gravity = 9.80665
+
+    rain_water = condensate_to_precip - precip_to_vapor
+    rain_water = tf.where(rain_water < 0, 0, rain_water)
+    total_precip = rain_water * delp / gravity / rho_water
+    return tf.math.reduce_sum(total_precip, axis=-1, keepdims=True)
+
+
+@dataclasses.dataclass
+class PrecpdConservativePrecip(TensorTransform):
+    """
+    Hardcoded transform to determine total precipitation from column
+    changes in moisture.
+    """
+
+    conservative_precip: bool = True
+    cloud_in: str = CLOUD_GSCOND
+    cloud_out: str = CLOUD_PRECPD
+    humidity_in: str = QV_GSCOND
+    humidity_out: str = QV_PRECPD
+    to: str = "total_precipitation"
+    delp: str = DELP
+
+    def build(self, sample: TensorDict):
+        return self
+
+    def backward_input_names(self) -> Set[str]:
+        return {
+            self.cloud_in,
+            self.cloud_out,
+            self.humidity_in,
+            self.humidity_out,
+            self.delp,
+        }
+
+    def backward_output_names(self) -> Set[str]:
+        return {self.to}
+
+    def backward_names(self, requested_names: Set[str]) -> Set[str]:
+        out = set(requested_names)
+        out -= self.backward_output_names()
+        out |= self.backward_input_names()
+        return out
+
+    def forward(self, x: TensorDict) -> TensorDict:
+        return x
+
+    def backward(self, y: TensorDict) -> TensorDict:
+        cloud_change = y[self.cloud_out] - y[self.cloud_in]
+        humidity_change = y[self.humidity_out] - y[self.humidity_in]
+        total_precipitation = calc_total_precipitation(
+            cloud_change, humidity_change, y[self.delp]
+        )
+        return {**y, "total_precipitation": total_precipitation}
+
+
 @dataclasses.dataclass
 class MicrophysicsClasssesV1(TensorTransform):
     """
