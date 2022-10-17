@@ -1,10 +1,10 @@
-# # submit with
-# # python3 argo/end_to_end.py train/precpd-only.yaml
-# kind: train
-# name: precpd-only-true-input-v2
-# fv3fit_image_tag: 94637b2eb14a9040fd91c357337c04141a089162
-# experiment: gscond-precpd
-# config:
+# submit with
+# python3 argo/end_to_end.py train/precpd-only.yaml
+kind: train
+name: precpd-only-true-input-v2
+fv3fit_image_tag: 94637b2eb14a9040fd91c357337c04141a089162
+experiment: gscond-precpd
+config:
   use_wandb: true
   wandb:
     wandb_project: microphysics-emulation
@@ -29,33 +29,11 @@
       - temperature_precpd_difference
       - humidity_precpd_difference
   model:
+    precpd_only: true
     architecture:
-      kernel_regularizer:
-        kwargs: {}
-        name: none
       kwargs:
         channels: 256
       name: rnn-v1-shared-weights
-    direct_out_variables:
-    - cloud_precpd_difference_tscaled
-    - humidity_precpd_difference_tscaled
-    - temperature_precpd_difference_tscaled
-    input_variables:
-    - air_temperature_after_gscond
-    - specific_humidity_after_gscond
-    - cloud_water_mixing_ratio_after_gscond
-    - log_cloud_input
-    - log_humidity_input
-    - pressure_thickness_of_atmospheric_layer
-    - surface_air_pressure
-    - air_pressure
-    normalize_default:
-      center: per_feature
-      scale: all
-    normalize_map:
-      air_pressure:
-        center: all
-        scale: all_all
   transform:
     antarctic_only: false
     derived_microphys_timestep: 900
