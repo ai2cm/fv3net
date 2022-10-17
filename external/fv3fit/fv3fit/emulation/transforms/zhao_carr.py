@@ -140,7 +140,7 @@ class RelativeHumidity(TensorTransform):
         rh = relative_humidity_from_pressure(
             x[self.temperature], x[self.humidity], x[self.pressure], math=tf.math
         )
-        return {self.relative_humidity: rh, **x}
+        return {**x, self.relative_humidity: rh}
 
     def backward(self, y: TensorDict) -> TensorDict:
         return y
