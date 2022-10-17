@@ -1,67 +1,83 @@
 from dataclasses import dataclass
-from scipy.fftpack import fft, ifft, fftfreq
-from numpy import pi, exp
+from scipy.fftpack import fft, ifft
+from numpy import pi
 import numpy as np
 from typing import Optional
 
 
-def integrate_ks_eqn(
-    N, domain_size, ic, tmax, timestep,
-):
+def integrate_ks_eqn(ic, domain_size, dt, Nt):
     """
-    This code is based on Kassam & Treferthen 2005
-    doi: 10.1137/S1064827502410633
+        Code is from
+        https://github.com/johnfgibson/julia-pde-benchmark/blob/master/codes/ksbenchmark.py,
+        which uses the MIT license.
 
+        Integrate the Kuramoto-Sivashinsky equation (Python)
+        u_t = -u*u_x - u_xx - u_xxxx, domain x in [0,domain_size], periodic BCs
+    inputs
+          ic = initial condition (vector of u(x) values on uniform gridpoints))
+         domain_size = domain length
+         dt = time step
+         Nt = number of integration timesteps
+      nsave = save every nsave-th time step
 
+    outputs
+          u = final state, vector of u(x, Nt*dt) at uniform x gridpoints
     """
-    d = 1.0 * domain_size / (2.0 * pi * N)
-    u = ic
 
-    v = fft(u)
+    Nx = np.size(ic)
+    kx = np.concatenate(
+        (np.arange(0, Nx / 2), np.array([0]), np.arange(-Nx / 2 + 1, 0))
+    )  # int wavenumbers: exp(2*pi*kx*x/L)
+    alpha = 2 * pi * kx / domain_size
+    # real wavenumbers:    exp(alpha*x)
+    D = 1j * alpha
+    # D = d/dx operator in Fourier space
+    L = pow(alpha, 2) - pow(alpha, 4)
+    # linear operator -D^2 - D^3 in Fourier space
+    G = -0.5 * D
+    # -1/2 D operator in Fourier space
 
-    # Precompute various ETDRK4 scalar quantities:
-    h = timestep  # time step
+    # Express PDE as u_t = Lu + N(u), L is linear part, N nonlinear part.
+    # Then Crank-Nicolson Adams-Bashforth discretization is
+    #
+    # (I - dt/2 L) u^{n+1} = (I + dt/2 L) u^n + 3dt/2 N^n - dt/2 N^{n-1}
+    #
+    # let A = (I - dt/2 L)
+    #     B = (I + dt/2 L), then the CNAB timestep formula
+    #
+    # u^{n+1} = A^{-1} (B u^n + 3dt/2 N^n - dt/2 N^{n-1})
 
-    k = fftfreq(N, d=d)
+    # some convenience variables
+    dt2 = dt / 2
+    dt32 = 3 * dt / 2
+    A = np.ones(Nx) + dt2 * L
+    B = 1.0 / (np.ones(Nx) - dt2 * L)
 
-    L = k ** 2 - k ** 4  # Fourier multipliers
-    E = exp(h * L)
-    E2 = exp(h * L / 2)
-    M = 64  # no. of points for complex means
-    r = exp(1j * pi * (np.arange(1, M + 1) - 0.5) / M)  # roots of unity
-    LR = h * L[:, None] + r[None, :]
+    Nn = G * fft(
+        ic * ic
+    )  # compute -u u_x (spectral), notation Nn  = N^n     = N(u(n dt))
+    Nn1 = Nn
+    #                            notation Nn1 = N^{n-1} = N(u((n-1) dt))
+    u = fft(ic)  # transform u (spectral)
 
-    Q = h * np.mean((exp(LR / 2) - 1) / LR, axis=1).real
-    f1 = (
-        h * np.mean((-4 - LR + exp(LR) * (4 - 3 * LR + LR ** 2)) / LR ** 3, axis=1).real
-    )
-    f2 = h * np.mean((2 + LR + exp(LR) * (-2 + LR)) / LR ** 3, axis=1).real
-    f3 = (
-        h * np.mean((-4 - 3 * LR - LR ** 2 + exp(LR) * (4 - LR)) / LR ** 3, axis=1).real
-    )
-
-    # Main time-stepping loop:
-    uu = [
+    time_series = [
         ic,
     ]
+    # timestepping loop
+    for n in range(0, int(Nt)):
 
-    nmax = round(tmax / h)
+        Nn1 = Nn
+        # shift nonlinear term in time: N^{n-1} <- N^n
+        uu = np.real(ifft(u))
+        uu = uu * uu
+        uu = fft(uu)
+        Nn = G * uu  # compute Nn == -u u_x (spectral)
 
-    g = -0.5j * k
-    for n in range(nmax):
-        Nv = g * fft(np.real(ifft(v)) ** 2)
-        a = E2 * v + Q * Nv
-        Na = g * fft(np.real(ifft(a)) ** 2)
-        b = E2 * v + Q * Na
-        Nb = g * fft(np.real(ifft(b)) ** 2)
-        c = E2 * a + Q * (2 * Nb - Nv)
-        Nc = g * fft(np.real(ifft(c)) ** 2)
-        v = E * v + Nv * f1 + 2 * (Na + Nb) * f2 + Nc * f3
-
-        u = ifft(v).real
-        uu.append(u)
-
-    return np.array(uu)
+        u = B * (A * u + dt32 * Nn - dt2 * Nn1)
+        time_series.append(ifft(u))
+    # For some reason, calling np.real within the for loop results in
+    # list elements that still have complex parts with coeff 0.
+    return np.real(np.array(time_series))
 
 
 def _generate_ic(input_dim, seed=0):
@@ -75,12 +91,10 @@ def _generate_ic(input_dim, seed=0):
 
 
 def generate_ks_time_series(
-    input_size, domain_size, tmax, timestep=0.25, seed=0,
+    input_size, domain_size, n_steps, timestep=0.25, seed=0,
 ):
     ic = _generate_ic(input_size, seed)
-    return integrate_ks_eqn(
-        N=input_size, ic=ic, tmax=tmax, timestep=timestep, domain_size=domain_size
-    )
+    return integrate_ks_eqn(ic=ic, domain_size=domain_size, dt=timestep, Nt=n_steps)
 
 
 @dataclass
@@ -115,7 +129,7 @@ class KSConfig:
         """
         ks_time_series = generate_ks_time_series(
             input_size=self.N * self.spatial_downsampling_factor,
-            tmax=n_steps * self.time_downsampling_factor,
+            n_steps=n_steps * self.time_downsampling_factor,
             seed=seed,
             domain_size=self.domain_size,
             timestep=self.timestep,
