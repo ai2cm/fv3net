@@ -162,7 +162,7 @@ class PrecpdConservativePrecip(TensorTransform):
         cloud_change = y[self.cloud_out] - y[self.cloud_in]
         humidity_change = y[self.humidity_out] - y[self.humidity_in]
         total_precipitation = calc_total_precipitation(
-            cloud_change, humidity_change, y[self.delp]
+            -cloud_change, humidity_change, y[self.delp]
         )
         return {**y, "total_precipitation": total_precipitation}
 
