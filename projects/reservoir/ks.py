@@ -5,23 +5,48 @@ import numpy as np
 from typing import Optional
 
 
-def integrate_ks_eqn(ic, domain_size, dt, Nt):
-    """
-        Code is from
-        https://github.com/johnfgibson/julia-pde-benchmark/blob/master/codes/ksbenchmark.py,
-        which uses the MIT license.
+"""
+The PDE solver code in integrate_ks_eqn is from
+https://github.com/johnfgibson/julia-pde-benchmark/blob/master/codes/ksbenchmark.py
 
+# License
+
+Copyright (c) 2017 John F. Gibson
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+
+def integrate_ks_eqn(
+    ic: np.ndarray, domain_size: int, dt: float, Nt: int
+) -> np.ndarray:
+    """
         Integrate the Kuramoto-Sivashinsky equation (Python)
         u_t = -u*u_x - u_xx - u_xxxx, domain x in [0,domain_size], periodic BCs
-    inputs
-          ic = initial condition (vector of u(x) values on uniform gridpoints))
-         domain_size = domain length
-         dt = time step
-         Nt = number of integration timesteps
-      nsave = save every nsave-th time step
 
+        inputs:
+        ic = initial condition (vector of u(x) values on uniform gridpoints))
+        domain_size = domain length
+        dt = time step
+        Nt = number of integration timesteps
     outputs
-          u = final state, vector of u(x, Nt*dt) at uniform x gridpoints
+        Time series of vectors u(x, nt*dt) at uniform x gridpoints
     """
 
     Nx = np.size(ic)
@@ -98,7 +123,7 @@ def generate_ks_time_series(
 
 
 @dataclass
-class KSConfig:
+class KiramotoSivashinskyConfig:
     """ Generates 1D Kuramoto-Sivashinsky solution time series
     N: number spatial points in final output vectors
     domain_size: periodic domain size

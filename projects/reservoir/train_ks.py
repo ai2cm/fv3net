@@ -12,7 +12,7 @@ from fv3fit.reservoir import (
     ReservoirComputingModel,
 )
 from fv3fit.reservoir.config import ReservoirTrainingConfig
-from ks import KSConfig
+from ks import KiramotoSivashinskyConfig
 
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,9 @@ def _get_parser() -> argparse.ArgumentParser:
         "ks_config", type=str, help=("Config file for KS equation parameters")
     )
     parser.add_argument("train_config", type=str, help=("Config file for training"))
+    parser.add_argument(
+        "output_path", type=str, help="Output location for saving model."
+    )
     return parser
 
 
@@ -48,7 +51,7 @@ if __name__ == "__main__":
     parser = _get_parser()
     args = parser.parse_args()
     with open(args.ks_config, "r") as f:
-        ks_config = dacite.from_dict(KSConfig, yaml.safe_load(f))
+        ks_config = dacite.from_dict(KiramotoSivashinskyConfig, yaml.safe_load(f))
     with open(args.train_config, "r") as f:
         train_config_dict = yaml.safe_load(f)
         train_config = ReservoirTrainingConfig.from_dict(train_config_dict)
@@ -83,4 +86,4 @@ if __name__ == "__main__":
 
     predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
 
-    predictor.dump("gs://vcm-ml-scratch/annak/2022-10-13/rc_predictor")
+    predictor.dump(args.output_path)
