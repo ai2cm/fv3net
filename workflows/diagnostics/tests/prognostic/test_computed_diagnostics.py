@@ -88,6 +88,20 @@ def test_ComputedDiagnosticsList_from_json_urls_are_rundirs(tmpdir):
     assert result.folders["run1"].path == "/rundir1_diagnostics"
 
 
+def test_ComputedDiagnosticsList_from_dict():
+    input_ = {"run1": "rundir1_diagnostics", "run2": "rundir2_diagnostics"}
+    result = ComputedDiagnosticsList.from_dict(input_)
+    assert len(result.folders) == 2
+    assert isinstance(result.folders["run1"], DiagnosticFolder)
+    assert isinstance(result.folders["run2"], DiagnosticFolder)
+
+
+def test_ComputedDiagnosticsList_from_dict_urls_are_rundirs():
+    input_ = {"run1": "/rundir1"}
+    result = ComputedDiagnosticsList.from_dict(input_, urls_are_rundirs=True)
+    assert result.folders["run1"].path == "/rundir1_diagnostics"
+
+
 def test_movie_urls(tmpdir):
     rundir = tmpdir.mkdir("baseline_run")
     rundir.join("movie1.mp4").write("foobar")
