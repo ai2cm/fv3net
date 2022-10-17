@@ -99,7 +99,7 @@ def generate_ks_time_series(
 
 @dataclass
 class KSConfig:
-    """ Generates 1D Kuramoto-Sivashinky solution time series
+    """ Generates 1D Kuramoto-Sivashinsky solution time series
     N: number spatial points in final output vectors
     domain_size: periodic domain size
     timestep: timestep in solver
@@ -135,10 +135,7 @@ class KSConfig:
             timestep=self.timestep,
         )
 
-        ks_time_series = ks_time_series[
-            slice(None, None, self.time_downsampling_factor), :
-        ]
-        ks_time_series = ks_time_series[
-            :, slice(None, None, self.spatial_downsampling_factor)
-        ]
+        ks_time_series = ks_time_series[:: self.time_downsampling_factor, :]
+        ks_time_series = ks_time_series[:, :: self.spatial_downsampling_factor]
+
         return ks_time_series

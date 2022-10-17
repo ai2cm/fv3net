@@ -32,15 +32,16 @@ def add_input_noise(arr, stddev):
     return np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
-def transform_inputs_to_reservoir_states(X, reservoir, input_noise: float):
+def transform_inputs_to_reservoir_states(X, reservoir):
     reservoir_states = [
         reservoir.state,
     ]
-    X_noised = add_input_noise(arr=X, stddev=input_noise)
-    for x in X_noised:
+    for x in X:
         reservoir.increment_state(x)
         reservoir_states.append(reservoir.state)
-    return np.array(reservoir_states)
+    # last hidden state has no corresponding target output state,
+    # so it is not used in training
+    return np.array(reservoir_states[:-1])
 
 
 if __name__ == "__main__":
@@ -55,6 +56,7 @@ if __name__ == "__main__":
     training_ts = ks_config.generate(
         n_steps=train_config.n_samples + train_config.n_burn, seed=train_config.seed
     )
+    training_ts = add_input_noise(training_ts, stddev=train_config.input_noise)
     training_ts_burnin, training_ts_keep = (
         training_ts[: train_config.n_burn],
         training_ts[train_config.n_burn :],
@@ -62,16 +64,12 @@ if __name__ == "__main__":
 
     reservoir = Reservoir(train_config.reservoir_hyperparameters)
 
-    reservoir.synchronize(
-        add_input_noise(arr=training_ts_burnin, stddev=train_config.input_noise)
-    )
+    reservoir.synchronize(training_ts_burnin)
     training_reservoir_states = transform_inputs_to_reservoir_states(
-        X=training_ts_keep, reservoir=reservoir, input_noise=train_config.input_noise
+        X=training_ts_keep, reservoir=reservoir
     )
 
-    # first training reservoir state is the reservoir state after last burn in step
-    # first training target state is the system state after last burn in step
-    X_train = training_reservoir_states[:-1]
+    X_train = training_reservoir_states
     y_train = training_ts_keep
     X_train, y_train = shuffle(X_train, y_train, random_state=train_config.seed)
 
