@@ -11,7 +11,6 @@ from fv3fit.reservoir import (
     Reservoir,
     ReservoirComputingModel,
 )
-from fv3fit.reservoir.transform import InputNoise
 from fv3fit.reservoir.config import ReservoirTrainingConfig
 from ks import KSConfig
 
@@ -29,9 +28,15 @@ def _get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def transform_inputs_to_reservoir_states(X, reservoir, input_noise: InputNoise):
-    reservoir_states = []
-    X_noised = X + input_noise.generate()
+def add_input_noise(arr, stddev):
+    return np.random.normal(loc=0, scale=stddev, size=arr.shape)
+
+
+def transform_inputs_to_reservoir_states(X, reservoir, input_noise: float):
+    reservoir_states = [
+        reservoir.state,
+    ]
+    X_noised = add_input_noise(arr=X, stddev=input_noise)
     for x in X_noised:
         reservoir.increment_state(x)
         reservoir_states.append(reservoir.state)
@@ -56,16 +61,18 @@ if __name__ == "__main__":
     )
 
     reservoir = Reservoir(train_config.reservoir_hyperparameters)
-    input_noise = InputNoise(
-        size=ks_config.N, stddev=train_config.input_noise, seed=train_config.seed
+
+    reservoir.synchronize(
+        add_input_noise(arr=training_ts_burnin, stddev=train_config.input_noise)
+    )
+    training_reservoir_states = transform_inputs_to_reservoir_states(
+        X=training_ts_keep, reservoir=reservoir, input_noise=train_config.input_noise
     )
 
-    reservoir.synchronize(training_ts_burnin)
-    training_reservoir_states = transform_inputs_to_reservoir_states(
-        X=training_ts_keep, reservoir=reservoir, input_noise=input_noise
-    )
+    # first training reservoir state is the reservoir state after last burn in step
+    # first training target state is the system state after last burn in step
     X_train = training_reservoir_states[:-1]
-    y_train = training_ts_keep[1:]
+    y_train = training_ts_keep
     X_train, y_train = shuffle(X_train, y_train, random_state=train_config.seed)
 
     linear_regressor = Ridge(

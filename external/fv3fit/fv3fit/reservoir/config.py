@@ -62,7 +62,8 @@ class ReservoirTrainingConfig:
     n_burn: number of training samples to discard from beginning of training
         time series.
     input_noise: stddev of normal distribution which is sampled to add input
-        noise to the training inputs when generating hidden states.
+        noise to the training inputs when generating hidden states. This is
+        commonly done to aid in the stability of the RC model.
     seed: random seed for sampling
     n_samples: number of samples to use in training
     """
