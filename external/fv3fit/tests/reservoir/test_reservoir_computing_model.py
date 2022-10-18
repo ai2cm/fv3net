@@ -18,7 +18,7 @@ class MultiOutputMeanRegressor:
     def predict(self, input):
         # returns vector of size n_outputs, with each element
         # the mean of the input vector elements
-        return np.full(self.n_outputs, np.mean(input))
+        return np.full(self.n_outputs, np.mean(input)).reshape(1, -1)
 
 
 def _sparse_allclose(A, B, atol=1e-8):
