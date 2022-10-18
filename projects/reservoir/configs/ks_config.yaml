@@ -1,0 +1,5 @@
+N: 20
+domain_size: 22
+timestep: 0.1
+spatial_downsampling: 5
+time_downsampling: 2

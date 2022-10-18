@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from scipy import sparse
-from fv3fit.reservoir.reservoir import Reservoir, ReservoirHyperparameters
+from fv3fit.reservoir import Reservoir, ReservoirHyperparameters
 
 
 def test_matrices_and_state_correct_dims():
