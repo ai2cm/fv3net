@@ -68,14 +68,14 @@ def nc_dir_to_tfdataset(
         shuffle: Randomly order the file ingestion into the dataset
         random_state: numpy random number generator for seeded shuffle
         cache: directory to cache datat at. The default is $pwd/.cache.
-        match: regexp match string to filter filenames
+        match: string to filter filenames via a regexp search
     """
     cache = cache or CACHE_DIR
 
     files = get_nc_files(nc_dir)
 
     if match is not None:
-        files = [f for f in files if re.match(match, Path(f).name)]
+        files = [f for f in files if re.search(match, Path(f).name)]
 
     if shuffle:
         if random_state is None:
