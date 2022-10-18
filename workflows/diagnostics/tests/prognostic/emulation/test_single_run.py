@@ -7,9 +7,9 @@ from fv3net.diagnostics.prognostic_run.emulation import single_run
 cdl = """
 netcdf out {
 dimensions:
-    time = 3;
+    time = 6;
     tile = 6;
-    z = 79 ;
+    z = 6 ;
     y = 12 ;
     x = 12 ;
     phalf = 80 ;
@@ -21,7 +21,7 @@ variables:
         time:calendar_type = "JULIAN" ;
         time:cartesian_axis = "T" ;
         time:long_name = "time" ;
-        time:units = "hours since 2016-06-11" ;
+        time:units = "days since 2016-07-01" ;
         time:calendar = "JULIAN" ;
     double z(z) ;
         z:_FillValue = NaN ;
@@ -219,7 +219,8 @@ variables:
         vertical_wind:units = "m/s" ;
         vertical_wind:coordinates = "time" ;
 data:
-    time = 3, 6, 9, 12, 15;
+    time = 1, 2, 3, 4, 5, 6;
+    z = 300, 200, 150, 100, 50, 1;
 }
 
 """  # noqa
