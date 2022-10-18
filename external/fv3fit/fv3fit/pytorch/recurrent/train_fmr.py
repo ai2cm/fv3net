@@ -46,6 +46,7 @@ from fv3fit._shared.scaler import (
 import logging
 import numpy as np
 from ..cyclegan.cyclegan_trainer import init_weights
+from .shapes import RecurrentShape, to_shape
 
 logger = logging.getLogger(__name__)
 
@@ -101,11 +102,7 @@ class FMRNetworkConfig:
 
     def build(
         self,
-        n_state: int,
-        nx: int,
-        ny: int,
-        n_batch: int,
-        n_time: int,
+        shape: RecurrentShape,
         state_variables: Sequence[str],
         scalers: Mapping[str, StandardScaler],
     ) -> "FMRTrainer":
@@ -119,11 +116,11 @@ class FMRNetworkConfig:
         else:
             raise ValueError(f"convolution_type {self.convolution_type} not supported")
         generator = self.generator.build(
-            n_state, nx=nx, ny=ny, n_time=n_time, convolution=convolution
+            shape.n_state, shape=shape, convolution=convolution
         ).to(DEVICE)
-        discriminator = self.discriminator.build(n_state, convolution=convolution,).to(
-            DEVICE
-        )
+        discriminator = self.discriminator.build(
+            shape.n_state, convolution=convolution
+        ).to(DEVICE)
         optimizer_generator = self.generator_optimizer.instance(generator.parameters())
         optimizer_discriminator = self.discriminator_optimizer.instance(
             discriminator.parameters()
@@ -144,7 +141,7 @@ class FMRNetworkConfig:
             identity_loss=self.identity_loss.instance,
             target_loss=self.target_loss.instance,
             gan_loss=self.gan_loss.instance,
-            batch_size=n_batch,
+            batch_size=shape.n_batch,
             identity_weight=self.identity_weight,
             target_weight=self.target_weight,
             generator_weight=self.generator_weight,
@@ -334,6 +331,10 @@ class FMRHyperparameters(Hyperparameters):
     )
 
     @property
+    def samples_per_batch(self) -> int:
+        return self.training.samples_per_batch
+
+    @property
     def variables(self):
         return tuple(self.state_variables)
 
@@ -480,14 +481,10 @@ def train_fmr(
     train_state = train_batches.map(get_Xy)
 
     sample: tf.Tensor = next(iter(train_state))[0]
+    shape = to_shape(sample)
+    shape.n_batch = hyperparameters.samples_per_batch
     trainer = hyperparameters.network.build(
-        nx=sample.shape[-3],
-        ny=sample.shape[-2],
-        n_state=sample.shape[-1],
-        n_time=sample.shape[-5],
-        n_batch=hyperparameters.training.samples_per_batch,
-        state_variables=hyperparameters.state_variables,
-        scalers=scalers,
+        shape=shape, state_variables=hyperparameters.state_variables, scalers=scalers,
     )
 
     # time and tile dimensions aren't being used yet while we're using single-tile

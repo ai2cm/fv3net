@@ -16,6 +16,7 @@ from ..cyclegan.generator import GeographicBias
 from torch.utils.checkpoint import checkpoint
 import numpy as np
 from vcm.grid import get_grid_xyz
+from .shapes import RecurrentShape
 
 
 @dataclasses.dataclass
@@ -40,6 +41,7 @@ class RecurrentGeneratorConfig:
             and in the resnet blocks
         use_geographic_bias: if True, include a layer that adds a trainable bias
             vector that is a function of x and y to the input and output of the network
+        step_type: type of recurrent step to use, must be one of "resnet" or "conv"
         samples_per_day: number of samples per model day, if given will provide the
             model with two internal features tracking the position of the hour hand on
             a 24 hour clock assuming the starting time of each window is midnight
@@ -55,12 +57,14 @@ class RecurrentGeneratorConfig:
     step_type: str = "resnet"
     samples_per_day: Optional[int] = None
 
+    def __post_init__(self):
+        if self.step_type not in ["resnet", "conv"]:
+            raise TypeError("step_type must be one of 'resnet' or 'conv'")
+
     def build(
         self,
         channels: int,
-        nx: int,
-        ny: int,
-        n_time: int,
+        shape: RecurrentShape,
         convolution: ConvolutionFactory = single_tile_convolution,
     ):
         """
@@ -75,9 +79,7 @@ class RecurrentGeneratorConfig:
         return RecurrentGenerator(
             config=self,
             channels=channels,
-            nx=nx,
-            ny=ny,
-            n_time=n_time,
+            shape=shape,
             convolution=convolution,
             step_type=self.step_type,
         ).to(DEVICE)
@@ -187,9 +189,7 @@ class RecurrentGenerator(nn.Module):
         self,
         config: RecurrentGeneratorConfig,
         channels: int,
-        nx: int,
-        ny: int,
-        n_time: int,
+        shape: RecurrentShape,
         convolution: ConvolutionFactory = single_tile_convolution,
         step_type: str = "resnet",
     ):
@@ -214,9 +214,7 @@ class RecurrentGenerator(nn.Module):
         else:
             diurnal_channels = 0
         self.hidden_channels = config.max_filters
-        self.nx = nx
-        self.ny = ny
-        self.ntime = n_time
+        self.ntime = shape.n_time
         self.n_convolutions = config.n_convolutions
 
         if step_type == "resnet":
@@ -313,7 +311,7 @@ class RecurrentGenerator(nn.Module):
         )
         context_modules = []
         if config.use_geographic_features:
-            nx_resnet = nx // int(2 ** config.n_convolutions)
+            nx_resnet = shape.nx // int(2 ** config.n_convolutions)
             context_modules.append(GeographicFeatures(nx=nx_resnet, ny=nx_resnet))
         if config.samples_per_day is not None:
             self.clock: Optional[DiurnalFeatures] = DiurnalFeatures(
@@ -346,14 +344,18 @@ class RecurrentGenerator(nn.Module):
             convolution(kernel_size=7, in_channels=min_filters, out_channels=channels,),
         )
         if config.use_geographic_bias:
-            self.input_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
-            self.output_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
+            self.input_bias = GeographicBias(
+                channels=channels, nx=shape.nx, ny=shape.ny
+            )
+            self.output_bias = GeographicBias(
+                channels=channels, nx=shape.nx, ny=shape.ny
+            )
         else:
             self.input_bias = nn.Identity()
             self.output_bias = nn.Identity()
         if config.use_geographic_features:
             self.input_bias = nn.Sequential(
-                self.input_bias, GeographicFeatures(nx=nx, ny=ny)
+                self.input_bias, GeographicFeatures(nx=shape.nx, ny=shape.ny)
             )
 
     def forward(

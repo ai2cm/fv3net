@@ -55,6 +55,9 @@ class FullModelReplacement(Reloadable):
 
     @property
     def discriminator(self) -> nn.Module:
+        # the trained discriminator operates on single timesteps, but when testing
+        # we want to evaluate the entire sequence at once, so we fold the batch
+        # and time dimensions together
         return FoldFirstDimension(self.model.discriminator)
 
     @classmethod
