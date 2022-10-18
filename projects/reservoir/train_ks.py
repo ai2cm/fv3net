@@ -12,7 +12,7 @@ from fv3fit.reservoir import (
     ReservoirComputingModel,
 )
 from fv3fit.reservoir.config import ReservoirTrainingConfig
-from ks import KiramotoSivashinskyConfig
+from ks import KuramotoSivashinskyConfig
 
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     parser = _get_parser()
     args = parser.parse_args()
     with open(args.ks_config, "r") as f:
-        ks_config = dacite.from_dict(KiramotoSivashinskyConfig, yaml.safe_load(f))
+        ks_config = dacite.from_dict(KuramotoSivashinskyConfig, yaml.safe_load(f))
     with open(args.train_config, "r") as f:
         train_config_dict = yaml.safe_load(f)
         train_config = ReservoirTrainingConfig.from_dict(train_config_dict)
