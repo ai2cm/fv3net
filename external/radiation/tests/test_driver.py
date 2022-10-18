@@ -30,7 +30,9 @@ def getscalars(indict):
 
 def get_gfs_physics_control(indict):
     names = [field.name for field in dataclasses.fields(GFSPhysicsControl)]
-    kwargs = {name: indict[name] for name in names}
+    indict_ = indict.copy()
+    indict_["nsswr"], indict_["nslwr"] = 1, 1
+    kwargs = {name: indict_[name] for name in names}
     return GFSPhysicsControl(**kwargs)
 
 
