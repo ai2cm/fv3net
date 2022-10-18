@@ -102,7 +102,6 @@ def _fit_std_max(tensor: tf.Tensor) -> tf.Tensor:
 
 def _fit_std_mean(tensor: tf.Tensor) -> tf.Tensor:
     reduce_axes = tuple(range(len(tensor.shape) - 1))
-    reduce_axes = tuple(range(len(tensor.shape) - 1))
     stddev = tf.math.reduce_std(tensor, axis=reduce_axes)
     mean_std = tf.cast(tf.reduce_mean(stddev), tf.float32)
     return mean_std
