@@ -45,10 +45,14 @@ class GFSPhysicsControl:
         do_sfcperts:
         pertalb:
         do_only_clearsky_rad:
-        swhtr: In physics namelist.
+        swhtr: Whether to output SW heating rate. In physics namelist.
+        lwhtr: Whether to output LW heating rate. In physics namelist.
         lprnt:
-        lwhtr: In physics namelist.
         lssav:
+        nsswr: Integer number of physics timesteps between shortwave radiation
+            calculations
+        nslwr: Integer number of physics timesteps between longwave radiation
+            calculations
     """
 
     levs: Optional[int] = None
@@ -86,9 +90,11 @@ class GFSPhysicsControl:
     )
     do_only_clearsky_rad: bool = False
     swhtr: bool = True
-    lprnt: bool = False
     lwhtr: bool = True
+    lprnt: bool = False
     lssav: bool = True
+    nsswr: Optional[int] = None
+    nslwr: Optional[int] = None
 
 
 @dataclasses.dataclass
