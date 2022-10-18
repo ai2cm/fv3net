@@ -64,7 +64,7 @@ config:
         module_name: zhao_carr_gscond
         output_name: tendency_of_specific_humidity_due_to_gscond_physics
   - name: sfc_dt_atmos.zarr
-    # 6 hr batches
+    # 24 hr batches
     chunks:
       time: 8
     times:
