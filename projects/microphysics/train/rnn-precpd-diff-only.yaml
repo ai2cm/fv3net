@@ -1,11 +1,11 @@
-# kind: train
-# name: precpd-diff-only-press-rh-in-and-pscale-adj-v1
-# fv3fit_image_tag: 5c847f15cd8c870558e728e2782d4dd98e2c5b02
-# experiment: relative-humidity-trials
-# config:
+kind: train
+name: precpd-diff-only-conserve-precip-v1
+fv3fit_image_tag: 7e04ebe97c8d485b0e343261378f269c4278d88b
+experiment: conserve-precpd-precip
+config:
   batch_size: 512
   checkpoint_model: true
-  epochs: 25
+  epochs: 36
   log_level: INFO
   loss:
     logit_variables: []
