@@ -123,7 +123,7 @@ def generate_ks_time_series(
 
 
 @dataclass
-class KiramotoSivashinskyConfig:
+class KuramotoSivashinskyConfig:
     """ Generates 1D Kuramoto-Sivashinsky solution time series
     N: number spatial points in final output vectors
     domain_size: periodic domain size

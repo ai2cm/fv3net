@@ -107,6 +107,10 @@ class WindowedZarrLoader(TFDatasetLoader):
             n_steps + 1 to include both the start and end point of the window
         default_variable_config: default configuration for variables
         variable_configs: configuration for variables by name
+        batch_size: number of samples to include in each batch
+        time_stride: use every time_stride time step in windows, useful for
+            increasing the model timestep. Number of samples in each window
+            is unchanged.
         n_windows: number of windows to create per epoch, defaults to the number
             of windows needed to fully cover the dataset with overlapping
             start and end times.
@@ -120,6 +124,7 @@ class WindowedZarrLoader(TFDatasetLoader):
         default_factory=dict
     )
     batch_size: int = 1
+    time_stride: int = 1
     n_windows: Optional[int] = None
 
     def open_tfdataset(
@@ -157,6 +162,7 @@ class WindowedZarrLoader(TFDatasetLoader):
             records(
                 n_windows=self.n_windows,
                 window_size=self.window_size,
+                time_stride=self.time_stride,
                 ds=ds,
                 variable_names=variable_names,
                 default_variable_config=self.default_variable_config,
@@ -176,21 +182,26 @@ class WindowedZarrLoader(TFDatasetLoader):
 def records(
     n_windows: Optional[int],
     window_size: int,
+    time_stride: int,
     ds: xr.Dataset,
     variable_names: Sequence[str],
     default_variable_config: VariableConfig,
     variable_configs: Mapping[str, VariableConfig],
     unstacked_dims: Sequence[str],
 ):
+    time_stride = int(time_stride)
+
     def generator():
         nonlocal n_windows
         n_times = ds.dims["time"]
         if n_windows is None:
-            n_windows = get_n_windows(n_times, window_size)
-        starts = np.random.randint(0, n_times - window_size, n_windows)
+            n_windows = get_n_windows(n_times, window_size * time_stride)
+        starts = np.random.randint(0, n_times - window_size * time_stride, n_windows)
         for i_start in starts:
             record = {}
-            window_ds = ds.isel(time=range(i_start, i_start + window_size))
+            window_ds = ds.isel(
+                time=range(i_start, i_start + window_size * time_stride, time_stride)
+            )
             for name in variable_names:
                 config = variable_configs.get(name, default_variable_config)
                 record[name] = config.get_record(name, window_ds, unstacked_dims)
