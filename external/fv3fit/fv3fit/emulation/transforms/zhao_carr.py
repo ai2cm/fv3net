@@ -115,7 +115,7 @@ def calc_total_precipitation(
     gravity = 9.80665
 
     rain_water = condensate_to_precip - precip_to_vapor
-    rain_water = tf.where(rain_water < 0, 0, rain_water)
+    rain_water = tf.where(rain_water < 0, 0.0, rain_water)
     total_precip = rain_water * delp / gravity / rho_water
     return tf.math.reduce_sum(total_precip, axis=-1, keepdims=True)
 
@@ -139,21 +139,16 @@ class PrecpdConservativePrecip(TensorTransform):
         return self
 
     def backward_input_names(self) -> Set[str]:
-        return {
-            self.cloud_in,
-            self.cloud_out,
-            self.humidity_in,
-            self.humidity_out,
-            self.delp,
-        }
+        return {self.cloud_in, self.cloud_out, self.humidity_in, self.humidity_out}
 
     def backward_output_names(self) -> Set[str]:
-        return {self.to}
+        return set()  # I need total_precip as an loss variable, so omitting here
 
     def backward_names(self, requested_names: Set[str]) -> Set[str]:
         out = set(requested_names)
-        out -= self.backward_output_names()
-        out |= self.backward_input_names()
+        if self.to in requested_names:
+            out |= self.backward_input_names()
+
         return out
 
     def forward(self, x: TensorDict) -> TensorDict:

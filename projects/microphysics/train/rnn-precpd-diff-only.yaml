@@ -1,8 +1,8 @@
-kind: train
-name: precpd-diff-only-press-rh-in-and-pscale-adj-v1
-fv3fit_image_tag: 5c847f15cd8c870558e728e2782d4dd98e2c5b02
-experiment: relative-humidity-trials
-config:
+# kind: train
+# name: precpd-diff-only-press-rh-in-and-pscale-adj-v1
+# fv3fit_image_tag: 5c847f15cd8c870558e728e2782d4dd98e2c5b02
+# experiment: relative-humidity-trials
+# config:
   batch_size: 512
   checkpoint_model: true
   epochs: 25
@@ -42,7 +42,6 @@ config:
       name: rnn-v1-shared-weights
       output_channels: {}
     direct_out_variables:
-    - total_precipitation
     - cloud_precpd_difference
     - temperature_precpd_difference
     - humidity_precpd_difference
@@ -63,18 +62,13 @@ config:
     normalize_default:
       center: per_feature
       scale: all
-    normalize_map:
-      air_pressure:
-        center: all
-        scale: all_all
-    selection_map: {}
     timestep_increment_sec: 900
-    unscaled_outputs: []
   nfiles: null
   nfiles_valid: 100
   out_url: gs://vcm-ml-scratch/andrep/test-delete
   shuffle_buffer_size: 13824
   tensor_transform:
+  - conservative_precip: true
   - source: cloud_water_mixing_ratio_after_precpd
     to: cloud_water_mixing_ratio_after_precpd
     transform:
