@@ -32,7 +32,7 @@ def _get_parser() -> argparse.ArgumentParser:
 
 
 def add_input_noise(arr, stddev):
-    return np.random.normal(loc=0, scale=stddev, size=arr.shape)
+    return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
 def transform_inputs_to_reservoir_states(X, reservoir):
@@ -47,15 +47,7 @@ def transform_inputs_to_reservoir_states(X, reservoir):
     return np.array(reservoir_states[:-1])
 
 
-if __name__ == "__main__":
-    parser = _get_parser()
-    args = parser.parse_args()
-    with open(args.ks_config, "r") as f:
-        ks_config = dacite.from_dict(KuramotoSivashinskyConfig, yaml.safe_load(f))
-    with open(args.train_config, "r") as f:
-        train_config_dict = yaml.safe_load(f)
-        train_config = ReservoirTrainingConfig.from_dict(train_config_dict)
-
+def train(ks_config, train_config):
     training_ts = ks_config.generate(
         n_steps=train_config.n_samples + train_config.n_burn, seed=train_config.seed
     )
@@ -84,6 +76,17 @@ if __name__ == "__main__":
     )
     readout.fit(X_train, y_train)
 
-    predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
+    return ReservoirComputingModel(reservoir=reservoir, readout=readout,)
 
+
+if __name__ == "__main__":
+    parser = _get_parser()
+    args = parser.parse_args()
+    with open(args.ks_config, "r") as f:
+        ks_config = dacite.from_dict(KuramotoSivashinskyConfig, yaml.safe_load(f))
+    with open(args.train_config, "r") as f:
+        train_config_dict = yaml.safe_load(f)
+        train_config = ReservoirTrainingConfig.from_dict(train_config_dict)
+
+    predictor = train(ks_config, train_config)
     predictor.dump(args.output_path)
