@@ -16,9 +16,9 @@ class MultiOutputMeanRegressor:
         self.n_outputs = n_outputs
 
     def predict(self, input):
-        # returns vector of size n_outputs, with each element
+        # returns array of shape (1, n_outputs), with each element
         # the mean of the input vector elements
-        return np.full(self.n_outputs, np.mean(input))
+        return np.full(self.n_outputs, np.mean(input)).reshape(1, -1)
 
 
 def _sparse_allclose(A, B, atol=1e-8):
@@ -52,6 +52,27 @@ def test_dump_load_preserves_reservoir(tmpdir):
     loaded_predictor = ReservoirComputingModel.load(output_path)
     assert _sparse_allclose(loaded_predictor.reservoir.W_in, predictor.reservoir.W_in)
     assert _sparse_allclose(loaded_predictor.reservoir.W_res, predictor.reservoir.W_res)
+
+
+def test_prediction_shape():
+    input_size = 15
+    hyperparameters = ReservoirHyperparameters(
+        input_size=input_size,
+        state_size=1000,
+        adjacency_matrix_sparsity=0.9,
+        spectral_radius=1.0,
+        input_coupling_sparsity=0,
+    )
+    reservoir = Reservoir(hyperparameters)
+    lr = DummyRegressor(strategy="constant", constant=np.ones(input_size))
+    lr.fit(reservoir.state.reshape(1, -1), np.ones((1, input_size)))
+    readout = ReservoirComputingReadout(
+        linear_regressor=lr, square_half_hidden_state=True,
+    )
+    predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
+    # ReservoirComputingModel.predict reshapes the prediction to remove
+    # the first dim of length 1 (sklearn regressors predict 2D arrays)
+    assert predictor.predict().shape == (input_size,)
 
 
 def test_ReservoirComputingModel_state_increment():
