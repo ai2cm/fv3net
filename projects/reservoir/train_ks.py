@@ -32,7 +32,7 @@ def _get_parser() -> argparse.ArgumentParser:
 
 
 def add_input_noise(arr, stddev):
-    return np.random.normal(loc=0, scale=stddev, size=arr.shape)
+    return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
 def transform_inputs_to_reservoir_states(X, reservoir):
