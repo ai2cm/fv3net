@@ -71,15 +71,15 @@ class CurriedModuleFactory(Protocol):
         ...
 
 
-class FoldTileDimension(nn.Module):
+class FoldFirstDimension(nn.Module):
     """
-    Module wrapping a module which takes [batch, channel, x, y] data into one
-    which takes [batch, tile, channel, x, y] data by folding the tile dimension
-    into the batch dimension.
+    Module wrapping a module which takes e.g. [batch, channel, x, y] data into one
+    which takes [batch, tile, channel, x, y] data by folding the first dimension
+    into the second dimension.
     """
 
     def __init__(self, wrapped):
-        super(FoldTileDimension, self).__init__()
+        super(FoldFirstDimension, self).__init__()
         self._wrapped = wrapped
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
@@ -142,7 +142,7 @@ def single_tile_convolution(
         )
     else:
         raise ValueError(f"Invalid stride_type: {stride_type}")
-    return FoldTileDimension(conv)
+    return FoldFirstDimension(conv)
 
 
 def halo_convolution(
@@ -546,7 +546,7 @@ class ConvBlock(nn.Module):
         # of normalization, while debugging.
         self.conv_block = nn.Sequential(
             convolution_factory(in_channels=in_channels, out_channels=out_channels),
-            FoldTileDimension(nn.InstanceNorm2d(out_channels)),
+            FoldFirstDimension(nn.InstanceNorm2d(out_channels)),
             activation_factory(),
         )
 

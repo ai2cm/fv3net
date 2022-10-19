@@ -7,27 +7,41 @@ import yaml
 import xarray as xr
 import numpy as np
 import pytest
+import dataclasses
 import os
 
 
-RADIATIVE_FLUXES = [
-    "clear_sky_downward_longwave_flux_at_surface_python",
-    "clear_sky_downward_shortwave_flux_at_surface_python",
-    "clear_sky_upward_longwave_flux_at_surface_python",
-    "clear_sky_upward_shortwave_flux_at_surface_python",
-    "clear_sky_upward_longwave_flux_at_top_of_atmosphere_python",
-    "clear_sky_upward_shortwave_flux_at_top_of_atmosphere_python",
-    "total_sky_downward_longwave_flux_at_surface_python",
-    "total_sky_downward_shortwave_flux_at_surface_python",
-    "total_sky_upward_longwave_flux_at_surface_python",
-    "total_sky_upward_shortwave_flux_at_surface_python",
-    "total_sky_downward_shortwave_flux_at_top_of_atmosphere_python",
-    "total_sky_upward_longwave_flux_at_top_of_atmosphere_python",
-    "total_sky_upward_shortwave_flux_at_top_of_atmosphere_python",
-    "total_sky_longwave_heating_rate_python",
-    "clear_sky_longwave_heating_rate_python",
-    "total_sky_shortwave_heating_rate_python",
-    "clear_sky_shortwave_heating_rate_python",
+@dataclasses.dataclass
+class RadiationDiagnostic:
+    name: str
+    validate: bool = False
+    is_flux: bool = True
+
+    @property
+    def python_name(self):
+        return f"{self.name}_python"
+
+
+RADIATION_DIAGNOSTICS = [
+    RadiationDiagnostic("clear_sky_downward_longwave_flux_at_surface"),
+    RadiationDiagnostic("clear_sky_downward_shortwave_flux_at_surface"),
+    RadiationDiagnostic("clear_sky_upward_longwave_flux_at_surface"),
+    RadiationDiagnostic("clear_sky_upward_shortwave_flux_at_surface"),
+    RadiationDiagnostic("clear_sky_upward_longwave_flux_at_top_of_atmosphere"),
+    RadiationDiagnostic("clear_sky_upward_shortwave_flux_at_top_of_atmosphere"),
+    RadiationDiagnostic("total_sky_downward_longwave_flux_at_surface"),
+    RadiationDiagnostic("total_sky_downward_shortwave_flux_at_surface"),
+    RadiationDiagnostic("total_sky_upward_longwave_flux_at_surface"),
+    RadiationDiagnostic("total_sky_upward_shortwave_flux_at_surface"),
+    RadiationDiagnostic(
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere", validate=True,
+    ),
+    RadiationDiagnostic("total_sky_upward_longwave_flux_at_top_of_atmosphere"),
+    RadiationDiagnostic("total_sky_upward_shortwave_flux_at_top_of_atmosphere"),
+    RadiationDiagnostic("total_sky_longwave_heating_rate", is_flux=False),
+    RadiationDiagnostic("clear_sky_longwave_heating_rate", is_flux=False),
+    RadiationDiagnostic("total_sky_shortwave_heating_rate", is_flux=False),
+    RadiationDiagnostic("clear_sky_shortwave_heating_rate", is_flux=False),
 ]
 
 base_config = r"""
@@ -46,8 +60,8 @@ namelist:
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
   gfs_physics_nml:
-    fhlwr: 900.0
-    fhswr: 900.0
+    fhlwr: 1800.0
+    fhswr: 1800.0
     hybedmf: true
     satmedmf: false
   fv_core_nml:
@@ -94,14 +108,29 @@ def get_fv3config():
 def radiation_scheme_config():
     config = get_fv3config()
     config["radiation_scheme"] = {"kind": "python"}
-    config["diagnostics"] = [
+    diagnostics = [
         {
-            "name": "radiative_fluxes.zarr",
+            "name": "state_after_timestep.zarr",
             "chunks": {"time": 2},
             "times": {"frequency": 900, "kind": "interval"},
-            "variables": RADIATIVE_FLUXES,
+            "variables": [
+                diagnostic.name
+                for diagnostic in RADIATION_DIAGNOSTICS
+                if diagnostic.is_flux
+            ],
         }
     ]
+    diagnostics.append(
+        {
+            "name": "radiation_diagnostics.zarr",
+            "chunks": {"time": 2},
+            "times": {"frequency": 900, "kind": "interval"},
+            "variables": [
+                diagnostic.python_name for diagnostic in RADIATION_DIAGNOSTICS
+            ],
+        }
+    )
+    config["diagnostics"] = diagnostics
     return config
 
 
@@ -118,11 +147,36 @@ def completed_rundir(tmpdir_factory):
     return rundir
 
 
-def test_radiative_fluxes_output(completed_rundir):
-    zarrpath = os.path.join(completed_rundir, "radiative_fluxes.zarr")
-    ds = xr.open_zarr(zarrpath)
-    for var in RADIATIVE_FLUXES:
-        assert var in ds.data_vars
+def get_zarr(rundir, zarrname):
+    zarrpath = os.path.join(rundir, zarrname)
+    return xr.open_zarr(zarrpath)
+
+
+def test_radiation_diagnostics_output(completed_rundir):
+    ds = get_zarr(completed_rundir, "radiation_diagnostics.zarr")
+    for diagnostic in RADIATION_DIAGNOSTICS:
+        assert diagnostic.python_name in ds.data_vars
+
+
+def test_radiation_diagnostics_validate(completed_rundir):
+    rtol = 1.0e-7
+    python_radiation = get_zarr(completed_rundir, "radiation_diagnostics.zarr")
+    fortran_radiation = get_zarr(completed_rundir, "state_after_timestep.zarr")
+    to_validate = [
+        diagnostic for diagnostic in RADIATION_DIAGNOSTICS if diagnostic.validate
+    ]
+    for diagnostic in to_validate:
+        python_radiation_diagnostic = python_radiation[diagnostic.python_name]
+        fortran_radiation_diagnostic = fortran_radiation[diagnostic.name]
+        try:
+            xr.testing.assert_allclose(
+                python_radiation_diagnostic, fortran_radiation_diagnostic, rtol=rtol
+            )
+        except AssertionError as err:
+            raise AssertionError(
+                f"Port failed to validate at relative tolerance {rtol}"
+                f" for flux {diagnostic.name}."
+            ) from err
 
 
 class MockRadiation:
