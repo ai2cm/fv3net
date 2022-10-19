@@ -3163,7 +3163,7 @@ class RadLWClass:
                         gasfac = rec_6 * odepth
                     else:
                         tblind = odepth / (bpade + odepth)
-                        itgas = tblint * tblind + 0.5
+                        itgas = int(tblint * tblind + 0.5)
                         trng = exp_tbl[itgas]
                         atrgas = 1.0 - trng
                         gasfac = tfn_tbl[itgas]
@@ -3199,7 +3199,7 @@ class RadLWClass:
                             trnt = 1.0 - atrtot
                         else:
                             tblind = odtot / (bpade + odtot)
-                            ittot = tblint * tblind + 0.5
+                            ittot = int(tblint * tblind + 0.5)
                             totfac = tfn_tbl[ittot]
                             trnt = exp_tbl[ittot]
                             atrtot = 1.0 - trnt
