@@ -161,6 +161,7 @@ def get_radiation_stepper(
     comm,
     physics_namelist: Mapping[Hashable, Any],
     timestep: float,
+    init_time: cftime.DatetimeJulian,
     tracer_metadata: Mapping[Hashable, Mapping[Hashable, int]],
     input_generator: Optional[Union[PureMLStepper, Prescriber]],
 ) -> RadiationStepper:
@@ -169,6 +170,6 @@ def get_radiation_stepper(
         str(name): metadata["i_tracer"] for name, metadata in tracer_metadata.items()
     }
     return RadiationStepper(
-        radiation.Radiation(radiation_config, comm, timestep, tracer_inds),
+        radiation.Radiation(radiation_config, comm, timestep, init_time, tracer_inds),
         input_generator,
     )

@@ -1,9 +1,6 @@
 from typing import Tuple, Set, MutableMapping, Hashable, Any, Mapping, Sequence
-from datetime import timedelta
 import numpy as np
 import xarray as xr
-import cftime
-from radiation.config import RadiationConfig
 
 try:
     from vcm.calc.thermo.vertically_dependent import (
@@ -15,22 +12,11 @@ except ImportError:
     pass
 
 P_REF: float = 1.0e5
-MINUTES_PER_HOUR: float = 60.0
-SECONDS_PER_MINUTE: float = 60.0
 STATE_NAMES_IN: Sequence[str] = [
     "air_temperature",
     "pressure_thickness_of_atmospheric_layer",
 ]
 GRID_NAMES_IN: Sequence[str] = ["longitude", "latitude"]
-TRACER_NAMES_IN_MAPPING: Mapping[str, str] = {  # this is specific to GFS physics
-    "cloud_water_mixing_ratio": "ntcw",
-    "rain_mixing_ratio": "ntrw",
-    "cloud_ice_mixing_ratio": "ntiw",
-    "snow_mixing_ratio": "ntsw",
-    "graupel_mixing_ratio": "ntgl",
-    "ozone_mixing_ratio": "ntoz",
-    "cloud_amount": "ntclamt",
-}
 SFC_NAMES_IN_MAPPING: Mapping[str, str] = {
     "surface_temperature": "tsfc",
     "land_sea_mask": "slmsk",
@@ -74,64 +60,6 @@ OUTPUT_VARIABLE_NAMES: Sequence[str] = list(RENAME_OUT.values())
 
 State = MutableMapping[Hashable, xr.DataArray]
 Diagnostics = MutableMapping[Hashable, xr.DataArray]
-
-
-def get_model(
-    rad_config: RadiationConfig,
-    tracer_inds: Mapping[str, int],
-    time: cftime.DatetimeJulian,
-    dt_atmos: float,
-    nz: int,
-    rank: int,
-    tracer_name_mapping: Mapping[str, str] = TRACER_NAMES_IN_MAPPING,
-) -> MutableMapping[Hashable, Any]:
-    model: MutableMapping[Hashable, Any] = {
-        "me": rank,
-        "levs": nz,
-        "levr": nz,
-        "nfxr": rad_config.nfxr,
-        "ncld": rad_config.ncld,
-        "ncnd": rad_config.ncnd,
-        "fhswr": rad_config.fhswr,
-        "fhlwr": rad_config.fhlwr,
-        # todo: why does solar hour need to be one timestep behind time to validate?
-        "solhr": _solar_hour(time - timedelta(seconds=dt_atmos)),
-        "lsswr": rad_config.lsswr,
-        "lslwr": rad_config.lslwr,
-        "imp_physics": rad_config.imp_physics,
-        "lgfdlmprad": rad_config.lgfdlmprad,
-        "uni_cld": rad_config.uni_cld,
-        "effr_in": rad_config.effr_in,
-        "indcld": rad_config.indcld,
-        "num_p3d": rad_config.num_p3d,
-        "npdf3d": rad_config.npdf3d,
-        "ncnvcld3d": rad_config.ncnvcld3d,
-        "lmfdeep2": rad_config.lmfdeep2,
-        "lmfshal": rad_config.lmfshal,
-        "sup": rad_config.sup,
-        "kdt": rad_config.kdt,
-        "do_sfcperts": rad_config.do_sfcperts,
-        "pertalb": rad_config.pertalb,
-        "do_only_clearsky_rad": rad_config.do_only_clearsky_rad,
-        "swhtr": rad_config.swhtr,
-        "solcon": rad_config.solcon,
-        "lprnt": rad_config.lprnt,
-        "lwhtr": rad_config.lwhtr,
-        "lssav": rad_config.lssav,
-    }
-    for tracer_name, index in tracer_inds.items():
-        if tracer_name in tracer_name_mapping:
-            model[tracer_name_mapping[tracer_name]] = index
-    model["ntrac"] = max(tracer_inds.values())
-    return model
-
-
-def _solar_hour(time: cftime.DatetimeJulian) -> float:
-    return (
-        time.hour
-        + time.minute / MINUTES_PER_HOUR
-        + time.second / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE)
-    )
 
 
 def get_statein(

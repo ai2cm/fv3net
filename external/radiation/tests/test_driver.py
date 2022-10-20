@@ -1,8 +1,10 @@
 import pathlib
+import dataclasses
 import time
 import serialbox as ser
 from radiation import io
 from radiation.radiation_driver import RadiationDriver
+from radiation.config import GFSPhysicsControl
 from util import compare_data
 from variables_to_read import vars_dict as variables
 
@@ -24,6 +26,14 @@ def getscalars(indict):
                 indict[var] = indict[var][0]
 
     return indict
+
+
+def get_gfs_physics_control(indict):
+    names = [field.name for field in dataclasses.fields(GFSPhysicsControl)]
+    indict_ = indict.copy()
+    indict_["nsswr"], indict_["nslwr"] = 1, 1
+    kwargs = {name: indict_[name] for name in names}
+    return GFSPhysicsControl(**kwargs)
 
 
 startTime = time.time()
@@ -107,7 +117,7 @@ updatedict = dict()
 for var in invars:
     updatedict[var] = serial.read(var, serial.savepoint["rad-update"])
 
-slag, sdec, cdec, solcon = driver.radupdate(
+driver.radupdate(
     updatedict["idat"],
     updatedict["jdat"],
     updatedict["fhswr"],
@@ -120,6 +130,7 @@ slag, sdec, cdec, solcon = driver.radupdate(
     aer_dict["cline"],
     solar_data,
     gas_data,
+    me,
 )
 
 
@@ -192,9 +203,15 @@ def test_radiation_valiation():
         randomdict = io.load_random_numbers(LOOKUP_DIR, rank)
         lwdict = io.load_lw(LOOKUP_DIR)
         swdict = io.load_sw(LOOKUP_DIR)
+        solcon = Model.pop("solcon")
+        solhr = Model.pop("solhr")
+
+        gfs_physics_control = get_gfs_physics_control(Model)
 
         Radtendout, Diagout, Couplingout = driver.GFS_radiation_driver(
-            Model,
+            gfs_physics_control,
+            solcon,
+            solhr,
             Statein,
             Sfcprop,
             Coupling,

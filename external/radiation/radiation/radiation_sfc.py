@@ -11,13 +11,13 @@ class SurfaceClass:
     IMXEMS = 360
     JMXEMS = 180
 
-    def __init__(self, me, ialb, iems, semis_file, semis_data):
+    def __init__(self, rank, ialb, iems, semis_file, semis_data):
 
         self.ialbflg = ialb
         self.iemsflg = iems
         self.semis_file = semis_file
 
-        if me == 0:
+        if rank == 0:
             print(self.VTAGSFC)  # print out version tag
 
         # - Initialization of surface albedo section
@@ -26,11 +26,11 @@ class SurfaceClass:
         # = 1: using MODIS based land surface albedo for SW
 
         if self.ialbflg == 0:
-            if me == 0:
+            if rank == 0:
                 print("- Using climatology surface albedo scheme for sw")
 
         elif self.ialbflg == 1:
-            if me == 0:
+            if rank == 0:
                 print("- Using MODIS based land surface albedo for sw")
         else:
             raise ValueError(f"!! ERROR in Albedo Scheme Setting, IALB={self.ialbflg}")
@@ -42,13 +42,13 @@ class SurfaceClass:
 
         self.iemslw = self.iemsflg % 10  # emissivity control
         if self.iemslw == 0:  # fixed sfc emis at 1.0
-            if me == 0:
+            if rank == 0:
                 print("- Using Fixed Surface Emissivity = 1.0 for lw")
 
         elif self.iemslw == 1:  # input sfc emiss type map
             file_exist = os.path.isfile(self.semis_file)
             if not file_exist:
-                if me == 0:
+                if rank == 0:
                     print("- Using Varying Surface Emissivity for lw")
                     print(f'Requested data file "{semis_file}" not found!')
                     print("Change to fixed surface emissivity = 1.0 !")
@@ -59,7 +59,7 @@ class SurfaceClass:
                 cline = semis_data["cline"].values
                 idxems = semis_data["idxems"].values
 
-                if me == 0:
+                if rank == 0:
                     print("- Using Varying Surface Emissivity for lw")
                     print(f"Opened data file: {semis_file}")
                     print(cline)

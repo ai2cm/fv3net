@@ -7,14 +7,17 @@ except ImportError:
 import cftime
 import numpy as np
 import xarray as xr
-from radiation.config import RadiationConfig, LOOKUP_DATA_PATH, FORCING_DATA_PATH
+from radiation.config import (
+    RadiationConfig,
+    LOOKUP_DATA_PATH,
+    FORCING_DATA_PATH,
+)
 from radiation.radsw import ngptsw as NGPTSW
 from radiation.radlw import ngptlw as NGPTLW
 from radiation.radiation_driver import RadiationDriver
 from radiation import io
 from radiation.preprocessing import (
     get_statein,
-    get_model,
     get_sfcprop,
     get_grid,
     postprocess_out,
@@ -22,6 +25,18 @@ from radiation.preprocessing import (
     BASE_INPUT_VARIABLE_NAMES,
     OUTPUT_VARIABLE_NAMES,
 )
+
+TRACER_NAMES_IN_MAPPING: Mapping[str, str] = {
+    "cloud_water_mixing_ratio": "ntcw",
+    "rain_mixing_ratio": "ntrw",
+    "cloud_ice_mixing_ratio": "ntiw",
+    "snow_mixing_ratio": "ntsw",
+    "graupel_mixing_ratio": "ntgl",
+    "ozone_mixing_ratio": "ntoz",
+    "cloud_amount": "ntclamt",
+}
+MINUTES_PER_HOUR: float = 60.0
+SECONDS_PER_MINUTE: float = 60.0
 
 
 State = MutableMapping[Hashable, xr.DataArray]
@@ -38,12 +53,14 @@ class Radiation:
         rad_config: RadiationConfig,
         comm: "MPI.COMM_WORLD",
         timestep: float,
+        init_time: cftime.DatetimeJulian,
         tracer_inds: Mapping[str, int],
     ):
         self._driver: RadiationDriver = RadiationDriver()
         self._rad_config: RadiationConfig = rad_config
         self._comm: "MPI.COMM_WORLD" = comm
         self._timestep: float = timestep
+        self._init_time: cftime.DatetimeJulian = init_time
         self._tracer_inds: Mapping[str, int] = tracer_inds
 
         self._solar_data: Optional[xr.Dataset] = None
@@ -52,6 +69,8 @@ class Radiation:
         self._gas_data: Mapping = dict()
         self._sw_lookup: Mapping = dict()
         self._lw_lookup: Mapping = dict()
+
+        self._cached: Diagnostics = {}
 
         self._download_radiation_assets()
         self._init_driver()
@@ -93,10 +112,11 @@ class Radiation:
         self._gas_data = io.load_gases(
             self._forcing_local_dir, self._rad_config.ictmflg
         )
+        self._init_gfs_physics_control(nlay)
         self._driver.radinit(
             sigma,
             nlay,
-            self._rad_config.imp_physics,
+            self._rad_config.gfs_physics_control.imp_physics,
             self._comm.rank,
             self._rad_config.iemsflg,
             self._rad_config.ioznflg,
@@ -123,30 +143,74 @@ class Radiation:
         self._lw_lookup = io.load_lw(self._lookup_local_dir)
         self._sw_lookup = io.load_sw(self._lookup_local_dir)
 
+    def _init_gfs_physics_control(
+        self, nz: int, tracer_name_mapping: Mapping[str, str] = TRACER_NAMES_IN_MAPPING,
+    ) -> None:
+        gfs_physics_control = self._rad_config.gfs_physics_control
+        gfs_physics_control.levs = nz
+        gfs_physics_control.levr = nz
+        for tracer_name, index in self._tracer_inds.items():
+            if tracer_name in tracer_name_mapping and hasattr(
+                gfs_physics_control, tracer_name_mapping[tracer_name]
+            ):
+                setattr(gfs_physics_control, tracer_name_mapping[tracer_name], index)
+        gfs_physics_control.ntrac = max(self._tracer_inds.values())
+        gfs_physics_control.nsswr = int(gfs_physics_control.fhswr / self._timestep)
+        gfs_physics_control.nslwr = int(gfs_physics_control.fhlwr / self._timestep)
+
     def __call__(
         self, time: cftime.DatetimeJulian, state: State,
     ):
-        self._rad_update(time, self._timestep)
+        self._set_compute_flags(time)
+        if (
+            self._rad_config.gfs_physics_control.lslwr
+            or self._rad_config.gfs_physics_control.lsswr
+        ):
+            self._rad_update(time, self._timestep)
         diagnostics = self._rad_compute(state, time)
         return diagnostics
 
+    def _set_compute_flags(self, time: cftime.DatetimeJulian) -> None:
+        timestep_index = _get_forecast_time_index(time, self._init_time, self._timestep)
+        sw_compute_period = self._rad_config.gfs_physics_control.nsswr
+        if sw_compute_period is None:
+            raise ValueError("GFS physics control nsswr not set.")
+        self._rad_config.gfs_physics_control.lsswr = _is_compute_timestep(
+            timestep_index, sw_compute_period
+        )
+        lw_compute_period = self._rad_config.gfs_physics_control.nslwr
+        if lw_compute_period is None:
+            raise ValueError("GFS physics control nslwr not set.")
+        self._rad_config.gfs_physics_control.lslwr = _is_compute_timestep(
+            timestep_index, lw_compute_period
+        )
+
     def _rad_update(self, time: cftime.DatetimeJulian, dt_atmos: float) -> None:
         """Update the radiation driver's time-varying parameters"""
-        # idat is supposed to be model initalization time but is unused w/ current flags
+
         idat = np.array(
-            [time.year, time.month, time.day, 0, time.hour, time.minute, time.second, 0]
+            [
+                self._init_time.year,
+                self._init_time.month,
+                self._init_time.day,
+                0,
+                self._init_time.hour,
+                self._init_time.minute,
+                self._init_time.second,
+                0,
+            ]
         )
         jdat = np.array(
             [time.year, time.month, time.day, 0, time.hour, time.minute, time.second, 0]
         )
-        fhswr = np.array(float(self._rad_config.fhswr))
+        fhswr = np.array(float(self._rad_config.gfs_physics_control.fhswr))
         dt_atmos = np.array(float(dt_atmos))
         self._driver.radupdate(
             idat,
             jdat,
             fhswr,
             dt_atmos,
-            self._rad_config.lsswr,
+            self._rad_config.gfs_physics_control.lsswr,
             self._aerosol_data["kprfg"],
             self._aerosol_data["idxcg"],
             self._aerosol_data["cmixg"],
@@ -154,31 +218,58 @@ class Radiation:
             self._aerosol_data["cline"],
             self._solar_data,
             self._gas_data,
+            self._comm.rank,
         )
 
     def _rad_compute(self, state: State, time: cftime.DatetimeJulian,) -> Diagnostics:
         """Compute the radiative fluxes"""
-        statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)
-        grid, coords = get_grid(state)
-        sfcprop = get_sfcprop(state)
-        ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
-        model = get_model(
-            self._rad_config,
-            self._tracer_inds,
-            time,
-            self._timestep,
-            nz,
-            self._comm.rank,
-        )
-        random_numbers = io.generate_random_numbers(ncolumns, nz, NGPTSW, NGPTLW)
-        out = self._driver._GFS_radiation_driver(
-            model,
-            statein,
-            sfcprop,
-            grid,
-            random_numbers,
-            self._lw_lookup,
-            self._sw_lookup,
-        )
-        out = postprocess_out(out)
-        return unstack(out, coords)
+        if (
+            self._rad_config.gfs_physics_control.lsswr
+            or self._rad_config.gfs_physics_control.lslwr
+        ):
+            solhr = _solar_hour(time)
+            statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)
+            grid, coords = get_grid(state)
+            sfcprop = get_sfcprop(state)
+            ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
+            random_numbers = io.generate_random_numbers(ncolumns, nz, NGPTSW, NGPTLW)
+            out = self._driver._GFS_radiation_driver(
+                self._rad_config.gfs_physics_control,
+                self._driver.solar_constant,
+                solhr,
+                statein,
+                sfcprop,
+                grid,
+                random_numbers,
+                self._lw_lookup,
+                self._sw_lookup,
+            )
+            self._cached = unstack(postprocess_out(out), coords)
+        return self._cached
+
+
+def _solar_hour(time: cftime.DatetimeJulian) -> float:
+    return (
+        time.hour
+        + time.minute / MINUTES_PER_HOUR
+        + time.second / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE)
+    )
+
+
+def _get_forecast_time_index(
+    current_time: cftime.DatetimeJulian,
+    init_time: cftime.DatetimeJulian,
+    timestep_seconds: float,
+) -> int:
+    """Get integer index of forecast time, since initial time """
+    forecast_elapsed_seconds = (current_time - init_time).total_seconds()
+    return int(forecast_elapsed_seconds / timestep_seconds) + 1
+
+
+def _is_compute_timestep(timestep_index: int, compute_period: int) -> bool:
+    if compute_period == 1:
+        return True
+    elif timestep_index % compute_period == 1:
+        return True
+    else:
+        return False

@@ -113,10 +113,15 @@ def main(args, unknown_args=None):
                 args=unknown_args, config_dict=config_dict
             )
         if args.no_wandb is False:
-            # hyperparameters are repeated as flattened top level keys so they can
-            # be referenced in the sweep configuration parameters
-            # https://github.com/wandb/client/issues/982
-            wandb.init(config=to_flat_dict(config_dict["hyperparameters"]))
+            wandb.init(
+                # workaround for
+                # https://docs.wandb.ai/guides/track/launch#init-start-error
+                settings=wandb.Settings(start_method="fork"),
+                # hyperparameters are repeated as flattened top level keys so they can
+                # be referenced in the sweep configuration parameters
+                # https://github.com/wandb/client/issues/982
+                config=to_flat_dict(config_dict["hyperparameters"]),
+            )
             # hyperparameters should be accessed throughthe wandb config so that
             # sweeps use the wandb-provided hyperparameter values
             config_dict["hyperparameters"] = to_nested_dict(wandb.config)
