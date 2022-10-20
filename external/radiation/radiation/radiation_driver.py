@@ -2,7 +2,7 @@ import numpy as np
 import warnings
 
 from .types import DTYPE_INT
-from .radphysparam import ictmflg, isolar, ivflip
+from .radphysparam import ictmflg, ivflip
 from .phys_const import con_eps, con_epsm1, con_rocp, con_fvirt, con_rog, con_epsq
 from .funcphys import fpvs
 
@@ -298,7 +298,7 @@ class RadiationDriver:
             elif self.iyear0 != iyear:
                 lsol_chg = True
             else:
-                lsol_chg = isolar == 4 and lmon_chg
+                lsol_chg = self.isolar == 4 and lmon_chg
 
             self.iyear0 = iyear
 
@@ -377,9 +377,6 @@ class RadiationDriver:
 
         if gfs_physics_control.effr_in:
             raise FileNotFoundError(f"effr_in = True Not implemented")
-
-        if not (gfs_physics_control.lsswr or gfs_physics_control.lslwr):
-            return
 
         # --- set commonly used integers
         LM = gfs_physics_control.levr

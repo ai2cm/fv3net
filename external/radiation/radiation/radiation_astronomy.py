@@ -31,8 +31,6 @@ class AstronomyClass:
         self.isolflg = isolar
         self.solc0 = con_solr
         self.solar_fname = solar_filename
-        self.iyr_sav = 0
-        self.nstp = 6
 
         if isolar == 0:
             self.solc0 = con_solr_old
@@ -268,8 +266,6 @@ class AstronomyClass:
 
                                 else:
                                     i -= 1
-        else:
-            self.solc0 = con_solr
 
         #  --- ...  calculate forecast julian day and fraction of julian day
         jd1 = self.iw3jdn(iyear, imon, iday)
