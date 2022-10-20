@@ -70,9 +70,7 @@ class RecurrentGeneratorConfig:
         """
         Args:
             channels: number of input channels
-            nx: number of x grid points
-            ny: number of y grid points
-            n_time: number of timesteps in output timeseries, including input timestep
+            shape: shape information for input tensors
             convolution: factory for creating all convolutional layers
                 used by the network
         """
@@ -197,11 +195,10 @@ class RecurrentGenerator(nn.Module):
         Args:
             config: configuration for the network
             channels: number of input and output channels
-            nx: number of grid points in x direction
-            ny: number of grid points in y direction
-            n_time: number of timesteps in output timeseries, including input timestep
+            shape: shape information for input tensors
             convolution: factory for creating all convolutional layers
                 used by the network
+            step_type: type of recurrent step to use, must be one of "resnet" or "conv"
         """
         super(RecurrentGenerator, self).__init__()
         self.channels = channels
