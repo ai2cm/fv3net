@@ -107,7 +107,9 @@ class Discriminator(nn.Module):
         final_conv = ConvBlock(
             in_channels=max_filters,
             out_channels=max_filters,
-            convolution_factory=curry(convolution)(kernel_size=kernel_size),
+            convolution_factory=curry(convolution)(
+                kernel_size=kernel_size, padding="same"
+            ),
             activation_factory=leakyrelu_activation(negative_slope=0.2, inplace=True),
         )
         patch_output = convolution(
