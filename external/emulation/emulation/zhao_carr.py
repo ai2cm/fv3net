@@ -235,9 +235,9 @@ def infer_precpd_precip_from_conservation(state, emulator):
     gravity = 9.80665
 
     condensate_to_precip = -1 * (
-        emulator[PrecpdOutput.cloud_water] - emulator[GscondOutput.cloud_water]
+        emulator[PrecpdOutput.cloud_water] - state[GscondOutput.cloud_water]
     )
-    precip_to_vapor = emulator[PrecpdOutput.humidity] - emulator[GscondOutput.humidity]
+    precip_to_vapor = emulator[PrecpdOutput.humidity] - state[GscondOutput.humidity]
     delp = state[Input.delp]
 
     rain_water = condensate_to_precip - precip_to_vapor
