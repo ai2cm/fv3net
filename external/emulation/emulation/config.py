@@ -122,6 +122,7 @@ class ModelConfig:
     mask_gscond_zero_cloud_classifier: bool = False
     mask_gscond_no_tend_classifier: bool = False
     mask_precpd_zero_cloud_classifier: bool = False
+    precpd_precip_conservative: bool = False
     batch_size: int = 512
 
     def __post_init__(self):
@@ -195,6 +196,9 @@ class ModelConfig:
             yield emulation.zhao_carr.enforce_conservative_gscond
         elif self.enforce_conservative_phase_dependent:
             yield emulation.zhao_carr.enforce_conservative_phase_dependent
+
+        if self.precpd_precip_conservative:
+            yield emulation.zhao_carr.infer_precpd_precip_from_conservation
 
         for key, _slice in self.mask_emulator_levels.items():
             yield LevelMask(

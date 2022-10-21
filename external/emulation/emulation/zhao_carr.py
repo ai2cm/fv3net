@@ -34,6 +34,7 @@ class Input:
     cloud_water = "cloud_water_mixing_ratio_input"
     humidity = "specific_humidity_input"
     temperature = "air_temperature_input"
+    delp = "pressure_thickness_of_atmospheric_layer"
 
 
 class GscondOutput:
@@ -46,6 +47,7 @@ class PrecpdOutput:
     cloud_water = "cloud_water_mixing_ratio_after_precpd"
     humidity = "specific_humidity_after_precpd"
     temperature = "air_temperature_after_precpd"
+    precip = "total_precipitation"
 
 
 def squash_water_water_conserving(cloud, humidity, bound: float):
@@ -226,3 +228,21 @@ def enforce_conservative_phase_dependent(state, emulator):
     cloud_out = emulator[GscondOutput.cloud_water]
     net_condensation = cloud_out - state[Input.cloud_water]
     return {**emulator, **apply_condensation_phase_dependent(state, net_condensation)}
+
+
+def infer_precpd_precip_from_conservation(state, emulator):
+    rho_water = 1000.0
+    gravity = 9.80665
+
+    condensate_to_precip = -1 * (
+        emulator[PrecpdOutput.cloud_water] - emulator[GscondOutput.cloud_water]
+    )
+    precip_to_vapor = emulator[PrecpdOutput.humidity] - emulator[GscondOutput.humidity]
+    delp = state[Input.delp]
+
+    rain_water = condensate_to_precip - precip_to_vapor
+    rain_water = np.where(rain_water < 0, 0.0, rain_water)
+    total_precip_per_level = rain_water * delp / gravity / rho_water  # units of m
+    surface_precip = np.sum(total_precip_per_level, axis=0, keepdims=True)
+
+    return {**emulator, PrecpdOutput.precip: surface_precip}
