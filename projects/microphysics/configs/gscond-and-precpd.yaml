@@ -1,12 +1,12 @@
 kind: prognostic
-experiment: rh-trials-prognostic-oct2022
-name: zc-emu-rh-in-30d-v1
+experiment: conserve-pr-prog-oct2022
+name: zc-emu-pr-conserve-v1
 image_tag: latest
-fv3net_image_tag: 9d2404bb4f04a3c7645692f3b05670b8ed1c2c73
+fv3net_image_tag: latest
 config:
   base_version: v0.5
   data_table: default
-  duration: "30d"
+  duration: "11d"
   initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
   fortran_diagnostics:
   - name: piggy.zarr
@@ -284,8 +284,8 @@ config:
           start: 74
           fill_value: air_temperature_input
     model:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-08/precpd-diff-only-press-rh-in-v1/model.tf
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-19/precpd-diff-only-conserve-precip-v1/model.tf
     storage:
       output_freq_sec: 10800
       save_nc: false
-      save_zarr: true
+      save_zarr: false
