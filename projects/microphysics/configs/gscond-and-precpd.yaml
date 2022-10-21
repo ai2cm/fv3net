@@ -1,6 +1,6 @@
 kind: prognostic
 experiment: conserve-pr-prog-oct2022
-name: zc-emu-pr-conserve-via-mask-v1
+name: zc-emu-pr-conserve-via-mask-tscaled-emu-v1
 image_tag: 5a216304d259e135d94be07a520a130726272b7b
 fv3net_image_tag: latest
 config:
@@ -284,18 +284,18 @@ config:
           start: 74
           fill_value: air_temperature_input
     model:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-15/precpd-diff-50epoch-v1/model.tf
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-15/precpd-diff-tscale-v1/model.tf
       precpd_precip_conservative: true
-      # mask_emulator_levels:
-      #   cloud_water_mixing_ratio_after_precpd:
-      #     start: 74
-      #     fill_value: cloud_water_mixing_ratio_after_gscond
-      #   specific_humidity_after_precpd:
-      #     start: 74
-      #     fill_value: specific_humidity_after_gscond
-      #   air_temperature_after_precpd:
-      #     start: 74
-      #     fill_value: air_temperature_after_gscond
+      mask_emulator_levels:
+        cloud_water_mixing_ratio_after_precpd:
+          start: 74
+          fill_value: cloud_water_mixing_ratio_after_gscond
+        specific_humidity_after_precpd:
+          start: 74
+          fill_value: specific_humidity_after_gscond
+        air_temperature_after_precpd:
+          start: 74
+          fill_value: air_temperature_after_gscond
     storage:
       output_freq_sec: 10800
       save_nc: false
