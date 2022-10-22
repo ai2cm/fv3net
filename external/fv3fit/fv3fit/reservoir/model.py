@@ -22,7 +22,7 @@ class ReservoirComputingModel:
         self.readout = readout
 
     def predict(self):
-        prediction = self.readout.predict(self.reservoir.state)
+        prediction = self.readout.predict(self.reservoir.state).reshape(-1)
         self.reservoir.increment_state(prediction)
         return prediction
 

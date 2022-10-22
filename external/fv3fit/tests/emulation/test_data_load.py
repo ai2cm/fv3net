@@ -64,6 +64,21 @@ def test_netcdf_directory_to_tf_dataset(config, nc_dir):
     _assert_batch_valid(batch, 100)
 
 
+def test_netcdf_dir_to_tf_dataset_file_regexp_filter(config, nc_dir):
+    filter_str = ".*[12].nc"
+    tf_ds = load.nc_dir_to_tfdataset(str(nc_dir), config, match=filter_str).unbatch()
+    batch = next(iter(tf_ds.batch(150)))
+    _assert_batch_valid(batch, 20)
+
+
+def test_netcdf_dir_to_tf_dataset_file_regexp_filter_empty(config):
+    filter_str = "notamatch.nc"
+    with pytest.raises(NotImplementedError):
+        tf_ds = load.nc_dir_to_tfdataset(  # noqa
+            str(nc_dir), config, match=filter_str
+        ).unbatch()
+
+
 def test_netcdf_files_to_tf_dataset(config, nc_dir_files):
 
     tf_ds = load.nc_files_to_tf_dataset(nc_dir_files, config).unbatch()

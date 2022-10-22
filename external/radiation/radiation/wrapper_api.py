@@ -35,8 +35,7 @@ TRACER_NAMES_IN_MAPPING: Mapping[str, str] = {
     "ozone_mixing_ratio": "ntoz",
     "cloud_amount": "ntclamt",
 }
-MINUTES_PER_HOUR: float = 60.0
-SECONDS_PER_MINUTE: float = 60.0
+SECONDS_PER_HOUR = 3600.0
 
 
 State = MutableMapping[Hashable, xr.DataArray]
@@ -227,7 +226,7 @@ class Radiation:
             self._rad_config.gfs_physics_control.lsswr
             or self._rad_config.gfs_physics_control.lslwr
         ):
-            solhr = _solar_hour(time)
+            solhr = self._solar_hour(time)
             statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)
             grid, coords = get_grid(state)
             sfcprop = get_sfcprop(state)
@@ -247,13 +246,12 @@ class Radiation:
             self._cached = unstack(postprocess_out(out), coords)
         return self._cached
 
-
-def _solar_hour(time: cftime.DatetimeJulian) -> float:
-    return (
-        time.hour
-        + time.minute / MINUTES_PER_HOUR
-        + time.second / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE)
-    )
+    def _solar_hour(self, time: cftime.DatetimeJulian) -> float:
+        """This follows the Fortran computation that rounds initial time to the hour"""
+        seconds_elapsed = (time - self._init_time).total_seconds()
+        hours_elapsed = seconds_elapsed / SECONDS_PER_HOUR
+        print(f"Python solar hour: {hours_elapsed + self._init_time.hour}")
+        return hours_elapsed + self._init_time.hour
 
 
 def _get_forecast_time_index(

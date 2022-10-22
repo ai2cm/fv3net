@@ -1,6 +1,8 @@
 import dacite
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import fsspec
 from typing import Optional
+import yaml
 
 
 @dataclass
@@ -74,6 +76,7 @@ class ReservoirTrainingConfig:
     input_noise: float
     seed: int = 0
     n_samples: Optional[int] = None
+    _METADATA_NAME = "reservoir_training_config.yaml"
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
@@ -94,3 +97,17 @@ class ReservoirTrainingConfig:
             data=kwargs,
             config=dacite.Config(strict=True),
         )
+
+    def dump(self, path: str):
+        metadata = {
+            "n_burn": self.n_burn,
+            "input_noise": self.input_noise,
+            "seed": self.seed,
+            "n_samples": self.n_samples,
+            "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
+            "readout_hyperparameters": asdict(self.readout_hyperparameters),
+        }
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        fs.makedirs(path, exist_ok=True)
+        mapper = fs.get_mapper(path)
+        mapper[self._METADATA_NAME] = yaml.safe_dump(metadata, indent=4).encode("UTF-8")
