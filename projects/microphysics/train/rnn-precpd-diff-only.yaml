@@ -1,5 +1,5 @@
 kind: train
-name: precpd-diff-only-conserve-precip-v1
+name: precpd-diff-only-no-precip-out-v1
 fv3fit_image_tag: 7e04ebe97c8d485b0e343261378f269c4278d88b
 experiment: conserve-precpd-precip
 config:
@@ -10,7 +10,7 @@ config:
   loss:
     logit_variables: []
     loss_variables:
-    - total_precipitation
+    # - total_precipitation
     - temperature_precpd_difference
     - humidity_precpd_difference
     - cloud_precpd_difference
@@ -33,7 +33,7 @@ config:
       humidity_precpd_difference: 1.0
       specific_humidity_after_precpd: 50000.0
       temperature_precpd_difference: 1.0
-      total_precipitation: 2.0
+      # total_precipitation: 2.0
   model:
     architecture:
       kwargs:
@@ -68,7 +68,6 @@ config:
   out_url: gs://vcm-ml-scratch/andrep/test-delete
   shuffle_buffer_size: 13824
   tensor_transform:
-  - conservative_precip: true
   - source: cloud_water_mixing_ratio_after_precpd
     to: cloud_water_mixing_ratio_after_precpd
     transform:
