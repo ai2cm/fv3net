@@ -108,16 +108,15 @@ class RadiationDriver:
                     f"- ISUBCLW={isubclw}, No McICA, use grid ",
                     f"averaged cloud in LW radiation",
                 )
-                raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
 
-            if isubclw == 1:
+            elif isubclw == 1:
                 print(
                     "- ISUBCLW={isubclw}, Use McICA with fixed ",
                     "permutation seeds for LW random number generator",
                 )
                 raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
 
-            if isubclw == 2:
+            elif isubclw == 2:
                 print(
                     f"- ISUBCLW={isubclw}, Use McICA with random ",
                     f"permutation seeds for LW random number generator",
@@ -131,16 +130,15 @@ class RadiationDriver:
                     "- ISUBCSW={isubcsw}, No McICA, use grid ",
                     "averaged cloud in SW radiation",
                 )
-                raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
 
-            if isubcsw == 1:
+            elif isubcsw == 1:
                 print(
                     f"- ISUBCSW={isubcsw}, Use McICA with fixed ",
                     "permutation seeds for SW random number generator",
                 )
                 raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
 
-            if isubcsw == 2:
+            elif isubcsw == 2:
                 print(
                     f"- ISUBCSW={isubcsw}, Use McICA with random ",
                     "permutation seeds for SW random number generator",
