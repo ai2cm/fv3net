@@ -27,6 +27,10 @@ nudge_to_fine_run_v5: deploy
 port_validation_run: deploy
 	cd radiation-port-run && ./run.sh port-validation
 
+.PHONY: port_validation_run_no_mc
+port_validation_run_no_mc: deploy
+	cd radiation-port-run && ./run.sh port-validation-no-mc
+
 .PHONY: prescribed_cloud_run
 prescribed_cloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cloud

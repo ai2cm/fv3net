@@ -12,6 +12,14 @@ nudging:
     pressure_thickness_of_atmospheric_layer: 3
 radiation_scheme:
   kind: "python"
+  input_generator:
+    dataset_key: gs://vcm-ml-experiments/cloud-ml/2022-09-14/fine-coarse-3d-fields.zarr
+    variables:
+      cloud_water_mixing_ratio_fine: cloud_water_mixing_ratio
+      cloud_ice_mixing_ratio_fine: cloud_ice_mixing_ratio
+      cloud_amount_fine: cloud_amount
+    reference_initial_time: "20160801.001500"
+    reference_frequency_seconds: 900
 namelist:
   atmos_model_nml:
     fhmax: 1024  # max hours of simulation (over all segments) for which fortran physics diags are saved
@@ -23,6 +31,8 @@ namelist:
     fhswr: 1800.0
     hybedmf: true
     satmedmf: false
+    isubc_lw: 0
+    isubc_sw: 0
   namsfc:
     faisl: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
     faiss: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files

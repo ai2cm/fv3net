@@ -23,6 +23,8 @@ namelist:
     fhswr: 1800.0
     hybedmf: true
     satmedmf: false
+    isubc_lw: 0
+    isubc_sw: 0
   namsfc:
     faisl: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
     faiss: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
