@@ -247,10 +247,11 @@ class Radiation:
         return self._cached
 
     def _solar_hour(self, time: cftime.DatetimeJulian) -> float:
-        """This follows the Fortran computation that rounds initial time to the hour"""
+        """This follows the Fortran computation that rounds initial time to the
+        hour. See https://github.com/NOAA-GFDL/SHiELD_physics/issues/17, but for
+        now we want the port to validate against Fortran."""
         seconds_elapsed = (time - self._init_time).total_seconds()
         hours_elapsed = seconds_elapsed / SECONDS_PER_HOUR
-        print(f"Python solar hour: {hours_elapsed + self._init_time.hour}")
         return hours_elapsed + self._init_time.hour
 
 
