@@ -1,5 +1,5 @@
 kind: train
-name: precpd-diff-only-conserve-pr-tscale-v1
+name: precpd-diff-only-conserve-pr-tscale-v2
 fv3fit_image_tag: 7e04ebe97c8d485b0e343261378f269c4278d88b
 experiment: conserve-precpd-precip
 config:
@@ -76,6 +76,7 @@ config:
   out_url: gs://vcm-ml-scratch/andrep/test-delete
   shuffle_buffer_size: 13824
   tensor_transform:
+  - conservative_precip: true
   - source: cloud_water_mixing_ratio_after_precpd
     to: cloud_water_mixing_ratio_after_precpd
     transform:
