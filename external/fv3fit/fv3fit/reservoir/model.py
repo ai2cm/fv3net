@@ -3,12 +3,31 @@ import dataclasses
 import fsspec
 import io
 import joblib
-
+import numpy as np
 import yaml
 
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
 from .config import ReservoirHyperparameters
+
+
+class HybridReservoirComputingModel:
+    _READOUT_NAME = "readout.pkl"
+    _METADATA_NAME = "metadata.bin"
+
+    def __init__(
+        self, reservoir: Reservoir, readout: ReservoirComputingReadout, imperfect_model,
+    ):
+        self.reservoir = reservoir
+        self.readout = readout
+        self.imperfect_model = imperfect_model
+
+    def predict(self, input_state):
+        imperfect_prediction = self.imperfect_model.predict(input_state)
+        readout_input = np.hstack([self.reservoir.state, imperfect_prediction])
+        rc_prediction = self.readout.predict(readout_input).reshape(-1)
+        self.reservoir.increment_state(rc_prediction)
+        return rc_prediction
 
 
 class ReservoirComputingModel:

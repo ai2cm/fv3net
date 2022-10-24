@@ -34,7 +34,7 @@ SOFTWARE.
 
 
 def integrate_ks_eqn(
-    ic: np.ndarray, domain_size: int, dt: float, Nt: int
+    ic: np.ndarray, domain_size: int, dt: float, Nt: int, error_eps: float = 0
 ) -> np.ndarray:
     """
         Integrate the Kuramoto-Sivashinsky equation (Python)
@@ -45,6 +45,7 @@ def integrate_ks_eqn(
         domain_size = domain length
         dt = time step
         Nt = number of integration timesteps
+        error_eps = optional small error to add to make a more 'imperfect' solution
     outputs
         Time series of vectors u(x, nt*dt) at uniform x gridpoints
     """
@@ -98,7 +99,7 @@ def integrate_ks_eqn(
         uu = fft(uu)
         Nn = G * uu  # compute Nn == -u u_x (spectral)
 
-        u = B * (A * u + dt32 * Nn - dt2 * Nn1)
+        u = B * (A * u + dt32 * Nn - dt2 * Nn1 * (1 + error_eps))
         time_series.append(ifft(u))
     # For some reason, calling np.real within the for loop results in
     # list elements that still have complex parts with coeff 0.
@@ -116,10 +117,12 @@ def _generate_ic(input_dim, seed=0):
 
 
 def generate_ks_time_series(
-    input_size, domain_size, n_steps, timestep=0.25, seed=0,
+    input_size, domain_size, n_steps, timestep=0.25, seed=0, error_eps=0.0
 ):
     ic = _generate_ic(input_size, seed)
-    return integrate_ks_eqn(ic=ic, domain_size=domain_size, dt=timestep, Nt=n_steps)
+    return integrate_ks_eqn(
+        ic=ic, domain_size=domain_size, dt=timestep, Nt=n_steps, error_eps=error_eps
+    )
 
 
 @dataclass
@@ -127,7 +130,8 @@ class KuramotoSivashinskyConfig:
     """ Generates 1D Kuramoto-Sivashinsky solution time series
     N: number spatial points in final output vectors
     domain_size: periodic domain size
-    timestep: timestep in solver
+    timestep: time interval in final output time series.
+        Timestep used in solver is this divided by time_downsampling_factor.
     spatial_downsampling_factor: optional, if >1 solver will run at this factor
         higher resolution and the final time series is downsampled to N.
         This is useful for stability.
@@ -139,6 +143,7 @@ class KuramotoSivashinskyConfig:
     timestep: float
     spatial_downsampling_factor: int = 1
     time_downsampling_factor: int = 1
+    error_eps: float = 0.0
     subdomain_output_size: Optional[int] = None
     subdomain_overlap: Optional[int] = None
     subdomain_axis: int = 1
@@ -157,10 +162,26 @@ class KuramotoSivashinskyConfig:
             n_steps=n_steps * self.time_downsampling_factor,
             seed=seed,
             domain_size=self.domain_size,
-            timestep=self.timestep,
+            timestep=self.timestep / self.time_downsampling_factor,
+            error_eps=self.error_eps,
         )
 
         ks_time_series = ks_time_series[:: self.time_downsampling_factor, :]
         ks_time_series = ks_time_series[:, :: self.spatial_downsampling_factor]
 
         return ks_time_series
+
+
+class ImperfectKSModel:
+    def __init__(self, ks_config: KuramotoSivashinskyConfig):
+        self.ks_config = ks_config
+        # self.n_steps_per_prediction = n_steps_per_prediction
+
+    def predict(self, ic):
+        return integrate_ks_eqn(
+            ic=ic,
+            domain_size=self.ks_config.domain_size,
+            dt=self.ks_config.timestep,
+            Nt=1,
+            error_eps=self.ks_config.error_eps,
+        )[-1]
