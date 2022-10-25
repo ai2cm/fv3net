@@ -35,6 +35,10 @@ port_validation_run_no_mc: deploy
 prescribed_cloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cloud
 
+.PHONY: prescribed_half_cloud_run
+prescribed_half_cloud_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-half-cloud
+
 .PHONY: extend_prescribed_cloud_run
 extend_prescribed_cloud_run: deploy
 	cd radiation-port-run && ./extend.sh \

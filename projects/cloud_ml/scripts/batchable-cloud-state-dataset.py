@@ -1,8 +1,10 @@
+import sys
 import intake
 import xarray as xr
 import os
 from dask.diagnostics import ProgressBar
 import fsspec
+import yaml
 
 from vcm.catalog import catalog as CATALOG
 from vcm.fv3.metadata import standardize_fv3_diagnostics
@@ -31,10 +33,9 @@ FINE_TO_COARSE_RENAME = {
 RENAME_DIMS = {"pfull": "z"}
 COORD_VARS = ["x", "y", "z", "tile"]
 OUTPUT_CHUNKS = {"time": 1, "tile": 6}
-OUTPUT_PATH = "gs://vcm-ml-experiments/cloud-ml/2022-09-14/fine-coarse-3d-fields.zarr"
 
 
-def get_fine_ds():
+def get_fine_ds(scaling=None):
     datasets = []
     for key in FINE_RESTARTS_KEYS:
         dataset = CATALOG[key].to_dask()
@@ -48,7 +49,9 @@ def get_fine_ds():
     ds_3d = xr.Dataset()
     for restart_name, python_name in FINE_TO_COARSE_RENAME.items():
         fine_name = python_name + "_fine"
-        ds_3d[fine_name] = ds[restart_name]
+        factor = scaling[fine_name] if fine_name in scaling else 1
+        print(f"{fine_name} scaling factor: {factor}.")
+        ds_3d[fine_name] = factor * ds[restart_name]
     return ds_3d.drop_vars(COORD_VARS)
 
 
@@ -76,7 +79,15 @@ def rechunk(ds, chunks=OUTPUT_CHUNKS):
     return ds.unify_chunks().chunk(chunks)
 
 
-def main():
+def get_config(path):
+    if path is not None:
+        with open(path, "r") as f:
+            return yaml.safe_load(f)
+    else:
+        return None
+
+
+def main(config):
     """
     Prescribers and fv3fit ML models need training data in a particular form.
     Let's make a dataset of the following targets:
@@ -92,15 +103,24 @@ def main():
     - cloud fraction
     """
 
-    fine = get_fine_ds()
+    fine = get_fine_ds(config.get("scaling", {}))
     coarse = get_coarse_ds()
     coarse, fine = subset_times(coarse, fine)
     merged = xr.merge([fine, coarse, GRID, MASK])
     merged = rechunk(merged)
+    try:
+        output_path = config["output_path"]
+    except KeyError:
+        raise KeyError('Config must contain "output_path".')
     with ProgressBar():
         print(f'Number of timesteps: {merged.sizes["time"]}.')
-        merged.to_zarr(fsspec.get_mapper(OUTPUT_PATH), consolidated=True)
+        merged.to_zarr(fsspec.get_mapper(output_path), consolidated=True)
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv[1]) > 1:
+        config_path = sys.argv[1]
+    else:
+        config_path = None
+    config = get_config(config_path)
+    main(config)

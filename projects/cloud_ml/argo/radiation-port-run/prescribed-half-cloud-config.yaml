@@ -13,7 +13,7 @@ nudging:
 radiation_scheme:
   kind: "python"
   input_generator:
-    dataset_key: gs://vcm-ml-experiments/cloud-ml/2022-09-14/fine-coarse-3d-fields.zarr
+    dataset_key: gs://vcm-ml-experiments/cloud-ml/2022-10-25/fine-half-cloud-coarse-3d-fields.zarr
     variables:
       cloud_water_mixing_ratio_fine: cloud_water_mixing_ratio
       cloud_ice_mixing_ratio_fine: cloud_ice_mixing_ratio
