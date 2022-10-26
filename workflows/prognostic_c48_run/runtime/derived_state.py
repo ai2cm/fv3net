@@ -33,7 +33,7 @@ class FV3StateMapper(Mapping):
             return xr.DataArray(time, name="time")
         elif key == "initialization_time":
             initialization_time = self._getter.get_state([key])[key]
-            return round_time(cftime.DatetimeJulian(*initialization_time.timetuple()))
+            return xr.DataArray(initialization_time, name=key)
         elif key == "latent_heat_flux":
             return self._getter.get_diagnostic_by_name("lhtfl").data_array
         elif key == "total_water":

@@ -346,7 +346,7 @@ class TimeLoop(
                 self.comm,
                 physics_namelist,
                 self._timestep,
-                self._state["initialization_time"],
+                self._state["initialization_time"].item(),
                 self._fv3gfs.get_tracer_metadata(),
                 radiation_input_generator,
             )
