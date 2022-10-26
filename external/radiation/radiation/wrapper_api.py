@@ -36,6 +36,7 @@ TRACER_NAMES_IN_MAPPING: Mapping[str, str] = {
     "cloud_amount": "ntclamt",
 }
 SECONDS_PER_HOUR = 3600.0
+HOURS_PER_DAY = 24.0
 
 
 State = MutableMapping[Hashable, xr.DataArray]
@@ -252,7 +253,7 @@ class Radiation:
         now we want the port to validate against Fortran."""
         seconds_elapsed = (time - self._init_time).total_seconds()
         hours_elapsed = seconds_elapsed / SECONDS_PER_HOUR
-        return hours_elapsed + self._init_time.hour
+        return (hours_elapsed + self._init_time.hour) % HOURS_PER_DAY
 
 
 def _get_forecast_time_index(
