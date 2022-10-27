@@ -26,25 +26,6 @@ class ImperfectModel(abc.ABC):
         pass
 
 
-class HybridReservoirComputingModel:
-    _READOUT_NAME = "readout.pkl"
-    _METADATA_NAME = "metadata.bin"
-
-    def __init__(
-        self, reservoir: Reservoir, readout: ReservoirComputingReadout, imperfect_model,
-    ):
-        self.reservoir = reservoir
-        self.readout = readout
-        self.imperfect_model = imperfect_model
-
-    def predict(self, input_state):
-        imperfect_prediction = self.imperfect_model.predict(input_state)
-        readout_input = np.hstack([self.reservoir.state, imperfect_prediction])
-        rc_prediction = self.readout.predict(readout_input).reshape(-1)
-        self.reservoir.increment_state(rc_prediction)
-        return rc_prediction
-
-
 class ReservoirComputingModel:
     _READOUT_NAME = "readout.pkl"
     _METADATA_NAME = "metadata.bin"
@@ -55,7 +36,7 @@ class ReservoirComputingModel:
         self.reservoir = reservoir
         self.readout = readout
 
-    def predict(self):
+    def predict(self, **kwargs):
         prediction = self.readout.predict(self.reservoir.state).reshape(-1)
         self.reservoir.increment_state(prediction)
         return prediction
@@ -94,3 +75,62 @@ class ReservoirComputingModel:
         )
 
         return cls(reservoir=Reservoir(reservoir_hyperparameters), readout=readout,)
+
+
+class HybridReservoirComputingModel(ReservoirComputingModel):
+    _IMPERFECT_MODEL_NAME = "hybrid_rc_imperfect_model.bin"
+
+    def __init__(
+        self,
+        reservoir: Reservoir,
+        readout: ReservoirComputingReadout,
+        imperfect_model: ImperfectModel,
+    ):
+        self.reservoir = reservoir
+        self.readout = readout
+        self.imperfect_model = imperfect_model
+
+    def predict(self, input_state):
+        imperfect_prediction = self.imperfect_model.predict(input_state)
+        readout_input = np.hstack([self.reservoir.state, imperfect_prediction])
+        rc_prediction = self.readout.predict(readout_input).reshape(-1)
+        self.reservoir.increment_state(rc_prediction)
+        return rc_prediction
+
+    def dump(self, path: str) -> None:
+        """Dump data to a directory
+
+        Args:
+            path: a URL pointing to a directory
+        """
+        super().dump(path)
+
+        # TODO: If we move on to non- toy model cases, the dumping of the
+        # imperfect model should be handled by the child classes.
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        fs.makedirs(path, exist_ok=True)
+        mapper = fs.get_mapper(path)
+        f = io.BytesIO()
+        joblib.dump(self.imperfect_model, f)
+        mapper[self._IMPERFECT_MODEL_NAME] = f.getvalue()
+
+    @classmethod
+    def load(cls, path):
+        mapper = fsspec.get_mapper(path)
+
+        f_readout = io.BytesIO(mapper[cls._READOUT_NAME])
+        readout_components = joblib.load(f_readout)
+        readout = ReservoirComputingReadout(**readout_components)
+        metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
+
+        reservoir_hyperparameters = dacite.from_dict(
+            ReservoirHyperparameters, metadata["reservoir_hyperparameters"]
+        )
+        f_imperfect_model = io.BytesIO(mapper[cls._IMPERFECT_MODEL_NAME])
+        imperfect_model = joblib.load(f_imperfect_model)
+
+        return cls(
+            reservoir=Reservoir(reservoir_hyperparameters),
+            readout=readout,
+            imperfect_model=imperfect_model,
+        )
