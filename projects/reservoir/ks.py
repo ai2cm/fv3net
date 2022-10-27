@@ -4,6 +4,7 @@ from numpy import pi
 import numpy as np
 from typing import Optional
 
+from fv3fit.reservoir.model import ImperfectModel
 
 """
 The PDE solver code in integrate_ks_eqn is from
@@ -172,16 +173,16 @@ class KuramotoSivashinskyConfig:
         return ks_time_series
 
 
-class ImperfectKSModel:
-    def __init__(self, ks_config: KuramotoSivashinskyConfig):
-        self.ks_config = ks_config
+class ImperfectKSModel(ImperfectModel):
+    def __init__(self, config: KuramotoSivashinskyConfig):
+        self.config = config
         # self.n_steps_per_prediction = n_steps_per_prediction
 
     def predict(self, ic):
         return integrate_ks_eqn(
             ic=ic,
-            domain_size=self.ks_config.domain_size,
-            dt=self.ks_config.timestep,
+            domain_size=self.config.domain_size,
+            dt=self.config.timestep,
             Nt=1,
-            error_eps=self.ks_config.error_eps,
+            error_eps=self.config.error_eps,
         )[-1]

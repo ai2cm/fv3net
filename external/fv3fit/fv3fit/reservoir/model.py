@@ -1,3 +1,4 @@
+import abc
 import dacite
 import dataclasses
 import fsspec
@@ -9,6 +10,20 @@ import yaml
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
 from .config import ReservoirHyperparameters
+
+
+class ImperfectModel(abc.ABC):
+    def __init__(self, config):
+        self.config = config
+
+    @abc.abstractmethod
+    def predict(self, input: np.ndarray) -> np.ndarray:
+        """
+        Predict one reservoir computing step ahead.
+        If the imperfect model takes shorter timesteps than the reservoir model,
+        this should return the imperfect model's prediction at the next reservoir step.
+        """
+        pass
 
 
 class HybridReservoirComputingModel:

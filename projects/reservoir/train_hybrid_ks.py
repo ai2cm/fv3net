@@ -65,6 +65,15 @@ def add_imperfect_prediction_to_train_data(X, imperfect_prediction_states):
     return np.hstack(X, imperfect_prediction_states)
 
 
+def get_imperfect_ks_model(ks_config, epsilon, steps_per_rc_step):
+    imperfect_ks_config = copy.copy(ks_config)
+    imperfect_ks_config.error_eps = epsilon
+    imperfect_ks_config.time_downsampling_factor = (
+        steps_per_rc_step * ks_config.time_downsampling_factor
+    )
+    return ImperfectKSModel(imperfect_ks_config)
+
+
 def create_imperfect_prediction_train_data(
     imperfect_model, ts_truth,
 ):
@@ -77,22 +86,13 @@ def create_imperfect_prediction_train_data(
     return imperfect_predictions
 
 
-def train_hybrid(ks_config, train_config, epsilon, imperfect_model_timestep_factor):
+def train_hybrid(ks_config, train_config, epsilon, imperfect_model_steps_per_rc_step):
     training_ts = ks_config.generate(
         n_steps=train_config.n_samples + train_config.n_burn, seed=train_config.seed
     )
-    """
-    imperfect_ts = ks_config.generate(
-        n_steps=train_config.n_samples + train_config.n_burn,
-        seed=train_config.seed,
-        error_eps=epsilon,
-    )"""
-    imperfect_ks_config = copy.copy(ks_config)
-    imperfect_ks_config.error_eps = epsilon
-    imperfect_ks_config.time_downsampling_factor = (
-        imperfect_model_timestep_factor * ks_config.time_downsampling_factor
+    imperfect_model = get_imperfect_ks_model(
+        ks_config, epsilon, imperfect_model_steps_per_rc_step
     )
-    imperfect_model = ImperfectKSModel(imperfect_ks_config)
     imperfect_training_ts = create_imperfect_prediction_train_data(
         imperfect_model, training_ts,
     )
