@@ -35,8 +35,8 @@ TRACER_NAMES_IN_MAPPING: Mapping[str, str] = {
     "ozone_mixing_ratio": "ntoz",
     "cloud_amount": "ntclamt",
 }
-MINUTES_PER_HOUR: float = 60.0
-SECONDS_PER_MINUTE: float = 60.0
+SECONDS_PER_HOUR = 3600.0
+HOURS_PER_DAY = 24.0
 
 
 State = MutableMapping[Hashable, xr.DataArray]
@@ -227,7 +227,7 @@ class Radiation:
             self._rad_config.gfs_physics_control.lsswr
             or self._rad_config.gfs_physics_control.lslwr
         ):
-            solhr = _solar_hour(time)
+            solhr = self._solar_hour(time)
             statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)
             grid, coords = get_grid(state)
             sfcprop = get_sfcprop(state)
@@ -247,13 +247,8 @@ class Radiation:
             self._cached = unstack(postprocess_out(out), coords)
         return self._cached
 
-
-def _solar_hour(time: cftime.DatetimeJulian) -> float:
-    return (
-        time.hour
-        + time.minute / MINUTES_PER_HOUR
-        + time.second / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE)
-    )
+    def _solar_hour(self, time: cftime.DatetimeJulian) -> float:
+        return _solar_hour(time, self._init_time)
 
 
 def _get_forecast_time_index(
@@ -273,3 +268,13 @@ def _is_compute_timestep(timestep_index: int, compute_period: int) -> bool:
         return True
     else:
         return False
+
+
+def _solar_hour(time: cftime.DatetimeJulian, init_time: cftime.DatetimeJulian) -> float:
+    """This follows the Fortran computation that shifts the solar hour if
+    initialization is not on the hour. See
+    https://github.com/NOAA-GFDL/SHiELD_physics/issues/17, but for
+    now we want the port to validate against Fortran."""
+    seconds_elapsed = (time - init_time).total_seconds()
+    hours_elapsed = seconds_elapsed / SECONDS_PER_HOUR
+    return (hours_elapsed + init_time.hour) % HOURS_PER_DAY
