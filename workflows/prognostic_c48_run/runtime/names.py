@@ -18,6 +18,7 @@ NORTH_WIND = "northward_wind_after_physics"
 SST = "ocean_surface_temperature"
 TSFC = "surface_temperature"
 MASK = "land_sea_mask"
+TIME_KEYS = ["time", "initialization_time"]
 
 # following variables are required no matter what feature set is being used
 TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
