@@ -292,12 +292,12 @@ def _pcolormesh_cube_all_handles(
     kwargs["vmin"] = kwargs.get("vmin", np.nanmin(array))
     kwargs["vmax"] = kwargs.get("vmax", np.nanmax(array))
 
-    handles = []
-    for tile in range(array.shape[0]):
-        x = center_longitudes(lon[tile, :, :], central_longitude)
-        y = lat[tile, :, :]
-        for x_plot, y_plot, array_plot in _segment_plot_inputs(x, y, array[tile, :, :]):
-            handles.append(ax.pcolormesh(x_plot, y_plot, array_plot, **kwargs))
+    def plot(x, y, array):
+        return ax.pcolormesh(x, y, array, **kwargs)
+
+    handles = _apply_to_non_non_nan_segments(
+        plot, lat, center_longitudes(lon, central_longitude), array
+    )
     return handles
 
 
@@ -316,12 +316,40 @@ class UpdateablePColormesh:
         ).T
 
         iter_handles = iter(self.handles)
-        for tile in range(array.shape[0]):
-            x = center_longitudes(self.lon[tile, :, :], central_longitude)
-            y = self.lat[tile, :, :]
-            for _, _, array_plot in _segment_plot_inputs(x, y, array[tile, :, :]):
-                handle = next(iter_handles)
-                handle.set_array(array_plot.ravel())
+
+        def update_handle(x, y, array):
+            handle = next(iter_handles)
+            handle.set_array(array.ravel())
+
+        _apply_to_non_non_nan_segments(update_handle, self.lat, self.lon, array)
+
+
+def _apply_to_non_non_nan_segments(func, lat, lon, array):
+    """
+    Applies func to disjoint rectangular segments of array covering all non-nan values.
+
+    Args:
+        func:
+            Function to be applied to non-nan segments of array.
+        lon:
+            Array of longitudes with dimensions (tile, ny + 1, nx + 1).
+            Should be given at cell corners.
+        lat:
+            Array of latitudes with dimensions (tile, ny + 1, nx + 1).
+            Should be given at cell corners.
+        array:
+            Array of variables values at cell centers, of dimensions (tile, ny, nx)
+
+    Returns:
+        list of return values of func
+    """
+    all_handles = []
+    for tile in range(array.shape[0]):
+        x = lon[tile, :, :]
+        y = lat[tile, :, :]
+        for x_plot, y_plot, array_plot in _segment_plot_inputs(x, y, array[tile, :, :]):
+            all_handles.append(func(x_plot, y_plot, array_plot))
+    return all_handles
 
 
 def _segment_plot_inputs(x, y, masked_array):
