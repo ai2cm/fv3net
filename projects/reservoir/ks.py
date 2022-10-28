@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from scipy.fftpack import fft, ifft
+from scipy.interpolate import interp1d
 from numpy import pi
 import numpy as np
 from typing import Optional
@@ -131,46 +132,52 @@ class KuramotoSivashinskyConfig:
     """ Generates 1D Kuramoto-Sivashinsky solution time series
     N: number spatial points in final output vectors
     domain_size: periodic domain size
-    timestep: time interval in final output time series.
-        Timestep used in solver is this divided by time_downsampling_factor.
+    timestep: solver timestep
     spatial_downsampling_factor: optional, if >1 solver will run at this factor
         higher resolution and the final time series is downsampled to N.
         This is useful for stability.
-    time_downsampling_factor: optional, same as above but for the time dimension.
     """
 
     N: int
     domain_size: int
     timestep: float
     spatial_downsampling_factor: int = 1
-    time_downsampling_factor: int = 1
     error_eps: float = 0.0
     subdomain_output_size: Optional[int] = None
     subdomain_overlap: Optional[int] = None
     subdomain_axis: int = 1
 
-    def generate(self, n_steps: int, seed: int = 0):
+    def generate_from_seed(self, n_steps: int, seed: int = 0):
         """
-            n_steps: Number of timesteps to output. The interval between
-                timesteps output is timestep * time_downsampling_factor
+            n_steps: Number of timesteps to output
             seed: Random seed for initial condition
 
         Returns:
             Time series array with dims (time, x)
         """
-        ks_time_series = generate_ks_time_series(
-            input_size=self.N * self.spatial_downsampling_factor,
-            n_steps=n_steps * self.time_downsampling_factor,
-            seed=seed,
-            domain_size=self.domain_size,
-            timestep=self.timestep / self.time_downsampling_factor,
-            error_eps=self.error_eps,
-        )
-
-        ks_time_series = ks_time_series[:: self.time_downsampling_factor, :]
-        ks_time_series = ks_time_series[:, :: self.spatial_downsampling_factor]
+        ic = _generate_ic(self.N * self.spatial_downsampling_factor, seed=seed)
+        ks_time_series = self.predict(n_steps=n_steps, initial_condition=ic)
 
         return ks_time_series
+
+    def predict(self, n_steps: int, initial_condition: np.ndarray):
+        if initial_condition.size != self.spatial_downsampling_factor * self.N:
+            # upsample initial condition array by spatial_downsampling_factor
+            ic_x = range(initial_condition.size)
+            interp_ic = interp1d(ic_x, initial_condition)
+            initial_condition = interp_ic(
+                np.linspace(
+                    ic_x[0], ic_x[-1], self.N * self.spatial_downsampling_factor
+                )
+            )
+        ks_time_series = integrate_ks_eqn(
+            ic=initial_condition,
+            domain_size=self.domain_size,
+            dt=self.timestep,
+            Nt=n_steps,
+            error_eps=self.error_eps,
+        )
+        return ks_time_series[:, :: self.spatial_downsampling_factor]
 
 
 class ImperfectKSModel(ImperfectModel):
