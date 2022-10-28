@@ -181,7 +181,7 @@ class ImperfectKSModel(ImperfectModel):
         return integrate_ks_eqn(
             ic=ic,
             domain_size=self.config.domain_size,
-            dt=self.config.timestep,
-            Nt=1,
+            dt=self.config.timestep / self.config.time_downsampling_factor,
+            Nt=self.config.time_downsampling_factor,
             error_eps=self.config.error_eps,
         )[-1]
