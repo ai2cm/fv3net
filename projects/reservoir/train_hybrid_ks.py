@@ -28,9 +28,7 @@ def add_imperfect_prediction_to_train_data(X, imperfect_prediction_states):
 def get_imperfect_ks_model(target_ks_config, epsilon, steps_per_rc_step):
     imperfect_ks_config = copy.copy(target_ks_config)
     imperfect_ks_config.error_eps = epsilon
-    imperfect_ks_config.time_downsampling_factor = (
-        steps_per_rc_step * target_ks_config.time_downsampling_factor
-    )
+    imperfect_ks_config.time_downsampling_factor = steps_per_rc_step
     return ImperfectKSModel(imperfect_ks_config)
 
 
