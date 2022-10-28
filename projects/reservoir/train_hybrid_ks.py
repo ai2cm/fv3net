@@ -1,4 +1,3 @@
-import argparse
 import copy
 import dacite
 import dataclasses
@@ -17,59 +16,20 @@ from fv3fit.reservoir import (
 )
 from fv3fit.reservoir.config import ReservoirTrainingConfig
 from ks import KuramotoSivashinskyConfig, ImperfectKSModel
-
+from train_ks import add_input_noise, transform_inputs_to_reservoir_states, get_parser
 
 logger = logging.getLogger(__name__)
-
-
-def _get_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "ks_config", type=str, help=("Config file for KS equation parameters")
-    )
-    parser.add_argument("train_config", type=str, help=("Config file for training"))
-    parser.add_argument(
-        "output_path", type=str, help="Output location for saving model."
-    )
-    parser.add_argument(
-        "trial_config",
-        type=str,
-        help="config file of field name and values to trial over",
-    )
-    parser.add_argument(
-        "epsilon",
-        type=float,
-        help="epsilon error for KS integration to generate 'imperfect' KS model",
-    )
-    return parser
-
-
-def add_input_noise(arr, stddev):
-    return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
-
-
-def transform_inputs_to_reservoir_states(X, reservoir):
-    reservoir_states = [
-        reservoir.state,
-    ]
-    for x in X:
-        reservoir.increment_state(x)
-        reservoir_states.append(reservoir.state)
-    # last hidden state has no corresponding target output state,
-    # so it is not used in training
-    return np.array(reservoir_states[:-1])
 
 
 def add_imperfect_prediction_to_train_data(X, imperfect_prediction_states):
     return np.hstack(X, imperfect_prediction_states)
 
 
-def get_imperfect_ks_model(ks_config, epsilon, steps_per_rc_step):
-    imperfect_ks_config = copy.copy(ks_config)
+def get_imperfect_ks_model(target_ks_config, epsilon, steps_per_rc_step):
+    imperfect_ks_config = copy.copy(target_ks_config)
     imperfect_ks_config.error_eps = epsilon
     imperfect_ks_config.time_downsampling_factor = (
-        steps_per_rc_step * ks_config.time_downsampling_factor
+        steps_per_rc_step * target_ks_config.time_downsampling_factor
     )
     return ImperfectKSModel(imperfect_ks_config)
 
@@ -77,6 +37,9 @@ def get_imperfect_ks_model(ks_config, epsilon, steps_per_rc_step):
 def create_imperfect_prediction_train_data(
     imperfect_model, ts_truth,
 ):
+    """ Initialize imperfect model at the target state at time t, and save
+    its predictions at the end of each reservoir timestep.
+    """
     imperfect_predictions = [
         ts_truth[0],
     ]
@@ -86,7 +49,12 @@ def create_imperfect_prediction_train_data(
     return imperfect_predictions
 
 
-def train_hybrid(ks_config, train_config, epsilon, imperfect_model_steps_per_rc_step):
+def train_hybrid(ks_config, train_config):
+    epsilon = train_config.hybrid_imperfect_model_config["epsilon"]
+    imperfect_model_steps_per_rc_step = train_config.hybrid_imperfect_model_config[
+        "imperfect_model_steps_per_rc_step"
+    ]
+
     training_ts = ks_config.generate(
         n_steps=train_config.n_samples + train_config.n_burn, seed=train_config.seed
     )
@@ -130,7 +98,7 @@ def train_hybrid(ks_config, train_config, epsilon, imperfect_model_steps_per_rc_
 
 
 if __name__ == "__main__":
-    parser = _get_parser()
+    parser = get_parser()
     args = parser.parse_args()
     with open(args.ks_config, "r") as f:
         ks_config = dacite.from_dict(KuramotoSivashinskyConfig, yaml.safe_load(f))
@@ -138,7 +106,7 @@ if __name__ == "__main__":
         train_config_dict = yaml.safe_load(f)
         train_config = ReservoirTrainingConfig.from_dict(train_config_dict)
 
-    predictor = train_hybrid(ks_config, train_config, args.epsilon)
+    predictor = train_hybrid(ks_config, train_config,)
 
     predictor.dump(args.output_path)
     train_config.dump(args.output_path)

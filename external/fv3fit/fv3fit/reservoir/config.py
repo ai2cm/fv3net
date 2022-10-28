@@ -68,6 +68,8 @@ class ReservoirTrainingConfig:
         commonly done to aid in the stability of the RC model.
     seed: random seed for sampling
     n_samples: number of samples to use in training
+    hybrid_imperfect_model_config: if training a hybrid model, dict of
+        kwargs for initializing ImperfectModel
     """
 
     reservoir_hyperparameters: ReservoirHyperparameters
@@ -76,6 +78,8 @@ class ReservoirTrainingConfig:
     input_noise: float
     seed: int = 0
     n_samples: Optional[int] = None
+    hybrid_imperfect_model_config: Optional[dict] = None
+
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     @classmethod
@@ -106,6 +110,7 @@ class ReservoirTrainingConfig:
             "n_samples": self.n_samples,
             "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
+            "hybrid_imperfect_model_config": self.hybrid_imperfect_model_config,
         }
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)

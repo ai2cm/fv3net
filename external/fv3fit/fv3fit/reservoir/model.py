@@ -36,7 +36,7 @@ class ReservoirComputingModel:
         self.reservoir = reservoir
         self.readout = readout
 
-    def predict(self, **kwargs):
+    def predict(self):
         prediction = self.readout.predict(self.reservoir.state).reshape(-1)
         self.reservoir.increment_state(prediction)
         return prediction
@@ -77,8 +77,10 @@ class ReservoirComputingModel:
         return cls(reservoir=Reservoir(reservoir_hyperparameters), readout=readout,)
 
 
-class HybridReservoirComputingModel(ReservoirComputingModel):
+class HybridReservoirComputingModel:
     _IMPERFECT_MODEL_NAME = "hybrid_rc_imperfect_model.bin"
+    _READOUT_NAME = "readout.pkl"
+    _METADATA_NAME = "metadata.bin"
 
     def __init__(
         self,
@@ -103,13 +105,20 @@ class HybridReservoirComputingModel(ReservoirComputingModel):
         Args:
             path: a URL pointing to a directory
         """
-        super().dump(path)
-
-        # TODO: If we move on to non- toy model cases, the dumping of the
-        # imperfect model should be handled by the child classes.
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)
         mapper = fs.get_mapper(path)
+
+        mapper[self._READOUT_NAME] = self.readout.dumps()
+        metadata = {
+            "reservoir_hyperparameters": dataclasses.asdict(
+                self.reservoir.hyperparameters
+            )
+        }
+        mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
+
+        # TODO: If we move on to non- toy model cases, the dumping of the
+        # imperfect model should be handled by the child classes.
         f = io.BytesIO()
         joblib.dump(self.imperfect_model, f)
         mapper[self._IMPERFECT_MODEL_NAME] = f.getvalue()

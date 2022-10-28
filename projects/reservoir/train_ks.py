@@ -18,7 +18,7 @@ from ks import KuramotoSivashinskyConfig
 logger = logging.getLogger(__name__)
 
 
-def _get_parser() -> argparse.ArgumentParser:
+def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -80,7 +80,7 @@ def train(ks_config, train_config):
 
 
 if __name__ == "__main__":
-    parser = _get_parser()
+    parser = get_parser()
     args = parser.parse_args()
     with open(args.ks_config, "r") as f:
         ks_config = dacite.from_dict(KuramotoSivashinskyConfig, yaml.safe_load(f))

@@ -1,0 +1,20 @@
+reservoir_hyperparameters:
+  input_size: 20
+  state_size: 1000
+  adjacency_matrix_sparsity: 0.8
+  output_size: 20
+  spectral_radius: 0.9
+  seed: 0
+  input_coupling_sparsity: 0.05
+  input_coupling_scaling: 0.5
+readout_hyperparameters:
+  linear_regressor_kwargs:
+    alpha: 1.5e-3
+  square_half_hidden_state: true
+n_burn: 250
+input_noise: 0.01
+seed: 0
+n_samples: 6000
+hybrid_imperfect_model_config:
+  epsilon: 0.5
+  imperfect_model_steps_per_rc_step: 5
