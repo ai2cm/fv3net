@@ -1,7 +1,4 @@
-from dataclasses import asdict, dataclass
-import fsspec
-import io
-import joblib
+from dataclasses import dataclass
 from scipy.fftpack import fft, ifft
 from numpy import pi
 import numpy as np
@@ -188,17 +185,3 @@ class ImperfectKSModel(ImperfectModel):
             Nt=1,
             error_eps=self.config.error_eps,
         )[-1]
-
-    def dumps(self) -> bytes:
-        components = {"config": asdict(self.config)}
-        f = io.BytesIO()
-        joblib.dump(components, f)
-        return f.getvalue()
-
-    def dump(self, path):
-        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-
-        fs.makedirs(path, exist_ok=True)
-
-        mapper = fs.get_mapper(path)
-        mapper[self._IMPERFECT_MODEL_NAME] = self.dumps()
