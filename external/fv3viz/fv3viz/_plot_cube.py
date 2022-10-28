@@ -271,6 +271,13 @@ def pcolormesh_cube(
         p_handle (obj):
             matplotlib object handle associated with a segment of the map subplot
     """
+    all_handles = _pcolormesh_cube_all_handles(lat, lon, array, ax=ax, **kwargs)
+    return all_handles[-1]
+
+
+def _pcolormesh_cube_all_handles(
+    lat: np.ndarray, lon: np.ndarray, array: np.ndarray, ax: plt.axes = None, **kwargs
+):
     if lat.shape != lon.shape:
         raise ValueError("lat and lon should have the same shape")
     if ax is None:
@@ -285,12 +292,36 @@ def pcolormesh_cube(
     kwargs["vmin"] = kwargs.get("vmin", np.nanmin(array))
     kwargs["vmax"] = kwargs.get("vmax", np.nanmax(array))
 
+    handles = []
     for tile in range(array.shape[0]):
         x = center_longitudes(lon[tile, :, :], central_longitude)
         y = lat[tile, :, :]
         for x_plot, y_plot, array_plot in _segment_plot_inputs(x, y, array[tile, :, :]):
-            p_handle = ax.pcolormesh(x_plot, y_plot, array_plot, **kwargs)
-    return p_handle
+            handles.append(ax.pcolormesh(x_plot, y_plot, array_plot, **kwargs))
+    return handles
+
+
+class UpdateablePColormesh:
+    def __init__(self, lat, lon, array: np.ndarray, ax: plt.axes = None, **kwargs):
+        self.handles = _pcolormesh_cube_all_handles(lat, lon, array, ax=ax, **kwargs)
+        plt.colorbar(self.handles[-1], ax=ax)
+        self.lat = lat
+        self.lon = lon
+        self.ax = ax
+
+    def update(self, array):
+        central_longitude = self.ax.projection.proj4_params["lon_0"]
+        array = np.where(
+            _mask_antimeridian_quads(self.lon.T, central_longitude), array.T, np.nan
+        ).T
+
+        iter_handles = iter(self.handles)
+        for tile in range(array.shape[0]):
+            x = center_longitudes(self.lon[tile, :, :], central_longitude)
+            y = self.lat[tile, :, :]
+            for _, _, array_plot in _segment_plot_inputs(x, y, array[tile, :, :]):
+                handle = next(iter_handles)
+                handle.set_array(array_plot.ravel())
 
 
 def _segment_plot_inputs(x, y, masked_array):
