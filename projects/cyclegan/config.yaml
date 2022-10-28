@@ -1,0 +1,7 @@
+random_seed: 0
+model_type: autoencoder
+hyperparameters:
+  training_loop:
+    n_epoch: 2
+  state_variables:
+    - h500

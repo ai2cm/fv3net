@@ -1,0 +1,12 @@
+data_path: gs://vcm-ml-scratch/ebrahimn/2022-07-07/experiment-5-year/fv3gfs_run/atmos_dt_atmos.zarr
+unstacked_dims:
+  - time
+  - tile
+  - grid_xt
+  - grid_yt
+  - nv
+window_size: 1
+default_variable_config:
+  times: window
+batch_size: 1
+n_windows: 2
