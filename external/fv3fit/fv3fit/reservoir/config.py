@@ -74,6 +74,7 @@ class ReservoirTrainingConfig:
 
     reservoir_hyperparameters: ReservoirHyperparameters
     readout_hyperparameters: ReadoutHyperparameters
+    timestep: float
     n_burn: int
     input_noise: float
     seed: int = 0
@@ -104,6 +105,7 @@ class ReservoirTrainingConfig:
 
     def dump(self, path: str):
         metadata = {
+            "timestep": self.timestep,
             "n_burn": self.n_burn,
             "input_noise": self.input_noise,
             "seed": self.seed,
