@@ -15,3 +15,4 @@ n_burn: 250
 input_noise: 0.01
 seed: 0
 n_samples: 6000
+timestep: 0.3

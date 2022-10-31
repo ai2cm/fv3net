@@ -47,28 +47,34 @@ def transform_inputs_to_reservoir_states(X, reservoir):
     return np.array(reservoir_states[:-1])
 
 
-def generate_training_time_series(ks_config, train_config):
+def generate_training_time_series(
+    ks_config, reservoir_timestep, n_samples, seed, input_noise
+):
     # downsample in time to the reservoir timestep
-    time_downsampling_factor = train_config.timestep / ks_config.timestep
+    time_downsampling_factor = reservoir_timestep / ks_config.timestep
     if not np.isclose(time_downsampling_factor, round(time_downsampling_factor)):
         raise ValueError(
-            f"Reservoir timestep {train_config.timestep} must be evenly divisble "
+            f"Reservoir timestep {reservoir_timestep} must be evenly divisble "
             f"by KS solver timestep {ks_config.timestep}."
         )
 
     training_ts = ks_config.generate_from_seed(
-        n_steps=time_downsampling_factor
-        * (train_config.n_samples + train_config.n_burn),
-        seed=train_config.seed,
+        n_steps=time_downsampling_factor * n_samples, seed=seed,
     )
 
     training_ts = training_ts[:: int(time_downsampling_factor), :]
-    training_ts = add_input_noise(training_ts, stddev=train_config.input_noise)
+    training_ts = add_input_noise(training_ts, stddev=input_noise)
     return training_ts
 
 
 def train(ks_config, train_config):
-    training_ts = generate_training_time_series(ks_config, train_config)
+    training_ts = generate_training_time_series(
+        ks_config=ks_config,
+        reservoir_timestep=train_config.timestep,
+        n_samples=train_config.n_burn + train_config.n_samples,
+        seed=train_config.seed,
+        input_noise=train_config.input_noise,
+    )
     training_ts_burnin, training_ts_keep = (
         training_ts[: train_config.n_burn],
         training_ts[train_config.n_burn :],

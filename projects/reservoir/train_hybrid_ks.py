@@ -1,4 +1,3 @@
-import copy
 import dacite
 import dataclasses
 import fsspec
@@ -16,7 +15,12 @@ from fv3fit.reservoir import (
 )
 from fv3fit.reservoir.config import ReservoirTrainingConfig
 from ks import KuramotoSivashinskyConfig, ImperfectKSModel
-from train_ks import add_input_noise, transform_inputs_to_reservoir_states, get_parser
+from train_ks import (
+    add_input_noise,
+    transform_inputs_to_reservoir_states,
+    get_parser,
+    generate_training_time_series,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +29,11 @@ def add_imperfect_prediction_to_train_data(X, imperfect_prediction_states):
     return np.hstack(X, imperfect_prediction_states)
 
 
-def get_imperfect_ks_model(target_ks_config, epsilon, steps_per_rc_step):
-    imperfect_ks_config = copy.copy(target_ks_config)
-    imperfect_ks_config.error_eps = epsilon
-    imperfect_ks_config.time_downsampling_factor = steps_per_rc_step
-    return ImperfectKSModel(imperfect_ks_config)
+def get_imperfect_ks_model(hybrid_imperfect_model_config, reservoir_timestep):
+    imperfect_ks_config = KuramotoSivashinskyConfig(**hybrid_imperfect_model_config)
+    return ImperfectKSModel(
+        config=imperfect_ks_config, reservoir_timestep=reservoir_timestep,
+    )
 
 
 def create_imperfect_prediction_train_data(
@@ -43,21 +47,23 @@ def create_imperfect_prediction_train_data(
     ]
     for i in range(len(ts_truth) - 1):
         input = ts_truth[i]
+        # the imperfect KS model handles the downsampling in time to the
+        # reservoir timestep in its predict method
         imperfect_predictions.append(imperfect_model.predict(input))
     return imperfect_predictions
 
 
 def train_hybrid(ks_config, train_config):
-    epsilon = train_config.hybrid_imperfect_model_config["epsilon"]
-    imperfect_model_steps_per_rc_step = train_config.hybrid_imperfect_model_config[
-        "imperfect_model_steps_per_rc_step"
-    ]
-
-    training_ts = ks_config.generate(
-        n_steps=train_config.n_samples + train_config.n_burn, seed=train_config.seed
+    training_ts = generate_training_time_series(
+        ks_config=ks_config,
+        reservoir_timestep=train_config.timestep,
+        n_samples=train_config.n_burn + train_config.n_samples,
+        seed=train_config.seed,
+        input_noise=train_config.input_noise,
     )
     imperfect_model = get_imperfect_ks_model(
-        ks_config, epsilon, imperfect_model_steps_per_rc_step
+        train_config.hybrid_imperfect_model_config,
+        reservoir_timestep=train_config.timestep,
     )
     imperfect_training_ts = create_imperfect_prediction_train_data(
         imperfect_model, training_ts,
