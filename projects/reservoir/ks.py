@@ -181,14 +181,23 @@ class KuramotoSivashinskyConfig:
 
 
 class ImperfectKSModel(ImperfectModel):
-    def __init__(self, config: KuramotoSivashinskyConfig):
+    def __init__(self, config: KuramotoSivashinskyConfig, reservoir_timestep: float):
         self.config = config
+        self.reservoir_timestep = reservoir_timestep
+
+        time_downsampling_factor = reservoir_timestep / config.timestep
+        if not np.isclose(time_downsampling_factor, round(time_downsampling_factor)):
+            raise ValueError(
+                f"Reservoir timestep {reservoir_timestep} must be evenly divisble "
+                f"by KS solver timestep {config.timestep}."
+            )
+        self.time_downsampling_factor = time_downsampling_factor
 
     def predict(self, ic):
         return integrate_ks_eqn(
             ic=ic,
             domain_size=self.config.domain_size,
-            dt=self.config.timestep / self.config.time_downsampling_factor,
-            Nt=self.config.time_downsampling_factor,
+            dt=self.config.timestep,
+            Nt=self.time_downsampling_factor,
             error_eps=self.config.error_eps,
         )[-1]
