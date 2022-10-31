@@ -331,11 +331,11 @@ def _apply_to_non_non_nan_segments(func, lat, lon, array):
     Args:
         func:
             Function to be applied to non-nan segments of array.
-        lon:
-            Array of longitudes with dimensions (tile, ny + 1, nx + 1).
-            Should be given at cell corners.
         lat:
             Array of latitudes with dimensions (tile, ny + 1, nx + 1).
+            Should be given at cell corners.
+        lon:
+            Array of longitudes with dimensions (tile, ny + 1, nx + 1).
             Should be given at cell corners.
         array:
             Array of variables values at cell centers, of dimensions (tile, ny, nx)
