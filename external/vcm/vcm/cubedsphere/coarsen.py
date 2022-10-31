@@ -642,6 +642,65 @@ def block_edge_sum(
     return _propagate_attrs(obj, result)
 
 
+def block_edge_coarsen(
+    obj: T_DataArray_or_Dataset,
+    coarsening_factor: int,
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    edge: str = "x",
+    coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
+    method="sum",
+) -> T_DataArray_or_Dataset:
+    """Coarsen a DataArray or Dataset by a given operation along a block edge.
+
+    Mainly meant for coarse-graining the dx and dy variables from the original
+    grid_spec.
+
+    Args:
+        obj: Input Dataset or DataArray.
+        coarsening_factor: Integer coarsening factor to use.
+        x_dim: x dimension name (default 'xaxis_1').
+        y_dim: y dimension name (default 'yaxis_1').
+        edge: Grid cell side to coarse-grain along {'x', 'y'}.
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
+        method: name of xarray-supported coarsening method.
+
+    Returns:
+        xr.Dataset or xr.DataArray.
+    """
+    if edge == "x":
+        coarsen_dim = x_dim
+        downsample_dim = y_dim
+    elif edge == "y":
+        coarsen_dim = y_dim
+        downsample_dim = x_dim
+    else:
+        raise ValueError(f"'edge' most be either 'x' or 'y'; got {edge}.")
+
+    coarsen_kwargs = {coarsen_dim: coarsening_factor}
+    copy = obj.copy()  # coarsen destroys attributes on the original object
+    coarsened = getattr(
+        copy.coarsen(
+            coarsen_kwargs, coord_func=coord_func  # type: ignore
+        ),
+        method,
+    )()
+    downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
+    result = coarsened.isel(downsample_kwargs)
+
+    # Separate logic is needed to apply coord_func to the downsample dimension
+    # coordinate (if it exists), because it is not included in the call to
+    # coarsen.
+    result = _coarsen_downsample_coordinate(
+        obj, result, downsample_dim, coarsening_factor, coord_func
+    )
+
+    return _propagate_attrs(obj, result)
+
+
 def _mode(arr: np.array, axis: int = 0, nan_policy: str = "propagate") -> np.array:
     """A version of scipy.stats.mode that only returns a NumPy array with the
     mode values along the given axis."""
