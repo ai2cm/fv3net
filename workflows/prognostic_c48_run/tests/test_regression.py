@@ -626,7 +626,6 @@ def completed_segment(completed_rundir):
     return completed_rundir.join("artifacts").join("20160801.000000")
 
 
-@pytest.mark.skip()
 def test_fv3run_checksum_restarts(completed_segment, regtest):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
@@ -645,7 +644,6 @@ def test_chunks_present(completed_segment):
     assert completed_segment.join(CHUNKS_PATH).exists()
 
 
-@pytest.mark.skip()
 def test_fv3run_diagnostic_outputs_check_variables(regtest, completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
