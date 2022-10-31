@@ -23,6 +23,10 @@ extend_nudge_to_fine_run_v4: deploy
 nudge_to_fine_run_v5: deploy
 	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v5
 
+.PHONY: baseline_port_run
+baseline_port_run: deploy
+	cd radiation-port-run && ./run.sh baseline-port
+
 .PHONY: port_validation_run
 port_validation_run: deploy
 	cd radiation-port-run && ./run.sh port-validation
