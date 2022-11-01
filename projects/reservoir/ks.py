@@ -171,6 +171,7 @@ class KuramotoSivashinskyConfig:
         return ks_time_series
 
     def predict(self, n_steps: int, initial_condition: np.ndarray):
+
         ks_time_series = integrate_ks_eqn(
             ic=initial_condition,
             domain_size=self.domain_size,
@@ -197,11 +198,15 @@ class ImperfectKSModel(ImperfectModel):
             != self.config.spatial_downsampling_factor * self.config.N
         ):
             # upsample initial condition array by spatial_downsampling_factor
-            ic_x = range(initial_condition.size)
+            ic_x = np.arange(
+                1, initial_condition.size + 1
+            )  # range(initial_condition.size)
             interp_ic = interp1d(ic_x, initial_condition)
             initial_condition = interp_ic(
                 np.linspace(
-                    ic_x[0], ic_x[-1], self.N * self.spatial_downsampling_factor
+                    ic_x[0],
+                    ic_x[-1],
+                    self.config.N * self.config.spatial_downsampling_factor,
                 )
             )
         return self.config.predict(
