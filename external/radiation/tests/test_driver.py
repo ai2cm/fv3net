@@ -2,6 +2,7 @@ import pathlib
 import dataclasses
 import time
 import serialbox as ser
+import pytest
 from radiation import io
 from radiation.radiation_driver import RadiationDriver
 from radiation.config import GFSPhysicsControl
@@ -134,6 +135,7 @@ driver.radupdate(
 )
 
 
+@pytest.mark.skip()
 def test_radiation_valiation():
     """This test is messy and will probably be replaced by a test against wrapper
     inputs and outputs at some point, but it is useful for validation."""

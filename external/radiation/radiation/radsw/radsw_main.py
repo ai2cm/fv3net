@@ -918,6 +918,15 @@ def cldprop(
                 refliq = reliq[k]
                 refice = reice[k]
 
+                # rescale cloud water and ice by cloud fraction
+                if cfrac[k] >= 1.0e-2:
+                    cldliqincld = cldliq / cfrac[k]
+                    cldiceincld = cldice / cfrac[k]
+                else:
+                    # but don't do this for very small cloud fractions
+                    cldliqincld = cldliq
+                    cldiceincld = cldice
+
                 #  --- ...  calculation of absorption coefficients due to water clouds.
 
                 if cldliq <= 0.0:
@@ -957,7 +966,7 @@ def cldprop(
                                 ),
                             )
 
-                            tauliq[ib] = cldliq * extcoliq
+                            tauliq[ib] = cldliqincld * extcoliq
                             ssaliq[ib] = tauliq[ib] * ssacoliq
                             asyliq[ib] = ssaliq[ib] * asycoliq
                     elif iswcliq == 2:  # use updated coeffs
@@ -987,7 +996,7 @@ def cldprop(
                                 ),
                             )
 
-                            tauliq[ib] = cldliq * extcoliq
+                            tauliq[ib] = cldliqincld * extcoliq
                             ssaliq[ib] = tauliq[ib] * ssacoliq
                             asyliq[ib] = ssaliq[ib] * asycoliq
 
@@ -1016,7 +1025,7 @@ def cldprop(
                                 0.0, min(1.0, ebari[ia] + fbari[ia] * refice)
                             )
 
-                            tauice[ib] = cldice * extcoice
+                            tauice[ib] = cldiceincld * extcoice
                             ssaice[ib] = tauice[ib] * ssacoice
                             asyice[ib] = ssaice[ib] * asycoice
 
@@ -1054,7 +1063,7 @@ def cldprop(
                                 ),
                             )
 
-                            tauice[ib] = cldice * extcoice
+                            tauice[ib] = cldiceincld * extcoice
                             ssaice[ib] = tauice[ib] * ssacoice
                             asyice[ib] = ssaice[ib] * asycoice
 
@@ -1092,7 +1101,7 @@ def cldprop(
                                 ),
                             )
 
-                            tauice[ib] = cldice * extcoice
+                            tauice[ib] = cldiceincld * extcoice
                             ssaice[ib] = tauice[ib] * ssacoice
                             asyice[ib] = ssaice[ib] * asycoice
 
