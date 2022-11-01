@@ -252,6 +252,15 @@ def cldprop(
                 refliq = reliq[k]
                 refice = reice[k]
 
+                # rescale cloud water and ice by cloud fraction
+                if cfrac[k] >= 1.0e-2:
+                    cldliqincld = cldliq / cfrac[k]
+                    cldiceincld = cldice / cfrac[k]
+                else:
+                    # but don't do this for very small cloud fractions
+                    cldliqincld = cldliq
+                    cldiceincld = cldice
+
                 #  --- ...  calculation of absorption coefficients due to water clouds.
 
                 if cldliq <= 0.0:
@@ -266,7 +275,7 @@ def cldprop(
                         for ib in range(nbands):
                             tauliq[ib] = max(
                                 0.0,
-                                cldliq
+                                cldliqincld
                                 * (
                                     absliq1[index, ib]
                                     + fint
@@ -288,7 +297,8 @@ def cldprop(
                             ia = ipat[ib] - 1  # eb_&_c band index for ice cloud coeff
                             tauice[ib] = max(
                                 0.0,
-                                cldice * (absice1[0, ia] + absice1[1, ia] / refice),
+                                cldiceincld
+                                * (absice1[0, ia] + absice1[1, ia] / refice),
                             )
 
                         # streamer approach for ice effective radius between 5.0
@@ -305,7 +315,7 @@ def cldprop(
                         for ib in range(nbands):
                             tauice[ib] = max(
                                 0.0,
-                                cldice
+                                cldiceincld
                                 * (
                                     absice2[index, ib]
                                     + fint
@@ -325,7 +335,7 @@ def cldprop(
                         for ib in range(nbands):
                             tauice[ib] = max(
                                 0.0,
-                                cldice
+                                cldiceincld
                                 * (
                                     absice3[index, ib]
                                     + fint
