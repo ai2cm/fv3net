@@ -1,7 +1,7 @@
 base_version: v0.7
 initial_conditions:
   base_url: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
-  timestep: "20160805.001500"
+  timestep: "20160805.010000"
 nudging:
   restarts_path: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
   timescale_hours:
