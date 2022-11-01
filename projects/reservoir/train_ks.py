@@ -12,7 +12,7 @@ from fv3fit.reservoir import (
     ReservoirComputingModel,
 )
 from fv3fit.reservoir.config import ReservoirTrainingConfig
-from ks import KuramotoSivashinskyConfig
+from ks import KuramotoSivashinskyConfig, get_time_downsampling_factor
 
 
 logger = logging.getLogger(__name__)
@@ -51,13 +51,9 @@ def generate_training_time_series(
     ks_config, reservoir_timestep, n_samples, seed, input_noise
 ):
     # downsample in time to the reservoir timestep
-    time_downsampling_factor = reservoir_timestep / ks_config.timestep
-    if not np.isclose(time_downsampling_factor, round(time_downsampling_factor)):
-        raise ValueError(
-            f"Reservoir timestep {reservoir_timestep} must be evenly divisble "
-            f"by KS solver timestep {ks_config.timestep}."
-        )
-
+    time_downsampling_factor = get_time_downsampling_factor(
+        reservoir_timestep, ks_config.timestep
+    )
     training_ts = ks_config.generate_from_seed(
         n_steps=time_downsampling_factor * n_samples, seed=seed,
     )

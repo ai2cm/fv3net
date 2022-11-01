@@ -36,7 +36,7 @@ def get_imperfect_ks_model(hybrid_imperfect_model_config, reservoir_timestep):
     )
 
 
-def create_imperfect_prediction_train_data(
+def generate_imperfect_prediction_time_series(
     imperfect_model, ts_truth,
 ):
     """ Initialize imperfect model at the target state at time t, and save
@@ -65,7 +65,7 @@ def train_hybrid(ks_config, train_config):
         train_config.hybrid_imperfect_model_config,
         reservoir_timestep=train_config.timestep,
     )
-    imperfect_training_ts = create_imperfect_prediction_train_data(
+    imperfect_training_ts = generate_imperfect_prediction_time_series(
         imperfect_model, training_ts,
     )
 

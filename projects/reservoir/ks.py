@@ -35,6 +35,16 @@ SOFTWARE.
 """
 
 
+def get_time_downsampling_factor(reservoir_timestep, solver_timestep):
+    time_downsampling_factor = reservoir_timestep / solver_timestep
+    if not np.isclose(time_downsampling_factor, round(time_downsampling_factor)):
+        raise ValueError(
+            f"Reservoir timestep {reservoir_timestep} must be evenly divisble "
+            f"by KS solver timestep {solver_timestep}."
+        )
+    return time_downsampling_factor
+
+
 def integrate_ks_eqn(
     ic: np.ndarray, domain_size: int, dt: float, Nt: int, error_eps: float = 0
 ) -> np.ndarray:
@@ -101,7 +111,7 @@ def integrate_ks_eqn(
         uu = fft(uu)
         Nn = G * uu  # compute Nn == -u u_x (spectral)
 
-        u = B * (A * u + dt32 * Nn - dt2 * Nn1 * (1 + error_eps))
+        u = B * (A * u + (dt32 * Nn - dt2 * Nn1) * (1 + error_eps))
         time_series.append(ifft(u))
     # For some reason, calling np.real within the for loop results in
     # list elements that still have complex parts with coeff 0.
@@ -161,15 +171,6 @@ class KuramotoSivashinskyConfig:
         return ks_time_series
 
     def predict(self, n_steps: int, initial_condition: np.ndarray):
-        if initial_condition.size != self.spatial_downsampling_factor * self.N:
-            # upsample initial condition array by spatial_downsampling_factor
-            ic_x = range(initial_condition.size)
-            interp_ic = interp1d(ic_x, initial_condition)
-            initial_condition = interp_ic(
-                np.linspace(
-                    ic_x[0], ic_x[-1], self.N * self.spatial_downsampling_factor
-                )
-            )
         ks_time_series = integrate_ks_eqn(
             ic=initial_condition,
             domain_size=self.domain_size,
@@ -185,19 +186,24 @@ class ImperfectKSModel(ImperfectModel):
         self.config = config
         self.reservoir_timestep = reservoir_timestep
 
-        time_downsampling_factor = reservoir_timestep / config.timestep
-        if not np.isclose(time_downsampling_factor, round(time_downsampling_factor)):
-            raise ValueError(
-                f"Reservoir timestep {reservoir_timestep} must be evenly divisble "
-                f"by KS solver timestep {config.timestep}."
-            )
+        time_downsampling_factor = get_time_downsampling_factor(
+            reservoir_timestep, config.timestep
+        )
         self.time_downsampling_factor = time_downsampling_factor
 
-    def predict(self, ic):
-        return integrate_ks_eqn(
-            ic=ic,
-            domain_size=self.config.domain_size,
-            dt=self.config.timestep,
-            Nt=self.time_downsampling_factor,
-            error_eps=self.config.error_eps,
+    def predict(self, initial_condition):
+        if (
+            initial_condition.size
+            != self.config.spatial_downsampling_factor * self.config.N
+        ):
+            # upsample initial condition array by spatial_downsampling_factor
+            ic_x = range(initial_condition.size)
+            interp_ic = interp1d(ic_x, initial_condition)
+            initial_condition = interp_ic(
+                np.linspace(
+                    ic_x[0], ic_x[-1], self.N * self.spatial_downsampling_factor
+                )
+            )
+        return self.config.predict(
+            n_steps=self.time_downsampling_factor, initial_condition=initial_condition
         )[-1]
