@@ -870,7 +870,6 @@ def cldprop(
 
     # Compute cloud radiative properties for a cloudy column.
 
-    print(f"iswcliq: {iswcliq}")
     if iswcliq > 0:
 
         for k in range(nlay):
