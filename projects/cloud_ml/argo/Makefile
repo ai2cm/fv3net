@@ -27,6 +27,10 @@ nudge_to_fine_run_v5: deploy
 baseline_port_run: deploy
 	cd radiation-port-run && ./run.sh baseline-port
 
+.PHONY: baseline_ccnorm_port_run
+baseline_ccnorm_port_run: deploy
+	cd radiation-port-run && ./run.sh baseline-ccnorm-port
+
 .PHONY: port_validation_run
 port_validation_run: deploy
 	cd radiation-port-run && ./run.sh port-validation
