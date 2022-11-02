@@ -290,3 +290,16 @@ def interpolate_unstructured(
     output = stacked.isel({dim_name: indices})
     output = output.drop(dim_name)
     return output.assign_coords(coords)
+
+
+def upsample_1d_periodic(arr: np.ndarray, upsample_factor):
+    if len(arr.shape) > 1:
+        raise ValueError("Array to upsample must be 1D.")
+    x = 2 * np.pi * np.arange(0, arr.size) / (arr.size)
+    x_upsampled = (
+        2
+        * np.pi
+        * np.arange(0, upsample_factor * arr.size)
+        / (upsample_factor * arr.size)
+    )
+    return np.interp(x_upsampled, x, arr, period=2 * np.pi)

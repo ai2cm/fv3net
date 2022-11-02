@@ -5,6 +5,7 @@ import numpy as np
 from typing import Optional
 
 from fv3fit.reservoir.model import ImperfectModel
+from vcm.interpolate import upsample_1d_periodic
 
 """
 The PDE solver code in integrate_ks_eqn is from
@@ -209,7 +210,10 @@ class ImperfectKSModel(ImperfectModel):
             != self.config.spatial_downsampling_factor * self.config.N
         ):
             # upsample initial condition array by spatial_downsampling_factor
-            initial_condition = self._upsample_interpolation(initial_condition)
+            initial_condition = upsample_1d_periodic(
+                arr=initial_condition,
+                upsample_factor=self.config.spatial_downsampling_factor,
+            )
 
         return self.config.predict(
             n_steps=self.time_downsampling_factor, initial_condition=initial_condition
