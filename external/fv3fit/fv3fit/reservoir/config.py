@@ -6,6 +6,14 @@ import yaml
 
 
 @dataclass
+class SubdomainConfig:
+    """ Define size and edge overlaps for 1D subdomains """
+
+    output_size: int
+    overlap: int
+
+
+@dataclass
 class ReservoirHyperparameters:
     """Hyperparameters for reservoir
 
@@ -74,8 +82,12 @@ class ReservoirTrainingConfig:
     readout_hyperparameters: ReadoutHyperparameters
     n_burn: int
     input_noise: float
+    timestep: float
     seed: int = 0
     n_samples: Optional[int] = None
+    subdomain: Optional[SubdomainConfig] = None
+    n_jobs: Optional[int] = -1
+
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     @classmethod
@@ -92,6 +104,11 @@ class ReservoirTrainingConfig:
             data=kwargs.get("readout_hyperparameters", {}),
             config=dacite_config,
         )
+        kwargs["subdomain"] = dacite.from_dict(
+            data_class=SubdomainConfig,
+            data=kwargs.get("subdomain", {}),
+            config=dacite_config,
+        )
         return dacite.from_dict(
             data_class=ReservoirTrainingConfig,
             data=kwargs,
@@ -104,8 +121,11 @@ class ReservoirTrainingConfig:
             "input_noise": self.input_noise,
             "seed": self.seed,
             "n_samples": self.n_samples,
+            "n_jobs": self.n_jobs,
             "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
+            "timestep": self.timestep,
+            "subdomain": asdict(self.subdomain),
         }
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)
