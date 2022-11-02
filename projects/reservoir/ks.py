@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from scipy.fftpack import fft, ifft
-from scipy.interpolate import interp1d
 from numpy import pi
 import numpy as np
 from typing import Optional
@@ -192,23 +191,26 @@ class ImperfectKSModel(ImperfectModel):
         )
         self.time_downsampling_factor = time_downsampling_factor
 
+    def _upsample_interpolation(self, ic):
+        upsample_factor = self.config.spatial_downsampling_factor
+        x = 2 * pi * np.arange(0, ic.size) / (ic.size)
+        x_upsampled = (
+            2
+            * pi
+            * np.arange(0, upsample_factor * ic.size)
+            / (upsample_factor * ic.size)
+        )
+        upsampled_ic = np.interp(x_upsampled, x, ic, period=2 * np.pi)
+        return upsampled_ic
+
     def predict(self, initial_condition):
         if (
             initial_condition.size
             != self.config.spatial_downsampling_factor * self.config.N
         ):
             # upsample initial condition array by spatial_downsampling_factor
-            ic_x = np.arange(
-                1, initial_condition.size + 1
-            )  # range(initial_condition.size)
-            interp_ic = interp1d(ic_x, initial_condition)
-            initial_condition = interp_ic(
-                np.linspace(
-                    ic_x[0],
-                    ic_x[-1],
-                    self.config.N * self.config.spatial_downsampling_factor,
-                )
-            )
+            initial_condition = self._upsample_interpolation(initial_condition)
+
         return self.config.predict(
             n_steps=self.time_downsampling_factor, initial_condition=initial_condition
         )[-1]
