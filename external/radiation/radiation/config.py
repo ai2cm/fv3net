@@ -4,6 +4,28 @@ import dataclasses
 LOOKUP_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/lookupdata/lookup.tar.gz"  # noqa: E501
 FORCING_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/forcing/data.tar.gz"  # noqa: 501
 
+PHYSICS_NAMELIST_TO_GFS_CONTROL = {
+    "imp_physics": "imp_physics",
+    "ncld": "ncld",
+    "ncnd": "ncld",
+    "fhswr": "fhswr",
+    "fhlwr": "fhlwr",
+    "swhtr": "swhtr",
+    "lwhtr": "lwhtr",
+}
+
+PHYSICS_NAMELIST_TO_RAD_CONFIG = {
+    "iemsflg": "iems",
+    "isolar": "isol",
+    "ico2flg": "ico2",
+    "iaerflg": "iaer",
+    "ialbflg": "ialb",
+    "iovrsw": "iovr_sw",
+    "iovrlw": "iovr_lw",
+    "isubcsw": "isubc_sw",
+    "isubclw": "isubc_lw",
+}
+
 
 @dataclasses.dataclass
 class GFSPhysicsControl:
@@ -173,24 +195,26 @@ class RadiationConfig:
         """
 
         gfs_physics_control = GFSPhysicsControl(
-            imp_physics=physics_namelist["imp_physics"],
-            ncld=physics_namelist["ncld"],
-            ncnd=physics_namelist["ncld"],
-            fhswr=physics_namelist["fhswr"],
-            fhlwr=physics_namelist["fhlwr"],
-            swhtr=physics_namelist["swhtr"],
-            lwhtr=physics_namelist["lwhtr"],
+            **_namelist_to_config_args(
+                physics_namelist, PHYSICS_NAMELIST_TO_GFS_CONTROL
+            )
         )
 
         return cls(
-            iemsflg=physics_namelist["iems"],
-            isolar=physics_namelist["isol"],
-            ico2flg=physics_namelist["ico2"],
-            iaerflg=physics_namelist["iaer"],
-            ialbflg=physics_namelist["ialb"],
-            iovrsw=physics_namelist["iovr_sw"],
-            iovrlw=physics_namelist["iovr_lw"],
-            isubcsw=physics_namelist["isubc_sw"],
-            isubclw=physics_namelist["isubc_lw"],
-            gfs_physics_control=gfs_physics_control,
+            **dict(
+                **_namelist_to_config_args(
+                    physics_namelist, PHYSICS_NAMELIST_TO_RAD_CONFIG
+                ),
+                gfs_physics_control=gfs_physics_control
+            )
         )
+
+
+def _namelist_to_config_args(
+    namelist: Mapping[Hashable, Any], arg_mapping: Mapping[str, str]
+) -> Mapping[str, Any]:
+    config_args = {}
+    for namelist_entry, config_arg in arg_mapping.items():
+        if namelist_entry in namelist:
+            config_args[config_arg] = namelist[namelist_entry]
+    return config_args
