@@ -762,13 +762,15 @@ def mcica_subcol(iovrsw, cldf, nlay, dz, de_lgth, ipt, rand2d):
     cdfunc = np.zeros((nlay, ngptsw))
     #  --- ...  sub-column set up according to overlapping assumption
 
-    if iovrsw == 1:  # max-ran overlap
+    if iovrsw < 2:  # random or max-random overlap
 
         k1 = 0
         for n in range(ngptsw):
             for k in range(nlay):
                 cdfunc[k, n] = rand2d[k1]
                 k1 = k1 + 1
+
+    if iovrsw == 1:  # max-ran overlap
 
         #  ---  first pick a random number for bottom/top layer.
         #       then walk up the column: (aer's code)

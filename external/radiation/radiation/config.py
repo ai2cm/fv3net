@@ -188,6 +188,8 @@ class RadiationConfig:
             ico2flg=physics_namelist["ico2"],
             iaerflg=physics_namelist["iaer"],
             ialbflg=physics_namelist["ialb"],
+            iovrsw=physics_namelist["iovr_sw"],
+            iovrlw=physics_namelist["iovr_lw"],
             isubcsw=physics_namelist["isubc_sw"],
             isubclw=physics_namelist["isubc_lw"],
             gfs_physics_control=gfs_physics_control,
