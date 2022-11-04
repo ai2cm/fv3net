@@ -770,6 +770,8 @@ def mcica_subcol(iovrsw, cldf, nlay, dz, de_lgth, ipt, rand2d):
                 cdfunc[k, n] = rand2d[k1]
                 k1 = k1 + 1
 
+        print("Creating random numbers for SW random overlap.")
+
     if iovrsw == 1:  # max-ran overlap
 
         #  ---  first pick a random number for bottom/top layer.
@@ -787,6 +789,8 @@ def mcica_subcol(iovrsw, cldf, nlay, dz, de_lgth, ipt, rand2d):
                     cdfunc[k, n] = cdfunc[k1, n]
                 else:
                     cdfunc[k, n] = cdfunc[k, n] * tem1
+
+        print("Modifying random numbers for SW max-random overlap.")
 
     #  --- ...  generate subcolumns for homogeneous clouds
 

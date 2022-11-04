@@ -15,15 +15,15 @@ PHYSICS_NAMELIST_TO_GFS_CONTROL = {
 }
 
 PHYSICS_NAMELIST_TO_RAD_CONFIG = {
-    "iemsflg": "iems",
-    "isolar": "isol",
-    "ico2flg": "ico2",
-    "iaerflg": "iaer",
-    "ialbflg": "ialb",
-    "iovrsw": "iovr_sw",
-    "iovrlw": "iovr_lw",
-    "isubcsw": "isubc_sw",
-    "isubclw": "isubc_lw",
+    "iems": "iemsflg",
+    "isol": "isolar",
+    "ico2": "ico2flg",
+    "iaer": "iaerflg",
+    "ialb": "ialbflg",
+    "iovr_sw": "iovrsw",
+    "iovr_lw": "iovrlw",
+    "isubc_sw": "isubcsw",
+    "isubc_lw": "isubclw",
 }
 
 
