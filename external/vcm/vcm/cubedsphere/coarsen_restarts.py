@@ -237,8 +237,7 @@ def coarsen_restarts_via_hybrid_method(
 
     Args:
         coarsening_factor: the amount of coarsening to apply. C384 to C48 is a
-        factor
-            of 8.
+            factor of 8.
         grid_spec: Dataset containing the variables area, dx, dy. restarts:
         dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
@@ -539,6 +538,25 @@ def compute_blending_weights(blending_pressure, ps_coarse, pfull_coarse):
 def _compute_blending_weights_agrid(
     delp, area, coarsening_factor, x_dim=FV_CORE_X_CENTER, y_dim=FV_CORE_Y_CENTER
 ):
+    """Compute the blending weights on the A-grid.
+    
+    This follows the approach Chris describes in Section 7 of `this document
+    <https://drive.google.com/file/d/1FyLTnR1C5_Ab5Tdbbuhtxm52VC-NroJG/view>`_.
+    Here the blending pressure is computed to be 0.9 times the value of the
+    minimum surface pressure of the columns contained in a coarse grid cell, and
+    the blending weights are then given by the following equation:
+
+    .. math::
+        b_k^c = \begin{cases} 
+            1 & p_k^c \leq p_b^c \\
+            \frac{p_s^c - p_k^c}{p_s^c - p_b^c} & p_k^c > p_b^c
+        \end{cases}
+
+    Here :math:`b_k^c` is the blending weight at a level :math:`k`,
+    :math:`p_k^c` is the pressure at the midpoint of level :math:`k` on the
+    coarse grid, :math:`p_b^c` is the blending pressure, and :math:`p_s^c` is
+    the surface pressure on the coarse grid.
+    """
     delp_coarse = weighted_block_average(
         delp, area, coarsening_factor, x_dim=x_dim, y_dim=y_dim
     )
@@ -554,6 +572,24 @@ def _compute_blending_weights_agrid(
 def _compute_blending_weights_dgrid(
     delp, length, coarsening_factor, edge, x_dim, y_dim
 ):
+    """This follows the approach Chris describes in Section 7 of `this document
+    <https://drive.google.com/file/d/1FyLTnR1C5_Ab5Tdbbuhtxm52VC-NroJG/view>`_,
+    adapted to grid cell edges rather than grid cell centers. Here the blending
+    pressure is computed to be 0.9 times the value of the minimum surface
+    pressure along the edge of a coarse grid cell, and the blending weights are
+    then given by the following equation:
+
+    .. math::
+        b_k^c = \begin{cases} 
+            1 & p_k^c \leq p_b^c \\
+            \frac{p_s^c - p_k^c}{p_s^c - p_b^c} & p_k^c > p_b^c
+        \end{cases}
+
+    Here :math:`b_k^c` is the blending weight at a level :math:`k`,
+    :math:`p_k^c` is the pressure at the midpoint of level :math:`k` on the
+    coarse grid edge, :math:`p_b^c` is the blending pressure, and :math:`p_s^c`
+    is the surface pressure on the coarse grid edge.
+    """
     delp_edge = compute_edge_delp(delp, edge, x_dim=x_dim, y_dim=y_dim)
     delp_edge_coarse = edge_weighted_block_average(
         delp_edge, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
@@ -570,6 +606,20 @@ def _compute_blending_weights_dgrid(
 
 
 def blend(weights, pressure_level, model_level):
+    """Blend two coarse-grained Datasets or DataArrays using the provided weights.
+    
+    Args:
+        weights: xr.DataArray
+            Weights used to blend the two sources together.
+        pressure_level: xr.DataArray or xr.Dataset
+            Pressure-level coarsened data.
+        model_level: xr.DataArray or xr.Dataset
+            Model-level coarsened data.
+
+    Returns:
+        xr.DataArray or xr.Dataset
+            The blended result.
+    """
     return weights * pressure_level + (1 - weights) * model_level
 
 
@@ -595,6 +645,33 @@ def _coarse_grain_fv_core_via_hybrid_method(
     coarsen_agrid_winds=False,
     mass_weighted=True,
 ):
+    """Coarse grain a set of fv_core restart files via the hybrid pressure-level
+    / model-level approach.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Input Dataset; assumed to be from a set of fv_core restart files
+    delp : xr.DataArray
+        Pressure thicknesses
+    area : xr.DataArray
+        Area weights
+    dx : xr.DataArray
+        x edge lengths
+    dy : xr.DataArray
+        y edge lengths
+    coarsening_factor : int
+        Coarsening factor to use
+    coarsen_agrid_winds : bool
+        Whether to coarse-grain A-grid winds (default False)
+    mass_weighted : bool
+        Whether to weight temperature and vertical velocity using mass instead
+        of area during the model-level coarsening process (default True)
+
+    Returns
+    -------
+    xr.Dataset
+    """
     pressure_level = _coarse_grain_fv_core_on_pressure(
         ds, delp, area, dx, dy, coarsening_factor, coarsen_agrid_winds
     )
@@ -626,6 +703,27 @@ def _coarse_grain_fv_core_via_hybrid_method(
 def _coarse_grain_fv_tracer_via_hybrid_method(
     ds, delp, area, coarsening_factor, mass_weighted=True
 ):
+    """Coarse grain a set of fv_tracer restart files via the hybrid
+    pressure-level / model-level approach.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Input Dataset; assumed to be from a set of fv_tracer restart files
+    delp : xr.DataArray
+        Pressure thicknesses
+    area : xr.DataArray
+        Area weights
+    coarsening_factor : int
+        Coarsening factor to use
+    mass_weighted: bool
+        Whether to weight mixing ratios by mass during the model-level
+        coarsening process.
+
+    Returns
+    -------
+    xr.Dataset 
+    """
     pressure_level = _coarse_grain_fv_tracer_on_pressure(
         ds, delp, area, coarsening_factor
     )
