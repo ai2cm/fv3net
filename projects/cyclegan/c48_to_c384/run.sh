@@ -12,16 +12,15 @@ TRIAL="trial-0"
 TAG=${EXPERIMENT}-${TRIAL}  # required
 NAME=train-cyclegan-$(openssl rand --hex 6) # required
 
-argo submit --from workflowtemplate/training \
+argo submit --from workflowtemplate/training-torch \
     -p output=$( artifacts resolve-url $BUCKET $PROJECT $TAG) \
     -p tag=${TAG} \
     -p training_config="$( yq . training.yaml )" \
     -p training_data_config="$( yq . train-data.yaml )" \
     -p validation-data-config="$( yq . validation-data.yaml )" \
-    -p flags="--cache.local_download_path train-data-download-dir" \
     -p wandb-project="cyclegan_c48_to_c384" \
-    -p cpu=1 \
-    -p memory="6Gi" \
+    -p cpu=4 \
+    -p memory="15Gi" \
     --name "${NAME}" \
     --labels "project=${PROJECT},experiment=${EXPERIMENT},trial=${TRIAL}"
 
