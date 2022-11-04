@@ -666,12 +666,12 @@ def block_edge_coarsen(
 
     coarsen_kwargs = {coarsen_dim: coarsening_factor}
     copy = obj.copy()  # coarsen destroys attributes on the original object
-    coarsened = getattr(
+    coarsen_obj = (
         copy.coarsen(
             coarsen_kwargs, coord_func=coord_func  # type: ignore
         ),
-        method,
-    )()
+    )
+    coarsened = getattr(coarsen_obj, method)()
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
