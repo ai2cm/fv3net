@@ -1005,7 +1005,7 @@ def _doubles_to_floats(ds: xr.Dataset):
     for key in ds.data_vars:
         var = ds[key]
         if _is_float(var):
-            data_vars[key] = ds[key].astype(np.float32).drop(var.coords)
+            data_vars[key] = ds[key].astype(np.float32).drop_vars(var.coords)
 
     return xr.Dataset(data_vars, coords=coords)
 
