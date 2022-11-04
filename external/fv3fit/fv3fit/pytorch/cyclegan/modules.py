@@ -81,7 +81,6 @@ class FoldFirstDimension(nn.Module):
         super(FoldFirstDimension, self).__init__()
         self._wrapped = wrapped
 
-    @torch.jit.ignore
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         x = inputs.reshape(-1, *inputs.shape[2:])
         x = self._wrapped(x)
@@ -346,7 +345,6 @@ class AppendHalos(nn.Module):
     def extra_repr(self) -> str:
         return super().extra_repr() + f"n_halo={self.n_halo}"
 
-    @torch.jit.ignore
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
         Args:
