@@ -150,16 +150,36 @@ class RadiationConfig:
         ico2flg: CO2 data source control flag. In physics namelist as 'ico2'.
         iaerflg: Volcanic aerosols. In physics namelist as 'iaer'.
         ialbflg: Surface albedo control flag. In physics namelist as 'ialb'.
-        icldflg
-        ivflip: Vertical index direction control flag.
-        iovrsw: Cloud overlapping control flag for SW.
-        iovrlw: Cloud overlapping control flag for LW.
+        icldflg:
+        ivflip: Vertical index direction control flag for radiation calculations.
+            0: Top of model to surface
+            1: Surface to top of model
+        iovrsw: Cloud overlapping control flag for shortwave radiation. In physics
+            namelist as 'iovr_sw'.
+            0: random overlapping clouds
+            1: maximum/random overlapping clouds
+            2: maximum overlap cloud (not implemented in port)
+            3: decorrelation-length overlap clouds (not implemented in port)
+        iovrlw: Cloud overlapping control flag for longwave radiation. In physics
+            namelist as 'iovr_lw'.
+            0: random overlapping clouds
+            1: maximum/random overlapping clouds
+            2: maximum overlap cloud (not implemented in port)
+            3: decorrelation-length overlap clouds (not implemented in port)
         isubcsw: Sub-column cloud approx flag in SW radiation. In physics
             namelist as 'isubc_sw'.
+            0: no sub-column cloud treatment, use grid-mean cloud quantities
+            1: MCICA sub-column, prescribed random numbers
+            2: MCICA sub-column, providing optional seed for random numbers
         isubclw: Sub-column cloud approx flag in LW radiation. In physics
             namelist as 'isubc_lw'.
+            0: no sub-column cloud treatment, use grid-mean cloud quantities
+            1: MCICA sub-column, prescribed random numbers
+            2: MCICA sub-column, providing optional seed for random numbers
         lcrick: Control flag for eliminating CRICK.
-        lcnorm: Control flag for in-cld condensate.
+        lcnorm: Control flag for in-cloud condensate. In namelist as `ccnorm`.
+            False: Grid-mean condensate
+            True: Normalize grid-mean condensate by cloud fraction
         lnoprec: Precip effect on radiation flag (ferrier microphysics).
         iswcliq: Optical property for liquid clouds for SW.
         gfs_physics_control: GFSPhysicsControl data class
