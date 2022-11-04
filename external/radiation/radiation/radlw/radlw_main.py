@@ -63,7 +63,7 @@ def mcica_subcol(iovrlw, cldf, nlay, dz, de_lgth, iplon, rand2d):
     rand2d = rand2d[iplon, :]
     # random or max-random overlap
     cdfunc = np.reshape(rand2d, (ngptlw, nlay))
-    print("Creating random numbers for LW random overlap.")
+
     # ===> ...  begin here
     #
     #  --- ...  advance randum number generator by ipseed values
@@ -86,7 +86,6 @@ def mcica_subcol(iovrlw, cldf, nlay, dz, de_lgth, iplon, rand2d):
                     cdfunc[n, k] = cdfunc[n, k1]
                 else:
                     cdfunc[n, k] = cdfunc[n, k] * tem1
-        print("Modifying random numbers for LW max-random overlap.")
 
     #  --- ...  generate subcolumns for homogeneous clouds
     tem1 = 1.0 - cldf
