@@ -12,6 +12,7 @@ from vcm.cubedsphere.coarsen import (
     _xarray_block_reduce_dataarray,
     add_coordinates,
     block_coarsen,
+    block_edge_coarsen,
     block_edge_sum,
     block_median,
     block_upsample,
@@ -384,6 +385,25 @@ def test_block_edge_sum(data, factor, edge, expected_data):
     da = xr.DataArray(data, dims=dims, coords=None, attrs=attrs)
     expected = xr.DataArray(expected_data, dims=dims, coords=None, attrs=attrs)
     result = block_edge_sum(da, factor, x_dim="x_dim", y_dim="y_dim", edge=edge)
+    assert_identical_including_dtype(result, expected)
+
+
+@pytest.mark.parametrize(
+    ("data", "factor", "edge", "expected_data"),
+    [
+        ([[2, 6, 2], [6, 2, 6]], 2, "x", [[2, 2]]),
+        ([[2, 6], [6, 2], [2, 6]], 2, "y", [[2], [2]]),
+    ],
+    ids=["edge='x'", "edge='y'"],
+)
+def test_block_edge_coarsen(data, factor, edge, expected_data):
+    dims = ["x_dim", "y_dim"]
+    attrs = {"units": "m"}
+    da = xr.DataArray(data, dims=dims, coords=None, attrs=attrs)
+    expected = xr.DataArray(expected_data, dims=dims, coords=None, attrs=attrs)
+    result = block_edge_coarsen(
+        da, factor, x_dim="x_dim", y_dim="y_dim", edge=edge, method="min"
+    )
     assert_identical_including_dtype(result, expected)
 
 
