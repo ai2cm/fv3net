@@ -95,10 +95,10 @@ class CycleGANNetworkConfig:
         discriminator_b = self.discriminator.build(n_state, convolution=convolution).to(
             DEVICE
         )
-        generator_a_to_b = torch.jit.script(generator_a_to_b)
-        generator_b_to_a = torch.jit.script(generator_b_to_a)
-        discriminator_a = torch.jit.script(discriminator_a)
-        discriminator_b = torch.jit.script(discriminator_b)
+        # generator_a_to_b = torch.jit.script(generator_a_to_b)
+        # generator_b_to_a = torch.jit.script(generator_b_to_a)
+        # discriminator_a = torch.jit.script(discriminator_a)
+        # discriminator_b = torch.jit.script(discriminator_b)
         optimizer_generator = self.generator_optimizer.instance(
             itertools.chain(
                 generator_a_to_b.parameters(), generator_b_to_a.parameters()
@@ -114,7 +114,7 @@ class CycleGANNetworkConfig:
             discriminator_b=discriminator_b,
         ).to(DEVICE)
         init_weights(model)
-        model = torch.jit.script(model)
+        # model = torch.jit.script(model)
         return CycleGANTrainer(
             cycle_gan=CycleGAN(
                 model=model,
@@ -283,6 +283,34 @@ class CycleGANTrainer:
         self.generator_b_to_a = self.cycle_gan.generator_b_to_a
         self.discriminator_a = self.cycle_gan.discriminator_a
         self.discriminator_b = self.cycle_gan.discriminator_b
+        self._script_gen_a_to_b = None
+        self._script_gen_b_to_a = None
+        self._script_disc_a = None
+        self._script_disc_b = None
+
+    def _call_gen_a_to_b(self, input):
+        if self._script_gen_a_to_b is None:
+            self._script_gen_a_to_b = torch.jit.trace(
+                self.generator_a_to_b.forward, input
+            )
+        return self._script_gen_a_to_b(input)
+
+    def _call_gen_b_to_a(self, input):
+        if self._script_gen_b_to_a is None:
+            self._script_gen_b_to_a = torch.jit.trace(
+                self.generator_b_to_a.forward, input
+            )
+        return self._script_gen_b_to_a(input)
+
+    def _call_disc_a(self, input):
+        if self._script_disc_a is None:
+            self._script_disc_a = torch.jit.trace(self.discriminator_a.forward, input)
+        return self._script_disc_a(input)
+
+    def _call_disc_b(self, input):
+        if self._script_disc_b is None:
+            self._script_disc_b = torch.jit.trace(self.discriminator_b.forward, input)
+        return self._script_disc_b(input)
 
     def _init_targets(self, shape: Tuple[int, ...]):
         self.target_real = torch.autograd.Variable(
@@ -381,10 +409,10 @@ class CycleGANTrainer:
             [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
         )
 
-        fake_b = self.generator_a_to_b(real_a)
-        fake_a = self.generator_b_to_a(real_b)
-        reconstructed_a = self.generator_b_to_a(fake_b)
-        reconstructed_b = self.generator_a_to_b(fake_a)
+        fake_b = self._call_gen_a_to_b(real_a)
+        fake_a = self._call_gen_b_to_a(real_b)
+        reconstructed_a = self._call_gen_b_to_a(fake_b)
+        reconstructed_b = self._call_gen_a_to_b(fake_a)
 
         # Generators A2B and B2A ######
 
@@ -395,22 +423,23 @@ class CycleGANTrainer:
 
         # Identity loss
         # G_A2B(B) should equal B if real B is fed
-        same_b = self.generator_a_to_b(real_b)
+        # same_b = self.generator_a_to_b(real_b)
+        same_b = self._call_gen_a_to_b(real_b)
         loss_identity_b = self.identity_loss(same_b, real_b) * self.identity_weight
         # G_B2A(A) should equal A if real A is fed
-        same_a = self.generator_b_to_a(real_a)
+        same_a = self._call_gen_b_to_a(real_a)
         loss_identity_a = self.identity_loss(same_a, real_a) * self.identity_weight
         loss_identity = loss_identity_a + loss_identity_b
 
         # GAN loss
-        pred_fake_b = self.discriminator_b(fake_b)
+        pred_fake_b = self._call_disc_b(fake_b)
         if self.target_real is None:
             self._init_targets(pred_fake_b.shape)
         loss_gan_a_to_b = (
             self.gan_loss(pred_fake_b, self.target_real) * self.generator_weight
         )
 
-        pred_fake_a = self.discriminator_a(fake_a)
+        pred_fake_a = self._call_disc_a(fake_a)
         loss_gan_b_to_a = (
             self.gan_loss(pred_fake_a, self.target_real) * self.generator_weight
         )
