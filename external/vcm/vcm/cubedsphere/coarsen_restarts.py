@@ -539,7 +539,7 @@ def _compute_blending_weights_agrid(
     delp, area, coarsening_factor, x_dim=FV_CORE_X_CENTER, y_dim=FV_CORE_Y_CENTER
 ):
     """Compute the blending weights on the A-grid.
-    
+
     This follows the approach Chris describes in Section 7 of `this document
     <https://drive.google.com/file/d/1FyLTnR1C5_Ab5Tdbbuhtxm52VC-NroJG/view>`_.
     Here the blending pressure is computed to be 0.9 times the value of the
@@ -547,7 +547,7 @@ def _compute_blending_weights_agrid(
     the blending weights are then given by the following equation:
 
     .. math::
-        b_k^c = \begin{cases} 
+        b_k^c = \begin{cases}
             1 & p_k^c \leq p_b^c \\
             \frac{p_s^c - p_k^c}{p_s^c - p_b^c} & p_k^c > p_b^c
         \end{cases}
@@ -556,7 +556,7 @@ def _compute_blending_weights_agrid(
     :math:`p_k^c` is the pressure at the midpoint of level :math:`k` on the
     coarse grid, :math:`p_b^c` is the blending pressure, and :math:`p_s^c` is
     the surface pressure on the coarse grid.
-    """
+    """  # noqa: W605
     delp_coarse = weighted_block_average(
         delp, area, coarsening_factor, x_dim=x_dim, y_dim=y_dim
     )
@@ -580,7 +580,7 @@ def _compute_blending_weights_dgrid(
     then given by the following equation:
 
     .. math::
-        b_k^c = \begin{cases} 
+        b_k^c = \begin{cases}
             1 & p_k^c \leq p_b^c \\
             \frac{p_s^c - p_k^c}{p_s^c - p_b^c} & p_k^c > p_b^c
         \end{cases}
@@ -589,7 +589,7 @@ def _compute_blending_weights_dgrid(
     :math:`p_k^c` is the pressure at the midpoint of level :math:`k` on the
     coarse grid edge, :math:`p_b^c` is the blending pressure, and :math:`p_s^c`
     is the surface pressure on the coarse grid edge.
-    """
+    """  # noqa: W605
     delp_edge = compute_edge_delp(delp, edge, x_dim=x_dim, y_dim=y_dim)
     delp_edge_coarse = edge_weighted_block_average(
         delp_edge, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
@@ -607,7 +607,7 @@ def _compute_blending_weights_dgrid(
 
 def blend(weights, pressure_level, model_level):
     """Blend two coarse-grained Datasets or DataArrays using the provided weights.
-    
+
     Args:
         weights: xr.DataArray
             Weights used to blend the two sources together.
@@ -722,7 +722,7 @@ def _coarse_grain_fv_tracer_via_hybrid_method(
 
     Returns
     -------
-    xr.Dataset 
+    xr.Dataset
     """
     pressure_level = _coarse_grain_fv_tracer_on_pressure(
         ds, delp, area, coarsening_factor
