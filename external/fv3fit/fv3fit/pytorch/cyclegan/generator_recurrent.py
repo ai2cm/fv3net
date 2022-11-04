@@ -320,8 +320,8 @@ class RecurrentGenerator(nn.Module):
         x = self._encode(inputs)
         out_states = [self._decode(x)]
         for _ in range(ntime - 1):
-            x = checkpoint(self._step, x)
-            out_states.append(self._decode(x))
+            x, out_state = checkpoint(self._step, x)
+            out_states.append(out_state)
         out = torch.stack(out_states, dim=1)
         return out
 
@@ -337,7 +337,9 @@ class RecurrentGenerator(nn.Module):
         """
         Step latent x forward in time.
         """
-        return self.resnet(x)
+        x = self.resnet(x)
+        out_state = self._decode(x)
+        return x, out_state
 
     def _decode(self, x: torch.Tensor):
         """
