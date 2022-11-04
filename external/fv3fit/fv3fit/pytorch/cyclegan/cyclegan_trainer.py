@@ -85,12 +85,20 @@ class CycleGANNetworkConfig:
             raise ValueError(f"convolution_type {self.convolution_type} not supported")
         generator_a_to_b = self.generator.build(
             n_state, nx=nx, ny=ny, convolution=convolution
-        )
+        ).to(DEVICE)
         generator_b_to_a = self.generator.build(
             n_state, nx=nx, ny=ny, convolution=convolution
+        ).to(DEVICE)
+        discriminator_a = self.discriminator.build(n_state, convolution=convolution).to(
+            DEVICE
         )
-        discriminator_a = self.discriminator.build(n_state, convolution=convolution)
-        discriminator_b = self.discriminator.build(n_state, convolution=convolution)
+        discriminator_b = self.discriminator.build(n_state, convolution=convolution).to(
+            DEVICE
+        )
+        generator_a_to_b = torch.jit.script(generator_a_to_b)
+        generator_b_to_a = torch.jit.script(generator_b_to_a)
+        discriminator_a = torch.jit.script(discriminator_a)
+        discriminator_b = torch.jit.script(discriminator_b)
         optimizer_generator = self.generator_optimizer.instance(
             itertools.chain(
                 generator_a_to_b.parameters(), generator_b_to_a.parameters()
@@ -106,6 +114,7 @@ class CycleGANNetworkConfig:
             discriminator_b=discriminator_b,
         ).to(DEVICE)
         init_weights(model)
+        model = torch.jit.script(model)
         return CycleGANTrainer(
             cycle_gan=CycleGAN(
                 model=model,
