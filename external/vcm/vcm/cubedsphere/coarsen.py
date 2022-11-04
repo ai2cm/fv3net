@@ -615,31 +615,15 @@ def block_edge_sum(
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    if edge == "x":
-        coarsen_dim = x_dim
-        downsample_dim = y_dim
-    elif edge == "y":
-        coarsen_dim = y_dim
-        downsample_dim = x_dim
-    else:
-        raise ValueError(f"'edge' most be either 'x' or 'y'; got {edge}.")
-
-    coarsen_kwargs = {coarsen_dim: coarsening_factor}
-    copy = obj.copy()  # coarsen destroys attributes on the original object
-    coarsened = copy.coarsen(
-        coarsen_kwargs, coord_func=coord_func  # type: ignore
-    ).sum()
-    downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
-    result = coarsened.isel(downsample_kwargs)
-
-    # Separate logic is needed to apply coord_func to the downsample dimension
-    # coordinate (if it exists), because it is not included in the call to
-    # coarsen.
-    result = _coarsen_downsample_coordinate(
-        obj, result, downsample_dim, coarsening_factor, coord_func
+    return block_edge_coarsen(
+        obj,
+        coarsening_factor,
+        x_dim=x_dim,
+        y_dim=y_dim,
+        edge=edge,
+        coord_func=coord_func,
+        method="sum",
     )
-
-    return _propagate_attrs(obj, result)
 
 
 def block_edge_coarsen(
