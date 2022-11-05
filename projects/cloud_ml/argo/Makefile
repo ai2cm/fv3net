@@ -88,6 +88,14 @@ baseline_run_max_ovr_rad: deploy
 baseline_run_decorr_rad: deploy
 	cd nudge-to-fine-run/rad-config && ./run.sh baseline-decorr-rad
 
+.PHONY: baseline_yearlong_run
+baseline_yearlong_run: deploy
+	cd baseline && ./run.sh baseline-yearlong
+
+.PHONY: baseline_yearlong_run_ccnorm
+baseline_yearlong_run_ccnorm: deploy
+	cd baseline && ./run.sh baseline-yearlong-ccnorm
+
 .PHONY: nudge_to_fine_run_max_ran_rad
 nudge_to_fine_run_max_ran_rad: deploy
 	cd nudge-to-fine-run/rad-config && ./run.sh nudge-to-fine-max-ran-rad
