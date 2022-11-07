@@ -37,7 +37,7 @@ hyperparameters:
       discriminator_weight: 1.0
     training:
       n_epoch: 100
-      in_memory: false
+      in_memory: true
       shuffle_buffer_size: 1000
       samples_per_batch: 1
       validation_batch_size: 100
