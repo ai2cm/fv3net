@@ -35,6 +35,10 @@ baseline_ccnorm_port_run: deploy
 baseline_random_overlap_port_run: deploy
 	cd radiation-port-run && ./run.sh baseline-random-overlap-port
 
+.PHONY: baseline_ccnorm_random_overlap_port_run
+baseline_ccnorm_random_overlap_port_run: deploy
+	cd radiation-port-run && ./run.sh baseline-cc-ran-ovr-port
+
 .PHONY: port_validation_run
 port_validation_run: deploy
 	cd radiation-port-run && ./run.sh port-validation
@@ -47,6 +51,10 @@ port_validation_run_no_mc: deploy
 port_validation_random_overlap_run: deploy
 	cd radiation-port-run && ./run.sh port-validation-ran-ovr
 
+.PHONY: port_validation_ccnorm_random_overlap_run
+port_validation_ccnorm_random_overlap_run: deploy
+	cd radiation-port-run && ./run.sh port-validation-cc-ran-ovr
+
 .PHONY: prescribed_cloud_run
 prescribed_cloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cloud
@@ -54,6 +62,10 @@ prescribed_cloud_run: deploy
 .PHONY: prescribed_cloud_random_overlap_run
 prescribed_cloud_random_overlap_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cloud-ran-ovr
+
+.PHONY: prescribed_cloud_ccnorm_random_overlap_run
+prescribed_cloud_ccnorm_random_overlap_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cloud-cc-ran-ovr
 
 .PHONY: prescribed_half_cloud_run
 prescribed_half_cloud_run: deploy
