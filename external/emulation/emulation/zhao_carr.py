@@ -230,6 +230,39 @@ def enforce_conservative_phase_dependent(state, emulator):
     return {**emulator, **apply_condensation_phase_dependent(state, net_condensation)}
 
 
+def enforce_conservative_precpd(state, emulator):
+    # condensate
+    # a lot of models aleady enforce clouds >= 0, but include for completeness
+    condensate_to_precip = (
+        emulator[PrecpdOutput.cloud_water] - state[GscondOutput.cloud_water]
+    )
+    limited_cloud_change = np.minimum(condensate_to_precip, 0)
+
+    # vapor
+    humidity_change = emulator[PrecpdOutput.humidity] - state[GscondOutput.humidity]
+    evaporation = np.maximum(humidity_change, 0)  # no negative evaporation
+    limited_evaporation = np.maximum(
+        evaporation, -limited_cloud_change
+    )  # limit evap to available precip
+
+    # temperature adjust
+    # from physcons.f
+    cp = 1.0046e3
+    lv = 2.5e6
+    evaporative_cooling = lv / cp * -limited_evaporation
+
+    cloud_out = state[GscondOutput.cloud_water] + limited_cloud_change
+    humidity_out = state[GscondOutput.humidity] + limited_evaporation
+    temperature_out = state[GscondOutput.temperature] + evaporative_cooling
+
+    return {
+        **emulator,
+        PrecpdOutput.cloud_water: cloud_out,
+        PrecpdOutput.humidity: humidity_out,
+        PrecpdOutput.temperature: temperature_out,
+    }
+
+
 def infer_precpd_precip_from_conservation(state, emulator):
     rho_water = 1000.0
     gravity = 9.80665
