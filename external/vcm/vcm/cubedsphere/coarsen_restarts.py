@@ -238,8 +238,8 @@ def coarsen_restarts_via_hybrid_method(
     Args:
         coarsening_factor: the amount of coarsening to apply. C384 to C48 is a
             factor of 8.
-        grid_spec: Dataset containing the variables area, dx, dy. restarts:
-        dictionary of restart data. Must have the keys
+        grid_spec: Dataset containing the variables area, dx, dy.
+        restarts: dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
         coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
             "fv_core.res" restart files (default False).
