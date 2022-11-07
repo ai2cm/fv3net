@@ -17,6 +17,13 @@ from .cyclegan import (
     CycleGAN,
     CycleGANModule,
 )
+from .recurrent import (
+    RecurrentGeneratorConfig,
+    FullModelReplacement,
+    FMRHyperparameters,
+    FMRTrainingConfig,
+    FMRNetworkConfig,
+)
 from .optimizer import OptimizerConfig
 from .activation import ActivationConfig
 from .loss import LossConfig

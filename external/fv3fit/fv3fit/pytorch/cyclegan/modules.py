@@ -485,17 +485,23 @@ class ResnetBlock(nn.Module):
         channels: int,
         convolution_factory: CurriedModuleFactory,
         activation_factory: Callable[[], nn.Module] = relu_activation(),
+        context_channels: int = 0,
     ):
         """
         Args:
-            channels: number of input channels and filters in the convolutional layers
+            channels: number of filters in the internal
+                convolutional layers, input and output channels for the block
+                are channels + context_channels
             convolution_factory: factory for creating convolutional layers
             activation_factory: factory for creating activation layers
+            context_channels: if given, this number of channels at the end of the input
+                are treated as context channels and passed through to the output
+                of the resnet block, but not modified.
         """
         super(ResnetBlock, self).__init__()
         self.conv_block = nn.Sequential(
             ConvBlock(
-                in_channels=channels,
+                in_channels=channels + context_channels,
                 out_channels=channels,
                 convolution_factory=convolution_factory,
                 activation_factory=activation_factory,
@@ -508,6 +514,7 @@ class ResnetBlock(nn.Module):
             ),
         )
         self.identity = nn.Identity()
+        self.context_channels = context_channels
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
@@ -518,6 +525,14 @@ class ResnetBlock(nn.Module):
             tensor of shape [batch, tile, channels, x, y]
         """
         g = self.conv_block(inputs)
+        if self.context_channels > 0:
+            g = torch.cat(
+                tensors=[
+                    g,
+                    torch.zeros_like(inputs[:, :, -self.context_channels :, :]),
+                ],
+                dim=-3,
+            )
         return g + self.identity(inputs)
 
 

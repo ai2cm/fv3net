@@ -2,6 +2,7 @@ apache-beam[gcp]
 nc-time-axis>=1.4.1
 bump2version
 yq
+py
 pytest-regtest
 recommonmark
 sphinx>=1.4
