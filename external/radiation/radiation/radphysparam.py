@@ -209,8 +209,8 @@ isubclw = 0
 
 # eliminating CRICK control flag
 lcrick = False
-# in-cld condensate control flag
-lcnorm = False
+# in-cld condensate control flag (for Python port: read from namelist instead)
+# lcnorm = False
 # precip effect on radiation flag (Ferrier microphysics)
 lnoprec = False
 # shallow convetion flag

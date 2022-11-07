@@ -171,7 +171,7 @@ class RadiationDriver:
         self.sfc = SurfaceClass(rank, ialbflg, iemsflg, semis_file, semis_data)
         #  --- ...  cloud initialization routine
         self.cld = CloudClass(
-            si, NLAY, imp_physics, rank, ivflip, icldflg, iovrsw, iovrlw
+            si, NLAY, imp_physics, rank, ivflip, icldflg, iovrsw, iovrlw, lcnorm
         )
         #  --- ...  lw radiation initialization routine
         self.rlw = RadLWClass(rank, iovrlw, isubclw)

@@ -24,6 +24,7 @@ PHYSICS_NAMELIST_TO_RAD_CONFIG = {
     "iovr_lw": "iovrlw",
     "isubc_sw": "isubcsw",
     "isubc_lw": "isubclw",
+    "ccnorm": "lcnorm",
 }
 
 
