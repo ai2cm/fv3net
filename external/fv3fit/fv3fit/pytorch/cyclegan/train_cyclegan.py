@@ -200,10 +200,11 @@ def channels_first(data: tf.Tensor) -> tf.Tensor:
 
 
 def force_cudnn_initialization():
+    # workaround for https://stackoverflow.com/questions/66588715/runtimeerror-cudnn-error-cudnn-status-not-initialized-using-pytorch  # noqa: E501
+    torch.cuda.empty_cache()
     s = 8
-    dev = torch.device("cuda")
     torch.nn.functional.conv2d(
-        torch.zeros(s, s, s, s, device=dev), torch.zeros(s, s, s, s, device=dev)
+        torch.zeros(s, s, s, s, device=DEVICE), torch.zeros(s, s, s, s, device=DEVICE)
     )
 
 
@@ -223,8 +224,6 @@ def train_cyclegan(
         validation_batches: validation data, as a dataset of Mapping[str, tf.Tensor]
             where each tensor has dimensions [sample, time, tile, x, y(, z)]
     """
-    # workaround for https://stackoverflow.com/questions/66588715/runtimeerror-cudnn-error-cudnn-status-not-initialized-using-pytorch  # noqa: E501
-    torch.cuda.empty_cache()
     force_cudnn_initialization()
     train_batches = train_batches.map(apply_to_tuple_mapping(ensure_nd(6)))
     sample_batch = next(
