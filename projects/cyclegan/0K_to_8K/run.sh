@@ -18,7 +18,7 @@ argo submit --from workflowtemplate/training-torch \
     -p training_config="$( yq . training.yaml )" \
     -p training_data_config="$( yq . train-data.yaml )" \
     -p validation-data-config="$( yq . validation-data.yaml )" \
-    -p wandb-project="cyclegan_c48_to_c384" \
+    -p wandb-project="cyclegan_0K_to_8K" \
     -p cpu=4 \
     -p memory="15Gi" \
     --name "${NAME}" \
