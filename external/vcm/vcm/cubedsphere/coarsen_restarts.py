@@ -224,14 +224,14 @@ def coarsen_restarts_on_pressure(
     return coarsened
 
 
-def coarsen_restarts_via_hybrid_method(
+def coarsen_restarts_via_blended_method(
     coarsening_factor: int,
     grid_spec: xr.Dataset,
     restarts: Mapping[str, xr.Dataset],
     coarsen_agrid_winds: bool = False,
     mass_weighted: bool = True,
 ) -> Mapping[str, xr.Dataset]:
-    """Coarsen a complete set of restart files using the hybrid pressure-level
+    """Coarsen a complete set of restart files using the blended pressure-level
     / model-level coarse-graining method for 3D fields and the 'complex' surface
     coarsening method for surface data.
 
@@ -255,7 +255,7 @@ def coarsen_restarts_via_hybrid_method(
 
     coarsened = {}
 
-    coarsened["fv_core.res"] = _coarse_grain_fv_core_via_hybrid_method(
+    coarsened["fv_core.res"] = _coarse_grain_fv_core_via_blended_method(
         restarts["fv_core.res"],
         restarts["fv_core.res"].delp,
         grid_spec.area.rename(
@@ -280,7 +280,7 @@ def coarsen_restarts_via_hybrid_method(
         coarsening_factor,
     )
 
-    coarsened["fv_tracer.res"] = _coarse_grain_fv_tracer_via_hybrid_method(
+    coarsened["fv_tracer.res"] = _coarse_grain_fv_tracer_via_blended_method(
         restarts["fv_tracer.res"],
         restarts["fv_core.res"].delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
         grid_spec.area.rename(
@@ -635,7 +635,7 @@ def _3d_fv_core_names_agrid(ds):
     return names
 
 
-def _coarse_grain_fv_core_via_hybrid_method(
+def _coarse_grain_fv_core_via_blended_method(
     ds,
     delp,
     area,
@@ -645,7 +645,7 @@ def _coarse_grain_fv_core_via_hybrid_method(
     coarsen_agrid_winds=False,
     mass_weighted=True,
 ):
-    """Coarse grain a set of fv_core restart files via the hybrid pressure-level
+    """Coarse grain a set of fv_core restart files via the blended pressure-level
     / model-level approach.
 
     Parameters
@@ -700,10 +700,10 @@ def _coarse_grain_fv_core_via_hybrid_method(
     return xr.merge([fields_2d_agrid, fields_3d_agrid, u, v])
 
 
-def _coarse_grain_fv_tracer_via_hybrid_method(
+def _coarse_grain_fv_tracer_via_blended_method(
     ds, delp, area, coarsening_factor, mass_weighted=True
 ):
-    """Coarse grain a set of fv_tracer restart files via the hybrid
+    """Coarse grain a set of fv_tracer restart files via the blended
     pressure-level / model-level approach.
 
     Parameters
