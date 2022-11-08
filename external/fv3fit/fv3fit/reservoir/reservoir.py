@@ -19,7 +19,7 @@ def _random_uniform_sparse_matrix(m, n, sparsity, min=0, max=1):
         m=m,
         n=n,
         density=1.0 - sparsity,
-        data_rvs=_random_uniform_sample_func(min=0, max=1.0),
+        data_rvs=_random_uniform_sample_func(min=min, max=max),
     )
 
 

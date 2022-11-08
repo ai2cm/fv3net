@@ -12,13 +12,13 @@ from fv3fit.reservoir import (
     ReservoirComputingModel,
 )
 from fv3fit.reservoir.config import ReservoirTrainingConfig
-from ks import KuramotoSivashinskyConfig
+from ks import KuramotoSivashinskyConfig, get_time_downsampling_factor
 
 
 logger = logging.getLogger(__name__)
 
 
-def _get_parser() -> argparse.ArgumentParser:
+def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -47,18 +47,36 @@ def transform_inputs_to_reservoir_states(X, reservoir):
     return np.array(reservoir_states[:-1])
 
 
-def train(ks_config, train_config):
-    training_ts = ks_config.generate(
-        n_steps=train_config.n_samples + train_config.n_burn, seed=train_config.seed
+def generate_training_time_series(
+    ks_config, reservoir_timestep, n_samples, seed, input_noise
+):
+    # downsample in time to the reservoir timestep
+    time_downsampling_factor = get_time_downsampling_factor(
+        reservoir_timestep, ks_config.timestep
     )
-    training_ts = add_input_noise(training_ts, stddev=train_config.input_noise)
+    training_ts = ks_config.generate_from_seed(
+        n_steps=time_downsampling_factor * n_samples, seed=seed,
+    )
+
+    training_ts = training_ts[:: int(time_downsampling_factor), :]
+    training_ts = add_input_noise(training_ts, stddev=input_noise)
+    return training_ts
+
+
+def train(ks_config, train_config):
+    training_ts = generate_training_time_series(
+        ks_config=ks_config,
+        reservoir_timestep=train_config.timestep,
+        n_samples=train_config.n_burn + train_config.n_samples,
+        seed=train_config.seed,
+        input_noise=train_config.input_noise,
+    )
     training_ts_burnin, training_ts_keep = (
         training_ts[: train_config.n_burn],
         training_ts[train_config.n_burn :],
     )
 
     reservoir = Reservoir(train_config.reservoir_hyperparameters)
-
     reservoir.synchronize(training_ts_burnin)
     training_reservoir_states = transform_inputs_to_reservoir_states(
         X=training_ts_keep, reservoir=reservoir
@@ -80,7 +98,7 @@ def train(ks_config, train_config):
 
 
 if __name__ == "__main__":
-    parser = _get_parser()
+    parser = get_parser()
     args = parser.parse_args()
     with open(args.ks_config, "r") as f:
         ks_config = dacite.from_dict(KuramotoSivashinskyConfig, yaml.safe_load(f))
