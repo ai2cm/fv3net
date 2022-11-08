@@ -29,7 +29,7 @@ class PeriodicDomain:
             raise ValueError(f"Data size must be evenly divisible by output_size")
         self.overlap = overlap
         self.subdomain_axis = subdomain_axis
-        self.n_subdomains = int(data.shape[subdomain_axis] / output_size)
+        self.n_subdomains = data.shape[subdomain_axis] // output_size
         self.index = 0
 
     def __len__(self) -> int:
