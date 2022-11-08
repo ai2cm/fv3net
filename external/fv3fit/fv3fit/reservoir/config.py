@@ -76,6 +76,8 @@ class ReservoirTrainingConfig:
         commonly done to aid in the stability of the RC model.
     seed: random seed for sampling
     n_samples: number of samples to use in training
+    hybrid_imperfect_model_config: if training a hybrid model, dict of
+        kwargs for initializing ImperfectModel
     """
 
     reservoir_hyperparameters: ReservoirHyperparameters
@@ -87,6 +89,7 @@ class ReservoirTrainingConfig:
     n_samples: Optional[int] = None
     subdomain: Optional[SubdomainConfig] = None
     n_jobs: Optional[int] = -1
+    hybrid_imperfect_model_config: Optional[dict] = None
 
     _METADATA_NAME = "reservoir_training_config.yaml"
 
@@ -117,6 +120,7 @@ class ReservoirTrainingConfig:
 
     def dump(self, path: str):
         metadata = {
+            "timestep": self.timestep,
             "n_burn": self.n_burn,
             "input_noise": self.input_noise,
             "seed": self.seed,
@@ -124,8 +128,8 @@ class ReservoirTrainingConfig:
             "n_jobs": self.n_jobs,
             "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
-            "timestep": self.timestep,
             "subdomain": asdict(self.subdomain),
+            "hybrid_imperfect_model_config": self.hybrid_imperfect_model_config,
         }
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)

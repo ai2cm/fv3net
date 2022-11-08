@@ -8,6 +8,7 @@ from fv3fit.reservoir import (
     ReservoirComputingReadout,
     Reservoir,
     ReservoirHyperparameters,
+    HybridReservoirComputingModel,
 )
 
 
@@ -134,3 +135,91 @@ def test_prediction_after_load(tmpdir):
         prediction1 = loaded_predictor.predict()
 
     np.testing.assert_array_almost_equal(prediction0, prediction1)
+
+
+class MockImperfectModel:
+    def __init__(self, offset: float):
+        self.offset = offset
+
+    def predict(self, input):
+        return input + self.offset
+
+
+def test_hybrid_prediction_after_load(tmpdir):
+    imperfect_model = MockImperfectModel(offset=0.1)
+    input_size = 15
+    hyperparameters = ReservoirHyperparameters(
+        input_size=input_size,
+        state_size=1000,
+        adjacency_matrix_sparsity=0.9,
+        spectral_radius=1.0,
+        input_coupling_sparsity=0,
+    )
+    reservoir = Reservoir(hyperparameters)
+    readout = ReservoirComputingReadout(
+        linear_regressor=MultiOutputMeanRegressor(n_outputs=input_size),
+        square_half_hidden_state=True,
+    )
+    hybrid_predictor = HybridReservoirComputingModel(
+        reservoir=reservoir, readout=readout, imperfect_model=imperfect_model
+    )
+
+    ts_sync = [np.ones(input_size) for i in range(20)]
+    hybrid_predictor.reservoir.synchronize(ts_sync)
+    predictions_0 = [
+        ts_sync[-1],
+    ]
+    for i in range(10):
+        predictions_0.append(hybrid_predictor.predict(predictions_0[-1]))
+
+    output_path = f"{str(tmpdir)}/hybrid_predictor"
+    hybrid_predictor.dump(output_path)
+    loaded_hybrid_predictor = HybridReservoirComputingModel.load(output_path)
+
+    loaded_hybrid_predictor.reservoir.synchronize(ts_sync)
+    predictions_1 = [
+        ts_sync[-1],
+    ]
+    for i in range(10):
+        predictions_1.append(loaded_hybrid_predictor.predict(predictions_1[-1]))
+    np.testing.assert_array_almost_equal(
+        np.array(predictions_0), np.array(predictions_1)
+    )
+
+
+def test_hybrid_gives_different_results():
+    imperfect_model = MockImperfectModel(offset=0.1)
+    input_size = 15
+    hyperparameters = ReservoirHyperparameters(
+        input_size=input_size,
+        state_size=1000,
+        adjacency_matrix_sparsity=0.9,
+        spectral_radius=1.0,
+        input_coupling_sparsity=0,
+    )
+    reservoir = Reservoir(hyperparameters)
+    readout = ReservoirComputingReadout(
+        linear_regressor=MultiOutputMeanRegressor(n_outputs=input_size),
+        square_half_hidden_state=True,
+    )
+    predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout)
+    hybrid_predictor = HybridReservoirComputingModel(
+        reservoir=reservoir, readout=readout, imperfect_model=imperfect_model
+    )
+
+    ts_sync = [np.ones(input_size) for i in range(20)]
+    predictor.reservoir.synchronize(ts_sync)
+    hybrid_predictor.reservoir.synchronize(ts_sync)
+
+    predictions, predictions_hybrid = [ts_sync[-1]], [ts_sync[-1]]
+
+    for i in range(10):
+        predictions.append(predictor.predict())
+        predictions_hybrid.append(hybrid_predictor.predict(predictions_hybrid[-1]))
+
+    predictions = np.array(predictions)
+    predictions_hybrid = np.array(predictions_hybrid)
+    assert predictions.shape == predictions_hybrid.shape
+    np.testing.assert_raises(
+        AssertionError, np.testing.assert_array_equal, predictions, predictions_hybrid
+    )
