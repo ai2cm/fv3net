@@ -53,10 +53,10 @@ class PeriodicDomain:
         )
         start_ind = index * self.output_size
         stop_ind = start_ind + self.output_size + 2 * self.overlap
-        if stop_ind > len(padded):
+        if index >= self.n_subdomains:
             raise ValueError(
                 f"Cannot select subdomain with index {index}, there are"
-                f"only {len(self.data)/self.output_size} subdomains."
+                f"only {self.n_subdomains} subdomains."
             )
         subdomain_slice = _slice(
             arr=padded, inds=slice(start_ind, stop_ind), axis=self.subdomain_axis
