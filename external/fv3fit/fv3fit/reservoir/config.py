@@ -9,7 +9,7 @@ import yaml
 class SubdomainConfig:
     """ Define size and edge overlaps for 1D subdomains """
 
-    output_size: int
+    size: int
     overlap: int
 
 

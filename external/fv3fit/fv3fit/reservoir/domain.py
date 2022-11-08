@@ -21,15 +21,19 @@ class Subdomain:
 
 class PeriodicDomain:
     def __init__(
-        self, data: np.ndarray, output_size: int, overlap: int, subdomain_axis: int = 0
+        self,
+        data: np.ndarray,
+        subdomain_size: int,
+        subdomain_overlap: int,
+        subdomain_axis: int = 0,
     ):
         self.data = data
-        self.output_size = output_size
-        if data.shape[subdomain_axis] % output_size != 0:
-            raise ValueError(f"Data size must be evenly divisible by output_size")
-        self.overlap = overlap
+        self.subdomain_size = subdomain_size
+        if data.shape[subdomain_axis] % subdomain_size != 0:
+            raise ValueError(f"Data size must be evenly divisible by subdomain_size")
+        self.subdomain_overlap = subdomain_overlap
         self.subdomain_axis = subdomain_axis
-        self.n_subdomains = int(data.shape[subdomain_axis] / output_size)
+        self.n_subdomains = int(data.shape[subdomain_axis] / subdomain_size)
         self.index = 0
 
     def __len__(self) -> int:
@@ -40,29 +44,31 @@ class PeriodicDomain:
             [
                 _slice(
                     arr=self.data,
-                    inds=slice(-self.overlap, None),
+                    inds=slice(-self.subdomain_overlap, None),
                     axis=self.subdomain_axis,
                 ),
                 self.data,
                 _slice(
                     arr=self.data,
-                    inds=slice(None, self.overlap),
+                    inds=slice(None, self.subdomain_overlap),
                     axis=self.subdomain_axis,
                 ),
             ]
         )
-        start_ind = index * self.output_size
-        stop_ind = start_ind + self.output_size + 2 * self.overlap
+        start_ind = index * self.subdomain_size
+        stop_ind = start_ind + self.subdomain_size + 2 * self.subdomain_overlap
         if stop_ind > len(padded):
             raise ValueError(
                 f"Cannot select subdomain with index {index}, there are"
-                f"only {len(self.data)/self.output_size} subdomains."
+                f"only {len(self.data)/self.subdomain_size} subdomains."
             )
         subdomain_slice = _slice(
             arr=padded, inds=slice(start_ind, stop_ind), axis=self.subdomain_axis
         )
         return Subdomain(
-            subdomain_slice, overlap=self.overlap, subdomain_axis=self.subdomain_axis
+            subdomain_slice,
+            overlap=self.subdomain_overlap,
+            subdomain_axis=self.subdomain_axis,
         )
 
     def __iter__(self):
