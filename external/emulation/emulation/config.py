@@ -201,9 +201,6 @@ class ModelConfig:
         if self.enforce_precpd_conservative:
             yield emulation.zhao_carr.enforce_conservative_precpd
 
-        if self.precpd_precip_conservative:
-            yield emulation.zhao_carr.infer_precpd_precip_from_conservation
-
         for key, _slice in self.mask_emulator_levels.items():
             yield LevelMask(
                 key, start=_slice.start, stop=_slice.stop, fill_value=_slice.fill_value

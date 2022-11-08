@@ -231,6 +231,12 @@ def enforce_conservative_phase_dependent(state, emulator):
 
 
 def enforce_conservative_precpd(state, emulator):
+    # from physcons.f
+    cp = 1.0046e3
+    gravity = 9.80665
+    lv = 2.5e6
+    rho_water = 1000.0
+
     # condensate
     # a lot of models aleady enforce clouds >= 0, but include for completeness
     condensate_to_precip = (
@@ -241,14 +247,29 @@ def enforce_conservative_precpd(state, emulator):
     # vapor
     humidity_change = emulator[PrecpdOutput.humidity] - state[GscondOutput.humidity]
     evaporation = np.maximum(humidity_change, 0)  # no negative evaporation
-    limited_evaporation = np.maximum(
-        evaporation, -limited_cloud_change
-    )  # limit evap to available precip
+
+    # Precip and evaporation (switch to units of kg / m2)
+    delp = state[Input.delp]
+    precip_kg_m2 = -1 * limited_cloud_change * delp / gravity
+    evaporation_kg_m2 = evaporation * delp / gravity
+    z, n = precip_kg_m2.shape
+
+    total_precip_kg_m2 = np.zeros(n)
+    limited_evaporation = np.zeros_like(evaporation_kg_m2)
+
+    # starting from TOA
+    for k in range(z - 1, -1, -1):
+        p = precip_kg_m2[k]
+        total_precip_kg_m2 += p
+        e = evaporation_kg_m2[k]
+        limited_e = np.minimum(total_precip_kg_m2, e)
+        total_precip_kg_m2 -= limited_e
+        limited_evaporation[k, :] = limited_e
+
+    surface_precip = total_precip_kg_m2 / rho_water  # units of m
+    limited_evaporation = limited_evaporation / delp * gravity  # units of kg/kg
 
     # temperature adjust
-    # from physcons.f
-    cp = 1.0046e3
-    lv = 2.5e6
     evaporative_cooling = lv / cp * -limited_evaporation
 
     cloud_out = state[GscondOutput.cloud_water] + limited_cloud_change
@@ -260,22 +281,5 @@ def enforce_conservative_precpd(state, emulator):
         PrecpdOutput.cloud_water: cloud_out,
         PrecpdOutput.humidity: humidity_out,
         PrecpdOutput.temperature: temperature_out,
+        PrecpdOutput.precip: surface_precip,
     }
-
-
-def infer_precpd_precip_from_conservation(state, emulator):
-    rho_water = 1000.0
-    gravity = 9.80665
-
-    condensate_to_precip = -1 * (
-        emulator[PrecpdOutput.cloud_water] - state[GscondOutput.cloud_water]
-    )
-    precip_to_vapor = emulator[PrecpdOutput.humidity] - state[GscondOutput.humidity]
-    delp = state[Input.delp]
-
-    rain_water = condensate_to_precip - precip_to_vapor
-    rain_water = np.where(rain_water < 0, 0.0, rain_water)
-    total_precip_per_level = rain_water * delp / gravity / rho_water  # units of m
-    surface_precip = np.sum(total_precip_per_level, axis=0, keepdims=True)
-
-    return {**emulator, PrecpdOutput.precip: surface_precip}
