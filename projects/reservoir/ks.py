@@ -120,7 +120,7 @@ def integrate_ks_eqn(
 
 def _generate_ic(input_dim, seed=0):
     np.random.seed(seed)
-    x = 2 * pi * np.arange(1, input_dim + 1) / input_dim
+    x = 2 * pi * np.arange(0, input_dim) / input_dim
     return (
         np.cos(np.random.uniform(-1, 1) * x)
         * (np.random.uniform(-1, 1) + np.sin(x))
@@ -191,18 +191,6 @@ class ImperfectKSModel(ImperfectModel):
             reservoir_timestep, config.timestep
         )
         self.time_downsampling_factor = time_downsampling_factor
-
-    def _upsample_interpolation(self, ic):
-        upsample_factor = self.config.spatial_downsampling_factor
-        x = 2 * pi * np.arange(0, ic.size) / (ic.size)
-        x_upsampled = (
-            2
-            * pi
-            * np.arange(0, upsample_factor * ic.size)
-            / (upsample_factor * ic.size)
-        )
-        upsampled_ic = np.interp(x_upsampled, x, ic, period=2 * np.pi)
-        return upsampled_ic
 
     def predict(self, initial_condition):
         if (
