@@ -33,7 +33,7 @@ class PeriodicDomain:
             raise ValueError(f"Data size must be evenly divisible by subdomain_size")
         self.subdomain_overlap = subdomain_overlap
         self.subdomain_axis = subdomain_axis
-        self.n_subdomains = int(data.shape[subdomain_axis] / subdomain_size)
+        self.n_subdomains = data.shape[subdomain_axis] // subdomain_size
         self.index = 0
 
     def __len__(self) -> int:
@@ -57,10 +57,10 @@ class PeriodicDomain:
         )
         start_ind = index * self.subdomain_size
         stop_ind = start_ind + self.subdomain_size + 2 * self.subdomain_overlap
-        if stop_ind > len(padded):
+        if index >= self.n_subdomains:
             raise ValueError(
-                f"Cannot select subdomain with index {index}, there are"
-                f"only {len(self.data)/self.subdomain_size} subdomains."
+                f"Cannot select subdomain with index {index}, there are "
+                f"only {self.n_subdomains} subdomains."
             )
         subdomain_slice = _slice(
             arr=padded, inds=slice(start_ind, stop_ind), axis=self.subdomain_axis
