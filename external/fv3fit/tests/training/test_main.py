@@ -497,7 +497,8 @@ def cli_main(args: argparse.Namespace):
 
 
 @pytest.mark.parametrize(
-    "model_type, hyperparameter_dict, output_variables, use_local_download_path, use_validation_data",
+    "model_type, hyperparameter_dict, output_variables, "
+    "use_local_download_path, use_validation_data",
     [
         pytest.param(
             "sklearn_random_forest",
