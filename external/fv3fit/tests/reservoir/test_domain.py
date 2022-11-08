@@ -60,3 +60,9 @@ def test_PeriodicDomain_iteration():
     for subdomain in domain:
         count += 1
     assert count == 3
+
+
+def test_PeriodicDomain_raises_index_out_of_range():
+    domain = PeriodicDomain(np.arange(6), subdomain_size=2, subdomain_overlap=1)
+    with pytest.raises(ValueError):
+        domain[5]
