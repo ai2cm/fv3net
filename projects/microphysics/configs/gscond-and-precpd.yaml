@@ -1,6 +1,6 @@
 kind: prognostic
 experiment: conserve-pr-prog-oct2022
-name: zc-emu-precpd-conserve-no-pr-conserve-emu-v1
+name: zc-emu-precpd-conserve-pr-conserve-emu-v1
 image_tag: 465884b1f7230ae488f0ad1ebb0d79584fe69689
 fv3net_image_tag: latest
 config:
@@ -286,7 +286,7 @@ config:
     model:
       path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-15/precpd-diff-50epoch-v1/model.tf
       enforce_precpd_conservative: true
-      precpd_precip_conservative: false
+      precpd_precip_conservative: true
     storage:
       output_freq_sec: 10800
       save_nc: false
