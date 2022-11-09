@@ -39,22 +39,18 @@ class PeriodicDomain:
     def __len__(self) -> int:
         return self.n_subdomains
 
-    def __getitem__(self, index: int):
-        padded = np.hstack(
-            [
-                _slice(
-                    arr=self.data,
-                    inds=slice(-self.subdomain_overlap, None),
-                    axis=self.subdomain_axis,
-                ),
-                self.data,
-                _slice(
-                    arr=self.data,
-                    inds=slice(None, self.subdomain_overlap),
-                    axis=self.subdomain_axis,
-                ),
-            ]
+    def _pad_array_along_subdomain_axis(self, arr):
+        n_dims = len(arr.shape)
+        pad_widths = tuple(
+            (0, 0)
+            if axis != self.subdomain_axis
+            else (self.subdomain_overlap, self.subdomain_overlap)
+            for axis in range(n_dims)
         )
+        return np.pad(arr, mode="wrap", pad_width=pad_widths)
+
+    def __getitem__(self, index: int):
+        padded = self._pad_array_along_subdomain_axis(self.data)
         start_ind = index * self.subdomain_size
         stop_ind = start_ind + self.subdomain_size + 2 * self.subdomain_overlap
         if index >= self.n_subdomains:
