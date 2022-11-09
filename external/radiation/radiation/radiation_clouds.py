@@ -1,6 +1,6 @@
 import numpy as np
 from .phys_const import con_ttp, con_pi, con_g, con_rd, con_thgni
-from .radphysparam import lcrick, lcnorm
+from .radphysparam import lcrick
 
 
 class CloudClass:
@@ -20,10 +20,13 @@ class CloudClass:
     cldssa_def = 0.99
     cldasy_def = 0.84
 
-    def __init__(self, si, NLAY, imp_physics, rank, ivflip, icldflg, iovrsw, iovrlw):
+    def __init__(
+        self, si, NLAY, imp_physics, rank, ivflip, icldflg, iovrsw, iovrlw, lcnorm
+    ):
 
         self.iovr = max(iovrsw, iovrlw)
         self.ivflip = ivflip
+        self.lcnorm = lcnorm
 
         if rank == 0:
             print(self.VTAGCLD)  # print out version tag
@@ -334,7 +337,7 @@ class CloudClass:
                     crp[i, k] = 0.0
                     csp[i, k] = 0.0
 
-        if lcnorm:
+        if self.lcnorm:
             for k in range(NLAY):
                 for i in range(IX):
                     if cldtot[i, k] >= self.climit:
@@ -625,7 +628,7 @@ class CloudClass:
                     crp[i, k] = 0.0
                     csp[i, k] = 0.0
 
-        if lcnorm:
+        if self.lcnorm:
             for k in range(nlay):
                 for i in range(ix):
                     if cldtot[i, k] >= self.climit:
@@ -862,7 +865,7 @@ class CloudClass:
                     crp[i, k] = 0.0
                     csp[i, k] = 0.0
 
-        if lcnorm:
+        if self.lcnorm:
             for k in range(NLAY):
                 for i in range(IX):
                     if cldtot[i, k] >= self.climit:
@@ -1143,7 +1146,7 @@ class CloudClass:
                     crp[i, k] = 0.0
                     csp[i, k] = 0.0
 
-        if lcnorm:
+        if self.lcnorm:
             for k in range(NLAY):
                 for i in range(IX):
                     if cldtot[i, k] >= self.climit:
@@ -1352,7 +1355,7 @@ class CloudClass:
                     crp[i, k] = 0.0
                     csp[i, k] = 0.0
 
-        if lcnorm:
+        if self.lcnorm:
             for k in range(NLAY):
                 for i in range(IX):
                     if cldtot[i, k] >= self.climit:
