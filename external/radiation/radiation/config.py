@@ -4,29 +4,6 @@ import dataclasses
 LOOKUP_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/lookupdata/lookup.tar.gz"  # noqa: E501
 FORCING_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/forcing/data.tar.gz"  # noqa: 501
 
-PHYSICS_NAMELIST_TO_GFS_CONTROL = {
-    "imp_physics": "imp_physics",
-    "ncld": "ncld",
-    "ncnd": "ncld",
-    "fhswr": "fhswr",
-    "fhlwr": "fhlwr",
-    "swhtr": "swhtr",
-    "lwhtr": "lwhtr",
-}
-
-PHYSICS_NAMELIST_TO_RAD_CONFIG = {
-    "iems": "iemsflg",
-    "isol": "isolar",
-    "ico2": "ico2flg",
-    "iaer": "iaerflg",
-    "ialb": "ialbflg",
-    "iovr_sw": "iovrsw",
-    "iovr_lw": "iovrlw",
-    "isubc_sw": "isubcsw",
-    "isubc_lw": "isubclw",
-    "ccnorm": "lcnorm",
-}
-
 
 @dataclasses.dataclass
 class GFSPhysicsControl:
@@ -118,6 +95,25 @@ class GFSPhysicsControl:
     lssav: bool = True
     nsswr: Optional[int] = None
     nslwr: Optional[int] = None
+
+    @classmethod
+    def from_physics_namelist(cls, physics_namelist: Mapping[Hashable, Any]):
+
+        PHYSICS_NAMELIST_TO_GFS_CONTROL = {
+            "imp_physics": "imp_physics",
+            "ncld": "ncld",
+            "ncnd": "ncld",
+            "fhswr": "fhswr",
+            "fhlwr": "fhlwr",
+            "swhtr": "swhtr",
+            "lwhtr": "lwhtr",
+        }
+
+        return cls(
+            **_namelist_to_config_args(
+                physics_namelist, PHYSICS_NAMELIST_TO_GFS_CONTROL
+            )
+        )
 
 
 @dataclasses.dataclass
@@ -215,11 +211,20 @@ class RadiationConfig:
         identical. Remaining values from RadiationConfig defaults.
         """
 
-        gfs_physics_control = GFSPhysicsControl(
-            **_namelist_to_config_args(
-                physics_namelist, PHYSICS_NAMELIST_TO_GFS_CONTROL
-            )
-        )
+        gfs_physics_control = GFSPhysicsControl.from_physics_namelist(physics_namelist)
+
+        PHYSICS_NAMELIST_TO_RAD_CONFIG = {
+            "iems": "iemsflg",
+            "isol": "isolar",
+            "ico2": "ico2flg",
+            "iaer": "iaerflg",
+            "ialb": "ialbflg",
+            "iovr_sw": "iovrsw",
+            "iovr_lw": "iovrlw",
+            "isubc_sw": "isubcsw",
+            "isubc_lw": "isubclw",
+            "ccnorm": "lcnorm",
+        }
 
         return cls(
             **dict(
