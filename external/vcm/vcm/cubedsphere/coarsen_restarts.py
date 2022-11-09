@@ -536,7 +536,12 @@ def compute_blending_weights(blending_pressure, ps_coarse, pfull_coarse):
 
 
 def _compute_blending_weights_agrid(
-    delp, area, coarsening_factor, x_dim=FV_CORE_X_CENTER, y_dim=FV_CORE_Y_CENTER
+    delp,
+    area,
+    coarsening_factor,
+    x_dim=FV_CORE_X_CENTER,
+    y_dim=FV_CORE_Y_CENTER,
+    toa_pressure=300,
 ):
     """Compute the blending weights on the A-grid.
 
@@ -560,9 +565,15 @@ def _compute_blending_weights_agrid(
     delp_coarse = weighted_block_average(
         delp, area, coarsening_factor, x_dim=x_dim, y_dim=y_dim
     )
-    pfull_coarse = pressure_at_midpoint_log(delp_coarse, dim=RESTART_Z_CENTER)
-    ps = surface_pressure_from_delp(delp, vertical_dim=RESTART_Z_CENTER)
-    ps_coarse = surface_pressure_from_delp(delp_coarse, vertical_dim=RESTART_Z_CENTER)
+    pfull_coarse = pressure_at_midpoint_log(
+        delp_coarse, toa_pressure=toa_pressure, dim=RESTART_Z_CENTER
+    )
+    ps = surface_pressure_from_delp(
+        delp, p_toa=toa_pressure, vertical_dim=RESTART_Z_CENTER
+    )
+    ps_coarse = surface_pressure_from_delp(
+        delp_coarse, p_toa=toa_pressure, vertical_dim=RESTART_Z_CENTER
+    )
     blending_pressure = SIGMA_BLEND * block_coarsen(
         ps, coarsening_factor, x_dim=x_dim, y_dim=y_dim, method="min"
     )
@@ -570,7 +581,7 @@ def _compute_blending_weights_agrid(
 
 
 def _compute_blending_weights_dgrid(
-    delp, length, coarsening_factor, edge, x_dim, y_dim
+    delp, length, coarsening_factor, edge, x_dim, y_dim, toa_pressure=300
 ):
     """This follows the approach Chris describes in Section 7 of `this document
     <https://drive.google.com/file/d/1FyLTnR1C5_Ab5Tdbbuhtxm52VC-NroJG/view>`_,
@@ -594,10 +605,14 @@ def _compute_blending_weights_dgrid(
     delp_edge_coarse = edge_weighted_block_average(
         delp_edge, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
     )
-    pfull_coarse = pressure_at_midpoint_log(delp_edge_coarse, dim=RESTART_Z_CENTER)
-    ps = surface_pressure_from_delp(delp_edge, vertical_dim=RESTART_Z_CENTER)
+    pfull_coarse = pressure_at_midpoint_log(
+        delp_edge_coarse, toa_pressure=toa_pressure, dim=RESTART_Z_CENTER
+    )
+    ps = surface_pressure_from_delp(
+        delp_edge, p_toa=toa_pressure, vertical_dim=RESTART_Z_CENTER
+    )
     ps_coarse = surface_pressure_from_delp(
-        delp_edge_coarse, vertical_dim=RESTART_Z_CENTER
+        delp_edge_coarse, p_toa=toa_pressure, vertical_dim=RESTART_Z_CENTER
     )
     blending_pressure = SIGMA_BLEND * block_edge_coarsen(
         ps, coarsening_factor, edge=edge, x_dim=x_dim, y_dim=y_dim, method="min"

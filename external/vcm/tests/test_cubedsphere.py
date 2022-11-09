@@ -22,6 +22,13 @@ from vcm.cubedsphere.coarsen import (
     shift_edge_var_to_center,
     weighted_block_average,
 )
+from vcm.cubedsphere.coarsen_restarts import (
+    _compute_blending_weights_agrid,
+    _compute_blending_weights_dgrid,
+    compute_blending_weights,
+    blend,
+    SIGMA_BLEND,
+)
 from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
     COORD_Y_CENTER,
@@ -873,3 +880,49 @@ def test_to_cross_with_scalar_coordinates():
     expected_time = xr.DataArray(1, coords={"time": 1}, name="time")
     assert "time" in result.coords
     xr.testing.assert_identical(result.time, expected_time)
+
+
+def test_compute_blending_weights():
+    blending_pressure = xr.DataArray([7, 10], dims=["x"])
+    ps_coarse = xr.DataArray([9, 15], dims=["x"])
+    pfull_coarse = xr.DataArray([[8, 5], [11, 9]], dims=["x", "z"])
+    expected = xr.DataArray([[0.5, 1.0], [0.8, 1.0]], dims=["x", "z"])
+    result = compute_blending_weights(blending_pressure, ps_coarse, pfull_coarse)
+    xr.testing.assert_identical(result, expected)
+
+
+def test_blend():
+    weights = xr.DataArray([0.1, 0.5, 1.0], dims=["z"])
+    model = xr.DataArray([2.0, 2.0, 2.0], dims=["z"])
+    pressure = xr.DataArray([5.0, 5.0, 5.0], dims=["z"])
+    expected = xr.DataArray([2.3, 3.5, 5.0], dims=["z"])
+    result = blend(weights, pressure, model)
+    xr.testing.assert_identical(result, expected)
+
+
+def test__compute_blending_weights_agrid():
+    LEVELS = 3
+    TOA_PRESSURE = 1.0
+    MIN_FACTOR = 0.25
+
+    # With delp defined like this and TOA pressure == 1.0, pfull == delp
+    delp_coarse = np.exp(np.arange(1, LEVELS + 1)) - np.exp(np.arange(LEVELS))
+    delp_coarse = xr.DataArray(delp_coarse, dims=["zaxis_1"])
+    pfull_coarse = delp_coarse
+    ps_coarse = np.exp(LEVELS)
+
+    scale_factors = xr.DataArray(
+        [[MIN_FACTOR, 1.0], [1 - MIN_FACTOR, 2.0]], dims=["xaxis_1", "yaxis_2"]
+    )
+    delp_fine = scale_factors * delp_coarse
+    area_fine = xr.DataArray(np.ones((2, 2)), dims=["xaxis_1", "yaxis_2"])
+    ps_min = TOA_PRESSURE + MIN_FACTOR * (np.exp(LEVELS) - np.exp(0))
+
+    blending_pressure = SIGMA_BLEND * ps_min
+    expected = (ps_coarse - pfull_coarse) / (ps_coarse - blending_pressure)
+    expected = xr.where(expected < 1, expected, 1.0).expand_dims(["xaxis_1", "yaxis_2"])
+
+    result = _compute_blending_weights_agrid(
+        delp_fine, area_fine, 2, toa_pressure=TOA_PRESSURE
+    )
+    xr.testing.assert_identical(result, expected)
