@@ -178,6 +178,7 @@ def test_cyclegan_visual(tmpdir):
     plt.show()
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("conv_type", ["conv2d", "halo_conv2d"])
 def test_cyclegan_runs_without_errors(tmpdir, conv_type: str, regtest):
     fv3fit.set_random_seed(0)

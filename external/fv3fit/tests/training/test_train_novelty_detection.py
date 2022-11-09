@@ -43,7 +43,7 @@ def train_novelty_detector(
         cls = get_hyperparameter_class(model_type)
         hyperparameters = cls.init_testing(input_variables, output_variables)
     input_variables, _, test_dataset = get_dataset_default(sample_func)
-    train_tfdataset = tfdataset_from_batches([train_dataset for _ in range(10)])
+    train_tfdataset = tfdataset_from_batches([train_dataset for _ in range(2)])
     # val_tfdataset is discarded and not used for training
     val_tfdataset = tfdataset_from_batches([test_dataset])
     train = fv3fit.get_training_function(model_type)
@@ -118,24 +118,22 @@ def assert_extreme_novelties(
     assert out_dataset[NoveltyDetector._NOVELTY_OUTPUT_VAR].mean() > 0
 
 
-@pytest.mark.slow
-def test_train_novelty_default_correct_output(model_type: str, regtest):
+def test_train_novelty_default_correct_output(model_type: str):
     """
     The model has properly formatted output, including (1) thesame dimensions as the
     input (besides the vertical dimension), (2) the correct data variable, and
     (3) outputs in the correct [0, 1] range.
     """
-    n_sample, n_tile, nx, ny, n_feature = 10, 6, 12, 12, 2
+    n_sample, n_tile, nx, ny, n_feature = 2, 2, 6, 6, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
     assert_correct_output(model_type, sample_func)
 
 
-@pytest.mark.slow
-def test_train_novelty_default_extreme_novelties(model_type: str, regtest):
+def test_train_novelty_default_extreme_novelties(model_type: str):
     """
     When testing coordinates are scaled by a very large amount, nearly every sample is
     deemed a novelty.
     """
-    n_sample, n_tile, nx, ny, n_feature = 10, 6, 12, 12, 2
+    n_sample, n_tile, nx, ny, n_feature = 2, 2, 6, 6, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
     assert_extreme_novelties(model_type, sample_func)

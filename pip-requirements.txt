@@ -55,4 +55,3 @@ jupyterlab
 
 # fv3fit testing tools
 hypothesis
-pytest-mpl

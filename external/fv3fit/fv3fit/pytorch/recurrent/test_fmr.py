@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 from typing import Sequence
+import pytest
 from fv3fit.pytorch.recurrent import (
     FMRHyperparameters,
     FMRNetworkConfig,
@@ -54,6 +55,7 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
     return xr.Dataset(data_vars)
 
 
+@pytest.mark.slow
 def test_fmr_runs_without_errors(tmpdir):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done

@@ -211,10 +211,6 @@ update_submodules:
 		external/fv3gfs-fortran \
 
 
-overwrite_baseline_images:
-	pytest tests/test_diagnostics_plots.py --mpl-generate-path tests/baseline_images
-
-
 ############################################################
 # Dependency Management
 ############################################################
