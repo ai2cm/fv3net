@@ -509,12 +509,14 @@ def cli_main(args: argparse.Namespace):
             id="random_forest",
         ),
         pytest.param(
-            "convolutional", {}, ["dQ1", "dQ2"], False, True, id="convolutional"
+            "convolutional", {}, ["dQ1", "dQ2"], False, False, id="convolutional"
         ),
         pytest.param(
-            "precipitative", {}, ["dQ1", "dQ2"], True, False, id="precipitative"
+            "precipitative", {}, ["dQ1", "dQ2"], False, False, id="precipitative"
         ),
-        pytest.param("dense", {}, ["dQ1", "dQ2"], True, False, id="dense"),
+        pytest.param("dense", {}, ["dQ1", "dQ2"], False, False, id="dense"),
+        pytest.param("dense", {}, ["dQ1", "dQ2"], True, False, id="dense-use-local"),
+        pytest.param("dense", {}, ["dQ1", "dQ2"], False, True, id="dense-use-valid"),
     ],
 )
 @pytest.mark.slow
