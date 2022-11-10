@@ -1,0 +1,58 @@
+# vim: set sts=2 ts=2 tw=2 sw=2 :
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: training-torch
+spec:
+  entrypoint: training-torch
+  volumes:
+    - name: workdir
+      emptyVol: {}
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+    - name: training-torch
+      inputs:
+        parameters:
+          - name: training_config
+          - name: training_data_config
+          - {name: validation_data_config, value: " "}
+          - name: output
+          - {name: cpu, value: 1000m}
+          - {name: memory, value: 6Gi}
+          - {name: flags, value: " "}
+          - {name: no-wandb, value: "false"}
+          - {name: wandb-project, value: "argo-default"}
+          - {name: wandb-tags, value: ""}
+          - {name: wandb-group, value: ""}
+      steps:
+        - - name: training-torch-step
+            templateRef:
+              name: training
+              template: training-torch-def
+            arguments:
+              parameters:
+                - name: training_config
+                  value: "{{inputs.parameters.training_config}}"
+                - name: training_data_config
+                  value: "{{inputs.parameters.training_data_config}}"
+                - name: validation_data_config
+                  value: "{{inputs.parameters.validation_data_config}}"
+                - name: output
+                  value: "{{inputs.parameters.output}}"
+                - name: cpu
+                  value: "{{inputs.parameters.cpu}}"
+                - name: memory
+                  value: "{{inputs.parameters.memory}}"
+                - name: flags
+                  value: "{{inputs.parameters.flags}}"
+                - name: no-wandb
+                  value: "{{inputs.parameters.no-wandb}}"
+                - name: wandb-project
+                  value: "{{inputs.parameters.wandb-project}}"
+                - name: wandb-tags
+                  value: "{{inputs.parameters.wandb-tags}}"
+                - name: wandb-group
+                  value: "{{inputs.parameters.wandb-group}}"

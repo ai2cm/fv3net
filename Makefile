@@ -49,6 +49,7 @@ build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
 
 build_image_fv3fit: docker/fv3fit/requirements.txt
+build_image_fv3fit_torch: docker/fv3fit_torch/requirements.txt
 build_image_artifacts: docker/artifacts/requirements.txt
 
 build_image_prognostic_run_base:
@@ -211,10 +212,6 @@ update_submodules:
 		external/fv3gfs-fortran \
 
 
-overwrite_baseline_images:
-	pytest tests/test_diagnostics_plots.py --mpl-generate-path tests/baseline_images
-
-
 ############################################################
 # Dependency Management
 ############################################################
@@ -267,7 +264,7 @@ docker/prognostic_run/requirements.txt:
 		workflows/post_process_run/requirements.txt \
 		workflows/prognostic_c48_run/requirements.in
 
-docker/fv3fit/requirements.txt:
+docker/fv3fit/requirements.txt: external/fv3fit/setup.py external/loaders/setup.py external/vcm/setup.py
 	cp constraints.txt $@
 	# this will subset the needed dependencies from constraints.txt
 	# while preserving the versions
@@ -276,6 +273,18 @@ docker/fv3fit/requirements.txt:
 		external/fv3fit/setup.py \
 		external/loaders/setup.py \
 		external/vcm/setup.py
+
+
+docker/fv3fit_torch/requirements.txt: docker/fv3fit_torch/requirements.in external/fv3fit/setup.py external/loaders/setup.py external/vcm/setup.py
+	cp constraints.txt $@
+	# this will subset the needed dependencies from constraints.txt
+	# while preserving the versions
+	pip-compile --no-annotate \
+		--output-file docker/fv3fit_torch/requirements.txt \
+		external/fv3fit/setup.py \
+		external/loaders/setup.py \
+		external/vcm/setup.py \
+		docker/fv3fit_torch/requirements.in
 
 docker/artifacts/requirements.txt:
 	cp -f constraints.txt $@

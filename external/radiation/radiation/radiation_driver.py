@@ -103,6 +103,13 @@ class RadiationDriver:
                 print("Data usage is limited by initial condition!")
                 print("No volcanic aerosols")
 
+            if (iovrsw not in [0, 1]) or (iovrlw not in [0, 1]):
+                raise ValueError(
+                    "Only implemented overlap options in Python port of radiation "
+                    "scheme are 0 (random overlap) and 1 (maximum-random overlap)."
+                    f" Got iovrsw={iovrsw}, iovrlw={iovrlw}."
+                )
+
             if isubclw == 0:
                 print(
                     f"- ISUBCLW={isubclw}, No McICA, use grid ",
@@ -164,7 +171,7 @@ class RadiationDriver:
         self.sfc = SurfaceClass(rank, ialbflg, iemsflg, semis_file, semis_data)
         #  --- ...  cloud initialization routine
         self.cld = CloudClass(
-            si, NLAY, imp_physics, rank, ivflip, icldflg, iovrsw, iovrlw
+            si, NLAY, imp_physics, rank, ivflip, icldflg, iovrsw, iovrlw, lcnorm
         )
         #  --- ...  lw radiation initialization routine
         self.rlw = RadLWClass(rank, iovrlw, isubclw)

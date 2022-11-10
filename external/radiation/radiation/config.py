@@ -96,6 +96,25 @@ class GFSPhysicsControl:
     nsswr: Optional[int] = None
     nslwr: Optional[int] = None
 
+    @classmethod
+    def from_physics_namelist(cls, physics_namelist: Mapping[Hashable, Any]):
+
+        PHYSICS_NAMELIST_TO_GFS_CONTROL = {
+            "imp_physics": "imp_physics",
+            "ncld": "ncld",
+            "ncnd": "ncld",
+            "fhswr": "fhswr",
+            "fhlwr": "fhlwr",
+            "swhtr": "swhtr",
+            "lwhtr": "lwhtr",
+        }
+
+        return cls(
+            **_namelist_to_config_args(
+                physics_namelist, PHYSICS_NAMELIST_TO_GFS_CONTROL
+            )
+        )
+
 
 @dataclasses.dataclass
 class RadiationConfig:
@@ -128,16 +147,36 @@ class RadiationConfig:
         ico2flg: CO2 data source control flag. In physics namelist as 'ico2'.
         iaerflg: Volcanic aerosols. In physics namelist as 'iaer'.
         ialbflg: Surface albedo control flag. In physics namelist as 'ialb'.
-        icldflg
-        ivflip: Vertical index direction control flag.
-        iovrsw: Cloud overlapping control flag for SW.
-        iovrlw: Cloud overlapping control flag for LW.
+        icldflg:
+        ivflip: Vertical index direction control flag for radiation calculations.
+            0: Top of model to surface
+            1: Surface to top of model
+        iovrsw: Cloud overlapping control flag for shortwave radiation. In physics
+            namelist as 'iovr_sw'.
+            0: random overlapping clouds
+            1: maximum/random overlapping clouds
+            2: maximum overlap cloud (not implemented in port)
+            3: decorrelation-length overlap clouds (not implemented in port)
+        iovrlw: Cloud overlapping control flag for longwave radiation. In physics
+            namelist as 'iovr_lw'.
+            0: random overlapping clouds
+            1: maximum/random overlapping clouds
+            2: maximum overlap cloud (not implemented in port)
+            3: decorrelation-length overlap clouds (not implemented in port)
         isubcsw: Sub-column cloud approx flag in SW radiation. In physics
             namelist as 'isubc_sw'.
+            0: no sub-column cloud treatment, use grid-mean cloud quantities
+            1: MCICA sub-column, prescribed random numbers
+            2: MCICA sub-column, providing optional seed for random numbers
         isubclw: Sub-column cloud approx flag in LW radiation. In physics
             namelist as 'isubc_lw'.
+            0: no sub-column cloud treatment, use grid-mean cloud quantities
+            1: MCICA sub-column, prescribed random numbers
+            2: MCICA sub-column, providing optional seed for random numbers
         lcrick: Control flag for eliminating CRICK.
-        lcnorm: Control flag for in-cld condensate.
+        lcnorm: Control flag for in-cloud condensate. In namelist as `ccnorm`.
+            False: Grid-mean condensate
+            True: Normalize grid-mean condensate by cloud fraction
         lnoprec: Precip effect on radiation flag (ferrier microphysics).
         iswcliq: Optical property for liquid clouds for SW.
         gfs_physics_control: GFSPhysicsControl data class
@@ -172,23 +211,36 @@ class RadiationConfig:
         identical. Remaining values from RadiationConfig defaults.
         """
 
-        gfs_physics_control = GFSPhysicsControl(
-            imp_physics=physics_namelist["imp_physics"],
-            ncld=physics_namelist["ncld"],
-            ncnd=physics_namelist["ncld"],
-            fhswr=physics_namelist["fhswr"],
-            fhlwr=physics_namelist["fhlwr"],
-            swhtr=physics_namelist["swhtr"],
-            lwhtr=physics_namelist["lwhtr"],
-        )
+        gfs_physics_control = GFSPhysicsControl.from_physics_namelist(physics_namelist)
+
+        PHYSICS_NAMELIST_TO_RAD_CONFIG = {
+            "iems": "iemsflg",
+            "isol": "isolar",
+            "ico2": "ico2flg",
+            "iaer": "iaerflg",
+            "ialb": "ialbflg",
+            "iovr_sw": "iovrsw",
+            "iovr_lw": "iovrlw",
+            "isubc_sw": "isubcsw",
+            "isubc_lw": "isubclw",
+            "ccnorm": "lcnorm",
+        }
 
         return cls(
-            iemsflg=physics_namelist["iems"],
-            isolar=physics_namelist["isol"],
-            ico2flg=physics_namelist["ico2"],
-            iaerflg=physics_namelist["iaer"],
-            ialbflg=physics_namelist["ialb"],
-            isubcsw=physics_namelist["isubc_sw"],
-            isubclw=physics_namelist["isubc_lw"],
-            gfs_physics_control=gfs_physics_control,
+            **dict(
+                **_namelist_to_config_args(
+                    physics_namelist, PHYSICS_NAMELIST_TO_RAD_CONFIG
+                ),
+                gfs_physics_control=gfs_physics_control
+            )
         )
+
+
+def _namelist_to_config_args(
+    namelist: Mapping[Hashable, Any], arg_mapping: Mapping[str, str]
+) -> Mapping[str, Any]:
+    config_args = {}
+    for namelist_entry, config_arg in arg_mapping.items():
+        if namelist_entry in namelist:
+            config_args[config_arg] = namelist[namelist_entry]
+    return config_args

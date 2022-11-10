@@ -4,6 +4,8 @@ from numpy import pi
 import numpy as np
 from typing import Optional
 
+from fv3fit.reservoir.model import ImperfectModel
+from vcm.interpolate import upsample_1d_periodic
 
 """
 The PDE solver code in integrate_ks_eqn is from
@@ -33,8 +35,18 @@ SOFTWARE.
 """
 
 
+def get_time_downsampling_factor(reservoir_timestep, solver_timestep):
+    time_downsampling_factor = reservoir_timestep / solver_timestep
+    if not np.isclose(time_downsampling_factor, round(time_downsampling_factor)):
+        raise ValueError(
+            f"Reservoir timestep {reservoir_timestep} must be evenly divisble "
+            f"by KS solver timestep {solver_timestep}."
+        )
+    return time_downsampling_factor
+
+
 def integrate_ks_eqn(
-    ic: np.ndarray, domain_size: int, dt: float, Nt: int
+    ic: np.ndarray, domain_size: int, dt: float, Nt: int, error_eps: float = 0
 ) -> np.ndarray:
     """
         Integrate the Kuramoto-Sivashinsky equation (Python)
@@ -45,6 +57,7 @@ def integrate_ks_eqn(
         domain_size = domain length
         dt = time step
         Nt = number of integration timesteps
+        error_eps = optional small error to add to make a more 'imperfect' solution
     outputs
         Time series of vectors u(x, nt*dt) at uniform x gridpoints
     """
@@ -98,7 +111,7 @@ def integrate_ks_eqn(
         uu = fft(uu)
         Nn = G * uu  # compute Nn == -u u_x (spectral)
 
-        u = B * (A * u + dt32 * Nn - dt2 * Nn1)
+        u = B * (A * u + (dt32 * Nn - dt2 * Nn1) * (1 + error_eps))
         time_series.append(ifft(u))
     # For some reason, calling np.real within the for loop results in
     # list elements that still have complex parts with coeff 0.
@@ -107,7 +120,7 @@ def integrate_ks_eqn(
 
 def _generate_ic(input_dim, seed=0):
     np.random.seed(seed)
-    x = 2 * pi * np.arange(1, input_dim + 1) / input_dim
+    x = 2 * pi * np.arange(0, input_dim) / input_dim
     return (
         np.cos(np.random.uniform(-1, 1) * x)
         * (np.random.uniform(-1, 1) + np.sin(x))
@@ -116,10 +129,12 @@ def _generate_ic(input_dim, seed=0):
 
 
 def generate_ks_time_series(
-    input_size, domain_size, n_steps, timestep=0.25, seed=0,
+    input_size, domain_size, n_steps, timestep=0.25, seed=0, error_eps=0.0
 ):
     ic = _generate_ic(input_size, seed)
-    return integrate_ks_eqn(ic=ic, domain_size=domain_size, dt=timestep, Nt=n_steps)
+    return integrate_ks_eqn(
+        ic=ic, domain_size=domain_size, dt=timestep, Nt=n_steps, error_eps=error_eps
+    )
 
 
 @dataclass
@@ -127,40 +142,67 @@ class KuramotoSivashinskyConfig:
     """ Generates 1D Kuramoto-Sivashinsky solution time series
     N: number spatial points in final output vectors
     domain_size: periodic domain size
-    timestep: timestep in solver
+    timestep: solver timestep
     spatial_downsampling_factor: optional, if >1 solver will run at this factor
         higher resolution and the final time series is downsampled to N.
         This is useful for stability.
-    time_downsampling_factor: optional, same as above but for the time dimension.
     """
 
     N: int
     domain_size: int
     timestep: float
     spatial_downsampling_factor: int = 1
-    time_downsampling_factor: int = 1
+    error_eps: float = 0.0
     subdomain_output_size: Optional[int] = None
     subdomain_overlap: Optional[int] = None
     subdomain_axis: int = 1
 
-    def generate(self, n_steps: int, seed: int = 0):
+    def generate_from_seed(self, n_steps: int, seed: int = 0):
         """
-            n_steps: Number of timesteps to output. The interval between
-                timesteps output is timestep * time_downsampling_factor
+            n_steps: Number of timesteps to output
             seed: Random seed for initial condition
 
         Returns:
             Time series array with dims (time, x)
         """
-        ks_time_series = generate_ks_time_series(
-            input_size=self.N * self.spatial_downsampling_factor,
-            n_steps=n_steps * self.time_downsampling_factor,
-            seed=seed,
-            domain_size=self.domain_size,
-            timestep=self.timestep,
-        )
-
-        ks_time_series = ks_time_series[:: self.time_downsampling_factor, :]
-        ks_time_series = ks_time_series[:, :: self.spatial_downsampling_factor]
+        ic = _generate_ic(self.N * self.spatial_downsampling_factor, seed=seed)
+        ks_time_series = self.predict(n_steps=n_steps, initial_condition=ic)
 
         return ks_time_series
+
+    def predict(self, n_steps: int, initial_condition: np.ndarray):
+
+        ks_time_series = integrate_ks_eqn(
+            ic=initial_condition,
+            domain_size=self.domain_size,
+            dt=self.timestep,
+            Nt=n_steps,
+            error_eps=self.error_eps,
+        )
+        return ks_time_series[:, :: self.spatial_downsampling_factor]
+
+
+class ImperfectKSModel(ImperfectModel):
+    def __init__(self, config: KuramotoSivashinskyConfig, reservoir_timestep: float):
+        self.config = config
+        self.reservoir_timestep = reservoir_timestep
+
+        time_downsampling_factor = get_time_downsampling_factor(
+            reservoir_timestep, config.timestep
+        )
+        self.time_downsampling_factor = time_downsampling_factor
+
+    def predict(self, initial_condition):
+        if (
+            initial_condition.size
+            != self.config.spatial_downsampling_factor * self.config.N
+        ):
+            # upsample initial condition array by spatial_downsampling_factor
+            initial_condition = upsample_1d_periodic(
+                arr=initial_condition,
+                upsample_factor=self.config.spatial_downsampling_factor,
+            )
+
+        return self.config.predict(
+            n_steps=self.time_downsampling_factor, initial_condition=initial_condition
+        )[-1]

@@ -1,4 +1,5 @@
 import dataclasses
+import os
 from typing import List, Mapping, Sequence, Optional
 import tensorflow as tf
 from .base import TFDatasetLoader, register_tfdataset_loader, tfdataset_loader_from_dict
@@ -143,6 +144,7 @@ class WindowedZarrLoader(TFDatasetLoader):
         tfdataset = self._convert_to_tfdataset(ds, variable_names)
         # if local_download_path is given, cache on disk
         if local_download_path is not None:
+            os.makedirs(local_download_path, exist_ok=True)
             tfdataset = tfdataset.cache(local_download_path)
         return tfdataset.batch(self.batch_size)
 
