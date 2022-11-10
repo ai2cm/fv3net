@@ -284,7 +284,7 @@ config:
           start: 74
           fill_value: air_temperature_input
     model:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-15/precpd-diff-50epoch-v1/model.tf
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-11-02/precpd-pscale-opt-logspace-bin-v1/model.tf
       enforce_precpd_conservative: true
       precpd_precip_conservative: false
     storage:
