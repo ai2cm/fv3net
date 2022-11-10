@@ -34,6 +34,11 @@ from vcm.cubedsphere.constants import (
     COORD_Y_CENTER,
     COORD_X_OUTER,
     COORD_Y_OUTER,
+    FV_CORE_X_CENTER,
+    FV_CORE_Y_CENTER,
+    FV_CORE_X_OUTER,
+    FV_CORE_Y_OUTER,
+    RESTART_Z_CENTER,
 )
 from vcm.cubedsphere.io import all_filenames
 from vcm.cubedsphere import create_fv3_grid, to_cross
@@ -888,7 +893,7 @@ def test_compute_blending_weights():
     pfull_coarse = xr.DataArray([[8, 5], [11, 9]], dims=["x", "z"])
     expected = xr.DataArray([[0.5, 1.0], [0.8, 1.0]], dims=["x", "z"])
     result = compute_blending_weights(blending_pressure, ps_coarse, pfull_coarse)
-    xr.testing.assert_identical(result, expected)
+    xr.testing.assert_allclose(result, expected)
 
 
 def test_blend():
@@ -904,25 +909,84 @@ def test__compute_blending_weights_agrid():
     LEVELS = 3
     TOA_PRESSURE = 1.0
     MIN_FACTOR = 0.25
+    DIMS = [FV_CORE_X_CENTER, FV_CORE_Y_CENTER]
 
-    # With delp defined like this and TOA pressure == 1.0, pfull == delp
+    # With delp defined like this and TOA pressure == 1.0, pfull == delp; there
+    # is also a simple analytical expression for ps.
     delp_coarse = np.exp(np.arange(1, LEVELS + 1)) - np.exp(np.arange(LEVELS))
-    delp_coarse = xr.DataArray(delp_coarse, dims=["zaxis_1"])
+    delp_coarse = xr.DataArray(delp_coarse, dims=[RESTART_Z_CENTER])
     pfull_coarse = delp_coarse
     ps_coarse = np.exp(LEVELS)
 
-    scale_factors = xr.DataArray(
-        [[MIN_FACTOR, 1.0], [1 - MIN_FACTOR, 2.0]], dims=["xaxis_1", "yaxis_2"]
-    )
+    # Scale delp_coarse by factors that sum to one, but expand it to a spatially
+    # varying field on the fine grid.  This ensures that with equal array
+    # weights that the resulting fine-grid pressure thickness field coarsens to
+    # the prescribed values.
+    scale_factors = [[2 - MIN_FACTOR, MIN_FACTOR], [MIN_FACTOR, 2 - MIN_FACTOR]]
+    scale_factors = xr.DataArray(scale_factors, dims=DIMS)
     delp_fine = scale_factors * delp_coarse
-    area_fine = xr.DataArray(np.ones((2, 2)), dims=["xaxis_1", "yaxis_2"])
-    ps_min = TOA_PRESSURE + MIN_FACTOR * (np.exp(LEVELS) - np.exp(0))
+    area_fine = xr.ones_like(delp_fine)
 
+    ps_min = TOA_PRESSURE + MIN_FACTOR * (np.exp(LEVELS) - np.exp(0))
     blending_pressure = SIGMA_BLEND * ps_min
     expected = (ps_coarse - pfull_coarse) / (ps_coarse - blending_pressure)
-    expected = xr.where(expected < 1, expected, 1.0).expand_dims(["xaxis_1", "yaxis_2"])
+    expected = xr.where(expected < 1, expected, 1.0).expand_dims(DIMS)
 
     result = _compute_blending_weights_agrid(
         delp_fine, area_fine, 2, toa_pressure=TOA_PRESSURE
     )
-    xr.testing.assert_identical(result, expected)
+    xr.testing.assert_allclose(result, expected)
+
+
+@pytest.mark.parametrize(
+    ("dgrid_dims", "edge_lengths_shape", "edge"),
+    [
+        ([FV_CORE_X_CENTER, FV_CORE_Y_OUTER], (4, 5), "x"),
+        ([FV_CORE_X_OUTER, FV_CORE_Y_CENTER], (5, 4), "y"),
+    ],
+    ids=lambda x: f"{x}",
+)
+def test__compute_blending_weights_dgrid(dgrid_dims, edge_lengths_shape, edge):
+    LEVELS = 3
+    TOA_PRESSURE = 1.0
+    MIN_FACTOR = 0.25
+    CENTER_DIMS = [FV_CORE_X_CENTER, FV_CORE_Y_CENTER]
+
+    # With delp defined like this and TOA pressure == 1.0, pfull == delp; there
+    # is also a simple analytical expression for ps.
+    delp_coarse = np.exp(np.arange(1, LEVELS + 1)) - np.exp(np.arange(LEVELS))
+    delp_coarse = xr.DataArray(delp_coarse, dims=[RESTART_Z_CENTER])
+    pfull_coarse = delp_coarse
+    ps_coarse = np.exp(LEVELS)
+
+    # Scale delp_coarse by factors that sum to one along each dimension, but
+    # expand it to a spatially varying field on the fine grid.  This ensures
+    # that with equal array weights that the resulting fine-grid pressure
+    # thickness field coarsens to the prescribed values.  The extra complexity
+    # is needed here, because the array must be symmetric across the x and y
+    # dimensions such that when edge values are interpolated across tile
+    # boundaries they result in the same values on all edges of the cube.
+    scale_factors = xr.DataArray(
+        [
+            [2 - MIN_FACTOR, MIN_FACTOR, MIN_FACTOR, 2 - MIN_FACTOR],
+            [MIN_FACTOR, 2 - MIN_FACTOR, 2 - MIN_FACTOR, MIN_FACTOR],
+            [MIN_FACTOR, 2 - MIN_FACTOR, 2 - MIN_FACTOR, MIN_FACTOR],
+            [2 - MIN_FACTOR, MIN_FACTOR, MIN_FACTOR, 2 - MIN_FACTOR],
+        ],
+        dims=CENTER_DIMS,
+    )
+    scale_factors = scale_factors.expand_dims(tile=np.arange(6))
+    delp_fine = scale_factors * delp_coarse
+
+    edge_lengths_fine = xr.DataArray(np.ones(edge_lengths_shape), dims=dgrid_dims)
+    result = _compute_blending_weights_dgrid(
+        delp_fine, edge_lengths_fine, 4, edge, *dgrid_dims, toa_pressure=TOA_PRESSURE
+    )
+
+    ps_min = TOA_PRESSURE + MIN_FACTOR * (np.exp(LEVELS) - np.exp(0))
+    blending_pressure = SIGMA_BLEND * ps_min
+    expected = (ps_coarse - pfull_coarse) / (ps_coarse - blending_pressure)
+    expected = xr.where(expected < 1, expected, 1.0)
+    expected = expected.broadcast_like(result)
+
+    xr.testing.assert_allclose(result, expected)
