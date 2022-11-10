@@ -16,6 +16,7 @@ from ..calc.thermo.vertically_dependent import (
     pressure_at_midpoint_log,
     surface_pressure_from_delp,
 )
+from ..calc.thermo.constants import _TOA_PRESSURE
 from .coarsen import (
     block_coarsen,
     block_edge_coarsen,
@@ -541,7 +542,7 @@ def _compute_blending_weights_agrid(
     coarsening_factor,
     x_dim=FV_CORE_X_CENTER,
     y_dim=FV_CORE_Y_CENTER,
-    toa_pressure=300,
+    toa_pressure=_TOA_PRESSURE,
 ):
     """Compute the blending weights on the A-grid.
 
@@ -581,7 +582,7 @@ def _compute_blending_weights_agrid(
 
 
 def _compute_blending_weights_dgrid(
-    delp, length, coarsening_factor, edge, x_dim, y_dim, toa_pressure=300
+    delp, length, coarsening_factor, edge, x_dim, y_dim, toa_pressure=_TOA_PRESSURE
 ):
     """This follows the approach Chris describes in Section 7 of `this document
     <https://drive.google.com/file/d/1FyLTnR1C5_Ab5Tdbbuhtxm52VC-NroJG/view>`_,
