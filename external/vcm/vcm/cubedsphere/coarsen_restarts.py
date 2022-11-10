@@ -54,7 +54,7 @@ X_DIM = "xaxis_1"
 Y_DIM = "yaxis_1"
 SIGMA_BLEND = 0.9
 FRACTION_TRACERS = ["cld_amt"]  # Always are area-weighted.
-MIXING_RATIO_TRACERS = [
+NON_FRACTION_TRACERS = [
     "sphum",
     "liq_wat",
     "rainwat",
@@ -733,7 +733,7 @@ def _coarse_grain_fv_tracer_via_blended_method(
     coarsening_factor : int
         Coarsening factor to use
     mass_weighted: bool
-        Whether to weight mixing ratios by mass during the model-level
+        Whether to weight mixing ratios and TKE by mass during the model-level
         coarsening process.
 
     Returns
@@ -801,7 +801,7 @@ def _coarse_grain_fv_tracer(ds, delp, area, coarsening_factor, mass_weighted=Tru
     coarsening_factor : int
         Coarsening factor to use
     mass_weighted: bool
-        Whether to weight mixing ratios by mass
+        Whether to weight mixing ratios and TKE by mass
 
     Returns
     -------
@@ -809,9 +809,9 @@ def _coarse_grain_fv_tracer(ds, delp, area, coarsening_factor, mass_weighted=Tru
     """
     if mass_weighted:
         area_weighted_vars = FRACTION_TRACERS
-        mass_weighted_vars = MIXING_RATIO_TRACERS
+        mass_weighted_vars = NON_FRACTION_TRACERS
     else:
-        area_weighted_vars = FRACTION_TRACERS + MIXING_RATIO_TRACERS
+        area_weighted_vars = FRACTION_TRACERS + NON_FRACTION_TRACERS
         mass_weighted_vars = []
 
     area_weighted = weighted_block_average(
@@ -854,7 +854,7 @@ def _coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
     xr.Dataset
     """
     area_weighted_vars = FRACTION_TRACERS
-    masked_area_weighted_vars = MIXING_RATIO_TRACERS
+    masked_area_weighted_vars = NON_FRACTION_TRACERS
 
     ds_regridded, masked_area = regrid_to_area_weighted_pressure(
         ds,
