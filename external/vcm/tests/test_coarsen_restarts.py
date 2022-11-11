@@ -64,6 +64,7 @@ def open_coarse_restarts(func, kwargs):
     return data
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     ("func", "kwargs"),
     REGRESSION_TESTS,
