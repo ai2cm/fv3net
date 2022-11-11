@@ -103,6 +103,11 @@ class ModelConfig:
             built.
         batch_size: number of columns to batch the ml prediction by. May reduce
             memory use.
+        enforce_precpd_conservative: Use a conservation to determine total precip
+            from clouds, and then update evaporation and temperature based on
+            available precip at each vertical level (considering fluxes from above)
+        precpd_precip_conservative: A simpler conservation which sums total water
+            change in cloud and vapor without consideration for limitations
     """
 
     path: Optional[str] = None
@@ -197,6 +202,9 @@ class ModelConfig:
             yield emulation.zhao_carr.enforce_conservative_gscond
         elif self.enforce_conservative_phase_dependent:
             yield emulation.zhao_carr.enforce_conservative_phase_dependent
+
+        if self.precpd_precip_conservative:
+            yield emulation.zhao_carr.conservative_precip_simple
 
         if self.enforce_precpd_conservative:
             yield emulation.zhao_carr.enforce_conservative_precpd
