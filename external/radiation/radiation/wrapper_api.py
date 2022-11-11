@@ -81,7 +81,14 @@ class GFSPhysicsControl:
         timestep: float,
         tracer_inds: Mapping[str, int],
     ) -> "GFSPhysicsControl":
-        """Create a GFS Physics Control instance from its config"""
+        """Create a GFS Physics Control instance from its config
+        
+        Args:
+            config: GFS physics control config object
+            timestep: Model physics timestep in seconds
+            tracer_inds: Mapping of GFS physics tracer names to their index; can be
+                obtained from fv3gfs.wrapper.get_tracer_metadata().
+        """
 
         TRACER_NAMES_TO_NAMELIST_ENTRIES: Mapping[str, str] = {
             "cloud_water_mixing_ratio": "ntcw",
@@ -118,6 +125,10 @@ class GFSPhysicsControl:
 
 
 class Radiation:
+    """A wrapper around the Python-ported radiation driver.
+
+    Implements `init_driver` and `__call__` methods.
+    """
 
     _base_input_variables: Sequence[str] = BASE_INPUT_VARIABLE_NAMES
     output_variables: Sequence[str] = OUTPUT_VARIABLE_NAMES
@@ -129,38 +140,57 @@ class Radiation:
         timestep: float,
         init_time: cftime.DatetimeJulian,
         tracer_inds: Mapping[str, int],
+        driver: Optional[RadiationDriver] = None,
+        lookup_local_dir: str = "./rad_data/lookup/",
+        forcing_local_dir: str = "./rad_data/forcing/",
     ):
+        """
+        Args:
+            rad_config: A radiation configuration object.
+            comm: MPI.COMM_WORLD.
+            timestep: Model physics timestep in seconds.
+            init_time: FV3GFS initialization time, which may be the initialization
+                time of the initial segment of a restarted run.
+            tracer_inds: Mapping of GFS physics tracer names to their index; can be
+                obtained from fv3gfs.wrapper.get_tracer_metadata().
+            driver: Optional, driver implementing the update and compute methods.
+                Call Radiation.init_driver to initialize the driver internally.
+            lookup_local_dir: Local path for radiation lookup data storage.
+            forcing_local_dir: Local path for radiation forcing data storage.
+        """
         self._rad_config: RadiationConfig = rad_config
         self._comm: "MPI.COMM_WORLD" = comm
         self._timestep: float = timestep
         self._init_time: cftime.DatetimeJulian = init_time
         self._tracer_inds: Mapping[str, int] = tracer_inds
-
         self._gfs_physics_control = GFSPhysicsControl.from_config(
             rad_config.gfs_physics_control_config, timestep, tracer_inds
         )
+        self._driver: Optional[RadiationDriver] = driver
+        self._forcing_local_dir: str = forcing_local_dir
+        self._lookup_local_dir: str = lookup_local_dir
         self._solar_data: Optional[xr.Dataset] = None
         self._aerosol_data: Mapping = dict()
         self._sfc_data: Optional[xr.Dataset] = None
         self._gas_data: Mapping = dict()
         self._sw_lookup: Mapping = dict()
         self._lw_lookup: Mapping = dict()
-
         self._cached: Diagnostics = {}
 
+    def init_driver(self):
+        """Download necessary data and initialize the driver object"""
         self._download_radiation_assets()
         self._driver = self._init_driver()
 
     @property
     def input_variables(self):
+        """List of state variable names needed to call the radiation driver."""
         return self._base_input_variables + list(self._tracer_inds.keys())
 
     def _download_radiation_assets(
         self,
         lookup_data_path: str = LOOKUP_DATA_PATH,
         forcing_data_path: str = FORCING_DATA_PATH,
-        lookup_local_dir: str = "./rad_data/lookup/",
-        forcing_local_dir: str = "./rad_data/forcing/",
     ) -> None:
         """Gets lookup tables and forcing needed for the radiation scheme.
         TODO: make scheme able to read existing forcing; make lookup data part of
@@ -169,15 +199,12 @@ class Radiation:
         if self._comm.rank == 0:
             for target, local in zip(
                 (lookup_data_path, forcing_data_path),
-                (lookup_local_dir, forcing_local_dir),
+                (self._lookup_local_dir, self._forcing_local_dir),
             ):
                 io.get_remote_tar_data(target, local)
         self._comm.barrier()
-        self._lookup_local_dir = lookup_local_dir
-        self._forcing_local_dir = forcing_local_dir
 
     def _init_driver(self, fv_core_dir: str = "./INPUT/"):
-        """Initialize the radiation driver"""
         sigma = io.load_sigma(fv_core_dir)
         nlay = len(sigma) - 1
         self._aerosol_data = io.load_aerosol(self._forcing_local_dir)
@@ -221,6 +248,13 @@ class Radiation:
     def __call__(
         self, time: cftime.DatetimeJulian, state: State,
     ):
+        """Execute the radiation computations
+
+        Args:
+            time: Current model time
+            state: Mapping of variable names to model state data arrays
+        
+        """
         self._set_compute_flags(time)
         if self._gfs_physics_control.lslwr or self._gfs_physics_control.lsswr:
             self._rad_update(time, self._timestep)
@@ -238,7 +272,10 @@ class Radiation:
 
     def _rad_update(self, time: cftime.DatetimeJulian, dt_atmos: float) -> None:
         """Update the radiation driver's time-varying parameters"""
-
+        if self._driver is None:
+            raise ValueError(
+                "Radiation driver is not set. Call `Radiation.init_driver` first."
+            )
         idat = np.array(
             [
                 self._init_time.year,
@@ -274,6 +311,10 @@ class Radiation:
 
     def _rad_compute(self, state: State, time: cftime.DatetimeJulian,) -> Diagnostics:
         """Compute the radiative fluxes"""
+        if self._driver is None:
+            raise ValueError(
+                "Radiation driver is not set. Call `Radiation.init_driver` first."
+            )
         if self._gfs_physics_control.lsswr or self._gfs_physics_control.lslwr:
             solhr = self._solar_hour(time)
             statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)

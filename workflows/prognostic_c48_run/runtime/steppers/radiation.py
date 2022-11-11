@@ -26,6 +26,7 @@ class RadiationStepper:
         input_generator: Optional[Union[PureMLStepper, Prescriber]] = None,
     ):
         self._radiation = radiation
+        self._radiation.init_driver()
         self._input_generator = input_generator
 
     def __call__(
