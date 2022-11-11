@@ -44,7 +44,6 @@ def get_gfs_physics_control(indict):
 startTime = time.time()
 
 rank = 0
-driver = RadiationDriver()
 
 serial = ser.Serializer(ser.OpenModeKind.Read, FORTRANDATA_DIR, "Generator_rank0",)
 
@@ -88,7 +87,7 @@ solar_filename, solar_data = io.load_astronomy(FORCING_DIR, isolar)
 sfc_file, sfc_data = io.load_sfc(FORCING_DIR)
 gas_data = io.load_gases(FORCING_DIR, ictmflg)
 
-driver.radinit(
+driver = RadiationDriver(
     si,
     nlay,
     imp_physics,

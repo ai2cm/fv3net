@@ -34,22 +34,7 @@ class RadiationDriver:
     # control flag for extra top layer
     lextop = LTP > 0
 
-    def __init__(self):
-        # control flag for LW surface temperature at air/ground interface
-        # (default=0, the value will be set in subroutine radinit)
-        self.itsfc = 0
-
-        # new data input control variables (set/reset in subroutines radinit/radupdate):
-        self.month0 = 0
-        self.iyear0 = 0
-        self.monthd = 0
-
-        # control flag for the first time of reading climatological ozone data
-        # (set/reset in subroutines radinit/radupdate, it is used only if the
-        # control parameter ioznflg=0)
-        self.loz1st = True
-
-    def radinit(
+    def __init__(
         self,
         si,
         NLAY,

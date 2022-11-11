@@ -114,7 +114,7 @@ class GFSPhysicsControl:
         elif hasattr(self, attr):
             return getattr(self, attr)
         else:
-            raise AttributeError
+            raise AttributeError(f"GFSPhysicsControl has no attr: {attr}.")
 
 
 class Radiation:
@@ -130,7 +130,6 @@ class Radiation:
         init_time: cftime.DatetimeJulian,
         tracer_inds: Mapping[str, int],
     ):
-        self._driver: RadiationDriver = RadiationDriver()
         self._rad_config: RadiationConfig = rad_config
         self._comm: "MPI.COMM_WORLD" = comm
         self._timestep: float = timestep
@@ -150,7 +149,7 @@ class Radiation:
         self._cached: Diagnostics = {}
 
         self._download_radiation_assets()
-        self._init_driver()
+        self._driver = self._init_driver()
 
     @property
     def input_variables(self):
@@ -189,7 +188,9 @@ class Radiation:
         self._gas_data = io.load_gases(
             self._forcing_local_dir, self._rad_config.ictmflg
         )
-        self._driver.radinit(
+        self._lw_lookup = io.load_lw(self._lookup_local_dir)
+        self._sw_lookup = io.load_sw(self._lookup_local_dir)
+        return RadiationDriver(
             sigma,
             nlay,
             self._gfs_physics_control.imp_physics,
@@ -216,8 +217,6 @@ class Radiation:
             sfc_filename,
             self._sfc_data,
         )
-        self._lw_lookup = io.load_lw(self._lookup_local_dir)
-        self._sw_lookup = io.load_sw(self._lookup_local_dir)
 
     def __call__(
         self, time: cftime.DatetimeJulian, state: State,
