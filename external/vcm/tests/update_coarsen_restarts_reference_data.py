@@ -22,9 +22,9 @@ if __name__ == "__main__":
     restarts = open_fine_restarts()
     grid = open_fine_grid()
 
-    for func, kwargs in REGRESSION_TESTS:
+    for tag, (func, kwargs) in REGRESSION_TESTS.items():
         result = func(FACTOR, grid, restarts, **kwargs)
         for category, ds in result.items():
-            store = reference_store(func, kwargs, category)
+            store = reference_store(tag, category)
             logging.info(f"Writing new regression data to {store}")
             ds.load().to_zarr(store, mode="w")
