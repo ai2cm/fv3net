@@ -22,22 +22,25 @@ REGRESSION_TESTS = {
         coarsen_restarts_on_sigma,
         {"coarsen_agrid_winds": True, "mass_weighted": True},
     ),
-    "mass-weighted-model-level-without-agrid-winds": (
+    "area-weighted-model-level-without-agrid-winds": (
         coarsen_restarts_on_sigma,
-        {"mass_weighted": True},
+        {"coarsen_agrid_winds": False, "mass_weighted": False},
     ),
     "pressure-level-with-agrid-winds": (
         coarsen_restarts_on_pressure,
         {"coarsen_agrid_winds": True},
     ),
-    "pressure-level-without-agrid-winds": (coarsen_restarts_on_pressure, {}),
-    "blended-mass-weighted_with-agrid-winds": (
+    "pressure-level-without-agrid-winds": (
+        coarsen_restarts_on_pressure,
+        {"coarsen_agrid_winds": False},
+    ),
+    "blended-mass-weighted-with-agrid-winds": (
         coarsen_restarts_via_blended_method,
         {"coarsen_agrid_winds": True},
     ),
-    "blended-area-weighted_without-agrid-winds": (
+    "blended-area-weighted-without-agrid-winds": (
         coarsen_restarts_via_blended_method,
-        {"mass_weighted": False},
+        {"coarsen_agrid_winds": False, "mass_weighted": False},
     ),
 }
 
