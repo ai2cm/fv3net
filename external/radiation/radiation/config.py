@@ -5,28 +5,18 @@ LOOKUP_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/lookupdat
 FORCING_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/forcing/data.tar.gz"  # noqa: 501
 
 
-@dataclasses.dataclass
-class GFSPhysicsControl:
-    """A ported version of the Fortran GFS_physics_control structure aka 'model'.
+@dataclasses.dataclass()
+class GFSPhysicsControlConfig:
+    """Static configuration for the ported version of the Fortran GFS_physics_control
+        structure ('model' in the Fortran radiation code).
     
     Args:
         levs: Number of model levels.
-        levr: Number of model levels.
-        ntcw: Tracer index of cloud liquid water.
-        ntrw: Tracer index of rain water.
-        ntiw: Tracer index of cloud ice water.
-        ntsw: Tracer index of snow water.
-        ntgl: Tracer index of graupel water.
-        ntoz: Tracer index of ozone.
-        ntclamt: Tracer index of cloud amount.
-        ntrac: Number of tracers.
-        nfxr:
-        ncld: In physics namelist.
-        ncnd: In physics namelist.
+        nfxr: Number of radiative fluxes calculated.
+        ncld: Number of cloud species. In physics namelist.
+        ncnd: Number of condensate species. In physics namelist.
         fhswr: Shortwave radiation timestep in seconds. In physics namelist.
         fhlwr: Longwave radiation timestep in seconds. In physics namelist.
-        lsswr: Logical flag for SW radiation calculations
-        lslwr: Logical flag for LW radiation calculations
         imp_physics: Choice of microphysics scheme:
             11: GFDL microphysics scheme (only ported option)
             8: Thompson microphysics scheme
@@ -47,31 +37,18 @@ class GFSPhysicsControl:
         do_only_clearsky_rad:
         swhtr: Whether to output SW heating rate. In physics namelist.
         lwhtr: Whether to output LW heating rate. In physics namelist.
-        lprnt:
+        lprnt: Verbosity flag.
         lssav:
-        nsswr: Integer number of physics timesteps between shortwave radiation
-            calculations
-        nslwr: Integer number of physics timesteps between longwave radiation
-            calculations
+        levr: Number of model levels for radiation calculations. If not
+            present defaults to `levs`. `levr != levs` not implemented.
     """
 
-    levs: Optional[int] = None
-    levr: Optional[int] = None
-    ntcw: Optional[int] = None
-    ntrw: Optional[int] = None
-    ntiw: Optional[int] = None
-    ntsw: Optional[int] = None
-    ntgl: Optional[int] = None
-    ntoz: Optional[int] = None
-    ntclamt: Optional[int] = None
-    ntrac: Optional[int] = None
+    levs: int = 79
     nfxr: int = 45
     ncld: int = 5
     ncnd: int = 5
     fhswr: float = 3600.0
     fhlwr: float = 3600.0
-    lsswr: bool = True
-    lslwr: bool = True
     imp_physics: int = 11
     lgfdlmprad: bool = False
     uni_cld: bool = False
@@ -93,11 +70,19 @@ class GFSPhysicsControl:
     lwhtr: bool = True
     lprnt: bool = False
     lssav: bool = True
-    nsswr: Optional[int] = None
-    nslwr: Optional[int] = None
+    levr: Optional[int] = None
+
+    def __post_init__(self):
+        if self.levr is not None and self.levr != self.levs:
+            raise ValueError(
+                "Setting namelist `levr` different from `npz` not implemented in "
+                f"radiation port. Got `npz`={self.levs} and `levr`={self.levr}."
+            )
+        else:
+            self.levr = self.levs
 
     @classmethod
-    def from_physics_namelist(cls, physics_namelist: Mapping[Hashable, Any]):
+    def from_namelist(cls, namelist: Mapping[Hashable, Any]):
 
         PHYSICS_NAMELIST_TO_GFS_CONTROL = {
             "imp_physics": "imp_physics",
@@ -107,11 +92,18 @@ class GFSPhysicsControl:
             "fhlwr": "fhlwr",
             "swhtr": "swhtr",
             "lwhtr": "lwhtr",
+            "levr": "levr",
         }
+        CORE_NAMELIST_TO_GFS_CONTROL = {"npz": "levs"}
 
         return cls(
-            **_namelist_to_config_args(
-                physics_namelist, PHYSICS_NAMELIST_TO_GFS_CONTROL
+            **dict(
+                **_namelist_to_config_args(
+                    namelist["gfs_physics_nml"], PHYSICS_NAMELIST_TO_GFS_CONTROL
+                ),
+                **_namelist_to_config_args(
+                    namelist["fv_core_nml"], CORE_NAMELIST_TO_GFS_CONTROL
+                ),
             )
         )
 
@@ -199,19 +191,17 @@ class RadiationConfig:
     lcnorm: bool = False
     lnoprec: bool = False
     iswcliq: int = 1
-    gfs_physics_control: GFSPhysicsControl = dataclasses.field(
-        default_factory=lambda: GFSPhysicsControl()
+    gfs_physics_control_config: GFSPhysicsControlConfig = dataclasses.field(
+        default_factory=lambda: GFSPhysicsControlConfig()
     )
 
     @classmethod
-    def from_physics_namelist(
-        cls, physics_namelist: Mapping[Hashable, Any]
-    ) -> "RadiationConfig":
-        """Generate RadiationConfig from fv3gfs physics namelist to ensure common keys are
+    def from_namelist(cls, namelist: Mapping[Hashable, Any]) -> "RadiationConfig":
+        """Generate RadiationConfig from fv3gfs namelist to ensure common keys are
         identical. Remaining values from RadiationConfig defaults.
         """
 
-        gfs_physics_control = GFSPhysicsControl.from_physics_namelist(physics_namelist)
+        gfs_physics_control_config = GFSPhysicsControlConfig.from_namelist(namelist)
 
         PHYSICS_NAMELIST_TO_RAD_CONFIG = {
             "iems": "iemsflg",
@@ -229,9 +219,9 @@ class RadiationConfig:
         return cls(
             **dict(
                 **_namelist_to_config_args(
-                    physics_namelist, PHYSICS_NAMELIST_TO_RAD_CONFIG
+                    namelist["gfs_physics_nml"], PHYSICS_NAMELIST_TO_RAD_CONFIG
                 ),
-                gfs_physics_control=gfs_physics_control
+                gfs_physics_control_config=gfs_physics_control_config,
             )
         )
 

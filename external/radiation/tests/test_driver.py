@@ -4,7 +4,8 @@ import time
 import serialbox as ser
 from radiation import io
 from radiation.radiation_driver import RadiationDriver
-from radiation.config import GFSPhysicsControl
+from radiation.config import GFSPhysicsControlConfig
+from radiation.wrapper_api import GFSPhysicsControl
 from util import compare_data
 from variables_to_read import vars_dict as variables
 
@@ -29,10 +30,14 @@ def getscalars(indict):
 
 
 def get_gfs_physics_control(indict):
-    names = [field.name for field in dataclasses.fields(GFSPhysicsControl)]
+    config_names = [field.name for field in dataclasses.fields(GFSPhysicsControlConfig)]
+    config_kwargs = {name: indict[name] for name in config_names}
+    config = GFSPhysicsControlConfig(**config_kwargs)
     indict_ = indict.copy()
+    indict_["config"] = config
     indict_["nsswr"], indict_["nslwr"] = 1, 1
-    kwargs = {name: indict_[name] for name in names}
+    control_names = [field.name for field in dataclasses.fields(GFSPhysicsControl)]
+    kwargs = {name: indict_[name] for name in control_names}
     return GFSPhysicsControl(**kwargs)
 
 
