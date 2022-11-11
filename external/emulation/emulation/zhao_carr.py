@@ -30,6 +30,13 @@ __all__ = [
 ]
 
 
+# from physcons.f
+GRAVITY = 9.80665  # m / s2
+CP = 1.0046e3  # J / kg / K
+LV = 2.5e6  # J / kg
+RHO_WATER = 1000.0  # kg / m3
+
+
 class Input:
     cloud_water = "cloud_water_mixing_ratio_input"
     humidity = "specific_humidity_input"
@@ -230,12 +237,22 @@ def enforce_conservative_phase_dependent(state, emulator):
     return {**emulator, **apply_condensation_phase_dependent(state, net_condensation)}
 
 
+def mixing_ratio_to_mass(x: np.ndarray, delp: np.ndarray) -> np.ndarray:
+    """convert data proportional to kg/kg -> kg/m2"""
+    return x * delp / GRAVITY
+
+
+def mass_to_mixing_ratio(x: np.ndarray, delp: np.ndarray) -> np.ndarray:
+    """convert data proportional to kg/m2 -> kg/kg"""
+    return x / delp * GRAVITY
+
+
+def liquid_water_equivalent(x: np.ndarray) -> np.ndarray:
+    """convert data proportional to kg/m2 -> m"""
+    return x / RHO_WATER
+
+
 def enforce_conservative_precpd(state, emulator):
-    # from physcons.f
-    cp = 1.0046e3
-    gravity = 9.80665
-    lv = 2.5e6
-    rho_water = 1000.0
 
     # condensate
     # a lot of models aleady enforce clouds >= 0, but include for completeness
@@ -250,14 +267,14 @@ def enforce_conservative_precpd(state, emulator):
 
     # Precip and evaporation (switch to units of kg / m2)
     delp = state[Input.delp]
-    precip_kg_m2 = -1 * limited_cloud_change * delp / gravity
-    evaporation_kg_m2 = evaporation * delp / gravity
+    precip_kg_m2 = mixing_ratio_to_mass(-1 * limited_cloud_change, delp)
+    evaporation_kg_m2 = mixing_ratio_to_mass(evaporation, delp)
     z, n = precip_kg_m2.shape
 
     total_precip_kg_m2 = np.zeros(n)
     limited_evaporation = np.zeros_like(evaporation_kg_m2)
 
-    # starting from TOA
+    # calculate precip and evaporation starting from TOA
     for k in range(z - 1, -1, -1):
         p = precip_kg_m2[k]
         total_precip_kg_m2 += p
@@ -266,11 +283,11 @@ def enforce_conservative_precpd(state, emulator):
         total_precip_kg_m2 -= limited_e
         limited_evaporation[k, :] = limited_e
 
-    surface_precip = total_precip_kg_m2 / rho_water  # units of m
-    limited_evaporation = limited_evaporation / delp * gravity  # units of kg/kg
+    surface_precip = liquid_water_equivalent(total_precip_kg_m2)
+    limited_evaporation = mass_to_mixing_ratio(limited_evaporation, delp)
 
     # temperature adjust
-    evaporative_cooling = lv / cp * -limited_evaporation
+    evaporative_cooling = LV / CP * -limited_evaporation
 
     cloud_out = state[GscondOutput.cloud_water] + limited_cloud_change
     humidity_out = state[GscondOutput.humidity] + limited_evaporation
@@ -283,3 +300,22 @@ def enforce_conservative_precpd(state, emulator):
         PrecpdOutput.temperature: temperature_out,
         PrecpdOutput.precip: surface_precip,
     }
+
+
+def conservative_precip_simple(state, emulator, sum_axis=0):
+    qv_before = state[GscondOutput.humidity]
+    qv_after = emulator[PrecpdOutput.humidity]
+    qc_before = state[GscondOutput.cloud_water]
+    qc_after = emulator[PrecpdOutput.cloud_water]
+    delp = state[Input.delp]
+
+    water_before = qv_before + qc_before
+    water_after = qv_after + qc_after
+    column_water_before = np.sum(
+        mixing_ratio_to_mass(water_before, delp), axis=sum_axis
+    )
+    column_water_after = np.sum(mixing_ratio_to_mass(water_after, delp), axis=sum_axis)
+    surface_precipitation = liquid_water_equivalent(
+        column_water_before - column_water_after
+    )
+    return {**emulator, PrecpdOutput.precip: surface_precipitation}
