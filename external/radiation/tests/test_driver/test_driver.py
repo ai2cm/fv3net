@@ -12,7 +12,7 @@ from util import compare_data
 from variables_to_read import vars_dict as variables
 
 
-ROOT = pathlib.Path(__file__).parent.parent.absolute()
+ROOT = pathlib.Path(__file__).parent.parent.parent.absolute()
 LOOKUP_DIR = (ROOT / "data/lookupdata").as_posix()
 FORCING_DIR = (ROOT / "data/forcing").as_posix()
 FORTRANDATA_DIR = (ROOT / "data/fortran/radiation_driver").as_posix()
