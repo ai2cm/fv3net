@@ -2,7 +2,9 @@ from radiation.wrapper_api import (
     _get_forecast_time_index,
     _is_compute_timestep,
     _solar_hour,
+    Radiation,
 )
+from radiation.config import RadiationConfig
 import numpy as np
 import cftime
 import pytest
@@ -83,3 +85,32 @@ def test__is_compute_timestep(time_index, compute_period, expected_compute):
 def test__solar_hour(time, init_time, expected_solar_hour):
     solar_hour = _solar_hour(time, init_time)
     assert np.isclose(solar_hour, expected_solar_hour)
+
+
+class DummyComm:
+    rank: int = 0
+
+    def __init__(self):
+        pass
+
+
+TRACER_INDS = {
+    "specific_humidity": 1,
+    "cloud_water_mixing_ratio": 2,
+    "rain_mixing_ratio": 3,
+    "cloud_ice_mixing_ratio": 4,
+    "snow_mixing_ratio": 5,
+    "graupel_mixing_ratio": 6,
+    "ozone_mixing_ratio": 7,
+    "cloud_amount": 8,
+}
+
+
+def test_config_validation(regtest):
+    rad_confg = RadiationConfig()
+    comm = DummyComm()
+    timestep = 900.0
+    init_time = cftime.DatetimeJulian(2016, 8, 1, 0, 0, 0)
+    radiation_wrapper = Radiation(rad_confg, comm, timestep, init_time, TRACER_INDS)
+    with regtest:
+        radiation_wrapper.validate()

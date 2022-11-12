@@ -1,6 +1,8 @@
 import pathlib
+import os
 import dataclasses
 import time
+import pytest
 import serialbox as ser
 from radiation import io
 from radiation.radiation_driver import RadiationDriver
@@ -83,14 +85,13 @@ me = 0
 
 # reading datasets needed for radinit() and radupdate()
 aer_dict = io.load_aerosol(FORCING_DIR)
-solar_filename, solar_data = io.load_astronomy(FORCING_DIR, isolar)
-sfc_file, sfc_data = io.load_sfc(FORCING_DIR)
+solar_data = io.load_astronomy(FORCING_DIR, isolar)
+sfc_data = io.load_sfc(FORCING_DIR)
 gas_data = io.load_gases(FORCING_DIR, ictmflg)
 
 driver = RadiationDriver(
     si,
     nlay,
-    imp_physics,
     me,
     iemsflg,
     ioznflg,
@@ -99,19 +100,13 @@ driver = RadiationDriver(
     ico2flg,
     iaerflg,
     ialbflg,
-    icldflg,
     ivflip,
     iovrsw,
     iovrlw,
     isubcsw,
     isubclw,
-    lcrick,
     lcnorm,
-    lnoprec,
-    iswcliq,
     aer_dict,
-    solar_filename,
-    sfc_file,
     sfc_data,
 )
 
@@ -138,6 +133,9 @@ driver.radupdate(
 )
 
 
+@pytest.mark.skipif(
+    os.environ.get("NIX_ENV") != "Y", reason="intended to be run in nix environment"
+)
 def test_radiation_valiation():
     """This test is messy and will probably be replaced by a test against wrapper
     inputs and outputs at some point, but it is useful for validation."""

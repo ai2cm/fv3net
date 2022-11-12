@@ -38,7 +38,6 @@ class RadiationDriver:
         self,
         si,
         NLAY,
-        imp_physics,
         rank,
         iemsflg,
         ioznflg,
@@ -47,19 +46,13 @@ class RadiationDriver:
         ico2flg,
         iaerflg,
         ialbflg,
-        icldflg,
         ivflip,
         iovrsw,
         iovrlw,
         isubcsw,
         isubclw,
-        lcrick,
         lcnorm,
-        lnoprec,
-        iswcliq,
         aerosol_dict,
-        solar_filename,
-        semis_file,
         semis_data,
         do_test=False,
     ):
@@ -70,98 +63,21 @@ class RadiationDriver:
         self.monthd = 0
         self.isolar = isolar
 
-        if rank == 0:
-            print("NEW RADIATION PROGRAM STRUCTURES BECAME OPER. May 01 2007")
-            print(self.VTAGRAD)  # print out version tag
-            print(" ")
-            print(f"- Selected Control Flag settings: ICTMflg={ictmflg}")
-            print(f"  ISOLar ={isolar}, ICO2flg={ico2flg}, IAERflg={iaerflg}")
-            print(f"  IALBflg={ialbflg}, IEMSflg={iemsflg}, ICLDflg={icldflg}")
-            print(f"  IMP_PHYSICS={imp_physics}, IOZNflg={ioznflg}")
-            print(f"  IVFLIP={ivflip}, IOVRSW={iovrsw}, IOVRLW={iovrlw}")
-            print(f"  ISUBCSW={isubcsw}, ISUBCLW={isubclw}")
-            print(f"  LCRICK={lcrick}, LCNORM={lcnorm}, LNOPREC={lnoprec}")
-            print(f"  LTP ={self.LTP}, add extra top layer ={self.lextop}")
-            print(" ")
-
-            if ictmflg == 0 or ictmflg == -2:
-                print("Data usage is limited by initial condition!")
-                print("No volcanic aerosols")
-
-            if (iovrsw not in [0, 1]) or (iovrlw not in [0, 1]):
-                raise ValueError(
-                    "Only implemented overlap options in Python port of radiation "
-                    "scheme are 0 (random overlap) and 1 (maximum-random overlap)."
-                    f" Got iovrsw={iovrsw}, iovrlw={iovrlw}."
-                )
-
-            if isubclw == 0:
-                print(
-                    f"- ISUBCLW={isubclw}, No McICA, use grid ",
-                    f"averaged cloud in LW radiation",
-                )
-                raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
-
-            if isubclw == 1:
-                print(
-                    "- ISUBCLW={isubclw}, Use McICA with fixed ",
-                    "permutation seeds for LW random number generator",
-                )
-                raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
-
-            if isubclw == 2:
-                print(
-                    f"- ISUBCLW={isubclw}, Use McICA with random ",
-                    f"permutation seeds for LW random number generator",
-                )
-
-            else:
-                raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
-
-            if isubcsw == 0:
-                print(
-                    "- ISUBCSW={isubcsw}, No McICA, use grid ",
-                    "averaged cloud in SW radiation",
-                )
-                raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
-
-            if isubcsw == 1:
-                print(
-                    f"- ISUBCSW={isubcsw}, Use McICA with fixed ",
-                    "permutation seeds for SW random number generator",
-                )
-                raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
-
-            if isubcsw == 2:
-                print(
-                    f"- ISUBCSW={isubcsw}, Use McICA with random ",
-                    "permutation seeds for SW random number generator",
-                )
-            else:
-                raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
-
-            if isubcsw != isubclw:
-                warnings.warn(
-                    "- *** Notice *** ISUBCSW /= ISUBCLW !!!", f"{isubcsw}, {isubclw}"
-                )
-
         # -# Initialization
         #  --- ...  astronomy initialization routine
-        self.sol = AstronomyClass(rank, isolar, solar_filename)
+        self.sol = AstronomyClass(isolar)
         #  --- ...  aerosols initialization routine
-        self.aer = AerosolClass(NLAY, rank, iaerflg, ivflip, aerosol_dict)
+        self.aer = AerosolClass(NLAY, iaerflg, ivflip, aerosol_dict)
         #  --- ...  co2 and other gases initialization routine
         self.gas = GasClass(rank, ioznflg, ico2flg, ictmflg)
         #  --- ...  surface initialization routine
-        self.sfc = SurfaceClass(rank, ialbflg, iemsflg, semis_file, semis_data)
+        self.sfc = SurfaceClass(ialbflg, iemsflg, semis_data)
         #  --- ...  cloud initialization routine
-        self.cld = CloudClass(
-            si, NLAY, imp_physics, rank, ivflip, icldflg, iovrsw, iovrlw, lcnorm
-        )
+        self.cld = CloudClass(si, NLAY, ivflip, iovrsw, iovrlw, lcnorm)
         #  --- ...  lw radiation initialization routine
-        self.rlw = RadLWClass(rank, iovrlw, isubclw)
+        self.rlw = RadLWClass(iovrlw, isubclw)
         #  --- ...  sw radiation initialization routine
-        self.rsw = RadSWClass(rank, iovrsw, isubcsw, iswcliq)
+        self.rsw = RadSWClass(iovrsw, isubcsw)
 
         if do_test:
             sol_dict = self.sol.return_initdata()
@@ -173,6 +89,109 @@ class RadiationDriver:
             rsw_dict = self.rsw.return_initdata()
 
             return aer_dict, sol_dict, gas_dict, sfc_dict, cld_dict, rlw_dict, rsw_dict
+
+    @classmethod
+    def validate(
+        cls,
+        isolar,
+        ictmflg,
+        iovrsw,
+        iovrlw,
+        isubcsw,
+        isubclw,
+        iaerflg,
+        ioznflg,
+        ico2flg,
+        ialbflg,
+        iemsflg,
+        imp_physics,
+        icldflg,
+        lcrick,
+        lcnorm,
+        lnoprec,
+    ):
+
+        print("NEW RADIATION PROGRAM STRUCTURES BECAME OPER. May 01 2007")
+        print(cls.VTAGRAD)  # print out version tag
+        print(" ")
+        print(f"- Selected Control Flag settings: ICTMflg={ictmflg}")
+        print(f"  ISOLar ={isolar}, ICO2flg={ico2flg}, IAERflg={iaerflg}")
+        print(f"  IALBflg={ialbflg}, IEMSflg={iemsflg}, ICLDflg={icldflg}")
+        print(f"  IMP_PHYSICS={imp_physics}, IOZNflg={ioznflg}")
+        print(f"  IVFLIP={ivflip}, IOVRSW={iovrsw}, IOVRLW={iovrlw}")
+        print(f"  ISUBCSW={isubcsw}, ISUBCLW={isubclw}")
+        print(f"  LCRICK={lcrick}, LCNORM={lcnorm}, LNOPREC={lnoprec}")
+        print(f"  LTP ={cls.LTP}, add extra top layer ={cls.lextop}")
+        print(" ")
+
+        if ictmflg == 0 or ictmflg == -2:
+            print("Data usage is limited by initial condition!")
+            print("No volcanic aerosols")
+
+        if (iovrsw not in [0, 1]) or (iovrlw not in [0, 1]):
+            raise ValueError(
+                "Only implemented overlap options in Python port of radiation "
+                "scheme are 0 (random overlap) and 1 (maximum-random overlap)."
+                f" Got iovrsw={iovrsw}, iovrlw={iovrlw}."
+            )
+
+        if isubclw == 0:
+            print(
+                f"- ISUBCLW={isubclw}, No McICA, use grid ",
+                f"averaged cloud in LW radiation",
+            )
+            raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
+
+        if isubclw == 1:
+            print(
+                "- ISUBCLW={isubclw}, Use McICA with fixed ",
+                "permutation seeds for LW random number generator",
+            )
+            raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
+
+        if isubclw == 2:
+            print(
+                f"- ISUBCLW={isubclw}, Use McICA with random ",
+                f"permutation seeds for LW random number generator",
+            )
+
+        else:
+            raise ValueError(f"- ERROR!!! ISUBCLW={isubclw}, is not a valid option")
+
+        if isubcsw == 0:
+            print(
+                "- ISUBCSW={isubcsw}, No McICA, use grid ",
+                "averaged cloud in SW radiation",
+            )
+            raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
+
+        if isubcsw == 1:
+            print(
+                f"- ISUBCSW={isubcsw}, Use McICA with fixed ",
+                "permutation seeds for SW random number generator",
+            )
+            raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
+
+        if isubcsw == 2:
+            print(
+                f"- ISUBCSW={isubcsw}, Use McICA with random ",
+                "permutation seeds for SW random number generator",
+            )
+        else:
+            raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
+
+        if isubcsw != isubclw:
+            warnings.warn(
+                "- *** Notice *** ISUBCSW /= ISUBCLW !!!", f"{isubcsw}, {isubclw}"
+            )
+
+        AstronomyClass.validate(isolar)
+        AerosolClass.validate(iaerflg)
+        GasClass.validate(ioznflg, ico2flg, ictmflg)
+        SurfaceClass.validate(ialbflg, iemsflg)
+        CloudClass.validate(imp_physics, icldflg)
+        RadLWClass.validate(iovrlw, isubclw, icldflg)
+        RadSWClass.validate(iovrsw, isubcsw, icldflg)
 
     @property
     def solar_constant(self):

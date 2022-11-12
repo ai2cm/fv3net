@@ -127,7 +127,7 @@ class GFSPhysicsControl:
 class Radiation:
     """A wrapper around the Python-ported radiation driver.
 
-    Implements `init_driver` and `__call__` methods.
+    Implements `validate`, `init_driver`, `__call__` methods.
     """
 
     _base_input_variables: Sequence[str] = BASE_INPUT_VARIABLE_NAMES
@@ -177,6 +177,28 @@ class Radiation:
         self._lw_lookup: Mapping = dict()
         self._cached: Diagnostics = {}
 
+    def validate(self):
+        """Validate the configuration for the radiation driver"""
+        if self._comm.rank == 0:
+            RadiationDriver.validate(
+                self._rad_config.isolar,
+                self._rad_config.ictmflg,
+                self._rad_config.iovrsw,
+                self._rad_config.iovrlw,
+                self._rad_config.isubcsw,
+                self._rad_config.isubclw,
+                self._rad_config.iaerflg,
+                self._rad_config.ioznflg,
+                self._rad_config.ico2flg,
+                self._rad_config.ialbflg,
+                self._rad_config.iemsflg,
+                self._gfs_physics_control.imp_physics,
+                self._rad_config.icldflg,
+                self._rad_config.lcrick,
+                self._rad_config.lcnorm,
+                self._rad_config.lnoprec,
+            )
+
     def init_driver(self):
         """Download necessary data and initialize the driver object"""
         self._download_radiation_assets()
@@ -208,8 +230,8 @@ class Radiation:
         sigma = io.load_sigma(fv_core_dir)
         nlay = len(sigma) - 1
         self._aerosol_data = io.load_aerosol(self._forcing_local_dir)
-        sfc_filename, self._sfc_data = io.load_sfc(self._forcing_local_dir)
-        solar_filename, self._solar_data = io.load_astronomy(
+        self._sfc_data = io.load_sfc(self._forcing_local_dir)
+        self._solar_data = io.load_astronomy(
             self._forcing_local_dir, self._rad_config.isolar
         )
         self._gas_data = io.load_gases(
@@ -220,7 +242,6 @@ class Radiation:
         return RadiationDriver(
             sigma,
             nlay,
-            self._gfs_physics_control.imp_physics,
             self._comm.rank,
             self._rad_config.iemsflg,
             self._rad_config.ioznflg,
@@ -229,19 +250,13 @@ class Radiation:
             self._rad_config.ico2flg,
             self._rad_config.iaerflg,
             self._rad_config.ialbflg,
-            self._rad_config.icldflg,
             self._rad_config.ivflip,
             self._rad_config.iovrsw,
             self._rad_config.iovrlw,
             self._rad_config.isubcsw,
             self._rad_config.isubclw,
-            self._rad_config.lcrick,
             self._rad_config.lcnorm,
-            self._rad_config.lnoprec,
-            self._rad_config.iswcliq,
             self._aerosol_data,
-            solar_filename,
-            sfc_filename,
             self._sfc_data,
         )
 

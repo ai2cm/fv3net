@@ -169,7 +169,9 @@ def get_radiation_stepper(
     tracer_inds: Mapping[str, int] = {
         str(name): metadata["i_tracer"] for name, metadata in tracer_metadata.items()
     }
-    return RadiationStepper(
-        radiation.Radiation(radiation_config, comm, timestep, init_time, tracer_inds),
-        input_generator,
+    radiation_wrapper = radiation.Radiation(
+        radiation_config, comm, timestep, init_time, tracer_inds
     )
+    radiation_wrapper.validate()
+    radiation_wrapper.init_driver()
+    return RadiationStepper(radiation_wrapper, input_generator,)

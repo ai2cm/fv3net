@@ -233,7 +233,7 @@ jobs:
           command: |
             cd external/radiation
             . /home/circleci/.nix-profile/etc/profile.d/nix.sh
-            nix-shell --command "pytest -s"
+            nix-shell --command "pytest -s tests/test_driver"
 
 workflows:
   version: 2

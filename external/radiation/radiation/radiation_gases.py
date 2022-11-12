@@ -34,37 +34,34 @@ class GasClass:
         self.ico2flg = ico2
         self.ictmflg = ictm
 
-        if self.ioznflg > 0:
-            if self.rank == 0:
-                print(" - Using interactive ozone distribution")
-        else:
-            print("Climatological ozone data not implemented")
-
         #  --- ...  co2 data section
 
         self.co2_glb = self.co2vmr_def
-        self.gco2cyc = np.zeros(12)
 
-        if self.ico2flg == 0:
-            if rank == 0:
-                print(f"- Using prescribed co2 global mean value={self.co2vmr_def}")
+    @classmethod
+    def validate(cls, ioznflg, ico2flg, ictmflg):
+        if ioznflg > 0:
+            print(" - Using interactive ozone distribution")
+        else:
+            print("Climatological ozone data not implemented")
+
+        if ico2flg == 0:
+            print(f"- Using prescribed co2 global mean value={cls.co2vmr_def}")
 
         else:
-            if self.ictmflg == -1:  # input user provided data
+            if ictmflg == -1:  # input user provided data
                 print("ictmflg = -1 is not implemented")
 
             else:  # input from observed data
-                if self.ico2flg == 1:
+                if ico2flg == 1:
                     print("Using observed co2 global annual mean value")
 
-                elif self.ico2flg == 2:
-                    if rank == 0:
-                        print("Using observed co2 monthly 2-d data")
-                        self.co2vmr_sav = np.zeros((self.IMXCO2, self.JMXCO2, 12))
+                elif ico2flg == 2:
+                    print("Using observed co2 monthly 2-d data")
 
                 else:
                     raise ValueError(
-                        f" ICO2={self.ico2flg}, is not a valid selection",
+                        f" ICO2={ico2flg}, is not a valid selection",
                         " - Stoped in subroutine gas_init!!!",
                     )
 
