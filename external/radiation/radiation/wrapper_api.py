@@ -260,9 +260,7 @@ class Radiation:
             self._sfc_data,
         )
 
-    def __call__(
-        self, time: cftime.DatetimeJulian, state: State,
-    ):
+    def __call__(self, time: cftime.DatetimeJulian, state: State,) -> Diagnostics:
         """Execute the radiation computations
 
         Args:
@@ -272,9 +270,14 @@ class Radiation:
         """
         self._set_compute_flags(time)
         if self._gfs_physics_control.lslwr or self._gfs_physics_control.lsswr:
-            self._rad_update(time, self._timestep)
-        diagnostics = self._rad_compute(state, time)
-        return diagnostics
+            self._cached = self._compute_radiation(time, state)
+        return self._cached
+
+    def _compute_radiation(
+        self, time: cftime.DatetimeJulian, state: State
+    ) -> Diagnostics:
+        self._rad_update(time, self._timestep)
+        return self._rad_compute(state, time)
 
     def _set_compute_flags(self, time: cftime.DatetimeJulian) -> None:
         timestep_index = _get_forecast_time_index(time, self._init_time, self._timestep)
@@ -330,26 +333,24 @@ class Radiation:
             raise ValueError(
                 "Radiation driver is not set. Call `Radiation.init_driver` first."
             )
-        if self._gfs_physics_control.lsswr or self._gfs_physics_control.lslwr:
-            solhr = self._solar_hour(time)
-            statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)
-            grid, coords = get_grid(state)
-            sfcprop = get_sfcprop(state)
-            ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
-            random_numbers = io.generate_random_numbers(ncolumns, nz, NGPTSW, NGPTLW)
-            out = self._driver._GFS_radiation_driver(
-                self._gfs_physics_control,
-                self._driver.solar_constant,
-                solhr,
-                statein,
-                sfcprop,
-                grid,
-                random_numbers,
-                self._lw_lookup,
-                self._sw_lookup,
-            )
-            self._cached = unstack(postprocess_out(out), coords)
-        return self._cached
+        solhr = self._solar_hour(time)
+        statein = get_statein(state, self._tracer_inds, self._rad_config.ivflip)
+        grid, coords = get_grid(state)
+        sfcprop = get_sfcprop(state)
+        ncolumns, nz = statein["tgrs"].shape[0], statein["tgrs"].shape[1]
+        random_numbers = io.generate_random_numbers(ncolumns, nz, NGPTSW, NGPTLW)
+        out = self._driver._GFS_radiation_driver(
+            self._gfs_physics_control,
+            self._driver.solar_constant,
+            solhr,
+            statein,
+            sfcprop,
+            grid,
+            random_numbers,
+            self._lw_lookup,
+            self._sw_lookup,
+        )
+        return unstack(postprocess_out(out), coords)
 
     def _solar_hour(self, time: cftime.DatetimeJulian) -> float:
         return _solar_hour(time, self._init_time)
