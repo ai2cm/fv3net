@@ -101,7 +101,9 @@ class ReservoirTrainingConfig:
             if (
                 self.subdomain.size + 2 * self.subdomain.overlap
             ) != self.reservoir_hyperparameters.input_size:
-                raise ValueError("Subdomain size and reservoir input_size must match.")
+                raise ValueError(
+                    "Subdomain size + overlaps and reservoir input_size must match."
+                )
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
