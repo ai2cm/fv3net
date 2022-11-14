@@ -2,14 +2,16 @@ import numpy as np
 from scipy import sparse
 
 from sklearn.dummy import DummyRegressor
-
 from fv3fit.reservoir import (
     ReservoirComputingModel,
     ReservoirComputingReadout,
     Reservoir,
     ReservoirHyperparameters,
     HybridReservoirComputingModel,
+    ReservoirOnlyDomainPredictor,
+    HybridDomainPredictor,
 )
+from fv3fit.reservoir.config import SubdomainConfig
 
 
 class MultiOutputMeanRegressor:
@@ -161,7 +163,7 @@ def test_hybrid_prediction_after_load(tmpdir):
         square_half_hidden_state=True,
     )
     hybrid_predictor = HybridReservoirComputingModel(
-        reservoir=reservoir, readout=readout, imperfect_model=imperfect_model
+        reservoir=reservoir, readout=readout,
     )
 
     ts_sync = [np.ones(input_size) for i in range(20)]
@@ -170,7 +172,9 @@ def test_hybrid_prediction_after_load(tmpdir):
         ts_sync[-1],
     ]
     for i in range(10):
-        predictions_0.append(hybrid_predictor.predict(predictions_0[-1]))
+        predictions_0.append(
+            hybrid_predictor.predict(predictions_0[-1], imperfect_model=imperfect_model)
+        )
 
     output_path = f"{str(tmpdir)}/hybrid_predictor"
     hybrid_predictor.dump(output_path)
@@ -181,7 +185,11 @@ def test_hybrid_prediction_after_load(tmpdir):
         ts_sync[-1],
     ]
     for i in range(10):
-        predictions_1.append(loaded_hybrid_predictor.predict(predictions_1[-1]))
+        predictions_1.append(
+            loaded_hybrid_predictor.predict(
+                predictions_1[-1], imperfect_model=imperfect_model
+            )
+        )
     np.testing.assert_array_almost_equal(
         np.array(predictions_0), np.array(predictions_1)
     )
@@ -204,7 +212,7 @@ def test_hybrid_gives_different_results():
     )
     predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout)
     hybrid_predictor = HybridReservoirComputingModel(
-        reservoir=reservoir, readout=readout, imperfect_model=imperfect_model
+        reservoir=reservoir, readout=readout,
     )
 
     ts_sync = [np.ones(input_size) for i in range(20)]
@@ -215,11 +223,175 @@ def test_hybrid_gives_different_results():
 
     for i in range(10):
         predictions.append(predictor.predict())
-        predictions_hybrid.append(hybrid_predictor.predict(predictions_hybrid[-1]))
+        predictions_hybrid.append(
+            hybrid_predictor.predict(
+                predictions_hybrid[-1], imperfect_model=imperfect_model
+            )
+        )
 
     predictions = np.array(predictions)
     predictions_hybrid = np.array(predictions_hybrid)
     assert predictions.shape == predictions_hybrid.shape
     np.testing.assert_raises(
         AssertionError, np.testing.assert_array_equal, predictions, predictions_hybrid
+    )
+
+
+def create_domain_predictor(type, domain_size, subdomain_size, subdomain_overlap):
+
+    n_subdomains = domain_size // subdomain_size
+
+    hyperparameters = ReservoirHyperparameters(
+        input_size=subdomain_size + 2 * subdomain_overlap,
+        state_size=20,
+        adjacency_matrix_sparsity=0.0,
+        spectral_radius=1.0,
+        input_coupling_sparsity=0,
+    )
+    subdomain_predictors = []
+    for i in range(n_subdomains):
+        reservoir = Reservoir(hyperparameters)
+        readout = ReservoirComputingReadout(
+            linear_regressor=MultiOutputMeanRegressor(n_outputs=subdomain_size),
+            square_half_hidden_state=False,
+        )
+        if type == "reservoir_only":
+            subdomain_predictors.append(
+                ReservoirComputingModel(reservoir=reservoir, readout=readout,)
+            )
+
+        elif type == "hybrid":
+            subdomain_predictors.append(
+                HybridReservoirComputingModel(reservoir=reservoir, readout=readout,)
+            )
+
+    if type == "reservoir_only":
+        return ReservoirOnlyDomainPredictor(
+            subdomain_predictors=subdomain_predictors,
+            subdomain_config=SubdomainConfig(
+                size=subdomain_size, overlap=subdomain_overlap
+            ),
+        )
+    elif type == "hybrid":
+        return HybridDomainPredictor(
+            subdomain_predictors=subdomain_predictors,
+            subdomain_config=SubdomainConfig(
+                size=subdomain_size, overlap=subdomain_overlap
+            ),
+        )
+    else:
+        raise ValueError("domain predictor must be of type 'reservoir_only' or 'hybrid")
+
+
+def test_DomainPredictor_synchronize_updates_states():
+    domain_size = 6
+    subdomain_size = 2
+    subdomain_overlap = 1
+    n_subdomains = domain_size // subdomain_size
+    domain_predictor = create_domain_predictor(
+        "reservoir_only", domain_size, subdomain_size, subdomain_overlap
+    )
+    burnin = np.arange(domain_size * 10).reshape(10, domain_size)
+
+    states_init = [
+        domain_predictor.subdomain_predictors[i].reservoir.state
+        for i in range(n_subdomains)
+    ]
+    domain_predictor.synchronize(data=burnin)
+    states_after_synch = [
+        domain_predictor.subdomain_predictors[i].reservoir.state
+        for i in range(n_subdomains)
+    ]
+    for state_init, state_after_synch in zip(states_init, states_after_synch):
+        np.testing.assert_raises(
+            AssertionError, np.testing.assert_array_equal, state_init, state_after_synch
+        )
+
+
+def test_ReservoirOnlyDomainPredictor_updates_state():
+    domain_size = 6
+    subdomain_size = 2
+    subdomain_overlap = 1
+    n_subdomains = domain_size // subdomain_size
+
+    domain_predictor = create_domain_predictor(
+        "reservoir_only", domain_size, subdomain_size, subdomain_overlap
+    )
+    initial_inputs = np.arange(domain_size * 10).reshape(10, domain_size)
+    domain_predictor.synchronize(data=initial_inputs)
+    states_init = [
+        domain_predictor.subdomain_predictors[i].reservoir.state
+        for i in range(n_subdomains)
+    ]
+    domain_predictor.predict()
+    states_after_predict = [
+        domain_predictor.subdomain_predictors[i].reservoir.state
+        for i in range(n_subdomains)
+    ]
+    for state_init, state_after_predict in zip(states_init, states_after_predict):
+        np.testing.assert_raises(
+            AssertionError,
+            np.testing.assert_array_equal,
+            state_init,
+            state_after_predict,
+        )
+
+
+def test_HybridDomainPredictor_updates_state():
+    domain_size = 6
+    subdomain_size = 2
+    subdomain_overlap = 1
+    n_subdomains = domain_size // subdomain_size
+    imperfect_model = MockImperfectModel(offset=0.1)
+
+    domain_predictor = create_domain_predictor(
+        "hybrid", domain_size, subdomain_size, subdomain_overlap
+    )
+    initial_inputs = np.arange(domain_size * 10).reshape(10, domain_size)
+    domain_predictor.synchronize(data=initial_inputs[:-1])
+    states_init = [
+        domain_predictor.subdomain_predictors[i].reservoir.state
+        for i in range(n_subdomains)
+    ]
+    domain_predictor.predict(
+        input_state=initial_inputs[-1], imperfect_model=imperfect_model
+    )
+    states_after_predict = [
+        domain_predictor.subdomain_predictors[i].reservoir.state
+        for i in range(n_subdomains)
+    ]
+    for state_init, state_after_predict in zip(states_init, states_after_predict):
+        np.testing.assert_raises(
+            AssertionError,
+            np.testing.assert_array_equal,
+            state_init,
+            state_after_predict,
+        )
+
+
+def test_HybridDomainPredictor_predict_utilizes_imperfect_prediction():
+    domain_size = 6
+    subdomain_size = 2
+    subdomain_overlap = 1
+    hybrid_domain_predictor = create_domain_predictor(
+        "hybrid", domain_size, subdomain_size, subdomain_overlap
+    )
+
+    imperfect_model_0 = MockImperfectModel(offset=0.1)
+    imperfect_model_1 = MockImperfectModel(offset=1)
+
+    initial_inputs = np.arange(domain_size * 10).reshape(10, domain_size)
+
+    hybrid_domain_predictor.synchronize(data=initial_inputs[:-1])
+    prediction_0 = hybrid_domain_predictor.predict(
+        input_state=initial_inputs[-1], imperfect_model=imperfect_model_0
+    )
+
+    hybrid_domain_predictor.synchronize(data=initial_inputs[:-1])
+    prediction_1 = hybrid_domain_predictor.predict(
+        input_state=initial_inputs[-1], imperfect_model=imperfect_model_1
+    )
+
+    np.testing.assert_raises(
+        AssertionError, np.testing.assert_array_equal, prediction_0, prediction_1
     )

@@ -16,7 +16,6 @@ from fv3fit.reservoir import (
 from fv3fit.reservoir.config import ReservoirTrainingConfig
 from ks import KuramotoSivashinskyConfig, ImperfectKSModel
 from train_ks import (
-    add_input_noise,
     transform_inputs_to_reservoir_states,
     get_parser,
     generate_training_time_series,
@@ -36,11 +35,10 @@ def get_imperfect_ks_model(hybrid_imperfect_model_config, reservoir_timestep):
     )
 
 
-def generate_imperfect_prediction_time_series(
-    imperfect_model, ts_truth,
-):
+def generate_imperfect_prediction_time_series(imperfect_model, ts_truth,) -> np.ndarray:
     """ Initialize imperfect model at the target state at time t, and save
-    its predictions at the end of each reservoir timestep.
+    its predictions at the end of each reservoir timestep. First dimension is
+    time, second is spatial.
     """
     imperfect_predictions = [
         ts_truth[0],
@@ -50,7 +48,7 @@ def generate_imperfect_prediction_time_series(
         # the imperfect KS model handles the downsampling in time to the
         # reservoir timestep in its predict method
         imperfect_predictions.append(imperfect_model.predict(input))
-    return imperfect_predictions
+    return np.array(imperfect_predictions)
 
 
 def train_hybrid(ks_config, train_config):
@@ -69,7 +67,6 @@ def train_hybrid(ks_config, train_config):
         imperfect_model, training_ts,
     )
 
-    training_ts = add_input_noise(training_ts, stddev=train_config.input_noise)
     training_ts_burnin, training_ts_keep = (
         training_ts[: train_config.n_burn],
         training_ts[train_config.n_burn :],
