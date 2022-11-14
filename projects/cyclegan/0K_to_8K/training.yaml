@@ -36,6 +36,7 @@ hyperparameters:
       cycle_weight: 10.0
       generator_weight: 1.0
       discriminator_weight: 1.0
+      reload_path: gs://vcm-ml-experiments/cyclegan/2022-11-10/cyclegan_0K_to_8K-trial-0/
     training:
       n_epoch: 50
       in_memory: true
