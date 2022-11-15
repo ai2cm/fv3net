@@ -85,6 +85,18 @@ def mcica_subcol(iovrlw, cldf, nlay, dz, de_lgth, iplon, rand2d):
                 else:
                     cdfunc[n, k] = cdfunc[n, k] * tem1
 
+    if iovrlw == 3:  # decorrelation length overlap
+
+        fac_lcf = np.exp(-0.5 * (dz[1:] + dz[:-1]) / de_lgth)
+
+        cdfunc2 = np.random.rand(*cdfunc.shape)
+
+        for n in range(ngptlw):
+            for k in range(nlay - 1, -1, -1):
+                k1 = k + 1
+                if cdfunc2[k, n] <= fac_lcf[k1]:
+                    cdfunc[k, n] = cdfunc[k1, n]
+
     #  --- ...  generate subcolumns for homogeneous clouds
     tem1 = 1.0 - cldf
     lcloudy = cdfunc >= tem1
