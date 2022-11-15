@@ -279,7 +279,7 @@ def _load_pytorch(cls: Type[_PytorchDumpable], path: str):
         model = torch.load(f, map_location=DEVICE)
     with fs.open(os.path.join(path, cls._SCALERS_FILENAME), "rb") as f:
         scalers = load_mapping(StandardScaler, f)
-    with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+    with fs.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
         config = yaml.load(f, Loader=yaml.Loader)
     obj = cls(model=model, scalers=scalers, **config)
     return obj

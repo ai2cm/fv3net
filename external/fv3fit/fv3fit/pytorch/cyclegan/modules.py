@@ -330,7 +330,6 @@ class Crop(nn.Module):
 
 
 class AppendHalos(nn.Module):
-
     """
     Module which appends horizontal halos to the input tensor.
 
@@ -348,7 +347,10 @@ class AppendHalos(nn.Module):
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            inputs: tensor of shape [batch, tile, channel, x, y]
+            inputs: tensor of shape [batch, tile, channel, nx, ny]
+
+        Returns:
+            tensor of shape [batch, tile, channel, nx + 2 * n_halo, ny + 2 * n_halo]
         """
         corner = torch.zeros_like(inputs[:, 0, :, : self.n_halo, : self.n_halo])
         if self.n_halo > 0:
