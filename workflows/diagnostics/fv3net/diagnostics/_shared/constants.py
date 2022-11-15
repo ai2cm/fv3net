@@ -20,6 +20,8 @@ HISTOGRAM_BINS = {
 # argument typehint for diags in save_prognostic_run_diags but used
 # by multiple modules split out to group operations and simplify
 # the diagnostic script
+
+
 @dataclass
 class DiagArg:
     prediction: xr.Dataset
