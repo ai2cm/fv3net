@@ -1,3 +1,4 @@
+import json
 import logging
 import io
 import tempfile
@@ -112,3 +113,62 @@ def dump_nc(ds: xr.Dataset, f: BinaryIO):
         ds.to_netcdf(url, engine="h5netcdf")
         with open(url, "rb") as tmp1:
             shutil.copyfileobj(tmp1, f)
+
+
+def to_json(ds, filename, mode="w"):
+    """Write an xarray Dataset to JSON.
+
+    An important note about this function is that it does not support encoding
+    all datatypes supported by xarray.  It will raise an error if a variable
+    in the dataset is of a type that has not been tested.
+
+    Args:
+        ds: xr.Dataset
+        filename: str
+        mode: str (default w)
+    """
+    for name, var in ds.variables.items():
+        kind = var.dtype.kind
+        if kind not in "biufSU":
+            raise NotImplementedError(
+                f"It is not currently possible to serialize data of kind "
+                f"{kind!r}, the kind of variable {name}, to JSON in vcm."
+            )
+    with open(filename, mode) as file:
+        json.dump(ds.compute().to_dict(), file)
+
+
+def dataset_from_dict(dictionary):
+    """Construct an xarray Dataset from a dictionary.
+
+    This is meant to provide a roundtrip mechanism from the result of
+    xr.Dataset.to_dict().
+
+    Args:
+        dictionary: dict
+
+    Returns:
+        xr.Dataset
+    """
+    data_vars = {}
+    for v, data in dictionary["data_vars"].items():
+        data_vars[v] = (data["dims"], data["data"], data["attrs"])
+    coords = {}
+    for v, data in dictionary["coords"].items():
+        coords[v] = (data["dims"], data["data"], data["attrs"])
+    attrs = dictionary["attrs"]
+    return xr.Dataset(data_vars, coords=coords, attrs=attrs)
+
+
+def open_json(filename):
+    """Load an xarray Dataset from a JSON file writen with to_json.
+
+    Args:
+        filename: str
+
+    Returns:
+        xr.Dataset
+    """
+    with open(filename, "r") as file:
+        dictionary = json.load(file)
+    return dataset_from_dict(dictionary)

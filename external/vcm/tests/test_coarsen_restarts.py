@@ -1,3 +1,5 @@
+import argparse
+import glob
 import logging
 import os
 
@@ -12,6 +14,7 @@ from vcm.cubedsphere.coarsen_restarts import (
     coarsen_restarts_on_pressure,
     coarsen_restarts_via_blended_method,
 )
+from vcm.xarray_loaders import open_json, to_json
 
 DIR_NAME = os.path.dirname(__file__)
 SCHEMA_PATH = os.path.join(DIR_NAME, "_coarsen_restarts_regression_tests/schemas")
@@ -79,31 +82,6 @@ def generate_synthetic_grid_spec_data(schema):
     return synth.generate(schema, RANGES)
 
 
-def to_json(ds, filename, mode="w+"):
-    # TODO: move elsewhere in vcm and add tests?
-    with open(filename, mode) as file:
-        json.dump(ds.load().to_dict(), file)
-
-
-def from_dict(dictionary):
-    # TODO: move elsewhere in vcm and add tests?
-    data_vars = {}
-    for v, data in dictionary["data_vars"].items():
-        data_vars[v] = (data["dims"], data["data"], data["attrs"])
-    coords = {}
-    for v, data in dictionary["coords"].items():
-        coords[v] = (data["dims"], data["data"], data["attrs"])
-    attrs = dictionary["attrs"]
-    return xr.Dataset(data_vars, coords=coords, attrs=attrs)
-
-
-def from_json(filename):
-    # TODO: move elsewhere in vcm and add tests?
-    with open(filename, "r") as file:
-        dictionary = json.load(file)
-    return from_dict(dictionary)
-
-
 def reference_json(root, tag, category):
     return os.path.join(root, f"{tag}-{category}.json")
 
@@ -112,7 +90,7 @@ def open_reference_data(root, tag):
     data = {}
     for category in RESTART_CATEGORIES:
         filename = reference_json(root, tag, category)
-        data[category] = from_json(filename)
+        data[category] = open_json(filename)
     return data
 
 
@@ -139,12 +117,20 @@ def test_coarsen_restarts(tag):
 
 
 if __name__ == "__main__":
-    # Reset the regression test data by running this file. TODO: guard this with
-    # some sort of input prompt? E.g. "Confirm that you would like to overwrite
-    # the existing coarsen_restarts regression test data [y/N]"
     logging.basicConfig(level=logging.INFO)
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--overwrite", action="store_true")
+    args = parser.parse_args()
+
     Path(REFERENCE_PATH).mkdir(parents=True, exist_ok=True)
+    existing_reference_files = glob.glob(os.path.join(REFERENCE_PATH, "*.json"))
+    if existing_reference_files and not args.overwrite:
+        raise ValueError(
+            f"Reference files already exist. If you would like to overwite the "
+            f"existing reference files pass the '--overwrite' argument."
+        )
+
     restart_schemas = open_restart_schemas(SCHEMA_PATH)
     grid_spec_schema = open_grid_spec_schema(SCHEMA_PATH)
     restart_data, grid_data = generate_synthetic_data(restart_schemas, grid_spec_schema)
