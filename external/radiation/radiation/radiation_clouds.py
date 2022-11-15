@@ -1603,7 +1603,7 @@ class CloudClass:
                         alfa = np.exp(-0.5 * (dz1[i] + dz[i, k]) / de_lgth[i])
                         dz1[i] = dz[i, k]
                         cl2[i] = alfa * min(cl2[i], (1.0 - ccur)) + (1.0 - alfa) * (
-                            cl2(i) * (1.0 - ccur)
+                            cl2[i] * (1.0 - ccur)
                         )  # random part
                     else:  # clear layer
                         cl1[i] = cl1[i] * cl2[i]
