@@ -1,5 +1,4 @@
 import numpy as np
-import warnings
 from numba import jit
 from . import radsw_bands as bands
 from .radsw_param import (
@@ -1843,77 +1842,16 @@ class RadSWClass:
     # initial permutation seed used for sub-column cloud scheme
     ipsdsw0 = 1
 
-    def __init__(self, me, iovrsw, isubcsw, icldflg):
+    def __init__(self, iovrsw, isubcsw):
 
         self.iovrsw = iovrsw
         self.isubcsw = isubcsw
-        self.icldflg = icldflg
 
         expeps = 1.0e-20
 
         #
         # ===> ... begin here
         #
-        if self.iovrsw < 0 or self.iovrsw > 3:
-            raise ValueError(
-                "*** Error in specification of cloud overlap flag",
-                f" IOVRSW={self.iovrsw} in RSWINIT !!",
-            )
-
-        if me == 0:
-            print(f"- Using AER Shortwave Radiation, Version: {self.VTAGSW}")
-
-            if iswmode == 1:
-                print("   --- Delta-eddington 2-stream transfer scheme")
-            elif iswmode == 2:
-                print("   --- PIFM 2-stream transfer scheme")
-            elif iswmode == 3:
-                print("   --- Discrete ordinates 2-stream transfer scheme")
-
-            if iswrgas <= 0:
-                print("   --- Rare gases absorption is NOT included in SW")
-            else:
-                print("   --- Include rare gases N2O, CH4, O2, absorptions in SW")
-
-            if self.isubcsw == 0:
-                print(
-                    "   --- Using standard grid average clouds, no ",
-                    "   sub-column clouds approximation applied",
-                )
-            elif self.isubcsw == 1:
-                print(
-                    "   --- Using MCICA sub-colum clouds approximation ",
-                    "   with a prescribed sequence of permutation seeds",
-                )
-            elif self.isubcsw == 2:
-                print(
-                    "   --- Using MCICA sub-colum clouds approximation ",
-                    "   with provided input array of permutation seeds",
-                )
-            else:
-                raise ValueError(
-                    "  *** Error in specification of sub-column cloud ",
-                    f" control flag isubcsw = {self.isubcsw} !!",
-                )
-
-        #  --- ...  check cloud flags for consistency
-
-        if (icldflg == 0 and iswcliq != 0) or (icldflg == 1 and iswcliq == 0):
-            raise ValueError(
-                "*** Model cloud scheme inconsistent with SW",
-                " radiation cloud radiative property setup !!",
-            )
-
-        if self.isubcsw == 0 and self.iovrsw > 2:
-            if me == 0:
-                warnings.warn(
-                    f"*** IOVRSW={self.iovrsw} is not available for",
-                    " ISUBCSW=0 setting!!",
-                )
-                warnings.warn(
-                    "The program will use maximum/random overlap", " instead."
-                )
-            self.iovrsw = 1
 
         #  --- ...  setup constant factors for heating rate
         #           the 1.0e-2 is to convert pressure from mb to N/m**2
@@ -1938,6 +1876,63 @@ class RadSWClass:
             tfn = i / (ntbmx - i)
             tau = self.bpade * tfn
             self.exp_tbl[i] = np.exp(-tau)
+
+    @classmethod
+    def validate(cls, iovrsw, isubcsw, icldflg):
+
+        print(f"- Using AER Shortwave Radiation, Version: {cls.VTAGSW}")
+
+        if iovrsw < 0 or iovrsw > 3:
+            raise ValueError(
+                "*** Error in specification of cloud overlap flag",
+                f" IOVRSW={iovrsw} in RSWINIT !!",
+            )
+
+        if iswmode == 1:
+            print("   --- Delta-eddington 2-stream transfer scheme")
+        elif iswmode == 2:
+            print("   --- PIFM 2-stream transfer scheme")
+        elif iswmode == 3:
+            print("   --- Discrete ordinates 2-stream transfer scheme")
+
+        if iswrgas <= 0:
+            print("   --- Rare gases absorption is NOT included in SW")
+        else:
+            print("   --- Include rare gases N2O, CH4, O2, absorptions in SW")
+
+        if isubcsw == 0:
+            print(
+                "   --- Using standard grid average clouds, no ",
+                "   sub-column clouds approximation applied",
+            )
+        elif isubcsw == 1:
+            print(
+                "   --- Using MCICA sub-colum clouds approximation ",
+                "   with a prescribed sequence of permutation seeds",
+            )
+        elif isubcsw == 2:
+            print(
+                "   --- Using MCICA sub-colum clouds approximation ",
+                "   with provided input array of permutation seeds",
+            )
+        else:
+            raise ValueError(
+                "  *** Error in specification of sub-column cloud ",
+                f" control flag isubcsw = {isubcsw} !!",
+            )
+
+        #  --- ...  check cloud flags for consistency
+
+        if (icldflg == 0 and iswcliq != 0) or (icldflg == 1 and iswcliq == 0):
+            raise ValueError(
+                "*** Model cloud scheme inconsistent with SW",
+                " radiation cloud radiative property setup !!",
+            )
+
+        if isubcsw == 0 and iovrsw > 2:
+            raise ValueError(
+                f"*** IOVRSW={iovrsw} is not available for", " ISUBCSW=0 setting!!",
+            )
 
     def return_initdata(self):
         outdict = {"heatfac": self.heatfac, "exp_tbl": self.exp_tbl}

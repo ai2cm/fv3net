@@ -1,15 +1,18 @@
 import pathlib
+import os
 import dataclasses
 import time
+import pytest
 import serialbox as ser
 from radiation import io
 from radiation.radiation_driver import RadiationDriver
-from radiation.config import GFSPhysicsControl
+from radiation.config import GFSPhysicsControlConfig
+from radiation.wrapper_api import GFSPhysicsControl
 from util import compare_data
 from variables_to_read import vars_dict as variables
 
 
-ROOT = pathlib.Path(__file__).parent.parent.absolute()
+ROOT = pathlib.Path(__file__).parent.parent.parent.absolute()
 LOOKUP_DIR = (ROOT / "data/lookupdata").as_posix()
 FORCING_DIR = (ROOT / "data/forcing").as_posix()
 FORTRANDATA_DIR = (ROOT / "data/fortran/radiation_driver").as_posix()
@@ -29,17 +32,20 @@ def getscalars(indict):
 
 
 def get_gfs_physics_control(indict):
-    names = [field.name for field in dataclasses.fields(GFSPhysicsControl)]
+    config_names = [field.name for field in dataclasses.fields(GFSPhysicsControlConfig)]
+    config_kwargs = {name: indict[name] for name in config_names}
+    config = GFSPhysicsControlConfig(**config_kwargs)
     indict_ = indict.copy()
+    indict_["config"] = config
     indict_["nsswr"], indict_["nslwr"] = 1, 1
-    kwargs = {name: indict_[name] for name in names}
+    control_names = [field.name for field in dataclasses.fields(GFSPhysicsControl)]
+    kwargs = {name: indict_[name] for name in control_names}
     return GFSPhysicsControl(**kwargs)
 
 
 startTime = time.time()
 
 rank = 0
-driver = RadiationDriver()
 
 serial = ser.Serializer(ser.OpenModeKind.Read, FORTRANDATA_DIR, "Generator_rank0",)
 
@@ -79,14 +85,13 @@ me = 0
 
 # reading datasets needed for radinit() and radupdate()
 aer_dict = io.load_aerosol(FORCING_DIR)
-solar_filename, solar_data = io.load_astronomy(FORCING_DIR, isolar)
-sfc_file, sfc_data = io.load_sfc(FORCING_DIR)
+solar_data = io.load_astronomy(FORCING_DIR, isolar)
+sfc_data = io.load_sfc(FORCING_DIR)
 gas_data = io.load_gases(FORCING_DIR, ictmflg)
 
-driver.radinit(
+driver = RadiationDriver(
     si,
     nlay,
-    imp_physics,
     me,
     iemsflg,
     ioznflg,
@@ -95,19 +100,13 @@ driver.radinit(
     ico2flg,
     iaerflg,
     ialbflg,
-    icldflg,
     ivflip,
     iovrsw,
     iovrlw,
     isubcsw,
     isubclw,
-    lcrick,
     lcnorm,
-    lnoprec,
-    iswcliq,
     aer_dict,
-    solar_filename,
-    sfc_file,
     sfc_data,
 )
 
@@ -134,6 +133,9 @@ driver.radupdate(
 )
 
 
+@pytest.mark.skipif(
+    os.environ.get("NIX_ENV") != "Y", reason="intended to be run in nix environment"
+)
 def test_radiation_valiation():
     """This test is messy and will probably be replaced by a test against wrapper
     inputs and outputs at some point, but it is useful for validation."""
