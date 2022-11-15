@@ -92,9 +92,7 @@ def train_hybrid(ks_config, train_config):
     )
     readout.fit(X_train, y_train)
 
-    predictor = HybridReservoirComputingModel(
-        reservoir=reservoir, readout=readout, imperfect_model=imperfect_model
-    )
+    predictor = HybridReservoirComputingModel(reservoir=reservoir, readout=readout,)
     return predictor
 
 
