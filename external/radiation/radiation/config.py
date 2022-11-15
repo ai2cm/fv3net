@@ -207,8 +207,8 @@ class RadiationConfig:
     def from_physics_namelist(
         cls, physics_namelist: Mapping[Hashable, Any]
     ) -> "RadiationConfig":
-        """Generate RadiationConfig from fv3gfs physics namelist to ensure common keys are
-        identical. Remaining values from RadiationConfig defaults.
+        """Generate RadiationConfig from fv3gfs physics namelist to ensure common keys
+        are identical. Remaining values from RadiationConfig defaults.
         """
 
         gfs_physics_control = GFSPhysicsControl.from_physics_namelist(physics_namelist)
