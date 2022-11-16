@@ -3,7 +3,6 @@ import glob
 import logging
 import os
 
-import joblib
 import pytest
 import synth
 import xarray as xr
@@ -114,19 +113,6 @@ def test_coarsen_restarts(tag):
 
     for category in result:
         xr.testing.assert_allclose(result[category], expected[category])
-
-
-@pytest.mark.slow
-@pytest.mark.parametrize("tag", REGRESSION_TESTS.keys())
-def test_coarsen_restarts_via_checksum(regtest, tag):
-    restart_schemas = open_restart_schemas(SCHEMA_PATH)
-    grid_spec_schema = open_grid_spec_schema(SCHEMA_PATH)
-    restart_data, grid_data = generate_synthetic_data(restart_schemas, grid_spec_schema)
-
-    func, kwargs = REGRESSION_TESTS[tag]
-    result = func(FACTOR, grid_data, restart_data, **kwargs)
-    result = {category: ds for category, ds in result.items()}
-    print(joblib.hash(result), file=regtest)
 
 
 if __name__ == "__main__":
