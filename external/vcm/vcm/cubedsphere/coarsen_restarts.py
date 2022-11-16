@@ -643,10 +643,13 @@ def _2d_fv_core_names_agrid(ds):
     return [v for v in ds.data_vars if RESTART_Z_CENTER not in ds[v].dims]
 
 
-def _3d_fv_core_names_agrid(ds):
+def _3d_fv_core_names_agrid(ds, coarsen_agrid_winds):
     names = []
+    ignore_vars = ["u", "v"]
+    if not coarsen_agrid_winds:
+        ignore_vars.extend(["ua", "va"])
     for v, da in ds.data_vars.items():
-        if v not in ["u", "v"] and RESTART_Z_CENTER in da.dims:
+        if v not in ignore_vars and RESTART_Z_CENTER in da.dims:
             names.append(v)
     return names
 
@@ -704,7 +707,7 @@ def _coarse_grain_fv_core_via_blended_method(
         delp, dy, coarsening_factor, "y", x_dim=FV_CORE_X_OUTER, y_dim=FV_CORE_Y_CENTER
     )
     names_2d_agrid = _2d_fv_core_names_agrid(ds)
-    names_3d_agrid = _3d_fv_core_names_agrid(ds)
+    names_3d_agrid = _3d_fv_core_names_agrid(ds, coarsen_agrid_winds)
 
     # 2D fields could come from either the pressure level or model level results
     fields_2d_agrid = model_level[names_2d_agrid]

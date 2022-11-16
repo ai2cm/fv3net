@@ -1,0 +1,1113 @@
+{
+    "version": "v3",
+    "schema": {
+        "coords": {
+            "xaxis_1": {
+                "name": "xaxis_1",
+                "dims": [
+                    "xaxis_1"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0
+                ],
+                "attrs": {
+                    "long_name": "xaxis_1",
+                    "units": "none",
+                    "cartesian_axis": "X"
+                }
+            },
+            "yaxis_1": {
+                "name": "yaxis_1",
+                "dims": [
+                    "yaxis_1"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0
+                ],
+                "attrs": {
+                    "long_name": "yaxis_1",
+                    "units": "none",
+                    "cartesian_axis": "Y"
+                }
+            },
+            "zaxis_1": {
+                "name": "zaxis_1",
+                "dims": [
+                    "zaxis_1"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0
+                ],
+                "attrs": {
+                    "long_name": "zaxis_1",
+                    "units": "none",
+                    "cartesian_axis": "Z"
+                }
+            },
+            "Time": {
+                "name": "Time",
+                "dims": [
+                    "Time"
+                ],
+                "value": [
+                    1.0
+                ],
+                "attrs": {
+                    "long_name": "Time",
+                    "units": "time level",
+                    "cartesian_axis": "T"
+                }
+            },
+            "tile": {
+                "name": "tile",
+                "dims": [
+                    "tile"
+                ],
+                "value": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ],
+                "attrs": {}
+            }
+        },
+        "variables": {
+            "slmsk": {
+                "name": "slmsk",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "slmsk",
+                    "units": "none",
+                    "checksum": "3090000000000000"
+                }
+            },
+            "tsea": {
+                "name": "tsea",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "tsea",
+                    "units": "none",
+                    "checksum": "80584E99B60005E2"
+                }
+            },
+            "sheleg": {
+                "name": "sheleg",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "sheleg",
+                    "units": "none",
+                    "checksum": "CCB0BE83203F6CD8"
+                }
+            },
+            "tg3": {
+                "name": "tg3",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "tg3",
+                    "units": "none",
+                    "checksum": "80AE52E539AA8143"
+                }
+            },
+            "zorl": {
+                "name": "zorl",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "zorl",
+                    "units": "none",
+                    "checksum": "DE8AC1F9F49299BC"
+                }
+            },
+            "alvsf": {
+                "name": "alvsf",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "alvsf",
+                    "units": "none",
+                    "checksum": "F331B4B023615B04"
+                }
+            },
+            "alvwf": {
+                "name": "alvwf",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "alvwf",
+                    "units": "none",
+                    "checksum": "F282877C56497FDD"
+                }
+            },
+            "alnsf": {
+                "name": "alnsf",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "alnsf",
+                    "units": "none",
+                    "checksum": " D11D4EAF6772B8E"
+                }
+            },
+            "alnwf": {
+                "name": "alnwf",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "alnwf",
+                    "units": "none",
+                    "checksum": " C4E66AD5F37AA47"
+                }
+            },
+            "facsf": {
+                "name": "facsf",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "facsf",
+                    "units": "none",
+                    "checksum": "6401B47BEBDF5A54"
+                }
+            },
+            "facwf": {
+                "name": "facwf",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "facwf",
+                    "units": "none",
+                    "checksum": "8BE823C5D8690C7D"
+                }
+            },
+            "vfrac": {
+                "name": "vfrac",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "vfrac",
+                    "units": "none",
+                    "checksum": "91B95AA4F2556C9D"
+                }
+            },
+            "canopy": {
+                "name": "canopy",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "canopy",
+                    "units": "none",
+                    "checksum": "68FAE7BF3F55DD0F"
+                }
+            },
+            "f10m": {
+                "name": "f10m",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "f10m",
+                    "units": "none",
+                    "checksum": "C53B9987D6FB466F"
+                }
+            },
+            "t2m": {
+                "name": "t2m",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "t2m",
+                    "units": "none",
+                    "checksum": "80370DC8EDAE395A"
+                }
+            },
+            "q2m": {
+                "name": "q2m",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "q2m",
+                    "units": "none",
+                    "checksum": "40738F343D175ACF"
+                }
+            },
+            "vtype": {
+                "name": "vtype",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "vtype",
+                    "units": "none",
+                    "checksum": "DD20000000000000"
+                }
+            },
+            "stype": {
+                "name": "stype",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "stype",
+                    "units": "none",
+                    "checksum": "D5E6000000000000"
+                }
+            },
+            "uustar": {
+                "name": "uustar",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "uustar",
+                    "units": "none",
+                    "checksum": "342303844887DC9F"
+                }
+            },
+            "ffmm": {
+                "name": "ffmm",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "ffmm",
+                    "units": "none",
+                    "checksum": "7684EB471AD4B9D9"
+                }
+            },
+            "ffhh": {
+                "name": "ffhh",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "ffhh",
+                    "units": "none",
+                    "checksum": "7999BCF487BE17F2"
+                }
+            },
+            "hice": {
+                "name": "hice",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "hice",
+                    "units": "none",
+                    "checksum": "7DBB5EB52BE62F19"
+                }
+            },
+            "fice": {
+                "name": "fice",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "fice",
+                    "units": "none",
+                    "checksum": "7D6CCD1E80000000"
+                }
+            },
+            "tisfc": {
+                "name": "tisfc",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "tisfc",
+                    "units": "none",
+                    "checksum": "8055F3723230CEC3"
+                }
+            },
+            "tprcp": {
+                "name": "tprcp",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "tprcp",
+                    "units": "none",
+                    "checksum": "96154BDC4B07B56E"
+                }
+            },
+            "srflag": {
+                "name": "srflag",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "srflag",
+                    "units": "none",
+                    "checksum": "3721E3EB8EC87895"
+                }
+            },
+            "snwdph": {
+                "name": "snwdph",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "snwdph",
+                    "units": "none",
+                    "checksum": "E3356A7AAEFE4ADF"
+                }
+            },
+            "shdmin": {
+                "name": "shdmin",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "shdmin",
+                    "units": "none",
+                    "checksum": "7191CEC280000000"
+                }
+            },
+            "shdmax": {
+                "name": "shdmax",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "shdmax",
+                    "units": "none",
+                    "checksum": "9951120540000000"
+                }
+            },
+            "slope": {
+                "name": "slope",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "slope",
+                    "units": "none",
+                    "checksum": "C198000000000000"
+                }
+            },
+            "snoalb": {
+                "name": "snoalb",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "snoalb",
+                    "units": "none",
+                    "checksum": "A33EE59960000000"
+                }
+            },
+            "sncovr": {
+                "name": "sncovr",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "sncovr",
+                    "units": "none",
+                    "checksum": "AE67C82EAE7C5EC9"
+                }
+            },
+            "stc": {
+                "name": "stc",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "stc",
+                    "units": "none",
+                    "checksum": " 322FD40FD25460F"
+                }
+            },
+            "smc": {
+                "name": "smc",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "smc",
+                    "units": "none",
+                    "checksum": "A007712E1F5CE7EB"
+                }
+            },
+            "slc": {
+                "name": "slc",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "slc",
+                    "units": "none",
+                    "checksum": "94D18CEAA0AF6130"
+                }
+            }
+        }
+    }
+}
