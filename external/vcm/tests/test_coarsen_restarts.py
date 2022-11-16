@@ -109,6 +109,12 @@ def test_coarsen_restarts(tag):
     func, kwargs = REGRESSION_TESTS[tag]
     result = func(FACTOR, grid_data, restart_data, **kwargs)
     result = {category: ds for category, ds in result.items()}
+
+    # To reset the reference data, run this module as a script:
+    # python test_coarsen_restarts --overwrite
+    # Note we cannot write these as checksum based regression tests, because
+    # mappm does not produce bit-for-bit reproducible results on different
+    # platforms.
     expected = open_reference_data(REFERENCE_PATH, tag)
 
     for category in result:
@@ -118,8 +124,14 @@ def test_coarsen_restarts(tag):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--overwrite", action="store_true")
+    parser = argparse.ArgumentParser(
+        description="Reset test_coarsen_restarts regression test data"
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Whether to overwrite regression test data if it exists",
+    )
     args = parser.parse_args()
 
     Path(REFERENCE_PATH).mkdir(parents=True, exist_ok=True)
