@@ -14,7 +14,7 @@ from vcm.cubedsphere.coarsen_restarts import (
 )
 from vcm.xarray_loaders import open_json, to_json
 
-synth == pytest.importorskip("synth")  # noqa: F821
+synth = pytest.importorskip("synth")
 
 DIR_NAME = os.path.dirname(__file__)
 SCHEMA_PATH = os.path.join(DIR_NAME, "_coarsen_restarts_regression_tests/schemas")
@@ -22,10 +22,10 @@ REFERENCE_PATH = os.path.join(DIR_NAME, "_coarsen_restarts_regression_tests/refe
 
 FACTOR = 2
 RANGES = {
-    "delp": synth.Range(3, 5),  # noqa: F821
-    "area": synth.Range(0.5, 1),  # noqa: F821
-    "dx": synth.Range(0.5, 1),  # noqa: F821
-    "dy": synth.Range(0.5, 1),  # noqa: F821
+    "delp": synth.Range(3, 5),
+    "area": synth.Range(0.5, 1),
+    "dx": synth.Range(0.5, 1),
+    "dy": synth.Range(0.5, 1),
 }
 RESTART_CATEGORIES = ["fv_core.res", "fv_tracer.res", "fv_srf_wnd.res", "sfc_data"]
 REGRESSION_TESTS = {
@@ -68,18 +68,18 @@ def open_restart_schemas(schema_path):
 def open_grid_spec_schema(schema_path):
     filename = os.path.join(schema_path, "grid-schema.json")
     with open(filename, "r") as file:
-        return synth.load(file)  # noqa: F821
+        return synth.load(file)
 
 
 def generate_synthetic_restart_data(schemas):
     data = {}
     for category, schema in schemas.items():
-        data[category] = synth.generate(schema, RANGES).compute()  # noqa: F821
+        data[category] = synth.generate(schema, RANGES).compute()
     return data
 
 
 def generate_synthetic_grid_spec_data(schema):
-    return synth.generate(schema, RANGES).compute()  # noqa: F821
+    return synth.generate(schema, RANGES).compute()
 
 
 def reference_json(root, tag, category):
