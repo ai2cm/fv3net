@@ -4,7 +4,6 @@ import logging
 import os
 
 import pytest
-import synth
 import xarray as xr
 
 from pathlib import Path
@@ -14,6 +13,8 @@ from vcm.cubedsphere.coarsen_restarts import (
     coarsen_restarts_via_blended_method,
 )
 from vcm.xarray_loaders import open_json, to_json
+
+synth == pytest.importorskip("synth")
 
 DIR_NAME = os.path.dirname(__file__)
 SCHEMA_PATH = os.path.join(DIR_NAME, "_coarsen_restarts_regression_tests/schemas")
