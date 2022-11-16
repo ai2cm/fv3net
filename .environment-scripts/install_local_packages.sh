@@ -1,9 +1,9 @@
 #!/bin/bash
 
 CONDA_ENV=$1
-
+which pip
 source activate $CONDA_ENV
-
+which pip
 # we want to force a rebuild in case numpy version changes
 # this doesn't rebuild automatically when dependencies change version
 rm -f "external/mappm/mappm/mappm.*.so"
@@ -24,4 +24,6 @@ pip install -c constraints.txt \
   -e workflows/dataflow \
   -e workflows/diagnostics \
   -e external/wandb-query
+
+python -c "import synth"
 set +e
