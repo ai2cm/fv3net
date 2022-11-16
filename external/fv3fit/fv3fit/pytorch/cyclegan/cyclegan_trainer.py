@@ -73,6 +73,7 @@ class CycleGANNetworkConfig:
     cycle_weight: float = 1.0
     generator_weight: float = 1.0
     discriminator_weight: float = 1.0
+    reload_path: Optional[str] = None
 
     def build(
         self, n_state: int, nx: int, ny: int, n_batch: int, state_variables, scalers
@@ -105,12 +106,16 @@ class CycleGANNetworkConfig:
             discriminator_a=discriminator_a,
             discriminator_b=discriminator_b,
         ).to(DEVICE)
-        init_weights(model)
+        if self.reload_path is not None:
+            reloaded = CycleGAN.load(self.reload_path)
+            merged_scalers = reloaded.scalers
+            model.load_state_dict(reloaded.model.state_dict(), strict=True)
+        else:
+            init_weights(model)
+            merged_scalers = _merge_scaler_mappings(scalers)
         return CycleGANTrainer(
             cycle_gan=CycleGAN(
-                model=model,
-                state_variables=state_variables,
-                scalers=_merge_scaler_mappings(scalers),
+                model=model, state_variables=state_variables, scalers=merged_scalers,
             ),
             optimizer_generator=optimizer_generator,
             optimizer_discriminator=optimizer_discriminator,
