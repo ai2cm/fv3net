@@ -3,7 +3,6 @@ import glob
 import logging
 import os
 
-import json
 import pytest
 import synth
 import xarray as xr
