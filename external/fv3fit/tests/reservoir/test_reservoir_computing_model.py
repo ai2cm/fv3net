@@ -237,8 +237,10 @@ def test_hybrid_gives_different_results():
     )
 
 
-def create_domain_predictor(type, domain_size, subdomain_size, subdomain_overlap):
-
+def create_domain_predictor(
+    type, domain_size, subdomain_size, subdomain_overlap, n_jobs=1
+):
+    # joblib overhead is very slow, only do one test with >1 parallelization
     n_subdomains = domain_size // subdomain_size
 
     hyperparameters = ReservoirHyperparameters(
@@ -271,6 +273,7 @@ def create_domain_predictor(type, domain_size, subdomain_size, subdomain_overlap
             subdomain_config=SubdomainConfig(
                 size=subdomain_size, overlap=subdomain_overlap
             ),
+            n_jobs=n_jobs,
         )
     elif type == "hybrid":
         return HybridDomainPredictor(
@@ -278,6 +281,7 @@ def create_domain_predictor(type, domain_size, subdomain_size, subdomain_overlap
             subdomain_config=SubdomainConfig(
                 size=subdomain_size, overlap=subdomain_overlap
             ),
+            n_jobs=n_jobs,
         )
     else:
         raise ValueError("domain predictor must be of type 'reservoir_only' or 'hybrid")
@@ -285,7 +289,7 @@ def create_domain_predictor(type, domain_size, subdomain_size, subdomain_overlap
 
 def test_DomainPredictor_synchronize_updates_states():
     domain_size = 6
-    subdomain_size = 2
+    subdomain_size = 3
     subdomain_overlap = 1
     n_subdomains = domain_size // subdomain_size
     domain_predictor = create_domain_predictor(
@@ -310,12 +314,12 @@ def test_DomainPredictor_synchronize_updates_states():
 
 def test_ReservoirOnlyDomainPredictor_updates_state():
     domain_size = 6
-    subdomain_size = 2
+    subdomain_size = 3
     subdomain_overlap = 1
     n_subdomains = domain_size // subdomain_size
 
     domain_predictor = create_domain_predictor(
-        "reservoir_only", domain_size, subdomain_size, subdomain_overlap
+        "reservoir_only", domain_size, subdomain_size, subdomain_overlap, n_jobs=2
     )
     initial_inputs = np.arange(domain_size * 10).reshape(10, domain_size)
     domain_predictor.synchronize(data=initial_inputs)
@@ -339,7 +343,7 @@ def test_ReservoirOnlyDomainPredictor_updates_state():
 
 def test_HybridDomainPredictor_updates_state():
     domain_size = 6
-    subdomain_size = 2
+    subdomain_size = 3
     subdomain_overlap = 1
     n_subdomains = domain_size // subdomain_size
     imperfect_model = MockImperfectModel(offset=0.1)
