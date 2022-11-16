@@ -1,6 +1,6 @@
 kind: prognostic
-experiment: conserve-pr-prog-oct2022
-name: zc-emu-precpd-simple-conserve-30d-v1
+experiment: no-tend-limit-prog-nov2022
+name: zc-emu-precpd-no-tend-limit-pscale-v2
 image_tag: 9d0132c107851ba72509bb17a636262508af9dae
 fv3net_image_tag: latest
 config:
@@ -284,9 +284,9 @@ config:
           start: 74
           fill_value: air_temperature_input
     model:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-15/precpd-diff-50epoch-v1/model.tf
-      enforce_precpd_conservative: false
-      precpd_precip_conservative: true
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-11-13/precpd-rnn-no-tend-limit-pscale-v2/model.tf
+      enforce_precpd_conservative: true
+      precpd_precip_conservative: false
     storage:
       output_freq_sec: 10800
       save_nc: false
