@@ -3,6 +3,7 @@ import glob
 import logging
 import os
 
+import joblib
 import pytest
 import synth
 import xarray as xr
@@ -73,12 +74,12 @@ def open_grid_spec_schema(schema_path):
 def generate_synthetic_restart_data(schemas):
     data = {}
     for category, schema in schemas.items():
-        data[category] = synth.generate(schema, RANGES)
+        data[category] = synth.generate(schema, RANGES).compute()
     return data
 
 
 def generate_synthetic_grid_spec_data(schema):
-    return synth.generate(schema, RANGES)
+    return synth.generate(schema, RANGES).compute()
 
 
 def reference_json(root, tag, category):
@@ -108,11 +109,24 @@ def test_coarsen_restarts(tag):
 
     func, kwargs = REGRESSION_TESTS[tag]
     result = func(FACTOR, grid_data, restart_data, **kwargs)
-    result = {category: ds.compute() for category, ds in result.items()}
+    result = {category: ds for category, ds in result.items()}
     expected = open_reference_data(REFERENCE_PATH, tag)
 
     for category in result:
         xr.testing.assert_allclose(result[category], expected[category])
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("tag", REGRESSION_TESTS.keys())
+def test_coarsen_restarts_via_checksum(regtest, tag):
+    restart_schemas = open_restart_schemas(SCHEMA_PATH)
+    grid_spec_schema = open_grid_spec_schema(SCHEMA_PATH)
+    restart_data, grid_data = generate_synthetic_data(restart_schemas, grid_spec_schema)
+
+    func, kwargs = REGRESSION_TESTS[tag]
+    result = func(FACTOR, grid_data, restart_data, **kwargs)
+    result = {category: ds for category, ds in result.items()}
+    print(joblib.hash(result), file=regtest)
 
 
 if __name__ == "__main__":
