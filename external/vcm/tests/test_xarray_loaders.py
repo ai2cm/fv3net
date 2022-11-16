@@ -155,3 +155,12 @@ def test_from_dict(include_times):
     ds = multitype_dataset(include_times=include_times)
     roundtrip = dataset_from_dict(ds.to_dict())
     xr.testing.assert_identical(roundtrip, ds)
+
+
+def test_to_json_passes_kwargs(tmpdir):
+    ds = multitype_dataset(include_times=False)
+    filename = tmpdir.join("example.json")
+    to_json(ds, filename, indent=4)
+    with open(filename, "r") as file:
+        lines = file.readlines()
+    assert len(lines) > 1

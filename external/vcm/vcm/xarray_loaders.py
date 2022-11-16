@@ -115,7 +115,7 @@ def dump_nc(ds: xr.Dataset, f: BinaryIO):
             shutil.copyfileobj(tmp1, f)
 
 
-def to_json(ds, filename, mode="w"):
+def to_json(ds, filename, mode="w", **kwargs):
     """Write an xarray Dataset to JSON.
 
     An important note about this function is that it does not support encoding
@@ -126,6 +126,8 @@ def to_json(ds, filename, mode="w"):
         ds: xr.Dataset
         filename: str
         mode: str (default w)
+        kwargs: dict
+            Keyword arguments passed through to json.dump
     """
     for name, var in ds.variables.items():
         kind = var.dtype.kind
@@ -135,7 +137,7 @@ def to_json(ds, filename, mode="w"):
                 f"{kind!r}, the kind of variable {name}, to JSON in vcm."
             )
     with open(filename, mode) as file:
-        json.dump(ds.compute().to_dict(), file)
+        json.dump(ds.compute().to_dict(), file, **kwargs)
 
 
 def dataset_from_dict(dictionary):

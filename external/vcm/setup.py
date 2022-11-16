@@ -32,6 +32,7 @@ install_requirements = [
     "typing_extensions",
     "dacite",
 ]
+tests_require = ["mappm", "synth"]
 
 setup(
     author="The Allen Institute for Artificial Intelligence",
@@ -49,6 +50,7 @@ setup(
     ],
     description="vcm contains general purposes tools for analyzing FV3 data",
     install_requires=install_requirements,
+    tests_require=tests_require,
     license="BSD license",
     include_package_data=True,
     keywords="vcm",
