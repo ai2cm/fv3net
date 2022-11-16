@@ -1,19 +1,19 @@
 kind: prognostic
-experiment: conserve-pr-prog-oct2022
-name: zc-emu-precpd-simple-conserve-30d-v1
+experiment: precpd-state-drift-nov2022
+name: zc-emu-precpd-6h-v1
 image_tag: 9d0132c107851ba72509bb17a636262508af9dae
 fv3net_image_tag: latest
 config:
   base_version: v0.5
   data_table: default
-  duration: "30d"
+  duration: "6h"
   initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
   fortran_diagnostics:
   - name: piggy.zarr
     chunks:
       time: 1
     times:
-      frequency: 10800
+      frequency: 900
       kind: interval
     variables:
       - field_name: tendency_of_air_temperature_due_to_emulator
@@ -68,7 +68,7 @@ config:
     chunks:
       time: 8
     times:
-      frequency: 10800
+      frequency: 900
       kind: interval
     variables:
     - {module_name: dynamics, field_name: grid_lont, output_name: lon}
@@ -115,7 +115,7 @@ config:
     chunks:
       time: 8
     times:
-      frequency: 10800
+      frequency: 900
       kind: interval
     variables:
     - {module_name: dynamics, field_name: grid_lont, output_name: lon}
@@ -171,7 +171,7 @@ config:
     name: state_after_timestep.zarr
     tensorboard: false
     times:
-      frequency: 10800
+      frequency: 900
       includes_lower: false
       kind: interval
       times: null
@@ -193,7 +193,7 @@ config:
     name: physics_tendencies.zarr
     tensorboard: false
     times:
-      frequency: 10800
+      frequency: 900
       includes_lower: false
       kind: interval
       times: null
@@ -286,8 +286,8 @@ config:
     model:
       path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-15/precpd-diff-50epoch-v1/model.tf
       enforce_precpd_conservative: false
-      precpd_precip_conservative: true
+      precpd_precip_conservative: false
     storage:
-      output_freq_sec: 10800
+      output_freq_sec: 900
       save_nc: false
       save_zarr: true
