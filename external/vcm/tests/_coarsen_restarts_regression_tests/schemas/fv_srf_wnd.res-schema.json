@@ -1,0 +1,130 @@
+{
+    "version": "v3",
+    "schema": {
+        "coords": {
+            "xaxis_1": {
+                "name": "xaxis_1",
+                "dims": [
+                    "xaxis_1"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0
+                ],
+                "attrs": {
+                    "long_name": "xaxis_1",
+                    "units": "none",
+                    "cartesian_axis": "X"
+                }
+            },
+            "yaxis_1": {
+                "name": "yaxis_1",
+                "dims": [
+                    "yaxis_1"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0
+                ],
+                "attrs": {
+                    "long_name": "yaxis_1",
+                    "units": "none",
+                    "cartesian_axis": "Y"
+                }
+            },
+            "Time": {
+                "name": "Time",
+                "dims": [
+                    "Time"
+                ],
+                "value": [
+                    1.0
+                ],
+                "attrs": {
+                    "long_name": "Time",
+                    "units": "time level",
+                    "cartesian_axis": "T"
+                }
+            },
+            "tile": {
+                "name": "tile",
+                "dims": [
+                    "tile"
+                ],
+                "value": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ],
+                "attrs": {}
+            }
+        },
+        "variables": {
+            "u_srf": {
+                "name": "u_srf",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "u_srf",
+                    "units": "none",
+                    "checksum": "74DBA2DCD2C7B8B1"
+                }
+            },
+            "v_srf": {
+                "name": "v_srf",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "v_srf",
+                    "units": "none",
+                    "checksum": "EC625BE2BBC71963"
+                }
+            }
+        }
+    }
+}

@@ -106,9 +106,6 @@ class FMRNetworkConfig:
         state_variables: Sequence[str],
         scalers: Mapping[str, StandardScaler],
     ) -> "FMRTrainer":
-        if self.reload_path is not None:
-            fmr_reload = FullModelReplacement.load(self.reload_path)
-            scalers = fmr_reload.scalers
         if self.convolution_type == "conv2d":
             convolution = single_tile_convolution
         elif self.convolution_type == "halo_conv2d":
@@ -127,6 +124,9 @@ class FMRNetworkConfig:
         )
         init_weights(generator)
         init_weights(discriminator)
+        if self.reload_path is not None:
+            fmr_reload = FullModelReplacement.load(self.reload_path)
+            scalers = fmr_reload.scalers
         fmr = FullModelReplacement(
             model=FMRModule(generator=generator, discriminator=discriminator),
             scalers=scalers,
