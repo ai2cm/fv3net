@@ -350,13 +350,10 @@ class AerosolClass:
 
     wvn550 = 1.0e4 / 0.55
 
-    def __init__(self, NLAY, rank, iaerflg, ivflip, aerosol_dict):
+    def __init__(self, NLAY, iaerflg, ivflip, aerosol_dict):
         self.NSWBND = nbdsw
         self.NLWBND = NBDLW
         self.NSWLWBD = nbdsw * NBDLW
-        self.lalwflg = True
-        self.laswflg = True
-        self.lavoflg = True
         self.lmap_new = True
         self.NLAY = NLAY
         self.ivflip = ivflip
@@ -387,11 +384,6 @@ class AerosolClass:
         self.lavoflg = (
             self.iaerflg >= 100
         )  # control flag for stratospheric volcanic aeros
-
-        # -# Call wrt_aerlog() to write aerosol parameter configuration to output logs.
-
-        if rank == 0:
-            self.wrt_aerlog()  # write aerosol param info to log file
 
         if self.iaerflg == 0:
             return  # return without any aerosol calculations
@@ -484,41 +476,32 @@ class AerosolClass:
         }
         return outdict
 
-    def wrt_aerlog(self):
-        #  ==================================================================  !
-        #                                                                      !
-        #  subprogram : wrt_aerlog                                             !
-        #                                                                      !
-        #    write aerosol parameter configuration to run log file.            !
-        #                                                                      !
-        #  ====================  defination of variables  ===================  !
-        #                                                                      !
-        #  external module variables:  (in physparam)                          !
-        #   iaermdl  - aerosol scheme flag: 0:opac-clm; 1:gocart-clim;         !
-        #              2:gocart-prog; 5:opac-clim+new mapping                  !
-        #   iaerflg  - aerosol effect control flag: 3-digits (volc,lw,sw)      !
-        #   lalwflg  - toposphere lw aerosol effect: =f:no; =t:yes             !
-        #   laswflg  - toposphere sw aerosol effect: =f:no; =t:yes             !
-        #   lavoflg  - stratospherer volcanic aeros effect: =f:no; =t:yes      !
-        #                                                                      !
-        #  outputs: ( none )                                                   !
-        #                                                                      !
-        #  subroutines called: none                                            !
-        #                                                                      !
-        #  usage:    call wrt_aerlog                                           !
-        #                                                                      !
-        #  ==================================================================  !
+    @classmethod
+    def validate(cls, iaerflg):
+        """Validate and write aerosol parameter configuration to run log file
+        
+            Args:
+                iaerflg  - aerosol effect control flag: 3-digits (volc,lw,sw)
+        """
 
-        print(self.VTAGAER)  # print out version tag
+        print(cls.VTAGAER)  # print out version tag
 
-        if self.iaermdl == 0 or self.iaermdl == 5:
+        iaermdl = int(iaerflg / 1000)
+        if iaermdl < 0 or iaermdl > 2 and iaermdl != 5:
+            raise ValueError("Error -- IAER flag is incorrect, Abort")
+
+        laswflg = iaerflg % 10 > 0  # control flag for sw tropospheric aerosol
+        lalwflg = iaerflg / 10 % 10 > 0  # control flag for lw tropospheric aerosol
+        lavoflg = iaerflg >= 100  # control flag for stratospheric volcanic aeros
+
+        if iaermdl == 0 or iaermdl == 5:
             print(
                 "- Using OPAC-seasonal climatology for tropospheric", " aerosol effect"
             )
-        elif self.iaermdl == 1:
+        elif iaermdl == 1:
             print("- Using GOCART-climatology for tropospheric", " aerosol effect")
             raise NotImplementedError("GOCART climatology not yet implemented")
-        elif self.iaermdl == 2:
+        elif iaermdl == 2:
             print(
                 " - Using GOCART-prognostic aerosols for tropospheric",
                 " aerosol effect",
@@ -527,27 +510,27 @@ class AerosolClass:
         else:
             raise ValueError(
                 "!!! ERROR in selection of aerosol model scheme",
-                f" IAER_MDL = {self.iaermdl}",
+                f" IAER_MDL = {iaermdl}",
             )
 
         print(
-            f"IAER={self.iaerflg},  LW-trop-aer={self.lalwflg}",
-            f"SW-trop-aer={self.laswflg}, Volc-aer={self.lavoflg}",
+            f"IAER={iaerflg},  LW-trop-aer={lalwflg}",
+            f"SW-trop-aer={laswflg}, Volc-aer={lavoflg}",
         )
 
-        if self.iaerflg <= 0:  # turn off all aerosol effects
+        if iaerflg <= 0:  # turn off all aerosol effects
             print("- No tropospheric/volcanic aerosol effect included")
             print(
                 "Input values of aerosol optical properties to",
                 " both SW and LW radiations are set to zeros",
             )
         else:
-            if self.iaerflg >= 100:  # incl stratospheric volcanic aerosols
+            if iaerflg >= 100:  # incl stratospheric volcanic aerosols
                 print("- Include stratospheric volcanic aerosol effect")
             else:  # no stratospheric volcanic aerosols
                 print("- No stratospheric volcanic aerosol effect")
 
-            if self.laswflg:  # chcek for sw effect
+            if laswflg:  # chcek for sw effect
                 print(
                     "- Compute multi-band aerosol optical",
                     " properties for SW input parameters",
@@ -558,7 +541,7 @@ class AerosolClass:
                     " aerosol properties to SW input are set to zeros",
                 )
 
-            if self.lalwflg:  # check for lw effect
+            if lalwflg:  # check for lw effect
                 if lalw1bd:
                     print(
                         "- Compute 1 broad-band aerosol optical",

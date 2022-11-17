@@ -1,6 +1,5 @@
 import warnings
 import numpy as np
-import os
 from .phys_const import con_pi, con_solr, con_solr_old
 
 
@@ -15,7 +14,7 @@ class AstronomyClass:
     czlimt = 0.0001  # ~ cos(89.99427)
     pid12 = con_pi / f12  # angle per hour
 
-    def __init__(self, rank, isolar, solar_filename):
+    def __init__(self, isolar):
         self.sollag = 0.0
         self.sindec = 0.0
         self.cosdec = 0.0
@@ -24,112 +23,45 @@ class AstronomyClass:
         self.iyr_sav = 0
         self.nstp = 6
 
-        if rank == 0:
-            print(self.VTAGAST)  # print out version tag
-
         #  ---  initialization
         self.isolflg = isolar
         self.solc0 = con_solr
-        self.solar_fname = solar_filename
 
         if isolar == 0:
             self.solc0 = con_solr_old
-            if rank == 0:
-                print(f"- Using old fixed solar constant = {self.solc0}")
+
+    @classmethod
+    def validate(cls, isolar):
+        print(cls.VTAGAST)  # print out version tag
+        if isolar == 0:
+            print(f"- Using old fixed solar constant = {con_solr_old}")
         elif isolar == 10:
-            if rank == 0:
-                print(f"- Using new fixed solar constant = {self.solc0}")
+            print(f"- Using new fixed solar constant = {con_solr}")
         elif isolar == 1:  # noaa ann-mean tsi in absolute scale
-
-            if rank == 0:
-                print(
-                    "- Using NOAA annual mean TSI table in ABS scale",
-                    " with cycle approximation (old values)!",
-                )
-
-            file_exist = os.path.isfile(self.solar_fname)
-            if not file_exist:
-                self.isolflg = 10
-
-                if rank == 0:
-                    warnings.warn(
-                        f'Requested solar data file "{self.solar_fname}" not found!',
-                        f"Using the default solar constant value = {self.solc0}",
-                        f" reset control flag isolflg={self.isolflg}",
-                    )
-
+            print(
+                "- Using NOAA annual mean TSI table in ABS scale",
+                " with cycle approximation (old values)!",
+            )
         elif isolar == 2:  # noaa ann-mean tsi in tim scale
-
-            if rank == 0:
-                print(
-                    " - Using NOAA annual mean TSI table in TIM scale",
-                    " with cycle approximation (new values)!",
-                )
-
-            file_exist = os.path.isfile(self.solar_fname)
-            if not file_exist:
-                self.isolflg = 10
-
-                if rank == 0:
-                    warnings.warn(
-                        f'Requested solar data file "{self.solar_fname}" not found!',
-                        f"Using the default solar constant value = {self.solc0}",
-                        f" reset control flag isolflg={self.isolflg}",
-                    )
-
+            print(
+                " - Using NOAA annual mean TSI table in TIM scale",
+                " with cycle approximation (new values)!",
+            )
         elif isolar == 3:  # cmip5 ann-mean tsi in tim scale
-
-            if rank == 0:
-                print(
-                    "- Using CMIP5 annual mean TSI table in TIM scale",
-                    " with cycle approximation",
-                )
-
-            file_exist = os.path.isfile(self.solar_fname)
-            if not file_exist:
-                self.isolflg = 10
-
-                if rank == 0:
-                    warnings.warn(
-                        f'Requested solar data file "{self.solar_fname}" not found!',
-                        f"Using the default solar constant value = {self.solc0}",
-                        f" reset control flag isolflg={self.isolflg}",
-                    )
-
+            print(
+                "- Using CMIP5 annual mean TSI table in TIM scale",
+                " with cycle approximation",
+            )
         elif isolar == 4:  # cmip5 mon-mean tsi in tim scale
-
-            if rank == 0:
-                print(
-                    "- Using CMIP5 monthly mean TSI table in TIM scale",
-                    " with cycle approximation",
-                )
-
-            file_exist = os.path.isfile(self.solar_fname)
-            if not file_exist:
-                self.isolflg = 10
-
-                if rank == 0:
-                    warnings.warn(
-                        f'Requested solar data file "{self.solar_fname}" not found!',
-                        f"Using the default solar constant value = {self.solc0}",
-                        f" reset control flag isolflg={self.isolflg}",
-                    )
+            print(
+                "- Using CMIP5 monthly mean TSI table in TIM scale",
+                " with cycle approximation",
+            )
         else:  # selection error
-            self.isolflg = 10
-
-            if rank == 0:
-                warnings.warn(
-                    "- !!! ERROR in selection of solar constant data",
-                    f" source, ISOL = {isolar}",
-                )
-                warnings.warn(
-                    f"Using the default solar constant value = {self.solc0}",
-                    f" reset control flag isolflg={self.isolflg}",
-                )
+            raise ValueError(f"Invalid isolar option: {isolar}.")
 
     def return_initdata(self):
-        outdict = {"solar_fname": self.solar_fname}
-        return outdict
+        return {}
 
     def sol_update(self, jdate, kyear, deltsw, deltim, lsol_chg, rank, solar_data):
         #  ===================================================================  !
@@ -203,69 +135,57 @@ class AstronomyClass:
                     self.solc0 = self.smon_sav[imon]
             else:  # need to read in new data
                 self.iyr_sav = iyear
-                #  --- ...  check to see if the solar constant data file existed
-                file_exist = os.path.isfile(self.solar_fname)
-                if not file_exist:
-                    raise FileNotFoundError(
-                        " !!! ERROR! Can not find solar constant file!!!"
-                    )
-                else:
-                    iyr = iyear
-                    iyr1 = solar_data["yr_start"].values
-                    iyr2 = solar_data["yr_end"].values
-                    icy1 = solar_data["yr_cyc1"].values
-                    icy2 = solar_data["yr_cyc2"].values
-                    smean = solar_data["smean"].values
+                iyr = iyear
+                iyr1 = solar_data["yr_start"].values
+                iyr2 = solar_data["yr_end"].values
+                icy1 = solar_data["yr_cyc1"].values
+                icy2 = solar_data["yr_cyc2"].values
+                smean = solar_data["smean"].values
+                # check if there is a upper year limit put on the data table
+                if iyr < iyr1:
+                    icy = icy1 - iyr1 + 1  # range of the earlest cycle in data table
+                    while iyr < iyr1:
+                        iyr += icy
                     if rank == 0:
-                        print("Updating solar constant with cycle approx")
-                        print(f"Opened solar constant data file: {self.solar_fname}")
-                    # check if there is a upper year limit put on the data table
-                    if iyr < iyr1:
-                        icy = (
-                            icy1 - iyr1 + 1
-                        )  # range of the earlest cycle in data table
-                        while iyr < iyr1:
-                            iyr += icy
-                        if rank == 0:
-                            warnings.warn(
-                                f"*** Year {iyear} out of table range!",
-                                f"{iyr1}, {iyr2}",
-                                f"Using the closest-cycle year ('{iyr}')",
-                            )
-                    elif iyr > iyr2:
-                        icy = iyr2 - icy2 + 1  # range of the latest cycle in data table
-                        while iyr > iyr2:
-                            iyr -= icy
-                        if rank == 0:
-                            warnings.warn(
-                                f"*** Year {iyear} out of table range!",
-                                f"{iyr1}, {iyr2}",
-                                f"Using the closest-cycle year ('{iyr}')",
-                            )
-                    #  --- ...  locate the right record for the year of data
-                    if self.isolflg < 4:  # use annual mean data tables
-                        solc1 = solar_data["solc1"].sel(year=iyr).values
-                        self.solc0 = smean + solc1
-                        if rank == 0:
-                            print(
-                                "CHECK: Solar constant data used for year",
-                                f"{iyr}, {solc1}, {self.solc0}",
-                            )
-                    elif self.isolflg == 4:  # use monthly mean data tables
-                        i = iyr2
-                        while i >= iyr1:
-                            jyr = solar_data["jyr"].values
-                            smon = solar_data["smon"].values
-                            if i == iyr and iyr == jyr:
-                                for nn in range(12):
-                                    self.smon_sav[nn] = smean + smon[nn]
-                                self.solc0 = smean + smon[imon]
-                                if rank == 0:
-                                    print("CHECK: Solar constant data used for year")
-                                    print(f"{iyr} and month {imon}")
+                        warnings.warn(
+                            f"*** Year {iyear} out of table range!",
+                            f"{iyr1}, {iyr2}",
+                            f"Using the closest-cycle year ('{iyr}')",
+                        )
+                elif iyr > iyr2:
+                    icy = iyr2 - icy2 + 1  # range of the latest cycle in data table
+                    while iyr > iyr2:
+                        iyr -= icy
+                    if rank == 0:
+                        warnings.warn(
+                            f"*** Year {iyear} out of table range!",
+                            f"{iyr1}, {iyr2}",
+                            f"Using the closest-cycle year ('{iyr}')",
+                        )
+                #  --- ...  locate the right record for the year of data
+                if self.isolflg < 4:  # use annual mean data tables
+                    solc1 = solar_data["solc1"].sel(year=iyr).values
+                    self.solc0 = smean + solc1
+                    if rank == 0:
+                        print(
+                            "CHECK: Solar constant data used for year",
+                            f"{iyr}, {solc1}, {self.solc0}",
+                        )
+                elif self.isolflg == 4:  # use monthly mean data tables
+                    i = iyr2
+                    while i >= iyr1:
+                        jyr = solar_data["jyr"].values
+                        smon = solar_data["smon"].values
+                        if i == iyr and iyr == jyr:
+                            for nn in range(12):
+                                self.smon_sav[nn] = smean + smon[nn]
+                            self.solc0 = smean + smon[imon]
+                            if rank == 0:
+                                print("CHECK: Solar constant data used for year")
+                                print(f"{iyr} and month {imon}")
 
-                                else:
-                                    i -= 1
+                            else:
+                                i -= 1
 
         #  --- ...  calculate forecast julian day and fraction of julian day
         jd1 = self.iw3jdn(iyear, imon, iday)
