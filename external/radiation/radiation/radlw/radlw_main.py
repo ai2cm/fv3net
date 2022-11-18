@@ -37,15 +37,11 @@ ngb = np.array(ngb)
 
 @jit(nopython=True)
 def mcica_subcol(iovrlw, cldf, nlay, dz, de_lgth, iplon, rand2d):
-    #  ====================  defination of variables  ====================  !
+    #  ====================  definition of variables  ====================  !
     #                                                                       !
     #  input variables:                                                size !
     #   cldf    - real, layer cloud fraction                           nlay !
     #   nlay    - integer, number of model vertical layers               1  !
-    #   ipseed  - integer, permute seed for random num generator         1  !
-    #    ** note : if the cloud generator is called multiple times, need    !
-    #              to permute the seed between each call; if between calls  !
-    #              for lw and sw, use values differ by the number of g-pts. !
     #   dz      - real, layer thickness (km)                           nlay !
     #   de_lgth - real, layer cloud decorrelation length (km)            1  !
     #                                                                       !
@@ -58,15 +54,22 @@ def mcica_subcol(iovrlw, cldf, nlay, dz, de_lgth, iplon, rand2d):
     #                                                                       !
     #  =====================    end of definitions    ====================  !
 
-    rand2d = rand2d[iplon, :]
-    # random or max-random overlap
-    cdfunc = np.reshape(rand2d, (ngptlw, nlay))
+    #  ---  outputs:
+    lcloudy = np.zeros((ngptlw, nlay))
 
-    # ===> ...  begin here
-    #
-    #  --- ...  advance randum number generator by ipseed values
+    #  ---  locals:
+    rand2d = rand2d[iplon, :]
+    cdfunc = np.zeros((ngptlw, nlay))
 
     #  --- ...  sub-column set up according to overlapping assumption
+
+    if iovrlw in (0, 1, 3):  # random, max-random or decorr overlap
+
+        k1 = 0
+        for n in range(ngptlw):
+            for k in range(nlay):
+                cdfunc[n, k] = rand2d[k1]
+                k1 = k1 + 1
 
     if iovrlw == 1:  # max-ran overlap
         #  ---  first pick a random number for bottom (or top) layer.
@@ -92,19 +95,22 @@ def mcica_subcol(iovrlw, cldf, nlay, dz, de_lgth, iplon, rand2d):
         cdfunc2 = np.random.rand(*cdfunc.shape)
 
         for n in range(ngptlw):
-            for k in range(nlay - 1, -1, -1):
+            for k in range(nlay - 2, 0, -1):
                 k1 = k + 1
-                if cdfunc2[k, n] <= fac_lcf[k1]:
-                    cdfunc[k, n] = cdfunc[k1, n]
+                if cdfunc2[n, k] <= fac_lcf[k]:
+                    cdfunc[n, k] = cdfunc[n, k1]
 
     #  --- ...  generate subcolumns for homogeneous clouds
-    tem1 = 1.0 - cldf
-    lcloudy = cdfunc >= tem1
+    for k in range(nlay):
+        tem1 = 1.0 - cldf[k]
+
+        for n in range(ngptlw):
+            lcloudy[n, k] = cdfunc[n, k] >= tem1
 
     return lcloudy
 
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def cldprop(
     cfrac,
     cliqp,
