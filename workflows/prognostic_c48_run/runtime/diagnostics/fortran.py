@@ -78,7 +78,8 @@ class FortranTimeConfig:
 
 @dataclasses.dataclass
 class FortranFileConfig:
-    """Configurations for Fortran diagnostics defined in diag_table to be converted to zarr
+    """Configurations for Fortran diagnostics defined in diag_table to be converted to
+        zarr
 
     Attributes:
         name: filename of the diagnostic. Must include .zarr suffix.

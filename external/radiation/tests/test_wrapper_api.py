@@ -138,11 +138,6 @@ def test_wrapper_raises_on_invalid(rad_config_kwargs):
         Radiation(rad_config, **RADIATION_KWARGS).validate()
 
 
-def test_gfs_physics_control_config_raises_on_invalid():
-    with pytest.raises(ValueError):
-        GFSPhysicsControlConfig(levr=63, levs=79)
-
-
 class MockRadiationDriver:
     def __init__(self):
         self.counter = 0

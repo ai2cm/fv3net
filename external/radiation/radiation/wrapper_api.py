@@ -115,14 +115,6 @@ class GFSPhysicsControl:
         )
         return cls(**kwargs)
 
-    def __getattr__(self, attr):
-        if hasattr(self.config, attr):
-            return getattr(self.config, attr)
-        elif hasattr(self, attr):
-            return getattr(self, attr)
-        else:
-            raise AttributeError(f"GFSPhysicsControl has no attr: {attr}.")
-
 
 class Radiation:
     """A wrapper around the Python-ported radiation driver.
@@ -181,22 +173,24 @@ class Radiation:
         """Validate the configuration for the radiation driver"""
         if self._comm.rank == 0:
             RadiationDriver.validate(
-                self._rad_config.isolar,
-                self._rad_config.ictmflg,
-                self._rad_config.iovrsw,
-                self._rad_config.iovrlw,
-                self._rad_config.isubcsw,
-                self._rad_config.isubclw,
-                self._rad_config.iaerflg,
-                self._rad_config.ioznflg,
-                self._rad_config.ico2flg,
-                self._rad_config.ialbflg,
-                self._rad_config.iemsflg,
-                self._gfs_physics_control.imp_physics,
-                self._rad_config.icldflg,
-                self._rad_config.lcrick,
-                self._rad_config.lcnorm,
-                self._rad_config.lnoprec,
+                isolar=self._rad_config.isolar,
+                ictmflg=self._rad_config.ictmflg,
+                iovrsw=self._rad_config.iovrsw,
+                iovrlw=self._rad_config.iovrlw,
+                isubcsw=self._rad_config.isubcsw,
+                isubclw=self._rad_config.isubclw,
+                iaerflg=self._rad_config.iaerflg,
+                ioznflg=self._rad_config.ioznflg,
+                ico2flg=self._rad_config.ico2flg,
+                ialbflg=self._rad_config.ialbflg,
+                iemsflg=self._rad_config.iemsflg,
+                imp_physics=self._gfs_physics_control.config.imp_physics,
+                icldflg=self._rad_config.icldflg,
+                lcrick=self._rad_config.lcrick,
+                lcnorm=self._rad_config.lcnorm,
+                lnoprec=self._rad_config.lnoprec,
+                uni_cld=self._gfs_physics_control.config.uni_cld,
+                effr_in=self._gfs_physics_control.config.effr_in,
             )
 
     def init_driver(self):
@@ -309,7 +303,7 @@ class Radiation:
         jdat = np.array(
             [time.year, time.month, time.day, 0, time.hour, time.minute, time.second, 0]
         )
-        fhswr = np.array(float(self._gfs_physics_control.fhswr))
+        fhswr = np.array(float(self._gfs_physics_control.config.fhswr))
         dt_atmos = np.array(float(dt_atmos))
         self._driver.radupdate(
             idat,
