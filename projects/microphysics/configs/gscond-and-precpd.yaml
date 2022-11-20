@@ -1,7 +1,7 @@
 kind: prognostic
 experiment: precpd-state-drift-nov2022
-name: zc-emu-precpd-6h-v2
-image_tag: 7a8075ea4540c72e319eb1903fd7b48a7f9cd384
+name: zc-emu-precpd-6h-v4
+image_tag: 638a21e9a957e9789a48b9153a408b67f306a05f
 fv3net_image_tag: latest
 config:
   base_version: v0.5
