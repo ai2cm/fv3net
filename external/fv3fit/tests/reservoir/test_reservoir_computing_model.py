@@ -291,21 +291,14 @@ def test_DomainPredictor_synchronize_updates_states():
     domain_size = 6
     subdomain_size = 3
     subdomain_overlap = 1
-    n_subdomains = domain_size // subdomain_size
     domain_predictor = create_domain_predictor(
         "reservoir_only", domain_size, subdomain_size, subdomain_overlap
     )
     burnin = np.arange(domain_size * 10).reshape(10, domain_size)
 
-    states_init = [
-        domain_predictor.subdomain_predictors[i].reservoir.state
-        for i in range(n_subdomains)
-    ]
+    states_init = domain_predictor.states
     domain_predictor.synchronize(data=burnin)
-    states_after_synch = [
-        domain_predictor.subdomain_predictors[i].reservoir.state
-        for i in range(n_subdomains)
-    ]
+    states_after_synch = domain_predictor.states
     for state_init, state_after_synch in zip(states_init, states_after_synch):
         np.testing.assert_raises(
             AssertionError, np.testing.assert_array_equal, state_init, state_after_synch
@@ -316,22 +309,15 @@ def test_ReservoirOnlyDomainPredictor_updates_state():
     domain_size = 6
     subdomain_size = 3
     subdomain_overlap = 1
-    n_subdomains = domain_size // subdomain_size
 
     domain_predictor = create_domain_predictor(
         "reservoir_only", domain_size, subdomain_size, subdomain_overlap, n_jobs=2
     )
     initial_inputs = np.arange(domain_size * 10).reshape(10, domain_size)
     domain_predictor.synchronize(data=initial_inputs)
-    states_init = [
-        domain_predictor.subdomain_predictors[i].reservoir.state
-        for i in range(n_subdomains)
-    ]
+    states_init = domain_predictor.states
     domain_predictor.predict()
-    states_after_predict = [
-        domain_predictor.subdomain_predictors[i].reservoir.state
-        for i in range(n_subdomains)
-    ]
+    states_after_predict = domain_predictor.states
     for state_init, state_after_predict in zip(states_init, states_after_predict):
         np.testing.assert_raises(
             AssertionError,
@@ -345,7 +331,6 @@ def test_HybridDomainPredictor_updates_state():
     domain_size = 6
     subdomain_size = 3
     subdomain_overlap = 1
-    n_subdomains = domain_size // subdomain_size
     imperfect_model = MockImperfectModel(offset=0.1)
 
     domain_predictor = create_domain_predictor(
@@ -353,17 +338,11 @@ def test_HybridDomainPredictor_updates_state():
     )
     initial_inputs = np.arange(domain_size * 10).reshape(10, domain_size)
     domain_predictor.synchronize(data=initial_inputs[:-1])
-    states_init = [
-        domain_predictor.subdomain_predictors[i].reservoir.state
-        for i in range(n_subdomains)
-    ]
+    states_init = domain_predictor.states
     domain_predictor.predict(
         input_state=initial_inputs[-1], imperfect_model=imperfect_model
     )
-    states_after_predict = [
-        domain_predictor.subdomain_predictors[i].reservoir.state
-        for i in range(n_subdomains)
-    ]
+    states_after_predict = domain_predictor.states
     for state_init, state_after_predict in zip(states_init, states_after_predict):
         np.testing.assert_raises(
             AssertionError,

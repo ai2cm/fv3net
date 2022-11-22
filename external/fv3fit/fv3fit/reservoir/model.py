@@ -176,6 +176,13 @@ class DomainPredictor:
     def load(cls, path):
         raise NotImplementedError
 
+    @property
+    def states(self):
+        return [
+            subdomain_predictor.reservoir.state
+            for subdomain_predictor in self.subdomain_predictors
+        ]
+
 
 class ReservoirOnlyDomainPredictor(DomainPredictor):
     def _predict_on_subdomain(self, subdomain_predictor):
