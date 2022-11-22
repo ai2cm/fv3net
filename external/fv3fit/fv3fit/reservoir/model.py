@@ -204,7 +204,7 @@ class ReservoirOnlyDomainPredictor(DomainPredictor):
         )
 
         # increment reservoir states after the subdomain predictions
-        #  are combined so thatthe input includes overlaps between subdomains
+        #  are combined so that the input includes overlaps between subdomains
         joblib.Parallel(n_jobs=self.n_jobs, verbose=0, backend="threading")(
             joblib.delayed(self._update_subdomain_reservoir_state)(
                 subdomain_predictor, subdomain_prediction
