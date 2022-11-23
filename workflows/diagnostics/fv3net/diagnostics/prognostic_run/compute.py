@@ -128,8 +128,8 @@ def merge_diags(diags: Sequence[Tuple[str, xr.Dataset]]) -> Mapping[str, xr.Data
 # (specifically, the prognostic run output, the verification data and the grid dataset)
 # and return an xarray dataset containing one or more diagnostics.
 registries = {
-    "2d": Registry(merge_diags),
     "3d": Registry(merge_diags),
+    "2d": Registry(merge_diags),
 }
 
 # expressions not allowed in decorator calls, so need explicit variables for each here
@@ -193,6 +193,91 @@ def _assign_source_attrs(
             attrs = source_ds[variable].attrs
             diagnostics_ds[variable] = diagnostics_ds[variable].assign_attrs(attrs)
     return diagnostics_ds
+
+
+@registry_2d.register("histogram")
+@transform.apply(transform.resample_time, "3H", inner_join=True, method="mean")
+@transform.apply(transform.subset_variables, list(HISTOGRAM_BINS.keys()))
+def compute_histogram(diag_arg: DiagArg):
+    logger.info("Computing histograms for physics diagnostics")
+    prognostic = diag_arg.prediction
+    counts = xr.Dataset()
+    for varname in prognostic.data_vars:
+        count, width = vcm.histogram(
+            prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
+        )
+        counts[varname] = count
+        counts[f"{varname}_bin_width"] = width
+    return _assign_source_attrs(
+        _assign_diagnostic_time_attrs(counts, prognostic), prognostic
+    )
+
+
+@registry_2d.register("hist_bias")
+@transform.apply(transform.resample_time, "3H", inner_join=True, method="mean")
+@transform.apply(transform.subset_variables, list(HISTOGRAM_BINS.keys()))
+def compute_histogram_bias(diag_arg: DiagArg):
+    logger.info("Computing histogram biases for physics diagnostics")
+    prognostic, verification = diag_arg.prediction, diag_arg.verification
+    counts = xr.Dataset()
+    for varname in prognostic.data_vars:
+        prognostic_count, _ = vcm.histogram(
+            prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
+        )
+        verification_count, _ = vcm.histogram(
+            verification[varname], bins=HISTOGRAM_BINS[varname], density=True
+        )
+        counts[varname] = bias(verification_count, prognostic_count)
+    return _assign_source_attrs(
+        _assign_diagnostic_time_attrs(counts, prognostic), prognostic
+    )
+
+
+@registry_2d.register("hist_2d")
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.mask_to_sfc_type, "sea")
+@transform.apply(transform.mask_to_sfc_type, "tropics20")
+def compute_hist_2d(diag_arg: DiagArg):
+    logger.info("Computing joint histogram of water vapor path versus Q2")
+    hist2d = _compute_wvp_vs_q2_histogram(diag_arg.prediction)
+    return _assign_diagnostic_time_attrs(hist2d, diag_arg.prediction)
+
+
+@registry_2d.register("hist2d_bias")
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.mask_to_sfc_type, "sea")
+@transform.apply(transform.mask_to_sfc_type, "tropics20")
+def compute_hist_2d_bias(diag_arg: DiagArg):
+    logger.info("Computing bias of joint histogram of water vapor path versus Q2")
+    hist2d_prog = _compute_wvp_vs_q2_histogram(diag_arg.prediction)
+    hist2d_verif = _compute_wvp_vs_q2_histogram(diag_arg.verification)
+    name = f"{WVP}_versus_{COL_DRYING}"
+    error = bias(hist2d_verif[name], hist2d_prog[name])
+    hist2d_prog.update({name: error})
+    return _assign_diagnostic_time_attrs(hist2d_prog, diag_arg.prediction)
+
+
+for mask_type in ["global", "land", "sea"]:
+
+    @registry_2d.register(f"diurnal_{mask_type}")
+    @transform.apply(transform.mask_to_sfc_type, mask_type)
+    @transform.apply(transform.resample_time, "1H", inner_join=True)
+    @transform.apply(transform.subset_variables, DIURNAL_CYCLE_VARS)
+    def _diurnal_func(diag_arg: DiagArg, mask_type=mask_type) -> xr.Dataset:
+        # mask_type is added as a kwarg solely to give the logging access to the info
+        logger.info(
+            f"Computing diurnal cycle info for physics variables with mask={mask_type}"
+        )
+        prognostic, verification, grid = (
+            diag_arg.prediction,
+            diag_arg.verification,
+            diag_arg.grid,
+        )
+        if _is_empty(prognostic):
+            return xr.Dataset({})
+        else:
+            diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid)
+            return _assign_diagnostic_time_attrs(diag, prognostic)
 
 
 @registry_2d.register("rms_global")
@@ -423,91 +508,6 @@ def time_mean_biases_2d(diag_arg: DiagArg):
     logger.info("Preparing time mean biases for 2d variables")
     prognostic, verification = diag_arg.prediction, diag_arg.verification
     return time_mean(bias(verification, prognostic))
-
-
-for mask_type in ["global", "land", "sea"]:
-
-    @registry_2d.register(f"diurnal_{mask_type}")
-    @transform.apply(transform.mask_to_sfc_type, mask_type)
-    @transform.apply(transform.resample_time, "1H", inner_join=True)
-    @transform.apply(transform.subset_variables, DIURNAL_CYCLE_VARS)
-    def _diurnal_func(diag_arg: DiagArg, mask_type=mask_type) -> xr.Dataset:
-        # mask_type is added as a kwarg solely to give the logging access to the info
-        logger.info(
-            f"Computing diurnal cycle info for physics variables with mask={mask_type}"
-        )
-        prognostic, verification, grid = (
-            diag_arg.prediction,
-            diag_arg.verification,
-            diag_arg.grid,
-        )
-        if _is_empty(prognostic):
-            return xr.Dataset({})
-        else:
-            diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid)
-            return _assign_diagnostic_time_attrs(diag, prognostic)
-
-
-@registry_2d.register("histogram")
-@transform.apply(transform.resample_time, "3H", inner_join=True, method="mean")
-@transform.apply(transform.subset_variables, list(HISTOGRAM_BINS.keys()))
-def compute_histogram(diag_arg: DiagArg):
-    logger.info("Computing histograms for physics diagnostics")
-    prognostic = diag_arg.prediction
-    counts = xr.Dataset()
-    for varname in prognostic.data_vars:
-        count, width = vcm.histogram(
-            prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
-        )
-        counts[varname] = count
-        counts[f"{varname}_bin_width"] = width
-    return _assign_source_attrs(
-        _assign_diagnostic_time_attrs(counts, prognostic), prognostic
-    )
-
-
-@registry_2d.register("hist_bias")
-@transform.apply(transform.resample_time, "3H", inner_join=True, method="mean")
-@transform.apply(transform.subset_variables, list(HISTOGRAM_BINS.keys()))
-def compute_histogram_bias(diag_arg: DiagArg):
-    logger.info("Computing histogram biases for physics diagnostics")
-    prognostic, verification = diag_arg.prediction, diag_arg.verification
-    counts = xr.Dataset()
-    for varname in prognostic.data_vars:
-        prognostic_count, _ = vcm.histogram(
-            prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
-        )
-        verification_count, _ = vcm.histogram(
-            verification[varname], bins=HISTOGRAM_BINS[varname], density=True
-        )
-        counts[varname] = bias(verification_count, prognostic_count)
-    return _assign_source_attrs(
-        _assign_diagnostic_time_attrs(counts, prognostic), prognostic
-    )
-
-
-@registry_2d.register("hist_2d")
-@transform.apply(transform.resample_time, "3H", inner_join=True)
-@transform.apply(transform.mask_to_sfc_type, "sea")
-@transform.apply(transform.mask_to_sfc_type, "tropics20")
-def compute_hist_2d(diag_arg: DiagArg):
-    logger.info("Computing joint histogram of water vapor path versus Q2")
-    hist2d = _compute_wvp_vs_q2_histogram(diag_arg.prediction)
-    return _assign_diagnostic_time_attrs(hist2d, diag_arg.prediction)
-
-
-@registry_2d.register("hist2d_bias")
-@transform.apply(transform.resample_time, "3H", inner_join=True)
-@transform.apply(transform.mask_to_sfc_type, "sea")
-@transform.apply(transform.mask_to_sfc_type, "tropics20")
-def compute_hist_2d_bias(diag_arg: DiagArg):
-    logger.info("Computing bias of joint histogram of water vapor path versus Q2")
-    hist2d_prog = _compute_wvp_vs_q2_histogram(diag_arg.prediction)
-    hist2d_verif = _compute_wvp_vs_q2_histogram(diag_arg.verification)
-    name = f"{WVP}_versus_{COL_DRYING}"
-    error = bias(hist2d_verif[name], hist2d_prog[name])
-    hist2d_prog.update({name: error})
-    return _assign_diagnostic_time_attrs(hist2d_prog, diag_arg.prediction)
 
 
 @registry_3d.register("300_700_zonal_mean_value")
