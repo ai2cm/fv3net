@@ -24,6 +24,7 @@ plotly
 # Hope for more stable performance with these versions
 gcsfs>=2021.6.0
 fsspec>=0.9.0
+dask>=2022.11.0
 
 # fix bug where variables sometimes become lowercase
 zarr>=2.13.2
