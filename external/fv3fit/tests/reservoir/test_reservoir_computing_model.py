@@ -240,7 +240,10 @@ def test_hybrid_gives_different_results():
 def create_domain_predictor(
     type, domain_size, subdomain_size, subdomain_overlap, n_jobs=1
 ):
-    # joblib overhead is very slow, only do one test with >1 parallelization
+    # joblib overhead is very slow and sometimes tests fail in CI when
+    # running in parallel with joblib.
+    # n_jobs can be manually set to >1 in local testing to check that
+    # parallelism is working as intended.
     n_subdomains = domain_size // subdomain_size
 
     hyperparameters = ReservoirHyperparameters(
@@ -311,7 +314,7 @@ def test_ReservoirOnlyDomainPredictor_updates_state():
     subdomain_overlap = 1
 
     domain_predictor = create_domain_predictor(
-        "reservoir_only", domain_size, subdomain_size, subdomain_overlap, n_jobs=2
+        "reservoir_only", domain_size, subdomain_size, subdomain_overlap, n_jobs=1
     )
     initial_inputs = np.arange(domain_size * 10).reshape(10, domain_size)
     domain_predictor.synchronize(data=initial_inputs)
