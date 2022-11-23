@@ -1,6 +1,6 @@
 kind: prognostic
 experiment: phase-dep-t-in-adju-nov2022
-name: zc-emu-temp-in-adjust-phase-dep-gscond-6hr-v1
+name: zc-emu-temp-in-adjust-phase-dep-gscond-6hr-v2
 image_tag: latest
 fv3net_image_tag: d2fe9372c2a5ebccd77f77b5cbbc1f11016bdd45
 config:
@@ -66,7 +66,7 @@ config:
   - name: sfc_dt_atmos.zarr
     # 24 hr batches
     chunks:
-      time: 8
+      time: 1
     times:
       frequency: 10800
       kind: interval
@@ -113,7 +113,7 @@ config:
     - {module_name: gfs_sfc, field_name: SOILT4, output_name: SOILT4}
   - name: atmos_dt_atmos.zarr
     chunks:
-      time: 8
+      time: 1
     times:
       frequency: 10800
       kind: interval
