@@ -239,7 +239,7 @@ def compute_histogram_bias(diag_arg: DiagArg):
 @transform.apply(transform.mask_to_sfc_type, "tropics20")
 def compute_hist_2d(diag_arg: DiagArg):
     logger.info("Computing joint histogram of water vapor path versus Q2")
-    hist2d = _compute_wvp_vs_q2_histogram(diag_arg.prediction)
+    hist2d = _compute_wvp_vs_q2_histogram(diag_arg.prediction).load()
     return _assign_diagnostic_time_attrs(hist2d, diag_arg.prediction)
 
 
@@ -252,7 +252,7 @@ def compute_hist_2d_bias(diag_arg: DiagArg):
     hist2d_prog = _compute_wvp_vs_q2_histogram(diag_arg.prediction)
     hist2d_verif = _compute_wvp_vs_q2_histogram(diag_arg.verification)
     name = f"{WVP}_versus_{COL_DRYING}"
-    error = bias(hist2d_verif[name], hist2d_prog[name])
+    error = bias(hist2d_verif[name], hist2d_prog[name]).load()
     hist2d_prog.update({name: error})
     return _assign_diagnostic_time_attrs(hist2d_prog, diag_arg.prediction)
 
@@ -276,7 +276,7 @@ for mask_type in ["global", "land", "sea"]:
         if _is_empty(prognostic):
             return xr.Dataset({})
         else:
-            diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid)
+            diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid).load()
             return _assign_diagnostic_time_attrs(diag, prognostic)
 
 
@@ -318,7 +318,7 @@ def zonal_means_3d(diag_arg: DiagArg):
     zonal_means = vcm.zonal_average_approximate(
         grid.lat, prognostic, lat_name="latitude"
     )
-    return time_mean(zonal_means)
+    return time_mean(zonal_means).load()
 
 
 @registry_3d.register("pressure_level_zonal_bias")
@@ -340,7 +340,7 @@ def zonal_bias_3d(diag_arg: DiagArg):
     zm_bias = vcm.zonal_average_approximate(
         grid.lat, bias_[common_vars], lat_name="latitude",
     )
-    return time_mean(zm_bias)
+    return time_mean(zm_bias).load()
 
 
 @registry_2d.register("zonal_bias")
