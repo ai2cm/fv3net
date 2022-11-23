@@ -230,16 +230,10 @@ def zonal_means_2d(diag_arg: DiagArg):
 def zonal_means_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (3d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
-    zonal_means = xr.Dataset()
-    for var in prognostic.data_vars:
-        logger.info(f"Computing zonal+time means (3d) for {var}")
-        with xr.set_options(keep_attrs=True):
-            zm = vcm.zonal_average_approximate(
-                grid.lat, prognostic[[var]], lat_name="latitude"
-            )
-            zm_time_mean = time_mean(zm)[var].load()
-            zonal_means[var] = zm_time_mean
-    return zonal_means
+    zonal_means = vcm.zonal_average_approximate(
+        grid.lat, prognostic, lat_name="latitude"
+    )
+    return time_mean(zonal_means)
 
 
 @registry_3d.register("pressure_level_zonal_bias")
@@ -257,17 +251,11 @@ def zonal_bias_3d(diag_arg: DiagArg):
     if _is_empty(bias_):
         return xr.Dataset()
 
-    zonal_means = xr.Dataset()
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
-    for var in common_vars:
-        logger.info(f"Computing zonal+time mean biases (3d) for {var}")
-        with xr.set_options(keep_attrs=True):
-            zm_bias = vcm.zonal_average_approximate(
-                grid.lat, bias_[[var]], lat_name="latitude",
-            )
-            zm_bias_time_mean = time_mean(zm_bias)[var].load()
-            zonal_means[var] = zm_bias_time_mean
-    return zonal_means
+    zm_bias = vcm.zonal_average_approximate(
+        grid.lat, bias_[common_vars], lat_name="latitude",
+    )
+    return time_mean(zm_bias)
 
 
 @registry_2d.register("zonal_bias")
@@ -286,14 +274,10 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
         return xr.Dataset()
 
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
-    zonal_means = xr.Dataset()
-    for var in common_vars:
-        logger.info(f"Computing zonal+time mean biases (2d) for {var}")
-        zonal_mean_bias = vcm.zonal_average_approximate(
-            grid.lat, bias_[[var]], lat_name="latitude"
-        )
-        zonal_means[var] = time_mean(zonal_mean_bias)[var].load()
-    return zonal_means
+    zm_bias = vcm.zonal_average_approximate(
+        grid.lat, bias_[common_vars], lat_name="latitude",
+    )
+    return time_mean(zm_bias)
 
 
 @registry_2d.register("zonal_mean_value")
@@ -303,13 +287,9 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
 def zonal_mean_hovmoller(diag_arg: DiagArg):
     logger.info(f"Preparing zonal mean values (2d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
-    zonal_means = xr.Dataset()
-    for var in prognostic.data_vars:
-        logger.info(f"Computing zonal mean (2d) over time for {var}")
-        with xr.set_options(keep_attrs=True):
-            zonal_means[var] = vcm.zonal_average_approximate(
-                grid.lat, prognostic[[var]], lat_name="latitude"
-            )[var].load()
+    zonal_means = vcm.zonal_average_approximate(
+        grid.lat, prognostic, lat_name="latitude"
+    )
     return zonal_means
 
 
@@ -331,13 +311,9 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
         return xr.Dataset()
 
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
-    zonal_means = xr.Dataset()
-    for var in common_vars:
-        logger.info(f"Computing zonal mean biases (2d) over time for {var}")
-        with xr.set_options(keep_attrs=True):
-            zonal_means[var] = vcm.zonal_average_approximate(
-                grid.lat, bias_[var], lat_name="latitude",
-            ).load()
+    zonal_means = vcm.zonal_average_approximate(
+        grid.lat, bias_[common_vars], lat_name="latitude",
+    )
     return zonal_means
 
 
@@ -345,12 +321,11 @@ def _compute_deep_tropical_meridional_mean(
     ds: xr.Dataset, grid: xr.Dataset
 ) -> xr.Dataset:
     deep_tropical_means = xr.Dataset()
-    for var in ds.data_vars:
-        logger.info(f"Computing deep tropical meridional mean (2d) over time for {var}")
-        with xr.set_options(keep_attrs=True):
-            deep_tropical_means[var] = vcm.meridional_average_approximate(
-                grid.lon, ds[[var]], lon_name="longitude", weights=grid.area,
-            )[var].load()
+    logger.info(f"Computing deep tropical meridional means")
+    with xr.set_options(keep_attrs=True):
+        deep_tropical_means = vcm.meridional_average_approximate(
+            grid.lon, ds, lon_name="longitude", weights=grid.area,
+        )
     return deep_tropical_means
 
 
@@ -469,7 +444,7 @@ for mask_type in ["global", "land", "sea"]:
         if _is_empty(prognostic):
             return xr.Dataset({})
         else:
-            diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid).load()
+            diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid)
             return _assign_diagnostic_time_attrs(diag, prognostic)
 
 
