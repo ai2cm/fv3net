@@ -1,0 +1,38 @@
+random_seed: 0
+model_type: dense
+hyperparameters:
+  loss:
+    loss_type: mse
+    scaling: standard
+  dense_network:
+    depth: 3
+    width: 64
+    kernel_regularizer:
+      name: l2
+      kwargs:
+        l: 0.01
+  training_loop:
+    batch_size: 2048
+    epochs: 50
+    in_memory: false
+    shuffle_buffer_size: 50000
+  optimizer_config:
+    name: Adam
+    kwargs:
+      learning_rate: 0.002
+  callbacks:
+    - kwargs: {}
+      name: WandbCallback
+    - kwargs:
+        monitor: val_loss
+        patience: 25
+      name: EarlyStopping
+  input_variables:
+    - pressure_coarse
+    - relative_humidity_coarse
+    - air_temperature_coarse
+    - cloud_ice_mixing_ratio_coarse
+  output_variables:
+    - cloud_ice_mixing_ratio_fine
+    - cloud_water_mixing_ratio_fine
+    - cloud_amount_fine

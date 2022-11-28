@@ -156,6 +156,10 @@ nudge_to_fine_run_decorr_rad: deploy
 rad_overlap_report: deploy
 	cd reports && ./submit.sh rad-overlap
 
+.PHONY: train_cloud_ml
+train_cloud_ml: deploy
+	cd training && ./run.sh
+
 .PHONY: deploy
 deploy: kustomize
 	./kustomize build . | kubectl apply -f -
