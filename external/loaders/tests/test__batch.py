@@ -7,6 +7,7 @@ import numpy as np
 import loaders
 import loaders.mappers
 import cftime
+import vcm
 from loaders.batches._batch import (
     batches_from_mapper,
     _get_batch,
@@ -318,11 +319,13 @@ def test_batches_from_mapper_data_transform(mapper):
         ["Q1", "Q2", "Qm"],
         timesteps_per_batch=2,
         needs_grid=False,
-        data_transforms=[
-            {"name": "Q1_from_dQ1_pQ1"},
-            {"name": "Q2_from_dQ2_pQ2"},
-            {"name": "Qm_from_Q1_Q2"},
-        ],
+        data_transforms=vcm.ChainedDataTransform(
+            [
+                vcm.DataTransform(name="Q1_from_dQ1_pQ1"),
+                vcm.DataTransform(name="Q2_from_dQ2_pQ2"),
+                vcm.DataTransform(name="Qm_from_Q1_Q2"),
+            ]
+        ),
     )
     ds = batched_data_sequence[0]
     assert "Q1" in ds
