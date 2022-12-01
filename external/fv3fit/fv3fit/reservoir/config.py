@@ -78,6 +78,9 @@ class ReservoirTrainingConfig:
     n_samples: number of samples to use in training
     hybrid_imperfect_model_config: if training a hybrid model, dict of
         kwargs for initializing ImperfectModel
+    subdomain: Optional subdomain config. If provided, one reservoir and readout
+        are created and trained for each subdomain. Subdomain size and reservoir
+        input size much match.
     """
 
     reservoir_hyperparameters: ReservoirHyperparameters
@@ -92,6 +95,15 @@ class ReservoirTrainingConfig:
     hybrid_imperfect_model_config: Optional[dict] = None
 
     _METADATA_NAME = "reservoir_training_config.yaml"
+
+    def __post_init__(self):
+        if self.subdomain is not None:
+            if (
+                self.subdomain.size + 2 * self.subdomain.overlap
+            ) != self.reservoir_hyperparameters.input_size:
+                raise ValueError(
+                    "Subdomain size + overlaps and reservoir input_size must match."
+                )
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":

@@ -186,6 +186,9 @@ class MockRadiation:
     def __init__(self):
         pass
 
+    def init_driver(self):
+        pass
+
     def __call__(self, time, state: State):
         return {"mock_rad_flux": state["x"] + state["y"]}
 

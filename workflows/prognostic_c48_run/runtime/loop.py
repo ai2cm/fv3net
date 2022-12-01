@@ -218,9 +218,7 @@ class TimeLoop(
         self._log_debug(f"States to output: {self._states_to_output}")
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
-        self._radiation_stepper = self._get_radiation_stepper(
-            config, namelist["gfs_physics_nml"]
-        )
+        self._radiation_stepper = self._get_radiation_stepper(config, namelist)
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -330,7 +328,7 @@ class TimeLoop(
         return stepper
 
     def _get_radiation_stepper(
-        self, config: UserConfig, physics_namelist: Mapping[Hashable, Any]
+        self, config: UserConfig, namelist: Mapping[Hashable, Any]
     ) -> Optional[Stepper]:
         if config.radiation_scheme is not None:
             radiation_input_generator_config = config.radiation_scheme.input_generator
@@ -344,7 +342,7 @@ class TimeLoop(
                 radiation_input_generator = None
             stepper: Optional[Stepper] = runtime.factories.get_radiation_stepper(
                 self.comm,
-                physics_namelist,
+                namelist,
                 self._timestep,
                 self._state["initialization_time"].item(),
                 self._fv3gfs.get_tracer_metadata(),

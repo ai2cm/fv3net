@@ -1,0 +1,413 @@
+{
+    "version": "v3",
+    "schema": {
+        "coords": {
+            "xaxis_1": {
+                "name": "xaxis_1",
+                "dims": [
+                    "xaxis_1"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0
+                ],
+                "attrs": {
+                    "long_name": "xaxis_1",
+                    "units": "none",
+                    "cartesian_axis": "X"
+                }
+            },
+            "xaxis_2": {
+                "name": "xaxis_2",
+                "dims": [
+                    "xaxis_2"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0
+                ],
+                "attrs": {
+                    "long_name": "xaxis_2",
+                    "units": "none",
+                    "cartesian_axis": "X"
+                }
+            },
+            "yaxis_1": {
+                "name": "yaxis_1",
+                "dims": [
+                    "yaxis_1"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0
+                ],
+                "attrs": {
+                    "long_name": "yaxis_1",
+                    "units": "none",
+                    "cartesian_axis": "Y"
+                }
+            },
+            "yaxis_2": {
+                "name": "yaxis_2",
+                "dims": [
+                    "yaxis_2"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0
+                ],
+                "attrs": {
+                    "long_name": "yaxis_2",
+                    "units": "none",
+                    "cartesian_axis": "Y"
+                }
+            },
+            "zaxis_1": {
+                "name": "zaxis_1",
+                "dims": [
+                    "zaxis_1"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0,
+                    6.0,
+                    7.0
+                ],
+                "attrs": {
+                    "long_name": "zaxis_1",
+                    "units": "none",
+                    "cartesian_axis": "Z"
+                }
+            },
+            "Time": {
+                "name": "Time",
+                "dims": [
+                    "Time"
+                ],
+                "value": [
+                    1.0
+                ],
+                "attrs": {
+                    "long_name": "Time",
+                    "units": "time level",
+                    "cartesian_axis": "T"
+                }
+            },
+            "tile": {
+                "name": "tile",
+                "dims": [
+                    "tile"
+                ],
+                "value": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ],
+                "attrs": {}
+            }
+        },
+        "variables": {
+            "u": {
+                "name": "u",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        5,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        5,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "u",
+                    "units": "none",
+                    "checksum": "9F485E6F844C1A8C"
+                }
+            },
+            "v": {
+                "name": "v",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_2",
+                    "xaxis_2"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        5
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        5
+                    ]
+                },
+                "attrs": {
+                    "long_name": "v",
+                    "units": "none",
+                    "checksum": "EECEF4A16CF79FCF"
+                }
+            },
+            "W": {
+                "name": "W",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_2",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "W",
+                    "units": "none",
+                    "checksum": "9599DD2645FDF5CE"
+                }
+            },
+            "DZ": {
+                "name": "DZ",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_2",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "DZ",
+                    "units": "none",
+                    "checksum": "692AC583981E3522"
+                }
+            },
+            "T": {
+                "name": "T",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_2",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "T",
+                    "units": "none",
+                    "checksum": "E8A6FF27FE9692DD"
+                }
+            },
+            "delp": {
+                "name": "delp",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_2",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "delp",
+                    "units": "none",
+                    "checksum": "D21E2147D6382E39"
+                }
+            },
+            "phis": {
+                "name": "phis",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "yaxis_2",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "phis",
+                    "units": "none",
+                    "checksum": "6F2A086A35D7239D"
+                }
+            },
+            "ua": {
+                "name": "ua",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_2",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "ua",
+                    "units": "none",
+                    "checksum": "42304380F64F09B6"
+                }
+            },
+            "va": {
+                "name": "va",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_2",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "va",
+                    "units": "none",
+                    "checksum": "29051171AB215C84"
+                }
+            }
+        }
+    }
+}

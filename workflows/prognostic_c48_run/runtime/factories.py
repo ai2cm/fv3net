@@ -159,17 +159,19 @@ def get_prescriber(
 
 def get_radiation_stepper(
     comm,
-    physics_namelist: Mapping[Hashable, Any],
+    namelist: Mapping[Hashable, Any],
     timestep: float,
     init_time: cftime.DatetimeJulian,
     tracer_metadata: Mapping[Hashable, Mapping[Hashable, int]],
     input_generator: Optional[Union[PureMLStepper, Prescriber]],
 ) -> RadiationStepper:
-    radiation_config = radiation.RadiationConfig.from_physics_namelist(physics_namelist)
+    radiation_config = radiation.RadiationConfig.from_namelist(namelist)
     tracer_inds: Mapping[str, int] = {
         str(name): metadata["i_tracer"] for name, metadata in tracer_metadata.items()
     }
-    return RadiationStepper(
-        radiation.Radiation(radiation_config, comm, timestep, init_time, tracer_inds),
-        input_generator,
+    radiation_wrapper = radiation.Radiation(
+        radiation_config, comm, timestep, init_time, tracer_inds
     )
+    radiation_wrapper.validate()
+    radiation_wrapper.init_driver()
+    return RadiationStepper(radiation_wrapper, input_generator,)

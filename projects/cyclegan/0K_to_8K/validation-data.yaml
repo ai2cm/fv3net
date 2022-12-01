@@ -1,6 +1,6 @@
 batch_size: 500
 domain_configs:
-  - data_path: gs://vcm-ml-experiments/spencerc/2021-05-24/n2f-25km-baseline-unperturbed/fv3gfs_run/atmos_dt_atmos.zarr
+  - data_path: gs://vcm-ml-experiments/mcgibbon/2022-11-09/n2f-25km-0K-merged.zarr
     unstacked_dims:
       - time
       - tile
@@ -11,7 +11,7 @@ domain_configs:
     default_variable_config:
       times: window
     n_windows: 50  # 5808
-  - data_path: gs://vcm-ml-experiments/spencerc/2021-08-11/n2f-25km-baseline-plus-8k/fv3gfs_run/atmos_dt_atmos.zarr
+  - data_path: gs://vcm-ml-experiments/mcgibbon/2022-11-09/n2f-25km-8K-merged.zarr
     unstacked_dims:
       - time
       - tile
