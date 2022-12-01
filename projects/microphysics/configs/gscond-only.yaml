@@ -264,7 +264,7 @@ config:
       ncld: 1
       ldiag3d: true
       emulate_gscond_only: true
-      save_zc_microphysics: false
+      save_zc_microphysics: true
   zhao_carr_emulation:
     gscond:
       classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-06-09/gscond-classifier-v1/model.tf
