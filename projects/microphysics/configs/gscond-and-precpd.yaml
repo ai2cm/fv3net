@@ -1,8 +1,8 @@
 kind: prognostic
-experiment: air-temp-input-adj-nov2022
-name: zc-emu-air-temp-input-adj-prog-v1
+experiment: rh-trials-prognostic-oct2022
+name: zc-emu-rh-in-30d-v1
 image_tag: latest
-fv3net_image_tag: latest
+fv3net_image_tag: 9d2404bb4f04a3c7645692f3b05670b8ed1c2c73
 config:
   base_version: v0.5
   data_table: default
@@ -284,9 +284,7 @@ config:
           start: 74
           fill_value: air_temperature_input
     model:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-11-17/precpd-diff-temp-input-norm-adj-v2/model.tf
-      # enforce_precpd_conservative: false
-      # precpd_precip_conservative: false
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-08/precpd-diff-only-press-rh-in-v1/model.tf
     storage:
       output_freq_sec: 10800
       save_nc: false

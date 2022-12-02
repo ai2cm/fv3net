@@ -1,16 +1,16 @@
 kind: train
-name: precpd-diff-only-no-precip-out-v1
-fv3fit_image_tag: 7e04ebe97c8d485b0e343261378f269c4278d88b
-experiment: conserve-precpd-precip
+name: precpd-diff-only-press-rh-in-and-pscale-adj-v1
+fv3fit_image_tag: 5c847f15cd8c870558e728e2782d4dd98e2c5b02
+experiment: relative-humidity-trials
 config:
   batch_size: 512
   checkpoint_model: true
-  epochs: 36
+  epochs: 25
   log_level: INFO
   loss:
     logit_variables: []
     loss_variables:
-    # - total_precipitation
+    - total_precipitation
     - temperature_precpd_difference
     - humidity_precpd_difference
     - cloud_precpd_difference
@@ -33,7 +33,7 @@ config:
       humidity_precpd_difference: 1.0
       specific_humidity_after_precpd: 50000.0
       temperature_precpd_difference: 1.0
-      # total_precipitation: 2.0
+      total_precipitation: 2.0
   model:
     architecture:
       kwargs:
@@ -42,6 +42,7 @@ config:
       name: rnn-v1-shared-weights
       output_channels: {}
     direct_out_variables:
+    - total_precipitation
     - cloud_precpd_difference
     - temperature_precpd_difference
     - humidity_precpd_difference
@@ -62,7 +63,13 @@ config:
     normalize_default:
       center: per_feature
       scale: all
+    normalize_map:
+      air_pressure:
+        center: all
+        scale: all_all
+    selection_map: {}
     timestep_increment_sec: 900
+    unscaled_outputs: []
   nfiles: null
   nfiles_valid: 100
   out_url: gs://vcm-ml-scratch/andrep/test-delete
