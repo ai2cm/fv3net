@@ -252,44 +252,66 @@ def liquid_water_equivalent(x: np.ndarray) -> np.ndarray:
     return x / RHO_WATER
 
 
-def enforce_conservative_precpd(state, emulator):
+def _strict_conservative_precip_from_TOA_to_surface(
+    condensate_to_precip: np.ndarray, precip_to_vapor: np.ndarray
+):
 
-    # condensate
-    # a lot of models aleady enforce clouds >= 0, but include for completeness
-    condensate_to_precip = (
-        emulator[PrecpdOutput.cloud_water] - state[GscondOutput.cloud_water]
-    )
-    limited_cloud_change = np.minimum(condensate_to_precip, 0)
+    """
+    Iterates backwards through precip source and evaporation terms to
+    determine surface precip.  Functio limits evaporation to available
+    precipitation at each level, and limits source/sink terms to be positive.
 
-    # vapor
-    humidity_change = emulator[PrecpdOutput.humidity] - state[GscondOutput.humidity]
-    evaporation = np.maximum(humidity_change, 0)  # no negative evaporation
+    Expects data in [feature x sample] dimensions (default for fields from Fortran)
+    """
 
-    # Precip and evaporation (switch to units of kg / m2)
-    delp = state[Input.delp]
-    precip_kg_m2 = mixing_ratio_to_mass(-1 * limited_cloud_change, delp)
-    evaporation_kg_m2 = mixing_ratio_to_mass(evaporation, delp)
-    z, n = precip_kg_m2.shape
+    limited_c_to_p = np.maximum(condensate_to_precip, 0)  # no condensate from precip
+    limited_p_to_v = np.maximum(precip_to_vapor, 0)  # no precip from vapor
 
-    total_precip_kg_m2 = np.zeros(n)
-    limited_evaporation = np.zeros_like(evaporation_kg_m2)
+    if not len(precip_to_vapor.shape) == 2:
+        raise ValueError(
+            "Expected 2D inputs to the strict conservative precip function"
+        )
+
+    num_features, num_samples = precip_to_vapor.shape
+
+    total_precip = np.zeros(num_samples)
 
     # calculate precip and evaporation starting from TOA
-    for k in range(z - 1, -1, -1):
-        p = precip_kg_m2[k]
-        total_precip_kg_m2 += p
-        e = evaporation_kg_m2[k]
-        limited_e = np.minimum(total_precip_kg_m2, e)
-        total_precip_kg_m2 -= limited_e
-        limited_evaporation[k, :] = limited_e
+    for k in range(num_features - 1, -1, -1):
+        precip = limited_c_to_p[k]
+        total_precip += precip
+        evaporation = limited_p_to_v[k]
+        limited_evap = np.minimum(total_precip, evaporation)
+        total_precip -= limited_evap
+        limited_p_to_v[k, :] = limited_evap
 
-    surface_precip = liquid_water_equivalent(total_precip_kg_m2)
-    limited_evaporation = mass_to_mixing_ratio(limited_evaporation, delp)
+    return limited_c_to_p, limited_p_to_v, total_precip
+
+
+def enforce_conservative_precpd(state, emulator):
+    cloud_change = emulator[PrecpdOutput.cloud_water] - state[GscondOutput.cloud_water]
+    humidity_change = emulator[PrecpdOutput.humidity] - state[GscondOutput.humidity]
+
+    # switch to kg / m2
+    delp = state[Input.delp]
+    precip_source = mixing_ratio_to_mass(-1 * cloud_change, delp)
+    precip_sink = mixing_ratio_to_mass(humidity_change, delp)
+
+    [
+        precip_src_limited,
+        precip_sink_limited,
+        total_precip,
+    ] = _strict_conservative_precip_from_TOA_to_surface(precip_source, precip_sink)
+
+    surface_precip_m = liquid_water_equivalent(total_precip)
+    limited_evaporation = mass_to_mixing_ratio(precip_sink_limited, delp)
 
     # temperature adjust
-    evaporative_cooling = LV / CP * -limited_evaporation
+    evaporative_cooling = LV / CP * -1 * limited_evaporation
 
-    cloud_out = state[GscondOutput.cloud_water] + limited_cloud_change
+    cloud_out = state[GscondOutput.cloud_water] + mass_to_mixing_ratio(
+        -1 * precip_src_limited, delp
+    )
     humidity_out = state[GscondOutput.humidity] + limited_evaporation
     temperature_out = state[GscondOutput.temperature] + evaporative_cooling
 
@@ -298,7 +320,7 @@ def enforce_conservative_precpd(state, emulator):
         PrecpdOutput.cloud_water: cloud_out,
         PrecpdOutput.humidity: humidity_out,
         PrecpdOutput.temperature: temperature_out,
-        PrecpdOutput.precip: surface_precip,
+        PrecpdOutput.precip: surface_precip_m,
     }
 
 
