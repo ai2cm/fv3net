@@ -60,7 +60,6 @@ from fv3fit.emulation.transforms import (
 from fv3fit.emulation.transforms.zhao_carr import (
     CloudLimiter,
     RelativeHumidity,
-    PrecpdConservativePrecip,
 )
 from fv3fit.emulation.zhao_carr.models import PrecpdModelConfig
 from fv3fit.emulation.zhao_carr.filters import HighAntarctic
@@ -102,7 +101,6 @@ TransformT = Union[
     PrecpdOnly,
     CloudLimiter,
     RelativeHumidity,
-    PrecpdConservativePrecip,
 ]
 
 FilterT = Union[HighAntarctic]

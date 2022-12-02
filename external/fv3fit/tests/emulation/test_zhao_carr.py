@@ -6,11 +6,9 @@ from fv3fit.emulation.transforms.zhao_carr import (
     classify,
     CLASS_NAMES,
     CloudLimiter,
-    PrecpdConservativePrecip,
     MicrophysicsClasssesV1,
     MicrophysicsClassesV1OneHot,
     limit_negative_cloud,
-    calc_total_precipitation,
 )
 
 
@@ -111,38 +109,3 @@ def test_cloud_limiter_names():
     assert factory.backward_names({"a"}) == {"a"}
     assert factory.backward_input_names() == names
     assert factory.backward_output_names() == names
-
-
-def test_total_precipitation():
-
-    dqc = tf.ones((10, 5)) * -2
-    dqv = tf.ones((10, 5))
-    delp = tf.ones((10, 5))
-
-    precip = calc_total_precipitation(dqc, dqv, delp)
-    assert precip.shape == (10, 1)
-
-
-def test_total_precipitation_no_negative():
-    dqc = tf.zeros((10, 5))
-    dqv = tf.ones((10, 5))
-    delp = tf.ones((10, 5))
-
-    precip = calc_total_precipitation(dqc, dqv, delp)
-    assert np.all(precip == tf.zeros((10, 1)))
-
-
-def test_conservative_precip_transform():
-    factory = PrecpdConservativePrecip()
-    transform = factory.build({})
-
-    shape = (2, 1)
-    inputs = {
-        factory.cloud_in: tf.ones(shape) * 2,
-        factory.cloud_out: tf.ones(shape),
-        factory.humidity_in: tf.ones(shape),
-        factory.humidity_out: tf.ones(shape) * 1.5,
-        factory.delp: tf.ones(shape),
-    }
-    assert transform.forward(inputs) == inputs
-    assert factory.to in transform.backward(inputs)
