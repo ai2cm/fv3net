@@ -256,7 +256,7 @@ namelist:
     imp_physics: 99
     ncld: 1
     ldiag3d: true
-    emulate_gscond_only: true
+    emulate_gscond_only: false
     emulate_zc_microphysics: true
 zhao_carr_emulation:
   gscond:
