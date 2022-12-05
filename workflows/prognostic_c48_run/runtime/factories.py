@@ -16,12 +16,8 @@ from runtime.config import UserConfig
 from runtime.transformers.core import StepTransformer
 from runtime.transformers.tendency_prescriber import TendencyPrescriber
 from runtime.steppers.prescriber import PrescriberConfig, Prescriber
-from runtime.steppers.radiation import RadiationStepperConfig, RadiationStepper
-from runtime.steppers.machine_learning import (
-    MachineLearningConfig,
-    PureMLStepper,
-    open_model,
-)
+from runtime.steppers.radiation import RadiationStepper
+from runtime.steppers.machine_learning import PureMLStepper
 from runtime.interpolate import time_interpolate_func, label_to_time
 from runtime.derived_state import DerivedFV3State
 import runtime.transformers.fv3fit
@@ -154,33 +150,28 @@ def get_prescriber(
         mapper = {}
     time_lookup_function = _get_time_lookup_function(
         mapper,
-        config.variables,
+        list(config.variables),
         config.reference_initial_time,
         config.reference_frequency_seconds,
     )
-    return Prescriber(communicator, time_lookup_function)
+    return Prescriber(communicator, time_lookup_function, config.variables)
 
 
 def get_radiation_stepper(
-    stepper_config: RadiationStepperConfig,
     comm,
-    physics_namelist: Mapping[Hashable, Any],
+    namelist: Mapping[Hashable, Any],
     timestep: float,
+    init_time: cftime.DatetimeJulian,
     tracer_metadata: Mapping[Hashable, Mapping[Hashable, int]],
+    input_generator: Optional[Union[PureMLStepper, Prescriber]],
 ) -> RadiationStepper:
-    radiation_config = radiation.RadiationConfig.from_physics_namelist(physics_namelist)
-    if isinstance(stepper_config.input_generator, MachineLearningConfig):
-        input_generator: Optional[Union[PureMLStepper, Prescriber]] = PureMLStepper(
-            open_model(stepper_config.input_generator), timestep, hydrostatic=False
-        )
-    elif isinstance(stepper_config.input_generator, PrescriberConfig):
-        input_generator = get_prescriber(stepper_config.input_generator, comm)
-    else:
-        input_generator = None
+    radiation_config = radiation.RadiationConfig.from_namelist(namelist)
     tracer_inds: Mapping[str, int] = {
         str(name): metadata["i_tracer"] for name, metadata in tracer_metadata.items()
     }
-    return RadiationStepper(
-        radiation.Radiation(radiation_config, comm, timestep, tracer_inds),
-        input_generator,
+    radiation_wrapper = radiation.Radiation(
+        radiation_config, comm, timestep, init_time, tracer_inds
     )
+    radiation_wrapper.validate()
+    radiation_wrapper.init_driver()
+    return RadiationStepper(radiation_wrapper, input_generator,)

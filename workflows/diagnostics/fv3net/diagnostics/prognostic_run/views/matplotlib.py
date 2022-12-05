@@ -68,6 +68,8 @@ def plot_2d_matplotlib(
     dims: Tuple[str, str],
     contour=False,
     figsize=None,
+    title=None,
+    plot_vars=None,
     **opts,
 ) -> RawHTML:
     """Plot all diagnostics whose name includes varfilter. Plot is overlaid across runs.
@@ -79,7 +81,7 @@ def plot_2d_matplotlib(
     ylabel = opts.pop("ylabel", "")
     x, y = dims
 
-    variables_to_plot = run_diags.matching_variables(varfilter)
+    variables_to_plot = run_diags.matching_variables(varfilter, varnames=plot_vars)
     for varname in variables_to_plot:
         if not contour:
             opts["vmin"], opts["vmax"], opts["cmap"] = _get_cmap_kwargs(
@@ -88,7 +90,9 @@ def plot_2d_matplotlib(
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
-            long_name_and_units = f"{v.long_name} [{v.units}]"
+            long_name = v.attrs.get("long_name", varname)
+            units = v.attrs.get("units", "")
+            long_name_and_units = f"{long_name} [{units}]"
             fig, ax = plt.subplots(figsize=figsize)
             if contour:
                 levels = CONTOUR_LEVELS.get(varname)
@@ -108,7 +112,7 @@ def plot_2d_matplotlib(
             images=data,
             runs=sorted(run_diags.runs),
             variables_to_plot=sorted(variables_to_plot),
-            varfilter=varfilter,
+            varfilter=title or varfilter,
             variable_long_names=run_diags.long_names,
         )
     )
@@ -177,10 +181,8 @@ def plot_histogram(
     bin_name = varname.replace("histogram", "bins")
     for run in run_diags.runs:
         v = run_diags.get_variable(run, varname)
-        if run == "verification":
-            ax.step(v[bin_name], v, label=run, where="post", linewidth=1, color="k")
-        else:
-            ax.step(v[bin_name], v, label=run, where="post", linewidth=1)
+        kwargs = dict(color="k") if run == "verification" else {}
+        ax.step(v[bin_name], v, label=run, where="post", linewidth=1, **kwargs)
     ax.set_xlabel(f"{v.long_name} [{v.units}]")
     ax.set_ylabel(f"Frequency [({v.units})^-1]")
     ax.set_xscale(xscale)

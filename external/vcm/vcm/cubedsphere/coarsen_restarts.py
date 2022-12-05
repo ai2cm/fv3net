@@ -13,9 +13,13 @@ from ..calc.thermo.vertically_dependent import (
     dz_and_top_to_phis,
     height_at_interface,
     hydrostatic_dz,
+    pressure_at_midpoint_log,
+    surface_pressure_from_delp,
 )
+from ..calc.thermo.constants import _TOA_PRESSURE
 from .coarsen import (
     block_coarsen,
+    block_edge_coarsen,
     block_edge_sum,
     block_median,
     block_upsample_like,
@@ -40,6 +44,7 @@ from .constants import (
     SFC_DATA_Y_CENTER,
 )
 from .regridz import regrid_to_area_weighted_pressure, regrid_to_edge_weighted_pressure
+from .xgcm import create_fv3_grid
 
 FREEZING_TEMPERATURE = 273.16
 SHDMIN_THRESHOLD = 0.011
@@ -47,6 +52,19 @@ STYPE_LAND_ICE = 16.0
 VTYPE_LAND_ICE = 15.0
 X_DIM = "xaxis_1"
 Y_DIM = "yaxis_1"
+SIGMA_BLEND = 0.9
+FRACTION_TRACERS = ["cld_amt"]  # Always are area-weighted.
+NON_FRACTION_TRACERS = [
+    "sphum",
+    "liq_wat",
+    "rainwat",
+    "ice_wat",
+    "snowwat",
+    "graupel",
+    "o3mr",
+    "sgs_tke",
+]  # Are area-weighted or mass-weighted depending on the user's choice.
+
 
 dask.config.set(scheduler="single-threaded")
 
@@ -61,6 +79,7 @@ def coarsen_restarts_on_sigma(
     grid_spec: xr.Dataset,
     restarts: Mapping[str, xr.Dataset],
     coarsen_agrid_winds: bool = False,
+    mass_weighted: bool = True,
 ) -> Mapping[str, xr.Dataset]:
     """ Coarsen a complete set of restart data, averaging on model levels and
     using the 'complex' surface coarsening method
@@ -95,6 +114,7 @@ def coarsen_restarts_on_sigma(
         ),
         coarsening_factor,
         coarsen_agrid_winds,
+        mass_weighted,
     )
 
     coarsened["fv_srf_wnd.res"] = _coarse_grain_fv_srf_wnd(
@@ -112,6 +132,7 @@ def coarsen_restarts_on_sigma(
             {COORD_X_CENTER: FV_TRACER_X_CENTER, COORD_Y_CENTER: FV_TRACER_Y_CENTER}
         ),
         coarsening_factor,
+        mass_weighted,
     )
 
     coarsened["sfc_data"] = _coarse_grain_sfc_data_complex(
@@ -204,19 +225,112 @@ def coarsen_restarts_on_pressure(
     return coarsened
 
 
+def coarsen_restarts_via_blended_method(
+    coarsening_factor: int,
+    grid_spec: xr.Dataset,
+    restarts: Mapping[str, xr.Dataset],
+    coarsen_agrid_winds: bool = False,
+    mass_weighted: bool = True,
+) -> Mapping[str, xr.Dataset]:
+    """Coarsen a complete set of restart files using the blended pressure-level
+    / model-level coarse-graining method for 3D fields and the 'complex' surface
+    coarsening method for surface data.
+
+    Args:
+        coarsening_factor: the amount of coarsening to apply. C384 to C48 is a
+            factor of 8.
+        grid_spec: Dataset containing the variables area, dx, dy.
+        restarts: dictionary of restart data. Must have the keys
+            "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
+        coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
+            "fv_core.res" restart files (default False).
+        mass_weighted: flag indicating whether model-level averages are
+            mass-weighted for the vertical velocity, temperature, and mixing
+            ratio tracers and area-weighted for all other 3D variables, or
+            area-weighted for all 3D variables.
+
+    Returns:
+        restarts_coarse: a dictionary with the same format as restarts but
+            coarsening_factor times coarser.
+    """
+
+    coarsened = {}
+
+    coarsened["fv_core.res"] = _coarse_grain_fv_core_via_blended_method(
+        restarts["fv_core.res"],
+        restarts["fv_core.res"].delp,
+        grid_spec.area.rename(
+            {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
+        ),
+        grid_spec.dx.rename(
+            {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_OUTER: FV_CORE_Y_OUTER}
+        ),
+        grid_spec.dy.rename(
+            {COORD_X_OUTER: FV_CORE_X_OUTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
+        ),
+        coarsening_factor,
+        coarsen_agrid_winds,
+        mass_weighted,
+    )
+
+    coarsened["fv_srf_wnd.res"] = _coarse_grain_fv_srf_wnd(
+        restarts["fv_srf_wnd.res"],
+        grid_spec.area.rename(
+            {COORD_X_CENTER: FV_SRF_WND_X_CENTER, COORD_Y_CENTER: FV_SRF_WND_Y_CENTER}
+        ),
+        coarsening_factor,
+    )
+
+    coarsened["fv_tracer.res"] = _coarse_grain_fv_tracer_via_blended_method(
+        restarts["fv_tracer.res"],
+        restarts["fv_core.res"].delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
+        grid_spec.area.rename(
+            {COORD_X_CENTER: FV_TRACER_X_CENTER, COORD_Y_CENTER: FV_TRACER_Y_CENTER}
+        ),
+        coarsening_factor,
+        mass_weighted,
+    )
+
+    coarsened["sfc_data"] = _coarse_grain_sfc_data_complex(
+        restarts["sfc_data"],
+        grid_spec.area.rename(
+            {COORD_X_CENTER: SFC_DATA_X_CENTER, COORD_Y_CENTER: SFC_DATA_Y_CENTER}
+        ),
+        coarsening_factor,
+    )
+
+    coarsened["fv_core.res"] = _impose_hydrostatic_balance(
+        coarsened["fv_core.res"], coarsened["fv_tracer.res"]
+    )
+
+    for category in CATEGORY_LIST:
+        _sync_dimension_order(coarsened[category], restarts[category])
+
+    return coarsened
+
+
 def _integerize(x):
     return np.round(x).astype(x.dtype)
 
 
 def _coarse_grain_fv_core(
-    ds, delp, area, dx, dy, coarsening_factor, coarsen_agrid_winds=False
+    ds,
+    delp,
+    area,
+    dx,
+    dy,
+    coarsening_factor,
+    coarsen_agrid_winds=False,
+    mass_weighted=True,
 ):
-    """Coarse grain a set of fv_core restart files.
+    """Coarse grain a set of fv_core restart files on model levels.
 
     Parameters
     ----------
     ds : xr.Dataset
         Input Dataset; assumed to be from a set of fv_core restart files
+    delp : xr.DataArray
+        Pressure thicknesses
     area : xr.DataArray
         Area weights
     dx : xr.DataArray
@@ -227,20 +341,32 @@ def _coarse_grain_fv_core(
         Coarsening factor to use
     coarsen_agrid_winds : bool
         Whether to coarse-grain A-grid winds (default False)
+    mass_weighted : bool
+        Whether to weight temperature and vertical velocity using mass instead
+        of area (default True)
 
     Returns
     -------
     xr.Dataset
     """
-    area_weighted_vars = ["phis", "delp", "DZ"]
-    mass_weighted_vars = ["W", "T"]
+    if mass_weighted:
+        area_weighted_vars = ["phis", "delp", "DZ"]
+        mass_weighted_vars = ["W", "T"]
+    else:
+        area_weighted_vars = ["phis", "delp", "DZ", "W", "T"]
+        mass_weighted_vars = []
+
     if coarsen_agrid_winds:
         if not ("ua" in ds and "va" in ds):
             raise ValueError(
                 "If 'coarsen_agrid_winds' is active, 'ua' and 'va' "
                 "must be present in the 'fv_core.res' restart files."
             )
-        mass_weighted_vars.extend(["ua", "va"])
+        if mass_weighted:
+            mass_weighted_vars.extend(["ua", "va"])
+        else:
+            area_weighted_vars.extend(["ua", "va"])
+
     dx_edge_weighted_vars = ["u"]
     dy_edge_weighted_vars = ["v"]
 
@@ -390,7 +516,281 @@ def _coarse_grain_fv_core_on_pressure(
     )
 
 
-def _coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
+def compute_blending_weights(blending_pressure, ps_coarse, pfull_coarse):
+    """Compute the weights for blending pressure level and model level coarsened
+    3D fields.
+
+    Args:
+        blending_pressure: xr.DataArray
+            Pressure above which we start blending in the model level coarsened
+            field.
+        ps_coarse: xr.DataArray
+            Coarse surface pressure
+        pfull_coarse:
+            Coarse pressure at vertical level midpoints
+
+    Returns:
+        blending_weights: xr.DataArray
+    """
+    blending_weights = (ps_coarse - pfull_coarse) / (ps_coarse - blending_pressure)
+    return xr.where(pfull_coarse > blending_pressure, blending_weights, 1.0)
+
+
+def _compute_blending_weights_agrid(
+    delp,
+    area,
+    coarsening_factor,
+    x_dim=FV_CORE_X_CENTER,
+    y_dim=FV_CORE_Y_CENTER,
+    toa_pressure=_TOA_PRESSURE,
+):
+    """Compute the blending weights on the A-grid.
+
+    This follows the approach Chris describes in Section 7 of `this document
+    <https://drive.google.com/file/d/1FyLTnR1C5_Ab5Tdbbuhtxm52VC-NroJG/view>`_.
+    Here the blending pressure is computed to be 0.9 times the value of the
+    minimum surface pressure of the columns contained in a coarse grid cell, and
+    the blending weights are then given by the following equation:
+
+    .. math::
+        b_k^c = \begin{cases}
+            1 & p_k^c \leq p_b^c \\
+            \frac{p_s^c - p_k^c}{p_s^c - p_b^c} & p_k^c > p_b^c
+        \end{cases}
+
+    Here :math:`b_k^c` is the blending weight at a level :math:`k`,
+    :math:`p_k^c` is the pressure at the midpoint of level :math:`k` on the
+    coarse grid, :math:`p_b^c` is the blending pressure, and :math:`p_s^c` is
+    the surface pressure on the coarse grid.
+    """  # noqa: W605
+    delp_coarse = weighted_block_average(
+        delp, area, coarsening_factor, x_dim=x_dim, y_dim=y_dim
+    )
+    pfull_coarse = pressure_at_midpoint_log(
+        delp_coarse, toa_pressure=toa_pressure, dim=RESTART_Z_CENTER
+    )
+    ps = surface_pressure_from_delp(
+        delp, p_toa=toa_pressure, vertical_dim=RESTART_Z_CENTER
+    )
+    ps_coarse = surface_pressure_from_delp(
+        delp_coarse, p_toa=toa_pressure, vertical_dim=RESTART_Z_CENTER
+    )
+    blending_pressure = SIGMA_BLEND * block_coarsen(
+        ps, coarsening_factor, x_dim=x_dim, y_dim=y_dim, method="min"
+    )
+    return compute_blending_weights(blending_pressure, ps_coarse, pfull_coarse)
+
+
+def _compute_blending_weights_dgrid(
+    delp, length, coarsening_factor, edge, x_dim, y_dim, toa_pressure=_TOA_PRESSURE
+):
+    """This follows the approach Chris describes in Section 7 of `this document
+    <https://drive.google.com/file/d/1FyLTnR1C5_Ab5Tdbbuhtxm52VC-NroJG/view>`_,
+    adapted to grid cell edges rather than grid cell centers. Here the blending
+    pressure is computed to be 0.9 times the value of the minimum surface
+    pressure along the edge of a coarse grid cell, and the blending weights are
+    then given by the following equation:
+
+    .. math::
+        b_k^c = \begin{cases}
+            1 & p_k^c \leq p_b^c \\
+            \frac{p_s^c - p_k^c}{p_s^c - p_b^c} & p_k^c > p_b^c
+        \end{cases}
+
+    Here :math:`b_k^c` is the blending weight at a level :math:`k`,
+    :math:`p_k^c` is the pressure at the midpoint of level :math:`k` on the
+    coarse grid edge, :math:`p_b^c` is the blending pressure, and :math:`p_s^c`
+    is the surface pressure on the coarse grid edge.
+    """  # noqa: W605
+    delp_edge = compute_edge_delp(delp, edge, x_dim=x_dim, y_dim=y_dim)
+    delp_edge_coarse = edge_weighted_block_average(
+        delp_edge, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
+    )
+    pfull_coarse = pressure_at_midpoint_log(
+        delp_edge_coarse, toa_pressure=toa_pressure, dim=RESTART_Z_CENTER
+    )
+    ps = surface_pressure_from_delp(
+        delp_edge, p_toa=toa_pressure, vertical_dim=RESTART_Z_CENTER
+    )
+    ps_coarse = surface_pressure_from_delp(
+        delp_edge_coarse, p_toa=toa_pressure, vertical_dim=RESTART_Z_CENTER
+    )
+    blending_pressure = SIGMA_BLEND * block_edge_coarsen(
+        ps, coarsening_factor, edge=edge, x_dim=x_dim, y_dim=y_dim, method="min"
+    )
+    return compute_blending_weights(blending_pressure, ps_coarse, pfull_coarse)
+
+
+def blend(weights, pressure_level, model_level):
+    """Blend two coarse-grained Datasets or DataArrays using the provided weights.
+
+    Args:
+        weights: xr.DataArray
+            Weights used to blend the two sources together.
+        pressure_level: xr.DataArray or xr.Dataset
+            Pressure-level coarsened data.
+        model_level: xr.DataArray or xr.Dataset
+            Model-level coarsened data.
+
+    Returns:
+        xr.DataArray or xr.Dataset
+            The blended result.
+    """
+    return weights * pressure_level + (1 - weights) * model_level
+
+
+def _2d_fv_core_names_agrid(ds):
+    return [v for v in ds.data_vars if RESTART_Z_CENTER not in ds[v].dims]
+
+
+def _3d_fv_core_names_agrid(ds, coarsen_agrid_winds):
+    names = []
+    ignore_vars = ["u", "v"]
+    if not coarsen_agrid_winds:
+        ignore_vars.extend(["ua", "va"])
+    for v, da in ds.data_vars.items():
+        if v not in ignore_vars and RESTART_Z_CENTER in da.dims:
+            names.append(v)
+    return names
+
+
+def _coarse_grain_fv_core_via_blended_method(
+    ds,
+    delp,
+    area,
+    dx,
+    dy,
+    coarsening_factor,
+    coarsen_agrid_winds=False,
+    mass_weighted=True,
+):
+    """Coarse grain a set of fv_core restart files via the blended pressure-level
+    / model-level approach.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Input Dataset; assumed to be from a set of fv_core restart files
+    delp : xr.DataArray
+        Pressure thicknesses
+    area : xr.DataArray
+        Area weights
+    dx : xr.DataArray
+        x edge lengths
+    dy : xr.DataArray
+        y edge lengths
+    coarsening_factor : int
+        Coarsening factor to use
+    coarsen_agrid_winds : bool
+        Whether to coarse-grain A-grid winds (default False)
+    mass_weighted : bool
+        Whether to weight temperature and vertical velocity using mass instead
+        of area during the model-level coarsening process (default True)
+
+    Returns
+    -------
+    xr.Dataset
+    """
+    pressure_level = _coarse_grain_fv_core_on_pressure(
+        ds, delp, area, dx, dy, coarsening_factor, coarsen_agrid_winds
+    )
+    model_level = _coarse_grain_fv_core(
+        ds, delp, area, dx, dy, coarsening_factor, coarsen_agrid_winds, mass_weighted
+    )
+    weights_agrid = _compute_blending_weights_agrid(
+        delp, area, coarsening_factor, x_dim=FV_CORE_X_CENTER, y_dim=FV_CORE_Y_CENTER
+    )
+    weights_dgrid_u = _compute_blending_weights_dgrid(
+        delp, dx, coarsening_factor, "x", x_dim=FV_CORE_X_CENTER, y_dim=FV_CORE_Y_OUTER
+    )
+    weights_dgrid_v = _compute_blending_weights_dgrid(
+        delp, dy, coarsening_factor, "y", x_dim=FV_CORE_X_OUTER, y_dim=FV_CORE_Y_CENTER
+    )
+    names_2d_agrid = _2d_fv_core_names_agrid(ds)
+    names_3d_agrid = _3d_fv_core_names_agrid(ds, coarsen_agrid_winds)
+
+    # 2D fields could come from either the pressure level or model level results
+    fields_2d_agrid = model_level[names_2d_agrid]
+    fields_3d_agrid = blend(
+        weights_agrid, pressure_level[names_3d_agrid], model_level[names_3d_agrid]
+    )
+    u = blend(weights_dgrid_u, pressure_level.u, model_level.u).rename("u")
+    v = blend(weights_dgrid_v, pressure_level.v, model_level.v).rename("v")
+    return xr.merge([fields_2d_agrid, fields_3d_agrid, u, v])
+
+
+def _coarse_grain_fv_tracer_via_blended_method(
+    ds, delp, area, coarsening_factor, mass_weighted=True
+):
+    """Coarse grain a set of fv_tracer restart files via the blended
+    pressure-level / model-level approach.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Input Dataset; assumed to be from a set of fv_tracer restart files
+    delp : xr.DataArray
+        Pressure thicknesses
+    area : xr.DataArray
+        Area weights
+    coarsening_factor : int
+        Coarsening factor to use
+    mass_weighted: bool
+        Whether to weight mixing ratios and TKE by mass during the model-level
+        coarsening process.
+
+    Returns
+    -------
+    xr.Dataset
+    """
+    pressure_level = _coarse_grain_fv_tracer_on_pressure(
+        ds, delp, area, coarsening_factor
+    )
+    model_level = _coarse_grain_fv_tracer(
+        ds, delp, area, coarsening_factor, mass_weighted
+    )
+    weights = _compute_blending_weights_agrid(
+        delp,
+        area,
+        coarsening_factor,
+        x_dim=FV_TRACER_X_CENTER,
+        y_dim=FV_TRACER_Y_CENTER,
+    )
+    return blend(weights, pressure_level, model_level)
+
+
+def compute_edge_delp(delp, edge, x_dim=FV_CORE_X_CENTER, y_dim=FV_CORE_Y_CENTER):
+    """Compute the pressure thickness on grid cell edges
+
+    Args:
+        delp: xr.DataArray
+            Pressure thickness at grid cell centers
+        edge: str
+            Grid cell side to coarse-grain along {"x", "y"}
+        x_dim: str (optional)
+            Name of x dimension
+        y_dim: str (optional)
+            Name of y dimension
+    """
+    hor_dims = {"x": x_dim, "y": y_dim}
+    grid = create_fv3_grid(
+        xr.Dataset({"delp": delp}),
+        x_center=FV_CORE_X_CENTER,
+        x_outer=FV_CORE_X_OUTER,
+        y_center=FV_CORE_Y_CENTER,
+        y_outer=FV_CORE_Y_OUTER,
+    )
+    interp_dim = "x" if edge == "y" else "y"
+    return grid.interp(delp, interp_dim).assign_coords(
+        {
+            hor_dims[interp_dim]: np.arange(
+                1, delp.sizes[hor_dims[edge]] + 2, dtype=np.float32
+            )
+        }
+    )
+
+
+def _coarse_grain_fv_tracer(ds, delp, area, coarsening_factor, mass_weighted=True):
     """Coarse grain a set of fv_tracer restart files.
 
     Parameters
@@ -403,22 +803,19 @@ def _coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
         Area weights
     coarsening_factor : int
         Coarsening factor to use
+    mass_weighted: bool
+        Whether to weight mixing ratios and TKE by mass
 
     Returns
     -------
     xr.Dataset
     """
-    area_weighted_vars = ["cld_amt"]
-    mass_weighted_vars = [
-        "sphum",
-        "liq_wat",
-        "rainwat",
-        "ice_wat",
-        "snowwat",
-        "graupel",
-        "o3mr",
-        "sgs_tke",
-    ]
+    if mass_weighted:
+        area_weighted_vars = FRACTION_TRACERS
+        mass_weighted_vars = NON_FRACTION_TRACERS
+    else:
+        area_weighted_vars = FRACTION_TRACERS + NON_FRACTION_TRACERS
+        mass_weighted_vars = []
 
     area_weighted = weighted_block_average(
         ds[area_weighted_vars],
@@ -459,17 +856,8 @@ def _coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
     -------
     xr.Dataset
     """
-    area_weighted_vars = ["cld_amt"]
-    masked_area_weighted_vars = [
-        "sphum",
-        "liq_wat",
-        "rainwat",
-        "ice_wat",
-        "snowwat",
-        "graupel",
-        "o3mr",
-        "sgs_tke",
-    ]
+    area_weighted_vars = FRACTION_TRACERS
+    masked_area_weighted_vars = NON_FRACTION_TRACERS
 
     ds_regridded, masked_area = regrid_to_area_weighted_pressure(
         ds,
@@ -636,7 +1024,7 @@ def _doubles_to_floats(ds: xr.Dataset):
     for key in ds.data_vars:
         var = ds[key]
         if _is_float(var):
-            data_vars[key] = ds[key].astype(np.float32).drop(var.coords)
+            data_vars[key] = ds[key].astype(np.float32).drop_vars(var.coords)
 
     return xr.Dataset(data_vars, coords=coords)
 

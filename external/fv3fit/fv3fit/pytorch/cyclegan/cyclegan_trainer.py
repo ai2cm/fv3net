@@ -5,6 +5,7 @@ from .reloadable import CycleGAN, CycleGANModule
 import torch
 from .generator import GeneratorConfig
 from .discriminator import DiscriminatorConfig
+from .modules import single_tile_convolution, halo_convolution
 import dataclasses
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
@@ -64,6 +65,7 @@ class CycleGANNetworkConfig:
     discriminator: "DiscriminatorConfig" = dataclasses.field(
         default_factory=lambda: DiscriminatorConfig()
     )
+    convolution_type: str = "conv2d"
     identity_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
     cycle_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
     gan_loss: LossConfig = dataclasses.field(default_factory=LossConfig)
@@ -71,14 +73,25 @@ class CycleGANNetworkConfig:
     cycle_weight: float = 1.0
     generator_weight: float = 1.0
     discriminator_weight: float = 1.0
+    reload_path: Optional[str] = None
 
     def build(
         self, n_state: int, nx: int, ny: int, n_batch: int, state_variables, scalers
     ) -> "CycleGANTrainer":
-        generator_a_to_b = self.generator.build(n_state, nx=nx, ny=ny)
-        generator_b_to_a = self.generator.build(n_state, nx=nx, ny=ny)
-        discriminator_a = self.discriminator.build(n_state)
-        discriminator_b = self.discriminator.build(n_state)
+        if self.convolution_type == "conv2d":
+            convolution = single_tile_convolution
+        elif self.convolution_type == "halo_conv2d":
+            convolution = halo_convolution
+        else:
+            raise ValueError(f"convolution_type {self.convolution_type} not supported")
+        generator_a_to_b = self.generator.build(
+            n_state, nx=nx, ny=ny, convolution=convolution
+        )
+        generator_b_to_a = self.generator.build(
+            n_state, nx=nx, ny=ny, convolution=convolution
+        )
+        discriminator_a = self.discriminator.build(n_state, convolution=convolution)
+        discriminator_b = self.discriminator.build(n_state, convolution=convolution)
         optimizer_generator = self.generator_optimizer.instance(
             itertools.chain(
                 generator_a_to_b.parameters(), generator_b_to_a.parameters()
@@ -93,12 +106,16 @@ class CycleGANNetworkConfig:
             discriminator_a=discriminator_a,
             discriminator_b=discriminator_b,
         ).to(DEVICE)
-        init_weights(model)
+        if self.reload_path is not None:
+            reloaded = CycleGAN.load(self.reload_path)
+            merged_scalers = reloaded.scalers
+            model.load_state_dict(reloaded.model.state_dict(), strict=True)
+        else:
+            init_weights(model)
+            merged_scalers = _merge_scaler_mappings(scalers)
         return CycleGANTrainer(
             cycle_gan=CycleGAN(
-                model=model,
-                state_variables=state_variables,
-                scalers=_merge_scaler_mappings(scalers),
+                model=model, state_variables=state_variables, scalers=merged_scalers,
             ),
             optimizer_generator=optimizer_generator,
             optimizer_discriminator=optimizer_discriminator,
@@ -262,6 +279,34 @@ class CycleGANTrainer:
         self.generator_b_to_a = self.cycle_gan.generator_b_to_a
         self.discriminator_a = self.cycle_gan.discriminator_a
         self.discriminator_b = self.cycle_gan.discriminator_b
+        self._script_gen_a_to_b = None
+        self._script_gen_b_to_a = None
+        self._script_disc_a = None
+        self._script_disc_b = None
+
+    def _call_generator_a_to_b(self, input):
+        if self._script_gen_a_to_b is None:
+            self._script_gen_a_to_b = torch.jit.trace(
+                self.generator_a_to_b.forward, input
+            )
+        return self._script_gen_a_to_b(input)
+
+    def _call_generator_b_to_a(self, input):
+        if self._script_gen_b_to_a is None:
+            self._script_gen_b_to_a = torch.jit.trace(
+                self.generator_b_to_a.forward, input
+            )
+        return self._script_gen_b_to_a(input)
+
+    def _call_discriminator_a(self, input):
+        if self._script_disc_a is None:
+            self._script_disc_a = torch.jit.trace(self.discriminator_a.forward, input)
+        return self._script_disc_a(input)
+
+    def _call_discriminator_b(self, input):
+        if self._script_disc_b is None:
+            self._script_disc_b = torch.jit.trace(self.discriminator_b.forward, input)
+        return self._script_disc_b(input)
 
     def _init_targets(self, shape: Tuple[int, ...]):
         self.target_real = torch.autograd.Variable(
@@ -360,10 +405,10 @@ class CycleGANTrainer:
             [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
         )
 
-        fake_b = self.generator_a_to_b(real_a)
-        fake_a = self.generator_b_to_a(real_b)
-        reconstructed_a = self.generator_b_to_a(fake_b)
-        reconstructed_b = self.generator_a_to_b(fake_a)
+        fake_b = self._call_generator_a_to_b(real_a)
+        fake_a = self._call_generator_b_to_a(real_b)
+        reconstructed_a = self._call_generator_b_to_a(fake_b)
+        reconstructed_b = self._call_generator_a_to_b(fake_a)
 
         # Generators A2B and B2A ######
 
@@ -374,22 +419,23 @@ class CycleGANTrainer:
 
         # Identity loss
         # G_A2B(B) should equal B if real B is fed
-        same_b = self.generator_a_to_b(real_b)
+        # same_b = self.generator_a_to_b(real_b)
+        same_b = self._call_generator_a_to_b(real_b)
         loss_identity_b = self.identity_loss(same_b, real_b) * self.identity_weight
         # G_B2A(A) should equal A if real A is fed
-        same_a = self.generator_b_to_a(real_a)
+        same_a = self._call_generator_b_to_a(real_a)
         loss_identity_a = self.identity_loss(same_a, real_a) * self.identity_weight
         loss_identity = loss_identity_a + loss_identity_b
 
         # GAN loss
-        pred_fake_b = self.discriminator_b(fake_b)
+        pred_fake_b = self._call_discriminator_b(fake_b)
         if self.target_real is None:
             self._init_targets(pred_fake_b.shape)
         loss_gan_a_to_b = (
             self.gan_loss(pred_fake_b, self.target_real) * self.generator_weight
         )
 
-        pred_fake_a = self.discriminator_a(fake_a)
+        pred_fake_a = self._call_discriminator_a(fake_a)
         loss_gan_b_to_a = (
             self.gan_loss(pred_fake_a, self.target_real) * self.generator_weight
         )

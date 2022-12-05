@@ -5,7 +5,7 @@ import torch
 from .modules import (
     ConvBlock,
     ConvolutionFactory,
-    FoldTileDimension,
+    FoldFirstDimension,
     single_tile_convolution,
     relu_activation,
     ResnetBlock,
@@ -24,12 +24,17 @@ class GeneratorConfig:
     fractionally strided convolutions with stride 1/2, followed by an output
     convolutional layer with kernel size 7 to map to the output channels.
 
+    Generally we suggest using an even kernel size for strided convolutions,
+    and an odd kernel size for resnet (non-strided) convolutions. For an explanation
+    of this, see the docstring on halo_convolution.
+
     Attributes:
         n_convolutions: number of strided convolutional layers after the initial
             convolutional layer and before the residual blocks
         n_resnet: number of residual blocks
-        kernel_size: size of convolutional kernels in the strided convolutions
-            and resnet blocks
+        kernel_size: size of convolutional kernels in the resnet blocks
+        strided_kernel_size: size of convolutional kernels in the
+            strided convolutions
         max_filters: maximum number of filters in any convolutional layer,
             equal to the number of filters in the final strided convolutional layer
             and in the resnet blocks
@@ -43,6 +48,7 @@ class GeneratorConfig:
     n_convolutions: int = 3
     n_resnet: int = 3
     kernel_size: int = 3
+    strided_kernel_size: int = 4
     max_filters: int = 256
     use_geographic_bias: bool = True
     disable_convolutions: bool = False
@@ -57,20 +63,13 @@ class GeneratorConfig:
         """
         Args:
             channels: number of input channels
+            nx: number of x grid points
+            ny: number of y grid points
             convolution: factory for creating all convolutional layers
                 used by the network
         """
         return Generator(
-            channels=channels,
-            n_convolutions=self.n_convolutions,
-            n_resnet=self.n_resnet,
-            kernel_size=self.kernel_size,
-            max_filters=self.max_filters,
-            convolution=convolution,
-            nx=nx,
-            ny=ny,
-            use_geographic_bias=self.use_geographic_bias,
-            disable_convolutions=self.disable_convolutions,
+            config=self, channels=channels, convolution=convolution, nx=nx, ny=ny,
         )
 
 
@@ -90,36 +89,19 @@ class GeographicBias(nn.Module):
 class Generator(nn.Module):
     def __init__(
         self,
+        config: GeneratorConfig,
         channels: int,
         nx: int,
         ny: int,
-        n_convolutions: int,
-        n_resnet: int,
-        kernel_size: int,
-        max_filters: int,
-        use_geographic_bias: bool,
-        disable_convolutions: bool,
         convolution: ConvolutionFactory = single_tile_convolution,
     ):
         """
         Args:
+            config: pre-defined configuration for the generator network which is not
+                defined by input data or higher-level configuration
             channels: number of input and output channels
             nx: number of grid points in x direction
             ny: number of grid points in y direction
-            n_convolutions: number of strided convolutional layers after the initial
-                convolutional layer and before the residual blocks
-            n_resnet: number of residual blocks
-            kernel_size: size of convolutional kernels in the strided convolutions
-                and resnet blocks
-            max_filters: maximum number of filters in any convolutional layer,
-                equal to the number of filters in the final strided convolutional layer
-                and in the resnet blocks
-            use_geographic_bias: if True, include a layer that adds a trainable bias
-                vector that is a function of x and y to the input and output
-                of the network
-            disable_convolutions: if True, ignore all layers other than bias
-                (if enabled). Useful for debugging and for testing the effect
-                of the geographic bias layer.
             convolution: factory for creating all convolutional layers
                 used by the network
         """
@@ -135,11 +117,11 @@ class Generator(nn.Module):
                 ResnetBlock(
                     channels=in_channels,
                     convolution_factory=curry(convolution)(
-                        kernel_size=3, padding="same"
+                        kernel_size=config.kernel_size
                     ),
                     activation_factory=relu_activation(),
                 )
-                for _ in range(n_resnet)
+                for _ in range(config.n_resnet)
             ]
             return nn.Sequential(*resnet_blocks)
 
@@ -148,7 +130,7 @@ class Generator(nn.Module):
                 in_channels=in_channels,
                 out_channels=out_channels,
                 convolution_factory=curry(convolution)(
-                    kernel_size=3, stride=2, padding=1
+                    kernel_size=config.strided_kernel_size, stride=2
                 ),
                 activation_factory=relu_activation(),
             )
@@ -158,29 +140,23 @@ class Generator(nn.Module):
                 in_channels=in_channels,
                 out_channels=out_channels,
                 convolution_factory=curry(convolution)(
-                    kernel_size=kernel_size,
+                    kernel_size=config.strided_kernel_size,
                     stride=2,
-                    padding=1,
-                    output_padding=1,
                     stride_type="transpose",
                 ),
                 activation_factory=relu_activation(),
             )
 
-        min_filters = int(max_filters / 2 ** n_convolutions)
+        min_filters = int(config.max_filters / 2 ** config.n_convolutions)
 
-        if disable_convolutions:
+        if config.disable_convolutions:
             main = nn.Identity()
         else:
             first_conv = nn.Sequential(
-                FoldTileDimension(nn.ReflectionPad2d(3)),
                 convolution(
-                    kernel_size=7,
-                    in_channels=channels,
-                    out_channels=min_filters,
-                    padding=0,
+                    kernel_size=7, in_channels=channels, out_channels=min_filters,
                 ),
-                FoldTileDimension(nn.InstanceNorm2d(min_filters)),
+                FoldFirstDimension(nn.InstanceNorm2d(min_filters)),
                 relu_activation()(),
             )
 
@@ -188,22 +164,18 @@ class Generator(nn.Module):
                 down_factory=down,
                 up_factory=up,
                 bottom_factory=resnet,
-                depth=n_convolutions,
+                depth=config.n_convolutions,
                 in_channels=min_filters,
             )
 
             out_conv = nn.Sequential(
-                FoldTileDimension(nn.ReflectionPad2d(3)),
                 convolution(
-                    kernel_size=7,
-                    in_channels=min_filters,
-                    out_channels=channels,
-                    padding=0,
+                    kernel_size=7, in_channels=min_filters, out_channels=channels,
                 ),
             )
             main = nn.Sequential(first_conv, encoder_decoder, out_conv)
         self._main = main
-        if use_geographic_bias:
+        if config.use_geographic_bias:
             self._input_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
             self._output_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
         else:

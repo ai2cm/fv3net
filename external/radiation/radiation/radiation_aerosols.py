@@ -350,13 +350,10 @@ class AerosolClass:
 
     wvn550 = 1.0e4 / 0.55
 
-    def __init__(self, NLAY, me, iaerflg, ivflip, aerosol_dict):
+    def __init__(self, NLAY, iaerflg, ivflip, aerosol_dict):
         self.NSWBND = nbdsw
         self.NLWBND = NBDLW
         self.NSWLWBD = nbdsw * NBDLW
-        self.lalwflg = True
-        self.laswflg = True
-        self.lavoflg = True
         self.lmap_new = True
         self.NLAY = NLAY
         self.ivflip = ivflip
@@ -387,11 +384,6 @@ class AerosolClass:
         self.lavoflg = (
             self.iaerflg >= 100
         )  # control flag for stratospheric volcanic aeros
-
-        # -# Call wrt_aerlog() to write aerosol parameter configuration to output logs.
-
-        if me == 0:
-            self.wrt_aerlog()  # write aerosol param info to log file
 
         if self.iaerflg == 0:
             return  # return without any aerosol calculations
@@ -484,41 +476,32 @@ class AerosolClass:
         }
         return outdict
 
-    def wrt_aerlog(self):
-        #  ==================================================================  !
-        #                                                                      !
-        #  subprogram : wrt_aerlog                                             !
-        #                                                                      !
-        #    write aerosol parameter configuration to run log file.            !
-        #                                                                      !
-        #  ====================  defination of variables  ===================  !
-        #                                                                      !
-        #  external module variables:  (in physparam)                          !
-        #   iaermdl  - aerosol scheme flag: 0:opac-clm; 1:gocart-clim;         !
-        #              2:gocart-prog; 5:opac-clim+new mapping                  !
-        #   iaerflg  - aerosol effect control flag: 3-digits (volc,lw,sw)      !
-        #   lalwflg  - toposphere lw aerosol effect: =f:no; =t:yes             !
-        #   laswflg  - toposphere sw aerosol effect: =f:no; =t:yes             !
-        #   lavoflg  - stratospherer volcanic aeros effect: =f:no; =t:yes      !
-        #                                                                      !
-        #  outputs: ( none )                                                   !
-        #                                                                      !
-        #  subroutines called: none                                            !
-        #                                                                      !
-        #  usage:    call wrt_aerlog                                           !
-        #                                                                      !
-        #  ==================================================================  !
+    @classmethod
+    def validate(cls, iaerflg):
+        """Validate and write aerosol parameter configuration to run log file
+        
+            Args:
+                iaerflg  - aerosol effect control flag: 3-digits (volc,lw,sw)
+        """
 
-        print(self.VTAGAER)  # print out version tag
+        print(cls.VTAGAER)  # print out version tag
 
-        if self.iaermdl == 0 or self.iaermdl == 5:
+        iaermdl = int(iaerflg / 1000)
+        if iaermdl < 0 or iaermdl > 2 and iaermdl != 5:
+            raise ValueError("Error -- IAER flag is incorrect, Abort")
+
+        laswflg = iaerflg % 10 > 0  # control flag for sw tropospheric aerosol
+        lalwflg = iaerflg / 10 % 10 > 0  # control flag for lw tropospheric aerosol
+        lavoflg = iaerflg >= 100  # control flag for stratospheric volcanic aeros
+
+        if iaermdl == 0 or iaermdl == 5:
             print(
                 "- Using OPAC-seasonal climatology for tropospheric", " aerosol effect"
             )
-        elif self.iaermdl == 1:
+        elif iaermdl == 1:
             print("- Using GOCART-climatology for tropospheric", " aerosol effect")
             raise NotImplementedError("GOCART climatology not yet implemented")
-        elif self.iaermdl == 2:
+        elif iaermdl == 2:
             print(
                 " - Using GOCART-prognostic aerosols for tropospheric",
                 " aerosol effect",
@@ -527,27 +510,27 @@ class AerosolClass:
         else:
             raise ValueError(
                 "!!! ERROR in selection of aerosol model scheme",
-                f" IAER_MDL = {self.iaermdl}",
+                f" IAER_MDL = {iaermdl}",
             )
 
         print(
-            f"IAER={self.iaerflg},  LW-trop-aer={self.lalwflg}",
-            f"SW-trop-aer={self.laswflg}, Volc-aer={self.lavoflg}",
+            f"IAER={iaerflg},  LW-trop-aer={lalwflg}",
+            f"SW-trop-aer={laswflg}, Volc-aer={lavoflg}",
         )
 
-        if self.iaerflg <= 0:  # turn off all aerosol effects
+        if iaerflg <= 0:  # turn off all aerosol effects
             print("- No tropospheric/volcanic aerosol effect included")
             print(
                 "Input values of aerosol optical properties to",
                 " both SW and LW radiations are set to zeros",
             )
         else:
-            if self.iaerflg >= 100:  # incl stratospheric volcanic aerosols
+            if iaerflg >= 100:  # incl stratospheric volcanic aerosols
                 print("- Include stratospheric volcanic aerosol effect")
             else:  # no stratospheric volcanic aerosols
                 print("- No stratospheric volcanic aerosol effect")
 
-            if self.laswflg:  # chcek for sw effect
+            if laswflg:  # chcek for sw effect
                 print(
                     "- Compute multi-band aerosol optical",
                     " properties for SW input parameters",
@@ -558,7 +541,7 @@ class AerosolClass:
                     " aerosol properties to SW input are set to zeros",
                 )
 
-            if self.lalwflg:  # check for lw effect
+            if lalwflg:  # check for lw effect
                 if lalw1bd:
                     print(
                         "- Compute 1 broad-band aerosol optical",
@@ -703,7 +686,7 @@ class AerosolClass:
         #  inputs:  (in-scope variables, module constants)                     !
         #   solfwv(:)    - real, solar flux for individual wavenumber (w/m2)   !
         #   eirfwv(:)    - real, lw flux(273k) for individual wavenum (w/m2)   !
-        #   me           - integer, select cpu number as print control flag    !
+        #   rank         - integer, select cpu number as print control flag    !
         #                                                                      !
         #  outputs: (to the module variables)                                  !
         #                                                                      !
@@ -1230,7 +1213,7 @@ class AerosolClass:
 
                 self.extstra[ib] = sumk * rirbd
 
-    def aer_update(self, iyear, imon, me, kprfg, idxcg, cmixg, denng, cline):
+    def aer_update(self, iyear, imon, rank, kprfg, idxcg, cmixg, denng, cline):
         #  ==================================================================
         #
         #  aer_update checks and update time varying climatology aerosol
@@ -1239,7 +1222,7 @@ class AerosolClass:
         #  inputs:                                          size
         #     iyear   - 4-digit calender year                 1
         #     imon    - month of the year                     1
-        #     me      - print message control flag            1
+        #     rank    - print message control flag            1
         #
         #  outputs: ( none )
         #
@@ -1259,7 +1242,7 @@ class AerosolClass:
 
         self.iyear = iyear
         self.imon = imon
-        self.me = me
+        self.rank = rank
 
         if self.imon < 1 or self.imon > 12:
             raise ValueError(
@@ -1322,7 +1305,7 @@ class AerosolClass:
         self.cmixg = cmixg
         self.denng = denng
 
-        if self.me == 0:
+        if self.rank == 0:
             print(f"  --- Reading {cline[self.imon-1]}")
 
     def volc_update(self):
@@ -1377,7 +1360,7 @@ class AerosolClass:
 
             if self.iyear < self.MINVYR or self.iyear > self.MAXVYR:
                 self.ivolae = np.ones((12, 4, 10))  # set as lowest value
-                if self.me == 0:
+                if self.rank == 0:
                     print(
                         "Requested volcanic date out of range,",
                         " optical depth set to lowest value",
@@ -1389,7 +1372,7 @@ class AerosolClass:
                     # ds = xr.open_dataset(volcano_file)
                     # cline = ds["cline"]
                     #  ---  check print
-                    if self.me == 0:
+                    if self.rank == 0:
                         print(f"Opened volcanic data file: {volcano_file}")
                     #    print(cline)
 
@@ -1401,7 +1384,7 @@ class AerosolClass:
                     )
 
         #  ---  check print
-        if self.me == 0:
+        if self.rank == 0:
             k = (self.kyrsav % 10) + 1
             print(
                 "CHECK: Sample Volcanic data used for month, year: ",

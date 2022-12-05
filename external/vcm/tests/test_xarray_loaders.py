@@ -1,5 +1,6 @@
 import dask
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 from dask.delayed import delayed
@@ -7,6 +8,7 @@ import fsspec
 from unittest.mock import Mock
 
 import vcm
+from vcm.xarray_loaders import to_json, open_json, dataset_from_dict
 
 
 def assert_attributes_equal(a, b):
@@ -109,3 +111,56 @@ def test_dump_nc_no_seek():
 
     vcm.dump_nc(ds, m)
     m.seek.assert_not_called()
+
+
+def multitype_dataset(include_times=None):
+    np.random.seed(0)
+
+    x = range(1, 6)
+    if include_times:
+        times = pd.date_range("2000", periods=7)
+        floats_coords = {"time": times, "x": x}
+    else:
+        floats_coords = {"x": x}
+
+    floats = xr.DataArray(
+        np.random.random((5, 7)),
+        dims=["x", "time"],
+        coords=floats_coords,
+        name="floats",
+        attrs={"units": "mm/day"},
+    )
+    integers = xr.DataArray(range(1, 6), coords=[x], dims=["x"], name="integers")
+    strings = xr.DataArray(list("abcde"), coords=[x], dims=["x"], name="strings")
+    bools = xr.DataArray(np.ones(5, dtype=bool), coords=[x], dims=["x"], name="bools")
+    return xr.merge([floats, integers, strings, bools]).assign_attrs(metadata="baz")
+
+
+@pytest.mark.parametrize("include_times", [False, True])
+def test_json_roundtrip(tmpdir, include_times):
+    ds = multitype_dataset(include_times=include_times)
+    filename = tmpdir.join("example.json")
+
+    if include_times:
+        with pytest.raises(NotImplementedError, match="not currently possible"):
+            to_json(ds, filename)
+    else:
+        to_json(ds, filename)
+        roundtrip = open_json(filename)
+        xr.testing.assert_identical(roundtrip, ds)
+
+
+@pytest.mark.parametrize("include_times", [False, True])
+def test_from_dict(include_times):
+    ds = multitype_dataset(include_times=include_times)
+    roundtrip = dataset_from_dict(ds.to_dict())
+    xr.testing.assert_identical(roundtrip, ds)
+
+
+def test_to_json_passes_kwargs(tmpdir):
+    ds = multitype_dataset(include_times=False)
+    filename = tmpdir.join("example.json")
+    to_json(ds, filename, indent=4)
+    with open(filename, "r") as file:
+        lines = file.readlines()
+    assert len(lines) > 1

@@ -1,0 +1,380 @@
+{
+    "version": "v3",
+    "schema": {
+        "coords": {
+            "xaxis_1": {
+                "name": "xaxis_1",
+                "dims": [
+                    "xaxis_1"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0
+                ],
+                "attrs": {
+                    "long_name": "xaxis_1",
+                    "units": "none",
+                    "cartesian_axis": "X"
+                }
+            },
+            "yaxis_1": {
+                "name": "yaxis_1",
+                "dims": [
+                    "yaxis_1"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0
+                ],
+                "attrs": {
+                    "long_name": "yaxis_1",
+                    "units": "none",
+                    "cartesian_axis": "Y"
+                }
+            },
+            "zaxis_1": {
+                "name": "zaxis_1",
+                "dims": [
+                    "zaxis_1"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0,
+                    6.0,
+                    7.0
+                ],
+                "attrs": {
+                    "long_name": "zaxis_1",
+                    "units": "none",
+                    "cartesian_axis": "Z"
+                }
+            },
+            "Time": {
+                "name": "Time",
+                "dims": [
+                    "Time"
+                ],
+                "value": [
+                    1.0
+                ],
+                "attrs": {
+                    "long_name": "Time",
+                    "units": "time level",
+                    "cartesian_axis": "T"
+                }
+            },
+            "tile": {
+                "name": "tile",
+                "dims": [
+                    "tile"
+                ],
+                "value": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ],
+                "attrs": {}
+            }
+        },
+        "variables": {
+            "sphum": {
+                "name": "sphum",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "sphum",
+                    "units": "none",
+                    "checksum": "72D704DB93E324CA"
+                }
+            },
+            "liq_wat": {
+                "name": "liq_wat",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "liq_wat",
+                    "units": "none",
+                    "checksum": "A64423A26F9AE59B"
+                }
+            },
+            "rainwat": {
+                "name": "rainwat",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "rainwat",
+                    "units": "none",
+                    "checksum": "18B7C80EAE51828D"
+                }
+            },
+            "ice_wat": {
+                "name": "ice_wat",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "ice_wat",
+                    "units": "none",
+                    "checksum": "  2BDB5A88DF47E3"
+                }
+            },
+            "snowwat": {
+                "name": "snowwat",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "snowwat",
+                    "units": "none",
+                    "checksum": "854AF20AB2571178"
+                }
+            },
+            "graupel": {
+                "name": "graupel",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "graupel",
+                    "units": "none",
+                    "checksum": "3F8F532CB03B710C"
+                }
+            },
+            "o3mr": {
+                "name": "o3mr",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "o3mr",
+                    "units": "none",
+                    "checksum": "2C663D08190F7B38"
+                }
+            },
+            "sgs_tke": {
+                "name": "sgs_tke",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "sgs_tke",
+                    "units": "none",
+                    "checksum": "C5B48F48B08D524F"
+                }
+            },
+            "cld_amt": {
+                "name": "cld_amt",
+                "dims": [
+                    "tile",
+                    "Time",
+                    "zaxis_1",
+                    "yaxis_1",
+                    "xaxis_1"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        6,
+                        1,
+                        7,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "cld_amt",
+                    "units": "none",
+                    "checksum": "1CEDFE22A45283D5"
+                }
+            }
+        }
+    }
+}

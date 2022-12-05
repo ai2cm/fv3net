@@ -44,6 +44,7 @@ SPECIAL_TRAINING_TYPES = [
     "ocsvm_novelty_detector",
     "autoencoder",
     "cyclegan",
+    "fmr",
 ]
 
 

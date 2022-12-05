@@ -1,6 +1,6 @@
 import numpy as np
 from .phys_const import con_ttp, con_pi, con_g, con_rd, con_thgni
-from .radphysparam import lcrick, lcnorm
+from .radphysparam import lcrick
 
 
 class CloudClass:
@@ -20,36 +20,12 @@ class CloudClass:
     cldssa_def = 0.99
     cldasy_def = 0.84
 
-    def __init__(self, si, NLAY, imp_physics, me, ivflip, icldflg, iovrsw, iovrlw):
+    def __init__(self, si, NLAY, ivflip, iovrsw, iovrlw, lcnorm):
 
         self.iovr = max(iovrsw, iovrlw)
         self.ivflip = ivflip
+        self.lcnorm = lcnorm
 
-        if me == 0:
-            print(self.VTAGCLD)  # print out version tag
-
-        if icldflg == 0:
-            print(" - Diagnostic Cloud Method has been discontinued")
-        else:
-            if me == 0:
-                print("- Using Prognostic Cloud Method")
-                if imp_physics == 99:
-                    print("   --- Zhao/Carr/Sundqvist microphysics")
-                elif imp_physics == 98:
-                    print("   --- zhao/carr/sundqvist + pdf cloud")
-                elif imp_physics == 11:
-                    print("   --- GFDL Lin cloud microphysics")
-                elif imp_physics == 8:
-                    print("   --- Thompson cloud microphysics")
-                elif imp_physics == 6:
-                    print("   --- WSM6 cloud microphysics")
-                elif imp_physics == 10:
-                    print("   --- MG cloud microphysics")
-                else:
-                    raise ValueError(
-                        "!!! ERROR in cloud microphysc specification!!!",
-                        f"imp_physics (NP3D) = {imp_physics}",
-                    )
         # Compute the top of BL cld (llyr), which is the topmost non
         # cld(low) layer for stratiform (at or above lowest 0.1 of the
         # atmosphere).
@@ -70,6 +46,32 @@ class CloudClass:
             llyr = kl
 
         self.llyr = llyr
+
+    @classmethod
+    def validate(cls, imp_physics, icldflg):
+        print(cls.VTAGCLD)  # print out version tag
+
+        if icldflg == 0:
+            print(" - Diagnostic Cloud Method has been discontinued")
+        else:
+            print("- Using Prognostic Cloud Method")
+            if imp_physics == 99:
+                print("   --- Zhao/Carr/Sundqvist microphysics")
+            elif imp_physics == 98:
+                print("   --- zhao/carr/sundqvist + pdf cloud")
+            elif imp_physics == 11:
+                print("   --- GFDL Lin cloud microphysics")
+            elif imp_physics == 8:
+                print("   --- Thompson cloud microphysics")
+            elif imp_physics == 6:
+                print("   --- WSM6 cloud microphysics")
+            elif imp_physics == 10:
+                print("   --- MG cloud microphysics")
+            else:
+                raise ValueError(
+                    "!!! ERROR in cloud microphysc specification!!!",
+                    f"imp_physics (NP3D) = {imp_physics}",
+                )
 
     def return_initdata(self):
         outdict = {"llyr": self.llyr}
@@ -334,7 +336,7 @@ class CloudClass:
                     crp[i, k] = 0.0
                     csp[i, k] = 0.0
 
-        if lcnorm:
+        if self.lcnorm:
             for k in range(NLAY):
                 for i in range(IX):
                     if cldtot[i, k] >= self.climit:
@@ -426,7 +428,7 @@ class CloudClass:
         deltaq,
         sup,
         kdt,
-        me,
+        rank,
         iovrsw,
         iovrlw,
     ):
@@ -625,7 +627,7 @@ class CloudClass:
                     crp[i, k] = 0.0
                     csp[i, k] = 0.0
 
-        if lcnorm:
+        if self.lcnorm:
             for k in range(nlay):
                 for i in range(ix):
                     if cldtot[i, k] >= self.climit:
@@ -862,7 +864,7 @@ class CloudClass:
                     crp[i, k] = 0.0
                     csp[i, k] = 0.0
 
-        if lcnorm:
+        if self.lcnorm:
             for k in range(NLAY):
                 for i in range(IX):
                     if cldtot[i, k] >= self.climit:
@@ -1143,7 +1145,7 @@ class CloudClass:
                     crp[i, k] = 0.0
                     csp[i, k] = 0.0
 
-        if lcnorm:
+        if self.lcnorm:
             for k in range(NLAY):
                 for i in range(IX):
                     if cldtot[i, k] >= self.climit:
@@ -1352,7 +1354,7 @@ class CloudClass:
                     crp[i, k] = 0.0
                     csp[i, k] = 0.0
 
-        if lcnorm:
+        if self.lcnorm:
             for k in range(NLAY):
                 for i in range(IX):
                     if cldtot[i, k] >= self.climit:

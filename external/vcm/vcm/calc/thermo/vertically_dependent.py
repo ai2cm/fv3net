@@ -9,9 +9,9 @@ from .constants import (
     _EARTH_RADIUS,
     _SPECIFIC_HEAT_CONST_PRESSURE,
     _KG_M2S_TO_MM_DAY,
+    _TOA_PRESSURE,
 )
 
-_TOA_PRESSURE = 300.0  # Pa
 _REVERSE = slice(None, None, -1)
 
 

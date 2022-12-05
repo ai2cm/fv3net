@@ -2,7 +2,6 @@ from fv3fit.emulation.layers.normalization2 import (
     MeanMethod,
     NormLayer,
     StdDevMethod,
-    _fit_mean_per_feature,
     _compute_scale,
     _compute_center,
 )
@@ -25,7 +24,14 @@ def test_layers_no_trainable_variables():
 
 def test_fit_mean_per_feature():
     m = tf.ones([10, 4])
-    assert tuple(_fit_mean_per_feature(m).shape) == (4,)
+    mean = _compute_center(m, MeanMethod.per_feature)
+    assert tuple(mean.shape) == (4,)
+
+
+def test_fit_mean_none():
+    m = tf.ones([10, 4])
+    mean = _compute_center(m, MeanMethod.none)
+    assert tuple(mean.shape) == ()
 
 
 def test__compute_scale_all():
@@ -44,6 +50,12 @@ def test__compute_scale_per_feature():
     m = tf.ones([10, 4])
     scale = _compute_scale(m, StdDevMethod.per_feature)
     assert tuple(scale.shape) == (4,)
+
+
+def test__compute_scale_none():
+    m = tf.ones([10, 4])
+    scale = _compute_scale(m, StdDevMethod.none)
+    assert tuple(scale.shape) == ()
 
 
 def _print_approx(arr, decimals=6, file=None):

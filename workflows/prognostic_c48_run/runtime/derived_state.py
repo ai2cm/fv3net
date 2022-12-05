@@ -6,7 +6,7 @@ import fv3gfs.wrapper
 import fv3gfs.wrapper._properties
 import numpy as np
 import xarray as xr
-from runtime.names import DELP, PHYSICS_PRECIP_RATE
+from runtime.names import DELP, PHYSICS_PRECIP_RATE, TIME_KEYS
 from runtime.types import State
 from toolz import dissoc
 from vcm import DerivedMapping, round_time
@@ -28,9 +28,9 @@ class FV3StateMapper(Mapping):
         }
 
     def __getitem__(self, key: str) -> xr.DataArray:
-        if key == "time":
-            time = self._getter.get_state(["time"])["time"]
-            return xr.DataArray(time, name="time")
+        if key in TIME_KEYS:
+            time = self._getter.get_state([key])[key]
+            return xr.DataArray(time, name=key)
         elif key == "latent_heat_flux":
             return self._getter.get_diagnostic_by_name("lhtfl").data_array
         elif key == "total_water":

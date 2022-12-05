@@ -7,6 +7,7 @@ from vcm.interpolate import (
     interpolate_1d,
     _interpolate_2d,
     interpolate_to_pressure_levels,
+    upsample_1d_periodic,
 )
 
 
@@ -144,3 +145,11 @@ def test_interpolate_to_pressure_levels_no_nans():
 
     out = interpolate_to_pressure_levels(ds.y, ds.delp, levels=ds.pressure, dim="z")
     assert not out.isnull().any().item()
+
+
+def test_upsample_1d_periodic():
+    # Original values should still be in upsampled array every upsample_factor points
+    orig = np.arange(5)
+    upsample_factor = 3
+    upsampled = upsample_1d_periodic(orig, upsample_factor=upsample_factor)
+    np.testing.assert_array_equal(orig, upsampled[::upsample_factor])

@@ -44,9 +44,9 @@ def get_dataarray(y, x, value, coords):
 @pytest.fixture(scope="module")
 def external_dataset_path(tmpdir_factory):
     vars_ = {
-        "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": 10.0,
-        "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": 5.0,
-        "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": 8.0,
+        "DSWRFsfc": 10.0,
+        "DLWRFsfc": 5.0,
+        "NSWRFsfc": 8.0,
     }
     sizes = {"y": NXY, "x": NXY}
     ds = get_dataset(vars_, sizes, TIME_COORD)
@@ -58,11 +58,19 @@ def external_dataset_path(tmpdir_factory):
 def get_prescriber_config(external_dataset_path):
     return PrescriberConfig(
         dataset_key=external_dataset_path,
-        variables=[
-            "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
-            "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface",
-            "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
-        ],
+        variables={
+            "DSWRFsfc": (
+                "override_for_time_adjusted_total_sky_"
+                "downward_shortwave_flux_at_surface"
+            ),
+            "NSWRFsfc": (
+                "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface"
+            ),
+            "DLWRFsfc": (
+                "override_for_time_adjusted_total_sky_"
+                "downward_longwave_flux_at_surface"
+            ),
+        },
     )
 
 

@@ -2,6 +2,7 @@ apache-beam[gcp]
 nc-time-axis>=1.4.1
 bump2version
 yq
+py
 pytest-regtest
 recommonmark
 sphinx>=1.4
@@ -24,8 +25,8 @@ plotly
 gcsfs>=2021.6.0
 fsspec>=0.9.0
 
-# faster async
-zarr>=2.5.0
+# fix bug where variables sometimes become lowercase
+zarr>=2.13.2
 
 # this version has wheels = faster installs
 numcodecs>=0.7.2
@@ -51,7 +52,8 @@ tox
 pre-commit
 ipython>=7.29.0
 jupyterlab
+zarrdump
+dask[distributed]
 
 # fv3fit testing tools
 hypothesis
-pytest-mpl
