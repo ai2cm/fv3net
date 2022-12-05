@@ -1,12 +1,12 @@
 kind: prognostic
 experiment: phase-dep-t-in-adju-nov2022
-name: zc-emu-temp-in-adjust-phase-dep-gscond-30d-v3
+name: zc-emu-rhin-gsc-pscale-pr-phasedep-10d-v1
 image_tag: d2fe9372c2a5ebccd77f77b5cbbc1f11016bdd45
 fv3net_image_tag: latest
 config:
   base_version: v0.5
   data_table: default
-  duration: "30d"
+  duration: "10d"
   initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
   fortran_diagnostics:
   - name: piggy.zarr
@@ -284,7 +284,7 @@ config:
           start: 74
           fill_value: air_temperature_input
     model:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-11-17/precpd-diff-temp-input-norm-adj-v2/model.tf
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-11-02/precpd-pscale-opt-logspace-bin-v1/model.tf
     storage:
       output_freq_sec: 10800
       save_nc: false
