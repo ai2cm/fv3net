@@ -135,6 +135,9 @@ class ModelConfig:
         if self.enforce_conservative and self.enforce_conservative_phase_dependent:
             raise ValueError("These options are mutually exclusive.")
 
+        if self.enforce_precpd_conservative and self.precpd_precip_conservative:
+            raise ValueError("Conservative precip flags should not both be true.")
+
     @property
     def _transform_factory(self) -> ComposedTransformFactory:
         return ComposedTransformFactory(self.tensor_transform)
@@ -205,8 +208,7 @@ class ModelConfig:
 
         if self.precpd_precip_conservative:
             yield emulation.zhao_carr.conservative_precip_simple
-
-        if self.enforce_precpd_conservative:
+        elif self.enforce_precpd_conservative:
             yield emulation.zhao_carr.enforce_conservative_precpd
 
         for key, _slice in self.mask_emulator_levels.items():
