@@ -103,10 +103,12 @@ class ModelConfig:
             built.
         batch_size: number of columns to batch the ml prediction by. May reduce
             memory use.
-        enforce_precpd_conservative: Use a conservation to determine total precip
+        enforce_strict_precpd_conservative: Use a conservation to determine total precip
             from clouds, and then update evaporation and temperature based on
-            available precip at each vertical level (considering fluxes from above)
-        precpd_precip_conservative: A simpler conservation which sums total water
+            available precip at each vertical level (considering fluxes from above).
+            Ensures precipitation values are never negative and that
+            evaporation is limited to the amount of available precip in each cell.
+        simple_precip_conservative: A precip conservation method which sums total water
             change in cloud and vapor without consideration for limitations
     """
 
@@ -127,15 +129,15 @@ class ModelConfig:
     mask_gscond_zero_cloud_classifier: bool = False
     mask_gscond_no_tend_classifier: bool = False
     mask_precpd_zero_cloud_classifier: bool = False
-    enforce_precpd_conservative: bool = False
-    precpd_precip_conservative: bool = False
+    enforce_strict_precpd_conservative: bool = False
+    simple_precip_conservative: bool = False
     batch_size: int = 512
 
     def __post_init__(self):
         if self.enforce_conservative and self.enforce_conservative_phase_dependent:
             raise ValueError("These options are mutually exclusive.")
 
-        if self.enforce_precpd_conservative and self.precpd_precip_conservative:
+        if self.enforce_strict_precpd_conservative and self.simple_precip_conservative:
             raise ValueError("Conservative precip flags should not both be true.")
 
     @property
@@ -206,9 +208,9 @@ class ModelConfig:
         elif self.enforce_conservative_phase_dependent:
             yield emulation.zhao_carr.enforce_conservative_phase_dependent
 
-        if self.precpd_precip_conservative:
+        if self.simple_precip_conservative:
             yield emulation.zhao_carr.conservative_precip_simple
-        elif self.enforce_precpd_conservative:
+        elif self.enforce_strict_precpd_conservative:
             yield emulation.zhao_carr.enforce_conservative_precpd
 
         for key, _slice in self.mask_emulator_levels.items():
