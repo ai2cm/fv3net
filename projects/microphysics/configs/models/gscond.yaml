@@ -1,0 +1,111 @@
+bucket: vcm-ml-experiments
+config:
+  batch_size: 512
+  checkpoint_model: true
+  conservative_model: null
+  epochs: 25
+  log_level: INFO
+  loss:
+    loss_variables:
+    - temperature_gscond_difference_tscaled
+    - humidity_gscond_difference_tscaled
+    - air_temperature_after_gscond
+    - specific_humidity_after_gscond
+    metric_variables: []
+    normalization:
+      center: per_feature
+      scale: all
+    optimizer:
+      kwargs:
+        learning_rate: 0.0001
+      learning_rate_schedule: null
+      name: Adam
+    weights:
+      air_temperature_after_gscond: 100000
+      humidity_gscond_difference_tscaled: 1
+      specific_humidity_after_gscond: 50000
+      temperature_gscond_difference_tscaled: 1
+  model:
+    architecture:
+      kwargs:
+        depth: 2
+        width: 256
+      name: dense-local
+    direct_out_variables:
+    - humidity_gscond_difference_tscaled
+    - temperature_gscond_difference_tscaled
+    input_variables:
+    - air_temperature_input
+    - specific_humidity_input
+    - cloud_water_mixing_ratio_input
+    - log_cloud_input
+    - log_humidity_input
+    - pressure_thickness_of_atmospheric_layer
+    - air_temperature_after_last_gscond
+    - specific_humidity_after_last_gscond
+    - log_humidity_after_last_gscond
+    - air_pressure
+    - surface_air_pressure
+    - surface_air_pressure_after_last_gscond
+    normalize_default:
+      center: per_feature
+      scale: all
+    normalize_map: {}
+    residual_out_variables: {}
+    selection_map: {}
+    tendency_outputs: {}
+    timestep_increment_sec: 900
+  nfiles: null
+  nfiles_valid: 100
+  out_url: gs://vcm-ml-experiments/microphysics-emulation/2022-05-12/gscond-only-tscale-dense-local-41b1c1-v1
+  shuffle_buffer_size: 13824
+  tensor_transform:
+  - source: cloud_water_mixing_ratio_input
+    to: log_cloud_input
+    transform:
+      epsilon: 1.0e-10
+  - source: specific_humidity_input
+    to: log_humidity_input
+    transform:
+      epsilon: 1.0e-08
+  - source: specific_humidity_after_last_gscond
+    to: log_humidity_after_last_gscond
+    transform:
+      epsilon: 1.0e-08
+  - after: air_temperature_after_gscond
+    before: air_temperature_input
+    to: temperature_gscond_difference
+  - after: specific_humidity_after_gscond
+    before: specific_humidity_input
+    to: humidity_gscond_difference
+  - bins: 50
+    condition_on: air_temperature_input
+    fit_filter_magnitude: 1.0e-14
+    min_scale: 1.0e-14
+    source: humidity_gscond_difference
+    to: humidity_gscond_difference_tscaled
+  - bins: 50
+    condition_on: air_temperature_input
+    fit_filter_magnitude: 1.0e-05
+    min_scale: 1.0e-05
+    source: temperature_gscond_difference
+    to: temperature_gscond_difference_tscaled
+  test_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test
+  train_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/train
+  transform:
+    antarctic_only: false
+    derived_microphys_timestep: 900
+    use_tensors: true
+    vertical_subselections: null
+  use_wandb: true
+  valid_freq: 2
+  verbose: 2
+  wandb:
+    entity: ai2cm
+    job_type: train
+    wandb_project: microphysics-emulation
+fv3fit_image_tag: 41b1c1a5443ebb5903ed61bd6923cc628b4981a2
+kind: train
+name: gscond-only-tscale-dense-local-41b1c1-v1
+project: microphysics-emulation
+

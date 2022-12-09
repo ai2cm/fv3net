@@ -1,0 +1,134 @@
+bucket: vcm-ml-experiments
+config:
+  batch_size: 512
+  checkpoint_model: true
+  conservative_model: null
+  epochs: 25
+  log_level: INFO
+  loss:
+    logit_variables: []
+    loss_variables:
+    - total_precipitation
+    - temperature_precpd_difference
+    - humidity_precpd_difference
+    - cloud_precpd_difference
+    - air_temperature_after_precpd
+    - specific_humidity_after_precpd
+    - cloud_water_mixing_ratio_after_precpd
+    metric_variables: []
+    normalization:
+      center: per_feature
+      scale: all
+    optimizer:
+      kwargs:
+        learning_rate: 0.0001
+      learning_rate_schedule: null
+      name: Adam
+    weights:
+      air_temperature_after_precpd: 100000
+      cloud_precpd_difference: 1
+      cloud_water_mixing_ratio_after_precpd: 5
+      humidity_precpd_difference: 1
+      specific_humidity_after_precpd: 50000
+      temperature_precpd_difference: 1
+      total_precipitation: 2
+  model:
+    architecture:
+      kwargs:
+        channels: 256
+        depth: 2
+      name: rnn-v1-shared-weights
+      output_channels: {}
+    direct_out_variables:
+    - total_precipitation
+    - cloud_precpd_difference
+    - temperature_precpd_difference
+    - humidity_precpd_difference
+    input_variables:
+    - air_temperature_input
+    - specific_humidity_input
+    - cloud_water_mixing_ratio_input
+    - log_cloud_input
+    - log_humidity_input
+    - pressure_thickness_of_atmospheric_layer
+    - air_temperature_after_last_gscond
+    - specific_humidity_after_last_gscond
+    - log_humidity_after_last_gscond
+    - air_pressure
+    - surface_air_pressure
+    - surface_air_pressure_after_last_gscond
+    normalize_default:
+      center: per_feature
+      scale: all
+    normalize_map: {}
+    residual_out_variables: {}
+    selection_map: {}
+    tendency_outputs: {}
+    timestep_increment_sec: 900
+    unscaled_outputs: []
+  nfiles: null
+  nfiles_valid: 100
+  out_url: gs://vcm-ml-experiments/microphysics-emulation/2022-07-19/precpd-diff-only-rnn-v1-shared-weights-v1
+  shuffle_buffer_size: 13824
+  tensor_transform:
+  - source: cloud_water_mixing_ratio_after_precpd
+    to: cloud_water_mixing_ratio_after_precpd
+    transform:
+      lower: 0
+      upper: null
+  - source: cloud_water_mixing_ratio_input
+    to: log_cloud_input
+    transform:
+      epsilon: 1.0e-10
+  - source: specific_humidity_input
+    to: log_humidity_input
+    transform:
+      epsilon: 1.0e-08
+  - source: specific_humidity_after_last_gscond
+    to: log_humidity_after_last_gscond
+    transform:
+      epsilon: 1.0e-08
+  - after: cloud_water_mixing_ratio_after_precpd
+    before: cloud_water_mixing_ratio_after_gscond
+    to: cloud_precpd_difference
+  - source: cloud_precpd_difference
+    to: cloud_precpd_difference
+    transform:
+      lower: null
+      upper: 0
+  - after: air_temperature_after_precpd
+    before: air_temperature_after_gscond
+    to: temperature_precpd_difference
+  - source: temperature_precpd_difference
+    to: temperature_precpd_difference
+    transform:
+      lower: null
+      upper: 0
+  - after: specific_humidity_after_precpd
+    before: specific_humidity_after_gscond
+    to: humidity_precpd_difference
+  - source: humidity_precpd_difference
+    to: humidity_precpd_difference
+    transform:
+      lower: 0
+      upper: null
+  test_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/test
+  train_url: gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/microphysics-training-data-v4/train
+  transform:
+    antarctic_only: false
+    derived_microphys_timestep: 900
+    tensor_transforms: []
+    use_tensors: true
+    vertical_subselections: null
+  use_wandb: true
+  valid_freq: 2
+  verbose: 2
+  wandb:
+    entity: ai2cm
+    job_type: train
+    wandb_project: microphysics-emulation
+fv3fit_image_tag: 283ad8ee44b222be473ca68a670031bf91075ec6
+kind: train
+name: precpd-diff-only-rnn-v1-shared-weights-v1
+project: microphysics-emulation
+
