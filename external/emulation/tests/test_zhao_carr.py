@@ -48,16 +48,24 @@ def test_latent_heat_phase_dependent(regtest):
 
 
 def test__strict_conservative_precip_limiting():
+    """
+    Test that negative sources/sinks are fixed and that availability limts
+    are obeyed.
+    """
 
-    c_to_p = np.array([[1.0], [-1.0], [0.0]])
-    p_to_v = np.array([[1.0], [-2.0], [2.0]])
+    # Production - Evaporation example
+    # TOP   3 - 2
+    # MID   0 - 0
+    # BOT   1 - 2
+    c_to_p = np.array([[1.0], [-2.0], [3.0]])
+    p_to_v = np.array([[4.0], [-1.0], [2.0]])
 
     new_c_to_p, new_p_to_v, total_p = _strict_conservative_precip_from_TOA_to_surface(
         c_to_p, p_to_v
     )
 
-    np.testing.assert_equal(new_c_to_p, [[1.0], [0.0], [0.0]])
-    np.testing.assert_equal(new_p_to_v, [[1.0], [0.0], [0.0]])
+    np.testing.assert_equal(new_c_to_p, [[1.0], [0.0], [3.0]])
+    np.testing.assert_equal(new_p_to_v, [[2.0], [0.0], [2.0]])
     np.testing.assert_equal(total_p, np.zeros_like(total_p))
 
 
