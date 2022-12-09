@@ -108,6 +108,8 @@ class ModelConfig:
             available precip at each vertical level (considering fluxes from above).
             Ensures precipitation values are never negative and that
             evaporation is limited to the amount of available precip in each cell.
+            Final temperature values are inferred from the adjusted evaporation
+            in this case.
         simple_precip_conservative: A precip conservation method which sums total water
             change in cloud and vapor without consideration for limitations
     """
