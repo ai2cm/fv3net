@@ -258,7 +258,7 @@ def _strict_conservative_precip_from_TOA_to_surface(
 
     """
     Iterates backwards through precip source and evaporation terms to
-    determine surface precip.  Functio limits evaporation to available
+    determine surface precip.  Function limits evaporation to available
     precipitation at each level, and limits source/sink terms to be positive.
 
     Expects data in [feature x sample] dimensions (default for fields from Fortran)
