@@ -1,7 +1,7 @@
 kind: train
-name: gscond-only-classifier-rh-in-and-pscale-adj-v1
-fv3fit_image_tag: 5c847f15cd8c870558e728e2782d4dd98e2c5b02
-experiment: relative-humidity-trials
+name: gscond-only-classifier-v1
+fv3fit_image_tag: 99b74dcc46b233c05942b32098c1207b0e6dd323
+experiment: james-manuscript
 config:
   use_wandb: true
   wandb:
