@@ -1,0 +1,14 @@
+random_seed: 0
+model_type: sklearn_random_forest
+hyperparameters:
+  max_depth: 13
+  n_estimators: 5
+  input_variables:
+    - pressure_coarse
+    - relative_humidity_coarse
+    - air_temperature_coarse
+    - cloud_ice_mixing_ratio_coarse
+  output_variables:
+    - incloud_ice_mixing_ratio_fine
+    - incloud_water_mixing_ratio_fine
+    - cloud_amount_fine

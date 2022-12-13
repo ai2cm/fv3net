@@ -172,9 +172,17 @@ nudge_to_fine_run_decorr_rad: deploy
 rad_overlap_report: deploy
 	cd reports && ./submit.sh rad-overlap
 
-.PHONY: train_cloud_ml
-train_cloud_ml: deploy
-	cd training && ./run.sh
+.PHONY: train_cloud_ml_dense
+train_cloud_ml_dense: deploy
+	cd training && ./run.sh dense
+
+.PHONY: train_cloud_ml_rf
+train_cloud_ml_rf: deploy
+	cd training && ./run.sh rf
+
+.PHONY: train_cloud_ml_rf_incloud
+train_cloud_ml_rf_incloud: deploy
+	cd training && ./run.sh rf-incloud
 
 .PHONY: deploy
 deploy: kustomize
