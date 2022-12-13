@@ -107,6 +107,14 @@ prescribed_ml_cloud_decorr_run: deploy
 prescribed_ml_cloud_cc_decorr_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-ml-cloud-cc-decorr
 
+.PHONY: prescribed_rf_ml_cloud_cc_decorr_run
+prescribed_rf_ml_cloud_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cloud-cc-decorr
+
+.PHONY: prescribed_rf_ml_incloud_cc_decorr_run
+prescribed_rf_ml_incloud_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-incloud-cc-decorr
+
 .PHONY: prescribed_half_cloud_run
 prescribed_half_cloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-half-cloud

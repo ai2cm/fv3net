@@ -6,7 +6,7 @@ CONFIG=$1
 
 PROJECT=cloud-ml
 
-EXPERIMENT="nudge-to-fine-radiation-port"
+EXPERIMENT="nudged-radiation-port"
 TRIAL="trial-0"
 TAG=${EXPERIMENT}-${CONFIG}
 NAME="${TAG}-$(openssl rand --hex 2)"
