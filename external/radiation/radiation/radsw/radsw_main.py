@@ -752,16 +752,37 @@ def spcvrtm(
 
 @jit(nopython=True, cache=True)
 def mcica_subcol(iovrsw, cldf, nlay, dz, de_lgth, ipt, rand2d):
-    rand2d = rand2d[ipt, :]
+    #  ====================  definition of variables  ====================  !
+    #                                                                       !
+    #  input variables:                                                size !
+    #   cldf    - real, layer cloud fraction                           nlay !
+    #   nlay    - integer, number of model vertical layers               1  !
+    #   ipseed  - integer, permute seed for random num generator         1  !
+    #    ** note : if the cloud generator is called multiple times, need    !
+    #              to permute the seed between each call; if between calls  !
+    #              for lw and sw, use values differ by the number of g-pts. !
+    #   dz      - real, layer thickness (km)                           nlay !
+    #   de_lgth - real, layer cloud decorrelation length (km)            1  !
+    #                                                                       !
+    #  output variables:                                                    !
+    #   lcloudy - logical, sub-colum cloud profile flag array    ngptlw*nlay!
+    #                                                                       !
+    #  other control flags from module variables:                           !
+    #     iovrsw    : control flag for cloud overlapping method             !
+    #                 =0:random; =1:maximum/random: =2:maximum; =3:decorr   !
+    #                                                                       !
+    #  =====================    end of definitions    ====================  !
 
     #  ---  outputs:
     lcloudy = np.zeros((nlay, ngptsw))
 
     #  ---  locals:
+    rand2d = rand2d[ipt, :]
     cdfunc = np.zeros((nlay, ngptsw))
+
     #  --- ...  sub-column set up according to overlapping assumption
 
-    if iovrsw < 2:  # random or max-random overlap
+    if iovrsw in (0, 1, 3):  # random, max-random or decorr overlap
 
         k1 = 0
         for n in range(ngptsw):
@@ -786,6 +807,18 @@ def mcica_subcol(iovrsw, cldf, nlay, dz, de_lgth, ipt, rand2d):
                     cdfunc[k, n] = cdfunc[k1, n]
                 else:
                     cdfunc[k, n] = cdfunc[k, n] * tem1
+
+    if iovrsw == 3:  # decorrelation length overlap
+
+        fac_lcf = np.exp(-0.5 * (dz[1:] + dz[:-1]) / de_lgth)
+
+        cdfunc2 = np.random.rand(*cdfunc.shape)
+
+        for n in range(ngptsw):
+            for k in range(nlay - 2, 0, -1):
+                k1 = k + 1
+                if cdfunc2[k, n] <= fac_lcf[k]:
+                    cdfunc[k, n] = cdfunc[k1, n]
 
     #  --- ...  generate subcolumns for homogeneous clouds
 

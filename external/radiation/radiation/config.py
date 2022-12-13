@@ -148,13 +148,13 @@ class RadiationConfig:
             0: random overlapping clouds
             1: maximum/random overlapping clouds
             2: maximum overlap cloud (not implemented in port)
-            3: decorrelation-length overlap clouds (not implemented in port)
+            3: decorrelation-length overlap clouds
         iovrlw: Cloud overlapping control flag for longwave radiation. In physics
             namelist as 'iovr_lw'.
             0: random overlapping clouds
             1: maximum/random overlapping clouds
             2: maximum overlap cloud (not implemented in port)
-            3: decorrelation-length overlap clouds (not implemented in port)
+            3: decorrelation-length overlap clouds
         isubcsw: Sub-column cloud approx flag in SW radiation. In physics
             namelist as 'isubc_sw'.
             0: no sub-column cloud treatment, use grid-mean cloud quantities
