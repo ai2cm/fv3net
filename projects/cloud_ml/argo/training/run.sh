@@ -2,20 +2,29 @@
 
 set -e
 
+TRAINING=$1
+
 BUCKET="vcm-ml-experiments"
 PROJECT="cloud-ml"
-EXPERIMENT="fine-cloud-dense-local"
+EXPERIMENT="fine-cloud-${TRAINING}-local"
 TRIAL="trial-0"
 TAG="${EXPERIMENT}"  # required
-NAME=train-cloud-ml-$(openssl rand --hex 2) # required
+NAME=train-cloud-ml-${TRAINING}-$(openssl rand --hex 2) # required
 WANDB_PROJECT="radiation-cloud-ml"
 
+if [ "$TRAINING" = "rf" ]; then
+    VALIDATION_ARG=" "
+else
+    VALIDATION_ARG="$( yq . validation.yaml )"
+fi
+
 argo submit --from workflowtemplate/training \
-    -p training_config="$( yq . training-config.yaml )" \
+    -p training_config="$( yq . ${TRAINING}-training-config.yaml )" \
     -p training_data_config="$( yq . train.yaml )" \
-    -p validation_data_config="$( yq . validation.yaml )" \
+    -p validation_data_config="${VALIDATION_ARG}" \
     -p output="gs://${BUCKET}/${PROJECT}/$(date +%F)/${TAG}/trained_model" \
-    -p memory="20Gi" \
+    -p memory="25Gi" \
+    -p cpu="4000m" \
     -p flags="--cache.local_download_path train-data-download-dir" \
     -p wandb-project="${WANDB_PROJECT}" \
     --name "${NAME}" \
