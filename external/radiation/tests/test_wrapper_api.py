@@ -115,25 +115,27 @@ RADIATION_KWARGS = {
 }
 
 
-def test_config_validation(regtest):
-    rad_config = RadiationConfig()
-    radiation_wrapper = Radiation(rad_config, **RADIATION_KWARGS)
-    with regtest:
-        radiation_wrapper.validate()
-
-
 @pytest.mark.parametrize(
-    ["rad_config_kwargs"],
+    ["overlap_option"],
     [
-        pytest.param({"iovrsw": 2}, id="max_overlap_not_implemented"),
-        pytest.param({"isolar": 5}, id="invalid_solar_constant"),
+        pytest.param(None, id="default"),
+        pytest.param(0, id="random_overlap"),
+        pytest.param(1, id="max_random_overlap"),
+        pytest.param(3, id="decorrelation_length_overlap"),
     ],
 )
-def test_wrapper_raises_on_invalid(rad_config_kwargs):
-    """Doesn't make sense to test all of the config validation, but
-        try a couple known invalid combinations to make sure they fail.
-    """
-    rad_config = RadiationConfig(**rad_config_kwargs)
+def test_overlap_options(overlap_option, regtest):
+    if overlap_option is not None:
+        rad_config = RadiationConfig(iovrlw=overlap_option, iovrsw=overlap_option)
+    else:
+        rad_config = RadiationConfig()
+    with regtest:
+        Radiation(rad_config, **RADIATION_KWARGS).validate()
+
+
+def test_unimplemented_overlap_raises():
+    overlap_option = 2
+    rad_config = RadiationConfig(iovrlw=overlap_option, iovrsw=overlap_option)
     with pytest.raises(ValueError):
         Radiation(rad_config, **RADIATION_KWARGS).validate()
 
