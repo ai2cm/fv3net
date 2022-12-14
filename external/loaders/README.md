@@ -1,4 +1,4 @@
-`loaders`
+loaders
 =======
 
 The `loaders` package contains modules that are used to load data for use in

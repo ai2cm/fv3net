@@ -7,9 +7,10 @@ FORCING_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/forcing/
 
 @dataclasses.dataclass()
 class GFSPhysicsControlConfig:
-    """Static configuration for the ported version of the Fortran GFS_physics_control
-        structure ('model' in the Fortran radiation code).
-    
+    """
+    Static configuration for the ported version of the Fortran GFS_physics_control
+    structure ('model' in the Fortran radiation code).
+
     Args:
         levs: Number of model levels.
         nfxr: Number of radiative fluxes calculated.
@@ -17,10 +18,9 @@ class GFSPhysicsControlConfig:
         ncnd: Number of condensate species. In physics namelist.
         fhswr: Shortwave radiation timestep in seconds. In physics namelist.
         fhlwr: Longwave radiation timestep in seconds. In physics namelist.
-        imp_physics: Choice of microphysics scheme:
-            11: GFDL microphysics scheme (only ported option)
-            8: Thompson microphysics scheme
-            10: Morrison-Gettelman microphysics scheme
+        imp_physics: Choice of microphysics scheme: 11 for GFDL microphysics scheme
+            (only ported option), 8 for Thompson microphysics scheme, 10 for
+            Morrison-Gettelman microphysics scheme
         lgfdlmprad:
         uni_cld:
         effr_in:
@@ -110,7 +110,8 @@ class GFSPhysicsControlConfig:
 
 @dataclasses.dataclass
 class RadiationConfig:
-    """A configuration class for the radiation wrapper. These namelist flags and
+    """
+    A configuration class for the radiation wrapper. These namelist flags and
     other attributes control the wrapper behavior. The documentation here is largely
     cut and pasted from the Fortran radiation routines.
     
@@ -120,15 +121,14 @@ class RadiationConfig:
         ictmflg: Data IC time/date control flag.
             yyyy#, external data ic time/date control flag
             -2: same as 0, but superimpose seasonal cycle from climatology data set.
-            -1: use user provided external data for the forecast time, no
-                extrapolation.
-            0: use data at initial cond time, if not available, use latest, no
-                extrapolation.
-            1: use data at the forecast time, if not available, use latest and
-                extrapolation.
+            -1: use user provided external data for the forecast time, no extrapolation.
+            0: use data at initial cond time, if not available, use latest, no \
+            extrapolation.
+            1: use data at the forecast time, if not available, use latest and \
+            extrapolation.
             yyyy0: use yyyy data for the forecast time no further data extrapolation.
-            yyyy1: use yyyy data for the fcst. if needed, do extrapolation to match
-                the fcst time.
+            yyyy1: use yyyy data for the fcst. if needed, do extrapolation to \
+            match the fcst time.
         isolar: Solar constant cntrl. In physics namelist as 'isol'.
             0: use the old fixed solar constant in "physcon"
             10: use the new fixed solar constant in "physcon"
