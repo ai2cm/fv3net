@@ -112,7 +112,7 @@ def transform_agrid_winds_to_dgrid_winds(
 ) -> Tuple[xr.DataArray, xr.DataArray]:
     ua_quantity = pace.util.Quantity.from_data_array(ua.assign_attrs(units="m/s"))
     va_quantity = pace.util.Quantity.from_data_array(va.assign_attrs(units="m/s"))
-    x_wind, y_wind = fv3gfs.wrapper.transform_agrid_winds_dgrid_winds(
+    x_wind, y_wind = fv3gfs.wrapper.transform_agrid_winds_to_dgrid_winds(
         ua_quantity, va_quantity
     )
     return x_wind.data_array, y_wind.data_array
