@@ -110,8 +110,8 @@ def fillna_tendency(tendency: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]
 def transform_agrid_winds_to_dgrid_winds(
     ua: xr.DataArray, va: xr.DataArray
 ) -> Tuple[xr.DataArray, xr.DataArray]:
-    ua_quantity = pace.util.Quantity.from_data_array(ua)
-    va_quantity = pace.util.Quantity.from_data_array(va)
+    ua_quantity = pace.util.Quantity.from_data_array(ua.assign_attrs(units="m/s"))
+    va_quantity = pace.util.Quantity.from_data_array(va.assign_attrs(units="m/s"))
     x_wind, y_wind = fv3gfs.wrapper.transform_agrid_winds_dgrid_winds(
         ua_quantity, va_quantity
     )
