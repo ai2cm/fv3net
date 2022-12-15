@@ -31,5 +31,8 @@ def get_job(model_paths, name):
     )
 
 
-jobs = [get_job(dense_model_paths, "zc-emu-using-dense-v1")]
+jobs = [
+    get_job(dense_model_paths, "zc-emu-using-dense-v1"),
+    get_job(model_paths, "zc-emu-not-dense-v1"),
+]
 submit_jobs(jobs, "compare-offline-dense-dec2022")
