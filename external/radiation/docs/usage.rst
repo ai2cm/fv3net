@@ -29,6 +29,6 @@ The radiation wrapper then can be readied for use using the ``.init_driver()`` m
 
  .. code-block::
 
-        radiative_fluxes = radiation(time, state)
+        radiation_outputs = radiation(time, state)
 
-where ``time`` is a datetime-like current time, and ``state`` is a dictionary that must contain the data arrays listed in the wrapper's ``.input_variables`` attribute. The radiative fluxes in the resulting dict will be those in the ``.output_variables`` attribute.
+where ``time`` is a datetime-like current time, and ``state`` is a dictionary that must contain the data arrays listed in the wrapper's ``.input_variables`` attribute. The radiation outputs in the resulting dict will be those in the ``.output_variables`` attribute.

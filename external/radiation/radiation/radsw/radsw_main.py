@@ -809,6 +809,13 @@ def mcica_subcol(iovrsw, cldf, nlay, dz, de_lgth, ipt, rand2d):
                     cdfunc[k, n] = cdfunc[k, n] * tem1
 
     if iovrsw == 3:  # decorrelation length overlap
+        # ported from https://github.com/ai2cm/fv3gfs-fortran/blob/2a3ea739723d6152fd03d419c76d25741f7fa9da/FV3/gfsphysics/physics/radsw_main.f#L2125  # noqa: E501
+        # compute overlapping factors based on layer midpoint distances and
+        # decorrelation depths
+        #  ---  setup 2 sets of random numbers, then working from the top down:
+        #       if a random number (from an independent set -cdfunc2) is smaller
+        #       than the scale factor, use the upper layer's number, otherwise use
+        #       a new random number (keep the original assigned one).
 
         fac_lcf = np.exp(-0.5 * (dz[1:] + dz[:-1]) / de_lgth)
 

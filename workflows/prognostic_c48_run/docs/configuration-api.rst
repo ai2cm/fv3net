@@ -49,6 +49,9 @@ Python "prephysics and postphysics"
 .. py:module:: runtime.steppers.prescriber
 .. autoclass:: PrescriberConfig
 
+.. py:module:: runtime.steppers.radiation
+.. autoclass:: RadiationStepperConfig
+
 
 Python Diagnostics
 ~~~~~~~~~~~~~~~~~~
