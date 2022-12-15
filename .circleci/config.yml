@@ -187,7 +187,7 @@ jobs:
       - run:
           name: Setup kubectl
           command: |
-            sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin
+            apt-get install google-cloud-sdk-gke-gcloud-auth-plugin
             gcloud container clusters get-credentials --zone us-central1-c  $CLUSTER_NAME
             kube_cluster_name=$(kubectl config get-clusters | grep $CLUSTER_NAME)
             kubectl config set-cluster $kube_cluster_name --server="https://"$proxy_ip
