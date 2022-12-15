@@ -30,10 +30,18 @@ __all__ = [
 ]
 
 
+# from physcons.f
+GRAVITY = 9.80665  # m / s2
+CP = 1.0046e3  # J / kg / K
+LV = 2.5e6  # J / kg
+RHO_WATER = 1000.0  # kg / m3
+
+
 class Input:
     cloud_water = "cloud_water_mixing_ratio_input"
     humidity = "specific_humidity_input"
     temperature = "air_temperature_input"
+    delp = "pressure_thickness_of_atmospheric_layer"
 
 
 class GscondOutput:
@@ -46,6 +54,7 @@ class PrecpdOutput:
     cloud_water = "cloud_water_mixing_ratio_after_precpd"
     humidity = "specific_humidity_after_precpd"
     temperature = "air_temperature_after_precpd"
+    precip = "total_precipitation"
 
 
 def squash_water_water_conserving(cloud, humidity, bound: float):
@@ -227,3 +236,109 @@ def enforce_conservative_phase_dependent(state, emulator):
     net_condensation = cloud_out - state[Input.cloud_water]
     net_condensation = _limit_net_condensation_conserving(state, net_condensation)
     return {**emulator, **apply_condensation_phase_dependent(state, net_condensation)}
+
+
+def mixing_ratio_to_mass(x: np.ndarray, delp: np.ndarray) -> np.ndarray:
+    """convert data proportional to kg/kg -> kg/m2"""
+    return x * delp / GRAVITY
+
+
+def mass_to_mixing_ratio(x: np.ndarray, delp: np.ndarray) -> np.ndarray:
+    """convert data proportional to kg/m2 -> kg/kg"""
+    return x / delp * GRAVITY
+
+
+def liquid_water_equivalent(x: np.ndarray) -> np.ndarray:
+    """convert data proportional to kg/m2 -> m"""
+    return x / RHO_WATER
+
+
+def _strict_conservative_precip_from_TOA_to_surface(
+    condensate_to_precip: np.ndarray, precip_to_vapor: np.ndarray
+):
+
+    """
+    Iterates backwards through precip source and evaporation terms to
+    determine surface precip.  Function limits evaporation to available
+    precipitation at each level, and limits source/sink terms to be positive.
+
+    Expects data in [feature x sample] dimensions (default for fields from Fortran)
+    """
+
+    limited_c_to_p = np.maximum(condensate_to_precip, 0)  # no condensate from precip
+    limited_p_to_v = np.maximum(precip_to_vapor, 0)  # no precip from vapor
+
+    if not len(precip_to_vapor.shape) == 2:
+        raise ValueError(
+            "Expected 2D inputs to the strict conservative precip function"
+        )
+
+    num_features, num_samples = precip_to_vapor.shape
+
+    total_precip = np.zeros(num_samples)
+
+    # calculate precip and evaporation starting from TOA
+    for k in range(num_features - 1, -1, -1):
+        precip = limited_c_to_p[k]
+        total_precip += precip
+        evaporation = limited_p_to_v[k]
+        limited_evap = np.minimum(total_precip, evaporation)
+        total_precip -= limited_evap
+        limited_p_to_v[k, :] = limited_evap
+
+    return limited_c_to_p, limited_p_to_v, total_precip
+
+
+def enforce_conservative_precpd(state, emulator):
+    cloud_change = emulator[PrecpdOutput.cloud_water] - state[GscondOutput.cloud_water]
+    humidity_change = emulator[PrecpdOutput.humidity] - state[GscondOutput.humidity]
+
+    # switch to kg / m2
+    delp = state[Input.delp]
+    precip_source = mixing_ratio_to_mass(-1 * cloud_change, delp)
+    precip_sink = mixing_ratio_to_mass(humidity_change, delp)
+
+    [
+        precip_src_limited,
+        precip_sink_limited,
+        total_precip,
+    ] = _strict_conservative_precip_from_TOA_to_surface(precip_source, precip_sink)
+
+    surface_precip_m = liquid_water_equivalent(total_precip)
+    limited_evaporation = mass_to_mixing_ratio(precip_sink_limited, delp)
+
+    # temperature adjust
+    evaporative_cooling = LV / CP * -1 * limited_evaporation
+
+    cloud_out = state[GscondOutput.cloud_water] + mass_to_mixing_ratio(
+        -1 * precip_src_limited, delp
+    )
+    humidity_out = state[GscondOutput.humidity] + limited_evaporation
+    temperature_out = state[GscondOutput.temperature] + evaporative_cooling
+
+    return {
+        **emulator,
+        PrecpdOutput.cloud_water: cloud_out,
+        PrecpdOutput.humidity: humidity_out,
+        PrecpdOutput.temperature: temperature_out,
+        PrecpdOutput.precip: surface_precip_m,
+    }
+
+
+def conservative_precip_simple(state, emulator, sum_axis=0):
+    qv_before = state[GscondOutput.humidity]
+    qv_after = emulator[PrecpdOutput.humidity]
+    qc_before = state[GscondOutput.cloud_water]
+    qc_after = emulator[PrecpdOutput.cloud_water]
+    delp = state[Input.delp]
+
+    water_before = qv_before + qc_before
+    water_after = qv_after + qc_after
+    column_water_before = np.sum(
+        mixing_ratio_to_mass(water_before, delp), axis=sum_axis
+    )
+    column_water_after = np.sum(mixing_ratio_to_mass(water_after, delp), axis=sum_axis)
+    surface_precipitation = liquid_water_equivalent(
+        column_water_before - column_water_after
+    )
+    return {**emulator, PrecpdOutput.precip: surface_precipitation}

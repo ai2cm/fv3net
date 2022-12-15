@@ -15,10 +15,5 @@ RUN pip install -r /tmp/requirements.txt
 COPY external/artifacts /tmp/artifacts
 RUN pip3 install --no-cache-dir --no-dependencies /tmp/artifacts
 
-COPY projects/microphysics/argo /projects/microphysics/argo
-COPY projects/microphysics/experiments /projects/microphysics/experiments
-COPY projects/microphysics/train /projects/microphysics/train
-COPY projects/microphysics/configs /projects/microphysics/configs
-
 ARG COMMIT_SHA_ARG
 ENV COMMIT_SHA=$COMMIT_SHA_ARG
