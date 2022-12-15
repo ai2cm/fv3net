@@ -37,6 +37,7 @@ from runtime.names import (
     TENDENCY_TO_STATE_NAME,
     TOTAL_PRECIP_RATE,
     PREPHYSICS_OVERRIDES,
+    WIND_TENDENCIES,
 )
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
@@ -106,7 +107,42 @@ def fillna_tendency(tendency: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]
     return tendency_filled, tendency_filled_frac
 
 
-def add_tendency(state: Any, tendency: State, dt: float) -> Tuple[State, State]:
+def transform_agrid_winds_to_dgrid_winds(
+    ua: xr.DataArray, va: xr.DataArray
+) -> Tuple[xr.DataArray, xr.DataArray]:
+    ua_quantity = pace.util.Quantity.from_data_array(ua)
+    va_quantity = pace.util.Quantity.from_data_array(va)
+    x_wind, y_wind = fv3gfs.wrapper.transform_agrid_winds_dgrid_winds(
+        ua_quantity, va_quantity
+    )
+    return x_wind.data_array, y_wind.data_array
+
+
+def compute_total_dgrid_wind_tendencies(state, tendencies):
+    # TODO: this could be computationally optimized.  If no A-grid wind
+    # tendencies are provided, we don't need to bother passing zeros through
+    # to the transformation function.  We don't need to bother adding zeros
+    # if no D-grid wind tendencies are provided either.
+    dQx_wind = tendencies.get(
+        "dQx_wind", xr.zeros_like(state["x_wind"]).assign_attrs(units="m/s/s")
+    )
+    dQy_wind = tendencies.get(
+        "dQy_wind", xr.zeros_like(state["y_wind"]).assign_attrs(units="m/s/s")
+    )
+    dQu = tendencies.get(
+        "dQu", xr.zeros_like(state["eastward_wind"]).assign_attrs(units="m/s/s")
+    )
+    dQv = tendencies.get(
+        "dQv", xr.zeros_like(state["northward_wind"]).assign_attrs(units="m/s/s")
+    )
+    (
+        dQx_wind_from_dQu_and_dQv,
+        dQy_wind_from_dQu_and_dQv,
+    ) = transform_agrid_winds_to_dgrid_winds(dQu, dQv)
+    return dQx_wind + dQx_wind_from_dQu_and_dQv, dQy_wind + dQy_wind_from_dQu_and_dQv
+
+
+def add_tendency(state: Any, tendencies: State, dt: float) -> Tuple[State, State]:
     """Given state and tendency prediction, return updated state, which only includes
     variables updated by tendencies. Also returns column-integrated fraction of
     tendencies which are filled nans.
@@ -114,24 +150,45 @@ def add_tendency(state: Any, tendency: State, dt: float) -> Tuple[State, State]:
 
     with xr.set_options(keep_attrs=True):
         updated = {}
-        tendency_filled_frac = {}
-        for name_ in tendency:
-            name = str(name_)
-            try:
-                state_name = str(TENDENCY_TO_STATE_NAME[name])
-            except KeyError:
-                raise KeyError(
-                    f"Tendency variable '{name}' does not have an entry mapping it "
-                    "to a corresponding state variable to add to. "
-                    "Existing tendencies with mappings to state are "
-                    f"{list(TENDENCY_TO_STATE_NAME.keys())}"
-                )
-            (
-                tendency_filled,
-                tendency_filled_frac[f"{name}_filled_frac"],
-            ) = fillna_tendency(tendency[name])
-            updated[state_name] = state[state_name] + tendency_filled * dt
-    return updated, tendency_filled_frac  # type: ignore
+        filled_tendencies = {}
+        filled_fractions = {}
+
+        for name, tendency in tendencies.items():
+            filled, filled_fraction = fillna_tendency(tendency[name])
+            filled_tendencies[name] = filled
+            filled_fractions[f"{name}_filled_frac"] = filled_fraction
+
+        if set(filled_tendencies).intersection(WIND_TENDENCIES):
+            # TODO: it's an open question how best to handle diagnostics in this
+            # case.  Right now I am permitting specifying tendency updates to
+            # both the D-grid winds and the A-grid winds at the same time, and
+            # am taking their sum to apply to the D-grid winds in the end.  The
+            # filled tendencies remain separate, however.  In other words if
+            # both x_wind and eastward_wind tendencies are provided, the
+            # diagnostic for the x_wind tendency is just what was originally
+            # provided on the D-grid (not the sum of the D-grid and A-grid
+            # contributions).  I believe this is the way things would have
+            # been handled prior to this change as well.
+            dQx_wind_total, dQy_wind_total = compute_total_dgrid_wind_tendencies(
+                state, filled_tendencies
+            )
+            updated["x_wind"] = state["x_wind"] + dQx_wind_total * dt
+            updated["y_wind"] = state["y_wind"] + dQy_wind_total * dt
+
+        for name, tendency in filled_tendencies.items():
+            if name not in WIND_TENDENCIES:
+                try:
+                    state_name = str(TENDENCY_TO_STATE_NAME[name])
+                except KeyError:
+                    raise KeyError(
+                        f"Tendency variable '{name}' does not have an entry mapping it "
+                        "to a corresponding state variable to add to. "
+                        "Existing tendencies with mappings to state are "
+                        f"{list(TENDENCY_TO_STATE_NAME.keys())}"
+                    )
+                updated[state_name] = state[state_name] + tendency * dt
+
+    return updated, filled_fractions  # type: ignore
 
 
 class LoggingMixin:
@@ -487,25 +544,26 @@ class TimeLoop(
 
         Mostly used for updating the eastward and northward winds.
         """
-        self._log_debug(f"Apply postphysics tendencies to physics state")
-        tendency = {k: v for k, v in self._tendencies.items() if k in ["dQu", "dQv"]}
+        pass
+        # self._log_debug(f"Apply postphysics tendencies to physics state")
+        # tendency = {k: v for k, v in self._tendencies.items() if k in ["dQu", "dQv"]}
 
-        diagnostics: Diagnostics = {}
+        # diagnostics: Diagnostics = {}
 
-        if self._postphysics_stepper is not None:
-            diagnostics = self._postphysics_stepper.get_momentum_diagnostics(
-                self._state, tendency
-            )
-            if self._postphysics_only_diagnostic_ml:
-                rename_diagnostics(diagnostics)
-            else:
-                updated_state, tendency_filled_frac = add_tendency(
-                    self._state, tendency, dt=self._timestep
-                )
-                self._state.update_mass_conserving(updated_state)
-                diagnostics.update(tendency_filled_frac)
+        # if self._postphysics_stepper is not None:
+        #     diagnostics = self._postphysics_stepper.get_momentum_diagnostics(
+        #         self._state, tendency
+        #     )
+        #     if self._postphysics_only_diagnostic_ml:
+        #         rename_diagnostics(diagnostics)
+        #     else:
+        #         updated_state, tendency_filled_frac = add_tendency(
+        #             self._state, tendency, dt=self._timestep
+        #         )
+        #         self._state.update_mass_conserving(updated_state)
+        #         diagnostics.update(tendency_filled_frac)
 
-        return diagnostics
+        # return diagnostics
 
     def _compute_postphysics(self) -> Diagnostics:
         self._log_info("Computing Postphysics Updates")
@@ -538,19 +596,18 @@ class TimeLoop(
 
     def _apply_postphysics_to_dycore_state(self) -> Diagnostics:
 
-        tendency = dissoc(self._tendencies, "dQu", "dQv")
         diagnostics = compute_baseline_diagnostics(self._state)
 
         if self._postphysics_stepper is not None:
             stepper_diags, net_moistening = self._postphysics_stepper.get_diagnostics(
-                self._state, tendency
+                self._state, self._tendencies
             )
             diagnostics.update(stepper_diags)
             if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
                 updated_state_from_tendency, tendency_filled_frac = add_tendency(
-                    self._state, tendency, dt=self._timestep
+                    self._state, self._tendencies, dt=self._timestep
                 )
 
                 # if total precip is updated directly by stepper,

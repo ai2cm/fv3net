@@ -38,6 +38,9 @@ PREPHYSICS_OVERRIDES = [
     "ocean_surface_temperature",
     "surface_temperature",
 ]
+A_GRID_WIND_TENDENCIES = {"dQu", "dQv"}
+D_GRID_WIND_TENDENCIES = {"dQx_wind", "dQy_wind"}
+WIND_TENDENCIES = A_GRID_WIND_TENDENCIES | D_GRID_WIND_TENDENCIES
 
 
 def is_state_update_variable(key, state: State):
