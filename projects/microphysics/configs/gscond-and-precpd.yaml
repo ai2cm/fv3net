@@ -1,12 +1,12 @@
 kind: prognostic
-experiment: rh-trials-prognostic-oct2022
-name: zc-emu-rh-in-30d-v1
+experiment: model-refine-nov2022
+name: zc-emu-air-t-pres-in-adj-11d-v1
 image_tag: latest
-fv3net_image_tag: 9d2404bb4f04a3c7645692f3b05670b8ed1c2c73
+fv3net_image_tag: latest
 config:
   base_version: v0.5
   data_table: default
-  duration: "30d"
+  duration: "11d"
   initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
   fortran_diagnostics:
   - name: piggy.zarr
@@ -267,8 +267,8 @@ config:
       save_zc_microphysics: true
   zhao_carr_emulation:
     gscond:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-08/gscond-only-dense-rh-in-v1/model.tf
-      classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-08/gscond-only-classifier-rh-in-v1/model.tf
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-11-23/gscond-air-press-t-in-adjust-v1/model.tf
+      classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-11-23/gscond-classifier-air-pres-t-in-adj-v1/model.tf
       enforce_conservative: true
       gscond_cloud_conservative: true
       mask_gscond_zero_cloud_classifier: true
@@ -284,7 +284,7 @@ config:
           start: 74
           fill_value: air_temperature_input
     model:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-08/precpd-diff-only-press-rh-in-v1/model.tf
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-11-23/precpd-air-pres-t-in-adjust-v1/model.tf
     storage:
       output_freq_sec: 10800
       save_nc: false
