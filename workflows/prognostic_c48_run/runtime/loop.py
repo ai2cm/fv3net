@@ -154,7 +154,7 @@ def add_tendency(state: Any, tendencies: State, dt: float) -> Tuple[State, State
         filled_fractions = {}
 
         for name, tendency in tendencies.items():
-            filled, filled_fraction = fillna_tendency(tendency[name])
+            filled, filled_fraction = fillna_tendency(tendency)
             filled_tendencies[name] = filled
             filled_fractions[f"{name}_filled_frac"] = filled_fraction
 
@@ -544,7 +544,6 @@ class TimeLoop(
 
         Mostly used for updating the eastward and northward winds.
         """
-        pass
         # self._log_debug(f"Apply postphysics tendencies to physics state")
         # tendency = {k: v for k, v in self._tendencies.items() if k in ["dQu", "dQv"]}
 
@@ -657,7 +656,7 @@ class TimeLoop(
                 self._step_pre_radiation_physics,
                 self._step_radiation_physics,
                 self._step_post_radiation_physics,
-                self._apply_postphysics_to_physics_state,
+                # self._apply_postphysics_to_physics_state,
                 self.monitor(
                     "applied_physics",
                     self.emulate_or_prescribe_tendency(
