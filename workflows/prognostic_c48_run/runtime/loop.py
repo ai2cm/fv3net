@@ -362,7 +362,7 @@ class TimeLoop(
             local_model_paths = self.comm.bcast(local_model_paths, root=0)
             setattr(ml_config, "model", local_model_paths)
             self._log_info("Model Downloaded From Remote")
-            model = open_model(ml_config)
+            model = open_model(local_model_paths, ml_config)  # type: ignore
             MPI.COMM_WORLD.barrier()
         self._log_info("Model Loaded")
         return model

@@ -179,10 +179,13 @@ class MultiModelAdapter:
         return ds
 
 
-def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
-    model_paths = config.model
+def open_model(
+    local_model_paths: Sequence[str], config: MachineLearningConfig
+) -> MultiModelAdapter:
+    # Uses the paths for locally downloaded models instead opening from remote
+    # locations in ML config
     models = []
-    for path in model_paths:
+    for path in local_model_paths:
         model = cast(fv3fit.Predictor, fv3fit.load(path))
         rename_in = config.input_standard_names
         rename_out = config.output_standard_names
