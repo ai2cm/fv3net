@@ -297,6 +297,7 @@ class TrainConfig(TransformedParameters):
             tf.data.experimental.save to ``out_url``
         data_format: one of ['nc', 'tf']. The data format of datasets at
             ``train_url`` and ``test_url``.
+        seed: value used to initialize randomness
     """
 
     train_url: str = ""
@@ -308,6 +309,7 @@ class TrainConfig(TransformedParameters):
     save_only: bool = False
     data_format: str = "nc"
     nc_file_match: Optional[str] = None
+    seed: int = 0
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TrainConfig":
@@ -585,9 +587,11 @@ def save(config: TrainConfig):
             f.write(config.to_yaml())
 
 
-def main(config: TrainConfig, seed: int = 0):
+def main(config: TrainConfig):
     logging.basicConfig(level=getattr(logging, config.log_level))
-    set_random_seed(seed)
+
+    set_random_seed(config.seed)
+
     if config.save_only:
         return save(config)
     else:
