@@ -110,8 +110,8 @@ def fillna_tendency(tendency: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]
 def transform_agrid_winds_to_dgrid_winds(
     ua: xr.DataArray, va: xr.DataArray
 ) -> Tuple[xr.DataArray, xr.DataArray]:
-    ua_quantity = pace.util.Quantity.from_data_array(ua.assign_attrs(units="m/s"))
-    va_quantity = pace.util.Quantity.from_data_array(va.assign_attrs(units="m/s"))
+    ua_quantity = pace.util.Quantity.from_data_array(ua)
+    va_quantity = pace.util.Quantity.from_data_array(va)
     x_wind, y_wind = fv3gfs.wrapper.transform_agrid_winds_to_dgrid_winds(
         ua_quantity, va_quantity
     )
@@ -539,31 +539,6 @@ class TimeLoop(
 
         return diagnostics
 
-    def _apply_postphysics_to_physics_state(self) -> Diagnostics:
-        """Apply computed tendencies and state updates to the physics state
-
-        Mostly used for updating the eastward and northward winds.
-        """
-        # self._log_debug(f"Apply postphysics tendencies to physics state")
-        # tendency = {k: v for k, v in self._tendencies.items() if k in ["dQu", "dQv"]}
-
-        # diagnostics: Diagnostics = {}
-
-        # if self._postphysics_stepper is not None:
-        #     diagnostics = self._postphysics_stepper.get_momentum_diagnostics(
-        #         self._state, tendency
-        #     )
-        #     if self._postphysics_only_diagnostic_ml:
-        #         rename_diagnostics(diagnostics)
-        #     else:
-        #         updated_state, tendency_filled_frac = add_tendency(
-        #             self._state, tendency, dt=self._timestep
-        #         )
-        #         self._state.update_mass_conserving(updated_state)
-        #         diagnostics.update(tendency_filled_frac)
-
-        # return diagnostics
-
     def _compute_postphysics(self) -> Diagnostics:
         self._log_info("Computing Postphysics Updates")
 
@@ -656,7 +631,6 @@ class TimeLoop(
                 self._step_pre_radiation_physics,
                 self._step_radiation_physics,
                 self._step_post_radiation_physics,
-                # self._apply_postphysics_to_physics_state,
                 self.monitor(
                     "applied_physics",
                     self.emulate_or_prescribe_tendency(
