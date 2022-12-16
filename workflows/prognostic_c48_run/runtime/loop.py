@@ -110,10 +110,16 @@ def fillna_tendency(tendency: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]
 def transform_agrid_winds_to_dgrid_winds(
     ua: xr.DataArray, va: xr.DataArray
 ) -> Tuple[xr.DataArray, xr.DataArray]:
-    ua_quantity = pace.util.Quantity.from_data_array(ua)
-    va_quantity = pace.util.Quantity.from_data_array(va)
+    # The wrapper requires double-precision values
+    ua_quantity = pace.util.Quantity.from_data_array(
+        ua.astype(np.float64, casting="same_kind")
+    )
+    va_quantity = pace.util.Quantity.from_data_array(
+        va.astype(np.float64, casting="same_kind")
+    )
     x_wind, y_wind = fv3gfs.wrapper.transform_agrid_winds_to_dgrid_winds(
-        ua_quantity, va_quantity
+        ua_quantity,
+        va_quantity
     )
     return x_wind.data_array, y_wind.data_array
 
@@ -471,9 +477,7 @@ class TimeLoop(
             "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
-            "total_precip_after_physics": self._state[TOTAL_PRECIP],
-            "x_wind_after_physics": self._state["x_wind"],
-            "y_wind_after_physics": self._state["y_wind"]
+            "total_precip_after_physics": self._state[TOTAL_PRECIP]
         }
 
     def _print_timings(self, reduced):
