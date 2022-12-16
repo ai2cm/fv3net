@@ -123,22 +123,16 @@ def compute_total_dgrid_wind_tendencies(state, tendencies):
     # tendencies are provided, we don't need to bother passing zeros through
     # to the transformation function.  We don't need to bother adding zeros
     # if no D-grid wind tendencies are provided either.
-    dQx_wind = tendencies.get(
-        "dQx_wind", xr.zeros_like(state["x_wind"]).assign_attrs(units="m/s/s")
-    )
-    dQy_wind = tendencies.get(
-        "dQy_wind", xr.zeros_like(state["y_wind"]).assign_attrs(units="m/s/s")
-    )
-    dQu = tendencies.get(
-        "dQu", xr.zeros_like(state["eastward_wind"]).assign_attrs(units="m/s/s")
-    )
-    dQv = tendencies.get(
-        "dQv", xr.zeros_like(state["northward_wind"]).assign_attrs(units="m/s/s")
-    )
+    dQx_wind = tendencies.get("dQx_wind", xr.zeros_like(state["x_wind"]))
+    dQy_wind = tendencies.get("dQy_wind", xr.zeros_like(state["y_wind"]))
+    dQu = tendencies.get("dQu", xr.zeros_like(state["eastward_wind"]))
+    dQv = tendencies.get("dQv", xr.zeros_like(state["northward_wind"]))
     (
         dQx_wind_from_dQu_and_dQv,
         dQy_wind_from_dQu_and_dQv,
-    ) = transform_agrid_winds_to_dgrid_winds(dQu, dQv)
+    ) = transform_agrid_winds_to_dgrid_winds(
+        dQu.assign_attrs(units="m/s/s"), dQv.assign_attrs(units="m/s/s")
+    )
     return dQx_wind + dQx_wind_from_dQu_and_dQv, dQy_wind + dQy_wind_from_dQu_and_dQv
 
 
