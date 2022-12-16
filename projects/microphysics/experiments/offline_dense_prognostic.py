@@ -20,7 +20,7 @@ model_paths = {
 
 
 def get_job(model_paths, name):
-    config = load_yaml("../configs/combined-base.yaml")
+    config = load_yaml("../configs/gscond-and-precpd.yaml")["config"]
 
     config["duration"] = "30d"
     config["zhao_carr_emulation"]["gscond"]["path"] = model_paths["gscond"]
@@ -32,7 +32,7 @@ def get_job(model_paths, name):
 
 
 jobs = [
-    get_job(dense_model_paths, "zc-emu-using-dense-v1"),
-    get_job(model_paths, "zc-emu-not-dense-v1"),
+    get_job(dense_model_paths, "zc-emu-using-dense-v2"),
+    get_job(model_paths, "zc-emu-not-dense-v2"),
 ]
 submit_jobs(jobs, "compare-offline-dense-dec2022")
