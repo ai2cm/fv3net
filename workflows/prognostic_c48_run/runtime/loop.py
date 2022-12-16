@@ -472,6 +472,8 @@ class TimeLoop(
                 "cnvprcp"
             ).data_array,
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
+            "x_wind_after_physics": self._state["x_wind"],
+            "y_wind_after_physics": self._state["y_wind"]
         }
 
     def _print_timings(self, reduced):
