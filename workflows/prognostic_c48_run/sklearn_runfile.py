@@ -58,6 +58,7 @@ TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
 SST_NAME = "ocean_surface_temperature"
 TSFC_NAME = "surface_temperature"
 MASK_NAME = "land_sea_mask"
+REVERSE = slice(None, None, -1)
 
 gravity = 9.81
 m_per_mm = 1 / 1000
@@ -283,7 +284,8 @@ class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
         ]
         state = {name: self._state[name] for name in variables}
         tendency = self._tendencies_to_apply_to_physics_state
-        updated_state: State = apply(state, tendency, dt=self._timestep)
+        flipped_tendency = {k: v.isel(z=REVERSE) for k, v in tendency.items()}
+        updated_state: State = apply(state, flipped_tendency, dt=self._timestep)
         diagnostics: Diagnostics = runtime.compute_ml_momentum_diagnostics(
             state, tendency
         )
