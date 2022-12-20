@@ -1,12 +1,12 @@
 kind: prognostic
-experiment: model-refine-nov2022
-name: zc-emu-air-t-pres-in-adj-11d-v1
+experiment: no-classify-rerun
+name: zc-emu-no-gscond-classify-v2
 image_tag: latest
 fv3net_image_tag: latest
 config:
   base_version: v0.5
   data_table: default
-  duration: "11d"
+  duration: "30d"
   initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
   fortran_diagnostics:
   - name: piggy.zarr
@@ -268,11 +268,11 @@ config:
   zhao_carr_emulation:
     gscond:
       path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-13/gscond-only-qvout-v2/model.tf
-      classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-10-08/gscond-only-classifier-rh-in-v1/model.tf
+      classifier_path: null
       enforce_conservative: true
       gscond_cloud_conservative: true
-      mask_gscond_zero_cloud_classifier: true
-      mask_gscond_no_tend_classifier: true
+      mask_gscond_zero_cloud_classifier: false
+      mask_gscond_no_tend_classifier: false
       mask_emulator_levels:
         cloud_water_mixing_ratio_after_gscond:
           start: 74
