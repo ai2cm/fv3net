@@ -38,6 +38,10 @@ from runtime.names import (
     TOTAL_PRECIP_RATE,
     PREPHYSICS_OVERRIDES,
     A_GRID_WIND_TENDENCIES,
+    X_WIND,
+    Y_WIND,
+    AGRID_U_TENDENCY,
+    AGRID_V_TENDENCY
 )
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
@@ -116,8 +120,8 @@ def prepare_agrid_wind_tendencies(
     Assumes that at least one of dQu or dQv appears in the tendencies input
     dictionary.
     """
-    dQu = tendencies.get("dQu")
-    dQv = tendencies.get("dQv")
+    dQu = tendencies.get(AGRID_U_TENDENCY)
+    dQv = tendencies.get(AGRID_V_TENDENCY)
 
     if dQu is None:
         dQu = xr.zeros_like(dQv)
@@ -170,8 +174,8 @@ def add_tendency(state: Any, tendencies: State, dt: float) -> Tuple[State, State
             dQu, dQv = prepare_agrid_wind_tendencies(filled_tendencies)
             transformed = transform_from_agrid_to_dgrid(dQu, dQv)
             dQx_wind_from_agrid, dQy_wind_from_agrid = transformed
-            updated["x_wind"] = state["x_wind"] + dQx_wind_from_agrid * dt
-            updated["y_wind"] = state["y_wind"] + dQy_wind_from_agrid * dt
+            updated[X_WIND] = state[X_WIND] + dQx_wind_from_agrid * dt
+            updated[Y_WIND] = state[Y_WIND] + dQy_wind_from_agrid * dt
 
         for name, tendency in filled_tendencies.items():
             if name not in A_GRID_WIND_TENDENCIES:
