@@ -37,7 +37,7 @@ from runtime.names import (
     TENDENCY_TO_STATE_NAME,
     TOTAL_PRECIP_RATE,
     PREPHYSICS_OVERRIDES,
-    WIND_TENDENCIES,
+    A_GRID_WIND_TENDENCIES,
 )
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
@@ -107,38 +107,50 @@ def fillna_tendency(tendency: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]
     return tendency_filled, tendency_filled_frac
 
 
-def transform_agrid_winds_to_dgrid_winds(
-    ua: xr.DataArray, va: xr.DataArray
+def _prepare_agrid_wind_tendencies(
+    tendencies: State,
 ) -> Tuple[xr.DataArray, xr.DataArray]:
-    # The wrapper requires double-precision values
-    ua_quantity = pace.util.Quantity.from_data_array(
-        ua.astype(np.float64, casting="same_kind")
-    )
-    va_quantity = pace.util.Quantity.from_data_array(
-        va.astype(np.float64, casting="same_kind")
-    )
-    x_wind, y_wind = fv3gfs.wrapper.transform_agrid_winds_to_dgrid_winds(
-        ua_quantity, va_quantity
-    )
-    return x_wind.data_array, y_wind.data_array
+    """Ensure A-grid wind tendencies are defined, have the proper units, and
+    data type before being passed to the wrapper.
+
+    Assumes that at least one of dQu or dQv appears in the tendencies input
+    dictionary.
+    """
+    dQu = tendencies.get("dQu")
+    dQv = tendencies.get("dQv")
+
+    if dQu is None:
+        dQu = xr.zeros_like(dQv)
+    if dQv is None:
+        dQv = xr.zeros_like(dQu)
+
+    dQu = dQu.assign_attrs(units="m/s/s").astype(np.float64, casting="same_kind")
+    dQv = dQv.assign_attrs(units="m/s/s").astype(np.float64, casting="same_kind")
+    return dQu, dQv
 
 
-def compute_total_dgrid_wind_tendencies(state, tendencies):
-    # TODO: this could be computationally optimized.  If no A-grid wind
-    # tendencies are provided, we don't need to bother passing zeros through
-    # to the transformation function.  We don't need to bother adding zeros
-    # if no D-grid wind tendencies are provided either.
-    dQx_wind = tendencies.get("dQx_wind", xr.zeros_like(state["x_wind"]))
-    dQy_wind = tendencies.get("dQy_wind", xr.zeros_like(state["y_wind"]))
-    dQu = tendencies.get("dQu", xr.zeros_like(state["eastward_wind"]))
-    dQv = tendencies.get("dQv", xr.zeros_like(state["northward_wind"]))
+def transform_from_agrid_to_dgrid(
+    u: xr.DataArray, v: xr.DataArray
+) -> Tuple[xr.DataArray, xr.DataArray]:
+    """Transform a vector field on the A-grid in latitude-longitude coordinates
+    to the D-grid in cubed-sphere coordinates.
+
+    u and v must have double precision and contain like units attributes.
+    """
+    u_quantity = pace.util.Quantity.from_data_array(u)
+    v_quantity = pace.util.Quantity.from_data_array(v)
     (
-        dQx_wind_from_dQu_and_dQv,
-        dQy_wind_from_dQu_and_dQv,
-    ) = transform_agrid_winds_to_dgrid_winds(
-        dQu.assign_attrs(units="m/s/s"), dQv.assign_attrs(units="m/s/s")
-    )
-    return dQx_wind + dQx_wind_from_dQu_and_dQv, dQy_wind + dQy_wind_from_dQu_and_dQv
+        x_wind_quantity,
+        y_wind_quantity,
+    ) = fv3gfs.wrapper.transform_agrid_winds_to_dgrid_winds(u_quantity, v_quantity)
+    return x_wind_quantity.data_array, y_wind_quantity.data_array
+
+
+def transform_agrid_wind_tendencies_to_dgrid(
+    tendencies: State,
+) -> Tuple[xr.DataArray, xr.DataArray]:
+    dQu, dQv = _prepare_agrid_wind_tendencies(tendencies)
+    return transform_from_agrid_to_dgrid(dQu, dQv)
 
 
 def add_tendency(state: Any, tendencies: State, dt: float) -> Tuple[State, State]:
@@ -157,25 +169,20 @@ def add_tendency(state: Any, tendencies: State, dt: float) -> Tuple[State, State
             filled_tendencies[name] = filled
             filled_fractions[f"{name}_filled_frac"] = filled_fraction
 
-        if set(filled_tendencies).intersection(WIND_TENDENCIES):
-            # TODO: it's an open question how best to handle diagnostics in this
-            # case.  Right now I am permitting specifying tendency updates to
-            # both the D-grid winds and the A-grid winds at the same time, and
-            # am taking their sum to apply to the D-grid winds in the end.  The
-            # filled tendencies remain separate, however.  In other words if
-            # both x_wind and eastward_wind tendencies are provided, the
-            # diagnostic for the x_wind tendency is just what was originally
-            # provided on the D-grid (not the sum of the D-grid and A-grid
-            # contributions).  I believe this is the way things would have
-            # been handled prior to this change as well.
-            dQx_wind_total, dQy_wind_total = compute_total_dgrid_wind_tendencies(
-                state, filled_tendencies
-            )
-            updated["x_wind"] = state["x_wind"] + dQx_wind_total * dt
-            updated["y_wind"] = state["y_wind"] + dQy_wind_total * dt
+        # First update x_wind and y_wind based on the A-grid wind tendencies. If
+        # D-grid wind tendencies are provided later, update x_wind and y_wind
+        # again.  Tendency diagnostics for dQu, dQv, dQx_wind, and dQy_wind
+        # will be recorded separately.
+        if set(filled_tendencies).intersection(A_GRID_WIND_TENDENCIES):
+            (
+                dQx_wind_from_agrid,
+                dQy_wind_from_agrid,
+            ) = transform_agrid_wind_tendencies_to_dgrid(filled_tendencies)
+            updated["x_wind"] = state["x_wind"] + dQx_wind_from_agrid * dt
+            updated["y_wind"] = state["y_wind"] + dQy_wind_from_agrid * dt
 
         for name, tendency in filled_tendencies.items():
-            if name not in WIND_TENDENCIES:
+            if name not in A_GRID_WIND_TENDENCIES:
                 try:
                     state_name = str(TENDENCY_TO_STATE_NAME[name])
                 except KeyError:
