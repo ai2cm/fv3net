@@ -41,7 +41,7 @@ from runtime.names import (
     X_WIND,
     Y_WIND,
     AGRID_U_TENDENCY,
-    AGRID_V_TENDENCY
+    AGRID_V_TENDENCY,
 )
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
