@@ -164,8 +164,8 @@ def add_tendency(state: Any, tendencies: State, dt: float) -> Tuple[State, State
 
         # First update x_wind and y_wind based on the A-grid wind tendencies. If
         # D-grid wind tendencies are provided later, update x_wind and y_wind
-        # again.  Tendency diagnostics for dQu, dQv, dQx_wind, and dQy_wind
-        # will be recorded separately.
+        # within the for loop.  Tendency diagnostics for dQu, dQv, dQx_wind, and
+        # dQy_wind will be recorded separately.
         if set(filled_tendencies).intersection(A_GRID_WIND_TENDENCIES):
             dQu, dQv = prepare_agrid_wind_tendencies(filled_tendencies)
             transformed = transform_from_agrid_to_dgrid(dQu, dQv)
