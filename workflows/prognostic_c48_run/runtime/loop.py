@@ -118,8 +118,7 @@ def transform_agrid_winds_to_dgrid_winds(
         va.astype(np.float64, casting="same_kind")
     )
     x_wind, y_wind = fv3gfs.wrapper.transform_agrid_winds_to_dgrid_winds(
-        ua_quantity,
-        va_quantity
+        ua_quantity, va_quantity
     )
     return x_wind.data_array, y_wind.data_array
 
@@ -477,7 +476,7 @@ class TimeLoop(
             "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
-            "total_precip_after_physics": self._state[TOTAL_PRECIP]
+            "total_precip_after_physics": self._state[TOTAL_PRECIP],
         }
 
     def _print_timings(self, reduced):
