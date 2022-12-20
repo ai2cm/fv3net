@@ -107,7 +107,7 @@ def fillna_tendency(tendency: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]
     return tendency_filled, tendency_filled_frac
 
 
-def _prepare_agrid_wind_tendencies(
+def prepare_agrid_wind_tendencies(
     tendencies: State,
 ) -> Tuple[xr.DataArray, xr.DataArray]:
     """Ensure A-grid wind tendencies are defined, have the proper units, and
@@ -146,13 +146,6 @@ def transform_from_agrid_to_dgrid(
     return x_wind_quantity.data_array, y_wind_quantity.data_array
 
 
-def transform_agrid_wind_tendencies_to_dgrid(
-    tendencies: State,
-) -> Tuple[xr.DataArray, xr.DataArray]:
-    dQu, dQv = _prepare_agrid_wind_tendencies(tendencies)
-    return transform_from_agrid_to_dgrid(dQu, dQv)
-
-
 def add_tendency(state: Any, tendencies: State, dt: float) -> Tuple[State, State]:
     """Given state and tendency prediction, return updated state, which only includes
     variables updated by tendencies. Also returns column-integrated fraction of
@@ -174,10 +167,9 @@ def add_tendency(state: Any, tendencies: State, dt: float) -> Tuple[State, State
         # again.  Tendency diagnostics for dQu, dQv, dQx_wind, and dQy_wind
         # will be recorded separately.
         if set(filled_tendencies).intersection(A_GRID_WIND_TENDENCIES):
-            (
-                dQx_wind_from_agrid,
-                dQy_wind_from_agrid,
-            ) = transform_agrid_wind_tendencies_to_dgrid(filled_tendencies)
+            dQu, dQv = prepare_agrid_wind_tendencies(filled_tendencies)
+            transformed = transform_from_agrid_to_dgrid(dQu, dQv)
+            dQx_wind_from_agrid, dQy_wind_from_agrid = transformed
             updated["x_wind"] = state["x_wind"] + dQx_wind_from_agrid * dt
             updated["y_wind"] = state["y_wind"] + dQy_wind_from_agrid * dt
 
