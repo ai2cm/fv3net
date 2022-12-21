@@ -40,8 +40,8 @@ from runtime.names import (
     A_GRID_WIND_TENDENCIES,
     X_WIND,
     Y_WIND,
-    AGRID_U_TENDENCY,
-    AGRID_V_TENDENCY,
+    EASTWARD_WIND_TENDENCY,
+    NORTHWARD_WIND_TENDENCY,
 )
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
@@ -86,10 +86,6 @@ class Stepper(Protocol):
         """Return diagnostics mapping and net moistening array."""
         return {}, xr.DataArray()
 
-    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
-        """Return diagnostics of momentum tendencies."""
-        return {}
-
 
 def _replace_precip_rate_with_accumulation(  # type: ignore
     state_updates: State, dt: float
@@ -120,8 +116,8 @@ def prepare_agrid_wind_tendencies(
     Assumes that at least one of dQu or dQv appears in the tendencies input
     dictionary.
     """
-    dQu = tendencies.get(AGRID_U_TENDENCY)
-    dQv = tendencies.get(AGRID_V_TENDENCY)
+    dQu = tendencies.get(EASTWARD_WIND_TENDENCY)
+    dQv = tendencies.get(NORTHWARD_WIND_TENDENCY)
 
     if dQu is None:
         dQu = xr.zeros_like(dQv)
@@ -139,7 +135,7 @@ def transform_from_agrid_to_dgrid(
     """Transform a vector field on the A-grid in latitude-longitude coordinates
     to the D-grid in cubed-sphere coordinates.
 
-    u and v must have double precision and contain like units attributes.
+    u and v must have double precision and contain units attributes.
     """
     u_quantity = pace.util.Quantity.from_data_array(u)
     v_quantity = pace.util.Quantity.from_data_array(v)

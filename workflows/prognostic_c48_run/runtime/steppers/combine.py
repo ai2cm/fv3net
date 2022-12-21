@@ -73,11 +73,3 @@ class CombinedStepper:
             )
         _check_for_collisions(diags)
         return _merge_outputs(diags), moistening_diag
-
-    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
-        """Return diagnostics of momentum tendencies."""
-        momentum_diags = []
-        for stepper in self._steppers:
-            momentum_diags.append(stepper.get_momentum_diagnostics(state, tendency))
-        _check_for_collisions(momentum_diags)
-        return _merge_outputs(momentum_diags)

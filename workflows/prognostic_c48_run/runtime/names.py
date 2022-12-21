@@ -21,8 +21,8 @@ MASK = "land_sea_mask"
 TIME_KEYS = ["time", "initialization_time"]
 X_WIND = "x_wind"
 Y_WIND = "y_wind"
-AGRID_U_TENDENCY = "dQu"
-AGRID_V_TENDENCY = "dQv"
+EASTWARD_WIND_TENDENCY = "dQu"
+NORTHWARD_WIND_TENDENCY = "dQv"
 
 # following variables are required no matter what feature set is being used
 TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
@@ -40,11 +40,12 @@ PREPHYSICS_OVERRIDES = [
     "ocean_surface_temperature",
     "surface_temperature",
 ]
-A_GRID_WIND_TENDENCIES = {"dQu", "dQv"}
+A_GRID_WIND_TENDENCIES = {EASTWARD_WIND_TENDENCY, NORTHWARD_WIND_TENDENCY}
+TENDENCY_NAMES = set(TENDENCY_TO_STATE_NAME) | A_GRID_WIND_TENDENCIES
 
 
 def is_state_update_variable(key, state: State):
-    if key in state.keys() and key not in TENDENCY_TO_STATE_NAME:
+    if key in state.keys() and key not in TENDENCY_NAMES:
         # the second check is to exclude derived variables such as dQu,v
         return True
     elif key == TOTAL_PRECIP_RATE:
@@ -56,4 +57,4 @@ def is_state_update_variable(key, state: State):
 
 
 def is_tendency_variable(key):
-    return key in TENDENCY_TO_STATE_NAME
+    return key in TENDENCY_NAMES

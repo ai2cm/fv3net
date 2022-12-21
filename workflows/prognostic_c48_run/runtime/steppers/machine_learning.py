@@ -313,6 +313,3 @@ class PureMLStepper:
         momentum_diags = compute_ml_momentum_diagnostics(state, tendency)
         diags.update(momentum_diags)
         return diags, diags[f"net_moistening_due_to_{self.label}"]
-
-    def get_momentum_diagnostics(self, state, tendency):
-        return compute_ml_momentum_diagnostics(state, tendency)
