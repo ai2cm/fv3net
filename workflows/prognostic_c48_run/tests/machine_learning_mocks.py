@@ -66,3 +66,33 @@ def get_mock_predictor(
     predictor.set_outputs(**outputs)
 
     return predictor
+
+
+def get_lowest_level_mock_predictor() -> fv3fit.Predictor:
+    data = _model_dataset()
+    nz = data.sizes["z"]
+    dQ1 = np.zeros(nz,)
+    dQ2 = np.zeros(nz,)
+    dQu = np.zeros(nz,)
+    dQv = np.zeros(nz,)
+
+    # Test that NaN values get filled with zeros
+    dQ1[7] = np.nan
+    dQ2[7] = np.nan
+    dQu[7] = np.nan
+    dQv[7] = np.nan
+
+    # Test that tendencies are applied in the level(s) we expect
+    dQ1[-1] = 0.125
+    dQ2[-1] = -1e-4 / 86400
+    dQu[-1] = 1 / 86400
+    dQv[-1] = 1 / 86400
+
+    outputs = {"dQ1": dQ1, "dQ2": dQ2, "dQu": dQu, "dQv": dQv}
+    predictor = fv3fit.testing.ConstantOutputPredictor(
+        input_variables=["air_temperature", "specific_humidity"],
+        output_variables=list(outputs.keys()),
+    )
+    predictor.set_outputs(**outputs)
+
+    return predictor

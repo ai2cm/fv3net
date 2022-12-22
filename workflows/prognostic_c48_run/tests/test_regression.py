@@ -15,7 +15,7 @@ import tensorflow as tf
 import vcm.testing
 import xarray as xr
 import yaml
-from machine_learning_mocks import get_mock_predictor
+from machine_learning_mocks import get_mock_predictor, get_lowest_level_mock_predictor
 
 BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
@@ -33,6 +33,7 @@ class ConfigEnum:
     nudging = "nudging"
     predictor = "predictor"
     microphys_emulation = "microphys_emulation"
+    lowest_level_predictor = "lowest_level_predictor"
 
 
 default_fv3config = rf"""
@@ -499,6 +500,8 @@ def get_ml_config(model_path):
                 "tendency_of_specific_humidity_due_to_fv3_physics",
                 "tendency_of_specific_humidity_due_to_python",
                 "tendency_of_internal_energy_due_to_fv3_physics",
+                "tendency_of_x_wind_due_to_python",
+                "tendency_of_y_wind_due_to_python",
                 "total_precip_after_physics",
                 "total_precipitation_rate",
                 "water_vapor_path",
@@ -579,7 +582,12 @@ def _tendency_dataset():
 
 @pytest.fixture(
     scope="module",
-    params=[ConfigEnum.predictor, ConfigEnum.nudging, ConfigEnum.microphys_emulation],
+    params=[
+        ConfigEnum.predictor,
+        ConfigEnum.nudging,
+        ConfigEnum.microphys_emulation,
+        ConfigEnum.lowest_level_predictor,
+    ],
 )
 def configuration(request):
     return request.param
@@ -613,6 +621,11 @@ def completed_rundir(configuration, tmpdir_factory):
         model = create_emulation_model()
         model.save(model_path)
         config = get_emulation_config(model_path)
+    elif configuration == ConfigEnum.lowest_level_predictor:
+        model = get_lowest_level_mock_predictor()
+        model_path = str(tmpdir_factory.mktemp("model"))
+        fv3fit.dump(model, str(model_path))
+        config = get_ml_config(model_path)
     else:
         raise NotImplementedError()
 
@@ -697,6 +710,29 @@ def test_fv3run_python_mass_conserving(completed_segment, configuration):
             rtol=0.003,
             atol=1e-4 / 86400,
         )
+
+
+def test_fv3run_tendency_application(completed_rundir, configuration):
+    if configuration != "lowest_level_predictor":
+        pytest.skip()
+
+    nz = 63
+    tendency_diagnostics = {
+        "tendency_of_air_temperature_due_to_python": ("x", "y", "tile", "time"),
+        "tendency_of_specific_humidity_due_to_python": ("x", "y", "tile", "time"),
+        "tendency_of_x_wind_due_to_python": ("x", "y_interface", "tile", "time"),
+        "tendency_of_y_wind_due_to_python": ("x_interface", "y", "tile", "time"),
+    }
+
+    non_zero_flag = np.zeros(nz, dtype=bool)
+    non_zero_flag[-1] = True
+    expected = xr.DataArray(non_zero_flag, dims=["z"])
+
+    diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
+    for variable, dimensions in tendency_diagnostics.items():
+        da = diagnostics[variable]
+        result = (np.abs(da) > 0).all(dimensions)
+        xr.testing.assert_equal(result, expected)
 
 
 def test_fv3run_vertical_profile_statistics(completed_segment, configuration):

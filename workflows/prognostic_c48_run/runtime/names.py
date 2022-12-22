@@ -23,13 +23,15 @@ X_WIND = "x_wind"
 Y_WIND = "y_wind"
 EASTWARD_WIND_TENDENCY = "dQu"
 NORTHWARD_WIND_TENDENCY = "dQv"
+X_WIND_TENDENCY = "dQx_wind"
+Y_WIND_TENDENCY = "dQy_wind"
 
 # following variables are required no matter what feature set is being used
 TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQ1": TEMP,
     "dQ2": SPHUM,
-    "dQx_wind": "x_wind",
-    "dQy_wind": "y_wind",
+    X_WIND_TENDENCY: X_WIND,
+    Y_WIND_TENDENCY: Y_WIND,
     "dQp": DELP,
 }
 STATE_NAME_TO_TENDENCY = {value: key for key, value in TENDENCY_TO_STATE_NAME.items()}
@@ -41,6 +43,7 @@ PREPHYSICS_OVERRIDES = [
     "surface_temperature",
 ]
 A_GRID_WIND_TENDENCIES = {EASTWARD_WIND_TENDENCY, NORTHWARD_WIND_TENDENCY}
+D_GRID_WIND_TENDENCIES = {X_WIND_TENDENCY, Y_WIND_TENDENCY}
 TENDENCY_NAMES = set(TENDENCY_TO_STATE_NAME) | A_GRID_WIND_TENDENCIES
 
 
