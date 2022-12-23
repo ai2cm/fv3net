@@ -3,7 +3,6 @@ import pytest
 import xarray as xr
 
 from runtime.loop import (
-    fillna_tendency,
     fillna_tendencies,
     prepare_agrid_wind_tendencies,
     transform_agrid_wind_tendencies,
@@ -16,15 +15,6 @@ from runtime.names import (
 
 
 TENDENCY_ATTRS = {"units": "m/s/s"}
-
-
-def test_fillna_tendency():
-    tendency = xr.DataArray([1.0, np.nan, 2.0], dims=["z"], name="dQ1")
-    expected_filled_tendency = xr.DataArray([1.0, 0.0, 2.0], dims=["z"], name="dQ1")
-    expected_filled_fraction = xr.DataArray(1.0 / 3.0, name="dQ1_filled_frac")
-    result_filled_tendency, result_filled_fraction = fillna_tendency(tendency)
-    xr.testing.assert_identical(result_filled_tendency, expected_filled_tendency)
-    xr.testing.assert_identical(result_filled_fraction, expected_filled_fraction)
 
 
 def test_fillna_tendencies():
