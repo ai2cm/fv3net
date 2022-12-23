@@ -3,6 +3,12 @@ import xarray as xr
 
 import fv3fit
 
+from runtime.names import EASTWARD_WIND_TENDENCY, NORTHWARD_WIND_TENDENCY
+
+
+NZ = 63
+LOWEST_MODEL_LEVEL = -1
+
 
 def _model_dataset() -> xr.Dataset:
 
@@ -29,11 +35,10 @@ def _model_dataset() -> xr.Dataset:
 
 
 def get_mock_predictor(
-    model_predictands: str = "tendencies", dQ1_tendency=0.0
+    model_predictands: str = "tendencies",
+    dQ1_tendency=0.0,
+    mask_lowest_level_outputs=False,
 ) -> fv3fit.Predictor:
-
-    data = _model_dataset()
-    nz = data.sizes["z"]
     if model_predictands == "tendencies":
         output_variables = ["dQ1", "dQ2", "dQu", "dQv"]
     elif model_predictands == "rad_fluxes":
@@ -49,12 +54,15 @@ def get_mock_predictor(
             "total_sky_downward_shortwave_flux_at_surface",
             "shortwave_transmissivity_of_atmospheric_column",
         ]
+
+    output_tendencies = tendencies(dQ1_tendency, mask_lowest_level_outputs)
+
     outputs = {
-        "dQ1": np.full(nz, dQ1_tendency),
+        "dQ1": output_tendencies.dQ1.values,
         # include nonzero moistening to test for mass conservation
-        "dQ2": np.full(nz, -1e-4 / 86400),
-        "dQu": np.full(nz, 1 / 86400),
-        "dQv": np.full(nz, 1 / 86400),
+        "dQ2": output_tendencies.dQ2.values,
+        "dQu": output_tendencies.dQu.values,
+        "dQv": output_tendencies.dQv.values,
         "total_sky_downward_shortwave_flux_at_surface": 300.0,
         "total_sky_downward_longwave_flux_at_surface": 400.0,
         "shortwave_transmissivity_of_atmospheric_column": 0.5,
@@ -68,31 +76,20 @@ def get_mock_predictor(
     return predictor
 
 
-def get_lowest_level_mock_predictor() -> fv3fit.Predictor:
+def tendencies(dQ1_tendency=0.0, mask_lowest_level_outputs=False):
     data = _model_dataset()
     nz = data.sizes["z"]
-    dQ1 = np.zeros(nz,)
-    dQ2 = np.zeros(nz,)
-    dQu = np.zeros(nz,)
-    dQv = np.zeros(nz,)
 
-    # Test that NaN values get filled with zeros
-    dQ1[7] = np.nan
-    dQ2[7] = np.nan
-    dQu[7] = np.nan
-    dQv[7] = np.nan
+    dQ1 = np.full(nz, dQ1_tendency)
+    dQ2 = np.full(nz, -1e-4 / 86400)
+    dQu = np.full(nz, 1 / 86400)
+    dQv = np.full(nz, 1 / 86400)
 
-    # Test that tendencies are applied in the level(s) we expect
-    dQ1[-1] = 0.125
-    dQ2[-1] = -1e-4 / 86400
-    dQu[-1] = 1 / 86400
-    dQv[-1] = 1 / 86400
-
-    outputs = {"dQ1": dQ1, "dQ2": dQ2, "dQu": dQu, "dQv": dQv}
-    predictor = fv3fit.testing.ConstantOutputPredictor(
-        input_variables=["air_temperature", "specific_humidity"],
-        output_variables=list(outputs.keys()),
-    )
-    predictor.set_outputs(**outputs)
-
-    return predictor
+    dQ1 = xr.DataArray(dQ1, dims=["z"], name="dQ1")
+    dQ2 = xr.DataArray(dQ2, dims=["z"], name="dQ2")
+    dQu = xr.DataArray(dQu, dims=["z"], name=EASTWARD_WIND_TENDENCY)
+    dQv = xr.DataArray(dQv, dims=["z"], name=NORTHWARD_WIND_TENDENCY)
+    ds = xr.merge([dQ1, dQ2, dQu, dQv])
+    if mask_lowest_level_outputs:
+        ds = ds.where(ds.z < ds.z.isel(z=LOWEST_MODEL_LEVEL))
+    return ds

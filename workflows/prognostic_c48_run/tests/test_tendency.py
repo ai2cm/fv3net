@@ -28,16 +28,14 @@ def test_fillna_tendency():
 
 
 def test_fillna_tendencies():
-    tendencies = {"dQ1": xr.DataArray([1.0, np.nan, 2.0], dims=["z"], name="dQ1")}
-    expected_filled_tendencies = {
-        "dQ1": xr.DataArray([1.0, 0.0, 2.0], dims=["z"], name="dQ1")
-    }
-    expected_tendencies_filled_frac = {
-        "dQ1_filled_frac": xr.DataArray(1.0 / 3.0, name="dQ1_filled_frac")
-    }
-    result_filled_tendencies, result_tendencies_filled_frac = fillna_tendencies(
-        tendencies
-    )
+    dQ1 = xr.DataArray([1.0, np.nan, 2.0], dims=["z"], name="dQ1")
+    dQ1_filled = xr.DataArray([1.0, 0.0, 2.0], dims=["z"], name="dQ1")
+    dQ1_filled_frac = xr.DataArray(1.0 / 3.0, name="dQ1_filled_frac")
+    tendencies = {"dQ1": dQ1}
+    expected_filled_tendencies = {"dQ1": dQ1_filled}
+    expected_tendencies_filled_frac = {"dQ1_filled_frac": dQ1_filled_frac}
+    results = fillna_tendencies(tendencies)
+    result_filled_tendencies, result_tendencies_filled_frac = results
 
     for name in expected_filled_tendencies:
         expected = expected_filled_tendencies[name]
@@ -93,12 +91,8 @@ def test_prepare_agrid_wind_tendencies(tendencies, expected_dQu, expected_dQv):
 
 def test_transform_agrid_wind_tendencies_mixed_coordinates_error():
     tendencies = {
-        EASTWARD_WIND_TENDENCY: xr.DataArray(
-            [1.0, np.nan, 2.0], dims=["z"], name=EASTWARD_WIND_TENDENCY
-        ),
-        X_WIND_TENDENCY: xr.DataArray(
-            [1.0, np.nan, 3.0], dims=["z"], name=X_WIND_TENDENCY
-        ),
+        EASTWARD_WIND_TENDENCY: xr.DataArray([1.0, np.nan, 2.0], dims=["z"]),
+        X_WIND_TENDENCY: xr.DataArray([1.0, np.nan, 3.0], dims=["z"]),
     }
     with pytest.raises(ValueError, match="Simultaneously"):
         transform_agrid_wind_tendencies(tendencies)

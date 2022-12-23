@@ -15,7 +15,7 @@ import tensorflow as tf
 import vcm.testing
 import xarray as xr
 import yaml
-from machine_learning_mocks import get_mock_predictor, get_lowest_level_mock_predictor
+from machine_learning_mocks import get_mock_predictor, tendencies
 
 BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
@@ -27,13 +27,14 @@ LOG_PATH = "logs.txt"
 STATISTICS_PATH = "statistics.txt"
 PROFILES_PATH = "profiles.txt"
 CHUNKS_PATH = "chunks.yaml"
+LOWEST_MODEL_LEVEL = -1
+NON_LOWEST_MODEL_LEVELS = slice(None, -1)
 
 
 class ConfigEnum:
     nudging = "nudging"
     predictor = "predictor"
     microphys_emulation = "microphys_emulation"
-    lowest_level_predictor = "lowest_level_predictor"
 
 
 default_fv3config = rf"""
@@ -580,14 +581,18 @@ def _tendency_dataset():
     return xr.Dataset({"Q1": da})
 
 
+APPLIED_TENDENCIES = [
+    "tendency_of_air_temperature_due_to_python",
+    "tendency_of_specific_humidity_due_to_python",
+    "tendency_of_x_wind_due_to_python",
+    "tendency_of_y_wind_due_to_python",
+]
+PREDICTED_TENDENCIES = ["dQ1", "dQ2", "dQu", "dQv"]
+
+
 @pytest.fixture(
     scope="module",
-    params=[
-        ConfigEnum.predictor,
-        ConfigEnum.nudging,
-        ConfigEnum.microphys_emulation,
-        ConfigEnum.lowest_level_predictor,
-    ],
+    params=[ConfigEnum.predictor, ConfigEnum.nudging, ConfigEnum.microphys_emulation],
 )
 def configuration(request):
     return request.param
@@ -606,7 +611,9 @@ def completed_rundir(configuration, tmpdir_factory):
     tendency_dataset_path = tmpdir_factory.mktemp("tendencies")
 
     if configuration == ConfigEnum.predictor:
-        model = get_mock_predictor()
+        model = get_mock_predictor(
+            dQ1_tendency=1 / 86400, mask_lowest_level_outputs=True
+        )
         model_path = str(tmpdir_factory.mktemp("model"))
         fv3fit.dump(model, str(model_path))
         config = get_ml_config(model_path)
@@ -621,11 +628,6 @@ def completed_rundir(configuration, tmpdir_factory):
         model = create_emulation_model()
         model.save(model_path)
         config = get_emulation_config(model_path)
-    elif configuration == ConfigEnum.lowest_level_predictor:
-        model = get_lowest_level_mock_predictor()
-        model_path = str(tmpdir_factory.mktemp("model"))
-        fv3fit.dump(model, str(model_path))
-        config = get_ml_config(model_path)
     else:
         raise NotImplementedError()
 
@@ -657,14 +659,49 @@ def test_chunks_present(completed_segment):
     assert completed_segment.join(CHUNKS_PATH).exists()
 
 
-def test_fv3run_diagnostic_outputs_check_variables(regtest, completed_rundir):
+def validate_predictor_diagnostics(diagnostics):
+    predicted_tendencies = tendencies(
+        dQ1_tendency=1 / 86400, mask_lowest_level_outputs=True
+    )
+    for variable, diagnostic in diagnostics.items():
+        if variable in APPLIED_TENDENCIES:
+            # Due to limiters and coordinate transformations, we cannot simply
+            # compare the prescribed predicted tendencies and the applied
+            # tendencies. The only thing that we can assert is that the applied
+            # tendency in the lowest model level will be zero and elsewhere it
+            # will be nonzero.  This is still meaningful, since it ensures that
+            # tendencies are applied in the expected vertical levels, and that
+            # NaNs in the predicted tendencies are filled with zeros.
+            assert (diagnostic.isel(z=LOWEST_MODEL_LEVEL) == 0).all()
+            assert (diagnostic.isel(z=NON_LOWEST_MODEL_LEVELS) != 0).all()
+        elif variable in PREDICTED_TENDENCIES:
+            # Can only check location of NaNs due to limiters.
+            result_isnull = diagnostic.isnull()
+            expected_isnull = predicted_tendencies[variable].isnull()
+            expected_isnull = expected_isnull.broadcast_like(result_isnull)
+            xr.testing.assert_equal(result_isnull, expected_isnull)
+        else:
+            assert diagnostic.notnull().all()
+
+
+def validate_diagnostics_all_notnull(diagnostics):
+    for diagnostic in diagnostics.values():
+        assert diagnostic.notnull().all()
+
+
+def test_fv3run_diagnostic_outputs_check_variables(
+    regtest, completed_rundir, configuration
+):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
     the base class in the fv3fit test suite.
     """
-    diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
+    diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr"))).load()
+    if configuration == "predictor":
+        validate_predictor_diagnostics(diagnostics)
+    else:
+        validate_diagnostics_all_notnull(diagnostics)
     for variable in sorted(diagnostics):
-        assert np.sum(np.isnan(diagnostics[variable].values)) == 0
         checksum = vcm.testing.checksum_dataarray(diagnostics[variable])
         print(f"{variable}: " + checksum, file=regtest)
 
@@ -710,29 +747,6 @@ def test_fv3run_python_mass_conserving(completed_segment, configuration):
             rtol=0.003,
             atol=1e-4 / 86400,
         )
-
-
-def test_fv3run_tendency_application(completed_rundir, configuration):
-    if configuration != "lowest_level_predictor":
-        pytest.skip()
-
-    nz = 63
-    tendency_diagnostics = {
-        "tendency_of_air_temperature_due_to_python": ("x", "y", "tile", "time"),
-        "tendency_of_specific_humidity_due_to_python": ("x", "y", "tile", "time"),
-        "tendency_of_x_wind_due_to_python": ("x", "y_interface", "tile", "time"),
-        "tendency_of_y_wind_due_to_python": ("x_interface", "y", "tile", "time"),
-    }
-
-    non_zero_flag = np.zeros(nz, dtype=bool)
-    non_zero_flag[-1] = True
-    expected = xr.DataArray(non_zero_flag, dims=["z"])
-
-    diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
-    for variable, dimensions in tendency_diagnostics.items():
-        da = diagnostics[variable]
-        result = (np.abs(da) > 0).all(dimensions)
-        xr.testing.assert_equal(result, expected)
 
 
 def test_fv3run_vertical_profile_statistics(completed_segment, configuration):
