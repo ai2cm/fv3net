@@ -200,8 +200,7 @@ def transform_from_agrid_to_dgrid(
 
 def add_tendency(state: Any, tendencies: State, dt: float) -> State:
     """Given state and tendency prediction, return updated state, which only includes
-    variables updated by tendencies. Also returns column-integrated fraction of
-    tendencies which are filled nans.
+    variables updated by tendencies.  Tendencies cannot contain null values.
     """
     with xr.set_options(keep_attrs=True):
         updated: State = {}
