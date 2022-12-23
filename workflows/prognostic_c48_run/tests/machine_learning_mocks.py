@@ -3,12 +3,6 @@ import xarray as xr
 
 import fv3fit
 
-from runtime.names import EASTWARD_WIND_TENDENCY, NORTHWARD_WIND_TENDENCY
-
-
-NZ = 63
-LOWEST_MODEL_LEVEL = -1
-
 
 def _model_dataset() -> xr.Dataset:
 
@@ -55,14 +49,12 @@ def get_mock_predictor(
             "shortwave_transmissivity_of_atmospheric_column",
         ]
 
-    output_tendencies = tendencies(dQ1_tendency, mask_lowest_level_outputs)
-
+    dQ1, dQ2, dQu, dQv = tendencies(dQ1_tendency, mask_lowest_level_outputs)
     outputs = {
-        "dQ1": output_tendencies.dQ1.values,
-        # include nonzero moistening to test for mass conservation
-        "dQ2": output_tendencies.dQ2.values,
-        "dQu": output_tendencies.dQu.values,
-        "dQv": output_tendencies.dQv.values,
+        "dQ1": dQ1,
+        "dQ2": dQ2,
+        "dQu": dQu,
+        "dQv": dQv,
         "total_sky_downward_shortwave_flux_at_surface": 300.0,
         "total_sky_downward_longwave_flux_at_surface": 400.0,
         "shortwave_transmissivity_of_atmospheric_column": 0.5,
@@ -81,15 +73,15 @@ def tendencies(dQ1_tendency=0.0, mask_lowest_level_outputs=False):
     nz = data.sizes["z"]
 
     dQ1 = np.full(nz, dQ1_tendency)
+    # include nonzero moistening to test for mass conservation
     dQ2 = np.full(nz, -1e-4 / 86400)
     dQu = np.full(nz, 1 / 86400)
     dQv = np.full(nz, 1 / 86400)
 
-    dQ1 = xr.DataArray(dQ1, dims=["z"], name="dQ1")
-    dQ2 = xr.DataArray(dQ2, dims=["z"], name="dQ2")
-    dQu = xr.DataArray(dQu, dims=["z"], name=EASTWARD_WIND_TENDENCY)
-    dQv = xr.DataArray(dQv, dims=["z"], name=NORTHWARD_WIND_TENDENCY)
-    ds = xr.merge([dQ1, dQ2, dQu, dQv])
     if mask_lowest_level_outputs:
-        ds = ds.where(ds.z < ds.z.isel(z=LOWEST_MODEL_LEVEL))
-    return ds
+        dQ1[-1] = np.nan
+        dQ2[-1] = np.nan
+        dQu[-1] = np.nan
+        dQv[-1] = np.nan
+
+    return dQ1, dQ2, dQu, dQv

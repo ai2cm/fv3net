@@ -15,7 +15,7 @@ import tensorflow as tf
 import vcm.testing
 import xarray as xr
 import yaml
-from machine_learning_mocks import get_mock_predictor, tendencies
+from machine_learning_mocks import get_mock_predictor
 
 BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
@@ -660,26 +660,21 @@ def test_chunks_present(completed_segment):
 
 
 def validate_predictor_diagnostics(diagnostics):
-    predicted_tendencies = tendencies(
-        dQ1_tendency=1 / 86400, mask_lowest_level_outputs=True
-    )
+    """Check that tendencies are applied at proper vertical levels.
+
+    Despite the fact that we prescribe the tendencies the mock predictor
+    predicts, due to limiters and coordinate transformations the best we can do
+    here is check that applied tendencies are zero in the lowest model level and
+    nonzero elsewhere and that predicted tendencies contain NaNs in the lowest
+    model level are not NaNs elsewhere.
+    """
     for variable, diagnostic in diagnostics.items():
         if variable in APPLIED_TENDENCIES:
-            # Due to limiters and coordinate transformations, we cannot simply
-            # compare the prescribed predicted tendencies and the applied
-            # tendencies. The only thing that we can assert is that the applied
-            # tendency in the lowest model level will be zero and elsewhere it
-            # will be nonzero.  This is still meaningful, since it ensures that
-            # tendencies are applied in the expected vertical levels, and that
-            # NaNs in the predicted tendencies are filled with zeros.
             assert (diagnostic.isel(z=LOWEST_MODEL_LEVEL) == 0).all()
             assert (diagnostic.isel(z=NON_LOWEST_MODEL_LEVELS) != 0).all()
         elif variable in PREDICTED_TENDENCIES:
-            # Can only check location of NaNs due to limiters.
-            result_isnull = diagnostic.isnull()
-            expected_isnull = predicted_tendencies[variable].isnull()
-            expected_isnull = expected_isnull.broadcast_like(result_isnull)
-            xr.testing.assert_equal(result_isnull, expected_isnull)
+            assert diagnostic.isel(z=LOWEST_MODEL_LEVEL).isnull().all()
+            assert diagnostic.isel(z=NON_LOWEST_MODEL_LEVELS).notnull().all()
         else:
             assert diagnostic.notnull().all()
 
