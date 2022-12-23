@@ -684,7 +684,7 @@ def validate_predictor_diagnostics(diagnostics):
             assert diagnostic.notnull().all()
 
 
-def validate_diagnostics_all_notnull(diagnostics):
+def assert_diagnostics_notnull(diagnostics):
     for diagnostic in diagnostics.values():
         assert diagnostic.notnull().all()
 
@@ -700,7 +700,7 @@ def test_fv3run_diagnostic_outputs_check_variables(
     if configuration == "predictor":
         validate_predictor_diagnostics(diagnostics)
     else:
-        validate_diagnostics_all_notnull(diagnostics)
+        assert_diagnostics_notnull(diagnostics)
     for variable in sorted(diagnostics):
         checksum = vcm.testing.checksum_dataarray(diagnostics[variable])
         print(f"{variable}: " + checksum, file=regtest)
