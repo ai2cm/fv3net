@@ -3,6 +3,7 @@ import pytest
 import xarray as xr
 
 from runtime.loop import (
+    add_tendency,
     fillna_tendencies,
     prepare_agrid_wind_tendencies,
     transform_agrid_wind_tendencies,
@@ -15,6 +16,15 @@ from runtime.names import (
 
 
 TENDENCY_ATTRS = {"units": "m/s/s"}
+
+
+def test_add_tendency():
+    state = {"air_temperature": xr.DataArray([0.0, 1.0, 2.0], dims=["z"])}
+    tendency = {"dQ1": xr.DataArray([1.0, 0.0, 1.0], dims=["z"])}
+    updated_state = add_tendency(state, tendency, 1.0)
+    expected_after = {"air_temperature": xr.DataArray([1.0, 1.0, 3.0], dims=["z"])}
+    for name, state in updated_state.items():
+        xr.testing.assert_allclose(expected_after[name], state)
 
 
 def test_fillna_tendencies():
