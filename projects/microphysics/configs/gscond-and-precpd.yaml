@@ -1,6 +1,6 @@
 kind: prognostic
 experiment: no-classify-rerun
-name: zc-emu-no-gscond-classify-gsconly-v2
+name: zc-emu-no-gscond-classify-gsconly-v3
 image_tag: latest
 fv3net_image_tag: latest
 config:
