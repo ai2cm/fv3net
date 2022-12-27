@@ -16,6 +16,13 @@ plt.style.use("seaborn-colorblind")
 MEMOIZE_DIR = "./cache"
 
 
+RdBu_LAND = plt.cm.get_cmap("RdBu_r")
+RdBu_LAND.set_bad(color="#bcb3a2")
+
+Viridis_LAND = plt.cm.get_cmap("viridis")
+Viridis_LAND.set_bad(color="#bcb3a2")
+
+
 def memoize_xarray_out(func):
     @functools.wraps(func)
     def myfunc(*args, **kwargs):
@@ -32,12 +39,15 @@ def memoize_xarray_out(func):
     return myfunc
 
 
-def interp_vertical(ds):
+def interp_vertical(ds, levels=vcm.interpolate.PRESSURE_GRID):
     ds_interp = xarray.Dataset()
     pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
     for var in pressure_vars:
         ds_interp[var] = vcm.interpolate_to_pressure_levels(
-            field=ds[var], delp=ds["pressure_thickness_of_atmospheric_layer"], dim="z",
+            field=ds[var],
+            delp=ds["pressure_thickness_of_atmospheric_layer"],
+            dim="z",
+            levels=levels,
         )
 
     return ds_interp
