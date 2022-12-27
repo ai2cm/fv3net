@@ -43,7 +43,7 @@ def interp_vertical(ds):
     return ds_interp
 
 
-def open_prognostic_data(url, catalog, interp_z=False):
+def open_prognostic_data(url, catalog):
 
     files = ["state_after_timestep.zarr", "piggy.zarr"]
 
@@ -54,14 +54,10 @@ def open_prognostic_data(url, catalog, interp_z=False):
             load_run_data.load_coarse_data(full_path, catalog), compat="override"
         )
 
-    if interp_z:
-        plevel_interpolated = interp_vertical(ds)
-        ds.update(plevel_interpolated)
-
     return ds
 
 
-def open_group(group, interp_z=False):
+def open_group(group):
     # open data
     client = query.PrognosticRunClient(
         group, project="microphysics-emulation", entity="ai2cm", api=wandb.Api()
@@ -70,7 +66,7 @@ def open_group(group, interp_z=False):
     catalog_path = vcm.catalog.catalog_path
     catalog = intake.open_catalog(catalog_path)
     grid = load_run_data.load_grid(catalog)
-    prognostic = open_prognostic_data(url, catalog, interp_z=interp_z)
+    prognostic = open_prognostic_data(url, catalog)
     data = prognostic.merge(grid, compat="override")
     return data
 
