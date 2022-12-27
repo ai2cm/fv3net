@@ -32,7 +32,18 @@ def memoize_xarray_out(func):
     return myfunc
 
 
-def open_prognostic_data(url, catalog):
+def interp_vertical(ds):
+    ds_interp = xarray.Dataset()
+    pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
+    for var in pressure_vars:
+        ds_interp[var] = vcm.interpolate_to_pressure_levels(
+            field=ds[var], delp=ds["pressure_thickness_of_atmospheric_layer"], dim="z",
+        )
+
+    return ds_interp
+
+
+def open_prognostic_data(url, catalog, interp_z=False):
 
     files = ["state_after_timestep.zarr", "piggy.zarr"]
 
@@ -43,10 +54,14 @@ def open_prognostic_data(url, catalog):
             load_run_data.load_coarse_data(full_path, catalog), compat="override"
         )
 
+    if interp_z:
+        plevel_interpolated = interp_vertical(ds)
+        ds.update(plevel_interpolated)
+
     return ds
 
 
-def open_group(group):
+def open_group(group, interp_z=False):
     # open data
     client = query.PrognosticRunClient(
         group, project="microphysics-emulation", entity="ai2cm", api=wandb.Api()
@@ -55,7 +70,7 @@ def open_group(group):
     catalog_path = vcm.catalog.catalog_path
     catalog = intake.open_catalog(catalog_path)
     grid = load_run_data.load_grid(catalog)
-    prognostic = open_prognostic_data(url, catalog)
+    prognostic = open_prognostic_data(url, catalog, interp_z=interp_z)
     data = prognostic.merge(grid, compat="override")
     return data
 
