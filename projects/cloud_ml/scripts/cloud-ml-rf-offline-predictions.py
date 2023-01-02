@@ -8,7 +8,7 @@ import fv3fit
 import intake
 import cftime
 
-MODEL_PATH = "gs://vcm-ml-experiments/cloud-ml/2022-12-01/fine-cloud-rf-incloud-local/trained_model"  # noqa: E501
+MODEL_PATH = "gs://vcm-ml-experiments/cloud-ml/2022-12-17/fine-cloud-rf-incloud-binary10-local/trained_model"  # noqa: E501
 NUDGED_COARSE_STATE_PATH = (
     "gs://vcm-ml-experiments/cloud-ml/2022-09-14/fine-coarse-3d-fields.zarr"
 )
@@ -16,7 +16,7 @@ TIME_START = cftime.DatetimeJulian(2016, 8, 5, 1, 0, 0, 0)
 TIME_END = cftime.DatetimeJulian(2016, 8, 6, 1, 0, 0, 0)
 TIME_SEGMENT_LENGTH = 1
 OUTPUT_PATH = (
-    "gs://vcm-ml-experiments/cloud-ml/2022-12-01/predicted-fine-cloud-fields-v2.zarr"
+    "gs://vcm-ml-experiments/cloud-ml/2022-12-21/predicted-fine-cloud-fields-v4.zarr"
 )
 
 

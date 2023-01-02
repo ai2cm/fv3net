@@ -115,6 +115,22 @@ prescribed_rf_ml_cloud_cc_decorr_run: deploy
 prescribed_rf_ml_incloud_cc_decorr_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-rf-incloud-cc-decorr
 
+.PHONY: prescribed_rf_ml_cond_01_cc_decorr_run
+prescribed_rf_ml_cond_01_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cond01-cc-decorr
+
+.PHONY: prescribed_rf_ml_cond_03_cc_decorr_run
+prescribed_rf_ml_cond_03_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cond03-cc-decorr
+
+.PHONY: prescribed_rf_ml_cond_06_cc_decorr_run
+prescribed_rf_ml_cond_06_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cond06-cc-decorr
+
+.PHONY: prescribed_rf_ml_cond_15_cc_decorr_run
+prescribed_rf_ml_cond_15_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cond15-cc-decorr
+
 .PHONY: prescribed_half_cloud_run
 prescribed_half_cloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-half-cloud
@@ -191,6 +207,14 @@ train_cloud_ml_rf: deploy
 .PHONY: train_cloud_ml_rf_incloud
 train_cloud_ml_rf_incloud: deploy
 	cd training && ./run.sh rf-incloud
+
+.PHONY: train_cloud_ml_rf_incloud_binary1
+train_cloud_ml_rf_incloud_binary1: deploy
+	cd training && ./run.sh rf-incloud-binary1
+
+.PHONY: train_cloud_ml_rf_incloud_binary10
+train_cloud_ml_rf_incloud_binary10: deploy
+	cd training && ./run.sh rf-incloud-binary10
 
 .PHONY: deploy
 deploy: kustomize

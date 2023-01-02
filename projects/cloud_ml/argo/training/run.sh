@@ -12,7 +12,7 @@ TAG="${EXPERIMENT}"  # required
 NAME=train-cloud-ml-${TRAINING}-$(openssl rand --hex 2) # required
 WANDB_PROJECT="radiation-cloud-ml"
 
-if [ "$TRAINING" = "rf" ]; then
+if [[ "$TRAINING" == *"rf"* ]]; then
     VALIDATION_ARG=" "
 else
     VALIDATION_ARG="$( yq . validation.yaml )"
