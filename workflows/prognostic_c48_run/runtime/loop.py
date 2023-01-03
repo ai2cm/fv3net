@@ -101,12 +101,13 @@ def _replace_precip_rate_with_accumulation(  # type: ignore
 
 
 def fillna_tendency(tendency: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]:
-    filled_tendency = tendency.fillna(0.0)
-    filled_fraction = (
-        xr.where(tendency != filled_tendency, 1, 0).sum("z") / tendency.sizes["z"]
+    tendency_filled = tendency.fillna(0.0)
+    tendency_filled_frac = (
+        xr.where(tendency != tendency_filled, 1, 0).sum("z") / tendency.sizes["z"]
     )
-    filled_fraction = filled_fraction.rename(f"{filled_tendency.name}_filled_frac")
-    return filled_tendency, filled_fraction
+    tendency_filled_frac_name = f"{tendency_filled.name}_filled_frac"
+    tendency_filled_frac = tendency_filled_frac.rename(tendency_filled_frac_name)
+    return tendency_filled, tendency_filled_frac
 
 
 def fillna_tendencies(tendencies: State) -> Tuple[State, State]:
