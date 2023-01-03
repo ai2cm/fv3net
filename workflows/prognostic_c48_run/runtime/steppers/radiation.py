@@ -46,9 +46,6 @@ class RadiationStepper:
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
         return {}, xr.DataArray()
 
-    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
-        return {}
-
     def _generate_inputs(self, state: State, time: cftime.DatetimeJulian) -> State:
         required_names = self._radiation.input_variables
         inputs = {name: state[name] for name in required_names}

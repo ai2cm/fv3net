@@ -37,6 +37,12 @@ from runtime.names import (
     TENDENCY_TO_STATE_NAME,
     TOTAL_PRECIP_RATE,
     PREPHYSICS_OVERRIDES,
+    A_GRID_WIND_TENDENCIES,
+    D_GRID_WIND_TENDENCIES,
+    EASTWARD_WIND_TENDENCY,
+    NORTHWARD_WIND_TENDENCY,
+    X_WIND_TENDENCY,
+    Y_WIND_TENDENCY,
 )
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
@@ -81,10 +87,6 @@ class Stepper(Protocol):
         """Return diagnostics mapping and net moistening array."""
         return {}, xr.DataArray()
 
-    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
-        """Return diagnostics of momentum tendencies."""
-        return {}
-
 
 def _replace_precip_rate_with_accumulation(  # type: ignore
     state_updates: State, dt: float
@@ -103,20 +105,107 @@ def fillna_tendency(tendency: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]
     tendency_filled_frac = (
         xr.where(tendency != tendency_filled, 1, 0).sum("z") / tendency.sizes["z"]
     )
+    tendency_filled_frac_name = f"{tendency_filled.name}_filled_frac"
+    tendency_filled_frac = tendency_filled_frac.rename(tendency_filled_frac_name)
     return tendency_filled, tendency_filled_frac
 
 
-def add_tendency(state: Any, tendency: State, dt: float) -> Tuple[State, State]:
-    """Given state and tendency prediction, return updated state, which only includes
-    variables updated by tendencies. Also returns column-integrated fraction of
-    tendencies which are filled nans.
-    """
+def fillna_tendencies(tendencies: State) -> Tuple[State, State]:
+    filled_tendencies: State = {}
+    filled_fractions: State = {}
 
+    for name, tendency in tendencies.items():
+        (
+            filled_tendencies[name],
+            filled_fractions[f"{name}_filled_frac"],
+        ) = fillna_tendency(tendency)
+
+    return filled_tendencies, filled_fractions
+
+
+def prepare_agrid_wind_tendencies(
+    tendencies: State,
+) -> Tuple[xr.DataArray, xr.DataArray]:
+    """Ensure A-grid wind tendencies are defined, have the proper units, and
+    data type before being passed to the wrapper.
+
+    Assumes that at least one of dQu or dQv appears in the tendencies input
+    dictionary.
+    """
+    dQu = tendencies.get(EASTWARD_WIND_TENDENCY)
+    dQv = tendencies.get(NORTHWARD_WIND_TENDENCY)
+
+    if dQu is None:
+        dQu = xr.zeros_like(dQv)
+    if dQv is None:
+        dQv = xr.zeros_like(dQu)
+
+    dQu = dQu.assign_attrs(units="m/s/s").astype(np.float64, casting="same_kind")
+    dQv = dQv.assign_attrs(units="m/s/s").astype(np.float64, casting="same_kind")
+    return dQu, dQv
+
+
+def transform_agrid_wind_tendencies(tendencies: State) -> State:
+    """Transforms available A-grid wind tendencies to the D-grid.
+
+    Currently this does not support the case that both A-grid and D-grid
+    tendencies are provided and will raise an error in that situation.  It would
+    be straightforward to enable support of that, however.
+    """
+    if contains_dgrid_tendencies(tendencies):
+        raise ValueError(
+            "Simultaneously updating A-grid and D-grid winds is currently not "
+            "supported."
+        )
+
+    dQu, dQv = prepare_agrid_wind_tendencies(tendencies)
+    dQx_wind, dQy_wind = transform_from_agrid_to_dgrid(dQu, dQv)
+    tendencies[X_WIND_TENDENCY] = dQx_wind
+    tendencies[Y_WIND_TENDENCY] = dQy_wind
+    return dissoc(tendencies, *A_GRID_WIND_TENDENCIES)
+
+
+def contains_agrid_tendencies(tendencies):
+    return any(k in tendencies for k in A_GRID_WIND_TENDENCIES)
+
+
+def contains_dgrid_tendencies(tendencies):
+    return any(k in tendencies for k in D_GRID_WIND_TENDENCIES)
+
+
+def prepare_tendencies_for_dynamical_core(tendencies: State) -> Tuple[State, State]:
+    # Filled fraction diagnostics are recorded on the original grid, since that
+    # is where the na-filling occurs.
+    filled_tendencies, tendencies_filled_frac = fillna_tendencies(tendencies)
+    if contains_agrid_tendencies(filled_tendencies):
+        filled_tendencies = transform_agrid_wind_tendencies(filled_tendencies)
+    return filled_tendencies, tendencies_filled_frac
+
+
+def transform_from_agrid_to_dgrid(
+    u: xr.DataArray, v: xr.DataArray
+) -> Tuple[xr.DataArray, xr.DataArray]:
+    """Transform a vector field on the A-grid in latitude-longitude coordinates
+    to the D-grid in cubed-sphere coordinates.
+
+    u and v must have double precision and contain units attributes.
+    """
+    u_quantity = pace.util.Quantity.from_data_array(u)
+    v_quantity = pace.util.Quantity.from_data_array(v)
+    (
+        x_wind_quantity,
+        y_wind_quantity,
+    ) = fv3gfs.wrapper.transform_agrid_winds_to_dgrid_winds(u_quantity, v_quantity)
+    return x_wind_quantity.data_array, y_wind_quantity.data_array
+
+
+def add_tendency(state: Any, tendencies: State, dt: float) -> State:
+    """Given state and tendency prediction, return updated state, which only includes
+    variables updated by tendencies.  Tendencies cannot contain null values.
+    """
     with xr.set_options(keep_attrs=True):
-        updated = {}
-        tendency_filled_frac = {}
-        for name_ in tendency:
-            name = str(name_)
+        updated: State = {}
+        for name, tendency in tendencies.items():
             try:
                 state_name = str(TENDENCY_TO_STATE_NAME[name])
             except KeyError:
@@ -126,12 +215,8 @@ def add_tendency(state: Any, tendency: State, dt: float) -> Tuple[State, State]:
                     "Existing tendencies with mappings to state are "
                     f"{list(TENDENCY_TO_STATE_NAME.keys())}"
                 )
-            (
-                tendency_filled,
-                tendency_filled_frac[f"{name}_filled_frac"],
-            ) = fillna_tendency(tendency[name])
-            updated[state_name] = state[state_name] + tendency_filled * dt
-    return updated, tendency_filled_frac  # type: ignore
+            updated[state_name] = state[state_name] + tendency * dt
+    return updated
 
 
 class LoggingMixin:
@@ -482,31 +567,6 @@ class TimeLoop(
 
         return diagnostics
 
-    def _apply_postphysics_to_physics_state(self) -> Diagnostics:
-        """Apply computed tendencies and state updates to the physics state
-
-        Mostly used for updating the eastward and northward winds.
-        """
-        self._log_debug(f"Apply postphysics tendencies to physics state")
-        tendency = {k: v for k, v in self._tendencies.items() if k in ["dQu", "dQv"]}
-
-        diagnostics: Diagnostics = {}
-
-        if self._postphysics_stepper is not None:
-            diagnostics = self._postphysics_stepper.get_momentum_diagnostics(
-                self._state, tendency
-            )
-            if self._postphysics_only_diagnostic_ml:
-                rename_diagnostics(diagnostics)
-            else:
-                updated_state, tendency_filled_frac = add_tendency(
-                    self._state, tendency, dt=self._timestep
-                )
-                self._state.update_mass_conserving(updated_state)
-                diagnostics.update(tendency_filled_frac)
-
-        return diagnostics
-
     def _compute_postphysics(self) -> Diagnostics:
         self._log_info("Computing Postphysics Updates")
 
@@ -538,19 +598,22 @@ class TimeLoop(
 
     def _apply_postphysics_to_dycore_state(self) -> Diagnostics:
 
-        tendency = dissoc(self._tendencies, "dQu", "dQv")
         diagnostics = compute_baseline_diagnostics(self._state)
 
         if self._postphysics_stepper is not None:
             stepper_diags, net_moistening = self._postphysics_stepper.get_diagnostics(
-                self._state, tendency
+                self._state, self._tendencies
             )
             diagnostics.update(stepper_diags)
             if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
-                updated_state_from_tendency, tendency_filled_frac = add_tendency(
-                    self._state, tendency, dt=self._timestep
+                (
+                    filled_tendencies,
+                    tendencies_filled_frac,
+                ) = prepare_tendencies_for_dynamical_core(self._tendencies)
+                updated_state_from_tendency = add_tendency(
+                    self._state, filled_tendencies, dt=self._timestep
                 )
 
                 # if total precip is updated directly by stepper,
@@ -559,7 +622,7 @@ class TimeLoop(
                     self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
                 self._state.update_mass_conserving(updated_state_from_tendency)
-                diagnostics.update(tendency_filled_frac)
+                diagnostics.update(tendencies_filled_frac)
         self._log_info(
             "Applying state updates to postphysics dycore state: "
             f"{self._state_updates.keys()}"
@@ -600,7 +663,6 @@ class TimeLoop(
                 self._step_pre_radiation_physics,
                 self._step_radiation_physics,
                 self._step_post_radiation_physics,
-                self._apply_postphysics_to_physics_state,
                 self.monitor(
                     "applied_physics",
                     self.emulate_or_prescribe_tendency(
