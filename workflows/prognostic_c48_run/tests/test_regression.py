@@ -27,8 +27,6 @@ LOG_PATH = "logs.txt"
 STATISTICS_PATH = "statistics.txt"
 PROFILES_PATH = "profiles.txt"
 CHUNKS_PATH = "chunks.yaml"
-LOWEST_MODEL_LEVEL = -1
-NON_LOWEST_MODEL_LEVELS = slice(None, -1)
 
 
 class ConfigEnum:
@@ -581,15 +579,6 @@ def _tendency_dataset():
     return xr.Dataset({"Q1": da})
 
 
-APPLIED_TENDENCIES = [
-    "tendency_of_air_temperature_due_to_python",
-    "tendency_of_specific_humidity_due_to_python",
-    "tendency_of_x_wind_due_to_python",
-    "tendency_of_y_wind_due_to_python",
-]
-PREDICTED_TENDENCIES = ["dQ1", "dQ2", "dQu", "dQv"]
-
-
 @pytest.fixture(
     scope="module",
     params=[ConfigEnum.predictor, ConfigEnum.nudging, ConfigEnum.microphys_emulation],
@@ -611,9 +600,7 @@ def completed_rundir(configuration, tmpdir_factory):
     tendency_dataset_path = tmpdir_factory.mktemp("tendencies")
 
     if configuration == ConfigEnum.predictor:
-        model = get_mock_predictor(
-            dQ1_tendency=1 / 86400, mask_lowest_level_outputs=True
-        )
+        model = get_mock_predictor()
         model_path = str(tmpdir_factory.mktemp("model"))
         fv3fit.dump(model, str(model_path))
         config = get_ml_config(model_path)
@@ -659,31 +646,6 @@ def test_chunks_present(completed_segment):
     assert completed_segment.join(CHUNKS_PATH).exists()
 
 
-def validate_predictor_diagnostics(diagnostics):
-    """Check that tendencies are applied at proper vertical levels.
-
-    Despite the fact that we prescribe the tendencies the mock predictor
-    predicts, due to limiters and coordinate transformations the best we can do
-    here is check that applied tendencies are zero in the lowest model level and
-    nonzero elsewhere and that predicted tendencies contain NaNs in the lowest
-    model level are not NaNs elsewhere.
-    """
-    for variable, diagnostic in diagnostics.items():
-        if variable in APPLIED_TENDENCIES:
-            assert (diagnostic.isel(z=LOWEST_MODEL_LEVEL) == 0).all()
-            assert (diagnostic.isel(z=NON_LOWEST_MODEL_LEVELS) != 0).all()
-        elif variable in PREDICTED_TENDENCIES:
-            assert diagnostic.isel(z=LOWEST_MODEL_LEVEL).isnull().all()
-            assert diagnostic.isel(z=NON_LOWEST_MODEL_LEVELS).notnull().all()
-        else:
-            assert diagnostic.notnull().all()
-
-
-def assert_diagnostics_notnull(diagnostics):
-    for diagnostic in diagnostics.values():
-        assert diagnostic.notnull().all()
-
-
 def test_fv3run_diagnostic_outputs_check_variables(
     regtest, completed_rundir, configuration
 ):
@@ -691,12 +653,9 @@ def test_fv3run_diagnostic_outputs_check_variables(
     Additional Predictor model types and configurations should be tested against
     the base class in the fv3fit test suite.
     """
-    diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr"))).load()
-    if configuration == "predictor":
-        validate_predictor_diagnostics(diagnostics)
-    else:
-        assert_diagnostics_notnull(diagnostics)
+    diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
     for variable in sorted(diagnostics):
+        assert np.sum(np.isnan(diagnostics[variable].values)) == 0
         checksum = vcm.testing.checksum_dataarray(diagnostics[variable])
         print(f"{variable}: " + checksum, file=regtest)
 
