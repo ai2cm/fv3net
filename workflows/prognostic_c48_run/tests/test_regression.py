@@ -646,9 +646,7 @@ def test_chunks_present(completed_segment):
     assert completed_segment.join(CHUNKS_PATH).exists()
 
 
-def test_fv3run_diagnostic_outputs_check_variables(
-    regtest, completed_rundir, configuration
-):
+def test_fv3run_diagnostic_outputs_check_variables(regtest, completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
     the base class in the fv3fit test suite.

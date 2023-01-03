@@ -29,8 +29,9 @@ def _model_dataset() -> xr.Dataset:
 
 
 def get_mock_predictor(
-    model_predictands: str = "tendencies", dQ1_tendency=0.0,
+    model_predictands: str = "tendencies", dQ1_tendency=0.0
 ) -> fv3fit.Predictor:
+
     data = _model_dataset()
     nz = data.sizes["z"]
     if model_predictands == "tendencies":
