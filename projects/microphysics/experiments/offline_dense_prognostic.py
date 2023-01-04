@@ -18,6 +18,11 @@ model_paths = {
     "precpd": "gs://vcm-ml-experiments/microphysics-emulation/2022-12-13/precpd-diff-only-no-pr-v2/model.tf",  # noqa
 }
 
+dense_precpd_paths = {
+    "gscond": "gs://vcm-ml-experiments/microphysics-emulation/2022-12-13/gscond-only-qvout-v2/model.tf",  # noqa,
+    "precpd": "gs://vcm-ml-experiments/microphysics-emulation/2022-12-13/precpd-diff-only-dense-no-pr-v2/model.tf",  # noqa
+}
+
 
 def get_job(model_paths, name):
     config = load_yaml("../configs/gscond-and-precpd.yaml")["config"]
@@ -34,5 +39,6 @@ def get_job(model_paths, name):
 jobs = [
     get_job(dense_model_paths, "zc-emu-using-dense-v2"),
     get_job(model_paths, "zc-emu-not-dense-v2"),
+    get_job(dense_precpd_paths, "zc-emu-gsc-prior-precpd-simple-v2"),
 ]
 submit_jobs(jobs, "compare-offline-dense-dec2022")
