@@ -115,6 +115,10 @@ class WindowedZarrLoader(TFDatasetLoader):
         n_windows: number of windows to create per epoch, defaults to the number
             of windows needed to fully cover the dataset with overlapping
             start and end times.
+        time_start_index: index of the first time step of the raw dataset to use,
+            defaults to 0
+        time_end_index: index of the last time step of the raw dataset to use,
+            defaults to the last time step in the dataset
     """
 
     data_path: str
@@ -127,6 +131,8 @@ class WindowedZarrLoader(TFDatasetLoader):
     batch_size: int = 1
     time_stride: int = 1
     n_windows: Optional[int] = None
+    time_start_index: int = 0
+    time_end_index: Optional[int] = None
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
@@ -141,6 +147,7 @@ class WindowedZarrLoader(TFDatasetLoader):
                 first dimension is the batch dimension
         """
         ds = open_zarr_using_filecache(self.data_path)
+        ds = ds.isel(time=slice(self.time_start_index, self.time_end_index))
         tfdataset = self._convert_to_tfdataset(ds, variable_names)
         # if local_download_path is given, cache on disk
         if local_download_path is not None:
