@@ -83,6 +83,9 @@ if args.tag:
 with args.config_path.open() as f:
     config = yaml.safe_load(f)
 
-config["namelist"]["gfs_physics_nml"]["emulate_zc_microphysics"] = args.online
+if not args.online:
+    config["namelist"]["gfs_physics_nml"]["emulate_zc_microphysics"] = False
+    config["namelist"]["gfs_physics_nml"]["emulate_gscond_only"] = False
+
 config["tag"] = args.tag or job.id
 run_from_config_dict(config)
