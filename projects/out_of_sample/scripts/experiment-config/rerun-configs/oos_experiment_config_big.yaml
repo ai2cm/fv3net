@@ -86,7 +86,7 @@ novelty_detectors:
       - cutoff: -0.1
 model_config_dir_path: "gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-03/oos-configs/oos-full-year-sweep"
 prognostic_run_config_template: "prognostic-run-config.yaml"
-launch_destination: "~/vcm-workflow-control/nd-suite/prog-run-full-year-sweep"
+launch_destination: "~/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep"
 experiment_summary_path: "experiment_summary_big.txt"
 segments: 36
 result_destination:
