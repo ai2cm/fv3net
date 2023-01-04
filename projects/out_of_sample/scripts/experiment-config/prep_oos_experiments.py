@@ -96,9 +96,9 @@ def make_argo_submit_command(
         + f"-p tag={tag} \\\n"
         + f'-p config="$(< {prognostic_run_config_path})" \\\n'
         + f"-p segment-count={segment_count} \\\n"
-        + "-p memory='25Gi' \\\n"
+        + "-p memory='35Gi' \\\n"
         + "-p cpu='24' \\\n"
-        + "-p online-diags-flags='--verification  1yr_pire_postspinup --n-jobs 5' \\\n"
+        + "-p online-diags-flags='--verification  1yr_pire_postspinup --n-jobs 4' \\\n"
         + f"--name '{job_name}' \\\n"
         + f"--labels 'project={project},experiment={experiment},"
         + f"trial={trial_string}' \n\n"
