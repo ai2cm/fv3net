@@ -37,7 +37,7 @@ experiment_summary_path: "experiment_summary_big_tq_only.txt"
 segments: 36
 result_destination:
   bucket: "vcm-ml-experiments"
-  project: "claytons"
+  project: "out-of-sample-right-side-up-winds"
   experiment: "oos-full-year-sweep-tq-only"
   trial: 1
 
