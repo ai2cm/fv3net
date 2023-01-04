@@ -138,9 +138,14 @@ def test_loader_handles_time_range():
         dataset = loader.open_tfdataset(
             local_download_path=None, variable_names=variable_names
         )
-        item = next(iter(dataset))
+        # result is a dictionary of Tensor
+        item_tensors = next(iter(dataset))
+        # retrieve numpy array
+        item = item_tensors["a"].numpy()
         # remove inserted batch dimension when comparing
-        np.testing.assert_array_equal(item["a"].numpy()[0, :], ds["a"][5:15].values)
+        item = item[0, :]
+        expected = ds["a"].isel(time=slice(5, 15)).values
+        np.testing.assert_array_equal(item, expected)
 
 
 @pytest.mark.parametrize(
