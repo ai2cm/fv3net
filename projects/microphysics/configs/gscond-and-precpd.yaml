@@ -1,6 +1,6 @@
 kind: prognostic
 experiment: no-classify-rerun
-name: zc-emu-no-gscond-classify-gsconly-v3
+name: zc-emu-no-gscond-classify-gsconly-v4
 image_tag: latest
 fv3net_image_tag: latest
 config:
@@ -262,8 +262,8 @@ config:
       imp_physics: 99
       ncld: 1
       ldiag3d: true
-      emulate_gscond_only: false
-      emulate_zc_microphysics: true
+      emulate_gscond_only: true
+      emulate_zc_microphysics: false
       save_zc_microphysics: true
   zhao_carr_emulation:
     gscond:
@@ -284,8 +284,8 @@ config:
           start: 74
           fill_value: air_temperature_input
     model:
-      simple_precip_conservative: True
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-13/precpd-diff-only-no-pr-v2/model.tf
+      # simple_precip_conservative: True
+      # path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-13/precpd-diff-only-no-pr-v2/model.tf
     storage:
       output_freq_sec: 10800
       save_nc: false
