@@ -9,24 +9,24 @@ prephysics:
   -
     diagnostic_ml: false
     model:
-      - gs://vcm-ml-experiments/n2f-pire-stable-ml/2022-05-24/radiative-fluxes-mae-lat-input-seed-0/trained_models/radiative_fluxes
+    - gs://vcm-ml-experiments/n2f-pire-stable-ml/2022-05-24/radiative-fluxes-mae-lat-input-seed-0/trained_models/radiative_fluxes
     output_standard_names:
-      override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface: net_shortwave_sfc_flux_via_transmissivity
       override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface: downward_shortwave_sfc_flux_via_transmissivity
+      override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface: net_shortwave_sfc_flux_via_transmissivity
   -
     dataset_key: gs://vcm-ml-intermediate/2021-08-03-PIRE-c48-diags-post-spinup/sst-time-centered.zarr
-    variables:
-      - ocean_surface_temperature
-    reference_initial_time: "20200118.013000"
     reference_frequency_seconds: 10800
+    reference_initial_time: '20200118.013000'
+    variables:
+      ocean_surface_temperature: ocean_surface_temperature
   -
     dataset_key: gs://vcm-ml-intermediate/2021-08-03-PIRE-c48-diags-post-spinup/slmsk-seaice-reference.zarr
-    variables:
-      - land_sea_mask
-      - sea_ice_thickness
-      - ice_fraction_over_open_water
-    reference_initial_time: "20200119.000000"
     reference_frequency_seconds: 604800
+    reference_initial_time: '20200119.000000'
+    variables:
+      land_sea_mask: land_sea_mask
+      sea_ice_thickness: sea_ice_thickness
+      ice_fraction_over_open_water: ice_fraction_over_open_water
 namelist:
   atmos_model_nml:
     fhmax: 10240  # max hours of simulation (over all segments) for which fortran physics diags are saved
