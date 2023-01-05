@@ -1,5 +1,4 @@
-from typing import Dict, List, Literal, Mapping, Tuple, Optional
-import tensorflow as tf
+from typing import List, Literal, Mapping, Tuple, Optional
 from fv3fit._shared.scaler import StandardScaler
 from .reloadable import CycleGAN, CycleGANModule
 import torch
@@ -13,14 +12,6 @@ from fv3fit.pytorch.system import DEVICE
 import itertools
 from .image_pool import ImagePool
 import numpy as np
-from fv3fit import wandb
-import io
-import PIL
-
-try:
-    import matplotlib.pyplot as plt
-except ModuleNotFoundError:
-    plt = None
 
 import logging
 
@@ -316,76 +307,8 @@ class CycleGANTrainer:
             torch.Tensor(shape).fill_(0.0).to(DEVICE), requires_grad=False
         )
 
-    def evaluate_on_dataset(
-        self, dataset: tf.data.Dataset, n_dims_keep: int = 3
-    ) -> Dict[str, float]:
-        stats_real_a = StatsCollector(n_dims_keep)
-        stats_real_b = StatsCollector(n_dims_keep)
-        stats_gen_a = StatsCollector(n_dims_keep)
-        stats_gen_b = StatsCollector(n_dims_keep)
-        real_a: np.ndarray
-        real_b: np.ndarray
-        reported_plot = False
-        for real_a, real_b in dataset:
-            # for now there is no time-evolution-based loss, so we fold the time
-            # dimension into the sample dimension
-            real_a = real_a.reshape(
-                [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
-            )
-            real_b = real_b.reshape(
-                [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
-            )
-            stats_real_a.observe(real_a)
-            stats_real_b.observe(real_b)
-            gen_b: np.ndarray = self.generator_a_to_b(
-                torch.as_tensor(real_a).float().to(DEVICE)
-            ).detach().cpu().numpy()
-            gen_a: np.ndarray = self.generator_b_to_a(
-                torch.as_tensor(real_b).float().to(DEVICE)
-            ).detach().cpu().numpy()
-            stats_gen_a.observe(gen_a)
-            stats_gen_b.observe(gen_b)
-            if not reported_plot and plt is not None:
-                report = {}
-                for i_tile in range(6):
-                    fig, ax = plt.subplots(2, 2, figsize=(8, 7))
-                    im = ax[0, 0].pcolormesh(real_a[0, i_tile, 0, :, :])
-                    plt.colorbar(im, ax=ax[0, 0])
-                    ax[0, 0].set_title("a_real")
-                    im = ax[1, 0].pcolormesh(real_b[0, i_tile, 0, :, :])
-                    plt.colorbar(im, ax=ax[1, 0])
-                    ax[1, 0].set_title("b_real")
-                    im = ax[0, 1].pcolormesh(gen_b[0, i_tile, 0, :, :])
-                    plt.colorbar(im, ax=ax[0, 1])
-                    ax[0, 1].set_title("b_gen")
-                    im = ax[1, 1].pcolormesh(gen_a[0, i_tile, 0, :, :])
-                    plt.colorbar(im, ax=ax[1, 1])
-                    ax[1, 1].set_title("a_gen")
-                    plt.tight_layout()
-                    buf = io.BytesIO()
-                    plt.savefig(buf, format="png")
-                    plt.close()
-                    buf.seek(0)
-                    report[f"tile_{i_tile}_example"] = wandb.Image(
-                        PIL.Image.open(buf), caption=f"Tile {i_tile} Example",
-                    )
-                wandb.log(report)
-                reported_plot = True
-        metrics = {
-            "r2_mean_b_against_real_a": get_r2(stats_real_a.mean, stats_gen_b.mean),
-            "r2_mean_a": get_r2(stats_real_a.mean, stats_gen_a.mean),
-            "bias_mean_a": np.mean(stats_real_a.mean - stats_gen_a.mean),
-            "r2_mean_b": get_r2(stats_real_b.mean, stats_gen_b.mean),
-            "bias_mean_b": np.mean(stats_real_b.mean - stats_gen_b.mean),
-            "r2_std_a": get_r2(stats_real_a.std, stats_gen_a.std),
-            "bias_std_a": np.mean(stats_real_a.std - stats_gen_a.std),
-            "r2_std_b": get_r2(stats_real_b.std, stats_gen_b.std),
-            "bias_std_b": np.mean(stats_real_b.std - stats_gen_b.std),
-        }
-        return metrics
-
     def train_on_batch(
-        self, real_a: torch.Tensor, real_b: torch.Tensor
+        self, real_a: torch.Tensor, real_b: torch.Tensor, training: bool = True
     ) -> Mapping[str, float]:
         """
         Train the CycleGAN on a batch of data.
@@ -395,6 +318,8 @@ class CycleGANTrainer:
                 [sample, time, tile, channel, y, x]
             real_b: a batch of data from domain B, should have shape
                 [sample, time, tile, channel, y, x]
+            training: if True, the model will be trained, otherwise we will
+                only evaluate the loss.
         """
         # for now there is no time-evolution-based loss, so we fold the time
         # dimension into the sample dimension
@@ -412,10 +337,11 @@ class CycleGANTrainer:
 
         # Generators A2B and B2A ######
 
-        # don't update discriminators when training generators to fool them
-        set_requires_grad(
-            [self.discriminator_a, self.discriminator_b], requires_grad=False
-        )
+        if training:
+            # don't update discriminators when training generators to fool them
+            set_requires_grad(
+                [self.discriminator_a, self.discriminator_b], requires_grad=False
+            )
 
         # Identity loss
         # G_A2B(B) should equal B if real B is fed
@@ -448,16 +374,18 @@ class CycleGANTrainer:
 
         # Total loss
         loss_g: torch.Tensor = (loss_identity + loss_gan + loss_cycle)
-        self.optimizer_generator.zero_grad()
-        loss_g.backward()
-        self.optimizer_generator.step()
+        if training:
+            self.optimizer_generator.zero_grad()
+            loss_g.backward()
+            self.optimizer_generator.step()
 
         # Discriminators A and B ######
 
-        # do update discriminators when training them to identify samples
-        set_requires_grad(
-            [self.discriminator_a, self.discriminator_b], requires_grad=True
-        )
+        if training:
+            # do update discriminators when training them to identify samples
+            set_requires_grad(
+                [self.discriminator_a, self.discriminator_b], requires_grad=True
+            )
 
         # Real loss
         pred_real = self.discriminator_a(real_a)
@@ -466,7 +394,8 @@ class CycleGANTrainer:
         )
 
         # Fake loss
-        fake_a = self.fake_a_buffer.query(fake_a)
+        if training:
+            fake_a = self.fake_a_buffer.query(fake_a)
         pred_a_fake = self.discriminator_a(fake_a.detach())
         loss_d_a_fake = (
             self.gan_loss(pred_a_fake, self.target_fake) * self.discriminator_weight
@@ -479,7 +408,8 @@ class CycleGANTrainer:
         )
 
         # Fake loss
-        fake_b = self.fake_b_buffer.query(fake_b)
+        if training:
+            fake_b = self.fake_b_buffer.query(fake_b)
         pred_b_fake = self.discriminator_b(fake_b.detach())
         loss_d_b_fake = (
             self.gan_loss(pred_b_fake, self.target_fake) * self.discriminator_weight
@@ -490,9 +420,10 @@ class CycleGANTrainer:
             loss_d_b_real + loss_d_b_fake + loss_d_a_real + loss_d_a_fake
         )
 
-        self.optimizer_discriminator.zero_grad()
-        loss_d.backward()
-        self.optimizer_discriminator.step()
+        if training:
+            self.optimizer_discriminator.zero_grad()
+            loss_d.backward()
+            self.optimizer_discriminator.step()
 
         return {
             "b_to_a_gan_loss": float(loss_gan_b_to_a),
@@ -504,6 +435,7 @@ class CycleGANTrainer:
             "generator_loss": float(loss_g),
             "discriminator_loss": float(loss_d),
             "train_loss": float(loss_g + loss_d),
+            "regularization_loss": float(loss_cycle + loss_identity),
         }
 
 
