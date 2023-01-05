@@ -32,10 +32,8 @@ class CycleGANNetworkConfig:
     Configuration for building and training a CycleGAN network.
 
     Attributes:
-        generator_optimizer: configuration for the optimizer used to train the
-            generator
-        discriminator_optimizer: configuration for the optimizer used to train the
-            discriminator
+        optimizer: configuration for the optimizer used to train the
+            generator and discriminator
         generator: configuration for building the generator network
         discriminator: configuration for building the discriminator network
         identity_loss: loss function used to make the generator which outputs
@@ -52,10 +50,7 @@ class CycleGANNetworkConfig:
         discriminator_weight: weight of the discriminator gan loss
     """
 
-    generator_optimizer: OptimizerConfig = dataclasses.field(
-        default_factory=lambda: OptimizerConfig("Adam")
-    )
-    discriminator_optimizer: OptimizerConfig = dataclasses.field(
+    optimizer: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
     generator: "GeneratorConfig" = dataclasses.field(
@@ -91,12 +86,12 @@ class CycleGANNetworkConfig:
         )
         discriminator_a = self.discriminator.build(n_state, convolution=convolution)
         discriminator_b = self.discriminator.build(n_state, convolution=convolution)
-        optimizer_generator = self.generator_optimizer.instance(
+        optimizer_generator = self.optimizer.instance(
             itertools.chain(
                 generator_a_to_b.parameters(), generator_b_to_a.parameters()
             )
         )
-        optimizer_discriminator = self.discriminator_optimizer.instance(
+        optimizer_discriminator = self.optimizer.instance(
             itertools.chain(discriminator_a.parameters(), discriminator_b.parameters())
         )
         model = CycleGANModule(
