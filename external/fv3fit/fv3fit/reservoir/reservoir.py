@@ -1,8 +1,8 @@
-import dataclasses
 import logging
 import numpy as np
 import scipy
-from typing import Optional
+
+from .config import ReservoirHyperparameters
 
 logger = logging.getLogger(__name__)
 
@@ -23,44 +23,6 @@ def _random_uniform_sparse_matrix(m, n, sparsity, min=0, max=1):
     )
 
 
-@dataclasses.dataclass
-class ReservoirHyperparameters:
-    """Hyperparameters for reservoir
-
-    input_size: Size of input vector
-    state_size: Size of hidden state vector,
-        W_res has shape state_size x state_size
-    adjacency_matrix_sparsity: Fraction of elements in adjacency matrix
-        W_res that are zero
-    output_size: Optional: size of output vector. Can be smaller than input
-        dimension if predicting on subdomains with overlapping
-        input regions. Defaults to same as input_size
-    spectral_radius: Largest absolute value eigenvalue of W_res.
-        Larger values increase the memory of the reservoir.
-    seed: Random seed for sampling
-    input_coupling_sparsity: Fraction of elements in each row of W_in
-        that are zero. Kept the same in all rows to ensure each input
-        is equally connected into the reservoir. Defaults to 0.
-    input_coupling_scaling: Scaling applied to W_in. Defaults to 1,
-        where all elements are sampled from random uniform distribution
-        [-1, 1]. Changing this affects relative weighting of reservoir memory
-        versus the most recent state.
-    """
-
-    input_size: int
-    state_size: int
-    adjacency_matrix_sparsity: float
-    spectral_radius: float
-    output_size: Optional[int] = None
-    seed: int = 0
-    input_coupling_sparsity: float = 0.0
-    input_coupling_scaling: float = 1.0
-
-    def __post_init__(self):
-        if not self.output_size:
-            self.output_size = self.input_size
-
-
 class Reservoir:
     def __init__(
         self, hyperparameters: ReservoirHyperparameters,
@@ -69,14 +31,21 @@ class Reservoir:
         np.random.seed(self.hyperparameters.seed)
         self.W_in = self._generate_W_in()
         self.W_res = self._generate_W_res()
-        self.state = np.zeros(self.hyperparameters.state_size)
+        self.state_after_reset = (
+            np.zeros(
+                (self.hyperparameters.state_size, self.hyperparameters.ncols_state)
+            )
+            if self.hyperparameters.ncols_state > 1
+            else np.zeros(self.hyperparameters.state_size)
+        )
+        self.state = self.state_after_reset
 
     def increment_state(self, input):
         self.state = np.tanh(self.W_in @ input + self.W_res @ self.state)
 
     def reset_state(self):
         logger.info("Resetting reservoir state.")
-        self.state = np.zeros(self.hyperparameters.state_size)
+        self.state = self.state_after_reset
 
     def synchronize(self, synchronization_time_series):
         self.reset_state()
