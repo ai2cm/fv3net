@@ -99,9 +99,6 @@ class Prescriber:
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
         return {}, xr.DataArray()
 
-    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
-        return {}
-
 
 def _sst_from_reference(
     reference_surface_temperature: xr.DataArray,

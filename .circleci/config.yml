@@ -147,6 +147,7 @@ jobs:
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       CLUSTER_NAME: ml-cluster-dev
+      USE_GKE_GCLOUD_AUTH_PLUGIN: True
     steps:
       - checkout
       - run:

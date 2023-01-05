@@ -1,5 +1,5 @@
-`fv3viz`
-========
+fv3viz
+======
 
 This package contains visualization tools used by the Allen Institute for AI Climate Modeling ML team. The package includes three types of functions:
     1. those associated with plotting cubed-sphere tile data as maps using cartopy

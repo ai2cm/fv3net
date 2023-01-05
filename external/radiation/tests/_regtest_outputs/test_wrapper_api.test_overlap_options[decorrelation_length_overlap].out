@@ -1,0 +1,37 @@
+NEW RADIATION PROGRAM STRUCTURES BECAME OPER. May 01 2007
+NCEP-Radiation_driver    v5.2  Jan 2013
+ 
+- Selected Control Flag settings: ICTMflg=1
+  ISOLar =2, ICO2flg=2, IAERflg=111
+  IALBflg=1, IEMSflg=1, ICLDflg=1
+  IMP_PHYSICS=11, IOZNflg=7
+  IVFLIP=1, IOVRSW=3, IOVRLW=3
+  ISUBCSW=2, ISUBCLW=2
+  LCRICK=False, LCNORM=False, LNOPREC=False
+  LTP =0, add extra top layer =False
+ 
+- ISUBCLW=2, Use McICA with random  permutation seeds for LW random number generator
+- ISUBCSW=2, Use McICA with random  permutation seeds for SW random number generator
+NCEP-Radiation_astronomy v5.2  Jan 2013 
+ - Using NOAA annual mean TSI table in TIM scale  with cycle approximation (new values)!
+NCEP-Radiation_aerosols  v5.2  Jan 2013 
+- Using OPAC-seasonal climatology for tropospheric  aerosol effect
+IAER=111,  LW-trop-aer=True SW-trop-aer=True, Volc-aer=True
+- Include stratospheric volcanic aerosol effect
+- Compute multi-band aerosol optical  properties for SW input parameters
+- Compute multi-band aerosol optical  properties for LW input parameters
+ - Using interactive ozone distribution
+Using observed co2 monthly 2-d data
+NCEP-Radiation_surface   v5.1  Nov 2012
+- Using MODIS based land surface albedo for sw
+- Using Varying Surface Emissivity for lw
+NCEP-Radiation_clouds    v5.1  Nov 2012 
+- Using Prognostic Cloud Method
+   --- GFDL Lin cloud microphysics
+- Using AER Longwave Radiation, Version: NCEP LW v5.1  Nov 2012 -RRTMG-LW v4.82
+   --- Include rare gases N2O, CH4, O2, CFCs  absorptions in LW
+   --- Using MCICA sub-colum clouds approximation     with provided input array of permutation seeds
+- Using AER Shortwave Radiation, Version: NCEP SW v5.1  Nov 2012 -RRTMG-SW v3.8
+   --- PIFM 2-stream transfer scheme
+   --- Include rare gases N2O, CH4, O2, absorptions in SW
+   --- Using MCICA sub-colum clouds approximation     with provided input array of permutation seeds

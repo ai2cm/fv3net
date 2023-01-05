@@ -42,3 +42,4 @@ fv3config_ (`docs <https://fv3config.readthedocs.io/en/latest/>`_) provides rout
     readme_links/synth_readme
     readme_links/report_readme
     readme_links/fv3kube_readme
+    readme_links/radiation_readme
