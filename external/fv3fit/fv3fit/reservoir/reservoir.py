@@ -72,7 +72,7 @@ class Reservoir:
         self.state = np.zeros(self.hyperparameters.state_size)
 
     def increment_state(self, input):
-        self.state = np.tanh(self.W_in * input + self.W_res * self.state)
+        self.state = np.tanh(self.W_in @ input + self.W_res @ self.state)
 
     def reset_state(self):
         logger.info("Resetting reservoir state.")
