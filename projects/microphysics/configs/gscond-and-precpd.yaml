@@ -1,8 +1,8 @@
 kind: prognostic
 experiment: no-classify-rerun
-name: zc-emu-no-gscond-classify-gsconly-v4
-image_tag: latest
-fv3net_image_tag: latest
+name: zc-emu-no-gscond-classify-gsconly-v5
+image_tag: 3660ad3e7ea9dc48b20bb759e2755ff3b9bb3e55
+fv3net_image_tag: 3660ad3e7ea9dc48b20bb759e2755ff3b9bb3e55
 config:
   base_version: v0.5
   data_table: default
