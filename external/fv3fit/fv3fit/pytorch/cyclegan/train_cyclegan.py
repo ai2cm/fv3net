@@ -108,9 +108,13 @@ class CycleGANTrainingConfig:
             validation_data = validation_data.batch(validation_batch_size)
             validation_data = tfds.as_numpy(validation_data)
         if self.in_memory:
-            train_states = dataset_to_tuples(train_data_numpy)
+            train_states: Iterable[
+                Tuple[torch.Tensor, torch.Tensor]
+            ] = dataset_to_tuples(train_data_numpy)
             if validation_data is not None:
-                val_states = dataset_to_tuples(validation_data)
+                val_states: Optional[
+                    Iterable[Tuple[torch.Tensor, torch.Tensor]]
+                ] = dataset_to_tuples(validation_data)
             else:
                 val_states = None
         else:
@@ -124,10 +128,19 @@ class CycleGANTrainingConfig:
     def _fit_loop(
         self,
         train_model: CycleGANTrainer,
-        train_states: Iterable[Tuple[np.ndarray, np.ndarray]],
-        validation_states: Optional[Iterable[Tuple[np.ndarray, np.ndarray]]],
+        train_states: Iterable[Tuple[torch.Tensor, torch.Tensor]],
+        validation_states: Optional[Iterable[Tuple[torch.Tensor, torch.Tensor]]],
     ):
         reporter = Reporter()
+        for state_a, state_b in train_states:
+            train_example_a, train_example_b = state_a[:1, :], state_b[:1, :]
+            break
+        if validation_states is not None:
+            for state_a, state_b in validation_states:
+                val_example_a, val_example_b = state_a[:1, :], state_b[:1, :]
+                break
+        else:
+            val_example_a, val_example_b = None, None
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
@@ -141,24 +154,29 @@ class CycleGANTrainingConfig:
             }
             logger.info("train_loss: %s", train_loss)
             reporter.log(train_loss)
+            train_plots = train_model.generate_plots(train_example_a, train_example_b)
+            reporter.log(train_plots)
 
             if validation_states is not None:
                 val_losses = []
                 for state_a, state_b in train_states:
-                    val_losses.append(
-                        train_model.train_on_batch(state_a, state_b, training=False)
-                    )
+                    with torch.no_grad():
+                        val_losses.append(
+                            train_model.train_on_batch(state_a, state_b, training=False)
+                        )
                 val_loss = {
                     f"val_{name}": np.mean([data[name] for data in val_losses])
                     for name in val_losses[0]
                 }
                 reporter.log(val_loss)
+                val_plots = train_model.generate_plots(val_example_a, val_example_b)
+                reporter.log({f"val_{name}": plot for name, plot in val_plots.items()})
                 logger.info("val_loss %s", val_loss)
             wandb.log(reporter.metrics)
             reporter.clear()
 
 
-def dataset_to_tuples(dataset):
+def dataset_to_tuples(dataset) -> List[Tuple[torch.Tensor, torch.Tensor]]:
     states = []
     batch_state: Tuple[np.ndarray, np.ndarray]
     for batch_state in dataset:

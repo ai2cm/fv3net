@@ -12,6 +12,14 @@ from fv3fit.pytorch.system import DEVICE
 import itertools
 from .image_pool import ImagePool
 import numpy as np
+from fv3fit import wandb
+import io
+import PIL
+
+try:
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:
+    plt = None
 
 import logging
 
@@ -437,6 +445,57 @@ class CycleGANTrainer:
             "train_loss": float(loss_g + loss_d),
             "regularization_loss": float(loss_cycle + loss_identity),
         }
+
+    def generate_plots(
+        self, real_a: torch.Tensor, real_b: torch.Tensor
+    ) -> Mapping[str, wandb.Image]:
+        """
+        Plot model output on the first sample of a given batch and return it as
+        a dictionary of wandb.Image objects.
+
+        Args:
+            real_a: a batch of data from domain A, should have shape
+                [sample, time, tile, channel, y, x]
+            real_b: a batch of data from domain B, should have shape
+                [sample, time, tile, channel, y, x]
+        """
+        # for now there is no time-evolution-based loss, so we fold the time
+        # dimension into the sample dimension
+        real_a = real_a.reshape(
+            [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
+        )
+        real_b = real_b.reshape(
+            [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
+        )
+
+        # plot the first sample of the batch
+        with torch.no_grad():
+            fake_b = self._call_generator_a_to_b(real_a[:1, :])
+            fake_a = self._call_generator_b_to_a(real_b[:1, :])
+        report = {}
+        for i_tile in range(6):
+            _, ax = plt.subplots(2, 2, figsize=(8, 7))
+            im = ax[0, 0].pcolormesh(real_a[0, i_tile, 0, :, :])
+            plt.colorbar(im, ax=ax[0, 0])
+            ax[0, 0].set_title("a_real")
+            im = ax[1, 0].pcolormesh(real_b[0, i_tile, 0, :, :])
+            plt.colorbar(im, ax=ax[1, 0])
+            ax[1, 0].set_title("b_real")
+            im = ax[0, 1].pcolormesh(fake_b[0, i_tile, 0, :, :])
+            plt.colorbar(im, ax=ax[0, 1])
+            ax[0, 1].set_title("b_gen")
+            im = ax[1, 1].pcolormesh(fake_a[0, i_tile, 0, :, :])
+            plt.colorbar(im, ax=ax[1, 1])
+            ax[1, 1].set_title("a_gen")
+            plt.tight_layout()
+            buf = io.BytesIO()
+            plt.savefig(buf, format="png")
+            plt.close()
+            buf.seek(0)
+            report[f"tile_{i_tile}_example"] = wandb.Image(
+                PIL.Image.open(buf), caption=f"Tile {i_tile} Example",
+            )
+        return report
 
 
 def set_requires_grad(nets: List[torch.nn.Module], requires_grad=False):
