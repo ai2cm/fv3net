@@ -28,9 +28,26 @@ runtime.capture_fv3gfs_funcs()
 logger = logging.getLogger(__name__)
 
 
+def disable_tensorflow_gpu_preallocation():
+    """
+    Enables "memory growth" option on all gpus for tensorflow.
+
+    Without this, tensorflow will eagerly allocate all gpu memory,
+    leaving none for pytorch.
+    """
+    gpus = tf.config.list_physical_devices("GPU")
+    if gpus:
+        # Currently, memory growth needs to be the same across GPUs
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logical_gpus = tf.config.list_logical_devices("GPU")
+        logger.info("%d physical gpus, %d logical gpus", len(gpus), len(logical_gpus))
+
+
 def main():
     comm = MPI.COMM_WORLD
 
+    disable_tensorflow_gpu_preallocation()
     config = runtime.get_config()
     partitioner = util.CubedSpherePartitioner.from_namelist(runtime.get_namelist())
     for name in [STATISTICS_LOG_NAME, PROFILES_LOG_NAME]:
