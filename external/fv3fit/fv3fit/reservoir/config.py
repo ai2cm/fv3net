@@ -35,6 +35,10 @@ class ReservoirHyperparameters:
         where all elements are sampled from random uniform distribution
         [-1, 1]. Changing this affects relative weighting of reservoir memory
         versus the most recent state.
+    ncols_state: If state is 2D (each column is a separate subdomain which uses
+        the same W_in and W_res weights) then use this to initialize the state
+        with the corret shape.
+
     """
 
     input_size: int
@@ -45,6 +49,7 @@ class ReservoirHyperparameters:
     seed: int = 0
     input_coupling_sparsity: float = 0.0
     input_coupling_scaling: float = 1.0
+    ncols_state: int = 1
 
     def __post_init__(self):
         if not self.output_size:
