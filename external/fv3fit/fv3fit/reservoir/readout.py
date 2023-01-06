@@ -68,7 +68,6 @@ class ReservoirComputingReadout:
             "hyperparameters": dataclasses.asdict(self.hyperparameters),
             "coefficients": self.coefficients,
             "intercepts": self.intercepts,
-            "square_half_hidden_state": self.square_half_hidden_state,
         }
         f = io.BytesIO()
         joblib.dump(components, f)
