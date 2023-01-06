@@ -96,3 +96,31 @@ def test_increment_state():
     np.testing.assert_array_almost_equal(
         reservoir.state, np.tanh(np.array([elem, elem, elem]))
     )
+
+
+def test_increment_state_2d_input():
+    input_matrix_columns = 4
+    state_size = 3
+    hyperparameters = ReservoirHyperparameters(
+        input_size=2,
+        state_size=state_size,
+        adjacency_matrix_sparsity=0.0,
+        input_coupling_sparsity=0,
+        spectral_radius=1.0,
+        ncols_state=input_matrix_columns,
+    )
+    reservoir = Reservoir(hyperparameters)
+
+    reservoir.W_in = sparse.coo_matrix(np.ones(reservoir.W_in.shape))
+    reservoir.W_res = sparse.identity(hyperparameters.state_size)
+
+    reservoir.reset_state()
+    # Test matrix multiplication with W_in and W_res when input has
+    # multiple columns for different subdomains
+    input = np.array([[0.5 * i, 0.5 * i] for i in range(input_matrix_columns)]).T
+
+    reservoir.increment_state(input)
+    assert reservoir.state.shape == (state_size, input_matrix_columns)
+
+    reservoir.increment_state(input)
+    assert reservoir.state.shape == (state_size, input_matrix_columns)
