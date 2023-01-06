@@ -278,26 +278,26 @@ class CycleGANTrainer:
         self._script_disc_a = None
         self._script_disc_b = None
 
-    def _call_generator_a_to_b(self, input):
+    def _call_generator_a_to_b(self, input: torch.Tensor) -> torch.Tensor:
         if self._script_gen_a_to_b is None:
             self._script_gen_a_to_b = torch.jit.trace(
                 self.generator_a_to_b.forward, input
             )
         return self._script_gen_a_to_b(input)
 
-    def _call_generator_b_to_a(self, input):
+    def _call_generator_b_to_a(self, input: torch.Tensor) -> torch.Tensor:
         if self._script_gen_b_to_a is None:
             self._script_gen_b_to_a = torch.jit.trace(
                 self.generator_b_to_a.forward, input
             )
         return self._script_gen_b_to_a(input)
 
-    def _call_discriminator_a(self, input):
+    def _call_discriminator_a(self, input: torch.Tensor) -> torch.Tensor:
         if self._script_disc_a is None:
             self._script_disc_a = torch.jit.trace(self.discriminator_a.forward, input)
         return self._script_disc_a(input)
 
-    def _call_discriminator_b(self, input):
+    def _call_discriminator_b(self, input: torch.Tensor) -> torch.Tensor:
         if self._script_disc_b is None:
             self._script_disc_b = torch.jit.trace(self.discriminator_b.forward, input)
         return self._script_disc_b(input)
@@ -467,6 +467,10 @@ class CycleGANTrainer:
         with torch.no_grad():
             fake_b = self._call_generator_a_to_b(real_a[:1, :])
             fake_a = self._call_generator_b_to_a(real_b[:1, :])
+        real_a = real_a.cpu().numpy()
+        real_b = real_b.cpu().numpy()
+        fake_a = fake_a.cpu().numpy()
+        fake_b = fake_b.cpu().numpy()
         report = {}
         for i_tile in range(6):
             _, ax = plt.subplots(2, 2, figsize=(8, 7))
