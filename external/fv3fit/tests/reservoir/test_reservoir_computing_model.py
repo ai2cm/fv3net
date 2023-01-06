@@ -42,8 +42,8 @@ def _sparse_allclose(A, B, atol=1e-8):
 
 
 def test_dump_load_preserves_matrices(tmpdir):
-    input_size = 3  # 10
-    state_size = 5  # 150
+    input_size = 10
+    state_size = 150
     hyperparameters = ReservoirHyperparameters(
         input_size=input_size,
         state_size=state_size,
@@ -169,7 +169,6 @@ def test_hybrid_prediction_after_load(tmpdir):
     )
     reservoir = Reservoir(hyperparameters)
 
-    # readout = MultiOutputMeanRegressor(n_outputs=input_size)
     readout = generic_readout()
     readout.fit(np.random.rand(1, state_size + input_size), np.ones((1, input_size)))
 
