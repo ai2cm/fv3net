@@ -10,7 +10,7 @@ import yaml
 
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
-from .config import ReservoirHyperparameters, SubdomainConfig
+from .config import ReservoirHyperparameters, SubdomainConfig, ReadoutHyperparameters
 from .domain import PeriodicDomain, Subdomain
 
 
@@ -69,7 +69,12 @@ class ReservoirComputingModel:
 
         f = io.BytesIO(mapper[cls._READOUT_NAME])
         readout_components = joblib.load(f)
-        readout = ReservoirComputingReadout(**readout_components)
+        readout_hyperparameters = dacite.from_dict(
+            ReadoutHyperparameters, readout_components.pop("hyperparameters")
+        )
+        readout = ReservoirComputingReadout(
+            hyperparameters=readout_hyperparameters, **readout_components
+        )
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
 
         reservoir_hyperparameters = dacite.from_dict(
@@ -120,7 +125,13 @@ class HybridReservoirComputingModel:
 
         f_readout = io.BytesIO(mapper[cls._READOUT_NAME])
         readout_components = joblib.load(f_readout)
-        readout = ReservoirComputingReadout(**readout_components)
+        readout_hyperparameters = dacite.from_dict(
+            ReadoutHyperparameters, readout_components.pop("hyperparameters")
+        )
+        readout = ReservoirComputingReadout(
+            hyperparameters=readout_hyperparameters, **readout_components
+        )
+
         metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
 
         reservoir_hyperparameters = dacite.from_dict(
