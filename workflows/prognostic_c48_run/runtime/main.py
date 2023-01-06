@@ -28,6 +28,22 @@ runtime.capture_fv3gfs_funcs()
 logger = logging.getLogger(__name__)
 
 
+def limit_visible_gpus_by_rank():
+    """
+    Limits the GPUs available to a given rank to spread out work
+    """
+    rank = MPI.COMM_WORLD.Get_rank()
+    physical_devices = tf.config.list_physical_devices("GPU")
+    num_gpus = len(physical_devices)
+
+    # TODO: maybe handle rank < num_gpus?
+    gpu_index = rank % num_gpus
+    use_devices = [physical_devices[gpu_index]]
+    tf.config.experimental.set_visible_devices(use_devices, "GPU")
+    logical_gpus = tf.config.list_logical_devices("GPU")
+    logger.info(f"Available gpu list on rank {rank}: {logical_gpus}")
+
+
 def disable_tensorflow_gpu_preallocation():
     """
     Enables "memory growth" option on all gpus for tensorflow.
@@ -40,14 +56,14 @@ def disable_tensorflow_gpu_preallocation():
         # Currently, memory growth needs to be the same across GPUs
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
-        logical_gpus = tf.config.list_logical_devices("GPU")
-        logger.info("%d physical gpus, %d logical gpus", len(gpus), len(logical_gpus))
+        logger.info("set memory growth for %d physical gpus")
 
 
 def main():
     comm = MPI.COMM_WORLD
 
     disable_tensorflow_gpu_preallocation()
+    limit_visible_gpus_by_rank()
     config = runtime.get_config()
     partitioner = util.CubedSpherePartitioner.from_namelist(runtime.get_namelist())
     for name in [STATISTICS_LOG_NAME, PROFILES_LOG_NAME]:
