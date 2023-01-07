@@ -1,5 +1,7 @@
 import numpy as np
+import scipy.linalg
 import pytest
+import os
 
 from fv3fit.reservoir.config import ReadoutHyperparameters
 from fv3fit.reservoir.readout import (
@@ -108,3 +110,31 @@ def test_combined_readout_inconsistent_hyperparameters():
     )
     with pytest.raises(ValueError):
         CombinedReservoirComputingReadout(readouts=[readout_1, readout_2])
+
+
+def test_combined_load(tmpdir):
+    readouts, readout_paths = [], []
+    coef_shape = (2, 2)
+    output_size = 2
+    for i in range(3):
+        output_path = f"{str(tmpdir)}/readout_{i}"
+        os.mkdir(output_path)
+        readout = ReservoirComputingReadout(
+            hyperparameters=ReadoutHyperparameters(
+                linear_regressor_kwargs={}, square_half_hidden_state=True
+            ),
+            coefficients=np.ones(coef_shape) * i,
+            intercepts=np.zeros(output_size),
+        )
+        with open(f"{output_path}/readout.bin", "wb") as f:
+            f.write(readout.dumps())
+        readouts.append(readout)
+        readout_paths.append(output_path)
+    combined_readout = CombinedReservoirComputingReadout.load(readout_paths)
+    np.testing.assert_array_almost_equal(
+        scipy.linalg.block_diag(*[r.coefficients for r in readouts]),
+        combined_readout.coefficients.todense(),
+    )
+    np.testing.assert_array_almost_equal(
+        np.concatenate([r.intercepts for r in readouts]), combined_readout.intercepts
+    )

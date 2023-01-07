@@ -88,7 +88,7 @@ class CombinedReservoirComputingReadout:
         Wikner+2020 (https://doi.org/10.1063/5.0005541)
     """
 
-    _READOUT_NAME = "readout.pkl"
+    _READOUT_NAME = "readout.bin"
 
     def __init__(self, readouts: Sequence[ReservoirComputingReadout]):
         self._combine_readouts(readouts)
@@ -116,15 +116,14 @@ class CombinedReservoirComputingReadout:
     def predict(self, input: np.ndarray):
         if self.square_half_hidden_state:
             input = square_even_terms(input, axis=0)
-        print(self.coefficients.shape, input.shape, self.intercepts.shape)
-        print(self.coefficients.todense())
-        print(np.dot(self.coefficients, input))
-        print(self.coefficients * input)
         return self.coefficients * input + self.intercepts
 
     @classmethod
     def load(cls, paths: Sequence[str]) -> "CombinedReservoirComputingReadout":
-        """Load a model from a remote path"""
+        """Load a model from a remote directory. Each path in paths
+        refers to the full reservoir model directory containing the saved
+        readout to load.
+        """
         readouts = []
         for path in paths:
             mapper = fsspec.get_mapper(path)

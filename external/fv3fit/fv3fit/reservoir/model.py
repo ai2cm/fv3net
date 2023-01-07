@@ -29,7 +29,7 @@ class ImperfectModel(abc.ABC):
 
 
 class ReservoirComputingModel:
-    _READOUT_NAME = "readout.pkl"
+    _READOUT_NAME = "readout.bin"
     _METADATA_NAME = "metadata.bin"
 
     def __init__(
@@ -85,7 +85,7 @@ class ReservoirComputingModel:
 
 
 class HybridReservoirComputingModel:
-    _READOUT_NAME = "readout.pkl"
+    _READOUT_NAME = "readout.bin"
     _METADATA_NAME = "metadata.bin"
 
     def __init__(
