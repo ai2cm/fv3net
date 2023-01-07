@@ -55,7 +55,7 @@ def interp_vertical(ds, levels=vcm.interpolate.PRESSURE_GRID):
 
 def open_prognostic_data(url, catalog):
 
-    files = ["state_after_timestep.zarr", "piggy.zarr"]
+    files = ["state_after_timestep.zarr", "piggy.zarr", "sfc_dt_atmos.zarr"]
 
     ds = xarray.Dataset()
     for f in files:

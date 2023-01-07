@@ -1,0 +1,69 @@
+Online
+
+         Reporting clock statistics from python
+-----------------------------------------------------------------
+                                      min (s)        max (s)       mean (s)
+<lambda>                               1.3586         1.4691         1.4084
+_step_dynamics                       199.7915       200.8211       200.1842
+_step_prephysics                       0.3527         0.3662         0.3594
+_step_pre_radiation_physics           11.0484        13.6571        12.0627
+_step_radiation_physics               86.6790       122.2494       105.5125
+_step_post_radiation_physics         213.3142       219.7285       215.6533
+_apply_physics                        45.0485        83.3396        61.5570
+_compute_postphysics                   0.0007         0.0182         0.0037
+_apply_postphysics_to_dycore_state         1.7640         1.8513         1.7987
+_intermediate_restarts                 0.0006         0.0154         0.0032
+
+
+Offline
+-----------------------------------------------------------------
+         Reporting clock statistics from python
+-----------------------------------------------------------------
+                                      min (s)        max (s)       mean (s)
+<lambda>                               1.3809         1.4427         1.4029
+_step_dynamics                       199.7968       200.6816       200.2300
+_step_prephysics                       0.3517         0.3648         0.3582
+_step_pre_radiation_physics           10.4624        13.6486        12.0937
+_step_radiation_physics               82.8474       123.6360       102.4014
+_step_post_radiation_physics         209.9072       215.1217       213.1882
+_apply_physics                        41.0090        82.2469        59.7472
+_compute_postphysics                   0.0005         0.0187         0.0037
+_apply_postphysics_to_dycore_state         1.7530         1.8222         1.7840
+_intermediate_restarts                 0.0006         0.0155         0.0032
+
+
+v2
+
+Offline
+
+-----------------------------------------------------------------
+         Reporting clock statistics from python
+-----------------------------------------------------------------
+                                      min (s)        max (s)       mean (s)
+<lambda>                               1.2547         1.3733         1.3124
+_step_dynamics                       184.9111       185.6927       185.2584
+_step_prephysics                       0.3297         0.3581         0.3387
+_step_pre_radiation_physics            9.3243        12.2150        11.1431
+_step_radiation_physics               79.2403       114.5347        96.2363
+_step_post_radiation_physics         200.3505       206.2413       203.6758
+_apply_physics                        36.6970        69.0494        52.7446
+_compute_postphysics                   0.0005         0.0172         0.0034
+_apply_postphysics_to_dycore_state         1.6183         1.7291         1.6727
+_intermediate_restarts                 0.0006         0.0150         0.0030
+
+Online
+-----------------------------------------------------------------
+         Reporting clock statistics from python
+-----------------------------------------------------------------
+                                      min (s)        max (s)       mean (s)
+<lambda>                               1.2820         1.3164         1.3028
+_step_dynamics                       185.3558       186.2225       185.7395
+_step_prephysics                       0.3292         0.3371         0.3330
+_step_pre_radiation_physics            8.9977        12.2988        11.1971
+_step_radiation_physics               78.5402       118.2992        98.4997
+_step_post_radiation_physics         200.6416       206.1272       203.7489
+_apply_physics                        39.0308        83.5260        58.2600
+_compute_postphysics                   0.0006         0.0165         0.0033
+_apply_postphysics_to_dycore_state         1.6059         1.6736         1.6436
+_intermediate_restarts                 0.0006         0.0144         0.0029
+
