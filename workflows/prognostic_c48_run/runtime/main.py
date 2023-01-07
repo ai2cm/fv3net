@@ -37,11 +37,11 @@ def limit_visible_gpus_by_rank():
     num_gpus = len(physical_devices)
 
     # TODO: maybe handle rank < num_gpus?
-    gpu_index = rank % num_gpus
-    use_devices = [physical_devices[gpu_index]]
-    tf.config.experimental.set_visible_devices(use_devices, "GPU")
-    logical_gpus = tf.config.list_logical_devices("GPU")
-    logger.info(f"Available gpu list on rank {rank}: {logical_gpus}")
+    if num_gpus:
+        gpu_index = rank % num_gpus
+        use_devices = [physical_devices[gpu_index]]
+        tf.config.experimental.set_visible_devices(use_devices, "GPU")
+        logger.info(f"Rank {rank} GPU: {use_devices[0]}")
 
 
 def disable_tensorflow_gpu_preallocation():
