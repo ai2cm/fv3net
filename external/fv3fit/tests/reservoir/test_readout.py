@@ -7,6 +7,7 @@ from fv3fit.reservoir.readout import (
     ReservoirComputingReadout,
     CombinedReservoirComputingReadout,
     square_even_terms,
+    _sort_subdirs_numerically,
 )
 
 
@@ -111,6 +112,23 @@ def test_combined_readout_inconsistent_hyperparameters():
         CombinedReservoirComputingReadout(readouts=[readout_1, readout_2])
 
 
+def test__sort_subdirs_numerically():
+    subdirs = [
+        "subdir_0",
+        "subdir_1",
+        "subdir_10",
+        "subdir_11",
+        "subdir_2",
+    ]
+    assert _sort_subdirs_numerically(subdirs) == [
+        "subdir_0",
+        "subdir_1",
+        "subdir_2",
+        "subdir_10",
+        "subdir_11",
+    ]
+
+
 def test_combined_load(tmpdir):
     readouts, readout_paths = [], []
     coef_shape = (2, 2)
@@ -127,7 +145,7 @@ def test_combined_load(tmpdir):
         readout.dump(output_path)
         readouts.append(readout)
         readout_paths.append(output_path)
-    combined_readout = CombinedReservoirComputingReadout.load(readout_paths)
+    combined_readout = CombinedReservoirComputingReadout.load(str(tmpdir))
     np.testing.assert_array_almost_equal(
         scipy.linalg.block_diag(*[r.coefficients for r in readouts]),
         combined_readout.coefficients.todense(),
