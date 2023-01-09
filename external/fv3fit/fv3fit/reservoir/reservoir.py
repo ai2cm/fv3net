@@ -1,7 +1,11 @@
+import dacite
+import dataclasses
+import fsspec
 import logging
 import numpy as np
 import scipy
 from typing import Optional
+import yaml
 
 from .config import ReservoirHyperparameters
 
@@ -25,6 +29,10 @@ def _random_uniform_sparse_matrix(m, n, sparsity, min=0, max=1):
 
 
 class Reservoir:
+    _INPUT_WEIGHTS_NAME = "reservoir_W_in.npz"
+    _RESERVOIR_WEIGHTS_NAME = "reservoir_W_res.npz"
+    _METADATA_NAME = "metadata.bin"
+
     def __init__(
         self,
         hyperparameters: ReservoirHyperparameters,
@@ -113,3 +121,38 @@ class Reservoir:
         scaling = self.hyperparameters.spectral_radius / abs(largest_magnitude_eigval)
 
         return scaling * W_res
+
+    def dump(self, path: str) -> None:
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        fs.makedirs(path, exist_ok=True)
+        mapper = fs.get_mapper(path)
+        metadata = {
+            "reservoir_hyperparameters": dataclasses.asdict(self.hyperparameters,),
+            "input_size": self.input_size,
+        }
+        with fs.open(f"{path}/{self._INPUT_WEIGHTS_NAME}", "wb") as f:
+            scipy.sparse.save_npz(f, self.W_in)
+        with fs.open(f"{path}/{self._RESERVOIR_WEIGHTS_NAME}", "wb") as f:
+            scipy.sparse.save_npz(f, self.W_res)
+        mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
+
+    @classmethod
+    def load(cls, path: str) -> "Reservoir":
+        mapper = fsspec.get_mapper(path)
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+
+        metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
+
+        reservoir_hyperparameters = dacite.from_dict(
+            ReservoirHyperparameters, metadata["reservoir_hyperparameters"]
+        )
+        with fs.open(f"{path}/{cls._INPUT_WEIGHTS_NAME}", "rb") as f:
+            reservoir_W_in = scipy.sparse.load_npz(f)
+        with fs.open(f"{path}/{cls._RESERVOIR_WEIGHTS_NAME}", "rb") as f:
+            reservoir_W_res = scipy.sparse.load_npz(f)
+        return cls(
+            reservoir_hyperparameters,
+            W_in=reservoir_W_in,
+            W_res=reservoir_W_res,
+            input_size=metadata["input_size"],
+        )

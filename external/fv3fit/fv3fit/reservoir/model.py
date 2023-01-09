@@ -1,17 +1,11 @@
 import abc
-import dacite
-import dataclasses
-import fsspec
-import io
 import joblib
 import numpy as np
-import scipy.sparse
 from typing import Sequence
-import yaml
 
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
-from .config import ReservoirHyperparameters, SubdomainConfig, ReadoutHyperparameters
+from .config import SubdomainConfig
 from .domain import PeriodicDomain, Subdomain
 
 
@@ -30,10 +24,7 @@ class ImperfectModel(abc.ABC):
 
 
 class ReservoirComputingModel:
-    _READOUT_NAME = "readout.bin"
     _METADATA_NAME = "metadata.bin"
-    _INPUT_WEIGHTS_NAME = "reservoir_W_in.npz"
-    _RESERVOIR_WEIGHTS_NAME = "reservoir_W_res.npz"
 
     def __init__(
         self, reservoir: Reservoir, readout: ReservoirComputingReadout,
@@ -52,55 +43,15 @@ class ReservoirComputingModel:
         Args:
             path: a URL pointing to a directory
         """
-
-        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        fs.makedirs(path, exist_ok=True)
-        mapper = fs.get_mapper(path)
-
-        mapper[self._READOUT_NAME] = self.readout.dumps()
-        metadata = {
-            "reservoir_hyperparameters": dataclasses.asdict(
-                self.reservoir.hyperparameters,
-            ),
-            "input_size": self.reservoir.input_size,
-        }
-        with fs.open(f"{path}/{self._INPUT_WEIGHTS_NAME}", "wb") as f:
-            scipy.sparse.save_npz(f, self.reservoir.W_in),
-        with fs.open(f"{path}/{self._RESERVOIR_WEIGHTS_NAME}", "wb") as f:
-            scipy.sparse.save_npz(f, self.reservoir.W_res),
-        mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
+        self.readout.dump(path)
+        self.reservoir.dump(path)
 
     @classmethod
     def load(cls, path: str) -> "ReservoirComputingModel":
         """Load a model from a remote path"""
-        mapper = fsspec.get_mapper(path)
-        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        f = io.BytesIO(mapper[cls._READOUT_NAME])
-        readout_components = joblib.load(f)
-        readout_hyperparameters = dacite.from_dict(
-            ReadoutHyperparameters, readout_components.pop("hyperparameters")
-        )
-        readout = ReservoirComputingReadout(
-            hyperparameters=readout_hyperparameters, **readout_components
-        )
-        metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
-
-        reservoir_hyperparameters = dacite.from_dict(
-            ReservoirHyperparameters, metadata["reservoir_hyperparameters"]
-        )
-        with fs.open(f"{path}/{cls._INPUT_WEIGHTS_NAME}", "rb") as f:
-            reservoir_W_in = scipy.sparse.load_npz(f)
-        with fs.open(f"{path}/{cls._RESERVOIR_WEIGHTS_NAME}", "rb") as f:
-            reservoir_W_res = scipy.sparse.load_npz(f)
-        return cls(
-            reservoir=Reservoir(
-                reservoir_hyperparameters,
-                W_in=reservoir_W_in,
-                W_res=reservoir_W_res,
-                input_size=metadata["input_size"],
-            ),
-            readout=readout,
-        )
+        readout = ReservoirComputingReadout.load(path)
+        reservoir = Reservoir.load(path)
+        return cls(reservoir=reservoir, readout=readout,)
 
 
 class HybridReservoirComputingModel:
@@ -126,44 +77,14 @@ class HybridReservoirComputingModel:
         Args:
             path: a URL pointing to a directory
         """
-        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        fs.makedirs(path, exist_ok=True)
-        mapper = fs.get_mapper(path)
-
-        mapper[self._READOUT_NAME] = self.readout.dumps()
-        metadata = {
-            "reservoir_hyperparameters": dataclasses.asdict(
-                self.reservoir.hyperparameters
-            ),
-            "input_size": self.reservoir.input_size,
-        }
-        mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
+        self.readout.dump(path)
+        self.reservoir.dump(path)
 
     @classmethod
     def load(cls, path):
-        mapper = fsspec.get_mapper(path)
-
-        f_readout = io.BytesIO(mapper[cls._READOUT_NAME])
-        readout_components = joblib.load(f_readout)
-        readout_hyperparameters = dacite.from_dict(
-            ReadoutHyperparameters, readout_components.pop("hyperparameters")
-        )
-        readout = ReservoirComputingReadout(
-            hyperparameters=readout_hyperparameters, **readout_components
-        )
-
-        metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
-
-        reservoir_hyperparameters = dacite.from_dict(
-            ReservoirHyperparameters, metadata["reservoir_hyperparameters"]
-        )
-
-        return cls(
-            reservoir=Reservoir(
-                reservoir_hyperparameters, input_size=metadata["input_size"]
-            ),
-            readout=readout,
-        )
+        readout = ReservoirComputingReadout.load(path)
+        reservoir = Reservoir.load(path)
+        return cls(reservoir=reservoir, readout=readout,)
 
 
 class DomainPredictor:

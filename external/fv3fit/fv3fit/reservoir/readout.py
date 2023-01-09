@@ -34,6 +34,8 @@ class ReservoirComputingReadout:
         predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
     """
 
+    _READOUT_NAME = "readout.bin"
+
     def __init__(
         self,
         hyperparameters: ReadoutHyperparameters,
@@ -63,7 +65,16 @@ class ReservoirComputingReadout:
             input = square_even_terms(input, axis=0)
         return np.dot(self.coefficients, input) + self.intercepts
 
-    def dumps(self) -> bytes:
+    def dump(self, path: str) -> None:
+        """Dump data to a directory
+
+        Args:
+            path: a URL pointing to a directory
+        """
+
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        fs.makedirs(path, exist_ok=True)
+        mapper = fs.get_mapper(path)
         components = {
             "hyperparameters": dataclasses.asdict(self.hyperparameters),
             "coefficients": self.coefficients,
@@ -71,7 +82,17 @@ class ReservoirComputingReadout:
         }
         f = io.BytesIO()
         joblib.dump(components, f)
-        return f.getvalue()
+        mapper[self._READOUT_NAME] = f.getvalue()
+
+    @classmethod
+    def load(cls, path: str) -> "ReservoirComputingReadout":
+        mapper = fsspec.get_mapper(path)
+        f = io.BytesIO(mapper[cls._READOUT_NAME])
+        readout_components = joblib.load(f)
+        readout_hyperparameters = dacite.from_dict(
+            ReadoutHyperparameters, readout_components.pop("hyperparameters")
+        )
+        return cls(hyperparameters=readout_hyperparameters, **readout_components)
 
 
 class CombinedReservoirComputingReadout:

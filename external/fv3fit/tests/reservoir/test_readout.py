@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.linalg
 import pytest
-import os
 
 from fv3fit.reservoir.config import ReadoutHyperparameters
 from fv3fit.reservoir.readout import (
@@ -118,7 +117,6 @@ def test_combined_load(tmpdir):
     output_size = 2
     for i in range(3):
         output_path = f"{str(tmpdir)}/readout_{i}"
-        os.mkdir(output_path)
         readout = ReservoirComputingReadout(
             hyperparameters=ReadoutHyperparameters(
                 linear_regressor_kwargs={}, square_half_hidden_state=True
@@ -126,8 +124,7 @@ def test_combined_load(tmpdir):
             coefficients=np.ones(coef_shape) * i,
             intercepts=np.zeros(output_size),
         )
-        with open(f"{output_path}/readout.bin", "wb") as f:
-            f.write(readout.dumps())
+        readout.dump(output_path)
         readouts.append(readout)
         readout_paths.append(output_path)
     combined_readout = CombinedReservoirComputingReadout.load(readout_paths)
