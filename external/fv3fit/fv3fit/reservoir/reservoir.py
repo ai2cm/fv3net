@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import scipy
+from typing import Optional
 
 from .config import ReservoirHyperparameters
 
@@ -25,12 +26,16 @@ def _random_uniform_sparse_matrix(m, n, sparsity, min=0, max=1):
 
 class Reservoir:
     def __init__(
-        self, hyperparameters: ReservoirHyperparameters,
+        self,
+        hyperparameters: ReservoirHyperparameters,
+        W_in: Optional[scipy.sparse.coo_matrix] = None,
+        W_res: Optional[scipy.sparse.coo_matrix] = None,
     ):
         self.hyperparameters = hyperparameters
+
         np.random.seed(self.hyperparameters.seed)
-        self.W_in = self._generate_W_in()
-        self.W_res = self._generate_W_res()
+        self.W_in = W_in if W_in is not None else self._generate_W_in()
+        self.W_res = W_res if W_res is not None else self._generate_W_res()
         self.state_after_reset = (
             np.zeros(
                 (self.hyperparameters.state_size, self.hyperparameters.ncols_state)
