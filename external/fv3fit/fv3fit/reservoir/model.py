@@ -60,8 +60,9 @@ class ReservoirComputingModel:
         mapper[self._READOUT_NAME] = self.readout.dumps()
         metadata = {
             "reservoir_hyperparameters": dataclasses.asdict(
-                self.reservoir.hyperparameters
-            )
+                self.reservoir.hyperparameters,
+            ),
+            "input_size": self.reservoir.input_size,
         }
         with fs.open(f"{path}/{self._INPUT_WEIGHTS_NAME}", "wb") as f:
             scipy.sparse.save_npz(f, self.reservoir.W_in),
@@ -93,7 +94,10 @@ class ReservoirComputingModel:
             reservoir_W_res = scipy.sparse.load_npz(f)
         return cls(
             reservoir=Reservoir(
-                reservoir_hyperparameters, W_in=reservoir_W_in, W_res=reservoir_W_res
+                reservoir_hyperparameters,
+                W_in=reservoir_W_in,
+                W_res=reservoir_W_res,
+                input_size=metadata["input_size"],
             ),
             readout=readout,
         )
@@ -130,7 +134,8 @@ class HybridReservoirComputingModel:
         metadata = {
             "reservoir_hyperparameters": dataclasses.asdict(
                 self.reservoir.hyperparameters
-            )
+            ),
+            "input_size": self.reservoir.input_size,
         }
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
@@ -153,7 +158,12 @@ class HybridReservoirComputingModel:
             ReservoirHyperparameters, metadata["reservoir_hyperparameters"]
         )
 
-        return cls(reservoir=Reservoir(reservoir_hyperparameters), readout=readout,)
+        return cls(
+            reservoir=Reservoir(
+                reservoir_hyperparameters, input_size=metadata["input_size"]
+            ),
+            readout=readout,
+        )
 
 
 class DomainPredictor:

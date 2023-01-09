@@ -45,13 +45,12 @@ def test_dump_load_preserves_matrices(tmpdir):
     input_size = 10
     state_size = 150
     hyperparameters = ReservoirHyperparameters(
-        input_size=input_size,
         state_size=state_size,
         adjacency_matrix_sparsity=0.0,
         spectral_radius=1.0,
         input_coupling_sparsity=0,
     )
-    reservoir = Reservoir(hyperparameters)
+    reservoir = Reservoir(hyperparameters, input_size=input_size)
     readout = generic_readout(
         coefficients=np.random.rand(input_size, state_size),
         intercepts=np.random.rand(input_size),
@@ -74,14 +73,13 @@ def test_dump_load_preserves_matrices(tmpdir):
 def test_prediction_shape():
     input_size = 15
     hyperparameters = ReservoirHyperparameters(
-        input_size=input_size,
         state_size=1000,
         adjacency_matrix_sparsity=0.9,
         spectral_radius=1.0,
         input_coupling_sparsity=0,
     )
-    reservoir = Reservoir(hyperparameters)
-
+    reservoir = Reservoir(hyperparameters, input_size=input_size)
+    reservoir.reset_state(input_shape=(input_size,))
     readout = generic_readout()
     readout.fit(reservoir.state.reshape(1, -1), np.ones((1, input_size)))
     predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
@@ -94,21 +92,21 @@ def test_ReservoirComputingModel_state_increment():
     input_size = 2
     state_size = 3
     hyperparameters = ReservoirHyperparameters(
-        input_size=input_size,
         state_size=state_size,
         adjacency_matrix_sparsity=0.0,
         spectral_radius=1.0,
         input_coupling_sparsity=0,
     )
-    reservoir = Reservoir(hyperparameters)
+    reservoir = Reservoir(hyperparameters, input_size=input_size)
     reservoir.W_in = sparse.coo_matrix(np.ones(reservoir.W_in.shape))
     reservoir.W_res = sparse.coo_matrix(np.ones(reservoir.W_res.shape))
 
     readout = MultiOutputMeanRegressor(n_outputs=input_size)
     predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
 
-    predictor.reservoir.reset_state()
-    predictor.reservoir.increment_state(np.array([0.5, 0.5]))
+    input = np.array([0.5, 0.5])
+    predictor.reservoir.reset_state(input_shape=input.shape)
+    predictor.reservoir.increment_state(input)
     state_before_prediction = predictor.reservoir.state
     prediction = predictor.predict()
     np.testing.assert_array_almost_equal(prediction, np.tanh(np.array([1.0, 1.0])))
@@ -119,17 +117,16 @@ def test_prediction_after_load(tmpdir):
     input_size = 15
     state_size = 1000
     hyperparameters = ReservoirHyperparameters(
-        input_size=input_size,
         state_size=state_size,
         adjacency_matrix_sparsity=0.9,
         spectral_radius=1.0,
         input_coupling_sparsity=0,
     )
-    reservoir = Reservoir(hyperparameters)
+    reservoir = Reservoir(hyperparameters, input_size=input_size)
     readout = generic_readout()
     readout.fit(np.random.rand(1, state_size), np.ones((1, input_size)))
     predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
-    predictor.reservoir.reset_state()
+    predictor.reservoir.reset_state(input_shape=(input_size,))
 
     ts_sync = [np.ones(input_size) for i in range(20)]
     predictor.reservoir.synchronize(ts_sync)
@@ -139,7 +136,7 @@ def test_prediction_after_load(tmpdir):
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
     loaded_predictor = ReservoirComputingModel.load(output_path)
-    loaded_predictor.reservoir.reset_state()
+    loaded_predictor.reservoir.reset_state(input_shape=(input_size,))
 
     loaded_predictor.reservoir.synchronize(ts_sync)
     for i in range(10):
@@ -161,13 +158,12 @@ def test_hybrid_prediction_after_load(tmpdir):
     input_size = 15
     state_size = 1000
     hyperparameters = ReservoirHyperparameters(
-        input_size=input_size,
         state_size=state_size,
         adjacency_matrix_sparsity=0.9,
         spectral_radius=1.0,
         input_coupling_sparsity=0,
     )
-    reservoir = Reservoir(hyperparameters)
+    reservoir = Reservoir(hyperparameters, input_size=input_size,)
 
     readout = generic_readout()
     readout.fit(np.random.rand(1, state_size + input_size), np.ones((1, input_size)))
@@ -209,13 +205,12 @@ def test_hybrid_gives_different_results():
     imperfect_model = MockImperfectModel(offset=0.1)
     input_size = 15
     hyperparameters = ReservoirHyperparameters(
-        input_size=input_size,
         state_size=1000,
         adjacency_matrix_sparsity=0.9,
         spectral_radius=1.0,
         input_coupling_sparsity=0,
     )
-    reservoir = Reservoir(hyperparameters)
+    reservoir = Reservoir(hyperparameters, input_size=input_size)
     readout = MultiOutputMeanRegressor(n_outputs=input_size)
     predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout)
     hybrid_predictor = HybridReservoirComputingModel(
@@ -252,9 +247,8 @@ def create_domain_predictor(
     # n_jobs can be manually set to >1 in local testing to check that
     # parallelism is working as intended.
     n_subdomains = domain_size // subdomain_size
-
+    input_size = subdomain_size + 2 * subdomain_overlap
     hyperparameters = ReservoirHyperparameters(
-        input_size=subdomain_size + 2 * subdomain_overlap,
         state_size=20,
         adjacency_matrix_sparsity=0.0,
         spectral_radius=1.0,
@@ -262,7 +256,8 @@ def create_domain_predictor(
     )
     subdomain_predictors = []
     for i in range(n_subdomains):
-        reservoir = Reservoir(hyperparameters)
+        reservoir = Reservoir(hyperparameters, input_size=input_size,)
+        reservoir.reset_state(input_shape=(input_size,))
         readout = MultiOutputMeanRegressor(n_outputs=subdomain_size)
         if type == "reservoir_only":
             subdomain_predictors.append(

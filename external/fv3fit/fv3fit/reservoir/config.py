@@ -17,7 +17,6 @@ class SubdomainConfig:
 class ReservoirHyperparameters:
     """Hyperparameters for reservoir
 
-    input_size: Size of input vector
     state_size: Size of hidden state vector,
         W_res has shape state_size x state_size
     adjacency_matrix_sparsity: Fraction of elements in adjacency matrix
@@ -35,32 +34,21 @@ class ReservoirHyperparameters:
         where all elements are sampled from random uniform distribution
         [-1, 1]. Changing this affects relative weighting of reservoir memory
         versus the most recent state.
-    ncols_state: If state is 2D (each column is a separate subdomain which uses
-        the same W_in and W_res weights) then use this to initialize the state
-        with the corret shape.
-
     """
 
-    input_size: int
     state_size: int
     adjacency_matrix_sparsity: float
     spectral_radius: float
-    output_size: Optional[int] = None
     seed: int = 0
     input_coupling_sparsity: float = 0.0
     input_coupling_scaling: float = 1.0
-    ncols_state: int = 1
-
-    def __post_init__(self):
-        if not self.output_size:
-            self.output_size = self.input_size
 
 
 @dataclass
 class ReadoutHyperparameters:
     """
-    linear_regressor_kwargs: kwargs to provide when initializing the linear
-        regressor for ReservoirComputingReadout
+    linear_regressor_kwargs: kwargs to provide when initializing the
+        sklearn Ridge regressor for ReservoirComputingReadout
     square_half_hidden_state: if True, square even elements of state vector
         as described in in Wikner+ 2020 (https://doi.org/10.1063/5.0005541)
     """
