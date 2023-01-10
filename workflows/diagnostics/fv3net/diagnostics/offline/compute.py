@@ -299,6 +299,12 @@ def main(args):
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
 
+    if not (config.unstacked_dims is None):
+        logger.warn(
+            "The unstacked_dims property of data configuration is being set to None."
+        )
+        config.unstacked_dims = None
+
     if args.evaluation_grid is None:
         evaluation_grid = load_grid_info(EVALUATION_RESOLUTION)
     else:
