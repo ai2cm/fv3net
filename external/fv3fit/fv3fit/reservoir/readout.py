@@ -53,11 +53,11 @@ def _sort_subdirs_numerically(subdirs: Sequence[str]) -> Sequence[str]:
 class ReservoirComputingReadout:
     """Readout layer of the reservoir computing model
 
-    linear_regressor: a sklearn Ridge regressor
-    square_half_hidden_state: if True, square even terms in the reservoir
-        state before it is used as input to the regressor's .fit and
-        .predict methods. This option was found to be important for skillful
-        predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
+    hyperparameters: hyperparameters describing the readout
+    coefficients: if provided from an already-fit readout,
+        use as the linear regression coefficients
+    intercepts: if provided from an already-fit readout,
+        use as the linear regression intercepts
     """
 
     _READOUT_NAME = "readout.bin"
@@ -167,14 +167,20 @@ class CombinedReservoirComputingReadout:
 
     @classmethod
     def load(cls, path: str) -> "CombinedReservoirComputingReadout":
-        """Load a model from a remote directory. Each path in paths
+        """Load a model from a remote directory. Each subdir in path
         refers to the full reservoir model directory containing the saved
-        readout to load.
-
-        Assumes readout subdirs are numbered in the order that they should
+        readout to load within a subdir named "readout". ex.
+        | path
+        | -- model_0
+        |    -- readout.bin
+        |    -- reservoir
+        | -- model_1
+        |    -- readout.bin
+              ...
+        Assumes model subdirs are numbered in the order that they should
         be used in the combined readout.
 
-        path: directory containing subdirectories for each readout
+        path: directory containing model subdirectories for each readout
         """
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         subdirs = _sort_subdirs_numerically(fs.ls(path))

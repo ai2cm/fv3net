@@ -24,7 +24,7 @@ class ImperfectModel(abc.ABC):
 
 
 class ReservoirComputingModel:
-    _METADATA_NAME = "metadata.bin"
+    _RESERVOIR_SUBDIR = "reservoir"
 
     def __init__(
         self, reservoir: Reservoir, readout: ReservoirComputingReadout,
@@ -44,19 +44,18 @@ class ReservoirComputingModel:
             path: a URL pointing to a directory
         """
         self.readout.dump(path)
-        self.reservoir.dump(path)
+        self.reservoir.dump(f"{path}/{self._RESERVOIR_SUBDIR}")
 
     @classmethod
     def load(cls, path: str) -> "ReservoirComputingModel":
         """Load a model from a remote path"""
         readout = ReservoirComputingReadout.load(path)
-        reservoir = Reservoir.load(path)
+        reservoir = Reservoir.load(f"{path}/{cls._RESERVOIR_SUBDIR}")
         return cls(reservoir=reservoir, readout=readout,)
 
 
 class HybridReservoirComputingModel:
-    _READOUT_NAME = "readout.bin"
-    _METADATA_NAME = "metadata.bin"
+    _RESERVOIR_SUBDIR = "reservoir"
 
     def __init__(
         self, reservoir: Reservoir, readout: ReservoirComputingReadout,
@@ -78,12 +77,12 @@ class HybridReservoirComputingModel:
             path: a URL pointing to a directory
         """
         self.readout.dump(path)
-        self.reservoir.dump(path)
+        self.reservoir.dump(f"{path}/{self._RESERVOIR_SUBDIR}")
 
     @classmethod
     def load(cls, path):
         readout = ReservoirComputingReadout.load(path)
-        reservoir = Reservoir.load(path)
+        reservoir = Reservoir.load(f"{path}/{cls._RESERVOIR_SUBDIR}")
         return cls(reservoir=reservoir, readout=readout,)
 
 
