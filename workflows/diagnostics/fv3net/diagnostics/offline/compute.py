@@ -299,7 +299,7 @@ def main(args):
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
 
-    if not (config.unstacked_dims is None):
+    if hasattr(config, "unstacked_dims") and not (config.unstacked_dims is None):
         logger.warn(
             "The unstacked_dims property of data configuration is being set to None."
         )
