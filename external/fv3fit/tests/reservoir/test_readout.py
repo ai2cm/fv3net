@@ -62,21 +62,23 @@ def test_reservoir_computing_readout_fit():
 
 
 def test_combined_readout():
+    np.random.seed(0)
+
     state_size = 3
     output_size = 2
     readout_1 = ReservoirComputingReadout(
         hyperparameters=ReadoutHyperparameters(
             linear_regressor_kwargs={}, square_half_hidden_state=False
         ),
-        coefficients=np.ones(shape=(output_size, state_size)),
-        intercepts=np.zeros(output_size),
+        coefficients=np.random.rand(output_size, state_size),
+        intercepts=np.random.rand(output_size),
     )
     readout_2 = ReservoirComputingReadout(
         hyperparameters=ReadoutHyperparameters(
             linear_regressor_kwargs={}, square_half_hidden_state=False
         ),
-        coefficients=2.0 * np.ones(shape=(output_size, state_size)),
-        intercepts=np.zeros(output_size),
+        coefficients=np.random.rand(output_size, state_size),
+        intercepts=np.random.rand(output_size),
     )
     input = np.array([1, 1, 1])
     output_1 = readout_1.predict(input)
@@ -130,6 +132,7 @@ def test__sort_subdirs_numerically():
 
 
 def test_combined_load(tmpdir):
+    np.random.seed(0)
     readouts, readout_paths = [], []
     coef_shape = (2, 2)
     output_size = 2
@@ -139,8 +142,8 @@ def test_combined_load(tmpdir):
             hyperparameters=ReadoutHyperparameters(
                 linear_regressor_kwargs={}, square_half_hidden_state=True
             ),
-            coefficients=np.ones(coef_shape) * i,
-            intercepts=np.zeros(output_size),
+            coefficients=np.random.rand(*coef_shape),
+            intercepts=np.random.rand(output_size),
         )
         readout.dump(output_path)
         readouts.append(readout)
