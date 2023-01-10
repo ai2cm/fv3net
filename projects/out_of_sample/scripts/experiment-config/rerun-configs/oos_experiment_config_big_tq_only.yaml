@@ -34,6 +34,8 @@ model_config_dir_path: "gs://vcm-ml-experiments/claytons/2022-08-09/oos-configs/
 prognostic_run_config_template: "prognostic-run-config.yaml"
 launch_destination: "~/vcm-workflow-control/examples/nd-suite/Tq-prog-run-full-year-sweep"
 experiment_summary_path: "experiment_summary_big_tq_only.txt"
+delete_script_path: "delete_script.sh"
+
 segments: 36
 result_destination:
   bucket: "vcm-ml-experiments"

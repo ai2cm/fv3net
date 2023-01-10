@@ -88,6 +88,7 @@ model_config_dir_path: "gs://vcm-ml-experiments/out-of-sample-right-side-up-wind
 prognostic_run_config_template: "prognostic-run-config.yaml"
 launch_destination: "~/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep"
 experiment_summary_path: "experiment_summary_big.txt"
+delete_script_path: "delete_script.sh"
 segments: 36
 result_destination:
   bucket: "vcm-ml-experiments"

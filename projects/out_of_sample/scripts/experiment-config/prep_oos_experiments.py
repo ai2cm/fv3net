@@ -169,6 +169,7 @@ def prep_oos_experiments(args):
         "submission_date", datetime.now().strftime("%Y-%m-%d")
     )
     experiment_summary_path = all_experiment_config["experiment_summary_path"]
+    delete_script_path = all_experiment_config["delete_script_path"]
 
     # reads the paths to temperature/humidity and winds
     # - tq tendencies are required
@@ -194,7 +195,15 @@ def prep_oos_experiments(args):
     # string to be saved to run.sh file
     run_str = "#!/bin/bash\n\nset -e\n\n"
     # file to write information
-    with open(experiment_summary_path, "w") as summary_f:
+
+    with open(experiment_summary_path, "w") as summary_f, open(
+        delete_script_path, "w"
+    ) as delete_script_f:
+        delete_script_f.write(
+            "#!/bin/bash \n\n"
+            "# comment out below to delete batch of argo jobs \n"
+            "exit 1 \n\n"
+        )
         # loops over all novelty detector paths supplied
         for novelty_detector in all_experiment_config["novelty_detectors"]:
             nd_name = novelty_detector["nd_name"]
@@ -274,6 +283,8 @@ def prep_oos_experiments(args):
                     summary_f.write(f"argo job: {job_name}\n")
                     summary_f.write(f"output location: {output_path}\n")
                     summary_f.write(f"config path: {prognostic_run_config_path}\n\n")
+
+                    delete_script_f.write(f"argo delete {job_name}\n")
 
         # writes run script to target location
         write_run_str(run_str, launch_destination)
