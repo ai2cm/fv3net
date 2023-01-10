@@ -52,7 +52,7 @@ class BatchesFromMapperConfig(BatchesLoader):
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
         in_memory: if True, load data eagerly and keep it in memory
-        unstacked_dims: Produce stacked and shuffled batches retaining
+        unstacked_dims: if not None, produce stacked and shuffled batches retaining
             these dimensions as unstacked (non-sample) dimensions. Defaults to ("z",).
         subsample_ratio: the fraction of data to retain in each batch, selected
             at random along the sample dimension.
