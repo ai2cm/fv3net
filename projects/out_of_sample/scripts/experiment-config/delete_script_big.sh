@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# comment out below to delete batch of argo jobs
+exit 1
+
+argo delete prognostic-run-4a21dc70e0d34abba7fd89f445b4c20e
+argo delete prognostic-run-a52964e6d4074679ae1a4d0c44b8886d
+argo delete prognostic-run-5bae473714174e2d8e0e923c0934ae8f
+argo delete prognostic-run-f084f41dc6a64d279255e69833c8abeb
+argo delete prognostic-run-d26533bc79ad45eca8a7b6324667854c
+argo delete prognostic-run-ba96f20d66af4061b68e0b1207e9eabc
+argo delete prognostic-run-be7e13384c6646669cac18ab531d0a64
+argo delete prognostic-run-215d749e1b914fb89bae78bc2e6515eb
+argo delete prognostic-run-f58a5e0eb0b94ea19deec498691f741c
+argo delete prognostic-run-024f3c90a45d4ce1905d33d187044fdd
+argo delete prognostic-run-717af703155f4cc79dd3a7e8d8ba6f60
+argo delete prognostic-run-6bfd157bedab4a6095da1af80dfdd6c7
+argo delete prognostic-run-7b6753ed88c245f0ba481818420ace17
+argo delete prognostic-run-41189431f4a54d11a83c825f023c627c
+argo delete prognostic-run-9da015810c0d4110a4830f8a275cab13
+argo delete prognostic-run-cfbc095c734c4f9cb78204278d9e7056
+argo delete prognostic-run-20a6c652723c4c7982a70367dd1b5cda
+argo delete prognostic-run-0888d4c49a3a479a872a61f9d38d096e
+argo delete prognostic-run-735e20ec1bc24e60a6db0e2714765bf8
+argo delete prognostic-run-97c4e65315324d1ba946ec970a928ff0
+argo delete prognostic-run-4b18eea16b9b44a3a395881f990282f5
+argo delete prognostic-run-677ce12cf57141108e6076488c4b278a
+argo delete prognostic-run-43d89f4e2c25435285fda7fc1b041b10
+argo delete prognostic-run-5180fc5c0bb24c128c47fa3aa5475746
+argo delete prognostic-run-be0c960887cc47b9a53d47380e84d2ca
+argo delete prognostic-run-e6bb95c596e440d28e20265e2320ec61
+argo delete prognostic-run-30aa14d0bcf54166ad4a79a3f7e9dfae
+argo delete prognostic-run-09f698d3317d4f0895e692b12a7922d1
+argo delete prognostic-run-8f2e0193ca5748a58c49e29fc6289a77
+argo delete prognostic-run-b29525c5306c436d8370acde62f46360
+argo delete prognostic-run-a507acd1bcd94156945a2e920f759a39
+argo delete prognostic-run-d35fbdc23b6d4e1282dbc9a599b2c2d6
+argo delete prognostic-run-5b67fbf23ecd49e388a9df71ced8c409
+argo delete prognostic-run-a8977bb5129f4d6ca6e180dc07ee2adf
+argo delete prognostic-run-d59fb654548c495090a86b7a3120441d
+argo delete prognostic-run-df90b1ad456a46b7854279851345c032

@@ -1,0 +1,181 @@
+Experiment #1: ocsvm-large-gamma with cutoff=0.4
+argo job: prognostic-run-4a21dc70e0d34abba7fd89f445b4c20e
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma-0.4-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma-0.4-default-0/prognostic-run.yaml
+
+Experiment #2: ocsvm-large-gamma with cutoff=0.2
+argo job: prognostic-run-a52964e6d4074679ae1a4d0c44b8886d
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma-0.2-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma-0.2-default-0/prognostic-run.yaml
+
+Experiment #3: ocsvm-large-gamma with cutoff=0
+argo job: prognostic-run-5bae473714174e2d8e0e923c0934ae8f
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma-0-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma-0-default-0/prognostic-run.yaml
+
+Experiment #4: ocsvm-large-gamma with cutoff=-0.5
+argo job: prognostic-run-f084f41dc6a64d279255e69833c8abeb
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma--0.5-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma--0.5-default-0/prognostic-run.yaml
+
+Experiment #5: ocsvm-large-gamma with cutoff=-1
+argo job: prognostic-run-d26533bc79ad45eca8a7b6324667854c
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma--1-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma--1-default-0/prognostic-run.yaml
+
+Experiment #6: ocsvm-large-gamma with cutoff=-1.5
+argo job: prognostic-run-ba96f20d66af4061b68e0b1207e9eabc
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma--1.5-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma--1.5-default-0/prognostic-run.yaml
+
+Experiment #7: ocsvm-large-gamma with cutoff=0
+argo job: prognostic-run-be7e13384c6646669cac18ab531d0a64
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma-0-ramp--0.1-0.1-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma-0-ramp--0.1-0.1-0/prognostic-run.yaml
+
+Experiment #8: ocsvm-large-gamma with cutoff=0
+argo job: prognostic-run-215d749e1b914fb89bae78bc2e6515eb
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma-0-ramp--0.25-0.25-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma-0-ramp--0.25-0.25-0/prognostic-run.yaml
+
+Experiment #9: ocsvm-large-gamma with cutoff=0
+argo job: prognostic-run-f58a5e0eb0b94ea19deec498691f741c
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma-0-ramp--0.5-0.5-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma-0-ramp--0.5-0.5-0/prognostic-run.yaml
+
+Experiment #10: ocsvm-large-gamma with cutoff=0
+argo job: prognostic-run-024f3c90a45d4ce1905d33d187044fdd
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma-0-decay--0.25-0.005-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma-0-decay--0.25-0.005-0/prognostic-run.yaml
+
+Experiment #11: ocsvm-large-gamma with cutoff=0
+argo job: prognostic-run-717af703155f4cc79dd3a7e8d8ba6f60
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma-0-decay--0.25-0.01-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma-0-decay--0.25-0.01-0/prognostic-run.yaml
+
+Experiment #12: ocsvm-large-gamma with cutoff=0
+argo job: prognostic-run-6bfd157bedab4a6095da1af80dfdd6c7
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-large-gamma-0-decay--0.25-0.02-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-large-gamma-0-decay--0.25-0.02-0/prognostic-run.yaml
+
+Experiment #13: ocsvm-tq-large-gamma with cutoff=0.2
+argo job: prognostic-run-7b6753ed88c245f0ba481818420ace17
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-tq-large-gamma-0.2-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-tq-large-gamma-0.2-default-0/prognostic-run.yaml
+
+Experiment #14: ocsvm-tq-large-gamma with cutoff=0
+argo job: prognostic-run-41189431f4a54d11a83c825f023c627c
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-tq-large-gamma-0-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-tq-large-gamma-0-default-0/prognostic-run.yaml
+
+Experiment #15: ocsvm-tq-large-gamma with cutoff=0.5
+argo job: prognostic-run-9da015810c0d4110a4830f8a275cab13
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-tq-large-gamma-0.5-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-tq-large-gamma-0.5-default-0/prognostic-run.yaml
+
+Experiment #16: ocsvm-tq-larger-gamma with cutoff=0.2
+argo job: prognostic-run-cfbc095c734c4f9cb78204278d9e7056
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-tq-larger-gamma-0.2-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-tq-larger-gamma-0.2-default-0/prognostic-run.yaml
+
+Experiment #17: ocsvm-tq-larger-gamma with cutoff=0
+argo job: prognostic-run-20a6c652723c4c7982a70367dd1b5cda
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-tq-larger-gamma-0-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-tq-larger-gamma-0-default-0/prognostic-run.yaml
+
+Experiment #18: ocsvm-tq-larger-gamma with cutoff=0.5
+argo job: prognostic-run-0888d4c49a3a479a872a61f9d38d096e
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-tq-larger-gamma-0.5-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-tq-larger-gamma-0.5-default-0/prognostic-run.yaml
+
+Experiment #19: ocsvm-default-gamma with cutoff=4
+argo job: prognostic-run-735e20ec1bc24e60a6db0e2714765bf8
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-default-gamma-4-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-default-gamma-4-default-0/prognostic-run.yaml
+
+Experiment #20: ocsvm-default-gamma with cutoff=2
+argo job: prognostic-run-97c4e65315324d1ba946ec970a928ff0
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-default-gamma-2-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-default-gamma-2-default-0/prognostic-run.yaml
+
+Experiment #21: ocsvm-default-gamma with cutoff=0
+argo job: prognostic-run-4b18eea16b9b44a3a395881f990282f5
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-default-gamma-0-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-default-gamma-0-default-0/prognostic-run.yaml
+
+Experiment #22: ocsvm-default-gamma with cutoff=-2
+argo job: prognostic-run-677ce12cf57141108e6076488c4b278a
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-default-gamma--2-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-default-gamma--2-default-0/prognostic-run.yaml
+
+Experiment #23: ocsvm-default-gamma with cutoff=-4
+argo job: prognostic-run-43d89f4e2c25435285fda7fc1b041b10
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-default-gamma--4-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-default-gamma--4-default-0/prognostic-run.yaml
+
+Experiment #24: ocsvm-default-gamma with cutoff=-6
+argo job: prognostic-run-5180fc5c0bb24c128c47fa3aa5475746
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-default-gamma--6-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-default-gamma--6-default-0/prognostic-run.yaml
+
+Experiment #25: ocsvm-small-gamma with cutoff=5
+argo job: prognostic-run-be0c960887cc47b9a53d47380e84d2ca
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-small-gamma-5-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-small-gamma-5-default-0/prognostic-run.yaml
+
+Experiment #26: ocsvm-small-gamma with cutoff=0
+argo job: prognostic-run-e6bb95c596e440d28e20265e2320ec61
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-small-gamma-0-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-small-gamma-0-default-0/prognostic-run.yaml
+
+Experiment #27: ocsvm-small-gamma with cutoff=-5
+argo job: prognostic-run-30aa14d0bcf54166ad4a79a3f7e9dfae
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-small-gamma--5-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-small-gamma--5-default-0/prognostic-run.yaml
+
+Experiment #28: ocsvm-small-gamma with cutoff=-10
+argo job: prognostic-run-09f698d3317d4f0895e692b12a7922d1
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-small-gamma--10-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-small-gamma--10-default-0/prognostic-run.yaml
+
+Experiment #29: ocsvm-small-gamma with cutoff=-15
+argo job: prognostic-run-8f2e0193ca5748a58c49e29fc6289a77
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-small-gamma--15-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-small-gamma--15-default-0/prognostic-run.yaml
+
+Experiment #30: ocsvm-small-gamma with cutoff=-20
+argo job: prognostic-run-b29525c5306c436d8370acde62f46360
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-ocsvm-small-gamma--20-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/ocsvm-small-gamma--20-default-0/prognostic-run.yaml
+
+Experiment #31: minmax with cutoff=0.2
+argo job: prognostic-run-a507acd1bcd94156945a2e920f759a39
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-minmax-0.2-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/minmax-0.2-default-0/prognostic-run.yaml
+
+Experiment #32: minmax with cutoff=0.1
+argo job: prognostic-run-d35fbdc23b6d4e1282dbc9a599b2c2d6
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-minmax-0.1-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/minmax-0.1-default-0/prognostic-run.yaml
+
+Experiment #33: minmax with cutoff=0
+argo job: prognostic-run-5b67fbf23ecd49e388a9df71ced8c409
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-minmax-0-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/minmax-0-default-0/prognostic-run.yaml
+
+Experiment #34: minmax with cutoff=-0.03
+argo job: prognostic-run-a8977bb5129f4d6ca6e180dc07ee2adf
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-minmax--0.03-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/minmax--0.03-default-0/prognostic-run.yaml
+
+Experiment #35: minmax with cutoff=-0.06
+argo job: prognostic-run-d59fb654548c495090a86b7a3120441d
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-minmax--0.06-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/minmax--0.06-default-0/prognostic-run.yaml
+
+Experiment #36: minmax with cutoff=-0.1
+argo job: prognostic-run-df90b1ad456a46b7854279851345c032
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-full-year-sweep-n2pire-consistent-minmax--0.1-default-0-trial1/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/minmax--0.1-default-0/prognostic-run.yaml
+
+run path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep/run.sh
