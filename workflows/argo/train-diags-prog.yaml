@@ -34,6 +34,7 @@ spec:
       - {name: memory-training, value: 6Gi}
       - {name: memory-offline-diags, value: 10Gi}
       - {name: training-flags, value: " "}
+      - {name: offline-diags-flags, value: " "}
       - {name: online-diags-flags, value: " "}
       - {name: do-prognostic-run, value: "true"}
       - {name: no-wandb, value: "false"}
@@ -115,6 +116,8 @@ spec:
                 value: "{{inputs.parameters.tag}},{{inputs.parameters.wandb-tags}}"
               - name: wandb-group
                 value: "{{inputs.parameters.wandb-group}}"
+              - name: offline-diags-flags
+                value: "{{inputs.parameters.offline-diags-flags}}"
       - name: insert-model-urls
         when: "{{inputs.parameters.do-prognostic-run}} == true"
         dependencies: [resolve-output-url]
