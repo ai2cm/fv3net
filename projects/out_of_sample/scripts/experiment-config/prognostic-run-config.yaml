@@ -9,7 +9,7 @@ prephysics:
   -
     diagnostic_ml: false
     model:
-    - gs://vcm-ml-experiments/n2f-pire-stable-ml/2022-05-24/radiative-fluxes-mae-lat-input-seed-0/trained_models/radiative_fluxes
+    - gs://vcm-ml-experiments/n2f-pire-stable-ml/2022-07-06/decrease-rad-lr-rad-flux-seed-0/trained_models/radiative_fluxes
     output_standard_names:
       override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface: downward_shortwave_sfc_flux_via_transmissivity
       override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface: net_shortwave_sfc_flux_via_transmissivity

@@ -1,5 +1,5 @@
 base_model:
-  tq_tendencies_path: "gs://vcm-ml-experiments/n2f-pire-subsampled-full-range/2022-04-18/nn-tq-low-lr-tapered-mae-seed-0/trained_models/tq_tendencies"
+  tq_tendencies_path: "gs://vcm-ml-experiments/n2f-pire-stable-ml/2022-05-12/tapering-effect-mae-no-taper/trained_models/tq_tendencies"
   wind_tendencies_path: "gs://vcm-ml-experiments/n2f-pire-stable-ml/2022-05-27/wind-nudging-correct-inputs-l2-1e-4/trained_models/wind_tendencies"
 # cutoffs are determined based on the offline prognostic tendencies at https://storage.googleapis.com/vcm-ml-public/claytons/oos_analysis/prognostic/report-8e9e4e2798274e128c9a2883352e2296/index.html
 
@@ -84,15 +84,15 @@ novelty_detectors:
       - cutoff: -0.03
       - cutoff: -0.06
       - cutoff: -0.1
-model_config_dir_path: "gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-03/oos-configs/oos-full-year-sweep"
+model_config_dir_path: "gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-configs/oos-full-year-sweep-n2pire-consistent"
 prognostic_run_config_template: "prognostic-run-config.yaml"
 launch_destination: "~/vcm-workflow-control/examples/nd-suite/Tquv-prog-run-full-year-sweep"
 experiment_summary_path: "experiment_summary_big.txt"
-delete_script_path: "delete_script.sh"
+delete_script_path: "delete_script_big.sh"
 segments: 36
 result_destination:
   bucket: "vcm-ml-experiments"
   project: "out-of-sample-right-side-up-winds"
-  experiment: "oos-full-year-sweep"
+  experiment: "oos-full-year-sweep-n2pire-consistent"
   trial: 1
 

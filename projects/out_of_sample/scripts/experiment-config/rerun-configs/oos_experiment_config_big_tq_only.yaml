@@ -30,15 +30,15 @@ novelty_detectors:
       - cutoff: 0.1
       - cutoff: 0
       - cutoff: -0.03
-model_config_dir_path: "gs://vcm-ml-experiments/claytons/2022-08-09/oos-configs/oos-full-year-sweep-tq-only"
+model_config_dir_path: "gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-configs/oos-full-year-sweep-tq-only-n2pire-consistent"
 prognostic_run_config_template: "prognostic-run-config.yaml"
 launch_destination: "~/vcm-workflow-control/examples/nd-suite/Tq-prog-run-full-year-sweep"
 experiment_summary_path: "experiment_summary_big_tq_only.txt"
-delete_script_path: "delete_script.sh"
+delete_script_path: "delete_script_big_tq_only.sh"
 
 segments: 36
 result_destination:
   bucket: "vcm-ml-experiments"
   project: "out-of-sample-right-side-up-winds"
-  experiment: "oos-full-year-sweep-tq-only"
+  experiment: "oos-full-year-sweep-tq-only-n2pire-consistent"
   trial: 1
