@@ -289,7 +289,7 @@ def _dump_pytorch(obj: _PytorchDumpable, path: str) -> None:
     fs = vcm.get_fs(path)
     model_filename = os.path.join(path, obj._MODEL_FILENAME)
     with fs.open(model_filename, "wb") as f:
-        torch.save(obj.model, model_filename)
+        torch.save(obj.model, f)
     with fs.open(os.path.join(path, obj._SCALERS_FILENAME), "wb") as f:
         dump_mapping(obj.scalers, f)
     with fs.open(os.path.join(path, obj._CONFIG_FILENAME), "w") as f:

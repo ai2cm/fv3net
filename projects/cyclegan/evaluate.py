@@ -93,7 +93,9 @@ def plot_weather(arg, vmin=4800, vmax=6000, vmin_diff=-100, vmax_diff=100):
 
 if __name__ == "__main__":
     random.seed(0)
-    cyclegan: fv3fit.pytorch.CycleGAN = fv3fit.load("output").to(DEVICE)
+    cyclegan: fv3fit.pytorch.CycleGAN = fv3fit.load(
+        "gs://vcm-ml-experiments/cyclegan/2022-11-10/cyclegan_0K_to_8K-trial-0/"
+    ).to(DEVICE)
     c384_real: xr.Dataset = (
         xr.open_zarr("c384_baseline.zarr").rename({"grid_xt": "x", "grid_yt": "y"})
         # .isel(time=slice(2904, None))

@@ -1,0 +1,30 @@
+batch_size: 500
+domain_configs:
+- batch_size: 1
+  data_path: gs://vcm-ml-experiments/mcgibbon/2022-11-09/n2f-25km-0K-merged.zarr
+  default_variable_config:
+    times: window
+  n_windows: 2000
+  time_stride: 1
+  unstacked_dims:
+  - time
+  - tile
+  - grid_xt
+  - grid_yt
+  - z
+  variable_configs: {}
+  window_size: 1
+- batch_size: 1
+  data_path: gs://vcm-ml-experiments/mcgibbon/2022-11-09/n2f-25km-8K-merged.zarr
+  default_variable_config:
+    times: window
+  n_windows: 2000
+  time_stride: 1
+  unstacked_dims:
+  - time
+  - tile
+  - grid_xt
+  - grid_yt
+  - z
+  variable_configs: {}
+  window_size: 1
