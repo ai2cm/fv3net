@@ -299,6 +299,12 @@ def main(args):
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
 
+    if hasattr(config, "unstacked_dims") and not (config.unstacked_dims is None):
+        logger.warn(
+            "The unstacked_dims property of data configuration is being set to None."
+        )
+        config.unstacked_dims = None
+
     if args.evaluation_grid is None:
         evaluation_grid = load_grid_info(EVALUATION_RESOLUTION)
     else:
@@ -317,11 +323,7 @@ def main(args):
         config=config, model=model, evaluation_resolution=evaluation_grid.sizes["x"]
     )
 
-    output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
-    with fsspec.open(args.data_yaml, "r") as f_in, fsspec.open(
-        output_data_yaml, "w"
-    ) as f_out:
-        f_out.write(f_in.read())
+    vcm.cloud.copy(args.data_yaml, os.path.join(args.output_path, "data_config.yaml"))
 
     # compute diags
     ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(

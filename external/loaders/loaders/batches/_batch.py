@@ -52,8 +52,8 @@ class BatchesFromMapperConfig(BatchesLoader):
         needs_grid: Add grid information into batched datasets. [Warning] requires
             remote GCS access
         in_memory: if True, load data eagerly and keep it in memory
-        unstacked_dims: if given, produce stacked and shuffled batches retaining
-            these dimensions as unstacked (non-sample) dimensions
+        unstacked_dims: if not None, produce stacked and shuffled batches retaining
+            these dimensions as unstacked (non-sample) dimensions. Defaults to ("z",).
         subsample_ratio: the fraction of data to retain in each batch, selected
             at random along the sample dimension.
         drop_nans: if True, drop samples with NaN values from the data, and raise an
@@ -73,7 +73,7 @@ class BatchesFromMapperConfig(BatchesLoader):
     res: str = "c48"
     needs_grid: bool = True
     in_memory: bool = False
-    unstacked_dims: Optional[Sequence[str]] = None
+    unstacked_dims: Optional[Sequence[str]] = ("z",)
     subsample_ratio: float = 1.0
     drop_nans: bool = False
     shuffle_timesteps: bool = True
