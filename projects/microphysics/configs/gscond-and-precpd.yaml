@@ -1,8 +1,8 @@
 kind: prognostic
-experiment: no-classify-rerun
-name: zc-emu-no-gscond-classify-gsconly-v5
-image_tag: 3660ad3e7ea9dc48b20bb759e2755ff3b9bb3e55
-fv3net_image_tag: 3660ad3e7ea9dc48b20bb759e2755ff3b9bb3e55
+experiment: zc-emu-default
+name: zc-emu-best-seed-v1
+image_tag: 372d8331663befc6a52891aff066a191ed7f0b14
+fv3net_image_tag: 372d8331663befc6a52891aff066a191ed7f0b14
 config:
   base_version: v0.5
   data_table: default
@@ -262,17 +262,17 @@ config:
       imp_physics: 99
       ncld: 1
       ldiag3d: true
-      emulate_gscond_only: true
-      emulate_zc_microphysics: false
+      emulate_gscond_only: false
+      emulate_zc_microphysics: true
       save_zc_microphysics: true
   zhao_carr_emulation:
     gscond:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-13/gscond-only-qvout-v2/model.tf
-      classifier_path: null
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-16/zc-train-gscond-seed5-v2/model.tf
+      classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-16/zc-train-gscond-classify-seed5-v2/model.tf
       enforce_conservative: true
       gscond_cloud_conservative: true
-      mask_gscond_zero_cloud_classifier: false
-      mask_gscond_no_tend_classifier: false
+      mask_gscond_zero_cloud_classifier: true
+      mask_gscond_no_tend_classifier: true
       mask_emulator_levels:
         cloud_water_mixing_ratio_after_gscond:
           start: 74
@@ -284,8 +284,8 @@ config:
           start: 74
           fill_value: air_temperature_input
     model:
-      # simple_precip_conservative: True
-      # path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-13/precpd-diff-only-no-pr-v2/model.tf
+      simple_precip_conservative: True
+      path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-16/zc-train-precpd-seed5-v2/model.tf
     storage:
       output_freq_sec: 10800
       save_nc: false
