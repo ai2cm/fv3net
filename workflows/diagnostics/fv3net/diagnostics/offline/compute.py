@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import numpy as np
 import os
 import sys
 from tempfile import NamedTemporaryFile
@@ -103,6 +104,14 @@ def _get_parser() -> argparse.ArgumentParser:
         default=-1,
         help=("Optional n_jobs parameter for joblib.parallel when computing metrics."),
     )
+    parser.add_argument(
+        "--outputs-2d-only",
+        action="store_true",
+        help=(
+            "Use flag if all model outputs are 2D, in which case pressure thickness"
+            "does not have to be in test dataset."
+        ),
+    )
     return parser
 
 
@@ -144,6 +153,7 @@ def _compute_diagnostics(
     target = safe.get_variables(
         ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
     )
+
     ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP], n_jobs=n_jobs)
 
     timesteps.append(ds["time"])
@@ -214,6 +224,15 @@ def _get_predict_function(predictor, variables):
     return transform
 
 
+def _fill_delp():
+    # filler for delp array that is require as an arg but not used in diagnostics
+    def transform(ds):
+        ds[DELP] = xr.DataArray([np.nan, np.nan])
+        return ds
+
+    return transform
+
+
 def _get_data_mapper_if_exists(config):
     if isinstance(config, loaders.BatchesFromMapperConfig):
         return config.load_mapper()
@@ -221,10 +240,10 @@ def _get_data_mapper_if_exists(config):
         return None
 
 
-def _variables_to_load(model):
-    vars = list(
-        set(list(model.input_variables) + list(model.output_variables) + [DELP])
-    )
+def _variables_to_load(model, outputs_2d_only=False):
+    vars = list(set(list(model.input_variables) + list(model.output_variables)))
+    if outputs_2d_only is False:
+        vars.append(DELP)
     if "Q2" in model.output_variables:
         vars.append("water_vapor_path")
     return vars
@@ -258,12 +277,14 @@ def get_prediction(
     config: loaders.BatchesFromMapperConfig,
     model: fv3fit.Predictor,
     evaluation_resolution: int,
+    outputs_2d_only: bool,
 ) -> xr.Dataset:
-    model_variables = _variables_to_load(model)
+    model_variables = _variables_to_load(model, outputs_2d_only)
+
     if config.timesteps:
         config.timesteps = sorted(config.timesteps)
-    batches = config.load_batches(model_variables)
 
+    batches = config.load_batches(model_variables)
     transforms = [_get_predict_function(model, model_variables)]
 
     prediction_resolution = res_from_string(config.res)
@@ -274,11 +295,25 @@ def get_prediction(
                 prediction_resolution=prediction_resolution,
             )
         )
+    if outputs_2d_only:
+        transforms.append(_fill_delp())
 
     mapping_function = compose_left(*transforms)
     batches = loaders.Map(mapping_function, batches)
-
-    concatted_batches = _daskify_sequence(batches)
+    try:
+        concatted_batches = _daskify_sequence(batches)
+    except KeyError as e:
+        key_err = str(e)
+        if "pressure_thickness_of_atmospheric_layer" in key_err:
+            raise KeyError(
+                "Variable 'pressure_thickness_of_atmospheric_layer' "
+                "not in dataset. If outputs are 2D and this variable "
+                "is not needed for diagnostics, include the CLI flag "
+                "--outputs-2d-only. If outputs are 3D, make sure this "
+                "variable is present in the test dataset."
+            )
+        else:
+            raise KeyError(key_err)
     del batches
     return concatted_batches
 
@@ -286,7 +321,7 @@ def get_prediction(
 def _daskify_sequence(batches):
     temp_data_dir = temporary_directory()
     for i, batch in enumerate(batches):
-        logger.info(f"Locally caching batch {i+1}/{len(batches)+1}")
+        logger.info(f"Locally caching batch {i+1}/{len(batches)}")
         batch.to_netcdf(os.path.join(temp_data_dir.name, f"{i}.nc"))
     dask_ds = xr.open_mfdataset(os.path.join(temp_data_dir.name, "*.nc"))
     return dask_ds
@@ -314,7 +349,10 @@ def main(args):
         model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
 
     ds_predicted = get_prediction(
-        config=config, model=model, evaluation_resolution=evaluation_grid.sizes["x"]
+        config=config,
+        model=model,
+        evaluation_resolution=evaluation_grid.sizes["x"],
+        outputs_2d_only=args.outputs_2d_only,
     )
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
