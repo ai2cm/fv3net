@@ -1,8 +1,13 @@
+import dacite
 import dataclasses
+import fsspec
 import logging
 import numpy as np
 import scipy
 from typing import Optional
+import yaml
+
+from .config import ReservoirHyperparameters
 
 logger = logging.getLogger(__name__)
 
@@ -23,63 +28,65 @@ def _random_uniform_sparse_matrix(m, n, sparsity, min=0, max=1):
     )
 
 
-@dataclasses.dataclass
-class ReservoirHyperparameters:
-    """Hyperparameters for reservoir
-
-    input_size: Size of input vector
-    state_size: Size of hidden state vector,
-        W_res has shape state_size x state_size
-    adjacency_matrix_sparsity: Fraction of elements in adjacency matrix
-        W_res that are zero
-    output_size: Optional: size of output vector. Can be smaller than input
-        dimension if predicting on subdomains with overlapping
-        input regions. Defaults to same as input_size
-    spectral_radius: Largest absolute value eigenvalue of W_res.
-        Larger values increase the memory of the reservoir.
-    seed: Random seed for sampling
-    input_coupling_sparsity: Fraction of elements in each row of W_in
-        that are zero. Kept the same in all rows to ensure each input
-        is equally connected into the reservoir. Defaults to 0.
-    input_coupling_scaling: Scaling applied to W_in. Defaults to 1,
-        where all elements are sampled from random uniform distribution
-        [-1, 1]. Changing this affects relative weighting of reservoir memory
-        versus the most recent state.
-    """
-
-    input_size: int
-    state_size: int
-    adjacency_matrix_sparsity: float
-    spectral_radius: float
-    output_size: Optional[int] = None
-    seed: int = 0
-    input_coupling_sparsity: float = 0.0
-    input_coupling_scaling: float = 1.0
-
-    def __post_init__(self):
-        if not self.output_size:
-            self.output_size = self.input_size
-
-
 class Reservoir:
+    _INPUT_WEIGHTS_NAME = "reservoir_W_in.npz"
+    _RESERVOIR_WEIGHTS_NAME = "reservoir_W_res.npz"
+    _METADATA_NAME = "metadata.bin"
+
     def __init__(
-        self, hyperparameters: ReservoirHyperparameters,
+        self,
+        hyperparameters: ReservoirHyperparameters,
+        input_size: int,
+        W_in: Optional[scipy.sparse.coo_matrix] = None,
+        W_res: Optional[scipy.sparse.coo_matrix] = None,
     ):
+        """
+
+        Args:
+            hyperparameters: information for generating reservoir matrices
+            input_size: length of input vector features
+            W_in: Weights for input matrix. If None, this matrix will be generated
+                upon initialization.
+            W_res: Weights for reservoir matrix. If None, this matrix will be
+                generated upon initialiation.
+        """
         self.hyperparameters = hyperparameters
+        self.input_size = input_size
+
         np.random.seed(self.hyperparameters.seed)
-        self.W_in = self._generate_W_in()
-        self.W_res = self._generate_W_res()
-        self.state = np.zeros(self.hyperparameters.state_size)
+        self.W_in = W_in if W_in is not None else self._generate_W_in()
+        self.W_res = W_res if W_res is not None else self._generate_W_res()
+
+    def __getattr__(self, attr):
+        if attr == "state":
+            raise AttributeError(
+                "Reservoir.state is not set yet."
+                "To initialize, first use Reservoir.reset_state"
+            )
+        raise AttributeError(
+            f"{self.__class__.__name__} object has no attribute {attr}."
+        )
 
     def increment_state(self, input):
-        self.state = np.tanh(self.W_in * input + self.W_res * self.state)
+        self.state = np.tanh(self.W_in @ input + self.W_res @ self.state)
 
-    def reset_state(self):
+    def reset_state(self, input_shape: tuple):
         logger.info("Resetting reservoir state.")
-        self.state = np.zeros(self.hyperparameters.state_size)
+        if len(input_shape) > 1:
+            # Input is a 2d matrix with each colum as a separate subdomain
+            ncols_inputs = input_shape[1]
+            state_after_reset = np.zeros(
+                (self.hyperparameters.state_size, ncols_inputs)
+            )
+        elif len(input_shape) == 1:
+            # Input is a 1d vector
+            state_after_reset = np.zeros(self.hyperparameters.state_size)
+        else:
+            raise ValueError("Input shape tuple must describe either a 1D or 2D array.")
+        self.state = state_after_reset
 
     def synchronize(self, synchronization_time_series):
-        self.reset_state()
+        self.reset_state(input_shape=synchronization_time_series[0].shape)
         for input in synchronization_time_series:
             self.increment_state(input)
 
@@ -87,7 +94,7 @@ class Reservoir:
         W_in_cols = []
         # Generate by column to ensure same number of connections per input element,
         # as described in Wikner+ 2020 (https://doi.org/10.1063/5.0005541)
-        for k in range(self.hyperparameters.input_size):
+        for k in range(self.input_size):
             W_in_cols.append(
                 _random_uniform_sparse_matrix(
                     m=self.hyperparameters.state_size,
@@ -114,3 +121,38 @@ class Reservoir:
         scaling = self.hyperparameters.spectral_radius / abs(largest_magnitude_eigval)
 
         return scaling * W_res
+
+    def dump(self, path: str) -> None:
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        fs.makedirs(path, exist_ok=True)
+        mapper = fs.get_mapper(path)
+        metadata = {
+            "reservoir_hyperparameters": dataclasses.asdict(self.hyperparameters,),
+            "input_size": self.input_size,
+        }
+        with fs.open(f"{path}/{self._INPUT_WEIGHTS_NAME}", "wb") as f:
+            scipy.sparse.save_npz(f, self.W_in)
+        with fs.open(f"{path}/{self._RESERVOIR_WEIGHTS_NAME}", "wb") as f:
+            scipy.sparse.save_npz(f, self.W_res)
+        mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
+
+    @classmethod
+    def load(cls, path: str) -> "Reservoir":
+        mapper = fsspec.get_mapper(path)
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+
+        metadata = yaml.safe_load(mapper[cls._METADATA_NAME])
+
+        reservoir_hyperparameters = dacite.from_dict(
+            ReservoirHyperparameters, metadata["reservoir_hyperparameters"]
+        )
+        with fs.open(f"{path}/{cls._INPUT_WEIGHTS_NAME}", "rb") as f:
+            reservoir_W_in = scipy.sparse.load_npz(f)
+        with fs.open(f"{path}/{cls._RESERVOIR_WEIGHTS_NAME}", "rb") as f:
+            reservoir_W_res = scipy.sparse.load_npz(f)
+        return cls(
+            reservoir_hyperparameters,
+            W_in=reservoir_W_in,
+            W_res=reservoir_W_res,
+            input_size=metadata["input_size"],
+        )

@@ -17,14 +17,10 @@ class SubdomainConfig:
 class ReservoirHyperparameters:
     """Hyperparameters for reservoir
 
-    input_size: Size of input vector
     state_size: Size of hidden state vector,
         W_res has shape state_size x state_size
     adjacency_matrix_sparsity: Fraction of elements in adjacency matrix
         W_res that are zero
-    output_size: Optional: size of output vector. Can be smaller than input
-        dimension if predicting on subdomains with overlapping
-        input regions. Defaults to same as input_size
     spectral_radius: Largest absolute value eigenvalue of W_res.
         Larger values increase the memory of the reservoir.
     seed: Random seed for sampling
@@ -37,27 +33,23 @@ class ReservoirHyperparameters:
         versus the most recent state.
     """
 
-    input_size: int
     state_size: int
     adjacency_matrix_sparsity: float
     spectral_radius: float
-    output_size: Optional[int] = None
     seed: int = 0
     input_coupling_sparsity: float = 0.0
     input_coupling_scaling: float = 1.0
-
-    def __post_init__(self):
-        if not self.output_size:
-            self.output_size = self.input_size
 
 
 @dataclass
 class ReadoutHyperparameters:
     """
-    linear_regressor_kwargs: kwargs to provide when initializing the linear
-        regressor for ReservoirComputingReadout
-    square_half_hidden_state: if True, square even elements of state vector
-        as described in in Wikner+ 2020 (https://doi.org/10.1063/5.0005541)
+    linear_regressor_kwargs: kwargs to provide when initializing the
+        sklearn Ridge regressor for ReservoirComputingReadout
+    square_half_hidden_state: if True, square even terms in the reservoir
+        state before it is used as input to the regressor's .fit and
+        .predict methods. This option was found to be important for skillful
+        predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
     """
 
     linear_regressor_kwargs: dict
