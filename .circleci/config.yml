@@ -199,7 +199,7 @@ jobs:
       - run:
           name: Firewall rule deletion
           when: always
-          command: gcloud compute firewall-rules delete $firewall_name\
+          command: gcloud compute firewall-rules delete $firewall_name
 
   validate_radiation_port:
     machine:
