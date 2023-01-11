@@ -86,3 +86,23 @@ _apply_physics                        24.7357        93.8826        60.2830
 _compute_postphysics                   0.0005         0.0157         0.0031
 _apply_postphysics_to_dycore_state         1.3685         1.7940         1.6116
 _intermediate_restarts                 0.0005         0.0142         0.0029
+
+
+
+## CALLPYFORT Enabled but no Models
+
+-----------------------------------------------------------------
+         Reporting clock statistics from python
+-----------------------------------------------------------------
+                                      min (s)        max (s)       mean (s)
+<lambda>                               1.1233         1.4418         1.3255
+_step_dynamics                       189.9370       191.2898       190.3424
+_step_prephysics                       0.2963         0.3693         0.3406
+_step_pre_radiation_physics            9.5716        13.0766        11.6622
+_step_radiation_physics               72.8018       114.5445       100.5859
+_step_post_radiation_physics          75.6010        94.7324        87.4188
+_apply_physics                        46.2762       102.9712        63.8605
+_compute_postphysics                   0.0005         0.0161         0.0032
+_apply_postphysics_to_dycore_state         1.4839         1.7907         1.6778
+_intermediate_restarts                 0.0006         0.0145         0.0030
+
