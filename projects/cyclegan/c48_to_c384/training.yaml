@@ -3,7 +3,7 @@ cache:
   in_memory: false
 hyperparameters:
   state_variables:
-    - PRATEsfc
+    - PRATEsfc_log
     - h500
     - PRESsfc
     - w500
@@ -16,7 +16,7 @@ hyperparameters:
     optimizer:
       name: Adam
       kwargs:
-        lr: 0.00002
+        lr: 2.0e-4
     generator:
       n_convolutions: 2
       n_resnet: 6
@@ -37,8 +37,9 @@ hyperparameters:
     cycle_weight: 10.0
     generator_weight: 1.0
     discriminator_weight: 1.0
+    reload_path: gs://vcm-ml-experiments/cyclegan/2023-01-11/cyclegan_c48_to_c384-trial-0/
   training:
-    n_epoch: 10
+    n_epoch: 90
     in_memory: true
     shuffle_buffer_size: 1000
     samples_per_batch: 1

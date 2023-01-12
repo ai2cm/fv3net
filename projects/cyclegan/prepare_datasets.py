@@ -34,12 +34,12 @@ def convert_fine(ds_atmos: xr.Dataset, ds_precip: xr.Dataset) -> xr.Dataset:
         .rename({"grid_xt_coarse": "grid_xt", "grid_yt_coarse": "grid_yt"})
     )
     n_time = len(ds_atmos.time)
+    precip = ds_precip["PRATEsfc_coarse"].isel(time=slice(1, n_time + 1)).values
+    log_precip = np.log(precip + 0.00003)
     return_ds = ds_atmos.assign(
         {
-            "PRATEsfc": (
-                ds_precip["PRATEsfc_coarse"].dims,
-                ds_precip["PRATEsfc_coarse"].isel(time=slice(1, n_time + 1)).values,
-            )
+            "PRATEsfc": (ds_precip["PRATEsfc_coarse"].dims, precip,),
+            "PRATEsfc_log": (ds_precip["PRATEsfc_coarse"].dims, log_precip,),
         }
     ).rename({"TB": "TMPlowest"})
     assert np.sum(np.isnan(return_ds["PRATEsfc"].values)) == 0
@@ -50,7 +50,9 @@ def convert_coarse(ds_atmos: xr.Dataset, ds_precip: xr.Dataset) -> xr.Dataset:
     # coarse data has a different seasonal distribution than the fine data,
     # fine goes from august to august while coarse goes from august to january
     # so we chop off the extra seasonal portion for the coarse data
-    return ds_atmos.assign({"PRATEsfc": ds_precip["PRATEsfc"]}).sel(
+    precip = ds_precip["PRATEsfc"]
+    log_precip = np.log(precip + 0.00003)
+    return ds_atmos.assign({"PRATEsfc": precip, "PRATEsfc_log": log_precip}).sel(
         time=slice(
             ds_atmos.time[0],
             cftime.DatetimeJulian(2023, 7, 31, 22, 0, 0, 0, has_year_zero=False),
