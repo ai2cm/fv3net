@@ -475,17 +475,37 @@ class CycleGANTrainer:
         fake_b = fake_b.cpu().numpy()
         report = {}
         for i_tile in range(6):
+            vmin_a = min(
+                np.min(real_a[0, i_tile, 0, :, :]), np.min(fake_a[0, i_tile, 0, :, :])
+            )
+            vmax_a = max(
+                np.max(real_a[0, i_tile, 0, :, :]), np.max(fake_a[0, i_tile, 0, :, :])
+            )
+            vmin_b = min(
+                np.min(real_b[0, i_tile, 0, :, :]), np.min(fake_b[0, i_tile, 0, :, :])
+            )
+            vmax_b = max(
+                np.max(real_b[0, i_tile, 0, :, :]), np.max(fake_b[0, i_tile, 0, :, :])
+            )
             _, ax = plt.subplots(2, 2, figsize=(8, 7))
-            im = ax[0, 0].pcolormesh(real_a[0, i_tile, 0, :, :])
+            im = ax[0, 0].pcolormesh(
+                real_a[0, i_tile, 0, :, :], vmin=vmin_a, vmax=vmax_a
+            )
             plt.colorbar(im, ax=ax[0, 0])
             ax[0, 0].set_title("a_real")
-            im = ax[1, 0].pcolormesh(real_b[0, i_tile, 0, :, :])
+            im = ax[1, 0].pcolormesh(
+                real_b[0, i_tile, 0, :, :], vmin=vmin_b, vmax=vmax_b
+            )
             plt.colorbar(im, ax=ax[1, 0])
             ax[1, 0].set_title("b_real")
-            im = ax[0, 1].pcolormesh(fake_b[0, i_tile, 0, :, :])
+            im = ax[0, 1].pcolormesh(
+                fake_b[0, i_tile, 0, :, :], vmin=vmin_b, vmax=vmax_b
+            )
             plt.colorbar(im, ax=ax[0, 1])
             ax[0, 1].set_title("b_gen")
-            im = ax[1, 1].pcolormesh(fake_a[0, i_tile, 0, :, :])
+            im = ax[1, 1].pcolormesh(
+                fake_a[0, i_tile, 0, :, :], vmin=vmin_a, vmax=vmax_a
+            )
             plt.colorbar(im, ax=ax[1, 1])
             ax[1, 1].set_title("a_gen")
             plt.tight_layout()
