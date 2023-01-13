@@ -186,7 +186,7 @@ class CycleGANTrainingConfig:
             if self.checkpoint_path is not None:
                 current_path = (
                     Path(self.checkpoint_path)
-                    / f"{timestamp}-{run_label}-epoch_{i:02d}"
+                    / f"{timestamp}-{run_label}-epoch_{i:03d}"
                 )
                 train_model.cycle_gan.dump(str(current_path))
 
