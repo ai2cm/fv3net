@@ -15,6 +15,8 @@ import numpy as np
 from fv3fit import wandb
 import io
 import PIL
+import xarray as xr
+from vcm.cubedsphere import to_cross
 
 try:
     import matplotlib.pyplot as plt
@@ -474,47 +476,39 @@ class CycleGANTrainer:
         fake_a = fake_a.cpu().numpy()
         fake_b = fake_b.cpu().numpy()
         report = {}
-        for i_tile in range(6):
-            vmin_a = min(
-                np.min(real_a[0, i_tile, 0, :, :]), np.min(fake_a[0, i_tile, 0, :, :])
+        for i in range(real_a.shape[2]):
+            var_real_a = to_cross(
+                xr.DataArray(real_a[0, :, i, :, :], dims=["tile", "grid_yt", "grid_xt"])
             )
-            vmax_a = max(
-                np.max(real_a[0, i_tile, 0, :, :]), np.max(fake_a[0, i_tile, 0, :, :])
+            var_real_b = to_cross(
+                xr.DataArray(real_b[0, :, i, :, :], dims=["tile", "grid_yt", "grid_xt"])
             )
-            vmin_b = min(
-                np.min(real_b[0, i_tile, 0, :, :]), np.min(fake_b[0, i_tile, 0, :, :])
+            var_fake_a = to_cross(
+                xr.DataArray(fake_a[0, :, i, :, :], dims=["tile", "grid_yt", "grid_xt"])
             )
-            vmax_b = max(
-                np.max(real_b[0, i_tile, 0, :, :]), np.max(fake_b[0, i_tile, 0, :, :])
+            var_fake_b = to_cross(
+                xr.DataArray(fake_b[0, :, i, :, :], dims=["tile", "grid_yt", "grid_xt"])
             )
-            _, ax = plt.subplots(2, 2, figsize=(8, 7))
-            im = ax[0, 0].pcolormesh(
-                real_a[0, i_tile, 0, :, :], vmin=vmin_a, vmax=vmax_a
-            )
-            plt.colorbar(im, ax=ax[0, 0])
-            ax[0, 0].set_title("a_real")
-            im = ax[1, 0].pcolormesh(
-                real_b[0, i_tile, 0, :, :], vmin=vmin_b, vmax=vmax_b
-            )
-            plt.colorbar(im, ax=ax[1, 0])
-            ax[1, 0].set_title("b_real")
-            im = ax[0, 1].pcolormesh(
-                fake_b[0, i_tile, 0, :, :], vmin=vmin_b, vmax=vmax_b
-            )
-            plt.colorbar(im, ax=ax[0, 1])
-            ax[0, 1].set_title("b_gen")
-            im = ax[1, 1].pcolormesh(
-                fake_a[0, i_tile, 0, :, :], vmin=vmin_a, vmax=vmax_a
-            )
-            plt.colorbar(im, ax=ax[1, 1])
-            ax[1, 1].set_title("a_gen")
-            plt.tight_layout()
+            vmin_a = min(np.min(real_a[0, :, i, :, :]), np.min(fake_a[0, :, i, :, :]))
+            vmax_a = max(np.max(real_a[0, :, i, :, :]), np.max(fake_a[0, :, i, :, :]))
+            vmin_b = min(np.min(real_b[0, :, i, :, :]), np.min(fake_b[0, :, i, :, :]))
+            vmax_b = max(np.max(real_b[0, :, i, :, :]), np.max(fake_b[0, :, i, :, :]))
+            fig, ax = plt.subplots(2, 2, figsize=(8, 7))
+            var_real_a.plot(ax=ax[0, 0], vmin=vmin_a, vmax=vmax_a)
+            var_fake_b.plot(ax=ax[0, 1], vmin=vmin_b, vmax=vmax_b)
+            var_real_b.plot(ax=ax[1, 0], vmin=vmin_b, vmax=vmax_b)
+            var_fake_a.plot(ax=ax[1, 1], vmin=vmin_a, vmax=vmax_a)
+            ax[0, 0].set_title("real_a")
+            ax[0, 1].set_title("fake_b")
+            ax[1, 0].set_title("real_b")
+            ax[1, 1].set_title("fake_a")
+
             buf = io.BytesIO()
             plt.savefig(buf, format="png")
-            plt.close()
+            plt.close(fig)
             buf.seek(0)
-            report[f"tile_{i_tile}_example"] = wandb.Image(
-                PIL.Image.open(buf), caption=f"Tile {i_tile} Example",
+            report[f"example_{i}"] = wandb.Image(
+                PIL.Image.open(buf), caption=f"Channel {i} Example",
             )
         return report
 
