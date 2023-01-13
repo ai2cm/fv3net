@@ -197,13 +197,8 @@ def test_cyclegan_runs_without_errors(tmpdir, conv_type: str, regtest):
             generator=fv3fit.pytorch.GeneratorConfig(
                 n_convolutions=2, n_resnet=5, max_filters=128, kernel_size=3
             ),
-            generator_optimizer=fv3fit.pytorch.OptimizerConfig(
-                name="Adam", kwargs={"lr": 0.001}
-            ),
+            optimizer=fv3fit.pytorch.OptimizerConfig(name="Adam", kwargs={"lr": 0.001}),
             discriminator=fv3fit.pytorch.DiscriminatorConfig(kernel_size=3),
-            discriminator_optimizer=fv3fit.pytorch.OptimizerConfig(
-                name="Adam", kwargs={"lr": 0.001}
-            ),
             convolution_type=conv_type,
             identity_weight=0.01,
             cycle_weight=10.0,
