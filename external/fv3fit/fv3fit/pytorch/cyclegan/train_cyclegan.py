@@ -8,6 +8,9 @@ import tensorflow_datasets as tfds
 from fv3fit.tfdataset import sequence_size, apply_to_tuple
 from fv3fit import wandb
 from .reporter import Reporter
+from pathlib import Path
+import secrets
+from datetime import datetime
 
 from fv3fit._shared import register_training_function
 from typing import (
@@ -73,6 +76,8 @@ class CycleGANTrainingConfig:
         in_memory: if True, load the entire dataset into memory as pytorch tensors
             before training. Batches will be statically defined but will be shuffled
             between epochs.
+        checkpoint_path: if given, model checkpoints will be saved to this directory
+            marked by timestamp, epoch, and a randomly generated run label
     """
 
     n_epoch: int = 20
@@ -80,6 +85,7 @@ class CycleGANTrainingConfig:
     samples_per_batch: int = 1
     validation_batch_size: Optional[int] = None
     in_memory: bool = False
+    checkpoint_path: Optional[str] = None
 
     def fit_loop(
         self,
@@ -141,6 +147,9 @@ class CycleGANTrainingConfig:
                 break
         else:
             val_example_a, val_example_b = None, None
+        run_label = secrets.token_hex(4)
+        # current time as e.g. 20230113-163005
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
@@ -174,6 +183,12 @@ class CycleGANTrainingConfig:
                 logger.info("val_loss %s", val_loss)
             wandb.log(reporter.metrics)
             reporter.clear()
+            if self.checkpoint_path is not None:
+                current_path = (
+                    Path(self.checkpoint_path)
+                    / f"{timestamp}-{run_label}-epoch_{i:02d}"
+                )
+                train_model.cycle_gan.dump(str(current_path))
 
 
 def dataset_to_tuples(dataset) -> List[Tuple[torch.Tensor, torch.Tensor]]:
