@@ -341,3 +341,9 @@ def conservative_precip_simple(state, emulator, sum_axis=0):
         column_water_before - column_water_after
     )
     return {**emulator, PrecpdOutput.precip: surface_precipitation}
+
+
+def preserve_state_inputs(state, emulator):
+    input_fields = {k: v for k, v in state.items() if "_input" in k}
+    logger.info(f"Preserving input state fields: {list(input_fields.keys())}")
+    return {**emulator, **input_fields}

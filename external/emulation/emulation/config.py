@@ -220,6 +220,8 @@ class ModelConfig:
                 key, start=_slice.start, stop=_slice.stop, fill_value=_slice.fill_value
             )
 
+        yield emulation.zhao_carr.preserve_state_inputs
+
 
 @dataclasses.dataclass
 class EmulationConfig:
