@@ -478,16 +478,16 @@ class CycleGANTrainer:
         report = {}
         for i in range(real_a.shape[2]):
             var_real_a = to_cross(
-                xr.DataArray(real_a[0, :, i, :, :], dims=["tile", "grid_yt", "grid_xt"])
+                xr.DataArray(real_a[0, :, i, :, :], dims=["tile", "grid_xt", "grid_yt"])
             )
             var_real_b = to_cross(
-                xr.DataArray(real_b[0, :, i, :, :], dims=["tile", "grid_yt", "grid_xt"])
+                xr.DataArray(real_b[0, :, i, :, :], dims=["tile", "grid_xt", "grid_yt"])
             )
             var_fake_a = to_cross(
-                xr.DataArray(fake_a[0, :, i, :, :], dims=["tile", "grid_yt", "grid_xt"])
+                xr.DataArray(fake_a[0, :, i, :, :], dims=["tile", "grid_xt", "grid_yt"])
             )
             var_fake_b = to_cross(
-                xr.DataArray(fake_b[0, :, i, :, :], dims=["tile", "grid_yt", "grid_xt"])
+                xr.DataArray(fake_b[0, :, i, :, :], dims=["tile", "grid_xt", "grid_yt"])
             )
             vmin_a = min(np.min(real_a[0, :, i, :, :]), np.min(fake_a[0, :, i, :, :]))
             vmax_a = max(np.max(real_a[0, :, i, :, :]), np.max(fake_a[0, :, i, :, :]))
@@ -502,6 +502,7 @@ class CycleGANTrainer:
             ax[0, 1].set_title("fake_b")
             ax[1, 0].set_title("real_b")
             ax[1, 1].set_title("fake_a")
+            plt.tight_layout()
 
             buf = io.BytesIO()
             plt.savefig(buf, format="png")

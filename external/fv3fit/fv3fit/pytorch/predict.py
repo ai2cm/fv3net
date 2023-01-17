@@ -22,7 +22,6 @@ import os
 import yaml
 import vcm
 from fv3fit._shared import io
-from pathlib import Path
 
 
 L = TypeVar("L", bound="BinaryLoadable")
@@ -275,7 +274,7 @@ class _PytorchDumpable(Protocol):
 def _load_pytorch(cls: Type[_PytorchDumpable], path: str):
     """Load a serialized model from a directory."""
     fs = vcm.get_fs(path)
-    model_filename = str(Path(path) / cls._MODEL_FILENAME)
+    model_filename = os.path.join(path, cls._MODEL_FILENAME)
     with fs.open(model_filename, "rb") as f:
         model = torch.load(f, map_location=DEVICE)
     with fs.open(os.path.join(path, cls._SCALERS_FILENAME), "rb") as f:
@@ -288,7 +287,7 @@ def _load_pytorch(cls: Type[_PytorchDumpable], path: str):
 
 def _dump_pytorch(obj: _PytorchDumpable, path: str) -> None:
     fs = vcm.get_fs(path)
-    model_filename = str(Path(path) / obj._MODEL_FILENAME)
+    model_filename = os.path.join(path, obj._MODEL_FILENAME)
     with fs.open(model_filename, "wb") as f:
         torch.save(obj.model, f)
     with fs.open(os.path.join(path, obj._SCALERS_FILENAME), "wb") as f:

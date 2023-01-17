@@ -7,9 +7,10 @@ from fv3fit.pytorch.system import DEVICE
 import tensorflow_datasets as tfds
 from fv3fit.tfdataset import sequence_size, apply_to_tuple
 from fv3fit import wandb
+from fv3fit._shared import io
 from .reporter import Reporter
-from pathlib import Path
 import secrets
+import os
 from datetime import datetime
 
 from fv3fit._shared import register_training_function
@@ -184,11 +185,10 @@ class CycleGANTrainingConfig:
             wandb.log(reporter.metrics)
             reporter.clear()
             if self.checkpoint_path is not None:
-                current_path = (
-                    Path(self.checkpoint_path)
-                    / f"{timestamp}-{run_label}-epoch_{i:03d}"
+                current_path = os.path.join(
+                    self.checkpoint_path, f"{timestamp}-{run_label}-epoch_{i:03d}"
                 )
-                train_model.cycle_gan.dump(str(current_path))
+                io.dump(train_model.cycle_gan, str(current_path))
 
 
 def dataset_to_tuples(dataset) -> List[Tuple[torch.Tensor, torch.Tensor]]:
