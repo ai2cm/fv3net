@@ -127,9 +127,17 @@ prescribed_rf_ml_cond_03_cc_decorr_run: deploy
 prescribed_rf_ml_cond_06_cc_decorr_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-rf-cond06-cc-decorr
 
+.PHONY: prescribed_rf_ml_cond_10_cc_decorr_run
+prescribed_rf_ml_cond_10_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cond10-cc-decorr
+
 .PHONY: prescribed_rf_ml_cond_15_cc_decorr_run
 prescribed_rf_ml_cond_15_cc_decorr_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-rf-cond15-cc-decorr
+
+.PHONY: prescribed_rf_ml_cond_level_cc_decorr_run
+prescribed_rf_ml_cond_level_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cond-level-cc-decorr
 
 .PHONY: prescribed_half_cloud_run
 prescribed_half_cloud_run: deploy
