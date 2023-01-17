@@ -15,6 +15,8 @@ TOTAL_PRECIP = "total_precipitation"  # has units of m
 AREA = "area_of_grid_cell"
 EAST_WIND = "eastward_wind_after_physics"
 NORTH_WIND = "northward_wind_after_physics"
+EASTWARD_WIND = "eastward_wind"
+NORTHWARD_WIND = "northward_wind"
 SST = "ocean_surface_temperature"
 TSFC = "surface_temperature"
 MASK = "land_sea_mask"
@@ -30,6 +32,8 @@ Y_WIND_TENDENCY = "dQy_wind"
 TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQ1": TEMP,
     "dQ2": SPHUM,
+    EASTWARD_WIND_TENDENCY: EASTWARD_WIND,
+    NORTHWARD_WIND_TENDENCY: NORTHWARD_WIND,
     X_WIND_TENDENCY: X_WIND,
     Y_WIND_TENDENCY: Y_WIND,
     "dQp": DELP,
