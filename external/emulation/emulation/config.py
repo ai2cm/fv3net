@@ -134,6 +134,7 @@ class ModelConfig:
     enforce_strict_precpd_conservative: bool = False
     simple_precip_conservative: bool = False
     batch_size: int = 512
+    input_passthru: bool = False
 
     def __post_init__(self):
         if self.enforce_conservative and self.enforce_conservative_phase_dependent:
@@ -220,7 +221,8 @@ class ModelConfig:
                 key, start=_slice.start, stop=_slice.stop, fill_value=_slice.fill_value
             )
 
-        yield emulation.zhao_carr.preserve_state_inputs
+        if self.input_passthru:
+            yield emulation.zhao_carr.preserve_state_inputs
 
 
 @dataclasses.dataclass

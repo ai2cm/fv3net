@@ -444,6 +444,7 @@ zhao_carr_emulation:
     enforce_conservative_phase_dependent: false
     enforce_strict_precpd_conservative: false
     gscond_cloud_conservative: false
+    input_passthru: false
     mask_emulator_levels: {}
     mask_gscond_identical_cloud: false
     mask_gscond_no_tend_classifier: false
