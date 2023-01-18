@@ -24,6 +24,8 @@ class DiscriminatorConfig:
         n_convolutions: number of strided convolutional layers before the
             final convolutional output layer, must be at least 1
         kernel_size: size of convolutional kernels
+        strided_kernel_size: size of convolutional kernels in the
+            strided convolutions
         max_filters: maximum number of filters in any convolutional layer,
             equal to the number of filters in the final strided convolutional layer
     """
