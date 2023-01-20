@@ -58,10 +58,7 @@ class LevelMask:
         emulator_field = np.copy(emulator[self.key])
         # TODO: harmonize state/emulator dict data types
         if emulator_field.dtype != np.float64:
-            orig_type = emulator_field.dtype
             emulator_field = emulator_field.astype(np.float64)
-        else:
-            orig_type = None
 
         if self.fill_value is None:
             emulator_field[use_fortran_state] = state[self.key][use_fortran_state]
@@ -71,8 +68,5 @@ class LevelMask:
             ]
         elif isinstance(self.fill_value, float):
             emulator_field[use_fortran_state] = self.fill_value
-
-        if orig_type is not None:
-            emulator_field = emulator_field.astype(orig_type)
 
         return {**emulator, self.key: emulator_field}
