@@ -7,7 +7,7 @@ from typing import (
     Optional,
 )
 
-from runtime.names import EAST_WIND, SPHUM, CLOUD
+from runtime.names import EASTWARD_WIND_AFTER_PHYSICS, SPHUM, CLOUD
 
 
 __all__ = ["get_mask", "where_masked"]
@@ -57,7 +57,7 @@ def compute_mask_2021_09_16(name: Hashable, arr: xr.DataArray) -> xr.DataArray:
     """
     if name == SPHUM:
         return arr.z < 20
-    elif name == EAST_WIND:
+    elif name == EASTWARD_WIND_AFTER_PHYSICS:
         return arr.z < 6
     else:
         return xr.DataArray(False)
