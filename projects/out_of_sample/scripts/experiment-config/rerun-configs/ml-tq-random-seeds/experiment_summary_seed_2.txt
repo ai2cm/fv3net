@@ -1,0 +1,16 @@
+Experiment #1: ocsvm-t with cutoff=0
+argo job: prognostic-run-81a093df23ba4e28897a7c5b0f64cb5e
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-17/oos-full-year-sweep-n2pire-consistent-ocsvm-t-0-default-0-trial2/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/ML-Tquv-random-seeds/seed-2/ocsvm-t-0-default-0/prognostic-run.yaml
+
+Experiment #2: ocsvm-tq with cutoff=0
+argo job: prognostic-run-9370e70d9f6c49caaede9d440c4c3c75
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-17/oos-full-year-sweep-n2pire-consistent-ocsvm-tq-0-default-0-trial2/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/ML-Tquv-random-seeds/seed-2/ocsvm-tq-0-default-0/prognostic-run.yaml
+
+Experiment #3: minmax with cutoff=0
+argo job: prognostic-run-89b3e52024864691964d1c8388f3db61
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-17/oos-full-year-sweep-n2pire-consistent-minmax-0-default-0-trial2/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/ML-Tquv-random-seeds/seed-2/minmax-0-default-0/prognostic-run.yaml
+
+run path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/ML-Tquv-random-seeds/seed-2/run.sh
