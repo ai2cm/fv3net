@@ -8,7 +8,7 @@ PROJECT=cyclegan # don't pass project arg to use default 'default'
 # it determines the output directory for the data
 
 EXPERIMENT="cyclegan_c48_to_c384"
-TRIAL="logprec-0"
+TRIAL="h500-2e-4-epoch25"
 TAG=${EXPERIMENT}-${TRIAL}  # required
 NAME=train-cyclegan-$(openssl rand --hex 6) # required
 

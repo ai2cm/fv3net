@@ -113,24 +113,9 @@ def plot_weather(arg, vmin=4800, vmax=6000, vmin_diff=-100, vmax_diff=100):
     plt.close(fig)
 
 
-if __name__ == "__main__":
-    random.seed(0)
-    cyclegan: fv3fit.pytorch.CycleGAN = fv3fit.load(
-        "gs://vcm-ml-experiments/cyclegan/2023-01-11/cyclegan_c48_to_c384-trial-0/"
-    ).to(DEVICE)
-    c384_real: xr.Dataset = (
-        xr.open_zarr("./fine-0K.zarr/")
-        .rename({"grid_xt": "x", "grid_yt": "y"})
-        .isel(time=slice(2920, None))
-        .load()
-    )
-    c48_real: xr.Dataset = (
-        xr.open_zarr("./coarse-0K.zarr/")
-        .rename({"grid_xt": "x", "grid_yt": "y"})
-        .isel(time=slice(11688, None))
-        .load()
-    )
-
+def evaluate(
+    cyclegan: fv3fit.pytorch.CycleGAN, c48_real: xr.Dataset, c384_real: xr.Dataset
+):
     c384_gen: xr.Dataset = cyclegan.predict(c48_real)
     c48_gen: xr.Dataset = cyclegan.predict(c384_real, reverse=True)
     if "PRATEsfc_log" in c384_gen:
@@ -188,9 +173,23 @@ if __name__ == "__main__":
     # plt.tight_layout()
     # fig.savefig("h500_weather_bias.png", dpi=100)
 
-    def plot_hist(varname, units, log: bool):
-        fig, ax = plt.subplots(1, 1, figsize=(5, 3))
-        plt.hist(
+    def plot_hist_all():
+        varnames = cyclegan.state_variables
+        fig, ax = plt.subplots(len(varnames), 2, figsize=(10, 1 + 2.5 * len(varnames)))
+        if len(varnames) == 1:
+            ax = ax[None, :]
+        for i, varname in enumerate(varnames):
+            plot_hist(varname, ax=ax[i, 0], log=False)
+            plot_hist(varname, ax=ax[i, 1], log=True)
+        plt.tight_layout()
+        fig.savefig(f"histogram.png", dpi=100)
+
+    def plot_hist(varname, log: bool, units=None, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=(5, 3))
+        else:
+            fig = None
+        ax.hist(
             c48_real[varname].values.flatten(),
             bins=100,
             alpha=0.5,
@@ -198,7 +197,7 @@ if __name__ == "__main__":
             histtype="step",
             density=True,
         )
-        plt.hist(
+        ax.hist(
             c384_real[varname].values.flatten(),
             bins=100,
             alpha=0.5,
@@ -206,7 +205,7 @@ if __name__ == "__main__":
             histtype="step",
             density=True,
         )
-        plt.hist(
+        ax.hist(
             c384_gen[varname].values.flatten(),
             bins=100,
             alpha=0.5,
@@ -215,26 +214,96 @@ if __name__ == "__main__":
             density=True,
         )
         if log:
-            plt.yscale("log")
+            ax.set_yscale("log")
             log_suffix = "_log"
         else:
             log_suffix = ""
         # plt.hist(c48_gen[varname].values.flatten(), bins=100, alpha=0.5, label="c48_gen")
-        plt.legend(loc="upper left")
-        plt.xlabel(f"{varname} ({units})")
-        plt.ylabel("probability density")
-        plt.tight_layout()
-        fig.savefig(f"{varname}_histogram{log_suffix}.png", dpi=100)
+        ax.legend(loc="upper left")
+        if units is not None:
+            ax.set_xlabel(f"{varname} ({units})")
+        else:
+            ax.set_xlabel(varname)
+        ax.set_ylabel("probability density")
+        if fig is not None:
+            plt.tight_layout()
+            fig.savefig(f"{varname}_histogram{log_suffix}.png", dpi=100)
 
-    plot_hist("h500", "m", log=False)
-    plot_hist("h500", "m", log=True)
-    plot_hist("PRATEsfc", "kg/m^2/s", log=False)
-    plot_hist("PRATEsfc", "kg/m^2/s", log=True)
+    plot_hist_all()
+    # plot_hist("h500", units="m", log=False)
+    # plot_hist("h500", units="m", log=True)
+    # plot_hist("PRATEsfc", units="kg/m^2/s", log=False)
+    # plot_hist("PRATEsfc", units="kg/m^2/s", log=True)
 
     c48_real_mean = c48_real.mean("time")
     c48_gen_mean = c48_gen.mean("time")
     c384_real_mean = c384_real.mean("time")
     c384_gen_mean = c384_gen.mean("time")
+
+    def plot_mean_all():
+        varnames = cyclegan.state_variables
+        fig, ax = plt.subplots(
+            len(varnames),
+            4,
+            figsize=(14, 2 * len(varnames)),
+            subplot_kw={"projection": ccrs.Robinson()},
+        )
+        if len(varnames) == 1:
+            ax = ax[None, :]
+        real = GRID.merge(c384_real_mean, compat="override")
+        gen = GRID.merge(c384_gen_mean, compat="override")
+        for i, varname in enumerate(varnames):
+            gen[f"{varname}_bias"] = gen[varname] - real[varname]
+            gen[f"{varname}_c48_bias"] = gen[varname] - c48_real_mean[varname]
+            vmin = min(
+                c384_real_mean[varname].min().values,
+                c384_gen_mean[varname].min().values,
+            )
+            vmax = max(
+                c384_real_mean[varname].max().values,
+                c384_gen_mean[varname].max().values,
+            )
+            fv3viz.plot_cube(
+                ds=GRID.merge(c384_gen_mean, compat="override"),
+                var_name=varname,
+                ax=ax[i, 0],
+                vmin=vmin,
+                vmax=vmax,
+            )
+            fv3viz.plot_cube(
+                ds=GRID.merge(c48_gen_mean, compat="override"),
+                var_name=varname,
+                ax=ax[i, 1],
+                vmin=vmin,
+                vmax=vmax,
+            )
+            bias_max = max(
+                gen[f"{varname}_bias"].max().values,
+                gen[f"{varname}_c48_bias"].max().values,
+                -gen[f"{varname}_bias"].min().values,
+                -gen[f"{varname}_c48_bias"].min().values,
+            )
+            fv3viz.plot_cube(
+                ds=gen,
+                var_name=f"{varname}_bias",
+                ax=ax[i, 2],
+                vmin=-bias_max,
+                vmax=bias_max,
+            )
+            fv3viz.plot_cube(
+                ds=gen,
+                var_name=f"{varname}_c48_bias",
+                ax=ax[i, 3],
+                vmin=-bias_max,
+                vmax=bias_max,
+            )
+        ax[0, 0].set_title("c384_real")
+        ax[0, 1].set_title("c384_gen")
+        ax[0, 2].set_title("gen_bias")
+        ax[0, 3].set_title("c48_bias")
+
+        plt.tight_layout()
+        fig.savefig(f"mean.png", dpi=100)
 
     def plot_mean(varname: str, vmin: float, vmax: float):
         fig, ax = plt.subplots(
@@ -275,7 +344,9 @@ if __name__ == "__main__":
         plt.tight_layout()
         fig.savefig(f"{varname}_mean.png", dpi=100)
 
-    plot_mean("h500", vmin=5000, vmax=5900)
+    plot_mean_all()
+    # plot_mean("h500", vmin=5000, vmax=5900)
+    # plot_mean("PRATEsfc", vmin=None, vmax=None)
 
     def plot_bias(varname, vmin_abs, vmax_abs, vmin_rel, vmax_rel):
         fig, ax = plt.subplots(
@@ -332,7 +403,8 @@ if __name__ == "__main__":
         plt.tight_layout()
         fig.savefig(f"{varname}_mean_diff.png", dpi=100)
 
-    plot_bias("h500", vmin_abs=4800, vmax_abs=4800, vmin_rel=-100, vmax_rel=100)
+    # plot_bias("h500", vmin_abs=4800, vmax_abs=4800, vmin_rel=-100, vmax_rel=100)
+    # plot_bias("PRATEsfc", None, None, None, None)
 
     mse = (c384_real_mean - c384_gen_mean).var()
     var = (c384_real_mean).var()
@@ -456,7 +528,7 @@ if __name__ == "__main__":
         plt.tight_layout()
         fig.savefig(f"{varname}_std_diff.png", dpi=100)
 
-    plot_std("h500", vmin=-60, vmax=60)
+    # plot_std("h500", vmin=-60, vmax=60)
 
     # fig, ax = plt.subplots(2, 2, figsize=(10, 6), subplot_kw={"projection": ccrs.Robinson()})
     # fv3viz.plot_cube(ds=c48_real_std.merge(GRID), var_name="h500", ax=ax[0, 0])
@@ -482,3 +554,31 @@ if __name__ == "__main__":
     # fig.savefig("h500_std.png", dpi=100)
 
     plt.show()
+
+
+if __name__ == "__main__":
+    random.seed(0)
+    cyclegan: fv3fit.pytorch.CycleGAN = fv3fit.load(
+        # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230119-174516-bfffae02-epoch_025/"  # h500-only
+        "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230119-171215-64882f40-epoch_060/"  # precip-only
+        # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230118-173808-a5fd4151-epoch_051/"  # 2e-4, kernel4
+        # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230118-183240-b191e306-epoch_048/"  # 2e-4, kernel3
+        # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230118-003753-f8afe719-epoch_085/"  # log, 2e-5
+        # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230118-003758-1324b685-epoch_035/"  # log, 2e-4
+        # "gs://vcm-ml-experiments/cyclegan/2023-01-11/cyclegan_c48_to_c384-trial-0/"
+    ).to(DEVICE)
+    c384_real: xr.Dataset = (
+        xr.open_zarr("./fine-0K.zarr/")
+        .rename({"grid_xt": "x", "grid_yt": "y"})
+        .isel(time=slice(2920, None))
+        # .isel(time=slice(2000, 2010))
+        .load()
+    )
+    c48_real: xr.Dataset = (
+        xr.open_zarr("./coarse-0K.zarr/")
+        .rename({"grid_xt": "x", "grid_yt": "y"})
+        .isel(time=slice(11688, None))
+        # .isel(time=slice(2000, 2010))
+        .load()
+    )
+    evaluate(cyclegan, c48_real, c384_real)

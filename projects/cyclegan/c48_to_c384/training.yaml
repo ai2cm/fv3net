@@ -3,20 +3,20 @@ cache:
   in_memory: false
 hyperparameters:
   state_variables:
-    - PRATEsfc_log
+    # - PRATEsfc
     - h500
-    - PRESsfc
-    - w500
-    - TMPlowest
-    - TMP500_300
-    - PWAT
+    # - PRESsfc
+    # - w500
+    # - TMPlowest
+    # - TMP500_300
+    # - PWAT
   normalization_fit_samples: 50_000
   network:
     convolution_type: halo_conv2d
     optimizer:
       name: Adam
       kwargs:
-        lr: 1.0e-3
+        lr: 2.01e-5
     generator:
       n_convolutions: 2
       n_resnet: 6
@@ -26,6 +26,7 @@ hyperparameters:
     discriminator:
       n_convolutions: 3
       kernel_size: 3
+      strided_kernel_size: 4
       max_filters: 256
     identity_loss:
       loss_type: mae
@@ -37,10 +38,11 @@ hyperparameters:
     cycle_weight: 10.0
     generator_weight: 1.0
     discriminator_weight: 1.0
-    reload_path: gs://vcm-ml-experiments/cyclegan/2023-01-11/cyclegan_c48_to_c384-trial-0/
+    reload_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230119-174516-bfffae02-epoch_025/
   training:
     n_epoch: 50
     in_memory: false
     shuffle_buffer_size: 1000
     samples_per_batch: 1
     validation_batch_size: 100
+    checkpoint_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/
