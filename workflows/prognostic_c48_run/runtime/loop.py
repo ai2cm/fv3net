@@ -357,7 +357,10 @@ class TimeLoop(
         if isinstance(stepper_config, MachineLearningConfig):
             model = self._open_model(stepper_config)
             stepper: Union[PureMLStepper, Prescriber] = PureMLStepper(
-                model, self._timestep, hydrostatic
+                model=model,
+                timestep=self._timestep,
+                hydrostatic=hydrostatic,
+                communicator=self._get_communicator(),
             )
             self._log_info(f"Using PureMLStepper at {step}.")
         else:
