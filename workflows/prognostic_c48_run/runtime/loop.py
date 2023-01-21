@@ -407,6 +407,11 @@ class TimeLoop(
         elif config.nudging:
             self._log_info("Using NudgingStepper for postphysics updates")
             stepper = PureNudger(config.nudging, self._get_communicator(), hydrostatic)
+        elif config.bias_correction:
+            self._log_info("Using bias correction for postphysics updates")
+            stepper = runtime.factories.get_prescriber(
+                config.bias_correction, self._get_communicator()
+            )
         else:
             self._log_info("Performing baseline simulation")
             stepper = None

@@ -154,7 +154,12 @@ def get_prescriber(
         config.reference_initial_time,
         config.reference_frequency_seconds,
     )
-    return Prescriber(communicator, time_lookup_function, config.variables)
+    return Prescriber(
+        communicator=communicator,
+        time_lookup_function=time_lookup_function,
+        variables=config.variables,
+        tendency_variables=config.tendency_variables,
+    )
 
 
 def get_radiation_stepper(
