@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Callable, Iterable, Optional, Set, Hashable, Sequence, cast
+from typing import Callable, Iterable, Optional, Set, Hashable, Sequence, cast, Mapping
 import dacite
 import fsspec
 import yaml
@@ -13,6 +13,29 @@ from fv3fit._shared.taper_function import get_taper_function, taper_mask
 
 from . import io
 from .predictor import Predictor
+
+
+@io.register("renamed_model")
+class RenamedModel(Predictor):
+    _CONFIG_FILENAME = "renamed_model.yaml"
+
+    def __init__(self, model, renaming: Mapping[str, str]):
+        self.model = model
+        self.renaming = renaming
+
+    @classmethod
+    def load(cls, path: str) -> "RenamedModel":
+        """Load a serialized model from a directory."""
+        with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+            config = yaml.safe_load(f)
+        model = cast(Predictor, io.load(config["model"]))
+        renaming = config["renaming"]
+        return cls(model, renaming)
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        """Predict an output xarray dataset and rename outputs"""
+        output = self.model.predict(X)
+        return output.rename(self.renaming)
 
 
 @io.register("derived_model")
