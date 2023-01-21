@@ -11,7 +11,6 @@ from runtime.diagnostics import compute_diagnostics, compute_ml_momentum_diagnos
 from runtime.names import DELP, SPHUM, is_state_update_variable, is_tendency_variable
 from runtime.types import Diagnostics, State
 import vcm
-import pace.util
 
 
 __all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
@@ -204,10 +203,9 @@ def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
     return local_model_paths
 
 
-def predict(model: MultiModelAdapter, state: State, rank: int) -> State:
-    """Given ML model, state, rank, return prediction"""
+def predict(model: MultiModelAdapter, state: State) -> State:
+    """Given ML model and state, return prediction"""
     state_loaded = {key: state[key] for key in model.input_variables}
-    state_loaded["rank"] = xr.DataArray(rank, name="rank")
     ds = xr.Dataset(state_loaded)  # type: ignore
     output = model.predict(ds)
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
@@ -222,7 +220,6 @@ class PureMLStepper:
         model: MultiModelAdapter,
         timestep: float,
         hydrostatic: bool,
-        communicator: pace.util.CubedSphereCommunicator,
         mse_conserving_limiter: bool = True,
     ):
         """A stepper for predicting machine learning tendencies and state updates.
@@ -231,26 +228,20 @@ class PureMLStepper:
             model: the machine learning model.
             timestep: physics timestep in seconds.
             hydrostatic: whether simulation is hydrostatic. For net heating diagnostic.
-            communicator: pace.util.CubedSphereCommunicator
             mse_conserving_limiter (optional): whether to use MSE-conserving humidity
                 limiter. Defaults to True.
-
-
         """
         self.model = model
         self.timestep = timestep
         self.hydrostatic = hydrostatic
         self.mse_conserving_limiter = mse_conserving_limiter
-        self.communicator = communicator
 
     def __call__(self, time, state):
 
         diagnostics: Diagnostics = {}
         delp = state[DELP]
 
-        prediction: State = predict(
-            model=self.model, state=state, rank=self.communicator.rank
-        )
+        prediction: State = predict(self.model, state)
 
         tendency, state_updates = {}, {}
         for key, value in prediction.items():
