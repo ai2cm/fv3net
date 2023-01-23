@@ -83,7 +83,11 @@ class Prescriber:
         diagnostics: Diagnostics = {}
 
         prescribed_timestep: xr.Dataset = self._open_prescribed_timestep(time)
+        tendency: Tendencies = {}
         state_updates: State = {}
+
+        for name in self._tendency_variables.values():
+            tendency[name] = prescribed_timestep[name]
 
         for name in self._variables.values():
             if name == MASK:
@@ -101,10 +105,6 @@ class Prescriber:
                 state_updates[name] = prescribed_timestep[name]
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
-
-        tendency: Tendencies = {}
-        for name in self._tendency_variables.values():
-            tendency[name] = prescribed_timestep[name]
 
         return tendency, diagnostics, state_updates
 
