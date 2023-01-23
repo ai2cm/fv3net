@@ -511,7 +511,72 @@ class CycleGANTrainer:
             report[f"example_{i}"] = wandb.Image(
                 PIL.Image.open(buf), caption=f"Channel {i} Example",
             )
+
+        fig, ax = plt.subplots(
+            real_a.shape[2], 2, figsize=(10, 1 + 2.5 * real_a.shape[2])
+        )
+        if real_a.shape[2] == 1:
+            ax = ax[None, :]
+        for i in range(real_a.shape[2]):
+            plot_hist(
+                real_a[:, :, i, :, :],
+                real_b[:, :, i, :, :],
+                fake_a[:, :, i, :, :],
+                fake_b[:, :, i, :, :],
+                ax=ax[i, 0],
+            )
+            plot_hist(
+                real_a[:, :, i, :, :],
+                real_b[:, :, i, :, :],
+                fake_a[:, :, i, :, :],
+                fake_b[:, :, i, :, :],
+                ax=ax[i, 1],
+            )
+            ax[i, 1].set_yscale("log")
+        plt.tight_layout()
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png")
+        plt.close(fig)
+        buf.seek(0)
+        report[f"histogram"] = wandb.Image(PIL.Image.open(buf), caption=f"Histograms",)
         return report
+
+
+def plot_hist(real_a, real_b, gen_a, gen_b, ax=None):
+    ax.hist(
+        real_a.flatten(),
+        bins=100,
+        alpha=0.5,
+        label="real_a",
+        histtype="step",
+        density=True,
+    )
+    ax.hist(
+        real_b.flatten(),
+        bins=100,
+        alpha=0.5,
+        label="real_b",
+        histtype="step",
+        density=True,
+    )
+    ax.hist(
+        gen_a.flatten(),
+        bins=100,
+        alpha=0.5,
+        label="gen_a",
+        histtype="step",
+        density=True,
+    )
+    ax.hist(
+        gen_b.flatten(),
+        bins=100,
+        alpha=0.5,
+        label="gen_b",
+        histtype="step",
+        density=True,
+    )
+    ax.legend(loc="upper left")
+    ax.set_ylabel("probability density")
 
 
 def set_requires_grad(nets: List[torch.nn.Module], requires_grad=False):
