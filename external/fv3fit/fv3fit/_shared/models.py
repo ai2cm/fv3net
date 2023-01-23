@@ -37,6 +37,13 @@ class RenamedModel(Predictor):
         output = self.model.predict(X)
         return output.rename(self.renaming)
 
+    def dump(self, path):
+        raise NotImplementedError(
+            "no dump method yet for this class, you can define one manually "
+            "using instructions at "
+            "http://vulcanclimatemodeling.com/docs/fv3fit/composite-models.html"
+        )
+
 
 @io.register("derived_model")
 class DerivedModel(Predictor):
