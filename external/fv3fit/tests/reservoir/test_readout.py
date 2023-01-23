@@ -1,12 +1,13 @@
 import numpy as np
+import scipy.linalg
 import pytest
-from scipy import sparse
 
-from sklearn.linear_model import Ridge
-
+from fv3fit.reservoir.config import ReadoutHyperparameters
 from fv3fit.reservoir.readout import (
     ReservoirComputingReadout,
+    CombinedReservoirComputingReadout,
     square_even_terms,
+    _sort_subdirs_numerically,
 )
 
 
@@ -27,41 +28,29 @@ def test_square_even_terms(arr, axis, expected):
     np.testing.assert_array_equal(square_even_terms(arr, axis=axis), expected)
 
 
-class MultiOutputMeanRegressor:
-    def __init__(self, n_outputs: int):
-        self.n_outputs = n_outputs
-
-    def predict(self, input):
-        # returns vector of size n_outputs, with each element
-        # the mean of the input vector elements
-        return np.full(self.n_outputs, np.mean(input))
-
-
-def _sparse_allclose(A, B, atol=1e-8):
-    # https://stackoverflow.com/a/47771340
-    r1, c1, v1 = sparse.find(A)
-    r2, c2, v2 = sparse.find(B)
-    index_match = np.array_equal(r1, r2) & np.array_equal(c1, c2)
-    if index_match == 0:
-        return False
-    else:
-        return np.allclose(v1, v2, atol=atol)
-
-
 def test_readout_square_half_hidden_state():
     readout = ReservoirComputingReadout(
-        linear_regressor=MultiOutputMeanRegressor(n_outputs=2),
-        square_half_hidden_state=True,
+        hyperparameters=ReadoutHyperparameters(
+            linear_regressor_kwargs={}, square_half_hidden_state=True
+        ),
+        coefficients=np.ones(shape=(2, 5)),
+        intercepts=np.zeros(2),
     )
     input = np.array([2, 2, 2, 2, 2])
     # square even entries -> [4, 2, 4, 2, 4]
     output = readout.predict(input)
-    np.testing.assert_array_almost_equal(output, np.array([16.0 / 5, 16.0 / 5]))
+    np.testing.assert_array_almost_equal(output, np.array([16.0, 16.0]))
 
 
 def test_reservoir_computing_readout_fit():
-    unsquared = ReservoirComputingReadout(Ridge())
-    squared = ReservoirComputingReadout(Ridge(), square_half_hidden_state=True)
+    unsquared = ReservoirComputingReadout(
+        ReadoutHyperparameters(linear_regressor_kwargs={})
+    )
+    squared = ReservoirComputingReadout(
+        ReadoutHyperparameters(
+            linear_regressor_kwargs={}, square_half_hidden_state=True
+        )
+    )
 
     res_states = np.arange(10).reshape(2, 5)
     output_states = np.arange(6).reshape(2, 3)
@@ -69,6 +58,101 @@ def test_reservoir_computing_readout_fit():
     unsquared.fit(res_states, output_states)
     squared.fit(res_states, output_states)
 
-    assert not np.allclose(
-        unsquared.linear_regressor.coef_, squared.linear_regressor.coef_
+    assert not np.allclose(unsquared.coefficients, squared.coefficients)
+
+
+def test_combined_readout():
+    np.random.seed(0)
+
+    state_size = 3
+    output_size = 2
+    readout_1 = ReservoirComputingReadout(
+        hyperparameters=ReadoutHyperparameters(
+            linear_regressor_kwargs={}, square_half_hidden_state=False
+        ),
+        coefficients=np.random.rand(output_size, state_size),
+        intercepts=np.random.rand(output_size),
+    )
+    readout_2 = ReservoirComputingReadout(
+        hyperparameters=ReadoutHyperparameters(
+            linear_regressor_kwargs={}, square_half_hidden_state=False
+        ),
+        coefficients=np.random.rand(output_size, state_size),
+        intercepts=np.random.rand(output_size),
+    )
+    input = np.array([1, 1, 1])
+    output_1 = readout_1.predict(input)
+    output_2 = readout_2.predict(input)
+
+    combined_readout = CombinedReservoirComputingReadout(
+        readouts=[readout_1, readout_2]
+    )
+    combined_input = np.concatenate([input, input])
+    output_combined = combined_readout.predict(combined_input)
+
+    np.testing.assert_array_almost_equal(
+        output_combined, np.concatenate([output_1, output_2])
+    )
+
+
+def test_combined_readout_inconsistent_hyperparameters():
+    readout_1 = ReservoirComputingReadout(
+        hyperparameters=ReadoutHyperparameters(
+            linear_regressor_kwargs={}, square_half_hidden_state=True
+        ),
+        coefficients=np.ones(shape=(2, 2)),
+        intercepts=np.zeros(2),
+    )
+    readout_2 = ReservoirComputingReadout(
+        hyperparameters=ReadoutHyperparameters(
+            linear_regressor_kwargs={}, square_half_hidden_state=False
+        ),
+        coefficients=np.ones(shape=(2, 2)),
+        intercepts=np.zeros(2),
+    )
+    with pytest.raises(ValueError):
+        CombinedReservoirComputingReadout(readouts=[readout_1, readout_2])
+
+
+def test__sort_subdirs_numerically():
+    subdirs = [
+        "subdir_0",
+        "subdir_1",
+        "subdir_10",
+        "subdir_11",
+        "subdir_2",
+    ]
+    assert _sort_subdirs_numerically(subdirs) == [
+        "subdir_0",
+        "subdir_1",
+        "subdir_2",
+        "subdir_10",
+        "subdir_11",
+    ]
+
+
+def test_combined_load(tmpdir):
+    np.random.seed(0)
+    readouts, readout_paths = [], []
+    coef_shape = (2, 2)
+    output_size = 2
+    for i in range(3):
+        output_path = f"{str(tmpdir)}/readout_{i}"
+        readout = ReservoirComputingReadout(
+            hyperparameters=ReadoutHyperparameters(
+                linear_regressor_kwargs={}, square_half_hidden_state=True
+            ),
+            coefficients=np.random.rand(*coef_shape),
+            intercepts=np.random.rand(output_size),
+        )
+        readout.dump(output_path)
+        readouts.append(readout)
+        readout_paths.append(output_path)
+    combined_readout = CombinedReservoirComputingReadout.load(str(tmpdir))
+    np.testing.assert_array_almost_equal(
+        scipy.linalg.block_diag(*[r.coefficients for r in readouts]),
+        combined_readout.coefficients.todense(),
+    )
+    np.testing.assert_array_almost_equal(
+        np.concatenate([r.intercepts for r in readouts]), combined_readout.intercepts
     )

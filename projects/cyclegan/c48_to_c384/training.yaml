@@ -7,14 +7,10 @@ hyperparameters:
     normalization_fit_samples: 50_000
     network:
       convolution_type: halo_conv2d
-      generator_optimizer:
+      optimizer:
         name: Adam
         kwargs:
-          lr: 0.0002
-      discriminator_optimizer:
-        name: Adam
-        kwargs:
-          lr: 0.0002
+          lr: 1.0e-3
       generator:
         n_convolutions: 2
         n_resnet: 6
