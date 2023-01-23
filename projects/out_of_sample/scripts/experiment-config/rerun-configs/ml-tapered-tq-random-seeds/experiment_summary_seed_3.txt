@@ -1,0 +1,16 @@
+Experiment #1: ocsvm-t with cutoff=0
+argo job: prognostic-run-f3d69208639641eabdac2a910625244b
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-23/oos-tapered-tquv-nd-ocsvm-t-0-default-0-trial3/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/ML-tapered-Tquv-ND-random-seeds/seed-3/ocsvm-t-0-default-0/prognostic-run.yaml
+
+Experiment #2: ocsvm-tq with cutoff=0
+argo job: prognostic-run-752a56ad3a0a48f7953258247c4acf9d
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-23/oos-tapered-tquv-nd-ocsvm-tq-0-default-0-trial3/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/ML-tapered-Tquv-ND-random-seeds/seed-3/ocsvm-tq-0-default-0/prognostic-run.yaml
+
+Experiment #3: minmax with cutoff=0
+argo job: prognostic-run-268b59f009cf419a8ad163017471a3ed
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-23/oos-tapered-tquv-nd-minmax-0-default-0-trial3/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/ML-tapered-Tquv-ND-random-seeds/seed-3/minmax-0-default-0/prognostic-run.yaml
+
+run path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/ML-tapered-Tquv-ND-random-seeds/seed-3/run.sh
