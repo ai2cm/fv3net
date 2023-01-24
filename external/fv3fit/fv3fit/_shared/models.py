@@ -29,6 +29,11 @@ class TaperedModel(Predictor):
         self.model = model
         self.tapering = tapering
 
+        super().__init__(
+            input_variables=tuple(sorted(model.input_variables)),
+            output_variables=tuple(sorted(model.output_variables)),
+        )
+
     @classmethod
     def load(cls, path: str) -> "TaperedModel":
         """Load a serialized model from a directory."""
