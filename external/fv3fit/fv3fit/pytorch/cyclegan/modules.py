@@ -527,6 +527,7 @@ class ConvBlock(nn.Module):
         out_channels: int,
         convolution_factory: CurriedModuleFactory,
         activation_factory: Callable[[], nn.Module] = relu_activation(),
+        use_instance_norm: bool = True,
     ):
         """
         Args:
@@ -539,11 +540,17 @@ class ConvBlock(nn.Module):
         # it's helpful to package this code into a class so that we can e.g. see what
         # happens when globally disabling InstanceNorm2d or switching to another type
         # of normalization, while debugging.
-        self.conv_block = nn.Sequential(
-            convolution_factory(in_channels=in_channels, out_channels=out_channels),
-            FoldFirstDimension(nn.InstanceNorm2d(out_channels)),
-            activation_factory(),
-        )
+        if use_instance_norm:
+            self.conv_block = nn.Sequential(
+                convolution_factory(in_channels=in_channels, out_channels=out_channels),
+                FoldFirstDimension(nn.InstanceNorm2d(out_channels)),
+                activation_factory(),
+            )
+        else:
+            self.conv_block = nn.Sequential(
+                convolution_factory(in_channels=in_channels, out_channels=out_channels),
+                activation_factory(),
+            )
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
