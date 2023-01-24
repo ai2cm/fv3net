@@ -83,17 +83,13 @@ class Discriminator(nn.Module):
         # discriminator can use information about the mean and standard deviation of
         # the input data (generated images)
         convs = [
-            ConvBlock(
+            convolution(
                 in_channels=in_channels,
                 out_channels=min_filters,
-                convolution_factory=curry(convolution)(
-                    kernel_size=strided_kernel_size, stride=2,
-                ),
-                activation_factory=leakyrelu_activation(
-                    negative_slope=0.2, inplace=True
-                ),
-                use_instance_norm=False,
-            )
+                kernel_size=strided_kernel_size,
+                stride=2,
+            ),
+            leakyrelu_activation(negative_slope=0.2, inplace=True)(),
         ]
         # we've already defined the first strided convolutional layer, so start at 1
         for i in range(1, n_convolutions):
