@@ -47,7 +47,7 @@ class TaperedModel(Predictor):
         return cls(model, tapering)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
-        """Predict an output xarray dataset and rename outputs"""
+        """Predict an output xarray dataset and taper outputs"""
         output = self.model.predict(X)
         for taper_variable, taper_config in self.tapering.items():
             output[taper_variable] = taper_config.apply(output[taper_variable])

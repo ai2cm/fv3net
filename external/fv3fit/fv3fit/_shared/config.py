@@ -9,7 +9,7 @@ from typing import (
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
 import xarray as xr
-from vcm.calc.calc import vertical_tapering_scale_factors
+import vcm
 
 
 @dataclasses.dataclass
@@ -18,10 +18,10 @@ class TaperConfig:
     rate: float
     taper_dim: str = "z"
 
-    def apply(self, data: xr.DataArray):
+    def apply(self, data: xr.DataArray) -> xr.DataArray:
         n_levels = len(data[self.taper_dim])
         scaling = xr.DataArray(
-            vertical_tapering_scale_factors(
+            vcm.vertical_tapering_scale_factors(
                 n_levels=n_levels, cutoff=self.cutoff, rate=self.rate
             ),
             dims=[self.taper_dim],
