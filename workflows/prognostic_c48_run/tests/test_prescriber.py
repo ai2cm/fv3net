@@ -125,16 +125,6 @@ def prescriber_output(external_dataset_path, layout):
     return state_updates_list, tendencies_list
 
 
-def get_expected_prescribed_tendency(layout):
-    vars_ = {
-        "renamed_bias_correction": BIAS_CORRECTION,
-    }
-    sizes = {"y": NXY // layout[0], "x": NXY // layout[1]}
-    ds = get_dataset(vars_, sizes, TIME_COORD)
-    ds = ds.sel(time=TIME_COORD[0], tile=0).drop_vars(["tile", "time"])
-    return {name: ds[name] for name in ds.data_vars}
-
-
 def get_expected_update_dataset(layout, updates):
     sizes = {"y": NXY // layout[0], "x": NXY // layout[1]}
     ds = get_dataset(updates, sizes, TIME_COORD)
