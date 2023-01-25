@@ -9,16 +9,6 @@ from fv3fit._shared.models import TaperedModel
 from fv3fit.testing import ConstantOutputPredictor
 
 
-class ConstantPredictor:
-    def __init__(self, input_variables, output_variables):
-        self.input_variables = input_variables
-        self.output_variables = output_variables
-
-    def predict(self, X):
-        da = xr.ones_like(X[self.input_variables[0]])
-        return xr.Dataset({v: da for v in self.output_variables})
-
-
 def test_TaperedModel():
     model = ConstantOutputPredictor(
         input_variables=["in0", "in1"], output_variables=["out0", "out1"]
