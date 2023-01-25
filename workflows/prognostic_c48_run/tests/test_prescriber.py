@@ -41,12 +41,17 @@ def get_dataarray(y, x, value, coords):
     return da
 
 
+BIAS_CORRECTION = 0.1
+
+
 @pytest.fixture(scope="module")
 def external_dataset_path(tmpdir_factory):
     vars_ = {
         "DSWRFsfc": 10.0,
         "DLWRFsfc": 5.0,
         "NSWRFsfc": 8.0,
+        "bias_correction_0": BIAS_CORRECTION,
+        "bias_correction_1": BIAS_CORRECTION,
     }
     sizes = {"y": NXY, "x": NXY}
     ds = get_dataset(vars_, sizes, TIME_COORD)
@@ -70,6 +75,10 @@ def get_prescriber_config(external_dataset_path):
                 "override_for_time_adjusted_total_sky_"
                 "downward_longwave_flux_at_surface"
             ),
+        },
+        tendency_variables={
+            "bias_correction_0": "renamed_bias_correction_0",
+            "bias_correction_1": "renamed_bias_correction_1",
         },
     )
 
@@ -116,21 +125,30 @@ def prescriber_output(external_dataset_path, layout):
     return state_updates_list, tendencies_list
 
 
-def get_expected_state_updates(layout):
+def get_expected_prescribed_tendency(layout):
     vars_ = {
-        "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": 10.0,
-        "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": 5.0,
-        "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": 8.0,
+        "renamed_bias_correction": BIAS_CORRECTION,
     }
     sizes = {"y": NXY // layout[0], "x": NXY // layout[1]}
     ds = get_dataset(vars_, sizes, TIME_COORD)
     ds = ds.sel(time=TIME_COORD[0], tile=0).drop_vars(["tile", "time"])
-    state_updates = {name: ds[name] for name in ds.data_vars}
-    return state_updates
+    return {name: ds[name] for name in ds.data_vars}
+
+
+def get_expected_update_dataset(layout, updates):
+    sizes = {"y": NXY // layout[0], "x": NXY // layout[1]}
+    ds = get_dataset(updates, sizes, TIME_COORD)
+    ds = ds.sel(time=TIME_COORD[0], tile=0).drop_vars(["tile", "time"])
+    return {name: ds[name] for name in ds.data_vars}
 
 
 def test_prescribed_state_updates(layout, prescriber_output):
-    expected = get_expected_state_updates(layout)
+    expected_state_updates = {
+        "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface": 10.0,
+        "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface": 5.0,
+        "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface": 8.0,
+    }
+    expected = get_expected_update_dataset(layout, expected_state_updates)
     state_updates_list = prescriber_output[0]
     for state_updates in state_updates_list:
         assert set(state_updates.keys()) == set(expected.keys())
@@ -139,10 +157,18 @@ def test_prescribed_state_updates(layout, prescriber_output):
             assert "units" in state_updates[name].attrs
 
 
-def test_no_tendencies(prescriber_output):
+def test_prescribed_tendency(layout, prescriber_output):
+    expected_tendencies = {
+        "renamed_bias_correction_0": BIAS_CORRECTION,
+        "renamed_bias_correction_1": BIAS_CORRECTION,
+    }
+    expected = get_expected_update_dataset(layout, expected_tendencies)
     tendencies_list = prescriber_output[1]
     for tendencies in tendencies_list:
-        assert not tendencies
+        assert set(tendencies.keys()) == set(expected.keys())
+        for name in expected.keys():
+            xr.testing.assert_allclose(expected[name], tendencies[name])
+            assert "units" in tendencies[name].attrs
 
 
 def test__sst_from_reference():
