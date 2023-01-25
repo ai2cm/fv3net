@@ -105,7 +105,8 @@ class Prescriber:
                 state_updates[name] = prescribed_timestep[name]
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
-
+        for name, update in tendency.items():
+            diagnostics[f"{name}_prescribed_tendency"] = update
         return tendency, diagnostics, state_updates
 
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:

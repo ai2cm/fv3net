@@ -150,7 +150,7 @@ def get_prescriber(
         mapper = {}
     time_lookup_function = _get_time_lookup_function(
         mapper,
-        list(config.variables),
+        list(config.variables) + list(config.tendency_variables or []),
         config.reference_initial_time,
         config.reference_frequency_seconds,
     )
