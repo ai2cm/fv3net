@@ -57,6 +57,7 @@ def plot_cube(
     grid_metadata: GridMetadata = WRAPPER_GRID_METADATA,
     plotting_function: str = "pcolormesh",
     ax: plt.axes = None,
+    cbar_ax: plt.axes = None,
     row: str = None,
     col: str = None,
     col_wrap: int = None,
@@ -93,6 +94,9 @@ def plot_cube(
             Axes onto which the map should be plotted; must be created with
             a cartopy projection argument. If not supplied, axes are generated
             with a projection. If ax is suppled, faceting is disabled.
+        cbar_ax:
+            Axes onto which the colorbar should be plotted. Only used if faceting
+            is disabled.
         row:
             Name of diemnsion to be faceted along subplot rows. Must not be a
             tile, lat, or lon dimension.  Defaults to no row facets.
@@ -152,13 +156,15 @@ def plot_cube(
     mappable_ds = _mappable_var(ds, var_name, grid_metadata)
     array = mappable_ds[var_name].values
 
-    kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = infer_cmap_params(
+    kwargs["vmin"], kwargs["vmax"], kwargs["cmap"], extend = infer_cmap_params(
         array,
         vmin=kwargs.get("vmin"),
         vmax=kwargs.get("vmax"),
         cmap=kwargs.get("cmap"),
         robust=cmap_percentiles_lim,
+        levels=kwargs.pop("levels", None),
     )
+    cbar_kwargs = kwargs.pop("cbar_kwargs", {})
 
     _plot_func_short = partial(
         _plot_cube_axes,
@@ -205,11 +211,12 @@ def plot_cube(
             fig.subplots_adjust(
                 bottom=0.1, top=0.9, left=0.1, right=0.8, wspace=0.02, hspace=0.02
             )
-            cb_ax = fig.add_axes([0.83, 0.1, 0.02, 0.8])
+            cbar_ax = fig.add_axes([0.83, 0.1, 0.02, 0.8])
         else:
-            fig.subplots_adjust(wspace=0.25)
-            cb_ax = ax.inset_axes([1.05, 0, 0.02, 1])
-        cbar = plt.colorbar(handles[0], cax=cb_ax, extend="both")
+            if cbar_ax is None:
+                fig.subplots_adjust(wspace=0.25)
+                cbar_ax = ax.inset_axes([1.05, 0, 0.02, 1])
+        cbar = plt.colorbar(handles[0], cax=cbar_ax, extend=extend, **cbar_kwargs)
         cbar.set_label(cbar_label or _get_var_label(ds[var_name].attrs, var_name))
     else:
         cbar = None

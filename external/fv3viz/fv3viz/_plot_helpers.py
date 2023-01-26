@@ -2,6 +2,9 @@ from typing import Optional, Tuple
 
 import numpy as np
 import textwrap
+from matplotlib.colors import ListedColormap, from_levels_and_colors
+from matplotlib.cm import get_cmap
+from matplotlib.ticker import MaxNLocator
 
 
 def _align_grid_var_dims(da, required_dims):
@@ -59,8 +62,39 @@ def _min_max_from_percentiles(x, min_percentile=2, max_percentile=98):
     return xmin, xmax
 
 
+def _color_palette(cmap, n_colors):
+    colors_i = np.linspace(0, 1.0, n_colors)
+    if isinstance(cmap, (list, tuple)):
+        cmap = ListedColormap(cmap, N=n_colors)
+        pal = cmap(colors_i)
+    elif isinstance(cmap, str):
+        pal = get_cmap(cmap)(colors_i)
+    else:
+        pal = cmap(colors_i)
+
+    return pal
+
+
+def _determine_extend(xmin, xmax, vmin, vmax):
+    extend_min = xmin < vmin
+    extend_max = xmax > vmax
+    if extend_min and extend_max:
+        return "both"
+    elif extend_min:
+        return "min"
+    elif extend_max:
+        return "max"
+    else:
+        return "neither"
+
+
 def _infer_color_limits(
-    xmin: float, xmax: float, vmin: float = None, vmax: float = None, cmap: str = None
+    xmin: float,
+    xmax: float,
+    vmin: float = None,
+    vmax: float = None,
+    cmap: str = None,
+    levels: Optional[int] = None,
 ):
     """ "auto-magical" handling of color limits and colormap if not supplied by
     user
@@ -76,6 +110,9 @@ def _infer_color_limits(
             Colormap minimum value. Default None.
         cmap (str, optional):
             Name of colormap. Default None.
+        levels:
+            Experimental based on xarray plot levels argument.  Divide pcolormesh color
+            map into descrete colors.
 
     Returns:
         vmin (float)
@@ -117,7 +154,25 @@ def _infer_color_limits(
     elif not cmap:
         cmap = "RdBu_r" if vmin == -vmax else "viridis"
 
-    return vmin, vmax, cmap
+    extend = _determine_extend(xmin, xmax, vmin, vmax)
+
+    if levels is not None:
+        if extend == "both":
+            ext_n = 2
+        elif extend in ["min", "max"]:
+            ext_n = 1
+        else:
+            ext_n = 0
+
+        # N in MaxNLocator refers to bins, not ticks
+        ticker = MaxNLocator(levels - 1)
+        levels = ticker.tick_values(vmin, vmax)
+        vmin, vmax = levels[0], levels[-1]
+        n_colors = len(levels) + ext_n - 1
+        pal = _color_palette(cmap, n_colors)
+        cmap, cnorm = from_levels_and_colors(levels, pal, extend=extend)
+
+    return vmin, vmax, cmap, extend
 
 
 def _get_var_label(attrs: dict, var_name: str, max_line_length: int = 30):
@@ -151,6 +206,7 @@ def infer_cmap_params(
     vmax: Optional[float] = None,
     cmap: Optional[str] = None,
     robust: bool = False,
+    levels: Optional[int] = None,
 ) -> Tuple[float, float, str]:
     """Determine useful colorbar limits and cmap for given data.
 
@@ -168,5 +224,5 @@ def infer_cmap_params(
         xmin, xmax = _min_max_from_percentiles(data)
     else:
         xmin, xmax = np.nanmin(data), np.nanmax(data)
-    vmin, vmax, cmap = _infer_color_limits(xmin, xmax, vmin, vmax, cmap)
-    return vmin, vmax, cmap
+    vmin, vmax, cmap, extend = _infer_color_limits(xmin, xmax, vmin, vmax, cmap, levels)
+    return vmin, vmax, cmap, extend
