@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.colors import Colormap
 import functools
 import os
 import xarray
@@ -16,11 +17,33 @@ plt.style.use("seaborn-colorblind")
 MEMOIZE_DIR = "./cache"
 
 
-RdBu_LAND = plt.cm.get_cmap("RdBu_r")
+RdBu_LAND = Colormap("RdBu_r")
 RdBu_LAND.set_bad(color="#bcb3a2")
 
-Viridis_LAND = plt.cm.get_cmap("viridis")
+Viridis_LAND = Colormap("viridis")
 Viridis_LAND.set_bad(color="#bcb3a2")
+
+dt = 900  # s
+seconds_per_day = 60 * 60 * 24  # seconds/min * min/hr * hr/day
+m_to_mm = 1000
+
+# from physcons.f
+cp = 1.0046e3  # J / (kg K)
+gravity = 9.80665  # m / s^2
+lv = 2.5e6  # J / kg water
+rho_water = 1000.0  # kg / m^3
+
+
+def kg_m2_s_to_mm_day(da):
+    return da * seconds_per_day / rho_water * m_to_mm
+
+
+def kg_m2_to_mm(da):
+    return da / rho_water * m_to_mm
+
+
+def m_to_mm_day(da):
+    return da / dt * m_to_mm * seconds_per_day
 
 
 def memoize_xarray_out(func):
@@ -55,7 +78,12 @@ def interp_vertical(ds, levels=vcm.interpolate.PRESSURE_GRID):
 
 def open_prognostic_data(url, catalog):
 
-    files = ["state_after_timestep.zarr", "piggy.zarr", "sfc_dt_atmos.zarr"]
+    files = [
+        "state_after_timestep.zarr",
+        "piggy.zarr",
+        "sfc_dt_atmos.zarr",
+        "atmos_dt_atmos.zarr",
+    ]
 
     ds = xarray.Dataset()
     for f in files:
@@ -69,16 +97,20 @@ def open_prognostic_data(url, catalog):
 
 def open_group(group):
     # open data
-    client = query.PrognosticRunClient(
-        group, project="microphysics-emulation", entity="ai2cm", api=wandb.Api()
-    )
-    url = client.get_rundir_url()
+    url = get_group_url(group)
     catalog_path = vcm.catalog.catalog_path
     catalog = intake.open_catalog(catalog_path)
     grid = load_run_data.load_grid(catalog)
     prognostic = open_prognostic_data(url, catalog)
     data = prognostic.merge(grid, compat="override")
     return data
+
+
+def get_group_url(group):
+    client = query.PrognosticRunClient(
+        group, project="microphysics-emulation", entity="ai2cm", api=wandb.Api()
+    )
+    return client.get_rundir_url()
 
 
 def savefig(filename):
