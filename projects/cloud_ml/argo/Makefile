@@ -27,6 +27,10 @@ nudge_to_fine_run_v5: deploy
 nudge_to_fine_run_v6: deploy
 	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v6
 
+.PHONY batchable_cloud_state_dataset_v6
+batchable_cloud_state_dataset_v6:
+	cd ../scripts && python batchable-cloud-state-dataset.py batchable-v6.yaml
+
 .PHONY: baseline_port_run
 baseline_port_run: deploy
 	cd radiation-port-run && ./run.sh baseline-port

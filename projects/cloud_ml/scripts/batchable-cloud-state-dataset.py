@@ -35,9 +35,9 @@ COORD_VARS = ["x", "y", "z", "tile"]
 OUTPUT_CHUNKS = {"time": 1, "tile": 6}
 
 
-def get_fine_ds(scaling=None):
+def get_fine_ds(scaling=None, keys=FINE_RESTARTS_KEYS):
     datasets = []
-    for key in FINE_RESTARTS_KEYS:
+    for key in keys:
         dataset = CATALOG[key].to_dask()
         if isinstance(dataset.time[0].item(), str):
             dataset = dataset.assign_coords({"time": convert_timestamps(dataset.time)})
@@ -55,8 +55,8 @@ def get_fine_ds(scaling=None):
     return ds_3d.drop_vars(COORD_VARS)
 
 
-def get_coarse_ds():
-    full_path = os.path.join(COARSE_NUDGED_PATH, "state_after_timestep.zarr")
+def get_coarse_ds(path=COARSE_NUDGED_PATH):
+    full_path = os.path.join(path, "state_after_timestep.zarr")
     ds = intake.open_zarr(full_path, consolidated=True).to_dask()
     ds_3d = xr.Dataset()
     for var in FINE_TO_COARSE_RENAME.values():
@@ -103,8 +103,10 @@ def main(config):
     - cloud fraction
     """
 
-    fine = get_fine_ds(config.get("scaling", {}))
-    coarse = get_coarse_ds()
+    fine = get_fine_ds(
+        config.get("scaling", {}), keys=config.get("fine_keys", FINE_RESTARTS_KEYS)
+    )
+    coarse = get_coarse_ds(config.get("coarse_nudged_path", COARSE_NUDGED_PATH))
     coarse, fine = subset_times(coarse, fine)
     merged = xr.merge([fine, coarse, GRID, MASK])
     merged = rechunk(merged)
