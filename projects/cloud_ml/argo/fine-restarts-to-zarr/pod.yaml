@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fine-restarts-to-zarr
+spec:
+  volumes:
+    - name: gcp-credentials-user-gcp-sa
+      secret:
+        secretName: gcp-key
+  containers:
+    - name: main
+      image: us.gcr.io/vcm-ml/fv3net:78f9cc93fe0d99d80b809a1b93601efb9bf17b0b
+      command: ["bash", "-x", "-c"]
+      workingDir: /home/jovyan/fv3net/workflows/dataflow
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      volumeMounts:
+        - mountPath: /secret/gcp-credentials
+          name: gcp-credentials-user-gcp-sa
+      args:
+        - |
+          ./dataflow.sh submit -m fv3net.pipelines.restarts_to_zarr \
+            gs://vcm-ml-experiments/spencerc/2022-12-05-five-day-C3072-ccnorm-true/restarts \
+            gs://vcm-ml-intermediate/2022-12-05-SHiELD-ccnorm-5day-restarts.zarr \
+            --no-coarse-suffix \
+            --job_name $POD_NAME-$(openssl rand -hex 6) \
+            --project vcm-ml \
+            --region us-central1 \
+            --runner DataFlow \
+            --temp_location gs://vcm-ml-scratch/tmp_dataflow \
+            --num_workers 64 \
+            --autoscaling_algorithm=NONE
+      resources:
+        limits:
+          memory: 2Gi
+          cpu: "1000m"
+        requests:
+          memory: 1Gi
+          cpu: "1000m"
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: med-sim-pool
+  restartPolicy: Never

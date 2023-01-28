@@ -228,6 +228,9 @@ train_cloud_ml_rf_incloud_binary1: deploy
 train_cloud_ml_rf_incloud_binary10: deploy
 	cd training && ./run.sh rf-incloud-binary10
 
+fine_restarts_to_zarr:
+	kubectl apply -f fine-restarts-to-zarr/pod.yaml
+
 .PHONY: deploy
 deploy: kustomize
 	./kustomize build . | kubectl apply -f -
