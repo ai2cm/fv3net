@@ -103,6 +103,10 @@ prescribed_cloud_ccnorm_random_overlap_run: deploy
 prescribed_cloud_ccnorm_decorr_overlap_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cloud-cc-decorr
 
+.PHONY: prescribed_cc_cloud_ccnorm_decorr_overlap_run
+prescribed_cc_cloud_ccnorm_decorr_overlap_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-cloud-cc-decorr
+
 .PHONY: prescribed_ml_cloud_run
 prescribed_ml_cloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-ml-cloud
@@ -150,6 +154,10 @@ prescribed_rf_ml_cond_15_cc_decorr_run: deploy
 .PHONY: prescribed_rf_ml_cond_level_cc_decorr_run
 prescribed_rf_ml_cond_level_cc_decorr_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-rf-cond-level-cc-decorr
+
+.PHONY: prescribed_cc_rf_ml_cond_10_cc_decorr_run
+prescribed_cc_rf_ml_cond_10_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-cond10-cc-decorr
 
 .PHONY: prescribed_half_cloud_run
 prescribed_half_cloud_run: deploy
