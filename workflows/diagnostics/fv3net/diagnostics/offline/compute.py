@@ -87,14 +87,16 @@ def _get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--evaluation-grid",
         type=str,
-        default=None,
+        default=EVALUATION_RESOLUTION,
         help=(
-            "Optional path to a grid data netcdf that sets the grid resolution at "
-            "which the diagnostics will be computed. If not provided, evaluation grid "
-            "resolution will be C48. If validation data resolution is higher than "
-            "the evaluation grid resolution by an integer multiple, the validation "
-            "data will be coarsened to the evaluation grid resolution. Otherwise the "
-            "evaluation grid resolution must match the validation data resolution."
+            f"Optional arguent that sets the grid resolution at which the diagnostics"
+            f"will be computed. If not provided, evaluation grid resolution will "
+            f"be {EVALUATION_RESOLUTION}. If validation data resolution is higher "
+            f"than the evaluation grid resolution by an integer multiple, the "
+            f"validation data will be coarsened to the evaluation grid resolution. "
+            f"Otherwise the evaluation grid resolution must match the validation "
+            f"data resolution. Grid and land mask entries must be present in the"
+            f"vcm catalog at the evaluation resolution."
         ),
     )
     parser.add_argument(
@@ -298,13 +300,7 @@ def main(args):
     with fsspec.open(args.data_yaml, "r") as f:
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
-
-    if args.evaluation_grid is None:
-        evaluation_grid = load_grid_info(EVALUATION_RESOLUTION)
-    else:
-        with fsspec.open(args.evaluation_grid, "rb") as f:
-            # Daskify to avoid pickling errors when running parallel computations
-            evaluation_grid = _daskify_sequence([xr.open_dataset(f, engine="h5netcdf")])
+    evaluation_grid = load_grid_info(args.evaluation_grid)
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
