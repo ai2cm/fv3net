@@ -33,6 +33,7 @@ def load_verification(
         catalog_keys: catalog sources to load as verification data
         catalog: Intake catalog of available data sources.
         join: how to join verification data sources.
+        evaluation_resolution: resolution at which to compute diagnostics
 
     Returns:
         All specified verification datasources standardized and merged
@@ -54,7 +55,7 @@ def _load_standardized(path):
 
 
 def _get_area(ds: xr.Dataset, catalog: intake.catalog.Catalog) -> xr.DataArray:
-    grid_entries = {48: "grid/c48", 96: "grid/c96", 384: "grid/c384"}
+    grid_entries = {12: "grid/c12", 48: "grid/c48", 96: "grid/c96", 384: "grid/c384"}
     input_res = ds.sizes["x"]
     if input_res not in grid_entries:
         raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
@@ -80,7 +81,9 @@ def _coarsen_cell_centered_to_target_resolution(
     )
 
 
-def _load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
+def _load_3d(
+    url: str, catalog: intake.catalog.Catalog, evaluation_resolution: str
+) -> xr.Dataset:
     logger.info(f"Processing 3d data from run directory at {url}")
     files_3d = [
         "diags_3d.zarr",
@@ -90,7 +93,9 @@ def _load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     ]
     ds = xr.merge(
         [
-            load_coarse_data(os.path.join(url, filename), catalog)
+            load_coarse_data(
+                os.path.join(url, filename), catalog, evaluation_resolution
+            )
             for filename in files_3d
         ]
     )
@@ -106,15 +111,21 @@ def _load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     return ds_interp
 
 
-def load_grid(catalog):
+def load_grid(catalog, evaluation_resolution="c48"):
     logger.info("Opening Grid Spec")
-    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
-    ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
+    grid_c48 = standardize_fv3_diagnostics(
+        catalog[f"grid/{evaluation_resolution}"].to_dask()
+    )
+    ls_mask = standardize_fv3_diagnostics(
+        catalog[f"landseamask/{evaluation_resolution}"].to_dask()
+    )
     return xr.merge([grid_c48, ls_mask])
 
 
-def load_coarse_data(path, catalog) -> xr.Dataset:
+def load_coarse_data(path, catalog, evaluation_resolution="c48") -> xr.Dataset:
     logger.info(f"Opening prognostic run data at {path}")
+
+    target_resolution = int(evaluation_resolution[1:])
 
     try:
         ds = _load_standardized(path)
@@ -131,7 +142,7 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
             errors="ignore",
         )
         ds = _coarsen_cell_centered_to_target_resolution(
-            ds, target_resolution=48, catalog=catalog
+            ds, target_resolution=target_resolution, catalog=catalog
         )
 
     return ds
@@ -189,10 +200,13 @@ class CatalogSimulation:
     tag: str
     catalog: intake.catalog.base.Catalog
     join_2d: str = "outer"
+    evaluation_resolution: str = "c48"
 
     @property
     def _verif_entries(self):
-        return config.get_verification_entries(self.tag, self.catalog)
+        return config.get_verification_entries(
+            self.tag, self.catalog, self.evaluation_resolution
+        )
 
     @property
     def _rename_map(self):
@@ -219,29 +233,31 @@ class SegmentedRun:
     url: str
     catalog: intake.catalog.base.Catalog
     join_2d: str = "outer"
+    evaluation_resolution: str = "c48"
 
     @property
     def data_2d(self) -> xr.Dataset:
         url = self.url
         catalog = self.catalog
+        evaluation_resolution = self.evaluation_resolution
         path = os.path.join(url, "atmos_dt_atmos.zarr")
         diags_url = os.path.join(url, "diags.zarr")
         sfc_dt_atmos_url = os.path.join(url, "sfc_dt_atmos.zarr")
 
         return xr.merge(
             [
-                load_coarse_data(path, catalog),
+                load_coarse_data(path, catalog, evaluation_resolution),
                 # TODO fillna required because diags.zarr may be saved with an
                 # incorrect fill_value. not sure if this is fixed or not.
-                load_coarse_data(diags_url, catalog).fillna(0.0),
-                load_coarse_data(sfc_dt_atmos_url, catalog),
+                load_coarse_data(diags_url, catalog, evaluation_resolution).fillna(0.0),
+                load_coarse_data(sfc_dt_atmos_url, catalog, evaluation_resolution),
             ],
             join=self.join_2d,
         )
 
     @property
     def data_3d(self) -> xr.Dataset:
-        return _load_3d(self.url, self.catalog)
+        return _load_3d(self.url, self.catalog, self.evaluation_resolution)
 
     @property
     def artifacts(self) -> List[str]:
