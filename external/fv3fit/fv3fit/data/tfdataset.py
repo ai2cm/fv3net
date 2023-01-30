@@ -33,7 +33,12 @@ class VariableConfig:
         if self.times == "start":
             ds = ds.isel(time=0)
         dims = [d for d in unstacked_dims if d in ds[name].dims]
-        data = ds[name].transpose(*dims).values
+        try:
+            # if there are no sample dims, must create singleton dimension
+            data = ds[name].transpose(*dims).values[None, :]
+        except ValueError:
+            # combine sample/stacked dims into one
+            data = ds[name].transpose(..., *dims).values
         return data
 
 
@@ -211,9 +216,15 @@ def records(
             window_ds = ds.isel(
                 time=range(i_start, i_start + window_size * time_stride, time_stride)
             )
+            # need to select same random sample for all variable names, but don't know
+            # how many samples there are until we look at the first variable
+            i_sample = None
             for name in variable_names:
                 config = variable_configs.get(name, default_variable_config)
-                record[name] = config.get_record(name, window_ds, unstacked_dims)
+                array = config.get_record(name, window_ds, unstacked_dims)
+                if i_sample is None:
+                    i_sample = np.random.randint(array.shape[0])
+                record[name] = array[i_sample, :]
             yield record
 
     return generator

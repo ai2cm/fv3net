@@ -519,17 +519,17 @@ class CycleGANTrainer:
             ax = ax[None, :]
         for i in range(real_a.shape[2]):
             plot_hist(
-                real_a[:, :, i, :, :],
-                real_b[:, :, i, :, :],
-                fake_a[:, :, i, :, :],
-                fake_b[:, :, i, :, :],
+                real_a=real_a[:, :, i, :, :],
+                real_b=real_b[:, :, i, :, :],
+                gen_a=fake_a[:, :, i, :, :],
+                gen_b=fake_b[:, :, i, :, :],
                 ax=ax[i, 0],
             )
             plot_hist(
-                real_a[:, :, i, :, :],
-                real_b[:, :, i, :, :],
-                fake_a[:, :, i, :, :],
-                fake_b[:, :, i, :, :],
+                real_a=real_a[:, :, i, :, :],
+                real_b=real_b[:, :, i, :, :],
+                gen_a=fake_a[:, :, i, :, :],
+                gen_b=fake_b[:, :, i, :, :],
                 ax=ax[i, 1],
             )
             ax[i, 1].set_yscale("log")
