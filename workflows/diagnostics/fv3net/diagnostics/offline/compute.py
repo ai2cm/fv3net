@@ -90,13 +90,13 @@ def _get_parser() -> argparse.ArgumentParser:
         default=EVALUATION_RESOLUTION,
         help=(
             f"Optional arguent that sets the grid resolution at which the diagnostics"
-            f"will be computed. If not provided, evaluation grid resolution will "
-            f"be {EVALUATION_RESOLUTION}. If validation data resolution is higher "
-            f"than the evaluation grid resolution by an integer multiple, the "
-            f"validation data will be coarsened to the evaluation grid resolution. "
-            f"Otherwise the evaluation grid resolution must match the validation "
-            f"data resolution. Grid and land mask entries must be present in the"
-            f"vcm catalog at the evaluation resolution."
+            f"will be computed (e.g. 'c12'). If not provided, evaluation grid "
+            f"resolution will be {EVALUATION_RESOLUTION}. If validation data "
+            f"resolution is higher than the evaluation grid resolution by an "
+            f"integer multiple, the validation data will be coarsened to the "
+            f"evaluation grid resolution. Otherwise the evaluation grid resolution "
+            f"must match the validation data resolution. Grid and land mask entries "
+            f"must be present in the vcm catalog at the evaluation resolution."
         ),
     )
     parser.add_argument(
