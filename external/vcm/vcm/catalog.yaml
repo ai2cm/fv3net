@@ -843,7 +843,7 @@ sources:
     args:
       storage_options:
         access: read_only
-      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid.zarr/"
+      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid-updated.zarr/"
       consolidated: true
 
   wind_rotation/c8_random_values:
