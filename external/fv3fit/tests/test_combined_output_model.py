@@ -28,6 +28,7 @@ def test_CombinedOutputModel():
     assert set(combined_model.output_variables) == {"out0a", "out0b", "out1a", "out1b"}
 
     combined_prediction = combined_model.predict(X)
+
     np.testing.assert_array_equal(
         combined_prediction["out0a"], model0.predict(X)["out0a"]
     )
