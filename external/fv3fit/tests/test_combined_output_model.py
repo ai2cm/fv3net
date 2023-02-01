@@ -24,12 +24,15 @@ def test_CombinedOutputModel():
     X = xr.Dataset({"in0": da, "in1": da, "in2": da})
 
     combined_model = CombinedOutputModel([model0, model1])
+    assert set(combined_model.input_variables) == {"in0", "in1", "in2"}
+    assert set(combined_model.output_variables) == {"out0a", "out0b", "out1a", "out1b"}
+
     combined_prediction = combined_model.predict(X)
     np.testing.assert_array_equal(
-        combined_prediction["out0a"].values, model0.predict(X)["out0a"]
+        combined_prediction["out0a"], model0.predict(X)["out0a"]
     )
     np.testing.assert_array_equal(
-        combined_prediction["out1a"].values, model1.predict(X)["out1a"]
+        combined_prediction["out1a"], model1.predict(X)["out1a"]
     )
 
 
