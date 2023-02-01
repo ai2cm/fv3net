@@ -52,3 +52,15 @@ A tapering transform can be applied to an existing saved model:
         dQ2:
             cutoff: 25
             rate: 5
+
+
+
+Combined models
+----------------
+Combines multiple models with nonoverlapping output variables into a single model.
+Similar functionality is also in the prognostic run's MultipleModelAdapter, but sometimes it
+is more efficient to combine models earlier in the workflow.
+.. code-block:: yaml
+models:
+    - gs://vcm-ml-experiments/model1
+    - gs://vcm-ml-experiments/model2
