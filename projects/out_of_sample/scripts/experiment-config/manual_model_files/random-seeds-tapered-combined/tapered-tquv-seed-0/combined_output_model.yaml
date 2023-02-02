@@ -1,0 +1,3 @@
+models:
+  - gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/oos-configs/taper-wrappers/tapered-tq-seed-0
+  - gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/oos-configs/taper-wrappers/tapered-uv-seed-0

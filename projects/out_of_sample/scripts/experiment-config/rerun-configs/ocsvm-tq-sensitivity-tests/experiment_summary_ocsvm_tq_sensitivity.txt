@@ -1,0 +1,41 @@
+Experiment #1: ocsvm-tq-gamma-1_79 with cutoff=0.2
+argo job: prognostic-run-6db04c79a59249d09cd20fbe67289a43
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-02/ocsvm_tq_sensitivity-ocsvm-tq-gamma-1_79-0.2-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq/ocsvm-tq-gamma-1_79-0.2-default-0/prognostic-run.yaml
+
+Experiment #2: ocsvm-tq-gamma-1_79 with cutoff=0
+argo job: prognostic-run-242fa2da0961447389d829969a3aeebe
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-02/ocsvm_tq_sensitivity-ocsvm-tq-gamma-1_79-0-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq/ocsvm-tq-gamma-1_79-0-default-0/prognostic-run.yaml
+
+Experiment #3: ocsvm-tq-gamma-1_79 with cutoff=-0.5
+argo job: prognostic-run-11b225a5e85a478aa3ae03a1d0d2f76f
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-02/ocsvm_tq_sensitivity-ocsvm-tq-gamma-1_79--0.5-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq/ocsvm-tq-gamma-1_79--0.5-default-0/prognostic-run.yaml
+
+Experiment #4: ocsvm-tq-gamma-2_79 with cutoff=0.2
+argo job: prognostic-run-2d34279b12d845d08d1e5be12d615bec
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-02/ocsvm_tq_sensitivity-ocsvm-tq-gamma-2_79-0.2-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq/ocsvm-tq-gamma-2_79-0.2-default-0/prognostic-run.yaml
+
+Experiment #5: ocsvm-tq-gamma-2_79 with cutoff=0
+argo job: prognostic-run-b6b29ef243104e919fcff8d9cae3f8e9
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-02/ocsvm_tq_sensitivity-ocsvm-tq-gamma-2_79-0-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq/ocsvm-tq-gamma-2_79-0-default-0/prognostic-run.yaml
+
+Experiment #6: ocsvm-tq-gamma-2_79 with cutoff=-0.5
+argo job: prognostic-run-1d2fba5cb37e447abf78a79aa13d3412
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-02/ocsvm_tq_sensitivity-ocsvm-tq-gamma-2_79--0.5-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq/ocsvm-tq-gamma-2_79--0.5-default-0/prognostic-run.yaml
+
+Experiment #7: ocsvm-tq-gamma-4_79 with cutoff=0.2
+argo job: prognostic-run-0c76bf3cfac0430aa0c38a2eb74c0992
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-02/ocsvm_tq_sensitivity-ocsvm-tq-gamma-4_79-0.2-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq/ocsvm-tq-gamma-4_79-0.2-default-0/prognostic-run.yaml
+
+Experiment #8: ocsvm-tq-gamma-4_79 with cutoff=-0.5
+argo job: prognostic-run-161b7cf015344c2d96a42762e955e52f
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-02/ocsvm_tq_sensitivity-ocsvm-tq-gamma-4_79--0.5-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq/ocsvm-tq-gamma-4_79--0.5-default-0/prognostic-run.yaml
+
+run path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq/run.sh
