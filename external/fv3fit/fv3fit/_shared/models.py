@@ -16,6 +16,52 @@ from . import io
 from .predictor import Predictor
 
 
+@io.register("combined_output_model")
+class CombinedOutputModel(Predictor):
+    _CONFIG_FILENAME = "combined_output_model.yaml"
+
+    def __init__(self, models: Iterable[Predictor]):
+        self._models = tuple(models)
+        if len(self._models) == 0:
+            raise ValueError("at least one model must be given")
+        input_variables: Set[Hashable] = set()
+        output_variables: Set[Hashable] = set()
+
+        for model in self._models:
+            common_outputs = set(model.output_variables).intersection(output_variables)
+            if len(common_outputs) > 0:
+                raise ValueError(
+                    "All models being combined must have different outputs, "
+                    f"got {common_outputs} multiple times."
+                )
+            input_variables.update(model.input_variables)
+            output_variables.update(model.output_variables)
+        super().__init__(
+            input_variables=tuple(sorted(input_variables)),
+            output_variables=tuple(sorted(output_variables)),
+        )
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        """Merge predictions of all models into a single dataset."""
+        outputs = [m.predict(X) for m in self._models]
+        return xr.merge(outputs)
+
+    def dump(self, path):
+        raise NotImplementedError(
+            "no dump method yet for this class, you can define one manually "
+            "using instructions at "
+            "http://vulcanclimatemodeling.com/docs/fv3fit/composite-models.html"
+        )
+
+    @classmethod
+    def load(cls, path: str) -> "CombinedOutputModel":
+        """Load a serialized model from a directory."""
+        with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+            config = yaml.safe_load(f)
+        models = [cast(Predictor, io.load(path)) for path in config["models"]]
+        return cls(models)
+
+
 @io.register("tapered_model")
 class TaperedModel(Predictor):
     _CONFIG_FILENAME = "tapered_model.yaml"
