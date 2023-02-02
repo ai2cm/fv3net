@@ -830,7 +830,11 @@ sources:
 
   # Regression testing data. Do not use for analysis, values are randomized.
   grid/c8_random_values:
-    description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data
+    description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data.  Updated on 2023-02-01 to
+      be consistent with the grid_spec.json schema in synth fv3net/external/synth/synth/_dataset_fixtures/grid_schema.json
+      with the land_sea_mask variable dropped.  This schema generates grid data with semi-realistic values, which are
+      required for the offline diagnostics compute integration test to pass (credit Brian Henn).  Previously this catalog
+      entry referred to gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid.zarr.
     driver: zarr
     metadata:
       grid: c8
@@ -843,7 +847,7 @@ sources:
     args:
       storage_options:
         access: read_only
-      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid.zarr/"
+      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/2023-02-01-grid.zarr/"
       consolidated: true
 
   wind_rotation/c8_random_values:
