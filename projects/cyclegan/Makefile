@@ -2,6 +2,9 @@
 train_c48_to_c384: deploy
 	cd c48_to_c384; ./run.sh
 
+train_combined: deploy
+	cd c48_to_c384_combined; ./run.sh
+
 sweep_c48_to_c384: deploy
 	cd c48_to_c384; ./run_sweep.sh
 

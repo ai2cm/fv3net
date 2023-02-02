@@ -7,8 +7,8 @@ PROJECT=cyclegan # don't pass project arg to use default 'default'
 # TAG is the primary way by which users query for experiments with artifacts
 # it determines the output directory for the data
 
-EXPERIMENT="cyclegan_c48_to_c384"
-TRIAL="precip-2e-5-epoch100"
+EXPERIMENT="cyclegan_c48_to_c384_combined"
+TRIAL="prec-2e-4"
 TAG=${EXPERIMENT}-${TRIAL}  # required
 NAME=train-cyclegan-$(openssl rand --hex 6) # required
 

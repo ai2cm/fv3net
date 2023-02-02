@@ -1,6 +1,7 @@
 # flake8: noqa
 
 import random
+from typing import List
 import fv3fit
 from fv3fit.pytorch import DEVICE
 from matplotlib import pyplot as plt
@@ -114,7 +115,10 @@ def plot_weather(arg, vmin=4800, vmax=6000, vmin_diff=-100, vmax_diff=100):
 
 
 def evaluate(
-    cyclegan: fv3fit.pytorch.CycleGAN, c48_real: xr.Dataset, c384_real: xr.Dataset
+    cyclegan: fv3fit.pytorch.CycleGAN,
+    c48_real: xr.Dataset,
+    c384_real: xr.Dataset,
+    expected_bias_c384: xr.Dataset,
 ):
     c384_gen: xr.Dataset = cyclegan.predict(c48_real)
     c48_gen: xr.Dataset = cyclegan.predict(c384_real, reverse=True)
@@ -245,7 +249,7 @@ def evaluate(
         fig, ax = plt.subplots(
             len(varnames),
             4,
-            figsize=(14, 2 * len(varnames)),
+            figsize=(18, 3.5 * len(varnames)),
             subplot_kw={"projection": ccrs.Robinson()},
         )
         if len(varnames) == 1:
@@ -253,8 +257,12 @@ def evaluate(
         real = GRID.merge(c384_real_mean, compat="override")
         gen = GRID.merge(c384_gen_mean, compat="override")
         for i, varname in enumerate(varnames):
-            gen[f"{varname}_bias"] = gen[varname] - real[varname]
-            gen[f"{varname}_c48_bias"] = gen[varname] - c48_real_mean[varname]
+            gen[f"{varname}_bias"] = (
+                gen[varname] - real[varname] - expected_bias_c384[varname]
+            )
+            gen[f"{varname}_c48_bias"] = (
+                c48_real_mean[varname] - real[varname] - expected_bias_c384[varname]
+            )
             vmin = min(
                 c384_real_mean[varname].min().values,
                 c384_gen_mean[varname].min().values,
@@ -263,15 +271,17 @@ def evaluate(
                 c384_real_mean[varname].max().values,
                 c384_gen_mean[varname].max().values,
             )
+            ax[i, 0].set_title("c384_real")
             fv3viz.plot_cube(
-                ds=GRID.merge(c384_gen_mean, compat="override"),
+                ds=GRID.merge(c384_real_mean, compat="override"),
                 var_name=varname,
                 ax=ax[i, 0],
                 vmin=vmin,
                 vmax=vmax,
             )
+            ax[i, 1].set_title("c384_gen")
             fv3viz.plot_cube(
-                ds=GRID.merge(c48_gen_mean, compat="override"),
+                ds=GRID.merge(c384_gen_mean, compat="override"),
                 var_name=varname,
                 ax=ax[i, 1],
                 vmin=vmin,
@@ -283,6 +293,83 @@ def evaluate(
                 -gen[f"{varname}_bias"].min().values,
                 -gen[f"{varname}_c48_bias"].min().values,
             )
+            gen_bias_mean = gen[f"{varname}_bias"].values.mean()
+            gen_bias_std = gen[f"{varname}_bias"].values.std()
+            c48_bias_mean = gen[f"{varname}_c48_bias"].values.mean()
+            c48_bias_std = gen[f"{varname}_c48_bias"].values.std()
+            fv3viz.plot_cube(
+                ds=gen,
+                var_name=f"{varname}_bias",
+                ax=ax[i, 2],
+                vmin=-bias_max,
+                vmax=bias_max,
+            )
+            ax[i, 2].set_title(
+                "gen_bias\nmean: {:.2e}\nstd: {:.2e}".format(
+                    gen_bias_mean, gen_bias_std
+                )
+            )
+            fv3viz.plot_cube(
+                ds=gen,
+                var_name=f"{varname}_c48_bias",
+                ax=ax[i, 3],
+                vmin=-bias_max,
+                vmax=bias_max,
+            )
+            ax[i, 3].set_title(
+                "c48_bias\nmean: {:.2e}\nstd: {:.2e}".format(
+                    c48_bias_mean, c48_bias_std
+                )
+            )
+
+        plt.tight_layout()
+        fig.savefig(f"mean.png", dpi=100)
+
+    plot_mean_all()
+    # plot_mean("h500", vmin=5000, vmax=5900)
+    # plot_mean("PRATEsfc", vmin=None, vmax=None)
+
+    def plot_mean_all_reverse():
+        varnames = cyclegan.state_variables
+        fig, ax = plt.subplots(
+            len(varnames),
+            4,
+            figsize=(14, 2 * len(varnames)),
+            subplot_kw={"projection": ccrs.Robinson()},
+        )
+        if len(varnames) == 1:
+            ax = ax[None, :]
+        real = GRID.merge(c48_real_mean, compat="override")
+        gen = GRID.merge(c48_gen_mean, compat="override")
+        for i, varname in enumerate(varnames):
+            gen[f"{varname}_bias"] = gen[varname] - real[varname]
+            gen[f"{varname}_c384_bias"] = gen[varname] - c384_real_mean[varname]
+            vmin = min(
+                c48_real_mean[varname].min().values, c48_gen_mean[varname].min().values,
+            )
+            vmax = max(
+                c48_real_mean[varname].max().values, c48_gen_mean[varname].max().values,
+            )
+            fv3viz.plot_cube(
+                ds=GRID.merge(c48_gen_mean, compat="override"),
+                var_name=varname,
+                ax=ax[i, 0],
+                vmin=vmin,
+                vmax=vmax,
+            )
+            fv3viz.plot_cube(
+                ds=GRID.merge(c384_gen_mean, compat="override"),
+                var_name=varname,
+                ax=ax[i, 1],
+                vmin=vmin,
+                vmax=vmax,
+            )
+            bias_max = max(
+                gen[f"{varname}_bias"].max().values,
+                gen[f"{varname}_c384_bias"].max().values,
+                -gen[f"{varname}_bias"].min().values,
+                -gen[f"{varname}_c384_bias"].min().values,
+            )
             fv3viz.plot_cube(
                 ds=gen,
                 var_name=f"{varname}_bias",
@@ -292,61 +379,20 @@ def evaluate(
             )
             fv3viz.plot_cube(
                 ds=gen,
-                var_name=f"{varname}_c48_bias",
+                var_name=f"{varname}_c384_bias",
                 ax=ax[i, 3],
                 vmin=-bias_max,
                 vmax=bias_max,
             )
-        ax[0, 0].set_title("c384_real")
-        ax[0, 1].set_title("c384_gen")
-        ax[0, 2].set_title("gen_bias")
-        ax[0, 3].set_title("c48_bias")
-
-        plt.tight_layout()
-        fig.savefig(f"mean.png", dpi=100)
-
-    def plot_mean(varname: str, vmin: float, vmax: float):
-        fig, ax = plt.subplots(
-            2, 2, figsize=(10, 6), subplot_kw={"projection": ccrs.Robinson()}
-        )
-        fv3viz.plot_cube(
-            ds=GRID.merge(c48_real_mean, compat="override"),
-            var_name=varname,
-            ax=ax[0, 0],
-            vmin=vmin,
-            vmax=vmax,
-        )
         ax[0, 0].set_title("c48_real")
-        fv3viz.plot_cube(
-            ds=GRID.merge(c384_real_mean, compat="override"),
-            var_name=varname,
-            ax=ax[1, 0],
-            vmin=vmin,
-            vmax=vmax,
-        )
-        ax[1, 0].set_title("c384_real")
-        fv3viz.plot_cube(
-            ds=GRID.merge(c384_gen_mean, compat="override"),
-            var_name=varname,
-            ax=ax[0, 1],
-            vmin=vmin,
-            vmax=vmax,
-        )
-        ax[0, 1].set_title("c384_gen")
-        fv3viz.plot_cube(
-            ds=GRID.merge(c48_gen_mean, compat="override"),
-            var_name=varname,
-            ax=ax[1, 1],
-            vmin=vmin,
-            vmax=vmax,
-        )
-        ax[1, 1].set_title("c48_gen")
-        plt.tight_layout()
-        fig.savefig(f"{varname}_mean.png", dpi=100)
+        ax[0, 1].set_title("c48_gen")
+        ax[0, 2].set_title("gen_bias")
+        ax[0, 3].set_title("c384_bias")
 
-    plot_mean_all()
-    # plot_mean("h500", vmin=5000, vmax=5900)
-    # plot_mean("PRATEsfc", vmin=None, vmax=None)
+        plt.tight_layout()
+        fig.savefig(f"mean_reverse.png", dpi=100)
+
+    # plot_mean_all_reverse()
 
     def plot_bias(varname, vmin_abs, vmax_abs, vmin_rel, vmax_rel):
         fig, ax = plt.subplots(
@@ -556,29 +602,107 @@ def evaluate(
     plt.show()
 
 
+def plot_annual_means(ds: xr.Dataset, varnames: List[str]):
+    # we will take the mean of the dataset for each year and plot each of those
+    # in a different panel with matplotlib
+    # dataset is 3-hourly so there are 365 * 8 = 2920 timesteps per year
+
+    n_years = int(len(ds.time) / 2920)
+    assert n_years > 0
+    fig, ax = plt.subplots(
+        n_years,
+        len(varnames),
+        figsize=(10, 6),
+        subplot_kw={"projection": ccrs.Robinson()},
+    )
+    for i in range(n_years):
+        ds_year = ds.isel(time=slice(i * 2920, (i + 1) * 2920)).mean(dim="time")
+        for j, varname in enumerate(varnames):
+            fv3viz.plot_cube(
+                ds=GRID.merge(ds_year, compat="override"), var_name=varname, ax=ax[i, j]
+            )
+            ax[i, j].set_title(f"{varname} year {i + 1}")
+    plt.tight_layout()
+    fig.savefig(f"annual_means.png", dpi=100)
+    plt.show()
+
+
 if __name__ == "__main__":
     random.seed(0)
     cyclegan: fv3fit.pytorch.CycleGAN = fv3fit.load(
+        # "gs://vcm-ml-experiments/cyclegan/2023-01-20/cyclegan_c48_to_c384-prec-h500-w512-2e-4"  # prec/h500, 512-width, epoch 50
+        # "gs://vcm-ml-experiments/cyclegan/2023-01-22/cyclegan_c48_to_c384-prec-h500-w512-2e-4-epoch50" # prec/h500, 512-width, epoch 100
+        # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230119-211721-5ddf5ef3-epoch_040/"  # reduced-vars, 512-width
         # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230119-174516-bfffae02-epoch_025/"  # h500-only
-        "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230119-171215-64882f40-epoch_060/"  # precip-only
+        # "gs://vcm-ml-experiments/cyclegan/2023-01-19/cyclegan_c48_to_c384-h500only-kernel4-2e-4"  # h500-only, epoch 100
+        # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230119-171215-64882f40-epoch_060/"  # precip-only
+        # "gs://vcm-ml-experiments/cyclegan/2023-01-19/cyclegan_c48_to_c384-preconly-kernel4-2e-4"  # precip-only epoch 100
+        "gs://vcm-ml-experiments/cyclegan/2023-01-22/cyclegan_c48_to_c384-preconly-kernel4-2e-5-epoch50"  # precip-only, 2e-5, epoch 200
+        # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230122-163054-99bf1aed-epoch_066/"  # precip-only, 2e-5 +100 epochs
         # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230118-173808-a5fd4151-epoch_051/"  # 2e-4, kernel4
         # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230118-183240-b191e306-epoch_048/"  # 2e-4, kernel3
         # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230118-003753-f8afe719-epoch_085/"  # log, 2e-5
         # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230118-003758-1324b685-epoch_035/"  # log, 2e-4
         # "gs://vcm-ml-experiments/cyclegan/2023-01-11/cyclegan_c48_to_c384-trial-0/"
     ).to(DEVICE)
-    c384_real: xr.Dataset = (
-        xr.open_zarr("./fine-0K.zarr/")
-        .rename({"grid_xt": "x", "grid_yt": "y"})
-        .isel(time=slice(2920, None))
-        # .isel(time=slice(2000, 2010))
-        .load()
+
+    subselect_ratio = 1.0
+    c384_real_all: xr.Dataset = (
+        xr.open_zarr("./fine-0K.zarr/").rename({"grid_xt": "x", "grid_yt": "y"})
     )
-    c48_real: xr.Dataset = (
-        xr.open_zarr("./coarse-0K.zarr/")
-        .rename({"grid_xt": "x", "grid_yt": "y"})
-        .isel(time=slice(11688, None))
-        # .isel(time=slice(2000, 2010))
-        .load()
+    c48_real_all: xr.Dataset = (
+        xr.open_zarr("./coarse-0K.zarr/").rename({"grid_xt": "x", "grid_yt": "y"})
     )
-    evaluate(cyclegan, c48_real, c384_real)
+    c384_real: xr.Dataset = c384_real_all.isel(time=slice(2920, None))
+    c384_steps = np.sort(
+        np.random.choice(
+            np.arange(0, len(c384_real.time)),
+            size=int(len(c384_real.time) * subselect_ratio),
+            replace=False,
+        )
+    )
+    c384_real = c384_real.isel(time=c384_steps).load()
+    c48_real: xr.Dataset = c48_real_all.isel(time=slice(11688, None))
+    c48_steps = np.sort(
+        np.random.choice(
+            np.arange(0, len(c48_real.time)),
+            size=int(len(c48_real.time) * subselect_ratio),
+            replace=False,
+        )
+    )
+    c48_real = c48_real.isel(time=c48_steps).load()
+
+    train_c48_mean = c48_real_all.isel(time=slice(0, 11688)).mean(dim="time")
+    val_c48_mean = c48_real_all.isel(time=slice(11688, None)).mean(dim="time")
+    train_c384_mean = c384_real_all.isel(time=slice(0, 2920)).mean(dim="time")
+    val_c384_mean = c384_real_all.isel(time=slice(2920, None)).mean(dim="time")
+    expected_bias_c384 = train_c384_mean - val_c384_mean
+    expected_bias_c48 = train_c48_mean - val_c48_mean
+    expected_bias = expected_bias_c48
+
+    # plot the expected bias for each state variable of the cyclegan
+
+    fig, ax = plt.subplots(
+        1, 2, figsize=(14, 6), subplot_kw={"projection": ccrs.Robinson()}
+    )
+    if "h500" in expected_bias.data_vars:
+        fv3viz.plot_cube(
+            ds=GRID.merge(expected_bias, compat="override"),
+            var_name="h500",
+            ax=ax[0],
+            vmin=-150,
+            vmax=150,
+        )
+    if "PRATEsfc" in expected_bias.data_vars:
+        fv3viz.plot_cube(
+            ds=GRID.merge(expected_bias, compat="override"),
+            var_name="PRATEsfc",
+            ax=ax[1],
+            vmin=-1e-4,
+            vmax=1e-4,
+        )
+    plt.tight_layout()
+    fig.savefig(f"expected_bias.png", dpi=100)
+
+    # plot_annual_means(c48_real, cyclegan.state_variables)
+    evaluate(cyclegan, c48_real, c384_real, expected_bias_c384)

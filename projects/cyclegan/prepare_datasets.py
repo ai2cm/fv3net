@@ -103,31 +103,35 @@ if __name__ == "__main__":
     ds_coarse.attrs[
         "source_PRATEsfc"
     ] = "gs://vcm-ml-experiments/spencerc/2021-05-24/n2f-25km-baseline-unperturbed/fv3gfs_run/sfc_dt_atmos.zarr/"
+    ds_fine = ds_fine.assign({"PRATEsfc_2": ds_fine["PRATEsfc"]})
+    ds_coarse = ds_coarse.assign({"PRATEsfc_2": ds_coarse["PRATEsfc"]})
     write(ds_fine, ds_coarse, "0K")
-    ds_fine_atmos = xr.open_zarr(
-        "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-8K/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr/"
-    )
-    ds_fine_precip = xr.open_zarr(
-        "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-8K/C384-to-C48-diagnostics/gfsphysics_15min_coarse.zarr/"
-    )
-    ds_fine = convert_fine(ds_fine_atmos, ds_fine_precip)
-    ds_fine.attrs[
-        "source"
-    ] = "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-8K/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr/"
-    ds_fine.attrs[
-        "source_PRATEsfc"
-    ] = "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-8K/C384-to-C48-diagnostics/gfsphysics_15min_coarse.zarr/"
-    ds_coarse_atmos = xr.open_zarr(
-        "gs://vcm-ml-experiments/spencerc/2021-08-11/n2f-25km-baseline-plus-8k/fv3gfs_run/atmos_dt_atmos.zarr"
-    )
-    ds_coarse_precip = xr.open_zarr(
-        "gs://vcm-ml-experiments/spencerc/2021-08-11/n2f-25km-baseline-plus-8k/fv3gfs_run/sfc_dt_atmos.zarr/"
-    )
-    ds_coarse = convert_coarse(ds_coarse_atmos, ds_coarse_precip)
-    ds_coarse.attrs[
-        "source"
-    ] = "gs://vcm-ml-experiments/spencerc/2021-08-11/n2f-25km-baseline-plus-8k/fv3gfs_run/atmos_dt_atmos.zarr"
-    ds_coarse.attrs[
-        "source_PRATEsfc"
-    ] = "gs://vcm-ml-experiments/spencerc/2021-08-11/n2f-25km-baseline-plus-8k/fv3gfs_run/sfc_dt_atmos.zarr/"
-    write(ds_fine, ds_coarse, "8K")
+    # ds_fine_atmos = xr.open_zarr(
+    #     "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-8K/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr/"
+    # )
+    # ds_fine_precip = xr.open_zarr(
+    #     "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-8K/C384-to-C48-diagnostics/gfsphysics_15min_coarse.zarr/"
+    # )
+    # ds_fine = convert_fine(ds_fine_atmos, ds_fine_precip)
+    # ds_fine.attrs[
+    #     "source"
+    # ] = "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-8K/C384-to-C48-diagnostics/atmos_8xdaily_coarse_interpolated.zarr/"
+    # ds_fine.attrs[
+    #     "source_PRATEsfc"
+    # ] = "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-8K/C384-to-C48-diagnostics/gfsphysics_15min_coarse.zarr/"
+    # ds_coarse_atmos = xr.open_zarr(
+    #     "gs://vcm-ml-experiments/spencerc/2021-08-11/n2f-25km-baseline-plus-8k/fv3gfs_run/atmos_dt_atmos.zarr"
+    # )
+    # ds_coarse_precip = xr.open_zarr(
+    #     "gs://vcm-ml-experiments/spencerc/2021-08-11/n2f-25km-baseline-plus-8k/fv3gfs_run/sfc_dt_atmos.zarr/"
+    # )
+    # ds_coarse = convert_coarse(ds_coarse_atmos, ds_coarse_precip)
+    # ds_coarse.attrs[
+    #     "source"
+    # ] = "gs://vcm-ml-experiments/spencerc/2021-08-11/n2f-25km-baseline-plus-8k/fv3gfs_run/atmos_dt_atmos.zarr"
+    # ds_coarse.attrs[
+    #     "source_PRATEsfc"
+    # ] = "gs://vcm-ml-experiments/spencerc/2021-08-11/n2f-25km-baseline-plus-8k/fv3gfs_run/sfc_dt_atmos.zarr/"
+    # ds_fine = ds_fine.assign({"PRATEsfc_2": ds_fine["PRATEsfc"]})
+    # ds_coarse = ds_coarse.assign({"PRATEsfc_2": ds_coarse["PRATEsfc"]})
+    # write(ds_fine, ds_coarse, "8K")
