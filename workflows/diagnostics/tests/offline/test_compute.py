@@ -4,11 +4,6 @@ import tempfile
 import os
 import loaders
 import synth
-from synth import (  # noqa: F401
-    grid_dataset,
-    grid_dataset_path,
-    dataset_fixtures_dir,
-)
 
 import fv3fit
 from fv3net.diagnostics.offline._helpers import DATASET_DIM_NAME
@@ -39,7 +34,7 @@ def data_path(tmpdir, request):
     return str(tmpdir)
 
 
-def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
+def test_offline_diags_integration(data_path):  # noqa: F811
     """
     Test the bash endpoint for computing offline diagnostics
     """
@@ -71,7 +66,7 @@ def test_offline_diags_integration(data_path, grid_dataset_path):  # noqa: F811
                 data_config_filename,
                 os.path.join(tmpdir, "offline_diags"),
                 "--evaluation-grid",
-                grid_dataset_path,
+                "c8_random_values",
                 "--n-jobs",
                 "1",
             ]

@@ -337,6 +337,50 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/2020-03-27-T85-GFS-nudging-data-as-zarr/nudging_data_mean_1M.zarr"
 
+  grid/c12:
+    description: Lat, lon, and area of C12 data
+    driver: zarr
+    metadata:
+      grid: c12
+      variables:
+        - area
+        - lat
+        - latb
+        - lon
+        - lonb
+    args:
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c12/c12.zarr/"
+      consolidated: true
+
+  landseamask/c12:
+    description: land_sea_mask of C12 data
+    driver: zarr
+    metadata:
+      grid: c12
+      variables:
+        - land_sea_mask
+    args:
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c12/land_sea_mask.zarr/"
+      consolidated: true
+
+  wind_rotation/c12:
+    description: Rotation matrix components transforming x/y components to lat/lon
+    driver: zarr
+    metadata:
+      grid: c12
+      variables:
+        - eastward_wind_u_coeff
+        - eastward_wind_v_coeff
+        - northward_wind_u_coeff
+        - northward_wind_v_coeff
+        - x_unit_vector
+        - y_unit_vector
+        - lat_unit_vector
+        - lon_unit_vector
+    args:
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c12/wind_rotation_matrix_correct_factor.zarr/"
+      consolidated: true
+
   grid/c48:
     description: Lat, lon, and area of C48 data
     driver: zarr
@@ -786,7 +830,11 @@ sources:
 
   # Regression testing data. Do not use for analysis, values are randomized.
   grid/c8_random_values:
-    description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data
+    description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data.  Updated on 2023-02-01 to
+      be consistent with the grid_spec.json schema in synth fv3net/external/synth/synth/_dataset_fixtures/grid_schema.json
+      with the land_sea_mask variable dropped.  This schema generates grid data with semi-realistic values, which are
+      required for the offline diagnostics compute integration test to pass (credit Brian Henn).  Previously this catalog
+      entry referred to gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid.zarr.
     driver: zarr
     metadata:
       grid: c8
@@ -799,7 +847,7 @@ sources:
     args:
       storage_options:
         access: read_only
-      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid.zarr/"
+      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/2023-02-01-grid.zarr/"
       consolidated: true
 
   wind_rotation/c8_random_values:

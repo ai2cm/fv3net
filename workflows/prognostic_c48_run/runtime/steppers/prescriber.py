@@ -24,6 +24,8 @@ class PrescriberConfig:
             defaults to True
         reference_initial_time: if time interpolating, time of first point in dataset
         reference_frequency_seconds: time frequency of dataset
+        tendency_variables: optional mapping of tendency variable names in the dataset
+            to the state variables they update
 
     Example::
 
@@ -42,6 +44,7 @@ class PrescriberConfig:
     consolidated: bool = True
     reference_initial_time: Optional[str] = None
     reference_frequency_seconds: float = 900
+    tendency_variables: Optional[Mapping[str, str]] = None
 
 
 class Prescriber:
@@ -53,6 +56,7 @@ class Prescriber:
         communicator: pace.util.CubedSphereCommunicator,
         time_lookup_function: Callable[[cftime.DatetimeJulian], State],
         variables: Mapping[str, str],
+        tendency_variables: Optional[Mapping[str, str]],
     ):
         """Create a Prescriber object
 
@@ -62,22 +66,30 @@ class Prescriber:
                 containing data arrays to be prescribed
             variables: a mapping from variable names returned by the
                 `time_lookup_function` to the standard names to be prescribed
+            tendency_variables: mapping from tendency variable names returned by the
+                `time_lookup_function` to the standard tendency names used to update
+                the state
         """
         self._communicator = communicator
         self._time_lookup_function = time_lookup_function
         self._variables = variables
+        self._tendency_variables = tendency_variables or {}
 
     def _open_prescribed_timestep(self, time: cftime.DatetimeJulian) -> xr.Dataset:
         ds = scatter_within_tile(time, self._time_lookup_function, self._communicator)
-        return ds.rename(self._variables)
+        return ds.rename(**self._variables, **self._tendency_variables)
 
     def __call__(self, time, state):
         diagnostics: Diagnostics = {}
 
         prescribed_timestep: xr.Dataset = self._open_prescribed_timestep(time)
+        tendency: Tendencies = {}
         state_updates: State = {}
 
-        for name in prescribed_timestep.data_vars:
+        for name in self._tendency_variables.values():
+            tendency[name] = prescribed_timestep[name]
+
+        for name in self._variables.values():
             if name == MASK:
                 state_updates[name] = prescribed_timestep[name].round()
 
@@ -93,7 +105,8 @@ class Prescriber:
                 state_updates[name] = prescribed_timestep[name]
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
-        tendency: Tendencies = {}
+        for name, update in tendency.items():
+            diagnostics[f"{name}_prescribed_tendency"] = update
         return tendency, diagnostics, state_updates
 
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:

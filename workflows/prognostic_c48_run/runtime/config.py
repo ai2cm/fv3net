@@ -50,6 +50,8 @@ class UserConfig:
         nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
         tendency_prescriber: configuration for overriding physics tendencies.
+        bias_correction: configuration for using bias correction tendencies
+            from a dataset.
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
@@ -62,6 +64,7 @@ class UserConfig:
     tendency_prescriber: Optional[TendencyPrescriberConfig] = None
     online_emulator: Optional[runtime.transformers.fv3fit.Config] = None
     radiation_scheme: Optional[RadiationStepperConfig] = None
+    bias_correction: Optional[PrescriberConfig] = None
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
