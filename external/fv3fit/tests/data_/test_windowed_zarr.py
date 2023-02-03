@@ -63,13 +63,15 @@ def test_loader_stacks_default_config():
         )
         dataset = loader.open_tfdataset(
             local_download_path=None, variable_names=variable_names
-        )
+        ).unbatch()
         item = next(iter(dataset))
-        assert item["a"].shape[0] == NX * NY
-        assert len(item["a"].shape) == 3
-        assert item["a"].shape[-1] == NZ
-        assert item["a_sfc"].shape[0] == NX * NY
-        assert len(item["a_sfc"].shape) == 2
+        # check that the given sample only contains the requested
+        # unstacked_dims, and that they have the right lengths
+        assert item["a"].shape[0] == 10
+        assert item["a"].shape[1] == NZ
+        assert len(item["a"].shape) == 2
+        assert item["a_sfc"].shape[0] == 10
+        assert len(item["a_sfc"].shape) == 1
 
 
 def test_loader_stacks_default_config_without_stacked_dims():
