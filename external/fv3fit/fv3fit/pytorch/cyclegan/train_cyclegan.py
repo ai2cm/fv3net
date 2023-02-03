@@ -140,11 +140,15 @@ class CycleGANTrainingConfig:
     ):
         reporter = Reporter()
         for state_a, state_b in train_states:
-            train_example_a, train_example_b = state_a[:1, :], state_b[:1, :]
+            train_example_a, train_example_b = state_a, state_b
+            train_example_a_mean = train_example_a.mean(dim=(0, 1))
+            train_example_b_mean = train_example_b.mean(dim=(0, 1))
             break
         if validation_states is not None:
             for state_a, state_b in validation_states:
-                val_example_a, val_example_b = state_a[:1, :], state_b[:1, :]
+                val_example_a, val_example_b = state_a, state_b
+                val_example_a_mean = val_example_a.mean(dim=(0, 1))
+                val_example_b_mean = val_example_b.mean(dim=(0, 1))
                 break
         else:
             val_example_a, val_example_b = None, None
@@ -164,7 +168,12 @@ class CycleGANTrainingConfig:
             }
             logger.info("train_loss: %s", train_loss)
             reporter.log(train_loss)
-            train_plots = train_model.generate_plots(train_example_a, train_example_b)
+            train_plots = train_model.generate_plots(
+                train_example_a,
+                train_example_b,
+                train_example_a_mean,
+                train_example_b_mean,
+            )
             reporter.log(train_plots)
 
             if validation_states is not None:
@@ -179,7 +188,9 @@ class CycleGANTrainingConfig:
                     for name in val_losses[0]
                 }
                 reporter.log(val_loss)
-                val_plots = train_model.generate_plots(val_example_a, val_example_b)
+                val_plots = train_model.generate_plots(
+                    val_example_a, val_example_b, val_example_a_mean, val_example_b_mean
+                )
                 reporter.log({f"val_{name}": plot for name, plot in val_plots.items()})
                 logger.info("val_loss %s", val_loss)
             wandb.log(reporter.metrics)
