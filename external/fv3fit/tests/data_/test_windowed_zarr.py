@@ -65,6 +65,8 @@ def test_loader_stacks_default_config():
             local_download_path=None, variable_names=variable_names
         ).unbatch()
         item = next(iter(dataset))
+        # check that the given sample only contains the requested
+        # unstacked_dims, and that they have the right lengths
         assert item["a"].shape[0] == 10
         assert item["a"].shape[1] == NZ
         assert len(item["a"].shape) == 2
