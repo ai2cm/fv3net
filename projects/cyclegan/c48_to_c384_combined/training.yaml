@@ -16,7 +16,7 @@ hyperparameters:
     optimizer:
       name: Adam
       kwargs:
-        lr: 2.01e-4
+        lr: 2.01e-5
     generator:
       n_convolutions: 2
       n_resnet: 6
@@ -44,5 +44,5 @@ hyperparameters:
     in_memory: false
     shuffle_buffer_size: 1000
     samples_per_batch: 1
-    validation_batch_size: 500
+    validation_batch_size: 1000
     checkpoint_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/

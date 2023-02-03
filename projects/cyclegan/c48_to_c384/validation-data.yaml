@@ -1,6 +1,6 @@
-batch_size: 250
+batch_size: 500
 domain_configs:
-  - data_path: gs://vcm-ml-experiments/mcgibbon/2023-02-01/coarse-0K.zarr/
+  - data_path: gs://vcm-ml-experiments/mcgibbon/2023-02-02/coarse-0K.zarr/
     unstacked_dims:
       - time
       - tile
@@ -10,9 +10,9 @@ domain_configs:
     window_size: 1
     default_variable_config:
       times: window
-    n_windows: 500  # 5808
+    n_windows: 2 #500  # 5808
     time_start_index: 11688
-  - data_path: gs://vcm-ml-experiments/mcgibbon/2023-02-01/fine-0K.zarr/
+  - data_path: gs://vcm-ml-experiments/mcgibbon/2023-02-02/fine-0K.zarr/
     unstacked_dims:
       - time
       - tile
@@ -22,5 +22,5 @@ domain_configs:
     window_size: 1
     default_variable_config:
       times: window
-    n_windows: 500  # 5808
+    n_windows: 2 #500  # 5808
     time_start_index: 2920

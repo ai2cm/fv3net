@@ -5,7 +5,7 @@ hyperparameters:
   state_variables:
     - PRATEsfc
     # - PRATEsfc_2
-    # - h500
+    - h500
     # - PRESsfc
     # - w500
     # - TMPlowest
@@ -23,12 +23,12 @@ hyperparameters:
       n_resnet: 6
       kernel_size: 3
       strided_kernel_size: 4
-      max_filters: 256
+      max_filters: 32 #256
     discriminator:
       n_convolutions: 3
       kernel_size: 3
       strided_kernel_size: 4
-      max_filters: 512
+      max_filters: 64 #512
     identity_loss:
       loss_type: mae
     cycle_loss:
@@ -39,11 +39,11 @@ hyperparameters:
     cycle_weight: 10.0
     generator_weight: 1.0
     discriminator_weight: 1.0
-    reload_path: gs://vcm-ml-experiments/cyclegan/2023-02-01/cyclegan_c48_to_c384-precip-2e-4
+    # reload_path: gs://vcm-ml-experiments/cyclegan/2023-01-25/cyclegan_c48_to_c384-prec-h500-w512-2e-5
   training:
     n_epoch: 200
     in_memory: false
     shuffle_buffer_size: 1000
     samples_per_batch: 1
-    validation_batch_size: 250
+    validation_batch_size: 500
     checkpoint_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/
