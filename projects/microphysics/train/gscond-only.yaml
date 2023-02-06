@@ -1,11 +1,12 @@
 kind: train
-name: gscond-only-qvout-v1
-fv3fit_image_tag: 99b74dcc46b233c05942b32098c1207b0e6dd323
+name: gscond-only-qvout-norm-fix-v1
+fv3fit_image_tag: 95218aec9ed1e6cbda0db1e1f69dc34e0d839c52
 experiment: james-manuscript
 config:
   use_wandb: true
   wandb:
     wandb_project: microphysics-emulation
+  seed: 5
   batch_size: 512
   epochs: 50
   nfiles_valid: 100
@@ -39,6 +40,10 @@ config:
         learning_rate: 0.0001
       name: Adam
     metric_variables: []
+    normalization_map:
+      humidity_gscond_difference_tscaled:
+        center: none
+        scale: none
     loss_variables:
       - humidity_gscond_difference_tscaled
       - specific_humidity_after_gscond
@@ -68,7 +73,7 @@ config:
     - surface_air_pressure
     - surface_air_pressure_after_last_gscond
     - relative_humidity
-    direct_out_variables:
+    unscaled_outputs:
       - humidity_gscond_difference_tscaled
     normalize_default:
       center: per_feature
