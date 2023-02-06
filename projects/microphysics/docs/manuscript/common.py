@@ -1,11 +1,13 @@
 import matplotlib.pyplot as plt
-from matplotlib.colors import Colormap
+from matplotlib.colors import LinearSegmentedColormap
 import functools
+import numpy as np
 import os
 import xarray
 import vcm.catalog
 import vcm
 import intake
+import xarray as xr
 from fv3net.diagnostics.prognostic_run import load_run_data
 from fv3net.diagnostics.prognostic_run.emulation import query
 import wandb
@@ -17,11 +19,25 @@ plt.style.use("seaborn-colorblind")
 MEMOIZE_DIR = "./cache"
 
 
-RdBu_LAND = Colormap("RdBu_r")
-RdBu_LAND.set_bad(color="#bcb3a2")
+land_color = "#bcb3a2"
+RdBu_LAND = plt.get_cmap("RdBu_r")
+RdBu_LAND.set_bad(land_color)
 
-Viridis_LAND = Colormap("viridis")
-Viridis_LAND.set_bad(color="#bcb3a2")
+Viridis_LAND = plt.get_cmap("viridis")
+Viridis_LAND.set_bad(land_color)
+
+
+def _insert_white(key, new_key, position, bad_color=land_color):
+    tmp = plt.get_cmap(key)(np.linspace(0, 1, 8))
+    tmp[position] = [1.0, 1.0, 1.0, 1.0]
+    cmap = LinearSegmentedColormap.from_list(new_key, tmp)
+    cmap.set_bad(bad_color)
+
+    return cmap
+
+
+NuReds_LAND = _insert_white("Reds_r", "NuReds", -1)
+NuBlues_LAND = _insert_white("Blues_r", "NuBlues", -1)
 
 dt = 900  # s
 seconds_per_day = 60 * 60 * 24  # seconds/min * min/hr * hr/day
@@ -32,6 +48,12 @@ cp = 1.0046e3  # J / (kg K)
 gravity = 9.80665  # m / s^2
 lv = 2.5e6  # J / kg water
 rho_water = 1000.0  # kg / m^3
+
+levels = vcm.interpolate.PRESSURE_GRID
+x = range(0, 70, 2)
+x2 = range(0, 70)
+yp = np.interp(x2, x, levels)
+LEVELS = xr.DataArray(yp[:-1], dims=["pressure"])
 
 
 def kg_m2_s_to_mm_day(da):
