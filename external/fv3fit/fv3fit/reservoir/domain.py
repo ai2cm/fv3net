@@ -1,4 +1,12 @@
 import numpy as np
+from typing import Sequence, Tuple
+import xarray as xr
+
+import pace.util
+from fv3fit.keras._models.shared.halos import append_halos
+
+
+Layout = Tuple[int, int]
 
 
 def _slice(arr: np.ndarray, inds: slice, axis: int = 0):
@@ -76,3 +84,46 @@ class PeriodicDomain:
         elem = self[self.index]
         self.index += 1
         return elem
+
+
+class CubedsphereRankDivider:
+    def __init__(
+        self,
+        tile_layout: Layout,
+        global_dims: Sequence[str],
+        global_extent: Sequence[int],
+    ):
+        self.tile_layout = tile_layout
+        if not {"x", "y", "tile"} <= set(global_dims):
+            raise ValueError("Data to be divided must have dims 'x', 'y', and 'tile'.")
+        self.global_dims = global_dims
+        self.global_extent = global_extent
+        tile_partitioner = pace.util.TilePartitioner(layout=tile_layout)
+        self.cubedsphere_partitioner = pace.util.CubedSpherePartitioner(
+            tile=tile_partitioner
+        )
+
+    def get_rank_data(self, dataset: xr.Dataset, rank: int, overlap: int):
+        subtile_slice = self.cubedsphere_partitioner.subtile_slice(
+            rank,
+            global_dims=self.global_dims,
+            global_extent=self.global_extent,
+            overlap=False,
+        )
+        subtile_selection = {
+            dim: selection for (dim, selection) in zip(self.global_dims, subtile_slice)
+        }
+
+        if overlap > 0:
+            dataset_ = append_halos(dataset, overlap)
+            x_slice = subtile_selection["x"]
+            subtile_selection["x"] = slice(
+                x_slice.start, x_slice.stop + 2 * overlap, None
+            )
+            y_slice = subtile_selection["y"]
+            subtile_selection["y"] = slice(
+                y_slice.start, y_slice.stop + 2 * overlap, None
+            )
+        else:
+            dataset_ = dataset
+        return dataset_.isel(subtile_selection)
