@@ -7,4 +7,4 @@ from .model import (
     ReservoirOnlyDomainPredictor,
     HybridDomainPredictor,
 )
-from .domain import PeriodicDomain
+from .domain_1d import PeriodicDomain

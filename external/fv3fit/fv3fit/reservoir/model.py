@@ -6,7 +6,7 @@ from typing import Sequence
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
 from .config import SubdomainConfig
-from .domain import PeriodicDomain, Subdomain
+from .domain_1d import PeriodicDomain, Subdomain
 
 
 class ImperfectModel(abc.ABC):
