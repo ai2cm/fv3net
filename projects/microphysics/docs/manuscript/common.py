@@ -36,7 +36,7 @@ def _insert_white(key, new_key, position, bad_color=land_color):
     return cmap
 
 
-NuReds_LAND = _insert_white("Reds_r", "NuReds", -1)
+NuReds_LAND = _insert_white("Reds", "NuReds", 0)
 NuBlues_LAND = _insert_white("Blues_r", "NuBlues", -1)
 
 dt = 900  # s
