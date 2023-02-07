@@ -10,6 +10,8 @@ spec:
       value: "false"
     - name: flags
       value: " "
+    - name: movie-flags
+      value: " "
   entrypoint: all
   volumes:
   - name: gcp-key-secret
@@ -30,6 +32,8 @@ spec:
               value: "{{item.url}}_diagnostics"
             - name: flags
               value: "{{workflow.parameters.flags}}"
+            - name: movie-flags
+              value: "{{workflow.parameters.movie-flags}}"
     - - name: generate-report
         template: report
         arguments:
@@ -101,6 +105,8 @@ spec:
       - name: output
       - name: flags
         value: " "
+      - name: movie-flags
+        value: " "
     dag:
       tasks:
       - name: movies
@@ -109,6 +115,7 @@ spec:
           parameters:
             - {name: run, value: "{{inputs.parameters.run}}"}
             - {name: output, value: "{{inputs.parameters.output}}"}
+            - {name: movie-flags, value: "{{inputs.parameters.movie-flags}}"}
       - name: compute-reduced-diagnostics
         template: compute-reduced-diagnostics
         arguments:
@@ -167,6 +174,7 @@ spec:
       parameters:
       - name: run
       - name: output
+      - {name: movie-flags, value: " "}
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -184,7 +192,7 @@ spec:
       command: ["/bin/bash", "-x", "-e", "-c"]
       args:
       - |
-        prognostic_run_diags movie --n_timesteps 960 --n_jobs 26 {{inputs.parameters.run}} {{inputs.parameters.output}}
+        prognostic_run_diags movie --n_timesteps 960 --n_jobs 26 {{inputs.parameters.run}} {{inputs.parameters.output}} {{inputs.parameters.movie-flags}}
       workingDir: /home/jovyan/fv3net/workflows/diagnostics
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
