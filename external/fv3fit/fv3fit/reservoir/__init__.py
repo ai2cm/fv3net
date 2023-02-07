@@ -8,3 +8,4 @@ from .model import (
     HybridDomainPredictor,
 )
 from .domain_1d import PeriodicDomain
+from .domain_cubedsphere import CubedsphereRankDivider
