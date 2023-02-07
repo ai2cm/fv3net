@@ -3,10 +3,10 @@ base_model:
   tq_tendencies_path: "gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/oos-configs/taper-wrappers/tapered-tquv-seed-0"
 # cutoffs are determined based on the offline prognostic tendencies at https://storage.googleapis.com/vcm-ml-public/claytons/oos_analysis/prognostic/report-8e9e4e2798274e128c9a2883352e2296/index.html
 novelty_detectors:
-  - nd_name: "ocsvm-tq-gamma-1_79-nu-5e-5"
-    nd_path: "gs://vcm-ml-experiments/claytons/2023-02-04/tq-additional-ocsvms-trial-1/trained_models/ocsvm-tq-gamma-1_79-nu-5e-5"
-    params:
-      - cutoff: 0
+  #- nd_name: "ocsvm-tq-gamma-1_79-nu-5e-5"
+  #  nd_path: "gs://vcm-ml-experiments/claytons/2023-02-04/tq-additional-ocsvms-trial-1/trained_models/ocsvm-tq-gamma-1_79-nu-5e-5"
+  #  params:
+  #    - cutoff: 0
   - nd_name: "ocsvm-tq-gamma-2_79-nu-5e-5"
     nd_path: "gs://vcm-ml-experiments/claytons/2023-02-04/tq-additional-ocsvms-trial-1/trained_models/ocsvm-tq-gamma-2_79-nu-5e-5"
     params:
