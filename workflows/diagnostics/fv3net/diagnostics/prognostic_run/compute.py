@@ -619,28 +619,28 @@ def register_parser(subparsers):
         default=-1,
     )
     parser.add_argument(
-        "--evaluation-resolution",
+        "--evaluation-grid",
         type=str,
-        help="Resolution to evaluate prognostic run diagnostics on",
+        help="Grid upon which to evaluate prognostic run diagnostics",
         default="c48",
     )
     parser.set_defaults(func=main)
 
 
-def get_verification(args, catalog, join_2d="outer", evaluation_resolution="c48"):
+def get_verification(args, catalog, join_2d="outer", evaluation_grid="c48"):
     if args.verification_url:
         return load_diags.SegmentedRun(
             args.verification_url,
             catalog,
             join_2d=join_2d,
-            evaluation_resolution=evaluation_resolution,
+            evaluation_grid=evaluation_grid,
         )
     else:
         return load_diags.CatalogSimulation(
             args.verification,
             catalog,
             join_2d=join_2d,
-            evaluation_resolution=evaluation_resolution,
+            evaluation_grid=evaluation_grid,
         )
 
 
@@ -654,14 +654,12 @@ def main(args):
     diags = {}
     catalog = intake.open_catalog(args.catalog)
     prognostic = load_diags.SegmentedRun(
-        args.url, catalog, evaluation_resolution=args.evaluation_resolution
+        args.url, catalog, evaluation_grid=args.evaluation_grid
     )
-    verification = get_verification(
-        args, catalog, evaluation_resolution=args.evaluation_resolution
-    )
+    verification = get_verification(args, catalog, evaluation_grid=args.evaluation_grid)
     attrs["verification"] = str(verification)
 
-    grid = load_diags.load_grid(catalog, args.evaluation_resolution)
+    grid = load_diags.load_grid(catalog, args.evaluation_grid)
     input_data = load_diags.evaluation_pair_to_input_data(
         prognostic, verification, grid
     )

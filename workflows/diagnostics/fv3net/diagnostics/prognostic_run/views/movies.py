@@ -212,9 +212,9 @@ def register_parser(subparsers):
         ),
     )
     parser.add_argument(
-        "--evaluation-resolution",
+        "--evaluation-grid",
         type=str,
-        help="Resolution to evaluate prognostic run diagnostics on",
+        help="Grid upon which to evaluate prognostic run diagnostics",
         default="c48",
     )
     add_catalog_and_verification_arguments(parser)
@@ -248,20 +248,15 @@ def main(args):
         os.makedirs(args.output, exist_ok=True)
 
     catalog = intake.open_catalog(args.catalog)
-    grid = load_diags.load_grid(
-        catalog, evaluation_resolution=args.evaluation_resolution
-    )
+    grid = load_diags.load_grid(catalog, evaluation_grid=args.evaluation_grid)
     prognostic = derived_variables.derive_2d_variables(
         load_diags.SegmentedRun(
-            args.url, catalog, evaluation_resolution=args.evaluation_resolution
+            args.url, catalog, evaluation_grid=args.evaluation_grid
         ).data_2d
     )
     verification = derived_variables.derive_2d_variables(
         get_verification(
-            args,
-            catalog,
-            join_2d="inner",
-            evaluation_resolution=args.evaluation_resolution,
+            args, catalog, join_2d="inner", evaluation_grid=args.evaluation_grid,
         ).data_2d
     )
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
