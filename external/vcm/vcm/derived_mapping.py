@@ -379,3 +379,53 @@ def upward_heat_flux_at_surface(self):
     return result.assign_attrs(
         long_name="Upward heat (sensible+radiative) flux at surface", units="W/m**2"
     )
+
+
+@DerivedMapping.register(
+    "incloud_water_mixing_ratio",
+    required_inputs=["cloud_amount", "cloud_water_mixing_ratio"],
+)
+def incloud_water_mixing_ratio(self):
+    result = vcm.gridcell_to_incloud_condensate(
+        self["cloud_amount"], self["cloud_water_mixing_ratio"]
+    )
+    return result.assign_attrs(long_name="in-cloud water mixing ratio", units="kg/kg")
+
+
+@DerivedMapping.register(
+    "incloud_ice_mixing_ratio",
+    required_inputs=["cloud_amount", "cloud_ice_mixing_ratio"],
+)
+def incloud_ice_mixing_ratio(self):
+    result = vcm.gridcell_to_incloud_condensate(
+        self["cloud_amount"], self["cloud_ice_mixing_ratio"]
+    )
+    return result.assign_attrs(long_name="in-cloud ice mixing ratio", units="kg/kg")
+
+
+@DerivedMapping.register(
+    "gridcell_cloud_water_mixing_ratio",
+    required_inputs=["cloud_amount", "incloud_water_mixing_ratio"],
+)
+def gridcell_cloud_water_mixing_ratio(self):
+    if "cloud_water_mixing_ratio" not in self.keys():
+        result = vcm.incloud_to_gridcell_condensate(
+            self["cloud_amount"], self["incloud_water_mixing_ratio"]
+        )
+        return result.assign_attrs(long_name="cloud water mixing ratio", units="kg/kg")
+    else:
+        return self["cloud_water_mixing_ratio"]
+
+
+@DerivedMapping.register(
+    "gridcell_cloud_ice_mixing_ratio",
+    required_inputs=["cloud_amount", "incloud_ice_mixing_ratio"],
+)
+def gridcell_cloud_ice_mixing_ratio(self):
+    if "cloud_ice_mixing_ratio" not in self.keys():
+        result = vcm.incloud_to_gridcell_condensate(
+            self["cloud_amount"], self["incloud_ice_mixing_ratio"]
+        )
+        return result.assign_attrs(long_name="cloud ice mixing ratio", units="kg/kg")
+    else:
+        return self["cloud_water_mixing_ratio"]
