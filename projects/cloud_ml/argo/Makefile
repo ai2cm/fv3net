@@ -155,6 +155,18 @@ prescribed_rf_ml_cond_15_cc_decorr_run: deploy
 prescribed_rf_ml_cond_level_cc_decorr_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-rf-cond-level-cc-decorr
 
+.PHONY: prescribed_rf_ml_quantile_cc_decorr_run
+prescribed_rf_ml_quantile_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-quantile-cc-decorr
+
+.PHONY: prescribed_rf_ml_quantilein_cc_decorr_run
+prescribed_rf_ml_quantilein_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-quantilein-cc-decorr
+
+.PHONY: prescribed_rf_ml_quantile01_cc_decorr_run
+prescribed_rf_ml_quantile01_cc_decorr_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-quantile01-cc-decorr
+
 .PHONY: prescribed_cc_rf_ml_cond_10_cc_decorr_run
 prescribed_cc_rf_ml_cond_10_cc_decorr_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cc-rf-cond10-cc-decorr
