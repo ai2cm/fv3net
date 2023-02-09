@@ -36,6 +36,8 @@ TransformName = Literal[
     "implied_downward_radiative_flux_at_surface",
     "tapered_dQ1",
     "tapered_dQ2",
+    "cloud_water_mixing_ratio_from_incloud",
+    "cloud_ice_mixing_ratio_from_incloud",
 ]
 
 
@@ -293,6 +295,30 @@ def implied_surface_precipitation_rate(ds, rectify=True):
         long_name="Implied surface precipitation rate computed as E-<Q2>",
     )
     ds["implied_surface_precipitation_rate"] = implied_precip
+    return ds
+
+
+@register(["cloud_amount", "incloud_water_mixing_ratio"], ["cloud_water_mixing_ratio"])
+def cloud_water_mixing_ratio_from_incloud(ds):
+    cloud_water = vcm.incloud_to_gridcell_condensate(
+        ds["cloud_amount"], ds["incloud_water_mixing_ratio"]
+    )
+    cloud_water = cloud_water.assign_attrs(
+        long_name="cloud water mixing ratio", units="kg/kg"
+    )
+    ds["cloud_water_mixing_ratio"] = cloud_water
+    return ds
+
+
+@register(["cloud_amount", "incloud_ice_mixing_ratio"], ["cloud_ice_mixing_ratio"])
+def cloud_ice_mixing_ratio_from_incloud(ds):
+    cloud_ice = vcm.incloud_to_gridcell_condensate(
+        ds["cloud_amount"], ds["incloud_ice_mixing_ratio"]
+    )
+    cloud_ice = cloud_ice.assign_attrs(
+        long_name="cloud ice mixing ratio", units="kg/kg"
+    )
+    ds["cloud_ice_mixing_ratio"] = cloud_ice
     return ds
 
 
