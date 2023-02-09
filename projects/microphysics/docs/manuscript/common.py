@@ -1,3 +1,5 @@
+import json
+import re
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import functools
@@ -12,6 +14,8 @@ from fv3net.diagnostics.prognostic_run import load_run_data
 from fv3net.diagnostics.prognostic_run.emulation import query
 import wandb
 import joblib
+
+API = wandb.Api()
 
 WIDTH = 5.1
 VERSION = "1"
@@ -130,9 +134,38 @@ def open_group(group):
 
 def get_group_url(group):
     client = query.PrognosticRunClient(
-        group, project="microphysics-emulation", entity="ai2cm", api=wandb.Api()
+        group, project="microphysics-emulation", entity="ai2cm", api=API
     )
     return client.get_rundir_url()
+
+
+def _get_runs(group, job_types=None):
+    runs = API.runs(filters={"group": group}, path="ai2cm/microphysics-emulation")
+    if job_types is not None:
+        runs = [r for r in runs if r.job_type in job_types]
+    return runs
+
+
+def _get_air_temp_plotly_file(run):
+    match_str = ".*time_vs_lev.*gscond.*air_temperature"
+    for f in run.files():
+        if re.search(match_str, f.name) is not None:
+            return f.download(replace=True)
+
+
+def _plotly_2d_data_to_array(f):
+    json_payload = json.loads(str(f.read()))
+    data = json_payload["data"][0]
+    data = {k: data[k] for k in ["x", "y", "z"]}
+    data = {k: np.array(v) for k, v in data.items()}
+
+    return data
+
+
+def get_skill_arr_from_group(group):
+    run = _get_runs(group, {"piggy-back"})
+    plotly_file = _get_air_temp_plotly_file(run)
+    return _plotly_2d_data_to_array(plotly_file)
 
 
 def savefig(filename):
