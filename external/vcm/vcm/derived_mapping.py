@@ -384,6 +384,7 @@ def upward_heat_flux_at_surface(self):
 @DerivedMapping.register(
     "incloud_water_mixing_ratio",
     required_inputs=["cloud_amount", "cloud_water_mixing_ratio"],
+    use_nonderived_if_exists=True,
 )
 def incloud_water_mixing_ratio(self):
     result = vcm.gridcell_to_incloud_condensate(
@@ -395,6 +396,7 @@ def incloud_water_mixing_ratio(self):
 @DerivedMapping.register(
     "incloud_ice_mixing_ratio",
     required_inputs=["cloud_amount", "cloud_ice_mixing_ratio"],
+    use_nonderived_if_exists=True,
 )
 def incloud_ice_mixing_ratio(self):
     result = vcm.gridcell_to_incloud_condensate(
@@ -408,13 +410,13 @@ def incloud_ice_mixing_ratio(self):
     required_inputs=["cloud_amount", "incloud_water_mixing_ratio"],
 )
 def gridcell_cloud_water_mixing_ratio(self):
-    if "cloud_water_mixing_ratio" not in self.keys():
-        result = vcm.incloud_to_gridcell_condensate(
-            self["cloud_amount"], self["incloud_water_mixing_ratio"]
-        )
-        return result.assign_attrs(long_name="cloud water mixing ratio", units="kg/kg")
-    else:
-        return self["cloud_water_mixing_ratio"]
+    # needs a nonstandard name to avoid circular reference
+    result = vcm.incloud_to_gridcell_condensate(
+        self["cloud_amount"], self["incloud_water_mixing_ratio"]
+    )
+    return result.assign_attrs(
+        long_name="gridcell-mean cloud water mixing ratio", units="kg/kg"
+    )
 
 
 @DerivedMapping.register(
@@ -422,10 +424,10 @@ def gridcell_cloud_water_mixing_ratio(self):
     required_inputs=["cloud_amount", "incloud_ice_mixing_ratio"],
 )
 def gridcell_cloud_ice_mixing_ratio(self):
-    if "cloud_ice_mixing_ratio" not in self.keys():
-        result = vcm.incloud_to_gridcell_condensate(
-            self["cloud_amount"], self["incloud_ice_mixing_ratio"]
-        )
-        return result.assign_attrs(long_name="cloud ice mixing ratio", units="kg/kg")
-    else:
-        return self["cloud_water_mixing_ratio"]
+    # needs a nonstandard name to avoid circular reference
+    result = vcm.incloud_to_gridcell_condensate(
+        self["cloud_amount"], self["incloud_ice_mixing_ratio"]
+    )
+    return result.assign_attrs(
+        long_name="gridcell-mean cloud ice mixing ratio", units="kg/kg"
+    )
