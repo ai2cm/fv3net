@@ -11,11 +11,11 @@ from end_to_end import (
 
 CONFIG_PATHS = {
     "gscond": "../train/gscond-only.yaml",
-    "gscond-classify": "../train/gscond-classifier.yaml",
-    "precpd": "../train/rnn-precpd-diff-only.yaml",
+    # "gscond-classify": "../train/gscond-classifier.yaml",
+    # "precpd": "../train/rnn-precpd-diff-only.yaml",
 }
-NAME = "zc-train-{}-seed{}-v2"
-IMAGE_TAG = "353e842a653200175a219cd6ad3c1a45ffbc2e13"
+NAME = "zc-train-{}-normfix-seed{}-v1"
+IMAGE_TAG = "95218aec9ed1e6cbda0db1e1f69dc34e0d839c52"
 
 
 def get_jobs(seed: int):
@@ -29,7 +29,7 @@ def get_jobs(seed: int):
 
 
 jobs = []
-for i in range(1, 6):
+for i in range(5):
     jobs.extend(get_jobs(i))
 
 submit_jobs(jobs, experiment_name="seed-sensitivity")
