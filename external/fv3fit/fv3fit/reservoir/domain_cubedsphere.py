@@ -1,3 +1,5 @@
+import numpy as np
+import tensorflow as tf
 from typing import Sequence, Tuple
 import xarray as xr
 
@@ -7,7 +9,16 @@ from fv3fit.keras._models.shared.halos import append_halos
 Layout = Tuple[int, int]
 
 
-class CubedsphereRankDivider:
+def _slice(arr: np.ndarray, inds: slice, axis: int = 0):
+    # https://stackoverflow.com/a/37729566
+    # For slicing ndarray along a dynamically specified axis
+    # same as np.take() but does not make a copy of the data
+    sl = [slice(None)] * arr.ndim
+    sl[axis] = inds
+    return arr[tuple(sl)]
+
+
+class CubedsphereDivider:
     def __init__(
         self,
         tile_layout: Layout,
@@ -34,7 +45,9 @@ class CubedsphereRankDivider:
             overlap=False,
         )
         subtile_selection = {
-            dim: selection for (dim, selection) in zip(self.global_dims, subtile_slice)
+            dim: selection
+            for (dim, selection) in zip(self.global_dims, subtile_slice)
+            if dim in dataset.dims
         }
         metadata = {
             "overlap": overlap,
@@ -58,65 +71,120 @@ class CubedsphereRankDivider:
             dataset_ = dataset
 
         dataset_.attrs.update(metadata)
+
         return dataset_.isel(subtile_selection)
 
 
-# reuse tile paritioner where 'ranks' are now the subdomains
 class RankDivider:
     def __init__(
         self,
         subdomain_layout: Layout,
         rank_dims: Sequence[str],
-        rank_extent: Sequence[int],
+        rank_extent: Sequence[int],  # shape of full data, including overlap
+        overlap: int,
     ):
         self.subdomain_layout = subdomain_layout
-        self.rank_dims = rank_dims
-        self.rank_extent = rank_extent
-        self.partitioner = pace.util.TilePartitioner(subdomain_layout)
-        self._n_subdomains = subdomain_layout[0] * subdomain_layout[1]
-        self._dims_without_overlap = {
-            dim: extent for dim, extent in zip(rank_dims, rank_extent)
-        }
-
-    def subdomain_slice(self, subdomain_index: int):
-        return self.partitioner.subtile_slice(
-            rank=subdomain_index,
-            global_dims=self.rank_dims,
-            global_extent=self.rank_extent,
-        )
-
-    def _check_data_dims(self, data_dims, overlap):
-        x_dims_mismatch = (
-            data_dims["x"] != self._dims_without_overlap["x"] + 2 * overlap
-        )
-        y_dims_mismatch = (
-            data_dims["y"] != self._dims_without_overlap["y"] + 2 * overlap
-        )
-        if x_dims_mismatch or y_dims_mismatch:
+        if "time" in rank_dims:
+            if rank_dims[0] != "time":
+                raise ValueError("'time' must be first dimension.")
+        if not {"x", "y"}.issubset(rank_dims):
             raise ValueError(
-                f"Data provided for partitioning must have x, y dimensions "
-                f"({self._dims_without_overlap['x'] + 2 * overlap}, "
-                f"{self._dims_without_overlap['x'] + 2 * overlap}) "
-                "to include overlap grid cells."
+                "'x' and 'y' dims must be in the rank_dims of the RankDivider"
+            )
+        self.rank_dims = rank_dims
+        self.overlap = overlap
+        self.rank_extent = rank_extent
+
+        self.x_ind = rank_dims.index("x")
+        self.y_ind = rank_dims.index("y")
+
+        self._partitioner = pace.util.TilePartitioner(subdomain_layout)
+        self._n_subdomains = subdomain_layout[0] * subdomain_layout[1]
+        self._rank_extent_without_overlap = self._get_extent_without_overlap(
+            rank_extent, overlap
+        )
+
+    def _get_subdomain_extent(self, with_overlap: bool):
+        subdomain_xy_size = (
+            self._rank_extent_without_overlap[self.x_ind] // self.subdomain_layout[0]
+        )
+        if with_overlap:
+            subdomain_xy_size += 2 * self.overlap
+
+        subdomain_extent = list(self.rank_extent)
+        subdomain_extent[self.x_ind] = subdomain_xy_size
+        subdomain_extent[self.y_ind] = subdomain_xy_size
+        return tuple(subdomain_extent)
+
+    def subdomain_slice(self, subdomain_index: int, with_overlap: bool):
+        # first get the slices w/o overlap points on XY data that does not have halo
+        slice_ = list(
+            self._partitioner.subtile_slice(
+                rank=subdomain_index,
+                global_dims=self.rank_dims,
+                global_extent=self._rank_extent_without_overlap,
+            )
+        )
+        x_slice_ = slice_[self.x_ind]
+        y_slice_ = slice_[self.y_ind]
+
+        if with_overlap:
+            x_slice_updated = slice(
+                x_slice_.start, x_slice_.stop + 2 * self.overlap, None
+            )
+            y_slice_updated = slice(
+                y_slice_.start, y_slice_.stop + 2 * self.overlap, None
+            )
+        else:
+            x_slice_updated = slice(
+                x_slice_.start + self.overlap, x_slice_.stop + self.overlap, None
+            )
+            y_slice_updated = slice(
+                y_slice_.start + self.overlap, y_slice_.stop + self.overlap, None
             )
 
-    def get_subdomain_data(
-        self, dataset: xr.Dataset, subdomain_index: int, overlap: int
+        slice_[self.x_ind] = x_slice_updated
+        slice_[self.y_ind] = y_slice_updated
+        return tuple(slice_)
+
+    def _get_extent_without_overlap(
+        self, data_shape: Sequence[int], overlap: int
+    ) -> Sequence[int]:
+        extent_without_halos = list(data_shape)
+        extent_without_halos[self.x_ind] = (
+            extent_without_halos[self.x_ind] - 2 * overlap
+        )
+        extent_without_halos[self.y_ind] = (
+            extent_without_halos[self.y_ind] - 2 * overlap
+        )
+        return tuple(extent_without_halos)
+
+    def get_subdomain_tensor_slice(
+        self, tensor_data: tf.Tensor, subdomain_index: int, with_overlap: bool
     ):
-        # assumes the dataset provided already has halo points around it if overlap > 0
-        self._check_data_dims(dataset.dims, overlap)
 
-        subdomain_slice = self.subdomain_slice(subdomain_index)
-        subdomain_selection = {
-            dim: selection for (dim, selection) in zip(self.rank_dims, subdomain_slice)
-        }
-        if overlap > 0:
-            x_slice = subdomain_selection["x"]
-            subdomain_selection["x"] = slice(
-                x_slice.start, x_slice.stop + 2 * overlap, None
+        subdomain_slice = self.subdomain_slice(subdomain_index, with_overlap)
+        tensor_data_xsliced = _slice(
+            arr=tensor_data, inds=subdomain_slice[self.x_ind], axis=self.x_ind
+        )
+        tensor_data_xy_sliced = _slice(
+            arr=tensor_data_xsliced, inds=subdomain_slice[self.y_ind], axis=self.y_ind
+        )
+        return tensor_data_xy_sliced
+
+    def unstack_subdomain(self, tensor, with_overlap: bool):
+        unstacked_shape = self._get_subdomain_extent(with_overlap=with_overlap)[1:]
+        expected_stacked_size = np.prod(unstacked_shape)
+        if tensor.shape[-1] != expected_stacked_size:
+            raise ValueError(
+                "Dimension of each stacked sample expected to be "
+                f"{expected_stacked_size} (product of {unstacked_shape})."
             )
-            y_slice = subdomain_selection["y"]
-            subdomain_selection["y"] = slice(
-                y_slice.start, y_slice.stop + 2 * overlap, None
-            )
-        return dataset.isel(subdomain_selection)
+        unstacked_shape = (tensor.shape[0], *unstacked_shape)
+        return np.reshape(tensor, unstacked_shape)
+
+
+def stack_time_series_samples(tensor):
+    # assumes time is the first dimension
+    n_samples = tensor.shape[0]
+    return np.reshape(tensor, (n_samples, -1))
