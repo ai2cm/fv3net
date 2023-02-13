@@ -247,6 +247,7 @@ class CycleGANTrainer:
         cycle_weight: weight of the cycle loss
         generator_weight: weight of the generator's gan loss
         discriminator_weight: weight of the discriminator gan loss
+        non_negativity_weight: weight of the non-negativity L1 loss
     """
 
     # This class based loosely on
@@ -263,9 +264,10 @@ class CycleGANTrainer:
     gan_loss: torch.nn.Module
     batch_size: int
     identity_weight: float = 0.5
-    cycle_weight: float = 1.0
+    cycle_weight: float = 10.0
     generator_weight: float = 1.0
     discriminator_weight: float = 1.0
+    non_negativity_weight: float = 0.0
 
     def __post_init__(self):
         self.target_real: Optional[torch.autograd.Variable] = None
@@ -281,6 +283,7 @@ class CycleGANTrainer:
         self._script_gen_b_to_a = None
         self._script_disc_a = None
         self._script_disc_b = None
+        self._l1_loss = torch.nn.L1Loss()
 
     def _call_generator_a_to_b(self, input: torch.Tensor) -> torch.Tensor:
         if self._script_gen_a_to_b is None:
@@ -313,6 +316,13 @@ class CycleGANTrainer:
         self.target_fake = torch.autograd.Variable(
             torch.Tensor(shape).fill_(0.0).to(DEVICE), requires_grad=False
         )
+
+    def _non_negativity_loss(self, output: torch.Tensor) -> torch.Tensor:
+        # we want to penalize the generator for generating negative values
+        # so we use the L1 loss
+        # to only affect negative values we look at min(0, output)
+        zeros = torch.zeros_like(output)
+        return self._l1_loss(torch.min(output, zeros), zeros)
 
     def train_on_batch(
         self, real_a: torch.Tensor, real_b: torch.Tensor, training: bool = True
@@ -379,8 +389,13 @@ class CycleGANTrainer:
         loss_cycle_b_a_b = self.cycle_loss(reconstructed_b, real_b) * self.cycle_weight
         loss_cycle = loss_cycle_a_b_a + loss_cycle_b_a_b
 
+        # Non-negativity loss
+        loss_non_neg_a = self._non_negativity_loss(fake_a) * self.non_negativity_weight
+        loss_non_neg_b = self._non_negativity_loss(fake_b) * self.non_negativity_weight
+        loss_non_neg = loss_non_neg_a + loss_non_neg_b
+
         # Total loss
-        loss_g: torch.Tensor = (loss_identity + loss_gan + loss_cycle)
+        loss_g: torch.Tensor = (loss_identity + loss_gan + loss_cycle + loss_non_neg)
         if training:
             self.optimizer_generator.zero_grad()
             loss_g.backward()
@@ -446,11 +461,7 @@ class CycleGANTrainer:
         }
 
     def generate_plots(
-        self,
-        real_a: torch.Tensor,
-        real_b: torch.Tensor,
-        real_a_mean: Optional[torch.Tensor] = None,
-        real_b_mean: Optional[torch.Tensor] = None,
+        self, real_a: torch.Tensor, real_b: torch.Tensor
     ) -> Mapping[str, wandb.Image]:
         """
         Plot model output on the first sample of a given batch and return it as
@@ -461,17 +472,7 @@ class CycleGANTrainer:
                 [sample, time, tile, channel, y, x]
             real_b: a batch of data from domain B, should have shape
                 [sample, time, tile, channel, y, x]
-            real_a_mean: the mean of the batch from domain A, should have shape
-                [tile, channel, y, x]
-            real_b_mean: the mean of the batch from domain B, should have shape
-                [tile, channel, y, x]
         """
-        if real_a_mean is None:
-            real_a_mean = real_a.mean(dim=(0, 1))
-        if real_b_mean is None:
-            real_b_mean = real_b.mean(dim=(0, 1))
-        real_a_mean = real_a_mean.cpu().numpy()
-        real_b_mean = real_b_mean.cpu().numpy()
         # for now there is no time-evolution-based loss, so we fold the time
         # dimension into the sample dimension
         real_a = real_a.reshape(
@@ -483,8 +484,8 @@ class CycleGANTrainer:
 
         # plot the first sample of the batch
         with torch.no_grad():
-            fake_b = self._call_generator_a_to_b(real_a)
-            fake_a = self._call_generator_b_to_a(real_b)
+            fake_b = self._call_generator_a_to_b(real_a[:1, :])
+            fake_a = self._call_generator_b_to_a(real_b[:1, :])
         real_a = real_a.cpu().numpy()
         real_b = real_b.cpu().numpy()
         fake_a = fake_a.cpu().numpy()
@@ -528,30 +529,6 @@ class CycleGANTrainer:
         plt.close(fig)
         buf.seek(0)
         report[f"histogram"] = wandb.Image(PIL.Image.open(buf), caption=f"Histograms",)
-
-        real_a_bias = real_a_mean - real_b_mean
-        for i in range(real_a.shape[2]):
-            fake_a_mean = fake_a[:, :, i, :, :].mean(axis=0)
-            fake_a_bias = fake_a_mean - real_a_mean[:, i, :, :]
-            fake_b_mean = fake_b[:, :, i, :, :].mean(axis=0)
-            fake_b_bias = fake_b_mean - real_b_mean[:, i, :, :]
-            buf = plot_cross(
-                real_a_bias[:, i, :, :],
-                real_b_mean[:, i, :, :],
-                fake_a_bias,
-                fake_b_bias,
-                combined_vmin_vmax=False,
-            )
-            report[f"bias_{i}"] = wandb.Image(
-                PIL.Image.open(buf), caption=f"Channel {i} bias vs real_b",
-            )
-            report[f"real_a_vs_real_b_bias_mean_{i}"] = np.mean(real_a_bias)
-            report[f"real_a_vs_real_b_bias_std_{i}"] = np.std(real_a_bias)
-            report[f"fake_a_vs_real_a_bias_mean_{i}"] = np.mean(fake_a_bias)
-            report[f"fake_a_vs_real_a_bias_std_{i}"] = np.std(fake_a_bias)
-            report[f"fake_b_vs_real_b_bias_mean_{i}"] = np.mean(fake_b_bias)
-            report[f"fake_b_vs_real_b_bias_std_{i}"] = np.std(fake_b_bias)
-
         return report
 
 
