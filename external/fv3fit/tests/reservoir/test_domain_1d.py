@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from fv3fit.reservoir.domain_1d import PeriodicDomain, _slice
+from fv3fit.reservoir.one_dim.domain_1d import PeriodicDomain, _slice
 
 
 arr = np.arange(3)
