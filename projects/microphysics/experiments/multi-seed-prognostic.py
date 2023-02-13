@@ -29,11 +29,16 @@ def get_job(seed: int):
     else:
         gscond_path = BASE.format(model="gscond", i=seed)
 
+    if seed == 0:
+        classify_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-10-08/gscond-only-classifier-rh-in-v1/model.tf"  # noqa
+        precpd_path = "gs://vcm-ml-experiments/microphysics-emulation/2022-10-08/precpd-diff-only-press-rh-in-v1/model.tf"  # noqa
+    else:
+        classify_path = BASE.format(model="gscond-classify", i=seed)
+        precpd_path = BASE.format(model="precpd", i=seed)
+
     zc_config["gscond"]["path"] = gscond_path
-    zc_config["gscond"]["classifier_path"] = BASE.format(
-        model="gscond-classify", i=seed
-    )
-    zc_config["model"]["path"] = BASE.format(model="precpd", i=seed)
+    zc_config["gscond"]["classifier_path"] = classify_path
+    zc_config["model"]["path"] = precpd_path
 
     return PrognosticJob(
         config=cfg,
