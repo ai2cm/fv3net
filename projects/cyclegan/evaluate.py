@@ -12,6 +12,7 @@ import cartopy.crs as ccrs
 from fv3net.diagnostics.prognostic_run.views import movies
 from toolz import curry
 import numpy as np
+import sklearn.preprocessing
 
 GRID = catalog["grid/c48"].read()
 
@@ -112,6 +113,24 @@ def plot_weather(arg, vmin=4800, vmax=6000, vmin_diff=-100, vmax_diff=100):
     plt.tight_layout()
     fig.savefig(filename, dpi=100)
     plt.close(fig)
+
+
+def cross_entropy(x1, x2):
+    transformer = sklearn.preprocessing.QuantileTransformer(
+        n_quantiles=1000, subsample=100000
+    )
+    transformer.fit(x1.reshape(-1, 1))
+    quantiles = transformer.quantiles_.copy()[:, 0]
+    quantiles[0] = min(x1.min(), x2.min())
+    quantiles[-1] = max(x1.max(), x2.max())
+    x1_hist = np.histogram(x1, bins=quantiles)[0]
+    x2_hist = np.histogram(x2, bins=quantiles)[0]
+    x1_hist = x1_hist / x1_hist.sum()
+    x2_hist = x2_hist / x2_hist.sum()
+    x1_hist[x1_hist == 0] = 1e-20
+    x2_hist[x2_hist == 0] = 1e-20
+    bin_scales = (quantiles[1:] - quantiles[:-1]) / (quantiles[-1] - quantiles[0])
+    return -np.sum(x1_hist * np.log(x2_hist) * bin_scales)
 
 
 def evaluate(
@@ -217,6 +236,13 @@ def evaluate(
             histtype="step",
             density=True,
         )
+        gen_cross_entropy = cross_entropy(
+            c384_real[varname].values.flatten(), c384_gen[varname].values.flatten()
+        )
+        c48_cross_entropy = cross_entropy(
+            c384_real[varname].values.flatten(), c48_real[varname].values.flatten()
+        )
+
         if log:
             ax.set_yscale("log")
             log_suffix = "_log"
@@ -229,6 +255,9 @@ def evaluate(
         else:
             ax.set_xlabel(varname)
         ax.set_ylabel("probability density")
+        ax.set_title(
+            f"{varname}\nH(p, q): {gen_cross_entropy:.2e} (gen), {c48_cross_entropy:.2e} (c48)"
+        )
         if fig is not None:
             plt.tight_layout()
             fig.savefig(f"{varname}_histogram{log_suffix}.png", dpi=100)
@@ -644,15 +673,20 @@ if __name__ == "__main__":
         # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230118-003753-f8afe719-epoch_085/"  # log, 2e-5
         # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230118-003758-1324b685-epoch_035/"  # log, 2e-4
         # "gs://vcm-ml-experiments/cyclegan/2023-01-11/cyclegan_c48_to_c384-trial-0/"
+        # "gs://vcm-ml-experiments/cyclegan/2023-02-02/cyclegan_c48_to_c384-precip-h500-2e-5"  # precip/h500, 2e-5, epoch 100
+        # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230203-191435-7411d5db-epoch_137/"  # 2-precip 2e-5 (3x3 gen kernel) train-cyclegan-8170caad17cf
     ).to(DEVICE)
 
-    subselect_ratio = 1.0
+    subselect_ratio = 1.0 / 4
     c384_real_all: xr.Dataset = (
         xr.open_zarr("./fine-0K.zarr/").rename({"grid_xt": "x", "grid_yt": "y"})
     )
     c48_real_all: xr.Dataset = (
         xr.open_zarr("./coarse-0K.zarr/").rename({"grid_xt": "x", "grid_yt": "y"})
     )
+    c384_real_all["PRATEsfc_2"] = c384_real_all["PRATEsfc"]
+    c48_real_all["PRATEsfc_2"] = c48_real_all["PRATEsfc"]
+
     c384_real: xr.Dataset = c384_real_all.isel(time=slice(2920, None))
     c384_steps = np.sort(
         np.random.choice(

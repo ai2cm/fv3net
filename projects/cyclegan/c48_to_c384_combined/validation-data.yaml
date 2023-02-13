@@ -10,7 +10,7 @@ domain_configs:
     window_size: 1
     default_variable_config:
       times: window
-    n_windows: 1000  # 5808
+    n_windows: 100  # 5808
     time_start_index: 11688
   - data_path: gs://vcm-ml-experiments/mcgibbon/2023-01-30/fine-combined.zarr/
     unstacked_dims:
@@ -22,5 +22,5 @@ domain_configs:
     window_size: 1
     default_variable_config:
       times: window
-    n_windows: 1000  # 5808
+    n_windows: 100  # 5808
     time_start_index: 2920
