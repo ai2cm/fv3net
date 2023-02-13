@@ -11,9 +11,11 @@ import yaml
 from fv3fit.reservoir import (
     ReservoirComputingReadout,
     Reservoir,
+)
+from fv3fit.reservoir.one_dim import (
+    ReservoirTrainingConfig,
     HybridReservoirComputingModel,
 )
-from fv3fit.reservoir.config import ReservoirTrainingConfig
 from ks import KuramotoSivashinskyConfig, ImperfectKSModel
 from train_ks import (
     transform_inputs_to_reservoir_states,

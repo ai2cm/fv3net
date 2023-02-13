@@ -11,7 +11,7 @@ from fv3fit.reservoir import (
     Reservoir,
     ReservoirComputingModel,
 )
-from fv3fit.reservoir.config import ReservoirTrainingConfig
+from fv3fit.reservoir.one_dim import ReservoirTrainingConfig
 from ks import KuramotoSivashinskyConfig, get_time_downsampling_factor
 
 
