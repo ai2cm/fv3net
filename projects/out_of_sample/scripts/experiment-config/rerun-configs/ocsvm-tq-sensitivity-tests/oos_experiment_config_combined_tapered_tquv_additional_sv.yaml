@@ -7,22 +7,6 @@ novelty_detectors:
   #  nd_path: "gs://vcm-ml-experiments/claytons/2023-02-04/tq-additional-ocsvms-trial-1/trained_models/ocsvm-tq-gamma-1_79-nu-5e-5"
   #  params:
   #    - cutoff: 0
-  - nd_name: "ocsvm-tq-gamma-2_79-nu-5e-5"
-    nd_path: "gs://vcm-ml-experiments/claytons/2023-02-04/tq-additional-ocsvms-trial-1/trained_models/ocsvm-tq-gamma-2_79-nu-5e-5"
-    params:
-      - cutoff: 0
-  - nd_name: "ocsvm-tq-gamma-8_79-nu-5e-5"
-    nd_path: "gs://vcm-ml-experiments/claytons/2023-02-04/tq-additional-ocsvms-trial-1/trained_models/ocsvm-tq-gamma-8_79-nu-5e-5/"
-    params:
-      - cutoff: 0
-  - nd_name: "ocsvm-tq-gamma-8_79"
-    nd_path: "gs://vcm-ml-experiments/claytons/2023-02-04/tq-additional-ocsvms-trial-1/trained_models/ocsvm-tq-gamma-8_79"
-    params:
-      - cutoff: 0
-  - nd_name: "ocsvm-tq-gamma-4_79-nu-5e-5"
-    nd_path: "gs://vcm-ml-experiments/claytons/2023-02-04/tq-additional-ocsvms-trial-1/trained_models/ocsvmtq-gamma-4_79-nu-5e-5"
-    params:
-      - cutoff: 0
   - nd_name: "ocsvm-tq-gamma-1_79-nu-5e-3"
     nd_path: "gs://vcm-ml-experiments/claytons/2023-02-08/tq-additional-ocsvms-trial-2/trained_models/ocsvm-tq-gamma-1_79-nu-5e-3"
     params:
@@ -31,11 +15,12 @@ novelty_detectors:
     nd_path: "gs://vcm-ml-experiments/claytons/2023-02-08/tq-additional-ocsvms-trial-2/trained_models/ocsvm-tq-gamma-2_79-nu-5e-3"
     params:
       - cutoff: 0
+
 model_config_dir_path: "gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-01-11/oos-configs/oos-full-year-sweep-n2pire-consistent"
 prognostic_run_config_template: "/home/AnnaK/fv3net/projects/out_of_sample/scripts/experiment-config/prognostic-run-config.yaml"
 launch_destination: "~/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq-additional"
-experiment_summary_path: "experiment_summary_ocsvm_tq_sensitivity_additional.txt"
-delete_script_path: "delete_script_ocsvm_tq_sensitivity_additional.sh"
+experiment_summary_path: "experiment_summary_ocsvm_tq_sensitivity_additional_sv.txt"
+delete_script_path: "delete_script_ocsvm_tq_sensitivity_additional_sv.sh"
 
 segments: 36
 result_destination:

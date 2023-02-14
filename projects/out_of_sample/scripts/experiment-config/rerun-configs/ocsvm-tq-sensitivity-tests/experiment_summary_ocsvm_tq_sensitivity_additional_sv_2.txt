@@ -1,0 +1,6 @@
+Experiment #1: ocsvm-tq-gamma-8_79-nu-4e-6 with cutoff=0
+argo job: prognostic-run-48f27e214e244177aea9d7f372c221d9
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-14/ocsvm_tq_sensitivity-ocsvm-tq-gamma-8_79-nu-4e-6-0-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq-additional/ocsvm-tq-gamma-8_79-nu-4e-6-0-default-0/prognostic-run.yaml
+
+run path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq-additional/run.sh
