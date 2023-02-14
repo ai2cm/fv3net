@@ -16,7 +16,7 @@ def get_job(month: int):
 
     tag_sha = "95218aec9ed1e6cbda0db1e1f69dc34e0d839c52"
     return PrognosticJob(
-        f"zc-emu-monthly-normfix-m{month:02d}-30d-v1",
+        f"zc-emu-monthly-normfix-m{month:02d}-seed1-30d-v1",
         config=config,
         image_tag=tag_sha,
         fv3net_image_tag=tag_sha,
