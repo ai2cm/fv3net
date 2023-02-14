@@ -225,6 +225,56 @@ def get_r2(predicted, target) -> float:
     return 1.0 - np.var(predicted - target) / np.var(target)
 
 
+class ResultsAggregator:
+    def __init__(self):
+        self._total_fake_a: Optional[np.ndarray] = None
+        self._total_fake_b: Optional[np.ndarray] = None
+        self._total_real_a: Optional[np.ndarray] = None
+        self._total_real_b: Optional[np.ndarray] = None
+        self._count = 0
+
+    def record_results(
+        self,
+        real_a: np.ndarray,
+        real_b: np.ndarray,
+        fake_a: np.ndarray,
+        fake_b: np.ndarray,
+    ):
+        if self._total_real_a is None:
+            self._total_real_a = real_a
+        else:
+            self._total_real_a += real_a
+        if self._total_real_b is None:
+            self._total_real_b = real_b
+        else:
+            self._total_real_b += real_b
+        if self._total_fake_b is None:
+            self._total_fake_b = fake_b
+        else:
+            self._total_fake_b += fake_b
+        if self._total_fake_a is None:
+            self._total_fake_a = fake_a
+        else:
+            self._total_fake_a += fake_a
+        self._count += 1
+
+    @property
+    def mean_fake_a(self) -> np.ndarray:
+        return self._total_fake_a / self._count
+
+    @property
+    def mean_fake_b(self) -> np.ndarray:
+        return self._total_fake_b / self._count
+
+    @property
+    def mean_real_a(self) -> np.ndarray:
+        return self._total_real_a / self._count
+
+    @property
+    def mean_real_b(self) -> np.ndarray:
+        return self._total_real_b / self._count
+
+
 @dataclasses.dataclass
 class CycleGANTrainer:
     """
@@ -325,7 +375,11 @@ class CycleGANTrainer:
         return self._l1_loss(torch.min(output, zeros), zeros)
 
     def train_on_batch(
-        self, real_a: torch.Tensor, real_b: torch.Tensor, training: bool = True
+        self,
+        real_a: torch.Tensor,
+        real_b: torch.Tensor,
+        training: bool = True,
+        aggregator: Optional[ResultsAggregator] = None,
     ) -> Mapping[str, float]:
         """
         Train the CycleGAN on a batch of data.
@@ -337,7 +391,10 @@ class CycleGANTrainer:
                 [sample, time, tile, channel, y, x]
             training: if True, the model will be trained, otherwise we will
                 only evaluate the loss.
+            aggregator: if given, record generated results in this aggregator
         """
+        if aggregator is None:
+            aggregator = ResultsAggregator()
         # for now there is no time-evolution-based loss, so we fold the time
         # dimension into the sample dimension
         real_a = real_a.reshape(
@@ -401,6 +458,14 @@ class CycleGANTrainer:
             loss_g.backward()
             self.optimizer_generator.step()
 
+        with torch.no_grad():
+            aggregator.record_results(
+                fake_a=fake_a.mean(dim=0).cpu().numpy(),
+                fake_b=fake_b.mean(dim=0).cpu().numpy(),
+                real_a=real_a.mean(dim=0).cpu().numpy(),
+                real_b=real_b.mean(dim=0).cpu().numpy(),
+            )
+
         # Discriminators A and B ######
 
         if training:
@@ -461,7 +526,10 @@ class CycleGANTrainer:
         }
 
     def generate_plots(
-        self, real_a: torch.Tensor, real_b: torch.Tensor
+        self,
+        real_a: torch.Tensor,
+        real_b: torch.Tensor,
+        results_aggregator: Optional[ResultsAggregator] = None,
     ) -> Mapping[str, wandb.Image]:
         """
         Plot model output on the first sample of a given batch and return it as
@@ -472,6 +540,7 @@ class CycleGANTrainer:
                 [sample, time, tile, channel, y, x]
             real_b: a batch of data from domain B, should have shape
                 [sample, time, tile, channel, y, x]
+            results_aggregator: an aggregator whose results we should plot
         """
         # for now there is no time-evolution-based loss, so we fold the time
         # dimension into the sample dimension
@@ -529,6 +598,30 @@ class CycleGANTrainer:
         plt.close(fig)
         buf.seek(0)
         report[f"histogram"] = wandb.Image(PIL.Image.open(buf), caption=f"Histograms",)
+
+        if results_aggregator is not None:
+            res = results_aggregator
+            # real_a_bias = real_a_mean - real_b_mean
+            real_a_bias = res.mean_real_a - res.mean_real_b
+            for i in range(real_a.shape[2]):
+                fake_a_bias = res.mean_fake_a[:, i, :, :] - res.mean_real_a[:, i, :, :]
+                fake_b_bias = res.mean_fake_b[:, i, :, :] - res.mean_real_b[:, i, :, :]
+                buf = plot_cross(
+                    real_a_bias[:, i, :, :],
+                    res.mean_real_b[:, i, :, :],
+                    fake_a_bias,
+                    fake_b_bias,
+                    combined_vmin_vmax=False,
+                )
+                report[f"bias_{i}"] = wandb.Image(
+                    PIL.Image.open(buf), caption=f"Channel {i} bias vs real_b",
+                )
+                report[f"real_a_vs_real_b_bias_mean_{i}"] = np.mean(real_a_bias)
+                report[f"real_a_vs_real_b_bias_std_{i}"] = np.std(real_a_bias)
+                report[f"fake_a_vs_real_a_bias_mean_{i}"] = np.mean(fake_a_bias)
+                report[f"fake_a_vs_real_a_bias_std_{i}"] = np.std(fake_a_bias)
+                report[f"fake_b_vs_real_b_bias_mean_{i}"] = np.mean(fake_b_bias)
+                report[f"fake_b_vs_real_b_bias_std_{i}"] = np.std(fake_b_bias)
         return report
 
 

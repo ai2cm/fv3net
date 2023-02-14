@@ -32,7 +32,7 @@ from fv3fit._shared.scaler import (
 import logging
 import numpy as np
 from .reloadable import CycleGAN
-from .cyclegan_trainer import CycleGANNetworkConfig, CycleGANTrainer
+from .cyclegan_trainer import CycleGANNetworkConfig, CycleGANTrainer, ResultsAggregator
 
 logger = logging.getLogger(__name__)
 
@@ -154,8 +154,13 @@ class CycleGANTrainingConfig:
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
+            results_aggregator = ResultsAggregator()
             for state_a, state_b in train_states:
-                train_losses.append(train_model.train_on_batch(state_a, state_b))
+                train_losses.append(
+                    train_model.train_on_batch(
+                        state_a, state_b, aggregator=results_aggregator
+                    )
+                )
             if isinstance(train_states, list):
                 random.shuffle(train_states)
             train_loss = {
@@ -164,7 +169,9 @@ class CycleGANTrainingConfig:
             }
             logger.info("train_loss: %s", train_loss)
             reporter.log(train_loss)
-            train_plots = train_model.generate_plots(train_example_a, train_example_b)
+            train_plots = train_model.generate_plots(
+                train_example_a, train_example_b, results_aggregator
+            )
             reporter.log(train_plots)
 
             if validation_states is not None:
