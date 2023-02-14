@@ -99,12 +99,12 @@ class RankDivider:
         self.y_ind = rank_dims.index("y")
 
         self._partitioner = pace.util.TilePartitioner(subdomain_layout)
-        self._n_subdomains = subdomain_layout[0] * subdomain_layout[1]
-        self._rank_extent_without_overlap = self._get_extent_without_overlap(
+        self.n_subdomains = subdomain_layout[0] * subdomain_layout[1]
+        self._rank_extent_without_overlap = self._get_rank_extent_without_overlap(
             rank_extent, overlap
         )
 
-    def _get_subdomain_extent(self, with_overlap: bool):
+    def get_subdomain_extent(self, with_overlap: bool):
         subdomain_xy_size = (
             self._rank_extent_without_overlap[self.x_ind] // self.subdomain_layout[0]
         )
@@ -147,7 +147,7 @@ class RankDivider:
         slice_[self.y_ind] = y_slice_updated
         return tuple(slice_)
 
-    def _get_extent_without_overlap(
+    def _get_rank_extent_without_overlap(
         self, data_shape: Sequence[int], overlap: int
     ) -> Sequence[int]:
         extent_without_halos = list(data_shape)
@@ -173,7 +173,7 @@ class RankDivider:
         return tensor_data_xy_sliced
 
     def unstack_subdomain(self, tensor, with_overlap: bool):
-        unstacked_shape = self._get_subdomain_extent(with_overlap=with_overlap)[1:]
+        unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)[1:]
         expected_stacked_size = np.prod(unstacked_shape)
         if tensor.shape[-1] != expected_stacked_size:
             raise ValueError(
