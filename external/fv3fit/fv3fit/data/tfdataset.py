@@ -268,7 +268,7 @@ class ReservoirTimeSeriesLoader(TFDatasetLoader):
             raise ValueError(
                 f"Extra dimensions {extra_dims_in_data_array} in data that are not "
                 f"included in configured dimension order {self.dim_order}."
-                "Make sure these are included in the configuratoion dim_order."
+                "Make sure these are included in the configuration dim_order."
             )
         da = data_array
         for missing_dim in missing_dims_in_data_array:

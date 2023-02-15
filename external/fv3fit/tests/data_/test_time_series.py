@@ -55,3 +55,14 @@ def test_error_on_time_not_first():
             loader.open_tfdataset(
                 local_download_path=None, variable_names=["a_sfc", "b"]
             )
+
+
+def test_error_missing_data_dim_in_specified_order():
+    with pytest.raises(ValueError):
+        with temporary_netcdfs_dir() as data_path:
+            loader = ReservoirTimeSeriesLoader(
+                data_path=data_path, dim_order=["time", "x", "y"]
+            )
+            loader.open_tfdataset(
+                local_download_path=None, variable_names=["a_sfc", "b"]
+            )
