@@ -5,29 +5,10 @@ import tensorflow as tf
 from .base import TFDatasetLoader, register_tfdataset_loader, tfdataset_loader_from_dict
 import dacite
 from ..tfdataset import generator_to_tfdataset
+from .netcdf.load import nc_dir_to_tfdataset
 import tempfile
 import xarray as xr
 import numpy as np
-from vcm import safe
-
-
-SAMPLE_DIM_NAME = "_fv3fit_sample"
-
-
-def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
-    stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
-    unstacked_dims = [dim for dim in ds.dims if dim in unstacked_dims]
-    unstacked_dims.sort()  # needed to always get [x, y, z] dimensions
-    if len(stack_dims) == 0:
-        ds_stacked = ds.expand_dims(dim=SAMPLE_DIM_NAME, axis=0)
-    else:
-        ds_stacked = safe.stack_once(
-            ds,
-            SAMPLE_DIM_NAME,
-            stack_dims,
-            allowed_broadcast_dims=list(unstacked_dims) + ["time", "dataset"],
-        )
-    return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 
 @dataclasses.dataclass
@@ -52,8 +33,9 @@ class VariableConfig:
                 raise ValueError("variable {} has no dimension {}".format(name, dim))
         if self.times == "start":
             ds = ds.isel(time=0)
-        ds = stack(ds, unstacked_dims)
-        return ds[name].values
+        dims = [d for d in unstacked_dims if d in ds[name].dims]
+        data = ds[name].transpose(*dims).values
+        return data
 
 
 def open_zarr_using_filecache(url: str):
@@ -116,8 +98,7 @@ class WindowedZarrLoader(TFDatasetLoader):
     A tfdataset loader that loads directly from zarr and supports time windows.
 
     Windows starts are selected randomly with replacement, so every time will not
-    necessarily appear in each iteration over the tf.data.Dataset. Each sample window
-    is independently selected along any stacked (sample) dimensions.
+    necessarily appear in each iteration over the tf.data.Dataset.
 
     Attributes:
         data_path: path to zarr data
@@ -231,15 +212,64 @@ def records(
             window_ds = ds.isel(
                 time=range(i_start, i_start + window_size * time_stride, time_stride)
             )
-            # need to select same random sample for all variable names, but don't know
-            # how many samples there are until we look at the first variable
-            i_sample = None
             for name in variable_names:
                 config = variable_configs.get(name, default_variable_config)
-                array = config.get_record(name, window_ds, unstacked_dims)
-                if i_sample is None:
-                    i_sample = np.random.randint(array.shape[0])
-                record[name] = array[i_sample, :]
+                record[name] = config.get_record(name, window_ds, unstacked_dims)
             yield record
 
     return generator
+
+
+@register_tfdataset_loader
+@dataclasses.dataclass
+class ReservoirTimeSeriesLoader(TFDatasetLoader):
+    data_path: str
+    dim_order: Sequence[str]
+
+    def __post_init__(self):
+        # time must be first dim to allow for different-sized batches
+        if "time" in self.dim_order and self.dim_order[0] != "time":
+            raise ValueError("'time' dimension must be the first in the dim_order.")
+
+    @property
+    def dtype(self):
+        return tf.float32
+
+    def _ensure_consistent_dims(self, data_array: xr.DataArray):
+        extra_dims_in_data_array = set(data_array.dims) - set(self.dim_order)
+        missing_dims_in_data_array = set(self.dim_order) - set(data_array.dims)
+        if len(extra_dims_in_data_array) > 0:
+            raise ValueError(
+                f"Extra dimensions {extra_dims_in_data_array} in data that are not "
+                f"included in configured dimension order {self.dim_order}."
+                "Make sure these are included in the configuratoion dim_order."
+            )
+        da = data_array
+        for missing_dim in missing_dims_in_data_array:
+            da = data_array.expand_dims(dim=missing_dim)
+        return da.transpose(*self.dim_order)
+
+    def open_tfdataset(
+        self, local_download_path: Optional[str], variable_names: Sequence[str],
+    ) -> tf.data.Dataset:
+        def _convert(ds: xr.Dataset) -> Mapping[str, tf.Tensor]:
+            tensors = {}
+            for key in variable_names:
+                data_array = self._ensure_consistent_dims(ds[key])
+                tensors[key] = tf.convert_to_tensor(data_array, dtype=self.dtype)
+            return tensors
+
+        tfdataset = nc_dir_to_tfdataset(
+            self.data_path,
+            convert=_convert,
+            shuffle=False,
+            cache=local_download_path,
+            varying_first_dim=True,
+        )
+        return tfdataset
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "ReservoirTimeSeriesLoader":
+        return dacite.from_dict(
+            data_class=cls, data=d, config=dacite.Config(strict=True)
+        )

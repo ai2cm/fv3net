@@ -34,6 +34,7 @@ def nc_files_to_tf_dataset(
     files: Sequence[str],
     convert: Callable[[xr.Dataset], Mapping[str, tf.Tensor]],
     cache: str = CACHE_DIR,
+    varying_first_dim: bool = False,
 ):
 
     """
@@ -46,7 +47,9 @@ def nc_files_to_tf_dataset(
     """
 
     transform = compose_left(lambda path: open_netcdf_dataset(path, cache), convert)
-    return iterable_to_tfdataset(files, transform).prefetch(tf.data.AUTOTUNE)
+    return iterable_to_tfdataset(files, transform, varying_first_dim).prefetch(
+        tf.data.AUTOTUNE
+    )
 
 
 def nc_dir_to_tfdataset(
@@ -57,6 +60,7 @@ def nc_dir_to_tfdataset(
     random_state: Optional[np.random.RandomState] = None,
     cache: Optional[str] = None,
     match: Optional[str] = None,
+    varying_first_dim: bool = False,
 ) -> tf.data.Dataset:
     """
     Convert a directory of netCDF files into a tensorflow dataset.
@@ -79,14 +83,18 @@ def nc_dir_to_tfdataset(
 
     if shuffle:
         if random_state is None:
-            random_state = np.random.RandomState(np.random.get_state()[1][0])
+            random_state = np.random.RandomState(
+                np.random.get_state()[1][0]  # type: ignore
+            )
 
-        files = random_state.choice(files, size=len(files), replace=False)
+        files = random_state.choice(
+            files, size=len(files), replace=False  # type: ignore
+        )
 
     if nfiles is not None:
         files = files[:nfiles]
 
-    return nc_files_to_tf_dataset(files, convert)
+    return nc_files_to_tf_dataset(files, convert, varying_first_dim=varying_first_dim)
 
 
 def to_tensor(
