@@ -153,17 +153,11 @@ class NCDirLoader(TFDatasetLoader):
     def convert(
         self, ds: xr.Dataset, variables: Sequence[str]
     ) -> Mapping[str, tf.Tensor]:
-        if self.dim_order:
-            # Operates on individual data arrays to allow for inserting z dim
-            # of size 1 for 2D variables. This gives all tensors the same number
-            # of dimensions for easier concatenation later on in training.
-            tensors = {}
-            for key in variables:
-                data_array = self._ensure_consistent_dims(ds[key])
-                tensors[key] = tf.convert_to_tensor(data_array, dtype=self.dtype)
-            return tensors
-        else:
-            return to_tensor(ds, variables, dtype=self.dtype)
+        tensors = {}
+        for key in variables:
+            data_array = self._ensure_consistent_dims(ds[key])
+            tensors[key] = tf.convert_to_tensor(data_array, dtype=self.dtype)
+        return tensors
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
@@ -195,8 +189,7 @@ class NCDirLoader(TFDatasetLoader):
                     f"included in configured dimension order {self.dim_order}."
                     "Make sure these are included in the configuration dim_order."
                 )
-            da = data_array
             for missing_dim in missing_dims_in_data_array:
-                da = data_array.expand_dims(dim=missing_dim)
-            da = da.transpose(*self.dim_order)
-        return da
+                data_array = data_array.expand_dims(dim=missing_dim)
+            data_array = data_array.transpose(*self.dim_order)
+        return data_array

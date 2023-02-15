@@ -7,6 +7,7 @@ import contextlib
 import pytest
 import tempfile
 import xarray as xr
+import tensorflow as tf
 
 
 def test_NCDirLoader(tmp_path: Path):
@@ -96,15 +97,31 @@ def test_NCDirLoader_varying_first_dim_allowed():
         assert first_dim_sizes[0] != first_dim_sizes[1]
 
 
+def test_NCDirLoader_varying_first_dim_not_allowed():
+    with temporary_netcdfs_dir() as data_path:
+        loader = fv3fit.data.NCDirLoader(
+            url=data_path,
+            dim_order=["time", "x", "y", "z"],
+            shuffle=False,
+            varying_first_dim=False,
+        )
+        dataset = loader.open_tfdataset(
+            local_download_path=None, variable_names=["a_sfc", "b"]
+        )
+        with pytest.raises(tf.errors.InvalidArgumentError):
+            for batch in dataset:
+                _ = batch["b"]
+
+
 def test_error_missing_data_dim_in_specified_order():
-    with pytest.raises(ValueError):
-        with temporary_netcdfs_dir() as data_path:
-            loader = fv3fit.data.NCDirLoader(
-                url=data_path,
-                dim_order=["time", "x", "y"],
-                shuffle=False,
-                varying_first_dim=True,
-            )
+    with temporary_netcdfs_dir() as data_path:
+        loader = fv3fit.data.NCDirLoader(
+            url=data_path,
+            dim_order=["time", "x", "y"],
+            shuffle=False,
+            varying_first_dim=True,
+        )
+        with pytest.raises(ValueError):
             loader.open_tfdataset(
                 local_download_path=None, variable_names=["a_sfc", "b"]
             )
