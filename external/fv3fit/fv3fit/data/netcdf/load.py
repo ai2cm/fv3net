@@ -132,8 +132,7 @@ class NCDirLoader(TFDatasetLoader):
         nfiles: the number of files to load
         shuffle: Whether the files are opened in a shuffled order
         seed: The random seed used for filename shuffling.
-        dim_order: Order of dimensions in tensors. Will expand missing
-            dims into size 1 dim if not in a data array.
+        dim_order: Order of dimensions in tensors.
         varying_first_dim: If true, allow number of samples to be different
             across batches.
 
