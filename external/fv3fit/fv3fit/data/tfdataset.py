@@ -5,7 +5,6 @@ import tensorflow as tf
 from .base import TFDatasetLoader, register_tfdataset_loader, tfdataset_loader_from_dict
 import dacite
 from ..tfdataset import generator_to_tfdataset
-from .netcdf.load import nc_dir_to_tfdataset
 import tempfile
 import xarray as xr
 import numpy as np
@@ -244,58 +243,3 @@ def records(
             yield record
 
     return generator
-
-
-@register_tfdataset_loader
-@dataclasses.dataclass
-class ReservoirTimeSeriesLoader(TFDatasetLoader):
-    data_path: str
-    dim_order: Sequence[str]
-
-    def __post_init__(self):
-        # time must be first dim to allow for different-sized batches
-        if "time" in self.dim_order and self.dim_order[0] != "time":
-            raise ValueError("'time' dimension must be the first in the dim_order.")
-
-    @property
-    def dtype(self):
-        return tf.float32
-
-    def _ensure_consistent_dims(self, data_array: xr.DataArray):
-        extra_dims_in_data_array = set(data_array.dims) - set(self.dim_order)
-        missing_dims_in_data_array = set(self.dim_order) - set(data_array.dims)
-        if len(extra_dims_in_data_array) > 0:
-            raise ValueError(
-                f"Extra dimensions {extra_dims_in_data_array} in data that are not "
-                f"included in configured dimension order {self.dim_order}."
-                "Make sure these are included in the configuration dim_order."
-            )
-        da = data_array
-        for missing_dim in missing_dims_in_data_array:
-            da = data_array.expand_dims(dim=missing_dim)
-        return da.transpose(*self.dim_order)
-
-    def open_tfdataset(
-        self, local_download_path: Optional[str], variable_names: Sequence[str],
-    ) -> tf.data.Dataset:
-        def _convert(ds: xr.Dataset) -> Mapping[str, tf.Tensor]:
-            tensors = {}
-            for key in variable_names:
-                data_array = self._ensure_consistent_dims(ds[key])
-                tensors[key] = tf.convert_to_tensor(data_array, dtype=self.dtype)
-            return tensors
-
-        tfdataset = nc_dir_to_tfdataset(
-            self.data_path,
-            convert=_convert,
-            shuffle=False,
-            cache=local_download_path,
-            varying_first_dim=True,
-        )
-        return tfdataset
-
-    @classmethod
-    def from_dict(cls, d: dict) -> "ReservoirTimeSeriesLoader":
-        return dacite.from_dict(
-            data_class=cls, data=d, config=dacite.Config(strict=True)
-        )

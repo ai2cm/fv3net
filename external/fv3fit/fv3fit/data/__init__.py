@@ -4,7 +4,6 @@ from .tfdataset import (
     WindowedZarrLoader,
     VariableConfig,
     CycleGANLoader,
-    ReservoirTimeSeriesLoader,
 )
 from .synthetic import SyntheticNoise, SyntheticWaves
 from .netcdf.load import NCDirLoader
