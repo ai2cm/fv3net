@@ -82,10 +82,14 @@ class GeographicBias(nn.Module):
         super().__init__()
         # uniform distribution on [-epsilon, epsilon)
         epsilon = 1e-3
-        self.bias = nn.Parameter((torch.rand(6, channels, nx, ny) - 0.5) * 2 * epsilon)
+        # parameter cannot be named "bias" because then the CycleGAN init routine
+        # will reset it to zeros
+        self.geographic_bias = nn.Parameter(
+            (torch.rand(6, channels, nx, ny) - 0.5) * 2 * epsilon
+        )
 
     def forward(self, x):
-        return x + self.bias
+        return x + self.geographic_bias
 
 
 class Generator(nn.Module):
