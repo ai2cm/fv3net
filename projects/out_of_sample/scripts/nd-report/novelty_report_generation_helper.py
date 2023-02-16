@@ -1,8 +1,10 @@
+# import cartopy
+import fv3viz
+
 import argparse
 import dataclasses
 from fv3fit._shared.novelty_detector import NoveltyDetector
 from fv3net.diagnostics.offline._helpers import copy_outputs
-import fv3viz
 import matplotlib.pyplot as plt
 import numpy as np
 import os
