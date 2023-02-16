@@ -132,6 +132,9 @@ class NCDirLoader(TFDatasetLoader):
         nfiles: the number of files to load
         shuffle: Whether the files are opened in a shuffled order
         seed: The random seed used for filename shuffling.
+        dim_order: Order of dimensions in tensors.
+        varying_first_dim: If true, allow the length of the first dimension to vary
+            across netCDF files
 
     """
 
@@ -139,6 +142,8 @@ class NCDirLoader(TFDatasetLoader):
     nfiles: Optional[int] = None
     shuffle: bool = True
     seed: int = 0
+    dim_order: Optional[Sequence[str]] = None
+    varying_first_dim: bool = False
 
     @property
     def dtype(self):
@@ -147,7 +152,11 @@ class NCDirLoader(TFDatasetLoader):
     def convert(
         self, ds: xr.Dataset, variables: Sequence[str]
     ) -> Mapping[str, tf.Tensor]:
-        return to_tensor(ds, variables, dtype=self.dtype)
+        tensors = {}
+        for key in variables:
+            data_array = self._ensure_consistent_dims(ds[key])
+            tensors[key] = tf.convert_to_tensor(data_array, dtype=self.dtype)
+        return tensors
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
@@ -162,8 +171,24 @@ class NCDirLoader(TFDatasetLoader):
             shuffle=self.shuffle,
             random_state=np.random.RandomState(self.seed),
             cache=local_download_path,
+            varying_first_dim=self.varying_first_dim,
         )
 
     @classmethod
     def from_dict(cls, d: dict) -> "TFDatasetLoader":
         return dacite.from_dict(cls, d, config=dacite.Config(strict=True))
+
+    def _ensure_consistent_dims(self, data_array: xr.DataArray):
+        if self.dim_order:
+            extra_dims_in_data_array = set(data_array.dims) - set(self.dim_order)
+            missing_dims_in_data_array = set(self.dim_order) - set(data_array.dims)
+            if len(extra_dims_in_data_array) > 0:
+                raise ValueError(
+                    f"Extra dimensions {extra_dims_in_data_array} in data that are not "
+                    f"included in configured dimension order {self.dim_order}."
+                    "Make sure these are included in the configuration dim_order."
+                )
+            for missing_dim in missing_dims_in_data_array:
+                data_array = data_array.expand_dims(dim=missing_dim)
+            data_array = data_array.transpose(*self.dim_order)
+        return data_array
