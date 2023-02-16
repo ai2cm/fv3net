@@ -267,7 +267,7 @@ config:
       save_zc_microphysics: true
   zhao_carr_emulation:
     gscond:
-      path: gs://vcm-ml-experiments/microphysics-emulation/2023-02-10/zc-train-gscond-normfix-seed1-v1/model.tf
+      path: gs://vcm-ml-experiments/microphysics-emulation/2023-02-10/zc-train-gscond-normfix-seed2-v1/model.tf
       classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-16/zc-train-gscond-classify-seed5-v2/model.tf
       enforce_conservative: true
       gscond_cloud_conservative: true
