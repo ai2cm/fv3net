@@ -80,7 +80,9 @@ class GeographicBias(nn.Module):
 
     def __init__(self, channels: int, nx: int, ny: int):
         super().__init__()
-        self.bias = nn.Parameter(torch.zeros(6, channels, nx, ny))
+        # uniform distribution on [-epsilon, epsilon)
+        epsilon = 1e-3
+        self.bias = nn.Parameter((torch.rand(6, channels, nx, ny) - 0.5) * 2 * epsilon)
 
     def forward(self, x):
         return x + self.bias
