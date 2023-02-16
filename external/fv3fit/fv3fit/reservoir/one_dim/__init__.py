@@ -5,4 +5,4 @@ from .model import (
     HybridDomainPredictor,
     ImperfectModel,
 )
-from .config import ReservoirTrainingConfig
+from .config import Reservoir1DTrainingConfig, SubdomainConfig

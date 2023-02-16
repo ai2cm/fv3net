@@ -16,7 +16,7 @@ class SubdomainConfig:
 
 
 @dataclass
-class ReservoirTrainingConfig:
+class Reservoir1DTrainingConfig:
     """
     reservoir_hyperparameters: hyperparameters for reservoir
     readout_hyperparameters: hyperparameters for readout
@@ -57,7 +57,7 @@ class ReservoirTrainingConfig:
                 )
 
     @classmethod
-    def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
+    def from_dict(cls, kwargs) -> "Reservoir1DTrainingConfig":
         kwargs = {**kwargs}
         dacite_config = dacite.Config(strict=True, cast=[bool, str, int, float])
         kwargs["reservoir_hyperparameters"] = dacite.from_dict(
@@ -76,7 +76,7 @@ class ReservoirTrainingConfig:
             config=dacite_config,
         )
         return dacite.from_dict(
-            data_class=ReservoirTrainingConfig,
+            data_class=Reservoir1DTrainingConfig,
             data=kwargs,
             config=dacite.Config(strict=True),
         )
