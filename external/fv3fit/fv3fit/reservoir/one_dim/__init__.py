@@ -3,5 +3,6 @@ from .model import (
     DomainPredictor,
     ReservoirOnlyDomainPredictor,
     HybridDomainPredictor,
+    ImperfectModel,
 )
 from .config import ReservoirTrainingConfig
