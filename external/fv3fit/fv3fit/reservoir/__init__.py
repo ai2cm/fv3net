@@ -1,10 +1,4 @@
-from .config import ReservoirHyperparameters
+from .config import ReservoirHyperparameters, CubedsphereSubdomainConfig
 from .reservoir import Reservoir
 from .readout import ReservoirComputingReadout
-from .model import (
-    ReservoirComputingModel,
-    HybridReservoirComputingModel,
-    ReservoirOnlyDomainPredictor,
-    HybridDomainPredictor,
-)
-from .domain import PeriodicDomain
+from .model import ReservoirComputingModel
