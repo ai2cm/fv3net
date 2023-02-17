@@ -94,11 +94,10 @@ def test_combined_readout():
     combined_readout = CombinedReservoirComputingReadout(
         readouts=[readout_1, readout_2]
     )
-    combined_input = np.concatenate([input, input])
+    combined_input = np.concatenate([input, input], axis=1)
     output_combined = combined_readout.predict(combined_input)
-
     np.testing.assert_array_almost_equal(
-        output_combined, np.concatenate([output_1, output_2])
+        output_combined, np.concatenate([output_1, output_2], axis=1)
     )
 
 
@@ -225,15 +224,25 @@ def test_BatchLinearRegressor_add_bias_term():
     # y0 = 1*x0 + 2*x1 + 4*x3 + 3
     # y1 = 1*x0 + 2*x1 + 4*x3 - 1
     X = np.array([[1, 2, 1], [2, 3, 0]])
+    X_with_bias_const = np.array([[1, 2, 1, 1], [2, 3, 0, 1]])
     y = np.array([[12.0, 8], [11, 7]])
 
     # use_least_squares_solve needed when overdetermined test cases
     # result in nonsingular XT.X
-    config = BatchLinearRegressorHyperparameters(
+    config_add_bias = BatchLinearRegressorHyperparameters(
         l2=0, add_bias_term=True, use_least_squares_solve=True
     )
-    lr = BatchLinearRegressor(config)
-    lr.batch_update(X, y)
+    config_no_bias = BatchLinearRegressorHyperparameters(
+        l2=0, add_bias_term=False, use_least_squares_solve=True
+    )
+    lr_add_bias = BatchLinearRegressor(config_add_bias)
+    lr_no_bias = BatchLinearRegressor(config_no_bias)
 
-    coefficients, intercepts = lr.get_weights()
-    np.testing.assert_array_almost_equal(np.dot(X, coefficients) + intercepts, y)
+    lr_add_bias.batch_update(X, y)
+    lr_no_bias.batch_update(X_with_bias_const, y)
+
+    coefficients_add_bias, intercepts_add_bias = lr_add_bias.get_weights()
+    coefficients_no_bias, intercepts_no_bias = lr_no_bias.get_weights()
+
+    np.testing.assert_array_equal(coefficients_add_bias, coefficients_no_bias)
+    np.testing.assert_array_equal(intercepts_add_bias, intercepts_no_bias)

@@ -224,9 +224,7 @@ class CombinedReservoirComputingReadout:
     def predict(self, input: np.ndarray):
         if self.square_half_hidden_state:
             input = square_even_terms(input, axis=0)
-        print(np.dot(input, self.coefficients).shape, self.intercepts.shape)
-        return np.dot(input, self.coefficients) + self.intercepts
-        # return self.coefficients * input + self.intercepts
+        return input * self.coefficients + self.intercepts
 
     @classmethod
     def load(cls, path: str) -> "CombinedReservoirComputingReadout":
