@@ -88,8 +88,12 @@ class CycleGANNetworkConfig:
         generator_b_to_a = self.generator.build(
             n_state, nx=nx, ny=ny, convolution=convolution
         )
-        discriminator_a = self.discriminator.build(n_state, convolution=convolution)
-        discriminator_b = self.discriminator.build(n_state, convolution=convolution)
+        discriminator_a = self.discriminator.build(
+            n_state, nx=nx, ny=ny, convolution=convolution
+        )
+        discriminator_b = self.discriminator.build(
+            n_state, nx=nx, ny=ny, convolution=convolution
+        )
         optimizer_generator = self.optimizer.instance(
             itertools.chain(
                 generator_a_to_b.parameters(), generator_b_to_a.parameters()

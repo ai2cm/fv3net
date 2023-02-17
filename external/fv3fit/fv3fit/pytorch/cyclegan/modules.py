@@ -3,6 +3,8 @@ import logging
 from typing import Callable, Literal, Optional, Protocol
 import torch.nn as nn
 import torch
+from vcm.grid import get_grid_xyz
+from fv3fit.pytorch.system import DEVICE
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,35 @@ def leakyrelu_activation(**kwargs):
 
 def no_activation():
     return nn.Identity()
+
+
+class GeographicFeatures(nn.Module):
+    """
+    Appends (x, y, z) features corresponding to Eulerian position of each
+    gridcell on a unit sphere.
+    """
+
+    def __init__(self, nx: int, ny: int):
+        super().__init__()
+        if nx != ny:
+            raise ValueError("this object requires nx=ny")
+        self.xyz = torch.as_tensor(
+            get_grid_xyz(nx=nx).transpose([0, 3, 1, 2]), device=DEVICE
+        ).float()
+
+    def forward(self, x):
+        """
+        Args:
+            x: tensor of shape [sample, tile, channel, x, y]
+
+        Returns:
+            tensor of shape [sample, tile, channel, x, y]
+        """
+        # the fact that this appends instead of prepends is arbitrary but important,
+        # this is assumed to be the case elsewhere in the code.
+        return torch.concat(
+            [x, torch.stack([self.xyz for _ in range(x.shape[0])], dim=0)], dim=-3
+        )
 
 
 class ConvolutionFactory(Protocol):

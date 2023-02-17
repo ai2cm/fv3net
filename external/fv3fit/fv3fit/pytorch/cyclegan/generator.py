@@ -10,6 +10,7 @@ from .modules import (
     relu_activation,
     ResnetBlock,
     CurriedModuleFactory,
+    GeographicFeatures,
 )
 
 
@@ -40,6 +41,9 @@ class GeneratorConfig:
             and in the resnet blocks
         use_geographic_bias: if True, include a layer that adds a trainable bias
             vector that is a function of x and y to the input and output of the network
+        use_geographic_features: if True, appends a set of geographic features to the
+            input channels of the network indicating the (x, y, z) position of each
+            grid point on a sphere in Eulerian space.
         disable_convolutions: if True, ignore all layers other than bias (if enabled).
             Useful for debugging and for testing the effect of the
             geographic bias layer.
@@ -51,6 +55,7 @@ class GeneratorConfig:
     strided_kernel_size: int = 4
     max_filters: int = 256
     use_geographic_bias: bool = True
+    use_geographic_features: bool = False
     disable_convolutions: bool = False
 
     def build(
@@ -160,9 +165,13 @@ class Generator(nn.Module):
         if config.disable_convolutions:
             main = nn.Identity()
         else:
+            if config.use_geographic_features:
+                in_channels = channels + 3
+            else:
+                in_channels = channels
             first_conv = nn.Sequential(
                 convolution(
-                    kernel_size=7, in_channels=channels, out_channels=min_filters,
+                    kernel_size=7, in_channels=in_channels, out_channels=min_filters,
                 ),
                 FoldFirstDimension(nn.InstanceNorm2d(min_filters)),
                 relu_activation()(),
@@ -186,6 +195,11 @@ class Generator(nn.Module):
         if config.use_geographic_bias:
             self._input_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
             self._output_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
+            if config.use_geographic_features:
+                raise ValueError("can only use one of geographic bias or features")
+        elif config.use_geographic_features:
+            self._input_bias = GeographicFeatures(nx=nx, ny=ny)
+            self._output_bias = nn.Identity()
         else:
             self._input_bias = nn.Identity()
             self._output_bias = nn.Identity()
