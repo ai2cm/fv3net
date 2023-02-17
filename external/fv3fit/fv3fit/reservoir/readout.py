@@ -6,10 +6,14 @@ import joblib
 import numpy as np
 import re
 import scipy.sparse
-from sklearn.linear_model import Ridge
 from typing import Sequence, Optional
 
-from .config import ReadoutHyperparameters
+from .config import ReadoutHyperparameters, BatchLinearRegressorHyperparameters
+
+
+class NotFittedError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 
 def _square_evens(v: np.ndarray) -> np.ndarray:
@@ -50,6 +54,47 @@ def _sort_subdirs_numerically(subdirs: Sequence[str]) -> Sequence[str]:
     return [subdir for _, subdir in sorted(zip(nums, subdirs))]
 
 
+class BatchLinearRegressor:
+    """ Solves for weights W in matrix equation AW=B
+    Where A = X_T.X + l2*I and B= X_T.y
+    """
+
+    def __init__(self, hyperparameters: BatchLinearRegressorHyperparameters):
+        self.hyperparameters = hyperparameters
+        self.A = None
+        self.B = None
+
+    def _add_bias_feature(self, X):
+        return np.concatenate([X, np.ones((X.shape[0], 1))], axis=1)
+
+    def batch_update(self, X, y):
+        if self.hyperparameters.add_bias_term:
+            X = self._add_bias_feature(X)
+
+        if self.A is None and self.B is None:
+            self.A = np.zeros((X.shape[1], X.shape[1]))
+            self.B = np.zeros((X.shape[1], y.shape[1]))
+
+        reg = self.hyperparameters.l2 * np.identity(X.shape[1])
+        self.A = np.add(self.A, (np.dot(X.T, X) + reg))
+        self.B = np.add(self.B, np.dot(X.T, y))
+
+    def get_weights(self):
+        # use_least_squares_solve is useful for simple test cases
+        # where np.linalg.solve encounters nonsingular XT.X
+        if self.A is None and self.B is None:
+            raise NotFittedError(
+                "At least one call of batch_update on data must be done "
+                "before solving for weights."
+            )
+        if self.hyperparameters.use_least_squares_solve:
+            W = np.linalg.lstsq(self.A, self.B)[0]
+        else:
+            W = np.linalg.solve(self.A, self.B)
+        coefficients, intercepts = W[:-1, :], W[-1, :]
+        return coefficients, intercepts
+
+
 class ReservoirComputingReadout:
     """Readout layer of the reservoir computing model
 
@@ -72,24 +117,29 @@ class ReservoirComputingReadout:
         self.coefficients = coefficients
         self.intercepts = intercepts
         self.square_half_hidden_state = hyperparameters.square_half_hidden_state
+        self.linear_regressor = BatchLinearRegressor(
+            hyperparameters.linear_regressor_config
+        )
 
-    def fit(self, res_states: np.ndarray, output_states: np.ndarray) -> None:
-        if self.coefficients or self.intercepts:
-            raise ValueError(
-                "Readout has already been fit and has coefficients and intercept "
-                "values. Fit method can only be called if readout is yet fit."
-            )
-        linear_regressor = Ridge(**self.hyperparameters.linear_regressor_kwargs)
+    def fit(
+        self,
+        res_states: np.ndarray,
+        output_states: np.ndarray,
+        calculate_weights: bool = True,
+    ) -> None:
         if self.square_half_hidden_state is True:
             res_states = square_even_terms(res_states, axis=1)
-        linear_regressor.fit(res_states, output_states)
-        self.coefficients = linear_regressor.coef_
-        self.intercepts = linear_regressor.intercept_
+        self.linear_regressor.batch_update(res_states, output_states)
+        if calculate_weights:
+            self.calculate_weights()
+
+    def calculate_weights(self) -> None:
+        self.coefficients, self.intercepts = self.linear_regressor.get_weights()
 
     def predict(self, input: np.ndarray):
         if self.square_half_hidden_state:
             input = square_even_terms(input, axis=0)
-        return np.dot(self.coefficients, input) + self.intercepts
+        return np.dot(input, self.coefficients) + self.intercepts
 
     def dump(self, path: str) -> None:
         """Dump data to a directory
@@ -102,7 +152,10 @@ class ReservoirComputingReadout:
         fs.makedirs(path, exist_ok=True)
         mapper = fs.get_mapper(path)
         components = {
-            "hyperparameters": dataclasses.asdict(self.hyperparameters),
+            "lr_hyperparameters": dataclasses.asdict(
+                self.hyperparameters.linear_regressor_config
+            ),
+            "square_half_hidden_state": self.hyperparameters.square_half_hidden_state,
             "coefficients": self.coefficients,
             "intercepts": self.intercepts,
         }
@@ -115,10 +168,18 @@ class ReservoirComputingReadout:
         mapper = fsspec.get_mapper(path)
         f = io.BytesIO(mapper[cls._READOUT_NAME])
         readout_components = joblib.load(f)
-        readout_hyperparameters = dacite.from_dict(
-            ReadoutHyperparameters, readout_components.pop("hyperparameters")
+        # readout_hyperparameters = dacite.from_dict(
+        #    ReadoutHyperparameters, readout_components.pop("hyperparameters")
+        # )
+        lr_config = dacite.from_dict(
+            BatchLinearRegressorHyperparameters,
+            readout_components.pop("lr_hyperparameters"),
         )
-        return cls(hyperparameters=readout_hyperparameters, **readout_components)
+        hyperparameters = ReadoutHyperparameters(
+            linear_regressor_config=lr_config,
+            square_half_hidden_state=readout_components.pop("square_half_hidden_state"),
+        )
+        return cls(hyperparameters=hyperparameters, **readout_components)
 
 
 class CombinedReservoirComputingReadout:
@@ -163,7 +224,9 @@ class CombinedReservoirComputingReadout:
     def predict(self, input: np.ndarray):
         if self.square_half_hidden_state:
             input = square_even_terms(input, axis=0)
-        return self.coefficients * input + self.intercepts
+        print(np.dot(input, self.coefficients).shape, self.intercepts.shape)
+        return np.dot(input, self.coefficients) + self.intercepts
+        # return self.coefficients * input + self.intercepts
 
     @classmethod
     def load(cls, path: str) -> "CombinedReservoirComputingReadout":
@@ -194,12 +257,20 @@ class CombinedReservoirComputingReadout:
 
             f = io.BytesIO(mapper[cls._READOUT_NAME])
             readout_components = joblib.load(f)
-            hyperparameters = dacite.from_dict(
-                ReadoutHyperparameters, readout_components.pop("hyperparameters")
+            lr_config = dacite.from_dict(
+                BatchLinearRegressorHyperparameters,
+                readout_components.pop("lr_hyperparameters"),
+            )
+            hyperparameters = ReadoutHyperparameters(
+                linear_regressor_config=lr_config,
+                square_half_hidden_state=readout_components.pop(
+                    "square_half_hidden_state"
+                ),
             )
             readouts.append(
                 ReservoirComputingReadout(
                     hyperparameters=hyperparameters, **readout_components
                 )
             )
+
         return cls(readouts)
