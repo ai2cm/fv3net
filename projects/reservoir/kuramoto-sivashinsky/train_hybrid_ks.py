@@ -11,9 +11,11 @@ import yaml
 from fv3fit.reservoir import (
     ReservoirComputingReadout,
     Reservoir,
+)
+from fv3fit.reservoir.one_dim import (
+    Reservoir1DTrainingConfig,
     HybridReservoirComputingModel,
 )
-from fv3fit.reservoir.config import ReservoirTrainingConfig
 from ks import KuramotoSivashinskyConfig, ImperfectKSModel
 from train_ks import (
     transform_inputs_to_reservoir_states,
@@ -103,7 +105,7 @@ if __name__ == "__main__":
         ks_config = dacite.from_dict(KuramotoSivashinskyConfig, yaml.safe_load(f))
     with open(args.train_config, "r") as f:
         train_config_dict = yaml.safe_load(f)
-        train_config = ReservoirTrainingConfig.from_dict(train_config_dict)
+        train_config = Reservoir1DTrainingConfig.from_dict(train_config_dict)
 
     predictor = train_hybrid(ks_config, train_config,)
 
