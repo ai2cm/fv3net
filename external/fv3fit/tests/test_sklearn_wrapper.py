@@ -6,7 +6,7 @@ import pytest
 import xarray as xr
 import joblib
 
-from fv3fit.sklearn._random_forest import _RegressorEnsemble, pack, SklearnWrapper
+from fv3fit.sklearn._random_forest import pack, SklearnWrapper
 from fv3fit._shared.scaler import ManualScaler
 from fv3fit._shared import PackerConfig, SliceConfig
 from fv3fit.tfdataset import tfdataset_from_batches
@@ -54,34 +54,8 @@ def test_flatten_same_order():
     np.testing.assert_allclose(a, b)
 
 
-@pytest.fixture
-def test_regressor_ensemble():
-    base_regressor = LinearRegression()
-    ensemble_regressor = _RegressorEnsemble(base_regressor, n_jobs=1)
-    num_batches = 3
-    X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
-    y = np.dot(X, np.array([1, 2])) + 3
-    for i in range(num_batches):
-        ensemble_regressor.fit(X, y)
-    return ensemble_regressor
-
-
-def test_ensemble_fit(test_regressor_ensemble):
-    regressor_ensemble = test_regressor_ensemble
-    assert regressor_ensemble.n_estimators == 3
-    X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
-    y = np.dot(X, np.array([1, 2])) + 3
-    regressor_ensemble.fit(X, y)
-    # test that .fit appends a new regressor
-    assert regressor_ensemble.n_estimators == 4
-    # test that new regressors are actually fit and not empty base regressor
-    assert len(regressor_ensemble.regressors[-1].coef_) > 0
-
-
 def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
     model = unittest.mock.Mock()
-    model.regressors = []
-    model.base_regressor = unittest.mock.Mock()
     model.predict.return_value = np.ones(shape=(1,))
     model.dumps.return_value = dumps_returns
 
@@ -91,7 +65,7 @@ def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
         scaler = None
 
     wrapper = SklearnWrapper(
-        input_variables=["x"], output_variables=["y"], model=model,
+        input_variables=["x"], output_variables=["y"], model=model, n_jobs=1
     )
     wrapper.target_scaler = scaler
     return wrapper
@@ -117,7 +91,7 @@ def test_fitting_SklearnWrapper_does_not_fit_scaler():
     scaler = unittest.mock.Mock()
 
     wrapper = SklearnWrapper(
-        input_variables=["x"], output_variables=["y"], model=model,
+        input_variables=["x"], output_variables=["y"], model=model, n_jobs=1
     )
     wrapper.target_scaler = scaler
 
@@ -137,9 +111,9 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
         scaler = ManualScaler(np.array([scale_factor]))
     else:
         scaler = None
-    model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
+    model = LinearRegression()
     wrapper = SklearnWrapper(
-        input_variables=["x"], output_variables=["y"], model=model,
+        input_variables=["x"], output_variables=["y"], model=model, n_jobs=1
     )
     wrapper.target_scaler = scaler
 
@@ -156,36 +130,11 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     xr.testing.assert_equal(loaded.predict(data), wrapper.predict(data))
 
 
-def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
-    model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
-    wrapper = SklearnWrapper(
-        input_variables=["x"], output_variables=["y"], model=model,
-    )
-
-    # setup input data
-    dims = ["unstacked_dim", "z"]
-    data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
-    wrapper.fit(tfdataset_from_batches([data]))
-
-    # serialize/deserialize
-    path = str(tmpdir)
-    wrapper.dump(path)
-
-    # fit loaded model
-    loaded = wrapper.load(path)
-    loaded.fit(tfdataset_from_batches([data]))
-
-    assert len(loaded.model.regressors) == 2
-
-
 def fit_wrapper_with_columnar_data():
     nz = 2
-    model = _RegressorEnsemble(
-        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
-        n_jobs=1,
-    )
+    model = DummyRegressor(strategy="constant", constant=np.arange(nz))
     wrapper = SklearnWrapper(
-        input_variables=["a"], output_variables=["b"], model=model,
+        input_variables=["a"], output_variables=["b"], model=model, n_jobs=1
     )
 
     dims = ["sample", "z"]
@@ -224,14 +173,12 @@ def test_predict_returns_unstacked_dims():
 
 def test_SklearnWrapper_fit_predict_with_clipped_input_data():
     nz = 5
-    model = _RegressorEnsemble(
-        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
-        n_jobs=1,
-    )
+    model = DummyRegressor(strategy="constant", constant=np.arange(nz))
     wrapper = SklearnWrapper(
         input_variables=["a", "b"],
         output_variables=["c"],
         model=model,
+        n_jobs=1,
         packer_config=PackerConfig({"a": SliceConfig(2, None)}),
     )
 
@@ -247,14 +194,12 @@ def test_SklearnWrapper_fit_predict_with_clipped_input_data():
 
 def test_SklearnWrapper_raises_not_implemented_error_with_clipped_output_data():
     nz = 5
-    model = _RegressorEnsemble(
-        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
-        n_jobs=1,
-    )
+    model = DummyRegressor(strategy="constant", constant=np.arange(nz))
     with pytest.raises(NotImplementedError):
         SklearnWrapper(
             input_variables=["a", "b"],
             output_variables=["c"],
             model=model,
+            n_jobs=1,
             packer_config=PackerConfig({"c": SliceConfig(2, None)}),
         )
