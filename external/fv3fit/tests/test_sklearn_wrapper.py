@@ -5,6 +5,7 @@ import unittest.mock
 import pytest
 import xarray as xr
 import joblib
+import io
 
 from fv3fit.sklearn._random_forest import pack, SklearnWrapper
 from fv3fit._shared.scaler import ManualScaler
@@ -203,3 +204,51 @@ def test_SklearnWrapper_raises_not_implemented_error_with_clipped_output_data():
             n_jobs=1,
             packer_config=PackerConfig({"c": SliceConfig(2, None)}),
         )
+
+
+class OldSklearnWrapper(SklearnWrapper):
+    def __init__(
+        self, input_variables, output_variables, model, n_jobs, n_regressors, **kwargs
+    ):
+        self._n_regressors = n_regressors
+        super().__init__(input_variables, output_variables, model, n_jobs, **kwargs)
+
+    def _dump_regressor(self):
+        # how regressor ensemble was saved
+        regressors = [self.model for _ in range(self._n_regressors)]
+        regressor_components = {"regressors": regressors, "n_jobs": self.n_jobs}
+        f = io.BytesIO()
+        joblib.dump(regressor_components, f)
+        return f.getvalue()
+
+
+def _get_old_sklearn_wrapper(n_regressors):
+    nz = 5
+    model = DummyRegressor(strategy="constant", constant=np.arange(nz))
+    old_wrapper = OldSklearnWrapper(
+        input_variables=["a"],
+        output_variables=["b"],
+        model=model,
+        n_jobs=1,
+        n_regressors=n_regressors,
+    )
+    # setup input data; wrappers must be fit to be dumped
+    dims = ["sample", "z"]
+    data = xr.Dataset({"a": (dims, np.ones((1, 5))), "b": (dims, np.ones((1, 5)))})
+    old_wrapper.fit(tfdataset_from_batches([data]))
+    return old_wrapper
+
+
+def test_SklearnWrapper_loads_backwards_compatible(tmpdir):
+    old_wrapper = _get_old_sklearn_wrapper(n_regressors=1)
+    path = str(tmpdir)
+    old_wrapper.dump(path)
+    SklearnWrapper.load(path)
+
+
+def test_SklearnWrapper_loads_backwards_incompatible_multiple(tmpdir):
+    old_wrapper = _get_old_sklearn_wrapper(n_regressors=2)
+    path = str(tmpdir)
+    old_wrapper.dump(path)
+    with pytest.raises(ValueError):
+        SklearnWrapper.load(path)
