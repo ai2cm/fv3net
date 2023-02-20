@@ -172,6 +172,36 @@ def test_predict_returns_unstacked_dims():
     assert prediction.dims == input_data.dims
 
 
+def fit_wrapper_with_gridcell_data():
+    model = LinearRegression()
+    wrapper = SklearnWrapper(
+        input_variables=["a"],
+        output_variables=["b"],
+        model=model,
+        n_jobs=1,
+        predict_columns=False,
+    )
+    dims = [
+        "sample",
+    ]
+    shape = (10,)
+    arr = np.arange(shape[0])
+    input_data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1.0)})
+    wrapper.fit(tfdataset_from_batches([input_data]))
+    return input_data, wrapper
+
+
+def test_predict_columns_false():
+    _, wrapper = fit_wrapper_with_gridcell_data()
+    input_data = get_unstacked_data()
+    # works
+    _ = wrapper.predict(input_data)
+    wrapper.predict_columns = True
+    with pytest.raises(ValueError):
+        # wrong number of features
+        _ = wrapper.predict(input_data)
+
+
 def test_SklearnWrapper_fit_predict_with_clipped_input_data():
     nz = 5
     model = DummyRegressor(strategy="constant", constant=np.arange(nz))

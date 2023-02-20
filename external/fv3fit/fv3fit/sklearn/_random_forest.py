@@ -22,6 +22,7 @@ from .._shared.training_config import RandomForestHyperparameters
 from .. import _shared
 from .._shared import (
     scaler,
+    stack,
     stack_non_vertical,
     match_prediction_to_input_coords,
     SAMPLE_DIM_NAME,
@@ -93,6 +94,7 @@ class RandomForest(Predictor):
             packer_config=hyperparameters.packer_config,
             # pass n_jobs along here to use joblib
             n_jobs=hyperparameters.n_jobs,
+            predict_columns=hyperparameters.predict_columns,
         )
         self.input_variables = self._model_wrapper.input_variables
         self.output_variables = self._model_wrapper.output_variables
@@ -154,6 +156,7 @@ class SklearnWrapper(Predictor):
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
         packer_config: PackerConfig = PackerConfig({}),
+        predict_columns: bool = True,
     ) -> None:
         """
         Initialize the wrapper
@@ -175,6 +178,7 @@ class SklearnWrapper(Predictor):
         for name in self.packer_config.clip:
             if name in self.output_variables:
                 raise NotImplementedError("Clipping for ML outputs is not implemented.")
+        self.predict_columns: bool = predict_columns
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
@@ -230,10 +234,12 @@ class SklearnWrapper(Predictor):
         )
 
     def predict(self, data):
-        stacked_data = stack_non_vertical(
-            safe.get_variables(data, self.input_variables)
+        input_data = safe.get_variables(data, self.input_variables)
+        stacked_data = (
+            stack(input_data)
+            if self.predict_columns is False
+            else stack_non_vertical(input_data)
         )
-
         stacked_output = self._predict_on_stacked_data(stacked_data)
         unstacked_output = stacked_output.assign_coords(
             {SAMPLE_DIM_NAME: stacked_data[SAMPLE_DIM_NAME]}
@@ -264,6 +270,7 @@ class SklearnWrapper(Predictor):
             "output_variables": self.output_variables,
             "output_features": dataclasses.asdict(self.output_features_),
             "packer_config": dataclasses.asdict(self.packer_config),
+            "predict_columns": self.predict_columns,
         }
 
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
@@ -296,6 +303,7 @@ class SklearnWrapper(Predictor):
         output_variables = metadata["output_variables"]
         packer_config_dict = metadata.get("packer_config", {})
         packer_config = dacite.from_dict(PackerConfig, packer_config_dict)
+        predict_columns = metadata.get("predict_columns", True)
 
         obj = cls(
             input_variables,
@@ -303,6 +311,7 @@ class SklearnWrapper(Predictor):
             regressor,
             n_jobs,
             packer_config=packer_config,
+            predict_columns=predict_columns,
         )
         obj.target_scaler = scaler_obj
         output_features_dict = metadata["output_features"]

@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Optional
 import xarray as xr
 
 from vcm import safe
@@ -9,7 +9,9 @@ DATASET_DIM_NAME = "dataset"
 Z_DIM_NAMES = ["z", "pfull"]
 
 
-def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
+def stack(ds: xr.Dataset, unstacked_dims: Optional[Sequence[str]] = None):
+    if unstacked_dims is None:
+        unstacked_dims = []
     stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
     unstacked_dims = [dim for dim in ds.dims if dim in unstacked_dims]
     unstacked_dims.sort()  # needed to always get [x, y, z] dimensions
