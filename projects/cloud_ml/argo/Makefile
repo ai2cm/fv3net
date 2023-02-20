@@ -123,9 +123,53 @@ prescribed_ml_cloud_decorr_run: deploy
 prescribed_ml_cloud_cc_decorr_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-ml-cloud-cc-decorr
 
+.PHONY: prescribed_ml_cloud_cond01_run
+prescribed_ml_cloud_cond01_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-ml-cloud-cond01
+
+.PHONY: prescribed_ml_cloud_cond03_run
+prescribed_ml_cloud_cond03_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-ml-cloud-cond03
+
+.PHONY: prescribed_ml_cloud_cond06_run
+prescribed_ml_cloud_cond06_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-ml-cloud-cond06
+
+.PHONY: prescribed_ml_cloud_cond10_run
+prescribed_ml_cloud_cond10_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-ml-cloud-cond10
+
+.PHONY: prescribed_ml_cloud_cond15_run
+prescribed_ml_cloud_cond15_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-ml-cloud-cond15
+
+.PHONY: prescribed_ml_cloud_cond25_run
+prescribed_ml_cloud_cond25_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-ml-cloud-cond25
+
 .PHONY: prescribed_rf_ml_cloud_cc_decorr_run
 prescribed_rf_ml_cloud_cc_decorr_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-rf-cloud-cc-decorr
+
+.PHONY: prescribed_rf_cloud_cond01_run
+prescribed_rf_cloud_cond01_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cloud-cond01
+
+.PHONY: prescribed_rf_cloud_cond03_run
+prescribed_rf_cloud_cond03_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cloud-cond03
+
+.PHONY: prescribed_rf_cloud_cond06_run
+prescribed_rf_cloud_cond06_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cloud-cond06
+
+.PHONY: prescribed_rf_cloud_cond10_run
+prescribed_rf_cloud_cond10_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cloud-cond10
+
+.PHONY: prescribed_rf_cloud_cond15_run
+prescribed_rf_cloud_cond15_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-rf-cloud-cond15
 
 .PHONY: prescribed_rf_ml_incloud_cc_decorr_run
 prescribed_rf_ml_incloud_cc_decorr_run: deploy
