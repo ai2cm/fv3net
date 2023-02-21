@@ -1,0 +1,9 @@
+models:
+  - name: "ocsvm-tq-gamma-8_79-nu-4e-6"
+    model_url: "gs://vcm-ml-experiments/claytons/2023-02-13/tq-additional-ocsvms-trial-3/trained_models/ocsvm-tq-gamma-8_79-nu-4e-6"
+run_dataset:
+  name: "ML-tapered-Tquv-seed-3-subsampled"
+  url: "gs://vcm-ml-scratch/annak/2022-02-15/ocsvm-offline-prog-data-subsampled"
+report_url: "gs://vcm-ml-public/claytons/oos_analysis/sensitivity-tests/"
+has_cutoff_plots: false
+append_random_id_to_url: true

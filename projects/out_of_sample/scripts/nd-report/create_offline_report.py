@@ -1,17 +1,19 @@
-from create_online_report import _STATE_SUFFIX
-import fsspec
-import fv3fit
-import hashlib
 from novelty_report_generation_helper import (
     generate_and_save_report,
     OOSModel,
     _get_parser,
 )
+import fsspec
+import fv3fit
+import hashlib
+
 import os
 import uuid
 import vcm
 import xarray as xr
 import yaml
+
+_STATE_SUFFIX = "state_after_timestep.zarr"
 
 
 def get_diags_offline_suffix(model_name: str) -> str:

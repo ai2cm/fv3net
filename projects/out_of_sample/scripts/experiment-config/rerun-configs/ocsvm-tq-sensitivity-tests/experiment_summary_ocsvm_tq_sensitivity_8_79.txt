@@ -1,0 +1,26 @@
+Experiment #1: ocsvm-tq-gamma-8_79-nu-4e-6 with cutoff=-0.00026
+argo job: prognostic-run-243f8787d40046dabed97e6e49ace60c
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-21/ocsvm_tq_sensitivity_final-ocsvm-tq-gamma-8_79-nu-4e-6--0.00026-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq-final/ocsvm-tq-gamma-8_79-nu-4e-6--0.00026-default-0/prognostic-run.yaml
+
+Experiment #2: ocsvm-tq-gamma-8_79-nu-4e-6 with cutoff=-0.00011
+argo job: prognostic-run-8fc4f3e86bd64e7d8e72e6ed3d6c7d6f
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-21/ocsvm_tq_sensitivity_final-ocsvm-tq-gamma-8_79-nu-4e-6--0.00011-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq-final/ocsvm-tq-gamma-8_79-nu-4e-6--0.00011-default-0/prognostic-run.yaml
+
+Experiment #3: ocsvm-tq-gamma-8_79-nu-4e-6 with cutoff=5.3e-05
+argo job: prognostic-run-cbe1c46daf9d4f6f96e8167d8eebb40a
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-21/ocsvm_tq_sensitivity_final-ocsvm-tq-gamma-8_79-nu-4e-6-5.3e-05-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq-final/ocsvm-tq-gamma-8_79-nu-4e-6-5.3e-05-default-0/prognostic-run.yaml
+
+Experiment #4: ocsvm-tq-gamma-8_79-nu-4e-6 with cutoff=0.00024
+argo job: prognostic-run-6f70803878fc4d29b2433eb27c426e79
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-21/ocsvm_tq_sensitivity_final-ocsvm-tq-gamma-8_79-nu-4e-6-0.00024-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq-final/ocsvm-tq-gamma-8_79-nu-4e-6-0.00024-default-0/prognostic-run.yaml
+
+Experiment #5: ocsvm-tq-gamma-8_79-nu-4e-6 with cutoff=0.00032
+argo job: prognostic-run-9bde21642a1542239931212a9e6a7e39
+output location: gs://vcm-ml-experiments/out-of-sample-right-side-up-winds/2023-02-21/ocsvm_tq_sensitivity_final-ocsvm-tq-gamma-8_79-nu-4e-6-0.00032-default-0-trial0/fv3gfs_run
+config path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq-final/ocsvm-tq-gamma-8_79-nu-4e-6-0.00032-default-0/prognostic-run.yaml
+
+run path: /home/AnnaK/vcm-workflow-control/examples/nd-suite/sensitivity-tests-ocsvm-tq-final/run.sh

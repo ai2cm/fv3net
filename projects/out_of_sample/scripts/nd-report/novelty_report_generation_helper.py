@@ -1,4 +1,3 @@
-# import cartopy
 import fv3viz
 
 import argparse
