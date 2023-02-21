@@ -80,7 +80,7 @@ def memoize_xarray_out(func):
         path = os.path.join(MEMOIZE_DIR, file_name)
         try:
             return xarray.open_dataset(path)
-        except FileNotFoundError:
+        except (FileNotFoundError, ValueError):
             ds = func(*args, **kwargs)
             ds.to_netcdf(path)
             return ds
