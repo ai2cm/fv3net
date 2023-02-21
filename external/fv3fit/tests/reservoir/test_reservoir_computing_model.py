@@ -10,12 +10,19 @@ from fv3fit.reservoir import (
     ReservoirOnlyDomainPredictor,
     HybridDomainPredictor,
 )
-from fv3fit.reservoir.config import SubdomainConfig, ReadoutHyperparameters
+from fv3fit.reservoir.config import (
+    SubdomainConfig,
+    ReadoutHyperparameters,
+    BatchLinearRegressorHyperparameters,
+)
 
 
 def generic_readout(**readout_kwargs):
+    lr_config = BatchLinearRegressorHyperparameters(
+        l2=0, add_bias_term=True, use_least_squares_solve=True
+    )
     readout_hyperparameters = ReadoutHyperparameters(
-        linear_regressor_kwargs={}, square_half_hidden_state=False
+        linear_regressor_config=lr_config, square_half_hidden_state=False
     )
     return ReservoirComputingReadout(readout_hyperparameters, **readout_kwargs)
 
