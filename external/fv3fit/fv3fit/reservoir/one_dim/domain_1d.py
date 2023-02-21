@@ -1,20 +1,12 @@
+from ..domain import slice_along_axis
 import numpy as np
-
-
-def _slice(arr: np.ndarray, inds: slice, axis: int = 0):
-    # https://stackoverflow.com/a/37729566
-    # For slicing ndarray along a dynamically specified axis
-    # same as np.take() but does not make a copy of the data
-    sl = [slice(None)] * arr.ndim
-    sl[axis] = inds
-    return arr[tuple(sl)]
 
 
 class Subdomain:
     def __init__(self, data: np.ndarray, overlap: int, subdomain_axis: int = 0):
         self.overlapping = data
         self.overlap = overlap
-        self.nonoverlapping = _slice(
+        self.nonoverlapping = slice_along_axis(
             arr=data, inds=slice(overlap, -overlap), axis=subdomain_axis
         )
 
@@ -58,7 +50,7 @@ class PeriodicDomain:
                 f"Cannot select subdomain with index {index}, there are "
                 f"only {self.n_subdomains} subdomains."
             )
-        subdomain_slice = _slice(
+        subdomain_slice = slice_along_axis(
             arr=padded, inds=slice(start_ind, stop_ind), axis=self.subdomain_axis
         )
         return Subdomain(

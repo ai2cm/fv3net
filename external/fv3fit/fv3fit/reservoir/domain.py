@@ -9,7 +9,7 @@ from fv3fit.keras._models.shared.halos import append_halos
 Layout = Tuple[int, int]
 
 
-def _slice(arr: np.ndarray, inds: slice, axis: int = 0):
+def slice_along_axis(arr: np.ndarray, inds: slice, axis: int = 0):
     # https://stackoverflow.com/a/37729566
     # For slicing ndarray along a dynamically specified axis
     # same as np.take() but does not make a copy of the data
@@ -164,10 +164,10 @@ class RankDivider:
     ):
 
         subdomain_slice = self.subdomain_slice(subdomain_index, with_overlap)
-        tensor_data_xsliced = _slice(
+        tensor_data_xsliced = slice_along_axis(
             arr=tensor_data, inds=subdomain_slice[self.x_ind], axis=self.x_ind
         )
-        tensor_data_xy_sliced = _slice(
+        tensor_data_xy_sliced = slice_along_axis(
             arr=tensor_data_xsliced, inds=subdomain_slice[self.y_ind], axis=self.y_ind
         )
         return tensor_data_xy_sliced

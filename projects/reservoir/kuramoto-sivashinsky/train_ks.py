@@ -11,7 +11,7 @@ from fv3fit.reservoir import (
     Reservoir,
     ReservoirComputingModel,
 )
-from fv3fit.reservoir.one_dim import ReservoirTrainingConfig
+from fv3fit.reservoir.one_dim import Reservoir1DTrainingConfig
 from ks import KuramotoSivashinskyConfig, get_time_downsampling_factor
 
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         ks_config = dacite.from_dict(KuramotoSivashinskyConfig, yaml.safe_load(f))
     with open(args.train_config, "r") as f:
         train_config_dict = yaml.safe_load(f)
-        train_config = ReservoirTrainingConfig.from_dict(train_config_dict)
+        train_config = Reservoir1DTrainingConfig.from_dict(train_config_dict)
 
     predictor = train(ks_config, train_config)
     predictor.dump(args.output_path)
