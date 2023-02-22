@@ -3,10 +3,12 @@ import intake
 import logging
 import os
 from tempfile import NamedTemporaryFile
+import toolz
 
 from fv3fit.reservoir import CubedsphereDivider
 import vcm
 
+logging.basicConfig()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -55,6 +57,12 @@ def _get_parser() -> argparse.ArgumentParser:
             "If not provided, will use the last timestep in dataset."
         ),
     )
+    parser.add_argument(
+        "--time-chunks",
+        type=int,
+        default=None,
+        help=("Number of timesteps to save per rank netcdf."),
+    )
     parser.add_argument("--variables", type=str, nargs="+", default=[])
 
     return parser
@@ -101,13 +109,25 @@ if __name__ == "__main__":
         global_dims=dims,
         global_extent=extent,
     )
-    for r in range(cubedsphere_divider.total_ranks):
-        rank_output_path = os.path.join(args.output_path, f"rank_{r}.nc")
-        rank_data = cubedsphere_divider.get_rank_data(
-            data, rank=r, overlap=args.overlap
-        )
 
-        with NamedTemporaryFile() as tmpfile:
-            rank_data.to_netcdf(tmpfile.name)
-            vcm.get_fs(args.output_path).put(tmpfile.name, rank_output_path)
-        logger.info(f"Writing netcdf to {rank_output_path}")
+    data_times = data.time.values
+    if args.time_chunks:
+        time_chunks = [
+            list(t) for t in toolz.partition_all(args.time_chunks, data_times)
+        ]
+    else:
+        time_chunks = [list(data_times)]
+
+    for t, time_chunk in enumerate(time_chunks):
+        data_time_slice = data.sel(time=time_chunk).load()
+        for r in range(cubedsphere_divider.total_ranks):
+            output_dir = os.path.join(args.output_path, f"rank_{r}")
+            rank_output_path = os.path.join(output_dir, f"{t}.nc")
+            rank_data = cubedsphere_divider.get_rank_data(
+                data_time_slice, rank=r, overlap=args.overlap
+            )
+
+            with NamedTemporaryFile() as tmpfile:
+                rank_data.to_netcdf(tmpfile.name)
+                vcm.get_fs(output_dir).put(tmpfile.name, rank_output_path)
+            logger.info(f"Writing netcdf to {rank_output_path}")
