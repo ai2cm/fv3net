@@ -130,7 +130,7 @@ def test_RankDivider_get_subdomain_tensor_slice():
     )
     arr = np.arange(1, 5).reshape(1, 2, 2, 1)
     subdomain_values = []
-    for s in range(divider._n_subdomains):
+    for s in range(divider.n_subdomains):
         subdomain_values.append(
             divider.get_subdomain_tensor_slice(arr, s, with_overlap=False)
             .flatten()

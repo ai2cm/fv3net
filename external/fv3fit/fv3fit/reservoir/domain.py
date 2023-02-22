@@ -25,6 +25,13 @@ class CubedsphereDivider:
         global_dims: Sequence[str],
         global_extent: Sequence[int],
     ):
+        """ Class for dividing global cubedsphere data into ranks for preprocessing.
+
+        Args:
+            tile_layout: tuple describing ranks in a tile
+            global_dims:  order of dimensions in data.
+            global_extent: size of dimensions in the order of global_dims
+        """
         self.tile_layout = tile_layout
         if not {"x", "y", "tile"} <= set(global_dims):
             raise ValueError("Data to be divided must have dims 'x', 'y', and 'tile'.")
@@ -36,7 +43,14 @@ class CubedsphereDivider:
         )
         self.total_ranks = self.cubedsphere_partitioner.total_ranks
 
-    def get_rank_data(self, dataset: xr.Dataset, rank: int, overlap: int):
+    def get_rank_data(self, dataset: xr.Dataset, rank: int, overlap: int) -> xr.Dataset:
+        """ Returns dataset of a single rank of data, including overlap cells on edges
+
+        Args:
+            dataset: global dataset to divide
+            rank: index of rank to return
+            overlap: number of edge cells to include around rank
+        """
 
         subtile_slice = self.cubedsphere_partitioner.subtile_slice(
             rank,
@@ -83,6 +97,26 @@ class RankDivider:
         rank_extent: Sequence[int],  # shape of full data, including overlap
         overlap: int,
     ):
+        """ Divides a rank of data into subdomains for use in training.
+        Args:
+            subdomain_layout: tuple describing subdomain grid within the rank
+            rank_dims: order of dimensions in data. If using time series data, 'time'
+                must be the first dimension.
+            rank_extent: Shape of full data. This includes any halo cells from
+                overlap into neighboring ranks.
+            overlap: number of cells surrounding each subdomain to include when
+                taking subdomain data.
+
+        Ex. I want to train reservoirs on 4x4 subdomains with 4 cells of overlap
+        across subdomains. The data is preprocessed and saved as 1 C48 tile per rank,
+        with n_halo=4. I would initialize the RankDivider as
+            RankDivider(
+                subdomain_layout=(12, 12),
+                rank_dims=["time", "x", "y", "z"],
+                rank_extent=[n_timesteps, 56, 56, 79],
+                overlap=4,
+            )
+        """
         self.subdomain_layout = subdomain_layout
         if "time" in rank_dims:
             if rank_dims[0] != "time":
@@ -117,7 +151,8 @@ class RankDivider:
         return tuple(subdomain_extent)
 
     def subdomain_slice(self, subdomain_index: int, with_overlap: bool):
-        # first get the slices w/o overlap points on XY data that does not have halo
+        # first get the slice indices w/o overlap points for XY data without halo,
+        # then calculate adjustments when the overlap cells are included
         slice_ = list(
             self._partitioner.subtile_slice(
                 rank=subdomain_index,
@@ -135,7 +170,10 @@ class RankDivider:
             y_slice_updated = slice(
                 y_slice_.start, y_slice_.stop + 2 * self.overlap, None
             )
+
         else:
+            # The data includes the overlap on the sides of the full rank, so exclude
+            # the rank halo region if retrieving the subdomains without overlap cells.
             x_slice_updated = slice(
                 x_slice_.start + self.overlap, x_slice_.stop + self.overlap, None
             )
@@ -161,7 +199,7 @@ class RankDivider:
 
     def get_subdomain_tensor_slice(
         self, tensor_data: tf.Tensor, subdomain_index: int, with_overlap: bool
-    ):
+    ) -> tf.Tensor:
 
         subdomain_slice = self.subdomain_slice(subdomain_index, with_overlap)
         tensor_data_xsliced = slice_along_axis(
@@ -185,6 +223,6 @@ class RankDivider:
 
 
 def stack_time_series_samples(tensor):
-    # assumes time is the first dimension
+    # Assumes time is the first dimension
     n_samples = tensor.shape[0]
     return np.reshape(tensor, (n_samples, -1))
