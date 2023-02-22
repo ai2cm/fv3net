@@ -1,10 +1,15 @@
 import argparse
-import fsspec
 import intake
+import logging
 import os
+from tempfile import NamedTemporaryFile
 
 from fv3fit.reservoir import CubedsphereDivider
 import vcm
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def _get_parser() -> argparse.ArgumentParser:
@@ -50,6 +55,7 @@ def _get_parser() -> argparse.ArgumentParser:
             "If not provided, will use the last timestep in dataset."
         ),
     )
+    parser.add_argument("--variables", type=str, nargs="+", default=[])
 
     return parser
 
@@ -71,7 +77,9 @@ if __name__ == "__main__":
     parser = _get_parser()
     args = parser.parse_args()
 
-    variables = ["air_temperature", "specific_humidity"]
+    if len(args.variables) == 0:
+        raise ValueError("--variables must be provided via list of string names.")
+
     data = intake.open_zarr(args.data_path).to_dask()
 
     tstart = (
@@ -85,7 +93,7 @@ if __name__ == "__main__":
         else vcm.parse_datetime_from_str(args.stop_time)
     )
 
-    data = data[variables].sel(time=slice(tstart, tstop))
+    data = data[args.variables].sel(time=slice(tstart, tstop))
     dims, extent = get_ordered_dims_extent(dict(data.dims))
 
     cubedsphere_divider = CubedsphereDivider(
@@ -98,5 +106,8 @@ if __name__ == "__main__":
         rank_data = cubedsphere_divider.get_rank_data(
             data, rank=r, overlap=args.overlap
         )
-        with fsspec.open(rank_output_path, "wb") as f:
-            rank_data.to_netcdf(f)
+
+        with NamedTemporaryFile() as tmpfile:
+            rank_data.to_netcdf(tmpfile.name)
+            vcm.get_fs(args.output_path).put(tmpfile.name, rank_output_path)
+        logger.info(f"Writing netcdf to {rank_output_path}")
