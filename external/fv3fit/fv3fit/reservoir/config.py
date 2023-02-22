@@ -50,7 +50,7 @@ class BatchLinearRegressorHyperparameters:
         the same behavior as sklearn regressors.
     use_least_squares_solve: Can set to True for simple test cases
         where the system is underdetermined and the default np.linalg.solve
-        encounters errors with nonsingular XT.X
+        encounters errors with singular XT.X
     """
 
     l2: float
