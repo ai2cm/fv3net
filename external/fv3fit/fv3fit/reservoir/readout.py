@@ -69,10 +69,9 @@ class BatchLinearRegressor:
 
     def _check_X_last_col_constant(self, X):
         last_col = X[:, -1]
-        if len(np.unique(last_col)) > 1:
+        if not np.allclose(np.unique(last_col), np.array([1.0])):
             raise ValueError(
-                "Last column of X array must all be the same value if add_bias_term "
-                "is False."
+                "Last column of X array must all be ones if add_bias_term " "is False."
             )
 
     def batch_update(self, X, y):
