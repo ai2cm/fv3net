@@ -150,7 +150,7 @@ class SklearnWrapper(Predictor):
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
         model: sklearn.base.BaseEstimator,
-        n_jobs: int,
+        n_jobs: int = 1,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
         packer_config: PackerConfig = PackerConfig({}),
