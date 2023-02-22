@@ -48,7 +48,7 @@ def test_CubedsphereDivider_get_rank_data(layout, overlap, expected_rank_shape):
         [(2, 2), (5, 10, 10, 2), 2, (5, 7, 7, 2), (5, 3, 3, 2)],
     ],
 )
-def test_RankDivider__get_subdomain_extent(
+def test_RankDivider_get_subdomain_extent(
     layout, rank_extent, overlap, expected_with_overlap, expected_without_overlap
 ):
     divider = RankDivider(
@@ -57,8 +57,8 @@ def test_RankDivider__get_subdomain_extent(
         rank_extent=rank_extent,
         overlap=overlap,
     )
-    assert divider._get_subdomain_extent(with_overlap=True) == expected_with_overlap
-    assert divider._get_subdomain_extent(with_overlap=False) == expected_without_overlap
+    assert divider.get_subdomain_extent(with_overlap=True) == expected_with_overlap
+    assert divider.get_subdomain_extent(with_overlap=False) == expected_without_overlap
 
 
 def test_RankDivider_subdomain_slice():
