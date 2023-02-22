@@ -1,79 +1,22 @@
 import dacite
-from dataclasses import dataclass, asdict
-from typing import Tuple, Sequence
+from dataclasses import asdict, dataclass
 import fsspec
 from typing import Optional
 import yaml
 
+from ..config import ReservoirHyperparameters, ReadoutHyperparameters
+
 
 @dataclass
-class CubedsphereSubdomainConfig:
-    layout: Tuple[int, int]
+class SubdomainConfig:
+    """ Define size and edge overlaps for 1D subdomains """
+
+    size: int
     overlap: int
-    rank_dims: Sequence[str]
 
 
 @dataclass
-class ReservoirHyperparameters:
-    """Hyperparameters for reservoir
-
-    state_size: Size of hidden state vector,
-        W_res has shape state_size x state_size
-    adjacency_matrix_sparsity: Fraction of elements in adjacency matrix
-        W_res that are zero
-    spectral_radius: Largest absolute value eigenvalue of W_res.
-        Larger values increase the memory of the reservoir.
-    seed: Random seed for sampling
-    input_coupling_sparsity: Fraction of elements in each row of W_in
-        that are zero. Kept the same in all rows to ensure each input
-        is equally connected into the reservoir. Defaults to 0.
-    input_coupling_scaling: Scaling applied to W_in. Defaults to 1,
-        where all elements are sampled from random uniform distribution
-        [-1, 1]. Changing this affects relative weighting of reservoir memory
-        versus the most recent state.
-    """
-
-    state_size: int
-    adjacency_matrix_sparsity: float
-    spectral_radius: float
-    seed: int = 0
-    input_coupling_sparsity: float = 0.0
-    input_coupling_scaling: float = 1.0
-
-
-@dataclass
-class BatchLinearRegressorHyperparameters:
-    """
-    l2: ridge regression coefficient
-    add_bias_term: Use default of True if input samples do not already
-        have a constant term to fit the intercept. Default True value is
-        the same behavior as sklearn regressors.
-    use_least_squares_solve: Can set to True for simple test cases
-        where the system is underdetermined and the default np.linalg.solve
-        encounters errors with nonsingular XT.X
-    """
-
-    l2: float
-    add_bias_term: bool = True
-    use_least_squares_solve: bool = False
-
-
-@dataclass
-class ReadoutHyperparameters:
-    """
-    linear_regressor_config: hyperparameters for batch fitting linear regressor
-    square_half_hidden_state: if True, square even terms in the reservoir
-        state before it is used as input to the regressor's .fit and
-        .predict methods. This option was found to be important for skillful
-        predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
-    """
-
-    linear_regressor_config: BatchLinearRegressorHyperparameters
-    square_half_hidden_state: bool = False
-
-
-@dataclass
-class ReservoirTrainingConfig:
+class Reservoir1DTrainingConfig:
     """
     reservoir_hyperparameters: hyperparameters for reservoir
     readout_hyperparameters: hyperparameters for readout
@@ -91,7 +34,6 @@ class ReservoirTrainingConfig:
         input size much match.
     """
 
-    subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
     readout_hyperparameters: ReadoutHyperparameters
     n_burn: int
@@ -99,7 +41,9 @@ class ReservoirTrainingConfig:
     timestep: float
     seed: int = 0
     n_samples: Optional[int] = None
+    subdomain: Optional[SubdomainConfig] = None
     n_jobs: Optional[int] = -1
+    hybrid_imperfect_model_config: Optional[dict] = None
 
     _METADATA_NAME = "reservoir_training_config.yaml"
 
@@ -113,7 +57,7 @@ class ReservoirTrainingConfig:
                 )
 
     @classmethod
-    def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
+    def from_dict(cls, kwargs) -> "Reservoir1DTrainingConfig":
         kwargs = {**kwargs}
         dacite_config = dacite.Config(strict=True, cast=[bool, str, int, float])
         kwargs["reservoir_hyperparameters"] = dacite.from_dict(
@@ -127,12 +71,12 @@ class ReservoirTrainingConfig:
             config=dacite_config,
         )
         kwargs["subdomain"] = dacite.from_dict(
-            data_class=CubedsphereSubdomainConfig,
+            data_class=SubdomainConfig,
             data=kwargs.get("subdomain", {}),
             config=dacite_config,
         )
         return dacite.from_dict(
-            data_class=ReservoirTrainingConfig,
+            data_class=Reservoir1DTrainingConfig,
             data=kwargs,
             config=dacite.Config(strict=True),
         )
@@ -148,6 +92,7 @@ class ReservoirTrainingConfig:
             "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
             "subdomain": asdict(self.subdomain),
+            "hybrid_imperfect_model_config": self.hybrid_imperfect_model_config,
         }
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)
