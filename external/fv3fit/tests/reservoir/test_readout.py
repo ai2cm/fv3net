@@ -173,8 +173,8 @@ def test_BatchLinearRegressor():
     X = np.array([[1, 2, 1], [2, 3, 0]])
     y = np.array([[12.0, 8], [11, 7]])
 
-    # use_least_squares_solve needed when overdetermined test cases
-    # result in nonsingular XT.X
+    # use_least_squares_solve needed when underdetermined test cases
+    # result in singular XT.X
     config = BatchLinearRegressorHyperparameters(
         l2=0, add_bias_term=True, use_least_squares_solve=True
     )
@@ -202,8 +202,8 @@ def test_BatchLinearRegressor_iterative_result_same_as_one_shot():
     X_full = np.concatenate(X_batches, axis=0)
     y_full = np.concatenate(y_batches, axis=0)
 
-    # use_least_squares_solve needed when overdetermined test cases
-    # result in nonsingular XT.X
+    # use_least_squares_solve needed when underdetermined test cases
+    # result in singular XT.X
     config = BatchLinearRegressorHyperparameters(
         l2=l2, add_bias_term=True, use_least_squares_solve=True
     )
@@ -214,7 +214,7 @@ def test_BatchLinearRegressor_iterative_result_same_as_one_shot():
 
     full_lr = BatchLinearRegressor(config)
     full_lr.batch_update(X_full, y_full)
-    coefficients_full, intercepts_full = batch_lr.get_weights()
+    coefficients_full, intercepts_full = full_lr.get_weights()
 
     np.testing.assert_array_almost_equal(coefficients, coefficients_full)
     np.testing.assert_array_almost_equal(intercepts, intercepts_full)
@@ -227,8 +227,8 @@ def test_BatchLinearRegressor_add_bias_term():
     X_with_bias_const = np.array([[1, 2, 1, 1], [2, 3, 0, 1]])
     y = np.array([[12.0, 8], [11, 7]])
 
-    # use_least_squares_solve needed when overdetermined test cases
-    # result in nonsingular XT.X
+    # use_least_squares_solve needed when underdetermined test cases
+    # result in singular XT.X
     config_add_bias = BatchLinearRegressorHyperparameters(
         l2=0, add_bias_term=True, use_least_squares_solve=True
     )
@@ -246,3 +246,22 @@ def test_BatchLinearRegressor_add_bias_term():
 
     np.testing.assert_array_equal(coefficients_add_bias, coefficients_no_bias)
     np.testing.assert_array_equal(intercepts_add_bias, intercepts_no_bias)
+
+
+def test_BatchLinearRegressor_error_on_missing_bias_col():
+    X = np.array([[1, 2, 1, 10], [2, 3, 0, 2]])
+    X_with_bias_const = np.array([[1, 2, 1, 1], [2, 3, 0, 1]])
+
+    y = np.array([[12.0, 8], [11, 7]])
+
+    config_no_bias = BatchLinearRegressorHyperparameters(
+        l2=0, add_bias_term=False, use_least_squares_solve=True
+    )
+    lr_no_bias = BatchLinearRegressor(config_no_bias)
+
+    # should pass check if last col is constant
+    lr_no_bias.batch_update(X_with_bias_const, y)
+
+    # fail if add_bias_term is False but last col is not constant
+    with pytest.raises(ValueError):
+        lr_no_bias.batch_update(X, y)

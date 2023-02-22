@@ -67,30 +67,42 @@ class BatchLinearRegressor:
     def _add_bias_feature(self, X):
         return np.concatenate([X, np.ones((X.shape[0], 1))], axis=1)
 
+    def _check_X_last_col_constant(self, X):
+        last_col = X[:, -1]
+        if len(np.unique(last_col)) > 1:
+            raise ValueError(
+                "Last column of X array must all be the same value if add_bias_term "
+                "is False."
+            )
+
     def batch_update(self, X, y):
         if self.hyperparameters.add_bias_term:
             X = self._add_bias_feature(X)
+        else:
+            self._check_X_last_col_constant(X)
 
         if self.A is None and self.B is None:
             self.A = np.zeros((X.shape[1], X.shape[1]))
             self.B = np.zeros((X.shape[1], y.shape[1]))
 
-        reg = self.hyperparameters.l2 * np.identity(X.shape[1])
-        self.A = np.add(self.A, (np.dot(X.T, X) + reg))
+        self.A = np.add(self.A, (np.dot(X.T, X)))
         self.B = np.add(self.B, np.dot(X.T, y))
 
     def get_weights(self):
         # use_least_squares_solve is useful for simple test cases
-        # where np.linalg.solve encounters nonsingular XT.X
+        # where np.linalg.solve encounters for singular XT.X
+
+        reg = self.hyperparameters.l2 * np.identity(self.A.shape[1])
+
         if self.A is None and self.B is None:
             raise NotFittedError(
                 "At least one call of batch_update on data must be done "
                 "before solving for weights."
             )
         if self.hyperparameters.use_least_squares_solve:
-            W = np.linalg.lstsq(self.A, self.B)[0]
+            W = np.linalg.lstsq(self.A + reg, self.B)[0]
         else:
-            W = np.linalg.solve(self.A, self.B)
+            W = np.linalg.solve(self.A + reg, self.B)
         coefficients, intercepts = W[:-1, :], W[-1, :]
         return coefficients, intercepts
 
@@ -168,9 +180,6 @@ class ReservoirComputingReadout:
         mapper = fsspec.get_mapper(path)
         f = io.BytesIO(mapper[cls._READOUT_NAME])
         readout_components = joblib.load(f)
-        # readout_hyperparameters = dacite.from_dict(
-        #    ReadoutHyperparameters, readout_components.pop("hyperparameters")
-        # )
         lr_config = dacite.from_dict(
             BatchLinearRegressorHyperparameters,
             readout_components.pop("lr_hyperparameters"),
