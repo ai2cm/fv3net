@@ -61,6 +61,7 @@ def nc_dir_to_tfdataset(
     cache: Optional[str] = None,
     match: Optional[str] = None,
     varying_first_dim: bool = False,
+    sort_files: bool = False,
 ) -> tf.data.Dataset:
     """
     Convert a directory of netCDF files into a tensorflow dataset.
@@ -73,6 +74,9 @@ def nc_dir_to_tfdataset(
         random_state: numpy random number generator for seeded shuffle
         cache: directory to cache datat at. The default is $pwd/.cache.
         match: string to filter filenames via a regexp search
+        varying_first_dim: If true, allow the first dimension (sample) to have different
+            sizes across batches
+        sort_files: If true, sort the files in nc dir before loading in order.
     """
     cache = cache or CACHE_DIR
 
@@ -90,6 +94,9 @@ def nc_dir_to_tfdataset(
         files = random_state.choice(
             files, size=len(files), replace=False  # type: ignore
         )
+
+    if sort_files:
+        files.sort()
 
     if nfiles is not None:
         files = files[:nfiles]
@@ -144,6 +151,7 @@ class NCDirLoader(TFDatasetLoader):
     seed: int = 0
     dim_order: Optional[Sequence[str]] = None
     varying_first_dim: bool = False
+    sort_files: bool = False
 
     @property
     def dtype(self):
@@ -172,6 +180,7 @@ class NCDirLoader(TFDatasetLoader):
             random_state=np.random.RandomState(self.seed),
             cache=local_download_path,
             varying_first_dim=self.varying_first_dim,
+            sort_files=self.sort_files,
         )
 
     @classmethod
