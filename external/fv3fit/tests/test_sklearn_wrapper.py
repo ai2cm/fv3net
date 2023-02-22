@@ -65,9 +65,7 @@ def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
     else:
         scaler = None
 
-    wrapper = SklearnWrapper(
-        input_variables=["x"], output_variables=["y"], model=model, n_jobs=1
-    )
+    wrapper = SklearnWrapper(input_variables=["x"], output_variables=["y"], model=model)
     wrapper.target_scaler = scaler
     return wrapper
 
@@ -91,9 +89,7 @@ def test_fitting_SklearnWrapper_does_not_fit_scaler():
     model = unittest.mock.Mock()
     scaler = unittest.mock.Mock()
 
-    wrapper = SklearnWrapper(
-        input_variables=["x"], output_variables=["y"], model=model, n_jobs=1
-    )
+    wrapper = SklearnWrapper(input_variables=["x"], output_variables=["y"], model=model)
     wrapper.target_scaler = scaler
 
     dims = ["sample_", "z"]
@@ -113,9 +109,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     else:
         scaler = None
     model = LinearRegression()
-    wrapper = SklearnWrapper(
-        input_variables=["x"], output_variables=["y"], model=model, n_jobs=1
-    )
+    wrapper = SklearnWrapper(input_variables=["x"], output_variables=["y"], model=model)
     wrapper.target_scaler = scaler
 
     # setup input data
@@ -134,9 +128,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
 def fit_wrapper_with_columnar_data():
     nz = 2
     model = DummyRegressor(strategy="constant", constant=np.arange(nz))
-    wrapper = SklearnWrapper(
-        input_variables=["a"], output_variables=["b"], model=model, n_jobs=1
-    )
+    wrapper = SklearnWrapper(input_variables=["a"], output_variables=["b"], model=model)
 
     dims = ["sample", "z"]
     shape = (4, nz)
@@ -238,10 +230,10 @@ def test_SklearnWrapper_raises_not_implemented_error_with_clipped_output_data():
 
 class OldSklearnWrapper(SklearnWrapper):
     def __init__(
-        self, input_variables, output_variables, model, n_jobs, n_regressors, **kwargs
+        self, input_variables, output_variables, model, n_regressors, **kwargs
     ):
         self._n_regressors = n_regressors
-        super().__init__(input_variables, output_variables, model, n_jobs, **kwargs)
+        super().__init__(input_variables, output_variables, model, **kwargs)
 
     def _dump_regressor(self):
         # how regressor ensemble was saved
@@ -259,7 +251,6 @@ def _get_old_sklearn_wrapper(n_regressors):
         input_variables=["a"],
         output_variables=["b"],
         model=model,
-        n_jobs=1,
         n_regressors=n_regressors,
     )
     # setup input data; wrappers must be fit to be dumped

@@ -127,8 +127,52 @@ class RandomForest(Predictor):
     def load(cls, path: str) -> "RandomForest":
         return RandomForest.from_sklearn_wrapper(SklearnWrapper.load(path))
 
+    def _feature_importances(self) -> np.ndarray:
+        return np.array(
+            [
+                tree.feature_importances_
+                for tree in self._model_wrapper.model.estimators_
+            ]
+        )
+
+    def _mean_feature_importances(self) -> np.ndarray:
+        return self._feature_importances().mean(axis=0)
+
+    def _std_feature_importances(self) -> np.ndarray:
+        return self._feature_importances().std(axis=0)
+
     def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
-        return self._model_wrapper.input_sensitivity(stacked_sample)
+        _, input_multiindex = pack(
+            stacked_sample[self.input_variables],
+            ["sample"],
+            self._model_wrapper.packer_config,
+        )
+        feature_importances = {}
+        for (name, feature_index), mean_importance, std_importance in zip(
+            input_multiindex,
+            self._mean_feature_importances(),
+            self._std_feature_importances(),
+        ):
+            if name not in feature_importances:
+                feature_importances[name] = {
+                    "indices": [feature_index],
+                    "mean_importances": [mean_importance],
+                    "std_importances": [std_importance],
+                }
+            else:
+                feature_importances[name]["indices"].append(feature_index)
+                feature_importances[name]["mean_importances"].append(mean_importance)
+                feature_importances[name]["std_importances"].append(std_importance)
+
+        formatted_feature_importances = {
+            name: RandomForestInputSensitivity(
+                indices=info["indices"],
+                mean_importances=info["mean_importances"],
+                std_importances=info["std_importances"],
+            )
+            for name, info in feature_importances.items()
+        }
+        return InputSensitivity(rf_feature_importances=formatted_feature_importances)
 
 
 def _get_iterator_size(iterator):
@@ -152,7 +196,7 @@ class SklearnWrapper(Predictor):
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
         model: sklearn.base.BaseEstimator,
-        n_jobs: int,
+        n_jobs: int = 1,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
         packer_config: PackerConfig = PackerConfig({}),
@@ -334,34 +378,3 @@ class SklearnWrapper(Predictor):
         else:
             regressor = regressor_components["regressors"]
         return regressor, regressor_components["n_jobs"]
-
-    def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
-        _, input_multiindex = pack(
-            stacked_sample[self.input_variables], ["sample"], self.packer_config
-        )
-        feature_importances = {}
-        for (name, feature_index), mean_importance, std_importance in zip(
-            input_multiindex,
-            self.model.feature_importances_,
-            np.zeros_like(self.model.feature_importances_),
-        ):
-            if name not in feature_importances:
-                feature_importances[name] = {
-                    "indices": [feature_index],
-                    "mean_importances": [mean_importance],
-                    "std_importances": [std_importance],
-                }
-            else:
-                feature_importances[name]["indices"].append(feature_index)
-                feature_importances[name]["mean_importances"].append(mean_importance)
-                feature_importances[name]["std_importances"].append(std_importance)
-
-        formatted_feature_importances = {
-            name: RandomForestInputSensitivity(
-                indices=info["indices"],
-                mean_importances=info["mean_importances"],
-                std_importances=info["std_importances"],
-            )
-            for name, info in feature_importances.items()
-        }
-        return InputSensitivity(rf_feature_importances=formatted_feature_importances)
