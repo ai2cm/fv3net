@@ -170,7 +170,6 @@ def fit_wrapper_with_gridcell_data():
         input_variables=["a"],
         output_variables=["b"],
         model=model,
-        n_jobs=1,
         predict_columns=False,
     )
     dims = [
@@ -201,7 +200,6 @@ def test_SklearnWrapper_fit_predict_with_clipped_input_data():
         input_variables=["a", "b"],
         output_variables=["c"],
         model=model,
-        n_jobs=1,
         packer_config=PackerConfig({"a": SliceConfig(2, None)}),
     )
 
@@ -223,7 +221,6 @@ def test_SklearnWrapper_raises_not_implemented_error_with_clipped_output_data():
             input_variables=["a", "b"],
             output_variables=["c"],
             model=model,
-            n_jobs=1,
             packer_config=PackerConfig({"c": SliceConfig(2, None)}),
         )
 
