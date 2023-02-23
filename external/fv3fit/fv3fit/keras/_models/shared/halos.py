@@ -46,7 +46,9 @@ def _quantities_from_dataset(
 ) -> Mapping[Hashable, pace.util.Quantity]:
     return_dict = {}
     nx, ny = ds.dims["x"], ds.dims["y"]
-    nz = ds.dims["z"] if "z" in ds.dims else 0
+    # if nz is not in the dataset, should not get used
+    # we set it to -1 to cause errors if used
+    nz = ds.dims["z"] if "z" in ds.dims else -1
     sizer = _NoBufferPointGridSizer(
         nx=nx, ny=ny, nz=nz, n_halo=n_halo, extra_dim_lengths={**ds.sizes}
     )
