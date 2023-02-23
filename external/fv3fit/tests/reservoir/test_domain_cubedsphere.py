@@ -1,43 +1,10 @@
 import numpy as np
 import pytest
-import xarray as xr
 
 from fv3fit.reservoir.domain import (
-    CubedsphereDivider,
     RankDivider,
     stack_time_series_samples,
 )
-
-
-NTILE = 6
-
-
-def cubedsphere_data(nx, ny, nz=2, nt=5):
-    da = xr.DataArray(
-        data=np.ones((NTILE, nx, ny, nz, nt)), dims=["tile", "x", "y", "z", "time"]
-    )
-    return xr.Dataset({"var_3d": da, "var_2d": da.isel(z=0)})
-
-
-@pytest.mark.parametrize(
-    "layout, overlap, expected_rank_shape",
-    [
-        [(2, 2), 0, (2, 2)],
-        [(2, 2), 1, (4, 4)],
-        [(1, 1), 0, (4, 4)],
-        [(1, 1), 2, (8, 8)],
-    ],
-)
-def test_CubedsphereDivider_get_rank_data(layout, overlap, expected_rank_shape):
-    data = cubedsphere_data(nx=4, ny=4)
-    divider = CubedsphereDivider(
-        tile_layout=layout,
-        global_dims=list(data.dims),
-        global_extent=[data[dim].size for dim in data.dims],
-    )
-    rank_data = divider.get_rank_data(data, rank=0, overlap=overlap)
-    rank_xy_shape = (rank_data["x"].size, rank_data["y"].size)
-    assert rank_xy_shape == expected_rank_shape
 
 
 @pytest.mark.parametrize(

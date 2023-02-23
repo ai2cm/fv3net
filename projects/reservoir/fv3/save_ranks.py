@@ -5,7 +5,7 @@ import os
 from tempfile import NamedTemporaryFile
 import toolz
 
-from fv3fit.reservoir import CubedsphereDivider
+from .cubed_sphere import CubedSphereDivider
 import vcm
 
 logging.basicConfig()
@@ -92,19 +92,19 @@ if __name__ == "__main__":
 
     tstart = (
         data.time.values[0]
-        if not args.start_time
+        if args.start_time is None
         else vcm.parse_datetime_from_str(args.start_time)
     )
     tstop = (
         data.time.values[-1]
-        if not args.stop_time
+        if args.stop_time is None
         else vcm.parse_datetime_from_str(args.stop_time)
     )
 
     data = data[args.variables].sel(time=slice(tstart, tstop))
     dims, extent = get_ordered_dims_extent(dict(data.dims))
 
-    cubedsphere_divider = CubedsphereDivider(
+    cubedsphere_divider = CubedSphereDivider(
         tile_layout=(args.layout_width, args.layout_width),
         global_dims=dims,
         global_extent=extent,
