@@ -1,8 +1,8 @@
 import fsspec
-from fv3fit._shared import (
-    stack_non_vertical,
+from fv3fit._shared.stacking import (
+    stack,
     match_prediction_to_input_coords,
-    stacking,
+    Z_DIM_NAMES,
 )
 from typing import Any, Dict, Hashable, Iterable, Mapping, Optional, Union
 
@@ -70,7 +70,9 @@ class ConstantOutputPredictor(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
-        stacked_X = stack_non_vertical(safe.get_variables(X, self.input_variables))
+        stacked_X = stack(
+            safe.get_variables(X, self.input_variables), unstacked_dims=Z_DIM_NAMES
+        )
         n_samples = len(stacked_X[SAMPLE_DIM_NAME])
         data_vars = {}
         for name in self.output_variables:
@@ -128,9 +130,7 @@ class ConstantOutputNoveltyDetector(NoveltyDetector):
     def predict(self, data: xr.Dataset) -> xr.Dataset:
         scores_unreduced = xr.zeros_like(data[next(iter(self.input_variables))])
         unnecessary_coords = {
-            k: v
-            for (k, v) in scores_unreduced.coords.items()
-            if k in stacking.Z_DIM_NAMES
+            k: v for (k, v) in scores_unreduced.coords.items() if k in Z_DIM_NAMES
         }
         scores_reduced = scores_unreduced.max(unnecessary_coords)
         score_dataset = scores_reduced.to_dataset(name=self._SCORE_OUTPUT_VAR)
