@@ -55,12 +55,12 @@ class RankDivider:
         self.rank_dims = rank_dims
         self.overlap = overlap
         self.rank_extent = rank_extent
+        self.n_subdomains = subdomain_layout[0] * subdomain_layout[1]
 
-        self.x_ind = rank_dims.index("x")
-        self.y_ind = rank_dims.index("y")
+        self._x_ind = rank_dims.index("x")
+        self._y_ind = rank_dims.index("y")
 
         self._partitioner = pace.util.TilePartitioner(subdomain_layout)
-        self.n_subdomains = subdomain_layout[0] * subdomain_layout[1]
 
         # dimensions of rank data without the halo points. Useful for slice calculation.
         self._rank_extent_without_overlap = self._get_rank_extent_without_overlap(
@@ -69,14 +69,14 @@ class RankDivider:
 
     def get_subdomain_extent(self, with_overlap: bool):
         subdomain_xy_size = (
-            self._rank_extent_without_overlap[self.x_ind] // self.subdomain_layout[0]
+            self._rank_extent_without_overlap[self._x_ind] // self.subdomain_layout[0]
         )
         if with_overlap:
             subdomain_xy_size += 2 * self.overlap
 
         subdomain_extent = list(self.rank_extent)
-        subdomain_extent[self.x_ind] = subdomain_xy_size
-        subdomain_extent[self.y_ind] = subdomain_xy_size
+        subdomain_extent[self._x_ind] = subdomain_xy_size
+        subdomain_extent[self._y_ind] = subdomain_xy_size
         return tuple(subdomain_extent)
 
     def subdomain_slice(self, subdomain_index: int, with_overlap: bool):
@@ -89,8 +89,8 @@ class RankDivider:
                 global_extent=self._rank_extent_without_overlap,
             )
         )
-        x_slice_ = slice_[self.x_ind]
-        y_slice_ = slice_[self.y_ind]
+        x_slice_ = slice_[self._x_ind]
+        y_slice_ = slice_[self._y_ind]
 
         if with_overlap:
             x_slice_updated = slice(
@@ -110,19 +110,19 @@ class RankDivider:
                 y_slice_.start + self.overlap, y_slice_.stop + self.overlap, None
             )
 
-        slice_[self.x_ind] = x_slice_updated
-        slice_[self.y_ind] = y_slice_updated
+        slice_[self._x_ind] = x_slice_updated
+        slice_[self._y_ind] = y_slice_updated
         return tuple(slice_)
 
     def _get_rank_extent_without_overlap(
         self, data_shape: Sequence[int], overlap: int
     ) -> Sequence[int]:
         extent_without_halos = list(data_shape)
-        extent_without_halos[self.x_ind] = (
-            extent_without_halos[self.x_ind] - 2 * overlap
+        extent_without_halos[self._x_ind] = (
+            extent_without_halos[self._x_ind] - 2 * overlap
         )
-        extent_without_halos[self.y_ind] = (
-            extent_without_halos[self.y_ind] - 2 * overlap
+        extent_without_halos[self._y_ind] = (
+            extent_without_halos[self._y_ind] - 2 * overlap
         )
         return tuple(extent_without_halos)
 
@@ -132,10 +132,10 @@ class RankDivider:
 
         subdomain_slice = self.subdomain_slice(subdomain_index, with_overlap)
         tensor_data_xsliced = slice_along_axis(
-            arr=tensor_data, inds=subdomain_slice[self.x_ind], axis=self.x_ind
+            arr=tensor_data, inds=subdomain_slice[self._x_ind], axis=self._x_ind
         )
         tensor_data_xy_sliced = slice_along_axis(
-            arr=tensor_data_xsliced, inds=subdomain_slice[self.y_ind], axis=self.y_ind
+            arr=tensor_data_xsliced, inds=subdomain_slice[self._y_ind], axis=self._y_ind
         )
         return tensor_data_xy_sliced
 
