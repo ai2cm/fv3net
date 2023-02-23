@@ -229,12 +229,38 @@ def get_r2(predicted, target) -> float:
     return 1.0 - np.var(predicted - target) / np.var(target)
 
 
+def _hist_nd(array: np.ndarray, bins: np.ndarray):
+    out_hist = np.empty((array.shape[1], bins.shape[0] - 1), dtype=np.float64)
+    for i_channel in range(array.shape[1]):
+        out_hist[i_channel, :] = np.histogram(
+            array[:, i_channel].flatten(), bins=bins, density=True
+        )[0]
+
+    return out_hist
+
+
 class ResultsAggregator:
-    def __init__(self):
+    def __init__(self, histogram_vmax: float):
         self._total_fake_a: Optional[np.ndarray] = None
         self._total_fake_b: Optional[np.ndarray] = None
         self._total_real_a: Optional[np.ndarray] = None
         self._total_real_b: Optional[np.ndarray] = None
+        self._total_fake_a_histogram: Optional[np.ndarray] = None
+        self._total_fake_b_histogram: Optional[np.ndarray] = None
+        self._total_real_a_histogram: Optional[np.ndarray] = None
+        self._total_real_b_histogram: Optional[np.ndarray] = None
+        self._total_real_a_binned: Optional[np.ndarray] = None
+        self._total_real_b_binned: Optional[np.ndarray] = None
+        self._total_fake_a_binned: Optional[np.ndarray] = None
+        self._total_fake_b_binned: Optional[np.ndarray] = None
+        n_bins = 100
+        v1 = 10 ** (np.log10(histogram_vmax) / n_bins)
+        self._bins = np.concatenate(
+            [
+                [-1.0, 0.0],
+                np.logspace(np.log10(v1), np.log10(histogram_vmax), n_bins - 1),
+            ]
+        )
         self._count = 0
 
     def record_results(
@@ -260,23 +286,81 @@ class ResultsAggregator:
             self._total_fake_a = fake_a
         else:
             self._total_fake_a += fake_a
+
+        if self._total_real_a_histogram is None:
+            self._total_real_a_histogram = _hist_nd(real_a, self._bins)
+        else:
+            new_hist = _hist_nd(real_a, self._bins)
+            self._total_real_a_histogram += new_hist
+        if self._total_real_b_histogram is None:
+            self._total_real_b_histogram = _hist_nd(real_b, self._bins)
+        else:
+            new_hist = _hist_nd(real_b, self._bins)
+            self._total_real_b_histogram += new_hist
+        if self._total_fake_a_histogram is None:
+            self._total_fake_a_histogram = _hist_nd(fake_a, self._bins)
+        else:
+            new_hist = _hist_nd(fake_a, self._bins)
+            self._total_fake_a_histogram += new_hist
+        if self._total_fake_b_histogram is None:
+            self._total_fake_b_histogram = _hist_nd(fake_b, self._bins)
+        else:
+            new_hist = _hist_nd(fake_b, self._bins)
+            self._total_fake_b_histogram += new_hist
+
         self._count += 1
 
     @property
     def mean_fake_a(self) -> np.ndarray:
+        if self._total_fake_a is None:
+            raise RuntimeError("No results have been recorded yet.")
         return self._total_fake_a / self._count
 
     @property
     def mean_fake_b(self) -> np.ndarray:
+        if self._total_fake_b is None:
+            raise RuntimeError("No results have been recorded yet.")
         return self._total_fake_b / self._count
 
     @property
     def mean_real_a(self) -> np.ndarray:
+        if self._total_real_a is None:
+            raise RuntimeError("No results have been recorded yet.")
         return self._total_real_a / self._count
 
     @property
     def mean_real_b(self) -> np.ndarray:
+        if self._total_real_b is None:
+            raise RuntimeError("No results have been recorded yet.")
         return self._total_real_b / self._count
+
+    @property
+    def fake_a_histogram(self) -> np.ndarray:
+        if self._total_fake_a_histogram is None:
+            raise RuntimeError("No results have been recorded yet.")
+        return self._total_fake_a_histogram / self._count
+
+    @property
+    def fake_b_histogram(self) -> np.ndarray:
+        if self._total_fake_b_histogram is None:
+            raise RuntimeError("No results have been recorded yet.")
+        return self._total_fake_b_histogram / self._count
+
+    @property
+    def real_a_histogram(self) -> np.ndarray:
+        if self._total_real_a_histogram is None:
+            raise RuntimeError("No results have been recorded yet.")
+        return self._total_real_a_histogram / self._count
+
+    @property
+    def real_b_histogram(self) -> np.ndarray:
+        if self._total_real_b_histogram is None:
+            raise RuntimeError("No results have been recorded yet.")
+        return self._total_real_b_histogram / self._count
+
+    @property
+    def bins(self) -> np.ndarray:
+        return self._bins
 
 
 @dataclasses.dataclass
@@ -398,7 +482,7 @@ class CycleGANTrainer:
             aggregator: if given, record generated results in this aggregator
         """
         if aggregator is None:
-            aggregator = ResultsAggregator()
+            aggregator = ResultsAggregator(histogram_vmax=100.0)
         # for now there is no time-evolution-based loss, so we fold the time
         # dimension into the sample dimension
         real_a = real_a.reshape(
@@ -608,6 +692,7 @@ class CycleGANTrainer:
             # real_a_bias = real_a_mean - real_b_mean
             real_a_bias = res.mean_real_a - res.mean_real_b
             for i in range(real_a.shape[2]):
+                # report mean bias
                 fake_a_bias = res.mean_fake_a[:, i, :, :] - res.mean_real_a[:, i, :, :]
                 fake_b_bias = res.mean_fake_b[:, i, :, :] - res.mean_real_b[:, i, :, :]
                 buf = plot_cross(
@@ -626,7 +711,55 @@ class CycleGANTrainer:
                 report[f"fake_a_vs_real_a_bias_std_{i}"] = np.std(fake_a_bias)
                 report[f"fake_b_vs_real_b_bias_mean_{i}"] = np.mean(fake_b_bias)
                 report[f"fake_b_vs_real_b_bias_std_{i}"] = np.std(fake_b_bias)
+                # report histograms
+                buf = plot_histograms(
+                    real_a_hist=res.real_a_histogram[i, :],
+                    real_b_hist=res.real_b_histogram[i, :],
+                    fake_a_hist=res.fake_a_histogram[i, :],
+                    fake_b_hist=res.fake_b_histogram[i, :],
+                    bins=res.bins,
+                )
+                report[f"histogram_{i}"] = wandb.Image(
+                    PIL.Image.open(buf), caption=f"Channel {i} Histograms",
+                )
+
         return report
+
+
+def plot_histograms(
+    real_a_hist: np.ndarray,
+    real_b_hist: np.ndarray,
+    fake_a_hist: np.ndarray,
+    fake_b_hist: np.ndarray,
+    bins: np.ndarray,
+):
+    fig, ax = plt.subplots(1, 1, figsize=(8, 7))
+    ax.step(
+        bins[:-1], real_a_hist, where="post", alpha=0.5, label="real_a",
+    )
+    ax.step(
+        bins[:-1], real_b_hist, where="post", alpha=0.5, label="real_b",
+    )
+    ax.step(
+        bins[:-1], fake_a_hist, where="post", alpha=0.5, label="fake_a",
+    )
+    ax.step(
+        bins[:-1], fake_b_hist, where="post", alpha=0.5, label="fake_b",
+    )
+    i_max = np.max(
+        np.where(np.any([real_a_hist, real_b_hist, fake_a_hist, fake_b_hist], axis=0))
+    )
+    ax.set_xlim(bins[0], bins[i_max + 1])
+    ax.set_yscale("log")
+    ax.set_title(f"Histograms")
+    ax.legend()
+    plt.tight_layout()
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
 
 
 def plot_cross(

@@ -77,6 +77,7 @@ class CycleGANTrainingConfig:
         in_memory: if True, load the entire dataset into memory as pytorch tensors
             before training. Batches will be statically defined but will be shuffled
             between epochs.
+        histogram_vmax: maximum value for histograms of model outputs
         checkpoint_path: if given, model checkpoints will be saved to this directory
             marked by timestamp, epoch, and a randomly generated run label
     """
@@ -86,6 +87,7 @@ class CycleGANTrainingConfig:
     samples_per_batch: int = 1
     validation_batch_size: Optional[int] = None
     in_memory: bool = False
+    histogram_vmax: float = 100.0
     checkpoint_path: Optional[str] = None
 
     def fit_loop(
@@ -154,7 +156,7 @@ class CycleGANTrainingConfig:
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
-            results_aggregator = ResultsAggregator()
+            results_aggregator = ResultsAggregator(histogram_vmax=self.histogram_vmax)
             for state_a, state_b in train_states:
                 train_losses.append(
                     train_model.train_on_batch(
