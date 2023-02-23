@@ -13,12 +13,18 @@ from fv3fit.reservoir.one_dim import (
     HybridDomainPredictor,
     SubdomainConfig,
 )
-from fv3fit.reservoir.config import ReadoutHyperparameters
+from fv3fit.reservoir.config import (
+    ReadoutHyperparameters,
+    BatchLinearRegressorHyperparameters,
+)
 
 
 def generic_readout(**readout_kwargs):
     readout_hyperparameters = ReadoutHyperparameters(
-        linear_regressor_kwargs={}, square_half_hidden_state=False
+        linear_regressor_config=BatchLinearRegressorHyperparameters(
+            l2=0, use_least_squares_solve=True
+        ),
+        square_half_hidden_state=False,
     )
     return ReservoirComputingReadout(readout_hyperparameters, **readout_kwargs)
 
