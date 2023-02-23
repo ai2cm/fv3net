@@ -193,6 +193,15 @@ def test_predict_columns_false():
         _ = wrapper.predict(input_data)
 
 
+def test_gridcell_prediction_dims():
+    _, wrapper = fit_wrapper_with_gridcell_data()
+    input_data = get_unstacked_data()
+    prediction = wrapper.predict(input_data)
+    assert set(prediction.dims) == set(input_data.dims)
+    for dim, size in input_data.sizes.items():
+        assert prediction.sizes[dim] == size
+
+
 def test_SklearnWrapper_fit_predict_with_clipped_input_data():
     nz = 5
     model = DummyRegressor(strategy="constant", constant=np.arange(nz))
