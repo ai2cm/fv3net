@@ -134,6 +134,8 @@ class RankDivider:
 
         self._partitioner = pace.util.TilePartitioner(subdomain_layout)
         self.n_subdomains = subdomain_layout[0] * subdomain_layout[1]
+
+        # dimensions of rank data without the halo points. Useful for slice calculation.
         self._rank_extent_without_overlap = self._get_rank_extent_without_overlap(
             rank_extent, overlap
         )
@@ -211,6 +213,8 @@ class RankDivider:
         return tensor_data_xy_sliced
 
     def unstack_subdomain(self, tensor, with_overlap: bool):
+        # Takes a flattened subdomain and reshapes it back into its original
+        # x and y dims
         unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)[1:]
         expected_stacked_size = np.prod(unstacked_shape)
         if tensor.shape[-1] != expected_stacked_size:
@@ -223,6 +227,7 @@ class RankDivider:
 
 
 def stack_time_series_samples(tensor):
+    # Used to reshape a subdomains into a flat columns.
     # Assumes time is the first dimension
     n_samples = tensor.shape[0]
     return np.reshape(tensor, (n_samples, -1))
