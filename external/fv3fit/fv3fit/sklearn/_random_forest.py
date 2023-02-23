@@ -15,18 +15,15 @@ from .._shared import (
     Predictor,
     register_training_function,
     PackerConfig,
+    scaler,
+    stack,
+    match_prediction_to_input_coords,
+    SAMPLE_DIM_NAME,
 )
 
 from .._shared.input_sensitivity import InputSensitivity, RandomForestInputSensitivity
 from .._shared.training_config import RandomForestHyperparameters
 from .. import _shared
-from .._shared import (
-    scaler,
-    stack,
-    stack_non_vertical,
-    match_prediction_to_input_coords,
-    SAMPLE_DIM_NAME,
-)
 import sklearn.base
 import sklearn.ensemble
 import tensorflow as tf
@@ -282,7 +279,7 @@ class SklearnWrapper(Predictor):
         stacked_data = (
             stack(input_data)
             if self.predict_columns is False
-            else stack_non_vertical(input_data)
+            else stack(input_data, unstacked_dims=["z"])
         )
         stacked_output = self._predict_on_stacked_data(stacked_data)
         unstacked_output = stacked_output.assign_coords(

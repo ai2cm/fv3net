@@ -27,18 +27,6 @@ def stack(ds: xr.Dataset, unstacked_dims: Optional[Sequence[str]] = None):
     return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 
-def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
-    """
-    Stack all dimensions except for the Z dimensions into a sample
-
-    Args:
-        ds: dataset with geospatial dimensions
-    """
-    if len(set(ds.dims).intersection(Z_DIM_NAMES)) > 1:
-        raise ValueError("Data cannot have >1 feature dimension in {Z_DIM_NAMES}.")
-    return stack(ds=ds, unstacked_dims=Z_DIM_NAMES)
-
-
 def _infer_dimension_order(ds: xr.Dataset) -> Tuple:
     # add check here for cases when the dimension order is inconsistent between arrays?
     dim_order = []

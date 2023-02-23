@@ -1,11 +1,7 @@
 import numpy as np
 import pytest
 import xarray as xr
-from fv3fit._shared.stacking import (
-    stack_non_vertical,
-    stack,
-    SAMPLE_DIM_NAME,
-)
+from fv3fit._shared.stacking import stack, SAMPLE_DIM_NAME, Z_DIM_NAMES
 
 ds_unstacked = xr.Dataset(
     {"var": xr.DataArray(np.arange(0, 100).reshape(5, 20), dims=["z", "x"],)}
@@ -35,7 +31,7 @@ def gridded_dataset(request):
 )
 def test_stack_dims(gridded_dataset):
     s_dim = SAMPLE_DIM_NAME
-    ds_train = stack_non_vertical(gridded_dataset)
+    ds_train = stack(gridded_dataset, unstacked_dims=Z_DIM_NAMES)
     assert set(ds_train.dims) == {s_dim, "z"}
     assert len(ds_train["z"]) == len(gridded_dataset.z)
     assert ds_train["var"].dims[0] == s_dim
