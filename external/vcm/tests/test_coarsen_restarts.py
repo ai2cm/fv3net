@@ -53,6 +53,10 @@ REGRESSION_TESTS = {
         coarsen_restarts_via_blended_method,
         {"coarsen_agrid_winds": False, "mass_weighted": False},
     ),
+    "pressure-level-extrapolate-with-agrid-winds": (
+        coarsen_restarts_on_pressure,
+        {"coarsen_agrid_winds": False, "extrapolate": True},
+    ),
 }
 
 

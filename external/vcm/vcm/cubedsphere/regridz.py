@@ -30,6 +30,7 @@ def regrid_to_area_weighted_pressure(
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
+    extrapolate: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """ Vertically regrid a dataset of cell-centered quantities to coarsened
     pressure levels.
@@ -42,6 +43,9 @@ def regrid_to_area_weighted_pressure(
         x_dim (optional): x-dimension name. Defaults to "xaxis_1"
         y_dim (optional): y-dimension name. Defaults to "yaxis_2"
         z_dim (optional): z-dimension name. Defaults to "zaxis_1"
+        extrapolate: flag indicating whether to extrapolate values below the
+            fine-grid surface using a nearest neighbor approach (default False,
+            meaning any below surface values are masked).
 
     Returns:
         tuple of regridded input Dataset and area masked wherever coarse
@@ -51,7 +55,14 @@ def regrid_to_area_weighted_pressure(
         delp, area, coarsening_factor, x_dim=x_dim, y_dim=y_dim
     )
     return _regrid_given_delp(
-        ds, delp, delp_coarse, area, x_dim=x_dim, y_dim=y_dim, z_dim=z_dim
+        ds,
+        delp,
+        delp_coarse,
+        area,
+        x_dim=x_dim,
+        y_dim=y_dim,
+        z_dim=z_dim,
+        extrapolate=extrapolate,
     )
 
 
@@ -64,6 +75,7 @@ def regrid_to_edge_weighted_pressure(
     y_dim: str = FV_CORE_Y_OUTER,
     z_dim: str = RESTART_Z_CENTER,
     edge: str = "x",
+    extrapolate: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """ Vertically regrid a dataset of edge-valued quantities to coarsened
     pressure levels.
@@ -77,6 +89,9 @@ def regrid_to_edge_weighted_pressure(
         y_dim (optional): y-dimension name. Defaults to "yaxis_1"
         z_dim (optional): z-dimension name. Defaults to "zaxis_1"
         edge (optional): grid cell side to coarse-grain along {"x", "y"}
+        extrapolate: flag indicating whether to extrapolate values below the
+            fine-grid surface using a nearest neighbor approach (default False,
+            meaning any below surface values are masked).
 
     Returns:
         tuple of regridded input Dataset and length masked wherever coarse
@@ -109,6 +124,7 @@ def regrid_to_edge_weighted_pressure(
         x_dim=x_dim,
         y_dim=y_dim,
         z_dim=z_dim,
+        extrapolate=extrapolate,
     )
 
 
@@ -120,6 +136,7 @@ def _regrid_given_delp(
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
+    extrapolate: bool = False,
 ):
     """Given a fine and coarse delp, do vertical regridding to coarse pressure levels
     and mask weights below fine surface pressure.
@@ -140,9 +157,12 @@ def _regrid_given_delp(
             phalf_fine, ds[var], phalf_coarse_on_fine, z_dim_center=z_dim
         )
 
-    masked_weights = _mask_weights(
-        weights, phalf_coarse_on_fine, phalf_fine, dim_center=z_dim
-    )
+    if extrapolate:
+        masked_weights = weights
+    else:
+        masked_weights = _mask_weights(
+            weights, phalf_coarse_on_fine, phalf_fine, dim_center=z_dim
+        )
 
     return ds_regrid, masked_weights
 
