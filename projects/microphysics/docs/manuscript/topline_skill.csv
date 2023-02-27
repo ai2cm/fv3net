@@ -1,0 +1,3 @@
+,column_skill/air_temperature,column_skill/specific_humidity,column_skill/cloud_water,column_skill/surface_precipitation
+online,0.981,0.985,0.941,0.967
+offline,0.991,0.995,0.987,0.998
