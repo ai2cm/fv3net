@@ -1,0 +1,57 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: chgres-cube
+spec:
+  arguments:
+    parameters:
+    - name: source_data
+    - name: source_date
+    - name: source_resolution
+      value: C48
+    - name: target_resolution
+      value: C384
+    - name: tracers
+      value: '"sphum","liq_wat","o3mr","ice_wat","rainwat","snowwat","graupel","sgs_tke"'
+    - name: vcoord_file
+    - name: reference_data
+      value: gs://vcm-ml-raw-flexible-retention/2023-02-24-chgres-cube-forcing-data/2023-02-24-chgres-cube-forcing-data
+    - name: destination_root
+  entrypoint: driver
+  volumes:
+  - name: gcp-credentials-user-gcp-sa
+    secret:
+      secretName: gcp-key
+  templates:
+  - name: driver
+    tolerations:
+    - key: "dedicated"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: us.gcr.io/vcm-ml/ufs-utils
+      command:
+      - restart_files_to_nggps_initial_condition.sh
+      - '{{workflow.parameters.source_data}}'
+      - '{{workflow.parameters.source_date}}'
+      - '{{workflow.parameters.source_resolution}}'
+      - '{{workflow.parameters.target_resolution}}'
+      - '{{workflow.parameters.tracers}}'
+      - '{{workflow.parameters.vcoord_file}}'
+      - '{{workflow.parameters.reference_data}}'
+      - '{{workflow.parameters.destination_root}}'
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa
+      resources:
+        limits:
+          cpu: "6000m"
+          memory: "25Gi"
+        requests:
+          cpu: "6000m"
+          memory: "25Gi"
