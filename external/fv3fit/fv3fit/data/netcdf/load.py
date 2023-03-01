@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import Callable, Mapping, Optional, Sequence
+from typing import Callable, Mapping, Optional, Sequence, List
 
 from pathlib import Path
 import numpy as np
@@ -52,6 +52,31 @@ def nc_files_to_tf_dataset(
     )
 
 
+def _extract_int_from_file(s):
+    nums = re.findall(r"\d+", s.rstrip("/").split("/")[-1])
+    if len(nums) == 1:
+        return int(nums[0])
+    else:
+        raise ValueError(
+            "Ordering of readout subdirectories should be indicated "
+            "by a single numeric tag or suffix. ex. 'subdir_0' or '0'."
+            f"Subdir {s} violates this naming rule."
+        )
+
+
+def _sort_files_numerically(subdirs: List[str]) -> List[str]:
+    """
+    Sort a list of subdirs by their numeric tags.
+    ex. "subdir_0", "subdir_1"
+    """
+    nums = [_extract_int_from_file(s) for s in subdirs]
+    if len(subdirs) != len(np.unique(nums)):
+        raise ValueError(
+            "Multiple readout subdirectories have the same " "numbering label."
+        )
+    return [subdir for _, subdir in sorted(zip(nums, subdirs))]
+
+
 def nc_dir_to_tfdataset(
     nc_dir: str,
     convert: Callable[[xr.Dataset], Mapping[str, tf.Tensor]],
@@ -61,7 +86,7 @@ def nc_dir_to_tfdataset(
     cache: Optional[str] = None,
     match: Optional[str] = None,
     varying_first_dim: bool = False,
-    sort_files: bool = False,
+    sort_files_numerically: bool = False,
 ) -> tf.data.Dataset:
     """
     Convert a directory of netCDF files into a tensorflow dataset.
@@ -76,7 +101,7 @@ def nc_dir_to_tfdataset(
         match: string to filter filenames via a regexp search
         varying_first_dim: If true, allow the first dimension (sample) to have different
             sizes across batches
-        sort_files: If true, sort the files in nc dir before loading in order.
+        sort_files_numerically: If true, sort files in nc dir before loading in order.
     """
     cache = cache or CACHE_DIR
 
@@ -95,8 +120,8 @@ def nc_dir_to_tfdataset(
             files, size=len(files), replace=False  # type: ignore
         )
 
-    if sort_files:
-        files.sort()
+    if sort_files_numerically:
+        files = _sort_files_numerically(files)
 
     if nfiles is not None:
         files = files[:nfiles]
@@ -180,7 +205,7 @@ class NCDirLoader(TFDatasetLoader):
             random_state=np.random.RandomState(self.seed),
             cache=local_download_path,
             varying_first_dim=self.varying_first_dim,
-            sort_files=self.sort_files,
+            sort_files_numerically=self.sort_files,
         )
 
     @classmethod

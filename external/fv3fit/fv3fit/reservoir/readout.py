@@ -117,6 +117,7 @@ class ReservoirComputingReadout:
     """
 
     _READOUT_NAME = "readout.bin"
+    _COEFFICIENTS_NAME = "readout_coefficients.npz"
 
     def __init__(
         self,
@@ -132,6 +133,9 @@ class ReservoirComputingReadout:
             hyperparameters.linear_regressor_config
         )
 
+    # TODO: Remove this method from readout and directly call square_even_terms and
+    # BatchLinearRegressor.batch_update in the training function. The saved
+    # Predictor and its components should not have a fit method.
     def fit(
         self,
         res_states: np.ndarray,
@@ -150,7 +154,18 @@ class ReservoirComputingReadout:
     def predict(self, input: np.ndarray):
         if self.square_half_hidden_state:
             input = square_even_terms(input, axis=0)
-        return np.dot(input, self.coefficients) + self.intercepts
+        if len(input.shape) > 1:
+            print(f"input shape before flattening: {input.shape}")
+            input = input.reshape(-1)
+            print(f"input shape after flattening: {input.shape}")
+
+        flat_prediction = (input * self.coefficients) + self.intercepts
+        print(f"flat_prediction shape: {flat_prediction.shape}")
+
+        if len(input.shape) > 1:
+            return flat_prediction.reshape(-1, input.shape[-1])
+        else:
+            return flat_prediction
 
     def dump(self, path: str) -> None:
         """Dump data to a directory
@@ -167,16 +182,19 @@ class ReservoirComputingReadout:
                 self.hyperparameters.linear_regressor_config
             ),
             "square_half_hidden_state": self.hyperparameters.square_half_hidden_state,
-            "coefficients": self.coefficients,
+            # "coefficients": self.coefficients,
             "intercepts": self.intercepts,
         }
         f = io.BytesIO()
         joblib.dump(components, f)
         mapper[self._READOUT_NAME] = f.getvalue()
+        with fs.open(f"{path}/{self._COEFFICIENTS_NAME}", "wb") as f:
+            scipy.sparse.save_npz(f, self.coefficients)
 
     @classmethod
     def load(cls, path: str) -> "ReservoirComputingReadout":
         mapper = fsspec.get_mapper(path)
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         f = io.BytesIO(mapper[cls._READOUT_NAME])
         readout_components = joblib.load(f)
         lr_config = dacite.from_dict(
@@ -187,7 +205,47 @@ class ReservoirComputingReadout:
             linear_regressor_config=lr_config,
             square_half_hidden_state=readout_components.pop("square_half_hidden_state"),
         )
-        return cls(hyperparameters=hyperparameters, **readout_components)
+        with fs.open(f"{path}/{cls._COEFFICIENTS_NAME}", "rb") as f:
+            coefficients = scipy.sparse.load_npz(f)
+        return cls(
+            hyperparameters=hyperparameters,
+            coefficients=coefficients,
+            **readout_components,
+        )
+
+
+def combine_readouts(readouts: Sequence[ReservoirComputingReadout]):
+    intercepts, square_state_settings, lr_config_hashes = [], [], []
+    for readout in readouts:
+        # coefs.append(readout.coefficients)
+        intercepts.append(readout.intercepts)
+        square_state_settings.append(readout.square_half_hidden_state)
+        lr_config_hashes.append(readout.hyperparameters.linear_regressor_config.hash)
+
+    if len(np.unique(square_state_settings)) != 1:
+        raise ValueError(
+            "All readouts must have the same setting for square_half_hidden_state."
+        )
+    if len(np.unique(lr_config_hashes)) != 1:
+        raise ValueError(
+            "All readouts must have the same hyperparameters for BatchLinearRegressor."
+        )
+
+    # Merge the coefficient arrays of individual readouts into single
+    # block diagonal matrix
+    combined_coefficients = scipy.sparse.block_diag(
+        [readout.coefficients for readout in readouts]
+    )  # scipy.sparse.block_diag(coefs)
+
+    # Concatenate the intercepts of individual readouts into single array
+    combined_intercepts = np.concatenate(intercepts)
+
+    hyperparameters = readouts[0].hyperparameters
+    return ReservoirComputingReadout(
+        hyperparameters=hyperparameters,
+        coefficients=combined_coefficients,
+        intercepts=combined_intercepts,
+    )
 
 
 class CombinedReservoirComputingReadout:

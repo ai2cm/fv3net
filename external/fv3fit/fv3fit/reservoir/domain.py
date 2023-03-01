@@ -1,10 +1,7 @@
 import numpy as np
 import tensorflow as tf
-from typing import Sequence, Tuple
-
+from typing import Sequence
 import pace.util
-
-Layout = Tuple[int, int]
 
 
 def slice_along_axis(arr: np.ndarray, inds: slice, axis: int = 0):
@@ -19,7 +16,7 @@ def slice_along_axis(arr: np.ndarray, inds: slice, axis: int = 0):
 class RankDivider:
     def __init__(
         self,
-        subdomain_layout: Layout,
+        subdomain_layout: Sequence[int],
         rank_dims: Sequence[str],
         rank_extent: Sequence[int],  # shape of full data, including overlap
         overlap: int,
