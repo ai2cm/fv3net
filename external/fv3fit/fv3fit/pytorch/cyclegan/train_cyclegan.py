@@ -179,7 +179,7 @@ class CycleGANTrainingConfig:
 
             if validation_states is not None:
                 val_losses = []
-                for state_a, state_b in train_states:
+                for state_a, state_b in validation_states:
                     with torch.no_grad():
                         val_losses.append(
                             train_model.train_on_batch(state_a, state_b, training=False)
