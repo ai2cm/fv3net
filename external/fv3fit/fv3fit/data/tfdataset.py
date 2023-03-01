@@ -27,9 +27,6 @@ class VariableConfig:
             raise TypeError("times must be one of 'window' or 'start'")
 
     def get_record(self, name: str, ds: xr.Dataset, unstacked_dims: Sequence[str]):
-        for dim in unstacked_dims[:-1]:
-            if dim not in ds[name].dims:
-                raise ValueError("variable {} has no dimension {}".format(name, dim))
         if self.times == "start":
             ds = ds.isel(time=0)
         dims = [d for d in unstacked_dims if d in ds[name].dims]

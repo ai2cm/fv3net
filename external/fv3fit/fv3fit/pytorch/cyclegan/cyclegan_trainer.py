@@ -464,8 +464,8 @@ class CycleGANTrainer:
 
     def train_on_batch(
         self,
-        real_a: torch.Tensor,
-        real_b: torch.Tensor,
+        state_a: Tuple[torch.Tensor, torch.Tensor],
+        state_b: Tuple[torch.Tensor, torch.Tensor],
         training: bool = True,
         aggregator: Optional[ResultsAggregator] = None,
     ) -> Mapping[str, float]:
@@ -473,9 +473,11 @@ class CycleGANTrainer:
         Train the CycleGAN on a batch of data.
 
         Args:
-            real_a: a batch of data from domain A, should have shape
+            state_a: a tuple containing a "time" tensor of shape [sample, time]
+                and a batch of data from domain A, should have shape
                 [sample, time, tile, channel, y, x]
-            real_b: a batch of data from domain B, should have shape
+            state_b: a tuple containing a "time" tensor of shape [sample, time]
+                and a batch of data from domain B, should have shape
                 [sample, time, tile, channel, y, x]
             training: if True, the model will be trained, otherwise we will
                 only evaluate the loss.
@@ -485,6 +487,10 @@ class CycleGANTrainer:
             aggregator = ResultsAggregator(histogram_vmax=100.0)
         # for now there is no time-evolution-based loss, so we fold the time
         # dimension into the sample dimension
+        # time_a = real_a[0]
+        # time_b = real_b[0]
+        real_a = state_a[1]
+        real_b = state_b[1]
         real_a = real_a.reshape(
             [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
         )
