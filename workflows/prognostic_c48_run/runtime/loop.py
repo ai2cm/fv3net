@@ -357,7 +357,7 @@ class TimeLoop(
         if isinstance(stepper_config, MachineLearningConfig):
             model = self._open_model(stepper_config)
             stepper: Union[PureMLStepper, Prescriber] = PureMLStepper(
-                model, self._timestep, hydrostatic
+                model=model, timestep=self._timestep, hydrostatic=hydrostatic,
             )
             self._log_info(f"Using PureMLStepper at {step}.")
         else:
@@ -407,6 +407,11 @@ class TimeLoop(
         elif config.nudging:
             self._log_info("Using NudgingStepper for postphysics updates")
             stepper = PureNudger(config.nudging, self._get_communicator(), hydrostatic)
+        elif config.bias_correction:
+            self._log_info("Using bias correction for postphysics updates")
+            stepper = runtime.factories.get_prescriber(
+                config.bias_correction, self._get_communicator()
+            )
         else:
             self._log_info("Performing baseline simulation")
             stepper = None

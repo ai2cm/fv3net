@@ -232,9 +232,18 @@ def to_fv3config(dict_: dict,) -> dict:
     """
     user_config = HighLevelConfig.from_dict(dict_)
 
-    if user_config.nudging and user_config.scikit_learn:
+    n_postphysics_configs = sum(
+        c is not None
+        for c in [
+            user_config.nudging,
+            user_config.scikit_learn,
+            user_config.bias_correction,
+        ]
+    )
+    if n_postphysics_configs > 1:
         raise NotImplementedError(
-            "Nudging and machine learning cannot currently be run at the same time."
+            "Only one of (bias correction, nudging, or machine learning) "
+            "postphysics updates can be run at the same time."
         )
 
     return user_config.to_fv3config()

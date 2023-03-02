@@ -89,3 +89,13 @@ def test_config_high_level_duration_respects_namelist():
     config = HighLevelConfig(namelist={"coupler_nml": {"seconds": 7}})
     out = config.to_fv3config()
     assert out["namelist"]["coupler_nml"]["seconds"] == 7
+
+
+def test_error_on_multiple_postphysics():
+
+    dict_ = {
+        "nudging": {"restarts_path": "/path/", "timescale_hours": {"T": 1}},
+        "scikit_learn": {"model": ["/path/"]},
+    }
+    with pytest.raises(NotImplementedError):
+        prepare_config.to_fv3config(dict_)

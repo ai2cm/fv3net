@@ -1,16 +1,16 @@
 import dacite
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass, asdict
+from typing import Tuple, Sequence
 import fsspec
 from typing import Optional
 import yaml
 
 
 @dataclass
-class SubdomainConfig:
-    """ Define size and edge overlaps for 1D subdomains """
-
-    size: int
+class CubedsphereSubdomainConfig:
+    layout: Tuple[int, int]
     overlap: int
+    rank_dims: Sequence[str]
 
 
 @dataclass
@@ -42,17 +42,33 @@ class ReservoirHyperparameters:
 
 
 @dataclass
+class BatchLinearRegressorHyperparameters:
+    """
+    l2: ridge regression coefficient
+    add_bias_term: Use default of True if input samples do not already
+        have a constant term to fit the intercept. Default True value is
+        the same behavior as sklearn regressors.
+    use_least_squares_solve: Can set to True for simple test cases
+        where the system is underdetermined and the default np.linalg.solve
+        encounters errors with singular XT.X
+    """
+
+    l2: float
+    add_bias_term: bool = True
+    use_least_squares_solve: bool = False
+
+
+@dataclass
 class ReadoutHyperparameters:
     """
-    linear_regressor_kwargs: kwargs to provide when initializing the
-        sklearn Ridge regressor for ReservoirComputingReadout
+    linear_regressor_config: hyperparameters for batch fitting linear regressor
     square_half_hidden_state: if True, square even terms in the reservoir
         state before it is used as input to the regressor's .fit and
         .predict methods. This option was found to be important for skillful
         predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
     """
 
-    linear_regressor_kwargs: dict
+    linear_regressor_config: BatchLinearRegressorHyperparameters
     square_half_hidden_state: bool = False
 
 
@@ -75,6 +91,7 @@ class ReservoirTrainingConfig:
         input size much match.
     """
 
+    subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
     readout_hyperparameters: ReadoutHyperparameters
     n_burn: int
@@ -82,9 +99,7 @@ class ReservoirTrainingConfig:
     timestep: float
     seed: int = 0
     n_samples: Optional[int] = None
-    subdomain: Optional[SubdomainConfig] = None
     n_jobs: Optional[int] = -1
-    hybrid_imperfect_model_config: Optional[dict] = None
 
     _METADATA_NAME = "reservoir_training_config.yaml"
 
@@ -112,7 +127,7 @@ class ReservoirTrainingConfig:
             config=dacite_config,
         )
         kwargs["subdomain"] = dacite.from_dict(
-            data_class=SubdomainConfig,
+            data_class=CubedsphereSubdomainConfig,
             data=kwargs.get("subdomain", {}),
             config=dacite_config,
         )
@@ -133,7 +148,6 @@ class ReservoirTrainingConfig:
             "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
             "subdomain": asdict(self.subdomain),
-            "hybrid_imperfect_model_config": self.hybrid_imperfect_model_config,
         }
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)
