@@ -7,8 +7,6 @@ from .graph import (
 from .system import DEVICE
 from .predict import PytorchAutoregressor, PytorchPredictor
 from .cyclegan import (
-    train_autoencoder,
-    AutoencoderHyperparameters,
     GeneratorConfig,
     DiscriminatorConfig,
     CycleGANHyperparameters,
