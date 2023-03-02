@@ -54,6 +54,7 @@ ipython>=7.29.0
 jupyterlab
 zarrdump
 dask[distributed]
+bokeh>=2.4.2,<3 # needed for dask distributed dashboard
 
 # fv3fit testing tools
 hypothesis
