@@ -1,3 +1,4 @@
+from datetime import datetime
 from fv3fit.data import WindowedZarrLoader, VariableConfig
 from fv3fit.data.tfdataset import get_n_windows
 import tempfile
@@ -163,3 +164,17 @@ def test_loader_handles_time_range():
 )
 def test_get_n_windows(n_times, window_size, n_windows):
     assert get_n_windows(n_times, window_size) == n_windows
+
+
+def test_variable_config_stacks_requested_order():
+    config = VariableConfig(times="start")
+    ds = xr.Dataset(
+        data_vars={
+            "a": (("time", "r", "q", "t", "s"), np.zeros((1, 2, 3, 4, 5))),
+            "time": (("time",), [datetime.now()]),
+        }
+    )
+    result = config.get_record("a", ds=ds, unstacked_dims=["r", "q", "t", "s"])
+    assert result.shape == (1, 2, 3, 4, 5)
+    result = config.get_record("a", ds=ds, unstacked_dims=["s", "t", "q", "r"])
+    assert result.shape == (1, 5, 4, 3, 2)
