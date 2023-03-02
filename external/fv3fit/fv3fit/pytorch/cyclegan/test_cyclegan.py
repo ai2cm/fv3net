@@ -16,6 +16,7 @@ import fv3fit
 import matplotlib.pyplot as plt
 import pytest
 import fv3fit.wandb
+import cftime
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
@@ -103,6 +104,9 @@ def tfdataset_to_xr_dataset(tfdataset, dims: Sequence[str]):
     for name in data_sequences:
         data = np.concatenate(data_sequences[name])
         data_vars[name] = xr.DataArray(data, dims=dims[: len(data.shape)])
+    data_vars["time"] = cftime.num2date(
+        data_vars["time"], units="seconds since 2000-01-01"
+    )
     return xr.Dataset(data_vars)
 
 
