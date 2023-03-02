@@ -8,7 +8,6 @@ import tensorflow_datasets as tfds
 from fv3fit.tfdataset import (
     apply_to_mapping_with_exclude,
     select_keys,
-    sequence_size,
     apply_to_tuple,
 )
 from fv3fit import wandb
@@ -72,9 +71,6 @@ class CycleGANTrainingConfig:
         n_epoch: number of epochs to train for
         shuffle_buffer_size: number of samples to use for shuffling the training data
         samples_per_batch: number of samples to use per batch
-        validation_batch_size: number of samples to use per batch for validation,
-            does not affect training result but allows the use of out-of-sample
-            validation data
         in_memory: if True, load the entire dataset into memory as pytorch tensors
             before training. Batches will be statically defined but will be shuffled
             between epochs.
@@ -111,11 +107,7 @@ class CycleGANTrainingConfig:
         train_data = train_data.batch(self.samples_per_batch)
         train_data_numpy = tfds.as_numpy(train_data)
         if validation_data is not None:
-            if self.validation_batch_size is None:
-                validation_batch_size = sequence_size(validation_data)
-            else:
-                validation_batch_size = self.validation_batch_size
-            validation_data = validation_data.batch(validation_batch_size)
+            validation_data = validation_data.batch(self.samples_per_batch)
             validation_data = tfds.as_numpy(validation_data)
         if self.in_memory:
             train_states: Iterable[
@@ -143,14 +135,20 @@ class CycleGANTrainingConfig:
     ):
         reporter = Reporter()
         for state_a, state_b in train_states:
-            train_example_a, train_example_b = state_a[1][:1, :], state_b[1][:1, :]
+            train_example_a, train_example_b = (
+                (state_a[0], state_a[1][:1, :]),
+                (state_b[0], state_b[1][:1, :]),
+            )
             break
         if validation_states is not None:
             for state_a, state_b in validation_states:
-                val_example_a, val_example_b = state_a[1][:1, :], state_b[1][:1, :]
+                val_example_a, val_example_b = (
+                    (state_a[0], state_a[1][:1, :]),
+                    (state_b[0], state_b[1][:1, :]),
+                )
                 break
         else:
-            val_example_a, val_example_b = None, None
+            val_example_a, val_example_b = None, None  # type: ignore
         run_label = secrets.token_hex(4)
         # current time as e.g. 20230113-163005
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -393,6 +391,7 @@ def train_cyclegan(
     train_state = train_batches.map(get_Xy)
 
     sample: tf.Tensor = next(iter(train_state))[0][1]  # discard time of first sample
+    assert sample.shape[2] == 6  # tile dimension
     train_model = hyperparameters.network.build(
         nx=sample.shape[-3],
         ny=sample.shape[-2],

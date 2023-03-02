@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Tuple
 import torch.nn as nn
 from toolz import curry
 import torch
@@ -41,9 +42,6 @@ class GeneratorConfig:
             and in the resnet blocks
         use_geographic_bias: if True, include a layer that adds a trainable bias
             vector that is a function of x and y to the input and output of the network
-        use_geographic_features: if True, appends a set of geographic features to the
-            input channels of the network indicating the (x, y, z) position of each
-            grid point on a sphere in Eulerian space.
         disable_convolutions: if True, ignore all layers other than bias (if enabled).
             Useful for debugging and for testing the effect of the
             geographic bias layer.
@@ -55,7 +53,6 @@ class GeneratorConfig:
     strided_kernel_size: int = 4
     max_filters: int = 256
     use_geographic_bias: bool = True
-    use_geographic_features: bool = False
     disable_convolutions: bool = False
 
     def build(
@@ -165,10 +162,7 @@ class Generator(nn.Module):
         if config.disable_convolutions:
             main = nn.Identity()
         else:
-            if config.use_geographic_features:
-                in_channels = channels + 3
-            else:
-                in_channels = channels
+            in_channels = channels + GeographicFeatures.N_FEATURES
             first_conv = nn.Sequential(
                 convolution(
                     kernel_size=7, in_channels=in_channels, out_channels=min_filters,
@@ -192,27 +186,38 @@ class Generator(nn.Module):
             )
             main = nn.Sequential(first_conv, encoder_decoder, out_conv)
         self._main = main
+        self._geographic_features = GeographicFeatures(nx=nx, ny=ny)
         if config.use_geographic_bias:
             self._input_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
             self._output_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
-            if config.use_geographic_features:
-                raise ValueError("can only use one of geographic bias or features")
-        elif config.use_geographic_features:
-            self._input_bias = GeographicFeatures(nx=nx, ny=ny)
-            self._output_bias = nn.Identity()
         else:
             self._input_bias = nn.Identity()
             self._output_bias = nn.Identity()
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """
         Args:
-            inputs: tensor of shape [batch, tile, channels, x, y]
+            inputs: A tuple containing a tensor of shape (batch, 1) with the time and
+                a tensor of shape (batch, tile, in_channels, height, width)
 
         Returns:
             tensor of shape [batch, tile, channels, x, y]
         """
-        x = self._input_bias(inputs)
+        # TODO: this is a hack to support the old API, when it can be
+        # removed this should be changed to
+        # time, state = inputs
+        # x = self._input_bias(state)
+        # x = self._geographic_features((time, x))
+        # x = self._main(x)
+        # outputs: torch.Tensor = self._output_bias(x)
+        # return outputs
+        try:
+            time, state = inputs
+        except ValueError:
+            time, state = None, inputs
+        x = self._input_bias(state)
+        if time is not None:
+            x = self._geographic_features((time, x))
         x = self._main(x)
         outputs: torch.Tensor = self._output_bias(x)
         return outputs

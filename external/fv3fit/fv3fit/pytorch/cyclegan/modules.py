@@ -1,12 +1,16 @@
 import logging
 
-from typing import Callable, Literal, Optional, Protocol
+from typing import Callable, Literal, Optional, Protocol, Tuple
 import torch.nn as nn
 import torch
-from vcm.grid import get_grid_xyz
+from vcm.grid import get_grid_xyz, get_grid
 from fv3fit.pytorch.system import DEVICE
+import numpy as np
 
 logger = logging.getLogger(__name__)
+
+HOURS_PER_DEG_LONGITUDE = 1.0 / 15
+SECONDS_PER_DAY = 24 * 60 * 60
 
 
 def relu_activation(**kwargs):
@@ -33,31 +37,59 @@ def no_activation():
 
 class GeographicFeatures(nn.Module):
     """
-    Appends (x, y, z) features corresponding to Eulerian position of each
-    gridcell on a unit sphere.
+    Appends (time_x, time_y, x, y, z) features corresponding to the local position
+    of the hour hand on a 24h clock, and
+    the Eulerian position of each gridcell on a unit sphere.
     """
+
+    N_FEATURES = 5
 
     def __init__(self, nx: int, ny: int):
         super().__init__()
         if nx != ny:
             raise ValueError("this object requires nx=ny")
         self.xyz = torch.as_tensor(
-            get_grid_xyz(nx=nx).transpose([0, 3, 1, 2]), device=DEVICE
+            # transpose to move channel dimension (last) to second dim
+            get_grid_xyz(nx=nx).transpose([0, 3, 1, 2]),
+            device=DEVICE,
         ).float()
+        lon, _ = get_grid(nx=nx)
+        lon = lon[:, None, :, :]  # insert channel dimension
+        self.local_time_zero_radians = torch.as_tensor(lon, device=DEVICE).float()
 
-    def forward(self, x):
+    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """
         Args:
-            x: tensor of shape [sample, tile, channel, x, y]
+            inputs: A tuple containing a tensor of shape (batch,) with the time as
+                a number of seconds since any time corresponding to midnight at
+                longitude 0,
+                and a tensor of shape (batch, tile, in_channels, x, y)
 
         Returns:
-            tensor of shape [sample, tile, channel, x, y]
+            tensor of shape [batch, tile, channel, x, y]
         """
+        # TODO: this is a hack to support the previous API before time was added,
+        # remove this try-except once the API is stable
+        try:
+            time, x = inputs
+            local_time_offset_radians = (
+                time % SECONDS_PER_DAY / SECONDS_PER_DAY * 2 * np.pi
+            )
+            local_time = (
+                self.local_time_zero_radians[None, :]
+                + local_time_offset_radians[:, None, None, None, None]
+            )
+            time_x = torch.sin(local_time)
+            time_y = torch.cos(local_time)
+            xyz = torch.stack([self.xyz for _ in range(x.shape[0])])
+            geo_features = torch.cat([time_x, time_y, xyz], dim=2)
+        except ValueError:
+            x = inputs
+            geo_features = torch.stack([self.xyz for _ in range(x.shape[0])])
+
         # the fact that this appends instead of prepends is arbitrary but important,
         # this is assumed to be the case elsewhere in the code.
-        return torch.concat(
-            [x, torch.stack([self.xyz for _ in range(x.shape[0])], dim=0)], dim=-3
-        )
+        return torch.cat([x, geo_features], dim=-3)
 
 
 class ConvolutionFactory(Protocol):

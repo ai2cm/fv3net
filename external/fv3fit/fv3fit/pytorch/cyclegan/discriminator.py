@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Tuple
 
 import torch.nn as nn
 from toolz import curry
@@ -29,16 +30,12 @@ class DiscriminatorConfig:
             strided convolutions
         max_filters: maximum number of filters in any convolutional layer,
             equal to the number of filters in the final strided convolutional layer
-        use_geographic_features: if True, appends a set of geographic features to the
-            input channels of the network indicating the (x, y, z) position of each
-            grid point on a sphere in Eulerian space.
     """
 
     n_convolutions: int = 3
     kernel_size: int = 3
     strided_kernel_size: int = 3
     max_filters: int = 256
-    use_geographic_features: bool = False
 
     def build(
         self,
@@ -56,7 +53,6 @@ class DiscriminatorConfig:
             nx=nx,
             ny=ny,
             convolution=convolution,
-            use_geographic_features=self.use_geographic_features,
         )
 
 
@@ -75,7 +71,6 @@ class Discriminator(nn.Module):
         nx: int,
         ny: int,
         convolution: ConvolutionFactory = single_tile_convolution,
-        use_geographic_features: bool = False,
     ):
         """
         Args:
@@ -90,9 +85,6 @@ class Discriminator(nn.Module):
             nx: number of grid points in the x direction
             ny: number of grid points in the y direction
             convolution: factory for creating all convolutional layers
-            use_geographic_features: if True, appends a set of geographic features
-                to the input channels of the network indicating the (x, y, z) position
-                of each grid point on a sphere in Eulerian space.
         """
         super(Discriminator, self).__init__()
         if n_convolutions < 1:
@@ -102,11 +94,9 @@ class Discriminator(nn.Module):
         # first convolutional block must not have instance normalization, so that the
         # discriminator can use information about the mean and standard deviation of
         # the input data (generated images)
-        if use_geographic_features:
-            convs = [GeographicFeatures(nx=nx, ny=ny)]
-            in_channels += 3
-        else:
-            convs = []
+        self._geographic_features = GeographicFeatures(nx=nx, ny=ny)
+        in_channels += GeographicFeatures.N_FEATURES
+        convs = []
         convs.extend(
             [
                 convolution(
@@ -144,12 +134,14 @@ class Discriminator(nn.Module):
         )
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """
         Args:
-            inputs: tensor of shape (batch, tile, in_channels, height, width)
+            inputs: A tuple containing a tensor of shape (batch, 1) with the time and
+                a tensor of shape (batch, tile, in_channels, height, width)
 
         Returns:
             tensor of shape (batch, tile, 1, height, width)
         """
-        return self._sequential(inputs)
+        x = self._geographic_features(inputs)
+        return self._sequential(x)
