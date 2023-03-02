@@ -69,6 +69,8 @@ NUDGING_VARIABLES_A_GRID_WINDS = NON_WIND_NUDGING_VARIABLES + [
     ],
 )
 def test_open_nudge_to_fine(data_dir, nudging_variables, wind_tendencies, request):
+    # This solution for using fixtures within parametrize was taken from this
+    # StackOverflow question: https://stackoverflow.com/questions/42014484.
     data_dir = request.getfixturevalue(data_dir)
     mapper = open_nudge_to_fine(data_dir, nudging_variables, consolidated=False)
 
@@ -98,6 +100,8 @@ def test_open_nudge_to_fine(data_dir, nudging_variables, wind_tendencies, reques
 def test_open_nudge_to_fine_subtract_nudging_increment(
     data_dir, nudging_variables, physics_timestep_seconds, request
 ):
+    # This solution for using fixtures within parametrize was taken from this
+    # StackOverflow question: https://stackoverflow.com/questions/42014484.
     data_dir = request.getfixturevalue(data_dir)
     nudging_variable_state = xr.open_zarr(
         os.path.join(data_dir, "state_after_timestep.zarr"), consolidated=False,
