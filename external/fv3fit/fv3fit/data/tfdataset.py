@@ -117,7 +117,8 @@ class WindowedZarrLoader(TFDatasetLoader):
     is independently selected along any stacked (sample) dimensions.
 
     If the "time" variable itself is loaded, it will be converted to a number of
-    seconds since 1970-01-01.
+    seconds since 1970-01-01. It is also required that the time variable be
+    one-dimensional in "time" (as opposed to varying along some perturbation axis).
 
     Attributes:
         data_path: path to zarr data
@@ -243,12 +244,13 @@ def records(
                 array = config.get_record(name, window_ds, unstacked_dims)
                 if i_sample is None:
                     i_sample = np.random.randint(array.shape[0])
-                try:
-                    item = array[i_sample, :]
-                except IndexError:
-                    item = np.asarray(array[i_sample])
                 if name == "time":
-                    item = cftime.date2num(item, "seconds since 1970-01-01")
+                    item = cftime.date2num(array, "seconds since 1970-01-01")
+                else:
+                    try:
+                        item = array[i_sample, :]
+                    except IndexError:
+                        item = np.asarray(array[i_sample])
                 record[name] = item
             yield record
 

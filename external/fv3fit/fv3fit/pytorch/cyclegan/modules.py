@@ -60,18 +60,20 @@ class GeographicFeatures(nn.Module):
     def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """
         Args:
-            inputs: A tuple containing a tensor of shape (batch,) with the time as
+            inputs: A tuple containing a tensor of shape (batch, window)
+                with the time as
                 a number of seconds since any time corresponding to midnight at
                 longitude 0,
-                and a tensor of shape (batch, tile, in_channels, x, y)
+                and a tensor of shape (batch, window, tile, in_channels, x, y)
 
         Returns:
-            tensor of shape [batch, tile, channel, x, y]
+            tensor of shape [batch, window, tile, channel, x, y]
         """
         # TODO: this is a hack to support the previous API before time was added,
         # remove this try-except once the API is stable
         try:
             time, x = inputs
+            assert len(time.shape) == 1, "time must be a 1D tensor"
             local_time_offset_radians = (
                 time % SECONDS_PER_DAY / SECONDS_PER_DAY * 2 * np.pi
             )

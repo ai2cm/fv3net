@@ -198,6 +198,7 @@ def get_waves_tfdataset(
                     out[varname].append(out[varname][-1] * -1.0)
             for varname in out:
                 out[varname] = np.concatenate(out[varname], axis=1)
+            out["time"] = np.zeros((nbatch, ntime), dtype=np.float32)
             yield out
 
     return generator_to_tfdataset(sample_generator)

@@ -422,42 +422,57 @@ class CycleGANTrainer:
         self._script_disc_a = None
         self._script_disc_b = None
         self._l1_loss = torch.nn.L1Loss()
+        # This flag can be manually used to disable compilation, for clearer
+        # error messages and debugging. It should always be set to True in PRs.
+        self._compile = False
 
     def _call_generator_a_to_b(
         self, input: Tuple[torch.Tensor, torch.Tensor]
     ) -> torch.Tensor:
-        if self._script_gen_a_to_b is None:
-            self._script_gen_a_to_b = torch.jit.trace(
-                self.generator_a_to_b.forward, (input,)
-            )
-        return self._script_gen_a_to_b(input)
+        if self._compile:
+            if self._script_gen_a_to_b is None:
+                self._script_gen_a_to_b = torch.jit.trace(
+                    self.generator_a_to_b.forward, (input,)
+                )
+            return self._script_gen_a_to_b(input)
+        else:
+            return self.generator_a_to_b(input)
 
     def _call_generator_b_to_a(
         self, input: Tuple[torch.Tensor, torch.Tensor]
     ) -> torch.Tensor:
-        if self._script_gen_b_to_a is None:
-            self._script_gen_b_to_a = torch.jit.trace(
-                self.generator_b_to_a.forward, (input,)
-            )
-        return self._script_gen_b_to_a(input)
+        if self._compile:
+            if self._script_gen_b_to_a is None:
+                self._script_gen_b_to_a = torch.jit.trace(
+                    self.generator_b_to_a.forward, (input,)
+                )
+            return self._script_gen_b_to_a(input)
+        else:
+            return self.generator_b_to_a(input)
 
     def _call_discriminator_a(
         self, input: Tuple[torch.Tensor, torch.Tensor]
     ) -> torch.Tensor:
-        if self._script_disc_a is None:
-            self._script_disc_a = torch.jit.trace(
-                self.discriminator_a.forward, (input,)
-            )
-        return self._script_disc_a(input)
+        if self._compile:
+            if self._script_disc_a is None:
+                self._script_disc_a = torch.jit.trace(
+                    self.discriminator_a.forward, (input,)
+                )
+            return self._script_disc_a(input)
+        else:
+            return self.discriminator_a(input)
 
     def _call_discriminator_b(
         self, input: Tuple[torch.Tensor, torch.Tensor]
     ) -> torch.Tensor:
-        if self._script_disc_b is None:
-            self._script_disc_b = torch.jit.trace(
-                self.discriminator_b.forward, (input,)
-            )
-        return self._script_disc_b(input)
+        if self._compile:
+            if self._script_disc_b is None:
+                self._script_disc_b = torch.jit.trace(
+                    self.discriminator_b.forward, (input,)
+                )
+            return self._script_disc_b(input)
+        else:
+            return self.discriminator_b(input)
 
     def _init_targets(self, shape: Tuple[int, ...]):
         self.target_real = torch.autograd.Variable(
@@ -497,20 +512,7 @@ class CycleGANTrainer:
         """
         if aggregator is None:
             aggregator = ResultsAggregator(histogram_vmax=100.0)
-        # for now there is no time-evolution-based loss, so we fold the time
-        # dimension into the sample dimension
-        # time_a = real_a[0]
-        # time_b = real_b[0]
-        real_a = state_a[1]
-        real_b = state_b[1]
-        time_a = state_a[0]
-        time_b = state_b[0]
-        real_a = real_a.reshape(
-            [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
-        )
-        real_b = real_b.reshape(
-            [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
-        )
+        time_a, time_b, real_a, real_b = unpack_state(state_a, state_b)
 
         fake_b = self._call_generator_a_to_b((time_a, real_a))
         fake_a = self._call_generator_b_to_a((time_b, real_b))
@@ -652,18 +654,7 @@ class CycleGANTrainer:
                 [sample, time, tile, channel, y, x]
             results_aggregator: an aggregator whose results we should plot
         """
-        real_a = state_a[1]
-        real_b = state_b[1]
-        time_a = state_a[0]
-        time_b = state_b[0]
-        # for now there is no time-evolution-based loss, so we fold the time
-        # dimension into the sample dimension
-        real_a = real_a.reshape(
-            [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
-        )
-        real_b = real_b.reshape(
-            [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
-        )
+        time_a, time_b, real_a, real_b = unpack_state(state_a, state_b)
 
         # plot the first sample of the batch
         with torch.no_grad():
@@ -750,6 +741,30 @@ class CycleGANTrainer:
                 )
 
         return report
+
+
+def unpack_state(
+    state_a: Tuple[torch.Tensor, torch.Tensor],
+    state_b: Tuple[torch.Tensor, torch.Tensor],
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Unpacks states into time and input data, and folds the batch and window dimensions
+    into one.
+    """
+
+    time_a = state_a[0].flatten()
+    time_b = state_b[0].flatten()
+    real_a = state_a[1]
+    real_b = state_b[1]
+    # for now there is no time-evolution-based loss, so we fold the time
+    # dimension into the sample dimension
+    real_a = real_a.reshape(
+        [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
+    )
+    real_b = real_b.reshape(
+        [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
+    )
+    return time_a, time_b, real_a, real_b
 
 
 def plot_histograms(

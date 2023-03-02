@@ -189,7 +189,7 @@ def test_cyclegan_runs_without_errors(
     os.chdir(tmpdir)
     # need a larger nx, ny for the sample data here since we're training
     # on whether we can autoencode sin waves, and need to resolve full cycles
-    nx = 16
+    nx = 24
     sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "nz": 2}
     state_variables = ["var_3d", "var_2d"]
     train_tfdataset = get_tfdataset(nsamples=5, **sizes)
