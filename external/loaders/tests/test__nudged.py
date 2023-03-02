@@ -14,8 +14,17 @@ def save_data_dir(datadir_module, outpath, nudge_schema_path):
 
 
 @pytest.fixture(scope="module")
-def nudge_to_fine_data_dir(datadir_module):
-    return save_data_dir(datadir_module, "nudge_to_fine_data", "nudge_to_fine")
+def nudge_to_fine_d_grid_winds_data_dir(datadir_module):
+    return save_data_dir(
+        datadir_module, "nudge_to_fine_d_grid_winds_data", "nudge_to_fine_d_grid_winds"
+    )
+
+
+@pytest.fixture(scope="module")
+def nudge_to_fine_a_grid_winds_data_dir(datadir_module):
+    return save_data_dir(
+        datadir_module, "nudge_to_fine_a_grid_winds_data", "nudge_to_fine_a_grid_winds"
+    )
 
 
 @pytest.fixture(scope="module")
@@ -30,63 +39,81 @@ def fine_res_zarr(datadir_module):
     )
 
 
-NUDGE_TO_FINE_VARIABLES = [
+D_GRID_WIND_TENDENCIES = ["dQxwind", "dQywind"]
+A_GRID_WIND_TENDENCIES = ["dQu", "dQv"]
+NON_WIND_NUDGING_VARIABLES = [
     "air_temperature",
     "specific_humidity",
-    "x_wind",
-    "y_wind",
     "pressure_thickness_of_atmospheric_layer",
+]
+NUDGING_VARIABLES_D_GRID_WINDS = NON_WIND_NUDGING_VARIABLES + ["x_wind", "y_wind"]
+NUDGING_VARIABLES_A_GRID_WINDS = NON_WIND_NUDGING_VARIABLES + [
+    "eastward_wind",
+    "northward_wind",
 ]
 
 
-def test_open_nudge_to_fine(nudge_to_fine_data_dir):
-
-    mapper = open_nudge_to_fine(
-        nudge_to_fine_data_dir, NUDGE_TO_FINE_VARIABLES, consolidated=False
-    )
+@pytest.mark.parametrize(
+    ("data_dir", "nudging_variables", "wind_tendencies"),
+    [
+        (
+            "nudge_to_fine_d_grid_winds_data_dir",
+            NUDGING_VARIABLES_D_GRID_WINDS,
+            D_GRID_WIND_TENDENCIES,
+        ),
+        (
+            "nudge_to_fine_a_grid_winds_data_dir",
+            NUDGING_VARIABLES_A_GRID_WINDS,
+            A_GRID_WIND_TENDENCIES,
+        ),
+    ],
+)
+def test_open_nudge_to_fine(data_dir, nudging_variables, wind_tendencies, request):
+    data_dir = request.getfixturevalue(data_dir)
+    mapper = open_nudge_to_fine(data_dir, nudging_variables, consolidated=False)
 
     key = list(mapper.keys())[0]
     mapper[key]["air_temperature"]
     mapper[key]["specific_humidity"]
     mapper[key]["dQ1"]
     mapper[key]["dQ2"]
-    mapper[key]["dQxwind"]
-    mapper[key]["dQywind"]
     mapper[key]["pQ1"]
     mapper[key]["pQ2"]
     mapper[key]["pQu"]
     mapper[key]["pQv"]
+    for tendency in wind_tendencies:
+        mapper[key][tendency]
 
 
 @pytest.mark.parametrize(
-    ["physics_timestep_seconds", "nudge_to_fine_variables"],
+    ("data_dir", "nudging_variables"),
     [
-        (900.0, NUDGE_TO_FINE_VARIABLES),
-        (60.0, NUDGE_TO_FINE_VARIABLES),
-        (900.0, NUDGE_TO_FINE_VARIABLES[:2]),
+        ("nudge_to_fine_d_grid_winds_data_dir", NUDGING_VARIABLES_D_GRID_WINDS),
+        ("nudge_to_fine_d_grid_winds_data_dir", NUDGING_VARIABLES_D_GRID_WINDS[:2]),
+        ("nudge_to_fine_a_grid_winds_data_dir", NUDGING_VARIABLES_A_GRID_WINDS),
+        ("nudge_to_fine_a_grid_winds_data_dir", NUDGING_VARIABLES_A_GRID_WINDS[:2]),
     ],
 )
+@pytest.mark.parametrize("physics_timestep_seconds", [60.0, 900.0])
 def test_open_nudge_to_fine_subtract_nudging_increment(
-    nudge_to_fine_data_dir, physics_timestep_seconds, nudge_to_fine_variables
+    data_dir, nudging_variables, physics_timestep_seconds, request
 ):
-
+    data_dir = request.getfixturevalue(data_dir)
     nudging_variable_state = xr.open_zarr(
-        os.path.join(nudge_to_fine_data_dir, "state_after_timestep.zarr"),
-        consolidated=False,
+        os.path.join(data_dir, "state_after_timestep.zarr"), consolidated=False,
     )
     nudge_to_fine_tendencies = xr.open_zarr(
-        os.path.join(nudge_to_fine_data_dir, "nudging_tendencies.zarr"),
-        consolidated=False,
+        os.path.join(data_dir, "nudging_tendencies.zarr"), consolidated=False,
     )
 
     mapper = open_nudge_to_fine(
-        nudge_to_fine_data_dir,
-        nudge_to_fine_variables,
+        data_dir,
+        nudging_variables,
         physics_timestep_seconds=physics_timestep_seconds,
         consolidated=False,
     )
 
-    for nudging_variable in nudge_to_fine_variables:
+    for nudging_variable in nudging_variables:
         before_nudging_variable_state = (
             nudging_variable_state[nudging_variable]
             - nudge_to_fine_tendencies[f"{nudging_variable}_tendency_due_to_nudging"]
@@ -232,14 +259,18 @@ times_centered_str = [timestep1, timestep2]
 
 
 def test_open_fine_resolution_nudging_hybrid(
-    regtest, nudge_to_fine_data_dir, fine_res_zarr
+    regtest, nudge_to_fine_d_grid_winds_data_dir, fine_res_zarr
 ):
     data = open_fine_resolution_nudging_hybrid(
         approach="apparent_sources_only",
         fine_url=fine_res_zarr,
         additional_dataset_urls=[
-            os.path.join(nudge_to_fine_data_dir, "physics_tendencies.zarr"),
-            os.path.join(nudge_to_fine_data_dir, "nudging_tendencies.zarr"),
+            os.path.join(
+                nudge_to_fine_d_grid_winds_data_dir, "physics_tendencies.zarr"
+            ),
+            os.path.join(
+                nudge_to_fine_d_grid_winds_data_dir, "nudging_tendencies.zarr"
+            ),
         ],
     )
     data[timestep1_end].info(regtest)
@@ -261,9 +292,11 @@ def test_open_fine_resolution(
 
 
 def test_open_fine_resolution_with_nudged_state(
-    regtest, fine_res_zarr, nudge_to_fine_data_dir
+    regtest, fine_res_zarr, nudge_to_fine_d_grid_winds_data_dir
 ):
-    state_dir = os.path.join(nudge_to_fine_data_dir, "state_after_timestep.zarr")
+    state_dir = os.path.join(
+        nudge_to_fine_d_grid_winds_data_dir, "state_after_timestep.zarr"
+    )
     data = open_fine_resolution(
         approach="apparent_sources_only",
         fine_url=fine_res_zarr,
