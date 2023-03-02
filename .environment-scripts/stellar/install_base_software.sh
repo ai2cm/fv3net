@@ -4,6 +4,7 @@ set -e
 INSTALL_PREFIX=$1
 CONDA_ENV=$2
 
+module load anaconda3/2022.10
 eval "$(conda shell.bash hook)"
 
 CONDA_PREFIX=$INSTALL_PREFIX/conda
