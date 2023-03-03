@@ -126,6 +126,7 @@ def open_nudge_to_fine(
         "state_after_timestep.zarr",
     ),
     cache_size_mb: Optional[float] = None,
+    model_name: str = "fv3",
 ) -> XarrayMapper:
     """
     Load nudge-to-fine data mapper for use with training. Merges
@@ -151,6 +152,8 @@ def open_nudge_to_fine(
             for accessing data. A cache of this size is created for each zarr
             dataset in the datasets arg. No LRU caches created if this arg is not
             supplied.
+        model_name: name of the climate model, defaults to fv3. Currently also supports
+            DOE's scream.
 
     Returns:
         mapper to dataset containing nudging tendencies, physics tendencies,
@@ -177,10 +180,10 @@ def open_nudge_to_fine(
         "specific_humidity_tendency_due_to_nudging": "dQ2",
         "x_wind_tendency_due_to_nudging": "dQxwind",
         "y_wind_tendency_due_to_nudging": "dQywind",
-        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
-        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
-        "tendency_of_eastward_wind_due_to_fv3_physics": "pQu",
-        "tendency_of_northward_wind_due_to_fv3_physics": "pQv",
+        f"tendency_of_air_temperature_due_to_{model_name}_physics": "pQ1",
+        f"tendency_of_specific_humidity_due_to_{model_name}_physics": "pQ2",
+        f"tendency_of_eastward_wind_due_to_{model_name}_physics": "pQu",
+        f"tendency_of_northward_wind_due_to_{model_name}_physics": "pQv",
     }
 
     return XarrayMapper(ds.rename(rename_vars))
