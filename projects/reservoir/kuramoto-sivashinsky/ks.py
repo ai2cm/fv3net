@@ -4,7 +4,7 @@ from numpy import pi
 import numpy as np
 from typing import Optional
 
-from fv3fit.reservoir.model import ImperfectModel
+from fv3fit.reservoir.one_dim import ImperfectModel
 from vcm.interpolate import upsample_1d_periodic
 
 """

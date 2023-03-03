@@ -337,6 +337,50 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-intermediate/2020-03-27-T85-GFS-nudging-data-as-zarr/nudging_data_mean_1M.zarr"
 
+  grid/c12:
+    description: Lat, lon, and area of C12 data
+    driver: zarr
+    metadata:
+      grid: c12
+      variables:
+        - area
+        - lat
+        - latb
+        - lon
+        - lonb
+    args:
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c12/c12.zarr/"
+      consolidated: true
+
+  landseamask/c12:
+    description: land_sea_mask of C12 data
+    driver: zarr
+    metadata:
+      grid: c12
+      variables:
+        - land_sea_mask
+    args:
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c12/land_sea_mask.zarr/"
+      consolidated: true
+
+  wind_rotation/c12:
+    description: Rotation matrix components transforming x/y components to lat/lon
+    driver: zarr
+    metadata:
+      grid: c12
+      variables:
+        - eastward_wind_u_coeff
+        - eastward_wind_v_coeff
+        - northward_wind_u_coeff
+        - northward_wind_v_coeff
+        - x_unit_vector
+        - y_unit_vector
+        - lat_unit_vector
+        - lon_unit_vector
+    args:
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c12/wind_rotation_matrix_correct_factor.zarr/"
+      consolidated: true
+
   grid/c48:
     description: Lat, lon, and area of C48 data
     driver: zarr
@@ -784,9 +828,132 @@ sources:
       urlpath: "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire_atmos_dyn_3h_coarse_inst.zarr"
       consolidated: True
 
+  5day_c48_ccnorm_gfsphysics_15min_dec2022:
+    description: 2D physics diagnostics variables from 5-day X-SHiELD simulation run with ccnorm=True (cloud condensate scaled by fraction for radiation)
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 5day_ccorm_dec2022
+      category: 2d
+      variables:
+        - CPRATEsfc_coarse
+        - DCLWRFsfc_coarse
+        - DCSWRFsfc_coarse
+        - DLWRFIsfc_coarse
+        - DLWRFsfc_coarse
+        - DSWRFIsfc_coarse
+        - DSWRFItoa_coarse
+        - DSWRFsfc_coarse
+        - DSWRFtoa_coarse
+        - HPBLsfc_coarse
+        - LHTFLsfc_coarse
+        - PRATEsfc_coarse
+        - SHTFLsfc_coarse
+        - UCLWRFsfc_coarse
+        - UCLWRFtoa_coarse
+        - UCSWRFsfc_coarse
+        - UCSWRFtoa_coarse
+        - UGRD10m_coarse
+        - ULWRFIsfc_coarse
+        - ULWRFItoa_coarse
+        - ULWRFsfc_coarse
+        - ULWRFtoa_coarse
+        - USWRFIsfc_coarse
+        - USWRFItoa_coarse
+        - USWRFsfc_coarse
+        - USWRFtoa_coarse
+        - VGRD10m_coarse
+        - area_coarse
+        - dx_coarse
+        - dy_coarse
+        - grid_lat_coarse
+        - grid_latt_coarse
+        - grid_lon_coarse
+        - grid_lont_coarse
+        - tsfc_coarse
+        - uflx_coarse
+        - vflx_coarse
+    args:
+      urlpath: "gs://vcm-ml-experiments/spencerc/2022-12-05-five-day-C3072-ccnorm-true/diagnostics/gfsphysics_15min_coarse.zarr"
+      consolidated: True
+
+  5day_c48_ccnorm_dec2022_restarts_as_zarr:
+    description: >-
+      Restart files at C48 resolution every 15 minutes, consolidated as a zarr store, created by pointing
+      `fv3net.pipelines.restarts_to_zarr` at `gs://vcm-ml-experiments/spencerc/2022-12-05-five-day-C3072-ccnorm-true/restarts`.
+      Note that tile coordinate is [1, ..., 6] and time coordinate is timestamp-based; the latter can be
+      converted to cftime.datetime via `vcm.convert_timestamps(time_coord)`.
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 5day_ccorm_dec2022
+      variables:
+        - DZ
+        - T
+        - W
+        - alnsf
+        - alnwf
+        - alvsf
+        - alvwf
+        - canopy
+        - cld_amt
+        - delp
+        - f10m
+        - facsf
+        - facwf
+        - ffhh
+        - ffmm
+        - fice
+        - graupel
+        - hice
+        - ice_wat
+        - liq_wat
+        - o3mr
+        - phis
+        - q2m
+        - rainwat
+        - sgs_tke
+        - shdmax
+        - shdmin
+        - sheleg
+        - slc
+        - slmsk
+        - slope
+        - smc
+        - sncovr
+        - snoalb
+        - snowwat
+        - snwdph
+        - sphum
+        - srflag
+        - stc
+        - stype
+        - t2m
+        - tg3
+        - tisfc
+        - tprcp
+        - tsea
+        - u
+        - u_srf
+        - ua
+        - uustar
+        - v
+        - v_srf
+        - va
+        - vfrac
+        - vtype
+        - zorl
+    args:
+      urlpath: "gs://vcm-ml-intermediate/2022-12-05-SHiELD-ccnorm-5day-restarts.zarr"
+      consolidated: True
+
   # Regression testing data. Do not use for analysis, values are randomized.
   grid/c8_random_values:
-    description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data
+    description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data.  Updated on 2023-02-01 to
+      be consistent with the grid_spec.json schema in synth fv3net/external/synth/synth/_dataset_fixtures/grid_schema.json
+      with the land_sea_mask variable dropped.  This schema generates grid data with semi-realistic values, which are
+      required for the offline diagnostics compute integration test to pass (credit Brian Henn).  Previously this catalog
+      entry referred to gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid.zarr.
     driver: zarr
     metadata:
       grid: c8
@@ -799,7 +966,7 @@ sources:
     args:
       storage_options:
         access: read_only
-      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/grid.zarr/"
+      urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/2023-02-01-grid.zarr/"
       consolidated: true
 
   wind_rotation/c8_random_values:

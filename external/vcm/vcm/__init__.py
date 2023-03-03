@@ -17,7 +17,7 @@ from .convenience import (
     shift_timestamp,
     round_time,
 )
-from .calc.calc import local_time, weighted_average
+from .calc.calc import local_time, weighted_average, vertical_tapering_scale_factors
 from .calc._zenith_angle import cos_zenith_angle
 from .calc.metrics import (
     r2_score,
@@ -60,6 +60,7 @@ from .calc.thermo.local import (
     moist_static_energy_tendency,
 )
 from .calc.histogram import histogram, histogram2d
+from .calc.clouds import gridcell_to_incloud_condensate, incloud_to_gridcell_condensate
 
 from .interpolate import (
     interpolate_to_pressure_levels,

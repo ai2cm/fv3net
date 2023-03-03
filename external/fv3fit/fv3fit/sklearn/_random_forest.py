@@ -5,7 +5,6 @@ import io
 import dacite
 from fv3fit._shared.packer import PackingInfo, clip_sample
 import numpy as np
-from copy import copy
 import xarray as xr
 import fsspec
 import joblib
@@ -16,17 +15,15 @@ from .._shared import (
     Predictor,
     register_training_function,
     PackerConfig,
+    scaler,
+    stack,
+    match_prediction_to_input_coords,
+    SAMPLE_DIM_NAME,
 )
 
 from .._shared.input_sensitivity import InputSensitivity, RandomForestInputSensitivity
 from .._shared.training_config import RandomForestHyperparameters
 from .. import _shared
-from .._shared import (
-    scaler,
-    stack_non_vertical,
-    match_prediction_to_input_coords,
-    SAMPLE_DIM_NAME,
-)
 import sklearn.base
 import sklearn.ensemble
 import tensorflow as tf
@@ -34,7 +31,7 @@ from fv3fit.typing import Batch
 from fv3fit import tfdataset
 from fv3fit.tfdataset import apply_to_mapping, ensure_nd
 
-from typing import Optional, Iterable, Sequence
+from typing import Optional, Iterable, Tuple
 import yaml
 from vcm import safe
 
@@ -74,28 +71,27 @@ class RandomForest(Predictor):
         hyperparameters: RandomForestHyperparameters,
     ):
         super().__init__(input_variables, output_variables)
-        batch_regressor = _RegressorEnsemble(
-            sklearn.ensemble.RandomForestRegressor(
-                # n_jobs != 1 is non-reproducible,
-                # None uses joblib which is reproducible
-                n_jobs=None,
-                random_state=hyperparameters.random_state,
-                n_estimators=hyperparameters.n_estimators,
-                max_depth=hyperparameters.max_depth,
-                min_samples_split=hyperparameters.min_samples_split,
-                min_samples_leaf=hyperparameters.min_samples_leaf,
-                max_features=hyperparameters.max_features,
-            ),
-            # pass n_jobs along here to use joblib
-            n_jobs=hyperparameters.n_jobs,
+        _regressor = sklearn.ensemble.RandomForestRegressor(
+            # n_jobs != 1 is non-reproducible,
+            # None uses joblib which is reproducible
+            n_jobs=None,
+            random_state=hyperparameters.random_state,
+            n_estimators=hyperparameters.n_estimators,
+            max_depth=hyperparameters.max_depth,
+            min_samples_split=hyperparameters.min_samples_split,
+            min_samples_leaf=hyperparameters.min_samples_leaf,
+            max_features=hyperparameters.max_features,
         )
         self._model_wrapper = SklearnWrapper(
             input_variables,
             output_variables,
-            model=batch_regressor,
+            model=_regressor,
             scaler_type=hyperparameters.scaler_type,
             scaler_kwargs=hyperparameters.scaler_kwargs,
             packer_config=hyperparameters.packer_config,
+            # pass n_jobs along here to use joblib
+            n_jobs=hyperparameters.n_jobs,
+            predict_columns=hyperparameters.predict_columns,
         )
         self.input_variables = self._model_wrapper.input_variables
         self.output_variables = self._model_wrapper.output_variables
@@ -128,84 +124,52 @@ class RandomForest(Predictor):
     def load(cls, path: str) -> "RandomForest":
         return RandomForest.from_sklearn_wrapper(SklearnWrapper.load(path))
 
-
-class _RegressorEnsemble:
-    """
-    Ensemble of RandomForestRegressor objects that are each trained on a separate
-    batch of data.
-    """
-
-    def __init__(
-        self,
-        base_regressor,
-        n_jobs,
-        regressors: Sequence[sklearn.base.BaseEstimator] = None,
-    ) -> None:
-        self.base_regressor = base_regressor
-        self.regressors = regressors or []
-        self.n_jobs = n_jobs
-
-    @property
-    def n_estimators(self):
-        return len(self.regressors)
-
-    def fit(self, features, outputs):
-        """ Adds a base regressor fit on features to the ensemble
-
-        Args:
-            features: numpy array of features
-            outputs: numpy array of targets
-
-        Returns:
-
-        """
-        new_regressor = copy(self.base_regressor)
-        # each regressor needs different randomness
-        if hasattr(new_regressor, "random_state"):
-            new_regressor.random_state += len(self.regressors)
-        # loky is the process-based backend
-        with joblib.parallel_backend("loky", n_jobs=self.n_jobs):
-            new_regressor.fit(features, outputs)
-        self.regressors.append(new_regressor)
-
-    def predict(self, features):
-        """
-        Args:
-            features: 2D numpy array of features to predict on
-
-        Returns:
-            2D numpy array of predictions with N rows corresponding to N input samples.
-            Each row is the average ensemble prediction for that sample.
-        """
-        predictions = np.array(
-            [regressor.predict(features) for regressor in self.regressors]
+    def _feature_importances(self) -> np.ndarray:
+        return np.array(
+            [
+                tree.feature_importances_
+                for tree in self._model_wrapper.model.estimators_
+            ]
         )
-        return np.mean(predictions, axis=0)
 
-    def dumps(self) -> bytes:
-        batch_regressor_components = {
-            "regressors": self.regressors,
-            "base_regressor": self.base_regressor,
-            "n_jobs": self.n_jobs,
+    def _mean_feature_importances(self) -> np.ndarray:
+        return self._feature_importances().mean(axis=0)
+
+    def _std_feature_importances(self) -> np.ndarray:
+        return self._feature_importances().std(axis=0)
+
+    def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
+        _, input_multiindex = pack(
+            stacked_sample[self.input_variables],
+            ["sample"],
+            self._model_wrapper.packer_config,
+        )
+        feature_importances = {}
+        for (name, feature_index), mean_importance, std_importance in zip(
+            input_multiindex,
+            self._mean_feature_importances(),
+            self._std_feature_importances(),
+        ):
+            if name not in feature_importances:
+                feature_importances[name] = {
+                    "indices": [feature_index],
+                    "mean_importances": [mean_importance],
+                    "std_importances": [std_importance],
+                }
+            else:
+                feature_importances[name]["indices"].append(feature_index)
+                feature_importances[name]["mean_importances"].append(mean_importance)
+                feature_importances[name]["std_importances"].append(std_importance)
+
+        formatted_feature_importances = {
+            name: RandomForestInputSensitivity(
+                indices=info["indices"],
+                mean_importances=info["mean_importances"],
+                std_importances=info["std_importances"],
+            )
+            for name, info in feature_importances.items()
         }
-        f = io.BytesIO()
-        joblib.dump(batch_regressor_components, f)
-        return f.getvalue()
-
-    @classmethod
-    def loads(cls, b: bytes) -> "_RegressorEnsemble":
-        f = io.BytesIO(b)
-        batch_regressor_components = joblib.load(f)
-        regressors: Sequence[sklearn.base.BaseEstimator] = batch_regressor_components[
-            "regressors"
-        ]
-        base_regressor = batch_regressor_components["base_regressor"]
-        obj = cls(
-            base_regressor=base_regressor,
-            regressors=regressors,
-            n_jobs=batch_regressor_components.get("n_jobs", 1),
-        )
-        return obj
+        return InputSensitivity(rf_feature_importances=formatted_feature_importances)
 
 
 def _get_iterator_size(iterator):
@@ -228,10 +192,12 @@ class SklearnWrapper(Predictor):
         self,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
-        model: _RegressorEnsemble,
+        model: sklearn.base.BaseEstimator,
+        n_jobs: int = 1,
         scaler_type: str = "standard",
         scaler_kwargs: Optional[Mapping] = None,
         packer_config: PackerConfig = PackerConfig({}),
+        predict_columns: bool = True,
     ) -> None:
         """
         Initialize the wrapper
@@ -245,6 +211,7 @@ class SklearnWrapper(Predictor):
         if scaler_type != "standard":
             raise NotImplementedError("only 'standard' scaler_type is implemented")
         self.model = model
+        self.n_jobs = n_jobs
         self.scaler_type = scaler_type
         self.scaler_kwargs = scaler_kwargs or {}
         self.target_scaler: Optional[scaler.NormalizeTransform] = None
@@ -252,6 +219,7 @@ class SklearnWrapper(Predictor):
         for name in self.packer_config.clip:
             if name in self.output_variables:
                 raise NotImplementedError("Clipping for ML outputs is not implemented.")
+        self.predict_columns: bool = predict_columns
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
@@ -284,8 +252,14 @@ class SklearnWrapper(Predictor):
             self.target_scaler = self._init_target_scaler(y)
 
         y = self.target_scaler.normalize(y)
-        self.model.fit(X, y)
+        self._fit(X, y)
         logger.info(f"Random forest done fitting.")
+        return self
+
+    def _fit(self, X: Batch, y: Batch):
+        # loky is the process-based backend
+        with joblib.parallel_backend("loky", n_jobs=self.n_jobs):
+            self.model.fit(X, y)
 
     def _predict_on_stacked_data(self, stacked_data):
         X, _ = pack(
@@ -301,10 +275,12 @@ class SklearnWrapper(Predictor):
         )
 
     def predict(self, data):
-        stacked_data = stack_non_vertical(
-            safe.get_variables(data, self.input_variables)
+        input_data = safe.get_variables(data, self.input_variables)
+        stacked_data = (
+            stack(input_data)
+            if self.predict_columns is False
+            else stack(input_data, unstacked_dims=["z"])
         )
-
         stacked_output = self._predict_on_stacked_data(stacked_data)
         unstacked_output = stacked_output.assign_coords(
             {SAMPLE_DIM_NAME: stacked_data[SAMPLE_DIM_NAME]}
@@ -324,7 +300,9 @@ class SklearnWrapper(Predictor):
         fs.makedirs(path, exist_ok=True)
 
         mapper = fs.get_mapper(path)
-        mapper[self._PICKLE_NAME] = self.model.dumps()
+
+        mapper[self._PICKLE_NAME] = self._dump_regressor()
+
         if self.target_scaler is not None:
             mapper[self._SCALER_NAME] = scaler.dumps(self.target_scaler).encode("UTF-8")
 
@@ -333,15 +311,26 @@ class SklearnWrapper(Predictor):
             "output_variables": self.output_variables,
             "output_features": dataclasses.asdict(self.output_features_),
             "packer_config": dataclasses.asdict(self.packer_config),
+            "predict_columns": self.predict_columns,
         }
 
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
+
+    def _dump_regressor(self):
+        regressor_components = {
+            "regressors": self.model,
+            "n_jobs": self.n_jobs,
+        }
+        f = io.BytesIO()
+        joblib.dump(regressor_components, f)
+        return f.getvalue()
 
     @classmethod
     def load(cls, path: str) -> "SklearnWrapper":
         """Load a model from a remote path"""
         mapper = fsspec.get_mapper(path)
-        model = _RegressorEnsemble.loads(mapper[cls._PICKLE_NAME])
+
+        regressor, n_jobs = cls._load_regressor(mapper[cls._PICKLE_NAME])
 
         scaler_str = mapper.get(cls._SCALER_NAME, b"")
         scaler_obj: Optional[scaler.NormalizeTransform]
@@ -355,59 +344,34 @@ class SklearnWrapper(Predictor):
         output_variables = metadata["output_variables"]
         packer_config_dict = metadata.get("packer_config", {})
         packer_config = dacite.from_dict(PackerConfig, packer_config_dict)
+        predict_columns = metadata.get("predict_columns", True)
 
-        obj = cls(input_variables, output_variables, model, packer_config=packer_config)
+        obj = cls(
+            input_variables,
+            output_variables,
+            regressor,
+            n_jobs,
+            packer_config=packer_config,
+            predict_columns=predict_columns,
+        )
         obj.target_scaler = scaler_obj
         output_features_dict = metadata["output_features"]
-        if isinstance(output_features_dict, dict):
-            output_features_ = dacite.from_dict(PackingInfo, data=output_features_dict)
-        else:
-            # older model format, uses tuple instead
-            output_features_ = PackingInfo.from_tuples(output_features_dict[1])
+        output_features_ = dacite.from_dict(PackingInfo, data=output_features_dict)
         obj.output_features_ = output_features_
 
         return obj
 
-    @property
-    def feature_importances(self) -> Sequence[float]:
-        importances = []
-        for member in self.model.regressors:
-            importances.append(member.feature_importances_)
-        return importances
-
-    @property
-    def mean_importances(self) -> np.ndarray:
-        return np.array(self.feature_importances).mean(axis=0)
-
-    @property
-    def std_importances(self) -> np.ndarray:
-        return np.array(self.feature_importances).std(axis=0)
-
-    def input_sensitivity(self, stacked_sample: xr.Dataset) -> InputSensitivity:
-        _, input_multiindex = pack(
-            stacked_sample[self.input_variables], ["sample"], self.packer_config
-        )
-        feature_importances = {}
-        for (name, feature_index), mean_importance, std_importance in zip(
-            input_multiindex, self.mean_importances, self.std_importances
-        ):
-            if name not in feature_importances:
-                feature_importances[name] = {
-                    "indices": [feature_index],
-                    "mean_importances": [mean_importance],
-                    "std_importances": [std_importance],
-                }
+    @staticmethod
+    def _load_regressor(b: bytes) -> Tuple[sklearn.base.BaseEstimator, int]:
+        regressor_components = joblib.load(io.BytesIO(b))
+        if isinstance(regressor_components["regressors"], list):
+            # backward compatibility for previous models saved as single batch regressor
+            if len(regressor_components["regressors"]) == 1:
+                regressor = regressor_components["regressors"][0]
             else:
-                feature_importances[name]["indices"].append(feature_index)
-                feature_importances[name]["mean_importances"].append(mean_importance)
-                feature_importances[name]["std_importances"].append(std_importance)
-
-        formatted_feature_importances = {
-            name: RandomForestInputSensitivity(
-                indices=info["indices"],
-                mean_importances=info["mean_importances"],
-                std_importances=info["std_importances"],
-            )
-            for name, info in feature_importances.items()
-        }
-        return InputSensitivity(rf_feature_importances=formatted_feature_importances)
+                raise ValueError(
+                    "Cannot load older models that saved multiple batch regressors."
+                )
+        else:
+            regressor = regressor_components["regressors"]
+        return regressor, regressor_components["n_jobs"]
