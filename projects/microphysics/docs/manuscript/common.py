@@ -1,10 +1,12 @@
 import json
 import re
+from typing import Union
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import functools
 import numpy as np
 import os
+import pandas as pd
 import xarray
 import vcm.catalog
 import vcm
@@ -166,6 +168,12 @@ def get_skill_arr_from_group(group):
     run = _get_runs(group, {"piggy-back"})
     plotly_file = _get_air_temp_plotly_file(run)
     return _plotly_2d_data_to_array(plotly_file)
+
+
+def limit_sigfigs(df: Union[pd.DataFrame, pd.Series], num_sigfigs=3):
+    power_offset = -np.floor(np.log10(np.abs(df))).astype(int)
+    to_round = df * 10.0 ** power_offset
+    return to_round.round(num_sigfigs - 1) * 10.0 ** -power_offset
 
 
 def savefig(filename):
