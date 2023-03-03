@@ -65,7 +65,7 @@ from fv3fit.emulation.zhao_carr.models import PrecpdModelConfig
 from fv3fit.emulation.zhao_carr.filters import HighAntarctic
 from fv3fit.emulation.flux import TendencyToFlux, MoistStaticEnergyTransform
 
-from fv3fit.emulation.layers.normalization import standard_deviation_all_features
+from fv3fit.emulation.layers.normalization2 import standard_deviation_all_features
 from fv3fit.wandb import (
     WandBConfig,
     store_model_artifact,

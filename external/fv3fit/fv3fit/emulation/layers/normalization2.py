@@ -85,7 +85,7 @@ def norm2_factory_from_key(key):
         raise KeyError(f"Unrecognized normalization layer key provided: {key}")
 
 
-def _standard_deviation_all_features(tensor: tf.Tensor) -> tf.Tensor:
+def standard_deviation_all_features(tensor: tf.Tensor) -> tf.Tensor:
     """Commpute standard deviation across all features.
 
     A separate mean is computed for each output level.
@@ -138,7 +138,7 @@ def _compute_center(tensor: tf.Tensor, method: MeanMethod) -> tf.Tensor:
 def _compute_scale(tensor: tf.Tensor, method: StdDevMethod) -> tf.Tensor:
     fit_scale = {
         StdDevMethod.per_feature: _fit_std_per_feature,
-        StdDevMethod.all: _standard_deviation_all_features,
+        StdDevMethod.all: standard_deviation_all_features,
         StdDevMethod.all_center_all: tf.math.reduce_std,
         StdDevMethod.max: _fit_std_max,
         StdDevMethod.mean: _fit_std_mean,
