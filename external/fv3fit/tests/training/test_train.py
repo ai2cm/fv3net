@@ -16,7 +16,7 @@ from fv3fit._shared.training_config import TRAINING_FUNCTIONS, get_hyperparamete
 import vcm.testing
 import tempfile
 from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
-from fv3fit._shared.stacking import stack, stack_non_vertical, SAMPLE_DIM_NAME
+from fv3fit._shared.stacking import stack, SAMPLE_DIM_NAME, Z_DIM_NAMES
 from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
 
@@ -162,7 +162,7 @@ def _get_dataset_default(sample_func, data_2d_ceof=1):
 
 def get_dataset_default(sample_func):
     input_variables, output_variables, train_dataset = _get_dataset_default(sample_func)
-    train_dataset = stack_non_vertical(train_dataset)
+    train_dataset = stack(train_dataset, unstacked_dims=Z_DIM_NAMES)
     return input_variables, output_variables, train_dataset
 
 
@@ -170,7 +170,7 @@ def get_dataset_precipitative(sample_func):
     input_variables, output_variables, train_dataset = _get_dataset_precipitative(
         sample_func
     )
-    train_dataset = stack_non_vertical(train_dataset)
+    train_dataset = stack(train_dataset, unstacked_dims=Z_DIM_NAMES)
     return input_variables, output_variables, train_dataset
 
 

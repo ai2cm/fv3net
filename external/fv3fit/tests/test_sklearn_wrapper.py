@@ -5,8 +5,9 @@ import unittest.mock
 import pytest
 import xarray as xr
 import joblib
+import io
 
-from fv3fit.sklearn._random_forest import _RegressorEnsemble, pack, SklearnWrapper
+from fv3fit.sklearn._random_forest import pack, SklearnWrapper
 from fv3fit._shared.scaler import ManualScaler
 from fv3fit._shared import PackerConfig, SliceConfig
 from fv3fit.tfdataset import tfdataset_from_batches
@@ -54,34 +55,8 @@ def test_flatten_same_order():
     np.testing.assert_allclose(a, b)
 
 
-@pytest.fixture
-def test_regressor_ensemble():
-    base_regressor = LinearRegression()
-    ensemble_regressor = _RegressorEnsemble(base_regressor, n_jobs=1)
-    num_batches = 3
-    X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
-    y = np.dot(X, np.array([1, 2])) + 3
-    for i in range(num_batches):
-        ensemble_regressor.fit(X, y)
-    return ensemble_regressor
-
-
-def test_ensemble_fit(test_regressor_ensemble):
-    regressor_ensemble = test_regressor_ensemble
-    assert regressor_ensemble.n_estimators == 3
-    X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
-    y = np.dot(X, np.array([1, 2])) + 3
-    regressor_ensemble.fit(X, y)
-    # test that .fit appends a new regressor
-    assert regressor_ensemble.n_estimators == 4
-    # test that new regressors are actually fit and not empty base regressor
-    assert len(regressor_ensemble.regressors[-1].coef_) > 0
-
-
 def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
     model = unittest.mock.Mock()
-    model.regressors = []
-    model.base_regressor = unittest.mock.Mock()
     model.predict.return_value = np.ones(shape=(1,))
     model.dumps.return_value = dumps_returns
 
@@ -90,9 +65,7 @@ def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
     else:
         scaler = None
 
-    wrapper = SklearnWrapper(
-        input_variables=["x"], output_variables=["y"], model=model,
-    )
+    wrapper = SklearnWrapper(input_variables=["x"], output_variables=["y"], model=model)
     wrapper.target_scaler = scaler
     return wrapper
 
@@ -116,9 +89,7 @@ def test_fitting_SklearnWrapper_does_not_fit_scaler():
     model = unittest.mock.Mock()
     scaler = unittest.mock.Mock()
 
-    wrapper = SklearnWrapper(
-        input_variables=["x"], output_variables=["y"], model=model,
-    )
+    wrapper = SklearnWrapper(input_variables=["x"], output_variables=["y"], model=model)
     wrapper.target_scaler = scaler
 
     dims = ["sample_", "z"]
@@ -137,10 +108,8 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
         scaler = ManualScaler(np.array([scale_factor]))
     else:
         scaler = None
-    model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
-    wrapper = SklearnWrapper(
-        input_variables=["x"], output_variables=["y"], model=model,
-    )
+    model = LinearRegression()
+    wrapper = SklearnWrapper(input_variables=["x"], output_variables=["y"], model=model)
     wrapper.target_scaler = scaler
 
     # setup input data
@@ -156,37 +125,10 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     xr.testing.assert_equal(loaded.predict(data), wrapper.predict(data))
 
 
-def test_SklearnWrapper_serialize_fit_after_load(tmpdir):
-    model = _RegressorEnsemble(base_regressor=LinearRegression(), n_jobs=1)
-    wrapper = SklearnWrapper(
-        input_variables=["x"], output_variables=["y"], model=model,
-    )
-
-    # setup input data
-    dims = ["unstacked_dim", "z"]
-    data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
-    wrapper.fit(tfdataset_from_batches([data]))
-
-    # serialize/deserialize
-    path = str(tmpdir)
-    wrapper.dump(path)
-
-    # fit loaded model
-    loaded = wrapper.load(path)
-    loaded.fit(tfdataset_from_batches([data]))
-
-    assert len(loaded.model.regressors) == 2
-
-
 def fit_wrapper_with_columnar_data():
     nz = 2
-    model = _RegressorEnsemble(
-        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
-        n_jobs=1,
-    )
-    wrapper = SklearnWrapper(
-        input_variables=["a"], output_variables=["b"], model=model,
-    )
+    model = DummyRegressor(strategy="constant", constant=np.arange(nz))
+    wrapper = SklearnWrapper(input_variables=["a"], output_variables=["b"], model=model)
 
     dims = ["sample", "z"]
     shape = (4, nz)
@@ -222,12 +164,47 @@ def test_predict_returns_unstacked_dims():
     assert prediction.dims == input_data.dims
 
 
+def fit_wrapper_with_gridcell_data():
+    model = LinearRegression()
+    wrapper = SklearnWrapper(
+        input_variables=["a"],
+        output_variables=["b"],
+        model=model,
+        predict_columns=False,
+    )
+    dims = [
+        "sample",
+    ]
+    shape = (10,)
+    arr = np.arange(shape[0])
+    input_data = xr.Dataset({"a": (dims, arr), "b": (dims, arr + 1.0)})
+    wrapper.fit(tfdataset_from_batches([input_data]))
+    return input_data, wrapper
+
+
+def test_predict_columns_false():
+    _, wrapper = fit_wrapper_with_gridcell_data()
+    input_data = get_unstacked_data()
+    # works
+    _ = wrapper.predict(input_data)
+    wrapper.predict_columns = True
+    with pytest.raises(ValueError):
+        # wrong number of features
+        _ = wrapper.predict(input_data)
+
+
+def test_gridcell_prediction_dims():
+    _, wrapper = fit_wrapper_with_gridcell_data()
+    input_data = get_unstacked_data()
+    prediction = wrapper.predict(input_data)
+    assert set(prediction.dims) == set(input_data.dims)
+    for dim, size in input_data.sizes.items():
+        assert prediction.sizes[dim] == size
+
+
 def test_SklearnWrapper_fit_predict_with_clipped_input_data():
     nz = 5
-    model = _RegressorEnsemble(
-        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
-        n_jobs=1,
-    )
+    model = DummyRegressor(strategy="constant", constant=np.arange(nz))
     wrapper = SklearnWrapper(
         input_variables=["a", "b"],
         output_variables=["c"],
@@ -247,10 +224,7 @@ def test_SklearnWrapper_fit_predict_with_clipped_input_data():
 
 def test_SklearnWrapper_raises_not_implemented_error_with_clipped_output_data():
     nz = 5
-    model = _RegressorEnsemble(
-        base_regressor=DummyRegressor(strategy="constant", constant=np.arange(nz)),
-        n_jobs=1,
-    )
+    model = DummyRegressor(strategy="constant", constant=np.arange(nz))
     with pytest.raises(NotImplementedError):
         SklearnWrapper(
             input_variables=["a", "b"],
@@ -258,3 +232,50 @@ def test_SklearnWrapper_raises_not_implemented_error_with_clipped_output_data():
             model=model,
             packer_config=PackerConfig({"c": SliceConfig(2, None)}),
         )
+
+
+class OldSklearnWrapper(SklearnWrapper):
+    def __init__(
+        self, input_variables, output_variables, model, n_regressors, **kwargs
+    ):
+        self._n_regressors = n_regressors
+        super().__init__(input_variables, output_variables, model, **kwargs)
+
+    def _dump_regressor(self):
+        # how regressor ensemble was saved
+        regressors = [self.model for _ in range(self._n_regressors)]
+        regressor_components = {"regressors": regressors, "n_jobs": self.n_jobs}
+        f = io.BytesIO()
+        joblib.dump(regressor_components, f)
+        return f.getvalue()
+
+
+def _get_old_sklearn_wrapper(n_regressors):
+    nz = 5
+    model = DummyRegressor(strategy="constant", constant=np.arange(nz))
+    old_wrapper = OldSklearnWrapper(
+        input_variables=["a"],
+        output_variables=["b"],
+        model=model,
+        n_regressors=n_regressors,
+    )
+    # setup input data; wrappers must be fit to be dumped
+    dims = ["sample", "z"]
+    data = xr.Dataset({"a": (dims, np.ones((1, 5))), "b": (dims, np.ones((1, 5)))})
+    old_wrapper.fit(tfdataset_from_batches([data]))
+    return old_wrapper
+
+
+def test_SklearnWrapper_loads_backwards_compatible(tmpdir):
+    old_wrapper = _get_old_sklearn_wrapper(n_regressors=1)
+    path = str(tmpdir)
+    old_wrapper.dump(path)
+    SklearnWrapper.load(path)
+
+
+def test_SklearnWrapper_loads_backwards_incompatible_multiple(tmpdir):
+    old_wrapper = _get_old_sklearn_wrapper(n_regressors=2)
+    path = str(tmpdir)
+    old_wrapper.dump(path)
+    with pytest.raises(ValueError):
+        SklearnWrapper.load(path)

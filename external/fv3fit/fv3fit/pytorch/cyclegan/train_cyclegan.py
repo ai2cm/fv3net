@@ -6,10 +6,14 @@ import torch
 from fv3fit.pytorch.system import DEVICE
 import tensorflow_datasets as tfds
 from fv3fit.tfdataset import sequence_size, apply_to_tuple
+from pathlib import Path
+import secrets
+from datetime import datetime
 
 from fv3fit._shared import register_training_function
 from typing import (
     Callable,
+    Iterable,
     List,
     Mapping,
     Optional,
@@ -70,6 +74,8 @@ class CycleGANTrainingConfig:
         in_memory: if True, load the entire dataset into memory as pytorch tensors
             before training. Batches will be statically defined but will be shuffled
             between epochs.
+        checkpoint_path: if given, model checkpoints will be saved to this directory
+            marked by timestamp, epoch, and a randomly generated run label
     """
 
     n_epoch: int = 20
@@ -77,6 +83,7 @@ class CycleGANTrainingConfig:
     samples_per_batch: int = 1
     validation_batch_size: Optional[int] = None
     in_memory: bool = False
+    checkpoint_path: Optional[str] = None
 
     def fit_loop(
         self,
@@ -105,51 +112,29 @@ class CycleGANTrainingConfig:
             validation_data = validation_data.batch(validation_batch_size)
             validation_data = tfds.as_numpy(validation_data)
         if self.in_memory:
-            self._fit_loop_tensor(train_model, train_data_numpy, validation_data)
+            train_states: Iterable[
+                Tuple[torch.Tensor, torch.Tensor]
+            ] = dataset_to_tuples(train_data_numpy)
         else:
-            self._fit_loop_dataset(train_model, train_data_numpy, validation_data)
+            train_states = DatasetStateIterator(train_data_numpy)
+        self._fit_loop(train_model, train_states, validation_data)
 
-    def _fit_loop_dataset(
+    def _fit_loop(
         self,
         train_model: CycleGANTrainer,
-        train_data_numpy,
+        train_states: Iterable[Tuple[torch.Tensor, torch.Tensor]],
         validation_data: Optional[tf.data.Dataset],
     ):
-        for i in range(1, self.n_epoch + 1):
-            logger.info("starting epoch %d", i)
-            train_losses = []
-            for batch_state in train_data_numpy:
-                state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
-                state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
-                train_losses.append(train_model.train_on_batch(state_a, state_b))
-            train_loss = {
-                name: np.mean([data[name] for data in train_losses])
-                for name in train_losses[0]
-            }
-            logger.info("train_loss: %s", train_loss)
-
-            if validation_data is not None:
-                val_loss = train_model.evaluate_on_dataset(validation_data)
-                logger.info("val_loss %s", val_loss)
-
-    def _fit_loop_tensor(
-        self,
-        train_model: CycleGANTrainer,
-        train_data_numpy: tf.data.Dataset,
-        validation_data: Optional[tf.data.Dataset],
-    ):
-        train_states = []
-        batch_state: Tuple[np.ndarray, np.ndarray]
-        for batch_state in train_data_numpy:
-            state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
-            state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
-            train_states.append((state_a, state_b))
+        run_label = secrets.token_hex(4)
+        # current time as e.g. 20230113-163005
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
             for state_a, state_b in train_states:
                 train_losses.append(train_model.train_on_batch(state_a, state_b))
-            random.shuffle(train_states)
+            if isinstance(train_states, list):
+                random.shuffle(train_states)
             train_loss = {
                 name: np.mean([data[name] for data in train_losses])
                 for name in train_losses[0]
@@ -159,6 +144,36 @@ class CycleGANTrainingConfig:
             if validation_data is not None:
                 val_loss = train_model.evaluate_on_dataset(validation_data)
                 logger.info("val_loss %s", val_loss)
+
+            if self.checkpoint_path is not None:
+                current_path = (
+                    Path(self.checkpoint_path)
+                    / f"{timestamp}-{run_label}-epoch_{i:03d}"
+                )
+                train_model.cycle_gan.dump(str(current_path))
+
+
+def dataset_to_tuples(dataset) -> List[Tuple[torch.Tensor, torch.Tensor]]:
+    states = []
+    batch_state: Tuple[np.ndarray, np.ndarray]
+    for batch_state in dataset:
+        state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
+        state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+        states.append((state_a, state_b))
+    return states
+
+
+class DatasetStateIterator:
+    """Iterator over a dataset that returns states as numpy arrays"""
+
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __iter__(self):
+        for batch_state in self.dataset:
+            state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
+            state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+            yield state_a, state_b
 
 
 def apply_to_tuple_mapping(func):

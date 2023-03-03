@@ -63,13 +63,15 @@ def test_loader_stacks_default_config():
         )
         dataset = loader.open_tfdataset(
             local_download_path=None, variable_names=variable_names
-        )
+        ).unbatch()
         item = next(iter(dataset))
-        assert item["a"].shape[0] == NX * NY
-        assert len(item["a"].shape) == 3
-        assert item["a"].shape[-1] == NZ
-        assert item["a_sfc"].shape[0] == NX * NY
-        assert len(item["a_sfc"].shape) == 2
+        # check that the given sample only contains the requested
+        # unstacked_dims, and that they have the right lengths
+        assert item["a"].shape[0] == 10
+        assert item["a"].shape[1] == NZ
+        assert len(item["a"].shape) == 2
+        assert item["a_sfc"].shape[0] == 10
+        assert len(item["a_sfc"].shape) == 1
 
 
 def test_loader_stacks_default_config_without_stacked_dims():
@@ -116,6 +118,36 @@ def test_loader_handles_window_start():
         item = next(iter(dataset))
         assert item["a"].shape == [1, window_size, NX, NY, NZ]
         assert item["a_sfc"].shape == [1, NX, NY]
+
+
+def test_loader_handles_time_range():
+    """
+    Test that time_start_index and time_end_index are used to select the time
+    """
+    variable_names = ["a", "a_sfc"]
+    window_size = 10
+    with temporary_zarr_path() as data_path:
+        ds = xr.open_zarr(data_path)
+        loader = WindowedZarrLoader(
+            data_path=data_path,
+            window_size=window_size,
+            unstacked_dims=["time", "x", "y", "z"],
+            default_variable_config=VariableConfig(times="window"),
+            variable_configs={"a_sfc": VariableConfig(times="start")},
+            time_start_index=5,
+            time_end_index=5 + window_size + 1,
+        )
+        dataset = loader.open_tfdataset(
+            local_download_path=None, variable_names=variable_names
+        )
+        # result is a dictionary of Tensor
+        item_tensors = next(iter(dataset))
+        # retrieve numpy array
+        item = item_tensors["a"].numpy()
+        # remove inserted batch dimension when comparing
+        item = item[0, :]
+        expected = ds["a"].isel(time=slice(5, 15)).values
+        np.testing.assert_array_equal(item, expected)
 
 
 @pytest.mark.parametrize(

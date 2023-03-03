@@ -8,6 +8,26 @@ from ..tfdataset import generator_to_tfdataset
 import tempfile
 import xarray as xr
 import numpy as np
+from vcm import safe
+
+
+SAMPLE_DIM_NAME = "_fv3fit_sample"
+
+
+def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
+    stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
+    unstacked_dims = [dim for dim in ds.dims if dim in unstacked_dims]
+    unstacked_dims.sort()  # needed to always get [x, y, z] dimensions
+    if len(stack_dims) == 0:
+        ds_stacked = ds.expand_dims(dim=SAMPLE_DIM_NAME, axis=0)
+    else:
+        ds_stacked = safe.stack_once(
+            ds,
+            SAMPLE_DIM_NAME,
+            stack_dims,
+            allowed_broadcast_dims=list(unstacked_dims) + ["time", "dataset"],
+        )
+    return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 
 @dataclasses.dataclass
@@ -32,9 +52,8 @@ class VariableConfig:
                 raise ValueError("variable {} has no dimension {}".format(name, dim))
         if self.times == "start":
             ds = ds.isel(time=0)
-        dims = [d for d in unstacked_dims if d in ds[name].dims]
-        data = ds[name].transpose(*dims).values
-        return data
+        ds = stack(ds, unstacked_dims)
+        return ds[name].values
 
 
 def open_zarr_using_filecache(url: str):
@@ -97,7 +116,8 @@ class WindowedZarrLoader(TFDatasetLoader):
     A tfdataset loader that loads directly from zarr and supports time windows.
 
     Windows starts are selected randomly with replacement, so every time will not
-    necessarily appear in each iteration over the tf.data.Dataset.
+    necessarily appear in each iteration over the tf.data.Dataset. Each sample window
+    is independently selected along any stacked (sample) dimensions.
 
     Attributes:
         data_path: path to zarr data
@@ -115,6 +135,10 @@ class WindowedZarrLoader(TFDatasetLoader):
         n_windows: number of windows to create per epoch, defaults to the number
             of windows needed to fully cover the dataset with overlapping
             start and end times.
+        time_start_index: index of the first time step of the raw dataset to use,
+            defaults to 0
+        time_end_index: index of the last time step of the raw dataset to use,
+            defaults to the last time step in the dataset
     """
 
     data_path: str
@@ -127,6 +151,8 @@ class WindowedZarrLoader(TFDatasetLoader):
     batch_size: int = 1
     time_stride: int = 1
     n_windows: Optional[int] = None
+    time_start_index: int = 0
+    time_end_index: Optional[int] = None
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
@@ -141,6 +167,7 @@ class WindowedZarrLoader(TFDatasetLoader):
                 first dimension is the batch dimension
         """
         ds = open_zarr_using_filecache(self.data_path)
+        ds = ds.isel(time=slice(self.time_start_index, self.time_end_index))
         tfdataset = self._convert_to_tfdataset(ds, variable_names)
         # if local_download_path is given, cache on disk
         if local_download_path is not None:
@@ -204,9 +231,15 @@ def records(
             window_ds = ds.isel(
                 time=range(i_start, i_start + window_size * time_stride, time_stride)
             )
+            # need to select same random sample for all variable names, but don't know
+            # how many samples there are until we look at the first variable
+            i_sample = None
             for name in variable_names:
                 config = variable_configs.get(name, default_variable_config)
-                record[name] = config.get_record(name, window_ds, unstacked_dims)
+                array = config.get_record(name, window_ds, unstacked_dims)
+                if i_sample is None:
+                    i_sample = np.random.randint(array.shape[0])
+                record[name] = array[i_sample, :]
             yield record
 
     return generator

@@ -150,11 +150,16 @@ def get_prescriber(
         mapper = {}
     time_lookup_function = _get_time_lookup_function(
         mapper,
-        list(config.variables),
+        list(config.variables) + list(config.tendency_variables or []),
         config.reference_initial_time,
         config.reference_frequency_seconds,
     )
-    return Prescriber(communicator, time_lookup_function, config.variables)
+    return Prescriber(
+        communicator=communicator,
+        time_lookup_function=time_lookup_function,
+        variables=config.variables,
+        tendency_variables=config.tendency_variables,
+    )
 
 
 def get_radiation_stepper(
