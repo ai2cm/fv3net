@@ -17,6 +17,9 @@ output_variables = [
     "SW_clrsky_flux_up@tom",
     "LW_clrsky_flux_up@tom",
     "VerticalLayerInterface",
+    "p_mid",
+    "ps",
+    "VerticalLayerInterface",
     # "pseudo_density",  # this is pressure thickness
     "area",
     "lat",
@@ -28,6 +31,32 @@ output_variables = [
 NP = 4
 NPG = 2
 levs = 128
+
+
+def make_placeholder_data(
+    sample: xr.DataArray, generate_variable: str, scaled_factor: float = 1.0
+):
+    placeholder = sample.copy()
+    placeholder.values[:] = np.random.rand(*placeholder.values.shape) * scaled_factor
+    placeholder.attrs = {}
+    return placeholder.rename(generate_variable)
+
+
+def make_delp(p_mid, z_int, ps):
+    ptop = 225.52
+    delp = p_mid.copy()
+    dz = z_int[:, :, 0:-1] - z_int[:, :, 1:]
+    p_int = z_int.copy()
+    p_int[:, :, 0] = ptop
+    for k in range(1, levs):
+        p_int[:, :, k] = (
+            dz[:, :, k - 1] * p_mid[:, :, k] + dz[:, :, k] * p_mid[:, :, k - 1]
+        ) / (dz[:, :, k - 1] + dz[:, :, k])
+    p_int[:, :, -1] = ps / 2.0  # surface pressure bug
+    delp = p_int[:, :, 1:] - p_int[:, :, 0:-1]
+    return delp.rename({"ilev": "lev"}).rename(
+        "pressure_thickness_of_atmospheric_layer"
+    )
 
 
 def convert_to_fv3_format(
@@ -42,11 +71,12 @@ def convert_to_fv3_format(
 
     Args:
         NE: number of spectral elements per cubed face
-        data_path
-        file_name
-        output_path
-        output_file_name
-        output_variables
+        data_path: path to input data directory, remote or local
+        file_name: either a single file name
+            or a wildcard pattern to match multiple names
+        output_path: path to output data directory, remote or local
+        output_file_name: name of output file
+        output_variables: list of variables to output
     """
     Ncols = NE ** 2 * 6 * NPG ** 2
     x_dim = int(Ncols / 6 / NE / 3)
@@ -80,6 +110,35 @@ def convert_to_fv3_format(
     ds = ds.drop("horiz_winds")
     ds["eastward_wind"] = u
     ds["northward_wind"] = v
+    ds["pressure_thickness_of_atmospheric_layer"] = make_delp(
+        ds.p_mid, ds.vertical_thickness_of_atmospheric_layer, ds.ps
+    )
+
+    ds["air_temperature_tendency_due_to_nudging"] = make_placeholder_data(
+        ds.air_temperature, "air_temperature_tendency_due_to_nudging", 1e-1
+    )
+    ds["specific_humidity_tendency_due_to_nudging"] = make_placeholder_data(
+        ds.air_temperature, "specific_humidity_tendency_due_to_nudging", 1e-5
+    )
+    ds["x_wind_tendency_due_to_nudging"] = make_placeholder_data(
+        ds.air_temperature, "x_wind_tendency_due_to_nudging", 1e-3
+    )
+    ds["y_wind_tendency_due_to_nudging"] = make_placeholder_data(
+        ds.air_temperature, "y_wind_tendency_due_to_nudging", 1e-3
+    )
+    ds["tendency_of_air_temperature_due_to_scream_physics"] = make_placeholder_data(
+        ds.air_temperature, "tendency_of_air_temperature_due_to_scream_physics", 1e-3
+    )
+    ds["tendency_of_specific_humidity_due_to_scream_physics"] = make_placeholder_data(
+        ds.air_temperature, "tendency_of_specific_humidity_due_to_scream_physics", 1e-6
+    )
+    ds["tendency_of_eastward_wind_due_to_scream_physics"] = make_placeholder_data(
+        ds.air_temperature, "tendency_of_eastward_wind_due_to_scream_physics", 1e-4
+    )
+    ds["tendency_of_northward_wind_due_to_scream_physics"] = make_placeholder_data(
+        ds.air_temperature, "tendency_of_northward_wind_due_to_scream_physics", 1e-4
+    )
+
     ds = ds.rename({"lev": "z", "ilev": "z_interface"})
     ds = ds.assign_coords(
         {
