@@ -76,6 +76,15 @@ class NormFactory:
         return NormLayer(scale=scale, center=mean, name=name, epsilon=self.epsilon)
 
 
+def norm2_factory_from_key(key):
+    if key == "max_std":
+        return NormFactory(StdDevMethod.max, MeanMethod.per_feature,)
+    elif key == "mean_std":
+        return NormFactory(StdDevMethod.all, MeanMethod.per_feature,)
+    else:
+        raise KeyError(f"Unrecognized normalization layer key provided: {key}")
+
+
 def _standard_deviation_all_features(tensor: tf.Tensor) -> tf.Tensor:
     """Commpute standard deviation across all features.
 
