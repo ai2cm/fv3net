@@ -17,7 +17,7 @@ intake
 
 # prognostic run diagnostics requirements
 # this file depends on vcm, so pip-tools cannot lock it
-holoviews
+holoviews>=1.15
 streamlit
 plotly
 
