@@ -1,4 +1,4 @@
-from fv3fit.emulation.layers.normalization2 import (
+from fv3fit.emulation.layers.normalization import (
     MeanMethod,
     NormLayer,
     StdDevMethod,

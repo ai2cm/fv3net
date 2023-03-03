@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Callable, Mapping, Dict
 
-from ..emulation.layers.normalization2 import standard_deviation_all_features
+from ..emulation.layers.normalization import standard_deviation_all_features
 
 
 ModelType = Callable[[Mapping[str, tf.Tensor]], Mapping[str, tf.Tensor]]

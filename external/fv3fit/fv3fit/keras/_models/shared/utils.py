@@ -1,6 +1,6 @@
 import tensorflow as tf
 from typing import Sequence
-from fv3fit.emulation.layers.normalization2 import (
+from fv3fit.emulation.layers.normalization import (
     NormFactory,
     NormLayer,
     MeanMethod,

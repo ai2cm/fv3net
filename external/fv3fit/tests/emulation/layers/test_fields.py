@@ -6,7 +6,7 @@ from fv3fit.emulation.layers.fields import (
     FieldInput,
     FieldOutput,
 )
-from fv3fit.emulation.layers.normalization2 import norm2_factory_from_key
+from fv3fit.emulation.layers.normalization import norm2_factory_from_key
 
 
 def _get_data(shape):
