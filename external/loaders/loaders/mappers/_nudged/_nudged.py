@@ -126,6 +126,7 @@ def open_nudge_to_fine(
         "state_after_timestep.zarr",
     ),
     cache_size_mb: Optional[float] = None,
+    model_name: str = "fv3",
 ) -> XarrayMapper:
     """
     Load nudge-to-fine data mapper for use with training. Merges
@@ -151,6 +152,8 @@ def open_nudge_to_fine(
             for accessing data. A cache of this size is created for each zarr
             dataset in the datasets arg. No LRU caches created if this arg is not
             supplied.
+        model_name: name of the climate model, defaults to fv3. Currently also supports
+            DOE's scream.
 
     Returns:
         mapper to dataset containing nudging tendencies, physics tendencies,
@@ -179,10 +182,10 @@ def open_nudge_to_fine(
         "y_wind_tendency_due_to_nudging": "dQywind",
         "eastward_wind_tendency_due_to_nudging": "dQu",
         "northward_wind_tendency_due_to_nudging": "dQv",
-        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
-        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
-        "tendency_of_eastward_wind_due_to_fv3_physics": "pQu",
-        "tendency_of_northward_wind_due_to_fv3_physics": "pQv",
+        f"tendency_of_air_temperature_due_to_{model_name}_physics": "pQ1",
+        f"tendency_of_specific_humidity_due_to_{model_name}_physics": "pQ2",
+        f"tendency_of_eastward_wind_due_to_{model_name}_physics": "pQu",
+        f"tendency_of_northward_wind_due_to_{model_name}_physics": "pQv",
     }
     rename_vars = {k: v for k, v in rename_vars.items() if k in ds}
     return XarrayMapper(ds.rename(rename_vars))
@@ -226,7 +229,10 @@ def _get_datasets(
     for source in sources:
         mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
         if cache_size_mb is not None:
-            mapper = zarr.LRUStoreCache(mapper, max_size=int(cache_size_mb * 1e6),)
+            mapper = zarr.LRUStoreCache(
+                mapper,
+                max_size=int(cache_size_mb * 1e6),
+            )
         ds = xr.open_zarr(mapper, consolidated=consolidated)
         datasets[source] = ds
     return datasets
