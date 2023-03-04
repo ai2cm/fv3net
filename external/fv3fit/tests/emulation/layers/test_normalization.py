@@ -11,14 +11,14 @@ import pytest
 
 
 def test_norm_layer():
-    norm = NormLayer(scale=2.0, center=1.0)
+    norm = NormLayer(scale=2.0, center=1.0, dtype=tf.float32)
     x = tf.ones([1], dtype=tf.float32)
     round_trip = norm.backward(norm.forward(x))
     np.testing.assert_almost_equal(round_trip, x)
 
 
 def test_layers_no_trainable_variables():
-    layer = NormLayer(1, 1)
+    layer = NormLayer(1, 1, dtype=tf.float32)
     assert len(layer.trainable_variables) == 0
 
 
