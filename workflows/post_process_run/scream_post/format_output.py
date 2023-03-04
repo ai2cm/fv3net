@@ -153,4 +153,25 @@ def convert_to_fv3_format(
     ds = ds.stack(ncol=("tile", "x", "y"))
     ds = ds.unstack("ncol")
     ds = ds.transpose(..., "tile", "z", "z_interface", "y", "x")
-    ds.to_zarr(os.path.join(output_path, output_file_name), consolidated=True)
+
+    nudging_variables = [
+        "air_temperature_tendency_due_to_nudging",
+        "specific_humidity_tendency_due_to_nudging",
+        "x_wind_tendency_due_to_nudging",
+        "y_wind_tendency_due_to_nudging",
+    ]
+    ds[nudging_variables].to_zarr(
+        os.path.join(output_path, "nudging_tendencies.zarr"), consolidated=True
+    )
+    physics_tendencies = [
+        "tendency_of_air_temperature_due_to_scream_physics",
+        "tendency_of_specific_humidity_due_to_scream_physics",
+        "tendency_of_eastward_wind_due_to_scream_physics",
+        "tendency_of_northward_wind_due_to_scream_physics",
+    ]
+    ds[physics_tendencies].to_zarr(
+        os.path.join(output_path, "physics_tendencies.zarr"), consolidated=True
+    )
+    ds.drop(nudging_variables).drop(physics_tendencies).to_zarr(
+        os.path.join(output_path, output_file_name), consolidated=True
+    )
