@@ -13,7 +13,7 @@ from fv3fit.emulation.layers.normalization import (
 def test_NormalizeMSE():
     sample = np.array([[0], [0]])
     target = np.array([[1], [2]])
-    mse_func = NormalizedMSE(NormLayer(1, 0, dtype=sample.dtype))
+    mse_func = NormalizedMSE(NormLayer(1, 0))
     assert tf.is_tensor(mse_func(target, sample))
 
 

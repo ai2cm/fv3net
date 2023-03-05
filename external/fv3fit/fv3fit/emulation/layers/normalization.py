@@ -14,24 +14,23 @@ class NormLayer(tf.Module):
         self,
         scale: tf.Tensor,
         center: tf.Tensor,
-        dtype: tf.dtypes.DType,
         name: Optional[str] = None,
         epsilon: Optional[float] = None,
     ) -> None:
         super().__init__(name=name)
-        if epsilon is None:
-            epsilon = tf.cast(0.0, dtype=dtype)
 
-        self.epsilon = tf.constant(epsilon, dtype=dtype)
-        self.scale = tf.constant(
-            scale, name=name + "_scale" if name else None, dtype=dtype
-        )
-        self.center = tf.constant(
-            center, name=name + "_center" if name else None, dtype=dtype
-        )
+        self.scale = tf.constant(scale, name=name + "_scale" if name else None)
+        self.center = tf.constant(center, name=name + "_center" if name else None)
+
+        # For backwards compatibility with previous usage of StandardNormLayer
+        if epsilon is None:
+            self._forward_scale = self.scale
+        else:
+            epsilon = tf.cast(epsilon, dtype=self.scale.dtype)
+            self._forward_scale = self.scale + tf.constant(epsilon)
 
     def forward(self, tensor: tf.Tensor) -> tf.Tensor:
-        return (tensor - self.center) / (self.scale + self.epsilon)
+        return (tensor - self.center) / self._forward_scale
 
     def backward(self, tensor: tf.Tensor) -> tf.Tensor:
         return tensor * self.scale + self.center
@@ -78,13 +77,7 @@ class NormFactory:
     def build(self, sample: tf.Tensor, name: Optional[str] = None) -> NormLayer:
         mean = _compute_center(sample, self.center)
         scale = _compute_scale(sample, self.scale)
-        return NormLayer(
-            scale=scale,
-            center=mean,
-            dtype=sample.dtype,
-            name=name,
-            epsilon=self.epsilon,
-        )
+        return NormLayer(scale=scale, center=mean, name=name, epsilon=self.epsilon,)
 
 
 def norm2_factory_from_key(key):
