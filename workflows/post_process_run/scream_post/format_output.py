@@ -88,8 +88,8 @@ def convert_to_fv3_format(
         data_vars="minimal",
     )
     if "horiz_winds" in output_variables:
-        u = ds.horiz_winds.isel(dim2=0).rename({"eastward_wind"})
-        v = ds.horiz_winds.isel(dim2=1).rename({"northward_wind"})
+        u = ds.horiz_winds.isel(dim2=0).rename({"x_wind"})
+        v = ds.horiz_winds.isel(dim2=1).rename({"y_wind"})
 
     rename_vars: Mapping[Hashable, Hashable] = {
         "T_mid": "air_temperature",
@@ -108,12 +108,15 @@ def convert_to_fv3_format(
     }
     ds = ds[output_variables].rename(rename_vars)
     ds = ds.drop("horiz_winds")
-    ds["eastward_wind"] = u
-    ds["northward_wind"] = v
+    ds["x_wind"] = u
+    ds["y_wind"] = v
     ds["pressure_thickness_of_atmospheric_layer"] = make_delp(
         ds.p_mid, ds.vertical_thickness_of_atmospheric_layer, ds.ps
     )
 
+    ds["pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging"] = make_placeholder_data(
+        ds.air_temperature, "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging", 1e-1
+    )
     ds["air_temperature_tendency_due_to_nudging"] = make_placeholder_data(
         ds.air_temperature, "air_temperature_tendency_due_to_nudging", 1e-1
     )
