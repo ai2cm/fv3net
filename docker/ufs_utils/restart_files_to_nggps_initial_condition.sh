@@ -6,25 +6,26 @@ set -x
 spack env activate ufs-utils-env
 export LD_LIBRARY_PATH=/spack/var/spack/environments/ufs-utils-env/.spack-env/view/lib
 
-SOURCE_DATA=$1
-SOURCE_DATE=$2  # YYYYMMDDHH
+RESTARTS=$1
+DATE=$2
 SOURCE_RESOLUTION=$3
 TARGET_RESOLUTION=$4
 TRACERS=$5
 VCOORD_FILE=$6
 REFERENCE_DATA=$7
 DESTINATION=$8
+MPI_TASKS=$9
 
-FULL_DESTINATION=$DESTINATION/$TARGET_RESOLUTION/$SOURCE_DATE
+FULL_DESTINATION=$DESTINATION/$TARGET_RESOLUTION/$DATE
 
 VCOORD_FILENAME="$(basename $VCOORD_FILE)"
-LOCAL_SOURCE_DATA=/input_data
+LOCAL_RESTARTS=/input_data
 LOCAL_VCOORD_FILE=/input_data/$VCOORD_FILENAME
 LOCAL_SOURCE_REFERENCE_DATA=/reference_data/$SOURCE_RESOLUTION
 LOCAL_TARGET_REFERENCE_DATA=/reference_data/$TARGET_RESOLUTION
 
-mkdir -p $LOCAL_SOURCE_DATA
-gsutil -m cp $SOURCE_DATA/* $LOCAL_SOURCE_DATA/
+mkdir -p $LOCAL_RESTARTS
+gsutil -m cp $RESTARTS/* $LOCAL_RESTARTS/
 gsutil -m cp $VCOORD_FILE $LOCAL_VCOORD_FILE
 
 mkdir -p $LOCAL_SOURCE_REFERENCE_DATA
@@ -104,7 +105,7 @@ OROG_FILES_INPUT_GRID=${OROG_FILES_INPUT_GRID}',"'${SOURCE_RESOLUTION}'_oro_data
 # CONVERT_NST - Convert nst fields when true
 #----------------------------------------------------------------------------
 
-COMIN=$LOCAL_SOURCE_DATA
+COMIN=$LOCAL_RESTARTS
 CONVERT_ATM=${CONVERT_ATM:-.true.}
 CONVERT_SFC=${CONVERT_SFC:-.true.}
 CONVERT_NST=${CONVERT_NST:-.false.}
@@ -170,13 +171,11 @@ OROG_FILES_TARGET_GRID=${OROG_FILES_TARGET_GRID}',"'${TARGET_RESOLUTION}'_oro_da
 # OMP_NUM_THREADS - threads most useful for 'gfs_sigio' INPUT_TYPE.
 #----------------------------------------------------------------------------
 
-export OMP_NUM_THREADS=-1
+export OMP_NUM_THREADS=${OMP_NUM_THREADS_CH:-1}
 
 WORK_DIRECTORY=$PWD/chgres
 mkdir -p $WORK_DIRECTORY
 cd $WORK_DIRECTORY || exit 99
-
-rm -f ./fort.41
 
 cat << EOF > ./fort.41
  &config
@@ -211,7 +210,7 @@ cat << EOF > ./fort.41
  /
 EOF
 
-mpiexec -n 6 ${EXECufs}/chgres_cube 1>&1 2>&2
+mpiexec -n $MPI_TASKS ${EXECufs}/chgres_cube 1>&1 2>&2
 
 iret=$?
 if [ $iret -ne 0 ]; then
