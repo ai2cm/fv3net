@@ -17,6 +17,20 @@ def test_norm_layer():
     np.testing.assert_almost_equal(round_trip, x)
 
 
+def test_norm_layer_epsilon():
+    norm = NormLayer(scale=2.0, center=1.0, epsilon=1e-7)
+    x = tf.random.normal(shape=(1000, 10), mean=1.0, stddev=2.0)
+    round_trip = norm.backward(norm.forward(x))
+    np.testing.assert_array_almost_equal(x, round_trip)
+
+
+def test_norm_layer_epsilon_floor():
+    norm = NormLayer(scale=1.0e-10, center=0.0, epsilon=1e-7)
+    x = tf.random.normal(shape=(1000, 10), mean=0, stddev=1e-10)
+    round_trip = norm.backward(norm.forward(x))
+    np.testing.assert_almost_equal(np.std(round_trip), 10e-3, decimal=1)
+
+
 def test_layers_no_trainable_variables():
     layer = NormLayer(1, 1)
     assert len(layer.trainable_variables) == 0
