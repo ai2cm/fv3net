@@ -155,12 +155,9 @@ class ReservoirComputingReadout:
         if self.square_half_hidden_state:
             input = square_even_terms(input, axis=0)
         if len(input.shape) > 1:
-            print(f"input shape before flattening: {input.shape}")
             input = input.reshape(-1)
-            print(f"input shape after flattening: {input.shape}")
 
         flat_prediction = (input * self.coefficients) + self.intercepts
-        print(f"flat_prediction shape: {flat_prediction.shape}")
 
         if len(input.shape) > 1:
             return flat_prediction.reshape(-1, input.shape[-1])
@@ -215,9 +212,9 @@ class ReservoirComputingReadout:
 
 
 def combine_readouts(readouts: Sequence[ReservoirComputingReadout]):
-    intercepts, square_state_settings, lr_config_hashes = [], [], []
+    coefs, intercepts, square_state_settings, lr_config_hashes = [], [], [], []
     for readout in readouts:
-        # coefs.append(readout.coefficients)
+        coefs.append(readout.coefficients)
         intercepts.append(readout.intercepts)
         square_state_settings.append(readout.square_half_hidden_state)
         lr_config_hashes.append(readout.hyperparameters.linear_regressor_config.hash)
@@ -233,9 +230,7 @@ def combine_readouts(readouts: Sequence[ReservoirComputingReadout]):
 
     # Merge the coefficient arrays of individual readouts into single
     # block diagonal matrix
-    combined_coefficients = scipy.sparse.block_diag(
-        [readout.coefficients for readout in readouts]
-    )  # scipy.sparse.block_diag(coefs)
+    combined_coefficients = scipy.sparse.block_diag(coefs)
 
     # Concatenate the intercepts of individual readouts into single array
     combined_intercepts = np.concatenate(intercepts)

@@ -97,6 +97,9 @@ class ReservoirTrainingConfig(Hyperparameters):
     subdomain: Optional subdomain config. If provided, one reservoir and readout
         are created and trained for each subdomain. Subdomain size and reservoir
         input size much match.
+    autoencoder_path: If provided, use the encoder loaded from here to reduce the
+        state dimensions and train reservoir model on the time series in the
+        latent space.
     """
 
     input_variables: Sequence[str]
@@ -108,6 +111,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     input_noise: float
     seed: int = 0
     n_jobs: Optional[int] = -1
+    autoencoder_path: Optional[str] = None
 
     _METADATA_NAME = "reservoir_training_config.yaml"
 
@@ -149,6 +153,7 @@ class ReservoirTrainingConfig(Hyperparameters):
             "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
             "subdomain": asdict(self.subdomain),
+            "autoencoder_path": self.autoencoder_path,
         }
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)
