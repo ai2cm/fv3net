@@ -59,6 +59,10 @@ baseline_ccnorm_random_overlap_port_run: deploy
 baseline_ccnorm_decorr_overlap_port_run: deploy
 	cd radiation-port-run && ./run.sh baseline-cc-decorr-port
 
+.PHONY: baseline_cc_ccnorm_decorr_overlap_port_run
+baseline_cc_ccnorm_decorr_overlap_port_run: deploy
+	cd radiation-port-run && ./run.sh baseline-cc-ccnorm-decorr-port
+
 .PHONY: port_validation_run
 port_validation_run: deploy
 	cd radiation-port-run && ./run.sh port-validation
@@ -82,6 +86,10 @@ port_validation_ccnorm_random_overlap_run: deploy
 .PHONY: port_validation_ccnorm_decorr_overlap_run
 port_validation_ccnorm_decorr_overlap_run: deploy
 	cd radiation-port-run && ./run.sh port-validation-cc-decorr
+
+.PHONY: port_validation_cc_ccnorm_decorr_overlap_run
+port_validation_cc_ccnorm_decorr_overlap_run: deploy
+	cd radiation-port-run && ./run.sh port-validation-cc-ccnorm-decorr
 
 .PHONY: prescribed_cloud_run
 prescribed_cloud_run: deploy
