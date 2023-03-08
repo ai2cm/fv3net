@@ -29,7 +29,7 @@ LDFLAGS="$FMS_LDFLAGS" \
 LOG_DRIVER_FLAGS="$FMS_LOG_DRIVER_FLAGS" \
 CPPFLAGS="$FMS_CPPFLAGS" \
 FCFLAGS="$FMS_FCFLAGS" \
-bash "$SCRIPTS"/install_fms.sh "$FMS_DIR"
+bash "$SCRIPTS"/install_fms.sh "$FMS_DIR" "$FMS_MAKE_OPTIONS" 
 
 if [ -n "${CALLPYFORT}" ];
 then
