@@ -271,6 +271,13 @@ def pcolormesh_cube(
         p_handle (obj):
             matplotlib object handle associated with a segment of the map subplot
     """
+    all_handles = _pcolormesh_cube_all_handles(lat, lon, array, ax=ax, **kwargs)
+    return all_handles[-1]
+
+
+def _pcolormesh_cube_all_handles(
+    lat: np.ndarray, lon: np.ndarray, array: np.ndarray, ax: plt.axes = None, **kwargs
+):
     if lat.shape != lon.shape:
         raise ValueError("lat and lon should have the same shape")
     if ax is None:
@@ -285,12 +292,64 @@ def pcolormesh_cube(
     kwargs["vmin"] = kwargs.get("vmin", np.nanmin(array))
     kwargs["vmax"] = kwargs.get("vmax", np.nanmax(array))
 
+    def plot(x, y, array):
+        return ax.pcolormesh(x, y, array, **kwargs)
+
+    handles = _apply_to_non_non_nan_segments(
+        plot, lat, center_longitudes(lon, central_longitude), array
+    )
+    return handles
+
+
+class UpdateablePColormesh:
+    def __init__(self, lat, lon, array: np.ndarray, ax: plt.axes = None, **kwargs):
+        self.handles = _pcolormesh_cube_all_handles(lat, lon, array, ax=ax, **kwargs)
+        plt.colorbar(self.handles[-1], ax=ax)
+        self.lat = lat
+        self.lon = lon
+        self.ax = ax
+
+    def update(self, array):
+        central_longitude = self.ax.projection.proj4_params["lon_0"]
+        array = np.where(
+            _mask_antimeridian_quads(self.lon.T, central_longitude), array.T, np.nan
+        ).T
+
+        iter_handles = iter(self.handles)
+
+        def update_handle(x, y, array):
+            handle = next(iter_handles)
+            handle.set_array(array.ravel())
+
+        _apply_to_non_non_nan_segments(update_handle, self.lat, self.lon, array)
+
+
+def _apply_to_non_non_nan_segments(func, lat, lon, array):
+    """
+    Applies func to disjoint rectangular segments of array covering all non-nan values.
+
+    Args:
+        func:
+            Function to be applied to non-nan segments of array.
+        lat:
+            Array of latitudes with dimensions (tile, ny + 1, nx + 1).
+            Should be given at cell corners.
+        lon:
+            Array of longitudes with dimensions (tile, ny + 1, nx + 1).
+            Should be given at cell corners.
+        array:
+            Array of variables values at cell centers, of dimensions (tile, ny, nx)
+
+    Returns:
+        list of return values of func
+    """
+    all_handles = []
     for tile in range(array.shape[0]):
-        x = center_longitudes(lon[tile, :, :], central_longitude)
+        x = lon[tile, :, :]
         y = lat[tile, :, :]
         for x_plot, y_plot, array_plot in _segment_plot_inputs(x, y, array[tile, :, :]):
-            p_handle = ax.pcolormesh(x_plot, y_plot, array_plot, **kwargs)
-    return p_handle
+            all_handles.append(func(x_plot, y_plot, array_plot))
+    return all_handles
 
 
 def _segment_plot_inputs(x, y, masked_array):

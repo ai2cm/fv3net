@@ -276,10 +276,10 @@ def _load_pytorch(cls: Type[_PytorchDumpable], path: str):
     fs = vcm.get_fs(path)
     model_filename = os.path.join(path, cls._MODEL_FILENAME)
     with fs.open(model_filename, "rb") as f:
-        model = torch.load(f)
+        model = torch.load(f, map_location=DEVICE)
     with fs.open(os.path.join(path, cls._SCALERS_FILENAME), "rb") as f:
         scalers = load_mapping(StandardScaler, f)
-    with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+    with fs.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
         config = yaml.load(f, Loader=yaml.Loader)
     obj = cls(model=model, scalers=scalers, **config)
     return obj
@@ -289,7 +289,7 @@ def _dump_pytorch(obj: _PytorchDumpable, path: str) -> None:
     fs = vcm.get_fs(path)
     model_filename = os.path.join(path, obj._MODEL_FILENAME)
     with fs.open(model_filename, "wb") as f:
-        torch.save(obj.model, model_filename)
+        torch.save(obj.model, f)
     with fs.open(os.path.join(path, obj._SCALERS_FILENAME), "wb") as f:
         dump_mapping(obj.scalers, f)
     with fs.open(os.path.join(path, obj._CONFIG_FILENAME), "w") as f:
@@ -319,8 +319,10 @@ def _pack_to_tensor(
         tensor of shape [window, time, tile, x, y, feature]
     """
 
-    expected_dims = ("time", "tile", "x", "y", "z")
-    ds = ds.transpose(*expected_dims)
+    expected_dims: Tuple[str, ...] = ("time", "tile", "x", "y")
+    if "z" in ds.dims:
+        expected_dims += ("z",)
+    ds = ds.transpose(..., *expected_dims)
     if timesteps > 0:
         n_times = ds.time.size
         n_windows = int((n_times - 1) // timesteps)
@@ -341,9 +343,12 @@ def _pack_to_tensor(
                 n_windows, timesteps, *data.shape[1:]
             )
             # append first time of next window to end of each window
-            end_data = np.concatenate(
-                [data[1:, :1, :], normalized_data[None, -1:, :]], axis=0
-            )
+            if n_windows > 1:
+                end_data = np.concatenate(
+                    [data[1:, :1, :], normalized_data[None, -1:, :]], axis=0
+                )
+            else:
+                end_data = normalized_data[None, -1:, :]
             data = np.concatenate([data, end_data], axis=1)
         else:
             data = normalized_data

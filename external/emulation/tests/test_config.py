@@ -1,15 +1,17 @@
+import datetime
+
+import emulation.zhao_carr
+import pytest
 from emulation._emulate.microphysics import TimeMask
 from emulation.config import (
     EmulationConfig,
     ModelConfig,
     StorageConfig,
-    _load_nml,
-    _get_timestep,
     _get_storage_hook,
+    _get_timestep,
+    _load_nml,
     get_hooks,
 )
-import emulation.zhao_carr
-import datetime
 
 
 def test_EmulationConfig_from_dict():
@@ -82,3 +84,18 @@ def test_ModelConfig_mask_gscond_zero_cloud():
     config = ModelConfig(path="", mask_gscond_zero_cloud=True)
     (a,) = config._build_masks()
     assert a == emulation.zhao_carr.mask_where_fortran_cloud_vanishes_gscond
+
+
+def test_ModelConfig_enforce_conservative_phase_dependent():
+    config = ModelConfig(path="", enforce_conservative_phase_dependent=True)
+    (a,) = config._build_masks()
+    assert a == emulation.zhao_carr.enforce_conservative_phase_dependent
+
+
+def test_ModelConfig_assert_conservative_options_are_exclusive():
+    with pytest.raises(ValueError):
+        ModelConfig(
+            path="",
+            enforce_conservative_phase_dependent=True,
+            enforce_conservative=True,
+        )

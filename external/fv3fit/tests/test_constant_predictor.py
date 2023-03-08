@@ -4,7 +4,7 @@ import fv3fit
 from vcm import safe
 import numpy as np
 import tempfile
-from fv3fit._shared import stack_non_vertical, SAMPLE_DIM_NAME
+from fv3fit._shared import stack, SAMPLE_DIM_NAME, Z_DIM_NAMES
 
 
 def get_gridded_dataset(nz):
@@ -73,9 +73,10 @@ def test_constant_model_predict(input_variables, output_variables, nz):
 
     for name in output_variables:
         assert np.all(
-            stack_non_vertical(ds_pred[name]).values == outputs[name][None, :]
+            stack(ds_pred[name], unstacked_dims=Z_DIM_NAMES).values
+            == outputs[name][None, :]
         )
-        assert stack_non_vertical(ds_pred[name]).values.shape[0] == len(
+        assert stack(ds_pred[name], unstacked_dims=Z_DIM_NAMES).values.shape[0] == len(
             ds_stacked[SAMPLE_DIM_NAME]
         )
 
@@ -103,5 +104,6 @@ def test_constant_model_predict_after_dump_and_load(
     assert sorted(list(ds_pred.data_vars.keys())) == sorted(output_variables)
     for name in output_variables:
         assert np.all(
-            stack_non_vertical(ds_pred[name]).values == outputs[name][None, :]
+            stack(ds_pred[name], unstacked_dims=Z_DIM_NAMES).values
+            == outputs[name][None, :]
         )

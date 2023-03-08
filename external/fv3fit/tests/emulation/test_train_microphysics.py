@@ -1,6 +1,6 @@
+import pathlib
 import pytest
 import tensorflow as tf
-import sys
 from pathlib import PosixPath
 from unittest.mock import Mock
 
@@ -14,17 +14,87 @@ from fv3fit.emulation.models import MicrophysicsConfig
 from fv3fit.emulation.zhao_carr_fields import Field
 from fv3fit.emulation.zhao_carr.filters import HighAntarctic
 from fv3fit.emulation.transforms import GscondRoute
-from fv3fit.train_microphysics import (
-    TrainConfig,
-    TransformedParameters,
-    get_default_config,
-    main,
-)
+import fv3fit.train_microphysics as api
+
+
+def get_default_config():
+
+    input_vars = [
+        "air_temperature_input",
+        "specific_humidity_input",
+        "cloud_water_mixing_ratio_input",
+        "pressure_thickness_of_atmospheric_layer",
+    ]
+    tensor_transforms = [
+        api.Difference(
+            to="temperature_diff",
+            before="air_temperature_input",
+            after="air_temperature_after_precpd",
+        ),
+        api.Difference(
+            to="humidity_diff",
+            before="specific_humidity_input",
+            after="specific_humidity_after_precpd",
+        ),
+    ]
+
+    model_config = MicrophysicsConfig(
+        input_variables=input_vars,
+        direct_out_variables=[
+            "cloud_water_mixing_ratio_after_precpd",
+            "total_precipitation",
+            "temperature_diff",
+            "humidity_diff",
+        ],
+        architecture=ArchitectureConfig("linear"),
+        selection_map=dict(
+            air_temperature_input=api.SliceConfig(stop=-10),
+            specific_humidity_input=api.SliceConfig(stop=-10),
+            cloud_water_mixing_ratio_input=api.SliceConfig(stop=-10),
+            pressure_thickness_of_atmospheric_layer=api.SliceConfig(stop=-10),
+        ),
+    )
+
+    transform = TransformConfig()
+
+    loss = CustomLoss(
+        optimizer=api.OptimizerConfig(name="Adam", kwargs=dict(learning_rate=1e-4)),
+        loss_variables=[
+            "air_temperature_after_precpd",
+            "specific_humidity_after_precpd",
+            "cloud_water_mixing_ratio_after_precpd",
+            "total_precipitation",
+        ],
+        weights=dict(
+            air_temperature_after_precpd=0.5e5,
+            specific_humidity_after_precpd=0.5e5,
+            cloud_water_mixing_ratio_after_precpd=1.0,
+            total_precipitation=0.04,
+        ),
+        metric_variables=["temperature_diff"],
+    )
+
+    config = api.TrainConfig(
+        train_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train",  # noqa E501
+        test_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",  # noqa E501
+        out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
+        model=model_config,
+        tensor_transform=tensor_transforms,
+        transform=transform,
+        loss=loss,
+        nfiles=80,
+        nfiles_valid=80,
+        valid_freq=1,
+        epochs=4,
+        wandb=api.WandBConfig(job_type="training"),
+    )
+
+    return config
 
 
 def test_TrainConfig_defaults():
 
-    config = TrainConfig(
+    config = api.TrainConfig(
         train_url="train_path",
         test_url="test_path",
         out_url="save_path",
@@ -38,12 +108,12 @@ def test_TrainConfig_defaults():
 def test_get_default_config():
 
     config = get_default_config()
-    assert isinstance(config, TrainConfig)
+    assert isinstance(config, api.TrainConfig)
 
 
 def test_TrainConfig_asdict():
 
-    config = TrainConfig(
+    config = api.TrainConfig(
         train_url="train_path",
         test_url="test_path",
         out_url="save_path",
@@ -64,7 +134,7 @@ def test_TrainConfig_from_dict():
         model=dict(architecture={"name": "rnn"}),
     )
 
-    config = TrainConfig.from_dict(d)
+    config = api.TrainConfig.from_dict(d)
     assert config.train_url == "train_path"
     assert config.model.architecture.name == "rnn"
 
@@ -72,7 +142,7 @@ def test_TrainConfig_from_dict():
 def test_TrainConfig_from_dict_full():
 
     expected = get_default_config()
-    result = TrainConfig.from_dict(asdict(expected))
+    result = api.TrainConfig.from_dict(asdict(expected))
 
     assert result == expected
 
@@ -86,49 +156,40 @@ def test_TrainConfig_from_flat_dict():
         "model.architecture.name": "rnn",
     }
 
-    config = TrainConfig.from_flat_dict(d)
+    config = api.TrainConfig.from_flat_dict(d)
 
     assert config.train_url == "train_path"
     assert config.model.architecture.name == "rnn"
 
     expected = get_default_config()
     flat_dict = to_flat_dict(asdict(expected))
-    result = TrainConfig.from_flat_dict(flat_dict)
+    result = api.TrainConfig.from_flat_dict(flat_dict)
     assert result == expected
 
 
 def test_TrainConfig_from_yaml(tmp_path: PosixPath):
-    default = TrainConfig(test_url=".", train_url=".", out_url=".")
+    default = api.TrainConfig(test_url=".", train_url=".", out_url=".")
     yaml_path = tmp_path / "train_config.yaml"
     yaml_path.write_text(default.to_yaml())
-    loaded = TrainConfig.from_yaml_path(yaml_path.as_posix())
+    loaded = api.TrainConfig.from_yaml_path(yaml_path.as_posix())
     assert loaded == default
 
 
-def test_TrainConfig_from_args_default():
+def test_TrainConfig_from_args(tmp_path: pathlib.Path):
 
-    default = get_default_config()
-
-    args = ["--config-path", "default"]
-    config = TrainConfig.from_args(args=args)
-
-    assert config == default
-
-
-def test_TrainConfig_from_args_sysargv(monkeypatch):
+    config = get_default_config()
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(config.to_yaml())
 
     args = [
-        "unused_sysv_arg",
         "--config-path",
-        "default",
+        config_path.as_posix(),
         "--epochs",
         "4",
         "--model.architecture.name",
         "rnn",
     ]
-    monkeypatch.setattr(sys, "argv", args)
-
-    config = TrainConfig.from_args()
+    config = api.TrainConfig.from_args(args)
 
     assert config.epochs == 4
     assert config.model.architecture.name == "rnn"
@@ -145,17 +206,17 @@ def test_training_entry_integration(tmp_path):
     config_dict["nfiles_valid"] = 4
     config_dict["epochs"] = 1
 
-    config = TrainConfig.from_dict(config_dict)
+    config = api.TrainConfig.from_dict(config_dict)
 
-    main(config)
+    api.main(config)
 
 
 def test_MicrophysicsHyperParameters_build_model():
     field = Field("out", "in")
     in_ = "in"
     out = "out"
-    config = TransformedParameters(
-        model=MicrophysicsConfig(
+    config = api.TransformedParameters(
+        model=api.MicrophysicsConfig(
             input_variables=[in_],
             direct_out_variables=[out],
             architecture=ArchitectureConfig("dense"),
@@ -170,7 +231,7 @@ def test_MicrophysicsHyperParameters_build_model():
 
 
 def test_TrainConfig_build_loss():
-    config = TrainConfig(".", ".", ".", loss=CustomLoss(loss_variables=["x"]))
+    config = api.TrainConfig(".", ".", ".", loss=CustomLoss(loss_variables=["x"]))
     # needs to be random or the normalized loss will have nan
     data = {"x": tf.random.uniform(shape=(4, 10))}
     transform = Mock()
@@ -184,7 +245,7 @@ def test_TrainConfig_build_loss():
 def test_TrainConfig_GscondClassesV1():
     timestep = 1.0
     config_dict = {"tensor_transform": [{"timestep": timestep}]}
-    config = TrainConfig.from_dict(config_dict)
+    config = api.TrainConfig.from_dict(config_dict)
 
     data = {
         "cloud_water_mixing_ratio_input": tf.ones((1, 4)),
@@ -200,25 +261,25 @@ def test_TrainConfig_GscondClassesV1():
 
 def test_TrainConfig_model_variables_with_backwards_transform():
     route = GscondRoute()
-    config = TrainConfig(tensor_transform=[route], model=MicrophysicsConfig())
+    config = api.TrainConfig(tensor_transform=[route], model=api.MicrophysicsConfig())
     assert config.model_variables >= route.backward_input_names()
 
 
 def test_TrainConfig_input_variables_with_backwards_transform():
     route = GscondRoute()
-    config = TrainConfig(tensor_transform=[route], model=MicrophysicsConfig())
+    config = api.TrainConfig(tensor_transform=[route], model=api.MicrophysicsConfig())
     assert set(config.input_variables) >= route.backward_input_names()
 
 
 def test_TrainConfig_inputs_routed():
     this_file = PosixPath(__file__)
     path = this_file.parent / "gscond-only-routed.yaml"
-    config = TrainConfig.from_yaml_path(path.as_posix())
+    config = api.TrainConfig.from_yaml_path(path.as_posix())
     assert "air_temperature_after_gscond" not in config.input_variables
     assert "specific_humidity_after_gscond" not in config.input_variables
     assert "cloud_water_mixing_ratio_after_gscond" not in config.input_variables
 
 
 def test_TrainConfig_filters():
-    config = TrainConfig(filters=[HighAntarctic()], model=MicrophysicsConfig())
+    config = api.TrainConfig(filters=[HighAntarctic()], model=api.MicrophysicsConfig())
     assert {"latitude", "surface_air_pressure"} <= config.model_variables

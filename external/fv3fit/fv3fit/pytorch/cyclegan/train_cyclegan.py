@@ -1,3 +1,4 @@
+import random
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
 import tensorflow as tf
@@ -5,10 +6,14 @@ import torch
 from fv3fit.pytorch.system import DEVICE
 import tensorflow_datasets as tfds
 from fv3fit.tfdataset import sequence_size, apply_to_tuple
+from pathlib import Path
+import secrets
+from datetime import datetime
 
 from fv3fit._shared import register_training_function
 from typing import (
     Callable,
+    Iterable,
     List,
     Mapping,
     Optional,
@@ -66,12 +71,19 @@ class CycleGANTrainingConfig:
         validation_batch_size: number of samples to use per batch for validation,
             does not affect training result but allows the use of out-of-sample
             validation data
+        in_memory: if True, load the entire dataset into memory as pytorch tensors
+            before training. Batches will be statically defined but will be shuffled
+            between epochs.
+        checkpoint_path: if given, model checkpoints will be saved to this directory
+            marked by timestamp, epoch, and a randomly generated run label
     """
 
     n_epoch: int = 20
     shuffle_buffer_size: int = 10
     samples_per_batch: int = 1
     validation_batch_size: Optional[int] = None
+    in_memory: bool = False
+    checkpoint_path: Optional[str] = None
 
     def fit_loop(
         self,
@@ -88,10 +100,10 @@ class CycleGANTrainingConfig:
                 to the model, should be unbatched and have dimensions
                 [time, tile, z, x, y]
         """
-        train_data = train_data.shuffle(buffer_size=self.shuffle_buffer_size).batch(
-            self.samples_per_batch
-        )
-        train_data = tfds.as_numpy(train_data)
+        if self.shuffle_buffer_size > 1:
+            train_data = train_data.shuffle(buffer_size=self.shuffle_buffer_size)
+        train_data = train_data.batch(self.samples_per_batch)
+        train_data_numpy = tfds.as_numpy(train_data)
         if validation_data is not None:
             if self.validation_batch_size is None:
                 validation_batch_size = sequence_size(validation_data)
@@ -99,13 +111,30 @@ class CycleGANTrainingConfig:
                 validation_batch_size = self.validation_batch_size
             validation_data = validation_data.batch(validation_batch_size)
             validation_data = tfds.as_numpy(validation_data)
+        if self.in_memory:
+            train_states: Iterable[
+                Tuple[torch.Tensor, torch.Tensor]
+            ] = dataset_to_tuples(train_data_numpy)
+        else:
+            train_states = DatasetStateIterator(train_data_numpy)
+        self._fit_loop(train_model, train_states, validation_data)
+
+    def _fit_loop(
+        self,
+        train_model: CycleGANTrainer,
+        train_states: Iterable[Tuple[torch.Tensor, torch.Tensor]],
+        validation_data: Optional[tf.data.Dataset],
+    ):
+        run_label = secrets.token_hex(4)
+        # current time as e.g. 20230113-163005
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
-            for batch_state in train_data:
-                state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
-                state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+            for state_a, state_b in train_states:
                 train_losses.append(train_model.train_on_batch(state_a, state_b))
+            if isinstance(train_states, list):
+                random.shuffle(train_states)
             train_loss = {
                 name: np.mean([data[name] for data in train_losses])
                 for name in train_losses[0]
@@ -115,6 +144,36 @@ class CycleGANTrainingConfig:
             if validation_data is not None:
                 val_loss = train_model.evaluate_on_dataset(validation_data)
                 logger.info("val_loss %s", val_loss)
+
+            if self.checkpoint_path is not None:
+                current_path = (
+                    Path(self.checkpoint_path)
+                    / f"{timestamp}-{run_label}-epoch_{i:03d}"
+                )
+                train_model.cycle_gan.dump(str(current_path))
+
+
+def dataset_to_tuples(dataset) -> List[Tuple[torch.Tensor, torch.Tensor]]:
+    states = []
+    batch_state: Tuple[np.ndarray, np.ndarray]
+    for batch_state in dataset:
+        state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
+        state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+        states.append((state_a, state_b))
+    return states
+
+
+class DatasetStateIterator:
+    """Iterator over a dataset that returns states as numpy arrays"""
+
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __iter__(self):
+        for batch_state in self.dataset:
+            state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
+            state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
+            yield state_a, state_b
 
 
 def apply_to_tuple_mapping(func):
@@ -155,6 +214,15 @@ def channels_first(data: tf.Tensor) -> tf.Tensor:
     return tf.transpose(data, perm=[0, 1, 2, 5, 3, 4])
 
 
+def force_cudnn_initialization():
+    # workaround for https://stackoverflow.com/questions/66588715/runtimeerror-cudnn-error-cudnn-status-not-initialized-using-pytorch  # noqa: E501
+    torch.cuda.empty_cache()
+    s = 8
+    torch.nn.functional.conv2d(
+        torch.zeros(s, s, s, s, device=DEVICE), torch.zeros(s, s, s, s, device=DEVICE)
+    )
+
+
 @register_training_function("cyclegan", CycleGANHyperparameters)
 def train_cyclegan(
     hyperparameters: CycleGANHyperparameters,
@@ -171,6 +239,7 @@ def train_cyclegan(
         validation_batches: validation data, as a dataset of Mapping[str, tf.Tensor]
             where each tensor has dimensions [sample, time, tile, x, y(, z)]
     """
+    force_cudnn_initialization()
     train_batches = train_batches.map(apply_to_tuple_mapping(ensure_nd(6)))
     sample_batch = next(
         iter(train_batches.unbatch().batch(hyperparameters.normalization_fit_samples))
@@ -194,8 +263,11 @@ def train_cyclegan(
 
     train_state = train_batches.map(get_Xy)
 
+    sample: tf.Tensor = next(iter(train_state))[0]
     train_model = hyperparameters.network.build(
-        n_state=next(iter(train_state))[0].shape[-1],
+        nx=sample.shape[-3],
+        ny=sample.shape[-2],
+        n_state=sample.shape[-1],
         n_batch=hyperparameters.training.samples_per_batch,
         state_variables=hyperparameters.state_variables,
         scalers=scalers,

@@ -94,12 +94,24 @@ class ModelConfig:
             inferred from the cloud change after all masks have been applied. The
             latent heat is inferred assuming liquid condensate. Differs from,
             but typically used in concert with ``gscond_cloud_conservative``.
+        enforce_conservative_phase_dependent: Same as ``enforce_conservative``
+            but uses temperature and cloud dependent latent heat value similar
+            to the gscond.f.
         tensor_transform: differerentiable tensorflow
             transformations to apply before and after data is passed to models.
             Currently only works with transforms that do not require to be
             built.
         batch_size: number of columns to batch the ml prediction by. May reduce
             memory use.
+        enforce_strict_precpd_conservative: Use a conservation to determine total precip
+            from clouds, and then update evaporation and temperature based on
+            available precip at each vertical level (considering fluxes from above).
+            Ensures precipitation values are never negative and that
+            evaporation is limited to the amount of available precip in each cell.
+            Final temperature values are inferred from the adjusted evaporation
+            in this case.
+        simple_precip_conservative: A precip conservation method which sums total water
+            change in cloud and vapor without consideration for limitations
     """
 
     path: Optional[str] = None
@@ -115,10 +127,20 @@ class ModelConfig:
     mask_gscond_identical_cloud: bool = False
     mask_gscond_zero_cloud: bool = False
     enforce_conservative: bool = False
+    enforce_conservative_phase_dependent: bool = False
     mask_gscond_zero_cloud_classifier: bool = False
     mask_gscond_no_tend_classifier: bool = False
     mask_precpd_zero_cloud_classifier: bool = False
+    enforce_strict_precpd_conservative: bool = False
+    simple_precip_conservative: bool = False
     batch_size: int = 512
+
+    def __post_init__(self):
+        if self.enforce_conservative and self.enforce_conservative_phase_dependent:
+            raise ValueError("These options are mutually exclusive.")
+
+        if self.enforce_strict_precpd_conservative and self.simple_precip_conservative:
+            raise ValueError("Conservative precip flags should not both be true.")
 
     @property
     def _transform_factory(self) -> ComposedTransformFactory:
@@ -185,6 +207,13 @@ class ModelConfig:
 
         if self.enforce_conservative:
             yield emulation.zhao_carr.enforce_conservative_gscond
+        elif self.enforce_conservative_phase_dependent:
+            yield emulation.zhao_carr.enforce_conservative_phase_dependent
+
+        if self.simple_precip_conservative:
+            yield emulation.zhao_carr.conservative_precip_simple
+        elif self.enforce_strict_precpd_conservative:
+            yield emulation.zhao_carr.enforce_conservative_precpd
 
         for key, _slice in self.mask_emulator_levels.items():
             yield LevelMask(

@@ -25,46 +25,43 @@ class GasClass:
     cl4vmr_def = 1.397e-10
     f113vmr_def = 8.2000e-11
 
-    def __init__(self, me, iozn, ico2, ictm):
+    def __init__(self, rank, iozn, ico2, ictm):
         self.kyrsav = 0
         self.kmonsav = 1
 
-        self.me = me
+        self.rank = rank
         self.ioznflg = iozn
         self.ico2flg = ico2
         self.ictmflg = ictm
 
-        if self.ioznflg > 0:
-            if self.me == 0:
-                print(" - Using interactive ozone distribution")
-        else:
-            print("Climatological ozone data not implemented")
-
         #  --- ...  co2 data section
 
         self.co2_glb = self.co2vmr_def
-        self.gco2cyc = np.zeros(12)
 
-        if self.ico2flg == 0:
-            if me == 0:
-                print(f"- Using prescribed co2 global mean value={self.co2vmr_def}")
+    @classmethod
+    def validate(cls, ioznflg, ico2flg, ictmflg):
+        if ioznflg > 0:
+            print(" - Using interactive ozone distribution")
+        else:
+            print("Climatological ozone data not implemented")
+
+        if ico2flg == 0:
+            print(f"- Using prescribed co2 global mean value={cls.co2vmr_def}")
 
         else:
-            if self.ictmflg == -1:  # input user provided data
+            if ictmflg == -1:  # input user provided data
                 print("ictmflg = -1 is not implemented")
 
             else:  # input from observed data
-                if self.ico2flg == 1:
+                if ico2flg == 1:
                     print("Using observed co2 global annual mean value")
 
-                elif self.ico2flg == 2:
-                    if me == 0:
-                        print("Using observed co2 monthly 2-d data")
-                        self.co2vmr_sav = np.zeros((self.IMXCO2, self.JMXCO2, 12))
+                elif ico2flg == 2:
+                    print("Using observed co2 monthly 2-d data")
 
                 else:
                     raise ValueError(
-                        f" ICO2={self.ico2flg}, is not a valid selection",
+                        f" ICO2={ico2flg}, is not a valid selection",
                         " - Stoped in subroutine gas_init!!!",
                     )
 
@@ -76,7 +73,7 @@ class GasClass:
         outdict = {"co2vmr_sav": self.co2vmr_sav, "gco2cyc": self.gco2cyc}
         return outdict
 
-    def gas_update(self, iyear, imon, iday, ihour, loz1st, ldoco2, me, data_gases):
+    def gas_update(self, iyear, imon, iday, ihour, loz1st, ldoco2, data_gases):
         #  ===================================================================  !
         #                                                                       !
         #  gas_update reads in 2-d monthly co2 data set for a specified year.   !
@@ -89,7 +86,6 @@ class GasClass:
         #     ihour   - hour of the day                             1           !
         #     loz1st  - clim ozone 1st time update control flag     1           !
         #     ldoco2  - co2 update control flag                     1           !
-        #     me      - print message control flag                  1           !
         #                                                                       !
         #  outputs: (to the module variables)                                   !
         #    ( none )                                                           !
@@ -206,7 +202,7 @@ class GasClass:
         co2g1 = data_gases["co2g1"]
         co2g2 = data_gases["co2g2"]
 
-        if me == 0:
+        if self.rank == 0:
             print(f"{iyr}, {cline} {co2g1},  GROWTH RATE = {co2g2}")
         #  --- ...  add growth rate if needed
         if lextpl:
@@ -215,7 +211,7 @@ class GasClass:
             rate = 0.0
 
         self.co2_glb = (co2g1 + rate) * 1.0e-6
-        if me == 0:
+        if self.rank == 0:
             print(f"Global annual mean CO2 data for year {iyear} = {self.co2_glb}")
 
         if self.ictmflg == -2:  # need to calc ic time annual mean first
@@ -225,7 +221,7 @@ class GasClass:
                 co2dat = data_gases["co2dat"]
                 co2vmr_sav = (co2dat + rate) * 1.0e-6
 
-                if me == 0:
+                if self.rank == 0:
                     print(
                         "CHECK: Sample of selected months of CO2 ",
                         f"data used for year: {iyear}",

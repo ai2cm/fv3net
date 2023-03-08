@@ -2,7 +2,6 @@
 
 from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 import os
-import xarray as xr
 import fsspec
 import numpy as np
 import pandas as pd
@@ -32,6 +31,7 @@ from fv3net.diagnostics.prognostic_run.constants import (
     DEFAULT_FIGURE_HEIGHT,
     REFERENCE_HOVMOLLER_DURATION_SECONDS,
     MovieUrls,
+    GLOBAL_AVERAGE_DYCORE_VARS,
 )
 from fv3net.diagnostics._shared.constants import WVP, COL_DRYING
 
@@ -247,35 +247,51 @@ metrics_plot_manager = PlotManager()
 
 # Routines for plotting the "diagnostics"
 @timeseries_plot_manager.register
-def rms_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def rms_plots(diagnostics: RunDiagnostics) -> HVPlot:
     return plot_1d(diagnostics, varfilter="rms_global")
 
 
 @timeseries_plot_manager.register
-def spatial_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def spatial_mean_plots(diagnostics: RunDiagnostics) -> HVPlot:
     return plot_1d_with_region_bar(diagnostics, varfilter="spatial_mean")
 
 
 @timeseries_plot_manager.register
-def spatial_minmax_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def spatial_minmax_plots(diagnostics: RunDiagnostics) -> HVPlot:
     return plot_1d_min_max_with_region_bar(
         diagnostics, varfilter_min="spatial_min", varfilter_max="spatial_max"
     )
 
 
+@timeseries_plot_manager.register
+def custom_timeseries_plots(diagnostics: RunDiagnostics) -> HVPlot:
+    return plot_1d(diagnostics, varfilter="timeseries")
+
+
 @zonal_mean_plot_manager.register
-def zonal_mean_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def zonal_mean_plots(diagnostics: RunDiagnostics) -> HVPlot:
     return plot_1d(diagnostics, varfilter="zonal_and_time_mean")
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+def zonal_mean_hovmoller_plots(diagnostics: RunDiagnostics) -> RawHTML:
     return plot_2d_matplotlib(diagnostics, "zonal_mean_value", ["time", "latitude"])
 
 
 @hovmoller_plot_manager.register
-def zonal_mean_hovmoller_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+def zonal_mean_hovmoller_bias_plots(diagnostics: RunDiagnostics) -> RawHTML:
     return plot_2d_matplotlib(diagnostics, "zonal_mean_bias", ["time", "latitude"])
+
+
+@hovmoller_plot_manager.register
+def zonal_mean_short_term_bias_plots(diagnostics: RunDiagnostics) -> RawHTML:
+    return plot_2d_matplotlib(
+        diagnostics.trim_duration(np.timedelta64(3, "D")),
+        "zonal_mean_bias",
+        ["time", "latitude"],
+        title="3-day zonal mean bias",
+        plot_vars=[v.lower() for v in GLOBAL_AVERAGE_DYCORE_VARS],
+    )
 
 
 def infer_duration_seconds(diagnostics: RunDiagnostics) -> float:
@@ -309,7 +325,7 @@ def deep_tropical_meridional_mean_hovmoller_plots(
 
 
 def time_mean_cubed_sphere_maps(
-    diagnostics: Iterable[xr.Dataset], metrics: pd.DataFrame
+    diagnostics: RunDiagnostics, metrics: pd.DataFrame
 ) -> HVPlot:
     return plot_cubed_sphere_map(
         diagnostics,
@@ -320,7 +336,7 @@ def time_mean_cubed_sphere_maps(
 
 
 def time_mean_bias_cubed_sphere_maps(
-    diagnostics: Iterable[xr.Dataset], metrics: pd.DataFrame
+    diagnostics: RunDiagnostics, metrics: pd.DataFrame
 ) -> HVPlot:
     return plot_cubed_sphere_map(
         diagnostics,
@@ -334,7 +350,7 @@ def time_mean_bias_cubed_sphere_maps(
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+def zonal_pressure_plots(diagnostics: RunDiagnostics) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_time_mean",
@@ -345,7 +361,7 @@ def zonal_pressure_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
 
 
 @zonal_pressure_plot_manager.register
-def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
+def zonal_pressure_bias_plots(diagnostics: RunDiagnostics) -> RawHTML:
     return plot_2d_matplotlib(
         diagnostics,
         "pressure_level_zonal_bias",
@@ -358,34 +374,34 @@ def zonal_pressure_bias_plots(diagnostics: Iterable[xr.Dataset]) -> RawHTML:
 
 
 @diurnal_plot_manager.register
-def diurnal_cycle_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def diurnal_cycle_plots(diagnostics: RunDiagnostics) -> HVPlot:
     return plot_1d_with_region_bar(diagnostics, varfilter="diurnal")
 
 
 @diurnal_plot_manager.register
-def diurnal_cycle_component_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def diurnal_cycle_component_plots(diagnostics: RunDiagnostics) -> HVPlot:
     return diurnal_component_plot(diagnostics)
 
 
 @histogram_plot_manager.register
-def precip_histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def precip_histogram_plots(diagnostics: RunDiagnostics) -> RawHTML:
     return plot_histogram(
         diagnostics, f"{PRECIP_RATE}_histogram", xscale="log", yscale="log"
     )
 
 
 @histogram_plot_manager.register
-def water_vapor_path_histogram_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def water_vapor_path_histogram_plots(diagnostics: RunDiagnostics) -> RawHTML:
     return plot_histogram(diagnostics, f"{WVP}_histogram")
 
 
 @histogram_plot_manager.register
-def histogram2d_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def histogram2d_plots(diagnostics: RunDiagnostics) -> RawHTML:
     return plot_histogram2d(diagnostics, WVP, COL_DRYING)
 
 
 @histogram_plot_manager.register
-def conditional_average_plots(diagnostics: Iterable[xr.Dataset]) -> HVPlot:
+def conditional_average_plots(diagnostics: RunDiagnostics) -> HVPlot:
     return plot_1d(diagnostics, varfilter="conditional_average")
 
 

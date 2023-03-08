@@ -113,10 +113,15 @@ def main(args, unknown_args=None):
                 args=unknown_args, config_dict=config_dict
             )
         if args.no_wandb is False:
-            # hyperparameters are repeated as flattened top level keys so they can
-            # be referenced in the sweep configuration parameters
-            # https://github.com/wandb/client/issues/982
-            wandb.init(config=to_flat_dict(config_dict["hyperparameters"]))
+            wandb.init(
+                # workaround for
+                # https://docs.wandb.ai/guides/track/launch#init-start-error
+                settings=wandb.Settings(start_method="fork"),
+                # hyperparameters are repeated as flattened top level keys so they can
+                # be referenced in the sweep configuration parameters
+                # https://github.com/wandb/client/issues/982
+                config=to_flat_dict(config_dict["hyperparameters"]),
+            )
             # hyperparameters should be accessed throughthe wandb config so that
             # sweeps use the wandb-provided hyperparameter values
             config_dict["hyperparameters"] = to_nested_dict(wandb.config)
@@ -174,10 +179,27 @@ def main(args, unknown_args=None):
     ).print_json()
 
 
+def disable_tensorflow_gpu_preallocation():
+    """
+    Enables "memory growth" option on all gpus for tensorflow.
+
+    Without this, tensorflow will eagerly allocate all gpu memory,
+    leaving none for pytorch.
+    """
+    gpus = tf.config.list_physical_devices("GPU")
+    if gpus:
+        # Currently, memory growth needs to be the same across GPUs
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logical_gpus = tf.config.list_logical_devices("GPU")
+        logging.info("%d physical gpus, %d logical gpus", len(gpus), len(logical_gpus))
+
+
 if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
+    disable_tensorflow_gpu_preallocation()
     os.makedirs("artifacts", exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,

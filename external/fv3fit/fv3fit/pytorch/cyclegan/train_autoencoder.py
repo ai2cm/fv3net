@@ -6,6 +6,7 @@ from fv3fit.pytorch.predict import PytorchPredictor
 from fv3fit.pytorch.loss import LossConfig
 from fv3fit.pytorch.optimizer import OptimizerConfig
 from fv3fit.pytorch.training_loop import TrainingConfig
+from .modules import ConvolutionFactory, convolution_factory_from_name
 
 from fv3fit._shared import register_training_function
 from typing import (
@@ -39,6 +40,7 @@ class AutoencoderHyperparameters(Hyperparameters):
     training_loop: "TrainingConfig" = dataclasses.field(
         default_factory=lambda: TrainingConfig()
     )
+    convolution_type: str = "conv2d"
     loss: LossConfig = LossConfig(loss_type="mse")
     noise_amount: float = 0.5
 
@@ -97,8 +99,13 @@ def train_autoencoder(
 
     train_state = train_batches.map(get_state)
 
+    sample: tf.Tensor = next(iter(train_state))[0]
     train_model = build_model(
-        hyperparameters.generator, n_state=next(iter(train_state)).shape[-1]
+        hyperparameters.generator,
+        nx=sample.shape[-3],
+        ny=sample.shape[-2],
+        n_state=sample.shape[-1],
+        convolution=convolution_factory_from_name(hyperparameters.convolution_type),
     )
 
     logging.debug("training with model structure: %s", train_model)
@@ -138,5 +145,13 @@ def channels_first(data: tf.Tensor) -> tf.Tensor:
     return tf.transpose(data, perm=[0, 1, 2, 5, 3, 4])
 
 
-def build_model(config: GeneratorConfig, n_state: int) -> Generator:
-    return config.build(channels=n_state).to(DEVICE)
+def build_model(
+    config: GeneratorConfig,
+    n_state: int,
+    nx: int,
+    ny: int,
+    convolution: ConvolutionFactory,
+) -> Generator:
+    return config.build(channels=n_state, nx=nx, ny=ny, convolution=convolution).to(
+        DEVICE
+    )

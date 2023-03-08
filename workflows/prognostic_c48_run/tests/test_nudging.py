@@ -23,7 +23,7 @@ def test__time_to_label():
 # tests of nudging tendency below adapted from pace.util versions
 
 
-@pytest.fixture(params=["empty", "one_var", "multiple_vars"])
+@pytest.fixture(params=["empty", "one_var", "multiple_vars", "a_grid_winds"])
 def state(request):
     if request.param == "empty":
         return {}
@@ -48,6 +48,15 @@ def state(request):
                 np.ones([5]), dims=["dim_2"], attrs={"units": "m/s"}
             ),
             "y_wind": xr.DataArray(
+                np.ones([5]), dims=["dim_2"], attrs={"units": "m/s"}
+            ),
+        }
+    elif request.param == "a_grid_winds":
+        return {
+            "eastward_wind": xr.DataArray(
+                np.ones([5]), dims=["dim_2"], attrs={"units": "m/s"}
+            ),
+            "northward_wind": xr.DataArray(
                 np.ones([5]), dims=["dim_2"], attrs={"units": "m/s"}
             ),
         }

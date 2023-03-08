@@ -1,3 +1,4 @@
+bias_correction: null
 data_table: default
 diag_table:
   base_time: 2000-01-01 00:00:00
@@ -427,12 +428,7 @@ namelist:
     fvmxl: 99999
     ldebug: false
 nudging: null
-online_emulator:
-  emulator: some/path
-  ignore_humidity_below: null
-  mask_kind: default
-  online: false
-  train: true
+online_emulator: null
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 patch_files: []
 prephysics: null
@@ -446,6 +442,8 @@ zhao_carr_emulation:
     classifier_path: null
     cloud_squash: null
     enforce_conservative: false
+    enforce_conservative_phase_dependent: false
+    enforce_strict_precpd_conservative: false
     gscond_cloud_conservative: false
     mask_emulator_levels: {}
     mask_gscond_identical_cloud: false
@@ -458,6 +456,7 @@ zhao_carr_emulation:
       period: 21600
     path: gs://vcm-ml-experiments/microphysics-emulation/2022-03-02/limit-tests-limiter-all-loss-rnn-7ef273/model.tf
     ranges: {}
+    simple_precip_conservative: false
     tensor_transform: []
   storage:
     output_freq_sec: 3600

@@ -10,7 +10,12 @@ import numpy as np
 from sklearn.pipeline import Pipeline, make_pipeline
 import yaml
 from fv3fit import _shared, tfdataset
-from fv3fit._shared import stacking, SAMPLE_DIM_NAME
+from fv3fit._shared.stacking import (
+    stack,
+    SAMPLE_DIM_NAME,
+    Z_DIM_NAMES,
+    match_prediction_to_input_coords,
+)
 from fv3fit._shared.training_config import (
     OCSVMNoveltyDetectorHyperparameters,
     register_training_function,
@@ -116,8 +121,8 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         start_time = time.time()
         self.logger.info(f"Predicting with OCSVM novelty detector.")
 
-        stacked_data = stacking.stack_non_vertical(
-            safe.get_variables(data, self.input_variables)
+        stacked_data = stack(
+            safe.get_variables(data, self.input_variables), unstacked_dims=Z_DIM_NAMES
         )
 
         X, _ = pack(
@@ -126,9 +131,7 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         stacked_scores = -1 * self.pipeline.score_samples(X)
 
         new_coords = {
-            k: v
-            for (k, v) in stacked_data.coords.items()
-            if k not in stacking.Z_DIM_NAMES
+            k: v for (k, v) in stacked_data.coords.items() if k not in Z_DIM_NAMES
         }
         stacked_scores = xr.DataArray(
             stacked_scores, dims=[SAMPLE_DIM_NAME], coords=new_coords
@@ -145,7 +148,7 @@ class OCSVMNoveltyDetector(NoveltyDetector):
             f"Finished predicting with OCSVM novelty detector in {seconds}s."
         )
 
-        return stacking.match_prediction_to_input_coords(data, score_dataset)
+        return match_prediction_to_input_coords(data, score_dataset)
 
     def dump(self, path: str) -> None:
         assert self.is_trained

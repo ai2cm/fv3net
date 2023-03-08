@@ -1,4 +1,4 @@
-from typing import MutableMapping, Callable, Type
+from typing import MutableMapping, Callable, Type, TypeVar, cast
 import os
 import fsspec
 import warnings
@@ -11,6 +11,8 @@ _NAME_ENCODING = "UTF-8"
 
 DEPCRECATED_NAMES = {"packed-keras": "007bc80046c29ae3e2a535689b5c68e46cf2c613"}
 
+R = TypeVar("R", bound=Type[Reloadable])
+
 
 class _Register:
     """Class to register new I/O names
@@ -19,15 +21,15 @@ class _Register:
     def __init__(self) -> None:
         self._model_types: MutableMapping[str, Type[Reloadable]] = {}
 
-    def __call__(self, name: str) -> Callable[[Type[Reloadable]], Type[Reloadable]]:
+    def __call__(self, name: str) -> Callable[[R], R]:
         if name in self._model_types:
             raise ValueError(
                 f"{name} is already registered by {self._model_types[name]}."
             )
         else:
-            return partial(self._register_class, name=name)
+            return cast(Callable[[R], R], partial(self._register_class, name=name))
 
-    def _register_class(self, cls: Type[Reloadable], name: str) -> Type[Reloadable]:
+    def _register_class(self, cls: R, name: str) -> R:
         self._model_types[name] = cls
         return cls
 

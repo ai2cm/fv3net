@@ -1,4 +1,3 @@
-import os
 import numpy as np
 from .phys_const import con_tice, con_ttp, con_t0c, con_pi
 
@@ -11,65 +10,44 @@ class SurfaceClass:
     IMXEMS = 360
     JMXEMS = 180
 
-    def __init__(self, me, ialb, iems, semis_file, semis_data):
+    def __init__(self, ialb, iems, semis_data):
 
         self.ialbflg = ialb
         self.iemsflg = iems
-        self.semis_file = semis_file
+        self.iemslw = self.iemsflg % 10  # emissivity control
 
-        if me == 0:
-            print(self.VTAGSFC)  # print out version tag
+        if self.iemslw == 1:
+            self.idxems = semis_data["idxems"].values
+
+    @classmethod
+    def validate(cls, ialbflg, iemsflg):
+
+        print(cls.VTAGSFC)  # print out version tag
 
         # - Initialization of surface albedo section
         # physparam::ialbflg
         # = 0: using climatology surface albedo scheme for SW
         # = 1: using MODIS based land surface albedo for SW
 
-        if self.ialbflg == 0:
-            if me == 0:
-                print("- Using climatology surface albedo scheme for sw")
-
-        elif self.ialbflg == 1:
-            if me == 0:
-                print("- Using MODIS based land surface albedo for sw")
+        if ialbflg == 0:
+            print("- Using climatology surface albedo scheme for sw")
+        elif ialbflg == 1:
+            print("- Using MODIS based land surface albedo for sw")
         else:
-            raise ValueError(f"!! ERROR in Albedo Scheme Setting, IALB={self.ialbflg}")
+            raise ValueError(f"!! ERROR in Albedo Scheme Setting, IALB={ialbflg}")
 
         # - Initialization of surface emissivity section
         # physparam::iemsflg
         # = 0: fixed SFC emissivity at 1.0
         # = 1: input SFC emissivity type map from "semis_file"
 
-        self.iemslw = self.iemsflg % 10  # emissivity control
-        if self.iemslw == 0:  # fixed sfc emis at 1.0
-            if me == 0:
-                print("- Using Fixed Surface Emissivity = 1.0 for lw")
-
-        elif self.iemslw == 1:  # input sfc emiss type map
-            file_exist = os.path.isfile(self.semis_file)
-            if not file_exist:
-                if me == 0:
-                    print("- Using Varying Surface Emissivity for lw")
-                    print(f'Requested data file "{semis_file}" not found!')
-                    print("Change to fixed surface emissivity = 1.0 !")
-
-                self.iemslw = 0
-            else:
-
-                cline = semis_data["cline"].values
-                idxems = semis_data["idxems"].values
-
-                if me == 0:
-                    print("- Using Varying Surface Emissivity for lw")
-                    print(f"Opened data file: {semis_file}")
-                    print(cline)
+        iemslw = iemsflg % 10  # emissivity control
+        if iemslw == 0:  # fixed sfc emis at 1.0
+            print("- Using Fixed Surface Emissivity = 1.0 for lw")
+        elif iemslw == 1:  # input sfc emiss type map
+            print("- Using Varying Surface Emissivity for lw")
         else:
-            raise ValueError(
-                f"!! ERROR in Emissivity Scheme Setting, IEMS={self.iemsflg}"
-            )
-
-        self.cline = cline
-        self.idxems = idxems
+            raise ValueError(f"!! ERROR in Emissivity Scheme Setting, IEMS={iemsflg}")
 
     def return_initdata(self):
         outdict = {"idxems": self.idxems}
