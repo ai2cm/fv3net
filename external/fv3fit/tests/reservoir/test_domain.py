@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import pytest
 
 from fv3fit.reservoir.domain import (
@@ -143,3 +144,18 @@ def test_RankDivider_unstack_subdomain():
     np.testing.assert_array_equal(
         divider.unstack_subdomain(stacked, with_overlap=True), subdomain_arr
     )
+
+
+def test_RankDivider_dump_load(tmpdir):
+    kwargs = dict(
+        subdomain_layout=[2, 2],
+        rank_dims=["time", "x", "y", "z"],
+        rank_extent=[1, 28, 28, 79],
+        overlap=3,
+    )
+    divider = RankDivider(**kwargs)
+    path = os.path.join(str(tmpdir), "divider")
+    divider.dump(path)
+    loaded_divider = RankDivider.load(path)
+    for key in kwargs:
+        assert getattr(divider, key) == getattr(loaded_divider, key)
