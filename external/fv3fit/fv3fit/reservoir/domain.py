@@ -1,10 +1,9 @@
+import fsspec
 import numpy as np
 import tensorflow as tf
-from typing import Sequence, Tuple
-
+from typing import Sequence
+import yaml
 import pace.util
-
-Layout = Tuple[int, int]
 
 
 def slice_along_axis(arr: np.ndarray, inds: slice, axis: int = 0):
@@ -19,7 +18,7 @@ def slice_along_axis(arr: np.ndarray, inds: slice, axis: int = 0):
 class RankDivider:
     def __init__(
         self,
-        subdomain_layout: Layout,
+        subdomain_layout: Sequence[int],
         rank_dims: Sequence[str],
         rank_extent: Sequence[int],  # shape of full data, including overlap
         overlap: int,
@@ -38,7 +37,7 @@ class RankDivider:
         across subdomains. The data is preprocessed and saved as 1 C48 tile per rank,
         with n_halo=4. I would initialize the RankDivider as
             RankDivider(
-                subdomain_layout=(12, 12),
+                subdomain_layout=[12, 12],
                 rank_dims=["time", "x", "y", "z"],
                 rank_extent=[n_timesteps, 56, 56, 79],
                 overlap=4,
@@ -66,6 +65,22 @@ class RankDivider:
         self._rank_extent_without_overlap = self._get_rank_extent_without_overlap(
             rank_extent, overlap
         )
+
+    def dump(self, path):
+        metadata = {
+            "subdomain_layout": list(self.subdomain_layout),
+            "rank_dims": self.rank_dims,
+            "overlap": self.overlap,
+            "rank_extent": self.rank_extent,
+        }
+        with fsspec.open(path, "w") as f:
+            f.write(yaml.dump(metadata))
+
+    @classmethod
+    def load(cls, path):
+        with fsspec.open(path, "r") as f:
+            config = yaml.safe_load(f)
+        return cls(**config)
 
     def get_subdomain_extent(self, with_overlap: bool):
         subdomain_xy_size = (
