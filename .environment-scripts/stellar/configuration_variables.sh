@@ -17,8 +17,8 @@ FMS_LDFLAGS=
 FMS_LOG_DRIVER_FLAGS=
 FMS_CPPFLAGS='-Duse_LARGEFILE -DMAXFIELDMETHODS_=500 -DGFS_PHYS'
 FMS_FCFLAGS='-FR -i4 -r8'
-FMS_BATS=bat
-FMS_MAKE_OPTIONS=
+#FMS_BATS=bat
+
 # fv3gfs-fortran arguments
 FV3GFS_PLATFORM=stellar
 
@@ -29,3 +29,8 @@ MPI4PY_MPICC=mpicc
 # Python wrapper environment variables
 WRAPPER_CC='mpicc'
 WRAPPER_LDSHARED='mpicc -shared'
+
+# 'bat' executable destination
+
+export PATH=$HOME/software/bats_dest/bin:$PATH
+alias bat="$HOME/software/bats_dest/bin/bats"
