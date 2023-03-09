@@ -157,9 +157,14 @@ class CycleGANTrainingConfig:
                 break
         else:
             val_example_a, val_example_b = None, None  # type: ignore
-        run_label = secrets.token_hex(4)
         # current time as e.g. 20230113-163005
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        run_label = f"{timestamp}-{secrets.token_hex(4)}"
+        if self.checkpoint_path is not None:
+            logger.info(
+                "Saving checkpoints under %s",
+                os.path.join(self.checkpoint_path, f"{run_label}-epoch_###"),
+            )
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
@@ -202,7 +207,7 @@ class CycleGANTrainingConfig:
             reporter.clear()
             if self.checkpoint_path is not None:
                 current_path = os.path.join(
-                    self.checkpoint_path, f"{timestamp}-{run_label}-epoch_{i:03d}"
+                    self.checkpoint_path, f"{run_label}-epoch_{i:03d}"
                 )
                 io.dump(train_model.cycle_gan, str(current_path))
 
