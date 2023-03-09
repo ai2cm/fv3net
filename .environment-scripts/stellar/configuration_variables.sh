@@ -33,4 +33,3 @@ WRAPPER_LDSHARED='mpicc -shared'
 # 'bat' executable destination
 
 export PATH=$HOME/software/bats_dest/bin:$PATH
-alias bat="$HOME/software/bats_dest/bin/bats"
