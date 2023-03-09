@@ -11,6 +11,7 @@ PLATFORM_SCRIPTS=$SCRIPTS/$PLATFORM
 
 bash $PLATFORM_SCRIPTS/install_bat.sh 
 
+module load anaconda3/2022.10
 eval "$(conda shell.bash hook)"
 
 CONDA_PREFIX=$INSTALL_PREFIX/conda
