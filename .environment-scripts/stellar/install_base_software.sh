@@ -9,7 +9,7 @@ FV3NET_DIR=$4
 SCRIPTS=$FV3NET_DIR/.environment-scripts
 PLATFORM_SCRIPTS=$SCRIPTS/$PLATFORM
 
-bash $PLATFORM_SCRIPTS/install_bat.sh 
+bash $PLATFORM_SCRIPTS/install_bats.sh 
 
 module load anaconda3/2022.10
 eval "$(conda shell.bash hook)"
