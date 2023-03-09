@@ -32,7 +32,12 @@ from fv3fit._shared.scaler import StandardScaler
 import logging
 import numpy as np
 from .reloadable import CycleGAN
-from .cyclegan_trainer import CycleGANNetworkConfig, CycleGANTrainer, ResultsAggregator
+from .cyclegan_trainer import (
+    CycleGANNetworkConfig,
+    CycleGANTrainer,
+    ResultsAggregator,
+    unmerge_scaler_mappings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +53,8 @@ class CycleGANHyperparameters(Hyperparameters):
             normalization
         network: configuration for the CycleGAN network
         training: configuration for the CycleGAN training
+        reload_path: path to a directory containing a saved CycleGAN model to use
+            as a starting point for training
     """
 
     state_variables: List[str]
@@ -58,6 +65,7 @@ class CycleGANHyperparameters(Hyperparameters):
     training: "CycleGANTrainingConfig" = dataclasses.field(
         default_factory=lambda: CycleGANTrainingConfig()
     )
+    reload_path: Optional[str] = None
 
     @property
     def variables(self):
@@ -372,7 +380,14 @@ def train_cyclegan(
         iter(train_batches.unbatch().batch(hyperparameters.normalization_fit_samples))
     )
 
-    scalers = tuple(get_standard_scaler_mapping(entry) for entry in sample_batch)
+    if hyperparameters.reload_path is not None:
+        reloaded = CycleGAN.load(hyperparameters.reload_path)
+        merged_scalers = reloaded.scalers
+        scalers = unmerge_scaler_mappings(merged_scalers)
+    else:
+        scalers = tuple(
+            get_standard_scaler_mapping(entry) for entry in sample_batch
+        )  # type: ignore
     mapping_scale_funcs = tuple(
         get_mapping_standard_scale_func(scaler) for scaler in scalers
     )
@@ -399,6 +414,7 @@ def train_cyclegan(
         n_batch=hyperparameters.training.samples_per_batch,
         state_variables=hyperparameters.state_variables,
         scalers=scalers,
+        reload_path=hyperparameters.reload_path,
     )
 
     # time and tile dimensions aren't being used yet while we're using single-tile

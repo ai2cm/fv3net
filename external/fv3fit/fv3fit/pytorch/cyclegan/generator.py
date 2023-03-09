@@ -216,7 +216,7 @@ class Generator(nn.Module):
         except ValueError:
             time, state = None, inputs
         x = self._input_bias(state)
-        if time is not None:
+        if time is not None and hasattr(self, "_geographic_features"):
             x = self._geographic_features((time, x))
         x = self._main(x)
         outputs: torch.Tensor = self._output_bias(x)

@@ -1,4 +1,4 @@
-from typing import List, Literal, Mapping, Tuple, Optional
+from typing import List, Literal, Mapping, Sequence, Tuple, Optional
 from fv3fit._shared.scaler import StandardScaler
 from .reloadable import CycleGAN, CycleGANModule
 import torch
@@ -71,11 +71,31 @@ class CycleGANNetworkConfig:
     cycle_weight: float = 1.0
     generator_weight: float = 1.0
     discriminator_weight: float = 1.0
-    reload_path: Optional[str] = None
 
     def build(
-        self, n_state: int, nx: int, ny: int, n_batch: int, state_variables, scalers
+        self,
+        n_state: int,
+        nx: int,
+        ny: int,
+        n_batch: int,
+        state_variables: Sequence[str],
+        scalers: Tuple[Mapping[str, StandardScaler], Mapping[str, StandardScaler]],
+        reload_path: Optional[str] = None,
     ) -> "CycleGANTrainer":
+        """
+        Build a CycleGANTrainer object.
+
+        Args:
+            n_state: number of state variables in the input data
+            nx: number of grid points in the x direction
+            ny: number of grid points in the y direction
+            n_batch: number of samples in a batch
+            state_variables: list of state variable names
+            scalers: mapping from state variable name to StandardScaler
+                for domain A and B
+            reload_path: path to a directory containing a saved CycleGAN model to use
+                as a starting point for training
+        """
         if self.convolution_type == "conv2d":
             convolution = single_tile_convolution
         elif self.convolution_type == "halo_conv2d":
@@ -108,13 +128,13 @@ class CycleGANNetworkConfig:
             discriminator_a=discriminator_a,
             discriminator_b=discriminator_b,
         ).to(DEVICE)
-        if self.reload_path is not None:
-            reloaded = CycleGAN.load(self.reload_path)
+        if reload_path is not None:
+            reloaded = CycleGAN.load(reload_path)
             merged_scalers = reloaded.scalers
             model.load_state_dict(reloaded.model.state_dict(), strict=True)
         else:
             init_weights(model)
-            merged_scalers = _merge_scaler_mappings(scalers)
+            merged_scalers = merge_scaler_mappings(scalers)
         return CycleGANTrainer(
             cycle_gan=CycleGAN(
                 model=model, state_variables=state_variables, scalers=merged_scalers,
@@ -176,7 +196,7 @@ def init_weights(
     net.apply(init_func)  # apply the initialization function <init_func>
 
 
-def _merge_scaler_mappings(
+def merge_scaler_mappings(
     scaler_tuple: Tuple[Mapping[str, StandardScaler], Mapping[str, StandardScaler]]
 ) -> Mapping[str, StandardScaler]:
     scalers = {}
@@ -184,6 +204,22 @@ def _merge_scaler_mappings(
         for key, scaler in scaler_map.items():
             scalers[prefix + key] = scaler
     return scalers
+
+
+def unmerge_scaler_mappings(
+    scaler_mapping: Mapping[str, StandardScaler],
+) -> Tuple[Mapping[str, StandardScaler], Mapping[str, StandardScaler]]:
+    """Inverse of merge_scaler_mappings above."""
+    scalers_a = {}
+    scalers_b = {}
+    for key, scaler in scaler_mapping.items():
+        if key.startswith("a_"):
+            scalers_a[key[2:]] = scaler
+        elif key.startswith("b_"):
+            scalers_b[key[2:]] = scaler
+        else:
+            raise ValueError(f"Key {key} does not start with a_ or b_")
+    return scalers_a, scalers_b
 
 
 class StatsCollector:
@@ -406,6 +442,9 @@ class CycleGANTrainer:
     generator_weight: float = 1.0
     discriminator_weight: float = 1.0
     non_negativity_weight: float = 0.0
+    metric_percentiles: List[float] = dataclasses.field(
+        default_factory=lambda: [0.99, 0.999, 0.9999]
+    )
 
     def __post_init__(self):
         self.target_real: Optional[torch.autograd.Variable] = None
@@ -739,8 +778,53 @@ class CycleGANTrainer:
                 report[f"histogram_{i}"] = wandb.Image(
                     PIL.Image.open(buf), caption=f"Channel {i} Histograms",
                 )
+                # add error in n'th percentile for each percentile
+                # in self.metric_percentiles
+                for pct in self.metric_percentiles:
+                    report[
+                        f"percentile_{pct:0.6f}_gen_error_{i}"
+                    ] = get_percentile_error(
+                        res.bins,
+                        res.fake_b_histogram[i, :],
+                        res.real_b_histogram[i, :],
+                        pct,
+                    )
+                    report[
+                        f"percentile_{pct:0.6f}_a_minus_b_error_{i}"
+                    ] = get_percentile_error(
+                        res.bins,
+                        res.real_a_histogram[i, :],
+                        res.real_b_histogram[i, :],
+                        pct,
+                    )
 
         return report
+
+
+def get_percentile(bins: np.ndarray, hist: np.ndarray, pct: float):
+    """Returns the pct percentile of the histogram, where pct lies in (0, 1]."""
+    # get the normalized CDF based on the histogram
+    cdf = np.cumsum(hist)
+    cdf = cdf / cdf[-1]
+    # append initial zero to cdf as there are no values less than the first bin
+    cdf = np.insert(cdf, 0, 0)
+    # find within which bin the requested pct percentile falls
+    bin_idx = np.argmax(cdf > pct) - 1
+    # linearly interpolate within the bin to get the percentile value
+    pct_val = bins[bin_idx] + (bins[bin_idx + 1] - bins[bin_idx]) * (
+        pct - cdf[bin_idx]
+    ) / (cdf[bin_idx + 1] - cdf[bin_idx])
+    return pct_val
+
+
+def get_percentile_error(bins, hist_actual, hist_expected, pct):
+    """
+    Returns the error in the pct percentile of the histogram,
+    where pct lies in (0, 1].
+    """
+    pct_actual = get_percentile(bins, hist_actual, pct)
+    pct_expected = get_percentile(bins, hist_expected, pct)
+    return pct_actual - pct_expected
 
 
 def unpack_state(
