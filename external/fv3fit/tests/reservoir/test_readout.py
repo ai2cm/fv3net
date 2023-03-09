@@ -72,6 +72,23 @@ def test_BatchLinearRegressor():
     np.testing.assert_array_almost_equal(np.dot(X, coefficients) + intercepts, y)
 
 
+def test_readout_prediction_shape():
+    input_size = 6
+    output_size = 7
+    n_samples = 10
+    X = np.random.rand(n_samples, input_size)
+    y = np.random.rand(n_samples, output_size)
+    config = BatchLinearRegressorHyperparameters(
+        l2=0, add_bias_term=True, use_least_squares_solve=True
+    )
+    lr = BatchLinearRegressor(config)
+    lr.batch_update(X, y)
+    coef, intercepts = lr.get_weights()
+
+    readout = ReservoirComputingReadout(coefficients=coef, intercepts=intercepts)
+    assert readout.predict(X).shape == (n_samples, output_size)
+
+
 def test_BatchLinearRegressor_iterative_result_same_as_one_shot():
     x_dim, y_dim, N = 25, 5, 50
     l2 = 0.1
