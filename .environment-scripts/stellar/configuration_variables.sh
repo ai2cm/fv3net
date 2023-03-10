@@ -1,5 +1,7 @@
 #!/bin/bash
-  
+set -e
+INSTALL_PREFIX=$1
+
 # NCEPlibs arguments
 NCEPLIBS_PLATFORM=cheyenne
 NCEPLIBS_COMPILER=intel
@@ -30,6 +32,6 @@ MPI4PY_MPICC=mpicc
 WRAPPER_CC='mpicc'
 WRAPPER_LDSHARED='mpicc -shared'
 
-# 'bat' executable destination
+# 'bat' executable destination. Necceserry to build  FMS library
 
-export PATH=$HOME/software/bats_dest/bin:$PATH
+export PATH=$INSTALL_PREFIX/software/bats_dest/bin:$PATH
