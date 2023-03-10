@@ -52,20 +52,16 @@ def main(config):
         cftime.DatetimeJulian(*config["end_time"]) if "end_time" in config else TIME_END
     )
     inputs = coarse_ds[model.input_variables].sel(time=slice(start_time, end_time))
-    # this is a hack, because otherwise fv3fit will not allow grid-cell predictions
-    inputs = inputs.rename({"z": "hidden_vertical_dim"})
     time_slices = get_time_slices(len(inputs.time), TIME_SEGMENT_LENGTH)
     input_0 = inputs.isel(time=time_slices[0])
     prediction_0 = model.predict(input_0)
     output_path = config.get("output_path", OUTPUT_PATH)
-    prediction_0.rename({"hidden_vertical_dim": "z"}).to_zarr(output_path)
+    prediction_0.to_zarr(output_path)
     for time_slice in time_slices[1:]:
         input_ = inputs.isel(time=time_slice)
         print(input_.time[0].item())
         prediction = model.predict(input_)
-        prediction.rename({"hidden_vertical_dim": "z"}).to_zarr(
-            output_path, mode="a", append_dim="time"
-        )
+        prediction.to_zarr(output_path, mode="a", append_dim="time")
 
 
 if __name__ == "__main__":

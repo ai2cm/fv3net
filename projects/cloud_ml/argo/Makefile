@@ -39,6 +39,14 @@ fine_coarse_cloud_state_dataset_v6:
 offline_ml_cloud_predictions_dataset_v6:
 	cd ../scripts && python cloud-ml-rf-offline-predictions.py offline-predictions-v6.yaml
 
+.PHONY: offline_ml_cloud_predictions_dataset_v7
+offline_ml_cloud_predictions_dataset_v7:
+	cd ../scripts && python cloud-ml-rf-offline-predictions.py offline-predictions-v7.yaml
+
+.PHONY: offline_ml_cloud_predictions_dataset_v8
+offline_ml_cloud_predictions_dataset_v8:
+	cd ../scripts && python cloud-ml-rf-offline-predictions.py offline-predictions-v8.yaml
+
 .PHONY: baseline_port_run
 baseline_port_run: deploy
 	cd radiation-port-run && ./run.sh baseline-port
@@ -226,6 +234,14 @@ prescribed_rf_ml_quantile01_cc_decorr_run: deploy
 .PHONY: prescribed_cc_rf_ml_cond_10_cc_decorr_run
 prescribed_cc_rf_ml_cond_10_cc_decorr_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cc-rf-cond10-cc-decorr
+
+.PHONY: prescribed_cc_rf_ml_gridcell_run
+prescribed_cc_rf_ml_gridcell_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-gridcell
+
+.PHONY: prescribed_cc_rf_ml_incloud_run
+prescribed_cc_rf_ml_incloud_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud
 
 .PHONY: prescribed_half_cloud_run
 prescribed_half_cloud_run: deploy
