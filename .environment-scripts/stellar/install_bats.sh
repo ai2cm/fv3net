@@ -6,7 +6,7 @@ CLONE_DIR=$CLONE_PREFIX/software/bats_clone/
 
 URL=https://github.com/bats-core/bats-core.git
 
-git clone $URL $CLONE_PREFIX
+git clone $URL $CLONE_DIR
 
 bash $CLONE_DIR/install.sh $INSTALL_DIR
 
