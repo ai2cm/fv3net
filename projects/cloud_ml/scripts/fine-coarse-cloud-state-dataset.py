@@ -46,21 +46,23 @@ def get_fine_ds(scaling=None, keys=FINE_RESTARTS_KEYS):
             dataset = dataset.rename(RENAME_DIMS)
         datasets.append(dataset)
     ds = xr.merge(datasets)
-    ds_out = xr.Dataset()
-    fine_rename = config.get("fine_rename", FINE_TO_COARSE_RENAME)
-    for restart_name, python_name in fine_rename.items():
-        ds_out[python_name] = ds[restart_name]
-    return ds_out.drop_vars(COORD_VARS)
+    ds_3d = xr.Dataset()
+    for restart_name, python_name in FINE_TO_COARSE_RENAME.items():
+        fine_name = python_name + "_fine"
+        factor = scaling[fine_name] if fine_name in scaling else 1
+        print(f"{fine_name} scaling factor: {factor}.")
+        ds_3d[fine_name] = factor * ds[restart_name]
+    return ds_3d.drop_vars(COORD_VARS)
 
 
 def get_coarse_ds(path=COARSE_NUDGED_PATH):
     full_path = os.path.join(path, "state_after_timestep.zarr")
     ds = intake.open_zarr(full_path, consolidated=True).to_dask()
-    ds_out = xr.Dataset()
-    coarse_rename = config.get("coarse_rename", FINE_TO_COARSE_RENAME)
-    for old_name, new_name in coarse_rename.items():
-        ds_out[new_name] = ds[old_name]
-    return ds_out
+    ds_3d = xr.Dataset()
+    for var in FINE_TO_COARSE_RENAME.values():
+        coarse_name = var + "_coarse"
+        ds_3d[coarse_name] = ds[var]
+    return ds_3d
 
 
 def subset_times(coarse, fine):
@@ -106,9 +108,6 @@ def main(config):
     )
     coarse = get_coarse_ds(config.get("coarse_nudged_path", COARSE_NUDGED_PATH))
     coarse, fine = subset_times(coarse, fine)
-    assert (
-        len(set(coarse.data_vars).intersection(fine.data_vars)) == 0
-    ), "non-overlapping names"
     merged = xr.merge([fine, coarse, GRID, MASK])
     merged = rechunk(merged)
     try:
@@ -117,7 +116,6 @@ def main(config):
         raise KeyError('Config must contain "output_path".')
     with ProgressBar():
         print(f'Number of timesteps: {merged.sizes["time"]}.')
-        print(f"Data variables: {[var for var in merged.data_vars]}")
         merged.to_zarr(fsspec.get_mapper(output_path), consolidated=True)
 
 

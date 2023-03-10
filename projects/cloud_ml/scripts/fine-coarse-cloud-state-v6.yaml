@@ -1,5 +1,5 @@
 coarse_nudged_path: gs://vcm-ml-experiments/cloud-ml/2023-01-19/cloud-ml-training-data-nudge-to-fine-v6/fv3gfs_run
-output_path:  "gs://vcm-ml-experiments/cloud-ml/2023-01-24/predicted-fine-cloud-fields-v6.zarr"
+output_path:  "gs://vcm-ml-experiments/cloud-ml/2023-01-24/fine-coarse-3d-fields-v6.zarr"
 fine_keys:
   - 5day_c48_ccnorm_gfsphysics_15min_dec2022
   - 5day_c48_ccnorm_dec2022_restarts_as_zarr
