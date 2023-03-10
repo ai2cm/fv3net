@@ -1,10 +1,10 @@
-,bias,pct_change
-air_temperature,-0.42000000000000004,-0.17
-specific_humidity,1.5900000000000004e-05,0.59
-cloud_water_mixing_ratio,2.14e-07,2.81
-total_precipitation,2.7299999999999997e-07,0.86
-PWAT,0.165,0.63
-ULWRFtoa,-2.07,-0.88
-USWRFtoa,1.64,1.78
-h500,-1.18,-0.02
-net_outgoing,-0.43600000000000005,-0.13
+,bias,baseline mean,% change
+air_temperature,-0.42000000000000004,247.00000000000003,-0.17
+specific_humidity,1.5900000000000004e-05,0.00268,0.59
+cloud_water_mixing_ratio,2.14e-07,7.63e-06,2.8
+total_precipitation,2.7299999999999997e-07,3.16e-05,0.87
+PWAT,0.165,26.400000000000002,0.63
+ULWRFtoa,-2.07,237.0,-0.88
+USWRFtoa,1.64,92.10000000000001,1.78
+h500,-1.18,5660.0,-0.02
+net_outgoing,-0.43600000000000005,329.0,-0.13

@@ -12,6 +12,7 @@ import vcm.catalog
 import vcm
 import intake
 import xarray as xr
+from joblib import delayed, Parallel
 from fv3net.diagnostics.prognostic_run import load_run_data
 from fv3net.diagnostics.prognostic_run.emulation import query
 import wandb
@@ -104,6 +105,35 @@ def interp_vertical(ds, levels=vcm.interpolate.PRESSURE_GRID):
     return ds_interp
 
 
+def get_rh_from_ds(ds):
+    delp_key = "pressure_thickness_of_atmospheric_layer"
+    pressure = ds[delp_key].cumsum(dim="z") + 300.0
+    humidity = ds["specific_humidity"]
+    temperature = ds["air_temperature"]
+    return vcm.relative_humidity_from_pressure(temperature, humidity, pressure)
+
+
+def bootstrap_bias_signif(target, prediction, n_iters=10_000):
+    def _get_bias():
+        sample_len = prediction.shape[0]
+        target_idx = np.random.choice(sample_len, size=sample_len, replace=True)
+        pred_idx = np.random.choice(sample_len, size=sample_len, replace=True)
+        boot_target = target[target_idx]
+        boot_pred = prediction[pred_idx]
+        return (boot_pred - boot_target).mean(axis=0)
+
+    jobs = [delayed(_get_bias)() for i in range(n_iters)]
+    biases = Parallel(n_jobs=8, backend="threading")(jobs)
+
+    lb = np.percentile(biases, 2.5, axis=0)
+    ub = np.percentile(biases, 97.5, axis=0)
+
+    signif = np.logical_or(
+        np.logical_and(lb < 0, ub < 0), np.logical_and(lb > 0, ub > 0)
+    )
+    return biases, signif
+
+
 def open_prognostic_data(url, catalog):
 
     files = [
@@ -132,6 +162,23 @@ def open_group(group):
     prognostic = open_prognostic_data(url, catalog)
     data = prognostic.merge(grid, compat="override")
     return data
+
+
+def open_12init_from_group_prefix(prefix):
+
+    months = [f"{i:02d}" for i in range(1, 13)]
+    groups = [prefix.format(init=m) for m in months]
+
+    def _open_group(group):
+        offline = open_group(f"{group}-offline")
+        online = open_group(f"{group}-online")
+        return offline, online
+
+    jobs = [delayed(_open_group)(group) for group in groups]
+    results = Parallel(n_jobs=12)(jobs)
+
+    opened_map = {group: result for group, result in zip(groups, results)}
+    return opened_map
 
 
 def get_group_url(group):
