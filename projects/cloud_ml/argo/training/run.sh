@@ -22,7 +22,7 @@ argo submit --from workflowtemplate/training \
     -p training_config="$( yq . ${TRAINING}-training-config.yaml )" \
     -p training_data_config="$( yq . train.yaml )" \
     -p validation_data_config="${VALIDATION_ARG}" \
-    -p output="gs://${BUCKET}/${PROJECT}/$(date +%F)/${TAG}/trained_model" \
+    -p output="gs://${BUCKET}/${PROJECT}/$(date +%F)/${TAG}/trained_models/${TRAINING}" \
     -p memory="25Gi" \
     -p cpu="4000m" \
     -p flags="--cache.local_download_path train-data-download-dir" \
