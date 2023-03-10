@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Mapping
 
 import pace.util
 
@@ -158,3 +158,40 @@ def stack_time_series_samples(tensor):
     # Assumes time is the first dimension
     n_samples = tensor.shape[0]
     return np.reshape(tensor, (n_samples, -1))
+
+
+class DataReshaper:
+    """Responsible for manipulating array shapes during reservoir
+    training and inference.
+    """
+
+    def __init__(
+        self, variables: Sequence[str], rank_divider: RankDivider,
+    ):
+        self.rank_divider = rank_divider
+        self.variables = variables
+
+    def concat_variables_along_feature_dim(
+        self, variable_tensors: Mapping[str, tf.Tensor]
+    ):
+        # Concat variable tensors into a single tensor along the feature dimension
+        # which is assumed to be the last dim.
+        return tf.concat(
+            [variable_tensors[v] for v in self.variables], axis=-1, name="stack",
+        )
+
+    def flatten_subdomains_to_columns(self, data: tf.Tensor, with_overlap: bool):
+        # Divide into subdomains and flatten subdomains into columns.
+        # Dimensions [(time), x, y, feature_orig] -> [(time), feature_new, subdomain]
+        # where feature_orig is variables at each model level, and feature_new
+        # is variables at each model level and xy coord.
+        subdomains_to_columns = []
+        for s in range(self.rank_divider.n_subdomains):
+            subdomain_data = self.rank_divider.get_subdomain_tensor_slice(
+                data, subdomain_index=s, with_overlap=with_overlap
+            )
+            subdomains_to_columns.append(stack_time_series_samples(subdomain_data))
+        # Concatentate subdomain data arrays along a new subdomain axis.
+        # Dimensions are now [time, feature, submdomain]
+        reshaped = np.stack(subdomains_to_columns, axis=-1)
+        return reshaped
