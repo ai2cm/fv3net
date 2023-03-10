@@ -70,15 +70,12 @@ def test_dump_load_preserves_matrices(tmpdir):
     predictor.dump(output_path)
 
     loaded_predictor = ReservoirComputingModel.load(output_path)
+    assert _sparse_allclose(loaded_predictor.reservoir.W_in, predictor.reservoir.W_in,)
     assert _sparse_allclose(
-        loaded_predictor.reservoir.W_in.todense(), predictor.reservoir.W_in.todense()
+        loaded_predictor.reservoir.W_res, predictor.reservoir.W_res,
     )
     assert _sparse_allclose(
-        loaded_predictor.reservoir.W_res.todense(), predictor.reservoir.W_res.todense()
-    )
-    np.testing.assert_array_almost_equal(
-        loaded_predictor.readout.coefficients.todense(),
-        predictor.readout.coefficients.todense(),
+        loaded_predictor.readout.coefficients, predictor.readout.coefficients,
     )
     np.testing.assert_array_almost_equal(
         loaded_predictor.readout.intercepts, predictor.readout.intercepts
