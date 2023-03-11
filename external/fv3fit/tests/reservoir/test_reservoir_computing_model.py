@@ -1,26 +1,31 @@
+from fv3fit.reservoir.readout import ReservoirComputingReadout
 import numpy as np
+import pytest
 from scipy import sparse
 
 from fv3fit.reservoir import (
     ReservoirComputingModel,
-    ReservoirComputingReadout,
     Reservoir,
     ReservoirHyperparameters,
 )
-from fv3fit.reservoir.config import (
-    ReadoutHyperparameters,
-    BatchLinearRegressorHyperparameters,
+from fv3fit.reservoir.model import _square_even_terms
+
+
+@pytest.mark.parametrize(
+    "arr, axis, expected",
+    [
+        (np.arange(4), 0, np.array([0, 1, 4, 3])),
+        (np.arange(4).reshape(1, -1), 1, np.array([[0, 1, 4, 3]])),
+        (np.arange(8).reshape(2, 4), 0, np.array([[0, 1, 4, 9], [4, 5, 6, 7]])),
+        (
+            np.arange(10).reshape(2, 5),
+            1,
+            np.array([[0, 1, 4, 3, 16], [25, 6, 49, 8, 81]]),
+        ),
+    ],
 )
-
-
-def generic_readout(**readout_kwargs):
-    lr_config = BatchLinearRegressorHyperparameters(
-        l2=0, add_bias_term=True, use_least_squares_solve=True
-    )
-    readout_hyperparameters = ReadoutHyperparameters(
-        linear_regressor_config=lr_config, square_half_hidden_state=False
-    )
-    return ReservoirComputingReadout(readout_hyperparameters, **readout_kwargs)
+def test__square_even_terms(arr, axis, expected):
+    np.testing.assert_array_equal(_square_even_terms(arr, axis=axis), expected)
 
 
 class MultiOutputMeanRegressor:
@@ -54,19 +59,23 @@ def test_dump_load_preserves_matrices(tmpdir):
         input_coupling_sparsity=0,
     )
     reservoir = Reservoir(hyperparameters, input_size=input_size)
-    readout = generic_readout(
-        coefficients=np.random.rand(input_size, state_size),
+    readout = ReservoirComputingReadout(
+        coefficients=sparse.coo_matrix(np.random.rand(input_size, state_size)),
         intercepts=np.random.rand(input_size),
     )
-    predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
+    predictor = ReservoirComputingModel(
+        reservoir=reservoir, readout=readout, square_half_hidden_state=False,
+    )
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
 
     loaded_predictor = ReservoirComputingModel.load(output_path)
-    assert _sparse_allclose(loaded_predictor.reservoir.W_in, predictor.reservoir.W_in)
-    assert _sparse_allclose(loaded_predictor.reservoir.W_res, predictor.reservoir.W_res)
-    np.testing.assert_array_almost_equal(
-        loaded_predictor.readout.coefficients, predictor.readout.coefficients
+    assert _sparse_allclose(loaded_predictor.reservoir.W_in, predictor.reservoir.W_in,)
+    assert _sparse_allclose(
+        loaded_predictor.reservoir.W_res, predictor.reservoir.W_res,
+    )
+    assert _sparse_allclose(
+        loaded_predictor.readout.coefficients, predictor.readout.coefficients,
     )
     np.testing.assert_array_almost_equal(
         loaded_predictor.readout.intercepts, predictor.readout.intercepts
@@ -75,16 +84,19 @@ def test_dump_load_preserves_matrices(tmpdir):
 
 def test_prediction_shape():
     input_size = 15
+    state_size = 1000
     hyperparameters = ReservoirHyperparameters(
-        state_size=1000,
+        state_size=state_size,
         adjacency_matrix_sparsity=0.9,
         spectral_radius=1.0,
         input_coupling_sparsity=0,
     )
     reservoir = Reservoir(hyperparameters, input_size=input_size)
     reservoir.reset_state(input_shape=(input_size,))
-    readout = generic_readout()
-    readout.fit(reservoir.state.reshape(1, -1), np.ones((1, input_size)))
+    readout = ReservoirComputingReadout(
+        coefficients=np.random.rand(state_size, input_size),
+        intercepts=np.random.rand(input_size),
+    )
     predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
     # ReservoirComputingModel.predict reshapes the prediction to remove
     # the first dim of length 1 (sklearn regressors predict 2D arrays)
@@ -126,8 +138,11 @@ def test_prediction_after_load(tmpdir):
         input_coupling_sparsity=0,
     )
     reservoir = Reservoir(hyperparameters, input_size=input_size)
-    readout = generic_readout()
-    readout.fit(np.random.rand(1, state_size), np.ones((1, input_size)))
+
+    readout = ReservoirComputingReadout(
+        coefficients=np.random.rand(state_size, input_size),
+        intercepts=np.random.rand(input_size),
+    )
     predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
     predictor.reservoir.reset_state(input_shape=(input_size,))
 
