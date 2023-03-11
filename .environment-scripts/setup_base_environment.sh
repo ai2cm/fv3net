@@ -19,7 +19,7 @@ FMS_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FMS
 
 source $PLATFORM_SCRIPTS/configuration_variables.sh $INSTALL_PREFIX
 
-bash "$PLATFORM_SCRIPTS"/install_base_software.sh "$INSTALL_PREFIX" "$CLONE_PREFIX" "$CONDA_ENV" "$PLATFORM" "$FV3NET_DIR"
+bash "$PLATFORM_SCRIPTS"/install_base_software.sh "$CLONE_PREFIX" "$INSTALL_PREFIX" "$CONDA_ENV" "$PLATFORM_SCRIPTS"
 bash "$SCRIPTS"/install_nceplibs.sh "$CLONE_PREFIX"/NCEPlibs "$NCEPLIBS_DIR" "$NCEPLIBS_PLATFORM" "$NCEPLIBS_COMPILER"
 bash "$SCRIPTS"/install_esmf.sh "$CLONE_PREFIX"/esmf "$ESMF_DIR" "$ESMF_OS" "$ESMF_COMPILER" "$ESMF_SITE"
 

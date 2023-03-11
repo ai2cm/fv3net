@@ -1,8 +1,10 @@
 #!/bin/bash
 set -e
 
-INSTALL_PREFIX=$1
-CONDA_ENV=$2
+CLONE_PREFIX=$1
+INSTALL_PREFIX=$2
+CONDA_ENV=$3
+PLATFORM_SCRIPTS=$4
 
 module load python/3.9
 eval "$(conda shell.bash hook)"

@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+INSTALL_PREFIX=$1
 
 # Note that if any of these settings are changed, the base image will need to
 # be rebuilt.

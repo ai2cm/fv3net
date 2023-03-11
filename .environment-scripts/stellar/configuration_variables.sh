@@ -32,6 +32,5 @@ MPI4PY_MPICC=mpicc
 WRAPPER_CC='mpicc'
 WRAPPER_LDSHARED='mpicc -shared'
 
-# 'bat' executable destination. Necceserry to build  FMS library
-
-export PATH=$INSTALL_PREFIX/software/bats_dest/bin:$PATH
+# 'bat' executable destination. Necesary to build  FMS library
+export PATH=$INSTALL_PREFIX/bats-core/bin:$PATH

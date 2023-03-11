@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+INSTALL_PREFIX=$1
 
 # NCEPlibs arguments
 NCEPLIBS_PLATFORM=gaea

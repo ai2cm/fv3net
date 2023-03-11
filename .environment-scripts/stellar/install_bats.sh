@@ -1,13 +1,10 @@
-#!/bin/bash
 set -e
 
-INSTALL_DIR=$INSTALL_PREFIX/software/bats_dest/
-CLONE_DIR=$CLONE_PREFIX/software/bats_clone/
+CLONE_DIR=$1
+INSTALL_DIR=$2
 
 URL=https://github.com/bats-core/bats-core.git
 
-git clone $URL $CLONE_DIR
+git clone -b v1.9.0 --depth 1 $URL $CLONE_DIR
 
 bash $CLONE_DIR/install.sh $INSTALL_DIR
-
-
