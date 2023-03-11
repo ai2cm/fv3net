@@ -66,11 +66,13 @@ class RankDivider:
         self._rank_extent_without_overlap = self._get_rank_extent_without_overlap(
             rank_extent, overlap
         )
-
-    def get_subdomain_extent(self, with_overlap: bool):
-        subdomain_xy_size = (
+        # length of one side of subdomain along x/y axes
+        self.subdomain_xy_size_without_overlap = (
             self._rank_extent_without_overlap[self._x_ind] // self.subdomain_layout[0]
         )
+
+    def get_subdomain_extent(self, with_overlap: bool):
+        subdomain_xy_size = self.subdomain_xy_size_without_overlap
         if with_overlap:
             subdomain_xy_size += 2 * self.overlap
 
@@ -160,6 +162,33 @@ def stack_time_series_samples(tensor):
     return np.reshape(tensor, (n_samples, -1))
 
 
+def concat_variables_along_feature_dim(
+    variables: Sequence[str], variable_tensors: Mapping[str, tf.Tensor]
+):
+    # Concat variable tensors into a single tensor along the feature dimension
+    # which is assumed to be the last dim.
+    return tf.concat([variable_tensors[v] for v in variables], axis=-1, name="stack",)
+
+
+def flatten_subdomains_to_columns(
+    rank_divider: RankDivider, data: tf.Tensor, with_overlap: bool
+):
+    # Divide into subdomains and flatten subdomains into columns.
+    # Dimensions [(time), x, y, feature_orig] -> [(time), feature_new, subdomain]
+    # where feature_orig is variables at each model level, and feature_new
+    # is variables at each model level and xy coord.
+    subdomains_to_columns = []
+    for s in range(rank_divider.n_subdomains):
+        subdomain_data = rank_divider.get_subdomain_tensor_slice(
+            data, subdomain_index=s, with_overlap=with_overlap
+        )
+        subdomains_to_columns.append(stack_time_series_samples(subdomain_data))
+    # Concatentate subdomain data arrays along a new subdomain axis.
+    # Dimensions are now [time, feature, submdomain]
+    reshaped = np.stack(subdomains_to_columns, axis=-1)
+    return reshaped
+
+
 class DataReshaper:
     """Responsible for manipulating array shapes during reservoir
     training and inference.
@@ -170,15 +199,6 @@ class DataReshaper:
     ):
         self.rank_divider = rank_divider
         self.variables = variables
-
-    def concat_variables_along_feature_dim(
-        self, variable_tensors: Mapping[str, tf.Tensor]
-    ):
-        # Concat variable tensors into a single tensor along the feature dimension
-        # which is assumed to be the last dim.
-        return tf.concat(
-            [variable_tensors[v] for v in self.variables], axis=-1, name="stack",
-        )
 
     def flatten_subdomains_to_columns(self, data: tf.Tensor, with_overlap: bool):
         # Divide into subdomains and flatten subdomains into columns.
@@ -195,3 +215,30 @@ class DataReshaper:
         # Dimensions are now [time, feature, submdomain]
         reshaped = np.stack(subdomains_to_columns, axis=-1)
         return reshaped
+
+    def flat_prediction_to_2d_domain(self, flat_prediction: np.ndarray):
+        # Takes the flat prediction from the combined readout, which is a
+        # 1D array of (length N_subdomains x N_output_features_per_subdomain) of
+        # flat subdomain predictions concatented along the last axis.
+        n_subdomains = self.rank_divider.n_subdomains
+        xy_size = self.rank_divider.subdomain_xy_size_without_overlap
+
+        subdomain_columns = flat_prediction.reshape(-1, n_subdomains)
+        _reshaped_subdomains = []
+        for s in range(self.rank_divider.n_subdomains):
+            reshaped_subdomain = self.rank_divider.unstack_subdomain(
+                np.array([subdomain_columns[:, s]]), with_overlap=False
+            )
+            # The first dim has size 1 because a prediction is a single time step
+            _reshaped_subdomains.append(reshaped_subdomain[0])
+        reshaped_subdomains = np.array(_reshaped_subdomains)
+
+        domain = []
+        n_features = reshaped_subdomains.shape[-1]
+        for z in range(n_features):
+            domain_z_blocks = reshaped_subdomains[:, :, :, z].reshape(
+                *self.rank_divider.subdomain_layout, xy_size, xy_size
+            )
+            domain_z = np.concatenate(np.concatenate(domain_z_blocks, axis=1), axis=-1)
+            domain.append(domain_z)
+        return np.stack(domain, axis=0).transpose(1, 2, 0)
