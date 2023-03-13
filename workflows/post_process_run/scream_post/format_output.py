@@ -114,8 +114,12 @@ def convert_to_fv3_format(
         ds.p_mid, ds.vertical_thickness_of_atmospheric_layer, ds.ps
     )
 
-    ds["pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging"] = make_placeholder_data(
-        ds.air_temperature, "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging", 1e-1
+    ds[
+        "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging"
+    ] = make_placeholder_data(
+        ds.air_temperature,
+        "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging",
+        1e-1,
     )
     ds["air_temperature_tendency_due_to_nudging"] = make_placeholder_data(
         ds.air_temperature, "air_temperature_tendency_due_to_nudging", 1e-1
