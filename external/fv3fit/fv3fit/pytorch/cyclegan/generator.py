@@ -12,6 +12,7 @@ from .modules import (
     ResnetBlock,
     CurriedModuleFactory,
     GeographicFeatures,
+    GeographicBias,
 )
 
 
@@ -45,6 +46,9 @@ class GeneratorConfig:
         disable_convolutions: if True, ignore all layers other than bias (if enabled).
             Useful for debugging and for testing the effect of the
             geographic bias layer.
+        use_geographic_embedded_bias: if True, include a layer that adds a
+            trainable bias vector after the initial encoding layer that is
+            a function of horizontal coordinates.
     """
 
     n_convolutions: int = 3
@@ -54,6 +58,7 @@ class GeneratorConfig:
     max_filters: int = 256
     use_geographic_bias: bool = True
     disable_convolutions: bool = False
+    use_geographic_embedded_bias: bool = False
 
     def build(
         self,
@@ -73,19 +78,6 @@ class GeneratorConfig:
         return Generator(
             config=self, channels=channels, convolution=convolution, nx=nx, ny=ny,
         )
-
-
-class GeographicBias(nn.Module):
-    """
-    Adds a trainable bias vector of shape [6, channels, nx, ny] to the layer input.
-    """
-
-    def __init__(self, channels: int, nx: int, ny: int):
-        super().__init__()
-        self.bias = nn.Parameter(torch.zeros(6, channels, nx, ny))
-
-    def forward(self, x):
-        return x + self.bias
 
 
 class Generator(nn.Module):
@@ -163,13 +155,20 @@ class Generator(nn.Module):
             main = nn.Identity()
         else:
             in_channels = channels + GeographicFeatures.N_FEATURES
-            first_conv = nn.Sequential(
+            initial_layers = [
                 convolution(
                     kernel_size=7, in_channels=in_channels, out_channels=min_filters,
                 ),
                 FoldFirstDimension(nn.InstanceNorm2d(min_filters)),
-                relu_activation()(),
-            )
+            ]
+            if config.use_geographic_embedded_bias:
+                initial_layers.append(
+                    FoldFirstDimension(
+                        GeographicBias(channels=min_filters, nx=nx, ny=ny),
+                    )
+                )
+            initial_layers.append(relu_activation()())
+            first_conv = nn.Sequential(*initial_layers)
 
             encoder_decoder = SymmetricEncoderDecoder(
                 down_factory=down,

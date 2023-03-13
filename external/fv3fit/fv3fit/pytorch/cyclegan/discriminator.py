@@ -6,7 +6,9 @@ from toolz import curry
 import torch
 from .modules import (
     ConvolutionFactory,
+    FoldFirstDimension,
     GeographicFeatures,
+    GeographicBias,
     single_tile_convolution,
     leakyrelu_activation,
     ConvBlock,
@@ -30,12 +32,16 @@ class DiscriminatorConfig:
             strided convolutions
         max_filters: maximum number of filters in any convolutional layer,
             equal to the number of filters in the final strided convolutional layer
+        use_geographic_embedded_bias: if True, include a layer that adds a trainable
+            bias vector after the initial encoding layer. This bias is a
+            function of horizontal coordinates.
     """
 
     n_convolutions: int = 3
     kernel_size: int = 3
     strided_kernel_size: int = 3
     max_filters: int = 256
+    use_geographic_embedded_bias: bool = False
 
     def build(
         self,
@@ -53,6 +59,7 @@ class DiscriminatorConfig:
             nx=nx,
             ny=ny,
             convolution=convolution,
+            use_geographic_embedded_bias=self.use_geographic_embedded_bias,
         )
 
 
@@ -71,6 +78,7 @@ class Discriminator(nn.Module):
         nx: int,
         ny: int,
         convolution: ConvolutionFactory = single_tile_convolution,
+        use_geographic_embedded_bias: bool = False,
     ):
         """
         Args:
@@ -85,6 +93,9 @@ class Discriminator(nn.Module):
             nx: number of grid points in the x direction
             ny: number of grid points in the y direction
             convolution: factory for creating all convolutional layers
+            use_geographic_embedded_bias: if True, include a layer that adds a
+                trainable bias vector after the initial encoding layer that is
+                a function of horizontal coordinates.
         """
         super(Discriminator, self).__init__()
         if n_convolutions < 1:
@@ -97,17 +108,21 @@ class Discriminator(nn.Module):
         self._geographic_features = GeographicFeatures(nx=nx, ny=ny)
         in_channels += GeographicFeatures.N_FEATURES
         convs = []
-        convs.extend(
-            [
-                convolution(
-                    in_channels=in_channels,
-                    out_channels=min_filters,
-                    kernel_size=strided_kernel_size,
-                    stride=2,
-                ),
-                leakyrelu_activation(negative_slope=0.2, inplace=True)(),
-            ]
+        convs.append(
+            convolution(
+                in_channels=in_channels,
+                out_channels=min_filters,
+                kernel_size=strided_kernel_size,
+                stride=2,
+            )
         )
+        if use_geographic_embedded_bias:
+            convs.append(
+                FoldFirstDimension(
+                    GeographicBias(channels=min_filters, nx=int(nx / 2), ny=int(ny / 2))
+                )
+            )
+        convs.append(leakyrelu_activation(negative_slope=0.2, inplace=True)())
         # we've already defined the first strided convolutional layer, so start at 1
         for i in range(1, n_convolutions):
             convs.append(

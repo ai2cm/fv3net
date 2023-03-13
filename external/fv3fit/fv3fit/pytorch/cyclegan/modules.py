@@ -96,6 +96,19 @@ class GeographicFeatures(nn.Module):
         return torch.cat([x, geo_features], dim=-3)
 
 
+class GeographicBias(nn.Module):
+    """
+    Adds a trainable bias vector of shape [6, channels, nx, ny] to the layer input.
+    """
+
+    def __init__(self, channels: int, nx: int, ny: int):
+        super().__init__()
+        self.bias = nn.Parameter(torch.zeros(6, channels, nx, ny))
+
+    def forward(self, x):
+        return x + self.bias
+
+
 class ConvolutionFactory(Protocol):
     def __call__(
         self,
