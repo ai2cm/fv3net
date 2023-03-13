@@ -41,7 +41,7 @@ UNITS = {
 UNITS = {**UNITS, **{f"error_in_{k}": v for k, v in UNITS.items()}}
 UNITS = {**UNITS, **{f"{k}_snapshot": v for k, v in UNITS.items()}}
 
-GRID_INFO_VARS = [
+GRID_INFO_VARS_FV3 = [
     "eastward_wind_u_coeff",
     "eastward_wind_v_coeff",
     "northward_wind_u_coeff",
@@ -50,6 +50,13 @@ GRID_INFO_VARS = [
     "lon",
     "latb",
     "lonb",
+    "land_sea_mask",
+    "area",
+]
+
+GRID_INFO_VARS_SCREAM = [
+    "lat",
+    "lon",
     "land_sea_mask",
     "area",
 ]
@@ -143,11 +150,32 @@ def insert_rmse(ds: xr.Dataset):
 
 
 def load_grid_info(res: str = "c48"):
+    if "ne" in res:
+        return load_grid_info_scream(res)
+    elif "c" in res:
+        return load_grid_info_fv3(res)
+    else:
+        raise ValueError(f"Unknown evaluation grid {res}.")
+
+
+def load_grid_info_fv3(res):
     grid = catalog[f"grid/{res}"].read()
     wind_rotation = catalog[f"wind_rotation/{res}"].read()
     land_sea_mask = catalog[f"landseamask/{res}"].read()
     grid_info = xr.merge([grid, wind_rotation, land_sea_mask])
-    return safe.get_variables(grid_info, GRID_INFO_VARS).drop_vars(
+    return safe.get_variables(grid_info, GRID_INFO_VARS_FV3).drop_vars(
+        "tile", errors="ignore"
+    )
+
+
+def load_grid_info_scream(res):
+    grid = catalog[f"grid/{res}"].read()
+    land_sea_mask = catalog[f"landseamask/{res}"].read()
+    r_earth = 6.376e6
+    grid.area.values = grid.area.values * r_earth ** 2  # convert from radian^2 to m^2
+    grid.area.attrs["units"] = "m^2"
+    grid_info = xr.merge([grid, land_sea_mask])
+    return safe.get_variables(grid_info, GRID_INFO_VARS_SCREAM).drop_vars(
         "tile", errors="ignore"
     )
 

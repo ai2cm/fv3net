@@ -173,7 +173,9 @@ def _consolidate_dimensioned_data(ds):
     return ds_diagnostics, ds_scalar_metrics
 
 
-def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str]):
+def _get_transect(
+    ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str],
+):
     ds_snapshot_regrid_pressure = xr.Dataset()
     for var in variables:
         transect_var = [
@@ -267,16 +269,15 @@ def get_prediction(
     batches = config.load_batches(model_variables)
 
     transforms = [_get_predict_function(model, model_variables)]
-
-    prediction_resolution = res_from_string(config.res)
-    if prediction_resolution != evaluation_resolution:
-        transforms.append(
-            _coarsen_transform(
-                evaluation_resolution=evaluation_resolution,
-                prediction_resolution=prediction_resolution,
+    if config.gsrm_name == "fv3":
+        prediction_resolution = res_from_string(config.res)
+        if prediction_resolution != evaluation_resolution:
+            transforms.append(
+                _coarsen_transform(
+                    evaluation_resolution=evaluation_resolution,
+                    prediction_resolution=prediction_resolution,
+                )
             )
-        )
-
     mapping_function = compose_left(*transforms)
     batches = loaders.Map(mapping_function, batches)
 

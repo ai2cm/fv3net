@@ -998,3 +998,27 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-code-testing-data/c8-grids-regression-testing/landseamask.zarr/"
       consolidated: true
+
+  grid/ne30:
+    description: Lat, lon, and area of NE30 data
+    driver: zarr
+    metadata:
+      grid: ne30
+      variables:
+        - area
+        - lat
+        - lon
+    args:
+      urlpath: "gs://vcm-scream/latLonArea/ne30/ne30.zarr/"
+      consolidated: true
+
+  landseamask/ne30:
+    description: land_sea_mask of NE30 data
+    driver: zarr
+    metadata:
+      grid: ne30
+      variables:
+        - land_sea_mask
+    args:
+      urlpath: "gs://vcm-scream/latLonArea/ne30/land_sea_mask.zarr/"
+      consolidated: true

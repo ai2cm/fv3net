@@ -64,6 +64,7 @@ class BatchesFromMapperConfig(BatchesLoader):
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
         data_transforms: list of transforms to compute derived variables in batches.
+        gsrm_name: name of the global storm resolving model, either fv3 or scream
     """
 
     mapper_config: MapperConfig
@@ -79,6 +80,7 @@ class BatchesFromMapperConfig(BatchesLoader):
     shuffle_timesteps: bool = True
     shuffle_samples: bool = False
     data_transforms: Optional[Sequence[Mapping]] = None
+    gsrm_name: str = "fv3"
 
     def __post_init__(self):
         duplicate_times = [
@@ -89,6 +91,8 @@ class BatchesFromMapperConfig(BatchesLoader):
                 "Timesteps provided for selection must be unique. "
                 f"Duplicated times were found: {duplicate_times}"
             )
+        if "ne" in self.res:
+            self.gsrm_name = "scream"
 
     def load_mapper(self) -> Mapper:
         return self.mapper_config.load_mapper()
@@ -121,6 +125,7 @@ class BatchesFromMapperConfig(BatchesLoader):
             shuffle_timesteps=self.shuffle_samples,
             shuffle_samples=self.shuffle_samples,
             data_transforms=self.data_transforms,
+            gsrm_name=self.gsrm_name,
         )
 
 
@@ -138,8 +143,9 @@ def batches_from_mapper(
     shuffle_timesteps: bool = True,
     shuffle_samples: bool = False,
     data_transforms: Optional[Sequence[Mapping]] = None,
+    gsrm_name: str = "fv3",
 ) -> loaders.typing.Batches:
-    """ The function returns a sequence of datasets that is later
+    """The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
     Args:
         data_mapping: Interface to select data for
@@ -162,6 +168,7 @@ def batches_from_mapper(
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
         data_transforms: list of transforms to compute derived variables in batches.
+        gsrm_name: global storm resolving model name, either fv3 or scream
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
     Returns:
@@ -192,10 +199,17 @@ def batches_from_mapper(
     transforms = [_get_batch(data_mapping)]
 
     if needs_grid:
-        transforms += [
-            add_grid_info(res),
-            add_wind_rotation_info(res),
-        ]
+        if gsrm_name == "fv3":
+            transforms += [
+                add_grid_info(res),
+                add_wind_rotation_info(res),
+            ]
+        elif gsrm_name == "scream":
+            transforms += [
+                add_grid_info(res),
+            ]
+        else:
+            raise ValueError(f"gsrm_name {gsrm_name} not supported")
 
     if data_transforms is not None:
         data_transform = dacite.from_dict(
@@ -229,6 +243,7 @@ def batches_from_mapper(
         out_seq: Batches = tuple(ds.load() for ds in seq)
     else:
         out_seq = seq
+    breakpoint()
     return out_seq
 
 
