@@ -289,8 +289,6 @@ workflows:
       - build_default:
           name: "build/push fv3fit_torch image"
           image: fv3fit_torch
-          requires:
-            - pytest
       # manually trigger on PRs
       - integration_tests:
           requires:
