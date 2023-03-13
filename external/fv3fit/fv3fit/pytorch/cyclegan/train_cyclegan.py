@@ -189,18 +189,26 @@ class CycleGANTrainingConfig:
             reporter.log(train_plots)
 
             if validation_states is not None:
+                val_aggregator = ResultsAggregator(histogram_vmax=self.histogram_vmax)
                 val_losses = []
                 for state_a, state_b in validation_states:
                     with torch.no_grad():
                         val_losses.append(
-                            train_model.train_on_batch(state_a, state_b, training=False)
+                            train_model.train_on_batch(
+                                state_a,
+                                state_b,
+                                training=False,
+                                aggregator=val_aggregator,
+                            )
                         )
                 val_loss = {
                     f"val_{name}": np.mean([data[name] for data in val_losses])
                     for name in val_losses[0]
                 }
                 reporter.log(val_loss)
-                val_plots = train_model.generate_plots(val_example_a, val_example_b)
+                val_plots = train_model.generate_plots(
+                    val_example_a, val_example_b, val_aggregator
+                )
                 reporter.log({f"val_{name}": plot for name, plot in val_plots.items()})
                 logger.info("val_loss %s", val_loss)
             wandb.log(reporter.metrics)
