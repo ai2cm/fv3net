@@ -50,8 +50,6 @@ class CycleGANNetworkConfig:
         cycle_weight: weight of the cycle loss
         generator_weight: weight of the generator's gan loss
         discriminator_weight: weight of the discriminator gan loss
-        reload_path: path to a directory containing a saved CycleGAN model to use
-            as a starting point for training
     """
 
     optimizer: OptimizerConfig = dataclasses.field(
