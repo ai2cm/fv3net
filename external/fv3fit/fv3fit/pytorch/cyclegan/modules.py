@@ -53,9 +53,11 @@ class GeographicFeatures(nn.Module):
             get_grid_xyz(nx=nx).transpose([0, 3, 1, 2]),
             device=DEVICE,
         ).float()
-        lon, _ = get_grid(nx=nx)
+        lon, lat = get_grid(nx=nx)
         lon = lon[:, None, :, :]  # insert channel dimension
+        lat = lat[:, None, :, :]  # insert channel dimension
         self.local_time_zero_radians = torch.as_tensor(lon, device=DEVICE).float()
+        self.cos_lat = torch.as_tensor(np.cos(lat), device=DEVICE).float()
 
     def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """
@@ -81,8 +83,8 @@ class GeographicFeatures(nn.Module):
                 self.local_time_zero_radians[None, :]
                 + local_time_offset_radians[:, None, None, None, None]
             )
-            time_x = torch.sin(local_time)
-            time_y = torch.cos(local_time)
+            time_x = torch.sin(local_time) * self.cos_lat[None, :]
+            time_y = torch.cos(local_time) * self.cos_lat[None, :]
             xyz = torch.stack([self.xyz for _ in range(x.shape[0])])
             geo_features = torch.cat([time_x, time_y, xyz], dim=2)
         except ValueError:
