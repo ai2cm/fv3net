@@ -447,6 +447,6 @@ def train_cyclegan(
         val_state = val_state.unbatch()
 
     hyperparameters.training.fit_loop(
-        train_model=train_model, train_data=train_state, validation_data=val_state,
+        train_model=train_model, train_data=train_state, validation_data=train_state,
     )
     return train_model.cycle_gan
