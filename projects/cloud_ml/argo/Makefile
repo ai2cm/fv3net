@@ -267,6 +267,30 @@ prescribed_cc_rf_ml_gridcell_cond_25_run: deploy
 prescribed_cc_rf_ml_incloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud
 
+.PHONY: prescribed_cc_rf_ml_incloud_cond_01_run
+prescribed_cc_rf_ml_incloud_cond_01_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond01
+
+.PHONY: prescribed_cc_rf_ml_incloud_cond_03_run
+prescribed_cc_rf_ml_incloud_cond_03_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond03
+
+.PHONY: prescribed_cc_rf_ml_incloud_cond_06_run
+prescribed_cc_rf_ml_incloud_cond_06_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond06
+
+.PHONY: prescribed_cc_rf_ml_incloud_cond_10_run
+prescribed_cc_rf_ml_incloud_cond_10_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond10
+
+.PHONY: prescribed_cc_rf_ml_incloud_cond_15_run
+prescribed_cc_rf_ml_incloud_cond_15_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond15
+
+.PHONY: prescribed_cc_rf_ml_incloud_cond_25_run
+prescribed_cc_rf_ml_incloud_cond_25_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond25
+
 .PHONY: prescribed_half_cloud_run
 prescribed_half_cloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-half-cloud
