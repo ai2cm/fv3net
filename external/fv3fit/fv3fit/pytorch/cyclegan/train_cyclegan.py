@@ -38,6 +38,7 @@ from .cyclegan_trainer import (
     ResultsAggregator,
     unmerge_scaler_mappings,
 )
+from ..optimizer import SchedulerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,8 @@ class CycleGANTrainingConfig:
         histogram_vmax: maximum value for histograms of model outputs
         checkpoint_path: if given, model checkpoints will be saved to this directory
             marked by timestamp, epoch, and a randomly generated run label
+        scheduler: configuration for the scheduler used to adjust the
+            learning rate of the optimizer
     """
 
     n_epoch: int = 20
@@ -94,6 +97,9 @@ class CycleGANTrainingConfig:
     in_memory: bool = False
     histogram_vmax: float = 100.0
     checkpoint_path: Optional[str] = None
+    scheduler: SchedulerConfig = dataclasses.field(
+        default_factory=lambda: SchedulerConfig(None)
+    )
 
     def fit_loop(
         self,
@@ -165,6 +171,10 @@ class CycleGANTrainingConfig:
                 "Saving checkpoints under %s",
                 os.path.join(self.checkpoint_path, f"{run_label}-epoch_###"),
             )
+        generator_scheduler = self.scheduler.instance(train_model.optimizer_generator)
+        discriminator_scheduler = self.scheduler.instance(
+            train_model.optimizer_discriminator
+        )
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
@@ -213,6 +223,8 @@ class CycleGANTrainingConfig:
                 logger.info("val_loss %s", val_loss)
             wandb.log(reporter.metrics)
             reporter.clear()
+            generator_scheduler.step()
+            discriminator_scheduler.step()
             if self.checkpoint_path is not None:
                 current_path = os.path.join(
                     self.checkpoint_path, f"{run_label}-epoch_{i:03d}"
