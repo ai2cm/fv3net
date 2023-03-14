@@ -163,9 +163,7 @@ class Generator(nn.Module):
             ]
             if config.use_geographic_embedded_bias:
                 initial_layers.append(
-                    FoldFirstDimension(
-                        GeographicBias(channels=min_filters, nx=nx, ny=ny),
-                    )
+                    GeographicBias(channels=min_filters, nx=nx, ny=ny)
                 )
             initial_layers.append(relu_activation()())
             first_conv = nn.Sequential(*initial_layers)

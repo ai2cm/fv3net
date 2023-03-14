@@ -6,7 +6,6 @@ from toolz import curry
 import torch
 from .modules import (
     ConvolutionFactory,
-    FoldFirstDimension,
     GeographicFeatures,
     GeographicBias,
     single_tile_convolution,
@@ -118,9 +117,7 @@ class Discriminator(nn.Module):
         )
         if use_geographic_embedded_bias:
             convs.append(
-                FoldFirstDimension(
-                    GeographicBias(channels=min_filters, nx=int(nx / 2), ny=int(ny / 2))
-                )
+                GeographicBias(channels=min_filters, nx=int(nx / 2), ny=int(ny / 2))
             )
         convs.append(leakyrelu_activation(negative_slope=0.2, inplace=True)())
         # we've already defined the first strided convolutional layer, so start at 1
