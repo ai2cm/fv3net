@@ -555,6 +555,7 @@ class CycleGANTrainer:
         fake_a = self._call_generator_b_to_a((time_b, real_b))
         reconstructed_a = self._call_generator_b_to_a((time_a, fake_b))
         reconstructed_b = self._call_generator_a_to_b((time_b, fake_a))
+        # last batch may have fewer samples, so we slice the target output 1/0's
 
         # Generators A2B and B2A ######
 
@@ -577,14 +578,25 @@ class CycleGANTrainer:
         # GAN loss
         pred_fake_b = self._call_discriminator_b((time_a, fake_b))
         if self.target_real is None:
-            self._init_targets(pred_fake_b.shape)
+            self.target_real = torch.autograd.Variable(
+                torch.Tensor(pred_fake_b.shape).fill_(1.0).to(DEVICE),
+                requires_grad=False,
+            )
+        if self.target_fake is None:
+            self.target_fake = torch.autograd.Variable(
+                torch.Tensor(pred_fake_b.shape).fill_(0.0).to(DEVICE),
+                requires_grad=False,
+            )
+        n_samples = pred_fake_b.shape[0]
+        target_real = self.target_real[:n_samples]
+        target_fake = self.target_fake[:n_samples]
         loss_gan_a_to_b = (
-            self.gan_loss(pred_fake_b, self.target_real) * self.generator_weight
+            self.gan_loss(pred_fake_b, target_real) * self.generator_weight
         )
 
         pred_fake_a = self._call_discriminator_a((time_b, fake_a))
         loss_gan_b_to_a = (
-            self.gan_loss(pred_fake_a, self.target_real) * self.generator_weight
+            self.gan_loss(pred_fake_a, target_real) * self.generator_weight
         )
         loss_gan = loss_gan_a_to_b + loss_gan_b_to_a
 
@@ -600,10 +612,6 @@ class CycleGANTrainer:
 
         # Total loss
         loss_g: torch.Tensor = (loss_identity + loss_gan + loss_cycle + loss_non_neg)
-        if training:
-            self.optimizer_generator.zero_grad()
-            loss_g.backward()
-            self.optimizer_generator.step()
 
         with torch.no_grad():
             aggregator.record_results(
@@ -612,6 +620,11 @@ class CycleGANTrainer:
                 real_a=real_a.mean(dim=0).cpu().numpy(),
                 real_b=real_b.mean(dim=0).cpu().numpy(),
             )
+
+        if training:
+            self.optimizer_generator.zero_grad()
+            loss_g.backward()
+            self.optimizer_generator.step()
 
         # Discriminators A and B ######
 
@@ -624,7 +637,7 @@ class CycleGANTrainer:
         # Real loss
         pred_real = self._call_discriminator_a((time_a, real_a))
         loss_d_a_real = (
-            self.gan_loss(pred_real, self.target_real) * self.discriminator_weight
+            self.gan_loss(pred_real, target_real) * self.discriminator_weight
         )
 
         # Fake loss
@@ -632,13 +645,13 @@ class CycleGANTrainer:
             time_b, fake_a = self.fake_a_buffer.query((time_b, fake_a))
         pred_a_fake = self._call_discriminator_a((time_b.detach(), fake_a.detach()))
         loss_d_a_fake = (
-            self.gan_loss(pred_a_fake, self.target_fake) * self.discriminator_weight
+            self.gan_loss(pred_a_fake, target_fake) * self.discriminator_weight
         )
 
         # Real loss
         pred_real = self._call_discriminator_b((time_b, real_b))
         loss_d_b_real = (
-            self.gan_loss(pred_real, self.target_real) * self.discriminator_weight
+            self.gan_loss(pred_real, target_real) * self.discriminator_weight
         )
 
         # Fake loss
@@ -646,7 +659,7 @@ class CycleGANTrainer:
             time_a, fake_b = self.fake_b_buffer.query((time_a, fake_b))
         pred_b_fake = self._call_discriminator_b((time_a.detach(), fake_b.detach()))
         loss_d_b_fake = (
-            self.gan_loss(pred_b_fake, self.target_fake) * self.discriminator_weight
+            self.gan_loss(pred_b_fake, target_fake) * self.discriminator_weight
         )
 
         # Total loss
