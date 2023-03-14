@@ -93,7 +93,6 @@ class CycleGANTrainingConfig:
     n_epoch: int = 20
     shuffle_buffer_size: int = 10
     samples_per_batch: int = 1
-    validation_batch_size: Optional[int] = None
     in_memory: bool = False
     histogram_vmax: float = 100.0
     checkpoint_path: Optional[str] = None
