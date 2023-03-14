@@ -159,10 +159,10 @@ def test_stack_time_series_samples():
 @pytest.mark.parametrize(
     "rank_extent, overlap, with_overlap",
     [
-        # ([5, 6, 6, 1], 1, True),
-        # ([5, 6, 6, 2], 1, True),
-        # ([5, 6, 6, 2], 1, False),
-        # ([5, 6, 6, 2], 0, True),
+        ([5, 6, 6, 1], 1, True),
+        ([5, 6, 6, 2], 1, True),
+        ([5, 6, 6, 2], 1, False),
+        ([5, 6, 6, 2], 0, True),
         ([1, 4, 4, 3], 0, False),
     ],
 )
@@ -242,23 +242,3 @@ def test_RankDivider_xy_size_before_overlap():
         overlap=2,
     )
     assert divider.xy_size_without_overlap == 2
-
-
-def test_RankDivider_reshape_1d_to_2d_domain():
-    rank_extent = [1, 8, 8, 3]
-    divider = RankDivider(
-        subdomain_layout=(2, 2),
-        rank_dims=["time", "x", "y", "z"],
-        rank_extent=rank_extent,
-        overlap=2,
-    )
-    flattened = np.concatenate(
-        [[(100 * i) + np.arange(12)] for i in range(4)], axis=0
-    ).flatten()
-
-    domain = np.array(
-        [[0, 1, 10, 11], [2, 3, 12, 13], [20, 21, 30, 31], [22, 23, 32, 33]]
-    )
-    np.testing.assert_array_equal(
-        divider.reshape_1d_to_2d_domain(flattened)[:, :, 0], domain
-    )

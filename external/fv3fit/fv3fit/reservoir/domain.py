@@ -173,47 +173,6 @@ class RankDivider:
         reshaped = np.stack(subdomains_to_columns, axis=-1)
         return reshaped
 
-    def reshape_1d_to_2d_domain(
-        self, flat_data: np.ndarray,
-    ):
-        # Takes the flat prediction from the combined readout, which is a
-        # 1D array of (length N_subdomains x N_output_features_per_subdomain) of
-        # flat subdomain predictions concatented along the last axis.
-        # This method can only be applied to the case with_overlap=False because
-        # each cell in the final array can correspond to only one element in the
-        # flat data.
-        n_subdomains = self.n_subdomains
-        xy_size = self.subdomain_xy_size_without_overlap
-        if np.prod(flat_data.shape) != n_subdomains * (xy_size ** 2) * self._n_features:
-            raise ValueError(
-                f"Size of flat data ({np.prod(flat_data.shape)}) "
-                "to be reshaped must be equal to the domain size without overlap "
-                f"({n_subdomains}x{xy_size}x{xy_size}x{self._n_features}="
-                f"{self._n_features* n_subdomains * xy_size**2})"
-            )
-
-        subdomain_columns = flat_data.reshape(-1, n_subdomains)
-
-        _reshaped_subdomains = []
-        for s in range(self.n_subdomains):
-            reshaped_subdomain = self.unstack_subdomain(
-                np.array([subdomain_columns[:, s]]), with_overlap=False
-            )
-            # The first dim has size 1 because a prediction is a single time step
-            _reshaped_subdomains.append(reshaped_subdomain[0])
-
-        reshaped_subdomains = np.array(_reshaped_subdomains)
-
-        domain = []
-        n_features = reshaped_subdomains.shape[-1]
-        for z in range(n_features):
-            domain_z_blocks = reshaped_subdomains[:, :, :, z].reshape(
-                *self.subdomain_layout, xy_size, xy_size
-            )
-            domain_z = np.concatenate(np.concatenate(domain_z_blocks, axis=0), axis=1)
-            domain.append(domain_z)
-        return np.stack(domain, axis=0).transpose(1, 2, 0)
-
 
 def stack_time_series_samples(tensor):
     # Used to reshape a subdomains into a flat columns.
