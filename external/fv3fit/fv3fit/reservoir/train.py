@@ -20,7 +20,7 @@ from .domain import (
     stack_time_series_samples,
     concat_variables_along_feature_dim,
 )
-from .autoencoder import Autoencoder
+from fv3fit.keras import Autoencoder
 
 # allow reshaping of tensor data
 from tensorflow.python.ops.numpy_ops import np_config
