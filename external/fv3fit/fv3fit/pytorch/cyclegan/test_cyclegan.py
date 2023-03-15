@@ -127,6 +127,9 @@ def test_cyclegan_visual(tmpdir):
             generator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
             ),
+            scheduler=fv3fit.pytorch.SchedulerConfig(
+                name="ExponentialLR", kwargs={"gamma": 0.8}
+            ),
             discriminator=fv3fit.pytorch.DiscriminatorConfig(kernel_size=3),
             discriminator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
