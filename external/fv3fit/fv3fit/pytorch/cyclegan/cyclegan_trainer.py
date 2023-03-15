@@ -225,13 +225,22 @@ def get_r2(predicted, target) -> float:
     return 1.0 - np.var(predicted - target) / np.var(target)
 
 
-def _hist_nd(array: np.ndarray, bins: np.ndarray):
-    out_hist = np.empty((array.shape[1], bins.shape[0] - 1), dtype=np.float64)
-    for i_channel in range(array.shape[1]):
-        out_hist[i_channel, :] = np.histogram(
-            array[:, i_channel].flatten(), bins=bins, density=True
-        )[0]
+def _hist_multi_channel(array: np.ndarray, bins: np.ndarray):
+    """
+    Compute a histogram for each channel of a multi-channel array.
 
+    Args:
+        array: array of shape (n_samples, n_tiles, n_channels, ...)
+        bins: array of shape (n_bins + 1,)
+
+    Returns:
+        array of shape (n_channels, n_bins)
+    """
+    out_hist = np.empty((array.shape[2], bins.shape[0] - 1), dtype=np.float64)
+    for i_channel in range(array.shape[2]):
+        out_hist[i_channel, :] = np.histogram(
+            array[:, :, i_channel].flatten(), bins=bins, density=True
+        )[0]
     return out_hist
 
 
@@ -266,42 +275,55 @@ class ResultsAggregator:
         fake_a: np.ndarray,
         fake_b: np.ndarray,
     ):
+        """
+        Record the results of a single batch.
+
+        Args:
+            real_a: Real sample from domain A of shape
+                (n_samples, n_tiles, n_channels, height, width).
+            real_b: Real sample from domain B of shape
+                (n_samples, n_tiles, n_channels, height, width).
+            fake_a: Fake sample from domain A of shape
+                (n_samples, n_tiles, n_channels, height, width).
+            fake_b: Fake sample from domain B of shape
+                (n_samples, n_tiles, n_channels, height, width).
+        """
         if self._total_real_a is None:
-            self._total_real_a = real_a
+            self._total_real_a = real_a.mean(axis=0)
         else:
-            self._total_real_a += real_a
+            self._total_real_a += real_a.mean(axis=0)
         if self._total_real_b is None:
-            self._total_real_b = real_b
+            self._total_real_b = real_b.mean(axis=0)
         else:
-            self._total_real_b += real_b
+            self._total_real_b += real_b.mean(axis=0)
         if self._total_fake_b is None:
-            self._total_fake_b = fake_b
+            self._total_fake_b = fake_b.mean(axis=0)
         else:
-            self._total_fake_b += fake_b
+            self._total_fake_b += fake_b.mean(axis=0)
         if self._total_fake_a is None:
-            self._total_fake_a = fake_a
+            self._total_fake_a = fake_a.mean(axis=0)
         else:
-            self._total_fake_a += fake_a
+            self._total_fake_a += fake_a.mean(axis=0)
 
         if self._total_real_a_histogram is None:
-            self._total_real_a_histogram = _hist_nd(real_a, self._bins)
+            self._total_real_a_histogram = _hist_multi_channel(real_a, self._bins)
         else:
-            new_hist = _hist_nd(real_a, self._bins)
+            new_hist = _hist_multi_channel(real_a, self._bins)
             self._total_real_a_histogram += new_hist
         if self._total_real_b_histogram is None:
-            self._total_real_b_histogram = _hist_nd(real_b, self._bins)
+            self._total_real_b_histogram = _hist_multi_channel(real_b, self._bins)
         else:
-            new_hist = _hist_nd(real_b, self._bins)
+            new_hist = _hist_multi_channel(real_b, self._bins)
             self._total_real_b_histogram += new_hist
         if self._total_fake_a_histogram is None:
-            self._total_fake_a_histogram = _hist_nd(fake_a, self._bins)
+            self._total_fake_a_histogram = _hist_multi_channel(fake_a, self._bins)
         else:
-            new_hist = _hist_nd(fake_a, self._bins)
+            new_hist = _hist_multi_channel(fake_a, self._bins)
             self._total_fake_a_histogram += new_hist
         if self._total_fake_b_histogram is None:
-            self._total_fake_b_histogram = _hist_nd(fake_b, self._bins)
+            self._total_fake_b_histogram = _hist_multi_channel(fake_b, self._bins)
         else:
-            new_hist = _hist_nd(fake_b, self._bins)
+            new_hist = _hist_multi_channel(fake_b, self._bins)
             self._total_fake_b_histogram += new_hist
 
         self._count += 1
