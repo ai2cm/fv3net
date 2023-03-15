@@ -27,8 +27,12 @@ class Autoencoder(tf.keras.Model):
     @classmethod
     def load(cls, path):
         with get_dir(path) as model_path:
-            encoder = tf.keras.models.load_model(os.path.join(model_path, "encoder"))
-            decoder = tf.keras.models.load_model(os.path.join(model_path, "decoder"))
+            encoder = tf.keras.models.load_model(
+                os.path.join(model_path, cls._ENCODER_NAME)
+            )
+            decoder = tf.keras.models.load_model(
+                os.path.join(model_path, cls._DECODER_NAME)
+            )
         return cls(encoder=encoder, decoder=decoder)
 
     def dump(self, path):
