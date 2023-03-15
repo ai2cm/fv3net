@@ -24,11 +24,14 @@ hyperparameters:
       kernel_size: 3
       strided_kernel_size: 4
       max_filters: 256
+      use_geographic_bias: false
+      use_geographic_embedded_bias: true
     discriminator:
       n_convolutions: 3
       kernel_size: 3
       strided_kernel_size: 4
       max_filters: 512
+      use_geographic_embedded_bias: true
     identity_loss:
       loss_type: mae
     cycle_loss:
@@ -44,6 +47,11 @@ hyperparameters:
     n_epoch: 300
     in_memory: false
     shuffle_buffer_size: 1000
-    samples_per_batch: 1
+    samples_per_batch: 2
     validation_batch_size: 500
-    checkpoint_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/
+    # checkpoint_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/
+    scheduler:
+      name: ExponentialLR
+      kwargs:
+        gamma: 0.79433
+        last_epoch: -1

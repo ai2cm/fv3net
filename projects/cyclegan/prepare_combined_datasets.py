@@ -101,7 +101,7 @@ coarse_base_paths = [
 fine_base_paths = [
     "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/minus-4K/C384-to-C48-diagnostics/",
     "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/unperturbed/C384-to-C48-diagnostics/",
-    "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-8K/C384-to-C48-diagnostics/",
+    "gs://vcm-ml-raw-flexible-retention/2021-01-04-1-year-C384-FV3GFS-simulations/plus-4K/C384-to-C48-diagnostics/",
     "gs://vcm-ml-raw-flexible-retention/2022-06-02-two-year-C384-FV3GFS-simulations/plus-8K/C384-to-C48-diagnostics/",
 ]
 path_labels = ["minus-4k", "baseline", "plus-4k", "plus-8k"]
@@ -116,13 +116,16 @@ def normalize(ds: xr.Dataset):
     for varname, data in ds.data_vars.items():
         if "perturbation" in data.dims:
             # normalize each perturbation independently and store
-            # the mean and standard deviation for later use
+            # the standard deviation for later use
             reduce_dims = [dim for dim in data.dims if dim not in ["perturbation"]]
-            mean = data.mean(dim=reduce_dims)
             std = data.std(dim=reduce_dims)
-            ds[varname + "_mean"] = mean
+            # we don't remove means in order to preserve the zero value
+            # mean = data.mean(dim=reduce_dims)
+            # we insert a zero value for the mean so older scripts which include
+            # the mean will still work
+            ds[varname + "_mean"] = 0.0 * std
             ds[varname + "_std"] = std
-            ds[varname] = (data - mean) / std
+            ds[varname] = data / std
     return ds
 
 
@@ -158,6 +161,6 @@ if __name__ == "__main__":
     ds_coarse = xr.concat(coarse_list, dim="perturbation").assign_coords(
         {"perturbation": path_labels}
     )
-    ds_fine = normalize(drop_vars(ds_fine))
-    ds_coarse = normalize(drop_vars(ds_coarse))
-    write(ds_fine, ds_coarse, "combined")
+    ds_fine = drop_vars(ds_fine)
+    ds_coarse = drop_vars(ds_coarse)
+    write(ds_fine, ds_coarse, "combined-denorm")

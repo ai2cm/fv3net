@@ -137,21 +137,40 @@ def evaluate(
     c384_real: xr.Dataset,
     varname: str,
 ):
-    c384_list = []
-    c48_list = []
-    for i in range(len(c384_real.perturbation)):
-        c384_list.append(cyclegan.predict(c48_real.isel(perturbation=i)))
-        c48_list.append(cyclegan.predict(c384_real.isel(perturbation=i), reverse=True))
-    c384_gen = xr.concat(c384_list, dim="perturbation")
-    c48_gen = xr.concat(c48_list, dim="perturbation")
-
-    # c384_gen: xr.Dataset = cyclegan.predict(c48_real)
-    # c48_gen: xr.Dataset = cyclegan.predict(c384_real, reverse=True)
-    # if "PRATEsfc_log" in c384_gen:
-    #     c384_gen["PRATEsfc"] = np.exp(c384_gen["PRATEsfc_log"]) - 0.00003
-    #     c48_gen["PRATEsfc"] = np.exp(c48_gen["PRATEsfc_log"]) - 0.00003
-    #     c384_real["PRATEsfc"] = np.exp(c384_real["PRATEsfc_log"]) - 0.00003
-    #     c48_real["PRATEsfc"] = np.exp(c48_real["PRATEsfc_log"]) - 0.00003
+    # c48_list = []
+    # c384_list = []
+    # for i in range(len(c384_real.perturbation)):
+    #     c48_list.append(cyclegan.predict(c384_real.isel(perturbation=i), reverse=True))
+    #     c384_list.append(cyclegan.predict(c48_real.isel(perturbation=i)))
+    # c48_gen = xr.concat(c48_list, dim="perturbation")
+    # c384_gen = xr.concat(c384_list, dim="perturbation")
+    c48_gen = c48_real[cyclegan.state_variables]
+    c384_gen = c384_real[cyclegan.state_variables]
+    for varname in c48_gen.data_vars.keys():
+        c48_real = c48_real.assign(
+            **{
+                varname: c48_real[varname] * c48_real[varname + "_std"]
+                + c48_real[varname + "_mean"]
+            }
+        )
+        c48_gen = c48_gen.assign(
+            **{
+                varname: c48_gen[varname] * c48_real[varname + "_std"]
+                + c48_real[varname + "_mean"]
+            }
+        )
+        c384_real = c384_real.assign(
+            **{
+                varname: c384_real[varname] * c384_real[varname + "_std"]
+                + c384_real[varname + "_mean"]
+            }
+        )
+        c384_gen = c384_gen.assign(
+            **{
+                varname: c384_gen[varname] * c384_real[varname + "_std"]
+                + c384_real[varname + "_mean"]
+            }
+        )
 
     def plot_hist_all(varname, vmax=None):
         fig, ax = plt.subplots(
@@ -456,7 +475,7 @@ def train_quantile_mapping(c48_real: xr.Dataset, c384_real: xr.Dataset, varname:
 
 
 if __name__ == "__main__":
-    random.seed(0)
+    fv3fit.set_random_seed(0)
     cyclegan: fv3fit.pytorch.CycleGAN = fv3fit.load(
         # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230130-231729-82b939d9-epoch_075/"  # precip-only
         # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230202-233100-c5d574a4-epoch_045/"  # precip-only, properly normalized
@@ -464,7 +483,7 @@ if __name__ == "__main__":
     ).to(DEVICE)
     VARNAME = "PRATEsfc"
 
-    subselect_ratio = 1.0 / 4
+    subselect_ratio = 1.0
 
     c384_real_all: xr.Dataset = (
         xr.open_zarr("./fine-combined.zarr/").rename({"grid_xt": "x", "grid_yt": "y"})
@@ -483,8 +502,8 @@ if __name__ == "__main__":
         )
     )
     # c384_steps=[0]
-    c384_real = c384_real.isel(time=c384_steps).load()
-    c48_real: xr.Dataset = c48_real_all.isel(time=slice(11688, None))
+    c384_real = c384_real.isel(time=c384_steps)
+    c48_real: xr.Dataset = c48_real_all.isel(time=slice(None, 11688))
     c48_steps = np.sort(
         np.random.choice(
             np.arange(0, len(c48_real.time)),
@@ -493,7 +512,7 @@ if __name__ == "__main__":
         )
     )
     # c48_steps=[0]
-    c48_real = c48_real.isel(time=c48_steps).load()
+    c48_real = c48_real.isel(time=c48_steps)
 
     # train_c48_mean = c48_real_all.isel(time=slice(0, 11688)).mean(dim="time")
     # val_c48_mean = c48_real_all.isel(time=slice(11688, None)).mean(dim="time")
