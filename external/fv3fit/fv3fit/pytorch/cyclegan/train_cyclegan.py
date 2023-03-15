@@ -6,7 +6,7 @@ import tensorflow as tf
 import torch
 from fv3fit.pytorch.system import DEVICE
 import tensorflow_datasets as tfds
-from fv3fit.tfdataset import sequence_size, apply_to_tuple
+from fv3fit.tfdataset import apply_to_tuple
 from pathlib import Path
 import secrets
 from datetime import datetime
@@ -71,9 +71,6 @@ class CycleGANTrainingConfig:
         n_epoch: number of epochs to train for
         shuffle_buffer_size: number of samples to use for shuffling the training data
         samples_per_batch: number of samples to use per batch
-        validation_batch_size: number of samples to use per batch for validation,
-            does not affect training result but allows the use of out-of-sample
-            validation data
         in_memory: if True, load the entire dataset into memory as pytorch tensors
             before training. Batches will be statically defined but will be shuffled
             between epochs.
@@ -85,7 +82,6 @@ class CycleGANTrainingConfig:
     n_epoch: int = 20
     shuffle_buffer_size: int = 10
     samples_per_batch: int = 1
-    validation_batch_size: Optional[int] = None
     in_memory: bool = False
     histogram_vmax: float = 100.0
     checkpoint_path: Optional[str] = None
@@ -110,19 +106,25 @@ class CycleGANTrainingConfig:
         train_data = train_data.batch(self.samples_per_batch)
         train_data_numpy = tfds.as_numpy(train_data)
         if validation_data is not None:
-            if self.validation_batch_size is None:
-                validation_batch_size = sequence_size(validation_data)
-            else:
-                validation_batch_size = self.validation_batch_size
-            validation_data = validation_data.batch(validation_batch_size)
+            validation_data = validation_data.batch(self.samples_per_batch)
             validation_data = tfds.as_numpy(validation_data)
         if self.in_memory:
             train_states: Iterable[
                 Tuple[torch.Tensor, torch.Tensor]
             ] = dataset_to_tuples(train_data_numpy)
+            if validation_data is not None:
+                val_states: Optional[
+                    Iterable[Tuple[torch.Tensor, torch.Tensor]]
+                ] = dataset_to_tuples(validation_data)
+            else:
+                val_states = None
         else:
             train_states = DatasetStateIterator(train_data_numpy)
-        self._fit_loop(train_model, train_states, validation_data)
+            if validation_data is not None:
+                val_states = DatasetStateIterator(validation_data)
+            else:
+                val_states = None
+        self._fit_loop(train_model, train_states, val_states)
 
     def _fit_loop(
         self,

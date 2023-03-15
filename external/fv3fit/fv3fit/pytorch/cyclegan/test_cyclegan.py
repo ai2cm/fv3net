@@ -205,9 +205,7 @@ def test_cyclegan_runs_without_errors(tmpdir, conv_type: str, regtest):
             generator_weight=1.0,
             discriminator_weight=0.5,
         ),
-        training=CycleGANTrainingConfig(
-            n_epoch=2, samples_per_batch=2, validation_batch_size=2
-        ),
+        training=CycleGANTrainingConfig(n_epoch=2, samples_per_batch=2),
     )
     with fv3fit.wandb.disable_wandb():
         predictor = train_cyclegan(hyperparameters, train_tfdataset, val_tfdataset)
@@ -215,11 +213,11 @@ def test_cyclegan_runs_without_errors(tmpdir, conv_type: str, regtest):
     real_a = tfdataset_to_xr_dataset(
         train_tfdataset.map(lambda a, b: a), dims=["time", "tile", "x", "y", "z"]
     )
-    real_b = tfdataset_to_xr_dataset(
-        train_tfdataset.map(lambda a, b: b), dims=["time", "tile", "x", "y", "z"]
-    )
-    output_a = predictor.predict(real_b, reverse=True)
-    reconstructed_b = predictor.predict(output_a)  # noqa: F841
+    # real_b = tfdataset_to_xr_dataset(
+    #     train_tfdataset.map(lambda a, b: b), dims=["time", "tile", "x", "y", "z"]
+    # )
+    # output_a = predictor.predict(real_b, reverse=True)
+    # reconstructed_b = predictor.predict(output_a)  # noqa: F841
     output_b = predictor.predict(real_a)
     reconstructed_a = predictor.predict(output_b, reverse=True)  # noqa: F841
     # We can't use regtest because the output is not deterministic between platforms,

@@ -288,6 +288,7 @@ class ResultsAggregator:
             fake_b: Fake sample from domain B of shape
                 (n_samples, n_tiles, n_channels, height, width).
         """
+        assert len(real_a.shape) == 5
         if self._total_real_a is None:
             self._total_real_a = real_a.mean(axis=0)
         else:
@@ -551,10 +552,10 @@ class CycleGANTrainer:
 
         with torch.no_grad():
             aggregator.record_results(
-                fake_a=fake_a.mean(dim=0).cpu().numpy(),
-                fake_b=fake_b.mean(dim=0).cpu().numpy(),
-                real_a=real_a.mean(dim=0).cpu().numpy(),
-                real_b=real_b.mean(dim=0).cpu().numpy(),
+                fake_a=fake_a.cpu().numpy(),
+                fake_b=fake_b.cpu().numpy(),
+                real_a=real_a.cpu().numpy(),
+                real_b=real_b.cpu().numpy(),
             )
 
         if training:
