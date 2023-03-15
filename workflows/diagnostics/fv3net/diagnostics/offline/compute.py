@@ -174,7 +174,7 @@ def _consolidate_dimensioned_data(ds):
 
 
 def _get_transect(
-    ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str],
+    ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str], ptop: float,
 ):
     ds_snapshot_regrid_pressure = xr.Dataset()
     for var in variables:
@@ -368,7 +368,9 @@ def main(args):
             )
         )
 
-        ds_transect = _get_transect(ds_snapshot, evaluation_grid, vertical_vars)
+        ds_transect = _get_transect(
+            ds_snapshot, evaluation_grid, vertical_vars, config.ptop,
+        )
         _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
 
     ds_diagnostics = _add_derived_diagnostics(ds_diagnostics)
