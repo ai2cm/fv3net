@@ -17,7 +17,7 @@ NCEPLIBS_DIR=$INSTALL_PREFIX/NCEPlibs
 ESMF_DIR=$INSTALL_PREFIX/esmf
 FMS_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FMS
 
-source $PLATFORM_SCRIPTS/configuration_variables.sh $INSTALL_PREFIX
+source $PLATFORM_SCRIPTS/configuration_variables.sh $CLONE_PREFIX
 
 bash "$PLATFORM_SCRIPTS"/install_base_software.sh "$CLONE_PREFIX" "$INSTALL_PREFIX" "$CONDA_ENV" "$PLATFORM_SCRIPTS"
 bash "$SCRIPTS"/install_nceplibs.sh "$CLONE_PREFIX"/NCEPlibs "$NCEPLIBS_DIR" "$NCEPLIBS_PLATFORM" "$NCEPLIBS_COMPILER"
@@ -29,7 +29,7 @@ LDFLAGS="$FMS_LDFLAGS" \
 LOG_DRIVER_FLAGS="$FMS_LOG_DRIVER_FLAGS" \
 CPPFLAGS="$FMS_CPPFLAGS" \
 FCFLAGS="$FMS_FCFLAGS" \
-bash "$SCRIPTS"/install_fms.sh "$FMS_DIR" "$FMS_MAKE_OPTIONS" 
+bash "$SCRIPTS"/install_fms.sh "$FMS_DIR" "$FMS_MAKE_OPTIONS"
 
 if [ -n "${CALLPYFORT}" ];
 then

@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-INSTALL_PREFIX=$1
+CLONE_PREFIX=$1
 
 # NCEPlibs arguments
 NCEPLIBS_PLATFORM=cheyenne
@@ -33,4 +33,4 @@ WRAPPER_CC='mpicc'
 WRAPPER_LDSHARED='mpicc -shared'
 
 # 'bat' executable destination. Necesary to build  FMS library
-export PATH=$INSTALL_PREFIX/bats-core/bin:$PATH
+export PATH=$CLONE_PREFIX/bats-core/bin:$PATH
