@@ -149,6 +149,7 @@ class Generator(nn.Module):
                 convolution_factory=curry(convolution)(
                     kernel_size=config.strided_kernel_size,
                     stride=2,
+                    output_padding=output_padding,
                     stride_type="transpose",
                 ),
                 activation_factory=relu_activation(),
