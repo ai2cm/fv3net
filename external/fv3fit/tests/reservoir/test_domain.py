@@ -3,7 +3,6 @@ import pytest
 from fv3fit.reservoir.domain import (
     slice_along_axis,
     RankDivider,
-    DataReshaper,
     concat_variables_along_feature_dim,
     stack_time_series_samples,
 )
@@ -30,12 +29,6 @@ default_rank_divider_kwargs = {
     "rank_dims": ["time", "x", "y", "z"],
     "rank_extent": [5, 6, 6, 7],
 }
-
-
-def get_reshaper(variables, **rank_divider_kwargs):
-    return DataReshaper(
-        variables=variables, rank_divider=RankDivider(**rank_divider_kwargs)
-    )
 
 
 def test_concat_variables_along_feature_dim():
@@ -212,19 +205,19 @@ def test_RankDivider_flatten_subdomains_to_columns():
 
 
 @pytest.mark.parametrize(
-    "rank_extent, layout, overlap, expected_extent",
+    "rank_extent,  overlap, expected_extent",
     [
-        ([2, 8, 8, 5], [2, 2], 1, 3),
-        ([1, 8, 8, 2], [2, 2], 1, 3),
-        ([2, 8, 8, 5], [2, 2], 0, 4),
-        ([1, 8, 8, 2], [2, 2], 0, 4),
+        ([2, 8, 8, 5], 1, [2, 6, 6, 5]),
+        ([1, 8, 8, 2], 3, [1, 2, 2, 2]),
+        ([2, 8, 8, 5], 0, [2, 8, 8, 5]),
+        ([1, 8, 8, 2], 0, [1, 8, 8, 2]),
     ],
 )
 def test_RankDivider__rank_extent_without_overlap(
-    rank_extent, layout, overlap, expected_extent
+    rank_extent, overlap, expected_extent
 ):
     divider = RankDivider(
-        subdomain_layout=layout,
+        subdomain_layout=[2, 2],
         rank_dims=["time", "x", "y", "z"],
         rank_extent=rank_extent,
         overlap=overlap,
@@ -233,7 +226,7 @@ def test_RankDivider__rank_extent_without_overlap(
     assert divider._rank_extent_without_overlap == expected_extent
 
 
-def test_RankDivider_xy_size_before_overlap():
+def test_RankDivider_subdomain_xy_size_without_overlap():
     nt, nx, ny, nz = 1, 8, 8, 2
     divider = RankDivider(
         subdomain_layout=(2, 2),
@@ -241,4 +234,4 @@ def test_RankDivider_xy_size_before_overlap():
         rank_extent=[nt, nx, ny, nz],
         overlap=2,
     )
-    assert divider.xy_size_without_overlap == 2
+    assert divider.subdomain_xy_size_without_overlap == 2
