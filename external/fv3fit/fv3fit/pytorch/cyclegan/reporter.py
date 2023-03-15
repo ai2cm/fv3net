@@ -14,15 +14,3 @@ class Reporter:
 
     def clear(self):
         self.metrics.clear()
-
-
-class NullReporter(Reporter):
-    """
-    Reporter that does nothing.
-    """
-
-    def log(self, kwargs: Mapping[str, Any]):
-        pass
-
-    def clear(self):
-        pass
