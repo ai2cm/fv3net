@@ -2,7 +2,6 @@ from fv3fit._shared.scaler import StandardScaler
 from fv3fit.reservoir.domain import RankDivider
 from fv3fit.reservoir.readout import ReservoirComputingReadout
 import numpy as np
-import pytest
 from scipy import sparse
 
 from fv3fit.reservoir import (
@@ -10,24 +9,6 @@ from fv3fit.reservoir import (
     Reservoir,
     ReservoirHyperparameters,
 )
-from fv3fit.reservoir.model import _square_even_terms
-
-
-@pytest.mark.parametrize(
-    "arr, axis, expected",
-    [
-        (np.arange(4), 0, np.array([0, 1, 4, 3])),
-        (np.arange(4).reshape(1, -1), 1, np.array([[0, 1, 4, 3]])),
-        (np.arange(8).reshape(2, 4), 0, np.array([[0, 1, 4, 9], [4, 5, 6, 7]])),
-        (
-            np.arange(10).reshape(2, 5),
-            1,
-            np.array([[0, 1, 4, 3, 16], [25, 6, 49, 8, 81]]),
-        ),
-    ],
-)
-def test__square_even_terms(arr, axis, expected):
-    np.testing.assert_array_equal(_square_even_terms(arr, axis=axis), expected)
 
 
 class MultiOutputMeanRegressor:

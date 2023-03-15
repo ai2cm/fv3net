@@ -1,28 +1,15 @@
 import fsspec
 from fv3fit.reservoir.readout import ReservoirComputingReadout
-import numpy as np
 import os
 from typing import Optional, Iterable, Hashable
 import yaml
 
 from fv3fit import Predictor
-from .._shared import register_training_function, StandardScaler
+from .._shared import StandardScaler
 from .reservoir import Reservoir
 from .domain import RankDivider
-from .config import ReservoirTrainingConfig
-
-
-def _square_evens(v: np.ndarray) -> np.ndarray:
-    evens = v[::2]
-    odds = v[1::2]
-    c = np.empty((v.size,), dtype=v.dtype)
-    c[0::2] = evens ** 2
-    c[1::2] = odds
-    return c
-
-
-def _square_even_terms(v: np.ndarray, axis=1) -> np.ndarray:
-    return np.apply_along_axis(func1d=_square_evens, axis=axis, arr=v)
+from fv3fit._shared import io
+from .utils import square_even_terms
 
 
 def _exists_in_dir(file_name, dir):
@@ -31,7 +18,7 @@ def _exists_in_dir(file_name, dir):
     return file_name in contents
 
 
-@register_training_function("pure-reservoir", ReservoirTrainingConfig)
+@io.register("pure-reservoir")
 class ReservoirComputingModel(Predictor):
     _RESERVOIR_SUBDIR = "reservoir"
     _READOUT_SUBDIR = "readout"
@@ -70,7 +57,7 @@ class ReservoirComputingModel(Predictor):
 
     def predict(self):
         if self.square_half_hidden_state is True:
-            readout_input = _square_even_terms(self.reservoir.state, axis=0)
+            readout_input = square_even_terms(self.reservoir.state, axis=0)
         else:
             readout_input = self.reservoir.state
         # For prediction over multiple subdomains (>1 column in reservoir state

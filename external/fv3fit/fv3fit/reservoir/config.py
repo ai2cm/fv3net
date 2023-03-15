@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Tuple, Sequence, Optional, Set
+from typing import Sequence, Optional, Set
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -8,7 +8,7 @@ from .._shared.training_config import Hyperparameters
 
 @dataclass
 class CubedsphereSubdomainConfig:
-    layout: Tuple[int, int]
+    layout: Sequence[int]
     overlap: int
     rank_dims: Sequence[str]
 
@@ -65,8 +65,8 @@ class ReservoirTrainingConfig(Hyperparameters):
     output_variables: time series variables, must be subset of input_variables
     reservoir_hyperparameters: hyperparameters for reservoir
     readout_hyperparameters: hyperparameters for readout
-    n_burn: number of training samples to discard from beginning of training
-        time series.
+    n_batches_burn: number of training batches at start of time series to use
+        for synchronizaton but omit from training data
     input_noise: stddev of normal distribution which is sampled to add input
         noise to the training inputs when generating hidden states. This is
         commonly done to aid in the stability of the RC model.
@@ -81,6 +81,8 @@ class ReservoirTrainingConfig(Hyperparameters):
         state before it is used as input to the regressor's .fit and
         .predict methods. This option was found to be important for skillful
         predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
+    autoencoder_path: optional path for autoencoder to use in encoding time series
+        before passing to reservoir
     """
 
     input_variables: Sequence[str]
@@ -88,28 +90,17 @@ class ReservoirTrainingConfig(Hyperparameters):
     subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
     readout_hyperparameters: BatchLinearRegressorHyperparameters
-    n_burn: int
-    input_noise: float
-    timestep: float
     n_batches_burn: int
+    input_noise: float
     seed: int = 0
     n_jobs: Optional[int] = -1
     square_half_hidden_state: bool = False
-
+    autoencoder_path: Optional[str] = None
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     @property
     def variables(self) -> Set[str]:
         return set(self.input_variables).union(self.output_variables)
-
-    def __post_init__(self):
-        if self.subdomain is not None:
-            if (
-                self.subdomain.size + 2 * self.subdomain.overlap
-            ) != self.reservoir_hyperparameters.input_size:
-                raise ValueError(
-                    "Subdomain size + overlaps and reservoir input_size must match."
-                )
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
@@ -139,14 +130,13 @@ class ReservoirTrainingConfig(Hyperparameters):
     def dump(self, path: str):
         metadata = {
             "n_batches_burn": self.n_batches_burn,
-            "timestep": self.timestep,
-            "n_burn": self.n_burn,
             "input_noise": self.input_noise,
             "seed": self.seed,
             "n_jobs": self.n_jobs,
             "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
             "subdomain": asdict(self.subdomain),
+            "autoencoder_path": self.autoencoder_path,
         }
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)
