@@ -1,3 +1,4 @@
+import os
 import random
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
@@ -6,7 +7,6 @@ import torch
 from fv3fit.pytorch.system import DEVICE
 import tensorflow_datasets as tfds
 from fv3fit.tfdataset import sequence_size, apply_to_tuple
-from pathlib import Path
 import secrets
 from datetime import datetime
 
@@ -26,6 +26,7 @@ from fv3fit._shared.scaler import (
     get_standard_scaler_mapping,
     get_mapping_standard_scale_func,
 )
+from fv3fit._shared import io
 import logging
 import numpy as np
 from .reloadable import CycleGAN
@@ -125,9 +126,14 @@ class CycleGANTrainingConfig:
         train_states: Iterable[Tuple[torch.Tensor, torch.Tensor]],
         validation_data: Optional[tf.data.Dataset],
     ):
-        run_label = secrets.token_hex(4)
         # current time as e.g. 20230113-163005
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        run_label = f"{timestamp}-{secrets.token_hex(4)}"
+        if self.checkpoint_path is not None:
+            logger.info(
+                "Saving checkpoints under %s",
+                os.path.join(self.checkpoint_path, f"{run_label}-epoch_###"),
+            )
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
@@ -146,11 +152,10 @@ class CycleGANTrainingConfig:
                 logger.info("val_loss %s", val_loss)
 
             if self.checkpoint_path is not None:
-                current_path = (
-                    Path(self.checkpoint_path)
-                    / f"{timestamp}-{run_label}-epoch_{i:03d}"
+                current_path = os.path.join(
+                    self.checkpoint_path, f"{run_label}-epoch_{i:03d}"
                 )
-                train_model.cycle_gan.dump(str(current_path))
+                io.dump(train_model.cycle_gan, str(current_path))
 
 
 def dataset_to_tuples(dataset) -> List[Tuple[torch.Tensor, torch.Tensor]]:
