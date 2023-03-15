@@ -195,10 +195,16 @@ def test_cyclegan_runs_without_errors(tmpdir, conv_type: str, regtest):
         state_variables=state_variables,
         network=CycleGANNetworkConfig(
             generator=fv3fit.pytorch.GeneratorConfig(
-                n_convolutions=2, n_resnet=5, max_filters=128, kernel_size=3
+                n_convolutions=2,
+                n_resnet=5,
+                max_filters=128,
+                kernel_size=3,
+                use_geographic_embedded_bias=True,
             ),
             optimizer=fv3fit.pytorch.OptimizerConfig(name="Adam", kwargs={"lr": 0.001}),
-            discriminator=fv3fit.pytorch.DiscriminatorConfig(kernel_size=3),
+            discriminator=fv3fit.pytorch.DiscriminatorConfig(
+                kernel_size=3, use_geographic_embedded_bias=True
+            ),
             convolution_type=conv_type,
             identity_weight=0.01,
             cycle_weight=10.0,

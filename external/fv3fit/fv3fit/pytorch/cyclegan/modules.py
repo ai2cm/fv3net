@@ -29,6 +29,19 @@ def no_activation():
     return nn.Identity()
 
 
+class GeographicBias(nn.Module):
+    """
+    Adds a trainable bias vector of shape [6, channels, nx, ny] to the layer input.
+    """
+
+    def __init__(self, channels: int, nx: int, ny: int):
+        super().__init__()
+        self.bias = nn.Parameter(torch.zeros(6, channels, nx, ny))
+
+    def forward(self, x):
+        return x + self.bias
+
+
 class ConvolutionFactory(Protocol):
     def __call__(
         self,
