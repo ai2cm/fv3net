@@ -207,7 +207,7 @@ class CycleGANTrainingConfig:
 
             generator_scheduler.step()
             discriminator_scheduler.step()
-            
+
             if self.checkpoint_path is not None:
                 current_path = (
                     Path(self.checkpoint_path)
