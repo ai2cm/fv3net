@@ -1,4 +1,5 @@
 import random
+from fv3fit import wandb
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
 import tensorflow as tf
@@ -20,6 +21,7 @@ from typing import (
     Sequence,
     Tuple,
 )
+
 from fv3fit.tfdataset import ensure_nd
 from fv3fit.pytorch.graph.train import get_Xy_map_fn as get_Xy_map_fn_single_domain
 from fv3fit._shared.scaler import (
@@ -29,7 +31,8 @@ from fv3fit._shared.scaler import (
 import logging
 import numpy as np
 from .reloadable import CycleGAN
-from .cyclegan_trainer import CycleGANNetworkConfig, CycleGANTrainer
+from .reporter import Reporter
+from .cyclegan_trainer import CycleGANNetworkConfig, CycleGANTrainer, ResultsAggregator
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +77,7 @@ class CycleGANTrainingConfig:
         in_memory: if True, load the entire dataset into memory as pytorch tensors
             before training. Batches will be statically defined but will be shuffled
             between epochs.
+        histogram_vmax: maximum value for histograms of model outputs
         checkpoint_path: if given, model checkpoints will be saved to this directory
             marked by timestamp, epoch, and a randomly generated run label
     """
@@ -83,6 +87,7 @@ class CycleGANTrainingConfig:
     samples_per_batch: int = 1
     validation_batch_size: Optional[int] = None
     in_memory: bool = False
+    histogram_vmax: float = 100.0
     checkpoint_path: Optional[str] = None
 
     def fit_loop(
@@ -125,14 +130,29 @@ class CycleGANTrainingConfig:
         train_states: Iterable[Tuple[torch.Tensor, torch.Tensor]],
         validation_data: Optional[tf.data.Dataset],
     ):
+        reporter = Reporter()
+        for state_a, state_b in train_states:
+            train_example_a, train_example_b = (state_a[:1, :], state_b[:1, :])
+            break
+        if validation_data is not None:
+            for state_a, state_b in validation_data:
+                val_example_a, val_example_b = (state_a[:1, :], state_b[:1, :])
+                break
+        else:
+            val_example_a, val_example_b = None, None  # type: ignore
         run_label = secrets.token_hex(4)
         # current time as e.g. 20230113-163005
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
+            results_aggregator = ResultsAggregator(histogram_vmax=self.histogram_vmax)
             for state_a, state_b in train_states:
-                train_losses.append(train_model.train_on_batch(state_a, state_b))
+                train_losses.append(
+                    train_model.train_on_batch(
+                        state_a, state_b, aggregator=results_aggregator
+                    ),
+                )
             if isinstance(train_states, list):
                 random.shuffle(train_states)
             train_loss = {
@@ -140,10 +160,38 @@ class CycleGANTrainingConfig:
                 for name in train_losses[0]
             }
             logger.info("train_loss: %s", train_loss)
+            reporter.log(train_loss)
+            train_plots = train_model.generate_plots(
+                train_example_a, train_example_b, results_aggregator
+            )
+            reporter.log(train_plots)
 
             if validation_data is not None:
-                val_loss = train_model.evaluate_on_dataset(validation_data)
+                val_aggregator = ResultsAggregator(histogram_vmax=self.histogram_vmax)
+                val_losses = []
+                for state_a, state_b in validation_data:
+                    with torch.no_grad():
+                        val_losses.append(
+                            train_model.train_on_batch(
+                                state_a,
+                                state_b,
+                                training=False,
+                                aggregator=val_aggregator,
+                            )
+                        )
+                val_loss = {
+                    f"val_{name}": np.mean([data[name] for data in val_losses])
+                    for name in val_losses[0]
+                }
+                reporter.log(val_loss)
+                val_plots = train_model.generate_plots(
+                    val_example_a, val_example_b, val_aggregator
+                )
+                reporter.log({f"val_{name}": plot for name, plot in val_plots.items()})
                 logger.info("val_loss %s", val_loss)
+
+            wandb.log(reporter.metrics)
+            reporter.clear()
 
             if self.checkpoint_path is not None:
                 current_path = (
