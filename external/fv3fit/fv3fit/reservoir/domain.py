@@ -1,10 +1,10 @@
+import fsspec
 import numpy as np
 import tensorflow as tf
-from typing import Sequence, Tuple, Mapping
+from typing import Sequence, Mapping
+import yaml
 
 import pace.util
-
-Layout = Tuple[int, int]
 
 
 def slice_along_axis(arr: np.ndarray, inds: slice, axis: int = 0):
@@ -19,14 +19,15 @@ def slice_along_axis(arr: np.ndarray, inds: slice, axis: int = 0):
 class RankDivider:
     def __init__(
         self,
-        subdomain_layout: Layout,
+        subdomain_layout: Sequence[int],
         rank_dims: Sequence[str],
         rank_extent: Sequence[int],  # shape of full data, including overlap
         overlap: int,
     ):
         """ Divides a rank of data into subdomains for use in training.
         Args:
-            subdomain_layout: tuple describing subdomain grid within the rank
+            subdomain_layout: layout describing subdomain grid within the rank
+                ex. [2,2] means the rank is divided into 4 subdomains
             rank_dims: order of dimensions in data. If using time series data, 'time'
                 must be the first dimension.
             rank_extent: Shape of full data. This includes any halo cells from
@@ -172,6 +173,22 @@ class RankDivider:
         # Dimensions are now [time, feature, submdomain]
         reshaped = np.stack(subdomains_to_columns, axis=-1)
         return reshaped
+
+    def dump(self, path):
+        metadata = {
+            "subdomain_layout": self.subdomain_layout,
+            "rank_dims": self.rank_dims,
+            "rank_extent": self.rank_extent,
+            "overlap": self.overlap,
+        }
+        with fsspec.open(path, "w") as f:
+            f.write(yaml.dump(metadata))
+
+    @classmethod
+    def load(cls, path):
+        with fsspec.open(path, "r") as f:
+            metadata = yaml.safe_load(f)
+        return cls(**metadata)
 
 
 def stack_time_series_samples(tensor):

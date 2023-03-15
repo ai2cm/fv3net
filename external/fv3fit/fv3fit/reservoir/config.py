@@ -1,9 +1,9 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Tuple, Sequence
+from typing import Tuple, Sequence, Optional, Set
 import fsspec
-from typing import Optional
 import yaml
+from .._shared.training_config import Hyperparameters
 
 
 @dataclass
@@ -59,8 +59,10 @@ class BatchLinearRegressorHyperparameters:
 
 
 @dataclass
-class ReservoirTrainingConfig:
+class ReservoirTrainingConfig(Hyperparameters):
     """
+    input_variables: variables and additional features in time series
+    output_variables: time series variables, must be subset of input_variables
     reservoir_hyperparameters: hyperparameters for reservoir
     readout_hyperparameters: hyperparameters for readout
     n_burn: number of training samples to discard from beginning of training
@@ -68,29 +70,37 @@ class ReservoirTrainingConfig:
     input_noise: stddev of normal distribution which is sampled to add input
         noise to the training inputs when generating hidden states. This is
         commonly done to aid in the stability of the RC model.
+    n_batches_burn: number of batches at the start of the timeseries
+        to omit from model training. This data is still used to update the
+        reservoir state.
     seed: random seed for sampling
-    n_samples: number of samples to use in training
-    subdomain: Optional subdomain config. If provided, one reservoir and readout
-        are created and trained for each subdomain. Subdomain size and reservoir
-        input size much match.
+    subdomain: Subdomain config. All subdomains use the same reservoir weights;
+        one readout is created and trained for each subdomain. Subdomain size
+        and reservoir input size much match.
     square_half_hidden_state: if True, square even terms in the reservoir
         state before it is used as input to the regressor's .fit and
         .predict methods. This option was found to be important for skillful
         predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
     """
 
+    input_variables: Sequence[str]
+    output_variables: Sequence[str]
     subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
     readout_hyperparameters: BatchLinearRegressorHyperparameters
     n_burn: int
     input_noise: float
     timestep: float
+    n_batches_burn: int
     seed: int = 0
-    n_samples: Optional[int] = None
     n_jobs: Optional[int] = -1
     square_half_hidden_state: bool = False
 
     _METADATA_NAME = "reservoir_training_config.yaml"
+
+    @property
+    def variables(self) -> Set[str]:
+        return set(self.input_variables).union(self.output_variables)
 
     def __post_init__(self):
         if self.subdomain is not None:
@@ -128,11 +138,11 @@ class ReservoirTrainingConfig:
 
     def dump(self, path: str):
         metadata = {
+            "n_batches_burn": self.n_batches_burn,
             "timestep": self.timestep,
             "n_burn": self.n_burn,
             "input_noise": self.input_noise,
             "seed": self.seed,
-            "n_samples": self.n_samples,
             "n_jobs": self.n_jobs,
             "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
