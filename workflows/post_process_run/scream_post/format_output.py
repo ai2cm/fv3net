@@ -36,9 +36,11 @@ levs = 128
 def make_placeholder_data(
     sample: xr.DataArray, generate_variable: str, scaled_factor: float = 1.0
 ):
-    placeholder = sample.copy()
-    placeholder.values[:] = np.random.rand(*placeholder.values.shape) * scaled_factor
-    placeholder.attrs = {}
+    placeholder = xr.DataArray(
+        np.random.rand(*sample.values.shape) * scaled_factor,
+        coords=sample.coords,
+        dims=sample.dims,
+    )
     return placeholder.rename(generate_variable)
 
 
@@ -119,13 +121,13 @@ def convert_to_fv3_format(
     ] = make_placeholder_data(
         ds.air_temperature,
         "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging",
-        1e-1,
+        1e-3,
     )
     ds["air_temperature_tendency_due_to_nudging"] = make_placeholder_data(
-        ds.air_temperature, "air_temperature_tendency_due_to_nudging", 1e-1
+        ds.air_temperature, "air_temperature_tendency_due_to_nudging", 1e-3
     )
     ds["specific_humidity_tendency_due_to_nudging"] = make_placeholder_data(
-        ds.air_temperature, "specific_humidity_tendency_due_to_nudging", 1e-5
+        ds.air_temperature, "specific_humidity_tendency_due_to_nudging", 1e-7
     )
     ds["x_wind_tendency_due_to_nudging"] = make_placeholder_data(
         ds.air_temperature, "x_wind_tendency_due_to_nudging", 1e-3
@@ -134,16 +136,16 @@ def convert_to_fv3_format(
         ds.air_temperature, "y_wind_tendency_due_to_nudging", 1e-3
     )
     ds["tendency_of_air_temperature_due_to_scream_physics"] = make_placeholder_data(
-        ds.air_temperature, "tendency_of_air_temperature_due_to_scream_physics", 1e-3
+        ds.air_temperature, "tendency_of_air_temperature_due_to_scream_physics", 1e-5
     )
     ds["tendency_of_specific_humidity_due_to_scream_physics"] = make_placeholder_data(
-        ds.air_temperature, "tendency_of_specific_humidity_due_to_scream_physics", 1e-6
+        ds.air_temperature, "tendency_of_specific_humidity_due_to_scream_physics", 1e-8
     )
     ds["tendency_of_eastward_wind_due_to_scream_physics"] = make_placeholder_data(
-        ds.air_temperature, "tendency_of_eastward_wind_due_to_scream_physics", 1e-4
+        ds.air_temperature, "tendency_of_eastward_wind_due_to_scream_physics", 1e-5
     )
     ds["tendency_of_northward_wind_due_to_scream_physics"] = make_placeholder_data(
-        ds.air_temperature, "tendency_of_northward_wind_due_to_scream_physics", 1e-4
+        ds.air_temperature, "tendency_of_northward_wind_due_to_scream_physics", 1e-5
     )
 
     ds = ds.rename({"lev": "z", "ilev": "z_interface"})

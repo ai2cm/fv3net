@@ -81,6 +81,7 @@ class BatchesFromMapperConfig(BatchesLoader):
     shuffle_samples: bool = False
     data_transforms: Optional[Sequence[Mapping]] = None
     gsrm_name: str = "fv3"
+    ptop: float = vcm.calc.thermo.constants._TOA_PRESSURE
 
     def __post_init__(self):
         duplicate_times = [
@@ -243,7 +244,6 @@ def batches_from_mapper(
         out_seq: Batches = tuple(ds.load() for ds in seq)
     else:
         out_seq = seq
-    breakpoint()
     return out_seq
 
 

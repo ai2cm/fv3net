@@ -11,7 +11,7 @@ except ModuleNotFoundError:
     mappm = None
 
 import vcm.calc.thermo
-
+from vcm.calc.thermo.constants import _TOA_PRESSURE
 import warnings
 
 warnings.filterwarnings(
@@ -79,6 +79,7 @@ def interpolate_to_pressure_levels(
     delp: xr.DataArray,
     levels: xr.DataArray = PRESSURE_GRID,
     dim: str = "pfull",
+    ptop: float = _TOA_PRESSURE,
 ) -> T:
     """Regrid an atmospheric field to a fixed set of pressure levels
 
@@ -88,12 +89,16 @@ def interpolate_to_pressure_levels(
             ``da``
         dim: the vertical dimension name
         levels: 1D DataArray of output pressure levels
+        ptop: top of the model pressure in Pa
 
     Returns:
         the atmospheric quantity defined on ``pressure_levels``.
     """
     return interpolate_1d(
-        levels, vcm.pressure_at_midpoint_log(delp, dim=dim), field, dim=dim,
+        levels,
+        vcm.pressure_at_midpoint_log(delp, toa_pressure=ptop, dim=dim),
+        field,
+        dim=dim,
     )
 
 
