@@ -10,6 +10,7 @@ from .reservoir import Reservoir
 from .domain import RankDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
+from .autoencoder import Autoencoder
 
 
 def _exists_in_dir(file_name, dir):
@@ -25,6 +26,7 @@ class ReservoirComputingModel(Predictor):
     _METADATA_NAME = "metadata.yaml"
     _SCALER_NAME = "scaler.npz"
     _RANK_DIVIDER_NAME = "rank_divider.yaml"
+    _AUTOENCODER_SUBDIR = "autoencoder"
 
     def __init__(
         self,
@@ -35,6 +37,7 @@ class ReservoirComputingModel(Predictor):
         square_half_hidden_state: bool = False,
         rank_divider: Optional[RankDivider] = None,
         scaler: Optional[StandardScaler] = None,
+        autoencoder: Optional[Autoencoder] = None,
     ):
         """_summary_
 
@@ -54,8 +57,13 @@ class ReservoirComputingModel(Predictor):
         self.square_half_hidden_state = square_half_hidden_state
         self.scaler = scaler
         self.rank_divider = rank_divider
+        self.autoencoder = autoencoder
 
     def predict(self):
+        # Returns raw readout prediction of latent state.
+        # TODO: add method transform_to_native which transforms the raw
+        # prediction into denormalized physical values on cubedsphere coords.
+
         if self.square_half_hidden_state is True:
             readout_input = square_even_terms(self.reservoir.state, axis=0)
         else:
@@ -94,6 +102,8 @@ class ReservoirComputingModel(Predictor):
                 self.scaler.dump(f)
         if self.rank_divider is not None:
             self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
+        if self.autoencoder is not None:
+            self.autoencoder.dump(os.path.join(path, self._AUTOENCODER_SUBDIR))
 
     @classmethod
     def load(cls, path: str) -> "ReservoirComputingModel":
@@ -111,10 +121,16 @@ class ReservoirComputingModel(Predictor):
                 scaler = StandardScaler.load(f)
         else:
             scaler = None
+
         if _exists_in_dir(cls._RANK_DIVIDER_NAME, path):
             rank_divider = RankDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
         else:
             rank_divider = None
+
+        if _exists_in_dir(cls._AUTOENCODER_SUBDIR, path):
+            autoencoder = Autoencoder.load(os.path.join(path, cls._AUTOENCODER_SUBDIR))
+        else:
+            autoencoder = None
 
         return cls(
             input_variables=metadata["input_variables"],
@@ -124,4 +140,5 @@ class ReservoirComputingModel(Predictor):
             square_half_hidden_state=metadata["square_half_hidden_state"],
             scaler=scaler,
             rank_divider=rank_divider,
+            autoencoder=autoencoder,
         )
