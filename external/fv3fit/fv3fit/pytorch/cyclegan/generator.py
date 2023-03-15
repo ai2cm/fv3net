@@ -125,12 +125,19 @@ class Generator(nn.Module):
             ]
             return nn.Sequential(*resnet_blocks)
 
+        if config.strided_kernel_size % 2 == 0:
+            output_padding = 0
+        else:
+            output_padding = 1
+
         def down(in_channels: int, out_channels: int):
             return ConvBlock(
                 in_channels=in_channels,
                 out_channels=out_channels,
                 convolution_factory=curry(convolution)(
-                    kernel_size=config.strided_kernel_size, stride=2
+                    kernel_size=config.strided_kernel_size,
+                    stride=2,
+                    output_padding=output_padding,
                 ),
                 activation_factory=relu_activation(),
             )
