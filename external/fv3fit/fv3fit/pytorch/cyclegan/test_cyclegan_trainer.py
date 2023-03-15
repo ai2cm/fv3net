@@ -27,7 +27,7 @@ def test_get_percentile(bins, hist, pct, expected):
     np.testing.assert_allclose(result, expected)
 
 
-@pytest.mark.parametrize("shape", [(1, 1, 1, 1, 1, 1), (2, 2, 2, 2, 2, 2)])
+@pytest.mark.parametrize("shape", [(1, 1, 1, 1, 1), (2, 2, 2, 2, 2)])
 @pytest.mark.parametrize("n_samples", [1, 5])
 def test_results_aggregator_means(shape: Tuple[int], n_samples: int):
     results_real_a = np.random.randn(n_samples, *shape)
