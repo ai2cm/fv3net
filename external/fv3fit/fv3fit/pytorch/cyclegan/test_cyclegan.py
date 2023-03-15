@@ -131,6 +131,9 @@ def test_cyclegan_visual(tmpdir):
             generator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
             ),
+            scheduler=fv3fit.pytorch.SchedulerConfig(
+                name="ExponentialLR", kwargs={"gamma": 0.8}
+            ),
             discriminator=fv3fit.pytorch.DiscriminatorConfig(kernel_size=3),
             discriminator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
@@ -221,9 +224,7 @@ def test_cyclegan_runs_without_errors(
             generator_weight=1.0,
             discriminator_weight=0.5,
         ),
-        training=CycleGANTrainingConfig(
-            n_epoch=2, samples_per_batch=2, validation_batch_size=2
-        ),
+        training=CycleGANTrainingConfig(n_epoch=2, samples_per_batch=2),
     )
     with fv3fit.wandb.disable_wandb():
         predictor = train_cyclegan(hyperparameters, train_tfdataset, val_tfdataset)

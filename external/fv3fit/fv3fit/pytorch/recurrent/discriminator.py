@@ -5,7 +5,6 @@ from toolz import curry
 import torch
 from fv3fit.pytorch.cyclegan.modules import (
     ConvolutionFactory,
-    GeographicFeatures,
     single_tile_convolution,
     leakyrelu_activation,
     ConvBlock,
@@ -29,16 +28,12 @@ class DiscriminatorConfig:
             strided convolutions
         max_filters: maximum number of filters in any convolutional layer,
             equal to the number of filters in the final strided convolutional layer
-        use_geographic_features: if True, appends a set of geographic features to the
-            input channels of the network indicating the (x, y, z) position of each
-            grid point on a sphere in Eulerian space.
     """
 
     n_convolutions: int = 3
     kernel_size: int = 3
     strided_kernel_size: int = 3
     max_filters: int = 256
-    use_geographic_features: bool = False
 
     def build(
         self,
@@ -53,10 +48,7 @@ class DiscriminatorConfig:
             kernel_size=self.kernel_size,
             strided_kernel_size=self.strided_kernel_size,
             max_filters=self.max_filters,
-            nx=nx,
-            ny=ny,
             convolution=convolution,
-            use_geographic_features=self.use_geographic_features,
         )
 
 
@@ -72,10 +64,7 @@ class Discriminator(nn.Module):
         kernel_size: int,
         strided_kernel_size: int,
         max_filters: int,
-        nx: int,
-        ny: int,
         convolution: ConvolutionFactory = single_tile_convolution,
-        use_geographic_features: bool = False,
     ):
         """
         Args:
@@ -90,9 +79,6 @@ class Discriminator(nn.Module):
             nx: number of grid points in the x direction
             ny: number of grid points in the y direction
             convolution: factory for creating all convolutional layers
-            use_geographic_features: if True, appends a set of geographic features
-                to the input channels of the network indicating the (x, y, z) position
-                of each grid point on a sphere in Eulerian space.
         """
         super(Discriminator, self).__init__()
         if n_convolutions < 1:
@@ -102,11 +88,7 @@ class Discriminator(nn.Module):
         # first convolutional block must not have instance normalization, so that the
         # discriminator can use information about the mean and standard deviation of
         # the input data (generated images)
-        if use_geographic_features:
-            convs = [GeographicFeatures(nx=nx, ny=ny)]
-            in_channels += 3
-        else:
-            convs = []
+        convs = []
         convs.extend(
             [
                 convolution(

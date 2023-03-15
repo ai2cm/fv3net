@@ -116,7 +116,7 @@ class FMRNetworkConfig:
             shape.n_state, shape=shape, convolution=convolution
         ).to(DEVICE)
         discriminator = self.discriminator.build(
-            shape.n_state, nx=shape.nx, ny=shape.ny, convolution=convolution
+            shape.n_state, convolution=convolution
         ).to(DEVICE)
         optimizer_generator = self.generator_optimizer.instance(generator.parameters())
         optimizer_discriminator = self.discriminator_optimizer.instance(
