@@ -703,9 +703,12 @@ if __name__ == "__main__":
         # new-data models
         # ("20230308-221136-b82ccf7f", "march-diurnal-2e-6-3x3-e14", 14),
         # ("20230308-221136-b82ccf7f", "march-diurnal-2e-6-3x3-e33", 33),
-        ("20230313-211437-4a624ff9", "march-diurnal-2e-6-3x3-train-as-val-e06", 6),
-        ("20230313-211452-034a9ec9", "march-diurnal-2e-5-3x3-train-as-val-e06", 6),
-        ("20230313-211352-c94b7408", "march-2e-6-geo-bias-e07", 7),
+        # ("20230313-211437-4a624ff9", "march-diurnal-2e-6-3x3-train-as-val-e06", 6),
+        # ("20230313-211452-034a9ec9", "march-diurnal-2e-5-3x3-train-as-val-e06", 6),
+        # ("20230313-211352-c94b7408", "march-2e-6-geo-bias-e07", 7),
+        ("20230314-214027-54366191", "lr-1e-4-decay-0.63096-e15", 15),
+        ("20230314-213709-fc95b736", "lr-1e-4-decay-0.79433-e15", 15),
+        ("20230314-214051-25b2a902", "lr-1e-3-decay-0.63096-e15", 15),
     ]:
         fv3fit.set_random_seed(0)
         print(f"Loading {BASE_NAME} epoch {EPOCH}")

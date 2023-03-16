@@ -16,7 +16,7 @@ hyperparameters:
     optimizer:
       name: Adam
       kwargs:
-        lr: 1.0e-3
+        lr: 1.0001e-5
     generator:
       n_convolutions: 2
       n_resnet: 6
@@ -51,5 +51,5 @@ hyperparameters:
     scheduler:
       name: ExponentialLR
       kwargs:
-        gamma: 0.63096
+        gamma: 0.89125
         last_epoch: -1
