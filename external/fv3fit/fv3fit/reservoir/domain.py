@@ -128,7 +128,7 @@ class RankDivider:
         extent_without_halos[self._y_ind] = (
             extent_without_halos[self._y_ind] - 2 * overlap
         )
-        return tuple(extent_without_halos)
+        return extent_without_halos
 
     def get_subdomain_tensor_slice(
         self, tensor_data: tf.Tensor, subdomain_index: int, with_overlap: bool

@@ -66,13 +66,11 @@ class ReservoirTrainingConfig(Hyperparameters):
     reservoir_hyperparameters: hyperparameters for reservoir
     readout_hyperparameters: hyperparameters for readout
     n_batches_burn: number of training batches at start of time series to use
-        for synchronizaton but omit from training data
+        for synchronizaton.  This data is  used to update the reservoir state
+        but is not included in training.
     input_noise: stddev of normal distribution which is sampled to add input
         noise to the training inputs when generating hidden states. This is
         commonly done to aid in the stability of the RC model.
-    n_batches_burn: number of batches at the start of the timeseries
-        to omit from model training. This data is still used to update the
-        reservoir state.
     seed: random seed for sampling
     subdomain: Subdomain config. All subdomains use the same reservoir weights;
         one readout is created and trained for each subdomain. Subdomain size

@@ -80,7 +80,11 @@ def test_dump_load_preserves_matrices(tmpdir):
         intercepts=np.random.rand(input_size),
     )
     predictor = ReservoirComputingModel(
-        reservoir=reservoir, readout=readout, square_half_hidden_state=False,
+        input_variables=["a", "b"],
+        output_variables=["a", "b"],
+        reservoir=reservoir,
+        readout=readout,
+        square_half_hidden_state=False,
     )
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
@@ -113,7 +117,12 @@ def test_prediction_shape():
         coefficients=np.random.rand(state_size, input_size),
         intercepts=np.random.rand(input_size),
     )
-    predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
+    predictor = ReservoirComputingModel(
+        input_variables=["a", "b"],
+        output_variables=["a", "b"],
+        reservoir=reservoir,
+        readout=readout,
+    )
     # ReservoirComputingModel.predict reshapes the prediction to remove
     # the first dim of length 1 (sklearn regressors predict 2D arrays)
     assert predictor.predict().shape == (input_size,)
@@ -133,13 +142,19 @@ def test_ReservoirComputingModel_state_increment():
     reservoir.W_res = sparse.coo_matrix(np.ones(reservoir.W_res.shape))
 
     readout = MultiOutputMeanRegressor(n_outputs=input_size)
-    predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
+    predictor = ReservoirComputingModel(
+        input_variables=["a", "b"],
+        output_variables=["a", "b"],
+        reservoir=reservoir,
+        readout=readout,
+    )
 
     input = np.array([0.5, 0.5])
     predictor.reservoir.reset_state(input_shape=input.shape)
     predictor.reservoir.increment_state(input)
     state_before_prediction = predictor.reservoir.state
     prediction = predictor.predict()
+    predictor.increment_state(prediction)
     np.testing.assert_array_almost_equal(prediction, np.tanh(np.array([1.0, 1.0])))
     assert not np.allclose(state_before_prediction, predictor.reservoir.state)
 
@@ -159,7 +174,12 @@ def test_prediction_after_load(tmpdir):
         coefficients=np.random.rand(state_size, input_size),
         intercepts=np.random.rand(input_size),
     )
-    predictor = ReservoirComputingModel(reservoir=reservoir, readout=readout,)
+    predictor = ReservoirComputingModel(
+        input_variables=["a", "b"],
+        output_variables=["a", "b"],
+        reservoir=reservoir,
+        readout=readout,
+    )
     predictor.reservoir.reset_state(input_shape=(input_size,))
 
     ts_sync = [np.ones(input_size) for i in range(20)]
