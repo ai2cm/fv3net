@@ -183,13 +183,16 @@ def test_cyclegan_visual(tmpdir):
 
 @pytest.mark.slow
 @pytest.mark.parametrize("conv_type", ["conv2d", "halo_conv2d"])
-def test_cyclegan_runs_without_errors(tmpdir, conv_type: str, regtest):
+@pytest.mark.parametrize("strided_kernel_size", [3, 4])
+def test_cyclegan_runs_without_errors(
+    tmpdir, conv_type: str, strided_kernel_size: int, regtest
+):
     fv3fit.set_random_seed(0)
     # run the test in a temporary directory to delete artifacts when done
     os.chdir(tmpdir)
     # need a larger nx, ny for the sample data here since we're training
     # on whether we can autoencode sin waves, and need to resolve full cycles
-    nx = 32
+    nx = 24
     sizes = {"nbatch": 1, "ntime": 1, "nx": nx, "nz": 2}
     state_variables = ["var_3d", "var_2d"]
     train_tfdataset = get_tfdataset(nsamples=5, **sizes)
@@ -198,10 +201,19 @@ def test_cyclegan_runs_without_errors(tmpdir, conv_type: str, regtest):
         state_variables=state_variables,
         network=CycleGANNetworkConfig(
             generator=fv3fit.pytorch.GeneratorConfig(
-                n_convolutions=2, n_resnet=5, max_filters=128, kernel_size=3
+                n_convolutions=1,
+                n_resnet=3,
+                max_filters=32,
+                kernel_size=3,
+                strided_kernel_size=strided_kernel_size,
             ),
             optimizer=fv3fit.pytorch.OptimizerConfig(name="Adam", kwargs={"lr": 0.001}),
-            discriminator=fv3fit.pytorch.DiscriminatorConfig(kernel_size=3),
+            discriminator=fv3fit.pytorch.DiscriminatorConfig(
+                n_convolutions=1,
+                max_filters=32,
+                kernel_size=3,
+                strided_kernel_size=strided_kernel_size,
+            ),
             convolution_type=conv_type,
             identity_weight=0.01,
             cycle_weight=10.0,
