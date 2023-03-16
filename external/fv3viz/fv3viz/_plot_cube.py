@@ -150,7 +150,7 @@ def plot_cube(
         )
     """
 
-    mappable_ds = _mappable_var(ds, var_name, grid_metadata, gsrm_name)
+    mappable_ds = _mappable_var(ds, var_name, grid_metadata)
     array = mappable_ds[var_name].values
 
     kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = infer_cmap_params(
