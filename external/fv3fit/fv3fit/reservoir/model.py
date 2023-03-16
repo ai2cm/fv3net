@@ -130,7 +130,7 @@ class ReservoirComputingModel(Predictor):
         if _exists_in_dir(cls._AUTOENCODER_SUBDIR, path):
             autoencoder = Autoencoder.load(os.path.join(path, cls._AUTOENCODER_SUBDIR))
         else:
-            autoencoder = None
+            autoencoder = None  # type: ignore
 
         return cls(
             input_variables=metadata["input_variables"],
