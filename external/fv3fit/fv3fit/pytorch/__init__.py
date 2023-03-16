@@ -7,8 +7,6 @@ from .graph import (
 from .system import DEVICE
 from .predict import PytorchAutoregressor, PytorchPredictor
 from .cyclegan import (
-    train_autoencoder,
-    AutoencoderHyperparameters,
     GeneratorConfig,
     DiscriminatorConfig,
     CycleGANHyperparameters,
@@ -24,6 +22,6 @@ from .recurrent import (
     FMRTrainingConfig,
     FMRNetworkConfig,
 )
-from .optimizer import OptimizerConfig
+from .optimizer import OptimizerConfig, SchedulerConfig, Scheduler
 from .activation import ActivationConfig
 from .loss import LossConfig

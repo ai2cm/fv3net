@@ -163,10 +163,12 @@ def halo_convolution(
 
     Layer takes in and returns tensors of shape [batch, tile, channels, x, y].
 
-    Generally we suggest using an even kernel size for strided convolutions,
+    There may be reason to prefer using an even kernel size for strided convolutions,
     and an odd kernel size for non-strided convolutions. For the non-strided
     case, an even kernel size gives a symmetric kernel as desired. We've only reasoned
-    this for a stride of 2, but it should hold for any even stride.
+    this for a stride of 2, but it should hold for any even stride. However, this
+    should be tested in practice. We've found an odd kernel size can give better model
+    performance.
 
     The strided case (which uses a stride of 2) is more complex, but an even
     kernel size gives a symmetric kernel. This is because a (2, 2) patch of the input

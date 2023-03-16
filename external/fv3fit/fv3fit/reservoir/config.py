@@ -59,20 +59,6 @@ class BatchLinearRegressorHyperparameters:
 
 
 @dataclass
-class ReadoutHyperparameters:
-    """
-    linear_regressor_config: hyperparameters for batch fitting linear regressor
-    square_half_hidden_state: if True, square even terms in the reservoir
-        state before it is used as input to the regressor's .fit and
-        .predict methods. This option was found to be important for skillful
-        predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
-    """
-
-    linear_regressor_config: BatchLinearRegressorHyperparameters
-    square_half_hidden_state: bool = False
-
-
-@dataclass
 class ReservoirTrainingConfig:
     """
     reservoir_hyperparameters: hyperparameters for reservoir
@@ -84,22 +70,25 @@ class ReservoirTrainingConfig:
         commonly done to aid in the stability of the RC model.
     seed: random seed for sampling
     n_samples: number of samples to use in training
-    hybrid_imperfect_model_config: if training a hybrid model, dict of
-        kwargs for initializing ImperfectModel
     subdomain: Optional subdomain config. If provided, one reservoir and readout
         are created and trained for each subdomain. Subdomain size and reservoir
         input size much match.
+    square_half_hidden_state: if True, square even terms in the reservoir
+        state before it is used as input to the regressor's .fit and
+        .predict methods. This option was found to be important for skillful
+        predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
     """
 
     subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
-    readout_hyperparameters: ReadoutHyperparameters
+    readout_hyperparameters: BatchLinearRegressorHyperparameters
     n_burn: int
     input_noise: float
     timestep: float
     seed: int = 0
     n_samples: Optional[int] = None
     n_jobs: Optional[int] = -1
+    square_half_hidden_state: bool = False
 
     _METADATA_NAME = "reservoir_training_config.yaml"
 
@@ -122,7 +111,7 @@ class ReservoirTrainingConfig:
             config=dacite_config,
         )
         kwargs["readout_hyperparameters"] = dacite.from_dict(
-            data_class=ReadoutHyperparameters,
+            data_class=BatchLinearRegressorHyperparameters,
             data=kwargs.get("readout_hyperparameters", {}),
             config=dacite_config,
         )

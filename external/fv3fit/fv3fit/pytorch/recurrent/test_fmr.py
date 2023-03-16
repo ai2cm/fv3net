@@ -14,7 +14,7 @@ import collections
 import os
 import fv3fit.pytorch
 import fv3fit
-import fv3fit.wandb
+import fv3fit.pytorch.recurrent.discriminator
 
 
 def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
@@ -76,7 +76,9 @@ def test_fmr_runs_without_errors(tmpdir):
             generator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
             ),
-            discriminator=fv3fit.pytorch.DiscriminatorConfig(kernel_size=3),
+            discriminator=fv3fit.pytorch.recurrent.discriminator.DiscriminatorConfig(
+                kernel_size=3
+            ),
             discriminator_optimizer=fv3fit.pytorch.OptimizerConfig(
                 name="Adam", kwargs={"lr": 0.001}
             ),

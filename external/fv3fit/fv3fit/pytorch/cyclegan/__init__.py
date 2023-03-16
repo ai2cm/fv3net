@@ -1,4 +1,3 @@
-from .train_autoencoder import train_autoencoder, AutoencoderHyperparameters
 from .train_cyclegan import (
     train_cyclegan,
     CycleGANHyperparameters,
