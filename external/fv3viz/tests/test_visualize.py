@@ -12,13 +12,18 @@ from fv3viz._masking import (
     _periodic_greater_than,
     _periodic_difference,
 )
-from fv3viz._plot_cube import plot_cube, _mappable_var, _plot_cube_axes
+from fv3viz._plot_cube import (
+    plot_cube,
+    _mappable_var,
+    _plot_cube_axes,
+    _plot_scream_axes,
+)
 from fv3viz._timestep_histograms import (
     plot_daily_and_hourly_hist,
     plot_daily_hist,
     plot_hourly_hist,
 )
-from vcm.cubedsphere import GridMetadataFV3
+from vcm.cubedsphere import GridMetadataFV3, GridMetadataScream
 
 
 def test_version():
@@ -261,6 +266,27 @@ def sample_dataset(latb, lonb, lat, lon, t2m):
     return dataset, grid_metadata
 
 
+@pytest.fixture()
+def scream_sample_dataset(lat, lon, t2m):
+    dataset = xr.Dataset(
+        {
+            "t2m": (["time", "tile", "y", "x"], t2m),
+            "lat": (["tile", "y", "x"], lat),
+            "lon": (["tile", "y", "x"], lon),
+        }
+    )
+    dataset = dataset.assign_coords(
+        {
+            "time": np.arange(2),
+            "tile": np.arange(6),
+            "x": np.arange(2.0),
+            "y": np.arange(2.0),
+        }
+    )
+    grid_metadata = GridMetadataScream("x", "y",)
+    return dataset, grid_metadata
+
+
 def test__mappable_var_all_sizes(sample_dataset):
     dataset, grid_metadata = sample_dataset
     mappable_ds = _mappable_var(dataset, "t2m", grid_metadata).isel(time=0)
@@ -299,6 +325,18 @@ def test__plot_cube_axes(sample_dataset, plotting_function):
         ds.lonb.values,
         plotting_function,
         ax=ax,
+    )
+
+
+@pytest.mark.parametrize(
+    "plotting_function", [("tripcolor"), ("tricontour"), ("tricontourf")]
+)
+def test__plot_scream_axes(scream_sample_dataset, plotting_function):
+    dataset, grid_metadata = scream_sample_dataset
+    ds = _mappable_var(dataset, "t2m", grid_metadata).isel(time=0)
+    ax = plt.axes(projection=ccrs.Robinson())
+    _plot_scream_axes(
+        ds.t2m.values, ds.lat.values, ds.lon.values, plotting_function, ax=ax,
     )
 
 
