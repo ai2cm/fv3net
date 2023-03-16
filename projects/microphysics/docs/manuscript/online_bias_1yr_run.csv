@@ -1,7 +1,7 @@
 ,bias,baseline mean,% change
-air_temperature,-0.42000000000000004,247.00000000000003,-0.17
-specific_humidity,1.5900000000000004e-05,0.00268,0.59
-cloud_water_mixing_ratio,2.14e-07,7.63e-06,2.8
+air_temperature,-0.279,250.99999999999997,-0.11
+specific_humidity,1.72e-05,0.0026000000000000003,0.66
+cloud_water_mixing_ratio,2.86e-07,9.62e-06,2.97
 total_precipitation,2.7299999999999997e-07,3.16e-05,0.87
 PWAT,0.165,26.400000000000002,0.63
 ULWRFtoa,-2.07,237.0,-0.88
