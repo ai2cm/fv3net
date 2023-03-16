@@ -102,7 +102,6 @@ def train_reservoir_model(
         for r in range(rank_divider.n_subdomains)
     ]
     for b, batch_data in enumerate(train_batches):
-
         # reservoir increment occurs in this call, so always call this
         # function even if X, Y are not used for readout training.
         time_series_with_overlap, time_series_without_overlap = _process_batch_data(
@@ -114,7 +113,7 @@ def train_reservoir_model(
         )
         if b < hyperparameters.n_batches_burn:
             logger.info(f"Synchronizing on batch {b+1}")
-        reservoir_state_time_series = get_reservoir_state_time_series(
+        reservoir_state_time_series = _get_reservoir_state_time_series(
             time_series_with_overlap, hyperparameters.input_noise, reservoir
         )
         # X has dimensions [time, reservoir_state, subdomain]
@@ -160,8 +159,8 @@ def _process_batch_data(
     scaler: StandardScaler,
     autoencoder: Optional[Autoencoder],
 ) -> Tuple[tf.Tensor, tf.Tensor]:
-    """ Obtain reservoir state corresponding to physical state,
-    and reshape data into the dimensions used in training.
+    """ Convert physical state to corresponding reservoir hidden state,
+    and reshape data into the format used in training.
     """
     # Concatenate variable tensors along the feature dimension,
     # which is assumed to be the last dim.
@@ -185,7 +184,7 @@ def _process_batch_data(
         )
         X_subdomains_to_columns.append(stack_time_series_samples(X_subdomain_data))
 
-        # Next step prediction does not include overlap
+        # Prediction does not include overlap
         Y_subdomain_data = rank_divider.get_subdomain_tensor_slice(
             normed_batch_data_concat, subdomain_index=s, with_overlap=False,
         )
@@ -199,12 +198,14 @@ def _process_batch_data(
     return X_reshaped, Y_reshaped
 
 
-def get_reservoir_state_time_series(
+def _get_reservoir_state_time_series(
     X, input_noise, reservoir,
 ):
-    # Increment and save the reservoir state after each timestep
+    # Initialize hidden state
     if reservoir.state is None:
         reservoir.reset_state(input_shape=X[0].shape)
+
+    # Increment and save the reservoir state after each timestep
     reservoir_state_time_series: List[Optional[np.ndarray]] = []
     for timestep_data in X:
         timestep_data = _add_input_noise(timestep_data, input_noise)
