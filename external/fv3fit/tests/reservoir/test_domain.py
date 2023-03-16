@@ -196,11 +196,29 @@ def test_RankDivider_flatten_subdomains_to_columns():
     )
 
     # 4 subdomains each with x, y dims (4, 4)
+    # subdomain layout ranks are [[0, 2],[1, 3]] on square
     assert flattened.shape == (2, 16, 4)
-    # Check first subdomain of first sample has correct values
+    # subdomain 0
     np.testing.assert_array_almost_equal(
         flattened[0, :, 0],
         np.array([0, 0, 0, 0, 0, 0, 1, 10, 0, 2, 3, 12, 0, 20, 21, 30]),
+    )
+
+    # subdomain 2
+    np.testing.assert_array_almost_equal(
+        flattened[0, :, 2],
+        np.array([0, 0, 0, 0, 1, 10, 11, 0, 3, 12, 13, 0, 21, 30, 31, 0]),
+    )
+    # subdomain 1
+    np.testing.assert_array_almost_equal(
+        flattened[0, :, 1],
+        np.array([0, 2, 3, 12, 0, 20, 21, 30, 0, 22, 23, 32, 0, 0, 0, 0]),
+    )
+
+    # subdomain 2
+    np.testing.assert_array_almost_equal(
+        flattened[0, :, 3],
+        np.array([3, 12, 13, 0, 21, 30, 31, 0, 23, 32, 33, 0, 0, 0, 0, 0]),
     )
 
 

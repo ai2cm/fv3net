@@ -13,12 +13,6 @@ from .utils import square_even_terms
 from .autoencoder import Autoencoder
 
 
-def _exists_in_dir(file_name, dir):
-    fs = fsspec.get_fs_token_paths(dir)[0]
-    contents = [os.path.basename(os.path.normpath(p)) for p in fs.ls(dir)]
-    return file_name in contents
-
-
 @io.register("pure-reservoir")
 class ReservoirComputingModel(Predictor):
     _RESERVOIR_SUBDIR = "reservoir"
@@ -70,8 +64,8 @@ class ReservoirComputingModel(Predictor):
             readout_input = self.reservoir.state
         # For prediction over multiple subdomains (>1 column in reservoir state
         # array), flatten state into 1D vector before predicting
-        if len(readout_input.shape) > 1:
-            readout_input = readout_input.reshape(-1)
+        readout_input = readout_input.reshape(-1)
+
         prediction = self.readout.predict(readout_input).reshape(-1)
 
         return prediction
@@ -116,18 +110,18 @@ class ReservoirComputingModel(Predictor):
             metadata = yaml.safe_load(f)
 
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        if _exists_in_dir(cls._SCALER_NAME, path):
+        if fs.exists(os.path.join(path, cls._SCALER_NAME)):
             with fs.open(f"{path}/{cls._SCALER_NAME}", "rb") as f:
                 scaler = StandardScaler.load(f)
         else:
             scaler = None
 
-        if _exists_in_dir(cls._RANK_DIVIDER_NAME, path):
+        if fs.exists(os.path.join(path, cls._RANK_DIVIDER_NAME)):
             rank_divider = RankDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
         else:
             rank_divider = None
 
-        if _exists_in_dir(cls._AUTOENCODER_SUBDIR, path):
+        if fs.exists(os.path.join(path, cls._AUTOENCODER_SUBDIR)):
             autoencoder = Autoencoder.load(os.path.join(path, cls._AUTOENCODER_SUBDIR))
         else:
             autoencoder = None  # type: ignore
