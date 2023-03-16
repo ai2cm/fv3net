@@ -18,7 +18,7 @@ from fv3viz._timestep_histograms import (
     plot_daily_hist,
     plot_hourly_hist,
 )
-from vcm.cubedsphere import GridMetadata
+from vcm.cubedsphere import GridMetadataFV3
 
 
 def test_version():
@@ -257,7 +257,7 @@ def sample_dataset(latb, lonb, lat, lon, t2m):
             "y": np.arange(2.0),
         }
     )
-    grid_metadata = GridMetadata("x", "y", "x_interface", "y_interface")
+    grid_metadata = GridMetadataFV3("x", "y", "x_interface", "y_interface")
     return dataset, grid_metadata
 
 
@@ -357,7 +357,7 @@ def example_gfdl_dataset(latb, lonb, lat, lon, t2m):
             "grid_yt": np.arange(2.0),
         }
     )
-    grid_metadata = GridMetadata("grid_xt", "grid_yt", "grid_x", "grid_y")
+    grid_metadata = GridMetadataFV3("grid_xt", "grid_yt", "grid_x", "grid_y")
     return dataset, grid_metadata
 
 

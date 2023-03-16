@@ -11,7 +11,7 @@ import io
 import warnings
 import xarray as xr
 from fv3viz import plot_cube
-from vcm.cubedsphere import GridMetadata
+from vcm.cubedsphere import GridMetadataFV3
 
 warnings.filterwarnings(
     "ignore",
@@ -38,7 +38,7 @@ VAR = "LHTFLsfc"
 
 fortran_diagnostic_ds = get_web_dataset(DATA_URL)
 
-gfdl_grid_metadata = GridMetadata("grid_xt", "grid_yt", "grid_x", "grid_y")
+gfdl_grid_metadata = GridMetadataFV3("grid_xt", "grid_yt", "grid_x", "grid_y")
 
 # grid variables are already present in this Fortran diagnostic file
 _ = plot_cube(
