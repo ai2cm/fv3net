@@ -32,13 +32,11 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def _add_input_noise(arr, stddev):
+def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
-def _encode_columns(
-    data, encoder,
-):
+def _encode_columns(data: tf.Tensor, encoder: tf.keras.Model,) -> np.ndarray:
     # reduce N x M x V dim data to N x M x Z dim
     # where V is original number of features (usually
     # variables * vertical levels) and Z << V is a smaller
@@ -158,7 +156,7 @@ def _process_batch_data(
     rank_divider: RankDivider,
     scaler: StandardScaler,
     autoencoder: Optional[Autoencoder],
-) -> Tuple[tf.Tensor, tf.Tensor]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """ Convert physical state to corresponding reservoir hidden state,
     and reshape data into the format used in training.
     """
@@ -199,8 +197,8 @@ def _process_batch_data(
 
 
 def _get_reservoir_state_time_series(
-    X, input_noise, reservoir,
-):
+    X: np.ndarray, input_noise: float, reservoir: Reservoir,
+) -> np.ndarray:
     # Initialize hidden state
     if reservoir.state is None:
         reservoir.reset_state(input_shape=X[0].shape)
@@ -210,12 +208,8 @@ def _get_reservoir_state_time_series(
     for timestep_data in X:
         timestep_data = _add_input_noise(timestep_data, input_noise)
         reservoir.increment_state(timestep_data)
-
-        # TODO: Move the optional squaring of even hidden state terms
-        # out of the readout to here
-
         reservoir_state_time_series.append(reservoir.state)
-    return reservoir_state_time_series
+    return np.array(reservoir_state_time_series)
 
 
 def _fit_batch_over_subdomains(subdomain_regressors, X_batch, Y_batch):
