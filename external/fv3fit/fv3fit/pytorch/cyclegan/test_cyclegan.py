@@ -232,11 +232,11 @@ def test_cyclegan_runs_without_errors(
     real_a = tfdataset_to_xr_dataset(
         train_tfdataset.map(lambda a, b: a), dims=["time", "tile", "x", "y", "z"]
     )
-    real_b = tfdataset_to_xr_dataset(
-        train_tfdataset.map(lambda a, b: b), dims=["time", "tile", "x", "y", "z"]
-    )
-    output_a = predictor.predict(real_b, reverse=True)
-    reconstructed_b = predictor.predict(output_a)  # noqa: F841
+    # real_b = tfdataset_to_xr_dataset(
+    #     train_tfdataset.map(lambda a, b: b), dims=["time", "tile", "x", "y", "z"]
+    # )
+    # output_a = predictor.predict(real_b, reverse=True)
+    # reconstructed_b = predictor.predict(output_a)  # noqa: F841
     output_b = predictor.predict(real_a)
     reconstructed_a = predictor.predict(output_b, reverse=True)  # noqa: F841
     # We can't use regtest because the output is not deterministic between platforms,

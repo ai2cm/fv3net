@@ -1,4 +1,6 @@
+import os
 import random
+from fv3fit import wandb
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
 import tensorflow as tf
@@ -10,11 +12,8 @@ from fv3fit.tfdataset import (
     select_keys,
     apply_to_tuple,
 )
-from fv3fit import wandb
 from fv3fit._shared import io
-from .reporter import Reporter
 import secrets
-import os
 from datetime import datetime
 
 from fv3fit._shared import register_training_function
@@ -27,6 +26,7 @@ from typing import (
     Sequence,
     Tuple,
 )
+
 from fv3fit.tfdataset import ensure_nd
 from fv3fit._shared.scaler import StandardScaler
 import logging
@@ -38,6 +38,7 @@ from .cyclegan_trainer import (
     ResultsAggregator,
     unmerge_scaler_mappings,
 )
+from .reporter import Reporter
 from ..optimizer import SchedulerConfig
 
 logger = logging.getLogger(__name__)
@@ -224,6 +225,7 @@ class CycleGANTrainingConfig:
             reporter.clear()
             generator_scheduler.step()
             discriminator_scheduler.step()
+
             if self.checkpoint_path is not None:
                 current_path = os.path.join(
                     self.checkpoint_path, f"{run_label}-epoch_{i:03d}"
