@@ -15,7 +15,7 @@ from ._plot_helpers import (
     _align_plot_var_dims,
 )
 from ._masking import _mask_antimeridian_quads
-from vcm.cubedsphere import GridMetadata
+from vcm.cubedsphere import GridMetadata, GridMetadataFV3
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
@@ -38,7 +38,7 @@ if os.getenv("CARTOPY_EXTERNAL_DOWNLOADER") != "natural_earth":
         "{resolution}_{category}/ne_{resolution}_{name}.zip"
     )
 
-WRAPPER_GRID_METADATA = GridMetadata(
+WRAPPER_GRID_METADATA = GridMetadataFV3(
     COORD_X_CENTER,
     COORD_Y_CENTER,
     COORD_X_OUTER,
@@ -66,9 +66,10 @@ def plot_cube(
     cbar_label: str = None,
     coastlines: bool = True,
     coastlines_kwargs: dict = None,
+    gsrm_name: str = "fv3",
     **kwargs,
 ):
-    """ Plots an xr.DataArray containing tiled cubed sphere gridded data
+    """Plots an xr.DataArray containing tiled cubed sphere gridded data
     onto a global map projection, with optional faceting of additional dims
 
     Args:
@@ -149,7 +150,7 @@ def plot_cube(
         )
     """
 
-    mappable_ds = _mappable_var(ds, var_name, grid_metadata)
+    mappable_ds = _mappable_var(ds, var_name, grid_metadata, gsrm_name)
     array = mappable_ds[var_name].values
 
     kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = infer_cmap_params(
@@ -159,16 +160,26 @@ def plot_cube(
         cmap=kwargs.get("cmap"),
         robust=cmap_percentiles_lim,
     )
-
-    _plot_func_short = partial(
-        _plot_cube_axes,
-        lat=mappable_ds.lat.values,
-        lon=mappable_ds.lon.values,
-        latb=mappable_ds.latb.values,
-        lonb=mappable_ds.lonb.values,
-        plotting_function=plotting_function,
-        **kwargs,
-    )
+    if gsrm_name == "fv3":
+        _plot_func_short = partial(
+            _plot_cube_axes,
+            lat=mappable_ds.lat.values,
+            lon=mappable_ds.lon.values,
+            latb=mappable_ds.latb.values,
+            lonb=mappable_ds.lonb.values,
+            plotting_function=plotting_function,
+            **kwargs,
+        )
+    elif gsrm_name == "scream":
+        _plot_func_short = partial(
+            _plot_scream_axes,
+            lat=mappable_ds.lat.values,
+            lon=mappable_ds.lon.values,
+            plotting_function=plotting_function,
+            **kwargs,
+        )
+    else:
+        assert ValueError(f"gsrm_name {gsrm_name} not supported")
 
     projection = ccrs.Robinson() if not projection else projection
 
@@ -220,7 +231,7 @@ def plot_cube(
 def _mappable_var(
     ds: xr.Dataset, var_name: str, grid_metadata: GridMetadata = WRAPPER_GRID_METADATA,
 ):
-    """ Converts a dataset into a format for plotting across cubed-sphere tiles by
+    """Converts a dataset into a format for plotting across cubed-sphere tiles by
     checking and ordering its grid variable and plotting variable dimensions
 
     Args:
@@ -459,7 +470,7 @@ def _plot_cube_axes(
     ax: plt.axes = None,
     **kwargs,
 ):
-    """ Plots tiled cubed sphere for a given subplot axis,
+    """Plots tiled cubed sphere for a given subplot axis,
         using np.ndarrays for all data
 
     Args:
@@ -542,4 +553,50 @@ def _plot_cube_axes(
 
     ax.set_global()
 
+    return p_handle
+
+
+def _plot_scream_axes(
+    array: np.ndarray,
+    lat: np.ndarray,
+    lon: np.ndarray,
+    plotting_function: str,
+    ax: plt.axes = None,
+    **kwargs,
+):
+    if ax is None:
+        ax = plt.gca()
+    if plotting_function in ["tripcolor", "tricontour", "tricontourf"]:
+        _plotting_function = getattr(ax, plotting_function)
+    else:
+        raise ValueError(
+            """Plotting functions only include tripcolormesh, tricontour,
+            and tricontourf."""
+        )
+    if "vmin" not in kwargs:
+        kwargs["vmin"] = np.nanmin(array)
+
+    if "vmax" not in kwargs:
+        kwargs["vmax"] = np.nanmax(array)
+
+    if np.isnan(kwargs["vmin"]):
+        kwargs["vmin"] = -0.1
+    if np.isnan(kwargs["vmax"]):
+        kwargs["vmax"] = 0.1
+
+    if plotting_function != "tripcolor":
+        if "levels" not in kwargs:
+            kwargs["n_levels"] = 11 if "n_levels" not in kwargs else kwargs["n_levels"]
+            kwargs["levels"] = np.linspace(
+                kwargs["vmin"], kwargs["vmax"], kwargs["n_levels"]
+            )
+    lon = np.where(lon > 180, lon - 360, lon)
+    p_handle = _plotting_function(
+        lon.flatten(),
+        lat.flatten(),
+        array.flatten(),
+        transform=ccrs.PlateCarree(),
+        **kwargs,
+    )
+    ax.set_global()
     return p_handle

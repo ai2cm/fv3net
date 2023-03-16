@@ -8,6 +8,7 @@ import xarray as xr
 
 import fv3viz
 from fv3net.diagnostics.offline._helpers import units_from_name
+from vcm.cubedsphere import GridMetadata, GridMetadataFV3, GridMetadataScream
 
 
 def get_plot_dataset(ds, var_filter: str, column_filters: Sequence[str]):
@@ -139,18 +140,45 @@ def plot_column_integrated_var(
     dataset_dim: str = "dataset",
     dpi: int = 100,
     vmax: Union[int, float] = None,
+    gsrm_name: str = "fv3",
 ):
     ds_columns = (
         ds.sel(derivation=derivation_plot_coords)
         if derivation_plot_coords is not None
         else ds
     )
+    grid_metadata: GridMetadata
+    if gsrm_name == "fv3":
+        grid_metadata = GridMetadataFV3(
+            fv3viz.COORD_X_CENTER,
+            fv3viz.COORD_Y_CENTER,
+            fv3viz.COORD_X_OUTER,
+            fv3viz.COORD_Y_OUTER,
+            "tile",
+            fv3viz.VAR_LON_CENTER,
+            fv3viz.VAR_LON_OUTER,
+            fv3viz.VAR_LAT_CENTER,
+            fv3viz.VAR_LAT_OUTER,
+        )
+        plotting_function = "pcolormesh"
+    elif gsrm_name == "scream":
+        grid_metadata = GridMetadataScream(
+            fv3viz.COORD_X_CENTER,
+            fv3viz.COORD_Y_CENTER,
+            "tile",
+            fv3viz.VAR_LON_CENTER,
+            fv3viz.VAR_LAT_CENTER,
+        )
+        plotting_function = "tripcolor"
     f, _, _, _, facet_grid = fv3viz.plot_cube(
         ds_columns,
         var,
+        grid_metadata=grid_metadata,
+        plotting_function=plotting_function,
         col=derivation_dim,
         row=dataset_dim if dataset_dim in ds.dims else None,
         vmax=vmax,
+        gsrm_name=gsrm_name,
     )
     if facet_grid:
         facet_grid.set_titles(template="{value} ", maxchar=40)

@@ -6,7 +6,7 @@ from typing import MutableMapping, Sequence, List
 import fsspec
 import wandb
 import json
-
+import loaders
 import fv3viz
 import matplotlib.pyplot as plt
 import numpy as np
@@ -129,13 +129,18 @@ def render_model_sensitivity(figures_dir, output_dir) -> str:
     )
 
 
-def render_time_mean_maps(output_dir, ds_diags) -> str:
+def render_time_mean_maps(output_dir, ds_diags, gsrm: str = "fv3") -> str:
     report_sections: MutableMapping[str, Sequence[str]] = {}
 
     ds_time_mean = get_plot_dataset(
         ds_diags, var_filter="time_mean", column_filters=["global"]
     )
-
+    if gsrm == "fv3":
+        grid_info = ds_diags[["lat", "lon", "latb", "lonb"]]
+    elif gsrm == "scream":
+        grid_info = ds_diags[["lat", "lon"]]
+    else:
+        raise ValueError(f"Unknown gsrm: {gsrm}")
     # snapshot maps
     snapshot_vars = [
         v
@@ -151,9 +156,10 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
                 ds.sel(derivation="predict")[var] - ds.sel(derivation="target")[var]
             )
             fig = plot_column_integrated_var(
-                ds.update(ds_diags[["lat", "lon", "latb", "lonb"]]),
+                ds.update(grid_info),
                 var,
                 derivation_plot_coords=ds_diags[DERIVATION_DIM_NAME].values,
+                gsrm_name=gsrm,
             )
             report.insert_report_figure(
                 report_sections,
@@ -164,10 +170,11 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
             )
             plt.close(fig)
             fig_error = plot_column_integrated_var(
-                ds.update(ds_diags[["lat", "lon", "latb", "lonb"]]),
+                ds.update(grid_info),
                 f"error_in_{var}",
                 derivation_plot_coords=None,
                 derivation_dim=None,
+                gsrm_name=gsrm,
             )
             report.insert_report_figure(
                 report_sections,
@@ -396,7 +403,7 @@ def create_report(args):
         }
         wandb.init(config=wandb_config)
         wandb.log(metrics)
-
+    gsrm = loaders.BatchesLoader.from_dict(metadata["training_config"]).gsrm_name
     html_index = render_index(
         metadata, metrics, ds_diags, ds_transect, output_dir=temp_output_dir.name,
     )
@@ -410,7 +417,7 @@ def create_report(args):
     with open(os.path.join(temp_output_dir.name, MODEL_SENSITIVITY_HTML), "w") as f:
         f.write(html_model_sensitivity)
 
-    html_time_mean_maps = render_time_mean_maps(temp_output_dir.name, ds_diags,)
+    html_time_mean_maps = render_time_mean_maps(temp_output_dir.name, ds_diags, gsrm,)
     with open(os.path.join(temp_output_dir.name, TIME_MEAN_MAPS_HTML), "w") as f:
         f.write(html_time_mean_maps)
 
