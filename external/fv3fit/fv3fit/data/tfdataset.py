@@ -9,24 +9,18 @@ from ..tfdataset import generator_to_tfdataset
 import tempfile
 import xarray as xr
 import numpy as np
-from vcm import safe
 
 
 SAMPLE_DIM_NAME = "_fv3fit_sample"
 
 
-def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
+def stack(ds: xr.DataArray, unstacked_dims: Sequence[str]):
     stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
     unstacked_dims = [dim for dim in unstacked_dims if dim in ds.dims]
     if len(stack_dims) == 0:
         ds_stacked = ds.expand_dims(dim=SAMPLE_DIM_NAME, axis=0)
     else:
-        ds_stacked = safe.stack_once(
-            ds,
-            SAMPLE_DIM_NAME,
-            stack_dims,
-            allowed_broadcast_dims=list(unstacked_dims) + ["time", "dataset"],
-        )
+        ds_stacked = ds.stack({SAMPLE_DIM_NAME: stack_dims})
     return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 
@@ -49,10 +43,7 @@ class VariableConfig:
     def get_record(self, name: str, ds: xr.Dataset, unstacked_dims: Sequence[str]):
         if self.times == "start":
             ds = ds.isel(time=0)
-        # must stack array instead of dataset dataset to avoid attaching dimensions
-        # to it that happen to exist in other variables
         array = stack(ds[name], unstacked_dims)
-        print(name, array.shape, stack(ds[[name]], unstacked_dims)[name].shape)
         return array.values
 
 
