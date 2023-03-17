@@ -25,10 +25,6 @@ class GeneratorConfig:
     fractionally strided convolutions with stride 1/2, followed by an output
     convolutional layer with kernel size 7 to map to the output channels.
 
-    Generally we suggest using an even kernel size for strided convolutions,
-    and an odd kernel size for resnet (non-strided) convolutions. For an explanation
-    of this, see the docstring on halo_convolution.
-
     Attributes:
         n_convolutions: number of strided convolutional layers after the initial
             convolutional layer and before the residual blocks
@@ -117,12 +113,19 @@ class Generator(nn.Module):
             ]
             return nn.Sequential(*resnet_blocks)
 
+        if config.strided_kernel_size % 2 == 0:
+            output_padding = 0
+        else:
+            output_padding = 1
+
         def down(in_channels: int, out_channels: int):
             return ConvBlock(
                 in_channels=in_channels,
                 out_channels=out_channels,
                 convolution_factory=curry(convolution)(
-                    kernel_size=config.strided_kernel_size, stride=2
+                    kernel_size=config.strided_kernel_size,
+                    stride=2,
+                    output_padding=output_padding,
                 ),
                 activation_factory=relu_activation(),
             )
@@ -134,6 +137,7 @@ class Generator(nn.Module):
                 convolution_factory=curry(convolution)(
                     kernel_size=config.strided_kernel_size,
                     stride=2,
+                    output_padding=output_padding,
                     stride_type="transpose",
                 ),
                 activation_factory=relu_activation(),

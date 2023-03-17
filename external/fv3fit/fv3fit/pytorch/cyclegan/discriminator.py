@@ -99,6 +99,9 @@ class Discriminator(nn.Module):
             raise ValueError("n_convolutions must be at least 1")
         # max_filters = min_filters * 2 ** (n_convolutions - 1), therefore
         min_filters = int(max_filters / 2 ** (n_convolutions - 1))
+        # first convolutional block must not have instance normalization, so that the
+        # discriminator can use information about the mean and standard deviation of
+        # the input data (generated images)
         convs = []
         convs.append(
             convolution(

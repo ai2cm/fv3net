@@ -1,12 +1,13 @@
+import os
 import random
+from fv3fit import wandb
 from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
 import tensorflow as tf
 import torch
 from fv3fit.pytorch.system import DEVICE
 import tensorflow_datasets as tfds
-from fv3fit.tfdataset import sequence_size, apply_to_tuple
-from pathlib import Path
+from fv3fit.tfdataset import apply_to_tuple
 import secrets
 from datetime import datetime
 
@@ -20,16 +21,20 @@ from typing import (
     Sequence,
     Tuple,
 )
+
 from fv3fit.tfdataset import ensure_nd
 from fv3fit.pytorch.graph.train import get_Xy_map_fn as get_Xy_map_fn_single_domain
 from fv3fit._shared.scaler import (
     get_standard_scaler_mapping,
     get_mapping_standard_scale_func,
 )
+from fv3fit._shared import io
 import logging
 import numpy as np
 from .reloadable import CycleGAN
-from .cyclegan_trainer import CycleGANNetworkConfig, CycleGANTrainer
+from .reporter import Reporter
+from .cyclegan_trainer import CycleGANNetworkConfig, CycleGANTrainer, ResultsAggregator
+from ..optimizer import SchedulerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -68,22 +73,25 @@ class CycleGANTrainingConfig:
         n_epoch: number of epochs to train for
         shuffle_buffer_size: number of samples to use for shuffling the training data
         samples_per_batch: number of samples to use per batch
-        validation_batch_size: number of samples to use per batch for validation,
-            does not affect training result but allows the use of out-of-sample
-            validation data
         in_memory: if True, load the entire dataset into memory as pytorch tensors
             before training. Batches will be statically defined but will be shuffled
             between epochs.
+        histogram_vmax: maximum value for histograms of model outputs
         checkpoint_path: if given, model checkpoints will be saved to this directory
             marked by timestamp, epoch, and a randomly generated run label
+        scheduler: configuration for the scheduler used to adjust the
+            learning rate of the optimizer
     """
 
     n_epoch: int = 20
     shuffle_buffer_size: int = 10
     samples_per_batch: int = 1
-    validation_batch_size: Optional[int] = None
     in_memory: bool = False
+    histogram_vmax: float = 100.0
     checkpoint_path: Optional[str] = None
+    scheduler: SchedulerConfig = dataclasses.field(
+        default_factory=lambda: SchedulerConfig(None)
+    )
 
     def fit_loop(
         self,
@@ -105,19 +113,25 @@ class CycleGANTrainingConfig:
         train_data = train_data.batch(self.samples_per_batch)
         train_data_numpy = tfds.as_numpy(train_data)
         if validation_data is not None:
-            if self.validation_batch_size is None:
-                validation_batch_size = sequence_size(validation_data)
-            else:
-                validation_batch_size = self.validation_batch_size
-            validation_data = validation_data.batch(validation_batch_size)
+            validation_data = validation_data.batch(self.samples_per_batch)
             validation_data = tfds.as_numpy(validation_data)
         if self.in_memory:
             train_states: Iterable[
                 Tuple[torch.Tensor, torch.Tensor]
             ] = dataset_to_tuples(train_data_numpy)
+            if validation_data is not None:
+                val_states: Optional[
+                    Iterable[Tuple[torch.Tensor, torch.Tensor]]
+                ] = dataset_to_tuples(validation_data)
+            else:
+                val_states = None
         else:
             train_states = DatasetStateIterator(train_data_numpy)
-        self._fit_loop(train_model, train_states, validation_data)
+            if validation_data is not None:
+                val_states = DatasetStateIterator(validation_data)
+            else:
+                val_states = None
+        self._fit_loop(train_model, train_states, val_states)
 
     def _fit_loop(
         self,
@@ -125,14 +139,38 @@ class CycleGANTrainingConfig:
         train_states: Iterable[Tuple[torch.Tensor, torch.Tensor]],
         validation_data: Optional[tf.data.Dataset],
     ):
-        run_label = secrets.token_hex(4)
+        reporter = Reporter()
+        for state_a, state_b in train_states:
+            train_example_a, train_example_b = (state_a[:1, :], state_b[:1, :])
+            break
+        if validation_data is not None:
+            for state_a, state_b in validation_data:
+                val_example_a, val_example_b = (state_a[:1, :], state_b[:1, :])
+                break
+        else:
+            val_example_a, val_example_b = None, None  # type: ignore
         # current time as e.g. 20230113-163005
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        run_label = f"{timestamp}-{secrets.token_hex(4)}"
+        if self.checkpoint_path is not None:
+            logger.info(
+                "Saving checkpoints under %s",
+                os.path.join(self.checkpoint_path, f"{run_label}-epoch_###"),
+            )
+        generator_scheduler = self.scheduler.instance(train_model.optimizer_generator)
+        discriminator_scheduler = self.scheduler.instance(
+            train_model.optimizer_discriminator
+        )
         for i in range(1, self.n_epoch + 1):
             logger.info("starting epoch %d", i)
             train_losses = []
+            results_aggregator = ResultsAggregator(histogram_vmax=self.histogram_vmax)
             for state_a, state_b in train_states:
-                train_losses.append(train_model.train_on_batch(state_a, state_b))
+                train_losses.append(
+                    train_model.train_on_batch(
+                        state_a, state_b, aggregator=results_aggregator
+                    ),
+                )
             if isinstance(train_states, list):
                 random.shuffle(train_states)
             train_loss = {
@@ -140,17 +178,47 @@ class CycleGANTrainingConfig:
                 for name in train_losses[0]
             }
             logger.info("train_loss: %s", train_loss)
+            reporter.log(train_loss)
+            train_plots = train_model.generate_plots(
+                train_example_a, train_example_b, results_aggregator
+            )
+            reporter.log(train_plots)
 
             if validation_data is not None:
-                val_loss = train_model.evaluate_on_dataset(validation_data)
+                val_aggregator = ResultsAggregator(histogram_vmax=self.histogram_vmax)
+                val_losses = []
+                for state_a, state_b in validation_data:
+                    with torch.no_grad():
+                        val_losses.append(
+                            train_model.train_on_batch(
+                                state_a,
+                                state_b,
+                                training=False,
+                                aggregator=val_aggregator,
+                            )
+                        )
+                val_loss = {
+                    f"val_{name}": np.mean([data[name] for data in val_losses])
+                    for name in val_losses[0]
+                }
+                reporter.log(val_loss)
+                val_plots = train_model.generate_plots(
+                    val_example_a, val_example_b, val_aggregator
+                )
+                reporter.log({f"val_{name}": plot for name, plot in val_plots.items()})
                 logger.info("val_loss %s", val_loss)
 
+            wandb.log(reporter.metrics)
+            reporter.clear()
+
+            generator_scheduler.step()
+            discriminator_scheduler.step()
+
             if self.checkpoint_path is not None:
-                current_path = (
-                    Path(self.checkpoint_path)
-                    / f"{timestamp}-{run_label}-epoch_{i:03d}"
+                current_path = os.path.join(
+                    self.checkpoint_path, f"{run_label}-epoch_{i:03d}"
                 )
-                train_model.cycle_gan.dump(str(current_path))
+                io.dump(train_model.cycle_gan, str(current_path))
 
 
 def dataset_to_tuples(dataset) -> List[Tuple[torch.Tensor, torch.Tensor]]:
