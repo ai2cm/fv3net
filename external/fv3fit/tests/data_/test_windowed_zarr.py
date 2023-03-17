@@ -5,6 +5,8 @@ import xarray as xr
 import numpy as np
 import pytest
 import contextlib
+import cftime
+from datetime import timedelta
 
 NX, NY, NZ, NT = 5, 5, 8, 40
 
@@ -163,3 +165,75 @@ def test_loader_handles_time_range():
 )
 def test_get_n_windows(n_times, window_size, n_windows):
     assert get_n_windows(n_times, window_size) == n_windows
+
+
+def test_loader_decodes_time_from_cftime():
+    dir = tempfile.TemporaryDirectory()
+    ds = xr.Dataset(
+        data_vars={
+            "a": xr.DataArray(
+                np.random.randn(NT, NX, NY, NZ), dims=["time", "x", "y", "z"]
+            ),
+        },
+        coords={
+            "time": xr.DataArray(
+                [
+                    cftime.DatetimeJulian(2018, 1, 1) + timedelta(days=i)
+                    for i in range(NT)
+                ],
+                dims=["time"],
+            ),
+        },
+    )
+    ds.to_zarr(dir.name)
+    loader = WindowedZarrLoader(
+        data_path=dir.name,
+        window_size=10,
+        unstacked_dims=["time", "x", "y", "z"],
+        default_variable_config=VariableConfig(times="window"),
+        variable_configs={},
+    )
+    dataset = loader.open_tfdataset(
+        local_download_path=None, variable_names=["a", "time"]
+    )
+    item_tensors = next(iter(dataset))
+    a = item_tensors["a"].numpy()
+    time = item_tensors["time"].numpy()
+    assert time.shape[0] == a.shape[0]  # sample within batch
+    assert time.shape[1] == a.shape[1]  # window size
+    assert time[0, 1] - time[0, 0] == 60 * 60 * 24  # one day
+    assert len(time.shape) == 2
+
+
+def test_loader_decodes_time_from_datetime64():
+    dir = tempfile.TemporaryDirectory()
+    ds = xr.Dataset(
+        data_vars={
+            "a": xr.DataArray(
+                np.random.randn(NT, NX, NY, NZ), dims=["time", "x", "y", "z"]
+            ),
+        },
+        coords={
+            "time": xr.DataArray(
+                np.arange(NT), dims=["time"], attrs={"units": "days since 2018-01-01"}
+            ),
+        },
+    )
+    ds.to_zarr(dir.name)
+    loader = WindowedZarrLoader(
+        data_path=dir.name,
+        window_size=10,
+        unstacked_dims=["time", "x", "y", "z"],
+        default_variable_config=VariableConfig(times="window"),
+        variable_configs={},
+    )
+    dataset = loader.open_tfdataset(
+        local_download_path=None, variable_names=["a", "time"]
+    )
+    item_tensors = next(iter(dataset))
+    a = item_tensors["a"].numpy()
+    time = item_tensors["time"].numpy()
+    assert time.shape[0] == a.shape[0]  # sample within batch
+    assert time.shape[1] == a.shape[1]  # window size
+    assert len(time.shape) == 2
+    assert time[0, 1] - time[0, 0] == 60 * 60 * 24  # one day
