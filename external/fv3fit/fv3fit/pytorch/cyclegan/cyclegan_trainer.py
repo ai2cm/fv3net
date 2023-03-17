@@ -447,25 +447,29 @@ class CycleGANTrainer:
     def _call_generator_a_to_b(self, input):
         if self._script_gen_a_to_b is None:
             self._script_gen_a_to_b = torch.jit.trace(
-                self.generator_a_to_b.forward, input
+                self.generator_a_to_b.forward, (input,)
             )
         return self._script_gen_a_to_b(input)
 
     def _call_generator_b_to_a(self, input):
         if self._script_gen_b_to_a is None:
             self._script_gen_b_to_a = torch.jit.trace(
-                self.generator_b_to_a.forward, input
+                self.generator_b_to_a.forward, (input,)
             )
         return self._script_gen_b_to_a(input)
 
     def _call_discriminator_a(self, input):
         if self._script_disc_a is None:
-            self._script_disc_a = torch.jit.trace(self.discriminator_a.forward, input)
+            self._script_disc_a = torch.jit.trace(
+                self.discriminator_a.forward, (input,)
+            )
         return self._script_disc_a(input)
 
     def _call_discriminator_b(self, input):
         if self._script_disc_b is None:
-            self._script_disc_b = torch.jit.trace(self.discriminator_b.forward, input)
+            self._script_disc_b = torch.jit.trace(
+                self.discriminator_b.forward, (input,)
+            )
         return self._script_disc_b(input)
 
     def _init_targets(self, shape: Tuple[int, ...]):
@@ -478,8 +482,8 @@ class CycleGANTrainer:
 
     def train_on_batch(
         self,
-        real_a: torch.Tensor,
-        real_b: torch.Tensor,
+        state_a: Tuple[torch.Tensor, torch.Tensor],
+        state_b: Tuple[torch.Tensor, torch.Tensor],
         training: bool = True,
         aggregator: Optional[ResultsAggregator] = None,
     ) -> Mapping[str, float]:
@@ -487,29 +491,25 @@ class CycleGANTrainer:
         Train the CycleGAN on a batch of data.
 
         Args:
-            real_a: a batch of data from domain A, should have shape
+            state_a: a tuple containing a "time" tensor of shape [sample, time]
+                and a batch of data from domain A, should have shape
                 [sample, time, tile, channel, y, x]
-            real_b: a batch of data from domain B, should have shape
+            state_b: a tuple containing a "time" tensor of shape [sample, time]
+                and a batch of data from domain B, should have shape
                 [sample, time, tile, channel, y, x]
             training: if True, the model will be trained, otherwise we will
                 only evaluate the loss.
             aggregator: if given, record generated results in this aggregator
         """
-        # for now there is no time-evolution-based loss, so we fold the time
-        # dimension into the sample dimension
-        real_a = real_a.reshape(
-            [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
-        )
-        real_b = real_b.reshape(
-            [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
-        )
         if aggregator is None:
             aggregator = ResultsAggregator(histogram_vmax=100.0)
 
-        fake_b = self._call_generator_a_to_b(real_a)
-        fake_a = self._call_generator_b_to_a(real_b)
-        reconstructed_a = self._call_generator_b_to_a(fake_b)
-        reconstructed_b = self._call_generator_a_to_b(fake_a)
+        time_a, time_b, real_a, real_b = unpack_state(state_a, state_b)
+
+        fake_b = self._call_generator_a_to_b((time_a, real_a))
+        fake_a = self._call_generator_b_to_a((time_b, real_b))
+        reconstructed_a = self._call_generator_b_to_a((time_a, fake_b))
+        reconstructed_b = self._call_generator_a_to_b((time_b, fake_a))
 
         # Generators A2B and B2A ######
 
@@ -521,22 +521,22 @@ class CycleGANTrainer:
         # Identity loss
         # G_A2B(B) should equal B if real B is fed
         # same_b = self.generator_a_to_b(real_b)
-        same_b = self._call_generator_a_to_b(real_b)
+        same_b = self._call_generator_a_to_b((time_b, real_b))
         loss_identity_b = self.identity_loss(same_b, real_b) * self.identity_weight
         # G_B2A(A) should equal A if real A is fed
-        same_a = self._call_generator_b_to_a(real_a)
+        same_a = self._call_generator_b_to_a((time_a, real_a))
         loss_identity_a = self.identity_loss(same_a, real_a) * self.identity_weight
         loss_identity = loss_identity_a + loss_identity_b
 
         # GAN loss
-        pred_fake_b = self._call_discriminator_b(fake_b)
+        pred_fake_b = self._call_discriminator_b((time_a, fake_b))
         if self.target_real is None:
             self._init_targets(pred_fake_b.shape)
         loss_gan_a_to_b = (
             self.gan_loss(pred_fake_b, self.target_real) * self.generator_weight
         )
 
-        pred_fake_a = self._call_discriminator_a(fake_a)
+        pred_fake_a = self._call_discriminator_a((time_b, fake_a))
         loss_gan_b_to_a = (
             self.gan_loss(pred_fake_a, self.target_real) * self.generator_weight
         )
@@ -572,29 +572,33 @@ class CycleGANTrainer:
             )
 
         # Real loss
-        pred_real = self.discriminator_a(real_a)
+        pred_real = self._call_discriminator_a((time_a, real_a))
         loss_d_a_real = (
             self.gan_loss(pred_real, self.target_real) * self.discriminator_weight
         )
 
         # Fake loss
         if training:
-            fake_a = self.fake_a_buffer.query(fake_a)
-        pred_a_fake = self.discriminator_a(fake_a.detach())
+            time_b, fake_a = self.fake_a_buffer.query(
+                (time_b.detach(), fake_a.detach())
+            )
+        pred_a_fake = self.discriminator_a((time_b, fake_a))
         loss_d_a_fake = (
             self.gan_loss(pred_a_fake, self.target_fake) * self.discriminator_weight
         )
 
         # Real loss
-        pred_real = self.discriminator_b(real_b)
+        pred_real = self._call_discriminator_b((time_b, real_b))
         loss_d_b_real = (
             self.gan_loss(pred_real, self.target_real) * self.discriminator_weight
         )
 
         # Fake loss
         if training:
-            fake_b = self.fake_b_buffer.query(fake_b)
-        pred_b_fake = self.discriminator_b(fake_b.detach())
+            time_a, fake_b = self.fake_b_buffer.query(
+                (time_a.detach(), fake_b.detach())
+            )
+        pred_b_fake = self._call_discriminator_b((time_a, fake_b))
         loss_d_b_fake = (
             self.gan_loss(pred_b_fake, self.target_fake) * self.discriminator_weight
         )
@@ -622,31 +626,28 @@ class CycleGANTrainer:
 
     def generate_plots(
         self,
-        real_a: torch.Tensor,
-        real_b: torch.Tensor,
+        state_a: Tuple[torch.Tensor, torch.Tensor],
+        state_b: Tuple[torch.Tensor, torch.Tensor],
         results_aggregator: Optional[ResultsAggregator] = None,
     ) -> Mapping[str, wandb.Image]:
         """
         Plot model output on the first sample of a given batch and return it as
         a dictionary of wandb.Image objects.
         Args:
-            real_a: a batch of data from domain A, should have shape
+            state_a: a tuple containing a "time" tensor of shape [sample, time]
+                and a batch of data from domain A, should have shape
                 [sample, time, tile, channel, y, x]
-            real_b: a batch of data from domain B, should have shape
+            state_b: a tuple containing a "time" tensor of shape [sample, time]
+                and a batch of data from domain B, should have shape
                 [sample, time, tile, channel, y, x]
             results_aggregator: an aggregator whose results we should plot
         """
-        real_a = real_a.reshape(
-            [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
-        )
-        real_b = real_b.reshape(
-            [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
-        )
+        time_a, time_b, real_a, real_b = unpack_state(state_a, state_b)
 
         # plot the first sample of the batch
         with torch.no_grad():
-            fake_b = self._call_generator_a_to_b(real_a[:1, :])
-            fake_a = self._call_generator_b_to_a(real_b[:1, :])
+            fake_b = self._call_generator_a_to_b((time_a[:1], real_a[:1, :]))
+            fake_a = self._call_generator_b_to_a((time_b[:1], real_b[:1, :]))
         real_a = real_a.cpu().numpy()
         real_b = real_b.cpu().numpy()
         fake_a = fake_a.cpu().numpy()
@@ -775,6 +776,30 @@ def get_percentile_error(bins, hist_actual, hist_expected, pct):
     return pct_actual - pct_expected
 
 
+def unpack_state(
+    state_a: Tuple[torch.Tensor, torch.Tensor],
+    state_b: Tuple[torch.Tensor, torch.Tensor],
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Unpacks states into time and input data, and folds the batch and window dimensions
+    into one.
+    """
+
+    time_a = state_a[0].flatten()
+    time_b = state_b[0].flatten()
+    real_a = state_a[1]
+    real_b = state_b[1]
+    # for now there is no time-evolution-based loss, so we fold the time
+    # dimension into the sample dimension
+    real_a = real_a.reshape(
+        [real_a.shape[0] * real_a.shape[1]] + list(real_a.shape[2:])
+    )
+    real_b = real_b.reshape(
+        [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
+    )
+    return time_a, time_b, real_a, real_b
+
+
 def plot_histograms(
     real_a_hist: np.ndarray,
     real_b_hist: np.ndarray,
@@ -820,11 +845,13 @@ def plot_cross(
 ) -> io.BytesIO:
     """
     Plot global states as cross-plots.
+
     Args:
         real_a: Real state from domain A, shape [tile, x, y]
         real_b: Real state from domain B, shape [tile, x, y]
         fake_a: Fake state from domain A, shape [tile, x, y]
         fake_b: Fake state from domain B, shape [tile, x, y]
+
     Returns:
         io.BytesIO: BytesIO object containing the plot
     """

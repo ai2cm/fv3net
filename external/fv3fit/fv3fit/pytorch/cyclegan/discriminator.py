@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Tuple
 
 import torch.nn as nn
 from toolz import curry
@@ -115,12 +116,13 @@ class Discriminator(nn.Module):
         )
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """
         Args:
-            inputs: tensor of shape (batch, tile, in_channels, height, width)
+            inputs: A tuple containing a tensor of shape (batch, 1) with the time and
+                a tensor of shape (batch, tile, in_channels, height, width)
 
         Returns:
             tensor of shape (batch, tile, 1, height, width)
         """
-        return self._sequential(inputs)
+        return self._sequential(inputs[1])
