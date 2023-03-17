@@ -206,6 +206,7 @@ def test_cyclegan_runs_without_errors(
                 max_filters=32,
                 kernel_size=3,
                 strided_kernel_size=strided_kernel_size,
+                use_geographic_embedded_bias=True,
             ),
             optimizer=fv3fit.pytorch.OptimizerConfig(name="Adam", kwargs={"lr": 0.001}),
             discriminator=fv3fit.pytorch.DiscriminatorConfig(
@@ -213,6 +214,7 @@ def test_cyclegan_runs_without_errors(
                 max_filters=32,
                 kernel_size=3,
                 strided_kernel_size=strided_kernel_size,
+                use_geographic_embedded_bias=True,
             ),
             convolution_type=conv_type,
             identity_weight=0.01,
