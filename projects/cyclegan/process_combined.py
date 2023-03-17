@@ -671,7 +671,7 @@ def plot_diurnal_cycle(ds, initial_time, varname, label: str):
 if __name__ == "__main__":
     fv3fit.set_random_seed(0)
     CHECKPOINT_PATH = "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/"
-    EVALUATE_ON_TRAIN = True
+    EVALUATE_ON_TRAIN = False
     # BASE_NAME, EPOCH = (
     #     "20230208-183103-cdda934c", 17  # precip-only, properly normalized, +45 epochs
     #     # "20230217-220447-a693c405", 62  # lr=2e-6, xyz features
@@ -706,10 +706,11 @@ if __name__ == "__main__":
         # ("20230313-211437-4a624ff9", "march-diurnal-2e-6-3x3-train-as-val-e06", 6),
         # ("20230313-211452-034a9ec9", "march-diurnal-2e-5-3x3-train-as-val-e06", 6),
         # ("20230313-211352-c94b7408", "march-2e-6-geo-bias-e07", 7),
-        ("20230314-214027-54366191", "lr-1e-4-decay-0.63096-e15", 15),
-        ("20230314-213709-fc95b736", "lr-1e-4-decay-0.79433-e15", 15),
-        ("20230314-214051-25b2a902", "lr-1e-3-decay-0.63096-e15", 15),
+        ("20230314-214027-54366191", "lr-1e-4-decay-0.63096", 24),
+        ("20230314-213709-fc95b736", "lr-1e-4-decay-0.79433", 24),
+        ("20230314-214051-25b2a902", "lr-1e-3-decay-0.63096", 24),
     ]:
+        label = label + f"-e{EPOCH:02d}"
         fv3fit.set_random_seed(0)
         print(f"Loading {BASE_NAME} epoch {EPOCH}")
         cyclegan: fv3fit.pytorch.CycleGAN = fv3fit.load(

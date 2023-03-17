@@ -258,7 +258,7 @@ def fit_exponential(p, bins, label):
     return a
 
 
-def plot_mean_all(c48, c384, c48_gen, c384_gen):
+def plot_mean_all(c48, c384, c48_gen, c384_gen, label: str):
     varname = "PRATEsfc"
     fig, ax = plt.subplots(
         2, 4, figsize=(16, 6), subplot_kw={"projection": ccrs.Robinson()},
@@ -355,7 +355,7 @@ def plot_mean_all(c48, c384, c48_gen, c384_gen):
     )
 
     plt.tight_layout()
-    fig.savefig(f"ramping-mean.png", dpi=100)
+    fig.savefig(f"ramping-mean-{label}.png", dpi=100)
 
 
 def to_diurnal_land(ds: xr.Dataset):
@@ -393,7 +393,7 @@ def plot_diurnal_land(c48, c384, c48_gen, c384_gen):
     fig.savefig(f"ramping-diurnal_cycle.png", dpi=100)
 
 
-def animate_all(c48, c384, c48_gen, c384_gen):
+def animate_all(c48, c384, c48_gen, c384_gen, label: str):
 
     fig, ax = plt.subplots(
         2, 2, figsize=(12, 6), subplot_kw={"projection": ccrs.Robinson()},
@@ -499,7 +499,9 @@ def animate_all(c48, c384, c48_gen, c384_gen):
     ani = matplotlib.animation.FuncAnimation(
         fig, func, frames=frames, interval=100, repeat=False, save_count=nt,
     )
-    ani.save(f"basic_animation_{nt}.mp4", fps=10, extra_args=["-vcodec", "libx264"])
+    ani.save(
+        f"basic_animation_{nt}-{label}.mp4", fps=10, extra_args=["-vcodec", "libx264"]
+    )
 
 
 if __name__ == "__main__":
@@ -507,8 +509,9 @@ if __name__ == "__main__":
     CHECKPOINT_PATH = "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/"
     BASE_NAME, EPOCH = (
         # "20230208-183103-cdda934c", 17  # precip-only, properly normalized, +45 epochs
-        "20230302-000015-699b0906",
-        75  # "no-demean-2e-6-e75"
+        # "20230302-000015-699b0906", 75  # "no-demean-2e-6-e75"
+        "20230314-214027-54366191",
+        17
         # "20230303-203306-f753d490", 69  # "denorm-2e-6-3x3-e69"
     )
     cyclegan: fv3fit.pytorch.CycleGAN = fv3fit.load(
@@ -562,10 +565,10 @@ if __name__ == "__main__":
     )
 
     # HACK: for denorm case
-    # mean_c48[:] = 0.
-    # std_c48[:] = 1.
-    # mean_c384[:] = 0.
-    # std_c384[:] = 1.
+    mean_c48[:] = 0.0
+    std_c48[:] = 1.0
+    mean_c384[:] = 0.0
+    std_c384[:] = 1.0
 
     plt.figure()
     plt.plot(sst_c48, mean_c48.sel(grid="C48").values, label="C48")
@@ -616,9 +619,9 @@ if __name__ == "__main__":
     c48_gen = c48_gen.isel(time=slice(2 * 365, 3 * 365))
     c384_gen = c384_gen.isel(time=slice(2 * 365, 3 * 365))
 
-    animate_all(c48, c384, c48_gen, c384_gen)
+    animate_all(c48, c384, c48_gen, c384_gen, f"{BASE_NAME}-e{EPOCH}")
 
-    plot_mean_all(c48, c384, c48_gen, c384_gen)
+    plot_mean_all(c48, c384, c48_gen, c384_gen, f"{BASE_NAME}-e{EPOCH}")
 
     n_smoothing = 30
     plt.figure()
@@ -659,7 +662,7 @@ if __name__ == "__main__":
     # plt.plot(c48.time.values, c384_gen[VARNAME].mean(dim=("tile", "x", "y")).values, label="C384 gen")
     plt.legend()
     plt.tight_layout()
-    plt.savefig("ramping.png", dpi=100)
+    plt.savefig(f"ramping-{BASE_NAME}-e{EPOCH}.png", dpi=100)
 
     n_bins = 100
     bins = np.linspace(0, 1e-2, 101)
