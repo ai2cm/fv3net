@@ -203,4 +203,32 @@ def concat_variables_along_feature_dim(
 ):
     # Concat variable tensors into a single tensor along the feature dimension
     # which is assumed to be the last dim.
-    return tf.concat([variable_tensors[v] for v in variables], axis=-1, name="stack",)
+    variable_tensors_consistent_dims = _assure_same_dims(variable_tensors)
+    return tf.concat(
+        [tf.cast(variable_tensors_consistent_dims[v], tf.float32) for v in variables],
+        axis=-1,
+        name="stack",
+    )
+
+
+def _assure_same_dims(
+    variable_tensors: Mapping[str, tf.Tensor]
+) -> Mapping[str, tf.Tensor]:
+    max_dims = 0
+    for var_data in variable_tensors.values():
+        if len(var_data.shape) > max_dims:
+            max_dims = len(var_data.shape)
+
+    reshaped_tensors = {}
+    for var, var_data in variable_tensors.items():
+        if len(var_data.shape) == max_dims:
+            reshaped_tensors[var] = var_data
+        elif len(var_data.shape) == max_dims - 1:
+            orig_shape = var_data.shape
+            reshaped_tensors[var] = var_data.reshape(*orig_shape, 1)
+        else:
+            raise ValueError(
+                f"Tensor data has {len(var_data.shape)} dims, must either "
+                f"have either {max_dims} or {max_dims-1}."
+            )
+    return reshaped_tensors

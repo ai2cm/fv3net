@@ -5,6 +5,7 @@ from fv3fit.reservoir.domain import (
     RankDivider,
     concat_variables_along_feature_dim,
     stack_time_series_samples,
+    _assure_same_dims,
 )
 
 
@@ -31,16 +32,38 @@ default_rank_divider_kwargs = {
 }
 
 
+def test__assure_same_dims():
+    nt, nx, ny, nz = 5, 4, 4, 6
+    arr_3d = np.ones((nt, nx, ny, nz))
+    arr_2d = np.ones((nt, nx, ny,))
+    data_mapping = {"var_3d": arr_3d, "var_2d": arr_2d}
+    assert _assure_same_dims(data_mapping)["var_2d"].shape == (nt, nx, ny, 1)
+    assert _assure_same_dims(data_mapping)["var_3d"].shape == (nt, nx, ny, nz)
+
+
+def test__assure_same_dims_incompatible_shapes():
+    nt, nx, ny, nz = 5, 4, 4, 6
+    arr_3d = np.ones((nt, nx, ny, nz, 2))
+    arr_2d = np.ones((nt, nx, ny,))
+    data_mapping = {"var_3d": arr_3d, "var_2d": arr_2d}
+    with pytest.raises(ValueError):
+        _assure_same_dims(data_mapping)
+
+
 def test_concat_variables_along_feature_dim():
     nt, nx, ny, nz = 5, 4, 4, 6
     arr0 = np.zeros((nt, nx, ny, nz))
     arr1 = np.ones((nt, nx, ny, nz))
-    data_mapping = {"var1": arr1, "var0": arr0}
+    arr_2d = np.ones((nt, nx, ny,))
+    data_mapping = {"var1": arr1, "var0": arr0, "var_2d": arr_2d}
 
-    concat_data = concat_variables_along_feature_dim(["var0", "var1"], data_mapping)
-    assert concat_data.shape == (nt, nx, ny, nz * 2)
+    concat_data = concat_variables_along_feature_dim(
+        ["var0", "var1", "var_2d"], data_mapping
+    )
+    assert concat_data.shape == (nt, nx, ny, nz * 2 + 1)
     np.testing.assert_array_equal(concat_data[:, :, :, :nz], arr0)
-    np.testing.assert_array_equal(concat_data[:, :, :, nz:], arr1)
+    np.testing.assert_array_equal(concat_data[:, :, :, nz:-1], arr1)
+    np.testing.assert_array_equal(concat_data[:, :, :, -1], arr_2d)
 
 
 @pytest.mark.parametrize(
