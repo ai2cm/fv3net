@@ -1,7 +1,7 @@
 import fsspec
 import numpy as np
 import tensorflow as tf
-from typing import Sequence, Mapping
+from typing import Sequence, Mapping, Iterable
 import yaml
 
 import pace.util
@@ -199,7 +199,7 @@ def stack_time_series_samples(tensor):
 
 
 def concat_variables_along_feature_dim(
-    variables: Sequence[str], variable_tensors: Mapping[str, tf.Tensor]
+    variables: Iterable[str], variable_tensors: Mapping[str, tf.Tensor]
 ):
     # Concat variable tensors into a single tensor along the feature dimension
     # which is assumed to be the last dim.

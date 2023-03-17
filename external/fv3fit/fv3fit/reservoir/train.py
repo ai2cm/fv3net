@@ -2,7 +2,7 @@ import logging
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, Mapping, Tuple, List, Sequence
+from typing import Optional, Mapping, Tuple, List, Iterable
 
 from .. import Predictor
 from .._shared import register_training_function, StandardScaler
@@ -150,7 +150,7 @@ def train_reservoir_model(
 
 
 def _process_batch_data(
-    variables: Sequence[str],
+    variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
     rank_divider: RankDivider,
     scaler: StandardScaler,
