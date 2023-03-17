@@ -229,10 +229,7 @@ def _get_datasets(
     for source in sources:
         mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
         if cache_size_mb is not None:
-            mapper = zarr.LRUStoreCache(
-                mapper,
-                max_size=int(cache_size_mb * 1e6),
-            )
+            mapper = zarr.LRUStoreCache(mapper, max_size=int(cache_size_mb * 1e6),)
         ds = xr.open_zarr(mapper, consolidated=consolidated)
         datasets[source] = ds
     return datasets
