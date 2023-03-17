@@ -42,9 +42,9 @@ def _encode_columns(data: tf.Tensor, encoder: tf.keras.Model,) -> np.ndarray:
     # variables * vertical levels) and Z << V is a smaller
     # number of latent dimensions
     original_sample_shape = data.shape[:-1]
-    original_3d_dim = data.shape[-1]
+    original_z_dim = data.shape[-1]
 
-    reshaped = data.reshape(-1, original_3d_dim)
+    reshaped = data.reshape(-1, original_z_dim)
     encoded_reshaped = encoder.predict(reshaped)
     return encoded_reshaped.reshape(*original_sample_shape, -1)
 
@@ -69,12 +69,11 @@ def train_reservoir_model(
     scaler = StandardScaler(n_sample_dims=1)
     scaler.fit(norm_batch_concat)
 
-    if autoencoder is not None:
-        sample_batch = (
-            _encode_columns(norm_batch_concat, autoencoder.encoder)
-            if autoencoder is not None
-            else norm_batch_concat
-        )
+    sample_batch = (
+        _encode_columns(norm_batch_concat, autoencoder.encoder)
+        if autoencoder is not None
+        else norm_batch_concat
+    )
     subdomain_config = hyperparameters.subdomain
     rank_divider = RankDivider(
         subdomain_layout=subdomain_config.layout,
