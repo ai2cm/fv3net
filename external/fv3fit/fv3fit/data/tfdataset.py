@@ -49,10 +49,11 @@ class VariableConfig:
     def get_record(self, name: str, ds: xr.Dataset, unstacked_dims: Sequence[str]):
         if self.times == "start":
             ds = ds.isel(time=0)
-        # must subset dataset to one variable to avoid attaching dimensions
+        # must stack array instead of dataset dataset to avoid attaching dimensions
         # to it that happen to exist in other variables
-        ds = stack(ds[[name]], unstacked_dims)
-        return ds[name].values
+        array = stack(ds[name], unstacked_dims)
+        print(name, array.shape, stack(ds[[name]], unstacked_dims)[name].shape)
+        return array.values
 
 
 def open_zarr_using_filecache(url: str, decode_times: bool = False):
@@ -248,18 +249,19 @@ def records(
                 array = config.get_record(name, window_ds, unstacked_dims)
                 if i_sample is None:
                     i_sample = np.random.randint(array.shape[0])
+                sample = array[i_sample, :]
                 if name == "time":
                     try:
-                        item = cftime.date2num(array, "seconds since 1970-01-01")
+                        item = cftime.date2num(sample, "seconds since 1970-01-01")
                     except ValueError:  # raised for arrays of datetime64
                         item = (
-                            array - np.datetime64("1970-01-01T00:00:00Z")
+                            sample - np.datetime64("1970-01-01T00:00:00Z")
                         ) / np.timedelta64(1, "s")
                 else:
                     try:
-                        item = array[i_sample, :]
+                        item = sample
                     except IndexError:
-                        item = np.asarray(array[i_sample])
+                        item = np.asarray(sample)
                 record[name] = item
             yield record
 
