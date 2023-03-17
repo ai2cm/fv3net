@@ -5,7 +5,7 @@ import os
 from tempfile import NamedTemporaryFile
 import toolz
 
-from .cubed_sphere import CubedSphereDivider
+from cubed_sphere import CubedSphereDivider
 import vcm
 
 logging.basicConfig()
@@ -64,6 +64,7 @@ def _get_parser() -> argparse.ArgumentParser:
         help=("Number of timesteps to save per rank netcdf."),
     )
     parser.add_argument("--variables", type=str, nargs="+", default=[])
+    parser.add_argument("--ranks", type=int, nargs="+", default=[])
 
     return parser
 
@@ -118,9 +119,12 @@ if __name__ == "__main__":
     else:
         time_chunks = [list(data_times)]
 
+    save_ranks = (
+        args.ranks if len(args.ranks) > 0 else range(cubedsphere_divider.total_ranks)
+    )
     for t, time_chunk in enumerate(time_chunks):
         data_time_slice = data.sel(time=time_chunk).load()
-        for r in range(cubedsphere_divider.total_ranks):
+        for r in save_ranks:
             output_dir = os.path.join(args.output_path, f"rank_{r}")
             rank_output_path = os.path.join(output_dir, f"{t}.nc")
             rank_data = cubedsphere_divider.get_rank_data(
