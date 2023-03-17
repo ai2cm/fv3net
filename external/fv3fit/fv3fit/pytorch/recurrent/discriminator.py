@@ -77,18 +77,19 @@ class Discriminator(nn.Module):
             raise ValueError("n_convolutions must be at least 1")
         # max_filters = min_filters * 2 ** (n_convolutions - 1), therefore
         min_filters = int(max_filters / 2 ** (n_convolutions - 1))
-        convs = [
-            ConvBlock(
+        # first convolutional block must not have instance normalization, so that the
+        # discriminator can use information about the mean and standard deviation of
+        # the input data (generated images)
+        convs = []
+        convs.append(
+            convolution(
                 in_channels=in_channels,
                 out_channels=min_filters,
-                convolution_factory=curry(convolution)(
-                    kernel_size=strided_kernel_size, stride=2,
-                ),
-                activation_factory=leakyrelu_activation(
-                    negative_slope=0.2, inplace=True
-                ),
+                kernel_size=strided_kernel_size,
+                stride=2,
             )
-        ]
+        )
+        convs.append(leakyrelu_activation(negative_slope=0.2, inplace=True)())
         # we've already defined the first strided convolutional layer, so start at 1
         for i in range(1, n_convolutions):
             convs.append(

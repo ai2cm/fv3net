@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Sequence, Optional, Set
+from typing import Sequence, Optional, Set, Iterable
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -83,8 +83,8 @@ class ReservoirTrainingConfig(Hyperparameters):
         before passing to reservoir
     """
 
-    input_variables: Sequence[str]
-    output_variables: Sequence[str]
+    input_variables: Iterable[str]
+    output_variables: Iterable[str]
     subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
     readout_hyperparameters: BatchLinearRegressorHyperparameters
@@ -96,9 +96,16 @@ class ReservoirTrainingConfig(Hyperparameters):
     autoencoder_path: Optional[str] = None
     _METADATA_NAME = "reservoir_training_config.yaml"
 
+    def __post_init__(self):
+        if set(self.output_variables).issubset(self.input_variables) is False:
+            raise ValueError(
+                f"Output variables {self.output_variables} must be a subset of "
+                f"input variables {self.input_variables}."
+            )
+
     @property
     def variables(self) -> Set[str]:
-        return set(self.input_variables).union(self.output_variables)
+        return set(self.input_variables)
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
