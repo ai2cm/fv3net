@@ -1,12 +1,12 @@
 kind: train
-name: gscond-only-qvout-norm-fix-v1
+name: gscond-only-qvout-norm-fix-dense-v1
 fv3fit_image_tag: 95218aec9ed1e6cbda0db1e1f69dc34e0d839c52
 experiment: james-manuscript
 config:
   use_wandb: true
   wandb:
     wandb_project: microphysics-emulation
-  seed: 5
+  seed: 3
   batch_size: 512
   epochs: 50
   nfiles_valid: 100
@@ -58,7 +58,7 @@ config:
       kwargs:
         width: 256
         depth: 2
-      name: dense-local
+      name: dense
     input_variables:
     - air_temperature_input
     - specific_humidity_input
