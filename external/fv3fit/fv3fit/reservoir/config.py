@@ -1,14 +1,14 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Tuple, Sequence
+from typing import Sequence, Optional, Set, Iterable
 import fsspec
-from typing import Optional
 import yaml
+from .._shared.training_config import Hyperparameters
 
 
 @dataclass
 class CubedsphereSubdomainConfig:
-    layout: Tuple[int, int]
+    layout: Sequence[int]
     overlap: int
     rank_dims: Sequence[str]
 
@@ -59,58 +59,53 @@ class BatchLinearRegressorHyperparameters:
 
 
 @dataclass
-class ReadoutHyperparameters:
+class ReservoirTrainingConfig(Hyperparameters):
     """
-    linear_regressor_config: hyperparameters for batch fitting linear regressor
-    square_half_hidden_state: if True, square even terms in the reservoir
-        state before it is used as input to the regressor's .fit and
-        .predict methods. This option was found to be important for skillful
-        predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
-    """
-
-    linear_regressor_config: BatchLinearRegressorHyperparameters
-    square_half_hidden_state: bool = False
-
-
-@dataclass
-class ReservoirTrainingConfig:
-    """
+    input_variables: variables and additional features in time series
+    output_variables: time series variables, must be subset of input_variables
     reservoir_hyperparameters: hyperparameters for reservoir
     readout_hyperparameters: hyperparameters for readout
-    n_burn: number of training samples to discard from beginning of training
-        time series.
+    n_batches_burn: number of training batches at start of time series to use
+        for synchronizaton.  This data is  used to update the reservoir state
+        but is not included in training.
     input_noise: stddev of normal distribution which is sampled to add input
         noise to the training inputs when generating hidden states. This is
         commonly done to aid in the stability of the RC model.
     seed: random seed for sampling
-    n_samples: number of samples to use in training
-    hybrid_imperfect_model_config: if training a hybrid model, dict of
-        kwargs for initializing ImperfectModel
-    subdomain: Optional subdomain config. If provided, one reservoir and readout
-        are created and trained for each subdomain. Subdomain size and reservoir
-        input size much match.
+    subdomain: Subdomain config. All subdomains use the same reservoir weights;
+        one readout is created and trained for each subdomain. Subdomain size
+        and reservoir input size much match.
+    square_half_hidden_state: if True, square even terms in the reservoir
+        state before it is used as input to the regressor's .fit and
+        .predict methods. This option was found to be important for skillful
+        predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
+    autoencoder_path: optional path for autoencoder to use in encoding time series
+        before passing to reservoir
     """
 
+    input_variables: Iterable[str]
+    output_variables: Iterable[str]
     subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
-    readout_hyperparameters: ReadoutHyperparameters
-    n_burn: int
+    readout_hyperparameters: BatchLinearRegressorHyperparameters
+    n_batches_burn: int
     input_noise: float
-    timestep: float
     seed: int = 0
-    n_samples: Optional[int] = None
     n_jobs: Optional[int] = -1
-
+    square_half_hidden_state: bool = False
+    autoencoder_path: Optional[str] = None
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     def __post_init__(self):
-        if self.subdomain is not None:
-            if (
-                self.subdomain.size + 2 * self.subdomain.overlap
-            ) != self.reservoir_hyperparameters.input_size:
-                raise ValueError(
-                    "Subdomain size + overlaps and reservoir input_size must match."
-                )
+        if set(self.output_variables).issubset(self.input_variables) is False:
+            raise ValueError(
+                f"Output variables {self.output_variables} must be a subset of "
+                f"input variables {self.input_variables}."
+            )
+
+    @property
+    def variables(self) -> Set[str]:
+        return set(self.input_variables)
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
@@ -122,7 +117,7 @@ class ReservoirTrainingConfig:
             config=dacite_config,
         )
         kwargs["readout_hyperparameters"] = dacite.from_dict(
-            data_class=ReadoutHyperparameters,
+            data_class=BatchLinearRegressorHyperparameters,
             data=kwargs.get("readout_hyperparameters", {}),
             config=dacite_config,
         )
@@ -139,15 +134,14 @@ class ReservoirTrainingConfig:
 
     def dump(self, path: str):
         metadata = {
-            "timestep": self.timestep,
-            "n_burn": self.n_burn,
+            "n_batches_burn": self.n_batches_burn,
             "input_noise": self.input_noise,
             "seed": self.seed,
-            "n_samples": self.n_samples,
             "n_jobs": self.n_jobs,
             "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
             "subdomain": asdict(self.subdomain),
+            "autoencoder_path": self.autoencoder_path,
         }
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)

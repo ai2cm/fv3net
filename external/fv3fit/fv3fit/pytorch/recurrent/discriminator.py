@@ -3,9 +3,8 @@ import dataclasses
 import torch.nn as nn
 from toolz import curry
 import torch
-from .modules import (
+from fv3fit.pytorch.cyclegan.modules import (
     ConvolutionFactory,
-    GeographicBias,
     single_tile_convolution,
     leakyrelu_activation,
     ConvBlock,
@@ -25,27 +24,17 @@ class DiscriminatorConfig:
         n_convolutions: number of strided convolutional layers before the
             final convolutional output layer, must be at least 1
         kernel_size: size of convolutional kernels
-        strided_kernel_size: size of convolutional kernels in the
-            strided convolutions
         max_filters: maximum number of filters in any convolutional layer,
             equal to the number of filters in the final strided convolutional layer
-        use_geographic_embedded_bias: if True, include a layer that adds a trainable
-            bias vector after the initial encoding layer. This bias is a
-            function of horizontal coordinates.
     """
 
     n_convolutions: int = 3
     kernel_size: int = 3
     strided_kernel_size: int = 3
     max_filters: int = 256
-    use_geographic_embedded_bias: bool = False
 
     def build(
-        self,
-        channels: int,
-        nx: int,
-        ny: int,
-        convolution: ConvolutionFactory = single_tile_convolution,
+        self, channels: int, convolution: ConvolutionFactory = single_tile_convolution,
     ):
         return Discriminator(
             in_channels=channels,
@@ -53,10 +42,7 @@ class DiscriminatorConfig:
             kernel_size=self.kernel_size,
             strided_kernel_size=self.strided_kernel_size,
             max_filters=self.max_filters,
-            nx=nx,
-            ny=ny,
             convolution=convolution,
-            use_geographic_embedded_bias=self.use_geographic_embedded_bias,
         )
 
 
@@ -72,10 +58,7 @@ class Discriminator(nn.Module):
         kernel_size: int,
         strided_kernel_size: int,
         max_filters: int,
-        nx: int,
-        ny: int,
         convolution: ConvolutionFactory = single_tile_convolution,
-        use_geographic_embedded_bias: bool = False,
     ):
         """
         Args:
@@ -87,12 +70,7 @@ class Discriminator(nn.Module):
             max_filters: maximum number of filters in any convolutional layer,
                 equal to the number of filters in the final strided convolutional layer
                 and in the convolutional layer just before the output layer
-            nx: number of grid points in the x direction
-            ny: number of grid points in the y direction
             convolution: factory for creating all convolutional layers
-            use_geographic_embedded_bias: if True, include a layer that adds a
-                trainable bias vector after the initial encoding layer that is
-                a function of horizontal coordinates.
         """
         super(Discriminator, self).__init__()
         if n_convolutions < 1:
@@ -111,12 +89,7 @@ class Discriminator(nn.Module):
                 stride=2,
             )
         )
-        if use_geographic_embedded_bias:
-            convs.append(
-                GeographicBias(channels=min_filters, nx=int(nx / 2), ny=int(ny / 2))
-            )
         convs.append(leakyrelu_activation(negative_slope=0.2, inplace=True)())
-
         # we've already defined the first strided convolutional layer, so start at 1
         for i in range(1, n_convolutions):
             convs.append(
