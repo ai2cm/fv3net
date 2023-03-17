@@ -164,6 +164,42 @@ def test_batches_loader_from_dict(data, expected_class):
     assert type(result) is expected_class
 
 
+@pytest.mark.parametrize(
+    "data, expected_gsrm_name, ptop",
+    [
+        pytest.param(
+            {
+                "mapper_config": {
+                    "function": "open_zarr",
+                    "kwargs": {"data_path": "mock/data/path"},
+                },
+                "kwargs": {},
+            },
+            "fv3",
+            300.0,
+            id="gsrm_fv3",
+        ),
+        pytest.param(
+            {
+                "mapper_config": {
+                    "function": "open_zarr",
+                    "kwargs": {"data_path": "mock/data/path"},
+                },
+                "res": "ne30",
+                "ptop": 10.0,
+            },
+            "scream",
+            10.0,
+            id="gsrm_scream",
+        ),
+    ],
+)
+def test_gsrm_BatchesFromMapperConfig(data, expected_gsrm_name, ptop):
+    result = loaders._config.BatchesLoader.from_dict(data)
+    assert result.gsrm_name == expected_gsrm_name
+    assert result.ptop == ptop
+
+
 def test_safe_dump_BatchesFromMapperConfig():
     """
     Test that dataclass.asdict and pyyaml can be used to save BatchesFromMapperConfig.
