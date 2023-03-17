@@ -7,6 +7,7 @@ from typing import Optional, Mapping, Tuple, List, Iterable
 from .. import Predictor
 from .._shared import register_training_function, StandardScaler
 from .utils import square_even_terms
+from .autoencoder import Autoencoder
 
 from . import (
     ReservoirComputingModel,
@@ -20,7 +21,6 @@ from .domain import (
     stack_time_series_samples,
     concat_variables_along_feature_dim,
 )
-from fv3fit.keras import Autoencoder
 
 # allow reshaping of tensor data
 from tensorflow.python.ops.numpy_ops import np_config
@@ -59,7 +59,7 @@ def train_reservoir_model(
     if hyperparameters.autoencoder_path is not None:
         autoencoder = Autoencoder.load(hyperparameters.autoencoder_path)
     else:
-        autoencoder = None
+        autoencoder = None  # type: ignore
 
     # Standard scale data, calculating mean and std along the stacked x,y,z,feature dim
     norm_batch = next(iter(train_batches))
