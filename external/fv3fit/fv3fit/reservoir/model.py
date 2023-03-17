@@ -76,6 +76,16 @@ class ReservoirComputingModel(Predictor):
 
         return prediction
 
+    def reset_state(self):
+        if self.rank_divider is not None:
+            input_shape = (
+                self.reservoir.hyperparameters.state_size,
+                self.rank_divider.n_subdomains,
+            )
+        else:
+            input_shape = (self.reservoir.hyperparameters.state_size,)
+        self.reservoir.reset_state(input_shape)
+
     def increment_state(self, prediction_with_overlap):
         self.reservoir.increment_state(prediction_with_overlap)
 
