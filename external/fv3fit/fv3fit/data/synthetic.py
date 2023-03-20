@@ -158,8 +158,10 @@ def get_waves_tfdataset(
     grid_x, grid_y = np.broadcast_arrays(grid_x[:, None], grid_y[None, :])
     grid_x = grid_x[None, None, None, :, :, None]
     grid_y = grid_y[None, None, None, :, :, None]
+    time = 0
 
     def sample_generator():
+        nonlocal time
         # creates a timeseries where each time is the negation of time before it
         for _ in range(nsamples):
             ax = np.random.uniform(scale_min, scale_max, size=(nbatch, 1, ntile, nz))[
@@ -198,6 +200,13 @@ def get_waves_tfdataset(
                     out[varname].append(out[varname][-1] * -1.0)
             for varname in out:
                 out[varname] = np.concatenate(out[varname], axis=1)
+            if "time" in variable_names:
+                out["time"] = (
+                    np.arange(time, time + nbatch * ntime)
+                    .reshape((nbatch, ntime))
+                    .astype(np.float32)
+                )
+                time += nbatch * ntime
             yield out
 
     return generator_to_tfdataset(sample_generator)
