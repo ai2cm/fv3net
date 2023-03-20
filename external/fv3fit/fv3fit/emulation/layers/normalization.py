@@ -19,14 +19,18 @@ class NormLayer(tf.Module):
     ) -> None:
         super().__init__(name=name)
 
-        self.scale = tf.constant(scale, name=name + "_scale" if name else None)
-        self.center = tf.constant(center, name=name + "_center" if name else None)
+        self.scale = tf.constant(
+            tf.cast(scale, tf.float32), name=name + "_scale" if name else None
+        )
+        self.center = tf.constant(
+            tf.cast(center, tf.float32), name=name + "_center" if name else None
+        )
 
         # For backwards compatibility with previous usage of StandardNormLayer
         if epsilon is None:
             self._forward_scale = self.scale
         else:
-            epsilon = tf.cast(epsilon, dtype=self.scale.dtype)
+            epsilon = tf.cast(epsilon, dtype=tf.float32)
             self._forward_scale = self.scale + tf.constant(epsilon)
 
     def forward(self, tensor: tf.Tensor) -> tf.Tensor:
