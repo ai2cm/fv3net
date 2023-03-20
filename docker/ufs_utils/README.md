@@ -11,8 +11,8 @@ We include a copy of the license used by UFS_UTILS in this subdirectory.
 
 In terms of functionality the `restart_files_to_nggps_initial.sh` script enables
 transforming a set of FV3GFS restart files to an NGGPS-style initial condition
-at another resolution.  The `chgres_cube` tool can be used to generate initial
-conditions from GFS analysis data; however we currently do not include a script
+at another resolution.  The `chgres_cube` tool can also be used to generate
+initial conditions from GFS analysis data.  We currently do not include a script
 for doing this in the docker image, but it would be straightforward to add.
 
 ## Building the image
@@ -28,12 +28,12 @@ $ docker build -f base.Dockerfile -t us.gcr.io/vcm-ml/ufs-utils-base .
 ```
 
 If not, you can skip straight to building the main image.  After the main image
-builds, you can then give it a tag (in place of `$NEW_TAG`) and push it to the
+builds, you can then give it a tag (in place of `$TAG`) and push it to the
 container registry:
 ```
 $ docker build -f Dockerfile -t us.gcr.io/vcm-ml/ufs-utils --build-arg BASE_IMAGE=us.gcr.io/vcm-ml/ufs-utils-base:latest .
-$ docker tag us.gcr.io/vcm-ml/ufs-utils:latest us.gcr.io/vcm-ml/ufs-utils:$NEW_TAG
-$ docker push us.gcr.io/vcm-ml/ufs-utils:$NEW_TAG
+$ docker tag us.gcr.io/vcm-ml/ufs-utils:latest us.gcr.io/vcm-ml/ufs-utils:$TAG
+$ docker push us.gcr.io/vcm-ml/ufs-utils:$TAG
 ```
 
 We split the image into two parts to ease development since rebuilding what is
