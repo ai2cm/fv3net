@@ -57,6 +57,8 @@ class Autoencoder(tf.keras.Model):
 class DenseAutoencoderHyperparameters(Hyperparameters):
     """
     input_variables: variables to encode/decode
+    output_variables: variables to encode/decode, must match
+        input_variables
     latent_dim_size: size of latent space that encoder transforms to
     units: number of units in each dense layer
     n_dense_layers: number of dense layers in *each* of encoder/decoder
@@ -68,6 +70,7 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
     """
 
     input_variables: Sequence[str]
+    output_variables: Sequence[str]
     latent_dim_size: int
     units: int
     n_dense_layers: int
@@ -79,6 +82,13 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
         default_factory=lambda: OptimizerConfig("Adam")
     )
     callbacks: List[CallbackConfig] = dataclasses.field(default_factory=list)
+
+    def __post_init__(self):
+        if self.input_variables != self.output_variables:
+            raise ValueError(
+                f"Output variables {self.output_variables} must match "
+                f"input variables {self.input_variables}."
+            )
 
     @property
     def variables(self) -> Set[str]:
