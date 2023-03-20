@@ -3,7 +3,7 @@
 This directory contains files used in building a docker image containing a
 compiled version of the UFS_UTILS codebase.  The method of using `spack` to aid
 in building the dependencies in the docker image was derived from work in
-[ufscommunity/UFS_UTILS#749](https://github.com/ufs-community/UFS_UTILS/pull/749),
+[ufs-community/UFS_UTILS#749](https://github.com/ufs-community/UFS_UTILS/pull/749),
 and the `restart_files_to_nggps_initial_condition.sh` script was heavily based
 on [the example `chgres_cube` script contained in the UFS_UTILS
 repository](https://github.com/ufs-community/UFS_UTILS/blob/develop/ush/chgres_cube.sh).

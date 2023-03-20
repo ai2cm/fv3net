@@ -16,8 +16,6 @@ REFERENCE_DATA=$7
 DESTINATION=$8
 MPI_TASKS=$9
 
-FULL_DESTINATION=$DESTINATION/$TARGET_RESOLUTION/$DATE
-
 VCOORD_FILENAME="$(basename $VCOORD_FILE)"
 LOCAL_RESTARTS=/input_data
 LOCAL_VCOORD_FILE=/input_data/$VCOORD_FILENAME
@@ -25,13 +23,13 @@ LOCAL_SOURCE_REFERENCE_DATA=/reference_data/$SOURCE_RESOLUTION
 LOCAL_TARGET_REFERENCE_DATA=/reference_data/$TARGET_RESOLUTION
 
 mkdir -p $LOCAL_RESTARTS
-gsutil -m cp $RESTARTS/* $LOCAL_RESTARTS/
-gsutil -m cp $VCOORD_FILE $LOCAL_VCOORD_FILE
+gsutil cp $RESTARTS/* $LOCAL_RESTARTS/
+gsutil cp $VCOORD_FILE $LOCAL_VCOORD_FILE
 
 mkdir -p $LOCAL_SOURCE_REFERENCE_DATA
 mkdir -p $LOCAL_TARGET_REFERENCE_DATA
-gsutil -m cp -r $REFERENCE_DATA/$SOURCE_RESOLUTION/* $LOCAL_SOURCE_REFERENCE_DATA/
-gsutil -m cp -r $REFERENCE_DATA/$TARGET_RESOLUTION/* $LOCAL_TARGET_REFERENCE_DATA/
+gsutil cp -r $REFERENCE_DATA/$SOURCE_RESOLUTION/* $LOCAL_SOURCE_REFERENCE_DATA/
+gsutil cp -r $REFERENCE_DATA/$TARGET_RESOLUTION/* $LOCAL_TARGET_REFERENCE_DATA/
 
 #----------------------------------------------------------------------------
 # Set up environment paths.
@@ -195,6 +193,7 @@ cat << EOF > ./fort.41
   nst_files_input_grid="${NST_FILES_INPUT}"
   grib2_file_input_grid="${GRIB2_FILE_INPUT}"
   varmap_file="${VARMAP_FILE}"
+  cycle_year=$year
   cycle_mon=$month
   cycle_day=$day
   cycle_hour=$hour
@@ -218,11 +217,11 @@ if [ $iret -ne 0 ]; then
   exit $iret
 fi
 
-gsutil -m cp gfs_ctrl.nc $FULL_DESTINATION/
+gsutil cp gfs_ctrl.nc $DESTINATION/
 for tile in {1..6}
 do
-  gsutil -m cp out.atm.tile${tile}.nc $FULL_DESTINATION/gfs_data.tile${tile}.nc
-  gsutil -m cp out.sfc.tile${tile}.nc $FULL_DESTINATION/sfc_data.tile${tile}.nc
+  gsutil cp out.atm.tile${tile}.nc $DESTINATION/gfs_data.tile${tile}.nc
+  gsutil cp out.sfc.tile${tile}.nc $DESTINATION/sfc_data.tile${tile}.nc
 done
 
 exit
