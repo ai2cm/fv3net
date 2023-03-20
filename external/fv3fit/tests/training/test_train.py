@@ -28,6 +28,7 @@ REGRESSION_TRAINING_TYPES = [
     "precipitative",
     "dense",
     "transformed",
+    "dense-autoencoder",
 ]
 
 # unlabeled models that can be tested on all model configuration tests, but not those
