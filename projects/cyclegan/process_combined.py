@@ -17,6 +17,8 @@ from time import time
 GRID = catalog["grid/c48"].read()
 land_sea_mask = catalog["landseamask/c48"].read().land_sea_mask == 1
 
+TO_MM_DAY = 86400 / 0.997
+
 # for older data
 # C48_I_TRAIN_END = 11688
 # C384_I_TRAIN_END = 2920
@@ -338,13 +340,13 @@ def plot_mean_all(ds, varname, label: str):
     for i, climate in enumerate(ds.perturbation.values):
         mean = (
             ds[f"{varname}_mean"].sel(grid="C384").isel(perturbation=i).mean("diurnal")
-        )
+        ) * TO_MM_DAY
         mean_c48_real = (
             ds[f"{varname}_mean"]
             .sel(grid="C48", source="real")
             .isel(perturbation=i)
             .mean("diurnal")
-        )
+        ) * TO_MM_DAY
         vmin = mean.min().values
         vmax = mean.max().values
 
@@ -482,7 +484,7 @@ def plot_hist(ds, varname, ax):
         base_hist = ds.sel(source=source, grid=grid)[f"{varname}_hist"].sum("diurnal")
         return base_hist.values.flatten() / base_hist.sum().values
 
-    edges = ds[f"{varname}_hist_bins"].values
+    edges = ds[f"{varname}_hist_bins"].values * TO_MM_DAY
 
     ax.step(
         edges[:-1],
@@ -527,7 +529,7 @@ def plot_cdf(ds, varname, ax):
         p_norm = norm_hist(source, grid)
         return 1.0 - np.concatenate([[0], np.cumsum(p_norm)])
 
-    edges = ds[f"{varname}_hist_bins"].values
+    edges = ds[f"{varname}_hist_bins"].values * TO_MM_DAY
 
     ax.step(
         edges,
@@ -579,13 +581,12 @@ def plot_diurnal_mean_for_climate(ds, i_perturbation, varname):
         data = [
             ds.isel(diurnal=i_diurnal).sel(source="real", grid="C384")[
                 f"{varname}_mean"
-            ],
-            ds.isel(diurnal=i_diurnal).sel(source="gen", grid="C384")[
-                f"{varname}_mean"
-            ],
-            ds.isel(diurnal=i_diurnal).sel(source="real", grid="C48")[
-                f"{varname}_mean"
-            ],
+            ]
+            * TO_MM_DAY,
+            ds.isel(diurnal=i_diurnal).sel(source="gen", grid="C384")[f"{varname}_mean"]
+            * TO_MM_DAY,
+            ds.isel(diurnal=i_diurnal).sel(source="real", grid="C48")[f"{varname}_mean"]
+            * TO_MM_DAY,
         ]
         vmin = min(d.min().values for d in data)
         vmax = max(d.max().values for d in data)
@@ -630,7 +631,7 @@ def plot_diurnal_cycle(ds, initial_time, varname, label: str):
         .groupby_bins(local_time, bins=np.arange(0, 25, 3))
         .mean()
     )
-    data = ds[f"PRATEsfc_mean"]
+    data = ds[f"PRATEsfc_mean"] * TO_MM_DAY
     fig, ax = plt.subplots(
         len(ds.perturbation), 1, figsize=(5, 1 + 2.5 * len(ds.perturbation)),
     )
@@ -706,9 +707,16 @@ if __name__ == "__main__":
         # ("20230313-211437-4a624ff9", "march-diurnal-2e-6-3x3-train-as-val-e06", 6),
         # ("20230313-211452-034a9ec9", "march-diurnal-2e-5-3x3-train-as-val-e06", 6),
         # ("20230313-211352-c94b7408", "march-2e-6-geo-bias-e07", 7),
-        ("20230314-214027-54366191", "lr-1e-4-decay-0.63096", 24),
-        ("20230314-213709-fc95b736", "lr-1e-4-decay-0.79433", 24),
-        ("20230314-214051-25b2a902", "lr-1e-3-decay-0.63096", 24),
+        # ("20230314-214027-54366191", "lr-1e-4-decay-0.63096", 24),
+        # ("20230314-213709-fc95b736", "lr-1e-4-decay-0.79433", 24),
+        # ("20230314-214051-25b2a902", "lr-1e-3-decay-0.63096", 24),
+        ("20230316-151658-9017348e", "lr-1e-4-decay-0.79433-no-geo-bias", 35),
+        ("20230316-144944-b3143932", "lr-1e-4-decay-0.89125", 35),
+        ("20230316-182507-2cfb6254", "lr-1e-6-decay-0.89125", 35),
+        ("20230316-182557-17cdb0a6", "lr-1e-5-decay-0.89125", 34),
+        ("20230314-213709-fc95b736", "lr-1e-4-decay-0.79433", 50),
+        ("20230314-214027-54366191", "lr-1e-4-decay-0.63096", 50),
+        ("20230314-214051-25b2a902", "lr-1e-3-decay-0.63096", 50),
     ]:
         label = label + f"-e{EPOCH:02d}"
         fv3fit.set_random_seed(0)

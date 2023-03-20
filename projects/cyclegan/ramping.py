@@ -510,8 +510,9 @@ if __name__ == "__main__":
     BASE_NAME, EPOCH = (
         # "20230208-183103-cdda934c", 17  # precip-only, properly normalized, +45 epochs
         # "20230302-000015-699b0906", 75  # "no-demean-2e-6-e75"
-        "20230314-214027-54366191",
-        17
+        # "20230314-214027-54366191", 17
+        "20230316-151658-9017348e",
+        35  # lr-1e-4-decay-0.79433-no-geo-bias
         # "20230303-203306-f753d490", 69  # "denorm-2e-6-3x3-e69"
     )
     cyclegan: fv3fit.pytorch.CycleGAN = fv3fit.load(
@@ -698,10 +699,10 @@ if __name__ == "__main__":
             density=True,
         )[0]
 
-    fit_exponential(np.sum(c48_hist, axis=0), bins * TO_MM_DAY, "c48")
-    fit_exponential(np.sum(c384_hist, axis=0), bins * TO_MM_DAY, "c384")
-    fit_exponential(np.sum(c48_gen_hist, axis=0), bins * TO_MM_DAY, "c48_gen")
-    fit_exponential(np.sum(c384_gen_hist, axis=0), bins * TO_MM_DAY, "c384_gen")
+    # fit_exponential(np.sum(c48_hist, axis=0), bins * TO_MM_DAY, "c48")
+    # fit_exponential(np.sum(c384_hist, axis=0), bins * TO_MM_DAY, "c384")
+    # fit_exponential(np.sum(c48_gen_hist, axis=0), bins * TO_MM_DAY, "c48_gen")
+    # fit_exponential(np.sum(c384_gen_hist, axis=0), bins * TO_MM_DAY, "c384_gen")
 
     # # for i, t in enumerate(c48.time.values):
     # #     c48_hist[i, :] = np.histogram(c48[VARNAME].sel(time=t).values, bins=bins, density=True)[0]
