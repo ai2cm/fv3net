@@ -5,7 +5,6 @@ from typing import Optional, Iterable, Hashable
 import yaml
 
 from fv3fit import Predictor
-from .._shared import StandardScaler
 from .reservoir import Reservoir
 from .domain import RankDivider
 from fv3fit._shared import io
@@ -18,7 +17,6 @@ class ReservoirComputingModel(Predictor):
     _RESERVOIR_SUBDIR = "reservoir"
     _READOUT_SUBDIR = "readout"
     _METADATA_NAME = "metadata.yaml"
-    _SCALER_NAME = "scaler.npz"
     _RANK_DIVIDER_NAME = "rank_divider.yaml"
     _AUTOENCODER_SUBDIR = "autoencoder"
 
@@ -30,7 +28,6 @@ class ReservoirComputingModel(Predictor):
         readout: ReservoirComputingReadout,
         square_half_hidden_state: bool = False,
         rank_divider: Optional[RankDivider] = None,
-        scaler: Optional[StandardScaler] = None,
         autoencoder: Optional[Autoencoder] = None,
     ):
         """_summary_
@@ -49,7 +46,6 @@ class ReservoirComputingModel(Predictor):
         self.reservoir = reservoir
         self.readout = readout
         self.square_half_hidden_state = square_half_hidden_state
-        self.scaler = scaler
         self.rank_divider = rank_divider
         self.autoencoder = autoencoder
 
@@ -100,10 +96,6 @@ class ReservoirComputingModel(Predictor):
         with fsspec.open(os.path.join(path, self._METADATA_NAME), "w") as f:
             f.write(yaml.dump(metadata))
 
-        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        if self.scaler is not None:
-            with fs.open(f"{path}/{self._SCALER_NAME}", "wb") as f:
-                self.scaler.dump(f)
         if self.rank_divider is not None:
             self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
         if self.autoencoder is not None:
@@ -120,11 +112,6 @@ class ReservoirComputingModel(Predictor):
             metadata = yaml.safe_load(f)
 
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        if fs.exists(os.path.join(path, cls._SCALER_NAME)):
-            with fs.open(f"{path}/{cls._SCALER_NAME}", "rb") as f:
-                scaler = StandardScaler.load(f)
-        else:
-            scaler = None
 
         if fs.exists(os.path.join(path, cls._RANK_DIVIDER_NAME)):
             rank_divider = RankDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
@@ -142,7 +129,6 @@ class ReservoirComputingModel(Predictor):
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=metadata["square_half_hidden_state"],
-            scaler=scaler,
             rank_divider=rank_divider,
             autoencoder=autoencoder,
         )

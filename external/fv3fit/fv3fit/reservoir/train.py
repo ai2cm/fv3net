@@ -5,10 +5,9 @@ import tensorflow as tf
 from typing import Optional, Mapping, Tuple, List, Iterable
 
 from .. import Predictor
-from .._shared import register_training_function, StandardScaler
 from .utils import square_even_terms
 from .autoencoder import Autoencoder
-
+from .._shared import register_training_function
 from . import (
     ReservoirComputingModel,
     Reservoir,
@@ -66,8 +65,6 @@ def train_reservoir_model(
     norm_batch_concat = concat_variables_along_feature_dim(
         variables=hyperparameters.input_variables, variable_tensors=norm_batch
     )
-    scaler = StandardScaler(n_sample_dims=1)
-    scaler.fit(norm_batch_concat)
 
     sample_batch = (
         _encode_columns(norm_batch_concat, autoencoder.encoder)
@@ -105,7 +102,6 @@ def train_reservoir_model(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
             rank_divider=rank_divider,
-            scaler=scaler,
             autoencoder=autoencoder,
         )
         if b < hyperparameters.n_batches_burn:
@@ -144,7 +140,6 @@ def train_reservoir_model(
         readout=readout,
         square_half_hidden_state=hyperparameters.square_half_hidden_state,
         rank_divider=rank_divider,
-        scaler=scaler,
     )
     return model
 
@@ -153,7 +148,6 @@ def _process_batch_data(
     variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
     rank_divider: RankDivider,
-    scaler: StandardScaler,
     autoencoder: Optional[Autoencoder],
 ) -> Tuple[np.ndarray, np.ndarray]:
     """ Convert physical state to corresponding reservoir hidden state,
@@ -162,14 +156,11 @@ def _process_batch_data(
     # Concatenate variable tensors along the feature dimension,
     # which is assumed to be the last dim.
     batch_data_concat = concat_variables_along_feature_dim(variables, batch_data)
-    normed_batch_data_concat = scaler.normalize(batch_data_concat)
 
     # Convert data to latent representation if using an encoder
     if autoencoder is not None:
         logger.info("Using encoder to transform state data into latent space.")
-        normed_batch_data_concat = _encode_columns(
-            normed_batch_data_concat, autoencoder.encoder
-        )
+        batch_data_concat = _encode_columns(batch_data_concat, autoencoder.encoder)
 
     # Divide into subdomains and flatten each subdomain by stacking
     # x/y/feature dims into a single feature dimension. Dimensions of a single
@@ -177,13 +168,13 @@ def _process_batch_data(
     X_subdomains_to_columns, Y_subdomains_to_columns = [], []
     for s in range(rank_divider.n_subdomains):
         X_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-            normed_batch_data_concat, subdomain_index=s, with_overlap=True,
+            batch_data_concat, subdomain_index=s, with_overlap=True,
         )
         X_subdomains_to_columns.append(stack_time_series_samples(X_subdomain_data))
 
         # Prediction does not include overlap
         Y_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-            normed_batch_data_concat, subdomain_index=s, with_overlap=False,
+            batch_data_concat, subdomain_index=s, with_overlap=False,
         )
         Y_subdomains_to_columns.append(stack_time_series_samples(Y_subdomain_data))
 
