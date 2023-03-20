@@ -1,5 +1,6 @@
 import dataclasses
 import os
+import cftime
 from typing import List, Mapping, Sequence, Optional
 import tensorflow as tf
 from .base import TFDatasetLoader, register_tfdataset_loader, tfdataset_loader_from_dict
@@ -8,6 +9,19 @@ from ..tfdataset import generator_to_tfdataset
 import tempfile
 import xarray as xr
 import numpy as np
+
+
+SAMPLE_DIM_NAME = "_fv3fit_sample"
+
+
+def stack(ds: xr.DataArray, unstacked_dims: Sequence[str]):
+    stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
+    unstacked_dims = [dim for dim in unstacked_dims if dim in ds.dims]
+    if len(stack_dims) == 0:
+        ds_stacked = ds.expand_dims(dim=SAMPLE_DIM_NAME, axis=0)
+    else:
+        ds_stacked = ds.stack({SAMPLE_DIM_NAME: stack_dims})
+    return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 
 @dataclasses.dataclass
@@ -27,22 +41,18 @@ class VariableConfig:
             raise TypeError("times must be one of 'window' or 'start'")
 
     def get_record(self, name: str, ds: xr.Dataset, unstacked_dims: Sequence[str]):
-        for dim in unstacked_dims[:-1]:
-            if dim not in ds[name].dims:
-                raise ValueError("variable {} has no dimension {}".format(name, dim))
         if self.times == "start":
             ds = ds.isel(time=0)
-        dims = [d for d in unstacked_dims if d in ds[name].dims]
-        data = ds[name].transpose(*dims).values
-        return data
+        array = stack(ds[name], unstacked_dims)
+        return array.values
 
 
-def open_zarr_using_filecache(url: str):
+def open_zarr_using_filecache(url: str, decode_times: bool = False):
     cachedir = tempfile.mkdtemp()
     return xr.open_zarr(
         "filecache::" + url,
         storage_options={"filecache": {"cache_storage": cachedir}},
-        decode_times=False,
+        decode_times=decode_times,
     )
 
 
@@ -97,7 +107,12 @@ class WindowedZarrLoader(TFDatasetLoader):
     A tfdataset loader that loads directly from zarr and supports time windows.
 
     Windows starts are selected randomly with replacement, so every time will not
-    necessarily appear in each iteration over the tf.data.Dataset.
+    necessarily appear in each iteration over the tf.data.Dataset. Each sample window
+    is independently selected along any stacked (sample) dimensions.
+
+    If the "time" variable itself is loaded, it will be converted to a number of
+    seconds since 1970-01-01. It is also required that the time variable be
+    one-dimensional in "time" (as opposed to varying along some perturbation axis).
 
     Attributes:
         data_path: path to zarr data
@@ -146,7 +161,13 @@ class WindowedZarrLoader(TFDatasetLoader):
                 variable name to variable value, and each value is a tensor whose
                 first dimension is the batch dimension
         """
-        ds = open_zarr_using_filecache(self.data_path)
+        if "time" in variable_names:
+            decode_times = True
+        else:
+            # if time is not requested, we can skip decoding it
+            # as decoding can cause errors if time is poorly formatted in the dataset
+            decode_times = False
+        ds = open_zarr_using_filecache(self.data_path, decode_times=decode_times)
         ds = ds.isel(time=slice(self.time_start_index, self.time_end_index))
         tfdataset = self._convert_to_tfdataset(ds, variable_names)
         # if local_download_path is given, cache on disk
@@ -211,9 +232,28 @@ def records(
             window_ds = ds.isel(
                 time=range(i_start, i_start + window_size * time_stride, time_stride)
             )
+            # need to select same random sample for all variable names, but don't know
+            # how many samples there are until we look at the first variable
+            i_sample = None
             for name in variable_names:
                 config = variable_configs.get(name, default_variable_config)
-                record[name] = config.get_record(name, window_ds, unstacked_dims)
+                array = config.get_record(name, window_ds, unstacked_dims)
+                if i_sample is None:
+                    i_sample = np.random.randint(array.shape[0])
+                sample = array[i_sample, :]
+                if name == "time":
+                    try:
+                        item = cftime.date2num(sample, "seconds since 1970-01-01")
+                    except ValueError:  # raised for arrays of datetime64
+                        item = (
+                            sample - np.datetime64("1970-01-01T00:00:00Z")
+                        ) / np.timedelta64(1, "s")
+                else:
+                    try:
+                        item = sample
+                    except IndexError:
+                        item = np.asarray(sample)
+                record[name] = item
             yield record
 
     return generator

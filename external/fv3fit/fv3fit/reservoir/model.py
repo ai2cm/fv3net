@@ -1,41 +1,77 @@
-import abc
-import joblib
-import numpy as np
-from typing import Sequence
+import fsspec
+from fv3fit.reservoir.readout import ReservoirComputingReadout
+import os
+from typing import Optional, Iterable, Hashable
+import yaml
 
-from .readout import ReservoirComputingReadout
+from fv3fit import Predictor
+from .._shared import StandardScaler
 from .reservoir import Reservoir
-from .config import SubdomainConfig
-from .domain import PeriodicDomain, Subdomain
+from .domain import RankDivider
+from fv3fit._shared import io
+from .utils import square_even_terms
+from .autoencoder import Autoencoder
 
 
-class ImperfectModel(abc.ABC):
-    def __init__(self, config):
-        self.config = config
-
-    @abc.abstractmethod
-    def predict(self, input: np.ndarray) -> np.ndarray:
-        """
-        Predict one reservoir computing step ahead.
-        If the imperfect model takes shorter timesteps than the reservoir model,
-        this should return the imperfect model's prediction at the next reservoir step.
-        """
-        pass
-
-
-class ReservoirComputingModel:
+@io.register("pure-reservoir")
+class ReservoirComputingModel(Predictor):
     _RESERVOIR_SUBDIR = "reservoir"
+    _READOUT_SUBDIR = "readout"
+    _METADATA_NAME = "metadata.yaml"
+    _SCALER_NAME = "scaler.npz"
+    _RANK_DIVIDER_NAME = "rank_divider.yaml"
+    _AUTOENCODER_SUBDIR = "autoencoder"
 
     def __init__(
-        self, reservoir: Reservoir, readout: ReservoirComputingReadout,
+        self,
+        input_variables: Iterable[Hashable],
+        output_variables: Iterable[Hashable],
+        reservoir: Reservoir,
+        readout: ReservoirComputingReadout,
+        square_half_hidden_state: bool = False,
+        rank_divider: Optional[RankDivider] = None,
+        scaler: Optional[StandardScaler] = None,
+        autoencoder: Optional[Autoencoder] = None,
     ):
+        """_summary_
+
+        Args:
+            reservoir: Reservoir which takes input and updates hidden state
+            readout: readout layer which takes in state and predicts next time step
+            square_half_hidden_state: if True, square even terms in the reservoir
+                state before it is used as input to the regressor's .fit and
+                .predict methods. This option was found to be important for skillful
+                predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541).
+            rank_divider: object used to divide and reconstruct domain <-> subdomains
+        """
+        self.input_variables = input_variables
+        self.output_variables = output_variables
         self.reservoir = reservoir
         self.readout = readout
+        self.square_half_hidden_state = square_half_hidden_state
+        self.scaler = scaler
+        self.rank_divider = rank_divider
+        self.autoencoder = autoencoder
 
     def predict(self):
-        prediction = self.readout.predict(self.reservoir.state).reshape(-1)
-        self.reservoir.increment_state(prediction)
+        # Returns raw readout prediction of latent state.
+        # TODO: add method transform_to_native which transforms the raw
+        # prediction into denormalized physical values on cubedsphere coords.
+
+        if self.square_half_hidden_state is True:
+            readout_input = square_even_terms(self.reservoir.state, axis=0)
+        else:
+            readout_input = self.reservoir.state
+        # For prediction over multiple subdomains (>1 column in reservoir state
+        # array), flatten state into 1D vector before predicting
+        readout_input = readout_input.reshape(-1)
+
+        prediction = self.readout.predict(readout_input).reshape(-1)
+
         return prediction
+
+    def increment_state(self, prediction_with_overlap):
+        self.reservoir.increment_state(prediction_with_overlap)
 
     def dump(self, path: str) -> None:
         """Dump data to a directory
@@ -43,179 +79,60 @@ class ReservoirComputingModel:
         Args:
             path: a URL pointing to a directory
         """
-        self.readout.dump(path)
-        self.reservoir.dump(f"{path}/{self._RESERVOIR_SUBDIR}")
+        self.reservoir.dump(os.path.join(path, self._RESERVOIR_SUBDIR))
+        self.readout.dump(os.path.join(path, self._READOUT_SUBDIR))
+
+        metadata = {
+            "square_half_hidden_state": self.square_half_hidden_state,
+            "input_variables": self.input_variables,
+            "output_variables": self.output_variables,
+        }
+        with fsspec.open(os.path.join(path, self._METADATA_NAME), "w") as f:
+            f.write(yaml.dump(metadata))
+
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        if self.scaler is not None:
+            with fs.open(f"{path}/{self._SCALER_NAME}", "wb") as f:
+                self.scaler.dump(f)
+        if self.rank_divider is not None:
+            self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
+        if self.autoencoder is not None:
+            self.autoencoder.dump(os.path.join(path, self._AUTOENCODER_SUBDIR))
 
     @classmethod
     def load(cls, path: str) -> "ReservoirComputingModel":
         """Load a model from a remote path"""
-        readout = ReservoirComputingReadout.load(path)
-        reservoir = Reservoir.load(f"{path}/{cls._RESERVOIR_SUBDIR}")
-        return cls(reservoir=reservoir, readout=readout,)
-
-
-class HybridReservoirComputingModel:
-    _RESERVOIR_SUBDIR = "reservoir"
-
-    def __init__(
-        self, reservoir: Reservoir, readout: ReservoirComputingReadout,
-    ):
-        self.reservoir = reservoir
-        self.readout = readout
-
-    def predict(self, input_state, imperfect_model):
-        imperfect_prediction = imperfect_model.predict(input_state)
-        readout_input = np.hstack([self.reservoir.state, imperfect_prediction])
-        rc_prediction = self.readout.predict(readout_input).reshape(-1)
-        self.reservoir.increment_state(rc_prediction)
-        return rc_prediction
-
-    def dump(self, path: str) -> None:
-        """Dump data to a directory
-
-        Args:
-            path: a URL pointing to a directory
-        """
-        self.readout.dump(path)
-        self.reservoir.dump(f"{path}/{self._RESERVOIR_SUBDIR}")
-
-    @classmethod
-    def load(cls, path):
-        readout = ReservoirComputingReadout.load(path)
-        reservoir = Reservoir.load(f"{path}/{cls._RESERVOIR_SUBDIR}")
-        return cls(reservoir=reservoir, readout=readout,)
-
-
-class DomainPredictor:
-    def __init__(
-        self,
-        subdomain_predictors: Sequence[ReservoirComputingModel],
-        subdomain_config: SubdomainConfig,
-        n_jobs: int = -1,
-    ):
-        self.subdomain_predictors = subdomain_predictors
-        self.subdomain_size = subdomain_config.size
-        self.subdomain_overlap = subdomain_config.overlap
-        self.n_jobs = n_jobs
-
-    def _update_subdomain_reservoir_state(
-        self,
-        subdomain_predictor: ReservoirComputingModel,
-        subdomain_prediction: Subdomain,
-    ):
-        subdomain_predictor.reservoir.increment_state(subdomain_prediction.overlapping)
-
-    def _synchronize_subdomain(self, subdomain_predictor, subdomain_data):
-        subdomain_reservoir = subdomain_predictor.reservoir
-        subdomain_reservoir.synchronize(subdomain_data.overlapping)
-
-    def synchronize(self, data):
-        data_domain = PeriodicDomain(
-            data=data,
-            subdomain_size=self.subdomain_size,
-            subdomain_overlap=self.subdomain_overlap,
-            subdomain_axis=1,
+        reservoir = Reservoir.load(os.path.join(path, cls._RESERVOIR_SUBDIR))
+        readout = ReservoirComputingReadout.load(
+            os.path.join(path, cls._READOUT_SUBDIR)
         )
-        joblib.Parallel(n_jobs=self.n_jobs, verbose=1, backend="threading")(
-            joblib.delayed(self._synchronize_subdomain)(
-                subdomain_predictor, subdomain_data
-            )
-            for subdomain_predictor, subdomain_data in zip(
-                self.subdomain_predictors, data_domain
-            )
+        with fsspec.open(os.path.join(path, cls._METADATA_NAME), "r") as f:
+            metadata = yaml.safe_load(f)
+
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        if fs.exists(os.path.join(path, cls._SCALER_NAME)):
+            with fs.open(f"{path}/{cls._SCALER_NAME}", "rb") as f:
+                scaler = StandardScaler.load(f)
+        else:
+            scaler = None
+
+        if fs.exists(os.path.join(path, cls._RANK_DIVIDER_NAME)):
+            rank_divider = RankDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
+        else:
+            rank_divider = None
+
+        if fs.exists(os.path.join(path, cls._AUTOENCODER_SUBDIR)):
+            autoencoder = Autoencoder.load(os.path.join(path, cls._AUTOENCODER_SUBDIR))
+        else:
+            autoencoder = None  # type: ignore
+
+        return cls(
+            input_variables=metadata["input_variables"],
+            output_variables=metadata["output_variables"],
+            reservoir=reservoir,
+            readout=readout,
+            square_half_hidden_state=metadata["square_half_hidden_state"],
+            scaler=scaler,
+            rank_divider=rank_divider,
+            autoencoder=autoencoder,
         )
-
-    def dump(self, path: str) -> None:
-        raise NotImplementedError
-
-    @classmethod
-    def load(cls, path):
-        raise NotImplementedError
-
-    @property
-    def states(self):
-        return [
-            subdomain_predictor.reservoir.state
-            for subdomain_predictor in self.subdomain_predictors
-        ]
-
-
-class ReservoirOnlyDomainPredictor(DomainPredictor):
-    def _predict_on_subdomain(self, subdomain_predictor):
-        return subdomain_predictor.readout.predict(
-            subdomain_predictor.reservoir.state
-        ).reshape(-1)
-
-    def predict(self):
-        subdomain_predictions = joblib.Parallel(n_jobs=self.n_jobs, verbose=0)(
-            joblib.delayed(self._predict_on_subdomain)(subdomain_predictor)
-            for subdomain_predictor in self.subdomain_predictors
-        )
-        prediction = np.concatenate(subdomain_predictions)
-        subdomain_predictions_domain = PeriodicDomain(
-            data=prediction,
-            subdomain_size=self.subdomain_size,
-            subdomain_overlap=self.subdomain_overlap,
-            subdomain_axis=0,
-        )
-
-        # increment reservoir states after the subdomain predictions
-        #  are combined so that the input includes overlaps between subdomains
-        joblib.Parallel(n_jobs=self.n_jobs, verbose=0, backend="threading")(
-            joblib.delayed(self._update_subdomain_reservoir_state)(
-                subdomain_predictor, subdomain_prediction
-            )
-            for subdomain_predictor, subdomain_prediction in zip(
-                self.subdomain_predictors, subdomain_predictions_domain
-            )
-        )
-        return prediction
-
-
-class HybridDomainPredictor(DomainPredictor):
-    def _predict_on_subdomain(
-        self, subdomain_predictor, imperfect_prediction_subdomain
-    ):
-        readout_input = np.hstack(
-            [
-                subdomain_predictor.reservoir.state,
-                imperfect_prediction_subdomain.overlapping,
-            ]
-        )
-        return subdomain_predictor.readout.predict(readout_input).reshape(-1)
-
-    def predict(self, input_state, imperfect_model):
-        imperfect_prediction = imperfect_model.predict(input_state)
-        imperfect_prediction_domain = PeriodicDomain(
-            data=imperfect_prediction,
-            subdomain_size=self.subdomain_size,
-            subdomain_overlap=self.subdomain_overlap,
-            subdomain_axis=0,
-        )
-        subdomain_predictions = joblib.Parallel(n_jobs=self.n_jobs, verbose=0)(
-            joblib.delayed(self._predict_on_subdomain)(
-                subdomain_predictor, imperfect_prediction_subdomain
-            )
-            for subdomain_predictor, imperfect_prediction_subdomain in zip(
-                self.subdomain_predictors, imperfect_prediction_domain
-            )
-        )
-        prediction = np.concatenate(subdomain_predictions)
-        subdomain_predictions_domain = PeriodicDomain(
-            data=prediction,
-            subdomain_size=self.subdomain_size,
-            subdomain_overlap=self.subdomain_overlap,
-            subdomain_axis=0,
-        )
-
-        # increment reservoir states after the subdomain predictions
-        # are combined so that the input includes overlaps between subdomains
-        joblib.Parallel(n_jobs=self.n_jobs, verbose=0, backend="threading")(
-            joblib.delayed(self._update_subdomain_reservoir_state)(
-                subdomain_predictor, subdomain_prediction
-            )
-            for subdomain_predictor, subdomain_prediction in zip(
-                self.subdomain_predictors, subdomain_predictions_domain
-            )
-        )
-        return prediction

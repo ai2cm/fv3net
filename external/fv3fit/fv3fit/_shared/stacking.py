@@ -9,7 +9,9 @@ DATASET_DIM_NAME = "dataset"
 Z_DIM_NAMES = ["z", "pfull"]
 
 
-def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
+def stack(ds: xr.Dataset, unstacked_dims: Sequence[str] = None):
+    if unstacked_dims is None:
+        unstacked_dims = []
     stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
     unstacked_dims = [dim for dim in ds.dims if dim in unstacked_dims]
     unstacked_dims.sort()  # needed to always get [x, y, z] dimensions
@@ -23,18 +25,6 @@ def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
             allowed_broadcast_dims=list(unstacked_dims) + ["time", "dataset"],
         )
     return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
-
-
-def stack_non_vertical(ds: xr.Dataset) -> xr.Dataset:
-    """
-    Stack all dimensions except for the Z dimensions into a sample
-
-    Args:
-        ds: dataset with geospatial dimensions
-    """
-    if len(set(ds.dims).intersection(Z_DIM_NAMES)) > 1:
-        raise ValueError("Data cannot have >1 feature dimension in {Z_DIM_NAMES}.")
-    return stack(ds=ds, unstacked_dims=Z_DIM_NAMES)
 
 
 def _infer_dimension_order(ds: xr.Dataset) -> Tuple:

@@ -60,6 +60,7 @@ from .calc.thermo.local import (
     moist_static_energy_tendency,
 )
 from .calc.histogram import histogram, histogram2d
+from .calc.clouds import gridcell_to_incloud_condensate, incloud_to_gridcell_condensate
 
 from .interpolate import (
     interpolate_to_pressure_levels,

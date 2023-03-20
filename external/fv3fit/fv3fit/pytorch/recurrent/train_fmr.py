@@ -3,7 +3,7 @@ from fv3fit._shared.hyperparameters import Hyperparameters
 import dataclasses
 from fv3fit._shared.predictor import Reloadable
 
-from fv3fit.pytorch.cyclegan.discriminator import (
+from .discriminator import (
     Discriminator,
     DiscriminatorConfig,
 )
@@ -11,7 +11,7 @@ from .generator import (
     RecurrentGenerator,
     RecurrentGeneratorConfig,
 )
-from fv3fit.pytorch.cyclegan.image_pool import ImagePool
+from .image_pool import ImagePool
 from fv3fit.pytorch.cyclegan.modules import (
     halo_convolution,
     single_tile_convolution,

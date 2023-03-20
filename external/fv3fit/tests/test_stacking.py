@@ -1,16 +1,7 @@
 import numpy as np
 import pytest
 import xarray as xr
-from fv3fit._shared.stacking import (
-    stack_non_vertical,
-    stack,
-    SAMPLE_DIM_NAME,
-)
-
-ds_unstacked = xr.Dataset(
-    {"var": xr.DataArray(np.arange(0, 100).reshape(5, 20), dims=["z", "x"],)}
-)
-batches_unstacked = [ds_unstacked, ds_unstacked]
+from fv3fit._shared.stacking import stack, SAMPLE_DIM_NAME, Z_DIM_NAMES
 
 
 @pytest.fixture
@@ -35,7 +26,7 @@ def gridded_dataset(request):
 )
 def test_stack_dims(gridded_dataset):
     s_dim = SAMPLE_DIM_NAME
-    ds_train = stack_non_vertical(gridded_dataset)
+    ds_train = stack(gridded_dataset, unstacked_dims=Z_DIM_NAMES)
     assert set(ds_train.dims) == {s_dim, "z"}
     assert len(ds_train["z"]) == len(gridded_dataset.z)
     assert ds_train["var"].dims[0] == s_dim
@@ -44,13 +35,29 @@ def test_stack_dims(gridded_dataset):
 @pytest.mark.parametrize(
     "gridded_dataset", [(0, 1, 10, 10), (0, 10, 10, 10)], indirect=True,
 )
-def test_stack_dims_no_unstacked_dims(gridded_dataset):
+def test_stack_dims_no_stacked_dims(gridded_dataset):
     s_dim = SAMPLE_DIM_NAME
     ds_train = stack(gridded_dataset, unstacked_dims=["x", "y", "z"])
     assert set(ds_train.dims) == {s_dim, "x", "y", "z"}
     assert len(ds_train["z"]) == len(gridded_dataset.z)
     assert list(ds_train["var"].dims) == [s_dim, "x", "y", "z"]
     assert ds_train["var"].shape[0] == 1
+
+
+@pytest.mark.parametrize(
+    "gridded_dataset", [(0, 1, 10, 10), (0, 10, 10, 10)], indirect=True,
+)
+def test_stack_dims_no_unstacked_dims(gridded_dataset):
+    s_dim = SAMPLE_DIM_NAME
+    ds_train = stack(gridded_dataset)
+    gridded_dataset_samples = (
+        gridded_dataset.sizes["x"]
+        * gridded_dataset.sizes["y"]
+        * gridded_dataset.sizes["z"]
+    )
+    assert set(ds_train.dims) == {s_dim}
+    assert list(ds_train["var"].dims) == [s_dim]
+    assert ds_train["var"].shape[0] == gridded_dataset_samples
 
 
 def test_multiple_unstacked_dims():
