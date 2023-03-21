@@ -6,7 +6,7 @@ INSTALL_PREFIX=$2
 CONDA_ENV=$3
 PLATFORM_SCRIPTS=$4
 
-bash $PLATFORM_SCRIPTS/install_bats.sh $CLONE_PREFIX/bats-core $INSTALL_PREFIX/bats-core
+bash $PLATFORM_SCRIPTS/install_bats.sh $CLONE_PREFIX/bats-core
 
 module load anaconda3/2022.10
 eval "$(conda shell.bash hook)"
