@@ -2,15 +2,22 @@ import dataclasses
 import numpy as np
 import os
 import tensorflow as tf
-from typing import Union, Sequence, Optional, List, Set, Tuple
-from fv3fit._shared import get_dir, put_dir, register_training_function, OptimizerConfig
+from typing import Union, Sequence, Optional, List, Set, Tuple, Iterable, Hashable
+from fv3fit._shared import (
+    get_dir,
+    put_dir,
+    register_training_function,
+    OptimizerConfig,
+    io,
+)
+from fv3fit._shared.predictor import Reloadable
 from fv3fit._shared.training_config import Hyperparameters
-from .. import Predictor
 from .domain import concat_variables_along_feature_dim
-from fv3fit.keras import CallbackConfig, TrainingLoopConfig, LossConfig, PureKerasModel
+from fv3fit.keras import CallbackConfig, TrainingLoopConfig, LossConfig
 
 from fv3fit.emulation.layers import StandardNormLayer, StandardDenormLayer
 from functools import partial
+import yaml
 
 
 class Autoencoder(tf.keras.Model):
@@ -34,8 +41,44 @@ class Autoencoder(tf.keras.Model):
     def decode(self, latent_x: Union[np.ndarray, tf.Tensor]) -> np.ndarray:
         return self.decoder.predict(latent_x)
 
+
+@io.register("dense-autoencoder")
+class AutoencoderPredictor(Reloadable):
+    _ENCODER_NAME = "encoder.tf"
+    _DECODER_NAME = "decoder.tf"
+    _CONFIG_FILENAME = "autoencoder_config.yaml"
+
+    def __init__(
+        self,
+        input_variables: Iterable[Hashable],
+        output_variables: Iterable[Hashable],
+        model: Autoencoder,
+    ):
+        self.input_variables = input_variables
+        self.output_variables = output_variables
+        self.model = model
+
+    def predict(self, X: np.ndarray):
+        return self.model.predict(X)
+
+    def dump(self, path: str) -> None:
+        with put_dir(path) as path:
+            encoder_filename = os.path.join(path, self._ENCODER_NAME)
+            self.model.encoder.save(encoder_filename)
+            decoder_filename = os.path.join(path, self._DECODER_NAME)
+            self.model.decoder.save(decoder_filename)
+            with open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
+                f.write(
+                    yaml.dump(
+                        {
+                            "input_variables": self.input_variables,
+                            "output_variables": self.output_variables,
+                        }
+                    )
+                )
+
     @classmethod
-    def load(cls, path: str) -> "Autoencoder":
+    def load(cls, path: str) -> "AutoencoderPredictor":
         with get_dir(path) as model_path:
             encoder = tf.keras.models.load_model(
                 os.path.join(model_path, cls._ENCODER_NAME)
@@ -43,14 +86,14 @@ class Autoencoder(tf.keras.Model):
             decoder = tf.keras.models.load_model(
                 os.path.join(model_path, cls._DECODER_NAME)
             )
-        return cls(encoder=encoder, decoder=decoder)
-
-    def dump(self, path: str) -> None:
-        with put_dir(path) as path:
-            encoder_filename = os.path.join(path, self._ENCODER_NAME)
-            self.encoder.save(encoder_filename)
-            decoder_filename = os.path.join(path, self._DECODER_NAME)
-            self.decoder.save(decoder_filename)
+            with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+                config = yaml.load(f, Loader=yaml.Loader)
+        autoencoder = Autoencoder(encoder=encoder, decoder=decoder)
+        return cls(
+            input_variables=config["input_variables"],
+            output_variables=config["output_variables"],
+            model=autoencoder,
+        )
 
 
 @dataclasses.dataclass
@@ -144,7 +187,7 @@ def train_dense_autoencoder(
     hyperparameters: DenseAutoencoderHyperparameters,
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
-) -> Predictor:
+) -> AutoencoderPredictor:
     norm_batch = next(iter(train_batches))
     norm_batch_concat = concat_variables_along_feature_dim(
         variables=hyperparameters.input_variables, variable_tensors=norm_batch
@@ -184,11 +227,9 @@ def train_dense_autoencoder(
 
     # need to call prediction model once so it can save without compiling
     predict_model(np.ones((3, n_features)))
-    predictor = PureKerasModel(
+    predictor = AutoencoderPredictor(
         input_variables=hyperparameters.input_variables,
         output_variables=hyperparameters.input_variables,
         model=predict_model,
-        unstacked_dims=("z",),
-        n_halo=0,
     )
     return predictor
