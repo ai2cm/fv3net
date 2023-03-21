@@ -1,6 +1,4 @@
 #!/bin/bash
-set -e
-CLONE_PREFIX=$1
 
 # NCEPlibs arguments
 NCEPLIBS_PLATFORM=gaea

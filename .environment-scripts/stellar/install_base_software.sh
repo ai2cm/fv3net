@@ -22,7 +22,7 @@ conda deactivate
 # preventing a conflict with system versions of the two libraries on Stellar.
 # See discussion in https://github.com/conda/conda/issues/10241
 # for more background
-conda create -n $CONDA_ENV -c conda-forge python==3.8.10 libssh pip pip-tools
+conda create --yes -n $CONDA_ENV -c conda-forge python==3.8.10 libssh pip pip-tools
 conda activate $CONDA_ENV
 
 echo "Python settings:"
