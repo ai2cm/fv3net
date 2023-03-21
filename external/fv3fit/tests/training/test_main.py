@@ -518,7 +518,7 @@ def cli_main(args: argparse.Namespace):
         pytest.param("dense", {}, ["dQ1", "dQ2"], True, False, id="dense-use-local"),
         pytest.param("dense", {}, ["dQ1", "dQ2"], False, True, id="dense-use-valid"),
         pytest.param(
-            "dense-autoencoder",
+            "dense_autoencoder",
             {
                 "input_variables": ["air_temperature", "specific_humidity"],
                 "output_variables": ["air_temperature", "specific_humidity"],
@@ -529,7 +529,7 @@ def cli_main(args: argparse.Namespace):
             ["air_temperature", "specific_humidity"],
             False,
             False,
-            id="dense-autoencoder",
+            id="dense_autoencoder",
         ),
     ],
 )

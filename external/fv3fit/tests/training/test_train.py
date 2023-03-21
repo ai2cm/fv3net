@@ -28,7 +28,7 @@ REGRESSION_TRAINING_TYPES = [
     "precipitative",
     "dense",
     "transformed",
-    "dense-autoencoder",
+    "dense_autoencoder",
 ]
 
 # unlabeled models that can be tested on all model configuration tests, but not those
@@ -183,6 +183,16 @@ def get_dataset_convolutional(sample_func):
     )
     train_dataset = stack(train_dataset, unstacked_dims=["tile", "x", "y", "z"])
     return input_variables, output_variables, train_dataset
+
+
+def get_dataset_dense_autoencoder(sample_func):
+    input_variables, _, train_dataset = _get_dataset_default(
+        sample_func,
+        # transpose tests fail if the 2d data varies
+        data_2d_ceof=0.0,
+    )
+    train_dataset = stack(train_dataset, unstacked_dims=["tile", "x", "y", "z"])
+    return input_variables, input_variables, train_dataset
 
 
 def get_dataset(

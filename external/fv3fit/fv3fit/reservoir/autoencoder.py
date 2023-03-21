@@ -144,7 +144,7 @@ def _build_autoencoder(
     return Autoencoder(encoder=encoder, decoder=decoder)
 
 
-@register_training_function("dense-autoencoder", DenseAutoencoderHyperparameters)
+@register_training_function("dense_autoencoder", DenseAutoencoderHyperparameters)
 def train_dense_autoencoder(
     hyperparameters: DenseAutoencoderHyperparameters,
     train_batches: tf.data.Dataset,
