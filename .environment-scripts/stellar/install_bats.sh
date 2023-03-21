@@ -1,3 +1,4 @@
+#!/bin/bash
 set -e
 
 CLONE_DIR=$1
