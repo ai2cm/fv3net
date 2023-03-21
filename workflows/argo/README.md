@@ -49,7 +49,7 @@ images:
 - name: us.gcr.io/vcm-ml/prognostic_run
   newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
 - name: us.gcr.io/vcm-ml/ufs-utils
-  newTag: 2023.03.20
+  newTag: 2023.03.20.1
 ```
 
 It is also possible to do this programmatically, using `kustomize edit set image`.

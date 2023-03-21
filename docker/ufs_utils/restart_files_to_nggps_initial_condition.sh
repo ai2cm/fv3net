@@ -23,13 +23,13 @@ LOCAL_SOURCE_REFERENCE_DATA=/reference_data/$SOURCE_RESOLUTION
 LOCAL_TARGET_REFERENCE_DATA=/reference_data/$TARGET_RESOLUTION
 
 mkdir -p $LOCAL_RESTARTS
-gsutil cp $RESTARTS/* $LOCAL_RESTARTS/
-gsutil cp $VCOORD_FILE $LOCAL_VCOORD_FILE
+gsutil -m cp $RESTARTS/* $LOCAL_RESTARTS/
+gsutil -m cp $VCOORD_FILE $LOCAL_VCOORD_FILE
 
 mkdir -p $LOCAL_SOURCE_REFERENCE_DATA
 mkdir -p $LOCAL_TARGET_REFERENCE_DATA
-gsutil cp -r $REFERENCE_DATA/$SOURCE_RESOLUTION/* $LOCAL_SOURCE_REFERENCE_DATA/
-gsutil cp -r $REFERENCE_DATA/$TARGET_RESOLUTION/* $LOCAL_TARGET_REFERENCE_DATA/
+gsutil -m cp -r $REFERENCE_DATA/$SOURCE_RESOLUTION/* $LOCAL_SOURCE_REFERENCE_DATA/
+gsutil -m cp -r $REFERENCE_DATA/$TARGET_RESOLUTION/* $LOCAL_TARGET_REFERENCE_DATA/
 
 #----------------------------------------------------------------------------
 # Set up environment paths.
@@ -217,11 +217,11 @@ if [ $iret -ne 0 ]; then
   exit $iret
 fi
 
-gsutil cp gfs_ctrl.nc $DESTINATION/
+gsutil -m cp gfs_ctrl.nc $DESTINATION/
 for tile in {1..6}
 do
-  gsutil cp out.atm.tile${tile}.nc $DESTINATION/gfs_data.tile${tile}.nc
-  gsutil cp out.sfc.tile${tile}.nc $DESTINATION/sfc_data.tile${tile}.nc
+  gsutil -m cp out.atm.tile${tile}.nc $DESTINATION/gfs_data.tile${tile}.nc
+  gsutil -m cp out.sfc.tile${tile}.nc $DESTINATION/sfc_data.tile${tile}.nc
 done
 
 exit
