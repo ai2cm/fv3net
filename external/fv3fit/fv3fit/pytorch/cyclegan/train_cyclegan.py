@@ -405,7 +405,7 @@ def train_cyclegan(
 
     get_Xy = get_Xy_map_fn(
         state_variables=hyperparameters.state_variables,
-        n_dims=6,  # [batch, sample, tile, x, y, z]
+        n_dims=6,
         mapping_scale_funcs=mapping_scale_funcs,
     )
 
