@@ -71,9 +71,9 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
 
     input_variables: Sequence[str]
     output_variables: Sequence[str]
-    latent_dim_size: int
-    units: int
-    n_dense_layers: int
+    latent_dim_size: int = 10
+    units: int = 20
+    n_dense_layers: int = 2
     loss: LossConfig = LossConfig(scaling="standard", loss_type="mse")
     training_loop: TrainingLoopConfig = dataclasses.field(
         default_factory=TrainingLoopConfig
@@ -171,6 +171,8 @@ def train_dense_autoencoder(
         units=hyperparameters.units,
         n_dense_layers=hyperparameters.n_dense_layers,
     )
+    predict_model = train_model
+
     train_model.compile(
         optimizer=hyperparameters.optimizer_config.instance,
         loss=hyperparameters.loss.loss(stddev.astype(np.float32)),
@@ -185,7 +187,7 @@ def train_dense_autoencoder(
     predictor = PureKerasModel(
         input_variables=hyperparameters.input_variables,
         output_variables=hyperparameters.input_variables,
-        model=train_model,
+        model=predict_model,
         unstacked_dims=("z",),
         n_halo=0,
     )
