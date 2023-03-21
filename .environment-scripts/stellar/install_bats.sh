@@ -2,7 +2,6 @@
 set -e
 
 CLONE_DIR=$1
-INSTALL_DIR=$2
 
 URL=https://github.com/bats-core/bats-core.git
 
