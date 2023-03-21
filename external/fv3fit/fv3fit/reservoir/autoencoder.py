@@ -2,7 +2,7 @@ import dataclasses
 import numpy as np
 import os
 import tensorflow as tf
-from typing import Union, Sequence, Optional, List, Set
+from typing import Union, Sequence, Optional, List, Set, Tuple
 from fv3fit._shared import get_dir, put_dir, register_training_function, OptimizerConfig
 from fv3fit._shared.training_config import Hyperparameters
 from .. import Predictor
@@ -94,10 +94,6 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
     def variables(self) -> Set[str]:
         return set(self.input_variables)
 
-    @property
-    def output_varaibles(self) -> Sequence[str]:
-        return self.input_variables
-
 
 def _get_Xy_dataset(data, variables):
     concat_data = data.map(partial(concat_variables_along_feature_dim, variables))
@@ -110,13 +106,13 @@ def _build_autoencoder(
     latent_dim_size: int,
     units: int,
     n_dense_layers: int,
-) -> Autoencoder:
-
+) -> Tuple[tf.keras.Model, tf.keras.Model]:
     encoder_layers = [
         tf.keras.layers.Input(shape=(input_size), name="input"),
     ]
     norm = StandardNormLayer(name="standard_normalize")
     norm.fit(sample_data)
+
     encoder_layers.append(norm)
     for i in range(n_dense_layers):
         encoder_layers.append(
@@ -140,8 +136,7 @@ def _build_autoencoder(
     decoder_layers.append(denorm)
 
     decoder = tf.keras.Sequential(decoder_layers)
-
-    return Autoencoder(encoder=encoder, decoder=decoder)
+    return encoder, decoder
 
 
 @register_training_function("dense_autoencoder", DenseAutoencoderHyperparameters)
@@ -164,14 +159,16 @@ def train_dense_autoencoder(
         val_Xy = None
 
     n_features = norm_batch_concat.shape[-1]
-    train_model = _build_autoencoder(
+    encoder, decoder = _build_autoencoder(
         sample_data=norm_batch_concat,
         input_size=n_features,
         latent_dim_size=hyperparameters.latent_dim_size,
         units=hyperparameters.units,
         n_dense_layers=hyperparameters.n_dense_layers,
     )
-    predict_model = train_model
+
+    train_model = Autoencoder(encoder=encoder, decoder=decoder)
+    predict_model = Autoencoder(encoder=encoder, decoder=decoder)
 
     train_model.compile(
         optimizer=hyperparameters.optimizer_config.instance,
@@ -184,6 +181,9 @@ def train_dense_autoencoder(
         validation_data=val_Xy,
         callbacks=[callback.instance for callback in callbacks],
     )
+
+    # need to call prediction model once so it can save without compiling
+    predict_model(np.ones((3, n_features)))
     predictor = PureKerasModel(
         input_variables=hyperparameters.input_variables,
         output_variables=hyperparameters.input_variables,

@@ -203,4 +203,8 @@ def concat_variables_along_feature_dim(
 ):
     # Concat variable tensors into a single tensor along the feature dimension
     # which is assumed to be the last dim.
-    return tf.concat([variable_tensors[v] for v in variables], axis=-1, name="stack",)
+    return tf.concat(
+        [tf.cast(variable_tensors[v], tf.float32) for v in variables],
+        axis=-1,
+        name="stack",
+    )
