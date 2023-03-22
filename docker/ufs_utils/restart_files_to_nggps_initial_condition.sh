@@ -44,7 +44,7 @@ FIXfv3=$LOCAL_TARGET_REFERENCE_DATA
 FIXsfc=$FIXfv3/fix_sfc
 
 #----------------------------------------------------------------------------
-# DATE - YYMMDDHH of your run.
+# DATE - YYYYMMDDHH of your run.
 #----------------------------------------------------------------------------
 
 year=$(echo $DATE|cut -c1-4)
