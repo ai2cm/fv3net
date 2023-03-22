@@ -29,4 +29,3 @@ MPI4PY_MPICC=mpicc
 # Python wrapper environment variables
 WRAPPER_CC='mpicc'
 WRAPPER_LDSHARED='mpicc -shared'
-

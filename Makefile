@@ -11,7 +11,7 @@ CACHE_TAG =latest
 BEAM_VERSION = 2.37.0
 UBUNTU_IMAGE = ubuntu@sha256:9101220a875cee98b016668342c489ff0674f247f6ca20dfc91b91c0f28581ae
 # prognostic base image is updated manually, not on every commit
-PROGNOSTIC_BASE_VERSION = 1.1.1
+PROGNOSTIC_BASE_VERSION = 1.1.0
 
 # Explicitly mount the /fv3net/external/fv3gfs-fortran directory to prevent
 # it from being overriden by the user's.  Historically we only interactively
