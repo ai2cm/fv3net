@@ -450,7 +450,6 @@ class CycleGANTrainer:
         # This flag can be manually used to disable compilation, for clearer
         # error messages and debugging. It should always be set to True in PRs.
         self._compile = True  # if this is False in a PR, say something!
-        self._compiled_shape = None
 
     def _call_generator_a_to_b(
         self, input: Tuple[torch.Tensor, torch.Tensor]
