@@ -30,7 +30,7 @@ These workflows currently refer to following images without using any tags:
 1. us.gcr.io/vcm-ml/fv3net
 1. us.gcr.io/vcm-ml/prognostic_run
 1. us.gcr.io/vcm-ml/post_process_run
-1. us.gcr.io/vcm-ml/ufs-utils
+1. us.gcr.io/vcm-ml/ufs_utils
 
 However, you can and should pin these images using kustomize (>=v3). For
 example, consuming configurations (e.g. in vcm-workflow-control) could use
