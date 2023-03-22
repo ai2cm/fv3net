@@ -17,7 +17,7 @@ NCEPLIBS_DIR=$INSTALL_PREFIX/NCEPlibs
 ESMF_DIR=$INSTALL_PREFIX/esmf
 FMS_DIR=$FV3NET_DIR/external/fv3gfs-fortran/FMS
 
-source $PLATFORM_SCRIPTS/configuration_variables.sh 
+source $PLATFORM_SCRIPTS/configuration_variables.sh
 
 bash "$PLATFORM_SCRIPTS"/install_base_software.sh "$CLONE_PREFIX" "$INSTALL_PREFIX" "$CONDA_ENV" "$PLATFORM_SCRIPTS"
 # Provide an optional platform-specific way to modify the build environment;

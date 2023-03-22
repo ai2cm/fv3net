@@ -12,7 +12,7 @@ CONDA_ENV=$7
 SCRIPTS=$FV3NET_DIR/.environment-scripts
 PLATFORM_SCRIPTS=$SCRIPTS/$PLATFORM
 
-source $PLATFORM_SCRIPTS/configuration_variables.sh 
+source $PLATFORM_SCRIPTS/configuration_variables.sh
 
 if [ "$INSTALL_TYPE" == "all" ] || [ "$INSTALL_TYPE" == "fv3gfs-fortran" ] || [ "$INSTALL_TYPE" == "wrapper" ];
 then
