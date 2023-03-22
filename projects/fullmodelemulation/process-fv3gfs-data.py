@@ -85,7 +85,7 @@ def process_file(basename, input_url, output_url, variables):
         ds = xr.merge(ds_list)
         output_local_path = os.path.join(tmpdir, 'outputfile.nc')
         print("Writing merged data to ", output_local_path)
-        ds.to_netcdf(output_local_path)
+        ds.to_netcdf(output_local_path, unlimited_dims=['time'], format='NETCDF4_CLASSIC')
         gsutil_cp(output_local_path, os.path.join(output_url, basename))
 
 
