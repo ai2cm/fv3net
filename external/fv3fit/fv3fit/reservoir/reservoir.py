@@ -56,16 +56,7 @@ class Reservoir:
         np.random.seed(self.hyperparameters.seed)
         self.W_in = W_in if W_in is not None else self._generate_W_in()
         self.W_res = W_res if W_res is not None else self._generate_W_res()
-
-    def __getattr__(self, attr):
-        if attr == "state":
-            raise AttributeError(
-                "Reservoir.state is not set yet."
-                "To initialize, first use Reservoir.reset_state"
-            )
-        raise AttributeError(
-            f"{self.__class__.__name__} object has no attribute {attr}."
-        )
+        self.state: Optional[np.ndarray] = None
 
     def increment_state(self, input):
         self.state = np.tanh(self.W_in @ input + self.W_res @ self.state)

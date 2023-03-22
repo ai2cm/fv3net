@@ -8,11 +8,11 @@ from ..cyclegan.modules import (
     ConvBlock,
     ConvolutionFactory,
     FoldFirstDimension,
+    GeographicBias,
     single_tile_convolution,
     relu_activation,
     ResnetBlock,
 )
-from ..cyclegan.generator import GeographicBias
 from torch.utils.checkpoint import checkpoint
 import numpy as np
 from vcm.grid import get_grid_xyz
