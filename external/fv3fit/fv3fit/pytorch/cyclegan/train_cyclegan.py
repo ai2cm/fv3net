@@ -12,6 +12,7 @@ from fv3fit.tfdataset import (
     select_keys,
     apply_to_tuple,
 )
+from fv3fit._shared import io
 import secrets
 from datetime import datetime
 
@@ -30,12 +31,16 @@ from typing import (
 )
 
 from fv3fit.tfdataset import ensure_nd
-from fv3fit._shared import io
 import logging
 import numpy as np
 from .reloadable import CycleGAN
+from .cyclegan_trainer import (
+    CycleGANNetworkConfig,
+    CycleGANTrainer,
+    ResultsAggregator,
+    unmerge_scaler_mappings,
+)
 from .reporter import Reporter
-from .cyclegan_trainer import CycleGANNetworkConfig, CycleGANTrainer, ResultsAggregator
 from ..optimizer import SchedulerConfig
 
 logger = logging.getLogger(__name__)
@@ -54,6 +59,8 @@ class CycleGANHyperparameters(Hyperparameters):
             normalization
         network: configuration for the CycleGAN network
         training: configuration for the CycleGAN training
+        reload_path: path to a directory containing a saved CycleGAN model to use
+            as a starting point for training
     """
 
     state_variables: List[str]
@@ -64,6 +71,7 @@ class CycleGANHyperparameters(Hyperparameters):
     training: "CycleGANTrainingConfig" = dataclasses.field(
         default_factory=lambda: CycleGANTrainingConfig()
     )
+    reload_path: Optional[str] = None
 
     @property
     def variables(self):
@@ -179,7 +187,7 @@ class CycleGANTrainingConfig:
                 train_losses.append(
                     train_model.train_on_batch(
                         state_a, state_b, aggregator=results_aggregator
-                    ),
+                    )
                 )
             if isinstance(train_states, list):
                 random.shuffle(train_states)
@@ -315,6 +323,7 @@ def get_Xy_map_fn_single_domain(
     returns a tf.data.Dataset whose entries are 2-tuples conntaining
     "time" and tensors of the requested state variables concatenated along
     the feature dimension.
+
     Args:
         state_variables: names of variables to include in returned tensor
         n_dims: number of dimensions of each sample, including feature dimension
@@ -322,6 +331,7 @@ def get_Xy_map_fn_single_domain(
             from variable name to array
         data: tf.data.Dataset with mappings from variable name
             to sample tensors
+
     Returns:
         tf.data.Dataset where each sample is a single tensor
             containing normalized and concatenated state variables
@@ -404,7 +414,14 @@ def train_cyclegan(
         iter(train_batches.unbatch().batch(hyperparameters.normalization_fit_samples))
     )
 
-    scalers = tuple(get_standard_scaler_mapping(entry) for entry in sample_batch)
+    if hyperparameters.reload_path is not None:
+        reloaded = CycleGAN.load(hyperparameters.reload_path)
+        merged_scalers = reloaded.scalers
+        scalers = unmerge_scaler_mappings(merged_scalers)
+    else:
+        scalers = tuple(
+            get_standard_scaler_mapping(entry) for entry in sample_batch
+        )  # type: ignore
     mapping_scale_funcs = tuple(
         get_mapping_standard_scale_func(scaler) for scaler in scalers
     )
@@ -423,6 +440,8 @@ def train_cyclegan(
     train_state = train_batches.map(get_Xy)
 
     sample: tf.Tensor = next(iter(train_state))[0][1]  # discard time of first sample
+    assert sample.shape[2] == 6  # tile dimension
+
     train_model = hyperparameters.network.build(
         nx=sample.shape[-3],
         ny=sample.shape[-2],
@@ -430,6 +449,7 @@ def train_cyclegan(
         n_batch=hyperparameters.training.samples_per_batch,
         state_variables=hyperparameters.state_variables,
         scalers=scalers,
+        reload_path=hyperparameters.reload_path,
     )
 
     # time and tile dimensions aren't being used yet while we're using single-tile

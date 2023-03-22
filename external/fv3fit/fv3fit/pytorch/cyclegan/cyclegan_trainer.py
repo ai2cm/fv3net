@@ -1,4 +1,4 @@
-from typing import List, Literal, Mapping, Tuple, Optional
+from typing import List, Literal, Mapping, Sequence, Tuple, Optional
 from fv3fit._shared.scaler import StandardScaler
 from .reloadable import CycleGAN, CycleGANModule
 import torch
@@ -71,10 +71,16 @@ class CycleGANNetworkConfig:
     cycle_weight: float = 1.0
     generator_weight: float = 1.0
     discriminator_weight: float = 1.0
-    reload_path: Optional[str] = None
 
     def build(
-        self, n_state: int, nx: int, ny: int, n_batch: int, state_variables, scalers
+        self,
+        n_state: int,
+        nx: int,
+        ny: int,
+        n_batch: int,
+        state_variables: Sequence[str],
+        scalers: Tuple[Mapping[str, StandardScaler], Mapping[str, StandardScaler]],
+        reload_path: Optional[str] = None,
     ) -> "CycleGANTrainer":
         if self.convolution_type == "conv2d":
             convolution = single_tile_convolution
@@ -108,13 +114,13 @@ class CycleGANNetworkConfig:
             discriminator_a=discriminator_a,
             discriminator_b=discriminator_b,
         ).to(DEVICE)
-        if self.reload_path is not None:
-            reloaded = CycleGAN.load(self.reload_path)
+        if reload_path is not None:
+            reloaded = CycleGAN.load(reload_path)
             merged_scalers = reloaded.scalers
             model.load_state_dict(reloaded.model.state_dict(), strict=True)
         else:
             init_weights(model)
-            merged_scalers = _merge_scaler_mappings(scalers)
+            merged_scalers = merge_scaler_mappings(scalers)
         return CycleGANTrainer(
             cycle_gan=CycleGAN(
                 model=model, state_variables=state_variables, scalers=merged_scalers,
@@ -176,7 +182,7 @@ def init_weights(
     net.apply(init_func)  # apply the initialization function <init_func>
 
 
-def _merge_scaler_mappings(
+def merge_scaler_mappings(
     scaler_tuple: Tuple[Mapping[str, StandardScaler], Mapping[str, StandardScaler]]
 ) -> Mapping[str, StandardScaler]:
     scalers = {}
@@ -184,6 +190,22 @@ def _merge_scaler_mappings(
         for key, scaler in scaler_map.items():
             scalers[prefix + key] = scaler
     return scalers
+
+
+def unmerge_scaler_mappings(
+    scaler_mapping: Mapping[str, StandardScaler],
+) -> Tuple[Mapping[str, StandardScaler], Mapping[str, StandardScaler]]:
+    """Inverse of merge_scaler_mappings above."""
+    scalers_a = {}
+    scalers_b = {}
+    for key, scaler in scaler_mapping.items():
+        if key.startswith("a_"):
+            scalers_a[key[2:]] = scaler
+        elif key.startswith("b_"):
+            scalers_b[key[2:]] = scaler
+        else:
+            raise ValueError(f"Key {key} does not start with a_ or b_")
+    return scalers_a, scalers_b
 
 
 class StatsCollector:
