@@ -9,6 +9,7 @@ ESMF_OS=Unicos
 ESMF_COMPILER=intel
 ESMF_SITE=default
 ESMF_CC=cc
+ESMF_COMM=mpi
 
 # FMS environment variables
 FMS_CC=cc
