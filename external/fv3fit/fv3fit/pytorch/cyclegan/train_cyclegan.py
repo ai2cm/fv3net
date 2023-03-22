@@ -7,11 +7,16 @@ import tensorflow as tf
 import torch
 from fv3fit.pytorch.system import DEVICE
 import tensorflow_datasets as tfds
-from fv3fit.tfdataset import apply_to_tuple
+from fv3fit.tfdataset import (
+    apply_to_mapping_with_exclude,
+    select_keys,
+    apply_to_tuple,
+)
 import secrets
 from datetime import datetime
 
 from fv3fit._shared import register_training_function
+from fv3fit._shared.scaler import StandardScaler
 from typing import (
     Callable,
     Iterable,
@@ -20,14 +25,11 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    NewType,
+    cast,
 )
 
 from fv3fit.tfdataset import ensure_nd
-from fv3fit.pytorch.graph.train import get_Xy_map_fn as get_Xy_map_fn_single_domain
-from fv3fit._shared.scaler import (
-    get_standard_scaler_mapping,
-    get_mapping_standard_scale_func,
-)
 from fv3fit._shared import io
 import logging
 import numpy as np
@@ -37,6 +39,8 @@ from .cyclegan_trainer import CycleGANNetworkConfig, CycleGANTrainer, ResultsAgg
 from ..optimizer import SchedulerConfig
 
 logger = logging.getLogger(__name__)
+
+DomainSample = NewType("DomainSample", Tuple[torch.Tensor, torch.Tensor])
 
 
 @dataclasses.dataclass
@@ -63,7 +67,7 @@ class CycleGANHyperparameters(Hyperparameters):
 
     @property
     def variables(self):
-        return tuple(self.state_variables)
+        return tuple(self.state_variables) + ("time",)
 
 
 @dataclasses.dataclass
@@ -117,11 +121,11 @@ class CycleGANTrainingConfig:
             validation_data = tfds.as_numpy(validation_data)
         if self.in_memory:
             train_states: Iterable[
-                Tuple[torch.Tensor, torch.Tensor]
+                Tuple[DomainSample, DomainSample]
             ] = dataset_to_tuples(train_data_numpy)
             if validation_data is not None:
                 val_states: Optional[
-                    Iterable[Tuple[torch.Tensor, torch.Tensor]]
+                    Iterable[Tuple[DomainSample, DomainSample]]
                 ] = dataset_to_tuples(validation_data)
             else:
                 val_states = None
@@ -136,16 +140,22 @@ class CycleGANTrainingConfig:
     def _fit_loop(
         self,
         train_model: CycleGANTrainer,
-        train_states: Iterable[Tuple[torch.Tensor, torch.Tensor]],
-        validation_data: Optional[tf.data.Dataset],
+        train_states: Iterable[Tuple[DomainSample, DomainSample]],
+        validation_states: Optional[Iterable[Tuple[DomainSample, DomainSample]]],
     ):
         reporter = Reporter()
         for state_a, state_b in train_states:
-            train_example_a, train_example_b = (state_a[:1, :], state_b[:1, :])
+            train_example_a, train_example_b = (
+                (state_a[0], state_a[1][:1, :]),
+                (state_b[0], state_b[1][:1, :]),
+            )
             break
-        if validation_data is not None:
-            for state_a, state_b in validation_data:
-                val_example_a, val_example_b = (state_a[:1, :], state_b[:1, :])
+        if validation_states is not None:
+            for state_a, state_b in validation_states:
+                val_example_a, val_example_b = (
+                    (state_a[0], state_a[1][:1, :]),
+                    (state_b[0], state_b[1][:1, :]),
+                )
                 break
         else:
             val_example_a, val_example_b = None, None  # type: ignore
@@ -184,10 +194,10 @@ class CycleGANTrainingConfig:
             )
             reporter.log(train_plots)
 
-            if validation_data is not None:
+            if validation_states is not None:
                 val_aggregator = ResultsAggregator(histogram_vmax=self.histogram_vmax)
                 val_losses = []
-                for state_a, state_b in validation_data:
+                for state_a, state_b in validation_states:
                     with torch.no_grad():
                         val_losses.append(
                             train_model.train_on_batch(
@@ -221,13 +231,17 @@ class CycleGANTrainingConfig:
                 io.dump(train_model.cycle_gan, str(current_path))
 
 
-def dataset_to_tuples(dataset) -> List[Tuple[torch.Tensor, torch.Tensor]]:
+def dataset_to_tuples(dataset) -> List[Tuple[DomainSample, DomainSample]]:
     states = []
     batch_state: Tuple[np.ndarray, np.ndarray]
     for batch_state in dataset:
-        state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
-        state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
-        states.append((state_a, state_b))
+        time_a = torch.as_tensor(batch_state[0][0]).float().to(DEVICE)
+        state_a = torch.as_tensor(batch_state[0][1]).float().to(DEVICE)
+        time_b = torch.as_tensor(batch_state[1][0]).float().to(DEVICE)
+        state_b = torch.as_tensor(batch_state[1][1]).float().to(DEVICE)
+        tuple_a = cast(DomainSample, (time_a, state_a))
+        tuple_b = cast(DomainSample, (time_b, state_b))
+        states.append((tuple_a, tuple_b))
     return states
 
 
@@ -239,17 +253,22 @@ class DatasetStateIterator:
 
     def __iter__(self):
         for batch_state in self.dataset:
-            state_a = torch.as_tensor(batch_state[0]).float().to(DEVICE)
-            state_b = torch.as_tensor(batch_state[1]).float().to(DEVICE)
-            yield state_a, state_b
+            time_a = torch.as_tensor(batch_state[0][0]).float().to(DEVICE)
+            state_a = torch.as_tensor(batch_state[0][1]).float().to(DEVICE)
+            time_b = torch.as_tensor(batch_state[1][0]).float().to(DEVICE)
+            state_b = torch.as_tensor(batch_state[1][1]).float().to(DEVICE)
+            yield (time_a, state_a), (time_b, state_b)
 
 
-def apply_to_tuple_mapping(func):
+def apply_to_tuple_mapping(func, exclude: Optional[Sequence[str]] = None):
     # not sure why, but tensorflow doesn't like parsing
     # apply_to_tuple(apply_to_mapping(func)), so we do it manually
     def wrapped(*tuple_of_mapping):
         return tuple(
-            {name: func(value) for name, value in mapping.items()}
+            {
+                name: func(value) if name not in exclude else value
+                for name, value in mapping.items()
+            }
             for mapping in tuple_of_mapping
         )
 
@@ -264,6 +283,14 @@ def get_Xy_map_fn(
         ...,  # noqa: W504
     ],
 ):
+    """
+    Args:
+        state_variables: names of state variables to extract
+        n_dims: number of dimensions in the state variables
+        mapping_scale_funcs: one mapping scale function for each domain for which
+            we are generating a state. In practice for a basic CycleGAN this will
+            contain two scale functions, one for domain A and one for domain B.
+    """
     funcs = tuple(
         get_Xy_map_fn_single_domain(
             state_variables=state_variables, n_dims=n_dims, mapping_scale_func=func
@@ -277,9 +304,46 @@ def get_Xy_map_fn(
     return Xy_map_fn
 
 
-def channels_first(data: tf.Tensor) -> tf.Tensor:
+def get_Xy_map_fn_single_domain(
+    state_variables: Sequence[str],
+    n_dims: int,
+    mapping_scale_func: Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]],
+):
+    """
+    Returns a function which when given a tf.data.Dataset with mappings from
+    variable name to samples
+    returns a tf.data.Dataset whose entries are 2-tuples conntaining
+    "time" and tensors of the requested state variables concatenated along
+    the feature dimension.
+    Args:
+        state_variables: names of variables to include in returned tensor
+        n_dims: number of dimensions of each sample, including feature dimension
+        mapping_scale_func: function which scales data stored as a mapping
+            from variable name to array
+        data: tf.data.Dataset with mappings from variable name
+            to sample tensors
+    Returns:
+        tf.data.Dataset where each sample is a single tensor
+            containing normalized and concatenated state variables
+    """
+    ensure_dims = apply_to_mapping_with_exclude(ensure_nd(n_dims), exclude=("time",))
+
+    def map_fn(data):
+        time = data["time"]
+        data = mapping_scale_func(data)
+        data = ensure_dims(data)
+        data = select_keys(state_variables, data)
+        data = tf.concat(data, axis=-1)
+        return (time, data)
+
+    return map_fn
+
+
+def channels_first(data: Tuple[tf.Tensor, tf.Tensor]) -> Tuple[tf.Tensor, tf.Tensor]:
     # [batch, time, tile, x, y, z] -> [batch, time, tile, z, x, y]
-    return tf.transpose(data, perm=[0, 1, 2, 5, 3, 4])
+    # first entry of tuple is state label information (time)
+    # which we don't want to transpose
+    return (data[0], tf.transpose(data[1], perm=[0, 1, 2, 5, 3, 4]))
 
 
 def force_cudnn_initialization():
@@ -289,6 +353,31 @@ def force_cudnn_initialization():
     torch.nn.functional.conv2d(
         torch.zeros(s, s, s, s, device=DEVICE), torch.zeros(s, s, s, s, device=DEVICE)
     )
+
+
+def get_standard_scaler_mapping(
+    sample: Mapping[str, np.ndarray]
+) -> Mapping[str, StandardScaler]:
+    scalers = {}
+    for name, array in sample.items():
+        if name != "time":
+            s = StandardScaler(n_sample_dims=5)
+            s.fit(array)
+            scalers[name] = s
+    return scalers
+
+
+def get_mapping_standard_scale_func(
+    scalers: Mapping[str, StandardScaler]
+) -> Callable[[Mapping[str, np.ndarray]], Mapping[str, np.ndarray]]:
+    def scale(data: Mapping[str, np.ndarray]):
+        output = {**data}
+        for name, array in data.items():
+            if name != "time":
+                output[name] = scalers[name].normalize(array)
+        return output
+
+    return scale
 
 
 @register_training_function("cyclegan", CycleGANHyperparameters)
@@ -308,7 +397,9 @@ def train_cyclegan(
             where each tensor has dimensions [sample, time, tile, x, y(, z)]
     """
     force_cudnn_initialization()
-    train_batches = train_batches.map(apply_to_tuple_mapping(ensure_nd(6)))
+    train_batches = train_batches.map(
+        apply_to_tuple_mapping(ensure_nd(6), exclude=("time",))
+    )
     sample_batch = next(
         iter(train_batches.unbatch().batch(hyperparameters.normalization_fit_samples))
     )
@@ -320,7 +411,7 @@ def train_cyclegan(
 
     get_Xy = get_Xy_map_fn(
         state_variables=hyperparameters.state_variables,
-        n_dims=6,  # [batch, sample, tile, x, y, z]
+        n_dims=6,
         mapping_scale_funcs=mapping_scale_funcs,
     )
 
@@ -331,7 +422,7 @@ def train_cyclegan(
 
     train_state = train_batches.map(get_Xy)
 
-    sample: tf.Tensor = next(iter(train_state))[0]
+    sample: tf.Tensor = next(iter(train_state))[0][1]  # discard time of first sample
     train_model = hyperparameters.network.build(
         nx=sample.shape[-3],
         ny=sample.shape[-2],

@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Tuple
 import torch.nn as nn
 from toolz import curry
 import torch
@@ -184,15 +185,17 @@ class Generator(nn.Module):
             self._input_bias = nn.Identity()
             self._output_bias = nn.Identity()
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """
         Args:
-            inputs: tensor of shape [batch, tile, channels, x, y]
+            inputs: A tuple containing a tensor of shape (batch, 1) with the time and
+                a tensor of shape (batch, tile, in_channels, height, width)
 
         Returns:
             tensor of shape [batch, tile, channels, x, y]
         """
-        x = self._input_bias(inputs)
+        _, state = inputs
+        x = self._input_bias(state)
         x = self._main(x)
         outputs: torch.Tensor = self._output_bias(x)
         return outputs
