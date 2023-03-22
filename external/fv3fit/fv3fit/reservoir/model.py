@@ -52,7 +52,7 @@ class ReservoirComputingModel(Predictor):
     def predict(self):
         # Returns raw readout prediction of latent state.
         # TODO: add method transform_to_native which transforms the raw
-        # prediction into denormalized physical values on cubedsphere coords.
+        # prediction to cubedsphere coords.
 
         if self.square_half_hidden_state is True:
             readout_input = square_even_terms(self.reservoir.state, axis=0)

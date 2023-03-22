@@ -68,10 +68,18 @@ class RankDivider:
         self._rank_extent_without_overlap = self._get_rank_extent_without_overlap(
             rank_extent, overlap
         )
+
+    @property
+    def subdomain_xy_size_without_overlap(self):
         # length of one side of subdomain along x/y axes
-        self.subdomain_xy_size_without_overlap = (
+        return (
             self._rank_extent_without_overlap[self._x_ind] // self.subdomain_layout[0]
         )
+
+    @property
+    def n_subdomain_features(self):
+        # number of total features (nx * ny * nz) in one subdomain
+        return int(np.prod(self.get_subdomain_extent(with_overlap=True)[1:]))
 
     def get_subdomain_extent(self, with_overlap: bool):
         subdomain_xy_size = self.subdomain_xy_size_without_overlap
