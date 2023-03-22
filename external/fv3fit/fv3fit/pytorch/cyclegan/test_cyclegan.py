@@ -51,7 +51,7 @@ def get_tfdataset(nsamples, nbatch, ntime, nx, nz):
         ]
     )
     dataset = config.open_tfdataset(
-        local_download_path=None, variable_names=["var_3d", "var_2d"]
+        local_download_path=None, variable_names=["var_3d", "var_2d", "time"]
     )
     return dataset
 
@@ -80,7 +80,7 @@ def get_noise_tfdataset(nsamples, nbatch, ntime, nx, nz):
         ]
     )
     dataset = config.open_tfdataset(
-        local_download_path=None, variable_names=["var_3d", "var_2d"]
+        local_download_path=None, variable_names=["var_3d", "var_2d", "time"]
     )
     return dataset
 
@@ -210,6 +210,7 @@ def test_cyclegan_runs_without_errors(
                 max_filters=32,
                 kernel_size=3,
                 strided_kernel_size=strided_kernel_size,
+                use_geographic_embedded_bias=True,
             ),
             optimizer=fv3fit.pytorch.OptimizerConfig(name="Adam", kwargs={"lr": 0.001}),
             discriminator=fv3fit.pytorch.DiscriminatorConfig(
@@ -217,6 +218,7 @@ def test_cyclegan_runs_without_errors(
                 max_filters=32,
                 kernel_size=3,
                 strided_kernel_size=strided_kernel_size,
+                use_geographic_embedded_bias=True,
             ),
             convolution_type=conv_type,
             identity_weight=0.01,

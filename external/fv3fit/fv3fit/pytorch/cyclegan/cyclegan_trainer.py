@@ -580,7 +580,6 @@ class CycleGANTrainer:
         fake_a = self._call_generator_b_to_a((time_b, real_b))
         reconstructed_a = self._call_generator_b_to_a((time_a, fake_b))
         reconstructed_b = self._call_generator_a_to_b((time_b, fake_a))
-        # last batch may have fewer samples, so we slice the target output 1/0's
 
         # Generators A2B and B2A ######
 
@@ -613,6 +612,7 @@ class CycleGANTrainer:
                 requires_grad=False,
             )
         n_samples = pred_fake_b.shape[0]
+        # last batch may have fewer samples, so we slice the target output 1/0's
         target_real = self.target_real[:n_samples]
         target_fake = self.target_fake[:n_samples]
         loss_gan_a_to_b = (
@@ -667,8 +667,10 @@ class CycleGANTrainer:
 
         # Fake loss
         if training:
-            time_b, fake_a = self.fake_a_buffer.query((time_b, fake_a))
-        pred_a_fake = self._call_discriminator_a((time_b.detach(), fake_a.detach()))
+            time_b, fake_a = self.fake_a_buffer.query(
+                (time_b.detach(), fake_a.detach())
+            )
+        pred_a_fake = self.discriminator_a((time_b, fake_a))
         loss_d_a_fake = (
             self.gan_loss(pred_a_fake, target_fake) * self.discriminator_weight
         )
@@ -681,8 +683,10 @@ class CycleGANTrainer:
 
         # Fake loss
         if training:
-            time_a, fake_b = self.fake_b_buffer.query((time_a, fake_b))
-        pred_b_fake = self._call_discriminator_b((time_a.detach(), fake_b.detach()))
+            time_a, fake_b = self.fake_b_buffer.query(
+                (time_a.detach(), fake_b.detach())
+            )
+        pred_b_fake = self._call_discriminator_b((time_a, fake_b))
         loss_d_b_fake = (
             self.gan_loss(pred_b_fake, target_fake) * self.discriminator_weight
         )
@@ -931,6 +935,7 @@ def plot_cross(
 ) -> io.BytesIO:
     """
     Plot global states as cross-plots.
+
     Args:
         real_a: Real state from domain A, shape [tile, x, y]
         real_b: Real state from domain B, shape [tile, x, y]

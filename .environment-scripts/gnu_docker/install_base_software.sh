@@ -2,6 +2,11 @@
 set -e
 
 # Note that if this script is modified the base image will need to be rebuilt.
+CLONE_PREFIX=$1
+INSTALL_PREFIX=$2
+CONDA_ENV=$3
+PLATFORM_SCRIPTS=$4
+
 
 apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata && \

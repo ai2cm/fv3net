@@ -17,6 +17,7 @@ import secrets
 from datetime import datetime
 
 from fv3fit._shared import register_training_function
+from fv3fit._shared.scaler import StandardScaler
 from typing import (
     Callable,
     Iterable,
@@ -25,10 +26,11 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    NewType,
+    cast,
 )
 
 from fv3fit.tfdataset import ensure_nd
-from fv3fit._shared.scaler import StandardScaler
 import logging
 import numpy as np
 from .reloadable import CycleGAN
@@ -42,6 +44,8 @@ from .reporter import Reporter
 from ..optimizer import SchedulerConfig
 
 logger = logging.getLogger(__name__)
+
+DomainSample = NewType("DomainSample", Tuple[torch.Tensor, torch.Tensor])
 
 
 @dataclasses.dataclass
@@ -125,11 +129,11 @@ class CycleGANTrainingConfig:
             validation_data = tfds.as_numpy(validation_data)
         if self.in_memory:
             train_states: Iterable[
-                Tuple[torch.Tensor, torch.Tensor]
+                Tuple[DomainSample, DomainSample]
             ] = dataset_to_tuples(train_data_numpy)
             if validation_data is not None:
                 val_states: Optional[
-                    Iterable[Tuple[torch.Tensor, torch.Tensor]]
+                    Iterable[Tuple[DomainSample, DomainSample]]
                 ] = dataset_to_tuples(validation_data)
             else:
                 val_states = None
@@ -144,8 +148,8 @@ class CycleGANTrainingConfig:
     def _fit_loop(
         self,
         train_model: CycleGANTrainer,
-        train_states: Iterable[Tuple[torch.Tensor, torch.Tensor]],
-        validation_states: Optional[Iterable[Tuple[torch.Tensor, torch.Tensor]]],
+        train_states: Iterable[Tuple[DomainSample, DomainSample]],
+        validation_states: Optional[Iterable[Tuple[DomainSample, DomainSample]]],
     ):
         reporter = Reporter()
         for state_a, state_b in train_states:
@@ -233,7 +237,7 @@ class CycleGANTrainingConfig:
                 io.dump(train_model.cycle_gan, str(current_path))
 
 
-def dataset_to_tuples(dataset) -> List[Tuple[torch.Tensor, torch.Tensor]]:
+def dataset_to_tuples(dataset) -> List[Tuple[DomainSample, DomainSample]]:
     states = []
     batch_state: Tuple[np.ndarray, np.ndarray]
     for batch_state in dataset:
@@ -241,7 +245,9 @@ def dataset_to_tuples(dataset) -> List[Tuple[torch.Tensor, torch.Tensor]]:
         state_a = torch.as_tensor(batch_state[0][1]).float().to(DEVICE)
         time_b = torch.as_tensor(batch_state[1][0]).float().to(DEVICE)
         state_b = torch.as_tensor(batch_state[1][1]).float().to(DEVICE)
-        states.append(((time_a, state_a), (time_b, state_b)))
+        tuple_a = cast(DomainSample, (time_a, state_a))
+        tuple_b = cast(DomainSample, (time_b, state_b))
+        states.append((tuple_a, tuple_b))
     return states
 
 
@@ -420,7 +426,7 @@ def train_cyclegan(
 
     get_Xy = get_Xy_map_fn(
         state_variables=hyperparameters.state_variables,
-        n_dims=6,  # [batch, sample, tile, x, y, z]
+        n_dims=6,
         mapping_scale_funcs=mapping_scale_funcs,
     )
 
@@ -433,6 +439,7 @@ def train_cyclegan(
 
     sample: tf.Tensor = next(iter(train_state))[0][1]  # discard time of first sample
     assert sample.shape[2] == 6  # tile dimension
+
     train_model = hyperparameters.network.build(
         nx=sample.shape[-3],
         ny=sample.shape[-2],

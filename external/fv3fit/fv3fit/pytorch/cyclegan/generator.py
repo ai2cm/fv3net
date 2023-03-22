@@ -196,21 +196,12 @@ class Generator(nn.Module):
         Returns:
             tensor of shape [batch, tile, channels, x, y]
         """
-        # TODO: this is a hack to support the old API, when it can be
-        # removed this should be changed to
-        # time, state = inputs
-        # x = self._input_bias(state)
-        # x = self._geographic_features((time, x))
-        # x = self._main(x)
-        # outputs: torch.Tensor = self._output_bias(x)
-        # return outputs
         try:
             time, state = inputs
         except ValueError:
             time, state = None, inputs
         x = self._input_bias(state)
-        if time is not None and hasattr(self, "_geographic_features"):
-            x = self._geographic_features((time, x))
+        x = self._geographic_features((time, x))
         x = self._main(x)
         outputs: torch.Tensor = self._output_bias(x)
         return outputs

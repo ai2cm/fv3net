@@ -9,24 +9,18 @@ from ..tfdataset import generator_to_tfdataset
 import tempfile
 import xarray as xr
 import numpy as np
-from vcm import safe
 
 
 SAMPLE_DIM_NAME = "_fv3fit_sample"
 
 
-def stack(ds: xr.Dataset, unstacked_dims: Sequence[str]):
+def stack(ds: xr.DataArray, unstacked_dims: Sequence[str]):
     stack_dims = [dim for dim in ds.dims if dim not in unstacked_dims]
     unstacked_dims = [dim for dim in unstacked_dims if dim in ds.dims]
     if len(stack_dims) == 0:
         ds_stacked = ds.expand_dims(dim=SAMPLE_DIM_NAME, axis=0)
     else:
-        ds_stacked = safe.stack_once(
-            ds,
-            SAMPLE_DIM_NAME,
-            stack_dims,
-            allowed_broadcast_dims=list(unstacked_dims) + ["time", "dataset"],
-        )
+        ds_stacked = ds.stack({SAMPLE_DIM_NAME: stack_dims})
     return ds_stacked.transpose(SAMPLE_DIM_NAME, *unstacked_dims)
 
 
@@ -49,8 +43,8 @@ class VariableConfig:
     def get_record(self, name: str, ds: xr.Dataset, unstacked_dims: Sequence[str]):
         if self.times == "start":
             ds = ds.isel(time=0)
-        ds = stack(ds[[name]], unstacked_dims)
-        return ds[name].values
+        array = stack(ds[name], unstacked_dims)
+        return array.values
 
 
 def open_zarr_using_filecache(url: str, decode_times: bool = False):
@@ -170,6 +164,8 @@ class WindowedZarrLoader(TFDatasetLoader):
         if "time" in variable_names:
             decode_times = True
         else:
+            # if time is not requested, we can skip decoding it
+            # as decoding can cause errors if time is poorly formatted in the dataset
             decode_times = False
         ds = open_zarr_using_filecache(self.data_path, decode_times=decode_times)
         ds = ds.isel(time=slice(self.time_start_index, self.time_end_index))
@@ -244,13 +240,19 @@ def records(
                 array = config.get_record(name, window_ds, unstacked_dims)
                 if i_sample is None:
                     i_sample = np.random.randint(array.shape[0])
+                sample = array[i_sample, :]
                 if name == "time":
-                    item = cftime.date2num(array, "seconds since 1970-01-01")
+                    try:
+                        item = cftime.date2num(sample, "seconds since 1970-01-01")
+                    except ValueError:  # raised for arrays of datetime64
+                        item = (
+                            sample - np.datetime64("1970-01-01T00:00:00Z")
+                        ) / np.timedelta64(1, "s")
                 else:
                     try:
-                        item = array[i_sample, :]
+                        item = sample
                     except IndexError:
-                        item = np.asarray(array[i_sample])
+                        item = np.asarray(sample)
                 record[name] = item
             yield record
 

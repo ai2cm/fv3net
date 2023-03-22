@@ -20,6 +20,7 @@ FMS_LDFLAGS='-L/usr/lib'
 FMS_LOG_DRIVER_FLAGS='--comments'
 FMS_CPPFLAGS='-I/usr/include -Duse_LARGEFILE -DMAXFIELDMETHODS_=500 -DGFS_PHYS'
 FMS_FCFLAGS='-fcray-pointer -Waliasing -ffree-line-length-none -fno-range-check -fdefault-real-8 -fdefault-double-8 -fopenmp'
+FMS_MAKE_OPTIONS=-j8
 
 # fv3gfs-fortran arguments
 FV3GFS_PLATFORM=gnu_docker
