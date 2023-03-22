@@ -7,8 +7,7 @@ import fsspec
 
 CONFIG = {
     "input_url": "gs://vcm-ml-raw-flexible-retention/2023-03-17-sample-regridded-C96-FV3GFS-FME-data",
-    "output_url": "gs://vcm-ml-scratch/oliwm/test-fv3gfs-processing-v1",
-    # "output_url": "gs://vcm-ml-raw-flexible-retention/2023-03-21-sample-regridded-C96-FV3GFS-FME-data-merged-with-some-fluxes",
+    "output_url": "gs://vcm-ml-raw-flexible-retention/2023-03-21-sample-regridded-C96-FV3GFS-FME-data-merged-with-fluxes",
     "variables": {
         "fourcastnet_vanilla_1_degree": (
             "UGRD10m",
