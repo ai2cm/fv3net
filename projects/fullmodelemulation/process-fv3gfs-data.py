@@ -1,4 +1,6 @@
 import os
+import subprocess
+import tempfile
 
 import xarray as xr
 import fsspec
@@ -47,6 +49,8 @@ CONFIG = {
     },
 }
 
+def gsutil_cp(source, destination):
+    subprocess.check_call(["gsutil", "cp", source, destination])
 
 def glob_file_lists(fs, url, categories):
     files = {}
@@ -70,17 +74,20 @@ def assert_values_equal(dict_):
 def process_file(basename, input_url, output_url, variables):
     print(f"Processing {basename}...")
     ds_list = []
-    for diagnostic_category in variables:
-        full_path = os.path.join(input_url, diagnostic_category, basename)
-        print(f"Opening data from {full_path}")
-        with fsspec.open(full_path, "rb") as f:
-            tmp = xr.open_dataset(f)
-            tmp = tmp[list(variables[diagnostic_category])]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for category in variables:
+            gcs_path = os.path.join(input_url, category, basename)
+            local_path = os.path.join(tmpdir, category, basename)
+            gsutil_cp(gcs_path, local_path)
+            print(f"Opening data from {local_path}")
+            tmp = xr.open_dataset(local_path)
+            tmp = tmp[list(variables[category])]
             ds_list.append(tmp)
-    ds = xr.merge(ds_list)
-    print("Writing merged data to", os.path.join(output_url, basename))
-    with fsspec.open(os.path.join(output_url, basename), "wb") as f:
-        ds.to_netcdf(f)
+        ds = xr.merge(ds_list)
+        output_local_path = os.path.join(tmpdir, 'outputfile.nc')
+        print("Writing merged data to ", output_local_path)
+        ds.to_netcdf(output_local_path)
+        gsutil_cp(output_local_path, os.path.join(output_url, basename))
 
 
 def main(config, limit_to_single_file=False):
@@ -97,4 +104,4 @@ def main(config, limit_to_single_file=False):
 
 
 if __name__ == "__main__":
-    main(CONFIG, limit_to_single_file=True)
+    main(CONFIG)
