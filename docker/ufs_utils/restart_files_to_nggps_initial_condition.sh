@@ -14,8 +14,8 @@ TRACERS=$5
 VCOORD_FILE=$6
 REFERENCE_DATA=$7
 DESTINATION=$8
-MPI_TASKS=$9
 
+MPI_TASKS=6  # Hard-code for now, but could make it an input parameter
 VCOORD_FILENAME="$(basename $VCOORD_FILE)"
 LOCAL_RESTARTS=/input_data
 LOCAL_VCOORD_FILE=/input_data/$VCOORD_FILENAME

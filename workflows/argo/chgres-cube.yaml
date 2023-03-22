@@ -17,10 +17,6 @@ spec:
     - name: reference_data
       value: gs://vcm-ml-raw-flexible-retention/2023-02-24-chgres-cube-forcing-data/2023-02-24-chgres-cube-forcing-data
     - name: destination_root
-    - name: mpi_tasks
-      value: "6"
-    - name: memory
-      value: "25Gi"
   entrypoint: driver
   volumes:
   - name: gcp-credentials-user-gcp-sa
@@ -32,18 +28,8 @@ spec:
     - key: "dedicated"
       value: "climate-sim-pool"
       effect: "NoSchedule"
-    podSpecPatch: |
-      containers:
-        - name: main
-          resources:
-            limits:
-              cpu: "{{workflow.parameters.mpi_tasks}}000m"
-              memory: "{{workflow.parameters.memory}}"
-            requests:
-              cpu: "{{workflow.parameters.mpi_tasks}}000m"
-              memory: "{{workflow.parameters.memory}}"
     container:
-      image: us.gcr.io/vcm-ml/ufs-utils
+      image: us.gcr.io/vcm-ml/ufs_utils
       command:
       - restart_files_to_nggps_initial_condition.sh
       - '{{workflow.parameters.restarts}}'
@@ -54,7 +40,13 @@ spec:
       - '{{workflow.parameters.vcoord_file}}'
       - '{{workflow.parameters.reference_data}}'
       - '{{workflow.parameters.destination_root}}'
-      - '{{workflow.parameters.mpi_tasks}}'
+      resources:
+        limits:
+          cpu: "6000m"
+          memory: "25Gi"
+        requests:
+          cpu: "6000m"
+          memory: "25Gi"
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json

@@ -48,8 +48,8 @@ images:
   newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
 - name: us.gcr.io/vcm-ml/prognostic_run
   newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
-- name: us.gcr.io/vcm-ml/ufs-utils
-  newTag: 2023.03.20.1
+- name: us.gcr.io/vcm-ml/ufs_utils
+  newTag: 2023.03.21
 ```
 
 It is also possible to do this programmatically, using `kustomize edit set image`.
@@ -307,5 +307,3 @@ using the [`UFS_UTILS`](https://github.com/ufs-community/UFS_UTILS)
 | `vcoord_file`       | Text file containing information about the vertical coordinate of the restart files | gs://vcm-ml-intermediate/2023-02-24-chgres-cube-hybrid-levels/global_hyblev.l63.txt                        |
 | `reference_data`    | Path to forcing data on GCS (typically just use the default)                        | gs://vcm-ml-raw-flexible-retention/2023-02-24-chgres-cube-forcing-data/2023-02-24-chgres-cube-forcing-data |
 | `destination_root`  | Path to store resulting initial condition                                           | gs://path/to/destination                                                                                   |
-| `mpi_tasks`         | Number of MPI tasks to run with (default "6")                                       | "6"                                                                                                        |
-| `memory`            | Memory to allocate (default "25Gi")                                                 | "25Gi"                                                                                                     |

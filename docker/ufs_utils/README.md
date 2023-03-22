@@ -19,26 +19,10 @@ for doing this in the docker image, but it would be straightforward to add.
 
 The image is not hooked into our continuous integration workflow since we do not
 expect the need to update it frequently.  If there are any updates, the image
-therefore needs to be rebuilt manually.
+therefore needs to be rebuilt manually.  This can be done using the existing
+make rules within the fv3net Makefile:
 
-If you have modified `base.Dockerfile` then you will need to first update the
-base image:
 ```
-$ docker build -f base.Dockerfile -t us.gcr.io/vcm-ml/ufs-utils-base .
+$ make build_image_ufs_utils
+$ make push_image_ufs_utils
 ```
-
-If not, you can skip straight to building the main image.  After the main image
-builds, you can then give it a tag (in place of `$TAG`) and push it to the
-container registry:
-```
-$ docker build -f Dockerfile -t us.gcr.io/vcm-ml/ufs-utils --build-arg BASE_IMAGE=us.gcr.io/vcm-ml/ufs-utils-base:latest .
-$ docker tag us.gcr.io/vcm-ml/ufs-utils:latest us.gcr.io/vcm-ml/ufs-utils:$TAG
-$ docker push us.gcr.io/vcm-ml/ufs-utils:$TAG
-```
-
-We split the image into two parts to ease development since rebuilding what is
-in the base image can take up to an hour, and unnecessary rebuilds are often
-triggered due to cache misses (see discussion for a similar issue in building
-the prognostic run image in
-[fv3net#1775](https://github.com/ai2cm/fv3net/issues/1775) and
-[fv3net#1831](https://github.com/ai2cm/fv3net/pull/1831)).
