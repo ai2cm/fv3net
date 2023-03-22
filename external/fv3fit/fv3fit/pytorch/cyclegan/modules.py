@@ -1,10 +1,16 @@
 import logging
 
-from typing import Callable, Literal, Optional, Protocol
+from typing import Callable, Literal, Optional, Protocol, Tuple
 import torch.nn as nn
 import torch
+from vcm.grid import get_grid_xyz, get_grid
+from fv3fit.pytorch.system import DEVICE
+import numpy as np
 
 logger = logging.getLogger(__name__)
+
+HOURS_PER_DEG_LONGITUDE = 1.0 / 15
+SECONDS_PER_DAY = 24 * 60 * 60
 
 
 def relu_activation(**kwargs):
@@ -27,6 +33,82 @@ def leakyrelu_activation(**kwargs):
 
 def no_activation():
     return nn.Identity()
+
+
+class DiscardTime(nn.Module):
+    """
+    Takes a tuple of (time, state) and returns state.
+
+    Useful as an alternative for GeographicFeatures which does nothing.
+    """
+
+    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        return x[1]
+
+
+class GeographicFeatures(nn.Module):
+    """
+    Appends (time_x, time_y, x, y, z) features corresponding to the local position
+    of the hour hand on a 24h clock, and
+    the Eulerian position of each gridcell on a unit sphere.
+    """
+
+    N_FEATURES = 5
+
+    def __init__(self, nx: int, ny: int):
+        super().__init__()
+        if nx != ny:
+            raise ValueError("this object requires nx=ny")
+        self.xyz = torch.as_tensor(
+            # transpose to move channel dimension (last) to second dim
+            get_grid_xyz(nx=nx).transpose([0, 3, 1, 2]),
+            device=DEVICE,
+        ).float()
+        lon, lat = get_grid(nx=nx)
+        lon = lon[:, None, :, :]  # insert channel dimension
+        lat = lat[:, None, :, :]  # insert channel dimension
+        self.local_time_zero_radians = torch.as_tensor(lon, device=DEVICE).float()
+        self.cos_lat = torch.as_tensor(np.cos(lat), device=DEVICE).float()
+
+    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        """
+        Args:
+            inputs: A tuple containing a tensor of shape (batch, window)
+                with the time as
+                a number of seconds since any time corresponding to midnight at
+                longitude 0,
+                and a tensor of shape (batch, window, tile, in_channels, x, y)
+
+        Returns:
+            tensor of shape [batch, window, tile, channel, x, y]
+        """
+        # TODO: this is a hack to support the previous API before time was added,
+        # remove this try-except once the API is stable
+        try:
+            time, x = inputs
+            assert len(time.shape) == 1, "time must be a 1D tensor"
+            local_time_offset_radians = (
+                time % SECONDS_PER_DAY / SECONDS_PER_DAY * 2 * np.pi
+            )
+            local_time = (
+                self.local_time_zero_radians[None, :]
+                + local_time_offset_radians[:, None, None, None, None]
+            )
+            if hasattr(self, "cos_lat"):
+                time_x = torch.sin(local_time) * self.cos_lat[None, :]
+                time_y = torch.cos(local_time) * self.cos_lat[None, :]
+            else:
+                time_x = torch.sin(local_time)
+                time_y = torch.cos(local_time)
+            xyz = torch.stack([self.xyz for _ in range(x.shape[0])])
+            geo_features = torch.cat([time_x, time_y, xyz], dim=2)
+        except ValueError:
+            x = inputs
+            geo_features = torch.stack([self.xyz for _ in range(x.shape[0])])
+
+        # the fact that this appends instead of prepends is arbitrary but important,
+        # this is assumed to be the case elsewhere in the code.
+        return torch.cat([x, geo_features], dim=-3)
 
 
 class GeographicBias(nn.Module):

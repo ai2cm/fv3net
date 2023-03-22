@@ -175,7 +175,7 @@ class CycleGAN(Reloadable):
         with torch.no_grad():
             for i in range(0, tensor.shape[0], n_batch):
                 new: torch.Tensor = generator(
-                    (time[i : i + n_batch], tensor[i : i + n_batch])
+                    time[i : i + n_batch], tensor[i : i + n_batch]
                 )
                 outputs[i : i + new.shape[0]] = new
         predicted = self.unpack_tensor(outputs, domain=output_domain)
