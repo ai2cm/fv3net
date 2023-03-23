@@ -71,18 +71,16 @@ def make_new_date(start_date: cftime.DatetimeGregorian, n: int):
     return new_date
 
 
-def convert_to_fv3_format(
-    NE: int,
+def convert_scream_to_zarr_format(
     data_path: str,
     file_name: str,
     output_path: str,
     output_file_name: str,
     output_variables: List[str],
 ):
-    """Converts a scream output file to the fv3gfs format.
+    """Converts a scream output file to zarr format.
 
     Args:
-        NE: number of spectral elements per cubed face
         data_path: path to input data directory, remote or local
         file_name: either a single file name
             or a wildcard pattern to match multiple names
