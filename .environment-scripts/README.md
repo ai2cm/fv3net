@@ -68,7 +68,9 @@ Currently there are four supported platforms:
 To add support for a new platform, the following steps must be taken:
 
 1. One must define the following scripts in a subdirectory with the platform's
-   name:
+   name (these scripts are called or sourced within the
+   `setup_base_environment.sh` and `setup_development_environment.sh` scripts
+   during the build of the full environment):
    - `<platform>/install_base_software.sh` -- this is a bit of a catch-all
      script that installs platform-specific software requirements.  In Docker
      this involves a fairly large number of dependencies, but on HPC platforms
