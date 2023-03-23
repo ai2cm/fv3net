@@ -205,7 +205,6 @@ class Generator(nn.Module):
         Returns:
             tensor of shape [batch, tile, channels, x, y]
         """
-        # time, state = inputs
         x = self._input_bias(state)
         x = self._geographic_features((time, x))
         x = self._main(x)
