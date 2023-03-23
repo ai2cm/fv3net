@@ -1,12 +1,12 @@
 import dataclasses
-from typing import Tuple
-
 import torch.nn as nn
 from toolz import curry
 import torch
 from .modules import (
     ConvolutionFactory,
+    GeographicFeatures,
     GeographicBias,
+    DiscardTime,
     single_tile_convolution,
     leakyrelu_activation,
     ConvBlock,
@@ -30,6 +30,8 @@ class DiscriminatorConfig:
             strided convolutions
         max_filters: maximum number of filters in any convolutional layer,
             equal to the number of filters in the final strided convolutional layer
+        use_geographic_features: if True, include a layer that appends
+            geographic features to the input data.
         use_geographic_embedded_bias: if True, include a layer that adds a trainable
             bias vector after the initial encoding layer. This bias is a
             function of horizontal coordinates.
@@ -39,6 +41,7 @@ class DiscriminatorConfig:
     kernel_size: int = 3
     strided_kernel_size: int = 3
     max_filters: int = 256
+    use_geographic_features: bool = True
     use_geographic_embedded_bias: bool = False
 
     def build(
@@ -57,6 +60,7 @@ class DiscriminatorConfig:
             nx=nx,
             ny=ny,
             convolution=convolution,
+            use_geographic_features=self.use_geographic_features,
             use_geographic_embedded_bias=self.use_geographic_embedded_bias,
         )
 
@@ -76,6 +80,7 @@ class Discriminator(nn.Module):
         nx: int,
         ny: int,
         convolution: ConvolutionFactory = single_tile_convolution,
+        use_geographic_features: bool = True,
         use_geographic_embedded_bias: bool = False,
     ):
         """
@@ -91,6 +96,8 @@ class Discriminator(nn.Module):
             nx: number of grid points in the x direction
             ny: number of grid points in the y direction
             convolution: factory for creating all convolutional layers
+            use_geographic_features: if True, include a layer that appends
+                geographic features to the input data.
             use_geographic_embedded_bias: if True, include a layer that adds a
                 trainable bias vector after the initial encoding layer that is
                 a function of horizontal coordinates.
@@ -103,6 +110,12 @@ class Discriminator(nn.Module):
         # first convolutional block must not have instance normalization, so that the
         # discriminator can use information about the mean and standard deviation of
         # the input data (generated images)
+        if use_geographic_features:
+            self._geographic_features = GeographicFeatures(nx=nx, ny=ny)
+            in_channels += GeographicFeatures.N_FEATURES
+        else:
+            self._geographic_features = DiscardTime()
+
         convs = []
         convs.append(
             convolution(
@@ -117,7 +130,6 @@ class Discriminator(nn.Module):
                 GeographicBias(channels=min_filters, nx=int(nx / 2), ny=int(ny / 2))
             )
         convs.append(leakyrelu_activation(negative_slope=0.2, inplace=True)())
-
         # we've already defined the first strided convolutional layer, so start at 1
         for i in range(1, n_convolutions):
             convs.append(
@@ -144,13 +156,14 @@ class Discriminator(nn.Module):
         )
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
 
-    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+    def forward(self, time: torch.Tensor, state: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            inputs: A tuple containing a tensor of shape (batch, 1) with the time and
-                a tensor of shape (batch, tile, in_channels, height, width)
+            time: a tensor of shape (batch, 1) with the time as seconds since 1970-01-01
+            state: a tensor of shape (batch, tile, in_channels, height, width)
 
         Returns:
             tensor of shape (batch, tile, 1, height, width)
         """
-        return self._sequential(inputs[1])
+        x = self._geographic_features((time, state))
+        return self._sequential(x)

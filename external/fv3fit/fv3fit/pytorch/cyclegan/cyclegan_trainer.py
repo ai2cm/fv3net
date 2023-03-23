@@ -469,42 +469,71 @@ class CycleGANTrainer:
         self._script_gen_b_to_a = None
         self._script_disc_a = None
         self._script_disc_b = None
+        # This flag can be manually used to disable compilation, for clearer
+        # error messages and debugging. It should always be set to True in PRs.
+        self._compile = True  # if this is False in a PR, say something!
 
-    def _call_generator_a_to_b(self, input):
-        if self._script_gen_a_to_b is None:
-            self._script_gen_a_to_b = torch.jit.trace(
-                self.generator_a_to_b.forward, (input,)
-            )
-        return self._script_gen_a_to_b(input)
+    def _call_generator_a_to_b(
+        self, input: Tuple[torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor:
+        if self._compile:
+            if self._script_gen_a_to_b is None:
+                self._script_gen_a_to_b = torch.jit.trace(
+                    self.generator_a_to_b.forward, input,
+                )
+            try:
+                return self._script_gen_a_to_b(*input)
+            except RuntimeError:
+                # gives better messages for true errors, but also lets us process
+                # a smaller batch at the end of the dataset if one exists
+                return self.generator_a_to_b(*input)
+        else:
+            return self.generator_a_to_b(*input)
 
-    def _call_generator_b_to_a(self, input):
-        if self._script_gen_b_to_a is None:
-            self._script_gen_b_to_a = torch.jit.trace(
-                self.generator_b_to_a.forward, (input,)
-            )
-        return self._script_gen_b_to_a(input)
+    def _call_generator_b_to_a(
+        self, input: Tuple[torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor:
+        if self._compile:
+            if self._script_gen_b_to_a is None:
+                self._script_gen_b_to_a = torch.jit.trace(
+                    self.generator_b_to_a.forward, input,
+                )
+            try:
+                return self._script_gen_b_to_a(*input)
+            except RuntimeError:
+                return self.generator_b_to_a(*input)
+        else:
+            return self.generator_b_to_a(*input)
 
-    def _call_discriminator_a(self, input):
-        if self._script_disc_a is None:
-            self._script_disc_a = torch.jit.trace(
-                self.discriminator_a.forward, (input,)
-            )
-        return self._script_disc_a(input)
+    def _call_discriminator_a(
+        self, input: Tuple[torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor:
+        if self._compile:
+            if self._script_disc_a is None:
+                self._script_disc_a = torch.jit.trace(
+                    self.discriminator_a.forward, input,
+                )
+            try:
+                return self._script_disc_a(*input)
+            except RuntimeError:
+                return self.discriminator_a(*input)
+        else:
+            return self.discriminator_a(*input)
 
-    def _call_discriminator_b(self, input):
-        if self._script_disc_b is None:
-            self._script_disc_b = torch.jit.trace(
-                self.discriminator_b.forward, (input,)
-            )
-        return self._script_disc_b(input)
-
-    def _init_targets(self, shape: Tuple[int, ...]):
-        self.target_real = torch.autograd.Variable(
-            torch.Tensor(shape).fill_(1.0).to(DEVICE), requires_grad=False
-        )
-        self.target_fake = torch.autograd.Variable(
-            torch.Tensor(shape).fill_(0.0).to(DEVICE), requires_grad=False
-        )
+    def _call_discriminator_b(
+        self, input: Tuple[torch.Tensor, torch.Tensor]
+    ) -> torch.Tensor:
+        if self._compile:
+            if self._script_disc_b is None:
+                self._script_disc_b = torch.jit.trace(
+                    self.discriminator_b.forward, input,
+                )
+            try:
+                return self._script_disc_b(*input)
+            except RuntimeError:
+                return self.discriminator_b(*input)
+        else:
+            return self.discriminator_b(*input)
 
     def train_on_batch(
         self,
@@ -540,9 +569,10 @@ class CycleGANTrainer:
         # Generators A2B and B2A ######
 
         # don't update discriminators when training generators to fool them
-        set_requires_grad(
-            [self.discriminator_a, self.discriminator_b], requires_grad=False
-        )
+        if training:
+            set_requires_grad(
+                [self.discriminator_a, self.discriminator_b], requires_grad=False
+            )
 
         # Identity loss
         # G_A2B(B) should equal B if real B is fed
@@ -557,14 +587,26 @@ class CycleGANTrainer:
         # GAN loss
         pred_fake_b = self._call_discriminator_b((time_a, fake_b))
         if self.target_real is None:
-            self._init_targets(pred_fake_b.shape)
+            self.target_real = torch.autograd.Variable(
+                torch.Tensor(pred_fake_b.shape).fill_(1.0).to(DEVICE),
+                requires_grad=False,
+            )
+        if self.target_fake is None:
+            self.target_fake = torch.autograd.Variable(
+                torch.Tensor(pred_fake_b.shape).fill_(0.0).to(DEVICE),
+                requires_grad=False,
+            )
+        n_samples = pred_fake_b.shape[0]
+        # last batch may have fewer samples, so we slice the target output 1/0's
+        target_real = self.target_real[:n_samples]
+        target_fake = self.target_fake[:n_samples]
         loss_gan_a_to_b = (
-            self.gan_loss(pred_fake_b, self.target_real) * self.generator_weight
+            self.gan_loss(pred_fake_b, target_real) * self.generator_weight
         )
 
         pred_fake_a = self._call_discriminator_a((time_b, fake_a))
         loss_gan_b_to_a = (
-            self.gan_loss(pred_fake_a, self.target_real) * self.generator_weight
+            self.gan_loss(pred_fake_a, target_real) * self.generator_weight
         )
         loss_gan = loss_gan_a_to_b + loss_gan_b_to_a
 
@@ -600,7 +642,7 @@ class CycleGANTrainer:
         # Real loss
         pred_real = self._call_discriminator_a((time_a, real_a))
         loss_d_a_real = (
-            self.gan_loss(pred_real, self.target_real) * self.discriminator_weight
+            self.gan_loss(pred_real, target_real) * self.discriminator_weight
         )
 
         # Fake loss
@@ -608,15 +650,15 @@ class CycleGANTrainer:
             time_b, fake_a = self.fake_a_buffer.query(
                 (time_b.detach(), fake_a.detach())
             )
-        pred_a_fake = self.discriminator_a((time_b, fake_a))
+        pred_a_fake = self._call_discriminator_a((time_b, fake_a))
         loss_d_a_fake = (
-            self.gan_loss(pred_a_fake, self.target_fake) * self.discriminator_weight
+            self.gan_loss(pred_a_fake, target_fake) * self.discriminator_weight
         )
 
         # Real loss
         pred_real = self._call_discriminator_b((time_b, real_b))
         loss_d_b_real = (
-            self.gan_loss(pred_real, self.target_real) * self.discriminator_weight
+            self.gan_loss(pred_real, target_real) * self.discriminator_weight
         )
 
         # Fake loss
@@ -626,7 +668,7 @@ class CycleGANTrainer:
             )
         pred_b_fake = self._call_discriminator_b((time_a, fake_b))
         loss_d_b_fake = (
-            self.gan_loss(pred_b_fake, self.target_fake) * self.discriminator_weight
+            self.gan_loss(pred_b_fake, target_fake) * self.discriminator_weight
         )
 
         # Total loss
