@@ -97,13 +97,13 @@ OROG_FILES_INPUT_GRID=${OROG_FILES_INPUT_GRID}',"'${SOURCE_RESOLUTION}'_oro_data
 OROG_FILES_INPUT_GRID=${OROG_FILES_INPUT_GRID}',"'${SOURCE_RESOLUTION}'_oro_data.tile5.nc","'${SOURCE_RESOLUTION}'_oro_data.tile6.nc'
 
 #----------------------------------------------------------------------------
-# COMIN       - Location of input data
-# CONVERT_ATM - Convert atmospheric fields when true
-# CONVERT_SFC - Convert surface fields when true
-# CONVERT_NST - Convert nst fields when true
+# DATA_DIR_INPUT - Location of input data
+# CONVERT_ATM    - Convert atmospheric fields when true
+# CONVERT_SFC    - Convert surface fields when true
+# CONVERT_NST    - Convert nst fields when true
 #----------------------------------------------------------------------------
 
-COMIN=$LOCAL_RESTARTS
+DATA_DIR_INPUT=$LOCAL_RESTARTS
 CONVERT_ATM=${CONVERT_ATM:-.true.}
 CONVERT_SFC=${CONVERT_SFC:-.true.}
 CONVERT_NST=${CONVERT_NST:-.false.}
@@ -185,7 +185,7 @@ cat << EOF > ./fort.41
   mosaic_file_input_grid="${MOSAIC_FILE_INPUT_GRID}"
   orog_dir_input_grid="${OROG_DIR_INPUT_GRID}"
   orog_files_input_grid="${OROG_FILES_INPUT_GRID}"
-  data_dir_input_grid="${COMIN}"
+  data_dir_input_grid="${DATA_DIR_INPUT}"
   atm_files_input_grid="${ATM_FILES_INPUT}"
   atm_core_files_input_grid="${ATM_CORE_FILES_INPUT}"
   atm_tracer_files_input_grid="${ATM_TRACER_FILES_INPUT}"
