@@ -616,6 +616,7 @@ def plot_diurnal_cycle(ds, initial_time, varname, label: str):
     #         GRID["lat"] > -8,
     #     ),
     # ).astype(int)
+    ds["PRATEsfc_var"] = ds["PRATEsfc_std"] ** 2
     diurnal_times = xr.DataArray(
         [initial_time + timedelta(hours=i) for i in range(0, 24, 3)],
         dims=["diurnal"],
@@ -632,26 +633,49 @@ def plot_diurnal_cycle(ds, initial_time, varname, label: str):
         .mean()
     )
     data = ds[f"PRATEsfc_mean"] * TO_MM_DAY
+    total_mean = data.mean("group_bins")
+    total_std = ds["PRATEsfc_var"].mean("group_bins") ** 0.5 * TO_MM_DAY
     fig, ax = plt.subplots(
-        len(ds.perturbation), 1, figsize=(5, 1 + 2.5 * len(ds.perturbation)),
+        len(ds.perturbation), 2, figsize=(10, 1 + 2.5 * len(ds.perturbation)),
     )
-    if not isinstance(ax, np.ndarray):
-        ax = np.asarray([ax])
+    if len(ax.shape) == 1:
+        ax = ax[None, :]
     x = np.arange(0, 24, 24 / len(ds.group_bins))
     for i, climate in enumerate(ds.perturbation.values):
-        ax[i].plot(
+        real_c384 = dict(perturbation=climate, source="real", grid="C384")
+        gen_c384 = dict(perturbation=climate, source="gen", grid="C384")
+        real_c48 = dict(perturbation=climate, source="real", grid="C48")
+        ax[i, 0].plot(
             x,
             data.sel(perturbation=climate, source="real", grid="C384").values,
             label="real",
         )
-        ax[i].plot(
+        ax[i, 0].plot(
             x,
             data.sel(perturbation=climate, source="gen", grid="C384").values,
             label="gen",
         )
-        ax[i].plot(
+        ax[i, 0].plot(
             x,
             data.sel(perturbation=climate, source="real", grid="C48").values,
+            label="c48",
+        )
+        ax[i, 1].plot(
+            x,
+            (data.sel(**real_c384).values - total_mean.sel(**real_c384).values)
+            / total_std.sel(**real_c384).values,
+            label="real",
+        )
+        ax[i, 1].plot(
+            x,
+            (data.sel(**gen_c384).values - total_mean.sel(**gen_c384).values)
+            / total_std.sel(**gen_c384).values,
+            label="gen",
+        )
+        ax[i, 1].plot(
+            x,
+            (data.sel(**real_c48).values - total_mean.sel(**real_c48).values)
+            / total_std.sel(**real_c48).values,
             label="c48",
         )
         # ax[i].plot(
@@ -659,12 +683,20 @@ def plot_diurnal_cycle(ds, initial_time, varname, label: str):
         #     data.sel(perturbation=climate, source="quantile", grid="C384").values,
         #     label="quantile",
         # )
-        ax[i].set_xticks(x)
-        ax[i].set_xticklabels([f"{i}:00" for i in range(0, 24, 3)])
-        ax[i].set_xlabel("local time")
-        ax[i].set_ylabel(varname)
-        ax[i].set_title(climate)
-        ax[i].legend()
+        for j in (0, 1):
+            # ax[i].set_xticks(x)
+            # ax[i].set_xticklabels([f"{i}:00" for i in range(0, 24, 3)])
+            # ax[i].set_xlabel("local time")
+            # ax[i].set_ylabel(varname)
+            # ax[i].set_title(climate)
+            # ax[i].legend()
+            ax[i, j].set_xticks(x)
+            ax[i, j].set_xticklabels([f"{i}:00" for i in range(0, 24, 3)])
+            ax[i, j].set_xlabel("local time")
+            ax[i, j].set_title(climate)
+            ax[i, j].legend()
+        ax[i, 0].set_ylabel(varname)
+        ax[i, 1].set_ylabel(f"{varname} (normalized)")
     plt.tight_layout()
     fig.savefig(f"./plots/{label}-diurnal_cycle.png", dpi=100)
 
@@ -780,5 +812,6 @@ if __name__ == "__main__":
         plot_mean_all(ds, VARNAME, label)
         print("plotting histograms")
         plot_hist_all(ds, VARNAME, label)
+        plt.close("all")
         # print("plotting diurnal means")
         # plot_diurnal_means(ds, VARNAME)
