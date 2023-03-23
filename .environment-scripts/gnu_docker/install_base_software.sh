@@ -5,7 +5,7 @@ set -e
 CLONE_PREFIX=$1
 INSTALL_PREFIX=$2
 CONDA_ENV=$3
-PLATFORM_SCRIPTS=$4
+SCRIPTS=$4
 
 
 apt-get update && \

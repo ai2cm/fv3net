@@ -4,9 +4,9 @@ set -e
 CLONE_PREFIX=$1
 INSTALL_PREFIX=$2
 CONDA_ENV=$3
-PLATFORM_SCRIPTS=$4
+SCRIPTS=$4
 
-bash $PLATFORM_SCRIPTS/install_bats.sh $CLONE_PREFIX/bats-core
+bash $SCRIPTS/install_bats.sh $CLONE_PREFIX/bats-core
 
 module load anaconda3/2022.10
 eval "$(conda shell.bash hook)"
