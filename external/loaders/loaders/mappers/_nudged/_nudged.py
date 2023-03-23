@@ -186,6 +186,10 @@ def open_nudge_to_fine(
         f"tendency_of_specific_humidity_due_to_{gsrm_name}_physics": "pQ2",
         f"tendency_of_eastward_wind_due_to_{gsrm_name}_physics": "pQu",
         f"tendency_of_northward_wind_due_to_{gsrm_name}_physics": "pQv",
+        "T_mid_tendency_due_to_nudging": "dQ1",
+        "qv_tendency_due_to_nudging": "dQ2",
+        f"tendency_of_T_mid_due_to_{gsrm_name}_physics": "pQ1",
+        f"tendency_of_qv_due_to_{gsrm_name}_physics": "pQ2",
     }
     rename_vars = {k: v for k, v in rename_vars.items() if k in ds}
     return XarrayMapper(ds.rename(rename_vars))

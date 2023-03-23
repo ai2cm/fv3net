@@ -146,7 +146,7 @@ def _compute_diagnostics(
     target = safe.get_variables(
         ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
     )
-    ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP], n_jobs=n_jobs)
+    ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP], n_jobs=n_jobs,)
 
     timesteps.append(ds["time"])
 
@@ -183,6 +183,7 @@ def _get_transect(
                 field=ds_snapshot[var].sel(derivation=deriv),
                 delp=ds_snapshot[DELP],
                 dim="z",
+                ptop=ptop,
             )
             for deriv in ["target", "predict"]
         ]
@@ -309,9 +310,14 @@ def main(args):
     # add Q2 and total water path for PW-Q2 scatterplots and net precip domain averages
     if any(["Q2" in v for v in model.output_variables]):
         model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
-
+    if "ncol" in evaluation_grid.dims:
+        grid_name = "ncol"
+    else:
+        grid_name = "x"
     ds_predicted = get_prediction(
-        config=config, model=model, evaluation_resolution=evaluation_grid.sizes["x"]
+        config=config,
+        model=model,
+        evaluation_resolution=evaluation_grid.sizes[grid_name],
     )
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")

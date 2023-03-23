@@ -171,10 +171,10 @@ def load_grid_info_fv3(res):
 def load_grid_info_scream(res):
     grid = catalog[f"grid/{res}"].read()
     land_sea_mask = catalog[f"landseamask/{res}"].read()
-    r_earth = 6.376e6
-    grid.area.values = grid.area.values * r_earth ** 2  # convert from radian^2 to m^2
-    grid.area.attrs["units"] = "m^2"
     grid_info = xr.merge([grid, land_sea_mask])
+    # TODO: currently uses the land model's grid,
+    # but should use scream's when we have it
+    grid_info = grid_info.rename({"lndgrid": "ncol"})
     return safe.get_variables(grid_info, GRID_INFO_VARS_SCREAM).drop_vars(
         "tile", errors="ignore"
     )
