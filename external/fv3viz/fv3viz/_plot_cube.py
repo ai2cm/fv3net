@@ -15,7 +15,7 @@ from ._plot_helpers import (
     _align_plot_var_dims,
 )
 from ._masking import _mask_antimeridian_quads
-from vcm.cubedsphere import GridMetadata, GridMetadataFV3
+from vcm.cubedsphere import GridMetadata, GridMetadataFV3, GridMetadataScream
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
@@ -249,8 +249,11 @@ def _mappable_var(
     mappable_ds = xr.Dataset()
     for var, dims in grid_metadata.coord_vars.items():
         mappable_ds[var] = _align_grid_var_dims(ds[var], required_dims=dims)
-    var_da = _align_plot_var_dims(ds[var_name], grid_metadata.y, grid_metadata.x)
-    return mappable_ds.merge(var_da)
+    if isinstance(grid_metadata, GridMetadataFV3):
+        var_da = _align_plot_var_dims(ds[var_name], grid_metadata.y, grid_metadata.x)
+        return mappable_ds.merge(var_da)
+    elif isinstance(grid_metadata, GridMetadataScream):
+        return mappable_ds.merge(ds[var_name])
 
 
 def pcolormesh_cube(

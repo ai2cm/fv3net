@@ -6,7 +6,6 @@ from typing import MutableMapping, Sequence, List
 import fsspec
 import wandb
 import json
-import loaders
 import fv3viz
 import matplotlib.pyplot as plt
 import numpy as np
@@ -403,7 +402,10 @@ def create_report(args):
         }
         wandb.init(config=wandb_config)
         wandb.log(metrics)
-    gsrm = loaders.BatchesLoader.from_dict(metadata["training_config"]).gsrm_name
+    if "ncol" in ds_diags.dims:
+        gsrm = "scream"
+    else:
+        gsrm = "fv3"
     html_index = render_index(
         metadata, metrics, ds_diags, ds_transect, output_dir=temp_output_dir.name,
     )

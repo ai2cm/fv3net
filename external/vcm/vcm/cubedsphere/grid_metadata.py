@@ -34,16 +34,14 @@ class GridMetadataFV3(GridMetadata):
 
 @dataclasses.dataclass
 class GridMetadataScream(GridMetadata):
-    x: str = "x"
-    y: str = "y"
-    tile: str = "tile"
+    ncol: str = "ncol"
     lon: str = "lon"
     lat: str = "lat"
 
     @property
     def coord_vars(self):
         coord_vars = {
-            self.lon: [self.y, self.x, self.tile],
-            self.lat: [self.y, self.x, self.tile],
+            self.lon: [self.ncol],
+            self.lat: [self.ncol],
         }
         return coord_vars

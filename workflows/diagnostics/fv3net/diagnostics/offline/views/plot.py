@@ -163,11 +163,7 @@ def plot_column_integrated_var(
         plotting_function = "pcolormesh"
     elif gsrm_name == "scream":
         grid_metadata = GridMetadataScream(
-            fv3viz.COORD_X_CENTER,
-            fv3viz.COORD_Y_CENTER,
-            "tile",
-            fv3viz.VAR_LON_CENTER,
-            fv3viz.VAR_LAT_CENTER,
+            "ncol", fv3viz.VAR_LON_CENTER, fv3viz.VAR_LAT_CENTER,
         )
         plotting_function = "tripcolor"
     f, _, _, _, facet_grid = fv3viz.plot_cube(
