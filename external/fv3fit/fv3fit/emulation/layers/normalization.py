@@ -7,7 +7,15 @@ from enum import Enum
 
 
 class NormLayer(tf.Module):
-    """A normalization transform
+    """
+    A normalization transform that provides both forward and backward
+    transformations. Note that if epslion is not None, the forward
+    transformation will be scaled by epsilon, which is useful for
+    backwards compatibility with previous usage of StandardNormLayer.
+
+    In the future, we should probably make forward and backward
+    transformations use epsilon so it doesn't adjust the round trip
+    scaling.
     """
 
     def __init__(
@@ -26,12 +34,13 @@ class NormLayer(tf.Module):
             tf.cast(center, tf.float32), name=name + "_center" if name else None
         )
 
-        # For backwards compatibility with previous usage of StandardNormLayer
+        # For backwards compatibilty w/ tests, we want the option to use no epsilon
+        # adjustment.  tf.cast doesn't work when sybolic tensors w/ no type are provided
+        # to certain layers that use normalization.
         if epsilon is None:
             self._forward_scale = self.scale
         else:
-            epsilon = tf.cast(epsilon, dtype=tf.float32)
-            self._forward_scale = self.scale + tf.constant(epsilon)
+            self._forward_scale = self.scale + tf.cast(epsilon, tf.float32)
 
     def forward(self, tensor: tf.Tensor) -> tf.Tensor:
         return (tensor - self.center) / self._forward_scale
