@@ -1,6 +1,6 @@
 import tensorflow as tf
 from typing import Optional
-from .normalization2 import NormFactory
+from .normalization import NormFactory
 
 
 class FieldInput(tf.keras.layers.Layer):

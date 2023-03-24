@@ -1,18 +1,108 @@
-import abc
-import dataclasses
+"""Normalization transformations
+"""
 from typing import Optional
+from dataclasses import dataclass
 import tensorflow as tf
-import warnings
-from . import normalization2
-
-warnings.warn(
-    DeprecationWarning(
-        "This module will be replaced by fv3fit.emulation.layers.normalization2"
-    )
-)
+from enum import Enum
 
 
-def standard_deviation_all_features(tensor):
+class NormLayer(tf.Module):
+    """
+    A normalization transform that provides both forward and backward
+    transformations. Note that if epslion is not None, the forward
+    transformation will be scaled by epsilon, which is useful for
+    backwards compatibility with previous usage of StandardNormLayer.
+
+    In the future, we should probably make forward and backward
+    transformations use epsilon so it doesn't adjust the round trip
+    scaling.
+    """
+
+    def __init__(
+        self,
+        scale: tf.Tensor,
+        center: tf.Tensor,
+        name: Optional[str] = None,
+        epsilon: Optional[float] = None,
+    ) -> None:
+        super().__init__(name=name)
+
+        self.scale = tf.constant(
+            tf.cast(scale, tf.float32), name=name + "_scale" if name else None
+        )
+        self.center = tf.constant(
+            tf.cast(center, tf.float32), name=name + "_center" if name else None
+        )
+
+        # For backwards compatibilty w/ tests, we want the option to use no epsilon
+        # adjustment.  tf.cast doesn't work when sybolic tensors w/ no type are provided
+        # to certain layers that use normalization.
+        if epsilon is None:
+            self._forward_scale = self.scale
+        else:
+            self._forward_scale = self.scale + tf.cast(epsilon, tf.float32)
+
+    def forward(self, tensor: tf.Tensor) -> tf.Tensor:
+        return (tensor - self.center) / self._forward_scale
+
+    def backward(self, tensor: tf.Tensor) -> tf.Tensor:
+        return tensor * self.scale + self.center
+
+
+class StdDevMethod(Enum):
+    """
+    per_feature: std calculated at each individual feature
+    all: std calculated over all features, but the centering in the calculation
+        is per feature
+    all_center_all: std calculated over all features (mean also calculated over
+        all features)
+    max: std is the max of the per_feature calculated std values
+    mean: std is the mean of the per_feature calculated std values
+    none: std is 1
+    """
+
+    per_feature = "per_feature"
+    all = "all"
+    all_center_all = "all_center_all"
+    max = "max"
+    mean = "mean"
+    none = "none"
+
+
+class MeanMethod(Enum):
+    """
+    per_feature: mean calculated for each feature
+    all: mean calculated over all features
+    none: mean is 0
+    """
+
+    per_feature = "per_feature"
+    all = "all"
+    none = "none"
+
+
+@dataclass
+class NormFactory:
+    scale: StdDevMethod
+    center: MeanMethod = MeanMethod.per_feature
+    epsilon: Optional[float] = None
+
+    def build(self, sample: tf.Tensor, name: Optional[str] = None) -> NormLayer:
+        mean = _compute_center(sample, self.center)
+        scale = _compute_scale(sample, self.scale)
+        return NormLayer(scale=scale, center=mean, name=name, epsilon=self.epsilon,)
+
+
+def norm2_factory_from_key(key):
+    if key == "max_std":
+        return NormFactory(StdDevMethod.max, MeanMethod.per_feature,)
+    elif key == "mean_std":
+        return NormFactory(StdDevMethod.all, MeanMethod.per_feature,)
+    else:
+        raise KeyError(f"Unrecognized normalization layer key provided: {key}")
+
+
+def standard_deviation_all_features(tensor: tf.Tensor) -> tf.Tensor:
     """Commpute standard deviation across all features.
 
     A separate mean is computed for each output level.
@@ -24,228 +114,51 @@ def standard_deviation_all_features(tensor):
     return tf.cast(tf.sqrt(tf.reduce_mean((tensor - mean) ** 2)), tf.float32,)
 
 
-class NormLayer(tf.keras.layers.Layer, abc.ABC):
-    def __init__(self, name=None, **kwargs):
-        super(NormLayer, self).__init__(name=name)
-        self.fitted = False
-
-    @abc.abstractmethod
-    def _build_mean(self, in_shape):
-        self.mean = None
-
-    @abc.abstractmethod
-    def _build_sigma(self, in_shape):
-        self.sigma = None
-
-    def build(self, in_shape):
-        self._build_mean(in_shape)
-        self._build_sigma(in_shape)
-
-    @abc.abstractmethod
-    def _fit_mean(self, tensor):
-        pass
-
-    @abc.abstractmethod
-    def _fit_sigma(self, tensor):
-        pass
-
-    def fit(self, tensor):
-        self(tensor)
-        self._fit_mean(tensor)
-        self._fit_sigma(tensor)
-        self.fitted = True
-
-    @abc.abstractmethod
-    def call(self, tensor) -> tf.Tensor:
-        pass
+def _fit_mean_per_feature(tensor: tf.Tensor) -> tf.Tensor:
+    reduce_axes = tuple(range(len(tensor.shape) - 1))
+    return tf.cast(tf.reduce_mean(tensor, axis=reduce_axes), tf.float32)
 
 
-class PerFeatureMean(NormLayer):
-    """
-    Build layer weights and fit a mean value for each
-    feature in a tensor (assumed last dimension is feature).
-    """
-
-    def _build_mean(self, in_shape):
-        self.mean = self.add_weight(
-            "mean", shape=[in_shape[-1]], dtype=tf.float32, trainable=False
-        )
-
-    def _fit_mean(self, tensor):
-        reduce_axes = tuple(range(len(tensor.shape) - 1))
-        self.mean.assign(tf.cast(tf.reduce_mean(tensor, axis=reduce_axes), tf.float32))
+def _fit_mean_all(tensor: tf.Tensor) -> tf.Tensor:
+    return tf.cast(tf.reduce_mean(tensor), tf.float32)
 
 
-class PerFeatureStd(NormLayer):
-    """
-    Build layer weights and fit a standard deviation value [sigma]
-    for each feature in a tensor (assumed last dimension is feature).
-    """
-
-    def _build_sigma(self, in_shape):
-        self.sigma = self.add_weight(
-            "sigma", shape=[in_shape[-1]], dtype=tf.float32, trainable=False
-        )
-
-    def _fit_sigma(self, tensor):
-        reduce_axes = tuple(range(len(tensor.shape) - 1))
-        self.sigma.assign(
-            tf.cast(tf.math.reduce_std(tensor, axis=reduce_axes), tf.float32)
-        )
+def _fit_std_per_feature(tensor: tf.Tensor) -> tf.Tensor:
+    reduce_axes = tuple(range(len(tensor.shape) - 1))
+    return tf.cast(tf.math.reduce_std(tensor, axis=reduce_axes), tf.float32)
 
 
-class FeatureMaxStd(NormLayer):
-    """
-    Build layer weights and fit a standard deviation value based
-    on the maximum of all features in a tensor (assumed last
-    dimension is feature).
-    """
-
-    def _build_sigma(self, in_shape):
-        self.sigma = self.add_weight(
-            "sigma", shape=[], dtype=tf.float32, trainable=False
-        )
-
-    def _fit_sigma(self, tensor):
-        reduce_axes = tuple(range(len(tensor.shape) - 1))
-        stddev = tf.math.reduce_std(tensor, axis=reduce_axes)
-        max_std = tf.cast(tf.reduce_max(stddev), tf.float32)
-        self.sigma.assign(max_std)
+def _fit_std_max(tensor: tf.Tensor) -> tf.Tensor:
+    reduce_axes = tuple(range(len(tensor.shape) - 1))
+    reduce_axes = tuple(range(len(tensor.shape) - 1))
+    stddev = tf.math.reduce_std(tensor, axis=reduce_axes)
+    max_std = tf.cast(tf.reduce_max(stddev), tf.float32)
+    return max_std
 
 
-class FeatureMeanStd(FeatureMaxStd):
-    def _fit_sigma(self, tensor: tf.Tensor) -> None:
-        self.sigma.assign(standard_deviation_all_features(tensor))
+def _fit_std_mean(tensor: tf.Tensor) -> tf.Tensor:
+    reduce_axes = tuple(range(len(tensor.shape) - 1))
+    stddev = tf.math.reduce_std(tensor, axis=reduce_axes)
+    mean_std = tf.cast(tf.reduce_mean(stddev), tf.float32)
+    return mean_std
 
 
-class StandardNormLayer(PerFeatureMean, PerFeatureStd):
-    """
-    Normalization layer that removes mean and standard
-    deviation for each feature individually.
-
-    Args:
-        epsilon: Floating point  floor added to sigma prior to
-            division
-    """
-
-    def __init__(self, epsilon: float = 1e-7, name=None):
-        super().__init__(name=name)
-        self.epsilon = epsilon
-
-    def get_config(self):
-        return {"epsilon": self.epsilon}
-
-    def call(self, tensor):
-        return (tensor - self.mean) / (self.sigma + self.epsilon)
+def _compute_center(tensor: tf.Tensor, method: MeanMethod) -> tf.Tensor:
+    fit_center = {
+        MeanMethod.per_feature: _fit_mean_per_feature,
+        MeanMethod.all: _fit_mean_all,
+        MeanMethod.none: lambda _: tf.constant(0, dtype=tf.float32),
+    }[method]
+    return fit_center(tensor)
 
 
-class StandardDenormLayer(PerFeatureMean, PerFeatureStd):
-    """
-    De-normalization layer that scales by the standard
-    deviation and adds the mean for each feature individually.
-    """
-
-    def call(self, tensor):
-        return tensor * self.sigma + self.mean
-
-
-class MaxFeatureStdNormLayer(PerFeatureMean, FeatureMaxStd):
-    """
-    Normalization layer that removes mean for each feature
-    individually but scales all features by the maximum standard
-    deviation calculated over all features. Useful to preserve
-    feature scale relationships.
-    """
-
-    def call(self, tensor):
-        return (tensor - self.mean) / self.sigma
-
-
-class MaxFeatureStdDenormLayer(MaxFeatureStdNormLayer):
-    """
-    De-normalization layer that scales all features by the maximum
-    standard deviation calculated over all features and adds back
-    the mean for each individual feature.
-    """
-
-    def call(self, tensor):
-        return tensor * self.sigma + self.mean
-
-
-class MeanFeatureStdDenormLayer(MaxFeatureStdDenormLayer, FeatureMeanStd):
-    """De-normalization layer that scales all outputs by the standard deviation
-    computed from the per-feature mean.
-    """
-
-    pass
-
-
-class MeanFeatureStdNormLayer(MaxFeatureStdNormLayer, FeatureMeanStd):
-    """Layer tha normalizes all outputs by the standard deviation computed from
-    the per-feature mean.
-    """
-
-    pass
-
-
-@dataclasses.dataclass
-class NormalizeConfig:
-    """
-    Initialize a normalizing layer
-
-    Args:
-        class_name: key for layer class passed to `get_norm_class`
-        sample_data: sample tensor used to fit the normalizing layer
-        layer_name: name for instantiated layer. must be unique if combining
-            with other layers into a model
-    """
-
-    class_name: str
-    sample_data: tf.Tensor
-    layer_name: Optional[str] = None
-
-    def initialize_layer(self):
-        """Get initialized NormLayer"""
-        factory = norm2_factory_from_key(self.class_name)
-        norm = factory.build(self.sample_data, name=self.layer_name)
-        return norm.forward
-
-
-MAX_STD = "max_std"
-MEAN_STD = "mean_std"
-
-
-def norm2_factory_from_key(key):
-    if key == MAX_STD:
-        return normalization2.NormFactory(
-            normalization2.StdDevMethod.max, normalization2.MeanMethod.per_feature,
-        )
-    elif key == MEAN_STD:
-        return normalization2.NormFactory(
-            normalization2.StdDevMethod.all, normalization2.MeanMethod.per_feature,
-        )
-    else:
-        raise KeyError(f"Unrecognized normalization layer key provided: {key}")
-
-
-@dataclasses.dataclass
-class DenormalizeConfig:
-    """
-    Initialize a denormalizing layer
-
-    Args:
-        class_name: key for layer class passed to `get_denorm_class`
-        sample_data: sample tensor used to fit the denormalizing layer
-        layer_name: name for instantiated layer. must be unique if combining
-            with other layers into a model
-    """
-
-    class_name: str
-    sample_data: tf.Tensor
-    layer_name: Optional[str] = None
-
-    def initialize_layer(self):
-        """Get initialized NormLayer"""
-        factory = norm2_factory_from_key(self.class_name)
-        norm = factory.build(self.sample_data, name=self.layer_name)
-        return norm.backward
+def _compute_scale(tensor: tf.Tensor, method: StdDevMethod) -> tf.Tensor:
+    fit_scale = {
+        StdDevMethod.per_feature: _fit_std_per_feature,
+        StdDevMethod.all: standard_deviation_all_features,
+        StdDevMethod.all_center_all: tf.math.reduce_std,
+        StdDevMethod.max: _fit_std_max,
+        StdDevMethod.mean: _fit_std_mean,
+        StdDevMethod.none: lambda _: tf.constant(1, dtype=tf.float32),
+    }[method]
+    return fit_scale(tensor)

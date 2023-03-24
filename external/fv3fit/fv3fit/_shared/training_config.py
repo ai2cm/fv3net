@@ -19,7 +19,7 @@ from typing import (
 )
 
 from fv3fit.typing import Dataclass
-from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
+from fv3fit.emulation.layers.normalization import MeanMethod, StdDevMethod
 from fv3fit._shared.config import CacheConfig, PackerConfig
 import xarray as xr
 from .predictor import Dumpable

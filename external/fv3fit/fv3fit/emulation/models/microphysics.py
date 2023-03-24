@@ -6,7 +6,7 @@ import vcm
 
 from fv3fit._shared import SliceConfig
 from fv3fit.emulation import thermo
-from fv3fit.emulation.layers.normalization2 import (
+from fv3fit.emulation.layers.normalization import (
     NormFactory,
     StdDevMethod,
     MeanMethod,

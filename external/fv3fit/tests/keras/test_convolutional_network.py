@@ -60,7 +60,7 @@ def test_convolutional_network_build_standard_input_gives_standard_output():
     config = ConvolutionalHyperparameters(
         input_variables=["var_in"], output_variables=["var_out"]
     )
-    X_array = np.random.randn(nt, 6, nx, ny, nz)
+    X_array = tf.random.normal(shape=(nt, 6, nx, ny, nz))
     append_halos = append_halos_tensor(config.convolutional_network.halos_required)
     X = [
         next(
@@ -77,6 +77,7 @@ def test_convolutional_network_build_standard_input_gives_standard_output():
     y = [np.random.randn(nt * 6, nx, ny, nz)]
     _, predict_model = build_model(config=config, X=X, y=y)
     out = predict_model.predict(X)
+
     np.testing.assert_almost_equal(np.mean(out), 0.0, decimal=1)
     out_std = np.std(out)
     # std isn't going to be 1 because of relu activation function, should be less
