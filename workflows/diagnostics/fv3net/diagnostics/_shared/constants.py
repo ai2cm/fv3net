@@ -26,5 +26,5 @@ class DiagArg:
     verification: xr.Dataset
     grid: xr.Dataset
     delp: Optional[xr.DataArray] = None
-    horizontal_dims: List[str] = field(default_factory=["x", "y", "tile"])
+    horizontal_dims: List[str] = field(default_factory=lambda: ["x", "y", "tile"])
     vertical_dim: str = "z"

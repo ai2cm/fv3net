@@ -150,9 +150,9 @@ def insert_rmse(ds: xr.Dataset):
 
 
 def load_grid_info(res: str = "c48"):
-    if "ne" in res:
+    if res.startswith("ne"):
         return load_grid_info_scream(res)
-    elif "c" in res:
+    elif res.startswith("c"):
         return load_grid_info_fv3(res)
     else:
         raise ValueError(f"Unknown evaluation grid {res}.")
