@@ -55,7 +55,9 @@ def weighted_mean(ds, w, dims):
 
 
 def _mask_array(
-    region: str, arr: xr.DataArray, land_sea_mask: xr.DataArray,
+    region: str,
+    arr: xr.DataArray,
+    land_sea_mask: xr.DataArray,
 ) -> xr.DataArray:
     if region == "global":
         masked_arr = arr.copy()
@@ -164,12 +166,8 @@ for mask_type in ["global", "land", "sea"]:
         if len(time_mean_bias) == 0:
             return xr.Dataset()
         masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
-        if "ncol" in diags["area"].dims:
-            horizontal_dims = ["ncol"]
-        else:
-            horizontal_dims = ["x", "y", "tile"]
         time_and_domain_mean_bias = weighted_mean(
-            time_mean_bias, masked_area, horizontal_dims
+            time_mean_bias, masked_area, HORIZONTAL_DIMS_FV3
         )
         restore_units(time_mean_bias, time_and_domain_mean_bias)
         return time_and_domain_mean_bias
@@ -183,12 +181,8 @@ for mask_type, suffix in zip(["global", "land", "sea"], ["", "_land", "_sea"]):
         if len(time_mean_bias) == 0:
             return xr.Dataset()
         masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
-        if "ncol" in diags["area"].dims:
-            horizontal_dims = ["ncol"]
-        else:
-            horizontal_dims = ["x", "y", "tile"]
         rms_of_time_mean_bias = np.sqrt(
-            weighted_mean(time_mean_bias ** 2, masked_area, horizontal_dims)
+            weighted_mean(time_mean_bias**2, masked_area, HORIZONTAL_DIMS_FV3)
         )
         restore_units(time_mean_bias, rms_of_time_mean_bias)
         return rms_of_time_mean_bias
