@@ -45,6 +45,7 @@ def test_expected_mapper_functions_exist():
     expected_functions = (
         "open_nudge_to_obs",
         "open_nudge_to_fine",
+        "open_nudge_to_fine_scream",
         "open_high_res_diags",
         "open_fine_resolution_nudging_hybrid",
         "open_fine_resolution",
