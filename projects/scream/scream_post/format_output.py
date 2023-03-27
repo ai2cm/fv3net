@@ -55,20 +55,21 @@ def make_delp(ps, hyai, hybi):
     return delp
 
 
-def make_new_date(start_date: cftime.DatetimeGregorian, n: int):
-    new_date = []
-    for i in range(n):
-        new_date.append(
+def make_new_date(dates, year_offset=2015):
+    new_dates = []
+    for date in dates:
+        new_dates.append(
             cftime.DatetimeJulian(
-                2016,
-                start_date.month + i,
-                start_date.day,
-                start_date.hour,
-                start_date.minute,
+                date.year + year_offset,
+                date.month,
+                date.day,
+                date.hour,
+                date.minute,
+                date.second,
+                date.microsecond,
             )
         )
-
-    return new_date
+    return new_dates
 
 
 def convert_scream_to_zarr_format(
@@ -137,7 +138,7 @@ def convert_scream_to_zarr_format(
     )
     # make new date here because this round of data has year 0001
     # and causes issues with diagnostics code
-    new_date = make_new_date(ds.time.values[0], len(ds.time))
+    new_date = make_new_date(ds.time.values)
     ds = ds.assign_coords(time=new_date)
     ds = ds.rename({"lev": "z", "ilev": "z_interface"})
 

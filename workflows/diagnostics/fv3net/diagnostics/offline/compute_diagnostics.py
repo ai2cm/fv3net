@@ -9,7 +9,7 @@ from fv3net.diagnostics._shared.constants import (
 import logging
 import numpy as np
 import pandas as pd
-from typing import Sequence, Tuple, Dict
+from typing import Sequence, Tuple, Dict, List
 import xarray as xr
 
 import vcm
@@ -60,12 +60,9 @@ def compute_diagnostics(
     target: xr.Dataset,
     grid: xr.Dataset,
     delp: xr.DataArray,
+    horizontal_dims: List[str],
     n_jobs: int = -1,
 ):
-    if "ncol" in grid.area.dims:
-        horizontal_dims = ["ncol"]
-    else:
-        horizontal_dims = ["x", "y", "tile"]
     return diagnostics_registry.compute(
         DiagArg(prediction, target, grid, delp, horizontal_dims), n_jobs=n_jobs,
     )

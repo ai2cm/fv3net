@@ -165,7 +165,7 @@ def test_batches_loader_from_dict(data, expected_class):
 
 
 @pytest.mark.parametrize(
-    "data, expected_gsrm_name, ptop",
+    "data, ptop",
     [
         pytest.param(
             {
@@ -175,7 +175,6 @@ def test_batches_loader_from_dict(data, expected_class):
                 },
                 "kwargs": {},
             },
-            "fv3",
             300.0,
             id="gsrm_fv3",
         ),
@@ -188,15 +187,13 @@ def test_batches_loader_from_dict(data, expected_class):
                 "res": "ne30",
                 "ptop": 10.0,
             },
-            "scream",
             10.0,
             id="gsrm_scream",
         ),
     ],
 )
-def test_gsrm_BatchesFromMapperConfig(data, expected_gsrm_name, ptop):
+def test_ptop_BatchesFromMapperConfig(data, ptop):
     result = loaders._config.BatchesLoader.from_dict(data)
-    assert result.gsrm_name == expected_gsrm_name
     assert result.ptop == ptop
 
 

@@ -126,16 +126,13 @@ def open_nudge_to_fine(
         "state_after_timestep.zarr",
     ),
     cache_size_mb: Optional[float] = None,
-    gsrm_name: str = "fv3",
 ) -> XarrayMapper:
     """
     Load nudge-to-fine data mapper for use with training. Merges
     variables saved in the physics tendencies, nudging tendencies, and
     model state zarrs.
-
     Because model states are output at the end of the timestep, the nudging
     increment is subtracted to return the ``before nudging`` state for training.
-
     Args:
         url (str):  path to nudge-to-fine output directory, remote or local
         nudging_variables (Sequence[str]): Names of nudged variables, nudging tendency
@@ -152,9 +149,6 @@ def open_nudge_to_fine(
             for accessing data. A cache of this size is created for each zarr
             dataset in the datasets arg. No LRU caches created if this arg is not
             supplied.
-        gsrm_name: name of the GSRM model, defaults to fv3. Currently also supports
-            DOE's scream.
-
     Returns:
         mapper to dataset containing nudging tendencies, physics tendencies,
             and model state data
@@ -182,14 +176,10 @@ def open_nudge_to_fine(
         "y_wind_tendency_due_to_nudging": "dQywind",
         "eastward_wind_tendency_due_to_nudging": "dQu",
         "northward_wind_tendency_due_to_nudging": "dQv",
-        f"tendency_of_air_temperature_due_to_{gsrm_name}_physics": "pQ1",
-        f"tendency_of_specific_humidity_due_to_{gsrm_name}_physics": "pQ2",
-        f"tendency_of_eastward_wind_due_to_{gsrm_name}_physics": "pQu",
-        f"tendency_of_northward_wind_due_to_{gsrm_name}_physics": "pQv",
-        "T_mid_tendency_due_to_nudging": "dQ1",
-        "qv_tendency_due_to_nudging": "dQ2",
-        f"tendency_of_T_mid_due_to_{gsrm_name}_physics": "pQ1",
-        f"tendency_of_qv_due_to_{gsrm_name}_physics": "pQ2",
+        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+        "tendency_of_eastward_wind_due_to_fv3_physics": "pQu",
+        "tendency_of_northward_wind_due_to_fv3_physics": "pQv",
     }
     rename_vars = {k: v for k, v in rename_vars.items() if k in ds}
     return XarrayMapper(ds.rename(rename_vars))
@@ -237,3 +227,70 @@ def _get_datasets(
         ds = xr.open_zarr(mapper, consolidated=consolidated)
         datasets[source] = ds
     return datasets
+
+
+@mapper_functions.register
+def open_nudge_to_fine_scream(
+    data_path: str,
+    nudging_variables: Sequence[str],
+    physics_timestep_seconds: float = 900.0,
+    consolidated: bool = True,
+    datasets: Sequence[str] = (
+        "physics_tendencies.zarr",
+        "nudging_tendencies.zarr",
+        "state_after_timestep.zarr",
+    ),
+    cache_size_mb: Optional[float] = None,
+) -> XarrayMapper:
+    """
+    Similar to open_nudge_to_fine, but for scream specifically.
+
+    Args:
+        url (str):  path to nudge-to-fine output directory, remote or local
+        nudging_variables (Sequence[str]): Names of nudged variables, nudging tendency
+            will be subtracted to retrieve model state before nudging
+        physics_timestep_seconds (float): physics timestep, i.e., dt_atmos; defaults
+            to 900.0
+        consolidated (bool): whether zarrs to open have consolidated metadata
+        datasets: names of zarrs at the given URL to include, defaults are
+            physics_tendencies.zarr, nudging_tendencies.zarr, and
+            state_after_timestep.zarr (which you should probably include).
+            For example, you may want to include also "diags.zarr" to retrieve
+            total_precipitation_rate.
+         cache_size_mb: Cache size in MB for using zarr.storage.LRUStoreCache
+            for accessing data. A cache of this size is created for each zarr
+            dataset in the datasets arg. No LRU caches created if this arg is not
+            supplied.
+
+    Returns:
+        mapper to dataset containing nudging tendencies, physics tendencies,
+            and model state data
+    """
+
+    ds = xr.merge(
+        _get_datasets(
+            data_path, datasets, consolidated=consolidated, cache_size_mb=cache_size_mb
+        ).values(),
+        join="inner",
+    )
+
+    differenced_state: Dataset = {}
+    for nudging_variable in nudging_variables:
+        nudging_tendency = ds[f"{nudging_variable}_tendency_due_to_nudging"]
+        differenced_state[nudging_variable] = (
+            ds[nudging_variable] - nudging_tendency * physics_timestep_seconds
+        )
+    ds = ds.assign(differenced_state)
+
+    rename_vars: Mapping[Hashable, Hashable] = {
+        "T_mid_tendency_due_to_nudging": "dQ1",
+        "qv_tendency_due_to_nudging": "dQ2",
+        "x_wind_tendency_due_to_nudging": "dQxwind",
+        "y_wind_tendency_due_to_nudging": "dQywind",
+        "tendency_of_eastward_wind_due_to_scream_physics": "pQu",
+        "tendency_of_northward_wind_due_to_scream_physics": "pQv",
+        "tendency_of_T_mid_due_to_scream_physics": "pQ1",
+        "tendency_of_qv_due_to_scream_physics": "pQ2",
+    }
+    rename_vars = {k: v for k, v in rename_vars.items() if k in ds}
+    return XarrayMapper(ds.rename(rename_vars))

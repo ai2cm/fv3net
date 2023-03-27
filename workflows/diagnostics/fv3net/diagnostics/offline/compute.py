@@ -129,7 +129,11 @@ def _coord_to_var(coord: xr.DataArray, new_var_name: str) -> xr.DataArray:
 
 
 def _compute_diagnostics(
-    ds: xr.Dataset, grid: xr.Dataset, predicted_vars: List[str], n_jobs: int,
+    ds: xr.Dataset,
+    grid: xr.Dataset,
+    horizontal_dims: List[str],
+    predicted_vars: List[str],
+    n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset]:
     timesteps = []
 
@@ -146,7 +150,9 @@ def _compute_diagnostics(
     target = safe.get_variables(
         ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
     )
-    ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP], n_jobs=n_jobs,)
+    ds_summary = compute_diagnostics(
+        prediction, target, grid, ds[DELP], horizontal_dims, n_jobs=n_jobs,
+    )
 
     timesteps.append(ds["time"])
 
@@ -270,7 +276,7 @@ def get_prediction(
     batches = config.load_batches(model_variables)
 
     transforms = [_get_predict_function(model, model_variables)]
-    if config.gsrm_name == "fv3":
+    if vcm.gsrm_name_from_resolution_string(config.res) == "fv3":
         prediction_resolution = res_from_string(config.res)
         if prediction_resolution != evaluation_resolution:
             transforms.append(
@@ -310,14 +316,11 @@ def main(args):
     # add Q2 and total water path for PW-Q2 scatterplots and net precip domain averages
     if any(["Q2" in v for v in model.output_variables]):
         model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
-    if "ncol" in evaluation_grid.dims:
-        grid_name = "ncol"
-    else:
-        grid_name = "x"
+    horizontal_dims = vcm.horizontal_dims_from_resolution_string(args.evaluation_grid)
     ds_predicted = get_prediction(
         config=config,
         model=model,
-        evaluation_resolution=evaluation_grid.sizes[grid_name],
+        evaluation_resolution=evaluation_grid.sizes[horizontal_dims[0]],
     )
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
@@ -330,6 +333,7 @@ def main(args):
     ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(
         ds_predicted,
         evaluation_grid,
+        horizontal_dims=horizontal_dims,
         predicted_vars=model.output_variables,
         n_jobs=args.n_jobs,
     )
@@ -337,7 +341,7 @@ def main(args):
     ds_diagnostics = ds_diagnostics.update(evaluation_grid)
 
     # save model senstivity figures- these exclude derived variables
-    fig_input_sensitivity = plot_input_sensitivity(model, ds_predicted)
+    fig_input_sensitivity = plot_input_sensitivity(model, ds_predicted, horizontal_dims)
     if fig_input_sensitivity is not None:
         with fsspec.open(
             os.path.join(

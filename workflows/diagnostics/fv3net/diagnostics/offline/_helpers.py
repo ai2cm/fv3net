@@ -9,7 +9,7 @@ from typing import Hashable, Mapping, Sequence, Dict, Tuple, Union
 import vcm
 import xarray as xr
 
-from vcm import safe
+from vcm import safe, gsrm_name_from_resolution_string
 from vcm.cloud import gsutil
 from vcm.catalog import catalog
 
@@ -150,9 +150,9 @@ def insert_rmse(ds: xr.Dataset):
 
 
 def load_grid_info(res: str = "c48"):
-    if res.startswith("ne"):
+    if gsrm_name_from_resolution_string(res) == "scream":
         return load_grid_info_scream(res)
-    elif res.startswith("c"):
+    elif gsrm_name_from_resolution_string(res) == "fv3":
         return load_grid_info_fv3(res)
     else:
         raise ValueError(f"Unknown evaluation grid {res}.")

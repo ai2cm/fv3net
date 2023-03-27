@@ -18,7 +18,7 @@ TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 @singledispatch
 def round_time(t, to=timedelta(seconds=1)):
-    """ cftime will introduces noise when decoding values into date objects.
+    """cftime will introduces noise when decoding values into date objects.
     This rounds time in the date object to the nearest second, assuming the init time
     is at most 1 sec away from a round minute. This is used when merging datasets so
     their time dims match up.
@@ -146,3 +146,27 @@ def shift_timestamp(time: str, seconds: Union[int, float]) -> str:
 def get_root():
     """Returns the absolute path to the root directory for any machine"""
     return str(TOP_LEVEL_DIR)
+
+
+def gsrm_name_from_resolution_string(res: str):
+    """Returns the GSRM name based on the resolution"""
+    if res.startswith("ne"):
+        gsrm = "scream"
+    elif res.startswith("c"):
+        gsrm = "fv3"
+    else:
+        raise ValueError(
+            f"This resolution {res} can not be mapped to either scream or fv3."
+        )
+    return gsrm
+
+
+def horizontal_dims_from_resolution_string(res: str):
+    gsrm = gsrm_name_from_resolution_string(res)
+    if gsrm == "scream":
+        horizontal_dims = ["ncol"]
+    elif gsrm == "fv3":
+        horizontal_dims = ["x", "y", "tile"]
+    else:
+        raise ValueError(f"This resolution {res} is not supported.")
+    return horizontal_dims

@@ -3,6 +3,8 @@ from typing import Optional, List
 from dataclasses import dataclass, field
 import numpy as np
 
+HORIZONTAL_DIMS_FV3 = ["x", "y", "tile"]
+VERTICAL_DIM = "z"
 PRECIP_RATE = "total_precip_to_surface"
 
 WVP = "water_vapor_path"
@@ -26,5 +28,5 @@ class DiagArg:
     verification: xr.Dataset
     grid: xr.Dataset
     delp: Optional[xr.DataArray] = None
-    horizontal_dims: List[str] = field(default_factory=lambda: ["x", "y", "tile"])
-    vertical_dim: str = "z"
+    horizontal_dims: List[str] = field(default_factory=lambda: HORIZONTAL_DIMS_FV3)
+    vertical_dim: str = VERTICAL_DIM
