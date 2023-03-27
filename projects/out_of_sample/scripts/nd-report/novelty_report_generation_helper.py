@@ -29,6 +29,22 @@ def _get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "config_path", default=None, type=str, help=("Path to yaml config file."),
     )
+    parser.add_argument(
+        "--n_weeks", default=None, type=int, help=("Compute on the first n_weeks"),
+    )
+    parser.add_argument(
+        "--time_sample_freq",
+        default=None,
+        type=str,
+        help=("Resampling frequency, e.g. '12H'."),
+    )
+    parser.add_argument(
+        "--variables",
+        nargs="+",
+        default=None,
+        type=str,
+        help=("List of variable names to load"),
+    )
     return parser
 
 
