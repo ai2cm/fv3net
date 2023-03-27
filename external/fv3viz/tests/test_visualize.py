@@ -242,6 +242,54 @@ def t2m():
 
 
 @pytest.fixture()
+def lon_scream():
+    return np.array(
+        [0.0, 36.0, 72.0, 108.0, 144.0, 180.0, 216.0, 252.0, 288.0, 324.0],
+        dtype=np.float32,
+    )
+
+
+@pytest.fixture()
+def lat_scream():
+    return np.array(
+        [-90.0, -70, -60.0, -30.0, 0.0, 20.0, 30.0, 60.0, 70.0, 90.0], dtype=np.float32,
+    )
+
+
+@pytest.fixture()
+def t2m_scream():
+    return np.array(
+        [
+            [
+                285.24548,
+                285.91785,
+                286.58337,
+                286.31308,
+                289.17456,
+                288.05328,
+                289.89584,
+                289.19724,
+                300.79932,
+                297.65076,
+            ],
+            [
+                300.42297,
+                301.45743,
+                305.09097,
+                301.1763,
+                293.6815,
+                293.9053,
+                293.52594,
+                293.69046,
+                293.8577,
+                293.46573,
+            ],
+        ],
+        dtype=np.float32,
+    )
+
+
+@pytest.fixture()
 def sample_dataset(latb, lonb, lat, lon, t2m):
     dataset = xr.Dataset(
         {
@@ -267,23 +315,16 @@ def sample_dataset(latb, lonb, lat, lon, t2m):
 
 
 @pytest.fixture()
-def scream_sample_dataset(lat, lon, t2m):
+def scream_sample_dataset(lat_scream, lon_scream, t2m_scream):
     dataset = xr.Dataset(
         {
-            "t2m": (["time", "tile", "y", "x"], t2m),
-            "lat": (["tile", "y", "x"], lat),
-            "lon": (["tile", "y", "x"], lon),
+            "t2m": (["time", "ncol"], t2m_scream),
+            "lat": (["ncol"], lat_scream),
+            "lon": (["ncol"], lon_scream),
         }
     )
-    dataset = dataset.assign_coords(
-        {
-            "time": np.arange(2),
-            "tile": np.arange(6),
-            "x": np.arange(2.0),
-            "y": np.arange(2.0),
-        }
-    )
-    grid_metadata = GridMetadataScream("x", "y",)
+    dataset = dataset.assign_coords({"time": np.arange(2), "ncol": np.arange(10)})
+    grid_metadata = GridMetadataScream()
     return dataset, grid_metadata
 
 
@@ -329,7 +370,7 @@ def test__plot_cube_axes(sample_dataset, plotting_function):
 
 
 @pytest.mark.parametrize(
-    "plotting_function", [("tripcolor"), ("tricontour"), ("tricontourf")]
+    "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
 )
 def test__plot_scream_axes(scream_sample_dataset, plotting_function):
     dataset, grid_metadata = scream_sample_dataset
