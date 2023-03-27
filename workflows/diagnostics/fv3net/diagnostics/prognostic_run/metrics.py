@@ -55,9 +55,7 @@ def weighted_mean(ds, w, dims):
 
 
 def _mask_array(
-    region: str,
-    arr: xr.DataArray,
-    land_sea_mask: xr.DataArray,
+    region: str, arr: xr.DataArray, land_sea_mask: xr.DataArray,
 ) -> xr.DataArray:
     if region == "global":
         masked_arr = arr.copy()
@@ -182,7 +180,7 @@ for mask_type, suffix in zip(["global", "land", "sea"], ["", "_land", "_sea"]):
             return xr.Dataset()
         masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
         rms_of_time_mean_bias = np.sqrt(
-            weighted_mean(time_mean_bias**2, masked_area, HORIZONTAL_DIMS_FV3)
+            weighted_mean(time_mean_bias ** 2, masked_area, HORIZONTAL_DIMS_FV3)
         )
         restore_units(time_mean_bias, rms_of_time_mean_bias)
         return rms_of_time_mean_bias
