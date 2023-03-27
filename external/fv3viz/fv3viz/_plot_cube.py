@@ -66,7 +66,6 @@ def plot_cube(
     cbar_label: str = None,
     coastlines: bool = True,
     coastlines_kwargs: dict = None,
-    gsrm_name: str = "fv3",
     **kwargs,
 ):
     """Plots an xr.DataArray containing tiled cubed sphere gridded data
@@ -160,7 +159,7 @@ def plot_cube(
         cmap=kwargs.get("cmap"),
         robust=cmap_percentiles_lim,
     )
-    if gsrm_name == "fv3":
+    if isinstance(grid_metadata, GridMetadataFV3):
         _plot_func_short = partial(
             _plot_cube_axes,
             lat=mappable_ds.lat.values,
@@ -170,7 +169,7 @@ def plot_cube(
             plotting_function=plotting_function,
             **kwargs,
         )
-    elif gsrm_name == "scream":
+    elif isinstance(grid_metadata, GridMetadataScream):
         _plot_func_short = partial(
             _plot_scream_axes,
             lat=mappable_ds.lat.values,
@@ -179,7 +178,10 @@ def plot_cube(
             **kwargs,
         )
     else:
-        assert ValueError(f"gsrm_name {gsrm_name} not supported")
+        assert ValueError(
+            f"grid_metadata needs to be either GridMetadataFV3 or GridMetadataScream, \
+              but got {type(grid_metadata)}"
+        )
 
     projection = ccrs.Robinson() if not projection else projection
 
@@ -569,12 +571,17 @@ def _plot_scream_axes(
 ):
     if ax is None:
         ax = plt.gca()
-    if plotting_function in ["tripcolor", "tricontour", "tricontourf"]:
-        _plotting_function = getattr(ax, plotting_function)
+    if plotting_function in ["pcolormesh", "contour", "contourf"]:
+        mapping = {
+            "pcolormesh": "tripcolor",
+            "contour": "tricontour",
+            "contourf": "tricontourf",
+        }
+        _plotting_function = getattr(ax, mapping[plotting_function])
     else:
         raise ValueError(
-            """Plotting functions only include tripcolormesh, tricontour,
-            and tricontourf."""
+            """Plotting functions only include pcolormesh, contour,
+            and contourf."""
         )
     if "vmin" not in kwargs:
         kwargs["vmin"] = np.nanmin(array)
@@ -587,7 +594,7 @@ def _plot_scream_axes(
     if np.isnan(kwargs["vmax"]):
         kwargs["vmax"] = 0.1
 
-    if plotting_function != "tripcolor":
+    if plotting_function != "pcolormesh":
         if "levels" not in kwargs:
             kwargs["n_levels"] = 11 if "n_levels" not in kwargs else kwargs["n_levels"]
             kwargs["levels"] = np.linspace(

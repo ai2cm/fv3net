@@ -128,18 +128,18 @@ def render_model_sensitivity(figures_dir, output_dir) -> str:
     )
 
 
-def render_time_mean_maps(output_dir, ds_diags, gsrm: str = "fv3") -> str:
+def render_time_mean_maps(output_dir, ds_diags) -> str:
     report_sections: MutableMapping[str, Sequence[str]] = {}
 
     ds_time_mean = get_plot_dataset(
         ds_diags, var_filter="time_mean", column_filters=["global"]
     )
-    if gsrm == "fv3":
-        grid_info = ds_diags[["lat", "lon", "latb", "lonb"]]
-    elif gsrm == "scream":
+    if "ncol" in ds_diags.dims:
+        gsrm = "scream"
         grid_info = ds_diags[["lat", "lon"]]
     else:
-        raise ValueError(f"Unknown gsrm: {gsrm}")
+        gsrm = "fv3"
+        grid_info = ds_diags[["lat", "lon", "latb", "lonb"]]
     # snapshot maps
     snapshot_vars = [
         v
@@ -155,7 +155,7 @@ def render_time_mean_maps(output_dir, ds_diags, gsrm: str = "fv3") -> str:
                 ds.sel(derivation="predict")[var] - ds.sel(derivation="target")[var]
             )
             fig = plot_column_integrated_var(
-                ds.update(grid_info),
+                ds.merge(grid_info),
                 var,
                 derivation_plot_coords=ds_diags[DERIVATION_DIM_NAME].values,
                 gsrm_name=gsrm,
@@ -169,7 +169,7 @@ def render_time_mean_maps(output_dir, ds_diags, gsrm: str = "fv3") -> str:
             )
             plt.close(fig)
             fig_error = plot_column_integrated_var(
-                ds.update(grid_info),
+                ds.merge(grid_info),
                 f"error_in_{var}",
                 derivation_plot_coords=None,
                 derivation_dim=None,
@@ -402,10 +402,7 @@ def create_report(args):
         }
         wandb.init(config=wandb_config)
         wandb.log(metrics)
-    if "ncol" in ds_diags.dims:
-        gsrm = "scream"
-    else:
-        gsrm = "fv3"
+
     html_index = render_index(
         metadata, metrics, ds_diags, ds_transect, output_dir=temp_output_dir.name,
     )
@@ -419,7 +416,7 @@ def create_report(args):
     with open(os.path.join(temp_output_dir.name, MODEL_SENSITIVITY_HTML), "w") as f:
         f.write(html_model_sensitivity)
 
-    html_time_mean_maps = render_time_mean_maps(temp_output_dir.name, ds_diags, gsrm,)
+    html_time_mean_maps = render_time_mean_maps(temp_output_dir.name, ds_diags,)
     with open(os.path.join(temp_output_dir.name, TIME_MEAN_MAPS_HTML), "w") as f:
         f.write(html_time_mean_maps)
 
