@@ -47,6 +47,5 @@ _ = plot_cube(
     cmap="viridis_r",
     col="time",
     col_wrap=2,
-    plotting_function="tripcolor",
     gsrm_name="scream",
 )
