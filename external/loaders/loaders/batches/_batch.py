@@ -192,9 +192,10 @@ def batches_from_mapper(
     # Subsequent transforms are all dataset -> dataset
     transforms = [_get_batch(data_mapping)]
 
-    transforms.append(add_grid_info(res))
-    if vcm.gsrm_name_from_resolution_string(res) == "fv3":
-        transforms.append(add_wind_rotation_info(res))
+    if needs_grid:
+        transforms.append(add_grid_info(res))
+        if vcm.gsrm_name_from_resolution_string(res) == "fv3":
+            transforms.append(add_wind_rotation_info(res))
     if data_transforms is not None:
         data_transform = dacite.from_dict(
             vcm.ChainedDataTransform, {"transforms": data_transforms}
