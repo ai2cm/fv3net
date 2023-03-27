@@ -1020,5 +1020,5 @@ sources:
       variables:
         - land_sea_mask
     args:
-      urlpath: "gs://vcm-scream/latLonArea/ne30/land_sea_mask.zarr/"
+      urlpath: "gs://vcm-scream/latLonArea/ne30/land_sea_mask_elm.zarr/"
       consolidated: true
