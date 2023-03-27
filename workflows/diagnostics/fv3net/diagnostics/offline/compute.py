@@ -316,7 +316,10 @@ def main(args):
     # add Q2 and total water path for PW-Q2 scatterplots and net precip domain averages
     if any(["Q2" in v for v in model.output_variables]):
         model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
-    horizontal_dims = vcm.horizontal_dims_from_resolution_string(args.evaluation_grid)
+    if vcm.gsrm_name_from_resolution_string(args.evaluation_grid) == "fv3":
+        horizontal_dims = ["x", "y", "tile"]
+    elif vcm.gsrm_name_from_resolution_string(args.evaluation_grid) == "scream":
+        horizontal_dims = ["ncol"]
     ds_predicted = get_prediction(
         config=config,
         model=model,

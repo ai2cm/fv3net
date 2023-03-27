@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 HORIZONTAL_DIMS_FV3 = ["x", "y", "tile"]
+HORIZONTAL_DIMS_SCREAM = ["ncol"]
 VERTICAL_DIM = "z"
 PRECIP_RATE = "total_precip_to_surface"
 

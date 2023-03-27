@@ -17,7 +17,6 @@ from .convenience import (
     shift_timestamp,
     round_time,
     gsrm_name_from_resolution_string,
-    horizontal_dims_from_resolution_string,
 )
 from .calc.calc import local_time, weighted_average, vertical_tapering_scale_factors
 from .calc._zenith_angle import cos_zenith_angle

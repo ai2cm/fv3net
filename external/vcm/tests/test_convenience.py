@@ -14,7 +14,6 @@ from vcm.convenience import (
     parse_datetime_from_str,
     shift_timestamp,
     gsrm_name_from_resolution_string,
-    horizontal_dims_from_resolution_string,
 )
 
 
@@ -163,11 +162,3 @@ def test_round_time_numpy():
 )
 def test_gsrm_name(res, expected):
     assert gsrm_name_from_resolution_string(res) == expected
-
-
-@pytest.mark.parametrize(
-    "res, expected",
-    [("c12", ["x", "y", "tile"]), ("c48", ["x", "y", "tile"]), ("ne30", ["ncol"]),],
-)
-def test_horizontal_dims(res, expected):
-    assert horizontal_dims_from_resolution_string(res) == expected

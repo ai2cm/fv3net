@@ -159,14 +159,3 @@ def gsrm_name_from_resolution_string(res: str):
             f"This resolution {res} can not be mapped to either scream or fv3."
         )
     return gsrm
-
-
-def horizontal_dims_from_resolution_string(res: str):
-    gsrm = gsrm_name_from_resolution_string(res)
-    if gsrm == "scream":
-        horizontal_dims = ["ncol"]
-    elif gsrm == "fv3":
-        horizontal_dims = ["x", "y", "tile"]
-    else:
-        raise ValueError(f"This resolution {res} is not supported.")
-    return horizontal_dims

@@ -12,7 +12,7 @@ Usage:
 from typing import Mapping, Sequence, Tuple
 import numpy as np
 import xarray as xr
-
+from fv3net.diagnostics._shared.constants import HORIZONTAL_DIMS_FV3
 from fv3net.diagnostics._shared.registry import Registry
 from .derived_diagnostics import derived_registry
 from .constants import (
@@ -149,12 +149,8 @@ for mask_type in ["global", "land", "sea"]:
         if len(time_mean_value) == 0:
             return xr.Dataset()
         masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
-        if "ncol" in diags["area"].dims:
-            horizontal_dims = ["ncol"]
-        else:
-            horizontal_dims = ["x", "y", "tile"]
         time_and_global_mean_value = weighted_mean(
-            time_mean_value, masked_area, horizontal_dims
+            time_mean_value, masked_area, HORIZONTAL_DIMS_FV3
         )
         restore_units(time_mean_value, time_and_global_mean_value)
         return time_and_global_mean_value

@@ -274,6 +274,7 @@ def open_nudge_to_fine_scream(
         join="inner",
     )
 
+    # TODO: update this once scream nudging run is finialized
     differenced_state: Dataset = {}
     for nudging_variable in nudging_variables:
         nudging_tendency = ds[f"{nudging_variable}_tendency_due_to_nudging"]
