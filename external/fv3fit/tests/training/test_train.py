@@ -391,6 +391,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
     with tempfile.TemporaryDirectory() as tmpdir:
         fv3fit.dump(result.model, tmpdir)
         loaded_model = fv3fit.load(tmpdir)
+    # .predict() needs to be called before .summary() for some reason
     loaded_result = loaded_model.predict(result.test_dataset)
 
     if isinstance(result.model, PureKerasModel):
