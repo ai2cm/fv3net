@@ -86,6 +86,10 @@ class PureKerasAutoencoderModel(PureKerasModel):
         unstacked_dims: Sequence[str],
         n_halo: int = 0,
     ):
+        if set(input_variables) != set(output_variables):
+            raise ValueError(
+                "input_variables and output_variables must be the same set."
+            )
         super().__init__(
             input_variables=input_variables,
             output_variables=output_variables,
@@ -131,9 +135,7 @@ class PureKerasAutoencoderModel(PureKerasModel):
 @dataclasses.dataclass
 class DenseAutoencoderHyperparameters(Hyperparameters):
     """
-    input_variables: variables to encode/decode
-    output_variables: variables to encode/decode, must match
-        input_variables
+    state_variables: variables to encode/decode
     latent_dim_size: size of latent space that encoder transforms to
     units: number of units in each dense layer
     n_dense_layers: number of dense layers in *each* of encoder/decoder
@@ -146,8 +148,7 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
 
     """
 
-    input_variables: Sequence[str]
-    output_variables: Sequence[str]
+    state_variables: Sequence[str]
     latent_dim_size: int = 10
     units: int = 20
     n_dense_layers: int = 2
@@ -161,16 +162,9 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
     callbacks: List[CallbackConfig] = dataclasses.field(default_factory=list)
     normalization_fit_samples: int = 500_000
 
-    def __post_init__(self):
-        if self.input_variables != self.output_variables:
-            raise ValueError(
-                f"Output variables {self.output_variables} must match "
-                f"input variables {self.input_variables}."
-            )
-
     @property
     def variables(self) -> Set[str]:
-        return set(self.input_variables)
+        return set(self.state_variables)
 
 
 def build_autoencoder(
@@ -186,10 +180,10 @@ def build_autoencoder(
     """
     input_layers = [
         tf.keras.layers.Input(shape=arr.shape[-1], name=f"{input_name}_encoder_input")
-        for input_name, arr in zip(config.input_variables, X)
+        for input_name, arr in zip(config.state_variables, X)
     ]
     full_input = full_standard_normalized_input(
-        input_layers, X, config.input_variables,
+        input_layers, X, config.state_variables,
     )
     encoder_layers = full_input
     for i in range(config.n_dense_layers):
@@ -217,7 +211,7 @@ def build_autoencoder(
         for i, array in enumerate(y)
     ]
     denorm_output_layers = standard_denormalize(
-        names=config.output_variables, layers=norm_output_layers, arrays=y,
+        names=config.state_variables, layers=norm_output_layers, arrays=y,
     )
     decoder = tf.keras.Model(inputs=decoder_input, outputs=denorm_output_layers)
     train_model = Autoencoder(encoder=encoder, decoder=decoder)
@@ -249,8 +243,8 @@ def train_dense_autoencoder(
         train_batches=train_batches,
         validation_batches=validation_batches,
         build_model=curry(build_autoencoder)(config=hyperparameters),
-        input_variables=hyperparameters.input_variables,
-        output_variables=hyperparameters.output_variables,
+        input_variables=hyperparameters.state_variables,
+        output_variables=hyperparameters.state_variables,
         clip_config=ClipConfig(),
         training_loop=hyperparameters.training_loop,
         build_samples=hyperparameters.normalization_fit_samples,
