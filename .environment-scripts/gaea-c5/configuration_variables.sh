@@ -9,7 +9,7 @@ ESMF_OS=Unicos
 ESMF_COMPILER=intel
 ESMF_SITE=default
 ESMF_CC=cc
-ESMF_COMM=mpi
+ESMF_COMM=mpiuni
 
 # FMS environment variables
 FMS_CC=cc
@@ -21,7 +21,7 @@ FMS_FCFLAGS='-FR -i4 -r8'
 FMS_MAKE_OPTIONS=
 
 # fv3gfs-fortran arguments
-FV3GFS_PLATFORM=gaea
+FV3GFS_PLATFORM=gaea-c5
 
 # Python requirements environment variables
 MPI4PY_CC=cc

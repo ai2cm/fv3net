@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 from fv3fit.emulation.losses import CustomLoss, NormalizedMSE, bias
-from fv3fit.emulation.layers.normalization2 import (
+from fv3fit.emulation.layers.normalization import (
     NormFactory,
     StdDevMethod,
     MeanMethod,

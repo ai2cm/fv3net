@@ -341,12 +341,10 @@ def test_predict_does_not_mutate_input(model_type):
     ), "predict should not mutate its input"
 
 
-def get_uniform_sample_func(size, low=0, high=1, seed=0):
-    random = np.random.RandomState(seed=seed)
-
+def get_uniform_sample_func(size, low=0, high=1):
     def sample_func():
         return xr.DataArray(
-            random.uniform(low=low, high=high, size=size),
+            tf.random.uniform(minval=low, maxval=high, shape=size),
             dims=["sample", "tile", "x", "y", "z"],
             coords=[range(size[i]) for i in range(len(size))],
         )
