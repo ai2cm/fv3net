@@ -9,6 +9,7 @@ ESMF_OS=Unicos
 ESMF_COMPILER=intel
 ESMF_SITE=default
 ESMF_CC=cc
+ESMF_COMM=mpi
 
 # FMS environment variables
 FMS_CC=cc
@@ -17,6 +18,7 @@ FMS_LDFLAGS=
 FMS_LOG_DRIVER_FLAGS=
 FMS_CPPFLAGS='-Duse_LARGEFILE -DMAXFIELDMETHODS_=500 -DGFS_PHYS'
 FMS_FCFLAGS='-FR -i4 -r8'
+FMS_MAKE_OPTIONS=
 
 # fv3gfs-fortran arguments
 FV3GFS_PLATFORM=gaea

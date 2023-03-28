@@ -1,4 +1,4 @@
-from .config import SliceConfig, PackerConfig
+from .config import SliceConfig, PackerConfig, OptimizerConfig
 from .training_config import TrainingConfig, register_training_function
 from .packer import (
     pack,

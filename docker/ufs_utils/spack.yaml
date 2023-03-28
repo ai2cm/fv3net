@@ -1,0 +1,23 @@
+# Based on https://github.com/ufs-community/UFS_UTILS/pull/749
+spack:
+  specs:
+  - bacio@2.4.1
+  - esmf@8.2.0
+  - g2@3.4.5
+  - ip@3.3.3
+  - jasper@2.0.32
+  - libpng@1.6.37
+  - nemsio@2.5.4
+  - netcdf-c@4.9.0
+  - netcdf-fortran@4.6.0
+  - sfcio@1.4.1
+  - sigio@2.3.2
+  - sp@2.3.3
+  - w3nco@2.4.1
+  - wgrib2@3.1.1
+  - zlib@1.2.13
+  - mpich@3.4.2
+  - cmake@3.20.6
+  view: true
+  concretizer:
+    unify: true
