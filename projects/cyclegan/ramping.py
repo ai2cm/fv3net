@@ -615,10 +615,10 @@ if __name__ == "__main__":
     c48_gen = c48_gen.coarsen(time=8).mean()
     c384_gen = c384_gen.coarsen(time=8).mean()
 
-    c48 = c48.isel(time=slice(2 * 365, 3 * 365))
-    c384 = c384.isel(time=slice(2 * 365, 3 * 365))
-    c48_gen = c48_gen.isel(time=slice(2 * 365, 3 * 365))
-    c384_gen = c384_gen.isel(time=slice(2 * 365, 3 * 365))
+    c48 = c48  # .isel(time=slice(2 * 365, 3 * 365))
+    c384 = c384  # .isel(time=slice(2 * 365, 3 * 365))
+    c48_gen = c48_gen  # .isel(time=slice(2 * 365, 3 * 365))
+    c384_gen = c384_gen  # .isel(time=slice(2 * 365, 3 * 365))
 
     animate_all(c48, c384, c48_gen, c384_gen, f"{BASE_NAME}-e{EPOCH}")
 
