@@ -73,8 +73,11 @@ def input_args():
 
 def test_transform_no_input_side_effects(input_args):
     """Test that all transforms do not operate on input datasets in place"""
-
-    copied_args = {key: ds.copy() for key, ds in asdict(input_args).items()}
+    copied_args = {
+        key: ds.copy()
+        for key, ds in asdict(input_args).items()
+        if isinstance(ds, (xr.Dataset, xr.DataArray))
+    }
 
     for func_name, (t_args, t_kwargs) in TRANSFORM_PARAMS.items():
 
@@ -82,7 +85,8 @@ def test_transform_no_input_side_effects(input_args):
         transform_func(*t_args, input_args, **t_kwargs)
 
         for key, ds in asdict(input_args).items():
-            xr.testing.assert_equal(ds, copied_args[key])
+            if isinstance(ds, (xr.Dataset, xr.DataArray)):
+                xr.testing.assert_equal(ds, copied_args[key])
 
 
 def test_subset_variables(input_args):
