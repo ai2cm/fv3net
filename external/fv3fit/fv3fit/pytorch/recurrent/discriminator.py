@@ -36,11 +36,7 @@ class DiscriminatorConfig:
     max_filters: int = 256
 
     def build(
-        self,
-        channels: int,
-        nx: int,
-        ny: int,
-        convolution: ConvolutionFactory = single_tile_convolution,
+        self, channels: int, convolution: ConvolutionFactory = single_tile_convolution,
     ):
         return Discriminator(
             in_channels=channels,
