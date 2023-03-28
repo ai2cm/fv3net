@@ -129,6 +129,7 @@ class PureKerasAutoencoderModel(PureKerasModel):
                 unstacked_dims=config.get("unstacked_dims", None),
                 n_halo=config.get("n_halo", 0),
             )
+
             return obj
 
 
@@ -165,6 +166,13 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
     @property
     def variables(self) -> Set[str]:
         return set(self.state_variables)
+
+    @classmethod
+    def init_testing(
+        cls, input_variables, output_variables
+    ) -> "DenseAutoencoderHyperparameters":
+        """Initialize a default instance for tests"""
+        return cls(state_variables=input_variables)
 
 
 def build_autoencoder(

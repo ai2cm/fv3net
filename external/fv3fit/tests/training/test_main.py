@@ -520,8 +520,7 @@ def cli_main(args: argparse.Namespace):
         pytest.param(
             "dense_autoencoder",
             {
-                "input_variables": ["air_temperature", "specific_humidity"],
-                "output_variables": ["air_temperature", "specific_humidity"],
+                "state_variables": ["air_temperature", "specific_humidity"],
                 "latent_dim_size": 3,
                 "units": 20,
                 "n_dense_layers": 2,
