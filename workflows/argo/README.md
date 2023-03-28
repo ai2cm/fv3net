@@ -30,6 +30,7 @@ These workflows currently refer to following images without using any tags:
 1. us.gcr.io/vcm-ml/fv3net
 1. us.gcr.io/vcm-ml/prognostic_run
 1. us.gcr.io/vcm-ml/post_process_run
+1. us.gcr.io/vcm-ml/ufs_utils
 
 However, you can and should pin these images using kustomize (>=v3). For
 example, consuming configurations (e.g. in vcm-workflow-control) could use
@@ -47,6 +48,8 @@ images:
   newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
 - name: us.gcr.io/vcm-ml/prognostic_run
   newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
+- name: us.gcr.io/vcm-ml/ufs_utils
+  newTag: 2023.03.23
 ```
 
 It is also possible to do this programmatically, using `kustomize edit set image`.
@@ -286,3 +289,21 @@ for the regridded outputs, and a comma separated list of variables to regrid fro
 | `resolution`    | Resolution of input data (defaults to C48)                               | one of 'C48', 'C96', or 'C384'  |
 | `fields`        | Comma-separated list of variables to regrid                              | PRATEsfc,LHTFLsfc,SHTFLsfc      |
 | `extra_args`    | Extra arguments to pass to fregrid. Typically used for target resolution | --nlat 180 --nlon 360           |
+
+### Restart files to NGGPS initial condition workflow
+
+The `chgres-cube` workflow can be used to transform a set of restart files to an
+NGGPS-style initial condition with a new horizontal resolution.  It does so
+using the [`UFS_UTILS`](https://github.com/ufs-community/UFS_UTILS)
+`chgres_cube` tool. The workflow takes the following parameters:
+
+| Parameter           | Description                                                                         | Example                                                                                                    |
+|---------------------|-------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| `restarts`          | Dirctory of restart files on GCS                                                    | gs://path/to/restarts                                                                                      |
+| `date`              | Date of the restart files (YYYYMMDDHH)                                              | 2017010100                                                                                                 |
+| `source_resolution` | Resolution of the restart files (defaults to C48)                                   | one of 'C48', 'C96', or 'C384'                                                                             |
+| `target_resolution` | Resolution of the target initial condition (defaults to C384)                       | one of 'C48', 'C96', or 'C384'                                                                             |
+| `tracers`           | Tracers included in the restart files                                               | '"sphum","liq_wat","o3mr","ice_wat","rainwat","snowwat","graupel","sgs_tke"'                               |
+| `vcoord_file`       | Text file containing information about the vertical coordinate of the restart files | gs://vcm-ml-intermediate/2023-02-24-chgres-cube-hybrid-levels/global_hyblev.l63.txt                        |
+| `reference_data`    | Path to forcing data on GCS (typically just use the default)                        | gs://vcm-ml-raw-flexible-retention/2023-02-24-chgres-cube-forcing-data/2023-02-24-chgres-cube-forcing-data |
+| `destination_root`  | Path to store resulting initial condition                                           | gs://path/to/destination                                                                                   |

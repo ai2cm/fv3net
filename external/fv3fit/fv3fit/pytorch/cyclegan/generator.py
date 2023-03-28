@@ -1,5 +1,4 @@
 import dataclasses
-from typing import Tuple
 import torch.nn as nn
 from toolz import curry
 import torch
@@ -13,6 +12,7 @@ from .modules import (
     CurriedModuleFactory,
     GeographicFeatures,
     GeographicBias,
+    DiscardTime,
 )
 
 
@@ -42,6 +42,8 @@ class GeneratorConfig:
         disable_convolutions: if True, ignore all layers other than bias (if enabled).
             Useful for debugging and for testing the effect of the
             geographic bias layer.
+        use_geographic_features: if True, include a layer that appends
+            geographic features to the input data.
         use_geographic_embedded_bias: if True, include a layer that adds a
             trainable bias vector after the initial encoding layer that is
             a function of horizontal coordinates.
@@ -54,6 +56,7 @@ class GeneratorConfig:
     max_filters: int = 256
     use_geographic_bias: bool = True
     disable_convolutions: bool = False
+    use_geographic_features: bool = True
     use_geographic_embedded_bias: bool = False
 
     def build(
@@ -178,8 +181,14 @@ class Generator(nn.Module):
                 ),
             )
             main = nn.Sequential(first_conv, encoder_decoder, out_conv)
+
         self._main = main
-        self._geographic_features = GeographicFeatures(nx=nx, ny=ny)
+
+        if config.use_geographic_features:
+            self._geographic_features = GeographicFeatures(nx=nx, ny=ny)
+        else:
+            self._geographic_features = DiscardTime()
+
         if config.use_geographic_bias:
             self._input_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
             self._output_bias = GeographicBias(channels=channels, nx=nx, ny=ny)
@@ -187,19 +196,15 @@ class Generator(nn.Module):
             self._input_bias = nn.Identity()
             self._output_bias = nn.Identity()
 
-    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+    def forward(self, time: torch.Tensor, state: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            inputs: A tuple containing a tensor of shape (batch, 1) with the time and
-                a tensor of shape (batch, tile, in_channels, height, width)
+            time: a tensor of shape (batch, 1) with the time as seconds since 1970-01-01
+            state: a tensor of shape (batch, tile, in_channels, height, width)
 
         Returns:
             tensor of shape [batch, tile, channels, x, y]
         """
-        try:
-            time, state = inputs
-        except ValueError:
-            time, state = None, inputs
         x = self._input_bias(state)
         x = self._geographic_features((time, x))
         x = self._main(x)

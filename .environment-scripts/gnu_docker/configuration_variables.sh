@@ -12,6 +12,7 @@ ESMF_OS=Linux
 ESMF_COMPILER=gfortran
 ESMF_SITE=default
 ESMF_CC=
+ESMF_COMM=mpiuni
 
 # FMS environment variables
 FMS_CC=/usr/bin/mpicc

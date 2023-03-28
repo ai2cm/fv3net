@@ -26,6 +26,9 @@ def test_geographic_features_have_correct_range(n_batch: int):
         assert np.abs(geo_features[:, :, i, :, :].cpu().numpy().min() + 1) < 1e-3, i
 
 
+#    # The following code can be uncommented to visualize the geographic features
+#    # as cross plots. Useful during development.
+
 #     plot_cross(
 #         [
 #             geo_features[0, :, i, :, :].cpu().numpy()

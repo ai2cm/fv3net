@@ -494,11 +494,16 @@ class CycleGANTrainer:
         if self._compile:
             if self._script_gen_a_to_b is None:
                 self._script_gen_a_to_b = torch.jit.trace(
-                    self.generator_a_to_b.forward, (input,)
+                    self.generator_a_to_b.forward, input,
                 )
-            return self._script_gen_a_to_b(input)
+            try:
+                return self._script_gen_a_to_b(*input)
+            except RuntimeError:
+                # gives better messages for true errors, but also lets us process
+                # a smaller batch at the end of the dataset if one exists
+                return self.generator_a_to_b(*input)
         else:
-            return self.generator_a_to_b(input)
+            return self.generator_a_to_b(*input)
 
     def _call_generator_b_to_a(
         self, input: Tuple[torch.Tensor, torch.Tensor]
@@ -506,11 +511,14 @@ class CycleGANTrainer:
         if self._compile:
             if self._script_gen_b_to_a is None:
                 self._script_gen_b_to_a = torch.jit.trace(
-                    self.generator_b_to_a.forward, (input,)
+                    self.generator_b_to_a.forward, input,
                 )
-            return self._script_gen_b_to_a(input)
+            try:
+                return self._script_gen_b_to_a(*input)
+            except RuntimeError:
+                return self.generator_b_to_a(*input)
         else:
-            return self.generator_b_to_a(input)
+            return self.generator_b_to_a(*input)
 
     def _call_discriminator_a(
         self, input: Tuple[torch.Tensor, torch.Tensor]
@@ -518,11 +526,14 @@ class CycleGANTrainer:
         if self._compile:
             if self._script_disc_a is None:
                 self._script_disc_a = torch.jit.trace(
-                    self.discriminator_a.forward, (input,)
+                    self.discriminator_a.forward, input,
                 )
-            return self._script_disc_a(input)
+            try:
+                return self._script_disc_a(*input)
+            except RuntimeError:
+                return self.discriminator_a(*input)
         else:
-            return self.discriminator_a(input)
+            return self.discriminator_a(*input)
 
     def _call_discriminator_b(
         self, input: Tuple[torch.Tensor, torch.Tensor]
@@ -530,19 +541,14 @@ class CycleGANTrainer:
         if self._compile:
             if self._script_disc_b is None:
                 self._script_disc_b = torch.jit.trace(
-                    self.discriminator_b.forward, (input,)
+                    self.discriminator_b.forward, input,
                 )
-            return self._script_disc_b(input)
+            try:
+                return self._script_disc_b(*input)
+            except RuntimeError:
+                return self.discriminator_b(*input)
         else:
-            return self.discriminator_b(input)
-
-    def _init_targets(self, shape: Tuple[int, ...]):
-        self.target_real = torch.autograd.Variable(
-            torch.Tensor(shape).fill_(1.0).to(DEVICE), requires_grad=False
-        )
-        self.target_fake = torch.autograd.Variable(
-            torch.Tensor(shape).fill_(0.0).to(DEVICE), requires_grad=False
-        )
+            return self.discriminator_b(*input)
 
     def _non_negativity_loss(self, output: torch.Tensor) -> torch.Tensor:
         # we want to penalize the generator for generating negative values
@@ -670,7 +676,7 @@ class CycleGANTrainer:
             time_b, fake_a = self.fake_a_buffer.query(
                 (time_b.detach(), fake_a.detach())
             )
-        pred_a_fake = self.discriminator_a((time_b, fake_a))
+        pred_a_fake = self._call_discriminator_a((time_b, fake_a))
         loss_d_a_fake = (
             self.gan_loss(pred_a_fake, target_fake) * self.discriminator_weight
         )

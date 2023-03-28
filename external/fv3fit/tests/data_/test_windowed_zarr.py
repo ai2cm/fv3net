@@ -1,4 +1,3 @@
-from datetime import datetime
 from fv3fit.data import WindowedZarrLoader, VariableConfig
 from fv3fit.data.tfdataset import get_n_windows
 import tempfile
@@ -7,7 +6,7 @@ import numpy as np
 import pytest
 import contextlib
 import cftime
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 NX, NY, NZ, NT = 5, 5, 8, 40
 

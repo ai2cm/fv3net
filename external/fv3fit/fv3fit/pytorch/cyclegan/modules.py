@@ -35,6 +35,17 @@ def no_activation():
     return nn.Identity()
 
 
+class DiscardTime(nn.Module):
+    """
+    Takes a tuple of (time, state) and returns state.
+
+    Useful as an alternative for GeographicFeatures which does nothing.
+    """
+
+    def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        return x[1]
+
+
 class GeographicFeatures(nn.Module):
     """
     Appends (time_x, time_y, x, y, z) features corresponding to the local position
@@ -83,12 +94,8 @@ class GeographicFeatures(nn.Module):
                 self.local_time_zero_radians[None, :]
                 + local_time_offset_radians[:, None, None, None, None]
             )
-            if hasattr(self, "cos_lat"):
-                time_x = torch.sin(local_time) * self.cos_lat[None, :]
-                time_y = torch.cos(local_time) * self.cos_lat[None, :]
-            else:
-                time_x = torch.sin(local_time)
-                time_y = torch.cos(local_time)
+            time_x = torch.sin(local_time)
+            time_y = torch.cos(local_time)
             xyz = torch.stack([self.xyz for _ in range(x.shape[0])])
             geo_features = torch.cat([time_x, time_y, xyz], dim=2)
         except ValueError:
