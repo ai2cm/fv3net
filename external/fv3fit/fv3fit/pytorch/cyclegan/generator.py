@@ -153,7 +153,10 @@ class Generator(nn.Module):
         if config.disable_convolutions:
             main = nn.Identity()
         else:
-            in_channels = channels + GeographicFeatures.N_FEATURES
+            if config.use_geographic_features:
+                in_channels = channels + GeographicFeatures.N_FEATURES
+            else:
+                in_channels = channels
             initial_layers = [
                 convolution(
                     kernel_size=7, in_channels=in_channels, out_channels=min_filters,
