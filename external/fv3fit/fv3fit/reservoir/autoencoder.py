@@ -132,6 +132,12 @@ class PureKerasAutoencoderModel(PureKerasModel):
 
             return obj
 
+    def input_sensitivity(self, stacked_sample):
+        """Calculate sensitivity to input features."""
+        raise NotImplementedError(
+            "Input_sensitivity is not implemented for PureKerasAutoencoderModel."
+        )
+
 
 @dataclasses.dataclass
 class DenseAutoencoderHyperparameters(Hyperparameters):

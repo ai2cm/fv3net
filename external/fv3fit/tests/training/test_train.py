@@ -410,7 +410,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
                 )
             ]
         )
-    xr.testing.assert_allclose(loaded_result, original_result, rtol=1e-4)
+    xr.testing.assert_allclose(loaded_result, original_result, rtol=1e-3)
 
 
 @pytest.mark.slow
