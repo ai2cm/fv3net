@@ -1,5 +1,8 @@
 import numpy as np
-from fv3fit.reservoir.autoencoder import build_concat_and_scale_only_autoencoder
+from fv3fit.reservoir.autoencoder import (
+    Autoencoder,
+    build_concat_and_scale_only_autoencoder,
+)
 
 a = np.array([[10, 10], [0.0, 0.0]])  # size=2, mean=5, std=5
 b = np.array([[2.0, 2.0], [0.0, 0.0]])  # size=2, mean=1, std=1
@@ -20,3 +23,13 @@ def test_build_concat_and_scale_only_autoencoder_normalize():
 def test_build_concat_and_scale_only_autoencoder_predict():
     model = build_concat_and_scale_only_autoencoder(["a", "b"], [a, b])
     np.testing.assert_array_almost_equal(model.predict(test_inputs), test_inputs)
+
+
+def test_concat_and_scale_only_autoencoder_dump_load(tmpdir):
+    output_path = f"{str(tmpdir)}/model"
+    model = build_concat_and_scale_only_autoencoder(["a", "b"], [a, b])
+    encoded = model.encode(test_inputs)
+    model.dump(output_path)
+    loaded_model = Autoencoder.load(output_path)
+    loaded_encoded = loaded_model.encode(test_inputs)
+    np.testing.assert_array_equal(encoded, loaded_encoded)

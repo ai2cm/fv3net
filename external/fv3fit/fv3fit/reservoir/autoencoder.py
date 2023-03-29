@@ -214,8 +214,8 @@ def build_concat_and_scale_only_autoencoder(
     decoder = tf.keras.Model(inputs=decoder_input, outputs=denorm_output_layers)
 
     model = Autoencoder(encoder=encoder, decoder=decoder)
-    # need to call model once so it can save without compiling
-    model([np.ones((3, arr.shape[-1])) for arr in X])
+    # Need to call custom model once so it has forward pass information before saving
+    model(X)
     return model
 
 
