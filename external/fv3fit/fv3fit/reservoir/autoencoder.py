@@ -181,6 +181,44 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
         return cls(state_variables=input_variables)
 
 
+def build_concat_and_scale_only_autoencoder(
+    variables: Sequence[str], X: Tuple[tf.Tensor, ...]
+) -> tf.keras.Model:
+    """ Performs input concatenation and norm/denormalization,
+    but does not train actual encoder or decoder layers. Useful for
+    reservoir training tests.
+
+    Args:
+        X: data for normalization
+    """
+    input_layers = [
+        tf.keras.layers.Input(shape=arr.shape[-1], name=f"{input_name}_input")
+        for input_name, arr in zip(variables, X)
+    ]
+    full_input = full_standard_normalized_input(input_layers, X, variables,)
+    encoder = tf.keras.Model(inputs=input_layers, outputs=full_input)
+
+    decoder_input = tf.keras.layers.Input(
+        shape=full_input.shape[-1], name="decoder_input"
+    )
+    decoder_outputs = []
+    start_ind = 0
+    for output in X:
+        decoder_outputs.append(
+            decoder_input[..., slice(start_ind, start_ind + output.shape[-1])],
+        )
+        start_ind += output.shape[-1]
+    denorm_output_layers = standard_denormalize(
+        names=variables, layers=decoder_outputs, arrays=X,
+    )
+    decoder = tf.keras.Model(inputs=decoder_input, outputs=denorm_output_layers)
+
+    model = Autoencoder(encoder=encoder, decoder=decoder)
+    # need to call model once so it can save without compiling
+    model([np.ones((3, arr.shape[-1])) for arr in X])
+    return model
+
+
 def build_autoencoder(
     config: DenseAutoencoderHyperparameters,
     X: Tuple[tf.Tensor, ...],
