@@ -182,7 +182,7 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
 
 
 def build_concat_and_scale_only_autoencoder(
-    variables: Sequence[str], X: Tuple[tf.Tensor, ...]
+    variables: Sequence[str], X: Sequence[np.ndarray]
 ) -> tf.keras.Model:
     """ Performs input concatenation and norm/denormalization,
     but does not train actual encoder or decoder layers. Useful for

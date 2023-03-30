@@ -1,7 +1,6 @@
 import numpy as np
 
 from fv3fit.tfdataset import tfdataset_from_batches
-from fv3fit.reservoir.domain import concat_variables_along_feature_dim
 from fv3fit.reservoir.train import train_reservoir_model
 from fv3fit.reservoir.config import (
     ReservoirTrainingConfig,
@@ -38,11 +37,8 @@ def test_get_datasets():  # nx, ny, n_feature, n_sample):
     train_tfdataset = tfdataset_from_batches([train_dataset for _ in range(4)])
     val_tfdataset = tfdataset_from_batches([test_dataset])
     variables = ["var_in_3d", "var_in_2d"]
-    sample_data = concat_variables_along_feature_dim(
-        variables=variables, variable_tensors=next(iter(train_tfdataset))
-    )
-    n_features = sample_data.shape[-1]
 
+    n_features = train_dataset["var_in_3d"].shape[-1] + 1
     subdomain_config = CubedsphereSubdomainConfig(
         layout=[2, 2], overlap=2, rank_dims=["time", "x", "y", "z"],
     )
