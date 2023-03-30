@@ -200,7 +200,7 @@ def _fit_batch_over_subdomains(
     # X has dimensions [time, reservoir_state, subdomain]
     X_batch = reservoir_state_time_series[:-1]
     # Y has dimensions [time, subdomain-feature, subdomain] where feature dimension
-    # has flattened (x, y, encoded-variable) coordinates
+    # has flattened (x, y, encoded-feature) coordinates
     Y_batch = prediction_time_series[1:]
     if square_even_inputs is True:
         X_batch = square_even_terms(X_batch, axis=1)

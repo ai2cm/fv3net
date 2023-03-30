@@ -14,7 +14,7 @@ from tests.training.test_train import (
 )
 
 
-def test_get_datasets():  # nx, ny, n_feature, n_sample):
+def test_train_reservoir():  # nx, ny, n_feature, n_sample):
     n_sample = 10
     n_tile, nx, ny, nz = 1, 12, 12, 5
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, nz))
