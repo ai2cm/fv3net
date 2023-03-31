@@ -1,4 +1,3 @@
-from fv3fit._shared.scaler import StandardScaler
 from fv3fit.reservoir.domain import RankDivider
 from fv3fit.reservoir.readout import ReservoirComputingReadout
 import numpy as np
@@ -45,8 +44,6 @@ def test_dump_load_optional_attrs(tmpdir):
         coefficients=sparse.coo_matrix(np.random.rand(input_size, 100)),
         intercepts=np.random.rand(input_size),
     )
-    scaler = StandardScaler()
-    scaler.fit(np.random.rand(10, 10))
     rank_divider = RankDivider([2, 2], ["time", "x", "y", "z"], [2, 2, 2, 2], 2)
     predictor = ReservoirComputingModel(
         input_variables=["a", "b"],
@@ -54,14 +51,12 @@ def test_dump_load_optional_attrs(tmpdir):
         reservoir=reservoir,
         readout=readout,
         square_half_hidden_state=False,
-        scaler=scaler,
         rank_divider=rank_divider,
     )
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
     loaded_predictor = ReservoirComputingModel.load(output_path)
 
-    assert loaded_predictor.scaler is not None
     assert loaded_predictor.rank_divider is not None
 
 
