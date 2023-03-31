@@ -6,7 +6,6 @@ from typing import MutableMapping, Sequence, List
 import fsspec
 import wandb
 import json
-
 import fv3viz
 import matplotlib.pyplot as plt
 import numpy as np
@@ -135,7 +134,12 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
     ds_time_mean = get_plot_dataset(
         ds_diags, var_filter="time_mean", column_filters=["global"]
     )
-
+    if "ncol" in ds_diags.dims:
+        gsrm = "scream"
+        grid_info = ds_diags[["lat", "lon"]]
+    else:
+        gsrm = "fv3"
+        grid_info = ds_diags[["lat", "lon", "latb", "lonb"]]
     # snapshot maps
     snapshot_vars = [
         v
@@ -151,9 +155,10 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
                 ds.sel(derivation="predict")[var] - ds.sel(derivation="target")[var]
             )
             fig = plot_column_integrated_var(
-                ds.update(ds_diags[["lat", "lon", "latb", "lonb"]]),
+                ds.merge(grid_info),
                 var,
                 derivation_plot_coords=ds_diags[DERIVATION_DIM_NAME].values,
+                gsrm_name=gsrm,
             )
             report.insert_report_figure(
                 report_sections,
@@ -164,10 +169,11 @@ def render_time_mean_maps(output_dir, ds_diags) -> str:
             )
             plt.close(fig)
             fig_error = plot_column_integrated_var(
-                ds.update(ds_diags[["lat", "lon", "latb", "lonb"]]),
+                ds.merge(grid_info),
                 f"error_in_{var}",
                 derivation_plot_coords=None,
                 derivation_dim=None,
+                gsrm_name=gsrm,
             )
             report.insert_report_figure(
                 report_sections,

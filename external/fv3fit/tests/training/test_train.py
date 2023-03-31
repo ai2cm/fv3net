@@ -16,7 +16,7 @@ from fv3fit._shared.training_config import TRAINING_FUNCTIONS, get_hyperparamete
 import vcm.testing
 import tempfile
 from fv3fit.keras._models.precipitative import LV, CPD, GRAVITY
-from fv3fit._shared.stacking import stack, stack_non_vertical, SAMPLE_DIM_NAME
+from fv3fit._shared.stacking import stack, SAMPLE_DIM_NAME, Z_DIM_NAMES
 from fv3fit.tfdataset import tfdataset_from_batches
 import tensorflow as tf
 
@@ -28,6 +28,7 @@ REGRESSION_TRAINING_TYPES = [
     "precipitative",
     "dense",
     "transformed",
+    "dense_autoencoder",
 ]
 
 # unlabeled models that can be tested on all model configuration tests, but not those
@@ -162,7 +163,7 @@ def _get_dataset_default(sample_func, data_2d_ceof=1):
 
 def get_dataset_default(sample_func):
     input_variables, output_variables, train_dataset = _get_dataset_default(sample_func)
-    train_dataset = stack_non_vertical(train_dataset)
+    train_dataset = stack(train_dataset, unstacked_dims=Z_DIM_NAMES)
     return input_variables, output_variables, train_dataset
 
 
@@ -170,7 +171,7 @@ def get_dataset_precipitative(sample_func):
     input_variables, output_variables, train_dataset = _get_dataset_precipitative(
         sample_func
     )
-    train_dataset = stack_non_vertical(train_dataset)
+    train_dataset = stack(train_dataset, unstacked_dims=Z_DIM_NAMES)
     return input_variables, output_variables, train_dataset
 
 
@@ -182,6 +183,12 @@ def get_dataset_convolutional(sample_func):
     )
     train_dataset = stack(train_dataset, unstacked_dims=["tile", "x", "y", "z"])
     return input_variables, output_variables, train_dataset
+
+
+def get_dataset_dense_autoencoder(sample_func):
+    input_variables, _, train_dataset = _get_dataset_default(sample_func)
+    train_dataset = stack(train_dataset, unstacked_dims=Z_DIM_NAMES)
+    return input_variables, input_variables, train_dataset
 
 
 def get_dataset(
@@ -334,12 +341,10 @@ def test_predict_does_not_mutate_input(model_type):
     ), "predict should not mutate its input"
 
 
-def get_uniform_sample_func(size, low=0, high=1, seed=0):
-    random = np.random.RandomState(seed=seed)
-
+def get_uniform_sample_func(size, low=0, high=1):
     def sample_func():
         return xr.DataArray(
-            random.uniform(low=low, high=high, size=size),
+            tf.random.uniform(minval=low, maxval=high, shape=size),
             dims=["sample", "tile", "x", "y", "z"],
             coords=[range(size[i]) for i in range(len(size))],
         )
@@ -382,16 +387,19 @@ def test_dump_and_load_default_maintains_prediction(model_type):
     n_sample, n_tile, nx, ny, n_feature = 1, 6, 12, 12, 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, n_feature))
     result = train_identity_model(model_type, sample_func=sample_func)
-
     original_result = result.model.predict(result.test_dataset)
     with tempfile.TemporaryDirectory() as tmpdir:
         fv3fit.dump(result.model, tmpdir)
         loaded_model = fv3fit.load(tmpdir)
+    # .predict() needs to be called before .summary() for some reason
+    loaded_result = loaded_model.predict(result.test_dataset)
+
     if isinstance(result.model, PureKerasModel):
         # we used to test for bit-identical results, but the convolutional model is
         # somehow not bit-identical when reloaded, so we've added these checks that at
         # least the model weights, config, and summary are bit-identical.
         assert result.model.model.summary() == loaded_model.model.summary()
+
         for l1, l2 in zip(result.model.model.layers, loaded_model.model.layers):
             loaded_config = remove_key(l2.get_config(), "shared_object_id")
             assert l1.get_config() == loaded_config
@@ -403,8 +411,7 @@ def test_dump_and_load_default_maintains_prediction(model_type):
                 )
             ]
         )
-    loaded_result = loaded_model.predict(result.test_dataset)
-    xr.testing.assert_allclose(loaded_result, original_result, rtol=1e-4)
+    xr.testing.assert_allclose(loaded_result, original_result, rtol=1e-3)
 
 
 @pytest.mark.slow

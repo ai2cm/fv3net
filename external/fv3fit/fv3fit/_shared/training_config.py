@@ -19,7 +19,7 @@ from typing import (
 )
 
 from fv3fit.typing import Dataclass
-from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
+from fv3fit.emulation.layers.normalization import MeanMethod, StdDevMethod
 from fv3fit._shared.config import CacheConfig, PackerConfig
 import xarray as xr
 from .predictor import Dumpable
@@ -306,6 +306,8 @@ class RandomForestHyperparameters(Hyperparameters):
         bootstrap: whether bootstrap samples are used when building trees.
             If False, the whole dataset is used to build each tree.
         packer_config: configuration of dataset packing.
+        predict_columns: If true (default), assume vertical dimension is unstacked when
+            making predictions. If False, stack all dimensions.
     """
 
     input_variables: List[str]
@@ -327,6 +329,7 @@ class RandomForestHyperparameters(Hyperparameters):
     packer_config: PackerConfig = dataclasses.field(
         default_factory=lambda: PackerConfig({})
     )
+    predict_columns: bool = True
 
     @property
     def variables(self) -> Set[str]:

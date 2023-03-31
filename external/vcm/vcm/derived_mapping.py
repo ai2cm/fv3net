@@ -379,3 +379,25 @@ def upward_heat_flux_at_surface(self):
     return result.assign_attrs(
         long_name="Upward heat (sensible+radiative) flux at surface", units="W/m**2"
     )
+
+
+@DerivedMapping.register(
+    "incloud_water_mixing_ratio",
+    required_inputs=["cloud_amount", "cloud_water_mixing_ratio"],
+)
+def incloud_water_mixing_ratio(self):
+    result = vcm.gridcell_to_incloud_condensate(
+        self["cloud_amount"], self["cloud_water_mixing_ratio"]
+    )
+    return result.assign_attrs(long_name="in-cloud water mixing ratio", units="kg/kg")
+
+
+@DerivedMapping.register(
+    "incloud_ice_mixing_ratio",
+    required_inputs=["cloud_amount", "cloud_ice_mixing_ratio"],
+)
+def incloud_ice_mixing_ratio(self):
+    result = vcm.gridcell_to_incloud_condensate(
+        self["cloud_amount"], self["cloud_ice_mixing_ratio"]
+    )
+    return result.assign_attrs(long_name="in-cloud ice mixing ratio", units="kg/kg")
