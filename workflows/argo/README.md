@@ -49,7 +49,7 @@ images:
 - name: us.gcr.io/vcm-ml/prognostic_run
   newTag: 6e121e84e3a874c001b3b8d1b437813c9859e078
 - name: us.gcr.io/vcm-ml/ufs_utils
-  newTag: 2023.03.23
+  newTag: 2023.04.07
 ```
 
 It is also possible to do this programmatically, using `kustomize edit set image`.
@@ -307,3 +307,21 @@ using the [`UFS_UTILS`](https://github.com/ufs-community/UFS_UTILS)
 | `vcoord_file`       | Text file containing information about the vertical coordinate of the restart files | gs://vcm-ml-intermediate/2023-02-24-chgres-cube-hybrid-levels/global_hyblev.l63.txt                        |
 | `reference_data`    | Path to forcing data on GCS (typically just use the default)                        | gs://vcm-ml-raw-flexible-retention/2023-02-24-chgres-cube-forcing-data/2023-02-24-chgres-cube-forcing-data |
 | `destination_root`  | Path to store resulting initial condition                                           | gs://path/to/destination                                                                                   |
+
+
+### GFS sigio analysis files to NGGPS initial condition workflow
+
+The `gfs-sigio-analysis-to-nggps-initial-condition` workflow can be used to
+transform a set of GFS sigio analysis files to an NGGPS-style initial condition
+with a new horizontal resolution.  It does so using the
+[`UFS_UTILS`](https://github.com/ufs-community/UFS_UTILS) `chgres_cube` tool.
+The workflow takes the following parameters:
+
+| Parameter           | Description                                                                                      | Example                                                                                                    |
+|---------------------|--------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| `analysis_data`     | Dirctory of sigio analysis data on GCS                                                           | gs://path/to/restarts                                                                                      |
+| `date`              | Date of the restart files (YYYYMMDDHH)                                                           | 2017010100                                                                                                 |
+| `target_resolution` | Resolution of the target initial condition (defaults to C384)                                    | one of 'C48', 'C96', or 'C384'                                                                             |
+| `vcoord_file`       | Text file containing information about the vertical coordinate of the produced initial condition | gs://vcm-ml-intermediate/2023-02-24-chgres-cube-hybrid-levels/global_hyblev.l63.txt                        |
+| `reference_data`    | Path to forcing data on GCS (typically just use the default)                                     | gs://vcm-ml-raw-flexible-retention/2023-02-24-chgres-cube-forcing-data/2023-02-24-chgres-cube-forcing-data |
+| `destination_root`  | Path to store resulting initial condition                                                        | gs://path/to/destination                                                                                   |

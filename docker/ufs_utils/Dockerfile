@@ -51,4 +51,5 @@ RUN . spack/share/spack/setup-env.sh && \
 
 # Add script for running argo workflow
 COPY docker/ufs_utils/restart_files_to_nggps_initial_condition.sh /local-tools/bin/
+COPY docker/ufs_utils/gfs_sigio_analysis_to_nggps_initial_condition.sh /local-tools/bin/
 ENV PATH="${PATH}:/local-tools/bin"
