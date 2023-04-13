@@ -1,10 +1,11 @@
 ,bias,baseline mean,% change
 air_temperature,-0.279,250.99999999999997,-0.11
-specific_humidity,1.72e-05,0.0026000000000000003,0.66
-cloud_water_mixing_ratio,2.86e-07,9.62e-06,2.97
+specific_humidity,1.72e-05,0.0026000000000000003,0.64
+cloud_water_mixing_ratio,2.86e-07,9.62e-06,3.74
 total_precipitation,2.7299999999999997e-07,3.16e-05,0.87
 PWAT,0.165,26.400000000000002,0.63
 ULWRFtoa,-2.07,237.0,-0.88
 USWRFtoa,1.64,92.10000000000001,1.78
 h500,-1.18,5660.0,-0.02
+pressure_thickness_of_atmospheric_layer,0.0279,1460.0,0.0
 net_outgoing,-0.43600000000000005,329.0,-0.13

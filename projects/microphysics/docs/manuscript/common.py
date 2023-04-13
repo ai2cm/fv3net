@@ -113,25 +113,38 @@ def get_rh_from_ds(ds):
     return vcm.relative_humidity_from_pressure(temperature, humidity, pressure)
 
 
-def bootstrap_bias_signif(target, prediction, n_iters=10_000):
-    def _get_bias():
-        sample_len = prediction.shape[0]
-        target_idx = np.random.choice(sample_len, size=sample_len, replace=True)
-        pred_idx = np.random.choice(sample_len, size=sample_len, replace=True)
-        boot_target = target[target_idx]
-        boot_pred = prediction[pred_idx]
-        return (boot_pred - boot_target).mean(axis=0)
+def get_upper_and_lower_bounds(data, upper_percentile=97.5, lower_percentile=2.5):
+    ub = np.percentile(data, upper_percentile, axis=0)
+    lb = np.percentile(data, lower_percentile, axis=0)
 
-    jobs = [delayed(_get_bias)() for i in range(n_iters)]
-    biases = Parallel(n_jobs=8, backend="threading")(jobs)
+    return ub, lb
 
-    lb = np.percentile(biases, 2.5, axis=0)
-    ub = np.percentile(biases, 97.5, axis=0)
 
+def bootstrap_metric_and_signif(metric, n_iters=10_000):
+    metric = metric.flatten()
+
+    def _resample_func():
+        return np.random.choice(metric, size=metric.shape[0], replace=True).mean()
+
+    jobs = [delayed(_resample_func)() for i in range(n_iters)]
+    resampled_metrics = Parallel(n_jobs=8)(jobs)
+
+    ub, lb = get_upper_and_lower_bounds(resampled_metrics)
     signif = np.logical_or(
         np.logical_and(lb < 0, ub < 0), np.logical_and(lb > 0, ub > 0)
     )
-    return biases, signif
+    return resampled_metrics, signif
+
+
+def bootstrap_signif_two_metrics(metric1, metric2, n_iters=10_000):
+    resampled_metric1, _ = bootstrap_metric_and_signif(metric1, n_iters=n_iters)
+    resampled_metric2, _ = bootstrap_metric_and_signif(metric2, n_iters=n_iters)
+
+    metric1_ub, metric1_lb = get_upper_and_lower_bounds(resampled_metric1)
+    metric2_ub, metric2_lb = get_upper_and_lower_bounds(resampled_metric2)
+
+    signif = np.logical_or(metric1_ub < metric2_lb, metric2_ub < metric1_lb)
+    return (resampled_metric1, resampled_metric2), signif
 
 
 def open_prognostic_data(url, catalog):
