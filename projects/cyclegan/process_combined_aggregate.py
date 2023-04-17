@@ -15,6 +15,7 @@ import vcm
 from time import time
 
 GRID = catalog["grid/c48"].read()
+AREA = GRID.area
 land_sea_mask = catalog["landseamask/c48"].read().land_sea_mask == 1
 
 TO_MM_DAY = 86400 / 0.997
@@ -57,14 +58,14 @@ class MeanStdAggregator:
         self.sum = None
         self.sum_squared = None
 
-    def add(self, x: np.ndarray):
+    def add(self, x: xr.DataArray):
         # must be float64 as the std calc is very sensitive to rounding errors
         if self.sum is None:
-            self.sum = x.astype(np.float64)
-            self.sum_squared = x.astype(np.float64) ** 2
+            self.sum = x.astype(np.float64).mean("time").values
+            self.sum_squared = (x.astype(np.float64) ** 2).mean("time").values
         else:
-            self.sum += x.astype(np.float64)
-            self.sum_squared += x.astype(np.float64) ** 2
+            self.sum += x.astype(np.float64).mean("time").values
+            self.sum_squared += (x.astype(np.float64) ** 2).mean("time").values
         self.n_samples += 1
 
     def get_mean(self) -> np.ndarray:
@@ -79,21 +80,22 @@ class MeanStdAggregator:
 class HistogramAggregator:
     def __init__(self, bins: np.ndarray):
         self.bins = bins
-        self.n_samples = 0
         self.sum = None
 
-    def add(self, x: np.ndarray):
+    def add(self, x: xr.DataArray):
+        array = x.values
+        array = array.reshape(-1, *array.shape[-4:])
+        out = np.empty((array.shape[0], len(self.bins) - 1), dtype=int)
+        for i in range(array.shape[0]):
+            out[i] = np.histogram(array[i].flatten(), bins=self.bins)[0]
+        out = out.reshape(*x.shape[:-4], len(self.bins) - 1)
         if self.sum is None:
-            self.sum = np.histogram(x, bins=self.bins)[0]
+            self.sum = out
         else:
-            self.sum += np.histogram(x, bins=self.bins)[0]
-        self.n_samples += 1
+            self.sum += out
 
-    def get_mean(self) -> np.ndarray:
-        return self.sum / self.n_samples
-
-    def get_std(self) -> np.ndarray:
-        return np.sqrt(self.sum / self.n_samples)
+    def get(self) -> np.ndarray:
+        return self.sum
 
 
 def get_mean(
@@ -155,10 +157,10 @@ def get_reduction(
 def time_to_diurnal(ds: xr.Dataset) -> xr.Dataset:
     """
     Converts a dataset with a time dimension in 3h increments
-    to a dataset with a 'diurnal' dimension of length 8 and a 'day' dimension.
+    to a dataset with a 'diurnal' dimension of length 8 and a new 'time' dimension.
 
     Does this by reshaping the time dimension into two dimensions. If the initial
-    time dimension is of length N, the new 'day' dimension will be of length N/8,
+    time dimension is of length N, the new 'time' dimension will be of length N/8,
     and the new 'diurnal' dimension will be of length 8.
 
     If not all days have 8 time steps, the last partial day will be dropped.
@@ -280,7 +282,7 @@ def get_histogram(
     vmin = -0.001
     vmax = 0.0175
 
-    bin_edges = np.linspace(vmin, vmax, 100)
+    bin_edges = np.linspace(vmin, vmax, 150)
 
     def reduction(da: xr.DataArray):
         def _hist(x: np.ndarray):
@@ -420,14 +422,34 @@ def plot_mean_all(ds, varname, label: str):
             vmin=vmin,
             vmax=vmax,
         )
-        gen_bias_mean = bias.sel(source="gen").mean().values
-        gen_bias_std = bias.sel(source="gen").std().values
-        gen_bias_land_mean = bias.sel(source="gen").where(land_sea_mask).mean().values
-        gen_bias_land_std = bias.sel(source="gen").where(land_sea_mask).std().values
-        c48_bias_mean = bias_c48_real.mean().values
-        c48_bias_std = bias_c48_real.std().values
-        c48_bias_land_mean = bias_c48_real.where(land_sea_mask).mean().values
-        c48_bias_land_std = bias_c48_real.where(land_sea_mask).std().values
+
+        def weighted_mean(da, weights):
+            return (da * weights).mean() / weights.mean()
+
+        def weighted_std(da, weights):
+            return (((da ** 2) * weights).mean() / weights.mean()) ** 0.5
+
+        # gen_bias_mean = bias.sel(source="gen").mean().values
+        # gen_bias_std = bias.sel(source="gen").std().values
+        # gen_bias_land_mean = bias.sel(source="gen").where(land_sea_mask).mean().values
+        # gen_bias_land_std = bias.sel(source="gen").where(land_sea_mask).std().values
+        # c48_bias_mean = bias_c48_real.mean().values
+        # c48_bias_std = bias_c48_real.std().values
+        # c48_bias_land_mean = bias_c48_real.where(land_sea_mask).mean().values
+        # c48_bias_land_std = bias_c48_real.where(land_sea_mask).std().values
+
+        gen_bias_mean = weighted_mean(bias.sel(source="gen"), AREA).values
+        gen_bias_std = weighted_std(bias.sel(source="gen"), AREA).values
+        gen_bias_land_mean = weighted_mean(
+            bias.sel(source="gen"), AREA * land_sea_mask
+        ).values
+        gen_bias_land_std = weighted_std(
+            bias.sel(source="gen"), AREA * land_sea_mask
+        ).values
+        c48_bias_mean = weighted_mean(bias_c48_real, AREA).values
+        c48_bias_std = weighted_std(bias_c48_real, AREA).values
+        c48_bias_land_mean = weighted_mean(bias_c48_real, AREA * land_sea_mask).values
+        c48_bias_land_std = weighted_std(bias_c48_real, AREA * land_sea_mask).values
 
         bias_min = min(bias.sel(source="gen").min().values, bias_c48_real.min().values)
         bias_max = max(bias.sel(source="gen").max().values, bias_c48_real.max().values)
@@ -492,6 +514,39 @@ def plot_hist_all(ds, varname, label: str):
         ax[i, 1].set_title(f"{climate} PDF\n" + ax[i, 1].get_title())
     plt.tight_layout()
     fig.savefig(f"./plots/{label}-histogram.png", dpi=100)
+
+
+def plot_cdf_all(ds, varname, label: str):
+    fig, ax = plt.subplots(2, 2, figsize=(10, 8),)
+    ax = ax.flatten()
+    for i, climate in enumerate(ds.perturbation.values):
+        plot_cdf(ds.isel(perturbation=i), varname, ax=ax[i, 0])
+        ax[i].set_yscale("log")
+        ax[i].set_title(climate)
+        ax[i].set_ylim(1e-10, 1.0)
+
+    # find first bin with non-zero value
+    first_bin = np.where(
+        ds[f"{varname}_hist"]
+        .sum(["perturbation", "diurnal", "source", "grid"])
+        .values.flatten()
+        > 0
+    )[0][0]
+    # find last bin with non-zero value
+    last_bin = (
+        np.where(
+            ds[f"{varname}_hist"]
+            .sum(["perturbation", "diurnal", "source", "grid"])
+            .values.flatten()
+            > 0
+        )[0][-1]
+        + 1
+    )
+    edges = ds[f"{varname}_hist_bins"].values * TO_MM_DAY
+    for i in range(4):
+        ax[i].set_xlim(edges[first_bin], edges[last_bin])
+    plt.tight_layout()
+    fig.savefig(f"./plots/{label}-cdf.png", dpi=100)
 
 
 def plot_hist_c384(ds, varname, label: str):
@@ -561,6 +616,19 @@ def plot_hist(ds, varname, ax):
         alpha=0.5,
         label=f"c384_gen",
     )
+    # find first bin with non-zero value
+    first_bin = np.where(
+        ds[f"{varname}_hist"].sum(["diurnal", "source", "grid"]).values.flatten() > 0
+    )[0][0]
+    # find last bin with non-zero value
+    last_bin = (
+        np.where(
+            ds[f"{varname}_hist"].sum(["diurnal", "source", "grid"]).values.flatten()
+            > 0
+        )[0][-1]
+        + 1
+    )
+    ax.set_xlim(edges[first_bin], edges[last_bin])
     ax.legend(loc="upper left")
     ax.set_xlabel(varname)
     ax.set_ylabel("probability density")
@@ -602,9 +670,10 @@ def plot_cdf(ds, varname, ax):
         alpha=0.5,
         label=f"c384_gen",
     )
+
     ax.legend(loc="upper left")
     ax.set_xlabel(varname)
-    ax.set_ylabel("CDF")
+    ax.set_ylabel("1 - CDF")
     ax.set_title(f"{varname}")
 
 
@@ -675,10 +744,11 @@ def plot_diurnal_cycle(ds, initial_time, varname, label: str):
         lon_var="lon",
     )
     ds = (
-        ds.where(land_sea_mask)
+        (ds * AREA)
+        .where(land_sea_mask)
         .groupby_bins(local_time, bins=np.arange(0, 25, 3))
         .mean()
-    )
+    ) / AREA.mean()
     data = ds[f"PRATEsfc_mean"] * TO_MM_DAY
     total_mean = data.mean("group_bins")
     total_std = ds["PRATEsfc_var"].mean("group_bins") ** 0.5 * TO_MM_DAY
@@ -777,6 +847,133 @@ def save_to_netcdf(ds, filename):
     ds.to_netcdf(filename)
 
 
+class DatasetAggregator:
+    def __init__(self):
+        vmin = -0.001
+        vmax = 0.0175
+        bin_edges = np.linspace(vmin, vmax, 150)
+        # TODO: time_to_diurnal doesn't remove time dimension, only converts it to days. handle this.
+        self._dims = ("diurnal", "perturbation", "tile", "x", "y")
+        self._mean_std_c48_real = MeanStdAggregator()
+        self._mean_std_c48_gen = MeanStdAggregator()
+        self._mean_std_c384_real = MeanStdAggregator()
+        self._mean_std_c384_gen = MeanStdAggregator()
+        self._histogram_c48_real = HistogramAggregator(bins=bin_edges)
+        self._histogram_c48_gen = HistogramAggregator(bins=bin_edges)
+        self._histogram_c384_real = HistogramAggregator(bins=bin_edges)
+        self._histogram_c384_gen = HistogramAggregator(bins=bin_edges)
+
+    def add(self, c48_real, c384_real, c48_gen, c384_gen):
+        c48_real = time_to_diurnal(c48_real)
+        c384_real = time_to_diurnal(c384_real)
+        c48_gen = time_to_diurnal(c48_gen)
+        c384_gen = time_to_diurnal(c384_gen)
+        # time can be out-of-order because we reduce along it inside the aggregators
+        assert tuple(c48_real["PRATEsfc"].dims[1:]) == (
+            "perturbation",
+            "tile",
+            "time",
+            "x",
+            "y",
+        )
+        assert tuple(c48_gen["PRATEsfc"].dims[1:]) == (
+            "perturbation",
+            "time",
+            "tile",
+            "x",
+            "y",
+        )
+        assert tuple(c384_real["PRATEsfc"].dims[1:]) == (
+            "perturbation",
+            "tile",
+            "time",
+            "x",
+            "y",
+        )
+        assert tuple(c384_gen["PRATEsfc"].dims[1:]) == (
+            "perturbation",
+            "time",
+            "tile",
+            "x",
+            "y",
+        )
+        self._mean_std_c48_real.add(c48_real["PRATEsfc"])
+        self._mean_std_c384_real.add(c384_real["PRATEsfc"])
+        self._mean_std_c48_gen.add(c48_gen["PRATEsfc"])
+        self._mean_std_c384_gen.add(c384_gen["PRATEsfc"])
+        self._histogram_c48_real.add(c48_real["PRATEsfc"])
+        self._histogram_c384_real.add(c384_real["PRATEsfc"])
+        self._histogram_c48_gen.add(c48_gen["PRATEsfc"])
+        self._histogram_c384_gen.add(c384_gen["PRATEsfc"])
+
+    def get_dataset(self) -> xr.Dataset:
+        mean_c48_real = xr.DataArray(
+            self._mean_std_c48_real.get_mean(), dims=self._dims
+        )
+        std_c48_real = xr.DataArray(self._mean_std_c48_real.get_std(), dims=self._dims)
+        mean_c384_real = xr.DataArray(
+            self._mean_std_c384_real.get_mean(), dims=self._dims
+        )
+        std_c384_real = xr.DataArray(
+            self._mean_std_c384_real.get_std(), dims=self._dims
+        )
+        mean_c48_gen = xr.DataArray(self._mean_std_c48_gen.get_mean(), dims=self._dims)
+        std_c48_gen = xr.DataArray(self._mean_std_c48_gen.get_std(), dims=self._dims)
+        mean_c384_gen = xr.DataArray(
+            self._mean_std_c384_gen.get_mean(), dims=self._dims
+        )
+        std_c384_gen = xr.DataArray(self._mean_std_c384_gen.get_std(), dims=self._dims)
+        histogram_c48_real = xr.DataArray(
+            self._histogram_c48_real.get(), dims=["diurnal", "perturbation", "hist"]
+        )
+        histogram_c384_real = xr.DataArray(
+            self._histogram_c384_real.get(), dims=["diurnal", "perturbation", "hist"]
+        )
+        histogram_c48_gen = xr.DataArray(
+            self._histogram_c48_gen.get(), dims=["diurnal", "perturbation", "hist"]
+        )
+        histogram_c384_gen = xr.DataArray(
+            self._histogram_c384_gen.get(), dims=["diurnal", "perturbation", "hist"]
+        )
+        c48_real = xr.Dataset(
+            {
+                "PRATEsfc_mean": mean_c48_real,
+                "PRATEsfc_std": std_c48_real,
+                "PRATEsfc_hist": histogram_c48_real,
+            }
+        )
+        c384_real = xr.Dataset(
+            {
+                "PRATEsfc_mean": mean_c384_real,
+                "PRATEsfc_std": std_c384_real,
+                "PRATEsfc_hist": histogram_c384_real,
+            }
+        )
+        c48_gen = xr.Dataset(
+            {
+                "PRATEsfc_mean": mean_c48_gen,
+                "PRATEsfc_std": std_c48_gen,
+                "PRATEsfc_hist": histogram_c48_gen,
+            }
+        )
+        c384_gen = xr.Dataset(
+            {
+                "PRATEsfc_mean": mean_c384_gen,
+                "PRATEsfc_std": std_c384_gen,
+                "PRATEsfc_hist": histogram_c384_gen,
+            }
+        )
+        c48 = xr.concat([c48_real, c48_gen], dim="source").assign_coords(
+            source=["real", "gen"]
+        )
+        c384 = xr.concat([c384_real, c384_gen], dim="source").assign_coords(
+            source=["real", "gen"]
+        )
+        ds = xr.concat([c48, c384], dim="grid").assign_coords(grid=["C48", "C384"])
+        ds["PRATEsfc_hist_bins"] = (("hist_bins",), self._histogram_c48_real.bins)
+        return ds
+
+
 if __name__ == "__main__":
     fv3fit.set_random_seed(0)
     CHECKPOINT_PATH = "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/"
@@ -826,7 +1023,8 @@ if __name__ == "__main__":
         # ("20230314-214027-54366191", "lr-1e-4-decay-0.63096", 50),
         # ("20230314-214051-25b2a902", "lr-1e-3-decay-0.63096", 50),
         # multi-climate new-data models
-        ("20230330-174749-899f5c19", "prec-lr-1e-5-decay-0.63096-full", 7),
+        ("20230329-221949-9d8e8abc", "prec-lr-1e-4-decay-0.63096-full", 14),
+        ("20230330-174749-899f5c19", "prec-lr-1e-5-decay-0.63096-full", 14),
     ]:
         label = label + f"-e{EPOCH:02d}"
         fv3fit.set_random_seed(0)
@@ -841,14 +1039,30 @@ if __name__ == "__main__":
             + f"-epoch_{EPOCH:03d}/"
         ).to(DEVICE)
         VARNAME = "PRATEsfc"
+        initial_time = xr.open_zarr(
+            "gs://vcm-ml-experiments/mcgibbon/2023-03-29/fine-combined.zarr"
+        )["time"][0].values
 
         if EVALUATE_ON_TRAIN:
             BASE_NAME = "train-" + BASE_NAME
             label = "train-" + label
 
-        PROCESSED_FILENAME = f"./processed/processed-{BASE_NAME}-e{EPOCH}.nc"
+        PROCESSED_FILENAME = f"./processed/processed-agg-{BASE_NAME}-e{EPOCH}.nc"
         # label = "subset_5-" + label
-        data_suffix = "-march"
+
+        def plot(ds):
+            # plot_mean_all(ds, VARNAME)
+            print("plotting diurnal cycle")
+            plot_diurnal_cycle(ds, initial_time, VARNAME, label)
+            # print("plotting c384 histograms")
+            # plot_hist_c384(ds, VARNAME, label)
+            print("plotting cdfs")
+            plot_cdf_all(ds, VARNAME, label)
+            print("plotting means")
+            plot_mean_all(ds, VARNAME, label)
+            plt.close("all")
+            # print("plotting diurnal means")
+            # plot_diurnal_means(ds, VARNAME)
 
         if not os.path.exists(PROCESSED_FILENAME):
             print(f"Calculating processed data for {PROCESSED_FILENAME}")
@@ -875,36 +1089,43 @@ if __name__ == "__main__":
             # C48_I_TRAIN_END = 30
             # C384_I_TRAIN_END = 30
             if not EVALUATE_ON_TRAIN:
-                c48_gen, c384_gen = predict_dataset(
-                    c48_real_all.isel(time=slice(C48_I_TRAIN_END, None)),
-                    c384_real_all.isel(time=slice(C384_I_TRAIN_END, None)),
-                    cyclegan,
-                )
+                c48_real_in = c48_real_all.isel(
+                    time=slice(C48_I_TRAIN_END, None)
+                ).transpose(..., "x", "y")
+                c384_real_in = c384_real_all.isel(
+                    time=slice(C384_I_TRAIN_END, None)
+                ).transpose(..., "x", "y")
             else:
-                c48_gen, c384_gen = predict_dataset(
-                    c48_real_all.isel(time=slice(None, C48_I_TRAIN_END)),
-                    c384_real_all.isel(time=slice(None, C384_I_TRAIN_END)),
-                    cyclegan,
-                )
-            ds = process_dataset(c48_real_all, c384_real_all, c48_gen, c384_gen)
-            save_to_netcdf(ds, PROCESSED_FILENAME)
+                c48_real_in = c48_real_all.isel(
+                    time=slice(None, C48_I_TRAIN_END)
+                ).transpose(..., "x", "y")
+                c384_real_in = c384_real_all.isel(
+                    time=slice(None, C384_I_TRAIN_END)
+                ).transpose(..., "x", "y")
+            aggregator = DatasetAggregator()
+            nt_bin = 73 * 8
+            nt_final = len(c48_real_in.time) // nt_bin * nt_bin
+            assert nt_bin % 8 == 0  # bins must be whole days, or silent bugs occur
+            for i_time in range(0, nt_final, nt_bin):
+                print(f"Predicting {i_time} / {len(c48_real_in.time)}")
+                c48_real = c48_real_in.isel(time=slice(i_time, i_time + nt_bin))
+                c384_real = c384_real_in.isel(time=slice(i_time, i_time + nt_bin))
+                c48_gen, c384_gen = predict_dataset(c48_real, c384_real, cyclegan,)
+                aggregator.add(c48_real, c384_real, c48_gen, c384_gen)
+                ds = aggregator.get_dataset()
+                ds = ds.assign_coords(perturbation=c48_real_in.perturbation)
+                plot(ds)
+            # c48_gen, c384_gen = predict_dataset(
+            #     c48_real_in,
+            #     c384_real_in,
+            #     cyclegan,
+            # )
+            # ds = process_dataset(c48_real_all, c384_real_all, c48_gen, c384_gen)
+            ds = aggregator.get_dataset()
+            ds = ds.assign_coords(perturbation=c48_real_in.perturbation)
+            ds.to_netcdf(PROCESSED_FILENAME)
         else:
             print(f"Loading processed data from {PROCESSED_FILENAME}")
 
         ds = xr.open_dataset(PROCESSED_FILENAME)
-        initial_time = xr.open_zarr(f"./fine-combined{data_suffix}.zarr/")["time"][
-            0
-        ].values
-
-        # plot_mean_all(ds, VARNAME)
-        print("plotting diurnal cycle")
-        plot_diurnal_cycle(ds, initial_time, VARNAME, label)
-        print("plotting c384 histograms")
-        plot_hist_c384(ds, VARNAME, label)
-        print("plotting means")
-        plot_mean_all(ds, VARNAME, label)
-        print("plotting histograms")
-        plot_hist_all(ds, VARNAME, label)
-        plt.close("all")
-        # print("plotting diurnal means")
-        # plot_diurnal_means(ds, VARNAME)
+        plot(ds)

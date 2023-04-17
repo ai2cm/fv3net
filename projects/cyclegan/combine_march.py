@@ -52,12 +52,26 @@ def write(fine: xr.Dataset, coarse: xr.Dataset, name: str):
 
 
 coarse_base_paths = [
-    "gs://vcm-ml-raw-flexible-retention/2023-02-23-CycleGAN-reference-simulations/C48-0K/sfc_8xdaily.zarr",
+    "gs://vcm-ml-raw-flexible-retention/2023-02-23-CycleGAN-reference-simulations/C48-{label}/sfc_8xdaily.zarr",
 ]
 fine_base_paths = [
-    "gs://vcm-ml-raw-flexible-retention/2023-02-23-CycleGAN-reference-simulations/C384-0K/{:04d}010100/sfc_8xdaily_coarse.zarr",
+    "gs://vcm-ml-raw-flexible-retention/2023-02-23-CycleGAN-reference-simulations/C384-{label}/{:04d}010100/sfc_8xdaily_coarse.zarr",
 ]
-path_labels = ["baseline"]
+
+
+def get_coarse_path(label):
+    return "gs://vcm-ml-raw-flexible-retention/2023-02-23-CycleGAN-reference-simulations/C48-{label}/sfc_8xdaily.zarr".format(
+        label=label
+    )
+
+
+def get_fine_path(label, year):
+    return "gs://vcm-ml-raw-flexible-retention/2023-03-28-CycleGAN-reference-simulations/C384-{label}/{:04d}010100/sfc_8xdaily_coarse.zarr".format(
+        year, label=label
+    )
+
+
+path_labels = ["minus-2K", "0K", "plus-2K", "plus-4K"]
 
 
 def drop_vars(ds: xr.Dataset):
@@ -68,18 +82,19 @@ def drop_vars(ds: xr.Dataset):
 if __name__ == "__main__":
     fine_list = []
     coarse_list = []
-    for fine_path, coarse_path, label in zip(
-        fine_base_paths, coarse_base_paths, path_labels
-    ):
+    # for fine_path, coarse_path, label in zip(
+    #     fine_base_paths, coarse_base_paths, path_labels
+    # ):
+    for label in path_labels:
         fine_datasets = []
         for i in range(2017, 2025):
-            ds_fine = xr.open_zarr(fine_path.format(i))
+            ds_fine = xr.open_zarr(get_fine_path(label, year=i))
             ds_fine = drop_vars(convert_fine(ds_fine))
             # discard first month of spin-up time
             ds_fine = ds_fine.isel(time=slice(8 * 31, None))
             fine_datasets.append(ds_fine)
         ds_fine = xr.concat(fine_datasets, dim="time")
-        ds_coarse = xr.open_zarr(coarse_path)
+        ds_coarse = xr.open_zarr(get_coarse_path(label))
         ds_coarse = drop_vars(convert_coarse(ds_coarse))
         # discard first year + month of spin-up time, starts on leap year
         ds_coarse = ds_coarse.isel(time=slice(8 * 31 + 8 * 366, None))
@@ -104,4 +119,4 @@ if __name__ == "__main__":
     ds_fine = ds_fine.chunk({"time": 365, "tile": 6, "grid_xt": 48, "grid_yt": 48})
     ds_coarse = ds_coarse.chunk({"time": 365, "tile": 6, "grid_xt": 48, "grid_yt": 48})
     print(ds_coarse, ds_fine)
-    write(ds_fine, ds_coarse, "combined-march")
+    write(ds_fine, ds_coarse, "combined")

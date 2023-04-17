@@ -1,13 +1,14 @@
 model_type: cyclegan
 cache:
   in_memory: false
+random_seed: 0
 hyperparameters:
   state_variables:
     - PRATEsfc
-    # - h500
+    # - TMPlowest
+    - h500
     # - PRESsfc
     # - w500
-    # - TMPlowest
     # - TMP500_300
     # - PWAT
   normalization_fit_samples: 50_000
@@ -24,13 +25,15 @@ hyperparameters:
       strided_kernel_size: 3
       max_filters: 512
       use_geographic_bias: false
-      use_geographic_embedded_bias: true
+      use_geographic_embedded_bias: false
+      use_geographic_features: true
     discriminator:
       n_convolutions: 3
       kernel_size: 3
       strided_kernel_size: 4
       max_filters: 1024
-      use_geographic_embedded_bias: true
+      use_geographic_embedded_bias: false
+      use_geographic_features: true
     identity_loss:
       loss_type: mae
     cycle_loss:
@@ -51,5 +54,5 @@ hyperparameters:
     scheduler:
       name: ExponentialLR
       kwargs:
-        gamma: 0.89125
+        gamma: 0.63096
         last_epoch: -1
