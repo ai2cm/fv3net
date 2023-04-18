@@ -15,7 +15,14 @@ from . import (
     ReservoirComputingReadout,
 )
 from .readout import combine_readouts
-from .domain import RankDivider, stack_time_series_samples, assure_same_dims
+from .domain import (
+    RankDivider,
+    stack_time_series_samples,
+    assure_same_dims,
+    merge_subdomains,
+)
+import wandb
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -45,6 +52,64 @@ def _encode_columns(data: Sequence[tf.Tensor], encoder: tf.keras.Model,) -> np.n
 def _get_ordered_X(X_mapping, variables):
     ordered_tensors = [X_mapping[v] for v in variables]
     return assure_same_dims(ordered_tensors)
+
+
+def _decode_columns(data, decoder):
+    # differs from encode_columns as the decoder can predict multiple outputs
+    # rather than a single latent vector
+    # expands a sequnence of N x M x L dim data into i variables
+    # to one or more N x M x Vi dim array, where Vi is number of features
+    # (usually vertical levels) of each variable and L << V is a smaller number
+    # of latent dimensions
+    reshaped = [_stack_array_preserving_last_dim(var) for var in data]
+    decoded_reshaped = decoder.predict(reshaped)
+    original_2d_shape = data[0].shape[:-1]
+    decoded_data = []
+    for i, var_data in enumerate(decoded_reshaped):
+        decoded_data.append(decoded_reshaped[i].reshape(*original_2d_shape, -1))
+    return decoded_data
+
+
+def validation_single_timestep(validation_batches, model, n_batches_burn):
+    for b, batch_data in enumerate(validation_batches):
+        if b < n_batches_burn:
+            logger.info(f"Synchronizing on batch {b+1}")
+            time_series_with_overlap, time_series_without_overlap = _process_batch_data(
+                variables=model.input_variables,
+                batch_data=batch_data,
+                rank_divider=model.rank_divider,
+                autoencoder=model.autoencoder,
+            )
+        else:
+            X = _get_ordered_X(batch_data, model.input_variables)
+            truth = []
+            overlap = model.rank_divider.overlap
+            for var_data in X:
+                last_timestep_in_batch = var_data[0]
+                truth.append(
+                    last_timestep_in_batch[overlap:-overlap, overlap:-overlap, :]
+                )
+
+            flat_prediction = model.predict()
+            subdomain_predictions_latent_space = merge_subdomains(
+                flat_prediction, model.rank_divider, model.autoencoder.n_latent_dims
+            )
+            prediction = _decode_columns(
+                [subdomain_predictions_latent_space], model.autoencoder.decoder
+            )
+            truth = np.array(truth)
+            prediction = np.array(prediction)
+            val_log = {
+                "truth": truth,
+                "prediction": prediction,
+            }
+            wandb.log(
+                {
+                    "validation_single_timestep": val_log,
+                    "val_loss": ((truth - prediction) ** 2).mean(),
+                }
+            )
+            return
 
 
 @register_training_function("pure-reservoir", ReservoirTrainingConfig)
@@ -133,7 +198,14 @@ def train_reservoir_model(
         readout=readout,
         square_half_hidden_state=hyperparameters.square_half_hidden_state,
         rank_divider=rank_divider,
+        autoencoder=autoencoder,
     )
+
+    if validation_batches is not None:
+        logger.info("Single timestep validation")
+        validation_single_timestep(
+            validation_batches, model, hyperparameters.n_batches_burn
+        )
     return model
 
 
@@ -206,6 +278,7 @@ def _fit_batch_over_subdomains(
         X_batch = square_even_terms(X_batch, axis=1)
 
     # Fit a readout to each subdomain's column of training data
+    mse = []
     for i, regressor in enumerate(subdomain_regressors):
         # Last dimension is subdomains
         X_subdomain = X_batch[..., i]
@@ -213,3 +286,7 @@ def _fit_batch_over_subdomains(
         regressor.batch_update(
             X_subdomain, Y_subdomain,
         )
+        if wandb.run is not None:
+            mse.append((regressor.predict(X_subdomain) - Y_subdomain) ** 2)
+    if wandb.run is not None:
+        wandb.log({"loss": np.mean(mse)})

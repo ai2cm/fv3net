@@ -221,3 +221,27 @@ def assure_same_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tenso
                 f"have either {max_dims} or {max_dims-1}."
             )
     return reshaped_tensors
+
+
+def merge_subdomains(flat_prediction, rank_divider, latent_dims):
+    subdomain_columns = flat_prediction.reshape(-1, rank_divider.n_subdomains)
+    d_ = []
+    for s in range(rank_divider.n_subdomains):
+        subdomain_prediction = rank_divider.unstack_subdomain(
+            np.array([subdomain_columns[:, s]]), with_overlap=False
+        )
+        d_.append(subdomain_prediction[0])
+
+    domain = []
+    subdomain_without_overlap_shape = (
+        rank_divider.subdomain_xy_size_without_overlap,
+        rank_divider.subdomain_xy_size_without_overlap,
+    )
+
+    for z in range(latent_dims):
+        domain_z_blocks = np.array(d_)[:, :, :, z].reshape(
+            *rank_divider.subdomain_layout, *subdomain_without_overlap_shape
+        )
+        domain_z = np.concatenate(np.concatenate(domain_z_blocks, axis=1), axis=-1)
+        domain.append(domain_z)
+    return np.stack(np.array(domain), axis=0).transpose(1, 2, 0)
