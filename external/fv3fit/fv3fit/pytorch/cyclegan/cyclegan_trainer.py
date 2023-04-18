@@ -466,7 +466,7 @@ class CycleGANTrainer:
     discriminator_weight: float = 1.0
     non_negativity_weight: float = 0.0
     metric_percentiles: List[float] = dataclasses.field(
-        default_factory=lambda: [0.99, 0.999, 0.9999]
+        default_factory=lambda: [0.99, 0.999, 0.9999, 0.99999, 0.999999]
     )
 
     def __post_init__(self):
