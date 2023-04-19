@@ -8,6 +8,7 @@ import pytest
 import tempfile
 import xarray as xr
 import tensorflow as tf
+from fv3fit.data.netcdf.load import _numerical_sort_names
 
 
 def test_NCDirLoader(tmp_path: Path):
@@ -125,3 +126,22 @@ def test_error_missing_data_dim_in_specified_order():
             loader.open_tfdataset(
                 local_download_path=None, variable_names=["a_sfc", "b"]
             )
+
+
+@pytest.mark.parametrize(
+    "names, sorted_names",
+    [
+        (["c.nc", "a.nc", "b.nc"], ["a.nc", "b.nc", "c.nc"]),
+        (
+            ["3.nc", "0.nc", "1.nc", "10.nc", "2.nc"],
+            ["0.nc", "1.nc", "2.nc", "3.nc", "10.nc"],
+        ),
+        (
+            ["t_0.nc", "t_1.nc", "t_10.nc", "t_2.nc"],
+            ["t_0.nc", "t_1.nc", "t_2.nc", "t_10.nc"],
+        ),
+    ],
+)
+def test_sort_netcdfs(names, sorted_names):
+    _numerical_sort_names(names)
+    assert names == sorted_names

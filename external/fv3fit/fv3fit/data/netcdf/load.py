@@ -52,6 +52,17 @@ def nc_files_to_tf_dataset(
     )
 
 
+def _convert_int(s):
+    try:
+        return int(s)
+    except ValueError:
+        return s
+
+
+def _numerical_sort_names(names):
+    names.sort(key=lambda fname: [_convert_int(c) for c in re.split("([0-9]+)", fname)])
+
+
 def nc_dir_to_tfdataset(
     nc_dir: str,
     convert: Callable[[xr.Dataset], Mapping[str, tf.Tensor]],
@@ -96,7 +107,7 @@ def nc_dir_to_tfdataset(
         )
 
     if sort_files:
-        files.sort()
+        _numerical_sort_names(files)
 
     if nfiles is not None:
         files = files[:nfiles]
