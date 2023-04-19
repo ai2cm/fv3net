@@ -1,9 +1,9 @@
 import logging
+from joblib import Parallel, delayed
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
 from typing import Optional, Mapping, Tuple, List, Iterable, Sequence
-
 from .. import Predictor
 from .utils import square_even_terms
 from .autoencoder import Autoencoder, build_concat_and_scale_only_autoencoder
@@ -178,6 +178,7 @@ def train_reservoir_model(
                 reservoir_state_time_series=reservoir_state_time_series,
                 prediction_time_series=time_series_without_overlap,
                 square_even_inputs=hyperparameters.square_half_hidden_state,
+                n_jobs=hyperparameters.n_jobs,
             )
 
     subdomain_readouts = []
@@ -185,7 +186,9 @@ def train_reservoir_model(
         logger.info(
             f"Solving for readout weights: readout {r+1}/{len(subdomain_regressors)}"
         )
+
         coefs_, intercepts_ = regressor.get_weights()
+
         subdomain_readouts.append(
             ReservoirComputingReadout(coefficients=coefs_, intercepts=intercepts_)
         )
@@ -263,11 +266,21 @@ def _get_reservoir_state_time_series(
     return np.array(reservoir_state_time_series)
 
 
+def _fit_batch(X_batch, Y_batch, subdomain_index, regressor):
+    # Last dimension is subdomains
+    X_subdomain = X_batch[..., subdomain_index]
+    Y_subdomain = Y_batch[..., subdomain_index]
+    regressor.batch_update(
+        X_subdomain, Y_subdomain,
+    )
+
+
 def _fit_batch_over_subdomains(
     subdomain_regressors,
     reservoir_state_time_series,
     prediction_time_series,
     square_even_inputs,
+    n_jobs,
 ):
     # X has dimensions [time, reservoir_state, subdomain]
     X_batch = reservoir_state_time_series[:-1]
@@ -278,15 +291,7 @@ def _fit_batch_over_subdomains(
         X_batch = square_even_terms(X_batch, axis=1)
 
     # Fit a readout to each subdomain's column of training data
-    mse = []
-    for i, regressor in enumerate(subdomain_regressors):
-        # Last dimension is subdomains
-        X_subdomain = X_batch[..., i]
-        Y_subdomain = Y_batch[..., i]
-        regressor.batch_update(
-            X_subdomain, Y_subdomain,
-        )
-        if wandb.run is not None:
-            mse.append((regressor.predict(X_subdomain) - Y_subdomain) ** 2)
-    if wandb.run is not None:
-        wandb.log({"loss": np.mean(mse)})
+    Parallel(n_jobs=n_jobs, backend="threading")(
+        delayed(_fit_batch)(X_batch, Y_batch, i, regressor)
+        for i, regressor in enumerate(subdomain_regressors)
+    )
