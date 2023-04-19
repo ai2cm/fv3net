@@ -4,7 +4,6 @@ from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
 from typing import Optional, Mapping, Tuple, List, Iterable, Sequence
-import time
 from .. import Predictor
 from .utils import square_even_terms
 from .autoencoder import Autoencoder, build_concat_and_scale_only_autoencoder
@@ -92,31 +91,23 @@ def train_reservoir_model(
         for r in range(rank_divider.n_subdomains)
     ]
     for b, batch_data in enumerate(train_batches):
-        t0 = time.time()
         time_series_with_overlap, time_series_without_overlap = _process_batch_data(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
             rank_divider=rank_divider,
             autoencoder=autoencoder,
         )
-        logger.info(f"processed batch {b} data: {'%.2f' % (time.time()-t0)} s")
         if b < hyperparameters.n_batches_burn:
             logger.info(f"Synchronizing on batch {b+1}")
 
         # reservoir increment occurs in this call, so always call this
         # function even if X, Y are not used for readout training.
-        t0 = time.time()
         reservoir_state_time_series = _get_reservoir_state_time_series(
             time_series_with_overlap, hyperparameters.input_noise, reservoir
-        )
-        logger.info(
-            f"Generated reservoir states sequence for batch {b} data: "
-            f"{'%.2f' % (time.time()-t0)} s"
         )
 
         if b >= hyperparameters.n_batches_burn:
             logger.info(f"Fitting on batch {b+1}")
-            t0 = time.time()
             _fit_batch_over_subdomains(
                 subdomain_regressors=subdomain_regressors,
                 reservoir_state_time_series=reservoir_state_time_series,
@@ -124,18 +115,14 @@ def train_reservoir_model(
                 square_even_inputs=hyperparameters.square_half_hidden_state,
                 n_jobs=hyperparameters.n_jobs,
             )
-            logger.info(
-                f"Fit batch over subdomains for {b} data: {'%.2f' % (time.time()-t0)} s"
-            )
+
     subdomain_readouts = []
     for r, regressor in enumerate(subdomain_regressors):
         logger.info(
             f"Solving for readout weights: readout {r+1}/{len(subdomain_regressors)}"
         )
 
-        t0 = time.time()
         coefs_, intercepts_ = regressor.get_weights()
-        logger.info(f"Solved for regressor weights: {'%.2f' % (time.time()-t0)} s")
 
         subdomain_readouts.append(
             ReservoirComputingReadout(coefficients=coefs_, intercepts=intercepts_)
@@ -211,18 +198,8 @@ def _fit_batch(X_batch, Y_batch, subdomain_index, regressor):
     # Last dimension is subdomains
     X_subdomain = X_batch[..., subdomain_index]
     Y_subdomain = Y_batch[..., subdomain_index]
-    t0 = time.time()
     regressor.batch_update(
         X_subdomain, Y_subdomain,
-    )
-    logger.info(
-        f"Fit batch over subdomains for {subdomain_index} data: "
-        f"{'%.2f' % (time.time()-t0)} s"
-    )
-    t0 = time.time()
-    regressor.get_weights()
-    logger.info(
-        f"Solve for weights on {subdomain_index} data: {'%.2f' % (time.time()-t0)} s"
     )
 
 
