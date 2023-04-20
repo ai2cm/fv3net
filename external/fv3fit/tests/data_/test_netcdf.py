@@ -140,6 +140,7 @@ def test_error_missing_data_dim_in_specified_order():
             ["t_0.nc", "t_1.nc", "t_10.nc", "t_2.nc"],
             ["t_0.nc", "t_1.nc", "t_2.nc", "t_10.nc"],
         ),
+        (["b_0_c_1", "b_0_c_0", "a_1_b_1"], ["a_1_b_1", "b_0_c_0", "b_0_c_1"]),
     ],
 )
 def test_sort_netcdfs(names, sorted_names):
