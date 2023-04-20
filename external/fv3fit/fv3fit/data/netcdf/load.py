@@ -52,15 +52,13 @@ def nc_files_to_tf_dataset(
     )
 
 
-def _convert_int(s):
-    try:
-        return int(s)
-    except ValueError:
-        return s
-
-
-def _numerical_sort_names(names):
-    names.sort(key=lambda fname: [_convert_int(c) for c in re.split("([0-9]+)", fname)])
+def _natural_sort(names):
+    return sorted(
+        names,
+        key=lambda string: [
+            int(s) if s.isdigit() else s for s in re.split("([0-9]+)", string)
+        ],
+    )
 
 
 def nc_dir_to_tfdataset(
@@ -92,10 +90,8 @@ def nc_dir_to_tfdataset(
     cache = cache or CACHE_DIR
 
     files = get_nc_files(nc_dir)
-
     if match is not None:
         files = [f for f in files if re.search(match, Path(f).name)]
-
     if shuffle:
         if random_state is None:
             random_state = np.random.RandomState(
@@ -105,9 +101,8 @@ def nc_dir_to_tfdataset(
         files = random_state.choice(
             files, size=len(files), replace=False  # type: ignore
         )
-
     if sort_files:
-        _numerical_sort_names(files)
+        files = _natural_sort(files)
 
     if nfiles is not None:
         files = files[:nfiles]
