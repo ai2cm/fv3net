@@ -12,6 +12,7 @@ from vcm import convert_timestamps
 
 
 COARSE_NUDGED_PATH = "gs://vcm-ml-experiments/cloud-ml/2022-09-14/cloud-ml-training-data-nudge-to-fine-v5/fv3gfs_run"  # noqa: E501
+COARSE_STATE_ZARR = "state_after_timestep.zarr"
 GRID = CATALOG["grid/c48"].to_dask()
 MASK = CATALOG["landseamask/c48"].to_dask()
 FINE_RESTARTS_KEYS = [
@@ -35,7 +36,7 @@ COORD_VARS = ["x", "y", "z", "tile"]
 OUTPUT_CHUNKS = {"time": 1, "tile": 6}
 
 
-def get_fine_ds(scaling=None, keys=FINE_RESTARTS_KEYS):
+def get_fine_ds(keys, fine_rename):
     datasets = []
     for key in keys:
         dataset = CATALOG[key].to_dask()
@@ -47,17 +48,15 @@ def get_fine_ds(scaling=None, keys=FINE_RESTARTS_KEYS):
         datasets.append(dataset)
     ds = xr.merge(datasets)
     ds_out = xr.Dataset()
-    fine_rename = config.get("fine_rename", FINE_TO_COARSE_RENAME)
     for restart_name, python_name in fine_rename.items():
         ds_out[python_name] = ds[restart_name]
     return ds_out.drop_vars(COORD_VARS)
 
 
-def get_coarse_ds(path=COARSE_NUDGED_PATH):
-    full_path = os.path.join(path, "state_after_timestep.zarr")
+def get_coarse_ds(path, zarr, coarse_rename):
+    full_path = os.path.join(path, zarr)
     ds = intake.open_zarr(full_path, consolidated=True).to_dask()
     ds_out = xr.Dataset()
-    coarse_rename = config.get("coarse_rename", FINE_TO_COARSE_RENAME)
     for old_name, new_name in coarse_rename.items():
         ds_out[new_name] = ds[old_name]
     return ds_out
@@ -88,7 +87,7 @@ def get_config(path):
 def main(config):
     """
     Prescribers and fv3fit ML models need training data in a particular form.
-    Let's make a dataset of the following targets:
+    e.g., let's make a dataset of the following targets:
 
     - air temperature
     - specific humidity
@@ -102,9 +101,14 @@ def main(config):
     """
 
     fine = get_fine_ds(
-        config.get("scaling", {}), keys=config.get("fine_keys", FINE_RESTARTS_KEYS)
+        keys=config.get("fine_keys", FINE_RESTARTS_KEYS),
+        fine_rename=config.get("fine_rename", FINE_TO_COARSE_RENAME),
     )
-    coarse = get_coarse_ds(config.get("coarse_nudged_path", COARSE_NUDGED_PATH))
+    coarse = get_coarse_ds(
+        path=config.get("coarse_nudged_path", COARSE_NUDGED_PATH),
+        zarr=config.get("coarse_state_zarr", COARSE_STATE_ZARR),
+        coarse_rename=config.get("coarse_rename", FINE_TO_COARSE_RENAME),
+    )
     coarse, fine = subset_times(coarse, fine)
     assert (
         len(set(coarse.data_vars).intersection(fine.data_vars)) == 0

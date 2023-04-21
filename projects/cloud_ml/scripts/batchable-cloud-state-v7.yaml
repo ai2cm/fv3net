@@ -11,4 +11,4 @@ coarse_rename:
   specific_humidity: specific_humidity
   pressure_thickness_of_atmospheric_layer: pressure_thickness_of_atmospheric_layer
   cloud_ice_mixing_ratio: cloud_ice_mixing_ratio_coarse
-output_path: gs://vcm-ml-experiments/cloud-ml/2023-03-08/cloud-ml-training-data-v7.zarr
+output_path: gs://vcm-ml-experiments/cloud-ml/2023-04-01/cloud-ml-training-data-v7.zarr

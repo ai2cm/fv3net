@@ -27,13 +27,30 @@ nudge_to_fine_run_v5: deploy
 nudge_to_fine_run_v6: deploy
 	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v6
 
+.PHONY: nudge_to_fine_run_v7
+nudge_to_fine_run_v7: deploy
+	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v7 17
+
+.PHONY: extend_nudge_to_fine_run_v6
+extend_nudge_to_fine_run_v6: deploy
+	cd nudge-to-fine-run && ./extend.sh \
+	gs://vcm-ml-experiments/cloud-ml/2023-01-19/cloud-ml-training-data-nudge-to-fine-v6/fv3gfs_run
+
 .PHONY: batchable_cloud_state_dataset_v7
 batchable_cloud_state_dataset_v7:
-	cd ../scripts && python batchable-cloud-state-dataset.py batchable-v7.yaml
+	cd ../scripts && python batchable-cloud-state-dataset.py batchable-cloud-state-v7.yaml
+
+.PHONY: batchable_cloud_state_dataset_v8
+batchable_cloud_state_dataset_v8:
+	cd ../scripts && python batchable-cloud-state-dataset.py batchable-cloud-state-v8.yaml
 
 .PHONY: fine_coarse_cloud_state_dataset_v6
 fine_coarse_cloud_state_dataset_v6:
 	cd ../scripts && python fine-coarse-cloud-state-dataset.py fine-coarse-cloud-state-v6.yaml
+
+.PHONY: fine_coarse_cloud_state_dataset_v7
+fine_coarse_cloud_state_dataset_v7:
+	cd ../scripts && python fine-coarse-cloud-state-dataset.py fine-coarse-cloud-state-v7.yaml
 
 .PHONY: offline_ml_cloud_predictions_dataset_v6
 offline_ml_cloud_predictions_dataset_v6:
