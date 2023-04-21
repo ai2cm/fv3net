@@ -1,92 +1,92 @@
-import pytest
-import numpy as np
-import tensorflow as tf
-
-from fv3fit.emulation import layers
-from fv3fit.emulation.layers import DenormalizeConfig, NormalizeConfig
-
-_all_layers = [
-    layers.StandardNormLayer,
-    layers.StandardDenormLayer,
-    layers.MaxFeatureStdNormLayer,
-    layers.MaxFeatureStdNormLayer,
-    layers.MeanFeatureStdNormLayer,
-    layers.MeanFeatureStdDenormLayer,
-]
-
-
-def _get_tensor():
-    """
-    Tensor with 2 features (columns)
-    and 2 samples (rows)
-    """
-
-    return tf.Variable([[0.0, 0.0], [1.0, 2.0]], dtype=tf.float32)
-
-
-@pytest.mark.parametrize(
-    "norm_cls, denorm_cls, expected",
-    [
-        (
-            layers.StandardNormLayer,
-            layers.StandardDenormLayer,
-            [[-1.0, -1.0], [1.0, 1.0]],
-        ),
-        (
-            layers.MaxFeatureStdNormLayer,
-            layers.MaxFeatureStdDenormLayer,
-            [[-0.5, -1.0], [0.5, 1.0]],
-        ),
-    ],
+from fv3fit.emulation.layers.normalization import (
+    MeanMethod,
+    NormLayer,
+    StdDevMethod,
+    _compute_scale,
+    _compute_center,
 )
-def test_normalize_layers(norm_cls, denorm_cls, expected):
-    tensor = _get_tensor()
-    norm_layer = norm_cls()
-    denorm_layer = denorm_cls()
-    norm_layer.fit(tensor)
-    denorm_layer.fit(tensor)
-
-    norm = norm_layer(tensor)
-    expected = np.array(expected)
-    np.testing.assert_allclose(norm, expected, rtol=1e-6)
-    denorm = denorm_layer(norm)
-    np.testing.assert_allclose(denorm, tensor, rtol=1e-6, atol=1e-6)
+import tensorflow as tf
+import numpy as np
+import pytest
 
 
-@pytest.mark.parametrize("layer_cls", _all_layers)
-def test_layers_no_trainable_variables(layer_cls):
-    tensor = _get_tensor()
-    layer = layer_cls()
-    layer(tensor)
-
-    assert [] == layer.trainable_variables
+def test_norm_layer():
+    norm = NormLayer(scale=2.0, center=1.0)
+    x = tf.ones([1])
+    round_trip = norm.backward(norm.forward(x))
+    np.testing.assert_almost_equal(round_trip, x)
 
 
-def test_standard_layers_gradient_works_epsilon():
-    tensor = _get_tensor()
-    norm_layer = layers.StandardNormLayer()
-
-    with tf.GradientTape(persistent=True) as tape:
-        y = norm_layer(tensor)
-
-    g = tape.gradient(y, tensor)
-    expected = 1 / (norm_layer.sigma + norm_layer.epsilon)
-    np.testing.assert_array_almost_equal(expected, g[0, :])
+def test_norm_layer_epsilon():
+    norm = NormLayer(scale=2.0, center=1.0, epsilon=1e-7)
+    x = tf.random.normal(shape=(1000, 10), mean=1.0, stddev=2.0)
+    round_trip = norm.backward(norm.forward(x))
+    np.testing.assert_array_almost_equal(x, round_trip)
 
 
-@pytest.mark.parametrize("layer_cls", _all_layers)
-def test_fit_layers_are_fitted(layer_cls):
-    tensor = _get_tensor()
-    layer = layer_cls()
-
-    assert not layer.fitted
-    layer.fit(tensor)
-    assert layer.fitted
+def test_norm_layer_epsilon_floor():
+    norm = NormLayer(scale=1.0e-10, center=0.0, epsilon=1e-7)
+    x = tf.random.normal(shape=(1000, 10), mean=0, stddev=1e-10)
+    round_trip = norm.backward(norm.forward(x))
+    np.testing.assert_almost_equal(np.std(round_trip), 10e-3, decimal=1)
 
 
-@pytest.mark.parametrize("config_cls", [NormalizeConfig, DenormalizeConfig])
-def test_NormLayer_Configs(config_cls):
+def test_layers_no_trainable_variables():
+    layer = NormLayer(1, 1)
+    assert len(layer.trainable_variables) == 0
 
-    tensor = _get_tensor()
-    config = config_cls("mean_std", tensor, "lol")
-    config.initialize_layer()
+
+def test_fit_mean_per_feature():
+    m = tf.ones([10, 4])
+    mean = _compute_center(m, MeanMethod.per_feature)
+    assert tuple(mean.shape) == (4,)
+
+
+def test_fit_mean_none():
+    m = tf.ones([10, 4])
+    mean = _compute_center(m, MeanMethod.none)
+    assert tuple(mean.shape) == ()
+
+
+def test__compute_scale_all():
+    m = tf.ones([10, 4])
+    scale = _compute_scale(m, StdDevMethod.all)
+    assert tuple(scale.shape) == ()
+
+
+def test__compute_scale_max():
+    m = tf.ones([10, 4])
+    scale = _compute_scale(m, StdDevMethod.max)
+    assert tuple(scale.shape) == ()
+
+
+def test__compute_scale_per_feature():
+    m = tf.ones([10, 4])
+    scale = _compute_scale(m, StdDevMethod.per_feature)
+    assert tuple(scale.shape) == (4,)
+
+
+def test__compute_scale_none():
+    m = tf.ones([10, 4])
+    scale = _compute_scale(m, StdDevMethod.none)
+    assert tuple(scale.shape) == ()
+
+
+def _print_approx(arr, decimals=6, file=None):
+    print((arr * 10 ** decimals).numpy().astype(int).tolist(), file=file)
+
+
+@pytest.mark.parametrize("method", list(StdDevMethod))
+def test__compute_scale_max_value(method: StdDevMethod, regtest):
+    x = tf.cast([[1, -1], [1, -2], [3, -3]], tf.float32)
+    scale = _compute_scale(x, method)
+    with regtest:
+        _print_approx(scale)
+
+
+@pytest.mark.parametrize("method", list(MeanMethod))
+def test__compute_center_values(method: MeanMethod, regtest):
+    x = tf.cast([[1, -1], [1, -2], [3, -3]], tf.float32)
+    center = _compute_center(x, method)
+    with regtest:
+        _print_approx(center)

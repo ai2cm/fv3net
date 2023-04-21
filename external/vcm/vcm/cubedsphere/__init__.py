@@ -16,6 +16,6 @@ from .xgcm import create_fv3_grid
 from .coarsen_restarts import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .regridz import regrid_vertical
 from .cross import to_cross
-from .grid_metadata import GridMetadata
+from .grid_metadata import GridMetadata, GridMetadataFV3, GridMetadataScream
 
 __all__ = [item for item in dir() if not item.startswith("_")]

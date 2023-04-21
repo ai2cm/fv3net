@@ -48,7 +48,7 @@ spec:
             value: offline_report
         envFrom:
           - secretRef:
-              name: wandb-token
+              name: wandb-service-token
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret

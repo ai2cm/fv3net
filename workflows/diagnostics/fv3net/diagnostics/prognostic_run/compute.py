@@ -32,7 +32,6 @@ from fv3net.diagnostics.prognostic_run import load_run_data as load_diags
 from fv3net.diagnostics.prognostic_run import diurnal_cycle
 from fv3net.diagnostics._shared.constants import (
     DiagArg,
-    HORIZONTAL_DIMS,
     COL_DRYING,
     WVP,
     HISTOGRAM_BINS,
@@ -206,7 +205,7 @@ def rms_errors(diag_arg: DiagArg):
         diag_arg.verification,
         diag_arg.grid,
     )
-    rms_errors = rms(prognostic, verification, grid.area, dims=HORIZONTAL_DIMS)
+    rms_errors = rms(prognostic, verification, grid.area, dims=diag_arg.horizontal_dims)
 
     return rms_errors
 
@@ -388,7 +387,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         prognostic, grid = diag_arg.prediction, diag_arg.grid
         masked = prognostic.where(~grid["area"].isnull())
         with xr.set_options(keep_attrs=True):
-            return masked.min(dim=HORIZONTAL_DIMS)
+            return masked.min(dim=diag_arg.horizontal_dims)
 
     @registry_2d.register(f"spatial_max_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
@@ -400,7 +399,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         prognostic, grid = diag_arg.prediction, diag_arg.grid
         masked = prognostic.where(~grid["area"].isnull())
         with xr.set_options(keep_attrs=True):
-            return masked.max(dim=HORIZONTAL_DIMS)
+            return masked.max(dim=diag_arg.horizontal_dims)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -413,7 +412,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     def global_averages_2d(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing averages for 2d variables ({mask_type})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
-        return weighted_mean(prognostic, grid.area, HORIZONTAL_DIMS)
+        return weighted_mean(prognostic, grid.area, diag_arg.horizontal_dims)
 
     @registry_2d.register(f"mean_bias_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
@@ -428,7 +427,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
             diag_arg.grid,
         )
         bias_errors = bias(verification, prognostic)
-        mean_bias_errors = weighted_mean(bias_errors, grid.area, HORIZONTAL_DIMS)
+        mean_bias_errors = weighted_mean(
+            bias_errors, grid.area, diag_arg.horizontal_dims
+        )
         return mean_bias_errors
 
 
