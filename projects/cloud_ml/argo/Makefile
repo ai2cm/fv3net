@@ -276,9 +276,13 @@ prescribed_cc_rf_ml_gridcell_cond_01_run: deploy
 prescribed_cc_rf_ml_gridcell_cond_03_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-gridcell-cond03
 
-.PHONY: prescribed_cc_rf_ml_gridcell_cond_06_run
-prescribed_cc_rf_ml_gridcell_cond_06_run: deploy
-	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-gridcell-cond06
+.PHONY: prescribed_cc_rf_ml_gridcell_cond_05_run
+prescribed_cc_rf_ml_gridcell_cond_05_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-gridcell-cond05
+
+.PHONY: prescribed_cc_rf_ml_gridcell_cond_08_run
+prescribed_cc_rf_ml_gridcell_cond_08_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-gridcell-cond08
 
 .PHONY: prescribed_cc_rf_ml_gridcell_cond_10_run
 prescribed_cc_rf_ml_gridcell_cond_10_run: deploy
@@ -292,6 +296,10 @@ prescribed_cc_rf_ml_gridcell_cond_15_run: deploy
 prescribed_cc_rf_ml_gridcell_cond_25_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-gridcell-cond25
 
+.PHONY: prescribed_cc_rf_ml_gridcell_no_ice_run
+prescribed_cc_rf_ml_gridcell_no_ice_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-gridcell-no-ice
+
 .PHONY: prescribed_cc_rf_ml_incloud_run
 prescribed_cc_rf_ml_incloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud
@@ -304,9 +312,13 @@ prescribed_cc_rf_ml_incloud_cond_01_run: deploy
 prescribed_cc_rf_ml_incloud_cond_03_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond03
 
-.PHONY: prescribed_cc_rf_ml_incloud_cond_06_run
-prescribed_cc_rf_ml_incloud_cond_06_run: deploy
-	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond06
+.PHONY: prescribed_cc_rf_ml_incloud_cond_05_run
+prescribed_cc_rf_ml_incloud_cond_05_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond05
+
+.PHONY: prescribed_cc_rf_ml_incloud_cond_08_run
+prescribed_cc_rf_ml_incloud_cond_08_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond08
 
 .PHONY: prescribed_cc_rf_ml_incloud_cond_10_run
 prescribed_cc_rf_ml_incloud_cond_10_run: deploy

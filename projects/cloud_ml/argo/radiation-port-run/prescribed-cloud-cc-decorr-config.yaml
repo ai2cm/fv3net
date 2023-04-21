@@ -177,12 +177,25 @@ fortran_diagnostics:
   - {module_name: gfs_phys, field_name: totsnwb_ave, output_name: SNOWsfc}
   - {module_name: gfs_phys, field_name: totgrpb_ave, output_name: GRAUPELsfc}
   - {module_name: gfs_phys, field_name: DSWRF, output_name: DSWRFsfc}
+  - {module_name: gfs_phys, field_name: DSWRFI, output_name: DSWRFIsfc}
+  - {module_name: gfs_phys, field_name: csdsf_ave, output_name: DCSWRFsfc}
   - {module_name: gfs_phys, field_name: USWRF, output_name: USWRFsfc}
+  - {module_name: gfs_phys, field_name: USWRFI, output_name: USWRFIsfc}
+  - {module_name: gfs_phys, field_name: csusf_ave, output_name: UCSWRFsfc}
   - {module_name: gfs_phys, field_name: DSWRFtoa, output_name: DSWRFtoa}
+  - {module_name: gfs_phys, field_name: sw_dnfxc, output_name: DSWRFItoa}
   - {module_name: gfs_phys, field_name: USWRFtoa, output_name: USWRFtoa}
+  - {module_name: gfs_phys, field_name: sw_upfxc, output_name: USWRFItoa}
+  - {module_name: gfs_phys, field_name: csusf_avetoa, output_name: UCSWRFtoa}
   - {module_name: gfs_phys, field_name: ULWRFtoa, output_name: ULWRFtoa}
+  - {module_name: gfs_phys, field_name: lw_upfxc, output_name: ULWRFItoa}
+  - {module_name: gfs_phys, field_name: csulf_avetoa, output_name: UCLWRFtoa}
   - {module_name: gfs_phys, field_name: ULWRF, output_name: ULWRFsfc}
+  - {module_name: gfs_phys, field_name: ULWRFI, output_name: ULWRFIsfc}
+  - {module_name: gfs_phys, field_name: csulf_ave, output_name: UCLWRFsfc}
   - {module_name: gfs_phys, field_name: DLWRF, output_name: DLWRFsfc}
+  - {module_name: gfs_phys, field_name: DLWRFI, output_name: DLWRFIsfc}
+  - {module_name: gfs_phys, field_name: csdlf_ave, output_name: DCLWRFsfc}
   - {module_name: gfs_phys, field_name: lhtfl_ave, output_name: LHTFLsfc}
   - {module_name: gfs_phys, field_name: shtfl_ave, output_name: SHTFLsfc}
   - {module_name: gfs_phys, field_name: hpbl, output_name: HPBLsfc}
@@ -201,6 +214,10 @@ fortran_diagnostics:
   - {module_name: gfs_sfc, field_name: SOILT2, output_name: SOILT2}
   - {module_name: gfs_sfc, field_name: SOILT3, output_name: SOILT3}
   - {module_name: gfs_sfc, field_name: SOILT4, output_name: SOILT4}
+  - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating, output_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating}
+  - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky, output_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky}
+  - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating, output_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating}
+  - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky, output_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky}
 - name: atmos_dt_atmos.zarr
   chunks:
     time: 12
@@ -272,3 +289,11 @@ fortran_diagnostics:
   - {module_name: dynamics, field_name: grid_lat, output_name: latb}
   - {module_name: dynamics, field_name: fv_sat_adj_qv_dt, output_name: fv_sat_adj_qv_dt}
   - {module_name: dynamics, field_name: fv_sat_adj_t_dt, output_name: fv_sat_adj_t_dt}
+  - {module_name: gfs_phys, field_name: dt3dt_sw, output_name: dt3dt_sw}
+  - {module_name: gfs_phys, field_name: dt3dt_sw, output_name: dt3dt_sw_clearsky}
+  - {module_name: gfs_phys, field_name: dt3dt_lw, output_name: dt3dt_lw}
+  - {module_name: gfs_phys, field_name: dt3dt_lw_clearsky, output_name: dt3dt_lw_clearsky}
+  - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_shortwave_heating, output_name: tendency_of_air_temperature_due_to_shortwave_heating}
+  - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky, output_name: tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky}
+  - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_longwave_heating, output_name: tendency_of_air_temperature_due_to_longwave_heating}
+  - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky, output_name: tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky}

@@ -1,7 +1,14 @@
 base_version: v0.7
 initial_conditions:
   base_url: gs://vcm-ml-experiments/spencerc/2022-12-05-five-day-C3072-ccnorm-true/restarts
-  timestep: "20160814.000000"
+  timestep: "20160811.030000"
+prephysics:
+  - dataset_key: "gs://vcm-ml-intermediate/2021-03-fine-res-surface-radiative-fluxes/5day-ccnorm-SHiELD-coarsened-surface-radiative-fluxes-precip.zarr"
+    variables:
+      override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface: override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface
+      override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface: override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface
+      override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface: override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface
+      total_precipitation: total_precipitation
 nudging:
   restarts_path: gs://vcm-ml-experiments/spencerc/2022-12-05-five-day-C3072-ccnorm-true/restarts
   timescale_hours:
@@ -13,12 +20,12 @@ nudging:
 radiation_scheme:
   kind: "python"
   input_generator:
-    dataset_key: gs://vcm-ml-experiments/cloud-ml/2023-03-09/predicted-fine-cloud-fields-v7_conditional_10.zarr
+    dataset_key: gs://vcm-ml-experiments/cloud-ml/2023-04-05/predicted-fine-cloud-fields-v9_conditional_10.zarr
     variables:
       cloud_water_mixing_ratio: cloud_water_mixing_ratio
       cloud_ice_mixing_ratio: cloud_ice_mixing_ratio
       cloud_amount: cloud_amount
-    reference_initial_time: "20160814.000000"
+    reference_initial_time: "20160811.030000"
     reference_frequency_seconds: 900
 namelist:
   atmos_model_nml:
@@ -34,6 +41,7 @@ namelist:
     iovr_sw: 3
     iovr_lw: 3
     ccnorm: True
+    override_surface_radiative_fluxes: true
   namsfc:
     faisl: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
     faiss: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
