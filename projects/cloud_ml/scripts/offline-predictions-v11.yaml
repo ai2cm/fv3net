@@ -1,0 +1,17 @@
+coarse_nudged_state_path: gs://vcm-ml-experiments/cloud-ml/2023-04-05/cloud-ml-training-data-v8.zarr
+model_path: gs://vcm-ml-experiments/cloud-ml/2023-04-05/fine-cloud-rf-no-coarse-ice-local/trained_models/rf-no-coarse-ice
+output_path: gs://vcm-ml-experiments/cloud-ml/2023-04-05/predicted-fine-cloud-fields-v11.zarr
+start_time:
+  - 2016
+  - 8
+  - 11
+  - 1
+  - 15
+  - 0
+end_time:
+  - 2016
+  - 8
+  - 16
+  - 0
+  - 0
+  - 0

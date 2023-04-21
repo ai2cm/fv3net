@@ -64,6 +64,18 @@ offline_ml_cloud_predictions_dataset_v7:
 offline_ml_cloud_predictions_dataset_v8:
 	cd ../scripts && python cloud-ml-rf-offline-predictions.py offline-predictions-v8.yaml
 
+.PHONY: offline_ml_cloud_predictions_dataset_v9
+offline_ml_cloud_predictions_dataset_v9:
+	cd ../scripts && python cloud-ml-rf-offline-predictions.py offline-predictions-v9.yaml
+
+.PHONY: offline_ml_cloud_predictions_dataset_v10
+offline_ml_cloud_predictions_dataset_v10:
+	cd ../scripts && python cloud-ml-rf-offline-predictions.py offline-predictions-v10.yaml
+
+.PHONY: offline_ml_cloud_predictions_dataset_v11
+offline_ml_cloud_predictions_dataset_v11:
+	cd ../scripts && python cloud-ml-rf-offline-predictions.py offline-predictions-v11.yaml
+
 .PHONY: baseline_port_run
 baseline_port_run: deploy
 	cd radiation-port-run && ./run.sh baseline-port
@@ -380,6 +392,10 @@ train_cloud_ml_dense: deploy
 .PHONY: train_cloud_ml_rf
 train_cloud_ml_rf: deploy
 	cd training && ./run.sh rf
+
+.PHONY: train_cloud_ml_rf_no_coarse_ice
+train_cloud_ml_rf_no_coarse_ice: deploy
+	cd training && ./run.sh rf-no-coarse-ice
 
 .PHONY: train_cloud_ml_rf_incloud
 train_cloud_ml_rf_incloud: deploy

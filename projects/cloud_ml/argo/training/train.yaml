@@ -1,7 +1,7 @@
 mapper_config:
   function: open_zarr
   kwargs:
-    data_path: gs://vcm-ml-experiments/cloud-ml/2023-03-08/cloud-ml-training-data-v7.zarr
+    data_path: gs://vcm-ml-experiments/cloud-ml/2023-04-05/cloud-ml-training-data-v8.zarr
 timesteps:
 - '20160811.011500'
 - '20160811.021500'
