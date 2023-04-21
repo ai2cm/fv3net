@@ -13,7 +13,10 @@ import cartopy.crs as ccrs
 import numpy as np
 import vcm
 from time import time
-from fv3fit.pytorch.cyclegan.cyclegan_trainer import get_percentile_error
+from fv3fit.pytorch.cyclegan.cyclegan_trainer import (
+    get_percentile_error,
+    get_percentile,
+)
 
 GRID = catalog["grid/c48"].read()
 AREA = GRID.area
@@ -382,12 +385,14 @@ def plot_mean_all(ds, varname, label: str):
     fig, ax = plt.subplots(
         len(ds.perturbation),
         4,
-        figsize=(18, 3 * len(ds.perturbation) + 0.5),
+        figsize=(18, 2.5 * len(ds.perturbation) + 0.5),
         subplot_kw={"projection": ccrs.Robinson()},
     )
     if len(ax.shape) == 1:
         ax = ax[None, :]
     print(f"Recording pattern biases for {label}")
+    climates, c48_means, gen_means, c48_stds, gen_stds = [], [], [], [], []
+    c48_land_means, gen_land_means, c48_land_stds, gen_land_stds = [], [], [], []
     for i, climate in enumerate(ds.perturbation.values):
         mean = (
             ds[f"{varname}_mean"].sel(grid="C384").isel(perturbation=i).mean("diurnal")
@@ -410,6 +415,7 @@ def plot_mean_all(ds, varname, label: str):
                 xr.Dataset({varname: mean.sel(source="real")}), compat="override"
             ),
             var_name=varname,
+            cbar_label="Precipitation (mm/day)",
             ax=ax[i, 0],
             vmin=vmin,
             vmax=vmax,
@@ -420,6 +426,7 @@ def plot_mean_all(ds, varname, label: str):
                 xr.Dataset({varname: mean.sel(source="gen")}), compat="override"
             ),
             var_name=varname,
+            cbar_label="Precipitation (mm/day)",
             ax=ax[i, 1],
             vmin=vmin,
             vmax=vmax,
@@ -440,6 +447,35 @@ def plot_mean_all(ds, varname, label: str):
         # c48_bias_land_mean = bias_c48_real.where(land_sea_mask).mean().values
         # c48_bias_land_std = bias_c48_real.where(land_sea_mask).std().values
 
+        bias_min = min(bias.sel(source="gen").min().values, bias_c48_real.min().values)
+        bias_max = max(bias.sel(source="gen").max().values, bias_c48_real.max().values)
+        bias_max = max(abs(bias_min), abs(bias_max))
+        bias_min = -bias_max
+
+        fv3viz.plot_cube(
+            ds=GRID.merge(
+                xr.Dataset({f"{varname}_gen_bias": bias.sel(source="gen")}),
+                compat="override",
+            ),
+            var_name=f"{varname}_gen_bias",
+            cbar_label="Precip Bias (mm/day)",
+            ax=ax[i, 2],
+            vmin=bias_min,
+            vmax=bias_max,
+        )
+        ax[i, 2].set_title("{} C384 ML Bias".format(climate))
+        fv3viz.plot_cube(
+            ds=GRID.merge(
+                xr.Dataset({f"{varname}_c48_bias": bias_c48_real}), compat="override"
+            ),
+            var_name=f"{varname}_c48_bias",
+            cbar_label="Precip Bias (mm/day)",
+            ax=ax[i, 3],
+            vmin=bias_min,
+            vmax=bias_max,
+        )
+        ax[i, 3].set_title("{} C48 Bias".format(climate))
+
         gen_bias_mean = weighted_mean(bias.sel(source="gen"), AREA).values
         gen_bias_std = weighted_std(bias.sel(source="gen"), AREA).values
         gen_bias_land_mean = weighted_mean(
@@ -453,38 +489,71 @@ def plot_mean_all(ds, varname, label: str):
         c48_bias_land_mean = weighted_mean(bias_c48_real, AREA * land_sea_mask).values
         c48_bias_land_std = weighted_std(bias_c48_real, AREA * land_sea_mask).values
 
-        bias_min = min(bias.sel(source="gen").min().values, bias_c48_real.min().values)
-        bias_max = max(bias.sel(source="gen").max().values, bias_c48_real.max().values)
-        bias_max = max(abs(bias_min), abs(bias_max))
-        bias_min = -bias_max
-
-        fv3viz.plot_cube(
-            ds=GRID.merge(
-                xr.Dataset({f"{varname}_gen_bias": bias.sel(source="gen")}),
-                compat="override",
-            ),
-            var_name=f"{varname}_gen_bias",
-            ax=ax[i, 2],
-            vmin=bias_min,
-            vmax=bias_max,
-        )
-        ax[i, 2].set_title("{} C384 ML Bias".format(climate))
-        fv3viz.plot_cube(
-            ds=GRID.merge(
-                xr.Dataset({f"{varname}_c48_bias": bias_c48_real}), compat="override"
-            ),
-            var_name=f"{varname}_c48_bias",
-            ax=ax[i, 3],
-            vmin=bias_min,
-            vmax=bias_max,
-        )
-        ax[i, 3].set_title("{} C48 Bias".format(climate))
-        print(
-            f"{climate} & {c48_bias_mean:.2e} & {gen_bias_mean:.2e} & {c48_bias_std:.2e} & {gen_bias_std:.2e} & {c48_bias_land_mean:.2e} & {gen_bias_land_mean:.2e} & {c48_bias_land_std:.2e} & {gen_bias_land_std:.2e} \\\\"
-        )
+        climates.append(climate)
+        c48_means.append(c48_bias_mean)
+        gen_means.append(gen_bias_mean)
+        c48_stds.append(c48_bias_std)
+        gen_stds.append(gen_bias_std)
+        c48_land_means.append(c48_bias_land_mean)
+        gen_land_means.append(gen_bias_land_mean)
+        c48_land_stds.append(c48_bias_land_std)
+        gen_land_stds.append(gen_bias_land_std)
 
     plt.tight_layout()
     fig.savefig(f"./plots/{label}-mean.png", dpi=100)
+
+    def plot_bar(ax, title, ylabel, c48_values, gen_values):
+        ax.set_title(title)
+        ax.set_ylabel(ylabel)
+        ax.set_xticks(np.arange(len(climates)))
+        ax.set_xticklabels(climates)
+
+        for i in range(len(climates)):
+            ax.bar(
+                i - bar_width / 2,
+                c48_values[i],
+                bar_width,
+                alpha=opacity,
+                color="tab:blue",
+                label="C48" if i == 0 else "",
+            )
+            ax.bar(
+                i + bar_width / 2,
+                gen_values[i],
+                bar_width,
+                alpha=opacity,
+                color="tab:orange",
+                label="ML" if i == 0 else "",
+            )
+
+        ax.legend()
+
+    # Set up the plotting area
+    fig, ax = plt.subplots(2, 2, figsize=(10, 7))
+
+    # Plot bar charts
+    bar_width = 0.35
+    opacity = 0.8
+
+    plot_bar(ax[0, 0], "Mean Bias", "Bias", c48_means, gen_means)
+    plot_bar(
+        ax[0, 1], "Bias Standard Deviation", "Standard Deviation", c48_stds, gen_stds
+    )
+    plot_bar(ax[1, 0], "Mean Land Bias", "Land Bias", c48_land_means, gen_land_means)
+    plot_bar(
+        ax[1, 1],
+        "Land Bias Standard Deviation",
+        "Standard Deviation",
+        c48_land_stds,
+        gen_land_stds,
+    )
+
+    # Tweak spacing between subplots to prevent labels from overlapping
+    fig.subplots_adjust(hspace=0.3, wspace=0.3)
+
+    # Display the bar chart(s)
+    plt.tight_layout()
+    fig.savefig(f"./plots/{label}-bias-bar.png", dpi=100)
 
 
 def plot_hist_all(ds, varname, label: str):
@@ -503,6 +572,41 @@ def plot_hist_all(ds, varname, label: str):
         ax[i, 1].set_title(f"{climate} PDF\n" + ax[i, 1].get_title())
     plt.tight_layout()
     fig.savefig(f"./plots/{label}-histogram.png", dpi=100)
+
+
+def plot_cdf_dual_pane(ds, varname, label: str):
+    fig, ax = plt.subplots(
+        len(ds.perturbation), 2, figsize=(10, 1 + 2.5 * len(ds.perturbation)),
+    )
+    if len(ax.shape) == 1:
+        ax = ax[None, :]
+    for i, climate in enumerate(ds.perturbation.values):
+        plot_cdf(ds.isel(perturbation=i), varname, ax=ax[i, 0], ax_err=ax[i, 1])
+        ax[i, 0].set_yscale("log")
+        ax[i, 0].set_title(f"{climate} CDF")
+        n_samples = np.sum(ds[f"{varname}_hist"].sel(source="real", grid="C384").values)
+        ax[i, 0].set_ylim(1.0 / n_samples, 1.0)
+        ax[i, 1].set_title(f"{climate} CDF Abs Error")
+    # find first bin with non-zero value
+    first_bin = np.where(
+        ds[f"{varname}_hist"].sum(["perturbation", "source", "grid"]).values.flatten()
+        > 0
+    )[0][0]
+    # find last bin with non-zero value
+    last_bin = (
+        np.where(
+            ds[f"{varname}_hist"]
+            .sum(["perturbation", "source", "grid"])
+            .values.flatten()
+            > 0
+        )[0][-1]
+        + 1
+    )
+    edges = ds[f"{varname}_hist_bins"].values * TO_MM_DAY
+    for i in range(4):
+        ax[i, 0].set_xlim(edges[first_bin], edges[last_bin])
+    plt.tight_layout()
+    fig.savefig(f"./plots/{label}-cdf-err.png", dpi=100)
 
 
 def plot_cdf_all(ds, varname, label: str):
@@ -572,7 +676,7 @@ def plot_hist_c384(ds, varname, label: str):
 
 def plot_hist(ds, varname, ax):
     def norm_hist(source, grid):
-        base_hist = ds.sel(source=source, grid=grid)[f"{varname}_hist"].sum("diurnal")
+        base_hist = ds.sel(source=source, grid=grid)[f"{varname}_hist"]
         return base_hist.values.flatten() / base_hist.sum().values
 
     edges = ds[f"{varname}_hist_bins"].values * TO_MM_DAY
@@ -607,14 +711,13 @@ def plot_hist(ds, varname, ax):
     )
     # find first bin with non-zero value
     first_bin = np.where(
-        ds[f"{varname}_hist"].sum(["diurnal", "source", "grid"]).values.flatten() > 0
+        ds[f"{varname}_hist"].sum(["source", "grid"]).values.flatten() > 0
     )[0][0]
     # find last bin with non-zero value
     last_bin = (
-        np.where(
-            ds[f"{varname}_hist"].sum(["diurnal", "source", "grid"]).values.flatten()
-            > 0
-        )[0][-1]
+        np.where(ds[f"{varname}_hist"].sum(["source", "grid"]).values.flatten() > 0)[0][
+            -1
+        ]
         + 1
     )
     ax.set_xlim(edges[first_bin], edges[last_bin])
@@ -624,15 +727,39 @@ def plot_hist(ds, varname, ax):
     ax.set_title(f"{varname}")
 
 
-def plot_cdf(ds, varname, ax):
+def plot_cdf(ds, varname, ax, ax_err=None):
     def norm_hist(source, grid):
         base_hist = ds.sel(source=source, grid=grid)[f"{varname}_hist"]
         return base_hist.values.flatten() / base_hist.sum().values
 
-    def pct_error(source, grid, percentile):
-        hist_pred = ds.sel(source=source, grid=grid)[f"{varname}_hist"].values
+    def get_percentile_errors(edges):
+        def pct_error(source, grid, percentile):
+            hist_pred = ds.sel(source=source, grid=grid)[f"{varname}_hist"].values
+            hist_real = ds.sel(source="real", grid="C384")[f"{varname}_hist"].values
+            return get_percentile_error(edges, hist_pred, hist_real, percentile)
+
+        pct_array = np.asarray([0.9, 0.99, 0.999, 0.9999, 0.99999, 0.999999])
+        c384_gen_error_list = []
+        c48_real_error_list = []
+        for pct in pct_array:
+            c384_gen_error_list.append(
+                pct_error(source="gen", grid="C384", percentile=pct)
+            )
+            c48_real_error_list.append(
+                pct_error(source="real", grid="C48", percentile=pct)
+            )
+        c48_real_error = np.asarray(c48_real_error_list)
+        c384_gen_error = np.asarray(c384_gen_error_list)
         hist_real = ds.sel(source="real", grid="C384")[f"{varname}_hist"].values
-        return get_percentile_error(edges, hist_pred, hist_real, percentile)
+        pct_c384 = np.asarray(
+            [get_percentile(edges, hist_real, pct) for pct in pct_array]
+        )
+        return pct_array, pct_c384, c48_real_error, c384_gen_error
+
+    # def pct_error(source, grid, percentile):
+    #     hist_pred = ds.sel(source=source, grid=grid)[f"{varname}_hist"].values
+    #     hist_real = ds.sel(source="real", grid="C384")[f"{varname}_hist"].values
+    #     return get_percentile_error(edges, hist_pred, hist_real, percentile)
 
     def cdf(source, grid):
         p_norm = norm_hist(source, grid)
@@ -640,37 +767,50 @@ def plot_cdf(ds, varname, ax):
 
     edges = ds[f"{varname}_hist_bins"].values * TO_MM_DAY
 
+    cdf_c48_real = cdf(source="real", grid="C48")
+    cdf_c384_real = cdf(source="real", grid="C384")
+    cdf_c384_gen = cdf(source="gen", grid="C384")
     ax.step(
-        edges, cdf(source="real", grid="C48"), where="post", alpha=0.5, label="C48",
+        edges, cdf_c48_real, where="post", alpha=0.5, label="C48",
     )
     ax.step(
-        edges, cdf(source="real", grid="C384"), where="post", alpha=0.5, label="C384",
+        edges, cdf_c384_real, where="post", alpha=0.5, label="C384",
     )
     ax.step(
-        edges, cdf(source="gen", grid="C48"), where="post", alpha=0.5, label="c48_gen",
+        edges, cdf(source="gen", grid="C48"), where="post", alpha=0.5, label="C48 (ML)",
     )
     ax.step(
-        edges,
-        cdf(source="gen", grid="C384"),
-        where="post",
-        alpha=0.5,
-        label=f"C384 (ML)",
-    )
-    err_99_c48 = pct_error(source="real", grid="C48", percentile=0.99)
-    err_999_c48 = pct_error(source="real", grid="C48", percentile=0.999)
-    err_9999_c48 = pct_error(source="real", grid="C48", percentile=0.9999)
-    err_99_c384 = pct_error(source="gen", grid="C384", percentile=0.99)
-    err_999_c384 = pct_error(source="gen", grid="C384", percentile=0.999)
-    err_9999_c384 = pct_error(source="gen", grid="C384", percentile=0.9999)
-
-    print(
-        f" & {err_99_c48} & {err_99_c384} & {err_999_c48} & {err_999_c384} & {err_9999_c48} & {err_9999_c384} \\\\"
+        edges, cdf_c384_gen, where="post", alpha=0.5, label=f"C384 (ML)",
     )
 
     ax.legend(loc="upper right")
     ax.set_xlabel(varname)
     ax.set_ylabel("1 - CDF")
     ax.set_title(f"{varname}")
+
+    if ax_err is not None:
+        (
+            pct_array,
+            pct_c384_real,
+            c48_real_error,
+            c384_gen_error,
+        ) = get_percentile_errors(edges)
+        ax_err.plot(
+            1.0 - pct_array,
+            np.abs(c48_real_error / pct_c384_real) * 100,
+            label="C48 (real) - C384 (real)",
+            marker="o",
+        )
+        ax_err.plot(
+            1.0 - pct_array,
+            np.abs(c384_gen_error / pct_c384_real) * 100,
+            label="C384 (ML) - C384 (real)",
+            marker="o",
+        )
+        ax_err.legend(loc="upper right")
+        ax_err.set_xlabel("1 - Percentile (unitless)")
+        ax_err.set_ylabel("CDF Absolute Error (%)")
+        ax_err.set_xscale("log")
 
 
 def plot_diurnal_means(ds, varname):
@@ -897,14 +1037,10 @@ class DatasetAggregator:
         self._mean_std_c384_real.add(c384_real_diurnal["PRATEsfc"])
         self._mean_std_c48_gen.add(c48_gen_diurnal["PRATEsfc"])
         self._mean_std_c384_gen.add(c384_gen_diurnal["PRATEsfc"])
-        c48_real_daily = c48_real.coarsen(time=8).mean()
-        c384_real_daily = c384_real.coarsen(time=8).mean()
-        c48_gen_daily = c48_gen.coarsen(time=8).mean()
-        c384_gen_daily = c384_gen.coarsen(time=8).mean()
-        self._histogram_c48_real.add(c48_real_daily["PRATEsfc"])
-        self._histogram_c384_real.add(c384_real_daily["PRATEsfc"])
-        self._histogram_c48_gen.add(c48_gen_daily["PRATEsfc"])
-        self._histogram_c384_gen.add(c384_gen_daily["PRATEsfc"])
+        self._histogram_c48_real.add(c48_real["PRATEsfc"])
+        self._histogram_c384_real.add(c384_real["PRATEsfc"])
+        self._histogram_c48_gen.add(c48_gen["PRATEsfc"])
+        self._histogram_c384_gen.add(c384_gen["PRATEsfc"])
 
     def get_dataset(self) -> xr.Dataset:
         mean_c48_real = xr.DataArray(
@@ -1052,12 +1188,14 @@ if __name__ == "__main__":
 
         def plot(ds):
             # plot_mean_all(ds, VARNAME)
+            print("plotting cdfs")
+            # plot_cdf_all(ds, VARNAME, label)
+            plot_hist_all(ds, VARNAME, label)
+            plot_cdf_dual_pane(ds, VARNAME, label)
             print("plotting diurnal cycle")
             plot_diurnal_cycle(ds, initial_time, VARNAME, label)
             # print("plotting c384 histograms")
             # plot_hist_c384(ds, VARNAME, label)
-            print("plotting cdfs")
-            plot_cdf_all(ds, VARNAME, label)
             print("plotting means")
             plot_mean_all(ds, VARNAME, label)
             plt.close("all")

@@ -1,4 +1,5 @@
 # flake8: noqa
+import shutil
 from typing import Tuple
 import xarray as xr
 import numpy as np
@@ -26,17 +27,15 @@ TO_MM_DAY = 86400 / 0.997
 
 
 def convert_fine(ds_precip: xr.Dataset) -> xr.Dataset:
-    # convert from 15-minute to 3-hourly
+    # data must be 3-hourly
     assert timedelta(
         seconds=int((ds_precip.time[1] - ds_precip.time[0]).values.item() / 1e9)
-    ) == timedelta(minutes=15)
-    ds_precip = (
-        ds_precip.coarsen(time=3 * 4, boundary="trim")
-        .mean()
-        .rename({"grid_xt_coarse": "grid_xt", "grid_yt_coarse": "grid_yt"})
+    ) == timedelta(hours=3)
+    ds_precip = ds_precip.rename(
+        {"grid_xt_coarse": "grid_xt", "grid_yt_coarse": "grid_yt"}
     )
     precip = ds_precip["PRATEsfc_coarse"]
-    return xr.Dataset({"PRATEsfc": precip, "TMPsfc": ds_precip["tsfc_coarse"]})
+    return xr.Dataset({"PRATEsfc": precip})
 
 
 def get_sst_varying_mean_std(
@@ -125,137 +124,6 @@ def get_sst_offsets(time: xr.DataArray):
     )
     interpolated_offsets = offsets.interp(time=time)
     return interpolated_offsets
-
-
-def exponential_cross_entropy(p, q, bins):
-    """
-    Compute cross-entropy of two probability distributions after fitting
-    them to exponential distributions.
-    """
-    p_lambda = fit_exponential(p, bins)
-    q_lambda = fit_exponential(q, bins)
-
-
-# def fit_exponential(p, bins, n_exponentials: int):
-#     """
-#     Fit a probability distribution to an exponential distribution.
-#     """
-#     # p_norm = p / np.sum(p)
-#     # p_cdf = np.concatenate([0, np.cumsum(p_norm)])
-
-#     p_norm = p / np.sum(p)
-#     p_cdf = np.concatenate([[0], np.cumsum(p_norm)])
-#     # use least squares fitting against exponential CDF to find a, b
-#     # that minimize the error
-
-#     # the exponential CDF is given by 1 - exp(-lambda * x)
-
-#     def error(params):
-#         coeffs, lambdas = params[:n_exponentials], params[n_exponentials:]
-#         coeffs = np.abs(coeffs)
-#         lambdas = np.abs(lambdas)
-#         coeffs = coeffs / np.sum(coeffs)
-#         residual = np.copy(p_cdf)
-#         for i in range(n_exponentials):
-#             residual -= coeffs[i] * (1 - np.exp(-lambdas[i] * bins))
-#         # return np.sum((p_cdf - c*(1 - np.exp(-a * bins)) - (1 - c)*(1 - np.exp(-b * bins))) ** 2)
-#         return np.sum(residual ** 2) + 1e-8 * np.sum((coeffs - 1. / n_exponentials) ** 2)
-
-#     # the mean is a good initial guess for lambda
-#     mean = np.sum(p_norm * bins[1:])
-#     initial_coeffs = [1.0 / n_exponentials for _ in range(n_exponentials)]
-#     initial_lambdas = [1.0 / mean*(1-0.001*i) for i in range(n_exponentials)]
-#     result = scipy.optimize.minimize(error, initial_coeffs + initial_lambdas).x
-#     coeffs, lambdas = result[:n_exponentials], result[n_exponentials:]
-#     coeffs = np.abs(coeffs)
-#     lambdas = np.abs(lambdas)
-#     sum_coeffs = np.sum(coeffs)
-#     for i, coeff in enumerate(coeffs):
-#         coeffs[i] = coeff / sum_coeffs
-#     # a, b, c = scipy.optimize.minimize(error, [1.0 / mean, 0.99*mean, 0.5]).x
-
-#     # plot the CDF and PDF
-#     # CDF
-#     cdf_fit = np.zeros_like(p_cdf)
-#     for i in range(n_exponentials):
-#         cdf_fit += coeffs[i] * (1 - np.exp(-lambdas[i] * bins))
-#     plt.figure()
-#     plt.plot(bins, p_cdf, label="data")
-#     plt.plot(bins, cdf_fit, label="fit")
-#     plt.legend()
-#     plt.savefig(f"sst-cdf-{n_exponentials}.png")
-#     # PDF
-#     mid_bin = 0.5 * (bins[1:] + bins[:-1])
-#     pdf_fit = np.zeros_like(mid_bin)
-#     for i in range(n_exponentials):
-#         pdf_fit += coeffs[i] * lambdas[i] * np.exp(-lambdas[i] * mid_bin)
-#     plt.figure()
-#     plt.plot(mid_bin, p_norm, label="data")
-#     plt.plot(mid_bin, pdf_fit * np.diff(bins), label="fit")
-#     plt.yscale("log")
-#     plt.legend()
-#     plt.savefig(f"sst-pdf-{n_exponentials}.png")
-#     print(coeffs, lambdas)
-#     return coeffs, lambdas
-
-
-def fit_exponential(p, bins, label):
-    """
-    Fit a probability distribution to an exponential distribution.
-    """
-    # p_norm = p / np.sum(p)
-    # p_cdf = np.concatenate([0, np.cumsum(p_norm)])
-
-    p_norm = p / np.sum(p)
-    p_cdf = 1.0 - np.concatenate([[0], np.cumsum(p_norm)])
-    i_start = np.argmax(p_cdf < 0.01)
-    i_end = np.argmin(p_norm)
-    p_cdf = p_cdf[i_start : i_end + 1]
-    bins = bins[i_start : i_end + 1]
-    p_norm = p_norm[i_start:i_end]
-    print(i_start, i_end)
-    # use least squares fitting against exponential CDF to find a, b
-    # that minimize the error
-
-    # the exponential CDF is given by 1 - exp(-lambda * x)
-
-    def error(params):
-        a = params
-        return np.sum((p_cdf - (1 - np.exp(-a * bins))) ** 2)
-
-    # the mean is a good initial guess for lambda
-    mean = np.sum(p_norm * bins[1:])
-    print(1.0 / mean)
-    a = scipy.optimize.minimize(error, [1.0 / mean]).x
-
-    # plot the CDF and PDF
-    # CDF
-    plt.figure()
-    plt.plot(bins, p_cdf, label="data")
-    # plt.plot(bins[i_start], p_cdf[i_start], "o", label="99th pct")
-    # plt.plot(bins[i_end-1], p_cdf[i_end-1], "o", label="1st zero")
-    # plt.plot(bins, np.exp(-a * bins), label="fit, lambda={:.2f}".format(float(a)))
-    # plt.ylim(0.999*p_cdf[i_start], 1.0)
-    plt.title(label)
-    plt.yscale("log")
-    plt.legend()
-    plt.savefig(f"sst-cdf-{label}.png")
-    # PDF
-    mid_bin = 0.5 * (bins[1:] + bins[:-1])
-    plt.figure()
-    plt.plot(mid_bin, p_norm, label="data")
-    # plt.plot(mid_bin[i_start], p_norm[i_start], "o", label="99th pct")
-    # plt.plot(mid_bin[i_end-2], p_norm[i_end-2], "o", label="1st zero")
-    plt.plot(
-        mid_bin,
-        a * np.exp(-a * mid_bin) * np.diff(bins),
-        label="fit, lambda={:.2f}".format(float(a)),
-    )
-    plt.title(label)
-    plt.yscale("log")
-    plt.legend()
-    plt.savefig(f"sst-pdf-{label}.png")
-    return a
 
 
 def plot_mean_all(c48, c384, c48_gen, c384_gen, label: str):
@@ -355,7 +223,7 @@ def plot_mean_all(c48, c384, c48_gen, c384_gen, label: str):
     )
 
     plt.tight_layout()
-    fig.savefig(f"ramping-mean-{label}.png", dpi=100)
+    fig.savefig(f"plots/ramping-mean-{label}.png", dpi=100)
 
 
 def to_diurnal_land(ds: xr.Dataset):
@@ -511,9 +379,11 @@ if __name__ == "__main__":
         # "20230208-183103-cdda934c", 17  # precip-only, properly normalized, +45 epochs
         # "20230302-000015-699b0906", 75  # "no-demean-2e-6-e75"
         # "20230314-214027-54366191", 17
-        "20230316-151658-9017348e",
-        35  # lr-1e-4-decay-0.79433-no-geo-bias
+        # "20230316-151658-9017348e",
+        # 35  # lr-1e-4-decay-0.79433-no-geo-bias
         # "20230303-203306-f753d490", 69  # "denorm-2e-6-3x3-e69"
+        "20230329-221949-9d8e8abc",
+        16,  # "prec-lr-1e-4-decay-0.63096-full",
     )
     cyclegan: fv3fit.pytorch.CycleGAN = fv3fit.load(
         # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230130-231729-82b939d9-epoch_075/"  # precip-only
@@ -524,86 +394,46 @@ if __name__ == "__main__":
         + f"-epoch_{EPOCH:03d}/"
     ).to(DEVICE)
     VARNAME = "PRATEsfc"
+    LOCAL_C48_FILENAME = "./ramping_data/c48-ramping-full.zarr"
+    LOCAL_C384_FILENAME = "./ramping_data/c384-ramping-full.zarr"
 
-    if not os.path.exists("c48-ramping.zarr"):
+    if not os.path.exists(LOCAL_C48_FILENAME):
         # c48: xr.Dataset = xr.open_zarr("gs://vcm-ml-experiments/spencerc/2022-07-07/n2f-25km-baseline-increasing-sst/fv3gfs_run/sfc_dt_atmos.zarr")[["PRATEsfc", "TMPsfc"]]
-        c48 = (
-            xr.open_zarr(
-                "gs://vcm-ml-experiments/spencerc/2022-07-07/n2f-25km-baseline-increasing-sst/fv3gfs_run/diags.zarr"
-            )
-            .coarsen(time=3)
-            .mean()
-            .rename({"total_precipitation_rate": "PRATEsfc"})[["PRATEsfc"]]
-        )
-        c48.rename({"x": "grid_xt", "y": "grid_yt"}).chunk(
-            {"time": 80, "tile": 6, "grid_xt": 48, "grid_yt": 48}
-        ).to_zarr("c48-ramping.zarr")
-    c48 = xr.open_zarr("c48-ramping.zarr")[["PRATEsfc"]]
-    if not os.path.exists("c384-ramping.zarr"):
+        c48 = xr.open_zarr(
+            "gs://vcm-ml-raw-flexible-retention/2023-04-03-C48-CycleGAN-ramped-simulation/sfc_8xdaily.zarr"
+        )[["PRATEsfc"]]
+        c48 = c48.chunk({"time": 1488, "tile": 6, "grid_xt": 48, "grid_yt": 48})
+        try:
+            c48.to_zarr(LOCAL_C48_FILENAME)
+        except:
+            shutil.rmtree(LOCAL_C48_FILENAME)
+            raise
+    c48 = xr.open_zarr(LOCAL_C48_FILENAME)[["PRATEsfc"]]
+    if not os.path.exists(LOCAL_C384_FILENAME):
         c384 = convert_fine(
             xr.open_zarr(
-                "gs://vcm-ml-raw-flexible-retention/2022-07-29-increasing-SST-C384-FV3GFS-run/C384-to-C48-diagnostics/gfsphysics_15min_coarse.zarr"
+                "gs://vcm-ml-raw-flexible-retention/2023-04-20-C384-CycleGAN-ramped-simulation/sfc_8xdaily_coarse.zarr"
             )
-        )[["PRATEsfc"]]
-        c384.chunk({"time": 365, "tile": 6, "grid_xt": 48, "grid_yt": 48}).to_zarr(
-            "c384-ramping.zarr"
         )
-    c384 = xr.open_zarr("c384-ramping.zarr")[["PRATEsfc"]]
+        c384 = c384.chunk({"time": 744, "tile": 6, "grid_xt": 48, "grid_yt": 48})
+        try:
+            c384.to_zarr(LOCAL_C384_FILENAME)
+        except:
+            shutil.rmtree(LOCAL_C384_FILENAME)
+            raise
+    c384 = xr.open_zarr(LOCAL_C384_FILENAME)[["PRATEsfc"]]
 
     c48 = c48.rename({"grid_xt": "x", "grid_yt": "y"})
     c384 = c384.rename({"grid_xt": "x", "grid_yt": "y"})
 
-    # c48 = c48.rename({"grid_xt": "x", "grid_yt": "y"})
-    # c384 = c384.rename({"grid_xt": "x", "grid_yt": "y"})
-
-    c48_norm_data = xr.open_zarr("coarse-combined-no-demean.zarr")
-    c384_norm_data = xr.open_zarr("fine-combined-no-demean.zarr")
-    sst_c48 = get_sst_offsets(c48.time).values
-    sst_c384 = get_sst_offsets(c384.time).values
-    mean_c48, std_c48 = get_sst_varying_mean_std(c48_norm_data, c384_norm_data, sst_c48)
-    mean_c384, std_c384 = get_sst_varying_mean_std(
-        c48_norm_data, c384_norm_data, sst_c384
+    FILENAME = (
+        f"./ramping_data/predicted-ramping-{BASE_NAME}-epoch_{EPOCH:03d}" + "-{res}.nc"
     )
-
-    # HACK: for denorm case
-    mean_c48[:] = 0.0
-    std_c48[:] = 1.0
-    mean_c384[:] = 0.0
-    std_c384[:] = 1.0
-
-    plt.figure()
-    plt.plot(sst_c48, mean_c48.sel(grid="C48").values, label="C48")
-    plt.plot(sst_c384, mean_c384.sel(grid="C384").values, label="C384")
-    plt.plot([-4, 0, 4, 8], c48_norm_data["PRATEsfc_mean"].values, "o", label="C48_ref")
-    plt.plot(
-        [-4, 0, 4, 8], c384_norm_data["PRATEsfc_mean"].values, "o", label="C384_ref"
-    )
-    plt.legend()
-    plt.title("Mean")
-    plt.tight_layout()
-    plt.savefig("sst-mean.png")
-    plt.figure()
-    plt.plot(sst_c48, std_c48.sel(grid="C48").values, label="C48")
-    plt.plot(sst_c384, std_c384.sel(grid="C384").values, label="C384")
-    plt.plot([-4, 0, 4, 8], c48_norm_data["PRATEsfc_std"].values, "o", label="C48_ref")
-    plt.plot(
-        [-4, 0, 4, 8], c384_norm_data["PRATEsfc_std"].values, "o", label="C384_ref"
-    )
-    plt.legend()
-    plt.title("Std")
-    plt.tight_layout()
-    plt.savefig("sst-std.png")
-
-    FILENAME = f"predicted-ramping-{BASE_NAME}" + "-{res}.nc"
     if not os.path.exists(FILENAME.format(res="c48")):
-        c384_norm = (c384 - mean_c384.sel(grid="C384")) / std_c384.sel(grid="C384")
-        c48_norm_gen = cyclegan.predict(c384_norm, reverse=True)
-        c48_gen = c48_norm_gen * std_c384.sel(grid="C48") + mean_c384.sel(grid="C48")
+        c48_gen = cyclegan.predict(c384, reverse=True)
         c48_gen.to_netcdf(FILENAME.format(res="c48"))
     if not os.path.exists(FILENAME.format(res="c384")):
-        c48_norm = (c48 - mean_c48.sel(grid="C48")) / std_c48.sel(grid="C48")
-        c384_norm_gen = cyclegan.predict(c48_norm)
-        c384_gen = c384_norm_gen * std_c48.sel(grid="C384") + mean_c48.sel(grid="C384")
+        c384_gen = cyclegan.predict(c48)
         c384_gen.to_netcdf(FILENAME.format(res="c384"))
     c48_gen = xr.open_dataset(FILENAME.format(res="c48"))
     c384_gen = xr.open_dataset(FILENAME.format(res="c384"))
@@ -615,12 +445,12 @@ if __name__ == "__main__":
     c48_gen = c48_gen.coarsen(time=8).mean()
     c384_gen = c384_gen.coarsen(time=8).mean()
 
-    c48 = c48  # .isel(time=slice(2 * 365, 3 * 365))
-    c384 = c384  # .isel(time=slice(2 * 365, 3 * 365))
-    c48_gen = c48_gen  # .isel(time=slice(2 * 365, 3 * 365))
-    c384_gen = c384_gen  # .isel(time=slice(2 * 365, 3 * 365))
+    c48 = c48.isel(time=slice(2 * 365, 3 * 365))
+    c384 = c384.isel(time=slice(2 * 365, 3 * 365))
+    c48_gen = c48_gen.isel(time=slice(2 * 365, 3 * 365))
+    c384_gen = c384_gen.isel(time=slice(2 * 365, 3 * 365))
 
-    animate_all(c48, c384, c48_gen, c384_gen, f"{BASE_NAME}-e{EPOCH}")
+    # animate_all(c48, c384, c48_gen, c384_gen, f"{BASE_NAME}-e{EPOCH}")
 
     plot_mean_all(c48, c384, c48_gen, c384_gen, f"{BASE_NAME}-e{EPOCH}")
 
@@ -663,7 +493,7 @@ if __name__ == "__main__":
     # plt.plot(c48.time.values, c384_gen[VARNAME].mean(dim=("tile", "x", "y")).values, label="C384 gen")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"ramping-{BASE_NAME}-e{EPOCH}.png", dpi=100)
+    plt.savefig(f"plots/ramping-{BASE_NAME}-e{EPOCH}.png", dpi=100)
 
     n_bins = 100
     bins = np.linspace(0, 1e-2, 101)
@@ -698,11 +528,6 @@ if __name__ == "__main__":
             bins=bins,
             density=True,
         )[0]
-
-    # fit_exponential(np.sum(c48_hist, axis=0), bins * TO_MM_DAY, "c48")
-    # fit_exponential(np.sum(c384_hist, axis=0), bins * TO_MM_DAY, "c384")
-    # fit_exponential(np.sum(c48_gen_hist, axis=0), bins * TO_MM_DAY, "c48_gen")
-    # fit_exponential(np.sum(c384_gen_hist, axis=0), bins * TO_MM_DAY, "c384_gen")
 
     # # for i, t in enumerate(c48.time.values):
     # #     c48_hist[i, :] = np.histogram(c48[VARNAME].sel(time=t).values, bins=bins, density=True)[0]

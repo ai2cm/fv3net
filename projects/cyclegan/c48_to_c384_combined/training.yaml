@@ -6,7 +6,7 @@ hyperparameters:
   state_variables:
     - PRATEsfc
     # - TMPlowest
-    - h500
+    # - h500
     # - PRESsfc
     # - w500
     # - TMP500_300
@@ -17,7 +17,7 @@ hyperparameters:
     optimizer:
       name: Adam
       kwargs:
-        lr: 1.0001e-5
+        lr: 6.31051293e-7
     generator:
       n_convolutions: 2
       n_resnet: 6
@@ -44,7 +44,7 @@ hyperparameters:
     cycle_weight: 10.0
     generator_weight: 1.0
     discriminator_weight: 1.0
-    # reload_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230217-220447-a693c405-epoch_075/
+  reload_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230329-221950-bbc73854-epoch_023/
   training:
     n_epoch: 100
     in_memory: false
@@ -54,5 +54,5 @@ hyperparameters:
     scheduler:
       name: ExponentialLR
       kwargs:
-        gamma: 0.63096
+        gamma: 0.79433
         last_epoch: -1
