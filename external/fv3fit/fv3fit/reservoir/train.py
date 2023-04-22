@@ -204,11 +204,12 @@ def train_reservoir_model(
         autoencoder=autoencoder,
     )
 
-    if validation_batches is not None:
+    if validation_batches is not None and wandb.run is not None:
         logger.info("Single timestep validation")
         validation_single_timestep(
             validation_batches, model, hyperparameters.n_batches_burn
         )
+
     return model
 
 
