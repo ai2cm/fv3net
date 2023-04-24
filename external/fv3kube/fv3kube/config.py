@@ -157,7 +157,7 @@ def get_full_config(
 
 
 def c48_initial_conditions_overlay(
-    url: str, timestep: str, restart_categories: RestartCategoriesConfig = None
+        url: str, timestep: str, FV_CORE_PATH:str, restart_categories: RestartCategoriesConfig = None
 ) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
@@ -173,7 +173,12 @@ def c48_initial_conditions_overlay(
         restart_categories=restart_categories,
         timestep=timestep,
     )
-    overlay["initial_conditions"].append(FV_CORE_ASSET)
+    FV_CORE_ASSET_CLUST = fv3config.get_asset_dict(
+    FV_CORE_PATH,
+    "fv_core.res.nc",
+    target_location="INPUT",
+    )
+    overlay["initial_conditions"].append(FV_CORE_ASSET_CLUST)
     overlay["namelist"] = {}
     overlay["namelist"]["coupler_nml"] = {
         "current_date": time_list,

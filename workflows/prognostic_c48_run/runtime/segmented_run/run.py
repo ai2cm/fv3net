@@ -35,10 +35,21 @@ def run_segment(config: dict, rundir: str):
         nprocs = x * y * 6
         with open("logs.txt", "w") as f:
             process = subprocess.Popen(
+#                [
+#                    "mpirun",
+#                    "-x /scratch/gpfs/mr7417/workflow_segmented/c48_run_3seg/fv3config.yml",
+#                    "-n",
+#                    str(nprocs),
+#                    sys.executable,
+#                    "-m",
+#                    "mpi4py",
+#                    runfile.absolute().as_posix(),
+#                ],
                 [
-                    "mpirun",
-                    "-n",
-                    str(nprocs),
+                    "srun",
+                    "--export=ALL",
+                    "--ntasks=" + str(nprocs),
+                    "--cpus-per-task=1",
                     sys.executable,
                     "-m",
                     "mpi4py",
