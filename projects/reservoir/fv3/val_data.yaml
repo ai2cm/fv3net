@@ -1,0 +1,10 @@
+
+#url: gs://vcm-ml-scratch/annak/2023-02-27/rank_data/rank_0
+url: gs://vcm-ml-scratch/annak/2023-04-19/persistence_netcdfs
+dim_order:
+  - time
+  - x
+  - y
+  - z
+varying_first_dim: True
+sort_files: True
