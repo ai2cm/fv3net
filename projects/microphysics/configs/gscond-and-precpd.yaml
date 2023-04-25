@@ -1,6 +1,6 @@
 kind: prognostic
-experiment: zc-emu-gscond-normfix-v1
-name: zc-emu-normfix
+experiment: zc-emu-phasedep-lh
+name: zc-emu-not-phasedeplh-gscond-v1
 image_tag: 95218aec9ed1e6cbda0db1e1f69dc34e0d839c52
 fv3net_image_tag: 95218aec9ed1e6cbda0db1e1f69dc34e0d839c52
 config:
