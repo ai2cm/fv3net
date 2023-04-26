@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: gfs-sigio-analysis-to-nggps-initial-condition
+spec:
+  arguments:
+    parameters:
+    - name: analysis_data
+    - name: date
+    - name: target_resolution
+      value: C384
+    - name: vcoord_file
+    - name: reference_data
+      value: gs://vcm-ml-raw-flexible-retention/2023-02-24-chgres-cube-forcing-data/2023-02-24-chgres-cube-forcing-data
+    - name: destination_root
+  entrypoint: driver
+  volumes:
+  - name: gcp-credentials-user-gcp-sa
+    secret:
+      secretName: gcp-key
+  templates:
+  - name: driver
+    tolerations:
+    - key: "dedicated"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: us.gcr.io/vcm-ml/ufs_utils
+      command:
+      - gfs_sigio_analysis_to_nggps_initial_condition.sh
+      - '{{workflow.parameters.analysis_data}}'
+      - '{{workflow.parameters.date}}'
+      - '{{workflow.parameters.target_resolution}}'
+      - '{{workflow.parameters.vcoord_file}}'
+      - '{{workflow.parameters.reference_data}}'
+      - '{{workflow.parameters.destination_root}}'
+      resources:
+        limits:
+          cpu: "6000m"
+          memory: "25Gi"
+        requests:
+          cpu: "6000m"
+          memory: "25Gi"
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa

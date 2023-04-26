@@ -12,6 +12,7 @@ resources:
 - resolve-output-url.yaml
 - wandb-sweep.yaml
 - chgres-cube.yaml
+- gfs-sigio-analysis-to-nggps-initial-condition.yaml
 configurations:
 - image-transformerconfig.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
