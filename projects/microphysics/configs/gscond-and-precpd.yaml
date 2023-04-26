@@ -1,6 +1,6 @@
 kind: prognostic
-experiment: zc-emu-no-classifier
-name: zc-emu-no-gscond-classifier-v1
+experiment: zc-emu-normfix-precpmask-v1
+name: zc-emu-final-config
 image_tag: 95218aec9ed1e6cbda0db1e1f69dc34e0d839c52
 fv3net_image_tag: 95218aec9ed1e6cbda0db1e1f69dc34e0d839c52
 config:
@@ -268,11 +268,11 @@ config:
   zhao_carr_emulation:
     gscond:
       path: gs://vcm-ml-experiments/microphysics-emulation/2023-02-10/zc-train-gscond-normfix-seed3-v1/model.tf
-      # classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-16/zc-train-gscond-classify-seed5-v2/model.tf
+      classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-16/zc-train-gscond-classify-seed5-v2/model.tf
       enforce_conservative: true
       gscond_cloud_conservative: true
-      mask_gscond_zero_cloud_classifier: false
-      mask_gscond_no_tend_classifier: false
+      mask_gscond_zero_cloud_classifier: true
+      mask_gscond_no_tend_classifier: true
       mask_emulator_levels:
         cloud_water_mixing_ratio_after_gscond:
           start: 74
@@ -286,6 +286,16 @@ config:
     model:
       simple_precip_conservative: True
       path: gs://vcm-ml-experiments/microphysics-emulation/2022-12-16/zc-train-precpd-seed5-v2/model.tf
+      mask_emulator_levels:
+        cloud_water_mixing_ratio_after_precpd:
+          start: 74
+          fill_value: cloud_water_mixing_ratio_after_gscond
+        specific_humidity_after_precpd:
+          start: 74
+          fill_value: specific_humidity_after_gscond
+        air_temperature_after_precpd:
+          start: 74
+          fill_value: air_temperature_after_gscond
     storage:
       output_freq_sec: 10800
       save_nc: false
