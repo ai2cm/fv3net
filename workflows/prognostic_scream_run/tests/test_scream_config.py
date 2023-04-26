@@ -2,6 +2,7 @@ import os
 import scream_run
 import yaml
 import pytest
+import vcm.cloud.gsutil
 from typing import List
 
 dirname = os.path.dirname(os.path.abspath(__file__))
@@ -19,6 +20,11 @@ def test_example_config_can_initialize(path: str, file: str):
 
 
 output_bucket_dir = "gs://vcm-scream/config/output"
+if len(vcm.cloud.gsutil._auth_info()) == 0:
+    try:
+        vcm.cloud.gsutil.authenticate("/etc/key.json")
+    except Exception as e:
+        print(e, "No authentication info found and no key.json file found in /etc")
 
 
 @pytest.mark.parametrize(
