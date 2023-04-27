@@ -52,6 +52,15 @@ def nc_files_to_tf_dataset(
     )
 
 
+def _natural_sort(names):
+    return sorted(
+        names,
+        key=lambda string: [
+            int(s) if s.isdigit() else s for s in re.split("([0-9]+)", string)
+        ],
+    )
+
+
 def nc_dir_to_tfdataset(
     nc_dir: str,
     convert: Callable[[xr.Dataset], Mapping[str, tf.Tensor]],
@@ -81,10 +90,8 @@ def nc_dir_to_tfdataset(
     cache = cache or CACHE_DIR
 
     files = get_nc_files(nc_dir)
-
     if match is not None:
         files = [f for f in files if re.search(match, Path(f).name)]
-
     if shuffle:
         if random_state is None:
             random_state = np.random.RandomState(
@@ -94,9 +101,8 @@ def nc_dir_to_tfdataset(
         files = random_state.choice(
             files, size=len(files), replace=False  # type: ignore
         )
-
     if sort_files:
-        files.sort()
+        files = _natural_sort(files)
 
     if nfiles is not None:
         files = files[:nfiles]
