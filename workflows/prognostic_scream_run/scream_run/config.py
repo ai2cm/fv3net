@@ -10,7 +10,9 @@ def gather_output_yaml(output_yaml: str, target_directory: str):
     vcm.cloud.gsutil.copy(
         output_yaml, os.path.join(target_directory, os.path.basename(output_yaml))
     )
-    local_filename = os.path.join(target_directory, os.path.basename(output_yaml))
+    local_filename = os.path.abspath(
+        os.path.join(target_directory, os.path.basename(output_yaml))
+    )
     return local_filename
 
 
@@ -61,6 +63,9 @@ class ScreamConfig:
             if vcm.cloud.get_protocol(filename) == "gs":
                 local_output_yaml.append(gather_output_yaml(filename, target_directory))
             else:
+                assert os.path.isabs(
+                    filename
+                ), f"output_yaml {filename} is not an absolute path"
                 local_output_yaml.append(filename)
         self.output_yaml = local_output_yaml
 
