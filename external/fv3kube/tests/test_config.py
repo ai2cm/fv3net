@@ -32,10 +32,20 @@ def test_merge_fv3config_overlays(mappings, expected):
     assert output == expected
 
 
+def test_invalid_vertical_coorinate_file():
+
+    base_url = "/some/path"
+    timestep = "20160805.000000"
+    vertical_coordinate_file = "/some/path/"
+
+    with pytest.raises(AssertionError, match='Provided vertical coordinate file is a directory'):
+        fv3kube.c48_initial_conditions_overlay(base_url, timestep, vertical_coordinate_file)
+
 def test_c48_initial_conditions_overlay(regtest):
     url = "some/url"
     timestep = "20160801.000000"
+    vertical_coordinate_file = "some/path"
 
-    ans = fv3kube.c48_initial_conditions_overlay(url, timestep)
+    ans = fv3kube.c48_initial_conditions_overlay(url, timestep, vertical_coordinate_file)
 
     print(ans, file=regtest)

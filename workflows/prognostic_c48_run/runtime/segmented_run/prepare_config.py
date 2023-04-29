@@ -83,12 +83,12 @@ class InitialCondition:
     restart_categories: RestartCategoriesConfig = dataclasses.field(
         default_factory=RestartCategoriesConfig
     )
-    FV_CORE_PATH: str="/home/mr7417/ML_workflow/c48_fv3config/config/yaml/fv_core/"
+    vertical_coordinate_file: str="gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0/fv_core.res.nc"
 
     @property
     def overlay(self):
         return fv3kube.c48_initial_conditions_overlay(
-            self.base_url, self.timestep, self.FV_CORE_PATH, restart_categories=self.restart_categories
+            self.base_url, self.timestep, self.vertical_coordinate_file, restart_categories=self.restart_categories
         )
 
 
@@ -195,7 +195,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "user_config",
-#        "FV_CORE_PATH",
         type=str,
         help="Path to a config update YAML file specifying the changes from the base"
         "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",

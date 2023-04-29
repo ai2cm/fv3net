@@ -19,11 +19,11 @@ BASE_FV3CONFIG_BY_VERSION = {
     "v0.7": os.path.join(PWD, "base_yamls/v0.7/fv3config.yml"),
 }
 TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
-FV_CORE_ASSET = fv3config.get_asset_dict(
-    "gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0/",
-    "fv_core.res.nc",
-    target_location="INPUT",
-)
+#FV_CORE_ASSET = fv3config.get_asset_dict(
+#    "gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0/",
+#    "fv_core.res.nc",
+#    target_location="INPUT",
+#)
 FV3Config = Mapping[str, Any]
 
 
@@ -157,13 +157,24 @@ def get_full_config(
 
 
 def c48_initial_conditions_overlay(
-        url: str, timestep: str, FV_CORE_PATH:str, restart_categories: RestartCategoriesConfig = None
+        url: str, timestep: str, vertical_coordinate_file: str, restart_categories: RestartCategoriesConfig = None
 ) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
     TIME_FMT = "%Y%m%d.%H%M%S"
     time = datetime.datetime.strptime(timestep, TIME_FMT)
     time_list = [time.year, time.month, time.day, time.hour, time.minute, time.second]
+
+    source_location, source_name = os.path.split(vertical_coordinate_file)
+
+    assert source_name != "", "Provided vertical coordinate file is a directory"
+
+    FV_CORE_ASSET = fv3config.get_asset_dict(
+    source_location,
+    source_name,
+    target_location="INPUT",
+    )
+
     overlay = {}
     overlay["initial_conditions"] = update_tiled_asset_names(
         source_url=os.path.join(url, timestep),
@@ -173,12 +184,7 @@ def c48_initial_conditions_overlay(
         restart_categories=restart_categories,
         timestep=timestep,
     )
-    FV_CORE_ASSET_CLUST = fv3config.get_asset_dict(
-    FV_CORE_PATH,
-    "fv_core.res.nc",
-    target_location="INPUT",
-    )
-    overlay["initial_conditions"].append(FV_CORE_ASSET_CLUST)
+    overlay["initial_conditions"].append(FV_CORE_ASSET)
     overlay["namelist"] = {}
     overlay["namelist"]["coupler_nml"] = {
         "current_date": time_list,
