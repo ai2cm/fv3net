@@ -157,13 +157,24 @@ def get_full_config(
 
 
 def c48_initial_conditions_overlay(
-    url: str, timestep: str, restart_categories: RestartCategoriesConfig = None
+    url: str, timestep: str, vertical_coordinate_file: str, restart_categories: RestartCategoriesConfig = None
 ) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
     TIME_FMT = "%Y%m%d.%H%M%S"
     time = datetime.datetime.strptime(timestep, TIME_FMT)
     time_list = [time.year, time.month, time.day, time.hour, time.minute, time.second]
+
+    source_location, source_name = os.path.split(vertical_coordinate_file)
+
+    assert source_name != "", "Provided vertical coordinate file is a directory"
+
+    FV_CORE_ASSET = fv3config.get_asset_dict(
+    source_location,
+    source_name,
+    target_location="INPUT",
+    ) 
+
     overlay = {}
     overlay["initial_conditions"] = update_tiled_asset_names(
         source_url=os.path.join(url, timestep),

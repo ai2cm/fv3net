@@ -1,8 +1,11 @@
+import os
+
 import dataclasses
 
 import dacite
 import pytest
 from runtime.segmented_run.prepare_config import (
+    InitialCondition,
     HighLevelConfig,
     UserConfig,
     instantiate_dataclass_from,
@@ -10,7 +13,7 @@ from runtime.segmented_run.prepare_config import (
 from runtime.diagnostics.fortran import FortranFileConfig
 from runtime.segmented_run import prepare_config
 
-TEST_DATA_DIR = "tests/prepare_config_test_data"
+TEST_DATA_DIR = "prepare_config_test_data"
 
 
 @pytest.mark.parametrize(
@@ -81,7 +84,30 @@ def test_config_high_level_duration(duration, expected):
     config = HighLevelConfig(duration=duration)
     out = config.to_fv3config()
     assert out["namelist"]["coupler_nml"]["seconds"] == expected
+def test_initial_condition_default_attribute():
 
+    base_url = "/some/path"
+    timestep = "20160805.000000"
+    test_initial_condition = InitialCondition(base_url, timestep)
+
+    out = test_initial_condition.vertical_coordinate_file
+
+    assert out == "gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0/fv_core.res.nc"
+
+def test_config_high_level_vertical_coordinate_file():
+
+    base_url = "/some/path"
+    timestep = "20160805.000000"
+    vertical_coordinate_file="/some/path/fv_core.res.nc" 
+    initial_conditions = InitialCondition(base_url=base_url, timestep=timestep, vertical_coordinate_file=vertical_coordinate_file)
+   
+    config = HighLevelConfig(initial_conditions=initial_conditions)
+    out = config.to_fv3config() 
+   
+    source_location, source_name = os.path.split(vertical_coordinate_file) 
+
+    assert out["initial_conditions"][-1]["source_location"] == source_location
+    assert out["initial_conditions"][-1]["source_name"] == source_name
 
 def test_config_high_level_duration_respects_namelist():
     """The high level config should use the namelist options if the duration is
