@@ -136,6 +136,7 @@ def train_reservoir_model(
         readout=readout,
         square_half_hidden_state=hyperparameters.square_half_hidden_state,
         rank_divider=rank_divider,
+        autoencoder=autoencoder,
     )
     return model
 
