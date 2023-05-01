@@ -25,6 +25,9 @@ FV_CORE_ASSET = fv3config.get_asset_dict(
     target_location="INPUT",
 )
 FV3Config = Mapping[str, Any]
+DEFAULT_VERTICAL_COORDINATE_FILE = (
+    "gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0/fv_core.res.nc"
+)
 
 
 @dataclasses.dataclass
@@ -157,7 +160,10 @@ def get_full_config(
 
 
 def c48_initial_conditions_overlay(
-    url: str, timestep: str, vertical_coordinate_file: str, restart_categories: RestartCategoriesConfig = None
+    url: str,
+    timestep: str,
+    vertical_coordinate_file: str = DEFAULT_VERTICAL_COORDINATE_FILE,
+    restart_categories: RestartCategoriesConfig = None,
 ) -> Mapping:
     """An overlay containing initial conditions namelist settings
     """
@@ -170,10 +176,8 @@ def c48_initial_conditions_overlay(
     assert source_name != "", "Provided vertical coordinate file is a directory"
 
     FV_CORE_ASSET = fv3config.get_asset_dict(
-    source_location,
-    source_name,
-    target_location="INPUT",
-    ) 
+        source_location, source_name, target_location="INPUT",
+    )
 
     overlay = {}
     overlay["initial_conditions"] = update_tiled_asset_names(
