@@ -13,7 +13,7 @@ from runtime.segmented_run.prepare_config import (
 from runtime.diagnostics.fortran import FortranFileConfig
 from runtime.segmented_run import prepare_config
 
-TEST_DATA_DIR = "prepare_config_test_data"
+TEST_DATA_DIR = "tests/prepare_config_test_data"
 
 
 @pytest.mark.parametrize(
