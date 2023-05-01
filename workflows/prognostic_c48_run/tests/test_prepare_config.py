@@ -84,7 +84,7 @@ def test_config_high_level_duration(duration, expected):
     config = HighLevelConfig(duration=duration)
     out = config.to_fv3config()
     assert out["namelist"]["coupler_nml"]["seconds"] == expected
-def test_initial_condition_default_attribute():
+def test_initial_condition_default_vertical_coordinate_file():
 
     base_url = "/some/path"
     timestep = "20160805.000000"
