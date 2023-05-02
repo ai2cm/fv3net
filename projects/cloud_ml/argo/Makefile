@@ -399,9 +399,53 @@ nudge_to_fine_run_decorr_rad: deploy
 rad_overlap_report: deploy
 	cd reports && ./submit.sh rad-overlap
 
-.PHONY: train_cloud_ml_dense
-train_cloud_ml_dense: deploy
-	cd training && ./run.sh dense
+.PHONY: train_cloud_ml_dense_local
+train_cloud_ml_dense_local: deploy
+	cd training && ./run.sh dense-local
+
+.PHONY: train_cloud_ml_dense_local_seed
+train_cloud_ml_dense_local_seed: deploy
+	cd training && ./run_small.sh dense-local-seed-$(SEED)
+
+.PHONY: train_cloud_ml_dense_local_small_data
+train_cloud_ml_dense_local_small_data: deploy
+	cd training && ./run_varying_data.sh dense-local-v2 small
+
+.PHONY: train_cloud_ml_dense_local_small_data_v3
+train_cloud_ml_dense_local_small_data_v3: deploy
+	cd training && ./run_varying_data.sh dense-local-v3 small
+
+.PHONY: train_cloud_ml_dense_local_small_data_train_val
+train_cloud_ml_dense_local_small_data_train_val: deploy
+	cd training && ./run_varying_data_train_val.sh dense-local-v2 small
+
+.PHONY: train_cloud_ml_dense_local_small_data_train_val_v3
+train_cloud_ml_dense_local_small_data_train_val_v3: deploy
+	cd training && ./run_varying_data_train_val.sh dense-local-v3 small
+
+.PHONY: train_cloud_ml_dense_local_medium_data
+train_cloud_ml_dense_local_medium_data: deploy
+	cd training && ./run_varying_data.sh dense-local-v2 medium
+
+.PHONY: train_cloud_ml_dense_local_large_data
+train_cloud_ml_dense_local_large_data: deploy
+	cd training && ./run_varying_data.sh dense-local-v2 large
+
+.PHONY: train_cloud_ml_dense_local_large_data_train_val
+train_cloud_ml_dense_local_large_data_train_val: deploy
+	cd training && ./run_varying_data_train_val.sh dense-local-v2 large
+
+.PHONY: train_cloud_ml_dense_local_large_data_v3
+train_cloud_ml_dense_local_large_data_v3: deploy
+	cd training && ./run_varying_data.sh dense-local-v3 large
+
+.PHONY: train_cloud_ml_dense_local_large_data_train_val_v3
+train_cloud_ml_dense_local_large_data_train_val_v3: deploy
+	cd training && ./run_varying_data_train_val.sh dense-local-v3 large
+
+.PHONY: train_cloud_ml_dense_local_extra_large_data
+train_cloud_ml_dense_local_extra_large_data: deploy
+	cd training && ./run_varying_data.sh dense-local-v2 extra-large
 
 .PHONY: train_cloud_ml_rf
 train_cloud_ml_rf: deploy
