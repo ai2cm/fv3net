@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 .PHONY: nudge_to_fine_run
 nudge_to_fine_run: deploy
 	cd nudge-to-fine-run && ./run.sh nudge-to-fine
@@ -420,6 +422,52 @@ train_cloud_ml_rf_incloud_binary1: deploy
 .PHONY: train_cloud_ml_rf_incloud_binary10
 train_cloud_ml_rf_incloud_binary10: deploy
 	cd training && ./run.sh rf-incloud-binary10
+
+clean:
+	rm training-sweep/tempfile
+
+sweep_tempfile:
+	cd training-sweep && touch "./tempfile" && chmod 744 "./tempfile"
+
+.PHONY: init_training_sweep_dense_lr
+init_training_sweep_dense_lr: sweep_tempfile
+	cd training-sweep && ./init.sh dense-lr >> "./tempfile"
+
+.PHONY: run_training_sweep_dense_lr
+run_training_sweep_dense_lr: deploy_training_sweep init_training_sweep_dense_lr
+	cd training-sweep && source "./tempfile"; ./run.sh dense-lr dense-local && rm "./tempfile"
+
+.PHONY: extend_training_sweep_dense_lr
+extend_training_sweep_dense_lr: deploy_training_sweep
+	cd training-sweep && ./run.sh dense-lr dense-local
+
+.PHONY: init_training_sweep_dense_local_arch
+init_training_sweep_dense_local_arch: sweep_tempfile
+	cd training-sweep && ./init.sh dense-local-arch >> "./tempfile"
+
+.PHONY: run_training_sweep_dense_local_arch
+run_training_sweep_dense_local_arch: deploy_training_sweep init_training_sweep_dense_local_arch
+	cd training-sweep && source "./tempfile"; ./run_small.sh dense-local-arch dense-local && rm "./tempfile"
+
+.PHONY: extend_training_sweep_dense_local_arch
+extend_training_sweep_dense_local_arch: deploy_training_sweep
+	cd training-sweep && ./run_small.sh dense-local-arch dense-local
+
+.PHONY: init_training_sweep_dense_local_depth_width
+init_training_sweep_dense_local_depth_width: sweep_tempfile
+	cd training-sweep && ./init.sh dense-local-depth-width >> "./tempfile"
+
+.PHONY: run_training_sweep_dense_local_depth_width_small
+run_training_sweep_dense_local_depth_width_small: deploy_training_sweep init_training_sweep_dense_local_depth_width
+	cd training-sweep && source "./tempfile"; ./run_small.sh dense-local-depth-width dense-local && rm "./tempfile"
+
+.PHONY: extend_training_sweep_dense_local_depth_width_small
+extend_training_sweep_dense_local_depth_width_small: deploy_training_sweep
+	cd training-sweep && ./run_small.sh dense-local-depth-width dense-local
+
+.PHONY: deploy_training_sweep
+deploy_training_sweep: kustomize
+	./kustomize build training-sweep/templates | kubectl apply -f -
 
 fine_restarts_to_zarr:
 	kubectl apply -f fine-restarts-to-zarr/pod.yaml

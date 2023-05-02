@@ -1,0 +1,9 @@
+mapper_config:
+  function: open_zarr
+  kwargs:
+    data_path: gs://vcm-ml-experiments/cloud-ml/2023-04-05/cloud-ml-training-data-v8.zarr
+timesteps:
+- '20160811.121500'
+- '20160812.001500'
+timesteps_per_batch: 2
+unstacked_dims: []

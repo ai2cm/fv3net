@@ -1,0 +1,107 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: wandb-sweep
+spec:
+  entrypoint: wandb-sweep
+  volumes:
+    - name: workdir
+      emptyVol: {}
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+    - name: wandb-sweep
+      inputs:
+        parameters:
+          - name: sweep_id
+          - name: training_config
+          - name: training_data_config_remote_store
+          - name: training_data_config_local_batches
+          - name: validation_data_config_remote_store
+          - name: validation_data_config_local_batches
+          - {name: max_runs, value: 50}
+          - {name: cpu, value: 1000m}
+          - {name: memory, value: 24Gi}
+          - {name: wandb-project, value: "argo-default"}
+          - {name: wandb-tags, value: " "}
+          - {name: wandb-run-group, value: " "}
+      container:
+        image: us.gcr.io/vcm-ml/prognostic_run
+        command: ["bash", "-c", "-x"]
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+          - name: WANDB_ENTITY
+            value: ai2cm
+          - name: WANDB_PROJECT
+            value: "{{inputs.parameters.wandb-project}}"
+          - name: WANDB_RUN_GROUP
+            value: "{{inputs.parameters.wandb-run-group}}"
+        envFrom:
+          - secretRef:
+              name: wandb-service-token
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+        args:
+          - |
+            TRAIN_DIR=data-download/train
+            VAL_DIR=data-download/validation
+
+            mkdir -p $TRAIN_DIR
+            mkdir -p $VAL_DIR
+
+            cat <<EOF >training_config.json
+            {{inputs.parameters.training_config}}
+            EOF
+            cat <<EOF >training_data_config_remote_store.yaml
+            {{inputs.parameters.training_data_config_remote_store}}
+            EOF
+            cat <<EOF >validation_data_config_remote_store.yaml
+            {{inputs.parameters.validation_data_config_remote_store}}
+            EOF
+
+            VARNAMES=$(jq -r '.hyperparameters | to_entries[] | select(.key | endswith("variables")).value | @sh' training_config.json | sed "s/'//g")
+            python3 -m loaders.batches.save training_data_config_remote_store.yaml $TRAIN_DIR -n ${VARNAMES}
+            python3 -m loaders.batches.save validation_data_config_remote_store.yaml $VAL_DIR -n ${VARNAMES}
+
+            ls $TRAIN_DIR
+            ls $VAL_DIR
+
+            cat <<EOF >training_config.yaml
+            {{inputs.parameters.training_config}}
+            EOF
+            cat <<EOF >training_data.yaml
+            {{inputs.parameters.training_data_config_local_batches}}
+            EOF
+            cat <<EOF >validation_data.yaml
+            {{inputs.parameters.validation_data_config_local_batches}}
+            EOF
+
+            echo "Training Configuration:"
+            cat training_config.yaml
+            echo "Training Data Configuration:"
+            cat training_data.yaml
+            echo "Validation Data Configuration:"
+            cat validation_data.yaml
+
+            wandb agent --count {{inputs.parameters.max_runs}} {{inputs.parameters.sweep_id}}
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "med-sim-pool"
+        effect: "NoSchedule"
+      podSpecPatch: |
+        containers:
+          - name: main
+            resources:
+              limits:
+                cpu: "{{inputs.parameters.cpu}}"
+                memory: "{{inputs.parameters.memory}}"
+              requests:
+                cpu: "{{inputs.parameters.cpu}}"
+                memory: "{{inputs.parameters.memory}}"

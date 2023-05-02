@@ -1,0 +1,26 @@
+entity: ai2cm
+project:  radiation-cloud-ml
+name: 2023-04-24-dense-local-depth-width-sweep
+command:
+  - ${env}
+  - python3
+  - -m
+  - fv3fit.train
+  - training_config.yaml
+  - training_data.yaml
+  - trained_model
+  - --validation-data-config
+  - validation_data.yaml
+method: random
+metric:
+  goal: minimize
+  name: val_loss
+parameters:
+  dense_network.depth:
+    distribution: int_uniform
+    min: 2
+    max: 6
+  dense_network.width:
+    distribution: q_log_uniform_values
+    min: 8
+    max: 512
