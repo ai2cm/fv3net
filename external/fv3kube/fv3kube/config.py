@@ -19,11 +19,7 @@ BASE_FV3CONFIG_BY_VERSION = {
     "v0.7": os.path.join(PWD, "base_yamls/v0.7/fv3config.yml"),
 }
 TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
-FV_CORE_ASSET = fv3config.get_asset_dict(
-    "gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0",
-    "fv_core.res.nc",
-    target_location="INPUT",
-)
+
 FV3Config = Mapping[str, Any]
 DEFAULT_VERTICAL_COORDINATE_FILE = (
     "gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0/fv_core.res.nc"
