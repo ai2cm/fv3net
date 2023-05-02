@@ -3,16 +3,23 @@ from typing import Any, Dict, Union
 import vcm.cloud.gsutil
 import os
 import dacite
+import shutil
+import sys
+from dataclasses import asdict
+
+# TODO: importlib.resources.files is not available prior to python 3.9
+if sys.version_info.major == 3 and sys.version_info.minor < 9:
+    import importlib_resources  # type: ignore
+elif sys.version_info.major == 3 and sys.version_info.minor >= 9:
+    import importlib.resources as importlib_resources  # type: ignore
 
 
-def gather_output_yaml(output_yaml: str, target_directory: str):
-    assert vcm.cloud.gsutil.exists(output_yaml), f"{output_yaml} does not exist"
-    vcm.cloud.gsutil.copy(
-        output_yaml, os.path.join(target_directory, os.path.basename(output_yaml))
-    )
-    local_filename = os.path.abspath(
-        os.path.join(target_directory, os.path.basename(output_yaml))
-    )
+def gather_output_yaml(output_yaml: str, rundir: str):
+    fs = vcm.cloud.get_fs(output_yaml)
+    assert fs.exists(output_yaml), f"{output_yaml} does not exist"
+    local_filename = os.path.join(rundir, os.path.basename(output_yaml))
+    local_filename = os.path.abspath(local_filename)
+    fs.get(output_yaml, local_filename)
     return local_filename
 
 
@@ -52,7 +59,7 @@ class ScreamConfig:
             meaning the input files were already on disk or \
             mounted through persistentVolume"
 
-    def resolve_output_yaml(self, target_directory: str):
+    def resolve_output_yaml(self, rundir: str):
         self.output_yaml = (
             [self.output_yaml]
             if isinstance(self.output_yaml, str)
@@ -60,14 +67,21 @@ class ScreamConfig:
         )
         local_output_yaml = []
         for filename in self.output_yaml:
-            if vcm.cloud.get_protocol(filename) == "gs":
-                local_output_yaml.append(gather_output_yaml(filename, target_directory))
-            else:
-                assert os.path.isabs(
-                    filename
-                ), f"output_yaml {filename} is not an absolute path"
-                local_output_yaml.append(filename)
+            local_output_yaml.append(gather_output_yaml(filename, rundir))
         self.output_yaml = local_output_yaml
+
+    def compose_run_scream_commands(self, rundir: str):
+        run_script = importlib_resources.files("scream_run.template").joinpath(
+            "run_eamxx.sh"
+        )
+        local_script = os.path.join(rundir, os.path.basename(run_script))
+        shutil.copy(run_script, local_script)
+        command = local_script
+        for key, value in asdict(self).items():
+            if isinstance(value, list):
+                value = ",".join(value)
+            command += f" --{key} {value}"
+        return command
 
     @classmethod
     def from_dict(cls, kwargs: Dict[str, Any]) -> "ScreamConfig":

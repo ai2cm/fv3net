@@ -1,8 +1,9 @@
 import argparse
-from .run_scream import compose_run_scream_commands, execute_run
 import fsspec
+import os
 import yaml
 from .config import ScreamConfig
+import subprocess
 
 
 def _parse_run_scream_command_args():
@@ -16,15 +17,16 @@ def _parse_run_scream_command_args():
     return parser.parse_args()
 
 
-def _make_scream_config(config: str, output_yaml_path: str):
+def _make_scream_config(config: str, rundir: str):
     with fsspec.open(config) as f:
         scream_config = ScreamConfig.from_dict(yaml.safe_load(f))
-        scream_config.resolve_output_yaml(output_yaml_path)
+        scream_config.resolve_output_yaml(rundir)
     return scream_config
 
 
 def scream_run():
     args = _parse_run_scream_command_args()
+    os.makedirs(args.rundir, exist_ok=True)
     scream_config = _make_scream_config(args.config, args.rundir)
-    command = compose_run_scream_commands(scream_config, args.rundir)
-    execute_run(command, args.rundir)
+    command = scream_config.compose_run_scream_commands(args.rundir)
+    subprocess.run(command, shell=True)

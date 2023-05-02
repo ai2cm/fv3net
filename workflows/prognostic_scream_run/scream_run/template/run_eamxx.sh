@@ -1,6 +1,35 @@
 #!/bin/bash -fe
 
-# EAMxx template run script
+# This run script is an adaptation of run_e3sm.template.sh from E3SM
+# and follows the same license as E3SM. The original license is included below.
+# *******************************************************************************
+# Copyright ©2023, UChicago Argonne, LLC All Rights Reserved
+
+# Software Name: Energy Exascale Earth System Model (E3SM)
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+
+# 1. Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+# 3. Neither the names of UChicago Argonne, LLC or the Department of Energy nor
+# the names of its contributors may be used to endorse or promote products
+# derived from this software without specific prior written permission.
+
+# THE SOFTWARE IS SUPPLIED "AS IS" WITHOUT WARRANTY OF ANY KIND.
+
+# NEITHER THE UNITED STATES GOVERNMENT, NOR THE UNITED STATES DEPARTMENT OF
+# ENERGY, NOR UCHICAGO ARGONNE, LLC, NOR ANY OF THEIR EMPLOYEES, MAKES ANY
+# WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY LEGAL LIABILITY OR RESPONSIBILITY
+# FOR THE ACCURACY, COMPLETENESS, OR USEFULNESS OF ANY INFORMATION, DATA,
+# APPARATUS, PRODUCT, OR PROCESS DISCLOSED, OR REPRESENTS THAT ITS USE WOULD
+# NOT INFRINGE PRIVATELY OWNED RIGHTS.
+
+# *******************************************************************************
+
 create_newcase=${create_newcase:-true}
 case_setup=${case_setup:-true}
 case_build=${case_build:-true}
@@ -42,7 +71,7 @@ readonly CHERRY=( )
 readonly COMPILER="gnu"
 readonly DEBUG_COMPILE=false
 
-# Output stream YAML files: comma sepated list of files, or set to "" for default
+# Output stream YAML files: comma separated list of files, or set to "" for default
 readonly OUTPUT_YAML_FILES=${output_yaml}
 
 # Additional options for 'branch' and 'hybrid'
@@ -65,7 +94,6 @@ readonly run=${layout}
 readonly CASE_SCRIPTS_DIR=${CASE_ROOT}/tests/${run}/case_scripts
 readonly CASE_RUN_DIR=${CASE_ROOT}/tests/${run}/run
 readonly PELAYOUT=${layout}
-readonly WALLTIME="01:00:00"
 readonly RESUBMIT=0
 readonly DO_SHORT_TERM_ARCHIVING=false
 
@@ -129,10 +157,10 @@ create_newcase() {
         --res ${RESOLUTION} \
         --machine ${MACHINE} \
         --compiler ${COMPILER} \
-        --walltime ${WALLTIME} \
+        --walltime 01:00:00 \
         --pecount ${PELAYOUT}"
 
-    # Oprional arguments
+    # Optional arguments
     if [ ! -z "${PROJECT}" ]; then
       args="${args} --project ${PROJECT}"
     fi
