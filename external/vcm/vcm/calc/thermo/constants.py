@@ -14,7 +14,7 @@ _EARTH_RADIUS = 6.3712e6  # m
 _DEFAULT_SURFACE_TEMPERATURE = _FREEZING_TEMPERATURE + 15
 
 _REFERENCE_SURFACE_PRESSURE = 100000  # reference pressure for potential temp [Pa]
-_TOA_PRESSURE = 300.0  # For our default 79-level configuration of FV3GFS [Pa]
+TOA_PRESSURE = 300.0  # For our default 79-level configuration of FV3GFS [Pa]
 
 _SEC_PER_DAY = 86400
 _KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0

@@ -10,6 +10,16 @@ from ._plot_diagnostics import (
 )
 from ._plot_helpers import infer_cmap_params
 from ._styles import use_colorblind_friendly_style, wong_palette
+from ._constants import (
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER,
+    VAR_LON_CENTER,
+    VAR_LAT_CENTER,
+    VAR_LON_OUTER,
+    VAR_LAT_OUTER,
+)
 
 __all__ = [
     "plot_daily_and_hourly_hist",

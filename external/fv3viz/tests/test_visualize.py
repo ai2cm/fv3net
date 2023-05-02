@@ -12,13 +12,18 @@ from fv3viz._masking import (
     _periodic_greater_than,
     _periodic_difference,
 )
-from fv3viz._plot_cube import plot_cube, _mappable_var, _plot_cube_axes
+from fv3viz._plot_cube import (
+    plot_cube,
+    _mappable_var,
+    _plot_cube_axes,
+    _plot_scream_axes,
+)
 from fv3viz._timestep_histograms import (
     plot_daily_and_hourly_hist,
     plot_daily_hist,
     plot_hourly_hist,
 )
-from vcm.cubedsphere import GridMetadata
+from vcm.cubedsphere import GridMetadataFV3, GridMetadataScream
 
 
 def test_version():
@@ -237,6 +242,54 @@ def t2m():
 
 
 @pytest.fixture()
+def lon_scream():
+    return np.array(
+        [0.0, 36.0, 72.0, 108.0, 144.0, 180.0, 216.0, 252.0, 288.0, 324.0],
+        dtype=np.float32,
+    )
+
+
+@pytest.fixture()
+def lat_scream():
+    return np.array(
+        [-90.0, -70, -60.0, -30.0, 0.0, 20.0, 30.0, 60.0, 70.0, 90.0], dtype=np.float32,
+    )
+
+
+@pytest.fixture()
+def t2m_scream():
+    return np.array(
+        [
+            [
+                285.24548,
+                285.91785,
+                286.58337,
+                286.31308,
+                289.17456,
+                288.05328,
+                289.89584,
+                289.19724,
+                300.79932,
+                297.65076,
+            ],
+            [
+                300.42297,
+                301.45743,
+                305.09097,
+                301.1763,
+                293.6815,
+                293.9053,
+                293.52594,
+                293.69046,
+                293.8577,
+                293.46573,
+            ],
+        ],
+        dtype=np.float32,
+    )
+
+
+@pytest.fixture()
 def sample_dataset(latb, lonb, lat, lon, t2m):
     dataset = xr.Dataset(
         {
@@ -257,7 +310,21 @@ def sample_dataset(latb, lonb, lat, lon, t2m):
             "y": np.arange(2.0),
         }
     )
-    grid_metadata = GridMetadata("x", "y", "x_interface", "y_interface")
+    grid_metadata = GridMetadataFV3("x", "y", "x_interface", "y_interface")
+    return dataset, grid_metadata
+
+
+@pytest.fixture()
+def scream_sample_dataset(lat_scream, lon_scream, t2m_scream):
+    dataset = xr.Dataset(
+        {
+            "t2m": (["time", "ncol"], t2m_scream),
+            "lat": (["ncol"], lat_scream),
+            "lon": (["ncol"], lon_scream),
+        }
+    )
+    dataset = dataset.assign_coords({"time": np.arange(2), "ncol": np.arange(10)})
+    grid_metadata = GridMetadataScream()
     return dataset, grid_metadata
 
 
@@ -299,6 +366,18 @@ def test__plot_cube_axes(sample_dataset, plotting_function):
         ds.lonb.values,
         plotting_function,
         ax=ax,
+    )
+
+
+@pytest.mark.parametrize(
+    "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
+)
+def test__plot_scream_axes(scream_sample_dataset, plotting_function):
+    dataset, grid_metadata = scream_sample_dataset
+    ds = _mappable_var(dataset, "t2m", grid_metadata).isel(time=0)
+    ax = plt.axes(projection=ccrs.Robinson())
+    _plot_scream_axes(
+        ds.t2m.values, ds.lat.values, ds.lon.values, plotting_function, ax=ax,
     )
 
 
@@ -357,7 +436,7 @@ def example_gfdl_dataset(latb, lonb, lat, lon, t2m):
             "grid_yt": np.arange(2.0),
         }
     )
-    grid_metadata = GridMetadata("grid_xt", "grid_yt", "grid_x", "grid_y")
+    grid_metadata = GridMetadataFV3("grid_xt", "grid_yt", "grid_x", "grid_y")
     return dataset, grid_metadata
 
 

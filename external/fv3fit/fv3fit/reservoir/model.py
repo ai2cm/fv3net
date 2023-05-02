@@ -1,16 +1,16 @@
 import fsspec
-from fv3fit.reservoir.readout import ReservoirComputingReadout
 import os
 from typing import Optional, Iterable, Hashable
 import yaml
 
 from fv3fit import Predictor
-from .._shared import StandardScaler
+from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
 from .domain import RankDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
 from .autoencoder import Autoencoder
+from ._reshaping import flatten_2d_keeping_columns_contiguous
 
 
 @io.register("pure-reservoir")
@@ -18,7 +18,6 @@ class ReservoirComputingModel(Predictor):
     _RESERVOIR_SUBDIR = "reservoir"
     _READOUT_SUBDIR = "readout"
     _METADATA_NAME = "metadata.yaml"
-    _SCALER_NAME = "scaler.npz"
     _RANK_DIVIDER_NAME = "rank_divider.yaml"
     _AUTOENCODER_SUBDIR = "autoencoder"
 
@@ -30,7 +29,6 @@ class ReservoirComputingModel(Predictor):
         readout: ReservoirComputingReadout,
         square_half_hidden_state: bool = False,
         rank_divider: Optional[RankDivider] = None,
-        scaler: Optional[StandardScaler] = None,
         autoencoder: Optional[Autoencoder] = None,
     ):
         """_summary_
@@ -49,14 +47,13 @@ class ReservoirComputingModel(Predictor):
         self.reservoir = reservoir
         self.readout = readout
         self.square_half_hidden_state = square_half_hidden_state
-        self.scaler = scaler
         self.rank_divider = rank_divider
         self.autoencoder = autoencoder
 
     def predict(self):
         # Returns raw readout prediction of latent state.
         # TODO: add method transform_to_native which transforms the raw
-        # prediction into denormalized physical values on cubedsphere coords.
+        # prediction to cubedsphere coords.
 
         if self.square_half_hidden_state is True:
             readout_input = square_even_terms(self.reservoir.state, axis=0)
@@ -64,11 +61,19 @@ class ReservoirComputingModel(Predictor):
             readout_input = self.reservoir.state
         # For prediction over multiple subdomains (>1 column in reservoir state
         # array), flatten state into 1D vector before predicting
-        readout_input = readout_input.reshape(-1)
-
+        readout_input = flatten_2d_keeping_columns_contiguous(readout_input)
         prediction = self.readout.predict(readout_input).reshape(-1)
-
         return prediction
+
+    def reset_state(self):
+        if self.rank_divider is not None:
+            input_shape = (
+                self.reservoir.hyperparameters.state_size,
+                self.rank_divider.n_subdomains,
+            )
+        else:
+            input_shape = (self.reservoir.hyperparameters.state_size,)
+        self.reservoir.reset_state(input_shape)
 
     def increment_state(self, prediction_with_overlap):
         self.reservoir.increment_state(prediction_with_overlap)
@@ -90,10 +95,6 @@ class ReservoirComputingModel(Predictor):
         with fsspec.open(os.path.join(path, self._METADATA_NAME), "w") as f:
             f.write(yaml.dump(metadata))
 
-        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        if self.scaler is not None:
-            with fs.open(f"{path}/{self._SCALER_NAME}", "wb") as f:
-                self.scaler.dump(f)
         if self.rank_divider is not None:
             self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
         if self.autoencoder is not None:
@@ -110,11 +111,6 @@ class ReservoirComputingModel(Predictor):
             metadata = yaml.safe_load(f)
 
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        if fs.exists(os.path.join(path, cls._SCALER_NAME)):
-            with fs.open(f"{path}/{cls._SCALER_NAME}", "rb") as f:
-                scaler = StandardScaler.load(f)
-        else:
-            scaler = None
 
         if fs.exists(os.path.join(path, cls._RANK_DIVIDER_NAME)):
             rank_divider = RankDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
@@ -132,7 +128,6 @@ class ReservoirComputingModel(Predictor):
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=metadata["square_half_hidden_state"],
-            scaler=scaler,
             rank_divider=rank_divider,
             autoencoder=autoencoder,
         )

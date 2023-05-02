@@ -1,9 +1,10 @@
 import xarray as xr
-from typing import Optional
-from dataclasses import dataclass
+from typing import Optional, List
+from dataclasses import dataclass, field
 import numpy as np
 
-HORIZONTAL_DIMS = ["x", "y", "tile"]
+HORIZONTAL_DIMS_FV3 = ["x", "y", "tile"]
+HORIZONTAL_DIMS_SCREAM = ["ncol"]
 VERTICAL_DIM = "z"
 PRECIP_RATE = "total_precip_to_surface"
 
@@ -28,3 +29,5 @@ class DiagArg:
     verification: xr.Dataset
     grid: xr.Dataset
     delp: Optional[xr.DataArray] = None
+    horizontal_dims: List[str] = field(default_factory=lambda: HORIZONTAL_DIMS_FV3)
+    vertical_dim: str = VERTICAL_DIM

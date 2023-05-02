@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 import vcm
+import pytest
 from fv3net.diagnostics.offline._helpers import (
     DATASET_DIM_NAME,
     _compute_aggregate_variance,
@@ -9,6 +10,7 @@ from fv3net.diagnostics.offline._helpers import (
     insert_aggregate_r2,
     insert_column_integrated_vars,
     rename_via_replace,
+    load_grid_info,
 )
 from fv3net.diagnostics.offline.compute_diagnostics import DERIVATION_DIM
 
@@ -108,3 +110,17 @@ def test_insert_column_integrated_vars():
     expected = ds.assign({"column_integrated_Q1": heating})
 
     xr.testing.assert_allclose(insert_column_integrated_vars(ds, ["Q1"]), expected)
+
+
+@pytest.mark.parametrize(
+    "res, dim_name, expected_size",
+    [("c12", "x", 12), ("c48", "x", 48), ("ne30", "ncol", 21600),],
+)
+def test_load_grid_info(res, dim_name, expected_size):
+    grid = load_grid_info(res)
+    assert grid.dims[dim_name] == expected_size
+
+
+def test_load_grid_info_unknown_resolution():
+    with pytest.raises(ValueError):
+        load_grid_info("t10")

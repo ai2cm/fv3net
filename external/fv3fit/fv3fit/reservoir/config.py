@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Sequence, Optional, Set, Iterable
+from typing import Sequence, Optional, Set
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -83,15 +83,15 @@ class ReservoirTrainingConfig(Hyperparameters):
         before passing to reservoir
     """
 
-    input_variables: Iterable[str]
-    output_variables: Iterable[str]
+    input_variables: Sequence[str]
+    output_variables: Sequence[str]
     subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
     readout_hyperparameters: BatchLinearRegressorHyperparameters
     n_batches_burn: int
     input_noise: float
     seed: int = 0
-    n_jobs: Optional[int] = -1
+    n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False
     autoencoder_path: Optional[str] = None
     _METADATA_NAME = "reservoir_training_config.yaml"

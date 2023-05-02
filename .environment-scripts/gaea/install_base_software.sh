@@ -1,8 +1,10 @@
 #!/bin/bash
 set -e
 
-INSTALL_PREFIX=$1
-CONDA_ENV=$2
+CLONE_PREFIX=$1
+INSTALL_PREFIX=$2
+CONDA_ENV=$3
+SCRIPTS=$4
 
 CONDA_PATH=/ncrc/sw/gaea-cle7/python/3.9/anaconda-base
 CONDA_SETUP="$($CONDA_PATH/bin/conda shell.bash hook 2> /dev/null)"
