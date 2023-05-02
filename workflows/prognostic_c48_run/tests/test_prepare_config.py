@@ -90,14 +90,8 @@ def test_initial_condition_default_vertical_coordinate_file():
 
     base_url = "/some/path"
     timestep = "20160805.000000"
-    test_initial_condition = InitialCondition(base_url, timestep)
-
-    out = test_initial_condition.vertical_coordinate_file
-
-    assert (
-        out == "gs://vcm-fv3config/data/initial_conditions/"
-        "fv_core_79_levels/v1.0/fv_core.res.nc"
-    )
+    result = InitialCondition(base_url, timestep)
+    assert result.vertical_coordinate_file == DEFAULT_VERTICAL_COORDINATE_FILE
 
 
 def test_config_high_level_vertical_coordinate_file():
