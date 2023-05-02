@@ -171,7 +171,7 @@ def c48_initial_conditions_overlay(
 
     assert source_name != "", "Provided vertical coordinate file is a directory"
 
-    FV_CORE_ASSET = fv3config.get_asset_dict(
+    fv_core_asset = fv3config.get_asset_dict(
         source_location, source_name, target_location="INPUT",
     )
 
