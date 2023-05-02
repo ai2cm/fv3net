@@ -78,6 +78,14 @@ offline_ml_cloud_predictions_dataset_v10:
 offline_ml_cloud_predictions_dataset_v11:
 	cd ../scripts && python cloud-ml-rf-offline-predictions.py offline-predictions-v11.yaml
 
+.PHONY: offline_ml_cloud_predictions_dataset_v12
+offline_ml_cloud_predictions_dataset_v11:
+	cd ../scripts && python cloud-ml-dense-offline-predictions.py offline-predictions-v12.yaml
+
+.PHONY: offline_ml_cloud_predictions_dataset_v13
+offline_ml_cloud_predictions_dataset_v11:
+	cd ../scripts && python cloud-ml-dense-offline-predictions.py offline-predictions-v13.yaml
+
 .PHONY: baseline_port_run
 baseline_port_run: deploy
 	cd radiation-port-run && ./run.sh baseline-port
