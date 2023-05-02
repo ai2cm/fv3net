@@ -342,6 +342,38 @@ prescribed_cc_rf_ml_incloud_cond_15_run: deploy
 prescribed_cc_rf_ml_incloud_cond_25_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond25
 
+.PHONY: prescribed_cc_nn_ml_gridcell_run
+prescribed_cc_nn_ml_gridcell_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-gridcell
+
+.PHONY: prescribed_cc_nn_ml_gridcell_cond_01_run
+prescribed_cc_nn_ml_gridcell_cond_01_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-gridcell-cond01
+
+.PHONY: prescribed_cc_nn_ml_gridcell_cond_03_run
+prescribed_cc_nn_ml_gridcell_cond_03_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-gridcell-cond03
+
+.PHONY: prescribed_cc_nn_ml_gridcell_cond_05_run
+prescribed_cc_nn_ml_gridcell_cond_05_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-gridcell-cond05
+
+.PHONY: prescribed_cc_nn_ml_gridcell_cond_08_run
+prescribed_cc_nn_ml_gridcell_cond_08_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-gridcell-cond08
+
+.PHONY: prescribed_cc_nn_ml_gridcell_cond_10_run
+prescribed_cc_nn_ml_gridcell_cond_10_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-gridcell-cond10
+
+.PHONY: prescribed_cc_nn_ml_gridcell_cond_15_run
+prescribed_cc_nn_ml_gridcell_cond_15_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-gridcell-cond15
+
+.PHONY: prescribed_cc_nn_ml_gridcell_cond_25_run
+prescribed_cc_nn_ml_gridcell_cond_25_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-gridcell-cond25
+
 .PHONY: prescribed_half_cloud_run
 prescribed_half_cloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-half-cloud
