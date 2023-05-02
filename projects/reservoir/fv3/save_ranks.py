@@ -65,6 +65,12 @@ def _get_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--variables", type=str, nargs="+", default=[])
     parser.add_argument("--ranks", type=int, nargs="+", default=[])
+    parser.add_argument(
+        "--time-sample-interval",
+        type=int,
+        default=1,
+        help="Sample interval for timesteps.",
+    )
 
     return parser
 
@@ -102,7 +108,9 @@ if __name__ == "__main__":
         else vcm.parse_datetime_from_str(args.stop_time)
     )
 
-    data = data[args.variables].sel(time=slice(tstart, tstop))
+    data = data[args.variables].sel(
+        time=slice(tstart, tstop, args.time_sample_interval)
+    )
     dims, extent = get_ordered_dims_extent(dict(data.dims))
 
     cubedsphere_divider = CubedSphereDivider(
