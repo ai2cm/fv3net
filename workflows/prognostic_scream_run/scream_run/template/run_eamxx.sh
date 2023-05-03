@@ -33,9 +33,6 @@
 create_newcase=${create_newcase:-true}
 case_setup=${case_setup:-true}
 case_build=${case_build:-true}
-case_submit=${case_submit:-true}
-upload_to_cloud=${upload_to_cloud:-true}
-upload_to_cloud_path=${upload_to_cloud_path:-"gs://vcm-ml-scratch/scream"}
 number_of_processers=${number_of_processers:-16}
 output_yaml=${output_yaml:-"gs://vcm-scream/config/default.yaml"}
 CASE_ROOT=${CASE_ROOT:-./}
@@ -111,12 +108,6 @@ case_build
 
 # Configure runtime options
 runtime_options
-
-# Submit
-case_submit
-
-# Upload to google cloud
-upload_to_google_cloud
 
 # All done
 echo $'\n----- All done -----\n'
@@ -326,34 +317,6 @@ runtime_options() {
     fi
 
     popd
-}
-
-#-----------------------------------------------------
-case_submit() {
-
-    if [ "${case_submit,,}" != "true" ]; then
-        echo $'\n----- Skipping case_submit -----\n'
-        return
-    fi
-
-    echo $'\n----- Starting case_submit -----\n'
-    pushd ${CASE_SCRIPTS_DIR}
-
-    # Run CIME case.submit
-    ./case.submit
-
-    popd
-}
-
-#-----------------------------------------------------
-upload_to_google_cloud(){
-    if [ "${upload_to_cloud,,}" != "true" ]; then
-        echo $'\n----- Skipping upload_to_google_cloud -----\n'
-        return
-    fi
-
-    echo $'\n----- Uploading to Google Cloud -----\n'
-    gsutil -m cp -r ${CASE_RUN_DIR} ${upload_to_cloud_path}/${CASE_NAME}
 }
 
 #-----------------------------------------------------
