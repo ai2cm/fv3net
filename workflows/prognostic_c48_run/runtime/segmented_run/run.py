@@ -23,7 +23,7 @@ def find(path: str):
     return glob.glob(os.path.join(path, "**"), recursive=True)
 
 
-def run_segment(config: dict, rundir: str):
+def run_segment(config: dict, rundir: str, wrapper: str):
     fv3config.write_run_directory(config, rundir)
     with cwd(rundir):
         manifest = find(".")
@@ -33,20 +33,31 @@ def run_segment(config: dict, rundir: str):
 
         x, y = config["namelist"]["fv_core_nml"]["layout"]
         nprocs = x * y * 6
+
+        if wrapper == "mpirun":
+            command = [
+                "mpirun",
+                "-n",
+                str(nprocs),
+                sys.executable,
+                "-m",
+                "mpi4py",
+                runfile.absolute().as_posix(),
+            ]
+        else:
+            command = [
+                "srun",
+                "--export=ALL",
+                "--ntasks=" + str(nprocs),
+                sys.executable,
+                "-m",
+                "mpi4py",
+                runfile.absolute().as_posix(),
+            ]
+
         with open("logs.txt", "w") as f:
             process = subprocess.Popen(
-                [
-                    "mpirun",
-                    "-n",
-                    str(nprocs),
-                    sys.executable,
-                    "-m",
-                    "mpi4py",
-                    runfile.absolute().as_posix(),
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
+                command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
             )
             # need this assertion so that mypy knows that stdout is not None
             assert process.stdout, "stdout should not be None"
