@@ -184,7 +184,7 @@ def c48_initial_conditions_overlay(
         restart_categories=restart_categories,
         timestep=timestep,
     )
-    overlay["initial_conditions"].append(FV_CORE_ASSET)
+    overlay["initial_conditions"].append(fv_core_asset)
     overlay["namelist"] = {}
     overlay["namelist"]["coupler_nml"] = {
         "current_date": time_list,

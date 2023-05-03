@@ -12,6 +12,8 @@ from runtime.segmented_run.prepare_config import (
 )
 from runtime.diagnostics.fortran import FortranFileConfig
 from runtime.segmented_run import prepare_config
+from fv3kube import DEFAULT_VERTICAL_COORDINATE_FILE
+
 
 TEST_DATA_DIR = "tests/prepare_config_test_data"
 
