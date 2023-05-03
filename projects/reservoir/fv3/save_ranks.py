@@ -5,7 +5,7 @@ import os
 from tempfile import NamedTemporaryFile
 import toolz
 
-from cubed_sphere import CubedSphereDivider
+from .cubed_sphere import CubedSphereDivider
 import vcm
 
 logging.basicConfig()
