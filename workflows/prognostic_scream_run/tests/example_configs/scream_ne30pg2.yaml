@@ -1,0 +1,18 @@
+output_yaml: gs://vcm-scream/config/output/default.yaml
+initial_conditions_type: local
+number_of_processers: 16
+CASE_ROOT: /storage/cases
+CASE_NAME: scream_ne30pg2
+COMPSET: F2010-SCREAMv1
+RESOLUTION: ne30pg2_ne30pg2
+ATM_NCPL: 48
+STOP_OPTION: nhours
+STOP_N: 24
+REST_OPTION: nhours
+REST_N: 24
+HIST_OPTION: nhours
+HIST_N: 24
+RUN_STARTDATE: "2010-01-01"
+MODEL_START_TYPE: initial
+RUNTIME:
+  upload_to_cloud_path: gs://vcm-ml-scratch/scream
