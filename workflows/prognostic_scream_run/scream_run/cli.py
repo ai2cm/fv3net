@@ -57,7 +57,7 @@ def write_scream_run_directory():
         scream_config, args.rundir
     )
     command = scream_config.compose_write_scream_run_directory_command(
-        args.rundir, local_output_yaml, local_run_script
+        local_output_yaml, local_run_script
     )
     subprocess.run(command, shell=True)
 
