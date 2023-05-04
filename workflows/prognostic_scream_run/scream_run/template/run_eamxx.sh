@@ -88,8 +88,8 @@ readonly CASE_ARCHIVE_DIR=${CASE_ROOT}/archive
 
 readonly layout="${number_of_processers}x1"
 readonly run=${layout}
-readonly CASE_SCRIPTS_DIR=${CASE_ROOT}/tests/${run}/case_scripts
-readonly CASE_RUN_DIR=${CASE_ROOT}/tests/${run}/run
+readonly CASE_SCRIPTS_DIR=${CASE_ROOT}/${run}/case_scripts
+readonly CASE_RUN_DIR=${CASE_ROOT}/${run}/run
 readonly PELAYOUT=${layout}
 readonly RESUBMIT=0
 readonly DO_SHORT_TERM_ARCHIVING=false

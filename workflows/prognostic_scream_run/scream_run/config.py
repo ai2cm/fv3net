@@ -3,17 +3,10 @@ from typing import Any, Dict, Union, Optional
 import vcm.cloud.gsutil
 import os
 import dacite
-import shutil
 import sys
 import contextlib
 import subprocess
 from dataclasses import asdict
-
-# TODO: importlib.resources.files is not available prior to python 3.9
-if sys.version_info.major == 3 and sys.version_info.minor < 9:
-    import importlib_resources  # type: ignore
-elif sys.version_info.major == 3 and sys.version_info.minor >= 9:
-    import importlib.resources as importlib_resources  # type: ignore
 
 
 @contextlib.contextmanager
@@ -89,14 +82,10 @@ class ScreamConfig:
             local_output_yaml.append(gather_output_yaml(filename, rundir))
         return local_output_yaml
 
-    def compose_write_scream_run_directory_command(self, rundir: str):
-        local_output_yaml = self.get_local_output_yaml(rundir)
-        run_script = importlib_resources.files("scream_run.template").joinpath(
-            "run_eamxx.sh"
-        )
-        local_script = os.path.join(rundir, os.path.basename(run_script))
-        shutil.copy(run_script, local_script)
-        command = local_script
+    def compose_write_scream_run_directory_command(
+        self, local_output_yaml: list, local_run_script: str
+    ):
+        command = local_run_script
         for key, value in asdict(self).items():
             if key != "RUNTIME":
                 if isinstance(value, list):
@@ -111,16 +100,11 @@ class ScreamConfig:
         case_scripts_dir = os.path.join(
             self.CASE_ROOT,
             self.CASE_NAME,
-            "tests",
             f"{self.number_of_processers}x1",
             "case_scripts",
         )
         case_run_dir = os.path.join(
-            self.CASE_ROOT,
-            self.CASE_NAME,
-            "tests",
-            f"{self.number_of_processers}x1",
-            "run",
+            self.CASE_ROOT, self.CASE_NAME, f"{self.number_of_processers}x1", "run",
         )
         with cwd(case_scripts_dir):
             with open("logs.txt", "w") as f:
@@ -136,7 +120,7 @@ class ScreamConfig:
                     for out_file in [sys.stdout, f]:
                         print(line.strip(), file=out_file)
 
-        if not self.RUNTIME.upload_to_cloud_path:
+        if self.RUNTIME.upload_to_cloud_path is not None:
             output_dir = os.path.join(self.RUNTIME.upload_to_cloud_path, self.CASE_NAME)
             vcm.cloud.get_fs(output_dir).put(case_run_dir, output_dir)
 

@@ -1,6 +1,7 @@
 import os
 import scream_run
 import yaml
+from scream_run.cli import get_local_output_yaml_and_run_script
 
 dirname = os.path.dirname(os.path.abspath(__file__))
 
@@ -42,7 +43,12 @@ def test_resolve_multiple_output_yaml(tmp_path):
 
 def test_compose_write_scream_run_directory_command(tmp_path):
     config = scream_run.ScreamConfig()
-    command = config.compose_write_scream_run_directory_command(tmp_path)
+    local_output_yaml, local_run_script = get_local_output_yaml_and_run_script(
+        config, tmp_path
+    )
+    command = config.compose_write_scream_run_directory_command(
+        local_output_yaml, local_run_script
+    )
     expected_command = f"{tmp_path}/run_eamxx.sh --output_yaml {tmp_path}/default.yaml \
         --initial_conditions_type local \
         --create_newcase True --case_setup True --case_build True \
