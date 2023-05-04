@@ -51,7 +51,7 @@ def create(url: str, fv3config_path: str):
 
 
 @cli.command()
-@click.option("--wrapper", default="mpirun", help="MPI wrapper")
+@click.option("--mpi_launcher", default="mpirun", help="MPI launcher used to run the simulation.  Supported values are 'mpirun' and 'srun'.")
 @click.argument("url")
 def append(wrapper: str, url: str):
     """Append a segment to a segmented run"""
