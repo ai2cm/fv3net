@@ -35,7 +35,7 @@ def read_run_config(run_url):
     return fv3config.load(io.BytesIO(s))
 
 
-def append_segment_to_run_url(run_url, wrapper):
+def append_segment_to_run_url(run_url, wrapper="mpirun"):
     """Append an segment to an initialized segmented run
 
     Either runs the first segment, or additional ones
