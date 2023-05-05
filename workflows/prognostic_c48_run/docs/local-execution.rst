@@ -116,11 +116,11 @@ example by the tests.
 
 .. note::
  
-   For the purposes of perfroming simulaitons on both cloud and HPC platfroms,
-   the subcommand run-native was supplemented with mpi_launcher option. Please see
-   the example below on how to use it on HPC cluster
+   For the purposes of performing simulations on both Docker and HPC platforms,
+   the subcommand ``run-native`` was supplemented with the ``mpi_launcher``
+   option. Please see the example below on how to use it on an HPC cluster::
 
-   runfv3 run-native fv3config.yaml path/to/local/rundir --mpi_launcher srun
+       runfv3 run-native fv3config.yaml path/to/local/rundir --mpi_launcher srun
     
 .. warning::
 
