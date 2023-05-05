@@ -79,9 +79,11 @@ the end of the previous one will be appended. For example, the following for loo
 
 .. note::
 
-    An option "mpi_launcher" has been added to the subcommand "append". This option 
-    allows users to configure the segmented runs on High Perfromance Computing
-    systems and cloud platfroms. The supported values are "mpirun" and "srun".
+    An option ``mpi_launcher`` has been added to the subcommand ``append``. This
+    option allows users to specify the system-specific MPI launcher used when running
+    the model. By default it takes the value "mpirun", which is relevant for running
+    in Docker. The only other currently supported value is "srun", which is relevant
+    when running on SLURM-based High Performance Computing (HPC) systems. 
    
 
     An example of running model with 5 segments on an HPC cluster::
