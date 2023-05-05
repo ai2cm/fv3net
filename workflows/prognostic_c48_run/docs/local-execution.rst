@@ -84,12 +84,12 @@ the end of the previous one will be appended. For example, the following for loo
     systems and cloud platfroms. The supported values are "mpirun" and "srun".
    
 
-    An example of running model with 5 segments on HPC cluster:
+    An example of running model with 5 segments on an HPC cluster::
 
-    for i in {1..5}
-    do
-       runfv3 append --mpi_launcher srun /absolute/file/path
-    done
+        for i in {1..5}
+        do
+           runfv3 append --mpi_launcher srun /absolute/file/path
+        done
 
     
 .. warning::
