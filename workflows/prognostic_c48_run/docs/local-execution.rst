@@ -83,12 +83,6 @@ the end of the previous one will be appended. For example, the following for loo
     allows users to configure the segmented runs on High Perfromance Computing
     systems and cloud platfroms. The supported values are "mpirun" and "srun".
    
-    An example of runnning model with 5 segments on the cloud platform:
-
-    for i in {1..5}
-    do
-       runfv3 append --mpi_launcher mpirun gs://bucket/prognostic_run
-    done
 
     An example of running model with 5 segments on HPC cluster:
 
