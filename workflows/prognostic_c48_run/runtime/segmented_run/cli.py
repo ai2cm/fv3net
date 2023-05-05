@@ -51,7 +51,12 @@ def create(url: str, fv3config_path: str):
 
 
 @cli.command()
-@click.option("--mpi_launcher", default="mpirun", help="MPI launcher used to run the simulation.  Supported values are 'mpirun' and 'srun'.")
+@click.option(
+    "--mpi_launcher",
+    default="mpirun",
+    help="MPI launcher used to run the simulation.\
+          Supported values are 'mpirun' and 'srun'.",
+)
 @click.argument("url")
 def append(mpi_launcher: str, url: str):
     """Append a segment to a segmented run"""
@@ -59,7 +64,12 @@ def append(mpi_launcher: str, url: str):
 
 
 @cli.command("run-native")
-@click.option("--mpi_launcher", default="mpirun", help="MPI launcher used to run the simulation.  Supported values are 'mpirun' and 'srun'.")
+@click.option(
+    "--mpi_launcher",
+    default="mpirun",
+    help="MPI launcher used to run the simulation.\
+          Supported values are 'mpirun' and 'srun'.",
+)
 @click.argument("fv3config_path")
 @click.argument("rundir")
 def run_native(fv3config_path: str, rundir: str, mpi_launcher: str):

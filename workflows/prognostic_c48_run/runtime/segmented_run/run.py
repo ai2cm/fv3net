@@ -22,10 +22,17 @@ def cwd(path):
 def find(path: str):
     return glob.glob(os.path.join(path, "**"), recursive=True)
 
-def compose_simulation_command(mpi_launcher: str, nprocs: int): 
 
-    command = ["-n " + str(nprocs), sys.executable, "-m", "mpi4py", runfile.absolute().as_posix()]
-    
+def compose_simulation_command(mpi_launcher: str, nprocs: int):
+
+    command = [
+        "-n " + str(nprocs),
+        sys.executable,
+        "-m",
+        "mpi4py",
+        runfile.absolute().as_posix(),
+    ]
+
     if mpi_launcher == "mpirun":
         command.insert(0, mpi_launcher)
 
@@ -33,7 +40,10 @@ def compose_simulation_command(mpi_launcher: str, nprocs: int):
         command.insert(0, mpi_launcher)
         command.insert(1, "--export=ALL")
     else:
-        raise Exception("Unrecognized MPI launcher option. Please choose between 'mpirun' or 'srun'.")
+        raise Exception(
+            "Unrecognized MPI launcher option.\
+            Please choose between 'mpirun' or 'srun'."
+        )
 
     return command
 
@@ -49,8 +59,8 @@ def run_segment(config: dict, rundir: str, mpi_launcher: str):
         x, y = config["namelist"]["fv_core_nml"]["layout"]
         nprocs = x * y * 6
 
-        command = compose_simulation_command(mpi_launcher, nprocs) 
-        
+        command = compose_simulation_command(mpi_launcher, nprocs)
+
         with open("logs.txt", "w") as f:
             process = subprocess.Popen(
                 command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
