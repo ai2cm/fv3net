@@ -32,7 +32,7 @@ def test_merge_fv3config_overlays(mappings, expected):
     assert output == expected
 
 
-def test_invalid_vertical_coorinate_file():
+def test_invalid_vertical_coordinate_file():
 
     base_url = "/some/path"
     timestep = "20160805.000000"
