@@ -87,14 +87,14 @@ the end of the previous one will be appended. For example, the following for loo
 
     for i in {1..5}
     do
-       runfv3 append --wrapper mpirun gs://bucket/prognostic_run
+       runfv3 append --mpi_launcher mpirun gs://bucket/prognostic_run
     done
 
     An example of running model with 5 segments on HPC cluster:
 
     for i in {1..5}
     do
-       runfv3 append --wrapper srun /absolute/file/path
+       runfv3 append --mpi_launcher srun /absolute/file/path
     done
 
     
