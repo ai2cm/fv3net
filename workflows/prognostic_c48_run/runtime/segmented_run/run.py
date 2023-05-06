@@ -25,16 +25,23 @@ def find(path: str):
 
 def compose_simulation_command(mpi_launcher: str, nprocs: int):
 
-    command = ["-n", str(nprocs), sys.executable, "-m", "mpi4py", runfile.absolute().as_posix()]
-    
-    if mpi_launcher == "mpirun":
-        command.insert(0, mpi_launcher)
+    command = [
+        mpi_launcher,
+        "-n",
+        str(nprocs),
+        sys.executable,
+        "-m",
+        "mpi4py",
+        runfile.absolute().as_posix(),
+    ]
 
-    elif mpi_launcher == "srun":
-        command.insert(0, mpi_launcher)
+    if mpi_launcher == "srun":
         command.insert(1, "--export=ALL")
-    else:
-        raise ValueError("Unrecognized mpi_launcher option. Please choose between 'mpirun' or 'srun'.")
+
+    if not (mpi_launcher == "mpirun" or mpi_launcher == "srun"):
+        raise ValueError(
+            "Unrecognized mpi_launcher option. Please choose between 'mpirun' or 'srun'"
+        )
 
     return command
 
