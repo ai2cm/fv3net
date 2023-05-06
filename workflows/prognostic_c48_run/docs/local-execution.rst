@@ -79,23 +79,18 @@ the end of the previous one will be appended. For example, the following for loo
 
 .. note::
 
-    An option "mpi_launcher" has been added to the subcommand "append". This option
-    allows users to configure the segmented runs on High Perfromance Computing
-    systems and cloud platfroms. The supported values are "mpirun" and "srun".
+    An option ``mpi_launcher`` has been added to the subcommand ``append``. This
+    option allows users to specify the system-specific MPI launcher used when running
+    the model. By default it takes the value "mpirun", which is relevant for running
+    in Docker. The only other currently supported value is "srun", which is relevant
+    when running on SLURM-based High Performance Computing (HPC) systems. 
+   
+    An example of running model with 5 segments on an HPC cluster::
 
-    An example of runnning model with 5 segments on the cloud platform:
-
-    for i in {1..5}
-    do
-       runfv3 append --wrapper mpirun gs://bucket/prognostic_run
-    done
-
-    An example of running model with 5 segments on HPC cluster:
-
-    for i in {1..5}
-    do
-       runfv3 append --wrapper srun /absolute/file/path
-    done
+        for i in {1..5}
+        do
+           runfv3 append --mpi_launcher srun /absolute/file/path
+        done
 
 
 .. warning::
@@ -119,13 +114,13 @@ specified local path and executes the model there. The command is used for
 example by the tests.
 
 .. note::
+ 
+   For the purposes of performing simulations on both Docker and HPC platforms,
+   the subcommand ``run-native`` was supplemented with the ``mpi_launcher``
+   option. Please see the example below on how to use it on an HPC cluster::
 
-   For the purposes of perfroming simulaitons on both cloud and HPC platfroms,
-   the subcommand run-native was supplemented with mpi_launcher option. Please see
-   the example below on how to use it on HPC cluster
-
-   runfv3 run-native fv3config.yaml path/to/local/rundir --mpi_launcher srun
-
+       runfv3 run-native fv3config.yaml path/to/local/rundir --mpi_launcher srun
+    
 .. warning::
 
     ``runfv3 run-native`` produces outputs that aren't post-processed for

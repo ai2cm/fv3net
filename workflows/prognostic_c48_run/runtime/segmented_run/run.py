@@ -25,14 +25,8 @@ def find(path: str):
 
 def compose_simulation_command(mpi_launcher: str, nprocs: int):
 
-    command = [
-        "-n " + str(nprocs),
-        sys.executable,
-        "-m",
-        "mpi4py",
-        runfile.absolute().as_posix(),
-    ]
-
+    command = ["-n", str(nprocs), sys.executable, "-m", "mpi4py", runfile.absolute().as_posix()]
+    
     if mpi_launcher == "mpirun":
         command.insert(0, mpi_launcher)
 
@@ -40,10 +34,7 @@ def compose_simulation_command(mpi_launcher: str, nprocs: int):
         command.insert(0, mpi_launcher)
         command.insert(1, "--export=ALL")
     else:
-        raise Exception(
-            "Unrecognized MPI launcher option.\
-            Please choose between 'mpirun' or 'srun'."
-        )
+        raise ValueError("Unrecognized mpi_launcher option. Please choose between 'mpirun' or 'srun'.")
 
     return command
 
