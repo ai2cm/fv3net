@@ -1,9 +1,10 @@
 from pathlib import Path
 import subprocess
 from runtime.segmented_run.append import read_last_segment
+from runtime.segmented_run.run import compose_simulation_command
 from vcm.cloud import get_fs
 import uuid
-
+import pytest
 
 def test_read_last_segment(tmpdir):
     date1 = "20160101.000000"
@@ -33,3 +34,16 @@ def test_read_last_segment_gcs(tmp_path: Path):
         file = tmp_path / "hello.txt"
         file.write_text("hello")
         subprocess.check_call(["gsutil", "cp", file.as_posix(), dest])
+
+@pytest.mark.parametrize("mpi_launcher", ["srun", "mpirun", None])
+def test_compose_simulation_command(regtest, mpi_launcher):
+
+    nprocs = "10"
+
+    if mpi_launcher == "mpirun" or mpi_launcher == "srun":
+        ans = compose_simulation_command(nprocs, mpi_launcher)
+    else:
+        ans = compose_simulation_command(nprocs)
+
+    print(ans, file=regtest)
+

@@ -23,7 +23,7 @@ def find(path: str):
     return glob.glob(os.path.join(path, "**"), recursive=True)
 
 
-def compose_simulation_command(mpi_launcher: str, nprocs: int):
+def compose_simulation_command(nprocs: int, mpi_launcher = "mpirun"):
 
     command = [
         mpi_launcher,
@@ -57,7 +57,7 @@ def run_segment(config: dict, rundir: str, mpi_launcher: str):
         x, y = config["namelist"]["fv_core_nml"]["layout"]
         nprocs = x * y * 6
 
-        command = compose_simulation_command(mpi_launcher, nprocs)
+        command = compose_simulation_command(nprocs, mpi_launcher)
 
         with open("logs.txt", "w") as f:
             process = subprocess.Popen(
