@@ -23,7 +23,7 @@ def find(path: str):
     return glob.glob(os.path.join(path, "**"), recursive=True)
 
 
-def compose_simulation_command(nprocs: int, mpi_launcher = "mpirun"):
+def compose_simulation_command(nprocs: int, mpi_launcher: str = "mpirun"):
 
     command = [
         mpi_launcher,
