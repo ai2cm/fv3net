@@ -63,6 +63,10 @@ class BatchLinearRegressor:
         coefficients, intercepts = W[:-1, :], W[-1, :]
         return coefficients, intercepts
 
+    def predict(self, X):
+        coefficients, intercepts = self.get_weights()
+        return np.dot(X, coefficients) + intercepts
+
 
 class ReservoirComputingReadout:
     """Readout layer of the reservoir computing model
@@ -113,7 +117,6 @@ def combine_readouts(readouts: Sequence[ReservoirComputingReadout]):
 
     # Concatenate the intercepts of individual readouts into single array
     combined_intercepts = np.concatenate(intercepts)
-
     return ReservoirComputingReadout(
         coefficients=combined_coefficients, intercepts=combined_intercepts,
     )

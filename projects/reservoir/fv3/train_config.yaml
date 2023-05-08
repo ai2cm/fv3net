@@ -1,0 +1,35 @@
+
+model_type: pure-reservoir
+hyperparameters:
+  n_jobs: 4
+  #autoencoder_path: gs://vcm-ml-experiments/reservoir-computing-offline/2023-03-29/dense-autoencoder-train-full-year/trained_models/dense_autoencoder/autoencoder
+  # autoencoder_path: gs://vcm-ml-scratch/annak/2023-03-03/trained_autoencoder
+  seed: 0
+  input_variables:
+    - air_temperature
+    #- specific_humidity
+  output_variables:
+    - air_temperature
+    #- specific_humidity
+  subdomain:
+    layout:
+      - 6
+      - 6
+    overlap: 2
+    rank_dims:
+      - time
+      - x
+      - y
+      - z
+  reservoir_hyperparameters:
+    state_size: 6000
+    adjacency_matrix_sparsity: 0.9
+    spectral_radius: 0.7
+    seed: 0
+    input_coupling_sparsity: 0
+    input_coupling_scaling: 0.0001
+  readout_hyperparameters:
+    l2: 0.05
+  n_batches_burn: 1
+  input_noise: 0.01
+  square_half_hidden_state: True
