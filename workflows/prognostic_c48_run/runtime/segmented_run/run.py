@@ -40,7 +40,8 @@ def compose_simulation_command(nprocs: int, mpi_launcher: str = "mpirun"):
 
     if not (mpi_launcher == "mpirun" or mpi_launcher == "srun"):
         raise ValueError(
-            "Unrecognized mpi_launcher option. Please choose between 'mpirun' or 'srun'"
+            f"Unrecognized mpi_launcher option, {mpi_launcher!r}. Please choose "
+            f"between 'mpirun' or 'srun'"
         )
 
     return command
