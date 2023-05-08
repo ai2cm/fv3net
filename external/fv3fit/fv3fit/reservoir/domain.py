@@ -151,10 +151,15 @@ class RankDivider:
         )
         return tensor_data_xy_sliced
 
-    def unstack_subdomain(self, tensor, with_overlap: bool):
+    def unstack_subdomain(
+        self, tensor, with_overlap: bool, data_has_time_dim: bool = True
+    ):
         # Takes a flattened subdomain and reshapes it back into its original
         # x and y dims
-        unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)[1:]
+        if data_has_time_dim is True:
+            unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)[1:]
+        else:
+            unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)
         expected_stacked_size = np.prod(unstacked_shape)
         if tensor.shape[-1] != expected_stacked_size:
             raise ValueError(

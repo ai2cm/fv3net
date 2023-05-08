@@ -49,38 +49,33 @@ def decode_columns(data: tf.Tensor, decoder: tf.keras.Model) -> Sequence[np.ndar
 def split_1d_into_2d_columns(arr: np.ndarray, n_columns: int) -> np.ndarray:
     # Consecutive chunks of 1d array form columns of 2d array
     # ex. 1d to 2d reshaping (8,) -> (2, 4)
-    # [1,2,3,4,5,6,7,8] -> [[1,3,5,7], [2,4,6,8]]
+    # [1,2,3,4,5,6,7,8] -> [[1,3,5,7], [2,4,6,8]]Zx
     return np.reshape(arr, (-1, n_columns), "F")
 
 
 def merge_subdomains(
     flat_prediction: np.ndarray, rank_divider: RankDivider, latent_dims: int
 ):
-    subdomain_columns = np.reshape(
-        flat_prediction, (-1, rank_divider.n_subdomains), "F"
+    subdomain_columns = split_1d_into_2d_columns(
+        flat_prediction, n_columns=rank_divider.n_subdomains
     )
-    # This is equivalent to np.reshape('f')
-    # subdomain_columns = np.stack(
-    #    [flat_prediction_4x4[i*n_subdomain_features:
-    #   (i+1)*n_subdomain_features] for i in range(n_subdomains)],
-    #    axis=1]
-    # )
-    d_ = []
+
+    subdomain_2d_predictions = []
     for s in range(rank_divider.n_subdomains):
-        subdomain_prediction = rank_divider.unstack_subdomain(
-            np.array([subdomain_columns[:, s]]), with_overlap=False
+        subdomain_2d_prediction = rank_divider.unstack_subdomain(
+            subdomain_columns[:, s], with_overlap=False, data_has_time_dim=False
         )
-        d_.append(subdomain_prediction[0])
+        subdomain_2d_predictions.append(subdomain_2d_prediction)
 
     domain = []
-    subdomain_without_overlap_shape = (
+    subdomain_shape_without_overlap = (
         rank_divider.subdomain_xy_size_without_overlap,
         rank_divider.subdomain_xy_size_without_overlap,
     )
 
     for z in range(latent_dims):
-        domain_z_blocks = np.array(d_)[:, :, :, z].reshape(
-            *rank_divider.subdomain_layout, *subdomain_without_overlap_shape
+        domain_z_blocks = np.array(subdomain_2d_predictions)[:, :, z].reshape(
+            *rank_divider.subdomain_layout, *subdomain_shape_without_overlap
         )
         domain_z = np.concatenate(np.concatenate(domain_z_blocks, axis=1), axis=-1)
         domain.append(domain_z)
