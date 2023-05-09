@@ -1,4 +1,4 @@
-random_seed: 0
+random_seed: 1
 model_type: dense
 hyperparameters:
   loss:
@@ -12,10 +12,10 @@ hyperparameters:
       kwargs:
         l: 0.0005
   training_loop:
-    batch_size: 2048
-    epochs: 50
+    batch_size: 512
+    epochs: 20
     in_memory: false
-    shuffle_buffer_size: 13_105_152
+    shuffle_buffer_size: 2_184_192
   output_limit_config:
     limits:
       cloud_amount: {min: 0.0, max: 1.0}
@@ -23,18 +23,23 @@ hyperparameters:
       cloud_water_mixing_ratio: {min: 0.0}
   optimizer_config:
     name: Adam
-    kwargs:
-      learning_rate: 0.0005
+    learning_rate_schedule:
+      name: ExponentialDecay
+      kwargs:
+        initial_learning_rate: 0.001
+        decay_steps: 100_000
+        decay_rate: 0.96
+        staircase: true
   callbacks:
     - kwargs: {}
       name: WandbCallback
     - kwargs:
         monitor: val_loss
-        patience: 25
+        patience: 10
       name: EarlyStopping
     - name: EpochModelCheckpoint
       kwargs:
-        filepath: gs://vcm-ml-experiments/cloud-ml/2023-05-02/trained_models_by_epoch/dense-local-v3-large-sbs-val-train/{epoch}
+        filepath: gs://vcm-ml-experiments/cloud-ml/2023-05-03/trained_models_by_epoch/dense-local-v3-extra-large-seed-1/{epoch}
   input_variables:
     - pressure
     - relative_humidity

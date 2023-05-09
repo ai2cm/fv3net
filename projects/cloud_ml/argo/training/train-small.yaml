@@ -5,5 +5,5 @@ mapper_config:
 timesteps:
 - '20160811.121500'
 - '20160812.001500'
-timesteps_per_batch: 2
+timesteps_per_batch: 1
 unstacked_dims: []

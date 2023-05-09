@@ -27,5 +27,5 @@ timesteps:
 - '20160811.221500'
 - '20160811.231500'
 - '20160812.001500'
-timesteps_per_batch: 24
+timesteps_per_batch: 1
 unstacked_dims: []

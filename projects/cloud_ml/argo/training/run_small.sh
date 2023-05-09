@@ -15,12 +15,12 @@ WANDB_PROJECT="radiation-cloud-ml"
 if [[ "$TRAINING" == *"rf"* ]]; then
     VALIDATION_ARG=" "
 else
-    VALIDATION_ARG="$( yq . validation_small.yaml )"
+    VALIDATION_ARG="$( yq . validation-small.yaml )"
 fi
 
 argo submit --from workflowtemplate/training \
     -p training_config="$( yq . ${TRAINING}-training-config.yaml )" \
-    -p training_data_config="$( yq . train_small.yaml )" \
+    -p training_data_config="$( yq . train-small.yaml )" \
     -p validation_data_config="${VALIDATION_ARG}" \
     -p output="gs://${BUCKET}/${PROJECT}/$(date +%F)/${TAG}/trained_models/${TRAINING}" \
     -p memory="25Gi" \

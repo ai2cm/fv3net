@@ -459,10 +459,6 @@ train_cloud_ml_dense_local_small_data_v3: deploy
 train_cloud_ml_dense_local_small_data_train_val: deploy
 	cd training && ./run_varying_data_train_val.sh dense-local-v2 small
 
-.PHONY: train_cloud_ml_dense_local_small_data_train_val_v3
-train_cloud_ml_dense_local_small_data_train_val_v3: deploy
-	cd training && ./run_varying_data_train_val.sh dense-local-v3 small
-
 .PHONY: train_cloud_ml_dense_local_medium_data
 train_cloud_ml_dense_local_medium_data: deploy
 	cd training && ./run_varying_data.sh dense-local-v2 medium
@@ -486,6 +482,26 @@ train_cloud_ml_dense_local_large_data_train_val_v3: deploy
 .PHONY: train_cloud_ml_dense_local_extra_large_data
 train_cloud_ml_dense_local_extra_large_data: deploy
 	cd training && ./run_varying_data.sh dense-local-v2 extra-large
+
+.PHONY: train_cloud_ml_dense_local_small_data_v3_seed
+train_cloud_ml_dense_local_small_data_v3_seed: deploy
+	cd training && ./run_varying_data.sh dense-local-v3-seed-$(SEED) small
+
+.PHONY: train_cloud_ml_dense_local_small_data_train_val_v3
+train_cloud_ml_dense_local_small_data_train_val_v3: deploy
+	cd training && ./run_varying_data_train_val.sh dense-local-v3-seed-$(SEED) small
+
+.PHONY: train_cloud_ml_dense_local_medium_data_v3_seed
+train_cloud_ml_dense_local_medium_data_v3_seed: deploy
+	cd training && ./run_varying_data.sh dense-local-v3-seed-$(SEED) medium
+
+.PHONY: train_cloud_ml_dense_local_large_data_v3_seed
+train_cloud_ml_dense_local_large_data_v3_seed: deploy
+	cd training && ./run_varying_data.sh dense-local-v3-seed-$(SEED) large
+
+.PHONY: train_cloud_ml_dense_local_extra_large_data_v3_seed
+train_cloud_ml_dense_local_extra_large_data_v3_seed: deploy
+	cd training && ./run_varying_data.sh dense-local-v3-seed-$(SEED) extra-large
 
 .PHONY: train_cloud_ml_rf
 train_cloud_ml_rf: deploy
