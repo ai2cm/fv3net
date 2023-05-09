@@ -1,0 +1,19 @@
+coarse_nudged_state_path: gs://vcm-ml-experiments/cloud-ml/2023-04-05/cloud-ml-training-data-v8.zarr
+model_path: gs://vcm-ml-experiments/cloud-ml/2023-05-03/trained_models_by_epoch/dense-local-v3-extra-large-seed-0/15
+checkpoint_model: true
+output_path: gs://vcm-ml-experiments/cloud-ml/2023-05-04/predicted-fine-cloud-fields-v14-seed-0-epoch-15.zarr
+start_time:
+  - 2016
+  - 8
+  - 11
+  - 1
+  - 30
+  - 0
+end_time:
+  - 2016
+  - 8
+  - 16
+  - 0
+  - 0
+  - 0
+time_stride: 2

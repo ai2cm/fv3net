@@ -11,6 +11,7 @@ import sys
 import os
 import yaml
 import fsspec
+import tensorflow as tf
 
 MODEL_PATH = "gs://vcm-ml-experiments/cloud-ml/2022-12-17/fine-cloud-rf-incloud-binary10-local/trained_model"  # noqa: E501
 NUDGED_COARSE_STATE_PATH = (
@@ -22,6 +23,31 @@ TIME_STRIDE = 1
 OUTPUT_PATH = (
     "gs://vcm-ml-experiments/cloud-ml/2022-12-21/predicted-fine-cloud-fields-v4.zarr"
 )
+INPUT_VARIABLES = [
+    "pressure",
+    "relative_humidity",
+    "air_temperature",
+    "cloud_ice_mixing_ratio_coarse",
+]
+OUTPUT_VARIABLES = [
+    "cloud_ice_mixing_ratio",
+    "cloud_water_mixing_ratio",
+    "cloud_amount",
+]
+
+
+def open_checkpoint_model(
+    path, input_variables=INPUT_VARIABLES, output_variables=OUTPUT_VARIABLES
+):
+    tf_model = tf.keras.models.load_model(path, custom_objects={"custom_loss": None})
+    fv3fit_model = fv3fit.PureKerasModel(
+        input_variables,
+        output_variables,
+        tf_model,
+        unstacked_dims=["some_dim",],
+        n_halo=0,
+    )
+    return fv3fit_model
 
 
 def maybe_modify_model_config(config_path):
@@ -50,10 +76,16 @@ def get_config(path):
 
 
 def main(config):
-    config_path = os.path.join(config.get("model_path", MODEL_PATH), "config.yaml")
-    model_config = maybe_modify_model_config(config_path)
-    print(model_config)
-    model = fv3fit.load(config.get("model_path", MODEL_PATH))
+    checkpoint_model = config.get("checkpoint_model", False)
+    model_path = config.get("model_path", MODEL_PATH)
+    output_path = config.get("output_path", OUTPUT_PATH)
+    if checkpoint_model:
+        model = open_checkpoint_model(model_path)
+    else:
+        config_path = os.path.join(model_path, "config.yaml")
+        model_config = maybe_modify_model_config(config_path)
+        print(model_config)
+        model = fv3fit.load(model_path)
     coarse_ds = intake.open_zarr(
         config.get("coarse_nudged_state_path", NUDGED_COARSE_STATE_PATH),
         consolidated=True,
@@ -70,11 +102,10 @@ def main(config):
     time_slices = get_time_steps(
         len(inputs.time), time_stride=config.get("time_stride", TIME_STRIDE)
     )
-    # input_0 = inputs.isel(time=time_slices[0])
-    # prediction_0 = model.predict(input_0)
-    output_path = config.get("output_path", OUTPUT_PATH)
-    # prediction_0.to_zarr(output_path)
-    for time_slice in time_slices:  # [1:]:
+    input_0 = inputs.isel(time=time_slices[0])
+    prediction_0 = model.predict(input_0)
+    prediction_0.to_zarr(output_path)
+    for time_slice in time_slices[1:]:
         input_ = inputs.isel(time=time_slice)
         print(input_.time[0].item())
         prediction = model.predict(input_)

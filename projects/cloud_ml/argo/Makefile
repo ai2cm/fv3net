@@ -79,12 +79,16 @@ offline_ml_cloud_predictions_dataset_v11:
 	cd ../scripts && python cloud-ml-rf-offline-predictions.py offline-predictions-v11.yaml
 
 .PHONY: offline_ml_cloud_predictions_dataset_v12
-offline_ml_cloud_predictions_dataset_v11:
+offline_ml_cloud_predictions_dataset_v12:
 	cd ../scripts && python cloud-ml-dense-offline-predictions.py offline-predictions-v12.yaml
 
 .PHONY: offline_ml_cloud_predictions_dataset_v13
-offline_ml_cloud_predictions_dataset_v11:
+offline_ml_cloud_predictions_dataset_v13:
 	cd ../scripts && python cloud-ml-dense-offline-predictions.py offline-predictions-v13.yaml
+
+.PHONY: offline_ml_cloud_predictions_dataset_v14
+offline_ml_cloud_predictions_dataset_v14:
+	cd ../scripts && python cloud-ml-dense-offline-predictions.py offline-predictions-v14.yaml
 
 .PHONY: baseline_port_run
 baseline_port_run: deploy
@@ -341,6 +345,50 @@ prescribed_cc_rf_ml_incloud_cond_15_run: deploy
 .PHONY: prescribed_cc_rf_ml_incloud_cond_25_run
 prescribed_cc_rf_ml_incloud_cond_25_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cc-rf-ml-incloud-cond25
+
+.PHONY: prescribed_cc_nn_ml_gridcell_seed_0_run
+prescribed_cc_nn_ml_gridcell_seed_0_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-seed-0
+
+.PHONY: prescribed_cc_nn_ml_gridcell_seed_0_cond_01_run
+prescribed_cc_nn_ml_gridcell_seed_0_cond_01_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-seed-0-cond01
+
+.PHONY: prescribed_cc_nn_ml_gridcell_seed_0_cond_03_run
+prescribed_cc_nn_ml_gridcell_seed_0_cond_03_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-seed-0-cond03
+
+.PHONY: prescribed_cc_nn_ml_gridcell_seed_0_cond_05_run
+prescribed_cc_nn_ml_gridcell_seed_0_cond_05_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-seed-0-cond05
+
+.PHONY: prescribed_cc_nn_ml_gridcell_seed_0_cond_08_run
+prescribed_cc_nn_ml_gridcell_seed_0_cond_08_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-seed-0-cond08
+
+.PHONY: prescribed_cc_nn_ml_gridcell_seed_0_cond_10_run
+prescribed_cc_nn_ml_gridcell_seed_0_cond_10_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-seed-0-cond10
+
+.PHONY: prescribed_cc_nn_ml_gridcell_seed_0_cond_15_run
+prescribed_cc_nn_ml_gridcell_seed_0_cond_15_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-seed-0-cond15
+
+.PHONY: prescribed_cc_nn_ml_gridcell_seed_0_cond_25_run
+prescribed_cc_nn_ml_gridcell_seed_0_cond_25_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-seed-0-cond25
+
+.PHONY: prescribed_cc_nn_ml_gridcell_seed_1_run
+prescribed_cc_nn_ml_gridcell_seed_1_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-gridcell-seed-1
+
+.PHONY: prescribed_cc_nn_ml_gridcell_seed_2_run
+prescribed_cc_nn_ml_gridcell_seed_2_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-gridcell-seed-2
+
+.PHONY: prescribed_cc_nn_ml_gridcell_seed_3_run
+prescribed_cc_nn_ml_gridcell_seed_3_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-nn-ml-gridcell-seed-3
 
 .PHONY: prescribed_cc_nn_ml_gridcell_run
 prescribed_cc_nn_ml_gridcell_run: deploy
