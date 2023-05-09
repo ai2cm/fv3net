@@ -232,6 +232,22 @@ jobs:
             cd external/radiation
             . /home/circleci/.nix-profile/etc/profile.d/nix.sh
             nix-shell --command "pytest -s tests/test_driver"
+  build_and_test_scream:
+    machine:
+      image: ubuntu-2004:202111-02
+    environment:
+      GOOGLE_PROJECT_ID: vcm-ml
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+    steps:
+      - checkout
+      - run:
+          name: "gcloud auth"
+          command: |
+            echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
+            echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
+      - run: make clone_scream_repository
+      - run: make build_image_prognostic_scream_run
+      - run: make push_image_prognostic_scream_run
 
 parameters:
   run-weekly-workflow:
@@ -321,13 +337,4 @@ workflows:
   weekly-scream-workflow:
     when: << pipeline.parameters.run-weekly-workflow >>
     jobs:
-      machine:
-        image: ubuntu-2004:202111-02
-      environment:
-        GOOGLE_PROJECT_ID: vcm-ml
-        GOOGLE_COMPUTE_ZONE: us-central1
-        GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
-      steps:
-        - run: make clone_scream_repository
-        - run: make build_image_prognostic_scream_run
-        - run: make push_image_prognostic_scream_run
+      - build_and_test_scream
