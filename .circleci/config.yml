@@ -233,9 +233,16 @@ jobs:
             . /home/circleci/.nix-profile/etc/profile.d/nix.sh
             nix-shell --command "pytest -s tests/test_driver"
 
+parameters:
+  run-weekly-workflow:
+    type: boolean
+    default: false
+
 workflows:
   version: 2
   test_and_lint:
+    when:
+      not: << pipeline.parameters.run-weekly-workflow >>
     jobs:
       - lint
       - argo
@@ -311,23 +318,16 @@ workflows:
             branches:
               only: master
       - validate_radiation_port
-
-parameters:
-  run-weekly-workflow:
-    type: boolean
-    default: false
-
-workflows:
-    weekly-scream-workflow:
-      when: << pipeline.parameters.run-weekly-workflow >>
-      jobs:
-        machine:
-          image: ubuntu-2004:202111-02
-        environment:
-          GOOGLE_PROJECT_ID: vcm-ml
-          GOOGLE_COMPUTE_ZONE: us-central1
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
-        steps:
-          - run: make clone_scream_repository
-          - run: make build_image_prognostic_scream_run
-          - run: make push_image_prognostic_scream_run
+  weekly-scream-workflow:
+    when: << pipeline.parameters.run-weekly-workflow >>
+    jobs:
+      machine:
+        image: ubuntu-2004:202111-02
+      environment:
+        GOOGLE_PROJECT_ID: vcm-ml
+        GOOGLE_COMPUTE_ZONE: us-central1
+        GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+      steps:
+        - run: make clone_scream_repository
+        - run: make build_image_prognostic_scream_run
+        - run: make push_image_prognostic_scream_run
