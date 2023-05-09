@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Union, Optional, TextIO
 import vcm.cloud.gsutil
 import os
 import dacite
@@ -24,6 +24,24 @@ def gather_output_yaml(output_yaml: str, rundir: str):
     local_filename = os.path.abspath(local_filename)
     fs.get(output_yaml, local_filename)
     return local_filename
+
+
+def parse_scream_log(process: subprocess.Popen, f: TextIO):
+    assert process.stdout, "stdout should not be None"
+    for line in process.stdout:
+        for out_file in [sys.stdout, f]:
+            print(line.strip(), file=out_file)
+
+
+class GSUtilResumableUploadException(Exception):
+    pass
+
+
+def _decode_to_str_if_bytes(s, encoding="utf-8"):
+    if isinstance(s, bytes):
+        return s.decode(encoding)
+    else:
+        return s
 
 
 @dataclasses.dataclass
@@ -96,7 +114,7 @@ class ScreamConfig:
                 command += f" --{key} {value}"
         return command
 
-    def submit_scream_run(self):
+    def submit_scream_run(self, rebuild: bool = False):
         case_scripts_dir = os.path.join(
             self.CASE_ROOT,
             self.CASE_NAME,
@@ -108,21 +126,36 @@ class ScreamConfig:
         )
         with cwd(case_scripts_dir):
             with open("logs.txt", "w") as f:
+                if rebuild:
+                    process = subprocess.Popen(
+                        ["./case.build",],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                    )
+                    parse_scream_log(process, f)
                 process = subprocess.Popen(
                     ["./case.submit",],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                 )
-                # need this assertion so that mypy knows that stdout is not None
-                assert process.stdout, "stdout should not be None"
-                for line in process.stdout:
-                    for out_file in [sys.stdout, f]:
-                        print(line.strip(), file=out_file)
+                parse_scream_log(process, f)
 
         if self.RUNTIME.upload_to_cloud_path is not None:
             output_dir = os.path.join(self.RUNTIME.upload_to_cloud_path, self.CASE_NAME)
-            vcm.cloud.get_fs(output_dir).put(case_run_dir, output_dir)
+            try:
+                print(f"Uploading {case_run_dir} to {output_dir}")
+                subprocess.check_output(
+                    ["gsutil", "-m", "rsync", "-r", "-e", case_run_dir, output_dir],
+                    stderr=subprocess.STDOUT,
+                )
+            except subprocess.CalledProcessError as e:
+                output = _decode_to_str_if_bytes(e.output)
+                if "ResumableUploadException" in output:
+                    raise GSUtilResumableUploadException()
+                else:
+                    raise e
 
     @classmethod
     def from_dict(cls, kwargs: Dict[str, Any]) -> "ScreamConfig":

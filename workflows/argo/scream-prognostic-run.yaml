@@ -1,0 +1,108 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: scream-prognostic-run
+spec:
+  entrypoint: driver
+  volumes:
+  - name: gcp-credentials-user-gcp-sa
+    secret:
+      secretName: gcp-key
+  - name: data-volume
+    persistentVolumeClaim:
+      claimName: scream-storage-claim
+  - name: dshm
+    emptyDir:
+      medium: Memory
+  templates:
+  - name: driver
+    inputs:
+      parameters:
+      - {name: config, value: "/tmp/180.yaml"}
+      - {name: precompiled_case, value: "true"}
+      - {name: memory, value: "700Gi"}
+      - {name: cpu, value: "180"}
+    steps:
+      - - name: choose-node-pool
+          template: choose-node-pool
+          arguments:
+            parameters:
+            - {name: cpu-request, value: "{{inputs.parameters.cpu}}"}
+            - {name: cpu-cutoff, value: "16"}
+      - - name: run-scream
+          template: run-scream
+          arguments:
+            parameters:
+            - {name: config, value: "{{inputs.parameters.config}}"}
+            - {name: precompiled_case, value: "{{inputs.parameters.precompiled_case}}"}
+            - {name: node-pool, value: "{{steps.choose-node-pool.outputs.result}}"}
+            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+            - {name: memory, value: "{{inputs.parameters.memory}}"}
+  - name: run-scream
+    inputs:
+      parameters:
+        - name: config
+        - name: precompiled_case
+        - name: node-pool
+        - name: cpu
+        - name: memory
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "{{inputs.parameters.node-pool}}"
+      effect: "NoSchedule"
+    podSpecPatch: |
+      containers:
+        - name: main
+          resources:
+            limits:
+              cpu: "{{inputs.parameters.cpu}}"
+              memory: "{{inputs.parameters.memory}}"
+            requests:
+              cpu: "{{inputs.parameters.cpu}}"
+              memory: "{{inputs.parameters.memory}}"
+    container:
+      image: us.gcr.io/vcm-ml/prognostic_scream_run
+      command: ["/bin/bash", "-c", "-x", "-e"]
+      args:
+       - |
+         mkdir -p /storage
+         rm -rf /storage/inputdata
+         ln -s /mnt/data/inputdata /storage/
+         if {{inputs.parameters.precompiled_case}}; then
+           echo "Using a pre-compiled case"
+           sed -i '/create_newcase/d' {{inputs.parameters.config}}
+           echo "create_newcase: False" >> {{inputs.parameters.config}}
+         fi
+         write_scream_run_directory {{inputs.parameters.config}} /tmp/rundir
+         scream_run {{inputs.parameters.config}}
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      - name: CIME_MODEL
+        value: e3sm
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa
+      - name: data-volume
+        mountPath: /mnt/data
+      - mountPath: /dev/shm
+        name: dshm
+  - name: choose-node-pool
+    inputs:
+      parameters:
+        - name: cpu-request
+        - name: cpu-cutoff
+    script:
+      image: python:alpine3.6
+      command: [python]
+      source: |
+        cpu_request = "{{inputs.parameters.cpu-request}}"
+        if cpu_request.endswith('m'):
+            cpus = float(cpu_request[:-1])/1000.0
+        else:
+            cpus = float(cpu_request)
+        node_pool = 'highcompute-sim-pool' if cpus <= {{inputs.parameters.cpu-cutoff}} else 'ultra-sim-pool'
+        print(node_pool)

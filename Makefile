@@ -134,6 +134,23 @@ enter_%:
 		-w $(PROGNOSTIC_RUN_WORKDIR) \
 		$(REGISTRY)/$*:$(VERSION) bash
 
+SCREAM_INSTALL_PATH ?= docker/prognostic_scream_run/scream
+SCREAM_BRANCH ?= master
+clone_scream_repository:
+	if [ ! -d ${SCREAM_INSTALL_PATH} ]; then \
+		git clone -b ${SCREAM_BRANCH} https://github.com/E3SM-Project/scream.git ${SCREAM_INSTALL_PATH}; \
+		cd "${SCREAM_INSTALL_PATH}" \
+		git submodule update --init --recursive; \
+	else \
+		echo "${SCREAM_INSTALL_PATH} already existed, make sure scream is already cloned";\
+	fi
+
+build_image_prognostic_scream_run: clone_scream_repository
+	tools/docker_build_cached.sh $(REGISTRY)/prognostic_scream_run:$(CACHE_TAG) \
+		-f docker/prognostic_scream_run/Dockerfile -t $(REGISTRY)/prognostic_scream_run:$(VERSION) .
+
+push_image_prognostic_scream_run:
+	docker push $(REGISTRY)/prognostic_scream_run:$(CACHE_TAG)
 ############################################################
 # Documentation (rules match "deploy_docs_%")
 ############################################################

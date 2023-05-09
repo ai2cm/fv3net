@@ -30,6 +30,9 @@ def _parse_scream_run_command_args():
     parser.add_argument(
         "config", help="URI to scream yaml file. Supports any path used by fsspec."
     )
+    parser.add_argument(
+        "--rebuild", help="Whether to rebuild the case", default=True,
+    )
     return parser.parse_args()
 
 
@@ -66,4 +69,4 @@ def write_scream_run_directory():
 def scream_run():
     args = _parse_scream_run_command_args()
     scream_config = _make_scream_config(args.config)
-    scream_config.submit_scream_run()
+    scream_config.submit_scream_run(args.rebuild)
