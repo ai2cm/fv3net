@@ -39,8 +39,8 @@ def test_read_last_segment_gcs(tmp_path: Path):
 def test_compose_simulation_command(mpi_launcher):
 
     nprocs = "10"
-    runfile = "/home/mr7417/ML_workflow/model_environment/fv3net/workflows/prognostic_c48_run/runtime/main.py" 
-    sys_exe = "/home/mr7417/ML_workflow/model_environment/conda/envs/fv3net/bin/python3.8"
+    runfile_as_str = runfile.absolute().as_posix()
+    sys_exe = sys.executable
 
     if mpi_launcher == "mpirun":
         expected = [mpi_launcher, '-n', str(nprocs), sys_exe, "-m", "mpi4py", runfile]
