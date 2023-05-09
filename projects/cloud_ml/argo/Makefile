@@ -549,6 +549,18 @@ run_training_sweep_dense_local_depth_width_small: deploy_training_sweep init_tra
 extend_training_sweep_dense_local_depth_width_small: deploy_training_sweep
 	cd training-sweep && ./run_small.sh dense-local-depth-width dense-local
 
+.PHONY: init_training_sweep_dense_local_lr_schedule
+init_training_sweep_dense_local_lr_schedule: sweep_tempfile
+	cd training-sweep && ./init.sh dense-local-lr-schedule >> "./tempfile"
+
+.PHONY: run_training_sweep_dense_local_lr_schedule
+run_training_sweep_dense_local_lr_schedule: deploy_training_sweep init_training_sweep_dense_local_lr_schedule
+	cd training-sweep && source "./tempfile"; ./run.sh dense-local-lr-schedule dense-local-v3 && rm "./tempfile"
+
+.PHONY: extend_training_sweep_dense_local_lr_schedule
+extend_training_sweep_dense_local_lr_schedule: deploy_training_sweep
+	cd training-sweep && ./run.sh dense-local-lr-schedule dense-local-v3
+
 .PHONY: deploy_training_sweep
 deploy_training_sweep: kustomize
 	./kustomize build training-sweep/templates | kubectl apply -f -

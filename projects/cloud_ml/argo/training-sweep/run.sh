@@ -10,11 +10,13 @@ sleep 5
 argo submit --from workflowtemplate/wandb-sweep \
     -p sweep_id="ai2cm/radiation-cloud-ml/${SWEEP_ID}" \
     -p training_config="$(< ./training_configs/${TRAINING_CONFIG}-training-config.json)" \
-    -p training_data_config_remote_store="$(< ../training/train.yaml)" \
+    -p training_data_config_remote_store="$(< ../training/train-extra-large.yaml)" \
     -p training_data_config_local_batches="$(< ./data_configs/training-data-local-batches.yaml)" \
     -p validation_data_config_remote_store="$(< ../training/validation.yaml)" \
     -p validation_data_config_local_batches="$(< ./data_configs/validation-data-local-batches.yaml)" \
     -p wandb-project="radiation-cloud-ml" \
+    -p memory="25Gi" \
+    -p cpu="7000m" \
     --name $NAME
 
 echo "argo get $NAME"
