@@ -311,3 +311,20 @@ workflows:
             branches:
               only: master
       - validate_radiation_port
+
+weekly-scream-workflow:
+  when:
+    and:
+      - equal: [ scheduled_pipeline, << pipeline.trigger_source >> ]
+      - equal: [ Build-and-test-scream-prognostic-run, << pipeline.schedule.name >> ]
+  jobs:
+    machine:
+      image: ubuntu-2004:202111-02
+    environment:
+      GOOGLE_PROJECT_ID: vcm-ml
+      GOOGLE_COMPUTE_ZONE: us-central1
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+    steps:
+      - run: make clone_scream_repository
+      - run: make build_image_prognostic_scream_run
+      - run: make push_image_prognostic_scream_run
