@@ -1,7 +1,7 @@
 from pathlib import Path
 import subprocess
 from runtime.segmented_run.append import read_last_segment
-from runtime.segmented_run.run import compose_simulation_command
+from runtime.segmented_run.run import compose_simulation_command, runfile
 from vcm.cloud import get_fs
 import uuid
 import pytest
