@@ -36,14 +36,19 @@ def test_read_last_segment_gcs(tmp_path: Path):
         subprocess.check_call(["gsutil", "cp", file.as_posix(), dest])
 
 @pytest.mark.parametrize("mpi_launcher", ["srun", "mpirun", None])
-def test_compose_simulation_command(regtest, mpi_launcher):
+def test_compose_simulation_command(mpi_launcher):
 
     nprocs = "10"
+    runfile = "/home/mr7417/ML_workflow/model_environment/fv3net/workflows/prognostic_c48_run/runtime/main.py" 
+    sys_exe = "/home/mr7417/ML_workflow/model_environment/conda/envs/fv3net/bin/python3.8"
 
-    if mpi_launcher == "mpirun" or mpi_launcher == "srun":
-        ans = compose_simulation_command(nprocs, mpi_launcher)
+    if mpi_launcher == "mpirun":
+        expected = [mpi_launcher, '-n', str(nprocs), sys_exe, "-m", "mpi4py", runfile]
+        assert expected == compose_simulation_command(nprocs, mpi_launcher)
+    elif mpi_launcher == "srun":
+        expected = [mpi_launcher, '--export=ALL', '-n', str(nprocs), sys_exe, "-m", "mpi4py", runfile]
+        assert expected == compose_simulation_command(nprocs, mpi_launcher)
     else:
-        ans = compose_simulation_command(nprocs)
-
-    print(ans, file=regtest)
+        expected = ["mpirun", '-n', str(nprocs), sys_exe, "-m", "mpi4py", runfile]
+        assert expected == compose_simulation_command(nprocs)
 
