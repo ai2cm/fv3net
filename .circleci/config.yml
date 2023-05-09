@@ -245,6 +245,7 @@ jobs:
           command: |
             echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
             echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
+      - gcp-gcr/gcr-auth
       - run: make clone_scream_repository
       - run: make build_image_prognostic_scream_run
       - run: make push_image_prognostic_scream_run
