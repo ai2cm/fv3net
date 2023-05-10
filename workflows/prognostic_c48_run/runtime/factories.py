@@ -177,7 +177,7 @@ def get_radiation_stepper(
     timestep: float,
     init_time: cftime.DatetimeJulian,
     tracer_metadata: Mapping[Hashable, Mapping[Hashable, int]],
-    input_generator: Optional[Union[PureMLStepper, Prescriber]],
+    input_generator: Optional[Union[PureMLStepper, Prescriber, IntervalStepper]],
 ) -> RadiationStepper:
     radiation_config = radiation.RadiationConfig.from_namelist(namelist)
     tracer_inds: Mapping[str, int] = {
