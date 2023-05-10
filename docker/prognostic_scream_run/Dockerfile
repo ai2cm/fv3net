@@ -103,6 +103,7 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.
 
 RUN apt-get update && apt-get install -y google-cloud-sdk
 RUN gcloud config set project vcm-ml
+ENV FSSPEC_GS_TOKEN $GOOGLE_APPLICATION_CREDENTIALS
 
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
