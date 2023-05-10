@@ -158,12 +158,12 @@ def get_prescriber(
     )
 
     prescriber = Prescriber(
-        communicator,
-        time_lookup_function,
+        communicator=communicator,
+        time_lookup_function=time_lookup_function,
         variables=config.variables,
         tendency_variables=config.tendency_variables,
     )
-    if config.apply_interval_seconds:
+    if config.apply_interval_seconds is not None:
         return IntervalStepper(
             apply_interval_seconds=config.apply_interval_seconds, stepper=prescriber
         )

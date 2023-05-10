@@ -17,7 +17,7 @@ class IntervalStepper:
         self.stepper = stepper
 
     def _need_to_update(self, time: cftime.DatetimeJulian):
-        if self.start_time:
+        if self.start_time is not None:
             if (
                 (time - self.start_time) % self.interval
             ).seconds != 0 or time == self.start_time:
