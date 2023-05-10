@@ -142,15 +142,23 @@ clone_scream_repository:
 		cd "${SCREAM_INSTALL_PATH}"; \
 		git submodule update --init --recursive; \
 	else \
-		echo "${SCREAM_INSTALL_PATH} already existed, make sure scream is already cloned";\
+		echo "${SCREAM_INSTALL_PATH} already existed, updating the repository...";\
+		$(MAKE) update_scream_repository; \
 	fi
+
+update_scream_repository:
+	cd "${SCREAM_INSTALL_PATH}"; \
+	git pull; \
+	git submodule update --init --recursive; \
+	git submodule sync --recursive; \
+	git submodule update --recursive;
 
 build_image_prognostic_scream_run: clone_scream_repository
 	tools/docker_build_cached.sh $(REGISTRY)/prognostic_scream_run:$(CACHE_TAG) \
 		-f docker/prognostic_scream_run/Dockerfile -t $(REGISTRY)/prognostic_scream_run:$(VERSION) .
 
 push_image_prognostic_scream_run:
-	docker push $(REGISTRY)/prognostic_scream_run:$(CACHE_TAG)
+	docker push $(REGISTRY)/prognostic_scream_run:$(VERSION)
 ############################################################
 # Documentation (rules match "deploy_docs_%")
 ############################################################

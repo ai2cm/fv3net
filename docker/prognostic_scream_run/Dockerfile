@@ -103,7 +103,6 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.
 
 RUN apt-get update && apt-get install -y google-cloud-sdk
 RUN gcloud config set project vcm-ml
-ENV FSSPEC_GS_TOKEN $GOOGLE_APPLICATION_CREDENTIALS
 
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
@@ -121,4 +120,7 @@ ENV FC=/opt/conda/bin/mpif90
 ENV AR=/opt/conda/bin/x86_64-conda-linux-gnu-ar
 ENV RANLIB=/opt/conda/bin/x86_64-conda-linux-gnu-ranlib
 ENV LDFLAGS="-Wl,-O2 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--disable-new-dtags -Wl,--gc-sections -Wl,--allow-shlib-undefined -Wl,-rpath,/opt/conda/lib -Wl,-rpath-link,/opt/conda/lib -L/opt/conda/lib"
-RUN chmod +x /src/precompile_scream.sh && /src/precompile_scream.sh
+ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/key.json
+RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
+    export FSSPEC_GS_TOKEN=/tmp/key.json && \
+    /src/precompile_scream.sh

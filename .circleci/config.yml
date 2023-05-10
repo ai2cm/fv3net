@@ -248,8 +248,8 @@ jobs:
             echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
       - gcp-gcr/gcr-auth
       - run: make clone_scream_repository
-      - run: make build_image_prognostic_scream_run
-      - run: make push_image_prognostic_scream_run
+      - run: VERSION=latest make build_image_prognostic_scream_run
+      - run: VERSION=latest make push_image_prognostic_scream_run
 
 parameters:
   run-weekly-workflow:
