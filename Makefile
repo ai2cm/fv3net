@@ -139,7 +139,7 @@ SCREAM_BRANCH ?= master
 clone_scream_repository:
 	if [ ! -d ${SCREAM_INSTALL_PATH} ]; then \
 		git clone -b ${SCREAM_BRANCH} https://github.com/E3SM-Project/scream.git ${SCREAM_INSTALL_PATH}; \
-		cd "${SCREAM_INSTALL_PATH}" \
+		cd "${SCREAM_INSTALL_PATH}"; \
 		git submodule update --init --recursive; \
 	else \
 		echo "${SCREAM_INSTALL_PATH} already existed, make sure scream is already cloned";\
