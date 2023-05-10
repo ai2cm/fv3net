@@ -458,7 +458,6 @@ def get_nudging_config(tendencies_path: str):
 
 def get_ml_config(model_path):
     config = yaml.safe_load(default_fv3config)
-    config["online_emulator"] = {"emulator": {"levels": 63}}
     config["diagnostics"] = [
         {
             "name": "diags.zarr",
@@ -500,6 +499,8 @@ def get_ml_config(model_path):
                 "tendency_of_specific_humidity_due_to_fv3_physics",
                 "tendency_of_specific_humidity_due_to_python",
                 "tendency_of_internal_energy_due_to_fv3_physics",
+                "tendency_of_x_wind_due_to_python",
+                "tendency_of_y_wind_due_to_python",
                 "total_precip_after_physics",
                 "total_precipitation_rate",
                 "water_vapor_path",

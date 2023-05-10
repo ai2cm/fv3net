@@ -2,7 +2,7 @@ import os
 import xarray as xr
 import numpy as np
 import tarfile
-from typing import Tuple, Mapping
+from typing import Mapping
 
 try:
     from vcm.cloud import get_fs
@@ -337,7 +337,7 @@ def load_aerosol(forcing_dir: str) -> Mapping[str, np.ndarray]:
     return data_dict
 
 
-def load_astronomy(forcing_dir, isolar) -> Tuple[str, xr.Dataset]:
+def load_astronomy(forcing_dir, isolar) -> xr.Dataset:
     # external solar constant data table,solarconstant_noaa_a0.txt
 
     if isolar == 1:  # noaa ann-tile_numberan tsi in absolute scale
@@ -359,14 +359,13 @@ def load_astronomy(forcing_dir, isolar) -> Tuple[str, xr.Dataset]:
     else:
         raise ValueError(f"Invalid isolar value: {isolar}.")
 
-    data = xr.open_dataset(solar_file)
-    return solar_file, data
+    return xr.open_dataset(solar_file)
 
 
-def load_sfc(forcing_dir: str) -> Tuple[str, xr.Dataset]:
+def load_sfc(forcing_dir: str) -> xr.Dataset:
     semis_file = os.path.join(forcing_dir, "semisdata.nc")
     data = xr.open_dataset(semis_file)
-    return semis_file, data
+    return data
 
 
 def load_gases(forcing_dir, ictmflg) -> Mapping[str, np.ndarray]:

@@ -38,3 +38,29 @@ Models augmented with out-of-sample detection can be defined with a config file 
     base_model_path: gs://vcm-ml-experiments/2021-01-26-c3072-nn/l2/tq-seed-0/trained_model
     novelty_detector_path: # path to a min-max or OCSVM novelty detector
     cutoff: 0 # can be omitted and use the default value for a given predictor instead.
+
+
+Tapered models
+--------------------
+A tapering transform can be applied to an existing saved model:
+.. code-block:: yaml
+    model: gs://vcm-ml-experiments/some_path
+    tapering:
+        dQ1:
+            cutoff: 25
+            rate: 5
+        dQ2:
+            cutoff: 25
+            rate: 5
+
+
+
+Combined models
+----------------
+Combines multiple models with nonoverlapping output variables into a single model.
+Similar functionality is also in the prognostic run's MultipleModelAdapter, but sometimes it
+is more efficient to combine models earlier in the workflow.
+.. code-block:: yaml
+models:
+    - gs://vcm-ml-experiments/model1
+    - gs://vcm-ml-experiments/model2

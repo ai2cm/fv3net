@@ -11,7 +11,15 @@ from runtime.steppers.interval import IntervalStepper
 
 @dataclasses.dataclass
 class RadiationStepperConfig:
-    """"""
+    """Configuration for a stepper object to run the python radiation scheme.
+
+
+    Attributes:
+        kind: "python" is the only current option
+        input_generator: optional configuration for a prescriber or machine learning
+            model, which will be used to provide the inputs for the radiation scheme
+
+    """
 
     kind: Literal["python"]
     input_generator: Optional[Union[PrescriberConfig, MachineLearningConfig]] = None
@@ -34,16 +42,12 @@ class RadiationStepper:
     def __call__(
         self, time: cftime.DatetimeJulian, state: State,
     ):
-        if self._input_generator is not None:
-            state = self._generate_inputs(state, time)
+        state = self._generate_inputs(state, time)
         diagnostics = self._radiation(time, state)
         return {}, diagnostics, {}
 
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
         return {}, xr.DataArray()
-
-    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
-        return {}
 
     def _generate_inputs(self, state: State, time: cftime.DatetimeJulian) -> State:
         required_names = self._radiation.input_variables

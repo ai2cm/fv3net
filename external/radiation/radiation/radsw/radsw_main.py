@@ -1,5 +1,4 @@
 import numpy as np
-import warnings
 from numba import jit
 from . import radsw_bands as bands
 from .radsw_param import (
@@ -753,22 +752,45 @@ def spcvrtm(
 
 @jit(nopython=True, cache=True)
 def mcica_subcol(iovrsw, cldf, nlay, dz, de_lgth, ipt, rand2d):
-    rand2d = rand2d[ipt, :]
+    #  ====================  definition of variables  ====================  !
+    #                                                                       !
+    #  input variables:                                                size !
+    #   cldf    - real, layer cloud fraction                           nlay !
+    #   nlay    - integer, number of model vertical layers               1  !
+    #   ipseed  - integer, permute seed for random num generator         1  !
+    #    ** note : if the cloud generator is called multiple times, need    !
+    #              to permute the seed between each call; if between calls  !
+    #              for lw and sw, use values differ by the number of g-pts. !
+    #   dz      - real, layer thickness (km)                           nlay !
+    #   de_lgth - real, layer cloud decorrelation length (km)            1  !
+    #                                                                       !
+    #  output variables:                                                    !
+    #   lcloudy - logical, sub-colum cloud profile flag array    ngptlw*nlay!
+    #                                                                       !
+    #  other control flags from module variables:                           !
+    #     iovrsw    : control flag for cloud overlapping method             !
+    #                 =0:random; =1:maximum/random: =2:maximum; =3:decorr   !
+    #                                                                       !
+    #  =====================    end of definitions    ====================  !
 
     #  ---  outputs:
     lcloudy = np.zeros((nlay, ngptsw))
 
     #  ---  locals:
+    rand2d = rand2d[ipt, :]
     cdfunc = np.zeros((nlay, ngptsw))
+
     #  --- ...  sub-column set up according to overlapping assumption
 
-    if iovrsw == 1:  # max-ran overlap
+    if iovrsw in (0, 1, 3):  # random, max-random or decorr overlap
 
         k1 = 0
         for n in range(ngptsw):
             for k in range(nlay):
                 cdfunc[k, n] = rand2d[k1]
                 k1 = k1 + 1
+
+    if iovrsw == 1:  # max-ran overlap
 
         #  ---  first pick a random number for bottom/top layer.
         #       then walk up the column: (aer's code)
@@ -785,6 +807,25 @@ def mcica_subcol(iovrsw, cldf, nlay, dz, de_lgth, ipt, rand2d):
                     cdfunc[k, n] = cdfunc[k1, n]
                 else:
                     cdfunc[k, n] = cdfunc[k, n] * tem1
+
+    if iovrsw == 3:  # decorrelation length overlap
+        # ported from https://github.com/ai2cm/fv3gfs-fortran/blob/2a3ea739723d6152fd03d419c76d25741f7fa9da/FV3/gfsphysics/physics/radsw_main.f#L2125  # noqa: E501
+        # compute overlapping factors based on layer midpoint distances and
+        # decorrelation depths
+        #  ---  setup 2 sets of random numbers, then working from the top down:
+        #       if a random number (from an independent set -cdfunc2) is smaller
+        #       than the scale factor, use the upper layer's number, otherwise use
+        #       a new random number (keep the original assigned one).
+
+        fac_lcf = np.exp(-0.5 * (dz[1:] + dz[:-1]) / de_lgth)
+
+        cdfunc2 = np.random.rand(*cdfunc.shape)
+
+        for n in range(ngptsw):
+            for k in range(nlay - 2, 0, -1):
+                k1 = k + 1
+                if cdfunc2[k, n] <= fac_lcf[k]:
+                    cdfunc[k, n] = cdfunc[k1, n]
 
     #  --- ...  generate subcolumns for homogeneous clouds
 
@@ -1841,77 +1882,16 @@ class RadSWClass:
     # initial permutation seed used for sub-column cloud scheme
     ipsdsw0 = 1
 
-    def __init__(self, me, iovrsw, isubcsw, icldflg):
+    def __init__(self, iovrsw, isubcsw):
 
         self.iovrsw = iovrsw
         self.isubcsw = isubcsw
-        self.icldflg = icldflg
 
         expeps = 1.0e-20
 
         #
         # ===> ... begin here
         #
-        if self.iovrsw < 0 or self.iovrsw > 3:
-            raise ValueError(
-                "*** Error in specification of cloud overlap flag",
-                f" IOVRSW={self.iovrsw} in RSWINIT !!",
-            )
-
-        if me == 0:
-            print(f"- Using AER Shortwave Radiation, Version: {self.VTAGSW}")
-
-            if iswmode == 1:
-                print("   --- Delta-eddington 2-stream transfer scheme")
-            elif iswmode == 2:
-                print("   --- PIFM 2-stream transfer scheme")
-            elif iswmode == 3:
-                print("   --- Discrete ordinates 2-stream transfer scheme")
-
-            if iswrgas <= 0:
-                print("   --- Rare gases absorption is NOT included in SW")
-            else:
-                print("   --- Include rare gases N2O, CH4, O2, absorptions in SW")
-
-            if self.isubcsw == 0:
-                print(
-                    "   --- Using standard grid average clouds, no ",
-                    "   sub-column clouds approximation applied",
-                )
-            elif self.isubcsw == 1:
-                print(
-                    "   --- Using MCICA sub-colum clouds approximation ",
-                    "   with a prescribed sequence of permutation seeds",
-                )
-            elif self.isubcsw == 2:
-                print(
-                    "   --- Using MCICA sub-colum clouds approximation ",
-                    "   with provided input array of permutation seeds",
-                )
-            else:
-                raise ValueError(
-                    "  *** Error in specification of sub-column cloud ",
-                    f" control flag isubcsw = {self.isubcsw} !!",
-                )
-
-        #  --- ...  check cloud flags for consistency
-
-        if (icldflg == 0 and iswcliq != 0) or (icldflg == 1 and iswcliq == 0):
-            raise ValueError(
-                "*** Model cloud scheme inconsistent with SW",
-                " radiation cloud radiative property setup !!",
-            )
-
-        if self.isubcsw == 0 and self.iovrsw > 2:
-            if me == 0:
-                warnings.warn(
-                    f"*** IOVRSW={self.iovrsw} is not available for",
-                    " ISUBCSW=0 setting!!",
-                )
-                warnings.warn(
-                    "The program will use maximum/random overlap", " instead."
-                )
-            self.iovrsw = 1
 
         #  --- ...  setup constant factors for heating rate
         #           the 1.0e-2 is to convert pressure from mb to N/m**2
@@ -1936,6 +1916,63 @@ class RadSWClass:
             tfn = i / (ntbmx - i)
             tau = self.bpade * tfn
             self.exp_tbl[i] = np.exp(-tau)
+
+    @classmethod
+    def validate(cls, iovrsw, isubcsw, icldflg):
+
+        print(f"- Using AER Shortwave Radiation, Version: {cls.VTAGSW}")
+
+        if iovrsw < 0 or iovrsw > 3:
+            raise ValueError(
+                "*** Error in specification of cloud overlap flag",
+                f" IOVRSW={iovrsw} in RSWINIT !!",
+            )
+
+        if iswmode == 1:
+            print("   --- Delta-eddington 2-stream transfer scheme")
+        elif iswmode == 2:
+            print("   --- PIFM 2-stream transfer scheme")
+        elif iswmode == 3:
+            print("   --- Discrete ordinates 2-stream transfer scheme")
+
+        if iswrgas <= 0:
+            print("   --- Rare gases absorption is NOT included in SW")
+        else:
+            print("   --- Include rare gases N2O, CH4, O2, absorptions in SW")
+
+        if isubcsw == 0:
+            print(
+                "   --- Using standard grid average clouds, no ",
+                "   sub-column clouds approximation applied",
+            )
+        elif isubcsw == 1:
+            print(
+                "   --- Using MCICA sub-colum clouds approximation ",
+                "   with a prescribed sequence of permutation seeds",
+            )
+        elif isubcsw == 2:
+            print(
+                "   --- Using MCICA sub-colum clouds approximation ",
+                "   with provided input array of permutation seeds",
+            )
+        else:
+            raise ValueError(
+                "  *** Error in specification of sub-column cloud ",
+                f" control flag isubcsw = {isubcsw} !!",
+            )
+
+        #  --- ...  check cloud flags for consistency
+
+        if (icldflg == 0 and iswcliq != 0) or (icldflg == 1 and iswcliq == 0):
+            raise ValueError(
+                "*** Model cloud scheme inconsistent with SW",
+                " radiation cloud radiative property setup !!",
+            )
+
+        if isubcsw == 0 and iovrsw > 2:
+            raise ValueError(
+                f"*** IOVRSW={iovrsw} is not available for", " ISUBCSW=0 setting!!",
+            )
 
     def return_initdata(self):
         outdict = {"heatfac": self.heatfac, "exp_tbl": self.exp_tbl}

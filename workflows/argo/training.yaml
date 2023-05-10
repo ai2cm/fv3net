@@ -14,7 +14,7 @@ spec:
         secretName: gcp-key
   templates:
     - name: training
-      inputs:
+      inputs: &training-inputs
         parameters:
           - name: training_config
           - name: training_data_config
@@ -27,10 +27,10 @@ spec:
           - {name: wandb-project, value: "argo-default"}
           - {name: wandb-tags, value: ""}
           - {name: wandb-group, value: ""}
-      container:
-        image: us.gcr.io/vcm-ml/prognostic_run
-        command: ["bash", "-c", "-x"]
-        env:
+      container: &training-container
+        image: us.gcr.io/vcm-ml/fv3fit
+        command: &training-container-cmd ["bash", "-c", "-x"]
+        env: &training-container-env
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: /secret/gcp-credentials/key.json
           - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
@@ -43,13 +43,13 @@ spec:
             value: "{{inputs.parameters.wandb-group}}"
           - name: WANDB_JOB_TYPE
             value: training
-        envFrom:
+        envFrom: &training-container-envfrom
           - secretRef:
-              name: wandb-token
-        volumeMounts:
+              name: wandb-service-token
+        volumeMounts: &training-container-volmounts
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
-        args:
+        args: &training-container-args
           - |
 
             if [ ! -z {{inputs.parameters.wandb-tags}} ]; then
@@ -90,7 +90,7 @@ spec:
             else
               wandb_flag="--no-wandb"
             fi
-
+            python3 -m torch.utils.collect_env
             python3 -m fv3fit.train \
               training_config.yaml \
               training_data.yaml \
@@ -110,6 +110,56 @@ spec:
               limits:
                 cpu: "{{inputs.parameters.cpu}}"
                 memory: "{{inputs.parameters.memory}}"
+              requests:
+                cpu: "{{inputs.parameters.cpu}}"
+                memory: "{{inputs.parameters.memory}}"
+    - name: training-gpu-def
+      inputs: *training-inputs
+      container: *training-container
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "gpu-sim-pool"
+        effect: "NoSchedule"
+      - key: "nvidia.com/gpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+      podSpecPatch: |
+        containers:
+          - name: main
+            resources:
+              limits:
+                cpu: "{{inputs.parameters.cpu}}"
+                memory: "{{inputs.parameters.memory}}"
+                nvidia.com/gpu: 1
+              requests:
+                cpu: "{{inputs.parameters.cpu}}"
+                memory: "{{inputs.parameters.memory}}"
+    - name: training-torch-def
+      inputs: *training-inputs
+      container:
+        image: us.gcr.io/vcm-ml/fv3fit_torch
+        command: *training-container-cmd
+        env: *training-container-env
+        envFrom: *training-container-envfrom
+        volumeMounts: *training-container-volmounts
+        args: *training-container-args
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "gpu-sim-pool"
+        effect: "NoSchedule"
+      - key: "nvidia.com/gpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+      podSpecPatch: |
+        containers:
+          - name: main
+            resources:
+              limits:
+                cpu: "{{inputs.parameters.cpu}}"
+                memory: "{{inputs.parameters.memory}}"
+                nvidia.com/gpu: 1
               requests:
                 cpu: "{{inputs.parameters.cpu}}"
                 memory: "{{inputs.parameters.memory}}"

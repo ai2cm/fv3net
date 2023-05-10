@@ -3,6 +3,7 @@
 from ._nudged import (
     open_nudge_to_obs,
     open_nudge_to_fine,
+    open_nudge_to_fine_scream,
     open_nudge_to_fine_multiple_datasets,
 )
 from ._transformations import ValMap, KeyMap, SubsetTimes

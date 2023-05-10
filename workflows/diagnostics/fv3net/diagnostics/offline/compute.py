@@ -87,14 +87,16 @@ def _get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--evaluation-grid",
         type=str,
-        default=None,
+        default=EVALUATION_RESOLUTION,
         help=(
-            "Optional path to a grid data netcdf that sets the grid resolution at "
-            "which the diagnostics will be computed. If not provided, evaluation grid "
-            "resolution will be C48. If validation data resolution is higher than "
-            "the evaluation grid resolution by an integer multiple, the validation "
-            "data will be coarsened to the evaluation grid resolution. Otherwise the "
-            "evaluation grid resolution must match the validation data resolution."
+            f"Optional arguent that sets the grid resolution at which the diagnostics"
+            f"will be computed (e.g. 'c12'). If not provided, evaluation grid "
+            f"resolution will be {EVALUATION_RESOLUTION}. If validation data "
+            f"resolution is higher than the evaluation grid resolution by an "
+            f"integer multiple, the validation data will be coarsened to the "
+            f"evaluation grid resolution. Otherwise the evaluation grid resolution "
+            f"must match the validation data resolution. Grid and land mask entries "
+            f"must be present in the vcm catalog at the evaluation resolution."
         ),
     )
     parser.add_argument(
@@ -127,7 +129,11 @@ def _coord_to_var(coord: xr.DataArray, new_var_name: str) -> xr.DataArray:
 
 
 def _compute_diagnostics(
-    ds: xr.Dataset, grid: xr.Dataset, predicted_vars: List[str], n_jobs: int,
+    ds: xr.Dataset,
+    grid: xr.Dataset,
+    horizontal_dims: List[str],
+    predicted_vars: List[str],
+    n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset]:
     timesteps = []
 
@@ -144,7 +150,9 @@ def _compute_diagnostics(
     target = safe.get_variables(
         ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
     )
-    ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP], n_jobs=n_jobs)
+    ds_summary = compute_diagnostics(
+        prediction, target, grid, ds[DELP], horizontal_dims, n_jobs=n_jobs,
+    )
 
     timesteps.append(ds["time"])
 
@@ -171,7 +179,9 @@ def _consolidate_dimensioned_data(ds):
     return ds_diagnostics, ds_scalar_metrics
 
 
-def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str]):
+def _get_transect(
+    ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str], ptop: float,
+):
     ds_snapshot_regrid_pressure = xr.Dataset()
     for var in variables:
         transect_var = [
@@ -179,6 +189,7 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
                 field=ds_snapshot[var].sel(derivation=deriv),
                 delp=ds_snapshot[DELP],
                 dim="z",
+                ptop=ptop,
             )
             for deriv in ["target", "predict"]
         ]
@@ -265,16 +276,15 @@ def get_prediction(
     batches = config.load_batches(model_variables)
 
     transforms = [_get_predict_function(model, model_variables)]
-
-    prediction_resolution = res_from_string(config.res)
-    if prediction_resolution != evaluation_resolution:
-        transforms.append(
-            _coarsen_transform(
-                evaluation_resolution=evaluation_resolution,
-                prediction_resolution=prediction_resolution,
+    if vcm.gsrm_name_from_resolution_string(config.res) == "fv3":
+        prediction_resolution = res_from_string(config.res)
+        if prediction_resolution != evaluation_resolution:
+            transforms.append(
+                _coarsen_transform(
+                    evaluation_resolution=evaluation_resolution,
+                    prediction_resolution=prediction_resolution,
+                )
             )
-        )
-
     mapping_function = compose_left(*transforms)
     batches = loaders.Map(mapping_function, batches)
 
@@ -298,13 +308,7 @@ def main(args):
     with fsspec.open(args.data_yaml, "r") as f:
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
-
-    if args.evaluation_grid is None:
-        evaluation_grid = load_grid_info(EVALUATION_RESOLUTION)
-    else:
-        with fsspec.open(args.evaluation_grid, "rb") as f:
-            # Daskify to avoid pickling errors when running parallel computations
-            evaluation_grid = _daskify_sequence([xr.open_dataset(f, engine="h5netcdf")])
+    evaluation_grid = load_grid_info(args.evaluation_grid)
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
@@ -312,9 +316,14 @@ def main(args):
     # add Q2 and total water path for PW-Q2 scatterplots and net precip domain averages
     if any(["Q2" in v for v in model.output_variables]):
         model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
-
+    if vcm.gsrm_name_from_resolution_string(args.evaluation_grid) == "fv3":
+        horizontal_dims = ["x", "y", "tile"]
+    elif vcm.gsrm_name_from_resolution_string(args.evaluation_grid) == "scream":
+        horizontal_dims = ["ncol"]
     ds_predicted = get_prediction(
-        config=config, model=model, evaluation_resolution=evaluation_grid.sizes["x"]
+        config=config,
+        model=model,
+        evaluation_resolution=evaluation_grid.sizes[horizontal_dims[0]],
     )
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
@@ -327,6 +336,7 @@ def main(args):
     ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(
         ds_predicted,
         evaluation_grid,
+        horizontal_dims=horizontal_dims,
         predicted_vars=model.output_variables,
         n_jobs=args.n_jobs,
     )
@@ -334,7 +344,7 @@ def main(args):
     ds_diagnostics = ds_diagnostics.update(evaluation_grid)
 
     # save model senstivity figures- these exclude derived variables
-    fig_input_sensitivity = plot_input_sensitivity(model, ds_predicted)
+    fig_input_sensitivity = plot_input_sensitivity(model, ds_predicted, horizontal_dims)
     if fig_input_sensitivity is not None:
         with fsspec.open(
             os.path.join(
@@ -371,7 +381,9 @@ def main(args):
             )
         )
 
-        ds_transect = _get_transect(ds_snapshot, evaluation_grid, vertical_vars)
+        ds_transect = _get_transect(
+            ds_snapshot, evaluation_grid, vertical_vars, config.ptop,
+        )
         _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
 
     ds_diagnostics = _add_derived_diagnostics(ds_diagnostics)

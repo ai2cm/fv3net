@@ -497,22 +497,40 @@ def cli_main(args: argparse.Namespace):
 
 
 @pytest.mark.parametrize(
-    "model_type, hyperparameter_dict, output_variables",
+    "model_type, hyperparameter_dict, output_variables, "
+    "use_local_download_path, use_validation_data",
     [
         pytest.param(
             "sklearn_random_forest",
             {"max_depth": 4, "n_estimators": 2},
             ["Qm", "Q2"],
+            False,
+            False,
             id="random_forest",
         ),
-        pytest.param("convolutional", {}, ["dQ1", "dQ2"], id="convolutional"),
-        pytest.param("precipitative", {}, ["dQ1", "dQ2"], id="precipitative"),
-        pytest.param("dense", {}, ["dQ1", "dQ2"], id="dense"),
+        pytest.param(
+            "convolutional", {}, ["dQ1", "dQ2"], False, False, id="convolutional"
+        ),
+        pytest.param(
+            "precipitative", {}, ["dQ1", "dQ2"], False, False, id="precipitative"
+        ),
+        pytest.param("dense", {}, ["dQ1", "dQ2"], False, False, id="dense"),
+        pytest.param("dense", {}, ["dQ1", "dQ2"], True, False, id="dense-use-local"),
+        pytest.param("dense", {}, ["dQ1", "dQ2"], False, True, id="dense-use-valid"),
+        pytest.param(
+            "dense_autoencoder",
+            {
+                "state_variables": ["air_temperature", "specific_humidity"],
+                "latent_dim_size": 3,
+                "units": 20,
+                "n_dense_layers": 2,
+            },
+            ["air_temperature", "specific_humidity"],
+            False,
+            False,
+            id="dense_autoencoder",
+        ),
     ],
-)
-@pytest.mark.parametrize(
-    "use_local_download_path, use_validation_data",
-    [(False, False), (False, True), (True, False)],
 )
 @pytest.mark.slow
 def test_cli(

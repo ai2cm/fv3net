@@ -2,6 +2,7 @@ apache-beam[gcp]
 nc-time-axis>=1.4.1
 bump2version
 yq
+py
 pytest-regtest
 recommonmark
 sphinx>=1.4
@@ -16,7 +17,7 @@ intake
 
 # prognostic run diagnostics requirements
 # this file depends on vcm, so pip-tools cannot lock it
-holoviews
+holoviews>=1.15
 streamlit
 plotly
 
@@ -24,8 +25,8 @@ plotly
 gcsfs>=2021.6.0
 fsspec>=0.9.0
 
-# faster async
-zarr>=2.5.0
+# fix bug where variables sometimes become lowercase
+zarr>=2.13.2
 
 # this version has wheels = faster installs
 numcodecs>=0.7.2
@@ -51,7 +52,9 @@ tox
 pre-commit
 ipython>=7.29.0
 jupyterlab
+zarrdump
+dask[distributed]
+bokeh>=2.4.2,<3 # needed for dask distributed dashboard
 
 # fv3fit testing tools
 hypothesis
-pytest-mpl

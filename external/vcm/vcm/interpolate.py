@@ -11,7 +11,7 @@ except ModuleNotFoundError:
     mappm = None
 
 import vcm.calc.thermo
-
+from vcm.calc.thermo.constants import TOA_PRESSURE
 import warnings
 
 warnings.filterwarnings(
@@ -79,6 +79,7 @@ def interpolate_to_pressure_levels(
     delp: xr.DataArray,
     levels: xr.DataArray = PRESSURE_GRID,
     dim: str = "pfull",
+    ptop: float = TOA_PRESSURE,
 ) -> T:
     """Regrid an atmospheric field to a fixed set of pressure levels
 
@@ -88,12 +89,16 @@ def interpolate_to_pressure_levels(
             ``da``
         dim: the vertical dimension name
         levels: 1D DataArray of output pressure levels
+        ptop: top of the model pressure in Pa
 
     Returns:
         the atmospheric quantity defined on ``pressure_levels``.
     """
     return interpolate_1d(
-        levels, vcm.pressure_at_midpoint_log(delp, dim=dim), field, dim=dim,
+        levels,
+        vcm.pressure_at_midpoint_log(delp, toa_pressure=ptop, dim=dim),
+        field,
+        dim=dim,
     )
 
 
@@ -290,3 +295,12 @@ def interpolate_unstructured(
     output = stacked.isel({dim_name: indices})
     output = output.drop(dim_name)
     return output.assign_coords(coords)
+
+
+def upsample_1d_periodic(arr: np.ndarray, upsample_factor):
+    if len(arr.shape) > 1:
+        raise ValueError("Array to upsample must be 1D.")
+    period = 2 * np.pi  # This is arbitrary in the context of this function.
+    x = np.linspace(0, period, arr.size, endpoint=False)
+    x_upsampled = np.linspace(0, period, upsample_factor * arr.size, endpoint=False)
+    return np.interp(x_upsampled, x, arr, period=period)

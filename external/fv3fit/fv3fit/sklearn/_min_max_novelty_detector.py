@@ -1,4 +1,4 @@
-from fv3fit._shared import stacking
+from fv3fit._shared.stacking import stack, Z_DIM_NAMES
 from fv3fit._shared.novelty_detector import NoveltyDetector
 from .. import _shared
 from .._shared import (
@@ -101,9 +101,7 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         scores_smaller_than_min = np.maximum(-1 * scaled_X.min(axis=1), 0)
         stacked_scores = scores_larger_than_max + scores_smaller_than_min
 
-        new_coords = {
-            k: v for (k, v) in coords.items() if k not in stacking.Z_DIM_NAMES
-        }
+        new_coords = {k: v for (k, v) in coords.items() if k not in Z_DIM_NAMES}
         stacked_scores = xr.DataArray(
             stacked_scores, dims=[SAMPLE_DIM_NAME], coords=new_coords
         )
@@ -117,8 +115,8 @@ class MinMaxNoveltyDetector(NoveltyDetector):
         return match_prediction_to_input_coords(data, score_dataset)
 
     def predict_pre_aggregation(self, data: xr.Dataset):
-        stacked_data = stacking.stack_non_vertical(
-            safe.get_variables(data, self.input_variables)
+        stacked_data = stack(
+            safe.get_variables(data, self.input_variables), unstacked_dims=Z_DIM_NAMES
         )
         X, _ = pack(
             stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config

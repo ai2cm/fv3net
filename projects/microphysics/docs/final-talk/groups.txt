@@ -1,0 +1,5 @@
+precpd-diff-only-rnn-combined-cloudlimit-upper5zero-v1-offline,Offline
+precpd-diff-only-rnn-combined-cloudlimit-upper5zero-v1-online,Control
+combined-gscond-dense-local-v2-v1-online,Special model for high antarctic < 60S
+combined-gscond-dense-local-75s-v4-online, > 75S
+phase-dependent-lhf-v1-online,Temperature dependent latent heat

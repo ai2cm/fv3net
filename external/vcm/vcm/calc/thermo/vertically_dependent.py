@@ -9,9 +9,9 @@ from .constants import (
     _EARTH_RADIUS,
     _SPECIFIC_HEAT_CONST_PRESSURE,
     _KG_M2S_TO_MM_DAY,
+    TOA_PRESSURE,
 )
 
-_TOA_PRESSURE = 300.0  # Pa
 _REVERSE = slice(None, None, -1)
 
 
@@ -40,7 +40,7 @@ def mass_divergence(
 
 def pressure_at_interface(
     delp: xr.DataArray,
-    toa_pressure: float = _TOA_PRESSURE,
+    toa_pressure: float = TOA_PRESSURE,
     dim_center: str = COORD_Z_CENTER,
     dim_outer: str = COORD_Z_OUTER,
 ) -> xr.DataArray:
@@ -101,7 +101,7 @@ def height_at_interface(
 def _add_coords_to_interface_variable(
     dv_outer: xr.Variable, da_center: xr.DataArray, dim_center: str = COORD_Z_CENTER
 ):
-    """Assign all coords except vertical from da_center to dv_outer """
+    """Assign all coords except vertical from da_center to dv_outer"""
     if dim_center in da_center.coords:
         return xr.DataArray(dv_outer, coords=da_center.drop_vars(dim_center).coords)
     else:
@@ -109,7 +109,7 @@ def _add_coords_to_interface_variable(
 
 
 def pressure_at_midpoint(
-    delp: xr.DataArray, toa_pressure: float = _TOA_PRESSURE, dim: str = COORD_Z_CENTER
+    delp: xr.DataArray, toa_pressure: float = TOA_PRESSURE, dim: str = COORD_Z_CENTER
 ) -> xr.DataArray:
     """Compute pressure at layer midpoints by linear interpolation.
 
@@ -151,7 +151,7 @@ def _interface_to_midpoint(da, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTE
 
 
 def pressure_at_midpoint_log(
-    delp: xr.DataArray, toa_pressure: float = _TOA_PRESSURE, dim: str = COORD_Z_CENTER
+    delp: xr.DataArray, toa_pressure: float = TOA_PRESSURE, dim: str = COORD_Z_CENTER
 ) -> xr.DataArray:
     """Compute pressure at layer midpoints following Eq. 3.17 of Simmons
     and Burridge (1981), MWR.
@@ -182,7 +182,7 @@ def pressure_at_midpoint_log(
 def dz_and_top_to_phis(
     top_height: xr.DataArray, dz: xr.DataArray, dim: str = COORD_Z_CENTER
 ) -> xr.DataArray:
-    """ Compute surface geopotential from model top height and layer thicknesses"""
+    """Compute surface geopotential from model top height and layer thicknesses"""
     return _GRAVITY * (top_height + dz.sum(dim=dim))
 
 

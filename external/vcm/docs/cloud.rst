@@ -6,11 +6,6 @@ Cloud storage utilities
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: vcm.cloud.gcs
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 .. automodule:: vcm.cloud.gsutil
    :members:
    :undoc-members:

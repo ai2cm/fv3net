@@ -13,6 +13,7 @@ from vcm.convenience import (
     round_time,
     parse_datetime_from_str,
     shift_timestamp,
+    gsrm_name_from_resolution_string,
 )
 
 
@@ -154,3 +155,10 @@ def test_round_time_numpy():
     time = np.array([cftime.DatetimeJulian(2016, 1, 1)])
     ans = round_time(time)
     assert isinstance(ans, np.ndarray)
+
+
+@pytest.mark.parametrize(
+    "res, expected", [("c12", "fv3"), ("c48", "fv3"), ("ne30", "scream"),],
+)
+def test_gsrm_name(res, expected):
+    assert gsrm_name_from_resolution_string(res) == expected

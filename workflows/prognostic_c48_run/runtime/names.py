@@ -13,20 +13,28 @@ PHYSICS_PRECIP_RATE = "surface_precipitation_rate"
 TOTAL_PRECIP_RATE = "total_precipitation_rate"
 TOTAL_PRECIP = "total_precipitation"  # has units of m
 AREA = "area_of_grid_cell"
-EAST_WIND = "eastward_wind_after_physics"
-NORTH_WIND = "northward_wind_after_physics"
+EASTWARD_WIND_AFTER_PHYSICS = "eastward_wind_after_physics"
+EASTWARD_WIND = "eastward_wind"
+NORTHWARD_WIND = "northward_wind"
 SST = "ocean_surface_temperature"
 TSFC = "surface_temperature"
 MASK = "land_sea_mask"
+TIME_KEYS = ["time", "initialization_time"]
+X_WIND = "x_wind"
+Y_WIND = "y_wind"
+EASTWARD_WIND_TENDENCY = "dQu"
+NORTHWARD_WIND_TENDENCY = "dQv"
+X_WIND_TENDENCY = "dQx_wind"
+Y_WIND_TENDENCY = "dQy_wind"
 
 # following variables are required no matter what feature set is being used
 TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQ1": TEMP,
     "dQ2": SPHUM,
-    "dQu": EAST_WIND,
-    "dQv": NORTH_WIND,
-    "dQx_wind": "x_wind",
-    "dQy_wind": "y_wind",
+    EASTWARD_WIND_TENDENCY: EASTWARD_WIND,
+    NORTHWARD_WIND_TENDENCY: NORTHWARD_WIND,
+    X_WIND_TENDENCY: X_WIND,
+    Y_WIND_TENDENCY: Y_WIND,
     "dQp": DELP,
 }
 STATE_NAME_TO_TENDENCY = {value: key for key, value in TENDENCY_TO_STATE_NAME.items()}
@@ -37,11 +45,13 @@ PREPHYSICS_OVERRIDES = [
     "ocean_surface_temperature",
     "surface_temperature",
 ]
+A_GRID_WIND_TENDENCIES = {EASTWARD_WIND_TENDENCY, NORTHWARD_WIND_TENDENCY}
+D_GRID_WIND_TENDENCIES = {X_WIND_TENDENCY, Y_WIND_TENDENCY}
+TENDENCY_NAMES = set(TENDENCY_TO_STATE_NAME) | A_GRID_WIND_TENDENCIES
 
 
 def is_state_update_variable(key, state: State):
-    if key in state.keys() and key not in TENDENCY_TO_STATE_NAME:
-        # the second check is to exclude derived variables such as dQu,v
+    if key in state.keys() and key not in TENDENCY_NAMES:
         return True
     elif key == TOTAL_PRECIP_RATE:
         # Special case where models predict precip rate which is
@@ -52,4 +62,4 @@ def is_state_update_variable(key, state: State):
 
 
 def is_tendency_variable(key):
-    return key in TENDENCY_TO_STATE_NAME
+    return key in TENDENCY_NAMES

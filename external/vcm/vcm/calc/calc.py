@@ -23,11 +23,6 @@ def local_time(ds, time=INIT_TIME_DIM, lon_var=VAR_LON_CENTER):
     return local_time
 
 
-def _weighted_average(array, weights, axis=None):
-
-    return np.nansum(array * weights, axis=axis) / np.nansum(weights, axis=axis)
-
-
 def weighted_average(
     array: Union[xr.Dataset, xr.DataArray],
     weights: xr.DataArray,
@@ -43,19 +38,8 @@ def weighted_average(
     Returns:
         xr dataarray or dataset of weighted averaged variables
     """
-    if dims is not None:
-        kwargs = {"axis": tuple(range(-len(dims), 0))}
-    else:
-        kwargs = {}
     with xr.set_options(keep_attrs=True):
-        return xr.apply_ufunc(
-            _weighted_average,
-            array,
-            weights,
-            input_core_dims=[dims, dims],
-            kwargs=kwargs,
-            dask="allowed",
-        )
+        return array.weighted(weights.fillna(0.0)).mean(dims)
 
 
 def vertical_tapering_scale_factors(n_levels: int, cutoff: int, rate: float):

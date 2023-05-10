@@ -14,7 +14,6 @@ from runtime.steppers.nudging import NudgingConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.steppers.prescriber import PrescriberConfig
 from runtime.transformers.tendency_prescriber import TendencyPrescriberConfig
-import runtime.transformers.emulator
 import runtime.transformers.fv3fit
 from runtime.steppers.radiation import RadiationStepperConfig
 
@@ -51,6 +50,8 @@ class UserConfig:
         nudging: nudge2fine configuration. Cannot be used if any scikit_learn model
             urls are specified.
         tendency_prescriber: configuration for overriding physics tendencies.
+        bias_correction: configuration for using bias correction tendencies
+            from a dataset.
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
@@ -61,10 +62,9 @@ class UserConfig:
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
     tendency_prescriber: Optional[TendencyPrescriberConfig] = None
-    online_emulator: Optional[
-        Union[runtime.transformers.emulator.Config, runtime.transformers.fv3fit.Config]
-    ] = None
+    online_emulator: Optional[runtime.transformers.fv3fit.Config] = None
     radiation_scheme: Optional[RadiationStepperConfig] = None
+    bias_correction: Optional[PrescriberConfig] = None
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:

@@ -1,6 +1,7 @@
 from pathlib import Path
 import subprocess
 from runtime.segmented_run.append import read_last_segment
+from vcm.cloud import get_fs
 import uuid
 
 
@@ -11,7 +12,9 @@ def test_read_last_segment(tmpdir):
     arts.mkdir(date1)
     arts.mkdir(date2)
     ans = read_last_segment(str(tmpdir))
-    assert f"file:/{str(tmpdir)}/artifacts/20160102.000000" == ans
+    assert f"file://{str(tmpdir)}/artifacts/20160102.000000" == ans
+    fs = get_fs(ans)
+    assert fs.exists(ans)
 
 
 def test_read_last_segment_gcs(tmp_path: Path):

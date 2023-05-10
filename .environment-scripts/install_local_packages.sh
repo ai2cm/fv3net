@@ -17,10 +17,12 @@ pip install -c constraints.txt \
   -e external/fv3kube \
   -e external/fv3viz \
   -e external/report \
+  -e external/radiation \
   -e external/synth \
   -e external/vcm \
   -e external/mappm \
   -e workflows/fine_res_budget \
   -e workflows/dataflow \
-  -e workflows/diagnostics
+  -e workflows/diagnostics \
+  -e external/wandb-query
 set +e

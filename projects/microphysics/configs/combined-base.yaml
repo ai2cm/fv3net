@@ -1,0 +1,280 @@
+base_version: v0.5
+data_table: default
+duration: "30d"
+initial_conditions: "gs://vcm-ml-experiments/microphysics-emulation/2022-04-18/create-training-microphysics-v4-2-6/artifacts/20160601.000000/RESTART"
+fortran_diagnostics:
+- name: piggy.zarr
+  chunks:
+    time: 1
+  times:
+    frequency: 10800
+    kind: interval
+  variables:
+    - field_name: tendency_of_air_temperature_due_to_emulator
+      module_name: zhao_carr_microphysics
+      output_name: tendency_of_air_temperature_due_to_zhao_carr_emulator
+    - field_name: tendency_of_cloud_water_due_to_emulator
+      module_name: zhao_carr_microphysics
+      output_name: tendency_of_cloud_water_due_to_zhao_carr_emulator
+    - field_name: tendency_of_specific_humidity_due_to_emulator
+      module_name: zhao_carr_microphysics
+      output_name: tendency_of_specific_humidity_due_to_zhao_carr_emulator
+    - field_name: tendency_of_air_temperature_due_to_physics
+      module_name: zhao_carr_microphysics
+      output_name: tendency_of_air_temperature_due_to_zhao_carr_physics
+    - field_name: tendency_of_cloud_water_due_to_physics
+      module_name: zhao_carr_microphysics
+      output_name: tendency_of_cloud_water_due_to_zhao_carr_physics
+    - field_name: tendency_of_specific_humidity_due_to_physics
+      module_name: zhao_carr_microphysics
+      output_name: tendency_of_specific_humidity_due_to_zhao_carr_physics
+    - field_name: surface_precipitation_due_to_emulator
+      module_name: zhao_carr_microphysics
+      output_name: surface_precipitation_due_to_zhao_carr_emulator
+    - field_name: surface_precipitation_due_to_physics
+      module_name: zhao_carr_microphysics
+      output_name: surface_precipitation_due_to_zhao_carr_physics
+    - field_name: delp
+      module_name: dynamics
+      output_name: delp
+    # gscond emulator
+    - field_name: tendency_of_air_temperature_due_to_emulator
+      module_name: zhao_carr_gscond
+      output_name: tendency_of_air_temperature_due_to_gscond_emulator
+    - field_name: tendency_of_specific_humidity_due_to_emulator
+      module_name: zhao_carr_gscond
+      output_name: tendency_of_specific_humidity_due_to_gscond_emulator
+    - field_name: tendency_of_cloud_water_due_to_emulator
+      module_name: zhao_carr_gscond
+      output_name: tendency_of_cloud_water_due_to_gscond_emulator
+    # gscond physics
+    - field_name: tendency_of_air_temperature_due_to_physics
+      module_name: zhao_carr_gscond
+      output_name: tendency_of_air_temperature_due_to_gscond_physics
+    - field_name: tendency_of_cloud_water_due_to_physics
+      module_name: zhao_carr_gscond
+      output_name: tendency_of_cloud_water_due_to_gscond_physics
+    - field_name: tendency_of_specific_humidity_due_to_physics
+      module_name: zhao_carr_gscond
+      output_name: tendency_of_specific_humidity_due_to_gscond_physics
+- name: sfc_dt_atmos.zarr
+  # 6 hr batches
+  chunks:
+    time: 24
+  times:
+    frequency: 900
+    kind: interval
+  variables:
+  - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+  - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+  - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+  - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+  - {module_name: dynamics, field_name: area, output_name: area}
+  - {module_name: gfs_phys, field_name: dusfci, output_name: uflx}
+  - {module_name: gfs_phys, field_name: dvsfci, output_name: vflx}
+  - {module_name: gfs_phys, field_name: cnvprcpb_ave, output_name: CPRATsfc}
+  - {module_name: gfs_phys, field_name: totprcpb_ave, output_name: PRATEsfc}
+  - {module_name: gfs_phys, field_name: toticeb_ave, output_name: ICEsfc}
+  - {module_name: gfs_phys, field_name: totsnwb_ave, output_name: SNOWsfc}
+  - {module_name: gfs_phys, field_name: totgrpb_ave, output_name: GRAUPELsfc}
+  - {module_name: gfs_phys, field_name: DSWRF, output_name: DSWRFsfc}
+  - {module_name: gfs_phys, field_name: DSWRF_from_rrtmg, output_name: DSWRFsfc_from_RRTMG}
+  - {module_name: gfs_phys, field_name: USWRF, output_name: USWRFsfc}
+  - {module_name: gfs_phys, field_name: USWRF_from_rrtmg, output_name: USWRFsfc_from_RRTMG}
+  - {module_name: gfs_phys, field_name: DSWRFtoa, output_name: DSWRFtoa}
+  - {module_name: gfs_phys, field_name: USWRFtoa, output_name: USWRFtoa}
+  - {module_name: gfs_phys, field_name: ULWRFtoa, output_name: ULWRFtoa}
+  - {module_name: gfs_phys, field_name: ULWRF, output_name: ULWRFsfc}
+  - {module_name: gfs_phys, field_name: DLWRF, output_name: DLWRFsfc}
+  - {module_name: gfs_phys, field_name: DLWRF_from_rrtmg, output_name: DLWRFsfc_from_RRTMG}
+  - {module_name: gfs_phys, field_name: lhtfl_ave, output_name: LHTFLsfc}
+  - {module_name: gfs_phys, field_name: shtfl_ave, output_name: SHTFLsfc}
+  - {module_name: gfs_phys, field_name: hpbl, output_name: HPBLsfc}
+  - {module_name: gfs_sfc, field_name: fice, output_name: ICECsfc}
+  - {module_name: gfs_sfc, field_name: SLMSKsfc, output_name: SLMSKsfc}
+  - {module_name: gfs_sfc, field_name: q2m, output_name: SPFH2m}
+  - {module_name: gfs_sfc, field_name: t2m, output_name: TMP2m}
+  - {module_name: gfs_sfc, field_name: tsfc, output_name: TMPsfc}
+  - {module_name: gfs_phys, field_name: dpt2m, output_name: DPT2m}
+  - {module_name: gfs_phys, field_name: u10m, output_name: UGRD10m}
+  - {module_name: gfs_phys, field_name: v10m, output_name: VGRD10m}
+  - {module_name: gfs_phys, field_name: tmpmax2m, output_name: TMAX2m}
+  - {module_name: gfs_phys, field_name: wind10mmax, output_name: MAXWIND10m}
+  - {module_name: gfs_phys, field_name: soilm, output_name: SOILM}
+  - {module_name: gfs_sfc, field_name: SOILT1, output_name: SOILT1}
+  - {module_name: gfs_sfc, field_name: SOILT2, output_name: SOILT2}
+  - {module_name: gfs_sfc, field_name: SOILT3, output_name: SOILT3}
+  - {module_name: gfs_sfc, field_name: SOILT4, output_name: SOILT4}
+- name: atmos_dt_atmos.zarr
+  chunks:
+    time: 24
+  times:
+    frequency: 900
+    kind: interval
+  variables:
+  - {module_name: dynamics, field_name: grid_lont, output_name: lon}
+  - {module_name: dynamics, field_name: grid_latt, output_name: lat}
+  - {module_name: dynamics, field_name: grid_lon, output_name: lonb}
+  - {module_name: dynamics, field_name: grid_lat, output_name: latb}
+  - {module_name: dynamics, field_name: area, output_name: area}
+  - {module_name: dynamics, field_name: us, output_name: UGRDlowest}
+  - {module_name: dynamics, field_name: u850, output_name: UGRD850}
+  - {module_name: dynamics, field_name: u500, output_name: UGRD500}
+  - {module_name: dynamics, field_name: u200, output_name: UGRD200}
+  - {module_name: dynamics, field_name: u50, output_name: UGRD50}
+  - {module_name: dynamics, field_name: vs, output_name: VGRDlowest}
+  - {module_name: dynamics, field_name: v850, output_name: VGRD850}
+  - {module_name: dynamics, field_name: v500, output_name: VGRD500}
+  - {module_name: dynamics, field_name: v200, output_name: VGRD200}
+  - {module_name: dynamics, field_name: v50, output_name: VGRD50}
+  - {module_name: dynamics, field_name: tm, output_name: TMP500_300}
+  - {module_name: dynamics, field_name: tb, output_name: TMPlowest}
+  - {module_name: dynamics, field_name: t850, output_name: TMP850}
+  - {module_name: dynamics, field_name: t500, output_name: TMP500}
+  - {module_name: dynamics, field_name: t200, output_name: TMP200}
+  - {module_name: dynamics, field_name: w850, output_name: w850}
+  - {module_name: dynamics, field_name: w500, output_name: w500}
+  - {module_name: dynamics, field_name: w200, output_name: w200}
+  - {module_name: dynamics, field_name: w50, output_name: w50}
+  - {module_name: dynamics, field_name: vort850, output_name: VORT850}
+  - {module_name: dynamics, field_name: vort500, output_name: VORT500}
+  - {module_name: dynamics, field_name: vort200, output_name: VORT200}
+  - {module_name: dynamics, field_name: z850, output_name: h850}
+  - {module_name: dynamics, field_name: z500, output_name: h500}
+  - {module_name: dynamics, field_name: z200, output_name: h200}
+  - {module_name: dynamics, field_name: rh1000, output_name: RH1000}
+  - {module_name: dynamics, field_name: rh925, output_name: RH925}
+  - {module_name: dynamics, field_name: rh850, output_name: RH850}
+  - {module_name: dynamics, field_name: rh700, output_name: RH700}
+  - {module_name: dynamics, field_name: rh500, output_name: RH500}
+  - {module_name: dynamics, field_name: q1000, output_name: q1000}
+  - {module_name: dynamics, field_name: q925, output_name: q925}
+  - {module_name: dynamics, field_name: q850, output_name: q850}
+  - {module_name: dynamics, field_name: q700, output_name: q700}
+  - {module_name: dynamics, field_name: q500, output_name: q500}
+  - {module_name: dynamics, field_name: slp, output_name: PRMSL}
+  - {module_name: dynamics, field_name: ps, output_name: PRESsfc}
+  - {module_name: dynamics, field_name: tq, output_name: PWAT}
+  - {module_name: dynamics, field_name: lw, output_name: VIL}
+  - {module_name: dynamics, field_name: iw, output_name: iw}
+  - {module_name: dynamics, field_name: ke, output_name: kinetic_energy}
+  - {module_name: dynamics, field_name: te, output_name: total_energy}
+diagnostics:
+- chunks:
+    time: 1
+  name: state_after_timestep.zarr
+  tensorboard: false
+  times:
+    frequency: 10800
+    includes_lower: false
+    kind: interval
+    times: null
+  variables:
+  - longitude
+  - latitude
+  - pressure_thickness_of_atmospheric_layer
+  - surface_pressure
+  - eastward_wind
+  - northward_wind
+  - vertical_wind
+  - air_temperature
+  - specific_humidity
+  - cloud_water_mixing_ratio
+  - total_precipitation
+  - land_sea_mask
+- chunks:
+    time: 1
+  name: physics_tendencies.zarr
+  tensorboard: false
+  times:
+    frequency: 10800
+    includes_lower: false
+    kind: interval
+    times: null
+  variables:
+  - tendency_of_air_temperature_due_to_fv3_physics
+  - tendency_of_specific_humidity_due_to_fv3_physics
+  - tendency_of_cloud_water_mixing_ratio_due_to_fv3_physics
+  - tendency_of_eastward_wind_due_to_fv3_physics
+  - tendency_of_northward_wind_due_to_fv3_physics
+  - tendency_of_ozone_mixing_ratio_due_to_fv3_physics
+  - tendency_of_pressure_thickness_of_atmospheric_layer_due_to_fv3_physics
+experiment_name: default_experiment
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+namelist:
+  namsfc:
+    # these flags make the coarse run use the GRIB data for snoalb and vegetation
+    # if not included, it will use the initial condition data (which may differ from GRIB file)
+    # for more info see https://docs.google.com/document/d/1ndOG4u3gZ6kWJV6TqLh-E04n15tl9Ni55B2bavta1Cc/edit#heading=h.uqcex6mf4e10
+    fabss: 0
+    fabsl: 0
+    fvmnl: 0
+    fvmns: 0
+    fvmxl: 0
+    fvmxs: 0
+    # for time-varying SSTs from GRIB
+    ftsfs: 0
+    # for time-varying sea ice from GRIB
+    fsicl: 0
+    fsics: 0
+    faisl: 0
+    faiss: 0
+  atmos_model_nml:
+    blocksize: -1
+  coupler_nml:
+    current_date:
+    - 2016
+    - 8
+    - 2
+    - 0
+    - 0
+    - 0
+    days: 12
+    hours: 0
+    minutes: 0
+    seconds: 0
+  diag_manager_nml:
+    flush_nc_files: true
+  fv_core_nml:
+    do_sat_adj: false
+    nudge: false
+    nudge_qv: false
+    warm_start: true
+    external_ic: false
+    external_eta: true
+    make_nh: false
+    nggps_ic: false
+    mountain: true
+    na_init: 0
+    nwat: 2
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
+  gfs_physics_nml:
+    satmedmf: false
+    hybedmf: true
+    imp_physics: 99
+    ncld: 1
+    ldiag3d: true
+    emulate_gscond_only: false
+    emulate_zc_microphysics: true
+zhao_carr_emulation:
+  gscond:
+    path: gs://vcm-ml-experiments/microphysics-emulation/2022-05-12/gscond-only-tscale-dense-local-41b1c1-v1/model.tf
+    classifier_path: gs://vcm-ml-experiments/microphysics-emulation/2022-06-09/gscond-classifier-v1/model.tf
+    enforce_conservative: true
+    gscond_cloud_conservative: true
+    mask_gscond_zero_cloud_classifier: true
+    mask_gscond_no_tend_classifier: true
+    mask_emulator_levels:
+      cloud_water_mixing_ratio_after_gscond:
+        start: 74
+        fill_value: cloud_water_mixing_ratio_input
+      specific_humidity_after_gscond:
+        start: 74
+        fill_value: specific_humidity_input
+      air_temperature_after_gscond:
+        start: 74
+        fill_value: air_temperature_input
+  model:
+    path: gs://vcm-ml-experiments/microphysics-emulation/2022-07-19/precpd-diff-only-rnn-v1-shared-weights-v1/model.tf

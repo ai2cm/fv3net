@@ -11,13 +11,18 @@ CACHE_TAG =latest
 BEAM_VERSION = 2.37.0
 UBUNTU_IMAGE = ubuntu@sha256:9101220a875cee98b016668342c489ff0674f247f6ca20dfc91b91c0f28581ae
 # prognostic base image is updated manually, not on every commit
-PROGNOSTIC_BASE_VERSION = 1.0.1
+PROGNOSTIC_BASE_VERSION = 1.1.2
+
+# Explicitly mount the /fv3net/external/fv3gfs-fortran directory to prevent
+# it from being overriden by the user's.  Historically we only interactively
+# develop the Python dependencies of the images in fv3net.
 DOCKER_INTERACTIVE_ARGS = \
 	--tty \
 	--interactive \
 	-v $(shell pwd)/external:/fv3net/external \
 	-v $(shell pwd)/workflows:/fv3net/workflows \
 	-v $(shell pwd)/projects:/fv3net/projects \
+	-v /fv3net/external/fv3gfs-fortran \
 	--mount source=bash_history,target=/root/.bash_history \
 	-e HISTFILE=/root/.bash_history/history
 
@@ -44,6 +49,7 @@ build_images: $(addprefix build_image_, $(IMAGES))
 push_images: $(addprefix push_image_, $(IMAGES))
 
 build_image_fv3fit: docker/fv3fit/requirements.txt
+build_image_fv3fit_torch: docker/fv3fit_torch/requirements.txt
 build_image_artifacts: docker/artifacts/requirements.txt
 
 build_image_prognostic_run_base:
@@ -166,7 +172,7 @@ test_%:
 	cd external/$* && tox -- $(ARGS)
 
 test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
-	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images $(ARGS)
+	coverage run -m pytest -m "not regression" --durations=20 $(ARGS)
 	coverage combine \
 		--append \
 		external/fv3kube/.coverage \
@@ -204,10 +210,6 @@ update_submodules:
 	git submodule sync --recursive
 	git submodule update --init \
 		external/fv3gfs-fortran \
-
-
-overwrite_baseline_images:
-	pytest tests/test_diagnostics_plots.py --mpl-generate-path tests/baseline_images
 
 
 ############################################################
@@ -262,7 +264,7 @@ docker/prognostic_run/requirements.txt:
 		workflows/post_process_run/requirements.txt \
 		workflows/prognostic_c48_run/requirements.in
 
-docker/fv3fit/requirements.txt:
+docker/fv3fit/requirements.txt: external/fv3fit/setup.py external/loaders/setup.py external/vcm/setup.py
 	cp constraints.txt $@
 	# this will subset the needed dependencies from constraints.txt
 	# while preserving the versions
@@ -271,6 +273,18 @@ docker/fv3fit/requirements.txt:
 		external/fv3fit/setup.py \
 		external/loaders/setup.py \
 		external/vcm/setup.py
+
+
+docker/fv3fit_torch/requirements.txt: docker/fv3fit_torch/requirements.in external/fv3fit/setup.py external/loaders/setup.py external/vcm/setup.py
+	cp constraints.txt $@
+	# this will subset the needed dependencies from constraints.txt
+	# while preserving the versions
+	pip-compile --no-annotate \
+		--output-file docker/fv3fit_torch/requirements.txt \
+		external/fv3fit/setup.py \
+		external/loaders/setup.py \
+		external/vcm/setup.py \
+		docker/fv3fit_torch/requirements.in
 
 docker/artifacts/requirements.txt:
 	cp -f constraints.txt $@

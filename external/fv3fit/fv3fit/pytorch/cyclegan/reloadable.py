@@ -4,14 +4,16 @@ from fv3fit._shared.scaler import StandardScaler
 from fv3fit.pytorch.predict import (
     _dump_pytorch,
     _load_pytorch,
-    _pack_to_tensor,
     _unpack_tensor,
 )
+from fv3fit.pytorch.system import DEVICE
 from .generator import Generator
 from .discriminator import Discriminator
-from typing import Mapping, Iterable
+from typing import Mapping, Iterable, Tuple
 import torch
 import xarray as xr
+import numpy as np
+import cftime
 
 
 class CycleGANModule(torch.nn.Module):
@@ -85,11 +87,15 @@ class CycleGAN(Reloadable):
         """Load a serialized model from a directory."""
         return _load_pytorch(cls, path)
 
+    def to(self, device) -> "CycleGAN":
+        model = self.model.to(device)
+        return CycleGAN(model, self.scalers, **self.get_config())
+
     def dump(self, path: str) -> None:
         _dump_pytorch(self, path)
 
     def get_config(self):
-        return {}
+        return {"state_variables": self.state_variables}
 
     def pack_to_tensor(self, ds: xr.Dataset, domain: str = "a") -> torch.Tensor:
         """
@@ -113,10 +119,10 @@ class CycleGAN(Reloadable):
             for name, scaler in self.scalers.items()
             if name.startswith(f"{domain}_")
         }
-        tensor = _pack_to_tensor(
+        time, tensor = _pack_to_tensor(
             ds=ds, timesteps=0, state_variables=self.state_variables, scalers=scalers,
         )
-        return tensor.permute([0, 1, 4, 2, 3])
+        return time, tensor.permute([0, 1, 4, 2, 3])
 
     def unpack_tensor(self, data: torch.Tensor, domain: str = "b") -> xr.Dataset:
         """
@@ -145,6 +151,8 @@ class CycleGAN(Reloadable):
         """
         Predict a state in the output domain from a state in the input domain.
 
+        "time" must be a variable present in the dataset decoded into datetime.
+
         Args:
             X: input dataset
             reverse: if True, transform from the output domain to the input domain
@@ -157,12 +165,89 @@ class CycleGAN(Reloadable):
         else:
             input_domain, output_domain = "a", "b"
 
-        tensor = self.pack_to_tensor(X, domain=input_domain)
+        time, tensor = self.pack_to_tensor(X, domain=input_domain)
+        if reverse:
+            generator = self.generator_b_to_a
+        else:
+            generator = self.generator_a_to_b
+        n_batch = 100
+        outputs = torch.zeros_like(tensor)
         with torch.no_grad():
-            if reverse:
-                outputs: torch.Tensor = self.generator_b_to_a(tensor)
-            else:
-                outputs = self.generator_a_to_b(tensor)
-        outputs = outputs.reshape(tensor.shape)
+            for i in range(0, tensor.shape[0], n_batch):
+                new: torch.Tensor = generator(
+                    time[i : i + n_batch], tensor[i : i + n_batch]
+                )
+                outputs[i : i + new.shape[0]] = new
         predicted = self.unpack_tensor(outputs, domain=output_domain)
+        predicted["time"] = X["time"]
         return predicted
+
+
+def _pack_to_tensor(
+    ds: xr.Dataset,
+    timesteps: int,
+    state_variables: Iterable[str],
+    scalers: Mapping[str, StandardScaler],
+) -> torch.Tensor:
+    """
+    Packs the dataset into a tensor to be used by the pytorch model.
+
+    Subdivides the dataset evenly into windows
+    of size (timesteps + 1) with overlapping start and end points.
+    Overlapping the window start and ends is necessary so that every
+    timestep (evolution from one time to the next) is included within
+    one of the windows.
+
+    Args:
+        ds: dataset containing values to pack
+        timesteps: number timesteps to include in each window after initial time
+
+    Returns:
+        tensor of shape [window, time, tile, x, y, feature]
+    """
+
+    expected_dims: Tuple[str, ...] = ("time", "tile", "x", "y")
+    if "z" in ds.dims:
+        expected_dims += ("z",)
+    ds = ds.transpose(..., *expected_dims)
+    if timesteps > 0:
+        n_times = ds.time.size
+        n_windows = int((n_times - 1) // timesteps)
+        # times need to be evenly divisible into windows
+        ds = ds.isel(time=slice(None, n_windows * timesteps + 1))
+    all_data = []
+    for varname in state_variables:
+        var_dims = ds[varname].dims
+        if tuple(var_dims[:4]) != expected_dims[:4]:
+            raise ValueError(
+                f"received variable {varname} with " f"unexpected dimensions {var_dims}"
+            )
+        data = ds[varname].values
+        normalized_data = scalers[varname].normalize(data)
+        if timesteps > 0:
+            # segment time axis into windows, excluding last time of each window
+            data = normalized_data[:-1, :].reshape(
+                n_windows, timesteps, *data.shape[1:]
+            )
+            # append first time of next window to end of each window
+            if n_windows > 1:
+                end_data = np.concatenate(
+                    [data[1:, :1, :], normalized_data[None, -1:, :]], axis=0
+                )
+            else:
+                end_data = normalized_data[None, -1:, :]
+            data = np.concatenate([data, end_data], axis=1)
+        else:
+            data = normalized_data
+        if "z" not in var_dims:
+            # need a z-axis for concatenation into feature axis
+            data = data[..., np.newaxis]
+        all_data.append(data)
+    concatenated_data = np.concatenate(all_data, axis=-1)
+    time = cftime.date2num(ds["time"].values, "seconds since 1970-01-01").astype(
+        np.float32
+    )
+    return (
+        torch.as_tensor(time).float().to(DEVICE),
+        torch.as_tensor(concatenated_data).float().to(DEVICE),
+    )

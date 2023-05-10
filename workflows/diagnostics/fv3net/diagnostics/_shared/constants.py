@@ -1,9 +1,10 @@
 import xarray as xr
-from typing import Optional
-from dataclasses import dataclass
+from typing import Optional, List
+from dataclasses import dataclass, field
 import numpy as np
 
-HORIZONTAL_DIMS = ["x", "y", "tile"]
+HORIZONTAL_DIMS_FV3 = ["x", "y", "tile"]
+HORIZONTAL_DIMS_SCREAM = ["ncol"]
 VERTICAL_DIM = "z"
 PRECIP_RATE = "total_precip_to_surface"
 
@@ -20,9 +21,13 @@ HISTOGRAM_BINS = {
 # argument typehint for diags in save_prognostic_run_diags but used
 # by multiple modules split out to group operations and simplify
 # the diagnostic script
+
+
 @dataclass
 class DiagArg:
     prediction: xr.Dataset
     verification: xr.Dataset
     grid: xr.Dataset
     delp: Optional[xr.DataArray] = None
+    horizontal_dims: List[str] = field(default_factory=lambda: HORIZONTAL_DIMS_FV3)
+    vertical_dim: str = VERTICAL_DIM

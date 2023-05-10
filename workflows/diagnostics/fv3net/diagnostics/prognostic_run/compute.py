@@ -32,7 +32,6 @@ from fv3net.diagnostics.prognostic_run import load_run_data as load_diags
 from fv3net.diagnostics.prognostic_run import diurnal_cycle
 from fv3net.diagnostics._shared.constants import (
     DiagArg,
-    HORIZONTAL_DIMS,
     COL_DRYING,
     WVP,
     HISTOGRAM_BINS,
@@ -53,6 +52,15 @@ from fv3net.artifacts.metadata import StepMetadata
 import logging
 
 logger = logging.getLogger("SaveDiags")
+
+
+def itcz_edges(
+    psi: xr.DataArray, lat: str = "latitude",
+) -> Tuple[xr.DataArray, xr.DataArray]:
+    """Compute latitude of ITCZ edges given mass streamfunction at particular level."""
+    lat_min = psi.sel({lat: slice(-30, 10)}).idxmin(lat)
+    lat_max = psi.sel({lat: slice(-10, 30)}).idxmax(lat)
+    return lat_min, lat_max
 
 
 def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
@@ -197,7 +205,7 @@ def rms_errors(diag_arg: DiagArg):
         diag_arg.verification,
         diag_arg.grid,
     )
-    rms_errors = rms(prognostic, verification, grid.area, dims=HORIZONTAL_DIMS)
+    rms_errors = rms(prognostic, verification, grid.area, dims=diag_arg.horizontal_dims)
 
     return rms_errors
 
@@ -379,7 +387,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         prognostic, grid = diag_arg.prediction, diag_arg.grid
         masked = prognostic.where(~grid["area"].isnull())
         with xr.set_options(keep_attrs=True):
-            return masked.min(dim=HORIZONTAL_DIMS)
+            return masked.min(dim=diag_arg.horizontal_dims)
 
     @registry_2d.register(f"spatial_max_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
@@ -391,7 +399,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         prognostic, grid = diag_arg.prediction, diag_arg.grid
         masked = prognostic.where(~grid["area"].isnull())
         with xr.set_options(keep_attrs=True):
-            return masked.max(dim=HORIZONTAL_DIMS)
+            return masked.max(dim=diag_arg.horizontal_dims)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -404,7 +412,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     def global_averages_2d(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing averages for 2d variables ({mask_type})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
-        return weighted_mean(prognostic, grid.area, HORIZONTAL_DIMS)
+        return weighted_mean(prognostic, grid.area, diag_arg.horizontal_dims)
 
     @registry_2d.register(f"mean_bias_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
@@ -419,7 +427,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
             diag_arg.grid,
         )
         bias_errors = bias(verification, prognostic)
-        mean_bias_errors = weighted_mean(bias_errors, grid.area, HORIZONTAL_DIMS)
+        mean_bias_errors = weighted_mean(
+            bias_errors, grid.area, diag_arg.horizontal_dims
+        )
         return mean_bias_errors
 
 
@@ -524,6 +534,42 @@ def compute_hist_2d_bias(diag_arg: DiagArg):
     error = bias(hist2d_verif[name], hist2d_prog[name])
     hist2d_prog.update({name: error})
     return _assign_diagnostic_time_attrs(hist2d_prog, diag_arg.prediction)
+
+
+@registry_3d.register("300_700_zonal_mean_value")
+@transform.apply(transform.subset_variables, ["northward_wind"])
+@transform.apply(transform.skip_if_3d_output_absent)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+def time_dependent_mass_streamfunction(diag_arg: DiagArg):
+    logger.info("Computing mid-troposphere averaged mass streamfunction")
+    prognostic, grid = diag_arg.prediction, diag_arg.grid
+    if _is_empty(prognostic):
+        return xr.Dataset()
+    northward_wind = prognostic["northward_wind"]
+    v_zm = vcm.zonal_average_approximate(grid.lat, northward_wind, lat_name="latitude")
+    psi = vcm.mass_streamfunction(v_zm).sel(pressure=slice(30000, 70000))
+    with xr.set_options(keep_attrs=True):
+        psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
+    return xr.Dataset({"mass_streamfunction": psi_mid_trop})
+
+
+@registry_3d.register("300_700_zonal_mean_bias")
+@transform.apply(transform.subset_variables, ["northward_wind"])
+@transform.apply(transform.skip_if_3d_output_absent)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
+@transform.apply(transform.daily_mean, datetime.timedelta(days=10))
+def time_dependent_mass_streamfunction_bias(diag_arg: DiagArg):
+    logger.info("Computing mid-troposphere averaged mass streamfunction bias")
+    prognostic, grid = diag_arg.prediction, diag_arg.grid
+    if _is_empty(prognostic) or _is_empty(diag_arg.verification):
+        return xr.Dataset()
+    wind_bias = prognostic["northward_wind"] - diag_arg.verification["northward_wind"]
+    v_zm = vcm.zonal_average_approximate(grid.lat, wind_bias, lat_name="latitude")
+    psi = vcm.mass_streamfunction(v_zm).sel(pressure=slice(30000, 70000))
+    with xr.set_options(keep_attrs=True):
+        psi_mid_trop = psi.weighted(psi.pressure).mean("pressure")
+    return xr.Dataset({"mass_streamfunction": psi_mid_trop})
 
 
 def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:

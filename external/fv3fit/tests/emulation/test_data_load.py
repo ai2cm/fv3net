@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 import xarray as xr
 
-from fv3fit.emulation.data import load, TransformConfig, netcdf_url_to_dataset
+from fv3fit.emulation.data import load, TransformConfig
 
 
 def _get_dataset() -> xr.Dataset:
@@ -64,6 +64,21 @@ def test_netcdf_directory_to_tf_dataset(config, nc_dir):
     _assert_batch_valid(batch, 100)
 
 
+def test_netcdf_dir_to_tf_dataset_file_regexp_filter(config, nc_dir):
+    filter_str = ".*[12].nc"
+    tf_ds = load.nc_dir_to_tfdataset(str(nc_dir), config, match=filter_str).unbatch()
+    batch = next(iter(tf_ds.batch(150)))
+    _assert_batch_valid(batch, 20)
+
+
+def test_netcdf_dir_to_tf_dataset_file_regexp_filter_empty(config):
+    filter_str = "notamatch.nc"
+    with pytest.raises(NotImplementedError):
+        tf_ds = load.nc_dir_to_tfdataset(  # noqa
+            str(nc_dir), config, match=filter_str
+        ).unbatch()
+
+
 def test_netcdf_files_to_tf_dataset(config, nc_dir_files):
 
     tf_ds = load.nc_files_to_tf_dataset(nc_dir_files, config).unbatch()
@@ -100,17 +115,3 @@ def test_netcdf_dir_to_tf_dataset_with_shuffle(config, nc_dir):
 
     with pytest.raises(AssertionError):
         np.testing.assert_array_equal(get_first_tensor(ds1), get_first_tensor(ds2))
-
-
-def test_netcdf_url_to_dataset(tmpdir):
-    nfiles = 3
-    ds = _get_dataset()
-    for f in [tmpdir.join(f"file{i}.nc") for i in range(nfiles)]:
-        ds.to_netcdf(str(f))
-
-    tf_ds = netcdf_url_to_dataset(str(tmpdir), variables=set(ds))
-
-    assert len(tf_ds) == nfiles
-    for item in tf_ds:
-        for variable in ds:
-            assert isinstance(item[variable], tf.Tensor)

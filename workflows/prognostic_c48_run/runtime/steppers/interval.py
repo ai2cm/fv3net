@@ -36,7 +36,4 @@ class IntervalStepper:
             return self.stepper(time, state)
 
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
-        return {}, xr.DataArray()
-
-    def get_momentum_diagnostics(self, state, tendency) -> Diagnostics:
-        return {}
+        return self.stepper.get_diagnostics(state, tendency)

@@ -2,6 +2,8 @@
 
 A python port of the GFS physics radiation scheme. 
 
+See sphinx [documentation](https://vulcanclimatemodeling.com/docs/radiation) for full usage.
+
 ### Running validation tests
 
 The following test verifies that the port produces the same output as the GFS scheme

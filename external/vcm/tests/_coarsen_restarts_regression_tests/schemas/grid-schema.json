@@ -1,0 +1,290 @@
+{
+    "version": "v3",
+    "schema": {
+        "coords": {
+            "grid_x": {
+                "name": "grid_x",
+                "dims": [
+                    "grid_x"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0
+                ],
+                "attrs": {
+                    "long_name": "cell corner longitude",
+                    "units": "degrees_E",
+                    "cartesian_axis": "X"
+                }
+            },
+            "grid_y": {
+                "name": "grid_y",
+                "dims": [
+                    "grid_y"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0
+                ],
+                "attrs": {
+                    "long_name": "cell corner latitude",
+                    "units": "degrees_N",
+                    "cartesian_axis": "Y"
+                }
+            },
+            "time": {
+                "name": "time",
+                "dims": [
+                    "time"
+                ],
+                "value": [
+                    "2016-08-01T00:00:00"
+                ],
+                "attrs": {
+                    "long_name": "time",
+                    "cartesian_axis": "T",
+                    "calendar_type": "JULIAN"
+                }
+            },
+            "grid_xt": {
+                "name": "grid_xt",
+                "dims": [
+                    "grid_xt"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0
+                ],
+                "attrs": {
+                    "long_name": "T-cell longitude",
+                    "units": "degrees_E",
+                    "cartesian_axis": "X"
+                }
+            },
+            "grid_yt": {
+                "name": "grid_yt",
+                "dims": [
+                    "grid_yt"
+                ],
+                "value": [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0
+                ],
+                "attrs": {
+                    "long_name": "T-cell latitude",
+                    "units": "degrees_N",
+                    "cartesian_axis": "Y"
+                }
+            },
+            "tile": {
+                "name": "tile",
+                "dims": [
+                    "tile"
+                ],
+                "value": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ],
+                "attrs": {}
+            }
+        },
+        "variables": {
+            "grid_lon": {
+                "name": "grid_lon",
+                "dims": [
+                    "tile",
+                    "grid_y",
+                    "grid_x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        5,
+                        5
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        5,
+                        5
+                    ]
+                },
+                "attrs": {
+                    "long_name": "longitude",
+                    "units": "degrees_E",
+                    "cell_methods": "time: point"
+                }
+            },
+            "grid_lat": {
+                "name": "grid_lat",
+                "dims": [
+                    "tile",
+                    "grid_y",
+                    "grid_x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        5,
+                        5
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        5,
+                        5
+                    ]
+                },
+                "attrs": {
+                    "long_name": "latitude",
+                    "units": "degrees_N",
+                    "cell_methods": "time: point"
+                }
+            },
+            "grid_lont": {
+                "name": "grid_lont",
+                "dims": [
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "longitude",
+                    "units": "degrees_E",
+                    "cell_methods": "time: point"
+                }
+            },
+            "grid_latt": {
+                "name": "grid_latt",
+                "dims": [
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "latitude",
+                    "units": "degrees_N",
+                    "cell_methods": "time: point"
+                }
+            },
+            "area": {
+                "name": "area",
+                "dims": [
+                    "tile",
+                    "grid_yt",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        4,
+                        4
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        4,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "cell area",
+                    "units": "m**2",
+                    "cell_methods": "time: point"
+                }
+            },
+            "dx": {
+                "name": "dx",
+                "dims": [
+                    "tile",
+                    "grid_y",
+                    "grid_xt"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        5,
+                        4
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        5,
+                        4
+                    ]
+                },
+                "attrs": {
+                    "long_name": "cell width in x-direction",
+                    "units": "m",
+                    "cell_methods": "time: point"
+                }
+            },
+            "dy": {
+                "name": "dy",
+                "dims": [
+                    "tile",
+                    "grid_yt",
+                    "grid_x"
+                ],
+                "array": {
+                    "shape": [
+                        6,
+                        4,
+                        5
+                    ],
+                    "dtype": "<f4",
+                    "chunks": [
+                        6,
+                        4,
+                        5
+                    ]
+                },
+                "attrs": {
+                    "long_name": "cell width in y-direction",
+                    "units": "m",
+                    "cell_methods": "time: point"
+                }
+            }
+        }
+    }
+}

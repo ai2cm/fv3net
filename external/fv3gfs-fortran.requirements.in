@@ -8,3 +8,4 @@ pace-util>=0.7.0
 # build requirements
 pkgconfig
 jinja2
+cython

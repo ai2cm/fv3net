@@ -2,7 +2,9 @@ import logging
 from dataclasses import dataclass
 from typing import Callable, Mapping, Optional, Sequence
 
+from pathlib import Path
 import numpy as np
+import re
 import tensorflow as tf
 import xarray as xr
 from fv3fit.data.base import TFDatasetLoader, register_tfdataset_loader
@@ -32,6 +34,7 @@ def nc_files_to_tf_dataset(
     files: Sequence[str],
     convert: Callable[[xr.Dataset], Mapping[str, tf.Tensor]],
     cache: str = CACHE_DIR,
+    varying_first_dim: bool = False,
 ):
 
     """
@@ -44,7 +47,18 @@ def nc_files_to_tf_dataset(
     """
 
     transform = compose_left(lambda path: open_netcdf_dataset(path, cache), convert)
-    return iterable_to_tfdataset(files, transform).prefetch(tf.data.AUTOTUNE)
+    return iterable_to_tfdataset(files, transform, varying_first_dim).prefetch(
+        tf.data.AUTOTUNE
+    )
+
+
+def _natural_sort(names):
+    return sorted(
+        names,
+        key=lambda string: [
+            int(s) if s.isdigit() else s for s in re.split("([0-9]+)", string)
+        ],
+    )
 
 
 def nc_dir_to_tfdataset(
@@ -54,6 +68,9 @@ def nc_dir_to_tfdataset(
     shuffle: bool = False,
     random_state: Optional[np.random.RandomState] = None,
     cache: Optional[str] = None,
+    match: Optional[str] = None,
+    varying_first_dim: bool = False,
+    sort_files: bool = False,
 ) -> tf.data.Dataset:
     """
     Convert a directory of netCDF files into a tensorflow dataset.
@@ -65,21 +82,32 @@ def nc_dir_to_tfdataset(
         shuffle: Randomly order the file ingestion into the dataset
         random_state: numpy random number generator for seeded shuffle
         cache: directory to cache datat at. The default is $pwd/.cache.
+        match: string to filter filenames via a regexp search
+        varying_first_dim: If true, allow the first dimension (sample) to have different
+            sizes across batches
+        sort_files: If true, sort the files in nc dir before loading in order.
     """
     cache = cache or CACHE_DIR
 
     files = get_nc_files(nc_dir)
-
+    if match is not None:
+        files = [f for f in files if re.search(match, Path(f).name)]
     if shuffle:
         if random_state is None:
-            random_state = np.random.RandomState(np.random.get_state()[1][0])
+            random_state = np.random.RandomState(
+                np.random.get_state()[1][0]  # type: ignore
+            )
 
-        files = random_state.choice(files, size=len(files), replace=False)
+        files = random_state.choice(
+            files, size=len(files), replace=False  # type: ignore
+        )
+    if sort_files:
+        files = _natural_sort(files)
 
     if nfiles is not None:
         files = files[:nfiles]
 
-    return nc_files_to_tf_dataset(files, convert)
+    return nc_files_to_tf_dataset(files, convert, varying_first_dim=varying_first_dim)
 
 
 def to_tensor(
@@ -117,6 +145,9 @@ class NCDirLoader(TFDatasetLoader):
         nfiles: the number of files to load
         shuffle: Whether the files are opened in a shuffled order
         seed: The random seed used for filename shuffling.
+        dim_order: Order of dimensions in tensors.
+        varying_first_dim: If true, allow the length of the first dimension to vary
+            across netCDF files
 
     """
 
@@ -124,6 +155,9 @@ class NCDirLoader(TFDatasetLoader):
     nfiles: Optional[int] = None
     shuffle: bool = True
     seed: int = 0
+    dim_order: Optional[Sequence[str]] = None
+    varying_first_dim: bool = False
+    sort_files: bool = False
 
     @property
     def dtype(self):
@@ -132,7 +166,11 @@ class NCDirLoader(TFDatasetLoader):
     def convert(
         self, ds: xr.Dataset, variables: Sequence[str]
     ) -> Mapping[str, tf.Tensor]:
-        return to_tensor(ds, variables, dtype=self.dtype)
+        tensors = {}
+        for key in variables:
+            data_array = self._ensure_consistent_dims(ds[key])
+            tensors[key] = tf.convert_to_tensor(data_array, dtype=self.dtype)
+        return tensors
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
@@ -147,8 +185,25 @@ class NCDirLoader(TFDatasetLoader):
             shuffle=self.shuffle,
             random_state=np.random.RandomState(self.seed),
             cache=local_download_path,
+            varying_first_dim=self.varying_first_dim,
+            sort_files=self.sort_files,
         )
 
     @classmethod
     def from_dict(cls, d: dict) -> "TFDatasetLoader":
         return dacite.from_dict(cls, d, config=dacite.Config(strict=True))
+
+    def _ensure_consistent_dims(self, data_array: xr.DataArray):
+        if self.dim_order:
+            extra_dims_in_data_array = set(data_array.dims) - set(self.dim_order)
+            missing_dims_in_data_array = set(self.dim_order) - set(data_array.dims)
+            if len(extra_dims_in_data_array) > 0:
+                raise ValueError(
+                    f"Extra dimensions {extra_dims_in_data_array} in data that are not "
+                    f"included in configured dimension order {self.dim_order}."
+                    "Make sure these are included in the configuration dim_order."
+                )
+            for missing_dim in missing_dims_in_data_array:
+                data_array = data_array.expand_dims(dim=missing_dim)
+            data_array = data_array.transpose(*self.dim_order)
+        return data_array

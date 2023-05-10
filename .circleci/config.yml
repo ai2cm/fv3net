@@ -1,7 +1,6 @@
 version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.15.0
-  slack: circleci/slack@3.4.2
   gh: circleci/github-cli@2.1.0
   jq: circleci/jq@2.2.0
 jobs:
@@ -102,6 +101,7 @@ jobs:
           - post_process_run
           - fv3net
           - fv3fit
+          - fv3fit_torch
           - dataflow
           - artifacts
     machine:
@@ -146,6 +146,7 @@ jobs:
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       CLUSTER_NAME: ml-cluster-dev
+      USE_GKE_GCLOUD_AUTH_PLUGIN: True
     steps:
       - checkout
       - run:
@@ -199,9 +200,6 @@ jobs:
           name: Firewall rule deletion
           when: always
           command: gcloud compute firewall-rules delete $firewall_name
-      - slack/status:
-          fail_only: true
-          mentions: "channel"
 
   validate_radiation_port:
     machine:
@@ -233,7 +231,7 @@ jobs:
           command: |
             cd external/radiation
             . /home/circleci/.nix-profile/etc/profile.d/nix.sh
-            nix-shell --command "pytest -s"
+            nix-shell --command "pytest -s tests/test_driver"
 
 workflows:
   version: 2
@@ -286,6 +284,11 @@ workflows:
       - build_default:
           name: "build/push fv3fit image"
           image: fv3fit
+          requires:
+            - pytest
+      - build_default:
+          name: "build/push fv3fit_torch image"
+          image: fv3fit_torch
           requires:
             - pytest
       # manually trigger on PRs
