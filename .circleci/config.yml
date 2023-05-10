@@ -235,6 +235,7 @@ jobs:
   build_and_test_scream:
     machine:
       image: ubuntu-2004:202111-02
+    resource_class: large
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
