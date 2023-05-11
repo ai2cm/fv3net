@@ -55,7 +55,7 @@ def create(url: str, fv3config_path: str):
     "--mpi_launcher",
     default="mpirun",
     help="MPI launcher used to run the simulation. "
-         "Supported values are 'mpirun' and 'srun'.",
+    "Supported values are 'mpirun' and 'srun'.",
 )
 @click.argument("url")
 def append(mpi_launcher: str, url: str):
@@ -68,7 +68,7 @@ def append(mpi_launcher: str, url: str):
     "--mpi_launcher",
     default="mpirun",
     help="MPI launcher used to run the simulation. "
-         "Supported values are 'mpirun' and 'srun'.",
+    "Supported values are 'mpirun' and 'srun'.",
 )
 @click.argument("fv3config_path")
 @click.argument("rundir")
