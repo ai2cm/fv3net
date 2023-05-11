@@ -359,7 +359,6 @@ class TimeLoop(
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
     ) -> Optional[Stepper]:
-        stepper: Optional[Stepper]
         if config.prephysics is None:
             self._log_info("No prephysics computations")
             return None
