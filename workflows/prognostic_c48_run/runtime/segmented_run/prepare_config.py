@@ -12,6 +12,7 @@ import dacite
 import fv3config
 import fv3kube
 from fv3kube import RestartCategoriesConfig
+from fv3kube import DEFAULT_VERTICAL_COORDINATE_FILE
 
 import pandas as pd
 
@@ -80,6 +81,7 @@ class InitialCondition:
 
     base_url: str
     timestep: str
+    vertical_coordinate_file: str = DEFAULT_VERTICAL_COORDINATE_FILE
     restart_categories: RestartCategoriesConfig = dataclasses.field(
         default_factory=RestartCategoriesConfig
     )
@@ -87,7 +89,10 @@ class InitialCondition:
     @property
     def overlay(self):
         return fv3kube.c48_initial_conditions_overlay(
-            self.base_url, self.timestep, restart_categories=self.restart_categories
+            self.base_url,
+            self.timestep,
+            self.vertical_coordinate_file,
+            restart_categories=self.restart_categories,
         )
 
 

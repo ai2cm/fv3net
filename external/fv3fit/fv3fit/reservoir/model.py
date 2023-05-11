@@ -1,15 +1,16 @@
 import fsspec
-from fv3fit.reservoir.readout import ReservoirComputingReadout
 import os
 from typing import Optional, Iterable, Hashable
 import yaml
 
 from fv3fit import Predictor
+from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
 from .domain import RankDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
 from .autoencoder import Autoencoder
+from ._reshaping import flatten_2d_keeping_columns_contiguous
 
 
 @io.register("pure-reservoir")
@@ -60,10 +61,8 @@ class ReservoirComputingModel(Predictor):
             readout_input = self.reservoir.state
         # For prediction over multiple subdomains (>1 column in reservoir state
         # array), flatten state into 1D vector before predicting
-        readout_input = readout_input.reshape(-1)
-
+        readout_input = flatten_2d_keeping_columns_contiguous(readout_input)
         prediction = self.readout.predict(readout_input).reshape(-1)
-
         return prediction
 
     def reset_state(self):
