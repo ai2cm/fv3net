@@ -49,7 +49,7 @@ def test_compose_simulation_command(mpi_launcher):
     elif mpi_launcher == "srun":
         expected = [mpi_launcher, '--export=ALL', '-n', str(nprocs), sys_exe, "-m", "mpi4py", runfile_as_str]
         assert expected == compose_simulation_command(nprocs, mpi_launcher)
-    elif mpi_launcher == None:
+    elif mpi_launcher is None:
         expected = ["mpirun", '-n', str(nprocs), sys_exe, "-m", "mpi4py", runfile_as_str]
         assert expected == compose_simulation_command(nprocs)
     else:
