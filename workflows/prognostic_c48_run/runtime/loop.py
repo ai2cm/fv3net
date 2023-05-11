@@ -50,43 +50,17 @@ from runtime.steppers.machine_learning import (
     download_model,
     open_model,
 )
+from runtime.steppers.stepper import Stepper
 from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import Prescriber, PrescriberConfig
 from runtime.steppers.interval import IntervalStepper
 from runtime.steppers.combine import CombinedStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
-from typing_extensions import Protocol
 
 from .names import AREA, DELP, TOTAL_PRECIP
 
 logger = logging.getLogger(__name__)
-
-
-class Stepper(Protocol):
-    """Stepper interface
-
-    Steppers know the difference between tendencies, diagnostics, and
-    in-place state updates, but they do not know how and when these updates
-    will be applied.
-
-    Note:
-        Uses typing_extensions.Protocol to avoid the need for explicit sub-typing
-
-    """
-
-    @property
-    def label(self) -> str:
-        """Label used for naming diagnostics.
-        """
-        pass
-
-    def __call__(self, time, state) -> Tuple[Tendencies, Diagnostics, State]:
-        return {}, {}, {}
-
-    def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
-        """Return diagnostics mapping and net moistening array."""
-        return {}, xr.DataArray()
 
 
 def _replace_precip_rate_with_accumulation(  # type: ignore

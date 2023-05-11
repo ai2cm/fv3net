@@ -1,17 +1,14 @@
 import cftime
 from datetime import timedelta
-from typing import Union, Tuple
+from typing import Tuple
 import xarray as xr
 
-from runtime.steppers.machine_learning import PureMLStepper
-from runtime.steppers.prescriber import Prescriber
 from runtime.types import Diagnostics
+from runtime.steppers.stepper import Stepper
 
 
 class IntervalStepper:
-    def __init__(
-        self, apply_interval_seconds: float, stepper: Union[Prescriber, PureMLStepper]
-    ):
+    def __init__(self, apply_interval_seconds: float, stepper: Stepper):
         self.start_time = None
         self.interval = timedelta(seconds=apply_interval_seconds)
         self.stepper = stepper
