@@ -170,6 +170,26 @@ prescribed_cloud_ccnorm_decorr_overlap_run: deploy
 prescribed_cc_cloud_ccnorm_decorr_overlap_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cc-cloud-cc-decorr
 
+.PHONY: prescribed_cc_cloud_decorr_overlap_run
+prescribed_cc_cloud_decorr_overlap_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-cloud-decorr
+
+.PHONY: prescribed_cc_cloud_ccnorm_max_random_overlap_run
+prescribed_cc_cloud_ccnorm_max_random_overlap_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-cloud-cc-max-random
+
+.PHONY: prescribed_cc_cloud_max_random_overlap_run
+prescribed_cc_cloud_max_random_overlap_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-cloud-max-random
+
+.PHONY: prescribed_cc_cloud_ccnorm_ran_overlap_run
+prescribed_cc_cloud_ccnorm_ran_overlap_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-cloud-cc-ran-ovr
+
+.PHONY: prescribed_cc_cloud_ran_overlap_run
+prescribed_cc_cloud_ran_overlap_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-cc-cloud-ran-ovr
+
 .PHONY: prescribed_ml_cloud_run
 prescribed_ml_cloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-ml-cloud
