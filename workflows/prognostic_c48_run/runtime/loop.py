@@ -211,15 +211,13 @@ class LoggingMixin:
             print(message)
 
 
-def overwritten_state_updates_from_tendency(state_updates_from_tendency, state_updates):
+def state_updates_from_tendency(state_updates_from_tendency,):
     # Prescriber can overwrite the state updates predicted by ML tendencies
     # Sometimes this is desired and we want to save both the overwritten updated state
     # as well as the ML-predicted state that was overwritten, ex. reservoir updates.
-    overwritten_keys = state_updates_from_tendency.keys() & state_updates.keys()
-
     updates = {
-        f"{k}_state_from_postphysics_tendency": state_updates_from_tendency[k]
-        for k in overwritten_keys
+        f"{k}_state_from_postphysics_tendency": v
+        for k, v in state_updates_from_tendency.items()
     }
     return updates
 
@@ -620,9 +618,7 @@ class TimeLoop(
                     self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
                 diagnostics.update(
-                    overwritten_state_updates_from_tendency(
-                        updated_state_from_tendency, self._state_updates
-                    )
+                    state_updates_from_tendency(updated_state_from_tendency)
                 )
                 self._state.update_mass_conserving(updated_state_from_tendency)
                 diagnostics.update(tendencies_filled_frac)

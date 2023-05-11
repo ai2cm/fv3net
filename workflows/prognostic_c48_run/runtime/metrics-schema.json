@@ -221,6 +221,16 @@
                 1.3542121849959635e-05
             ]
         },
+        "total_precipitation_state_from_postphysics_tendency": {
+            "$id": "#/properties/total_precipitation_state_from_postphysics_tendency",
+            "type": "number",
+            "default": 0.0,
+            "description": "total precip as calculated after postphysics tendency update",
+            "units": "kg/m^2",
+            "examples": [
+                1.3542121849959635e-05
+            ]
+        },
         "storage_of_mass_due_to_python": {
             "$id": "#/properties/storage_of_mass_due_to_python",
             "type": "number",
