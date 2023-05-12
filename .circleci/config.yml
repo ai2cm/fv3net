@@ -253,6 +253,7 @@ jobs:
           no_output_timeout: 20m
           command: VERSION=latest make build_image_prognostic_scream_run
       - run: VERSION=latest make push_image_prognostic_scream_run
+      - run: VERSION=latest make image_test_scream_run
 
 parameters:
   run-weekly-workflow:

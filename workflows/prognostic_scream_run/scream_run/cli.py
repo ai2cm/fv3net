@@ -69,7 +69,6 @@ def write_scream_run_directory():
     subprocess.run(command, shell=True)
 
 
-# TODO: add tests for scream run as part of the docker image PR
 def scream_run():
     args = _parse_scream_run_command_args()
     scream_config = _make_scream_config(args.config)

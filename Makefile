@@ -159,6 +159,9 @@ build_image_prognostic_scream_run: clone_scream_repository
 
 push_image_prognostic_scream_run:
 	docker push $(REGISTRY)/prognostic_scream_run:$(VERSION)
+
+image_test_scream_run:
+	tools/docker-run --rm -v $(shell pwd)/tests/scream_run_integration:/tmp/scream_run_integration $(REGISTRY)/prognostic_scream_run:$(VERSION) /tmp/scream_run_integration/test_scream_run.sh
 ############################################################
 # Documentation (rules match "deploy_docs_%")
 ############################################################
