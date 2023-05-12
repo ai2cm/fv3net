@@ -3,6 +3,7 @@ from typing import Any, Dict, Union, Optional, TextIO
 import vcm.cloud.gsutil
 import os
 import dacite
+import datetime
 import sys
 import contextlib
 import subprocess
@@ -47,6 +48,12 @@ def _decode_to_str_if_bytes(s, encoding="utf-8"):
 @dataclasses.dataclass
 class RuntimeScreamConfig:
     upload_to_cloud_path: Optional[str] = None
+    STOP_OPTION: str = "nhours"
+    STOP_N: int = 1
+    REST_OPTION: str = "nhours"
+    REST_N: int = 1
+    HIST_OPTION: str = "ndays"
+    HIST_N: int = 1
 
     @classmethod
     def from_dict(cls, kwargs: Dict[str, Any]) -> "RuntimeScreamConfig":
@@ -68,13 +75,7 @@ class ScreamConfig:
     COMPSET: str = "F2010-SCREAMv1"
     RESOLUTION: str = "ne30pg2_ne30pg2"
     ATM_NCPL: int = 48
-    STOP_OPTION: str = "nhours"
-    STOP_N: int = 1
-    REST_OPTION: str = "nhours"
-    REST_N: int = 1
-    HIST_OPTION: str = "ndays"
-    HIST_N: int = 1
-    RUN_STARTDATE: str = "2010-01-01"
+    RUN_STARTDATE: Union[str, datetime.date] = "2010-01-01"
     MODEL_START_TYPE: str = "initial"
     OLD_EXECUTABLE: str = ""
     RUNTIME: RuntimeScreamConfig = RuntimeScreamConfig()
@@ -114,6 +115,21 @@ class ScreamConfig:
                 command += f" --{key} {value}"
         return command
 
+    def set_runtime_option(self, case_scripts_dir: str):
+        with cwd(case_scripts_dir):
+            subprocess.run(
+                f"./xmlchange STOP_OPTION={self.RUNTIME.STOP_OPTION}", shell=True
+            )
+            subprocess.run(f"./xmlchange STOP_N={self.RUNTIME.STOP_N}", shell=True)
+            subprocess.run(
+                f"./xmlchange REST_OPTION={self.RUNTIME.REST_OPTION}", shell=True
+            )
+            subprocess.run(f"./xmlchange REST_N={self.RUNTIME.REST_N}", shell=True)
+            subprocess.run(
+                f"./xmlchange HIST_OPTION={self.RUNTIME.HIST_OPTION}", shell=True
+            )
+            subprocess.run(f"./xmlchange HIST_N={self.RUNTIME.HIST_N}", shell=True)
+
     def submit_scream_run(self, rebuild: bool = False):
         case_scripts_dir = os.path.join(
             self.CASE_ROOT,
@@ -134,6 +150,7 @@ class ScreamConfig:
                         text=True,
                     )
                     parse_scream_log(process, f)
+                self.set_runtime_option(case_scripts_dir)
                 process = subprocess.Popen(
                     ["./case.submit",],
                     stdout=subprocess.PIPE,
@@ -147,7 +164,7 @@ class ScreamConfig:
             try:
                 print(f"Uploading {case_run_dir} to {output_dir}")
                 subprocess.check_output(
-                    ["gsutil", "-m", "rsync", "-r", "-e", case_run_dir, output_dir],
+                    ["gsutil", "-m", "rsync", "-r", "-e", case_run_dir, output_dir,],
                     stderr=subprocess.STDOUT,
                 )
             except subprocess.CalledProcessError as e:

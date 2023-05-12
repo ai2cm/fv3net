@@ -69,13 +69,9 @@ spec:
          mkdir -p /storage
          rm -rf /storage/inputdata
          ln -s /mnt/data/inputdata /storage/
-         if {{inputs.parameters.precompiled_case}}; then
-           echo "Using a pre-compiled case"
-           sed -i '/create_newcase/d' {{inputs.parameters.config}}
-           echo "create_newcase: False" >> {{inputs.parameters.config}}
-         fi
-         write_scream_run_directory {{inputs.parameters.config}} /tmp/rundir
-         scream_run {{inputs.parameters.config}}
+         prepare_scream_config "{{inputs.parameters.config}}" /tmp/scream_config.yaml --precompiled_case={{inputs.parameters.precompiled_case}}
+         write_scream_run_directory /tmp/scream_config.yaml /tmp/rundir
+         scream_run /tmp/scream_config.yaml
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
