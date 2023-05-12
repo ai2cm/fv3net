@@ -1,0 +1,19 @@
+A 1-day run using different configurations
+The timings are cumulative counts in a code section reduced over ranks.
+96 time steps of 15 minutes each
+
+full online emulation
+{"online emulation": {"<lambda>": {"min": 1.281980558999635, "max": 1.3164206679994663, "mean": 1.302840945499857}, "_step_dynamics": {"min": 185.35580449900078, "max": 186.22248252299983, "mean": 185.7395436958334}, "_step_prephysics": {"min": 0.3292081280005732, "max": 0.3370660440000961, "mean": 0.33298518050004117}, "_step_pre_radiation_physics": {"min": 8.99769148099972, "max": 12.298820042999864, "mean": 11.197100004999859}, "_step_radiation_physics": {"min": 78.54019504599967, "max": 118.29916244299955, "mean": 98.4997136976665}, "_step_post_radiation_physics": {"min": 200.6416246870005, "max": 206.12722623299987, "mean": 203.7489294246666}, "_apply_physics": {"min": 39.03080422400018, "max": 83.52599098800033, "mean": 58.260032961166836}, "_compute_postphysics": {"min": 0.0005624759991178507, "max": 0.01651744999952598, "mean": 0.003292234999946686}, "_apply_postphysics_to_dycore_state": {"min": 1.6058898640003463, "max": 1.6736466789997166, "mean": 1.6435612261665824}, "_intermediate_restarts": {"min": 0.0005826479997494971, "max": 0.014419718000056037, "mean": 0.002946593333064129},}
+total time = 560.73
+5.8 sec per step
+
+no cpf enabled
+{"<lambda>": {"min": 0.9996828199996912, "max": 1.44481026499966, "mean": 1.2775106674999581}, "_step_dynamics": {"min": 190.14632404799988, "max": 191.70967289600003, "mean": 190.78777320216662}, "_step_prephysics": {"min": 0.26905882500034295, "max": 0.3609540200004062, "mean": 0.32157578650004365}, "_step_pre_radiation_physics": {"min": 10.413797615999954, "max": 12.688220133000527, "mean": 11.533917161166622}, "_step_radiation_physics": {"min": 75.73013614500024, "max": 129.19245699500027, "mean": 100.64683807133332}, "_step_post_radiation_physics": {"min": 57.825523979000195, "max": 75.24735830100013, "mean": 67.33009090300021}, "_apply_physics": {"min": 24.735737343000665, "max": 93.88263837300053, "mean": 60.282978524833204}, "_compute_postphysics": {"min": 0.00045213700059321127, "max": 0.01568257399964068, "mean": 0.0030759145000634667}, "_apply_postphysics_to_dycore_state": {"min": 1.3685279820005576, "max": 1.7940044490002265, "mean": 1.6115762745001614}, "_intermediate_restarts": {"min": 0.0005224510001085036, "max": 0.01417113700011896, "mean": 0.0029012403335476242}}
+total step = 433.80
+4.5 sec per step
+
+cpf enabled but no models (data transfer only)
+{"<lambda>": {"min": 1.1232693819993642, "max": 1.441786540999999, "mean": 1.3254763944996835}, "_step_dynamics": {"min": 189.93698627800035, "max": 191.28979495499976, "mean": 190.3423709045001}, "_step_prephysics": {"min": 0.29627657799983353, "max": 0.36931706100000383, "mean": 0.3406411391669148}, "_step_pre_radiation_physics": {"min": 9.571568368999863, "max": 13.076633779999895, "mean": 11.66218791166681}, "_step_radiation_physics": {"min": 72.8018350330006, "max": 114.54453030000008, "mean": 100.58589866116661}, "_step_post_radiation_physics": {"min": 75.60104457799963, "max": 94.73241877200019, "mean": 87.41881592466667}, "_apply_physics": {"min": 46.27615792999978, "max": 102.97124138000032, "mean": 63.86051112916667}, "_compute_postphysics": {"min": 0.00048019299941870486, "max": 0.016117869999732193, "mean": 0.0031610851665580717}, "_apply_postphysics_to_dycore_state": {"min": 1.4838977149995003, "max": 1.7907463020005707, "mean": 1.677789071166302}, "_intermediate_restarts": {"min": 0.0005771210001626059, "max": 0.014450515000135056, "mean": 0.0029799528330822036}}
+total step = 457.22
+4.8 sec per step
+
