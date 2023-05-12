@@ -1,6 +1,7 @@
 import cftime
 import datetime
 import numpy as np
+import pytest
 import xarray as xr
 
 from runtime.steppers.interval import IntervalStepper
@@ -18,22 +19,37 @@ class MockStepper:
         return self.output_tendencies, self.output_diags, self.output_state_updates
 
 
-def test_needs_update():
+START_TIME = cftime.DatetimeJulian(2020, 1, 1, 0, 0, 0)
+
+
+@pytest.mark.parametrize(
+    "interval, time_checks",
+    [
+        (
+            3600,
+            {
+                START_TIME + datetime.timedelta(seconds=1800): False,
+                START_TIME + datetime.timedelta(seconds=3600): True,
+            },
+        ),
+        (
+            10,
+            {
+                START_TIME + datetime.timedelta(seconds=5): False,
+                START_TIME + datetime.timedelta(seconds=1800): True,
+                START_TIME + datetime.timedelta(seconds=3600): True,
+            },
+        ),
+    ],
+)
+def test_needs_update(interval, time_checks):
     interval_stepper = IntervalStepper(
-        apply_interval_seconds=3600, stepper=MockStepper()
+        apply_interval_seconds=interval, stepper=MockStepper()
     )
-    assert (
-        interval_stepper._need_to_update(cftime.DatetimeJulian(2020, 1, 1, 0, 0, 0))
-        is False
-    )
-    half_hour_check = interval_stepper._need_to_update(
-        cftime.DatetimeJulian(2020, 1, 1, 0, 30, 0)
-    )
-    assert half_hour_check is False
-    hour_check = interval_stepper._need_to_update(
-        cftime.DatetimeJulian(2020, 1, 1, 1, 0, 0)
-    )
-    assert hour_check is True
+    # The first time checked becomes the start time for the IntervalStepper
+    assert interval_stepper._need_to_update(START_TIME) is False
+    for time, needs_update in time_checks.items():
+        assert interval_stepper._need_to_update(time) == needs_update
 
 
 def test_initial_time():

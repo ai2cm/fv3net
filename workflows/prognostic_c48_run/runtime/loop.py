@@ -52,8 +52,8 @@ from runtime.steppers.machine_learning import (
 )
 from runtime.steppers.stepper import Stepper
 from runtime.steppers.nudging import PureNudger
-from runtime.steppers.prescriber import Prescriber, PrescriberConfig
-from runtime.steppers.interval import IntervalStepper
+from runtime.steppers.prescriber import PrescriberConfig
+from runtime.steppers.interval import IntervalStepper, IntervalConfig
 from runtime.steppers.combine import CombinedStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
@@ -211,13 +211,12 @@ class LoggingMixin:
             print(message)
 
 
-def state_updates_from_tendency(state_updates_from_tendency,):
+def state_updates_from_tendency(tendency_updates):
     # Prescriber can overwrite the state updates predicted by ML tendencies
     # Sometimes this is desired and we want to save both the overwritten updated state
     # as well as the ML-predicted state that was overwritten, ex. reservoir updates.
     updates = {
-        f"{k}_state_from_postphysics_tendency": v
-        for k, v in state_updates_from_tendency.items()
+        f"{k}_state_from_postphysics_tendency": v for k, v in tendency_updates.items()
     }
     return updates
 
@@ -336,25 +335,39 @@ class TimeLoop(
 
     def _get_prescriber_or_ml_stepper(
         self,
-        stepper_config: Union[PrescriberConfig, MachineLearningConfig],
+        stepper_config: Union[PrescriberConfig, MachineLearningConfig, IntervalConfig],
         step: str,
         hydrostatic: bool = False,
-    ) -> Union[PureMLStepper, IntervalStepper, Prescriber]:
-        if isinstance(stepper_config, MachineLearningConfig):
-            model = self._open_model(stepper_config)
+    ) -> Stepper:
+        stepper: Stepper
+        if isinstance(stepper_config, IntervalConfig):
+            base_stepper_config = stepper_config.base_config
+        else:
+            base_stepper_config = stepper_config
+
+        if isinstance(base_stepper_config, MachineLearningConfig):
+            model = self._open_model(base_stepper_config)
             self._log_info(f"Using PureMLStepper at {step}.")
-            return PureMLStepper(
+            stepper = PureMLStepper(
                 model=model, timestep=self._timestep, hydrostatic=hydrostatic,
             )
 
         else:
             self._log_info(
                 "Using Prescriber for variables "
-                f"{list(stepper_config.variables.values())} at {step}."
+                f"{list(base_stepper_config.variables.values())} at {step}."
             )
-            return runtime.factories.get_prescriber(
-                stepper_config, self._get_communicator()
+            stepper = runtime.factories.get_prescriber(
+                base_stepper_config, self._get_communicator()
             )
+
+        if isinstance(stepper_config, IntervalConfig):
+            return IntervalStepper(
+                apply_interval_seconds=stepper_config.apply_interval_seconds,
+                stepper=stepper,
+            )
+        else:
+            return stepper
 
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
@@ -363,9 +376,7 @@ class TimeLoop(
             self._log_info("No prephysics computations")
             return None
         else:
-            prephysics_steppers: List[
-                Union[Prescriber, PureMLStepper, IntervalStepper]
-            ] = []
+            prephysics_steppers: List[Stepper] = []
             for prephysics_config in config.prephysics:
                 prephysics_steppers.append(
                     self._get_prescriber_or_ml_stepper(prephysics_config, "prephysics")
@@ -410,7 +421,7 @@ class TimeLoop(
             radiation_input_generator_config = config.radiation_scheme.input_generator
             if radiation_input_generator_config is not None:
                 radiation_input_generator: Optional[
-                    Union[PureMLStepper, Prescriber, IntervalStepper]
+                    Stepper
                 ] = self._get_prescriber_or_ml_stepper(
                     radiation_input_generator_config, "radiation_inputs"
                 )

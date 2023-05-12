@@ -2,11 +2,11 @@ import dataclasses
 from typing import Optional, Literal, Union, Tuple
 import cftime
 import xarray as xr
-from runtime.steppers.machine_learning import MachineLearningConfig, PureMLStepper
-from runtime.steppers.prescriber import PrescriberConfig, Prescriber
+from runtime.steppers.machine_learning import MachineLearningConfig
+from runtime.steppers.prescriber import PrescriberConfig
 from runtime.types import State, Diagnostics
 from radiation import Radiation
-from runtime.steppers.interval import IntervalStepper
+from runtime.steppers.stepper import Stepper
 
 
 @dataclasses.dataclass
@@ -30,11 +30,7 @@ class RadiationStepper:
     label = "radiation"
 
     def __init__(
-        self,
-        radiation: Radiation,
-        input_generator: Optional[
-            Union[PureMLStepper, Prescriber, IntervalStepper]
-        ] = None,
+        self, radiation: Radiation, input_generator: Optional[Stepper] = None,
     ):
         self._radiation = radiation
         self._input_generator = input_generator

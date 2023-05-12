@@ -1,10 +1,19 @@
 import cftime
+import dataclasses
 from datetime import timedelta
-from typing import Tuple
+from typing import Tuple, Union
 import xarray as xr
 
 from runtime.types import Diagnostics
 from runtime.steppers.stepper import Stepper
+from runtime.steppers.machine_learning import MachineLearningConfig
+from runtime.steppers.prescriber import PrescriberConfig
+
+
+@dataclasses.dataclass
+class IntervalConfig:
+    base_config: Union[PrescriberConfig, MachineLearningConfig]
+    apply_interval_seconds: int
 
 
 class IntervalStepper:
@@ -13,11 +22,15 @@ class IntervalStepper:
         self.interval = timedelta(seconds=apply_interval_seconds)
         self.stepper = stepper
 
+    @property
+    def label(self):
+        """Label used for naming diagnostics.
+        """
+        return f"interval_{self.stepper.label}"
+
     def _need_to_update(self, time: cftime.DatetimeJulian):
         if self.start_time is not None:
-            if (
-                (time - self.start_time) % self.interval
-            ).seconds != 0 or time == self.start_time:
+            if ((time - self.start_time) % self.interval).seconds != 0:
                 return False
             else:
                 return True
