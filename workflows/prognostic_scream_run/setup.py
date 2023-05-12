@@ -24,6 +24,7 @@ setup(
         "console_scripts": [
             "write_scream_run_directory=scream_run.cli:write_scream_run_directory",
             "scream_run=scream_run.cli:scream_run",
+            "prepare_scream_config=scream_run.cli:prepare_scream_config",
         ]
     },
 )
