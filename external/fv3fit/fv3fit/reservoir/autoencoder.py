@@ -14,7 +14,7 @@ from fv3fit._shared import (
 from fv3fit._shared.training_config import Hyperparameters
 
 from fv3fit.keras import (
-    train_column_model,
+    train_pure_keras_model,
     CallbackConfig,
     TrainingLoopConfig,
     LossConfig,
@@ -291,7 +291,7 @@ def train_dense_autoencoder(
     validation_batches: Optional[tf.data.Dataset],
 ) -> PureKerasModel:
 
-    pure_keras = train_column_model(
+    pure_keras = train_pure_keras_model(
         train_batches=train_batches,
         validation_batches=validation_batches,
         build_model=curry(build_autoencoder)(config=hyperparameters),
