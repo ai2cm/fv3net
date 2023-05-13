@@ -1,8 +1,11 @@
+import sys
 from pathlib import Path
 import subprocess
 from runtime.segmented_run.append import read_last_segment
+from runtime.segmented_run.run import compose_simulation_command, runfile
 from vcm.cloud import get_fs
 import uuid
+import pytest
 
 
 def test_read_last_segment(tmpdir):
@@ -33,3 +36,49 @@ def test_read_last_segment_gcs(tmp_path: Path):
         file = tmp_path / "hello.txt"
         file.write_text("hello")
         subprocess.check_call(["gsutil", "cp", file.as_posix(), dest])
+
+
+@pytest.mark.parametrize("mpi_launcher", ["srun", "mpirun", None, "doesnotexistrun"])
+def test_compose_simulation_command(mpi_launcher):
+
+    nprocs = "10"
+    runfile_as_str = runfile.absolute().as_posix()
+    sys_exe = sys.executable
+
+    if mpi_launcher == "mpirun":
+        expected = [
+            mpi_launcher,
+            "-n",
+            str(nprocs),
+            sys_exe,
+            "-m",
+            "mpi4py",
+            runfile_as_str,
+        ]
+        assert expected == compose_simulation_command(nprocs, mpi_launcher)
+    elif mpi_launcher == "srun":
+        expected = [
+            mpi_launcher,
+            "--export=ALL",
+            "-n",
+            str(nprocs),
+            sys_exe,
+            "-m",
+            "mpi4py",
+            runfile_as_str,
+        ]
+        assert expected == compose_simulation_command(nprocs, mpi_launcher)
+    elif mpi_launcher is None:
+        expected = [
+            "mpirun",
+            "-n",
+            str(nprocs),
+            sys_exe,
+            "-m",
+            "mpi4py",
+            runfile_as_str,
+        ]
+        assert expected == compose_simulation_command(nprocs)
+    else:
+        with pytest.raises(ValueError, match=r"Unrecognized mpi_launcher .*"):
+            compose_simulation_command(nprocs, mpi_launcher)
