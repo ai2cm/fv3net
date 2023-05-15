@@ -7,8 +7,8 @@ from vcm import safe, net_heating, net_precipitation, DerivedMapping
 from vcm.convenience import round_time
 
 from .constants import TIME_NAME
-from vcm.catalog import catalog
-
+#from vcm.catalog import catalog
+import intake
 
 # note this is intentionally a different value than fv3fit's SAMPLE_DIM_NAME
 # as we should avoid mixing loaders preprocessing routines with fv3fit
@@ -107,20 +107,20 @@ def add_derived_data(variables: Sequence[str], ds: xr.Dataset) -> xr.Dataset:
 
 
 @curry
-def add_grid_info(res: str, catalog_dataset_path: str, ds: xr.Dataset) -> xr.Dataset:
+def add_grid_info(res: str, catalog_path: str, ds: xr.Dataset) -> xr.Dataset:
     """
     Add lat, lon, land-type mask information to the dataset
 
     Args:
         res: grid resolution, format as f'c{number cells in tile}'
     """
-    grid = _load_grid(res, catalog_dataset_path)
+    grid = _load_grid(res, catalog_path)
     # Prioritize dataset's land_sea_mask if it differs from grid
     return xr.merge([ds, grid], compat="override")
 
 
 @curry
-def add_wind_rotation_info(res: str, catalog_dataset_path: str, ds: xr.Dataset) -> xr.Dataset:
+def add_wind_rotation_info(res: str, catalog_path: str, ds: xr.Dataset) -> xr.Dataset:
     """
     Add wind rotation information to the dataset
 
@@ -128,23 +128,24 @@ def add_wind_rotation_info(res: str, catalog_dataset_path: str, ds: xr.Dataset) 
         res: grid resolution, format as f'c{number cells in tile}'
     """
 
-    rotation = _load_wind_rotation_matrix(res, catalog_dataset_path).drop_vars("tile", errors="ignore")
+    rotation = _load_wind_rotation_matrix(res, catalog_path).drop_vars("tile", errors="ignore")
     common_coords = {"x": ds["x"].values, "y": ds["y"].values}
     rotation = rotation.assign_coords(common_coords)
     return ds.merge(rotation, compat="override")
 
 
-def _load_grid(res: str, catalog_dataset_path: str) -> xr.Dataset:
+def _load_grid(res: str, catalog_path: str) -> xr.Dataset:
 
-    grid = catalog[f"grid/{res}"]
-    grid.urlpath = catalog_dataset_path + "/" + res + "/" + res + ".zarr/"
+    catalog = intake.open_catalog(catalog_path)
+    grid = catalog[f"grid/{res}"].to_dask()
+#    grid.urlpath = catalog_path + "/" + res + "/" + res + ".zarr/"
 #    grid = catalog[f"grid/{res}"].to_dask()
-    grid = grid.to_dask()
+#    grid = grid.to_dask()
 
-    land_sea_mask = catalog[f"landseamask/{res}"]
-    land_sea_mask.urlpath = catalog_dataset_path + "/" + res + "/" + "land_sea_mask.zarr/"
+    land_sea_mask = catalog[f"landseamask/{res}"].to_dask()
+#    land_sea_mask.urlpath = catalog_path + "/" + res + "/" + "land_sea_mask.zarr/"
 #    land_sea_mask = catalog[f"landseamask/{res}"].to_dask()
-    land_sea_mask = land_sea_mask.to_dask()
+#    land_sea_mask = land_sea_mask.to_dask()
 
     grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
     # drop the tiles so that this is compatible with other indexing conventions
@@ -153,12 +154,13 @@ def _load_grid(res: str, catalog_dataset_path: str) -> xr.Dataset:
     )
 
 
-def _load_wind_rotation_matrix(res: str, catalog_dataset_path: str) -> xr.Dataset:
+def _load_wind_rotation_matrix(res: str, catalog_path: str) -> xr.Dataset:
 
-    rotation = catalog[f"wind_rotation/{res}"]
-    rotation.urlpath = catalog_dataset_path + "/" + res + "/" + "wind_rotation_matrix_correct_factor.zarr/"
+    catalog = intake.open_catalog(catalog_path)
+    rotation = catalog[f"wind_rotation/{res}"].to_dask()
+#    rotation.urlpath = catalog_path + "/" + res + "/" + "wind_rotation_matrix_correct_factor.zarr/"
 #    rotation = catalog[f"wind_rotation/{res}"].to_dask()
-    rotation = rotation.to_dask()
+#    rotation = rotation.to_dask()
     return safe.get_variables(rotation, WIND_ROTATION_COEFFICIENTS)
 
 

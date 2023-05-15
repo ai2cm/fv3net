@@ -80,7 +80,7 @@ class BatchesFromMapperConfig(BatchesLoader):
     shuffle_samples: bool = False
     data_transforms: Optional[Sequence[Mapping]] = None
     ptop: float = vcm.calc.thermo.constants.TOA_PRESSURE
-    catalog_dataset_path: str = "gs://vcm-ml-intermediate/latLonArea/" 
+    catalog_path: str = "/home/mr7417/ML_workflow/model_environment/fv3net/external/vcm/vcm/catalog.yaml" 
 #    catalog_dataset_path: str = "/home/mr7417/ML_workflow/c48_fv3config/data/vcm_catalog/"
 
     def __post_init__(self):
@@ -124,7 +124,7 @@ class BatchesFromMapperConfig(BatchesLoader):
             shuffle_timesteps=self.shuffle_samples,
             shuffle_samples=self.shuffle_samples,
             data_transforms=self.data_transforms,
-            catalog_dataset_path=self.catalog_dataset_path
+            catalog_path=self.catalog_path
         )
 
 
@@ -142,7 +142,7 @@ def batches_from_mapper(
     shuffle_timesteps: bool = True,
     shuffle_samples: bool = False,
     data_transforms: Optional[Sequence[Mapping]] = None,
-    catalog_dataset_path: str =  "gs://vcm-ml-intermediate/latLonArea/"
+    catalog_path: str =  "/home/mr7417/ML_workflow/model_environment/fv3net/external/vcm/vcm/catalog.yaml"
 #    catalog_dataset_path: str = "/home/mr7417/ML_workflow/c48_fv3config/data/vcm_catalog/"
 ) -> loaders.typing.Batches:
     """The function returns a sequence of datasets that is later
@@ -198,10 +198,9 @@ def batches_from_mapper(
     transforms = [_get_batch(data_mapping)]
 
     if needs_grid:
-        print('res_new', res)
-        transforms.append(add_grid_info(res, catalog_dataset_path))
+        transforms.append(add_grid_info(res, catalog_path))
         if vcm.gsrm_name_from_resolution_string(res) == "fv3":
-            transforms.append(add_wind_rotation_info(res, catalog_dataset_path))
+            transforms.append(add_wind_rotation_info(res, catalog_path))
     if data_transforms is not None:
         data_transform = dacite.from_dict(
             vcm.ChainedDataTransform, {"transforms": data_transforms}
