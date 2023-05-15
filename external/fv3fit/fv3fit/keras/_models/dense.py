@@ -103,7 +103,7 @@ def train_dense_model(
         training_loop=hyperparameters.training_loop,
         build_samples=hyperparameters.normalization_fit_samples,
         callbacks=hyperparameters.callbacks,
-        predict_columns=hyperparameters.predict_columns,
+        unstacked_dims=("z",) if hyperparameters.predict_columns else (),
     )
 
 
@@ -172,7 +172,7 @@ def train_pure_keras_model(
     training_loop: TrainingLoopConfig,
     callbacks: List[CallbackConfig],
     build_samples: int = 500_000,
-    predict_columns: bool = True,
+    unstacked_dims: Sequence[str] = ("z",),
 ) -> PureKerasModel:
     """
     Train a PureKerasModel.
@@ -189,8 +189,8 @@ def train_pure_keras_model(
         training_loop: configuration of training loop
         callbacks: configuration for keras callbacks
         build_samples: the number of samples to pass to build_model
-        predict_columns: if True (default), assume an unstacked "z" dimension in inputs
-            and outputs, otherwise assume no unstacked dimensions
+        unstacked_dims: Unstacked data dimensions to be serialized and used in
+            prediction
     """
     train_batches = train_batches.map(
         tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
@@ -229,7 +229,7 @@ def train_pure_keras_model(
         input_variables=input_variables,
         output_variables=output_variables,
         model=predict_model,
-        unstacked_dims=("z",) if predict_columns else (),
+        unstacked_dims=unstacked_dims,
         n_halo=0,
     )
 
