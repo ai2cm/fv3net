@@ -7,6 +7,7 @@ from fv3fit.reservoir import (
     ReservoirComputingModel,
     Reservoir,
     ReservoirHyperparameters,
+    HybridReservoirComputingModel,
 )
 
 
@@ -175,7 +176,7 @@ def test_prediction_after_load(tmpdir):
         reservoir=reservoir,
         readout=readout,
     )
-    predictor.reservoir.reset_state(input_shape=(input_size,))
+    predictor.reservoir.reset_state()
 
     ts_sync = [np.ones(input_size) for i in range(20)]
     predictor.reservoir.synchronize(ts_sync)
@@ -185,10 +186,55 @@ def test_prediction_after_load(tmpdir):
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
     loaded_predictor = ReservoirComputingModel.load(output_path)
-    loaded_predictor.reservoir.reset_state(input_shape=(input_size,))
+    loaded_predictor.reservoir.reset_state()
 
     loaded_predictor.reservoir.synchronize(ts_sync)
     for i in range(10):
         prediction1 = loaded_predictor.predict()
+
+    np.testing.assert_array_almost_equal(prediction0, prediction1)
+
+
+def test_HybridReservoirComputingModel_dump_load(tmpdir):
+    input_size = 15
+    hybrid_input_size = 4
+    state_size = 1000
+    hyperparameters = ReservoirHyperparameters(
+        state_size=state_size,
+        adjacency_matrix_sparsity=0.9,
+        spectral_radius=1.0,
+        input_coupling_sparsity=0,
+    )
+    reservoir = Reservoir(hyperparameters, input_size=input_size)
+
+    readout = ReservoirComputingReadout(
+        coefficients=np.random.rand(state_size + hybrid_input_size, input_size),
+        intercepts=np.random.rand(input_size),
+    )
+    hybrid_predictor = HybridReservoirComputingModel(
+        input_variables=["a", "b"],
+        hybrid_variables=["c"],
+        output_variables=["a", "b"],
+        reservoir=reservoir,
+        readout=readout,
+    )
+    hybrid_predictor.reset_state()
+    ts_sync = [np.ones(input_size) for i in range(20)]
+
+    hybrid_predictor.synchronize(ts_sync)
+
+    n_predict = 7
+    hybrid_input = np.random.rand(n_predict, hybrid_input_size)
+    for i in range(n_predict):
+        prediction0 = hybrid_predictor.predict(hybrid_input[i])
+
+    output_path = f"{str(tmpdir)}/predictor"
+    hybrid_predictor.dump(output_path)
+    loaded_hybrid_predictor = HybridReservoirComputingModel.load(output_path)
+    loaded_hybrid_predictor.reset_state()
+
+    loaded_hybrid_predictor.synchronize(ts_sync)
+    for i in range(n_predict):
+        prediction1 = loaded_hybrid_predictor.predict(hybrid_input[i])
 
     np.testing.assert_array_almost_equal(prediction0, prediction1)
