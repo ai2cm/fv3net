@@ -200,7 +200,7 @@ test_%:
 	cd external/$* && tox -- $(ARGS)
 
 test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
-	coverage run -m pytest -m "not regression" --durations=20 $(ARGS)
+	coverage run -m pytest -m "not regression and not scream_run" --durations=20 $(ARGS)
 	coverage combine \
 		--append \
 		external/fv3kube/.coverage \
