@@ -81,13 +81,17 @@ class PureKerasModel(Predictor):
     ) -> xr.Dataset:
         ds = xr.Dataset()
         for name, output in zip(names, outputs):
-            dims = [SAMPLE_DIM_NAME] + list(self._unstacked_dims)
-            scalar_singleton_dim = (
-                len(output.shape) == len(dims) and output.shape[-1] == 1
-            )
-            if scalar_singleton_dim:  # remove singleton dimension
+            if len(self._unstacked_dims) > 0:
+                dims = [SAMPLE_DIM_NAME] + list(self._unstacked_dims)
+                scalar_singleton_dim = (
+                    len(output.shape) == len(dims) and output.shape[-1] == 1
+                )
+                if scalar_singleton_dim:  # remove singleton dimension
+                    output = output[..., 0]
+                    dims = dims[:-1]
+            else:
+                dims = [SAMPLE_DIM_NAME]
                 output = output[..., 0]
-                dims = dims[:-1]
             da = xr.DataArray(
                 data=output, dims=dims, coords={SAMPLE_DIM_NAME: stacked_coords},
             ).unstack(SAMPLE_DIM_NAME)
