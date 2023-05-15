@@ -80,8 +80,8 @@ class BatchesFromMapperConfig(BatchesLoader):
     shuffle_samples: bool = False
     data_transforms: Optional[Sequence[Mapping]] = None
     ptop: float = vcm.calc.thermo.constants.TOA_PRESSURE
-    catalog_path: str = "/home/mr7417/ML_workflow/model_environment/fv3net/external/vcm/vcm/catalog.yaml" 
-#    catalog_dataset_path: str = "/home/mr7417/ML_workflow/c48_fv3config/data/vcm_catalog/"
+    catalog_path: str = "/home/mr7417/ML_workflow/model_environment/fv3net/external \
+                         /vcm/vcm/catalog.yaml"
 
     def __post_init__(self):
         duplicate_times = [
@@ -124,7 +124,7 @@ class BatchesFromMapperConfig(BatchesLoader):
             shuffle_timesteps=self.shuffle_samples,
             shuffle_samples=self.shuffle_samples,
             data_transforms=self.data_transforms,
-            catalog_path=self.catalog_path
+            catalog_path=self.catalog_path,
         )
 
 
@@ -142,8 +142,8 @@ def batches_from_mapper(
     shuffle_timesteps: bool = True,
     shuffle_samples: bool = False,
     data_transforms: Optional[Sequence[Mapping]] = None,
-    catalog_path: str =  "/home/mr7417/ML_workflow/model_environment/fv3net/external/vcm/vcm/catalog.yaml"
-#    catalog_dataset_path: str = "/home/mr7417/ML_workflow/c48_fv3config/data/vcm_catalog/"
+    catalog_path: str = "/home/mr7417/ML_workflow/model_environment/fv3net/external \
+                         /vcm/vcm/catalog.yaml",
 ) -> loaders.typing.Batches:
     """The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.

@@ -7,7 +7,8 @@ from vcm import safe, net_heating, net_precipitation, DerivedMapping
 from vcm.convenience import round_time
 
 from .constants import TIME_NAME
-#from vcm.catalog import catalog
+
+# from vcm.catalog import catalog
 import intake
 
 # note this is intentionally a different value than fv3fit's SAMPLE_DIM_NAME
@@ -128,7 +129,9 @@ def add_wind_rotation_info(res: str, catalog_path: str, ds: xr.Dataset) -> xr.Da
         res: grid resolution, format as f'c{number cells in tile}'
     """
 
-    rotation = _load_wind_rotation_matrix(res, catalog_path).drop_vars("tile", errors="ignore")
+    rotation = _load_wind_rotation_matrix(res, catalog_path).drop_vars(
+        "tile", errors="ignore"
+    )
     common_coords = {"x": ds["x"].values, "y": ds["y"].values}
     rotation = rotation.assign_coords(common_coords)
     return ds.merge(rotation, compat="override")
@@ -138,14 +141,7 @@ def _load_grid(res: str, catalog_path: str) -> xr.Dataset:
 
     catalog = intake.open_catalog(catalog_path)
     grid = catalog[f"grid/{res}"].to_dask()
-#    grid.urlpath = catalog_path + "/" + res + "/" + res + ".zarr/"
-#    grid = catalog[f"grid/{res}"].to_dask()
-#    grid = grid.to_dask()
-
     land_sea_mask = catalog[f"landseamask/{res}"].to_dask()
-#    land_sea_mask.urlpath = catalog_path + "/" + res + "/" + "land_sea_mask.zarr/"
-#    land_sea_mask = catalog[f"landseamask/{res}"].to_dask()
-#    land_sea_mask = land_sea_mask.to_dask()
 
     grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
     # drop the tiles so that this is compatible with other indexing conventions
@@ -158,9 +154,6 @@ def _load_wind_rotation_matrix(res: str, catalog_path: str) -> xr.Dataset:
 
     catalog = intake.open_catalog(catalog_path)
     rotation = catalog[f"wind_rotation/{res}"].to_dask()
-#    rotation.urlpath = catalog_path + "/" + res + "/" + "wind_rotation_matrix_correct_factor.zarr/"
-#    rotation = catalog[f"wind_rotation/{res}"].to_dask()
-#    rotation = rotation.to_dask()
     return safe.get_variables(rotation, WIND_ROTATION_COEFFICIENTS)
 
 
