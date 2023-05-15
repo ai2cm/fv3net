@@ -3,6 +3,7 @@ from scream_run import ScreamConfig
 import os
 import contextlib
 import subprocess
+import pytest
 
 dirname = os.path.dirname(os.path.abspath(__file__))
 
@@ -17,6 +18,7 @@ def cwd(path):
     os.chdir(cwd)
 
 
+@pytest.mark.regression
 def test_runtime_option():
     with open(config_file) as f:
         scream_config = ScreamConfig.from_dict(yaml.safe_load(f))
