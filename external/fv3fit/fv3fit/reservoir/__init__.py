@@ -5,5 +5,5 @@ from .config import (
 )
 from .reservoir import Reservoir
 from .readout import ReservoirComputingReadout
-from .model import ReservoirComputingModel
+from .model import ReservoirComputingModel, HybridReservoirComputingModel
 from .domain import RankDivider, stack_time_series_samples

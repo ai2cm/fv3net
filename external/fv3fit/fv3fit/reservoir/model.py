@@ -1,4 +1,5 @@
 import fsspec
+import numpy as np
 import os
 from typing import Optional, Iterable, Hashable
 import yaml
@@ -11,6 +12,87 @@ from fv3fit._shared import io
 from .utils import square_even_terms
 from .autoencoder import Autoencoder
 from ._reshaping import flatten_2d_keeping_columns_contiguous
+
+
+@io.register("hybrid-reservoir")
+class HybridReservoirComputingModel(Predictor):
+    _HYBRID_VARIABLES_NAME = "hybrid_variables.yaml"
+
+    def __init__(
+        self,
+        input_variables: Iterable[Hashable],
+        hybrid_variables: Iterable[Hashable],
+        output_variables: Iterable[Hashable],
+        reservoir: Reservoir,
+        readout: ReservoirComputingReadout,
+        square_half_hidden_state: bool = False,
+        rank_divider: Optional[RankDivider] = None,
+        autoencoder: Optional[Autoencoder] = None,
+    ):
+        self.reservoir_model = ReservoirComputingModel(
+            input_variables=input_variables,
+            output_variables=output_variables,
+            reservoir=reservoir,
+            readout=readout,
+            square_half_hidden_state=square_half_hidden_state,
+            rank_divider=rank_divider,
+            autoencoder=autoencoder,
+        )
+        self.input_variables = input_variables
+        self.hybrid_variables = hybrid_variables
+        self.output_variables = output_variables
+        self.readout = readout
+        self.square_half_hidden_state = square_half_hidden_state
+        self.rank_divider = rank_divider
+        self.autoencoder = autoencoder
+
+    def predict(self, hybrid_input):
+        # Returns raw readout prediction of latent state.
+
+        if self.square_half_hidden_state is True:
+            readout_input = square_even_terms(
+                self.reservoir_model.reservoir.state, axis=0
+            )
+        else:
+            readout_input = self.reservoir_model.reservoir.state
+        # For prediction over multiple subdomains (>1 column in reservoir state
+        # array), flatten state into 1D vector before predicting
+        readout_input_from_reservoir = flatten_2d_keeping_columns_contiguous(
+            readout_input
+        )
+        readout_input = np.concatenate([readout_input_from_reservoir, hybrid_input])
+        prediction = self.readout.predict(readout_input).reshape(-1)
+        return prediction
+
+    def reset_state(self):
+        self.reservoir_model.reset_state()
+
+    def increment_state(self):
+        self.reservoir_model.increment_state()
+
+    def synchronize(self, synchronization_time_series):
+        self.reservoir_model.synchronize(synchronization_time_series)
+
+    def dump(self, path: str) -> None:
+        self.reservoir_model.dump(path)
+        with fsspec.open(os.path.join(path, self._HYBRID_VARIABLES_NAME), "w") as f:
+            f.write(yaml.dump({"hybrid_variables": self.hybrid_variables}))
+
+    @classmethod
+    def load(cls, path: str) -> "HybridReservoirComputingModel":
+        pure_reservoir_model = ReservoirComputingModel.load(path)
+        with fsspec.open(os.path.join(path, cls._HYBRID_VARIABLES_NAME), "r") as f:
+            hybrid_variables = yaml.safe_load(f)["hybrid_variables"]
+        return cls(
+            input_variables=pure_reservoir_model.input_variables,
+            output_variables=pure_reservoir_model.output_variables,
+            reservoir=pure_reservoir_model.reservoir,
+            readout=pure_reservoir_model.readout,
+            square_half_hidden_state=pure_reservoir_model.square_half_hidden_state,
+            rank_divider=pure_reservoir_model.rank_divider,
+            autoencoder=pure_reservoir_model.autoencoder,
+            hybrid_variables=hybrid_variables,
+        )
 
 
 @io.register("pure-reservoir")
@@ -78,6 +160,9 @@ class ReservoirComputingModel(Predictor):
     def increment_state(self, prediction_with_overlap):
         self.reservoir.increment_state(prediction_with_overlap)
 
+    def synchronize(self, synchronization_time_series):
+        self.reservoir.synchronize(synchronization_time_series)
+
     def dump(self, path: str) -> None:
         """Dump data to a directory
 
@@ -121,7 +206,6 @@ class ReservoirComputingModel(Predictor):
             autoencoder = Autoencoder.load(os.path.join(path, cls._AUTOENCODER_SUBDIR))
         else:
             autoencoder = None  # type: ignore
-
         return cls(
             input_variables=metadata["input_variables"],
             output_variables=metadata["output_variables"],
