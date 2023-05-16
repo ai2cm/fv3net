@@ -47,18 +47,8 @@ class HybridReservoirComputingModel(Predictor):
         self.autoencoder = autoencoder
 
     def predict(self, hybrid_input):
-        # Returns raw readout prediction of latent state.
-
-        if self.square_half_hidden_state is True:
-            readout_input = square_even_terms(
-                self.reservoir_model.reservoir.state, axis=0
-            )
-        else:
-            readout_input = self.reservoir_model.reservoir.state
-        # For prediction over multiple subdomains (>1 column in reservoir state
-        # array), flatten state into 1D vector before predicting
-        readout_input_from_reservoir = flatten_2d_keeping_columns_contiguous(
-            readout_input
+        readout_input_from_reservoir = (
+            self.reservoir_model.process_state_to_readout_input()
         )
         readout_input = np.concatenate([readout_input_from_reservoir, hybrid_input])
         prediction = self.readout.predict(readout_input).reshape(-1)
@@ -132,11 +122,7 @@ class ReservoirComputingModel(Predictor):
         self.rank_divider = rank_divider
         self.autoencoder = autoencoder
 
-    def predict(self):
-        # Returns raw readout prediction of latent state.
-        # TODO: add method transform_to_native which transforms the raw
-        # prediction to cubedsphere coords.
-
+    def process_state_to_readout_input(self):
         if self.square_half_hidden_state is True:
             readout_input = square_even_terms(self.reservoir.state, axis=0)
         else:
@@ -144,6 +130,11 @@ class ReservoirComputingModel(Predictor):
         # For prediction over multiple subdomains (>1 column in reservoir state
         # array), flatten state into 1D vector before predicting
         readout_input = flatten_2d_keeping_columns_contiguous(readout_input)
+        return readout_input
+
+    def predict(self):
+        # Returns raw readout prediction of latent state.
+        readout_input = self.process_state_to_readout_input()
         prediction = self.readout.predict(readout_input).reshape(-1)
         return prediction
 
