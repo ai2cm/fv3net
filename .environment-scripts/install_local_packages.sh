@@ -24,5 +24,6 @@ pip install -c constraints.txt \
   -e workflows/fine_res_budget \
   -e workflows/dataflow \
   -e workflows/diagnostics \
+  -e workflows/prognostic_scream_run \
   -e external/wandb-query
 set +e

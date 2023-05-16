@@ -50,42 +50,17 @@ from runtime.steppers.machine_learning import (
     download_model,
     open_model,
 )
+from runtime.steppers.stepper import Stepper
 from runtime.steppers.nudging import PureNudger
-from runtime.steppers.prescriber import Prescriber, PrescriberConfig
+from runtime.steppers.prescriber import PrescriberConfig
+from runtime.steppers.interval import IntervalStepper, IntervalConfig
 from runtime.steppers.combine import CombinedStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
-from typing_extensions import Protocol
 
 from .names import AREA, DELP, TOTAL_PRECIP
 
 logger = logging.getLogger(__name__)
-
-
-class Stepper(Protocol):
-    """Stepper interface
-
-    Steppers know the difference between tendencies, diagnostics, and
-    in-place state updates, but they do not know how and when these updates
-    will be applied.
-
-    Note:
-        Uses typing_extensions.Protocol to avoid the need for explicit sub-typing
-
-    """
-
-    @property
-    def label(self) -> str:
-        """Label used for naming diagnostics.
-        """
-        pass
-
-    def __call__(self, time, state) -> Tuple[Tendencies, Diagnostics, State]:
-        return {}, {}, {}
-
-    def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
-        """Return diagnostics mapping and net moistening array."""
-        return {}, xr.DataArray()
 
 
 def _replace_precip_rate_with_accumulation(  # type: ignore
@@ -236,6 +211,16 @@ class LoggingMixin:
             print(message)
 
 
+def state_updates_from_tendency(tendency_updates):
+    # Prescriber can overwrite the state updates predicted by ML tendencies
+    # Sometimes this is desired and we want to save both the overwritten updated state
+    # as well as the ML-predicted state that was overwritten, ex. reservoir updates.
+    updates = {
+        f"{k}_state_from_postphysics_tendency": v for k, v in tendency_updates.items()
+    }
+    return updates
+
+
 class TimeLoop(
     Iterable[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]], LoggingMixin
 ):
@@ -350,41 +335,53 @@ class TimeLoop(
 
     def _get_prescriber_or_ml_stepper(
         self,
-        stepper_config: Union[PrescriberConfig, MachineLearningConfig],
+        stepper_config: Union[PrescriberConfig, MachineLearningConfig, IntervalConfig],
         step: str,
         hydrostatic: bool = False,
-    ) -> Union[PureMLStepper, Prescriber]:
-        if isinstance(stepper_config, MachineLearningConfig):
-            model = self._open_model(stepper_config)
-            stepper: Union[PureMLStepper, Prescriber] = PureMLStepper(
+    ) -> Stepper:
+        stepper: Stepper
+        if isinstance(stepper_config, IntervalConfig):
+            base_stepper_config = stepper_config.base_config
+        else:
+            base_stepper_config = stepper_config
+
+        if isinstance(base_stepper_config, MachineLearningConfig):
+            model = self._open_model(base_stepper_config)
+            self._log_info(f"Using PureMLStepper at {step}.")
+            stepper = PureMLStepper(
                 model=model, timestep=self._timestep, hydrostatic=hydrostatic,
             )
-            self._log_info(f"Using PureMLStepper at {step}.")
+
         else:
-            stepper = runtime.factories.get_prescriber(
-                stepper_config, self._get_communicator()
-            )
             self._log_info(
                 "Using Prescriber for variables "
-                f"{list(stepper_config.variables.values())} at {step}."
+                f"{list(base_stepper_config.variables.values())} at {step}."
             )
-        return stepper
+            stepper = runtime.factories.get_prescriber(
+                base_stepper_config, self._get_communicator()
+            )
+
+        if isinstance(stepper_config, IntervalConfig):
+            return IntervalStepper(
+                apply_interval_seconds=stepper_config.apply_interval_seconds,
+                stepper=stepper,
+            )
+        else:
+            return stepper
 
     def _get_prephysics_stepper(
         self, config: UserConfig, hydrostatic: bool
     ) -> Optional[Stepper]:
-        stepper: Optional[Stepper]
         if config.prephysics is None:
             self._log_info("No prephysics computations")
-            stepper = None
+            return None
         else:
-            prephysics_steppers: List[Union[Prescriber, PureMLStepper]] = []
+            prephysics_steppers: List[Stepper] = []
             for prephysics_config in config.prephysics:
                 prephysics_steppers.append(
                     self._get_prescriber_or_ml_stepper(prephysics_config, "prephysics")
                 )
-            stepper = CombinedStepper(prephysics_steppers)
-        return stepper
+            return CombinedStepper(prephysics_steppers)
 
     def _get_postphysics_stepper(
         self, config: UserConfig, hydrostatic: bool
@@ -409,7 +406,7 @@ class TimeLoop(
             stepper = PureNudger(config.nudging, self._get_communicator(), hydrostatic)
         elif config.bias_correction:
             self._log_info("Using bias correction for postphysics updates")
-            stepper = runtime.factories.get_prescriber(
+            stepper = runtime.factories.get_prescriber(  # type: ignore
                 config.bias_correction, self._get_communicator()
             )
         else:
@@ -424,7 +421,7 @@ class TimeLoop(
             radiation_input_generator_config = config.radiation_scheme.input_generator
             if radiation_input_generator_config is not None:
                 radiation_input_generator: Optional[
-                    Union[PureMLStepper, Prescriber]
+                    Stepper
                 ] = self._get_prescriber_or_ml_stepper(
                     radiation_input_generator_config, "radiation_inputs"
                 )
@@ -561,6 +558,10 @@ class TimeLoop(
                 rename_diagnostics(diagnostics)
             else:
                 self._state_updates.update(state_updates)
+        self._log_info(
+            f"State updates from prescriber: {list(self._state_updates.keys())}"
+        )
+
         state_updates = {
             k: v for k, v in self._state_updates.items() if k in PREPHYSICS_OVERRIDES
         }
@@ -626,12 +627,16 @@ class TimeLoop(
                 updated_state_from_tendency[TOTAL_PRECIP] = precipitation_sum(
                     self._state[TOTAL_PRECIP], net_moistening, self._timestep,
                 )
+                diagnostics.update(
+                    state_updates_from_tendency(updated_state_from_tendency)
+                )
                 self._state.update_mass_conserving(updated_state_from_tendency)
                 diagnostics.update(tendencies_filled_frac)
         self._log_info(
             "Applying state updates to postphysics dycore state: "
             f"{self._state_updates.keys()}"
         )
+        self._log_info(f"state updates keys: {list(self._state_updates.keys())}")
         self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
@@ -659,6 +664,8 @@ class TimeLoop(
 
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics: Diagnostics = {}
+            # clear the state updates in case some updates are on intervals
+            self._state_updates = {}
             for substep in [
                 lambda: runtime.diagnostics.tracers.compute_column_integrated_tracers(
                     self._state

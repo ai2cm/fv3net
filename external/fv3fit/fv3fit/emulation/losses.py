@@ -2,7 +2,7 @@ import dataclasses
 from typing import Callable, List, Mapping
 
 import tensorflow as tf
-from fv3fit.emulation.layers.normalization2 import (
+from fv3fit.emulation.layers.normalization import (
     MeanMethod,
     NormFactory,
     NormLayer,

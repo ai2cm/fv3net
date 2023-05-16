@@ -2,7 +2,6 @@ from fv3net.diagnostics._shared.registry import Registry
 import fv3net.diagnostics._shared.transform as transform
 from fv3net.diagnostics._shared.constants import (
     DiagArg,
-    HORIZONTAL_DIMS,
     COL_DRYING,
     WVP,
     HISTOGRAM_BINS,
@@ -10,7 +9,7 @@ from fv3net.diagnostics._shared.constants import (
 import logging
 import numpy as np
 import pandas as pd
-from typing import Sequence, Tuple, Dict
+from typing import Sequence, Tuple, Dict, List
 import xarray as xr
 
 import vcm
@@ -61,10 +60,11 @@ def compute_diagnostics(
     target: xr.Dataset,
     grid: xr.Dataset,
     delp: xr.DataArray,
+    horizontal_dims: List[str],
     n_jobs: int = -1,
 ):
     return diagnostics_registry.compute(
-        DiagArg(prediction, target, grid, delp), n_jobs=n_jobs
+        DiagArg(prediction, target, grid, delp, horizontal_dims), n_jobs=n_jobs,
     )
 
 
@@ -136,7 +136,7 @@ for mask_type in ["global", "sea", "land"]:
             diag_arg.grid,
         )
         mse_area_weighted_avg = weighted_mean(
-            (predicted - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
+            (predicted - target) ** 2, weights=grid.area, dims=diag_arg.horizontal_dims
         )
         return mse_area_weighted_avg.mean("time")
 
@@ -160,7 +160,7 @@ for mask_type in ["global", "sea", "land"]:
         if len(predicted) == 0:
             return xr.Dataset()
         mse_area_weighted_avg = weighted_mean(
-            (predicted - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
+            (predicted - target) ** 2, weights=grid.area, dims=diag_arg.horizontal_dims
         )
         return mse_area_weighted_avg.mean("time")
 
@@ -183,7 +183,7 @@ for mask_type in ["global", "sea", "land"]:
         if len(predicted) == 0:
             return xr.Dataset()
         mse_area_weighted_avg = weighted_mean(
-            (predicted - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
+            (predicted - target) ** 2, weights=grid.area, dims=diag_arg.horizontal_dims
         )
         return mse_area_weighted_avg.mean("time")
 
@@ -196,11 +196,11 @@ for mask_type in ["global", "sea", "land"]:
     def variance_2d(diag_arg, mask_type=mask_type):
         logger.info(f"Preparing variance for 2D variables, {mask_type}")
         target, grid = diag_arg.verification, diag_arg.grid
-        mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
-            "time"
-        )
+        mean = weighted_mean(
+            target, weights=grid.area, dims=diag_arg.horizontal_dims
+        ).mean("time")
         return weighted_mean(
-            (mean - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
+            (mean - target) ** 2, weights=grid.area, dims=diag_arg.horizontal_dims
         ).mean("time")
 
 
@@ -219,11 +219,11 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
-            "time"
-        )
+        mean = weighted_mean(
+            target, weights=grid.area, dims=diag_arg.horizontal_dims
+        ).mean("time")
         return weighted_mean(
-            (mean - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
+            (mean - target) ** 2, weights=grid.area, dims=diag_arg.horizontal_dims
         ).mean("time")
 
 
@@ -241,11 +241,11 @@ for mask_type in ["global", "sea", "land"]:
         )
         if len(predicted) == 0:
             return xr.Dataset()
-        mean = weighted_mean(target, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
-            "time"
-        )
+        mean = weighted_mean(
+            target, weights=grid.area, dims=diag_arg.horizontal_dims
+        ).mean("time")
         return weighted_mean(
-            (mean - target) ** 2, weights=grid.area, dims=HORIZONTAL_DIMS
+            (mean - target) ** 2, weights=grid.area, dims=diag_arg.horizontal_dims
         ).mean("time")
 
 
@@ -262,7 +262,7 @@ for mask_type in ["global", "sea", "land"]:
             diag_arg.grid,
         )
         biases_area_weighted_avg = weighted_mean(
-            predicted - target, weights=grid.area, dims=HORIZONTAL_DIMS
+            predicted - target, weights=grid.area, dims=diag_arg.horizontal_dims
         )
         return biases_area_weighted_avg.mean("time")
 
@@ -283,7 +283,7 @@ for mask_type in ["global", "sea", "land"]:
         if len(predicted) == 0:
             return xr.Dataset()
         biases_area_weighted_avg = weighted_mean(
-            predicted - target, weights=grid.area, dims=HORIZONTAL_DIMS
+            predicted - target, weights=grid.area, dims=diag_arg.horizontal_dims
         )
         return biases_area_weighted_avg.mean("time")
 
@@ -412,9 +412,9 @@ for mask_type in ["global", "land", "sea"]:
                 [predicted, target],
                 dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
             )
-            return weighted_mean(ds, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
-                "time"
-            )
+            return weighted_mean(
+                ds, weights=grid.area, dims=diag_arg.horizontal_dims
+            ).mean("time")
         else:
             return xr.Dataset()
 
@@ -440,9 +440,9 @@ for mask_type in ["global", "land", "sea"]:
                 [predicted, target],
                 dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
             )
-            return weighted_mean(ds, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
-                "time"
-            )
+            return weighted_mean(
+                ds, weights=grid.area, dims=diag_arg.horizontal_dims
+            ).mean("time")
         else:
             return xr.Dataset()
 
@@ -472,9 +472,9 @@ for mask_type in [
                 [predicted, target],
                 dim=pd.Index(["predict", "target"], name=DERIVATION_DIM),
             )
-            return weighted_mean(ds, weights=grid.area, dims=HORIZONTAL_DIMS).mean(
-                "time"
-            )
+            return weighted_mean(
+                ds, weights=grid.area, dims=diag_arg.horizontal_dims
+            ).mean("time")
         else:
             return xr.Dataset()
 

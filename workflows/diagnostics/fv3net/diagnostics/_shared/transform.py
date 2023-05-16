@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 import cftime
 from vcm import interpolate_to_pressure_levels, minus_column_integrated_moistening
 
-from .constants import HORIZONTAL_DIMS, VERTICAL_DIM, DiagArg
+from .constants import DiagArg
 
 _TRANSFORM_FNS = {}
 
@@ -111,7 +111,7 @@ def resample_time(
     prognostic = prognostic.isel(time=time_slice)
     if inner_join:
         prognostic, verification = _inner_join_time(prognostic, verification)
-    return DiagArg(prognostic, verification, grid)
+    return DiagArg(prognostic, verification, grid, horizontal_dims=arg.horizontal_dims)
 
 
 def _downsample_only(ds: xr.Dataset, freq_label: str, method: str) -> xr.Dataset:
@@ -145,7 +145,7 @@ def skip_if_3d_output_absent(arg: DiagArg) -> DiagArg:
     prog = prognostic if len(prognostic) > 0 else dummy_ds
     verif = verification if len(verification) > 0 else dummy_ds
 
-    return DiagArg(prog, verif, grid)
+    return DiagArg(prog, verif, grid, horizontal_dims=arg.horizontal_dims)
 
 
 @add_to_input_transform_fns
@@ -162,7 +162,9 @@ def daily_mean(split: timedelta, arg: DiagArg) -> DiagArg:
         split_time = prognostic.time.values[0] + split
         prognostic = _resample_end(prognostic, split_time, "1D")
         verification = _resample_end(verification, split_time, "1D")
-        return DiagArg(prognostic, verification, grid)
+        return DiagArg(
+            prognostic, verification, grid, horizontal_dims=arg.horizontal_dims
+        )
     else:
         return DiagArg(xr.Dataset(), xr.Dataset(), grid)
 
@@ -179,7 +181,7 @@ def _resample_end(ds: xr.Dataset, split: datetime, freq_label: str) -> xr.Datase
 def _inner_join_time(
     prognostic: xr.Dataset, verification: xr.Dataset
 ) -> Tuple[xr.Dataset, xr.Dataset]:
-    """ Subset times within the prognostic data to be within the verification data,
+    """Subset times within the prognostic data to be within the verification data,
     as necessary and vice versa, and return the subset datasets
     """
 
@@ -197,7 +199,9 @@ def _inner_join_time(
     )
 
 
-def _mask_vars_with_horiz_dims(ds, surface_type, latitude, land_sea_mask):
+def _mask_vars_with_horiz_dims(
+    ds, surface_type, latitude, land_sea_mask, horizontal_dims
+):
     """
     Subset data to variables with specified dimensions before masking
     to prevent odd behavior from variables with non-compliant dims
@@ -207,7 +211,7 @@ def _mask_vars_with_horiz_dims(ds, surface_type, latitude, land_sea_mask):
     spatial_ds_varnames = [
         var_name
         for var_name in ds.data_vars
-        if set(HORIZONTAL_DIMS).issubset(set(ds[var_name].dims))
+        if set(horizontal_dims).issubset(set(ds[var_name].dims))
     ]
     masked = xr.Dataset()
     for var in spatial_ds_varnames:
@@ -232,14 +236,19 @@ def mask_to_sfc_type(surface_type: str, arg: DiagArg) -> DiagArg:
     prognostic, verification, grid = arg.prediction, arg.verification, arg.grid
 
     masked_prognostic = _mask_vars_with_horiz_dims(
-        prognostic, surface_type, grid.lat, grid.land_sea_mask
+        prognostic, surface_type, grid.lat, grid.land_sea_mask, arg.horizontal_dims
     )
 
     masked_verification = _mask_vars_with_horiz_dims(
-        verification, surface_type, grid.lat, grid.land_sea_mask
+        verification, surface_type, grid.lat, grid.land_sea_mask, arg.horizontal_dims
     )
 
-    return DiagArg(masked_prognostic, masked_verification, grid)
+    return DiagArg(
+        masked_prognostic,
+        masked_verification,
+        grid,
+        horizontal_dims=arg.horizontal_dims,
+    )
 
 
 @add_to_input_transform_fns
@@ -271,7 +280,12 @@ def mask_area(region: str, arg: DiagArg) -> DiagArg:
     )
 
     grid_copy = grid.copy()
-    return DiagArg(prognostic, verification, grid_copy.update({"area": masked_area}))
+    return DiagArg(
+        prognostic,
+        verification,
+        grid_copy.update({"area": masked_area}),
+        horizontal_dims=arg.horizontal_dims,
+    )
 
 
 def _get_net_precipitation(
@@ -327,12 +341,16 @@ def subset_variables(variables: Sequence, arg: DiagArg) -> DiagArg:
     prognostic_vars = [var for var in variables if var in prognostic]
     verification_vars = [var for var in variables if var in verification]
     return DiagArg(
-        prognostic[prognostic_vars], verification[verification_vars], grid, arg.delp,
+        prognostic[prognostic_vars],
+        verification[verification_vars],
+        grid,
+        arg.delp,
+        horizontal_dims=arg.horizontal_dims,
     )
 
 
-def _is_3d(da: xr.DataArray):
-    return VERTICAL_DIM in da.dims
+def _is_3d(da: xr.DataArray, vertical_dim: str = "z"):
+    return vertical_dim in da.dims
 
 
 @add_to_input_transform_fns
@@ -344,7 +362,13 @@ def select_3d_variables(arg: DiagArg) -> DiagArg:
         arg.delp,
     )
     prediction_vars = [var for var in prediction if _is_3d(prediction[var])]
-    return DiagArg(prediction[prediction_vars], target[prediction_vars], grid, delp)
+    return DiagArg(
+        prediction[prediction_vars],
+        target[prediction_vars],
+        grid,
+        delp,
+        horizontal_dims=arg.horizontal_dims,
+    )
 
 
 @add_to_input_transform_fns
@@ -356,11 +380,17 @@ def select_2d_variables(arg: DiagArg) -> DiagArg:
         arg.delp,
     )
     prediction_vars = [var for var in prediction if not _is_3d(prediction[var])]
-    return DiagArg(prediction[prediction_vars], target[prediction_vars], grid, delp)
+    return DiagArg(
+        prediction[prediction_vars],
+        target[prediction_vars],
+        grid,
+        delp,
+        horizontal_dims=arg.horizontal_dims,
+    )
 
 
 @add_to_input_transform_fns
-def regrid_zdim_to_pressure_levels(arg: DiagArg, vertical_dim=VERTICAL_DIM) -> DiagArg:
+def regrid_zdim_to_pressure_levels(arg: DiagArg) -> DiagArg:
     # Regrids to the default pressure grid used in vcm.interpolate_to_pressure_levels,
     # which match those in the ERA-Interim reanalysis dataset
     prediction, target, grid, delp = (
@@ -373,9 +403,15 @@ def regrid_zdim_to_pressure_levels(arg: DiagArg, vertical_dim=VERTICAL_DIM) -> D
     vertical_prediction_fields = [var for var in prediction if _is_3d(prediction[var])]
     for var in vertical_prediction_fields:
         prediction_regridded[var] = interpolate_to_pressure_levels(
-            delp=delp, field=prediction[var], dim=vertical_dim,
+            delp=delp, field=prediction[var], dim=arg.vertical_dim,
         )
         target_regridded[var] = interpolate_to_pressure_levels(
-            delp=delp, field=target[var], dim=vertical_dim,
+            delp=delp, field=target[var], dim=arg.vertical_dim,
         )
-    return DiagArg(prediction_regridded, target_regridded, grid, delp)
+    return DiagArg(
+        prediction_regridded,
+        target_regridded,
+        grid,
+        delp,
+        horizontal_dims=arg.horizontal_dims,
+    )

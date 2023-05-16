@@ -1,7 +1,7 @@
 import fsspec
 import numpy as np
 import tensorflow as tf
-from typing import Sequence, Mapping
+from typing import Sequence, Iterable
 import yaml
 
 import pace.util
@@ -68,10 +68,18 @@ class RankDivider:
         self._rank_extent_without_overlap = self._get_rank_extent_without_overlap(
             rank_extent, overlap
         )
+
+    @property
+    def subdomain_xy_size_without_overlap(self):
         # length of one side of subdomain along x/y axes
-        self.subdomain_xy_size_without_overlap = (
+        return (
             self._rank_extent_without_overlap[self._x_ind] // self.subdomain_layout[0]
         )
+
+    @property
+    def n_subdomain_features(self):
+        # number of total features (nx * ny * nz) in one subdomain
+        return int(np.prod(self.get_subdomain_extent(with_overlap=True)[1:]))
 
     def get_subdomain_extent(self, with_overlap: bool):
         subdomain_xy_size = self.subdomain_xy_size_without_overlap
@@ -198,9 +206,18 @@ def stack_time_series_samples(tensor):
     return np.reshape(tensor, (n_samples, -1))
 
 
-def concat_variables_along_feature_dim(
-    variables: Sequence[str], variable_tensors: Mapping[str, tf.Tensor]
-):
-    # Concat variable tensors into a single tensor along the feature dimension
-    # which is assumed to be the last dim.
-    return tf.concat([variable_tensors[v] for v in variables], axis=-1, name="stack",)
+def assure_same_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tensor]:
+    max_dims = max(len(v.shape) for v in variable_tensors)
+    reshaped_tensors = []
+    for var_data in variable_tensors:
+        if len(var_data.shape) == max_dims:
+            reshaped_tensors.append(var_data)
+        elif len(var_data.shape) == max_dims - 1:
+            orig_shape = var_data.shape
+            reshaped_tensors.append(tf.reshape(var_data, shape=(*orig_shape, 1)))
+        else:
+            raise ValueError(
+                f"Tensor data has {len(var_data.shape)} dims, must either "
+                f"have either {max_dims} or {max_dims-1}."
+            )
+    return reshaped_tensors

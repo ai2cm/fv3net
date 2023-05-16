@@ -29,7 +29,7 @@ from fv3fit import set_random_seed
 from fv3fit._shared import put_dir
 from fv3fit._shared.config import OptimizerConfig
 from fv3fit._shared.hyperparameters import Hyperparameters
-from fv3fit.emulation.layers.normalization2 import MeanMethod, StdDevMethod
+from fv3fit.emulation.layers.normalization import MeanMethod, StdDevMethod
 from fv3fit.keras._models.shared.pure_keras import PureKerasDictPredictor
 from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
 

@@ -5,6 +5,7 @@ from .config import (
     c48_initial_conditions_overlay,
     merge_fv3config_overlays,
     RestartCategoriesConfig,
+    DEFAULT_VERTICAL_COORDINATE_FILE,
 )
 from .utils import (
     wait_for_complete,

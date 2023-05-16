@@ -6,7 +6,7 @@ microphysics
 import dataclasses
 from typing import List, Mapping
 from fv3fit.emulation.layers.architecture import ArchitectureConfig
-from fv3fit.emulation.layers.normalization2 import MeanMethod, NormFactory, StdDevMethod
+from fv3fit.emulation.layers.normalization import MeanMethod, NormFactory, StdDevMethod
 
 import tensorflow as tf
 import fv3fit.emulation.transforms.zhao_carr as zhao_carr

@@ -45,6 +45,7 @@ def test_expected_mapper_functions_exist():
     expected_functions = (
         "open_nudge_to_obs",
         "open_nudge_to_fine",
+        "open_nudge_to_fine_scream",
         "open_high_res_diags",
         "open_fine_resolution_nudging_hybrid",
         "open_fine_resolution",
@@ -162,6 +163,39 @@ def test_batches_from_mapper_load_mapper():
 def test_batches_loader_from_dict(data, expected_class):
     result = loaders._config.BatchesLoader.from_dict(data)
     assert type(result) is expected_class
+
+
+@pytest.mark.parametrize(
+    "data, ptop",
+    [
+        pytest.param(
+            {
+                "mapper_config": {
+                    "function": "open_zarr",
+                    "kwargs": {"data_path": "mock/data/path"},
+                },
+                "kwargs": {},
+            },
+            300.0,
+            id="gsrm_fv3",
+        ),
+        pytest.param(
+            {
+                "mapper_config": {
+                    "function": "open_zarr",
+                    "kwargs": {"data_path": "mock/data/path"},
+                },
+                "res": "ne30",
+                "ptop": 10.0,
+            },
+            10.0,
+            id="gsrm_scream",
+        ),
+    ],
+)
+def test_ptop_BatchesFromMapperConfig(data, ptop):
+    result = loaders._config.BatchesLoader.from_dict(data)
+    assert result.ptop == ptop
 
 
 def test_safe_dump_BatchesFromMapperConfig():

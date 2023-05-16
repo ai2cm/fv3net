@@ -33,8 +33,8 @@ class SyntheticNoise(TFDatasetLoader):
         dataset = get_noise_tfdataset(
             variable_names,
             scalar_names=self.scalar_names,
-            nsamples=self.nsamples,
             nbatch=self.nbatch,
+            nsamples=self.nsamples,
             ntime=self.ntime,
             nx=self.nx,
             ny=self.nx,
@@ -110,8 +110,8 @@ class SyntheticWaves(TFDatasetLoader):
         dataset = get_waves_tfdataset(
             variable_names,
             scalar_names=self.scalar_names,
-            nsamples=self.nsamples,
             nbatch=self.nbatch,
+            nsamples=self.nsamples,
             ntime=self.ntime,
             nx=self.nx,
             ny=self.nx,
@@ -138,8 +138,8 @@ def get_waves_tfdataset(
     variable_names,
     *,
     scalar_names,
-    nsamples: int,
     nbatch: int,
+    nsamples: int,
     ntime: int,
     nx: int,
     ny: int,
@@ -163,24 +163,24 @@ def get_waves_tfdataset(
     def sample_generator():
         nonlocal time
         # creates a timeseries where each time is the negation of time before it
-        for _ in range(nsamples):
-            ax = np.random.uniform(scale_min, scale_max, size=(nbatch, 1, ntile, nz))[
+        for _ in range(nbatch):
+            ax = np.random.uniform(scale_min, scale_max, size=(nsamples, 1, ntile, nz))[
                 :, :, :, None, None, :
             ]
-            bx = np.random.uniform(period_min, period_max, size=(nbatch, 1, ntile, nz))[
-                :, :, :, None, None, :
-            ]
-            cx = np.random.uniform(
-                0.0, 2 * np.pi * phase_range, size=(nbatch, 1, ntile, nz)
+            bx = np.random.uniform(
+                period_min, period_max, size=(nsamples, 1, ntile, nz)
             )[:, :, :, None, None, :]
-            ay = np.random.uniform(scale_min, scale_max, size=(nbatch, 1, ntile, nz))[
+            cx = np.random.uniform(
+                0.0, 2 * np.pi * phase_range, size=(nsamples, 1, ntile, nz)
+            )[:, :, :, None, None, :]
+            ay = np.random.uniform(scale_min, scale_max, size=(nsamples, 1, ntile, nz))[
                 :, :, :, None, None, :
             ]
-            by = np.random.uniform(period_min, period_max, size=(nbatch, 1, ntile, nz))[
-                :, :, :, None, None, :
-            ]
+            by = np.random.uniform(
+                period_min, period_max, size=(nsamples, 1, ntile, nz)
+            )[:, :, :, None, None, :]
             cy = np.random.uniform(
-                0.0, 2 * np.pi * phase_range, size=(nbatch, 1, ntile, nz)
+                0.0, 2 * np.pi * phase_range, size=(nsamples, 1, ntile, nz)
             )[:, :, :, None, None, :]
             data = (
                 ax
@@ -202,11 +202,11 @@ def get_waves_tfdataset(
                 out[varname] = np.concatenate(out[varname], axis=1)
             if "time" in variable_names:
                 out["time"] = (
-                    np.arange(time, time + nbatch * ntime)
-                    .reshape((nbatch, ntime))
+                    np.arange(time, time + nsamples * ntime)
+                    .reshape((nsamples, ntime))
                     .astype(np.float32)
                 )
-                time += nbatch * ntime
+                time += nsamples * ntime
             yield out
 
     return generator_to_tfdataset(sample_generator)
@@ -216,8 +216,8 @@ def get_noise_tfdataset(
     variable_names,
     *,
     scalar_names,
-    nsamples: int,
     nbatch: int,
+    nsamples: int,
     ntime: int,
     nx: int,
     ny: int,
@@ -225,11 +225,13 @@ def get_noise_tfdataset(
     noise_amplitude: float,
 ):
     ntile = 6
+    time = 0
 
     def sample_generator():
+        nonlocal time
         # creates a timeseries where each time is the negation of time before it
-        for _ in range(nsamples):
-            data = noise_amplitude * np.random.randn(nbatch, 1, ntile, nx, ny, nz)
+        for _ in range(nbatch):
+            data = noise_amplitude * np.random.randn(nsamples, 1, ntile, nx, ny, nz)
             start = {}
             for varname in variable_names:
                 if varname in scalar_names:
@@ -242,6 +244,13 @@ def get_noise_tfdataset(
                     out[varname].append(out[varname][-1] * -1.0)
             for varname in out:
                 out[varname] = np.concatenate(out[varname], axis=1)
+            if "time" in variable_names:
+                out["time"] = (
+                    np.arange(time, time + nsamples * ntime)
+                    .reshape((nsamples, ntime))
+                    .astype(np.float32)
+                )
+                time += nsamples * ntime
             yield out
 
     return generator_to_tfdataset(sample_generator)

@@ -77,6 +77,22 @@ the end of the previous one will be appended. For example, the following for loo
 
         runfv3 append gs://path/to/failing/run
 
+.. note::
+
+    An option ``mpi_launcher`` has been added to the subcommand ``append``. This
+    option allows users to specify the system-specific MPI launcher used when running
+    the model. By default it takes the value "mpirun", which is relevant for running
+    in Docker. The only other currently supported value is "srun", which is relevant
+    when running on SLURM-based High Performance Computing (HPC) systems.
+
+    An example of running model with 5 segments on an HPC cluster::
+
+        for i in {1..5}
+        do
+           runfv3 append --mpi_launcher srun /absolute/file/path
+        done
+
+
 .. warning::
 
     For segmented runs, there is a requirement that the chunk size along the
@@ -96,6 +112,14 @@ tool provides a command ``run-native`` which you can use like this::
 This writes the run directory described by the ``fv3config.yaml`` to the
 specified local path and executes the model there. The command is used for
 example by the tests.
+
+.. note::
+
+   For the purposes of performing simulations on both Docker and HPC platforms,
+   the subcommand ``run-native`` was supplemented with the ``mpi_launcher``
+   option. Please see the example below on how to use it on an HPC cluster::
+
+       runfv3 run-native fv3config.yaml path/to/local/rundir --mpi_launcher srun
 
 .. warning::
 

@@ -27,6 +27,26 @@ def apply_to_mapping(
     return {name: tensor_func(tensor) for name, tensor in data.items()}
 
 
+@curry
+def apply_to_mapping_with_exclude(
+    tensor_func: Callable[[T_in], T_in],
+    data: Mapping[str, T_in],
+    exclude: Optional[Sequence[str]],
+) -> Dict[str, T_in]:
+    # need a duplicate function of this because having an exclude key
+    # limits the call signature of tensor_func to have the same output and
+    # input types
+    if exclude is None:
+        exclude = tuple()
+    return_mapping = {}
+    for name, tensor in data.items():
+        if name not in exclude:
+            return_mapping[name] = tensor_func(tensor)
+        else:
+            return_mapping[name] = tensor
+    return return_mapping
+
+
 def apply_to_tuple(
     tensor_func: Callable[[T_in], T_out],
 ) -> Callable[[Tuple[T_in, ...]], Tuple[T_out, ...]]:
