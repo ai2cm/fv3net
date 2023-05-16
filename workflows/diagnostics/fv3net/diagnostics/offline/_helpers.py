@@ -11,7 +11,8 @@ import xarray as xr
 
 from vcm import safe, gsrm_name_from_resolution_string
 from vcm.cloud import gsutil
-from vcm.catalog import catalog
+import intake
+#from vcm.catalog import catalog
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 DATASET_DIM_NAME = "dataset"
@@ -149,16 +150,17 @@ def insert_rmse(ds: xr.Dataset):
     return ds
 
 
-def load_grid_info(res: str = "c48"):
+def load_grid_info(catalog_path, res: str = "c48"):
     if gsrm_name_from_resolution_string(res) == "scream":
-        return load_grid_info_scream(res)
+        return load_grid_info_scream(res, catalog_path)
     elif gsrm_name_from_resolution_string(res) == "fv3":
-        return load_grid_info_fv3(res)
+        return load_grid_info_fv3(res, catalog_path)
     else:
         raise ValueError(f"Unknown evaluation grid {res}.")
 
 
-def load_grid_info_fv3(res):
+def load_grid_info_fv3(res, catalog_path):
+    catalog = intake.open_catalog(catalog_path)
     grid = catalog[f"grid/{res}"].read()
     wind_rotation = catalog[f"wind_rotation/{res}"].read()
     land_sea_mask = catalog[f"landseamask/{res}"].read()
@@ -168,7 +170,10 @@ def load_grid_info_fv3(res):
     )
 
 
-def load_grid_info_scream(res):
+def load_grid_info_scream(res, catalog_path):
+    print('res', res)
+    print('catalog_path', catalog_path)
+    catalog = intake.open_catalog(catalog_path)
     grid = catalog[f"grid/{res}"].read()
     land_sea_mask = catalog[f"landseamask/{res}"].read()
     grid_info = xr.merge([grid, land_sea_mask])

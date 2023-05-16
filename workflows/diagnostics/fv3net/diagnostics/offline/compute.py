@@ -75,6 +75,13 @@ def _get_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "catalog_path",
+        type=str,
+        default="/home/mr7417/ML_workflow/model_environment/fv3net/external/vcm/vcm/catalog.yaml",
+        help=("The location of the catalog.yaml file"),
+    )
+
+    parser.add_argument(
         "--snapshot-time",
         type=str,
         default=None,
@@ -84,6 +91,7 @@ def _get_parser() -> argparse.ArgumentParser:
             "default to use the first timestep available."
         ),
     )
+
     parser.add_argument(
         "--evaluation-grid",
         type=str,
@@ -99,12 +107,14 @@ def _get_parser() -> argparse.ArgumentParser:
             f"must be present in the vcm catalog at the evaluation resolution."
         ),
     )
+
     parser.add_argument(
         "--n-jobs",
         type=int,
         default=-1,
         help=("Optional n_jobs parameter for joblib.parallel when computing metrics."),
     )
+
     return parser
 
 
@@ -246,7 +256,7 @@ def _add_derived_diagnostics(ds):
     return merged.assign_attrs(ds.attrs)
 
 
-def _coarsen_transform(evaluation_resolution: int, prediction_resolution: int):
+def _coarsen_transform(evaluation_resolution: int, prediction_resolution: int, catalog_path: str):
     coarsening_factor = prediction_resolution // evaluation_resolution
     logger.info(
         f"Making predictions at validation data's c{prediction_resolution} resolution."
@@ -258,7 +268,7 @@ def _coarsen_transform(evaluation_resolution: int, prediction_resolution: int):
             "resolution."
         )
     if coarsening_factor > 1:
-        prediction_grid = load_grid_info(f"c{prediction_resolution}")
+        prediction_grid = load_grid_info(catalog_path, f"c{prediction_resolution}")
         logger.info(f"Coarsening predictions by factor of {coarsening_factor}.")
         return coarsen_cell_centered(
             weights=prediction_grid.area, coarsening_factor=coarsening_factor
@@ -268,6 +278,7 @@ def _coarsen_transform(evaluation_resolution: int, prediction_resolution: int):
 def get_prediction(
     config: loaders.BatchesFromMapperConfig,
     model: fv3fit.Predictor,
+    catalog_path: str,
     evaluation_resolution: int,
 ) -> xr.Dataset:
     model_variables = _variables_to_load(model)
@@ -283,6 +294,7 @@ def get_prediction(
                 _coarsen_transform(
                     evaluation_resolution=evaluation_resolution,
                     prediction_resolution=prediction_resolution,
+                    catalog_path=catalog_path,
                 )
             )
     mapping_function = compose_left(*transforms)
@@ -308,7 +320,7 @@ def main(args):
     with fsspec.open(args.data_yaml, "r") as f:
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
-    evaluation_grid = load_grid_info(args.evaluation_grid)
+    evaluation_grid = load_grid_info(args.catalog_path, args.evaluation_grid)
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
@@ -323,6 +335,7 @@ def main(args):
     ds_predicted = get_prediction(
         config=config,
         model=model,
+        catalog_path=args.catalog_path,
         evaluation_resolution=evaluation_grid.sizes[horizontal_dims[0]],
     )
 
