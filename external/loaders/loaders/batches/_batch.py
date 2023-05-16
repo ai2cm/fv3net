@@ -141,8 +141,7 @@ def batches_from_mapper(
     shuffle_timesteps: bool = True,
     shuffle_samples: bool = False,
     data_transforms: Optional[Sequence[Mapping]] = None,
-    catalog_path: str = "/home/mr7417/ML_workflow/model_environment/fv3net/external \
-                         /vcm/vcm/catalog.yaml",
+    catalog_path: str = vcm.catalog.catalog_path
 ) -> loaders.typing.Batches:
     """The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
