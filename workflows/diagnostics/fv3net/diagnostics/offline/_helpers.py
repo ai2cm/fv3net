@@ -171,8 +171,6 @@ def load_grid_info_fv3(res, catalog_path):
 
 
 def load_grid_info_scream(res, catalog_path):
-    print('res', res)
-    print('catalog_path', catalog_path)
     catalog = intake.open_catalog(catalog_path)
     grid = catalog[f"grid/{res}"].read()
     land_sea_mask = catalog[f"landseamask/{res}"].read()
