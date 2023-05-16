@@ -77,7 +77,7 @@ def _get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "catalog_path",
         type=str,
-        default="/home/mr7417/ML_workflow/model_environment/fv3net/external/vcm/vcm/catalog.yaml",
+        default=vcm.catalog.catalog_path,
         help=("The location of the catalog.yaml file"),
     )
 
