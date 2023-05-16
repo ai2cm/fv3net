@@ -39,8 +39,11 @@ class CustomLoss:
     Args:
         optimizer: configuration for the optimizer to
             compile with the model
-        normalization: the normalization type (see normalization.py) to
-            use for the MSE
+        normalization: the default normalization type (see normalization.py) to
+            use for the MSE loss
+        normalization_map: a mapping for a specific variable name to normalization type
+            to use for the MSE loss (unspecified variables will use the type specified
+            by ``normalization``)
         loss_variables: variable names to include in the MSE loss dict
         logit_variables: variable names to compute classification scores for.
             ``truth[name]`` is one-hot encoded. ``prediction[name]`` is in the
