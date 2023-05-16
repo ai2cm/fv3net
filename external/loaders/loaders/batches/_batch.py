@@ -80,8 +80,7 @@ class BatchesFromMapperConfig(BatchesLoader):
     shuffle_samples: bool = False
     data_transforms: Optional[Sequence[Mapping]] = None
     ptop: float = vcm.calc.thermo.constants.TOA_PRESSURE
-    catalog_path: str = "/home/mr7417/ML_workflow/model_environment/fv3net/external \
-                         /vcm/vcm/catalog.yaml"
+    catalog_path: str = vcm.catalog.catalog_path
 
     def __post_init__(self):
         duplicate_times = [
