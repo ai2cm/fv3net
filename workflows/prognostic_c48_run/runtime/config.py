@@ -13,6 +13,7 @@ from runtime.diagnostics.manager import (
 from runtime.steppers.nudging import NudgingConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.steppers.prescriber import PrescriberConfig
+from runtime.steppers.interval import IntervalConfig
 from runtime.transformers.tendency_prescriber import TendencyPrescriberConfig
 import runtime.transformers.fv3fit
 from runtime.steppers.radiation import RadiationStepperConfig
@@ -58,7 +59,9 @@ class UserConfig:
     fortran_diagnostics: List[FortranFileConfig] = dataclasses.field(
         default_factory=list
     )
-    prephysics: Optional[List[Union[PrescriberConfig, MachineLearningConfig]]] = None
+    prephysics: Optional[
+        List[Union[PrescriberConfig, MachineLearningConfig, IntervalConfig]]
+    ] = None
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
     tendency_prescriber: Optional[TendencyPrescriberConfig] = None

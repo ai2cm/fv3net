@@ -129,7 +129,11 @@ def _coord_to_var(coord: xr.DataArray, new_var_name: str) -> xr.DataArray:
 
 
 def _compute_diagnostics(
-    ds: xr.Dataset, grid: xr.Dataset, predicted_vars: List[str], n_jobs: int,
+    ds: xr.Dataset,
+    grid: xr.Dataset,
+    horizontal_dims: List[str],
+    predicted_vars: List[str],
+    n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset]:
     timesteps = []
 
@@ -146,7 +150,9 @@ def _compute_diagnostics(
     target = safe.get_variables(
         ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
     )
-    ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP], n_jobs=n_jobs)
+    ds_summary = compute_diagnostics(
+        prediction, target, grid, ds[DELP], horizontal_dims, n_jobs=n_jobs,
+    )
 
     timesteps.append(ds["time"])
 
@@ -173,7 +179,9 @@ def _consolidate_dimensioned_data(ds):
     return ds_diagnostics, ds_scalar_metrics
 
 
-def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str]):
+def _get_transect(
+    ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence[str], ptop: float,
+):
     ds_snapshot_regrid_pressure = xr.Dataset()
     for var in variables:
         transect_var = [
@@ -181,6 +189,7 @@ def _get_transect(ds_snapshot: xr.Dataset, grid: xr.Dataset, variables: Sequence
                 field=ds_snapshot[var].sel(derivation=deriv),
                 delp=ds_snapshot[DELP],
                 dim="z",
+                ptop=ptop,
             )
             for deriv in ["target", "predict"]
         ]
@@ -267,16 +276,15 @@ def get_prediction(
     batches = config.load_batches(model_variables)
 
     transforms = [_get_predict_function(model, model_variables)]
-
-    prediction_resolution = res_from_string(config.res)
-    if prediction_resolution != evaluation_resolution:
-        transforms.append(
-            _coarsen_transform(
-                evaluation_resolution=evaluation_resolution,
-                prediction_resolution=prediction_resolution,
+    if vcm.gsrm_name_from_resolution_string(config.res) == "fv3":
+        prediction_resolution = res_from_string(config.res)
+        if prediction_resolution != evaluation_resolution:
+            transforms.append(
+                _coarsen_transform(
+                    evaluation_resolution=evaluation_resolution,
+                    prediction_resolution=prediction_resolution,
+                )
             )
-        )
-
     mapping_function = compose_left(*transforms)
     batches = loaders.Map(mapping_function, batches)
 
@@ -308,9 +316,14 @@ def main(args):
     # add Q2 and total water path for PW-Q2 scatterplots and net precip domain averages
     if any(["Q2" in v for v in model.output_variables]):
         model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
-
+    if vcm.gsrm_name_from_resolution_string(args.evaluation_grid) == "fv3":
+        horizontal_dims = ["x", "y", "tile"]
+    elif vcm.gsrm_name_from_resolution_string(args.evaluation_grid) == "scream":
+        horizontal_dims = ["ncol"]
     ds_predicted = get_prediction(
-        config=config, model=model, evaluation_resolution=evaluation_grid.sizes["x"]
+        config=config,
+        model=model,
+        evaluation_resolution=evaluation_grid.sizes[horizontal_dims[0]],
     )
 
     output_data_yaml = os.path.join(args.output_path, "data_config.yaml")
@@ -323,6 +336,7 @@ def main(args):
     ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(
         ds_predicted,
         evaluation_grid,
+        horizontal_dims=horizontal_dims,
         predicted_vars=model.output_variables,
         n_jobs=args.n_jobs,
     )
@@ -330,7 +344,7 @@ def main(args):
     ds_diagnostics = ds_diagnostics.update(evaluation_grid)
 
     # save model senstivity figures- these exclude derived variables
-    fig_input_sensitivity = plot_input_sensitivity(model, ds_predicted)
+    fig_input_sensitivity = plot_input_sensitivity(model, ds_predicted, horizontal_dims)
     if fig_input_sensitivity is not None:
         with fsspec.open(
             os.path.join(
@@ -367,7 +381,9 @@ def main(args):
             )
         )
 
-        ds_transect = _get_transect(ds_snapshot, evaluation_grid, vertical_vars)
+        ds_transect = _get_transect(
+            ds_snapshot, evaluation_grid, vertical_vars, config.ptop,
+        )
         _write_nc(ds_transect, args.output_path, TRANSECT_NC_NAME)
 
     ds_diagnostics = _add_derived_diagnostics(ds_diagnostics)

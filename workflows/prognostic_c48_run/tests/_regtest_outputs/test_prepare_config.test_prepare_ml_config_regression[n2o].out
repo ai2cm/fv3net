@@ -134,7 +134,7 @@ initial_conditions:
   target_location: INPUT
   target_name: fv_srf_wnd.res.tile6.nc
 - copy_method: copy
-  source_location: gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0/
+  source_location: gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0
   source_name: fv_core.res.nc
   target_location: INPUT
   target_name: fv_core.res.nc

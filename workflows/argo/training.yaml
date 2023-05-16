@@ -45,7 +45,7 @@ spec:
             value: training
         envFrom: &training-container-envfrom
           - secretRef:
-              name: wandb-token
+              name: wandb-service-token
         volumeMounts: &training-container-volmounts
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret

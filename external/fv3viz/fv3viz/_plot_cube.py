@@ -15,7 +15,7 @@ from ._plot_helpers import (
     _align_plot_var_dims,
 )
 from ._masking import _mask_antimeridian_quads
-from vcm.cubedsphere import GridMetadata
+from vcm.cubedsphere import GridMetadata, GridMetadataFV3, GridMetadataScream
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
@@ -38,7 +38,7 @@ if os.getenv("CARTOPY_EXTERNAL_DOWNLOADER") != "natural_earth":
         "{resolution}_{category}/ne_{resolution}_{name}.zip"
     )
 
-WRAPPER_GRID_METADATA = GridMetadata(
+WRAPPER_GRID_METADATA = GridMetadataFV3(
     COORD_X_CENTER,
     COORD_Y_CENTER,
     COORD_X_OUTER,
@@ -69,7 +69,7 @@ def plot_cube(
     coastlines_kwargs: dict = None,
     **kwargs,
 ):
-    """ Plots an xr.DataArray containing tiled cubed sphere gridded data
+    """Plots an xr.DataArray containing tiled cubed sphere gridded data
     onto a global map projection, with optional faceting of additional dims
 
     Args:
@@ -166,15 +166,29 @@ def plot_cube(
     )
     cbar_kwargs = kwargs.pop("cbar_kwargs", {})
 
-    _plot_func_short = partial(
-        _plot_cube_axes,
-        lat=mappable_ds.lat.values,
-        lon=mappable_ds.lon.values,
-        latb=mappable_ds.latb.values,
-        lonb=mappable_ds.lonb.values,
-        plotting_function=plotting_function,
-        **kwargs,
-    )
+    if isinstance(grid_metadata, GridMetadataFV3):
+        _plot_func_short = partial(
+            _plot_cube_axes,
+            lat=mappable_ds.lat.values,
+            lon=mappable_ds.lon.values,
+            latb=mappable_ds.latb.values,
+            lonb=mappable_ds.lonb.values,
+            plotting_function=plotting_function,
+            **kwargs,
+        )
+    elif isinstance(grid_metadata, GridMetadataScream):
+        _plot_func_short = partial(
+            _plot_scream_axes,
+            lat=mappable_ds.lat.values,
+            lon=mappable_ds.lon.values,
+            plotting_function=plotting_function,
+            **kwargs,
+        )
+    else:
+        assert ValueError(
+            f"grid_metadata needs to be either GridMetadataFV3 or GridMetadataScream, \
+              but got {type(grid_metadata)}"
+        )
 
     projection = ccrs.Robinson() if not projection else projection
 
@@ -227,7 +241,7 @@ def plot_cube(
 def _mappable_var(
     ds: xr.Dataset, var_name: str, grid_metadata: GridMetadata = WRAPPER_GRID_METADATA,
 ):
-    """ Converts a dataset into a format for plotting across cubed-sphere tiles by
+    """Converts a dataset into a format for plotting across cubed-sphere tiles by
     checking and ordering its grid variable and plotting variable dimensions
 
     Args:
@@ -245,8 +259,11 @@ def _mappable_var(
     mappable_ds = xr.Dataset()
     for var, dims in grid_metadata.coord_vars.items():
         mappable_ds[var] = _align_grid_var_dims(ds[var], required_dims=dims)
-    var_da = _align_plot_var_dims(ds[var_name], grid_metadata.y, grid_metadata.x)
-    return mappable_ds.merge(var_da)
+    if isinstance(grid_metadata, GridMetadataFV3):
+        var_da = _align_plot_var_dims(ds[var_name], grid_metadata.y, grid_metadata.x)
+        return mappable_ds.merge(var_da)
+    elif isinstance(grid_metadata, GridMetadataScream):
+        return mappable_ds.merge(ds[var_name])
 
 
 def pcolormesh_cube(
@@ -466,7 +483,7 @@ def _plot_cube_axes(
     ax: plt.axes = None,
     **kwargs,
 ):
-    """ Plots tiled cubed sphere for a given subplot axis,
+    """Plots tiled cubed sphere for a given subplot axis,
         using np.ndarrays for all data
 
     Args:
@@ -549,4 +566,55 @@ def _plot_cube_axes(
 
     ax.set_global()
 
+    return p_handle
+
+
+def _plot_scream_axes(
+    array: np.ndarray,
+    lat: np.ndarray,
+    lon: np.ndarray,
+    plotting_function: str,
+    ax: plt.axes = None,
+    **kwargs,
+):
+    if ax is None:
+        ax = plt.gca()
+    if plotting_function in ["pcolormesh", "contour", "contourf"]:
+        mapping = {
+            "pcolormesh": "tripcolor",
+            "contour": "tricontour",
+            "contourf": "tricontourf",
+        }
+        _plotting_function = getattr(ax, mapping[plotting_function])
+    else:
+        raise ValueError(
+            """Plotting functions only include pcolormesh, contour,
+            and contourf."""
+        )
+    if "vmin" not in kwargs:
+        kwargs["vmin"] = np.nanmin(array)
+
+    if "vmax" not in kwargs:
+        kwargs["vmax"] = np.nanmax(array)
+
+    if np.isnan(kwargs["vmin"]):
+        kwargs["vmin"] = -0.1
+    if np.isnan(kwargs["vmax"]):
+        kwargs["vmax"] = 0.1
+
+    if plotting_function != "pcolormesh":
+        if "levels" not in kwargs:
+            kwargs["n_levels"] = 11 if "n_levels" not in kwargs else kwargs["n_levels"]
+            kwargs["levels"] = np.linspace(
+                kwargs["vmin"], kwargs["vmax"], kwargs["n_levels"]
+            )
+    lon = np.where(lon > 180, lon - 360, lon)
+    p_handle = _plotting_function(
+        lon.flatten(),
+        lat.flatten(),
+        array.flatten(),
+        transform=ccrs.PlateCarree(),
+        **kwargs,
+    )
+    ax.set_global()
     return p_handle
