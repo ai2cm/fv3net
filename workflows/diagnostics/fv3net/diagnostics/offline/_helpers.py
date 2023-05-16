@@ -12,7 +12,6 @@ import xarray as xr
 from vcm import safe, gsrm_name_from_resolution_string
 from vcm.cloud import gsutil
 import intake
-#from vcm.catalog import catalog
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 DATASET_DIM_NAME = "dataset"
