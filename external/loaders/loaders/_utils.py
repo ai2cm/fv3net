@@ -8,7 +8,6 @@ from vcm.convenience import round_time
 
 from .constants import TIME_NAME
 
-# from vcm.catalog import catalog
 import intake
 
 # note this is intentionally a different value than fv3fit's SAMPLE_DIM_NAME
