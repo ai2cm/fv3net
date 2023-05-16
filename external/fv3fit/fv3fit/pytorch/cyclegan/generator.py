@@ -44,6 +44,8 @@ class GeneratorConfig:
             geographic bias layer.
         use_geographic_features: if True, include a layer that appends
             geographic features to the input data.
+        disable_temporal_features: if use_geographic_features is True, this controls
+            whether to include temporal features in the geographic features.
         use_geographic_embedded_bias: if True, include a layer that adds a
             trainable bias vector after the initial encoding layer that is
             a function of horizontal coordinates.
@@ -57,6 +59,7 @@ class GeneratorConfig:
     use_geographic_bias: bool = True
     disable_convolutions: bool = False
     use_geographic_features: bool = True
+    disable_temporal_features: bool = False
     use_geographic_embedded_bias: bool = False
 
     def build(
@@ -150,11 +153,18 @@ class Generator(nn.Module):
 
         min_filters = int(config.max_filters / 2 ** config.n_convolutions)
 
+        if config.use_geographic_features:
+            self._geographic_features = GeographicFeatures(
+                nx=nx, ny=ny, disable_temporal_features=config.disable_temporal_features
+            )
+        else:
+            self._geographic_features = DiscardTime()
+
         if config.disable_convolutions:
             main = nn.Identity()
         else:
             if config.use_geographic_features:
-                in_channels = channels + GeographicFeatures.N_FEATURES
+                in_channels = channels + self._geographic_features.n_features
             else:
                 in_channels = channels
             initial_layers = [
@@ -186,11 +196,6 @@ class Generator(nn.Module):
             main = nn.Sequential(first_conv, encoder_decoder, out_conv)
 
         self._main = main
-
-        if config.use_geographic_features:
-            self._geographic_features = GeographicFeatures(nx=nx, ny=ny)
-        else:
-            self._geographic_features = DiscardTime()
 
         if config.use_geographic_bias:
             self._input_bias = GeographicBias(channels=channels, nx=nx, ny=ny)

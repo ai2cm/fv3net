@@ -55,7 +55,7 @@ class GeographicFeatures(nn.Module):
 
     N_FEATURES = 5
 
-    def __init__(self, nx: int, ny: int):
+    def __init__(self, nx: int, ny: int, disable_temporal_features: bool = False):
         super().__init__()
         if nx != ny:
             raise ValueError("this object requires nx=ny")
@@ -69,6 +69,11 @@ class GeographicFeatures(nn.Module):
         lat = lat[:, None, :, :]  # insert channel dimension
         self.local_time_zero_radians = torch.as_tensor(lon, device=DEVICE).float()
         self.cos_lat = torch.as_tensor(np.cos(lat), device=DEVICE).float()
+        self._disable_temporal_features = disable_temporal_features
+        if self._disable_temporal_features:
+            self.n_features = self.N_FEATURES - 2
+        else:
+            self.n_features = self.N_FEATURES
 
     def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """
@@ -82,10 +87,8 @@ class GeographicFeatures(nn.Module):
         Returns:
             tensor of shape [batch, window, tile, channel, x, y]
         """
-        # TODO: this is a hack to support the previous API before time was added,
-        # remove this try-except once the API is stable
-        try:
-            time, x = inputs
+        time, x = inputs
+        if not self._disable_temporal_features:
             assert len(time.shape) == 1, "time must be a 1D tensor"
             local_time_offset_radians = (
                 time % SECONDS_PER_DAY / SECONDS_PER_DAY * 2 * np.pi
@@ -98,8 +101,7 @@ class GeographicFeatures(nn.Module):
             time_y = torch.cos(local_time)
             xyz = torch.stack([self.xyz for _ in range(x.shape[0])])
             geo_features = torch.cat([time_x, time_y, xyz], dim=2)
-        except ValueError:
-            x = inputs
+        else:
             geo_features = torch.stack([self.xyz for _ in range(x.shape[0])])
 
         # the fact that this appends instead of prepends is arbitrary but important,

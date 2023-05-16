@@ -32,6 +32,8 @@ class DiscriminatorConfig:
             equal to the number of filters in the final strided convolutional layer
         use_geographic_features: if True, include a layer that appends
             geographic features to the input data.
+        disable_temporal_features: if use_geographic_features is True, this controls
+            whether to include temporal features in the geographic features.
         use_geographic_embedded_bias: if True, include a layer that adds a trainable
             bias vector after the initial encoding layer. This bias is a
             function of horizontal coordinates.
@@ -42,6 +44,7 @@ class DiscriminatorConfig:
     strided_kernel_size: int = 3
     max_filters: int = 256
     use_geographic_features: bool = True
+    disable_temporal_features: bool = False
     use_geographic_embedded_bias: bool = False
 
     def build(
@@ -61,6 +64,7 @@ class DiscriminatorConfig:
             ny=ny,
             convolution=convolution,
             use_geographic_features=self.use_geographic_features,
+            disable_temporal_features=self.disable_temporal_features,
             use_geographic_embedded_bias=self.use_geographic_embedded_bias,
         )
 
@@ -81,6 +85,7 @@ class Discriminator(nn.Module):
         ny: int,
         convolution: ConvolutionFactory = single_tile_convolution,
         use_geographic_features: bool = True,
+        disable_temporal_features: bool = False,
         use_geographic_embedded_bias: bool = False,
     ):
         """
@@ -98,6 +103,8 @@ class Discriminator(nn.Module):
             convolution: factory for creating all convolutional layers
             use_geographic_features: if True, include a layer that appends
                 geographic features to the input data.
+            disable_temporal_features: if use_geographic_features is True, this controls
+                whether to include temporal features in the geographic features.
             use_geographic_embedded_bias: if True, include a layer that adds a
                 trainable bias vector after the initial encoding layer that is
                 a function of horizontal coordinates.
@@ -111,8 +118,10 @@ class Discriminator(nn.Module):
         # discriminator can use information about the mean and standard deviation of
         # the input data (generated images)
         if use_geographic_features:
-            self._geographic_features = GeographicFeatures(nx=nx, ny=ny)
-            in_channels += GeographicFeatures.N_FEATURES
+            self._geographic_features = GeographicFeatures(
+                nx=nx, ny=ny, disable_temporal_features=disable_temporal_features
+            )
+            in_channels += self._geographic_features.n_features
         else:
             self._geographic_features = DiscardTime()
 
