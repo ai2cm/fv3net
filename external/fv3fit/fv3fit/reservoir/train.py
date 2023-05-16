@@ -3,7 +3,7 @@ from joblib import Parallel, delayed
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, Mapping, Tuple, List, Iterable, Sequence
+from typing import Optional, Mapping, Tuple, List, Iterable, Sequence, Union
 from .. import Predictor
 from .utils import square_even_terms
 from .autoencoder import Autoencoder, build_concat_and_scale_only_autoencoder
@@ -11,6 +11,7 @@ from .._shared import register_training_function
 from ._reshaping import concat_inputs_along_subdomain_features
 from . import (
     ReservoirComputingModel,
+    HybridReservoirComputingModel,
     Reservoir,
     ReservoirTrainingConfig,
     ReservoirComputingReadout,
@@ -48,16 +49,7 @@ def _get_ordered_X(X_mapping, variables):
     return assure_same_dims(ordered_tensors)
 
 
-@register_training_function("hybrid-reservoir", ReservoirTrainingConfig)
-def train_hybrid_reservoir_model(
-    hyperparameters: ReservoirTrainingConfig,
-    train_batches: tf.data.Dataset,
-    validation_batches: Optional[tf.data.Dataset],
-) -> Predictor:
-    pass
-
-
-@register_training_function("pure-reservoir", ReservoirTrainingConfig)
+@register_training_function("reservoir", ReservoirTrainingConfig)
 def train_pure_reservoir_model(
     hyperparameters: ReservoirTrainingConfig,
     train_batches: tf.data.Dataset,
@@ -155,15 +147,28 @@ def train_pure_reservoir_model(
         )
     readout = combine_readouts(subdomain_readouts)
 
-    model = ReservoirComputingModel(
-        input_variables=hyperparameters.input_variables,
-        output_variables=hyperparameters.input_variables,
-        reservoir=reservoir,
-        readout=readout,
-        square_half_hidden_state=hyperparameters.square_half_hidden_state,
-        rank_divider=rank_divider,
-        autoencoder=autoencoder,
-    )
+    model: Union[ReservoirComputingModel, HybridReservoirComputingModel]
+    if hyperparameters.hybrid_variables is None:
+        model = ReservoirComputingModel(
+            input_variables=hyperparameters.input_variables,
+            output_variables=hyperparameters.input_variables,
+            reservoir=reservoir,
+            readout=readout,
+            square_half_hidden_state=hyperparameters.square_half_hidden_state,
+            rank_divider=rank_divider,
+            autoencoder=autoencoder,
+        )
+    else:
+        model = HybridReservoirComputingModel(
+            input_variables=hyperparameters.input_variables,
+            output_variables=hyperparameters.input_variables,
+            hybrid_variables=hyperparameters.hybrid_variables,
+            reservoir=reservoir,
+            readout=readout,
+            square_half_hidden_state=hyperparameters.square_half_hidden_state,
+            rank_divider=rank_divider,
+            autoencoder=autoencoder,
+        )
     return model
 
 
@@ -214,10 +219,11 @@ def _process_batch_hybrid_data(
     # Similar to _process_batch_Xy_data for separating subdomains and
     # reshaping data, but does not transform the data into latent space
     batch_hybrid = _get_ordered_X(batch_data, hybrid_variables)
+    batch_hybrid_combined_inputs = np.concatenate(batch_hybrid, axis=-1)
     hybrid_subdomains_to_columns = []
     for s in range(rank_divider.n_subdomains):
         hybrid_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-            batch_hybrid, subdomain_index=s, with_overlap=True,
+            batch_hybrid_combined_inputs, subdomain_index=s, with_overlap=True,
         )
         hybrid_subdomains_to_columns.append(
             stack_time_series_samples(hybrid_subdomain_data)
