@@ -246,6 +246,7 @@ jobs:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       GOOGLE_COMPUTE_ZONE: us-central1
+      IMAGE: <<parameters.image>>
     steps:
       - checkout
       - run:
