@@ -17,7 +17,7 @@ hyperparameters:
     optimizer:
       name: Adam
       kwargs:
-        lr: 6.31051293e-7
+        lr: 1.0001e-4
     generator:
       n_convolutions: 2
       n_resnet: 6
@@ -27,6 +27,7 @@ hyperparameters:
       use_geographic_bias: false
       use_geographic_embedded_bias: false
       use_geographic_features: true
+      disable_temporal_features: true
     discriminator:
       n_convolutions: 3
       kernel_size: 3
@@ -34,6 +35,7 @@ hyperparameters:
       max_filters: 1024
       use_geographic_embedded_bias: false
       use_geographic_features: true
+      disable_temporal_features: true
     identity_loss:
       loss_type: mae
     cycle_loss:
@@ -44,7 +46,7 @@ hyperparameters:
     cycle_weight: 10.0
     generator_weight: 1.0
     discriminator_weight: 1.0
-  reload_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230329-221950-bbc73854-epoch_023/
+  # reload_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230329-221950-bbc73854-epoch_023/
   training:
     n_epoch: 100
     in_memory: false
@@ -54,5 +56,5 @@ hyperparameters:
     scheduler:
       name: ExponentialLR
       kwargs:
-        gamma: 0.79433
+        gamma: 0.63096
         last_epoch: -1

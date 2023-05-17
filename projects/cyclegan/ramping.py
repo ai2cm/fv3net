@@ -18,6 +18,12 @@ import matplotlib.animation
 import matplotlib.colors
 import vcm
 from fv3viz._plot_cube import UpdateablePColormesh
+from process_combined_aggregate import (
+    plot_diurnal_cycle,
+    plot_mean_all,
+    plot_cdf_dual_pane,
+    DatasetAggregator,
+)
 
 
 GRID = catalog["grid/c48"].read()
@@ -126,104 +132,104 @@ def get_sst_offsets(time: xr.DataArray):
     return interpolated_offsets
 
 
-def plot_mean_all(c48, c384, c48_gen, c384_gen, label: str):
-    varname = "PRATEsfc"
-    fig, ax = plt.subplots(
-        2, 4, figsize=(16, 6), subplot_kw={"projection": ccrs.Robinson()},
-    )
-    precip_c384 = c384[varname].mean("time") * TO_MM_DAY
-    precip_c48 = c48[varname].mean("time") * TO_MM_DAY
-    precip_c384_gen = c384_gen[varname].mean("time") * TO_MM_DAY
-    precip_c48_gen = c48_gen[varname].mean("time") * TO_MM_DAY
+# def plot_mean_all(c48, c384, c48_gen, c384_gen, label: str):
+#     varname = "PRATEsfc"
+#     fig, ax = plt.subplots(
+#         2, 4, figsize=(16, 6), subplot_kw={"projection": ccrs.Robinson()},
+#     )
+#     precip_c384 = c384[varname].mean("time") * TO_MM_DAY
+#     precip_c48 = c48[varname].mean("time") * TO_MM_DAY
+#     precip_c384_gen = c384_gen[varname].mean("time") * TO_MM_DAY
+#     precip_c48_gen = c48_gen[varname].mean("time") * TO_MM_DAY
 
-    vmin = min(
-        precip_c384.min().values,
-        precip_c48.min().values,
-        precip_c384_gen.min().values,
-        precip_c48_gen.min().values,
-    )
-    vmax = max(
-        precip_c384.max().values,
-        precip_c48.max().values,
-        precip_c384_gen.max().values,
-        precip_c48_gen.max().values,
-    )
+#     vmin = min(
+#         precip_c384.min().values,
+#         precip_c48.min().values,
+#         precip_c384_gen.min().values,
+#         precip_c48_gen.min().values,
+#     )
+#     vmax = max(
+#         precip_c384.max().values,
+#         precip_c48.max().values,
+#         precip_c384_gen.max().values,
+#         precip_c48_gen.max().values,
+#     )
 
-    ax[0, 0].set_title("c384_real")
-    fv3viz.plot_cube(
-        ds=GRID.merge(xr.Dataset({varname: precip_c384}), compat="override"),
-        var_name=varname,
-        ax=ax[0, 0],
-        vmin=vmin,
-        vmax=vmax,
-    )
-    ax[0, 1].set_title("c384_gen")
-    fv3viz.plot_cube(
-        ds=GRID.merge(xr.Dataset({varname: precip_c384_gen}), compat="override"),
-        var_name=varname,
-        ax=ax[0, 1],
-        vmin=vmin,
-        vmax=vmax,
-    )
-    ax[0, 2].set_title("c48_real")
-    fv3viz.plot_cube(
-        ds=GRID.merge(xr.Dataset({varname: precip_c48}), compat="override"),
-        var_name=varname,
-        ax=ax[0, 2],
-        vmin=vmin,
-        vmax=vmax,
-    )
-    ax[0, 3].set_title("c48_gen")
-    fv3viz.plot_cube(
-        ds=GRID.merge(xr.Dataset({varname: precip_c48_gen}), compat="override"),
-        var_name=varname,
-        ax=ax[0, 3],
-        vmin=vmin,
-        vmax=vmax,
-    )
-    gen_bias = precip_c384_gen - precip_c384
-    c48_bias = precip_c48 - precip_c384
-    c48_bias_mean = c48_bias.mean().values
-    c48_bias_std = c48_bias.std().values
-    c48_bias_land_std = c48_bias.where(land_sea_mask).std().values
-    c48_bias_land_mean = c48_bias.where(land_sea_mask).mean().values
-    gen_bias_mean = gen_bias.mean().values
-    gen_bias_std = gen_bias.std().values
-    gen_bias_land_std = gen_bias.where(land_sea_mask).std().values
-    gen_bias_land_mean = gen_bias.where(land_sea_mask).mean().values
+#     ax[0, 0].set_title("c384_real")
+#     fv3viz.plot_cube(
+#         ds=GRID.merge(xr.Dataset({varname: precip_c384}), compat="override"),
+#         var_name=varname,
+#         ax=ax[0, 0],
+#         vmin=vmin,
+#         vmax=vmax,
+#     )
+#     ax[0, 1].set_title("c384_gen")
+#     fv3viz.plot_cube(
+#         ds=GRID.merge(xr.Dataset({varname: precip_c384_gen}), compat="override"),
+#         var_name=varname,
+#         ax=ax[0, 1],
+#         vmin=vmin,
+#         vmax=vmax,
+#     )
+#     ax[0, 2].set_title("c48_real")
+#     fv3viz.plot_cube(
+#         ds=GRID.merge(xr.Dataset({varname: precip_c48}), compat="override"),
+#         var_name=varname,
+#         ax=ax[0, 2],
+#         vmin=vmin,
+#         vmax=vmax,
+#     )
+#     ax[0, 3].set_title("c48_gen")
+#     fv3viz.plot_cube(
+#         ds=GRID.merge(xr.Dataset({varname: precip_c48_gen}), compat="override"),
+#         var_name=varname,
+#         ax=ax[0, 3],
+#         vmin=vmin,
+#         vmax=vmax,
+#     )
+#     gen_bias = precip_c384_gen - precip_c384
+#     c48_bias = precip_c48 - precip_c384
+#     c48_bias_mean = c48_bias.mean().values
+#     c48_bias_std = c48_bias.std().values
+#     c48_bias_land_std = c48_bias.where(land_sea_mask).std().values
+#     c48_bias_land_mean = c48_bias.where(land_sea_mask).mean().values
+#     gen_bias_mean = gen_bias.mean().values
+#     gen_bias_std = gen_bias.std().values
+#     gen_bias_land_std = gen_bias.where(land_sea_mask).std().values
+#     gen_bias_land_mean = gen_bias.where(land_sea_mask).mean().values
 
-    bias_min = min(gen_bias.min().values, c48_bias.min().values)
-    bias_max = max(gen_bias.max().values, c48_bias.max().values)
-    bias_max = max(abs(bias_min), abs(bias_max))
-    bias_min = -bias_max
+#     bias_min = min(gen_bias.min().values, c48_bias.min().values)
+#     bias_max = max(gen_bias.max().values, c48_bias.max().values)
+#     bias_max = max(abs(bias_min), abs(bias_max))
+#     bias_min = -bias_max
 
-    fv3viz.plot_cube(
-        ds=GRID.merge(xr.Dataset({f"{varname}_gen_bias": gen_bias}), compat="override"),
-        var_name=f"{varname}_gen_bias",
-        ax=ax[1, 1],
-        vmin=bias_min,
-        vmax=bias_max,
-    )
-    ax[1, 1].set_title(
-        "gen_bias\nmean: {:.2e}\nstd: {:.2e}\nland mean:{:.2e}\nland std: {:.2e}".format(
-            gen_bias_mean, gen_bias_std, gen_bias_land_mean, gen_bias_land_std
-        )
-    )
-    fv3viz.plot_cube(
-        ds=GRID.merge(xr.Dataset({f"{varname}_c48_bias": c48_bias}), compat="override"),
-        var_name=f"{varname}_c48_bias",
-        ax=ax[1, 2],
-        vmin=bias_min,
-        vmax=bias_max,
-    )
-    ax[1, 2].set_title(
-        "c48_bias\nmean: {:.2e}\nstd: {:.2e}\nland mean:{:.2e}\nland std: {:.2e}".format(
-            c48_bias_mean, c48_bias_std, c48_bias_land_mean, c48_bias_land_std
-        )
-    )
+#     fv3viz.plot_cube(
+#         ds=GRID.merge(xr.Dataset({f"{varname}_gen_bias": gen_bias}), compat="override"),
+#         var_name=f"{varname}_gen_bias",
+#         ax=ax[1, 1],
+#         vmin=bias_min,
+#         vmax=bias_max,
+#     )
+#     ax[1, 1].set_title(
+#         "gen_bias\nmean: {:.2e}\nstd: {:.2e}\nland mean:{:.2e}\nland std: {:.2e}".format(
+#             gen_bias_mean, gen_bias_std, gen_bias_land_mean, gen_bias_land_std
+#         )
+#     )
+#     fv3viz.plot_cube(
+#         ds=GRID.merge(xr.Dataset({f"{varname}_c48_bias": c48_bias}), compat="override"),
+#         var_name=f"{varname}_c48_bias",
+#         ax=ax[1, 2],
+#         vmin=bias_min,
+#         vmax=bias_max,
+#     )
+#     ax[1, 2].set_title(
+#         "c48_bias\nmean: {:.2e}\nstd: {:.2e}\nland mean:{:.2e}\nland std: {:.2e}".format(
+#             c48_bias_mean, c48_bias_std, c48_bias_land_mean, c48_bias_land_std
+#         )
+#     )
 
-    plt.tight_layout()
-    fig.savefig(f"plots/ramping-mean-{label}.png", dpi=100)
+#     plt.tight_layout()
+#     fig.savefig(f"plots/ramping-mean-{label}.png", dpi=100)
 
 
 def to_diurnal_land(ds: xr.Dataset):
@@ -264,7 +270,7 @@ def plot_diurnal_land(c48, c384, c48_gen, c384_gen):
 def animate_all(c48, c384, c48_gen, c384_gen, label: str):
 
     fig, ax = plt.subplots(
-        2, 2, figsize=(12, 6), subplot_kw={"projection": ccrs.Robinson()},
+        2, 2, figsize=(12, 7), subplot_kw={"projection": ccrs.Robinson()},
     )
     varname = "PRATEsfc"
     precip_c384 = c384[varname].transpose("tile", "time", "y", "x") * TO_MM_DAY
@@ -308,8 +314,9 @@ def animate_all(c48, c384, c48_gen, c384_gen, label: str):
         vmin=0,
         vmax=vmax,
         norm=norm,
+        plot_colorbar=False,
     )
-    ax[0, 0].set_title("c48_real")
+    ax[0, 0].set_title("C48")
     im_c384_gen = UpdateablePColormesh(
         lat,
         lon,
@@ -318,8 +325,9 @@ def animate_all(c48, c384, c48_gen, c384_gen, label: str):
         vmin=0,
         vmax=vmax,
         norm=norm,
+        plot_colorbar=False,
     )
-    ax[0, 1].set_title("c48_gen")
+    ax[0, 1].set_title("C48 (ML)")
     im_c48 = UpdateablePColormesh(
         lat,
         lon,
@@ -328,8 +336,9 @@ def animate_all(c48, c384, c48_gen, c384_gen, label: str):
         vmin=0,
         vmax=vmax,
         norm=norm,
+        plot_colorbar=False,
     )
-    ax[1, 0].set_title("c384_real")
+    ax[1, 0].set_title("C384")
     im_c48_gen = UpdateablePColormesh(
         lat,
         lon,
@@ -338,12 +347,13 @@ def animate_all(c48, c384, c48_gen, c384_gen, label: str):
         vmin=0,
         vmax=vmax,
         norm=norm,
+        plot_colorbar=False,
     )
-    ax[1, 1].set_title("c384_gen")
+    ax[1, 1].set_title("C384 (ML)")
     for i in range(2):
         for j in range(2):
             ax[i, j].coastlines()
-    fig.suptitle(f"{varname} days = 0.00")
+    fig.suptitle(f"Surface precipitation (mm/day), elapsed days = 0.00")
 
     def func(data):
         im_c384.update(data[0])
@@ -351,8 +361,8 @@ def animate_all(c48, c384, c48_gen, c384_gen, label: str):
         im_c48.update(data[2])
         im_c48_gen.update(data[3])
         i = data[4]
-        days = i
-        fig.suptitle(f"{varname} days = {days:.2f}")
+        days = i / 8.0
+        fig.suptitle(f"Surface precipitation (mm/day), elapsed days = {days:.2f}")
 
     frames = (
         (
@@ -364,12 +374,65 @@ def animate_all(c48, c384, c48_gen, c384_gen, label: str):
         )
         for i in range(0, nt)
     )
+    fig.subplots_adjust(right=0.9)
+    cbar_ax = fig.add_axes([0.93, 0.15, 0.02, 0.7])
+    fig.colorbar(im_c48_gen.handles[-1], cax=cbar_ax)
+    plt.tight_layout(rect=[0.03, 0.03, 0.89, 0.93])
     ani = matplotlib.animation.FuncAnimation(
         fig, func, frames=frames, interval=100, repeat=False, save_count=nt,
     )
     ani.save(
         f"basic_animation_{nt}-{label}.mp4", fps=10, extra_args=["-vcodec", "libx264"]
     )
+
+
+def plot_annual_means(
+    c48_real_all: xr.Dataset,
+    c384_real_all: xr.Dataset,
+    c48_gen_all: xr.Dataset,
+    c384_gen_all: xr.Dataset,
+    label: str,
+):
+    ds_list = []
+    for i_year in range(4):
+        aggregator = DatasetAggregator()
+        aggregator.add(
+            c48_real_all.transpose("tile", "time", "x", "y")
+            .expand_dims("perturbation")
+            .isel(time=slice(i_year * 365 * 8, (i_year + 1) * 365 * 8)),
+            c384_real_all.transpose("tile", "time", "x", "y")
+            .expand_dims("perturbation")
+            .isel(time=slice(i_year * 365 * 8, (i_year + 1) * 365 * 8)),
+            c48_gen_all.expand_dims("perturbation").isel(
+                time=slice(i_year * 365 * 8, (i_year + 1) * 365 * 8)
+            ),
+            c384_gen_all.expand_dims("perturbation").isel(
+                time=slice(i_year * 365 * 8, (i_year + 1) * 365 * 8)
+            ),
+        )
+        ds = aggregator.get_dataset()
+        ds = ds.assign_coords({"perturbation": [f"Year {i_year}"]})
+        ds_list.append(ds)
+    ds = xr.concat(ds_list, dim="perturbation")
+    plot_mean_all(ds, "PRATEsfc", f"ramping-{label}")
+
+
+def plot_weather_evaluation(c48_real, c384_real, c48_gen, c384_gen, label: str):
+    c48_rmse = (c384_real - c48_real).std(dim=["tile", "x", "y"])["PRATEsfc"].values
+    c384_gen_rmse = (
+        (c384_gen - c384_real).std(dim=["tile", "x", "y"])["PRATEsfc"].values
+    )
+    dt = 1.0 / 8
+    time = np.arange(dt, (len(c48_rmse) + 1) * dt, dt)
+    _, ax = plt.subplots(1, 1, figsize=(6, 4))
+    ax.plot(time, c48_rmse * TO_MM_DAY, label="c48")
+    ax.plot(time, c384_gen_rmse * TO_MM_DAY, label="c384_gen")
+    ax.legend()
+    ax.set_xlabel("days elapsed")
+    ax.set_ylabel("Precipitation RMSE (mm/day)")
+    ax.set_title(f"Weather evaluation")
+    plt.tight_layout()
+    plt.savefig(f"ramping-rmse-{label}.png")
 
 
 if __name__ == "__main__":
@@ -384,6 +447,10 @@ if __name__ == "__main__":
         # "20230303-203306-f753d490", 69  # "denorm-2e-6-3x3-e69"
         "20230329-221949-9d8e8abc",
         16,  # "prec-lr-1e-4-decay-0.63096-full",
+        # "20230314-213709-fc95b736", 15 # "lr-1e-4-decay-0.79433"
+        # "20230424-183552-125621da", 16,  # "prec-lr-1e-4-decay-0.63096-full-no-geo-features"
+        # "20230424-191937-253268fd", 16,  # "prec-lr-1e-4-decay-0.63096-full-no-identity-loss"
+        # "20230427-160655-b8b010ce", 16,  # "prec-lr-1e-4-decay-0.63096-1-year"
     )
     cyclegan: fv3fit.pytorch.CycleGAN = fv3fit.load(
         # "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230130-231729-82b939d9-epoch_075/"  # precip-only
@@ -399,73 +466,90 @@ if __name__ == "__main__":
 
     if not os.path.exists(LOCAL_C48_FILENAME):
         # c48: xr.Dataset = xr.open_zarr("gs://vcm-ml-experiments/spencerc/2022-07-07/n2f-25km-baseline-increasing-sst/fv3gfs_run/sfc_dt_atmos.zarr")[["PRATEsfc", "TMPsfc"]]
-        c48 = xr.open_zarr(
+        c48_real = xr.open_zarr(
             "gs://vcm-ml-raw-flexible-retention/2023-04-03-C48-CycleGAN-ramped-simulation/sfc_8xdaily.zarr"
         )[["PRATEsfc"]]
-        c48 = c48.chunk({"time": 1488, "tile": 6, "grid_xt": 48, "grid_yt": 48})
+        c48_real = c48_real.chunk(
+            {"time": 1488, "tile": 6, "grid_xt": 48, "grid_yt": 48}
+        )
         try:
-            c48.to_zarr(LOCAL_C48_FILENAME)
+            c48_real.to_zarr(LOCAL_C48_FILENAME)
         except:
             shutil.rmtree(LOCAL_C48_FILENAME)
             raise
-    c48 = xr.open_zarr(LOCAL_C48_FILENAME)[["PRATEsfc"]]
+    c48_real = xr.open_zarr(LOCAL_C48_FILENAME)[["PRATEsfc"]]
     if not os.path.exists(LOCAL_C384_FILENAME):
-        c384 = convert_fine(
+        c384_real = convert_fine(
             xr.open_zarr(
                 "gs://vcm-ml-raw-flexible-retention/2023-04-20-C384-CycleGAN-ramped-simulation/sfc_8xdaily_coarse.zarr"
             )
         )
-        c384 = c384.chunk({"time": 744, "tile": 6, "grid_xt": 48, "grid_yt": 48})
+        c384_real = c384_real.chunk(
+            {"time": 744, "tile": 6, "grid_xt": 48, "grid_yt": 48}
+        )
         try:
-            c384.to_zarr(LOCAL_C384_FILENAME)
+            c384_real.to_zarr(LOCAL_C384_FILENAME)
         except:
             shutil.rmtree(LOCAL_C384_FILENAME)
             raise
-    c384 = xr.open_zarr(LOCAL_C384_FILENAME)[["PRATEsfc"]]
+    c384_real = xr.open_zarr(LOCAL_C384_FILENAME)[["PRATEsfc"]]
 
-    c48 = c48.rename({"grid_xt": "x", "grid_yt": "y"})
-    c384 = c384.rename({"grid_xt": "x", "grid_yt": "y"})
+    c48_real_all = c48_real.rename({"grid_xt": "x", "grid_yt": "y"})
+    c384_real_all = c384_real.rename({"grid_xt": "x", "grid_yt": "y"})
 
     FILENAME = (
         f"./ramping_data/predicted-ramping-{BASE_NAME}-epoch_{EPOCH:03d}" + "-{res}.nc"
     )
     if not os.path.exists(FILENAME.format(res="c48")):
-        c48_gen = cyclegan.predict(c384, reverse=True)
-        c48_gen.to_netcdf(FILENAME.format(res="c48"))
+        c48_gen_all = cyclegan.predict(c384_real_all, reverse=True)
+        c48_gen_all.to_netcdf(FILENAME.format(res="c48"))
     if not os.path.exists(FILENAME.format(res="c384")):
-        c384_gen = cyclegan.predict(c48)
-        c384_gen.to_netcdf(FILENAME.format(res="c384"))
-    c48_gen = xr.open_dataset(FILENAME.format(res="c48"))
-    c384_gen = xr.open_dataset(FILENAME.format(res="c384"))
+        c384_gen_all = cyclegan.predict(c48_real_all)
+        c384_gen_all.to_netcdf(FILENAME.format(res="c384"))
+    c48_gen_all = xr.open_dataset(FILENAME.format(res="c48"))
+    c384_gen_all = xr.open_dataset(FILENAME.format(res="c384"))
 
     # plot_diurnal_land(c48, c384, c48_gen, c384_gen)
 
-    c48 = c48.coarsen(time=8).mean()
-    c384 = c384.coarsen(time=8).mean()
-    c48_gen = c48_gen.coarsen(time=8).mean()
-    c384_gen = c384_gen.coarsen(time=8).mean()
+    # c48 = c48.coarsen(time=8).mean()
+    # c384 = c384.coarsen(time=8).mean()
+    # c48_gen = c48_gen.coarsen(time=8).mean()
+    # c384_gen = c384_gen.coarsen(time=8).mean()
 
-    c48 = c48.isel(time=slice(2 * 365, 3 * 365))
-    c384 = c384.isel(time=slice(2 * 365, 3 * 365))
-    c48_gen = c48_gen.isel(time=slice(2 * 365, 3 * 365))
-    c384_gen = c384_gen.isel(time=slice(2 * 365, 3 * 365))
+    c48_real = c48_real_all.isel(time=slice(1 * 365 * 8, 3 * 365 * 8))
+    c384_real = c384_real_all.isel(time=slice(1 * 365 * 8, 3 * 365 * 8))
+    c48_gen = c48_gen_all.isel(time=slice(1 * 365 * 8, 3 * 365 * 8))
+    c384_gen = c384_gen_all.isel(time=slice(1 * 365 * 8, 3 * 365 * 8))
 
-    # animate_all(c48, c384, c48_gen, c384_gen, f"{BASE_NAME}-e{EPOCH}")
+    animate_all(
+        c48_real_all, c384_real_all, c48_gen_all, c384_gen_all, f"{BASE_NAME}-e{EPOCH}"
+    )
 
-    plot_mean_all(c48, c384, c48_gen, c384_gen, f"{BASE_NAME}-e{EPOCH}")
+    # time_slice = slice(0, 8)
+    # animate_all(
+    #     c48_real_all.isel(time=time_slice),
+    #     c384_real_all.isel(time=time_slice),
+    #     c48_gen_all.isel(time=time_slice),
+    #     c384_gen_all.isel(time=time_slice),
+    #     f"{BASE_NAME}-e{EPOCH}"
+    # )
+
+    # plot_weather_evaluation(c48_real_all.isel(time=slice(0, 14*8-1)), c384_real_all.isel(time=slice(0, 14*8-1)), c48_gen_all.isel(time=slice(0, 14*8-1)), c384_gen_all.isel(time=slice(0, 14*8-1)), f"{BASE_NAME}-e{EPOCH}")
+    # plot_annual_means(c48_real_all, c384_real_all, c48_gen_all, c384_gen_all, f"{BASE_NAME}-e{EPOCH}")
+    # plot_mean_all(c48_real, c384_real, c48_gen, c384_gen, f"{BASE_NAME}-e{EPOCH}")
 
     n_smoothing = 30
     plt.figure()
     plt.plot(
-        c48.time.values,
+        c48_real.time.values,
         uniform_filter1d(
-            c48[VARNAME].mean(dim=("tile", "x", "y")).values * TO_MM_DAY,
+            c48_real[VARNAME].mean(dim=("tile", "x", "y")).values * TO_MM_DAY,
             size=n_smoothing,
         ),
         label="C48",
     )
     plt.plot(
-        c384.time.values,
+        c384_real.time.values,
         uniform_filter1d(
             c48_gen[VARNAME].mean(dim=("tile", "x", "y")).values * TO_MM_DAY,
             size=n_smoothing,
@@ -473,15 +557,15 @@ if __name__ == "__main__":
         label="C48 gen",
     )
     plt.plot(
-        c384.time.values,
+        c384_real.time.values,
         uniform_filter1d(
-            c384[VARNAME].mean(dim=("tile", "x", "y")).values * TO_MM_DAY,
+            c384_real[VARNAME].mean(dim=("tile", "x", "y")).values * TO_MM_DAY,
             size=n_smoothing,
         ),
         label="C384",
     )
     plt.plot(
-        c48.time.values,
+        c48_real.time.values,
         uniform_filter1d(
             c384_gen[VARNAME].mean(dim=("tile", "x", "y")).values * TO_MM_DAY,
             size=n_smoothing,
@@ -495,39 +579,39 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig(f"plots/ramping-{BASE_NAME}-e{EPOCH}.png", dpi=100)
 
-    n_bins = 100
-    bins = np.linspace(0, 1e-2, 101)
-    v1 = 1e-2 / n_bins ** 2
-    np.concatenate(
-        [[-1.0, 0.0], np.logspace(np.log10(v1), np.log10(1e-2), n_bins - 1),]
-    )
-    time_bin = 30
-    c48_hist = np.zeros((len(c48.time) // time_bin, len(bins) - 1))
-    c48_gen_hist = np.zeros((len(c384.time) // (time_bin), len(bins) - 1))
-    c384_hist = np.zeros((len(c384.time) // (time_bin), len(bins) - 1))
-    c384_gen_hist = np.zeros((len(c48.time) // time_bin, len(bins) - 1))
-    for i_hist, i in enumerate(range(0, len(c48.time) - time_bin, time_bin)):
-        c48_hist[i_hist, :] = np.histogram(
-            c48[VARNAME].isel(time=slice(i, i + time_bin)).values.flatten(),
-            bins=bins,
-            density=True,
-        )[0]
-        c384_gen_hist[i_hist, :] = np.histogram(
-            c384_gen[VARNAME].isel(time=slice(i, i + time_bin)).values.flatten(),
-            bins=bins,
-            density=True,
-        )[0]
-    for i_hist, i in enumerate(range(0, len(c384.time) - time_bin, time_bin)):
-        c384_hist[i_hist, :] = np.histogram(
-            c384[VARNAME].isel(time=slice(i, i + time_bin)).values.flatten(),
-            bins=bins,
-            density=True,
-        )[0]
-        c48_gen_hist[i_hist, :] = np.histogram(
-            c48_gen[VARNAME].isel(time=slice(i, i + time_bin)).values.flatten(),
-            bins=bins,
-            density=True,
-        )[0]
+    # n_bins = 100
+    # bins = np.linspace(0, 1e-2, 101)
+    # v1 = 1e-2 / n_bins ** 2
+    # np.concatenate(
+    #     [[-1.0, 0.0], np.logspace(np.log10(v1), np.log10(1e-2), n_bins - 1),]
+    # )
+    # time_bin = 30
+    # c48_hist = np.zeros((len(c48.time) // time_bin, len(bins) - 1))
+    # c48_gen_hist = np.zeros((len(c384.time) // (time_bin), len(bins) - 1))
+    # c384_hist = np.zeros((len(c384.time) // (time_bin), len(bins) - 1))
+    # c384_gen_hist = np.zeros((len(c48.time) // time_bin, len(bins) - 1))
+    # for i_hist, i in enumerate(range(0, len(c48.time) - time_bin, time_bin)):
+    #     c48_hist[i_hist, :] = np.histogram(
+    #         c48[VARNAME].isel(time=slice(i, i + time_bin)).values.flatten(),
+    #         bins=bins,
+    #         density=True,
+    #     )[0]
+    #     c384_gen_hist[i_hist, :] = np.histogram(
+    #         c384_gen[VARNAME].isel(time=slice(i, i + time_bin)).values.flatten(),
+    #         bins=bins,
+    #         density=True,
+    #     )[0]
+    # for i_hist, i in enumerate(range(0, len(c384.time) - time_bin, time_bin)):
+    #     c384_hist[i_hist, :] = np.histogram(
+    #         c384[VARNAME].isel(time=slice(i, i + time_bin)).values.flatten(),
+    #         bins=bins,
+    #         density=True,
+    #     )[0]
+    #     c48_gen_hist[i_hist, :] = np.histogram(
+    #         c48_gen[VARNAME].isel(time=slice(i, i + time_bin)).values.flatten(),
+    #         bins=bins,
+    #         density=True,
+    #     )[0]
 
     # # for i, t in enumerate(c48.time.values):
     # #     c48_hist[i, :] = np.histogram(c48[VARNAME].sel(time=t).values, bins=bins, density=True)[0]

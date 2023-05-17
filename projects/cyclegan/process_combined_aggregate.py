@@ -384,8 +384,8 @@ def get_histogram(
 def plot_mean_all(ds, varname, label: str):
     fig, ax = plt.subplots(
         len(ds.perturbation),
-        4,
-        figsize=(18, 2.5 * len(ds.perturbation) + 0.5),
+        3,
+        figsize=(14, 2.5 * len(ds.perturbation) + 0.5),
         subplot_kw={"projection": ccrs.Robinson()},
     )
     if len(ax.shape) == 1:
@@ -420,17 +420,17 @@ def plot_mean_all(ds, varname, label: str):
             vmin=vmin,
             vmax=vmax,
         )
-        ax[i, 1].set_title(f"{climate} C384 ML")
-        fv3viz.plot_cube(
-            ds=GRID.merge(
-                xr.Dataset({varname: mean.sel(source="gen")}), compat="override"
-            ),
-            var_name=varname,
-            cbar_label="Precipitation (mm/day)",
-            ax=ax[i, 1],
-            vmin=vmin,
-            vmax=vmax,
-        )
+        # ax[i, 1].set_title(f"{climate} C384 ML")
+        # fv3viz.plot_cube(
+        #     ds=GRID.merge(
+        #         xr.Dataset({varname: mean.sel(source="gen")}), compat="override"
+        #     ),
+        #     var_name=varname,
+        #     cbar_label="Precipitation (mm/day)",
+        #     ax=ax[i, 1],
+        #     vmin=vmin,
+        #     vmax=vmax,
+        # )
 
         def weighted_mean(da, weights):
             return (da * weights).mean() / weights.mean()
@@ -459,22 +459,22 @@ def plot_mean_all(ds, varname, label: str):
             ),
             var_name=f"{varname}_gen_bias",
             cbar_label="Precip Bias (mm/day)",
-            ax=ax[i, 2],
+            ax=ax[i, 1],
             vmin=bias_min,
             vmax=bias_max,
         )
-        ax[i, 2].set_title("{} C384 ML Bias".format(climate))
+        ax[i, 1].set_title("{} C384 ML Bias".format(climate))
         fv3viz.plot_cube(
             ds=GRID.merge(
                 xr.Dataset({f"{varname}_c48_bias": bias_c48_real}), compat="override"
             ),
             var_name=f"{varname}_c48_bias",
             cbar_label="Precip Bias (mm/day)",
-            ax=ax[i, 3],
+            ax=ax[i, 2],
             vmin=bias_min,
             vmax=bias_max,
         )
-        ax[i, 3].set_title("{} C48 Bias".format(climate))
+        ax[i, 2].set_title("{} C48 Bias".format(climate))
 
         gen_bias_mean = weighted_mean(bias.sel(source="gen"), AREA).values
         gen_bias_std = weighted_std(bias.sel(source="gen"), AREA).values
@@ -502,54 +502,78 @@ def plot_mean_all(ds, varname, label: str):
     plt.tight_layout()
     fig.savefig(f"./plots/{label}-mean.png", dpi=100)
 
-    def plot_bar(ax, title, ylabel, c48_values, gen_values):
+    def plot_bar(
+        ax, title, ylabel, c48_values, c48_land_values, gen_values, gen_land_values
+    ):
         ax.set_title(title)
         ax.set_ylabel(ylabel)
-        ax.set_xticks(np.arange(len(climates)))
+        ax.set_xticks(np.arange(len(c48_values)))
         ax.set_xticklabels(climates)
 
-        for i in range(len(climates)):
-            ax.bar(
-                i - bar_width / 2,
-                c48_values[i],
-                bar_width,
-                alpha=opacity,
-                color="tab:blue",
-                label="C48" if i == 0 else "",
-            )
-            ax.bar(
-                i + bar_width / 2,
-                gen_values[i],
-                bar_width,
-                alpha=opacity,
-                color="tab:orange",
-                label="ML" if i == 0 else "",
-            )
+        indices = np.arange(len(c48_values))
+        ax.bar(
+            indices - 1.5 * bar_width,
+            c48_values,
+            bar_width,
+            alpha=opacity,
+            color="blue",
+            label="C48 (Global)",
+        )
+        ax.bar(
+            indices - 0.5 * bar_width,
+            c48_land_values,
+            bar_width,
+            alpha=opacity,
+            color="brown",
+            label="C48 (Land)",
+        )
+        ax.bar(
+            indices + 0.5 * bar_width,
+            gen_values,
+            bar_width,
+            alpha=opacity,
+            color="lightblue",
+            label="C384 (ML, Global)",
+        )
+        ax.bar(
+            indices + 1.5 * bar_width,
+            gen_land_values,
+            bar_width,
+            alpha=opacity,
+            color="orange",
+            label="C384 (ML, Land)",
+        )
 
         ax.legend()
 
     # Set up the plotting area
-    fig, ax = plt.subplots(2, 2, figsize=(10, 7))
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
 
     # Plot bar charts
-    bar_width = 0.35
+    bar_width = 0.15
     opacity = 0.8
 
-    plot_bar(ax[0, 0], "Mean Bias", "Bias", c48_means, gen_means)
     plot_bar(
-        ax[0, 1], "Bias Standard Deviation", "Standard Deviation", c48_stds, gen_stds
+        ax[0],
+        "Mean Bias",
+        "Bias (mm/day)",
+        c48_means,
+        c48_land_means,
+        gen_means,
+        gen_land_means,
     )
-    plot_bar(ax[1, 0], "Mean Land Bias", "Land Bias", c48_land_means, gen_land_means)
     plot_bar(
-        ax[1, 1],
-        "Land Bias Standard Deviation",
-        "Standard Deviation",
+        ax[1],
+        "Bias Standard Deviation",
+        "Standard Deviation (mm/day)",
+        c48_stds,
         c48_land_stds,
+        gen_stds,
         gen_land_stds,
     )
 
     # Tweak spacing between subplots to prevent labels from overlapping
-    fig.subplots_adjust(hspace=0.3, wspace=0.3)
+    fig.subplots_adjust(wspace=0.3)
 
     # Display the bar chart(s)
     plt.tight_layout()
@@ -574,19 +598,23 @@ def plot_hist_all(ds, varname, label: str):
     fig.savefig(f"./plots/{label}-histogram.png", dpi=100)
 
 
-def plot_cdf_dual_pane(ds, varname, label: str):
+def plot_cdf_dual_pane(ds, initial_time, varname, label: str):
     fig, ax = plt.subplots(
-        len(ds.perturbation), 2, figsize=(10, 1 + 2.5 * len(ds.perturbation)),
+        len(ds.perturbation), 3, figsize=(14, 1 + 2.5 * len(ds.perturbation)),
     )
     if len(ax.shape) == 1:
         ax = ax[None, :]
+    plot_diurnal_cycle(ds, initial_time, varname, label, ax=ax[:, 2])
     for i, climate in enumerate(ds.perturbation.values):
         plot_cdf(ds.isel(perturbation=i), varname, ax=ax[i, 0], ax_err=ax[i, 1])
         ax[i, 0].set_yscale("log")
         ax[i, 0].set_title(f"{climate} CDF")
         n_samples = np.sum(ds[f"{varname}_hist"].sel(source="real", grid="C384").values)
         ax[i, 0].set_ylim(1.0 / n_samples, 1.0)
-        ax[i, 1].set_title(f"{climate} CDF Abs Error")
+        ax[i, 1].set_title(f"{climate} CDF Absolute Error")
+        ax[i, 1].set_ylim(0, None)
+        ax[i, 2].set_title(f"{climate} Diurnal Cycle")
+        ax[i, 2].set_ylabel("Sfc Precipitation (mm/day)")
     # find first bin with non-zero value
     first_bin = np.where(
         ds[f"{varname}_hist"].sum(["perturbation", "source", "grid"]).values.flatten()
@@ -603,7 +631,7 @@ def plot_cdf_dual_pane(ds, varname, label: str):
         + 1
     )
     edges = ds[f"{varname}_hist_bins"].values * TO_MM_DAY
-    for i in range(4):
+    for i in range(len(ds.perturbation)):
         ax[i, 0].set_xlim(edges[first_bin], edges[last_bin])
     plt.tight_layout()
     fig.savefig(f"./plots/{label}-cdf-err.png", dpi=100)
@@ -784,7 +812,7 @@ def plot_cdf(ds, varname, ax, ax_err=None):
     )
 
     ax.legend(loc="upper right")
-    ax.set_xlabel(varname)
+    ax.set_xlabel("Surface precipitation (mm/day)")
     ax.set_ylabel("1 - CDF")
     ax.set_title(f"{varname}")
 
@@ -854,7 +882,7 @@ def plot_diurnal_mean_for_climate(ds, i_perturbation, varname):
     fig.savefig(f"diurnal_{climate}.png", dpi=100)
 
 
-def plot_diurnal_cycle(ds, initial_time, varname, label: str):
+def plot_diurnal_cycle(ds, initial_time, varname, label: str, ax=None):
     # Sahel region of Africa
     # lon -8 to 35
     # lat -8 to 8
@@ -888,9 +916,20 @@ def plot_diurnal_cycle(ds, initial_time, varname, label: str):
     data = ds[f"PRATEsfc_mean"] * TO_MM_DAY
     total_mean = data.mean("group_bins")
     total_std = ds["PRATEsfc_var"].mean("group_bins") ** 0.5 * TO_MM_DAY
-    fig, ax = plt.subplots(
-        len(ds.perturbation), 2, figsize=(10, 1 + 2.5 * len(ds.perturbation)),
-    )
+    include_standardized = False
+    if include_standardized:
+        n_cols = 2
+    else:
+        n_cols = 1
+    if ax is None:
+        fig, ax = plt.subplots(
+            len(ds.perturbation), n_cols, figsize=(10, 1 + 2.5 * len(ds.perturbation)),
+        )
+        if not include_standardized:
+            ax = ax[:, None]
+    else:
+        fig = None
+        ax = ax[:, None]
     if len(ax.shape) == 1:
         ax = ax[None, :]
     x = np.arange(0, 24, 24 / len(ds.group_bins))
@@ -901,42 +940,43 @@ def plot_diurnal_cycle(ds, initial_time, varname, label: str):
         ax[i, 0].plot(
             x,
             data.sel(perturbation=climate, source="real", grid="C384").values,
-            label="real",
+            label="C384",
         )
         ax[i, 0].plot(
             x,
             data.sel(perturbation=climate, source="gen", grid="C384").values,
-            label="gen",
+            label="C384 (ML)",
         )
         ax[i, 0].plot(
             x,
             data.sel(perturbation=climate, source="real", grid="C48").values,
-            label="c48",
+            label="C48",
         )
-        ax[i, 1].plot(
-            x,
-            (data.sel(**real_c384).values - total_mean.sel(**real_c384).values)
-            / total_std.sel(**real_c384).values,
-            label="real",
-        )
-        ax[i, 1].plot(
-            x,
-            (data.sel(**gen_c384).values - total_mean.sel(**gen_c384).values)
-            / total_std.sel(**gen_c384).values,
-            label="gen",
-        )
-        ax[i, 1].plot(
-            x,
-            (data.sel(**real_c48).values - total_mean.sel(**real_c48).values)
-            / total_std.sel(**real_c48).values,
-            label="c48",
-        )
+        if include_standardized:
+            ax[i, 1].plot(
+                x,
+                (data.sel(**real_c384).values - total_mean.sel(**real_c384).values)
+                / total_std.sel(**real_c384).values,
+                label="C384",
+            )
+            ax[i, 1].plot(
+                x,
+                (data.sel(**gen_c384).values - total_mean.sel(**gen_c384).values)
+                / total_std.sel(**gen_c384).values,
+                label="C384 (ML)",
+            )
+            ax[i, 1].plot(
+                x,
+                (data.sel(**real_c48).values - total_mean.sel(**real_c48).values)
+                / total_std.sel(**real_c48).values,
+                label="C48",
+            )
         # ax[i].plot(
         #     x,
         #     data.sel(perturbation=climate, source="quantile", grid="C384").values,
         #     label="quantile",
         # )
-        for j in (0, 1):
+        for j in range(n_cols):
             # ax[i].set_xticks(x)
             # ax[i].set_xticklabels([f"{i}:00" for i in range(0, 24, 3)])
             # ax[i].set_xlabel("local time")
@@ -949,9 +989,11 @@ def plot_diurnal_cycle(ds, initial_time, varname, label: str):
             ax[i, j].set_title(climate)
             ax[i, j].legend()
         ax[i, 0].set_ylabel(varname)
-        ax[i, 1].set_ylabel(f"{varname} (normalized)")
+        if include_standardized:
+            ax[i, 1].set_ylabel(f"{varname} (normalized)")
     plt.tight_layout()
-    fig.savefig(f"./plots/{label}-diurnal_cycle.png", dpi=100)
+    if fig is not None:
+        fig.savefig(f"./plots/{label}-diurnal_cycle.png", dpi=100)
 
 
 def save_to_netcdf(ds, filename):
@@ -1110,6 +1152,70 @@ class DatasetAggregator:
         return ds
 
 
+def append_ramping_data(ds, base_name, epoch):
+    LOCAL_C48_FILENAME = "./ramping_data/c48-ramping-full.zarr"
+    LOCAL_C384_FILENAME = "./ramping_data/c384-ramping-full.zarr"
+    if not os.path.exists(LOCAL_C48_FILENAME) or not os.path.exists(
+        LOCAL_C384_FILENAME
+    ):
+        print("No ramping baseline data, skipping")
+        ds_out = ds
+    else:
+        c48_real = (
+            xr.open_zarr(LOCAL_C48_FILENAME)[["PRATEsfc"]]
+            .rename({"grid_xt": "x", "grid_yt": "y"})
+            .transpose("tile", "time", "x", "y")
+        )
+        c384_real = (
+            xr.open_zarr(LOCAL_C384_FILENAME)[["PRATEsfc"]]
+            .rename({"grid_xt": "x", "grid_yt": "y"})
+            .transpose("tile", "time", "x", "y")
+        )
+        FILENAME = (
+            f"./ramping_data/predicted-ramping-{base_name}-epoch_{epoch:03d}"
+            + "-{res}.nc"
+        )
+        if not os.path.exists(FILENAME.format(res="c48")) or not os.path.exists(
+            FILENAME.format(res="c384")
+        ):
+            print("No ramping data for base name {base_name} epoch {epoch}, skipping")
+            ds_out = ds
+        else:
+            c48_gen = xr.open_dataset(FILENAME.format(res="c48"))
+            c384_gen = xr.open_dataset(FILENAME.format(res="c384"))
+
+            # add new singleton "perturbation" coordinate with value "ramping"
+            c48_real = (
+                c48_real.isel(time=slice(1 * 365 * 8, 3 * 365 * 8))
+                .expand_dims("perturbation")
+                .assign_coords(perturbation=["ramping"])
+            )
+            c384_real = (
+                c384_real.isel(time=slice(1 * 365 * 8, 3 * 365 * 8))
+                .expand_dims("perturbation")
+                .assign_coords(perturbation=["ramping"])
+            )
+            c48_gen = (
+                c48_gen.isel(time=slice(1 * 365 * 8, 3 * 365 * 8))
+                .expand_dims("perturbation")
+                .assign_coords(perturbation=["ramping"])
+            )
+            c384_gen = (
+                c384_gen.isel(time=slice(1 * 365 * 8, 3 * 365 * 8))
+                .expand_dims("perturbation")
+                .assign_coords(perturbation=["ramping"])
+            )
+
+            aggregator = DatasetAggregator()
+            aggregator.add(c48_real, c384_real, c48_gen, c384_gen)
+            ds_ramping = aggregator.get_dataset()
+            ds_ramping = ds_ramping.assign_coords(perturbation=["ramping"])
+            ds_out = xr.concat([ds, ds_ramping], dim="perturbation").assign(
+                {"PRATEsfc_hist_bins": ds_ramping.PRATEsfc_hist_bins}
+            )
+    return ds_out
+
+
 if __name__ == "__main__":
     fv3fit.set_random_seed(0)
     CHECKPOINT_PATH = "gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/"
@@ -1155,12 +1261,16 @@ if __name__ == "__main__":
         # ("20230316-144944-b3143932", "lr-1e-4-decay-0.89125", 35),
         # ("20230316-182507-2cfb6254", "lr-1e-6-decay-0.89125", 35),
         # ("20230316-182557-17cdb0a6", "lr-1e-5-decay-0.89125", 34),
+        # ("20230314-213709-fc95b736", "lr-1e-4-decay-0.79433", 15),
         # ("20230314-213709-fc95b736", "lr-1e-4-decay-0.79433", 50),
         # ("20230314-214027-54366191", "lr-1e-4-decay-0.63096", 50),
         # ("20230314-214051-25b2a902", "lr-1e-3-decay-0.63096", 50),
         # multi-climate new-data models
         ("20230329-221949-9d8e8abc", "prec-lr-1e-4-decay-0.63096-full", 16),
-        ("20230330-174749-899f5c19", "prec-lr-1e-5-decay-0.63096-full", 23),
+        # ("20230330-174749-899f5c19", "prec-lr-1e-5-decay-0.63096-full", 23),
+        # ("20230424-183552-125621da", "prec-lr-1e-4-decay-0.63096-full-no-geo-features", 16),
+        # ("20230424-191937-253268fd", "prec-lr-1e-4-decay-0.63096-full-no-identity-loss", 16),
+        # ("20230427-160655-b8b010ce", "prec-lr-1e-4-decay-0.63096-1-year", 16),
     ]:
         label = label + f"-e{EPOCH:02d}"
         fv3fit.set_random_seed(0)
@@ -1187,17 +1297,16 @@ if __name__ == "__main__":
         # label = "subset_5-" + label
 
         def plot(ds):
-            # plot_mean_all(ds, VARNAME)
+            print("plotting means")
+            plot_mean_all(ds, VARNAME, label)
             print("plotting cdfs")
             # plot_cdf_all(ds, VARNAME, label)
             plot_hist_all(ds, VARNAME, label)
-            plot_cdf_dual_pane(ds, VARNAME, label)
+            plot_cdf_dual_pane(ds, initial_time, VARNAME, label)
             print("plotting diurnal cycle")
             plot_diurnal_cycle(ds, initial_time, VARNAME, label)
             # print("plotting c384 histograms")
             # plot_hist_c384(ds, VARNAME, label)
-            print("plotting means")
-            plot_mean_all(ds, VARNAME, label)
             plt.close("all")
             # print("plotting diurnal means")
             # plot_diurnal_means(ds, VARNAME)
@@ -1266,4 +1375,5 @@ if __name__ == "__main__":
             print(f"Loading processed data from {PROCESSED_FILENAME}")
 
         ds = xr.open_dataset(PROCESSED_FILENAME)
+        ds = append_ramping_data(ds, BASE_NAME, EPOCH)
         plot(ds)

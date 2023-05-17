@@ -8,7 +8,7 @@ PROJECT=cyclegan # don't pass project arg to use default 'default'
 # it determines the output directory for the data
 
 EXPERIMENT="cyclegan_c48_to_c384_combined"
-TRIAL="prec-lr-1e-4-decay-0.79433-full-e23"
+TRIAL="prec-lr-1e-4-decay-0.63096-full-no-time-features"
 TAG=${EXPERIMENT}-${TRIAL}  # required
 NAME=train-cyclegan-$(openssl rand --hex 6) # required
 # TEMPLATE=workflowtemplate/training-torch
