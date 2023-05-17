@@ -21,5 +21,5 @@ for number_of_processers in 16 180; do
     cp /src/prognostic_scream_run/tests/example_configs/scream_ne30pg2.yaml ${number_of_processers}.yaml
     sed -i -e "s/number_of_processers: 16/number_of_processers: $(printf "%d" $number_of_processers)/g" ${number_of_processers}.yaml
     mkdir -p rundir
-    write_scream_run_directory ${number_of_processers}.yaml rundir
+    scream_run write-rundir ${number_of_processers}.yaml rundir
 done
