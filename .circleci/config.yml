@@ -233,6 +233,9 @@ jobs:
             . /home/circleci/.nix-profile/etc/profile.d/nix.sh
             nix-shell --command "pytest -s tests/test_driver"
   build_and_test_scream:
+    parameters:
+      image:
+        default: prognostic_scream_run
     machine:
       image: ubuntu-2004:202111-02
     resource_class: large
@@ -249,12 +252,11 @@ jobs:
             echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
       - gcp-gcr/gcr-auth
       - run:
-          name: "Build scream"
-          no_output_timeout: 20m
-          command: VERSION=latest make build_image_prognostic_scream_run
-      - run: VERSION=latest make push_image_prognostic_scream_run
-      - run: VERSION=latest make image_test_scream_run
-
+        name: "Build and push scream image"
+        no_output_timeout: 20m
+        command: |
+                sudo chown -R circleci:circleci /home/circleci/.docker && \
+                .circleci/build_and_push_image.sh
 parameters:
   run-weekly-workflow:
     type: boolean
