@@ -255,9 +255,9 @@ jobs:
             echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
       - gcp-gcr/gcr-auth
       - run:
-        name: "Build and push scream image"
-        no_output_timeout: 20m
-        command: |
+          name: "Build and push scream image"
+          no_output_timeout: 20m
+          command: |
                 sudo chown -R circleci:circleci /home/circleci/.docker && \
                 .circleci/build_and_push_image.sh
 parameters:
