@@ -153,8 +153,8 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
     optimizer_config: selection of algorithm to be used in gradient descent
     callback_config: configuration for keras callbacks
     normalization_fit_samples: number of samples
-    output_limit_config: configuration for limiting output values.
         to use when fitting normalization
+    output_limit_config: configuration for limiting output values.
 
     """
 
