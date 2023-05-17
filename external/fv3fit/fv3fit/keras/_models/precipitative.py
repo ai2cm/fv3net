@@ -1,5 +1,5 @@
 import dataclasses
-from fv3fit.keras._models.dense import train_column_model
+from fv3fit.keras._models.dense import train_pure_keras_model
 from toolz.functoolz import curry
 from typing import List, Optional, Sequence, Tuple, Set
 from fv3fit._shared.config import OptimizerConfig, RegularizerConfig
@@ -165,7 +165,7 @@ def train_precipitative_model(
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
 ):
-    return train_column_model(
+    return train_pure_keras_model(
         train_batches=train_batches,
         validation_batches=validation_batches,
         build_model=curry(build_model)(config=hyperparameters),
