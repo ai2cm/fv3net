@@ -236,6 +236,9 @@ jobs:
     parameters:
       image:
         default: prognostic_scream_run
+        type: enum
+        enum:
+          - prognostic_scream_run
     machine:
       image: ubuntu-2004:202111-02
     resource_class: large
