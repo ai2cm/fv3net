@@ -139,19 +139,17 @@ SCREAM_BRANCH ?= master
 clone_scream_repository:
 	if [ ! -d ${SCREAM_INSTALL_PATH} ]; then \
 		git clone -b ${SCREAM_BRANCH} https://github.com/E3SM-Project/scream.git ${SCREAM_INSTALL_PATH}; \
-		$(MAKE) update_scream_repository; \
 	else \
-		echo "${SCREAM_INSTALL_PATH} already existed, updating the repository...";\
-		$(MAKE) update_scream_repository; \
+		echo "${SCREAM_INSTALL_PATH} already existed, nothing to clone";\
 	fi
 
-update_scream_repository:
+update_scream_repository: clone_scream_repository
 	cd "${SCREAM_INSTALL_PATH}"; \
 	git pull; \
 	git submodule update --init --recursive; \
 	git submodule sync --recursive; \
 
-build_image_prognostic_scream_run: clone_scream_repository
+build_image_prognostic_scream_run: update_scream_repository
 	tools/docker_build_cached.sh $(REGISTRY)/prognostic_scream_run:$(CACHE_TAG) \
 		-f docker/prognostic_scream_run/Dockerfile -t $(REGISTRY)/prognostic_scream_run:$(VERSION) .
 

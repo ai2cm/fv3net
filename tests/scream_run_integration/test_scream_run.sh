@@ -1,6 +1,6 @@
 set -e
 
-scream_run prepare-config /tmp/scream_run_integration/test.yaml /tmp/test.yaml --precompiled_case=True
+scream_run prepare-config /tmp/scream_run_integration/test.yaml /tmp/test.yaml True
 if grep -q "create_newcase: False" "/tmp/test.yaml"; then
     echo "prepare_scream_config added create_newcase: False"
 else
