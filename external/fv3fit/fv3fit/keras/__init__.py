@@ -11,3 +11,4 @@ from ._models.shared.utils import standard_denormalize, full_standard_normalized
 from ._models.shared.loss import LossConfig
 from ._models.dense import train_pure_keras_model
 from ._models.shared.clip import ClipConfig
+from ._models.shared.output_limit import OutputLimitConfig

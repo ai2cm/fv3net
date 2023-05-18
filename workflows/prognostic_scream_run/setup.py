@@ -20,9 +20,5 @@ setup(
     packages=find_packages(include=["scream_run", "scream_run.*"]),
     test_suite="tests",
     tests_require=test_requirements,
-    entry_points={
-        "console_scripts": [
-            "write_scream_run_directory=scream_run.cli:write_scream_run_directory",
-        ]
-    },
+    entry_points={"console_scripts": ["scream_run=scream_run.cli:cli",]},
 )
