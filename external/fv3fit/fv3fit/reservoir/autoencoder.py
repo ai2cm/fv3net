@@ -22,6 +22,7 @@ from fv3fit.keras import (
     standard_denormalize,
     ClipConfig,
     PureKerasModel,
+    OutputLimitConfig,
 )
 import yaml
 
@@ -151,7 +152,9 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
     training_loop: configuration of training loop
     optimizer_config: selection of algorithm to be used in gradient descent
     callback_config: configuration for keras callbacks
-    normalization_fit_samples: number of samples to use when fitting normalization
+    normalization_fit_samples: number of samples
+        to use when fitting normalization
+    output_limit_config: configuration for limiting output values.
 
     """
 
@@ -168,6 +171,9 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
     )
     callbacks: List[CallbackConfig] = dataclasses.field(default_factory=list)
     normalization_fit_samples: int = 500_000
+    output_limit_config: OutputLimitConfig = dataclasses.field(
+        default_factory=lambda: OutputLimitConfig()
+    )
 
     @property
     def variables(self) -> Set[str]:
@@ -265,6 +271,12 @@ def build_autoencoder(
     denorm_output_layers = standard_denormalize(
         names=config.state_variables, layers=norm_output_layers, arrays=y,
     )
+
+    # apply output range limiters
+    denorm_output_layers = config.output_limit_config.apply_output_limiters(
+        outputs=denorm_output_layers, names=config.state_variables
+    )
+
     decoder = tf.keras.Model(inputs=decoder_input, outputs=denorm_output_layers)
     train_model = Autoencoder(encoder=encoder, decoder=decoder)
     predict_model = Autoencoder(encoder=encoder, decoder=decoder)
