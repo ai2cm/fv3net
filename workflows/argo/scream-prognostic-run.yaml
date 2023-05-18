@@ -28,7 +28,7 @@ spec:
           arguments:
             parameters:
             - {name: cpu-request, value: "{{inputs.parameters.cpu}}"}
-            - {name: cpu-cutoff, value: "16"}
+            - {name: cpu-cutoff, value: "30"}
       - - name: run-scream
           template: run-scream
           arguments:
