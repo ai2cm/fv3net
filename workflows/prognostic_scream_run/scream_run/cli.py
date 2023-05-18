@@ -47,6 +47,8 @@ def cli():
 @click.argument("rundir")
 def write_rundir(config: str, rundir: str):
     """Write a scream run directory given a scream config and a rundir
+    For each given processor count, a new directory will be created under
+    ${CASE_ROOT}/${CASE_NAME}/${processor_count}x1
     Args:
       config: path to scream config, either local or in the cloud
       rundir: path to rundir

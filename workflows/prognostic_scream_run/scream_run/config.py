@@ -69,7 +69,7 @@ class ScreamConfig:
     create_newcase: bool = True
     case_setup: bool = True
     case_build: bool = True
-    number_of_processers: int = 16
+    number_of_processors: int = 16
     CASE_ROOT: str = ""
     CASE_NAME: str = "scream_test"
     COMPSET: str = "F2010-SCREAMv1"
@@ -134,11 +134,11 @@ class ScreamConfig:
         case_scripts_dir = os.path.join(
             self.CASE_ROOT,
             self.CASE_NAME,
-            f"{self.number_of_processers}x1",
+            f"{self.number_of_processors}x1",
             "case_scripts",
         )
         case_run_dir = os.path.join(
-            self.CASE_ROOT, self.CASE_NAME, f"{self.number_of_processers}x1", "run",
+            self.CASE_ROOT, self.CASE_NAME, f"{self.number_of_processors}x1", "run",
         )
         with cwd(case_scripts_dir):
             with open("logs.txt", "w") as f:

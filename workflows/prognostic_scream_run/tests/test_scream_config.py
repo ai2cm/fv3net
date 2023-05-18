@@ -52,7 +52,7 @@ def test_compose_write_scream_run_directory_command(tmp_path):
     expected_command = f"{tmp_path}/run_eamxx.sh --output_yaml {tmp_path}/default.yaml \
         --initial_conditions_type local \
         --create_newcase True --case_setup True --case_build True \
-        --number_of_processers 16 --CASE_ROOT  --CASE_NAME scream_test \
+        --number_of_processors 16 --CASE_ROOT  --CASE_NAME scream_test \
         --COMPSET F2010-SCREAMv1 --RESOLUTION ne30pg2_ne30pg2 --ATM_NCPL 48 \
         --RUN_STARTDATE 2010-01-01 \
         --MODEL_START_TYPE initial --OLD_EXECUTABLE "

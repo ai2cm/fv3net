@@ -1,6 +1,6 @@
 output_yaml: gs://vcm-scream/config/output/default.yaml
 initial_conditions_type: local
-number_of_processers: 16
+number_of_processors: 16
 CASE_ROOT: /storage/cases
 CASE_NAME: scream_ne30pg2
 COMPSET: F2010-SCREAMv1

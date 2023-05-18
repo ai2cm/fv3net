@@ -155,9 +155,6 @@ build_image_prognostic_scream_run: clone_scream_repository
 	tools/docker_build_cached.sh $(REGISTRY)/prognostic_scream_run:$(CACHE_TAG) \
 		-f docker/prognostic_scream_run/Dockerfile -t $(REGISTRY)/prognostic_scream_run:$(VERSION) .
 
-push_image_prognostic_scream_run:
-	docker push $(REGISTRY)/prognostic_scream_run:$(VERSION)
-
 image_test_prognostic_scream_run:
 	tools/docker-run --rm -v $(shell pwd)/tests/scream_run_integration:/tmp/scream_run_integration $(REGISTRY)/prognostic_scream_run:$(VERSION) /tmp/scream_run_integration/test_scream_run.sh
 ############################################################
@@ -198,7 +195,7 @@ test_%:
 	cd external/$* && tox -- $(ARGS)
 
 test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
-	coverage run -m pytest -m "not regression and not scream_run" --durations=20 $(ARGS)
+	coverage run -m pytest -m "not regression" --durations=20 $(ARGS)
 	coverage combine \
 		--append \
 		external/fv3kube/.coverage \
