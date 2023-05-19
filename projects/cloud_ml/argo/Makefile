@@ -38,6 +38,10 @@ extend_nudge_to_fine_run_v6: deploy
 	cd nudge-to-fine-run && ./extend.sh \
 	gs://vcm-ml-experiments/cloud-ml/2023-01-19/cloud-ml-training-data-nudge-to-fine-v6/fv3gfs_run
 
+.PHONY: nudge_to_pire_run
+nudge_to_pire_run: deploy
+	cd nudge-to-fine-run && ./run.sh nudge-to-pire 1
+
 .PHONY: batchable_cloud_state_dataset_v7
 batchable_cloud_state_dataset_v7:
 	cd ../scripts && python batchable-cloud-state-dataset.py batchable-cloud-state-v7.yaml
@@ -45,6 +49,10 @@ batchable_cloud_state_dataset_v7:
 .PHONY: batchable_cloud_state_dataset_v8
 batchable_cloud_state_dataset_v8:
 	cd ../scripts && python batchable-cloud-state-dataset.py batchable-cloud-state-v8.yaml
+
+.PHONY: batchable_cloud_state_dataset_v9
+batchable_cloud_state_dataset_v9:
+	cd ../scripts && python batchable-cloud-state-dataset.py batchable-cloud-state-v9.yaml
 
 .PHONY: fine_coarse_cloud_state_dataset_v6
 fine_coarse_cloud_state_dataset_v6:
@@ -189,6 +197,10 @@ prescribed_cc_cloud_ccnorm_ran_overlap_run: deploy
 .PHONY: prescribed_cc_cloud_ran_overlap_run
 prescribed_cc_cloud_ran_overlap_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-cc-cloud-ran-ovr
+
+.PHONY: prescribed_pire_cloud_ccnorm_decorr_overlap_run
+prescribed_pire_cloud_ccnorm_decorr_overlap_run: deploy
+	cd radiation-port-run && ./run.sh prescribed-pire-cloud-cc-decorr
 
 .PHONY: prescribed_ml_cloud_run
 prescribed_ml_cloud_run: deploy
