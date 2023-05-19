@@ -1,4 +1,3 @@
-import warnings
 import numpy as np
 from .phys_const import con_pi, con_solr, con_solr_old
 
@@ -147,7 +146,7 @@ class AstronomyClass:
                     while iyr < iyr1:
                         iyr += icy
                     if rank == 0:
-                        warnings.warn(
+                        print(
                             f"*** Year {iyear} out of table range!",
                             f"{iyr1}, {iyr2}",
                             f"Using the closest-cycle year ('{iyr}')",
@@ -157,7 +156,7 @@ class AstronomyClass:
                     while iyr > iyr2:
                         iyr -= icy
                     if rank == 0:
-                        warnings.warn(
+                        print(
                             f"*** Year {iyear} out of table range!",
                             f"{iyr1}, {iyr2}",
                             f"Using the closest-cycle year ('{iyr}')",
