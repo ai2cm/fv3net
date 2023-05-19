@@ -146,7 +146,7 @@ def test_ReservoirComputingModel_state_increment():
     )
 
     input = np.array([0.5, 0.5])
-    predictor.reservoir.reset_state(input_shape=input.shape)
+    predictor.reset_state()
     predictor.reservoir.increment_state(input)
     state_before_prediction = predictor.reservoir.state
     prediction = predictor.predict()
@@ -176,19 +176,19 @@ def test_prediction_after_load(tmpdir):
         reservoir=reservoir,
         readout=readout,
     )
-    predictor.reservoir.reset_state()
+    predictor.reset_state()
 
     ts_sync = [np.ones(input_size) for i in range(20)]
-    predictor.reservoir.synchronize(ts_sync)
+    predictor.synchronize(ts_sync)
     for i in range(10):
         prediction0 = predictor.predict()
 
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
     loaded_predictor = ReservoirComputingModel.load(output_path)
-    loaded_predictor.reservoir.reset_state()
+    loaded_predictor.reset_state()
 
-    loaded_predictor.reservoir.synchronize(ts_sync)
+    loaded_predictor.synchronize(ts_sync)
     for i in range(10):
         prediction1 = loaded_predictor.predict()
 
