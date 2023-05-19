@@ -234,6 +234,7 @@ def enforce_conservative_gscond(state, emulator):
 def enforce_conservative_phase_dependent(state, emulator):
     cloud_out = emulator[GscondOutput.cloud_water]
     net_condensation = cloud_out - state[Input.cloud_water]
+    net_condensation = _limit_net_condensation_conserving(state, net_condensation)
     return {**emulator, **apply_condensation_phase_dependent(state, net_condensation)}
 
 

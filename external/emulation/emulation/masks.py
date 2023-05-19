@@ -56,7 +56,11 @@ class LevelMask:
         use_fortran_state = slice(self.start, self.stop)
         # Fortran state TOA is index 79, and dims are [z, sample]
         emulator_field = np.copy(emulator[self.key])
-        # TODO: harmonize state/emulator dict data types
+
+        # Currently, fortran fields pushed into python state are 64bit floats
+        # while the emulator output is float32, since there are no post-hoc adjustments
+        # for precpd, this lead to noise in the tendencies estimated from the
+        # masked levels due to 32 -> 64 casting, this hack resolves
         if emulator_field.dtype != np.float64:
             emulator_field = emulator_field.astype(np.float64)
 
