@@ -202,6 +202,10 @@ prescribed_cc_cloud_ran_overlap_run: deploy
 prescribed_pire_cloud_ccnorm_decorr_overlap_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-pire-cloud-cc-decorr
 
+.PHONY: prescribed_pire_cloud_ccnorm_decorr_overlap_run_2x2
+prescribed_pire_cloud_ccnorm_decorr_overlap_run_2x2: deploy
+	cd radiation-port-run && ./run_2x2.sh prescribed-pire-cloud-cc-decorr
+
 .PHONY: prescribed_ml_cloud_run
 prescribed_ml_cloud_run: deploy
 	cd radiation-port-run && ./run.sh prescribed-ml-cloud

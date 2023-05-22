@@ -95,6 +95,30 @@ diagnostics:
   - x_wind_reference
   - y_wind_reference
   - pressure_thickness_of_atmospheric_layer_reference
+- name: radiative_fluxes.zarr
+  chunks:
+    time: 12
+  times:
+    frequency: 900
+    kind: interval
+  variables:
+  - clear_sky_downward_longwave_flux_at_surface_python
+  - clear_sky_downward_shortwave_flux_at_surface_python
+  - clear_sky_upward_longwave_flux_at_surface_python
+  - clear_sky_upward_shortwave_flux_at_surface_python
+  - clear_sky_upward_longwave_flux_at_top_of_atmosphere_python
+  - clear_sky_upward_shortwave_flux_at_top_of_atmosphere_python
+  - total_sky_downward_longwave_flux_at_surface_python
+  - total_sky_downward_shortwave_flux_at_surface_python
+  - total_sky_upward_longwave_flux_at_surface_python
+  - total_sky_upward_shortwave_flux_at_surface_python
+  - total_sky_downward_shortwave_flux_at_top_of_atmosphere_python
+  - total_sky_upward_longwave_flux_at_top_of_atmosphere_python
+  - total_sky_upward_shortwave_flux_at_top_of_atmosphere_python
+  - total_sky_longwave_heating_rate_python
+  - clear_sky_longwave_heating_rate_python
+  - total_sky_shortwave_heating_rate_python
+  - clear_sky_shortwave_heating_rate_python
 experiment_name: default_experiment
 field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
@@ -334,8 +358,8 @@ namelist:
     kord_tr: 10
     kord_wz: 10
     layout:
-    - 1
-    - 1
+    - 2
+    - 2
     make_nh: false
     mountain: true
     n_split: 6
@@ -547,6 +571,6 @@ radiation_scheme:
       cloud_ice_mixing_ratio: cloud_ice_mixing_ratio
       cloud_amount: cloud_amount
     reference_initial_time: "20160811.030000"
-    reference_frequency_seconds: 900
+    reference_frequency_seconds: 10800
 scikit_learn: null
 tendency_prescriber: null
