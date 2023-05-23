@@ -18,14 +18,23 @@ class SkTransformAutoencoder:
     _TRANSFORMER_NAME = "sk_transformer.pkl"
     _SCALER_NAME = "sk_scaler.pkl"
 
-    def __init__(self, transformer: TransformerMixin, scaler: StandardScaler):
+    def __init__(
+        self,
+        transformer: TransformerMixin,
+        scaler: StandardScaler,
+        enforce_positive_outputs: bool = False,
+    ):
         self.transformer = transformer
         self.scaler = scaler
+        self.enforce_positive_outputs = enforce_positive_outputs
 
     def predict(self, x):
         original_feature_sizes = [feature.shape[-1] for feature in x]
         encoded = self.encode(np.concatenate(x, axis=-1))
         decoded = self.decode(encoded)
+
+        if self.enforce_positive_outputs is True:
+            decoded = np.where(decoded >= 0, decoded, 0.0)
 
         decoded_split_features = []
         start = 0
