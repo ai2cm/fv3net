@@ -17,6 +17,7 @@ import joblib
 class SkTransformAutoencoder:
     _TRANSFORMER_NAME = "sk_transformer.pkl"
     _SCALER_NAME = "sk_scaler.pkl"
+    _METADATA_NAME = "metadata.yaml"
 
     def __init__(
         self,
@@ -56,13 +57,25 @@ class SkTransformAutoencoder:
             scaler_path = os.path.join(path, self._SCALER_NAME)
             joblib.dump(self.scaler, scaler_path)
 
+            with open(os.path.join(path, self._METADATA_NAME), "w") as f:
+                f.write(
+                    yaml.dump(
+                        {"enforce_positive_outputs": self.enforce_positive_outputs}
+                    )
+                )
+
     @classmethod
     def load(cls, path: str) -> "SkTransformAutoencoder":
         with get_dir(path) as model_path:
             transformer = joblib.load(os.path.join(model_path, cls._TRANSFORMER_NAME))
             scaler = joblib.load(os.path.join(model_path, cls._SCALER_NAME))
-
-        return cls(transformer=transformer, scaler=scaler)
+            with open(os.path.join(path, cls._METADATA_NAME), "r") as f:
+                config = yaml.load(f, Loader=yaml.Loader)
+        return cls(
+            transformer=transformer,
+            scaler=scaler,
+            enforce_positive_outputs=config["enforce_positive_outputs"],
+        )
 
 
 @io.register("sktransform-autoencoder")
