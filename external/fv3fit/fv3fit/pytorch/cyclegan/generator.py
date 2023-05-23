@@ -49,6 +49,8 @@ class GeneratorConfig:
         use_geographic_embedded_bias: if True, include a layer that adds a
             trainable bias vector after the initial encoding layer that is
             a function of horizontal coordinates.
+        include_perturbation: if True, include forcing perturbation as part of
+            the geographic features.
     """
 
     n_convolutions: int = 3
@@ -61,6 +63,7 @@ class GeneratorConfig:
     use_geographic_features: bool = True
     disable_temporal_features: bool = False
     use_geographic_embedded_bias: bool = False
+    include_perturbation: bool = False
 
     def build(
         self,
@@ -155,7 +158,10 @@ class Generator(nn.Module):
 
         if config.use_geographic_features:
             self._geographic_features = GeographicFeatures(
-                nx=nx, ny=ny, disable_temporal_features=config.disable_temporal_features
+                nx=nx,
+                ny=ny,
+                disable_temporal_features=config.disable_temporal_features,
+                include_perturbation=config.include_perturbation,
             )
         else:
             self._geographic_features = DiscardTime()

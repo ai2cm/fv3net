@@ -55,7 +55,13 @@ class GeographicFeatures(nn.Module):
 
     N_FEATURES = 5
 
-    def __init__(self, nx: int, ny: int, disable_temporal_features: bool = False):
+    def __init__(
+        self,
+        nx: int,
+        ny: int,
+        disable_temporal_features: bool = False,
+        include_perturbation: bool = False,
+    ):
         super().__init__()
         if nx != ny:
             raise ValueError("this object requires nx=ny")
@@ -74,8 +80,14 @@ class GeographicFeatures(nn.Module):
             self.n_features = self.N_FEATURES - 2
         else:
             self.n_features = self.N_FEATURES
+        self._include_perturbation = include_perturbation
+        if self._include_perturbation:
+            self.n_features += 1
+        self._ones = torch.ones_like(self.cos_lat)
 
-    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+    def forward(
+        self, inputs: Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]
+    ) -> torch.Tensor:
         """
         Args:
             inputs: A tuple containing a tensor of shape (batch, window)
@@ -87,8 +99,14 @@ class GeographicFeatures(nn.Module):
         Returns:
             tensor of shape [batch, window, tile, channel, x, y]
         """
-        time, x = inputs
-        if not self._disable_temporal_features:
+        try:
+            (time, perturbation), x = inputs
+        except TypeError:
+            time, x = inputs
+
+        if (not hasattr(self, "_disable_temporal_features")) or (
+            not self._disable_temporal_features
+        ):
             assert len(time.shape) == 1, "time must be a 1D tensor"
             local_time_offset_radians = (
                 time % SECONDS_PER_DAY / SECONDS_PER_DAY * 2 * np.pi
@@ -103,6 +121,15 @@ class GeographicFeatures(nn.Module):
             geo_features = torch.cat([time_x, time_y, xyz], dim=2)
         else:
             geo_features = torch.stack([self.xyz for _ in range(x.shape[0])])
+
+        if hasattr(self, "_include_perturbation") and self._include_perturbation:
+            geo_features = torch.cat(
+                [
+                    geo_features,
+                    perturbation[:, None, None, None, None] * self._ones[None, :],
+                ],
+                dim=2,
+            )
 
         # the fact that this appends instead of prepends is arbitrary but important,
         # this is assumed to be the case elsewhere in the code.

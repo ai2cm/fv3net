@@ -674,7 +674,7 @@ class CycleGANTrainer:
         # Fake loss
         if training:
             time_b, fake_a = self.fake_a_buffer.query(
-                (time_b.detach(), fake_a.detach())
+                ((time_b[0].detach(), time_b[1].detach()), fake_a.detach())
             )
         pred_a_fake = self._call_discriminator_a((time_b, fake_a))
         loss_d_a_fake = (
@@ -690,7 +690,7 @@ class CycleGANTrainer:
         # Fake loss
         if training:
             time_a, fake_b = self.fake_b_buffer.query(
-                (time_a.detach(), fake_b.detach())
+                ((time_a[0].detach(), time_a[1].detach()), fake_b.detach())
             )
         pred_b_fake = self._call_discriminator_b((time_a, fake_b))
         loss_d_b_fake = (
@@ -742,8 +742,12 @@ class CycleGANTrainer:
 
         # plot the first sample of the batch
         with torch.no_grad():
-            fake_b = self._call_generator_a_to_b((time_a[:1], real_a[:1, :]))
-            fake_a = self._call_generator_b_to_a((time_b[:1], real_b[:1, :]))
+            fake_b = self._call_generator_a_to_b(
+                ((time_a[0][:1], time_a[1][:1]), real_a[:1, :])
+            )
+            fake_a = self._call_generator_b_to_a(
+                ((time_b[0][:1], time_b[1][:1]), real_b[:1, :])
+            )
         real_a = real_a.cpu().numpy()
         real_b = real_b.cpu().numpy()
         fake_a = fake_a.cpu().numpy()
@@ -881,8 +885,10 @@ def unpack_state(
     into one.
     """
 
-    time_a = state_a[0].flatten()
-    time_b = state_b[0].flatten()
+    time_a = state_a[0][0].flatten()
+    time_b = state_b[0][0].flatten()
+    perturbation_a = state_a[0][1].flatten()
+    perturbation_b = state_b[0][1].flatten()
     real_a = state_a[1]
     real_b = state_b[1]
     # for now there is no time-evolution-based loss, so we fold the time
@@ -893,7 +899,7 @@ def unpack_state(
     real_b = real_b.reshape(
         [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
     )
-    return time_a, time_b, real_a, real_b
+    return (time_a, perturbation_a), (time_b, perturbation_b), real_a, real_b
 
 
 def plot_histograms(

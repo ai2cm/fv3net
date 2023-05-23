@@ -1,4 +1,5 @@
 import dataclasses
+from typing import Tuple
 import torch.nn as nn
 from toolz import curry
 import torch
@@ -37,6 +38,8 @@ class DiscriminatorConfig:
         use_geographic_embedded_bias: if True, include a layer that adds a trainable
             bias vector after the initial encoding layer. This bias is a
             function of horizontal coordinates.
+        include_perturbation: if True, include forcing perturbation as part of
+            the geographic features.
     """
 
     n_convolutions: int = 3
@@ -46,6 +49,7 @@ class DiscriminatorConfig:
     use_geographic_features: bool = True
     disable_temporal_features: bool = False
     use_geographic_embedded_bias: bool = False
+    include_perturbation: bool = False
 
     def build(
         self,
@@ -66,6 +70,7 @@ class DiscriminatorConfig:
             use_geographic_features=self.use_geographic_features,
             disable_temporal_features=self.disable_temporal_features,
             use_geographic_embedded_bias=self.use_geographic_embedded_bias,
+            include_perturbation=self.include_perturbation,
         )
 
 
@@ -87,6 +92,7 @@ class Discriminator(nn.Module):
         use_geographic_features: bool = True,
         disable_temporal_features: bool = False,
         use_geographic_embedded_bias: bool = False,
+        include_perturbation: bool = False,
     ):
         """
         Args:
@@ -108,6 +114,8 @@ class Discriminator(nn.Module):
             use_geographic_embedded_bias: if True, include a layer that adds a
                 trainable bias vector after the initial encoding layer that is
                 a function of horizontal coordinates.
+            include_perturbation: if True, include forcing perturbation as part of
+                the geographic features.
         """
         super(Discriminator, self).__init__()
         if n_convolutions < 1:
@@ -119,7 +127,10 @@ class Discriminator(nn.Module):
         # the input data (generated images)
         if use_geographic_features:
             self._geographic_features = GeographicFeatures(
-                nx=nx, ny=ny, disable_temporal_features=disable_temporal_features
+                nx=nx,
+                ny=ny,
+                disable_temporal_features=disable_temporal_features,
+                include_perturbation=include_perturbation,
             )
             in_channels += self._geographic_features.n_features
         else:
@@ -165,7 +176,9 @@ class Discriminator(nn.Module):
         )
         self._sequential = nn.Sequential(*convs, final_conv, patch_output)
 
-    def forward(self, time: torch.Tensor, state: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, time: Tuple[torch.Tensor, torch.Tensor], state: torch.Tensor
+    ) -> torch.Tensor:
         """
         Args:
             time: a tensor of shape (batch, 1) with the time as seconds since 1970-01-01

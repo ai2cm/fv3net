@@ -245,7 +245,10 @@ def records(
                 else:
                     if i_sample is None:
                         i_sample = np.random.randint(array.shape[0])
-                    sample = array[i_sample, :]
+                    if len(array.shape) > 1:
+                        sample = array[i_sample, :]
+                    else:
+                        sample = array[i_sample]
                 if name == "time":
                     try:
                         item = cftime.date2num(sample, "seconds since 1970-01-01")

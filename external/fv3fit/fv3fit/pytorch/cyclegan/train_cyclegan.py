@@ -33,7 +33,7 @@ from typing import (
 from fv3fit.tfdataset import ensure_nd
 import logging
 import numpy as np
-from .reloadable import CycleGAN
+from .reloadable import CycleGAN, PERTURBATIONS
 from .cyclegan_trainer import (
     CycleGANNetworkConfig,
     CycleGANTrainer,
@@ -75,7 +75,7 @@ class CycleGANHyperparameters(Hyperparameters):
 
     @property
     def variables(self):
-        return tuple(self.state_variables) + ("time",)
+        return tuple(self.state_variables) + ("time", "perturbation")
 
 
 @dataclasses.dataclass
@@ -128,19 +128,24 @@ class CycleGANTrainingConfig:
             validation_data = validation_data.batch(self.samples_per_batch)
             validation_data = tfds.as_numpy(validation_data)
         if self.in_memory:
-            train_states: Iterable[
-                Tuple[DomainSample, DomainSample]
-            ] = dataset_to_tuples(train_data_numpy)
-            if validation_data is not None:
-                val_states: Optional[
-                    Iterable[Tuple[DomainSample, DomainSample]]
-                ] = dataset_to_tuples(validation_data)
-            else:
-                val_states = None
+            raise NotImplementedError(
+                "dataset_to_tuples must be updated for perturbation"
+            )
+            # train_states: Iterable[
+            #     Tuple[DomainSample, DomainSample]
+            # ] = dataset_to_tuples(train_data_numpy)
+            # if validation_data is not None:
+            #     val_states: Optional[
+            #         Iterable[Tuple[DomainSample, DomainSample]]
+            #     ] = dataset_to_tuples(validation_data)
+            # else:
+            #     val_states = None
         else:
             train_states = DatasetStateIterator(train_data_numpy)
             if validation_data is not None:
-                val_states = DatasetStateIterator(validation_data)
+                val_states: Optional[DatasetStateIterator] = DatasetStateIterator(
+                    validation_data
+                )
             else:
                 val_states = None
         self._fit_loop(train_model, train_states, val_states)
@@ -259,11 +264,20 @@ class DatasetStateIterator:
 
     def __iter__(self):
         for batch_state in self.dataset:
-            time_a = torch.as_tensor(batch_state[0][0]).float().to(DEVICE)
+            time_a = torch.as_tensor(batch_state[0][0][0]).float().to(DEVICE)
+            perturbation_a = torch.as_tensor(
+                PERTURBATIONS[batch_state[0][0][1].item().decode()]
+            ).to(DEVICE)
             state_a = torch.as_tensor(batch_state[0][1]).float().to(DEVICE)
-            time_b = torch.as_tensor(batch_state[1][0]).float().to(DEVICE)
+            time_b = torch.as_tensor(batch_state[1][0][0]).float().to(DEVICE)
+            perturbation_b = torch.as_tensor(
+                PERTURBATIONS[batch_state[1][0][1].item().decode()]
+            ).to(DEVICE)
             state_b = torch.as_tensor(batch_state[1][1]).float().to(DEVICE)
-            yield (time_a, state_a), (time_b, state_b)
+            yield ((time_a, perturbation_a), state_a), (
+                (time_b, perturbation_b),
+                state_b,
+            )
 
 
 def apply_to_tuple_mapping(func, exclude: Optional[Sequence[str]] = None):
@@ -334,15 +348,22 @@ def get_Xy_map_fn_single_domain(
         tf.data.Dataset where each sample is a single tensor
             containing normalized and concatenated state variables
     """
-    ensure_dims = apply_to_mapping_with_exclude(ensure_nd(n_dims), exclude=("time",))
+    ensure_dims = apply_to_mapping_with_exclude(
+        ensure_nd(n_dims), exclude=("time", "perturbation")
+    )
 
     def map_fn(data):
+        if "time" not in data:
+            import pdb
+
+            pdb.set_trace()
         time = data["time"]
+        perturbation = data["perturbation"]
         data = mapping_scale_func(data)
         data = ensure_dims(data)
         data = select_keys(state_variables, data)
         data = tf.concat(data, axis=-1)
-        return (time, data)
+        return ((time, perturbation), data)
 
     return map_fn
 
@@ -368,7 +389,7 @@ def get_standard_scaler_mapping(
 ) -> Mapping[str, StandardScaler]:
     scalers = {}
     for name, array in sample.items():
-        if name != "time":
+        if name not in ("time", "perturbation"):
             s = StandardScaler(n_sample_dims=5)
             s.fit(array)
             scalers[name] = s
@@ -381,7 +402,7 @@ def get_mapping_standard_scale_func(
     def scale(data: Mapping[str, np.ndarray]):
         output = {**data}
         for name, array in data.items():
-            if name != "time":
+            if name not in ("time", "perturbation"):
                 output[name] = scalers[name].normalize(array)
         return output
 
@@ -406,7 +427,7 @@ def train_cyclegan(
     """
     force_cudnn_initialization()
     train_batches = train_batches.map(
-        apply_to_tuple_mapping(ensure_nd(6), exclude=("time",))
+        apply_to_tuple_mapping(ensure_nd(6), exclude=("time", "perturbation"))
     )
     sample_batch = next(
         iter(train_batches.unbatch().batch(hyperparameters.normalization_fit_samples))

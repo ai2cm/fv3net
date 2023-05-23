@@ -15,6 +15,13 @@ import xarray as xr
 import numpy as np
 import cftime
 
+PERTURBATIONS = {
+    "minus-2K": 0.0,
+    "0K": 0.333333,
+    "plus-2K": 0.666667,
+    "plus-4K": 1.0,
+}
+
 
 class CycleGANModule(torch.nn.Module):
     """
