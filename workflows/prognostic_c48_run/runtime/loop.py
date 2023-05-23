@@ -13,6 +13,7 @@ from typing import (
     Union,
     Mapping,
     Hashable,
+    Protocol,
 )
 import cftime
 import pace.util
@@ -55,7 +56,6 @@ from runtime.steppers.prescriber import Prescriber, PrescriberConfig
 from runtime.steppers.combine import CombinedStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
-from typing_extensions import Protocol
 
 from .names import AREA, DELP, TOTAL_PRECIP
 
