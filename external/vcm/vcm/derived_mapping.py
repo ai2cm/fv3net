@@ -421,4 +421,4 @@ def relative_humidity(self):
     result = vcm.relative_humidity_from_pressure(
         self["air_temperature"], self["specific_humidity"], self["pressure"]
     )
-    return result.assign_attrs({"units": "-"})
+    return result.assign_attrs(long_name="relative humidity", units="-")
