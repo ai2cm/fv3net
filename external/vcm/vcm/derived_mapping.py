@@ -401,3 +401,24 @@ def incloud_ice_mixing_ratio(self):
         self["cloud_amount"], self["cloud_ice_mixing_ratio"]
     )
     return result.assign_attrs(long_name="in-cloud ice mixing ratio", units="kg/kg")
+
+
+@DerivedMapping.register(
+    "pressure", required_inputs=["pressure_thickness_of_atmospheric_layer"]
+)
+def pressure(self):
+    result = vcm.pressure_at_midpoint_log(
+        self["pressure_thickness_of_atmospheric_layer"], dim="z"
+    )
+    return result.assign_attrs(long_name="pressure at layer midpoint", units="Pa")
+
+
+@DerivedMapping.register(
+    "relative_humidity",
+    required_inputs=["air_temperature", "specific_humidity", "pressure"],
+)
+def relative_humidity(self):
+    result = vcm.relative_humidity_from_pressure(
+        self["air_temperature"], self["specific_humidity"], self["pressure"]
+    )
+    return result.assign_attrs({"units": "-"})
