@@ -11,6 +11,5 @@ from .training_loop import TrainingLoopConfig, EpochResult
 from .callbacks import CallbackConfig
 from .loss import LossConfig
 from .utils import standard_denormalize, standard_normalize
-from .halos import append_halos
 from .clip import ClipConfig
 from .output_limit import OutputLimitConfig

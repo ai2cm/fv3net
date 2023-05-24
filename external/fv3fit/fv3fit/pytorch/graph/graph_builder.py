@@ -1,6 +1,6 @@
 from typing import Tuple
 import numpy as np
-from fv3fit.keras._models.shared.halos import append_halos
+from fv3fit._shared.halos import append_halos
 import xarray as xr
 import functools
 from ..system import DEVICE

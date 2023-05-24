@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 from fv3fit.keras._models.shared import append_halos
-from fv3fit.keras._models.shared.halos import _append_halos_using_mpi
+from fv3fit._shared.halos import _append_halos_using_mpi
 import xarray as xr
 import numpy as np
 import pytest
