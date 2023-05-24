@@ -69,3 +69,59 @@ class OutputLimitConfig:
             else:
                 limited_outputs.append(output)
         return limited_outputs
+
+
+@dataclasses.dataclass
+class OutputSquashConfig:
+    squash_threshold: Optional[float] = None
+    squash_to: Optional[float] = None
+    squash_by_name: Optional[str] = None
+    squash_on_train: bool = False
+
+    """Config class squashing outputs in keras models.
+    Will squash all outputs to a specified target (e.g. 0.) based on a threshold for
+    a specific output.
+
+    Attributes:
+        squash_threshold: value in the specified output which will determine
+        whether outputs are squashed
+        squash_to: value to which values will be squashed
+        squash_by_name: name of the output to which the threshold will be applied;
+        must be present in the outputs and this output must be broadcastable to
+        every output
+        squash_on_train: if true, apply squashing on during model training; otherwise,
+        apply only on prediction
+    """
+
+    def __post_init__(self):
+        if self.squash_by_name is not None:
+            if self.squash_threshold is None or self.squash_to is None:
+                raise ValueError(
+                    "If squash_by_name is specified, squash_threshold and squash_to "
+                    "must be also."
+                )
+
+    def squash_outputs(
+        self, names: Sequence[str], outputs: Sequence[Output]
+    ) -> Sequence[Output]:
+        if self.squash_by_name is not None:
+            if self.squash_by_name not in names:
+                raise ValueError(
+                    f"The squash by variable ({self.squash_by_name}) must among the "
+                    "set of output names."
+                )
+            squashed_outputs = []
+            squash_by_output = outputs[names.index(self.squash_by_name)]
+            for output in outputs:
+                squashed_outputs.append(self._squash_output(output, squash_by_output))
+            return squashed_outputs
+        else:
+            return outputs
+
+    def _squash_output(self, target_output: Output, squash_by_output: Output) -> Output:
+        x = target_output
+        squashed = tf.constant(self.squash_to, dtype=np.float32) * tf.ones_like(
+            x, dtype=np.float32
+        )
+        x = tf.where(tf.math.less(squash_by_output, self.squash_threshold), squashed, x)
+        return x
