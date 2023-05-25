@@ -79,6 +79,7 @@ def predict_on_dataset(
     return match_prediction_to_input_coords(X, return_ds)
 
 
+@io.register("dataset-predictor")
 class DatasetPredictor(Predictor):
     """
     Base model is an ArrayPredictor which takes in a sequence of
