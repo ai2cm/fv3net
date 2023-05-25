@@ -1,9 +1,6 @@
 from fv3fit._shared import (
     Predictor,
     io,
-    match_prediction_to_input_coords,
-    SAMPLE_DIM_NAME,
-    stack,
 )
 from fv3fit.keras.adapters import (
     ensure_dict_output,
@@ -18,8 +15,8 @@ import os
 from ...._shared import get_dir, put_dir, InputSensitivity
 import yaml
 import numpy as np
-from .halos import append_halos, append_halos_using_mpi
 from fv3fit.keras.jacobian import compute_jacobians, nondimensionalize_jacobians
+from fv3fit._shared.xr_prediction import predict_on_dataset
 
 
 @io.register("all-keras")
@@ -76,50 +73,16 @@ class PureKerasModel(Predictor):
             )
             return obj
 
-    def _array_prediction_to_dataset(
-        self, names, outputs, stacked_coords
-    ) -> xr.Dataset:
-        ds = xr.Dataset()
-        for name, output in zip(names, outputs):
-            if len(self._unstacked_dims) > 0:
-                dims = [SAMPLE_DIM_NAME] + list(self._unstacked_dims)
-                scalar_singleton_dim = (
-                    len(output.shape) == len(dims) and output.shape[-1] == 1
-                )
-                if scalar_singleton_dim:  # remove singleton dimension
-                    output = output[..., 0]
-                    dims = dims[:-1]
-            else:
-                dims = [SAMPLE_DIM_NAME]
-                output = output[..., 0]
-            da = xr.DataArray(
-                data=output, dims=dims, coords={SAMPLE_DIM_NAME: stacked_coords},
-            ).unstack(SAMPLE_DIM_NAME)
-            dim_order = [dim for dim in self._unstacked_dims if dim in da.dims]
-            ds[name] = da.transpose(*dim_order, ...)
-        return ds
-
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         """Predict an output xarray dataset from an input xarray dataset."""
-        if self._n_halo > 0:
-            if "tile" not in X.dims:
-                try:
-                    X = append_halos_using_mpi(ds=X, n_halo=self._n_halo)
-                except RuntimeError as err:
-                    raise ValueError(
-                        "either dataset must have tile dimension or MPI must be present"
-                    ) from err
-            else:
-                X = append_halos(ds=X, n_halo=self._n_halo)
-        X_stacked = stack(X, unstacked_dims=self._unstacked_dims)
-        inputs = [X_stacked[name].values for name in self.input_variables]
-        outputs = self.model.predict(inputs)
-        if isinstance(outputs, np.ndarray):
-            outputs = [outputs]
-        return_ds = self._array_prediction_to_dataset(
-            self.output_variables, outputs, X_stacked.coords[SAMPLE_DIM_NAME],
+        return predict_on_dataset(
+            model=self.model,
+            X=X,
+            input_variables=self.input_variables,
+            output_variables=self.output_variables,
+            n_halo=self._n_halo,
+            unstacked_dims=self._unstacked_dims,
         )
-        return match_prediction_to_input_coords(X, return_ds)
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:

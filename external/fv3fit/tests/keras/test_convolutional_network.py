@@ -1,6 +1,6 @@
 from typing import Sequence
 import fv3fit
-from fv3fit.keras._models.shared.halos import append_halos_tensor
+from fv3fit._shared.halos import append_halos_tensor
 import numpy as np
 import tensorflow as tf
 import pytest
