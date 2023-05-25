@@ -10,7 +10,7 @@ from fv3fit._shared import (
 )
 
 
-class Model(Protocol):
+class ArrayPredictor(Protocol):
     def predict(self, inputs: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
         ...
 
@@ -40,7 +40,7 @@ def _array_prediction_to_dataset(
 
 
 def predict_on_dataset(
-    model: Model,
+    model: ArrayPredictor,
     X: xr.Dataset,
     input_variables: Iterable[Hashable],
     output_variables: Iterable[Hashable],
