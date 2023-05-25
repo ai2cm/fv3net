@@ -1,0 +1,17 @@
+coarse_nudged_state_path: gs://vcm-ml-experiments/cloud-ml/2023-04-01/cloud-ml-training-data-v7.zarr
+model_path: gs://vcm-ml-experiments/cloud-ml/2023-03-09/fine-cloud-rf-incloud-local/trained_models/rf-incloud
+output_path: gs://vcm-ml-experiments/cloud-ml/2023-04-01/predicted-fine-cloud-fields-v8.zarr
+start_time:
+  - 2016
+  - 8
+  - 11
+  - 1
+  - 15
+  - 0
+end_time:
+  - 2016
+  - 8
+  - 16
+  - 0
+  - 0
+  - 0

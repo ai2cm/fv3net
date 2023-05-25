@@ -1,0 +1,22 @@
+entity: ai2cm
+project:  radiation-cloud-ml
+name: 2023-04-21-dense-lr-sweep
+command:
+  - ${env}
+  - python3
+  - -m
+  - fv3fit.train
+  - training_config.yaml
+  - training_data.yaml
+  - trained_model
+  - --validation-data-config
+  - validation_data.yaml
+method: random
+metric:
+  goal: minimize
+  name: val_loss
+parameters:
+  optimizer_config.kwargs.learning_rate:
+    distribution: log_uniform_values
+    min: 0.00001
+    max: 0.1

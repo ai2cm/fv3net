@@ -1,0 +1,15 @@
+Unstaged changes after reset:
+M	projects/cloud_ml/argo/Makefile
+M	projects/cloud_ml/argo/training-sweep/run.sh
+D	projects/cloud_ml/argo/training/dense-local-v3-training-config.yaml
+M	projects/cloud_ml/argo/training/run_small.sh
+M	projects/cloud_ml/argo/training/run_varying_data.sh
+M	projects/cloud_ml/argo/training/run_varying_data_train_val.sh
+M	projects/cloud_ml/argo/training/train.yaml
+D	projects/cloud_ml/argo/training/train_large.yaml
+D	projects/cloud_ml/argo/training/train_medium.yaml
+D	projects/cloud_ml/argo/training/train_small.yaml
+M	projects/cloud_ml/argo/training/validation-small.yaml
+M	projects/cloud_ml/argo/training/validation.yaml
+D	projects/cloud_ml/argo/training/validation_small.yaml
+M	projects/cloud_ml/scripts/cloud-ml-dense-offline-predictions.py

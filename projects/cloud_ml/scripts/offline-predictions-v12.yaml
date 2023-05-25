@@ -1,0 +1,17 @@
+coarse_nudged_state_path: gs://vcm-ml-experiments/cloud-ml/2023-04-05/cloud-ml-training-data-v8.zarr
+model_path: gs://vcm-ml-experiments/cloud-ml/2023-04-24/fine-cloud-dense-local-seed-1-local/trained_models/dense-local-seed-1
+output_path: gs://vcm-ml-experiments/cloud-ml/2023-04-24/predicted-fine-cloud-fields-v12.zarr
+start_time:
+  - 2016
+  - 8
+  - 11
+  - 1
+  - 15
+  - 0
+end_time:
+  - 2016
+  - 8
+  - 16
+  - 0
+  - 0
+  - 0

@@ -1,0 +1,14 @@
+coarse_nudged_path: gs://vcm-ml-experiments/cloud-ml/2023-01-19/cloud-ml-training-data-nudge-to-fine-v6/fv3gfs_run
+fine_keys:
+  - 5day_c48_ccnorm_gfsphysics_15min_dec2022
+  - 5day_c48_ccnorm_dec2022_restarts_as_zarr
+fine_rename:
+  liq_wat: cloud_water_mixing_ratio
+  ice_wat: cloud_ice_mixing_ratio
+  cld_amt: cloud_amount
+coarse_rename:
+  air_temperature: air_temperature
+  specific_humidity: specific_humidity
+  pressure_thickness_of_atmospheric_layer: pressure_thickness_of_atmospheric_layer
+  cloud_ice_mixing_ratio: cloud_ice_mixing_ratio_coarse
+output_path: gs://vcm-ml-experiments/cloud-ml/2023-04-01/cloud-ml-training-data-v7.zarr

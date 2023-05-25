@@ -947,6 +947,76 @@ sources:
       urlpath: "gs://vcm-ml-intermediate/2022-12-05-SHiELD-ccnorm-5day-restarts.zarr"
       consolidated: True
 
+  5day_c48_pire_restarts_as_zarr:
+    description: >-
+      Restart files at C48 resolution every 3 hours, consolidated as a zarr store, created by pointing
+      `fv3net.pipelines.restarts_to_zarr` at `gs://vcm-ml-intermediate/2021-08-06-PIRE-c48-restarts-post-spinup`.
+      Note that tile coordinate is [1, ..., 6] and time coordinate is timestamp-based; the latter can be
+      converted to cftime.datetime via `vcm.convert_timestamps(time_coord)`.
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 1yr_pire_postspinup
+      variables:
+        - DZ
+        - T
+        - W
+        - alnsf
+        - alnwf
+        - alvsf
+        - alvwf
+        - canopy
+        - cld_amt
+        - delp
+        - f10m
+        - facsf
+        - facwf
+        - ffhh
+        - ffmm
+        - fice
+        - graupel
+        - hice
+        - ice_wat
+        - liq_wat
+        - o3mr
+        - phis
+        - q2m
+        - rainwat
+        - sgs_tke
+        - shdmax
+        - shdmin
+        - sheleg
+        - slc
+        - slmsk
+        - slope
+        - smc
+        - sncovr
+        - snoalb
+        - snowwat
+        - snwdph
+        - sphum
+        - srflag
+        - stc
+        - stype
+        - t2m
+        - tg3
+        - tisfc
+        - tprcp
+        - tsea
+        - u
+        - u_srf
+        - ua
+        - uustar
+        - v
+        - v_srf
+        - va
+        - vfrac
+        - vtype
+        - zorl
+    args:
+      urlpath: "gs://vcm-ml-intermediate/2023-05-18-PIRE-5day-restarts.zarr"
+      consolidated: True
+
   # Regression testing data. Do not use for analysis, values are randomized.
   grid/c8_random_values:
     description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data.  Updated on 2023-02-01 to

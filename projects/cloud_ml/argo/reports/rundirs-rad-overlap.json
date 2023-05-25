@@ -1,0 +1,26 @@
+[
+  {
+    "url": "gs://vcm-ml-experiments/cloud-ml/2022-10-06/cloud-ml-training-data-nudge-to-fine-max-ran-rad/fv3gfs_run",
+    "name": "nudged-max-random-overlap"
+  },
+  {
+    "url": "gs://vcm-ml-experiments/cloud-ml/2022-10-07/cloud-ml-training-data-nudge-to-fine-max-ovr-rad/fv3gfs_run",
+    "name": "nudged-max-overlap"
+  },
+  {
+    "url": "gs://vcm-ml-experiments/cloud-ml/2022-10-06/cloud-ml-training-data-nudge-to-fine-decorr-rad/fv3gfs_run",
+    "name": "nudged-decorrelation-overlap"
+  },
+  {
+    "url": "gs://vcm-ml-experiments/cloud-ml/2022-10-07/cloud-ml-training-data-baseline-max-ran-rad/fv3gfs_run",
+    "name": "baseline-max-random-overlap"
+  },
+  {
+    "url": "gs://vcm-ml-experiments/cloud-ml/2022-10-07/cloud-ml-training-data-baseline-max-ovr-rad/fv3gfs_run",
+    "name": "baseline-max-overlap"
+  },
+  {
+    "url": "gs://vcm-ml-experiments/cloud-ml/2022-10-07/cloud-ml-training-data-baseline-decorr-rad/fv3gfs_run",
+    "name": "baseline-decorrelation-overlap"
+  }
+]

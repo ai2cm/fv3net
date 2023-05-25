@@ -1,0 +1,51 @@
+random_seed: 2
+model_type: dense
+hyperparameters:
+  loss:
+    loss_type: mse
+    scaling: standard
+  dense_network:
+    depth: 4
+    width: 169
+    kernel_regularizer:
+      name: l2
+      kwargs:
+        l: 0.0005
+  training_loop:
+    batch_size: 512
+    epochs: 20
+    in_memory: false
+    shuffle_buffer_size: 2_184_192
+  output_limit_config:
+    limits:
+      cloud_amount: {min: 0.0, max: 1.0}
+      cloud_ice_mixing_ratio: {min: 0.0}
+      cloud_water_mixing_ratio: {min: 0.0}
+  optimizer_config:
+    name: Adam
+    learning_rate_schedule:
+      name: ExponentialDecay
+      kwargs:
+        initial_learning_rate: 0.001
+        decay_steps: 100_000
+        decay_rate: 0.96
+        staircase: true
+  callbacks:
+    - kwargs: {}
+      name: WandbCallback
+    - kwargs:
+        monitor: val_loss
+        patience: 10
+      name: EarlyStopping
+    - name: EpochModelCheckpoint
+      kwargs:
+        filepath: gs://vcm-ml-experiments/cloud-ml/2023-05-03/trained_models_by_epoch/dense-local-v3-extra-large-seed-2/{epoch}
+  input_variables:
+    - pressure
+    - relative_humidity
+    - air_temperature
+    - cloud_ice_mixing_ratio_coarse
+  output_variables:
+    - cloud_ice_mixing_ratio
+    - cloud_water_mixing_ratio
+    - cloud_amount

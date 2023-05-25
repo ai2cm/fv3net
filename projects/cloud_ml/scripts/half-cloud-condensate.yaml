@@ -1,0 +1,4 @@
+scaling:
+  cloud_water_mixing_ratio_fine: 0.5
+  cloud_ice_mixing_ratio_fine: 0.5
+output_path: gs://vcm-ml-experiments/cloud-ml/2022-10-25/fine-half-cloud-coarse-3d-fields.zarr
