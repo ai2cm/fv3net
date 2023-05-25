@@ -105,7 +105,7 @@ class DatasetPredictor(Predictor):
         Args:
             input_variables: names of input variables
             output_variables: names of output variables
-            model: keras model to wrap
+            model: base model to wrap. Must be in fv3fit.io registry
             unstacked_dims: non-sample dimensions of model output
             n_halo: number of halo points required in input data
         """
