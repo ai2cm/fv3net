@@ -2,7 +2,7 @@ from typing import Sequence, Tuple
 import xarray as xr
 
 import pace.util
-from fv3fit.keras._models.shared.halos import append_halos
+from fv3fit._shared.halos import append_halos
 
 Layout = Tuple[int, int]
 
