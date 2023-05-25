@@ -833,7 +833,7 @@ sources:
     driver: zarr
     metadata:
       grid: c48
-      simulation: 5day_ccorm_dec2022
+      simulation: 5day_ccnorm_dec2022
       category: 2d
       variables:
         - CPRATEsfc_coarse
@@ -886,7 +886,7 @@ sources:
     driver: zarr
     metadata:
       grid: c48
-      simulation: 5day_ccorm_dec2022
+      simulation: 5day_ccnorm_dec2022
       variables:
         - DZ
         - T
@@ -952,7 +952,7 @@ sources:
     driver: zarr
     metadata:
       grid: c48
-      simulation: 10day_PIRE_ccorm_may2023
+      simulation: 10day_PIRE_ccnorm_may2023
       category: 2d
       variables:
         - CPRATEsfc_coarse
@@ -1014,7 +1014,7 @@ sources:
     driver: zarr
     metadata:
       grid: c48
-      simulation: 10day_PIRE_ccorm_may2023
+      simulation: 10day_PIRE_ccnorm_may2023
       category: 3d
       variables:
         - area_coarse
@@ -1055,7 +1055,7 @@ sources:
     driver: zarr
     metadata:
       grid: c48
-      simulation: 10day_PIRE_ccorm_may2023
+      simulation: 10day_PIRE_ccnorm_may2023
       category: 3d
       variables:
         - area_coarse
@@ -1088,7 +1088,7 @@ sources:
     driver: zarr
     metadata:
       grid: c48
-      simulation: 10day_PIRE_ccorm_may2023
+      simulation: 10day_PIRE_ccnorm_may2023
       variables:
         - DZ
         - T
