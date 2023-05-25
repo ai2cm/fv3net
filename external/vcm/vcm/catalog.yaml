@@ -947,6 +947,210 @@ sources:
       urlpath: "gs://vcm-ml-intermediate/2022-12-05-SHiELD-ccnorm-5day-restarts.zarr"
       consolidated: True
 
+  10day_c48_PIRE_ccnorm_gfsphysics_15min_may2023:
+    description: 2D physics diagnostics variables from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True (cloud condensate scaled by fraction for radiation)
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 10day_PIRE_ccorm_may2023
+      category: 2d
+      variables:
+        - CPRATEsfc_coarse
+        - DCLWRFsfc_coarse
+        - DCSWRFsfc_coarse
+        - DLWRFIsfc_coarse
+        - DLWRFsfc_coarse
+        - DPT2m_coarse
+        - DSWRFIsfc_coarse
+        - DSWRFItoa_coarse
+        - DSWRFsfc_coarse
+        - DSWRFtoa_coarse
+        - HPBLsfc_coarse
+        - LHTFLsfc_coarse
+        - PRATEsfc_coarse
+        - SHTFLsfc_coarse
+        - SLMSKsfc_coarse
+        - SPFH2m_coarse
+        - TCDCclm_coarse
+        - TCDChcl_coarse
+        - TCDClcl_coarse
+        - TCDCmcl_coarse
+        - TMP2m_coarse
+        - TMPsfc_coarse
+        - UCLWRFItoa_coarse
+        - UCLWRFsfc_coarse
+        - UCLWRFtoa_coarse
+        - UCSWRFItoa_coarse
+        - UCSWRFsfc_coarse
+        - UCSWRFtoa_coarse
+        - UGRD10m_coarse
+        - ULWRFIsfc_coarse
+        - ULWRFItoa_coarse
+        - ULWRFsfc_coarse
+        - ULWRFtoa_coarse
+        - USWRFIsfc_coarse
+        - USWRFItoa_coarse
+        - USWRFsfc_coarse
+        - USWRFtoa_coarse
+        - VGRD10m_coarse
+        - area_coarse
+        - grid_lat_coarse
+        - grid_latt_coarse
+        - grid_lon_coarse
+        - grid_lont_coarse
+        - mld_coarse
+        - qflux_restore_coarse
+        - snowca_coarse
+        - snowd_coarse
+        - soilm_coarse
+        - uflx_coarse
+        - vflx_coarse
+    args:
+      urlpath: "gs://vcm-ml-raw-flexible-retention/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation/C3072-to-C48-diagnostics/gfsphysics_15min_coarse.zarr"
+      consolidated: True
+
+  10day_c48_PIRE_ccnorm_physics_tendencies_may2023:
+    description: 3D and 2D physics tendencies from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True (cloud condensate scaled by fraction for radiation)
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 10day_PIRE_ccorm_may2023
+      category: 3d
+      variables:
+        - area_coarse
+        - average_DT
+        - average_T1
+        - average_T2
+        - grid_lat_coarse
+        - grid_latt_coarse
+        - grid_lon_coarse
+        - grid_lont_coarse
+        - int_tendency_of_air_temperature_due_to_dissipation_of_gravity_waves_coarse
+        - int_tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky_coarse
+        - int_tendency_of_air_temperature_due_to_longwave_heating_coarse
+        - int_tendency_of_air_temperature_due_to_shallow_convection_coarse
+        - int_tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky_coarse
+        - int_tendency_of_air_temperature_due_to_shortwave_heating_coarse
+        - int_tendency_of_air_temperature_due_to_turbulence_coarse
+        - int_tendency_of_specific_humidity_due_to_change_in_atmosphere_mass_coarse
+        - int_tendency_of_specific_humidity_due_to_shallow_convection_coarse
+        - int_tendency_of_specific_humidity_due_to_turbulence_coarse
+        - tendency_of_air_temperature_due_to_dissipation_of_gravity_waves_coarse
+        - tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky_coarse
+        - tendency_of_air_temperature_due_to_longwave_heating_coarse
+        - tendency_of_air_temperature_due_to_shallow_convection_coarse
+        - tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky_coarse
+        - tendency_of_air_temperature_due_to_shortwave_heating_coarse
+        - tendency_of_air_temperature_due_to_turbulence_coarse
+        - tendency_of_specific_humidity_due_to_change_in_atmosphere_mass_coarse
+        - tendency_of_specific_humidity_due_to_shallow_convection_coarse
+        - tendency_of_specific_humidity_due_to_turbulence_coarse
+        - time_bnds
+    args:
+      urlpath: "gs://vcm-ml-raw-flexible-retention/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation/C3072-to-C48-diagnostics/physics_tendencies.zarr"
+      consolidated: True
+
+  10day_c48_PIRE_ccnorm_additional_tendencies_may2023:
+    description: 3D and 2D additional tendencies from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True (cloud condensate scaled by fraction for radiation)
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 10day_PIRE_ccorm_may2023
+      category: 3d
+      variables:
+        - area_coarse
+        - average_DT
+        - average_T1
+        - average_T2
+        - grid_lat_coarse
+        - grid_latt_coarse
+        - grid_lon_coarse
+        - grid_lont_coarse
+        - int_qv_dt_gfdlmp_coarse
+        - int_qv_dt_phys_coarse
+        - int_t_dt_gfdlmp_coarse
+        - int_t_dt_phys_coarse
+        - qv_dt_gfdlmp_coarse
+        - qv_dt_phys_coarse
+        - t_dt_gfdlmp_coarse
+        - t_dt_phys_coarse
+        - time_bnds
+    args:
+      urlpath: "gs://vcm-ml-raw-flexible-retention/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation/C3072-to-C48-diagnostics/atmos_15min_coarse_ave.zarr"
+      consolidated: True
+
+  10day_c48_PIRE_ccnorm_restarts_as_zarr_may2023:
+    description: >-
+      Restart files at C48 resolution every 15 minutes, consolidated as a zarr store, created by pointing
+      `fv3net.pipelines.restarts_to_zarr` at `gs://vcm-ml-raw-flexible-retention/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation/C3072-to-C48-restarts`.
+      Note that tile coordinate is [1, ..., 6] and time coordinate is timestamp-based; the latter can be
+      converted to cftime.datetime via `vcm.convert_timestamps(time_coord)`.
+    driver: zarr
+    metadata:
+      grid: c48
+      simulation: 10day_PIRE_ccorm_may2023
+      variables:
+        - DZ
+        - T
+        - W
+        - alnsf
+        - alnwf
+        - alvsf
+        - alvwf
+        - canopy
+        - cld_amt
+        - delp
+        - f10m
+        - facsf
+        - facwf
+        - ffhh
+        - ffmm
+        - fice
+        - graupel
+        - hice
+        - ice_wat
+        - liq_wat
+        - o3mr
+        - pbl_clock
+        - phis
+        - q2m
+        - rainwat
+        - sgs_tke
+        - shdmax
+        - shdmin
+        - sheleg
+        - slc
+        - slmsk
+        - slope
+        - smc
+        - sncovr
+        - snoalb
+        - snowwat
+        - snwdph
+        - sphum
+        - srflag
+        - stc
+        - stype
+        - t2m
+        - tg3
+        - tisfc
+        - tprcp
+        - tro_pbl_clock
+        - tsea
+        - u
+        - u_srf
+        - ua
+        - uustar
+        - v
+        - v_srf
+        - va
+        - vfrac
+        - vtype
+        - zorl
+    args:
+      urlpath: "gs://vcm-ml-intermediate/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation-restarts.zarr"
+      consolidated: True
+
   # Regression testing data. Do not use for analysis, values are randomized.
   grid/c8_random_values:
     description: FOR REGRESSION TESTING ONLY. Lat, lon, and area of C48 data.  Updated on 2023-02-01 to
