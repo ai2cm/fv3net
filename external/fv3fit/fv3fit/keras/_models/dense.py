@@ -26,6 +26,7 @@ from fv3fit.keras._models.shared import (
     LossConfig,
     OutputLimitConfig,
     CallbackConfig,
+    OutputSquashConfig,
 )
 from fv3fit.keras._models.shared.utils import (
     standard_denormalize,
@@ -81,6 +82,9 @@ class DenseHyperparameters(Hyperparameters):
     normalization_fit_samples: int = 500_000
     callbacks: List[CallbackConfig] = dataclasses.field(default_factory=list)
     predict_columns: bool = True
+    output_squashing: OutputSquashConfig = dataclasses.field(
+        default_factory=lambda: OutputSquashConfig()
+    )
 
     @property
     def variables(self) -> Set[str]:
@@ -290,6 +294,12 @@ def build_model(
         for array in clipped_output_arrays
     )
 
+    # Apply output squashing, if needed
+    if config.output_squashing.squash_on_train:
+        clipped_denorm_output_layers = config.output_squashing.squash_outputs(
+            names=config.output_variables, outputs=clipped_denorm_output_layers
+        )
+
     train_model = tf.keras.Model(
         inputs=input_layers, outputs=clipped_denorm_output_layers
     )
@@ -298,6 +308,10 @@ def build_model(
         loss=[config.loss.loss(std) for std in clipped_output_stds],
     )
 
+    # Apply output squashing on prediction
+    denorm_output_layers = config.output_squashing.squash_outputs(
+        names=config.output_variables, outputs=denorm_output_layers
+    )
     # Returns a separate prediction model where outputs layers have
     # original length along last dimension, but with clipped levels masked to zero
     zero_filled_denorm_output_layers = [

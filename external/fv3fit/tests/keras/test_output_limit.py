@@ -3,7 +3,7 @@ import pytest
 from fv3fit.keras._models.shared.output_limit import OutputLimit, OutputSquashConfig
 
 
-OUTPUT = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
+OUTPUT = np.array([-2.0, -1.0, 0.0, 1.0, 2.0], dtype=np.float32)
 OUTPUT_DICT = {"a": OUTPUT, "b": 0.1 * OUTPUT}
 
 

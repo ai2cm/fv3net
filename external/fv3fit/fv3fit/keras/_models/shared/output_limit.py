@@ -73,9 +73,9 @@ class OutputLimitConfig:
 
 @dataclasses.dataclass
 class OutputSquashConfig:
+    squash_by_name: Optional[str] = None
     squash_threshold: Optional[float] = None
     squash_to: Optional[float] = None
-    squash_by_name: Optional[str] = None
     squash_on_train: bool = False
 
     """Config class squashing outputs in keras models.
@@ -83,12 +83,12 @@ class OutputSquashConfig:
     a specific output.
 
     Attributes:
-        squash_threshold: value in the specified output which will determine
-        whether outputs are squashed
-        squash_to: value to which values will be squashed
         squash_by_name: name of the output to which the threshold will be applied;
         must be present in the outputs and this output must be broadcastable to
         every output
+        squash_threshold: value in the specified output which will determine
+        whether outputs are squashed
+        squash_to: value to which values will be squashed
         squash_on_train: if true, apply squashing on during model training; otherwise,
         apply only on prediction
     """
@@ -120,8 +120,6 @@ class OutputSquashConfig:
 
     def _squash_output(self, target_output: Output, squash_by_output: Output) -> Output:
         x = target_output
-        squashed = tf.constant(self.squash_to, dtype=np.float32) * tf.ones_like(
-            x, dtype=np.float32
-        )
+        squashed = tf.multiply(tf.constant(self.squash_to), tf.ones_like(x),)
         x = tf.where(tf.math.less(squash_by_output, self.squash_threshold), squashed, x)
         return x
