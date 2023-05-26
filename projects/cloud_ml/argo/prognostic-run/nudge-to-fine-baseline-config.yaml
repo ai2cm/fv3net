@@ -306,6 +306,10 @@ fortran_diagnostics:
   - {module_name: dynamics, field_name: te, output_name: total_energy}
   - {module_name: dynamics, field_name: column_fv_sat_adj_heating, output_name: column_fv_sat_adj_heating}
   - {module_name: dynamics, field_name: column_fv_sat_adj_moistening, output_name: column_fv_sat_adj_moistening}
+  - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating, output_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating}
+  - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating, output_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating}
+  - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky, output_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky}
+  - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky, output_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky}
 - name: atmos_dt_atmos_3d.zarr
   chunks:
     time: 1
@@ -319,3 +323,7 @@ fortran_diagnostics:
   - {module_name: dynamics, field_name: grid_lat, output_name: latb}
   - {module_name: dynamics, field_name: fv_sat_adj_qv_dt, output_name: fv_sat_adj_qv_dt}
   - {module_name: dynamics, field_name: fv_sat_adj_t_dt, output_name: fv_sat_adj_t_dt}
+  - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_shortwave_heating, output_name: tendency_of_air_temperature_due_to_shortwave_heating}
+  - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_longwave_heating, output_name: tendency_of_air_temperature_due_to_longwave_heating}
+  - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky, output_name: tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky}
+  - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky, output_name: tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky}
