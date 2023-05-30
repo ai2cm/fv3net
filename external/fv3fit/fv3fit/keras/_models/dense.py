@@ -294,12 +294,6 @@ def build_model(
         for array in clipped_output_arrays
     )
 
-    # Apply output squashing, if needed
-    if config.output_squashing.squash_on_train:
-        clipped_denorm_output_layers = config.output_squashing.squash_outputs(
-            names=config.output_variables, outputs=clipped_denorm_output_layers
-        )
-
     train_model = tf.keras.Model(
         inputs=input_layers, outputs=clipped_denorm_output_layers
     )

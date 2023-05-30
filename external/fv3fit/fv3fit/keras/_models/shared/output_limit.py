@@ -76,7 +76,6 @@ class OutputSquashConfig:
     squash_by_name: Optional[str] = None
     squash_threshold: Optional[float] = None
     squash_to: Optional[float] = None
-    squash_on_train: bool = False
 
     """Config class squashing outputs in keras models.
     Will squash all outputs to a specified target (e.g. 0.) based on a threshold for
@@ -86,20 +85,19 @@ class OutputSquashConfig:
         squash_by_name: name of the output to which the threshold will be applied;
         must be present in the outputs and this output must be broadcastable to
         every output
-        squash_threshold: value in the specified output which will determine
-        whether outputs are squashed
+        squash_threshold: value in the output specified by `squash_by_name` which
+        will determine whether all outputs at that position are squashed
         squash_to: value to which values will be squashed
-        squash_on_train: if true, apply squashing on during model training; otherwise,
-        apply only on prediction
     """
 
     def __post_init__(self):
-        if self.squash_by_name is not None:
-            if self.squash_threshold is None or self.squash_to is None:
-                raise ValueError(
-                    "If squash_by_name is specified, squash_threshold and squash_to "
-                    "must be also."
-                )
+        if (self.squash_by_name is not None) and (
+            self.squash_threshold is None or self.squash_to is None
+        ):
+            raise ValueError(
+                "If squash_by_name is specified, squash_threshold and squash_to "
+                "must be also."
+            )
 
     def squash_outputs(
         self, names: Sequence[str], outputs: Sequence[Output]
