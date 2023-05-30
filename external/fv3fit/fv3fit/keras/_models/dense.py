@@ -60,6 +60,8 @@ class DenseHyperparameters(Hyperparameters):
         callback_config: configuration for keras callbacks
         predict_columns: if True (default), assume an unstacked "z" dimension in inputs
             and outputs, otherwise assume no unstacked dimensions
+        output_squashing: configuration for squashing predicted values based on an
+            output threshold for a particular output.
     """
 
     input_variables: List[str]
