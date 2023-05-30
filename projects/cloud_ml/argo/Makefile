@@ -33,6 +33,18 @@ nudge_to_fine_run_v6: deploy
 nudge_to_fine_run_v7: deploy
 	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v7 17
 
+.PHONY: nudge_to_fine_run_v7_mp_time
+nudge_to_fine_run_v7_mp_time: deploy
+	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v7-mp-time150 5
+
+.PHONY: nudge_to_fine_run_v7_mp_time_xkzm_h
+nudge_to_fine_run_v7_mp_time_xkzm_h: deploy
+	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v7-mp-time150-xkzm-h2 5
+
+.PHONY: nudge_to_fine_run_v7_xkzm_h
+nudge_to_fine_run_v7_xkzm_h: deploy
+	cd nudge-to-fine-run && ./run.sh nudge-to-fine-v7-xkzm-h2 5
+
 .PHONY: extend_nudge_to_fine_run_v6
 extend_nudge_to_fine_run_v6: deploy
 	cd nudge-to-fine-run && ./extend.sh \
