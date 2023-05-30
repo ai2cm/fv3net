@@ -50,7 +50,7 @@ def _get_ordered_X(X_mapping, variables):
 
 
 @register_training_function("reservoir", ReservoirTrainingConfig)
-def train_pure_reservoir_model(
+def train_reservoir_model(
     hyperparameters: ReservoirTrainingConfig,
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
