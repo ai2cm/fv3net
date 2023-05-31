@@ -10,6 +10,30 @@ nudge_to_fine_baseline_run: deploy
 training_data_zarr:
 	cd scripts && python ./training_data_zarr.py training_data_config.yaml
 
+.PHONY: prescribed_cloud_cc_decorr_run
+prescribed_cloud_cc_decorr_run: deploy
+	cd argo/prognostic-run && ./run.sh prescribed-cloud-cc-decorr
+
+.PHONY: prescribed_cloud_cc_max_random_run
+prescribed_cloud_cc_max_random_run: deploy
+	cd argo/prognostic-run && ./run.sh prescribed-cloud-cc-max-random
+
+.PHONY: prescribed_cloud_cc_random_run
+prescribed_cloud_cc_random_run: deploy
+	cd argo/prognostic-run && ./run.sh prescribed-cloud-cc-random
+
+.PHONY: prescribed_cloud_decorr_run
+prescribed_cloud_decorr_run: deploy
+	cd argo/prognostic-run && ./run.sh prescribed-cloud-decorr
+
+.PHONY: prescribed_cloud_max_random_run
+prescribed_cloud_max_random_run: deploy
+	cd argo/prognostic-run && ./run.sh prescribed-cloud-max-random
+
+.PHONY: prescribed_cloud_random_run
+prescribed_cloud_random_run: deploy
+	cd argo/prognostic-run && ./run.sh prescribed-cloud-random
+
 .PHONY: deploy
 deploy: argo/kustomize
 	cd argo && ./kustomize build . | kubectl apply -f -
