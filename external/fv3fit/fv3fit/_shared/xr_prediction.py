@@ -1,3 +1,4 @@
+import abc
 import numpy as np
 import os
 from typing import Sequence, Iterable, Hashable
@@ -14,12 +15,23 @@ from fv3fit._shared import (
     get_dir,
     put_dir,
 )
-from .predictor import Reloadable
 
 
-class ArrayPredictor(Reloadable):
+class ArrayPredictor(abc.ABC):
+    @abc.abstractmethod
     def predict(self, inputs: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
-        ...
+        pass
+
+    @abc.abstractmethod
+    def dump(self, path: str) -> None:
+        """Serialize to a directory."""
+        pass
+
+    @classmethod
+    @abc.abstractmethod
+    def load(cls, path: str) -> "ArrayPredictor":
+        """Load a serialized model from a directory."""
+        pass
 
 
 def _array_prediction_to_dataset(
@@ -97,7 +109,7 @@ class DatasetPredictor(Predictor):
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
         model: ArrayPredictor,
-        unstacked_dims: Sequence[str],
+        unstacked_dims: Sequence[str] = ("z",),
         n_halo: int = 0,
     ):
         """Initialize the predictor
@@ -148,7 +160,10 @@ class DatasetPredictor(Predictor):
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
             if self.model is not None:
-                io.dump(self.model, os.path.join(path, self._BASE_MODEL_NAME))
+                io.dump(
+                    self.model,  # type: ignore
+                    os.path.join(path, self._BASE_MODEL_NAME),
+                )
             with open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
                 f.write(
                     yaml.dump(
