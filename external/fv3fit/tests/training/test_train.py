@@ -46,7 +46,7 @@ SPECIAL_TRAINING_TYPES = [
     "autoencoder",
     "cyclegan",
     "fmr",
-    "pure-reservoir",
+    "reservoir",
 ]
 
 
