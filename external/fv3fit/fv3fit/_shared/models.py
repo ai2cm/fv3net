@@ -437,3 +437,64 @@ class OutOfSampleModel(Predictor):
 
         model = cls(base_model, novelty_detector, cutoff=cutoff, taper=taper)
         return model
+
+
+@io.register("squashed_output_model")
+class SquashedOutputModel(Predictor):
+
+    _CONFIG_FILENAME = "squashed_output_model.yaml"
+
+    def __init__(
+        self,
+        base_model: Predictor,
+        squash_by_name: Optional[Hashable],
+        squash_threshold: Optional[float],
+        squash_to: Optional[float],
+    ):
+        if squash_by_name is not None:
+            if squash_threshold is None or squash_to is None:
+                raise ValueError(
+                    "If squash_by_name is specified, squash_threshold and squash_to "
+                    "must be also."
+                )
+            if squash_by_name not in base_model.output_variables:
+                raise ValueError(
+                    f"The squash by variable ({squash_by_name}) must among the "
+                    "set of model output variable names."
+                )
+
+        self._base_model = base_model
+        self._squash_by_name = squash_by_name
+        self._squash_threshold = squash_threshold
+        self._squash_to = squash_to
+
+        super().__init__(
+            input_variables=base_model.input_variables,
+            output_variables=base_model.output_variables,
+        )
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        raw_predictions = self._base_model.predict(X)
+        if self._squash_by_name is not None:
+            squashed_predictions = raw_predictions.where(
+                raw_predictions[self._squash_by_name] > self._squash_threshold,
+                self._squash_to,
+            )
+        else:
+            squashed_predictions = raw_predictions
+        return squashed_predictions
+
+    @classmethod
+    def load(cls, path: str) -> "SquashedOutputModel":
+        with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
+            config = yaml.safe_load(f)
+        base_model = cast(Predictor, io.load(config["base_model_path"]))
+        squash_output_config = config["squash_output"]
+        return cls(base_model, **squash_output_config)
+
+    def dump(self, path: str):
+        raise NotImplementedError(
+            "no dump method yet for this class, you can define one manually "
+            "using instructions at "
+            "http://vulcanclimatemodeling.com/docs/fv3fit/composite-models.html"
+        )
