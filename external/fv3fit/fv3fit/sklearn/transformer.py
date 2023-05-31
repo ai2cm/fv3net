@@ -49,10 +49,6 @@ class SkTransformer:
         x_concat = np.concatenate(x, axis=-1)
         encoded = self.encode(x_concat)
         decoded = self.decode(encoded)
-
-        if self.enforce_positive_outputs is True:
-            decoded = np.where(decoded >= 0, decoded, 0.0)
-
         decoded_split_features = np.split(
             decoded, np.cumsum(original_feature_sizes[:-1]), axis=-1
         )
@@ -64,9 +60,13 @@ class SkTransformer:
         return self.transformer.transform(self.scaler.transform(x))
 
     def decode(self, c):
-        decoded_ = self.transformer.inverse_transform(c)
-        decoded_ = _ensure_sample_dim(decoded_)
-        return self.scaler.inverse_transform(decoded_)
+        decoded = self.transformer.inverse_transform(c)
+        decoded = _ensure_sample_dim(decoded)
+
+        if self.enforce_positive_outputs is True:
+            decoded = np.where(decoded >= 0, decoded, 0.0)
+
+        return self.scaler.inverse_transform(decoded)
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
