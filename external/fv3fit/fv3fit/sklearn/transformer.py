@@ -12,6 +12,14 @@ from fv3fit._shared import (
 )
 from fv3fit._shared import io
 
+
+def _ensure_sample_dim(x: np.ndarray) -> np.ndarray:
+    if x.ndim == 1:
+        return x.reshape(1, -1)
+    else:
+        return x
+
+
 io.register("sk-transformer")
 
 
@@ -38,22 +46,27 @@ class SkTransformer:
 
     def predict(self, x: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
         original_feature_sizes = [feature.shape[-1] for feature in x]
-        encoded = self.encode(np.concatenate(x, axis=-1))
+        x_concat = np.concatenate(x, axis=-1)
+        encoded = self.encode(x_concat)
         decoded = self.decode(encoded)
 
         if self.enforce_positive_outputs is True:
             decoded = np.where(decoded >= 0, decoded, 0.0)
 
         decoded_split_features = np.split(
-            decoded, np.cumsum(original_feature_sizes[:-1])
+            decoded, np.cumsum(original_feature_sizes[:-1]), axis=-1
         )
+
         return decoded_split_features
 
     def encode(self, x):
+        x = _ensure_sample_dim(x)
         return self.transformer.transform(self.scaler.transform(x))
 
     def decode(self, c):
-        return self.scaler.inverse_transform(self.transformer.inverse_transform(c))
+        decoded_ = self.transformer.inverse_transform(c)
+        decoded_ = _ensure_sample_dim(decoded_)
+        return self.scaler.inverse_transform(decoded_)
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
