@@ -109,7 +109,7 @@ class DatasetPredictor(Predictor):
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
         model: ArrayPredictor,
-        unstacked_dims: Sequence[str],
+        unstacked_dims: Sequence[str] = ("z",),
         n_halo: int = 0,
     ):
         """Initialize the predictor
