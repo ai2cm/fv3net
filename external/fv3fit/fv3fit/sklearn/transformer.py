@@ -60,12 +60,12 @@ class SkTransformer(Reloadable):
 
     def decode(self, c):
         decoded = self.transformer.inverse_transform(c)
-        decoded = _ensure_sample_dim(decoded)
+        decoded = self.scaler.inverse_transform(_ensure_sample_dim(decoded))
 
         if self.enforce_positive_outputs is True:
             decoded = np.where(decoded >= 0, decoded, 0.0)
 
-        return self.scaler.inverse_transform(decoded)
+        return decoded
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
