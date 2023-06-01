@@ -1,10 +1,5 @@
 import dataclasses
-from typing import (
-    Any,
-    Hashable,
-    Mapping,
-    Optional,
-)
+from typing import Any, Hashable, Mapping, Optional, Sequence
 
 # TODO: move all keras configs under fv3fit.keras
 import tensorflow as tf
@@ -115,3 +110,33 @@ class PackerConfig:
     """
 
     clip: Mapping[Hashable, SliceConfig] = dataclasses.field(default_factory=dict)
+
+
+@dataclasses.dataclass
+class SquashedOutputConfig:
+    """"
+    Configuration of output squashing
+
+    Attributes:
+        squash_by_name: name of the variable that will determine whether outputs
+            are squashed
+        additional_squash_target_names: name of the variables to be squashed in
+            addition to `squash_by_name`
+        squash_threshold: threshold value in squash_by_name below which squashing will
+            occur for this sample and feature position for all target variables
+        squash_to: value to which squashed values will be set
+    """
+
+    squash_by_name: Hashable
+    squash_threshold: float
+    squash_to: float = 0.0
+    additional_squash_target_names: Sequence[Hashable] = ()
+
+    def squash(self, predictions: xr.Dataset) -> xr.Dataset:
+        squashed_predictions = predictions.copy()
+        for name in [self.squash_by_name] + list(self.additional_squash_target_names):
+            squashed_predictions[name] = predictions[name].where(
+                predictions[self.squash_by_name] > self.squash_threshold,
+                self.squash_to,
+            )
+        return squashed_predictions
