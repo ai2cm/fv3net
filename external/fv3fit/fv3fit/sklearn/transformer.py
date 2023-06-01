@@ -3,15 +3,13 @@ import numpy as np
 import os
 from sklearn.preprocessing import StandardScaler
 from sklearn.base import TransformerMixin
+
 from typing import Sequence
 import yaml
 
 from fv3fit._shared.predictor import Reloadable
-from fv3fit._shared import (
-    get_dir,
-    put_dir,
-)
-from fv3fit._shared import io
+from fv3fit._shared import get_dir, put_dir, io
+from fv3fit._shared.xr_prediction import ArrayPredictor
 
 
 def _ensure_sample_dim(x: np.ndarray) -> np.ndarray:
@@ -22,7 +20,7 @@ def _ensure_sample_dim(x: np.ndarray) -> np.ndarray:
 
 
 @io.register("sk-transformer")
-class SkTransformer(Reloadable):
+class SkTransformer(ArrayPredictor, Reloadable):
     """ Used to encode higher-dimension inputs into a
     lower dimension latent space and decode latent vectors
     back to the original feature space.
