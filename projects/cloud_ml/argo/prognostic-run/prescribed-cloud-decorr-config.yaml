@@ -8,7 +8,7 @@ prephysics:
       total_precipitation: total_precipitation
 initial_conditions:
   base_url: gs://vcm-ml-raw-flexible-retention/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation/C3072-to-C48-restarts
-  timestep: "20200731.001500"
+  timestep: "20200731.003000"
 nudging:
   restarts_path: gs://vcm-ml-raw-flexible-retention/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation/C3072-to-C48-restarts
   timescale_hours:
@@ -25,7 +25,7 @@ radiation_scheme:
       cloud_water_mixing_ratio: cloud_water_mixing_ratio
       cloud_ice_mixing_ratio: cloud_ice_mixing_ratio
       cloud_amount: cloud_amount
-    reference_initial_time: "20200731.001500"
+    reference_initial_time: "20200731.003000"
     reference_frequency_seconds: 900
 namelist:
   atmos_model_nml:
