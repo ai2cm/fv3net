@@ -73,12 +73,17 @@ is more efficient to combine models earlier in the workflow.
 Squashed output models
 ----------------------
 "Squashes" the output of a model, which means that samples less than a threshold value for a
-particular output variable will be set to a target.
+particular output variable will be set to a target. Configured by a list of squashing rules,
+which specify the name of the variable to determine the threshold, the threshold and the target,
+and additional variables that should also be squared at the same positions.
 
 .. code-block:: yaml
 
     base_model_path: gs://vcm-ml-experiments/model1
-    squash_output:
-        squash_by_name: "cloud_amount"
+    squashing:
+      - squash_by_name: cloud_amount
         squash_threshold: 0.08
         squash_to: 0.0
+        additional_squash_target_names:
+          - cloud_water_mixing_ratio
+          - cloud_ice_mixing_ratio

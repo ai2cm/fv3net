@@ -10,7 +10,7 @@ import vcm
 
 from fv3fit._shared.novelty_detector import NoveltyDetector
 from fv3fit._shared.taper_function import get_taper_function, taper_mask
-from fv3fit._shared.config import TaperConfig
+from fv3fit._shared.config import TaperConfig, SquashedOutputConfig
 
 from . import io
 from .predictor import Predictor
@@ -445,28 +445,11 @@ class SquashedOutputModel(Predictor):
     _CONFIG_FILENAME = "squashed_output_model.yaml"
 
     def __init__(
-        self,
-        base_model: Predictor,
-        squash_by_name: Optional[Hashable],
-        squash_threshold: Optional[float],
-        squash_to: Optional[float],
+        self, base_model: Predictor, squashing: Sequence[SquashedOutputConfig]
     ):
-        if squash_by_name is not None:
-            if squash_threshold is None or squash_to is None:
-                raise ValueError(
-                    "If squash_by_name is specified, squash_threshold and squash_to "
-                    "must be also."
-                )
-            if squash_by_name not in base_model.output_variables:
-                raise ValueError(
-                    f"The squash by variable ({squash_by_name}) must among the "
-                    "set of model output variable names."
-                )
-
+        self._validate(squashing, base_model.output_variables)
         self._base_model = base_model
-        self._squash_by_name = squash_by_name
-        self._squash_threshold = squash_threshold
-        self._squash_to = squash_to
+        self._squashing = squashing
 
         super().__init__(
             input_variables=base_model.input_variables,
@@ -475,13 +458,9 @@ class SquashedOutputModel(Predictor):
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         raw_predictions = self._base_model.predict(X)
-        if self._squash_by_name is not None:
-            squashed_predictions = raw_predictions.where(
-                raw_predictions[self._squash_by_name] > self._squash_threshold,
-                self._squash_to,
-            )
-        else:
-            squashed_predictions = raw_predictions
+        squashed_predictions = raw_predictions
+        for config in self._squashing:
+            squashed_predictions = config.squash(squashed_predictions)
         return squashed_predictions
 
     @classmethod
@@ -489,8 +468,11 @@ class SquashedOutputModel(Predictor):
         with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
             config = yaml.safe_load(f)
         base_model = cast(Predictor, io.load(config["base_model_path"]))
-        squash_output_config = config["squash_output"]
-        return cls(base_model, **squash_output_config)
+        squashing = [
+            dacite.from_dict(SquashedOutputConfig, squash_config)
+            for squash_config in config["squashing"]
+        ]
+        return cls(base_model, squashing)
 
     def dump(self, path: str):
         raise NotImplementedError(
@@ -498,3 +480,41 @@ class SquashedOutputModel(Predictor):
             "using instructions at "
             "http://vulcanclimatemodeling.com/docs/fv3fit/composite-models.html"
         )
+
+    @staticmethod
+    def _validate(
+        squashing_configs: Sequence[SquashedOutputConfig],
+        output_variables: Iterable[Hashable],
+    ):
+        squash_targets: Set[Hashable] = set()
+        squash_by_names: Set[Hashable] = set()
+        for config in squashing_configs:
+            if config.squash_by_name not in output_variables:
+                raise ValueError(
+                    f"The squash by variable {config.squash_by_name} must among the "
+                    "set of model output variable names."
+                )
+            squash_by_overlap: Set[Hashable] = set(
+                [config.squash_by_name]
+            ).intersection(squash_by_names)
+            if len(squash_by_overlap) > 0:
+                raise ValueError(
+                    f"Only one squashing rule per output variable; "
+                    "f{squash_by_overlap} appears twice."
+                )
+            target_overlap = set(config.additional_squash_target_names).intersection(
+                squash_targets
+            )
+            if len(target_overlap) > 0:
+                raise ValueError(
+                    "Each output variable may only be targeted by one squash; "
+                    "f{target_overlap} targeted by more than one."
+                )
+            squash_targets.update(config.additional_squash_target_names)
+            squash_by_names.update([config.squash_by_name])
+        squash_by_in_targets = squash_by_names.intersection(squash_targets)
+        if len(squash_by_in_targets) > 0:
+            raise ValueError(
+                "Squash by variables may not also be squash targets to avoid "
+                f"order dependence; {squash_by_in_targets} in both."
+            )
