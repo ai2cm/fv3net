@@ -103,18 +103,15 @@ class ReservoirTrainingConfig(Hyperparameters):
                 f"Output variables {self.output_variables} must be a subset of "
                 f"input variables {self.input_variables}."
             )
-
-        hybrid_and_input_vars_intersection = set(self.hybrid_variables).intersection(
-            self.input_variables
-        )
-        if (
-            self.hybrid_variables is not None
-            and len(hybrid_and_input_vars_intersection) > 0
-        ):
-            raise ValueError(
-                f"Hybrid variables {self.hybrid_variables} cannot overlap with "
-                f"input variables {self.input_variables}."
-            )
+        if self.hybrid_variables is not None:
+            hybrid_and_input_vars_intersection = set(
+                self.hybrid_variables
+            ).intersection(self.input_variables)
+            if len(hybrid_and_input_vars_intersection) > 0:
+                raise ValueError(
+                    f"Hybrid variables {self.hybrid_variables} cannot overlap with "
+                    f"input variables {self.input_variables}."
+                )
 
     @property
     def variables(self) -> Set[str]:
