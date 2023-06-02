@@ -46,7 +46,7 @@ def regrid_to_area_weighted_pressure(
         x_dim (optional): x-dimension name. Defaults to "xaxis_1"
         y_dim (optional): y-dimension name. Defaults to "yaxis_2"
         z_dim (optional): z-dimension name. Defaults to "zaxis_1"
-        extrapolate (opotional): whether to allow for limited nearest-neighbor
+        extrapolate (optional): whether to allow for limited nearest-neighbor
             extrapolation at points in fine-grid columns whose surface pressure
             is at least greater than the coarse layer midpoint's pressure.
             Otherwise do not allow any nearest-neighbor extrapolation (the
@@ -164,9 +164,12 @@ def _regrid_given_delp(
             phalf_fine, ds[var], phalf_coarse_on_fine, z_dim_center=z_dim
         )
 
+    pfull_coarse_on_fine = pressure_at_midpoint_log(
+        delp_coarse_on_fine, dim=z_dim
+    )
     masked_weights = _mask_weights(
         weights,
-        delp_coarse_on_fine,
+        pfull_coarse_on_fine,
         phalf_coarse_on_fine,
         phalf_fine,
         dim_center=z_dim,
@@ -178,7 +181,7 @@ def _regrid_given_delp(
 
 def _mask_weights(
     weights,
-    delp_coarse_on_fine,
+    pfull_coarse_on_fine,
     phalf_coarse_on_fine,
     phalf_fine,
     dim_center=RESTART_Z_CENTER,
@@ -186,9 +189,6 @@ def _mask_weights(
     extrapolate=False,
 ):
     if extrapolate:
-        pfull_coarse_on_fine = pressure_at_midpoint_log(
-            delp_coarse_on_fine, dim=dim_center
-        )
         return weights.where(
             pfull_coarse_on_fine.variable < phalf_fine.isel({dim_outer: -1}).variable,
             other=0.0,
