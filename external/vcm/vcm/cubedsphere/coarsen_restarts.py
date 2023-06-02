@@ -167,9 +167,11 @@ def coarsen_restarts_on_pressure(
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
         coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
             "fv_core.res" restart files (default False).
-        extrapolate: flag indicating whether to extrapolate values below the
-            fine-grid surface using a nearest neighbor approach (default False,
-            meaning any below surface values are masked).
+        extrapolate (optional): whether to allow for limited nearest-neighbor
+            extrapolation at points in fine-grid columns whose surface pressure
+            is at least greater than the coarse layer midpoint's pressure.
+            Otherwise do not allow any nearest-neighbor extrapolation (the
+            setting by default).
 
     Returns:
         restarts_coarse: a dictionary with the same format as restarts but
@@ -444,9 +446,11 @@ def _coarse_grain_fv_core_on_pressure(
         Coarsening factor to use
     coarsen_agrid_winds : bool
         Whether to coarse-grain A-grid winds (default False)
-    extrapolate: flag indicating whether to extrapolate values below the
-        fine-grid surface using a nearest neighbor approach (default False,
-        meaning any below surface values are masked).
+    extrapolate : bool
+        Whether to allow for limited nearest-neighbor extrapolation at points in
+        fine-grid columns whose surface pressure is at least greater than the
+        coarse layer midpoint's pressure.  Otherwise do not allow any
+        nearest-neighbor extrapolation (the setting by default).
 
     Returns
     -------
@@ -872,6 +876,11 @@ def _coarse_grain_fv_tracer_on_pressure(
         Area weights
     coarsening_factor : int
         Coarsening factor to use
+    extrapolate : bool
+        Whether to allow for limited nearest-neighbor extrapolation at points in
+        fine-grid columns whose surface pressure is at least greater than the
+        coarse layer midpoint's pressure.  Otherwise do not allow any
+        nearest-neighbor extrapolation (the setting by default).
 
     Returns
     -------
