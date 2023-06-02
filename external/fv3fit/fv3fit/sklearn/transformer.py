@@ -12,19 +12,19 @@ from fv3fit._shared import get_dir, put_dir, io
 from fv3fit._shared.xr_prediction import ArrayPredictor
 
 
-def _ensure_sample_dim(x: np.ndarray) -> np.ndarray:
-    if x.ndim == 1:
-        return x.reshape(1, -1)
-    else:
-        return x
-
-
 @io.register("sk-transformer")
 class SkTransformer(ArrayPredictor, Reloadable):
     """ Used to encode higher-dimension inputs into a
     lower dimension latent space and decode latent vectors
     back to the original feature space.
 
+    This class has a predict method, which returns the round trip
+    of the encoded/decoded input. It is useful for checking whether
+    the transformer introduces error that affects its usage online.
+    In actual production models, this class is mean to be used
+    in a similar manner to the DenseAutoencoder, where its encode
+    and decode methods are used to transform in and out of a reduced
+    dimensional space.
     """
 
     _TRANSFORMER_NAME = "sk_transformer.pkl"
@@ -41,6 +41,23 @@ class SkTransformer(ArrayPredictor, Reloadable):
         self.scaler = scaler
         self.enforce_positive_outputs = enforce_positive_outputs
 
+    def _ensure_sample_dim(self, x):
+        # Sklearn scalers and transforms expect the first dimension
+        # to be sample. If not present, i.e. a single sample is provided,
+        # reshape to add this dimension.
+
+        if x.shape[-1] == self.scaler.n_features_in_:
+            if x.ndim == 1:
+                return x.reshape(1, -1)
+            elif x.ndim == 2:
+                return x
+        else:
+            raise ValueError(
+                f"Input has shape {x.shape}, must have either "
+                f"({self.scaler.n_features_in_},) or "
+                f"(samples, {self.scaler.n_features_in_})."
+            )
+
     def predict(self, x: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
         original_feature_sizes = [feature.shape[-1] for feature in x]
         x_concat = np.concatenate(x, axis=-1)
@@ -53,12 +70,12 @@ class SkTransformer(ArrayPredictor, Reloadable):
         return decoded_split_features
 
     def encode(self, x):
-        x = _ensure_sample_dim(x)
+        x = self._ensure_sample_dim(x)
         return self.transformer.transform(self.scaler.transform(x))
 
     def decode(self, c):
         decoded = self.transformer.inverse_transform(c)
-        decoded = self.scaler.inverse_transform(_ensure_sample_dim(decoded))
+        decoded = self.scaler.inverse_transform(self._ensure_sample_dim(decoded))
 
         if self.enforce_positive_outputs is True:
             decoded = np.where(decoded >= 0, decoded, 0.0)

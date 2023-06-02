@@ -1,89 +1,79 @@
 from fv3fit.sklearn.transformer import SkTransformer
 import numpy as np
+import pytest
 import os
 from sklearn.preprocessing import StandardScaler
 
 
 class DummyTransformer:
-    def __init__(self, latent_dim, output_dim, encoded_constant, decoded_constant):
-        self.latent_dim = latent_dim
-        self.output_dim = output_dim
-        self.encoded_constant = encoded_constant
-        self.decoded_constant = decoded_constant
+    # tranform pads extra features on either end,
+    # inverse transform removes these
+    def __init__(self, extra_embedded_dims: int = 5):
+        self.extra_embedded_dims = extra_embedded_dims
 
-    def transform(self, X):
-        return np.ones(self.latent_dim) + self.encoded_constant
+    def transform(self, X: np.ndarray):
+        nonpadded = ((0, 0) for d in range(X.ndim - 1))
+        npad = (self.extra_embedded_dims, self.extra_embedded_dims)
+        return np.pad(
+            X, pad_width=(*nonpadded, npad), mode="constant", constant_values=10
+        )
 
-    def inverse_transform(self, X):
-        return np.ones(self.output_dim) + self.decoded_constant
+    def inverse_transform(self, X: np.ndarray):
+        sl = [slice(None)] * X.ndim
+        sl[-1] = slice(self.extra_embedded_dims, -self.extra_embedded_dims)
+        return X[tuple(sl)]
 
 
 def test_sktransformer_roundtrip():
-    latent_dim = 5
     output_dim = 10
     n_vars = 3
-    encoded_constant = 0
-    decoded_constant = -2
+    n_samples = 9
 
     scaler = StandardScaler()
     scaler.fit(np.random.rand(5, n_vars * output_dim))
-    transformer = transformer = DummyTransformer(
-        latent_dim, n_vars * output_dim, encoded_constant, decoded_constant
-    )
+    transformer = transformer = DummyTransformer(extra_embedded_dims=5)
     sktransformer = SkTransformer(transformer, scaler, enforce_positive_outputs=False)
 
-    x = [np.random.rand(output_dim) for i in range(n_vars)]
-    target = np.ones(n_vars * output_dim) + decoded_constant
+    x = [np.random.rand(n_samples, output_dim) for i in range(n_vars)]
     outputs = sktransformer.predict(x)
 
-    denormed_target = sktransformer.scaler.inverse_transform(target.reshape(1, -1))
-    np.testing.assert_allclose(np.concatenate(outputs, axis=-1), denormed_target)
+    np.testing.assert_allclose(
+        np.concatenate(outputs, axis=-1), np.concatenate(x, axis=-1)
+    )
 
 
 def test_sktransformer_enforce_positive():
-    latent_dim = 5
-    output_dim = 3
+    output_dim = 10
     n_vars = 2
-    encoded_constant = 0
-    decoded_constant = -5
+    n_samples = 9
 
     scaler = StandardScaler()
     scaler.fit(np.random.rand(5, n_vars * output_dim))
-    transformer = transformer = DummyTransformer(
-        latent_dim, n_vars * output_dim, encoded_constant, decoded_constant
-    )
+    transformer = transformer = DummyTransformer(extra_embedded_dims=5)
     sktransformer = SkTransformer(transformer, scaler, enforce_positive_outputs=False)
     sktransformer_enforce_positive = SkTransformer(
         transformer, scaler, enforce_positive_outputs=True
     )
 
-    x = [np.arange(output_dim) * 10.0, np.arange(output_dim) * -10.0]
-    outputs = np.concatenate(sktransformer.predict(x), axis=-1).reshape(-1)
-    outputs_enforce_positive = np.concatenate(
-        sktransformer_enforce_positive.predict(x), axis=-1
-    ).reshape(-1)
+    x = [np.ones((n_samples, output_dim)), np.ones((n_samples, output_dim)) * -1]
+    outputs = sktransformer.predict(x)
+    outputs_enforce_positive = sktransformer_enforce_positive.predict(x)
 
-    for o, o_positive in zip(outputs, outputs_enforce_positive):
-        if o < 0.0:
-            assert o_positive == 0.0
-        else:
-            assert o == o_positive
+    np.testing.assert_allclose(outputs[0], outputs_enforce_positive[0])
+    assert np.all(outputs_enforce_positive[1] == 0)
 
 
 def test_sktransformer_dump_load(tmpdir):
-    latent_dim = 5
-    output_dim = 3
+    output_dim = 10
     n_vars = 2
-    encoded_constant = 0
-    decoded_constant = -5
+    n_samples = 9
 
     scaler = StandardScaler()
     scaler.fit(np.random.rand(5, n_vars * output_dim))
-    transformer = transformer = DummyTransformer(
-        latent_dim, n_vars * output_dim, encoded_constant, decoded_constant
-    )
+    transformer = transformer = DummyTransformer(extra_embedded_dims=5)
     sktransformer = SkTransformer(transformer, scaler, enforce_positive_outputs=True)
-    x = [np.arange(output_dim) * 10.0, np.arange(output_dim) * -10.0]
+
+    x = [np.random.rand(n_samples, output_dim) for i in range(n_vars)]
     prediction = sktransformer.predict(x)
 
     path = os.path.join(str(tmpdir), "sktransformer")
@@ -94,3 +84,30 @@ def test_sktransformer_dump_load(tmpdir):
 
     for var, loaded_var in zip(prediction, loaded_prediction):
         np.testing.assert_allclose(var, loaded_var)
+
+
+def test_sktransformer_no_sample_dim():
+    output_dim = 10
+    n_vars = 3
+
+    scaler = StandardScaler()
+    scaler.fit(np.random.rand(5, n_vars * output_dim))
+    transformer = transformer = DummyTransformer(extra_embedded_dims=5)
+    sktransformer = SkTransformer(transformer, scaler, enforce_positive_outputs=False)
+
+    x = [np.random.rand(output_dim) for i in range(n_vars)]
+    sktransformer.predict(x)
+
+
+def test_sktransformer_error_on_wrong_input_shape():
+    output_dim = 10
+    n_vars = 3
+
+    scaler = StandardScaler()
+    scaler.fit(np.random.rand(5, n_vars * output_dim))
+    transformer = transformer = DummyTransformer(extra_embedded_dims=5)
+    sktransformer = SkTransformer(transformer, scaler, enforce_positive_outputs=False)
+
+    x = [np.random.rand(3, 3, 2, output_dim) for i in range(n_vars)]
+    with pytest.raises(ValueError):
+        sktransformer.predict(x)
