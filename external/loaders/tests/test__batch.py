@@ -1,4 +1,5 @@
 import os
+import sys
 from loaders._utils import SAMPLE_DIM_NAME
 import pytest
 import synth
@@ -78,6 +79,11 @@ def test_batches_from_mapper(mapper):
         for dim in batch.dims:
             assert len(dim) == original_dim_lengths[dim]
 
+def test_batches_from_mapper_new(mapper):
+
+    with pytest.raises(TypeError):
+        batched_data_sequence = batches_from_mapper(mapper, DATA_VARS, timesteps_per_batch=2, needs_grid=True)
+        ds = batched_data_sequence[0]
 
 @pytest.mark.parametrize(
     "total_times,times_per_batch,valid_num_batches", [(3, 1, 3), (3, 2, 2), (3, 4, 1)]
