@@ -211,6 +211,12 @@ def register_parser(subparsers):
             "If false, generate the movie of n_timesteps at the start of the run. "
         ),
     )
+    parser.add_argument(
+        "--evaluation-grid",
+        type=str,
+        help="Grid upon which to evaluate prognostic run diagnostics",
+        default="c48",
+    )
     add_catalog_and_verification_arguments(parser)
     parser.set_defaults(func=main)
 
@@ -242,12 +248,16 @@ def main(args):
         os.makedirs(args.output, exist_ok=True)
 
     catalog = intake.open_catalog(args.catalog)
-    grid = load_diags.load_grid(catalog)
+    grid = load_diags.load_grid(catalog, evaluation_grid=args.evaluation_grid)
     prognostic = derived_variables.derive_2d_variables(
-        load_diags.SegmentedRun(args.url, catalog).data_2d
+        load_diags.SegmentedRun(
+            args.url, catalog, evaluation_grid=args.evaluation_grid
+        ).data_2d
     )
     verification = derived_variables.derive_2d_variables(
-        get_verification(args, catalog, join_2d="inner").data_2d
+        get_verification(
+            args, catalog, join_2d="inner", evaluation_grid=args.evaluation_grid,
+        ).data_2d
     )
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
     prognostic = (
