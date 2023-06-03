@@ -13,6 +13,13 @@ def taper_mask(
     return xr.where(novelty_score > cutoff, 0, 1)
 
 
+def taper_nan_mask(
+    novelty_score: xr.DataArray, cutoff: float = 0, **kwargs
+) -> xr.DataArray:
+    """Return NaN where the novelty scores is larger that cutoff and 1 elsewhere."""
+    return xr.where(novelty_score > cutoff, np.nan, 1)
+
+
 def taper_ramp(
     novelty_score: xr.DataArray, ramp_min: float = 0, ramp_max: float = 1, **kwargs
 ) -> xr.DataArray:

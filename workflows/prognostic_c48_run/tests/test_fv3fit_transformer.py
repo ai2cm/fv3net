@@ -4,7 +4,7 @@ import vcm
 import numpy as np
 import xarray as xr
 import pytest
-from runtime.transformers.fv3fit import Config, Adapter
+from runtime.transformers.fv3fit import Config, Adapter, merge_masked
 from runtime.transformers.core import StepTransformer
 from machine_learning_mocks import get_mock_predictor
 
@@ -117,3 +117,21 @@ def test_multimodel_adapter_integration(state, tmpdir_factory):
     assert "surface_precipitation_rate" not in state
     transform(add_one_to_temperature)()
     assert "surface_precipitation_rate" in state
+
+
+def test_merge_masked_states():
+    left = {"foo": xr.DataArray([1.0, np.nan])}
+    right = {"foo": xr.DataArray([2.0, 3.0]), "other_var": xr.DataArray()}
+    expected_merged = {"foo": xr.DataArray([1.0, 3.0])}
+    merged = merge_masked(left, right)
+    assert set(merged) == set(expected_merged)
+    xr.testing.assert_allclose(expected_merged["foo"], merged["foo"])
+
+
+def test_merge_masked_states_missing_variable():
+    left = {"foo": xr.DataArray([1.0, 2.0])}
+    right = {}
+    expected_merged = {"foo": xr.DataArray([1.0, 2.0])}
+    merged = merge_masked(left, right)
+    assert set(merged) == set(expected_merged)
+    xr.testing.assert_allclose(expected_merged["foo"], merged["foo"])

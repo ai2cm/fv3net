@@ -429,6 +429,7 @@ namelist:
     ldebug: false
 nudging: null
 online_emulator:
+  diagnostics: []
   limit_negative_humidity: true
   online: true
   state_predictions: {}

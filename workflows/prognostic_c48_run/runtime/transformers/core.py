@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Iterable, Set, Protocol, Hashable
+from typing import Iterable, Set, Protocol, Hashable, Tuple
 
 import vcm
 from runtime.monitor import Monitor
@@ -18,8 +18,8 @@ class Predictor(Protocol):
         """Variables needed as inputs for prediction."""
         pass
 
-    def predict(self, inputs: State) -> State:
-        """Given inputs return state predictions."""
+    def predict(self, inputs: State) -> Tuple[State, Diagnostics]:
+        """Given inputs return state predictions and optional diagnostics"""
         pass
 
     def apply(self, prediction: State, state: State):
@@ -81,7 +81,7 @@ class StepTransformer:
 
         self.model.partial_fit(inputs, self.state)
 
-        prediction = self.model.predict(inputs)
+        prediction, model_diagnostics = self.model.predict(inputs)
         change_due_to_prediction = self.monitor.compute_change(
             self.label, before, vcm.DerivedMapping({**before, **prediction})
         )
@@ -89,6 +89,7 @@ class StepTransformer:
         return {
             **diags,
             **inputs_to_save,
+            **model_diagnostics,
             **change_due_to_prediction,
         }
 
