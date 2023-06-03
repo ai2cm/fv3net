@@ -1,8 +1,9 @@
 import dataclasses
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Union, Optional, TextIO
 import vcm.cloud.gsutil
 import os
 import dacite
+import datetime
 import sys
 import contextlib
 import subprocess
@@ -26,9 +27,33 @@ def gather_output_yaml(output_yaml: str, rundir: str):
     return local_filename
 
 
+def parse_scream_log(process: subprocess.Popen, f: TextIO):
+    assert process.stdout, "stdout should not be None"
+    for line in process.stdout:
+        for out_file in [sys.stdout, f]:
+            print(line.strip(), file=out_file)
+
+
+class GSUtilResumableUploadException(Exception):
+    pass
+
+
+def _decode_to_str_if_bytes(s, encoding="utf-8"):
+    if isinstance(s, bytes):
+        return s.decode(encoding)
+    else:
+        return s
+
+
 @dataclasses.dataclass
 class RuntimeScreamConfig:
     upload_to_cloud_path: Optional[str] = None
+    STOP_OPTION: str = "nhours"
+    STOP_N: int = 1
+    REST_OPTION: str = "nhours"
+    REST_N: int = 1
+    HIST_OPTION: str = "ndays"
+    HIST_N: int = 1
 
     @classmethod
     def from_dict(cls, kwargs: Dict[str, Any]) -> "RuntimeScreamConfig":
@@ -44,19 +69,13 @@ class ScreamConfig:
     create_newcase: bool = True
     case_setup: bool = True
     case_build: bool = True
-    number_of_processers: int = 16
+    number_of_processors: int = 16
     CASE_ROOT: str = ""
     CASE_NAME: str = "scream_test"
     COMPSET: str = "F2010-SCREAMv1"
     RESOLUTION: str = "ne30pg2_ne30pg2"
     ATM_NCPL: int = 48
-    STOP_OPTION: str = "nhours"
-    STOP_N: int = 1
-    REST_OPTION: str = "nhours"
-    REST_N: int = 1
-    HIST_OPTION: str = "ndays"
-    HIST_N: int = 1
-    RUN_STARTDATE: str = "2010-01-01"
+    RUN_STARTDATE: Union[str, datetime.date] = "2010-01-01"
     MODEL_START_TYPE: str = "initial"
     OLD_EXECUTABLE: str = ""
     RUNTIME: RuntimeScreamConfig = RuntimeScreamConfig()
@@ -96,33 +115,64 @@ class ScreamConfig:
                 command += f" --{key} {value}"
         return command
 
-    def submit_scream_run(self):
+    def set_runtime_option(self, case_scripts_dir: str):
+        with cwd(case_scripts_dir):
+            subprocess.run(
+                f"./xmlchange STOP_OPTION={self.RUNTIME.STOP_OPTION}", shell=True
+            )
+            subprocess.run(f"./xmlchange STOP_N={self.RUNTIME.STOP_N}", shell=True)
+            subprocess.run(
+                f"./xmlchange REST_OPTION={self.RUNTIME.REST_OPTION}", shell=True
+            )
+            subprocess.run(f"./xmlchange REST_N={self.RUNTIME.REST_N}", shell=True)
+            subprocess.run(
+                f"./xmlchange HIST_OPTION={self.RUNTIME.HIST_OPTION}", shell=True
+            )
+            subprocess.run(f"./xmlchange HIST_N={self.RUNTIME.HIST_N}", shell=True)
+
+    def submit_scream_run(self, rebuild: bool = False):
         case_scripts_dir = os.path.join(
             self.CASE_ROOT,
             self.CASE_NAME,
-            f"{self.number_of_processers}x1",
+            f"{self.number_of_processors}x1",
             "case_scripts",
         )
         case_run_dir = os.path.join(
-            self.CASE_ROOT, self.CASE_NAME, f"{self.number_of_processers}x1", "run",
+            self.CASE_ROOT, self.CASE_NAME, f"{self.number_of_processors}x1", "run",
         )
         with cwd(case_scripts_dir):
             with open("logs.txt", "w") as f:
+                if rebuild:
+                    process = subprocess.Popen(
+                        ["./case.build",],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                    )
+                    parse_scream_log(process, f)
+                self.set_runtime_option(case_scripts_dir)
                 process = subprocess.Popen(
                     ["./case.submit",],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
                 )
-                # need this assertion so that mypy knows that stdout is not None
-                assert process.stdout, "stdout should not be None"
-                for line in process.stdout:
-                    for out_file in [sys.stdout, f]:
-                        print(line.strip(), file=out_file)
+                parse_scream_log(process, f)
 
         if self.RUNTIME.upload_to_cloud_path is not None:
             output_dir = os.path.join(self.RUNTIME.upload_to_cloud_path, self.CASE_NAME)
-            vcm.cloud.get_fs(output_dir).put(case_run_dir, output_dir)
+            try:
+                print(f"Uploading {case_run_dir} to {output_dir}")
+                subprocess.check_output(
+                    ["gsutil", "-m", "rsync", "-r", "-e", case_run_dir, output_dir,],
+                    stderr=subprocess.STDOUT,
+                )
+            except subprocess.CalledProcessError as e:
+                output = _decode_to_str_if_bytes(e.output)
+                if "ResumableUploadException" in output:
+                    raise GSUtilResumableUploadException()
+                else:
+                    raise e
 
     @classmethod
     def from_dict(cls, kwargs: Dict[str, Any]) -> "ScreamConfig":

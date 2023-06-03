@@ -173,7 +173,6 @@ spec:
                   "output_variables": [
                     "dQ2"
                   ],
-                  "normalize_loss": true,
                   "optimizer_config": {
                     "name": "Adam",
                     "kwargs": {

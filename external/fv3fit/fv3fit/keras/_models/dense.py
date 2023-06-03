@@ -48,8 +48,6 @@ class DenseHyperparameters(Hyperparameters):
             variable names and values are either a scalar referring to the
             total weight of the variable. Default is a total weight of 1
             for each variable.
-        normalize_loss: if True (default), normalize outputs by their standard
-            deviation before computing the loss function
         optimizer_config: selection of algorithm to be used in gradient descent
         dense_network: configuration of dense network
         training_loop: configuration of training loop
@@ -59,12 +57,13 @@ class DenseHyperparameters(Hyperparameters):
         output_limit_config: configuration for limiting output values.
         normalization_fit_samples: number of samples to use when fitting normalization
         callback_config: configuration for keras callbacks
+        predict_columns: if True (default), assume an unstacked "z" dimension in inputs
+            and outputs, otherwise assume no unstacked dimensions
     """
 
     input_variables: List[str]
     output_variables: List[str]
     weights: Optional[Mapping[str, Union[int, float]]] = None
-    normalize_loss: bool = True
     optimizer_config: OptimizerConfig = dataclasses.field(
         default_factory=lambda: OptimizerConfig("Adam")
     )
@@ -81,6 +80,7 @@ class DenseHyperparameters(Hyperparameters):
     )
     normalization_fit_samples: int = 500_000
     callbacks: List[CallbackConfig] = dataclasses.field(default_factory=list)
+    predict_columns: bool = True
 
     @property
     def variables(self) -> Set[str]:
@@ -93,7 +93,7 @@ def train_dense_model(
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
 ) -> Predictor:
-    return train_column_model(
+    return train_pure_keras_model(
         train_batches=train_batches,
         validation_batches=validation_batches,
         build_model=curry(build_model)(config=hyperparameters),
@@ -103,6 +103,7 @@ def train_dense_model(
         training_loop=hyperparameters.training_loop,
         build_samples=hyperparameters.normalization_fit_samples,
         callbacks=hyperparameters.callbacks,
+        unstacked_dims=("z",) if hyperparameters.predict_columns else (),
     )
 
 
@@ -161,7 +162,7 @@ def get_Xy_dataset(
     return data.map(map_fn)
 
 
-def train_column_model(
+def train_pure_keras_model(
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
     build_model: ModelBuilder,
@@ -171,21 +172,25 @@ def train_column_model(
     training_loop: TrainingLoopConfig,
     callbacks: List[CallbackConfig],
     build_samples: int = 500_000,
+    unstacked_dims: Sequence[str] = ("z",),
 ) -> PureKerasModel:
     """
-    Train a columnwise PureKerasModel.
+    Train a PureKerasModel.
 
     Args:
         train_batches: training data, as a dataset of Mapping[str, tf.Tensor]
         validation_batches: validation data, as a dataset of Mapping[str, tf.Tensor]
-        build_model: the function which produces a columnwise keras model
+        build_model: the function which produces a keras model
             from input and output samples. The models returned must take a list of
             tensors as input and return a list of tensors as output.
         input_variables: names of inputs for the keras model
         output_variables: names of outputs for the keras model
         clip_config: configuration of input and output clipping of last dimension
         training_loop: configuration of training loop
+        callbacks: configuration for keras callbacks
         build_samples: the number of samples to pass to build_model
+        unstacked_dims: Unstacked data dimensions to be serialized and used in
+            prediction
     """
     train_batches = train_batches.map(
         tfdataset.apply_to_mapping(tfdataset.float64_to_float32)
@@ -224,7 +229,7 @@ def train_column_model(
         input_variables=input_variables,
         output_variables=output_variables,
         model=predict_model,
-        unstacked_dims=("z",),
+        unstacked_dims=unstacked_dims,
         n_halo=0,
     )
 

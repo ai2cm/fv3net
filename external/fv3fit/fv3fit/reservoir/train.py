@@ -3,13 +3,15 @@ from joblib import Parallel, delayed
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, Mapping, Tuple, List, Iterable, Sequence
+from typing import Optional, Mapping, Tuple, List, Iterable, Sequence, Union
 from .. import Predictor
 from .utils import square_even_terms
 from .autoencoder import Autoencoder, build_concat_and_scale_only_autoencoder
 from .._shared import register_training_function
+from ._reshaping import concat_inputs_along_subdomain_features
 from . import (
     ReservoirComputingModel,
+    HybridReservoirComputingModel,
     Reservoir,
     ReservoirTrainingConfig,
     ReservoirComputingReadout,
@@ -47,7 +49,7 @@ def _get_ordered_X(X_mapping, variables):
     return assure_same_dims(ordered_tensors)
 
 
-@register_training_function("pure-reservoir", ReservoirTrainingConfig)
+@register_training_function("reservoir", ReservoirTrainingConfig)
 def train_reservoir_model(
     hyperparameters: ReservoirTrainingConfig,
     train_batches: tf.data.Dataset,
@@ -91,12 +93,13 @@ def train_reservoir_model(
         for r in range(rank_divider.n_subdomains)
     ]
     for b, batch_data in enumerate(train_batches):
-        time_series_with_overlap, time_series_without_overlap = _process_batch_data(
+        time_series_with_overlap, time_series_without_overlap = _process_batch_Xy_data(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
             rank_divider=rank_divider,
             autoencoder=autoencoder,
         )
+
         if b < hyperparameters.n_batches_burn:
             logger.info(f"Synchronizing on batch {b+1}")
 
@@ -105,14 +108,29 @@ def train_reservoir_model(
         reservoir_state_time_series = _get_reservoir_state_time_series(
             time_series_with_overlap, hyperparameters.input_noise, reservoir
         )
+        hybrid_time_series: Optional[np.ndarray]
+        if hyperparameters.hybrid_variables is not None:
+            hybrid_time_series = _process_batch_hybrid_data(
+                hybrid_variables=hyperparameters.hybrid_variables,
+                batch_data=batch_data,
+                rank_divider=rank_divider,
+            )
+        else:
+            hybrid_time_series = None
+
+        readout_input, readout_output = _construct_readout_inputs_outputs(
+            reservoir_state_time_series,
+            time_series_without_overlap,
+            hyperparameters.square_half_hidden_state,
+            hybrid_time_series=hybrid_time_series,
+        )
 
         if b >= hyperparameters.n_batches_burn:
             logger.info(f"Fitting on batch {b+1}")
             _fit_batch_over_subdomains(
+                X_batch=readout_input,
+                Y_batch=readout_output,
                 subdomain_regressors=subdomain_regressors,
-                reservoir_state_time_series=reservoir_state_time_series,
-                prediction_time_series=time_series_without_overlap,
-                square_even_inputs=hyperparameters.square_half_hidden_state,
                 n_jobs=hyperparameters.n_jobs,
             )
 
@@ -129,19 +147,32 @@ def train_reservoir_model(
         )
     readout = combine_readouts(subdomain_readouts)
 
-    model = ReservoirComputingModel(
-        input_variables=hyperparameters.input_variables,
-        output_variables=hyperparameters.input_variables,
-        reservoir=reservoir,
-        readout=readout,
-        square_half_hidden_state=hyperparameters.square_half_hidden_state,
-        rank_divider=rank_divider,
-        autoencoder=autoencoder,
-    )
+    model: Union[ReservoirComputingModel, HybridReservoirComputingModel]
+    if hyperparameters.hybrid_variables is None:
+        model = ReservoirComputingModel(
+            input_variables=hyperparameters.input_variables,
+            output_variables=hyperparameters.input_variables,
+            reservoir=reservoir,
+            readout=readout,
+            square_half_hidden_state=hyperparameters.square_half_hidden_state,
+            rank_divider=rank_divider,
+            autoencoder=autoencoder,
+        )
+    else:
+        model = HybridReservoirComputingModel(
+            input_variables=hyperparameters.input_variables,
+            output_variables=hyperparameters.input_variables,
+            hybrid_variables=hyperparameters.hybrid_variables,
+            reservoir=reservoir,
+            readout=readout,
+            square_half_hidden_state=hyperparameters.square_half_hidden_state,
+            rank_divider=rank_divider,
+            autoencoder=autoencoder,
+        )
     return model
 
 
-def _process_batch_data(
+def _process_batch_Xy_data(
     variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
     rank_divider: RankDivider,
@@ -151,6 +182,7 @@ def _process_batch_data(
     and reshape data into the format used in training.
     """
     batch_X = _get_ordered_X(batch_data, variables)
+
     # Concatenate features, normalize and optionally convert data
     # to latent representation
     batch_data_encoded = _encode_columns(batch_X, autoencoder.encoder)
@@ -172,11 +204,31 @@ def _process_batch_data(
         Y_subdomains_to_columns.append(stack_time_series_samples(Y_subdomain_data))
 
     # Concatentate subdomain data arrays along a new subdomain axis.
-    # Dimensions are now [time, subdomain-feature, submdomain]
+    # Dimensions are now [time, subdomain-feature, subdomain]
     X_reshaped = np.stack(X_subdomains_to_columns, axis=-1)
     Y_reshaped = np.stack(Y_subdomains_to_columns, axis=-1)
 
     return X_reshaped, Y_reshaped
+
+
+def _process_batch_hybrid_data(
+    hybrid_variables: Iterable[str],
+    batch_data: Mapping[str, tf.Tensor],
+    rank_divider: RankDivider,
+) -> np.ndarray:
+    # Similar to _process_batch_Xy_data for separating subdomains and
+    # reshaping data, but does not transform the data into latent space
+    batch_hybrid = _get_ordered_X(batch_data, hybrid_variables)
+    batch_hybrid_combined_inputs = np.concatenate(batch_hybrid, axis=-1)
+    hybrid_subdomains_to_columns = []
+    for s in range(rank_divider.n_subdomains):
+        hybrid_subdomain_data = rank_divider.get_subdomain_tensor_slice(
+            batch_hybrid_combined_inputs, subdomain_index=s, with_overlap=True,
+        )
+        hybrid_subdomains_to_columns.append(
+            stack_time_series_samples(hybrid_subdomain_data)
+        )
+    return np.stack(hybrid_subdomains_to_columns, axis=-1)
 
 
 def _get_reservoir_state_time_series(
@@ -204,20 +256,29 @@ def _fit_batch(X_batch, Y_batch, subdomain_index, regressor):
     )
 
 
-def _fit_batch_over_subdomains(
-    subdomain_regressors,
+def _construct_readout_inputs_outputs(
     reservoir_state_time_series,
     prediction_time_series,
     square_even_inputs,
-    n_jobs,
+    hybrid_time_series=None,
 ):
     # X has dimensions [time, reservoir_state, subdomain]
     X_batch = reservoir_state_time_series[:-1]
+    if square_even_inputs is True:
+        X_batch = square_even_terms(X_batch, axis=1)
+    if hybrid_time_series is not None:
+        X_batch = concat_inputs_along_subdomain_features(
+            X_batch, hybrid_time_series[:-1]
+        )
     # Y has dimensions [time, subdomain-feature, subdomain] where feature dimension
     # has flattened (x, y, encoded-feature) coordinates
     Y_batch = prediction_time_series[1:]
-    if square_even_inputs is True:
-        X_batch = square_even_terms(X_batch, axis=1)
+    return X_batch, Y_batch
+
+
+def _fit_batch_over_subdomains(
+    X_batch, Y_batch, subdomain_regressors, n_jobs,
+):
 
     # Fit a readout to each subdomain's column of training data
     Parallel(n_jobs=n_jobs, backend="threading")(

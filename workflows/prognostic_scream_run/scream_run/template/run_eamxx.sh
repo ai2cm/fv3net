@@ -33,7 +33,7 @@
 create_newcase=${create_newcase:-true}
 case_setup=${case_setup:-true}
 case_build=${case_build:-true}
-number_of_processers=${number_of_processers:-16}
+number_of_processors=${number_of_processors:-16}
 output_yaml=${output_yaml:-"gs://vcm-scream/config/default.yaml"}
 CASE_ROOT=${CASE_ROOT:-./}
 CASE_NAME=${CASE_NAME:-F2010-SCREAMv1.ne30pg2_ne30pg2}
@@ -42,8 +42,8 @@ RESOLUTION=${RESOLUTION:-ne30pg2_ne30pg2}
 ATM_NCPL=${ATM_NCPL:-48}
 STOP_OPTION=${STOP_OPTION:-ndays}
 STOP_N=${STOP_N:-1}
-RES_OPTION=${RES_OPTION:-ndays}
-RES_N=${RES_N:-1}
+REST_OPTION=${REST_OPTION:-ndays}
+REST_N=${REST_N:-1}
 HIST_OPTION=${HIST_OPTION:-ndays}
 HIST_N=${HIST_N:-1}
 RUN_STARTDATE=${RUN_STARTDATE:-2010-01-01}
@@ -86,7 +86,7 @@ mkdir -p /storage/timings
 readonly CASE_BUILD_DIR=${CASE_ROOT}/build
 readonly CASE_ARCHIVE_DIR=${CASE_ROOT}/archive
 
-readonly layout="${number_of_processers}x1"
+readonly layout="${number_of_processors}x1"
 readonly run=${layout}
 readonly CASE_SCRIPTS_DIR=${CASE_ROOT}/${run}/case_scripts
 readonly CASE_RUN_DIR=${CASE_ROOT}/${run}/run

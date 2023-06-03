@@ -94,6 +94,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False
     autoencoder_path: Optional[str] = None
+    hybrid_variables: Optional[Sequence[str]] = None
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     def __post_init__(self):
@@ -102,10 +103,20 @@ class ReservoirTrainingConfig(Hyperparameters):
                 f"Output variables {self.output_variables} must be a subset of "
                 f"input variables {self.input_variables}."
             )
+        if self.hybrid_variables is not None:
+            hybrid_and_input_vars_intersection = set(
+                self.hybrid_variables
+            ).intersection(self.input_variables)
+            if len(hybrid_and_input_vars_intersection) > 0:
+                raise ValueError(
+                    f"Hybrid variables {self.hybrid_variables} cannot overlap with "
+                    f"input variables {self.input_variables}."
+                )
 
     @property
     def variables(self) -> Set[str]:
-        return set(self.input_variables)
+        hybrid_vars = list(self.hybrid_variables) or []  # type: ignore
+        return set(list(self.input_variables) + hybrid_vars)
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":

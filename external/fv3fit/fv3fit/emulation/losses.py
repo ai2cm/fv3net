@@ -39,8 +39,11 @@ class CustomLoss:
     Args:
         optimizer: configuration for the optimizer to
             compile with the model
-        normalization: the normalization type (see normalization.py) to
-            use for the MSE
+        normalization: the default normalization type (see normalization.py) to
+            use for the MSE loss
+        normalization_map: a mapping for a specific variable name to normalization type
+            to use for the MSE loss (unspecified variables will use the type specified
+            by ``normalization``)
         loss_variables: variable names to include in the MSE loss dict
         logit_variables: variable names to compute classification scores for.
             ``truth[name]`` is one-hot encoded. ``prediction[name]`` is in the
@@ -55,6 +58,9 @@ class CustomLoss:
         default_factory=lambda: OptimizerConfig("Adam")
     )
     normalization: NormFactory = NormFactory(StdDevMethod.all, MeanMethod.per_feature)
+    normalization_map: Mapping[str, NormFactory] = dataclasses.field(
+        default_factory=dict
+    )
     loss_variables: List[str] = dataclasses.field(default_factory=list)
     metric_variables: List[str] = dataclasses.field(default_factory=list)
     weights: Mapping[str, float] = dataclasses.field(default_factory=dict)
@@ -77,7 +83,10 @@ class CustomLoss:
         for out_varname in self.loss_variables + self.metric_variables:
             if out_varname in output_samples:
                 sample = output_samples[out_varname]
-                norm_layer = self.normalization.build(sample)
+                norm_factory = self.normalization_map.get(
+                    out_varname, self.normalization
+                )
+                norm_layer = norm_factory.build(sample)
                 loss_funcs[out_varname] = NormalizedMSE(norm_layer)
 
         for name in self.logit_variables:
