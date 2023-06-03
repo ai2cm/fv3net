@@ -29,6 +29,9 @@ class Config:
         limit_negative_humidity: if True, rescale tendencies to not allow specific
             humidity to become negative.
         online: if True, the ML predictions will be applied to model state.
+        min_limit: mapping from prediction name to scalar value which will be used to
+            threshold the minimum value the prediction can have.
+        max_limit: like min_limit, but used to limit the maximum value.
     """
 
     url: Sequence[str]
@@ -36,6 +39,8 @@ class Config:
     state_predictions: Mapping[str, str] = dataclasses.field(default_factory=dict)
     limit_negative_humidity: bool = True
     online: bool = True
+    min_limit: Mapping[str, float] = dataclasses.field(default_factory=dict)
+    max_limit: Mapping[str, float] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
         state_targets = list(self.state_predictions.values())
@@ -65,6 +70,7 @@ class Adapter:
 
     def predict(self, inputs: State) -> State:
         prediction = self.model.predict(xr.Dataset(inputs))
+        _limit_ds(prediction, self.config.min_limit, self.config.max_limit)
         tendencies = {
             k: sum([prediction[item] for item in v])
             for k, v in self.tendency_names.items()
@@ -107,3 +113,12 @@ class Adapter:
         if q1_new is not None:
             limited_tendencies[TEMP] = q1_new
         return limited_tendencies
+
+
+def _limit_ds(
+    ds: xr.Dataset, min_limit: Mapping[str, float], max_limit: Mapping[str, float]
+):
+    for name, limit in min_limit.items():
+        ds[name] = ds[name].where(ds[name] > limit, limit)
+    for name, limit in max_limit.items():
+        ds[name] = ds[name].where(ds[name] < limit, limit)
