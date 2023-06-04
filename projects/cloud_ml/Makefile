@@ -34,6 +34,14 @@ prescribed_cloud_max_random_run: deploy
 prescribed_cloud_random_run: deploy
 	cd argo/prognostic-run && ./run.sh prescribed-cloud-random
 
+.PHONY: prescribed_sub_fine_cc_decorr_run
+prescribed_sub_fine_cc_decorr_run: deploy
+	cd argo/prognostic-run && ./run_random_seed.sh prescribed-sub-fine-cc-decorr
+
+.PHONY: prescribed_sub_fine_cc_max_random_run
+prescribed_sub_fine_cc_max_random_run: deploy
+	cd argo/prognostic-run && ./run_random_seed.sh prescribed-sub-fine-cc-max-random
+
 .PHONY: deploy
 deploy: argo/kustomize
 	cd argo && ./kustomize build . | kubectl apply -f -
