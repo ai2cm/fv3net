@@ -39,7 +39,7 @@ REGRESSION_TESTS = {
     ),
     "pressure-level-with-agrid-winds": (
         coarsen_restarts_on_pressure,
-        {"coarsen_agrid_winds": True},
+        {"coarsen_agrid_winds": True, "extrapolate": False},
     ),
     "pressure-level-without-agrid-winds": (
         coarsen_restarts_on_pressure,

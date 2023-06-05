@@ -25,6 +25,9 @@ from ..cubedsphere.constants import (
 from .xgcm import create_fv3_grid
 
 
+SURFACE_LEVEL = -1
+
+
 def regrid_to_area_weighted_pressure(
     ds: xr.Dataset,
     delp: xr.DataArray,
@@ -164,9 +167,7 @@ def _regrid_given_delp(
             phalf_fine, ds[var], phalf_coarse_on_fine, z_dim_center=z_dim
         )
 
-    pfull_coarse_on_fine = pressure_at_midpoint_log(
-        delp_coarse_on_fine, dim=z_dim
-    )
+    pfull_coarse_on_fine = pressure_at_midpoint_log(delp_coarse_on_fine, dim=z_dim)
     masked_weights = _mask_weights(
         weights,
         pfull_coarse_on_fine,
@@ -180,23 +181,24 @@ def _regrid_given_delp(
 
 
 def _mask_weights(
-    weights,
-    pfull_coarse_on_fine,
-    phalf_coarse_on_fine,
-    phalf_fine,
-    dim_center=RESTART_Z_CENTER,
-    dim_outer=RESTART_Z_OUTER,
-    extrapolate=False,
+    weights: xr.DataArray,
+    pfull_coarse_on_fine: xr.DataArray,
+    phalf_coarse_on_fine: xr.DataArray,
+    phalf_fine: xr.DataArray,
+    dim_center: str = RESTART_Z_CENTER,
+    dim_outer: str = RESTART_Z_OUTER,
+    extrapolate: bool = False,
 ):
     if extrapolate:
         return weights.where(
-            pfull_coarse_on_fine.variable < phalf_fine.isel({dim_outer: -1}).variable,
+            pfull_coarse_on_fine.variable
+            < phalf_fine.isel({dim_outer: SURFACE_LEVEL}).variable,
             other=0.0,
         )
     else:
         return weights.where(
             phalf_coarse_on_fine.isel({dim_outer: slice(1, None)}).variable
-            < phalf_fine.isel({dim_outer: -1}).variable,
+            < phalf_fine.isel({dim_outer: SURFACE_LEVEL}).variable,
             other=0.0,
         ).rename({dim_outer: dim_center})
 
