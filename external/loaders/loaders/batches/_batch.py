@@ -34,6 +34,7 @@ from ._serialized_phys import (
 import loaders
 import fsspec
 import vcm
+import vcm.catalog
 import dataclasses
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ class BatchesFromMapperConfig(BatchesLoader):
     variable_names: Sequence[str] = ()
     timesteps_per_batch: int = 1
     timesteps: Optional[Sequence[str]] = None
-    res: str = "c12"
+    res: str = "c48"
     needs_grid: bool = True
     in_memory: bool = False
     unstacked_dims: Optional[Sequence[str]] = None
@@ -80,8 +81,7 @@ class BatchesFromMapperConfig(BatchesLoader):
     shuffle_samples: bool = False
     data_transforms: Optional[Sequence[Mapping]] = None
     ptop: float = vcm.calc.thermo.constants.TOA_PRESSURE
-#    catalog_path: str = "/home/mr7417/ML_workflow/model_environment/fv3net/external/vcm/vcm/catalog.yaml"
-    catalog_path: str = "/home/mr7417/ML_workflow/model_environment/fv3net/external/loaders/tests/catalog.yaml"
+    catalog_path: str = vcm.catalog.catalog_path
 
     def __post_init__(self):
         duplicate_times = [
@@ -133,7 +133,7 @@ def batches_from_mapper(
     variable_names: Sequence[str],
     timesteps_per_batch: int = 1,
     timesteps: Optional[Sequence[str]] = None,
-    res: str = "c12",
+    res: str = "c48",
     needs_grid: bool = True,
     in_memory: bool = False,
     unstacked_dims: Optional[Sequence[str]] = None,
@@ -142,9 +142,7 @@ def batches_from_mapper(
     shuffle_timesteps: bool = True,
     shuffle_samples: bool = False,
     data_transforms: Optional[Sequence[Mapping]] = None,
-#    catalog_path: str = "/home/mr7417/ML_workflow/model_environment/fv3net/external/vcm/vcm/catalog.yaml",
-    catalog_path: str = "/home/mr7417/ML_workflow/model_environment/fv3net/external/loaders/tests/catalog.yaml",
-
+    catalog_path: str = vcm.catalog.catalog_path
 ) -> loaders.typing.Batches:
     """The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
