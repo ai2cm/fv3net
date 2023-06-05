@@ -1,0 +1,11 @@
+plugins:
+  source:
+    - module: intake_array
+sources:
+  foo:
+    description: dummy entry
+    driver: zarr
+    args:
+      storage_options:
+        acess read_only
+      urlpath: /this/path/does/not/exist
