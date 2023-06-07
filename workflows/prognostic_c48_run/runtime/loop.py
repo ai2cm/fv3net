@@ -58,6 +58,8 @@ from runtime.steppers.combine import CombinedStepper
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
 
+from runtime.nudging import NudgingConfig
+
 from .names import AREA, DELP, TOTAL_PRECIP
 
 logger = logging.getLogger(__name__)
@@ -190,6 +192,7 @@ def add_tendency(state: Any, tendencies: State, dt: float) -> State:
                     "Existing tendencies with mappings to state are "
                     f"{list(TENDENCY_TO_STATE_NAME.keys())}"
                 )
+
             updated[state_name] = state[state_name] + tendency * dt
     return updated
 
@@ -215,9 +218,11 @@ def state_updates_from_tendency(tendency_updates):
     # Prescriber can overwrite the state updates predicted by ML tendencies
     # Sometimes this is desired and we want to save both the overwritten updated state
     # as well as the ML-predicted state that was overwritten, ex. reservoir updates.
+
     updates = {
         f"{k}_state_from_postphysics_tendency": v for k, v in tendency_updates.items()
     }
+
     return updates
 
 
@@ -335,7 +340,9 @@ class TimeLoop(
 
     def _get_prescriber_or_ml_stepper(
         self,
-        stepper_config: Union[PrescriberConfig, MachineLearningConfig, IntervalConfig],
+        stepper_config: Union[
+            PrescriberConfig, MachineLearningConfig, NudgingConfig, IntervalConfig
+        ],
         step: str,
         hydrostatic: bool = False,
     ) -> Stepper:
@@ -348,10 +355,20 @@ class TimeLoop(
         if isinstance(base_stepper_config, MachineLearningConfig):
             model = self._open_model(base_stepper_config)
             self._log_info(f"Using PureMLStepper at {step}.")
+            if base_stepper_config.use_mse_conserving_humidity_limiter:
+                self._log_info(f"Using MSE-conserving moisture limiter for step {step}")
+            else:
+                self._log_info(
+                    f"Using old non-MSE-conserving moisture limiter for step {step}"
+                )
             stepper = PureMLStepper(
                 model=model, timestep=self._timestep, hydrostatic=hydrostatic,
             )
-
+        elif isinstance(base_stepper_config, NudgingConfig):
+            self._log_info(f"Using NudgingStepper for step {step}")
+            stepper = PureNudger(
+                base_stepper_config, self._get_communicator(), hydrostatic
+            )
         else:
             self._log_info(
                 "Using Prescriber for variables "
@@ -365,6 +382,7 @@ class TimeLoop(
             return IntervalStepper(
                 apply_interval_seconds=stepper_config.apply_interval_seconds,
                 stepper=stepper,
+                offset_seconds=stepper_config.offset_seconds,
             )
         else:
             return stepper
@@ -386,32 +404,22 @@ class TimeLoop(
     def _get_postphysics_stepper(
         self, config: UserConfig, hydrostatic: bool
     ) -> Optional[Stepper]:
-        if config.scikit_learn:
-            self._log_info("Using MLStepper for postphysics updates")
-            if config.scikit_learn.use_mse_conserving_humidity_limiter:
-                self._log_info("Using MSE-conserving moisture limiter for postphysics")
-            else:
-                self._log_info(
-                    "Using old non-MSE-conserving moisture limiter for postphysics"
+        postphysics_configs = filter(
+            None, [config.scikit_learn, config.nudging, config.bias_correction]
+        )
+        postphysics_steppers: List[Stepper] = []
+        for postphysics_config in postphysics_configs:
+            postphysics_steppers.append(
+                self._get_prescriber_or_ml_stepper(
+                    postphysics_config, "postphysics"  # type: ignore
                 )
-            model = self._open_model(config.scikit_learn)
-            stepper: Optional[Stepper] = PureMLStepper(
-                model,
-                self._timestep,
-                hydrostatic,
-                config.scikit_learn.use_mse_conserving_humidity_limiter,
             )
-        elif config.nudging:
-            self._log_info("Using NudgingStepper for postphysics updates")
-            stepper = PureNudger(config.nudging, self._get_communicator(), hydrostatic)
-        elif config.bias_correction:
-            self._log_info("Using bias correction for postphysics updates")
-            stepper = runtime.factories.get_prescriber(  # type: ignore
-                config.bias_correction, self._get_communicator()
-            )
+        if len(postphysics_steppers) > 0:
+            stepper = CombinedStepper(postphysics_steppers)
         else:
             self._log_info("Performing baseline simulation")
-            stepper = None
+            stepper = None  # type: ignore
+
         return stepper
 
     def _get_radiation_stepper(
@@ -584,11 +592,11 @@ class TimeLoop(
             )
             _replace_precip_rate_with_accumulation(state_updates, self._timestep)
 
-            self._log_debug(
+            self._log_info(
                 "Postphysics stepper adds tendency update to state for "
                 f"{self._tendencies.keys()}"
             )
-            self._log_debug(
+            self._log_info(
                 "Postphysics stepper updates state directly for "
                 f"{state_updates.keys()}"
             )
@@ -630,13 +638,22 @@ class TimeLoop(
                 diagnostics.update(
                     state_updates_from_tendency(updated_state_from_tendency)
                 )
+                diagnostics.update(
+                    {
+                        "air_temperature_before_tendency_update": self._state[
+                            "air_temperature"
+                        ]
+                    }
+                )
                 self._state.update_mass_conserving(updated_state_from_tendency)
                 diagnostics.update(tendencies_filled_frac)
+
         self._log_info(
-            "Applying state updates to postphysics dycore state: "
+            f"{self._state.time}  Applying state updates to postphysics dycore state: "
             f"{self._state_updates.keys()}"
         )
-        self._log_info(f"state updates keys: {list(self._state_updates.keys())}")
+
+        self._log_info(f"Updating state for keys: {list(self._state_updates.keys())}")
         self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
