@@ -6,6 +6,10 @@ surface_reference_zarr:
 nudge_to_fine_baseline_run: deploy
 	cd argo/prognostic-run && ./run.sh nudge-to-fine-baseline
 
+.PHONY: extend_prognostic_run
+extend_prognostic_run: deploy
+	cd argo/prognostic-run && ./extend.sh $(URL) $(SEGMENTS)
+
 .PHONY: training_data_zarr
 training_data_zarr:
 	cd scripts && python ./training_data_zarr.py training_data_config.yaml
