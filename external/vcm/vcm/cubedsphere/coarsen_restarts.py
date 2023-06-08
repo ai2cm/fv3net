@@ -487,7 +487,7 @@ def _coarse_grain_fv_core_on_pressure(
         x_dim=FV_CORE_X_CENTER,
         y_dim=FV_CORE_Y_CENTER,
         extrapolate=extrapolate,
-        temperature=True
+        temperature=True,
     )
 
     dx_pressure_regridded, masked_dx = regrid_to_edge_weighted_pressure(
@@ -555,7 +555,13 @@ def _coarse_grain_fv_core_on_pressure(
     )
 
     return xr.merge(
-        [area_weighted, masked_area_weighted, masked_area_weighted_temperature, edge_weighted_x, edge_weighted_y]
+        [
+            area_weighted,
+            masked_area_weighted,
+            masked_area_weighted_temperature,
+            edge_weighted_x,
+            edge_weighted_y,
+        ]
     )
 
 

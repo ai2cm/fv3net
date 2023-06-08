@@ -181,7 +181,7 @@ def _regrid_given_delp(
                 delp_coarse_on_fine,
                 phalf_fine,
                 phalf_coarse_on_fine,
-                z_dim_center=z_dim
+                z_dim_center=z_dim,
             )
         ds_regrid[var] = remapped
 
@@ -227,9 +227,8 @@ def _compute_requires_no_extrapolation(
     dim_center: str = RESTART_Z_CENTER,
     dim_outer: str = RESTART_Z_OUTER,
 ) -> xr.DataArray:
-    result = (
-        phalf_coarse_on_fine.isel({dim_outer: slice(1, None)}) < 
-        phalf_fine.isel({dim_outer: SURFACE_LEVEL})
+    result = phalf_coarse_on_fine.isel({dim_outer: slice(1, None)}) < phalf_fine.isel(
+        {dim_outer: SURFACE_LEVEL}
     )
     return result.rename({dim_outer: dim_center})
 
@@ -240,19 +239,21 @@ def _adiabatically_adjust_extrapolated_temperature(
     delp_coarse_on_fine: xr.DataArray,
     phalf_fine: xr.DataArray,
     phalf_coarse_on_fine: xr.DataArray,
-    z_dim_center: str = RESTART_Z_CENTER
+    z_dim_center: str = RESTART_Z_CENTER,
 ) -> xr.DataArray:
-    requires_no_extrapolation = _compute_requires_no_extrapolation(phalf_fine, phalf_coarse_on_fine)
+    requires_no_extrapolation = _compute_requires_no_extrapolation(
+        phalf_fine, phalf_coarse_on_fine
+    )
     pfull_fine = pressure_at_midpoint_log(delp_fine, dim=z_dim_center)
-    pfull_coarse_on_fine = pressure_at_midpoint_log(delp_coarse_on_fine, dim=z_dim_center)
+    pfull_coarse_on_fine = pressure_at_midpoint_log(
+        delp_coarse_on_fine, dim=z_dim_center
+    )
 
     # Compute the potential temperature at all grid cells using the coarse model
     # level midpoint pressures as a target and the fine lowest level midpoint
     # pressure as a reference.
     adjusted_temperature = potential_temperature(
-        da,
-        pfull_fine.isel({RESTART_Z_CENTER: SURFACE_LEVEL}),
-        pfull_coarse_on_fine
+        da, pfull_fine.isel({RESTART_Z_CENTER: SURFACE_LEVEL}), pfull_coarse_on_fine
     )
 
     # At this stage da and requires_no_extrapolation do not have a z-coordinate,
