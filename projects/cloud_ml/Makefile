@@ -38,6 +38,10 @@ prescribed_cloud_max_random_run: deploy
 prescribed_cloud_random_run: deploy
 	cd argo/prognostic-run && ./run.sh prescribed-cloud-random
 
+.PHONY: train_cloud_ml_dense_seed
+train_cloud_ml_dense_seed: deploy
+	cd argo/training && ./run_random_seed.sh dense 4
+
 .PHONY: deploy
 deploy: argo/kustomize
 	cd argo && ./kustomize build . | kubectl apply -f -
