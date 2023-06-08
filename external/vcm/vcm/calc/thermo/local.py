@@ -18,8 +18,13 @@ from .constants import (
 )
 
 
-def potential_temperature(P, T, reference_pressure=_REFERENCE_SURFACE_PRESSURE):
-    return T * (reference_pressure / P) ** _POISSON_CONST
+def potential_temperature(
+    P,
+    T,
+    reference_pressure=_REFERENCE_SURFACE_PRESSURE,
+    poisson_constant=_POISSON_CONST,
+):
+    return T * (reference_pressure / P) ** poisson_constant
 
 
 def latent_heat_vaporization(T):

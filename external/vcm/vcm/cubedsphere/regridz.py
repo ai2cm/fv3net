@@ -8,6 +8,7 @@ try:
     import mappm
 except ModuleNotFoundError:
     mappm = None
+from ..calc.thermo.constants import _RDGAS
 from ..calc.thermo.local import potential_temperature
 from ..calc.thermo.vertically_dependent import (
     pressure_at_interface,
@@ -214,35 +215,34 @@ def _mask_weights(
             other=0.0,
         )
     else:
-        return weights.where(
-            phalf_coarse_on_fine.isel({dim_outer: slice(1, None)}).variable
-            < phalf_fine.isel({dim_outer: SURFACE_LEVEL}).variable,
-            other=0.0,
-        ).rename({dim_outer: dim_center})
+        strictly_interpolated = _compute_strictly_interpolated(
+            phalf_fine, phalf_coarse_on_fine, dim_center, dim_outer,
+        )
+        return weights.where(strictly_interpolated, other=0.0)
 
 
-def _compute_requires_no_extrapolation(
+def _compute_strictly_interpolated(
     phalf_fine: xr.DataArray,
     phalf_coarse_on_fine: xr.DataArray,
     dim_center: str = RESTART_Z_CENTER,
     dim_outer: str = RESTART_Z_OUTER,
 ) -> xr.DataArray:
-    result = phalf_coarse_on_fine.isel({dim_outer: slice(1, None)}) < phalf_fine.isel(
-        {dim_outer: SURFACE_LEVEL}
-    )
+    coarse_interfaces = phalf_coarse_on_fine.isel({dim_outer: slice(1, None)})
+    fine_surface_pressure = phalf_fine.isel({dim_outer: SURFACE_LEVEL})
+    result = coarse_interfaces < fine_surface_pressure
     return result.rename({dim_outer: dim_center})
 
 
 def _adiabatically_adjust_extrapolated_temperature(
-    da: xr.DataArray,
+    temperature: xr.DataArray,
     delp_fine: xr.DataArray,
     delp_coarse_on_fine: xr.DataArray,
     phalf_fine: xr.DataArray,
     phalf_coarse_on_fine: xr.DataArray,
     z_dim_center: str = RESTART_Z_CENTER,
 ) -> xr.DataArray:
-    requires_no_extrapolation = _compute_requires_no_extrapolation(
-        phalf_fine, phalf_coarse_on_fine
+    strictly_interpolated = _compute_strictly_interpolated(
+        phalf_fine, phalf_coarse_on_fine, dim_center=z_dim_center
     )
     pfull_fine = pressure_at_midpoint_log(delp_fine, dim=z_dim_center)
     pfull_coarse_on_fine = pressure_at_midpoint_log(
@@ -252,11 +252,16 @@ def _adiabatically_adjust_extrapolated_temperature(
     # Compute the potential temperature at all grid cells using the coarse model
     # level midpoint pressures as a target and the fine lowest level midpoint
     # pressure as a reference.
+    cp_air = 1004.6
+    poisson_constant = _RDGAS / cp_air
     adjusted_temperature = potential_temperature(
-        da, pfull_fine.isel({RESTART_Z_CENTER: SURFACE_LEVEL}), pfull_coarse_on_fine
+        pfull_fine.isel({z_dim_center: SURFACE_LEVEL}),
+        temperature,
+        reference_pressure=pfull_coarse_on_fine,
+        poisson_constant=poisson_constant,
     )
 
-    # At this stage da and requires_no_extrapolation do not have a z-coordinate,
+    # At this stage da and strictly_interpolated do not have a z-coordinate,
     # and xr.where requires that all coordinates of the DataArrays must be
     # equal for alignment.  For simplicity we drop the z-coordinate that is
     # added to the adjusted temperature to ease this alignment.
@@ -265,7 +270,7 @@ def _adiabatically_adjust_extrapolated_temperature(
     # Use the unmodified temperature at all points that don't require
     # extrapolation; at points that require extrapolation use the adjusted
     # temperature.
-    return xr.where(requires_no_extrapolation, da, adjusted_temperature)
+    return xr.where(strictly_interpolated, temperature, adjusted_temperature)
 
 
 def regrid_vertical(
