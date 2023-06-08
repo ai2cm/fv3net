@@ -457,7 +457,8 @@ def _coarse_grain_fv_core_on_pressure(
     xr.Dataset
     """
     area_weighted_vars = ["phis", "delp", "DZ"]
-    masked_area_weighted_vars = ["W", "T"]
+    masked_area_weighted_vars = ["W"]
+    masked_area_weighted_temperature_vars = ["T"]
     if coarsen_agrid_winds:
         if not ("ua" in ds and "va" in ds):
             raise ValueError(
@@ -476,6 +477,17 @@ def _coarse_grain_fv_core_on_pressure(
         x_dim=FV_CORE_X_CENTER,
         y_dim=FV_CORE_Y_CENTER,
         extrapolate=extrapolate,
+    )
+
+    area_pressure_regridded_temperature, _ = regrid_to_area_weighted_pressure(
+        ds[masked_area_weighted_temperature_vars],
+        delp,
+        area,
+        coarsening_factor,
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
+        extrapolate=extrapolate,
+        temperature=True
     )
 
     dx_pressure_regridded, masked_dx = regrid_to_edge_weighted_pressure(
@@ -516,6 +528,14 @@ def _coarse_grain_fv_core_on_pressure(
         y_dim=FV_CORE_Y_CENTER,
     )
 
+    masked_area_weighted_temperature = weighted_block_average(
+        area_pressure_regridded_temperature,
+        masked_area,
+        coarsening_factor,
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
+    )
+
     edge_weighted_x = edge_weighted_block_average(
         dx_pressure_regridded,
         masked_dx,
@@ -535,7 +555,7 @@ def _coarse_grain_fv_core_on_pressure(
     )
 
     return xr.merge(
-        [area_weighted, masked_area_weighted, edge_weighted_x, edge_weighted_y]
+        [area_weighted, masked_area_weighted, masked_area_weighted_temperature, edge_weighted_x, edge_weighted_y]
     )
 
 

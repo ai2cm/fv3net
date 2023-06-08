@@ -8,6 +8,7 @@ try:
     import mappm
 except ModuleNotFoundError:
     mappm = None
+from ..calc.thermo.local import potential_temperature
 from ..calc.thermo.vertically_dependent import (
     pressure_at_interface,
     pressure_at_midpoint_log,
@@ -37,6 +38,7 @@ def regrid_to_area_weighted_pressure(
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
     extrapolate: bool = False,
+    temperature: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """ Vertically regrid a dataset of cell-centered quantities to coarsened
     pressure levels.
@@ -54,6 +56,10 @@ def regrid_to_area_weighted_pressure(
             is at least greater than the coarse layer midpoint's pressure.
             Otherwise do not allow any nearest-neighbor extrapolation (the
             setting by default).
+        temperature (optional): whether the fields in the Dataset represent
+            temperature and one would like to apply an adiabatic compression
+            correction to any fine-grid data extrapolated during vertical
+            remapping.
 
     Returns:
         tuple of regridded input Dataset and area masked wherever coarse
@@ -71,6 +77,7 @@ def regrid_to_area_weighted_pressure(
         y_dim=y_dim,
         z_dim=z_dim,
         extrapolate=extrapolate,
+        temperature=temperature,
     )
 
 
@@ -147,6 +154,7 @@ def _regrid_given_delp(
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
     extrapolate: bool = False,
+    temperature: bool = False,
 ):
     """Given a fine and coarse delp, do vertical regridding to coarse pressure levels
     and mask weights below fine surface pressure.
@@ -163,9 +171,19 @@ def _regrid_given_delp(
 
     ds_regrid = xr.zeros_like(ds)
     for var in ds:
-        ds_regrid[var] = regrid_vertical(
+        remapped = regrid_vertical(
             phalf_fine, ds[var], phalf_coarse_on_fine, z_dim_center=z_dim
         )
+        if temperature:
+            remapped = _adiabatically_adjust_extrapolated_temperature(
+                remapped,
+                delp_fine,
+                delp_coarse_on_fine,
+                phalf_fine,
+                phalf_coarse_on_fine,
+                z_dim_center=z_dim
+            )
+        ds_regrid[var] = remapped
 
     pfull_coarse_on_fine = pressure_at_midpoint_log(delp_coarse_on_fine, dim=z_dim)
     masked_weights = _mask_weights(
@@ -201,6 +219,52 @@ def _mask_weights(
             < phalf_fine.isel({dim_outer: SURFACE_LEVEL}).variable,
             other=0.0,
         ).rename({dim_outer: dim_center})
+
+
+def _compute_requires_no_extrapolation(
+    phalf_fine: xr.DataArray,
+    phalf_coarse_on_fine: xr.DataArray,
+    dim_center: str = RESTART_Z_CENTER,
+    dim_outer: str = RESTART_Z_OUTER,
+) -> xr.DataArray:
+    result = (
+        phalf_coarse_on_fine.isel({dim_outer: slice(1, None)}) < 
+        phalf_fine.isel({dim_outer: SURFACE_LEVEL})
+    )
+    return result.rename({dim_outer: dim_center})
+
+
+def _adiabatically_adjust_extrapolated_temperature(
+    da: xr.DataArray,
+    delp_fine: xr.DataArray,
+    delp_coarse_on_fine: xr.DataArray,
+    phalf_fine: xr.DataArray,
+    phalf_coarse_on_fine: xr.DataArray,
+    z_dim_center: str = RESTART_Z_CENTER
+) -> xr.DataArray:
+    requires_no_extrapolation = _compute_requires_no_extrapolation(phalf_fine, phalf_coarse_on_fine)
+    pfull_fine = pressure_at_midpoint_log(delp_fine, dim=z_dim_center)
+    pfull_coarse_on_fine = pressure_at_midpoint_log(delp_coarse_on_fine, dim=z_dim_center)
+
+    # Compute the potential temperature at all grid cells using the coarse model
+    # level midpoint pressures as a target and the fine lowest level midpoint
+    # pressure as a reference.
+    adjusted_temperature = potential_temperature(
+        da,
+        pfull_fine.isel({RESTART_Z_CENTER: SURFACE_LEVEL}),
+        pfull_coarse_on_fine
+    )
+
+    # At this stage da and requires_no_extrapolation do not have a z-coordinate,
+    # and xr.where requires that all coordinates of the DataArrays must be
+    # equal for alignment.  For simplicity we drop the z-coordinate that is
+    # added to the adjusted temperature to ease this alignment.
+    adjusted_temperature = adjusted_temperature.drop(z_dim_center)
+
+    # Use the unmodified temperature at all points that don't require
+    # extrapolation; at points that require extrapolation use the adjusted
+    # temperature.
+    return xr.where(requires_no_extrapolation, da, adjusted_temperature)
 
 
 def regrid_vertical(
