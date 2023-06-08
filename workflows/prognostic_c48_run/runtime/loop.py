@@ -338,7 +338,7 @@ class TimeLoop(
         else:
             return func
 
-    def _get_prescriber_or_ml_stepper(
+    def _get_stepper(
         self,
         stepper_config: Union[
             PrescriberConfig, MachineLearningConfig, NudgingConfig, IntervalConfig
@@ -397,7 +397,7 @@ class TimeLoop(
             prephysics_steppers: List[Stepper] = []
             for prephysics_config in config.prephysics:
                 prephysics_steppers.append(
-                    self._get_prescriber_or_ml_stepper(prephysics_config, "prephysics")
+                    self._get_stepper(prephysics_config, "prephysics")
                 )
             return CombinedStepper(prephysics_steppers)
 
@@ -410,7 +410,7 @@ class TimeLoop(
         postphysics_steppers: List[Stepper] = []
         for postphysics_config in postphysics_configs:
             postphysics_steppers.append(
-                self._get_prescriber_or_ml_stepper(
+                self._get_stepper(
                     postphysics_config, "postphysics"  # type: ignore
                 )
             )
@@ -428,9 +428,7 @@ class TimeLoop(
         if config.radiation_scheme is not None:
             radiation_input_generator_config = config.radiation_scheme.input_generator
             if radiation_input_generator_config is not None:
-                radiation_input_generator: Optional[
-                    Stepper
-                ] = self._get_prescriber_or_ml_stepper(
+                radiation_input_generator: Optional[Stepper] = self._get_stepper(
                     radiation_input_generator_config, "radiation_inputs"
                 )
             else:
