@@ -361,8 +361,12 @@ class TimeLoop(
                 self._log_info(
                     f"Using old non-MSE-conserving moisture limiter for step {step}"
                 )
+            limit_mse = base_stepper_config.use_mse_conserving_humidity_limiter
             stepper = PureMLStepper(
-                model=model, timestep=self._timestep, hydrostatic=hydrostatic,
+                model=model,
+                timestep=self._timestep,
+                hydrostatic=hydrostatic,
+                mse_conserving_limiter=limit_mse,
             )
         elif isinstance(base_stepper_config, NudgingConfig):
             self._log_info(f"Using NudgingStepper for step {step}")
@@ -397,7 +401,7 @@ class TimeLoop(
             prephysics_steppers: List[Stepper] = []
             for prephysics_config in config.prephysics:
                 prephysics_steppers.append(
-                    self._get_stepper(prephysics_config, "prephysics")
+                    self._get_stepper(prephysics_config, "prephysics", hydrostatic)
                 )
             return CombinedStepper(prephysics_steppers)
 
@@ -411,7 +415,7 @@ class TimeLoop(
         for postphysics_config in postphysics_configs:
             postphysics_steppers.append(
                 self._get_stepper(
-                    postphysics_config, "postphysics"  # type: ignore
+                    postphysics_config, "postphysics", hydrostatic  # type: ignore
                 )
             )
         if len(postphysics_steppers) > 0:
