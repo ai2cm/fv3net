@@ -127,7 +127,9 @@ def test__mask_weights(extrapolate):
     phalf_fine[1, :, 2] = 3.5
 
     # Use a simpler way to compute pfull for the sake of testing.
-    pfull_coarse_on_fine = phalf_coarse_on_fine.diff("z")
+    pfull_coarse_on_fine = _interface_to_midpoint(
+        phalf_coarse_on_fine, dim_center="z", dim_outer="z"
+    )
 
     expected_weights = weights.broadcast_like(phalf_fine.isel(z=slice(None, -1))).copy()
 
