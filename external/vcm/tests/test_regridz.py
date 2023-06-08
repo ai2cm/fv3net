@@ -2,7 +2,9 @@ import dask
 import numpy as np
 import pytest
 import xarray as xr
+from vcm.calc.thermo.vertically_dependent import _interface_to_midpoint
 from vcm.cubedsphere.regridz import (
+    _adiabatically_adjust_extrapolated_temperature,
     _mask_weights,
     regrid_vertical,
 )
@@ -145,3 +147,45 @@ def test__mask_weights(extrapolate):
         extrapolate=extrapolate,
     )
     xr.testing.assert_allclose(expected_weights, masked_weights)
+
+
+def test__adiabatically_adjust_extrapolated_temperature():
+    temperature = input_dataarray((2, 2, 2))
+    phalf_coarse_on_fine = input_dataarray((2, 2, 3))
+    phalf_fine = input_dataarray((2, 2, 3))
+    phalf_coarse_on_fine[:, :, 0] = 1.0
+    phalf_coarse_on_fine[:, :, 1] = 2.0
+    phalf_coarse_on_fine[:, :, 2] = 3.0
+    phalf_fine[:, :, 0] = 1.0
+    phalf_fine[:, :, 1] = 2.0
+    phalf_fine[0, 0, 2] = 2.5
+    phalf_fine[0, 1, 2] = 2.6
+    phalf_fine[1, :, 2] = 3.5
+
+    # Use a simpler way to compute pfull for the sake of testing.
+    pfull_fine = _interface_to_midpoint(phalf_fine, dim_center="z", dim_outer="z")
+    pfull_coarse_on_fine = _interface_to_midpoint(
+        phalf_coarse_on_fine, dim_center="z", dim_outer="z"
+    )
+
+    extrapolated = xr.zeros_like(temperature, dtype=bool)
+    extrapolated[0, :, 1] = True
+    adjusted_temperature = _adiabatically_adjust_extrapolated_temperature(
+        temperature,
+        pfull_fine,
+        pfull_coarse_on_fine,
+        phalf_fine,
+        phalf_coarse_on_fine,
+        z_dim_center="z",
+        z_dim_outer="z",
+    )
+
+    # Test that adjusted values appear only where extrapolation was necessary.
+    unadjusted_extrapolated = temperature.where(extrapolated)
+    adjusted_extrapolated = temperature.where(extrapolated)
+    assert (unadjusted_extrapolated != adjusted_extrapolated).all()
+
+    # Test that interpolated values were left unmodified.
+    unadjusted_interpolated = temperature.where(~extrapolated)
+    adjusted_interpolated = adjusted_temperature.where(~extrapolated)
+    xr.testing.assert_allclose(unadjusted_interpolated, adjusted_interpolated)

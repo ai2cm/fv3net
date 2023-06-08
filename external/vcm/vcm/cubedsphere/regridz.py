@@ -38,6 +38,7 @@ def regrid_to_area_weighted_pressure(
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
+    z_dim_outer: str = RESTART_Z_OUTER,
     extrapolate: bool = False,
     temperature: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
@@ -52,6 +53,7 @@ def regrid_to_area_weighted_pressure(
         x_dim (optional): x-dimension name. Defaults to "xaxis_1"
         y_dim (optional): y-dimension name. Defaults to "yaxis_2"
         z_dim (optional): z-dimension name. Defaults to "zaxis_1"
+        z_dim_outer (opitional): z-dimension name of interfaces. Defaults to "zaxis_2"
         extrapolate (optional): whether to allow for limited nearest-neighbor
             extrapolation at points in fine-grid columns whose surface pressure
             is at least greater than the coarse layer midpoint's pressure.
@@ -77,6 +79,7 @@ def regrid_to_area_weighted_pressure(
         x_dim=x_dim,
         y_dim=y_dim,
         z_dim=z_dim,
+        z_dim_outer=z_dim_outer,
         extrapolate=extrapolate,
         temperature=temperature,
     )
@@ -90,6 +93,7 @@ def regrid_to_edge_weighted_pressure(
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_OUTER,
     z_dim: str = RESTART_Z_CENTER,
+    z_dim_outer: str = RESTART_Z_OUTER,
     edge: str = "x",
     extrapolate: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
@@ -104,6 +108,7 @@ def regrid_to_edge_weighted_pressure(
         x_dim (optional): x-dimension name. Defaults to "xaxis_1"
         y_dim (optional): y-dimension name. Defaults to "yaxis_1"
         z_dim (optional): z-dimension name. Defaults to "zaxis_1"
+        z_dim_outer (opitional): z-dimension name of interfaces. Defaults to "zaxis_2".
         edge (optional): grid cell side to coarse-grain along {"x", "y"}
         extrapolate (optional): Whether to allow for limited nearest-neighbor
             extrapolation at points in fine-grid columns whose surface pressure
@@ -142,6 +147,7 @@ def regrid_to_edge_weighted_pressure(
         x_dim=x_dim,
         y_dim=y_dim,
         z_dim=z_dim,
+        z_dim_outer=z_dim_outer,
         extrapolate=extrapolate,
     )
 
@@ -154,6 +160,7 @@ def _regrid_given_delp(
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
+    z_dim_outer: str = RESTART_Z_OUTER,
     extrapolate: bool = False,
     temperature: bool = False,
 ):
@@ -164,11 +171,13 @@ def _regrid_given_delp(
         delp_coarse, delp_fine, x_dim=x_dim, y_dim=y_dim
     )
     phalf_coarse_on_fine = pressure_at_interface(
-        delp_coarse_on_fine, dim_center=z_dim, dim_outer=RESTART_Z_OUTER
+        delp_coarse_on_fine, dim_center=z_dim, dim_outer=z_dim_outer
     )
     phalf_fine = pressure_at_interface(
-        delp_fine, dim_center=z_dim, dim_outer=RESTART_Z_OUTER
+        delp_fine, dim_center=z_dim, dim_outer=z_dim_outer
     )
+    pfull_fine = pressure_at_midpoint_log(delp_fine, dim=z_dim)
+    pfull_coarse_on_fine = pressure_at_midpoint_log(delp_coarse_on_fine, dim=z_dim)
 
     ds_regrid = xr.zeros_like(ds)
     for var in ds:
@@ -178,21 +187,22 @@ def _regrid_given_delp(
         if temperature:
             remapped = _adiabatically_adjust_extrapolated_temperature(
                 remapped,
-                delp_fine,
-                delp_coarse_on_fine,
+                pfull_fine,
+                pfull_coarse_on_fine,
                 phalf_fine,
                 phalf_coarse_on_fine,
                 z_dim_center=z_dim,
+                z_dim_outer=z_dim_outer,
             )
         ds_regrid[var] = remapped
 
-    pfull_coarse_on_fine = pressure_at_midpoint_log(delp_coarse_on_fine, dim=z_dim)
     masked_weights = _mask_weights(
         weights,
         pfull_coarse_on_fine,
         phalf_coarse_on_fine,
         phalf_fine,
         dim_center=z_dim,
+        dim_outer=z_dim_outer,
         extrapolate=extrapolate,
     )
 
@@ -235,18 +245,15 @@ def _compute_strictly_interpolated(
 
 def _adiabatically_adjust_extrapolated_temperature(
     temperature: xr.DataArray,
-    delp_fine: xr.DataArray,
-    delp_coarse_on_fine: xr.DataArray,
+    pfull_fine: xr.DataArray,
+    pfull_coarse_on_fine: xr.DataArray,
     phalf_fine: xr.DataArray,
     phalf_coarse_on_fine: xr.DataArray,
     z_dim_center: str = RESTART_Z_CENTER,
+    z_dim_outer: str = RESTART_Z_OUTER,
 ) -> xr.DataArray:
     strictly_interpolated = _compute_strictly_interpolated(
-        phalf_fine, phalf_coarse_on_fine, dim_center=z_dim_center
-    )
-    pfull_fine = pressure_at_midpoint_log(delp_fine, dim=z_dim_center)
-    pfull_coarse_on_fine = pressure_at_midpoint_log(
-        delp_coarse_on_fine, dim=z_dim_center
+        phalf_fine, phalf_coarse_on_fine, dim_center=z_dim_center, dim_outer=z_dim_outer
     )
 
     # Compute the potential temperature at all grid cells using the coarse model
@@ -260,12 +267,6 @@ def _adiabatically_adjust_extrapolated_temperature(
         reference_pressure=pfull_coarse_on_fine,
         poisson_constant=poisson_constant,
     )
-
-    # At this stage da and strictly_interpolated do not have a z-coordinate,
-    # and xr.where requires that all coordinates of the DataArrays must be
-    # equal for alignment.  For simplicity we drop the z-coordinate that is
-    # added to the adjusted temperature to ease this alignment.
-    adjusted_temperature = adjusted_temperature.drop(z_dim_center)
 
     # Use the unmodified temperature at all points that don't require
     # extrapolation; at points that require extrapolation use the adjusted
