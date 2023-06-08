@@ -592,11 +592,11 @@ class TimeLoop(
             )
             _replace_precip_rate_with_accumulation(state_updates, self._timestep)
 
-            self._log_info(
+            self._log_debug(
                 "Postphysics stepper adds tendency update to state for "
                 f"{self._tendencies.keys()}"
             )
-            self._log_info(
+            self._log_debug(
                 "Postphysics stepper updates state directly for "
                 f"{state_updates.keys()}"
             )
@@ -638,22 +638,13 @@ class TimeLoop(
                 diagnostics.update(
                     state_updates_from_tendency(updated_state_from_tendency)
                 )
-                diagnostics.update(
-                    {
-                        "air_temperature_before_tendency_update": self._state[
-                            "air_temperature"
-                        ]
-                    }
-                )
                 self._state.update_mass_conserving(updated_state_from_tendency)
                 diagnostics.update(tendencies_filled_frac)
 
         self._log_info(
-            f"{self._state.time}  Applying state updates to postphysics dycore state: "
+            f"{self._state.time} Applying state updates to postphysics dycore state: "
             f"{self._state_updates.keys()}"
         )
-
-        self._log_info(f"Updating state for keys: {list(self._state_updates.keys())}")
         self._state.update_mass_conserving(self._state_updates)
 
         diagnostics.update({name: self._state[name] for name in self._states_to_output})
