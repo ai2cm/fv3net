@@ -20,7 +20,7 @@ nudging:
 radiation_scheme:
   kind: "python"
   input_generator:
-    dataset_key: gs://vcm-ml-experiments/cloud-ml/2023-05-31/cloud-ml-training-data.zarr
+    dataset_key: gs://vcm-ml-experiments/cloud-ml/2023-06-07/cloud-ml-training-data.zarr
     variables:
       cloud_water_mixing_ratio: cloud_water_mixing_ratio
       cloud_ice_mixing_ratio: cloud_ice_mixing_ratio
@@ -31,8 +31,8 @@ namelist:
   atmos_model_nml:
     fhmax: 1024  # max hours of simulation (over all segments) for which fortran physics diags are saved
   coupler_nml:
-    days: 1
-    hours: 0
+    days: 0
+    hours: 6
     minutes: 0
     months: 0
     seconds: 0
@@ -54,75 +54,14 @@ namelist:
       - 2
       - 2
   namsfc:
+    ftsfs: 90
+    fabsl: 99999 # Persist maximum snow albedo from initial conditions instead of using climatology forcing files
+    fabss: 99999 # Persist maximum snow albedo from initial conditions instead of using climatology forcing files
     faisl: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
     faiss: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
     fsicl: 99999 # Persist the sea ice fraction from the initial conditiond instead of using climatology forcing files
     fsics: 99999 # Persist the sea ice fraction from the initial conditiond instead of using climatology forcing files
 diagnostics:
-- name: state_pre_radiation.zarr
-  chunks:
-    time: 4
-  times:
-    frequency: 900
-    kind: interval
-  variables:
-    - x_wind_pre_radiation
-    - y_wind_pre_radiation
-    - eastward_wind_pre_radiation
-    - northward_wind_pre_radiation
-    - vertical_wind_pre_radiation
-    - air_temperature_pre_radiation
-    - specific_humidity_pre_radiation
-    - pressure_thickness_of_atmospheric_layer_pre_radiation
-    - vertical_thickness_of_atmospheric_layer_pre_radiation
-    - land_sea_mask_pre_radiation
-    - surface_temperature_pre_radiation
-    - surface_geopotential_pre_radiation
-    - surface_diffused_shortwave_albedo_pre_radiation
-    - sensible_heat_flux_pre_radiation
-    - latent_heat_flux_pre_radiation
-    - total_precipitation_pre_radiation
-    - surface_precipitation_rate_pre_radiation
-    - total_soil_moisture_pre_radiation
-    - cloud_water_mixing_ratio_pre_radiation
-    - rain_mixing_ratio_pre_radiation
-    - cloud_ice_mixing_ratio_pre_radiation
-    - snow_mixing_ratio_pre_radiation
-    - graupel_mixing_ratio_pre_radiation
-    - cloud_amount_pre_radiation
-- name: state_after_timestep.zarr
-  chunks:
-    time: 4
-  times:
-    frequency: 900
-    kind: interval
-  variables:
-  - x_wind
-  - y_wind
-  - eastward_wind
-  - northward_wind
-  - vertical_wind
-  - air_temperature
-  - specific_humidity
-  - pressure_thickness_of_atmospheric_layer
-  - vertical_thickness_of_atmospheric_layer
-  - land_sea_mask
-  - surface_temperature
-  - surface_geopotential
-  - surface_diffused_shortwave_albedo
-  - sensible_heat_flux
-  - latent_heat_flux
-  - total_precipitation
-  - surface_precipitation_rate
-  - total_soil_moisture
-  - latitude
-  - longitude
-  - cloud_water_mixing_ratio
-  - cloud_ice_mixing_ratio
-  - rain_mixing_ratio
-  - snow_mixing_ratio
-  - graupel_mixing_ratio
-  - cloud_amount
 - name: radiative_fluxes.zarr
   chunks:
     time: 4
@@ -147,29 +86,6 @@ diagnostics:
   - clear_sky_longwave_heating_rate_python
   - total_sky_shortwave_heating_rate_python
   - clear_sky_shortwave_heating_rate_python
-- name: physics_tendencies.zarr
-  chunks:
-    time: 1
-  times:
-    frequency: 3600
-    kind: interval
-  variables:
-  - tendency_of_air_temperature_due_to_fv3_physics
-  - tendency_of_specific_humidity_due_to_fv3_physics
-  - tendency_of_eastward_wind_due_to_fv3_physics
-  - tendency_of_northward_wind_due_to_fv3_physics
-- name: nudging_tendencies.zarr
-  chunks:
-    time: 1
-  times:
-    frequency: 3600
-    kind: interval
-  variables:
-  - air_temperature_tendency_due_to_nudging
-  - specific_humidity_tendency_due_to_nudging
-  - x_wind_tendency_due_to_nudging
-  - y_wind_tendency_due_to_nudging
-  - pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging
 - name: diags.zarr
   chunks:
     time: 4
@@ -183,18 +99,6 @@ diagnostics:
   - total_precipitation_rate
   - water_vapor_path
   - physics_precip
-- name: reference_state.zarr
-  chunks:
-    time: 1
-  times:
-    frequency: 3600
-    kind: interval
-  variables:
-  - air_temperature_reference
-  - specific_humidity_reference
-  - x_wind_reference
-  - y_wind_reference
-  - pressure_thickness_of_atmospheric_layer_reference
 fortran_diagnostics:
 - name: sfc_dt_atmos.zarr
   chunks:
@@ -327,18 +231,3 @@ fortran_diagnostics:
   - {module_name: dynamics, field_name: grid_lat, output_name: latb}
   - {module_name: dynamics, field_name: fv_sat_adj_qv_dt, output_name: fv_sat_adj_qv_dt}
   - {module_name: dynamics, field_name: fv_sat_adj_t_dt, output_name: fv_sat_adj_t_dt}
-- name: physics_3d.zarr
-  chunks:
-    time: 1
-  times:
-    frequency: 900
-    kind: interval
-  variables:
-    - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_shortwave_heating, output_name: tendency_of_air_temperature_due_to_shortwave_heating}
-    - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_longwave_heating, output_name: tendency_of_air_temperature_due_to_longwave_heating}
-    - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky, output_name: tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky}
-    - {module_name: gfs_phys, field_name: tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky, output_name: tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky}
-    - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating, output_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating}
-    - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating, output_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating}
-    - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky, output_name: vertically_integrated_tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky}
-    - {module_name: gfs_phys, field_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky, output_name: vertically_integrated_tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky}
