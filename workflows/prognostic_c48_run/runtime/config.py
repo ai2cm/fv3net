@@ -62,12 +62,13 @@ class UserConfig:
     prephysics: Optional[
         List[Union[PrescriberConfig, MachineLearningConfig, IntervalConfig]]
     ] = None
+
     scikit_learn: Optional[MachineLearningConfig] = None
     nudging: Optional[NudgingConfig] = None
     tendency_prescriber: Optional[TendencyPrescriberConfig] = None
     online_emulator: Optional[runtime.transformers.fv3fit.Config] = None
     radiation_scheme: Optional[RadiationStepperConfig] = None
-    bias_correction: Optional[PrescriberConfig] = None
+    bias_correction: Optional[Union[PrescriberConfig, IntervalConfig]] = None
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
