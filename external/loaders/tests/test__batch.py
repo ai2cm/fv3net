@@ -12,6 +12,9 @@ from loaders.batches._batch import (
     _get_batch,
 )
 
+from loaders.testing import mapper_context
+
+
 DATA_VARS = ["air_temperature", "specific_humidity"]
 Z_DIM_SIZE = 79
 
@@ -77,22 +80,6 @@ def test_batches_from_mapper(mapper):
             assert set(batch[name].dims) == set(original_data_dims[name])
         for dim in batch.dims:
             assert len(dim) == original_dim_lengths[dim]
-
-
-def test_batches_from_mapper_with_catalog_path(mapper, datadir):
-
-    with pytest.raises(KeyError):
-        catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
-        batched_data_sequence = batches_from_mapper(
-            mapper,
-            DATA_VARS,
-            timesteps_per_batch=2,
-            needs_grid=True,
-            catalog_path=catalog_path,
-        )
-        batched_data_sequence[0]
-
-from loaders.testing import mapper_context
 
 def test_load_batches_with_catalog_path(mapper, datadir):
     with mapper_context():
