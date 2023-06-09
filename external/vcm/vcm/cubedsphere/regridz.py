@@ -268,11 +268,12 @@ def _adiabatically_adjust_extrapolated_temperature(
         poisson_constant=poisson_constant,
     )
 
-    # At this stage da and requires_no_extrapolation do not have a z-coordinate,
-    # and xr.where requires that all coordinates of the DataArrays must be
-    # equal for alignment.  For simplicity we drop the z-coordinate that is
-    # added to the adjusted temperature to ease this alignment.
-    adjusted_temperature = adjusted_temperature.drop(z_dim_center)
+    # At this stage temperature and strictly_interpolated do not have a
+    # z-coordinate, and xr.where requires that all coordinates of the DataArrays
+    # must be equal for alignment.  For simplicity we drop the z-coordinate that
+    # is added to the adjusted temperature to ease this alignment.
+    if z_dim_center in adjusted_temperature.coords:
+        adjusted_temperature = adjusted_temperature.drop(z_dim_center)
 
     # Use the unmodified temperature at all points that don't require
     # extrapolation; at points that require extrapolation use the adjusted
