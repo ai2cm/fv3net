@@ -184,7 +184,7 @@ def test__adiabatically_adjust_extrapolated_temperature():
 
     # Test that adjusted values appear only where extrapolation was necessary.
     unadjusted_extrapolated = temperature.where(extrapolated)
-    adjusted_extrapolated = temperature.where(extrapolated)
+    adjusted_extrapolated = adjusted_temperature.where(extrapolated)
     assert (unadjusted_extrapolated != adjusted_extrapolated).all()
 
     # Test that interpolated values were left unmodified.
