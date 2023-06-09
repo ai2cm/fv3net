@@ -14,6 +14,14 @@ extend_prognostic_run: deploy
 training_data_zarr:
 	cd scripts && python ./training_data_zarr.py training_data_config.yaml
 
+.PHONY: prescribed_cloud_cc_decorr_fabs_0_run
+prescribed_cloud_cc_decorr_fabs_0_run: deploy
+	cd argo/prognostic-run && ./run.sh prescribed-cloud-cc-decorr-fabs-0
+
+.PHONY: prescribed_cloud_cc_decorr_fsno_0_run
+prescribed_cloud_cc_decorr_fsno_0_run: deploy
+	cd argo/prognostic-run && ./run.sh prescribed-cloud-cc-decorr-fsno-0
+
 .PHONY: prescribed_cloud_cc_decorr_run
 prescribed_cloud_cc_decorr_run: deploy
 	cd argo/prognostic-run && ./run.sh prescribed-cloud-cc-decorr
