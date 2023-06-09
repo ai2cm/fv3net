@@ -79,7 +79,7 @@ def test_batches_from_mapper(mapper):
             assert len(dim) == original_dim_lengths[dim]
 
 
-def test_batches_from_mapper_new(mapper, datadir):
+def test_batches_from_mapper_with_catalog_path(mapper, datadir):
 
     with pytest.raises(KeyError):
         catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
