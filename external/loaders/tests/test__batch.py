@@ -81,19 +81,25 @@ def test_batches_from_mapper(mapper):
         for dim in batch.dims:
             assert len(dim) == original_dim_lengths[dim]
 
+
 def test_load_batches_with_catalog_path(mapper, datadir):
     with mapper_context():
         catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
+
         def mapper_function():
             return mapper
+
         loaders._config.mapper_functions.register(mapper_function)
-        mapper_config = loaders._config.MapperConfig(function="mapper_function", kwargs={})
+        mapper_config = loaders._config.MapperConfig(
+            function="mapper_function", kwargs={}
+        )
         batches_config = loaders.BatchesFromMapperConfig(
             mapper_config=mapper_config, catalog_path=catalog_path
         )
         with pytest.raises(KeyError):
             batches = batches_config.load_batches(DATA_VARS)
             batches[0]
+
 
 @pytest.mark.parametrize(
     "total_times,times_per_batch,valid_num_batches", [(3, 1, 3), (3, 2, 2), (3, 4, 1)]
