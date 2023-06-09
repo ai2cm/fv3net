@@ -204,6 +204,9 @@ fortran_diagnostics:
   - {module_name: gfs_phys, field_name: v10m, output_name: VGRD10m}
   - {module_name: gfs_phys, field_name: tmpmax2m, output_name: TMAX2m}
   - {module_name: gfs_phys, field_name: wind10mmax, output_name: MAXWIND10m}
+  - {module_name: gfs_phys, field_name: snowc_ave, output_name: SNOWCA}
+  - {module_name: gfs_sfc, field_name: snowd, output_name: SNOWD}
+  - {module_name: gfs_sfc, field_name: snoalb, output_name: SNOWALB}
   - {module_name: gfs_phys, field_name: soilm, output_name: SOILM}
   - {module_name: gfs_sfc, field_name: SOILT1, output_name: SOILT1}
   - {module_name: gfs_sfc, field_name: SOILT2, output_name: SOILT2}
