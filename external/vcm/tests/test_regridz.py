@@ -110,7 +110,8 @@ def test_regrid_vertical_keep_attrs():
     assert f_out.attrs == attrs
 
 
-def test__mask_weights():
+@pytest.mark.parametrize("extrapolate", [False, True])
+def test__mask_weights(extrapolate):
     weights = input_dataarray((2, 2, 1)).isel(z=0)
     phalf_coarse_on_fine = input_dataarray((2, 2, 3))
     phalf_fine = input_dataarray((2, 2, 3))
@@ -119,11 +120,28 @@ def test__mask_weights():
     phalf_coarse_on_fine[:, :, 2] = 3.0
     phalf_fine[:, :, 0] = 1.0
     phalf_fine[:, :, 1] = 2.0
-    phalf_fine[0, :, 2] = 2.5
+    phalf_fine[0, 0, 2] = 2.5
+    phalf_fine[0, 1, 2] = 2.6
     phalf_fine[1, :, 2] = 3.5
+
+    # Use a simpler way to compute pfull for the sake of testing.
+    pfull_coarse_on_fine = phalf_coarse_on_fine.diff("z")
+
     expected_weights = weights.broadcast_like(phalf_fine.isel(z=slice(None, -1))).copy()
-    expected_weights[0, :, 1] = 0.0
+
+    # Strictly not extrapolating results in a more expansive mask than limited
+    # extrapolation.
+    if not extrapolate:
+        expected_weights[0, :, 1] = 0.0
+    else:
+        expected_weights[0, 0, 1] = 0.0
     masked_weights = _mask_weights(
-        weights, phalf_coarse_on_fine, phalf_fine, dim_center="z", dim_outer="z"
+        weights,
+        pfull_coarse_on_fine,
+        phalf_coarse_on_fine,
+        phalf_fine,
+        dim_center="z",
+        dim_outer="z",
+        extrapolate=extrapolate,
     )
     xr.testing.assert_allclose(expected_weights, masked_weights)

@@ -80,3 +80,10 @@ def merge_subdomains(
         domain_z = np.concatenate(np.concatenate(domain_z_blocks, axis=1), axis=-1)
         domain.append(domain_z)
     return np.stack(np.array(domain), axis=0).transpose(1, 2, 0)  # type: ignore
+
+
+def concat_inputs_along_subdomain_features(a, b):
+    # [time, subdomain-feature, subdomain]
+    # Concatenates two input arrays with same time and subdomain dim
+    # sizes along the subdomain-feature axis (1)
+    return np.concatenate([a, b], axis=1)

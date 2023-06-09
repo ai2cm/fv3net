@@ -35,7 +35,7 @@ def read_run_config(run_url):
     return fv3config.load(io.BytesIO(s))
 
 
-def append_segment_to_run_url(run_url):
+def append_segment_to_run_url(run_url, mpi_launcher="mpirun"):
     """Append an segment to an initialized segmented run
 
     Either runs the first segment, or additional ones
@@ -63,7 +63,7 @@ def append_segment_to_run_url(run_url):
         rundir = os.path.join(dir_, "rundir")
         post_processed_out = os.path.join(dir_, "post_processed")
 
-        exit_code = run_segment(config, rundir)
+        exit_code = run_segment(config, rundir, mpi_launcher)
         if exit_code != 0:
             warnings.warn(
                 UserWarning(f"FV3 exited with a nonzero exit-code: {exit_code}")

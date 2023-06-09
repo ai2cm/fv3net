@@ -154,6 +154,7 @@ def coarsen_restarts_on_pressure(
     grid_spec: xr.Dataset,
     restarts: Mapping[str, xr.Dataset],
     coarsen_agrid_winds: bool = False,
+    extrapolate: bool = False,
 ) -> Mapping[str, xr.Dataset]:
     """Coarsen a complete set of restart files, averaging on pressure levels and
     using the 'complex' surface coarsening method
@@ -166,6 +167,11 @@ def coarsen_restarts_on_pressure(
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
         coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
             "fv_core.res" restart files (default False).
+        extrapolate (optional): whether to allow for limited nearest-neighbor
+            extrapolation at points in fine-grid columns whose surface pressure
+            is at least greater than the coarse layer midpoint's pressure.
+            Otherwise do not allow any nearest-neighbor extrapolation (the
+            setting by default).
 
     Returns:
         restarts_coarse: a dictionary with the same format as restarts but
@@ -188,6 +194,7 @@ def coarsen_restarts_on_pressure(
         ),
         coarsening_factor,
         coarsen_agrid_winds,
+        extrapolate=extrapolate,
     )
 
     coarsened["fv_srf_wnd.res"] = _coarse_grain_fv_srf_wnd(
@@ -205,6 +212,7 @@ def coarsen_restarts_on_pressure(
             {COORD_X_CENTER: FV_TRACER_X_CENTER, COORD_Y_CENTER: FV_TRACER_Y_CENTER}
         ),
         coarsening_factor,
+        extrapolate=extrapolate,
     )
 
     coarsened["sfc_data"] = _coarse_grain_sfc_data_complex(
@@ -409,7 +417,14 @@ def _coarse_grain_fv_core(
 
 
 def _coarse_grain_fv_core_on_pressure(
-    ds, delp, area, dx, dy, coarsening_factor, coarsen_agrid_winds=False
+    ds,
+    delp,
+    area,
+    dx,
+    dy,
+    coarsening_factor,
+    coarsen_agrid_winds=False,
+    extrapolate=False,
 ):
     """Coarse grain a set of fv_core restart files, averaging on surfaces of
     constant pressure (except for delp, DZ and phis which are averaged on model
@@ -431,6 +446,11 @@ def _coarse_grain_fv_core_on_pressure(
         Coarsening factor to use
     coarsen_agrid_winds : bool
         Whether to coarse-grain A-grid winds (default False)
+    extrapolate : bool
+        Whether to allow for limited nearest-neighbor extrapolation at points in
+        fine-grid columns whose surface pressure is at least greater than the
+        coarse layer midpoint's pressure.  Otherwise do not allow any
+        nearest-neighbor extrapolation (the setting by default).
 
     Returns
     -------
@@ -455,6 +475,7 @@ def _coarse_grain_fv_core_on_pressure(
         coarsening_factor,
         x_dim=FV_CORE_X_CENTER,
         y_dim=FV_CORE_Y_CENTER,
+        extrapolate=extrapolate,
     )
 
     dx_pressure_regridded, masked_dx = regrid_to_edge_weighted_pressure(
@@ -465,6 +486,7 @@ def _coarse_grain_fv_core_on_pressure(
         x_dim=FV_CORE_X_CENTER,
         y_dim=FV_CORE_Y_OUTER,
         edge="x",
+        extrapolate=extrapolate,
     )
 
     dy_pressure_regridded, masked_dy = regrid_to_edge_weighted_pressure(
@@ -475,6 +497,7 @@ def _coarse_grain_fv_core_on_pressure(
         x_dim=FV_CORE_X_OUTER,
         y_dim=FV_CORE_Y_CENTER,
         edge="y",
+        extrapolate=extrapolate,
     )
 
     area_weighted = weighted_block_average(
@@ -837,7 +860,9 @@ def _coarse_grain_fv_tracer(ds, delp, area, coarsening_factor, mass_weighted=Tru
     return xr.merge([area_weighted, mass_weighted])
 
 
-def _coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
+def _coarse_grain_fv_tracer_on_pressure(
+    ds, delp, area, coarsening_factor, extrapolate=False
+):
     """Coarse grain a set of fv_tracer restart files, averaging on surfaces of
     constant pressure.
 
@@ -851,6 +876,11 @@ def _coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
         Area weights
     coarsening_factor : int
         Coarsening factor to use
+    extrapolate : bool
+        Whether to allow for limited nearest-neighbor extrapolation at points in
+        fine-grid columns whose surface pressure is at least greater than the
+        coarse layer midpoint's pressure.  Otherwise do not allow any
+        nearest-neighbor extrapolation (the setting by default).
 
     Returns
     -------
@@ -866,6 +896,7 @@ def _coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
         coarsening_factor,
         x_dim=FV_TRACER_X_CENTER,
         y_dim=FV_TRACER_Y_CENTER,
+        extrapolate=extrapolate,
     )
 
     area_weighted = weighted_block_average(

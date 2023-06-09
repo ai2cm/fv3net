@@ -45,7 +45,7 @@ def to_url(fs: fsspec.AbstractFileSystem, path: str):
     else:
         protocol = fs.protocol[0]
 
-    return protocol + "://" + path.lstrip("/")
+    return protocol + "://" + path
 
 
 def copy(source: str, destination: str, content_type: str = None):

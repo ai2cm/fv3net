@@ -39,7 +39,7 @@ h5netcdf>=0.12.0
 # the rest of fv3net. Google controls the dataflow runtime environment, so it
 # is too hard to ensure that local fv3net matches the installed dependencies of
 # dataflow workers.
-xpartition>=0.2.0
+xpartition>=0.2.1
 
 # xpartition needs >=0.16.2 for region feature of to_zarr
 # pip-compile doesn't work with setup.cfg
