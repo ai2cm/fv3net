@@ -46,6 +46,13 @@ def decode_columns(data: tf.Tensor, decoder: tf.keras.Model) -> Sequence[np.ndar
         return decoded_data
 
 
+def split_1d_into_2d_rows(arr: np.ndarray, n_rows: int) -> np.ndarray:
+    # Consecutive chunks of 1d array form rows of 2d array
+    # ex. 1d to 2d reshaping (8,) -> (2,4)) for n_rows=2
+    # [1,2,3,4,5,6,7,8] -> [[1,2,3,4], [5,6,7,8]]
+    return np.reshape(arr, (n_rows, -1), order="C")
+
+
 def split_1d_into_2d_columns(arr: np.ndarray, n_columns: int) -> np.ndarray:
     # Consecutive chunks of 1d array form columns of 2d array
     # ex. 1d to 2d reshaping (8,) -> (2, 4)
@@ -56,14 +63,13 @@ def split_1d_into_2d_columns(arr: np.ndarray, n_columns: int) -> np.ndarray:
 def merge_subdomains(
     flat_prediction: np.ndarray, rank_divider: RankDivider, latent_dims: int
 ):
-    subdomain_columns = split_1d_into_2d_columns(
-        flat_prediction, n_columns=rank_divider.n_subdomains
+    subdomain_rows = split_1d_into_2d_rows(
+        flat_prediction, n_rows=rank_divider.n_subdomains
     )
-
     subdomain_2d_predictions = []
-    for s in range(rank_divider.n_subdomains):
+    for subdomain_row in subdomain_rows:
         subdomain_2d_prediction = rank_divider.unstack_subdomain(
-            subdomain_columns[:, s], with_overlap=False, data_has_time_dim=False
+            subdomain_row, with_overlap=False, data_has_time_dim=False
         )
         subdomain_2d_predictions.append(subdomain_2d_prediction)
 
@@ -73,9 +79,11 @@ def merge_subdomains(
         rank_divider.subdomain_xy_size_without_overlap,
     )
 
-    for z in range(latent_dims):
-        domain_z_blocks = np.array(subdomain_2d_predictions)[:, :, z].reshape(
-            *rank_divider.subdomain_layout, *subdomain_shape_without_overlap
+    for z in range(2):
+        domain_z_blocks = (
+            np.array(subdomain_2d_predictions)[:, :, :, z]
+            .reshape(*rank_divider.subdomain_layout, *subdomain_shape_without_overlap)
+            .transpose(1, 0, 2, 3)
         )
         domain_z = np.concatenate(np.concatenate(domain_z_blocks, axis=1), axis=-1)
         domain.append(domain_z)
@@ -87,3 +95,13 @@ def concat_inputs_along_subdomain_features(a, b):
     # Concatenates two input arrays with same time and subdomain dim
     # sizes along the subdomain-feature axis (1)
     return np.concatenate([a, b], axis=1)
+
+
+def stack_samples(tensor, keep_time_dim=True):
+    # Used to reshape a subdomains into a flat columns.
+    # Assumes time is the first dimension
+    if keep_time_dim is True:
+        n_samples = tensor.shape[0]
+        return np.reshape(tensor, (n_samples, -1))
+    else:
+        return np.reshape(tensor, -1)

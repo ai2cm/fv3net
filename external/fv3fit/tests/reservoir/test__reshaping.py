@@ -6,7 +6,7 @@ from fv3fit.reservoir._reshaping import (
     stack_array_preserving_last_dim,
     encode_columns,
     decode_columns,
-    split_1d_into_2d_columns,
+    split_1d_into_2d_rows,
 )
 
 
@@ -81,9 +81,9 @@ def test_decode_columns():
     np.testing.assert_array_equal(decoded_output[1], var0_data * scalar)
 
 
-def test_split_1d_into_2d_columns():
+def test_split_1d_into_2d_rows():
     x = np.arange(12)
-    x_2d = split_1d_into_2d_columns(x, n_columns=3)
+    x_2d = split_1d_into_2d_rows(x, n_rows=4)
     np.testing.assert_array_equal(
-        x_2d, np.array([[0, 4, 8], [1, 5, 9], [2, 6, 10], [3, 7, 11]])
+        x_2d, np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]])
     )

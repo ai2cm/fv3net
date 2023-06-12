@@ -157,16 +157,16 @@ class RankDivider:
         # Takes a flattened subdomain and reshapes it back into its original
         # x and y dims
         if data_has_time_dim is True:
-            unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)[1:]
-        else:
             unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)
+            unstacked_shape = (tensor.shape[0], *unstacked_shape)
+        else:
+            unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)[1:]
         expected_stacked_size = np.prod(unstacked_shape)
         if tensor.shape[-1] != expected_stacked_size:
             raise ValueError(
-                "Dimension of each stacked sample expected to be "
+                f"Dimension of each stacked sample {tensor.shape[-1]} expected to be "
                 f"{expected_stacked_size} (product of {unstacked_shape})."
             )
-        unstacked_shape = (tensor.shape[0], *unstacked_shape)
 
         return np.reshape(tensor, unstacked_shape)
 
