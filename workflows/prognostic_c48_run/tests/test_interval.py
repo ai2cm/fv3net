@@ -23,10 +23,11 @@ START_TIME = cftime.DatetimeJulian(2020, 1, 1, 0, 0, 0)
 
 
 @pytest.mark.parametrize(
-    "interval, time_checks",
+    "interval, offset, time_checks",
     [
         (
             3600,
+            0,
             {
                 START_TIME + datetime.timedelta(seconds=1800): False,
                 START_TIME + datetime.timedelta(seconds=3600): True,
@@ -34,17 +35,34 @@ START_TIME = cftime.DatetimeJulian(2020, 1, 1, 0, 0, 0)
         ),
         (
             10,
+            0,
             {
                 START_TIME + datetime.timedelta(seconds=5): False,
                 START_TIME + datetime.timedelta(seconds=1800): True,
                 START_TIME + datetime.timedelta(seconds=3600): True,
             },
         ),
+        (
+            3600,
+            900,
+            {
+                START_TIME + datetime.timedelta(seconds=4500): True,
+                START_TIME + datetime.timedelta(seconds=3600): False,
+            },
+        ),
+        (
+            3600,
+            -900,
+            {
+                START_TIME + datetime.timedelta(seconds=2700): True,
+                START_TIME + datetime.timedelta(seconds=3600): False,
+            },
+        ),
     ],
 )
-def test_needs_update(interval, time_checks):
+def test_needs_update(interval, offset, time_checks):
     interval_stepper = IntervalStepper(
-        apply_interval_seconds=interval, stepper=MockStepper()
+        apply_interval_seconds=interval, stepper=MockStepper(), offset_seconds=offset
     )
     # The first time checked becomes the start time for the IntervalStepper
     assert interval_stepper._need_to_update(START_TIME) is False
