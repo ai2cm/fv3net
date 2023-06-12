@@ -83,9 +83,11 @@ def test_batches_from_mapper(mapper):
 
 
 def test_load_batches_with_catalog_path(mapper, datadir):
-#The intent of this test is to verify the ability to load batches. The custom catalog file
-#misses the resolution info. The key error arises as the program attemts to load the grid information from the catalog
-#file.
+    # The intent of this test is to verify the ability to specify a custom
+    # catalog in the BatchesFromMapperConfig constructor and subsequently load
+    # batches. By design the custom catalog file misses the grid info. The
+    # KeyError arises as the program attempts to load the grid information from
+    # the custom catalog file rather than the default.
 
     with mapper_context():
         catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
