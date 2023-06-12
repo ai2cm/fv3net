@@ -65,6 +65,8 @@ class BatchesFromMapperConfig(BatchesLoader):
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
         data_transforms: list of transforms to compute derived variables in batches.
+        catalog_path: path to the local catalog.yaml file. The minimal entries for this file are "grid/{res}", "landseamask/{res}" and "wind_rotation/{res}". 
+
     """
 
     mapper_config: MapperConfig
