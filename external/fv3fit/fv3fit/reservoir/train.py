@@ -3,7 +3,7 @@ from joblib import Parallel, delayed
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, Mapping, Tuple, List, Iterable, Union
+from typing import Optional, Mapping, Tuple, List, Iterable, Union, Sequence
 from .. import Predictor
 from .utils import square_even_terms
 from .autoencoder import Autoencoder, build_concat_and_scale_only_autoencoder
@@ -18,10 +18,27 @@ from . import (
 )
 from .readout import combine_readouts
 from .domain import RankDivider, assure_same_dims
-from ._reshaping import stack_array_preserving_last_dim, encode_columns, stack_samples
+from ._reshaping import stack_samples
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+def _stack_array_preserving_last_dim(data):
+    original_z_dim = data.shape[-1]
+    reshaped = tf.reshape(data, shape=(-1, original_z_dim))
+    return reshaped
+
+
+def _encode_columns(data: Sequence[tf.Tensor], encoder: tf.keras.Model,) -> np.ndarray:
+    # reduce a sequnence of N x M x Vi dim data over i variables
+    # to a single N x M x Z dim array, where Vi is original number of features
+    # (usually vertical levels) of each variable and Z << V is a smaller number
+    # of latent dimensions
+    original_sample_shape = data[0].shape[:-1]
+    reshaped = [_stack_array_preserving_last_dim(var) for var in data]
+    encoded_reshaped = encoder.predict(reshaped)
+    return encoded_reshaped.reshape(*original_sample_shape, -1)
 
 
 def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
@@ -47,7 +64,7 @@ def train_reservoir_model(
         autoencoder = Autoencoder.load(hyperparameters.autoencoder_path)
     else:
         sample_X_stacked = [
-            stack_array_preserving_last_dim(arr).numpy() for arr in sample_X
+            _stack_array_preserving_last_dim(arr).numpy() for arr in sample_X
         ]
         autoencoder = build_concat_and_scale_only_autoencoder(
             variables=hyperparameters.input_variables, X=sample_X_stacked
@@ -169,7 +186,7 @@ def _process_batch_Xy_data(
 
     # Concatenate features, normalize and optionally convert data
     # to latent representation
-    batch_data_encoded = encode_columns(batch_X, autoencoder.encoder)
+    batch_data_encoded = _encode_columns(batch_X, autoencoder.encoder)
 
     # Divide into subdomains and flatten each subdomain by stacking
     # x/y/encoded-feature dims into a single subdomain-feature dimension.
