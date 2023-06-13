@@ -177,7 +177,10 @@ def _process_batch_Xy_data(
     X_subdomains_to_columns, Y_subdomains_to_columns = [], []
     for s in range(rank_divider.n_subdomains):
         X_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-            batch_data_encoded, subdomain_index=s, with_overlap=True,
+            batch_data_encoded,
+            subdomain_index=s,
+            with_overlap=True,
+            data_has_time_dim=True,
         )
         X_subdomains_to_columns.append(
             stack_samples(X_subdomain_data, keep_first_dim=True)
@@ -185,7 +188,10 @@ def _process_batch_Xy_data(
 
         # Prediction does not include overlap
         Y_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-            batch_data_encoded, subdomain_index=s, with_overlap=False,
+            batch_data_encoded,
+            subdomain_index=s,
+            with_overlap=False,
+            data_has_time_dim=True,
         )
         Y_subdomains_to_columns.append(
             stack_samples(Y_subdomain_data, keep_first_dim=True)
@@ -211,7 +217,10 @@ def _process_batch_hybrid_data(
     hybrid_subdomains_to_columns = []
     for s in range(rank_divider.n_subdomains):
         hybrid_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-            batch_hybrid_combined_inputs, subdomain_index=s, with_overlap=True,
+            batch_hybrid_combined_inputs,
+            subdomain_index=s,
+            with_overlap=True,
+            data_has_time_dim=True,
         )
         hybrid_subdomains_to_columns.append(
             stack_samples(hybrid_subdomain_data, keep_first_dim=True)
