@@ -102,7 +102,7 @@ def test_RankDivider_subdomain_slice():
     )
 
 
-def test_RankDivider_subdomain_tensor_slice_overlap():
+def test_RankDivider_subdomain_tensor_slice_overlap_with_time_dim():
     xy_arr = np.pad(np.arange(1, 5).reshape(2, 2), pad_width=1)
     arr = np.reshape(xy_arr, (1, 4, 4, 1))
     divider = RankDivider(
@@ -123,6 +123,28 @@ def test_RankDivider_subdomain_tensor_slice_overlap():
         arr, 3, with_overlap=False, data_has_time_dim=True
     )
     np.testing.assert_array_equal(bottom_right_no_overlap[0, :, :, 0], np.array([[4]]))
+
+
+def test_RankDivider_subdomain_tensor_slice_overlap_no_time_dim():
+    xy_arr = np.pad(np.arange(1, 5).reshape(2, 2), pad_width=1)
+    arr = np.reshape(xy_arr, (4, 4, 1))
+    divider = RankDivider(
+        subdomain_layout=(2, 2),
+        rank_dims=["x", "y", "z"],
+        rank_extent=[4, 4, 1],
+        overlap=1,
+    )
+    bottom_right_with_overlap = divider.get_subdomain_tensor_slice(
+        arr, 3, with_overlap=True, data_has_time_dim=False
+    )
+    np.testing.assert_array_equal(
+        bottom_right_with_overlap[:, :, 0], np.array([[1, 2, 0], [3, 4, 0], [0, 0, 0]]),
+    )
+
+    bottom_right_no_overlap = divider.get_subdomain_tensor_slice(
+        arr, 3, with_overlap=False, data_has_time_dim=False
+    )
+    np.testing.assert_array_equal(bottom_right_no_overlap[:, :, 0], np.array([[4]]))
 
 
 def test_RankDivider_get_subdomain_tensor_slice():
@@ -154,20 +176,24 @@ def test_RankDivider_get_subdomain_tensor_slice():
         ([5, 6, 6, 2], 1, False),
         ([5, 6, 6, 2], 0, True),
         ([1, 4, 4, 3], 0, False),
+        ([6, 6, 1], 1, True),
+        ([4, 4, 3], 0, False),
     ],
 )
 def test_RankDivider_unstack_subdomain(data_extent, overlap, with_overlap):
     if len(data_extent) == 4:
         keep_first_dim = True
         data_has_time_dim = True
+        rank_extent = data_extent[1:]
     else:
         keep_first_dim = False
         data_has_time_dim = False
+        rank_extent = data_extent
 
     divider = RankDivider(
         subdomain_layout=(2, 2),
         rank_dims=["x", "y", "z"],
-        rank_extent=data_extent[1:],
+        rank_extent=rank_extent,
         overlap=overlap,
     )
     data_arr = np.arange(np.prod(data_extent)).reshape(*data_extent)
@@ -175,7 +201,10 @@ def test_RankDivider_unstack_subdomain(data_extent, overlap, with_overlap):
         data_arr, 0, with_overlap=with_overlap, data_has_time_dim=data_has_time_dim
     )
     stacked = stack_samples(subdomain_arr, keep_first_dim=keep_first_dim)
-    assert len(stacked.shape) == 2
+    if data_has_time_dim is True:
+        assert len(stacked.shape) == 2
+    else:
+        assert len(stacked.shape) == 1
     np.testing.assert_array_equal(
         divider.unstack_subdomain(
             stacked, with_overlap=with_overlap, data_has_time_dim=data_has_time_dim
