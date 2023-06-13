@@ -29,8 +29,7 @@ class RankDivider:
         Args:
             subdomain_layout: layout describing subdomain grid within the rank
                 ex. [2,2] means the rank is divided into 4 subdomains
-            rank_dims: order of dimensions in data. If using time series data, 'time'
-                must be the first dimension.
+            rank_dims: order of spatial dimensions in data. Do not include time.
             rank_extent: Shape of full data. This includes any halo cells from
                 overlap into neighboring ranks.
             overlap: number of cells surrounding each subdomain to include when
@@ -41,15 +40,17 @@ class RankDivider:
         with n_halo=4. I would initialize the RankDivider as
             RankDivider(
                 subdomain_layout=(12, 12),
-                rank_dims=["time", "x", "y", "z"],
-                rank_extent=[n_timesteps, 56, 56, 79],
+                rank_dims=["x", "y", "z"],
+                rank_extent=[ 56, 56, 79],
                 overlap=4,
             )
         """
         self.subdomain_layout = subdomain_layout
         if "time" in rank_dims:
-            if rank_dims[0] != "time":
-                raise ValueError("'time' must be first dimension.")
+            raise ValueError(
+                "Do not include time in dimension information. "
+                "Only spatial dimensions (x, y, z) should be provided."
+            )
         if not {"x", "y"}.issubset(rank_dims):
             raise ValueError(
                 "'x' and 'y' dims must be in the rank_dims of the RankDivider"
@@ -80,7 +81,7 @@ class RankDivider:
     @property
     def n_subdomain_features(self):
         # number of total features (nx * ny * nz) in one subdomain
-        return int(np.prod(self.get_subdomain_extent(with_overlap=True)[1:]))
+        return int(np.prod(self.get_subdomain_extent(with_overlap=True)))
 
     def get_subdomain_extent(self, with_overlap: bool):
         subdomain_xy_size = self.subdomain_xy_size_without_overlap
@@ -140,30 +141,38 @@ class RankDivider:
         return extent_without_halos
 
     def get_subdomain_tensor_slice(
-        self, tensor_data: tf.Tensor, subdomain_index: int, with_overlap: bool
+        self,
+        tensor_data: tf.Tensor,
+        subdomain_index: int,
+        with_overlap: bool,
+        data_has_time_dim: bool,
     ) -> tf.Tensor:
 
         subdomain_slice = self.subdomain_slice(subdomain_index, with_overlap)
+        x_ind, y_ind = self._x_ind, self._y_ind
+        if data_has_time_dim is True:
+            subdomain_slice = (slice(None, None), *subdomain_slice)
+            x_ind += 1
+            y_ind += 1
         tensor_data_xsliced = slice_along_axis(
-            arr=tensor_data, inds=subdomain_slice[self._x_ind], axis=self._x_ind
+            arr=tensor_data, inds=subdomain_slice[x_ind], axis=x_ind
         )
         tensor_data_xy_sliced = slice_along_axis(
-            arr=tensor_data_xsliced, inds=subdomain_slice[self._y_ind], axis=self._y_ind
+            arr=tensor_data_xsliced, inds=subdomain_slice[y_ind], axis=y_ind
         )
         return tensor_data_xy_sliced
 
-    def unstack_subdomain(
-        self, tensor, with_overlap: bool, data_has_time_dim: bool = True
-    ):
+    def unstack_subdomain(self, tensor, with_overlap: bool, data_has_time_dim: bool):
         # Takes a flattened subdomain and reshapes it back into its original
         # x and y dims
         if data_has_time_dim is True:
-            unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)[1:]
+            unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)
             unstacked_shape = (tensor.shape[0], *unstacked_shape)
+            expected_stacked_size = np.prod(unstacked_shape[1:])
         else:
-            unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)[1:]
-        print(f"unstacked shape: {unstacked_shape}")
-        expected_stacked_size = np.prod(unstacked_shape)
+            unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)
+            expected_stacked_size = np.prod(unstacked_shape)
+
         if tensor.shape[-1] != expected_stacked_size:
             raise ValueError(
                 f"Dimension of each stacked sample {tensor.shape[-1]} expected to be "
@@ -182,7 +191,10 @@ class RankDivider:
         subdomains_to_columns = []
         for s in range(self.n_subdomains):
             subdomain_data = self.get_subdomain_tensor_slice(
-                data, subdomain_index=s, with_overlap=with_overlap
+                data,
+                subdomain_index=s,
+                with_overlap=with_overlap,
+                data_has_time_dim=keep_first_dim,
             )
             subdomains_to_columns.append(stack_samples(subdomain_data, keep_first_dim))
 
