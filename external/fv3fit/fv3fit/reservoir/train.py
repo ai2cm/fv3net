@@ -200,7 +200,7 @@ def _process_batch_Xy_data(
             data_has_time_dim=True,
         )
         X_subdomains_to_columns.append(
-            stack_samples(X_subdomain_data, keep_first_dim=True)
+            stack_samples(X_subdomain_data, data_has_time_dim=True)
         )
 
         # Prediction does not include overlap
@@ -211,7 +211,7 @@ def _process_batch_Xy_data(
             data_has_time_dim=True,
         )
         Y_subdomains_to_columns.append(
-            stack_samples(Y_subdomain_data, keep_first_dim=True)
+            stack_samples(Y_subdomain_data, data_has_time_dim=True)
         )
 
     # Concatentate subdomain data arrays along a new subdomain axis.
@@ -240,7 +240,7 @@ def _process_batch_hybrid_data(
             data_has_time_dim=True,
         )
         hybrid_subdomains_to_columns.append(
-            stack_samples(hybrid_subdomain_data, keep_first_dim=True)
+            stack_samples(hybrid_subdomain_data, data_has_time_dim=True)
         )
     return np.stack(hybrid_subdomains_to_columns, axis=-1)
 

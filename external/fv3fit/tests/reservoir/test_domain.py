@@ -182,11 +182,9 @@ def test_RankDivider_get_subdomain_tensor_slice():
 )
 def test_RankDivider_unstack_subdomain(data_extent, overlap, with_overlap):
     if len(data_extent) == 4:
-        keep_first_dim = True
         data_has_time_dim = True
         rank_extent = data_extent[1:]
     else:
-        keep_first_dim = False
         data_has_time_dim = False
         rank_extent = data_extent
 
@@ -200,7 +198,7 @@ def test_RankDivider_unstack_subdomain(data_extent, overlap, with_overlap):
     subdomain_arr = divider.get_subdomain_tensor_slice(
         data_arr, 0, with_overlap=with_overlap, data_has_time_dim=data_has_time_dim
     )
-    stacked = stack_samples(subdomain_arr, keep_first_dim=keep_first_dim)
+    stacked = stack_samples(subdomain_arr, data_has_time_dim=data_has_time_dim)
     if data_has_time_dim is True:
         assert len(stacked.shape) == 2
     else:
@@ -228,7 +226,7 @@ def test_RankDivider_flatten_subdomains_to_columns():
     # add time dim of length 2
     input_with_halo = np.stack([input_with_halo, input_with_halo], axis=0)
     flattened = divider.flatten_subdomains_to_columns(
-        input_with_halo, with_overlap=True, keep_first_dim=True
+        input_with_halo, with_overlap=True, data_has_time_dim=True
     )
 
     # 4 subdomains each with x, y dims (4, 4)

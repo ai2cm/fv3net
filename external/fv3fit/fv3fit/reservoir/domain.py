@@ -181,7 +181,7 @@ class RankDivider:
         return np.reshape(tensor, unstacked_shape)
 
     def flatten_subdomains_to_columns(
-        self, data: tf.Tensor, with_overlap: bool, keep_first_dim: bool
+        self, data: tf.Tensor, with_overlap: bool, data_has_time_dim: bool
     ):
         # Divide into subdomains and flatten subdomains into columns.
         # Dimensions [(time), x, y, feature_orig] -> [(time), feature_new, subdomain]
@@ -193,9 +193,11 @@ class RankDivider:
                 data,
                 subdomain_index=s,
                 with_overlap=with_overlap,
-                data_has_time_dim=keep_first_dim,
+                data_has_time_dim=data_has_time_dim,
             )
-            subdomains_to_columns.append(stack_samples(subdomain_data, keep_first_dim))
+            subdomains_to_columns.append(
+                stack_samples(subdomain_data, data_has_time_dim)
+            )
 
         # Concatentate subdomain data arrays along a new subdomain axis.
         # Dimensions are now [time, feature, submdomain]

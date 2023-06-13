@@ -6,9 +6,9 @@ from fv3fit.reservoir._reshaping import (
 )
 
 
-def test_stack_samples_keep_first_dim():
+def test_stack_samples_data_has_time_dim():
     time_series = np.array([np.ones((2, 2)) * i for i in range(10)])
-    stacked = stack_samples(time_series, keep_first_dim=True)
+    stacked = stack_samples(time_series, data_has_time_dim=True)
     np.testing.assert_array_equal(stacked[-1], np.array([9, 9, 9, 9]))
 
 
@@ -17,7 +17,7 @@ def test_stack_samples_no_time_dim():
         np.arange(4).reshape(2, 2),
         -1 * np.arange(4).reshape(2, 2),
     ]
-    stacked = stack_samples(time_series, keep_first_dim=False)
+    stacked = stack_samples(time_series, data_has_time_dim=False)
     assert stacked.shape == (8,)
 
 
