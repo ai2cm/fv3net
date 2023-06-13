@@ -3,9 +3,9 @@ import pytest
 from fv3fit.reservoir.domain import (
     slice_along_axis,
     RankDivider,
-    stack_time_series_samples,
     assure_same_dims,
 )
+from fv3fit.reservoir._reshaping import stack_samples
 
 
 arr = np.arange(3)
@@ -149,14 +149,8 @@ def test_RankDivider_get_subdomain_tensor_slice():
     assert set(subdomain_values) == {1, 2, 3, 4}
 
 
-def test_stack_time_series_samples():
-    time_series = np.array([np.ones((2, 2)) * i for i in range(10)])
-    stacked = stack_time_series_samples(time_series)
-    np.testing.assert_array_equal(stacked[-1], np.array([9, 9, 9, 9]))
-
-
 @pytest.mark.parametrize(
-    "rank_extent, overlap, with_overlap",
+    "rank_extent, overlap, with_overlap, ",
     [
         ([5, 6, 6, 1], 1, True),
         ([5, 6, 6, 2], 1, True),
@@ -166,9 +160,18 @@ def test_stack_time_series_samples():
     ],
 )
 def test_RankDivider_unstack_subdomain(rank_extent, overlap, with_overlap):
+    if len(rank_extent) == 4:
+        keep_first_dim = True
+        rank_dims = ["time", "x", "y", "z"]
+        data_has_time_dim = True
+    else:
+        keep_first_dim = False
+        rank_dims = ["x", "y", "z"]
+        data_has_time_dim = False
+
     divider = RankDivider(
         subdomain_layout=(2, 2),
-        rank_dims=["time", "x", "y", "z"],
+        rank_dims=rank_dims,
         rank_extent=rank_extent,
         overlap=overlap,
     )
@@ -176,10 +179,14 @@ def test_RankDivider_unstack_subdomain(rank_extent, overlap, with_overlap):
     subdomain_arr = divider.get_subdomain_tensor_slice(
         rank_arr, 0, with_overlap=with_overlap
     )
-    stacked = stack_time_series_samples(subdomain_arr)
+    stacked = stack_samples(subdomain_arr, keep_first_dim)
+    print(stacked.shape)
     assert len(stacked.shape) == 2
     np.testing.assert_array_equal(
-        divider.unstack_subdomain(stacked, with_overlap=with_overlap), subdomain_arr
+        divider.unstack_subdomain(
+            stacked, with_overlap=with_overlap, data_has_time_dim=data_has_time_dim
+        ),
+        subdomain_arr,
     )
 
 

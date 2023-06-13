@@ -1,4 +1,3 @@
-from fv3fit.reservoir.domain import RankDivider
 import numpy as np
 import tensorflow as tf
 from typing import Sequence
@@ -60,36 +59,6 @@ def split_1d_into_2d_columns(arr: np.ndarray, n_columns: int) -> np.ndarray:
     return np.reshape(arr, (-1, n_columns), "F")
 
 
-def merge_subdomains(
-    flat_prediction: np.ndarray, rank_divider: RankDivider, latent_dims: int
-):
-    subdomain_rows = split_1d_into_2d_rows(
-        flat_prediction, n_rows=rank_divider.n_subdomains
-    )
-    subdomain_2d_predictions = []
-    for subdomain_row in subdomain_rows:
-        subdomain_2d_prediction = rank_divider.unstack_subdomain(
-            subdomain_row, with_overlap=False, data_has_time_dim=False
-        )
-        subdomain_2d_predictions.append(subdomain_2d_prediction)
-
-    domain = []
-    subdomain_shape_without_overlap = (
-        rank_divider.subdomain_xy_size_without_overlap,
-        rank_divider.subdomain_xy_size_without_overlap,
-    )
-
-    for z in range(2):
-        domain_z_blocks = (
-            np.array(subdomain_2d_predictions)[:, :, :, z]
-            .reshape(*rank_divider.subdomain_layout, *subdomain_shape_without_overlap)
-            .transpose(1, 0, 2, 3)
-        )
-        domain_z = np.concatenate(np.concatenate(domain_z_blocks, axis=1), axis=-1)
-        domain.append(domain_z)
-    return np.stack(np.array(domain), axis=0).transpose(1, 2, 0)  # type: ignore
-
-
 def concat_inputs_along_subdomain_features(a, b):
     # [time, subdomain-feature, subdomain]
     # Concatenates two input arrays with same time and subdomain dim
@@ -97,10 +66,10 @@ def concat_inputs_along_subdomain_features(a, b):
     return np.concatenate([a, b], axis=1)
 
 
-def stack_samples(tensor, keep_time_dim=True):
+def stack_samples(tensor, keep_first_dim: bool):
     # Used to reshape a subdomains into a flat columns.
-    # Assumes time is the first dimension
-    if keep_time_dim is True:
+    # Option to keep first dim, used in the case where time is the first dimension
+    if keep_first_dim is True:
         n_samples = tensor.shape[0]
         return np.reshape(tensor, (n_samples, -1))
     else:

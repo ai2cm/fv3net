@@ -17,8 +17,8 @@ from . import (
     ReservoirComputingReadout,
 )
 from .readout import combine_readouts
-from .domain import RankDivider, stack_time_series_samples, assure_same_dims
-from ._reshaping import stack_array_preserving_last_dim, encode_columns
+from .domain import RankDivider, assure_same_dims
+from ._reshaping import stack_array_preserving_last_dim, encode_columns, stack_samples
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -179,13 +179,17 @@ def _process_batch_Xy_data(
         X_subdomain_data = rank_divider.get_subdomain_tensor_slice(
             batch_data_encoded, subdomain_index=s, with_overlap=True,
         )
-        X_subdomains_to_columns.append(stack_time_series_samples(X_subdomain_data))
+        X_subdomains_to_columns.append(
+            stack_samples(X_subdomain_data, keep_first_dim=True)
+        )
 
         # Prediction does not include overlap
         Y_subdomain_data = rank_divider.get_subdomain_tensor_slice(
             batch_data_encoded, subdomain_index=s, with_overlap=False,
         )
-        Y_subdomains_to_columns.append(stack_time_series_samples(Y_subdomain_data))
+        Y_subdomains_to_columns.append(
+            stack_samples(Y_subdomain_data, keep_first_dim=True)
+        )
 
     # Concatentate subdomain data arrays along a new subdomain axis.
     # Dimensions are now [time, subdomain-feature, subdomain]
@@ -210,7 +214,7 @@ def _process_batch_hybrid_data(
             batch_hybrid_combined_inputs, subdomain_index=s, with_overlap=True,
         )
         hybrid_subdomains_to_columns.append(
-            stack_time_series_samples(hybrid_subdomain_data)
+            stack_samples(hybrid_subdomain_data, keep_first_dim=True)
         )
     return np.stack(hybrid_subdomains_to_columns, axis=-1)
 

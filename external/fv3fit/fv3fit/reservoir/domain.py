@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Sequence, Iterable
 import yaml
+from ._reshaping import stack_samples, split_1d_into_2d_rows
 
 import pace.util
 
@@ -157,10 +158,11 @@ class RankDivider:
         # Takes a flattened subdomain and reshapes it back into its original
         # x and y dims
         if data_has_time_dim is True:
-            unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)
+            unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)[1:]
             unstacked_shape = (tensor.shape[0], *unstacked_shape)
         else:
             unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)[1:]
+        print(f"unstacked shape: {unstacked_shape}")
         expected_stacked_size = np.prod(unstacked_shape)
         if tensor.shape[-1] != expected_stacked_size:
             raise ValueError(
@@ -170,7 +172,9 @@ class RankDivider:
 
         return np.reshape(tensor, unstacked_shape)
 
-    def flatten_subdomains_to_columns(self, data: tf.Tensor, with_overlap: bool):
+    def flatten_subdomains_to_columns(
+        self, data: tf.Tensor, with_overlap: bool, keep_first_dim: bool
+    ):
         # Divide into subdomains and flatten subdomains into columns.
         # Dimensions [(time), x, y, feature_orig] -> [(time), feature_new, subdomain]
         # where feature_orig is variables at each model level, and feature_new
@@ -180,7 +184,7 @@ class RankDivider:
             subdomain_data = self.get_subdomain_tensor_slice(
                 data, subdomain_index=s, with_overlap=with_overlap
             )
-            subdomains_to_columns.append(stack_time_series_samples(subdomain_data))
+            subdomains_to_columns.append(stack_samples(subdomain_data, keep_first_dim))
 
         # Concatentate subdomain data arrays along a new subdomain axis.
         # Dimensions are now [time, feature, submdomain]
@@ -204,13 +208,6 @@ class RankDivider:
         return cls(**metadata)
 
 
-def stack_time_series_samples(tensor):
-    # Used to reshape a subdomains into a flat columns.
-    # Assumes time is the first dimension
-    n_samples = tensor.shape[0]
-    return np.reshape(tensor, (n_samples, -1))
-
-
 def assure_same_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tensor]:
     max_dims = max(len(v.shape) for v in variable_tensors)
     reshaped_tensors = []
@@ -226,3 +223,33 @@ def assure_same_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tenso
                 f"have either {max_dims} or {max_dims-1}."
             )
     return reshaped_tensors
+
+
+def merge_subdomains(
+    flat_prediction: np.ndarray, rank_divider: RankDivider, latent_dims: int
+):
+    subdomain_rows = split_1d_into_2d_rows(
+        flat_prediction, n_rows=rank_divider.n_subdomains
+    )
+    subdomain_2d_predictions = []
+    for subdomain_row in subdomain_rows:
+        subdomain_2d_prediction = rank_divider.unstack_subdomain(
+            subdomain_row, with_overlap=False, data_has_time_dim=False
+        )
+        subdomain_2d_predictions.append(subdomain_2d_prediction)
+
+    domain = []
+    subdomain_shape_without_overlap = (
+        rank_divider.subdomain_xy_size_without_overlap,
+        rank_divider.subdomain_xy_size_without_overlap,
+    )
+
+    for z in range(2):
+        domain_z_blocks = (
+            np.array(subdomain_2d_predictions)[:, :, :, z]
+            .reshape(*rank_divider.subdomain_layout, *subdomain_shape_without_overlap)
+            .transpose(1, 0, 2, 3)
+        )
+        domain_z = np.concatenate(np.concatenate(domain_z_blocks, axis=1), axis=-1)
+        domain.append(domain_z)
+    return np.stack(np.array(domain), axis=0).transpose(1, 2, 0)  # type: ignore
