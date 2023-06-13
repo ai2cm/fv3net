@@ -71,6 +71,7 @@ def _get_parser() -> argparse.ArgumentParser:
         default=1,
         help="Sample interval for timesteps.",
     )
+    parser.add_argument("--additional-paths", type=str, nargs="+", default=[])
 
     return parser
 
@@ -96,6 +97,9 @@ if __name__ == "__main__":
         raise ValueError("--variables must be provided via list of string names.")
 
     data = intake.open_zarr(args.data_path).to_dask()
+    if len(args.additional_paths) > 0:
+        for path in args.additional_paths:
+            data = data.merge(intake.open_zarr(path).to_dask())
 
     tstart = (
         data.time.values[0]
