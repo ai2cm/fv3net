@@ -13,10 +13,10 @@ def concat_inputs_along_subdomain_features(a, b):
     return np.concatenate([a, b], axis=1)
 
 
-def stack_samples(tensor, data_has_time_dim: bool):
+def stack_samples(tensor, keep_first_dim: bool):
     # Used to reshape a subdomains into a flat columns.
     # Option to keep first dim, used in the case where time is the first dimension
-    if data_has_time_dim is True:
+    if keep_first_dim is True:
         n_samples = tensor.shape[0]
         return np.reshape(tensor, (n_samples, -1))
     else:
