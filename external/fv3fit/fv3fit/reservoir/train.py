@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
+    return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
+
+
 def _stack_array_preserving_last_dim(data):
     original_z_dim = data.shape[-1]
     reshaped = tf.reshape(data, shape=(-1, original_z_dim))
@@ -39,10 +43,6 @@ def _encode_columns(data: Sequence[tf.Tensor], encoder: tf.keras.Model,) -> np.n
     reshaped = [_stack_array_preserving_last_dim(var) for var in data]
     encoded_reshaped = encoder.predict(reshaped)
     return encoded_reshaped.reshape(*original_sample_shape, -1)
-
-
-def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
-    return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
 def _get_ordered_X(X_mapping, variables):
