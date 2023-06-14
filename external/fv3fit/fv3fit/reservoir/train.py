@@ -71,8 +71,9 @@ def train_reservoir_model(
         )
 
     subdomain_config = hyperparameters.subdomain
-    rank_extent = [*sample_X[0].shape[:-1], autoencoder.n_latent_dims]
 
+    # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
+    rank_extent = [*sample_X[0].shape[1:-1], autoencoder.n_latent_dims]
     rank_divider = RankDivider(
         subdomain_layout=subdomain_config.layout,
         rank_dims=subdomain_config.rank_dims,
@@ -187,7 +188,6 @@ def _process_batch_Xy_data(
     # Concatenate features, normalize and optionally convert data
     # to latent representation
     batch_data_encoded = _encode_columns(batch_X, autoencoder.encoder)
-
     # Divide into subdomains and flatten each subdomain by stacking
     # x/y/encoded-feature dims into a single subdomain-feature dimension.
     # Dimensions of a single subdomain's data become [time, subdomain-feature]
