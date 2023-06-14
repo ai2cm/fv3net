@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Sequence, Iterable
 import yaml
-from ._reshaping import stack_samples, split_1d_into_2d_rows
+from ._reshaping import stack_samples, split_1d_samples_into_2d_rows
 
 import pace.util
 
@@ -238,15 +238,17 @@ def assure_same_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tenso
 
 
 def merge_subdomains(
-    flat_prediction: np.ndarray, rank_divider: RankDivider, latent_dims: int
+    flat_prediction: np.ndarray, rank_divider: RankDivider, data_has_time_dim: bool
 ):
-    subdomain_rows = split_1d_into_2d_rows(
-        flat_prediction, n_rows=rank_divider.n_subdomains
+    subdomain_rows = split_1d_samples_into_2d_rows(
+        flat_prediction,
+        n_rows=rank_divider.n_subdomains,
+        data_has_time_dim=data_has_time_dim,
     )
     subdomain_2d_predictions = []
     for subdomain_row in subdomain_rows:
         subdomain_2d_prediction = rank_divider.unstack_subdomain(
-            subdomain_row, with_overlap=False, data_has_time_dim=False
+            subdomain_row, with_overlap=False, data_has_time_dim=data_has_time_dim
         )
         subdomain_2d_predictions.append(subdomain_2d_prediction)
 
@@ -256,10 +258,15 @@ def merge_subdomains(
         rank_divider.subdomain_xy_size_without_overlap,
     )
 
+    z_block_dims = (*rank_divider.subdomain_layout, *subdomain_shape_without_overlap)
+    if data_has_time_dim:
+        time_dim_size = flat_prediction.shape[0]
+        z_block_dims = (time_dim_size, *z_block_dims)
+
     for z in range(2):
         domain_z_blocks = (
-            np.array(subdomain_2d_predictions)[:, :, :, z]
-            .reshape(*rank_divider.subdomain_layout, *subdomain_shape_without_overlap)
+            np.take(np.array(subdomain_2d_predictions), z, -1)
+            .reshape(*z_block_dims)
             .transpose(1, 0, 2, 3)
         )
         domain_z = np.concatenate(np.concatenate(domain_z_blocks, axis=1), axis=-1)

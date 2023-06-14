@@ -40,22 +40,28 @@ def decode_columns(data: tf.Tensor, decoder: tf.keras.Model) -> Sequence[np.ndar
         return decoded_reshaped.reshape(*original_2d_shape, -1)
     else:
         decoded_data = []
-        for i, var_data in enumerate(decoded_reshaped):
-            decoded_data.append(decoded_reshaped[i].reshape(*original_2d_shape, -1))
+        for var_data in decoded_reshaped.values():
+            decoded_data.append(var_data.reshape(*original_2d_shape, -1))
         return decoded_data
 
 
-def split_1d_into_2d_rows(arr: np.ndarray, n_rows: int) -> np.ndarray:
+def split_1d_samples_into_2d_rows(
+    arr: np.ndarray, n_rows: int, data_has_time_dim: bool
+) -> np.ndarray:
     # Consecutive chunks of 1d array form rows of 2d array
     # ex. 1d to 2d reshaping (8,) -> (2,4)) for n_rows=2
     # [1,2,3,4,5,6,7,8] -> [[1,2,3,4], [5,6,7,8]]
-    return np.reshape(arr, (n_rows, -1), order="C")
+    if data_has_time_dim is True:
+        time_dim_size = arr.shape[0]
+        return np.reshape(arr, (time_dim_size, n_rows, -1), order="C")
+    else:
+        return np.reshape(arr, (n_rows, -1), order="C")
 
 
 def split_1d_into_2d_columns(arr: np.ndarray, n_columns: int) -> np.ndarray:
     # Consecutive chunks of 1d array form columns of 2d array
     # ex. 1d to 2d reshaping (8,) -> (2, 4)
-    # [1,2,3,4,5,6,7,8] -> [[1,3,5,7], [2,4,6,8]]Zx
+    # [1,2,3,4,5,6,7,8] -> [[1,3,5,7], [2,4,6,8]]
     return np.reshape(arr, (-1, n_columns), "F")
 
 
