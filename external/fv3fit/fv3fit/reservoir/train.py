@@ -18,7 +18,7 @@ from . import (
 )
 from .readout import combine_readouts
 from .domain import TimeSeriesRankDivider, assure_same_dims
-from ._reshaping import stack_samples
+from ._reshaping import stack_data
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -191,27 +191,27 @@ def _process_batch_Xy_data(
     # Divide into subdomains and flatten each subdomain by stacking
     # x/y/encoded-feature dims into a single subdomain-feature dimension.
     # Dimensions of a single subdomain's data become [time, subdomain-feature]
-    X_subdomains_to_columns, Y_subdomains_to_columns = [], []
+    X_subdomains_as_columns, Y_subdomains_as_columns = [], []
     for s in range(rank_divider.n_subdomains):
         X_subdomain_data = rank_divider.get_subdomain_tensor_slice(
             batch_data_encoded, subdomain_index=s, with_overlap=True,
         )
-        X_subdomains_to_columns.append(
-            stack_samples(X_subdomain_data, keep_first_dim=True)
+        X_subdomains_as_columns.append(
+            stack_data(X_subdomain_data, keep_first_dim=True)
         )
 
         # Prediction does not include overlap
         Y_subdomain_data = rank_divider.get_subdomain_tensor_slice(
             batch_data_encoded, subdomain_index=s, with_overlap=False,
         )
-        Y_subdomains_to_columns.append(
-            stack_samples(Y_subdomain_data, keep_first_dim=True)
+        Y_subdomains_as_columns.append(
+            stack_data(Y_subdomain_data, keep_first_dim=True)
         )
 
     # Concatentate subdomain data arrays along a new subdomain axis.
     # Dimensions are now [time, subdomain-feature, subdomain]
-    X_reshaped = np.stack(X_subdomains_to_columns, axis=-1)
-    Y_reshaped = np.stack(Y_subdomains_to_columns, axis=-1)
+    X_reshaped = np.stack(X_subdomains_as_columns, axis=-1)
+    Y_reshaped = np.stack(Y_subdomains_as_columns, axis=-1)
 
     return X_reshaped, Y_reshaped
 
@@ -225,15 +225,15 @@ def _process_batch_hybrid_data(
     # reshaping data, but does not transform the data into latent space
     batch_hybrid = _get_ordered_X(batch_data, hybrid_variables)
     batch_hybrid_combined_inputs = np.concatenate(batch_hybrid, axis=-1)
-    hybrid_subdomains_to_columns = []
+    hybrid_subdomains_as_columns = []
     for s in range(rank_divider.n_subdomains):
         hybrid_subdomain_data = rank_divider.get_subdomain_tensor_slice(
             batch_hybrid_combined_inputs, subdomain_index=s, with_overlap=True,
         )
-        hybrid_subdomains_to_columns.append(
-            stack_samples(hybrid_subdomain_data, keep_first_dim=True)
+        hybrid_subdomains_as_columns.append(
+            stack_data(hybrid_subdomain_data, keep_first_dim=True)
         )
-    return np.stack(hybrid_subdomains_to_columns, axis=-1)
+    return np.stack(hybrid_subdomains_as_columns, axis=-1)
 
 
 def _get_reservoir_state_time_series(

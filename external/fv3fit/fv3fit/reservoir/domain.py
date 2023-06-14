@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Sequence, Iterable
 import yaml
-from ._reshaping import stack_samples
+from ._reshaping import stack_data
 import pace.util
 
 
@@ -178,7 +178,7 @@ class RankDivider:
                 data, subdomain_index=s, with_overlap=with_overlap,
             )
             subdomains_to_columns.append(
-                stack_samples(subdomain_data, keep_first_dim=False)
+                stack_data(subdomain_data, keep_first_dim=False)
             )
 
         # Concatentate subdomain data arrays along a new subdomain axis.
@@ -253,7 +253,7 @@ class TimeSeriesRankDivider(RankDivider):
                 data, subdomain_index=s, with_overlap=with_overlap,
             )
             subdomains_to_columns.append(
-                stack_samples(subdomain_data, keep_first_dim=True)
+                stack_data(subdomain_data, keep_first_dim=True)
             )
 
         # Concatentate subdomain data arrays along a new subdomain axis.
