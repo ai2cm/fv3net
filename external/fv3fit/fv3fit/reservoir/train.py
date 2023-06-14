@@ -3,7 +3,7 @@ from joblib import Parallel, delayed
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, Mapping, Tuple, List, Iterable, Sequence, Union
+from typing import Optional, Mapping, Tuple, List, Iterable, Union, Sequence
 from .. import Predictor
 from .utils import square_even_terms
 from .autoencoder import Autoencoder, build_concat_and_scale_only_autoencoder
@@ -17,7 +17,8 @@ from . import (
     ReservoirComputingReadout,
 )
 from .readout import combine_readouts
-from .domain import RankDivider, stack_time_series_samples, assure_same_dims
+from .domain import TimeSeriesRankDivider, assure_same_dims
+from ._reshaping import stack_data
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -70,9 +71,10 @@ def train_reservoir_model(
         )
 
     subdomain_config = hyperparameters.subdomain
-    rank_extent = [*sample_X[0].shape[:-1], autoencoder.n_latent_dims]
 
-    rank_divider = RankDivider(
+    # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
+    rank_extent = [*sample_X[0].shape[1:-1], autoencoder.n_latent_dims]
+    rank_divider = TimeSeriesRankDivider(
         subdomain_layout=subdomain_config.layout,
         rank_dims=subdomain_config.rank_dims,
         rank_extent=rank_extent,
@@ -175,7 +177,7 @@ def train_reservoir_model(
 def _process_batch_Xy_data(
     variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
-    rank_divider: RankDivider,
+    rank_divider: TimeSeriesRankDivider,
     autoencoder: Autoencoder,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """ Convert physical state to corresponding reservoir hidden state,
@@ -186,27 +188,30 @@ def _process_batch_Xy_data(
     # Concatenate features, normalize and optionally convert data
     # to latent representation
     batch_data_encoded = _encode_columns(batch_X, autoencoder.encoder)
-
     # Divide into subdomains and flatten each subdomain by stacking
     # x/y/encoded-feature dims into a single subdomain-feature dimension.
     # Dimensions of a single subdomain's data become [time, subdomain-feature]
-    X_subdomains_to_columns, Y_subdomains_to_columns = [], []
+    X_subdomains_as_columns, Y_subdomains_as_columns = [], []
     for s in range(rank_divider.n_subdomains):
         X_subdomain_data = rank_divider.get_subdomain_tensor_slice(
             batch_data_encoded, subdomain_index=s, with_overlap=True,
         )
-        X_subdomains_to_columns.append(stack_time_series_samples(X_subdomain_data))
+        X_subdomains_as_columns.append(
+            stack_data(X_subdomain_data, keep_first_dim=True)
+        )
 
         # Prediction does not include overlap
         Y_subdomain_data = rank_divider.get_subdomain_tensor_slice(
             batch_data_encoded, subdomain_index=s, with_overlap=False,
         )
-        Y_subdomains_to_columns.append(stack_time_series_samples(Y_subdomain_data))
+        Y_subdomains_as_columns.append(
+            stack_data(Y_subdomain_data, keep_first_dim=True)
+        )
 
     # Concatentate subdomain data arrays along a new subdomain axis.
     # Dimensions are now [time, subdomain-feature, subdomain]
-    X_reshaped = np.stack(X_subdomains_to_columns, axis=-1)
-    Y_reshaped = np.stack(Y_subdomains_to_columns, axis=-1)
+    X_reshaped = np.stack(X_subdomains_as_columns, axis=-1)
+    Y_reshaped = np.stack(Y_subdomains_as_columns, axis=-1)
 
     return X_reshaped, Y_reshaped
 
@@ -214,21 +219,21 @@ def _process_batch_Xy_data(
 def _process_batch_hybrid_data(
     hybrid_variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
-    rank_divider: RankDivider,
+    rank_divider: TimeSeriesRankDivider,
 ) -> np.ndarray:
     # Similar to _process_batch_Xy_data for separating subdomains and
     # reshaping data, but does not transform the data into latent space
     batch_hybrid = _get_ordered_X(batch_data, hybrid_variables)
     batch_hybrid_combined_inputs = np.concatenate(batch_hybrid, axis=-1)
-    hybrid_subdomains_to_columns = []
+    hybrid_subdomains_as_columns = []
     for s in range(rank_divider.n_subdomains):
         hybrid_subdomain_data = rank_divider.get_subdomain_tensor_slice(
             batch_hybrid_combined_inputs, subdomain_index=s, with_overlap=True,
         )
-        hybrid_subdomains_to_columns.append(
-            stack_time_series_samples(hybrid_subdomain_data)
+        hybrid_subdomains_as_columns.append(
+            stack_data(hybrid_subdomain_data, keep_first_dim=True)
         )
-    return np.stack(hybrid_subdomains_to_columns, axis=-1)
+    return np.stack(hybrid_subdomains_as_columns, axis=-1)
 
 
 def _get_reservoir_state_time_series(
