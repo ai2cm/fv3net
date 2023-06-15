@@ -1,4 +1,4 @@
-from fv3fit.sklearn.transformer import SkTransformer
+from fv3fit.reservoir.transformers.sk_transformer import SkTransformer
 import numpy as np
 import pytest
 import os

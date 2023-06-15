@@ -1,3 +1,4 @@
+import fsspec
 import joblib
 import numpy as np
 import os
@@ -101,7 +102,7 @@ class SkTransformer(ArrayPredictor, Reloadable):
         with get_dir(path) as model_path:
             transformer = joblib.load(os.path.join(model_path, cls._TRANSFORMER_NAME))
             scaler = joblib.load(os.path.join(model_path, cls._SCALER_NAME))
-            with open(os.path.join(path, cls._METADATA_NAME), "r") as f:
+            with fsspec.open(os.path.join(path, cls._METADATA_NAME), "r") as f:
                 config = yaml.load(f, Loader=yaml.Loader)
         return cls(
             transformer=transformer,
