@@ -11,10 +11,11 @@ import yaml
 from fv3fit._shared.predictor import Reloadable
 from fv3fit._shared import get_dir, put_dir, io
 from fv3fit._shared.xr_prediction import ArrayPredictor
+from fv3fit.reservoir.transformers.transformer import Transformer
 
 
 @io.register("sk-transformer")
-class SkTransformer(ArrayPredictor, Reloadable):
+class SkTransformer(Transformer, ArrayPredictor, Reloadable):
     """ Used to encode higher-dimension inputs into a
     lower dimension latent space and decode latent vectors
     back to the original feature space.
@@ -41,6 +42,10 @@ class SkTransformer(ArrayPredictor, Reloadable):
         self.transformer = transformer
         self.scaler = scaler
         self.enforce_positive_outputs = enforce_positive_outputs
+
+    @property
+    def n_latent_dims(self):
+        return self.transformer.n_components
 
     def _ensure_sample_dim(self, x):
         # Sklearn scalers and transforms expect the first dimension

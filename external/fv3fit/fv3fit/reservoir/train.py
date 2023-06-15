@@ -1,12 +1,16 @@
 import logging
 from joblib import Parallel, delayed
+import fv3fit
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
 from typing import Optional, Mapping, Tuple, List, Iterable, Union, Sequence
 from .. import Predictor
 from .utils import square_even_terms
-from .autoencoder import Autoencoder, build_concat_and_scale_only_autoencoder
+from .transformers.autoencoder import (
+    Autoencoder,
+    build_concat_and_scale_only_autoencoder,
+)
 from .._shared import register_training_function
 from ._reshaping import concat_inputs_along_subdomain_features
 from . import (
@@ -19,6 +23,7 @@ from . import (
 from .readout import combine_readouts
 from .domain import TimeSeriesRankDivider, assure_same_dims
 from ._reshaping import stack_data
+from fv3fit.reservoir.transformers.transformer import Transformer
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -61,7 +66,7 @@ def train_reservoir_model(
     sample_X = _get_ordered_X(sample_batch, hyperparameters.input_variables)
 
     if hyperparameters.autoencoder_path is not None:
-        autoencoder = Autoencoder.load(hyperparameters.autoencoder_path)
+        autoencoder: Transformer = fv3fit.load(hyperparameters.autoencoder_path)
     else:
         sample_X_stacked = [
             _stack_array_preserving_last_dim(arr).numpy() for arr in sample_X

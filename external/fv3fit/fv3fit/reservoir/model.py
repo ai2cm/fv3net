@@ -10,7 +10,7 @@ from .reservoir import Reservoir
 from .domain import RankDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
-from .autoencoder import Autoencoder
+from .transformers.autoencoder import Autoencoder
 from ._reshaping import flatten_2d_keeping_columns_contiguous
 
 
