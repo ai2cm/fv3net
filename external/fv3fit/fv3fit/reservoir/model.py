@@ -1,16 +1,17 @@
 import fsspec
 import numpy as np
 import os
-from typing import Optional, Iterable, Hashable
+from typing import Optional, Iterable, Hashable, Union
 import yaml
 
+import fv3fit
 from fv3fit import Predictor
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
 from .domain import RankDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
-from .transformers.autoencoder import Autoencoder
+from .transformers import Autoencoder, SkTransformer
 from ._reshaping import flatten_2d_keeping_columns_contiguous
 
 
@@ -27,7 +28,7 @@ class HybridReservoirComputingModel(Predictor):
         readout: ReservoirComputingReadout,
         square_half_hidden_state: bool = False,
         rank_divider: Optional[RankDivider] = None,
-        autoencoder: Optional[Autoencoder] = None,
+        autoencoder: Optional[Union[Autoencoder, SkTransformer]] = None,
     ):
         self.reservoir_model = ReservoirComputingModel(
             input_variables=input_variables,
@@ -101,7 +102,7 @@ class ReservoirComputingModel(Predictor):
         readout: ReservoirComputingReadout,
         square_half_hidden_state: bool = False,
         rank_divider: Optional[RankDivider] = None,
-        autoencoder: Optional[Autoencoder] = None,
+        autoencoder: Optional[Union[SkTransformer, Autoencoder]] = None,
     ):
         """_summary_
 
@@ -174,7 +175,7 @@ class ReservoirComputingModel(Predictor):
         if self.rank_divider is not None:
             self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
         if self.autoencoder is not None:
-            self.autoencoder.dump(os.path.join(path, self._AUTOENCODER_SUBDIR))
+            fv3fit.dump(self.autoencoder, os.path.join(path, self._AUTOENCODER_SUBDIR))
 
     @classmethod
     def load(cls, path: str) -> "ReservoirComputingModel":
@@ -194,7 +195,11 @@ class ReservoirComputingModel(Predictor):
             rank_divider = None
 
         if fs.exists(os.path.join(path, cls._AUTOENCODER_SUBDIR)):
-            autoencoder = Autoencoder.load(os.path.join(path, cls._AUTOENCODER_SUBDIR))
+            autoencoder: Union[
+                Autoencoder, SkTransformer
+            ] = fv3fit.load(  # type: ignore
+                os.path.join(path, cls._AUTOENCODER_SUBDIR)
+            )
         else:
             autoencoder = None  # type: ignore
         return cls(
