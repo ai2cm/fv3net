@@ -47,6 +47,10 @@ class SkTransformer(Transformer, ArrayPredictor, Reloadable):
     def n_latent_dims(self):
         return self.transformer.n_components
 
+    def _concatenate_inputs(self, x: Sequence[np.ndarray]):
+        if np.array(x).shape[-1] != self.scaler.n_features_in_:
+            return np.concatenate(x, axis=-1)
+
     def _ensure_sample_dim(self, x):
         # Sklearn scalers and transforms expect the first dimension
         # to be sample. If not present, i.e. a single sample is provided,
@@ -76,7 +80,7 @@ class SkTransformer(Transformer, ArrayPredictor, Reloadable):
         return decoded_split_features
 
     def encode(self, x):
-        x = self._ensure_sample_dim(x)
+        x = self._ensure_sample_dim(self._concatenate_inputs(x))
         return self.transformer.transform(self.scaler.transform(x))
 
     def decode(self, c):

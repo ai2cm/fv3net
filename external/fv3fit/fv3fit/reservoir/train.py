@@ -39,14 +39,14 @@ def _stack_array_preserving_last_dim(data):
     return reshaped
 
 
-def _encode_columns(data: Sequence[tf.Tensor], encoder: tf.keras.Model,) -> np.ndarray:
+def _encode_columns(data: Sequence[tf.Tensor], transformer: Transformer) -> np.ndarray:
     # reduce a sequnence of N x M x Vi dim data over i variables
     # to a single N x M x Z dim array, where Vi is original number of features
     # (usually vertical levels) of each variable and Z << V is a smaller number
     # of latent dimensions
     original_sample_shape = data[0].shape[:-1]
     reshaped = [_stack_array_preserving_last_dim(var) for var in data]
-    encoded_reshaped = encoder.predict(reshaped)
+    encoded_reshaped = transformer.encode(reshaped)
     return encoded_reshaped.reshape(*original_sample_shape, -1)
 
 
@@ -192,7 +192,7 @@ def _process_batch_Xy_data(
 
     # Concatenate features, normalize and optionally convert data
     # to latent representation
-    batch_data_encoded = _encode_columns(batch_X, autoencoder.encoder)
+    batch_data_encoded = _encode_columns(batch_X, autoencoder)
     # Divide into subdomains and flatten each subdomain by stacking
     # x/y/encoded-feature dims into a single subdomain-feature dimension.
     # Dimensions of a single subdomain's data become [time, subdomain-feature]
