@@ -99,6 +99,34 @@ def test_sktransformer_no_sample_dim():
     sktransformer.predict(x)
 
 
+def test_sktransformer_encode_need_to_concat_features_and_add_sample_dim():
+    output_dim = 10
+    n_vars = 3
+
+    scaler = StandardScaler()
+    scaler.fit(np.random.rand(5, n_vars * output_dim))
+    pad_size = 5
+    transformer = transformer = DummyTransformer(extra_embedded_dims=pad_size)
+    sktransformer = SkTransformer(transformer, scaler, enforce_positive_outputs=False)
+    x = [np.random.rand(output_dim) for i in range(n_vars)]
+
+    assert sktransformer.encode(x).shape == (1, pad_size * 2 + n_vars * output_dim)
+
+
+def test_sktransformer_encode_need_to_concat_features():
+    output_dim = 10
+    n_vars = 3
+
+    scaler = StandardScaler()
+    scaler.fit(np.random.rand(5, n_vars * output_dim))
+    pad_size = 5
+    transformer = transformer = DummyTransformer(extra_embedded_dims=pad_size)
+    sktransformer = SkTransformer(transformer, scaler, enforce_positive_outputs=False)
+    nt = 13
+    x = [[np.random.rand(output_dim) for t in range(nt)] for i in range(n_vars)]
+    assert sktransformer.encode(x).shape == (nt, pad_size * 2 + n_vars * output_dim)
+
+
 def test_sktransformer_error_on_wrong_input_shape():
     output_dim = 10
     n_vars = 3
