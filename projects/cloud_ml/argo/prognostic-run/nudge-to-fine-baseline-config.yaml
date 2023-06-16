@@ -46,13 +46,13 @@ namelist:
       - 2
       - 2
   namsfc:
-    ftsfs: 90
-    fabsl: 99999
-    fabss: 99999
-    faisl: 99999
-    faiss: 99999
-    fsicl: 99999
-    fsics: 99999
+    ftsfs: 90 # SSTs should be overwritten by nudging, anyway
+    fsnol: 0 # set snow covered area to climatology
+    fsnos: 0 # set snow covered area to climatology
+    faisl: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
+    faiss: 99999 # Persist land / sea / sea-ice mask from the initial conditions instead of using climatology forcing files
+    fsicl: 99999 # Persist the sea ice fraction from the initial conditiond instead of using climatology forcing files
+    fsics: 99999 # Persist the sea ice fraction from the initial conditiond instead of using climatology forcing files
 diagnostics:
   - name: state_pre_radiation.zarr
     chunks:
