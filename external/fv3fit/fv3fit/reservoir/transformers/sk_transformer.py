@@ -50,6 +50,8 @@ class SkTransformer(Transformer, ArrayPredictor, Reloadable):
     def _concatenate_inputs(self, x: Sequence[np.ndarray]):
         if np.array(x).shape[-1] != self.scaler.n_features_in_:
             return np.concatenate(x, axis=-1)
+        else:
+            return x
 
     def _ensure_sample_dim(self, x):
         # Sklearn scalers and transforms expect the first dimension
