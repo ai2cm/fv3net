@@ -1,5 +1,8 @@
+import cftime
 import dataclasses
 from datetime import timedelta
+from typing import Optional, MutableMapping, Hashable
+import xarray as xr
 
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.model import HybridReservoirComputingModel
@@ -23,11 +26,16 @@ class ReservoirStepper:
 
     label = "hybrid_reservoir"
 
-    def __init__(self, model: HybridReservoirComputingModel):
+    def __init__(
+        self,
+        model: HybridReservoirComputingModel,
+        reservoir_timestep: timedelta,
+        synchronize_steps: int,
+    ):
         self.model = model
-        self.rc_timestep: timedelta
-        self.synchronize_steps: int
-        self.init_time = None
+        self.rc_timestep = reservoir_timestep
+        self.synchronize_steps = synchronize_steps
+        self.init_time: Optional[cftime.DatetimeJulian] = None
         self.completed_sync_steps = 0
 
     def __call__(self, time, state):
@@ -60,3 +68,11 @@ class ReservoirStepper:
 
     def _is_rc_update_step(self, time):
         return (time - self.init_time) % self.rc_timestep == 0
+
+    def get_diagnostics(self, state, tendency):
+        diags: MutableMapping[Hashable, xr.DataArray] = {}
+        return diags, xr.DataArray()
+
+
+def open_rc_model(config: HybridReservoirConfig):
+    return HybridReservoirComputingModel.load(config.model)

@@ -9,6 +9,7 @@ from runtime.types import Diagnostics
 from runtime.steppers.stepper import Stepper
 from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.steppers.prescriber import PrescriberConfig
+from runtime.steppers.reservoir import HybridReservoirConfig
 from runtime.nudging import NudgingConfig
 
 
@@ -17,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class IntervalConfig:
-    base_config: Union[PrescriberConfig, MachineLearningConfig, NudgingConfig]
+    base_config: Union[
+        PrescriberConfig, MachineLearningConfig, NudgingConfig, HybridReservoirConfig
+    ]
     apply_interval_seconds: int
     offset_seconds: int = 0
 

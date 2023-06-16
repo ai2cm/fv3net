@@ -18,6 +18,7 @@ import cftime
 import pace.util
 import fv3gfs.wrapper
 import numpy as np
+import pandas as pd
 import vcm
 import xarray as xr
 from mpi4py import MPI
@@ -55,6 +56,11 @@ from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import PrescriberConfig
 from runtime.steppers.interval import IntervalStepper, IntervalConfig
 from runtime.steppers.combine import CombinedStepper
+from runtime.steppers.reservoir import (
+    HybridReservoirConfig,
+    ReservoirStepper,
+    open_rc_model,
+)
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
 
@@ -294,6 +300,7 @@ class TimeLoop(
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
         self._radiation_stepper = self._get_radiation_stepper(config, namelist)
+        self._rc_stepper = self._get_reservoir_stepper(config)
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -341,7 +348,11 @@ class TimeLoop(
     def _get_stepper(
         self,
         stepper_config: Union[
-            PrescriberConfig, MachineLearningConfig, NudgingConfig, IntervalConfig
+            PrescriberConfig,
+            MachineLearningConfig,
+            NudgingConfig,
+            IntervalConfig,
+            HybridReservoirConfig,
         ],
         step: str,
         hydrostatic: bool = False,
@@ -373,6 +384,10 @@ class TimeLoop(
             stepper = PureNudger(
                 base_stepper_config, self._get_communicator(), hydrostatic
             )
+        elif isinstance(base_stepper_config, HybridReservoirConfig):
+            model = open_rc_model(base_stepper_config)
+            rc_tdelta = pd.to_timedelta(base_stepper_config.reservoir_timestep)
+            stepper = ReservoirStepper(model, rc_tdelta, 1)
         else:
             self._log_info(
                 "Using Prescriber for variables "
@@ -448,6 +463,20 @@ class TimeLoop(
         else:
             stepper = None
         return stepper
+
+    def _get_reservoir_stepper(self, config: UserConfig) -> Optional[Stepper]:
+        if config.reservoir_corrector is not None:
+            reservoir_stepper: Optional[Stepper] = self._get_stepper(
+                config.reservoir_corrector, "reservoir"
+            )
+        else:
+            reservoir_stepper = None
+
+        return reservoir_stepper
+
+    # TODO: add an opener that will look for the rank-specific rc model
+    # TODO: add a section to the stepper opener for the rc configuration
+    # TODO: add a reservoir_corrector component to the UserConfig
 
     def _open_model(self, ml_config: MachineLearningConfig):
         self._log_info("Downloading ML Model")
