@@ -33,13 +33,13 @@ def getscalars(indict):
 
 def get_gfs_physics_control(indict):
     config_names = [field.name for field in dataclasses.fields(GFSPhysicsControlConfig)]
-    config_kwargs = {name: indict[name] for name in config_names}
+    config_kwargs = {name: indict[name] for name in config_names if name in indict}
     config = GFSPhysicsControlConfig(**config_kwargs)
     indict_ = indict.copy()
     indict_["config"] = config
     indict_["nsswr"], indict_["nslwr"] = 1, 1
     control_names = [field.name for field in dataclasses.fields(GFSPhysicsControl)]
-    kwargs = {name: indict_[name] for name in control_names}
+    kwargs = {name: indict_[name] for name in control_names if name in indict_}
     return GFSPhysicsControl(**kwargs)
 
 
