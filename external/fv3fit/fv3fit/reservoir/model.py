@@ -11,8 +11,20 @@ from .reservoir import Reservoir
 from .domain import RankDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
-from .transformers import Autoencoder, SkTransformer
+from .transformers import Autoencoder, SkTransformer, ReloadableTransfomer
 from ._reshaping import flatten_2d_keeping_columns_contiguous
+
+
+def _load_transformer(path) -> Union[Autoencoder, SkTransformer]:
+    # ensures fv3fit.load returns a ReloadableTransfomer
+    model = fv3fit.load(path)
+
+    if isinstance(model, Autoencoder) or isinstance(model, SkTransformer):
+        return model
+    else:
+        raise ValueError(
+            f"model provided at path {path} must be a ReloadableTransfomer."
+        )
 
 
 @io.register("hybrid-reservoir")
@@ -28,7 +40,7 @@ class HybridReservoirComputingModel(Predictor):
         readout: ReservoirComputingReadout,
         square_half_hidden_state: bool = False,
         rank_divider: Optional[RankDivider] = None,
-        autoencoder: Optional[Union[Autoencoder, SkTransformer]] = None,
+        autoencoder: Optional[ReloadableTransfomer] = None,
     ):
         self.reservoir_model = ReservoirComputingModel(
             input_variables=input_variables,
@@ -102,7 +114,7 @@ class ReservoirComputingModel(Predictor):
         readout: ReservoirComputingReadout,
         square_half_hidden_state: bool = False,
         rank_divider: Optional[RankDivider] = None,
-        autoencoder: Optional[Union[SkTransformer, Autoencoder]] = None,
+        autoencoder: Optional[ReloadableTransfomer] = None,
     ):
         """_summary_
 
@@ -195,9 +207,7 @@ class ReservoirComputingModel(Predictor):
             rank_divider = None
 
         if fs.exists(os.path.join(path, cls._AUTOENCODER_SUBDIR)):
-            autoencoder: Union[
-                Autoencoder, SkTransformer
-            ] = fv3fit.load(  # type: ignore
+            autoencoder: ReloadableTransfomer = _load_transformer(
                 os.path.join(path, cls._AUTOENCODER_SUBDIR)
             )
         else:

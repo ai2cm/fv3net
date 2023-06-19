@@ -20,7 +20,7 @@ from . import (
 from .readout import combine_readouts
 from .domain import TimeSeriesRankDivider, assure_same_dims
 from ._reshaping import stack_data
-from fv3fit.reservoir.transformers import Autoencoder, SkTransformer
+from fv3fit.reservoir.transformers import ReloadableTransfomer
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -37,7 +37,7 @@ def _stack_array_preserving_last_dim(data):
 
 
 def _encode_columns(
-    data: Sequence[tf.Tensor], transformer: Union[Autoencoder, SkTransformer]
+    data: Sequence[tf.Tensor], transformer: ReloadableTransfomer
 ) -> np.ndarray:
     # reduce a sequnence of N x M x Vi dim data over i variables
     # to a single N x M x Z dim array, where Vi is original number of features
@@ -65,7 +65,7 @@ def train_reservoir_model(
     sample_X = _get_ordered_X(sample_batch, hyperparameters.input_variables)
 
     if hyperparameters.autoencoder_path is not None:
-        autoencoder: Union[Autoencoder, SkTransformer] = fv3fit.load(
+        autoencoder: ReloadableTransfomer = fv3fit.load(
             hyperparameters.autoencoder_path
         )  # type: ignore
     else:
@@ -185,7 +185,7 @@ def _process_batch_Xy_data(
     variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
     rank_divider: TimeSeriesRankDivider,
-    autoencoder: Union[Autoencoder, SkTransformer],
+    autoencoder: ReloadableTransfomer,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """ Convert physical state to corresponding reservoir hidden state,
     and reshape data into the format used in training.
