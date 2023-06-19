@@ -23,7 +23,11 @@ are defined for each resolution, C48 or C384, and climate (-2 K, 0 K, +2 K, +4
 K, or ramped).  These YAML files are meant for use with
 [fv3config](https://github.com/ai2cm/fv3config), which is a Python package
 developed by our group for creating and manipulating run directories for FV3GFS
-simulations.
+simulations.  The version of `fv3config` used (`0.9.0`), and the versions of all
+other Python packages used in the scripts, are the same as those pinned in the
+[`constraints.txt`
+file](https://github.com/ai2cm/fv3net/blob/master/constraints.txt) in the fv3net
+repository for the commit listed above.
 
 ## Example runscripts
 
@@ -127,6 +131,9 @@ This consists of:
 - Orographic forcing data: `gs://vcm-fv3config/data/orographic_data/v1.0`
 - Surface forcing data: `gs://vcm-fv3config/data/base_forcing/v1.1`
 
-Public versions of this data can be found
-[here](https://www.nco.ncep.noaa.gov/pmb/codes/nwprod/gfs.v16.3.7/fix/), and the
-specific files used can also be made available upon request.
+Public versions of the grid and orographic forcing data for a given resolution
+can be found
+[here](https://www.nco.ncep.noaa.gov/pmb/codes/nwprod/gfs.v16.3.7/fix/fix_fv3_gmted2010/),
+and public versions of the surface forcing data can be found
+[here](https://www.nco.ncep.noaa.gov/pmb/codes/nwprod/gfs.v16.3.7/fix/fix_am/).
+The specific files used can also be made available upon request.
