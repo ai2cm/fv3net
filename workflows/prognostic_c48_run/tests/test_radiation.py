@@ -1,3 +1,4 @@
+from collections.abc import Hashable, Mapping
 from runtime.segmented_run.prepare_config import HighLevelConfig
 from runtime.segmented_run.api import create, append
 from runtime.steppers.radiation import RadiationStepper
@@ -64,6 +65,7 @@ namelist:
     fhswr: 1800.0
     hybedmf: true
     satmedmf: false
+    rad_progcld6: false
   fv_core_nml:
     npx: 13
     npy: 13
@@ -105,8 +107,25 @@ def get_fv3config():
     return fv3config_dict
 
 
-def radiation_scheme_config():
+NAMELIST_UPDATES = {
+    "base": {},
+    "progcld6": {"namelist": {"gfs_physics_nml": {"rad_progcld6": True}}},
+}
+
+
+def _update_nested(config, updates):
+    for key, update in updates.items():
+        if isinstance(config[key], Mapping) and isinstance(update, Mapping):
+            _update_nested(config[key], update)
+        elif isinstance(config[key], Hashable) and isinstance(update, Hashable):
+            config[key] = update
+        else:
+            raise ValueError("Invalid update to configuration dict structure.")
+
+
+def radiation_scheme_config(version):
     config = get_fv3config()
+    _update_nested(config, NAMELIST_UPDATES[version])
     config["radiation_scheme"] = {"kind": "python"}
     diagnostics = [
         {
@@ -139,9 +158,9 @@ def run_model(config, rundir):
     append(rundir)
 
 
-@pytest.fixture(scope="module")
-def completed_rundir(tmpdir_factory):
-    config = radiation_scheme_config()
+@pytest.fixture(scope="module", params=["base", "progcld6"])
+def completed_rundir(tmpdir_factory, request):
+    config = radiation_scheme_config(request.param)
     rundir = tmpdir_factory.mktemp("rundir").join("subdir")
     run_model(config, str(rundir))
     return rundir

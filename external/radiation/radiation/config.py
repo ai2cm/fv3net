@@ -66,6 +66,7 @@ class GFSPhysicsControlConfig:
         default_factory=lambda: [[-999.0], [-999.0], [-999.0], [-999.0], [-999.0]]
     )
     do_only_clearsky_rad: bool = False
+    do_progcld6: bool = False
     swhtr: bool = True
     lwhtr: bool = True
     lprnt: bool = False
@@ -93,6 +94,7 @@ class GFSPhysicsControlConfig:
             "swhtr": "swhtr",
             "lwhtr": "lwhtr",
             "levr": "levr",
+            "rad_progcld6": "do_progcld6",
         }
         CORE_NAMELIST_TO_GFS_CONTROL = {"npz": "levs"}
 

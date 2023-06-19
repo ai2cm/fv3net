@@ -825,27 +825,55 @@ class RadiationDriver:
         if gfs_physics_control.config.imp_physics == 99:
             ccnd[:IM, :LMK, 0] = ccnd[:IM, :LMK, 0] + cnvw[:IM, :LMK]
 
-        clouds, cldsa, mtopa, mbota, de_lgth = self.cld.progcld4(
-            plyr,
-            plvl,
-            tlyr,
-            tvly,
-            qlyr,
-            qstl,
-            rhly,
-            ccnd[:IM, :LMK, 0],
-            cnvw,
-            cnvc,
-            Grid["xlat"],
-            Grid["xlon"],
-            Sfcprop["slmsk"],
-            cldcov,
-            dz,
-            delp,
-            IM,
-            LMK,
-            LMP,
-        )
+        if not gfs_physics_control.do_progcld6:
+            clouds, cldsa, mtopa, mbota, de_lgth = self.cld.progcld4(
+                plyr,
+                plvl,
+                tlyr,
+                tvly,
+                qlyr,
+                qstl,
+                rhly,
+                ccnd[:IM, :LMK, 0],
+                cnvw,
+                cnvc,
+                Grid["xlat"],
+                Grid["xlon"],
+                Sfcprop["slmsk"],
+                cldcov,
+                dz,
+                delp,
+                IM,
+                LMK,
+                LMP,
+            )
+        else:
+            q_aerosol = np.zeros((IM, LMK))
+            clouds, cldsa, mtopa, mbota, de_lgth = self.cld.progcld6(
+                plyr,
+                tlyr,
+                tvly,
+                qlyr,
+                qstl,
+                rhly,
+                ccnd[:IM, :LMK, 0],
+                cnvw,
+                cnvc,
+                Grid["xlat"],
+                tracer1[:IM, :LMK, ntcw - 1],
+                tracer1[:IM, :LMK, ntiw - 1],
+                tracer1[:IM, :LMK, ntrw - 1],
+                tracer1[:IM, :LMK, ntsw - 1],
+                tracer1[:IM, :LMK, ntgl - 1],
+                q_aerosol,
+                Sfcprop["slmsk"],
+                cldcov,
+                dz,
+                delp,
+                IM,
+                LMK,
+                LMP,
+            )
 
         #  --- ...  start radiation calculations
         #           remember to set heating rate unit to k/sec!
