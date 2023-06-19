@@ -131,9 +131,10 @@ This consists of:
 - Orographic forcing data: `gs://vcm-fv3config/data/orographic_data/v1.0`
 - Surface forcing data: `gs://vcm-fv3config/data/base_forcing/v1.1`
 
-Public versions of the grid and orographic forcing data for a given resolution
-can be found
+The Google Cloud Storage paths listed above are in a public
+[requester-pays](https://cloud.google.com/storage/docs/requester-pays) bucket.
+Through NOAA, grid and orographic forcing data for a given resolution are also
+available freely
 [here](https://www.nco.ncep.noaa.gov/pmb/codes/nwprod/gfs.v16.3.7/fix/fix_fv3_gmted2010/),
-and public versions of the surface forcing data can be found
+and surface forcing data is available freely
 [here](https://www.nco.ncep.noaa.gov/pmb/codes/nwprod/gfs.v16.3.7/fix/fix_am/).
-The specific files used can also be made available upon request.
