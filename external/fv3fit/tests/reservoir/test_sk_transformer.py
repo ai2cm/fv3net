@@ -106,7 +106,7 @@ def test_sktransformer_encode_need_to_concat_features_and_add_sample_dim():
     scaler = StandardScaler()
     scaler.fit(np.random.rand(5, n_vars * output_dim))
     pad_size = 5
-    transformer = transformer = DummyTransformer(extra_embedded_dims=pad_size)
+    transformer = DummyTransformer(extra_embedded_dims=pad_size)
     sktransformer = SkTransformer(transformer, scaler, enforce_positive_outputs=False)
     x = [np.random.rand(output_dim) for i in range(n_vars)]
 
@@ -120,7 +120,7 @@ def test_sktransformer_encode_need_to_concat_features():
     scaler = StandardScaler()
     scaler.fit(np.random.rand(5, n_vars * output_dim))
     pad_size = 5
-    transformer = transformer = DummyTransformer(extra_embedded_dims=pad_size)
+    transformer = DummyTransformer(extra_embedded_dims=pad_size)
     sktransformer = SkTransformer(transformer, scaler, enforce_positive_outputs=False)
     nt = 13
     x = [[np.random.rand(output_dim) for t in range(nt)] for i in range(n_vars)]
