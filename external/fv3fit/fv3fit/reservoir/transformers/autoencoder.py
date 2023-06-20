@@ -49,7 +49,8 @@ class Autoencoder(tf.keras.Model, Transformer):
     def encode(self, x: Union[np.ndarray, tf.Tensor]) -> np.ndarray:
         return self.encoder.predict(x)
 
-    def decode(self, latent_x: Union[np.ndarray, tf.Tensor]) -> np.ndarray:
+    def decode(self, latent_x: Union[np.ndarray, tf.Tensor]) -> Sequence[np.ndarray]:
+
         return self.decoder.predict(latent_x)
 
     def dump(self, path: str) -> None:

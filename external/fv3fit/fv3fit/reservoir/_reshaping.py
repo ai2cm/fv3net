@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from typing import Sequence
+from .transformers import ReloadableTransfomer
 
 
 def flatten_2d_keeping_columns_contiguous(arr: np.ndarray):
@@ -14,19 +15,23 @@ def stack_array_preserving_last_dim(data):
     return reshaped
 
 
-def encode_columns(data: Sequence[tf.Tensor], encoder: tf.keras.Model,) -> np.ndarray:
+def encode_columns(
+    data: Sequence[tf.Tensor], transformer: ReloadableTransfomer
+) -> np.ndarray:
     # reduce a sequnence of N x M x Vi dim data over i variables
     # to a single N x M x Z dim array, where Vi is original number of features
     # (usually vertical levels) of each variable and Z << V is a smaller number
     # of latent dimensions.
     original_sample_shape = data[0].shape[:-1]
     reshaped = [stack_array_preserving_last_dim(var) for var in data]
-    encoded_reshaped = encoder.predict(reshaped)
+    encoded_reshaped = transformer.encode(reshaped)
     return encoded_reshaped.reshape(*original_sample_shape, -1)
 
 
-def decode_columns(data: tf.Tensor, decoder: tf.keras.Model) -> Sequence[np.ndarray]:
-    # Differs from encode_columns as the decoder expects a single input array
+def decode_columns(
+    data: tf.Tensor, transformer: ReloadableTransfomer
+) -> Sequence[np.ndarray]:
+    # Differs from encode_columns as  transformer.decode expects a single input array
     # (not a list of one array per variable) and
     # can predict multiple outputs rather than a single latent vector.
     # Expand a sequnence of N x M x L dim data into i variables
@@ -34,24 +39,22 @@ def decode_columns(data: tf.Tensor, decoder: tf.keras.Model) -> Sequence[np.ndar
     # (usually vertical levels) of each variable and L << V is a smaller number
     # of latent dimensions
     reshaped = stack_array_preserving_last_dim(data)
-    decoded_reshaped = decoder.predict(reshaped)
+    decoded_reshaped = transformer.decode(reshaped)
     original_2d_shape = data.shape[:-1]
-    if len(decoder.outputs) == 1:
-        return decoded_reshaped.reshape(*original_2d_shape, -1)
-    else:
-        decoded_data = []
-        for var_data in decoded_reshaped.values():
-            decoded_data.append(var_data.reshape(*original_2d_shape, -1))
-        return decoded_data
+
+    decoded_data = []
+    for var_data in decoded_reshaped:
+        decoded_data.append(var_data.reshape(*original_2d_shape, -1))
+    return decoded_data
 
 
 def split_1d_samples_into_2d_rows(
-    arr: np.ndarray, n_rows: int, keep_first_dim_shampe: bool
+    arr: np.ndarray, n_rows: int, keep_first_dim_shape: bool
 ) -> np.ndarray:
     # Consecutive chunks of 1d array form rows of 2d array
     # ex. 1d to 2d reshaping (8,) -> (2,4)) for n_rows=2
     # [1,2,3,4,5,6,7,8] -> [[1,2,3,4], [5,6,7,8]]
-    if keep_first_dim_shampe is True:
+    if keep_first_dim_shape is True:
         time_dim_size = arr.shape[0]
         return np.reshape(arr, (time_dim_size, n_rows, -1), order="C")
     else:

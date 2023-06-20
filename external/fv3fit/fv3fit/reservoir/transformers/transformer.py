@@ -1,7 +1,7 @@
 import abc
 import numpy as np
 import tensorflow as tf
-from typing import Union
+from typing import Union, Sequence
 
 
 class Transformer(abc.ABC):
@@ -15,5 +15,5 @@ class Transformer(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def decode(self, x: Union[np.ndarray, tf.Tensor]) -> np.ndarray:
+    def decode(self, x: Union[np.ndarray, tf.Tensor]) -> Sequence[np.ndarray]:
         pass

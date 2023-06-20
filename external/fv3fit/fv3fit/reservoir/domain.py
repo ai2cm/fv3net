@@ -204,6 +204,35 @@ class RankDivider:
             metadata = yaml.safe_load(f)
         return cls(**metadata)
 
+    def merge_subdomains(self, flat_prediction: np.ndarray, nz: int):
+        subdomain_rows = split_1d_samples_into_2d_rows(
+            flat_prediction, n_rows=self.n_subdomains, keep_first_dim_shape=False,
+        )
+        subdomain_2d_predictions = []
+        for subdomain_row in subdomain_rows:
+            subdomain_2d_prediction = self.unstack_subdomain(
+                subdomain_row, with_overlap=False,
+            )
+            subdomain_2d_predictions.append(subdomain_2d_prediction)
+
+        domain = []
+        subdomain_shape_without_overlap = (
+            self.subdomain_xy_size_without_overlap,
+            self.subdomain_xy_size_without_overlap,
+        )
+
+        z_block_dims = (*self.subdomain_layout, *subdomain_shape_without_overlap)
+
+        for z in range(nz):
+            domain_z_blocks = (
+                np.take(np.array(subdomain_2d_predictions), z, -1)
+                .reshape(*z_block_dims)
+                .transpose(1, 0, 2, 3)
+            )
+            domain_z = np.concatenate(np.concatenate(domain_z_blocks, axis=1), axis=-1)
+            domain.append(domain_z)
+        return np.stack(np.array(domain), axis=0).transpose(1, 2, 0)  # type: ignore
+
 
 class TimeSeriesRankDivider(RankDivider):
     def get_subdomain_tensor_slice(
@@ -279,35 +308,3 @@ def assure_same_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tenso
                 f"have either {max_dims} or {max_dims-1}."
             )
     return reshaped_tensors
-
-
-def merge_subdomains(
-    flat_prediction: np.ndarray, rank_divider: RankDivider,
-):
-    subdomain_rows = split_1d_samples_into_2d_rows(
-        flat_prediction, n_rows=rank_divider.n_subdomains, keep_first_dim_shampe=False,
-    )
-    subdomain_2d_predictions = []
-    for subdomain_row in subdomain_rows:
-        subdomain_2d_prediction = rank_divider.unstack_subdomain(
-            subdomain_row, with_overlap=False,
-        )
-        subdomain_2d_predictions.append(subdomain_2d_prediction)
-
-    domain = []
-    subdomain_shape_without_overlap = (
-        rank_divider.subdomain_xy_size_without_overlap,
-        rank_divider.subdomain_xy_size_without_overlap,
-    )
-
-    z_block_dims = (*rank_divider.subdomain_layout, *subdomain_shape_without_overlap)
-
-    for z in range(2):
-        domain_z_blocks = (
-            np.take(np.array(subdomain_2d_predictions), z, -1)
-            .reshape(*z_block_dims)
-            .transpose(1, 0, 2, 3)
-        )
-        domain_z = np.concatenate(np.concatenate(domain_z_blocks, axis=1), axis=-1)
-        domain.append(domain_z)
-    return np.stack(np.array(domain), axis=0).transpose(1, 2, 0)  # type: ignore

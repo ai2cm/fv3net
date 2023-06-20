@@ -5,7 +5,7 @@ import os
 from sklearn.preprocessing import StandardScaler
 from sklearn.base import TransformerMixin
 
-from typing import Sequence
+from typing import Sequence, Optional
 import yaml
 
 from fv3fit._shared.predictor import Reloadable
@@ -42,6 +42,7 @@ class SkTransformer(Transformer, ArrayPredictor, Reloadable):
         self.transformer = transformer
         self.scaler = scaler
         self.enforce_positive_outputs = enforce_positive_outputs
+        self.original_feature_sizes: Optional[Sequence[int]] = None
 
     @property
     def n_latent_dims(self):
@@ -64,30 +65,47 @@ class SkTransformer(Transformer, ArrayPredictor, Reloadable):
                 f"(samples, {self.scaler.n_features_in_})."
             )
 
+    @property
+    def _output_feature_indices(self):
+        if self.original_feature_sizes is None:
+            raise AttributeError(
+                "Attribute original_feature_sizes is not set. "
+                "Must call encode on data first before decoding."
+            )
+        else:
+            return np.cumsum(self.original_feature_sizes[:-1])
+
     def predict(self, x: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
-        original_feature_sizes = [feature.shape[-1] for feature in x]
         encoded = self.encode(x)
         decoded = self.decode(encoded)
+
         decoded_split_features = np.split(
-            decoded, np.cumsum(original_feature_sizes[:-1]), axis=-1
+            decoded, self._output_feature_indices, axis=-1
         )
 
         return decoded_split_features
 
-    def encode(self, x):
+    def encode(self, x) -> np.ndarray:
         # input is a sequence of time series for each variables: [var, time, feature]
+        if self.original_feature_sizes is None:
+            self.original_feature_sizes = [  # type: ignore
+                feature.shape[-1] for feature in x
+            ]
+
         x_concat = np.concatenate(x, axis=-1)
         x = self._ensure_sample_dim(x_concat)
         return self.transformer.transform(self.scaler.transform(x))
 
-    def decode(self, c):
+    def decode(self, c) -> Sequence[np.ndarray]:
         decoded = self.transformer.inverse_transform(c)
         decoded = self.scaler.inverse_transform(self._ensure_sample_dim(decoded))
 
         if self.enforce_positive_outputs is True:
             decoded = np.where(decoded >= 0, decoded, 0.0)
-
-        return decoded
+        decoded_split_features = np.split(
+            decoded, self._output_feature_indices, axis=-1
+        )
+        return decoded_split_features
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
