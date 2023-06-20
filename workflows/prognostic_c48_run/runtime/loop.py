@@ -387,7 +387,7 @@ class TimeLoop(
         elif isinstance(base_stepper_config, HybridReservoirConfig):
             model = open_rc_model(base_stepper_config)
             rc_tdelta = pd.to_timedelta(base_stepper_config.reservoir_timestep)
-            stepper = ReservoirStepper(model, rc_tdelta, 1)
+            stepper = ReservoirStepper(model, rc_tdelta, 1, self._timestep)
         else:
             self._log_info(
                 "Using Prescriber for variables "

@@ -31,18 +31,19 @@ class ReservoirStepper:
         model: HybridReservoirComputingModel,
         reservoir_timestep: timedelta,
         synchronize_steps: int,
+        model_timestep_seconds: int = 900,
     ):
         self.model = model
         self.rc_timestep = reservoir_timestep
+        self.dt_atmos = timedelta(seconds=model_timestep_seconds)
         self.synchronize_steps = synchronize_steps
         self.init_time: Optional[cftime.DatetimeJulian] = None
         self.completed_sync_steps = 0
 
     def __call__(self, time, state):
         if self.init_time is None:
-            self.init_time = time
+            self.init_time = time - self.dt_atmos
 
-        # TODO: should I use interval stepper instead?
         if self._is_rc_update_step(time):
             model_inputs = state[self.model.input_variables]
             try:
