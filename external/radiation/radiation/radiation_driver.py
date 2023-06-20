@@ -825,7 +825,7 @@ class RadiationDriver:
         if gfs_physics_control.config.imp_physics == 99:
             ccnd[:IM, :LMK, 0] = ccnd[:IM, :LMK, 0] + cnvw[:IM, :LMK]
 
-        if not gfs_physics_control.do_progcld6:
+        if not gfs_physics_control.config.do_progcld6:
             clouds, cldsa, mtopa, mbota, de_lgth = self.cld.progcld4(
                 plyr,
                 plvl,
@@ -852,11 +852,7 @@ class RadiationDriver:
             clouds, cldsa, mtopa, mbota, de_lgth = self.cld.progcld6(
                 plyr,
                 tlyr,
-                tvly,
                 qlyr,
-                qstl,
-                rhly,
-                ccnd[:IM, :LMK, 0],
                 cnvw,
                 cnvc,
                 Grid["xlat"],
@@ -872,7 +868,6 @@ class RadiationDriver:
                 delp,
                 IM,
                 LMK,
-                LMP,
             )
 
         #  --- ...  start radiation calculations

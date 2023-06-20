@@ -1,6 +1,5 @@
 from typing import Optional, Tuple
 import numpy as np
-import numba
 from ._constants import (
     retab,
     ccn_l,
@@ -61,7 +60,6 @@ regflag = 1  # graupel effective radius scheme (only ported option is 1)
 # 1: effective radius from PSD
 
 
-@numba.jit
 def cld_eff_rad(
     _is: int,
     ie: int,

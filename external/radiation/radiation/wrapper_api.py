@@ -73,7 +73,6 @@ class GFSPhysicsControl:
     nslwr: int
     lsswr: bool = True
     lslwr: bool = True
-    do_progcld6: bool = False
 
     @classmethod
     def from_config(

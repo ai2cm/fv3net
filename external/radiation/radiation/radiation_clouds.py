@@ -1465,10 +1465,7 @@ class CloudClass:
         self,
         plyr,
         tlyr,
-        tvly,
         qlyr,
-        qstl,
-        rhly,
         cnvw,
         cnvc,
         xlat,
@@ -1484,7 +1481,6 @@ class CloudClass:
         delp,
         IX,
         NLAY,
-        NLP1,
     ):
         # =================   subprogram documentation block   ================ !
         #                                                                       !
@@ -1595,7 +1591,6 @@ class CloudClass:
             cnvw=cnvw,
             cnvc=cnvc,
         )
-        cldcnv = 0.0
 
         for i in range(IX):
             rxlat[i] = np.abs(xlat[i] / con_pi)  # if xlat in pi/2 -> -pi/2 range
@@ -1605,10 +1600,10 @@ class CloudClass:
         #  ---  i=1,2 are low-lat (<45 degree) and pole regions)
 
         for id in range(4):
-            tem1 = self.ptopc(id, 1) - self.ptopc(id, 0)
+            tem1 = self.ptopc[id, 1] - self.ptopc[id, 0]
             for i in range(IX):
                 tem2 = xlat[i] / con_pi  # if xlat in pi/2 -> -pi/2 range
-                ptop1[i, id] = self.ptopc(id, 1) + tem1 * max(
+                ptop1[i, id] = self.ptopc[id, 0] + tem1 * max(
                     0.0, 4.0 * abs(tem2) - 1.0
                 )
 
