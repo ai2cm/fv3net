@@ -4,6 +4,7 @@ import os
 import tensorflow as tf
 from toolz.functoolz import curry
 from typing import Union, Sequence, Optional, List, Set, Tuple
+from fv3fit.reservoir.transformers.transformer import Transformer
 from fv3fit._shared import (
     get_dir,
     put_dir,
@@ -27,15 +28,18 @@ from fv3fit.keras import (
 
 
 @io.register("dense-autoencoder")
-class Autoencoder(tf.keras.Model):
+class Autoencoder(tf.keras.Model, Transformer):
     _ENCODER_NAME = "encoder.tf"
     _DECODER_NAME = "decoder.tf"
 
     def __init__(self, encoder: tf.keras.Model, decoder: tf.keras.Model):
         super(Autoencoder, self).__init__()
-        self.n_latent_dims = encoder.layers[-1].output.shape[-1]
         self.encoder = encoder
         self.decoder = decoder
+
+    @property
+    def n_latent_dims(self):
+        return self.encoder.layers[-1].output.shape[-1]
 
     def call(self, x: Union[np.ndarray, tf.Tensor]) -> tf.Tensor:
         encoded = self.encoder(x)

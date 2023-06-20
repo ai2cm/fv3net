@@ -1,3 +1,4 @@
+import fsspec
 import joblib
 import numpy as np
 import os
@@ -10,10 +11,11 @@ import yaml
 from fv3fit._shared.predictor import Reloadable
 from fv3fit._shared import get_dir, put_dir, io
 from fv3fit._shared.xr_prediction import ArrayPredictor
+from fv3fit.reservoir.transformers.transformer import Transformer
 
 
 @io.register("sk-transformer")
-class SkTransformer(ArrayPredictor, Reloadable):
+class SkTransformer(Transformer, ArrayPredictor, Reloadable):
     """ Used to encode higher-dimension inputs into a
     lower dimension latent space and decode latent vectors
     back to the original feature space.
@@ -41,6 +43,10 @@ class SkTransformer(ArrayPredictor, Reloadable):
         self.scaler = scaler
         self.enforce_positive_outputs = enforce_positive_outputs
 
+    @property
+    def n_latent_dims(self):
+        return self.transformer.n_components
+
     def _ensure_sample_dim(self, x):
         # Sklearn scalers and transforms expect the first dimension
         # to be sample. If not present, i.e. a single sample is provided,
@@ -60,8 +66,7 @@ class SkTransformer(ArrayPredictor, Reloadable):
 
     def predict(self, x: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
         original_feature_sizes = [feature.shape[-1] for feature in x]
-        x_concat = np.concatenate(x, axis=-1)
-        encoded = self.encode(x_concat)
+        encoded = self.encode(x)
         decoded = self.decode(encoded)
         decoded_split_features = np.split(
             decoded, np.cumsum(original_feature_sizes[:-1]), axis=-1
@@ -70,7 +75,9 @@ class SkTransformer(ArrayPredictor, Reloadable):
         return decoded_split_features
 
     def encode(self, x):
-        x = self._ensure_sample_dim(x)
+        # input is a sequence of time series for each variables: [var, time, feature]
+        x_concat = np.concatenate(x, axis=-1)
+        x = self._ensure_sample_dim(x_concat)
         return self.transformer.transform(self.scaler.transform(x))
 
     def decode(self, c):
@@ -101,7 +108,7 @@ class SkTransformer(ArrayPredictor, Reloadable):
         with get_dir(path) as model_path:
             transformer = joblib.load(os.path.join(model_path, cls._TRANSFORMER_NAME))
             scaler = joblib.load(os.path.join(model_path, cls._SCALER_NAME))
-            with open(os.path.join(path, cls._METADATA_NAME), "r") as f:
+            with fsspec.open(os.path.join(path, cls._METADATA_NAME), "r") as f:
                 config = yaml.load(f, Loader=yaml.Loader)
         return cls(
             transformer=transformer,
