@@ -1,12 +1,13 @@
 import logging
 from joblib import Parallel, delayed
+import fv3fit
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, Mapping, Tuple, List, Iterable, Union
+from typing import Optional, Mapping, Tuple, List, Iterable, Union, Sequence
 from .. import Predictor
 from .utils import square_even_terms
-from .autoencoder import Autoencoder, build_concat_and_scale_only_autoencoder
+from .transformers.autoencoder import build_concat_and_scale_only_autoencoder
 from .._shared import register_training_function
 from ._reshaping import concat_inputs_along_subdomain_features
 from . import (
@@ -17,8 +18,9 @@ from . import (
     ReservoirComputingReadout,
 )
 from .readout import combine_readouts
-from .domain import RankDivider, assure_same_dims
-from ._reshaping import stack_array_preserving_last_dim, encode_columns, stack_samples
+from .domain import TimeSeriesRankDivider, assure_same_dims
+from ._reshaping import stack_data, stack_array_preserving_last_dim
+from fv3fit.reservoir.transformers import ReloadableTransfomer
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -26,6 +28,25 @@ logger.setLevel(logging.INFO)
 
 def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
+
+
+def _stack_array_preserving_last_dim(data):
+    original_z_dim = data.shape[-1]
+    reshaped = tf.reshape(data, shape=(-1, original_z_dim))
+    return reshaped
+
+
+def _encode_columns(
+    data: Sequence[tf.Tensor], transformer: ReloadableTransfomer
+) -> np.ndarray:
+    # reduce a sequnence of N x M x Vi dim data over i variables
+    # to a single N x M x Z dim array, where Vi is original number of features
+    # (usually vertical levels) of each variable and Z << V is a smaller number
+    # of latent dimensions
+    original_sample_shape = data[0].shape[:-1]
+    reshaped = [_stack_array_preserving_last_dim(var) for var in data]
+    encoded_reshaped = transformer.encode(reshaped)
+    return encoded_reshaped.reshape(*original_sample_shape, -1)
 
 
 def _get_ordered_X(X_mapping, variables):
@@ -44,7 +65,9 @@ def train_reservoir_model(
     sample_X = _get_ordered_X(sample_batch, hyperparameters.input_variables)
 
     if hyperparameters.autoencoder_path is not None:
-        autoencoder = Autoencoder.load(hyperparameters.autoencoder_path)
+        autoencoder: ReloadableTransfomer = fv3fit.load(
+            hyperparameters.autoencoder_path
+        )  # type: ignore
     else:
         sample_X_stacked = [
             stack_array_preserving_last_dim(arr).numpy() for arr in sample_X
@@ -54,9 +77,10 @@ def train_reservoir_model(
         )
 
     subdomain_config = hyperparameters.subdomain
-    rank_extent = [*sample_X[0].shape[:-1], autoencoder.n_latent_dims]
 
-    rank_divider = RankDivider(
+    # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
+    rank_extent = [*sample_X[0].shape[1:-1], autoencoder.n_latent_dims]
+    rank_divider = TimeSeriesRankDivider(
         subdomain_layout=subdomain_config.layout,
         rank_dims=subdomain_config.rank_dims,
         rank_extent=rank_extent,
@@ -94,10 +118,11 @@ def train_reservoir_model(
         )
         hybrid_time_series: Optional[np.ndarray]
         if hyperparameters.hybrid_variables is not None:
-            hybrid_time_series = _process_batch_hybrid_data(
-                hybrid_variables=hyperparameters.hybrid_variables,
+            hybrid_time_series, _ = _process_batch_Xy_data(
+                variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
                 rank_divider=rank_divider,
+                autoencoder=autoencoder,
             )
         else:
             hybrid_time_series = None
@@ -159,8 +184,8 @@ def train_reservoir_model(
 def _process_batch_Xy_data(
     variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
-    rank_divider: RankDivider,
-    autoencoder: Autoencoder,
+    rank_divider: TimeSeriesRankDivider,
+    autoencoder: ReloadableTransfomer,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """ Convert physical state to corresponding reservoir hidden state,
     and reshape data into the format used in training.
@@ -169,63 +194,35 @@ def _process_batch_Xy_data(
 
     # Concatenate features, normalize and optionally convert data
     # to latent representation
-    batch_data_encoded = encode_columns(batch_X, autoencoder.encoder)
-
+    batch_data_encoded = _encode_columns(batch_X, autoencoder)
     # Divide into subdomains and flatten each subdomain by stacking
     # x/y/encoded-feature dims into a single subdomain-feature dimension.
     # Dimensions of a single subdomain's data become [time, subdomain-feature]
-    X_subdomains_to_columns, Y_subdomains_to_columns = [], []
+    X_subdomains_as_columns, Y_subdomains_as_columns = [], []
     for s in range(rank_divider.n_subdomains):
         X_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-            batch_data_encoded,
-            subdomain_index=s,
-            with_overlap=True,
-            data_has_time_dim=True,
+            batch_data_encoded, subdomain_index=s, with_overlap=True,
         )
-        X_subdomains_to_columns.append(
-            stack_samples(X_subdomain_data, keep_first_dim=True)
+
+        X_subdomains_as_columns.append(
+            stack_data(X_subdomain_data, keep_first_dim=True)
         )
 
         # Prediction does not include overlap
         Y_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-            batch_data_encoded,
-            subdomain_index=s,
-            with_overlap=False,
-            data_has_time_dim=True,
+            batch_data_encoded, subdomain_index=s, with_overlap=False,
         )
-        Y_subdomains_to_columns.append(
-            stack_samples(Y_subdomain_data, keep_first_dim=True)
+
+        Y_subdomains_as_columns.append(
+            stack_data(Y_subdomain_data, keep_first_dim=True)
         )
 
     # Concatentate subdomain data arrays along a new subdomain axis.
     # Dimensions are now [time, subdomain-feature, subdomain]
-    X_reshaped = np.stack(X_subdomains_to_columns, axis=-1)
-    Y_reshaped = np.stack(Y_subdomains_to_columns, axis=-1)
+    X_reshaped = np.stack(X_subdomains_as_columns, axis=-1)
+    Y_reshaped = np.stack(Y_subdomains_as_columns, axis=-1)
 
     return X_reshaped, Y_reshaped
-
-
-def _process_batch_hybrid_data(
-    hybrid_variables: Iterable[str],
-    batch_data: Mapping[str, tf.Tensor],
-    rank_divider: RankDivider,
-) -> np.ndarray:
-    # Similar to _process_batch_Xy_data for separating subdomains and
-    # reshaping data, but does not transform the data into latent space
-    batch_hybrid = _get_ordered_X(batch_data, hybrid_variables)
-    batch_hybrid_combined_inputs = np.concatenate(batch_hybrid, axis=-1)
-    hybrid_subdomains_to_columns = []
-    for s in range(rank_divider.n_subdomains):
-        hybrid_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-            batch_hybrid_combined_inputs,
-            subdomain_index=s,
-            with_overlap=True,
-            data_has_time_dim=True,
-        )
-        hybrid_subdomains_to_columns.append(
-            stack_samples(hybrid_subdomain_data, keep_first_dim=True)
-        )
-    return np.stack(hybrid_subdomains_to_columns, axis=-1)
 
 
 def _get_reservoir_state_time_series(
@@ -276,7 +273,6 @@ def _construct_readout_inputs_outputs(
 def _fit_batch_over_subdomains(
     X_batch, Y_batch, subdomain_regressors, n_jobs,
 ):
-
     # Fit a readout to each subdomain's column of training data
     Parallel(n_jobs=n_jobs, backend="threading")(
         delayed(_fit_batch)(X_batch, Y_batch, i, regressor)

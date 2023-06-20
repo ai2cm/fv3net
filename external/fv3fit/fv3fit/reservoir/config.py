@@ -115,7 +115,10 @@ class ReservoirTrainingConfig(Hyperparameters):
 
     @property
     def variables(self) -> Set[str]:
-        hybrid_vars = list(self.hybrid_variables) or []  # type: ignore
+        if self.hybrid_variables is not None:
+            hybrid_vars = list(self.hybrid_variables)  # type: ignore
+        else:
+            hybrid_vars = []
         return set(list(self.input_variables) + hybrid_vars)
 
     @classmethod

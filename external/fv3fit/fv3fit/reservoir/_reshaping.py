@@ -46,12 +46,12 @@ def decode_columns(data: tf.Tensor, decoder: tf.keras.Model) -> Sequence[np.ndar
 
 
 def split_1d_samples_into_2d_rows(
-    arr: np.ndarray, n_rows: int, data_has_time_dim: bool
+    arr: np.ndarray, n_rows: int, keep_first_dim_shampe: bool
 ) -> np.ndarray:
     # Consecutive chunks of 1d array form rows of 2d array
     # ex. 1d to 2d reshaping (8,) -> (2,4)) for n_rows=2
     # [1,2,3,4,5,6,7,8] -> [[1,2,3,4], [5,6,7,8]]
-    if data_has_time_dim is True:
+    if keep_first_dim_shampe is True:
         time_dim_size = arr.shape[0]
         return np.reshape(arr, (time_dim_size, n_rows, -1), order="C")
     else:
@@ -72,7 +72,7 @@ def concat_inputs_along_subdomain_features(a, b):
     return np.concatenate([a, b], axis=1)
 
 
-def stack_samples(tensor, keep_first_dim: bool):
+def stack_data(tensor, keep_first_dim: bool):
     # Used to reshape a subdomains into a flat columns.
     # Option to keep first dim, used in the case where time is the first dimension
     if keep_first_dim is True:
