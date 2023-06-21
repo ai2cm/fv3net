@@ -1571,14 +1571,25 @@ class CloudClass:
         clouds = np.zeros((IX, NLAY, self.NF_CLDS))
         de_lgth = np.zeros(IX)
 
+        if self.lcnorm is True:
+            for k in range(NLAY):
+                for i in range(IX):
+                    if cldtot[i, k] >= self.climit:
+                        tem1 = 1.0 / max(self.climit2, cldtot[i, k])
+                        qw[i, k] = qw[i, k] * tem1
+                        qi[i, k] = qi[i, k] * tem1
+                        qr[i, k] = qr[i, k] * tem1
+                        qs[i, k] = qs[i, k] * tem1
+                        qg[i, k] = qg[i, k] * tem1
+
         (cwp, cip, crp, csp, cgp, rew, rei, rer, res, reg, cldtot) = cld_eff_rad(
             0,
             IX,
             0,
             NLAY,
             slmsk,
-            plyr,
-            delp,
+            100 * plyr,
+            100 * delp,
             tlyr,
             qlyr,
             qw,
