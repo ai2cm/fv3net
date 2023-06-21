@@ -202,7 +202,7 @@ class RankDivider:
             metadata = yaml.safe_load(f)
         return cls(**metadata)
 
-    def merge_subdomains(self, flat_prediction: np.ndarray, nz: int):
+    def merge_subdomains(self, flat_prediction: np.ndarray):
         # raw prediction from readout is a long 1D array consisting of concatenated
         # flattened subdomain predictions
 
@@ -226,7 +226,11 @@ class RankDivider:
 
         # reshape the flat list of 3D subdomains into a single array that
         # is a Xdomain, Ydomain grid with a (x, y, z) subdomain in each block
-        z_block_dims = (*self.subdomain_layout, *subdomain_shape_without_overlap, nz)
+        z_block_dims = (
+            *self.subdomain_layout,
+            *subdomain_shape_without_overlap,
+            self._n_features,
+        )
         domain_z_blocks = np.array(subdomain_2d_predictions).reshape(*z_block_dims)
 
         # Merge along Xdomain, Ydomain dims into a single array of dims (x, y, z)

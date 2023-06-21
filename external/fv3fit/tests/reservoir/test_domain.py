@@ -354,3 +354,29 @@ def test_RankDivider_subdomain_xy_size_without_overlap():
         overlap=2,
     )
     assert divider.subdomain_xy_size_without_overlap == 2
+
+
+def test_RankDivider_merge_subdomains():
+    # Original (x, y, z) dims are (4, 4, 2)
+    horizontal_array = np.arange(16).reshape(4, 4)
+    data_orig = np.stack([horizontal_array, -1.0 * horizontal_array], axis=-1)
+    rank_divider = RankDivider(
+        subdomain_layout=(2, 2),
+        rank_dims=["x", "y", "z"],
+        rank_extent=(4, 4, 2),
+        overlap=0,
+    )
+
+    # 'prediction' will just be the subdomains reshaped into columns and
+    # concatenated together. We want the `merge_subdomains` function to
+    # be able to take this 1D array and reshape it into the correct (x,y,z)
+    # dimensions matching the original data.
+    subdomain_columns = rank_divider.flatten_subdomains_to_columns(
+        data_orig, with_overlap=False
+    )
+    prediction = np.concatenate(
+        [subdomain_columns[:, s] for s in range(rank_divider.n_subdomains)], axis=-1
+    )
+
+    merged = rank_divider.merge_subdomains(prediction)
+    np.testing.assert_array_equal(merged, data_orig)
