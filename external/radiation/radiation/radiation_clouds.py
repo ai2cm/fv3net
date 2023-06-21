@@ -1,4 +1,5 @@
 import numpy as np
+from .gfdl_cloud_microphys import cld_eff_rad
 from .phys_const import con_ttp, con_pi, con_g, con_rd, con_thgni
 from .radphysparam import lcrick
 
@@ -7,7 +8,7 @@ class CloudClass:
     VTAGCLD = "NCEP-Radiation_clouds    v5.1  Nov 2012 "
     gfac = 1.0e5 / con_g
     gord = con_g / con_rd
-    NF_CLDS = 9
+    NF_CLDS = 11
     NK_CLDS = 3
     ptopc = np.array([[1050.0, 650.0, 400.0, 0.0], [1050.0, 750.0, 500.0, 0.0]]).T
     climit = 0.001
@@ -1453,6 +1454,196 @@ class CloudClass:
         #      The three cloud domain boundaries are defined by ptopc.  The cloud
         #      overlapping method is defined by control flag 'iovr', which may
         #      be different for lw and sw radiation programs.
+
+        clds, mtop, mbot = self.gethml(
+            plyr, ptop1, cldtot, cldcnv, dz, de_lgth, IX, NLAY
+        )
+
+        return clouds, clds, mtop, mbot, de_lgth
+
+    def progcld6(
+        self,
+        plyr,
+        tlyr,
+        qlyr,
+        cnvw,
+        cnvc,
+        xlat,
+        qw,
+        qi,
+        qr,
+        qs,
+        qg,
+        qa,
+        slmsk,
+        cldtot,
+        dz,
+        delp,
+        IX,
+        NLAY,
+    ):
+        # =================   subprogram documentation block   ================ !
+        #                                                                       !
+        # subprogram:    progcld6    computes cloud related quantities using    !
+        #   GFDL Lin MP prognostic cloud microphysics scheme, as run in         !
+        #   SHiELD physics                                                      !
+        #                                                                       !
+        # abstract:  this program computes cloud fractions from cloud           !
+        #   condensates, calculates liquid/ice cloud droplet effective radius,  !
+        #   and computes the low, mid, high, total and boundary layer cloud     !
+        #   fractions and the vertical indices of low, mid, and high cloud      !
+        #   top and base.  the three vertical cloud domains are set up in the   !
+        #   initial subroutine "cld_init".                                      !
+        #                                                                       !
+        # usage:         call progcld6                                          !
+        #                                                                       !
+        # subprograms called:   cld_eff_rad                                     !
+        #                                                                       !
+        # attributes:                                                           !
+        #   language:   fortran 90                                              !
+        #   machine:    ibm-sp, sgi                                             !
+        #                                                                       !
+        #                                                                       !
+        #  ====================  definition of variables  ====================  !
+        #                                                                       !
+        # input variables:                                                      !
+        #   plyr  (IX,NLAY) : model layer mean pressure in mb (100Pa)           !
+        #   plvl  (IX,NLP1) : model level pressure in mb (100Pa)                !
+        #   tlyr  (IX,NLAY) : model layer mean temperature in k                 !
+        #   tvly  (IX,NLAY) : model layer virtual temperature in k              !
+        #   qlyr  (IX,NLAY) : layer specific humidity in gm/gm                  !
+        #   qstl  (IX,NLAY) : layer saturate humidity in gm/gm                  !
+        #   rhly  (IX,NLAY) : layer relative humidity (=qlyr/qstl)              !
+        #   cnvw  (IX,NLAY) : layer convective cloud condensate                 !
+        #   cnvc  (IX,NLAY) : layer convective cloud cover                      !
+        #   xlat  (IX)      : grid latitude in radians, default to pi/2 -> -pi/2!
+        #                     range, otherwise see in-line comment              !
+        #   qw    (IX,NLAY) : liquid cloud mixing ratio in kg/kg                !
+        #   qi    (IX,NLAY) : ice cloud mixing ratio in kg/kg                   !
+        #   qr    (IX,NLAY) : rain mixing ratio in kg/kg                        !
+        #   qs    (IX,NLAY) : snow mixing ratio in kg/kg                        !
+        #   qg    (IX,NLAY) : graupel mixing ratio in kg/kg                     !
+        #   qa    (IX,NLAY) : aerosol mixing ratio                              !
+        #   slmsk (IX)      : sea/land mask array (sea:0,land:1,sea-ice:2)      !
+        #   cldtot (ITX)    : cloud area fraction                               !
+        #   dz    (ix,nlay) : layer thickness (km)                              !
+        #   delp  (ix,nlay) : model layer pressure thickness in mb (100Pa)      !
+        #   IX              : horizontal dimention                              !
+        #   NLAY,NLP1       : vertical layer/level dimensions                   !
+        #                                                                       !
+        # output variables:                                                     !
+        #   clouds(IX,NLAY,NF_CLDS) : cloud profiles                            !
+        #      clouds(:,:,1) - layer total cloud fraction                       !
+        #      clouds(:,:,2) - layer cloud liq water path         (g/m**2)      !
+        #      clouds(:,:,3) - mean eff radius for liq cloud      (micron)      !
+        #      clouds(:,:,4) - layer cloud ice water path         (g/m**2)      !
+        #      clouds(:,:,5) - mean eff radius for ice cloud      (micron)      !
+        #      clouds(:,:,6) - layer rain drop water path         (g/m**2)      !
+        #      clouds(:,:,7) - mean eff radius for rain drop      (micron)      !
+        #  *** clouds(:,:,8) - layer snow flake water path        (g/m**2)      !
+        #      clouds(:,:,9) - mean eff radius for snow flake     (micron)      !
+        #      clouds(:,:,10)- layer graupel water path           (g/m**2)      !
+        #      clouds(:,:,11)- mean eff radius for graupel        (micron)      !
+        #  *** fu's scheme need to be normalized by snow density (g/m**3/1.0e6) !
+        #   clds  (IX,5)    : fraction of clouds for low, mid, hi, tot, bl      !
+        #   mtop  (IX,3)    : vertical indices for low, mid, hi cloud tops      !
+        #   mbot  (IX,3)    : vertical indices for low, mid, hi cloud bases     !
+        #   de_lgth(ix)     : clouds decorrelation length (km)                  !
+        #                                                                       !
+        # module variables:                                                     !
+        #   ivflip          : control flag of vertical index direction          !
+        #                     =0: index from toa to surface                     !
+        #                     =1: index from surface to toa                     !
+        #   lsashal         : control flag for shallow convection               !
+        #   lcrick          : control flag for eliminating CRICK                !
+        #                     =t: apply layer smoothing to eliminate CRICK      !
+        #                     =f: do not apply layer smoothing                  !
+        #   lcnorm          : control flag for in-cld condensate                !
+        #                     =t: normalize cloud condensate                    !
+        #                     =f: not normalize cloud condensate                !
+        #                                                                       !
+        #  ====================    end of description    =====================  !
+        #
+
+        cldcnv = np.zeros((IX, NLAY))
+        ptop1 = np.zeros((IX, self.NK_CLDS + 1))
+        rxlat = np.zeros(IX)
+        clouds = np.zeros((IX, NLAY, self.NF_CLDS))
+        de_lgth = np.zeros(IX)
+
+        if self.lcnorm is True:
+            for k in range(NLAY):
+                for i in range(IX):
+                    if cldtot[i, k] >= self.climit:
+                        tem1 = 1.0 / max(self.climit2, cldtot[i, k])
+                        qw[i, k] = qw[i, k] * tem1
+                        qi[i, k] = qi[i, k] * tem1
+                        qr[i, k] = qr[i, k] * tem1
+                        qs[i, k] = qs[i, k] * tem1
+                        qg[i, k] = qg[i, k] * tem1
+
+        (cwp, cip, crp, csp, cgp, rew, rei, rer, res, reg, cldtot) = cld_eff_rad(
+            0,
+            IX,
+            0,
+            NLAY,
+            slmsk,
+            100 * plyr,
+            100 * delp,
+            tlyr,
+            qlyr,
+            qw,
+            qi,
+            qr,
+            qs,
+            qg,
+            qa,
+            cldtot,
+            cnvw=cnvw,
+            cnvc=cnvc,
+        )
+
+        for i in range(IX):
+            rxlat[i] = np.abs(xlat[i] / con_pi)  # if xlat in pi/2 -> -pi/2 range
+
+        #  ---  find top pressure for each cloud domain for given latitude
+        #       ptopc(k,i): top presure of each cld domain (k=1-4 are sfc,L,m,h;
+        #  ---  i=1,2 are low-lat (<45 degree) and pole regions)
+
+        for id in range(4):
+            tem1 = self.ptopc[id, 1] - self.ptopc[id, 0]
+            for i in range(IX):
+                tem2 = xlat[i] / con_pi  # if xlat in pi/2 -> -pi/2 range
+                ptop1[i, id] = self.ptopc[id, 0] + tem1 * max(
+                    0.0, 4.0 * abs(tem2) - 1.0
+                )
+
+        for k in range(NLAY):
+            for i in range(IX):
+                clouds[i, k, 0] = cldtot[i, k]
+                clouds[i, k, 1] = cwp[i, k]
+                clouds[i, k, 2] = rew[i, k]
+                clouds[i, k, 3] = cip[i, k]
+                clouds[i, k, 4] = rei[i, k]
+                clouds[i, k, 5] = crp[i, k]
+                clouds[i, k, 6] = rer[i, k]
+                clouds[i, k, 7] = csp[i, k]
+                clouds[i, k, 8] = res[i, k]
+                clouds[i, k, 9] = cgp[i, k]
+                clouds[i, k, 10] = reg[i, k]
+
+        #  --- ...  estimate clouds decorrelation length in km
+        #           this is only a tentative test, need to consider change later
+
+        if self.iovr == 3:
+            for i in range(IX):
+                de_lgth[i] = max(0.6, 2.78 - 4.6 * rxlat[i])
+
+        #  ---  compute low, mid, high, total, and boundary layer cloud fractions
+        #       and clouds top/bottom layer indices for low, mid, and high clouds.
+        #       The three cloud domain boundaries are defined by ptopc.  The cloud
+        #       overlapping method is defined by control flag 'iovr', which may
+        #       be different for lw and sw radiation programs.
 
         clds, mtop, mbot = self.gethml(
             plyr, ptop1, cldtot, cldcnv, dz, de_lgth, IX, NLAY
