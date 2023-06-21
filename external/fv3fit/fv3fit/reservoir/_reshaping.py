@@ -21,3 +21,16 @@ def stack_data(tensor, keep_first_dim: bool):
         return np.reshape(tensor, (n_samples, -1))
     else:
         return np.reshape(tensor, -1)
+
+
+def split_1d_samples_into_2d_rows(
+    arr: np.ndarray, n_rows: int, keep_first_dim_shape: bool
+) -> np.ndarray:
+    # Consecutive chunks of 1d array form rows of 2d array
+    # ex. 1d to 2d reshaping (8,) -> (2,4) for n_rows=2
+    # [1,2,3,4,5,6,7,8] -> [[1,2,3,4], [5,6,7,8]]
+    if keep_first_dim_shape is True:
+        time_dim_size = arr.shape[0]
+        return np.reshape(arr, (time_dim_size, n_rows, -1), order="C")
+    else:
+        return np.reshape(arr, (n_rows, -1), order="C")
