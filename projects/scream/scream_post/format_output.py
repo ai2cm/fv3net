@@ -130,6 +130,10 @@ def rename_lev_to_z(ds: xr.Dataset):
     return ds.rename(rename_vars)
 
 
+def rename_water_vapor_path(ds: xr.Dataset):
+    return ds.rename({"VapWaterPath": "water_vapor_path"})
+
+
 def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
@@ -184,6 +188,13 @@ def _get_parser() -> argparse.ArgumentParser:
         default=False,
         help="Convert time type to cftime",
     )
+
+    parser.add_argument(
+        "--rename-water-vapor-path",
+        type=bool,
+        default=False,
+        help="Rename VapWaterPath to water_vapor_path",
+    )
     return parser
 
 
@@ -205,6 +216,8 @@ if __name__ == "__main__":
         ds = convert_npdatetime_to_cftime(ds)
     if args.rename_lev_to_z:
         ds = rename_lev_to_z(ds)
+    if args.rename_water_vapor_path:
+        ds = rename_water_vapor_path(ds)
     nudging_variables_tendencies = [
         f"{var}_tendency_due_to_nudging" for var in nudging_vars
     ]
