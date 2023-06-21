@@ -63,15 +63,28 @@ def _get_parser() -> argparse.ArgumentParser:
         default=None,
         help=("Number of timesteps to save per rank netcdf."),
     )
-    parser.add_argument("--variables", type=str, nargs="+", default=[])
-    parser.add_argument("--ranks", type=int, nargs="+", default=[])
+    parser.add_argument(
+        "--variables", type=str, nargs="+", default=[], help="Variables names to save."
+    )
+    parser.add_argument(
+        "--ranks", type=int, nargs="+", default=[], help="Subset of ranks to save."
+    )
     parser.add_argument(
         "--time-sample-interval",
         type=int,
         default=1,
         help="Sample interval for timesteps.",
     )
-    parser.add_argument("--additional-paths", type=str, nargs="+", default=[])
+    parser.add_argument(
+        "--additional-paths",
+        type=str,
+        nargs="+",
+        default=[],
+        help=(
+            "If some variables are saved in other datasets, add their paths here. "
+            "All datasets loaded must have the same space and time coordinates."
+        ),
+    )
 
     return parser
 
