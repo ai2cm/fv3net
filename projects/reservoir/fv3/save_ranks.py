@@ -151,7 +151,8 @@ if __name__ == "__main__":
         data_time_slice = data.sel(time=time_chunk).load()
         for r in save_ranks:
             output_dir = os.path.join(args.output_path, f"rank_{r}")
-            rank_output_path = os.path.join(output_dir, f"{t}.nc")
+            "{:04d}".format(t)
+            rank_output_path = os.path.join(output_dir, "{:04d}.nc".format(t))
             rank_data = cubedsphere_divider.get_rank_data(
                 data_time_slice, rank=r, overlap=args.overlap
             )
