@@ -5,8 +5,8 @@ import os
 from tempfile import NamedTemporaryFile
 import toolz
 
-from .cubed_sphere import CubedSphereDivider
 import vcm
+import cubed_sphere
 
 logging.basicConfig()
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     data = data[args.variables].sel(time=slice(tstart, tstop))
     dims, extent = get_ordered_dims_extent(dict(data.dims))
 
-    cubedsphere_divider = CubedSphereDivider(
+    cubedsphere_divider = cubed_sphere.CubedSphereDivider(
         tile_layout=(args.layout_width, args.layout_width),
         global_dims=dims,
         global_extent=extent,
