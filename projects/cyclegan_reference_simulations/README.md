@@ -53,13 +53,13 @@ SEGMENTS=51
 export SBATCH_TIMELIMIT=06:30:00
 export SLURM_NNODES=48
 
-# Set configuration and name related variables
-CONFIG_ROOT=$PROJECT_ROOT/configurations/C384/ramped
+CONFIG=$PROJECT_ROOT/configurations/C384/ramped/C384-ramped.yaml
+NAME=C384-ramped
 
 sbatch --nodes=$SLURM_NNODES --export=SBATCH_TIMELIMIT,SLURM_NNODES run_fv3gfs.sh \
        $SCRATCH_ROOT \
-       C384-ramped \
-       ${CONFIG_ROOT}/C384-ramped.yaml \
+       $NAME \
+       $CONFIG \
        $SEGMENTS \
        $EXECUTABLE \
        $CONDA_ENV \
