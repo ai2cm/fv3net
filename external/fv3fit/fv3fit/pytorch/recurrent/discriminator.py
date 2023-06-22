@@ -72,6 +72,8 @@ class Discriminator(nn.Module):
             max_filters: maximum number of filters in any convolutional layer,
                 equal to the number of filters in the final strided convolutional layer
                 and in the convolutional layer just before the output layer
+            nx: number of grid points in the x direction
+            ny: number of grid points in the y direction
             convolution: factory for creating all convolutional layers
         """
         super(Discriminator, self).__init__()

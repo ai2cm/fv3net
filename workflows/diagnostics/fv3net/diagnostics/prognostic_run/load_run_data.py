@@ -2,8 +2,7 @@ from dataclasses import dataclass
 import json
 import logging
 import os
-from typing_extensions import Protocol
-from typing import List, Mapping
+from typing import List, Mapping, Protocol
 import warnings
 
 import fsspec

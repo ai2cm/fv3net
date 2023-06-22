@@ -1,0 +1,25 @@
+entity: ai2cm
+project:  cyclegan-tuning
+name: 2023-01-04-sweep
+command:  # note yaml filenames in this command are determined by sweep workflow, and do not need to match the local filenames
+  - ${env}
+  - python3
+  - -m
+  - fv3fit.train
+  - training_config.yaml
+  - training_data.yaml
+  - trained_model
+  - --validation-data-config
+  - validation_data.yaml
+method: random
+early_terminate:
+  type: hyperband
+  min_iter: 10
+metric:
+  goal: minimize
+  name: val_regularization_loss
+parameters:
+  network.optimizer.kwargs.lr:
+    distribution: log_uniform_values
+    min: 0.000001
+    max: 0.001

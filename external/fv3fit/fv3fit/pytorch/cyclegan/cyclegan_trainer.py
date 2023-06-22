@@ -50,8 +50,6 @@ class CycleGANNetworkConfig:
         cycle_weight: weight of the cycle loss
         generator_weight: weight of the generator's gan loss
         discriminator_weight: weight of the discriminator gan loss
-        reload_path: path to a directory containing a saved CycleGAN model to use
-            as a starting point for training
     """
 
     optimizer: OptimizerConfig = dataclasses.field(
@@ -82,6 +80,20 @@ class CycleGANNetworkConfig:
         scalers: Tuple[Mapping[str, StandardScaler], Mapping[str, StandardScaler]],
         reload_path: Optional[str] = None,
     ) -> "CycleGANTrainer":
+        """
+        Build a CycleGANTrainer object.
+
+        Args:
+            n_state: number of state variables in the input data
+            nx: number of grid points in the x direction
+            ny: number of grid points in the y direction
+            n_batch: number of samples in a batch
+            state_variables: list of state variable names
+            scalers: mapping from state variable name to StandardScaler
+                for domain A and B
+            reload_path: path to a directory containing a saved CycleGAN model to use
+                as a starting point for training
+        """
         if self.convolution_type == "conv2d":
             convolution = single_tile_convolution
         elif self.convolution_type == "halo_conv2d":
@@ -430,6 +442,7 @@ class CycleGANTrainer:
         cycle_weight: weight of the cycle loss
         generator_weight: weight of the generator's gan loss
         discriminator_weight: weight of the discriminator gan loss
+        non_negativity_weight: weight of the non-negativity L1 loss
         metric_percentiles: the percentiles to use when computing the
             histogram error metrics
     """
@@ -448,11 +461,12 @@ class CycleGANTrainer:
     gan_loss: torch.nn.Module
     batch_size: int
     identity_weight: float = 0.5
-    cycle_weight: float = 1.0
+    cycle_weight: float = 10.0
     generator_weight: float = 1.0
     discriminator_weight: float = 1.0
+    non_negativity_weight: float = 0.0
     metric_percentiles: List[float] = dataclasses.field(
-        default_factory=lambda: [0.99, 0.999, 0.9999]
+        default_factory=lambda: [0.99, 0.999, 0.9999, 0.99999, 0.999999]
     )
 
     def __post_init__(self):
@@ -469,9 +483,10 @@ class CycleGANTrainer:
         self._script_gen_b_to_a = None
         self._script_disc_a = None
         self._script_disc_b = None
+        self._l1_loss = torch.nn.L1Loss()
         # This flag can be manually used to disable compilation, for clearer
         # error messages and debugging. It should always be set to True in PRs.
-        self._compile = True  # if this is False in a PR, say something!
+        self._compile = False
 
     def _call_generator_a_to_b(
         self, input: Tuple[torch.Tensor, torch.Tensor]
@@ -535,6 +550,13 @@ class CycleGANTrainer:
         else:
             return self.discriminator_b(*input)
 
+    def _non_negativity_loss(self, output: torch.Tensor) -> torch.Tensor:
+        # we want to penalize the generator for generating negative values
+        # so we use the L1 loss
+        # to only affect negative values we look at min(0, output)
+        zeros = torch.zeros_like(output)
+        return self._l1_loss(torch.min(output, zeros), zeros)
+
     def train_on_batch(
         self,
         state_a: Tuple[torch.Tensor, torch.Tensor],
@@ -558,7 +580,6 @@ class CycleGANTrainer:
         """
         if aggregator is None:
             aggregator = ResultsAggregator(histogram_vmax=100.0)
-
         time_a, time_b, real_a, real_b = unpack_state(state_a, state_b)
 
         fake_b = self._call_generator_a_to_b((time_a, real_a))
@@ -568,8 +589,8 @@ class CycleGANTrainer:
 
         # Generators A2B and B2A ######
 
-        # don't update discriminators when training generators to fool them
         if training:
+            # don't update discriminators when training generators to fool them
             set_requires_grad(
                 [self.discriminator_a, self.discriminator_b], requires_grad=False
             )
@@ -615,8 +636,13 @@ class CycleGANTrainer:
         loss_cycle_b_a_b = self.cycle_loss(reconstructed_b, real_b) * self.cycle_weight
         loss_cycle = loss_cycle_a_b_a + loss_cycle_b_a_b
 
+        # Non-negativity loss
+        loss_non_neg_a = self._non_negativity_loss(fake_a) * self.non_negativity_weight
+        loss_non_neg_b = self._non_negativity_loss(fake_b) * self.non_negativity_weight
+        loss_non_neg = loss_non_neg_a + loss_non_neg_b
+
         # Total loss
-        loss_g: torch.Tensor = (loss_identity + loss_gan + loss_cycle)
+        loss_g: torch.Tensor = (loss_identity + loss_gan + loss_cycle + loss_non_neg)
 
         with torch.no_grad():
             aggregator.record_results(
@@ -633,8 +659,8 @@ class CycleGANTrainer:
 
         # Discriminators A and B ######
 
-        # do update discriminators when training them to identify samples
         if training:
+            # do update discriminators when training them to identify samples
             set_requires_grad(
                 [self.discriminator_a, self.discriminator_b], requires_grad=True
             )
@@ -648,7 +674,7 @@ class CycleGANTrainer:
         # Fake loss
         if training:
             time_b, fake_a = self.fake_a_buffer.query(
-                (time_b.detach(), fake_a.detach())
+                ((time_b[0].detach(), time_b[1].detach()), fake_a.detach())
             )
         pred_a_fake = self._call_discriminator_a((time_b, fake_a))
         loss_d_a_fake = (
@@ -664,7 +690,7 @@ class CycleGANTrainer:
         # Fake loss
         if training:
             time_a, fake_b = self.fake_b_buffer.query(
-                (time_a.detach(), fake_b.detach())
+                ((time_a[0].detach(), time_a[1].detach()), fake_b.detach())
             )
         pred_b_fake = self._call_discriminator_b((time_a, fake_b))
         loss_d_b_fake = (
@@ -690,6 +716,7 @@ class CycleGANTrainer:
             "generator_loss": float(loss_g),
             "discriminator_loss": float(loss_d),
             "train_loss": float(loss_g + loss_d),
+            "regularization_loss": float(loss_cycle + loss_identity),
         }
 
     def generate_plots(
@@ -701,6 +728,7 @@ class CycleGANTrainer:
         """
         Plot model output on the first sample of a given batch and return it as
         a dictionary of wandb.Image objects.
+
         Args:
             state_a: a tuple containing a "time" tensor of shape [sample, time]
                 and a batch of data from domain A, should have shape
@@ -714,8 +742,12 @@ class CycleGANTrainer:
 
         # plot the first sample of the batch
         with torch.no_grad():
-            fake_b = self._call_generator_a_to_b((time_a[:1], real_a[:1, :]))
-            fake_a = self._call_generator_b_to_a((time_b[:1], real_b[:1, :]))
+            fake_b = self._call_generator_a_to_b(
+                ((time_a[0][:1], time_a[1][:1]), real_a[:1, :])
+            )
+            fake_a = self._call_generator_b_to_a(
+                ((time_b[0][:1], time_b[1][:1]), real_b[:1, :])
+            )
         real_a = real_a.cpu().numpy()
         real_b = real_b.cpu().numpy()
         fake_a = fake_a.cpu().numpy()
@@ -853,8 +885,10 @@ def unpack_state(
     into one.
     """
 
-    time_a = state_a[0].flatten()
-    time_b = state_b[0].flatten()
+    time_a = state_a[0][0].flatten()
+    time_b = state_b[0][0].flatten()
+    perturbation_a = state_a[0][1].flatten()
+    perturbation_b = state_b[0][1].flatten()
     real_a = state_a[1]
     real_b = state_b[1]
     # for now there is no time-evolution-based loss, so we fold the time
@@ -865,7 +899,7 @@ def unpack_state(
     real_b = real_b.reshape(
         [real_b.shape[0] * real_b.shape[1]] + list(real_b.shape[2:])
     )
-    return time_a, time_b, real_a, real_b
+    return (time_a, perturbation_a), (time_b, perturbation_b), real_a, real_b
 
 
 def plot_histograms(

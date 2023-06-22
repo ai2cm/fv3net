@@ -1,6 +1,5 @@
 import xarray
-from typing import Tuple
-from typing_extensions import Protocol
+from typing import Tuple, Protocol
 import vcm
 
 

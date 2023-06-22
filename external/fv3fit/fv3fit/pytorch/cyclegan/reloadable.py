@@ -9,11 +9,18 @@ from fv3fit.pytorch.predict import (
 from fv3fit.pytorch.system import DEVICE
 from .generator import Generator
 from .discriminator import Discriminator
-from typing import Mapping, Iterable, Tuple
+from typing import Mapping, Iterable, Tuple, Union
 import torch
 import xarray as xr
 import numpy as np
 import cftime
+
+PERTURBATIONS = {
+    "minus-2K": 0.0,
+    "0K": 0.333333,
+    "plus-2K": 0.666667,
+    "plus-4K": 1.0,
+}
 
 
 class CycleGANModule(torch.nn.Module):
@@ -147,7 +154,12 @@ class CycleGAN(Reloadable):
             dims=["time", "tile", "x", "y", "z"],
         )
 
-    def predict(self, X: xr.Dataset, reverse: bool = False) -> xr.Dataset:
+    def predict(
+        self,
+        X: xr.Dataset,
+        reverse: bool = False,
+        perturbation: Union[str, float] = "0K",
+    ) -> xr.Dataset:
         """
         Predict a state in the output domain from a state in the input domain.
 
@@ -156,16 +168,21 @@ class CycleGAN(Reloadable):
         Args:
             X: input dataset
             reverse: if True, transform from the output domain to the input domain
+            perturbation: Either the string representation of the perturbation
+                climate, or its float-encoded value.
 
         Returns:
             predicted: predicted dataset
         """
+        if isinstance(perturbation, str):
+            perturbation = PERTURBATIONS[perturbation]
         if reverse:
             input_domain, output_domain = "b", "a"
         else:
             input_domain, output_domain = "a", "b"
 
         time, tensor = self.pack_to_tensor(X, domain=input_domain)
+        perturbation_tensor = torch.full_like(time, perturbation)
         if reverse:
             generator = self.generator_b_to_a
         else:
@@ -174,9 +191,13 @@ class CycleGAN(Reloadable):
         outputs = torch.zeros_like(tensor)
         with torch.no_grad():
             for i in range(0, tensor.shape[0], n_batch):
-                new: torch.Tensor = generator(
-                    time[i : i + n_batch], tensor[i : i + n_batch]
-                )
+                try:
+                    new: torch.Tensor = generator(
+                        (time[i : i + n_batch], perturbation_tensor[i : i + n_batch]),
+                        tensor[i : i + n_batch],
+                    )
+                except TypeError:
+                    new = generator(time[i : i + n_batch], tensor[i : i + n_batch])
                 outputs[i : i + new.shape[0]] = new
         predicted = self.unpack_tensor(outputs, domain=output_domain)
         predicted["time"] = X["time"]

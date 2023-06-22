@@ -1,8 +1,7 @@
 import dataclasses
-from typing import Callable, List, Union, Set, Optional
+from typing import Callable, List, Union, Set, Optional, Protocol
 
 import tensorflow as tf
-from typing_extensions import Protocol
 from fv3fit.emulation.types import TensorDict
 
 

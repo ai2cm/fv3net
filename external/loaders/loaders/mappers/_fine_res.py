@@ -1,8 +1,7 @@
 import dataclasses
 from datetime import timedelta
 from enum import Enum
-from typing_extensions import Protocol
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Protocol
 import zarr
 import xarray as xr
 import numpy as np
