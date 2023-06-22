@@ -16,6 +16,7 @@ import cartopy.crs as ccrs
 from vcm.catalog import catalog
 import matplotlib.animation
 import matplotlib.colors
+import matplotlib.patches
 import vcm
 from fv3viz._plot_cube import UpdateablePColormesh
 from process_combined_aggregate import (
@@ -321,13 +322,13 @@ def animate_all(c48, c384, c48_gen, c384_gen, label: str):
         lat,
         lon,
         precip_c48_gen.isel(time=0).values,
-        ax=ax[0, 1],
+        ax=ax[1, 1],
         vmin=0,
         vmax=vmax,
         norm=norm,
         plot_colorbar=False,
     )
-    ax[0, 1].set_title("C48 (ML)")
+    ax[1, 1].set_title("C48 (ML)")
     im_c48 = UpdateablePColormesh(
         lat,
         lon,
@@ -343,17 +344,19 @@ def animate_all(c48, c384, c48_gen, c384_gen, label: str):
         lat,
         lon,
         precip_c384_gen.isel(time=0).values,
-        ax=ax[1, 1],
+        ax=ax[0, 1],
         vmin=0,
         vmax=vmax,
         norm=norm,
         plot_colorbar=False,
     )
-    ax[1, 1].set_title("C384 (ML)")
+    ax[0, 1].set_title("C384 (ML)")
     for i in range(2):
         for j in range(2):
             ax[i, j].coastlines()
-    fig.suptitle(f"Surface precipitation (mm/day), elapsed days = 0.00")
+    fig.suptitle(
+        f"Surface precipitation (mm/day), elapsed days = 0.00", fontsize="x-large"
+    )
 
     def func(data):
         im_c384.update(data[0])
@@ -362,7 +365,10 @@ def animate_all(c48, c384, c48_gen, c384_gen, label: str):
         im_c48_gen.update(data[3])
         i = data[4]
         days = i / 8.0
-        fig.suptitle(f"Surface precipitation (mm/day), elapsed days = {days:.2f}")
+        fig.suptitle(
+            f"Surface precipitation (mm/day), elapsed days = {days:.2f}",
+            fontsize="x-large",
+        )
 
     frames = (
         (
@@ -376,8 +382,32 @@ def animate_all(c48, c384, c48_gen, c384_gen, label: str):
     )
     fig.subplots_adjust(right=0.9)
     cbar_ax = fig.add_axes([0.93, 0.15, 0.02, 0.7])
-    fig.colorbar(im_c48_gen.handles[-1], cax=cbar_ax)
+    cbar = fig.colorbar(im_c48_gen.handles[-1], cax=cbar_ax)
+    # cbar.set_label("Surface precipitation (mm/day)", rotation=270)
+    arrow = matplotlib.patches.ConnectionPatch(
+        (0.43, 0.84),
+        (0.5, 0.84),
+        coordsA="figure fraction",
+        # Default shrink parameter is 0 so can be omitted
+        color="black",
+        arrowstyle="-|>",  # "normal" arrow
+        mutation_scale=20,  # controls arrow head size
+        linewidth=2,
+    )
+    fig.add_artist(arrow)
+    arrow = matplotlib.patches.ConnectionPatch(
+        (0.43, 0.41),
+        (0.5, 0.41),
+        coordsA="figure fraction",
+        # Default shrink parameter is 0 so can be omitted
+        color="black",
+        arrowstyle="-|>",  # "normal" arrow
+        mutation_scale=20,  # controls arrow head size
+        linewidth=2,
+    )
+    fig.add_artist(arrow)
     plt.tight_layout(rect=[0.03, 0.03, 0.89, 0.93])
+    fig.savefig(f"basic_animation_preview_{nt}-{label}.png", dpi=100)
     ani = matplotlib.animation.FuncAnimation(
         fig, func, frames=frames, interval=100, repeat=False, save_count=nt,
     )

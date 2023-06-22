@@ -17,7 +17,7 @@ hyperparameters:
     optimizer:
       name: Adam
       kwargs:
-        lr: 1.0001e-4
+        lr: 2.5120e-7
     generator:
       n_convolutions: 2
       n_resnet: 6
@@ -46,7 +46,7 @@ hyperparameters:
     cycle_weight: 10.0
     generator_weight: 1.0
     discriminator_weight: 1.0
-  # reload_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230329-221950-bbc73854-epoch_023/
+  reload_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/20230516-220530-dcfafce9-epoch_013/
   training:
     n_epoch: 100
     in_memory: false
