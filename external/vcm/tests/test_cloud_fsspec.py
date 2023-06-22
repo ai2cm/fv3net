@@ -35,6 +35,7 @@ def test_copy(tmpdir, content_type):
     [
         ("gs", "some-path", "gs://some-path"),
         ("file", "some-path", "file://some-path"),
+        ("file", "/absolute/file/path", "file:///absolute/file/path"),
         ("http", "some-path", "http://some-path"),
     ],
 )

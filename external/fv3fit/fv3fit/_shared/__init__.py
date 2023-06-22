@@ -1,4 +1,4 @@
-from .config import SliceConfig, PackerConfig
+from .config import SliceConfig, PackerConfig, OptimizerConfig
 from .training_config import TrainingConfig, register_training_function
 from .packer import (
     pack,
@@ -21,3 +21,4 @@ from .stacking import (
 )
 from .models import EnsembleModel, DerivedModel, TransformedPredictor
 from .filesystem import get_dir, put_dir
+from .xr_prediction import DatasetPredictor

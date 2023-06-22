@@ -1,4 +1,4 @@
-from fv3fit.keras._models.shared import append_halos
+from fv3fit._shared.halos import append_halos
 from fv3fit.pytorch.cyclegan.modules import AppendHalos
 from fv3fit.pytorch.system import DEVICE
 import xarray as xr

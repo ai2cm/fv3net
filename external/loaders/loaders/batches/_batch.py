@@ -34,6 +34,7 @@ from ._serialized_phys import (
 import loaders
 import fsspec
 import vcm
+import vcm.catalog
 import dataclasses
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,10 @@ class BatchesFromMapperConfig(BatchesLoader):
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
         data_transforms: list of transforms to compute derived variables in batches.
+        catalog_path: path to the local catalog.yaml file. The minimal
+            entries for this file are "grid/{res}", "landseamask/{res}" and
+            "wind_rotation/{res}".
+
     """
 
     mapper_config: MapperConfig
@@ -79,6 +84,8 @@ class BatchesFromMapperConfig(BatchesLoader):
     shuffle_timesteps: bool = True
     shuffle_samples: bool = False
     data_transforms: Optional[Sequence[Mapping]] = None
+    ptop: float = vcm.calc.thermo.constants.TOA_PRESSURE
+    catalog_path: str = vcm.catalog.catalog_path
 
     def __post_init__(self):
         duplicate_times = [
@@ -121,6 +128,7 @@ class BatchesFromMapperConfig(BatchesLoader):
             shuffle_timesteps=self.shuffle_samples,
             shuffle_samples=self.shuffle_samples,
             data_transforms=self.data_transforms,
+            catalog_path=self.catalog_path,
         )
 
 
@@ -138,8 +146,9 @@ def batches_from_mapper(
     shuffle_timesteps: bool = True,
     shuffle_samples: bool = False,
     data_transforms: Optional[Sequence[Mapping]] = None,
+    catalog_path: str = vcm.catalog.catalog_path,
 ) -> loaders.typing.Batches:
-    """ The function returns a sequence of datasets that is later
+    """The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
     Args:
         data_mapping: Interface to select data for
@@ -192,11 +201,9 @@ def batches_from_mapper(
     transforms = [_get_batch(data_mapping)]
 
     if needs_grid:
-        transforms += [
-            add_grid_info(res),
-            add_wind_rotation_info(res),
-        ]
-
+        transforms.append(add_grid_info(res, catalog_path))
+        if vcm.gsrm_name_from_resolution_string(res) == "fv3":
+            transforms.append(add_wind_rotation_info(res, catalog_path))
     if data_transforms is not None:
         data_transform = dacite.from_dict(
             vcm.ChainedDataTransform, {"transforms": data_transforms}

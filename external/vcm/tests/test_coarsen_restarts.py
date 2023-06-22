@@ -39,7 +39,7 @@ REGRESSION_TESTS = {
     ),
     "pressure-level-with-agrid-winds": (
         coarsen_restarts_on_pressure,
-        {"coarsen_agrid_winds": True},
+        {"coarsen_agrid_winds": True, "extrapolate": False},
     ),
     "pressure-level-without-agrid-winds": (
         coarsen_restarts_on_pressure,
@@ -52,6 +52,10 @@ REGRESSION_TESTS = {
     "blended-area-weighted-without-agrid-winds": (
         coarsen_restarts_via_blended_method,
         {"coarsen_agrid_winds": False, "mass_weighted": False},
+    ),
+    "pressure-level-extrapolate-with-agrid-winds": (
+        coarsen_restarts_on_pressure,
+        {"coarsen_agrid_winds": False, "extrapolate": True},
     ),
 }
 

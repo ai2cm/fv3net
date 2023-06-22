@@ -50,5 +50,7 @@ from .pytorch import (
 # need to import this to register the training func
 import fv3fit.train_microphysics
 import fv3fit.dataclasses
+import fv3fit.reservoir.train
+import fv3fit.reservoir.transformers.autoencoder
 
 __version__ = "0.1.0"

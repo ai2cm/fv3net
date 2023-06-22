@@ -51,20 +51,32 @@ def create(url: str, fv3config_path: str):
 
 
 @cli.command()
+@click.option(
+    "--mpi_launcher",
+    default="mpirun",
+    help="MPI launcher used to run the simulation. "
+    "Supported values are 'mpirun' and 'srun'.",
+)
 @click.argument("url")
-def append(url: str):
+def append(mpi_launcher: str, url: str):
     """Append a segment to a segmented run"""
-    sys.exit(api.append(url))
+    sys.exit(api.append(url, mpi_launcher))
 
 
 @cli.command("run-native")
+@click.option(
+    "--mpi_launcher",
+    default="mpirun",
+    help="MPI launcher used to run the simulation. "
+    "Supported values are 'mpirun' and 'srun'.",
+)
 @click.argument("fv3config_path")
 @click.argument("rundir")
-def run_native(fv3config_path: str, rundir: str):
+def run_native(fv3config_path: str, rundir: str, mpi_launcher: str):
     """Setup a run-directory and run the model. Used for testing/debugging."""
     with open(fv3config_path) as f:
         config = fv3config.load(f)
-    sys.exit(run_segment(config, rundir))
+    sys.exit(run_segment(config, rundir, mpi_launcher))
 
 
 @cli.command("parse-logs")

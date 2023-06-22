@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Sequence, Optional, Set, Iterable
+from typing import Sequence, Optional, Set
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -83,17 +83,18 @@ class ReservoirTrainingConfig(Hyperparameters):
         before passing to reservoir
     """
 
-    input_variables: Iterable[str]
-    output_variables: Iterable[str]
+    input_variables: Sequence[str]
+    output_variables: Sequence[str]
     subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
     readout_hyperparameters: BatchLinearRegressorHyperparameters
     n_batches_burn: int
     input_noise: float
     seed: int = 0
-    n_jobs: Optional[int] = -1
+    n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False
     autoencoder_path: Optional[str] = None
+    hybrid_variables: Optional[Sequence[str]] = None
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     def __post_init__(self):
@@ -102,10 +103,23 @@ class ReservoirTrainingConfig(Hyperparameters):
                 f"Output variables {self.output_variables} must be a subset of "
                 f"input variables {self.input_variables}."
             )
+        if self.hybrid_variables is not None:
+            hybrid_and_input_vars_intersection = set(
+                self.hybrid_variables
+            ).intersection(self.input_variables)
+            if len(hybrid_and_input_vars_intersection) > 0:
+                raise ValueError(
+                    f"Hybrid variables {self.hybrid_variables} cannot overlap with "
+                    f"input variables {self.input_variables}."
+                )
 
     @property
     def variables(self) -> Set[str]:
-        return set(self.input_variables)
+        if self.hybrid_variables is not None:
+            hybrid_vars = list(self.hybrid_variables)  # type: ignore
+        else:
+            hybrid_vars = []
+        return set(list(self.input_variables) + hybrid_vars)
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":

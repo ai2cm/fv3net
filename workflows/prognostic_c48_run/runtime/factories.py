@@ -4,7 +4,7 @@ These construct objects like Emulators that require knowledge of static
 configuration as well as runtime-only data structures like the model state.
 """
 import logging
-from typing import Optional, Callable, Sequence, Mapping, Hashable, Any, Union
+from typing import Optional, Callable, Sequence, Mapping, Hashable, Any
 from datetime import timedelta
 import xarray as xr
 import cftime
@@ -17,7 +17,7 @@ from runtime.transformers.core import StepTransformer
 from runtime.transformers.tendency_prescriber import TendencyPrescriber
 from runtime.steppers.prescriber import PrescriberConfig, Prescriber
 from runtime.steppers.radiation import RadiationStepper
-from runtime.steppers.machine_learning import PureMLStepper
+from runtime.steppers.stepper import Stepper
 from runtime.interpolate import time_interpolate_func, label_to_time
 from runtime.derived_state import DerivedFV3State
 import runtime.transformers.fv3fit
@@ -154,12 +154,14 @@ def get_prescriber(
         config.reference_initial_time,
         config.reference_frequency_seconds,
     )
-    return Prescriber(
+
+    prescriber = Prescriber(
         communicator=communicator,
         time_lookup_function=time_lookup_function,
         variables=config.variables,
         tendency_variables=config.tendency_variables,
     )
+    return prescriber
 
 
 def get_radiation_stepper(
@@ -168,7 +170,7 @@ def get_radiation_stepper(
     timestep: float,
     init_time: cftime.DatetimeJulian,
     tracer_metadata: Mapping[Hashable, Mapping[Hashable, int]],
-    input_generator: Optional[Union[PureMLStepper, Prescriber]],
+    input_generator: Optional[Stepper],
 ) -> RadiationStepper:
     radiation_config = radiation.RadiationConfig.from_namelist(namelist)
     tracer_inds: Mapping[str, int] = {

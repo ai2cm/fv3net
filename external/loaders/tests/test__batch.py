@@ -12,6 +12,9 @@ from loaders.batches._batch import (
     _get_batch,
 )
 
+from loaders.testing import mapper_context
+
+
 DATA_VARS = ["air_temperature", "specific_humidity"]
 Z_DIM_SIZE = 79
 
@@ -77,6 +80,31 @@ def test_batches_from_mapper(mapper):
             assert set(batch[name].dims) == set(original_data_dims[name])
         for dim in batch.dims:
             assert len(dim) == original_dim_lengths[dim]
+
+
+def test_load_batches_with_catalog_path(mapper, datadir):
+    # The intent of this test is to verify the ability to specify a custom
+    # catalog in the BatchesFromMapperConfig constructor and subsequently load
+    # batches. By design the custom catalog file misses the grid info. The
+    # KeyError arises as the program attempts to load the grid information from
+    # the custom catalog file rather than the default.
+
+    with mapper_context():
+        catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
+
+        def mapper_function():
+            return mapper
+
+        loaders._config.mapper_functions.register(mapper_function)
+        mapper_config = loaders._config.MapperConfig(
+            function="mapper_function", kwargs={}
+        )
+        batches_config = loaders.BatchesFromMapperConfig(
+            mapper_config=mapper_config, catalog_path=catalog_path
+        )
+        with pytest.raises(KeyError):
+            batches = batches_config.load_batches(DATA_VARS)
+            batches[0]
 
 
 @pytest.mark.parametrize(
