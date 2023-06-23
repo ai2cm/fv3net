@@ -125,7 +125,9 @@ class HybridDatasetAdapter:
         inputs_filtered = inputs[list(self.model.input_variables)]
         stacked = stack(inputs_filtered, unstacked_dims=[feature_dim])
 
-        input_arrs = [stacked[variable] for variable in self.model.input_variables]
+        input_arrs = [
+            stacked[variable].values for variable in self.model.input_variables
+        ]
         encoded = self.model.autoencoder.encode(input_arrs)
         encoded_shape = divider.rank_extent[:-1] + [encoded.shape[-1]]
         return encoded.reshape(encoded_shape)
