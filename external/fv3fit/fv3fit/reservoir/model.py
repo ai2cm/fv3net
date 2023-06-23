@@ -2,14 +2,15 @@ import fsspec
 import numpy as np
 import os
 from typing import Optional, Iterable, Hashable, Union
+import xarray as xr
 import yaml
 
 import fv3fit
 from fv3fit import Predictor
+from fv3fit._shared import stack
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
 from .domain import RankDivider
-from fv3fit._shared import io
 from .utils import square_even_terms
 from .transformers import Autoencoder, SkTransformer, ReloadableTransfomer
 from ._reshaping import flatten_2d_keeping_columns_contiguous
@@ -27,7 +28,7 @@ def _load_transformer(path) -> Union[Autoencoder, SkTransformer]:
         )
 
 
-@io.register("hybrid-reservoir")
+# @io.register("hybrid-reservoir")
 class HybridReservoirComputingModel(Predictor):
     _HYBRID_VARIABLES_NAME = "hybrid_variables.yaml"
 
@@ -98,7 +99,98 @@ class HybridReservoirComputingModel(Predictor):
         )
 
 
-@io.register("pure-reservoir")
+class HybridDatasetAdapter:
+    def __init__(self, model: HybridReservoirComputingModel) -> None:
+        self.model = model
+        self._input_feature_sizes = None
+        self._rank_sample_dim_shape = None
+
+    def predict(self, inputs: xr.Dataset) -> xr.Dataset:
+        # TODO: centralize stacking logic for encoding decoding
+        # TODO: potentially use in train.py instead of special functions there
+        processed_inputs = self._input_data_to_array(inputs)  # x, y, feature dims
+        subdomains = self.model.rank_divider.flatten_subdomains_to_columns(
+            processed_inputs, with_overlap=True
+        )
+        flattened = flatten_2d_keeping_columns_contiguous(subdomains)
+        prediction = self.model.predict(flattened)
+        unstacked_arr = self.model.rank_divider.merge_subdomains(prediction)
+        return self._separate_output_variables(unstacked_arr)
+
+    # TODO: Add a synchronization facility and fix sync methods in models
+
+    def _encode_input_variables(self, inputs: xr.Dataset):
+        divider = self.model.rank_divider
+        feature_dim = divider.rank_dims[-1]
+        inputs_filtered = inputs[list(self.model.input_variables)]
+        stacked = stack(inputs_filtered, unstacked_dims=[feature_dim])
+
+        input_arrs = [stacked[variable] for variable in self.model.input_variables]
+        encoded = self.model.autoencoder.encode(input_arrs)
+        encoded_shape = divider.rank_extent[:-1] + [encoded.shape[-1]]
+        return encoded.reshape(encoded_shape)
+
+    def _join_input_variables(self, inputs: xr.Dataset):
+        input_arrs = [inputs[variable] for variable in self.model.input_variables]
+        joined_feature_inputs = np.concatenate(input_arrs, axis=-1)
+
+        return joined_feature_inputs
+
+    def _input_data_to_array(self, inputs: xr.Dataset):
+        if self._input_feature_sizes is None:
+            self._input_feature_sizes = [
+                inputs[key].shape[-1] for key in self.model.input_variables
+            ]
+
+        if self.model.autoencoder is not None:
+            arr = self._encode_input_variables(inputs)
+        else:
+            arr = self._join_input_variables(inputs)
+
+        return arr
+
+    def _separate_output_variables(self, outputs: np.ndarray):
+        if self.model.autoencoder is not None:
+            ds = self._decode_ouput_variables(outputs)
+        else:
+            ds = self._separate_output_from_stacked_array(outputs)
+
+        return ds
+
+    def _decode_ouput_variables(self, encoded_output: np.ndarray):
+        if encoded_output.ndim > 3:
+            raise ValueError("Unexpected dimension size in decoding operation.")
+
+        feature_size = encoded_output.shape[-1]
+        encoded_output = encoded_output.reshape(-1, feature_size)
+        decoded_arrs = self.model.autoencoder.decode(encoded_output)
+
+        return self._separate_output_from_stacked_array(decoded_arrs)
+
+    def _separate_output_from_stacked_array(self, outputs: np.ndarray):
+
+        if self._input_feature_sizes is None:
+            raise ValueError("Input feature sizes not set.")
+
+        divider = self.model.rank_divider
+        ds = xr.Dataset()
+        for varname, feature_size in zip(
+            self.model.output_variables, self._input_feature_sizes
+        ):
+            var_output = outputs[:, :feature_size]
+            no_overlap_shape = divider._rank_extent_without_overlap[:-1] + [
+                feature_size
+            ]
+            var_output = var_output.reshape(no_overlap_shape)
+
+            da = xr.DataArray(var_output, dims=divider.rank_dims)
+            ds[varname] = da
+            outputs = outputs[:, feature_size:]
+
+        return ds
+
+
+# @io.register("pure-reservoir")
 class ReservoirComputingModel(Predictor):
     _RESERVOIR_SUBDIR = "reservoir"
     _READOUT_SUBDIR = "readout"
