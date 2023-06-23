@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from ..cubed_sphere import CubedSphereDivider
+from fv3fit.reservoir.cubed_sphere import CubedSphereDivider
 
 
 NTILE = 6
