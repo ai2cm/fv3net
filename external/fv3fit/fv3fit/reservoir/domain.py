@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Sequence, Iterable
 import yaml
-from ._reshaping import stack_data
+from ._reshaping import stack_data, split_1d_samples_into_2d_rows
 import pace.util
 
 
@@ -201,6 +201,40 @@ class RankDivider:
         with fsspec.open(path, "r") as f:
             metadata = yaml.safe_load(f)
         return cls(**metadata)
+
+    def merge_subdomains(self, flat_prediction: np.ndarray):
+        # raw prediction from readout is a long 1D array consisting of concatenated
+        # flattened subdomain predictions
+
+        # separate the prediction into its constituent subdomains
+        subdomain_rows = split_1d_samples_into_2d_rows(
+            flat_prediction, n_rows=self.n_subdomains, keep_first_dim_shape=False,
+        )
+        subdomain_2d_predictions = []
+
+        # reshape each subdomain into (x, y, z) dims
+        for subdomain_row in subdomain_rows:
+            subdomain_2d_prediction = self.unstack_subdomain(
+                subdomain_row, with_overlap=False,
+            )
+            subdomain_2d_predictions.append(subdomain_2d_prediction)
+
+        subdomain_shape_without_overlap = (
+            self.subdomain_xy_size_without_overlap,
+            self.subdomain_xy_size_without_overlap,
+        )
+
+        # reshape the flat list of 3D subdomains into a single array that
+        # is a Xdomain, Ydomain grid with a (x, y, z) subdomain in each block
+        z_block_dims = (
+            *self.subdomain_layout,
+            *subdomain_shape_without_overlap,
+            self._n_features,
+        )
+        domain_z_blocks = np.array(subdomain_2d_predictions).reshape(*z_block_dims)
+
+        # Merge along Xdomain, Ydomain dims into a single array of dims (x, y, z)
+        return np.concatenate(np.concatenate(domain_z_blocks, axis=2), axis=0)
 
 
 class TimeSeriesRankDivider(RankDivider):
