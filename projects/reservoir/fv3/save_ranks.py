@@ -6,7 +6,7 @@ from tempfile import NamedTemporaryFile
 import toolz
 
 import vcm
-import cubed_sphere
+from fv3fit.reservoir import CubedSphereDivider
 
 logging.basicConfig()
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     )
     dims, extent = get_ordered_dims_extent(dict(data.dims))
 
-    cubedsphere_divider = cubed_sphere.CubedSphereDivider(
+    cubedsphere_divider = CubedSphereDivider(
         tile_layout=(args.layout_width, args.layout_width),
         global_dims=dims,
         global_extent=extent,
