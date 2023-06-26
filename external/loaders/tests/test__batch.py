@@ -91,7 +91,6 @@ def test_load_batches_with_catalog_path(datadir):
     with mapper_context():
         catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
 
-
         def mapper_function():
             return mapper
 
@@ -105,6 +104,7 @@ def test_load_batches_with_catalog_path(datadir):
         with pytest.raises(KeyError):
             batches = batches_config.load_batches(DATA_VARS)
             batches[0]
+
 
 @pytest.mark.parametrize(
     "total_times,times_per_batch,valid_num_batches", [(3, 1, 3), (3, 2, 2), (3, 4, 1)]

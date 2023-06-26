@@ -7,4 +7,4 @@ sources:
     driver: zarr
     metadata:
       grid: b12
-  
+

@@ -17,6 +17,7 @@ from fv3net.diagnostics.offline._helpers import (
 from fv3net.diagnostics.offline.compute_diagnostics import DERIVATION_DIM
 import intake
 
+
 def test_compute_r2():
     ds = xr.Dataset(
         {
@@ -113,15 +114,16 @@ def test_insert_column_integrated_vars():
 
     xr.testing.assert_allclose(insert_column_integrated_vars(ds, ["Q1"]), expected)
 
+
 def test_load_grid_from_catalog(datadir):
 
     res = "c12"
     catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
-  
+
     catalog = intake.open_catalog(catalog_path)
 
     with pytest.raises(KeyError):
-        grid = catalog[f"grid/{res}"].read()
+        catalog[f"grid/{res}"].read()
 
 
 @pytest.mark.parametrize(
