@@ -11,6 +11,7 @@ import xarray as xr
 
 from vcm import safe, gsrm_name_from_resolution_string
 from vcm.cloud import gsutil
+import vcm.catalog
 import intake
 
 DELP = "pressure_thickness_of_atmospheric_layer"
@@ -149,7 +150,7 @@ def insert_rmse(ds: xr.Dataset):
     return ds
 
 
-def load_grid_info(catalog_path, res: str = "c48"):
+def load_grid_info(res: str = "c48", catalog_path: str = vcm.catalog.catalog_path):
     if gsrm_name_from_resolution_string(res) == "scream":
         return load_grid_info_scream(res, catalog_path)
     elif gsrm_name_from_resolution_string(res) == "fv3":

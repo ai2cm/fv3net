@@ -1,6 +1,8 @@
+import os
 import numpy as np
 import xarray as xr
 import vcm
+import vcm.catalog
 import pytest
 from fv3net.diagnostics.offline._helpers import (
     DATASET_DIM_NAME,
@@ -13,7 +15,7 @@ from fv3net.diagnostics.offline._helpers import (
     load_grid_info,
 )
 from fv3net.diagnostics.offline.compute_diagnostics import DERIVATION_DIM
-
+import intake
 
 def test_compute_r2():
     ds = xr.Dataset(
@@ -111,13 +113,27 @@ def test_insert_column_integrated_vars():
 
     xr.testing.assert_allclose(insert_column_integrated_vars(ds, ["Q1"]), expected)
 
+def test_load_grid_from_catalog(datadir):
+
+    res = "c12"
+    catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
+  
+    catalog = intake.open_catalog(catalog_path)
+
+    with pytest.raises(KeyError):
+        grid = catalog[f"grid/{res}"].read()
+
 
 @pytest.mark.parametrize(
-    "res, dim_name, expected_size",
-    [("c12", "x", 12), ("c48", "x", 48), ("ne30", "ncol", 21600),],
+    "res, catalog_path, dim_name, expected_size",
+    [
+        ("c12", vcm.catalog.catalog_path, "x", 12),
+        ("c48", vcm.catalog.catalog_path, "x", 48),
+        ("ne30", vcm.catalog.catalog_path, "ncol", 21600),
+    ],
 )
-def test_load_grid_info(res, dim_name, expected_size):
-    grid = load_grid_info(res)
+def test_load_grid_info(res, catalog_path, dim_name, expected_size):
+    grid = load_grid_info(res, catalog_path)
     assert grid.dims[dim_name] == expected_size
 
 

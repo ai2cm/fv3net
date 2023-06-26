@@ -34,6 +34,7 @@ from ._serialized_phys import (
 import loaders
 import fsspec
 import vcm
+import vcm.catalog
 import dataclasses
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,10 @@ class BatchesFromMapperConfig(BatchesLoader):
             still subselect a random subset, but it is ordered by stacked dims
             multiindex.
         data_transforms: list of transforms to compute derived variables in batches.
+        catalog_path: path to the local catalog.yaml file. The minimal
+            entries for this file are "grid/{res}", "landseamask/{res}" and
+            "wind_rotation/{res}".
+
     """
 
     mapper_config: MapperConfig
@@ -80,7 +85,7 @@ class BatchesFromMapperConfig(BatchesLoader):
     shuffle_samples: bool = False
     data_transforms: Optional[Sequence[Mapping]] = None
     ptop: float = vcm.calc.thermo.constants.TOA_PRESSURE
-    catalog_path: str = "/home/mr7417/ML_workflow/model_environment/fv3net/external/vcm/vcm/catalog.yaml"
+    catalog_path: str = vcm.catalog.catalog_path
 
     def __post_init__(self):
         duplicate_times = [
@@ -124,7 +129,6 @@ class BatchesFromMapperConfig(BatchesLoader):
             shuffle_samples=self.shuffle_samples,
             data_transforms=self.data_transforms,
             catalog_path=self.catalog_path,
-
         )
 
 
@@ -142,8 +146,9 @@ def batches_from_mapper(
     shuffle_timesteps: bool = True,
     shuffle_samples: bool = False,
     data_transforms: Optional[Sequence[Mapping]] = None,
-    catalog_path: str =  "/home/mr7417/ML_workflow/model_environment/fv3net/external/vcm/vcm/catalog.yaml",
+    catalog_path: str = vcm.catalog.catalog_path,
 ) -> loaders.typing.Batches:
+
     """The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
     Args:
@@ -172,6 +177,7 @@ def batches_from_mapper(
     Returns:
         Sequence of xarray datasets
     """
+
     if timesteps and set(timesteps).issubset(data_mapping.keys()) is False:
         raise ValueError(
             "Timesteps specified in file are not present in data: "
