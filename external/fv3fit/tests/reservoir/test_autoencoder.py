@@ -1,5 +1,5 @@
 import numpy as np
-from fv3fit.reservoir.autoencoder import (
+from fv3fit.reservoir.transformers.autoencoder import (
     Autoencoder,
     build_concat_and_scale_only_autoencoder,
 )

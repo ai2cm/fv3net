@@ -3,38 +3,43 @@ import numpy as np
 import os
 import tensorflow as tf
 from toolz.functoolz import curry
-from typing import Union, Sequence, Optional, List, Set, Tuple, Iterable, Hashable
+from typing import Union, Sequence, Optional, List, Set, Tuple
+from fv3fit.reservoir.transformers.transformer import Transformer
 from fv3fit._shared import (
     get_dir,
     put_dir,
     register_training_function,
     OptimizerConfig,
     io,
+    DatasetPredictor,
 )
 from fv3fit._shared.training_config import Hyperparameters
 
 from fv3fit.keras import (
-    train_column_model,
+    train_pure_keras_model,
     CallbackConfig,
     TrainingLoopConfig,
     LossConfig,
     full_standard_normalized_input,
     standard_denormalize,
     ClipConfig,
-    PureKerasModel,
+    OutputLimitConfig,
 )
-import yaml
 
 
-class Autoencoder(tf.keras.Model):
+@io.register("dense-autoencoder")
+class Autoencoder(tf.keras.Model, Transformer):
     _ENCODER_NAME = "encoder.tf"
     _DECODER_NAME = "decoder.tf"
 
     def __init__(self, encoder: tf.keras.Model, decoder: tf.keras.Model):
         super(Autoencoder, self).__init__()
-        self.n_latent_dims = encoder.layers[-1].output.shape[-1]
         self.encoder = encoder
         self.decoder = decoder
+
+    @property
+    def n_latent_dims(self):
+        return self.encoder.layers[-1].output.shape[-1]
 
     def call(self, x: Union[np.ndarray, tf.Tensor]) -> tf.Tensor:
         encoded = self.encoder(x)
@@ -67,78 +72,6 @@ class Autoencoder(tf.keras.Model):
         return cls(encoder=encoder, decoder=decoder)
 
 
-@io.register("keras-autoencoder")
-class PureKerasAutoencoderModel(PureKerasModel):
-    """ Mostly identical to the PureKerasModel but takes an
-    Autoencoder as its keras model and calls Autoencoder.dump/load
-    instead of keras.model.save and keras.load. This is because input
-    shape information is somehow not saved and loaded correctly if the
-    encoder/decoder are saved as one model.
-    """
-
-    _MODEL_NAME = "autoencoder"
-
-    def __init__(
-        self,
-        input_variables: Iterable[Hashable],
-        output_variables: Iterable[Hashable],
-        autoencoder: Autoencoder,
-        unstacked_dims: Sequence[str],
-        n_halo: int = 0,
-    ):
-        if set(input_variables) != set(output_variables):
-            raise ValueError(
-                "input_variables and output_variables must be the same set."
-            )
-        super().__init__(
-            input_variables=input_variables,
-            output_variables=output_variables,
-            model=autoencoder,
-            unstacked_dims=unstacked_dims,
-            n_halo=n_halo,
-        )
-
-    def dump(self, path: str) -> None:
-        with put_dir(path) as path:
-            if self.model is not None:
-                self.model.dump(os.path.join(path, self._MODEL_NAME))
-            with open(os.path.join(path, self._CONFIG_FILENAME), "w") as f:
-                f.write(
-                    yaml.dump(
-                        {
-                            "input_variables": self.input_variables,
-                            "output_variables": self.output_variables,
-                            "unstacked_dims": self._unstacked_dims,
-                            "n_halo": self._n_halo,
-                        }
-                    )
-                )
-
-    @classmethod
-    def load(cls, path: str) -> "PureKerasAutoencoderModel":
-        """Load a serialized model from a directory."""
-        with get_dir(path) as path:
-            model_filename = os.path.join(path, cls._MODEL_NAME)
-            autoencoder = Autoencoder.load(model_filename)
-            with open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
-                config = yaml.load(f, Loader=yaml.Loader)
-            obj = cls(
-                input_variables=config["input_variables"],
-                output_variables=config["output_variables"],
-                autoencoder=autoencoder,
-                unstacked_dims=config.get("unstacked_dims", None),
-                n_halo=config.get("n_halo", 0),
-            )
-
-            return obj
-
-    def input_sensitivity(self, stacked_sample):
-        """Calculate sensitivity to input features."""
-        raise NotImplementedError(
-            "Input_sensitivity is not implemented for PureKerasAutoencoderModel."
-        )
-
-
 @dataclasses.dataclass
 class DenseAutoencoderHyperparameters(Hyperparameters):
     """
@@ -151,7 +84,9 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
     training_loop: configuration of training loop
     optimizer_config: selection of algorithm to be used in gradient descent
     callback_config: configuration for keras callbacks
-    normalization_fit_samples: number of samples to use when fitting normalization
+    normalization_fit_samples: number of samples
+        to use when fitting normalization
+    output_limit_config: configuration for limiting output values.
 
     """
 
@@ -168,6 +103,9 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
     )
     callbacks: List[CallbackConfig] = dataclasses.field(default_factory=list)
     normalization_fit_samples: int = 500_000
+    output_limit_config: OutputLimitConfig = dataclasses.field(
+        default_factory=lambda: OutputLimitConfig()
+    )
 
     @property
     def variables(self) -> Set[str]:
@@ -265,6 +203,12 @@ def build_autoencoder(
     denorm_output_layers = standard_denormalize(
         names=config.state_variables, layers=norm_output_layers, arrays=y,
     )
+
+    # apply output range limiters
+    denorm_output_layers = config.output_limit_config.apply_output_limiters(
+        outputs=denorm_output_layers, names=config.state_variables
+    )
+
     decoder = tf.keras.Model(inputs=decoder_input, outputs=denorm_output_layers)
     train_model = Autoencoder(encoder=encoder, decoder=decoder)
     predict_model = Autoencoder(encoder=encoder, decoder=decoder)
@@ -289,9 +233,9 @@ def train_dense_autoencoder(
     hyperparameters: DenseAutoencoderHyperparameters,
     train_batches: tf.data.Dataset,
     validation_batches: Optional[tf.data.Dataset],
-) -> PureKerasModel:
+) -> DatasetPredictor:
 
-    pure_keras = train_column_model(
+    pure_keras = train_pure_keras_model(
         train_batches=train_batches,
         validation_batches=validation_batches,
         build_model=curry(build_autoencoder)(config=hyperparameters),
@@ -303,10 +247,10 @@ def train_dense_autoencoder(
         callbacks=hyperparameters.callbacks,
     )
 
-    return PureKerasAutoencoderModel(
+    return DatasetPredictor(
         pure_keras.input_variables,
         pure_keras.output_variables,
-        autoencoder=pure_keras.model,
+        model=pure_keras.model,
         unstacked_dims=pure_keras._unstacked_dims,
         n_halo=pure_keras._n_halo,
     )

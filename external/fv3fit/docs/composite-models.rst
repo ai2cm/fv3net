@@ -43,7 +43,9 @@ Models augmented with out-of-sample detection can be defined with a config file 
 Tapered models
 --------------------
 A tapering transform can be applied to an existing saved model:
+
 .. code-block:: yaml
+
     model: gs://vcm-ml-experiments/some_path
     tapering:
         dQ1:
@@ -60,7 +62,28 @@ Combined models
 Combines multiple models with nonoverlapping output variables into a single model.
 Similar functionality is also in the prognostic run's MultipleModelAdapter, but sometimes it
 is more efficient to combine models earlier in the workflow.
+
 .. code-block:: yaml
-models:
-    - gs://vcm-ml-experiments/model1
-    - gs://vcm-ml-experiments/model2
+
+    models:
+        - gs://vcm-ml-experiments/model1
+        - gs://vcm-ml-experiments/model2
+
+
+Squashed output models
+----------------------
+"Squashes" the output of a model, which means that samples less than a threshold value for a
+particular output variable will be set to a target. Configured by a list of squashing rules,
+which specify the name of the variable to determine the threshold, the threshold and the target,
+and additional variables that should also be squared at the same positions.
+
+.. code-block:: yaml
+
+    base_model_path: gs://vcm-ml-experiments/model1
+    squashing:
+      - squash_by_name: cloud_amount
+        squash_threshold: 0.08
+        squash_to: 0.0
+        additional_squash_target_names:
+          - cloud_water_mixing_ratio
+          - cloud_ice_mixing_ratio

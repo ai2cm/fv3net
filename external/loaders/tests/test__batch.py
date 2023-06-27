@@ -14,6 +14,10 @@ from loaders.batches._batch import (
 
 from loaders.testing import mapper_context
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
 DATA_VARS = ["air_temperature", "specific_humidity"]
 Z_DIM_SIZE = 79
 
@@ -81,7 +85,7 @@ def test_batches_from_mapper(mapper):
             assert len(dim) == original_dim_lengths[dim]
 
 
-def test_load_batches_with_catalog_path(datadir):
+def test_load_batches_with_catalog_path(mapper, datadir):
     # The intent of this test is to verify the ability to specify a custom
     # catalog in the BatchesFromMapperConfig constructor and subsequently load
     # batches. By design the custom catalog file misses the grid info. The

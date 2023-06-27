@@ -1,5 +1,4 @@
 import numpy as np
-import warnings
 
 from .types import DTYPE_INT
 from .radphysparam import ictmflg, ivflip
@@ -184,9 +183,7 @@ class RadiationDriver:
             raise ValueError(f"- ERROR!!! ISUBCSW={isubcsw}, is not a valid option")
 
         if isubcsw != isubclw:
-            warnings.warn(
-                "- *** Notice *** ISUBCSW /= ISUBCLW !!!", f"{isubcsw}, {isubclw}"
-            )
+            print("- *** Notice *** ISUBCSW /= ISUBCLW !!!", f"{isubcsw}, {isubclw}")
 
         if uni_cld:
             raise ValueError(f"uni_cld = True Not implemented")

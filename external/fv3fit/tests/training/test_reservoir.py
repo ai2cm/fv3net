@@ -40,7 +40,7 @@ def test_train_reservoir():  # nx, ny, n_feature, n_sample):
 
     n_features = train_dataset["var_in_3d"].shape[-1] + 1
     subdomain_config = CubedsphereSubdomainConfig(
-        layout=[2, 2], overlap=2, rank_dims=["time", "x", "y", "z"],
+        layout=[2, 2], overlap=2, rank_dims=["x", "y", "z"],
     )
     reservoir_config = ReservoirHyperparameters(
         state_size=100,
