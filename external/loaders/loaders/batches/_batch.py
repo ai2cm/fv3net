@@ -148,7 +148,6 @@ def batches_from_mapper(
     data_transforms: Optional[Sequence[Mapping]] = None,
     catalog_path: str = vcm.catalog.catalog_path,
 ) -> loaders.typing.Batches:
-
     """The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
     Args:
