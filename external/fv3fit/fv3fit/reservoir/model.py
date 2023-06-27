@@ -10,6 +10,7 @@ from fv3fit import Predictor
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
 from .domain import RankDivider
+from fv3fit._shared import io
 from .utils import square_even_terms
 from .transformers import Autoencoder, SkTransformer, ReloadableTransfomer
 from ._reshaping import flatten_2d_keeping_columns_contiguous
@@ -27,7 +28,7 @@ def _load_transformer(path) -> Union[Autoencoder, SkTransformer]:
         )
 
 
-# @io.register("hybrid-reservoir")
+@io.register("hybrid-reservoir")
 class HybridReservoirComputingModel(Predictor):
     _HYBRID_VARIABLES_NAME = "hybrid_variables.yaml"
 
@@ -197,7 +198,7 @@ class HybridDatasetAdapter:
         return ds
 
 
-# @io.register("pure-reservoir")
+@io.register("pure-reservoir")
 class ReservoirComputingModel(Predictor):
     _RESERVOIR_SUBDIR = "reservoir"
     _READOUT_SUBDIR = "readout"
