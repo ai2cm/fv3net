@@ -1,5 +1,3 @@
-# Adapter depends on underlying model methods: predict, autoencoder, and output_varialbes
-# Create a test that creates a mock model and tests the adapter method predict
 import numpy as np
 import xarray as xr
 
