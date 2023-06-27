@@ -176,7 +176,6 @@ def batches_from_mapper(
     Returns:
         Sequence of xarray datasets
     """
-
     if timesteps and set(timesteps).issubset(data_mapping.keys()) is False:
         raise ValueError(
             "Timesteps specified in file are not present in data: "
