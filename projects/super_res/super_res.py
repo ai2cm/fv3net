@@ -16,7 +16,7 @@ def repeat_arr(arr, upscale_factor):
     return np.repeat(arr, upscale_factor, axis=-1)
 
 
-def upscale_nearest(ds, upscale_factor, dim):
+def upscale_nearest_neighbor(ds: xr.Dataset, upscale_factor: int, dim: str):
     ds_upscaled = xr.apply_ufunc(
         repeat_arr,
         ds,
@@ -44,6 +44,7 @@ def plot_pattern_bias(output: xr.Dataset, target: xr.Dataset, varname: str):
     # compute the pattern bias
     out_mean: xr.Dataset = output.mean("time")
     target_mean: xr.Dataset = target.mean("time")
+    bias: xr.Dataset = out_mean - target_mean
     vmin = min(
         # must convert min() output dask array to float explicitly,
         # or we get an exception when it's used in plot_cube
@@ -53,7 +54,6 @@ def plot_pattern_bias(output: xr.Dataset, target: xr.Dataset, varname: str):
     vmax = max(
         out_mean[varname].max().values.item(), target_mean[varname].max().values.item(),
     )
-    bias: xr.Dataset = out_mean - target_mean
     fig, ax = plt.subplots(
         3, 1, figsize=(6, 9), subplot_kw={"projection": ccrs.Robinson()}
     )
@@ -180,7 +180,9 @@ if __name__ == "__main__":
         "gs://vcm-ml-intermediate/2021-10-12-PIRE-c48-post-spinup-verification/pire_atmos_phys_3h_coarse.zarr"  # noqa: E501
     ).rename({"grid_xt": "x", "grid_yt": "y"})
     # use the function
-    c384_nearest = upscale_nearest(upscale_nearest(c48, 8, "x"), 8, "y")
+    c384_nearest = upscale_nearest_neighbor(
+        upscale_nearest_neighbor(c48, 8, "x"), 8, "y"
+    )
     plot_names = [
         "tsfc_coarse",
         "PRATEsfc_coarse",
