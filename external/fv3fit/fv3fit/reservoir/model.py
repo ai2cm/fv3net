@@ -1,13 +1,12 @@
 import fsspec
 import numpy as np
 import os
-from typing import Optional, Iterable, Hashable, Union
+from typing import Optional, Iterable, Hashable, Union, Sequence
 import xarray as xr
 import yaml
 
 import fv3fit
 from fv3fit import Predictor
-from fv3fit._shared import stack
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
 from .domain import RankDivider
@@ -102,13 +101,15 @@ class HybridReservoirComputingModel(Predictor):
 class HybridDatasetAdapter:
     def __init__(self, model: HybridReservoirComputingModel) -> None:
         self.model = model
-        self._input_feature_sizes = None
-        self._rank_sample_dim_shape = None
+        self._input_feature_sizes: Optional[Sequence] = None
 
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
         # TODO: centralize stacking logic for encoding decoding
         # TODO: potentially use in train.py instead of special functions there
         processed_inputs = self._input_data_to_array(inputs)  # x, y, feature dims
+        if self.model.rank_divider is None:
+            raise ValueError("Adapter currently require rank_divider to be set")
+
         subdomains = self.model.rank_divider.flatten_subdomains_to_columns(
             processed_inputs, with_overlap=True
         )
@@ -119,17 +120,18 @@ class HybridDatasetAdapter:
 
     # TODO: Add a synchronization facility and fix sync methods in models
 
-    def _encode_input_variables(self, inputs: xr.Dataset):
-        divider = self.model.rank_divider
-        feature_dim = divider.rank_dims[-1]
-        inputs_filtered = inputs[list(self.model.input_variables)]
-        stacked = stack(inputs_filtered, unstacked_dims=[feature_dim])
-
+    def _encode_input_variables(self, inputs: xr.Dataset, autoencoder):
         input_arrs = [
-            stacked[variable].values for variable in self.model.input_variables
+            inputs[variable].values for variable in self.model.input_variables
         ]
-        encoded = self.model.autoencoder.encode(input_arrs)
-        encoded_shape = divider.rank_extent[:-1] + [encoded.shape[-1]]
+
+        sample_dims_shape = list(input_arrs[0].shape[:-1])
+        feature_len = input_arrs[0].shape[-1]
+        stacked_sample_arrs = np.array(
+            [arr.reshape(-1, feature_len) for arr in input_arrs]
+        )
+        encoded = autoencoder.encode(stacked_sample_arrs)
+        encoded_shape = sample_dims_shape + [encoded.shape[-1]]
         return encoded.reshape(encoded_shape)
 
     def _join_input_variables(self, inputs: xr.Dataset):
@@ -145,7 +147,7 @@ class HybridDatasetAdapter:
             ]
 
         if self.model.autoencoder is not None:
-            arr = self._encode_input_variables(inputs)
+            arr = self._encode_input_variables(inputs, self.model.autoencoder)
         else:
             arr = self._join_input_variables(inputs)
 
@@ -153,19 +155,19 @@ class HybridDatasetAdapter:
 
     def _separate_output_variables(self, outputs: np.ndarray):
         if self.model.autoencoder is not None:
-            ds = self._decode_ouput_variables(outputs)
+            ds = self._decode_ouput_variables(outputs, self.model.autoencoder)
         else:
             ds = self._separate_output_from_stacked_array(outputs)
 
         return ds
 
-    def _decode_ouput_variables(self, encoded_output: np.ndarray):
+    def _decode_ouput_variables(self, encoded_output: np.ndarray, autoencoder):
         if encoded_output.ndim > 3:
             raise ValueError("Unexpected dimension size in decoding operation.")
 
         feature_size = encoded_output.shape[-1]
         encoded_output = encoded_output.reshape(-1, feature_size)
-        decoded_arrs = self.model.autoencoder.decode(encoded_output)
+        decoded_arrs = autoencoder.decode(encoded_output)
 
         return self._separate_output_from_stacked_array(decoded_arrs)
 
@@ -174,13 +176,16 @@ class HybridDatasetAdapter:
         if self._input_feature_sizes is None:
             raise ValueError("Input feature sizes not set.")
 
+        if self.model.rank_divider is None:
+            raise ValueError("Rank divider not set for use in HybridDatasetAdapter.")
+
         divider = self.model.rank_divider
         ds = xr.Dataset()
         for varname, feature_size in zip(
             self.model.output_variables, self._input_feature_sizes
         ):
             var_output = outputs[:, :feature_size]
-            no_overlap_shape = divider._rank_extent_without_overlap[:-1] + [
+            no_overlap_shape = list(divider._rank_extent_without_overlap[:-1]) + [
                 feature_size
             ]
             var_output = var_output.reshape(no_overlap_shape)
