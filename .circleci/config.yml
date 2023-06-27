@@ -104,6 +104,7 @@ jobs:
           - fv3fit_torch
           - dataflow
           - artifacts
+          - scream_fit
     machine:
       image: ubuntu-2004:202111-02
     environment:
