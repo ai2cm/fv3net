@@ -14,10 +14,6 @@ from loaders.batches._batch import (
 
 from loaders.testing import mapper_context
 
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 DATA_VARS = ["air_temperature", "specific_humidity"]
 Z_DIM_SIZE = 79
 
