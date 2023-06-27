@@ -5,8 +5,8 @@ import os
 from tempfile import NamedTemporaryFile
 import toolz
 
-from .cubed_sphere import CubedSphereDivider
 import vcm
+from fv3fit.reservoir import CubedSphereDivider
 
 logging.basicConfig()
 
@@ -63,7 +63,28 @@ def _get_parser() -> argparse.ArgumentParser:
         default=None,
         help=("Number of timesteps to save per rank netcdf."),
     )
-    parser.add_argument("--variables", type=str, nargs="+", default=[])
+    parser.add_argument(
+        "--variables", type=str, nargs="+", default=[], help="Variables names to save."
+    )
+    parser.add_argument(
+        "--ranks", type=int, nargs="+", default=[], help="Subset of ranks to save."
+    )
+    parser.add_argument(
+        "--time-sample-interval",
+        type=int,
+        default=1,
+        help="Sample interval for timesteps.",
+    )
+    parser.add_argument(
+        "--additional-paths",
+        type=str,
+        nargs="+",
+        default=[],
+        help=(
+            "If some variables are saved in other datasets, add their paths here. "
+            "All datasets loaded must have the same space and time coordinates."
+        ),
+    )
 
     return parser
 
@@ -89,6 +110,9 @@ if __name__ == "__main__":
         raise ValueError("--variables must be provided via list of string names.")
 
     data = intake.open_zarr(args.data_path).to_dask()
+    if len(args.additional_paths) > 0:
+        for path in args.additional_paths:
+            data = data.merge(intake.open_zarr(path).to_dask())
 
     tstart = (
         data.time.values[0]
@@ -101,7 +125,9 @@ if __name__ == "__main__":
         else vcm.parse_datetime_from_str(args.stop_time)
     )
 
-    data = data[args.variables].sel(time=slice(tstart, tstop))
+    data = data[args.variables].sel(
+        time=slice(tstart, tstop, args.time_sample_interval)
+    )
     dims, extent = get_ordered_dims_extent(dict(data.dims))
 
     cubedsphere_divider = CubedSphereDivider(
@@ -118,11 +144,15 @@ if __name__ == "__main__":
     else:
         time_chunks = [list(data_times)]
 
+    save_ranks = (
+        args.ranks if len(args.ranks) > 0 else range(cubedsphere_divider.total_ranks)
+    )
     for t, time_chunk in enumerate(time_chunks):
         data_time_slice = data.sel(time=time_chunk).load()
-        for r in range(cubedsphere_divider.total_ranks):
+        for r in save_ranks:
             output_dir = os.path.join(args.output_path, f"rank_{r}")
-            rank_output_path = os.path.join(output_dir, f"{t}.nc")
+            "{:04d}".format(t)
+            rank_output_path = os.path.join(output_dir, "{:04d}.nc".format(t))
             rank_data = cubedsphere_divider.get_rank_data(
                 data_time_slice, rank=r, overlap=args.overlap
             )
