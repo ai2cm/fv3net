@@ -1,9 +1,6 @@
 channels:
   - conda-forge
   - defaults
-platforms:
-  - linux-64
-  - osx-64
 dependencies:
   - python=3.8
   - cartopy
