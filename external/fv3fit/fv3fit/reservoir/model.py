@@ -123,12 +123,7 @@ class HybridDatasetAdapter:
         processed_inputs = self._input_data_to_array(inputs)  # x, y, feature dims
         if self.model.rank_divider is None:
             raise ValueError("Adapter currently require rank_divider to be set")
-
-        subdomains = self.model.rank_divider.flatten_subdomains_to_columns(
-            processed_inputs, with_overlap=True
-        )
-        flattened = flatten_2d_keeping_columns_contiguous(subdomains)
-        prediction = self.model.predict(flattened)
+        prediction = self.model.predict(processed_inputs)
         unstacked_arr = self.model.rank_divider.merge_subdomains(prediction)
         return self._separate_output_variables(unstacked_arr)
 

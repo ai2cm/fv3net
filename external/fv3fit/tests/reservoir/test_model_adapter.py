@@ -31,7 +31,7 @@ def get_initialized_hybrid_model():
 
     input_size = 2 * 2 * 6  # no overlap subdomain in latent space
     output_size = 2 * 2 * 6  # no overlap subdomain in latent space
-    hybrid_input_size = 6 * 6 * 6  # overlap subdomain in latent space
+    hybrid_input_size = 2 * 2 * 6  # no overlap subdomain in latent space
     state_size = 25
     hyperparameters = ReservoirHyperparameters(
         state_size=state_size,
