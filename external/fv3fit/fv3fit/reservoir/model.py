@@ -38,8 +38,8 @@ class HybridReservoirComputingModel(Predictor):
         output_variables: Iterable[Hashable],
         reservoir: Reservoir,
         readout: ReservoirComputingReadout,
+        rank_divider: RankDivider,
         square_half_hidden_state: bool = False,
-        rank_divider: Optional[RankDivider] = None,
         autoencoder: Optional[ReloadableTransfomer] = None,
     ):
         self.reservoir_model = ReservoirComputingModel(
@@ -73,10 +73,6 @@ class HybridReservoirComputingModel(Predictor):
     def _concatenate_readout_inputs(self, hidden_state_input, hybrid_input):
         if self.square_half_hidden_state is True:
             hidden_state_input = square_even_terms(hidden_state_input, axis=0)
-
-        if self.rank_divider is None:
-            raise ValueError("Prediction currently require rank_divider to be set")
-
         hybrid_input = self.rank_divider.flatten_subdomains_to_columns(
             hybrid_input, with_overlap=False
         )
@@ -129,8 +125,8 @@ class ReservoirComputingModel(Predictor):
         output_variables: Iterable[Hashable],
         reservoir: Reservoir,
         readout: ReservoirComputingReadout,
+        rank_divider: RankDivider,
         square_half_hidden_state: bool = False,
-        rank_divider: Optional[RankDivider] = None,
         autoencoder: Optional[ReloadableTransfomer] = None,
     ):
         """_summary_
