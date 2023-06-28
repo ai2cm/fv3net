@@ -256,7 +256,9 @@ def _add_derived_diagnostics(ds):
     return merged.assign_attrs(ds.attrs)
 
 
-def _coarsen_transform(evaluation_resolution: int, prediction_resolution: int, catalog_path: str):
+def _coarsen_transform(
+    evaluation_resolution: int, prediction_resolution: int, catalog_path: str
+):
     coarsening_factor = prediction_resolution // evaluation_resolution
     logger.info(
         f"Making predictions at validation data's c{prediction_resolution} resolution."
