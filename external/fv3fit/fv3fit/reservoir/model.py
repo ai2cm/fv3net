@@ -176,7 +176,7 @@ class HybridDatasetAdapter:
 
         return ds
 
-    def _decode_ouput_variables(self, encoded_output: np.ndarray, autoencoder):
+    def _decode_output_variables(self, encoded_output: np.ndarray, autoencoder):
         if encoded_output.ndim > 3:
             raise ValueError("Unexpected dimension size in decoding operation.")
 
