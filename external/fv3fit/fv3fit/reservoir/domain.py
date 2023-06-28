@@ -29,8 +29,10 @@ class RankDivider:
             subdomain_layout: layout describing subdomain grid within the rank
                 ex. [2,2] means the rank is divided into 4 subdomains
             rank_dims: order of spatial dimensions in data. Do not include time.
+                If z is the last dimension, it can be omitted.
             rank_extent: Shape of full data. This includes any halo cells from
-                overlap into neighboring ranks.
+                overlap into neighboring ranks. If z is the last dimension,
+                it can be omitted.
             overlap: number of cells surrounding each subdomain to include when
                 taking subdomain data.
 
@@ -39,8 +41,8 @@ class RankDivider:
         with n_halo=4. I would initialize the RankDivider as
             RankDivider(
                 subdomain_layout=(12, 12),
-                rank_dims=["x", "y", "z"],
-                rank_extent=[ 56, 56, 79],
+                rank_dims=["x", "y",],
+                rank_extent=[ 56, 56,],
                 overlap=4,
             )
         """
@@ -61,7 +63,6 @@ class RankDivider:
 
         self._x_ind = rank_dims.index("x")
         self._y_ind = rank_dims.index("y")
-        self._n_features = rank_extent[-1]
 
         self._partitioner = pace.util.TilePartitioner(subdomain_layout)
 
@@ -202,7 +203,7 @@ class RankDivider:
             metadata = yaml.safe_load(f)
         return cls(**metadata)
 
-    def merge_subdomains(self, flat_prediction: np.ndarray):
+    def merge_subdomains(self, flat_prediction: np.ndarray) -> np.ndarray:
         # raw prediction from readout is a long 1D array consisting of concatenated
         # flattened subdomain predictions
 
@@ -224,12 +225,16 @@ class RankDivider:
             self.subdomain_xy_size_without_overlap,
         )
 
+        vertical_dim_size = int(
+            flat_prediction.size
+            / (self.n_subdomains * self.subdomain_xy_size_without_overlap ** 2)
+        )
         # reshape the flat list of 3D subdomains into a single array that
         # is a Xdomain, Ydomain grid with a (x, y, z) subdomain in each block
         z_block_dims = (
             *self.subdomain_layout,
             *subdomain_shape_without_overlap,
-            self._n_features,
+            vertical_dim_size,
         )
         domain_z_blocks = np.array(subdomain_2d_predictions).reshape(*z_block_dims)
 
