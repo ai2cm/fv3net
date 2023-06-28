@@ -121,8 +121,6 @@ class HybridDatasetAdapter:
         # TODO: centralize stacking logic for encoding decoding
         # TODO: potentially use in train.py instead of special functions there
         processed_inputs = self._input_data_to_array(inputs)  # x, y, feature dims
-        if self.model.rank_divider is None:
-            raise ValueError("Adapter currently require rank_divider to be set")
         prediction = self.model.predict(processed_inputs)
         unstacked_arr = self.model.rank_divider.merge_subdomains(prediction)
         return self._separate_output_variables(unstacked_arr)
@@ -192,9 +190,6 @@ class HybridDatasetAdapter:
 
         if self._input_feature_sizes is None:
             raise ValueError("Input feature sizes not set.")
-
-        if self.model.rank_divider is None:
-            raise ValueError("Rank divider not set for use in HybridDatasetAdapter.")
 
         divider = self.model.rank_divider
         ds = xr.Dataset()
@@ -297,8 +292,7 @@ class ReservoirComputingModel(Predictor):
         with fsspec.open(os.path.join(path, self._METADATA_NAME), "w") as f:
             f.write(yaml.dump(metadata))
 
-        if self.rank_divider is not None:
-            self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
+        self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
         if self.autoencoder is not None:
             fv3fit.dump(self.autoencoder, os.path.join(path, self._AUTOENCODER_SUBDIR))
 
