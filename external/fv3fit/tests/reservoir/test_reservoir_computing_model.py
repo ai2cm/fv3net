@@ -45,7 +45,7 @@ def test_dump_load_optional_attrs(tmpdir):
         coefficients=sparse.coo_matrix(np.random.rand(input_size, 100)),
         intercepts=np.random.rand(input_size),
     )
-    rank_divider = RankDivider([2, 2], ["x", "y", "z"], [2, 2, 2], 2)
+    rank_divider = RankDivider([2, 2], ["x", "y"], [2, 2], 2)
     predictor = ReservoirComputingModel(
         input_variables=["a", "b"],
         output_variables=["a", "b"],
