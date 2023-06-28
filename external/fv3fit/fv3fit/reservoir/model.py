@@ -127,7 +127,15 @@ class HybridDatasetAdapter:
         unstacked_arr = self.model.rank_divider.merge_subdomains(prediction)
         return self._separate_output_variables(unstacked_arr)
 
-    # TODO: Add a synchronization facility and fix sync methods in models
+    def increment_state(self, inputs: xr.Dataset):
+        processed_inputs = self._input_data_to_array(inputs)
+        subdomains = self.model.rank_divider.flatten_subdomains_to_columns(
+            processed_inputs, with_overlap=True
+        )
+        self.model.increment_state(subdomains)
+
+    def reset_state(self):
+        self.model.reset_state()
 
     def _encode_input_variables(self, inputs: xr.Dataset, autoencoder):
         input_arrs = [
@@ -260,13 +268,10 @@ class ReservoirComputingModel(Predictor):
         return prediction
 
     def reset_state(self):
-        if self.rank_divider is not None:
-            input_shape = (
-                self.reservoir.hyperparameters.state_size,
-                self.rank_divider.n_subdomains,
-            )
-        else:
-            input_shape = (self.reservoir.hyperparameters.state_size,)
+        input_shape = (
+            self.reservoir.hyperparameters.state_size,
+            self.rank_divider.n_subdomains,
+        )
         self.reservoir.reset_state(input_shape)
 
     def increment_state(self, prediction_with_overlap):

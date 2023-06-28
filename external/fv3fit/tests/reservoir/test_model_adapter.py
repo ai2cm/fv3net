@@ -29,7 +29,7 @@ class DoNothingAutoencoder(Transformer):
 
 def get_initialized_hybrid_model():
 
-    input_size = 2 * 2 * 6  # no overlap subdomain in latent space
+    input_size = 6 * 6 * 6  # overlap subdomain in latent space
     output_size = 2 * 2 * 6  # no overlap subdomain in latent space
     hybrid_input_size = 2 * 2 * 6  # no overlap subdomain in latent space
     state_size = 25
@@ -87,3 +87,12 @@ def test_adapter_predict(regtest):
     result = model.predict(data)
 
     print(result, file=regtest)
+
+
+def test_adapter_increment_state():
+    hybrid_predictor = get_initialized_hybrid_model()
+    data = get_single_rank_xarray_data()
+
+    model = HybridDatasetAdapter(hybrid_predictor)
+    model.reset_state()
+    model.increment_state(data)
