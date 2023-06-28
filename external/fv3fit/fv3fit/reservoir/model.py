@@ -123,7 +123,7 @@ class HybridDatasetAdapter:
         processed_inputs = self._input_data_to_array(inputs)  # x, y, feature dims
         prediction = self.model.predict(processed_inputs)
         unstacked_arr = self.model.rank_divider.merge_subdomains(prediction)
-        return self._separate_output_variables(unstacked_arr)
+        return self._output_array_to_ds(unstacked_arr)
 
     def increment_state(self, inputs: xr.Dataset):
         processed_inputs = self._input_data_to_array(inputs)
@@ -168,11 +168,19 @@ class HybridDatasetAdapter:
 
         return arr
 
-    def _separate_output_variables(self, outputs: np.ndarray):
+    def _output_array_to_ds(self, outputs: np.ndarray):
         if self.model.autoencoder is not None:
-            ds = self._decode_ouput_variables(outputs, self.model.autoencoder)
+            var_arrays = self._decode_output_variables(outputs, self.model.autoencoder)
         else:
-            ds = self._separate_output_from_stacked_array(outputs)
+            var_arrays = self._separate_output_from_stacked_array(outputs)
+
+        dims = self.model.rank_divider.rank_dims
+        ds = xr.Dataset(
+            {
+                var: (dims, var_arrays[i])
+                for i, var in enumerate(self.model.output_variables)
+            }
+        )
 
         return ds
 
@@ -182,31 +190,25 @@ class HybridDatasetAdapter:
 
         feature_size = encoded_output.shape[-1]
         encoded_output = encoded_output.reshape(-1, feature_size)
-        decoded_arrs = autoencoder.decode(encoded_output)
-
-        return self._separate_output_from_stacked_array(decoded_arrs)
+        decoded = autoencoder.decode(encoded_output)
+        spatial_shape = list(self.model.rank_divider._rank_extent_without_overlap[:-1])
+        var_arrays = [arr.reshape(spatial_shape + [-1]) for arr in decoded]
+        return var_arrays
 
     def _separate_output_from_stacked_array(self, outputs: np.ndarray):
 
         if self._input_feature_sizes is None:
-            raise ValueError("Input feature sizes not set.")
+            raise ValueError(
+                "Cannot separate stacked array if input feature sizes is None."
+            )
 
         divider = self.model.rank_divider
-        ds = xr.Dataset()
-        for varname, feature_size in zip(
-            self.model.output_variables, self._input_feature_sizes
-        ):
-            var_output = outputs[:, :feature_size]
-            no_overlap_shape = list(divider._rank_extent_without_overlap[:-1]) + [
-                feature_size
-            ]
-            var_output = var_output.reshape(no_overlap_shape)
+        split_indices = np.cumsum(self._input_feature_sizes)[:-1]
+        var_arrays = np.split(outputs, split_indices, axis=-1)
+        spatial_shape = list(divider._rank_extent_without_overlap[:-1])
+        var_arrays = [arr.reshape(spatial_shape + [-1]) for arr in var_arrays]
 
-            da = xr.DataArray(var_output, dims=divider.rank_dims)
-            ds[varname] = da
-            outputs = outputs[:, feature_size:]
-
-        return ds
+        return var_arrays
 
 
 @io.register("pure-reservoir")

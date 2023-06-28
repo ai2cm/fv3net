@@ -13,18 +13,24 @@ from fv3fit.reservoir.model import HybridDatasetAdapter
 
 
 class DoNothingAutoencoder(Transformer):
-    def __init__(self, latent_dims):
-        self._latent_dim_len = latent_dims
+    def __init__(self, latent_dim_len):
+        self._latent_dim_len = latent_dim_len
+        self._array_feature_sizes = None
 
     @property
     def n_latent_dims(self):
         return self._latent_dim_len
 
     def encode(self, x):
+        self._array_feature_sizes = [arr.shape[-1] for arr in x]
         return np.concatenate(x, -1)
 
     def decode(self, latent_x):
-        return latent_x
+        if self._array_feature_sizes is None:
+            raise ValueError("Must encode data before decoding.")
+
+        split_indices = np.cumsum(self._array_feature_sizes)[:-1]
+        return np.split(latent_x, split_indices, axis=-1)
 
 
 def get_initialized_hybrid_model():
