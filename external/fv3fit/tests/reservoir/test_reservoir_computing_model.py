@@ -238,3 +238,50 @@ def test_HybridReservoirComputingModel_dump_load(tmpdir):
         prediction1 = loaded_hybrid_predictor.predict(hybrid_input[i])
 
     np.testing.assert_array_almost_equal(prediction0, prediction1)
+
+
+def test_HybridReservoirComputingModel_concat_readout_inputs():
+    # TODO: Complex test, will be simplified in future when the model is refactored
+    input_size = 4
+    state_size = 3
+    hyperparameters = ReservoirHyperparameters(
+        state_size=state_size,
+        adjacency_matrix_sparsity=0.9,
+        spectral_radius=1.0,
+        input_coupling_sparsity=0,
+    )
+    rank_divider = RankDivider([2, 2], ["x", "y", "z"], [2, 2, 1], 0)
+
+    reservoir = Reservoir(hyperparameters, input_size=rank_divider.n_subdomain_features)
+
+    readout = ReservoirComputingReadout(
+        coefficients=np.random.rand(
+            state_size + rank_divider.n_subdomain_features, input_size
+        ),
+        intercepts=np.random.rand(input_size),
+    )
+    hybrid_predictor = HybridReservoirComputingModel(
+        input_variables=["a", "b"],
+        hybrid_variables=["c"],
+        output_variables=["a", "b"],
+        reservoir=reservoir,
+        readout=readout,
+        rank_divider=rank_divider,
+    )
+    hybrid_predictor.reset_state()
+
+    # hidden state of each subdomain is constant array of its index
+    hybrid_predictor.reservoir_model.reservoir.state = np.array(
+        [np.arange(rank_divider.n_subdomains) for zfeature in range(state_size)]
+    )
+
+    # partitioner indexing goes (0,0) -> 0, (1,0)-> 1, etc.
+    hybrid_inputs = np.array([[0, -2], [-1, -3]])
+
+    flattened_readout_input = hybrid_predictor._concatenate_readout_inputs(
+        hybrid_predictor.reservoir_model.reservoir.state, hybrid_inputs
+    )
+    np.testing.assert_array_equal(
+        flattened_readout_input,
+        np.array([0, 0, 0, 0, 1, 1, 1, -1, 2, 2, 2, -2, 3, 3, 3, -3]),
+    )

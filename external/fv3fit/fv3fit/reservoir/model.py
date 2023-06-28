@@ -59,13 +59,30 @@ class HybridReservoirComputingModel(Predictor):
         self.rank_divider = rank_divider
         self.autoencoder = autoencoder
 
-    def predict(self, hybrid_input):
-        readout_input_from_reservoir = (
-            self.reservoir_model.process_state_to_readout_input()
+    def predict(self, hybrid_input: np.ndarray):
+        # hybrid input is assumed to be in original spatial xy dims
+        # (x, y, encoded-feature) and does not include overlaps.
+        # TODO: The encoding will be moved into this model
+
+        flattened_readout_input = self._concatenate_readout_inputs(
+            self.reservoir_model.reservoir.state, hybrid_input
         )
-        readout_input = np.concatenate([readout_input_from_reservoir, hybrid_input])
-        prediction = self.readout.predict(readout_input).reshape(-1)
+        prediction = self.readout.predict(flattened_readout_input).reshape(-1)
         return prediction
+
+    def _concatenate_readout_inputs(self, hidden_state_input, hybrid_input):
+        if self.square_half_hidden_state is True:
+            hidden_state_input = square_even_terms(hidden_state_input, axis=0)
+
+        if self.rank_divider is None:
+            raise ValueError("Prediction currently require rank_divider to be set")
+
+        hybrid_input = self.rank_divider.flatten_subdomains_to_columns(
+            hybrid_input, with_overlap=False
+        )
+        readout_input = np.concatenate([hidden_state_input, hybrid_input], axis=0)
+        flattened_readout_input = flatten_2d_keeping_columns_contiguous(readout_input)
+        return flattened_readout_input
 
     def reset_state(self):
         self.reservoir_model.reset_state()
