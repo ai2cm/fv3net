@@ -28,11 +28,9 @@ class RankDivider:
         Args:
             subdomain_layout: layout describing subdomain grid within the rank
                 ex. [2,2] means the rank is divided into 4 subdomains
-            rank_dims: order of spatial dimensions in data. Do not include time.
-                If z is the last dimension, it can be omitted.
-            rank_extent: Shape of full data. This includes any halo cells from
-                overlap into neighboring ranks. If z is the last dimension,
-                it can be omitted.
+            rank_dims: order of spatial xy dimensions in data. Do not include time or z.
+            rank_extent: Shape of full xy data. This includes any halo cells from
+                overlap into neighboring ranks.
             overlap: number of cells surrounding each subdomain to include when
                 taking subdomain data.
 
