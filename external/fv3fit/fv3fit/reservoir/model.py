@@ -1,7 +1,8 @@
 import fsspec
 import numpy as np
 import os
-from typing import Optional, Iterable, Hashable, Union
+from typing import Optional, Iterable, Hashable, Union, Sequence
+import xarray as xr
 import yaml
 
 import fv3fit
@@ -111,6 +112,105 @@ class HybridReservoirComputingModel(Predictor):
         )
 
 
+class HybridDatasetAdapter:
+    def __init__(self, model: HybridReservoirComputingModel) -> None:
+        self.model = model
+        self._input_feature_sizes: Optional[Sequence] = None
+
+    def predict(self, inputs: xr.Dataset) -> xr.Dataset:
+        # TODO: centralize stacking logic for encoding decoding
+        # TODO: potentially use in train.py instead of special functions there
+        processed_inputs = self._input_data_to_array(inputs)  # x, y, feature dims
+        prediction = self.model.predict(processed_inputs)
+        unstacked_arr = self.model.rank_divider.merge_subdomains(prediction)
+        return self._output_array_to_ds(unstacked_arr)
+
+    def increment_state(self, inputs: xr.Dataset):
+        processed_inputs = self._input_data_to_array(inputs)
+        subdomains = self.model.rank_divider.flatten_subdomains_to_columns(
+            processed_inputs, with_overlap=True
+        )
+        self.model.increment_state(subdomains)
+
+    def reset_state(self):
+        self.model.reset_state()
+
+    def _encode_input_variables(self, inputs: xr.Dataset, autoencoder):
+        input_arrs = [
+            inputs[variable].values for variable in self.model.input_variables
+        ]
+
+        sample_dims_shape = list(input_arrs[0].shape[:-1])
+        feature_len = input_arrs[0].shape[-1]
+        stacked_sample_arrs = np.array(
+            [arr.reshape(-1, feature_len) for arr in input_arrs]
+        )
+        encoded = autoencoder.encode(stacked_sample_arrs)
+        encoded_shape = sample_dims_shape + [encoded.shape[-1]]
+        return encoded.reshape(encoded_shape)
+
+    def _join_input_variables(self, inputs: xr.Dataset):
+        input_arrs = [inputs[variable] for variable in self.model.input_variables]
+        joined_feature_inputs = np.concatenate(input_arrs, axis=-1)
+
+        return joined_feature_inputs
+
+    def _input_data_to_array(self, inputs: xr.Dataset):
+        if self._input_feature_sizes is None:
+            self._input_feature_sizes = [
+                inputs[key].shape[-1] for key in self.model.input_variables
+            ]
+
+        if self.model.autoencoder is not None:
+            arr = self._encode_input_variables(inputs, self.model.autoencoder)
+        else:
+            arr = self._join_input_variables(inputs)
+
+        return arr
+
+    def _output_array_to_ds(self, outputs: np.ndarray):
+        if self.model.autoencoder is not None:
+            var_arrays = self._decode_output_variables(outputs, self.model.autoencoder)
+        else:
+            var_arrays = self._separate_output_from_stacked_array(outputs)
+
+        dims = self.model.rank_divider.rank_dims
+        ds = xr.Dataset(
+            {
+                var: (dims, var_arrays[i])
+                for i, var in enumerate(self.model.output_variables)
+            }
+        )
+
+        return ds
+
+    def _decode_output_variables(self, encoded_output: np.ndarray, autoencoder):
+        if encoded_output.ndim > 3:
+            raise ValueError("Unexpected dimension size in decoding operation.")
+
+        feature_size = encoded_output.shape[-1]
+        encoded_output = encoded_output.reshape(-1, feature_size)
+        decoded = autoencoder.decode(encoded_output)
+        spatial_shape = list(self.model.rank_divider._rank_extent_without_overlap[:-1])
+        var_arrays = [arr.reshape(spatial_shape + [-1]) for arr in decoded]
+        return var_arrays
+
+    def _separate_output_from_stacked_array(self, outputs: np.ndarray):
+
+        if self._input_feature_sizes is None:
+            raise ValueError(
+                "Cannot separate stacked array if input feature sizes is None."
+            )
+
+        divider = self.model.rank_divider
+        split_indices = np.cumsum(self._input_feature_sizes)[:-1]
+        var_arrays = np.split(outputs, split_indices, axis=-1)
+        spatial_shape = list(divider._rank_extent_without_overlap[:-1])
+        var_arrays = [arr.reshape(spatial_shape + [-1]) for arr in var_arrays]
+
+        return var_arrays
+
+
 @io.register("pure-reservoir")
 class ReservoirComputingModel(Predictor):
     _RESERVOIR_SUBDIR = "reservoir"
@@ -165,13 +265,10 @@ class ReservoirComputingModel(Predictor):
         return prediction
 
     def reset_state(self):
-        if self.rank_divider is not None:
-            input_shape = (
-                self.reservoir.hyperparameters.state_size,
-                self.rank_divider.n_subdomains,
-            )
-        else:
-            input_shape = (self.reservoir.hyperparameters.state_size,)
+        input_shape = (
+            self.reservoir.hyperparameters.state_size,
+            self.rank_divider.n_subdomains,
+        )
         self.reservoir.reset_state(input_shape)
 
     def increment_state(self, prediction_with_overlap):
@@ -197,8 +294,7 @@ class ReservoirComputingModel(Predictor):
         with fsspec.open(os.path.join(path, self._METADATA_NAME), "w") as f:
             f.write(yaml.dump(metadata))
 
-        if self.rank_divider is not None:
-            self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
+        self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
         if self.autoencoder is not None:
             fv3fit.dump(self.autoencoder, os.path.join(path, self._AUTOENCODER_SUBDIR))
 
