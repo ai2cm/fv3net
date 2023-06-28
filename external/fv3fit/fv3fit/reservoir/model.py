@@ -70,8 +70,8 @@ class HybridReservoirComputingModel(Predictor):
     def reset_state(self):
         self.reservoir_model.reset_state()
 
-    def increment_state(self):
-        self.reservoir_model.increment_state()
+    def increment_state(self, prediction_with_overlap):
+        self.reservoir_model.increment_state(prediction_with_overlap)
 
     def synchronize(self, synchronization_time_series):
         self.reservoir_model.synchronize(synchronization_time_series)
