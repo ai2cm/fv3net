@@ -123,7 +123,7 @@ def test_sktransformer_encode_need_to_concat_features():
     transformer = DummyTransformer(extra_embedded_dims=pad_size)
     sktransformer = SkTransformer(transformer, scaler, enforce_positive_outputs=False)
     nt = 13
-    x = [[np.random.rand(output_dim) for t in range(nt)] for i in range(n_vars)]
+    x = [np.random.rand(nt, output_dim) for i in range(n_vars)]
     assert sktransformer.encode(x).shape == (nt, pad_size * 2 + n_vars * output_dim)
 
 
