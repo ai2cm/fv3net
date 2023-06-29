@@ -5,7 +5,7 @@ import os
 from sklearn.preprocessing import StandardScaler
 from sklearn.base import TransformerMixin
 
-from typing import Sequence
+from typing import Sequence, Optional
 import yaml
 
 from fv3fit._shared.predictor import Reloadable
@@ -42,12 +42,13 @@ class SkTransformer(Transformer, ArrayPredictor, Reloadable):
         self.transformer = transformer
         self.scaler = scaler
         self.enforce_positive_outputs = enforce_positive_outputs
+        self._original_feature_sizes: Optional[Sequence[int]] = None
 
     @property
     def n_latent_dims(self):
         return self.transformer.n_components
 
-    def _ensure_sample_dim(self, x):
+    def _ensure_sample_dim(self, x: np.ndarray):
         # Sklearn scalers and transforms expect the first dimension
         # to be sample. If not present, i.e. a single sample is provided,
         # reshape to add this dimension.
@@ -65,29 +66,40 @@ class SkTransformer(Transformer, ArrayPredictor, Reloadable):
             )
 
     def predict(self, x: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
-        original_feature_sizes = [feature.shape[-1] for feature in x]
         encoded = self.encode(x)
-        decoded = self.decode(encoded)
-        decoded_split_features = np.split(
-            decoded, np.cumsum(original_feature_sizes[:-1]), axis=-1
-        )
+        return self.decode(encoded)
 
-        return decoded_split_features
+    def encode(self, x: Sequence[np.ndarray]) -> np.ndarray:
+        # input is a sequence of variable data with dims [..., feature_dim]
 
-    def encode(self, x):
-        # input is a sequence of time series for each variables: [var, time, feature]
+        self._set_feature_sizes_if_not_present(x)
         x_concat = np.concatenate(x, axis=-1)
-        x = self._ensure_sample_dim(x_concat)
-        return self.transformer.transform(self.scaler.transform(x))
+        x_with_sample_dim = self._ensure_sample_dim(x_concat)
 
-    def decode(self, c):
+        return self.transformer.transform(self.scaler.transform(x_with_sample_dim))
+
+    def decode(self, c: np.ndarray) -> Sequence[np.ndarray]:
+        feature_sizes = self._get_original_feature_sizes()
         decoded = self.transformer.inverse_transform(c)
         decoded = self.scaler.inverse_transform(self._ensure_sample_dim(decoded))
 
         if self.enforce_positive_outputs is True:
             decoded = np.where(decoded >= 0, decoded, 0.0)
+        decoded_split_features = np.split(
+            decoded, np.cumsum(feature_sizes[:-1]), axis=-1
+        )
 
-        return decoded
+        return decoded_split_features
+
+    def _set_feature_sizes_if_not_present(self, x: Sequence[np.ndarray]):
+        if self._original_feature_sizes is None:
+            self._original_feature_sizes = [var.shape[-1] for var in x]
+
+    def _get_original_feature_sizes(self):
+        if self._original_feature_sizes is None:
+            raise ValueError("Feature sizes must be set before calling decode")
+        else:
+            return self._original_feature_sizes
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:

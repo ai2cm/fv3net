@@ -117,7 +117,7 @@ def train_reservoir_model(
         )
         hybrid_time_series: Optional[np.ndarray]
         if hyperparameters.hybrid_variables is not None:
-            hybrid_time_series, _ = _process_batch_Xy_data(
+            _, hybrid_time_series = _process_batch_Xy_data(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
                 rank_divider=rank_divider,
