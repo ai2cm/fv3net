@@ -37,11 +37,13 @@ def get_initialized_hybrid_model():
     # expects rank size (including halos) in latent space
     divider = RankDivider((2, 2), ["x", "y"], [8, 8], 2)
     autoencoder = DoNothingAutoencoder(6)
-    input_size = 6 * 6 * autoencoder.n_latent_dims
+    input_size = 6 * 6 * autoencoder.n_latent_dims  # overlap subdomain in latent space
     hybrid_input_size_per_subdomain = (
         divider.subdomain_xy_size_without_overlap ** 2 * autoencoder.n_latent_dims
+    )  # no overlap subdomain in latent space
+    output_size = (
+        hybrid_input_size_per_subdomain  # no overlap subdomain in latent space
     )
-    output_size = hybrid_input_size_per_subdomain
 
     state_size = 25
     hyperparameters = ReservoirHyperparameters(
