@@ -2,7 +2,6 @@ import fsspec
 import numpy as np
 import tensorflow as tf
 from typing import Sequence, Iterable
-import xarray as xr
 import yaml
 from ._reshaping import stack_data, split_1d_samples_into_2d_rows
 import pace.util
@@ -15,22 +14,6 @@ def slice_along_axis(arr: np.ndarray, inds: slice, axis: int = 0):
     sl = [slice(None)] * arr.ndim
     sl[axis] = inds
     return arr[tuple(sl)]
-
-
-def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
-    # Useful for transposing the x, y dims in a dataset to match those in
-    # RankDivider.rank_dims, and leaves other dims in the same order
-    # relative to x,y. Dims after the first occurence of one of the rank_dims
-    # are assumed to be feature dims.
-    # e.g. (time, y, x, z) -> (time, x, y, z) for rank_dims=(x, y)
-    leading_non_xy_dims = []
-    for dim in ds.dims:
-        if dim not in rank_dims:
-            leading_non_xy_dims.append(dim)
-        if dim in rank_dims:
-            break
-    ordered_dims = (*leading_non_xy_dims, *rank_dims)
-    return ds.transpose(*ordered_dims, ...)
 
 
 class RankDivider:

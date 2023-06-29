@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import xarray as xr
 
 from fv3fit.reservoir.transformers.transformer import Transformer
@@ -9,7 +10,19 @@ from fv3fit.reservoir import (
     ReservoirHyperparameters,
     HybridReservoirComputingModel,
 )
-from fv3fit.reservoir.model import HybridDatasetAdapter
+from fv3fit.reservoir.model import HybridDatasetAdapter, _transpose_xy_dims
+
+
+@pytest.mark.parametrize(
+    "original_dims, reordered_dims",
+    [
+        (["time", "x", "y", "z"], ["time", "x", "y", "z"]),
+        (["time", "y", "x", "z"], ["time", "x", "y", "z"]),
+    ],
+)
+def test__transpose_xy_dims(original_dims, reordered_dims):
+    da = xr.DataArray(np.random.rand(5, 7, 7, 8), dims=original_dims)
+    assert list(_transpose_xy_dims(da, rank_dims=["x", "y"]).dims) == reordered_dims
 
 
 class DoNothingAutoencoder(Transformer):

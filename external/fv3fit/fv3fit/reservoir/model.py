@@ -28,6 +28,22 @@ def _load_transformer(path) -> Union[Autoencoder, SkTransformer]:
         )
 
 
+def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
+    # Useful for transposing the x, y dims in a dataset to match those in
+    # RankDivider.rank_dims, and leaves other dims in the same order
+    # relative to x,y. Dims after the first occurence of one of the rank_dims
+    # are assumed to be feature dims.
+    # e.g. (time, y, x, z) -> (time, x, y, z) for rank_dims=(x, y)
+    leading_non_xy_dims = []
+    for dim in ds.dims:
+        if dim not in rank_dims:
+            leading_non_xy_dims.append(dim)
+        if dim in rank_dims:
+            break
+    ordered_dims = (*leading_non_xy_dims, *rank_dims)
+    return ds.transpose(*ordered_dims, ...)
+
+
 @io.register("hybrid-reservoir")
 class HybridReservoirComputingModel(Predictor):
     _HYBRID_VARIABLES_NAME = "hybrid_variables.yaml"
@@ -134,6 +150,8 @@ class HybridDatasetAdapter:
 
     def reset_state(self):
         self.model.reset_state()
+
+    # def _input_dataset_to_arrays(self, inputs: xr.Dataset):
 
     def _encode_input_variables(self, inputs: xr.Dataset, autoencoder):
         input_arrs = [
