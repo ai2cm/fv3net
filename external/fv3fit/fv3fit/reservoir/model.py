@@ -111,7 +111,7 @@ class HybridDatasetAdapter:
         processed_inputs = self._input_data_to_array(inputs)  # x, y, feature dims
         prediction = self.model.predict(processed_inputs)
         unstacked_arr = self.model.rank_divider.merge_subdomains(prediction)
-        return self._output_array_to_ds(unstacked_arr)
+        return self._output_array_to_ds(unstacked_arr, dims=list(inputs.dims))
 
     def increment_state(self, inputs: xr.Dataset):
         processed_inputs = self._input_data_to_array(inputs)
@@ -144,6 +144,7 @@ class HybridDatasetAdapter:
         return joined_feature_inputs
 
     def _input_data_to_array(self, inputs: xr.Dataset):
+
         if self._input_feature_sizes is None:
             self._input_feature_sizes = [
                 inputs[key].shape[-1] for key in self.model.input_variables
@@ -156,13 +157,12 @@ class HybridDatasetAdapter:
 
         return arr
 
-    def _output_array_to_ds(self, outputs: np.ndarray):
+    def _output_array_to_ds(self, outputs: np.ndarray, dims: Sequence[str]):
         if self.model.autoencoder is not None:
             var_arrays = self._decode_output_variables(outputs, self.model.autoencoder)
         else:
             var_arrays = self._separate_output_from_stacked_array(outputs)
 
-        dims = self.model.rank_divider.rank_dims
         ds = xr.Dataset(
             {
                 var: (dims, var_arrays[i])
@@ -179,7 +179,7 @@ class HybridDatasetAdapter:
         feature_size = encoded_output.shape[-1]
         encoded_output = encoded_output.reshape(-1, feature_size)
         decoded = autoencoder.decode(encoded_output)
-        spatial_shape = list(self.model.rank_divider._rank_extent_without_overlap[:-1])
+        spatial_shape = list(self.model.rank_divider._rank_extent_without_overlap)
         var_arrays = [arr.reshape(spatial_shape + [-1]) for arr in decoded]
         return var_arrays
 
