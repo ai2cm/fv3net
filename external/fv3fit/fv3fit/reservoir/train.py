@@ -79,14 +79,13 @@ def train_reservoir_model(
     subdomain_config = hyperparameters.subdomain
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
-    rank_extent = [*sample_X[0].shape[1:-1], autoencoder.n_latent_dims]
+    rank_extent = sample_X[0].shape[1:-1]
     rank_divider = TimeSeriesRankDivider(
         subdomain_layout=subdomain_config.layout,
         rank_dims=subdomain_config.rank_dims,
         rank_extent=rank_extent,
         overlap=subdomain_config.overlap,
     )
-
     # First data dim is time, the rest of the elements of each
     # subdomain+halo are are flattened into feature dimension
     reservoir = Reservoir(
