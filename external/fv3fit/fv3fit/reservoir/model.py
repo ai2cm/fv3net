@@ -1,7 +1,7 @@
 import fsspec
 import numpy as np
 import os
-from typing import Optional, Iterable, Hashable, Union, Sequence
+from typing import Optional, Iterable, Hashable, Sequence, cast
 import xarray as xr
 import yaml
 
@@ -12,20 +12,8 @@ from .reservoir import Reservoir
 from .domain import RankDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
-from .transformers import Autoencoder, SkTransformer, ReloadableTransfomer
+from .transformers import ReloadableTransfomer
 from ._reshaping import flatten_2d_keeping_columns_contiguous
-
-
-def _load_transformer(path) -> Union[Autoencoder, SkTransformer]:
-    # ensures fv3fit.load returns a ReloadableTransfomer
-    model = fv3fit.load(path)
-
-    if isinstance(model, Autoencoder) or isinstance(model, SkTransformer):
-        return model
-    else:
-        raise ValueError(
-            f"model provided at path {path} must be a ReloadableTransfomer."
-        )
 
 
 @io.register("hybrid-reservoir")
@@ -308,19 +296,18 @@ class ReservoirComputingModel(Predictor):
         with fsspec.open(os.path.join(path, cls._METADATA_NAME), "r") as f:
             metadata = yaml.safe_load(f)
 
+        rank_divider = RankDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
+
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-
-        if fs.exists(os.path.join(path, cls._RANK_DIVIDER_NAME)):
-            rank_divider = RankDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
-        else:
-            rank_divider = None
-
+        autoencoder: Optional[ReloadableTransfomer]
         if fs.exists(os.path.join(path, cls._AUTOENCODER_SUBDIR)):
-            autoencoder: ReloadableTransfomer = _load_transformer(
-                os.path.join(path, cls._AUTOENCODER_SUBDIR)
+            autoencoder = cast(
+                ReloadableTransfomer,
+                fv3fit.load(os.path.join(path, cls._AUTOENCODER_SUBDIR)),
             )
         else:
-            autoencoder = None  # type: ignore
+            autoencoder = None
+
         return cls(
             input_variables=metadata["input_variables"],
             output_variables=metadata["output_variables"],
