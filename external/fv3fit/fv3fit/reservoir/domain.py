@@ -159,8 +159,9 @@ class RankDivider:
             tensor.size
             / (np.prod(self.get_subdomain_extent(with_overlap=with_overlap)))
         )
+        subdomain_xy_shape = self.get_subdomain_extent(with_overlap=with_overlap)
         unstacked_shape = (
-            *self.get_subdomain_extent(with_overlap=with_overlap),
+            *subdomain_xy_shape,
             vertical_dim_size,
         )
         expected_stacked_size = np.prod(unstacked_shape)
@@ -210,6 +211,11 @@ class RankDivider:
         return cls(**metadata)
 
     def merge_subdomains(self, flat_prediction: np.ndarray) -> np.ndarray:
+        """Reshapes a 1D array consisting of concatenated flattened subdomain readouts
+        predictions into a 3D arrays for each subdomain, then merges those 3D subdomain
+        arrays into a single 3D array for the entire domain.
+        """
+
         # raw prediction from readout is a long 1D array consisting of concatenated
         # flattened subdomain predictions
 
