@@ -34,10 +34,15 @@ class DoNothingAutoencoder(Transformer):
 
 
 def get_initialized_hybrid_model():
+    # expects rank size (including halos) in latent space
+    divider = RankDivider((2, 2), ["x", "y"], [8, 8], 2)
+    autoencoder = DoNothingAutoencoder(6)
+    input_size = 6 * 6 * autoencoder.n_latent_dims
+    hybrid_input_size_per_subdomain = (
+        divider.subdomain_xy_size_without_overlap ** 2 * autoencoder.n_latent_dims
+    )
+    output_size = hybrid_input_size_per_subdomain
 
-    input_size = 6 * 6 * 6  # overlap subdomain in latent space
-    output_size = 2 * 2 * 6  # no overlap subdomain in latent space
-    hybrid_input_size = 2 * 2 * 6  # no overlap subdomain in latent space
     state_size = 25
     hyperparameters = ReservoirHyperparameters(
         state_size=state_size,
@@ -50,13 +55,10 @@ def get_initialized_hybrid_model():
     # multiplied by the number of subdomains since it's a combined readout
     readout = ReservoirComputingReadout(
         coefficients=np.random.rand(
-            state_size * 4 + hybrid_input_size * 4, output_size * 4
+            state_size * 4 + hybrid_input_size_per_subdomain * 4, output_size * 4
         ),
         intercepts=np.random.rand(output_size * 4),
     )
-
-    # expects rank size (including halos) in latent space
-    divider = RankDivider((2, 2), ["x", "y", "z"], [8, 8, 6], 2)
 
     hybrid_predictor = HybridReservoirComputingModel(
         input_variables=["a", "b"],
@@ -65,7 +67,7 @@ def get_initialized_hybrid_model():
         reservoir=reservoir,
         readout=readout,
         rank_divider=divider,
-        autoencoder=DoNothingAutoencoder(6),
+        autoencoder=autoencoder,
     )
     hybrid_predictor.reset_state()
 
@@ -90,8 +92,8 @@ def test_adapter_predict(regtest):
     data = get_single_rank_xarray_data()
 
     model = HybridDatasetAdapter(hybrid_predictor)
-    result = model.predict(data)
 
+    result = model.predict(data)
     print(result, file=regtest)
 
 
