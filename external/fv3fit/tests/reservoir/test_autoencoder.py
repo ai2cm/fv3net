@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from fv3fit.reservoir.transformers.autoencoder import (
     Autoencoder,
     build_concat_and_scale_only_autoencoder,
@@ -33,3 +34,18 @@ def test_concat_and_scale_only_autoencoder_dump_load(tmpdir):
     loaded_model = Autoencoder.load(output_path)
     loaded_encoded = loaded_model.encode(test_inputs)
     np.testing.assert_array_equal(encoded, loaded_encoded)
+
+
+def test_autoencoder_sample_dim_handling():
+    model = build_concat_and_scale_only_autoencoder(["a", "b"], [a, b])
+    res = model.encode([np.array([10, 10]), np.array([3, 3])])
+    assert res.shape == (1, 4)
+
+    res = model.encode([np.array([[10, 10]]), np.array([[3, 3]])])
+    assert res.shape == (1, 4)
+
+
+def test_autoencoder_more_than_2d():
+    model = build_concat_and_scale_only_autoencoder(["a", "b"], [a, b])
+    with pytest.raises(ValueError):
+        model.encode([np.array([[[10, 10]]]), np.array([[[3, 3]]])])
