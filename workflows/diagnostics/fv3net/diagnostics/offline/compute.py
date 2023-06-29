@@ -75,7 +75,7 @@ def _get_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "catalog_path",
+        "--catalog_path",
         type=str,
         default=vcm.catalog.catalog_path,
         help=("The location of the catalog.yaml file"),
