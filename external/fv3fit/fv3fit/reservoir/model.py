@@ -78,7 +78,7 @@ class HybridReservoirComputingModel(Predictor):
 
     def predict(self, hybrid_input: np.ndarray):
         # hybrid input is assumed to be in original spatial xy dims
-        # (x, y, encoded-feature) and does not include overlaps.
+        # (x, y, feature) and does not include overlaps.
         # TODO: The encoding will be moved into this model
 
         flattened_readout_input = self._concatenate_readout_inputs(
@@ -136,13 +136,13 @@ class HybridDatasetAdapter:
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
         # TODO: centralize stacking logic for encoding decoding
         # TODO: potentially use in train.py instead of special functions there
-        processed_inputs = self._input_data_to_array(inputs)  # x, y, feature dims
+        processed_inputs = self._input_data_to_encoded_array(inputs)  # x, y, feature dims
         prediction = self.model.predict(processed_inputs)
         unstacked_arr = self.model.rank_divider.merge_subdomains(prediction)
         return self._output_array_to_ds(unstacked_arr)
 
     def increment_state(self, inputs: xr.Dataset):
-        processed_inputs = self._input_data_to_array(inputs)
+        processed_inputs = self._input_data_to_encoded_array(inputs)
         subdomains = self.model.rank_divider.flatten_subdomains_to_columns(
             processed_inputs, with_overlap=True
         )
@@ -151,7 +151,18 @@ class HybridDatasetAdapter:
     def reset_state(self):
         self.model.reset_state()
 
-    # def _input_dataset_to_arrays(self, inputs: xr.Dataset):
+    def _input_dataset_to_arrays(self, inputs: xr.Dataset) -> Sequence(np.ndarray):
+        # Converts from xr dataset to sequence of variable ndarrays expected by encoder
+
+        # Make sure the xy dimensions match the rank divider
+        transposed_inputs = _transpose_xy_dims(
+            ds=inputs, 
+            rank_dims=self.model.rank_divider.rank_dims
+        )
+        input_arrs = [
+            transposed_inputs[variable].values for variable in self.model.input_variables
+        ]
+        return input_arrs
 
     def _encode_input_variables(self, inputs: xr.Dataset, autoencoder):
         input_arrs = [
@@ -173,7 +184,7 @@ class HybridDatasetAdapter:
 
         return joined_feature_inputs
 
-    def _input_data_to_array(self, inputs: xr.Dataset):
+    def _input_data_to_encoded_array(self, inputs: xr.Dataset):
         if self._input_feature_sizes is None:
             self._input_feature_sizes = [
                 inputs[key].shape[-1] for key in self.model.input_variables
