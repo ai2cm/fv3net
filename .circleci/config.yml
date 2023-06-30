@@ -110,7 +110,7 @@ jobs:
       - run: mkdir -p miniconda3
       - when:
           condition:
-            equal: [macos.x86.medium.gen2, <<parameters.resource_class>>]
+            equal: [x86.medium.gen2, <<parameters.resource_class>>]
           steps:
             - run: |
                 wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.3.1-0-MacOSX-x86_64.sh \
@@ -127,8 +127,8 @@ jobs:
           rm -rf miniconda3/miniconda.sh
           miniconda3/bin/conda init bash
       - run: |
-          bash .environment_scripts/build_environment.sh fv3net
-          bash .environment_scripts/install_local_packages.sh fv3net
+          bash .environment-scripts/build_environment.sh fv3net
+          bash .environment-scripts/install_local_packages.sh fv3net
 
 
 
