@@ -1,5 +1,5 @@
 # platform: osx-64
-# env_hash: 33fafadeac4ac79b3fb802375f4e7b61840eb56a7874601b948e40e717f9d464
+# env_hash: 703ffd1be5287633edb5cf1642470ff07dd8d61c707a6b344eaee03faa2001d1
 @EXPLICIT
 https://conda.anaconda.org/conda-forge/osx-64/bzip2-1.0.8-h0d85af4_4.tar.bz2#37edc4e6304ca87316e160f5ca0bd1b5
 https://conda.anaconda.org/conda-forge/osx-64/c-ares-1.19.1-h0dc2134_0.conda#b3e62631b4e1b9801477523ce1d6f355
@@ -155,7 +155,7 @@ https://conda.anaconda.org/conda-forge/osx-64/ld64-609-ha02d983_13.conda#019a988
 https://conda.anaconda.org/conda-forge/osx-64/libblas-3.9.0-17_osx64_openblas.conda#65299527582e2449b05d27fcf8352125
 https://conda.anaconda.org/conda-forge/noarch/partd-1.4.0-pyhd8ed1ab_0.conda#721dab5803ea92ce02ddc4ee50aa0c48
 https://conda.anaconda.org/conda-forge/osx-64/pillow-9.5.0-py38h16710f9_1.conda#c5bf174a033ef668679cc80918422515
-https://conda.anaconda.org/conda-forge/noarch/pip-20.2.4-py_0.tar.bz2#d2c0e7b7ca15440dc445e725f1e79ccf
+https://conda.anaconda.org/conda-forge/noarch/pip-23.1.2-pyhd8ed1ab_0.conda#7288da0d36821349cf1126e8670292df
 https://conda.anaconda.org/conda-forge/osx-64/proj-9.2.0-hf909084_0.conda#9aba089c58568c488fde1777c28f4742
 https://conda.anaconda.org/conda-forge/noarch/pyquery-2.0.0-pyhd8ed1ab_0.conda#9e4c3e498902146a499d0284136dc05f
 https://conda.anaconda.org/conda-forge/noarch/python-dateutil-2.8.2-pyhd8ed1ab_0.tar.bz2#dd999d1cc9f79e67dbb855c8924c7984

@@ -1,5 +1,5 @@
 # platform: linux-64
-# env_hash: 8532c1347975ce29dee9747424f8fc2d3f053b4a2ead12305c30beb31285e894
+# env_hash: 730b6737514932f911a570d734c4522e73fd34091440bc5a40889aa7bdf98e45
 @EXPLICIT
 https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2#d7c89558ba9fa0495403155b64376d81
 https://conda.anaconda.org/conda-forge/linux-64/ca-certificates-2023.5.7-hbcca054_0.conda#f5c65075fc34438d5b456c7f3f5ab695
@@ -178,7 +178,7 @@ https://conda.anaconda.org/conda-forge/noarch/jsonpatch-1.32-pyhd8ed1ab_0.tar.bz
 https://conda.anaconda.org/conda-forge/linux-64/libva-2.18.0-h0b41bf4_0.conda#56e049224de34bbe0478aad422227942
 https://conda.anaconda.org/conda-forge/noarch/partd-1.4.0-pyhd8ed1ab_0.conda#721dab5803ea92ce02ddc4ee50aa0c48
 https://conda.anaconda.org/conda-forge/linux-64/pillow-9.5.0-py38h885162f_1.conda#0eec8a20a17f17ec9e0b6839be466866
-https://conda.anaconda.org/conda-forge/noarch/pip-20.2.4-py_0.tar.bz2#d2c0e7b7ca15440dc445e725f1e79ccf
+https://conda.anaconda.org/conda-forge/noarch/pip-23.1.2-pyhd8ed1ab_0.conda#7288da0d36821349cf1126e8670292df
 https://conda.anaconda.org/conda-forge/linux-64/proj-9.2.0-h8ffa02c_0.conda#8b9dcfabec5c6bcac98e89889fffa64e
 https://conda.anaconda.org/conda-forge/noarch/pyquery-2.0.0-pyhd8ed1ab_0.conda#9e4c3e498902146a499d0284136dc05f
 https://conda.anaconda.org/conda-forge/noarch/python-dateutil-2.8.2-pyhd8ed1ab_0.tar.bz2#dd999d1cc9f79e67dbb855c8924c7984

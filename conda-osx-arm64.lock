@@ -1,5 +1,5 @@
 # platform: osx-arm64
-# env_hash: 294ff95f37f41539157320506f694c9545d93e6cffcd0f9f1359e4e0c189bffa
+# env_hash: df695f44e39da0cb6cbe0e49ea203ec5ed618e5eb441f2b21659c28e4a8de0e2
 @EXPLICIT
 https://conda.anaconda.org/conda-forge/osx-arm64/bzip2-1.0.8-h3422bc3_4.tar.bz2#fc76ace7b94fb1f694988ab1b14dd248
 https://conda.anaconda.org/conda-forge/osx-arm64/c-ares-1.19.1-hb547adb_0.conda#e7fc7430440d255e3a9c7e5a52f7b294
@@ -157,8 +157,8 @@ https://conda.anaconda.org/conda-forge/osx-arm64/ld64-609-h634c8be_13.conda#bfa4
 https://conda.anaconda.org/conda-forge/osx-arm64/libblas-3.9.0-17_osxarm64_openblas.conda#2597bd39632ec57ef3f5ac14865dca09
 https://conda.anaconda.org/conda-forge/noarch/partd-1.4.0-pyhd8ed1ab_0.conda#721dab5803ea92ce02ddc4ee50aa0c48
 https://conda.anaconda.org/conda-forge/osx-arm64/pillow-9.5.0-py38h3f590de_1.conda#5425a71634fd91472a1d3d2f1110b0f3
-https://conda.anaconda.org/conda-forge/noarch/pip-20.2.4-py_0.tar.bz2#d2c0e7b7ca15440dc445e725f1e79ccf
-https://conda.anaconda.org/conda-forge/osx-arm64/proj-9.2.0-h13f728c_0.conda#7f1d6f75d9289c58658d8bab52563935
+https://conda.anaconda.org/conda-forge/noarch/pip-23.1.2-pyhd8ed1ab_0.conda#7288da0d36821349cf1126e8670292df
+https://repo.anaconda.com/pkgs/main/osx-arm64/proj-8.2.1-hb8d25fd_0.conda#b420d0723a632d5e3b372f209640757f
 https://conda.anaconda.org/conda-forge/noarch/pyquery-2.0.0-pyhd8ed1ab_0.conda#9e4c3e498902146a499d0284136dc05f
 https://conda.anaconda.org/conda-forge/noarch/python-dateutil-2.8.2-pyhd8ed1ab_0.tar.bz2#dd999d1cc9f79e67dbb855c8924c7984
 https://conda.anaconda.org/conda-forge/osx-arm64/ruamel.yaml-0.17.32-py38hb192615_0.conda#6f29aec93cd5c194e17b0da93e78728d
@@ -173,7 +173,7 @@ https://conda.anaconda.org/conda-forge/noarch/importlib-resources-5.12.0-pyhd8ed
 https://conda.anaconda.org/conda-forge/osx-arm64/libcblas-3.9.0-17_osxarm64_openblas.conda#cf6f9ca46e3db6b2437024df14046b48
 https://conda.anaconda.org/conda-forge/osx-arm64/liblapack-3.9.0-17_osxarm64_openblas.conda#d93cc56c1467a5bcf6a4c9c0be469114
 https://conda.anaconda.org/conda-forge/noarch/platformdirs-3.8.0-pyhd8ed1ab_0.conda#3e4aca765371893ad848397794600632
-https://conda.anaconda.org/conda-forge/osx-arm64/pyproj-3.5.0-py38h5ed16a7_1.conda#d668511d9c08ca4754f60c2bc39cfcd1
+https://repo.anaconda.com/pkgs/main/osx-arm64/pyproj-3.4.1-py38h80bd9b1_0.conda#1865553f3bd2db7c972deccdff0f9675
 https://conda.anaconda.org/conda-forge/noarch/requests-2.31.0-pyhd8ed1ab_0.conda#a30144e4156cdbb236f99ebb49828f8b
 https://conda.anaconda.org/conda-forge/osx-arm64/zstandard-0.19.0-py38he9c5048_2.conda#5d2d6a839f62696fa3b970c312cd590c
 https://conda.anaconda.org/conda-forge/osx-arm64/clangxx-16.0.6-default_h298e243_0.conda#042620e8cdfec09d0b1e64deb0fdb514
