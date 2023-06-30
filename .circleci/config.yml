@@ -90,6 +90,48 @@ jobs:
       - run: sudo apt-get install make
       - run: make test_argo
 
+  fv3net_env_macos:
+    parameters:
+      resource_class:
+        default: macos.x86.medium.gen2
+        type: enum
+        enum:
+          - macos.x86.medium.gen2
+          - m1.medium.gen1
+    macos:
+      xcode: "14.0.1"
+    resource_class: macos.<<parameters.resource_class>>
+    environment:
+      GOOGLE_PROJECT_ID: vcm-ml
+      GOOGLE_COMPUTE_ZONE: us-central1
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+    steps:
+      - checkout
+      - run: mkdir -p miniconda3
+      - when:
+          condition:
+            equal: [macos.x86.medium.gen2, <<parameter.resource_class>>]
+          steps:
+            - run: |
+                wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.3.1-0-MacOSX-x86_64.sh \
+                  -O miniconda3/miniconda.sh
+      - when:
+          condition:
+            equal: [m1.medium.gen1, <<parameter.resource_class>>]
+          steps:
+            - run: |
+                wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.3.1-0-MacOSX-arm64.sh \
+                  -O miniconda3/miniconda.sh
+      - run: |
+          bash miniconda3/miniconda.sh -b -u -p miniconda3
+          rm -rf miniconda3/miniconda.sh
+          miniconda3/bin/conda init bash
+      - run: |
+          bash .environment_scripts/build_environment.sh fv3net
+          bash .environment_scripts/install_local_packages.sh fv3net
+
+
+
   build_default:
     parameters:
       image:
