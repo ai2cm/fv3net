@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fv3fit.reservoir.transformers.transformer import Transformer
+from fv3fit.reservoir.transformers.transformer import DoNothingAutoencoder
 from fv3fit.reservoir.domain import RankDivider
 from fv3fit.reservoir.readout import ReservoirComputingReadout
 from fv3fit.reservoir import (
@@ -23,27 +23,6 @@ from fv3fit.reservoir.model import HybridDatasetAdapter, _transpose_xy_dims
 def test__transpose_xy_dims(original_dims, reordered_dims):
     da = xr.DataArray(np.random.rand(5, 7, 7, 8), dims=original_dims)
     assert list(_transpose_xy_dims(da, rank_dims=["x", "y"]).dims) == reordered_dims
-
-
-class DoNothingAutoencoder(Transformer):
-    def __init__(self, latent_dim_len):
-        self._latent_dim_len = latent_dim_len
-        self._array_feature_sizes = None
-
-    @property
-    def n_latent_dims(self):
-        return self._latent_dim_len
-
-    def encode(self, x):
-        self._array_feature_sizes = [arr.shape[-1] for arr in x]
-        return np.concatenate(x, -1)
-
-    def decode(self, latent_x):
-        if self._array_feature_sizes is None:
-            raise ValueError("Must encode data before decoding.")
-
-        split_indices = np.cumsum(self._array_feature_sizes)[:-1]
-        return np.split(latent_x, split_indices, axis=-1)
 
 
 def get_initialized_hybrid_model():

@@ -24,6 +24,31 @@ class Transformer(abc.ABC):
         pass
 
 
+class DoNothingAutoencoder(Transformer):
+    """Useful class for tests. Encode just concatenates input
+    variables. Decode separates them back into individual arrays.
+    """
+
+    def __init__(self, latent_dim_len):
+        self._latent_dim_len = latent_dim_len
+        self._array_feature_sizes = None
+
+    @property
+    def n_latent_dims(self):
+        return self._latent_dim_len
+
+    def encode(self, x):
+        self._array_feature_sizes = [arr.shape[-1] for arr in x]
+        return np.concatenate(x, -1)
+
+    def decode(self, latent_x):
+        if self._array_feature_sizes is None:
+            raise ValueError("Must encode data before decoding.")
+
+        split_indices = np.cumsum(self._array_feature_sizes)[:-1]
+        return np.split(latent_x, split_indices, axis=-1)
+
+
 def encode_columns(data: Sequence[tf.Tensor], transformer: Transformer) -> np.ndarray:
     # reduce a sequnence of N x M x Vi dim data over i variables
     # to a single N x M x Z dim array, where Vi is original number of features
@@ -33,3 +58,13 @@ def encode_columns(data: Sequence[tf.Tensor], transformer: Transformer) -> np.nd
     reshaped = [stack_array_preserving_last_dim(var) for var in data]
     encoded_reshaped = transformer.encode(reshaped)
     return encoded_reshaped.reshape(*original_sample_shape, -1)
+
+
+def _encode_input_variables(input_arrs: Sequence[tf.Tensor], transformer: Transformer):
+    sample_dims_shape = list(input_arrs[0].shape[:-1])
+    feature_len = input_arrs[0].shape[-1]
+    stacked_sample_arrs = [arr.reshape(-1, feature_len) for arr in input_arrs]
+
+    encoded = transformer.encode(stacked_sample_arrs)
+    encoded_shape = sample_dims_shape + [encoded.shape[-1]]
+    return encoded.reshape(encoded_shape)
