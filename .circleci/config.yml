@@ -327,7 +327,13 @@ workflows:
             branches:
               ignore:
                 - master
-      - fv3net_env_macos
+      - fv3net_env_macos:
+          name: fv3net-env-<<matrix.resource_class>>
+          matrix:
+            parameters:
+              resource_class:
+                - x86.medium.gen2
+                - m1.medium.gen1
       # manually trigger on PRs
       - build_default:
           name: "Test Dataflow (held)"
