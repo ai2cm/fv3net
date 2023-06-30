@@ -270,7 +270,7 @@ def _coarsen_transform(
             "resolution."
         )
     if coarsening_factor > 1:
-        prediction_grid = load_grid_info(catalog_path, f"c{prediction_resolution}")
+        prediction_grid = load_grid_info(f"c{prediction_resolution}", catalog_path)
         logger.info(f"Coarsening predictions by factor of {coarsening_factor}.")
         return coarsen_cell_centered(
             weights=prediction_grid.area, coarsening_factor=coarsening_factor
