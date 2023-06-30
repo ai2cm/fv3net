@@ -115,7 +115,7 @@ def test_insert_column_integrated_vars():
     xr.testing.assert_allclose(insert_column_integrated_vars(ds, ["Q1"]), expected)
 
 
-def test_load_grid_from_catalog(datadir):
+def test_load_grid_info_from_custom_catalog(datadir):
 
     res = "c12"
     catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
