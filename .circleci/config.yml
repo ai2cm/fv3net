@@ -327,6 +327,7 @@ workflows:
             branches:
               ignore:
                 - master
+      - fv3net_env_macos
       # manually trigger on PRs
       - build_default:
           name: "Test Dataflow (held)"
