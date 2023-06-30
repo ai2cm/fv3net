@@ -15,7 +15,6 @@ from fv3net.diagnostics.offline._helpers import (
     load_grid_info,
 )
 from fv3net.diagnostics.offline.compute_diagnostics import DERIVATION_DIM
-import intake
 
 
 def test_compute_r2():
@@ -116,6 +115,9 @@ def test_insert_column_integrated_vars():
 
 
 def test_load_grid_info_from_custom_catalog(datadir):
+    # This test is dedicated to validate the responnse of "load_grid_info" function
+    # on bogus catalog file. Retreiving the grid information with non-existing
+    # resolution string generates the "KeyError"".
 
     res = "c12"
     catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
