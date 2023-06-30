@@ -96,10 +96,10 @@ jobs:
         default: macos.x86.medium.gen2
         type: enum
         enum:
-          - macos.x86.medium.gen2
+          - x86.medium.gen2
           - m1.medium.gen1
     macos:
-      xcode: "14.0.1"
+      xcode: 14.0.1
     resource_class: macos.<<parameters.resource_class>>
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
