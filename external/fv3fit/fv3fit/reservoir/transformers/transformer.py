@@ -1,8 +1,13 @@
 import abc
+import fsspec
 import numpy as np
+import os
 import tensorflow as tf
 from typing import Union, Sequence
+import yaml
+from fv3fit._shared.predictor import Reloadable
 
+from fv3fit._shared import io
 from fv3fit.reservoir._reshaping import stack_array_preserving_last_dim
 
 
@@ -24,7 +29,10 @@ class Transformer(abc.ABC):
         pass
 
 
-class DoNothingAutoencoder(Transformer):
+@io.register("do-nothing-transformer")
+class DoNothingAutoencoder(Transformer, Reloadable):
+    _CONFIG_NAME = "mock_transformer.yaml"
+
     """Useful class for tests. Encode just concatenates input
     variables. Decode separates them back into individual arrays.
     """
@@ -47,6 +55,16 @@ class DoNothingAutoencoder(Transformer):
 
         split_indices = np.cumsum(self._array_feature_sizes)[:-1]
         return np.split(latent_x, split_indices, axis=-1)
+
+    def dump(self, path: str) -> None:
+        with fsspec.open(os.path.join(path, self._CONFIG_NAME), "w") as f:
+            yaml.dump({"n_latent_dims": self.n_latent_dims}, f)
+
+    @classmethod
+    def load(cls, path: str) -> "DoNothingAutoencoder":
+        with fsspec.open(os.path.join(path, cls._CONFIG_NAME), "r") as f:
+            config = yaml.safe_load(f)
+        return cls(config["n_latent_dims"])
 
 
 def encode_columns(data: Sequence[tf.Tensor], transformer: Transformer) -> np.ndarray:
