@@ -11,7 +11,7 @@ from fv3fit.reservoir import (
 )
 
 # 4x4 domain divided into 1 cell each subdomain
-default_rank_divider = RankDivider([2, 2], ["x", "y", "z"], [2, 2, 1], 0)
+default_rank_divider = RankDivider([2, 2], ["x", "y"], [2, 2], 0)
 
 
 class MultiOutputMeanRegressor:
@@ -48,13 +48,14 @@ def test_dump_load_optional_attrs(tmpdir):
         coefficients=sparse.coo_matrix(np.random.rand(input_size, 100)),
         intercepts=np.random.rand(input_size),
     )
+    rank_divider = RankDivider([2, 2], ["x", "y"], [2, 2], 2)
     predictor = ReservoirComputingModel(
         input_variables=["a", "b"],
         output_variables=["a", "b"],
         reservoir=reservoir,
         readout=readout,
         square_half_hidden_state=False,
-        rank_divider=default_rank_divider,
+        rank_divider=rank_divider,
     )
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
@@ -129,8 +130,8 @@ def test_prediction_shape():
 
 
 def test_ReservoirComputingModel_state_increment():
-    rank_divider = RankDivider([1, 1], ["x", "y", "z"], [2, 2, 1], 0)
-    input_size = rank_divider.n_subdomain_features
+    rank_divider = RankDivider([1, 1], ["x", "y"], [2, 2], 0)
+    input_size = rank_divider.subdomain_size_with_overlap
     state_size = 3
     hyperparameters = ReservoirHyperparameters(
         state_size=state_size,
@@ -218,7 +219,7 @@ def test_HybridReservoirComputingModel_dump_load(tmpdir):
     # TODO: If removing the large block diagonal form of the readout,
     # this needs to be updated
     n_total_inputs = (
-        state_size + rank_divider.n_subdomain_features
+        state_size + rank_divider.subdomain_xy_size_without_overlap ** 2
     ) * rank_divider.n_subdomains
     readout = ReservoirComputingReadout(
         coefficients=np.random.rand(n_total_inputs, input_size),
@@ -266,8 +267,12 @@ def test_HybridReservoirComputingModel_concat_readout_inputs():
     )
     rank_divider = default_rank_divider
 
-    reservoir = Reservoir(hyperparameters, input_size=rank_divider.n_subdomain_features)
-    n_hybrid_inputs = rank_divider.n_subdomain_features * rank_divider.n_subdomains
+    reservoir = Reservoir(
+        hyperparameters, input_size=rank_divider.subdomain_size_with_overlap
+    )
+    n_hybrid_inputs = (
+        rank_divider.subdomain_xy_size_without_overlap ** 2 * rank_divider.n_subdomains
+    )
     readout = ReservoirComputingReadout(
         coefficients=np.random.rand(state_size + n_hybrid_inputs, input_size),
         intercepts=np.random.rand(input_size),

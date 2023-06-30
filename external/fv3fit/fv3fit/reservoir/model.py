@@ -1,7 +1,7 @@
 import fsspec
 import numpy as np
 import os
-from typing import Optional, Iterable, Hashable, Union, Sequence
+from typing import Optional, Iterable, Hashable, Sequence, cast
 import xarray as xr
 import yaml
 
@@ -12,20 +12,8 @@ from .reservoir import Reservoir
 from .domain import RankDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
-from .transformers import Autoencoder, SkTransformer, ReloadableTransfomer
+from .transformers import ReloadableTransfomer
 from ._reshaping import flatten_2d_keeping_columns_contiguous
-
-
-def _load_transformer(path) -> Union[Autoencoder, SkTransformer]:
-    # ensures fv3fit.load returns a ReloadableTransfomer
-    model = fv3fit.load(path)
-
-    if isinstance(model, Autoencoder) or isinstance(model, SkTransformer):
-        return model
-    else:
-        raise ValueError(
-            f"model provided at path {path} must be a ReloadableTransfomer."
-        )
 
 
 def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
@@ -136,10 +124,12 @@ class HybridDatasetAdapter:
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
         # TODO: centralize stacking logic for encoding decoding
         # TODO: potentially use in train.py instead of special functions there
-        processed_inputs = self._input_data_to_encoded_array(inputs)  # x, y, feature dims
+        processed_inputs = self._input_data_to_encoded_array(
+            inputs
+        )  # x, y, feature dims
         prediction = self.model.predict(processed_inputs)
         unstacked_arr = self.model.rank_divider.merge_subdomains(prediction)
-        return self._output_array_to_ds(unstacked_arr)
+        return self._output_array_to_ds(unstacked_arr, dims=list(inputs.dims))
 
     def increment_state(self, inputs: xr.Dataset):
         processed_inputs = self._input_data_to_encoded_array(inputs)
@@ -151,16 +141,15 @@ class HybridDatasetAdapter:
     def reset_state(self):
         self.model.reset_state()
 
-    def _input_dataset_to_arrays(self, inputs: xr.Dataset) -> Sequence(np.ndarray):
+    def _input_dataset_to_arrays(self, inputs: xr.Dataset) -> Sequence[np.ndarray]:
         # Converts from xr dataset to sequence of variable ndarrays expected by encoder
-
         # Make sure the xy dimensions match the rank divider
         transposed_inputs = _transpose_xy_dims(
-            ds=inputs, 
-            rank_dims=self.model.rank_divider.rank_dims
+            ds=inputs, rank_dims=self.model.rank_divider.rank_dims
         )
         input_arrs = [
-            transposed_inputs[variable].values for variable in self.model.input_variables
+            transposed_inputs[variable].values
+            for variable in self.model.input_variables
         ]
         return input_arrs
 
@@ -197,13 +186,12 @@ class HybridDatasetAdapter:
 
         return arr
 
-    def _output_array_to_ds(self, outputs: np.ndarray):
+    def _output_array_to_ds(self, outputs: np.ndarray, dims: Sequence[str]):
         if self.model.autoencoder is not None:
             var_arrays = self._decode_output_variables(outputs, self.model.autoencoder)
         else:
             var_arrays = self._separate_output_from_stacked_array(outputs)
 
-        dims = self.model.rank_divider.rank_dims
         ds = xr.Dataset(
             {
                 var: (dims, var_arrays[i])
@@ -220,7 +208,7 @@ class HybridDatasetAdapter:
         feature_size = encoded_output.shape[-1]
         encoded_output = encoded_output.reshape(-1, feature_size)
         decoded = autoencoder.decode(encoded_output)
-        spatial_shape = list(self.model.rank_divider._rank_extent_without_overlap[:-1])
+        spatial_shape = list(self.model.rank_divider._rank_extent_without_overlap)
         var_arrays = [arr.reshape(spatial_shape + [-1]) for arr in decoded]
         return var_arrays
 
@@ -337,19 +325,18 @@ class ReservoirComputingModel(Predictor):
         with fsspec.open(os.path.join(path, cls._METADATA_NAME), "r") as f:
             metadata = yaml.safe_load(f)
 
+        rank_divider = RankDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
+
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-
-        if fs.exists(os.path.join(path, cls._RANK_DIVIDER_NAME)):
-            rank_divider = RankDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
-        else:
-            rank_divider = None
-
+        autoencoder: Optional[ReloadableTransfomer]
         if fs.exists(os.path.join(path, cls._AUTOENCODER_SUBDIR)):
-            autoencoder: ReloadableTransfomer = _load_transformer(
-                os.path.join(path, cls._AUTOENCODER_SUBDIR)
+            autoencoder = cast(
+                ReloadableTransfomer,
+                fv3fit.load(os.path.join(path, cls._AUTOENCODER_SUBDIR)),
             )
         else:
-            autoencoder = None  # type: ignore
+            autoencoder = None
+
         return cls(
             input_variables=metadata["input_variables"],
             output_variables=metadata["output_variables"],
