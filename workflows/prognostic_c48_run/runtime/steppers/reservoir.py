@@ -5,7 +5,7 @@ from typing import Optional, MutableMapping, Hashable
 import xarray as xr
 
 from fv3fit._shared.halos import append_halos_using_mpi
-from fv3fit.reservoir.model import HybridReservoirComputingModel
+from fv3fit.reservoir.model import HybridReservoirComputingModel, HybridDatasetAdapter
 
 
 @dataclasses.dataclass
@@ -28,7 +28,7 @@ class ReservoirStepper:
 
     def __init__(
         self,
-        model: HybridReservoirComputingModel,
+        model: HybridDatasetAdapter,
         reservoir_timestep: timedelta,
         synchronize_steps: int,
         model_timestep_seconds: int = 900,
@@ -45,27 +45,34 @@ class ReservoirStepper:
             self.init_time = time - self.dt_atmos
 
         if self._is_rc_update_step(time):
-            model_inputs = state[self.model.input_variables]
+            reservoir_inputs = state[self.model.input_variables]
+            hybrid_inputs = state[self.model.hybrid_variables]
+            # TODO: I think there needs to be state before the underlying model updates
+            # TODO: for the inputs to be correct timewise?
+
             try:
                 n_halo_points = self.model.rank_divider.overlap
-                ds_with_halos = append_halos_using_mpi(model_inputs, n_halo_points)
+                rc_in_with_halos = append_halos_using_mpi(
+                    reservoir_inputs, n_halo_points
+                )
+                hybrid_in_with_halos = append_halos_using_mpi(
+                    hybrid_inputs, n_halo_points
+                )
             except RuntimeError:
                 raise ValueError(
                     "MPI not available or tile dimension does not exist in state fields"
                     " during RC stepper update"
                 )
 
-            if self.completed_sync_steps < self.synchronize_steps:
-                # TODO: currently synchronizing takes processed input readout data?
-                # TODO: need to make increment handle general data, probably
-                self.model.synchronize(ds_with_halos)
-                self.completed_sync_steps += 1
-                pass
-            else:
-                updated_state = self.model.predict(ds_with_halos)  # noqa
-                # TODO: parse out the state/tendencies if necessary
+            if self.completed_sync_steps == 0:
+                self.model.reset_state()
 
-        return {}, {}, {}
+            self.model.increment_state(rc_in_with_halos)
+            self.completed_sync_steps += 1
+            if self.completed_sync_steps >= self.synchronize_steps:
+                updated_state = self.model.predict(hybrid_in_with_halos)
+
+        return {}, {}, updated_state
 
     def _is_rc_update_step(self, time):
         return (time - self.init_time) % self.rc_timestep == 0
@@ -76,4 +83,4 @@ class ReservoirStepper:
 
 
 def open_rc_model(config: HybridReservoirConfig):
-    return HybridReservoirComputingModel.load(config.model)
+    return HybridDatasetAdapter(HybridReservoirComputingModel.load(config.model))
