@@ -14,4 +14,4 @@ dependencies:
   - coverage>=5
   # newer pip version 20.3 does not work when constraints have extras
   - pip==20.2.4
-  - setuptools==59.8.0  # newer setuptools gives error when running lock_pip. GH#1924
+  - setuptools#==59.8.0  # newer setuptools gives error when running lock_pip. GH#1924
