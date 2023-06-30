@@ -107,6 +107,7 @@ jobs:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
     steps:
       - checkout
+      - run: brew install wget
       - run: mkdir -p miniconda3
       - when:
           condition:
