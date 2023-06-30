@@ -322,7 +322,7 @@ def main(args):
     with fsspec.open(args.data_yaml, "r") as f:
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
-    evaluation_grid = load_grid_info(args.catalog_path, args.evaluation_grid)
+    evaluation_grid = load_grid_info(args.evaluation_grid, args.catalog_path)
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
