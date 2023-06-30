@@ -93,7 +93,7 @@ jobs:
   fv3net_env_macos:
     parameters:
       resource_class:
-        default: macos.x86.medium.gen2
+        default: x86.medium.gen2
         type: enum
         enum:
           - x86.medium.gen2
