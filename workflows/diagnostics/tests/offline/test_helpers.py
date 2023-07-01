@@ -115,9 +115,9 @@ def test_insert_column_integrated_vars():
 
 
 def test_load_grid_info_from_custom_catalog(datadir):
-    # This test is dedicated to validate the responnse of "load_grid_info" function
-    # on bogus catalog file. Retreiving the grid information with non-existing
-    # resolution string generates the "KeyError"".
+    # This test is dedicated to validate the response of "load_grid_info" function
+    # on a bogus catalog file. Retrieving the grid information with a non-existing
+    # resolution string generates the "KeyError".
 
     res = "c12"
     catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
