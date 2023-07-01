@@ -4,7 +4,7 @@ surface_reference_zarr:
 
 .PHONY: nudge_to_fine_baseline_run
 nudge_to_fine_baseline_run: deploy
-	cd argo/prognostic-run && ./run.sh nudge-to-fine-baseline
+	cd argo/prognostic-run && ./run.sh nudge-to-fine-baseline 39
 
 .PHONY: deploy
 deploy: argo/kustomize
