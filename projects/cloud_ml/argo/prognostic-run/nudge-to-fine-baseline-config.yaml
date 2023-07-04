@@ -7,10 +7,10 @@ prephysics:
       override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface: override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface
       total_precipitation: total_precipitation
 initial_conditions:
-  base_url: gs://vcm-ml-raw-flexible-retention/2023-06-29-PIRE-and-FV3GFS-like-C3072-ccnorm-true-simulation/C3072-to-C48-restarts
-  timestep: '20200731.001500'
+  base_url: gs://vcm-ml-raw-flexible-retention/2023-06-29-PIRE-and-FV3GFS-like-C3072-ccnorm-true-simulation/C3072-to-C48-restarts-re-upload
+  timestep: '20200731.010000'
 nudging:
-  restarts_path: gs://vcm-ml-raw-flexible-retention/2023-06-29-PIRE-and-FV3GFS-like-C3072-ccnorm-true-simulation/C3072-to-C48-restarts
+  restarts_path: gs://vcm-ml-raw-flexible-retention/2023-06-29-PIRE-and-FV3GFS-like-C3072-ccnorm-true-simulation/C3072-to-C48-restarts-re-upload
   timescale_hours:
     air_temperature: 3
     specific_humidity: 3

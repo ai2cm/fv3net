@@ -6,6 +6,10 @@ surface_reference_zarr:
 nudge_to_fine_baseline_run: deploy
 	cd argo/prognostic-run && ./run.sh nudge-to-fine-baseline 39
 
+.PHONY: extend_prognostic_run
+extend_prognostic_run: deploy
+	cd argo/prognostic-run && ./extend.sh $(URL) $(SEGMENTS)
+
 .PHONY: deploy
 deploy: argo/kustomize
 	cd argo && ./kustomize build . | kubectl apply -f -
