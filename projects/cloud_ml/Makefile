@@ -46,6 +46,14 @@ prescribed_cloud_random_run: deploy
 train_cloud_ml_dense_seed: deploy
 	cd argo/training && ./run_random_seed.sh dense 4
 
+.PHONY: upload_squashed_models
+upload_squashed_models:
+	cd scripts/upload-squashed-models && ./upload.sh 4 gs://vcm-ml-experiments/cloud-ml/2023-07-04/train-cloud-ml-dense
+
+.PHONY: prescribed_cloud_dense_seed_squash_threshold
+prescribed_cloud_dense_seed_squash_threshold: deploy
+	cd argo/prognostic-run && ./run_seed_squash_threshold.sh prescribed-cloud-dense 4 39
+
 .PHONY: deploy
 deploy: argo/kustomize
 	cd argo && ./kustomize build . | kubectl apply -f -
