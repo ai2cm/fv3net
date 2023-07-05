@@ -113,10 +113,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash && \
-            sudo apt-get update && sudo apt-get install -y make jq \
-            git \
-            git-lfs \
+          sudo apt-get update && sudo apt-get install -y make jq \
             python3 \
             python3-pip \
             python3-numpy # needed by pip-compile to handle vcm/setup.py
