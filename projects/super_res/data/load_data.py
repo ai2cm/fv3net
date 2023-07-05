@@ -3,6 +3,10 @@ from torch.utils.data import DataLoader
 
 def load_data(data_config, batch_size, num_workers = 4, pin_memory = True):
     
+    # dataloader yields (lowres, highres) pair in a dictionary
+    # with keys 'LR' and 'HR' each
+    # with shape (batch_size, length, channels, y, x)
+
     train, val = load_dataset(data_config)
 
     train = DataLoader(
