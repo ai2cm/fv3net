@@ -54,6 +54,14 @@ upload_squashed_models:
 prescribed_cloud_dense_seed_squash_threshold: deploy
 	cd argo/prognostic-run && ./run_seed_squash_threshold.sh prescribed-cloud-dense 4 39
 
+.PHONY: offline_cloud_predictions_zarr
+offline_cloud_predictions_zarr:
+	cd scripts && python ./offline_predictions_zarr.py offline_predictions_config.yaml
+
+.PHONY: offline_cloud_predictions_squashed_zarr
+offline_cloud_predictions_squashed_zarr:
+	cd scripts && python ./offline_predictions_zarr.py offline_predictions_squashed_config.yaml
+
 .PHONY: deploy
 deploy: argo/kustomize
 	cd argo && ./kustomize build . | kubectl apply -f -
