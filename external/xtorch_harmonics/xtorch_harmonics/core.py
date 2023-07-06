@@ -65,6 +65,10 @@ def _validate_quadrature_points(
 
     try:
         if lon_dim in obj.coords:
+            # TODO: I suppose for this check we really only need to ensure that
+            # points are equally spaced and global.  Whether they exactly align
+            # with a regular grid from 0 to 360 degrees E is not necessarily
+            # relevant.
             np.testing.assert_allclose(obj[lon_dim].data, expected_longitudes)
             # TODO: could warn or raise if lon_dim not in obj.coords.
     except AssertionError:

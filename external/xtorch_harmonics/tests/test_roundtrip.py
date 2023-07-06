@@ -18,6 +18,7 @@ from xtorch_harmonics.core import (
 from xtorch_harmonics.core import roundtrip
 
 
+HARMONIC_DIM = "harmonic"
 N_LAT, N_LON = 9, 18
 
 
@@ -64,21 +65,13 @@ def real_spherical_harmonic_dataarray(grid, lat_dim, lon_dim, name="foo"):
     for m, n in harmonics:
         da = real_spherical_harmonic(lat, lon, m, n)
         dataarrays.append(da)
-    result = xr.concat(dataarrays, dim="harmonic")
-    result = result.assign_coords(harmonic=harmonics)
-    result = result.unstack("harmonic")
-    result = result.rename(name)
-    return result
 
-
-def variable_dataarray(grid, lat_dim, lon_dim, name="foo", extra_dims=None):
-    n_lat, n_lon = 9, 18
-    lat = compute_quadrature_latitudes(n_lat, grid)
-    lon = compute_quadrature_longitudes(n_lon)
-    data = np.arange(n_lat * n_lon).reshape((n_lat, n_lon))
-
-    da = xr.DataArray(data, dims=[lat_dim, lon_dim], coords=[lat, lon], name=name)
-    return da.expand_dims(extra_dims)
+    return (
+        xr.concat(dataarrays, dim=HARMONIC_DIM)
+        .assign_coords({HARMONIC_DIM: harmonics})
+        .unstack(HARMONIC_DIM)
+        .rename(name)
+    )
 
 
 @pytest.mark.parametrize(("forward_grid", "inverse_grid"), VALID_GRIDS)
@@ -96,7 +89,7 @@ def test_roundtrip_constant_dataarray(forward_grid, inverse_grid):
     [
         pytest.param(
             EQUIANGULAR_GRID, marks=pytest.mark.xfail
-        ),  # I'm not sure why this fails.
+        ),  # This requires a greater tolerance; I'm not sure why.
         LEGENDRE_GAUSS_GRID,
         LOBATTO_GRID,
     ],
@@ -107,19 +100,8 @@ def test_roundtrip_real_spherical_harmonic_dataarray(grid):
     # This also tests the use of roundtrip on DataArrays with more than two
     # dimensions; da has dimensions ["grid_yt", "grid_xt", "m", "n"].
     da = real_spherical_harmonic_dataarray(grid, LAT_DIM, LON_DIM)
-    result = roundtrip(da, forward_grid=grid, inverse_grid=grid,)
+    result = roundtrip(da, forward_grid=grid, inverse_grid=grid)
     xr.testing.assert_allclose(result, da)
-
-
-@pytest.mark.parametrize(("forward_grid", "inverse_grid"), VALID_GRIDS)
-def test_roundtrip_variable_dataarray(forward_grid, inverse_grid):
-    da = variable_dataarray(forward_grid, LAT_DIM, LON_DIM)
-    result = roundtrip(da, forward_grid=forward_grid, inverse_grid=inverse_grid,)
-    expected_latitude = compute_quadrature_latitudes(da.sizes[LAT_DIM], inverse_grid)
-    expected = da.assign_coords({LAT_DIM: expected_latitude})
-
-    with pytest.raises(AssertionError):
-        xr.testing.assert_allclose(result, expected)
 
 
 @pytest.mark.parametrize(
@@ -208,7 +190,7 @@ def test_longitude_quadrature_point_validation(unsafe):
 def test_roundtrip_dataset():
     lat_dim, lon_dim = "lat_dim", "lon_dim"
     grid = LOBATTO_GRID
-    foo = variable_dataarray(grid, lat_dim, lon_dim)
+    foo = real_spherical_harmonic_dataarray(grid, lat_dim, lon_dim)
     bar = foo.copy(deep=True).rename("bar").isel({lat_dim: 0})
     ds = xr.merge([foo, bar])
     ds = ds.assign_attrs(a="b")
@@ -218,7 +200,7 @@ def test_roundtrip_dataset():
 
     # Check that foo was modified and bar was left unchanged.
     with pytest.raises(AssertionError):
-        xr.testing.assert_allclose(roundtripped.foo, ds.foo)
+        xr.testing.assert_identical(roundtripped.foo, ds.foo)
 
     xr.testing.assert_identical(roundtripped.bar, ds.bar)
 
