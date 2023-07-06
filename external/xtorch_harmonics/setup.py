@@ -13,7 +13,7 @@ setup(
         "dask>=2022.11.1",
         "numpy>=1.12.1",
         "torch>=1.12.1",
-        "torch_harmonics",
+        "torch_harmonics @ git+https://github.com/NVIDIA/torch-harmonics.git@8826246cacf6c37b600cdd63fde210815ba238fd",  # noqa: E501
         "xarray>=0.19.0",
     ],
 )
