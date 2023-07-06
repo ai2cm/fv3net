@@ -23,29 +23,43 @@ class HybridReservoirConfig:
     reservoir_timestep: str = "3h"  # TODO: could this be inferred from the model?
 
 
-class _ReservoirStepperState:
+class _FiniteStateMachine:
 
     INCREMENT = "increment"
     PREDICT = "predict"
 
-    def __init__(self) -> None:
+    def __init__(self, init_time: Optional[cftime.DatetimeJulian] = None) -> None:
         self._last_called = None
+        self._init_time = init_time
+        self._increment_steps = 0
 
-    def increment(self):
+    @property
+    def init_time(self):
+        return self._init_time
+
+    @property
+    def increment_steps(self):
+        return self._increment_steps
+
+    def to_incremented(self):
         # incrementing allowed anytime, e.g., synchronizing
         self._last_called = self.INCREMENT
+        self._increment_steps += 1
 
-    def predict(self):
+    def to_predicted(self):
         # predict only allowed after increment has been called
         if self._last_called != self.INCREMENT:
             raise ValueError("Must call increment before next prediction")
         self._last_called = self.PREDICT
 
+    def set_init_time(self, time: cftime.DatetimeJulian):
+        self._init_time = time
+
     def __call__(self, state: str):
         if state == self.INCREMENT:
-            self.increment()
+            self.to_incremented()
         elif state == self.PREDICT:
-            self.predict()
+            self.to_predicted()
         else:
             raise ValueError(
                 f"Unknown state provided to _ReservoirStepperState {state}"
@@ -62,21 +76,31 @@ class _ReservoirStepper:
         reservoir_timestep: timedelta,
         synchronize_steps: int,
         model_timestep_seconds: int = 900,
-        state_checker: Optional[_ReservoirStepperState] = None,
+        state_machine: Optional[_FiniteStateMachine] = None,
     ):
         self.model = model
         self.rc_timestep = reservoir_timestep
         self.synchronize_steps = synchronize_steps
         self.dt_atmos = timedelta(seconds=model_timestep_seconds)
-        self.init_time: Optional[cftime.DatetimeJulian] = None
-        self.completed_sync_steps = 0
-        self._state_machine = state_checker
+
+        if state_machine is None:
+            self._state_machine = _FiniteStateMachine()
+        else:
+            self._state_machine = state_machine
+
+    @property
+    def init_time(self):
+        return self._state_machine.init_time
+
+    @property
+    def completed_sync_steps(self):
+        return self._state_machine.increment_steps
 
     def increment_reservoir(self, time, state):
         """Should be called at beginning of time loop"""
 
-        if self.init_time is None:
-            self.init_time = time
+        if self._state_machine.init_time is None:
+            self._state_machine.set_init_time(time)
 
         if self._is_rc_update_step(time):
             reservoir_inputs = state[self.model.input_variables]
@@ -96,15 +120,13 @@ class _ReservoirStepper:
                 self.model.reset_state()
 
             self.model.increment_state(rc_in_with_halos)
-            self.completed_sync_steps += 1
-
-            if self._state_machine is not None:
-                self._state_machine(self._state_machine.INCREMENT)
+            self._state_machine(self._state_machine.INCREMENT)
 
         return {}, {}, {}
 
     def hybrid_predict(self, time, state):
 
+        updated_state = {}
         if self._is_rc_update_step(time):
             hybrid_inputs = state[self.model.hybrid_variables]
 
@@ -119,15 +141,14 @@ class _ReservoirStepper:
                     " during RC stepper update"
                 )
 
-            updated_state = {}
-            if self.completed_sync_steps >= self.synchronize_steps:
+            # +1 to align with the necessary increment before any prediction
+            if self._state_machine.increment_steps >= self.synchronize_steps + 1:
                 result = self.model.predict(hybrid_in_with_halos)
                 updated_state.update(
                     {k: result[k] for k in self.model.output_variables}
                 )
 
-            if self._state_machine is not None:
-                self._state_machine(self._state_machine.PREDICT)
+            self._state_machine(self._state_machine.PREDICT)
 
         return {}, {}, updated_state
 
@@ -137,7 +158,15 @@ class _ReservoirStepper:
         )
 
     def _is_rc_update_step(self, time):
-        return (time - self.init_time) % self.rc_timestep == 0
+        init_time = self._state_machine.init_time
+
+        if init_time is None:
+            raise ValueError(
+                "Cannot determine reservoir update status without init time.  Ensure"
+                " that a _ReservoirStateStepper has an init time specified or that the"
+                " reservoir increment stepper is called at least once."
+            )
+        return (time - init_time) % self.rc_timestep == timedelta(seconds=0)
 
     def get_diagnostics(self, state, tendency):
         diags: MutableMapping[Hashable, xr.DataArray] = {}
@@ -183,12 +212,12 @@ def get_reservoir_steppers(config: HybridReservoirConfig):
     """
 
     model = open_rc_model(config.model)
-    state_machine = _ReservoirStepperState()
+    state_machine = _FiniteStateMachine()
     rc_tdelta = pd.to_timedelta(config.reservoir_timestep)
     incrementer = ReservoirIncrementOnlyStepper(
-        model, rc_tdelta, config.synchronize_steps, state_checker=state_machine
+        model, rc_tdelta, config.synchronize_steps, state_machine=state_machine
     )
     predictor = ReservoirHybridPredictStepper(
-        model, rc_tdelta, config.synchronize_steps, state_checker=state_machine
+        model, rc_tdelta, config.synchronize_steps, state_machine=state_machine
     )
     return incrementer, predictor
