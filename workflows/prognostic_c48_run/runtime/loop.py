@@ -18,7 +18,6 @@ import cftime
 import pace.util
 import fv3gfs.wrapper
 import numpy as np
-import pandas as pd
 import vcm
 import xarray as xr
 from mpi4py import MPI
@@ -56,11 +55,7 @@ from runtime.steppers.nudging import PureNudger
 from runtime.steppers.prescriber import PrescriberConfig
 from runtime.steppers.interval import IntervalStepper, IntervalConfig
 from runtime.steppers.combine import CombinedStepper
-from runtime.steppers.reservoir import (
-    HybridReservoirConfig,
-    ReservoirStepper,
-    open_rc_model,
-)
+from runtime.steppers.reservoir import get_reservoir_steppers
 from runtime.types import Diagnostics, State, Tendencies, Step
 from toolz import dissoc
 
@@ -300,7 +295,10 @@ class TimeLoop(
         self._prephysics_stepper = self._get_prephysics_stepper(config, hydrostatic)
         self._postphysics_stepper = self._get_postphysics_stepper(config, hydrostatic)
         self._radiation_stepper = self._get_radiation_stepper(config, namelist)
-        self._rc_stepper = self._get_reservoir_stepper(config)
+        [
+            self._reservior_increment_stepper,
+            self._reservoir_predict_stepper,
+        ] = self._get_reservoir_stepper(config)
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -348,11 +346,7 @@ class TimeLoop(
     def _get_stepper(
         self,
         stepper_config: Union[
-            PrescriberConfig,
-            MachineLearningConfig,
-            NudgingConfig,
-            IntervalConfig,
-            HybridReservoirConfig,
+            PrescriberConfig, MachineLearningConfig, NudgingConfig, IntervalConfig,
         ],
         step: str,
         hydrostatic: bool = False,
@@ -384,10 +378,6 @@ class TimeLoop(
             stepper = PureNudger(
                 base_stepper_config, self._get_communicator(), hydrostatic
             )
-        elif isinstance(base_stepper_config, HybridReservoirConfig):
-            model = open_rc_model(base_stepper_config)
-            rc_tdelta = pd.to_timedelta(base_stepper_config.reservoir_timestep)
-            stepper = ReservoirStepper(model, rc_tdelta, 1, self._timestep)
         else:
             self._log_info(
                 "Using Prescriber for variables "
@@ -464,19 +454,18 @@ class TimeLoop(
             stepper = None
         return stepper
 
-    def _get_reservoir_stepper(self, config: UserConfig) -> Optional[Stepper]:
+    def _get_reservoir_stepper(
+        self, config: UserConfig
+    ) -> Tuple[Optional[Stepper], Optional[Stepper]]:
         if config.reservoir_corrector is not None:
-            reservoir_stepper: Optional[Stepper] = self._get_stepper(
-                config.reservoir_corrector, "reservoir"
-            )
+            res_config = config.reservoir_corrector
+            incrementer, predictor = get_reservoir_steppers(res_config)
         else:
-            reservoir_stepper = None
+            incrementer, predictor = None, None
 
-        return reservoir_stepper
+        return incrementer, predictor
 
     # TODO: add an opener that will look for the rank-specific rc model
-    # TODO: add a section to the stepper opener for the rc configuration
-    # TODO: add a reservoir_corrector component to the UserConfig
 
     def _open_model(self, ml_config: MachineLearningConfig):
         self._log_info("Downloading ML Model")
@@ -692,6 +681,27 @@ class TimeLoop(
         )
         return diagnostics
 
+    def _increment_reservoir(self) -> Diagnostics:
+        if self._reservior_increment_stepper is not None:
+            self._log_info("Incrementing reservoir state.")
+            [_, diags, _] = self._reservior_increment_stepper(
+                self._state.time, self._state
+            )
+            return diags
+        else:
+            return {}
+
+    def _apply_hybrid_reservoir_to_state(self) -> Diagnostics:
+        if self._reservoir_predict_stepper is not None:
+            self._log_info("Applying hybrid reservior prediction to state.")
+            [_, diags, state] = self._reservoir_predict_stepper(
+                self._state.time, self._state
+            )
+            self._state.update_mass_conserving(state)
+            return diags
+        else:
+            return {}
+
     def _intermediate_restarts(self) -> Diagnostics:
         self._log_info("Saving intermediate restarts if enabled.")
         self._fv3gfs.save_intermediate_restart_if_enabled()
@@ -709,6 +719,7 @@ class TimeLoop(
                 lambda: runtime.diagnostics.tracers.compute_column_integrated_tracers(
                     self._state
                 ),
+                self._increment_reservoir,
                 self.monitor("dynamics", self._step_dynamics),
                 self._step_prephysics,
                 self._step_pre_radiation_physics,
@@ -722,6 +733,7 @@ class TimeLoop(
                 ),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
+                self._apply_hybrid_reservoir_to_state,
                 self._intermediate_restarts,
             ]:
                 with self._timer.clock(substep.__name__):

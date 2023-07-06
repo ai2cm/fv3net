@@ -100,7 +100,7 @@ class HybridReservoirComputingModel(Predictor):
         )
 
 
-class HybridDatasetAdapter:
+class HybridDatasetAdapter(HybridReservoirComputingModel):
     def __init__(self, model: HybridReservoirComputingModel) -> None:
         self.model = model
         self._input_feature_sizes: Optional[Sequence] = None
