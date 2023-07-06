@@ -465,8 +465,6 @@ class TimeLoop(
 
         return incrementer, predictor
 
-    # TODO: add an opener that will look for the rank-specific rc model
-
     def _open_model(self, ml_config: MachineLearningConfig):
         self._log_info("Downloading ML Model")
         with tempfile.TemporaryDirectory() as tmpdir:
