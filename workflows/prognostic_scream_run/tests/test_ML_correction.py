@@ -22,7 +22,7 @@ def _model_dataset() -> xr.Dataset:
 
 def test_sample_scream_ml_config():
     config = MachineLearningConfig(
-        model=["gs://vcm-ml-experiments/scream-n2f/test-scream-train-model"]
+        models=["gs://vcm-ml-experiments/scream-n2f/test-scream-train-model"]
     )
     model = open_model(config)
     assert model.input_variables == {"qv", "T_mid", "cos_zenith_angle"}
