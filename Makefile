@@ -51,7 +51,6 @@ push_images: $(addprefix push_image_, $(IMAGES))
 build_image_fv3fit: docker/fv3fit/requirements.txt
 build_image_fv3fit_torch: docker/fv3fit_torch/requirements.txt
 build_image_artifacts: docker/artifacts/requirements.txt
-build_image_scream_fit: docker/scream_fit/requirements.txt
 
 build_image_prognostic_run_base:
 	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run_base:$(CACHE_TAG) \
@@ -316,17 +315,6 @@ docker/artifacts/requirements.txt:
 		--output-file $@ \
 		external/artifacts/setup.py \
 		docker/artifacts/requirements.in
-
-docker/scream_fit/requirements.txt: external/fv3fit/setup.py external/loaders/setup.py external/vcm/setup.py
-	cp constraints.txt $@
-	# this will subset the needed dependencies from constraints.txt
-	# while preserving the versions
-	pip-compile --no-annotate \
-		--output-file docker/scream_fit/requirements.txt \
-		docker/scream_fit/requirements.in \
-		external/fv3fit/setup.py \
-		external/loaders/setup.py \
-		external/vcm/setup.py
 
 .PHONY: lock_pip constraints.txt
 ## Lock the pip dependencies of this repo
