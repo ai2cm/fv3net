@@ -206,7 +206,6 @@ if __name__ == "__main__":
     if args.split_horiz_winds:
         ds = split_horiz_winds(ds)
     if args.calc_physics_tend:
-        print(nudging_vars)
         ds = compute_tendencies_due_to_scream_physics(ds, nudging_vars)
     if args.rename_nudging_tend:
         ds = rename_nudging_tendencies(ds, nudging_vars)
