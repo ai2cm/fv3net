@@ -274,7 +274,6 @@ def open_nudge_to_fine_scream(
         join="inner",
     )
 
-    # TODO: update this once scream nudging run is finialized
     differenced_state: Dataset = {}
     for nudging_variable in nudging_variables:
         nudging_tendency = ds[f"{nudging_variable}_tendency_due_to_nudging"]
@@ -286,10 +285,10 @@ def open_nudge_to_fine_scream(
     rename_vars: Mapping[Hashable, Hashable] = {
         "T_mid_tendency_due_to_nudging": "dQ1",
         "qv_tendency_due_to_nudging": "dQ2",
-        "x_wind_tendency_due_to_nudging": "dQxwind",
-        "y_wind_tendency_due_to_nudging": "dQywind",
-        "tendency_of_eastward_wind_due_to_scream_physics": "pQu",
-        "tendency_of_northward_wind_due_to_scream_physics": "pQv",
+        "u_tendency_due_to_nudging": "dQxwind",
+        "v_tendency_due_to_nudging": "dQywind",
+        "tendency_of_u_due_to_scream_physics": "pQu",
+        "tendency_of_v_due_to_scream_physics": "pQv",
         "tendency_of_T_mid_due_to_scream_physics": "pQ1",
         "tendency_of_qv_due_to_scream_physics": "pQ2",
     }
