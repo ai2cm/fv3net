@@ -1,4 +1,5 @@
 import xarray as xr
+import numpy as np
 from torch.utils.data import Dataset
 
 class VSRDataset(Dataset):
@@ -21,17 +22,17 @@ class VSRDataset(Dataset):
         c384_np = np.stack([c384[channel].values for channel in channels], axis = 2)
         c48_np = np.stack([c48[channel].values for channel in channels], axis = 2)
 
-        # compute statistics
-        c384_min, c384_max, c48_min, c48_max = c384_np.min(), c384_np.max(), c48_np.min(), c48_np.max() 
+        # calculate split (80/20)
+        split = int(c384_np.shape[1] * 0.8)
+
+        # compute statistics on training set
+        c384_min, c384_max, c48_min, c48_max = c384_np[:, :split, :, :, :].min(), c384_np[:, :split, :, :, :].max(), c48_np[:, :split, :, :, :].min(), c48_np[:, :split, :, :, :].max() 
 
         # normalize
         c384_norm= (c384_np - c384_min) / (c384_max - c384_min)
         c48_norm = (c48_np - c48_min) / (c48_max - c48_min)
         c384_norm = c384_norm * 2 - 1
         c48_norm = c48_norm * 2 - 1
-
-        # calculate split (80/20)
-        split = int(c384_norm.shape[1] * 0.8)
 
         # expected sequence length
         self.length = length
@@ -48,7 +49,7 @@ class VSRDataset(Dataset):
 
     def __len__(self):
         
-        return len(self.X.shape[1] - self.length + 1)
+        return self.X.shape[1] - self.length + 1
 
     def __getitem__(self, idx):
         

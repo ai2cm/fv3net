@@ -14,7 +14,8 @@ import torch
 from torch import nn, einsum
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-from torch.utils.tensorboard import SummaryWriter
+#from torch.utils.tensorboard import SummaryWriter
+import wandb
 
 from kornia import filters
 from torch.optim import Adam
@@ -32,7 +33,7 @@ import matplotlib.pyplot as plt
 
 from accelerate import Accelerator
 
-from denoising_diffusion_pytorch.version import __version__
+#from denoising_diffusion_pytorch.version import __version__
 
 from .network_swinir import SwinIR as net
 
@@ -88,8 +89,7 @@ def gaussian_pyramids(input, base_sigma = 1, m = 5):
     
     output = [input]
     N, C, H, W = input.shape
-    
-    kernel = filters.get_gaussian_kernel2d((5, 5), (base_sigma, base_sigma)).unsqueeze(0)
+    kernel = filters.get_gaussian_kernel2d((5, 5), (base_sigma, base_sigma))
     
     for i in range(m):
         
@@ -640,7 +640,7 @@ class GaussianDiffusion(nn.Module):
         self.model = model
         
         self.flow = flow
-        self.upsample = nn.UpsamplingBilinear2d(scale_factor=4)
+        self.upsample = nn.UpsamplingBilinear2d(scale_factor=8)
         
         self.channels = self.model.channels
         self.self_condition = self.model.self_condition
@@ -966,7 +966,7 @@ class GaussianDiffusion(nn.Module):
         hres_flow = rearrange(hres[:, 1:(f-1), :, :, :], 'b t c h w -> (b t) c h w')
         
         flow, context = self.flow(stack)
-        
+        #print(flow.shape, hres_flow.shape)
         warped = scale_space_warp(hres_flow, flow)
         
         x_start = rearrange(hres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
@@ -1086,6 +1086,7 @@ class Trainer(object):
         diffusion_model,
         train_dl,
         val_dl,
+        config,
         *,
         train_batch_size = 16,
         gradient_accumulate_every = 1,
@@ -1099,7 +1100,7 @@ class Trainer(object):
         #num_samples = 25,
         eval_folder = './evaluate',
         results_folder = './results',
-        tensorboard_dir = './tensorboard',
+        #tensorboard_dir = './tensorboard',
         val_num_of_batch = 2,
         amp = False,
         fp16 = False,
@@ -1111,9 +1112,11 @@ class Trainer(object):
 
         self.accelerator = Accelerator(
             split_batches = split_batches,
-            mixed_precision = 'fp16' if fp16 else 'no'
+            mixed_precision = 'fp16' if fp16 else 'no',
+            log_with = 'wandb'
         )
-
+        self.accelerator.init_trackers(project_name="vsr-orig-autoreg-hres")
+        self.config = config
         self.accelerator.native_amp = amp
 
         self.model = diffusion_model
@@ -1137,15 +1140,16 @@ class Trainer(object):
         #dl = self.accelerator.prepare(dl)
         #self.dl = cycle(dl)
         
-#         train_dl = self.accelerator.prepare(train_dl)
-#         self.train_dl = cycle(train_dl)
-        
-#         val_dl = self.accelerator.prepare(val_dl)
-#         self.val_dl = cycle(val_dl)
+        train_dl = self.accelerator.prepare(train_dl)
+        self.train_dl = cycle(train_dl)
+
+        val_dl = self.accelerator.prepare(val_dl)
+        self.val_dl = cycle(val_dl)
         #if os.path.isdir(tensorboard_dir):
         #    shutil.rmtree(tensorboard_dir)
-        self.writer = SummaryWriter(tensorboard_dir)
         
+        #self.writer = SummaryWriter(tensorboard_dir)
+
         self.val_num_of_batch = val_num_of_batch
         
         # optimizer
@@ -1156,7 +1160,7 @@ class Trainer(object):
 
         if self.accelerator.is_main_process:
             self.ema = EMA(diffusion_model, beta = ema_decay, update_every = ema_update_every)
-
+            
         self.results_folder = Path(results_folder)
         self.results_folder.mkdir(exist_ok = True)
         
@@ -1168,9 +1172,9 @@ class Trainer(object):
 
         # prepare model, dataloader, optimizer with accelerator
 
-        self.model, self.opt, train_dl, val_dl = self.accelerator.prepare(self.model, self.opt, train_dl, val_dl)
-        self.train_dl = cycle(train_dl)
-        self.val_dl = cycle(val_dl)        
+        self.model, self.opt = self.accelerator.prepare(self.model, self.opt)
+        #self.train_dl = cycle(train_dl)
+        #self.val_dl = cycle(val_dl)        
 
     def save(self, milestone):
         if not self.accelerator.is_local_main_process:
@@ -1207,7 +1211,7 @@ class Trainer(object):
             self.accelerator.scaler.load_state_dict(data['scaler'])
 
     def train(self):
-        
+
         accelerator = self.accelerator
         device = accelerator.device
 
@@ -1236,7 +1240,8 @@ class Trainer(object):
                 accelerator.clip_grad_norm_(self.model.parameters(), 1.0)
                 pbar.set_description(f'loss: {total_loss:.4f}')
 
-                self.writer.add_scalar("loss", total_loss, self.step)
+                #self.writer.add_scalar("loss", total_loss, self.step)
+                accelerator.log({"loss": total_loss}, step = self.step)
 
                 accelerator.wait_for_everyone()
 
