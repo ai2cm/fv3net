@@ -10,6 +10,8 @@ from multiprocessing import cpu_count
 from joblib import Parallel, delayed
 from torchvision.utils import save_image
 
+import numpy as np
+
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
@@ -909,16 +911,17 @@ class GaussianDiffusion(nn.Module):
             #res = sample_fn((batch_size, c, image_size, image_size), l_cond[i::(f-2), :, :, :], context, return_all_timesteps = return_all_timesteps)
             
             res = sample_fn((batch_size, c, h, w), l_cond[i::(f-2), :, :, :], context, return_all_timesteps = return_all_timesteps)
-            #hres_flow = warped + res
+            hres_flow = warped + res
             
-            hres_flow = warped + res[:, -1, :, :, :]
+            #hres_flow = warped + res[:, -1, :, :, :]
             
             l = r
             r = rearrange(hres_flow, '(b t) c h w -> b t c h w', t = 1)
             
             ans.append(hres_flow)
             base.append(warped)
-            nsteps.append(torch.cat(torch.unbind(res, 1), 3))
+            #nsteps.append(torch.cat(torch.unbind(res, 1), 3))
+            nsteps.append(res)
             flows.append(flow)
             
         return self.unnormalize(torch.stack(ans, 1)), self.unnormalize(torch.stack(base, 1)), self.unnormalize(torch.stack(nsteps, 1)), self.unnormalize(torch.stack(flows, 1))
@@ -1035,7 +1038,7 @@ class GaussianDiffusion(nn.Module):
         m = lres.clone()
         m1 = rearrange(m, 'b t c h w -> (b t) c h w')
         m1 = self.upsample(m1)
-        m1 = rearrange(m1, '(b t) c h w -> b t c h w', t = 7)
+        m1 = rearrange(m1, '(b t) c h w -> b t c h w', t = f)
         m1 = torch.roll(m1, -2, 1)
 
         stack = torch.cat((l, r, m1), 2)
@@ -1186,7 +1189,7 @@ class Trainer(object):
             'opt': self.opt.state_dict(),
             'ema': self.ema.state_dict(),
             'scaler': self.accelerator.scaler.state_dict() if exists(self.accelerator.scaler) else None,
-            'version': __version__
+            #'version': __version__
         }
 
         torch.save(data, str(self.results_folder / f'qmodel-{milestone%3}.pt'))
@@ -1204,8 +1207,8 @@ class Trainer(object):
         self.opt.load_state_dict(data['opt'])
         self.ema.load_state_dict(data['ema'])
 
-        if 'version' in data:
-            print(f"loading from version {data['version']}")
+        #if 'version' in data:
+        #    print(f"loading from version {data['version']}")
 
         if exists(self.accelerator.scaler) and exists(data['scaler']):
             self.accelerator.scaler.load_state_dict(data['scaler'])
@@ -1268,37 +1271,17 @@ class Trainer(object):
                                 if i >= self.val_num_of_batch:
                                     break
                                     
-                                videos, base = self.ema.ema_model.sample(lres, hres)
+                                videos, base, res, flows = self.ema.ema_model.sample(lres, hres)
                             
-                                self.writer.add_video(
-                                    f"true_high/num{i}",
-                                    hres[:,2:,:,:,:],
-                                    self.step // self.save_and_sample_every,
-                                )
-                                
-                                self.writer.add_video(
-                                    f"true_low/num{i}",
-                                    lres[:,2:,:,:,:],
-                                    self.step // self.save_and_sample_every,
-                                )
-                                
-                                self.writer.add_video(
-                                    f"samples_device/num{i}",
-                                    videos.clamp(0.0, 1.0),
-                                    self.step // self.save_and_sample_every,
-                                )
-                                
-                                self.writer.add_video(
-                                    f"pred_device/num{i}",
-                                    base.clamp(0.0, 1.0),
-                                    self.step // self.save_and_sample_every,
-                                )
-                            milestone = self.step // self.save_and_sample_every
-                            #batches = num_to_groups(self.num_samples, self.batch_size)
-                            #all_images_list = list(map(lambda n: self.ema.ema_model.sample(batch_size=n), batches))
+                                accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))})
+                                accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))})
+                                accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))})
+                                accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))})
+                                accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))})
+                                accelerator.log({"flows": wandb.Video((flows.clamp(0.0, 1.0).detach().cpu().numpy()*255).astype(np.uint8))})
 
-                        #all_images = torch.cat(all_images_list, dim = 0)
-                        #utils.save_image(all_images, str(self.results_folder / f'sample-{milestone}.png'), nrow = int(math.sqrt(self.num_samples)))
+                            milestone = self.step // self.save_and_sample_every
+                            
                         self.save(milestone)
 
                 pbar.update(1)
@@ -1310,15 +1293,15 @@ class Trainer(object):
         accelerator = self.accelerator
         device = accelerator.device
         
-        umodel = net(upscale=4, in_chans=3, img_size=64, window_size=8,
-        img_range=1., depths=[6, 6, 6, 6, 6, 6, 6, 6, 6], embed_dim=240,
-        num_heads=[8, 8, 8, 8, 8, 8, 8, 8, 8],
-        mlp_ratio=2, upsampler='nearest+conv', resi_connection='3conv')
-        param_key_g = 'params_ema'
-        pretrained_model = torch.load('../SwinIR/experiments/pretrained_models/003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x4_GAN.pth')
-        umodel.load_state_dict(pretrained_model[param_key_g] if param_key_g in pretrained_model.keys() else pretrained_model, strict=True)
-        umodel.eval()
-        umodel.to(device)
+        # umodel = net(upscale=4, in_chans=3, img_size=64, window_size=8,
+        # img_range=1., depths=[6, 6, 6, 6, 6, 6, 6, 6, 6], embed_dim=240,
+        # num_heads=[8, 8, 8, 8, 8, 8, 8, 8, 8],
+        # mlp_ratio=2, upsampler='nearest+conv', resi_connection='3conv')
+        # param_key_g = 'params_ema'
+        # pretrained_model = torch.load('../SwinIR/experiments/pretrained_models/003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x4_GAN.pth')
+        # umodel.load_state_dict(pretrained_model[param_key_g] if param_key_g in pretrained_model.keys() else pretrained_model, strict=True)
+        # umodel.eval()
+        # umodel.to(device)
         
         self.ema.ema_model.eval()
 

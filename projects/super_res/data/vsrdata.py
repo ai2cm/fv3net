@@ -31,9 +31,7 @@ class VSRDataset(Dataset):
         # normalize
         c384_norm= (c384_np - c384_min) / (c384_max - c384_min)
         c48_norm = (c48_np - c48_min) / (c48_max - c48_min)
-        c384_norm = c384_norm * 2 - 1
-        c48_norm = c48_norm * 2 - 1
-
+        
         # expected sequence length
         self.length = length
 

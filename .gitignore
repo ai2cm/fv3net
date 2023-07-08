@@ -88,6 +88,9 @@ notebooks/html_out/*
 notebooks/figs/*
 notebooks/*
 
+# Saved model files
+results/*
+
 # exclude data from source control by default
 /data/
 

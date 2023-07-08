@@ -10,7 +10,7 @@ objective = "pred_v"
 lr = 8e-5
 steps = 5000000
 grad_acc = 2
-val_num_of_batch = 30
+val_num_of_batch = 2
 save_and_sample_every = 5000
 ema_decay = 0.995
 amp = False
@@ -21,11 +21,11 @@ results_folder = "./results"
 tensorboard_dir = "./tensorboard"
 milestone = 1
 
-batch_size = 4
+batch_size = 2
 data_config = {
     "dataset_name": "c384",
     "length": 7,
-    "channels": ["CPRATEsfc_coarse","DLWRFsfc_coarse"],
+    "channels": ["UGRD10m_coarse","VGRD10m_coarse"],
     "img_channel": 2,
     "img_size": 384
 }
