@@ -65,16 +65,14 @@ class RankDivider:
         self._partitioner = pace.util.TilePartitioner(subdomain_layout)
 
         # dimensions of rank data without the halo points. Useful for slice calculation.
-        self._rank_extent_without_overlap = self._get_rank_extent_without_overlap(
+        self.rank_extent_without_overlap = self._get_rank_extent_without_overlap(
             rank_extent, overlap
         )
 
     @property
     def subdomain_xy_size_without_overlap(self):
         # length of one side of subdomain along x/y axes
-        return (
-            self._rank_extent_without_overlap[self._x_ind] // self.subdomain_layout[0]
-        )
+        return self.rank_extent_without_overlap[self._x_ind] // self.subdomain_layout[0]
 
     @property
     def subdomain_size_with_overlap(self):
@@ -98,7 +96,7 @@ class RankDivider:
             self._partitioner.subtile_slice(
                 rank=subdomain_index,
                 global_dims=self.rank_dims,
-                global_extent=self._rank_extent_without_overlap,
+                global_extent=self.rank_extent_without_overlap,
             )
         )
         x_slice_ = slice_[self._x_ind]
