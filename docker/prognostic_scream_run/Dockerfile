@@ -109,7 +109,7 @@ ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 ENV IS_DOCKER=TRUE
 COPY docker/prognostic_scream_run/scream/ /src/E3SM
 
-COPY docker/prognostic_scream_run/requirements.txt /tmp/requirements.txt
+COPY docker/prognostic_scream_run/requirements.in /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 
 COPY external/vcm /fv3net/external/vcm
