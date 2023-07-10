@@ -108,11 +108,30 @@ ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 ENV IS_DOCKER=TRUE
 COPY docker/prognostic_scream_run/scream/ /src/E3SM
-COPY external/vcm /src/vcm
-RUN pip install /src/vcm
-COPY workflows/prognostic_scream_run/ /src/prognostic_scream_run
-RUN pip install -r /src/prognostic_scream_run/requirements.txt
-RUN pip install -e /src/prognostic_scream_run
+
+COPY docker/prognostic_scream_run/requirements.in /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt
+
+COPY external/vcm /fv3net/external/vcm
+RUN pip install --no-dependencies /fv3net/external/vcm
+
+COPY external/artifacts /fv3net/external/artifacts
+RUN pip3 install --no-dependencies /fv3net/external/artifacts
+
+COPY external/loaders /fv3net/external/loaders
+RUN pip3 install --no-dependencies /fv3net/external/loaders
+
+COPY external/fv3fit /fv3net/external/fv3fit
+RUN pip3 install --no-dependencies /fv3net/external/fv3fit
+
+COPY workflows/prognostic_scream_run/ /fv3net/workflows/prognostic_scream_run
+RUN pip install -r /fv3net/workflows/prognostic_scream_run/requirements.txt
+RUN pip install -e /fv3net/workflows/prognostic_scream_run
+
+# this is a workaround to enforce h5py uses the same hdf5 version as the one used by tensorflow
+RUN pip uninstall -y tensorflow h5py
+RUN pip install tensorflow==2.8.0
+
 COPY docker/prognostic_scream_run/precompile_scream.sh /src/precompile_scream.sh
 ENV CC=/opt/conda/bin/mpicc
 ENV CXX=/opt/conda/bin/mpicxx
