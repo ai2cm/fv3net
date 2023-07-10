@@ -8,7 +8,6 @@ import yaml
 from fv3fit._shared.predictor import Reloadable
 
 from fv3fit._shared import io
-from fv3fit.reservoir._reshaping import stack_array_preserving_last_dim
 
 
 ArrayLike = Union[np.ndarray, tf.Tensor]
@@ -67,18 +66,31 @@ class DoNothingAutoencoder(Transformer, Reloadable):
         return cls(config["n_latent_dims"])
 
 
-def encode_columns(data: Sequence[tf.Tensor], transformer: Transformer) -> np.ndarray:
+def decode_columns(
+    encoded_output: np.ndarray, transformer: Transformer, xy_shape: Sequence[int]
+) -> Sequence[np.ndarray]:
+    # Differs from encode_columns as the decoder expects a single input array
+    # (not a list of one array per variable) and
+    # can predict multiple outputs rather than a single latent vector.
+    # Expand a sequnence of N x M x L dim data into i variables
+    # to one or more N x M x Vi dim array, where Vi is number of features
+    # (usually vertical levels) of each variable and L << V is a smaller number
+    # of latent dimensions
+    if encoded_output.ndim > 3:
+        raise ValueError("Unexpected dimension size in decoding operation.")
+
+    feature_size = encoded_output.shape[-1]
+    encoded_output = encoded_output.reshape(-1, feature_size)
+    decoded = transformer.decode(encoded_output)
+    var_arrays = [arr.reshape(*xy_shape, -1) for arr in decoded]
+    return var_arrays
+
+
+def encode_columns(input_arrs: Sequence[tf.Tensor], transformer: Transformer):
     # reduce a sequnence of N x M x Vi dim data over i variables
     # to a single N x M x Z dim array, where Vi is original number of features
     # (usually vertical levels) of each variable and Z << V is a smaller number
     # of latent dimensions
-    original_sample_shape = data[0].shape[:-1]
-    reshaped = [stack_array_preserving_last_dim(var) for var in data]
-    encoded_reshaped = transformer.encode(reshaped)
-    return encoded_reshaped.reshape(*original_sample_shape, -1)
-
-
-def _encode_input_variables(input_arrs: Sequence[tf.Tensor], transformer: Transformer):
     sample_dims_shape = list(input_arrs[0].shape[:-1])
     feature_len = input_arrs[0].shape[-1]
     stacked_sample_arrs = [arr.reshape(-1, feature_len) for arr in input_arrs]
