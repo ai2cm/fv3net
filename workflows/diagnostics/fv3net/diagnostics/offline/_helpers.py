@@ -172,7 +172,6 @@ def load_grid_info_fv3(catalog, res):
 
 
 def load_grid_info_scream(catalog, res):
-    #    catalog = intake.open_catalog(catalog_path)
     grid = catalog[f"grid/{res}"].read()
     land_sea_mask = catalog[f"landseamask/{res}"].read()
     grid_info = xr.merge([grid, land_sea_mask])
