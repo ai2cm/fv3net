@@ -259,9 +259,7 @@ def _add_derived_diagnostics(ds):
 
 
 def _coarsen_transform(
-    evaluation_resolution: int,
-    prediction_resolution: int,
-    catalog: intake.Catalog,
+    evaluation_resolution: int, prediction_resolution: int, catalog: intake.Catalog,
 ):
     coarsening_factor = prediction_resolution // evaluation_resolution
     logger.info(

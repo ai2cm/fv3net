@@ -3,6 +3,7 @@ import numpy as np
 import xarray as xr
 import vcm
 import vcm.catalog
+import intake
 import pytest
 from fv3net.diagnostics.offline._helpers import (
     DATASET_DIM_NAME,
