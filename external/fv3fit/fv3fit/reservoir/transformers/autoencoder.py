@@ -26,6 +26,24 @@ from fv3fit.keras import (
     OutputLimitConfig,
 )
 
+ArrayLike = Union[np.ndarray, tf.Tensor]
+
+
+def _ensure_all_items_have_sample_dim(x: Sequence[ArrayLike]):
+    return [_ensure_sample_dim(item) for item in x]
+
+
+def _ensure_sample_dim(x: ArrayLike) -> ArrayLike:
+
+    if len(x.shape) == 1:
+        return np.expand_dims(x, 0)
+    elif len(x.shape) == 2:
+        return x
+    else:
+        raise ValueError(
+            f"Input data must have shape (n_samples, n_features), got {x.shape}"
+        )
+
 
 @io.register("dense-autoencoder")
 class Autoencoder(tf.keras.Model, Transformer):
@@ -41,15 +59,16 @@ class Autoencoder(tf.keras.Model, Transformer):
     def n_latent_dims(self):
         return self.encoder.layers[-1].output.shape[-1]
 
-    def call(self, x: Union[np.ndarray, tf.Tensor]) -> tf.Tensor:
+    def call(self, x: ArrayLike) -> tf.Tensor:
         encoded = self.encoder(x)
         decoded = self.decoder(encoded)
         return decoded
 
-    def encode(self, x: Union[np.ndarray, tf.Tensor]) -> np.ndarray:
+    def encode(self, x: Sequence[ArrayLike]) -> ArrayLike:
+        x = _ensure_all_items_have_sample_dim(x)
         return self.encoder.predict(x)
 
-    def decode(self, latent_x: Union[np.ndarray, tf.Tensor]) -> np.ndarray:
+    def decode(self, latent_x: ArrayLike) -> ArrayLike:
         return self.decoder.predict(latent_x)
 
     def dump(self, path: str) -> None:
@@ -120,7 +139,7 @@ class DenseAutoencoderHyperparameters(Hyperparameters):
 
 
 def build_concat_and_scale_only_autoencoder(
-    variables: Sequence[str], X: Sequence[np.ndarray]
+    variables: Sequence[str], X: Sequence[ArrayLike]
 ) -> tf.keras.Model:
     """ Performs input concatenation and norm/denormalization,
     but does not train actual encoder or decoder layers. Useful for

@@ -79,19 +79,18 @@ def train_reservoir_model(
     subdomain_config = hyperparameters.subdomain
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
-    rank_extent = [*sample_X[0].shape[1:-1], autoencoder.n_latent_dims]
+    rank_extent = sample_X[0].shape[1:-1]
     rank_divider = TimeSeriesRankDivider(
         subdomain_layout=subdomain_config.layout,
         rank_dims=subdomain_config.rank_dims,
         rank_extent=rank_extent,
         overlap=subdomain_config.overlap,
     )
-
     # First data dim is time, the rest of the elements of each
     # subdomain+halo are are flattened into feature dimension
     reservoir = Reservoir(
         hyperparameters=hyperparameters.reservoir_hyperparameters,
-        input_size=rank_divider.n_subdomain_features,
+        input_size=rank_divider.subdomain_size_with_overlap * autoencoder.n_latent_dims,
     )
 
     # One readout is trained per subdomain when iterating over batches,
@@ -118,7 +117,7 @@ def train_reservoir_model(
         )
         hybrid_time_series: Optional[np.ndarray]
         if hyperparameters.hybrid_variables is not None:
-            hybrid_time_series, _ = _process_batch_Xy_data(
+            _, hybrid_time_series = _process_batch_Xy_data(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
                 rank_divider=rank_divider,

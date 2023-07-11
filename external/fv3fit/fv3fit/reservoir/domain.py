@@ -28,8 +28,8 @@ class RankDivider:
         Args:
             subdomain_layout: layout describing subdomain grid within the rank
                 ex. [2,2] means the rank is divided into 4 subdomains
-            rank_dims: order of spatial dimensions in data. Do not include time.
-            rank_extent: Shape of full data. This includes any halo cells from
+            rank_dims: order of spatial xy dimensions in data. Do not include time or z.
+            rank_extent: Shape of full xy data. This includes any halo cells from
                 overlap into neighboring ranks.
             overlap: number of cells surrounding each subdomain to include when
                 taking subdomain data.
@@ -39,16 +39,16 @@ class RankDivider:
         with n_halo=4. I would initialize the RankDivider as
             RankDivider(
                 subdomain_layout=(12, 12),
-                rank_dims=["x", "y", "z"],
-                rank_extent=[ 56, 56, 79],
+                rank_dims=["x", "y",],
+                rank_extent=[ 56, 56,],
                 overlap=4,
             )
         """
         self.subdomain_layout = subdomain_layout
-        if "time" in rank_dims:
+        if "time" in rank_dims or "z" in rank_dims:
             raise ValueError(
-                "Do not include time in dimension information. "
-                "Only spatial dimensions (x, y, z) should be provided."
+                "Do not include time or z in dimension information. "
+                "Only spatial dimensions (x, y, ) should be provided."
             )
         if not {"x", "y"}.issubset(rank_dims):
             raise ValueError(
@@ -61,7 +61,6 @@ class RankDivider:
 
         self._x_ind = rank_dims.index("x")
         self._y_ind = rank_dims.index("y")
-        self._n_features = rank_extent[-1]
 
         self._partitioner = pace.util.TilePartitioner(subdomain_layout)
 
@@ -78,8 +77,8 @@ class RankDivider:
         )
 
     @property
-    def n_subdomain_features(self):
-        # number of total features (nx * ny * nz) in one subdomain
+    def subdomain_size_with_overlap(self):
+        # number of total features (nx * ny) in one subdomain
         return int(np.prod(self.get_subdomain_extent(with_overlap=True)))
 
     def get_subdomain_extent(self, with_overlap: bool):
@@ -156,7 +155,15 @@ class RankDivider:
     def unstack_subdomain(self, tensor, with_overlap: bool):
         # Takes a flattened subdomain and reshapes it back into its original
         # x and y dims
-        unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)
+        vertical_dim_size = int(
+            tensor.size
+            / (np.prod(self.get_subdomain_extent(with_overlap=with_overlap)))
+        )
+        subdomain_xy_shape = self.get_subdomain_extent(with_overlap=with_overlap)
+        unstacked_shape = (
+            *subdomain_xy_shape,
+            vertical_dim_size,
+        )
         expected_stacked_size = np.prod(unstacked_shape)
 
         if tensor.shape[-1] != expected_stacked_size:
@@ -164,7 +171,8 @@ class RankDivider:
                 f"Dimension of each stacked sample {tensor.shape[-1]} expected to be "
                 f"{expected_stacked_size} (product of {unstacked_shape})."
             )
-
+        if vertical_dim_size == 1:
+            unstacked_shape = unstacked_shape[:-1]
         return np.reshape(tensor, unstacked_shape)
 
     def flatten_subdomains_to_columns(self, data: tf.Tensor, with_overlap: bool):
@@ -202,7 +210,12 @@ class RankDivider:
             metadata = yaml.safe_load(f)
         return cls(**metadata)
 
-    def merge_subdomains(self, flat_prediction: np.ndarray):
+    def merge_subdomains(self, flat_prediction: np.ndarray) -> np.ndarray:
+        """Reshapes a 1D array consisting of concatenated flattened subdomain readouts
+        predictions into a 3D arrays for each subdomain, then merges those 3D subdomain
+        arrays into a single 3D array for the entire domain.
+        """
+
         # raw prediction from readout is a long 1D array consisting of concatenated
         # flattened subdomain predictions
 
@@ -224,12 +237,16 @@ class RankDivider:
             self.subdomain_xy_size_without_overlap,
         )
 
+        vertical_dim_size = int(
+            flat_prediction.size
+            / (self.n_subdomains * self.subdomain_xy_size_without_overlap ** 2)
+        )
         # reshape the flat list of 3D subdomains into a single array that
         # is a Xdomain, Ydomain grid with a (x, y, z) subdomain in each block
         z_block_dims = (
             *self.subdomain_layout,
             *subdomain_shape_without_overlap,
-            self._n_features,
+            vertical_dim_size,
         )
         domain_z_blocks = np.array(subdomain_2d_predictions).reshape(*z_block_dims)
 
@@ -257,14 +274,17 @@ class TimeSeriesRankDivider(RankDivider):
 
     def unstack_subdomain(self, tensor, with_overlap: bool):
         # Takes a flattened subdomain and reshapes it back into its original
-        # x and y dims
+        # x and y dims. The resulting unstacked array always has a vertical dim
+        # as its last tim, if the original data is 2d then the vertical dim has size 1.
 
         unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)
+        vertical_dim_size = int(tensor[0].size / (np.prod(unstacked_shape)))
+
         unstacked_shape = (
             tensor.shape[0],
             *self.get_subdomain_extent(with_overlap=with_overlap),
+            vertical_dim_size,
         )
-
         # Don't include the time dimension in the expected spatial dims size
         expected_stacked_size = np.prod(unstacked_shape[1:])
 
@@ -273,7 +293,8 @@ class TimeSeriesRankDivider(RankDivider):
                 f"Dimension of each stacked sample {tensor.shape[-1]} expected to be "
                 f"{expected_stacked_size} (product of {unstacked_shape})."
             )
-
+        if vertical_dim_size == 1:
+            unstacked_shape = unstacked_shape[:-1]
         return np.reshape(tensor, unstacked_shape)
 
     def flatten_subdomains_to_columns(self, data: tf.Tensor, with_overlap: bool):
