@@ -1,7 +1,7 @@
 import fsspec
 import numpy as np
 import os
-from typing import Optional, Iterable, Hashable, Sequence, cast
+from typing import Iterable, Hashable, Sequence, cast
 import xarray as xr
 import yaml
 
@@ -128,7 +128,6 @@ class HybridReservoirComputingModel(Predictor):
 class HybridDatasetAdapter:
     def __init__(self, model: HybridReservoirComputingModel) -> None:
         self.model = model
-        self._input_feature_sizes: Optional[Sequence] = None
 
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
         # TODO: potentially use in train.py instead of special functions there
@@ -170,21 +169,6 @@ class HybridDatasetAdapter:
             }
         )
         return ds
-
-    def _separate_output_from_stacked_array(
-        self, outputs: np.ndarray
-    ) -> Sequence[np.ndarray]:
-        if self._input_feature_sizes is None:
-            raise ValueError(
-                "Cannot separate stacked array if input feature sizes is None."
-            )
-        divider = self.model.rank_divider
-        split_indices = np.cumsum(self._input_feature_sizes)[:-1]
-        var_arrays = np.split(outputs, split_indices, axis=-1)
-        spatial_shape = list(divider.rank_extent_without_overlap[:-1])
-        var_arrays = [arr.reshape(spatial_shape + [-1]) for arr in var_arrays]
-
-        return var_arrays
 
 
 @io.register("pure-reservoir")
