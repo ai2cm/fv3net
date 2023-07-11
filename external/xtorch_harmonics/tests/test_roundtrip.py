@@ -85,23 +85,21 @@ def test_roundtrip_constant_dataarray(forward_grid, inverse_grid):
 
 
 @pytest.mark.parametrize(
-    "grid",
+    ("grid", "rtol"),
     [
-        pytest.param(
-            EQUIANGULAR_GRID, marks=pytest.mark.xfail
-        ),  # This requires a greater tolerance; I'm not sure why.
-        LEGENDRE_GAUSS_GRID,
-        LOBATTO_GRID,
+        (EQUIANGULAR_GRID, 1e-1),  # Not clear why this requires such a large tolerance.
+        (LEGENDRE_GAUSS_GRID, 1e-5),
+        (LOBATTO_GRID, 1e-5),
     ],
 )
-def test_roundtrip_real_spherical_harmonic_dataarray(grid):
+def test_roundtrip_real_spherical_harmonic_dataarray(grid, rtol):
     # We expect spherical harmonics themselves to pass through approximately
     # unchanged if we use the same grid for the forward and inverse transforms.
     # This also tests the use of roundtrip on DataArrays with more than two
     # dimensions; da has dimensions ["grid_yt", "grid_xt", "m", "n"].
     da = real_spherical_harmonic_dataarray(grid, LAT_DIM, LON_DIM)
     result = roundtrip(da, forward_grid=grid, inverse_grid=grid)
-    xr.testing.assert_allclose(result, da)
+    xr.testing.assert_allclose(result, da, rtol=rtol)
 
 
 @pytest.mark.parametrize(
