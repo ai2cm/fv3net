@@ -8,6 +8,17 @@ from fv3fit.reservoir.transformers.transformer import (
 )
 
 
+@pytest.mark.parametrize("nz, nvars", [(2, 2), (2, 1), (1, 2), (1, 1)])
+def test_DoNothingAutoencoder(nz, nvars):
+    nx = 5
+    transformer = DoNothingAutoencoder(nz)
+    data = [np.ones((nx, nz)) for var in range(nvars)]
+    transformer.encode(data)
+    assert transformer.original_feature_sizes == [nz for var in range(nvars)]
+    encoded_data = np.ones(nz * nvars)
+    assert len(transformer.decode(encoded_data)) == len(data)
+
+
 @pytest.mark.parametrize(
     "nt, nx, ny, nz, nvars",
     [(20, 4, 4, 3, 2), (None, 2, 2, 1, 1), (None, 2, 2, None, 1)],
