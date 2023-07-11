@@ -121,9 +121,10 @@ def test_load_grid_info_from_custom_catalog(datadir):
 
     res = "c12"
     catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
+    catalog = intake.open_catalog(catalog_path)
 
     with pytest.raises(KeyError):
-        load_grid_info(res, catalog_path)
+        load_grid_info(catalog, res)
 
 
 @pytest.mark.parametrize(
