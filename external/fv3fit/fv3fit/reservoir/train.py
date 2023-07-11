@@ -18,7 +18,7 @@ from . import (
     ReservoirComputingReadout,
 )
 from .readout import combine_readouts
-from .domain import TimeSeriesRankDivider, assure_same_dims
+from .domain import TimeSeriesRankDivider, assure_txyz_dims
 from ._reshaping import stack_data
 from fv3fit.reservoir.transformers import ReloadableTransfomer
 
@@ -51,7 +51,7 @@ def _encode_columns(
 
 def _get_ordered_X(X_mapping, variables):
     ordered_tensors = [X_mapping[v] for v in variables]
-    return assure_same_dims(ordered_tensors)
+    return assure_txyz_dims(ordered_tensors)
 
 
 @register_training_function("reservoir", ReservoirTrainingConfig)
