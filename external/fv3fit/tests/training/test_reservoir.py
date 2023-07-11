@@ -1,5 +1,3 @@
-import numpy as np
-
 from fv3fit.tfdataset import tfdataset_from_batches
 from fv3fit.reservoir.train import train_reservoir_model
 from fv3fit.reservoir.config import (
@@ -14,11 +12,11 @@ from tests.training.test_train import (
 )
 
 
-def test_train_reservoir():  # nx, ny, n_feature, n_sample):
+def test_train_reservoir():
     n_sample = 10
     n_tile, nx, ny, nz = 1, 12, 12, 5
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, nz))
-    input_variables, output_variables, train_dataset = get_dataset_default(sample_func)
+    _, _, train_dataset = get_dataset_default(sample_func)
     _, _, test_dataset = get_dataset_default(sample_func)
     train_dataset = (
         train_dataset.unstack()
@@ -38,7 +36,6 @@ def test_train_reservoir():  # nx, ny, n_feature, n_sample):
     val_tfdataset = tfdataset_from_batches([test_dataset])
     variables = ["var_in_3d", "var_in_2d"]
 
-    n_features = train_dataset["var_in_3d"].shape[-1] + 1
     subdomain_config = CubedsphereSubdomainConfig(
         layout=[2, 2], overlap=2, rank_dims=["x", "y"],
     )
@@ -63,5 +60,12 @@ def test_train_reservoir():  # nx, ny, n_feature, n_sample):
     )
     model = train_reservoir_model(hyperparameters, train_tfdataset, val_tfdataset)
     model.reset_state()
-    rank_size_without_overlap = (nx - 2 * model.rank_divider.overlap) ** 2 * n_features
-    assert np.prod(model.predict().shape) == rank_size_without_overlap
+
+    assert model.predict()[0].shape == (
+        *model.rank_divider.rank_extent_without_overlap,
+        nz,
+    )
+    assert model.predict()[1].shape == (
+        *model.rank_divider.rank_extent_without_overlap,
+        1,
+    )
