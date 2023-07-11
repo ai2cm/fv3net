@@ -18,7 +18,7 @@ from . import (
     ReservoirComputingReadout,
 )
 from .readout import combine_readouts
-from .domain import TimeSeriesRankDivider, assure_same_dims
+from .domain import TimeSeriesRankDivider, RankDivider, assure_same_dims
 from ._reshaping import stack_data, stack_array_preserving_last_dim
 from fv3fit.reservoir.transformers import ReloadableTransfomer, encode_columns
 
@@ -137,6 +137,14 @@ def train_reservoir_model(
     readout = combine_readouts(subdomain_readouts)
 
     model: Union[ReservoirComputingModel, HybridReservoirComputingModel]
+
+    # After training, the data used in inference does not have a time dimension
+    rank_divider_spatial_only = RankDivider(
+        subdomain_layout=subdomain_config.layout,
+        rank_dims=subdomain_config.rank_dims,
+        rank_extent=rank_extent,
+        overlap=subdomain_config.overlap,
+    )
     if hyperparameters.hybrid_variables is None:
         model = ReservoirComputingModel(
             input_variables=hyperparameters.input_variables,
@@ -144,7 +152,7 @@ def train_reservoir_model(
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
-            rank_divider=rank_divider,
+            rank_divider=rank_divider_spatial_only,
             autoencoder=autoencoder,
         )
     else:
@@ -155,7 +163,7 @@ def train_reservoir_model(
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
-            rank_divider=rank_divider,
+            rank_divider=rank_divider_spatial_only,
             autoencoder=autoencoder,
         )
     return model
