@@ -3,7 +3,7 @@ import fsspec
 import numpy as np
 import os
 import tensorflow as tf
-from typing import Union, Sequence
+from typing import Union, Sequence, Optional
 import yaml
 from fv3fit._shared.predictor import Reloadable
 
@@ -36,34 +36,45 @@ class DoNothingAutoencoder(Transformer, Reloadable):
     variables. Decode separates them back into individual arrays.
     """
 
-    def __init__(self, latent_dim_len):
+    def __init__(
+        self, latent_dim_len, original_feature_sizes: Optional[Sequence[int]] = None
+    ):
         self._latent_dim_len = latent_dim_len
-        self._array_feature_sizes = None
+        self.original_feature_sizes = original_feature_sizes
 
     @property
     def n_latent_dims(self):
         return self._latent_dim_len
 
     def encode(self, x):
-        self._array_feature_sizes = [arr.shape[-1] for arr in x]
+        self.original_feature_sizes = [arr.shape[-1] for arr in x]
         return np.concatenate(x, -1)
 
     def decode(self, latent_x):
-        if self._array_feature_sizes is None:
+        if self.original_feature_sizes is None:
             raise ValueError("Must encode data before decoding.")
 
-        split_indices = np.cumsum(self._array_feature_sizes)[:-1]
+        split_indices = np.cumsum(self.original_feature_sizes)[:-1]
         return np.split(latent_x, split_indices, axis=-1)
 
     def dump(self, path: str) -> None:
         with fsspec.open(os.path.join(path, self._CONFIG_NAME), "w") as f:
-            yaml.dump({"n_latent_dims": self.n_latent_dims}, f)
+            yaml.dump(
+                {
+                    "latent_dim_len": self.n_latent_dims,
+                    "original_feature_sizes": self.original_feature_sizes,
+                },
+                f,
+            )
 
     @classmethod
     def load(cls, path: str) -> "DoNothingAutoencoder":
         with fsspec.open(os.path.join(path, cls._CONFIG_NAME), "r") as f:
             config = yaml.safe_load(f)
-        return cls(config["n_latent_dims"])
+        return cls(
+            latent_dim_len=config["latent_dim_len"],
+            original_feature_sizes=config["original_feature_sizes"],
+        )
 
 
 def decode_columns(
