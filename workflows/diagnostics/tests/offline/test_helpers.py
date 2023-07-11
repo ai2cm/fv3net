@@ -128,11 +128,11 @@ def test_load_grid_info_from_custom_catalog(datadir):
 
 
 @pytest.mark.parametrize(
-    "res, catalog_path, dim_name, expected_size",
+    "res, catalog, dim_name, expected_size",
     [
-        ("c12", vcm.catalog.catalog_path, "x", 12),
-        ("c48", vcm.catalog.catalog_path, "x", 48),
-        ("ne30", vcm.catalog.catalog_path, "ncol", 21600),
+        ("c12", vcm.catalog.catalog, "x", 12),
+        ("c48", vcm.catalog.catalog, "x", 48),
+        ("ne30", vcm.catalog.catalog, "ncol", 21600),
     ],
 )
 def test_load_grid_info(res, catalog, dim_name, expected_size):
