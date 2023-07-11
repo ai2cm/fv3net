@@ -135,8 +135,8 @@ def test_load_grid_info_from_custom_catalog(datadir):
         ("ne30", vcm.catalog.catalog_path, "ncol", 21600),
     ],
 )
-def test_load_grid_info(res, catalog_path, dim_name, expected_size):
-    grid = load_grid_info(res, catalog_path)
+def test_load_grid_info(res, catalog, dim_name, expected_size):
+    grid = load_grid_info(catalog, res)
     assert grid.dims[dim_name] == expected_size
 
 
