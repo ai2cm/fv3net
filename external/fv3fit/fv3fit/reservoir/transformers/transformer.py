@@ -6,6 +6,7 @@ import tensorflow as tf
 from typing import Union, Sequence, Optional
 import yaml
 from fv3fit._shared.predictor import Reloadable
+from fv3fit.reservoir._reshaping import stack_array_preserving_last_dim
 
 from fv3fit._shared import io
 
@@ -97,15 +98,14 @@ def decode_columns(
     return var_arrays
 
 
-def encode_columns(input_arrs: Sequence[tf.Tensor], transformer: Transformer):
+def encode_columns(
+    input_arrs: Sequence[tf.Tensor], transformer: Transformer
+) -> np.ndarray:
     # reduce a sequnence of N x M x Vi dim data over i variables
     # to a single N x M x Z dim array, where Vi is original number of features
     # (usually vertical levels) of each variable and Z << V is a smaller number
     # of latent dimensions
-    sample_dims_shape = list(input_arrs[0].shape[:-1])
-    feature_len = input_arrs[0].shape[-1]
-    stacked_sample_arrs = [arr.reshape(-1, feature_len) for arr in input_arrs]
-
-    encoded = transformer.encode(stacked_sample_arrs)
-    encoded_shape = sample_dims_shape + [encoded.shape[-1]]
-    return encoded.reshape(encoded_shape)
+    original_sample_shape = input_arrs[0].shape[:-1]
+    reshaped = [stack_array_preserving_last_dim(var) for var in input_arrs]
+    encoded_reshaped = transformer.encode(reshaped)
+    return encoded_reshaped.reshape(*original_sample_shape, -1)
