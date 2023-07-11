@@ -284,7 +284,7 @@ def _coarsen_transform(
 def get_prediction(
     config: loaders.BatchesFromMapperConfig,
     model: fv3fit.Predictor,
-    catalog: intake.catalog.local.YAMLFilesCatalog,
+    catalog: intake.Catalog,
     evaluation_resolution: int,
 ) -> xr.Dataset:
     model_variables = _variables_to_load(model)
