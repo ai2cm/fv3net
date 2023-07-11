@@ -12,7 +12,7 @@ from .reservoir import Reservoir
 from .domain import RankDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
-from .transformers import ReloadableTransfomer
+from .transformers import ReloadableTransfomer, encode_columns, decode_columns
 from ._reshaping import flatten_2d_keeping_columns_contiguous
 
 
@@ -44,8 +44,8 @@ class HybridReservoirComputingModel(Predictor):
         reservoir: Reservoir,
         readout: ReservoirComputingReadout,
         rank_divider: RankDivider,
+        autoencoder: ReloadableTransfomer,
         square_half_hidden_state: bool = False,
-        autoencoder: Optional[ReloadableTransfomer] = None,
     ):
         self.reservoir_model = ReservoirComputingModel(
             input_variables=input_variables,
@@ -64,24 +64,33 @@ class HybridReservoirComputingModel(Predictor):
         self.rank_divider = rank_divider
         self.autoencoder = autoencoder
 
-    def predict(self, hybrid_input: np.ndarray):
+    def predict(self, hybrid_input: Sequence[np.ndarray]):
         # hybrid input is assumed to be in original spatial xy dims
         # (x, y, feature) and does not include overlaps.
-        # TODO: The encoding will be moved into this model
-
-        flattened_readout_input = self._concatenate_readout_inputs(
-            self.reservoir_model.reservoir.state, hybrid_input
+        encoded_hybrid_input = encode_columns(
+            input_arrs=hybrid_input, transformer=self.autoencoder
         )
-        prediction = self.readout.predict(flattened_readout_input).reshape(-1)
-        return prediction
+        flat_encoded_hybrid_input = self.rank_divider.flatten_subdomains_to_columns(
+            encoded_hybrid_input, with_overlap=False
+        )
+        flattened_readout_input = self._concatenate_readout_inputs(
+            self.reservoir_model.reservoir.state, flat_encoded_hybrid_input
+        )
+        flat_prediction = self.readout.predict(flattened_readout_input).reshape(-1)
+        prediction = self.rank_divider.merge_subdomains(flat_prediction)
+        decoded_prediction = decode_columns(
+            encoded_output=prediction,
+            transformer=self.autoencoder,
+            xy_shape=self.rank_divider.rank_extent_without_overlap,
+        )
+        return decoded_prediction
 
-    def _concatenate_readout_inputs(self, hidden_state_input, hybrid_input):
+    def _concatenate_readout_inputs(self, hidden_state_input, flat_hybrid_input):
+        # hybrid input is flattened prior to being input to this step
         if self.square_half_hidden_state is True:
             hidden_state_input = square_even_terms(hidden_state_input, axis=0)
-        hybrid_input = self.rank_divider.flatten_subdomains_to_columns(
-            hybrid_input, with_overlap=False
-        )
-        readout_input = np.concatenate([hidden_state_input, hybrid_input], axis=0)
+
+        readout_input = np.concatenate([hidden_state_input, flat_hybrid_input], axis=0)
         flattened_readout_input = flatten_2d_keeping_columns_contiguous(readout_input)
         return flattened_readout_input
 
@@ -122,19 +131,17 @@ class HybridDatasetAdapter:
         self._input_feature_sizes: Optional[Sequence] = None
 
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
-        # TODO: centralize stacking logic for encoding decoding
         # TODO: potentially use in train.py instead of special functions there
-        processed_inputs = self._input_data_to_encoded_array(
-            inputs
-        )  # x, y, feature dims
-        prediction = self.model.predict(processed_inputs)
-        unstacked_arr = self.model.rank_divider.merge_subdomains(prediction)
-        return self._output_array_to_ds(unstacked_arr, dims=list(inputs.dims))
+        xy_input_arrs = self._input_dataset_to_arrays(inputs)  # x, y, feature dims
+
+        prediction_arr = self.model.predict(xy_input_arrs)
+        return self._output_array_to_ds(prediction_arr, dims=list(inputs.dims))
 
     def increment_state(self, inputs: xr.Dataset):
-        processed_inputs = self._input_data_to_encoded_array(inputs)
+        xy_input_arrs = self._input_dataset_to_arrays(inputs)  # x, y, feature dims
+        encoded_xy_input_arrs = encode_columns(xy_input_arrs, self.model.autoencoder)
         subdomains = self.model.rank_divider.flatten_subdomains_to_columns(
-            processed_inputs, with_overlap=True
+            encoded_xy_input_arrs, with_overlap=True
         )
         self.model.increment_state(subdomains)
 
@@ -153,76 +160,28 @@ class HybridDatasetAdapter:
         ]
         return input_arrs
 
-    def _encode_input_variables(self, inputs: xr.Dataset, autoencoder):
-        input_arrs = [
-            inputs[variable].values for variable in self.model.input_variables
-        ]
-
-        sample_dims_shape = list(input_arrs[0].shape[:-1])
-        feature_len = input_arrs[0].shape[-1]
-        stacked_sample_arrs = np.array(
-            [arr.reshape(-1, feature_len) for arr in input_arrs]
-        )
-        encoded = autoencoder.encode(stacked_sample_arrs)
-        encoded_shape = sample_dims_shape + [encoded.shape[-1]]
-        return encoded.reshape(encoded_shape)
-
-    def _join_input_variables(self, inputs: xr.Dataset):
-        input_arrs = [inputs[variable] for variable in self.model.input_variables]
-        joined_feature_inputs = np.concatenate(input_arrs, axis=-1)
-
-        return joined_feature_inputs
-
-    def _input_data_to_encoded_array(self, inputs: xr.Dataset):
-        if self._input_feature_sizes is None:
-            self._input_feature_sizes = [
-                inputs[key].shape[-1] for key in self.model.input_variables
-            ]
-
-        if self.model.autoencoder is not None:
-            arr = self._encode_input_variables(inputs, self.model.autoencoder)
-        else:
-            arr = self._join_input_variables(inputs)
-
-        return arr
-
-    def _output_array_to_ds(self, outputs: np.ndarray, dims: Sequence[str]):
-        if self.model.autoencoder is not None:
-            var_arrays = self._decode_output_variables(outputs, self.model.autoencoder)
-        else:
-            var_arrays = self._separate_output_from_stacked_array(outputs)
-
+    def _output_array_to_ds(
+        self, outputs: Sequence[np.ndarray], dims: Sequence[str]
+    ) -> xr.Dataset:
         ds = xr.Dataset(
             {
-                var: (dims, var_arrays[i])
+                var: (dims, outputs[i])
                 for i, var in enumerate(self.model.output_variables)
             }
         )
-
         return ds
 
-    def _decode_output_variables(self, encoded_output: np.ndarray, autoencoder):
-        if encoded_output.ndim > 3:
-            raise ValueError("Unexpected dimension size in decoding operation.")
-
-        feature_size = encoded_output.shape[-1]
-        encoded_output = encoded_output.reshape(-1, feature_size)
-        decoded = autoencoder.decode(encoded_output)
-        spatial_shape = list(self.model.rank_divider._rank_extent_without_overlap)
-        var_arrays = [arr.reshape(spatial_shape + [-1]) for arr in decoded]
-        return var_arrays
-
-    def _separate_output_from_stacked_array(self, outputs: np.ndarray):
-
+    def _separate_output_from_stacked_array(
+        self, outputs: np.ndarray
+    ) -> Sequence[np.ndarray]:
         if self._input_feature_sizes is None:
             raise ValueError(
                 "Cannot separate stacked array if input feature sizes is None."
             )
-
         divider = self.model.rank_divider
         split_indices = np.cumsum(self._input_feature_sizes)[:-1]
         var_arrays = np.split(outputs, split_indices, axis=-1)
-        spatial_shape = list(divider._rank_extent_without_overlap[:-1])
+        spatial_shape = list(divider.rank_extent_without_overlap[:-1])
         var_arrays = [arr.reshape(spatial_shape + [-1]) for arr in var_arrays]
 
         return var_arrays
@@ -243,8 +202,8 @@ class ReservoirComputingModel(Predictor):
         reservoir: Reservoir,
         readout: ReservoirComputingReadout,
         rank_divider: RankDivider,
+        autoencoder: ReloadableTransfomer,
         square_half_hidden_state: bool = False,
-        autoencoder: Optional[ReloadableTransfomer] = None,
     ):
         """_summary_
 
@@ -278,8 +237,14 @@ class ReservoirComputingModel(Predictor):
     def predict(self):
         # Returns raw readout prediction of latent state.
         readout_input = self.process_state_to_readout_input()
-        prediction = self.readout.predict(readout_input).reshape(-1)
-        return prediction
+        flat_prediction = self.readout.predict(readout_input).reshape(-1)
+        prediction = self.rank_divider.merge_subdomains(flat_prediction)
+        decoded_prediction = decode_columns(
+            encoded_output=prediction,
+            transformer=self.autoencoder,
+            xy_shape=self.rank_divider.rank_extent_without_overlap,
+        )
+        return decoded_prediction
 
     def reset_state(self):
         input_shape = (
@@ -327,16 +292,10 @@ class ReservoirComputingModel(Predictor):
 
         rank_divider = RankDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
 
-        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        autoencoder: Optional[ReloadableTransfomer]
-        if fs.exists(os.path.join(path, cls._AUTOENCODER_SUBDIR)):
-            autoencoder = cast(
-                ReloadableTransfomer,
-                fv3fit.load(os.path.join(path, cls._AUTOENCODER_SUBDIR)),
-            )
-        else:
-            autoencoder = None
-
+        autoencoder = cast(
+            ReloadableTransfomer,
+            fv3fit.load(os.path.join(path, cls._AUTOENCODER_SUBDIR)),
+        )
         return cls(
             input_variables=metadata["input_variables"],
             output_variables=metadata["output_variables"],
