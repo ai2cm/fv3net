@@ -161,7 +161,6 @@ def load_grid_info(catalog: intake.catalog.local.YAMLFilesCatalog, res: str = "c
 
 
 def load_grid_info_fv3(catalog, res):
-    #    catalog = intake.open_catalog(catalog_path)
     grid = catalog[f"grid/{res}"].read()
     wind_rotation = catalog[f"wind_rotation/{res}"].read()
     land_sea_mask = catalog[f"landseamask/{res}"].read()
