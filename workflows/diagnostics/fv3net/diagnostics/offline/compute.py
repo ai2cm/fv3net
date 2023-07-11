@@ -17,6 +17,8 @@ import xarray as xr
 from toolz import compose_left
 from vcm import interpolate_to_pressure_levels, safe
 
+import intake
+
 from ._helpers import (
     DATASET_DIM_NAME,
     EVALUATION_RESOLUTION,
@@ -257,7 +259,9 @@ def _add_derived_diagnostics(ds):
 
 
 def _coarsen_transform(
-    evaluation_resolution: int, prediction_resolution: int, catalog_path: str
+    evaluation_resolution: int,
+    prediction_resolution: int,
+    catalog: intake.catalog.local.YAMLFilesCatalog,
 ):
     coarsening_factor = prediction_resolution // evaluation_resolution
     logger.info(
@@ -270,7 +274,7 @@ def _coarsen_transform(
             "resolution."
         )
     if coarsening_factor > 1:
-        prediction_grid = load_grid_info(f"c{prediction_resolution}", catalog_path)
+        prediction_grid = load_grid_info(catalog, f"c{prediction_resolution}")
         logger.info(f"Coarsening predictions by factor of {coarsening_factor}.")
         return coarsen_cell_centered(
             weights=prediction_grid.area, coarsening_factor=coarsening_factor
@@ -280,7 +284,7 @@ def _coarsen_transform(
 def get_prediction(
     config: loaders.BatchesFromMapperConfig,
     model: fv3fit.Predictor,
-    catalog_path: str,
+    catalog: intake.catalog.local.YAMLFilesCatalog,
     evaluation_resolution: int,
 ) -> xr.Dataset:
     model_variables = _variables_to_load(model)
@@ -296,7 +300,7 @@ def get_prediction(
                 _coarsen_transform(
                     evaluation_resolution=evaluation_resolution,
                     prediction_resolution=prediction_resolution,
-                    catalog_path=catalog_path,
+                    catalog=catalog,
                 )
             )
     mapping_function = compose_left(*transforms)
@@ -322,7 +326,8 @@ def main(args):
     with fsspec.open(args.data_yaml, "r") as f:
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
-    evaluation_grid = load_grid_info(args.evaluation_grid, args.catalog_path)
+    catalog = intake.open_catalog(args.catalog_path)
+    evaluation_grid = load_grid_info(catalog, args.evaluation_grid)
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
@@ -337,7 +342,7 @@ def main(args):
     ds_predicted = get_prediction(
         config=config,
         model=model,
-        catalog_path=args.catalog_path,
+        catalog=catalog,
         evaluation_resolution=evaluation_grid.sizes[horizontal_dims[0]],
     )
 
