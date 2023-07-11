@@ -150,7 +150,7 @@ def insert_rmse(ds: xr.Dataset):
     return ds
 
 
-def load_grid_info(catalog: intake.catalog.local.YAMLFilesCatalog, res: str = "c48"):
+def load_grid_info(catalog: intake.Catalog, res: str = "c48"):
     if gsrm_name_from_resolution_string(res) == "scream":
         return load_grid_info_scream(catalog, res)
     elif gsrm_name_from_resolution_string(res) == "fv3":
