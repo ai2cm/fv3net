@@ -1,0 +1,18 @@
+input_data_path: gs://vcm-ml-experiments/cloud-ml/2023-06-07/cloud-ml-training-data.zarr
+model_path: gs://vcm-ml-experiments/cloud-ml/2023-06-07/train-cloud-ml-dense/squashed-models/dense-seed-3/squash-threshold-0
+output_path: gs://vcm-ml-experiments/cloud-ml/2023-06-12/predicted-fine-cloud-fields-seed-3-squash-threshold-0.zarr
+start_time:
+  - 2020
+  - 8
+  - 7
+  - 0
+  - 0
+  - 0
+end_time:
+  - 2020
+  - 8
+  - 9
+  - 23
+  - 0
+  - 0
+time_stride: 4
