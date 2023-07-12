@@ -18,7 +18,7 @@ function fixup_mct {
 fixup_mct "/src/E3SM/externals/mct"
 for number_of_processors in 16 180; do
     cd /tmp
-    cp /src/prognostic_scream_run/tests/example_configs/scream_ne30pg2.yaml ${number_of_processors}.yaml
+    cp /fv3net/workflows/prognostic_scream_run/tests/example_configs/scream_ne30pg2.yaml ${number_of_processors}.yaml
     sed -i -e "s/number_of_processors: 16/number_of_processors: $(printf "%d" $number_of_processors)/g" ${number_of_processors}.yaml
     mkdir -p rundir
     scream_run write-rundir ${number_of_processors}.yaml rundir
