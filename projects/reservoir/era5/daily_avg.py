@@ -88,7 +88,6 @@ def main():
     )
     template = preserve_attrs(template, for_pred)
     template = xbeam.make_template(template)
-    print(template)
 
     beam_options = PipelineOptions(beam_args)
     with beam.Pipeline(options=beam_options) as p:
