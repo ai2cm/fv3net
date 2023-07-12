@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 
 def flatten_2d_keeping_columns_contiguous(arr: np.ndarray):
@@ -34,3 +35,9 @@ def split_1d_samples_into_2d_rows(
         return np.reshape(arr, (time_dim_size, n_rows, -1), order="C")
     else:
         return np.reshape(arr, (n_rows, -1), order="C")
+
+
+def stack_array_preserving_last_dim(data):
+    original_z_dim = data.shape[-1]
+    reshaped = tf.reshape(data, shape=(-1, original_z_dim))
+    return reshaped
