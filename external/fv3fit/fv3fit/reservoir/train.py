@@ -4,9 +4,9 @@ import fv3fit
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, Mapping, Tuple, List, Iterable, Union
+from typing import Optional, List, Union
 from .. import Predictor
-from .utils import square_even_terms
+from .utils import square_even_terms, process_batch_Xy_data
 from .transformers.autoencoder import build_concat_and_scale_only_autoencoder
 from .._shared import register_training_function
 from ._reshaping import concat_inputs_along_subdomain_features
@@ -19,8 +19,8 @@ from . import (
 )
 from .readout import combine_readouts
 from .domain import RankDivider, assure_same_dims
-from ._reshaping import stack_data, stack_array_preserving_last_dim
-from fv3fit.reservoir.transformers import ReloadableTransfomer, encode_columns
+from ._reshaping import stack_array_preserving_last_dim
+from fv3fit.reservoir.transformers import ReloadableTransfomer
 
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ def train_reservoir_model(
         for r in range(rank_divider.n_subdomains)
     ]
     for b, batch_data in enumerate(train_batches):
-        time_series_with_overlap, time_series_without_overlap = _process_batch_Xy_data(
+        time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
             rank_divider=rank_divider,
@@ -99,7 +99,7 @@ def train_reservoir_model(
         )
         hybrid_time_series: Optional[np.ndarray]
         if hyperparameters.hybrid_variables is not None:
-            _, hybrid_time_series = _process_batch_Xy_data(
+            _, hybrid_time_series = process_batch_Xy_data(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
                 rank_divider=rank_divider,
@@ -161,56 +161,6 @@ def train_reservoir_model(
             autoencoder=autoencoder,
         )
     return model
-
-
-def _process_batch_Xy_data(
-    variables: Iterable[str],
-    batch_data: Mapping[str, tf.Tensor],
-    rank_divider: RankDivider,
-    autoencoder: ReloadableTransfomer,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """ Convert physical state to corresponding reservoir hidden state,
-    and reshape data into the format used in training.
-    """
-    batch_X = _get_ordered_X(batch_data, variables)
-
-    # Concatenate features, normalize and optionally convert data
-    # to latent representation
-    batch_data_encoded = encode_columns(batch_X, autoencoder)
-
-    time_series_X_reshaped, time_series_Y_reshaped = [], []
-    for timestep_data in batch_data_encoded:
-        # Divide into subdomains and flatten each subdomain by stacking
-        # x/y/encoded-feature dims into a single subdomain-feature dimension.
-        # Dimensions of a single subdomain's data become [time, subdomain-feature]
-        X_subdomains_as_columns, Y_subdomains_as_columns = [], []
-        for s in range(rank_divider.n_subdomains):
-            X_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-                timestep_data, subdomain_index=s, with_overlap=True,
-            )
-            X_subdomains_as_columns.append(
-                stack_data(X_subdomain_data, keep_first_dim=False)
-            )
-
-            # Prediction does not include overlap
-            Y_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-                timestep_data, subdomain_index=s, with_overlap=False,
-            )
-            Y_subdomains_as_columns.append(
-                stack_data(Y_subdomain_data, keep_first_dim=False)
-            )
-        # Concatentate subdomain data arrays along a new subdomain axis.
-        # Dimensions are now [time, subdomain-feature, subdomain]
-        X_reshaped = np.stack(X_subdomains_as_columns, axis=-1)
-        Y_reshaped = np.stack(Y_subdomains_as_columns, axis=-1)
-
-        time_series_X_reshaped.append(X_reshaped)
-        time_series_Y_reshaped.append(Y_reshaped)
-
-    return (
-        np.stack(time_series_X_reshaped, axis=0),
-        np.stack(time_series_Y_reshaped, axis=0),
-    )
 
 
 def _get_reservoir_state_time_series(
