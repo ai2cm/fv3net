@@ -948,7 +948,11 @@ sources:
       consolidated: True
 
   10day_c48_PIRE_ccnorm_gfsphysics_15min_may2023:
-    description: 2D physics diagnostics variables from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True (cloud condensate scaled by fraction for radiation)
+    description: >-
+      2D physics diagnostics variables from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True
+      (cloud condensate scaled by fraction for radiation), decorrelation length overlap,
+      and FV3GFS-like radiation scheme cloud handling. See X-SHiELD run documentation at
+      https://docs.google.com/document/d/1LvAZf3BCWzgqBmkgykhwwUtnTFHRvS3jUCF4WA_3L5Q
     driver: zarr
     metadata:
       grid: c48
@@ -1006,11 +1010,14 @@ sources:
         - uflx_coarse
         - vflx_coarse
     args:
-      urlpath: "gs://vcm-ml-raw-flexible-retention/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation/C3072-to-C48-diagnostics/gfsphysics_15min_coarse.zarr"
+      urlpath: "gs://vcm-ml-raw-flexible-retention/2023-06-29-PIRE-and-FV3GFS-like-C3072-ccnorm-true-simulation/C3072-to-C48-diagnostics/gfsphysics_15min_coarse.zarr"
       consolidated: True
 
   10day_c48_PIRE_ccnorm_physics_tendencies_may2023:
-    description: 3D and 2D physics tendencies from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True (cloud condensate scaled by fraction for radiation)
+    description: >-
+      2D and 3D physics tendency variables from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True
+      (cloud condensate scaled by fraction for radiation), decorrelation length overlap,
+      and FV3GFS-like radiation scheme cloud handling
     driver: zarr
     metadata:
       grid: c48
@@ -1047,11 +1054,14 @@ sources:
         - tendency_of_specific_humidity_due_to_turbulence_coarse
         - time_bnds
     args:
-      urlpath: "gs://vcm-ml-raw-flexible-retention/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation/C3072-to-C48-diagnostics/physics_tendencies.zarr"
+      urlpath: "gs://vcm-ml-raw-flexible-retention/2023-06-29-PIRE-and-FV3GFS-like-C3072-ccnorm-true-simulation/C3072-to-C48-diagnostics/physics_tendencies.zarr"
       consolidated: True
 
   10day_c48_PIRE_ccnorm_additional_tendencies_may2023:
-    description: 3D and 2D additional tendencies from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True (cloud condensate scaled by fraction for radiation)
+    description: >-
+      2D and 3D physics tendency variables from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True
+      (cloud condensate scaled by fraction for radiation), decorrelation length overlap,
+      and FV3GFS-like radiation scheme cloud handling
     driver: zarr
     metadata:
       grid: c48
@@ -1076,13 +1086,13 @@ sources:
         - t_dt_phys_coarse
         - time_bnds
     args:
-      urlpath: "gs://vcm-ml-raw-flexible-retention/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation/C3072-to-C48-diagnostics/atmos_15min_coarse_ave.zarr"
+      urlpath: "gs://vcm-ml-raw-flexible-retention/2023-06-29-PIRE-and-FV3GFS-like-C3072-ccnorm-true-simulation/C3072-to-C48-diagnostics/atmos_15min_coarse_ave.zarr"
       consolidated: True
 
   10day_c48_PIRE_ccnorm_restarts_as_zarr_may2023:
     description: >-
       Restart files at C48 resolution every 15 minutes, consolidated as a zarr store, created by pointing
-      `fv3net.pipelines.restarts_to_zarr` at `gs://vcm-ml-raw-flexible-retention/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation/C3072-to-C48-restarts`.
+      `fv3net.pipelines.restarts_to_zarr` at `gs://vcm-ml-raw-flexible-retention/2023-06-29-PIRE-and-FV3GFS-like-C3072-ccnorm-true-simulation/C3072-to-C48-restarts-re-upload`.
       Note that tile coordinate is [1, ..., 6] and time coordinate is timestamp-based; the latter can be
       converted to cftime.datetime via `vcm.convert_timestamps(time_coord)`.
     driver: zarr
@@ -1148,7 +1158,7 @@ sources:
         - vtype
         - zorl
     args:
-      urlpath: "gs://vcm-ml-intermediate/2023-05-22-PIRE-like-C3072-ccnorm-true-simulation-restarts.zarr"
+      urlpath: "gs://vcm-ml-intermediate/2023-06-30-PIRE-like-C3072-ccnorm-true-simulation-restarts.zarr"
       consolidated: True
 
   # Regression testing data. Do not use for analysis, values are randomized.
