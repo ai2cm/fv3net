@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Sequence, Iterable
 import yaml
-from ._reshaping import stack_data, split_1d_samples_into_2d_rows
+from ._reshaping import split_1d_samples_into_2d_rows
 import pace.util
 
 
@@ -183,9 +183,7 @@ class RankDivider:
             subdomain_data = self.get_subdomain_tensor_slice(
                 data, subdomain_index=s, with_overlap=with_overlap,
             )
-            subdomains_to_columns.append(
-                stack_data(subdomain_data, keep_first_dim=False)
-            )
+            subdomains_to_columns.append(np.reshape(subdomain_data, -1))
 
         # Concatentate subdomain data arrays along a new subdomain axis.
         # Dimensions are now [time, feature, submdomain]
@@ -219,7 +217,7 @@ class RankDivider:
 
         # separate the prediction into its constituent subdomains
         subdomain_rows = split_1d_samples_into_2d_rows(
-            flat_prediction, n_rows=self.n_subdomains, keep_first_dim_shape=False,
+            flat_prediction, n_rows=self.n_subdomains
         )
         subdomain_2d_predictions = []
 

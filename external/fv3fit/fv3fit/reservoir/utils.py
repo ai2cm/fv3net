@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 from typing import Iterable, Mapping, Tuple
-from fv3fit.reservoir._reshaping import stack_data
 from fv3fit.reservoir.transformers import ReloadableTransfomer, encode_columns
 from fv3fit.reservoir.domain import RankDivider, assure_same_dims
 
@@ -49,17 +48,13 @@ def process_batch_Xy_data(
             X_subdomain_data = rank_divider.get_subdomain_tensor_slice(
                 timestep_data, subdomain_index=s, with_overlap=True,
             )
-            X_subdomains_as_columns.append(
-                stack_data(X_subdomain_data, keep_first_dim=False)
-            )
+            X_subdomains_as_columns.append(np.reshape(X_subdomain_data, -1))
 
             # Prediction does not include overlap
             Y_subdomain_data = rank_divider.get_subdomain_tensor_slice(
                 timestep_data, subdomain_index=s, with_overlap=False,
             )
-            Y_subdomains_as_columns.append(
-                stack_data(Y_subdomain_data, keep_first_dim=False)
-            )
+            Y_subdomains_as_columns.append(np.reshape(Y_subdomain_data, -1))
         # Concatentate subdomain data arrays along a new subdomain axis.
         # Dimensions are now [time, subdomain-feature, subdomain]
         X_reshaped = np.stack(X_subdomains_as_columns, axis=-1)

@@ -5,7 +5,6 @@ from fv3fit.reservoir.domain import (
     RankDivider,
     assure_same_dims,
 )
-from fv3fit.reservoir._reshaping import stack_data
 
 
 arr = np.arange(3)
@@ -142,7 +141,7 @@ def test_RankDivider_unstack_subdomain(data_extent, overlap, with_overlap, nz):
     subdomain_arr = divider.get_subdomain_tensor_slice(
         data_arr, 0, with_overlap=with_overlap,
     )
-    stacked = stack_data(subdomain_arr, keep_first_dim=False)
+    stacked = np.reshape(subdomain_arr, -1)
     assert len(stacked.shape) == 1
     np.testing.assert_array_equal(
         divider.unstack_subdomain(stacked, with_overlap=with_overlap), subdomain_arr,
