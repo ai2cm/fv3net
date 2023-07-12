@@ -18,9 +18,12 @@ from . import (
     ReservoirComputingReadout,
 )
 from .readout import combine_readouts
-from .domain import TimeSeriesRankDivider, assure_same_dims
+from .domain import TimeSeriesRankDivider, RankDivider, assure_same_dims
 from ._reshaping import stack_data
 from fv3fit.reservoir.transformers import ReloadableTransfomer
+
+import time
+import pdb 
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -86,6 +89,12 @@ def train_reservoir_model(
         rank_extent=rank_extent,
         overlap=subdomain_config.overlap,
     )
+    rank_divider_spatial_only = RankDivider(
+        subdomain_layout=subdomain_config.layout,
+        rank_dims=subdomain_config.rank_dims,
+        rank_extent=rank_extent,
+        overlap=subdomain_config.overlap,
+    )
     # First data dim is time, the rest of the elements of each
     # subdomain+halo are are flattened into feature dimension
     reservoir = Reservoir(
@@ -100,12 +109,23 @@ def train_reservoir_model(
         for r in range(rank_divider.n_subdomains)
     ]
     for b, batch_data in enumerate(train_batches):
+        t0 = time.time()
         time_series_with_overlap, time_series_without_overlap = _process_batch_Xy_data(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
             rank_divider=rank_divider,
             autoencoder=autoencoder,
         )
+        print(f"TimeSeriesRankDivider processing time: {time.time()-t0} s")
+
+        t1 = time.time()
+        _time_series_with_overlap, _time_series_without_overlap = _process_batch_Xy_data_time_loop(
+            variables=hyperparameters.input_variables,
+            batch_data=batch_data,
+            rank_divider=rank_divider_spatial_only,
+            autoencoder=autoencoder,
+        )
+        print(f"RankDivider processing time: {time.time()-t1} s")
 
         if b < hyperparameters.n_batches_burn:
             logger.info(f"Synchronizing on batch {b+1}")
@@ -179,6 +199,55 @@ def train_reservoir_model(
         )
     return model
 
+def _process_batch_Xy_data_time_loop(
+    variables: Iterable[str],
+    batch_data: Mapping[str, tf.Tensor],
+    rank_divider: RankDivider,
+    autoencoder: ReloadableTransfomer,
+) -> Tuple[np.ndarray, np.ndarray]:    
+    """ Convert physical state to corresponding reservoir hidden state,
+    and reshape data into the format used in training.
+    """
+    batch_X = _get_ordered_X(batch_data, variables)
+
+    # Concatenate features, normalize and optionally convert data
+    # to latent representation
+    batch_data_encoded = _encode_columns(batch_X, autoencoder)
+
+    time_series_X_reshaped, time_series_Y_reshaped = [], []
+    for timestep_data in batch_data_encoded:
+        # Divide into subdomains and flatten each subdomain by stacking
+        # x/y/encoded-feature dims into a single subdomain-feature dimension.
+        # Dimensions of a single subdomain's data become [time, subdomain-feature]
+        X_subdomains_as_columns, Y_subdomains_as_columns = [], []
+        for s in range(rank_divider.n_subdomains):
+            X_subdomain_data = rank_divider.get_subdomain_tensor_slice(
+                timestep_data, subdomain_index=s, with_overlap=True,
+            )
+            X_subdomains_as_columns.append(
+                stack_data(X_subdomain_data, keep_first_dim=False)
+            )
+
+            # Prediction does not include overlap
+            Y_subdomain_data = rank_divider.get_subdomain_tensor_slice(
+                timestep_data, subdomain_index=s, with_overlap=False,
+            )
+            Y_subdomains_as_columns.append(
+                stack_data(Y_subdomain_data, keep_first_dim=False)
+            )
+        # Concatentate subdomain data arrays along a new subdomain axis.
+        # Dimensions are now [time, subdomain-feature, subdomain]
+        X_reshaped = np.stack(X_subdomains_as_columns, axis=-1)
+        Y_reshaped = np.stack(Y_subdomains_as_columns, axis=-1)
+
+
+        time_series_X_reshaped.append(X_reshaped)
+        time_series_Y_reshaped.append(Y_reshaped)
+    
+    return (
+        np.stack(time_series_X_reshaped, axis=0),
+        np.stack(time_series_Y_reshaped, axis=0)
+    )
 
 def _process_batch_Xy_data(
     variables: Iterable[str],
@@ -218,7 +287,6 @@ def _process_batch_Xy_data(
     # Dimensions are now [time, subdomain-feature, subdomain]
     X_reshaped = np.stack(X_subdomains_as_columns, axis=-1)
     Y_reshaped = np.stack(Y_subdomains_as_columns, axis=-1)
-
     return X_reshaped, Y_reshaped
 
 
