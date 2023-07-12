@@ -52,7 +52,6 @@ def test_decode_columns(nx, ny, nz, nvars):
     transformer.encode(data_arrs)
 
     encoded_input = np.random.rand(*encoded_input_shape)
-    # pdb.set_trace()
     decoded = decode_columns(encoded_input, transformer=transformer, xy_shape=(nx, ny))
 
     assert len(expected_shapes) == len(decoded)
