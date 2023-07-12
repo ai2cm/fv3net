@@ -30,3 +30,6 @@ dataflow_conda_env:
 	conda create -n ${DATAFLOW_ENV} python=3.10
 	source activate ${DATAFLOW_ENV}
 	pip install -r requirements.txt
+
+clean:
+	rm -f *.nc
