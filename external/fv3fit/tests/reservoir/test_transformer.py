@@ -11,7 +11,7 @@ from fv3fit.reservoir.transformers.transformer import (
 @pytest.mark.parametrize("nz, nvars", [(2, 2), (2, 1), (1, 2), (1, 1)])
 def test_DoNothingAutoencoder(nz, nvars):
     nx = 5
-    transformer = DoNothingAutoencoder(nz)
+    transformer = DoNothingAutoencoder([nz for var in range(nvars)])
     data = [np.ones((nx, nz)) for var in range(nvars)]
     transformer.encode(data)
     assert transformer.original_feature_sizes == [nz for var in range(nvars)]
@@ -26,7 +26,7 @@ def test_DoNothingAutoencoder(nz, nvars):
 def test_encode_columns(nt, nx, ny, nz, nvars):
     shape = tuple([y for y in [nt, nx, ny, nz] if y is not None])
     expected_shape = (*shape[:-1], nz * nvars) if nz is not None else shape
-    transformer = DoNothingAutoencoder(nz)
+    transformer = DoNothingAutoencoder([nz for var in range(nvars)])
     data_arrs = [np.random.rand(*shape) for var in range(nvars)]
 
     encoded = encode_columns(data_arrs, transformer=transformer)
@@ -45,7 +45,7 @@ def test_decode_columns(nx, ny, nz, nvars):
     encoded_input_shape = (
         (*expected_shapes[0][:-1], nz * nvars) if nz is not None else expected_shapes[0]
     )
-    transformer = DoNothingAutoencoder(nz * nvars)
+    transformer = DoNothingAutoencoder([nz for var in range(nvars)])
 
     # need to call encode before decode
     data_arrs = [np.random.rand(*shape) for shape in expected_shapes]

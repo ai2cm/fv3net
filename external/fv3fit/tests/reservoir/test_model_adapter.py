@@ -28,7 +28,7 @@ def test__transpose_xy_dims(original_dims, reordered_dims):
 def get_initialized_hybrid_model():
     # expects rank size (including halos) in latent space
     divider = RankDivider((2, 2), ["x", "y"], [8, 8], 2)
-    autoencoder = DoNothingAutoencoder(6)
+    autoencoder = DoNothingAutoencoder([3, 3])
     input_size = 6 * 6 * autoencoder.n_latent_dims  # overlap subdomain in latent space
     hybrid_input_size_per_subdomain = (
         divider.subdomain_xy_size_without_overlap ** 2 * autoencoder.n_latent_dims

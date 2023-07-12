@@ -59,7 +59,7 @@ def test_dump_load_optional_attrs(tmpdir):
         readout=readout,
         square_half_hidden_state=False,
         rank_divider=rank_divider,
-        autoencoder=DoNothingAutoencoder(1),
+        autoencoder=DoNothingAutoencoder([1]),
     )
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
@@ -89,7 +89,7 @@ def test_dump_load_preserves_matrices(tmpdir):
         readout=readout,
         rank_divider=default_rank_divider,
         square_half_hidden_state=False,
-        autoencoder=DoNothingAutoencoder(1),
+        autoencoder=DoNothingAutoencoder([1]),
     )
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
@@ -128,7 +128,7 @@ def test_prediction_shape(nz, nvars):
         coefficients=np.random.rand(state_size, combined_inputs_size),
         intercepts=np.random.rand(combined_inputs_size),
     )
-    transformer = DoNothingAutoencoder(nz)
+    transformer = DoNothingAutoencoder([nz for var in range(nvars)])
     transformer.encode([np.ones((input_size, nz)) for v in range(nvars)])
     variables = [f"var{i}" for i in range(nvars)]
     predictor = ReservoirComputingModel(
@@ -166,7 +166,7 @@ def test_ReservoirComputingModel_state_increment():
 
     input = [(0.25 * np.ones((input_size, 1))).reshape(rank_divider.rank_extent)]
 
-    transformer = DoNothingAutoencoder(1)
+    transformer = DoNothingAutoencoder([1])
     transformer.encode(input)
     predictor = ReservoirComputingModel(
         input_variables=["a", "b"],
@@ -211,7 +211,7 @@ def test_prediction_after_load(tmpdir):
         intercepts=np.random.rand(input_size),
     )
 
-    transformer = DoNothingAutoencoder(1)
+    transformer = DoNothingAutoencoder([1])
     transformer.encode([np.ones((input_size, 1))])
     predictor = ReservoirComputingModel(
         input_variables=["a", "b"],
@@ -269,7 +269,7 @@ def test_HybridReservoirComputingModel_dump_load(tmpdir):
         reservoir=reservoir,
         readout=readout,
         rank_divider=rank_divider,
-        autoencoder=DoNothingAutoencoder(1),
+        autoencoder=DoNothingAutoencoder([1]),
     )
     hybrid_predictor.reset_state()
     ts_sync = [
@@ -324,7 +324,7 @@ def test_HybridReservoirComputingModel_concat_readout_inputs():
         reservoir=reservoir,
         readout=readout,
         rank_divider=rank_divider,
-        autoencoder=DoNothingAutoencoder(1),
+        autoencoder=DoNothingAutoencoder([1]),
     )
     hybrid_predictor.reset_state()
 
