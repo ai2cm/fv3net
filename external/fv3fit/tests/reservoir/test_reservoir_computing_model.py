@@ -164,7 +164,7 @@ def test_ReservoirComputingModel_state_increment():
 
     readout = MultiOutputMeanRegressor(n_outputs=input_size)
 
-    input = 0.25 * np.ones((input_size, 1))
+    input = [(0.25 * np.ones((input_size, 1))).reshape(rank_divider.rank_extent)]
 
     transformer = DoNothingAutoencoder(1)
     transformer.encode(input)
@@ -178,11 +178,12 @@ def test_ReservoirComputingModel_state_increment():
     )
 
     predictor.reset_state()
-    predictor.reservoir.increment_state(input)
+    predictor.increment_state(input)
     state_before_prediction = predictor.reservoir.state
     encoded_prediction = predictor.autoencoder.encode(predictor.predict())
     flattened_encoded_prediction = encoded_prediction.reshape(-1)
-    predictor.increment_state(flattened_encoded_prediction)
+    predictor.increment_state(input)
+
     # TODO: Need to update the expected prediction shape to be in original dims
     # after those changes are made to the ReservoirModel input/output
     np.testing.assert_array_almost_equal(

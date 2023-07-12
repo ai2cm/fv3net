@@ -97,7 +97,7 @@ class HybridReservoirComputingModel(Predictor):
     def reset_state(self):
         self.reservoir_model.reset_state()
 
-    def increment_state(self, prediction_with_overlap):
+    def increment_state(self, prediction_with_overlap: Sequence[np.ndarray]) -> None:
         self.reservoir_model.increment_state(prediction_with_overlap)
 
     def synchronize(self, synchronization_time_series):
@@ -138,11 +138,7 @@ class HybridDatasetAdapter:
 
     def increment_state(self, inputs: xr.Dataset):
         xy_input_arrs = self._input_dataset_to_arrays(inputs)  # x, y, feature dims
-        encoded_xy_input_arrs = encode_columns(xy_input_arrs, self.model.autoencoder)
-        subdomains = self.model.rank_divider.flatten_subdomains_to_columns(
-            encoded_xy_input_arrs, with_overlap=True
-        )
-        self.model.increment_state(subdomains)
+        self.model.increment_state(xy_input_arrs)
 
     def reset_state(self):
         self.model.reset_state()
@@ -237,8 +233,15 @@ class ReservoirComputingModel(Predictor):
         )
         self.reservoir.reset_state(input_shape)
 
-    def increment_state(self, prediction_with_overlap):
-        self.reservoir.increment_state(prediction_with_overlap)
+    def increment_state(self, prediction_with_overlap: Sequence[np.ndarray]) -> None:
+        # input array is in native x, y, z_feature coordinates
+        encoded_xy_input_arrs = encode_columns(
+            prediction_with_overlap, self.autoencoder
+        )
+        encoded_flattened_subdomains = self.rank_divider.flatten_subdomains_to_columns(
+            encoded_xy_input_arrs, with_overlap=True
+        )
+        self.reservoir.increment_state(encoded_flattened_subdomains)
 
     def synchronize(self, synchronization_time_series):
         self.reservoir.synchronize(synchronization_time_series)
