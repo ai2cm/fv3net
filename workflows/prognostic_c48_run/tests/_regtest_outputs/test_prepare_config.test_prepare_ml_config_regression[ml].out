@@ -469,6 +469,7 @@ patch_files:
   target_name: patch.nc
 prephysics: null
 radiation_scheme: null
+reservoir_corrector: null
 scikit_learn:
   diagnostic_ml: false
   input_standard_names: {}
