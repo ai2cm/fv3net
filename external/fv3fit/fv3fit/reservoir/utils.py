@@ -18,8 +18,8 @@ def square_even_terms(v: np.ndarray, axis=1) -> np.ndarray:
     return np.apply_along_axis(func1d=_square_evens, axis=axis, arr=v)
 
 
-def get_ordered_X(X_mapping, variables):
-    ordered_tensors = [X_mapping[v] for v in variables]
+def get_ordered_X(X: Mapping[str, tf.Tensor], variables: Iterable[str]):
+    ordered_tensors = [X[v] for v in variables]
     return assure_same_dims(ordered_tensors)
 
 
