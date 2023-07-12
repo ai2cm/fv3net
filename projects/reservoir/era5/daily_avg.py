@@ -10,6 +10,16 @@ This script is tailored to provide daily averages from ERA5 data for a
 specific subset of variables used for creating an ocean RC model. The
 chunking and machines used are tailored to the specific use case so adjustments
 would be necessary for more variables or 3D data.
+
+Hardcoded assumptions/directives:
+- Input data is a Zarr store
+- Input data is hourly
+- Input variables to regrid: SST, U10, V10, T2M
+- Target time resolution: daily average
+- Target grid: global regular 1deg lat/lon
+- The loaded template file has same grid as target w/ same variables
+- Nearest neighbor remapping
+- Output chunking assumes total number of days divisible by 32
 """
 
 parser = argparse.ArgumentParser(description="Process daily averages")
