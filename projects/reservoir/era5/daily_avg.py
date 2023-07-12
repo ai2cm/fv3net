@@ -73,7 +73,7 @@ def main():
     use_vars = ["sst", "u10", "v10", "t2m"]
     # variables that break the pipeline
     drop_vars = ["step", "depthBelowLandLayer", "entireAtmosphere", "number", "surface"]
-    for_pred = data[use_vars]
+    for_pred = data[use_vars].drop(drop_vars)
 
     # build a template for the zarr output
     single_day = xbeam.make_template(xr.open_dataset(args.daily_template_path))
@@ -98,7 +98,7 @@ def main():
             | beam.MapTuple(
                 lambda k, v: (
                     k.with_offsets(time=k.offsets["time"] // 24),
-                    v.resample(time="1D").mean().drop(drop_vars).compute(),
+                    v.resample(time="1D").mean().compute(),
                 )
             )
             | xbeam.ConsolidateChunks(target_chunks={"time": output_num_days_chunk})
