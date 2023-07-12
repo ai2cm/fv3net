@@ -951,7 +951,8 @@ sources:
     description: >-
       2D physics diagnostics variables from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True
       (cloud condensate scaled by fraction for radiation), decorrelation length overlap,
-      and FV3GFS-like radiation scheme cloud handling
+      and FV3GFS-like radiation scheme cloud handling. See X-SHiELD run documentation at
+      https://docs.google.com/document/d/1LvAZf3BCWzgqBmkgykhwwUtnTFHRvS3jUCF4WA_3L5Q
     driver: zarr
     metadata:
       grid: c48
@@ -1014,7 +1015,7 @@ sources:
 
   10day_c48_PIRE_ccnorm_physics_tendencies_may2023:
     description: >-
-      2D physics diagnostics variables from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True
+      2D and 3D physics tendency variables from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True
       (cloud condensate scaled by fraction for radiation), decorrelation length overlap,
       and FV3GFS-like radiation scheme cloud handling
     driver: zarr
@@ -1058,7 +1059,7 @@ sources:
 
   10day_c48_PIRE_ccnorm_additional_tendencies_may2023:
     description: >-
-      2D physics diagnostics variables from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True
+      2D and 3D physics tendency variables from 10-day PIRE-like X-SHiELD simulation run with ccnorm=True
       (cloud condensate scaled by fraction for radiation), decorrelation length overlap,
       and FV3GFS-like radiation scheme cloud handling
     driver: zarr
@@ -1091,7 +1092,7 @@ sources:
   10day_c48_PIRE_ccnorm_restarts_as_zarr_may2023:
     description: >-
       Restart files at C48 resolution every 15 minutes, consolidated as a zarr store, created by pointing
-      `fv3net.pipelines.restarts_to_zarr` at`gs://vcm-ml-raw-flexible-retention/2023-06-29-PIRE-and-FV3GFS-like-C3072-ccnorm-true-simulation/C3072-to-C48-restarts-re-upload`.
+      `fv3net.pipelines.restarts_to_zarr` at `gs://vcm-ml-raw-flexible-retention/2023-06-29-PIRE-and-FV3GFS-like-C3072-ccnorm-true-simulation/C3072-to-C48-restarts-re-upload`.
       Note that tile coordinate is [1, ..., 6] and time coordinate is timestamp-based; the latter can be
       converted to cftime.datetime via `vcm.convert_timestamps(time_coord)`.
     driver: zarr
