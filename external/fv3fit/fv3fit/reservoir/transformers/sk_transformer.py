@@ -38,11 +38,12 @@ class SkTransformer(Transformer, ArrayPredictor, Reloadable):
         transformer: TransformerMixin,
         scaler: StandardScaler,
         enforce_positive_outputs: bool = False,
+        original_feature_sizes: Optional[Sequence[int]] = None,
     ):
         self.transformer = transformer
         self.scaler = scaler
         self.enforce_positive_outputs = enforce_positive_outputs
-        self._original_feature_sizes: Optional[Sequence[int]] = None
+        self.original_feature_sizes = original_feature_sizes
 
     @property
     def n_latent_dims(self):
@@ -92,14 +93,14 @@ class SkTransformer(Transformer, ArrayPredictor, Reloadable):
         return decoded_split_features
 
     def _set_feature_sizes_if_not_present(self, x: Sequence[np.ndarray]):
-        if self._original_feature_sizes is None:
-            self._original_feature_sizes = [var.shape[-1] for var in x]
+        if self.original_feature_sizes is None:
+            self.original_feature_sizes = [var.shape[-1] for var in x]
 
     def _get_original_feature_sizes(self):
-        if self._original_feature_sizes is None:
+        if self.original_feature_sizes is None:
             raise ValueError("Feature sizes must be set before calling decode")
         else:
-            return self._original_feature_sizes
+            return self.original_feature_sizes
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
@@ -111,7 +112,10 @@ class SkTransformer(Transformer, ArrayPredictor, Reloadable):
             with open(os.path.join(path, self._METADATA_NAME), "w") as f:
                 f.write(
                     yaml.dump(
-                        {"enforce_positive_outputs": self.enforce_positive_outputs}
+                        {
+                            "enforce_positive_outputs": self.enforce_positive_outputs,
+                            "original_feature_sizes": self.original_feature_sizes,
+                        }
                     )
                 )
 
@@ -126,4 +130,5 @@ class SkTransformer(Transformer, ArrayPredictor, Reloadable):
             transformer=transformer,
             scaler=scaler,
             enforce_positive_outputs=config["enforce_positive_outputs"],
+            original_feature_sizes=config["original_feature_sizes"],
         )

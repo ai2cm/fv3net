@@ -1,7 +1,8 @@
 import numpy as np
+import pytest
 import xarray as xr
 
-from fv3fit.reservoir.transformers.transformer import Transformer
+from fv3fit.reservoir.transformers.transformer import DoNothingAutoencoder
 from fv3fit.reservoir.domain import RankDivider
 from fv3fit.reservoir.readout import ReservoirComputingReadout
 from fv3fit.reservoir import (
@@ -9,34 +10,25 @@ from fv3fit.reservoir import (
     ReservoirHyperparameters,
     HybridReservoirComputingModel,
 )
-from fv3fit.reservoir.model import HybridDatasetAdapter
+from fv3fit.reservoir.model import HybridDatasetAdapter, _transpose_xy_dims
 
 
-class DoNothingAutoencoder(Transformer):
-    def __init__(self, latent_dim_len):
-        self._latent_dim_len = latent_dim_len
-        self._array_feature_sizes = None
-
-    @property
-    def n_latent_dims(self):
-        return self._latent_dim_len
-
-    def encode(self, x):
-        self._array_feature_sizes = [arr.shape[-1] for arr in x]
-        return np.concatenate(x, -1)
-
-    def decode(self, latent_x):
-        if self._array_feature_sizes is None:
-            raise ValueError("Must encode data before decoding.")
-
-        split_indices = np.cumsum(self._array_feature_sizes)[:-1]
-        return np.split(latent_x, split_indices, axis=-1)
+@pytest.mark.parametrize(
+    "original_dims, reordered_dims",
+    [
+        (["time", "x", "y", "z"], ["time", "x", "y", "z"]),
+        (["time", "y", "x", "z"], ["time", "x", "y", "z"]),
+    ],
+)
+def test__transpose_xy_dims(original_dims, reordered_dims):
+    da = xr.DataArray(np.random.rand(5, 7, 7, 8), dims=original_dims)
+    assert list(_transpose_xy_dims(da, rank_dims=["x", "y"]).dims) == reordered_dims
 
 
 def get_initialized_hybrid_model():
     # expects rank size (including halos) in latent space
     divider = RankDivider((2, 2), ["x", "y"], [8, 8], 2)
-    autoencoder = DoNothingAutoencoder(6)
+    autoencoder = DoNothingAutoencoder([3, 3])
     input_size = 6 * 6 * autoencoder.n_latent_dims  # overlap subdomain in latent space
     hybrid_input_size_per_subdomain = (
         divider.subdomain_xy_size_without_overlap ** 2 * autoencoder.n_latent_dims
