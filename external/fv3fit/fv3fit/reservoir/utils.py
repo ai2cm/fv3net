@@ -18,7 +18,7 @@ def square_even_terms(v: np.ndarray, axis=1) -> np.ndarray:
     return np.apply_along_axis(func1d=_square_evens, axis=axis, arr=v)
 
 
-def _get_ordered_X(X_mapping, variables):
+def get_ordered_X(X_mapping, variables):
     ordered_tensors = [X_mapping[v] for v in variables]
     return assure_same_dims(ordered_tensors)
 
@@ -32,7 +32,7 @@ def process_batch_Xy_data(
     """ Convert physical state to corresponding reservoir hidden state,
     and reshape data into the format used in training.
     """
-    batch_X = _get_ordered_X(batch_data, variables)
+    batch_X = get_ordered_X(batch_data, variables)
 
     # Concatenate features, normalize and optionally convert data
     # to latent representation

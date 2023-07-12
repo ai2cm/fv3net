@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Optional, List, Union
 from .. import Predictor
-from .utils import square_even_terms, process_batch_Xy_data
+from .utils import square_even_terms, process_batch_Xy_data, get_ordered_X
 from .transformers.autoencoder import build_concat_and_scale_only_autoencoder
 from .._shared import register_training_function
 from ._reshaping import concat_inputs_along_subdomain_features
@@ -18,7 +18,7 @@ from . import (
     ReservoirComputingReadout,
 )
 from .readout import combine_readouts
-from .domain import RankDivider, assure_same_dims
+from .domain import RankDivider
 from ._reshaping import stack_array_preserving_last_dim
 from fv3fit.reservoir.transformers import ReloadableTransfomer
 
@@ -31,11 +31,6 @@ def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
-def _get_ordered_X(X_mapping, variables):
-    ordered_tensors = [X_mapping[v] for v in variables]
-    return assure_same_dims(ordered_tensors)
-
-
 @register_training_function("reservoir", ReservoirTrainingConfig)
 def train_reservoir_model(
     hyperparameters: ReservoirTrainingConfig,
@@ -44,7 +39,7 @@ def train_reservoir_model(
 ) -> Predictor:
 
     sample_batch = next(iter(train_batches))
-    sample_X = _get_ordered_X(sample_batch, hyperparameters.input_variables)
+    sample_X = get_ordered_X(sample_batch, hyperparameters.input_variables)
 
     if hyperparameters.autoencoder_path is not None:
         autoencoder: ReloadableTransfomer = fv3fit.load(
