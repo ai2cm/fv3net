@@ -4,7 +4,7 @@ import fv3fit
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, Mapping, Tuple, List, Iterable, Union, Sequence
+from typing import Optional, Mapping, Tuple, List, Iterable, Union
 from .. import Predictor
 from .utils import square_even_terms
 from .transformers.autoencoder import build_concat_and_scale_only_autoencoder
@@ -18,9 +18,9 @@ from . import (
     ReservoirComputingReadout,
 )
 from .readout import combine_readouts
-from .domain import TimeSeriesRankDivider, assure_same_dims
-from ._reshaping import stack_data
-from fv3fit.reservoir.transformers import ReloadableTransfomer
+from .domain import TimeSeriesRankDivider, RankDivider, assure_same_dims
+from ._reshaping import stack_data, stack_array_preserving_last_dim
+from fv3fit.reservoir.transformers import ReloadableTransfomer, encode_columns
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -28,25 +28,6 @@ logger.setLevel(logging.INFO)
 
 def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
-
-
-def _stack_array_preserving_last_dim(data):
-    original_z_dim = data.shape[-1]
-    reshaped = tf.reshape(data, shape=(-1, original_z_dim))
-    return reshaped
-
-
-def _encode_columns(
-    data: Sequence[tf.Tensor], transformer: ReloadableTransfomer
-) -> np.ndarray:
-    # reduce a sequnence of N x M x Vi dim data over i variables
-    # to a single N x M x Z dim array, where Vi is original number of features
-    # (usually vertical levels) of each variable and Z << V is a smaller number
-    # of latent dimensions
-    original_sample_shape = data[0].shape[:-1]
-    reshaped = [_stack_array_preserving_last_dim(var) for var in data]
-    encoded_reshaped = transformer.encode(reshaped)
-    return encoded_reshaped.reshape(*original_sample_shape, -1)
 
 
 def _get_ordered_X(X_mapping, variables):
@@ -70,7 +51,7 @@ def train_reservoir_model(
         )  # type: ignore
     else:
         sample_X_stacked = [
-            _stack_array_preserving_last_dim(arr).numpy() for arr in sample_X
+            stack_array_preserving_last_dim(arr).numpy() for arr in sample_X
         ]
         autoencoder = build_concat_and_scale_only_autoencoder(
             variables=hyperparameters.input_variables, X=sample_X_stacked
@@ -156,6 +137,14 @@ def train_reservoir_model(
     readout = combine_readouts(subdomain_readouts)
 
     model: Union[ReservoirComputingModel, HybridReservoirComputingModel]
+
+    # After training, the data used in inference does not have a time dimension
+    rank_divider_spatial_only = RankDivider(
+        subdomain_layout=subdomain_config.layout,
+        rank_dims=subdomain_config.rank_dims,
+        rank_extent=rank_extent,
+        overlap=subdomain_config.overlap,
+    )
     if hyperparameters.hybrid_variables is None:
         model = ReservoirComputingModel(
             input_variables=hyperparameters.input_variables,
@@ -163,7 +152,7 @@ def train_reservoir_model(
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
-            rank_divider=rank_divider,
+            rank_divider=rank_divider_spatial_only,
             autoencoder=autoencoder,
         )
     else:
@@ -174,7 +163,7 @@ def train_reservoir_model(
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
-            rank_divider=rank_divider,
+            rank_divider=rank_divider_spatial_only,
             autoencoder=autoencoder,
         )
     return model
@@ -193,7 +182,7 @@ def _process_batch_Xy_data(
 
     # Concatenate features, normalize and optionally convert data
     # to latent representation
-    batch_data_encoded = _encode_columns(batch_X, autoencoder)
+    batch_data_encoded = encode_columns(batch_X, autoencoder)
     # Divide into subdomains and flatten each subdomain by stacking
     # x/y/encoded-feature dims into a single subdomain-feature dimension.
     # Dimensions of a single subdomain's data become [time, subdomain-feature]

@@ -310,7 +310,7 @@ def test_RankDivider__rank_extent_without_overlap(
         overlap=overlap,
     )
 
-    assert divider._rank_extent_without_overlap == expected_extent
+    assert divider.rank_extent_without_overlap == expected_extent
 
 
 def test_RankDivider_subdomain_xy_size_without_overlap():
