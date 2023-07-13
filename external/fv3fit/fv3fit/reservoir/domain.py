@@ -250,18 +250,19 @@ class RankDivider:
         return np.concatenate(np.concatenate(domain_z_blocks, axis=2), axis=0)
 
 
-def assure_same_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tensor]:
-    max_dims = max(len(v.shape) for v in variable_tensors)
+def assure_txyz_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tensor]:
+    # Assumes dims 1, 2, 3 are t, x, y.
+    # If variable data has 3 dims, adds a 4th feature dim of size 1.
     reshaped_tensors = []
     for var_data in variable_tensors:
-        if len(var_data.shape) == max_dims:
+        if len(var_data.shape) == 4:
             reshaped_tensors.append(var_data)
-        elif len(var_data.shape) == max_dims - 1:
+        elif len(var_data.shape) == 3:
             orig_shape = var_data.shape
             reshaped_tensors.append(tf.reshape(var_data, shape=(*orig_shape, 1)))
         else:
             raise ValueError(
                 f"Tensor data has {len(var_data.shape)} dims, must either "
-                f"have either {max_dims} or {max_dims-1}."
+                "have either 4 dims (t, x, y, z) or 3 dims (t, x, y)."
             )
     return reshaped_tensors

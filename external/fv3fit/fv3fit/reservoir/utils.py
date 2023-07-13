@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Iterable, Mapping, Tuple
 from fv3fit.reservoir.transformers import ReloadableTransfomer, encode_columns
-from fv3fit.reservoir.domain import RankDivider, assure_same_dims
+from fv3fit.reservoir.domain import RankDivider, assure_txyz_dims
 
 
 def _square_evens(v: np.ndarray) -> np.ndarray:
@@ -20,7 +20,7 @@ def square_even_terms(v: np.ndarray, axis=1) -> np.ndarray:
 
 def get_ordered_X(X: Mapping[str, tf.Tensor], variables: Iterable[str]):
     ordered_tensors = [X[v] for v in variables]
-    return assure_same_dims(ordered_tensors)
+    return assure_txyz_dims(ordered_tensors)
 
 
 def process_batch_Xy_data(
