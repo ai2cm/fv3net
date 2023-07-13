@@ -25,5 +25,6 @@ dependencies:
   - fsspec
   - gcsfs
   - joblib
-  - tensorboard
   - cftime
+  - wandb
+  - pip
