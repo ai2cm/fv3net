@@ -1,8 +1,29 @@
 import numpy as np
 import tensorflow as tf
-from typing import Iterable, Mapping, Tuple
+from typing import Iterable, Mapping, Tuple, List, Optional
 from fv3fit.reservoir.transformers import ReloadableTransfomer, encode_columns
 from fv3fit.reservoir.domain import RankDivider, assure_same_dims
+from fv3fit.reservoir.reservoir import Reservoir
+
+
+def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
+    return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
+
+
+def construct_reservoir_state_time_series(
+    X: np.ndarray, input_noise: float, reservoir: Reservoir,
+) -> np.ndarray:
+    # Initialize hidden state
+    if reservoir.state is None:
+        reservoir.reset_state(input_shape=X[0].shape)
+
+    # Increment and save the reservoir state after each timestep
+    reservoir_state_time_series: List[Optional[np.ndarray]] = []
+    for timestep_data in X:
+        timestep_data = _add_input_noise(timestep_data, input_noise)
+        reservoir.increment_state(timestep_data)
+        reservoir_state_time_series.append(reservoir.state)
+    return np.array(reservoir_state_time_series)
 
 
 def _square_evens(v: np.ndarray) -> np.ndarray:

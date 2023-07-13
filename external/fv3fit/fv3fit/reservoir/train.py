@@ -4,9 +4,14 @@ import fv3fit
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, List, Union
+from typing import Optional, Union
 from .. import Predictor
-from .utils import square_even_terms, process_batch_Xy_data, get_ordered_X
+from .utils import (
+    process_batch_Xy_data,
+    get_ordered_X,
+    construct_reservoir_state_time_series,
+    square_even_terms,
+)
 from .transformers.autoencoder import build_concat_and_scale_only_autoencoder
 from .._shared import register_training_function
 from ._reshaping import concat_inputs_along_subdomain_features
@@ -25,10 +30,6 @@ from fv3fit.reservoir.transformers import ReloadableTransfomer
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
-    return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
 @register_training_function("reservoir", ReservoirTrainingConfig)
@@ -89,7 +90,7 @@ def train_reservoir_model(
 
         # reservoir increment occurs in this call, so always call this
         # function even if X, Y are not used for readout training.
-        reservoir_state_time_series = _get_reservoir_state_time_series(
+        reservoir_state_time_series = construct_reservoir_state_time_series(
             time_series_with_overlap, hyperparameters.input_noise, reservoir
         )
         hybrid_time_series: Optional[np.ndarray]
@@ -156,22 +157,6 @@ def train_reservoir_model(
             autoencoder=autoencoder,
         )
     return model
-
-
-def _get_reservoir_state_time_series(
-    X: np.ndarray, input_noise: float, reservoir: Reservoir,
-) -> np.ndarray:
-    # Initialize hidden state
-    if reservoir.state is None:
-        reservoir.reset_state(input_shape=X[0].shape)
-
-    # Increment and save the reservoir state after each timestep
-    reservoir_state_time_series: List[Optional[np.ndarray]] = []
-    for timestep_data in X:
-        timestep_data = _add_input_noise(timestep_data, input_noise)
-        reservoir.increment_state(timestep_data)
-        reservoir_state_time_series.append(reservoir.state)
-    return np.array(reservoir_state_time_series)
 
 
 def _fit_batch(X_batch, Y_batch, subdomain_index, regressor):
