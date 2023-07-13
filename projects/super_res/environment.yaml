@@ -63,8 +63,6 @@ dependencies:
   - gmp=6.2.1=h58526e2_0
   - gmpy2=2.1.2=py38h793c122_1
   - gnutls=3.6.13=h85f3911_1
-  - google-auth-oauthlib=1.0.0=pyhd8ed1ab_0
-  - google-cloud-sdk=437.0.1=py38h578d9bd_0
   - grpcio=1.56.0=py38h94a1851_2
   - huggingface_hub=0.16.2=pyhd8ed1ab_0
   - icu=72.1=hcb278e6_0
@@ -260,16 +258,11 @@ dependencies:
     - docker-pycreds==0.4.0
     - ema-pytorch
     - flow-vis==0.1
-    - gcsfs==2023.6.0
+    - gcsfs
+    - google-auth
+    - google-cloud-storage
     - gitdb==4.0.10
     - gitpython==3.1.31
-    - google-api-core==2.11.1
-    - google-auth==2.21.0
-    - google-cloud-core==2.3.3
-    - google-cloud-storage==2.10.0
-    - google-crc32c==1.5.0
-    - google-resumable-media==2.5.0
-    - googleapis-common-protos==1.59.1
     - hjson==3.1.0
     - imageio==2.31.1
     - imageio-ffmpeg==0.4.8
