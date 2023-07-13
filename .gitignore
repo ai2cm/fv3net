@@ -90,6 +90,7 @@ notebooks/*
 
 # Saved model files
 results/*
+evaluate/*
 
 # exclude data from source control by default
 /data/

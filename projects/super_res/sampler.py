@@ -2,7 +2,7 @@ import os
 
 from model.autoreg_diffusion import Unet, Flow, GaussianDiffusion, Trainer
 from data.load_data import load_data
-import config
+import config_infer as config
 
 model = Unet(
     dim = config.dim,
@@ -51,10 +51,13 @@ trainer = Trainer(
     ema_decay = config.ema_decay,
     amp = config.amp,
     split_batches = config.split_batches,
-    eval_folder = os.path.join(config.eval_folder, f"{config.model_name}/"),
+    #eval_folder = os.path.join(config.eval_folder, f"{config.model_name}/"),
+    eval_folder = os.path.join(config.eval_folder, f"{config.data_name}/"),
     results_folder = os.path.join(config.results_folder, f"{config.model_name}/"),
     config = config
     #tensorboard_dir = os.path.join(config.tensorboard_dir, f"{config.model_name}/"),
 )
 
-trainer.train()
+trainer.load(config.milestone)
+
+trainer.sample()
