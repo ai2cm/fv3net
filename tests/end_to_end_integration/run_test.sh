@@ -81,27 +81,14 @@ tag="${commitShort}-${random}"
 name="integration-test-${tag}"
 bucket="vcm-ml-scratch"
 project="test-end-to-end-integration"
-date=$(date -u +'%F')
-
-# to avoid fv3net dep, we reimplement 'artifacts generate-url' here
-n2fDataPath="gs://${bucket}/${project}/${date}/${tag}-nudge-to-fine-run/fv3gfs_run"
 
 cd tests/end_to_end_integration
 
-yq -y --arg data_path $n2fDataPath '.mapper_config.kwargs.data_path|=$data_path' \
-    training-data-config.yaml > \
-    training-data-config-compiled.yaml
-
-yq -y --arg data_path $n2fDataPath '.mapper_config.kwargs.data_path|=$data_path' \
-    test-data-config.yaml > \
-    test-data-config-compiled.yaml
-
-
 deployWorkflows "$registry" "$commit"
 argo submit argo.yaml -p bucket="${bucket}" -p project="${project}" \
-    -p training-data-config="$(< training-data-config-compiled.yaml)" \
-    -p validation-data-config="$(< training-data-config-compiled.yaml)" \
-    -p test-data-config="$(< test-data-config-compiled.yaml)" \
+    -p training-data-config="$(< training-data-config.yaml)" \
+    -p validation-data-config="$(< training-data-config.yaml)" \
+    -p test-data-config="$(< test-data-config.yaml)" \
     -p tag="${tag}" --name "$name"
 
 trap "argo logs \"$name\" | tail -n 100" EXIT

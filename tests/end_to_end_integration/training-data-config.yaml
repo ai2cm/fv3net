@@ -1,7 +1,7 @@
 mapper_config:
   function: open_nudge_to_fine
   kwargs:
-    data_path: placeholder
+    data_path: gs://vcm-ml-code-testing-data/c48-nudged-run-for-e2e/fv3gfs_run
     nudging_variables:
       - air_temperature
       - specific_humidity
