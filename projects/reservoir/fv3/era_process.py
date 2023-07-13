@@ -143,8 +143,6 @@ def regrid_to_cubed_sphere(path,var,day):
         --scalar_field "+var_id)
                 
 def coarsen(var,day):
-    
-    #roundtripped = vcm.open_tiles('/home/paulah/fregrid-example/'+var+'_'+day+'_cubed')
     dt_lis = [xr.open_dataset(f,decode_times=False) for f in glob.glob('fregrid-example/'+var+'_'+day+'_cubed.*nc')]
     grid = vcm.catalog.catalog["grid/c96"].to_dask()
     new_lis = []
@@ -162,10 +160,6 @@ def coarsen(var,day):
         cubed = ds.u10
     elif var == 'v_wind':
         cubed = ds.v10
-    #cubed = cubed.rename({"lon": "x", "lat": "y"})
-    #grid = vcm.catalog.catalog["grid/c96"].to_dask()
-    #cubed['y'] = grid['y']
-    #cubed['x'] = grid['x']
     #interpolate nans, because of mitmatch of era5 and c48 land-sea mask mismatch
     cubed = cubed.interpolate_na(dim='x')
     cubed = cubed.interpolate_na(dim='y')
