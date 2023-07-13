@@ -1,8 +1,9 @@
-from typing import List
+import argparse
 import xarray as xr
 import numpy as np
 import os
 import cftime
+import pandas as pd
 
 output_variables = [
     "T_mid",
@@ -72,94 +73,162 @@ def make_new_date(dates, year_offset=2015):
     return new_dates
 
 
-def convert_scream_to_zarr_format(
-    data_path: str,
-    file_name: str,
-    output_path: str,
-    output_file_name: str,
-    output_variables: List[str],
-):
-    """Converts a scream output file to zarr format.
-
-    Args:
-        data_path: path to input data directory, remote or local
-        file_name: either a single file name
-            or a wildcard pattern to match multiple names
-        output_path: path to output data directory, remote or local
-        output_file_name: name of output file
-        output_variables: list of variables to output
-    """
-    ds = xr.open_mfdataset(
-        os.path.join(data_path, file_name),
-        concat_dim="time",
-        combine="nested",
-        data_vars="minimal",
-    )
-    if "horiz_winds" in output_variables:
-        u = ds.horiz_winds.isel(dim2=0).rename({"x_wind"})
-        v = ds.horiz_winds.isel(dim2=1).rename({"y_wind"})
+def split_horiz_winds(ds: xr.Dataset):
+    u = ds.horiz_winds.isel(dim2=0).rename({"x_wind"})
+    v = ds.horiz_winds.isel(dim2=1).rename({"y_wind"})
 
     ds = ds[output_variables]
     ds = ds.drop("horiz_winds")
     ds["x_wind"] = u
     ds["y_wind"] = v
-    ds["pressure_thickness_of_atmospheric_layer"] = make_delp(ds.ps, ds.hyai, ds.hybi)
+    return ds
 
-    ds[
-        "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging"
-    ] = make_placeholder_data(
-        ds.T_mid,
-        "pressure_thickness_of_atmospheric_layer_tendency_due_to_nudging",
-        1e-3,
-    )
-    ds["T_mid_tendency_due_to_nudging"] = make_placeholder_data(
-        ds.T_mid, "T_mid_tendency_due_to_nudging", 1e-3
-    )
-    ds["qv_tendency_due_to_nudging"] = make_placeholder_data(
-        ds.T_mid, "qv_tendency_due_to_nudging", 1e-7
-    )
-    ds["x_wind_tendency_due_to_nudging"] = make_placeholder_data(
-        ds.T_mid, "x_wind_tendency_due_to_nudging", 1e-3
-    )
-    ds["y_wind_tendency_due_to_nudging"] = make_placeholder_data(
-        ds.T_mid, "y_wind_tendency_due_to_nudging", 1e-3
-    )
-    ds["tendency_of_T_mid_due_to_scream_physics"] = make_placeholder_data(
-        ds.T_mid, "tendency_of_T_mid_due_to_scream_physics", 1e-5
-    )
-    ds["tendency_of_qv_due_to_scream_physics"] = make_placeholder_data(
-        ds.T_mid, "tendency_of_qv_due_to_scream_physics", 1e-8
-    )
-    ds["tendency_of_eastward_wind_due_to_scream_physics"] = make_placeholder_data(
-        ds.T_mid, "tendency_of_eastward_wind_due_to_scream_physics", 1e-5
-    )
-    ds["tendency_of_northward_wind_due_to_scream_physics"] = make_placeholder_data(
-        ds.T_mid, "tendency_of_northward_wind_due_to_scream_physics", 1e-5
-    )
-    # make new date here because this round of data has year 0001
-    # and causes issues with diagnostics code
-    new_date = make_new_date(ds.time.values)
-    ds = ds.assign_coords(time=new_date)
-    ds = ds.rename({"lev": "z", "ilev": "z_interface"})
 
-    nudging_variables = [
-        "T_mid_tendency_due_to_nudging",
-        "qv_tendency_due_to_nudging",
-        "x_wind_tendency_due_to_nudging",
-        "y_wind_tendency_due_to_nudging",
+def compute_tendencies_due_to_scream_physics(ds: xr.Dataset, nudging_variables: list):
+    for var in nudging_variables:
+        ds[f"tendency_of_{var}_due_to_scream_physics"] = (
+            ds[f"physics_{var}_tend"] - ds[f"nudging_{var}_tend"]
+        )
+    return ds
+
+
+def rename_nudging_tendencies(ds: xr.Dataset, nudging_variables: list):
+    rename_dict = {}
+    for var in nudging_variables:
+        rename_dict[f"nudging_{var}_tend"] = f"{var}_tendency_due_to_nudging"
+    ds = ds.rename(rename_dict)
+    return ds
+
+
+def rename_delp(ds: xr.Dataset):
+    ds = ds.rename({"pseudo_density": "pressure_thickness_of_atmospheric_layer"})
+    return ds
+
+
+def convert_npdatetime_to_cftime(ds: xr.Dataset):
+    if isinstance(ds.time.values[0], np.datetime64):
+        cf_time = []
+        for date in ds.time.values:
+            date = pd.to_datetime(date)
+            cf_time.append(
+                cftime.DatetimeJulian(
+                    date.year,
+                    date.month,
+                    date.day,
+                    date.hour,
+                    date.minute,
+                    date.second,
+                )
+            )
+        ds["time"] = xr.DataArray(cf_time, coords=ds.time.coords, attrs=ds.time.attrs)
+    return ds
+
+
+def rename_lev_to_z(ds: xr.Dataset):
+    rename_vars = {"lev": "z", "ilev": "z_interface"}
+    rename_vars = {k: v for k, v in rename_vars.items() if k in ds.dims}
+    return ds.rename(rename_vars)
+
+
+def rename_water_vapor_path(ds: xr.Dataset):
+    return ds.rename({"VapWaterPath": "water_vapor_path"})
+
+
+def _get_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "input_data", type=str, default=None, help=("Input netcdf."),
+    )
+    parser.add_argument(
+        "output_path",
+        type=str,
+        help="Local or remote path where output will be written.",
+    )
+    parser.add_argument(
+        "nudging_variables",
+        type=str,
+        help="List of nudging variables deliminated with commas",
+    )
+    parser.add_argument(
+        "--split-horiz-winds",
+        type=bool,
+        default=False,
+        help="Split horiz_winds to u and v",
+    )
+    parser.add_argument(
+        "--calc-physics-tend",
+        type=bool,
+        default=False,
+        help="Back out physics only tendencies",
+    )
+    parser.add_argument(
+        "--rename-nudging-tend",
+        type=bool,
+        default=False,
+        help="Rename nudging tendencies",
+    )
+    parser.add_argument(
+        "--rename-delp",
+        type=bool,
+        default=False,
+        help="Rename psuedo density to pressure thickness",
+    )
+
+    parser.add_argument(
+        "--rename-lev-to-z",
+        type=bool,
+        default=False,
+        help="Rename psuedo density to pressure thickness",
+    )
+
+    parser.add_argument(
+        "--convert-to-cftime",
+        type=bool,
+        default=False,
+        help="Convert time type to cftime",
+    )
+
+    parser.add_argument(
+        "--rename-water-vapor-path",
+        type=bool,
+        default=False,
+        help="Rename VapWaterPath to water_vapor_path",
+    )
+    return parser
+
+
+if __name__ == "__main__":
+    parser = _get_parser()
+    args = parser.parse_args()
+    ds = xr.open_mfdataset(args.input_data)
+    nudging_vars = [str(item) for item in args.nudging_variables.split(",")]
+    if args.split_horiz_winds:
+        ds = split_horiz_winds(ds)
+    if args.calc_physics_tend:
+        ds = compute_tendencies_due_to_scream_physics(ds, nudging_vars)
+    if args.rename_nudging_tend:
+        ds = rename_nudging_tendencies(ds, nudging_vars)
+    if args.rename_delp:
+        ds = rename_delp(ds)
+    if args.convert_to_cftime:
+        ds = convert_npdatetime_to_cftime(ds)
+    if args.rename_lev_to_z:
+        ds = rename_lev_to_z(ds)
+    if args.rename_water_vapor_path:
+        ds = rename_water_vapor_path(ds)
+    nudging_variables_tendencies = [
+        f"{var}_tendency_due_to_nudging" for var in nudging_vars
     ]
-    ds[nudging_variables].to_zarr(
-        os.path.join(output_path, "nudging_tendencies.zarr"), consolidated=True
+    ds[nudging_variables_tendencies].to_zarr(
+        os.path.join(args.output_path, "nudging_tendencies.zarr"), consolidated=True
     )
     physics_tendencies = [
-        "tendency_of_T_mid_due_to_scream_physics",
-        "tendency_of_qv_due_to_scream_physics",
-        "tendency_of_eastward_wind_due_to_scream_physics",
-        "tendency_of_northward_wind_due_to_scream_physics",
+        f"tendency_of_{var}_due_to_scream_physics" for var in nudging_vars
     ]
     ds[physics_tendencies].to_zarr(
-        os.path.join(output_path, "physics_tendencies.zarr"), consolidated=True
+        os.path.join(args.output_path, "physics_tendencies.zarr"), consolidated=True
     )
-    ds.drop(nudging_variables).drop(physics_tendencies).to_zarr(
-        os.path.join(output_path, output_file_name), consolidated=True
+    ds.drop(nudging_variables_tendencies).drop(physics_tendencies).to_zarr(
+        os.path.join(args.output_path, "state_after_timestep.zarr"), consolidated=True
     )

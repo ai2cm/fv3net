@@ -1,6 +1,9 @@
+import os
 import numpy as np
 import xarray as xr
 import vcm
+import vcm.catalog
+import intake
 import pytest
 from fv3net.diagnostics.offline._helpers import (
     DATASET_DIM_NAME,
@@ -112,15 +115,33 @@ def test_insert_column_integrated_vars():
     xr.testing.assert_allclose(insert_column_integrated_vars(ds, ["Q1"]), expected)
 
 
+def test_load_grid_info_from_custom_catalog(datadir):
+    # This test is dedicated to validate the response of "load_grid_info" function
+    # on a bogus catalog file. Retrieving the grid information with a non-existing
+    # resolution string generates the "KeyError".
+
+    res = "c12"
+    catalog_path = os.path.join(datadir, "catalog_dummy.yaml")
+    catalog = intake.open_catalog(catalog_path)
+
+    with pytest.raises(KeyError):
+        load_grid_info(catalog, res)
+
+
 @pytest.mark.parametrize(
-    "res, dim_name, expected_size",
-    [("c12", "x", 12), ("c48", "x", 48), ("ne30", "ncol", 21600),],
+    "res, catalog, dim_name, expected_size",
+    [
+        ("c12", vcm.catalog.catalog, "x", 12),
+        ("c48", vcm.catalog.catalog, "x", 48),
+        ("ne30", vcm.catalog.catalog, "ncol", 21600),
+    ],
 )
-def test_load_grid_info(res, dim_name, expected_size):
-    grid = load_grid_info(res)
+def test_load_grid_info(res, catalog, dim_name, expected_size):
+    grid = load_grid_info(catalog, res)
     assert grid.dims[dim_name] == expected_size
 
 
 def test_load_grid_info_unknown_resolution():
+    catalog = vcm.catalog.catalog
     with pytest.raises(ValueError):
-        load_grid_info("t10")
+        load_grid_info(catalog, "t10")

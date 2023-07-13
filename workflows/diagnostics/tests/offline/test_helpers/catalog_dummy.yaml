@@ -1,0 +1,10 @@
+plugins:
+  source:
+    - module: intake_array
+sources:
+  foo:
+    description: dummy entry
+    driver: zarr
+    metadata:
+      grid: b12
+
