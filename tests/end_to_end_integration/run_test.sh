@@ -5,8 +5,8 @@ set -e
 SLEEP_TIME=15
 
 function printUsage {
-    echo "usage: tests/end_to_end_integration_argo/run_test.sh [-s] <registry> <version>"
-    echo "-s will skip the nudge-to-fine portion of the end to end test"
+    echo "usage: tests/end_to_end_integration_argo/run_test.sh [-r] <registry> <version>"
+    echo "-r will run the nudge-to-fine portion of the end to end test"
     exit 1
 }
 
@@ -95,10 +95,10 @@ function dynamicDataConfig {
 
 registry="$1"
 commit="$2"
-runNudgeToFine=true
-while getopts 's' flag; do
+runNudgeToFine=false
+while getopts 'r' flag; do
   case "${flag}" in
-    s) runNudgeToFine="false" ;;
+    r) runNudgeToFine=true ;;
     *) printUsage
        exit 1 ;;
   esac
