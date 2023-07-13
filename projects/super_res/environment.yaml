@@ -1,4 +1,4 @@
-name: vsr2
+name: vsr
 channels:
   - pytorch
   - nvidia
