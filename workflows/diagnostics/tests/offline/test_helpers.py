@@ -142,5 +142,6 @@ def test_load_grid_info(res, catalog, dim_name, expected_size):
 
 
 def test_load_grid_info_unknown_resolution():
+    catalog = vcm.catalog.catalog
     with pytest.raises(ValueError):
-        load_grid_info("t10")
+        load_grid_info(catalog, "t10")
