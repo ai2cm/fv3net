@@ -183,7 +183,7 @@ deploy_docs_prognostic_run:
 # Testing
 ############################################################
 run_integration_tests:
-	./tests/end_to_end_integration/run_test.sh $(REGISTRY) $(VERSION)
+	./tests/end_to_end_integration/run_test.sh $(ARGS) $(REGISTRY) $(VERSION)
 
 test_prognostic_run_report:
 	bash workflows/diagnostics/tests/prognostic/test_integration.sh

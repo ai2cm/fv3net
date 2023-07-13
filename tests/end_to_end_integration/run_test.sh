@@ -2,13 +2,13 @@
 
 set -e
 
-if [[ $# != 2 ]]
-then
-    echo "usage: tests/end_to_end_integration_argo/run_test.sh <registry> <version>"
-    exit 1
-fi
-
 SLEEP_TIME=15
+
+function printUsage {
+    echo "usage: tests/end_to_end_integration_argo/run_test.sh [-s] <registry> <version>"
+    echo "-s will skip the nudge-to-fine portion of the end to end test"
+    exit 1
+}
 
 function getJob {
     argo get $1 -n $2
@@ -73,8 +73,39 @@ EOF
     kustomize build . | kubectl apply -f -
 }
 
+function dynamicDataConfig {
+
+    bucket="$1"
+    project="$2"
+    tag="$3"
+
+    date=$(date -u +'%F')
+    # to avoid fv3net dep, we reimplement 'artifacts generate-url' here
+    n2fDataPath="gs://${bucket}/${project}/${date}/${tag}-nudge-to-fine-run/fv3gfs_run"
+
+    yq -y --arg data_path $n2fDataPath '.mapper_config.kwargs.data_path|=$data_path' \
+    training-data-config.yaml > \
+    training-data-config-compiled.yaml
+
+    yq -y --arg data_path $n2fDataPath '.mapper_config.kwargs.data_path|=$data_path' \
+        test-data-config.yaml > \
+        test-data-config-compiled.yaml
+
+}
+
 registry="$1"
 commit="$2"
+runNudgeToFine=true
+while getopts 's' flag; do
+  case "${flag}" in
+    s) runNudgeToFine="false" ;;
+    *) printUsage
+       exit 1 ;;
+  esac
+done
+registry=${@:$OPTIND:1}
+commit=${@:$OPTIND+1:1}
+
 commitShort="${commit:0:7}"
 random="$(openssl rand --hex 2)"
 tag="${commitShort}-${random}"
@@ -84,11 +115,19 @@ project="test-end-to-end-integration"
 
 cd tests/end_to_end_integration
 
+if [ "$runNudgeToFine" = true ] ; then
+    dynamicDataConfig "${bucket}" "${project}" "${tag}"
+else
+    cp training-data-config.yaml training-data-config-compiled.yaml
+    cp test-data-config.yaml test-data-config-compiled.yaml
+fi
+
 deployWorkflows "$registry" "$commit"
 argo submit argo.yaml -p bucket="${bucket}" -p project="${project}" \
-    -p training-data-config="$(< training-data-config.yaml)" \
-    -p validation-data-config="$(< training-data-config.yaml)" \
-    -p test-data-config="$(< test-data-config.yaml)" \
+    -p training-data-config="$(< training-data-config-compiled.yaml)" \
+    -p validation-data-config="$(< training-data-config-compiled.yaml)" \
+    -p test-data-config="$(< test-data-config-compiled.yaml)" \
+    -p run-nudge-to-fine="${runNudgeToFine}" \
     -p tag="${tag}" --name "$name"
 
 trap "argo logs \"$name\" | tail -n 100" EXIT

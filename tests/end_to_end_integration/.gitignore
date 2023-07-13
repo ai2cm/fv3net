@@ -1,1 +1,3 @@
 kustomization.yaml
+test-data-config-compiled.yaml
+training-data-config-compiled.yaml
