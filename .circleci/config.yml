@@ -142,9 +142,9 @@ jobs:
     docker:
       - image: google/cloud-sdk
     parameters:
-      run-args:
-        default: ""
-        type: string
+      runNudgeToFine:
+        default: False
+        type: boolean
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       CLUSTER_NAME: ml-cluster-dev
@@ -197,7 +197,7 @@ jobs:
       - run:
           name: Submit integration tests
           command: |
-            make run_integration_tests ARGS=<<parameters.run-args>> VERSION=$CIRCLE_SHA1
+            make run_integration_tests ARGS=--runNudgeToFine="<<parameters.runNudgeToFine>>" VERSION=$CIRCLE_SHA1
       - run:
           name: Firewall rule deletion
           when: always
@@ -330,7 +330,7 @@ workflows:
             - build_default
             - build_push_fv3fit_image
             - hold
-          run-args: "-r"
+          runNudgeToFine: True
           filters:
             tags:
               ignore: /^v.*/
@@ -352,5 +352,5 @@ workflows:
     jobs:
       - build_and_test_scream
       - integration_tests:
-          run-args: "-r"
+          runNudgeToFine: True
 

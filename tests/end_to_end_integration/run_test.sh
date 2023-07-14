@@ -5,8 +5,8 @@ set -e
 SLEEP_TIME=15
 
 function printUsage {
-    echo "usage: tests/end_to_end_integration_argo/run_test.sh [-r] <registry> <version>"
-    echo "-r will run the nudge-to-fine portion of the end to end test"
+    echo "usage: tests/end_to_end_integration_argo/run_test.sh [--runNudgeToFine=True] <registry> <version>"
+    echo "--runNudgeToFine=True will run the nudge-to-fine portion of the end to end test"
     exit 1
 }
 
@@ -95,18 +95,32 @@ function dynamicDataConfig {
 
 }
 
-registry="$1"
-commit="$2"
-runNudgeToFine=false
-while getopts 'r' flag; do
-  case "${flag}" in
-    r) runNudgeToFine=true ;;
-    *) printUsage
-       exit 1 ;;
-  esac
+runNudgeToFine=False
+
+while (( "$#" )); do
+    case $1 in
+        --runNudgeToFine=?*)
+            runNudgeToFine=${1#*=} # Remove the '--runNudgeToFine=' part of the string to get the value
+            ;;
+        --help)
+            printUsage
+            exit
+            ;;
+        --) # End of options
+            shift
+            break
+            ;;
+        -?*)
+            printf 'WARN: Unknown option (ignored): %s\n' "$1" >&2
+            ;;
+        *) # Default case: If it's not a keyword argument, treat it as a positional argument
+            positional_args+=("$1")
+    esac
+    shift
 done
-registry=${@:$OPTIND:1}
-commit=${@:$OPTIND+1:1}
+
+registry="${positional_args[0]}"
+commit="${positional_args[1]}"
 
 commitShort="${commit:0:7}"
 random="$(openssl rand --hex 2)"
@@ -117,7 +131,7 @@ project="test-end-to-end-integration"
 
 cd tests/end_to_end_integration
 
-if [ "$runNudgeToFine" = true ] ; then
+if [ "$runNudgeToFine" = True ] ; then
     dynamicDataConfig "${bucket}" "${project}" "${tag}"
     limitMinutes="60"
 else
