@@ -315,7 +315,7 @@ workflows:
                 - fv3net
                 - artifacts
       - build_default:
-          name: "build/push fv3fit image"
+          name: "build_push_fv3fit_image"
           image: fv3fit
           requires:
             - pytest
@@ -328,6 +328,7 @@ workflows:
       - integration_tests:
           requires:
             - build_default
+            - build_push_fv3fit_image
             - hold
           run-args: "-r"
           filters:
@@ -339,6 +340,7 @@ workflows:
       - integration_tests:
           requires:
             - build_default
+            - build_push_fv3fit_image
           filters:
             tags:
               only: /^v.*/
