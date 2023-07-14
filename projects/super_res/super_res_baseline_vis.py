@@ -1,3 +1,5 @@
+"""Visualize some fields and compare to a trivial nearest-neighbor baseline."""
+
 import xarray as xr
 import numpy as np
 import fv3viz
