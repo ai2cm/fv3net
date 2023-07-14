@@ -1,0 +1,30 @@
+name: vsr
+channels:
+  - pytorch
+  - nvidia
+  - anaconda
+  - conda-forge
+dependencies:
+  - python=3.8
+  - torchvision
+  - pytorch
+  - pytorch-cuda=11.8
+  - notebook
+  - nb_conda_kernels
+  - jupyter_contrib_nbextensions
+  - einops
+  - pillow
+  - tqdm
+  - timm
+  - kornia
+  - accelerate
+  - xarray
+  - seaborn
+  - zarr
+  - google-cloud-sdk
+  - fsspec
+  - gcsfs
+  - joblib
+  - cftime
+  - wandb
+  - pip
