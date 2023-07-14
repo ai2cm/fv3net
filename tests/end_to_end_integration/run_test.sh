@@ -26,7 +26,8 @@ function waitForComplete {
     # Sleep while job is active
     jobName=$1
     NAMESPACE=$2
-    timeout=$(date -ud "35 minutes" +%s)
+    limitMinutes=$3
+    timeout=$(date -ud "${limitMinutes} minutes" +%s)
     job_phase=$(getPhase $jobName $NAMESPACE)
     continue_phases="Running Pending null"  # job phase may be Pending or null initially
     while [[ $(date +%s) -le $timeout && "$(grep $job_phase <<< $continue_phases )" ]]
@@ -117,9 +118,11 @@ cd tests/end_to_end_integration
 
 if [ "$runNudgeToFine" = true ] ; then
     dynamicDataConfig "${bucket}" "${project}" "${tag}"
+    limitMinutes="60"
 else
     cp training-data-config.yaml training-data-config-compiled.yaml
     cp test-data-config.yaml test-data-config-compiled.yaml
+    limitMinutes="35"
 fi
 
 deployWorkflows "$registry" "$commit"
@@ -133,4 +136,4 @@ argo submit argo.yaml -p bucket="${bucket}" -p project="${project}" \
 trap "argo logs \"$name\" | tail -n 100" EXIT
 
 # argo's wait/watch features are buggy, so roll our own
-waitForComplete $name default
+waitForComplete $name default $limitMinutes
