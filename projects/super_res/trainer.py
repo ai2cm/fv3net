@@ -39,9 +39,6 @@ def main():
             num_workers = 4,
         )
 
-
-    # TODO: create results dir if not exists.
-
     trainer = Trainer(
         diffusion,
         train_dl,
