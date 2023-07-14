@@ -143,7 +143,7 @@ jobs:
       - image: google/cloud-sdk
     parameters:
       runNudgeToFine:
-        default: False
+        default: false
         type: boolean
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
@@ -330,7 +330,7 @@ workflows:
             - build_default
             - build_push_fv3fit_image
             - hold
-          runNudgeToFine: True
+          runNudgeToFine: true
           filters:
             tags:
               ignore: /^v.*/
@@ -352,5 +352,5 @@ workflows:
     jobs:
       - build_and_test_scream
       - integration_tests:
-          runNudgeToFine: True
+          runNudgeToFine: true
 

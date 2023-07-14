@@ -5,8 +5,8 @@ set -e
 SLEEP_TIME=15
 
 function printUsage {
-    echo "usage: tests/end_to_end_integration_argo/run_test.sh [--runNudgeToFine=True] <registry> <version>"
-    echo "--runNudgeToFine=True will run the nudge-to-fine portion of the end to end test"
+    echo "usage: tests/end_to_end_integration_argo/run_test.sh [--runNudgeToFine=true] <registry> <version>"
+    echo "--runNudgeToFine=true will run the nudge-to-fine portion of the end to end test"
     exit 1
 }
 
@@ -95,7 +95,7 @@ function dynamicDataConfig {
 
 }
 
-runNudgeToFine=False
+runNudgeToFine=false
 
 while (( "$#" )); do
     case $1 in
@@ -131,7 +131,7 @@ project="test-end-to-end-integration"
 
 cd tests/end_to_end_integration
 
-if [ "$runNudgeToFine" = True ] ; then
+if [ "$runNudgeToFine" = true ] ; then
     dynamicDataConfig "${bucket}" "${project}" "${tag}"
     limitMinutes="60"
 else

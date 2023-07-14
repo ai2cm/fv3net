@@ -6,7 +6,7 @@ spec:
   arguments:
     parameters:
       - name: run-nudge-to-fine
-        value: "True"
+        value: true
       - name: nudge-to-fine-config
         value: |
           base_version: v0.7
@@ -349,7 +349,7 @@ spec:
         templateRef:
           name: prognostic-run
           template: prognostic-run
-        when: "{{workflow.parameters.run-nudge-to-fine}} == True"
+        when: "{{workflow.parameters.run-nudge-to-fine}} == true"
         arguments:
           parameters:
           - name: bucket
