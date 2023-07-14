@@ -11,3 +11,12 @@ Then activate the environment
 ```
 conda activate vsr
 ```
+
+# Getting access to data
+
+Currently, we load the data dynamically from a Google Cloud Storage bucket on each training run. To get access from a non-Google Cloud Platform (GCP) machine, we have found that you sometimes need to run.
+
+```
+gcloud auth application-default login
+```
+
