@@ -2,13 +2,13 @@
 
 set -e
 
-if [[ $# != 2 ]]
-then
-    echo "usage: tests/end_to_end_integration_argo/run_test.sh <registry> <version>"
-    exit 1
-fi
-
 SLEEP_TIME=15
+
+function printUsage {
+    echo "usage: tests/end_to_end_integration_argo/run_test.sh [--runNudgeToFine=true] <registry> <version>"
+    echo "--runNudgeToFine=true will run the nudge-to-fine portion of the end to end test"
+    exit 1
+}
 
 function getJob {
     argo get $1 -n $2
@@ -26,7 +26,8 @@ function waitForComplete {
     # Sleep while job is active
     jobName=$1
     NAMESPACE=$2
-    timeout=$(date -ud "35 minutes" +%s)
+    limitMinutes=$3
+    timeout=$(date -ud "${limitMinutes} minutes" +%s)
     job_phase=$(getPhase $jobName $NAMESPACE)
     continue_phases="Running Pending null"  # job phase may be Pending or null initially
     while [[ $(date +%s) -le $timeout && "$(grep $job_phase <<< $continue_phases )" ]]
@@ -66,6 +67,7 @@ EOF
 
     kustomize edit set image \
         us.gcr.io/vcm-ml/prognostic_run="$registry/prognostic_run:$commit" \
+        us.gcr.io/vcm-ml/fv3fit="$registry/fv3fit:$commit" \
         us.gcr.io/vcm-ml/fv3net="$registry/fv3net:$commit" \
         us.gcr.io/vcm-ml/post_process_run="$registry/post_process_run:$commit" \
         us.gcr.io/vcm-ml/artifacts="$registry/artifacts:$commit"
@@ -73,38 +75,80 @@ EOF
     kustomize build . | kubectl apply -f -
 }
 
-registry="$1"
-commit="$2"
+function dynamicDataConfig {
+
+    bucket="$1"
+    project="$2"
+    tag="$3"
+
+    date=$(date -u +'%F')
+    # to avoid fv3net dep, we reimplement 'artifacts generate-url' here
+    n2fDataPath="gs://${bucket}/${project}/${date}/${tag}-nudge-to-fine-run/fv3gfs_run"
+
+    yq -y --arg data_path $n2fDataPath '.mapper_config.kwargs.data_path|=$data_path' \
+    training-data-config.yaml > \
+    training-data-config-compiled.yaml
+
+    yq -y --arg data_path $n2fDataPath '.mapper_config.kwargs.data_path|=$data_path' \
+        test-data-config.yaml > \
+        test-data-config-compiled.yaml
+
+}
+
+runNudgeToFine=false
+
+while (( "$#" )); do
+    case $1 in
+        --runNudgeToFine=?*)
+            runNudgeToFine=${1#*=} # Remove the '--runNudgeToFine=' part of the string to get the value
+            ;;
+        --help)
+            printUsage
+            exit
+            ;;
+        --) # End of options
+            shift
+            break
+            ;;
+        -?*)
+            printf 'WARN: Unknown option (ignored): %s\n' "$1" >&2
+            ;;
+        *) # Default case: If it's not a keyword argument, treat it as a positional argument
+            positional_args+=("$1")
+    esac
+    shift
+done
+
+registry="${positional_args[0]}"
+commit="${positional_args[1]}"
+
 commitShort="${commit:0:7}"
 random="$(openssl rand --hex 2)"
 tag="${commitShort}-${random}"
 name="integration-test-${tag}"
 bucket="vcm-ml-scratch"
 project="test-end-to-end-integration"
-date=$(date -u +'%F')
-
-# to avoid fv3net dep, we reimplement 'artifacts generate-url' here
-n2fDataPath="gs://${bucket}/${project}/${date}/${tag}-nudge-to-fine-run/fv3gfs_run"
 
 cd tests/end_to_end_integration
 
-yq -y --arg data_path $n2fDataPath '.mapper_config.kwargs.data_path|=$data_path' \
-    training-data-config.yaml > \
-    training-data-config-compiled.yaml
-
-yq -y --arg data_path $n2fDataPath '.mapper_config.kwargs.data_path|=$data_path' \
-    test-data-config.yaml > \
-    test-data-config-compiled.yaml
-
+if [ "$runNudgeToFine" = true ] ; then
+    dynamicDataConfig "${bucket}" "${project}" "${tag}"
+    limitMinutes="60"
+else
+    cp training-data-config.yaml training-data-config-compiled.yaml
+    cp test-data-config.yaml test-data-config-compiled.yaml
+    limitMinutes="35"
+fi
 
 deployWorkflows "$registry" "$commit"
 argo submit argo.yaml -p bucket="${bucket}" -p project="${project}" \
     -p training-data-config="$(< training-data-config-compiled.yaml)" \
     -p validation-data-config="$(< training-data-config-compiled.yaml)" \
     -p test-data-config="$(< test-data-config-compiled.yaml)" \
+    -p run-nudge-to-fine="${runNudgeToFine}" \
     -p tag="${tag}" --name "$name"
 
 trap "argo logs \"$name\" | tail -n 100" EXIT
 
 # argo's wait/watch features are buggy, so roll our own
-waitForComplete $name default
+waitForComplete $name default $limitMinutes
