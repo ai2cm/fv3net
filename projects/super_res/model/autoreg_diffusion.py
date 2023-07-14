@@ -1178,7 +1178,8 @@ class Trainer(object):
             self.ema = EMA(diffusion_model, beta = ema_decay, update_every = ema_update_every)
             
         self.results_folder = Path(results_folder)
-        self.results_folder.mkdir(exist_ok = True)
+
+        self.results_folder.mkdir(exist_ok=True, parents=True)
         
         self.eval_folder = eval_folder
 
