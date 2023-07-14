@@ -46,7 +46,7 @@ xpartition>=0.2.1
 xarray >= 0.19.0
 
 # developer tools
-conda-lock
+conda-lock<1.0.0
 pip-tools
 tox
 pre-commit

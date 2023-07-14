@@ -8,9 +8,9 @@ CONDA_BASE=$(conda info --base)
 case $(uname) in
     Darwin)
         case $(uname -m) in
-            # arm64)
-            #     packages=conda-osx-arm64.lock
-            #     ;;
+            arm64)
+                packages=conda-osx-arm64.lock
+                ;;
             x86_64)
                 packages=conda-osx-64.lock
                 ;;

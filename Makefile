@@ -238,10 +238,9 @@ update_submodules:
 ############################################################
 
 lock_deps: lock_pip
-	conda-lock -f environment.yml
-	conda-lock render
-	# external directories must be explicitly listed to avoid model requirements files which use locked versions
+	conda-lock -f environment.yml -p osx-64 -p osx-arm64 -p linux-64
 
+# external directories must be explicitly listed to avoid model requirements files which use locked versions
 REQUIREMENTS = external/vcm/setup.py \
 	pip-requirements.txt \
 	external/fv3kube/setup.py \
