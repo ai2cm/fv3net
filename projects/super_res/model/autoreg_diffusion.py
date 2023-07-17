@@ -1128,9 +1128,17 @@ class Trainer(object):
         self.accelerator = Accelerator(
             split_batches = split_batches,
             mixed_precision = 'fp16' if fp16 else 'no',
-            log_with = 'wandb'
+            log_with = 'wandb',
         )
-        self.accelerator.init_trackers(project_name="vsr-orig-autoreg-hres")
+        self.accelerator.init_trackers("vsr-orig-autoreg-hres", 
+            init_kwargs={
+                "wandb": {
+                    "notes": "Use VSR to improve precipitation forecasting.",
+                    # Change "name" to set the name of the run.
+                    "name":  None,
+                }
+            },
+        )
         self.config = config
         self.accelerator.native_amp = amp
 
