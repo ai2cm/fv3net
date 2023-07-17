@@ -3,3 +3,4 @@ flow_vis==0.1
 piq==0.8.0
 moviepy
 imageio
+ml-collections
