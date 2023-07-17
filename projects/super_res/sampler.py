@@ -2,7 +2,7 @@ import os
 
 from model.autoreg_diffusion import Unet, Flow, GaussianDiffusion, Trainer
 from data.load_data import load_data
-import config_infer as config
+from config_infer import config
 
 model = Unet(
     dim = config.dim,

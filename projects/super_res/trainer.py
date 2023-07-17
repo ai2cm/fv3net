@@ -2,7 +2,7 @@ import os
 
 from model.autoreg_diffusion import Unet, Flow, GaussianDiffusion, Trainer
 from data.load_data import load_data
-import config
+from config import config
 
 def main():
     model = Unet(
@@ -62,4 +62,5 @@ def main():
 
 
 if __name__ == "__main__":
+    print(config)
     main()
