@@ -1,28 +1,33 @@
-dim = 64
-dim_mults = (1, 1, 2, 2, 4, 4)
-learned_sinusoidal_cond = True,
-random_fourier_features = True,
-learned_sinusoidal_dim = 32
-diffusion_steps = 1400
-sampling_steps = 6
-loss = "l1"
-objective = "pred_v"
-lr = 8e-5
-steps = 5000000
-grad_acc = 2
-val_num_of_batch = 2
-save_and_sample_every = 5000
-ema_decay = 0.995
-amp = False
-split_batches = True
-additional_note = ""
-eval_folder = "./evaluate"
-results_folder = "./results"
-tensorboard_dir = "./tensorboard"
-milestone = 1
+from ml_collections import config_dict
 
-batch_size = 2
-data_config = {
+config = config_dict.ConfigDict()
+
+
+config.dim = 64
+config.dim_mults = (1, 1, 2, 2, 4, 4)
+config.learned_sinusoidal_cond = True,
+config.random_fourier_features = True,
+config.learned_sinusoidal_dim = 32
+config.diffusion_steps = 1400
+config.sampling_steps = 6
+config.loss = "l1"
+config.objective = "pred_v"
+config.lr = 8e-5
+config.steps = 5000000
+config.grad_acc = 2
+config.val_num_of_batch = 2
+config.save_and_sample_every = 5000
+config.ema_decay = 0.995
+config.amp = False
+config.split_batches = True
+config.additional_note = ""
+config.eval_folder = "./evaluate"
+config.results_folder = "./results"
+config.tensorboard_dir = "./tensorboard"
+config.milestone = 1
+
+config.batch_size = 2
+config.data_config = config_dict.ConfigDict({
     "dataset_name": "c384",
     "length": 7,
     #"channels": ["UGRD10m_coarse","VGRD10m_coarse"],
@@ -31,7 +36,7 @@ data_config = {
     "img_channel": 1,
     "img_size": 384,
     "logscale": True
-}
+})
 
-data_name = f"{data_config['dataset_name']}-{data_config['channels']}-{objective}-{loss}-d{dim}-t{diffusion_steps}{additional_note}"
-model_name = f"c384-{data_config['channels']}-{objective}-{loss}-d{dim}-t{diffusion_steps}{additional_note}"
+data_name = f"{config.data_config['dataset_name']}-{config.data_config['channels']}-{config.objective}-{config.loss}-d{config.dim}-t{config.diffusion_steps}{config.additional_note}"
+model_name = f"c384-{config.data_config['channels']}-{config.objective}-{config.loss}-d{config.dim}-t{config.diffusion_steps}{config.additional_note}"
