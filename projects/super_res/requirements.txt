@@ -1,3 +1,5 @@
 ema_pytorch==0.2.3
 flow_vis==0.1
 piq==0.8.0
+moviepy
+imageio
