@@ -21,7 +21,7 @@ results_folder = "./results"
 tensorboard_dir = "./tensorboard"
 milestone = 1
 
-batch_size = 2
+batch_size = 4
 data_config = {
     "dataset_name": "c384",
     "length": 7,
@@ -29,7 +29,8 @@ data_config = {
     "channels": ["PRATEsfc_coarse"],
     #"img_channel": 2,
     "img_channel": 1,
-    "img_size": 384
+    "img_size": 384,
+    "logscale": True
 }
 
 data_name = f"{data_config['dataset_name']}-{data_config['channels']}-{objective}-{loss}-d{dim}-t{diffusion_steps}{additional_note}"
