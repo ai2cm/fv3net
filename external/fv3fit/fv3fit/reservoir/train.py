@@ -57,7 +57,7 @@ def train_reservoir_model(
     subdomain_config = hyperparameters.subdomain
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
-    rank_extent = sample_X[0].shape[1:-1]
+    rank_extent = tuple(sample_X[0].shape[1:-1])
     rank_divider = RankDivider(
         subdomain_layout=subdomain_config.layout,
         rank_dims=subdomain_config.rank_dims,
