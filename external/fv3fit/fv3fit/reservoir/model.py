@@ -149,10 +149,12 @@ class HybridDatasetAdapter:
         transposed_inputs = _transpose_xy_dims(
             ds=inputs, rank_dims=self.model.rank_divider.rank_dims
         )
-        input_arrs = [
-            transposed_inputs[variable].values
-            for variable in self.model.input_variables
-        ]
+        input_arrs = []
+        for variable in self.model.input_variables:
+            da = transposed_inputs[variable]
+            if "z" not in da.dims:
+                da = da.expand_dims("z", axis=-1)
+            input_arrs.append(da.values)
         return input_arrs
 
     def _output_array_to_ds(
