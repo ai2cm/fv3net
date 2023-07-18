@@ -34,7 +34,8 @@ config.data_config = config_dict.ConfigDict({
     "channels": ["PRATEsfc_coarse"],
     #"img_channel": 2,
     "img_channel": 1,
-    "img_size": 384
+    "img_size": 384,
+    "logscale": True
 })
 
 data_name = f"{config.data_config['dataset_name']}-{config.data_config['channels']}-{config.objective}-{config.loss}-d{config.dim}-t{config.diffusion_steps}{config.additional_note}"

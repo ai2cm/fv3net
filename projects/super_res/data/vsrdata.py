@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 
 class VSRDataset(Dataset):
     
-    def __init__(self, channels, mode, length):
+    def __init__(self, channels, mode, length, logscale = False):
         '''
         Args:
             channels (list): list of channels to use
@@ -21,6 +21,10 @@ class VSRDataset(Dataset):
         # shape : (tile, time, channel, y, x)
         c384_np = np.stack([c384[channel].values for channel in channels], axis = 2)
         c48_np = np.stack([c48[channel].values for channel in channels], axis = 2)
+
+        if logscale:
+            c384_np = np.log(c384_np - c384_np.min() + 1e-14)
+            c48_np = np.log(c48_np - c48_np.min() + 1e-14)
 
         # calculate split (80/20)
         split = int(c384_np.shape[1] * 0.8)

@@ -31,7 +31,6 @@ from PIL import Image
 
 import matplotlib as mpl
 from matplotlib.cm import ScalarMappable as smap
-from matplotlib.colors import LogNorm
 
 from tqdm.auto import tqdm
 from ema_pytorch import EMA
@@ -1320,6 +1319,7 @@ class Trainer(object):
         self.ema.ema_model.eval()
 
         cmap = mpl.colormaps['viridis']
+        sm = smap(None, cmap)
 
         with torch.no_grad():
 
@@ -1336,9 +1336,6 @@ class Trainer(object):
                     
                     #videos, base, nsteps, flows = self.ema.ema_model.sample(lres, hres, True)
                     videos, base, nsteps, flows = self.ema.ema_model.sample(lres, hres)
-
-                    vmax = torch.max(torch.max(videos.max(), hres.max()), lres.max()).cpu().numpy()
-                    sm = smap(LogNorm(vmin = 1e-5, vmax = vmax), cmap)
 
                     torch.save(videos, os.path.join(self.eval_folder) + "/gen.pt")
                     torch.save(hres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_hr.pt")
