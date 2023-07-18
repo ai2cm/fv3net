@@ -42,11 +42,9 @@ def process_batch_Xy_data(
     # output has no halo information
     output_rank_divider = input_rank_divider.get_no_overlap_rank_xy_divider()
 
-    X_data = input_rank_divider.get_all_subdomains(batch_data_encoded)
-    Y_data = output_rank_divider.get_all_subdomains(batch_data_encoded)
-
-    # to dims of  time, subdomain, features
-    X_flat = input_rank_divider.flatten_subdomain_features(X_data)
-    Y_flat = output_rank_divider.flatten_subdomain_features(Y_data)
+    X_flat = input_rank_divider.get_all_subdomains_with_flat_feature(batch_data_encoded)
+    Y_flat = output_rank_divider.get_all_subdomains_with_flat_feature(
+        batch_data_encoded
+    )
 
     return X_flat, Y_flat

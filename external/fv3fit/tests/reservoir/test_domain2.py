@@ -5,6 +5,7 @@ from fv3fit.reservoir.domain2 import (
     RankXYDivider,
     OverlapRankXYDivider,
 )
+from fv3fit.reservoir.domain import RankDivider
 
 
 def test_check_feature_dims_consistent():
@@ -37,9 +38,28 @@ def test_check_feature_dims_consistent():
         _check_feature_dims_consistent(data_shape, feature_shape)
 
 
-def get_4x4_rank_domain():
+def get_4x4_rank_domain(overlap: int = None):
+    return np.arange(16).reshape((4, 4))
 
-    return np.array([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]])
+
+def test_rank_divider_init():
+    divider = RankXYDivider((2, 2), (4, 4))
+    assert divider.n_subdomains == 4
+
+    # 2D layout error
+    with pytest.raises(ValueError):
+        RankXYDivider((2, 2, 3), (4, 4))
+
+    # 2D extent error
+    with pytest.raises(ValueError):
+        RankXYDivider((2, 2), (4, 4, 3))
+
+    # extent divisibility
+    with pytest.raises(ValueError):
+        RankXYDivider((2, 2), (3, 4))
+
+    with pytest.raises(ValueError):
+        RankXYDivider((2, 2), (4, 3))
 
 
 def test_get_subdomain():
@@ -105,6 +125,7 @@ def test_get_all_subdomains():
 
 
 def test_get_all_subdomains_with_leading():
+    # Checks that subdomain axis is added in the proper location
     ntimes = 3
     rank_domain = np.array([get_4x4_rank_domain()] * ntimes)
 
@@ -160,10 +181,8 @@ def test_all_subdomain_merge_roundtrip():
     # Test with valid input including a leading dimension
     divider = RankXYDivider((2, 2), (10, 20), 3)
     data = np.random.rand(15, 10, 20, 3)
-    divided = divider.get_all_subdomains(data)
-    divided_flat = divider.flatten_subdomain_features(divided)
-    divided_reshaped = divider.reshape_flat_subdomain_features(divided_flat)
-    merged = divider.merge_all_subdomains(divided_reshaped)
+    divided_flat = divider.get_all_subdomains_with_flat_feature(data)
+    merged = divider.merge_all_flat_feature_subdomains(divided_flat)
     np.testing.assert_equal(merged, data)
 
 
@@ -171,7 +190,7 @@ def test_get_overlap_subdomain():
 
     rank_domain = get_4x4_rank_domain()
 
-    # Test with valid input
+    # Test 1x1 subdomains with overlap 1
     divider = OverlapRankXYDivider((2, 2), (4, 4), overlap=1)
     subdomain = divider.get_subdomain(rank_domain, 0)
     np.testing.assert_equal(subdomain, np.array([[0, 1, 2], [4, 5, 6], [8, 9, 10]]))
@@ -184,3 +203,21 @@ def test_get_overlap_subdomain():
 
     with pytest.raises(ValueError):
         divider.get_subdomain(rank_domain[0:2], 0)
+
+
+# TODO: used as a direct comparison, delete when no longer needed
+def test_sbudomain_decomp_against_original_RankDivider():
+    original = RankDivider((2, 2), ["x", "y"], (4, 4), overlap=1)
+    new = OverlapRankXYDivider((2, 2), (4, 4), overlap=1)
+
+    rank_domain = get_4x4_rank_domain(overlap=1)
+
+    # returns flat_feature, subdomain
+    orig_sub_flat = original.flatten_subdomains_to_columns(
+        rank_domain, with_overlap=True
+    )
+
+    # returns subdomain, flat_feature
+    new_sub_flat = new.get_all_subdomains_with_flat_feature(rank_domain)
+
+    np.testing.assert_equal(orig_sub_flat.T, new_sub_flat)

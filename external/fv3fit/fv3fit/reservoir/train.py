@@ -65,7 +65,7 @@ def train_reservoir_model(
     # subdomain+halo are are flattened into feature dimension
     reservoir = Reservoir(
         hyperparameters=hyperparameters.reservoir_hyperparameters,
-        input_size=rank_divider.flat_subdomain_shape[0],
+        input_size=rank_divider._flat_subdomain_shape[0],
     )
 
     # One readout is trained per subdomain when iterating over batches,

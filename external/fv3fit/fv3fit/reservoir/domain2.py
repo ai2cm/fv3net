@@ -15,16 +15,34 @@ def _check_feature_dims_consistent(data_shape, feature_shape):
 
 
 class RankXYDivider:
+    """
+    Base rank divider class for handling subdomains on a tile
+    (with no overlaps).  Useful for breaking into subdomains
+    for smaller training/prediction tasks.
+
+    Args:
+        subdomain_layout: layout describing subdomain grid within the rank
+            ex. [2,2] means the rank is divided into 4 subdomains
+        rank_extent: Shape of the tile (e.g., [48, 48] for C48 grid)
+        z_feature: Optional trailing feature dimension.  Always assumed
+            to be follow the rank_extent dimensions.
+    """
+
     def __init__(
         self,
         subdomain_layout: Tuple[int, int],
-        # shape of full x,y data, including overlap,
-        # easier to initialize from halo included data
         rank_extent: Tuple[int, int],
         z_feature: Optional[int] = None,
     ):
         if len(subdomain_layout) != 2:
             raise ValueError("Rank divider only handles 2D subdomain layouts")
+
+        if len(rank_extent) != 2:
+            raise ValueError(
+                "Rank divider only handles 2D rank extents. A feature dimension "
+                "should be included using 'z_feature' and leading dimensions "
+                "should be excluded."
+            )
 
         self.rank_extent = rank_extent
         self._extent_for_check = rank_extent
@@ -36,54 +54,80 @@ class RankXYDivider:
         self._y_rank_extent = self.rank_extent[1]
         self._z_feature = z_feature
 
-        # TODO: maybe assert that subdomain decomp works
-        # for extent and subdomain layout?
+        self._check_extent_divisibility()
         self._x_subdomain_extent = self._x_rank_extent // self.subdomain_layout[0]
         self._y_subdomain_extent = self._y_rank_extent // self.subdomain_layout[1]
 
     @property
-    def subdomain_xy_extent(self):
+    def subdomain_extent(self):
         return self._x_subdomain_extent, self._y_subdomain_extent
 
     @property
     def _rank_extent_all_features(self):
-        # Used for partitioner slicing, no overlap ever
-        return self._maybe_add_z_value(self.rank_extent, self._z_feature)
+        # Fed into partitioner for slicing, no overlap should ever be used
+        return self._maybe_append_feature_value(self.rank_extent, self._z_feature)
 
     @property
     def _rank_extent_for_check(self):
-        # used for data consistency check, maybe overlap
+        # used for data consistency check, maybe has overlap depending on class
         return self._rank_extent_all_features
 
     @property
     def _rank_dims_all_features(self):
-        # TODO: y might go before "x" since that aligns
-        # with row-major order (also, lat, lon, feature)
-        # probably doesn't matter given x,y agnostic merge
-        # subdomains function
-        return self._maybe_add_z_value(["x", "y"], "z")
+        return self._maybe_append_feature_value(["x", "y"], "z")
 
-    def _maybe_add_z_value(self, rank_values, feature_value):
-        values = list(rank_values)
-        if self._z_feature is not None:
-            values += [feature_value]
-        return values
+    @property
+    def _subdomain_shape(self):
+        return self._maybe_append_feature_value(self.subdomain_extent, self._z_feature)
+
+    @property
+    def _flat_subdomain_shape(self):
+        return [np.prod(self._subdomain_shape)]
+
+    @property
+    def _all_subdomains_shape(self):
+        return [self.n_subdomains, *self._subdomain_shape]
+
+    def _check_extent_divisibility(self):
+        if self._x_rank_extent % self.subdomain_layout[0] != 0:
+            raise ValueError(
+                f"X rank extent {self._x_rank_extent} is not divisible by "
+                f"subdomain layout {self.subdomain_layout[0]}"
+            )
+        if self._y_rank_extent % self.subdomain_layout[1] != 0:
+            raise ValueError(
+                f"Y rank extent {self._y_rank_extent} is not divisible by "
+                f"subdomain layout {self.subdomain_layout[1]}"
+            )
+
+    def _maybe_append_feature_value(self, rank_values, feature_value):
+        to_append = [] if self._z_feature is None else [feature_value]
+        return [*rank_values, *to_append]
 
     def _get_subdomain_slice(self, subdomain_index):
-
         rank_dims = self._rank_dims_all_features
         rank_extent = self._rank_extent_all_features
         return self._partitioner.subtile_slice(subdomain_index, rank_dims, rank_extent)
 
     def _add_potential_leading_dim_to_slices(self, data_shape, dim_slices):
-
-        # add leading dimensions to slice if necessary
         if len(data_shape) > len(self._rank_dims_all_features):
             dim_slices = [..., *dim_slices]
 
         return dim_slices
 
-    def get_subdomain(self, data, subdomain_index):
+    def get_subdomain(self, data: np.ndarray, subdomain_index: int) -> np.ndarray:
+        """
+        Get a subdomain from specified data.  Data must have
+        trailing feature dimensions that match the rank_extent and specified
+        z_feature (if any).
+
+        Args:
+            data: Data to get subdomain from with shape [..., x, y, (z)]
+            subdomain_index: Index of subdomain to retrieve
+
+        Returns:
+            Subdomain of data with shape [..., x_sub, y_sub, (z)]
+        """
 
         if subdomain_index < 0 or subdomain_index >= self.n_subdomains:
             raise ValueError(
@@ -95,51 +139,61 @@ class RankXYDivider:
         dim_slices = self._get_subdomain_slice(subdomain_index)
         dim_slices = self._add_potential_leading_dim_to_slices(data.shape, dim_slices)
 
-        return data[dim_slices]
+        return data[tuple(dim_slices)]
 
-    def get_all_subdomains(self, data):
-
-        new_index_dim = -1 * len(self.all_subdomains_shape)
-        subdomains_with_new_dim = []
-        for i in range(self.n_subdomains):
-            subdomain = self.get_subdomain(data, i)
-            subdomain_newaxis = np.expand_dims(subdomain, axis=new_index_dim)
-            subdomains_with_new_dim.append(subdomain_newaxis)
-        return np.concatenate(subdomains_with_new_dim, axis=new_index_dim)
-
-    @property
-    def subdomain_shape(self):
-        shape = list(self.subdomain_xy_extent)
-        if self._z_feature is not None:
-            shape += [self._z_feature]
-        return shape
-
-    @property
-    def flat_subdomain_shape(self):
-        return [np.prod(self.subdomain_shape)]
-
-    @property
-    def all_subdomains_shape(self):
-        return [self.n_subdomains, *self.subdomain_shape]
-
-    def flatten_subdomain_features(self, data):
-        feature_shape = self.subdomain_shape
+    def flatten_subdomain_features(self, data: np.ndarray) -> np.ndarray:
+        """
+        Flatten trailing feature dimensions of subdomain into a single dimension.
+        """
+        feature_shape = self._subdomain_shape
         _check_feature_dims_consistent(data.shape, feature_shape)
         n_feature_dims = len(feature_shape)
         return data.reshape(list(data.shape[:-n_feature_dims]) + [-1])
 
-    def reshape_flat_subdomain_features(self, data):
-        flat_feature_shape = self.flat_subdomain_shape
+    def reshape_flat_subdomain_features(self, data: np.ndarray) -> np.ndarray:
+        """
+        Reshape flattened trailing feature dimensions of subdomain into original
+        subdomain dimensions.
+        """
+        flat_feature_shape = self._flat_subdomain_shape
         _check_feature_dims_consistent(data.shape, flat_feature_shape)
-        original_shape = list(data.shape[:-1]) + self.subdomain_shape
+        original_shape = list(data.shape[:-1]) + self._subdomain_shape
         return data.reshape(original_shape)
 
-    def merge_all_subdomains(self, data):
-        # [leading, nsubdomains, ..., x, y, (z)]
+    def get_all_subdomains(self, data: np.ndarray) -> np.ndarray:
+        """
+        Retrieve all subdomains from data.  Data must have trailing feature
+        dimensions that match the rank_extent and specified z_feature (if any).
+        Subdomain dimension is added just before the trailing feature dimensions,
+        so any leading dimensions are preserved
 
-        _check_feature_dims_consistent(data.shape, self.all_subdomains_shape)
+        Args:
+            data: Data to get subdomains from with shape [..., x, y, (z)]
+
+        Returns:
+            Subdomains of data with shape [..., n_subdomains, x_sub, y_sub, (z)]
+        """
+
+        new_index_dim = -1 * len(self._all_subdomains_shape)
+        subdomains_with_new_dim = []
+
+        for i in range(self.n_subdomains):
+            subdomain = self.get_subdomain(data, i)
+            subdomain_newaxis = np.expand_dims(subdomain, axis=new_index_dim)
+            subdomains_with_new_dim.append(subdomain_newaxis)
+
+        return np.concatenate(subdomains_with_new_dim, axis=new_index_dim)
+
+    def merge_all_subdomains(self, data: np.ndarray) -> np.ndarray:
+        """
+        Merge separated subdomains into original rank extent shape. For
+        example, data [..., subdomain, x_sub, y_sub, (z)] will be merged into
+        [..., x, y, (z)].
+        """
+
+        _check_feature_dims_consistent(data.shape, self._all_subdomains_shape)
         rank_extent = self._rank_extent_all_features
-        subdomain_axis = -1 * len(self.all_subdomains_shape)
+        subdomain_axis = -1 * len(self._all_subdomains_shape)
         new_shape = list(data.shape[:subdomain_axis]) + rank_extent
         merged = np.empty(new_shape, dtype=data.dtype)
 
@@ -153,11 +207,41 @@ class RankXYDivider:
 
         return merged
 
+    def get_all_subdomains_with_flat_feature(self, data: np.ndarray) -> np.ndarray:
+        """
+        A convenience function that separates into subdomains and flattens
+        the feature dimension.
+        """
+        subdomains = self.get_all_subdomains(data)
+        return self.flatten_subdomain_features(subdomains)
+
+    def merge_all_flat_feature_subdomains(self, data: np.ndarray) -> np.ndarray:
+        """
+        A convenience function that reshapes flat subdomain features to original
+        features and then merges subdomains to the original rank extent shape.
+        """
+        orig_features = self.reshape_flat_subdomain_features(data)
+        return self.merge_all_subdomains(orig_features)
+
 
 class OverlapRankXYDivider(RankXYDivider):
 
     """
-    Adjusted rank divider to handle halo overlap regions
+    Rank divider class for handling subdomains on a tile with
+    a halo and specified subdomain overlap. Useful for breaking
+    reservoir model inputs into subdomains for smaller training/prediction
+    tasks.
+
+    Args:
+        subdomain_layout: layout describing subdomain grid within the rank
+            ex. [2,2] means the rank is divided into 4 subdomains
+        rank_extent: Shape of the tile including the halo (e.g., [52, 52] for a
+            C48 grid with overlap 2.)
+        overlap: Number of overlap points to include in each subdomain.  Adds
+            2 * overlap to the extent of the subdomain expects the same for the
+            overall rank extent.
+        z_feature: Optional trailing feature dimension.  Always assumed
+            to be follow the rank_extent dimensions.
     """
 
     def __init__(
@@ -185,8 +269,7 @@ class OverlapRankXYDivider(RankXYDivider):
             self._y_rank_extent - 2 * self.overlap,
         )
 
-        # TODO: maybe assert that subdomain decomp works
-        # for extent and subdomain layout?
+        self._check_extent_divisibility()
         self._x_subdomain_extent = (
             self.rank_extent[0] // self.subdomain_layout[0] + 2 * self.overlap
         )
@@ -195,11 +278,18 @@ class OverlapRankXYDivider(RankXYDivider):
         )
 
     def get_no_overlap_rank_xy_divider(self):
+        """
+        Retrieves a RankXYDivider instance with the same subdomain layout and
+        no overlap.
+        """
         return RankXYDivider(self.subdomain_layout, self.rank_extent, self._z_feature,)
 
     @property
     def _rank_extent_for_check(self):
-        return self._maybe_add_z_value(self.overlap_rank_extent, self._z_feature)
+        # Uses overlap extent to check data consistency
+        return self._maybe_append_feature_value(
+            self.overlap_rank_extent, self._z_feature
+        )
 
     def _update_slices_with_overlap(self, slices):
         rank_dims = self._rank_dims_all_features
