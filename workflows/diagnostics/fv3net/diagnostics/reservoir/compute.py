@@ -1,13 +1,20 @@
 import argparse
 import fsspec
 import numpy as np
+import os
+from tempfile import NamedTemporaryFile
 from typing import Union, Optional, Sequence
+import xarray as xr
+import vcm
 import yaml
 
 import fv3fit
 from fv3fit.reservoir.utils import get_ordered_X
 from fv3fit.reservoir import ReservoirComputingModel, HybridReservoirComputingModel
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 ReservoirModel = Union[ReservoirComputingModel, HybridReservoirComputingModel]
 
@@ -15,6 +22,7 @@ ReservoirModel = Union[ReservoirComputingModel, HybridReservoirComputingModel]
 def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("reservoir_model_path", type=str, help="Input Zarr path")
+    parser.add_argument("output_path", type=str, help="Directory to save outputs to")
     parser.add_argument(
         "validation_config_path", type=str, help="Path to validation data config"
     )
@@ -82,6 +90,14 @@ def get_predictions_over_batch(
     return prediction_time_series
 
 
+def time_mean_dataset(variables, arr, label):
+    ds = xr.Dataset()
+    time_mean_error = np.mean(arr, axis=0)
+    for v, var in enumerate(variables):
+        ds[f"{label}_{var}"] = xr.DataArray(time_mean_error[v], dims=["x", "y", "z"])
+    return ds
+
+
 def _get_states_without_overlap(
     states_with_overlap_time_series: Sequence[np.ndarray], overlap: int
 ):
@@ -101,7 +117,7 @@ def main(args):
     val_batches = _load_batches(
         path=val_data_config["url"],
         variables=_get_variables_to_load(model),
-        nfiles=val_data_config["nfiles"],
+        nfiles=val_data_config.get("nfiles", None),
     )
     # Initialize hidden state
     model.reset_state()
@@ -129,15 +145,35 @@ def main(args):
                 states_with_overlap_time_series, overlap=model.rank_divider.overlap
             )
         )
-
     target_time_series = np.concatenate(target_time_series, axis=0)[
         args.n_synchronize :
     ]
-    one_step_prediction_time_series = np.array(one_step_prediction_time_series)[
-        args.n_synchronize :
+
+    persistence = target_time_series[:-1]
+    target = target_time_series[1:]
+    one_step_predictions = np.array(one_step_prediction_time_series)[
+        args.n_synchronize : -1
     ]
-    error = one_step_prediction_time_series - target_time_series
-    del error
+
+    ds_prediction = time_mean_dataset(
+        model.input_variables, target_time_series, "time_mean_prediction"
+    )
+    ds_error = time_mean_dataset(
+        model.input_variables, one_step_predictions - target, "time_mean_error"
+    )
+    ds_persistence_error = time_mean_dataset(
+        model.input_variables, persistence - target, "time_mean_persistence_error"
+    )
+    ds = xr.merge([ds_prediction, ds_persistence_error, ds_error])
+
+    output_file = os.path.join(args.output_path, "offline_diags.nc")
+
+    with NamedTemporaryFile() as tmpfile:
+        ds.to_netcdf(tmpfile.name)
+        vcm.get_fs(args.output_path).put(tmpfile.name, output_file)
+
+    logger.info(f"Saved netcdf output to {output_file}")
+
     # TODO: a following PR will calculate condensed metrics and time averages of the
     # predicted errors
 
