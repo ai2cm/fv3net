@@ -45,11 +45,11 @@ class BatchLinearRegressor:
 
         self.A = np.add(self.A, (np.dot(X.T, X)))
         self.B = np.add(self.B, np.dot(X.T, y))
-        print('updating',A,B)
+        
     def get_weights(self):
         # use_least_squares_solve is useful for simple test cases
         # where np.linalg.solve encounters for singular XT.X
-        print(self.A,self.B)
+        #print(self.A,self.B)
         reg = self.hyperparameters.l2 * np.identity(self.A.shape[1])
 
         if self.A is None and self.B is None:
