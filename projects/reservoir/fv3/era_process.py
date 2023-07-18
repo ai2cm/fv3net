@@ -10,10 +10,25 @@ import glob
 import cftime
 import datetime
 import os
+import argparse
+import os
 
-def main():
-    path = '/home/paulah/data/era5/'
-    variables = ['v_wind']
+FREGRID_EXAMPLE_SOURCE_DATA='gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data/C96/*.nc'
+
+var_id_mapping={'sst':'sst','temp2m': 't2m','u_wind':'u10','v_wind':'v10'}
+
+
+
+def add_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--path",help="path to raw data")
+    parser.add_argument("--variables",nargs='+',help="list of variables to process")
+    return parser.parse_args()
+    
+#raw nc input files are expected to be in path+var+'/downloaded/
+def main(args):
+    path = args.path
+    variables = args.variables
     setup_fregrid()
     for var in variables:
         check_time_steps_complete(path, var)
@@ -27,15 +42,18 @@ def main():
             print(day,' is coarsened.')
             masked = mask(coarsened)
             print(day,' is masked.')
-            masked.to_netcdf(path + var + '/masked/'+var+'_'+day+'.nc') 
+            masked.to_netcdf(path + var + '/masked_test/'+var+'_'+day+'.nc') 
             print(day,' is done.')
             
-def setup_fregrid():
-    #os.system("rm -rf fregrid-example")
-    os.system("mkdir -p fregrid-example/source-data")
+def download_source_data():
+    #os.system("mkdir -p fregrid-example/source-data") #needed?
     os.system("mkdir -p fregrid-example/source-grid-data")
-    os.system("gsutil -m cp gs://vcm-ml-intermediate/2023-06-19-fregrid-example-data/*.nc fregrid-example/source-data/")
-    os.system("gsutil -m cp gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data/C96/*.nc fregrid-example/source-grid-data/")
+    #os.system("gsutil -m cp gs://vcm-ml-intermediate/2023-06-19-fregrid-example-data/*.nc fregrid-example/source-data/") #needed?
+    os.system("gsutil -m cp " + FREGRID_EXAMPLE_SOURCE_DATA +  " fregrid-example/source-grid-data/")
+            
+def setup_fregrid():
+    download_source_data()
+    #create 1x1 grid lat lon grid
     os.system("sudo docker run \
             -v $(pwd)/fregrid-example:/work \
             us.gcr.io/vcm-ml/post_process_run:latest \
@@ -48,7 +66,9 @@ def setup_fregrid():
             --ybnds -90,90 \
             --nlon 720\
             --nlat 362")
-        
+            
+    
+    #create mosaic    
     os.system("sudo docker run \
         -v $(pwd)/fregrid-example:/work \
         us.gcr.io/vcm-ml/post_process_run:latest \
@@ -70,25 +90,28 @@ def check_time_steps_complete(path, var):
     for i,date in enumerate(arrs[1:]):
         if not (arrs[i]+np.timedelta64(1,'D')==date):
             print('missing day after:', arrs[i], i)
+            raise ValueError('Time series has missing days')
     print('all time steps checked.')
     
-def merge_into_file(path,var,i,day):
+def merge_into_file(path,var,day_of_week_index,day):
     #create one file per weekday
     day_sublist = []
     for f in glob.glob(path+ var +'/downloaded/*.nc'):
         dataset = xr.open_dataset(f)
-        for time in range(len(dataset.time)):
-            data_at_day = dataset.isel(time=slice(time,time+1))
-            if data_at_day.time.dt.weekday[0] == i:
-                day_sublist.append(data_at_day)
+        day_of_week_index = i 
+        data_at_day = dataset.isel(time=slice(day_of_week_index, None)).isel(time=slice(None, None, 7))
+        #for time in range(len(dataset.time)):
+          #  data_at_day = dataset.isel(time=slice(time,time+1))
+          #  if data_at_day.time.dt.weekday[0] == i:
+         #       day_sublist.append(data_at_day)
 
-        dataset.close()
-    merged_data = xr.concat(day_sublist,dim='time')
-    sorted_data = merged_data.sortby('time')
+        #dataset.close()
+    #merged_data = xr.concat(day_sublist,dim='time')
+    sorted_data = data_at_day.sortby('time')
     sorted_data.to_netcdf(path + var + '/merged/' + var + '_' + day +'.nc')
-    save_nc_int32_time(path + var + '/merged/'+var+'_'+day+'.nc', '/home/paulah/fregrid-example/'+var+'_'+day+'_i32_time.nc')
-    #os.system("cp "+path+var+"/merged/"+var+"_"+day+"_i32_time.nc /home/paulah/fregrid-example")
-    
+    current_working_directory = os.getcwd()
+    save_nc_int32_time(path + var + '/merged/'+var+'_'+day+'.nc', current_working_directory + '/fregrid-example/'+var+'_'+day+'_i32_time.nc')
+
 def save_nc_int32_time(infile, outfile):
     in_nc = nc.Dataset(infile, "r")
     
@@ -123,14 +146,7 @@ def save_nc_int32_time(infile, outfile):
 
 
 def regrid_to_cubed_sphere(path,var,day):
-    if var == 'temp2m':
-        var_id = 't2m'
-    elif var == 'u_wind':
-        var_id = 'u10'
-    elif var == 'v_wind':
-        var_id = 'v10'
-    else:
-        var_id = var
+    var_id = var_id_mapping[var]
     
     os.system("sudo docker run \
         -v $(pwd)/fregrid-example:/work \
@@ -152,14 +168,9 @@ def coarsen(var,day):
         d['x'] = grid['x']
         new_lis.append(d)
     ds = xr.concat(new_lis,dim='tile')
-    if var == 'sst':
-        cubed = ds.sst
-    elif var == 'temp2m':
-        cubed = ds.t2m
-    elif var == 'u_wind':
-        cubed = ds.u10
-    elif var == 'v_wind':
-        cubed = ds.v10
+    var_id = var_id_mapping[var]
+    cubed = ds[var_id]
+    
     #interpolate nans, because of mitmatch of era5 and c48 land-sea mask mismatch
     cubed = cubed.interpolate_na(dim='x')
     cubed = cubed.interpolate_na(dim='y')
@@ -173,5 +184,6 @@ def mask(coarsened):
         
 
 if __name__ == "__main__":
-    main()
+    args = add_arguments()
+    main(args)
     
