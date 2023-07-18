@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Sequence, Optional, Set
+from typing import Sequence, Optional, Set, Tuple
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -8,7 +8,7 @@ from .._shared.training_config import Hyperparameters
 
 @dataclass
 class CubedsphereSubdomainConfig:
-    layout: Sequence[int]
+    layout: Tuple[int, int]  # TODO? is this type ok?
     overlap: int
     rank_dims: Sequence[str]
 

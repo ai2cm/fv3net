@@ -9,7 +9,6 @@ from .. import Predictor
 from .utils import square_even_terms, process_batch_Xy_data, get_ordered_X
 from .transformers.autoencoder import build_concat_and_scale_only_autoencoder
 from .._shared import register_training_function
-from ._reshaping import concat_inputs_along_subdomain_features
 from . import (
     ReservoirComputingModel,
     HybridReservoirComputingModel,
@@ -17,8 +16,7 @@ from . import (
     ReservoirTrainingConfig,
     ReservoirComputingReadout,
 )
-from .readout import combine_readouts
-from .domain import RankDivider
+from .domain2 import OverlapRankXYDivider
 from ._reshaping import stack_array_preserving_last_dim
 from fv3fit.reservoir.transformers import ReloadableTransfomer
 
@@ -57,17 +55,17 @@ def train_reservoir_model(
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
     rank_extent = sample_X[0].shape[1:-1]
-    rank_divider = RankDivider(
+    rank_divider = OverlapRankXYDivider(
         subdomain_layout=subdomain_config.layout,
-        rank_dims=subdomain_config.rank_dims,
-        rank_extent=rank_extent,
+        overlap_rank_extent=rank_extent,
         overlap=subdomain_config.overlap,
+        z_feature=autoencoder.n_latent_dims,
     )
     # First data dim is time, the rest of the elements of each
     # subdomain+halo are are flattened into feature dimension
     reservoir = Reservoir(
         hyperparameters=hyperparameters.reservoir_hyperparameters,
-        input_size=rank_divider.subdomain_size_with_overlap * autoencoder.n_latent_dims,
+        input_size=rank_divider.flat_subdomain_shape[0],
     )
 
     # One readout is trained per subdomain when iterating over batches,
@@ -80,7 +78,7 @@ def train_reservoir_model(
         time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
-            rank_divider=rank_divider,
+            input_rank_divider=rank_divider,
             autoencoder=autoencoder,
         )
 
@@ -97,7 +95,7 @@ def train_reservoir_model(
             _, hybrid_time_series = process_batch_Xy_data(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
-                rank_divider=rank_divider,
+                input_rank_divider=rank_divider,
                 autoencoder=autoencoder,
             )
         else:
@@ -119,18 +117,19 @@ def train_reservoir_model(
                 n_jobs=hyperparameters.n_jobs,
             )
 
-    subdomain_readouts = []
+    subdomain_readout_coeffs = []
+    subdomain_intercepts = []
     for r, regressor in enumerate(subdomain_regressors):
         logger.info(
             f"Solving for readout weights: readout {r+1}/{len(subdomain_regressors)}"
         )
-
         coefs_, intercepts_ = regressor.get_weights()
+        subdomain_readout_coeffs.append(coefs_)
+        subdomain_intercepts.append(intercepts_)
 
-        subdomain_readouts.append(
-            ReservoirComputingReadout(coefficients=coefs_, intercepts=intercepts_)
-        )
-    readout = combine_readouts(subdomain_readouts)
+    readout = ReservoirComputingReadout(
+        np.array(subdomain_readout_coeffs), np.array(subdomain_intercepts)
+    )
 
     model: Union[ReservoirComputingModel, HybridReservoirComputingModel]
 
@@ -141,7 +140,7 @@ def train_reservoir_model(
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
-            rank_divider=rank_divider,
+            rank_divider=rank_divider,  # type: ignore
             autoencoder=autoencoder,
         )
     else:
@@ -152,7 +151,7 @@ def train_reservoir_model(
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
-            rank_divider=rank_divider,
+            rank_divider=rank_divider,  # type: ignore
             autoencoder=autoencoder,
         )
     return model
@@ -161,6 +160,8 @@ def train_reservoir_model(
 def _get_reservoir_state_time_series(
     X: np.ndarray, input_noise: float, reservoir: Reservoir,
 ) -> np.ndarray:
+    # X is [time, subdomain, feature]
+
     # Initialize hidden state
     if reservoir.state is None:
         reservoir.reset_state(input_shape=X[0].shape)
@@ -174,40 +175,38 @@ def _get_reservoir_state_time_series(
     return np.array(reservoir_state_time_series)
 
 
-def _fit_batch(X_batch, Y_batch, subdomain_index, regressor):
-    # Last dimension is subdomains
-    X_subdomain = X_batch[..., subdomain_index]
-    Y_subdomain = Y_batch[..., subdomain_index]
-    regressor.batch_update(
-        X_subdomain, Y_subdomain,
-    )
-
-
 def _construct_readout_inputs_outputs(
     reservoir_state_time_series,
     prediction_time_series,
     square_even_inputs,
     hybrid_time_series=None,
 ):
-    # X has dimensions [time, reservoir_state, subdomain]
+    # X has dimensions [time, subdomain, reservoir_state]
+    # hybrid has dimension [time, subdomain, hybrid_feature]
     X_batch = reservoir_state_time_series[:-1]
     if square_even_inputs is True:
-        X_batch = square_even_terms(X_batch, axis=1)
+        X_batch = square_even_terms(X_batch, axis=-1)
     if hybrid_time_series is not None:
-        X_batch = concat_inputs_along_subdomain_features(
-            X_batch, hybrid_time_series[:-1]
-        )
-    # Y has dimensions [time, subdomain-feature, subdomain] where feature dimension
-    # has flattened (x, y, encoded-feature) coordinates
+        X_batch = np.concatenate((X_batch, hybrid_time_series[:-1]), axis=-1)
+
+    # Y has dimensions [time, subdomain, flat_subdomain_feature] where feature
+    # dimension has flattened (x, y, encoded-feature) coordinates
     Y_batch = prediction_time_series[1:]
     return X_batch, Y_batch
 
 
 def _fit_batch_over_subdomains(
-    X_batch, Y_batch, subdomain_regressors, n_jobs,
+    X_batch, Y_batch, subdomain_regressors, n_jobs, subdomain_axis=1
 ):
     # Fit a readout to each subdomain's column of training data
+    # X_batch has dimensions [time, subdomain, reservoir_state?]
+    # TODO: what's the efficiency look like here?
+    # TODO: I can move the take into a rank divider function to
+    #      keep the subdomain information scoped within
     Parallel(n_jobs=n_jobs, backend="threading")(
-        delayed(_fit_batch)(X_batch, Y_batch, i, regressor)
+        delayed(regressor.batch_update)(
+            np.take(X_batch, i, axis=subdomain_axis),
+            np.take(Y_batch, i, axis=subdomain_axis),
+        )
         for i, regressor in enumerate(subdomain_regressors)
     )

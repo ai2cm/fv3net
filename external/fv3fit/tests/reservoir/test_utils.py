@@ -42,7 +42,7 @@ def test_process_batch_Xy_data(nz):
     time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
         variables=["a", "b"],
         batch_data=batch_data,
-        rank_divider=rank_divider,
+        input_rank_divider=rank_divider,
         autoencoder=autoencoder,
     )
     features_per_subdomain_with_overlap = (

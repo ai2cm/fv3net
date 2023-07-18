@@ -2,7 +2,7 @@ import fsspec
 import numpy as np
 import os
 import scipy.sparse
-from typing import Sequence
+from typing import Optional, Sequence, cast
 
 from .config import BatchLinearRegressorHyperparameters
 
@@ -19,37 +19,41 @@ class BatchLinearRegressor:
 
     def __init__(self, hyperparameters: BatchLinearRegressorHyperparameters):
         self.hyperparameters = hyperparameters
-        self.A = None
-        self.B = None
+        self.A: Optional[np.ndarray] = None
+        self.B: Optional[np.ndarray] = None
 
     def _add_bias_feature(self, X):
-        return np.concatenate([X, np.ones((X.shape[0], 1))], axis=1)
+        leading_shape = list(X.shape[:-1]) + [1]
+        return np.concatenate([X, np.ones(leading_shape)], axis=1)
 
     def _check_X_last_col_constant(self, X):
-        last_col = X[:, -1]
+        last_col = X[..., -1]
         if not np.allclose(np.unique(last_col), np.array([1.0])):
             raise ValueError(
                 "Last column of X array must all be ones if add_bias_term is False."
             )
 
-    def batch_update(self, X, y):
+    def batch_update(self, X: np.ndarray, y: np.ndarray):
         if self.hyperparameters.add_bias_term:
             X = self._add_bias_feature(X)
         else:
             self._check_X_last_col_constant(X)
 
-        if self.A is None and self.B is None:
-            self.A = np.zeros((X.shape[1], X.shape[1]))
-            self.B = np.zeros((X.shape[1], y.shape[1]))
+        A_update = np.dot(X.T, X)
+        B_update = np.dot(X.T, y)
 
-        self.A = np.add(self.A, (np.dot(X.T, X)))
-        self.B = np.add(self.B, np.dot(X.T, y))
+        if self.A is None and self.B is None:
+            self.A = A_update
+            self.B = B_update
+        else:
+            self.A = np.add(cast(np.ndarray, self.A), A_update)
+            self.B = np.add(cast(np.ndarray, self.B), B_update)
 
     def get_weights(self):
         # use_least_squares_solve is useful for simple test cases
         # where np.linalg.solve encounters for singular XT.X
 
-        reg = self.hyperparameters.l2 * np.identity(self.A.shape[1])
+        reg = self.hyperparameters.l2 * np.identity(self.A.shape[-1])
 
         if self.A is None and self.B is None:
             raise NotFittedError(
@@ -57,9 +61,11 @@ class BatchLinearRegressor:
                 "before solving for weights."
             )
         if self.hyperparameters.use_least_squares_solve:
-            W = np.linalg.lstsq(self.A + reg, self.B)[0]
+            # TODO: not sure if lstsq works with more than 2D?
+            W = np.linalg.lstsq(cast(np.ndarray, self.A) + reg, self.B)[0]
         else:
-            W = np.linalg.solve(self.A + reg, self.B)
+            W = np.linalg.solve(cast(np.ndarray, self.A) + reg, self.B)
+        # TODO: remove elipsis if creating a more specific readout
         coefficients, intercepts = W[:-1, :], W[-1, :]
         return coefficients, intercepts
 

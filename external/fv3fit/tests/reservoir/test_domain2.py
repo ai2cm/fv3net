@@ -49,10 +49,10 @@ def test_get_subdomain():
     # Test with valid input
     divider = RankXYDivider((2, 2), (4, 4))
     subdomain = divider.get_subdomain(rank_domain, 0)
-    assert np.all(subdomain == np.array([[0, 1], [4, 5]]))
+    np.testing.assert_equal(subdomain, np.array([[0, 1], [4, 5]]))
 
     subdomain = divider.get_subdomain(rank_domain, 3)
-    assert np.all(subdomain == np.array([[10, 11], [14, 15]]))
+    np.testing.assert_equal(subdomain, np.array([[10, 11], [14, 15]]))
 
     with pytest.raises(ValueError):
         divider.get_subdomain(rank_domain, 4)
@@ -70,11 +70,11 @@ def test_get_subdomain_with_feature():
     divider = RankXYDivider((2, 2), (4, 4), z_feature=3)
     subdomain = divider.get_subdomain(stacked, 0)
     assert subdomain.shape == (2, 2, 3)
-    assert np.all(subdomain[..., 0] == np.array([[0, 1], [4, 5]]))
-    assert np.all(subdomain[..., 2] == np.array([[2, 3], [6, 7]]))
+    np.testing.assert_equal(subdomain[..., 0], np.array([[0, 1], [4, 5]]))
+    np.testing.assert_equal(subdomain[..., 2], np.array([[2, 3], [6, 7]]))
 
     subdomain = divider.get_subdomain(stacked, 3)
-    assert np.all(subdomain[..., 0] == np.array([[10, 11], [14, 15]]))
+    np.testing.assert_equal(subdomain[..., 0], np.array([[10, 11], [14, 15]]))
 
 
 def test_get_subdomain_with_leading():
@@ -86,11 +86,11 @@ def test_get_subdomain_with_leading():
     divider = RankXYDivider((2, 2), (4, 4))
     subdomain = divider.get_subdomain(stacked, 0)
     assert subdomain.shape == (3, 2, 2)
-    assert np.all(subdomain[0] == np.array([[0, 1], [4, 5]]))
-    assert np.all(subdomain[2] == np.array([[2, 3], [6, 7]]))
+    np.testing.assert_equal(subdomain[0], np.array([[0, 1], [4, 5]]))
+    np.testing.assert_equal(subdomain[2], np.array([[2, 3], [6, 7]]))
 
     subdomain = divider.get_subdomain(stacked, 3)
-    assert np.all(subdomain[0] == np.array([[10, 11], [14, 15]]))
+    np.testing.assert_equal(subdomain[0], np.array([[10, 11], [14, 15]]))
 
 
 def test_get_all_subdomains():
@@ -101,7 +101,20 @@ def test_get_all_subdomains():
 
     assert len(all_subdomains.shape) == 3
     assert len(all_subdomains) == 4
-    assert np.all(all_subdomains[0] == np.array([[0, 1], [4, 5]]))
+    np.testing.assert_equal(all_subdomains[0], np.array([[0, 1], [4, 5]]))
+
+
+def test_get_all_subdomains_with_leading():
+    ntimes = 3
+    rank_domain = np.array([get_4x4_rank_domain()] * ntimes)
+
+    divider = RankXYDivider((2, 2), (4, 4))
+    all_subdomains = divider.get_all_subdomains(rank_domain)
+
+    assert len(all_subdomains.shape) == 4
+    assert len(all_subdomains) == 3
+    assert all_subdomains.shape[1] == 4
+    np.testing.assert_equal(all_subdomains[:, 0], np.array([[[0, 1], [4, 5]]] * ntimes))
 
 
 def test_flatten_subdomain_features():
@@ -144,14 +157,14 @@ def test_merge_all_subdomains():
 
 
 def test_all_subdomain_merge_roundtrip():
-    # Test with valid input
+    # Test with valid input including a leading dimension
     divider = RankXYDivider((2, 2), (10, 20), 3)
-    data = np.random.rand(10, 20, 3)
+    data = np.random.rand(15, 10, 20, 3)
     divided = divider.get_all_subdomains(data)
     divided_flat = divider.flatten_subdomain_features(divided)
     divided_reshaped = divider.reshape_flat_subdomain_features(divided_flat)
     merged = divider.merge_all_subdomains(divided_reshaped)
-    assert np.all(merged == data)
+    np.testing.assert_equal(merged, data)
 
 
 def test_get_overlap_subdomain():
@@ -161,10 +174,10 @@ def test_get_overlap_subdomain():
     # Test with valid input
     divider = OverlapRankXYDivider((2, 2), (4, 4), overlap=1)
     subdomain = divider.get_subdomain(rank_domain, 0)
-    assert np.all(subdomain == np.array([[0, 1, 2], [4, 5, 6], [8, 9, 10]]))
+    np.testing.assert_equal(subdomain, np.array([[0, 1, 2], [4, 5, 6], [8, 9, 10]]))
 
     subdomain = divider.get_subdomain(rank_domain, 3)
-    assert np.all(subdomain == np.array([[5, 6, 7], [9, 10, 11], [13, 14, 15]]))
+    np.testing.assert_equal(subdomain, np.array([[5, 6, 7], [9, 10, 11], [13, 14, 15]]))
 
     with pytest.raises(ValueError):
         divider.get_subdomain(rank_domain, 4)

@@ -98,11 +98,14 @@ class RankXYDivider:
         return data[dim_slices]
 
     def get_all_subdomains(self, data):
-        subdomains_with_new_leading_dim = []
+
+        new_index_dim = -1 * len(self.all_subdomains_shape)
+        subdomains_with_new_dim = []
         for i in range(self.n_subdomains):
             subdomain = self.get_subdomain(data, i)
-            subdomains_with_new_leading_dim.append(subdomain[np.newaxis])
-        return np.concatenate(subdomains_with_new_leading_dim, axis=0)
+            subdomain_newaxis = np.expand_dims(subdomain, axis=new_index_dim)
+            subdomains_with_new_dim.append(subdomain_newaxis)
+        return np.concatenate(subdomains_with_new_dim, axis=new_index_dim)
 
     @property
     def subdomain_shape(self):
@@ -114,6 +117,10 @@ class RankXYDivider:
     @property
     def flat_subdomain_shape(self):
         return [np.prod(self.subdomain_shape)]
+
+    @property
+    def all_subdomains_shape(self):
+        return [self.n_subdomains, *self.subdomain_shape]
 
     def flatten_subdomain_features(self, data):
         feature_shape = self.subdomain_shape
@@ -128,21 +135,16 @@ class RankXYDivider:
         return data.reshape(original_shape)
 
     def merge_all_subdomains(self, data):
-        # [nsubdomains, leading, ..., x, y, (z)]
+        # [leading, nsubdomains, ..., x, y, (z)]
 
-        if data.shape[0] != self.n_subdomains:
-            raise ValueError(
-                f"Expected data to have first dimension of length "
-                "{self.n_subdomains}, but got {data.shape[0]}"
-            )
-
-        _check_feature_dims_consistent(data.shape, self.subdomain_shape)
+        _check_feature_dims_consistent(data.shape, self.all_subdomains_shape)
         rank_extent = self._rank_extent_all_features
-        new_shape = list(data.shape[1 : -len(rank_extent)]) + rank_extent
+        subdomain_axis = -1 * len(self.all_subdomains_shape)
+        new_shape = list(data.shape[:subdomain_axis]) + rank_extent
         merged = np.empty(new_shape, dtype=data.dtype)
 
         for i in range(self.n_subdomains):
-            subdomain = data[i]
+            subdomain = np.take(data, i, axis=subdomain_axis)
             dim_slices = self._get_subdomain_slice(i)
             dim_slices = self._add_potential_leading_dim_to_slices(
                 subdomain.shape, dim_slices
@@ -191,6 +193,9 @@ class OverlapRankXYDivider(RankXYDivider):
         self._y_subdomain_extent = (
             self.rank_extent[1] // self.subdomain_layout[1] + 2 * self.overlap
         )
+
+    def get_no_overlap_rank_xy_divider(self):
+        return RankXYDivider(self.subdomain_layout, self.rank_extent, self._z_feature,)
 
     @property
     def _rank_extent_for_check(self):

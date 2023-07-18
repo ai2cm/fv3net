@@ -2,7 +2,8 @@ import numpy as np
 import tensorflow as tf
 from typing import Iterable, Mapping, Tuple
 from fv3fit.reservoir.transformers import ReloadableTransfomer, encode_columns
-from fv3fit.reservoir.domain import RankDivider, assure_txyz_dims
+from fv3fit.reservoir.domain import assure_txyz_dims
+from fv3fit.reservoir.domain2 import OverlapRankXYDivider
 
 
 def _square_evens(v: np.ndarray) -> np.ndarray:
@@ -26,7 +27,7 @@ def get_ordered_X(X: Mapping[str, tf.Tensor], variables: Iterable[str]):
 def process_batch_Xy_data(
     variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
-    rank_divider: RankDivider,
+    input_rank_divider: OverlapRankXYDivider,
     autoencoder: ReloadableTransfomer,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """ Convert physical state to corresponding reservoir hidden state,
@@ -38,32 +39,14 @@ def process_batch_Xy_data(
     # to latent representation
     batch_data_encoded = encode_columns(batch_X, autoencoder)
 
-    time_series_X_reshaped, time_series_Y_reshaped = [], []
-    for timestep_data in batch_data_encoded:
-        # Divide into subdomains and flatten each subdomain by stacking
-        # x/y/encoded-feature dims into a single subdomain-feature dimension.
-        # Dimensions of a single subdomain's data become [time, subdomain-feature]
-        X_subdomains_as_columns, Y_subdomains_as_columns = [], []
-        for s in range(rank_divider.n_subdomains):
-            X_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-                timestep_data, subdomain_index=s, with_overlap=True,
-            )
-            X_subdomains_as_columns.append(np.reshape(X_subdomain_data, -1))
+    # output has no halo information
+    output_rank_divider = input_rank_divider.get_no_overlap_rank_xy_divider()
 
-            # Prediction does not include overlap
-            Y_subdomain_data = rank_divider.get_subdomain_tensor_slice(
-                timestep_data, subdomain_index=s, with_overlap=False,
-            )
-            Y_subdomains_as_columns.append(np.reshape(Y_subdomain_data, -1))
-        # Concatentate subdomain data arrays along a new subdomain axis.
-        # Dimensions are now [time, subdomain-feature, subdomain]
-        X_reshaped = np.stack(X_subdomains_as_columns, axis=-1)
-        Y_reshaped = np.stack(Y_subdomains_as_columns, axis=-1)
+    X_data = input_rank_divider.get_all_subdomains(batch_data_encoded)
+    Y_data = output_rank_divider.get_all_subdomains(batch_data_encoded)
 
-        time_series_X_reshaped.append(X_reshaped)
-        time_series_Y_reshaped.append(Y_reshaped)
+    # to dims of  time, subdomain, features
+    X_flat = input_rank_divider.flatten_subdomain_features(X_data)
+    Y_flat = output_rank_divider.flatten_subdomain_features(Y_data)
 
-    return (
-        np.stack(time_series_X_reshaped, axis=0),
-        np.stack(time_series_Y_reshaped, axis=0),
-    )
+    return X_flat, Y_flat
