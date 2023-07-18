@@ -13,7 +13,7 @@ import os
 import argparse
 import os
 
-FREGRID_EXAMPLE_SOURCE_DATA='gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data/C96/*.nc'
+FREGRID_EXAMPLE_SOURCE_DATA='gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data/C48/*.nc'
 
 var_id_mapping={'sst':'sst','temp2m': 't2m','u_wind':'u10','v_wind':'v10'}
 
@@ -38,17 +38,15 @@ def main(args):
             print(day,' is merged.')
             regridded = regrid_to_cubed_sphere(path,var,day)
             print(day,' is regridded.')
-            coarsened = coarsen(var,day)
-            print(day,' is coarsened.')
-            masked = mask(coarsened)
+            interpolated = interpolate_nans(var,day)
+            print(day,' is interpolated.')
+            masked = mask(interpolated)
             print(day,' is masked.')
             masked.to_netcdf(path + var + '/masked_test/'+var+'_'+day+'.nc') 
             print(day,' is done.')
             
 def download_source_data():
-    #os.system("mkdir -p fregrid-example/source-data") #needed?
     os.system("mkdir -p fregrid-example/source-grid-data")
-    #os.system("gsutil -m cp gs://vcm-ml-intermediate/2023-06-19-fregrid-example-data/*.nc fregrid-example/source-data/") #needed?
     os.system("gsutil -m cp " + FREGRID_EXAMPLE_SOURCE_DATA +  " fregrid-example/source-grid-data/")
             
 def setup_fregrid():
@@ -98,15 +96,9 @@ def merge_into_file(path,var,day_of_week_index,day):
     day_sublist = []
     for f in glob.glob(path+ var +'/downloaded/*.nc'):
         dataset = xr.open_dataset(f)
-        day_of_week_index = i 
         data_at_day = dataset.isel(time=slice(day_of_week_index, None)).isel(time=slice(None, None, 7))
-        #for time in range(len(dataset.time)):
-          #  data_at_day = dataset.isel(time=slice(time,time+1))
-          #  if data_at_day.time.dt.weekday[0] == i:
-         #       day_sublist.append(data_at_day)
-
-        #dataset.close()
-    #merged_data = xr.concat(day_sublist,dim='time')
+        dataset.close()
+    
     sorted_data = data_at_day.sortby('time')
     sorted_data.to_netcdf(path + var + '/merged/' + var + '_' + day +'.nc')
     current_working_directory = os.getcwd()
@@ -158,9 +150,9 @@ def regrid_to_cubed_sphere(path,var,day):
         --output_file /work/"+var+"_"+day+"_cubed.nc \
         --scalar_field "+var_id)
                 
-def coarsen(var,day):
+def interpolate_nans(var,day):
     dt_lis = [xr.open_dataset(f,decode_times=False) for f in glob.glob('fregrid-example/'+var+'_'+day+'_cubed.*nc')]
-    grid = vcm.catalog.catalog["grid/c96"].to_dask()
+    grid = vcm.catalog.catalog["grid/c48"].to_dask()
     new_lis = []
     for d in dt_lis:
         d = d.rename({"lon": "x", "lat": "y"}) 
@@ -174,8 +166,7 @@ def coarsen(var,day):
     #interpolate nans, because of mitmatch of era5 and c48 land-sea mask mismatch
     cubed = cubed.interpolate_na(dim='x')
     cubed = cubed.interpolate_na(dim='y')
-    coarsened = vcm.cubedsphere.coarsen.weighted_block_average(cubed,grid['area'],2,x_dim='x',y_dim='y')
-    return coarsened
+    return cubed
 
 def mask(coarsened):
     land_sea_mask_c48 = catalog['landseamask/c48'].read()
