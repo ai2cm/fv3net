@@ -73,7 +73,7 @@ def _get_predictions_over_batch(
 ):
     prediction_time_series = []
     n_timesteps = states_with_overlap_time_series[0].shape[0]
-    for t in range(n_timesteps):
+    for t in range(n_timesteps - 1):
         state = [
             variable_time_series[t]
             for variable_time_series in states_with_overlap_time_series
@@ -82,7 +82,7 @@ def _get_predictions_over_batch(
         predict_kwargs = {}
         if hybrid_inputs_time_series is not None:
             predict_kwargs["hybrid_input"] = [
-                variable_time_series[t]
+                variable_time_series[t + 1]
                 for variable_time_series in hybrid_inputs_time_series
             ]
         prediction = model.predict(**predict_kwargs)
@@ -151,8 +151,10 @@ def main(args):
 
     persistence = target_time_series[:-1]
     target = target_time_series[1:]
+
+    # _get_predictions_over_batch predicts up to n_timesteps-1
     one_step_predictions = np.array(one_step_prediction_time_series)[
-        args.n_synchronize : -1
+        args.n_synchronize :
     ]
 
     ds_prediction = _time_mean_dataset(
