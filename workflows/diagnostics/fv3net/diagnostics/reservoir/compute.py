@@ -66,7 +66,7 @@ def _get_variables_to_load(model: ReservoirModel):
         return variables
 
 
-def get_predictions_over_batch(
+def _get_predictions_over_batch(
     model: ReservoirModel,
     states_with_overlap_time_series: Sequence[np.ndarray],
     hybrid_inputs_time_series: Optional[Sequence[np.ndarray]] = None,
@@ -90,7 +90,7 @@ def get_predictions_over_batch(
     return prediction_time_series
 
 
-def time_mean_dataset(variables, arr, label):
+def _time_mean_dataset(variables, arr, label):
     ds = xr.Dataset()
     time_mean_error = np.mean(arr, axis=0)
     for v, var in enumerate(variables):
@@ -135,7 +135,7 @@ def main(args):
             )
         else:
             hybrid_inputs_time_series = None
-        batch_predictions = get_predictions_over_batch(
+        batch_predictions = _get_predictions_over_batch(
             model, states_with_overlap_time_series, hybrid_inputs_time_series
         )
 
@@ -155,13 +155,13 @@ def main(args):
         args.n_synchronize : -1
     ]
 
-    ds_prediction = time_mean_dataset(
+    ds_prediction = _time_mean_dataset(
         model.input_variables, target_time_series, "time_mean_prediction"
     )
-    ds_error = time_mean_dataset(
+    ds_error = _time_mean_dataset(
         model.input_variables, one_step_predictions - target, "time_mean_error"
     )
-    ds_persistence_error = time_mean_dataset(
+    ds_persistence_error = _time_mean_dataset(
         model.input_variables, persistence - target, "time_mean_persistence_error"
     )
     ds = xr.merge([ds_prediction, ds_persistence_error, ds_error])
