@@ -49,9 +49,9 @@ def get_initialized_hybrid_model():
     # multiplied by the number of subdomains since it's a combined readout
     readout = ReservoirComputingReadout(
         coefficients=np.random.rand(
-            state_size * 4 + hybrid_input_size_per_subdomain * 4, output_size * 4
+            4, state_size + hybrid_input_size_per_subdomain, output_size
         ),
-        intercepts=np.random.rand(output_size * 4),
+        intercepts=np.random.rand(4, output_size),
     )
 
     hybrid_predictor = HybridReservoirComputingModel(

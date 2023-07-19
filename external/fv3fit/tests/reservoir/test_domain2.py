@@ -1,5 +1,7 @@
 import numpy as np
 import pytest
+import tempfile
+
 from fv3fit.reservoir.domain2 import (
     _check_feature_dims_consistent,
     RankXYDivider,
@@ -223,6 +225,23 @@ def test_get_overlap_subdomain():
 
     with pytest.raises(ValueError):
         divider.get_subdomain(rank_domain[0:2], 0)
+
+
+@pytest.mark.parameterize(
+    "cls, kwargs",
+    [
+        (RankXYDivider, {}),
+        (RankXYDivider, {"z_feature": 3}),
+        (OverlapRankXYDivider, {"overlap": 1}),
+        (OverlapRankXYDivider, {"overlap": 1, "z_feature": 3}),
+    ],
+)
+def test_dump_load(cls, kwargs):
+    divider = cls((2, 2), (4, 4), **kwargs)
+    with tempfile.NamedTemporaryFile() as tmp:
+        divider.dump(tmp)
+        loaded = cls.load(tmp)
+        assert divider == loaded
 
 
 # TODO: used as a direct comparison, delete when no longer needed

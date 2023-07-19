@@ -69,7 +69,7 @@ class DoNothingAutoencoder(Transformer, Reloadable):
 
 
 def decode_columns(
-    encoded_output: np.ndarray, transformer: Transformer, xy_shape: Sequence[int]
+    encoded_output: np.ndarray, transformer: Transformer
 ) -> Sequence[np.ndarray]:
     """
     Differs from encode_columns as the decoder expects a single input array
@@ -84,9 +84,10 @@ def decode_columns(
         raise ValueError("Unexpected dimension size in decoding operation.")
 
     feature_size = encoded_output.shape[-1]
+    leading_shape = encoded_output.shape[:-1]
     encoded_output = encoded_output.reshape(-1, feature_size)
     decoded = transformer.decode(encoded_output)
-    var_arrays = [arr.reshape(*xy_shape, -1) for arr in decoded]
+    var_arrays = [arr.reshape(*leading_shape, -1) for arr in decoded]
     return var_arrays
 
 

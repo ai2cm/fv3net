@@ -2,6 +2,8 @@ from typing import Tuple, Optional
 
 import pace.util
 import numpy as np
+import fsspec
+import yaml
 
 
 def _check_feature_dims_consistent(data_shape, feature_shape):
@@ -98,6 +100,16 @@ class RankXYDivider:
     def flat_feature_subdomain_axis(self):
         """axis dimension for decomposed subdomains with flattened features"""
         return -2
+
+    def __eq__(self, other):
+        if isinstance(other, RankXYDivider):
+            return (
+                self.subdomain_layout == other.subdomain_layout
+                and self.rank_extent == other.rank_extent
+                and self._z_feature == other._z_feature
+            )
+        else:
+            return False
 
     def _check_extent_divisibility(self):
         if self._x_rank_extent % self.subdomain_layout[0] != 0:
@@ -239,14 +251,31 @@ class RankXYDivider:
         Creates a sequence where the leading dimension is by subdomain.
         """
         if flat_feature:
-            feature_shape = [self.n_subdomains, self.flat_subdomain_len]
             axis = self.flat_feature_subdomain_axis
         else:
-            feature_shape = [self.n_subdomains, *self._subdomain_shape]
             axis = self.subdomain_axis
 
-        _check_feature_dims_consistent(data.shape, feature_shape)
+        if data.shape[axis] != self.n_subdomains:
+            raise ValueError(
+                f"Data must have subdomain axis {axis} with length "
+                f"{self.n_subdomains}: got {data.shape[axis]}"
+            )
         return np.moveaxis(data, axis, 0)
+
+    def dump(self, path):
+        metadata = {
+            "subdomain_layout": self.subdomain_layout,
+            "rank_extent": self.rank_extent,
+            "z_feature": self._z_feature,
+        }
+        with fsspec.open(path, "w") as f:
+            f.write(yaml.dump(metadata))
+
+    @classmethod
+    def load(cls, path):
+        with fsspec.open(path, "r") as f:
+            metadata = yaml.safe_load(f)
+        return cls(**metadata)
 
 
 class OverlapRankXYDivider(RankXYDivider):
@@ -316,6 +345,12 @@ class OverlapRankXYDivider(RankXYDivider):
             self.overlap_rank_extent, self._z_feature
         )
 
+    def __eq__(self, other):
+        if isinstance(other, OverlapRankXYDivider):
+            return self.overlap == other.overlap and super().__eq__(other)
+        else:
+            return False
+
     def _update_slices_with_overlap(self, slices):
         rank_dims = self._rank_dims_all_features
 
@@ -335,3 +370,13 @@ class OverlapRankXYDivider(RankXYDivider):
 
     def merge_all_subdomains(self, data):
         raise NotImplementedError("Merging overlapped subdomains is not supported.")
+
+    def dump(self, path):
+        metadata = {
+            "subdomain_layout": self.subdomain_layout,
+            "rank_extent": self.rank_extent,
+            "overlap": self.overlap,
+            "z_feature": self._z_feature,
+        }
+        with fsspec.open(path, "w") as f:
+            f.write(yaml.dump(metadata))
