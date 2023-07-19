@@ -39,15 +39,12 @@ class BatchLinearRegressor:
         else:
             self._check_X_last_col_constant(X)
 
-        A_update = np.dot(X.T, X)
-        B_update = np.dot(X.T, y)
-
         if self.A is None and self.B is None:
-            self.A = A_update
-            self.B = B_update
-        else:
-            self.A = np.add(cast(np.ndarray, self.A), A_update)
-            self.B = np.add(cast(np.ndarray, self.B), B_update)
+            self.A = np.zeros((X.shape[1], X.shape[1]))
+            self.B = np.zeros((X.shape[1], y.shape[1]))
+
+        self.A = np.add(self.A, np.dot(X.T, X))
+        self.B = np.add(self.B, np.dot(X.T, y))
 
     def get_weights(self):
         # use_least_squares_solve is useful for simple test cases

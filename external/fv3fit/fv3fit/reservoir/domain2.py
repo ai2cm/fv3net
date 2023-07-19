@@ -82,6 +82,7 @@ class RankXYDivider:
 
     @property
     def flat_subdomain_len(self) -> int:
+        """length of flattened trailing feature dimensions of subdomain"""
         return np.prod(self._subdomain_shape)
 
     @property
@@ -95,6 +96,7 @@ class RankXYDivider:
 
     @property
     def flat_feature_subdomain_axis(self):
+        """axis dimension for decomposed subdomains with flattened features"""
         return -2
 
     def _check_extent_divisibility(self):
@@ -201,12 +203,11 @@ class RankXYDivider:
 
         _check_feature_dims_consistent(data.shape, self._all_subdomains_shape)
         rank_extent = self._rank_extent_all_features
-        subdomain_axis = -1 * len(self._all_subdomains_shape)
-        new_shape = list(data.shape[:subdomain_axis]) + rank_extent
+        new_shape = list(data.shape[: self.subdomain_axis]) + rank_extent
         merged = np.empty(new_shape, dtype=data.dtype)
 
         for i in range(self.n_subdomains):
-            subdomain = np.take(data, i, axis=subdomain_axis)
+            subdomain = np.take(data, i, axis=self.subdomain_axis)
             dim_slices = self._get_subdomain_slice(i)
             dim_slices = self._add_potential_leading_dim_to_slices(
                 subdomain.shape, dim_slices
@@ -262,7 +263,7 @@ class OverlapRankXYDivider(RankXYDivider):
         rank_extent: Shape of the tile including the halo (e.g., [52, 52] for a
             C48 grid with overlap 2.)
         overlap: Number of overlap points to include in each subdomain.  Adds
-            2 * overlap to the extent of the subdomain expects the same for the
+            2 * overlap to the extent of the subdomain and expects the same for the
             overall rank extent.
         z_feature: Optional trailing feature dimension.  Always assumed
             to be follow the rank_extent dimensions.
